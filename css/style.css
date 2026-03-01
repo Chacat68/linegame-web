@@ -401,7 +401,7 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  z-index: 9500;
 }
 .modal.hidden { display: none; }
 
@@ -450,6 +450,20 @@ html, body {
 #modal-amount[type=number]               { -moz-appearance: textfield; }
 
 #modal-total { color: var(--accent-gold); font-weight: 600; font-size: 13px; margin-top: 4px; }
+
+#modal-all {
+  width: 100%;
+  padding: 6px 12px;
+  margin-top: 8px;
+  border: 1px solid #44446a;
+  border-radius: 4px;
+  background: #1a2a4a;
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+#modal-all:hover { background: #2a3a5a; }
 
 .modal-actions {
   display: flex;
@@ -985,13 +999,13 @@ html, body {
 
 /* 高亮目标元素 */
 .tut-highlight {
-  position: relative;
+  position: relative !important;
   z-index: 9100 !important;
   box-shadow: 0 0 0 4px var(--accent-cyan),
-              0 0 24px 4px rgba(38, 198, 218, 0.35);
+              0 0 24px 4px rgba(38, 198, 218, 0.35) !important;
   border-radius: var(--radius);
   animation: tut-pulse 1.8s ease-in-out infinite;
-  pointer-events: auto;
+  pointer-events: auto !important;
 }
 
 @keyframes tut-pulse {

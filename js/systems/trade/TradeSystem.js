@@ -113,7 +113,7 @@ export function refuel(state) {
     return { ok: false, msgs: [{ text: '⚡ 燃料已满！', type: 'info' }] };
   }
 
-  const pricePerUnit = Economy.getBuyPrice(state.currentSystem, 'fuel');
+  const pricePerUnit = Economy.getBuyPrice(state.currentSystem, 'fuel', state);
   const canAfford    = Math.floor(state.credits / pricePerUnit);
   const toBuy        = Math.min(Math.ceil(needed), canAfford);
 

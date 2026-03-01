@@ -26,6 +26,12 @@ export function init(onConfirmCb) {
     _refreshTotal();
   });
 
+  document.getElementById('modal-all').addEventListener('click', function () {
+    const inp = document.getElementById('modal-amount');
+    inp.value = parseInt(inp.max) || 0;
+    _refreshTotal();
+  });
+
   document.getElementById('modal-amount').addEventListener('input', _refreshTotal);
 
   document.getElementById('modal-cancel').addEventListener('click', function () {

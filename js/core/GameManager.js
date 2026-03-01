@@ -168,8 +168,8 @@ function _handleTravel(systemId) {
       _state.shipHull = Math.min(_state.maxHull || 100, (_state.shipHull || 100) + _state.autoRepair);
     }
 
-    // 随机事件触发（群星风格）
-    const event = RandomEvent.rollEvent(_state);
+    // 随机事件触发（群星风格）——教程期间不触发
+    const event = Tutorial.isActive() ? null : RandomEvent.rollEvent(_state);
     if (event) {
       EventUI.showEvent(event, function (choiceIndex) {
         _handleEventChoice(choiceIndex);

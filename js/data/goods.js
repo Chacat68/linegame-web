@@ -10,5 +10,5 @@ export const GOODS = [
   { id: 'luxury',     name: '奢侈品', emoji: '💎', basePrice: 90,  desc: '稀有奢华商品'         },
   { id: 'weapons',    name: '武器',   emoji: '⚔',  basePrice: 120, desc: '军用武器装备'         },
   { id: 'medicine',   name: '医药',   emoji: '💊', basePrice: 50,  desc: '医疗用品与药品'       },
-  { id: 'fuel',       name: '燃料',   emoji: '⚡', basePrice: 25,  desc: '飞船推进用燃料'       },
+  { id: 'fuel',       name: '燃料',   emoji: '⚡', basePrice: 4,   desc: '飞船推进用燃料'       },
 ];

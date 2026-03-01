@@ -8,8 +8,10 @@ import * as Tutorial from '../systems/tutorial/TutorialSystem.js';
 let _overlay   = null;  // 半透明遮罩
 let _tooltip   = null;  // 引导提示框
 let _spotEl    = null;  // 当前高亮的 DOM 元素
-let _onAdvance = null;  // 推进回调
-let _onSkip    = null;  // 跳过回调
+let _onAdvance      = null;  // 推进回调
+let _onSkip         = null;  // 跳过回调
+let _stepHandler    = null;  // EventBus 监听器引用
+let _completeHandler = null;
 
 // ---------------------------------------------------------------------------
 // 初始化
@@ -29,14 +31,19 @@ export function init(onAdvanceCb, onSkipCb) {
 
   if (!_overlay || !_tooltip) return;
 
-  // 监听教程事件
-  EventBus.on('tutorial:step', function (data) {
-    _renderStep(data.step, data.index, data.total);
-  });
+  // 防止重复注册（重新开始游戏时 init 会再次调用）
+  if (_stepHandler) EventBus.off('tutorial:step', _stepHandler);
+  if (_completeHandler) EventBus.off('tutorial:complete', _completeHandler);
 
-  EventBus.on('tutorial:complete', function () {
+  _stepHandler = function (data) {
+    _renderStep(data.step, data.index, data.total);
+  };
+  _completeHandler = function () {
     hide();
-  });
+  };
+
+  EventBus.on('tutorial:step', _stepHandler);
+  EventBus.on('tutorial:complete', _completeHandler);
 }
 
 // ---------------------------------------------------------------------------
@@ -56,7 +63,6 @@ function _renderStep(step, index, total) {
   // 构建提示框 HTML
   const isManual     = step.trigger === 'manual';
   const showNext     = isManual;
-  const showSkip     = step.canSkip;
   const actionHint   = !isManual
     ? '<div class="tut-action-hint">👆 请执行上述操作以继续</div>'
     : '';
@@ -76,7 +82,7 @@ function _renderStep(step, index, total) {
     actionHint +
     '<div class="tut-actions">' +
       (showNext ? '<button id="tut-next-btn" class="tut-btn tut-btn-primary">下一步 →</button>' : '') +
-      (showSkip ? '<button id="tut-skip-btn" class="tut-btn tut-btn-secondary">跳过教程</button>' : '') +
+      '<button id="tut-skip-btn" class="tut-btn tut-btn-secondary">跳过教程</button>' +
     '</div>';
 
   // 按钮事件
@@ -99,8 +105,6 @@ function _renderStep(step, index, total) {
     _spotEl = document.querySelector(step.highlight);
     if (_spotEl) {
       _spotEl.classList.add('tut-highlight');
-      // 确保高亮元素可见（在遮罩之上）
-      _spotEl.style.position = _spotEl.style.position || 'relative';
     }
   }
 
