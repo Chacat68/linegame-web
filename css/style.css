@@ -1,0 +1,439 @@
+/* ============================================================
+   Star-Trade: Galactic Year 3045 — Dark Space Theme
+   ============================================================ */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-dark:      #09091a;
+  --bg-panel:     #101028;
+  --bg-card:      #181835;
+  --bg-input:     #0e0e22;
+  --accent-gold:  #FFD700;
+  --accent-blue:  #4fc3f7;
+  --accent-green: #66BB6A;
+  --accent-red:   #EF5350;
+  --accent-cyan:  #26C6DA;
+  --text-primary: #dde0ff;
+  --text-dim:     #8888aa;
+  --border:       #252545;
+  --radius:       6px;
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg-dark);
+  color: var(--text-primary);
+  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 13px;
+  overflow: hidden;
+}
+
+/* ---- Layout ------------------------------------------------------------ */
+#game-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* ---- Header ------------------------------------------------------------ */
+#game-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 14px;
+  background: #080818;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.hdr-title h1 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent-gold);
+  letter-spacing: .5px;
+}
+.hdr-title .subtitle {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+#player-stats {
+  display: flex;
+  gap: 18px;
+}
+.stat-block {
+  text-align: center;
+}
+.stat-label {
+  display: block;
+  font-size: 10px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+.stat-value {
+  font-size: 15px;
+  font-weight: 700;
+}
+.stat-credits  { color: var(--accent-gold); }
+.stat-networth { color: var(--accent-cyan); }
+.stat-day      { color: var(--accent-blue); }
+
+/* Victory progress */
+#empire-bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+#empire-track {
+  width: 120px;
+  height: 6px;
+  background: #202040;
+  border-radius: 3px;
+  overflow: hidden;
+}
+#empire-progress {
+  height: 100%;
+  background: linear-gradient(90deg, #f06292, var(--accent-gold));
+  width: 0%;
+  transition: width .4s;
+}
+#empire-pct { min-width: 28px; text-align: right; }
+
+/* ---- Main area --------------------------------------------------------- */
+#game-main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ---- Map section ------------------------------------------------------- */
+#map-section {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  position: relative;
+}
+
+#map-container {
+  flex: 1;
+  position: relative;
+  cursor: crosshair;
+}
+
+#webgl-canvas,
+#map-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+#map-legend {
+  display: flex;
+  gap: 10px;
+  padding: 4px 10px;
+  background: rgba(0,0,0,.4);
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.legend-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+/* ---- Trade panel ------------------------------------------------------- */
+#trade-panel {
+  width: 320px;
+  flex-shrink: 0;
+  background: var(--bg-panel);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Location bar */
+#location-bar {
+  padding: 8px 12px 6px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-card);
+}
+#current-location {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-gold);
+}
+#location-desc {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+/* Ship mini-stats */
+#ship-mini {
+  display: flex;
+  gap: 8px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.mini-bar-wrap {
+  flex: 1;
+}
+.mini-bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-bottom: 2px;
+}
+.mini-bar-track {
+  height: 5px;
+  background: #1a1a38;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.mini-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width .3s;
+}
+#cargo-fill { background: linear-gradient(90deg, #42a5f5, #1565c0); }
+#fuel-fill  { background: linear-gradient(90deg, #ffca28, #f57f17); }
+
+/* Tabs */
+.tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-dark);
+  flex-shrink: 0;
+}
+.tab-btn {
+  flex: 1;
+  padding: 7px 4px;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 12px;
+  transition: color .2s, border-bottom .2s;
+  border-bottom: 2px solid transparent;
+}
+.tab-btn:hover  { color: var(--text-primary); }
+.tab-btn.active { color: var(--accent-gold); border-bottom-color: var(--accent-gold); }
+
+.tab-content { flex: 1; overflow-y: auto; }
+
+.tab-pane { display: none; padding: 8px 10px; }
+.tab-pane.active { display: block; }
+
+/* Market table */
+#market-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+#market-table th {
+  text-align: left;
+  padding: 4px 4px;
+  color: var(--text-dim);
+  font-weight: 600;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  border-bottom: 1px solid var(--border);
+}
+#market-table td {
+  padding: 5px 4px;
+  border-bottom: 1px solid #12122a;
+  vertical-align: middle;
+}
+#market-table tr:hover td { background: rgba(255,255,255,.03); }
+
+.good-icon { font-size: 14px; margin-right: 3px; }
+.price-low  { color: var(--accent-green); font-weight: 600; }
+.price-high { color: var(--accent-red);   font-weight: 600; }
+.qty-badge {
+  display: inline-block;
+  padding: 1px 5px;
+  background: #222255;
+  border-radius: 8px;
+  font-size: 11px;
+}
+.action-cell { white-space: nowrap; }
+
+.btn-action {
+  padding: 2px 7px;
+  border: 1px solid;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 11px;
+  margin-right: 2px;
+  transition: background .15s;
+}
+.buy-btn  { background: #1b3a1b; border-color: #3a7a3a; color: #80e080; }
+.buy-btn:hover  { background: #2a5a2a; }
+.sell-btn { background: #3a1b1b; border-color: #7a3a3a; color: #e08080; }
+.sell-btn:hover { background: #5a2a2a; }
+
+.btn-refuel {
+  width: 100%;
+  padding: 5px 0;
+  background: #1a2a3a;
+  border: 1px solid #2a4a6a;
+  color: #80c0ff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.btn-refuel:hover { background: #243850; }
+
+/* Cargo pane */
+.empty-note { color: var(--text-dim); font-size: 12px; padding: 8px 0; }
+.cargo-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+  border-bottom: 1px solid #12122a;
+  font-size: 12px;
+}
+.cargo-meta { color: var(--text-dim); font-size: 11px; }
+
+/* Upgrades pane */
+#upgrade-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 0;
+}
+.upg-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid #303060;
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  cursor: pointer;
+  text-align: left;
+  color: var(--text-primary);
+  transition: background .15s, border-color .15s;
+  width: 100%;
+}
+.upg-btn:hover:not(:disabled) { background: #202048; border-color: #5555aa; }
+.upg-btn.purchased { border-color: #336633; background: #0f2010; cursor: default; }
+.upg-btn.locked    { opacity: .45; cursor: not-allowed; }
+.upg-btn.unaffordable { opacity: .6; }
+
+.upg-name { font-weight: 700; font-size: 12px; }
+.upg-desc { font-size: 11px; color: var(--text-dim); }
+.upg-cost { font-size: 11px; color: var(--accent-gold); margin-top: 1px; }
+
+/* ---- Status bar -------------------------------------------------------- */
+#status-bar {
+  flex-shrink: 0;
+  height: 78px;
+  overflow-y: auto;
+  background: #06061a;
+  border-top: 1px solid var(--border);
+  padding: 4px 10px;
+}
+.msg { font-size: 12px; padding: 2px 0; }
+.msg-info    { color: var(--text-dim); }
+.msg-tip     { color: #aaa8ff; }
+.msg-travel  { color: var(--accent-blue); }
+.msg-buy     { color: var(--accent-green); }
+.msg-sell    { color: #ffb74d; }
+.msg-upgrade { color: var(--accent-cyan); }
+.msg-error   { color: var(--accent-red); }
+
+/* ---- Modals ------------------------------------------------------------ */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.modal.hidden { display: none; }
+
+.modal-box {
+  background: var(--bg-card);
+  border: 1px solid #44447a;
+  border-radius: 10px;
+  padding: 20px 24px;
+  min-width: 280px;
+  max-width: 360px;
+}
+.modal-box h3 { font-size: 15px; margin-bottom: 10px; color: var(--accent-gold); }
+.modal-box h2 { font-size: 18px; margin-bottom: 10px; color: var(--accent-gold); }
+.modal-box p  { font-size: 13px; color: var(--text-dim); margin-bottom: 10px; white-space: pre-line; }
+
+.modal-stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0;
+}
+.modal-stepper button {
+  width: 30px; height: 30px;
+  border-radius: 4px;
+  border: 1px solid #444466;
+  background: #1a1a38;
+  color: var(--text-primary);
+  font-size: 18px;
+  cursor: pointer;
+  line-height: 1;
+}
+.modal-stepper button:hover { background: #2a2a55; }
+#modal-amount {
+  width: 60px;
+  text-align: center;
+  background: var(--bg-input);
+  border: 1px solid #44446a;
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 14px;
+  padding: 4px;
+}
+/* Hide number input spinners */
+#modal-amount::-webkit-outer-spin-button,
+#modal-amount::-webkit-inner-spin-button { -webkit-appearance: none; }
+#modal-amount[type=number]               { -moz-appearance: textfield; }
+
+#modal-total { color: var(--accent-gold); font-weight: 600; font-size: 13px; margin-top: 4px; }
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+.btn-primary, .btn-secondary {
+  flex: 1;
+  padding: 8px 0;
+  border-radius: 5px;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+.btn-primary   { background: #3355cc; color: #fff; }
+.btn-primary:hover { background: #4466dd; }
+.btn-secondary { background: #2a2a4a; color: var(--text-dim); border: 1px solid #44446a; }
+.btn-secondary:hover { background: #333360; }
+
+/* Scrollbar */
+::-webkit-scrollbar        { width: 5px; }
+::-webkit-scrollbar-track  { background: transparent; }
+::-webkit-scrollbar-thumb  { background: #33335a; border-radius: 3px; }

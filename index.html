@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>星际贸易帝国 · 银河历 3045</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div id="game-shell">
+
+  <!-- ================================================================
+       Header
+  ================================================================ -->
+  <header id="game-header">
+    <div class="hdr-title">
+      <h1>⭐ 星际贸易帝国</h1>
+      <span class="subtitle">银河历 3045 年</span>
+    </div>
+
+    <div id="player-stats">
+      <div class="stat-block">
+        <span class="stat-label">信用积分</span>
+        <span id="credits" class="stat-value stat-credits">1,000</span>
+      </div>
+      <div class="stat-block">
+        <span class="stat-label">净资产</span>
+        <span id="net-worth" class="stat-value stat-networth">1,000</span>
+      </div>
+      <div class="stat-block">
+        <span class="stat-label">银河历</span>
+        <span id="galactic-day" class="stat-value stat-day">第 1 天</span>
+      </div>
+    </div>
+
+    <div id="empire-bar-wrap" title="商业帝国进度">
+      <span style="font-size:11px;color:#9090b0">帝国进度</span>
+      <div id="empire-track">
+        <div id="empire-progress"></div>
+      </div>
+      <span id="empire-pct" style="font-size:11px;color:#aaa">0%</span>
+    </div>
+  </header>
+
+  <!-- ================================================================
+       Main
+  ================================================================ -->
+  <main id="game-main">
+
+    <!-- Star Map ---------------------------------------------------- -->
+    <section id="map-section">
+      <div id="map-container">
+        <canvas id="webgl-canvas"></canvas>
+        <canvas id="map-canvas"></canvas>
+      </div>
+
+      <div id="map-legend">
+        <span><span class="legend-dot" style="background:#4CAF50"></span>农业</span>
+        <span><span class="legend-dot" style="background:#2196F3"></span>科技</span>
+        <span><span class="legend-dot" style="background:#FF9800"></span>矿业</span>
+        <span><span class="legend-dot" style="background:#E91E63"></span>军事</span>
+        <span><span class="legend-dot" style="background:#9C27B0"></span>商业</span>
+        <span><span class="legend-dot" style="background:#00BCD4"></span>医疗</span>
+        <span><span class="legend-dot" style="background:#607D8B"></span>特殊</span>
+        <span style="margin-left:auto;color:#9090b0;font-size:11px">点击星系前往 · 悬停查看燃料消耗</span>
+      </div>
+    </section>
+
+    <!-- Trade Panel ------------------------------------------------- -->
+    <aside id="trade-panel">
+
+      <!-- Location -->
+      <div id="location-bar">
+        <div id="current-location">📍 太阳主星</div>
+        <div id="location-desc">银河系农业中心，粮食丰产之地</div>
+      </div>
+
+      <!-- Ship mini-stats -->
+      <div id="ship-mini">
+        <div class="mini-bar-wrap">
+          <div class="mini-bar-label">
+            <span>货舱</span>
+            <span id="cargo-text">0 / 20</span>
+          </div>
+          <div class="mini-bar-track"><div id="cargo-fill" class="mini-bar-fill"></div></div>
+        </div>
+        <div class="mini-bar-wrap">
+          <div class="mini-bar-label">
+            <span>燃料</span>
+            <span id="fuel-text">100 / 100</span>
+          </div>
+          <div class="mini-bar-track"><div id="fuel-fill" class="mini-bar-fill"></div></div>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <nav class="tabs">
+        <button class="tab-btn active" data-tab="tab-market">🏪 市场</button>
+        <button class="tab-btn"        data-tab="tab-cargo">📦 货舱</button>
+        <button class="tab-btn"        data-tab="tab-upgrades">⚙️ 升级</button>
+      </nav>
+
+      <div class="tab-content">
+
+        <!-- Market tab -->
+        <div id="tab-market" class="tab-pane active">
+          <table id="market-table">
+            <thead>
+              <tr>
+                <th>商品</th>
+                <th>买入</th>
+                <th>卖出</th>
+                <th>持有</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="market-tbody"></tbody>
+          </table>
+        </div>
+
+        <!-- Cargo tab -->
+        <div id="tab-cargo" class="tab-pane">
+          <div id="cargo-list"></div>
+        </div>
+
+        <!-- Upgrades tab -->
+        <div id="tab-upgrades" class="tab-pane">
+          <div id="upgrade-list"></div>
+        </div>
+
+      </div><!-- /tab-content -->
+    </aside>
+
+  </main>
+
+  <!-- ================================================================
+       Status bar
+  ================================================================ -->
+  <footer id="status-bar">
+    <div id="message-log"></div>
+  </footer>
+
+</div><!-- /game-shell -->
+
+<!-- ================================================================
+     Trade modal
+================================================================ -->
+<div id="trade-modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <h3 id="modal-title">交易</h3>
+    <p  id="modal-desc"></p>
+    <div class="modal-stepper">
+      <button id="modal-decrease" aria-label="减少数量">−</button>
+      <input  id="modal-amount" type="number" min="1" value="1" aria-label="交易数量" />
+      <button id="modal-increase" aria-label="增加数量">+</button>
+    </div>
+    <div id="modal-total"></div>
+    <div class="modal-actions">
+      <button id="modal-confirm" class="btn-primary">确认</button>
+      <button id="modal-cancel"  class="btn-secondary">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================
+     Game-over / Victory modal
+================================================================ -->
+<div id="gameover-modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-box" style="text-align:center">
+    <h2 id="gameover-title">游戏结束</h2>
+    <p  id="gameover-message"></p>
+    <button id="restart-btn" class="btn-primary" style="margin-top:12px">重新开始</button>
+  </div>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/economy.js"></script>
+<script src="js/renderer.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
