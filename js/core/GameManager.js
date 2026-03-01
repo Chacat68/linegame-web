@@ -7,7 +7,6 @@
 
 import * as EventBus   from './EventBus.js';
 import * as Economy    from '../systems/economy/Economy.js';
-import * as AutoTrade  from '../systems/trade/AutoTradeSystem.js';
 import * as Trade      from '../systems/trade/TradeSystem.js';
 import * as RandomEvent from '../systems/event/RandomEvent.js';
 import * as Faction    from '../systems/faction/FactionSystem.js';
@@ -331,6 +330,11 @@ function _handleLoadGame(slotId) {
     Achievement.init(_state);
     Economy.init();
     MapUI.refreshGalaxyBtn(_state);
+    // 恢复派遣状态
+    _stopActiveDispatch();
+    if (Fleet.isActiveDispatched(_state)) {
+      _startActiveDispatch();
+    }
     _updateUI();
     EventBus.emit('log:message', { text: result.msg, type: 'info' });
   } else {
@@ -432,9 +436,15 @@ function _handleBuyShip(shipTypeId) {
 }
 
 function _handleSwitchShip(shipIndex) {
+  // 切换前停止激活船只的自动派遣
+  _stopActiveDispatch();
   Fleet.syncShipFromState(_state);
   const result = Fleet.switchShip(_state, shipIndex);
   _dispatch(result);
+  // 如果新激活的船只已有路线，重新启动派遣
+  if (result && result.ok && Fleet.isActiveDispatched(_state)) {
+    _startActiveDispatch();
+  }
 }
 
 function _handleUpgradeShip(upgradeId) {
@@ -445,120 +455,130 @@ function _handleUpgradeShip(upgradeId) {
 
 function _handleAssignRoute(shipIndex, buySystemId, sellSystemId, goodId) {
   Fleet.syncShipFromState(_state);
+  var isActive = shipIndex === (_state.activeShipIndex || 0);
   const result = Fleet.assignRoute(_state, shipIndex, buySystemId, sellSystemId, goodId);
   _dispatch(result);
+  // 如果是激活船只被派遣，启动自动派遣定时器
+  if (result && result.ok && isActive) {
+    _startActiveDispatch();
+  }
 }
 
 function _handleCancelRoute(shipIndex) {
+  var isActive = shipIndex === (_state.activeShipIndex || 0);
   const result = Fleet.cancelRoute(_state, shipIndex);
+  _dispatch(result);
+  // 如果是激活船只被召回，停止定时器
+  if (isActive) {
+    _stopActiveDispatch();
+  }
+}
+
+function _handleBuySlot() {
+  const result = Fleet.buySlot(_state);
   _dispatch(result);
 }
 
 // ---------------------------------------------------------------------------
-// 自动贸易
+// 激活船只自动派遣（替代原来的全局自动贸易）
 // ---------------------------------------------------------------------------
 
-function _handleAutoTradeToggle() {
-  if (_autoTradeEnabled) {
-    _stopAutoTrade();
-    EventBus.emit('log:message', { text: '⏸️ 自动贸易已暂停。', type: 'info' });
-  } else {
-    _autoTradeEnabled  = true;
-    _autoTradeTarget   = null;
-    _autoTradeInterval = setInterval(_runAutoTradeTick, AUTO_TRADE_TICK_MS);
-    _updateAutoTradeUI();
-    EventBus.emit('log:message', { text: '🤖 自动贸易已启动！每 2 秒执行一次操作。', type: 'info' });
-  }
+function _startActiveDispatch() {
+  _stopActiveDispatch();
+  _activeDispatchInterval = setInterval(_runActiveDispatchTick, ACTIVE_DISPATCH_TICK_MS);
+  _updateActiveDispatchUI();
+  EventBus.emit('log:message', { text: '📡 激活船只已派遣！每 2 秒执行一次操作。', type: 'info' });
 }
 
-function _stopAutoTrade() {
-  if (!_autoTradeEnabled && !_autoTradeInterval) return;
-  _autoTradeEnabled = false;
-  _autoTradeTarget  = null;
-  if (_autoTradeInterval) {
-    clearInterval(_autoTradeInterval);
-    _autoTradeInterval = null;
+function _stopActiveDispatch() {
+  if (_activeDispatchInterval) {
+    clearInterval(_activeDispatchInterval);
+    _activeDispatchInterval = null;
   }
-  _updateAutoTradeUI();
+  _updateActiveDispatchUI();
 }
 
-function _runAutoTradeTick() {
-  // 有弹窗时暂停操作，等待玩家处理
+function _runActiveDispatchTick() {
+  // 有弹窗时暂停
   if (!document.getElementById('event-modal').classList.contains('hidden'))    return;
-  if (!document.getElementById('gameover-modal').classList.contains('hidden')) { _stopAutoTrade(); return; }
+  if (!document.getElementById('gameover-modal').classList.contains('hidden')) { _stopActiveDispatch(); return; }
 
-  const cargoKeys = Object.keys(_state.cargo).filter(function (k) { return (_state.cargo[k] || 0) > 0; });
+  // 检查激活船只是否仍在派遣中
+  if (!Fleet.isActiveDispatched(_state)) {
+    _stopActiveDispatch();
+    return;
+  }
 
-  if (cargoKeys.length > 0) {
-    // 已有货物：寻找最优出售星系并前往出售
-    if (!_autoTradeTarget) {
-      const sell = AutoTrade.findBestSellSystem(_state);
-      if (sell) {
-        _autoTradeTarget = { sellSystemId: sell.systemId, sellSystemName: sell.systemName };
-        EventBus.emit('log:message', {
-          text: '🤖 自动贸易：前往「' + sell.systemName + '」出售货物，预计利润 ' + Math.floor(sell.profit) + ' 积分。',
-          type: 'info',
-        });
+  var result = Fleet.tickActiveShipDispatch(_state);
+
+  // 处理日志
+  result.msgs.forEach(function (m) {
+    EventBus.emit('log:message', { text: m.text, type: m.type });
+  });
+
+  // 需要旅行
+  if (result.needTravel) {
+    // 先补燃料
+    var fuelCost = Economy.getFuelCost(_state.currentSystem, result.needTravel, _state.fuelEfficiency);
+    if (_state.fuel < fuelCost) {
+      var refuelResult = Trade.refuel(_state);
+      _dispatch(refuelResult);
+      if (_state.fuel < fuelCost) {
+        EventBus.emit('log:message', { text: '📡 派遣船只燃料不足，已召回。', type: 'error' });
+        Fleet.cancelActiveDispatch(_state);
+        _stopActiveDispatch();
+        _updateUI();
+        return;
       }
     }
+    _handleTravel(result.needTravel);
+    return;
+  }
 
-    if (_autoTradeTarget) {
-      if (_state.currentSystem === _autoTradeTarget.sellSystemId) {
-        // 已抵达目标星系，出售全部货物
-        const keysToSell = cargoKeys.slice();
-        keysToSell.forEach(function (goodId) {
-          const qty = _state.cargo[goodId] || 0;
-          if (qty > 0) _handleTradeConfirm('sell', goodId, qty);
-        });
-        _autoTradeTarget = null;
-      } else {
-        // 需要前往目标星系——先补燃料
-        const fuelCost = Economy.getFuelCost(_state.currentSystem, _autoTradeTarget.sellSystemId, _state.fuelEfficiency);
-        if (_state.fuel < fuelCost) {
-          const refuelResult = Trade.refuel(_state);
-          _dispatch(refuelResult);
-          if (_state.fuel < fuelCost) {
-            EventBus.emit('log:message', { text: '🤖 自动贸易：燃料不足且积分不够补充，已停止。', type: 'error' });
-            _stopAutoTrade();
-            return;
-          }
-        }
-        _handleTravel(_autoTradeTarget.sellSystemId);
-      }
+  // 需要买入
+  if (result.needBuy) {
+    var route = result.needBuy;
+    var cargoKeys = Object.keys(_state.cargo).filter(function (k) { return (_state.cargo[k] || 0) > 0 && k === route.goodId; });
+    // 买入商品
+    var buyPrice = Economy.getBuyPrice(route.buySystemId, route.goodId, _state);
+    var cargoUsed = Object.values(_state.cargo).reduce(function (s, q) { return s + q; }, 0);
+    var space = _state.maxCargo - cargoUsed;
+    var canAfford = Math.floor(_state.credits / buyPrice);
+    var qty = Math.min(space, canAfford);
+    if (qty > 0) {
+      _handleTradeConfirm('buy', route.goodId, qty);
     }
-  } else {
-    // 货舱为空：寻找最优买入商品及目标
-    _autoTradeTarget = null;
-    const trade = AutoTrade.findBestTrade(_state);
+    // 转入前往卖出地状态
+    var ship = Fleet.getActiveShip(_state);
+    if (ship && ship.route) ship.route.status = 'traveling_sell';
+    _updateUI();
+    return;
+  }
 
-    if (!trade || trade.profit <= 0) {
-      EventBus.emit('log:message', { text: '🤖 自动贸易：当前未找到获利路线，已停止。', type: 'info' });
-      _stopAutoTrade();
-      return;
+  // 需要卖出
+  if (result.needSell) {
+    var routeS = result.needSell;
+    var sellQty = _state.cargo[routeS.goodId] || 0;
+    if (sellQty > 0) {
+      _handleTradeConfirm('sell', routeS.goodId, sellQty);
     }
-
-    EventBus.emit('log:message', {
-      text: '🤖 自动贸易：买入 ' + trade.quantity + ' 单位「' + trade.goodName +
-            '」→「' + trade.sellSystemName + '」，预期利润 ' + Math.floor(trade.profit) + ' 积分。',
-      type: 'info',
-    });
-    _handleTradeConfirm('buy', trade.goodId, trade.quantity);
-    _autoTradeTarget = { sellSystemId: trade.sellSystemId, sellSystemName: trade.sellSystemName };
+    // 循环：重新前往买入地
+    var shipS = Fleet.getActiveShip(_state);
+    if (shipS && shipS.route) shipS.route.status = 'traveling_buy';
+    _updateUI();
+    return;
   }
 }
 
-function _updateAutoTradeUI() {
-  const btn    = document.getElementById('auto-trade-btn');
-  const status = document.getElementById('auto-trade-status');
-  if (!btn) return;
-  if (_autoTradeEnabled) {
-    btn.textContent = '⏸️ 停止自动贸易';
-    btn.classList.add('auto-trade-active');
-    if (status) status.textContent = '运行中…';
+function _updateActiveDispatchUI() {
+  var ctrlDiv = document.getElementById('auto-trade-controls');
+  if (!ctrlDiv) return;
+  if (_activeDispatchInterval) {
+    ctrlDiv.classList.remove('hidden');
+    ctrlDiv.innerHTML = '<span class="dispatch-active-indicator">📡 激活船只派遣中…</span>';
   } else {
-    btn.textContent = '🤖 自动贸易';
-    btn.classList.remove('auto-trade-active');
-    if (status) status.textContent = '';
+    ctrlDiv.classList.add('hidden');
+    ctrlDiv.innerHTML = '';
   }
 }
 
@@ -577,9 +597,9 @@ function _updateUI() {
   FactionUI.render(_state);
   QuestUI.render(_state, _handleAcceptQuest, _handleAbandonQuest);
   AchievementUI.render(_state);
-  FleetUI.render(_state, _handleBuyShip, _handleSwitchShip, _handleUpgradeShip, _handleAssignRoute, _handleCancelRoute);
+  FleetUI.render(_state, _handleBuyShip, _handleSwitchShip, _handleUpgradeShip, _handleAssignRoute, _handleCancelRoute, _handleBuySlot);
   SaveUI.render(_handleSaveGame, _handleLoadGame);
-  _updateAutoTradeUI();
+  _updateActiveDispatchUI();
 }
 
 // ---------------------------------------------------------------------------

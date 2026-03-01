@@ -1294,6 +1294,7 @@ html, body {
   border-bottom: 1px solid #33335a;
   margin-bottom: 6px;
 }
+#auto-trade-controls.hidden { display: none; }
 
 .btn-auto-trade {
   background: rgba(38, 198, 218, 0.12);
@@ -1330,8 +1331,90 @@ html, body {
 }
 
 /* ================================================================
-   Fleet System (船队管理)
+   Fleet System (船队管理 + 席位系统)
 ================================================================ */
+
+/* Slot bar */
+.fleet-slot-bar {
+  display: flex;
+  gap: 6px;
+  padding: 6px 0 8px;
+}
+.fleet-slot {
+  flex: 1;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 2px dashed #33335a;
+  background: #0a0a1e;
+  font-size: 16px;
+  transition: border-color 0.2s, background 0.2s;
+}
+.fleet-slot.slot-owned {
+  border: 2px solid #44446a;
+  background: #12122a;
+}
+.fleet-slot.slot-filled {
+  border-color: var(--accent-gold);
+  background: #1a1828;
+}
+.fleet-slot.slot-locked {
+  opacity: 0.45;
+}
+.slot-ship-icon { font-size: 18px; }
+.slot-empty-icon { font-size: 16px; color: #556; }
+.slot-lock-icon { font-size: 14px; }
+
+.fleet-slot-info {
+  padding: 4px 0 8px;
+  font-size: 11px;
+  color: var(--text-dim);
+  border-bottom: 1px solid #33335a;
+  margin-bottom: 8px;
+}
+.fleet-slot-route-lvl {
+  font-size: 12px;
+  color: var(--accent-cyan);
+  font-weight: 600;
+}
+.fleet-slot-next {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+}
+.fleet-slot-buy-btn {
+  flex-shrink: 0;
+  padding: 4px 12px;
+  font-size: 11px;
+  background: rgba(255, 193, 7, 0.12);
+  border: 1px solid rgba(255, 193, 7, 0.35);
+  border-radius: 4px;
+  color: var(--accent-gold);
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.fleet-slot-buy-btn.slot-can-buy:hover {
+  background: rgba(255, 193, 7, 0.25);
+  box-shadow: 0 2px 8px rgba(255, 193, 7, 0.2);
+}
+.fleet-slot-buy-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Dispatch active indicator */
+.dispatch-active-indicator {
+  font-size: 12px;
+  color: #2196F3;
+  font-weight: 600;
+  animation: auto-trade-pulse 1.8s ease-in-out infinite;
+}
+
 .fleet-section-title {
   font-size: 13px;
   font-weight: 600;
