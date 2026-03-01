@@ -361,7 +361,8 @@ export const RANDOM_EVENTS = [
         effect(state) {
           // 随机传送到一个不同的星系
           const curPlanets = getSystemsByGalaxy(state.currentGalaxy || 'milky_way');
-          const others = curPlanets.filter(p => p.id !== state.currentSystem);
+          const others = curPlanets.filter(p => p.id !== state.currentSystem && (state.playerLevel || 1) >= (p.minLevel || 1));
+          if (others.length === 0) return { msgs: [{ text: '🌀 虫洞畸变了，你留在了原地。', type: 'travel' }] };
           const dest = others[Math.floor(Math.random() * others.length)];
           state.currentSystem = dest.id;
           state.day += 1;

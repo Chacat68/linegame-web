@@ -33,6 +33,7 @@ import * as Tutorial   from '../systems/tutorial/TutorialSystem.js';
 import * as TutorialUI from '../ui/TutorialUI.js';
 import { INITIAL_STATE, VICTORY_NET_WORTH } from '../data/constants.js';
 import { getLevel, getRepRank, PLAYER_LEVELS } from '../data/playerLevels.js';
+import { SYSTEMS } from '../data/systems.js';
 
 let _state     = null;
 let _startTime = null;
@@ -156,6 +157,8 @@ function _handleTravel(systemId) {
     if (result.meta && result.meta.crossGalaxy) {
       MapUI.refreshGalaxyBtn(_state);
     }
+    // 刷新市场位置信息
+    MapUI.refreshMarketLocation(_state);
     // 新手引导：旅行触发
     Tutorial.checkTrigger('travel');
     // 旅行经验 + 声望
@@ -311,6 +314,10 @@ function _handleLoadGame(slotId) {
     if (!_state.currentGalaxy) _state.currentGalaxy = 'milky_way';
     if (!_state.viewingGalaxy) _state.viewingGalaxy = _state.currentGalaxy;
     if (!_state.mapView) _state.mapView = 'planets';
+    // 兼容旧存档：补充玩家等级
+    if (!_state.playerLevel) {
+      _state.playerLevel = getLevel(_state.experience || 0).level;
+    }
     // 重新初始化依赖状态的子系统
     Fleet.init(_state);
     Faction.init(_state);
@@ -335,12 +342,15 @@ function _gainExperience(amount) {
   const newLevel = getLevel(_state.experience);
 
   if (newLevel.level > oldLevel.level) {
+    _state.playerLevel = newLevel.level;
     EventBus.emit('log:message', {
       text: '🎉 升级！你现在是 ' + newLevel.icon + ' ' + newLevel.title + ' (Lv.' + newLevel.level + ')',
       type: 'upgrade',
     });
     // 应用升级奖励
     _applyLevelPerk(newLevel.level);
+    // 提示新解锁的星球
+    _announceNewRoutes(oldLevel.level, newLevel.level);
   }
 }
 
@@ -385,6 +395,24 @@ function _applyLevelPerk(level) {
       _state.techSellBonus = (_state.techSellBonus || 0) + 0.05;
       EventBus.emit('log:message', { text: '✨ 银河商业帝皇加冕！全属性大幅提升！', type: 'upgrade' });
       break;
+  }
+}
+
+/**
+ * 升级时通知玩家新解锁的星球/航线
+ */
+function _announceNewRoutes(oldLvl, newLvl) {
+  const newPlanets = SYSTEMS.filter(function (s) {
+    const ml = s.minLevel || 1;
+    return ml > oldLvl && ml <= newLvl;
+  });
+  if (newPlanets.length > 0) {
+    const names = newPlanets.slice(0, 5).map(function (s) { return s.name; }).join('、');
+    const extra = newPlanets.length > 5 ? ' 等 ' + newPlanets.length + ' 颗星球' : '';
+    EventBus.emit('log:message', {
+      text: '🗺️ 新航线开放！解锁了 ' + names + extra + '！',
+      type: 'info',
+    });
   }
 }
 

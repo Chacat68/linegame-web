@@ -207,8 +207,11 @@ function _openDispatchModal(state, shipIndex, onAssignRoute) {
   sellSelect.innerHTML = '';
   goodSelect.innerHTML = '';
 
-  // 只显示当前星系的星球
-  var galaxyPlanets = getSystemsByGalaxy(state.currentGalaxy || 'milky_way');
+  // 只显示当前星系的已解锁星球
+  var playerLevel = state.playerLevel || 1;
+  var galaxyPlanets = getSystemsByGalaxy(state.currentGalaxy || 'milky_way').filter(function (sys) {
+    return playerLevel >= (sys.minLevel || 1);
+  });
   galaxyPlanets.forEach(function (sys) {
     buySelect.innerHTML  += '<option value="' + sys.id + '">' + sys.name + ' [' + sys.typeLabel + ']</option>';
     sellSelect.innerHTML += '<option value="' + sys.id + '">' + sys.name + ' [' + sys.typeLabel + ']</option>';

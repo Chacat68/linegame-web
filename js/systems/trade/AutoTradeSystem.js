@@ -34,6 +34,8 @@ export function findBestTrade(state) {
       if (sys.id === state.currentSystem) return;
       // 只搜索同星系内的星球
       if (sys.galaxyId !== (state.currentGalaxy || 'milky_way')) return;
+      // 跳过未解锁星球
+      if ((state.playerLevel || 1) < (sys.minLevel || 1)) return;
 
       const sellPrice    = Economy.getSellPrice(sys.id, good.id, state);
       const fuelCost     = Economy.getFuelCost(state.currentSystem, sys.id, state.fuelEfficiency);
@@ -76,6 +78,8 @@ export function findBestSellSystem(state) {
     if (sys.id === state.currentSystem) return;
     // 只搜索同星系内的星球
     if (sys.galaxyId !== (state.currentGalaxy || 'milky_way')) return;
+    // 跳过未解锁星球
+    if ((state.playerLevel || 1) < (sys.minLevel || 1)) return;
 
     let totalRevenue = 0;
     cargoEntries.forEach(function (entry) {

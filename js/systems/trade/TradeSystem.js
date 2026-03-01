@@ -132,6 +132,20 @@ export function refuel(state) {
 }
 
 export function travelTo(state, systemId) {
+  const toSys = findSystem(systemId);
+
+  // 等级锁定检查
+  const playerLevel = state.playerLevel || 1;
+  if (toSys && playerLevel < (toSys.minLevel || 1)) {
+    return {
+      ok: false,
+      msgs: [{
+        text: '🔒 ' + toSys.name + ' 需要等级 ' + toSys.minLevel + ' 才能前往！当前等级：' + playerLevel,
+        type: 'error',
+      }],
+    };
+  }
+
   const cost = Economy.getFuelCost(state.currentSystem, systemId, state.fuelEfficiency);
   if (state.fuel < cost) {
     const dest = findSystem(systemId);
@@ -147,7 +161,6 @@ export function travelTo(state, systemId) {
 
   // 跨星系检查科技
   const fromSys = findSystem(state.currentSystem);
-  const toSys   = findSystem(systemId);
   const crossGalaxy = fromSys && toSys && fromSys.galaxyId !== toSys.galaxyId;
   if (crossGalaxy) {
     if (!state.researchedTechs || !state.researchedTechs.includes('hyperspace_jump')) {

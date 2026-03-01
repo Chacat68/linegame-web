@@ -2,7 +2,7 @@
 // 依赖：data/systems.js, systems/faction/FactionSystem.js
 // 导出：init, renderStars, renderMap, getSystemAtPoint
 
-import { SYSTEMS, GALAXIES, getSystemsByGalaxy, findSystem } from '../data/systems.js';
+import { SYSTEMS, GALAXIES, getSystemsByGalaxy, findSystem, isSystemAccessible } from '../data/systems.js';
 import { FACTIONS } from '../data/factions.js';
 
 let _webglCanvas, _gl, _glProgram;
@@ -282,10 +282,13 @@ function _renderGalaxyMap(ctx, w, h, gameState, time) {
     ctx.fillText(gal.name, x, y + radius + 18);
 
     // 星球数量
-    const count = getSystemsByGalaxy(gal.id).length;
+    const allCount = getSystemsByGalaxy(gal.id).length;
+    const accessCount = getSystemsByGalaxy(gal.id).filter(function (s) {
+      return (gameState.playerLevel || 1) >= (s.minLevel || 1);
+    }).length;
     ctx.fillStyle = gal.color + 'cc';
     ctx.font = '10px "Segoe UI", sans-serif';
-    ctx.fillText(count + ' 星球' + (unlocked ? '' : ' 🔒'), x, y + radius + 30);
+    ctx.fillText(accessCount + '/' + allCount + ' 星球' + (unlocked ? '' : ' 🔒'), x, y + radius + 30);
   });
 }
 
@@ -324,13 +327,20 @@ function _renderPlanetMap(ctx, w, h, gameState, time) {
   });
 
   // --- 航线 ---
-  ctx.strokeStyle = 'rgba(100, 150, 255, 0.10)';
-  ctx.lineWidth = 1;
+  const playerLevel = gameState.playerLevel || 1;
   for (let i = 0; i < planets.length; i++) {
     for (let j = i + 1; j < planets.length; j++) {
       const s1 = planets[i], s2 = planets[j];
       const dist = Math.sqrt((s1.x - s2.x) ** 2 + (s1.y - s2.y) ** 2);
       if (dist < 0.28) {
+        const s1ok = playerLevel >= (s1.minLevel || 1);
+        const s2ok = playerLevel >= (s2.minLevel || 1);
+        if (s1ok && s2ok) {
+          ctx.strokeStyle = 'rgba(100, 150, 255, 0.10)';
+        } else {
+          ctx.strokeStyle = 'rgba(100, 150, 255, 0.03)';
+        }
+        ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(s1.x * w, s1.y * h);
         ctx.lineTo(s2.x * w, s2.y * h);
@@ -362,7 +372,11 @@ function _renderPlanetMap(ctx, w, h, gameState, time) {
     const isCurrent = sys.id === gameState.currentSystem;
     const isHovered = sys.id === gameState.hoveredSystem;
     const isGenerated = sys.generated;
+    const isLocked = !isCurrent && playerLevel < (sys.minLevel || 1);
     const radius = isCurrent ? 10 : (isHovered ? 8 : (isGenerated ? 5 : 7));
+
+    // 已锁定星球半透明
+    if (isLocked) ctx.globalAlpha = 0.3;
 
     // 光晕
     const glowR = radius + 8;
@@ -401,17 +415,19 @@ function _renderPlanetMap(ctx, w, h, gameState, time) {
 
     // 名称（生成星球只在悬停时显示）
     if (!isGenerated || isCurrent || isHovered) {
-      ctx.fillStyle = isCurrent ? '#FFD700' : (isHovered ? '#ffffff' : '#c0c0e0');
+      ctx.fillStyle = isLocked ? '#606080' : (isCurrent ? '#FFD700' : (isHovered ? '#ffffff' : '#c0c0e0'));
       ctx.font = (isCurrent ? 'bold ' : '') + (isGenerated ? '9px' : '10px') + ' "Segoe UI", sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(sys.name, x, y + radius + 12);
+      ctx.fillText(sys.name + (isLocked ? ' 🔒' : ''), x, y + radius + 12);
 
       const faction = FACTIONS.find(function (f) { return f.controlledSystems.includes(sys.id); });
-      const typeText = '[' + sys.typeLabel + ']' + (faction ? ' ' + faction.icon : '');
-      ctx.fillStyle = sys.color + 'aa';
+      const typeText = '[' + sys.typeLabel + ']' + (faction ? ' ' + faction.icon : '') + (isLocked ? ' Lv.' + (sys.minLevel || 1) : '');
+      ctx.fillStyle = isLocked ? '#505060' : (sys.color + 'aa');
       ctx.font = '8px "Segoe UI", sans-serif';
       ctx.fillText(typeText, x, y + radius + 22);
     }
+
+    if (isLocked) ctx.globalAlpha = 1;
   });
 }
 
