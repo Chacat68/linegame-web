@@ -201,16 +201,18 @@ export function switchShip(state, shipIndex) {
 }
 
 /**
- * 为当前激活船只购买升级
+ * 为指定船只购买升级
  * @param {object} state
  * @param {string} upgradeId
+ * @param {number} [shipIndex] 船只索引，默认为激活船只
  * @returns {{ ok: boolean, msgs: Array }}
  */
-export function upgradeShip(state, upgradeId) {
+export function upgradeShip(state, upgradeId, shipIndex) {
   const upg = SHIP_UPGRADES.find(function (u) { return u.id === upgradeId; });
   if (!upg) return { ok: false, msgs: [] };
 
-  const ship = getActiveShip(state);
+  const ship = shipIndex != null ? state.fleet[shipIndex] : getActiveShip(state);
+  if (!ship) return { ok: false, msgs: [{ text: '❌ 无效的船只！', type: 'error' }] };
 
   if (ship.upgrades.includes(upgradeId)) {
     return { ok: false, msgs: [{ text: '⚙️ 该升级已安装！', type: 'error' }] };
@@ -264,8 +266,11 @@ export function upgradeShip(state, upgradeId) {
     ship.fuelEff = Math.max(ship.minFuelEff, ship.fuelEff * upg.effect.fuelEff);
   }
 
-  // 同步到 state
-  syncStateFromShip(state);
+  // 如果升级的是激活船只，同步到 state
+  const actualIndex = shipIndex != null ? shipIndex : state.activeShipIndex;
+  if (actualIndex === state.activeShipIndex) {
+    syncStateFromShip(state);
+  }
 
   return {
     ok: true,

@@ -138,36 +138,32 @@
         <div id="location-desc">银河系农业中心，粮食丰产之地</div>
       </div>
 
-      <!-- Ship mini-stats -->
+      <!-- Fleet Overview -->
       <div id="ship-mini">
-        <div class="mini-bar-wrap">
-          <div class="mini-bar-label">
-            <span>货舱</span>
-            <span id="cargo-text">0 / 20</span>
+        <div class="fleet-overview-row">
+          <div class="fleet-ov-item">
+            <span class="fleet-ov-label">🚢 船只</span>
+            <span id="ov-ship-count" class="fleet-ov-value">1</span>
           </div>
-          <div class="mini-bar-track"><div id="cargo-fill" class="mini-bar-fill"></div></div>
-        </div>
-        <div class="mini-bar-wrap">
-          <div class="mini-bar-label">
-            <span>燃料</span>
-            <span id="fuel-text">100 / 100</span>
+          <div class="fleet-ov-item">
+            <span class="fleet-ov-label">📡 派遣</span>
+            <span id="ov-dispatch-count" class="fleet-ov-value">0</span>
           </div>
-          <div class="mini-bar-track"><div id="fuel-fill" class="mini-bar-fill"></div></div>
-        </div>
-        <div class="mini-bar-wrap">
-          <div class="mini-bar-label">
-            <span>船体</span>
-            <span id="hull-text">100 / 100</span>
+          <div class="fleet-ov-item">
+            <span class="fleet-ov-label">💰 总利润</span>
+            <span id="ov-total-profit" class="fleet-ov-value">0</span>
           </div>
-          <div class="mini-bar-track"><div id="hull-fill" class="mini-bar-fill hull-fill"></div></div>
+          <div class="fleet-ov-item">
+            <span class="fleet-ov-label">📦 贸易</span>
+            <span id="ov-trade-count" class="fleet-ov-value">0</span>
+          </div>
         </div>
       </div>
 
       <!-- Tabs -->
       <nav class="tabs">
         <button class="tab-btn active" data-tab="tab-fleet"    data-tab-group="trade">🚢 船队</button>
-        <button class="tab-btn"        data-tab="tab-upgrades" data-tab-group="trade">⚙️ 升级</button>
-        <button class="tab-btn"        data-tab="tab-cargo"    data-tab-group="trade">📦 货舱</button>
+        <button class="tab-btn"        data-tab="tab-shop"     data-tab-group="trade">🏪 商店</button>
       </nav>
 
       <div class="tab-content">
@@ -178,14 +174,9 @@
           <div id="fleet-list"></div>
         </div>
 
-        <!-- Upgrades tab -->
-        <div id="tab-upgrades" class="tab-pane" data-tab-group="trade">
-          <div id="upgrade-list"></div>
-        </div>
-
-        <!-- Cargo tab -->
-        <div id="tab-cargo" class="tab-pane" data-tab-group="trade">
-          <div id="cargo-list"></div>
+        <!-- Ship Shop tab -->
+        <div id="tab-shop" class="tab-pane" data-tab-group="trade">
+          <div id="shop-list"></div>
         </div>
 
       </div><!-- /tab-content -->
@@ -269,6 +260,19 @@
     <div class="modal-actions">
       <button id="dispatch-confirm" class="btn-primary">确认派遣</button>
       <button id="dispatch-cancel" class="btn-secondary">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================
+     Upgrade modal (船只升级弹窗)
+================================================================ -->
+<div id="upgrade-modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-box upgrade-modal-box">
+    <h3 id="upgrade-modal-title">⚙️ 船只升级</h3>
+    <div id="upgrade-modal-body"></div>
+    <div class="modal-actions">
+      <button id="upgrade-modal-close" class="btn-secondary">关闭</button>
     </div>
   </div>
 </div>

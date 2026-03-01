@@ -44,6 +44,10 @@ export function buyGood(state, goodId, quantity) {
   state.credits        -= totalCost;
   state.cargo[goodId]   = (state.cargo[goodId] || 0) + quantity;
 
+  // 统计商品交易量
+  if (!state.goodsTraded) state.goodsTraded = {};
+  state.goodsTraded[goodId] = (state.goodsTraded[goodId] || 0) + quantity;
+
   // 更新供需
   Economy.onPlayerBuy(state.currentSystem, goodId, quantity);
 
@@ -65,6 +69,15 @@ export function sellGood(state, goodId, quantity) {
   state.credits     += totalEarned;
   state.cargo[goodId] -= quantity;
   if (state.cargo[goodId] <= 0) delete state.cargo[goodId];
+
+  // 统计商品交易量
+  if (!state.goodsTraded) state.goodsTraded = {};
+  state.goodsTraded[goodId] = (state.goodsTraded[goodId] || 0) + quantity;
+
+  // 统计单笔最大利润（简化估算：卖出总价 / 量 - 基础价格为利润）
+  if (totalEarned > (state.maxSingleProfit || 0)) {
+    state.maxSingleProfit = totalEarned;
+  }
 
   // 更新供需
   Economy.onPlayerSell(state.currentSystem, goodId, quantity);

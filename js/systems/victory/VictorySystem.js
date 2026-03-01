@@ -53,6 +53,21 @@ function _getRequirementValue(state, req) {
     case 'completedQuests':
       return (state.completedQuests || []).length;
 
+    case 'fleetSlots':
+      return (state.fleetSlots || 1);
+
+    case 'shipTypes': {
+      var types = {};
+      (state.fleet || []).forEach(function (s) { types[s.typeId] = true; });
+      return Object.keys(types).length;
+    }
+
+    case 'totalProfit':
+      return state.totalProfit || 0;
+
+    case 'day':
+      return state.day || 1;
+
     default:
       return 0;
   }

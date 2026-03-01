@@ -169,6 +169,9 @@ function _handleTravel(systemId) {
     _gainExperience(5);
     _state.reputation = (_state.reputation || 0) + 1;
 
+    // 连续无伤天数追踪（旅行前记录船体值）
+    var _hullBefore = _state.shipHull || 100;
+
     // 任务进度：旅行
     const travelFaction = Faction.getFactionForSystem(_state.currentSystem);
     const questResult = Quest.checkProgress(_state, {
@@ -211,6 +214,13 @@ function _handleTravel(systemId) {
     });
 
     Save.saveGame(0, _state, { isAutosave: true });
+
+    // 连续无伤天数追踪
+    if ((_state.shipHull || 100) >= _hullBefore) {
+      _state.daysWithoutDamage = (_state.daysWithoutDamage || 0) + 1;
+    } else {
+      _state.daysWithoutDamage = 0;
+    }
 
     _updateUI();
   }
@@ -270,10 +280,6 @@ function _handleTradeConfirm(action, goodId, quantity) {
 
     _updateUI();
   }
-}
-
-function _handleBuyUpgrade(upgradeId) {
-  _dispatch(Trade.buyUpgrade(_state, upgradeId));
 }
 
 function _handleRefuel() {
@@ -370,16 +376,24 @@ function _applyLevelPerk(level) {
       EventBus.emit('log:message', { text: '✨ 等级奖励：卖出价格 +3%', type: 'info' });
       break;
     case 4:  // 货舱 +5
-      _state.maxCargo += 5;
-      EventBus.emit('log:message', { text: '✨ 等级奖励：货舱容量 +5', type: 'info' });
+      {
+        const ship4 = Fleet.getActiveShip(_state);
+        if (ship4) ship4.maxCargo = Math.min(ship4.maxCargoCap, ship4.maxCargo + 5);
+        Fleet.syncStateFromShip(_state);
+      }
+      EventBus.emit('log:message', { text: '✨ 等级奖励：当前船只货舱容量 +5', type: 'info' });
       break;
     case 5:  // 买入价格 -3%
       _state.techBuyDiscount = (_state.techBuyDiscount || 0) + 0.03;
       EventBus.emit('log:message', { text: '✨ 等级奖励：买入价格 -3%', type: 'info' });
       break;
     case 6:  // 燃料效率 +10%
-      _state.fuelEfficiency *= 0.9;
-      EventBus.emit('log:message', { text: '✨ 等级奖励：燃料效率 +10%', type: 'info' });
+      {
+        const ship6 = Fleet.getActiveShip(_state);
+        if (ship6) ship6.fuelEff = Math.max(ship6.minFuelEff, ship6.fuelEff * 0.9);
+        Fleet.syncStateFromShip(_state);
+      }
+      EventBus.emit('log:message', { text: '✨ 等级奖励：当前船只燃料效率 +10%', type: 'info' });
       break;
     case 7:  // 所有派系好感 +10
       if (_state.factionRelations) {
@@ -390,19 +404,29 @@ function _applyLevelPerk(level) {
       EventBus.emit('log:message', { text: '✨ 等级奖励：所有派系好感 +10', type: 'info' });
       break;
     case 8:  // 货舱 +10
-      _state.maxCargo += 10;
-      EventBus.emit('log:message', { text: '✨ 等级奖励：货舱容量 +10', type: 'info' });
+      {
+        const ship8 = Fleet.getActiveShip(_state);
+        if (ship8) ship8.maxCargo = Math.min(ship8.maxCargoCap, ship8.maxCargo + 10);
+        Fleet.syncStateFromShip(_state);
+      }
+      EventBus.emit('log:message', { text: '✨ 等级奖励：当前船只货舱容量 +10', type: 'info' });
       break;
     case 9:  // 卖出价格 +5%
       _state.techSellBonus = (_state.techSellBonus || 0) + 0.05;
       EventBus.emit('log:message', { text: '✨ 等级奖励：卖出价格 +5%', type: 'info' });
       break;
     case 10: // 全属性提升
-      _state.maxCargo += 10;
-      _state.maxFuel += 20;
+      {
+        const ship10 = Fleet.getActiveShip(_state);
+        if (ship10) {
+          ship10.maxCargo = Math.min(ship10.maxCargoCap, ship10.maxCargo + 10);
+          ship10.maxFuel  = Math.min(ship10.maxFuelCap, ship10.maxFuel + 20);
+        }
+        Fleet.syncStateFromShip(_state);
+      }
       _state.techBuyDiscount = (_state.techBuyDiscount || 0) + 0.05;
       _state.techSellBonus = (_state.techSellBonus || 0) + 0.05;
-      EventBus.emit('log:message', { text: '✨ 银河商业帝皇加冕！全属性大幅提升！', type: 'upgrade' });
+      EventBus.emit('log:message', { text: '✨ 银河商业帝皇加冕！当前船只全属性大幅提升！', type: 'upgrade' });
       break;
   }
 }
@@ -447,9 +471,9 @@ function _handleSwitchShip(shipIndex) {
   }
 }
 
-function _handleUpgradeShip(upgradeId) {
+function _handleUpgradeShip(shipIndex, upgradeId) {
   Fleet.syncShipFromState(_state);
-  const result = Fleet.upgradeShip(_state, upgradeId);
+  const result = Fleet.upgradeShip(_state, upgradeId, shipIndex);
   _dispatch(result);
 }
 
@@ -590,14 +614,13 @@ function _updateUI() {
   const netWorth = Trade.getNetWorth(_state);
   HUD.updateStats(_state, netWorth);
   MarketUI.render(_state, _handleOpenBuy, _handleOpenSell, _handleRefuel);
-  ShipUI.renderCargo(_state);
-  ShipUI.renderUpgrades(_state, _handleBuyUpgrade);
   ShipUI.renderShipStats(_state);
   ResearchUI.render(_state, _handleStartResearch);
   FactionUI.render(_state);
   QuestUI.render(_state, _handleAcceptQuest, _handleAbandonQuest);
   AchievementUI.render(_state);
   FleetUI.render(_state, _handleBuyShip, _handleSwitchShip, _handleUpgradeShip, _handleAssignRoute, _handleCancelRoute, _handleBuySlot);
+  FleetUI.renderShop(_state, _handleBuyShip);
   SaveUI.render(_handleSaveGame, _handleLoadGame);
   _updateActiveDispatchUI();
 }

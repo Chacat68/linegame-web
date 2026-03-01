@@ -1,8 +1,8 @@
-// js/ui/QuestUI.js — 任务面板 UI
+// js/ui/QuestUI.js — 任务面板 UI（支持进度阶段与解锁条件）
 // 依赖：systems/quest/QuestSystem.js, data/quests.js
 // 导出：render
 
-import { QUEST_TYPES } from '../data/quests.js';
+import { QUEST_TYPES, QUEST_PHASES } from '../data/quests.js';
 import * as Quest      from '../systems/quest/QuestSystem.js';
 
 /**
@@ -16,6 +16,21 @@ export function render(state, onAccept, onAbandon) {
   if (!container) return;
 
   let html = '';
+
+  // ---- 阶段进度概览 ----
+  const phaseProgress = Quest.getQuestPhaseProgress(state);
+  html += '<div class="quest-phase-overview">';
+  phaseProgress.forEach(function (pp) {
+    var isActive = pp.completed < pp.total;
+    var isDone = pp.completed === pp.total && pp.total > 0;
+    var cls = isDone ? 'quest-phase-chip done' : (isActive ? 'quest-phase-chip active' : 'quest-phase-chip');
+    html += '<div class="' + cls + '" title="' + pp.phase.description + '">' +
+      '<span class="phase-icon">' + pp.phase.icon + '</span>' +
+      '<span class="phase-name">' + pp.phase.name + '</span>' +
+      '<span class="phase-progress">' + pp.completed + '/' + pp.total + '</span>' +
+      '</div>';
+  });
+  html += '</div>';
 
   // ---- 当前任务 ----
   const active = Quest.getActiveQuests(state);
@@ -73,10 +88,12 @@ export function render(state, onAccept, onAbandon) {
   } else {
     available.forEach(function (quest) {
       const typeInfo = QUEST_TYPES[quest.type] || {};
+      var phaseLabel = quest.phase ? QUEST_PHASES[quest.phase - 1] : null;
       html += '<div class="quest-card available-quest">' +
         '<div class="quest-card-header">' +
           '<span class="quest-type-badge" style="background:' + (typeInfo.color || '#666') + '">' +
             (typeInfo.icon || '📋') + ' ' + (typeInfo.name || quest.type) + '</span>' +
+          (phaseLabel ? '<span class="quest-phase-label">' + phaseLabel.icon + ' ' + phaseLabel.name + '</span>' : '') +
           (quest.timeLimit > 0 ? '<span class="quest-time">⏰ ' + quest.timeLimit + ' 天限制</span>' : '') +
         '</div>' +
         '<div class="quest-name">' + quest.name + '</div>' +
@@ -88,6 +105,36 @@ export function render(state, onAccept, onAbandon) {
           '<span>🏅 ' + quest.rewards.reputation + '</span>' +
         '</div>' +
         '<button class="btn-action quest-accept-btn" data-id="' + quest.id + '">接取</button>' +
+        '</div>';
+    });
+  }
+
+  // ---- 未解锁任务 ----
+  const locked = Quest.getLockedQuests(state);
+  if (locked.length > 0) {
+    html += '<div class="quest-section-title" style="margin-top:12px">🔒 未解锁 (' + locked.length + ')</div>';
+    locked.forEach(function (quest) {
+      const typeInfo = QUEST_TYPES[quest.type] || {};
+      var phaseLabel = quest.phase ? QUEST_PHASES[quest.phase - 1] : null;
+      html += '<div class="quest-card locked-quest">' +
+        '<div class="quest-card-header">' +
+          '<span class="quest-type-badge" style="background:' + (typeInfo.color || '#666') + '; opacity:0.6">' +
+            (typeInfo.icon || '📋') + ' ' + (typeInfo.name || quest.type) + '</span>' +
+          (phaseLabel ? '<span class="quest-phase-label">' + phaseLabel.icon + ' ' + phaseLabel.name + '</span>' : '') +
+        '</div>' +
+        '<div class="quest-name" style="opacity:0.7">🔒 ' + quest.name + '</div>' +
+        '<div class="quest-desc" style="opacity:0.5">' + quest.description + '</div>' +
+        '<div class="quest-lock-reasons">';
+      quest.lockReasons.forEach(function (reason) {
+        html += '<div class="quest-lock-reason">⚠️ ' + reason + '</div>';
+      });
+      html += '</div>' +
+        '<div class="quest-rewards" style="opacity:0.5">' +
+          '<span>🎁</span>' +
+          '<span>💰 ' + quest.rewards.credits + '</span>' +
+          '<span>⭐ ' + quest.rewards.exp + '</span>' +
+          '<span>🏅 ' + quest.rewards.reputation + '</span>' +
+        '</div>' +
         '</div>';
     });
   }
@@ -116,6 +163,8 @@ function _objectiveText(obj) {
       return '运送 ' + obj.goodId + ' 到 ' + obj.targetSystem;
     case 'buy_at':
       return '在 ' + obj.targetSystem + ' 购买 ' + obj.goodId;
+    case 'sell_at':
+      return '在 ' + obj.targetSystem + ' 卖出 ' + obj.goodId;
     case 'earn_profit':
       return '累计赚取利润';
     case 'trade_count':
@@ -130,6 +179,12 @@ function _objectiveText(obj) {
       return '在派系区域交易';
     case 'sell_in_faction':
       return '在派系区域卖出 ' + obj.goodId;
+    case 'faction_relation':
+      return '提升与派系关系';
+    case 'survive_days':
+      return '星际航行天数';
+    case 'galaxy_jump':
+      return '跨星系跃迁';
     default:
       return '完成目标';
   }

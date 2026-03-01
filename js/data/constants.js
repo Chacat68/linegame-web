@@ -40,6 +40,10 @@ export const INITIAL_STATE = {
   // 统计
   tradeCount:        0,
   totalProfit:       0,
+  maxSingleProfit:   0,
+  goodsTraded:       {},     // { goodId: totalQuantity }
+  totalEvents:       0,      // 随机事件总次数
+  daysWithoutDamage: 0,      // 连续未受伤天数
 
   // 玩家等级
   playerLevel:       1,

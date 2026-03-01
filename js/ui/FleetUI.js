@@ -13,7 +13,7 @@ import * as Economy from '../systems/economy/Economy.js';
  * @param {object}   state
  * @param {Function} onBuyShip      (shipTypeId) => void
  * @param {Function} onSwitchShip   (shipIndex)  => void
- * @param {Function} onUpgradeShip  (upgradeId)  => void
+ * @param {Function} onUpgradeShip  (shipIndex, upgradeId)  => void
  * @param {Function} onAssignRoute  (shipIndex, buySystemId, sellSystemId, goodId) => void
  * @param {Function} onCancelRoute  (shipIndex) => void
  * @param {Function} onBuySlot      () => void
@@ -37,10 +37,19 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
     var slotDef = FLEET_SLOTS[si];
     var isOwned = si < slotCount;
     var hasShip = si < fleet.length;
+    var isSlotActive = si === activeIdx;
     html += '<div class="fleet-slot' + (isOwned ? ' slot-owned' : ' slot-locked') +
-            (hasShip ? ' slot-filled' : '') + '" title="' + slotDef.name + '">';
+            (hasShip ? ' slot-filled' : '') +
+            (isSlotActive ? ' slot-active' : '') + '" title="' + slotDef.name + '">';
     if (hasShip) {
       html += '<span class="slot-ship-icon">' + fleet[si].emoji + '</span>';
+      if (isSlotActive) {
+        html += '<span class="slot-active-label">操控</span>';
+      } else if (!fleet[si].route) {
+        html += '<button class="slot-switch-btn" data-slot-index="' + si + '" title="切换操控此船">🔄</button>';
+      } else {
+        html += '<span class="slot-dispatch-label">派遣</span>';
+      }
     } else if (isOwned) {
       html += '<span class="slot-empty-icon">＋</span>';
     } else {
@@ -92,6 +101,35 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
     html += '<div class="fleet-stat">🔧 耗油×' + ship.fuelEff.toFixed(2) + '<span class="fleet-cap">最低' + ship.minFuelEff + '</span></div>';
     html += '</div>';
 
+    // ======== 货舱内容 ========
+    html += '<div class="fleet-ship-cargo-section">';
+    html += '<div class="fleet-cargo-header">📦 货舱 (' + cargoUsed + '/' + ship.maxCargo + ')</div>';
+    const cargoEntries = Object.entries(ship.cargo);
+    if (cargoEntries.length === 0) {
+      html += '<div class="fleet-cargo-empty">— 空 —</div>';
+    } else {
+      html += '<div class="fleet-cargo-chips">';
+      cargoEntries.forEach(function (entry) {
+        const good = GOODS.find(function (g) { return g.id === entry[0]; });
+        html += '<span class="fleet-cargo-chip">' + (good ? good.emoji + ' ' + good.name : entry[0]) + ' ×' + entry[1] + '</span>';
+      });
+      html += '</div>';
+    }
+    html += '</div>';
+
+    // ======== 升级按钮 ========
+    const installedUpgs = SHIP_UPGRADES.filter(function (u) { return ship.upgrades.includes(u.id); });
+    const availableUpgs = SHIP_UPGRADES.filter(function (u) { return !ship.upgrades.includes(u.id); });
+    html += '<div class="fleet-ship-upg-section">';
+    if (availableUpgs.length > 0) {
+      html += '<button class="fleet-open-upg-btn" data-ship-index="' + idx + '">' +
+              '⚙️ 升级 (' + installedUpgs.length + '/' + (installedUpgs.length + availableUpgs.length) + ')' +
+              '</button>';
+    } else {
+      html += '<span class="fleet-upg-all-done-inline">⚙️ 全部升级已安装 ✅</span>';
+    }
+    html += '</div>';
+
     // 派遣路线状态（所有已派遣的船只，包括激活船只）
     if (ship.route) {
       const busSys  = SYSTEMS.find(function (s) { return s.id === ship.route.buySystemId; });
@@ -129,10 +167,76 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
     html += '</div>';
   });
 
-  // ========== 船只商店 ==========
-  html += '<div class="fleet-section-title" style="margin-top:12px">🏪 船只商店</div>';
+  container.innerHTML = html;
+
+  // ========== 绑定事件 ==========
+
+  // 席位购买
+  container.querySelectorAll('.fleet-slot-buy-btn.slot-can-buy').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      if (onBuySlot) onBuySlot();
+    });
+  });
+
+  container.querySelectorAll('.fleet-switch-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      onSwitchShip(parseInt(btn.dataset.index));
+    });
+  });
+
+  // 席位栏切换按钮
+  container.querySelectorAll('.slot-switch-btn').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      onSwitchShip(parseInt(btn.dataset.slotIndex));
+    });
+  });
+
+  // 升级弹窗按钮
+  container.querySelectorAll('.fleet-open-upg-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      _openUpgradeModal(state, parseInt(btn.dataset.shipIndex), onUpgradeShip);
+    });
+  });
+
+  // 派遣按钮 → 打开派遣配置弹窗（所有船只，包括激活船只）
+  container.querySelectorAll('.fleet-dispatch-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      _openDispatchModal(state, parseInt(btn.dataset.index), onAssignRoute);
+    });
+  });
+
+  // 召回按钮
+  container.querySelectorAll('.fleet-cancel-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      onCancelRoute(parseInt(btn.dataset.index));
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// 船只商店（独立标签页）
+// ---------------------------------------------------------------------------
+
+/**
+ * 渲染船只商店标签页
+ * @param {object}   state
+ * @param {Function} onBuyShip (shipTypeId) => void
+ */
+export function renderShop(state, onBuyShip) {
+  const container = document.getElementById('shop-list');
+  if (!container) return;
 
   var hasAvailableSlot = Fleet.getAvailableSlotCount(state) > 0;
+  var slotCount = Fleet.getSlotCount(state);
+  var maxSlots  = Fleet.getMaxSlots();
+  var fleetLen  = Fleet.getFleet(state).length;
+
+  var html = '';
+
+  html += '<div class="fleet-section-title">🏪 船只商店</div>';
+  html += '<div class="shop-slot-hint">🎫 席位：' + fleetLen + '/' + slotCount +
+          (hasAvailableSlot ? ' — 可购买新船' : ' — 席位已满，需先购买席位') + '</div>';
 
   SHIP_TYPES.forEach(function (st) {
     const canAfford = state.credits >= st.cost;
@@ -162,80 +266,108 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
     html += '</div>';
   });
 
-  // ========== 当前船只升级 ==========
-  const activeShip = Fleet.getActiveShip(state);
-  html += '<div class="fleet-section-title" style="margin-top:12px">⚙️ 「' + activeShip.name + '」升级</div>';
-
-  SHIP_UPGRADES.forEach(function (upg) {
-    const installed = activeShip.upgrades.includes(upg.id);
-    const prereqOk  = !upg.requires || activeShip.upgrades.includes(upg.requires);
-    const canAfford = state.credits >= upg.cost;
-
-    let atCap = false;
-    if (upg.effect.cargo && activeShip.maxCargo + upg.effect.cargo > activeShip.maxCargoCap) atCap = true;
-    if (upg.effect.maxFuel && activeShip.maxFuel + upg.effect.maxFuel > activeShip.maxFuelCap) atCap = true;
-    if (upg.effect.hull && activeShip.maxHull + upg.effect.hull > activeShip.maxHullCap) atCap = true;
-    if (upg.effect.fuelEff && activeShip.fuelEff * upg.effect.fuelEff < activeShip.minFuelEff) atCap = true;
-
-    let cls = 'fleet-upg-btn';
-    if (installed) cls += ' fleet-upg-installed';
-    else if (!prereqOk) cls += ' fleet-upg-locked';
-    else if (atCap) cls += ' fleet-upg-capped';
-    else if (!canAfford) cls += ' fleet-upg-poor';
-
-    html += '<button class="' + cls + '"' +
-      (installed || !prereqOk || atCap ? ' disabled' : '') +
-      ' data-upgrade="' + upg.id + '">';
-    html += '<span class="upg-name">' + upg.name + '</span>';
-    html += '<span class="upg-desc">' + (installed ? '✅ 已安装' : atCap ? '🚫 已达上限' : upg.desc) + '</span>';
-    if (!installed && !atCap) {
-      html += '<span class="upg-cost">' + upg.cost.toLocaleString() + ' 积分</span>';
-    }
-    html += '</button>';
-  });
-
   container.innerHTML = html;
 
-  // ========== 绑定事件 ==========
-
-  // 席位购买
-  container.querySelectorAll('.fleet-slot-buy-btn.slot-can-buy').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      if (onBuySlot) onBuySlot();
-    });
-  });
-
-  container.querySelectorAll('.fleet-switch-btn').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      onSwitchShip(parseInt(btn.dataset.index));
-    });
-  });
-
+  // 绑定购买事件
   container.querySelectorAll('.fleet-can-buy').forEach(function (btn) {
     btn.addEventListener('click', function () {
       onBuyShip(btn.dataset.type);
     });
   });
+}
 
-  container.querySelectorAll('.fleet-upg-btn:not([disabled])').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      onUpgradeShip(btn.dataset.upgrade);
-    });
-  });
+// ---------------------------------------------------------------------------
+// 升级弹窗
+// ---------------------------------------------------------------------------
 
-  // 派遣按钮 → 打开派遣配置弹窗（所有船只，包括激活船只）
-  container.querySelectorAll('.fleet-dispatch-btn').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      _openDispatchModal(state, parseInt(btn.dataset.index), onAssignRoute);
-    });
-  });
+function _openUpgradeModal(state, shipIndex, onUpgradeShip) {
+  var modal = document.getElementById('upgrade-modal');
+  if (!modal) return;
 
-  // 召回按钮
-  container.querySelectorAll('.fleet-cancel-btn').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      onCancelRoute(parseInt(btn.dataset.index));
+  var ship = state.fleet[shipIndex];
+
+  function _renderModal() {
+    document.getElementById('upgrade-modal-title').textContent =
+      '⚙️ ' + ship.emoji + ' ' + ship.name + ' — 升级';
+
+    var body = document.getElementById('upgrade-modal-body');
+    var html = '';
+
+    // 已安装升级
+    var installed = SHIP_UPGRADES.filter(function (u) { return ship.upgrades.includes(u.id); });
+    if (installed.length > 0) {
+      html += '<div class="upg-modal-section-title">已安装</div>';
+      html += '<div class="upg-modal-installed">';
+      installed.forEach(function (u) {
+        html += '<span class="upg-modal-chip-done">✅ ' + u.name + '</span>';
+      });
+      html += '</div>';
+    }
+
+    // 可购买升级
+    var available = SHIP_UPGRADES.filter(function (u) { return !ship.upgrades.includes(u.id); });
+    if (available.length > 0) {
+      html += '<div class="upg-modal-section-title">可购买</div>';
+      html += '<div class="upg-modal-list">';
+      available.forEach(function (upg) {
+        var prereqOk  = !upg.requires || ship.upgrades.includes(upg.requires);
+        var canAfford = state.credits >= upg.cost;
+
+        var atCap = false;
+        if (upg.effect.cargo && ship.maxCargo + upg.effect.cargo > ship.maxCargoCap) atCap = true;
+        if (upg.effect.maxFuel && ship.maxFuel + upg.effect.maxFuel > ship.maxFuelCap) atCap = true;
+        if (upg.effect.hull && ship.maxHull + upg.effect.hull > ship.maxHullCap) atCap = true;
+        if (upg.effect.fuelEff && ship.fuelEff * upg.effect.fuelEff < ship.minFuelEff) atCap = true;
+
+        var disabled = !prereqOk || atCap;
+        var cls = 'upg-modal-item';
+        if (!prereqOk) cls += ' upg-modal-locked';
+        else if (atCap) cls += ' upg-modal-capped';
+        else if (!canAfford) cls += ' upg-modal-poor';
+
+        html += '<div class="' + cls + '">';
+        html += '<div class="upg-modal-item-info">';
+        html += '<div class="upg-modal-item-name">' + upg.name + '</div>';
+        html += '<div class="upg-modal-item-desc">' + (atCap ? '🚫 已达上限' : upg.desc) + '</div>';
+        if (!prereqOk) {
+          var reqUpg = SHIP_UPGRADES.find(function (u) { return u.id === upg.requires; });
+          html += '<div class="upg-modal-item-prereq">🔒 需要先安装: ' + (reqUpg ? reqUpg.name : upg.requires) + '</div>';
+        }
+        html += '</div>';
+        if (!disabled) {
+          html += '<button class="upg-modal-buy-btn' + (canAfford ? '' : ' upg-modal-no-afford') + '"' +
+                  (canAfford ? '' : ' disabled') +
+                  ' data-upgrade="' + upg.id + '">' +
+                  (canAfford ? '💰 ' + upg.cost.toLocaleString() : '积分不足 ' + upg.cost.toLocaleString()) +
+                  '</button>';
+        }
+        html += '</div>';
+      });
+      html += '</div>';
+    } else {
+      html += '<div class="upg-modal-all-done">🏆 全部升级已安装！</div>';
+    }
+
+    body.innerHTML = html;
+
+    // 绑定购买
+    body.querySelectorAll('.upg-modal-buy-btn:not([disabled])').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        onUpgradeShip(shipIndex, btn.dataset.upgrade);
+        // 购买后刷新弹窗内容
+        setTimeout(function () { _renderModal(); }, 50);
+      });
     });
-  });
+  }
+
+  _renderModal();
+
+  // 关闭
+  document.getElementById('upgrade-modal-close').onclick = function () {
+    modal.classList.add('hidden');
+  };
+
+  modal.classList.remove('hidden');
 }
 
 // ---------------------------------------------------------------------------

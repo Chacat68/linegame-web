@@ -7,7 +7,7 @@
  * condition: (state) => boolean — 检查是否满足解锁条件
  */
 export const ACHIEVEMENTS = [
-  // ========== 贸易成就 ==========
+  // ========== 贸易成就 (8) ==========
   {
     id: 'first_trade',
     name: '初次交易',
@@ -44,8 +44,44 @@ export const ACHIEVEMENTS = [
     condition: function (state) { return (state.tradeCount || 0) >= 100; },
     reward: { credits: 3000 },
   },
+  {
+    id: 'trade_200',
+    name: '贸易之王',
+    description: '累计完成 200 笔交易。',
+    icon: '👑',
+    category: 'trade',
+    condition: function (state) { return (state.tradeCount || 0) >= 200; },
+    reward: { credits: 5000, exp: 100 },
+  },
+  {
+    id: 'trade_500',
+    name: '交易机器',
+    description: '累计完成 500 笔交易，你的交易量已经超越了大多数星系的GDP。',
+    icon: '🤖',
+    category: 'trade',
+    condition: function (state) { return (state.tradeCount || 0) >= 500; },
+    reward: { credits: 10000, exp: 200 },
+  },
+  {
+    id: 'trade_1000',
+    name: '永不停歇',
+    description: '累计完成 1000 笔交易。交易就是呼吸。',
+    icon: '♾️',
+    category: 'trade',
+    condition: function (state) { return (state.tradeCount || 0) >= 1000; },
+    reward: { credits: 25000, exp: 500 },
+  },
+  {
+    id: 'single_trade_profit',
+    name: '暴利一笔',
+    description: '单笔交易利润超过 2,000 信用积分。',
+    icon: '💥',
+    category: 'trade',
+    condition: function (state) { return (state.maxSingleProfit || 0) >= 2000; },
+    reward: { credits: 1000, exp: 50 },
+  },
 
-  // ========== 财富成就 ==========
+  // ========== 财富成就 (7) ==========
   {
     id: 'credits_5000',
     name: '小有积蓄',
@@ -73,15 +109,51 @@ export const ACHIEVEMENTS = [
     condition: function (state) { return state.credits >= 30000; },
     reward: { exp: 100 },
   },
+  {
+    id: 'credits_50000',
+    name: '星际财阀',
+    description: '信用积分达到 50,000。',
+    icon: '🏰',
+    category: 'wealth',
+    condition: function (state) { return state.credits >= 50000; },
+    reward: { exp: 150 },
+  },
+  {
+    id: 'credits_100000',
+    name: '百万富翁',
+    description: '信用积分达到 100,000。',
+    icon: '💍',
+    category: 'wealth',
+    condition: function (state) { return state.credits >= 100000; },
+    reward: { exp: 250 },
+  },
+  {
+    id: 'credits_200000',
+    name: '银河首富',
+    description: '信用积分达到 200,000。富可敌国已经不足以描述你了。',
+    icon: '🌟',
+    category: 'wealth',
+    condition: function (state) { return state.credits >= 200000; },
+    reward: { exp: 500 },
+  },
+  {
+    id: 'total_profit_100000',
+    name: '利润猎手',
+    description: '累计贸易利润达到 100,000 信用积分。',
+    icon: '📈',
+    category: 'wealth',
+    condition: function (state) { return (state.totalProfit || 0) >= 100000; },
+    reward: { credits: 5000, exp: 150 },
+  },
 
-  // ========== 探索成就 ==========
+  // ========== 探索成就 (8) ==========
   {
     id: 'explore_5',
     name: '星际旅人',
     description: '到过 5 个不同的星系旅行。',
     icon: '🚀',
     category: 'explore',
-    condition: function (state) { return (state.day || 1) >= 10; }, // 简化：旅行 10 天
+    condition: function (state) { return (state.day || 1) >= 10; },
     reward: { credits: 200 },
   },
   {
@@ -102,8 +174,53 @@ export const ACHIEVEMENTS = [
     condition: function (state) { return (state.day || 1) >= 100; },
     reward: { credits: 2000, exp: 100 },
   },
+  {
+    id: 'survive_200',
+    name: '不朽行者',
+    description: '在银河中存活 200 天。',
+    icon: '⏳',
+    category: 'explore',
+    condition: function (state) { return (state.day || 1) >= 200; },
+    reward: { credits: 4000, exp: 200 },
+  },
+  {
+    id: 'survive_500',
+    name: '时间之主',
+    description: '在银河中存活 500 天。时间在你面前不过是数字。',
+    icon: '🕰️',
+    category: 'explore',
+    condition: function (state) { return (state.day || 1) >= 500; },
+    reward: { credits: 10000, exp: 500 },
+  },
+  {
+    id: 'visit_systems_20',
+    name: '星图测绘员',
+    description: '访问 20 颗不同的星球。',
+    icon: '🗺️',
+    category: 'explore',
+    condition: function (state) { return (state.visitedSystems || []).length >= 20; },
+    reward: { credits: 1000, exp: 40 },
+  },
+  {
+    id: 'visit_systems_100',
+    name: '宇宙漫游者',
+    description: '访问 100 颗不同的星球。',
+    icon: '🪐',
+    category: 'explore',
+    condition: function (state) { return (state.visitedSystems || []).length >= 100; },
+    reward: { credits: 5000, exp: 150 },
+  },
+  {
+    id: 'visit_all_galaxies',
+    name: '跨星系先驱',
+    description: '访问全部 8 个星系。',
+    icon: '🌌',
+    category: 'explore',
+    condition: function (state) { return (state.visitedGalaxies || []).length >= 8; },
+    reward: { credits: 8000, exp: 300 },
+  },
 
-  // ========== 科技成就 ==========
+  // ========== 科技成就 (5) ==========
   {
     id: 'first_research',
     name: '科技先驱',
@@ -123,16 +240,37 @@ export const ACHIEVEMENTS = [
     reward: { credits: 800, exp: 40 },
   },
   {
+    id: 'research_10',
+    name: '科技大师',
+    description: '完成 10 项科技研究。',
+    icon: '🧪',
+    category: 'tech',
+    condition: function (state) { return (state.researchedTechs || []).length >= 10; },
+    reward: { credits: 2000, exp: 80 },
+  },
+  {
     id: 'research_all',
     name: '全知全能',
     description: '完成所有科技研究。',
     icon: '🧠',
     category: 'tech',
-    condition: function (state) { return (state.researchedTechs || []).length >= 15; },
+    condition: function (state) { return (state.researchedTechs || []).length >= 16; },
     reward: { credits: 5000, exp: 200 },
   },
+  {
+    id: 'tier3_research',
+    name: '尖端科技',
+    description: '研究任意一项 Tier 3 顶级科技。',
+    icon: '⚛️',
+    category: 'tech',
+    condition: function (state) {
+      var tier3 = ['warp_drive', 'monopoly_tactics', 'precursor_database', 'hyperspace_jump'];
+      return tier3.some(function (t) { return (state.researchedTechs || []).includes(t); });
+    },
+    reward: { credits: 3000, exp: 100 },
+  },
 
-  // ========== 派系成就 ==========
+  // ========== 派系成就 (5) ==========
   {
     id: 'faction_ally',
     name: '外交家',
@@ -157,8 +295,47 @@ export const ACHIEVEMENTS = [
     },
     reward: { credits: 3000, exp: 100 },
   },
+  {
+    id: 'faction_all_allied',
+    name: '三巨头',
+    description: '与全部 3 个派系同时结盟。',
+    icon: '🏛️',
+    category: 'faction',
+    condition: function (state) {
+      if (!state.factionRelations) return false;
+      return Object.values(state.factionRelations).every(function (v) { return v >= 70; });
+    },
+    reward: { credits: 8000, exp: 300 },
+  },
+  {
+    id: 'reputation_300',
+    name: '声名鹊起',
+    description: '声望达到 300。',
+    icon: '📣',
+    category: 'faction',
+    condition: function (state) { return (state.reputation || 0) >= 300; },
+    reward: { credits: 1500, exp: 50 },
+  },
+  {
+    id: 'reputation_800',
+    name: '银河名人堂',
+    description: '声望达到 800。你的名字响彻每一个星系。',
+    icon: '🏆',
+    category: 'faction',
+    condition: function (state) { return (state.reputation || 0) >= 800; },
+    reward: { credits: 5000, exp: 200 },
+  },
 
-  // ========== 等级成就 ==========
+  // ========== 等级成就 (3) ==========
+  {
+    id: 'level_3',
+    name: '初入江湖',
+    description: '达到玩家等级 3。',
+    icon: '🌿',
+    category: 'level',
+    condition: function (state) { return (state.experience || 0) >= 300; },
+    reward: { credits: 300 },
+  },
   {
     id: 'level_5',
     name: '崭露头角',
@@ -178,7 +355,7 @@ export const ACHIEVEMENTS = [
     reward: { credits: 5000 },
   },
 
-  // ========== 任务成就 ==========
+  // ========== 任务成就 (5) ==========
   {
     id: 'quest_first',
     name: '任务新手',
@@ -196,5 +373,174 @@ export const ACHIEVEMENTS = [
     category: 'quest',
     condition: function (state) { return (state.completedQuests || []).length >= 5; },
     reward: { credits: 1500, exp: 60 },
+  },
+  {
+    id: 'quest_10',
+    name: '任务专家',
+    description: '完成 10 个任务。',
+    icon: '🎯',
+    category: 'quest',
+    condition: function (state) { return (state.completedQuests || []).length >= 10; },
+    reward: { credits: 3000, exp: 100 },
+  },
+  {
+    id: 'quest_20',
+    name: '传说佣兵',
+    description: '完成 20 个任务。银河中最可靠的名字。',
+    icon: '🏅',
+    category: 'quest',
+    condition: function (state) { return (state.completedQuests || []).length >= 20; },
+    reward: { credits: 8000, exp: 250 },
+  },
+  {
+    id: 'quest_30',
+    name: '任务之神',
+    description: '完成 30 个任务。没有你完不成的委托。',
+    icon: '⚡',
+    category: 'quest',
+    condition: function (state) { return (state.completedQuests || []).length >= 30; },
+    reward: { credits: 15000, exp: 500 },
+  },
+
+  // ========== 舰队成就 (5) ==========
+  {
+    id: 'first_ship',
+    name: '新船入港',
+    description: '购买你的第一艘新飞船。',
+    icon: '🚀',
+    category: 'fleet',
+    condition: function (state) { return (state.fleet || []).length >= 2; },
+    reward: { credits: 500, exp: 20 },
+  },
+  {
+    id: 'fleet_3',
+    name: '小型舰队',
+    description: '同时拥有 3 艘飞船。',
+    icon: '🚢',
+    category: 'fleet',
+    condition: function (state) { return (state.fleet || []).length >= 3; },
+    reward: { credits: 2000, exp: 60 },
+  },
+  {
+    id: 'fleet_5',
+    name: '舰队指挥官',
+    description: '同时拥有 5 艘飞船。',
+    icon: '⚓',
+    category: 'fleet',
+    condition: function (state) { return (state.fleet || []).length >= 5; },
+    reward: { credits: 5000, exp: 150 },
+  },
+  {
+    id: 'own_galleon',
+    name: '巨舰船长',
+    description: '购买一艘银河巨舰。',
+    icon: '🏴',
+    category: 'fleet',
+    condition: function (state) {
+      return (state.fleet || []).some(function (s) { return s.typeId === 'galleon'; });
+    },
+    reward: { credits: 3000, exp: 80 },
+  },
+  {
+    id: 'all_ship_types',
+    name: '全能收藏家',
+    description: '拥有全部 4 种不同类型的飞船。',
+    icon: '🎪',
+    category: 'fleet',
+    condition: function (state) {
+      var types = {};
+      (state.fleet || []).forEach(function (s) { types[s.typeId] = true; });
+      return Object.keys(types).length >= 4;
+    },
+    reward: { credits: 8000, exp: 200 },
+  },
+
+  // ========== 商品专精成就 (5) ==========
+  {
+    id: 'arms_dealer',
+    name: '军火商',
+    description: '累计交易 50 单位武器。',
+    icon: '⚔️',
+    category: 'specialist',
+    condition: function (state) { return (state.goodsTraded && state.goodsTraded.weapons || 0) >= 50; },
+    reward: { credits: 3000, exp: 80 },
+  },
+  {
+    id: 'food_magnate',
+    name: '粮食大王',
+    description: '累计交易 100 单位食物。',
+    icon: '🌾',
+    category: 'specialist',
+    condition: function (state) { return (state.goodsTraded && state.goodsTraded.food || 0) >= 100; },
+    reward: { credits: 2000, exp: 60 },
+  },
+  {
+    id: 'tech_trader',
+    name: '科技贩子',
+    description: '累计交易 30 单位科技产品。',
+    icon: '🔬',
+    category: 'specialist',
+    condition: function (state) { return (state.goodsTraded && state.goodsTraded.technology || 0) >= 30; },
+    reward: { credits: 3000, exp: 80 },
+  },
+  {
+    id: 'luxury_connoisseur',
+    name: '奢华鉴赏家',
+    description: '累计交易 40 单位奢侈品。',
+    icon: '💎',
+    category: 'specialist',
+    condition: function (state) { return (state.goodsTraded && state.goodsTraded.luxury || 0) >= 40; },
+    reward: { credits: 4000, exp: 100 },
+  },
+  {
+    id: 'diversified_trader',
+    name: '多元化经营',
+    description: '每种商品都至少交易过 10 单位。',
+    icon: '🌈',
+    category: 'specialist',
+    condition: function (state) {
+      if (!state.goodsTraded) return false;
+      var goods = ['food', 'water', 'minerals', 'technology', 'luxury', 'weapons', 'medicine', 'fuel'];
+      return goods.every(function (g) { return (state.goodsTraded[g] || 0) >= 10; });
+    },
+    reward: { credits: 5000, exp: 150 },
+  },
+
+  // ========== 特殊 / 里程碑成就 (4) ==========
+  {
+    id: 'survivor_no_damage',
+    name: '毫发无损',
+    description: '连续 50 天不受任何船体损伤。',
+    icon: '🛡️',
+    category: 'special',
+    condition: function (state) { return (state.daysWithoutDamage || 0) >= 50; },
+    reward: { credits: 3000, exp: 100 },
+  },
+  {
+    id: 'event_master',
+    name: '事件猎人',
+    description: '经历 30 次随机事件。',
+    icon: '🎲',
+    category: 'special',
+    condition: function (state) { return (state.totalEvents || 0) >= 30; },
+    reward: { credits: 2000, exp: 80 },
+  },
+  {
+    id: 'event_veteran',
+    name: '风暴中心',
+    description: '经历 100 次随机事件。银河中的一切风浪你都见过了。',
+    icon: '🌊',
+    category: 'special',
+    condition: function (state) { return (state.totalEvents || 0) >= 100; },
+    reward: { credits: 8000, exp: 250 },
+  },
+  {
+    id: 'speed_runner',
+    name: '闪电致富',
+    description: '在 50 天内积累 20,000 信用积分。',
+    icon: '⚡',
+    category: 'special',
+    condition: function (state) { return (state.day || 1) <= 50 && state.credits >= 20000; },
+    reward: { credits: 5000, exp: 200 },
   },
 ];

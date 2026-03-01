@@ -44,6 +44,7 @@ export function rollEvent(state, chance) {
   }
 
   _activeEvent = chosen;
+  state.totalEvents = (state.totalEvents || 0) + 1;
   EventBus.emit('event:triggered', { eventId: chosen.id });
   return chosen;
 }
