@@ -15,4 +15,26 @@ export const INITIAL_STATE = {
   fuelEfficiency:    1.0,
   purchasedUpgrades: [],
   hoveredSystem:     null,
+
+  // 船体系统
+  shipHull:          100,
+  maxHull:           100,
+  autoRepair:        0,
+
+  // 派系关系
+  factionRelations:  null,  // 由 FactionSystem.init 填充
+
+  // 声望
+  reputation:        0,
+
+  // 科技研究
+  researchedTechs:   [],
+  currentResearch:   null,
+  researchOptions:   [],
+  techBuyDiscount:   0,
+  techSellBonus:     0,
+
+  // 统计
+  tradeCount:        0,
+  totalProfit:       0,
 };

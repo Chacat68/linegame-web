@@ -91,6 +91,13 @@
           </div>
           <div class="mini-bar-track"><div id="fuel-fill" class="mini-bar-fill"></div></div>
         </div>
+        <div class="mini-bar-wrap">
+          <div class="mini-bar-label">
+            <span>船体</span>
+            <span id="hull-text">100 / 100</span>
+          </div>
+          <div class="mini-bar-track"><div id="hull-fill" class="mini-bar-fill hull-fill"></div></div>
+        </div>
       </div>
 
       <!-- Tabs -->
@@ -98,6 +105,8 @@
         <button class="tab-btn active" data-tab="tab-market">🏪 市场</button>
         <button class="tab-btn"        data-tab="tab-cargo">📦 货舱</button>
         <button class="tab-btn"        data-tab="tab-upgrades">⚙️ 升级</button>
+        <button class="tab-btn"        data-tab="tab-research">🔬 科技</button>
+        <button class="tab-btn"        data-tab="tab-faction">🏛️ 派系</button>
       </nav>
 
       <div class="tab-content">
@@ -126,6 +135,18 @@
         <!-- Upgrades tab -->
         <div id="tab-upgrades" class="tab-pane">
           <div id="upgrade-list"></div>
+        </div>
+
+        <!-- Research tab (群星风格科技树) -->
+        <div id="tab-research" class="tab-pane">
+          <div id="research-status"></div>
+          <div id="research-options"></div>
+          <div id="research-completed"></div>
+        </div>
+
+        <!-- Faction tab (派系外交) -->
+        <div id="tab-faction" class="tab-pane">
+          <div id="faction-list"></div>
         </div>
 
       </div><!-- /tab-content -->
@@ -159,6 +180,20 @@
       <button id="modal-confirm" class="btn-primary">确认</button>
       <button id="modal-cancel"  class="btn-secondary">取消</button>
     </div>
+  </div>
+</div>
+
+<!-- ================================================================
+     Event modal (群星风格随机事件)
+================================================================ -->
+<div id="event-modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-box event-modal-box">
+    <div class="event-header">
+      <span id="event-icon" class="event-icon-large"></span>
+      <h3 id="event-title">事件</h3>
+    </div>
+    <p id="event-desc" class="event-description"></p>
+    <div id="event-choices" class="event-choices"></div>
   </div>
 </div>
 

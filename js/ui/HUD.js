@@ -5,6 +5,7 @@
 import * as EventBus            from '../core/EventBus.js';
 import { VICTORY_NET_WORTH }    from '../data/constants.js';
 import { SYSTEMS }              from '../data/systems.js';
+import * as Faction             from '../systems/faction/FactionSystem.js';
 
 // ---------------------------------------------------------------------------
 // 初始化：订阅 EventBus 日志事件
@@ -30,9 +31,13 @@ export function updateStats(state, netWorth) {
   document.getElementById('empire-progress').style.width = pct + '%';
   document.getElementById('empire-pct').textContent      = Math.floor(pct) + '%';
 
-  // 当前位置
+  // 当前位置 + 派系信息
   const sys = SYSTEMS.find(function (s) { return s.id === state.currentSystem; });
-  document.getElementById('current-location').textContent = '📍 ' + sys.name;
+  const faction = Faction.getFactionForSystem(state.currentSystem);
+  const factionTag = faction
+    ? ' · ' + faction.icon + ' ' + faction.name
+    : '';
+  document.getElementById('current-location').textContent = '📍 ' + sys.name + factionTag;
   document.getElementById('location-desc').textContent    = sys.description;
 }
 

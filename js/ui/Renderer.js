@@ -1,8 +1,9 @@
 // js/ui/Renderer.js — WebGL 动态星空背景 + 2D Canvas 星系地图
-// 依赖：data/systems.js
+// 依赖：data/systems.js, systems/faction/FactionSystem.js
 // 导出：init, renderStars, renderMap, getSystemAtPoint
 
 import { SYSTEMS } from '../data/systems.js';
+import { FACTIONS } from '../data/factions.js';
 
 let _webglCanvas, _gl, _glProgram;
 let _mapCanvas, _ctx;
@@ -206,6 +207,28 @@ export function renderMap(gameState, time) {
 
   ctx.clearRect(0, 0, w, h);
 
+  // --- 派系领地底色（群星风格） ---
+  FACTIONS.forEach(function (faction) {
+    if (!faction.controlledSystems || faction.controlledSystems.length === 0) return;
+    const points = faction.controlledSystems.map(function (sysId) {
+      const s = SYSTEMS.find(function (ss) { return ss.id === sysId; });
+      return s ? { x: s.x * w, y: s.y * h } : null;
+    }).filter(Boolean);
+
+    if (points.length === 0) return;
+
+    // 绘制派系领地光晕
+    points.forEach(function (p) {
+      const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 55);
+      grad.addColorStop(0, faction.color + '18');
+      grad.addColorStop(1, faction.color + '00');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 55, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  });
+
   // --- 相邻星系之间的航线 ---
   ctx.strokeStyle = 'rgba(100, 150, 255, 0.12)';
   ctx.lineWidth   = 1;
@@ -288,10 +311,12 @@ export function renderMap(gameState, time) {
     ctx.textAlign = 'center';
     ctx.fillText(sys.name, x, y + radius + 14);
 
-    // 类型标签
+    // 类型标签 + 派系标识
+    const faction = FACTIONS.find(function (f) { return f.controlledSystems.includes(sys.id); });
+    const typeText = '[' + sys.typeLabel + ']' + (faction ? ' ' + faction.icon : '');
     ctx.fillStyle = sys.color + 'bb';
     ctx.font      = '9px "Segoe UI", sans-serif';
-    ctx.fillText('[' + sys.typeLabel + ']', x, y + radius + 25);
+    ctx.fillText(typeText, x, y + radius + 25);
   });
 }
 

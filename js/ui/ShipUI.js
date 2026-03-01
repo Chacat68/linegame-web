@@ -65,7 +65,7 @@ export function renderUpgrades(state, onBuyUpgrade) {
 }
 
 /**
- * 渲染飞船迷你状态栏（货舱 & 燃料进度条）
+ * 渲染飞船迷你状态栏（货舱 & 燃料 & 船体进度条）
  */
 export function renderShipStats(state) {
   const totalCargo = getTotalCargo(state);
@@ -73,4 +73,25 @@ export function renderShipStats(state) {
   document.getElementById('cargo-fill').style.width = (totalCargo / state.maxCargo * 100) + '%';
   document.getElementById('fuel-text').textContent  = Math.floor(state.fuel) + ' / ' + state.maxFuel;
   document.getElementById('fuel-fill').style.width  = (state.fuel / state.maxFuel * 100) + '%';
+
+  // 船体完整度
+  const hull = state.shipHull != null ? state.shipHull : 100;
+  const maxHull = state.maxHull || 100;
+  const hullEl = document.getElementById('hull-text');
+  const hullFill = document.getElementById('hull-fill');
+  if (hullEl) {
+    hullEl.textContent = Math.floor(hull) + ' / ' + maxHull;
+  }
+  if (hullFill) {
+    const pct = (hull / maxHull * 100);
+    hullFill.style.width = pct + '%';
+    // 船体低于 50% 变红
+    if (pct < 30) {
+      hullFill.style.background = 'linear-gradient(90deg, #ef5350, #c62828)';
+    } else if (pct < 60) {
+      hullFill.style.background = 'linear-gradient(90deg, #ff9800, #e65100)';
+    } else {
+      hullFill.style.background = 'linear-gradient(90deg, #66bb6a, #2e7d32)';
+    }
+  }
 }
