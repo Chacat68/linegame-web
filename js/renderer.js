@@ -166,7 +166,7 @@ const Renderer = (function () {
     }
 
     const b1 = _uploadAttr('aPosition',   positions,    2);
-    const b2 = _uploadAttr('aSize',        sizes,        1);
+    const b2 = _uploadAttr('aSize',       sizes,        1);
     const b3 = _uploadAttr('aBrightness', brightnesses, 1);
 
     gl.uniform2f(gl.getUniformLocation(_glProgram, 'uResolution'), w, h);
