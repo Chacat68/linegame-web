@@ -7,6 +7,7 @@
 
 import * as EventBus   from './EventBus.js';
 import * as Economy    from '../systems/economy/Economy.js';
+import * as AutoTrade  from '../systems/trade/AutoTradeSystem.js';
 import * as Trade      from '../systems/trade/TradeSystem.js';
 import * as RandomEvent from '../systems/event/RandomEvent.js';
 import * as Faction    from '../systems/faction/FactionSystem.js';
@@ -34,11 +35,19 @@ import { getLevel, getRepRank, PLAYER_LEVELS } from '../data/playerLevels.js';
 let _state     = null;
 let _startTime = null;
 
+// 自动贸易
+let _autoTradeEnabled  = false;
+let _autoTradeInterval = null;
+let _autoTradeTarget   = null; // { sellSystemId, sellSystemName }
+
+const AUTO_TRADE_TICK_MS = 2000; // 自动贸易每步间隔（毫秒）
+
 // ---------------------------------------------------------------------------
 // 对外 API
 // ---------------------------------------------------------------------------
 
 export function init() {
+  _stopAutoTrade();   // 重启时停止自动贸易
   _state = _deepClone(INITIAL_STATE);
 
   Economy.init();
@@ -55,6 +64,8 @@ export function init() {
     Tutorial.checkTabClick(tabId);
   });
   Modal.init(_handleTradeConfirm);
+
+  document.getElementById('auto-trade-btn').onclick = _handleAutoTradeToggle;
 
   document.getElementById('restart-btn').addEventListener('click', function () {
     document.getElementById('gameover-modal').classList.add('hidden');
@@ -346,6 +357,114 @@ function _applyLevelPerk(level) {
 }
 
 // ---------------------------------------------------------------------------
+// 自动贸易
+// ---------------------------------------------------------------------------
+
+function _handleAutoTradeToggle() {
+  if (_autoTradeEnabled) {
+    _stopAutoTrade();
+    EventBus.emit('log:message', { text: '⏸️ 自动贸易已暂停。', type: 'info' });
+  } else {
+    _autoTradeEnabled  = true;
+    _autoTradeTarget   = null;
+    _autoTradeInterval = setInterval(_runAutoTradeTick, AUTO_TRADE_TICK_MS);
+    _updateAutoTradeUI();
+    EventBus.emit('log:message', { text: '🤖 自动贸易已启动！每 2 秒执行一次操作。', type: 'info' });
+  }
+}
+
+function _stopAutoTrade() {
+  if (!_autoTradeEnabled && !_autoTradeInterval) return;
+  _autoTradeEnabled = false;
+  _autoTradeTarget  = null;
+  if (_autoTradeInterval) {
+    clearInterval(_autoTradeInterval);
+    _autoTradeInterval = null;
+  }
+  _updateAutoTradeUI();
+}
+
+function _runAutoTradeTick() {
+  // 有弹窗时暂停操作，等待玩家处理
+  if (!document.getElementById('event-modal').classList.contains('hidden'))    return;
+  if (!document.getElementById('gameover-modal').classList.contains('hidden')) { _stopAutoTrade(); return; }
+
+  const cargoKeys = Object.keys(_state.cargo).filter(function (k) { return (_state.cargo[k] || 0) > 0; });
+
+  if (cargoKeys.length > 0) {
+    // 已有货物：寻找最优出售星系并前往出售
+    if (!_autoTradeTarget) {
+      const sell = AutoTrade.findBestSellSystem(_state);
+      if (sell) {
+        _autoTradeTarget = { sellSystemId: sell.systemId, sellSystemName: sell.systemName };
+        EventBus.emit('log:message', {
+          text: '🤖 自动贸易：前往「' + sell.systemName + '」出售货物，预计利润 ' + Math.floor(sell.profit) + ' 积分。',
+          type: 'info',
+        });
+      }
+    }
+
+    if (_autoTradeTarget) {
+      if (_state.currentSystem === _autoTradeTarget.sellSystemId) {
+        // 已抵达目标星系，出售全部货物
+        const keysToSell = cargoKeys.slice();
+        keysToSell.forEach(function (goodId) {
+          const qty = _state.cargo[goodId] || 0;
+          if (qty > 0) _handleTradeConfirm('sell', goodId, qty);
+        });
+        _autoTradeTarget = null;
+      } else {
+        // 需要前往目标星系——先补燃料
+        const fuelCost = Economy.getFuelCost(_state.currentSystem, _autoTradeTarget.sellSystemId, _state.fuelEfficiency);
+        if (_state.fuel < fuelCost) {
+          const refuelResult = Trade.refuel(_state);
+          _dispatch(refuelResult);
+          if (_state.fuel < fuelCost) {
+            EventBus.emit('log:message', { text: '🤖 自动贸易：燃料不足且积分不够补充，已停止。', type: 'error' });
+            _stopAutoTrade();
+            return;
+          }
+        }
+        _handleTravel(_autoTradeTarget.sellSystemId);
+      }
+    }
+  } else {
+    // 货舱为空：寻找最优买入商品及目标
+    _autoTradeTarget = null;
+    const trade = AutoTrade.findBestTrade(_state);
+
+    if (!trade || trade.profit <= 0) {
+      EventBus.emit('log:message', { text: '🤖 自动贸易：当前未找到获利路线，已停止。', type: 'info' });
+      _stopAutoTrade();
+      return;
+    }
+
+    EventBus.emit('log:message', {
+      text: '🤖 自动贸易：买入 ' + trade.quantity + ' 单位「' + trade.goodName +
+            '」→「' + trade.sellSystemName + '」，预期利润 ' + Math.floor(trade.profit) + ' 积分。',
+      type: 'info',
+    });
+    _handleTradeConfirm('buy', trade.goodId, trade.quantity);
+    _autoTradeTarget = { sellSystemId: trade.sellSystemId, sellSystemName: trade.sellSystemName };
+  }
+}
+
+function _updateAutoTradeUI() {
+  const btn    = document.getElementById('auto-trade-btn');
+  const status = document.getElementById('auto-trade-status');
+  if (!btn) return;
+  if (_autoTradeEnabled) {
+    btn.textContent = '⏸️ 停止自动贸易';
+    btn.classList.add('auto-trade-active');
+    if (status) status.textContent = '运行中…';
+  } else {
+    btn.textContent = '🤖 自动贸易';
+    btn.classList.remove('auto-trade-active');
+    if (status) status.textContent = '';
+  }
+}
+
+// ---------------------------------------------------------------------------
 // UI 全量刷新
 // ---------------------------------------------------------------------------
 
@@ -361,6 +480,7 @@ function _updateUI() {
   QuestUI.render(_state, _handleAcceptQuest, _handleAbandonQuest);
   AchievementUI.render(_state);
   SaveUI.render(_handleSaveGame, _handleLoadGame);
+  _updateAutoTradeUI();
 }
 
 // ---------------------------------------------------------------------------
