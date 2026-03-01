@@ -6,7 +6,7 @@
 // { ok: boolean, msgs: Array<{ text: string, type: string }> }
 
 import { GOODS }    from '../../data/goods.js';
-import { SYSTEMS }  from '../../data/systems.js';
+import { SYSTEMS, findSystem, GALAXY_JUMP_DAYS }  from '../../data/systems.js';
 import { UPGRADES } from '../../data/upgrades.js';
 import * as Economy from '../economy/Economy.js';
 
@@ -134,7 +134,7 @@ export function refuel(state) {
 export function travelTo(state, systemId) {
   const cost = Economy.getFuelCost(state.currentSystem, systemId, state.fuelEfficiency);
   if (state.fuel < cost) {
-    const dest = SYSTEMS.find(function (s) { return s.id === systemId; });
+    const dest = findSystem(systemId);
     return {
       ok:   false,
       msgs: [{
@@ -145,15 +145,30 @@ export function travelTo(state, systemId) {
     };
   }
 
+  // 跨星系检查科技
+  const fromSys = findSystem(state.currentSystem);
+  const toSys   = findSystem(systemId);
+  const crossGalaxy = fromSys && toSys && fromSys.galaxyId !== toSys.galaxyId;
+  if (crossGalaxy) {
+    if (!state.researchedTechs || !state.researchedTechs.includes('hyperspace_jump')) {
+      return { ok: false, msgs: [{ text: '🔒 需要研究「超空间跃迁引擎」才能进行跨星系旅行！', type: 'error' }] };
+    }
+  }
+
   const fromId         = state.currentSystem;
   state.fuel          -= cost;
   state.currentSystem  = systemId;
-  state.day           += 1;
-  Economy.advanceDay();
+  const days = crossGalaxy ? GALAXY_JUMP_DAYS : 1;
+  state.day += days;
+  if (crossGalaxy && toSys) {
+    state.currentGalaxy = toSys.galaxyId;
+    state.viewingGalaxy = toSys.galaxyId;
+  }
+  for (let d = 0; d < days; d++) Economy.advanceDay();
 
-  const sys  = SYSTEMS.find(function (s) { return s.id === systemId; });
+  const sys  = findSystem(systemId);
   const msgs = [{
-    text: '🚀 已抵达 ' + sys.name + '！消耗 ' + cost + ' 燃料。银河历第 ' + state.day + ' 天。',
+    text: (crossGalaxy ? '🌌 超空间跃迁！' : '🚀 ') + '已抵达 ' + sys.name + '！消耗 ' + cost + ' 燃料。银河历第 ' + state.day + ' 天。',
     type: 'travel',
   }];
 
@@ -166,5 +181,5 @@ export function travelTo(state, systemId) {
     }
   }
 
-  return { ok: true, msgs, meta: { fromId, toId: systemId, fuelCost: cost, day: state.day } };
+  return { ok: true, msgs, meta: { fromId, toId: systemId, fuelCost: cost, day: state.day, crossGalaxy } };
 }

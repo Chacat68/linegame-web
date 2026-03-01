@@ -2,7 +2,7 @@
 // 依赖：data/systems.js, systems/faction/FactionSystem.js
 // 导出：init, renderStars, renderMap, getSystemAtPoint
 
-import { SYSTEMS } from '../data/systems.js';
+import { SYSTEMS, GALAXIES, getSystemsByGalaxy, findSystem } from '../data/systems.js';
 import { FACTIONS } from '../data/factions.js';
 
 let _webglCanvas, _gl, _glProgram;
@@ -204,40 +204,133 @@ export function renderMap(gameState, time) {
   const ctx = _ctx;
   const w   = _mapCanvas.width;
   const h   = _mapCanvas.height;
-
   ctx.clearRect(0, 0, w, h);
 
-  // --- 派系领地底色（群星风格） ---
+  if (gameState.mapView === 'galaxies') {
+    _renderGalaxyMap(ctx, w, h, gameState, time);
+  } else {
+    _renderPlanetMap(ctx, w, h, gameState, time);
+  }
+}
+
+// --- 星系总览地图 ---
+function _renderGalaxyMap(ctx, w, h, gameState, time) {
+  // 星系连线
+  ctx.strokeStyle = 'rgba(100, 150, 255, 0.15)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < GALAXIES.length; i++) {
+    for (let j = i + 1; j < GALAXIES.length; j++) {
+      ctx.beginPath();
+      ctx.moveTo(GALAXIES[i].gx * w, GALAXIES[i].gy * h);
+      ctx.lineTo(GALAXIES[j].gx * w, GALAXIES[j].gy * h);
+      ctx.stroke();
+    }
+  }
+
+  GALAXIES.forEach(function (gal) {
+    const x = gal.gx * w;
+    const y = gal.gy * h;
+    const isCurrent = gal.id === gameState.currentGalaxy;
+    const isViewing = gal.id === gameState.viewingGalaxy;
+    const unlocked  = gal.unlocked || (gameState.researchedTechs && gameState.researchedTechs.includes(gal.techRequired));
+    const radius    = isCurrent ? 32 : 24;
+
+    // 星云光晕
+    const glowR = radius + 30;
+    const glow  = ctx.createRadialGradient(x, y, 0, x, y, glowR);
+    glow.addColorStop(0, gal.color + (unlocked ? '44' : '22'));
+    glow.addColorStop(1, gal.color + '00');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(x, y, glowR, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 星系本体
+    ctx.globalAlpha = unlocked ? 1 : 0.4;
+    ctx.fillStyle = gal.color;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 边框
+    ctx.strokeStyle = isCurrent ? '#FFD700' : (isViewing ? '#ffffff' : 'rgba(255,255,255,0.3)');
+    ctx.lineWidth = isCurrent ? 3 : 2;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // 当前星系脉冲
+    if (isCurrent) {
+      const pulse = Math.sin(time * 0.003) * 8 + radius + 12;
+      ctx.strokeStyle = '#FFD700';
+      ctx.lineWidth = 1.5;
+      ctx.globalAlpha = 0.4;
+      ctx.beginPath();
+      ctx.arc(x, y, pulse, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    // 图标
+    ctx.font = '20px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(gal.icon, x, y + 7);
+
+    // 名称
+    ctx.fillStyle = isCurrent ? '#FFD700' : (unlocked ? '#e0e0ff' : '#606080');
+    ctx.font = (isCurrent ? 'bold ' : '') + '13px "Segoe UI", sans-serif';
+    ctx.fillText(gal.name, x, y + radius + 18);
+
+    // 星球数量
+    const count = getSystemsByGalaxy(gal.id).length;
+    ctx.fillStyle = gal.color + 'cc';
+    ctx.font = '10px "Segoe UI", sans-serif';
+    ctx.fillText(count + ' 星球' + (unlocked ? '' : ' 🔒'), x, y + radius + 30);
+  });
+}
+
+// --- 星球地图（指定星系） ---
+function _renderPlanetMap(ctx, w, h, gameState, time) {
+  const viewGal = gameState.viewingGalaxy || gameState.currentGalaxy || 'milky_way';
+  const planets = getSystemsByGalaxy(viewGal);
+  const galDef  = GALAXIES.find(function (g) { return g.id === viewGal; });
+  const isRemote = viewGal !== gameState.currentGalaxy;
+
+  // --- 星系名称标题 ---
+  if (galDef) {
+    ctx.fillStyle = galDef.color + '88';
+    ctx.font = '12px "Segoe UI", sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(galDef.icon + ' ' + galDef.name + (isRemote ? ' (远程查看)' : ''), 8, 16);
+  }
+
+  // --- 派系领地底色 ---
   FACTIONS.forEach(function (faction) {
     if (!faction.controlledSystems || faction.controlledSystems.length === 0) return;
     const points = faction.controlledSystems.map(function (sysId) {
-      const s = SYSTEMS.find(function (ss) { return ss.id === sysId; });
+      const s = planets.find(function (ss) { return ss.id === sysId; });
       return s ? { x: s.x * w, y: s.y * h } : null;
     }).filter(Boolean);
-
     if (points.length === 0) return;
-
-    // 绘制派系领地光晕
     points.forEach(function (p) {
-      const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 55);
-      grad.addColorStop(0, faction.color + '18');
+      const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 45);
+      grad.addColorStop(0, faction.color + '15');
       grad.addColorStop(1, faction.color + '00');
       ctx.fillStyle = grad;
       ctx.beginPath();
-      ctx.arc(p.x, p.y, 55, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, 45, 0, Math.PI * 2);
       ctx.fill();
     });
   });
 
-  // --- 相邻星系之间的航线 ---
-  ctx.strokeStyle = 'rgba(100, 150, 255, 0.12)';
-  ctx.lineWidth   = 1;
-  for (let i = 0; i < SYSTEMS.length; i++) {
-    for (let j = i + 1; j < SYSTEMS.length; j++) {
-      const s1   = SYSTEMS[i];
-      const s2   = SYSTEMS[j];
+  // --- 航线 ---
+  ctx.strokeStyle = 'rgba(100, 150, 255, 0.10)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < planets.length; i++) {
+    for (let j = i + 1; j < planets.length; j++) {
+      const s1 = planets[i], s2 = planets[j];
       const dist = Math.sqrt((s1.x - s2.x) ** 2 + (s1.y - s2.y) ** 2);
-      if (dist < 0.42) {
+      if (dist < 0.28) {
         ctx.beginPath();
         ctx.moveTo(s1.x * w, s1.y * h);
         ctx.lineTo(s2.x * w, s2.y * h);
@@ -248,11 +341,11 @@ export function renderMap(gameState, time) {
 
   // --- 悬浮高亮航线 ---
   if (gameState.hoveredSystem && gameState.hoveredSystem !== gameState.currentSystem) {
-    const cur = SYSTEMS.find(function (s) { return s.id === gameState.currentSystem; });
-    const hov = SYSTEMS.find(function (s) { return s.id === gameState.hoveredSystem; });
-    if (cur && hov) {
+    const cur = findSystem(gameState.currentSystem);
+    const hov = findSystem(gameState.hoveredSystem);
+    if (cur && hov && cur.galaxyId === hov.galaxyId) {
       ctx.strokeStyle = 'rgba(255, 200, 50, 0.7)';
-      ctx.lineWidth   = 2;
+      ctx.lineWidth = 2;
       ctx.setLineDash([6, 5]);
       ctx.beginPath();
       ctx.moveTo(cur.x * w, cur.y * h);
@@ -262,18 +355,19 @@ export function renderMap(gameState, time) {
     }
   }
 
-  // --- 各星系节点 ---
-  SYSTEMS.forEach(function (sys) {
-    const x         = sys.x * w;
-    const y         = sys.y * h;
+  // --- 星球节点 ---
+  planets.forEach(function (sys) {
+    const x = sys.x * w;
+    const y = sys.y * h;
     const isCurrent = sys.id === gameState.currentSystem;
     const isHovered = sys.id === gameState.hoveredSystem;
-    const radius    = isCurrent ? 13 : (isHovered ? 11 : 8);
+    const isGenerated = sys.generated;
+    const radius = isCurrent ? 10 : (isHovered ? 8 : (isGenerated ? 5 : 7));
 
     // 光晕
-    const glowR = radius + 12;
-    const glow  = ctx.createRadialGradient(x, y, 0, x, y, glowR);
-    glow.addColorStop(0, sys.color + '55');
+    const glowR = radius + 8;
+    const glow = ctx.createRadialGradient(x, y, 0, x, y, glowR);
+    glow.addColorStop(0, sys.color + '44');
     glow.addColorStop(1, sys.color + '00');
     ctx.fillStyle = glow;
     ctx.beginPath();
@@ -287,36 +381,37 @@ export function renderMap(gameState, time) {
     ctx.fill();
 
     // 边框
-    ctx.strokeStyle = isCurrent ? '#FFD700' : (isHovered ? '#ffffff' : 'rgba(255,255,255,0.35)');
-    ctx.lineWidth   = isCurrent ? 3 : (isHovered ? 2 : 1);
+    ctx.strokeStyle = isCurrent ? '#FFD700' : (isHovered ? '#ffffff' : 'rgba(255,255,255,0.25)');
+    ctx.lineWidth = isCurrent ? 2.5 : (isHovered ? 1.5 : 0.5);
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.stroke();
 
-    // 当前位置脉冲环
+    // 脉冲环
     if (isCurrent) {
-      const pulse = Math.sin(time * 0.003) * 6 + radius + 10;
+      const pulse = Math.sin(time * 0.003) * 5 + radius + 8;
       ctx.strokeStyle = '#FFD700';
-      ctx.lineWidth   = 1.5;
-      ctx.globalAlpha = 0.45;
+      ctx.lineWidth = 1.5;
+      ctx.globalAlpha = 0.4;
       ctx.beginPath();
       ctx.arc(x, y, pulse, 0, Math.PI * 2);
       ctx.stroke();
       ctx.globalAlpha = 1;
     }
 
-    // 星系名称
-    ctx.fillStyle = isCurrent ? '#FFD700' : (isHovered ? '#ffffff' : '#c0c0e0');
-    ctx.font      = (isCurrent ? 'bold ' : '') + '11px "Segoe UI", sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(sys.name, x, y + radius + 14);
+    // 名称（生成星球只在悬停时显示）
+    if (!isGenerated || isCurrent || isHovered) {
+      ctx.fillStyle = isCurrent ? '#FFD700' : (isHovered ? '#ffffff' : '#c0c0e0');
+      ctx.font = (isCurrent ? 'bold ' : '') + (isGenerated ? '9px' : '10px') + ' "Segoe UI", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(sys.name, x, y + radius + 12);
 
-    // 类型标签 + 派系标识
-    const faction = FACTIONS.find(function (f) { return f.controlledSystems.includes(sys.id); });
-    const typeText = '[' + sys.typeLabel + ']' + (faction ? ' ' + faction.icon : '');
-    ctx.fillStyle = sys.color + 'bb';
-    ctx.font      = '9px "Segoe UI", sans-serif';
-    ctx.fillText(typeText, x, y + radius + 25);
+      const faction = FACTIONS.find(function (f) { return f.controlledSystems.includes(sys.id); });
+      const typeText = '[' + sys.typeLabel + ']' + (faction ? ' ' + faction.icon : '');
+      ctx.fillStyle = sys.color + 'aa';
+      ctx.font = '8px "Segoe UI", sans-serif';
+      ctx.fillText(typeText, x, y + radius + 22);
+    }
   });
 }
 
@@ -324,12 +419,23 @@ export function renderMap(gameState, time) {
 // 命中检测：返回鼠标点击/悬停的星系
 // ---------------------------------------------------------------------------
 
-export function getSystemAtPoint(px, py, canvasW, canvasH) {
-  for (const sys of SYSTEMS) {
+export function getSystemAtPoint(px, py, canvasW, canvasH, galaxyId) {
+  const planets = galaxyId ? getSystemsByGalaxy(galaxyId) : SYSTEMS;
+  for (const sys of planets) {
     const sx   = sys.x * canvasW;
     const sy   = sys.y * canvasH;
     const dist = Math.sqrt((px - sx) ** 2 + (py - sy) ** 2);
-    if (dist <= 22) return sys;
+    if (dist <= 18) return sys;
+  }
+  return null;
+}
+
+export function getGalaxyAtPoint(px, py, canvasW, canvasH) {
+  for (const gal of GALAXIES) {
+    const gx   = gal.gx * canvasW;
+    const gy   = gal.gy * canvasH;
+    const dist = Math.sqrt((px - gx) ** 2 + (py - gy) ** 2);
+    if (dist <= 40) return gal;
   }
   return null;
 }

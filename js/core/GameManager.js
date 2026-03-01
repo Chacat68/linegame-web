@@ -24,6 +24,8 @@ import * as FactionUI  from '../ui/FactionUI.js';
 import * as SaveUI     from '../ui/SaveUI.js';
 import * as QuestUI    from '../ui/QuestUI.js';
 import * as AchievementUI from '../ui/AchievementUI.js';
+import * as Fleet      from '../systems/fleet/FleetSystem.js';
+import * as FleetUI    from '../ui/FleetUI.js';
 import * as Save       from '../systems/save/SaveSystem.js';
 import * as Quest      from '../systems/quest/QuestSystem.js';
 import * as Achievement from '../systems/achievement/AchievementSystem.js';
@@ -51,6 +53,7 @@ export function init() {
   _state = _deepClone(INITIAL_STATE);
 
   Economy.init();
+  Fleet.init(_state);
   Faction.init(_state);
   Research.init(_state);
   Quest.init(_state);
@@ -59,7 +62,7 @@ export function init() {
   HUD.init();
 
   // 注入回调给各 UI 模块
-  MapUI.init(_state, _handleTravel);
+  MapUI.init(_state, _handleTravel, _handleGalaxyJump);
   MapUI.initTabs(function (tabId) {
     Tutorial.checkTabClick(tabId);
   });
@@ -149,6 +152,10 @@ function _handleTravel(systemId) {
   _dispatch(result);
 
   if (result && result.ok) {
+    // 跨星系旅行后刷新地图按钮
+    if (result.meta && result.meta.crossGalaxy) {
+      MapUI.refreshGalaxyBtn(_state);
+    }
     // 新手引导：旅行触发
     Tutorial.checkTrigger('travel');
     // 旅行经验 + 声望
@@ -188,6 +195,14 @@ function _handleTravel(systemId) {
     }
 
     // 自动存档
+    Fleet.syncShipFromState(_state);
+
+    // 船队派遣贸易结算（每天一次）
+    const fleetResult = Fleet.tickFleetRoutes(_state);
+    fleetResult.msgs.forEach(function (m) {
+      EventBus.emit('log:message', { text: m.text, type: m.type });
+    });
+
     Save.saveGame(0, _state, { isAutosave: true });
 
     _updateUI();
@@ -199,6 +214,14 @@ function _handleEventChoice(choiceIndex) {
   _dispatch(result);
 }
 
+/**
+ * 跨星系跳转（点击其他星系星球时触发）
+ */
+function _handleGalaxyJump(systemId) {
+  // 直接调用 travelTo，它会自动处理跨星系逻辑
+  _handleTravel(systemId);
+}
+
 function _handleTradeConfirm(action, goodId, quantity) {
   const result = action === 'buy'
     ? Trade.buyGood(_state, goodId, quantity)
@@ -207,6 +230,8 @@ function _handleTradeConfirm(action, goodId, quantity) {
 
   // 交易后更新派系关系
   if (result && result.ok) {
+    // 同步船只状态
+    Fleet.syncShipFromState(_state);
     // 新手引导：交易触发
     Tutorial.checkTrigger(action);
 
@@ -272,6 +297,7 @@ function _handleAbandonQuest(questId) {
 }
 
 function _handleSaveGame(slotId) {
+  Fleet.syncShipFromState(_state); // 保存前同步船只状态
   const result = Save.saveGame(slotId, _state);
   EventBus.emit('log:message', { text: result.msg, type: result.ok ? 'info' : 'error' });
   _updateUI();
@@ -281,12 +307,18 @@ function _handleLoadGame(slotId) {
   const result = Save.loadGame(slotId);
   if (result.ok) {
     _state = result.state;
+    // 兼容旧存档：补充星系字段
+    if (!_state.currentGalaxy) _state.currentGalaxy = 'milky_way';
+    if (!_state.viewingGalaxy) _state.viewingGalaxy = _state.currentGalaxy;
+    if (!_state.mapView) _state.mapView = 'planets';
     // 重新初始化依赖状态的子系统
+    Fleet.init(_state);
     Faction.init(_state);
     Research.init(_state);
     Quest.init(_state);
     Achievement.init(_state);
     Economy.init();
+    MapUI.refreshGalaxyBtn(_state);
     _updateUI();
     EventBus.emit('log:message', { text: result.msg, type: 'info' });
   } else {
@@ -354,6 +386,39 @@ function _applyLevelPerk(level) {
       EventBus.emit('log:message', { text: '✨ 银河商业帝皇加冕！全属性大幅提升！', type: 'upgrade' });
       break;
   }
+}
+
+// ---------------------------------------------------------------------------
+// 船队管理
+// ---------------------------------------------------------------------------
+
+function _handleBuyShip(shipTypeId) {
+  Fleet.syncShipFromState(_state);
+  const result = Fleet.buyShip(_state, shipTypeId);
+  _dispatch(result);
+}
+
+function _handleSwitchShip(shipIndex) {
+  Fleet.syncShipFromState(_state);
+  const result = Fleet.switchShip(_state, shipIndex);
+  _dispatch(result);
+}
+
+function _handleUpgradeShip(upgradeId) {
+  Fleet.syncShipFromState(_state);
+  const result = Fleet.upgradeShip(_state, upgradeId);
+  _dispatch(result);
+}
+
+function _handleAssignRoute(shipIndex, buySystemId, sellSystemId, goodId) {
+  Fleet.syncShipFromState(_state);
+  const result = Fleet.assignRoute(_state, shipIndex, buySystemId, sellSystemId, goodId);
+  _dispatch(result);
+}
+
+function _handleCancelRoute(shipIndex) {
+  const result = Fleet.cancelRoute(_state, shipIndex);
+  _dispatch(result);
 }
 
 // ---------------------------------------------------------------------------
@@ -479,6 +544,7 @@ function _updateUI() {
   FactionUI.render(_state);
   QuestUI.render(_state, _handleAcceptQuest, _handleAbandonQuest);
   AchievementUI.render(_state);
+  FleetUI.render(_state, _handleBuyShip, _handleSwitchShip, _handleUpgradeShip, _handleAssignRoute, _handleCancelRoute);
   SaveUI.render(_handleSaveGame, _handleLoadGame);
   _updateAutoTradeUI();
 }

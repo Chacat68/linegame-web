@@ -1245,3 +1245,266 @@ html, body {
   font-size: 11px;
   color: var(--text-dim);
 }
+
+/* ================================================================
+   Fleet System (船队管理)
+================================================================ */
+.fleet-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-gold);
+  padding: 6px 0 4px;
+  border-bottom: 1px solid #33335a;
+  margin-bottom: 6px;
+}
+
+.fleet-ship-card {
+  background: #12122a;
+  border: 1px solid #33335a;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  transition: border-color 0.2s;
+}
+.fleet-ship-card.fleet-active {
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 8px rgba(255, 193, 7, 0.15);
+}
+
+.fleet-ship-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.fleet-ship-icon { font-size: 18px; }
+.fleet-ship-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+
+.fleet-active-badge {
+  display: inline-block;
+  font-size: 10px;
+  background: var(--accent-gold);
+  color: #111;
+  padding: 1px 6px;
+  border-radius: 3px;
+  margin-left: 4px;
+  font-weight: 700;
+}
+
+.fleet-ship-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px 10px;
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+.fleet-stat { display: flex; align-items: center; gap: 4px; }
+.fleet-cap {
+  font-size: 9px;
+  color: #665;
+  margin-left: auto;
+}
+
+.fleet-switch-btn {
+  width: 100%;
+  padding: 5px 0;
+  font-size: 12px;
+  background: #1a2a4a;
+  border: 1px solid #44446a;
+  border-radius: 4px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.fleet-switch-btn:hover { background: #2a3a5a; }
+
+/* Shop cards */
+.fleet-shop-card {
+  background: #10102a;
+  border: 1px solid #2a2a50;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.fleet-shop-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.fleet-shop-price {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--accent-gold);
+  font-weight: 600;
+}
+.fleet-shop-desc {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+.fleet-shop-specs {
+  font-size: 10px;
+  color: #8888aa;
+  margin-bottom: 6px;
+}
+
+.fleet-buy-btn {
+  width: 100%;
+  padding: 5px 0;
+  font-size: 12px;
+  background: #2a4a2a;
+  border: 1px solid #336633;
+  border-radius: 4px;
+  color: #cfc;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.fleet-buy-btn:hover:not(:disabled) { background: #3a5a3a; }
+.fleet-buy-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: #1a1a38;
+  border-color: #33335a;
+  color: var(--text-dim);
+}
+
+/* Ship upgrades */
+.fleet-upg-btn {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 8px 10px;
+  margin-bottom: 4px;
+  border: 1px solid #33335a;
+  border-radius: 6px;
+  background: #12122a;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  font-size: 12px;
+  transition: background 0.2s;
+}
+.fleet-upg-btn:hover:not(:disabled) { background: #202048; border-color: #5555aa; }
+.fleet-upg-installed { border-color: #336633; background: #0f2010; cursor: default; }
+.fleet-upg-locked    { opacity: .45; cursor: not-allowed; }
+.fleet-upg-capped    { opacity: .55; cursor: not-allowed; border-color: #553320; }
+.fleet-upg-poor      { opacity: .6; }
+
+/* Fleet dispatch */
+.fleet-dispatched { border-color: #2196F3; box-shadow: 0 0 6px rgba(33,150,243,0.15); }
+
+.fleet-dispatch-badge {
+  display: inline-block;
+  font-size: 10px;
+  background: #2196F3;
+  color: #fff;
+  padding: 1px 6px;
+  border-radius: 3px;
+  margin-left: 4px;
+  font-weight: 700;
+}
+
+.fleet-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.fleet-dispatch-btn {
+  flex: 1;
+  padding: 5px 0;
+  font-size: 12px;
+  background: #1a2a5a;
+  border: 1px solid #3355aa;
+  border-radius: 4px;
+  color: #aaccff;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.fleet-dispatch-btn:hover { background: #2a3a6a; }
+
+.fleet-cancel-btn {
+  width: 100%;
+  padding: 4px 0;
+  font-size: 11px;
+  background: #3a1a1a;
+  border: 1px solid #663333;
+  border-radius: 4px;
+  color: #ffaaaa;
+  cursor: pointer;
+  margin-top: 4px;
+  transition: background 0.2s;
+}
+.fleet-cancel-btn:hover { background: #5a2a2a; }
+
+.fleet-route-info {
+  background: #0a1530;
+  border: 1px solid #223366;
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin-top: 6px;
+  font-size: 11px;
+}
+.fleet-route-text { color: #aaccff; margin-bottom: 2px; }
+.fleet-route-arrow { color: var(--accent-gold); margin: 0 2px; }
+.fleet-route-status { color: #88aa88; font-size: 10px; margin-bottom: 4px; }
+
+.fleet-hint {
+  font-size: 11px;
+  color: var(--text-dim);
+  padding: 4px 0;
+}
+
+/* Dispatch modal form */
+.dispatch-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 10px 0;
+}
+.dispatch-label {
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  color: var(--text-dim);
+  gap: 3px;
+}
+.dispatch-select {
+  background: var(--bg-input);
+  border: 1px solid #44446a;
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 13px;
+  padding: 5px 6px;
+}
+.dispatch-estimate {
+  font-size: 12px;
+  color: var(--accent-gold);
+  margin: 6px 0;
+  font-weight: 600;
+}
+
+/* Galaxy toggle button */
+.galaxy-toggle-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 10;
+  padding: 5px 12px;
+  font-size: 11px;
+  background: rgba(10, 15, 40, 0.85);
+  border: 1px solid #3355aa;
+  border-radius: 6px;
+  color: #aaccff;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+  backdrop-filter: blur(4px);
+}
+.galaxy-toggle-btn:hover {
+  background: rgba(20, 30, 60, 0.95);
+  border-color: #5577cc;
+  color: #ffffff;
+}
+

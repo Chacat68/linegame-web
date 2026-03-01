@@ -3,7 +3,7 @@
 // 导出：findBestTrade, findBestSellSystem
 
 import { GOODS }   from '../../data/goods.js';
-import { SYSTEMS } from '../../data/systems.js';
+import { SYSTEMS, getSystemsByGalaxy } from '../../data/systems.js';
 import * as Economy from '../economy/Economy.js';
 import { getTotalCargo } from './TradeSystem.js';
 
@@ -32,6 +32,8 @@ export function findBestTrade(state) {
 
     SYSTEMS.forEach(function (sys) {
       if (sys.id === state.currentSystem) return;
+      // 只搜索同星系内的星球
+      if (sys.galaxyId !== (state.currentGalaxy || 'milky_way')) return;
 
       const sellPrice    = Economy.getSellPrice(sys.id, good.id, state);
       const fuelCost     = Economy.getFuelCost(state.currentSystem, sys.id, state.fuelEfficiency);
@@ -72,6 +74,8 @@ export function findBestSellSystem(state) {
 
   SYSTEMS.forEach(function (sys) {
     if (sys.id === state.currentSystem) return;
+    // 只搜索同星系内的星球
+    if (sys.galaxyId !== (state.currentGalaxy || 'milky_way')) return;
 
     let totalRevenue = 0;
     cargoEntries.forEach(function (entry) {

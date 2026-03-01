@@ -8,6 +8,9 @@ export const INITIAL_STATE = {
   credits:           1000,
   day:               1,
   currentSystem:     'sol_prime',
+  currentGalaxy:     'milky_way',
+  viewingGalaxy:     'milky_way',
+  mapView:           'planets',   // 'planets' | 'galaxies'
   cargo:             {},   // { goodId: quantity }
   maxCargo:          20,
   fuel:              100,
@@ -48,4 +51,8 @@ export const INITIAL_STATE = {
 
   // 成就
   achievements:      [],     // 已解锁成就 ID 列表
+
+  // 船队
+  fleet:             [],     // 船只实例数组，由 FleetSystem.init 填充
+  activeShipIndex:   0,      // 当前操控的船只索引
 };

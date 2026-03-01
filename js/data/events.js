@@ -1,6 +1,8 @@
 // js/data/events.js — 随机事件定义（群星风格：多选项 + 后果）
-// 依赖：无
+// 依赖：data/systems.js
 // 导出：RANDOM_EVENTS
+
+import { getSystemsByGalaxy } from './systems.js';
 
 /**
  * 事件结构：
@@ -358,14 +360,10 @@ export const RANDOM_EVENTS = [
         tooltip: '随机传送到另一个星系，结果不确定',
         effect(state) {
           // 随机传送到一个不同的星系
-          const SYSTEMS_IDS = [
-            'sol_prime', 'nova_station', 'mineral_belt', 'luxury_port',
-            'war_front', 'medical_hub', 'fuel_depot', 'shadow_haven',
-            'crystal_planet', 'imperial_capital'
-          ];
-          const others = SYSTEMS_IDS.filter(id => id !== state.currentSystem);
+          const curPlanets = getSystemsByGalaxy(state.currentGalaxy || 'milky_way');
+          const others = curPlanets.filter(p => p.id !== state.currentSystem);
           const dest = others[Math.floor(Math.random() * others.length)];
-          state.currentSystem = dest;
+          state.currentSystem = dest.id;
           state.day += 1;
           return {
             msgs: [

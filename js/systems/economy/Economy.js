@@ -6,7 +6,7 @@
 // WebAssembly 模块（如 Rust/C++）。此处保留与 WASM 导出面相同的函数签名。
 
 import { GOODS }                          from '../../data/goods.js';
-import { SYSTEMS, FUEL_COST_PER_UNIT }   from '../../data/systems.js';
+import { SYSTEMS, FUEL_COST_PER_UNIT, GALAXY_JUMP_FUEL, findSystem } from '../../data/systems.js';
 import * as Faction                       from '../faction/FactionSystem.js';
 
 // 每个 (星系, 商品) 对的每日价格噪声系数
@@ -180,8 +180,14 @@ export function getSellPrice(systemId, goodId, state) {
 }
 
 export function getFuelCost(fromId, toId, efficiency) {
-  const s1   = SYSTEMS.find(function (s) { return s.id === fromId; });
-  const s2   = SYSTEMS.find(function (s) { return s.id === toId; });
+  const s1 = findSystem(fromId);
+  const s2 = findSystem(toId);
+  if (!s1 || !s2) return 999;
+  // 跨星系需要额外跃迁燃料
+  if (s1.galaxyId !== s2.galaxyId) {
+    const localDist = euclideanDistance(0.5, 0.5, s2.x, s2.y); // 到目标星球在其星系内的距离
+    return Math.max(1, Math.ceil((GALAXY_JUMP_FUEL + localDist * 50 * FUEL_COST_PER_UNIT) * efficiency));
+  }
   const dist = euclideanDistance(s1.x, s1.y, s2.x, s2.y);
   return Math.max(1, Math.ceil(dist * 100 * FUEL_COST_PER_UNIT * efficiency));
 }

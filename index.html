@@ -54,6 +54,7 @@
       <div id="map-container">
         <canvas id="webgl-canvas"></canvas>
         <canvas id="map-canvas"></canvas>
+        <button id="galaxy-view-btn" class="galaxy-toggle-btn">🌌 星系总览</button>
       </div>
 
       <div id="map-legend">
@@ -110,6 +111,7 @@
         <button class="tab-btn"        data-tab="tab-research">🔬 科技</button>
         <button class="tab-btn"        data-tab="tab-faction">🏛️ 派系</button>
         <button class="tab-btn"        data-tab="tab-quest">📋 任务</button>
+        <button class="tab-btn"        data-tab="tab-fleet">🚢 船队</button>
         <button class="tab-btn"        data-tab="tab-achievement">🏆 成就</button>
         <button class="tab-btn"        data-tab="tab-save">💾 存档</button>
       </nav>
@@ -161,6 +163,11 @@
         <!-- Quest tab (任务系统) -->
         <div id="tab-quest" class="tab-pane">
           <div id="quest-list"></div>
+        </div>
+
+        <!-- Fleet tab (船队系统) -->
+        <div id="tab-fleet" class="tab-pane">
+          <div id="fleet-list"></div>
         </div>
 
         <!-- Achievement tab (成就系统) -->
@@ -230,6 +237,31 @@
     <h2 id="gameover-title">游戏结束</h2>
     <p  id="gameover-message"></p>
     <button id="restart-btn" class="btn-primary" style="margin-top:12px">重新开始</button>
+  </div>
+</div>
+
+<!-- ================================================================
+     Dispatch modal (派遣贸易路线配置)
+================================================================ -->
+<div id="dispatch-modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <h3 id="dispatch-title">📡 派遣贸易</h3>
+    <div class="dispatch-form">
+      <label class="dispatch-label">买入星系
+        <select id="dispatch-buy-system" class="dispatch-select"></select>
+      </label>
+      <label class="dispatch-label">卖出星系
+        <select id="dispatch-sell-system" class="dispatch-select"></select>
+      </label>
+      <label class="dispatch-label">贸易商品
+        <select id="dispatch-good" class="dispatch-select"></select>
+      </label>
+    </div>
+    <div id="dispatch-estimate" class="dispatch-estimate"></div>
+    <div class="modal-actions">
+      <button id="dispatch-confirm" class="btn-primary">确认派遣</button>
+      <button id="dispatch-cancel" class="btn-secondary">取消</button>
+    </div>
   </div>
 </div>
 

@@ -26,7 +26,7 @@ export const FACTIONS = [
     color: '#4fc3f7',
     ideology: '秩序与法治',
     description: '银河系最大的政治实体。联邦信奉法治与秩序，维护星际航线安全，但对走私和黑市交易零容忍。',
-    controlledSystems: ['sol_prime', 'nova_station', 'imperial_capital'],
+    controlledSystems: ['sol_prime', 'nova_station', 'imperial_capital', 'free_port', 'wormhole_nexus'],
     tradePreference: {
       liked: ['food', 'technology', 'medicine'],   // 交易这些商品获得更多好感
       disliked: ['weapons'],                        // 交易这些商品降低好感
@@ -43,7 +43,7 @@ export const FACTIONS = [
     color: '#ef5350',
     ideology: '自由与利润',
     description: '游走在法律边缘的松散联盟。辛迪加控制着银河系的地下经济，提供高利润但高风险的交易机会。',
-    controlledSystems: ['shadow_haven', 'war_front', 'luxury_port'],
+    controlledSystems: ['shadow_haven', 'war_front', 'luxury_port', 'frontier_outpost', 'exile_colony'],
     tradePreference: {
       liked: ['weapons', 'luxury'],
       disliked: ['food'],
@@ -60,7 +60,7 @@ export const FACTIONS = [
     color: '#ab47bc',
     ideology: '知识与进步',
     description: '由跨星系科研机构组成的松散邦联。他们追求知识和科技进步，乐于与支持科研的商人合作。',
-    controlledSystems: ['mineral_belt', 'medical_hub', 'crystal_planet', 'fuel_depot'],
+    controlledSystems: ['mineral_belt', 'medical_hub', 'crystal_planet', 'fuel_depot', 'nebula_forge', 'gene_lab', 'energy_core'],
     tradePreference: {
       liked: ['technology', 'medicine', 'minerals'],
       disliked: ['luxury'],

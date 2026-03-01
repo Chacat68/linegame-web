@@ -4,7 +4,7 @@
 
 import * as EventBus            from '../core/EventBus.js';
 import { VICTORY_NET_WORTH }    from '../data/constants.js';
-import { SYSTEMS }              from '../data/systems.js';
+import { SYSTEMS, findSystem, findGalaxy } from '../data/systems.js';
 import * as Faction             from '../systems/faction/FactionSystem.js';
 import { getLevel, getRepRank, PLAYER_LEVELS } from '../data/playerLevels.js';
 
@@ -50,12 +50,14 @@ export function updateStats(state, netWorth) {
   }
 
   // 当前位置 + 派系信息
-  const sys = SYSTEMS.find(function (s) { return s.id === state.currentSystem; });
+  const sys = findSystem(state.currentSystem);
+  const gal = findGalaxy(state.currentGalaxy || 'milky_way');
   const faction = Faction.getFactionForSystem(state.currentSystem);
   const factionTag = faction
     ? ' · ' + faction.icon + ' ' + faction.name
     : '';
-  document.getElementById('current-location').textContent = '📍 ' + sys.name + factionTag;
+  const galTag = gal ? gal.icon + ' ' + gal.name + ' > ' : '';
+  document.getElementById('current-location').textContent = '📍 ' + galTag + sys.name + factionTag;
   document.getElementById('location-desc').textContent    = sys.description;
 }
 

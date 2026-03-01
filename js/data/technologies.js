@@ -217,4 +217,19 @@ export const TECHNOLOGIES = [
     effect: { cargo: 10, maxFuel: 30, buyDiscount: 0.05 },
     effectText: '货舱 +10，燃料 +30，购买 -5%',
   },
+
+  // ===== 跨星系科技 =====
+  {
+    id: 'hyperspace_jump',
+    name: '超空间跃迁引擎',
+    category: 'exploration',
+    icon: '🌌',
+    description: '突破性的超空间技术，允许飞船在不同星系之间进行跃迁。研究完成后可以探索仙女座、猎户座旋臂、麦哲伦星云和暗星域。',
+    cost: 12000,
+    researchDays: 20,
+    tier: 3,
+    requires: ['warp_drive', 'precursor_database'],
+    effect: { galaxyTravel: true },
+    effectText: '解锁跨星系旅行，可探索全部 5 个星系',
+  },
 ];
