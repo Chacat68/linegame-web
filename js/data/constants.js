@@ -37,4 +37,15 @@ export const INITIAL_STATE = {
   // 统计
   tradeCount:        0,
   totalProfit:       0,
+
+  // 玩家等级
+  playerLevel:       1,
+  experience:        0,
+
+  // 任务
+  quests:            [],     // 当前活跃任务
+  completedQuests:   [],     // 已完成任务 ID 列表
+
+  // 成就
+  achievements:      [],     // 已解锁成就 ID 列表
 };

@@ -5,6 +5,8 @@
 import * as Renderer from './Renderer.js';
 import * as Economy  from '../systems/economy/Economy.js';
 
+let _tabClickCallback = null;
+
 /**
  * 绑定星系地图的鼠标交互
  * @param {object}   stateRef    游戏状态对象（引用，直接读写 hoveredSystem）
@@ -49,14 +51,18 @@ export function init(stateRef, onTravel) {
 
 /**
  * 绑定标签页按钮切换
+ * @param {Function} [onTabClick]  可选回调 (tabId:string) => void
  */
-export function initTabs() {
+export function initTabs(onTabClick) {
+  _tabClickCallback = onTabClick || null;
   document.querySelectorAll('.tab-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {
       document.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.remove('active'); });
       document.querySelectorAll('.tab-pane').forEach(function (p) { p.classList.remove('active'); });
       btn.classList.add('active');
       document.getElementById(btn.dataset.tab).classList.add('active');
+      // 通知回调（用于教程触发等）
+      if (_tabClickCallback) _tabClickCallback(btn.dataset.tab);
     });
   });
 }

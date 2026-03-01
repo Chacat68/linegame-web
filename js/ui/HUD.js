@@ -6,6 +6,7 @@ import * as EventBus            from '../core/EventBus.js';
 import { VICTORY_NET_WORTH }    from '../data/constants.js';
 import { SYSTEMS }              from '../data/systems.js';
 import * as Faction             from '../systems/faction/FactionSystem.js';
+import { getLevel, getRepRank, PLAYER_LEVELS } from '../data/playerLevels.js';
 
 // ---------------------------------------------------------------------------
 // 初始化：订阅 EventBus 日志事件
@@ -30,6 +31,23 @@ export function updateStats(state, netWorth) {
   const pct = Math.min(100, (netWorth / VICTORY_NET_WORTH) * 100);
   document.getElementById('empire-progress').style.width = pct + '%';
   document.getElementById('empire-pct').textContent      = Math.floor(pct) + '%';
+
+  // 玩家等级 & 声望
+  const lvl = getLevel(state.experience || 0);
+  const nextLvl = PLAYER_LEVELS.find(function (l) { return l.level === lvl.level + 1; });
+  const repRank = getRepRank(state.reputation || 0);
+
+  const levelEl = document.getElementById('player-level');
+  if (levelEl) {
+    const expCur = (state.experience || 0) - lvl.expRequired;
+    const expNext = nextLvl ? (nextLvl.expRequired - lvl.expRequired) : 1;
+    const lvlPct = nextLvl ? Math.min(100, (expCur / expNext) * 100) : 100;
+    levelEl.innerHTML =
+      '<span class="level-icon">' + lvl.icon + '</span>' +
+      '<span class="level-title">' + lvl.title + ' Lv.' + lvl.level + '</span>' +
+      '<span class="rep-badge" title="声望: ' + (state.reputation || 0) + '">' + repRank.icon + ' ' + repRank.name + '</span>' +
+      '<div class="level-bar-track"><div class="level-bar-fill" style="width:' + lvlPct + '%"></div></div>';
+  }
 
   // 当前位置 + 派系信息
   const sys = SYSTEMS.find(function (s) { return s.id === state.currentSystem; });

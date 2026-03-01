@@ -21,7 +21,7 @@ export function getTotalCargo(state) {
 export function getNetWorth(state) {
   let worth = state.credits;
   Object.entries(state.cargo).forEach(function (entry) {
-    worth += Economy.getSellPrice(state.currentSystem, entry[0]) * entry[1];
+    worth += Economy.getSellPrice(state.currentSystem, entry[0], state) * entry[1];
   });
   return worth;
 }
@@ -31,7 +31,7 @@ export function getNetWorth(state) {
 // ---------------------------------------------------------------------------
 
 export function buyGood(state, goodId, quantity) {
-  const price     = Economy.getBuyPrice(state.currentSystem, goodId);
+  const price     = Economy.getBuyPrice(state.currentSystem, goodId, state);
   const totalCost = price * quantity;
 
   if (totalCost > state.credits) {
@@ -43,6 +43,9 @@ export function buyGood(state, goodId, quantity) {
 
   state.credits        -= totalCost;
   state.cargo[goodId]   = (state.cargo[goodId] || 0) + quantity;
+
+  // 更新供需
+  Economy.onPlayerBuy(state.currentSystem, goodId, quantity);
 
   const good = GOODS.find(function (g) { return g.id === goodId; });
   return {
@@ -57,11 +60,14 @@ export function sellGood(state, goodId, quantity) {
     return { ok: false, msgs: [{ text: '📦 货物数量不足！', type: 'error' }] };
   }
 
-  const price        = Economy.getSellPrice(state.currentSystem, goodId);
+  const price        = Economy.getSellPrice(state.currentSystem, goodId, state);
   const totalEarned  = price * quantity;
   state.credits     += totalEarned;
   state.cargo[goodId] -= quantity;
   if (state.cargo[goodId] <= 0) delete state.cargo[goodId];
+
+  // 更新供需
+  Economy.onPlayerSell(state.currentSystem, goodId, quantity);
 
   const good = GOODS.find(function (g) { return g.id === goodId; });
   return {

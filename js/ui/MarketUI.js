@@ -17,16 +17,23 @@ export function render(state, onBuy, onSell, onRefuel) {
   tbody.innerHTML = '';
 
   GOODS.forEach(function (good) {
-    const buyPrice    = Economy.getBuyPrice(state.currentSystem, good.id);
-    const sellPrice   = Economy.getSellPrice(state.currentSystem, good.id);
+    const buyPrice    = Economy.getBuyPrice(state.currentSystem, good.id, state);
+    const sellPrice   = Economy.getSellPrice(state.currentSystem, good.id, state);
     const inCargo     = state.cargo[good.id] || 0;
     const mult        = Economy.getSystemMultiplier(state.currentSystem, good.id);
+    const sd          = Economy.getSupplyDemand(state.currentSystem, good.id);
     const isCheap     = mult < 0.7;
     const isExpensive = mult > 1.4;
 
+    // 供需指示器
+    let sdIcon = '⚖️';
+    if (sd.ratio > 1.4) sdIcon = '🔥';      // 高需求
+    else if (sd.ratio < 0.7) sdIcon = '📦';  // 高供给
+
     const tr = document.createElement('tr');
     tr.innerHTML =
-      '<td><span class="good-icon">' + good.emoji + '</span>' + good.name + '</td>' +
+      '<td><span class="good-icon">' + good.emoji + '</span>' + good.name +
+        '<span class="sd-indicator" title="供:' + sd.supply + ' 需:' + sd.demand + '">' + sdIcon + '</span></td>' +
       '<td class="' + (isCheap ? 'price-low' : isExpensive ? 'price-high' : '') + '">' + buyPrice + '</td>' +
       '<td class="' + (isCheap ? 'price-low' : isExpensive ? 'price-high' : '') + '">' + sellPrice + '</td>' +
       '<td>' + (inCargo > 0 ? '<span class="qty-badge">' + inCargo + '</span>' : '—') + '</td>' +

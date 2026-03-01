@@ -40,6 +40,8 @@
       </div>
       <span id="empire-pct" style="font-size:11px;color:#aaa">0%</span>
     </div>
+
+    <div id="player-level" class="player-level-bar"></div>
   </header>
 
   <!-- ================================================================
@@ -107,6 +109,9 @@
         <button class="tab-btn"        data-tab="tab-upgrades">⚙️ 升级</button>
         <button class="tab-btn"        data-tab="tab-research">🔬 科技</button>
         <button class="tab-btn"        data-tab="tab-faction">🏛️ 派系</button>
+        <button class="tab-btn"        data-tab="tab-quest">📋 任务</button>
+        <button class="tab-btn"        data-tab="tab-achievement">🏆 成就</button>
+        <button class="tab-btn"        data-tab="tab-save">💾 存档</button>
       </nav>
 
       <div class="tab-content">
@@ -147,6 +152,21 @@
         <!-- Faction tab (派系外交) -->
         <div id="tab-faction" class="tab-pane">
           <div id="faction-list"></div>
+        </div>
+
+        <!-- Quest tab (任务系统) -->
+        <div id="tab-quest" class="tab-pane">
+          <div id="quest-list"></div>
+        </div>
+
+        <!-- Achievement tab (成就系统) -->
+        <div id="tab-achievement" class="tab-pane">
+          <div id="achievement-list"></div>
+        </div>
+
+        <!-- Save tab (存读档) -->
+        <div id="tab-save" class="tab-pane">
+          <div id="save-list"></div>
         </div>
 
       </div><!-- /tab-content -->
@@ -205,6 +225,30 @@
     <h2 id="gameover-title">游戏结束</h2>
     <p  id="gameover-message"></p>
     <button id="restart-btn" class="btn-primary" style="margin-top:12px">重新开始</button>
+  </div>
+</div>
+
+<!-- ================================================================
+     Tutorial: 新手引导遮罩 & 提示框
+================================================================ -->
+<div id="tutorial-overlay" class="hidden"></div>
+<div id="tutorial-tooltip" class="tutorial-tooltip hidden"></div>
+
+<!-- ================================================================
+     Tutorial: 首次启动弹窗
+================================================================ -->
+<div id="tutorial-start-modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <div class="tut-start-title">⭐ 欢迎，星际贸易商！</div>
+    <p class="tut-start-desc">
+      这似乎是你第一次来到银河系。<br>
+      要先了解一下星际贸易的基础吗？
+    </p>
+    <div class="tut-start-actions">
+      <button id="tut-start-yes" class="tut-btn tut-btn-primary">🚀 开始新手教程</button>
+      <button id="tut-start-no" class="tut-btn tut-btn-secondary">我是老手，直接开始</button>
+    </div>
+    <div class="tut-start-hint">教程约 2 分钟，可随时跳过</div>
   </div>
 </div>
 

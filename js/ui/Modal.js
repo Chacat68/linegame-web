@@ -41,8 +41,8 @@ export function init(onConfirmCb) {
  */
 export function openTradeModal(action, good, state) {
   const price  = action === 'buy'
-    ? Economy.getBuyPrice(state.currentSystem, good.id)
-    : Economy.getSellPrice(state.currentSystem, good.id);
+    ? Economy.getBuyPrice(state.currentSystem, good.id, state)
+    : Economy.getSellPrice(state.currentSystem, good.id, state);
 
   const maxQty = action === 'buy'
     ? Math.min(
