@@ -31,7 +31,9 @@ import * as Quest      from '../systems/quest/QuestSystem.js';
 import * as Achievement from '../systems/achievement/AchievementSystem.js';
 import * as Tutorial   from '../systems/tutorial/TutorialSystem.js';
 import * as TutorialUI from '../ui/TutorialUI.js';
-import { INITIAL_STATE, VICTORY_NET_WORTH } from '../data/constants.js';
+import { INITIAL_STATE } from '../data/constants.js';
+import * as Victory from '../systems/victory/VictorySystem.js';
+import { VICTORY_PATHS } from '../data/victoryConditions.js';
 import { getLevel, getRepRank, PLAYER_LEVELS } from '../data/playerLevels.js';
 import { SYSTEMS } from '../data/systems.js';
 
@@ -98,8 +100,7 @@ export function init() {
 function _showWelcomeMessages() {
   EventBus.emit('log:message', { text: '🚀 欢迎来到银河历 3045 年！您的星际贸易之旅由此开始……', type: 'info' });
   EventBus.emit('log:message', {
-    text: '💡 提示：点击星图上的星系前往贸易，买低卖高赚取差价。目标：积累 ' +
-          VICTORY_NET_WORTH.toLocaleString() + ' 信用积分，建立商业帝国！',
+    text: '💡 提示：点击星图上的星系前往贸易，买低卖高赚取差价。多条胜利路径等你探索——查看顶部进度了解详情！',
     type: 'tip',
   });
   EventBus.emit('log:message', {
@@ -159,6 +160,15 @@ function _handleTravel(systemId) {
     }
     // 刷新市场位置信息
     MapUI.refreshMarketLocation(_state);
+    // 探索追踪：记录已访问的星球和星系
+    if (!_state.visitedSystems) _state.visitedSystems = [];
+    if (!_state.visitedGalaxies) _state.visitedGalaxies = [];
+    if (_state.visitedSystems.indexOf(_state.currentSystem) === -1) {
+      _state.visitedSystems.push(_state.currentSystem);
+    }
+    if (_state.visitedGalaxies.indexOf(_state.currentGalaxy) === -1) {
+      _state.visitedGalaxies.push(_state.currentGalaxy);
+    }
     // 新手引导：旅行触发
     Tutorial.checkTrigger('travel');
     // 旅行经验 + 声望
@@ -582,18 +592,39 @@ function _updateUI() {
 // ---------------------------------------------------------------------------
 
 function _checkVictory() {
-  if (Trade.getNetWorth(_state) >= VICTORY_NET_WORTH) {
-    document.getElementById('gameover-title').textContent   = '🎉 银河商业帝国建立！';
-    document.getElementById('gameover-message').textContent =
-      '恭喜！您在银河历第 ' + _state.day + ' 天建立了属于自己的商业帝国！\n' +
-      '最终净资产：' + Math.floor(Trade.getNetWorth(_state)).toLocaleString() + ' 信用积分\n' +
-      '贸易次数：' + (_state.tradeCount || 0) + ' 次\n' +
-      '已研究科技：' + (_state.researchedTechs || []).length + ' 项\n' +
-      '完成任务：' + (_state.completedQuests || []).length + ' 个\n' +
-      '解锁成就：' + (_state.achievements || []).length + ' 个\n' +
-      '玩家等级：' + getLevel(_state.experience || 0).title;
-    document.getElementById('gameover-modal').classList.remove('hidden');
-  }
+  const result = Victory.checkVictory(_state);
+  if (!result.won) return;
+
+  const path = result.path;
+  const allProgress = Victory.getProgress(_state);
+
+  // 标题
+  document.getElementById('gameover-title').textContent = path.victoryTitle;
+
+  // 构建详细信息
+  let msg = path.victoryMessage + '\n\n';
+  msg += '银河历第 ' + _state.day + ' 天达成 · ';
+  msg += '玩家等级：' + getLevel(_state.experience || 0).title + '\n\n';
+
+  // 统计数据
+  msg += '━━━━━ 游戏统计 ━━━━━\n';
+  msg += '净资产：' + Math.floor(Trade.getNetWorth(_state)).toLocaleString() + ' 信用积分\n';
+  msg += '贸易次数：' + (_state.tradeCount || 0) + ' 次\n';
+  msg += '已研究科技：' + (_state.researchedTechs || []).length + ' / 16 项\n';
+  msg += '完成任务：' + (_state.completedQuests || []).length + ' 个\n';
+  msg += '解锁成就：' + (_state.achievements || []).length + ' 个\n';
+  msg += '已探索星球：' + (_state.visitedSystems || []).length + ' 颗\n';
+  msg += '已探索星系：' + (_state.visitedGalaxies || []).length + ' / 8 个\n\n';
+
+  // 各路径进度
+  msg += '━━━━━ 胜利路径 ━━━━━\n';
+  allProgress.forEach(function (p) {
+    const status = p.completed ? '✅' : (Math.floor(p.progress * 100) + '%');
+    msg += p.icon + ' ' + p.name + '：' + status + '\n';
+  });
+
+  document.getElementById('gameover-message').textContent = msg;
+  document.getElementById('gameover-modal').classList.remove('hidden');
 }
 
 // ---------------------------------------------------------------------------

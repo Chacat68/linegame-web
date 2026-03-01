@@ -33,12 +33,7 @@
       </div>
     </div>
 
-    <div id="empire-bar-wrap" title="商业帝国进度">
-      <span style="font-size:11px;color:#9090b0">帝国进度</span>
-      <div id="empire-track">
-        <div id="empire-progress"></div>
-      </div>
-      <span id="empire-pct" style="font-size:11px;color:#aaa">0%</span>
+    <div id="victory-paths-wrap" class="victory-paths-wrap" title="胜利路径进度">
     </div>
 
     <div id="player-level" class="player-level-bar"></div>
@@ -249,9 +244,9 @@
      Game-over / Victory modal
 ================================================================ -->
 <div id="gameover-modal" class="modal hidden" role="dialog" aria-modal="true">
-  <div class="modal-box" style="text-align:center">
+  <div class="modal-box gameover-box">
     <h2 id="gameover-title">游戏结束</h2>
-    <p  id="gameover-message"></p>
+    <pre id="gameover-message" class="gameover-message"></pre>
     <button id="restart-btn" class="btn-primary" style="margin-top:12px">重新开始</button>
   </div>
 </div>

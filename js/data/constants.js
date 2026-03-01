@@ -55,4 +55,8 @@ export const INITIAL_STATE = {
   // 船队
   fleet:             [],     // 船只实例数组，由 FleetSystem.init 填充
   activeShipIndex:   0,      // 当前操控的船只索引
+
+  // 探索追踪
+  visitedSystems:    ['sol_prime'],   // 已访问星球 ID
+  visitedGalaxies:   ['milky_way'],   // 已访问星系 ID
 };

@@ -3,10 +3,10 @@
 // 导出：init, updateStats, addMessage
 
 import * as EventBus            from '../core/EventBus.js';
-import { VICTORY_NET_WORTH }    from '../data/constants.js';
 import { SYSTEMS, findSystem, findGalaxy } from '../data/systems.js';
 import * as Faction             from '../systems/faction/FactionSystem.js';
 import { getLevel, getRepRank, PLAYER_LEVELS } from '../data/playerLevels.js';
+import * as Victory             from '../systems/victory/VictorySystem.js';
 
 // ---------------------------------------------------------------------------
 // 初始化：订阅 EventBus 日志事件
@@ -27,10 +27,31 @@ export function updateStats(state, netWorth) {
   document.getElementById('galactic-day').textContent = '第 ' + state.day + ' 天';
   document.getElementById('net-worth').textContent    = Math.floor(netWorth).toLocaleString();
 
-  // 帝国进度条
-  const pct = Math.min(100, (netWorth / VICTORY_NET_WORTH) * 100);
-  document.getElementById('empire-progress').style.width = pct + '%';
-  document.getElementById('empire-pct').textContent      = Math.floor(pct) + '%';
+  // 多路径胜利进度
+  const progressList = Victory.getProgress(state);
+  const wrap = document.getElementById('victory-paths-wrap');
+  if (wrap) {
+    let html = '';
+    progressList.forEach(function (p) {
+      const pctVal = Math.min(100, Math.floor(p.progress * 100));
+      const done = p.completed ? ' vp-done' : '';
+      // 构建 tooltip 内容
+      let tipParts = [];
+      p.requirements.forEach(function (r) {
+        tipParts.push((r.done ? '✅' : '⬜') + ' ' + r.label + ' (' + r.current + '/' + r.target + ')');
+      });
+      const tip = p.name + '\\n' + tipParts.join('\\n');
+      html +=
+        '<div class="vp-item' + done + '" title="' + tip + '">' +
+          '<span class="vp-icon">' + p.icon + '</span>' +
+          '<div class="vp-bar-track">' +
+            '<div class="vp-bar-fill" style="width:' + pctVal + '%;background:' + p.color + '"></div>' +
+          '</div>' +
+          '<span class="vp-pct">' + pctVal + '%</span>' +
+        '</div>';
+    });
+    wrap.innerHTML = html;
+  }
 
   // 玩家等级 & 声望
   const lvl = getLevel(state.experience || 0);

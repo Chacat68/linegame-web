@@ -80,28 +80,54 @@ html, body {
 .stat-networth { color: var(--accent-cyan); }
 .stat-day      { color: var(--accent-blue); }
 
-/* Victory progress */
-#empire-bar-wrap {
+/* Victory paths (multi-path progress) */
+.victory-paths-wrap {
   display: flex;
   align-items: center;
   gap: 6px;
   font-size: 11px;
   color: var(--text-dim);
 }
-#empire-track {
-  width: 120px;
-  height: 6px;
+.vp-item {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  cursor: default;
+  position: relative;
+}
+.vp-item.vp-done .vp-icon { filter: drop-shadow(0 0 4px gold); }
+.vp-icon { font-size: 14px; line-height: 1; }
+.vp-bar-track {
+  width: 48px;
+  height: 5px;
   background: #202040;
   border-radius: 3px;
   overflow: hidden;
 }
-#empire-progress {
+.vp-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #f06292, var(--accent-gold));
   width: 0%;
+  border-radius: 3px;
   transition: width .4s;
 }
-#empire-pct { min-width: 28px; text-align: right; }
+.vp-pct { min-width: 24px; text-align: right; font-size: 10px; color: #aaa; }
+
+/* Game-over box */
+.gameover-box { text-align: center; max-width: 440px; }
+.gameover-message {
+  white-space: pre-wrap;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-dim);
+  text-align: left;
+  margin: 12px 0;
+  background: rgba(0,0,0,.2);
+  padding: 12px;
+  border-radius: 8px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
 
 /* Player level bar */
 .player-level-bar {
