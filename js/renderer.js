@@ -1,0 +1,312 @@
+// js/renderer.js — WebGL animated starfield + 2D Canvas star-map
+
+'use strict';
+
+const Renderer = (function () {
+  let _webglCanvas, _gl, _glProgram;
+  let _mapCanvas, _ctx;
+  let _stars = [];
+
+  // -------------------------------------------------------------------------
+  // Initialisation
+  // -------------------------------------------------------------------------
+
+  function init() {
+    _webglCanvas = document.getElementById('webgl-canvas');
+    _mapCanvas   = document.getElementById('map-canvas');
+    _ctx         = _mapCanvas.getContext('2d');
+
+    _generateStars(300);
+    _resize();
+    window.addEventListener('resize', _resize);
+    _initWebGL();
+  }
+
+  function _resize() {
+    const container = document.getElementById('map-container');
+    const w = container.clientWidth;
+    const h = container.clientHeight;
+    _webglCanvas.width  = w;
+    _webglCanvas.height = h;
+    _mapCanvas.width    = w;
+    _mapCanvas.height   = h;
+    if (_gl) _gl.viewport(0, 0, w, h);
+  }
+
+  // -------------------------------------------------------------------------
+  // WebGL — animated starfield
+  // -------------------------------------------------------------------------
+
+  const _VS_SOURCE = `
+    attribute vec2  aPosition;
+    attribute float aSize;
+    attribute float aBrightness;
+    uniform   vec2  uResolution;
+    varying   float vBrightness;
+    void main() {
+      vec2 clip = (aPosition / uResolution) * 2.0 - 1.0;
+      gl_Position  = vec4(clip * vec2(1.0, -1.0), 0.0, 1.0);
+      gl_PointSize = aSize;
+      vBrightness  = aBrightness;
+    }
+  `;
+
+  const _FS_SOURCE = `
+    precision mediump float;
+    varying float vBrightness;
+    void main() {
+      vec2  c    = gl_PointCoord - vec2(0.5);
+      float dist = length(c);
+      if (dist > 0.5) discard;
+      float alpha = (1.0 - dist * 2.0) * vBrightness;
+      gl_FragColor = vec4(0.80, 0.85, 1.0, alpha);
+    }
+  `;
+
+  function _compileShader(type, source) {
+    const shader = _gl.createShader(type);
+    _gl.shaderSource(shader, source);
+    _gl.compileShader(shader);
+    if (!_gl.getShaderParameter(shader, _gl.COMPILE_STATUS)) {
+      console.error('Shader error:', _gl.getShaderInfoLog(shader));
+      _gl.deleteShader(shader);
+      return null;
+    }
+    return shader;
+  }
+
+  function _initWebGL() {
+    try {
+      _gl = _webglCanvas.getContext('webgl') ||
+            _webglCanvas.getContext('experimental-webgl');
+      if (!_gl) return;
+
+      const vs = _compileShader(_gl.VERTEX_SHADER,   _VS_SOURCE);
+      const fs = _compileShader(_gl.FRAGMENT_SHADER, _FS_SOURCE);
+      if (!vs || !fs) { _gl = null; return; }
+
+      _glProgram = _gl.createProgram();
+      _gl.attachShader(_glProgram, vs);
+      _gl.attachShader(_glProgram, fs);
+      _gl.linkProgram(_glProgram);
+
+      if (!_gl.getProgramParameter(_glProgram, _gl.LINK_STATUS)) {
+        console.error('Program link error:', _gl.getProgramInfoLog(_glProgram));
+        _gl = null;
+        return;
+      }
+
+      _gl.useProgram(_glProgram);
+      _gl.enable(_gl.BLEND);
+      _gl.blendFunc(_gl.SRC_ALPHA, _gl.ONE_MINUS_SRC_ALPHA);
+    } catch (e) {
+      console.warn('WebGL unavailable, falling back to 2D canvas starfield.', e);
+      _gl = null;
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Stars data
+  // -------------------------------------------------------------------------
+
+  function _generateStars(count) {
+    _stars = [];
+    for (let i = 0; i < count; i++) {
+      _stars.push({
+        x:             Math.random(),
+        y:             Math.random(),
+        size:          Math.random() * 2.5 + 0.5,
+        brightness:    Math.random() * 0.7 + 0.3,
+        twinkleSpeed:  Math.random() * 0.02 + 0.005,
+        twinkleOffset: Math.random() * Math.PI * 2,
+      });
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Render starfield
+  // -------------------------------------------------------------------------
+
+  function renderStars(time) {
+    const w = _webglCanvas.width;
+    const h = _webglCanvas.height;
+    if (_gl && _glProgram) {
+      _renderStarsWebGL(time, w, h);
+    } else {
+      _renderStarsCanvas(time, w, h);
+    }
+  }
+
+  function _renderStarsWebGL(time, w, h) {
+    const gl = _gl;
+    gl.clearColor(0.035, 0.035, 0.10, 1.0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    const n           = _stars.length;
+    const positions   = new Float32Array(n * 2);
+    const sizes       = new Float32Array(n);
+    const brightnesses = new Float32Array(n);
+
+    _stars.forEach(function (s, i) {
+      positions[i * 2]     = s.x * w;
+      positions[i * 2 + 1] = s.y * h;
+      sizes[i]             = s.size;
+      const twinkle        = Math.sin(time * s.twinkleSpeed + s.twinkleOffset) * 0.3;
+      brightnesses[i]      = Math.max(0.1, Math.min(1.0, s.brightness + twinkle));
+    });
+
+    function _uploadAttr(name, data, size) {
+      const buf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+      gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
+      const loc = gl.getAttribLocation(_glProgram, name);
+      gl.enableVertexAttribArray(loc);
+      gl.vertexAttribPointer(loc, size, gl.FLOAT, false, 0, 0);
+      return buf;
+    }
+
+    const b1 = _uploadAttr('aPosition',   positions,    2);
+    const b2 = _uploadAttr('aSize',        sizes,        1);
+    const b3 = _uploadAttr('aBrightness', brightnesses, 1);
+
+    gl.uniform2f(gl.getUniformLocation(_glProgram, 'uResolution'), w, h);
+    gl.drawArrays(gl.POINTS, 0, n);
+
+    gl.deleteBuffer(b1);
+    gl.deleteBuffer(b2);
+    gl.deleteBuffer(b3);
+  }
+
+  function _renderStarsCanvas(time, w, h) {
+    const ctx = _webglCanvas.getContext('2d');
+    if (!ctx) return;
+    ctx.fillStyle = '#0a0a1a';
+    ctx.fillRect(0, 0, w, h);
+    _stars.forEach(function (s) {
+      const twinkle    = Math.sin(time * s.twinkleSpeed + s.twinkleOffset) * 0.3;
+      const brightness = Math.max(0.1, Math.min(1.0, s.brightness + twinkle));
+      ctx.globalAlpha  = brightness;
+      ctx.fillStyle    = '#c0d0ff';
+      ctx.beginPath();
+      ctx.arc(s.x * w, s.y * h, s.size * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+  }
+
+  // -------------------------------------------------------------------------
+  // Render star-map (2D canvas overlay)
+  // -------------------------------------------------------------------------
+
+  function renderMap(gameState, time) {
+    const ctx = _ctx;
+    const w   = _mapCanvas.width;
+    const h   = _mapCanvas.height;
+
+    ctx.clearRect(0, 0, w, h);
+
+    // --- Lane lines between nearby systems ---
+    ctx.strokeStyle = 'rgba(100, 150, 255, 0.12)';
+    ctx.lineWidth   = 1;
+    for (let i = 0; i < SYSTEMS.length; i++) {
+      for (let j = i + 1; j < SYSTEMS.length; j++) {
+        const s1   = SYSTEMS[i];
+        const s2   = SYSTEMS[j];
+        const dist = Math.sqrt((s1.x - s2.x) ** 2 + (s1.y - s2.y) ** 2);
+        if (dist < 0.42) {
+          ctx.beginPath();
+          ctx.moveTo(s1.x * w, s1.y * h);
+          ctx.lineTo(s2.x * w, s2.y * h);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // --- Highlighted travel route to hovered system ---
+    if (gameState.hoveredSystem && gameState.hoveredSystem !== gameState.currentSystem) {
+      const cur = SYSTEMS.find(function (s) { return s.id === gameState.currentSystem; });
+      const hov = SYSTEMS.find(function (s) { return s.id === gameState.hoveredSystem; });
+      if (cur && hov) {
+        ctx.strokeStyle = 'rgba(255, 200, 50, 0.7)';
+        ctx.lineWidth   = 2;
+        ctx.setLineDash([6, 5]);
+        ctx.beginPath();
+        ctx.moveTo(cur.x * w, cur.y * h);
+        ctx.lineTo(hov.x * w, hov.y * h);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+
+    // --- Star systems ---
+    SYSTEMS.forEach(function (sys) {
+      const x         = sys.x * w;
+      const y         = sys.y * h;
+      const isCurrent = sys.id === gameState.currentSystem;
+      const isHovered = sys.id === gameState.hoveredSystem;
+      const radius    = isCurrent ? 13 : (isHovered ? 11 : 8);
+
+      // Glow
+      const glowR  = radius + 12;
+      const glow   = ctx.createRadialGradient(x, y, 0, x, y, glowR);
+      glow.addColorStop(0, sys.color + '55');
+      glow.addColorStop(1, sys.color + '00');
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(x, y, glowR, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Body
+      ctx.fillStyle = sys.color;
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Border
+      ctx.strokeStyle = isCurrent ? '#FFD700' : (isHovered ? '#ffffff' : 'rgba(255,255,255,0.35)');
+      ctx.lineWidth   = isCurrent ? 3 : (isHovered ? 2 : 1);
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Pulse ring around current system
+      if (isCurrent) {
+        const pulse = Math.sin(time * 0.003) * 6 + radius + 10;
+        ctx.strokeStyle = '#FFD700';
+        ctx.lineWidth   = 1.5;
+        ctx.globalAlpha = 0.45;
+        ctx.beginPath();
+        ctx.arc(x, y, pulse, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+
+      // Name label
+      ctx.fillStyle = isCurrent ? '#FFD700' : (isHovered ? '#ffffff' : '#c0c0e0');
+      ctx.font      = (isCurrent ? 'bold ' : '') + '11px "Segoe UI", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(sys.name, x, y + radius + 14);
+
+      // Type badge
+      ctx.fillStyle = sys.color + 'bb';
+      ctx.font      = '9px "Segoe UI", sans-serif';
+      ctx.fillText('[' + sys.typeLabel + ']', x, y + radius + 25);
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // Hit-test: return the system the user clicked / hovered
+  // -------------------------------------------------------------------------
+
+  function getSystemAtPoint(px, py, canvasW, canvasH) {
+    for (const sys of SYSTEMS) {
+      const sx   = sys.x * canvasW;
+      const sy   = sys.y * canvasH;
+      const dist = Math.sqrt((px - sx) ** 2 + (py - sy) ** 2);
+      if (dist <= 22) return sys;
+    }
+    return null;
+  }
+
+  return { init, renderStars, renderMap, getSystemAtPoint };
+}());
