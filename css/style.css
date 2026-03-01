@@ -103,6 +103,39 @@ html, body {
 }
 #empire-pct { min-width: 28px; text-align: right; }
 
+/* Player level bar */
+.player-level-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  flex-wrap: wrap;
+}
+.level-icon { font-size: 14px; }
+.level-title {
+  font-weight: 600;
+  color: var(--accent-gold);
+}
+.rep-badge {
+  font-size: 10px;
+  background: rgba(255,215,0,0.12);
+  padding: 1px 6px;
+  border-radius: 8px;
+  color: var(--accent-cyan);
+}
+.level-bar-track {
+  width: 80px;
+  height: 4px;
+  background: #202040;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.level-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-blue), var(--accent-cyan));
+  transition: width .4s;
+}
+
 /* ---- Main area --------------------------------------------------------- */
 #game-main {
   display: flex;
@@ -151,7 +184,7 @@ html, body {
 
 /* ---- Trade panel ------------------------------------------------------- */
 #trade-panel {
-  width: 320px;
+  width: 360px;
   flex-shrink: 0;
   background: var(--bg-panel);
   border-left: 1px solid var(--border);
@@ -214,15 +247,18 @@ html, body {
   border-bottom: 1px solid var(--border);
   background: var(--bg-dark);
   flex-shrink: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .tab-btn {
-  flex: 1;
-  padding: 7px 4px;
+  flex: 0 0 auto;
+  padding: 7px 8px;
   border: none;
   background: transparent;
   color: var(--text-dim);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 11px;
+  white-space: nowrap;
   transition: color .2s, border-bottom .2s;
   border-bottom: 2px solid transparent;
 }
@@ -258,6 +294,7 @@ html, body {
 #market-table tr:hover td { background: rgba(255,255,255,.03); }
 
 .good-icon { font-size: 14px; margin-right: 3px; }
+.sd-indicator { font-size: 10px; margin-left: 4px; opacity: 0.7; cursor: help; }
 .price-low  { color: var(--accent-green); font-weight: 600; }
 .price-high { color: var(--accent-red);   font-weight: 600; }
 .qty-badge {
@@ -364,7 +401,7 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  z-index: 9500;
 }
 .modal.hidden { display: none; }
 
@@ -414,6 +451,20 @@ html, body {
 
 #modal-total { color: var(--accent-gold); font-weight: 600; font-size: 13px; margin-top: 4px; }
 
+#modal-all {
+  width: 100%;
+  padding: 6px 12px;
+  margin-top: 8px;
+  border: 1px solid #44446a;
+  border-radius: 4px;
+  background: #1a2a4a;
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+#modal-all:hover { background: #2a3a5a; }
+
 .modal-actions {
   display: flex;
   gap: 10px;
@@ -437,3 +488,760 @@ html, body {
 ::-webkit-scrollbar        { width: 5px; }
 ::-webkit-scrollbar-track  { background: transparent; }
 ::-webkit-scrollbar-thumb  { background: #33335a; border-radius: 3px; }
+
+/* ---- Hull bar ---------------------------------------------------------- */
+.hull-fill { background: linear-gradient(90deg, #66bb6a, #2e7d32); }
+
+/* ---- Event modal (群星风格) -------------------------------------------- */
+.event-modal-box {
+  max-width: 420px;
+  min-width: 340px;
+}
+.event-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.event-icon-large {
+  font-size: 36px;
+  line-height: 1;
+}
+.event-header h3 {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--accent-gold);
+}
+.event-description {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+  white-space: pre-line;
+  border-left: 3px solid #44447a;
+  padding-left: 12px;
+}
+.event-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.event-choice-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  padding: 10px 14px;
+  background: #1a1a3a;
+  border: 1px solid #33336a;
+  border-radius: 6px;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  transition: background .15s, border-color .2s, transform .1s;
+}
+.event-choice-btn:hover {
+  background: #252555;
+  border-color: var(--accent-gold);
+  transform: translateX(4px);
+}
+.choice-text {
+  font-size: 13px;
+  font-weight: 600;
+}
+.choice-tooltip {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 3px;
+  font-style: italic;
+}
+
+/* ---- Research tab (群星风格科技树) -------------------------------------- */
+.research-hint {
+  color: var(--text-dim);
+  font-size: 12px;
+  padding: 8px 0;
+  text-align: center;
+}
+.research-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  margin-bottom: 8px;
+}
+.research-active {
+  background: var(--bg-card);
+  border: 1px solid #303060;
+  border-radius: var(--radius);
+  padding: 10px;
+  margin-bottom: 12px;
+}
+.research-active-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.research-active-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent-gold);
+}
+.research-days {
+  font-size: 11px;
+  color: var(--accent-blue);
+}
+.research-fill {
+  background: linear-gradient(90deg, #7c4dff, #448aff) !important;
+}
+.research-effect-text {
+  font-size: 11px;
+  color: var(--accent-cyan);
+  margin-top: 6px;
+}
+.research-cat-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-weight: 600;
+}
+.research-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.research-card {
+  background: var(--bg-card);
+  border: 1px solid #303060;
+  border-radius: var(--radius);
+  padding: 10px;
+  transition: border-color .2s, background .15s;
+}
+.research-card:hover {
+  border-color: #5555aa;
+  background: #1a1a40;
+}
+.research-card.unaffordable {
+  opacity: 0.55;
+}
+.research-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-left: 8px;
+  margin-bottom: 6px;
+}
+.research-tier {
+  font-size: 10px;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+.research-card-icon {
+  font-size: 24px;
+  text-align: center;
+  margin: 4px 0;
+}
+.research-card-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-align: center;
+}
+.research-card-desc {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin: 6px 0;
+  line-height: 1.5;
+}
+.research-card-effect {
+  font-size: 11px;
+  color: var(--accent-cyan);
+  margin-bottom: 6px;
+}
+.research-card-footer {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  margin-bottom: 6px;
+}
+.research-cost { color: var(--accent-gold); }
+.research-time { color: var(--accent-blue); }
+
+.btn-research {
+  width: 100%;
+  padding: 6px 0;
+  background: #1b2a5a;
+  border: 1px solid #3355aa;
+  border-radius: 4px;
+  color: #80b0ff;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: background .15s;
+}
+.btn-research:hover { background: #243870; }
+.btn-research.disabled {
+  opacity: .4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.completed-techs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.completed-tech-badge {
+  display: inline-block;
+  font-size: 10px;
+  padding: 2px 6px;
+  background: #0f1525;
+  border: 1px solid #33335a;
+  border-radius: 3px;
+  color: var(--text-dim);
+}
+
+/* ---- Faction tab (派系外交) -------------------------------------------- */
+.faction-card {
+  background: var(--bg-card);
+  border: 1px solid #303060;
+  border-radius: var(--radius);
+  padding: 10px;
+  margin-bottom: 8px;
+}
+.faction-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.faction-icon {
+  font-size: 22px;
+}
+.faction-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.faction-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.faction-ideology {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+.faction-level {
+  font-size: 12px;
+  font-weight: 600;
+}
+.faction-desc {
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+.faction-relation-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.faction-rel-label {
+  font-size: 10px;
+  color: var(--text-dim);
+  min-width: 24px;
+}
+.faction-rel-val {
+  font-size: 11px;
+  font-weight: 700;
+  min-width: 30px;
+  text-align: right;
+}
+.faction-details {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.faction-pref {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+.faction-pref-label {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+.faction-pref-liked { color: var(--accent-green); }
+.faction-pref-disliked { color: var(--accent-red); }
+.faction-tax {
+  margin-bottom: 4px;
+}
+.faction-bonus {
+  font-size: 11px;
+  color: var(--accent-cyan);
+  padding: 4px 0;
+}
+
+/* ==========================================================
+   Save / Load System
+   ========================================================== */
+.save-header {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: var(--accent-gold);
+}
+.save-slot {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.save-slot.has-data { border-left: 3px solid var(--accent-blue); }
+.save-slot.empty-slot { opacity: 0.6; }
+.save-slot-header {
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+.save-slot-info {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+.save-slot-actions {
+  display: flex;
+  gap: 6px;
+}
+.save-slot-actions .btn-action {
+  font-size: 11px;
+  padding: 3px 10px;
+}
+.del-btn { color: var(--accent-red) !important; border-color: var(--accent-red) !important; }
+.del-btn:hover { background: rgba(239,83,80,0.15) !important; }
+.save-export-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  justify-content: center;
+}
+.save-export-row .btn-action {
+  font-size: 11px;
+  padding: 5px 14px;
+}
+
+/* ==========================================================
+   Quest System
+   ========================================================== */
+.quest-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-gold);
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.quest-empty {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-align: center;
+  padding: 12px 0;
+}
+.quest-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  transition: border-color .2s;
+}
+.quest-card:hover { border-color: var(--accent-blue); }
+.quest-card.active-quest { border-left: 3px solid var(--accent-cyan); }
+.quest-card.available-quest { border-left: 3px solid var(--accent-gold); }
+.quest-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.quest-type-badge {
+  font-size: 10px;
+  padding: 1px 8px;
+  border-radius: 8px;
+  color: #fff;
+  font-weight: 600;
+}
+.quest-time {
+  font-size: 10px;
+  color: var(--accent-red);
+}
+.quest-name {
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 3px;
+}
+.quest-desc {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+  line-height: 1.3;
+}
+.quest-objective {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 3px;
+  font-size: 11px;
+}
+.quest-obj-text { flex: 1; }
+.quest-progress-track {
+  width: 60px;
+  height: 4px;
+  background: #202040;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.quest-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-green), var(--accent-cyan));
+  transition: width .3s;
+}
+.quest-obj-count {
+  font-size: 10px;
+  color: var(--accent-cyan);
+  min-width: 36px;
+  text-align: right;
+}
+.quest-rewards {
+  display: flex;
+  gap: 8px;
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: 4px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+.quest-accept-btn {
+  background: var(--accent-gold) !important;
+  color: #000 !important;
+  font-weight: 600;
+}
+.quest-accept-btn:hover {
+  background: #ffe44d !important;
+}
+.quest-abandon-btn {
+  font-size: 10px;
+  padding: 2px 8px;
+  opacity: 0.6;
+}
+.quest-abandon-btn:hover { opacity: 1; }
+
+/* ==========================================================
+   Achievement System
+   ========================================================== */
+.ach-header {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: var(--accent-gold);
+}
+.ach-category {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-cyan);
+  margin: 10px 0 6px 0;
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--border);
+}
+.ach-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 7px 10px;
+  margin-bottom: 4px;
+  transition: border-color .2s;
+}
+.ach-card:hover { border-color: var(--accent-blue); }
+.ach-unlocked { border-left: 3px solid var(--accent-gold); }
+.ach-locked { opacity: 0.5; }
+.ach-icon { font-size: 20px; min-width: 28px; text-align: center; }
+.ach-info { flex: 1; }
+.ach-name { font-weight: 600; font-size: 12px; }
+.ach-desc { font-size: 10px; color: var(--text-dim); }
+.ach-check { font-size: 14px; }
+
+/* ==========================================================
+   Tutorial / 新手引导系统
+   ========================================================== */
+
+/* 半透明遮罩 */
+#tutorial-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 9000;
+  pointer-events: none;          /* 让高亮元素可点击 */
+  transition: opacity .3s;
+}
+#tutorial-overlay.hidden { display: none; }
+
+/* 高亮目标元素 */
+.tut-highlight {
+  position: relative !important;
+  z-index: 9100 !important;
+  box-shadow: 0 0 0 4px var(--accent-cyan),
+              0 0 24px 4px rgba(38, 198, 218, 0.35) !important;
+  border-radius: var(--radius);
+  animation: tut-pulse 1.8s ease-in-out infinite;
+  pointer-events: auto !important;
+}
+
+@keyframes tut-pulse {
+  0%, 100% { box-shadow: 0 0 0 4px var(--accent-cyan), 0 0 24px 4px rgba(38,198,218,0.35); }
+  50%      { box-shadow: 0 0 0 6px var(--accent-cyan), 0 0 36px 8px rgba(38,198,218,0.5); }
+}
+
+/* 教程提示框 */
+.tutorial-tooltip {
+  position: fixed;
+  z-index: 9200;
+  width: 380px;
+  max-width: calc(100vw - 24px);
+  background: linear-gradient(135deg, #0d1b3e 0%, #162050 100%);
+  border: 1px solid rgba(38, 198, 218, 0.5);
+  border-radius: 10px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6),
+              0 0 30px rgba(38, 198, 218, 0.15);
+  padding: 0;
+  overflow: hidden;
+  animation: tut-fadein .3s ease-out;
+  pointer-events: auto;
+}
+.tutorial-tooltip.hidden { display: none; }
+
+@keyframes tut-fadein {
+  from { opacity: 0; transform: translateY(10px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* 居中定位 */
+.tut-pos-center {
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%);
+}
+
+/* Header: 阶段 + 进度 */
+.tut-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px 6px;
+  font-size: 11px;
+}
+.tut-phase {
+  color: var(--accent-cyan);
+  font-weight: 600;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+}
+.tut-progress {
+  color: var(--text-dim);
+}
+
+/* Progress bar */
+.tut-progress-bar {
+  height: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 0 16px 10px;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.tut-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-cyan), var(--accent-blue));
+  transition: width .4s;
+  border-radius: 2px;
+}
+
+/* NPC info */
+.tut-npc {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px 6px;
+}
+.tut-npc-icon {
+  font-size: 28px;
+  line-height: 1;
+}
+.tut-npc-name {
+  font-size: 12px;
+  color: var(--accent-gold);
+  font-weight: 600;
+}
+
+/* Title */
+.tut-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  padding: 0 16px 6px;
+  letter-spacing: .3px;
+}
+
+/* Content */
+.tut-content {
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--text-primary);
+  padding: 0 16px 10px;
+}
+.tut-keyword {
+  color: var(--accent-gold);
+  font-weight: 600;
+  background: rgba(255, 215, 0, 0.1);
+  padding: 0 4px;
+  border-radius: 3px;
+}
+
+/* Action hint */
+.tut-action-hint {
+  font-size: 12px;
+  color: var(--accent-cyan);
+  text-align: center;
+  padding: 6px 16px 10px;
+  animation: tut-hint-blink 1.5s ease-in-out infinite;
+}
+@keyframes tut-hint-blink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.5; }
+}
+
+/* Buttons */
+.tut-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.tut-btn {
+  border: none;
+  border-radius: 5px;
+  padding: 7px 18px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .2s;
+}
+.tut-btn-primary {
+  background: var(--accent-cyan);
+  color: #000;
+}
+.tut-btn-primary:hover {
+  background: #4dd0e1;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(38, 198, 218, 0.4);
+}
+.tut-btn-secondary {
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.tut-btn-secondary:hover {
+  color: var(--text-primary);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* 教程开始弹窗 */
+#tutorial-start-modal .modal-box {
+  text-align: center;
+  max-width: 400px;
+}
+#tutorial-start-modal .tut-start-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--accent-gold);
+  margin-bottom: 8px;
+}
+#tutorial-start-modal .tut-start-desc {
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+#tutorial-start-modal .tut-start-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+#tutorial-start-modal .tut-start-actions .tut-btn {
+  width: 220px;
+  padding: 10px;
+  font-size: 14px;
+}
+#tutorial-start-modal .tut-start-hint {
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: 10px;
+}
+
+/* ============================================================
+   自动贸易控件
+   ============================================================ */
+#auto-trade-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0 8px;
+}
+
+.btn-auto-trade {
+  background: rgba(38, 198, 218, 0.12);
+  border: 1px solid rgba(38, 198, 218, 0.35);
+  color: var(--accent-cyan);
+  border-radius: 5px;
+  padding: 5px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+.btn-auto-trade:hover {
+  background: rgba(38, 198, 218, 0.25);
+  box-shadow: 0 2px 8px rgba(38, 198, 218, 0.25);
+}
+
+.btn-auto-trade.auto-trade-active {
+  background: rgba(255, 82, 82, 0.15);
+  border-color: rgba(255, 82, 82, 0.45);
+  color: #ff5252;
+  animation: auto-trade-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes auto-trade-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.65; }
+}
+
+.auto-trade-status {
+  font-size: 11px;
+  color: var(--text-dim);
+}

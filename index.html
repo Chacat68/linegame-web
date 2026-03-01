@@ -40,6 +40,8 @@
       </div>
       <span id="empire-pct" style="font-size:11px;color:#aaa">0%</span>
     </div>
+
+    <div id="player-level" class="player-level-bar"></div>
   </header>
 
   <!-- ================================================================
@@ -91,6 +93,13 @@
           </div>
           <div class="mini-bar-track"><div id="fuel-fill" class="mini-bar-fill"></div></div>
         </div>
+        <div class="mini-bar-wrap">
+          <div class="mini-bar-label">
+            <span>船体</span>
+            <span id="hull-text">100 / 100</span>
+          </div>
+          <div class="mini-bar-track"><div id="hull-fill" class="mini-bar-fill hull-fill"></div></div>
+        </div>
       </div>
 
       <!-- Tabs -->
@@ -98,12 +107,21 @@
         <button class="tab-btn active" data-tab="tab-market">🏪 市场</button>
         <button class="tab-btn"        data-tab="tab-cargo">📦 货舱</button>
         <button class="tab-btn"        data-tab="tab-upgrades">⚙️ 升级</button>
+        <button class="tab-btn"        data-tab="tab-research">🔬 科技</button>
+        <button class="tab-btn"        data-tab="tab-faction">🏛️ 派系</button>
+        <button class="tab-btn"        data-tab="tab-quest">📋 任务</button>
+        <button class="tab-btn"        data-tab="tab-achievement">🏆 成就</button>
+        <button class="tab-btn"        data-tab="tab-save">💾 存档</button>
       </nav>
 
       <div class="tab-content">
 
         <!-- Market tab -->
         <div id="tab-market" class="tab-pane active">
+          <div id="auto-trade-controls">
+            <button id="auto-trade-btn" class="btn-auto-trade">🤖 自动贸易</button>
+            <span id="auto-trade-status" class="auto-trade-status"></span>
+          </div>
           <table id="market-table">
             <thead>
               <tr>
@@ -126,6 +144,33 @@
         <!-- Upgrades tab -->
         <div id="tab-upgrades" class="tab-pane">
           <div id="upgrade-list"></div>
+        </div>
+
+        <!-- Research tab (群星风格科技树) -->
+        <div id="tab-research" class="tab-pane">
+          <div id="research-status"></div>
+          <div id="research-options"></div>
+          <div id="research-completed"></div>
+        </div>
+
+        <!-- Faction tab (派系外交) -->
+        <div id="tab-faction" class="tab-pane">
+          <div id="faction-list"></div>
+        </div>
+
+        <!-- Quest tab (任务系统) -->
+        <div id="tab-quest" class="tab-pane">
+          <div id="quest-list"></div>
+        </div>
+
+        <!-- Achievement tab (成就系统) -->
+        <div id="tab-achievement" class="tab-pane">
+          <div id="achievement-list"></div>
+        </div>
+
+        <!-- Save tab (存读档) -->
+        <div id="tab-save" class="tab-pane">
+          <div id="save-list"></div>
         </div>
 
       </div><!-- /tab-content -->
@@ -154,11 +199,26 @@
       <input  id="modal-amount" type="number" min="1" value="1" aria-label="交易数量" />
       <button id="modal-increase" aria-label="增加数量">+</button>
     </div>
+    <button id="modal-all" class="btn-all">全部</button>
     <div id="modal-total"></div>
     <div class="modal-actions">
       <button id="modal-confirm" class="btn-primary">确认</button>
       <button id="modal-cancel"  class="btn-secondary">取消</button>
     </div>
+  </div>
+</div>
+
+<!-- ================================================================
+     Event modal (群星风格随机事件)
+================================================================ -->
+<div id="event-modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-box event-modal-box">
+    <div class="event-header">
+      <span id="event-icon" class="event-icon-large"></span>
+      <h3 id="event-title">事件</h3>
+    </div>
+    <p id="event-desc" class="event-description"></p>
+    <div id="event-choices" class="event-choices"></div>
   </div>
 </div>
 
@@ -173,9 +233,30 @@
   </div>
 </div>
 
-<script src="js/data.js"></script>
-<script src="js/economy.js"></script>
-<script src="js/renderer.js"></script>
-<script src="js/game.js"></script>
+<!-- ================================================================
+     Tutorial: 新手引导遮罩 & 提示框
+================================================================ -->
+<div id="tutorial-overlay" class="hidden"></div>
+<div id="tutorial-tooltip" class="tutorial-tooltip hidden"></div>
+
+<!-- ================================================================
+     Tutorial: 首次启动弹窗
+================================================================ -->
+<div id="tutorial-start-modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <div class="tut-start-title">⭐ 欢迎，星际贸易商！</div>
+    <p class="tut-start-desc">
+      这似乎是你第一次来到银河系。<br>
+      要先了解一下星际贸易的基础吗？
+    </p>
+    <div class="tut-start-actions">
+      <button id="tut-start-yes" class="tut-btn tut-btn-primary">🚀 开始新手教程</button>
+      <button id="tut-start-no" class="tut-btn tut-btn-secondary">我是老手，直接开始</button>
+    </div>
+    <div class="tut-start-hint">教程约 2 分钟，可随时跳过</div>
+  </div>
+</div>
+
+<script type="module" src="js/main.js"></script>
 </body>
 </html>
