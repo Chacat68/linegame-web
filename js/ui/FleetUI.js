@@ -1,8 +1,8 @@
-// js/ui/FleetUI.js — 船队管理 UI
+// js/ui/FleetUI.js — 船队管理 UI（含席位系统）
 // 依赖：data/ships.js, data/systems.js, data/goods.js, systems/fleet/FleetSystem.js
 // 导出：render
 
-import { SHIP_TYPES, SHIP_UPGRADES } from '../data/ships.js';
+import { SHIP_TYPES, SHIP_UPGRADES, FLEET_SLOTS } from '../data/ships.js';
 import { SYSTEMS, getSystemsByGalaxy } from '../data/systems.js';
 import { GOODS } from '../data/goods.js';
 import * as Fleet from '../systems/fleet/FleetSystem.js';
@@ -16,17 +16,61 @@ import * as Economy from '../systems/economy/Economy.js';
  * @param {Function} onUpgradeShip  (upgradeId)  => void
  * @param {Function} onAssignRoute  (shipIndex, buySystemId, sellSystemId, goodId) => void
  * @param {Function} onCancelRoute  (shipIndex) => void
+ * @param {Function} onBuySlot      () => void
  */
-export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRoute, onCancelRoute) {
+export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRoute, onCancelRoute, onBuySlot) {
   const container = document.getElementById('fleet-list');
   if (!container) return;
 
-  const fleet     = Fleet.getFleet(state);
-  const activeIdx = state.activeShipIndex || 0;
+  const fleet      = Fleet.getFleet(state);
+  const activeIdx  = state.activeShipIndex || 0;
+  const slotCount  = Fleet.getSlotCount(state);
+  const maxSlots   = Fleet.getMaxSlots();
+  const routeLevel = Fleet.getDispatchRouteLevel(state);
 
-  let html = '<div class="fleet-section-title">⚓ 我的船队（' + fleet.length + '/6）</div>';
+  let html = '';
 
-  // --- 已拥有的船只 ---
+  // ========== 席位区域 ==========
+  html += '<div class="fleet-section-title">🎫 船队席位（' + slotCount + '/' + maxSlots + '）</div>';
+  html += '<div class="fleet-slot-bar">';
+  for (var si = 0; si < maxSlots; si++) {
+    var slotDef = FLEET_SLOTS[si];
+    var isOwned = si < slotCount;
+    var hasShip = si < fleet.length;
+    html += '<div class="fleet-slot' + (isOwned ? ' slot-owned' : ' slot-locked') +
+            (hasShip ? ' slot-filled' : '') + '" title="' + slotDef.name + '">';
+    if (hasShip) {
+      html += '<span class="slot-ship-icon">' + fleet[si].emoji + '</span>';
+    } else if (isOwned) {
+      html += '<span class="slot-empty-icon">＋</span>';
+    } else {
+      html += '<span class="slot-lock-icon">🔒</span>';
+    }
+    html += '</div>';
+  }
+  html += '</div>';
+
+  // 席位信息 & 购买按钮
+  html += '<div class="fleet-slot-info">';
+  html += '<span class="fleet-slot-route-lvl">📡 派遣航线等级：Lv.' + routeLevel + '</span>';
+  if (slotCount < maxSlots) {
+    var nextSlot = FLEET_SLOTS[slotCount];
+    var canAffordSlot = state.credits >= nextSlot.cost;
+    html += '<div class="fleet-slot-next">';
+    html += '<span>下一席位：<b>' + nextSlot.name + '</b> — ' + nextSlot.desc + '</span>';
+    html += '<button class="fleet-slot-buy-btn' + (canAffordSlot ? ' slot-can-buy' : '') + '"' +
+            (canAffordSlot ? '' : ' disabled') + '>' +
+            (canAffordSlot ? '🎫 解锁 ' + nextSlot.cost.toLocaleString() + ' 积分' : '积分不足 (' + nextSlot.cost.toLocaleString() + ')') +
+            '</button>';
+    html += '</div>';
+  } else {
+    html += '<div class="fleet-slot-next"><span>🏆 已解锁全部席位！</span></div>';
+  }
+  html += '</div>';
+
+  // ========== 已拥有的船只 ==========
+  html += '<div class="fleet-section-title" style="margin-top:12px">⚓ 我的船队（' + fleet.length + '/' + slotCount + '）</div>';
+
   fleet.forEach(function (ship, idx) {
     const isActive = idx === activeIdx;
     const cargoUsed = Object.values(ship.cargo).reduce(function (s, q) { return s + q; }, 0);
@@ -36,7 +80,7 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
     html += '<div class="fleet-ship-header">';
     html += '<span class="fleet-ship-icon">' + ship.emoji + '</span>';
     html += '<span class="fleet-ship-name">' + ship.name;
-    if (isActive) html += ' <span class="fleet-active-badge">操控中</span>';
+    if (isActive && !ship.route) html += ' <span class="fleet-active-badge">操控中</span>';
     if (ship.route) html += ' <span class="fleet-dispatch-badge">派遣中</span>';
     html += '</span>';
     html += '</div>';
@@ -48,7 +92,7 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
     html += '<div class="fleet-stat">🔧 耗油×' + ship.fuelEff.toFixed(2) + '<span class="fleet-cap">最低' + ship.minFuelEff + '</span></div>';
     html += '</div>';
 
-    // 派遣路线状态
+    // 派遣路线状态（所有已派遣的船只，包括激活船只）
     if (ship.route) {
       const busSys  = SYSTEMS.find(function (s) { return s.id === ship.route.buySystemId; });
       const sellSys = SYSTEMS.find(function (s) { return s.id === ship.route.sellSystemId; });
@@ -68,30 +112,30 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
       html += '</div>';
     }
 
-    // 非激活且非派遣：显示操控切换和派遣按钮
-    if (!isActive && !ship.route) {
+    // 操作按钮
+    if (!ship.route) {
       html += '<div class="fleet-actions">';
-      html += '<button class="fleet-switch-btn" data-index="' + idx + '">🔄 切换操控</button>';
-      html += '<button class="fleet-dispatch-btn" data-index="' + idx + '">📡 派遣贸易</button>';
-      html += '</div>';
-    }
-
-    // 激活船只只显示标注
-    if (isActive) {
-      html += '<div class="fleet-actions">';
-      html += '<span class="fleet-hint">当前正在手动操控</span>';
+      if (isActive) {
+        // 激活船只：显示派遣按钮
+        html += '<button class="fleet-dispatch-btn" data-index="' + idx + '">📡 自动派遣</button>';
+      } else {
+        // 非激活船只：切换 + 派遣
+        html += '<button class="fleet-switch-btn" data-index="' + idx + '">🔄 切换操控</button>';
+        html += '<button class="fleet-dispatch-btn" data-index="' + idx + '">📡 派遣贸易</button>';
+      }
       html += '</div>';
     }
 
     html += '</div>';
   });
 
-  // --- 可购买的船只 ---
+  // ========== 船只商店 ==========
   html += '<div class="fleet-section-title" style="margin-top:12px">🏪 船只商店</div>';
+
+  var hasAvailableSlot = Fleet.getAvailableSlotCount(state) > 0;
 
   SHIP_TYPES.forEach(function (st) {
     const canAfford = state.credits >= st.cost;
-    const isFull    = fleet.length >= 6;
     if (st.cost === 0) return;
 
     html += '<div class="fleet-shop-card">';
@@ -108,8 +152,8 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
     html += '🔧×' + st.fuelEff + '(→' + st.minFuelEff + ')';
     html += '</div>';
 
-    if (isFull) {
-      html += '<button class="fleet-buy-btn" disabled>船队已满</button>';
+    if (!hasAvailableSlot) {
+      html += '<button class="fleet-buy-btn" disabled>需要先购买席位</button>';
     } else if (!canAfford) {
       html += '<button class="fleet-buy-btn" disabled>积分不足</button>';
     } else {
@@ -118,7 +162,7 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
     html += '</div>';
   });
 
-  // --- 当前船只升级 ---
+  // ========== 当前船只升级 ==========
   const activeShip = Fleet.getActiveShip(state);
   html += '<div class="fleet-section-title" style="margin-top:12px">⚙️ 「' + activeShip.name + '」升级</div>';
 
@@ -152,7 +196,15 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
 
   container.innerHTML = html;
 
-  // --- 绑定事件 ---
+  // ========== 绑定事件 ==========
+
+  // 席位购买
+  container.querySelectorAll('.fleet-slot-buy-btn.slot-can-buy').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      if (onBuySlot) onBuySlot();
+    });
+  });
+
   container.querySelectorAll('.fleet-switch-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {
       onSwitchShip(parseInt(btn.dataset.index));
@@ -171,7 +223,7 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
     });
   });
 
-  // 派遣按钮 → 打开派遣配置弹窗
+  // 派遣按钮 → 打开派遣配置弹窗（所有船只，包括激活船只）
   container.querySelectorAll('.fleet-dispatch-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {
       _openDispatchModal(state, parseInt(btn.dataset.index), onAssignRoute);
@@ -195,8 +247,11 @@ function _openDispatchModal(state, shipIndex, onAssignRoute) {
   if (!modal) return;
 
   const ship = state.fleet[shipIndex];
+  const isActive = shipIndex === (state.activeShipIndex || 0);
+  const routeLevel = Fleet.getDispatchRouteLevel(state);
 
-  document.getElementById('dispatch-title').textContent = '📡 派遣「' + ship.emoji + ' ' + ship.name + '」';
+  document.getElementById('dispatch-title').textContent =
+    '📡 ' + (isActive ? '自动派遣' : '派遣') + '「' + ship.emoji + ' ' + ship.name + '」';
 
   // 填充星系选择
   const buySelect  = document.getElementById('dispatch-buy-system');
@@ -207,15 +262,28 @@ function _openDispatchModal(state, shipIndex, onAssignRoute) {
   sellSelect.innerHTML = '';
   goodSelect.innerHTML = '';
 
-  // 只显示当前星系的已解锁星球
+  // 对于激活船只，显示同星系已解锁星球
+  // 对于非激活船只，根据席位航线等级过滤
   var playerLevel = state.playerLevel || 1;
   var galaxyPlanets = getSystemsByGalaxy(state.currentGalaxy || 'milky_way').filter(function (sys) {
-    return playerLevel >= (sys.minLevel || 1);
+    var minLvl = sys.minLevel || 1;
+    // 激活船只用玩家等级过滤，非激活船只用席位航线等级
+    if (isActive) {
+      return playerLevel >= minLvl;
+    } else {
+      return minLvl <= routeLevel;
+    }
   });
-  galaxyPlanets.forEach(function (sys) {
-    buySelect.innerHTML  += '<option value="' + sys.id + '">' + sys.name + ' [' + sys.typeLabel + ']</option>';
-    sellSelect.innerHTML += '<option value="' + sys.id + '">' + sys.name + ' [' + sys.typeLabel + ']</option>';
-  });
+
+  if (galaxyPlanets.length < 2) {
+    buySelect.innerHTML = '<option value="">需要更多航线（购买席位解锁）</option>';
+    sellSelect.innerHTML = '<option value="">需要更多航线（购买席位解锁）</option>';
+  } else {
+    galaxyPlanets.forEach(function (sys) {
+      buySelect.innerHTML  += '<option value="' + sys.id + '">' + sys.name + ' [' + sys.typeLabel + ']</option>';
+      sellSelect.innerHTML += '<option value="' + sys.id + '">' + sys.name + ' [' + sys.typeLabel + ']</option>';
+    });
+  }
 
   // 设置卖出默认选不同星系
   if (sellSelect.options.length > 1) sellSelect.selectedIndex = 1;
@@ -230,6 +298,10 @@ function _openDispatchModal(state, shipIndex, onAssignRoute) {
     var buyId  = buySelect.value;
     var sellId = sellSelect.value;
     var gId    = goodSelect.value;
+    if (!buyId || !sellId || !gId) {
+      document.getElementById('dispatch-estimate').textContent = '无法预估（航线不足）';
+      return;
+    }
     var bp     = Economy.getBuyPrice(buyId, gId, state);
     var sp     = Economy.getSellPrice(sellId, gId, state);
     var cargoUsed = Object.values(ship.cargo).reduce(function (s, q) { return s + q; }, 0);

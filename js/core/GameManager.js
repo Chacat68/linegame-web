@@ -40,19 +40,16 @@ import { SYSTEMS } from '../data/systems.js';
 let _state     = null;
 let _startTime = null;
 
-// 自动贸易
-let _autoTradeEnabled  = false;
-let _autoTradeInterval = null;
-let _autoTradeTarget   = null; // { sellSystemId, sellSystemName }
-
-const AUTO_TRADE_TICK_MS = 2000; // 自动贸易每步间隔（毫秒）
+// 激活船只自动派遣
+let _activeDispatchInterval = null;
+const ACTIVE_DISPATCH_TICK_MS = 2000; // 派遣每步间隔（毫秒）
 
 // ---------------------------------------------------------------------------
 // 对外 API
 // ---------------------------------------------------------------------------
 
 export function init() {
-  _stopAutoTrade();   // 重启时停止自动贸易
+  _stopActiveDispatch();   // 重启时停止派遣
   _state = _deepClone(INITIAL_STATE);
 
   Economy.init();
@@ -70,8 +67,6 @@ export function init() {
     Tutorial.checkTabClick(tabId);
   });
   Modal.init(_handleTradeConfirm);
-
-  document.getElementById('auto-trade-btn').onclick = _handleAutoTradeToggle;
 
   document.getElementById('restart-btn').addEventListener('click', function () {
     document.getElementById('gameover-modal').classList.add('hidden');

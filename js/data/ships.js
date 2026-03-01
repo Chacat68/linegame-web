@@ -1,6 +1,6 @@
 // js/data/ships.js — 船只类型定义
 // 依赖：无
-// 导出：SHIP_TYPES
+// 导出：SHIP_TYPES, SHIP_UPGRADES, FLEET_SLOTS
 
 /**
  * 每种船只定义：
@@ -55,6 +55,20 @@ export const SHIP_TYPES = [
     fuelEff: 1.5, minFuelEff: 0.6,
     desc: '帝国级巨型货舰，终极贸易船只',
   },
+];
+
+/**
+ * 船队席位定义
+ * 玩家必须先购买席位才能购买新船只
+ * 每个席位解锁更高级的贸易航线（routeLevel 对应星球 minLevel）
+ */
+export const FLEET_SLOTS = [
+  { id: 1, cost: 0,     name: '初始席位',  desc: '基础席位，包含初始穿梭机',    routeLevel: 1 },
+  { id: 2, cost: 2000,  name: '席位 II',   desc: '解锁 Lv.2 贸易航线',        routeLevel: 2 },
+  { id: 3, cost: 5000,  name: '席位 III',  desc: '解锁 Lv.3 贸易航线',        routeLevel: 3 },
+  { id: 4, cost: 12000, name: '席位 IV',   desc: '解锁 Lv.4 贸易航线',        routeLevel: 4 },
+  { id: 5, cost: 25000, name: '席位 V',    desc: '解锁 Lv.5 贸易航线',        routeLevel: 5 },
+  { id: 6, cost: 50000, name: '席位 VI',   desc: '解锁 Lv.6+ 贸易航线',       routeLevel: 99 },
 ];
 
 /**

@@ -2,9 +2,12 @@
 // 依赖：data/ships.js, data/systems.js, systems/economy/Economy.js
 // 导出：init, buyShip, switchShip, upgradeShip, getActiveShip, getFleet,
 //       syncStateFromShip, syncShipFromState, getShipType,
-//       assignRoute, cancelRoute, tickFleetRoutes
+//       assignRoute, cancelRoute, tickFleetRoutes,
+//       buySlot, getSlotCount, getMaxSlots, getAvailableSlotCount,
+//       getDispatchRouteLevel, dispatchActiveShip, cancelActiveDispatch,
+//       isActiveDispatched, tickActiveShipDispatch
 
-import { SHIP_TYPES, SHIP_UPGRADES } from '../../data/ships.js';
+import { SHIP_TYPES, SHIP_UPGRADES, FLEET_SLOTS } from '../../data/ships.js';
 import { SYSTEMS, FUEL_COST_PER_UNIT, findSystem } from '../../data/systems.js';
 import { GOODS } from '../../data/goods.js';
 import * as Economy from '../economy/Economy.js';
@@ -49,6 +52,10 @@ export function init(state) {
     state.fleet = [starter];
     state.activeShipIndex = 0;
   }
+  // 兼容旧存档：补充席位数据
+  if (!state.fleetSlots || state.fleetSlots < 1) {
+    state.fleetSlots = Math.max(1, state.fleet.length);
+  }
   // 确保当前 state 与激活船只同步
   syncStateFromShip(state);
 }
@@ -67,8 +74,69 @@ export function getFleet(state) {
   return state.fleet;
 }
 
+// ---------------------------------------------------------------------------
+// 席位系统
+// ---------------------------------------------------------------------------
+
 /**
- * 购买新船只
+ * 获取已购买席位数
+ */
+export function getSlotCount(state) {
+  return state.fleetSlots || 1;
+}
+
+/**
+ * 获取最大席位数
+ */
+export function getMaxSlots() {
+  return FLEET_SLOTS.length;
+}
+
+/**
+ * 获取可用席位数（已购买 - 已使用）
+ */
+export function getAvailableSlotCount(state) {
+  return getSlotCount(state) - state.fleet.length;
+}
+
+/**
+ * 获取当前派遣航线解锁等级（基于已购买的最高席位）
+ */
+export function getDispatchRouteLevel(state) {
+  var slotCount = getSlotCount(state);
+  var slot = FLEET_SLOTS[slotCount - 1];
+  return slot ? slot.routeLevel : 1;
+}
+
+/**
+ * 购买新席位
+ * @param {object} state
+ * @returns {{ ok: boolean, msgs: Array }}
+ */
+export function buySlot(state) {
+  var current = getSlotCount(state);
+  if (current >= FLEET_SLOTS.length) {
+    return { ok: false, msgs: [{ text: '🚫 席位已达上限！', type: 'error' }] };
+  }
+  var nextSlot = FLEET_SLOTS[current]; // 下一个席位（0-indexed, current = 已拥有数）
+  if (state.credits < nextSlot.cost) {
+    return { ok: false, msgs: [{ text: '💰 积分不足！需要 ' + nextSlot.cost.toLocaleString() + ' 积分。', type: 'error' }] };
+  }
+  state.credits -= nextSlot.cost;
+  state.fleetSlots = current + 1;
+
+  return {
+    ok: true,
+    msgs: [{
+      text: '🌟 解锁「' + nextSlot.name + '」！船队席位：' + state.fleetSlots + '/' + FLEET_SLOTS.length +
+            '，派遣航线等级提升至 Lv.' + nextSlot.routeLevel + ' ！',
+      type: 'upgrade',
+    }],
+  };
+}
+
+/**
+ * 购买新船只（需要有可用席位）
  * @param {object} state
  * @param {string} shipTypeId  SHIP_TYPES 中的 id
  * @returns {{ ok: boolean, msgs: Array }}
@@ -81,9 +149,9 @@ export function buyShip(state, shipTypeId) {
   if (state.credits < shipType.cost) {
     return { ok: false, msgs: [{ text: '💰 积分不足！需要 ' + shipType.cost + ' 积分。', type: 'error' }] };
   }
-  // 最多拥有 6 艘船
-  if (state.fleet.length >= 6) {
-    return { ok: false, msgs: [{ text: '🚫 船队已满（最多 6 艘）！', type: 'error' }] };
+  // 检查是否有可用席位
+  if (getAvailableSlotCount(state) <= 0) {
+    return { ok: false, msgs: [{ text: '🚫 没有可用席位！请先购买新席位。', type: 'error' }] };
   }
 
   state.credits -= shipType.cost;
@@ -93,7 +161,7 @@ export function buyShip(state, shipTypeId) {
   return {
     ok: true,
     msgs: [{
-      text: '🎉 购入新船「' + shipType.emoji + ' ' + shipType.name + '」！船队规模：' + state.fleet.length + ' 艘。',
+      text: '🎉 购入新船「' + shipType.emoji + ' ' + shipType.name + '」！船队规模：' + state.fleet.length + '/' + getSlotCount(state) + ' 艘。',
       type: 'upgrade',
     }],
   };
@@ -262,7 +330,8 @@ function _fuelCost(fromId, toId, fuelEff) {
 }
 
 /**
- * 为非激活船只分配贸易路线
+ * 为船只分配贸易路线（派遣）
+ * 支持激活船只和非激活船只
  * @param {object} state
  * @param {number} shipIndex
  * @param {string} buySystemId  买入星系
@@ -271,9 +340,6 @@ function _fuelCost(fromId, toId, fuelEff) {
  * @returns {{ ok: boolean, msgs: Array }}
  */
 export function assignRoute(state, shipIndex, buySystemId, sellSystemId, goodId) {
-  if (shipIndex === state.activeShipIndex) {
-    return { ok: false, msgs: [{ text: '⚠️ 不能派遣当前操控的船只！', type: 'error' }] };
-  }
   var ship = state.fleet[shipIndex];
   if (!ship) {
     return { ok: false, msgs: [{ text: '❌ 无效的船只！', type: 'error' }] };
@@ -330,7 +396,7 @@ export function cancelRoute(state, shipIndex) {
 }
 
 /**
- * 每日结算 — 所有派遣中的船只执行一步贸易
+ * 每日结算 — 所有派遣中的船只（不含激活船只）执行一步贸易
  * 在 GameManager._handleTravel 中每天调用
  * @param {object} state
  * @returns {{ msgs: Array }}  所有船只行为的日志
@@ -339,7 +405,7 @@ export function tickFleetRoutes(state) {
   var msgs = [];
 
   state.fleet.forEach(function (ship, idx) {
-    if (idx === state.activeShipIndex) return; // 激活船只由玩家直接控制
+    if (idx === state.activeShipIndex) return; // 激活船只由玩家直接控制或由自动派遣定时器处理
     if (!ship.route) return;
 
     var route = ship.route;
@@ -491,4 +557,67 @@ function _autoRefuelShip(state, ship, needed, msgs) {
 function _sysName(sysId) {
   var sys = findSystem(sysId);
   return sys ? sys.name : sysId;
+}
+
+// ---------------------------------------------------------------------------
+// 激活船只派遣（自动贸易）
+// ---------------------------------------------------------------------------
+
+/**
+ * 检查激活船只是否已派遣
+ */
+export function isActiveDispatched(state) {
+  var ship = getActiveShip(state);
+  return ship && ship.route != null;
+}
+
+/**
+ * 为激活船只设置派遣路线
+ */
+export function dispatchActiveShip(state, buySystemId, sellSystemId, goodId) {
+  return assignRoute(state, state.activeShipIndex, buySystemId, sellSystemId, goodId);
+}
+
+/**
+ * 取消激活船只的派遣
+ */
+export function cancelActiveDispatch(state) {
+  return cancelRoute(state, state.activeShipIndex);
+}
+
+/**
+ * 激活船只派遣 tick（由定时器调用）
+ * 处理激活船只的自动贸易流程
+ * @returns {{ msgs: Array, needTravel: string|null }}  needTravel 表示需要前往的星系
+ */
+export function tickActiveShipDispatch(state) {
+  var msgs = [];
+  var ship = getActiveShip(state);
+  if (!ship || !ship.route) return { msgs: msgs, needTravel: null, needBuy: null, needSell: null };
+
+  var route = ship.route;
+
+  switch (route.status) {
+    case 'traveling_buy': {
+      if (state.currentSystem === route.buySystemId) {
+        route.status = 'buying';
+        return { msgs: msgs, needTravel: null, needBuy: route, needSell: null };
+      }
+      return { msgs: msgs, needTravel: route.buySystemId, needBuy: null, needSell: null };
+    }
+    case 'buying': {
+      return { msgs: msgs, needTravel: null, needBuy: route, needSell: null };
+    }
+    case 'traveling_sell': {
+      if (state.currentSystem === route.sellSystemId) {
+        route.status = 'selling';
+        return { msgs: msgs, needTravel: null, needBuy: null, needSell: route };
+      }
+      return { msgs: msgs, needTravel: route.sellSystemId, needBuy: null, needSell: null };
+    }
+    case 'selling': {
+      return { msgs: msgs, needTravel: null, needBuy: null, needSell: route };
+    }
+  }
+  return { msgs: msgs, needTravel: null, needBuy: null, needSell: null };
 }
