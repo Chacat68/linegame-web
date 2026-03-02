@@ -16,7 +16,10 @@
     <div class="hdr-title">
       <h1>⭐ 星际贸易帝国</h1>
       <span class="subtitle">银河历 3045 年</span>
-      <button id="company-name-display" class="company-name-btn" title="点击重命名公司">🏢 <span id="company-name-text">星际信使贸易公司</span> ✏️</button>
+      <div id="location-bar">
+        <div id="current-location">📍 🌌 银河系 > 太阳主星 · 🏛️ 银河联邦</div>
+        <div id="location-desc">银河系农业中心，粮食丰产之地</div>
+      </div>
     </div>
 
     <div id="player-stats">
@@ -87,6 +90,7 @@
       <div id="map-container">
         <canvas id="webgl-canvas"></canvas>
         <canvas id="map-canvas"></canvas>
+        <div id="planet-detail-panel" class="planet-detail-panel"></div>
         <div class="map-btn-group">
           <button id="market-view-btn" class="map-overlay-btn">🏪 市场</button>
           <button id="galaxy-view-btn" class="map-overlay-btn">🌌 星系总览</button>
@@ -95,30 +99,48 @@
         <!-- Market overlay panel -->
         <div id="market-overlay" class="market-overlay hidden">
           <div class="market-overlay-header">
-            <h3>🏪 星际市场</h3>
+            <h3 id="market-header-title">🏪 星际市场</h3>
             <button id="market-close-btn" class="market-close-btn">✕</button>
           </div>
           <!-- Galaxy navigation -->
           <div id="market-galaxy-nav" class="market-galaxy-nav"></div>
-          <!-- Planet selector -->
-          <div class="market-planet-row">
-            <select id="market-planet-select" class="market-planet-select"></select>
-          </div>
-          <div id="market-overlay-location" class="market-overlay-location"></div>
 
-          <div class="market-overlay-body">
-            <table id="market-table">
-              <thead>
-                <tr>
-                  <th>商品</th>
-                  <th>买入</th>
-                  <th>卖出</th>
-                  <th>持有</th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-              <tbody id="market-tbody"></tbody>
-            </table>
+          <!-- ▸ Overview mode: price matrix -->
+          <div id="market-overview" class="market-overview">
+            <div class="market-overview-toolbar">
+              <span class="market-overview-hint">💡 点击星球行查看详情并交易</span>
+              <label class="market-price-toggle">
+                <input type="checkbox" id="market-show-sell"> 显示卖出价
+              </label>
+            </div>
+            <div class="market-overview-scroll">
+              <table id="market-overview-table">
+                <thead id="market-overview-thead"></thead>
+                <tbody id="market-overview-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- ▸ Detail mode: single planet -->
+          <div id="market-detail" class="market-detail hidden">
+            <div class="market-detail-bar">
+              <button id="market-back-btn" class="market-back-btn">← 返回总览</button>
+              <span id="market-detail-location" class="market-detail-location"></span>
+            </div>
+            <div class="market-overlay-body">
+              <table id="market-table">
+                <thead>
+                  <tr>
+                    <th>商品</th>
+                    <th>买入</th>
+                    <th>卖出</th>
+                    <th>持有</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="market-tbody"></tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
@@ -138,10 +160,11 @@
     <!-- Trade Panel ------------------------------------------------- -->
     <aside id="trade-panel">
 
-      <!-- Location -->
-      <div id="location-bar">
-        <div id="current-location">📍 太阳主星</div>
-        <div id="location-desc">银河系农业中心，粮食丰产之地</div>
+      <!-- Company -->
+      <div class="company-info-bar">
+        <button id="company-name-display" class="company-name-btn" title="点击重命名公司">🏢 <span id="company-name-text">星际信使贸易公司</span> ✏️</button>
+        <div id="company-level-line" class="company-level-line">🏢 新创企业 Lv.1 · 0/120</div>
+        <div class="company-level-track"><div id="company-level-fill" class="company-level-fill"></div></div>
       </div>
 
       <!-- Fleet Overview -->

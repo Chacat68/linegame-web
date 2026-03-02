@@ -5,8 +5,18 @@
 import * as EventBus            from '../core/EventBus.js';
 import { SYSTEMS, findSystem, findGalaxy } from '../data/systems.js';
 import * as Faction             from '../systems/faction/FactionSystem.js';
-import { getLevel, getRepRank, PLAYER_LEVELS } from '../data/playerLevels.js';
+import * as PlayerLevels        from '../data/playerLevels.js';
 import * as Victory             from '../systems/victory/VictorySystem.js';
+
+const getLevel = PlayerLevels.getLevel;
+const getRepRank = PlayerLevels.getRepRank;
+const PLAYER_LEVELS = PlayerLevels.PLAYER_LEVELS || [];
+const COMPANY_LEVELS = PlayerLevels.COMPANY_LEVELS || [
+  { level: 1, title: '新创企业', expRequired: 0, icon: '🏢' },
+];
+const getCompanyLevel = PlayerLevels.getCompanyLevel || function (exp) {
+  return COMPANY_LEVELS[0];
+};
 
 // 缓存最近一次胜利路径进度，避免点击弹窗时重复计算
 let _lastProgressList = [];
@@ -60,11 +70,14 @@ export function updateStats(state, netWorth) {
   const progressList = Victory.getProgress(state);
   _lastProgressList = progressList;
   const completedCount = progressList.filter(function (p) { return p.completed; }).length;
+  const totalPaths = (typeof Victory.getUnlockedPaths === 'function')
+    ? Victory.getUnlockedPaths(state).length
+    : progressList.length;
   const summaryEl = document.getElementById('victory-progress-summary');
   if (summaryEl) {
     summaryEl.textContent = completedCount > 0
-      ? completedCount + '/' + progressList.length + ' 已完成'
-      : progressList.length + ' 条路径';
+      ? completedCount + '/' + totalPaths + ' 已完成'
+      : totalPaths + ' 条路径（章节解锁中）';
   }
 
   // 更新弹窗内容（如果弹窗已打开）
@@ -109,6 +122,23 @@ export function updateStats(state, netWorth) {
 export function updateCompanyName(state) {
   const el = document.getElementById('company-name-text');
   if (el) el.textContent = state.companyName || '星际信使贸易公司';
+
+  const lvlLineEl = document.getElementById('company-level-line');
+  const lvlFillEl = document.getElementById('company-level-fill');
+  if (!lvlLineEl || !lvlFillEl) return;
+
+  const lvl = getCompanyLevel(state.companyExperience || 0);
+  const nextLvl = COMPANY_LEVELS.find(function (l) { return l.level === lvl.level + 1; });
+  const expCur = (state.companyExperience || 0) - lvl.expRequired;
+  const expNeed = nextLvl ? (nextLvl.expRequired - lvl.expRequired) : 1;
+  const pct = nextLvl ? Math.min(100, (expCur / expNeed) * 100) : 100;
+
+  if (nextLvl) {
+    lvlLineEl.textContent = lvl.icon + ' ' + lvl.title + ' Lv.' + lvl.level + ' · ' + Math.max(0, expCur) + '/' + expNeed;
+  } else {
+    lvlLineEl.textContent = lvl.icon + ' ' + lvl.title + ' Lv.' + lvl.level + ' · 已满级';
+  }
+  lvlFillEl.style.width = pct + '%';
 }
 
 

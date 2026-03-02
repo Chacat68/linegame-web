@@ -1,12 +1,105 @@
-// js/ui/MarketUI.js — 市场商品列表渲染
-// 依赖：data/goods.js, systems/economy/Economy.js
-// 导出：render
+// js/ui/MarketUI.js — 市场界面（价格总览 + 星球详情双模式）
+// 依赖：data/goods.js, data/systems.js, systems/economy/Economy.js
+// 导出：renderOverview, render (detail), showOverview, showDetail
 
 import { GOODS }    from '../data/goods.js';
+import { getSystemsByGalaxy, findSystem, isSystemAccessible } from '../data/systems.js';
 import * as Economy from '../systems/economy/Economy.js';
 
+// ---------------------------------------------------------------------------
+// 价格总览表（默认视图）
+// ---------------------------------------------------------------------------
+
 /**
- * 渲染市场表格
+ * 渲染价格纵览矩阵：行=星球，列=商品
+ * @param {object}   state
+ * @param {string}   galaxyId       当前查看的星系
+ * @param {Function} onPlanetClick  (systemId) => void
+ */
+export function renderOverview(state, galaxyId, onPlanetClick) {
+  const thead = document.getElementById('market-overview-thead');
+  const tbody = document.getElementById('market-overview-tbody');
+  if (!thead || !tbody) return;
+
+  const showSell = document.getElementById('market-show-sell');
+  const isSell = showSell && showSell.checked;
+
+  // 表头：星球 + 各商品
+  thead.innerHTML = '';
+  const headRow = document.createElement('tr');
+  headRow.innerHTML = '<th class="mkt-ov-planet-th">星球</th>' +
+    GOODS.map(function (g) {
+      return '<th class="mkt-ov-good-th" title="' + g.name + '">' + g.emoji + '</th>';
+    }).join('');
+  thead.appendChild(headRow);
+
+  // 获取该星系所有星球（按等级和名字排序）
+  const playerLevel = state.playerLevel || 1;
+  const allSystems = getSystemsByGalaxy(galaxyId);
+  const accessible = allSystems.filter(function (s) {
+    return isSystemAccessible(s.id, playerLevel);
+  });
+  // 玩家已访问的星球排前面，当前星球最优先
+  const visited = state.visitedSystems || [];
+  accessible.sort(function (a, b) {
+    const aIsCur = a.id === state.currentSystem ? -2 : 0;
+    const bIsCur = b.id === state.currentSystem ? -2 : 0;
+    const aVisited = visited.indexOf(a.id) !== -1 ? -1 : 0;
+    const bVisited = visited.indexOf(b.id) !== -1 ? -1 : 0;
+    const diff = (aIsCur + aVisited) - (bIsCur + bVisited);
+    if (diff !== 0) return diff;
+    return (a.minLevel || 1) - (b.minLevel || 1);
+  });
+
+  tbody.innerHTML = '';
+  accessible.forEach(function (sys) {
+    const isCurrent = sys.id === state.currentSystem;
+    const isVisited = visited.indexOf(sys.id) !== -1;
+    const tr = document.createElement('tr');
+    tr.className = 'mkt-ov-row' +
+      (isCurrent ? ' mkt-ov-current' : '') +
+      (isVisited ? ' mkt-ov-visited' : ' mkt-ov-unvisited');
+    tr.dataset.sysId = sys.id;
+
+    // 星球名列
+    let planetCell = '<td class="mkt-ov-planet">' +
+      '<span class="mkt-ov-dot" style="background:' + sys.color + '"></span>' +
+      (isCurrent ? '📍 ' : '') +
+      '<span class="mkt-ov-name">' + sys.name + '</span>' +
+      '<span class="mkt-ov-type">' + sys.typeLabel + '</span>' +
+      '</td>';
+
+    // 各商品价格列
+    let priceCells = '';
+    GOODS.forEach(function (good) {
+      const price = isSell
+        ? Economy.getSellPrice(sys.id, good.id, state)
+        : Economy.getBuyPrice(sys.id, good.id, state);
+      const mult = Economy.getSystemMultiplier(sys.id, good.id);
+      const isCheap = mult < 0.7;
+      const isExpensive = mult > 1.4;
+      const cls = isCheap ? 'price-low' : isExpensive ? 'price-high' : '';
+      priceCells += '<td class="mkt-ov-price ' + cls + '">' + price + '</td>';
+    });
+
+    tr.innerHTML = planetCell + priceCells;
+
+    // 点击行打开详情
+    tr.addEventListener('click', function () {
+      onPlanetClick(sys.id);
+    });
+    tr.style.cursor = 'pointer';
+
+    tbody.appendChild(tr);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// 星球详情（交易视图）
+// ---------------------------------------------------------------------------
+
+/**
+ * 渲染单个星球的商品详情表格（含买入/卖出按钮）
  * @param {object}   state
  * @param {Function} onBuy          (good) => void
  * @param {Function} onSell         (good) => void
@@ -76,4 +169,33 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem) {
       tbody.appendChild(tr);
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// 视图切换辅助
+// ---------------------------------------------------------------------------
+
+/** 显示总览，隐藏详情 */
+export function showOverview() {
+  const ov = document.getElementById('market-overview');
+  const dt = document.getElementById('market-detail');
+  const title = document.getElementById('market-header-title');
+  if (ov) ov.classList.remove('hidden');
+  if (dt) dt.classList.add('hidden');
+  if (title) title.textContent = '🏪 星际市场';
+}
+
+/** 显示详情，隐藏总览 */
+export function showDetail(systemId) {
+  const ov = document.getElementById('market-overview');
+  const dt = document.getElementById('market-detail');
+  const loc = document.getElementById('market-detail-location');
+  const title = document.getElementById('market-header-title');
+  if (ov) ov.classList.add('hidden');
+  if (dt) dt.classList.remove('hidden');
+  const sys = findSystem(systemId);
+  if (sys && loc) {
+    loc.textContent = sys.name + ' [' + sys.typeLabel + '] — ' + sys.description;
+  }
+  if (title) title.textContent = '🏪 ' + (sys ? sys.name : '');
 }

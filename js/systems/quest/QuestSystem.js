@@ -1,7 +1,8 @@
-// js/systems/quest/QuestSystem.js — 任务系统（按进度阶段解锁）
+// js/systems/quest/QuestSystem.js — 任务系统（按章节推进解锁）
 // 依赖：data/quests.js, data/playerLevels.js, systems/faction/FactionSystem.js
 // 导出：init, getAvailableQuests, getLockedQuests, acceptQuest, checkProgress,
-//       getActiveQuests, completeQuest, getQuestPhaseProgress
+//       getActiveQuests, completeQuest, getQuestPhaseProgress,
+//       getCurrentQuestPhase, getCurrentQuestPhaseProgress
 
 import { QUESTS, QUEST_TYPES, QUEST_PHASES } from '../../data/quests.js';
 import { getLevel }            from '../../data/playerLevels.js';
@@ -13,6 +14,86 @@ import * as Faction            from '../faction/FactionSystem.js';
 export function init(state) {
   if (!state.quests)          state.quests          = [];
   if (!state.completedQuests) state.completedQuests = [];
+  if (!state.questPhase) {
+    state.questPhase = _inferCurrentQuestPhase(state);
+  } else {
+    state.questPhase = Math.max(1, Math.min(QUEST_PHASES.length, state.questPhase));
+  }
+  _syncQuestPhase(state);
+}
+
+function _inferCurrentQuestPhase(state) {
+  var completedIds = state.completedQuests || [];
+  var inferred = 1;
+
+  for (var i = 1; i <= QUEST_PHASES.length; i++) {
+    var phaseQuests = QUESTS.filter(function (q) { return (q.phase || 1) === i; });
+    if (phaseQuests.length === 0) {
+      if (i < QUEST_PHASES.length) inferred = i + 1;
+      continue;
+    }
+
+    var doneAll = phaseQuests.every(function (q) { return completedIds.includes(q.id); });
+    if (doneAll && i < QUEST_PHASES.length) {
+      inferred = i + 1;
+      continue;
+    }
+    break;
+  }
+
+  var highestActive = 0;
+  (state.quests || []).forEach(function (q) {
+    highestActive = Math.max(highestActive, q.phase || 1);
+  });
+
+  return Math.max(inferred, highestActive, 1);
+}
+
+function _syncQuestPhase(state) {
+  var current = state.questPhase || 1;
+  while (current < QUEST_PHASES.length) {
+    var phaseQuests = QUESTS.filter(function (q) { return (q.phase || 1) === current; });
+    if (phaseQuests.length === 0) {
+      current += 1;
+      continue;
+    }
+    var doneAll = phaseQuests.every(function (q) {
+      return (state.completedQuests || []).includes(q.id);
+    });
+    if (!doneAll) break;
+    current += 1;
+  }
+  state.questPhase = Math.max(1, Math.min(QUEST_PHASES.length, current));
+}
+
+function _isQuestDone(quest) {
+  if (!quest || !quest.objectives || quest.objectives.length === 0) return false;
+  return quest.objectives.every(function (obj) {
+    return (obj.current || 0) >= (obj.amount || 1);
+  });
+}
+
+export function getCurrentQuestPhase(state) {
+  if (!state.questPhase) {
+    state.questPhase = _inferCurrentQuestPhase(state);
+  }
+  return state.questPhase;
+}
+
+export function getCurrentQuestPhaseProgress(state) {
+  var current = getCurrentQuestPhase(state);
+  var phase = QUEST_PHASES[current - 1];
+  var completedIds = state.completedQuests || [];
+  var quests = QUESTS.filter(function (q) { return (q.phase || 1) === current; });
+  var completed = quests.filter(function (q) { return completedIds.includes(q.id); }).length;
+  return {
+    currentPhase: current,
+    phase: phase,
+    total: quests.length,
+    completed: completed,
+    percent: quests.length > 0 ? Math.round(completed / quests.length * 100) : 100,
+    isFinalPhase: current === QUEST_PHASES.length,
+  };
 }
 
 /**
@@ -78,10 +159,12 @@ function _checkUnlockConditions(quest, state) {
  * 获取当前可接取的任务列表（已解锁，排除已完成和进行中的）
  */
 export function getAvailableQuests(state) {
+  var currentPhase = getCurrentQuestPhase(state);
   var activeIds   = state.quests.map(function (q) { return q.id; });
   var completedIds = state.completedQuests || [];
 
   return QUESTS.filter(function (quest) {
+    if ((quest.phase || 1) !== currentPhase) return false;
     if (activeIds.includes(quest.id))    return false;
     if (completedIds.includes(quest.id)) return false;
 
@@ -95,23 +178,14 @@ export function getAvailableQuests(state) {
  * 只展示下一阶段或当前阶段中未解锁的任务，避免剧透过多
  */
 export function getLockedQuests(state) {
+  var currentPhase = getCurrentQuestPhase(state);
   var activeIds   = state.quests.map(function (q) { return q.id; });
   var completedIds = state.completedQuests || [];
-  var playerLvl = getLevel(state.experience || 0).level;
-
-  // 确定当前可见的最大阶段：当前阶段 + 1
-  var currentPhase = 1;
-  QUEST_PHASES.forEach(function (p, i) {
-    if (playerLvl >= p.levelRange[0]) currentPhase = i + 1;
-  });
-  var maxVisiblePhase = Math.min(currentPhase + 1, QUEST_PHASES.length);
 
   return QUESTS.filter(function (quest) {
     if (activeIds.includes(quest.id))    return false;
     if (completedIds.includes(quest.id)) return false;
-
-    // 只展示可见阶段内的任务
-    if ((quest.phase || 1) > maxVisiblePhase) return false;
+    if ((quest.phase || 1) !== currentPhase) return false;
 
     var result = _checkUnlockConditions(quest, state);
     return !result.unlocked;
@@ -158,6 +232,10 @@ export function acceptQuest(state, questId) {
   const template = QUESTS.find(function (q) { return q.id === questId; });
   if (!template) return { ok: false, msgs: [{ text: '任务不存在。', type: 'error' }] };
 
+  if ((template.phase || 1) !== getCurrentQuestPhase(state)) {
+    return { ok: false, msgs: [{ text: '该任务尚未解锁当前章节。', type: 'error' }] };
+  }
+
   if (state.quests.length >= 5) {
     return { ok: false, msgs: [{ text: '❌ 最多同时进行 5 个任务！', type: 'error' }] };
   }
@@ -165,9 +243,49 @@ export function acceptQuest(state, questId) {
   // 深拷贝任务实例
   const quest = JSON.parse(JSON.stringify(template));
   quest.startDay = state.day;
-  state.quests.push(quest);
+
+  // 立即同步一次与当前位置相关的目标，避免“已到达目标星球但未结算”
+  if (quest.objectives && quest.objectives.length > 0) {
+    quest.objectives.forEach(function (obj) {
+      if (obj.type === 'visit_system' && state.currentSystem === obj.targetSystem) {
+        obj.current = 1;
+      }
+
+      if (obj.type === 'visit_systems') {
+        if (!obj.visited) obj.visited = [];
+        var knownVisited = state.visitedSystems || [];
+        knownVisited.forEach(function (systemId) {
+          if (!obj.visited.includes(systemId)) obj.visited.push(systemId);
+        });
+        obj.current = Math.min(obj.amount || 1, obj.visited.length);
+      }
+    });
+  }
 
   const typeInfo = QUEST_TYPES[quest.type] || {};
+
+  // 若接取时目标已满足（例如“前往某星球”且当前已在目标地），立即完成
+  if (_isQuestDone(quest)) {
+    state.credits     += quest.rewards.credits || 0;
+    state.experience   = (state.experience || 0) + (quest.rewards.exp || 0);
+    state.reputation   = (state.reputation || 0) + (quest.rewards.reputation || 0);
+    if (!state.completedQuests.includes(quest.id)) {
+      state.completedQuests.push(quest.id);
+    }
+    _syncQuestPhase(state);
+
+    return {
+      ok: true,
+      msgs: [{
+        text: (typeInfo.icon || '📋') + ' 任务「' + quest.name + '」已立即完成！奖励：💰' +
+              (quest.rewards.credits || 0) + ' 积分, ⭐' + (quest.rewards.exp || 0) + ' 经验',
+        type: 'upgrade',
+      }],
+    };
+  }
+
+  state.quests.push(quest);
+
   return {
     ok: true,
     msgs: [{
@@ -194,6 +312,7 @@ export function abandonQuest(state, questId) {
 export function checkProgress(state, context) {
   const msgs = [];
   const completed = [];
+  var phaseBefore = getCurrentQuestPhase(state);
 
   state.quests.forEach(function (quest) {
     // 检查是否超时
@@ -240,6 +359,18 @@ export function checkProgress(state, context) {
     // 从活跃列表移除
     state.quests = state.quests.filter(function (q) { return q.id !== c.id; });
   });
+
+  _syncQuestPhase(state);
+  var phaseAfter = state.questPhase || 1;
+  if (phaseAfter > phaseBefore) {
+    var p = QUEST_PHASES[phaseAfter - 1];
+    if (p) {
+      msgs.push({
+        text: '🎬 恭喜你进入' + p.name + '！新的章节任务与胜利条件已解锁。',
+        type: 'upgrade',
+      });
+    }
+  }
 
   return { completedQuests: completed, msgs: msgs };
 }
@@ -301,7 +432,9 @@ function _updateObjective(obj, ctx, state) {
       break;
 
     case 'visit_system':
-      if (ctx.action === 'travel' && ctx.systemId === obj.targetSystem) {
+      // 兼容：旅行事件触发，或玩家当前就在目标星球
+      if ((ctx.action === 'travel' && ctx.systemId === obj.targetSystem) ||
+          state.currentSystem === obj.targetSystem) {
         obj.current = 1;
       }
       break;

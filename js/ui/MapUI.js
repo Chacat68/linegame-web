@@ -1,11 +1,12 @@
 // js/ui/MapUI.js — 星系地图交互事件绑定（支持星系/星球双层视图 + 市场面板）
-// 依赖：ui/Renderer.js, systems/economy/Economy.js
+// 依赖：ui/Renderer.js
 // 导出：init, initTabs, refreshGalaxyBtn, openMarket, closeMarket, isMarketOpen,
-//        setRefreshMarket, getMarketViewSystem, refreshMarketLocation
+//        setRefreshMarket, getMarketViewSystem, refreshMarketLocation,
+//        showMarketOverview, showMarketDetail, refreshPlanetDetail
 
 import * as Renderer from './Renderer.js';
-import * as Economy  from '../systems/economy/Economy.js';
-import { GALAXIES, findSystem }  from '../data/systems.js';
+import * as Faction from '../systems/faction/FactionSystem.js';
+import { GALAXIES, findSystem, findGalaxy }  from '../data/systems.js';
 
 let _tabClickCallback = null;
 let _marketOpen = false;
@@ -13,13 +14,15 @@ let _smallScreenMql = null;
 
 // 市场浏览状态
 let _marketViewGalaxy = null;
-let _marketViewSystem = null;
-// 市场表格刷新回调（由 GameManager 注入）
-let _refreshMarket = null;
+let _marketViewSystem = null;      // 详情模式时选中的星球
+let _marketMode = 'overview';       // 'overview' | 'detail'
+// 市场刷新回调（由 GameManager 注入）
+let _refreshMarket = null;          // (mode) => void
+let _stateRef = null;               // 用于内部事件引用
 
 /**
  * 注入市场刷新回调（在 GameManager.init 中调用）
- * @param {Function} fn  () => void  — 刷新市场表格
+ * @param {Function} fn  (mode:'overview'|'detail') => void  — 刷新市场
  */
 export function setRefreshMarket(fn) {
   _refreshMarket = fn;
@@ -32,6 +35,30 @@ export function setRefreshMarket(fn) {
  */
 export function getMarketViewSystem(state) {
   return _marketViewSystem || state.currentSystem;
+}
+
+/** 获取市场当前查看的星系 ID */
+export function getMarketViewGalaxy(state) {
+  return _marketViewGalaxy || state.currentGalaxy;
+}
+
+/** 获取当前市场模式 */
+export function getMarketMode() {
+  return _marketMode;
+}
+
+/** 切换到总览模式 */
+export function showMarketOverview() {
+  _marketMode = 'overview';
+  _marketViewSystem = null;
+  if (_refreshMarket) _refreshMarket('overview');
+}
+
+/** 切换到详情模式 */
+export function showMarketDetail(systemId) {
+  _marketMode = 'detail';
+  _marketViewSystem = systemId;
+  if (_refreshMarket) _refreshMarket('detail');
 }
 
 /**
@@ -51,33 +78,23 @@ export function init(stateRef, onTravel, onGalaxyJump) {
       const gal = Renderer.getGalaxyAtPoint(mx, my, r.width, r.height);
       mapCanvas.title = gal ? gal.name : '';
       stateRef.hoveredSystem = null;
+      refreshPlanetDetail(stateRef);
     } else {
       const sys = Renderer.getSystemAtPoint(mx, my, r.width, r.height,
         stateRef.viewingGalaxy || stateRef.currentGalaxy);
       const newId = sys ? sys.id : null;
       if (newId !== stateRef.hoveredSystem) {
         stateRef.hoveredSystem = newId;
-        if (newId && newId !== stateRef.currentSystem) {
-          const playerLevel = stateRef.playerLevel || 1;
-          const sysLocked = playerLevel < (sys.minLevel || 1);
-          if (sysLocked) {
-            mapCanvas.title = '🔒 ' + sys.name + ' — 需要等级 ' + (sys.minLevel || 1) + ' 解锁（当前 Lv.' + playerLevel + '）';
-          } else if (sys.galaxyId === stateRef.currentGalaxy) {
-            // 同星系燃料消耗提示
-            const cost = Economy.getFuelCost(stateRef.currentSystem, newId, stateRef.fuelEfficiency);
-            mapCanvas.title = '前往 ' + sys.name + '（需要 ' + cost + ' 燃料）';
-          } else {
-            mapCanvas.title = '跨星系跳转到 ' + sys.name + '（需要超空间跃迁）';
-          }
-        } else {
-          mapCanvas.title = '';
-        }
+        refreshPlanetDetail(stateRef);
+        // 星球悬停仅保留详情面板，不再显示浏览器原生 tooltip
+        mapCanvas.title = '';
       }
     }
   });
 
   mapCanvas.addEventListener('mouseleave', function () {
     stateRef.hoveredSystem = null;
+    refreshPlanetDetail(stateRef);
   });
 
   mapCanvas.addEventListener('click', function (e) {
@@ -94,6 +111,7 @@ export function init(stateRef, onTravel, onGalaxyJump) {
           stateRef.viewingGalaxy = gal.id;
           stateRef.mapView = 'planets';
           _updateGalaxyBtn(stateRef);
+          refreshPlanetDetail(stateRef);
         }
       }
     } else {
@@ -130,6 +148,7 @@ export function init(stateRef, onTravel, onGalaxyJump) {
         stateRef.mapView = 'galaxies';
       }
       _updateGalaxyBtn(stateRef);
+      refreshPlanetDetail(stateRef);
     });
   }
 
@@ -150,6 +169,8 @@ export function init(stateRef, onTravel, onGalaxyJump) {
       closeMarket();
     });
   }
+
+  refreshPlanetDetail(stateRef);
 }
 
 function _updateGalaxyBtn(stateRef) {
@@ -169,21 +190,112 @@ export function refreshGalaxyBtn(stateRef) {
   _updateGalaxyBtn(stateRef);
 }
 
-/** 打开市场面板 */
+function _getSafetyLabel(score) {
+  if (score >= 80) return '安定';
+  if (score >= 60) return '可控';
+  if (score >= 40) return '紧张';
+  return '危险';
+}
+
+export function refreshPlanetDetail(stateRef) {
+  const panel = document.getElementById('planet-detail-panel');
+  const mapCanvas = document.getElementById('map-canvas');
+  const mapContainer = document.getElementById('map-container');
+  if (!panel) return;
+  if (!mapCanvas || !mapContainer) return;
+
+  const displayId = stateRef.hoveredSystem;
+  if (stateRef.mapView !== 'planets' || !displayId) {
+    panel.classList.remove('visible');
+    return;
+  }
+  const sys = findSystem(displayId);
+  if (!sys) {
+    panel.classList.remove('visible');
+    return;
+  }
+
+  const gal = findGalaxy(sys.galaxyId);
+  const details = sys.details || {};
+  const races = (details.population || []).map(function (p) {
+    return p.icon + p.name + '(' + p.percentage + '%)';
+  }).join('、') || '未知';
+  const government = details.government
+    ? (details.government.name + ' · ' + details.government.style)
+    : '未知政体';
+  const specialties = (details.specialties || []).join('、') || '暂无';
+  const safety = typeof details.safety === 'number'
+    ? (details.safety + ' / 100（' + _getSafetyLabel(details.safety) + '）')
+    : '未知';
+
+  const faction = Faction.getFactionForSystem(sys.id);
+  let factionText = '🛰️ 独立星区';
+  let relationText = '🙂 中立 (0)';
+  if (faction) {
+    const rel = Faction.getRelation(stateRef, faction.id);
+    const level = Faction.getLevel(stateRef, faction.id);
+    factionText = faction.icon + ' ' + faction.name;
+    relationText = level.emoji + ' ' + level.name + ' (' + (rel >= 0 ? '+' : '') + rel + ')';
+  }
+
+  const playerLevel = stateRef.playerLevel || 1;
+  const lockText = playerLevel >= (sys.minLevel || 1)
+    ? '已解锁'
+    : ('需 Lv.' + (sys.minLevel || 1) + '（当前 Lv.' + playerLevel + '）');
+
+  panel.innerHTML =
+    '<div class="planet-detail-title">🪐 ' + sys.name + ' · ' + (gal ? (gal.icon + ' ' + gal.name) : '未知星系') + '</div>' +
+    '<div class="planet-detail-desc">' + sys.description + '</div>' +
+    '<div class="planet-detail-item"><span class="planet-detail-label">类型</span>' + sys.typeLabel + '</div>' +
+    '<div class="planet-detail-item"><span class="planet-detail-label">势力</span>' + factionText + '</div>' +
+    '<div class="planet-detail-item"><span class="planet-detail-label">友好度</span>' + relationText + '</div>' +
+    '<div class="planet-detail-item"><span class="planet-detail-label">居民</span>' + races + '</div>' +
+    '<div class="planet-detail-item"><span class="planet-detail-label">人口</span>' + (details.totalPopulation || '未知') + '</div>' +
+    '<div class="planet-detail-item"><span class="planet-detail-label">政体</span>' + government + '</div>' +
+    '<div class="planet-detail-item"><span class="planet-detail-label">治安</span>' + safety + '</div>' +
+    '<div class="planet-detail-item"><span class="planet-detail-label">特产</span>' + specialties + '</div>' +
+    '<div class="planet-detail-item"><span class="planet-detail-label">解锁</span>' + lockText + '</div>';
+
+  panel.classList.add('visible');
+
+  const canvasW = mapCanvas.clientWidth;
+  const canvasH = mapCanvas.clientHeight;
+  const nodeX = sys.x * canvasW;
+  const nodeY = sys.y * canvasH;
+  const offset = 14;
+
+  const panelW = Math.min(320, Math.max(200, canvasW - 16));
+  panel.style.width = panelW + 'px';
+
+  const maxLeft = Math.max(8, canvasW - panelW - 8);
+  const placeRight = nodeX < (canvasW * 0.58);
+  let left = placeRight ? (nodeX + offset) : (nodeX - panelW - offset);
+  left = Math.max(8, Math.min(maxLeft, left));
+
+  const approxH = 160;
+  const maxTop = Math.max(8, canvasH - approxH - 8);
+  let top = nodeY - approxH * 0.5;
+  top = Math.max(8, Math.min(maxTop, top));
+
+  panel.style.left = left + 'px';
+  panel.style.top = top + 'px';
+}
+
+/** 打开市场面板（默认总览模式） */
 export function openMarket(stateRef) {
   const overlay = document.getElementById('market-overlay');
   const marketBtn = document.getElementById('market-view-btn');
   if (!overlay) return;
-  // 每次打开时默认显示当前星球
+  _stateRef = stateRef;
   _marketViewGalaxy = stateRef.currentGalaxy;
-  _marketViewSystem = stateRef.currentSystem;
+  _marketViewSystem = null;
+  _marketMode = 'overview';
   _marketOpen = true;
   overlay.classList.remove('hidden');
   if (marketBtn) marketBtn.classList.add('active');
   _buildMarketGalaxyNav(stateRef);
-  _buildMarketPlanetSelect(stateRef);
-  _updateMarketLocation(stateRef);
-  if (_refreshMarket) _refreshMarket();
+  _bindMarketDetailEvents(stateRef);
+  if (_refreshMarket) _refreshMarket('overview');
 }
 
 /** 关闭市场面板 */
@@ -201,41 +313,31 @@ export function isMarketOpen() {
   return _marketOpen;
 }
 
-/** 旅行后刷新市场（重置为当前星球并重建导航） */
+/** 旅行后刷新市场（重置为总览模式） */
 export function refreshMarketLocation(stateRef) {
   if (!_marketOpen) return;
+  _stateRef = stateRef;
   _marketViewGalaxy = stateRef.currentGalaxy;
-  _marketViewSystem = stateRef.currentSystem;
+  _marketViewSystem = null;
+  _marketMode = 'overview';
   _buildMarketGalaxyNav(stateRef);
-  _buildMarketPlanetSelect(stateRef);
-  _updateMarketLocation(stateRef);
-  if (_refreshMarket) _refreshMarket();
+  if (_refreshMarket) _refreshMarket('overview');
 }
 
-/** 更新市场面板的位置信息 */
-function _updateMarketLocation(stateRef) {
-  const el = document.getElementById('market-overlay-location');
-  if (!el) return;
-  const sysId = _marketViewSystem || stateRef.currentSystem;
-  const sys = findSystem(sysId);
-  if (sys) {
-    const isCurrentSys = sysId === stateRef.currentSystem;
-    el.textContent = (isCurrentSys ? '📍 ' : '🔍 ') + sys.name + ' [' + sys.typeLabel + '] — ' + sys.description;
+/** 绑定详情模式中的返回按钮和卖出价开关 */
+function _bindMarketDetailEvents(state) {
+  const backBtn = document.getElementById('market-back-btn');
+  if (backBtn) {
+    backBtn.onclick = function () {
+      showMarketOverview();
+    };
   }
-}
-
-/**
- * 将已访问星球按星系分组（避免在每个点击处理器中重复查找）
- */
-function _groupVisitedByGalaxy(state) {
-  const map = Object.create(null);
-  (state.visitedSystems || []).forEach(function (sid) {
-    const s = findSystem(sid);
-    if (!s) return;
-    if (!map[s.galaxyId]) map[s.galaxyId] = [];
-    map[s.galaxyId].push(sid);
-  });
-  return map;
+  const sellToggle = document.getElementById('market-show-sell');
+  if (sellToggle) {
+    sellToggle.onchange = function () {
+      if (_marketMode === 'overview' && _refreshMarket) _refreshMarket('overview');
+    };
+  }
 }
 
 /**
@@ -246,7 +348,6 @@ function _buildMarketGalaxyNav(state) {
   if (!nav) return;
   nav.innerHTML = '';
   const visited = state.visitedGalaxies || [state.currentGalaxy];
-  const visitedByGalaxy = _groupVisitedByGalaxy(state);
   GALAXIES.forEach(function (g) {
     if (visited.indexOf(g.id) === -1) return;
     const btn = document.createElement('button');
@@ -254,49 +355,13 @@ function _buildMarketGalaxyNav(state) {
     btn.textContent = g.icon + ' ' + g.name;
     btn.addEventListener('click', function () {
       _marketViewGalaxy = g.id;
-      // 优先选中当前星球（若在该星系），否则选第一个已访问星球
-      const planetsInGalaxy = visitedByGalaxy[g.id] || [];
-      const curInGalaxy = planetsInGalaxy.indexOf(state.currentSystem) !== -1;
-      _marketViewSystem = curInGalaxy ? state.currentSystem : (planetsInGalaxy[0] || null);
+      _marketViewSystem = null;
+      _marketMode = 'overview';
       _buildMarketGalaxyNav(state);
-      _buildMarketPlanetSelect(state);
-      _updateMarketLocation(state);
-      if (_refreshMarket) _refreshMarket();
+      if (_refreshMarket) _refreshMarket('overview');
     });
     nav.appendChild(btn);
   });
-}
-
-/**
- * 构建星球下拉选择器（仅显示当前星系中已访问的星球）
- */
-function _buildMarketPlanetSelect(state) {
-  const sel = document.getElementById('market-planet-select');
-  if (!sel) return;
-  sel.innerHTML = '';
-  const visitedByGalaxy = _groupVisitedByGalaxy(state);
-  const planetsInGalaxy = visitedByGalaxy[_marketViewGalaxy] || [];
-  let viewSystemFound = false;
-  planetsInGalaxy.forEach(function (sid) {
-    const s = findSystem(sid);
-    if (!s) return;
-    const opt = document.createElement('option');
-    opt.value = sid;
-    const isCurrent = sid === state.currentSystem;
-    opt.textContent = (isCurrent ? '📍 ' : '') + s.name + ' [' + s.typeLabel + ']';
-    if (sid === _marketViewSystem) { opt.selected = true; viewSystemFound = true; }
-    sel.appendChild(opt);
-  });
-  // 若目标星球不在列表中，默认选第一个
-  if (!viewSystemFound && sel.options.length > 0) {
-    sel.options[0].selected = true;
-    _marketViewSystem = sel.options[0].value;
-  }
-  sel.onchange = function () {
-    _marketViewSystem = sel.value;
-    _updateMarketLocation(state);
-    if (_refreshMarket) _refreshMarket();
-  };
 }
 
 /**

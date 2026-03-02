@@ -44,6 +44,10 @@ export function buyGood(state, goodId, quantity) {
   state.credits        -= totalCost;
   state.cargo[goodId]   = (state.cargo[goodId] || 0) + quantity;
 
+  // 成本追踪（加权平均）
+  if (!state.cargoCost) state.cargoCost = {};
+  state.cargoCost[goodId] = (state.cargoCost[goodId] || 0) + totalCost;
+
   // 统计商品交易量
   if (!state.goodsTraded) state.goodsTraded = {};
   state.goodsTraded[goodId] = (state.goodsTraded[goodId] || 0) + quantity;
@@ -55,6 +59,7 @@ export function buyGood(state, goodId, quantity) {
   return {
     ok:   true,
     msgs: [{ text: '✅ 购买了 ' + quantity + ' 单位 ' + good.name + '，花费 ' + totalCost + ' 积分。', type: 'buy' }],
+    meta: { goodId: goodId, quantity: quantity, totalCost: totalCost },
   };
 }
 
@@ -66,17 +71,36 @@ export function sellGood(state, goodId, quantity) {
 
   const price        = Economy.getSellPrice(state.currentSystem, goodId, state);
   const totalEarned  = price * quantity;
+
+  // 计算利润（基于成本追踪）
+  if (!state.cargoCost) state.cargoCost = {};
+  const totalCostForGood = state.cargoCost[goodId] || 0;
+  const currentQty       = state.cargo[goodId] || 0;
+  const avgCost          = currentQty > 0 ? totalCostForGood / currentQty : 0;
+  const costBasis        = avgCost * quantity;
+  const profit           = totalEarned - costBasis;
+
   state.credits     += totalEarned;
   state.cargo[goodId] -= quantity;
-  if (state.cargo[goodId] <= 0) delete state.cargo[goodId];
+
+  // 更新成本追踪
+  if (state.cargo[goodId] <= 0) {
+    delete state.cargo[goodId];
+    delete state.cargoCost[goodId];
+  } else {
+    state.cargoCost[goodId] = totalCostForGood - costBasis;
+  }
+
+  // 累计总利润
+  state.totalProfit = (state.totalProfit || 0) + profit;
 
   // 统计商品交易量
   if (!state.goodsTraded) state.goodsTraded = {};
   state.goodsTraded[goodId] = (state.goodsTraded[goodId] || 0) + quantity;
 
-  // 统计单笔最大利润（简化估算：卖出总价 / 量 - 基础价格为利润）
-  if (totalEarned > (state.maxSingleProfit || 0)) {
-    state.maxSingleProfit = totalEarned;
+  // 统计单笔最大利润
+  if (profit > (state.maxSingleProfit || 0)) {
+    state.maxSingleProfit = profit;
   }
 
   // 更新供需
@@ -86,6 +110,7 @@ export function sellGood(state, goodId, quantity) {
   return {
     ok:   true,
     msgs: [{ text: '💸 出售了 ' + quantity + ' 单位 ' + good.name + '，获得 ' + totalEarned + ' 积分。', type: 'sell' }],
+    meta: { goodId: goodId, quantity: quantity, totalEarned: totalEarned, profit: profit },
   };
 }
 

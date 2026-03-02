@@ -284,6 +284,58 @@ html, body {
   vertical-align: middle;
 }
 
+.planet-detail-panel {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 8;
+  width: 320px;
+  max-width: calc(100% - 16px);
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(12, 14, 35, 0.94);
+  backdrop-filter: blur(2px);
+  box-shadow: 0 6px 18px rgba(0,0,0,.35);
+  display: none;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 12px;
+  font-size: 11px;
+  pointer-events: none;
+}
+.planet-detail-panel.visible {
+  display: grid;
+}
+.planet-detail-title {
+  grid-column: 1 / -1;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-gold);
+}
+.planet-detail-desc {
+  grid-column: 1 / -1;
+  color: var(--text-dim);
+  font-size: 11px;
+  margin-bottom: 2px;
+}
+.planet-detail-item {
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.planet-detail-label {
+  color: var(--text-dim);
+  margin-right: 4px;
+}
+
+@media (max-width: 1024px) {
+  .planet-detail-panel {
+    width: 280px;
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ---- Info panel (left: 科技/派系/成就/存档) ----------------------------- */
 #info-panel {
   width: 300px;
@@ -365,6 +417,49 @@ html, body {
   font-size: 11px;
   color: var(--text-dim);
   margin-top: 2px;
+}
+
+/* Location bar in header (top-left) */
+#game-header #location-bar {
+  margin-top: 4px;
+  padding: 0;
+  border-bottom: none;
+  background: transparent;
+}
+#game-header #current-location {
+  font-size: 12px;
+}
+#game-header #location-desc {
+  font-size: 11px;
+}
+
+/* Company info in trade panel */
+.company-info-bar {
+  padding: 8px 12px 6px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-card);
+}
+.company-info-bar .company-name-btn {
+  margin-top: 0;
+}
+.company-level-line {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-primary);
+}
+.company-level-track {
+  height: 4px;
+  margin-top: 4px;
+  border-radius: 3px;
+  background: #202040;
+  overflow: hidden;
+}
+.company-level-fill {
+  width: 0;
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-gold), #ffec7a);
+  border-radius: 3px;
+  transition: width .25s;
 }
 
 /* Fleet overview stats */
@@ -2145,28 +2240,7 @@ html, body {
   color: #c0e8f0;
   border-color: rgba(79, 195, 247, 0.4);
 }
-.market-planet-row {
-  padding: 5px 10px;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
-}
-.market-planet-select {
-  width: 100%;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.15);
-  color: #e0e0ff;
-  font-size: 12px;
-  padding: 4px 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  outline: none;
-}
-.market-planet-select:focus {
-  border-color: rgba(79, 195, 247, 0.5);
-}
-.market-planet-select option {
-  background: #0e1230;
-  color: #e0e0ff;
-}
+/* (planet select removed — now using overview table) */
 .market-readonly-note {
   font-size: 11px;
   color: #9090b0;
@@ -2182,6 +2256,145 @@ html, body {
 }
 .market-overlay-body table {
   width: 100%;
+}
+
+/* Market overview (price matrix) */
+.market-overview {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+.market-overview.hidden { display: none; }
+.market-overview-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  font-size: 11px;
+  color: #7878a0;
+}
+.market-overview-hint { opacity: 0.7; }
+.market-price-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  color: #9090b0;
+  font-size: 11px;
+}
+.market-price-toggle input { cursor: pointer; accent-color: #4FC3F7; }
+.market-overview-scroll {
+  flex: 1;
+  overflow: auto;
+  padding: 0 4px;
+}
+#market-overview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+#market-overview-table th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: rgba(8, 12, 30, 0.98);
+  padding: 5px 4px;
+  color: var(--text-dim);
+  font-weight: 600;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  border-bottom: 1px solid var(--border);
+  text-align: center;
+}
+.mkt-ov-planet-th { text-align: left !important; min-width: 100px; }
+.mkt-ov-good-th { min-width: 36px; }
+
+.mkt-ov-row {
+  transition: background 0.15s;
+}
+.mkt-ov-row:hover {
+  background: rgba(79, 195, 247, 0.08) !important;
+}
+.mkt-ov-row td {
+  padding: 4px 4px;
+  border-bottom: 1px solid #12122a;
+  text-align: center;
+  vertical-align: middle;
+}
+.mkt-ov-current {
+  background: rgba(79, 195, 247, 0.06);
+}
+.mkt-ov-current td { border-bottom-color: rgba(79, 195, 247, 0.15); }
+.mkt-ov-unvisited { opacity: 0.5; }
+.mkt-ov-planet {
+  text-align: left !important;
+  white-space: nowrap;
+}
+.mkt-ov-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+.mkt-ov-name {
+  font-weight: 500;
+  color: #d0d0ff;
+}
+.mkt-ov-current .mkt-ov-name { color: #4FC3F7; }
+.mkt-ov-type {
+  font-size: 9px;
+  color: #7878a0;
+  margin-left: 4px;
+}
+.mkt-ov-price {
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+}
+
+/* Market detail */
+.market-detail {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+.market-detail.hidden { display: none; }
+.market-detail-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.market-back-btn {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #a0a0d0;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.market-back-btn:hover {
+  background: rgba(79, 195, 247, 0.15);
+  color: #e0f7ff;
+  border-color: rgba(79, 195, 247, 0.4);
+}
+.market-detail-location {
+  font-size: 12px;
+  color: #9090b0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ============================================================

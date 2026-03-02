@@ -143,8 +143,10 @@ function _deserializeState(data) {
     reputation: 0,
     researchedTechs: [], currentResearch: null, researchOptions: [],
     techBuyDiscount: 0, techSellBonus: 0,
-    tradeCount: 0, totalProfit: 0,
+    tradeCount: 0, totalProfit: 0, cargoCost: {},
     playerLevel: 1, experience: 0,
+    companyLevel: 1, companyExperience: 0,
+    questPhase: 1,
     quests: [], completedQuests: [],
     achievements: [],
   };

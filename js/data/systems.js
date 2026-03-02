@@ -47,6 +47,135 @@ const _DESC = {
   industrial:['工厂群','制造中心','重工基地'],energy:['能源站','核聚变环','反物质站'],
   research:['实验站','观测台','学术前哨'],special:['神秘星球','独立殖民地','异常前哨'],
 };
+
+/* ── 星球详情元数据（居民/政体/治安/特色） ── */
+const _RACE_POOL = [
+  { id:'human', name:'人类', icon:'🧑' },
+  { id:'cyber', name:'赛博裔', icon:'🤖' },
+  { id:'aqua', name:'潮汐族', icon:'🪼' },
+  { id:'stone', name:'岩灵族', icon:'🪨' },
+  { id:'avian', name:'羽翼族', icon:'🪽' },
+  { id:'flora', name:'绿裔', icon:'🌿' },
+  { id:'void', name:'虚空裔', icon:'👁️' },
+  { id:'artisan', name:'晶匠族', icon:'💎' },
+];
+
+const _RACE_BIAS = {
+  agricultural:['human','flora','aqua'],
+  technology:['human','cyber','artisan'],
+  mining:['stone','human','artisan'],
+  commercial:['human','avian','artisan'],
+  military:['human','cyber','stone'],
+  medical:['human','aqua','flora'],
+  industrial:['human','cyber','stone'],
+  energy:['cyber','artisan','void'],
+  research:['human','cyber','aqua'],
+  special:['void','avian','artisan'],
+};
+
+const _GOVERNMENTS = {
+  agricultural:[{ name:'农业理事会', style:'地方自治' }, { name:'生态公社', style:'合作社联盟' }],
+  technology:[{ name:'算法议会', style:'技术官僚制' }, { name:'科研董事会', style:'学术寡头' }],
+  mining:[{ name:'矿业同盟', style:'企业联治' }, { name:'采掘总署', style:'军事化管理' }],
+  commercial:[{ name:'自由贸易会', style:'商会共和' }, { name:'航运寡头会', style:'资本联盟' }],
+  military:[{ name:'防务司令部', style:'军政合一' }, { name:'边防委员会', style:'戒严统治' }],
+  medical:[{ name:'生命议院', style:'专家自治' }, { name:'医联执政团', style:'公益导向' }],
+  industrial:[{ name:'制造联合体', style:'工会协商' }, { name:'重工管理局', style:'计划工业制' }],
+  energy:[{ name:'能源统筹署', style:'集中调度' }, { name:'恒星环议会', style:'技术监管制' }],
+  research:[{ name:'学术联合院', style:'院系自治' }, { name:'远征研究局', style:'项目制统治' }],
+  special:[{ name:'边境仲裁庭', style:'准自治特区' }, { name:'匿名理事会', style:'隐秘治理' }],
+};
+
+const _SPECIALTIES = {
+  agricultural:['有机粮食','水培作物','蛋白藻田','种子库'],
+  technology:['量子芯片','导航 AI','计算阵列','网络安全服务'],
+  mining:['稀有矿石','晶体冶炼','重金属提纯','深井采掘'],
+  commercial:['星际物流','期货交易','奢侈品转运','拍卖市场'],
+  military:['舰船维修','军需补给','武器测试','防御矩阵'],
+  medical:['生物制药','器官再生','疫苗合成','医疗外包'],
+  industrial:['舰体制造','自动化产线','机甲装配','工业零件'],
+  energy:['聚变燃料','等离子电池','恒星采能','反应堆维护'],
+  research:['天体观测','材料科学','时空理论','应用实验'],
+  special:['黑市交易','遗迹勘探','情报中介','异常样本'],
+};
+
+function _hashText(text) {
+  let h = 2166136261;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function _detailRng(systemId) {
+  const seed = (_hashText(systemId) % 2147483646) + 1;
+  return _rng(seed);
+}
+
+function _pickSome(r, arr, count) {
+  const list = arr.slice();
+  const picked = [];
+  for (let i = 0; i < count && list.length > 0; i++) {
+    const idx = (r() * list.length) | 0;
+    picked.push(list[idx]);
+    list.splice(idx, 1);
+  }
+  return picked;
+}
+
+function _buildPopulation(r, type) {
+  const bias = _RACE_BIAS[type] || ['human','cyber','artisan'];
+  const idSet = new Set();
+  bias.forEach(function (id) { idSet.add(id); });
+  while (idSet.size < 3) {
+    const randRace = _RACE_POOL[(r() * _RACE_POOL.length) | 0];
+    idSet.add(randRace.id);
+  }
+  const raceIds = Array.from(idSet);
+  const selected = _pickSome(r, raceIds, 3);
+  const p1 = 40 + ((r() * 21) | 0);
+  const p2 = 20 + ((r() * 21) | 0);
+  const p3 = Math.max(8, 100 - p1 - p2);
+  const sum = p1 + p2 + p3;
+  const finalP1 = Math.round((p1 / sum) * 100);
+  const finalP2 = Math.round((p2 / sum) * 100);
+  const finalP3 = 100 - finalP1 - finalP2;
+  const perc = [finalP1, finalP2, finalP3];
+  return selected.map(function (id, idx) {
+    const race = _RACE_POOL.find(function (x) { return x.id === id; }) || _RACE_POOL[0];
+    return { name: race.name, icon: race.icon, percentage: perc[idx] };
+  });
+}
+
+function _buildSystemDetails(system) {
+  const r = _detailRng(system.id);
+  const basePopByType = {
+    agricultural: 42, technology: 30, mining: 18, commercial: 35, military: 22,
+    medical: 26, industrial: 28, energy: 16, research: 20, special: 12,
+  };
+  const safetyBaseByType = {
+    agricultural: 72, technology: 78, mining: 58, commercial: 68, military: 62,
+    medical: 80, industrial: 64, energy: 66, research: 74, special: 46,
+  };
+
+  const basePop = basePopByType[system.type] || 20;
+  const totalPopulation = (basePop * (0.7 + r() * 1.2)).toFixed(1) + '亿';
+  const safety = Math.max(20, Math.min(95, Math.round((safetyBaseByType[system.type] || 60) + (r() * 26 - 13))));
+  const govList = _GOVERNMENTS[system.type] || _GOVERNMENTS.special;
+  const government = govList[(r() * govList.length) | 0];
+  const specPool = _SPECIALTIES[system.type] || _SPECIALTIES.special;
+  const specialties = _pickSome(r, specPool, 3);
+
+  return {
+    totalPopulation,
+    population: _buildPopulation(r, system.type),
+    government: government,
+    safety: safety,
+    specialties: specialties,
+  };
+}
+
 function _pickType(r, bias) {
   if (bias && r() < .55) { const f = _TYPES.find(x => x.t === bias[r() * bias.length | 0]); if (f) return f; }
   return _TYPES[r() * _TYPES.length | 0];
@@ -308,6 +437,10 @@ Object.entries(_SEEDS_OTHER).forEach(function (entry) {
   const gid = entry[0], seeds = entry[1];
   const g = GALAXIES.find(function (x) { return x.id === gid; });
   if (g) _all.push(..._gen(gid, g.seed, g.targetCount, seeds, g.typeBias));
+});
+
+_all.forEach(function (system) {
+  if (!system.details) system.details = _buildSystemDetails(system);
 });
 
 const _byId = Object.create(null);

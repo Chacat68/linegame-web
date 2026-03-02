@@ -34,8 +34,16 @@ import * as TutorialUI from '../ui/TutorialUI.js';
 import { INITIAL_STATE } from '../data/constants.js';
 import * as Victory from '../systems/victory/VictorySystem.js';
 import { VICTORY_PATHS } from '../data/victoryConditions.js';
-import { getLevel, getRepRank, PLAYER_LEVELS } from '../data/playerLevels.js';
+import * as PlayerLevels from '../data/playerLevels.js';
 import { SYSTEMS } from '../data/systems.js';
+
+const getLevel = PlayerLevels.getLevel;
+const getCompanyLevel = PlayerLevels.getCompanyLevel || function () {
+  return { level: 1, title: '新创企业', expRequired: 0, icon: '🏢' };
+};
+const COMPANY_LEVELS = PlayerLevels.COMPANY_LEVELS || [
+  { level: 1, title: '新创企业', expRequired: 0, icon: '🏢' },
+];
 
 let _state     = null;
 let _startTime = null;
@@ -70,8 +78,17 @@ export function init() {
     Tutorial.checkTabClick(tabId);
   });
   // 注入市场刷新回调（让 MapUI 可以触发市场表格重绘）
-  MapUI.setRefreshMarket(function () {
-    MarketUI.render(_state, _handleOpenBuy, _handleOpenSell, _handleRefuel, MapUI.getMarketViewSystem(_state));
+  MapUI.setRefreshMarket(function (mode) {
+    if (mode === 'detail') {
+      const sysId = MapUI.getMarketViewSystem(_state);
+      MarketUI.showDetail(sysId);
+      MarketUI.render(_state, _handleOpenBuy, _handleOpenSell, _handleRefuel, sysId);
+    } else {
+      MarketUI.showOverview();
+      MarketUI.renderOverview(_state, MapUI.getMarketViewGalaxy(_state), function (systemId) {
+        MapUI.showMarketDetail(systemId);
+      });
+    }
   });
   Modal.init(_handleTradeConfirm);
 
@@ -219,6 +236,7 @@ function _handleTravel(systemId) {
     Tutorial.checkTrigger('travel');
     // 旅行经验 + 声望
     _gainExperience(5);
+    _gainCompanyExperience(2);
     _state.reputation = (_state.reputation || 0) + 1;
 
     // 连续无伤天数追踪（旅行前记录船体值）
@@ -314,6 +332,11 @@ function _handleTradeConfirm(action, goodId, quantity) {
     const expGain = Math.max(1, Math.ceil(quantity * 2));
     const repGain = Math.max(1, Math.ceil(quantity * 0.5));
     _gainExperience(expGain);
+    const profit = (result.meta && typeof result.meta.profit === 'number') ? result.meta.profit : 0;
+    const companyExpGain = action === 'sell'
+      ? Math.max(2, Math.ceil(quantity * 0.8) + Math.ceil(Math.max(0, profit) / 120))
+      : Math.max(1, Math.ceil(quantity * 0.8));
+    _gainCompanyExperience(companyExpGain);
     _state.reputation = (_state.reputation || 0) + repGain;
 
     // 任务进度：交易
@@ -380,6 +403,11 @@ function _handleLoadGame(slotId) {
     if (!_state.playerLevel) {
       _state.playerLevel = getLevel(_state.experience || 0).level;
     }
+    // 兼容旧存档：补充公司等级
+    if (_state.companyExperience === undefined) {
+      _state.companyExperience = 0;
+    }
+    _state.companyLevel = getCompanyLevel(_state.companyExperience || 0).level;
     // 重新初始化依赖状态的子系统
     Fleet.init(_state);
     Faction.init(_state);
@@ -418,6 +446,31 @@ function _gainExperience(amount) {
     _applyLevelPerk(newLevel.level);
     // 提示新解锁的星球
     _announceNewRoutes(oldLevel.level, newLevel.level);
+  }
+}
+
+/**
+ * 增加公司经验并检查公司升级
+ */
+function _gainCompanyExperience(amount) {
+  const oldLevel = getCompanyLevel(_state.companyExperience || 0);
+  _state.companyExperience = (_state.companyExperience || 0) + Math.max(0, amount || 0);
+  const newLevel = getCompanyLevel(_state.companyExperience || 0);
+  _state.companyLevel = newLevel.level;
+
+  if (newLevel.level > oldLevel.level) {
+    const nextLevel = COMPANY_LEVELS.find(function (l) { return l.level === newLevel.level + 1; });
+    EventBus.emit('log:message', {
+      text: '🏢 公司升级！「' + (_state.companyName || '星际信使贸易公司') + '」晋升为 ' + newLevel.icon + ' ' + newLevel.title + '（Lv.' + newLevel.level + '）！',
+      type: 'upgrade',
+    });
+    if (nextLevel) {
+      const need = Math.max(0, nextLevel.expRequired - (_state.companyExperience || 0));
+      EventBus.emit('log:message', {
+        text: '📈 距离下一公司等级还需 ' + need + ' 经验。',
+        type: 'info',
+      });
+    }
   }
 }
 
@@ -699,7 +752,17 @@ function _updateUI() {
   const netWorth = Trade.getNetWorth(_state);
   HUD.updateStats(_state, netWorth);
   HUD.updateCompanyName(_state);
-  MarketUI.render(_state, _handleOpenBuy, _handleOpenSell, _handleRefuel, MapUI.getMarketViewSystem(_state));
+  // 市场：根据当前模式刷新
+  if (MapUI.isMarketOpen()) {
+    const mode = MapUI.getMarketMode();
+    if (mode === 'detail') {
+      MarketUI.render(_state, _handleOpenBuy, _handleOpenSell, _handleRefuel, MapUI.getMarketViewSystem(_state));
+    } else {
+      MarketUI.renderOverview(_state, MapUI.getMarketViewGalaxy(_state), function (systemId) {
+        MapUI.showMarketDetail(systemId);
+      });
+    }
+  }
   ShipUI.renderShipStats(_state);
   ResearchUI.render(_state, _handleStartResearch);
   FactionUI.render(_state);
@@ -708,6 +771,7 @@ function _updateUI() {
   FleetUI.render(_state, _handleBuyShip, _handleSwitchShip, _handleUpgradeShip, _handleAssignRoute, _handleCancelRoute, _handleBuySlot, _handleSellShip);
   FleetUI.renderShop(_state, _handleBuyShip);
   SaveUI.render(_handleSaveGame, _handleLoadGame);
+  MapUI.refreshPlanetDetail(_state);
   _updateActiveDispatchUI();
 }
 

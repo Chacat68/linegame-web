@@ -2,7 +2,7 @@
 // 依赖：systems/quest/QuestSystem.js, data/quests.js
 // 导出：render
 
-import { QUEST_TYPES, QUEST_PHASES } from '../data/quests.js';
+import { QUEST_TYPES } from '../data/quests.js';
 import * as Quest      from '../systems/quest/QuestSystem.js';
 
 /**
@@ -17,20 +17,16 @@ export function render(state, onAccept, onAbandon) {
 
   let html = '';
 
-  // ---- 阶段进度概览 ----
-  const phaseProgress = Quest.getQuestPhaseProgress(state);
-  html += '<div class="quest-phase-overview">';
-  phaseProgress.forEach(function (pp) {
-    var isActive = pp.completed < pp.total;
-    var isDone = pp.completed === pp.total && pp.total > 0;
-    var cls = isDone ? 'quest-phase-chip done' : (isActive ? 'quest-phase-chip active' : 'quest-phase-chip');
-    html += '<div class="' + cls + '" title="' + pp.phase.description + '">' +
-      '<span class="phase-icon">' + pp.phase.icon + '</span>' +
-      '<span class="phase-name">' + pp.phase.name + '</span>' +
-      '<span class="phase-progress">' + pp.completed + '/' + pp.total + '</span>' +
-      '</div>';
-  });
-  html += '</div>';
+  // ---- 当前章节 ----
+  const currentPhaseProgress = Quest.getCurrentQuestPhaseProgress(state);
+  const currentPhase = currentPhaseProgress.phase;
+  html += '<div class="quest-phase-overview">' +
+    '<div class="quest-phase-chip active" title="' + (currentPhase ? currentPhase.description : '') + '">' +
+    '<span class="phase-icon">' + (currentPhase ? currentPhase.icon : '📖') + '</span>' +
+    '<span class="phase-name">当前章节：' + (currentPhase ? currentPhase.name : '未知章节') + '</span>' +
+    '<span class="phase-progress">' + currentPhaseProgress.completed + '/' + currentPhaseProgress.total + '</span>' +
+    '</div>' +
+    '</div>';
 
   // ---- 当前任务 ----
   const active = Quest.getActiveQuests(state);
@@ -84,16 +80,14 @@ export function render(state, onAccept, onAbandon) {
   html += '<div class="quest-section-title" style="margin-top:12px">📜 可接取 (' + available.length + ')</div>';
 
   if (available.length === 0) {
-    html += '<div class="quest-empty">暂时没有新任务。继续贸易和探索解锁更多！</div>';
+    html += '<div class="quest-empty">当前章节暂无可接任务。请先推进进行中任务。</div>';
   } else {
     available.forEach(function (quest) {
       const typeInfo = QUEST_TYPES[quest.type] || {};
-      var phaseLabel = quest.phase ? QUEST_PHASES[quest.phase - 1] : null;
       html += '<div class="quest-card available-quest">' +
         '<div class="quest-card-header">' +
           '<span class="quest-type-badge" style="background:' + (typeInfo.color || '#666') + '">' +
             (typeInfo.icon || '📋') + ' ' + (typeInfo.name || quest.type) + '</span>' +
-          (phaseLabel ? '<span class="quest-phase-label">' + phaseLabel.icon + ' ' + phaseLabel.name + '</span>' : '') +
           (quest.timeLimit > 0 ? '<span class="quest-time">⏰ ' + quest.timeLimit + ' 天限制</span>' : '') +
         '</div>' +
         '<div class="quest-name">' + quest.name + '</div>' +
@@ -115,12 +109,10 @@ export function render(state, onAccept, onAbandon) {
     html += '<div class="quest-section-title" style="margin-top:12px">🔒 未解锁 (' + locked.length + ')</div>';
     locked.forEach(function (quest) {
       const typeInfo = QUEST_TYPES[quest.type] || {};
-      var phaseLabel = quest.phase ? QUEST_PHASES[quest.phase - 1] : null;
       html += '<div class="quest-card locked-quest">' +
         '<div class="quest-card-header">' +
           '<span class="quest-type-badge" style="background:' + (typeInfo.color || '#666') + '; opacity:0.6">' +
             (typeInfo.icon || '📋') + ' ' + (typeInfo.name || quest.type) + '</span>' +
-          (phaseLabel ? '<span class="quest-phase-label">' + phaseLabel.icon + ' ' + phaseLabel.name + '</span>' : '') +
         '</div>' +
         '<div class="quest-name" style="opacity:0.7">🔒 ' + quest.name + '</div>' +
         '<div class="quest-desc" style="opacity:0.5">' + quest.description + '</div>' +
@@ -137,6 +129,12 @@ export function render(state, onAccept, onAbandon) {
         '</div>' +
         '</div>';
     });
+  } else {
+    if (currentPhaseProgress.isFinalPhase && currentPhaseProgress.completed === currentPhaseProgress.total && currentPhaseProgress.total > 0) {
+      html += '<div class="quest-empty" style="margin-top:12px">🏁 所有章节任务已完成，全部胜利条件已开放。</div>';
+    } else if (currentPhaseProgress.completed === currentPhaseProgress.total && currentPhaseProgress.total > 0) {
+      html += '<div class="quest-empty" style="margin-top:12px">✅ 当前章节任务已全部完成，下一次任务结算后将进入新章节。</div>';
+    }
   }
 
   container.innerHTML = html;
