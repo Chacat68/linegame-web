@@ -83,8 +83,14 @@ export function updateStats(state, netWorth) {
 }
 
 // ---------------------------------------------------------------------------
-// 消息日志（最多保留 10 条）
+// 公司名显示
 // ---------------------------------------------------------------------------
+
+export function updateCompanyName(state) {
+  const el = document.getElementById('company-name-text');
+  if (el) el.textContent = state.companyName || '星际信使贸易公司';
+}
+
 
 export function addMessage(text, type) {
   const log = document.getElementById('message-log');

@@ -5,6 +5,7 @@
 export const VICTORY_NET_WORTH = 50000;
 
 export const INITIAL_STATE = {
+  companyName:       '星际信使贸易公司',
   credits:           1000,
   day:               1,
   currentSystem:     'sol_prime',

@@ -16,6 +16,7 @@
     <div class="hdr-title">
       <h1>⭐ 星际贸易帝国</h1>
       <span class="subtitle">银河历 3045 年</span>
+      <button id="company-name-display" class="company-name-btn" title="点击重命名公司">🏢 <span id="company-name-text">星际信使贸易公司</span> ✏️</button>
     </div>
 
     <div id="player-stats">
@@ -286,12 +287,30 @@
 <!-- ================================================================
      Tutorial: 首次启动弹窗
 ================================================================ -->
+<!-- ================================================================
+     Company Rename modal (公司重命名)
+================================================================ -->
+<div id="company-rename-modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-box company-rename-box">
+    <div class="company-rename-title">🏢 为你的公司命名</div>
+    <p class="company-rename-desc">你已继承了这家公司，现在可以赋予它一个新的名称，开创属于你的商业传奇！</p>
+    <div class="company-rename-form">
+      <input id="company-name-input" class="company-name-input" type="text" maxlength="24" placeholder="输入公司名称…" />
+      <div id="company-name-error" class="company-name-error hidden">名称不能为空</div>
+    </div>
+    <div class="company-rename-actions">
+      <button id="company-rename-confirm" class="tut-btn tut-btn-primary">✅ 确认命名</button>
+      <button id="company-rename-skip" class="tut-btn tut-btn-secondary">保留原名</button>
+    </div>
+  </div>
+</div>
+
 <div id="tutorial-start-modal" class="modal hidden" role="dialog" aria-modal="true">
   <div class="modal-box">
-    <div class="tut-start-title">⭐ 欢迎，星际贸易商！</div>
+    <div class="tut-start-title">⭐ 欢迎，继承者！</div>
     <p class="tut-start-desc">
-      这似乎是你第一次来到银河系。<br>
-      要先了解一下星际贸易的基础吗？
+      你意外继承了一家星际贸易公司。<br>
+      要先了解一下星际贸易的基础知识吗？
     </p>
     <div class="tut-start-actions">
       <button id="tut-start-yes" class="tut-btn tut-btn-primary">🚀 开始新手教程</button>

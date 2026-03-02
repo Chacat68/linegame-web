@@ -43,6 +43,9 @@ let _startTime = null;
 let _activeDispatchInterval = null;
 const ACTIVE_DISPATCH_TICK_MS = 2000; // 派遣每步间隔（毫秒）
 
+// 教程完成回调引用（用于防止重复注册）
+let _onTutorialComplete = null;
+
 // ---------------------------------------------------------------------------
 // 对外 API
 // ---------------------------------------------------------------------------
@@ -79,6 +82,17 @@ export function init() {
     function () { Tutorial.advance(); _updateUI(); },
     function () { Tutorial.skip(); _updateUI(); }
   );
+
+  // 教程完成后弹出公司重命名弹窗
+  if (_onTutorialComplete) EventBus.off('tutorial:complete', _onTutorialComplete);
+  _onTutorialComplete = function () { setTimeout(_showCompanyRenameModal, 400); };
+  EventBus.on('tutorial:complete', _onTutorialComplete);
+
+  // 点击 header 公司名按鈕随时重命名
+  var companyBtn = document.getElementById('company-name-display');
+  if (companyBtn) {
+    companyBtn.onclick = _showCompanyRenameModal;
+  }
 
   _updateUI();
   _startGameLoop();
@@ -120,6 +134,39 @@ function _showTutorialStartModal() {
     modal.classList.add('hidden');
     Tutorial.skip();
     _showWelcomeMessages();
+  };
+}
+
+function _showCompanyRenameModal() {
+  const modal = document.getElementById('company-rename-modal');
+  const input = document.getElementById('company-name-input');
+  const errorEl = document.getElementById('company-name-error');
+
+  // 预填当前公司名
+  input.value = _state.companyName || '';
+  errorEl.classList.add('hidden');
+  modal.classList.remove('hidden');
+
+  // 聚焦并全选
+  setTimeout(function () { input.focus(); input.select(); }, 50);
+
+  document.getElementById('company-rename-confirm').onclick = function () {
+    const name = input.value.trim();
+    if (!name) {
+      errorEl.classList.remove('hidden');
+      return;
+    }
+    _state.companyName = name;
+    modal.classList.add('hidden');
+    _updateUI();
+    EventBus.emit('log:message', {
+      text: '🏢 公司已正式更名为「' + name + '」！愿财富与你同行！',
+      type: 'upgrade',
+    });
+  };
+
+  document.getElementById('company-rename-skip').onclick = function () {
+    modal.classList.add('hidden');
   };
 }
 
@@ -613,6 +660,7 @@ function _updateActiveDispatchUI() {
 function _updateUI() {
   const netWorth = Trade.getNetWorth(_state);
   HUD.updateStats(_state, netWorth);
+  HUD.updateCompanyName(_state);
   MarketUI.render(_state, _handleOpenBuy, _handleOpenSell, _handleRefuel);
   ShipUI.renderShipStats(_state);
   ResearchUI.render(_state, _handleStartResearch);
