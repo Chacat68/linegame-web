@@ -35,6 +35,7 @@ export const INITIAL_STATE = {
   // 科技研究
   researchedTechs:   [],
   currentResearch:   null,
+  researchQueue:     [],
   researchOptions:   [],
   techBuyDiscount:   0,
   techSellBonus:     0,

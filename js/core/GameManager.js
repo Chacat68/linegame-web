@@ -374,6 +374,26 @@ function _handleStartResearch(techId) {
   _dispatch(result);
 }
 
+function _handleCancelQueuedResearch(techId) {
+  const result = Research.cancelQueuedResearch(_state, techId);
+  _dispatch(result);
+}
+
+function _handleMoveQueuedResearchUp(techId) {
+  const result = Research.moveQueuedResearchUp(_state, techId);
+  _dispatch(result);
+}
+
+function _handleMoveQueuedResearchDown(techId) {
+  const result = Research.moveQueuedResearchDown(_state, techId);
+  _dispatch(result);
+}
+
+function _handleClearResearchQueue() {
+  const result = Research.clearResearchQueue(_state);
+  _dispatch(result);
+}
+
 function _handleAcceptQuest(questId) {
   const result = Quest.acceptQuest(_state, questId);
   _dispatch(result);
@@ -764,7 +784,14 @@ function _updateUI() {
     }
   }
   ShipUI.renderShipStats(_state);
-  ResearchUI.render(_state, _handleStartResearch);
+  ResearchUI.render(
+    _state,
+    _handleStartResearch,
+    _handleCancelQueuedResearch,
+    _handleMoveQueuedResearchUp,
+    _handleMoveQueuedResearchDown,
+    _handleClearResearchQueue
+  );
   FactionUI.render(_state);
   QuestUI.render(_state, _handleAcceptQuest, _handleAbandonQuest);
   AchievementUI.render(_state);

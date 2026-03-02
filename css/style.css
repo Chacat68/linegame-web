@@ -868,6 +868,72 @@ html, body {
   color: var(--accent-cyan);
   margin-top: 6px;
 }
+.research-queue {
+  margin-top: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px;
+}
+.research-queue-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.research-queue-title {
+  font-size: 11px;
+  color: var(--accent-gold);
+  font-weight: 600;
+}
+.research-queue-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  padding: 3px 0;
+  color: var(--text-dim);
+}
+.queue-index {
+  min-width: 22px;
+  color: var(--accent-cyan);
+  font-weight: 600;
+}
+.queue-name {
+  flex: 1;
+  color: var(--text-primary);
+}
+.queue-days {
+  color: var(--accent-blue);
+}
+.btn-queue-action {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid #3355aa;
+  background: #1b2a5a;
+  color: #80b0ff;
+  cursor: pointer;
+}
+.btn-queue-action:hover {
+  background: #243870;
+}
+.btn-queue-action.disabled {
+  opacity: .45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.queue-cancel-btn {
+  border-color: var(--accent-red);
+  color: var(--accent-red);
+  background: rgba(239, 83, 80, 0.08);
+}
+.queue-clear-btn {
+  border-color: var(--accent-red);
+  color: var(--accent-red);
+  background: rgba(239, 83, 80, 0.08);
+}
 .research-cat-badge {
   font-size: 10px;
   padding: 2px 6px;

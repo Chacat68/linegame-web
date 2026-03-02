@@ -141,7 +141,7 @@ function _deserializeState(data) {
     shipHull: 100, maxHull: 100, autoRepair: 0,
     factionRelations: null,
     reputation: 0,
-    researchedTechs: [], currentResearch: null, researchOptions: [],
+    researchedTechs: [], currentResearch: null, researchQueue: [], researchOptions: [],
     techBuyDiscount: 0, techSellBonus: 0,
     tradeCount: 0, totalProfit: 0, cargoCost: {},
     playerLevel: 1, experience: 0,
