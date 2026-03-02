@@ -100,37 +100,93 @@ html, body {
 .stat-networth { color: var(--accent-cyan); }
 .stat-day      { color: var(--accent-blue); }
 
-/* Victory paths (multi-path progress) */
-.victory-paths-wrap {
+/* Victory progress button */
+.victory-progress-btn {
+  background: rgba(255, 215, 0, 0.08);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: 5px;
+  color: var(--accent-gold);
+  font-size: 12px;
+  font-family: inherit;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+  white-space: nowrap;
+}
+.victory-progress-btn:hover {
+  background: rgba(255, 215, 0, 0.16);
+  border-color: var(--accent-gold);
+}
+
+/* Victory modal */
+.victory-modal-box {
+  max-width: 520px;
+  min-width: 360px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+.victory-modal-body {
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.vp-card {
+  background: rgba(0,0,0,0.25);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+.vp-card.vp-done {
+  border-color: rgba(255,215,0,0.4);
+  background: rgba(255,215,0,0.04);
+}
+.vp-card-header {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  color: var(--text-dim);
+  gap: 8px;
+  margin-bottom: 6px;
 }
-.vp-item {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  cursor: default;
-  position: relative;
+.vp-card-icon { font-size: 18px; }
+.vp-card-name {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--text-primary);
+  flex: 1;
 }
-.vp-item.vp-done .vp-icon { filter: drop-shadow(0 0 4px gold); }
-.vp-icon { font-size: 14px; line-height: 1; }
-.vp-bar-track {
-  width: 48px;
+.vp-card-pct {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent-gold);
+}
+.vp-card-bar-track {
   height: 5px;
   background: #202040;
   border-radius: 3px;
   overflow: hidden;
+  margin-bottom: 8px;
 }
-.vp-bar-fill {
+.vp-card-bar-fill {
   height: 100%;
-  width: 0%;
   border-radius: 3px;
   transition: width .4s;
 }
-.vp-pct { min-width: 24px; text-align: right; font-size: 10px; color: #aaa; }
+.vp-card-reqs {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.vp-card-req {
+  font-size: 11px;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.vp-card-req.done { color: var(--accent-green); }
+.vp-req-count { color: #666; }
 
 /* Game-over box */
 .gameover-box { text-align: center; max-width: 440px; }
