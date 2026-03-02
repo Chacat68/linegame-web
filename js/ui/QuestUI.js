@@ -3,7 +3,14 @@
 // 导出：render
 
 import { QUEST_TYPES } from '../data/quests.js';
+import { GOODS } from '../data/goods.js';
+import { findSystem } from '../data/systems.js';
 import * as Quest      from '../systems/quest/QuestSystem.js';
+
+const _goodNameById = GOODS.reduce(function (acc, good) {
+  acc[good.id] = good.name;
+  return acc;
+}, Object.create(null));
 
 /**
  * 渲染任务面板
@@ -156,27 +163,30 @@ export function render(state, onAccept, onAbandon) {
 // 生成目标描述文本
 // ---------------------------------------------------------------------------
 function _objectiveText(obj) {
+  const targetSystemName = _systemName(obj.targetSystem);
+  const goodName = _goodName(obj.goodId);
+
   switch (obj.type) {
     case 'deliver':
-      return '运送 ' + obj.goodId + ' 到 ' + obj.targetSystem;
+      return '运送 ' + goodName + ' 到 ' + targetSystemName;
     case 'buy_at':
-      return '在 ' + obj.targetSystem + ' 购买 ' + obj.goodId;
+      return '在 ' + targetSystemName + ' 购买 ' + goodName;
     case 'sell_at':
-      return '在 ' + obj.targetSystem + ' 卖出 ' + obj.goodId;
+      return '在 ' + targetSystemName + ' 卖出 ' + goodName;
     case 'earn_profit':
       return '累计赚取利润';
     case 'trade_count':
       return '完成交易次数';
     case 'trade_good':
-      return '交易 ' + obj.goodId;
+      return '交易 ' + goodName;
     case 'visit_systems':
       return '造访不同星系';
     case 'visit_system':
-      return '前往 ' + obj.targetSystem;
+      return '前往 ' + targetSystemName;
     case 'faction_trade':
       return '在派系区域交易';
     case 'sell_in_faction':
-      return '在派系区域卖出 ' + obj.goodId;
+      return '在派系区域卖出 ' + goodName;
     case 'faction_relation':
       return '提升与派系关系';
     case 'survive_days':
@@ -186,4 +196,15 @@ function _objectiveText(obj) {
     default:
       return '完成目标';
   }
+}
+
+function _systemName(systemId) {
+  if (!systemId) return '未知地点';
+  const system = findSystem(systemId);
+  return system ? system.name : systemId;
+}
+
+function _goodName(goodId) {
+  if (!goodId) return '货物';
+  return _goodNameById[goodId] || goodId;
 }
