@@ -16,30 +16,9 @@
     <div class="hdr-title">
       <h1>⭐ 星际贸易帝国</h1>
       <span class="subtitle">银河历 3045 年</span>
-      <div id="location-bar">
-        <div id="current-location">📍 🌌 银河系 > 太阳主星 · 🏛️ 银河联邦</div>
-        <div id="location-desc">银河系农业中心，粮食丰产之地</div>
-      </div>
-    </div>
-
-    <div id="player-stats">
-      <div class="stat-block">
-        <span class="stat-label">信用积分</span>
-        <span id="credits" class="stat-value stat-credits">1,000</span>
-      </div>
-      <div class="stat-block">
-        <span class="stat-label">净资产</span>
-        <span id="net-worth" class="stat-value stat-networth">1,000</span>
-      </div>
-      <div class="stat-block">
-        <span class="stat-label">银河历</span>
-        <span id="galactic-day" class="stat-value stat-day">第 1 天</span>
-      </div>
     </div>
 
     <button id="victory-progress-btn" class="victory-progress-btn" title="查看胜利路径进度">🏆 <span id="victory-progress-summary">胜利进度</span></button>
-
-    <div id="player-level" class="player-level-bar"></div>
   </header>
 
   <!-- ================================================================
@@ -153,7 +132,7 @@
         <span><span class="legend-dot" style="background:#9C27B0"></span>商业</span>
         <span><span class="legend-dot" style="background:#00BCD4"></span>医疗</span>
         <span><span class="legend-dot" style="background:#607D8B"></span>特殊</span>
-        <span style="margin-left:auto;color:#9090b0;font-size:11px">点击星系前往 · 悬停查看燃料消耗</span>
+        <span id="map-legend-location" style="margin-left:auto;color:#9090b0;font-size:11px">📍 🌌 银河系 > 太阳主星 · 🏛️ 银河联邦</span>
       </div>
     </section>
 
@@ -163,6 +142,24 @@
       <!-- Company -->
       <div class="company-info-bar">
         <button id="company-name-display" class="company-name-btn" title="点击重命名公司">🏢 <span id="company-name-text">星际信使贸易公司</span> ✏️</button>
+
+        <div id="player-stats">
+          <div class="stat-block">
+            <span class="stat-label">信用积分</span>
+            <span id="credits" class="stat-value stat-credits">1,000</span>
+          </div>
+          <div class="stat-block">
+            <span class="stat-label">净资产</span>
+            <span id="net-worth" class="stat-value stat-networth">1,000</span>
+          </div>
+          <div class="stat-block">
+            <span class="stat-label">银河历</span>
+            <span id="galactic-day" class="stat-value stat-day">第 1 天</span>
+          </div>
+        </div>
+
+        <div id="player-level" class="player-level-bar"></div>
+
         <div id="company-level-line" class="company-level-line">🏢 新创企业 Lv.1 · 0/120</div>
         <div class="company-level-track"><div id="company-level-fill" class="company-level-fill"></div></div>
       </div>

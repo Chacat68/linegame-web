@@ -111,8 +111,13 @@ export function updateStats(state, netWorth) {
     ? ' · ' + faction.icon + ' ' + faction.name
     : '';
   const galTag = gal ? gal.icon + ' ' + gal.name + ' > ' : '';
-  document.getElementById('current-location').textContent = '📍 ' + galTag + sys.name + factionTag;
-  document.getElementById('location-desc').textContent    = sys.description;
+  const locationText = '📍 ' + galTag + sys.name + factionTag;
+  const locationEl = document.getElementById('current-location');
+  if (locationEl) locationEl.textContent = locationText;
+  const locationDescEl = document.getElementById('location-desc');
+  if (locationDescEl) locationDescEl.textContent = sys.description;
+  const mapLegendLocationEl = document.getElementById('map-legend-location');
+  if (mapLegendLocationEl) mapLegendLocationEl.textContent = locationText;
 }
 
 // ---------------------------------------------------------------------------

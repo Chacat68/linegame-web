@@ -442,6 +442,21 @@ html, body {
 .company-info-bar .company-name-btn {
   margin-top: 0;
 }
+.company-info-bar #player-stats {
+  margin-top: 8px;
+  gap: 10px;
+  justify-content: space-between;
+}
+.company-info-bar #player-stats .stat-block {
+  flex: 1;
+  text-align: left;
+}
+.company-info-bar #player-stats .stat-value {
+  font-size: 13px;
+}
+.company-info-bar .player-level-bar {
+  margin-top: 8px;
+}
 .company-level-line {
   margin-top: 6px;
   font-size: 11px;
