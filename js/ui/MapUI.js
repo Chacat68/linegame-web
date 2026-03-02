@@ -9,6 +9,7 @@ import { GALAXIES, findSystem }  from '../data/systems.js';
 
 let _tabClickCallback = null;
 let _marketOpen = false;
+let _smallScreenMql = null;
 
 // 市场浏览状态
 let _marketViewGalaxy = null;
@@ -47,11 +48,11 @@ export function init(stateRef, onTravel, onGalaxyJump) {
     const mx = e.clientX - r.left, my = e.clientY - r.top;
 
     if (stateRef.mapView === 'galaxies') {
-      const gal = Renderer.getGalaxyAtPoint(mx, my, mapCanvas.width, mapCanvas.height);
+      const gal = Renderer.getGalaxyAtPoint(mx, my, r.width, r.height);
       mapCanvas.title = gal ? gal.name : '';
       stateRef.hoveredSystem = null;
     } else {
-      const sys = Renderer.getSystemAtPoint(mx, my, mapCanvas.width, mapCanvas.height,
+      const sys = Renderer.getSystemAtPoint(mx, my, r.width, r.height,
         stateRef.viewingGalaxy || stateRef.currentGalaxy);
       const newId = sys ? sys.id : null;
       if (newId !== stateRef.hoveredSystem) {
@@ -85,7 +86,7 @@ export function init(stateRef, onTravel, onGalaxyJump) {
 
     if (stateRef.mapView === 'galaxies') {
       // 星系总览 — 点击星系切换到该星系的星球视图
-      const gal = Renderer.getGalaxyAtPoint(mx, my, mapCanvas.width, mapCanvas.height);
+      const gal = Renderer.getGalaxyAtPoint(mx, my, r.width, r.height);
       if (gal) {
         const unlocked = gal.unlocked ||
           (stateRef.researchedTechs && stateRef.researchedTechs.includes(gal.techRequired));
@@ -97,7 +98,7 @@ export function init(stateRef, onTravel, onGalaxyJump) {
       }
     } else {
       // 星球视图 — 点击星球旅行
-      const sys = Renderer.getSystemAtPoint(mx, my, mapCanvas.width, mapCanvas.height,
+      const sys = Renderer.getSystemAtPoint(mx, my, r.width, r.height,
         stateRef.viewingGalaxy || stateRef.currentGalaxy);
       if (sys && sys.id !== stateRef.currentSystem) {
         // 等级锁定检查
@@ -321,10 +322,19 @@ export function initTabs(onTabClick) {
   var toggleBtn = document.getElementById('info-panel-toggle');
   var infoPanel = document.getElementById('info-panel');
   if (toggleBtn && infoPanel) {
+    if (!_smallScreenMql) {
+      _smallScreenMql = window.matchMedia('(max-width: 1024px)');
+    }
     toggleBtn.addEventListener('click', function () {
-      var collapsed = infoPanel.classList.toggle('collapsed');
-      toggleBtn.textContent = collapsed ? '▶' : '◀';
-      toggleBtn.title = collapsed ? '展开面板' : '收起面板';
+      if (_smallScreenMql.matches) {
+        var expanded = infoPanel.classList.toggle('expanded-sm');
+        toggleBtn.textContent = expanded ? '◀' : '▶';
+        toggleBtn.title = expanded ? '收起面板' : '展开面板';
+      } else {
+        var collapsed = infoPanel.classList.toggle('collapsed');
+        toggleBtn.textContent = collapsed ? '▶' : '◀';
+        toggleBtn.title = collapsed ? '展开面板' : '收起面板';
+      }
     });
   }
 }

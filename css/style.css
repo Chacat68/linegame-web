@@ -2227,3 +2227,114 @@ html, body {
   padding: 10px;
   font-size: 13px;
 }
+
+/* ============================================================
+   Responsive — adapt layout for different screen resolutions
+   ============================================================ */
+
+/* --- Medium screens (≤1200px): Reduce panel widths --- */
+@media (max-width: 1200px) {
+  #info-panel { width: 250px; }
+  #trade-panel { width: 310px; }
+}
+
+/* --- Small-medium screens (≤1024px): Collapse left panel, narrow right --- */
+@media (max-width: 1024px) {
+  #info-panel {
+    width: 32px;
+    min-width: 32px;
+  }
+  #info-panel .tab-content,
+  #info-panel .tabs {
+    display: none;
+  }
+  #info-panel .info-panel-header {
+    flex-direction: column;
+    height: 100%;
+  }
+  #info-panel .info-panel-toggle {
+    width: 100%;
+    height: 100%;
+  }
+  /* When explicitly expanded on small screen, use narrower width */
+  #info-panel.expanded-sm {
+    width: 260px;
+    min-width: 260px;
+  }
+  #info-panel.expanded-sm .tab-content,
+  #info-panel.expanded-sm .tabs {
+    display: flex;
+  }
+  #info-panel.expanded-sm .tab-content {
+    display: block;
+  }
+  #info-panel.expanded-sm .info-panel-header {
+    flex-direction: row;
+    height: auto;
+  }
+  #info-panel.expanded-sm .info-panel-toggle {
+    width: 32px;
+    height: auto;
+  }
+  #trade-panel { width: 280px; }
+}
+
+/* --- Tablet / small screens (≤768px): Compact header, narrower panels --- */
+@media (max-width: 768px) {
+  #game-header {
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 4px 10px;
+  }
+  .hdr-title h1 { font-size: 14px; }
+  .hdr-title .subtitle { display: none; }
+  #player-stats { gap: 10px; }
+  .stat-value { font-size: 13px; }
+  .stat-label { font-size: 9px; }
+  .player-level-bar { font-size: 10px; }
+  .level-bar-track { width: 60px; }
+  .victory-progress-btn { font-size: 11px; padding: 3px 7px; }
+
+  #trade-panel { width: 240px; }
+  #current-location { font-size: 12px; }
+  .fleet-ov-label { font-size: 9px; }
+  .fleet-ov-value { font-size: 12px; }
+
+  .modal-box { min-width: 240px; max-width: 320px; padding: 16px 18px; }
+  .victory-modal-box { min-width: 280px; max-width: 420px; }
+  .event-modal-box { min-width: 280px; max-width: 360px; }
+
+  #map-legend { font-size: 11px; gap: 6px; padding: 3px 8px; }
+  #status-bar { height: 60px; }
+}
+
+/* --- Mobile screens (≤480px): Full-width panels, stacked layout --- */
+@media (max-width: 480px) {
+  #game-header {
+    padding: 4px 6px;
+  }
+  .hdr-title h1 { font-size: 13px; }
+  .company-name-btn { font-size: 10px; }
+  #player-stats { gap: 6px; }
+  .stat-value { font-size: 12px; }
+  .player-level-bar { font-size: 9px; }
+  .level-bar-track { width: 50px; }
+  .victory-progress-btn { font-size: 10px; padding: 2px 6px; }
+  .rep-badge { font-size: 9px; padding: 1px 4px; }
+
+  #info-panel { display: none; }
+  #trade-panel { width: 200px; }
+
+  .modal-box { min-width: 200px; max-width: 95vw; padding: 14px 12px; }
+  .victory-modal-box { min-width: 200px; max-width: 95vw; }
+  .event-modal-box { min-width: 200px; max-width: 95vw; }
+  .gameover-box { max-width: 95vw; }
+  .company-rename-box { max-width: 95vw; }
+
+  #map-legend { font-size: 10px; gap: 4px; padding: 2px 6px; }
+  #map-legend span:last-child { display: none; }
+  #status-bar { height: 48px; }
+  .msg { font-size: 11px; }
+
+  .map-overlay-btn { padding: 4px 8px; font-size: 10px; }
+}
