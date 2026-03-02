@@ -8,6 +8,7 @@ import { FACTIONS } from '../data/factions.js';
 let _webglCanvas, _gl, _glProgram;
 let _mapCanvas, _ctx;
 let _stars = [];
+let _dpr = 1;
 
 // ---------------------------------------------------------------------------
 // 初始化
@@ -28,13 +29,13 @@ function _resize() {
   const container = document.getElementById('map-container');
   const w = container.clientWidth;
   const h = container.clientHeight;
-  const dpr = window.devicePixelRatio || 1;
-  _webglCanvas.width  = w * dpr;
-  _webglCanvas.height = h * dpr;
-  _mapCanvas.width    = w * dpr;
-  _mapCanvas.height   = h * dpr;
-  _ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  if (_gl) _gl.viewport(0, 0, w * dpr, h * dpr);
+  _dpr = window.devicePixelRatio || 1;
+  _webglCanvas.width  = w * _dpr;
+  _webglCanvas.height = h * _dpr;
+  _mapCanvas.width    = w * _dpr;
+  _mapCanvas.height   = h * _dpr;
+  _ctx.setTransform(_dpr, 0, 0, _dpr, 0, 0);
+  if (_gl) _gl.viewport(0, 0, w * _dpr, h * _dpr);
 }
 
 // ---------------------------------------------------------------------------
@@ -204,9 +205,8 @@ function _renderStarsCanvas(time, w, h) {
 
 export function renderMap(gameState, time) {
   const ctx = _ctx;
-  const dpr = window.devicePixelRatio || 1;
-  const w   = _mapCanvas.width  / dpr;
-  const h   = _mapCanvas.height / dpr;
+  const w   = _mapCanvas.width  / _dpr;
+  const h   = _mapCanvas.height / _dpr;
   ctx.clearRect(0, 0, w, h);
 
   if (gameState.mapView === 'galaxies') {

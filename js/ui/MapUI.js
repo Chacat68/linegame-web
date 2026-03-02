@@ -9,6 +9,7 @@ import { GALAXIES, findSystem }  from '../data/systems.js';
 
 let _tabClickCallback = null;
 let _marketOpen = false;
+let _smallScreenMql = null;
 
 // 市场浏览状态
 let _marketViewGalaxy = null;
@@ -321,9 +322,11 @@ export function initTabs(onTabClick) {
   var toggleBtn = document.getElementById('info-panel-toggle');
   var infoPanel = document.getElementById('info-panel');
   if (toggleBtn && infoPanel) {
+    if (!_smallScreenMql) {
+      _smallScreenMql = window.matchMedia('(max-width: 1024px)');
+    }
     toggleBtn.addEventListener('click', function () {
-      var isSmall = window.matchMedia('(max-width: 1024px)').matches;
-      if (isSmall) {
+      if (_smallScreenMql.matches) {
         var expanded = infoPanel.classList.toggle('expanded-sm');
         toggleBtn.textContent = expanded ? '◀' : '▶';
         toggleBtn.title = expanded ? '收起面板' : '展开面板';
