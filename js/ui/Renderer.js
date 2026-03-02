@@ -28,11 +28,13 @@ function _resize() {
   const container = document.getElementById('map-container');
   const w = container.clientWidth;
   const h = container.clientHeight;
-  _webglCanvas.width  = w;
-  _webglCanvas.height = h;
-  _mapCanvas.width    = w;
-  _mapCanvas.height   = h;
-  if (_gl) _gl.viewport(0, 0, w, h);
+  const dpr = window.devicePixelRatio || 1;
+  _webglCanvas.width  = w * dpr;
+  _webglCanvas.height = h * dpr;
+  _mapCanvas.width    = w * dpr;
+  _mapCanvas.height   = h * dpr;
+  _ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  if (_gl) _gl.viewport(0, 0, w * dpr, h * dpr);
 }
 
 // ---------------------------------------------------------------------------
@@ -202,8 +204,9 @@ function _renderStarsCanvas(time, w, h) {
 
 export function renderMap(gameState, time) {
   const ctx = _ctx;
-  const w   = _mapCanvas.width;
-  const h   = _mapCanvas.height;
+  const dpr = window.devicePixelRatio || 1;
+  const w   = _mapCanvas.width  / dpr;
+  const h   = _mapCanvas.height / dpr;
   ctx.clearRect(0, 0, w, h);
 
   if (gameState.mapView === 'galaxies') {
