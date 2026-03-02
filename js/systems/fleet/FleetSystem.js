@@ -1,6 +1,6 @@
 // js/systems/fleet/FleetSystem.js — 船队管理系统
 // 依赖：data/ships.js, data/systems.js, systems/economy/Economy.js
-// 导出：init, buyShip, switchShip, upgradeShip, getActiveShip, getFleet,
+// 导出：init, buyShip, sellShip, switchShip, upgradeShip, getActiveShip, getFleet,
 //       syncStateFromShip, syncShipFromState, getShipType,
 //       assignRoute, cancelRoute, tickFleetRoutes,
 //       buySlot, getSlotCount, getMaxSlots, getAvailableSlotCount,
@@ -163,6 +163,56 @@ export function buyShip(state, shipTypeId) {
     msgs: [{
       text: '🎉 购入新船「' + shipType.emoji + ' ' + shipType.name + '」！船队规模：' + state.fleet.length + '/' + getSlotCount(state) + ' 艘。',
       type: 'upgrade',
+    }],
+  };
+}
+
+/**
+ * 卖出船只 — 获得原价 45%~80% 的随机回收积分
+ * @param {object} state
+ * @param {number} shipIndex  要卖出的船只索引
+ * @returns {{ ok: boolean, msgs: Array }}
+ */
+export function sellShip(state, shipIndex) {
+  if (shipIndex < 0 || shipIndex >= state.fleet.length) {
+    return { ok: false, msgs: [{ text: '❌ 无效的船只索引！', type: 'error' }] };
+  }
+  // 不能卖出最后一艘船
+  if (state.fleet.length <= 1) {
+    return { ok: false, msgs: [{ text: '🚫 不能卖出最后一艘船！', type: 'error' }] };
+  }
+  const ship = state.fleet[shipIndex];
+  // 不能卖出正在派遣中的船只
+  if (ship.route) {
+    return { ok: false, msgs: [{ text: '🚫 不能卖出正在派遣中的船只！请先召回。', type: 'error' }] };
+  }
+  // 不能卖出当前操控中的船只
+  if (shipIndex === state.activeShipIndex) {
+    return { ok: false, msgs: [{ text: '🚫 不能卖出正在操控的船只！请先切换到其他船只。', type: 'error' }] };
+  }
+
+  const shipType = SHIP_TYPES.find(function (s) { return s.id === ship.typeId; });
+  const baseCost = shipType ? shipType.cost : 0;
+  // 随机 45%~80% 回收价
+  const ratio = 0.45 + Math.random() * 0.35;
+  const sellPrice = Math.floor(baseCost * ratio);
+
+  // 货舱中的货物一并清空（不退还）
+  state.credits += sellPrice;
+  state.fleet.splice(shipIndex, 1);
+
+  // 修正 activeShipIndex
+  if (state.activeShipIndex >= state.fleet.length) {
+    state.activeShipIndex = state.fleet.length - 1;
+  }
+  // 重新同步激活船只
+  syncStateFromShip(state);
+
+  return {
+    ok: true,
+    msgs: [{
+      text: '💸 卖出「' + ship.emoji + ' ' + ship.name + '」获得 ' + sellPrice.toLocaleString() + ' 积分（' + Math.round(ratio * 100) + '% 回收价）！',
+      type: 'trade',
     }],
   };
 }

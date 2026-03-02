@@ -7,6 +7,19 @@ import * as Trade from '../trade/TradeSystem.js';
 import * as Faction from '../faction/FactionSystem.js';
 import { FACTIONS } from '../../data/factions.js';
 import { getLevel } from '../../data/playerLevels.js';
+import { QUEST_PHASES } from '../../data/quests.js';
+
+function _getUnlockedPathCount(state) {
+  var chapter = state.questPhase || 1;
+  var totalChapters = Math.max(1, QUEST_PHASES.length);
+  var ratio = Math.max(1, chapter) / totalChapters;
+  return Math.max(1, Math.ceil(VICTORY_PATHS.length * ratio));
+}
+
+export function getUnlockedPaths(state) {
+  var count = _getUnlockedPathCount(state);
+  return VICTORY_PATHS.slice(0, count);
+}
 
 /**
  * 计算单个需求的当前进度值
@@ -113,7 +126,7 @@ export function getPathProgress(state, path) {
  * @returns {Array}
  */
 export function getProgress(state) {
-  return VICTORY_PATHS.map(function (path) {
+  return getUnlockedPaths(state).map(function (path) {
     return getPathProgress(state, path);
   });
 }
@@ -124,8 +137,9 @@ export function getProgress(state) {
  * @returns {{ won: boolean, path: object|null, pathData: object|null }}
  */
 export function checkVictory(state) {
-  for (let i = 0; i < VICTORY_PATHS.length; i++) {
-    const path = VICTORY_PATHS[i];
+  var unlockedPaths = getUnlockedPaths(state);
+  for (let i = 0; i < unlockedPaths.length; i++) {
+    const path = unlockedPaths[i];
     const progress = getPathProgress(state, path);
     if (progress.completed) {
       return { won: true, path: path, pathData: progress };

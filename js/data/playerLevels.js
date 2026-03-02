@@ -1,6 +1,6 @@
 // js/data/playerLevels.js — 玩家等级定义（群星参考）
 // 依赖：无
-// 导出：PLAYER_LEVELS, REPUTATION_RANKS, getLevel, getRepRank, expForLevel
+// 导出：PLAYER_LEVELS, COMPANY_LEVELS, REPUTATION_RANKS, getLevel, getCompanyLevel, getRepRank, expForLevel, companyExpForLevel
 
 /**
  * 玩家等级（基于经验值）
@@ -16,6 +16,22 @@ export const PLAYER_LEVELS = [
   { level: 8,  title: '商业寡头',   expRequired: 3500,  icon: '🏆', perk: '货舱 +10' },
   { level: 9,  title: '星际巨贾',   expRequired: 5000,  icon: '💎', perk: '卖出价格 +5%' },
   { level: 10, title: '银河商业帝皇', expRequired: 7500, icon: '🌟', perk: '全属性提升' },
+];
+
+/**
+ * 公司等级（基于公司经验）
+ */
+export const COMPANY_LEVELS = [
+  { level: 1,  title: '新创企业',   expRequired: 0,    icon: '🏢' },
+  { level: 2,  title: '地方商号',   expRequired: 120,  icon: '📦' },
+  { level: 3,  title: '区域贸易商', expRequired: 300,  icon: '🚚' },
+  { level: 4,  title: '星港商会',   expRequired: 650,  icon: '🛰️' },
+  { level: 5,  title: '星际企业',   expRequired: 1100, icon: '🌌' },
+  { level: 6,  title: '跨域集团',   expRequired: 1700, icon: '🏛️' },
+  { level: 7,  title: '银河财团',   expRequired: 2500, icon: '💠' },
+  { level: 8,  title: '贸易巨擘',   expRequired: 3600, icon: '👑' },
+  { level: 9,  title: '星海寡头',   expRequired: 5000, icon: '💎' },
+  { level: 10, title: '银河企业帝国', expRequired: 7000, icon: '🌟' },
 ];
 
 /**
@@ -38,6 +54,14 @@ export function expForLevel(level) {
 }
 
 /**
+ * 计算公司等级所需总经验
+ */
+export function companyExpForLevel(level) {
+  const def = COMPANY_LEVELS.find(function (l) { return l.level === level; });
+  return def ? def.expRequired : Infinity;
+}
+
+/**
  * 根据经验值获取当前等级定义
  */
 export function getLevel(exp) {
@@ -45,6 +69,20 @@ export function getLevel(exp) {
   for (let i = PLAYER_LEVELS.length - 1; i >= 0; i--) {
     if (exp >= PLAYER_LEVELS[i].expRequired) {
       current = PLAYER_LEVELS[i];
+      break;
+    }
+  }
+  return current;
+}
+
+/**
+ * 根据公司经验获取当前公司等级定义
+ */
+export function getCompanyLevel(exp) {
+  let current = COMPANY_LEVELS[0];
+  for (let i = COMPANY_LEVELS.length - 1; i >= 0; i--) {
+    if (exp >= COMPANY_LEVELS[i].expRequired) {
+      current = COMPANY_LEVELS[i];
       break;
     }
   }

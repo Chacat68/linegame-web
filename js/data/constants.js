@@ -5,6 +5,7 @@
 export const VICTORY_NET_WORTH = 50000;
 
 export const INITIAL_STATE = {
+  companyName:       '星际信使贸易公司',
   credits:           1000,
   day:               1,
   currentSystem:     'sol_prime',
@@ -12,6 +13,7 @@ export const INITIAL_STATE = {
   viewingGalaxy:     'milky_way',
   mapView:           'planets',   // 'planets' | 'galaxies'
   cargo:             {},   // { goodId: quantity }
+  cargoCost:         {},   // { goodId: totalCostPaid } 成本追踪
   maxCargo:          20,
   fuel:              100,
   maxFuel:           100,
@@ -33,6 +35,7 @@ export const INITIAL_STATE = {
   // 科技研究
   researchedTechs:   [],
   currentResearch:   null,
+  researchQueue:     [],
   researchOptions:   [],
   techBuyDiscount:   0,
   techSellBonus:     0,
@@ -49,7 +52,12 @@ export const INITIAL_STATE = {
   playerLevel:       1,
   experience:        0,
 
+  // 公司等级
+  companyLevel:      1,
+  companyExperience: 0,
+
   // 任务
+  questPhase:        1,      // 当前任务章节
   quests:            [],     // 当前活跃任务
   completedQuests:   [],     // 已完成任务 ID 列表
 
