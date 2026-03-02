@@ -34,8 +34,7 @@
       </div>
     </div>
 
-    <div id="victory-paths-wrap" class="victory-paths-wrap" title="胜利路径进度">
-    </div>
+    <button id="victory-progress-btn" class="victory-progress-btn" title="查看胜利路径进度">🏆 <span id="victory-progress-summary">胜利进度</span></button>
 
     <div id="player-level" class="player-level-bar"></div>
   </header>
@@ -317,6 +316,19 @@
       <button id="tut-start-no" class="tut-btn tut-btn-secondary">我是老手，直接开始</button>
     </div>
     <div class="tut-start-hint">教程约 2 分钟，可随时跳过</div>
+  </div>
+</div>
+
+<!-- ================================================================
+     Victory Progress modal (胜利路径进度)
+================================================================ -->
+<div id="victory-modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-box victory-modal-box">
+    <h3>🏆 胜利路径进度</h3>
+    <div id="victory-modal-body" class="victory-modal-body"></div>
+    <div class="modal-actions">
+      <button id="victory-modal-close" class="btn-secondary">关闭</button>
+    </div>
   </div>
 </div>
 
