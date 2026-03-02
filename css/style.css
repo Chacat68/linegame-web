@@ -1796,6 +1796,18 @@ html, body {
 }
 .fleet-cancel-btn:hover { background: #5a2a2a; }
 
+.fleet-sell-btn {
+  padding: 4px 10px;
+  font-size: 11px;
+  background: #3a2a1a;
+  border: 1px solid #997733;
+  border-radius: 4px;
+  color: #ffdd88;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.fleet-sell-btn:hover { background: #5a3a1a; }
+
 .fleet-route-info {
   background: #0a1530;
   border: 1px solid #223366;

@@ -24,6 +24,7 @@ import * as SaveUI     from '../ui/SaveUI.js';
 import * as QuestUI    from '../ui/QuestUI.js';
 import * as AchievementUI from '../ui/AchievementUI.js';
 import * as Fleet      from '../systems/fleet/FleetSystem.js';
+import * as AutoTrade  from '../systems/trade/AutoTradeSystem.js';
 import * as FleetUI    from '../ui/FleetUI.js';
 import * as Save       from '../systems/save/SaveSystem.js';
 import * as Quest      from '../systems/quest/QuestSystem.js';
@@ -554,6 +555,12 @@ function _handleBuySlot() {
   _dispatch(result);
 }
 
+function _handleSellShip(shipIndex) {
+  Fleet.syncShipFromState(_state);
+  const result = Fleet.sellShip(_state, shipIndex);
+  _dispatch(result);
+}
+
 // ---------------------------------------------------------------------------
 // 激活船只自动派遣（替代原来的全局自动贸易）
 // ---------------------------------------------------------------------------
@@ -582,6 +589,33 @@ function _runActiveDispatchTick() {
   if (!Fleet.isActiveDispatched(_state)) {
     _stopActiveDispatch();
     return;
+  }
+
+  // 每个 tick 开始时检查任务路线：如果有活跃任务需要特定路线，动态更新
+  var activeShip = Fleet.getActiveShip(_state);
+  if (activeShip && activeShip.route) {
+    var qr = AutoTrade.findQuestRoute(_state);
+    if (qr) {
+      // 任务路线与当前路线不同时才更新，避免重复日志
+      var curRoute = activeShip.route;
+      if (curRoute.questId !== qr.questId ||
+          curRoute.buySystemId !== qr.buySystemId ||
+          curRoute.sellSystemId !== qr.sellSystemId ||
+          curRoute.goodId !== qr.goodId) {
+        curRoute.buySystemId  = qr.buySystemId;
+        curRoute.sellSystemId = qr.sellSystemId;
+        curRoute.goodId       = qr.goodId;
+        curRoute.status       = qr.status;
+        curRoute.questId      = qr.questId;
+        EventBus.emit('log:message', {
+          text: '📋 任务路线：前往完成「' + qr.questName + '」',
+          type: 'info',
+        });
+      }
+    } else if (activeShip.route.questId) {
+      // 任务已完成或不再需要任务路线，清除任务标记
+      delete activeShip.route.questId;
+    }
   }
 
   var result = Fleet.tickActiveShipDispatch(_state);
@@ -637,7 +671,7 @@ function _runActiveDispatchTick() {
     if (sellQty > 0) {
       _handleTradeConfirm('sell', routeS.goodId, sellQty);
     }
-    // 循环：重新前往买入地
+    // 循环：重新前往买入地（任务路线将在下一个 tick 开始时自动更新）
     var shipS = Fleet.getActiveShip(_state);
     if (shipS && shipS.route) shipS.route.status = 'traveling_buy';
     _updateUI();
@@ -671,7 +705,7 @@ function _updateUI() {
   FactionUI.render(_state);
   QuestUI.render(_state, _handleAcceptQuest, _handleAbandonQuest);
   AchievementUI.render(_state);
-  FleetUI.render(_state, _handleBuyShip, _handleSwitchShip, _handleUpgradeShip, _handleAssignRoute, _handleCancelRoute, _handleBuySlot);
+  FleetUI.render(_state, _handleBuyShip, _handleSwitchShip, _handleUpgradeShip, _handleAssignRoute, _handleCancelRoute, _handleBuySlot, _handleSellShip);
   FleetUI.renderShop(_state, _handleBuyShip);
   SaveUI.render(_handleSaveGame, _handleLoadGame);
   _updateActiveDispatchUI();

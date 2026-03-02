@@ -18,7 +18,7 @@ import * as Economy from '../systems/economy/Economy.js';
  * @param {Function} onCancelRoute  (shipIndex) => void
  * @param {Function} onBuySlot      () => void
  */
-export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRoute, onCancelRoute, onBuySlot) {
+export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRoute, onCancelRoute, onBuySlot, onSellShip) {
   const container = document.getElementById('fleet-list');
   if (!container) return;
 
@@ -157,9 +157,15 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
         // 激活船只：显示派遣按钮
         html += '<button class="fleet-dispatch-btn" data-index="' + idx + '">📡 自动派遣</button>';
       } else {
-        // 非激活船只：切换 + 派遣
+        // 非激活船只：切换 + 派遣 + 卖出
         html += '<button class="fleet-switch-btn" data-index="' + idx + '">🔄 切换操控</button>';
         html += '<button class="fleet-dispatch-btn" data-index="' + idx + '">📡 派遣贸易</button>';
+        var shipTypeDef = SHIP_TYPES.find(function (t) { return t.id === ship.typeId; });
+        if (shipTypeDef && shipTypeDef.cost > 0) {
+          var minPrice = Math.floor(shipTypeDef.cost * 0.45);
+          var maxPrice = Math.floor(shipTypeDef.cost * 0.80);
+          html += '<button class="fleet-sell-btn" data-index="' + idx + '" title="回收价 ' + minPrice.toLocaleString() + '~' + maxPrice.toLocaleString() + ' 积分">💸 卖出</button>';
+        }
       }
       html += '</div>';
     }
@@ -210,6 +216,21 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
   container.querySelectorAll('.fleet-cancel-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {
       onCancelRoute(parseInt(btn.dataset.index));
+    });
+  });
+
+  // 卖出按钮
+  container.querySelectorAll('.fleet-sell-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var idx = parseInt(btn.dataset.index);
+      var ship = state.fleet[idx];
+      if (!ship) return;
+      var shipTypeDef = SHIP_TYPES.find(function (t) { return t.id === ship.typeId; });
+      var minP = Math.floor((shipTypeDef ? shipTypeDef.cost : 0) * 0.45);
+      var maxP = Math.floor((shipTypeDef ? shipTypeDef.cost : 0) * 0.80);
+      if (confirm('确定卖出「' + ship.emoji + ' ' + ship.name + '」？\n回收价约 ' + minP.toLocaleString() + ' ~ ' + maxP.toLocaleString() + ' 积分\n⚠️ 货舱中的货物将一并清空！')) {
+        if (onSellShip) onSellShip(idx);
+      }
     });
   });
 }
