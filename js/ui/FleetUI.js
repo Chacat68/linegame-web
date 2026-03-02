@@ -24,6 +24,10 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
 
   const fleet      = Fleet.getFleet(state);
   const activeIdx  = state.activeShipIndex || 0;
+  const activeShip = fleet[activeIdx] || null;
+  const flashIndex = state.lastSwitchedShipIndex;
+  const flashAt = state.lastShipSwitchAt || 0;
+  const canFlash = Date.now() - flashAt < 1200;
   const slotCount  = Fleet.getSlotCount(state);
   const maxSlots   = Fleet.getMaxSlots();
   const routeLevel = Fleet.getDispatchRouteLevel(state);
@@ -46,7 +50,7 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
       if (isSlotActive) {
         html += '<span class="slot-active-label">操控</span>';
       } else if (!fleet[si].route) {
-        html += '<button class="slot-switch-btn" data-slot-index="' + si + '" title="切换操控此船">🔄</button>';
+        html += '<button class="slot-switch-btn" data-slot-index="' + si + '" title="切换操控至「' + fleet[si].name + '」">切换</button>';
       } else {
         html += '<span class="slot-dispatch-label">派遣</span>';
       }
@@ -82,14 +86,17 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
 
   fleet.forEach(function (ship, idx) {
     const isActive = idx === activeIdx;
+      const isSwitchFlashing = canFlash && idx === flashIndex;
     const cargoUsed = Object.values(ship.cargo).reduce(function (s, q) { return s + q; }, 0);
 
     html += '<div class="fleet-ship-card' + (isActive ? ' fleet-active' : '') +
+        (isSwitchFlashing ? ' fleet-switch-flash' : '') +
             (ship.route ? ' fleet-dispatched' : '') + '" data-index="' + idx + '">';
     html += '<div class="fleet-ship-header">';
     html += '<span class="fleet-ship-icon">' + ship.emoji + '</span>';
     html += '<span class="fleet-ship-name">' + ship.name;
     if (isActive && !ship.route) html += ' <span class="fleet-active-badge">操控中</span>';
+    if (!isActive && !ship.route) html += ' <span class="fleet-idle-badge">待命</span>';
     if (ship.route) html += ' <span class="fleet-dispatch-badge">派遣中</span>';
     html += '</span>';
     html += '</div>';
@@ -158,7 +165,7 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
         html += '<button class="fleet-dispatch-btn" data-index="' + idx + '">📡 自动派遣</button>';
       } else {
         // 非激活船只：切换 + 派遣 + 卖出
-        html += '<button class="fleet-switch-btn" data-index="' + idx + '">🔄 切换操控</button>';
+        html += '<button class="fleet-switch-btn fleet-switch-primary" data-index="' + idx + '">🧭 切换为当前操控</button>';
         html += '<button class="fleet-dispatch-btn" data-index="' + idx + '">📡 派遣贸易</button>';
         var shipTypeDef = SHIP_TYPES.find(function (t) { return t.id === ship.typeId; });
         if (shipTypeDef && shipTypeDef.cost > 0) {
@@ -168,6 +175,9 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
         }
       }
       html += '</div>';
+      if (!isActive && activeShip) {
+        html += '<div class="fleet-switch-hint">当前操控：' + activeShip.emoji + ' ' + activeShip.name + '</div>';
+      }
     }
 
     html += '</div>';

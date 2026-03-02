@@ -589,6 +589,10 @@ function _handleSwitchShip(shipIndex) {
   _stopActiveDispatch();
   Fleet.syncShipFromState(_state);
   const result = Fleet.switchShip(_state, shipIndex);
+  if (result && result.ok) {
+    _state.lastSwitchedShipIndex = shipIndex;
+    _state.lastShipSwitchAt = Date.now();
+  }
   _dispatch(result);
   // 如果新激活的船只已有路线，重新启动派遣
   if (result && result.ok && Fleet.isActiveDispatched(_state)) {

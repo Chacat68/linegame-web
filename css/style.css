@@ -1710,19 +1710,21 @@ html, body {
   font-weight: 600;
 }
 .slot-switch-btn {
-  font-size: 11px;
-  padding: 0 4px;
-  border: none;
-  background: rgba(255, 193, 7, 0.15);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border: 1px solid rgba(255, 193, 7, 0.35);
+  background: rgba(255, 193, 7, 0.12);
   border-radius: 3px;
   color: var(--accent-gold);
   cursor: pointer;
   line-height: 1.4;
-  transition: background 0.2s, transform 0.15s;
+  transition: background 0.2s, transform 0.15s, border-color 0.2s;
 }
 .slot-switch-btn:hover {
-  background: rgba(255, 193, 7, 0.35);
-  transform: scale(1.15);
+  background: rgba(255, 193, 7, 0.25);
+  border-color: var(--accent-gold);
+  transform: scale(1.05);
 }
 
 .fleet-slot-info {
@@ -1795,6 +1797,25 @@ html, body {
   box-shadow: 0 0 8px rgba(255, 193, 7, 0.15);
 }
 
+.fleet-ship-card.fleet-switch-flash {
+  animation: fleet-switch-flash 1s ease-out;
+}
+
+@keyframes fleet-switch-flash {
+  0% {
+    border-color: rgba(79, 195, 247, 0.95);
+    box-shadow: 0 0 0 rgba(79, 195, 247, 0), 0 0 12px rgba(79, 195, 247, 0.75);
+  }
+  35% {
+    border-color: rgba(79, 195, 247, 0.9);
+    box-shadow: 0 0 10px rgba(79, 195, 247, 0.55);
+  }
+  100% {
+    border-color: inherit;
+    box-shadow: inherit;
+  }
+}
+
 .fleet-ship-header {
   display: flex;
   align-items: center;
@@ -1813,6 +1834,18 @@ html, body {
   border-radius: 3px;
   margin-left: 4px;
   font-weight: 700;
+}
+
+.fleet-idle-badge {
+  display: inline-block;
+  font-size: 10px;
+  background: rgba(79, 195, 247, 0.12);
+  color: var(--accent-blue);
+  border: 1px solid rgba(79, 195, 247, 0.32);
+  padding: 1px 6px;
+  border-radius: 3px;
+  margin-left: 4px;
+  font-weight: 600;
 }
 
 .fleet-ship-stats {
@@ -1842,6 +1875,16 @@ html, body {
   transition: background 0.2s;
 }
 .fleet-switch-btn:hover { background: #2a3a5a; }
+
+.fleet-switch-primary {
+  background: rgba(255, 193, 7, 0.18);
+  border-color: rgba(255, 193, 7, 0.42);
+  color: var(--accent-gold);
+  font-weight: 600;
+}
+.fleet-switch-primary:hover {
+  background: rgba(255, 193, 7, 0.28);
+}
 
 /* Shop hint */
 .shop-slot-hint {
@@ -1943,6 +1986,12 @@ html, body {
   display: flex;
   gap: 6px;
   margin-top: 6px;
+}
+
+.fleet-switch-hint {
+  margin-top: 5px;
+  font-size: 10px;
+  color: var(--text-dim);
 }
 
 .fleet-dispatch-btn {
