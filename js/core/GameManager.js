@@ -68,6 +68,10 @@ export function init() {
   MapUI.initTabs(function (tabId) {
     Tutorial.checkTabClick(tabId);
   });
+  // 注入市场刷新回调（让 MapUI 可以触发市场表格重绘）
+  MapUI.setRefreshMarket(function () {
+    MarketUI.render(_state, _handleOpenBuy, _handleOpenSell, _handleRefuel, MapUI.getMarketViewSystem(_state));
+  });
   Modal.init(_handleTradeConfirm);
 
   document.getElementById('restart-btn').addEventListener('click', function () {
@@ -661,7 +665,7 @@ function _updateUI() {
   const netWorth = Trade.getNetWorth(_state);
   HUD.updateStats(_state, netWorth);
   HUD.updateCompanyName(_state);
-  MarketUI.render(_state, _handleOpenBuy, _handleOpenSell, _handleRefuel);
+  MarketUI.render(_state, _handleOpenBuy, _handleOpenSell, _handleRefuel, MapUI.getMarketViewSystem(_state));
   ShipUI.renderShipStats(_state);
   ResearchUI.render(_state, _handleStartResearch);
   FactionUI.render(_state);

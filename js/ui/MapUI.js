@@ -1,6 +1,7 @@
 // js/ui/MapUI.js — 星系地图交互事件绑定（支持星系/星球双层视图 + 市场面板）
 // 依赖：ui/Renderer.js, systems/economy/Economy.js
-// 导出：init, initTabs, refreshGalaxyBtn, openMarket, closeMarket, isMarketOpen
+// 导出：init, initTabs, refreshGalaxyBtn, openMarket, closeMarket, isMarketOpen,
+//        setRefreshMarket, getMarketViewSystem, refreshMarketLocation
 
 import * as Renderer from './Renderer.js';
 import * as Economy  from '../systems/economy/Economy.js';
@@ -8,6 +9,29 @@ import { GALAXIES, findSystem }  from '../data/systems.js';
 
 let _tabClickCallback = null;
 let _marketOpen = false;
+
+// 市场浏览状态
+let _marketViewGalaxy = null;
+let _marketViewSystem = null;
+// 市场表格刷新回调（由 GameManager 注入）
+let _refreshMarket = null;
+
+/**
+ * 注入市场刷新回调（在 GameManager.init 中调用）
+ * @param {Function} fn  () => void  — 刷新市场表格
+ */
+export function setRefreshMarket(fn) {
+  _refreshMarket = fn;
+}
+
+/**
+ * 获取市场当前查看的星球 ID（供 GameManager 传给 MarketUI.render）
+ * @param {object} state
+ * @returns {string}
+ */
+export function getMarketViewSystem(state) {
+  return _marketViewSystem || state.currentSystem;
+}
 
 /**
  * 绑定星系地图的鼠标交互
@@ -149,11 +173,16 @@ export function openMarket(stateRef) {
   const overlay = document.getElementById('market-overlay');
   const marketBtn = document.getElementById('market-view-btn');
   if (!overlay) return;
+  // 每次打开时默认显示当前星球
+  _marketViewGalaxy = stateRef.currentGalaxy;
+  _marketViewSystem = stateRef.currentSystem;
   _marketOpen = true;
   overlay.classList.remove('hidden');
   if (marketBtn) marketBtn.classList.add('active');
-  // 更新市场位置信息
+  _buildMarketGalaxyNav(stateRef);
+  _buildMarketPlanetSelect(stateRef);
   _updateMarketLocation(stateRef);
+  if (_refreshMarket) _refreshMarket();
 }
 
 /** 关闭市场面板 */
@@ -171,19 +200,102 @@ export function isMarketOpen() {
   return _marketOpen;
 }
 
+/** 旅行后刷新市场（重置为当前星球并重建导航） */
+export function refreshMarketLocation(stateRef) {
+  if (!_marketOpen) return;
+  _marketViewGalaxy = stateRef.currentGalaxy;
+  _marketViewSystem = stateRef.currentSystem;
+  _buildMarketGalaxyNav(stateRef);
+  _buildMarketPlanetSelect(stateRef);
+  _updateMarketLocation(stateRef);
+  if (_refreshMarket) _refreshMarket();
+}
+
 /** 更新市场面板的位置信息 */
 function _updateMarketLocation(stateRef) {
   const el = document.getElementById('market-overlay-location');
   if (!el) return;
-  const sys = findSystem(stateRef.currentSystem);
+  const sysId = _marketViewSystem || stateRef.currentSystem;
+  const sys = findSystem(sysId);
   if (sys) {
-    el.textContent = '📍 ' + sys.name + ' [' + sys.typeLabel + '] — ' + sys.description;
+    const isCurrentSys = sysId === stateRef.currentSystem;
+    el.textContent = (isCurrentSys ? '📍 ' : '🔍 ') + sys.name + ' [' + sys.typeLabel + '] — ' + sys.description;
   }
 }
 
-/** 刷新市场位置（旅行后调用） */
-export function refreshMarketLocation(stateRef) {
-  if (_marketOpen) _updateMarketLocation(stateRef);
+/**
+ * 将已访问星球按星系分组（避免在每个点击处理器中重复查找）
+ */
+function _groupVisitedByGalaxy(state) {
+  const map = Object.create(null);
+  (state.visitedSystems || []).forEach(function (sid) {
+    const s = findSystem(sid);
+    if (!s) return;
+    if (!map[s.galaxyId]) map[s.galaxyId] = [];
+    map[s.galaxyId].push(sid);
+  });
+  return map;
+}
+
+/**
+ * 构建星系选择导航栏（仅显示已访问星系）
+ */
+function _buildMarketGalaxyNav(state) {
+  const nav = document.getElementById('market-galaxy-nav');
+  if (!nav) return;
+  nav.innerHTML = '';
+  const visited = state.visitedGalaxies || [state.currentGalaxy];
+  const visitedByGalaxy = _groupVisitedByGalaxy(state);
+  GALAXIES.forEach(function (g) {
+    if (visited.indexOf(g.id) === -1) return;
+    const btn = document.createElement('button');
+    btn.className = 'market-galaxy-btn' + (g.id === _marketViewGalaxy ? ' active' : '');
+    btn.textContent = g.icon + ' ' + g.name;
+    btn.addEventListener('click', function () {
+      _marketViewGalaxy = g.id;
+      // 优先选中当前星球（若在该星系），否则选第一个已访问星球
+      const planetsInGalaxy = visitedByGalaxy[g.id] || [];
+      const curInGalaxy = planetsInGalaxy.indexOf(state.currentSystem) !== -1;
+      _marketViewSystem = curInGalaxy ? state.currentSystem : (planetsInGalaxy[0] || null);
+      _buildMarketGalaxyNav(state);
+      _buildMarketPlanetSelect(state);
+      _updateMarketLocation(state);
+      if (_refreshMarket) _refreshMarket();
+    });
+    nav.appendChild(btn);
+  });
+}
+
+/**
+ * 构建星球下拉选择器（仅显示当前星系中已访问的星球）
+ */
+function _buildMarketPlanetSelect(state) {
+  const sel = document.getElementById('market-planet-select');
+  if (!sel) return;
+  sel.innerHTML = '';
+  const visitedByGalaxy = _groupVisitedByGalaxy(state);
+  const planetsInGalaxy = visitedByGalaxy[_marketViewGalaxy] || [];
+  let viewSystemFound = false;
+  planetsInGalaxy.forEach(function (sid) {
+    const s = findSystem(sid);
+    if (!s) return;
+    const opt = document.createElement('option');
+    opt.value = sid;
+    const isCurrent = sid === state.currentSystem;
+    opt.textContent = (isCurrent ? '📍 ' : '') + s.name + ' [' + s.typeLabel + ']';
+    if (sid === _marketViewSystem) { opt.selected = true; viewSystemFound = true; }
+    sel.appendChild(opt);
+  });
+  // 若目标星球不在列表中，默认选第一个
+  if (!viewSystemFound && sel.options.length > 0) {
+    sel.options[0].selected = true;
+    _marketViewSystem = sel.options[0].value;
+  }
+  sel.onchange = function () {
+    _marketViewSystem = sel.value;
+    _updateMarketLocation(state);
+    if (_refreshMarket) _refreshMarket();
+  };
 }
 
 /**

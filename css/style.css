@@ -2049,6 +2049,64 @@ html, body {
   border-bottom: 1px solid rgba(255,255,255,0.05);
 }
 
+.market-galaxy-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  min-height: 32px;
+}
+.market-galaxy-btn {
+  padding: 3px 8px;
+  font-size: 11px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.04);
+  color: #9090b0;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.market-galaxy-btn.active {
+  background: rgba(79, 195, 247, 0.2);
+  border-color: #4FC3F7;
+  color: #e0f7ff;
+}
+.market-galaxy-btn:hover {
+  background: rgba(79, 195, 247, 0.1);
+  color: #c0e8f0;
+  border-color: rgba(79, 195, 247, 0.4);
+}
+.market-planet-row {
+  padding: 5px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.market-planet-select {
+  width: 100%;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #e0e0ff;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  outline: none;
+}
+.market-planet-select:focus {
+  border-color: rgba(79, 195, 247, 0.5);
+}
+.market-planet-select option {
+  background: #0e1230;
+  color: #e0e0ff;
+}
+.market-readonly-note {
+  font-size: 11px;
+  color: #9090b0;
+  font-style: italic;
+  text-align: center;
+  padding: 6px 4px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
 .market-overlay-body {
   flex: 1;
   overflow-y: auto;
