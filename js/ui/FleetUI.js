@@ -2,7 +2,7 @@
 // 依赖：data/ships.js, data/systems.js, data/goods.js, systems/fleet/FleetSystem.js
 // 导出：render
 
-import { SHIP_TYPES, SHIP_UPGRADES, FLEET_SLOTS } from '../data/ships.js';
+import { SHIP_TYPES, SHIP_UPGRADES, FLEET_SLOTS, SHIP_MODS, FLEET_BONUSES } from '../data/ships.js';
 import { SYSTEMS, getSystemsByGalaxy } from '../data/systems.js';
 import { GOODS } from '../data/goods.js';
 import * as Fleet from '../systems/fleet/FleetSystem.js';
@@ -17,8 +17,11 @@ import * as Economy from '../systems/economy/Economy.js';
  * @param {Function} onAssignRoute  (shipIndex, buySystemId, sellSystemId, goodId) => void
  * @param {Function} onCancelRoute  (shipIndex) => void
  * @param {Function} onBuySlot      () => void
+ * @param {Function} onSellShip     (shipIndex) => void
+ * @param {Function} onInstallMod   (shipIndex, modId) => void
+ * @param {Function} onUninstallMod (shipIndex, modId) => void
  */
-export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRoute, onCancelRoute, onBuySlot, onSellShip) {
+export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRoute, onCancelRoute, onBuySlot, onSellShip, onInstallMod, onUninstallMod) {
   const container = document.getElementById('fleet-list');
   if (!container) return;
 
@@ -81,6 +84,46 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
   }
   html += '</div>';
 
+  // ========== 舰队编队加成 ==========
+  var activeBonuses = Fleet.getActiveFleetBonuses(state);
+  if (activeBonuses.length > 0) {
+    html += '<div class="fleet-bonus-section">';
+    html += '<div class="fleet-section-title">🎖️ 舰队编队加成</div>';
+    html += '<div class="fleet-bonus-list">';
+    activeBonuses.forEach(function (bonus) {
+      html += '<div class="fleet-bonus-chip">';
+      html += '<span class="fleet-bonus-emoji">' + bonus.emoji + '</span>';
+      html += '<span class="fleet-bonus-name">' + bonus.name + '</span>';
+      html += '<span class="fleet-bonus-desc">' + bonus.desc + '</span>';
+      html += '</div>';
+    });
+    html += '</div>';
+    html += '</div>';
+  }
+  // 提示未激活的编队加成
+  var inactiveBonuses = FLEET_BONUSES.filter(function (b) {
+    return activeBonuses.indexOf(b) === -1;
+  });
+  if (inactiveBonuses.length > 0 && fleet.length > 1) {
+    html += '<div class="fleet-bonus-hint">';
+    html += '<details><summary>📋 可解锁的编队加成（' + inactiveBonuses.length + '）</summary>';
+    inactiveBonuses.forEach(function (bonus) {
+      var missing = bonus.requiredTypes.filter(function (t) {
+        return !fleet.some(function (s) { return s.typeId === t; });
+      });
+      var missingNames = missing.map(function (t) {
+        var st = SHIP_TYPES.find(function (s) { return s.id === t; });
+        return st ? st.emoji + st.name : t;
+      }).join('、');
+      html += '<div class="fleet-bonus-locked">';
+      html += '<span>' + bonus.emoji + ' ' + bonus.name + '：' + bonus.desc + '</span>';
+      html += '<span class="fleet-bonus-missing">需要：' + missingNames + '</span>';
+      html += '</div>';
+    });
+    html += '</details>';
+    html += '</div>';
+  }
+
   // ========== 已拥有的船只 ==========
   html += '<div class="fleet-section-title" style="margin-top:12px">⚓ 我的船队（' + fleet.length + '/' + slotCount + '）</div>';
 
@@ -134,6 +177,42 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
               '</button>';
     } else {
       html += '<span class="fleet-upg-all-done-inline">⚙️ 全部升级已安装 ✅</span>';
+    }
+    html += '</div>';
+
+    // ======== 特殊技能 ========
+    var skills = Fleet.getShipSkills(ship);
+    if (skills.length > 0) {
+      html += '<div class="fleet-ship-skills-section">';
+      html += '<div class="fleet-skills-header">✨ 特殊技能</div>';
+      html += '<div class="fleet-skills-list">';
+      skills.forEach(function (skill) {
+        html += '<div class="fleet-skill-chip">';
+        html += '<span class="fleet-skill-emoji">' + skill.emoji + '</span>';
+        html += '<span class="fleet-skill-name">' + skill.name + '</span>';
+        html += '<span class="fleet-skill-desc">' + skill.desc + '</span>';
+        html += '</div>';
+      });
+      html += '</div>';
+      html += '</div>';
+    }
+
+    // ======== 改装组件 ========
+    var shipMods = ship.mods || [];
+    var modSlots = ship.modSlots || 1;
+    html += '<div class="fleet-ship-mod-section">';
+    html += '<button class="fleet-open-mod-btn" data-ship-index="' + idx + '">' +
+            '🔧 改装 (' + shipMods.length + '/' + modSlots + ')' +
+            '</button>';
+    if (shipMods.length > 0) {
+      html += '<div class="fleet-mod-chips">';
+      shipMods.forEach(function (modId) {
+        var mod = SHIP_MODS.find(function (m) { return m.id === modId; });
+        if (mod) {
+          html += '<span class="fleet-mod-chip">' + mod.emoji + ' ' + mod.name + '</span>';
+        }
+      });
+      html += '</div>';
     }
     html += '</div>';
 
@@ -215,6 +294,13 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
     });
   });
 
+  // 改装弹窗按钮
+  container.querySelectorAll('.fleet-open-mod-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      _openModModal(state, parseInt(btn.dataset.shipIndex), onInstallMod, onUninstallMod);
+    });
+  });
+
   // 派遣按钮 → 打开派遣配置弹窗（所有船只，包括激活船只）
   container.querySelectorAll('.fleet-dispatch-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {
@@ -285,6 +371,18 @@ export function renderShop(state, onBuyShip) {
     html += '⚡' + st.fuel + '(→' + st.maxFuelCap + ') ';
     html += '🛡️' + st.hull + '(→' + st.maxHullCap + ') ';
     html += '🔧×' + st.fuelEff + '(→' + st.minFuelEff + ')';
+    html += '</div>';
+
+    // 改装槽位和技能预览
+    html += '<div class="fleet-shop-extras">';
+    html += '<span class="fleet-shop-mod-slots">🔧 改装槽：' + (st.modSlots || 1) + '</span>';
+    if (st.skills && st.skills.length > 0) {
+      html += '<span class="fleet-shop-skills">';
+      st.skills.forEach(function (skill) {
+        html += '<span class="fleet-shop-skill-chip" title="' + skill.desc + '">' + skill.emoji + ' ' + skill.name + '</span>';
+      });
+      html += '</span>';
+    }
     html += '</div>';
 
     if (!hasAvailableSlot) {
@@ -395,6 +493,117 @@ function _openUpgradeModal(state, shipIndex, onUpgradeShip) {
 
   // 关闭
   document.getElementById('upgrade-modal-close').onclick = function () {
+    modal.classList.add('hidden');
+  };
+
+  modal.classList.remove('hidden');
+}
+
+// ---------------------------------------------------------------------------
+// 改装弹窗
+// ---------------------------------------------------------------------------
+
+function _openModModal(state, shipIndex, onInstallMod, onUninstallMod) {
+  var modal = document.getElementById('mod-modal');
+  if (!modal) return;
+
+  var ship = state.fleet[shipIndex];
+
+  function _renderModModal() {
+    document.getElementById('mod-modal-title').textContent =
+      '🔧 ' + ship.emoji + ' ' + ship.name + ' — 改装（' + (ship.mods || []).length + '/' + (ship.modSlots || 1) + ' 槽位）';
+
+    var body = document.getElementById('mod-modal-body');
+    var html = '';
+
+    // 已安装的改装组件
+    var installedMods = (ship.mods || []).map(function (modId) {
+      return SHIP_MODS.find(function (m) { return m.id === modId; });
+    }).filter(Boolean);
+
+    if (installedMods.length > 0) {
+      html += '<div class="mod-modal-section-title">已安装</div>';
+      html += '<div class="mod-modal-installed">';
+      installedMods.forEach(function (mod) {
+        html += '<div class="mod-modal-item mod-modal-installed-item">';
+        html += '<div class="mod-modal-item-info">';
+        html += '<div class="mod-modal-item-name">' + mod.emoji + ' ' + mod.name + '</div>';
+        html += '<div class="mod-modal-item-desc">' + mod.desc + '</div>';
+        html += '</div>';
+        html += '<button class="mod-modal-uninstall-btn" data-mod="' + mod.id + '">🗑️ 拆卸</button>';
+        html += '</div>';
+      });
+      html += '</div>';
+    }
+
+    // 可安装的改装组件
+    var slotsLeft = (ship.modSlots || 1) - (ship.mods || []).length;
+    var availableMods = SHIP_MODS.filter(function (m) {
+      return !(ship.mods || []).includes(m.id);
+    });
+
+    if (availableMods.length > 0) {
+      html += '<div class="mod-modal-section-title">可安装' + (slotsLeft <= 0 ? '（槽位已满）' : '') + '</div>';
+
+      // 按分类分组
+      var categories = { cargo: '📦 货舱', engine: '🔥 引擎', hull: '🛡️ 防护', trade: '💰 贸易' };
+      Object.keys(categories).forEach(function (cat) {
+        var catMods = availableMods.filter(function (m) { return m.category === cat; });
+        if (catMods.length === 0) return;
+
+        html += '<div class="mod-modal-category">' + categories[cat] + '</div>';
+        html += '<div class="mod-modal-list">';
+        catMods.forEach(function (mod) {
+          var canAfford = state.credits >= mod.cost;
+          var disabled = slotsLeft <= 0;
+
+          var cls = 'mod-modal-item';
+          if (disabled) cls += ' mod-modal-full';
+          else if (!canAfford) cls += ' mod-modal-poor';
+
+          html += '<div class="' + cls + '">';
+          html += '<div class="mod-modal-item-info">';
+          html += '<div class="mod-modal-item-name">' + mod.emoji + ' ' + mod.name + '</div>';
+          html += '<div class="mod-modal-item-desc">' + mod.desc + '</div>';
+          html += '</div>';
+          if (!disabled) {
+            html += '<button class="mod-modal-buy-btn' + (canAfford ? '' : ' mod-modal-no-afford') + '"' +
+                    (canAfford ? '' : ' disabled') +
+                    ' data-mod="' + mod.id + '">' +
+                    (canAfford ? '💰 ' + mod.cost.toLocaleString() : '积分不足') +
+                    '</button>';
+          }
+          html += '</div>';
+        });
+        html += '</div>';
+      });
+    } else {
+      html += '<div class="mod-modal-all-done">🏆 全部改装组件已安装！</div>';
+    }
+
+    body.innerHTML = html;
+
+    // 绑定安装事件
+    body.querySelectorAll('.mod-modal-buy-btn:not([disabled])').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        if (onInstallMod) onInstallMod(shipIndex, btn.dataset.mod);
+        setTimeout(function () { _renderModModal(); }, 50);
+      });
+    });
+
+    // 绑定拆卸事件
+    body.querySelectorAll('.mod-modal-uninstall-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        if (onUninstallMod) onUninstallMod(shipIndex, btn.dataset.mod);
+        setTimeout(function () { _renderModModal(); }, 50);
+      });
+    });
+  }
+
+  _renderModModal();
+
+  // 关闭
+  document.getElementById('mod-modal-close').onclick = function () {
     modal.classList.add('hidden');
   };
 
