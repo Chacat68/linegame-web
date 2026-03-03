@@ -1,8 +1,7 @@
 // js/data/constants.js — 游戏全局常量与初始状态
 // 依赖：无
-// 导出：INITIAL_STATE, VICTORY_NET_WORTH
-
-export const VICTORY_NET_WORTH = 50000;
+// 导出：INITIAL_STATE
+// 注意：VICTORY_NET_WORTH 为孤立常量（从未被使用），胜利条件由 js/data/victoryConditions.js 实现。
 
 export const INITIAL_STATE = {
   companyName:       '星际信使贸易公司',
