@@ -56,9 +56,9 @@
 **技术要求：**
 ```
 平台：Web（浏览器）
-渲染：Canvas 2D（或 WebGL）
-模块：src/systems/galaxy/galaxySystem.ts
-数据：public/data/planets/planet_definitions.json
+渲染：Canvas 2D（含 WebGL 星空背景）
+模块：js/ui/MapUI.js（前端渲染），js/data/systems.js（数据），js/systems/economy/Economy.js（距离/燃料）
+数据：js/data/systems.js（含程序化生成多星系）
 ```
 
 **验收标准：**
@@ -98,9 +98,9 @@
 **技术要求：**
 ```
 平台：Web（浏览器）
-界面：Web UI（组件化）
-模块：src/systems/market/marketSystem.ts
-数据：public/data/items/item_definitions.json
+界面：Web UI（原生 DOM + Canvas）
+模块：js/systems/trade/TradeSystem.js，js/ui/MarketUI.js
+数据：js/data/goods.js
 ```
 
 **验收标准：**
@@ -133,9 +133,9 @@
 **技术要求：**
 ```
 平台：Web（浏览器）
-界面：Web UI（组件化）
-模块：src/systems/ship/shipManager.ts
-数据：public/data/ships/ship_types.json
+界面：Web UI（原生 DOM）
+模块：js/systems/fleet/FleetSystem.js，js/ui/ShipUI.js
+数据：js/data/ships.js
 ```
 
 **验收标准：**
@@ -173,9 +173,9 @@
 **技术要求：**
 ```
 平台：Web（浏览器）
-界面：Web UI（组件化）
-视图/状态协调：src/ui/uiManager.ts
-主题/样式：src/ui/theme/（CSS 变量或 Design Tokens）
+界面：Web UI（原生 DOM）
+模块：js/ui/HUD.js，js/ui/Modal.js，js/ui/MapUI.js，js/ui/MarketUI.js，js/ui/ShipUI.js
+主题/样式：css/style.css
 ```
 
 **验收标准：**
@@ -206,9 +206,9 @@
 **技术要求：**
 ```
 平台：Web（浏览器）
-存储：IndexedDB（主）+ 导出/导入 JSON（可选）
-模块：src/systems/save/saveManager.ts
-格式：JSON（带版本号与迁移）
+存储：localStorage（当前实现，4槽位）；IndexedDB 为后续迁移目标（见实现方案.md）
+模块：js/systems/save/SaveSystem.js
+格式：JSON SaveEnvelope（含 schemaVersion 与迁移支持）
 ```
 
 **验收标准：**
