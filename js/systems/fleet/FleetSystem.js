@@ -5,9 +5,10 @@
 //       assignRoute, cancelRoute, tickFleetRoutes,
 //       buySlot, getSlotCount, getMaxSlots, getAvailableSlotCount,
 //       getDispatchRouteLevel, dispatchActiveShip, cancelActiveDispatch,
-//       isActiveDispatched, tickActiveShipDispatch
+//       isActiveDispatched, tickActiveShipDispatch,
+//       installMod, uninstallMod, getShipSkills, getActiveFleetBonuses
 
-import { SHIP_TYPES, SHIP_UPGRADES, FLEET_SLOTS } from '../../data/ships.js';
+import { SHIP_TYPES, SHIP_UPGRADES, FLEET_SLOTS, SHIP_MODS, FLEET_BONUSES } from '../../data/ships.js';
 import { SYSTEMS, FUEL_COST_PER_UNIT, findSystem } from '../../data/systems.js';
 import { GOODS } from '../../data/goods.js';
 import * as Economy from '../economy/Economy.js';
@@ -34,6 +35,8 @@ function _createShip(shipType) {
     fuelEff:      shipType.fuelEff,
     minFuelEff:   shipType.minFuelEff,
     upgrades:     [],  // 已购买的升级 ID
+    mods:         [],  // 已安装的改装组件 ID
+    modSlots:     shipType.modSlots || 1, // 改装槽位数
     location:     null, // 当前所在星系 ID（非激活船只用），null 表示跟随旗舰
     route:        null, // 派遣路线 { buySystemId, sellSystemId, goodId, status:'buying'|'traveling'|'selling'|'returning' }
   };
@@ -56,6 +59,14 @@ export function init(state) {
   if (!state.fleetSlots || state.fleetSlots < 1) {
     state.fleetSlots = Math.max(1, state.fleet.length);
   }
+  // 兼容旧存档：补充改装数据
+  state.fleet.forEach(function (ship) {
+    if (!ship.mods) ship.mods = [];
+    if (!ship.modSlots) {
+      var st = SHIP_TYPES.find(function (t) { return t.id === ship.typeId; });
+      ship.modSlots = st ? (st.modSlots || 1) : 1;
+    }
+  });
   // 确保当前 state 与激活船只同步
   syncStateFromShip(state);
 }
@@ -675,4 +686,222 @@ export function tickActiveShipDispatch(state) {
     }
   }
   return { msgs: msgs, needTravel: null, needBuy: null, needSell: null };
+}
+
+// ---------------------------------------------------------------------------
+// 飞船改装系统
+// ---------------------------------------------------------------------------
+
+/**
+ * 为指定船只安装改装组件
+ * @param {object} state
+ * @param {string} modId   SHIP_MODS 中的 id
+ * @param {number} [shipIndex] 船只索引，默认为激活船只
+ * @returns {{ ok: boolean, msgs: Array }}
+ */
+export function installMod(state, modId, shipIndex) {
+  var mod = SHIP_MODS.find(function (m) { return m.id === modId; });
+  if (!mod) return { ok: false, msgs: [{ text: '❌ 未知改装组件！', type: 'error' }] };
+
+  if (shipIndex != null && (shipIndex < 0 || shipIndex >= state.fleet.length)) {
+    return { ok: false, msgs: [{ text: '❌ 无效的船只索引！', type: 'error' }] };
+  }
+  var ship = shipIndex != null ? state.fleet[shipIndex] : getActiveShip(state);
+  if (!ship) return { ok: false, msgs: [{ text: '❌ 无效的船只！', type: 'error' }] };
+
+  if (!ship.mods) ship.mods = [];
+
+  // 检查是否已安装
+  if (ship.mods.includes(modId)) {
+    return { ok: false, msgs: [{ text: '🔧 该组件已安装！', type: 'error' }] };
+  }
+
+  // 检查改装槽位
+  if (ship.mods.length >= (ship.modSlots || 1)) {
+    return { ok: false, msgs: [{ text: '🚫 改装槽位已满！请先拆卸已有组件。', type: 'error' }] };
+  }
+
+  // 检查积分
+  if (state.credits < mod.cost) {
+    return { ok: false, msgs: [{ text: '💰 积分不足！需要 ' + mod.cost.toLocaleString() + ' 积分。', type: 'error' }] };
+  }
+
+  // 扣费并安装
+  state.credits -= mod.cost;
+  ship.mods.push(modId);
+
+  // 应用效果
+  _applyModEffect(ship, mod.effect, 1);
+
+  // 如果是激活船只，同步到 state
+  var actualIndex = shipIndex != null ? shipIndex : state.activeShipIndex;
+  if (actualIndex === state.activeShipIndex) {
+    syncStateFromShip(state);
+  }
+
+  return {
+    ok: true,
+    msgs: [{ text: '🔧 「' + ship.name + '」安装改装组件：' + mod.emoji + ' ' + mod.name + '！', type: 'upgrade' }],
+  };
+}
+
+/**
+ * 拆卸指定船只的改装组件
+ * @param {object} state
+ * @param {string} modId
+ * @param {number} [shipIndex]
+ * @returns {{ ok: boolean, msgs: Array }}
+ */
+export function uninstallMod(state, modId, shipIndex) {
+  var mod = SHIP_MODS.find(function (m) { return m.id === modId; });
+  if (!mod) return { ok: false, msgs: [{ text: '❌ 未知改装组件！', type: 'error' }] };
+
+  if (shipIndex != null && (shipIndex < 0 || shipIndex >= state.fleet.length)) {
+    return { ok: false, msgs: [{ text: '❌ 无效的船只索引！', type: 'error' }] };
+  }
+  var ship = shipIndex != null ? state.fleet[shipIndex] : getActiveShip(state);
+  if (!ship) return { ok: false, msgs: [{ text: '❌ 无效的船只！', type: 'error' }] };
+
+  if (!ship.mods || !ship.mods.includes(modId)) {
+    return { ok: false, msgs: [{ text: '⚠️ 未安装该组件！', type: 'error' }] };
+  }
+
+  // 移除组件
+  ship.mods = ship.mods.filter(function (id) { return id !== modId; });
+
+  // 反向应用效果
+  _applyModEffect(ship, mod.effect, -1);
+
+  // 如果是激活船只，同步到 state
+  var actualIndex = shipIndex != null ? shipIndex : state.activeShipIndex;
+  if (actualIndex === state.activeShipIndex) {
+    syncStateFromShip(state);
+  }
+
+  return {
+    ok: true,
+    msgs: [{ text: '🔧 「' + ship.name + '」拆卸了改装组件：' + mod.emoji + ' ' + mod.name, type: 'info' }],
+  };
+}
+
+/**
+ * 应用/移除改装效果
+ * @param {object} ship
+ * @param {object} effect
+ * @param {number} direction  1=安装, -1=拆卸
+ */
+function _applyModEffect(ship, effect, direction) {
+  if (effect.cargo) {
+    ship.maxCargo = Math.max(1, ship.maxCargo + effect.cargo * direction);
+  }
+  if (effect.maxFuel) {
+    ship.maxFuel = Math.max(1, ship.maxFuel + effect.maxFuel * direction);
+    if (ship.fuel > ship.maxFuel) ship.fuel = ship.maxFuel;
+  }
+  if (effect.hull) {
+    ship.maxHull = Math.max(1, ship.maxHull + effect.hull * direction);
+    if (ship.hull > ship.maxHull) ship.hull = ship.maxHull;
+  }
+  if (effect.fuelEff) {
+    if (direction === 1) {
+      ship.fuelEff = Math.round(ship.fuelEff * effect.fuelEff * 10000) / 10000;
+    } else {
+      ship.fuelEff = Math.round((ship.fuelEff / effect.fuelEff) * 10000) / 10000;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 飞船特殊技能
+// ---------------------------------------------------------------------------
+
+/**
+ * 获取指定船只的特殊技能列表
+ * @param {object} ship  船只实例
+ * @returns {Array} 技能列表
+ */
+export function getShipSkills(ship) {
+  if (!ship) return [];
+  var shipType = SHIP_TYPES.find(function (t) { return t.id === ship.typeId; });
+  return shipType && shipType.skills ? shipType.skills : [];
+}
+
+/**
+ * 获取指定船只的综合技能效果
+ * @param {object} ship
+ * @returns {object} 合并后的效果
+ */
+export function getShipSkillEffects(ship) {
+  var skills = getShipSkills(ship);
+  var effects = {};
+  skills.forEach(function (s) {
+    if (s.effect) {
+      Object.keys(s.effect).forEach(function (k) {
+        effects[k] = (effects[k] || 0) + s.effect[k];
+      });
+    }
+  });
+  return effects;
+}
+
+/**
+ * 获取指定船只的改装组件综合效果
+ * @param {object} ship
+ * @returns {object} 合并后的效果（仅buyDiscount/sellBonus/autoRepair等非stat属性）
+ */
+export function getShipModEffects(ship) {
+  if (!ship || !ship.mods) return {};
+  var effects = {};
+  ship.mods.forEach(function (modId) {
+    var mod = SHIP_MODS.find(function (m) { return m.id === modId; });
+    if (mod && mod.effect) {
+      if (mod.effect.buyDiscount) effects.buyDiscount = (effects.buyDiscount || 0) + mod.effect.buyDiscount;
+      if (mod.effect.sellBonus) effects.sellBonus = (effects.sellBonus || 0) + mod.effect.sellBonus;
+      if (mod.effect.autoRepair) effects.autoRepair = (effects.autoRepair || 0) + mod.effect.autoRepair;
+    }
+  });
+  return effects;
+}
+
+// ---------------------------------------------------------------------------
+// 舰队编队加成
+// ---------------------------------------------------------------------------
+
+/**
+ * 获取当前舰队激活的编队加成列表
+ * @param {object} state
+ * @returns {Array} 激活的 FLEET_BONUSES 子集
+ */
+export function getActiveFleetBonuses(state) {
+  var fleet = state.fleet || [];
+  var typeIds = [];
+  fleet.forEach(function (ship) {
+    if (typeIds.indexOf(ship.typeId) === -1) {
+      typeIds.push(ship.typeId);
+    }
+  });
+
+  return FLEET_BONUSES.filter(function (bonus) {
+    return bonus.requiredTypes.every(function (reqType) {
+      return typeIds.indexOf(reqType) !== -1;
+    });
+  });
+}
+
+/**
+ * 获取舰队加成的综合效果
+ * @param {object} state
+ * @returns {object} 合并后的效果
+ */
+export function getFleetBonusEffects(state) {
+  var bonuses = getActiveFleetBonuses(state);
+  var effects = {};
+  bonuses.forEach(function (b) {
+    if (b.effect) {
+      Object.keys(b.effect).forEach(function (k) {
+        effects[k] = (effects[k] || 0) + b.effect[k];
+      });
+    }
+  });
+  return effects;
 }
