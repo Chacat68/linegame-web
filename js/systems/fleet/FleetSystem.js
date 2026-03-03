@@ -703,6 +703,9 @@ export function installMod(state, modId, shipIndex) {
   var mod = SHIP_MODS.find(function (m) { return m.id === modId; });
   if (!mod) return { ok: false, msgs: [{ text: '❌ 未知改装组件！', type: 'error' }] };
 
+  if (shipIndex != null && (shipIndex < 0 || shipIndex >= state.fleet.length)) {
+    return { ok: false, msgs: [{ text: '❌ 无效的船只索引！', type: 'error' }] };
+  }
   var ship = shipIndex != null ? state.fleet[shipIndex] : getActiveShip(state);
   if (!ship) return { ok: false, msgs: [{ text: '❌ 无效的船只！', type: 'error' }] };
 
@@ -753,6 +756,9 @@ export function uninstallMod(state, modId, shipIndex) {
   var mod = SHIP_MODS.find(function (m) { return m.id === modId; });
   if (!mod) return { ok: false, msgs: [{ text: '❌ 未知改装组件！', type: 'error' }] };
 
+  if (shipIndex != null && (shipIndex < 0 || shipIndex >= state.fleet.length)) {
+    return { ok: false, msgs: [{ text: '❌ 无效的船只索引！', type: 'error' }] };
+  }
   var ship = shipIndex != null ? state.fleet[shipIndex] : getActiveShip(state);
   if (!ship) return { ok: false, msgs: [{ text: '❌ 无效的船只！', type: 'error' }] };
 
@@ -798,9 +804,9 @@ function _applyModEffect(ship, effect, direction) {
   }
   if (effect.fuelEff) {
     if (direction === 1) {
-      ship.fuelEff = ship.fuelEff * effect.fuelEff;
+      ship.fuelEff = Math.round(ship.fuelEff * effect.fuelEff * 10000) / 10000;
     } else {
-      ship.fuelEff = ship.fuelEff / effect.fuelEff;
+      ship.fuelEff = Math.round((ship.fuelEff / effect.fuelEff) * 10000) / 10000;
     }
   }
 }

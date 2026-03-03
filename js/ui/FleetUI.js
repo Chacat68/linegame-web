@@ -85,7 +85,8 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
   html += '</div>';
 
   // ========== 舰队编队加成 ==========
-  var activeBonuses = Fleet.getActiveFleetBonuses(state);
+  const activeBonuses = Fleet.getActiveFleetBonuses(state);
+  const activeBonusIds = activeBonuses.map(function (b) { return b.id; });
   if (activeBonuses.length > 0) {
     html += '<div class="fleet-bonus-section">';
     html += '<div class="fleet-section-title">🎖️ 舰队编队加成</div>';
@@ -101,8 +102,8 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
     html += '</div>';
   }
   // 提示未激活的编队加成
-  var inactiveBonuses = FLEET_BONUSES.filter(function (b) {
-    return activeBonuses.indexOf(b) === -1;
+  const inactiveBonuses = FLEET_BONUSES.filter(function (b) {
+    return activeBonusIds.indexOf(b.id) === -1;
   });
   if (inactiveBonuses.length > 0 && fleet.length > 1) {
     html += '<div class="fleet-bonus-hint">';
@@ -198,8 +199,8 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
     }
 
     // ======== 改装组件 ========
-    var shipMods = ship.mods || [];
-    var modSlots = ship.modSlots || 1;
+    const shipMods = ship.mods || [];
+    const modSlots = ship.modSlots || 1;
     html += '<div class="fleet-ship-mod-section">';
     html += '<button class="fleet-open-mod-btn" data-ship-index="' + idx + '">' +
             '🔧 改装 (' + shipMods.length + '/' + modSlots + ')' +
