@@ -67,7 +67,7 @@ export function openTradeModal(action, good, state) {
 
   const inp     = document.getElementById('modal-amount');
   inp.max       = safeMax;
-  inp.value     = Math.min(1, safeMax);
+  inp.value     = Math.max(0, Math.min(1, safeMax));
   inp.dataset.price = price;
   _refreshTotal();
 

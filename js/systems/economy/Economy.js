@@ -131,6 +131,7 @@ export function getSupplyDemand(systemId, goodId) {
 export function getBuyPrice(systemId, goodId, state) {
   const sys  = SYSTEMS.find(function (s) { return s.id === systemId; });
   const good = GOODS.find(function (g) { return g.id === goodId; });
+  if (!sys || !good || !_modifiers[systemId]) return 1;
   const m    = _modifiers[systemId][goodId] * sys.prices[goodId];
   // 供需比影响价格：需求高于供给 → 涨价
   const sd   = getSupplyDemand(systemId, goodId);
@@ -158,6 +159,7 @@ export function getBuyPrice(systemId, goodId, state) {
 export function getSellPrice(systemId, goodId, state) {
   const sys  = SYSTEMS.find(function (s) { return s.id === systemId; });
   const good = GOODS.find(function (g) { return g.id === goodId; });
+  if (!sys || !good || !_modifiers[systemId]) return 1;
   const m    = _modifiers[systemId][goodId] * sys.prices[goodId];
   // 供需比影响卖价：需求高 → 卖价也更高
   const sd   = getSupplyDemand(systemId, goodId);

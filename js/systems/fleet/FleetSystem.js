@@ -212,8 +212,10 @@ export function sellShip(state, shipIndex) {
   state.credits += sellPrice;
   state.fleet.splice(shipIndex, 1);
 
-  // 修正 activeShipIndex
-  if (state.activeShipIndex >= state.fleet.length) {
+  // 修正 activeShipIndex：被卖出的船索引 < 当前激活索引时，激活索引需要减 1
+  if (shipIndex < state.activeShipIndex) {
+    state.activeShipIndex -= 1;
+  } else if (state.activeShipIndex >= state.fleet.length) {
     state.activeShipIndex = state.fleet.length - 1;
   }
   // 重新同步激活船只
@@ -392,6 +394,7 @@ function _distance(sysA, sysB) {
 function _fuelCost(fromId, toId, fuelEff) {
   var s1 = findSystem(fromId);
   var s2 = findSystem(toId);
+  if (!s1 || !s2) return 999;
   return Math.max(1, Math.ceil(_distance(s1, s2) * 100 * FUEL_COST_PER_UNIT * fuelEff));
 }
 

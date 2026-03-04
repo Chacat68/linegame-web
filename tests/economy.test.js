@@ -19,22 +19,18 @@ describe('Economy.getBuyPrice', () => {
     expect(Number.isFinite(price)).toBe(true);
   });
 
-  it('对无效 systemId 会崩溃（已知 C1 缺陷）', () => {
+  it('对无效 systemId 返回 1（C1 已修复）', () => {
     const state = createTestState();
     Faction.init(state);
-    // C1 缺陷：无效 systemId 导致 _modifiers[systemId] 为 undefined → TypeError
-    expect(() => {
-      Economy.getBuyPrice('nonexistent_system', 'food', state);
-    }).toThrow(TypeError);
+    const price = Economy.getBuyPrice('nonexistent_system', 'food', state);
+    expect(price).toBe(1);
   });
 
-  it('对无效 goodId 会崩溃（已知 C1 缺陷）', () => {
+  it('对无效 goodId 返回 1（C1 已修复）', () => {
     const state = createTestState();
     Faction.init(state);
-    // C1 缺陷：无效 goodId 导致 good.basePrice 为 undefined → TypeError
-    expect(() => {
-      Economy.getBuyPrice('sol_prime', 'nonexistent_good', state);
-    }).toThrow(TypeError);
+    const price = Economy.getBuyPrice('sol_prime', 'nonexistent_good', state);
+    expect(price).toBe(1);
   });
 
   it('不传 state 时仍返回正整数', () => {
@@ -52,13 +48,11 @@ describe('Economy.getSellPrice', () => {
     expect(Number.isFinite(price)).toBe(true);
   });
 
-  it('对无效 systemId 会崩溃（已知 C1 缺陷）', () => {
+  it('对无效 systemId 返回 1（C1 已修复）', () => {
     const state = createTestState();
     Faction.init(state);
-    // C1 缺陷：同 getBuyPrice
-    expect(() => {
-      Economy.getSellPrice('nonexistent_system', 'food', state);
-    }).toThrow(TypeError);
+    const price = Economy.getSellPrice('nonexistent_system', 'food', state);
+    expect(price).toBe(1);
   });
 
   it('友好派系卖出价应高于敌对派系 [H5]', () => {

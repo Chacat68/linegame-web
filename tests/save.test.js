@@ -97,22 +97,19 @@ describe('Save.importSave', () => {
     expect(result.ok).toBe(false);
   });
 
-  it('恶意数据（credits 为字符串）可以导入但应负责任地处理 [C4]', () => {
+  it('恶意数据（credits 为字符串）导入后被类型校验修正 [C4]', () => {
     const malicious = JSON.stringify({
       meta: { schemaVersion: 1, gameVersion: '0.2.0', slotId: 1 },
       data: { credits: 'not_a_number', fleet: 'also_not_array', day: -999 },
     });
-    // 当前实现：只检查 meta/data 存在，不验证类型
     const result = Save.importSave(1, malicious);
-    // 记录当前行为：导入成功（缺少校验）
     expect(result.ok).toBe(true);
 
-    // 验证加载后的状态是否可用
+    // 加载后类型校验应修正非法值
     const loaded = Save.loadGame(1);
     expect(loaded.ok).toBe(true);
-    // credits 是字符串 → 后续运算会出错
-    // 此测试文档化了 C4 问题
-    expect(typeof loaded.state.credits).toBe('string');
+    expect(typeof loaded.state.credits).toBe('number');
+    expect(typeof loaded.state.day).toBe('number');
   });
 
   it('正常存档可以导入', () => {
