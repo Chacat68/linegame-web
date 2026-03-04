@@ -28,7 +28,7 @@ export function render(state, onAccept, onAbandon) {
   const currentPhaseProgress = Quest.getCurrentQuestPhaseProgress(state);
   const currentPhase = currentPhaseProgress.phase;
   html += '<div class="quest-phase-overview">' +
-    '<div class="quest-phase-chip active" title="' + (currentPhase ? currentPhase.description : '') + '">' +
+    '<div class="quest-phase-chip active" title="' + _escapeHtml(currentPhase ? currentPhase.description : '') + '">' +
     '<span class="phase-icon">' + (currentPhase ? currentPhase.icon : '📖') + '</span>' +
     '<span class="phase-name">当前章节：' + (currentPhase ? currentPhase.name : '未知章节') + '</span>' +
     '<span class="phase-progress">' + currentPhaseProgress.completed + '/' + currentPhaseProgress.total + '</span>' +
@@ -54,14 +54,14 @@ export function render(state, onAccept, onAbandon) {
             (typeInfo.icon || '📋') + ' ' + (typeInfo.name || quest.type) + '</span>' +
           '<span class="quest-time">' + timeleft + '</span>' +
         '</div>' +
-        '<div class="quest-name">' + quest.name + '</div>' +
-        '<div class="quest-desc">' + quest.description + '</div>';
+        '<div class="quest-name">' + _escapeHtml(quest.name) + '</div>' +
+        '<div class="quest-desc">' + _escapeHtml(quest.description) + '</div>';
 
       // 目标进度
       quest.objectives.forEach(function (obj) {
         const pct = Math.min(100, Math.round((obj.current / (obj.amount || 1)) * 100));
         html += '<div class="quest-objective">' +
-          '<div class="quest-obj-text">' + _objectiveText(obj) + '</div>' +
+          '<div class="quest-obj-text">' + _escapeHtml(_objectiveText(obj)) + '</div>' +
           '<div class="quest-progress-track">' +
             '<div class="quest-progress-fill" style="width:' + pct + '%"></div>' +
           '</div>' +
@@ -97,8 +97,8 @@ export function render(state, onAccept, onAbandon) {
             (typeInfo.icon || '📋') + ' ' + (typeInfo.name || quest.type) + '</span>' +
           (quest.timeLimit > 0 ? '<span class="quest-time">⏰ ' + quest.timeLimit + ' 天限制</span>' : '') +
         '</div>' +
-        '<div class="quest-name">' + quest.name + '</div>' +
-        '<div class="quest-desc">' + quest.description + '</div>' +
+        '<div class="quest-name">' + _escapeHtml(quest.name) + '</div>' +
+        '<div class="quest-desc">' + _escapeHtml(quest.description) + '</div>' +
         '<div class="quest-rewards">' +
           '<span>🎁</span>' +
           '<span>💰 ' + quest.rewards.credits + '</span>' +
@@ -121,11 +121,11 @@ export function render(state, onAccept, onAbandon) {
           '<span class="quest-type-badge" style="background:' + (typeInfo.color || '#666') + '; opacity:0.6">' +
             (typeInfo.icon || '📋') + ' ' + (typeInfo.name || quest.type) + '</span>' +
         '</div>' +
-        '<div class="quest-name" style="opacity:0.7">🔒 ' + quest.name + '</div>' +
-        '<div class="quest-desc" style="opacity:0.5">' + quest.description + '</div>' +
+        '<div class="quest-name" style="opacity:0.7">🔒 ' + _escapeHtml(quest.name) + '</div>' +
+        '<div class="quest-desc" style="opacity:0.5">' + _escapeHtml(quest.description) + '</div>' +
         '<div class="quest-lock-reasons">';
       quest.lockReasons.forEach(function (reason) {
-        html += '<div class="quest-lock-reason">⚠️ ' + reason + '</div>';
+        html += '<div class="quest-lock-reason">⚠️ ' + _escapeHtml(reason) + '</div>';
       });
       html += '</div>' +
         '<div class="quest-rewards" style="opacity:0.5">' +
@@ -207,4 +207,13 @@ function _systemName(systemId) {
 function _goodName(goodId) {
   if (!goodId) return '货物';
   return _goodNameById[goodId] || goodId;
+}
+
+function _escapeHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }

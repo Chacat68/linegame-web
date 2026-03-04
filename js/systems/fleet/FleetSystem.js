@@ -392,6 +392,7 @@ function _distance(sysA, sysB) {
 function _fuelCost(fromId, toId, fuelEff) {
   var s1 = findSystem(fromId);
   var s2 = findSystem(toId);
+  if (!s1 || !s2) return NaN;
   return Math.max(1, Math.ceil(_distance(s1, s2) * 100 * FUEL_COST_PER_UNIT * fuelEff));
 }
 
@@ -486,6 +487,11 @@ export function tickFleetRoutes(state) {
           _doShipBuy(state, ship, route, msgs);
         } else {
           var cost = _fuelCost(loc, route.buySystemId, ship.fuelEff);
+          if (!Number.isFinite(cost)) {
+            msgs.push({ text: '⚠️ 「' + ship.emoji + ship.name + '」路线异常（目标星球不存在），派遣已取消。', type: 'error' });
+            ship.route = null;
+            return;
+          }
           if (ship.fuel < cost) {
             // 尝试用积分补燃料
             _autoRefuelShip(state, ship, cost, msgs);
@@ -516,6 +522,11 @@ export function tickFleetRoutes(state) {
           _doShipSell(state, ship, route, msgs);
         } else {
           var cost2 = _fuelCost(loc, route.sellSystemId, ship.fuelEff);
+          if (!Number.isFinite(cost2)) {
+            msgs.push({ text: '⚠️ 「' + ship.emoji + ship.name + '」路线异常（目标星球不存在），派遣已取消。', type: 'error' });
+            ship.route = null;
+            return;
+          }
           if (ship.fuel < cost2) {
             _autoRefuelShip(state, ship, cost2, msgs);
             if (ship.fuel < cost2) {

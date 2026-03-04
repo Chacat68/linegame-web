@@ -59,6 +59,9 @@ export function loadGame(slotId) {
       return { ok: false, msg: '该槽位没有存档。' };
     }
     const envelope = JSON.parse(json);
+    if (!_isValidEnvelope(envelope)) {
+      return { ok: false, msg: '❌ 读档失败：存档结构无效。' };
+    }
     // 版本迁移（预留）
     if (envelope.meta.schemaVersion < SCHEMA_VERSION) {
       _migrateSchema(envelope);
@@ -114,10 +117,10 @@ export function exportSave(slotId) {
 export function importSave(slotId, jsonStr) {
   try {
     const envelope = JSON.parse(jsonStr);
-    if (!envelope.meta || !envelope.data) {
+    if (!_isValidEnvelope(envelope)) {
       return { ok: false, msg: '无效的存档数据。' };
     }
-    localStorage.setItem(SAVE_KEY_PREFIX + slotId, jsonStr);
+    localStorage.setItem(SAVE_KEY_PREFIX + slotId, JSON.stringify(envelope));
     return { ok: true, msg: '📂 导入成功！' };
   } catch (e) {
     return { ok: false, msg: '❌ 导入失败：' + e.message };
@@ -160,4 +163,23 @@ function _deserializeState(data) {
 function _migrateSchema(envelope) {
   // 预留：未来版本迁移逻辑
   envelope.meta.schemaVersion = SCHEMA_VERSION;
+}
+
+function _isValidEnvelope(envelope) {
+  if (!envelope || typeof envelope !== 'object') return false;
+  if (!envelope.meta || typeof envelope.meta !== 'object') return false;
+  if (!envelope.data || typeof envelope.data !== 'object') return false;
+
+  var meta = envelope.meta;
+  if (typeof meta.slotId !== 'number') return false;
+  if (typeof meta.timestampMs !== 'number') return false;
+
+  var data = envelope.data;
+  if (typeof data.currentSystem !== 'string') return false;
+  if (typeof data.day !== 'number') return false;
+  if (typeof data.credits !== 'number') return false;
+  if (data.quests && !Array.isArray(data.quests)) return false;
+  if (data.completedQuests && !Array.isArray(data.completedQuests)) return false;
+
+  return true;
 }
