@@ -589,6 +589,10 @@ function _handleSwitchShip(shipIndex) {
   _stopActiveDispatch();
   Fleet.syncShipFromState(_state);
   const result = Fleet.switchShip(_state, shipIndex);
+  if (result && result.ok) {
+    _state.lastSwitchedShipIndex = shipIndex;
+    _state.lastShipSwitchAt = Date.now();
+  }
   _dispatch(result);
   // 如果新激活的船只已有路线，重新启动派遣
   if (result && result.ok && Fleet.isActiveDispatched(_state)) {
@@ -631,6 +635,18 @@ function _handleBuySlot() {
 function _handleSellShip(shipIndex) {
   Fleet.syncShipFromState(_state);
   const result = Fleet.sellShip(_state, shipIndex);
+  _dispatch(result);
+}
+
+function _handleInstallMod(shipIndex, modId) {
+  Fleet.syncShipFromState(_state);
+  const result = Fleet.installMod(_state, modId, shipIndex);
+  _dispatch(result);
+}
+
+function _handleUninstallMod(shipIndex, modId) {
+  Fleet.syncShipFromState(_state);
+  const result = Fleet.uninstallMod(_state, modId, shipIndex);
   _dispatch(result);
 }
 
@@ -795,7 +811,7 @@ function _updateUI() {
   FactionUI.render(_state);
   QuestUI.render(_state, _handleAcceptQuest, _handleAbandonQuest);
   AchievementUI.render(_state);
-  FleetUI.render(_state, _handleBuyShip, _handleSwitchShip, _handleUpgradeShip, _handleAssignRoute, _handleCancelRoute, _handleBuySlot, _handleSellShip);
+  FleetUI.render(_state, _handleBuyShip, _handleSwitchShip, _handleUpgradeShip, _handleAssignRoute, _handleCancelRoute, _handleBuySlot, _handleSellShip, _handleInstallMod, _handleUninstallMod);
   FleetUI.renderShop(_state, _handleBuyShip);
   SaveUI.render(_handleSaveGame, _handleLoadGame);
   MapUI.refreshPlanetDetail(_state);

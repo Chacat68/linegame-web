@@ -1,0 +1,27 @@
+{
+  "name": "linegame-web",
+  "version": "1.0.0",
+  "description": "> 一款运行在浏览器中的 2D 星际经营类游戏",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Chacat68/linegame-web.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Chacat68/linegame-web/issues"
+  },
+  "homepage": "https://github.com/Chacat68/linegame-web#readme",
+  "devDependencies": {
+    "vitest": "^3.2.4"
+  }
+}

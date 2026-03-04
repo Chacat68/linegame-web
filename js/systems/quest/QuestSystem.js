@@ -326,10 +326,14 @@ export function checkProgress(state, context) {
     }
 
     let allDone = true;
-    quest.objectives.forEach(function (obj) {
-      _updateObjective(obj, context, state);
-      if (obj.current < (obj.amount || 1)) allDone = false;
-    });
+    if (!quest.objectives || quest.objectives.length === 0) {
+      allDone = false;
+    } else {
+      quest.objectives.forEach(function (obj) {
+        _updateObjective(obj, context, state);
+        if (obj.current < (obj.amount || 1)) allDone = false;
+      });
+    }
 
     if (allDone) {
       completed.push({ id: quest.id, failed: false });
