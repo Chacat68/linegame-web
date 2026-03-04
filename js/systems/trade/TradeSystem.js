@@ -31,10 +31,6 @@ export function getNetWorth(state) {
 // ---------------------------------------------------------------------------
 
 export function buyGood(state, goodId, quantity) {
-  if (!Number.isInteger(quantity) || quantity <= 0) {
-    return { ok: false, msgs: [{ text: '❌ 购买数量必须为正整数！', type: 'error' }] };
-  }
-
   const price     = Economy.getBuyPrice(state.currentSystem, goodId, state);
   const totalCost = price * quantity;
 
@@ -68,10 +64,6 @@ export function buyGood(state, goodId, quantity) {
 }
 
 export function sellGood(state, goodId, quantity) {
-  if (!Number.isInteger(quantity) || quantity <= 0) {
-    return { ok: false, msgs: [{ text: '❌ 出售数量必须为正整数！', type: 'error' }] };
-  }
-
   const available = state.cargo[goodId] || 0;
   if (quantity > available) {
     return { ok: false, msgs: [{ text: '📦 货物数量不足！', type: 'error' }] };
@@ -179,12 +171,6 @@ export function refuel(state) {
 
 export function travelTo(state, systemId) {
   const toSys = findSystem(systemId);
-  if (!toSys) {
-    return {
-      ok: false,
-      msgs: [{ text: '❌ 目标星球不存在，无法前往。', type: 'error' }],
-    };
-  }
 
   // 等级锁定检查
   const playerLevel = state.playerLevel || 1;
@@ -200,10 +186,11 @@ export function travelTo(state, systemId) {
 
   const cost = Economy.getFuelCost(state.currentSystem, systemId, state.fuelEfficiency);
   if (state.fuel < cost) {
+    const dest = findSystem(systemId);
     return {
       ok:   false,
       msgs: [{
-        text: '⛽ 燃料不足！前往 ' + toSys.name + ' 需要 ' + cost +
+        text: '⛽ 燃料不足！前往 ' + dest.name + ' 需要 ' + cost +
               ' 燃料，当前只有 ' + Math.floor(state.fuel) + '。',
         type: 'error',
       }],
@@ -230,8 +217,9 @@ export function travelTo(state, systemId) {
   }
   for (let d = 0; d < days; d++) Economy.advanceDay();
 
+  const sys  = findSystem(systemId);
   const msgs = [{
-    text: (crossGalaxy ? '🌌 超空间跃迁！' : '🚀 ') + '已抵达 ' + toSys.name + '！消耗 ' + cost + ' 燃料。银河历第 ' + state.day + ' 天。',
+    text: (crossGalaxy ? '🌌 超空间跃迁！' : '🚀 ') + '已抵达 ' + sys.name + '！消耗 ' + cost + ' 燃料。银河历第 ' + state.day + ' 天。',
     type: 'travel',
   }];
 

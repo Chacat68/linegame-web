@@ -125,7 +125,6 @@ export function findQuestRoute(state) {
   var bestPriority = -1;
 
   state.quests.forEach(function (quest) {
-    if (!quest || !Array.isArray(quest.objectives) || quest.objectives.length === 0) return;
     quest.objectives.forEach(function (obj) {
       // 跳过已完成的目标
       if (obj.current >= (obj.amount || 1)) return;

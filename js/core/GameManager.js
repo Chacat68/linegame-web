@@ -253,18 +253,6 @@ function _handleTravel(systemId) {
       EventBus.emit('log:message', { text: m.text, type: m.type });
     });
 
-    // 跨星系跃迁额外推进 galaxy_jump 类型任务目标
-    if (result.meta && result.meta.crossGalaxy) {
-      const jumpQuestResult = Quest.checkProgress(_state, {
-        action: 'galaxy_jump',
-        systemId: _state.currentSystem,
-        factionId: travelFaction ? travelFaction.id : null,
-      });
-      jumpQuestResult.msgs.forEach(function (m) {
-        EventBus.emit('log:message', { text: m.text, type: m.type });
-      });
-    }
-
     // 科技研究进度推进
     const researchResult = Research.advanceResearch(_state);
     if (researchResult.msgs.length > 0) {

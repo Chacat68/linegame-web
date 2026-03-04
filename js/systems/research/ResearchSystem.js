@@ -7,7 +7,6 @@
 
 import { TECHNOLOGIES, TECH_CATEGORIES } from '../../data/technologies.js';
 import * as EventBus from '../../core/EventBus.js';
-import * as Fleet from '../fleet/FleetSystem.js';
 
 /**
  * 初始化研究系统状态（注入到 state 中）
@@ -284,36 +283,10 @@ export function clearResearchQueue(state) {
  */
 function _applyEffect(state, tech) {
   const eff = tech.effect;
-  // 船体相关属性统一应用到激活船只，避免被 Fleet.syncStateFromShip 覆盖。
-  const activeShip = Fleet.getActiveShip(state);
-  if (activeShip) {
-    if (eff.cargo) {
-      const cap = activeShip.maxCargoCap || (activeShip.maxCargo + eff.cargo);
-      activeShip.maxCargo = Math.min(cap, activeShip.maxCargo + eff.cargo);
-    }
-    if (eff.maxFuel) {
-      const capFuel = activeShip.maxFuelCap || (activeShip.maxFuel + eff.maxFuel);
-      activeShip.maxFuel = Math.min(capFuel, activeShip.maxFuel + eff.maxFuel);
-      activeShip.fuel = Math.min(activeShip.maxFuel, activeShip.fuel + eff.maxFuel);
-    }
-    if (eff.fuelEfficiency) {
-      const minEff = activeShip.minFuelEff || 0.2;
-      activeShip.fuelEff = Math.max(minEff, activeShip.fuelEff * eff.fuelEfficiency);
-    }
-    if (eff.shipHull) {
-      const capHull = activeShip.maxHullCap || (activeShip.maxHull + eff.shipHull);
-      activeShip.maxHull = Math.min(capHull, activeShip.maxHull + eff.shipHull);
-      activeShip.hull = Math.min(activeShip.maxHull, activeShip.hull + eff.shipHull);
-    }
-    Fleet.syncStateFromShip(state);
-  } else {
-    // 兜底：无船队上下文时退回旧逻辑，保证状态仍可推进。
-    if (eff.cargo)          state.maxCargo += eff.cargo;
-    if (eff.maxFuel)        state.maxFuel += eff.maxFuel;
-    if (eff.fuelEfficiency) state.fuelEfficiency *= eff.fuelEfficiency;
-    if (eff.shipHull)       state.maxHull = (state.maxHull || 100) + eff.shipHull;
-  }
-
+  if (eff.cargo)          state.maxCargo += eff.cargo;
+  if (eff.maxFuel)        state.maxFuel += eff.maxFuel;
+  if (eff.fuelEfficiency) state.fuelEfficiency *= eff.fuelEfficiency;
+  if (eff.shipHull)       state.maxHull = (state.maxHull || 100) + eff.shipHull;
   if (eff.buyDiscount)    state.techBuyDiscount = (state.techBuyDiscount || 0) + eff.buyDiscount;
   if (eff.sellBonus)      state.techSellBonus = (state.techSellBonus || 0) + eff.sellBonus;
   if (eff.autoRepair)     state.autoRepair = (state.autoRepair || 0) + eff.autoRepair;
