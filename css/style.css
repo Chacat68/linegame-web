@@ -261,7 +261,8 @@ html, body {
 }
 
 #webgl-canvas,
-#map-canvas {
+#map-canvas,
+#map-container canvas {
   position: absolute;
   inset: 0;
   width: 100%;

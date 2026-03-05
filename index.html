@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>星际贸易帝国 · 银河历 3045</title>
   <link rel="stylesheet" href="css/style.css" />
+  <!-- Phaser 3 — 游戏渲染引擎 -->
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.min.js"></script>
 </head>
 <body>
 <div id="game-shell">
@@ -67,8 +69,7 @@
     <!-- Star Map ---------------------------------------------------- -->
     <section id="map-section">
       <div id="map-container">
-        <canvas id="webgl-canvas"></canvas>
-        <canvas id="map-canvas"></canvas>
+        <!-- Phaser 3 游戏画布由引擎自动插入 -->
         <div id="planet-detail-panel" class="planet-detail-panel"></div>
         <div class="map-btn-group">
           <button id="market-view-btn" class="map-overlay-btn">🏪 市场</button>
