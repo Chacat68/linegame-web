@@ -5,6 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>星际贸易帝国 · 银河历 3045</title>
   <link rel="stylesheet" href="css/style.css" />
+  <!-- Phaser 3 — 游戏渲染引擎 -->
+  <script
+    src="https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.min.js"
+    integrity="sha384-OLBgp1GsljhM2TJ+sbHjaiH9txEUvgdDTAzHv2P24donTt6/529l+9Ua0vFImLlb"
+    crossorigin="anonymous"
+  ></script>
 </head>
 <body>
 <div id="game-shell">
@@ -67,8 +73,7 @@
     <!-- Star Map ---------------------------------------------------- -->
     <section id="map-section">
       <div id="map-container">
-        <canvas id="webgl-canvas"></canvas>
-        <canvas id="map-canvas"></canvas>
+        <!-- Phaser 3 游戏画布由引擎自动插入 -->
         <div id="planet-detail-panel" class="planet-detail-panel"></div>
         <div class="map-btn-group">
           <button id="market-view-btn" class="map-overlay-btn">🏪 市场</button>
@@ -299,6 +304,19 @@
     <div id="upgrade-modal-body"></div>
     <div class="modal-actions">
       <button id="upgrade-modal-close" class="btn-secondary">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================
+     Mod modal (飞船改装弹窗)
+================================================================ -->
+<div id="mod-modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-box mod-modal-box">
+    <h3 id="mod-modal-title">🔧 飞船改装</h3>
+    <div id="mod-modal-body"></div>
+    <div class="modal-actions">
+      <button id="mod-modal-close" class="btn-secondary">关闭</button>
     </div>
   </div>
 </div>

@@ -261,7 +261,8 @@ html, body {
 }
 
 #webgl-canvas,
-#map-canvas {
+#map-canvas,
+#map-container canvas {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -2230,6 +2231,261 @@ html, body {
   font-size: 11px;
   color: var(--text-dim);
   padding: 4px 0;
+}
+
+/* Fleet bonuses section */
+.fleet-bonus-section {
+  margin: 8px 0;
+  padding: 8px;
+  background: rgba(40, 60, 100, 0.3);
+  border-radius: 6px;
+  border: 1px solid rgba(100, 140, 200, 0.25);
+}
+.fleet-bonus-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.fleet-bonus-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(50, 80, 140, 0.4);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  border: 1px solid rgba(100, 160, 255, 0.3);
+}
+.fleet-bonus-emoji { font-size: 14px; }
+.fleet-bonus-name { font-weight: 600; color: #aaccff; }
+.fleet-bonus-desc { color: var(--text-dim); font-size: 10px; }
+.fleet-bonus-hint {
+  margin: 4px 0;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.fleet-bonus-hint summary {
+  cursor: pointer;
+  color: #7799bb;
+}
+.fleet-bonus-locked {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 3px 0;
+  font-size: 11px;
+  color: #667788;
+}
+.fleet-bonus-missing {
+  font-size: 10px;
+  color: #886644;
+}
+
+/* Ship skills section */
+.fleet-ship-skills-section {
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: rgba(60, 40, 100, 0.25);
+  border-radius: 5px;
+  border: 1px solid rgba(140, 100, 220, 0.2);
+}
+.fleet-skills-header {
+  font-size: 11px;
+  font-weight: 600;
+  color: #bb99dd;
+  margin-bottom: 4px;
+}
+.fleet-skills-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.fleet-skill-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.fleet-skill-emoji { font-size: 13px; }
+.fleet-skill-name {
+  font-weight: 600;
+  color: #ccaaee;
+  min-width: 60px;
+}
+.fleet-skill-desc {
+  color: var(--text-dim);
+  font-size: 10px;
+}
+
+/* Ship mods section */
+.fleet-ship-mod-section {
+  margin-top: 4px;
+}
+.fleet-open-mod-btn {
+  background: rgba(60, 80, 50, 0.5);
+  border: 1px solid rgba(120, 160, 80, 0.4);
+  border-radius: 5px;
+  color: #bbddaa;
+  font-size: 12px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.fleet-open-mod-btn:hover {
+  background: rgba(80, 110, 60, 0.6);
+}
+.fleet-mod-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+.fleet-mod-chip {
+  background: rgba(50, 80, 50, 0.4);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  color: #aaddaa;
+  border: 1px solid rgba(100, 160, 100, 0.3);
+}
+
+/* Mod modal */
+.mod-modal-box {
+  max-width: 440px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+.mod-modal-section-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin: 12px 0 6px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid rgba(100, 140, 200, 0.2);
+}
+.mod-modal-section-title:first-child { margin-top: 0; }
+.mod-modal-installed {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.mod-modal-category {
+  font-size: 11px;
+  font-weight: 600;
+  color: #88aacc;
+  margin: 8px 0 4px;
+}
+.mod-modal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.mod-modal-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(30, 40, 70, 0.5);
+  border: 1px solid rgba(80, 100, 160, 0.25);
+  border-radius: 5px;
+  padding: 6px 8px;
+  transition: background 0.2s;
+}
+.mod-modal-item:hover {
+  background: rgba(40, 55, 90, 0.6);
+}
+.mod-modal-installed-item {
+  background: rgba(30, 50, 40, 0.5);
+  border-color: rgba(80, 160, 100, 0.3);
+}
+.mod-modal-full {
+  opacity: 0.5;
+}
+.mod-modal-poor {
+  opacity: 0.7;
+}
+.mod-modal-item-info {
+  flex: 1;
+  min-width: 0;
+}
+.mod-modal-item-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.mod-modal-item-desc {
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: 1px;
+}
+.mod-modal-buy-btn {
+  flex-shrink: 0;
+  background: rgba(40, 80, 50, 0.6);
+  border: 1px solid rgba(100, 180, 100, 0.4);
+  border-radius: 4px;
+  color: #aaddaa;
+  font-size: 11px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-left: 8px;
+}
+.mod-modal-buy-btn:hover:not(:disabled) {
+  background: rgba(50, 100, 60, 0.8);
+}
+.mod-modal-buy-btn:disabled,
+.mod-modal-no-afford {
+  opacity: 0.5;
+  cursor: not-allowed;
+  color: var(--text-dim);
+}
+.mod-modal-uninstall-btn {
+  flex-shrink: 0;
+  background: rgba(80, 40, 40, 0.5);
+  border: 1px solid rgba(180, 80, 80, 0.4);
+  border-radius: 4px;
+  color: #ddaaaa;
+  font-size: 11px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-left: 8px;
+}
+.mod-modal-uninstall-btn:hover {
+  background: rgba(100, 50, 50, 0.7);
+}
+.mod-modal-all-done {
+  font-size: 13px;
+  color: #88bb88;
+  text-align: center;
+  padding: 16px 0;
+}
+
+/* Ship shop extras */
+.fleet-shop-extras {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.fleet-shop-mod-slots {
+  color: #aaddaa;
+}
+.fleet-shop-skills {
+  display: flex;
+  gap: 4px;
+}
+.fleet-shop-skill-chip {
+  background: rgba(60, 40, 100, 0.3);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 10px;
+  color: #ccaaee;
+  border: 1px solid rgba(140, 100, 220, 0.2);
+  cursor: help;
 }
 
 /* Dispatch modal form */

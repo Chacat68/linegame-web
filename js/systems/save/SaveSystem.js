@@ -153,6 +153,14 @@ function _deserializeState(data) {
   Object.keys(defaults).forEach(function (key) {
     if (data[key] === undefined) data[key] = defaults[key];
   });
+  // 类型校验：确保关键数值字段为有效数字
+  ['credits', 'day', 'fuel', 'maxFuel', 'maxCargo', 'shipHull', 'maxHull',
+   'reputation', 'tradeCount', 'totalProfit', 'experience', 'playerLevel',
+   'companyLevel', 'companyExperience'].forEach(function (key) {
+    if (typeof data[key] !== 'number' || !Number.isFinite(data[key])) {
+      data[key] = defaults[key] !== undefined ? defaults[key] : 0;
+    }
+  });
   data.hoveredSystem = null;
   return data;
 }
