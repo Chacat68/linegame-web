@@ -1,10 +1,10 @@
 // js/ui/MapUI.js — 星系地图交互事件绑定（支持星系/星球双层视图 + 市场面板）
-// 依赖：ui/Renderer.js
+// 依赖：ui/PhaserRenderer.js
 // 导出：init, initTabs, refreshGalaxyBtn, openMarket, closeMarket, isMarketOpen,
 //        setRefreshMarket, getMarketViewSystem, refreshMarketLocation,
 //        showMarketOverview, showMarketDetail, refreshPlanetDetail
 
-import * as Renderer from './Renderer.js';
+import * as Renderer from './PhaserRenderer.js';
 import * as Faction from '../systems/faction/FactionSystem.js';
 import { GALAXIES, findSystem, findGalaxy }  from '../data/systems.js';
 
@@ -62,78 +62,23 @@ export function showMarketDetail(systemId) {
 }
 
 /**
- * 绑定星系地图的鼠标交互
+ * 绑定星系地图的鼠标交互（现由 Phaser 引擎处理输入）
  * @param {object}   stateRef    游戏状态对象（引用）
  * @param {Function} onTravel    (systemId: string) => void
  * @param {Function} onGalaxyJump (galaxyId: string) => void  跨星系跳转回调
  */
 export function init(stateRef, onTravel, onGalaxyJump) {
-  const mapCanvas = document.getElementById('map-canvas');
-
-  mapCanvas.addEventListener('mousemove', function (e) {
-    const r = mapCanvas.getBoundingClientRect();
-    const mx = e.clientX - r.left, my = e.clientY - r.top;
-
-    if (stateRef.mapView === 'galaxies') {
-      const gal = Renderer.getGalaxyAtPoint(mx, my, r.width, r.height);
-      mapCanvas.title = gal ? gal.name : '';
-      stateRef.hoveredSystem = null;
-      refreshPlanetDetail(stateRef);
-    } else {
-      const sys = Renderer.getSystemAtPoint(mx, my, r.width, r.height,
-        stateRef.viewingGalaxy || stateRef.currentGalaxy);
-      const newId = sys ? sys.id : null;
-      if (newId !== stateRef.hoveredSystem) {
-        stateRef.hoveredSystem = newId;
-        refreshPlanetDetail(stateRef);
-        // 星球悬停仅保留详情面板，不再显示浏览器原生 tooltip
-        mapCanvas.title = '';
-      }
-    }
-  });
-
-  mapCanvas.addEventListener('mouseleave', function () {
-    stateRef.hoveredSystem = null;
-    refreshPlanetDetail(stateRef);
-  });
-
-  mapCanvas.addEventListener('click', function (e) {
-    const r = mapCanvas.getBoundingClientRect();
-    const mx = e.clientX - r.left, my = e.clientY - r.top;
-
-    if (stateRef.mapView === 'galaxies') {
-      // 星系总览 — 点击星系切换到该星系的星球视图
-      const gal = Renderer.getGalaxyAtPoint(mx, my, r.width, r.height);
-      if (gal) {
-        const unlocked = gal.unlocked ||
-          (stateRef.researchedTechs && stateRef.researchedTechs.includes(gal.techRequired));
-        if (unlocked) {
-          stateRef.viewingGalaxy = gal.id;
-          stateRef.mapView = 'planets';
-          _updateGalaxyBtn(stateRef);
-          refreshPlanetDetail(stateRef);
-        }
-      }
-    } else {
-      // 星球视图 — 点击星球旅行
-      const sys = Renderer.getSystemAtPoint(mx, my, r.width, r.height,
-        stateRef.viewingGalaxy || stateRef.currentGalaxy);
-      if (sys && sys.id !== stateRef.currentSystem) {
-        // 等级锁定检查
-        const playerLevel = stateRef.playerLevel || 1;
-        if (playerLevel < (sys.minLevel || 1)) {
-          // 星球未解锁，不允许旅行
-          return;
-        }
-        if (sys.galaxyId !== stateRef.currentGalaxy) {
-          // 跨星系旅行
-          if (onGalaxyJump) onGalaxyJump(sys.id);
-        } else {
-          onTravel(sys.id);
-        }
-      }
-    }
-  });
+  // 将输入回调注入 Phaser 渲染器；Phaser 场景接管鼠标事件
+  Renderer.setInputHandlers(
+    stateRef,
+    onTravel,
+    onGalaxyJump,
+    function (state) {
+      // hover 或视图切换时：刷新按钮与星球详情面板
+      _updateGalaxyBtn(state);
+      refreshPlanetDetail(state);
+    },
+  );
 
   // 星系视图切换按钮
   const btn = document.getElementById('galaxy-view-btn');
@@ -198,11 +143,10 @@ function _getSafetyLabel(score) {
 }
 
 export function refreshPlanetDetail(stateRef) {
-  const panel = document.getElementById('planet-detail-panel');
-  const mapCanvas = document.getElementById('map-canvas');
+  const panel        = document.getElementById('planet-detail-panel');
   const mapContainer = document.getElementById('map-container');
   if (!panel) return;
-  if (!mapCanvas || !mapContainer) return;
+  if (!mapContainer) return;
 
   const displayId = stateRef.hoveredSystem;
   if (stateRef.mapView !== 'planets' || !displayId) {
@@ -258,8 +202,9 @@ export function refreshPlanetDetail(stateRef) {
 
   panel.classList.add('visible');
 
-  const canvasW = mapCanvas.clientWidth;
-  const canvasH = mapCanvas.clientHeight;
+  // 使用 map-container 的 CSS 尺寸（Phaser 画布撑满整个容器）
+  const canvasW = mapContainer.clientWidth;
+  const canvasH = mapContainer.clientHeight;
   const nodeX = sys.x * canvasW;
   const nodeY = sys.y * canvasH;
   const offset = 14;

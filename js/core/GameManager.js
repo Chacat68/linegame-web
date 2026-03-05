@@ -11,7 +11,7 @@ import * as Trade      from '../systems/trade/TradeSystem.js';
 import * as RandomEvent from '../systems/event/RandomEvent.js';
 import * as Faction    from '../systems/faction/FactionSystem.js';
 import * as Research   from '../systems/research/ResearchSystem.js';
-import * as Renderer   from '../ui/Renderer.js';
+import * as Renderer   from '../ui/PhaserRenderer.js';
 import * as HUD        from '../ui/HUD.js';
 import * as MarketUI   from '../ui/MarketUI.js';
 import * as ShipUI     from '../ui/ShipUI.js';
