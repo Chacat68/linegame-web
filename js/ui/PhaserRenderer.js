@@ -162,13 +162,13 @@ class MapScene extends window.Phaser.Scene {
     this.input.on('pointerdown',  this._onClick, this);
     this.input.on('pointerout',   this._onOut,   this);
 
-    // 缩放事件
-    this.scale.on('resize', (gameSize) => {
-      _generateStars(300, this._stars);
-      const w = gameSize.width;
-      const h = gameSize.height;
-      if (_game) _game.canvas.style.width  = '100%';
-      if (_game) _game.canvas.style.height = '100%';
+    // 缩放事件（防抖：避免连续缩放时频繁重新生成星星）
+    let _resizeTimer = null;
+    this.scale.on('resize', () => {
+      clearTimeout(_resizeTimer);
+      _resizeTimer = setTimeout(() => {
+        _generateStars(300, this._stars);
+      }, 150);
     });
 
     _scene = this;
@@ -326,7 +326,7 @@ class MapScene extends window.Phaser.Scene {
       const accCnt    = getSystemsByGalaxy(gal.id).filter(
         (s) => (gs.playerLevel || 1) >= (s.minLevel || 1),
       ).length;
-      const subLabel  = accCnt + '/' + allCnt + ' 星球' + (unlocked ? '' : ' 🔒');
+      const subLabel  = `${accCnt}/${allCnt} 星球${unlocked ? '' : ' 🔒'}`;
       const subTxt    = this._poolText(x, y + radius + 18, subLabel, {
         fontFamily: '"Segoe UI", sans-serif',
         fontSize:   '10px',
@@ -352,8 +352,8 @@ class MapScene extends window.Phaser.Scene {
     if (galDef) {
       const headerTxt = this._poolText(
         8, 8,
-        galDef.icon + ' ' + galDef.name + (isRemote ? ' (远程查看)' : ''),
-        { fontFamily: '"Segoe UI", sans-serif', fontSize: '12px', color: galDef.color + '88' },
+        `${galDef.icon} ${galDef.name}${isRemote ? ' (远程查看)' : ''}`,
+        { fontFamily: '"Segoe UI", sans-serif', fontSize: '12px', color: `${galDef.color}88` },
       );
       headerTxt.setOrigin(0, 0);
     }
@@ -472,9 +472,7 @@ class MapScene extends window.Phaser.Scene {
         nameTxt.setAlpha(alpha);
 
         const faction  = FACTIONS.find((f) => f.controlledSystems.includes(sys.id));
-        const typeStr  = '[' + sys.typeLabel + ']'
-          + (faction ? ' ' + faction.icon : '')
-          + (isLocked ? ' Lv.' + (sys.minLevel || 1) : '');
+        const typeStr  = `[${sys.typeLabel}]${faction ? ' ' + faction.icon : ''}${isLocked ? ' Lv.' + (sys.minLevel || 1) : ''}`;
         const typeTxt  = this._poolText(
           x, y + radius + 16,
           typeStr,
