@@ -72,6 +72,28 @@ python3 -m http.server 8080
 
 ---
 
+## Cloudflare Pages 部署
+
+### 首次部署前准备
+
+1. 登录 [Cloudflare Dashboard](https://dash.cloudflare.com/)，进入 **Pages**，创建名为 `linegame-web` 的 Pages 项目。
+
+### 配置 GitHub 仓库 Secrets
+
+在 GitHub 仓库的 **Settings → Secrets and variables → Actions** 中添加：
+
+| Secret 名称 | 说明 |
+|---|---|
+| `CLOUDFLARE_API_TOKEN` | Cloudflare API 令牌（需要 Pages 编辑权限） |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare 账户 ID |
+
+### 自动部署
+
+- 推送到 `main` 分支：部署到生产环境
+- 提交 Pull Request：部署到预览环境
+
+---
+
 ## 项目结构
 
 ```
