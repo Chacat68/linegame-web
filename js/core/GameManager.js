@@ -44,9 +44,11 @@ const getCompanyLevel = PlayerLevels.getCompanyLevel || function () {
 const COMPANY_LEVELS = PlayerLevels.COMPANY_LEVELS || [
   { level: 1, title: '新创企业', expRequired: 0, icon: '🏢' },
 ];
+const SETTINGS_KEY = 'linegame_settings';
 
 let _state     = null;
 let _startTime = null;
+let _settings  = { motionLevel: 'full' };
 
 // 激活船只自动派遣
 let _activeDispatchInterval = null;
@@ -62,6 +64,7 @@ let _onTutorialComplete = null;
 export function init() {
   _stopActiveDispatch();   // 重启时停止派遣
   _state = _deepClone(INITIAL_STATE);
+  _settings = _loadSettings();
 
   Economy.init();
   Fleet.init(_state);
@@ -70,6 +73,7 @@ export function init() {
   Quest.init(_state);
   Achievement.init(_state);
   Renderer.init();
+  _applySettings();
   HUD.init();
 
   // 注入回调给各 UI 模块
@@ -116,6 +120,8 @@ export function init() {
     companyBtn.onclick = _showCompanyRenameModal;
   }
 
+  _initSettingsModal();
+
   _updateUI();
   _startGameLoop();
 
@@ -138,8 +144,125 @@ function _showWelcomeMessages() {
     type: 'tip',
   });
   EventBus.emit('log:message', {
-    text: '📋 新功能：【任务】标签接取任务赚取奖励，【成就】标签追踪成就进度，【存档】标签保存游戏！',
+    text: '📋 新功能：【任务】标签接取任务赚取奖励，【成就】标签追踪成就进度，右上角【设置】可管理存档！',
     type: 'tip',
+  });
+}
+
+function _loadSettings() {
+  try {
+    var raw = localStorage.getItem(SETTINGS_KEY);
+    if (!raw) return { motionLevel: 'full' };
+    var parsed = JSON.parse(raw);
+    return {
+      motionLevel: ['full', 'reduced', 'off'].indexOf(parsed.motionLevel) >= 0 ? parsed.motionLevel : 'full',
+    };
+  } catch (_) {
+    return { motionLevel: 'full' };
+  }
+}
+
+function _saveSettings() {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(_settings));
+}
+
+function _applySettings() {
+  document.body.dataset.motion = _settings.motionLevel || 'full';
+  Renderer.setMotionLevel(_settings.motionLevel || 'full');
+}
+
+function _initSettingsModal() {
+  var settingsBtn = document.getElementById('settings-btn');
+  var modal = document.getElementById('settings-modal');
+  var closeBtn = document.getElementById('settings-close-btn');
+  var motionSelect = document.getElementById('settings-motion-level');
+  var resetDefaultsBtn = document.getElementById('settings-reset-defaults-btn');
+  var resetTutorialBtn = document.getElementById('settings-reset-tutorial-btn');
+  var clearSavesBtn = document.getElementById('settings-clear-saves-btn');
+  if (!settingsBtn || !modal) return;
+
+  if (settingsBtn.dataset.settingsBound === 'true') return;
+  settingsBtn.dataset.settingsBound = 'true';
+
+  settingsBtn.addEventListener('click', function (e) {
+    e.preventDefault();
+    _showSettingsModal();
+  });
+  if (closeBtn) closeBtn.addEventListener('click', _hideSettingsModal);
+  if (motionSelect) {
+    motionSelect.onchange = function () {
+      _settings.motionLevel = motionSelect.value;
+      _saveSettings();
+      _applySettings();
+      EventBus.emit('log:message', { text: '⚙ 已更新动画强度：' + (motionSelect.value === 'full' ? '完整' : (motionSelect.value === 'reduced' ? '降低' : '关闭')) + '。', type: 'info' });
+    };
+  }
+  if (resetDefaultsBtn) {
+    resetDefaultsBtn.onclick = function () {
+      _settings = { motionLevel: 'full' };
+      _saveSettings();
+      _applySettings();
+      if (motionSelect) motionSelect.value = 'full';
+      EventBus.emit('log:message', { text: '⚙ 设置已恢复为默认值。', type: 'info' });
+    };
+  }
+  if (resetTutorialBtn) {
+    resetTutorialBtn.onclick = function () {
+      if (!confirm('这会重新开始当前游戏，并在开局重新进入教程。是否继续？')) return;
+      Tutorial.reset();
+      _hideSettingsModal();
+      init();
+    };
+  }
+  if (clearSavesBtn) {
+    clearSavesBtn.onclick = function () {
+      if (!confirm('确定清空所有本地存档吗？此操作不可撤销。')) return;
+      for (var slotId = 0; slotId < 4; slotId++) Save.deleteSlot(slotId);
+      EventBus.emit('log:message', { text: '🗑 本地存档已全部清空。', type: 'info' });
+      _updateUI();
+    };
+  }
+  modal.addEventListener('click', function (e) {
+    if (e.target === modal) _hideSettingsModal();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+      _hideSettingsModal();
+    }
+  });
+}
+
+function _showSettingsModal() {
+  _toggleSettingsModal(true);
+}
+
+function _hideSettingsModal() {
+  _toggleSettingsModal(false);
+}
+
+function _toggleSettingsModal(isVisible) {
+  var modal = document.getElementById('settings-modal');
+  var motionSelect = document.getElementById('settings-motion-level');
+  if (!modal) return;
+  if (motionSelect && isVisible) motionSelect.value = _settings.motionLevel || 'full';
+  if (isVisible) _activateSettingsPanel(modal.dataset.activePanel || 'display');
+  modal.classList.toggle('hidden', !isVisible);
+  modal.setAttribute('aria-hidden', isVisible ? 'false' : 'true');
+}
+
+function _activateSettingsPanel(panelId) {
+  var modal = document.getElementById('settings-modal');
+  if (!modal) return;
+
+  var targetId = panelId || 'display';
+  modal.dataset.activePanel = targetId;
+
+  var radio = document.getElementById('settings-tab-' + targetId);
+  if (radio) radio.checked = true;
+
+  modal.querySelectorAll('[data-settings-panel-target]').forEach(function (btn) {
+    var isActive = btn.dataset.settingsPanelTarget === targetId;
+    btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
   });
 }
 
@@ -414,6 +537,7 @@ function _handleSaveGame(slotId) {
 function _handleLoadGame(slotId) {
   const result = Save.loadGame(slotId);
   if (result.ok) {
+    _hideSettingsModal();
     _state = result.state;
     // 兼容旧存档：补充星系字段
     if (!_state.currentGalaxy) _state.currentGalaxy = 'milky_way';

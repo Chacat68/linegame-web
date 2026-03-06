@@ -248,9 +248,10 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
         html += '<button class="fleet-switch-btn fleet-switch-primary" data-index="' + idx + '">🧭 切换为当前操控</button>';
         html += '<button class="fleet-dispatch-btn" data-index="' + idx + '">📡 派遣贸易</button>';
         var shipTypeDef = SHIP_TYPES.find(function (t) { return t.id === ship.typeId; });
-        if (shipTypeDef && shipTypeDef.cost > 0) {
-          var minPrice = Math.floor(shipTypeDef.cost * 0.45);
-          var maxPrice = Math.floor(shipTypeDef.cost * 0.80);
+        var sellBase = shipTypeDef ? (shipTypeDef.sellValue || shipTypeDef.cost) : 0;
+        if (sellBase > 0) {
+          var minPrice = Math.floor(sellBase * 0.45);
+          var maxPrice = Math.floor(sellBase * 0.80);
           html += '<button class="fleet-sell-btn" data-index="' + idx + '" title="回收价 ' + minPrice.toLocaleString() + '~' + maxPrice.toLocaleString() + ' 积分">💸 卖出</button>';
         }
       }

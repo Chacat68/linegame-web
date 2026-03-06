@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>星际贸易帝国 · 银河历 3045</title>
+  <title>蓝脉航路 · 银河历 3045</title>
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
@@ -14,11 +14,14 @@
   ================================================================ -->
   <header id="game-header">
     <div class="hdr-title">
-      <h1>⭐ 星际贸易帝国</h1>
-      <span class="subtitle">银河历 3045 年</span>
+      <h1>✦ 蓝脉航路</h1>
+      <span class="subtitle">霓虹贸易网已上线 · 银河历 3045 年</span>
     </div>
 
-    <button id="victory-progress-btn" class="victory-progress-btn" title="查看胜利路径进度">🏆 <span id="victory-progress-summary">胜利进度</span></button>
+    <div class="header-actions">
+      <a id="settings-btn" href="#settings-modal" class="header-action-btn settings-btn" title="打开设置菜单">⚙ <span>设置</span></a>
+      <button id="victory-progress-btn" class="victory-progress-btn" title="查看胜利路径进度">▣ <span id="victory-progress-summary">协议进度</span></button>
+    </div>
   </header>
 
   <!-- ================================================================
@@ -34,7 +37,6 @@
           <button class="tab-btn"        data-tab="tab-research"    data-tab-group="info">🔬 科技</button>
           <button class="tab-btn"        data-tab="tab-faction"     data-tab-group="info">🏛️ 派系</button>
           <button class="tab-btn"        data-tab="tab-achievement" data-tab-group="info">🏆 成就</button>
-          <button class="tab-btn"        data-tab="tab-save"        data-tab-group="info">💾 存档</button>
         </nav>
         <button id="info-panel-toggle" class="info-panel-toggle" title="收起面板">◀</button>
       </div>
@@ -57,16 +59,25 @@
         <div id="tab-achievement" class="tab-pane" data-tab-group="info">
           <div id="achievement-list"></div>
         </div>
-        <!-- Save tab (存读档) -->
-        <div id="tab-save" class="tab-pane" data-tab-group="info">
-          <div id="save-list"></div>
-        </div>
       </div>
     </aside>
 
     <!-- Star Map ---------------------------------------------------- -->
     <section id="map-section">
       <div id="map-container">
+        <div class="map-hud-overlay" aria-hidden="true">
+          <div class="hud-corner hud-corner-tl"></div>
+          <div class="hud-corner hud-corner-tr"></div>
+          <div class="hud-corner hud-corner-bl"></div>
+          <div class="hud-corner hud-corner-br"></div>
+          <div class="map-scanlines"></div>
+          <div class="map-noise"></div>
+          <div class="map-status-stack">
+            <div class="map-status-chip">NEON GRID ACTIVE</div>
+            <div class="map-status-chip alt">TRADE ROUTES LIVE</div>
+          </div>
+          <div class="map-atlas-tag">SECTOR ATLAS / B-3045</div>
+        </div>
         <canvas id="webgl-canvas"></canvas>
         <canvas id="map-canvas"></canvas>
         <div id="planet-detail-panel" class="planet-detail-panel"></div>
@@ -78,7 +89,7 @@
         <!-- Market overlay panel -->
         <div id="market-overlay" class="market-overlay hidden">
           <div class="market-overlay-header">
-            <h3 id="market-header-title">🏪 星际市场</h3>
+            <h3 id="market-header-title">◈ 蓝脉交易终端</h3>
             <button id="market-close-btn" class="market-close-btn">✕</button>
           </div>
           <!-- Galaxy navigation -->
@@ -87,7 +98,7 @@
           <!-- ▸ Overview mode: price matrix -->
           <div id="market-overview" class="market-overview">
             <div class="market-overview-toolbar">
-              <span class="market-overview-hint">💡 点击星球行查看详情并交易</span>
+              <span class="market-overview-hint">扫描星球节点，接入本地市场并执行交易</span>
               <label class="market-price-toggle">
                 <input type="checkbox" id="market-show-sell"> 显示卖出价
               </label>
@@ -103,7 +114,7 @@
           <!-- ▸ Detail mode: single planet -->
           <div id="market-detail" class="market-detail hidden">
             <div class="market-detail-bar">
-              <button id="market-back-btn" class="market-back-btn">← 返回总览</button>
+              <button id="market-back-btn" class="market-back-btn">← 返回节点矩阵</button>
               <span id="market-detail-location" class="market-detail-location"></span>
             </div>
             <div class="market-overlay-body">
@@ -132,7 +143,7 @@
         <span><span class="legend-dot" style="background:#9C27B0"></span>商业</span>
         <span><span class="legend-dot" style="background:#00BCD4"></span>医疗</span>
         <span><span class="legend-dot" style="background:#607D8B"></span>特殊</span>
-        <span id="map-legend-location" style="margin-left:auto;color:#9090b0;font-size:11px">📍 🌌 银河系 > 太阳主星 · 🏛️ 银河联邦</span>
+        <span id="map-legend-location" style="margin-left:auto;color:#9090b0;font-size:11px">SIGNAL ▸ 银河系 / 太阳主星 / 银河联邦</span>
       </div>
     </section>
 
@@ -141,7 +152,7 @@
 
       <!-- Company -->
       <div class="company-info-bar">
-        <button id="company-name-display" class="company-name-btn" title="点击重命名公司">🏢 <span id="company-name-text">星际信使贸易公司</span> ✏️</button>
+        <button id="company-name-display" class="company-name-btn" title="点击重命名公司">◉ <span id="company-name-text">蓝脉信使物流体</span> ✏️</button>
 
         <div id="player-stats">
           <div class="stat-block">
@@ -160,7 +171,7 @@
 
         <div id="player-level" class="player-level-bar"></div>
 
-        <div id="company-level-line" class="company-level-line">🏢 新创企业 Lv.1 · 0/120</div>
+        <div id="company-level-line" class="company-level-line">CORP RANK Lv.1 · 0/120</div>
         <div class="company-level-track"><div id="company-level-fill" class="company-level-fill"></div></div>
       </div>
 
@@ -330,31 +341,31 @@
 ================================================================ -->
 <div id="company-rename-modal" class="modal hidden" role="dialog" aria-modal="true">
   <div class="modal-box company-rename-box">
-    <div class="company-rename-title">🏢 为你的公司命名</div>
-    <p class="company-rename-desc">你已继承了这家公司，现在可以赋予它一个新的名称，开创属于你的商业传奇！</p>
+    <div class="company-rename-title">◉ 注册企业代号</div>
+    <p class="company-rename-desc">你已接管这家深空贸易实体。为它写入新的识别代号，然后接入整条蓝脉航路。</p>
     <div class="company-rename-form">
-      <input id="company-name-input" class="company-name-input" type="text" maxlength="24" placeholder="输入公司名称…" />
+      <input id="company-name-input" class="company-name-input" type="text" maxlength="24" placeholder="输入企业代号…" />
       <div id="company-name-error" class="company-name-error hidden">名称不能为空</div>
     </div>
     <div class="company-rename-actions">
-      <button id="company-rename-confirm" class="tut-btn tut-btn-primary">✅ 确认命名</button>
-      <button id="company-rename-skip" class="tut-btn tut-btn-secondary">保留原名</button>
+      <button id="company-rename-confirm" class="tut-btn tut-btn-primary">✅ 写入代号</button>
+      <button id="company-rename-skip" class="tut-btn tut-btn-secondary">沿用默认代号</button>
     </div>
   </div>
 </div>
 
 <div id="tutorial-start-modal" class="modal hidden" role="dialog" aria-modal="true">
   <div class="modal-box">
-    <div class="tut-start-title">⭐ 欢迎，继承者！</div>
+    <div class="tut-start-title">✦ 欢迎接入蓝脉</div>
     <p class="tut-start-desc">
-      你意外继承了一家星际贸易公司。<br>
-      要先了解一下星际贸易的基础知识吗？
+      你刚接管一条濒临停摆的深空贸易航线。<br>
+      要先完成一轮基础接入训练吗？
     </p>
     <div class="tut-start-actions">
-      <button id="tut-start-yes" class="tut-btn tut-btn-primary">🚀 开始新手教程</button>
-      <button id="tut-start-no" class="tut-btn tut-btn-secondary">我是老手，直接开始</button>
+      <button id="tut-start-yes" class="tut-btn tut-btn-primary">🚀 启动接入教程</button>
+      <button id="tut-start-no" class="tut-btn tut-btn-secondary">跳过校准，直接上线</button>
     </div>
-    <div class="tut-start-hint">教程约 2 分钟，可随时跳过</div>
+    <div class="tut-start-hint">教程约 2 分钟，随时可中断</div>
   </div>
 </div>
 
@@ -363,10 +374,84 @@
 ================================================================ -->
 <div id="victory-modal" class="modal hidden" role="dialog" aria-modal="true">
   <div class="modal-box victory-modal-box">
-    <h3>🏆 胜利路径进度</h3>
+    <h3>▣ 协议进度</h3>
     <div id="victory-modal-body" class="victory-modal-body"></div>
     <div class="modal-actions">
       <button id="victory-modal-close" class="btn-secondary">关闭</button>
+    </div>
+  </div>
+</div>
+
+<div id="settings-modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-box settings-modal-box">
+    <div class="settings-modal-header">
+      <div class="settings-modal-heading">
+        <h3>⚙ 系统设置</h3>
+        <p class="settings-modal-subtitle">显示、游戏流程与本地数据管理</p>
+      </div>
+      <a id="settings-close-btn" href="#" class="market-close-btn" aria-label="关闭设置">✕</a>
+    </div>
+    <div class="settings-modal-body">
+      <input id="settings-tab-display" class="settings-tab-radio" type="radio" name="settings-tab" checked>
+      <input id="settings-tab-game" class="settings-tab-radio" type="radio" name="settings-tab">
+      <input id="settings-tab-data" class="settings-tab-radio" type="radio" name="settings-tab">
+
+      <div class="settings-tab-bar" role="tablist" aria-label="设置分页">
+        <label class="settings-tab-btn" for="settings-tab-display" role="tab" aria-selected="true" data-settings-panel-target="display">显示</label>
+        <label class="settings-tab-btn" for="settings-tab-game" role="tab" aria-selected="false" data-settings-panel-target="game">游戏</label>
+        <label class="settings-tab-btn settings-tab-btn-danger" for="settings-tab-data" role="tab" aria-selected="false" data-settings-panel-target="data">数据</label>
+      </div>
+
+      <section class="settings-panel-page settings-panel-page--display" data-settings-panel="display">
+        <section class="settings-panel-card">
+          <div class="settings-panel-head">
+            <div class="settings-section-title">显示</div>
+            <div class="settings-card-desc">控制界面动效、地图脉冲和背景漂移强度。</div>
+          </div>
+          <label class="settings-field settings-field-stack">
+            <span class="settings-label">动画强度</span>
+            <select id="settings-motion-level" class="dispatch-select settings-select">
+              <option value="full">完整</option>
+              <option value="reduced">降低</option>
+              <option value="off">关闭</option>
+            </select>
+          </label>
+          <div class="settings-inline-actions">
+            <button id="settings-reset-defaults-btn" class="btn-secondary">恢复默认设置</button>
+          </div>
+          <div class="settings-field-hint">推荐默认值。降低或关闭后，页面会保留主要状态反馈，但减少持续动画。</div>
+        </section>
+      </section>
+
+      <section class="settings-panel-page settings-panel-page--game" data-settings-panel="game">
+        <section class="settings-panel-card">
+          <div class="settings-panel-head">
+            <div class="settings-section-title">游戏</div>
+            <div class="settings-card-desc">需要重新开局时，从这里直接回到教程流程。</div>
+          </div>
+          <div class="settings-inline-actions settings-inline-actions-fill">
+            <button id="settings-reset-tutorial-btn" class="btn-secondary settings-danger-btn">重新开始并进入教程</button>
+          </div>
+          <div class="settings-field-hint">会重新初始化当前游戏状态，并在开局重新进入教程。</div>
+        </section>
+      </section>
+
+      <section class="settings-panel-page settings-panel-page--data" data-settings-panel="data">
+        <section class="settings-storage-card settings-section-danger">
+        <div class="settings-storage-head">
+          <div>
+            <div class="settings-section-title">数据</div>
+            <div class="settings-card-desc">清理本地数据，或在下方直接执行存档导入、导出、覆盖和读取。</div>
+          </div>
+          <div class="settings-inline-actions settings-danger-actions">
+            <button id="settings-clear-saves-btn" class="btn-secondary settings-danger-btn">清空所有本地存档</button>
+          </div>
+        </div>
+        <div class="settings-save-shell">
+          <div id="save-list"></div>
+        </div>
+        </section>
+      </section>
     </div>
   </div>
 </div>

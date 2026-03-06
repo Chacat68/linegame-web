@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Rajdhani:wght@400;500;600;700&display=swap");
+
 /* ============================================================
    Star-Trade: Galactic Year 3045 — Dark Space Theme
    ============================================================ */
@@ -5,28 +7,71 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg-dark:      #09091a;
-  --bg-panel:     #101028;
-  --bg-card:      #181835;
-  --bg-input:     #0e0e22;
-  --accent-gold:  #FFD700;
-  --accent-blue:  #4fc3f7;
-  --accent-green: #66BB6A;
-  --accent-red:   #EF5350;
-  --accent-cyan:  #26C6DA;
-  --text-primary: #dde0ff;
-  --text-dim:     #8888aa;
-  --border:       #252545;
-  --radius:       6px;
+  --bg-dark:      #040814;
+  --bg-panel:     rgba(7, 18, 38, 0.88);
+  --bg-card:      rgba(10, 27, 56, 0.82);
+  --bg-input:     rgba(3, 15, 32, 0.92);
+  --accent-gold:  #76e4ff;
+  --accent-blue:  #38bdf8;
+  --accent-green: #7dd3fc;
+  --accent-red:   #fb7185;
+  --accent-cyan:  #22d3ee;
+  --text-primary: #e0f2ff;
+  --text-dim:     #7ea6c9;
+  --border:       rgba(74, 144, 226, 0.26);
+  --radius:       10px;
+  --text-main:    #d9f3ff;
+  --text-secondary: #9cc7ea;
+  --glow-soft:    0 0 0 1px rgba(58, 160, 255, 0.18), 0 0 22px rgba(34, 211, 238, 0.08);
+  --glow-strong:  0 0 0 1px rgba(56, 189, 248, 0.35), 0 0 24px rgba(34, 211, 238, 0.18);
 }
 
 html, body {
   height: 100%;
-  background: var(--bg-dark);
+  background:
+    radial-gradient(circle at top left, rgba(37, 99, 235, 0.18), transparent 30%),
+    radial-gradient(circle at 85% 15%, rgba(6, 182, 212, 0.12), transparent 26%),
+    linear-gradient(135deg, #020611 0%, #071225 45%, #020816 100%);
   color: var(--text-primary);
-  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-family: "Rajdhani", "PingFang SC", "Microsoft YaHei", sans-serif;
   font-size: 13px;
   overflow: hidden;
+}
+
+body {
+  position: relative;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background:
+    linear-gradient(rgba(56, 189, 248, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56, 189, 248, 0.04) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(circle at center, black 45%, transparent 100%);
+  pointer-events: none;
+  opacity: 0.45;
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(34, 211, 238, 0.05), transparent 30%, rgba(14, 116, 144, 0.04));
+  pointer-events: none;
+}
+
+@keyframes panel-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ---- Layout ------------------------------------------------------------ */
@@ -34,7 +79,22 @@ html, body {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  position: relative;
+  z-index: 1;
 }
+
+#game-header,
+#info-panel,
+#map-section,
+#trade-panel,
+#status-bar {
+  animation: panel-rise 0.5s ease-out both;
+}
+
+#info-panel { animation-delay: 0.04s; }
+#map-section { animation-delay: 0.08s; }
+#trade-panel { animation-delay: 0.12s; }
+#status-bar { animation-delay: 0.16s; }
 
 /* ---- Header ------------------------------------------------------------ */
 #game-header {
@@ -45,6 +105,8 @@ html, body {
   background: #080818;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  position: relative;
+  z-index: 40;
 }
 
 .hdr-title h1 {
@@ -258,6 +320,116 @@ html, body {
   flex: 1;
   position: relative;
   cursor: crosshair;
+  overflow: hidden;
+}
+
+.map-hud-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.hud-corner {
+  position: absolute;
+  width: 46px;
+  height: 46px;
+  border-color: rgba(103, 232, 249, 0.7);
+  filter: drop-shadow(0 0 10px rgba(34, 211, 238, 0.32));
+}
+
+.hud-corner-tl {
+  top: 10px;
+  left: 10px;
+  border-top: 2px solid;
+  border-left: 2px solid;
+}
+
+.hud-corner-tr {
+  top: 10px;
+  right: 10px;
+  border-top: 2px solid;
+  border-right: 2px solid;
+}
+
+.hud-corner-bl {
+  bottom: 10px;
+  left: 10px;
+  border-bottom: 2px solid;
+  border-left: 2px solid;
+}
+
+.hud-corner-br {
+  bottom: 10px;
+  right: 10px;
+  border-bottom: 2px solid;
+  border-right: 2px solid;
+}
+
+.map-scanlines,
+.map-noise {
+  position: absolute;
+  inset: 0;
+}
+
+.map-scanlines {
+  background: repeating-linear-gradient(
+    180deg,
+    rgba(125, 211, 252, 0.06) 0,
+    rgba(125, 211, 252, 0.06) 1px,
+    transparent 1px,
+    transparent 5px
+  );
+  mix-blend-mode: screen;
+  opacity: 0.3;
+  animation: scan-pan 10s linear infinite;
+}
+
+.map-noise {
+  background:
+    radial-gradient(circle at 20% 30%, rgba(56, 189, 248, 0.12), transparent 18%),
+    radial-gradient(circle at 75% 40%, rgba(34, 211, 238, 0.1), transparent 20%),
+    radial-gradient(circle at 55% 75%, rgba(59, 130, 246, 0.08), transparent 24%);
+  opacity: 0.5;
+}
+
+.map-status-stack {
+  position: absolute;
+  top: 14px;
+  left: 72px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.map-status-chip,
+.map-atlas-tag {
+  padding: 4px 10px;
+  border: 1px solid rgba(103, 232, 249, 0.28);
+  background: linear-gradient(180deg, rgba(3, 19, 37, 0.88), rgba(3, 13, 28, 0.82));
+  color: #aef3ff;
+  font-family: "Orbitron", "Rajdhani", sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  box-shadow: 0 0 18px rgba(34, 211, 238, 0.08);
+}
+
+.map-status-chip.alt {
+  color: #bfe8ff;
+  border-color: rgba(56, 189, 248, 0.24);
+}
+
+.map-atlas-tag {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+}
+
+@keyframes scan-pan {
+  0% { transform: translateY(-6px); }
+  50% { transform: translateY(0); }
+  100% { transform: translateY(6px); }
 }
 
 #webgl-canvas,
@@ -670,6 +842,8 @@ html, body {
   justify-content: center;
   z-index: 9500;
 }
+.modal:not(.hidden) { display: flex; }
+.modal:target { display: flex !important; }
 .modal.hidden { display: none; }
 
 .modal-box {
@@ -2566,6 +2740,43 @@ html, body {
   padding: 10px 14px;
   border-bottom: 1px solid var(--border);
 }
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+  z-index: 41;
+}
+
+.header-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-family: inherit;
+  padding: 4px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s, border-color 0.2s, transform 0.18s ease;
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
+  text-decoration: none;
+}
+
+.settings-btn {
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  color: #9cecff;
+}
+
+.settings-btn:hover {
+  background: rgba(56, 189, 248, 0.16);
+  border-color: rgba(103, 232, 249, 0.68);
+  transform: translateY(-1px);
+}
 .market-overlay-header h3 {
   margin: 0;
   font-size: 15px;
@@ -2795,6 +3006,278 @@ html, body {
   color: var(--accent-gold);
   margin-bottom: 8px;
 }
+
+.settings-modal-box {
+  width: min(840px, calc(100vw - 40px));
+  max-width: 840px;
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+.settings-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 24px 16px;
+  border-bottom: 1px solid rgba(56, 189, 248, 0.14);
+  background: linear-gradient(180deg, rgba(8, 28, 56, 0.96), rgba(5, 16, 33, 0.9));
+}
+
+.settings-modal-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.settings-modal-subtitle {
+  margin-top: 0;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.settings-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.settings-tab-radio {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.settings-tab-bar {
+  display: flex;
+  gap: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(56, 189, 248, 0.12);
+  overflow-x: auto;
+}
+
+.settings-tab-btn {
+  appearance: none;
+  border: 1px solid rgba(56, 189, 248, 0.18);
+  background: linear-gradient(180deg, rgba(6, 21, 41, 0.82), rgba(4, 14, 30, 0.72));
+  color: var(--text-dim);
+  border-radius: 999px;
+  padding: 9px 16px;
+  font-family: "Orbitron", "Rajdhani", sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
+  white-space: nowrap;
+  position: relative;
+  overflow: hidden;
+}
+
+.settings-tab-btn:hover {
+  color: #dff8ff;
+  border-color: rgba(103, 232, 249, 0.52);
+  background: linear-gradient(180deg, rgba(12, 48, 78, 0.94), rgba(6, 24, 44, 0.92));
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.18), 0 0 18px rgba(34, 211, 238, 0.08);
+}
+
+.settings-tab-btn::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(186, 230, 253, 0.06), rgba(186, 230, 253, 0));
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.settings-tab-btn::after {
+  content: "";
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 5px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, #67e8f9, transparent);
+  transform: scaleX(0.25);
+  opacity: 0;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.settings-tab-btn:hover::before {
+  opacity: 1;
+}
+
+.settings-tab-btn-danger {
+  border-color: rgba(251, 113, 133, 0.22);
+}
+
+.settings-panel-page {
+  display: none;
+  flex-direction: column;
+  gap: 14px;
+}
+
+#settings-tab-display:checked ~ .settings-tab-bar label[for="settings-tab-display"],
+#settings-tab-game:checked ~ .settings-tab-bar label[for="settings-tab-game"],
+#settings-tab-data:checked ~ .settings-tab-bar label[for="settings-tab-data"] {
+  color: #f3fbff;
+  border-color: rgba(125, 211, 252, 0.72);
+  background: linear-gradient(180deg, rgba(12, 48, 78, 0.94), rgba(6, 24, 44, 0.92));
+  box-shadow: 0 0 0 1px rgba(103, 232, 249, 0.24), 0 0 22px rgba(34, 211, 238, 0.14);
+}
+
+#settings-tab-display:checked ~ .settings-tab-bar label[for="settings-tab-display"]::before,
+#settings-tab-game:checked ~ .settings-tab-bar label[for="settings-tab-game"]::before,
+#settings-tab-data:checked ~ .settings-tab-bar label[for="settings-tab-data"]::before {
+  opacity: 1;
+}
+
+#settings-tab-display:checked ~ .settings-tab-bar label[for="settings-tab-display"]::after,
+#settings-tab-game:checked ~ .settings-tab-bar label[for="settings-tab-game"]::after,
+#settings-tab-data:checked ~ .settings-tab-bar label[for="settings-tab-data"]::after {
+  transform: scaleX(1);
+  opacity: 1;
+}
+
+#settings-tab-display:checked ~ .settings-panel-page--display,
+#settings-tab-game:checked ~ .settings-panel-page--game,
+#settings-tab-data:checked ~ .settings-panel-page--data {
+  display: flex;
+}
+
+.settings-panel-card,
+.settings-storage-card {
+  border: 1px solid rgba(56, 189, 248, 0.16);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(8, 28, 56, 0.82), rgba(5, 16, 34, 0.76));
+  box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.03);
+}
+
+.settings-panel-card {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settings-panel-head {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-section {
+  padding: 10px 0 14px;
+  border-bottom: 1px solid rgba(56, 189, 248, 0.12);
+}
+
+.settings-section:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.settings-section-title {
+  margin-bottom: 0;
+  font-family: "Orbitron", "Rajdhani", sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: #9cecff;
+  text-transform: uppercase;
+}
+
+.settings-card-desc {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-dim);
+}
+
+.settings-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.settings-field-stack {
+  align-items: flex-start;
+  flex-direction: column;
+}
+
+.settings-label {
+  font-size: 13px;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.settings-select {
+  width: 100%;
+  min-width: 0;
+}
+
+.settings-field-hint {
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
+.settings-danger-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.settings-inline-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.settings-inline-actions-fill > * {
+  flex: 1;
+}
+
+.settings-danger-btn {
+  border-color: rgba(251, 113, 133, 0.28);
+}
+
+.settings-storage-card {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.settings-storage-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.settings-save-shell {
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(56, 189, 248, 0.12);
+  background: rgba(3, 13, 28, 0.42);
+}
+
+.settings-section-danger .settings-section-title {
+  color: #ffb3c2;
+}
+
 .company-rename-desc {
   font-size: 13px;
   color: var(--text-primary);
@@ -2815,27 +3298,560 @@ html, body {
   font-size: 15px;
   font-family: inherit;
   text-align: center;
-  outline: none;
+    font-size: 15px;
   transition: border-color 0.2s;
-}
 .company-name-input:focus {
   border-color: var(--accent-gold);
+
+  .save-header-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .save-header-subtitle {
+    margin-top: 4px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--text-dim);
+  }
+
+  .save-slot-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
 }
 .company-name-error {
   margin-top: 6px;
-  font-size: 11px;
-  color: #ff6666;
-}
+    border-radius: 14px;
+    padding: 12px 14px;
+    margin-bottom: 0;
 .company-rename-actions {
   display: flex;
   flex-direction: column;
+  .save-slot-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
   gap: 8px;
   align-items: center;
 }
-.company-rename-actions .tut-btn {
+  }
+
+  .save-slot-badge {
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    color: #9cecff;
+    border: 1px solid rgba(56, 189, 248, 0.18);
+    background: rgba(56, 189, 248, 0.08);
   width: 200px;
+
   padding: 10px;
   font-size: 13px;
+    gap: 8px;
+
+/* ============================================================
+   Cyberpunk Blue Theme Overrides
+    margin-bottom: 10px;
+
+
+  .save-meta-pill {
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(56, 189, 248, 0.08);
+  }
+
+#game-header,
+.info-panel-header,
+.tabs,
+    flex-wrap: wrap;
+#status-bar,
+#info-panel,
+#trade-panel,
+.company-info-bar,
+#ship-mini,
+.modal-box,
+.tutorial-tooltip,
+
+  .save-transfer-bar {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(56, 189, 248, 0.12);
+  }
+
+  .save-transfer-copy {
+    margin-bottom: 10px;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+.market-overlay,
+.planet-detail-panel,
+.faction-card,
+    margin-top: 0;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+.save-slot,
+.research-card,
+.research-active,
+.research-queue,
+.fleet-ship-card,
+.fleet-shop-card,
+.upg-modal-item,
+.mod-modal-item,
+.vp-card {
+  backdrop-filter: blur(16px);
+}
+
+#game-header {
+  padding: 10px 16px;
+  background: linear-gradient(180deg, rgba(4, 12, 28, 0.96), rgba(4, 12, 28, 0.78));
+  border-bottom: 1px solid rgba(56, 189, 248, 0.25);
+  box-shadow: 0 10px 28px rgba(2, 8, 20, 0.42);
+}
+
+.hdr-title h1,
+.company-rename-title,
+#tutorial-start-modal .tut-start-title,
+.victory-progress-btn,
+.save-header,
+.ach-header,
+.quest-section-title,
+.fleet-section-title,
+.modal-box h2,
+.modal-box h3 {
+  font-family: "Orbitron", "Rajdhani", sans-serif;
+  letter-spacing: 0.08em;
+}
+
+.hdr-title h1 {
+  color: #8ae8ff;
+  text-shadow: 0 0 12px rgba(34, 211, 238, 0.35);
+}
+
+.hdr-title .subtitle,
+#map-legend,
+.stat-label,
+.fleet-ov-label,
+.quest-desc,
+.ach-desc,
+.faction-desc,
+.save-slot-info,
+.research-card-desc,
+.market-overlay-location,
+.market-overview-toolbar,
+.market-price-toggle,
+.market-detail-location,
+.gameover-message,
+.auto-trade-status,
+.fleet-switch-hint,
+.company-rename-desc,
+.tut-start-hint {
+  color: #8cb9dc;
+}
+
+.company-name-btn,
+.victory-progress-btn,
+.fleet-slot-buy-btn,
+.upg-modal-buy-btn,
+.btn-auto-trade,
+.market-galaxy-btn,
+.market-back-btn,
+.slot-switch-btn {
+  border: 1px solid rgba(34, 211, 238, 0.36);
+  background: linear-gradient(180deg, rgba(10, 49, 79, 0.88), rgba(6, 26, 45, 0.9));
+  color: #9cecff;
+  box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.06), 0 0 18px rgba(34, 211, 238, 0.08);
+}
+
+.company-name-btn:hover,
+.victory-progress-btn:hover,
+.fleet-slot-buy-btn.slot-can-buy:hover,
+.upg-modal-buy-btn:hover:not(:disabled),
+.btn-auto-trade:hover,
+.market-galaxy-btn:hover,
+.market-back-btn:hover,
+.slot-switch-btn:hover {
+  border-color: rgba(103, 232, 249, 0.72);
+  background: linear-gradient(180deg, rgba(16, 68, 108, 0.94), rgba(9, 40, 66, 0.94));
+  box-shadow: var(--glow-strong);
+}
+
+#info-panel,
+#trade-panel {
+  background: linear-gradient(180deg, rgba(7, 18, 38, 0.9), rgba(4, 14, 30, 0.78));
+  border-color: rgba(56, 189, 248, 0.2);
+}
+
+.info-panel-header,
+.tabs {
+  background: linear-gradient(180deg, rgba(6, 20, 42, 0.92), rgba(4, 14, 30, 0.78));
+  border-bottom-color: rgba(56, 189, 248, 0.18);
+}
+
+.tab-btn {
+  position: relative;
+  padding: 9px 10px;
+  color: #7ea6c9;
+  letter-spacing: 0.04em;
+}
+
+.tab-btn:hover {
+  color: #d9f7ff;
+  background: rgba(34, 211, 238, 0.06);
+}
+
+.tab-btn.active {
+  color: #9cecff;
+  border-bottom-color: transparent;
+}
+
+.tab-btn.active::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 2px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, #38bdf8, #67e8f9, transparent);
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.45);
+}
+
+.company-info-bar,
+#ship-mini,
+#location-bar,
+#auto-trade-controls {
+  background: linear-gradient(180deg, rgba(8, 24, 48, 0.8), rgba(4, 16, 32, 0.78));
+  border-bottom-color: rgba(56, 189, 248, 0.18);
+}
+
+.stat-value,
+.fleet-ov-value,
+.research-cost,
+.market-detail-location,
+#modal-total,
+.faction-bonus,
+.research-card-effect,
+.quest-obj-count,
+.research-effect-text,
+.dispatch-estimate {
+  color: #7fe7ff;
+}
+
+.company-level-track,
+.level-bar-track,
+.quest-progress-track,
+.vp-card-bar-track {
+  background: rgba(11, 31, 58, 0.9);
+  box-shadow: inset 0 0 0 1px rgba(34, 211, 238, 0.1);
+}
+
+.company-level-fill,
+.level-bar-fill,
+.quest-progress-fill,
+.vp-card-bar-fill,
+.research-fill,
+.hull-fill,
+.tut-progress-fill {
+  background: linear-gradient(90deg, #0ea5e9, #22d3ee, #67e8f9) !important;
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.38);
+}
+
+.fleet-ov-item,
+.save-slot,
+.quest-card,
+.ach-card,
+.faction-card,
+.research-card,
+.research-active,
+.research-queue,
+.fleet-slot,
+.fleet-ship-card,
+.fleet-shop-card,
+.upg-modal-item,
+.mod-modal-item,
+.vp-card,
+.market-overview-toolbar,
+.market-detail-bar {
+  background: linear-gradient(180deg, rgba(8, 28, 56, 0.84), rgba(5, 16, 34, 0.78));
+  border-color: rgba(73, 146, 226, 0.24);
+  box-shadow: var(--glow-soft);
+}
+
+.quest-card:hover,
+.ach-card:hover,
+.research-card:hover,
+.fleet-ship-card:hover,
+.fleet-shop-card:hover,
+.upg-modal-item:not(.upg-modal-locked):not(.upg-modal-capped):hover,
+.mod-modal-item:hover,
+.mkt-ov-row:hover {
+  border-color: rgba(103, 232, 249, 0.48);
+  box-shadow: var(--glow-strong);
+}
+
+.fleet-ship-card.fleet-active,
+.fleet-slot.slot-active,
+.mkt-ov-current,
+.save-slot.has-data,
+.quest-card.active-quest,
+.ach-unlocked,
+.fleet-dispatched {
+  border-color: rgba(34, 211, 238, 0.7);
+  box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.28), 0 0 22px rgba(34, 211, 238, 0.18);
+}
+
+#map-legend {
+  background: linear-gradient(180deg, rgba(2, 10, 22, 0.82), rgba(2, 8, 20, 0.92));
+  border-top-color: rgba(56, 189, 248, 0.2);
+}
+
+#map-legend-location,
+.legend-dot + span {
+  color: #89b6db;
+}
+
+.planet-detail-panel {
+  border-color: rgba(56, 189, 248, 0.32);
+  background: linear-gradient(180deg, rgba(6, 20, 40, 0.94), rgba(5, 16, 34, 0.9));
+  box-shadow: 0 10px 32px rgba(2, 8, 20, 0.5), 0 0 18px rgba(34, 211, 238, 0.12);
+}
+
+.planet-detail-title,
+.research-active-name,
+.faction-name,
+.ach-name,
+.quest-name,
+.fleet-ship-name,
+.market-overlay-header h3,
+.vp-card-name {
+  color: #dff8ff;
+}
+
+.modal {
+  background: rgba(1, 4, 12, 0.78);
+  backdrop-filter: blur(10px);
+}
+
+.modal-box,
+.event-modal-box,
+.victory-modal-box,
+.upgrade-modal-box,
+.mod-modal-box,
+.company-rename-box,
+.settings-modal-box {
+  background: linear-gradient(180deg, rgba(7, 21, 42, 0.96), rgba(5, 16, 33, 0.92));
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45), 0 0 36px rgba(34, 211, 238, 0.12);
+}
+
+.modal-stepper button,
+#modal-all,
+.dispatch-select,
+#modal-amount,
+.company-name-input {
+  background: linear-gradient(180deg, rgba(4, 20, 38, 0.98), rgba(3, 13, 26, 0.98));
+  border-color: rgba(56, 189, 248, 0.24);
+  color: #dff8ff;
+}
+
+.btn-primary,
+.quest-accept-btn,
+.fleet-switch-primary,
+.fleet-dispatch-btn,
+.btn-research,
+.map-overlay-btn.active,
+.tut-btn-primary {
+  background: linear-gradient(90deg, #0284c7, #06b6d4);
+  border: 1px solid rgba(125, 211, 252, 0.5);
+  color: #f3fbff !important;
+  box-shadow: 0 10px 24px rgba(2, 132, 199, 0.22);
+}
+
+.btn-primary:hover,
+.quest-accept-btn:hover,
+.fleet-switch-primary:hover,
+.fleet-dispatch-btn:hover,
+.btn-research:hover,
+.map-overlay-btn:hover,
+.map-overlay-btn.active:hover,
+.tut-btn-primary:hover {
+  background: linear-gradient(90deg, #0ea5e9, #22d3ee);
+}
+
+.btn-secondary,
+.fleet-switch-btn,
+.fleet-open-upg-btn,
+.fleet-open-mod-btn,
+.tut-btn-secondary,
+.market-close-btn {
+  background: linear-gradient(180deg, rgba(8, 30, 56, 0.82), rgba(4, 16, 32, 0.82));
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  color: #9cc7ea;
+}
+
+.buy-btn,
+.fleet-buy-btn,
+.mod-modal-buy-btn {
+  background: linear-gradient(90deg, rgba(4, 120, 173, 0.75), rgba(8, 145, 178, 0.7));
+  border-color: rgba(103, 232, 249, 0.34);
+  color: #ecfeff;
+}
+
+.sell-btn,
+.fleet-cancel-btn,
+.queue-cancel-btn,
+.queue-clear-btn,
+.del-btn,
+.mod-modal-uninstall-btn {
+  background: linear-gradient(90deg, rgba(159, 18, 57, 0.45), rgba(190, 24, 93, 0.35));
+  border-color: rgba(251, 113, 133, 0.38) !important;
+  color: #ffd4dc !important;
+}
+
+.fleet-sell-btn {
+  background: linear-gradient(90deg, rgba(12, 74, 110, 0.9), rgba(3, 105, 161, 0.8));
+  border-color: rgba(125, 211, 252, 0.34);
+  color: #dff8ff;
+}
+
+#status-bar {
+  background: linear-gradient(180deg, rgba(2, 8, 20, 0.95), rgba(4, 12, 28, 0.98));
+  border-top-color: rgba(56, 189, 248, 0.18);
+}
+
+#message-log {
+  position: relative;
+}
+
+#message-log::before {
+  content: "SYSTEM FEED";
+  display: block;
+  margin-bottom: 4px;
+  font-family: "Orbitron", sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  color: rgba(125, 211, 252, 0.7);
+}
+
+.msg {
+  border-left: 2px solid rgba(56, 189, 248, 0.2);
+  padding-left: 8px;
+}
+
+.event-description,
+.fleet-route-info,
+.fleet-ship-cargo-section,
+.fleet-ship-upg-section,
+.fleet-bonus-section,
+.fleet-ship-skills-section,
+.market-overlay-header,
+.market-galaxy-nav,
+.market-overlay-body,
+.market-overview-scroll,
+.dispatch-form,
+.gameover-message {
+  background-color: transparent;
+}
+
+.tutorial-tooltip {
+  background: linear-gradient(180deg, rgba(5, 20, 42, 0.98), rgba(4, 14, 30, 0.95));
+  border-color: rgba(34, 211, 238, 0.36);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 30px rgba(34, 211, 238, 0.14);
+}
+
+.tut-highlight {
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.72), 0 0 28px rgba(34, 211, 238, 0.35) !important;
+}
+
+.tut-keyword,
+.rep-badge,
+.completed-tech-badge,
+.quest-phase-chip.active,
+.fleet-bonus-chip,
+.fleet-mod-chip,
+.fleet-shop-skill-chip,
+.qty-badge {
+  background: rgba(14, 165, 233, 0.12);
+  border-color: rgba(56, 189, 248, 0.28);
+  color: #9cecff;
+}
+
+#market-table th,
+#market-overview-table th,
+#market-table td,
+.mkt-ov-row td {
+  border-bottom-color: rgba(56, 189, 248, 0.1);
+}
+
+#market-table tr:hover td,
+.mkt-ov-row:hover td {
+  background: rgba(14, 165, 233, 0.08);
+}
+
+.market-overlay {
+  background:
+    radial-gradient(circle at top right, rgba(34, 211, 238, 0.12), transparent 24%),
+    linear-gradient(180deg, rgba(3, 13, 28, 0.96), rgba(4, 12, 26, 0.98));
+}
+
+.market-overlay-header,
+.market-galaxy-nav,
+.market-overview-toolbar,
+.market-detail-bar {
+  border-bottom-color: rgba(56, 189, 248, 0.14);
+}
+
+.map-overlay-btn {
+  background: linear-gradient(180deg, rgba(5, 18, 38, 0.88), rgba(4, 14, 28, 0.94));
+  border-color: rgba(56, 189, 248, 0.26);
+  color: #aeeeff;
+  box-shadow: 0 12px 24px rgba(2, 8, 20, 0.32);
+}
+
+.faction-pref-liked,
+.price-low,
+.msg-buy,
+.fleet-route-status,
+.upg-modal-chip-done,
+.mod-modal-all-done,
+.upg-modal-all-done,
+.fleet-upg-all-done,
+.fleet-upg-all-done-inline {
+  color: #7df9ff;
+}
+
+.price-high,
+.msg-error,
+.quest-time,
+.company-name-error {
+  color: #ff7c9a;
+}
+
+.fleet-skill-name,
+.fleet-bonus-name,
+.queue-index,
+.research-time,
+.dispatch-active-indicator,
+.msg-travel,
+.msg-upgrade {
+  color: #7cdcff;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(56, 189, 248, 0.5), rgba(6, 182, 212, 0.7));
+  border-radius: 999px;
 }
 
 /* ============================================================
@@ -2913,6 +3929,22 @@ html, body {
   .modal-box { min-width: 240px; max-width: 320px; padding: 16px 18px; }
   .victory-modal-box { min-width: 280px; max-width: 420px; }
   .event-modal-box { min-width: 280px; max-width: 360px; }
+  .settings-modal-box {
+    width: min(100vw - 24px, 720px);
+    max-width: none;
+    padding: 0;
+  }
+  .save-slot-grid {
+    grid-template-columns: 1fr;
+  }
+  .settings-modal-body,
+  .settings-modal-header {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .settings-storage-head {
+    flex-direction: column;
+  }
 
   #map-legend { font-size: 11px; gap: 6px; padding: 3px 8px; }
   #status-bar { height: 60px; }
@@ -2940,6 +3972,41 @@ html, body {
   .event-modal-box { min-width: 200px; max-width: 95vw; }
   .gameover-box { max-width: 95vw; }
   .company-rename-box { max-width: 95vw; }
+  .settings-modal-box {
+    width: calc(100vw - 12px);
+    max-height: 90vh;
+  }
+  .settings-modal-header,
+  .settings-modal-body {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .settings-modal-header {
+    padding-top: 16px;
+  }
+  .settings-modal-body {
+    padding-top: 14px;
+    gap: 12px;
+  }
+  .settings-tab-bar {
+    gap: 8px;
+    padding-bottom: 2px;
+  }
+  .settings-panel-card,
+  .settings-storage-card,
+  .settings-save-shell {
+    padding: 12px;
+  }
+  .save-slot-actions,
+  .save-export-row,
+  .settings-inline-actions {
+    flex-direction: column;
+  }
+  .save-slot-actions .btn-action,
+  .save-export-row .btn-action,
+  .settings-inline-actions > * {
+    width: 100%;
+  }
 
   #map-legend { font-size: 10px; gap: 4px; padding: 2px 6px; }
   #map-legend span:last-child { display: none; }
@@ -2947,4 +4014,303 @@ html, body {
   .msg { font-size: 11px; }
 
   .map-overlay-btn { padding: 4px 8px; font-size: 10px; }
+}
+
+/* ============================================================
+   Dynamic Feedback Layer
+   ============================================================ */
+
+@keyframes neon-breathe {
+  0%, 100% {
+    box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.18), 0 0 16px rgba(34, 211, 238, 0.08);
+  }
+  50% {
+    box-shadow: 0 0 0 1px rgba(103, 232, 249, 0.38), 0 0 24px rgba(34, 211, 238, 0.18);
+  }
+}
+
+@keyframes border-sweep {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(120%); }
+}
+
+@keyframes log-entry {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes terminal-caret {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0.15; }
+}
+
+@keyframes row-signal {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.8; }
+}
+
+.map-overlay-btn,
+.victory-progress-btn,
+.company-name-btn,
+.settings-btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.map-overlay-btn::before,
+.victory-progress-btn::before,
+.company-name-btn::before,
+.settings-btn::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 42%;
+  background: linear-gradient(90deg, transparent, rgba(186, 230, 253, 0.26), transparent);
+  transform: translateX(-140%);
+  pointer-events: none;
+}
+
+.map-overlay-btn:hover::before,
+.victory-progress-btn:hover::before,
+.company-name-btn:hover::before,
+.settings-btn:hover::before {
+  animation: border-sweep 0.8s ease-out;
+}
+
+.map-overlay-btn.active {
+  animation: neon-breathe 2.6s ease-in-out infinite;
+}
+
+.market-overlay-header h3,
+.market-detail-location,
+.map-status-chip,
+.map-atlas-tag {
+  text-shadow: 0 0 10px rgba(34, 211, 238, 0.28);
+}
+
+#market-overview-table th,
+#market-table th {
+  position: sticky;
+  overflow: hidden;
+}
+
+#market-overview-table th::after,
+#market-table th::after {
+  content: "";
+  position: absolute;
+  left: -120%;
+  top: 0;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(186, 230, 253, 0.2), transparent);
+  animation: border-sweep 3.8s linear infinite;
+}
+
+.mkt-ov-row,
+#market-table tbody tr {
+  position: relative;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.mkt-ov-row::before,
+#market-table tbody tr::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  background: linear-gradient(180deg, transparent, rgba(34, 211, 238, 0.9), transparent);
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.mkt-ov-row:hover,
+#market-table tbody tr:hover {
+  transform: translateX(3px);
+}
+
+.mkt-ov-row:hover::before,
+#market-table tbody tr:hover::before,
+.mkt-ov-current::before {
+  opacity: 1;
+}
+
+.mkt-ov-current::before {
+  animation: row-signal 1.8s ease-in-out infinite;
+}
+
+.mkt-ov-price,
+#market-table td {
+  font-variant-numeric: tabular-nums;
+}
+
+#message-log {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+#message-log::after {
+  content: "_";
+  align-self: flex-start;
+  margin-left: 8px;
+  color: rgba(125, 211, 252, 0.85);
+  font-family: "Orbitron", sans-serif;
+  animation: terminal-caret 1s steps(1) infinite;
+}
+
+.msg {
+  position: relative;
+  animation: log-entry 0.28s ease-out;
+  background: linear-gradient(90deg, rgba(9, 24, 43, 0.66), transparent 82%);
+  border-radius: 4px;
+  padding-top: 3px;
+  padding-bottom: 3px;
+}
+
+.msg::before {
+  content: ">";
+  margin-right: 6px;
+  color: rgba(103, 232, 249, 0.72);
+  font-family: "Orbitron", sans-serif;
+}
+
+.msg-tip,
+.msg-travel,
+.msg-upgrade {
+  text-shadow: 0 0 8px rgba(34, 211, 238, 0.18);
+}
+
+body[data-motion="reduced"] .map-overlay-btn.active,
+body[data-motion="reduced"] .mkt-ov-current::before,
+body[data-motion="reduced"] #message-log::after,
+body[data-motion="reduced"] .map-scanlines,
+body[data-motion="reduced"] .tut-highlight {
+  animation: none !important;
+}
+
+body[data-motion="reduced"] .tab-pane.active,
+body[data-motion="reduced"] .market-overview:not(.hidden),
+body[data-motion="reduced"] .market-detail:not(.hidden),
+body[data-motion="reduced"] .market-overlay {
+  animation-duration: 0.12s !important;
+}
+
+body[data-motion="off"] *,
+body[data-motion="off"] *::before,
+body[data-motion="off"] *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
+@keyframes pane-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes overlay-enter {
+  from {
+    opacity: 0;
+    transform: scale(1.015);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slide-enter-right {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-enter-left {
+  from {
+    opacity: 0;
+    transform: translateX(-14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes button-press-glow {
+  0% {
+    box-shadow: 0 0 0 rgba(34, 211, 238, 0);
+  }
+  50% {
+    box-shadow: 0 0 18px rgba(34, 211, 238, 0.24);
+  }
+  100% {
+    box-shadow: 0 0 0 rgba(34, 211, 238, 0);
+  }
+}
+
+.tab-btn,
+.market-galaxy-btn,
+.market-back-btn,
+.map-overlay-btn {
+  will-change: transform, opacity;
+}
+
+.tab-btn {
+  transition: color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+
+.tab-btn:hover {
+  transform: translateY(-1px);
+}
+
+.tab-btn:active,
+.market-back-btn:active,
+.map-overlay-btn:active,
+.market-galaxy-btn:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+.tab-pane.active {
+  animation: pane-enter 0.22s ease-out;
+}
+
+.market-overlay {
+  animation: overlay-enter 0.24s ease-out;
+  transform-origin: center;
+}
+
+.market-overview:not(.hidden) {
+  animation: slide-enter-left 0.22s ease-out;
+}
+
+.market-detail:not(.hidden) {
+  animation: slide-enter-right 0.22s ease-out;
+}
+
+.market-back-btn:hover,
+.market-galaxy-btn:hover,
+.map-overlay-btn:hover {
+  animation: button-press-glow 0.45s ease-out;
 }

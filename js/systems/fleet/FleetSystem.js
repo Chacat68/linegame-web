@@ -203,7 +203,7 @@ export function sellShip(state, shipIndex) {
   }
 
   const shipType = SHIP_TYPES.find(function (s) { return s.id === ship.typeId; });
-  const baseCost = shipType ? shipType.cost : 0;
+  const baseCost = shipType ? (shipType.sellValue || shipType.cost) : 0;
   // 随机 45%~80% 回收价
   const ratio = 0.45 + Math.random() * 0.35;
   const sellPrice = Math.floor(baseCost * ratio);

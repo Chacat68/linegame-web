@@ -1,6 +1,6 @@
 // js/ui/Renderer.js — WebGL 动态星空背景 + 2D Canvas 星系地图
 // 依赖：data/systems.js, systems/faction/FactionSystem.js
-// 导出：init, renderStars, renderMap, getSystemAtPoint
+// 导出：init, setMotionLevel, renderStars, renderMap, getSystemAtPoint
 
 import { SYSTEMS, GALAXIES, getSystemsByGalaxy, findSystem, isSystemAccessible } from '../data/systems.js';
 import { FACTIONS } from '../data/factions.js';
@@ -9,6 +9,25 @@ let _webglCanvas, _gl, _glProgram;
 let _mapCanvas, _ctx;
 let _stars = [];
 let _dpr = 1;
+let _lastCurrentSystem = null;
+let _travelPulse = null;
+let _motionLevel = 'full';
+
+const _NEON = {
+  bgTop: '#020817',
+  bgBottom: '#061528',
+  starCore: '#dffbff',
+  starGlow: '#38bdf8',
+  starAlt: '#67e8f9',
+  route: 'rgba(56, 189, 248, 0.16)',
+  routeDim: 'rgba(56, 189, 248, 0.05)',
+  routeHot: 'rgba(103, 232, 249, 0.9)',
+  current: '#67e8f9',
+  hover: '#dffbff',
+  lock: '#4b6385',
+  text: '#d9f3ff',
+  textDim: '#86a9c8',
+};
 
 // ---------------------------------------------------------------------------
 // 初始化
@@ -23,6 +42,16 @@ export function init() {
   _resize();
   window.addEventListener('resize', _resize);
   _initWebGL();
+}
+
+export function setMotionLevel(level) {
+  _motionLevel = ['full', 'reduced', 'off'].indexOf(level) >= 0 ? level : 'full';
+}
+
+function _getMotionTime(time) {
+  if (_motionLevel === 'off') return 0;
+  if (_motionLevel === 'reduced') return time * 0.35;
+  return time;
 }
 
 function _resize() {
@@ -63,8 +92,11 @@ const _FS_SOURCE = `
     vec2  c    = gl_PointCoord - vec2(0.5);
     float dist = length(c);
     if (dist > 0.5) discard;
-    float alpha = (1.0 - dist * 2.0) * vBrightness;
-    gl_FragColor = vec4(0.80, 0.85, 1.0, alpha);
+    float glow = smoothstep(0.5, 0.0, dist);
+    float core = smoothstep(0.18, 0.0, dist);
+    vec3 color = mix(vec3(0.22, 0.74, 0.97), vec3(0.87, 0.98, 1.0), core);
+    float alpha = glow * vBrightness;
+    gl_FragColor = vec4(color, alpha);
   }
 `;
 
@@ -124,8 +156,210 @@ function _generateStars(count) {
       brightness:    Math.random() * 0.7 + 0.3,
       twinkleSpeed:  Math.random() * 0.02 + 0.005,
       twinkleOffset: Math.random() * Math.PI * 2,
+      drift:         Math.random() * 0.0008 + 0.00015,
+      hue:           Math.random(),
     });
   }
+}
+
+function _setTextStyle(ctx, size, bold) {
+  ctx.font = (bold ? '600 ' : '500 ') + size + 'px "Rajdhani", "Segoe UI", sans-serif';
+}
+
+function _drawNeonConnection(ctx, x1, y1, x2, y2, options) {
+  const lineWidth = options.lineWidth || 1;
+  const glowWidth = options.glowWidth || (lineWidth + 3);
+  const gradient = ctx.createLinearGradient(x1, y1, x2, y2);
+  gradient.addColorStop(0, options.start || _NEON.routeDim);
+  gradient.addColorStop(0.5, options.mid || _NEON.route);
+  gradient.addColorStop(1, options.end || _NEON.routeDim);
+
+  ctx.save();
+  ctx.strokeStyle = options.glow || 'rgba(34, 211, 238, 0.08)';
+  ctx.lineWidth = glowWidth;
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+
+  ctx.strokeStyle = gradient;
+  ctx.lineWidth = lineWidth;
+  if (options.dash) ctx.setLineDash(options.dash);
+  if (typeof options.dashOffset === 'number') ctx.lineDashOffset = options.dashOffset;
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function _drawPulseRing(ctx, x, y, radius, color, alpha) {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.globalAlpha = alpha;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function _startTravelPulse(gameState, time) {
+  if (!_lastCurrentSystem || _lastCurrentSystem === gameState.currentSystem) {
+    _lastCurrentSystem = gameState.currentSystem;
+    return;
+  }
+  const fromSystem = findSystem(_lastCurrentSystem);
+  const toSystem = findSystem(gameState.currentSystem);
+  if (!fromSystem || !toSystem) {
+    _lastCurrentSystem = gameState.currentSystem;
+    return;
+  }
+  _travelPulse = {
+    fromSystemId: fromSystem.id,
+    toSystemId: toSystem.id,
+    fromGalaxyId: fromSystem.galaxyId,
+    toGalaxyId: toSystem.galaxyId,
+    startedAt: time,
+    duration: fromSystem.galaxyId === toSystem.galaxyId ? 1250 : 1650,
+  };
+  _lastCurrentSystem = gameState.currentSystem;
+}
+
+function _drawTravelPulseOnPlanets(ctx, w, h, gameState, time) {
+  if (!_travelPulse) return;
+  const viewGal = gameState.viewingGalaxy || gameState.currentGalaxy;
+  const fromSystem = findSystem(_travelPulse.fromSystemId);
+  const toSystem = findSystem(_travelPulse.toSystemId);
+  if (!fromSystem || !toSystem) return;
+  if (fromSystem.galaxyId !== toSystem.galaxyId) {
+    if (viewGal !== toSystem.galaxyId) return;
+    const arrivalProgress = Math.min(1, Math.max(0, (time - _travelPulse.startedAt - _travelPulse.duration * 0.42) / (_travelPulse.duration * 0.58)));
+    const tx = toSystem.x * w;
+    const ty = toSystem.y * h;
+    _drawPulseRing(ctx, tx, ty, 12 + arrivalProgress * 18, 'rgba(103, 232, 249, 0.95)', 0.5 * (1 - arrivalProgress));
+    _drawPulseRing(ctx, tx, ty, 6 + arrivalProgress * 10, 'rgba(223, 251, 255, 0.95)', 0.35 * (1 - arrivalProgress));
+    return;
+  }
+  if (viewGal !== fromSystem.galaxyId) return;
+
+  const progress = Math.min(1, Math.max(0, (time - _travelPulse.startedAt) / _travelPulse.duration));
+  const sx = fromSystem.x * w;
+  const sy = fromSystem.y * h;
+  const tx = toSystem.x * w;
+  const ty = toSystem.y * h;
+  const px = sx + (tx - sx) * progress;
+  const py = sy + (ty - sy) * progress;
+
+  _drawNeonConnection(ctx, sx, sy, tx, ty, {
+    start: 'rgba(103, 232, 249, 0.1)',
+    mid: 'rgba(34, 211, 238, 0.3)',
+    end: 'rgba(103, 232, 249, 0.1)',
+    glow: 'rgba(34, 211, 238, 0.12)',
+    lineWidth: 2,
+    glowWidth: 8,
+    dash: [10, 8],
+    dashOffset: -(time * 0.02),
+  });
+
+  const tail = ctx.createLinearGradient(sx, sy, px, py);
+  tail.addColorStop(0, 'rgba(34, 211, 238, 0)');
+  tail.addColorStop(0.55, 'rgba(34, 211, 238, 0.18)');
+  tail.addColorStop(1, 'rgba(223, 251, 255, 0.9)');
+  ctx.save();
+  ctx.strokeStyle = tail;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(sx, sy);
+  ctx.lineTo(px, py);
+  ctx.stroke();
+  ctx.restore();
+
+  _drawNeonNode(ctx, px, py, 4.5, '#dffbff', {
+    glowExtra: 14,
+    glowColor: '#22d3ee',
+    strokeColor: 'rgba(223, 251, 255, 0.95)',
+    strokeWidth: 1.2,
+    coreColor: '#ffffff',
+  });
+
+  if (progress >= 0.82) {
+    const arrival = (progress - 0.82) / 0.18;
+    _drawPulseRing(ctx, tx, ty, 10 + arrival * 14, 'rgba(103, 232, 249, 0.9)', 0.42 * (1 - arrival));
+  }
+}
+
+function _drawTravelPulseOnGalaxies(ctx, w, h, time) {
+  if (!_travelPulse) return;
+  const fromGalaxy = GALAXIES.find(function (g) { return g.id === _travelPulse.fromGalaxyId; });
+  const toGalaxy = GALAXIES.find(function (g) { return g.id === _travelPulse.toGalaxyId; });
+  if (!fromGalaxy || !toGalaxy) return;
+
+  const progress = Math.min(1, Math.max(0, (time - _travelPulse.startedAt) / _travelPulse.duration));
+  const sx = fromGalaxy.gx * w;
+  const sy = fromGalaxy.gy * h;
+  const tx = toGalaxy.gx * w;
+  const ty = toGalaxy.gy * h;
+  const px = sx + (tx - sx) * progress;
+  const py = sy + (ty - sy) * progress;
+
+  _drawNeonConnection(ctx, sx, sy, tx, ty, {
+    start: 'rgba(56, 189, 248, 0.08)',
+    mid: 'rgba(103, 232, 249, 0.24)',
+    end: 'rgba(56, 189, 248, 0.08)',
+    glow: 'rgba(34, 211, 238, 0.1)',
+    lineWidth: 2,
+    glowWidth: 8,
+    dash: [12, 10],
+    dashOffset: -(time * 0.02),
+  });
+
+  _drawNeonNode(ctx, px, py, 5, '#dffbff', {
+    glowExtra: 16,
+    glowColor: '#22d3ee',
+    strokeColor: 'rgba(223, 251, 255, 0.95)',
+    strokeWidth: 1.3,
+    coreColor: '#ffffff',
+  });
+}
+
+function _updateTravelPulse(gameState, time) {
+  _startTravelPulse(gameState, time);
+  if (_travelPulse && time - _travelPulse.startedAt > _travelPulse.duration) {
+    _travelPulse = null;
+  }
+}
+
+function _drawNeonNode(ctx, x, y, radius, color, options) {
+  const glowR = radius + (options.glowExtra || 12);
+  const glow = ctx.createRadialGradient(x, y, 0, x, y, glowR);
+  glow.addColorStop(0, (options.glowColor || color) + '66');
+  glow.addColorStop(0.45, (options.glowColor || color) + '22');
+  glow.addColorStop(1, (options.glowColor || color) + '00');
+  ctx.save();
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(x, y, glowR, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = options.coreColor || _NEON.starCore;
+  ctx.globalAlpha = 0.9;
+  ctx.beginPath();
+  ctx.arc(x, y, Math.max(1.4, radius * 0.38), 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = options.strokeColor || 'rgba(223, 251, 255, 0.5)';
+  ctx.lineWidth = options.strokeWidth || 1.25;
+  ctx.beginPath();
+  ctx.arc(x, y, radius + 0.5, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
 }
 
 // ---------------------------------------------------------------------------
@@ -133,18 +367,19 @@ function _generateStars(count) {
 // ---------------------------------------------------------------------------
 
 export function renderStars(time) {
+  const motionTime = _getMotionTime(time);
   const w = _webglCanvas.width;
   const h = _webglCanvas.height;
   if (_gl && _glProgram) {
-    _renderStarsWebGL(time, w, h);
+    _renderStarsWebGL(motionTime, w, h);
   } else {
-    _renderStarsCanvas(time, w, h);
+    _renderStarsCanvas(motionTime, w, h);
   }
 }
 
 function _renderStarsWebGL(time, w, h) {
   const gl = _gl;
-  gl.clearColor(0.035, 0.035, 0.10, 1.0);
+  gl.clearColor(0.008, 0.031, 0.078, 1.0);
   gl.clear(gl.COLOR_BUFFER_BIT);
 
   const n            = _stars.length;
@@ -153,9 +388,11 @@ function _renderStarsWebGL(time, w, h) {
   const brightnesses = new Float32Array(n);
 
   _stars.forEach(function (s, i) {
-    positions[i * 2]     = s.x * w;
-    positions[i * 2 + 1] = s.y * h;
-    sizes[i]             = s.size;
+    const driftX         = Math.sin(time * s.drift + s.twinkleOffset) * 8;
+    const driftY         = Math.cos(time * s.drift * 0.7 + s.twinkleOffset) * 6;
+    positions[i * 2]     = s.x * w + driftX;
+    positions[i * 2 + 1] = s.y * h + driftY;
+    sizes[i]             = s.size + Math.max(0, Math.sin(time * s.twinkleSpeed + s.twinkleOffset) * 0.6);
     const twinkle        = Math.sin(time * s.twinkleSpeed + s.twinkleOffset) * 0.3;
     brightnesses[i]      = Math.max(0.1, Math.min(1.0, s.brightness + twinkle));
   });
@@ -185,15 +422,32 @@ function _renderStarsWebGL(time, w, h) {
 function _renderStarsCanvas(time, w, h) {
   const ctx = _webglCanvas.getContext('2d');
   if (!ctx) return;
-  ctx.fillStyle = '#0a0a1a';
+  const bg = ctx.createLinearGradient(0, 0, 0, h);
+  bg.addColorStop(0, _NEON.bgTop);
+  bg.addColorStop(1, _NEON.bgBottom);
+  ctx.fillStyle = bg;
   ctx.fillRect(0, 0, w, h);
   _stars.forEach(function (s) {
     const twinkle    = Math.sin(time * s.twinkleSpeed + s.twinkleOffset) * 0.3;
     const brightness = Math.max(0.1, Math.min(1.0, s.brightness + twinkle));
-    ctx.globalAlpha  = brightness;
-    ctx.fillStyle    = '#c0d0ff';
+    const driftX     = Math.sin(time * s.drift + s.twinkleOffset) * 4;
+    const driftY     = Math.cos(time * s.drift * 0.7 + s.twinkleOffset) * 3;
+    const x          = s.x * w + driftX;
+    const y          = s.y * h + driftY;
+    const glow       = ctx.createRadialGradient(x, y, 0, x, y, s.size * 4.5);
+    glow.addColorStop(0, 'rgba(223, 251, 255, ' + Math.min(0.95, brightness) + ')');
+    glow.addColorStop(0.45, 'rgba(56, 189, 248, ' + (brightness * 0.35) + ')');
+    glow.addColorStop(1, 'rgba(56, 189, 248, 0)');
+    ctx.globalAlpha  = 1;
+    ctx.fillStyle    = glow;
     ctx.beginPath();
-    ctx.arc(s.x * w, s.y * h, s.size * 0.5, 0, Math.PI * 2);
+    ctx.arc(x, y, s.size * 4.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.globalAlpha = brightness;
+    ctx.fillStyle = s.hue > 0.5 ? _NEON.starAlt : _NEON.starCore;
+    ctx.beginPath();
+    ctx.arc(x, y, Math.max(0.6, s.size * 0.7), 0, Math.PI * 2);
     ctx.fill();
   });
   ctx.globalAlpha = 1;
@@ -204,29 +458,40 @@ function _renderStarsCanvas(time, w, h) {
 // ---------------------------------------------------------------------------
 
 export function renderMap(gameState, time) {
+  const motionTime = _getMotionTime(time);
   const ctx = _ctx;
   const w   = _mapCanvas.width  / _dpr;
   const h   = _mapCanvas.height / _dpr;
+  _updateTravelPulse(gameState, motionTime);
   ctx.clearRect(0, 0, w, h);
 
   if (gameState.mapView === 'galaxies') {
-    _renderGalaxyMap(ctx, w, h, gameState, time);
+    _renderGalaxyMap(ctx, w, h, gameState, motionTime);
   } else {
-    _renderPlanetMap(ctx, w, h, gameState, time);
+    _renderPlanetMap(ctx, w, h, gameState, motionTime);
   }
 }
 
 // --- 星系总览地图 ---
 function _renderGalaxyMap(ctx, w, h, gameState, time) {
   // 星系连线
-  ctx.strokeStyle = 'rgba(100, 150, 255, 0.15)';
-  ctx.lineWidth = 1;
   for (let i = 0; i < GALAXIES.length; i++) {
     for (let j = i + 1; j < GALAXIES.length; j++) {
-      ctx.beginPath();
-      ctx.moveTo(GALAXIES[i].gx * w, GALAXIES[i].gy * h);
-      ctx.lineTo(GALAXIES[j].gx * w, GALAXIES[j].gy * h);
-      ctx.stroke();
+      _drawNeonConnection(
+        ctx,
+        GALAXIES[i].gx * w,
+        GALAXIES[i].gy * h,
+        GALAXIES[j].gx * w,
+        GALAXIES[j].gy * h,
+        {
+          start: 'rgba(56, 189, 248, 0.04)',
+          mid: 'rgba(56, 189, 248, 0.12)',
+          end: 'rgba(56, 189, 248, 0.04)',
+          glow: 'rgba(34, 211, 238, 0.03)',
+          lineWidth: 1,
+          glowWidth: 4,
+        }
+      );
     }
   }
 
@@ -237,51 +502,32 @@ function _renderGalaxyMap(ctx, w, h, gameState, time) {
     const isViewing = gal.id === gameState.viewingGalaxy;
     const unlocked  = gal.unlocked || (gameState.researchedTechs && gameState.researchedTechs.includes(gal.techRequired));
     const radius    = isCurrent ? 32 : 24;
+    const neonColor = unlocked ? gal.color : _NEON.lock;
 
-    // 星云光晕
-    const glowR = radius + 30;
-    const glow  = ctx.createRadialGradient(x, y, 0, x, y, glowR);
-    glow.addColorStop(0, gal.color + (unlocked ? '44' : '22'));
-    glow.addColorStop(1, gal.color + '00');
-    ctx.fillStyle = glow;
-    ctx.beginPath();
-    ctx.arc(x, y, glowR, 0, Math.PI * 2);
-    ctx.fill();
-
-    // 星系本体
     ctx.globalAlpha = unlocked ? 1 : 0.4;
-    ctx.fillStyle = gal.color;
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.fill();
+    _drawNeonNode(ctx, x, y, radius, neonColor, {
+      glowExtra: 34,
+      glowColor: neonColor,
+      strokeColor: isCurrent ? _NEON.current : (isViewing ? _NEON.hover : 'rgba(223, 251, 255, 0.34)'),
+      strokeWidth: isCurrent ? 2.6 : 1.7,
+      coreColor: unlocked ? _NEON.starCore : '#7b8da8',
+    });
 
-    // 边框
-    ctx.strokeStyle = isCurrent ? '#FFD700' : (isViewing ? '#ffffff' : 'rgba(255,255,255,0.3)');
-    ctx.lineWidth = isCurrent ? 3 : 2;
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.stroke();
-
-    // 当前星系脉冲
     if (isCurrent) {
       const pulse = Math.sin(time * 0.003) * 8 + radius + 12;
-      ctx.strokeStyle = '#FFD700';
-      ctx.lineWidth = 1.5;
-      ctx.globalAlpha = 0.4;
-      ctx.beginPath();
-      ctx.arc(x, y, pulse, 0, Math.PI * 2);
-      ctx.stroke();
+      _drawPulseRing(ctx, x, y, pulse, _NEON.current, 0.4);
+      _drawPulseRing(ctx, x, y, pulse + 9, 'rgba(103, 232, 249, 0.45)', 0.2);
     }
     ctx.globalAlpha = 1;
 
     // 图标
-    ctx.font = '20px sans-serif';
+    _setTextStyle(ctx, 20, true);
     ctx.textAlign = 'center';
     ctx.fillText(gal.icon, x, y + 7);
 
     // 名称
-    ctx.fillStyle = isCurrent ? '#FFD700' : (unlocked ? '#e0e0ff' : '#606080');
-    ctx.font = (isCurrent ? 'bold ' : '') + '13px "Segoe UI", sans-serif';
+    ctx.fillStyle = isCurrent ? _NEON.current : (unlocked ? _NEON.text : _NEON.lock);
+    _setTextStyle(ctx, 13, isCurrent);
     ctx.fillText(gal.name, x, y + radius + 18);
 
     // 星球数量
@@ -289,10 +535,12 @@ function _renderGalaxyMap(ctx, w, h, gameState, time) {
     const accessCount = getSystemsByGalaxy(gal.id).filter(function (s) {
       return (gameState.playerLevel || 1) >= (s.minLevel || 1);
     }).length;
-    ctx.fillStyle = gal.color + 'cc';
-    ctx.font = '10px "Segoe UI", sans-serif';
+    ctx.fillStyle = unlocked ? (gal.color + 'cc') : _NEON.lock;
+    _setTextStyle(ctx, 10, false);
     ctx.fillText(accessCount + '/' + allCount + ' 星球' + (unlocked ? '' : ' 🔒'), x, y + radius + 30);
   });
+
+  _drawTravelPulseOnGalaxies(ctx, w, h, time);
 }
 
 // --- 星球地图（指定星系） ---
@@ -304,10 +552,10 @@ function _renderPlanetMap(ctx, w, h, gameState, time) {
 
   // --- 星系名称标题 ---
   if (galDef) {
-    ctx.fillStyle = galDef.color + '88';
-    ctx.font = '12px "Segoe UI", sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText(galDef.icon + ' ' + galDef.name + (isRemote ? ' (远程查看)' : ''), 8, 16);
+    ctx.fillStyle = galDef.color + 'aa';
+    _setTextStyle(ctx, 12, true);
+    ctx.textAlign = 'center';
+    ctx.fillText(galDef.icon + ' ' + galDef.name + (isRemote ? ' (远程查看)' : ''), w / 2, 22);
   }
 
   // --- 派系领地底色 ---
@@ -339,15 +587,24 @@ function _renderPlanetMap(ctx, w, h, gameState, time) {
         const s1ok = playerLevel >= (s1.minLevel || 1);
         const s2ok = playerLevel >= (s2.minLevel || 1);
         if (s1ok && s2ok) {
-          ctx.strokeStyle = 'rgba(100, 150, 255, 0.10)';
+          _drawNeonConnection(ctx, s1.x * w, s1.y * h, s2.x * w, s2.y * h, {
+            start: 'rgba(56, 189, 248, 0.04)',
+            mid: 'rgba(56, 189, 248, 0.15)',
+            end: 'rgba(56, 189, 248, 0.04)',
+            glow: 'rgba(34, 211, 238, 0.03)',
+            lineWidth: 1,
+            glowWidth: 4,
+          });
         } else {
-          ctx.strokeStyle = 'rgba(100, 150, 255, 0.03)';
+          _drawNeonConnection(ctx, s1.x * w, s1.y * h, s2.x * w, s2.y * h, {
+            start: _NEON.routeDim,
+            mid: _NEON.routeDim,
+            end: _NEON.routeDim,
+            glow: 'rgba(34, 211, 238, 0.015)',
+            lineWidth: 1,
+            glowWidth: 3,
+          });
         }
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(s1.x * w, s1.y * h);
-        ctx.lineTo(s2.x * w, s2.y * h);
-        ctx.stroke();
       }
     }
   }
@@ -357,14 +614,16 @@ function _renderPlanetMap(ctx, w, h, gameState, time) {
     const cur = findSystem(gameState.currentSystem);
     const hov = findSystem(gameState.hoveredSystem);
     if (cur && hov && cur.galaxyId === hov.galaxyId) {
-      ctx.strokeStyle = 'rgba(255, 200, 50, 0.7)';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([6, 5]);
-      ctx.beginPath();
-      ctx.moveTo(cur.x * w, cur.y * h);
-      ctx.lineTo(hov.x * w, hov.y * h);
-      ctx.stroke();
-      ctx.setLineDash([]);
+      _drawNeonConnection(ctx, cur.x * w, cur.y * h, hov.x * w, hov.y * h, {
+        start: 'rgba(103, 232, 249, 0.2)',
+        mid: _NEON.routeHot,
+        end: 'rgba(103, 232, 249, 0.2)',
+        glow: 'rgba(34, 211, 238, 0.18)',
+        lineWidth: 2,
+        glowWidth: 6,
+        dash: [6, 5],
+        dashOffset: -(time * 0.01),
+      });
     }
   }
 
@@ -377,61 +636,46 @@ function _renderPlanetMap(ctx, w, h, gameState, time) {
     const isGenerated = sys.generated;
     const isLocked = !isCurrent && playerLevel < (sys.minLevel || 1);
     const radius = isCurrent ? 10 : (isHovered ? 8 : (isGenerated ? 5 : 7));
+    const neonColor = isLocked ? _NEON.lock : sys.color;
 
     // 已锁定星球半透明
     if (isLocked) ctx.globalAlpha = 0.3;
-
-    // 光晕
-    const glowR = radius + 8;
-    const glow = ctx.createRadialGradient(x, y, 0, x, y, glowR);
-    glow.addColorStop(0, sys.color + '44');
-    glow.addColorStop(1, sys.color + '00');
-    ctx.fillStyle = glow;
-    ctx.beginPath();
-    ctx.arc(x, y, glowR, 0, Math.PI * 2);
-    ctx.fill();
-
-    // 星球本体
-    ctx.fillStyle = sys.color;
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.fill();
-
-    // 边框
-    ctx.strokeStyle = isCurrent ? '#FFD700' : (isHovered ? '#ffffff' : 'rgba(255,255,255,0.25)');
-    ctx.lineWidth = isCurrent ? 2.5 : (isHovered ? 1.5 : 0.5);
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.stroke();
+    _drawNeonNode(ctx, x, y, radius, neonColor, {
+      glowExtra: isCurrent ? 16 : 10,
+      glowColor: neonColor,
+      strokeColor: isCurrent ? _NEON.current : (isHovered ? _NEON.hover : 'rgba(223, 251, 255, 0.25)'),
+      strokeWidth: isCurrent ? 2.2 : (isHovered ? 1.4 : 0.8),
+      coreColor: isLocked ? '#71859f' : _NEON.starCore,
+    });
 
     // 脉冲环
     if (isCurrent) {
       const pulse = Math.sin(time * 0.003) * 5 + radius + 8;
-      ctx.strokeStyle = '#FFD700';
-      ctx.lineWidth = 1.5;
-      ctx.globalAlpha = 0.4;
-      ctx.beginPath();
-      ctx.arc(x, y, pulse, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.globalAlpha = 1;
+      _drawPulseRing(ctx, x, y, pulse, _NEON.current, 0.42);
+      _drawPulseRing(ctx, x, y, pulse + 6, 'rgba(103, 232, 249, 0.3)', 0.22);
+    } else if (isHovered) {
+      const hoverPulse = Math.sin(time * 0.006) * 2 + radius + 5;
+      _drawPulseRing(ctx, x, y, hoverPulse, 'rgba(223, 251, 255, 0.8)', 0.35);
     }
 
     // 名称（生成星球只在悬停时显示）
     if (!isGenerated || isCurrent || isHovered) {
-      ctx.fillStyle = isLocked ? '#606080' : (isCurrent ? '#FFD700' : (isHovered ? '#ffffff' : '#c0c0e0'));
-      ctx.font = (isCurrent ? 'bold ' : '') + (isGenerated ? '9px' : '10px') + ' "Segoe UI", sans-serif';
+      ctx.fillStyle = isLocked ? _NEON.lock : (isCurrent ? _NEON.current : (isHovered ? _NEON.hover : _NEON.text));
+      _setTextStyle(ctx, isGenerated ? 9 : 10, isCurrent || isHovered);
       ctx.textAlign = 'center';
       ctx.fillText(sys.name + (isLocked ? ' 🔒' : ''), x, y + radius + 12);
 
       const faction = FACTIONS.find(function (f) { return f.controlledSystems.includes(sys.id); });
       const typeText = '[' + sys.typeLabel + ']' + (faction ? ' ' + faction.icon : '') + (isLocked ? ' Lv.' + (sys.minLevel || 1) : '');
-      ctx.fillStyle = isLocked ? '#505060' : (sys.color + 'aa');
-      ctx.font = '8px "Segoe UI", sans-serif';
+      ctx.fillStyle = isLocked ? '#586982' : (sys.color + 'cc');
+      _setTextStyle(ctx, 8, false);
       ctx.fillText(typeText, x, y + radius + 22);
     }
 
     if (isLocked) ctx.globalAlpha = 1;
   });
+
+  _drawTravelPulseOnPlanets(ctx, w, h, gameState, time);
 }
 
 // ---------------------------------------------------------------------------
