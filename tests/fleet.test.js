@@ -182,6 +182,21 @@ describe('Fleet.sellShip', () => {
     expect(Fleet.sellShip(state, -1).ok).toBe(false);
     expect(Fleet.sellShip(state, 999).ok).toBe(false);
   });
+
+  it('免费穿梭机卖出不会凭空产出积分', () => {
+    const state = createTestState({ credits: 10000 });
+    Fleet.init(state);
+    state.fleetSlots = 2;
+
+    const buyResult = Fleet.buyShip(state, 'shuttle');
+    expect(buyResult.ok).toBe(true);
+
+    const creditsBeforeSell = state.credits;
+    const sellResult = Fleet.sellShip(state, 1);
+
+    expect(sellResult.ok).toBe(true);
+    expect(state.credits).toBe(creditsBeforeSell);
+  });
 });
 
 describe('Fleet.switchShip', () => {

@@ -72,6 +72,12 @@ function _activateSettingsPanelFallback(modal, panelId) {
 	var radio = document.getElementById('settings-tab-' + targetId);
 	if (radio) radio.checked = true;
 
+	var titleEl = document.getElementById('settings-page-title');
+	if (titleEl) {
+		var titles = { display: '显示设置', game: '游戏设置', data: '数据管理' };
+		titleEl.textContent = titles[targetId] || '设置';
+	}
+
 	modal.querySelectorAll('[data-settings-panel-target]').forEach(function (btn) {
 		var isActive = btn.dataset.settingsPanelTarget === targetId;
 		btn.setAttribute('aria-selected', isActive ? 'true' : 'false');

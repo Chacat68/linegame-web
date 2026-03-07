@@ -1,6 +1,6 @@
 // js/ui/Renderer.js — WebGL 动态星空背景 + 2D Canvas 星系地图
 // 依赖：data/systems.js, systems/faction/FactionSystem.js
-// 导出：init, setMotionLevel, renderStars, renderMap, getSystemAtPoint
+// 导出：init, resetRuntimeState, setMotionLevel, renderStars, renderMap, getSystemAtPoint
 
 import { SYSTEMS, GALAXIES, getSystemsByGalaxy, findSystem, isSystemAccessible } from '../data/systems.js';
 import { FACTIONS } from '../data/factions.js';
@@ -12,6 +12,7 @@ let _dpr = 1;
 let _lastCurrentSystem = null;
 let _travelPulse = null;
 let _motionLevel = 'full';
+let _resizeBound = false;
 
 const _NEON = {
   bgTop: '#020817',
@@ -37,11 +38,20 @@ export function init() {
   _webglCanvas = document.getElementById('webgl-canvas');
   _mapCanvas   = document.getElementById('map-canvas');
   _ctx         = _mapCanvas.getContext('2d');
+  resetRuntimeState();
 
   _generateStars(300);
   _resize();
-  window.addEventListener('resize', _resize);
+  if (!_resizeBound) {
+    window.addEventListener('resize', _resize);
+    _resizeBound = true;
+  }
   _initWebGL();
+}
+
+export function resetRuntimeState(currentSystemId) {
+  _travelPulse = null;
+  _lastCurrentSystem = currentSystemId || null;
 }
 
 export function setMotionLevel(level) {
@@ -324,6 +334,11 @@ function _drawTravelPulseOnGalaxies(ctx, w, h, time) {
 }
 
 function _updateTravelPulse(gameState, time) {
+  if (_motionLevel === 'off') {
+    _travelPulse = null;
+    _lastCurrentSystem = gameState.currentSystem;
+    return;
+  }
   _startTravelPulse(gameState, time);
   if (_travelPulse && time - _travelPulse.startedAt > _travelPulse.duration) {
     _travelPulse = null;
@@ -462,7 +477,7 @@ export function renderMap(gameState, time) {
   const ctx = _ctx;
   const w   = _mapCanvas.width  / _dpr;
   const h   = _mapCanvas.height / _dpr;
-  _updateTravelPulse(gameState, motionTime);
+  _updateTravelPulse(gameState, time);
   ctx.clearRect(0, 0, w, h);
 
   if (gameState.mapView === 'galaxies') {

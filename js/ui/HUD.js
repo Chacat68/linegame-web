@@ -7,6 +7,7 @@ import { SYSTEMS, findSystem, findGalaxy } from '../data/systems.js';
 import * as Faction             from '../systems/faction/FactionSystem.js';
 import * as PlayerLevels        from '../data/playerLevels.js';
 import * as Victory             from '../systems/victory/VictorySystem.js';
+import * as Economy             from '../systems/economy/Economy.js';
 
 const getLevel = PlayerLevels.getLevel;
 const getRepRank = PlayerLevels.getRepRank;
@@ -118,6 +119,19 @@ export function updateStats(state, netWorth) {
   if (locationDescEl) locationDescEl.textContent = sys.description;
   const mapLegendLocationEl = document.getElementById('map-legend-location');
   if (mapLegendLocationEl) mapLegendLocationEl.textContent = locationText;
+
+  // 经济周期指示器
+  const cycleEl = document.getElementById('economy-cycle');
+  if (cycleEl) {
+    const cycle = Economy.getEconomyCycle();
+    const nextPhase = Economy.getNextCyclePhase();
+    const remaining = cycle.phaseDuration - cycle.dayInPhase;
+    cycleEl.innerHTML =
+      '<span class="cycle-icon">' + cycle.icon + '</span>' +
+      '<span class="cycle-name">' + cycle.name + '</span>' +
+      '<span class="cycle-remaining" title="距离下一阶段「' + nextPhase.name + '」还有 ' + remaining + ' 天">' + remaining + '天</span>' +
+      '<div class="cycle-bar-track"><div class="cycle-bar-fill cycle-' + cycle.phase + '" style="width:' + cycle.progressPercent + '%"></div></div>';
+  }
 }
 
 // ---------------------------------------------------------------------------

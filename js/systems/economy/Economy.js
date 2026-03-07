@@ -17,6 +17,23 @@ const _supply = Object.create(null);
 const _demand = Object.create(null);
 
 // ---------------------------------------------------------------------------
+// 经济周期系统（繁荣 → 稳定 → 衰退 → 萧条）
+// ---------------------------------------------------------------------------
+const CYCLE_PHASES = [
+  { id: 'prosperity', name: '繁荣期', icon: '📈', priceMod: 1.15, demandBoost: 15, supplyBoost: -5, peakChance: 0.40, duration: [25, 45] },
+  { id: 'stability',  name: '稳定期', icon: '⚖️', priceMod: 1.00, demandBoost: 0,  supplyBoost: 0,  peakChance: 0.25, duration: [30, 50] },
+  { id: 'decline',    name: '衰退期', icon: '📉', priceMod: 0.90, demandBoost: -10, supplyBoost: 10, peakChance: 0.20, duration: [20, 35] },
+  { id: 'recession',  name: '萧条期', icon: '🔻', priceMod: 0.80, demandBoost: -20, supplyBoost: 20, peakChance: 0.15, duration: [15, 30] },
+];
+
+let _cycleState = {
+  phaseIndex: 1,       // 初始为稳定期
+  dayInPhase: 0,       // 当前阶段已经过天数
+  phaseDuration: 40,   // 当前阶段总天数
+  totalCycles: 0,      // 已完成的完整周期数
+};
+
+// ---------------------------------------------------------------------------
 // "WASM polyfill" — 签名与计划中的 WASM 导出保持一致
 // ---------------------------------------------------------------------------
 
@@ -64,18 +81,39 @@ function _randomiseModifiers() {
 
 export function init() {
   _randomiseModifiers();
+  _initCycle();
+}
+
+function _initCycle() {
+  const phase = CYCLE_PHASES[_cycleState.phaseIndex];
+  _cycleState.dayInPhase = 0;
+  _cycleState.phaseDuration = phase.duration[0] + Math.floor(Math.random() * (phase.duration[1] - phase.duration[0]));
+}
+
+function _advanceCycle() {
+  _cycleState.dayInPhase++;
+  if (_cycleState.dayInPhase >= _cycleState.phaseDuration) {
+    _cycleState.phaseIndex = (_cycleState.phaseIndex + 1) % CYCLE_PHASES.length;
+    if (_cycleState.phaseIndex === 0) _cycleState.totalCycles++;
+    _initCycle();
+    return true; // 阶段切换
+  }
+  return false;
 }
 
 export function advanceDay() {
+  const cycleChanged = _advanceCycle();
+  const cycle = CYCLE_PHASES[_cycleState.phaseIndex];
+
   SYSTEMS.forEach(function (sys) {
     GOODS.forEach(function (good) {
-      // 噪声系数漂移
+      // 噪声系数漂移（受经济周期影响）
       let m = _modifiers[sys.id][good.id] + (Math.random() - 0.5) * 0.15;
       _modifiers[sys.id][good.id] = Math.max(0.55, Math.min(1.45, m));
 
-      // 供需自然回复（向均衡值漂移）
-      const baseSup = Math.round(50 + (1.0 - sys.prices[good.id]) * 30);
-      const baseDem = Math.round(50 + (sys.prices[good.id] - 1.0) * 30);
+      // 供需自然回复（向均衡值漂移，受周期影响）
+      const baseSup = Math.round(50 + (1.0 - sys.prices[good.id]) * 30 + cycle.supplyBoost);
+      const baseDem = Math.round(50 + (sys.prices[good.id] - 1.0) * 30 + cycle.demandBoost);
       _supply[sys.id][good.id] += Math.round((baseSup - _supply[sys.id][good.id]) * 0.15 + (Math.random() - 0.5) * 5);
       _demand[sys.id][good.id] += Math.round((baseDem - _demand[sys.id][good.id]) * 0.15 + (Math.random() - 0.5) * 5);
       _supply[sys.id][good.id] = Math.max(5, Math.min(100, _supply[sys.id][good.id]));
@@ -83,15 +121,16 @@ export function advanceDay() {
     });
   });
 
-  // 随机价格峰值事件（每天 30% 概率）
-  if (Math.random() < 0.30) {
+  // 随机价格峰值事件（概率受经济周期影响）
+  if (Math.random() < cycle.peakChance) {
     const sys  = SYSTEMS[Math.floor(Math.random() * SYSTEMS.length)];
     const good = GOODS[Math.floor(Math.random() * GOODS.length)];
     _modifiers[sys.id][good.id] = 1.8 + Math.random() * 0.6;
-    // 峰值事件同时制造供需失衡
     _demand[sys.id][good.id] = Math.min(100, _demand[sys.id][good.id] + 25);
     _supply[sys.id][good.id] = Math.max(5, _supply[sys.id][good.id] - 15);
   }
+
+  return { cycleChanged: cycleChanged, cycle: cycle };
 }
 
 /**
@@ -135,8 +174,10 @@ export function getBuyPrice(systemId, goodId, state) {
   const m    = _modifiers[systemId][goodId] * sys.prices[goodId];
   // 供需比影响价格：需求高于供给 → 涨价
   const sd   = getSupplyDemand(systemId, goodId);
-  const sdMod = 0.7 + 0.6 * Math.min(2, sd.ratio); // ratio=1 → 1.3, ratio=2 → 1.9, ratio=0.5 → 1.0
-  let price  = calculatePrice(good.basePrice, m * sdMod, 1.10);
+  const sdMod = 0.7 + 0.6 * Math.min(2, sd.ratio);
+  // 经济周期全局价格修正
+  const cycleMod = CYCLE_PHASES[_cycleState.phaseIndex].priceMod;
+  let price  = calculatePrice(good.basePrice, m * sdMod * cycleMod, 1.10);
 
   // 派系税率（敌对 +30%，友好 -10%，盟友 -20%）
   if (state) {
@@ -164,7 +205,9 @@ export function getSellPrice(systemId, goodId, state) {
   // 供需比影响卖价：需求高 → 卖价也更高
   const sd   = getSupplyDemand(systemId, goodId);
   const sdMod = 0.7 + 0.6 * Math.min(2, sd.ratio);
-  let price  = calculatePrice(good.basePrice, m * sdMod, 0.95); // 5% 卖出折扣
+  // 经济周期全局价格修正
+  const cycleMod = CYCLE_PHASES[_cycleState.phaseIndex].priceMod;
+  let price  = calculatePrice(good.basePrice, m * sdMod * cycleMod, 0.95); // 5% 卖出折扣
 
   // 派系税率（对卖价：友好提高收入，敌对降低）
   // 买入时 tax 涨价 = 对玩家不利，卖出时 tax 应该让玩家少赚
@@ -196,4 +239,46 @@ export function getFuelCost(fromId, toId, efficiency) {
 
 export function getSystemMultiplier(systemId, goodId) {
   return SYSTEMS.find(function (s) { return s.id === systemId; }).prices[goodId];
+}
+
+/**
+ * 获取当前经济周期信息
+ * @returns {{ phase, name, icon, dayInPhase, phaseDuration, totalCycles, progressPercent }}
+ */
+export function getEconomyCycle() {
+  const phase = CYCLE_PHASES[_cycleState.phaseIndex];
+  return {
+    phase: phase.id,
+    name: phase.name,
+    icon: phase.icon,
+    priceMod: phase.priceMod,
+    dayInPhase: _cycleState.dayInPhase,
+    phaseDuration: _cycleState.phaseDuration,
+    totalCycles: _cycleState.totalCycles,
+    progressPercent: Math.round((_cycleState.dayInPhase / _cycleState.phaseDuration) * 100),
+  };
+}
+
+/**
+ * 获取下一个经济周期阶段信息
+ */
+export function getNextCyclePhase() {
+  const nextIdx = (_cycleState.phaseIndex + 1) % CYCLE_PHASES.length;
+  return CYCLE_PHASES[nextIdx];
+}
+
+/**
+ * 用于存档恢复的周期状态序列化
+ */
+export function getCycleState() {
+  return Object.assign({}, _cycleState);
+}
+
+export function setCycleState(saved) {
+  if (saved) {
+    _cycleState.phaseIndex = saved.phaseIndex || 1;
+    _cycleState.dayInPhase = saved.dayInPhase || 0;
+    _cycleState.phaseDuration = saved.phaseDuration || 40;
+    _cycleState.totalCycles = saved.totalCycles || 0;
+  }
 }

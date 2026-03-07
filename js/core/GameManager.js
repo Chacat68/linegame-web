@@ -31,7 +31,7 @@ import * as Quest      from '../systems/quest/QuestSystem.js';
 import * as Achievement from '../systems/achievement/AchievementSystem.js';
 import * as Tutorial   from '../systems/tutorial/TutorialSystem.js';
 import * as TutorialUI from '../ui/TutorialUI.js';
-import { INITIAL_STATE } from '../data/constants.js';
+import { INITIAL_STATE, DIFFICULTY_LEVELS } from '../data/constants.js';
 import * as Victory from '../systems/victory/VictorySystem.js';
 import { VICTORY_PATHS } from '../data/victoryConditions.js';
 import * as PlayerLevels from '../data/playerLevels.js';
@@ -61,10 +61,15 @@ let _onTutorialComplete = null;
 // 对外 API
 // ---------------------------------------------------------------------------
 
-export function init() {
+export function init(difficulty) {
   _stopActiveDispatch();   // 重启时停止派遣
   _state = _deepClone(INITIAL_STATE);
   _settings = _loadSettings();
+
+  // 应用难度设定
+  var diff = DIFFICULTY_LEVELS[difficulty] || DIFFICULTY_LEVELS['normal'];
+  _state.difficulty = diff.id;
+  _state.credits = diff.startCredits;
 
   Economy.init();
   Fleet.init(_state);
@@ -73,6 +78,7 @@ export function init() {
   Quest.init(_state);
   Achievement.init(_state);
   Renderer.init();
+  Renderer.resetRuntimeState(_state.currentSystem);
   _applySettings();
   HUD.init();
 
@@ -125,12 +131,33 @@ export function init() {
   _updateUI();
   _startGameLoop();
 
-  // 新手教程：首次游戏弹出选择弹窗
-  if (!Tutorial.isCompleted()) {
+  // 如果未指定难度（初次启动），先弹出难度选择
+  if (!difficulty && !Tutorial.isCompleted()) {
+    _showDifficultyModal(function (chosenDiff) {
+      var d = DIFFICULTY_LEVELS[chosenDiff] || DIFFICULTY_LEVELS['normal'];
+      _state.difficulty = d.id;
+      _state.credits = d.startCredits;
+      _updateUI();
+      _showTutorialStartModal();
+    });
+  } else if (!Tutorial.isCompleted()) {
     _showTutorialStartModal();
   } else {
     _showWelcomeMessages();
   }
+}
+
+function _showDifficultyModal(onSelect) {
+  var modal = document.getElementById('difficulty-modal');
+  if (!modal) { onSelect('normal'); return; }
+  modal.classList.remove('hidden');
+  var btns = modal.querySelectorAll('[data-difficulty]');
+  btns.forEach(function (btn) {
+    btn.onclick = function () {
+      modal.classList.add('hidden');
+      onSelect(btn.dataset.difficulty);
+    };
+  });
 }
 
 function _showWelcomeMessages() {
@@ -259,6 +286,12 @@ function _activateSettingsPanel(panelId) {
 
   var radio = document.getElementById('settings-tab-' + targetId);
   if (radio) radio.checked = true;
+
+  var titleEl = document.getElementById('settings-page-title');
+  if (titleEl) {
+    var titles = { display: '显示设置', game: '游戏设置', data: '数据管理' };
+    titleEl.textContent = titles[targetId] || '设置';
+  }
 
   modal.querySelectorAll('[data-settings-panel-target]').forEach(function (btn) {
     var isActive = btn.dataset.settingsPanelTarget === targetId;
@@ -552,6 +585,9 @@ function _handleLoadGame(slotId) {
       _state.companyExperience = 0;
     }
     _state.companyLevel = getCompanyLevel(_state.companyExperience || 0).level;
+    // 兼容旧存档：补充难度和事件链字段
+    if (!_state.difficulty) _state.difficulty = 'normal';
+    if (!_state._pendingChainEvents) _state._pendingChainEvents = [];
     // 重新初始化依赖状态的子系统
     Fleet.init(_state);
     Faction.init(_state);
@@ -559,6 +595,7 @@ function _handleLoadGame(slotId) {
     Quest.init(_state);
     Achievement.init(_state);
     Economy.init();
+    Renderer.resetRuntimeState(_state.currentSystem);
     MapUI.refreshGalaxyBtn(_state);
     // 恢复派遣状态
     _stopActiveDispatch();

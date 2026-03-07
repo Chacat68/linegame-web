@@ -167,6 +167,10 @@
             <span class="stat-label">银河历</span>
             <span id="galactic-day" class="stat-value stat-day">第 1 天</span>
           </div>
+          <div class="stat-block">
+            <span class="stat-label">经济</span>
+            <span id="economy-cycle" class="stat-value stat-cycle">⚖️ 稳定期</span>
+          </div>
         </div>
 
         <div id="player-level" class="player-level-bar"></div>
@@ -370,6 +374,33 @@
 </div>
 
 <!-- ================================================================
+     Difficulty Selection modal (难度选择)
+================================================================ -->
+<div id="difficulty-modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <div class="tut-start-title">⚙️ 选择难度</div>
+    <p class="tut-start-desc">选择适合你的游戏难度，影响初始资金、价格波动和事件频率。</p>
+    <div class="difficulty-options">
+      <button data-difficulty="easy" class="tut-btn tut-btn-secondary difficulty-btn">
+        <span class="diff-icon">🌱</span>
+        <span class="diff-label">休闲模式</span>
+        <span class="diff-desc">初始 3000 积分，温和波动</span>
+      </button>
+      <button data-difficulty="normal" class="tut-btn tut-btn-primary difficulty-btn">
+        <span class="diff-icon">⚖️</span>
+        <span class="diff-label">标准模式</span>
+        <span class="diff-desc">初始 1000 积分，平衡体验</span>
+      </button>
+      <button data-difficulty="hard" class="tut-btn tut-btn-secondary difficulty-btn">
+        <span class="diff-icon">🔥</span>
+        <span class="diff-label">挑战模式</span>
+        <span class="diff-desc">初始 500 积分，剧烈波动</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================
      Victory Progress modal (胜利路径进度)
 ================================================================ -->
 <div id="victory-modal" class="modal hidden" role="dialog" aria-modal="true">
@@ -384,74 +415,93 @@
 
 <div id="settings-modal" class="modal hidden" role="dialog" aria-modal="true">
   <div class="modal-box settings-modal-box">
-    <div class="settings-modal-header">
-      <div class="settings-modal-heading">
-        <h3>⚙ 系统设置</h3>
-        <p class="settings-modal-subtitle">显示、游戏流程与本地数据管理</p>
-      </div>
-      <a id="settings-close-btn" href="#" class="market-close-btn" aria-label="关闭设置">✕</a>
-    </div>
-    <div class="settings-modal-body">
+    <!-- 装饰角标 -->
+    <span class="settings-corner settings-corner--tl"></span>
+    <span class="settings-corner settings-corner--tr"></span>
+    <span class="settings-corner settings-corner--bl"></span>
+    <span class="settings-corner settings-corner--br"></span>
+
+    <div class="settings-layout">
+      <!-- Radio 放在 layout 顶层，使 CSS ~ 选择器能同时控制 sidebar 和 main -->
       <input id="settings-tab-display" class="settings-tab-radio" type="radio" name="settings-tab" checked>
       <input id="settings-tab-game" class="settings-tab-radio" type="radio" name="settings-tab">
       <input id="settings-tab-data" class="settings-tab-radio" type="radio" name="settings-tab">
 
-      <div class="settings-tab-bar" role="tablist" aria-label="设置分页">
-        <label class="settings-tab-btn" for="settings-tab-display" role="tab" aria-selected="true" data-settings-panel-target="display">显示</label>
-        <label class="settings-tab-btn" for="settings-tab-game" role="tab" aria-selected="false" data-settings-panel-target="game">游戏</label>
-        <label class="settings-tab-btn settings-tab-btn-danger" for="settings-tab-data" role="tab" aria-selected="false" data-settings-panel-target="data">数据</label>
-      </div>
-
-      <section class="settings-panel-page settings-panel-page--display" data-settings-panel="display">
-        <section class="settings-panel-card">
-          <div class="settings-panel-head">
-            <div class="settings-section-title">显示</div>
-            <div class="settings-card-desc">控制界面动效、地图脉冲和背景漂移强度。</div>
-          </div>
-          <label class="settings-field settings-field-stack">
-            <span class="settings-label">动画强度</span>
-            <select id="settings-motion-level" class="dispatch-select settings-select">
-              <option value="full">完整</option>
-              <option value="reduced">降低</option>
-              <option value="off">关闭</option>
-            </select>
+      <!-- 左侧导航栏 -->
+      <nav class="settings-sidebar">
+        <div class="settings-sidebar-title">⚙ 设置</div>
+        <div class="settings-nav-list" role="tablist" aria-label="设置分页">
+          <label class="settings-nav-item" for="settings-tab-display" role="tab" aria-selected="true" data-settings-panel-target="display">
+            <span class="settings-nav-icon">◈</span>显示
           </label>
-          <div class="settings-inline-actions">
-            <button id="settings-reset-defaults-btn" class="btn-secondary">恢复默认设置</button>
-          </div>
-          <div class="settings-field-hint">推荐默认值。降低或关闭后，页面会保留主要状态反馈，但减少持续动画。</div>
-        </section>
-      </section>
-
-      <section class="settings-panel-page settings-panel-page--game" data-settings-panel="game">
-        <section class="settings-panel-card">
-          <div class="settings-panel-head">
-            <div class="settings-section-title">游戏</div>
-            <div class="settings-card-desc">需要重新开局时，从这里直接回到教程流程。</div>
-          </div>
-          <div class="settings-inline-actions settings-inline-actions-fill">
-            <button id="settings-reset-tutorial-btn" class="btn-secondary settings-danger-btn">重新开始并进入教程</button>
-          </div>
-          <div class="settings-field-hint">会重新初始化当前游戏状态，并在开局重新进入教程。</div>
-        </section>
-      </section>
-
-      <section class="settings-panel-page settings-panel-page--data" data-settings-panel="data">
-        <section class="settings-storage-card settings-section-danger">
-        <div class="settings-storage-head">
-          <div>
-            <div class="settings-section-title">数据</div>
-            <div class="settings-card-desc">清理本地数据，或在下方直接执行存档导入、导出、覆盖和读取。</div>
-          </div>
-          <div class="settings-inline-actions settings-danger-actions">
-            <button id="settings-clear-saves-btn" class="btn-secondary settings-danger-btn">清空所有本地存档</button>
-          </div>
+          <label class="settings-nav-item" for="settings-tab-game" role="tab" aria-selected="false" data-settings-panel-target="game">
+            <span class="settings-nav-icon">◈</span>游戏
+          </label>
+          <label class="settings-nav-item settings-nav-item--danger" for="settings-tab-data" role="tab" aria-selected="false" data-settings-panel-target="data">
+            <span class="settings-nav-icon">◈</span>数据
+          </label>
         </div>
-        <div class="settings-save-shell">
-          <div id="save-list"></div>
+        <div class="settings-sidebar-footer">
+          <button id="settings-reset-defaults-btn" class="settings-sidebar-btn">↺ 恢复默认</button>
         </div>
-        </section>
-      </section>
+      </nav>
+
+      <!-- 右侧内容区 -->
+      <div class="settings-main">
+        <div class="settings-main-header">
+          <div class="settings-main-title" id="settings-page-title">显示设置</div>
+          <a id="settings-close-btn" href="#" class="settings-close-btn" aria-label="关闭设置">✕</a>
+        </div>
+
+        <div class="settings-main-content">
+          <section class="settings-panel-page settings-panel-page--display" data-settings-panel="display">
+            <div class="settings-row">
+              <div class="settings-row-label">
+                <span class="settings-label">动画强度</span>
+                <span class="settings-row-desc">控制界面动效、地图脉冲和背景漂移强度</span>
+              </div>
+              <div class="settings-row-control">
+                <select id="settings-motion-level" class="dispatch-select settings-select">
+                  <option value="full">完整</option>
+                  <option value="reduced">降低</option>
+                  <option value="off">关闭</option>
+                </select>
+              </div>
+            </div>
+            <div class="settings-hint-row">推荐默认值。降低或关闭后，页面会保留主要状态反馈，但减少持续动画。</div>
+          </section>
+
+          <section class="settings-panel-page settings-panel-page--game" data-settings-panel="game">
+            <div class="settings-row">
+              <div class="settings-row-label">
+                <span class="settings-label">重置教程</span>
+                <span class="settings-row-desc">重新初始化游戏状态并进入教程流程</span>
+              </div>
+              <div class="settings-row-control">
+                <button id="settings-reset-tutorial-btn" class="settings-action-btn settings-action-btn--danger">重新开始</button>
+              </div>
+            </div>
+            <div class="settings-hint-row">会重新初始化当前游戏状态，并在开局重新进入教程。</div>
+          </section>
+
+          <section class="settings-panel-page settings-panel-page--data" data-settings-panel="data">
+            <div class="settings-row">
+              <div class="settings-row-label">
+                <span class="settings-label">清除存档</span>
+                <span class="settings-row-desc">清理所有本地存档数据（不可恢复）</span>
+              </div>
+              <div class="settings-row-control">
+                <button id="settings-clear-saves-btn" class="settings-action-btn settings-action-btn--danger">清空存档</button>
+              </div>
+            </div>
+            <div class="settings-divider"></div>
+            <div class="settings-data-section-title">存档管理</div>
+            <div class="settings-save-shell">
+              <div id="save-list"></div>
+            </div>
+          </section>
+        </div>
+      </div>
     </div>
   </div>
 </div>

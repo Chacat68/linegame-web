@@ -26,7 +26,6 @@ export const SHIP_TYPES = [
     name: "穿梭机",
     emoji: "🚀",
     cost: 0,
-    sellValue: 500,
     cargo: 20,
     maxCargo: 50,
     fuel: 100,

@@ -1,11 +1,46 @@
 // js/data/constants.js — 游戏全局常量与初始状态
 // 依赖：无
-// 导出：INITIAL_STATE
+// 导出：INITIAL_STATE, DIFFICULTY_LEVELS
 // 注意：VICTORY_NET_WORTH 为孤立常量（从未被使用），胜利条件由 js/data/victoryConditions.js 实现。
+
+/**
+ * 难度分级系统
+ * 影响：初始资金、价格波动幅度、事件概率、经济周期速度
+ */
+export const DIFFICULTY_LEVELS = {
+  easy: {
+    id: 'easy', name: '休闲模式', icon: '🌱',
+    description: '更多初始资金，温和的经济波动，适合新手体验。',
+    startCredits: 3000,
+    priceVolatility: 0.8,      // 价格波动幅度缩减 20%
+    eventChanceMod: 0.8,       // 事件概率降低
+    damageMod: 0.6,            // 受损减少 40%
+    rewardMod: 1.2,            // 奖励增加 20%
+  },
+  normal: {
+    id: 'normal', name: '标准模式', icon: '⚖️',
+    description: '平衡的游戏体验，推荐首次游玩。',
+    startCredits: 1000,
+    priceVolatility: 1.0,
+    eventChanceMod: 1.0,
+    damageMod: 1.0,
+    rewardMod: 1.0,
+  },
+  hard: {
+    id: 'hard', name: '挑战模式', icon: '🔥',
+    description: '更少的初始资金，剧烈的经济波动，更频繁的危险事件。',
+    startCredits: 500,
+    priceVolatility: 1.3,      // 价格波动幅度增加 30%
+    eventChanceMod: 1.3,       // 事件概率增加
+    damageMod: 1.5,            // 受损增加 50%
+    rewardMod: 0.8,            // 奖励减少 20%
+  },
+};
 
 export const INITIAL_STATE = {
   companyName:       '星际信使贸易公司',
   credits:           1000,
+  difficulty:        'normal',  // 难度：easy / normal / hard
   day:               1,
   currentSystem:     'sol_prime',
   currentGalaxy:     'milky_way',
@@ -71,4 +106,10 @@ export const INITIAL_STATE = {
   // 探索追踪
   visitedSystems:    ['sol_prime'],   // 已访问星球 ID
   visitedGalaxies:   ['milky_way'],   // 已访问星系 ID
+
+  // 事件链追踪
+  _pendingChainEvents: [],   // 待触发的事件链后续
+
+  // 经济周期状态（由 Economy 系统管理）
+  economyCycle:      null,
 };
