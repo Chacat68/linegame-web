@@ -20,8 +20,10 @@ function bindSettingsModalFallback() {
 		var openBtn = event.target.closest('#settings-btn');
 		if (openBtn) {
 			var motionSelect = document.getElementById('settings-motion-level');
+				var difficultySelect = document.getElementById('settings-difficulty-level');
 			var savedSettings = _readSavedSettings();
 			if (motionSelect) motionSelect.value = savedSettings.motionLevel;
+				if (difficultySelect) difficultySelect.value = savedSettings.difficulty;
 			_activateSettingsPanelFallback(modal, modal.dataset.activePanel || 'display');
 			modal.classList.remove('hidden');
 			modal.setAttribute('aria-hidden', 'false');
@@ -54,14 +56,14 @@ function bindSettingsModalFallback() {
 function _readSavedSettings() {
 	try {
 		var raw = localStorage.getItem('linegame_settings');
-		if (!raw) return { motionLevel: 'full' };
+		if (!raw) return { motionLevel: 'full', difficulty: 'normal' };
 		var parsed = JSON.parse(raw);
-		if (['full', 'reduced', 'off'].indexOf(parsed.motionLevel) === -1) {
-			return { motionLevel: 'full' };
-		}
-		return parsed;
+		return {
+			motionLevel: ['full', 'reduced', 'off'].indexOf(parsed.motionLevel) === -1 ? 'full' : parsed.motionLevel,
+			difficulty: ['easy', 'normal', 'hard'].indexOf(parsed.difficulty) === -1 ? 'normal' : parsed.difficulty,
+		};
 	} catch (_) {
-		return { motionLevel: 'full' };
+		return { motionLevel: 'full', difficulty: 'normal' };
 	}
 }
 

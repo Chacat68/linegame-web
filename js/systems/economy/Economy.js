@@ -10,6 +10,16 @@ import { ECONOMY_CONFIG }                from '../../data/constants.js';
 import { SYSTEMS, FUEL_COST_PER_UNIT, GALAXY_JUMP_FUEL, findSystem } from '../../data/systems.js';
 import * as Faction                       from '../faction/FactionSystem.js';
 
+// ---------------------------------------------------------------------------
+// 价格历史记录（30 天环形缓冲）
+// ---------------------------------------------------------------------------
+const _priceHistory = Object.create(null);
+
+// ---------------------------------------------------------------------------
+// 产业链修正缓存（每次 advanceDay 后更新）
+// ---------------------------------------------------------------------------
+const _supplyChainCache = Object.create(null);
+
 // 每个 (星系, 商品) 对的每日价格噪声系数
 const _modifiers = Object.create(null);
 
@@ -111,6 +121,76 @@ function _advanceCycle() {
 export function init() {
   _randomiseModifiers();
   _initCycle();
+  _initPriceHistory();
+}
+
+// ---------------------------------------------------------------------------
+// 价格历史
+// ---------------------------------------------------------------------------
+
+function _initPriceHistory() {
+  SYSTEMS.forEach(function (sys) {
+    _priceHistory[sys.id] = Object.create(null);
+    GOODS.forEach(function (good) {
+      _priceHistory[sys.id][good.id] = [];
+    });
+  });
+}
+
+function _recordPrices() {
+  var maxDays = ECONOMY_CONFIG.history.maxDays;
+  SYSTEMS.forEach(function (sys) {
+    if (!_priceHistory[sys.id]) _priceHistory[sys.id] = Object.create(null);
+    GOODS.forEach(function (good) {
+      if (!_priceHistory[sys.id][good.id]) _priceHistory[sys.id][good.id] = [];
+      var price = getSellPrice(sys.id, good.id);
+      var arr = _priceHistory[sys.id][good.id];
+      arr.push(price);
+      if (arr.length > maxDays) arr.shift();
+    });
+  });
+}
+
+export function getPriceHistory(systemId, goodId) {
+  if (_priceHistory[systemId] && _priceHistory[systemId][goodId]) {
+    return _priceHistory[systemId][goodId].slice();
+  }
+  return [];
+}
+
+// ---------------------------------------------------------------------------
+// 产业链传导修正
+// ---------------------------------------------------------------------------
+
+function _getSupplyChainModifier(systemId, goodId) {
+  var good = GOODS.find(function (g) { return g.id === goodId; });
+  if (!good || !good.upstream || good.upstream.length === 0) return 1.0;
+
+  var sys = SYSTEMS.find(function (s) { return s.id === systemId; });
+  if (!sys) return 1.0;
+
+  var factor = ECONOMY_CONFIG.supplyChain.propagationFactor;
+  var totalInfluence = 0;
+
+  good.upstream.forEach(function (dep) {
+    var upMult = sys.prices[dep.goodId] || 1.0;
+    var upMod = (_modifiers[systemId] && _modifiers[systemId][dep.goodId]) || 1.0;
+    // 上游实际价格倍率相对基准 (1.0) 的偏差
+    var deviation = (upMult * upMod) - 1.0;
+    totalInfluence += deviation * dep.weight;
+  });
+
+  return 1.0 + totalInfluence * factor;
+}
+
+// ---------------------------------------------------------------------------
+// 市场深度
+// ---------------------------------------------------------------------------
+
+export function getMarketDepth(systemId) {
+  var sys = findSystem(systemId);
+  if (!sys) return 200; // 默认中等深度
+  return sys.marketDepth || 200;
 }
 
 export function advanceDay() {
@@ -139,19 +219,26 @@ export function advanceDay() {
     _supply[sys.id][good.id] = _clampSupplyDemand(_supply[sys.id][good.id] - ECONOMY_CONFIG.peaks.supplyDrop);
   }
 
+  // 记录价格历史
+  _recordPrices();
+
   return { cycleChanged: cycleChanged, cycle: cycle };
 }
 
 export function onPlayerBuy(systemId, goodId, quantity) {
   if (!_supply[systemId]) return;
-  _supply[systemId][goodId] = _clampSupplyDemand((_supply[systemId][goodId] || ECONOMY_CONFIG.supplyDemand.baseline) - quantity * ECONOMY_CONFIG.supplyDemand.buySupplyImpact);
-  _demand[systemId][goodId] = _clampSupplyDemand((_demand[systemId][goodId] || ECONOMY_CONFIG.supplyDemand.baseline) + quantity * ECONOMY_CONFIG.supplyDemand.buyDemandImpact);
+  var depth = getMarketDepth(systemId);
+  var scale = 1.0 + (quantity / depth) * ECONOMY_CONFIG.marketDepth.depthScaleFactor;
+  _supply[systemId][goodId] = _clampSupplyDemand((_supply[systemId][goodId] || ECONOMY_CONFIG.supplyDemand.baseline) - quantity * ECONOMY_CONFIG.supplyDemand.buySupplyImpact * scale);
+  _demand[systemId][goodId] = _clampSupplyDemand((_demand[systemId][goodId] || ECONOMY_CONFIG.supplyDemand.baseline) + quantity * ECONOMY_CONFIG.supplyDemand.buyDemandImpact * scale);
 }
 
 export function onPlayerSell(systemId, goodId, quantity) {
   if (!_supply[systemId]) return;
-  _supply[systemId][goodId] = _clampSupplyDemand((_supply[systemId][goodId] || ECONOMY_CONFIG.supplyDemand.baseline) + quantity * ECONOMY_CONFIG.supplyDemand.sellSupplyImpact);
-  _demand[systemId][goodId] = _clampSupplyDemand((_demand[systemId][goodId] || ECONOMY_CONFIG.supplyDemand.baseline) - quantity * ECONOMY_CONFIG.supplyDemand.sellDemandImpact);
+  var depth = getMarketDepth(systemId);
+  var scale = 1.0 + (quantity / depth) * ECONOMY_CONFIG.marketDepth.depthScaleFactor;
+  _supply[systemId][goodId] = _clampSupplyDemand((_supply[systemId][goodId] || ECONOMY_CONFIG.supplyDemand.baseline) + quantity * ECONOMY_CONFIG.supplyDemand.sellSupplyImpact * scale);
+  _demand[systemId][goodId] = _clampSupplyDemand((_demand[systemId][goodId] || ECONOMY_CONFIG.supplyDemand.baseline) - quantity * ECONOMY_CONFIG.supplyDemand.sellDemandImpact * scale);
 }
 
 export function getSupplyDemand(systemId, goodId) {
@@ -167,7 +254,8 @@ export function getBuyPrice(systemId, goodId, state) {
   const m    = _modifiers[systemId][goodId] * sys.prices[goodId];
   const sdMod = _getSupplyDemandPriceModifier(systemId, goodId);
   const cycleMod = CYCLE_PHASES[_cycleState.phaseIndex].priceMod;
-  let price  = calculatePrice(good.basePrice, m * sdMod * cycleMod, ECONOMY_CONFIG.pricing.buyMultiplier);
+  const chainMod = _getSupplyChainModifier(systemId, goodId);
+  let price  = calculatePrice(good.basePrice, m * sdMod * cycleMod * chainMod, ECONOMY_CONFIG.pricing.buyMultiplier);
 
   if (state) {
     const taxMod = Faction.getTaxModifier(state, systemId);
@@ -186,7 +274,8 @@ export function getSellPrice(systemId, goodId, state) {
   const m    = _modifiers[systemId][goodId] * sys.prices[goodId];
   const sdMod = _getSupplyDemandPriceModifier(systemId, goodId);
   const cycleMod = CYCLE_PHASES[_cycleState.phaseIndex].priceMod;
-  let price  = calculatePrice(good.basePrice, m * sdMod * cycleMod, ECONOMY_CONFIG.pricing.sellMultiplier);
+  const chainMod = _getSupplyChainModifier(systemId, goodId);
+  let price  = calculatePrice(good.basePrice, m * sdMod * cycleMod * chainMod, ECONOMY_CONFIG.pricing.sellMultiplier);
 
   if (state) {
     const taxMod = Faction.getTaxModifier(state, systemId);

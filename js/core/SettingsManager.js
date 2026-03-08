@@ -8,6 +8,7 @@ import * as EventBus from './EventBus.js';
 const SETTINGS_KEY = 'linegame_settings';
 
 const VALID_MOTION_LEVELS = ['full', 'reduced', 'off'];
+const VALID_DIFFICULTIES = ['easy', 'normal', 'hard'];
 
 // ---------------------------------------------------------------------------
 // 设置加载 / 持久化
@@ -15,26 +16,29 @@ const VALID_MOTION_LEVELS = ['full', 'reduced', 'off'];
 
 /**
  * 从 localStorage 加载设置
- * @returns {{ motionLevel: string }}
+ * @returns {{ motionLevel: string, difficulty: string }}
  */
 export function loadSettings() {
   try {
     var raw = localStorage.getItem(SETTINGS_KEY);
-    if (!raw) return { motionLevel: 'full' };
+    if (!raw) return { motionLevel: 'full', difficulty: 'normal' };
     var parsed = JSON.parse(raw);
     return {
       motionLevel: VALID_MOTION_LEVELS.indexOf(parsed.motionLevel) >= 0
         ? parsed.motionLevel
         : 'full',
+      difficulty: VALID_DIFFICULTIES.indexOf(parsed.difficulty) >= 0
+        ? parsed.difficulty
+        : 'normal',
     };
   } catch (_) {
-    return { motionLevel: 'full' };
+    return { motionLevel: 'full', difficulty: 'normal' };
   }
 }
 
 /**
  * 保存设置到 localStorage
- * @param {{ motionLevel: string }} settings
+ * @param {{ motionLevel: string, difficulty: string }} settings
  */
 export function saveSettings(settings) {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
@@ -59,8 +63,9 @@ export function applySettings(settings, Renderer) {
  * @param {object} callbacks
  * @param {{ motionLevel: string }} callbacks.settings  当前设置引用
  * @param {Function} callbacks.onSettingsChanged  设置变更后的回调
- * @param {Function} callbacks.onResetTutorial    重置教程回调
- * @param {Function} callbacks.onClearSaves       清空存档回调
+ * @param {Function} callbacks.onDifficultyChanged 难度变更回调
+ * @param {Function} callbacks.onResetTutorial     重置教程回调
+ * @param {Function} callbacks.onClearSaves        清空存档回调
  * @param {{ setMotionLevel: Function }} callbacks.Renderer  渲染器引用
  */
 export function initSettingsModal(callbacks) {
@@ -68,6 +73,7 @@ export function initSettingsModal(callbacks) {
   var modal         = document.getElementById('settings-modal');
   var closeBtn      = document.getElementById('settings-close-btn');
   var motionSelect  = document.getElementById('settings-motion-level');
+  var difficultySelect = document.getElementById('settings-difficulty-level');
   var resetDefaultsBtn = document.getElementById('settings-reset-defaults-btn');
   var resetTutorialBtn = document.getElementById('settings-reset-tutorial-btn');
   var clearSavesBtn    = document.getElementById('settings-clear-saves-btn');
@@ -92,12 +98,33 @@ export function initSettingsModal(callbacks) {
       });
     };
   }
+  if (difficultySelect) {
+    difficultySelect.onchange = function () {
+      callbacks.settings.difficulty = difficultySelect.value;
+      saveSettings(callbacks.settings);
+      if (callbacks.onDifficultyChanged) {
+        callbacks.onDifficultyChanged(difficultySelect.value);
+      }
+      var labelMap = {
+        easy: '休闲模式',
+        normal: '标准模式',
+        hard: '挑战模式',
+      };
+      EventBus.emit('log:message', {
+        text: '⚙ 已更新游戏难度：' + (labelMap[difficultySelect.value] || '标准模式') + '。',
+        type: 'info',
+      });
+    };
+  }
   if (resetDefaultsBtn) {
     resetDefaultsBtn.onclick = function () {
       callbacks.settings.motionLevel = 'full';
+      callbacks.settings.difficulty = 'normal';
       saveSettings(callbacks.settings);
       applySettings(callbacks.settings, callbacks.Renderer);
       if (motionSelect) motionSelect.value = 'full';
+      if (difficultySelect) difficultySelect.value = 'normal';
+      if (callbacks.onDifficultyChanged) callbacks.onDifficultyChanged('normal');
       EventBus.emit('log:message', { text: '⚙ 设置已恢复为默认值。', type: 'info' });
     };
   }
@@ -144,11 +171,13 @@ export function hideSettingsModal() {
 function _toggleSettingsModal(isVisible) {
   var modal = document.getElementById('settings-modal');
   var motionSelect = document.getElementById('settings-motion-level');
+  var difficultySelect = document.getElementById('settings-difficulty-level');
   if (!modal) return;
   if (motionSelect && isVisible) {
     // 读取当前 localStorage 设置同步到 select
     var current = loadSettings();
     motionSelect.value = current.motionLevel || 'full';
+    if (difficultySelect) difficultySelect.value = current.difficulty || 'normal';
   }
   if (isVisible) _activateSettingsPanel(modal.dataset.activePanel || 'display');
   modal.classList.toggle('hidden', !isVisible);

@@ -80,6 +80,9 @@
               ◀
             </button>
           </div>
+          <div class="info-panel-quest-tracker">
+            <div id="quest-tracker" class="quest-tracker-card"></div>
+          </div>
           <div class="tab-content">
             <!-- Quest tab (任务系统) -->
             <div id="tab-quest" class="tab-pane active" data-tab-group="info">
@@ -179,6 +182,7 @@
                         <th>卖出</th>
                         <th>持有</th>
                         <th>操作</th>
+                        <th>走势</th>
                       </tr>
                     </thead>
                     <tbody id="market-tbody"></tbody>
@@ -272,7 +276,6 @@
             <div class="company-level-track">
               <div id="company-level-fill" class="company-level-fill"></div>
             </div>
-            <div id="quest-tracker" class="quest-tracker-card"></div>
           </div>
 
           <!-- Tabs + 内联概览 -->
@@ -518,49 +521,6 @@
     </div>
 
     <!-- ================================================================
-     Difficulty Selection modal (难度选择)
-================================================================ -->
-    <div
-      id="difficulty-modal"
-      class="modal hidden"
-      role="dialog"
-      aria-modal="true"
-    >
-      <div class="modal-box">
-        <div class="tut-start-title">⚙️ 选择难度</div>
-        <p class="tut-start-desc">
-          选择适合你的游戏难度，影响初始资金、价格波动和事件频率。
-        </p>
-        <div class="difficulty-options">
-          <button
-            data-difficulty="easy"
-            class="tut-btn tut-btn-secondary difficulty-btn"
-          >
-            <span class="diff-icon">🌱</span>
-            <span class="diff-label">休闲模式</span>
-            <span class="diff-desc">初始 3000 积分，温和波动</span>
-          </button>
-          <button
-            data-difficulty="normal"
-            class="tut-btn tut-btn-primary difficulty-btn"
-          >
-            <span class="diff-icon">⚖️</span>
-            <span class="diff-label">标准模式</span>
-            <span class="diff-desc">初始 1000 积分，平衡体验</span>
-          </button>
-          <button
-            data-difficulty="hard"
-            class="tut-btn tut-btn-secondary difficulty-btn"
-          >
-            <span class="diff-icon">🔥</span>
-            <span class="diff-label">挑战模式</span>
-            <span class="diff-desc">初始 500 积分，剧烈波动</span>
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- ================================================================
      Victory Progress modal (胜利路径进度)
 ================================================================ -->
     <div
@@ -702,6 +662,28 @@
                 class="settings-panel-page settings-panel-page--game"
                 data-settings-panel="game"
               >
+                <div class="settings-row">
+                  <div class="settings-row-label">
+                    <span class="settings-label">游戏难度</span>
+                    <span class="settings-row-desc"
+                      >切换当前游戏与后续新开局默认难度</span
+                    >
+                  </div>
+                  <div class="settings-row-control">
+                    <select
+                      id="settings-difficulty-level"
+                      class="settings-select"
+                    >
+                      <option value="easy">休闲模式</option>
+                      <option value="normal">标准模式</option>
+                      <option value="hard">挑战模式</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="settings-hint-row">
+                  变更后立即生效，并作为后续重新开始时的默认难度；不会重置你当前的资金与进度。
+                </div>
+                <div class="settings-divider"></div>
                 <div class="settings-row">
                   <div class="settings-row-label">
                     <span class="settings-label">重置教程</span>

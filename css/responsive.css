@@ -15,7 +15,8 @@
     min-width: 32px;
   }
   #info-panel .tab-content,
-  #info-panel .tabs {
+  #info-panel .tabs,
+  #info-panel .info-panel-quest-tracker {
     display: none;
   }
   #info-panel .info-panel-header {
@@ -32,10 +33,14 @@
     min-width: 260px;
   }
   #info-panel.expanded-sm .tab-content,
-  #info-panel.expanded-sm .tabs {
+  #info-panel.expanded-sm .tabs,
+  #info-panel.expanded-sm .info-panel-quest-tracker {
     display: flex;
   }
   #info-panel.expanded-sm .tab-content {
+    display: block;
+  }
+  #info-panel.expanded-sm .info-panel-quest-tracker {
     display: block;
   }
   #info-panel.expanded-sm .info-panel-header {

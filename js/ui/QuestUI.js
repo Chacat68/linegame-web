@@ -12,6 +12,37 @@ const _goodNameById = GOODS.reduce(function (acc, good) {
   return acc;
 }, Object.create(null));
 
+// ---------------------------------------------------------------------------
+// 提取任务的目标星球列表（去重）
+// ---------------------------------------------------------------------------
+function _questTargetSystems(quest) {
+  if (!quest || !quest.objectives) return [];
+  var seen = Object.create(null);
+  var result = [];
+  quest.objectives.forEach(function (obj) {
+    if (obj.targetSystem && !seen[obj.targetSystem]) {
+      seen[obj.targetSystem] = true;
+      var sys = findSystem(obj.targetSystem);
+      if (sys) {
+        result.push(sys);
+      }
+    }
+  });
+  return result;
+}
+
+function _renderTargetSystems(targets) {
+  if (targets.length === 0) return '';
+  var chips = targets.map(function (sys) {
+    return '<span class="quest-target-chip">' +
+      '<span class="quest-target-dot" style="background:' + sys.color + '"></span>' +
+      sys.name +
+      '<span class="quest-target-type">' + sys.typeLabel + '</span>' +
+      '</span>';
+  }).join('');
+  return '<div class="quest-target-row">📍 目标：' + chips + '</div>';
+}
+
 /**
  * 渲染任务面板
  * @param {object}   state
@@ -71,6 +102,10 @@ export function render(state, onAccept, onAbandon) {
           '</div>';
       });
 
+      // 目标星球
+      var targets = _questTargetSystems(quest);
+      html += _renderTargetSystems(targets);
+
       // 奖励
       html += '<div class="quest-rewards">' +
         '<span>🎁 奖励:</span>' +
@@ -109,6 +144,7 @@ export function render(state, onAccept, onAbandon) {
         '</div>' +
         '<div class="quest-name">' + quest.name + '</div>' +
         '<div class="quest-desc">' + quest.description + '</div>' +
+        _renderTargetSystems(_questTargetSystems(quest)) +
         '<div class="quest-rewards">' +
           '<span>🎁</span>' +
           '<span>💰 ' + quest.rewards.credits + '</span>' +

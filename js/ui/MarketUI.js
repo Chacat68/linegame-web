@@ -7,6 +7,43 @@ import { getSystemsByGalaxy, findSystem, isSystemAccessible } from '../data/syst
 import * as Economy from '../systems/economy/Economy.js';
 
 // ---------------------------------------------------------------------------
+// Sparkline 辅助（Unicode block 字符 8 级走势图）
+// ---------------------------------------------------------------------------
+const SPARK_CHARS = '▁▂▃▄▅▆▇█';
+
+function _sparkline(data) {
+  if (!data || data.length < 2) return '';
+  var min = Infinity, max = -Infinity;
+  data.forEach(function (v) { if (v < min) min = v; if (v > max) max = v; });
+  var range = max - min || 1;
+  return data.map(function (v) {
+    var idx = Math.min(7, Math.floor(((v - min) / range) * 7.99));
+    return SPARK_CHARS[idx];
+  }).join('');
+}
+
+function _trendArrow(data) {
+  if (!data || data.length < 2) return '';
+  var recent = data[data.length - 1];
+  var prev = data[Math.max(0, data.length - 5)];
+  if (recent > prev * 1.05) return ' ↑';
+  if (recent < prev * 0.95) return ' ↓';
+  return ' →';
+}
+
+// ---------------------------------------------------------------------------
+// 产业链提示
+// ---------------------------------------------------------------------------
+function _supplyChainTooltip(good) {
+  if (!good.upstream || good.upstream.length === 0) return '';
+  var deps = good.upstream.map(function (dep) {
+    var upGood = GOODS.find(function (g) { return g.id === dep.goodId; });
+    return (upGood ? upGood.emoji + upGood.name : dep.goodId) + '(' + Math.round(dep.weight * 100) + '%)';
+  }).join(', ');
+  return '🔗 依赖: ' + deps;
+}
+
+// ---------------------------------------------------------------------------
 // 价格总览表（默认视图）
 // ---------------------------------------------------------------------------
 
@@ -115,9 +152,20 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem) {
   // 非当前星球时显示只读提示
   if (!isCurrentSys) {
     const noteRow = document.createElement('tr');
-    noteRow.innerHTML = '<td colspan="5" class="market-readonly-note">⚠️ 仅查看价格，交易请前往该星球</td>';
+    noteRow.innerHTML = '<td colspan="6" class="market-readonly-note">⚠️ 仅查看价格，交易请前往该星球</td>';
     tbody.appendChild(noteRow);
   }
+
+  // 市场深度信息行
+  var depth = Economy.getMarketDepth(sysId);
+  var depthLabel = depth >= 350 ? '深度市场' : depth >= 200 ? '中等市场' : '浅层市场';
+  var depthRow = document.createElement('tr');
+  depthRow.className = 'market-depth-row';
+  depthRow.innerHTML = '<td colspan="6" class="market-depth-info">' +
+    '📊 市场深度：<strong>' + depth + '</strong>（' + depthLabel + '）——' +
+    (depth >= 350 ? '大宗交易对价格影响较小' : depth >= 200 ? '交易影响适中' : '大宗交易将显著影响价格') +
+    '</td>';
+  tbody.appendChild(depthRow);
 
   GOODS.forEach(function (good) {
     const buyPrice    = Economy.getBuyPrice(sysId, good.id, state);
@@ -133,16 +181,29 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem) {
     if (sd.ratio > 1.4) sdIcon = '🔥';      // 高需求
     else if (sd.ratio < 0.7) sdIcon = '📦';  // 高供给
 
+    // Sparkline 走势图
+    var history = Economy.getPriceHistory(sysId, good.id);
+    var spark = _sparkline(history);
+    var trend = _trendArrow(history);
+
+    // 产业链提示
+    var chainTip = _supplyChainTooltip(good);
+
     const tr = document.createElement('tr');
     tr.innerHTML =
       '<td><span class="good-icon">' + good.emoji + '</span>' + good.name +
-        '<span class="sd-indicator" title="供:' + sd.supply + ' 需:' + sd.demand + '">' + sdIcon + '</span></td>' +
+        '<span class="sd-indicator" title="供:' + sd.supply + ' 需:' + sd.demand + '">' + sdIcon + '</span>' +
+        (chainTip ? '<span class="chain-indicator" title="' + chainTip + '">🔗</span>' : '') +
+        '</td>' +
       '<td class="' + (isCheap ? 'price-low' : isExpensive ? 'price-high' : '') + '">' + buyPrice + '</td>' +
       '<td class="' + (isCheap ? 'price-low' : isExpensive ? 'price-high' : '') + '">' + sellPrice + '</td>' +
       '<td>' + (inCargo > 0 ? '<span class="qty-badge">' + inCargo + '</span>' : '—') + '</td>' +
       '<td class="action-cell">' +
         (isCurrentSys ? '<button class="btn-action buy-btn" data-id="' + good.id + '">买入</button>' : '') +
         (isCurrentSys && inCargo > 0 ? '<button class="btn-action sell-btn" data-id="' + good.id + '">卖出</button>' : '') +
+      '</td>' +
+      '<td class="sparkline-cell">' +
+        (spark ? '<span class="sparkline" title="30天价格走势">' + spark + '<span class="trend-arrow">' + trend + '</span></span>' : '<span class="sparkline-empty">—</span>') +
       '</td>';
 
     if (isCurrentSys) {
@@ -162,7 +223,7 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem) {
       const tr = document.createElement('tr');
       tr.className = 'refuel-row';
       tr.innerHTML =
-        '<td colspan="5">' +
+        '<td colspan="6">' +
           '<button id="refuel-btn" class="btn-refuel">⚡ 补充燃料（' + fuelNeeded + ' 单位）</button>' +
         '</td>';
       tr.querySelector('#refuel-btn').addEventListener('click', onRefuel);

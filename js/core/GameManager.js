@@ -59,7 +59,8 @@ export function init(difficulty) {
   _settings = Settings.loadSettings();
 
   // 应用难度设定
-  var diff = DIFFICULTY_LEVELS[difficulty] || DIFFICULTY_LEVELS['normal'];
+  var effectiveDifficulty = difficulty || _settings.difficulty || 'normal';
+  var diff = DIFFICULTY_LEVELS[effectiveDifficulty] || DIFFICULTY_LEVELS['normal'];
   _state.difficulty = diff.id;
   _state.credits = diff.startCredits;
 
@@ -124,6 +125,12 @@ export function init(difficulty) {
   Settings.initSettingsModal({
     settings: _settings,
     Renderer: Renderer,
+    onDifficultyChanged: function (nextDifficulty) {
+      if (!DIFFICULTY_LEVELS[nextDifficulty]) return;
+      _state.difficulty = nextDifficulty;
+      _settings.difficulty = nextDifficulty;
+      _updateUI();
+    },
     onResetTutorial: function () {
       Tutorial.reset();
       Settings.hideSettingsModal();
@@ -139,33 +146,11 @@ export function init(difficulty) {
   _updateUI();
   _startGameLoop();
 
-  // 如果未指定难度（初次启动），先弹出难度选择
-  if (!difficulty && !Tutorial.isCompleted()) {
-    _showDifficultyModal(function (chosenDiff) {
-      var d = DIFFICULTY_LEVELS[chosenDiff] || DIFFICULTY_LEVELS['normal'];
-      _state.difficulty = d.id;
-      _state.credits = d.startCredits;
-      _updateUI();
-      _showTutorialStartModal();
-    });
-  } else if (!Tutorial.isCompleted()) {
+  if (!Tutorial.isCompleted()) {
     _showTutorialStartModal();
   } else {
     _showWelcomeMessages();
   }
-}
-
-function _showDifficultyModal(onSelect) {
-  var modal = document.getElementById('difficulty-modal');
-  if (!modal) { onSelect('normal'); return; }
-  modal.classList.remove('hidden');
-  var btns = modal.querySelectorAll('[data-difficulty]');
-  btns.forEach(function (btn) {
-    btn.onclick = function () {
-      modal.classList.add('hidden');
-      onSelect(btn.dataset.difficulty);
-    };
-  });
 }
 
 function _showWelcomeMessages() {
@@ -504,6 +489,8 @@ function _handleLoadGame(slotId) {
     // 兼容旧存档：补充难度和事件链字段
     if (!_state.difficulty) _state.difficulty = 'normal';
     if (!_state._pendingChainEvents) _state._pendingChainEvents = [];
+    _settings.difficulty = _state.difficulty;
+    Settings.saveSettings(_settings);
     // 重新初始化依赖状态的子系统
     Fleet.init(_state);
     Faction.init(_state);
