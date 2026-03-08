@@ -1,0 +1,240 @@
+/* ---- Header ------------------------------------------------------------ */
+#game-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 14px;
+  background: #080818;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 40;
+}
+
+.hdr-title h1 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent-gold);
+  letter-spacing: .5px;
+}
+.hdr-title .subtitle {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+/* 公司名按鈕 */
+.company-name-btn {
+  display: block;
+  margin-top: 4px;
+  background: none;
+  border: 1px dashed rgba(255,200,50,0.3);
+  border-radius: 4px;
+  color: var(--accent-gold);
+  font-size: 11px;
+  font-family: inherit;
+  padding: 2px 6px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  white-space: nowrap;
+}
+.company-name-btn:hover {
+  border-color: var(--accent-gold);
+  background: rgba(255,200,50,0.08);
+}
+
+#player-stats {
+  display: flex;
+  gap: 18px;
+}
+.stat-block {
+  text-align: center;
+}
+.stat-label {
+  display: block;
+  font-size: 10px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+.stat-value {
+  font-size: 15px;
+  font-weight: 700;
+}
+.stat-credits  { color: var(--accent-gold); }
+.stat-networth { color: var(--accent-cyan); }
+.stat-day      { color: var(--accent-blue); }
+
+/* Economy Cycle Indicator */
+.stat-cycle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+}
+.stat-cycle .cycle-icon { font-size: 14px; }
+.stat-cycle .cycle-name { color: var(--accent-cyan); font-weight: 600; }
+.stat-cycle .cycle-remaining { color: var(--text-dim); font-size: 11px; }
+.stat-cycle .cycle-bar-track {
+  width: 40px; height: 3px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 2px; overflow: hidden;
+}
+.stat-cycle .cycle-bar-fill {
+  height: 100%; border-radius: 2px;
+  transition: width 0.3s ease;
+}
+.stat-cycle .cycle-prosperity { background: #4caf50; }
+.stat-cycle .cycle-stability { background: #2196f3; }
+.stat-cycle .cycle-decline { background: #ff9800; }
+.stat-cycle .cycle-recession { background: #f44336; }
+
+/* Difficulty Modal */
+.difficulty-options {
+  display: flex; flex-direction: column; gap: 8px;
+  margin-top: 12px;
+}
+.difficulty-btn {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 12px; gap: 4px; width: 100%;
+}
+.diff-icon { font-size: 24px; }
+.diff-label { font-weight: 700; font-size: 14px; }
+.diff-desc { font-size: 11px; color: var(--text-dim); }
+
+/* Victory progress button */
+.victory-progress-btn {
+  background: rgba(255, 215, 0, 0.08);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: 5px;
+  color: var(--accent-gold);
+  font-size: 12px;
+  font-family: inherit;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+  white-space: nowrap;
+}
+.victory-progress-btn:hover {
+  background: rgba(255, 215, 0, 0.16);
+  border-color: var(--accent-gold);
+}
+
+/* Victory modal */
+.victory-modal-box {
+  max-width: 520px;
+  min-width: 360px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+.victory-modal-body {
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.vp-card {
+  background: rgba(0,0,0,0.25);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+.vp-card.vp-done {
+  border-color: rgba(255,215,0,0.4);
+  background: rgba(255,215,0,0.04);
+}
+.vp-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.vp-card-icon { font-size: 18px; }
+.vp-card-name {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--text-primary);
+  flex: 1;
+}
+.vp-card-pct {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent-gold);
+}
+.vp-card-bar-track {
+  height: 5px;
+  background: #202040;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+.vp-card-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width .4s;
+}
+.vp-card-reqs {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.vp-card-req {
+  font-size: 11px;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.vp-card-req.done { color: var(--accent-green); }
+.vp-req-count { color: #666; }
+
+/* Game-over box */
+.gameover-box { text-align: center; max-width: 440px; }
+.gameover-message {
+  white-space: pre-wrap;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-dim);
+  text-align: left;
+  margin: 12px 0;
+  background: rgba(0,0,0,.2);
+  padding: 12px;
+  border-radius: 8px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+/* Player level bar */
+.player-level-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  flex-wrap: wrap;
+}
+.level-icon { font-size: 14px; }
+.level-title {
+  font-weight: 600;
+  color: var(--accent-gold);
+}
+.rep-badge {
+  font-size: 10px;
+  background: rgba(255,215,0,0.12);
+  padding: 1px 6px;
+  border-radius: 8px;
+  color: var(--accent-cyan);
+}
+.level-bar-track {
+  width: 80px;
+  height: 4px;
+  background: #202040;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.level-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-blue), var(--accent-cyan));
+  transition: width .4s;
+}

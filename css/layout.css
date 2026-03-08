@@ -1,0 +1,22 @@
+/* ---- Layout ------------------------------------------------------------ */
+#game-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  position: relative;
+  z-index: 1;
+}
+
+#game-header,
+#info-panel,
+#map-section,
+#trade-panel,
+#status-bar {
+  animation: panel-rise 0.5s ease-out both;
+}
+
+#info-panel { animation-delay: 0.04s; }
+#map-section { animation-delay: 0.08s; }
+#trade-panel { animation-delay: 0.12s; }
+#status-bar { animation-delay: 0.16s; }
+

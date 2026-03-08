@@ -3,11 +3,13 @@
 // 导出：init, updateStats, addMessage
 
 import * as EventBus            from '../core/EventBus.js';
+import { GOODS } from '../data/goods.js';
 import { SYSTEMS, findSystem, findGalaxy } from '../data/systems.js';
 import * as Faction             from '../systems/faction/FactionSystem.js';
 import * as PlayerLevels        from '../data/playerLevels.js';
 import * as Victory             from '../systems/victory/VictorySystem.js';
 import * as Economy             from '../systems/economy/Economy.js';
+import * as Quest               from '../systems/quest/QuestSystem.js';
 
 const getLevel = PlayerLevels.getLevel;
 const getRepRank = PlayerLevels.getRepRank;
@@ -15,6 +17,10 @@ const PLAYER_LEVELS = PlayerLevels.PLAYER_LEVELS || [];
 const COMPANY_LEVELS = PlayerLevels.COMPANY_LEVELS || [
   { level: 1, title: '新创企业', expRequired: 0, icon: '🏢' },
 ];
+const _goodNameById = GOODS.reduce(function (acc, good) {
+  acc[good.id] = good.name;
+  return acc;
+}, Object.create(null));
 const getCompanyLevel = PlayerLevels.getCompanyLevel || function (exp) {
   return COMPANY_LEVELS[0];
 };
@@ -132,6 +138,8 @@ export function updateStats(state, netWorth) {
       '<span class="cycle-remaining" title="距离下一阶段「' + nextPhase.name + '」还有 ' + remaining + ' 天">' + remaining + '天</span>' +
       '<div class="cycle-bar-track"><div class="cycle-bar-fill cycle-' + cycle.phase + '" style="width:' + cycle.progressPercent + '%"></div></div>';
   }
+
+  _renderQuestTracker(state);
 }
 
 // ---------------------------------------------------------------------------
@@ -204,4 +212,116 @@ function _renderVictoryModal(progressList) {
       '</div>';
   });
   body.innerHTML = html;
+}
+
+function _renderQuestTracker(state) {
+  var trackerEl = document.getElementById('quest-tracker');
+  if (!trackerEl) return;
+
+  var tracker = Quest.getQuestTracker(state, 2);
+  var title = '当前目标';
+  var hint = '优先推进进行中的任务';
+
+  if (tracker.mode === 'recommended') {
+    title = '下一步建议';
+    hint = '先接取一项入门任务，保持成长节奏';
+  } else if (tracker.mode === 'available') {
+    title = '可接任务';
+    hint = '当前没有激活任务，可从任务页接新委托';
+  } else if (tracker.mode === 'empty') {
+    title = '任务状态';
+    hint = '当前章节暂无可追踪目标';
+  }
+
+  var html =
+    '<div class="quest-tracker-head">' +
+      '<div>' +
+        '<div class="quest-tracker-title">' + title + '</div>' +
+        '<div class="quest-tracker-hint">' + hint + '</div>' +
+      '</div>' +
+      '<button id="quest-tracker-open" class="quest-tracker-open-btn" type="button">任务页</button>' +
+    '</div>';
+
+  if (tracker.items.length === 0) {
+    html += '<div class="quest-tracker-empty">当前没有任务需要处理。继续贸易、探索或等待章节推进。</div>';
+  } else {
+    tracker.items.forEach(function (item) {
+      var objectiveText = item.primaryObjective ? _objectiveText(item.primaryObjective) : '查看任务详情';
+      var progressBar = tracker.mode === 'active'
+        ? '<div class="quest-tracker-progress"><div class="quest-tracker-progress-fill" style="width:' + item.progressPercent + '%"></div></div>'
+        : '';
+      var progressMeta = item.progressText ? '<span class="quest-tracker-progress-text">' + item.progressText + '</span>' : '';
+
+      html +=
+        '<div class="quest-tracker-item quest-tracker-' + tracker.mode + '">' +
+          '<div class="quest-tracker-item-head">' +
+            '<span class="quest-tracker-item-name">' + item.name + '</span>' +
+            '<span class="quest-tracker-badge">' + item.statusText + '</span>' +
+          '</div>' +
+          '<div class="quest-tracker-objective">' + objectiveText + '</div>' +
+          '<div class="quest-tracker-meta">' +
+            '<span class="quest-tracker-reward">💰 ' + (item.rewardSummary.credits || 0) + '</span>' +
+            progressMeta +
+          '</div>' +
+          progressBar +
+        '</div>';
+    });
+  }
+
+  trackerEl.innerHTML = html;
+
+  var openBtn = document.getElementById('quest-tracker-open');
+  if (openBtn) {
+    openBtn.addEventListener('click', function () {
+      var questTabBtn = document.querySelector('.tab-btn[data-tab="tab-quest"]');
+      if (questTabBtn) questTabBtn.click();
+    });
+  }
+}
+
+function _objectiveText(obj) {
+  var targetSystemName = _systemName(obj.targetSystem);
+  var goodName = _goodName(obj.goodId);
+
+  switch (obj.type) {
+    case 'deliver':
+      return '运送 ' + goodName + ' 到 ' + targetSystemName;
+    case 'buy_at':
+      return '在 ' + targetSystemName + ' 购买 ' + goodName;
+    case 'sell_at':
+      return '在 ' + targetSystemName + ' 卖出 ' + goodName;
+    case 'earn_profit':
+      return '累计赚取利润';
+    case 'trade_count':
+      return '完成交易次数';
+    case 'trade_good':
+      return '交易 ' + goodName;
+    case 'visit_systems':
+      return '造访不同的星球';
+    case 'visit_system':
+      return '前往 ' + targetSystemName;
+    case 'faction_trade':
+      return '在派系区域交易';
+    case 'sell_in_faction':
+      return '在派系区域卖出 ' + goodName;
+    case 'faction_relation':
+      return '提升与派系关系';
+    case 'survive_days':
+      return '保持航行并生存更多天数';
+    case 'galaxy_jump':
+      return '完成跨星系跃迁';
+    default:
+      return '完成任务目标';
+  }
+}
+
+function _systemName(systemId) {
+  if (!systemId) return '未知地点';
+  var system = findSystem(systemId);
+  return system ? system.name : systemId;
+}
+
+function _goodName(goodId) {
+  if (!goodId) return '货物';
+  return _goodNameById[goodId] || goodId;
 }

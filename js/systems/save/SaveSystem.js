@@ -1,14 +1,35 @@
 // js/systems/save/SaveSystem.js — 存档系统（LocalStorage）
-// 依赖：无
+// 依赖：data/constants.js
 // 导出：saveGame, loadGame, listSlots, deleteSlot, exportSave, importSave
 //
 // 4 个存档槽位：0 = 自动存档，1-3 = 手动存档
 // 存档格式参考 docs/design/存档系统设计.md 的 SaveEnvelope 结构
 
+import { INITIAL_STATE, SAVE_STATE_SCHEMA, RUNTIME_ONLY_FIELDS } from '../../data/constants.js';
+
 const SAVE_KEY_PREFIX = 'startrader_save_';
-const SCHEMA_VERSION  = 1;
-const GAME_VERSION    = '0.2.0';
+const SCHEMA_VERSION  = 3;
+const GAME_VERSION    = '0.3.0';
 const MAX_SLOTS       = 4; // 0=auto, 1-3=manual
+
+// ———————————————————————————————————————————————————————————————————————
+// 由 SAVE_STATE_SCHEMA 自动生成的字段分类列表（无需手工维护）
+// ———————————————————————————————————————————————————————————————————————
+const NUMERIC_FIELDS = [];
+const STRING_FIELDS  = [];
+const ARRAY_FIELDS   = [];
+const OBJECT_FIELDS  = [];
+
+Object.keys(SAVE_STATE_SCHEMA).forEach(function (key) {
+  switch (SAVE_STATE_SCHEMA[key].type) {
+    case 'number': NUMERIC_FIELDS.push(key); break;
+    case 'string': STRING_FIELDS.push(key);  break;
+    case 'array':  ARRAY_FIELDS.push(key);   break;
+    case 'object': OBJECT_FIELDS.push(key);  break;
+  }
+});
+
+const SAVE_STATE_DEFAULTS = _createSaveStateDefaults();
 
 // ---------------------------------------------------------------------------
 // 公开 API
@@ -24,6 +45,7 @@ const MAX_SLOTS       = 4; // 0=auto, 1-3=manual
 export function saveGame(slotId, state, options) {
   options = options || {};
   try {
+    const normalizedState = _normalizeState(state);
     const envelope = {
       meta: {
         schemaVersion:   SCHEMA_VERSION,
@@ -31,12 +53,14 @@ export function saveGame(slotId, state, options) {
         slotId:          slotId,
         saveName:        options.saveName || (slotId === 0 ? '自动存档' : '手动存档 ' + slotId),
         timestampMs:     Date.now(),
-        day:             state.day,
-        credits:         state.credits,
-        currentSystem:   state.currentSystem,
+        day:             normalizedState.day,
+        credits:         normalizedState.credits,
+        currentSystem:   normalizedState.currentSystem,
+        difficulty:      normalizedState.difficulty,
+        companyName:     normalizedState.companyName,
         isAutosave:      slotId === 0,
       },
-      data: _serializeState(state),
+      data: _serializeState(normalizedState),
     };
     const json = JSON.stringify(envelope);
     localStorage.setItem(SAVE_KEY_PREFIX + slotId, json);
@@ -58,12 +82,9 @@ export function loadGame(slotId) {
     if (!json) {
       return { ok: false, msg: '该槽位没有存档。' };
     }
-    const envelope = JSON.parse(json);
-    // 版本迁移（预留）
-    if (envelope.meta.schemaVersion < SCHEMA_VERSION) {
-      _migrateSchema(envelope);
-    }
+    const envelope = _migrateSchema(_parseEnvelope(json));
     const state = _deserializeState(envelope.data);
+    localStorage.setItem(SAVE_KEY_PREFIX + slotId, JSON.stringify(envelope));
     return { ok: true, state: state, msg: '📂 读档成功！' };
   } catch (e) {
     console.error('Load failed:', e);
@@ -81,7 +102,7 @@ export function listSlots() {
     const json = localStorage.getItem(SAVE_KEY_PREFIX + i);
     if (json) {
       try {
-        const envelope = JSON.parse(json);
+        const envelope = _parseEnvelope(json);
         slots.push({ slotId: i, meta: envelope.meta, isEmpty: false });
       } catch (_) {
         slots.push({ slotId: i, isEmpty: true });
@@ -113,11 +134,9 @@ export function exportSave(slotId) {
  */
 export function importSave(slotId, jsonStr) {
   try {
-    const envelope = JSON.parse(jsonStr);
-    if (!envelope.meta || !envelope.data) {
-      return { ok: false, msg: '无效的存档数据。' };
-    }
-    localStorage.setItem(SAVE_KEY_PREFIX + slotId, jsonStr);
+    const envelope = _migrateSchema(_parseEnvelope(jsonStr));
+    envelope.meta.slotId = slotId;
+    localStorage.setItem(SAVE_KEY_PREFIX + slotId, JSON.stringify(envelope));
     return { ok: true, msg: '📂 导入成功！' };
   } catch (e) {
     return { ok: false, msg: '❌ 导入失败：' + e.message };
@@ -129,43 +148,145 @@ export function importSave(slotId, jsonStr) {
 // ---------------------------------------------------------------------------
 
 function _serializeState(state) {
-  // 深拷贝并清除不需要持久化的运行时字段
-  const data = JSON.parse(JSON.stringify(state));
-  delete data.hoveredSystem; // UI 临时状态
+  const data = _deepClone(state);
+  RUNTIME_ONLY_FIELDS.forEach(function (field) {
+    delete data[field];
+  });
   return data;
 }
 
 function _deserializeState(data) {
-  // 补全可能缺失的新版字段
-  const defaults = {
-    shipHull: 100, maxHull: 100, autoRepair: 0,
-    factionRelations: null,
-    reputation: 0,
-    researchedTechs: [], currentResearch: null, researchQueue: [], researchOptions: [],
-    techBuyDiscount: 0, techSellBonus: 0,
-    tradeCount: 0, totalProfit: 0, cargoCost: {},
-    playerLevel: 1, experience: 0,
-    companyLevel: 1, companyExperience: 0,
-    questPhase: 1,
-    quests: [], completedQuests: [],
-    achievements: [],
-  };
-  Object.keys(defaults).forEach(function (key) {
-    if (data[key] === undefined) data[key] = defaults[key];
-  });
-  // 类型校验：确保关键数值字段为有效数字
-  ['credits', 'day', 'fuel', 'maxFuel', 'maxCargo', 'shipHull', 'maxHull',
-   'reputation', 'tradeCount', 'totalProfit', 'experience', 'playerLevel',
-   'companyLevel', 'companyExperience'].forEach(function (key) {
-    if (typeof data[key] !== 'number' || !Number.isFinite(data[key])) {
-      data[key] = defaults[key] !== undefined ? defaults[key] : 0;
-    }
-  });
-  data.hoveredSystem = null;
-  return data;
+  const normalized = _normalizeState(data);
+  normalized.hoveredSystem = null;
+  return normalized;
 }
 
 function _migrateSchema(envelope) {
-  // 预留：未来版本迁移逻辑
-  envelope.meta.schemaVersion = SCHEMA_VERSION;
+  const next = _deepClone(envelope);
+
+  if (!next.meta) next.meta = {};
+  if (next.meta.schemaVersion == null) next.meta.schemaVersion = 1;
+
+  while (next.meta.schemaVersion < SCHEMA_VERSION) {
+    if (next.meta.schemaVersion === 1) {
+      _migrateSchema1To2(next);
+      next.meta.schemaVersion = 2;
+      continue;
+    }
+    if (next.meta.schemaVersion === 2) {
+      _migrateSchema2To3(next);
+      next.meta.schemaVersion = 3;
+      continue;
+    }
+    throw new Error('不支持的存档版本：' + next.meta.schemaVersion);
+  }
+
+  next.meta.gameVersion = next.meta.gameVersion || GAME_VERSION;
+  next.meta.saveName = next.meta.saveName || (next.meta.slotId === 0 ? '自动存档' : '手动存档 ' + next.meta.slotId);
+  next.meta.timestampMs = typeof next.meta.timestampMs === 'number' ? next.meta.timestampMs : Date.now();
+  next.meta.isAutosave = next.meta.slotId === 0;
+
+  next.data = _normalizeState(next.data);
+  next.meta.day = next.data.day;
+  next.meta.credits = next.data.credits;
+  next.meta.currentSystem = next.data.currentSystem;
+  next.meta.difficulty = next.data.difficulty;
+  next.meta.companyName = next.data.companyName;
+
+  return next;
+}
+
+function _migrateSchema1To2(envelope) {
+  if (!envelope.data) envelope.data = {};
+  envelope.data = _normalizeState(envelope.data);
+}
+
+/**
+ * v2 → v3：确保 fleet 中每艘船都有 mods 数组
+ */
+function _migrateSchema2To3(envelope) {
+  if (!envelope.data) envelope.data = {};
+  var fleet = envelope.data.fleet;
+  if (Array.isArray(fleet)) {
+    fleet.forEach(function (ship) {
+      if (!Array.isArray(ship.mods)) {
+        ship.mods = [];
+      }
+    });
+  }
+  envelope.data = _normalizeState(envelope.data);
+}
+
+function _parseEnvelope(jsonStr) {
+  const envelope = JSON.parse(jsonStr);
+  if (!envelope || typeof envelope !== 'object') {
+    throw new Error('无效的存档数据。');
+  }
+  if (!envelope.meta || typeof envelope.meta !== 'object') {
+    throw new Error('无效的存档数据：缺少 meta。');
+  }
+  if (!('data' in envelope) || !envelope.data || typeof envelope.data !== 'object') {
+    throw new Error('无效的存档数据：缺少 data。');
+  }
+  return envelope;
+}
+
+function _normalizeState(data) {
+  const source = data && typeof data === 'object' ? data : {};
+  const normalized = _deepClone(SAVE_STATE_DEFAULTS);
+
+  Object.keys(source).forEach(function (key) {
+    if (RUNTIME_ONLY_FIELDS.indexOf(key) >= 0) return;
+    normalized[key] = _deepClone(source[key]);
+  });
+
+  STRING_FIELDS.forEach(function (key) {
+    if (typeof normalized[key] !== 'string' || normalized[key].length === 0) {
+      normalized[key] = SAVE_STATE_DEFAULTS[key];
+    }
+  });
+
+  NUMERIC_FIELDS.forEach(function (key) {
+    if (typeof normalized[key] !== 'number' || !Number.isFinite(normalized[key])) {
+      normalized[key] = SAVE_STATE_DEFAULTS[key] !== undefined ? SAVE_STATE_DEFAULTS[key] : 0;
+    }
+  });
+
+  ARRAY_FIELDS.forEach(function (key) {
+    if (!Array.isArray(normalized[key])) {
+      normalized[key] = _deepClone(SAVE_STATE_DEFAULTS[key]);
+    }
+  });
+
+  OBJECT_FIELDS.forEach(function (key) {
+    var value = normalized[key];
+    if (value === undefined) {
+      normalized[key] = _deepClone(SAVE_STATE_DEFAULTS[key]);
+      return;
+    }
+    if (value !== null && (typeof value !== 'object' || Array.isArray(value))) {
+      normalized[key] = _deepClone(SAVE_STATE_DEFAULTS[key]);
+    }
+  });
+
+  if (normalized.day < 1) normalized.day = SAVE_STATE_DEFAULTS.day;
+  if (normalized.playerLevel < 1) normalized.playerLevel = SAVE_STATE_DEFAULTS.playerLevel;
+  if (normalized.companyLevel < 1) normalized.companyLevel = SAVE_STATE_DEFAULTS.companyLevel;
+  if (normalized.questPhase < 1) normalized.questPhase = SAVE_STATE_DEFAULTS.questPhase;
+  if (normalized.fleetSlots < 1) normalized.fleetSlots = SAVE_STATE_DEFAULTS.fleetSlots;
+  if (normalized.activeShipIndex < 0) normalized.activeShipIndex = SAVE_STATE_DEFAULTS.activeShipIndex;
+
+  return normalized;
+}
+
+function _createSaveStateDefaults() {
+  const defaults = _deepClone(INITIAL_STATE);
+  RUNTIME_ONLY_FIELDS.forEach(function (field) {
+    delete defaults[field];
+  });
+  return defaults;
+}
+
+function _deepClone(value) {
+  return JSON.parse(JSON.stringify(value));
 }

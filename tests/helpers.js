@@ -10,6 +10,7 @@ export function createTestState(overrides) {
   const state = {
     companyName:       '测试公司',
     credits:           1000,
+    difficulty:        'normal',
     day:               1,
     currentSystem:     'sol_prime',
     currentGalaxy:     'milky_way',
@@ -63,6 +64,8 @@ export function createTestState(overrides) {
 
     visitedSystems:    ['sol_prime'],
     visitedGalaxies:   ['milky_way'],
+    _pendingChainEvents: [],
+    economyCycle:      null,
   };
 
   if (overrides) {

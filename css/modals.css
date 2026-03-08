@@ -1,0 +1,165 @@
+/* ---- Modals ------------------------------------------------------------ */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9500;
+}
+.modal:not(.hidden) { display: flex; }
+.modal:target { display: flex !important; }
+.modal.hidden { display: none; }
+
+.modal-box {
+  background: var(--bg-card);
+  border: 1px solid #44447a;
+  border-radius: 10px;
+  padding: 20px 24px;
+  min-width: 280px;
+  max-width: 360px;
+}
+.modal-box h3 { font-size: 15px; margin-bottom: 10px; color: var(--accent-gold); }
+.modal-box h2 { font-size: 18px; margin-bottom: 10px; color: var(--accent-gold); }
+.modal-box p  { font-size: 13px; color: var(--text-dim); margin-bottom: 10px; white-space: pre-line; }
+
+.modal-stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0;
+}
+.modal-stepper button {
+  width: 30px; height: 30px;
+  border-radius: 4px;
+  border: 1px solid #444466;
+  background: #1a1a38;
+  color: var(--text-primary);
+  font-size: 18px;
+  cursor: pointer;
+  line-height: 1;
+}
+.modal-stepper button:hover { background: #2a2a55; }
+#modal-amount {
+  width: 60px;
+  text-align: center;
+  background: var(--bg-input);
+  border: 1px solid #44446a;
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 14px;
+  padding: 4px;
+}
+/* Hide number input spinners */
+#modal-amount::-webkit-outer-spin-button,
+#modal-amount::-webkit-inner-spin-button { -webkit-appearance: none; }
+#modal-amount[type=number]               { -moz-appearance: textfield; }
+
+#modal-total { color: var(--accent-gold); font-weight: 600; font-size: 13px; margin-top: 4px; }
+
+#modal-all {
+  width: 100%;
+  padding: 6px 12px;
+  margin-top: 8px;
+  border: 1px solid #44446a;
+  border-radius: 4px;
+  background: #1a2a4a;
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+#modal-all:hover { background: #2a3a5a; }
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+.btn-primary, .btn-secondary {
+  flex: 1;
+  padding: 8px 0;
+  border-radius: 5px;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+.btn-primary   { background: #3355cc; color: #fff; }
+.btn-primary:hover { background: #4466dd; }
+.btn-secondary { background: #2a2a4a; color: var(--text-dim); border: 1px solid #44446a; }
+.btn-secondary:hover { background: #333360; }
+
+/* Scrollbar */
+::-webkit-scrollbar        { width: 5px; }
+::-webkit-scrollbar-track  { background: transparent; }
+::-webkit-scrollbar-thumb  { background: #33335a; border-radius: 3px; }
+
+/* ---- Hull bar ---------------------------------------------------------- */
+.hull-fill { background: linear-gradient(90deg, #66bb6a, #2e7d32); }
+
+/* ---- Event modal (群星风格) -------------------------------------------- */
+.event-modal-box {
+  max-width: 420px;
+  min-width: 340px;
+}
+.event-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.event-icon-large {
+  font-size: 36px;
+  line-height: 1;
+}
+.event-header h3 {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--accent-gold);
+}
+.event-description {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+  white-space: pre-line;
+  border-left: 3px solid #44447a;
+  padding-left: 12px;
+}
+.event-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.event-choice-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  padding: 10px 14px;
+  background: #1a1a3a;
+  border: 1px solid #33336a;
+  border-radius: 6px;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  transition: background .15s, border-color .2s, transform .1s;
+}
+.event-choice-btn:hover {
+  background: #252555;
+  border-color: var(--accent-gold);
+  transform: translateX(4px);
+}
+.choice-text {
+  font-size: 13px;
+  font-weight: 600;
+}
+.choice-tooltip {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 3px;
+  font-style: italic;
+}
+

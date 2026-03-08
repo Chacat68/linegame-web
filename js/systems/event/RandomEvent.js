@@ -1,15 +1,16 @@
 // js/systems/event/RandomEvent.js — 随机事件系统（群星风格选择事件）
-// 依赖：data/events.js, core/EventBus.js
-// 导出：rollEvent, getActiveEvent, resolveChoice, getCooldownState, getEventHistory
+// 依赖：data/events.js, data/constants.js, core/EventBus.js
+// 导出：rollEvent, getActiveEvent, resolveChoice, getCooldownState, getEventHistory, getEligibleEvents, resetRuntimeState
 
 import { RANDOM_EVENTS } from '../../data/events.js';
+import { EVENT_CONFIG } from '../../data/constants.js';
 import * as EventBus from '../../core/EventBus.js';
 
 let _activeEvent = null;
 
 // 事件冷却追踪：{ eventId: lastTriggeredDay }
 const _cooldowns = Object.create(null);
-const COOLDOWN_DAYS = 10; // 同一事件至少间隔 10 天
+const COOLDOWN_DAYS = EVENT_CONFIG.cooldownDays;
 
 // 事件历史：[{ eventId, day, choiceIndex }]（最近 30 条）
 const _eventHistory = [];
@@ -45,13 +46,7 @@ export function rollEvent(state, chance) {
   // 优先检查是否有待触发的事件链后续
   const chainEvent = _checkEventChain(state);
 
-  // 按权重加条件筛选可用事件（排除冷却中的事件）
-  const pool = chainEvent ? [chainEvent] : RANDOM_EVENTS.filter(function (ev) {
-    if (ev.condition && !ev.condition(state)) return false;
-    // 冷却检查
-    if (_cooldowns[ev.id] && (currentDay - _cooldowns[ev.id]) < COOLDOWN_DAYS) return false;
-    return true;
-  });
+  const pool = chainEvent ? [chainEvent] : getEligibleEvents(state);
 
   if (pool.length === 0) { _activeEvent = null; return null; }
 
@@ -147,4 +142,72 @@ export function getCooldownState() {
  */
 export function getEventHistory() {
   return _eventHistory.slice();
+}
+
+export function resetRuntimeState() {
+  _activeEvent = null;
+  Object.keys(_cooldowns).forEach(function (key) { delete _cooldowns[key]; });
+  _eventHistory.length = 0;
+}
+
+export function getEligibleEvents(state) {
+  const currentDay = state.day || 1;
+  return RANDOM_EVENTS.filter(function (ev) {
+    if (ev.stage === 'chain') return false;
+    if (ev.condition && !ev.condition(state)) return false;
+    if (_isOnCooldown(ev, currentDay)) return false;
+    if (!_matchesStage(ev, state)) return false;
+    if (!_passesProtection(ev, state)) return false;
+    return true;
+  });
+}
+
+function _isOnCooldown(eventDef, currentDay) {
+  return !!(_cooldowns[eventDef.id] && (currentDay - _cooldowns[eventDef.id]) < COOLDOWN_DAYS);
+}
+
+function _matchesStage(eventDef, state) {
+  var stage = eventDef.stage || 'mid';
+  if (stage === 'chain') return true;
+
+  var day = state.day || 1;
+  var playerLevel = state.playerLevel || 1;
+  var stages = EVENT_CONFIG.stages;
+
+  if (stage === 'early') {
+    return day <= stages.early.maxDay || playerLevel <= stages.early.maxPlayerLevel;
+  }
+  if (stage === 'mid') {
+    return (day > stages.early.maxDay || playerLevel > stages.early.maxPlayerLevel) &&
+      (day <= stages.mid.maxDay || playerLevel <= stages.mid.maxPlayerLevel);
+  }
+  return day > stages.mid.maxDay || playerLevel > stages.mid.maxPlayerLevel;
+}
+
+function _passesProtection(eventDef, state) {
+  var rules = eventDef.protection || {};
+  if (rules.bypassProtection) return true;
+
+  var hull = state.shipHull == null ? 100 : state.shipHull;
+  var fuel = state.fuel == null ? 100 : state.fuel;
+  var credits = state.credits == null ? 0 : state.credits;
+  var day = state.day || 1;
+  var playerLevel = state.playerLevel || 1;
+  var protection = EVENT_CONFIG.protection;
+
+  if (eventDef.risk === 'dangerous' &&
+      day <= protection.earlyDangerousMaxDay &&
+      playerLevel <= protection.earlyDangerousMaxLevel) {
+    return false;
+  }
+  if (rules.avoidWhenLowHull && hull <= protection.lowHullThreshold) {
+    return false;
+  }
+  if (rules.avoidWhenLowFuel && fuel <= protection.lowFuelThreshold) {
+    return false;
+  }
+  if (rules.avoidWhenLowCredits && credits <= protection.lowCreditsThreshold) {
+    return false;
+  }
+  return true;
 }

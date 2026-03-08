@@ -136,6 +136,8 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
     html += '<div class="fleet-ship-card' + (isActive ? ' fleet-active' : '') +
         (isSwitchFlashing ? ' fleet-switch-flash' : '') +
             (ship.route ? ' fleet-dispatched' : '') + '" data-index="' + idx + '">';
+
+    // ======== 头部：图标 + 名称 + 状态 ========
     html += '<div class="fleet-ship-header">';
     html += '<span class="fleet-ship-icon">' + ship.emoji + '</span>';
     html += '<span class="fleet-ship-name">' + ship.name;
@@ -145,79 +147,41 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
     html += '</span>';
     html += '</div>';
 
+    // ======== 统计（紧凑单行） ========
     html += '<div class="fleet-ship-stats">';
-    html += '<div class="fleet-stat">📦 ' + cargoUsed + '/' + ship.maxCargo + '<span class="fleet-cap">上限' + ship.maxCargoCap + '</span></div>';
-    html += '<div class="fleet-stat">⚡ ' + Math.floor(ship.fuel) + '/' + ship.maxFuel + '<span class="fleet-cap">上限' + ship.maxFuelCap + '</span></div>';
-    html += '<div class="fleet-stat">🛡️ ' + Math.floor(ship.hull) + '/' + ship.maxHull + '<span class="fleet-cap">上限' + ship.maxHullCap + '</span></div>';
-    html += '<div class="fleet-stat">🔧 耗油×' + ship.fuelEff.toFixed(2) + '<span class="fleet-cap">最低' + ship.minFuelEff + '</span></div>';
+    html += '<span class="fleet-stat" title="货舱 上限' + ship.maxCargoCap + '">📦' + cargoUsed + '/' + ship.maxCargo + '</span>';
+    html += '<span class="fleet-stat" title="燃料 上限' + ship.maxFuelCap + '">⚡' + Math.floor(ship.fuel) + '/' + ship.maxFuel + '</span>';
+    html += '<span class="fleet-stat" title="船体 上限' + ship.maxHullCap + '">🛡' + Math.floor(ship.hull) + '/' + ship.maxHull + '</span>';
+    html += '<span class="fleet-stat" title="耗油率 最低' + ship.minFuelEff + '">🔧×' + ship.fuelEff.toFixed(2) + '</span>';
     html += '</div>';
 
-    // ======== 货舱内容 ========
-    html += '<div class="fleet-ship-cargo-section">';
-    html += '<div class="fleet-cargo-header">📦 货舱 (' + cargoUsed + '/' + ship.maxCargo + ')</div>';
+    // ======== 芯片行：技能 + 改装 ========
+    var skills = Fleet.getShipSkills(ship);
+    var shipMods = (ship.mods || []);
+    if (skills.length > 0 || shipMods.length > 0) {
+      html += '<div class="fleet-chips-row">';
+      skills.forEach(function (skill) {
+        html += '<span class="fleet-skill-chip" title="' + skill.desc + '">' + skill.emoji + ' ' + skill.name + '</span>';
+      });
+      shipMods.forEach(function (modId) {
+        var mod = SHIP_MODS.find(function (m) { return m.id === modId; });
+        if (mod) html += '<span class="fleet-mod-chip">' + mod.emoji + ' ' + mod.name + '</span>';
+      });
+      html += '</div>';
+    }
+
+    // ======== 货舱内容（仅有货时显示） ========
     const cargoEntries = Object.entries(ship.cargo);
-    if (cargoEntries.length === 0) {
-      html += '<div class="fleet-cargo-empty">— 空 —</div>';
-    } else {
+    if (cargoEntries.length > 0) {
       html += '<div class="fleet-cargo-chips">';
       cargoEntries.forEach(function (entry) {
         const good = GOODS.find(function (g) { return g.id === entry[0]; });
-        html += '<span class="fleet-cargo-chip">' + (good ? good.emoji + ' ' + good.name : entry[0]) + ' ×' + entry[1] + '</span>';
+        html += '<span class="fleet-cargo-chip">' + (good ? good.emoji + good.name : entry[0]) + ' ×' + entry[1] + '</span>';
       });
       html += '</div>';
     }
-    html += '</div>';
 
-    // ======== 升级按钮 ========
-    const installedUpgs = SHIP_UPGRADES.filter(function (u) { return ship.upgrades.includes(u.id); });
-    const availableUpgs = SHIP_UPGRADES.filter(function (u) { return !ship.upgrades.includes(u.id); });
-    html += '<div class="fleet-ship-upg-section">';
-    if (availableUpgs.length > 0) {
-      html += '<button class="fleet-open-upg-btn" data-ship-index="' + idx + '">' +
-              '⚙️ 升级 (' + installedUpgs.length + '/' + (installedUpgs.length + availableUpgs.length) + ')' +
-              '</button>';
-    } else {
-      html += '<span class="fleet-upg-all-done-inline">⚙️ 全部升级已安装 ✅</span>';
-    }
-    html += '</div>';
-
-    // ======== 特殊技能 ========
-    var skills = Fleet.getShipSkills(ship);
-    if (skills.length > 0) {
-      html += '<div class="fleet-ship-skills-section">';
-      html += '<div class="fleet-skills-header">✨ 特殊技能</div>';
-      html += '<div class="fleet-skills-list">';
-      skills.forEach(function (skill) {
-        html += '<div class="fleet-skill-chip">';
-        html += '<span class="fleet-skill-emoji">' + skill.emoji + '</span>';
-        html += '<span class="fleet-skill-name">' + skill.name + '</span>';
-        html += '<span class="fleet-skill-desc">' + skill.desc + '</span>';
-        html += '</div>';
-      });
-      html += '</div>';
-      html += '</div>';
-    }
-
-    // ======== 改装组件 ========
-    const shipMods = ship.mods || [];
-    const modSlots = ship.modSlots || 1;
-    html += '<div class="fleet-ship-mod-section">';
-    html += '<button class="fleet-open-mod-btn" data-ship-index="' + idx + '">' +
-            '🔧 改装 (' + shipMods.length + '/' + modSlots + ')' +
-            '</button>';
-    if (shipMods.length > 0) {
-      html += '<div class="fleet-mod-chips">';
-      shipMods.forEach(function (modId) {
-        var mod = SHIP_MODS.find(function (m) { return m.id === modId; });
-        if (mod) {
-          html += '<span class="fleet-mod-chip">' + mod.emoji + ' ' + mod.name + '</span>';
-        }
-      });
-      html += '</div>';
-    }
-    html += '</div>';
-
-    // 派遣路线状态（所有已派遣的船只，包括激活船只）
+    // ======== 派遣路线状态 ========
     if (ship.route) {
       const busSys  = SYSTEMS.find(function (s) { return s.id === ship.route.buySystemId; });
       const sellSys = SYSTEMS.find(function (s) { return s.id === ship.route.sellSystemId; });
@@ -237,16 +201,31 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
       html += '</div>';
     }
 
-    // 操作按钮
+    // ======== 操作按钮行（水平排列） ========
+    html += '<div class="fleet-card-action-row">';
+
+    // 升级按钮
+    const installedUpgs = SHIP_UPGRADES.filter(function (u) { return ship.upgrades.includes(u.id); });
+    const availableUpgs = SHIP_UPGRADES.filter(function (u) { return !ship.upgrades.includes(u.id); });
+    if (availableUpgs.length > 0) {
+      html += '<button class="fleet-open-upg-btn" data-ship-index="' + idx + '">' +
+              '⚙️' + installedUpgs.length + '/' + (installedUpgs.length + availableUpgs.length) +
+              '</button>';
+    }
+
+    // 改装按钮
+    var modSlots = ship.modSlots || 1;
+    html += '<button class="fleet-open-mod-btn" data-ship-index="' + idx + '">' +
+            '🔧' + shipMods.length + '/' + modSlots +
+            '</button>';
+
+    // 派遣/切换/卖出
     if (!ship.route) {
-      html += '<div class="fleet-actions">';
       if (isActive) {
-        // 激活船只：显示派遣按钮
-        html += '<button class="fleet-dispatch-btn" data-index="' + idx + '">📡 自动派遣</button>';
+        html += '<button class="fleet-dispatch-btn" data-index="' + idx + '">📡 派遣</button>';
       } else {
-        // 非激活船只：切换 + 派遣 + 卖出
-        html += '<button class="fleet-switch-btn fleet-switch-primary" data-index="' + idx + '">🧭 切换为当前操控</button>';
-        html += '<button class="fleet-dispatch-btn" data-index="' + idx + '">📡 派遣贸易</button>';
+        html += '<button class="fleet-switch-btn fleet-switch-primary" data-index="' + idx + '">🧭 切换</button>';
+        html += '<button class="fleet-dispatch-btn" data-index="' + idx + '">📡 派遣</button>';
         var shipTypeDef = SHIP_TYPES.find(function (t) { return t.id === ship.typeId; });
         var sellBase = shipTypeDef ? (shipTypeDef.sellValue || shipTypeDef.cost) : 0;
         if (sellBase > 0) {
@@ -255,13 +234,10 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
           html += '<button class="fleet-sell-btn" data-index="' + idx + '" title="回收价 ' + minPrice.toLocaleString() + '~' + maxPrice.toLocaleString() + ' 积分">💸 卖出</button>';
         }
       }
-      html += '</div>';
-      if (!isActive && activeShip) {
-        html += '<div class="fleet-switch-hint">当前操控：' + activeShip.emoji + ' ' + activeShip.name + '</div>';
-      }
     }
+    html += '</div>'; // fleet-card-action-row
 
-    html += '</div>';
+    html += '</div>'; // fleet-ship-card
   });
 
   container.innerHTML = html;
@@ -559,14 +535,30 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod) {
           var canAfford = state.credits >= mod.cost;
           var disabled = slotsLeft <= 0;
 
+          // 检查前置条件
+          var prereqOk = true;
+          var prereqName = '';
+          if (mod.requires) {
+            prereqOk = (ship.mods || []).includes(mod.requires);
+            if (!prereqOk) {
+              var reqMod = SHIP_MODS.find(function (m) { return m.id === mod.requires; });
+              prereqName = reqMod ? reqMod.name : mod.requires;
+              disabled = true;
+            }
+          }
+
           var cls = 'mod-modal-item';
-          if (disabled) cls += ' mod-modal-full';
+          if (!prereqOk) cls += ' mod-modal-locked';
+          else if (disabled) cls += ' mod-modal-full';
           else if (!canAfford) cls += ' mod-modal-poor';
 
           html += '<div class="' + cls + '">';
           html += '<div class="mod-modal-item-info">';
           html += '<div class="mod-modal-item-name">' + mod.emoji + ' ' + mod.name + '</div>';
           html += '<div class="mod-modal-item-desc">' + mod.desc + '</div>';
+          if (!prereqOk) {
+            html += '<div class="mod-modal-item-prereq">🔒 需要先安装：' + prereqName + '</div>';
+          }
           html += '</div>';
           if (!disabled) {
             html += '<button class="mod-modal-buy-btn' + (canAfford ? '' : ' mod-modal-no-afford') + '"' +

@@ -5,6 +5,10 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import * as RandomEvent from '../js/systems/event/RandomEvent.js';
 import { createTestState } from './helpers.js';
 
+beforeEach(() => {
+  RandomEvent.resetRuntimeState();
+});
+
 describe('RandomEvent.rollEvent', () => {
   it('chance=0 不触发事件', () => {
     const state = createTestState();
@@ -37,6 +41,39 @@ describe('RandomEvent.rollEvent', () => {
     // 内部会 chance *= 1.5，测试不崩溃即可
     RandomEvent.rollEvent(state, 0.5);
     expect(true).toBe(true);
+  });
+});
+
+describe('RandomEvent.getEligibleEvents', () => {
+  it('早期阶段只暴露早期事件池', () => {
+    const state = createTestState({ day: 3, playerLevel: 1, fuel: 100, shipHull: 100, credits: 1000 });
+    const pool = RandomEvent.getEligibleEvents(state);
+    const ids = pool.map(ev => ev.id);
+
+    expect(ids).toContain('merchant_caravan');
+    expect(ids).toContain('distress_signal');
+    expect(ids).toContain('trade_festival');
+    expect(ids).not.toContain('pirate_ambush');
+    expect(ids).not.toContain('solar_storm');
+    expect(ids).not.toContain('wormhole_anomaly');
+  });
+
+  it('低船体和低燃料会屏蔽高风险事件', () => {
+    const state = createTestState({ day: 20, playerLevel: 5, fuel: 10, shipHull: 20, credits: 1000 });
+    const ids = RandomEvent.getEligibleEvents(state).map(ev => ev.id);
+
+    expect(ids).not.toContain('pirate_ambush');
+    expect(ids).not.toContain('solar_storm');
+    expect(ids).not.toContain('fuel_crisis');
+  });
+
+  it('后期阶段会开放后期事件池', () => {
+    const state = createTestState({ day: 50, playerLevel: 8, fuel: 100, shipHull: 100, credits: 5000 });
+    const ids = RandomEvent.getEligibleEvents(state).map(ev => ev.id);
+
+    expect(ids).toContain('wormhole_anomaly');
+    expect(ids).toContain('alien_artifact');
+    expect(ids).toContain('mysterious_signal');
   });
 });
 
@@ -89,10 +126,19 @@ describe('RandomEvent.resolveChoice', () => {
     const state = createTestState({ credits: 1000 });
     const ev = RandomEvent.rollEvent(state, 1);
     if (ev) {
-      const creditsBefore = state.credits;
       RandomEvent.resolveChoice(state, 0);
       // 事件效果可能改变 credits — 只要不崩溃就行
       expect(typeof state.credits).toBe('number');
     }
+  });
+
+  it('事件链后续不受保护阈值错误拦截', () => {
+    const state = createTestState({ day: 30, fuel: 5, shipHull: 10, _pendingChainEvents: [
+      { eventId: 'pirate_revenge', triggerAfterDays: 7, scheduledDay: 30 },
+    ] });
+
+    const ev = RandomEvent.rollEvent(state, 1);
+    expect(ev).toBeDefined();
+    expect(ev.id).toBe('pirate_revenge');
   });
 });

@@ -401,4 +401,84 @@ describe('Fleet.getActiveFleetBonuses', () => {
     const bonuses = Fleet.getActiveFleetBonuses(state);
     expect(Array.isArray(bonuses)).toBe(true);
   });
+
+  it('拥有 clipper+freighter 时激活节能舰队加成', () => {
+    const state = createTestState({ credits: 100000 });
+    Fleet.init(state);
+    state.fleetSlots = 3;
+    Fleet.buyShip(state, 'clipper');
+    Fleet.buyShip(state, 'freighter');
+    const bonuses = Fleet.getActiveFleetBonuses(state);
+    const hasFuelSavers = bonuses.some(b => b.id === 'fuel_savers');
+    expect(hasFuelSavers).toBe(true);
+  });
+
+  it('拥有 freighter+galleon 时激活贸易联盟加成', () => {
+    const state = createTestState({ credits: 200000 });
+    Fleet.init(state);
+    state.fleetSlots = 3;
+    Fleet.buyShip(state, 'freighter');
+    Fleet.buyShip(state, 'galleon');
+    const bonuses = Fleet.getActiveFleetBonuses(state);
+    const hasTradeSyndicate = bonuses.some(b => b.id === 'trade_syndicate');
+    expect(hasTradeSyndicate).toBe(true);
+  });
+});
+
+describe('Fleet.installMod requires (前置条件)', () => {
+  it('安装高级改装时前置条件未满足则失败', () => {
+    const state = createTestState({ credits: 100000 });
+    Fleet.init(state);
+    // mod_cargo_bay requires mod_cargo_compress
+    const result = Fleet.installMod(state, 'mod_cargo_bay');
+    expect(result.ok).toBe(false);
+    expect(result.msgs[0].text).toContain('需要先安装');
+  });
+
+  it('安装高级改装时前置条件已满足则成功', () => {
+    const state = createTestState({ credits: 100000 });
+    Fleet.init(state);
+    const ship = Fleet.getActiveShip(state);
+    // 穿梭机 modSlots=1，需要更多槽位  → 使用 freighter (modSlots=2)
+    state.fleetSlots = 2;
+    Fleet.buyShip(state, 'freighter');
+    Fleet.switchShip(state, 1); // 切到 freighter
+
+    // 先安装前置
+    const r1 = Fleet.installMod(state, 'mod_cargo_compress');
+    expect(r1.ok).toBe(true);
+
+    // 再安装高级改装
+    const r2 = Fleet.installMod(state, 'mod_cargo_bay');
+    expect(r2.ok).toBe(true);
+    const activeShip = Fleet.getActiveShip(state);
+    expect(activeShip.mods).toContain('mod_cargo_compress');
+    expect(activeShip.mods).toContain('mod_cargo_bay');
+  });
+});
+
+describe('Fleet.uninstallMod cascade (联动卸载)', () => {
+  it('拆卸基础改装时联动拆卸依赖的高级改装', () => {
+    const state = createTestState({ credits: 100000 });
+    Fleet.init(state);
+    state.fleetSlots = 2;
+    Fleet.buyShip(state, 'freighter');
+    Fleet.switchShip(state, 1);
+
+    // 安装前置 + 高级改装
+    Fleet.installMod(state, 'mod_cargo_compress');
+    Fleet.installMod(state, 'mod_cargo_bay');
+
+    const ship = Fleet.getActiveShip(state);
+    expect(ship.mods).toContain('mod_cargo_bay');
+
+    // 拆卸基础改装应联动拆卸高级改装
+    const result = Fleet.uninstallMod(state, 'mod_cargo_compress');
+    expect(result.ok).toBe(true);
+    expect(ship.mods).not.toContain('mod_cargo_compress');
+    expect(ship.mods).not.toContain('mod_cargo_bay');
+    // 返回的 msgs 中应包含联动拆卸消息
+    expect(result.msgs.length).toBeGreaterThan(1);
+    expect(result.msgs[0].text).toContain('联动拆卸');
+  });
 });

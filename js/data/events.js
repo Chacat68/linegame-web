@@ -23,6 +23,8 @@ export const RANDOM_EVENTS = [
   // ===== 贸易类事件 =====
   {
     id: 'merchant_caravan',
+    stage: 'early',
+    risk: 'safe',
     title: '流浪商队',
     description: '一支星际流浪商队出现在附近星域。他们携带着来自银河边缘的珍稀货物，提出与你进行交易。商队领袖看了看你的飞船，露出了神秘的微笑。',
     icon: '🐪',
@@ -74,6 +76,9 @@ export const RANDOM_EVENTS = [
 
   {
     id: 'pirate_ambush',
+    stage: 'mid',
+    risk: 'dangerous',
+    protection: { avoidWhenLowHull: true, avoidWhenLowFuel: true },
     title: '海盗伏击',
     description: '警告！前方检测到多个不明飞行物信号！这是一支星际海盗的伏击编队。他们正在锁定你的飞船，通讯频道传来威胁："交出货物，或者我们自己来取！"',
     icon: '☠️',
@@ -146,6 +151,8 @@ export const RANDOM_EVENTS = [
 
   {
     id: 'distress_signal',
+    stage: 'early',
+    risk: 'safe',
     title: '求救信号',
     description: '你的通讯系统接收到一个微弱的求救信号。信号来自附近一艘失去动力的小型运输船。扫描显示船上有生命体征，但飞船周围的能量场不太稳定。',
     icon: '🆘',
@@ -208,6 +215,9 @@ export const RANDOM_EVENTS = [
 
   {
     id: 'solar_storm',
+    stage: 'mid',
+    risk: 'dangerous',
+    protection: { avoidWhenLowHull: true, avoidWhenLowFuel: true },
     title: '超新星冲击波',
     description: '船载传感器检测到一波强烈的超新星冲击波正在朝你的方向袭来！能量读数不断攀升，你必须在几秒钟内做出决定。',
     icon: '🌟',
@@ -250,6 +260,9 @@ export const RANDOM_EVENTS = [
 
   {
     id: 'abandoned_station',
+    stage: 'early',
+    risk: 'risky',
+    protection: { avoidWhenLowHull: true, avoidWhenLowFuel: true },
     title: '废弃空间站',
     description: '导航系统检测到一座被遗忘的空间站漂浮在星际虚空中。站体外壳上覆盖着厚重的陨石尘埃，但内部似乎仍有微弱能量信号。这是远古星际文明的遗迹，还是近期废弃的前哨站？',
     icon: '🏚️',
@@ -315,6 +328,8 @@ export const RANDOM_EVENTS = [
 
   {
     id: 'trade_festival',
+    stage: 'early',
+    risk: 'safe',
     title: '星际贸易节',
     description: '你抵达时恰逢当地星球一年一度的"星际贸易节"！港口装饰一新，各路商人云集。本地政府宣布今日所有贸易税减免 50%，并提供免费补给。',
     icon: '🎉',
@@ -354,6 +369,9 @@ export const RANDOM_EVENTS = [
 
   {
     id: 'wormhole_anomaly',
+    stage: 'late',
+    risk: 'dangerous',
+    protection: { avoidWhenLowHull: true, avoidWhenLowFuel: true },
     title: '虫洞异常',
     description: '空间扫描仪发出刺耳的警报——前方出现了一个不稳定的时空裂缝！这个微型虫洞正在缓慢收缩，但它似乎连接着银河系的另一个角落。通过虫洞可能会跳过漫长的航行，但风险未知。',
     icon: '🌀',
@@ -414,6 +432,8 @@ export const RANDOM_EVENTS = [
 
   {
     id: 'alien_artifact',
+    stage: 'late',
+    risk: 'risky',
     title: '远古文明遗物',
     description: '飞船的考古扫描仪检测到一个强烈的文明遗迹信号！在漂浮的小行星碎片中，一个散发着蓝色光芒的物体引起了你的注意。这可能是远古第一银河帝国留下的科技结晶。',
     icon: '🏺',
@@ -465,6 +485,9 @@ export const RANDOM_EVENTS = [
 
   {
     id: 'fuel_crisis',
+    stage: 'mid',
+    risk: 'risky',
+    protection: { avoidWhenLowFuel: true, avoidWhenLowCredits: true },
     title: '能源危机',
     description: '前方星域爆发了大规模的能源危机！多个星球的燃料供应链断裂，价格飙升。这对你来说既是危险（燃料难以补充），也是巨大的商业机会。',
     icon: '⚠️',
@@ -519,6 +542,9 @@ export const RANDOM_EVENTS = [
 
   {
     id: 'mysterious_signal',
+    stage: 'late',
+    risk: 'risky',
+    protection: { avoidWhenLowFuel: true },
     title: '神秘信号',
     description: '你的长波接收器捕获到了一段加密信号。经过初步解析，这似乎是一条来自银河系外缘的坐标数据。信号格式与已知文明的通讯协议都不匹配。这究竟是谁发出的？',
     icon: '📡',
@@ -571,6 +597,8 @@ export const RANDOM_EVENTS = [
   // ===== 事件链后续 =====
   {
     id: 'distress_followup_rescue',
+    stage: 'chain',
+    risk: 'safe',
     title: '感恩的船长',
     description: '你之前救助的那位运输船船长联系了你！他的飞船已经修好了，并且他想报答你的救命之恩。他说自己发现了一条秘密贸易路线，愿意与你分享情报。',
     icon: '🤝',
@@ -613,6 +641,9 @@ export const RANDOM_EVENTS = [
 
   {
     id: 'distress_followup_loot',
+    stage: 'chain',
+    risk: 'dangerous',
+    protection: { bypassProtection: true },
     title: '死者的复仇',
     description: '一艘武装飞船拦截了你！对方自称是你之前搜刮残骸的那位船长的弟弟。"我哥哥等着救援，你却只顾搜刮他的财物！他没有等到救援……"通讯频道传来愤怒的咆哮。',
     icon: '💀',
@@ -655,6 +686,9 @@ export const RANDOM_EVENTS = [
 
   {
     id: 'pirate_revenge',
+    stage: 'chain',
+    risk: 'dangerous',
+    protection: { bypassProtection: true },
     title: '海盗的报复',
     description: '你之前从海盗手中逃脱的事迹传开了。海盗头目觉得颜面尽失，派出精锐追击你。这次他们带来了更强大的火力。但与此同时，一支巡逻舰队也注意到了海盗的异动……',
     icon: '⚔️',

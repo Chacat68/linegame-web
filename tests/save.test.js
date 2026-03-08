@@ -28,6 +28,25 @@ describe('Save.saveGame', () => {
     expect(result.ok).toBe(true);
   });
 
+  it('使用当前 schemaVersion 并写入核心 meta 摘要', () => {
+    const state = createTestState({
+      companyName: '迁移测试公司',
+      difficulty: 'hard',
+      credits: 4321,
+      currentSystem: 'nova_station',
+    });
+    Save.saveGame(1, state, { saveName: '手工测试存档' });
+
+    const raw = globalThis.localStorage.getItem('startrader_save_1');
+    const parsed = JSON.parse(raw);
+
+    expect(parsed.meta.schemaVersion).toBe(2);
+    expect(parsed.meta.saveName).toBe('手工测试存档');
+    expect(parsed.meta.difficulty).toBe('hard');
+    expect(parsed.meta.companyName).toBe('迁移测试公司');
+    expect(parsed.meta.currentSystem).toBe('nova_station');
+  });
+
   it('保存到槽位 1-3', () => {
     const state = createTestState();
     for (let i = 1; i <= 3; i++) {
@@ -78,6 +97,25 @@ describe('Save.loadGame', () => {
     expect(result.state.completedQuests).toEqual([]);
     expect(result.state.reputation).toBe(0);
     expect(result.state.cargoCost).toEqual({});
+    expect(result.state.difficulty).toBe('normal');
+    expect(result.state._pendingChainEvents).toEqual([]);
+    expect(result.state.economyCycle).toBeNull();
+  });
+
+  it('加载旧 schema 存档后会自动迁移并回写', () => {
+    const envelope = {
+      meta: { schemaVersion: 1, gameVersion: '0.1.0', slotId: 1, timestampMs: Date.now() },
+      data: { credits: 900, day: 7, currentSystem: 'sol_prime', economyCycle: { phaseIndex: 2 } },
+    };
+    globalThis.localStorage.setItem('startrader_save_1', JSON.stringify(envelope));
+
+    const result = Save.loadGame(1);
+    expect(result.ok).toBe(true);
+    expect(result.state.economyCycle).toEqual({ phaseIndex: 2 });
+
+    const stored = JSON.parse(globalThis.localStorage.getItem('startrader_save_1'));
+    expect(stored.meta.schemaVersion).toBe(2);
+    expect(stored.meta.difficulty).toBe('normal');
   });
 });
 
@@ -110,6 +148,23 @@ describe('Save.importSave', () => {
     expect(loaded.ok).toBe(true);
     expect(typeof loaded.state.credits).toBe('number');
     expect(typeof loaded.state.day).toBe('number');
+    expect(Array.isArray(loaded.state.fleet)).toBe(true);
+    expect(loaded.state.day).toBe(1);
+  });
+
+  it('导入旧存档时会迁移到当前 schema 并改写目标槽位', () => {
+    const legacy = JSON.stringify({
+      meta: { schemaVersion: 1, gameVersion: '0.1.0', slotId: 99, timestampMs: Date.now() },
+      data: { credits: 2048, day: 8, currentSystem: 'sol_prime' },
+    });
+
+    const result = Save.importSave(2, legacy);
+    expect(result.ok).toBe(true);
+
+    const stored = JSON.parse(globalThis.localStorage.getItem('startrader_save_2'));
+    expect(stored.meta.schemaVersion).toBe(2);
+    expect(stored.meta.slotId).toBe(2);
+    expect(stored.meta.credits).toBe(2048);
   });
 
   it('正常存档可以导入', () => {
@@ -136,6 +191,20 @@ describe('Save.exportSave', () => {
   });
 });
 
+describe('Save runtime field handling', () => {
+  it('保存时不持久化 hoveredSystem，加载时恢复为 null', () => {
+    const state = createTestState({ hoveredSystem: 'nova_station' });
+    Save.saveGame(1, state);
+
+    const raw = JSON.parse(globalThis.localStorage.getItem('startrader_save_1'));
+    expect(raw.data.hoveredSystem).toBeUndefined();
+
+    const loaded = Save.loadGame(1);
+    expect(loaded.ok).toBe(true);
+    expect(loaded.state.hoveredSystem).toBeNull();
+  });
+});
+
 describe('Save.listSlots', () => {
   it('返回 4 个槽位', () => {
     const slots = Save.listSlots();
@@ -158,5 +227,34 @@ describe('Save.deleteSlot', () => {
     Save.deleteSlot(1);
     const result = Save.loadGame(1);
     expect(result.ok).toBe(false);
+  });
+});
+
+describe('Save schema v2→v3 migration', () => {
+  it('旧 fleet 中船只缺少 mods 字段时自动补全', () => {
+    const envelope = {
+      meta: { schemaVersion: 2, gameVersion: '0.2.0', slotId: 1, timestampMs: Date.now() },
+      data: {
+        credits: 5000, day: 20, currentSystem: 'sol_prime',
+        fleet: [
+          { typeId: 'shuttle', cargo: {}, upgrades: [], fuel: 100 },
+          { typeId: 'freighter', cargo: {}, upgrades: [], fuel: 120 },
+        ],
+        activeShipIndex: 0,
+      },
+    };
+    globalThis.localStorage.setItem('startrader_save_1', JSON.stringify(envelope));
+
+    const result = Save.loadGame(1);
+    expect(result.ok).toBe(true);
+
+    // 加载后 schema 应升级到 3
+    const stored = JSON.parse(globalThis.localStorage.getItem('startrader_save_1'));
+    expect(stored.meta.schemaVersion).toBe(3);
+
+    // 每艘船应有 mods 数组
+    result.state.fleet.forEach(ship => {
+      expect(Array.isArray(ship.mods)).toBe(true);
+    });
   });
 });

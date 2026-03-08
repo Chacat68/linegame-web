@@ -4,10 +4,28 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import * as Economy from '../js/systems/economy/Economy.js';
 import * as Faction from '../js/systems/faction/FactionSystem.js';
+import { ECONOMY_CONFIG } from '../js/data/constants.js';
 import { createTestState } from './helpers.js';
 
 beforeEach(() => {
   Economy.init();
+});
+
+describe('Economy configuration', () => {
+  it('暴露只读经济配置快照', () => {
+    const config = Economy.getEconomyConfig();
+    expect(config).toEqual(ECONOMY_CONFIG);
+
+    config.pricing.minimumPrice = 999;
+
+    const nextConfig = Economy.getEconomyConfig();
+    expect(nextConfig.pricing.minimumPrice).toBe(ECONOMY_CONFIG.pricing.minimumPrice);
+  });
+
+  it('经济周期默认使用配置中的初始阶段', () => {
+    const cycle = Economy.getEconomyCycle();
+    expect(cycle.phase).toBe(ECONOMY_CONFIG.cycle.phases[ECONOMY_CONFIG.cycle.initialPhaseIndex].id);
+  });
 });
 
 describe('Economy.getBuyPrice', () => {
@@ -123,8 +141,8 @@ describe('Economy.getSupplyDemand', () => {
 
   it('对不存在的 systemId 返回默认值', () => {
     const sd = Economy.getSupplyDemand('nonexistent', 'food');
-    expect(sd.supply).toBe(50);
-    expect(sd.demand).toBe(50);
+    expect(sd.supply).toBe(ECONOMY_CONFIG.supplyDemand.baseline);
+    expect(sd.demand).toBe(ECONOMY_CONFIG.supplyDemand.baseline);
     expect(sd.ratio).toBe(1);
   });
 });
@@ -151,5 +169,21 @@ describe('Economy.onPlayerBuy / onPlayerSell', () => {
       Economy.onPlayerBuy('nonexistent', 'food', 5);
       Economy.onPlayerSell('nonexistent', 'food', 5);
     }).not.toThrow();
+  });
+
+  it('买卖后供需仍被限制在配置边界内', () => {
+    for (let i = 0; i < 50; i++) {
+      Economy.onPlayerBuy('sol_prime', 'food', 10);
+    }
+    let afterBuy = Economy.getSupplyDemand('sol_prime', 'food');
+    expect(afterBuy.supply).toBeGreaterThanOrEqual(ECONOMY_CONFIG.supplyDemand.min);
+    expect(afterBuy.demand).toBeLessThanOrEqual(ECONOMY_CONFIG.supplyDemand.max);
+
+    for (let i = 0; i < 50; i++) {
+      Economy.onPlayerSell('sol_prime', 'food', 10);
+    }
+    let afterSell = Economy.getSupplyDemand('sol_prime', 'food');
+    expect(afterSell.supply).toBeLessThanOrEqual(ECONOMY_CONFIG.supplyDemand.max);
+    expect(afterSell.demand).toBeGreaterThanOrEqual(ECONOMY_CONFIG.supplyDemand.min);
   });
 });

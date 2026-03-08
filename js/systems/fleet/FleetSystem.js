@@ -719,6 +719,15 @@ export function installMod(state, modId, shipIndex) {
     return { ok: false, msgs: [{ text: '🔧 该组件已安装！', type: 'error' }] };
   }
 
+  // 检查前置条件
+  if (mod.requires) {
+    if (!ship.mods.includes(mod.requires)) {
+      var reqMod = SHIP_MODS.find(function (m) { return m.id === mod.requires; });
+      var reqName = reqMod ? reqMod.name : mod.requires;
+      return { ok: false, msgs: [{ text: '❌ 需要先安装「' + reqName + '」！', type: 'error' }] };
+    }
+  }
+
   // 检查改装槽位
   if (ship.mods.length >= (ship.modSlots || 1)) {
     return { ok: false, msgs: [{ text: '🚫 改装槽位已满！请先拆卸已有组件。', type: 'error' }] };
@@ -769,6 +778,17 @@ export function uninstallMod(state, modId, shipIndex) {
     return { ok: false, msgs: [{ text: '⚠️ 未安装该组件！', type: 'error' }] };
   }
 
+  // 联动卸载：如果有其他改装依赖当前改装，一并拆卸
+  var dependents = SHIP_MODS.filter(function (m) {
+    return m.requires === modId && ship.mods.includes(m.id);
+  });
+  var cascadeMsgs = [];
+  dependents.forEach(function (dep) {
+    ship.mods = ship.mods.filter(function (id) { return id !== dep.id; });
+    _applyModEffect(ship, dep.effect, -1);
+    cascadeMsgs.push({ text: '🔧 联动拆卸了依赖组件：' + dep.emoji + ' ' + dep.name, type: 'info' });
+  });
+
   // 移除组件
   ship.mods = ship.mods.filter(function (id) { return id !== modId; });
 
@@ -783,7 +803,7 @@ export function uninstallMod(state, modId, shipIndex) {
 
   return {
     ok: true,
-    msgs: [{ text: '🔧 「' + ship.name + '」拆卸了改装组件：' + mod.emoji + ' ' + mod.name, type: 'info' }],
+    msgs: cascadeMsgs.concat([{ text: '🔧 「' + ship.name + '」拆卸了改装组件：' + mod.emoji + ' ' + mod.name, type: 'info' }]),
   };
 }
 

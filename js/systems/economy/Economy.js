@@ -6,6 +6,7 @@
 // WebAssembly 模块（如 Rust/C++）。此处保留与 WASM 导出面相同的函数签名。
 
 import { GOODS }                          from '../../data/goods.js';
+import { ECONOMY_CONFIG }                from '../../data/constants.js';
 import { SYSTEMS, FUEL_COST_PER_UNIT, GALAXY_JUMP_FUEL, findSystem } from '../../data/systems.js';
 import * as Faction                       from '../faction/FactionSystem.js';
 
@@ -19,40 +20,53 @@ const _demand = Object.create(null);
 // ---------------------------------------------------------------------------
 // 经济周期系统（繁荣 → 稳定 → 衰退 → 萧条）
 // ---------------------------------------------------------------------------
-const CYCLE_PHASES = [
-  { id: 'prosperity', name: '繁荣期', icon: '📈', priceMod: 1.15, demandBoost: 15, supplyBoost: -5, peakChance: 0.40, duration: [25, 45] },
-  { id: 'stability',  name: '稳定期', icon: '⚖️', priceMod: 1.00, demandBoost: 0,  supplyBoost: 0,  peakChance: 0.25, duration: [30, 50] },
-  { id: 'decline',    name: '衰退期', icon: '📉', priceMod: 0.90, demandBoost: -10, supplyBoost: 10, peakChance: 0.20, duration: [20, 35] },
-  { id: 'recession',  name: '萧条期', icon: '🔻', priceMod: 0.80, demandBoost: -20, supplyBoost: 20, peakChance: 0.15, duration: [15, 30] },
-];
+const CYCLE_PHASES = ECONOMY_CONFIG.cycle.phases;
 
 let _cycleState = {
-  phaseIndex: 1,       // 初始为稳定期
-  dayInPhase: 0,       // 当前阶段已经过天数
-  phaseDuration: 40,   // 当前阶段总天数
-  totalCycles: 0,      // 已完成的完整周期数
+  phaseIndex: ECONOMY_CONFIG.cycle.initialPhaseIndex,
+  dayInPhase: 0,
+  phaseDuration: ECONOMY_CONFIG.cycle.fallbackDuration,
+  totalCycles: 0,
 };
 
 // ---------------------------------------------------------------------------
 // "WASM polyfill" — 签名与计划中的 WASM 导出保持一致
 // ---------------------------------------------------------------------------
 
-/**
- * calculatePrice(basePrice, systemMultiplier, dayModifier) → integer price
- * 生产版本将由编译后的 WebAssembly 模块导出。
- */
 function calculatePrice(basePrice, systemMultiplier, dayModifier) {
   return Math.round(basePrice * systemMultiplier * dayModifier);
 }
 
-/**
- * euclideanDistance(x1, y1, x2, y2) → float
- * 在大型贸易图中将作为 WASM 导出以提升性能。
- */
 function euclideanDistance(x1, y1, x2, y2) {
   const dx = x1 - x2;
   const dy = y1 - y2;
   return Math.sqrt(dx * dx + dy * dy);
+}
+
+function _getBaseSupply(priceMultiplier, cycleSupplyBoost) {
+  return Math.round(
+    ECONOMY_CONFIG.supplyDemand.baseline +
+    (1.0 - priceMultiplier) * ECONOMY_CONFIG.supplyDemand.priceInfluence +
+    (cycleSupplyBoost || 0)
+  );
+}
+
+function _getBaseDemand(priceMultiplier, cycleDemandBoost) {
+  return Math.round(
+    ECONOMY_CONFIG.supplyDemand.baseline +
+    (priceMultiplier - 1.0) * ECONOMY_CONFIG.supplyDemand.priceInfluence +
+    (cycleDemandBoost || 0)
+  );
+}
+
+function _clampSupplyDemand(value) {
+  return Math.max(ECONOMY_CONFIG.supplyDemand.min, Math.min(ECONOMY_CONFIG.supplyDemand.max, value));
+}
+
+function _getSupplyDemandPriceModifier(systemId, goodId) {
+  const sd = getSupplyDemand(systemId, goodId);
+  return ECONOMY_CONFIG.supplyDemand.priceRatioMinBase +
+    ECONOMY_CONFIG.supplyDemand.priceRatioScale * Math.min(ECONOMY_CONFIG.supplyDemand.priceRatioClamp, sd.ratio);
 }
 
 // ---------------------------------------------------------------------------
@@ -65,23 +79,12 @@ function _randomiseModifiers() {
     _supply[sys.id]    = Object.create(null);
     _demand[sys.id]    = Object.create(null);
     GOODS.forEach(function (good) {
-      _modifiers[sys.id][good.id] = 0.75 + Math.random() * 0.5; // [0.75, 1.25]
-      // 供给与需求：产地供给高价格低，消费地需求高价格高
+      _modifiers[sys.id][good.id] = ECONOMY_CONFIG.modifier.initialMin + Math.random() * ECONOMY_CONFIG.modifier.initialRange;
       const priceMult = sys.prices[good.id];
-      // priceMult < 1 → 产地(供给多), priceMult > 1 → 消费地(需求多)
-      _supply[sys.id][good.id] = Math.round(50 + (1.0 - priceMult) * 30 + Math.random() * 20);
-      _demand[sys.id][good.id] = Math.round(50 + (priceMult - 1.0) * 30 + Math.random() * 20);
+      _supply[sys.id][good.id] = _getBaseSupply(priceMult) + Math.round(Math.random() * ECONOMY_CONFIG.supplyDemand.randomSpread);
+      _demand[sys.id][good.id] = _getBaseDemand(priceMult) + Math.round(Math.random() * ECONOMY_CONFIG.supplyDemand.randomSpread);
     });
   });
-}
-
-// ---------------------------------------------------------------------------
-// 公开 API
-// ---------------------------------------------------------------------------
-
-export function init() {
-  _randomiseModifiers();
-  _initCycle();
 }
 
 function _initCycle() {
@@ -96,9 +99,18 @@ function _advanceCycle() {
     _cycleState.phaseIndex = (_cycleState.phaseIndex + 1) % CYCLE_PHASES.length;
     if (_cycleState.phaseIndex === 0) _cycleState.totalCycles++;
     _initCycle();
-    return true; // 阶段切换
+    return true;
   }
   return false;
+}
+
+// ---------------------------------------------------------------------------
+// 公开 API
+// ---------------------------------------------------------------------------
+
+export function init() {
+  _randomiseModifiers();
+  _initCycle();
 }
 
 export function advanceDay() {
@@ -107,144 +119,102 @@ export function advanceDay() {
 
   SYSTEMS.forEach(function (sys) {
     GOODS.forEach(function (good) {
-      // 噪声系数漂移（受经济周期影响）
-      let m = _modifiers[sys.id][good.id] + (Math.random() - 0.5) * 0.15;
-      _modifiers[sys.id][good.id] = Math.max(0.55, Math.min(1.45, m));
+      let m = _modifiers[sys.id][good.id] + (Math.random() - 0.5) * ECONOMY_CONFIG.modifier.dailyDrift;
+      _modifiers[sys.id][good.id] = Math.max(ECONOMY_CONFIG.modifier.min, Math.min(ECONOMY_CONFIG.modifier.max, m));
 
-      // 供需自然回复（向均衡值漂移，受周期影响）
-      const baseSup = Math.round(50 + (1.0 - sys.prices[good.id]) * 30 + cycle.supplyBoost);
-      const baseDem = Math.round(50 + (sys.prices[good.id] - 1.0) * 30 + cycle.demandBoost);
-      _supply[sys.id][good.id] += Math.round((baseSup - _supply[sys.id][good.id]) * 0.15 + (Math.random() - 0.5) * 5);
-      _demand[sys.id][good.id] += Math.round((baseDem - _demand[sys.id][good.id]) * 0.15 + (Math.random() - 0.5) * 5);
-      _supply[sys.id][good.id] = Math.max(5, Math.min(100, _supply[sys.id][good.id]));
-      _demand[sys.id][good.id] = Math.max(5, Math.min(100, _demand[sys.id][good.id]));
+      const baseSup = _getBaseSupply(sys.prices[good.id], cycle.supplyBoost);
+      const baseDem = _getBaseDemand(sys.prices[good.id], cycle.demandBoost);
+      _supply[sys.id][good.id] += Math.round((baseSup - _supply[sys.id][good.id]) * ECONOMY_CONFIG.supplyDemand.dailyRecoveryRate + (Math.random() - 0.5) * ECONOMY_CONFIG.supplyDemand.dailyRecoveryNoise);
+      _demand[sys.id][good.id] += Math.round((baseDem - _demand[sys.id][good.id]) * ECONOMY_CONFIG.supplyDemand.dailyRecoveryRate + (Math.random() - 0.5) * ECONOMY_CONFIG.supplyDemand.dailyRecoveryNoise);
+      _supply[sys.id][good.id] = _clampSupplyDemand(_supply[sys.id][good.id]);
+      _demand[sys.id][good.id] = _clampSupplyDemand(_demand[sys.id][good.id]);
     });
   });
 
-  // 随机价格峰值事件（概率受经济周期影响）
   if (Math.random() < cycle.peakChance) {
     const sys  = SYSTEMS[Math.floor(Math.random() * SYSTEMS.length)];
     const good = GOODS[Math.floor(Math.random() * GOODS.length)];
-    _modifiers[sys.id][good.id] = 1.8 + Math.random() * 0.6;
-    _demand[sys.id][good.id] = Math.min(100, _demand[sys.id][good.id] + 25);
-    _supply[sys.id][good.id] = Math.max(5, _supply[sys.id][good.id] - 15);
+    _modifiers[sys.id][good.id] = ECONOMY_CONFIG.peaks.modifierBase + Math.random() * ECONOMY_CONFIG.peaks.modifierRange;
+    _demand[sys.id][good.id] = _clampSupplyDemand(_demand[sys.id][good.id] + ECONOMY_CONFIG.peaks.demandBoost);
+    _supply[sys.id][good.id] = _clampSupplyDemand(_supply[sys.id][good.id] - ECONOMY_CONFIG.peaks.supplyDrop);
   }
 
   return { cycleChanged: cycleChanged, cycle: cycle };
 }
 
-/**
- * 玩家买入时减少当地供给、增加需求
- */
 export function onPlayerBuy(systemId, goodId, quantity) {
   if (!_supply[systemId]) return;
-  _supply[systemId][goodId] = Math.max(5, (_supply[systemId][goodId] || 50) - quantity * 2);
-  _demand[systemId][goodId] = Math.min(100, (_demand[systemId][goodId] || 50) + quantity);
+  _supply[systemId][goodId] = _clampSupplyDemand((_supply[systemId][goodId] || ECONOMY_CONFIG.supplyDemand.baseline) - quantity * ECONOMY_CONFIG.supplyDemand.buySupplyImpact);
+  _demand[systemId][goodId] = _clampSupplyDemand((_demand[systemId][goodId] || ECONOMY_CONFIG.supplyDemand.baseline) + quantity * ECONOMY_CONFIG.supplyDemand.buyDemandImpact);
 }
 
-/**
- * 玩家卖出时增加当地供给、减少需求
- */
 export function onPlayerSell(systemId, goodId, quantity) {
   if (!_supply[systemId]) return;
-  _supply[systemId][goodId] = Math.min(100, (_supply[systemId][goodId] || 50) + quantity * 2);
-  _demand[systemId][goodId] = Math.max(5, (_demand[systemId][goodId] || 50) - quantity);
+  _supply[systemId][goodId] = _clampSupplyDemand((_supply[systemId][goodId] || ECONOMY_CONFIG.supplyDemand.baseline) + quantity * ECONOMY_CONFIG.supplyDemand.sellSupplyImpact);
+  _demand[systemId][goodId] = _clampSupplyDemand((_demand[systemId][goodId] || ECONOMY_CONFIG.supplyDemand.baseline) - quantity * ECONOMY_CONFIG.supplyDemand.sellDemandImpact);
 }
 
-/**
- * 获取供需比（用于 UI 显示）
- * @returns {{ supply: number, demand: number, ratio: number }}
- */
 export function getSupplyDemand(systemId, goodId) {
-  const s = (_supply[systemId] && _supply[systemId][goodId]) || 50;
-  const d = (_demand[systemId] && _demand[systemId][goodId]) || 50;
+  const s = (_supply[systemId] && _supply[systemId][goodId]) || ECONOMY_CONFIG.supplyDemand.baseline;
+  const d = (_demand[systemId] && _demand[systemId][goodId]) || ECONOMY_CONFIG.supplyDemand.baseline;
   return { supply: s, demand: d, ratio: d / Math.max(1, s) };
 }
 
-/**
- * 获取买入价（含派系税 & 科技折扣）
- * @param {string} systemId
- * @param {string} goodId
- * @param {object} [state]  传入 state 以启用派系税率 & 科技折扣
- */
 export function getBuyPrice(systemId, goodId, state) {
   const sys  = SYSTEMS.find(function (s) { return s.id === systemId; });
   const good = GOODS.find(function (g) { return g.id === goodId; });
-  if (!sys || !good || !_modifiers[systemId]) return 1;
+  if (!sys || !good || !_modifiers[systemId]) return ECONOMY_CONFIG.pricing.minimumPrice;
   const m    = _modifiers[systemId][goodId] * sys.prices[goodId];
-  // 供需比影响价格：需求高于供给 → 涨价
-  const sd   = getSupplyDemand(systemId, goodId);
-  const sdMod = 0.7 + 0.6 * Math.min(2, sd.ratio);
-  // 经济周期全局价格修正
+  const sdMod = _getSupplyDemandPriceModifier(systemId, goodId);
   const cycleMod = CYCLE_PHASES[_cycleState.phaseIndex].priceMod;
-  let price  = calculatePrice(good.basePrice, m * sdMod * cycleMod, 1.10);
+  let price  = calculatePrice(good.basePrice, m * sdMod * cycleMod, ECONOMY_CONFIG.pricing.buyMultiplier);
 
-  // 派系税率（敌对 +30%，友好 -10%，盟友 -20%）
   if (state) {
     const taxMod = Faction.getTaxModifier(state, systemId);
     price = Math.round(price * taxMod);
-    // 科技买入折扣
     if (state.techBuyDiscount) {
       price = Math.round(price * (1 - state.techBuyDiscount));
     }
   }
-  return Math.max(1, price);
+  return Math.max(ECONOMY_CONFIG.pricing.minimumPrice, price);
 }
 
-/**
- * 获取卖出价（含派系税 & 科技加成）
- * @param {string} systemId
- * @param {string} goodId
- * @param {object} [state]  传入 state 以启用派系税率 & 科技加成
- */
 export function getSellPrice(systemId, goodId, state) {
   const sys  = SYSTEMS.find(function (s) { return s.id === systemId; });
   const good = GOODS.find(function (g) { return g.id === goodId; });
-  if (!sys || !good || !_modifiers[systemId]) return 1;
+  if (!sys || !good || !_modifiers[systemId]) return ECONOMY_CONFIG.pricing.minimumPrice;
   const m    = _modifiers[systemId][goodId] * sys.prices[goodId];
-  // 供需比影响卖价：需求高 → 卖价也更高
-  const sd   = getSupplyDemand(systemId, goodId);
-  const sdMod = 0.7 + 0.6 * Math.min(2, sd.ratio);
-  // 经济周期全局价格修正
+  const sdMod = _getSupplyDemandPriceModifier(systemId, goodId);
   const cycleMod = CYCLE_PHASES[_cycleState.phaseIndex].priceMod;
-  let price  = calculatePrice(good.basePrice, m * sdMod * cycleMod, 0.95); // 5% 卖出折扣
+  let price  = calculatePrice(good.basePrice, m * sdMod * cycleMod, ECONOMY_CONFIG.pricing.sellMultiplier);
 
-  // 派系税率（对卖价：友好提高收入，敌对降低）
-  // 买入时 tax 涨价 = 对玩家不利，卖出时 tax 应该让玩家少赚
   if (state) {
     const taxMod = Faction.getTaxModifier(state, systemId);
-    // 卖出时税率反向：taxMod > 1（敌对）=> 收入减少, taxMod < 1（友好）=> 收入增加
-    const sellTax = 2.0 - taxMod; // 1.3 → 0.7 ; 0.8 → 1.2
+    const sellTax = 2.0 - taxMod;
     price = Math.round(price * sellTax);
-    // 科技卖出加成
     if (state.techSellBonus) {
       price = Math.round(price * (1 + state.techSellBonus));
     }
   }
-  return Math.max(1, price);
+  return Math.max(ECONOMY_CONFIG.pricing.minimumPrice, price);
 }
 
 export function getFuelCost(fromId, toId, efficiency) {
   const s1 = findSystem(fromId);
   const s2 = findSystem(toId);
   if (!s1 || !s2) return 999;
-  // 跨星系需要额外跃迁燃料
   if (s1.galaxyId !== s2.galaxyId) {
-    const localDist = euclideanDistance(0.5, 0.5, s2.x, s2.y); // 到目标星球在其星系内的距离
-    return Math.max(1, Math.ceil((GALAXY_JUMP_FUEL + localDist * 50 * FUEL_COST_PER_UNIT) * efficiency));
+    const localDist = euclideanDistance(0.5, 0.5, s2.x, s2.y);
+    return Math.max(ECONOMY_CONFIG.pricing.minimumPrice, Math.ceil((GALAXY_JUMP_FUEL + localDist * 50 * FUEL_COST_PER_UNIT) * efficiency));
   }
   const dist = euclideanDistance(s1.x, s1.y, s2.x, s2.y);
-  return Math.max(1, Math.ceil(dist * 100 * FUEL_COST_PER_UNIT * efficiency));
+  return Math.max(ECONOMY_CONFIG.pricing.minimumPrice, Math.ceil(dist * 100 * FUEL_COST_PER_UNIT * efficiency));
 }
 
 export function getSystemMultiplier(systemId, goodId) {
   return SYSTEMS.find(function (s) { return s.id === systemId; }).prices[goodId];
 }
 
-/**
- * 获取当前经济周期信息
- * @returns {{ phase, name, icon, dayInPhase, phaseDuration, totalCycles, progressPercent }}
- */
 export function getEconomyCycle() {
   const phase = CYCLE_PHASES[_cycleState.phaseIndex];
   return {
@@ -259,26 +229,24 @@ export function getEconomyCycle() {
   };
 }
 
-/**
- * 获取下一个经济周期阶段信息
- */
 export function getNextCyclePhase() {
   const nextIdx = (_cycleState.phaseIndex + 1) % CYCLE_PHASES.length;
   return CYCLE_PHASES[nextIdx];
 }
 
-/**
- * 用于存档恢复的周期状态序列化
- */
 export function getCycleState() {
   return Object.assign({}, _cycleState);
 }
 
 export function setCycleState(saved) {
   if (saved) {
-    _cycleState.phaseIndex = saved.phaseIndex || 1;
+    _cycleState.phaseIndex = saved.phaseIndex || ECONOMY_CONFIG.cycle.initialPhaseIndex;
     _cycleState.dayInPhase = saved.dayInPhase || 0;
-    _cycleState.phaseDuration = saved.phaseDuration || 40;
+    _cycleState.phaseDuration = saved.phaseDuration || ECONOMY_CONFIG.cycle.fallbackDuration;
     _cycleState.totalCycles = saved.totalCycles || 0;
   }
+}
+
+export function getEconomyConfig() {
+  return JSON.parse(JSON.stringify(ECONOMY_CONFIG));
 }
