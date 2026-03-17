@@ -1,0 +1,534 @@
+/* ============================================================
+   Responsive — adapt layout for different screen resolutions
+   ============================================================ */
+
+/* --- Medium screens (≤1200px): Reduce panel widths --- */
+@media (max-width: 1200px) {
+  #info-panel { width: 250px; }
+  #trade-panel { width: 310px; }
+}
+
+/* --- Small-medium screens (≤1024px): Collapse left panel, narrow right --- */
+@media (max-width: 1024px) {
+  #info-panel {
+    width: 32px;
+    min-width: 32px;
+  }
+  #info-panel .tab-content,
+  #info-panel .tabs,
+  #info-panel .info-panel-quest-tracker {
+    display: none;
+  }
+  #info-panel .info-panel-header {
+    flex-direction: column;
+    height: 100%;
+  }
+  #info-panel .info-panel-toggle {
+    width: 100%;
+    height: 100%;
+  }
+  /* When explicitly expanded on small screen, use narrower width */
+  #info-panel.expanded-sm {
+    width: 260px;
+    min-width: 260px;
+  }
+  #info-panel.expanded-sm .tab-content,
+  #info-panel.expanded-sm .tabs,
+  #info-panel.expanded-sm .info-panel-quest-tracker {
+    display: flex;
+  }
+  #info-panel.expanded-sm .tab-content {
+    display: block;
+  }
+  #info-panel.expanded-sm .info-panel-quest-tracker {
+    display: block;
+  }
+  #info-panel.expanded-sm .info-panel-header {
+    flex-direction: row;
+    height: auto;
+  }
+  #info-panel.expanded-sm .info-panel-toggle {
+    width: 32px;
+    height: auto;
+  }
+  #trade-panel { width: 280px; }
+}
+
+/* --- Tablet / small screens (≤768px): Compact header, narrower panels --- */
+@media (max-width: 768px) {
+  #game-header {
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 4px 10px;
+  }
+  .hdr-title h1 { font-size: 14px; }
+  .hdr-title .subtitle { display: none; }
+  #player-stats { gap: 10px; }
+  .stat-value { font-size: 13px; }
+  .stat-label { font-size: 9px; }
+  .player-level-bar { font-size: 10px; }
+  .level-bar-track { width: 60px; }
+  .victory-progress-btn { font-size: 11px; padding: 3px 7px; }
+
+  .quest-tracker-card { padding: 8px; }
+  .quest-tracker-item { padding: 7px; }
+
+  #trade-panel { width: 240px; }
+  #current-location { font-size: 12px; }
+  .fleet-ov-label { font-size: 9px; }
+  .fleet-ov-value { font-size: 12px; }
+
+  .modal-box { min-width: 240px; max-width: 320px; padding: 16px 18px; }
+  .victory-modal-box { min-width: 280px; max-width: 420px; }
+  .event-modal-box { min-width: 280px; max-width: 360px; }
+  .settings-modal-box {
+    width: min(100vw - 24px, 720px);
+    max-width: none;
+    padding: 0;
+  }
+  .settings-layout {
+    flex-direction: column;
+  }
+  .settings-sidebar {
+    width: 100%;
+    min-width: 0;
+    flex-direction: row;
+    border-right: none;
+    border-bottom: 1px solid rgba(56, 189, 248, 0.18);
+    align-items: center;
+  }
+  .settings-sidebar-title {
+    padding: 10px 14px;
+    border-bottom: none;
+    font-size: 12px;
+  }
+  .settings-nav-list {
+    flex-direction: row;
+    padding: 0;
+    gap: 0;
+    flex: 1;
+  }
+  .settings-nav-item {
+    padding: 10px 12px;
+    border-left: none;
+    border-bottom: 2px solid transparent;
+    font-size: 12px;
+  }
+  #settings-tab-display:checked ~ .settings-sidebar .settings-nav-list label[for="settings-tab-display"],
+  #settings-tab-game:checked ~ .settings-sidebar .settings-nav-list label[for="settings-tab-game"],
+  #settings-tab-data:checked ~ .settings-sidebar .settings-nav-list label[for="settings-tab-data"] {
+    border-left-color: transparent;
+    border-bottom-color: #67e8f9;
+  }
+  .settings-sidebar-footer {
+    padding: 6px 10px;
+    border-top: none;
+    margin-top: 0;
+  }
+  .settings-sidebar-btn {
+    padding: 5px 8px;
+    font-size: 10px;
+  }
+  .save-slot-grid {
+    grid-template-columns: 1fr;
+  }
+  .settings-main-content {
+    padding: 14px;
+  }
+  .settings-storage-head {
+    flex-direction: column;
+  }
+
+  #map-legend { font-size: 11px; gap: 6px; padding: 3px 8px; }
+  #status-bar { height: 60px; }
+}
+
+/* --- Mobile screens (≤480px): Full-width panels, stacked layout --- */
+@media (max-width: 480px) {
+  #game-header {
+    padding: 4px 6px;
+  }
+  .hdr-title h1 { font-size: 13px; }
+  .company-name-btn { font-size: 10px; }
+  #player-stats { gap: 6px; }
+  .stat-value { font-size: 12px; }
+  .player-level-bar { font-size: 9px; }
+  .level-bar-track { width: 50px; }
+  .victory-progress-btn { font-size: 10px; padding: 2px 6px; }
+  .rep-badge { font-size: 9px; padding: 1px 4px; }
+
+  .quest-tracker-head,
+  .quest-tracker-meta,
+  .quest-tracker-item-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  #info-panel { display: none; }
+  #trade-panel { width: 200px; }
+
+  .modal-box { min-width: 200px; max-width: 95vw; padding: 14px 12px; }
+  .victory-modal-box { min-width: 200px; max-width: 95vw; }
+  .event-modal-box { min-width: 200px; max-width: 95vw; }
+  .gameover-box { max-width: 95vw; }
+  .company-rename-box { max-width: 95vw; }
+  .settings-modal-box {
+    width: calc(100vw - 12px);
+    max-height: 90vh;
+  }
+  .settings-sidebar {
+    flex-wrap: wrap;
+  }
+  .settings-sidebar-title {
+    padding: 8px 10px;
+    font-size: 11px;
+  }
+  .settings-nav-item {
+    padding: 8px 10px;
+    font-size: 11px;
+  }
+  .settings-nav-icon {
+    display: none;
+  }
+  .settings-main-header {
+    padding: 10px 14px;
+  }
+  .settings-main-content {
+    padding: 12px;
+  }
+  .settings-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px;
+  }
+  .settings-row-control {
+    width: 100%;
+  }
+  .settings-select {
+    width: 100%;
+  }
+  .settings-action-btn {
+    width: 100%;
+  }
+  .settings-save-shell {
+    padding: 10px;
+  }
+  .settings-sidebar-footer {
+    display: none;
+  }
+  .save-slot-actions,
+  .save-export-row {
+    flex-direction: column;
+  }
+  .save-slot-actions .btn-action,
+  .save-export-row .btn-action {
+    width: 100%;
+  }
+
+  #map-legend { font-size: 10px; gap: 4px; padding: 2px 6px; }
+  #map-legend span:last-child { display: none; }
+  #status-bar { height: 48px; }
+  .msg { font-size: 11px; }
+
+  .map-overlay-btn { padding: 4px 8px; font-size: 10px; }
+}
+
+/* ============================================================
+   Dynamic Feedback Layer
+   ============================================================ */
+
+@keyframes neon-breathe {
+  0%, 100% {
+    box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.18), 0 0 16px rgba(34, 211, 238, 0.08);
+  }
+  50% {
+    box-shadow: 0 0 0 1px rgba(103, 232, 249, 0.38), 0 0 24px rgba(34, 211, 238, 0.18);
+  }
+}
+
+@keyframes border-sweep {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(120%); }
+}
+
+@keyframes log-entry {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes terminal-caret {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0.15; }
+}
+
+@keyframes row-signal {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.8; }
+}
+
+.map-overlay-btn,
+.victory-progress-btn,
+.company-name-btn,
+.settings-btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.map-overlay-btn::before,
+.victory-progress-btn::before,
+.company-name-btn::before,
+.settings-btn::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 42%;
+  background: linear-gradient(90deg, transparent, rgba(186, 230, 253, 0.26), transparent);
+  transform: translateX(-140%);
+  pointer-events: none;
+}
+
+.map-overlay-btn:hover::before,
+.victory-progress-btn:hover::before,
+.company-name-btn:hover::before,
+.settings-btn:hover::before {
+  animation: border-sweep 0.8s ease-out;
+}
+
+.map-overlay-btn.active {
+  animation: neon-breathe 2.6s ease-in-out infinite;
+}
+
+.market-overlay-header h3,
+.market-detail-location,
+.map-status-chip,
+.map-atlas-tag {
+  text-shadow: 0 0 10px rgba(34, 211, 238, 0.28);
+}
+
+#market-overview-table th,
+#market-table th {
+  position: sticky;
+  overflow: hidden;
+}
+
+#market-overview-table th::after,
+#market-table th::after {
+  content: "";
+  position: absolute;
+  left: -120%;
+  top: 0;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(186, 230, 253, 0.2), transparent);
+  animation: border-sweep 3.8s linear infinite;
+}
+
+.mkt-ov-row,
+#market-table tbody tr {
+  position: relative;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.mkt-ov-row::before,
+#market-table tbody tr::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  background: linear-gradient(180deg, transparent, rgba(34, 211, 238, 0.9), transparent);
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.mkt-ov-row:hover,
+#market-table tbody tr:hover {
+  transform: translateX(3px);
+}
+
+.mkt-ov-row:hover::before,
+#market-table tbody tr:hover::before,
+.mkt-ov-current::before {
+  opacity: 1;
+}
+
+.mkt-ov-current::before {
+  animation: row-signal 1.8s ease-in-out infinite;
+}
+
+.mkt-ov-price,
+#market-table td {
+  font-variant-numeric: tabular-nums;
+}
+
+#message-log {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+#message-log::after {
+  content: "_";
+  align-self: flex-start;
+  margin-left: 8px;
+  color: rgba(125, 211, 252, 0.85);
+  font-family: "Orbitron", sans-serif;
+  animation: terminal-caret 1s steps(1) infinite;
+}
+
+.msg {
+  position: relative;
+  animation: log-entry 0.28s ease-out;
+  background: linear-gradient(90deg, rgba(9, 24, 43, 0.66), transparent 82%);
+  border-radius: 4px;
+  padding-top: 3px;
+  padding-bottom: 3px;
+}
+
+.msg::before {
+  content: ">";
+  margin-right: 6px;
+  color: rgba(103, 232, 249, 0.72);
+  font-family: "Orbitron", sans-serif;
+}
+
+.msg-tip,
+.msg-travel,
+.msg-upgrade {
+  text-shadow: 0 0 8px rgba(34, 211, 238, 0.18);
+}
+
+body[data-motion="reduced"] .map-overlay-btn.active,
+body[data-motion="reduced"] .mkt-ov-current::before,
+body[data-motion="reduced"] #message-log::after,
+body[data-motion="reduced"] .map-scanlines,
+body[data-motion="reduced"] .tut-highlight {
+  animation: none !important;
+}
+
+body[data-motion="reduced"] .tab-pane.active,
+body[data-motion="reduced"] .market-overview:not(.hidden),
+body[data-motion="reduced"] .market-detail:not(.hidden),
+body[data-motion="reduced"] .market-overlay {
+  animation-duration: 0.12s !important;
+}
+
+body[data-motion="off"] *,
+body[data-motion="off"] *::before,
+body[data-motion="off"] *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
+@keyframes pane-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes overlay-enter {
+  from {
+    opacity: 0;
+    transform: scale(1.015);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slide-enter-right {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-enter-left {
+  from {
+    opacity: 0;
+    transform: translateX(-14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes button-press-glow {
+  0% {
+    box-shadow: 0 0 0 rgba(34, 211, 238, 0);
+  }
+  50% {
+    box-shadow: 0 0 18px rgba(34, 211, 238, 0.24);
+  }
+  100% {
+    box-shadow: 0 0 0 rgba(34, 211, 238, 0);
+  }
+}
+
+.tab-btn,
+.market-galaxy-btn,
+.market-back-btn,
+.map-overlay-btn {
+  will-change: transform, opacity;
+}
+
+.tab-btn {
+  transition: color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+
+.tab-btn:hover {
+  transform: translateY(-1px);
+}
+
+.tab-btn:active,
+.market-back-btn:active,
+.map-overlay-btn:active,
+.market-galaxy-btn:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+.tab-pane.active {
+  animation: pane-enter 0.22s ease-out;
+}
+
+.market-overlay {
+  animation: overlay-enter 0.24s ease-out;
+  transform-origin: center;
+}
+
+.market-overview:not(.hidden) {
+  animation: slide-enter-left 0.22s ease-out;
+}
+
+.market-detail:not(.hidden) {
+  animation: slide-enter-right 0.22s ease-out;
+}
+
+.market-back-btn:hover,
+.market-galaxy-btn:hover,
+.map-overlay-btn:hover {
+  animation: button-press-glow 0.45s ease-out;
+}

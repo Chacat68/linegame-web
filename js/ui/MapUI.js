@@ -373,14 +373,7 @@ export function initTabs(onTabClick) {
   _tabClickCallback = onTabClick || null;
   document.querySelectorAll('.tab-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      var group = btn.dataset.tabGroup || '';
-      // 只切换同组标签
-      document.querySelectorAll('.tab-btn[data-tab-group="' + group + '"]').forEach(function (b) { b.classList.remove('active'); });
-      document.querySelectorAll('.tab-pane[data-tab-group="' + group + '"]').forEach(function (p) { p.classList.remove('active'); });
-      btn.classList.add('active');
-      document.getElementById(btn.dataset.tab).classList.add('active');
-      // 通知回调（用于教程触发等）
-      if (_tabClickCallback) _tabClickCallback(btn.dataset.tab);
+      activateTab(btn.dataset.tab);
     });
   });
 
@@ -403,4 +396,19 @@ export function initTabs(onTabClick) {
       }
     });
   }
+}
+
+export function activateTab(tabId) {
+  var btn = document.querySelector('.tab-btn[data-tab="' + tabId + '"]');
+  if (!btn) return;
+
+  var group = btn.dataset.tabGroup || '';
+  document.querySelectorAll('.tab-btn[data-tab-group="' + group + '"]').forEach(function (b) { b.classList.remove('active'); });
+  document.querySelectorAll('.tab-pane[data-tab-group="' + group + '"]').forEach(function (p) { p.classList.remove('active'); });
+  btn.classList.add('active');
+
+  var pane = document.getElementById(tabId);
+  if (pane) pane.classList.add('active');
+
+  if (_tabClickCallback) _tabClickCallback(tabId);
 }

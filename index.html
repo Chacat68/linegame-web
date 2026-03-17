@@ -1,376 +1,742 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>星际贸易帝国 · 银河历 3045</title>
-  <link rel="stylesheet" href="css/style.css" />
-</head>
-<body>
-<div id="game-shell">
-
-  <!-- ================================================================
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>蓝脉航路 · 银河历 3045</title>
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <div id="game-shell">
+      <!-- ================================================================
        Header
   ================================================================ -->
-  <header id="game-header">
-    <div class="hdr-title">
-      <h1>⭐ 星际贸易帝国</h1>
-      <span class="subtitle">银河历 3045 年</span>
-    </div>
+      <header id="game-header">
+        <div class="hdr-title">
+          <h1>✦ 蓝脉航路</h1>
+          <span class="subtitle">霓虹贸易网已上线 · 银河历 3045 年</span>
+        </div>
 
-    <button id="victory-progress-btn" class="victory-progress-btn" title="查看胜利路径进度">🏆 <span id="victory-progress-summary">胜利进度</span></button>
-  </header>
+        <div class="header-actions">
+          <a
+            id="settings-btn"
+            href="#settings-modal"
+            class="header-action-btn settings-btn"
+            title="打开设置菜单"
+            >⚙ <span>设置</span></a
+          >
+          <button
+            id="victory-progress-btn"
+            class="victory-progress-btn"
+            title="查看胜利路径进度"
+          >
+            ▣ <span id="victory-progress-summary">协议进度</span>
+          </button>
+        </div>
+      </header>
 
-  <!-- ================================================================
+      <!-- ================================================================
        Main
   ================================================================ -->
-  <main id="game-main">
-
-    <!-- Info Panel (科技 / 派系 / 成就 / 存档) ----------------------------- -->
-    <aside id="info-panel">
-      <div class="info-panel-header">
-        <nav class="tabs" data-tab-group="info">
-          <button class="tab-btn active" data-tab="tab-quest"       data-tab-group="info">📋 任务</button>
-          <button class="tab-btn"        data-tab="tab-research"    data-tab-group="info">🔬 科技</button>
-          <button class="tab-btn"        data-tab="tab-faction"     data-tab-group="info">🏛️ 派系</button>
-          <button class="tab-btn"        data-tab="tab-achievement" data-tab-group="info">🏆 成就</button>
-          <button class="tab-btn"        data-tab="tab-save"        data-tab-group="info">💾 存档</button>
-        </nav>
-        <button id="info-panel-toggle" class="info-panel-toggle" title="收起面板">◀</button>
-      </div>
-      <div class="tab-content">
-        <!-- Quest tab (任务系统) -->
-        <div id="tab-quest" class="tab-pane active" data-tab-group="info">
-          <div id="quest-list"></div>
-        </div>
-        <!-- Research tab (群星风格科技树) -->
-        <div id="tab-research" class="tab-pane" data-tab-group="info">
-          <div id="research-status"></div>
-          <div id="research-options"></div>
-          <div id="research-completed"></div>
-        </div>
-        <!-- Faction tab (派系外交) -->
-        <div id="tab-faction" class="tab-pane" data-tab-group="info">
-          <div id="faction-list"></div>
-        </div>
-        <!-- Achievement tab (成就系统) -->
-        <div id="tab-achievement" class="tab-pane" data-tab-group="info">
-          <div id="achievement-list"></div>
-        </div>
-        <!-- Save tab (存读档) -->
-        <div id="tab-save" class="tab-pane" data-tab-group="info">
-          <div id="save-list"></div>
-        </div>
-      </div>
-    </aside>
-
-    <!-- Star Map ---------------------------------------------------- -->
-    <section id="map-section">
-      <div id="map-container">
-        <canvas id="webgl-canvas"></canvas>
-        <canvas id="map-canvas"></canvas>
-        <div id="planet-detail-panel" class="planet-detail-panel"></div>
-        <div class="map-btn-group">
-          <button id="market-view-btn" class="map-overlay-btn">🏪 市场</button>
-          <button id="galaxy-view-btn" class="map-overlay-btn">🌌 星系总览</button>
-        </div>
-
-        <!-- Market overlay panel -->
-        <div id="market-overlay" class="market-overlay hidden">
-          <div class="market-overlay-header">
-            <h3 id="market-header-title">🏪 星际市场</h3>
-            <button id="market-close-btn" class="market-close-btn">✕</button>
+      <main id="game-main">
+        <!-- Info Panel (科技 / 派系 / 成就 / 存档) ----------------------------- -->
+        <aside id="info-panel">
+          <div class="info-panel-header">
+            <nav class="tabs" data-tab-group="info">
+              <button
+                class="tab-btn active"
+                data-tab="tab-quest"
+                data-tab-group="info"
+              >
+                📋 任务
+              </button>
+              <button
+                class="tab-btn"
+                data-tab="tab-research"
+                data-tab-group="info"
+              >
+                🔬 科技
+              </button>
+              <button
+                class="tab-btn"
+                data-tab="tab-faction"
+                data-tab-group="info"
+              >
+                🏛️ 派系
+              </button>
+              <button
+                class="tab-btn"
+                data-tab="tab-achievement"
+                data-tab-group="info"
+              >
+                🏆 成就
+              </button>
+            </nav>
+            <button
+              id="info-panel-toggle"
+              class="info-panel-toggle"
+              title="收起面板"
+            >
+              ◀
+            </button>
           </div>
-          <!-- Galaxy navigation -->
-          <div id="market-galaxy-nav" class="market-galaxy-nav"></div>
-
-          <!-- ▸ Overview mode: price matrix -->
-          <div id="market-overview" class="market-overview">
-            <div class="market-overview-toolbar">
-              <span class="market-overview-hint">💡 点击星球行查看详情并交易</span>
-              <label class="market-price-toggle">
-                <input type="checkbox" id="market-show-sell"> 显示卖出价
-              </label>
+          <div class="info-panel-quest-tracker">
+            <div id="quest-tracker" class="quest-tracker-card"></div>
+          </div>
+          <div class="tab-content">
+            <!-- Quest tab (任务系统) -->
+            <div id="tab-quest" class="tab-pane active" data-tab-group="info">
+              <div id="quest-list"></div>
             </div>
-            <div class="market-overview-scroll">
-              <table id="market-overview-table">
-                <thead id="market-overview-thead"></thead>
-                <tbody id="market-overview-tbody"></tbody>
-              </table>
+            <!-- Research tab (群星风格科技树) -->
+            <div id="tab-research" class="tab-pane" data-tab-group="info">
+              <div id="research-status"></div>
+              <div id="research-options"></div>
+              <div id="research-completed"></div>
+            </div>
+            <!-- Faction tab (派系外交) -->
+            <div id="tab-faction" class="tab-pane" data-tab-group="info">
+              <div id="faction-list"></div>
+            </div>
+            <!-- Achievement tab (成就系统) -->
+            <div id="tab-achievement" class="tab-pane" data-tab-group="info">
+              <div id="achievement-list"></div>
             </div>
           </div>
+        </aside>
 
-          <!-- ▸ Detail mode: single planet -->
-          <div id="market-detail" class="market-detail hidden">
-            <div class="market-detail-bar">
-              <button id="market-back-btn" class="market-back-btn">← 返回总览</button>
-              <span id="market-detail-location" class="market-detail-location"></span>
+        <!-- Star Map ---------------------------------------------------- -->
+        <section id="map-section">
+          <div id="map-container">
+            <div class="map-hud-overlay" aria-hidden="true">
+              <div class="hud-corner hud-corner-tl"></div>
+              <div class="hud-corner hud-corner-tr"></div>
+              <div class="hud-corner hud-corner-bl"></div>
+              <div class="hud-corner hud-corner-br"></div>
+              <div class="map-scanlines"></div>
+              <div class="map-noise"></div>
+              <div class="map-status-stack">
+                <div class="map-status-chip">NEON GRID ACTIVE</div>
+                <div class="map-status-chip alt">TRADE ROUTES LIVE</div>
+              </div>
+              <div class="map-atlas-tag">SECTOR ATLAS / B-3045</div>
             </div>
-            <div class="market-overlay-body">
-              <table id="market-table">
-                <thead>
-                  <tr>
-                    <th>商品</th>
-                    <th>买入</th>
-                    <th>卖出</th>
-                    <th>持有</th>
-                    <th>操作</th>
-                  </tr>
-                </thead>
-                <tbody id="market-tbody"></tbody>
-              </table>
+            <canvas id="webgl-canvas"></canvas>
+            <canvas id="map-canvas"></canvas>
+            <div id="planet-detail-panel" class="planet-detail-panel"></div>
+            <div class="map-btn-group">
+              <button id="market-view-btn" class="map-overlay-btn">
+                🏪 市场
+              </button>
+              <button id="galaxy-view-btn" class="map-overlay-btn">
+                🌌 星系总览
+              </button>
+            </div>
+
+            <!-- Market overlay panel -->
+            <div id="market-overlay" class="market-overlay hidden">
+              <div class="market-overlay-header">
+                <h3 id="market-header-title">◈ 蓝脉交易终端</h3>
+                <button id="market-close-btn" class="market-close-btn">
+                  ✕
+                </button>
+              </div>
+              <!-- Galaxy navigation -->
+              <div id="market-galaxy-nav" class="market-galaxy-nav"></div>
+
+              <!-- ▸ Overview mode: price matrix -->
+              <div id="market-overview" class="market-overview">
+                <div class="market-overview-toolbar">
+                  <span class="market-overview-hint"
+                    >扫描星球节点，接入本地市场并执行交易</span
+                  >
+                  <label class="market-price-toggle">
+                    <input type="checkbox" id="market-show-sell" /> 显示卖出价
+                  </label>
+                </div>
+                <div class="market-overview-scroll">
+                  <table id="market-overview-table">
+                    <thead id="market-overview-thead"></thead>
+                    <tbody id="market-overview-tbody"></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- ▸ Detail mode: single planet -->
+              <div id="market-detail" class="market-detail hidden">
+                <div class="market-detail-bar">
+                  <button id="market-back-btn" class="market-back-btn">
+                    ← 返回节点矩阵
+                  </button>
+                  <span
+                    id="market-detail-location"
+                    class="market-detail-location"
+                  ></span>
+                </div>
+                <div class="market-overlay-body">
+                  <table id="market-table">
+                    <thead>
+                      <tr>
+                        <th>商品</th>
+                        <th>买入</th>
+                        <th>卖出</th>
+                        <th>持有</th>
+                        <th>操作</th>
+                        <th>走势</th>
+                      </tr>
+                    </thead>
+                    <tbody id="market-tbody"></tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      <div id="map-legend">
-        <span><span class="legend-dot" style="background:#4CAF50"></span>农业</span>
-        <span><span class="legend-dot" style="background:#2196F3"></span>科技</span>
-        <span><span class="legend-dot" style="background:#FF9800"></span>矿业</span>
-        <span><span class="legend-dot" style="background:#E91E63"></span>军事</span>
-        <span><span class="legend-dot" style="background:#9C27B0"></span>商业</span>
-        <span><span class="legend-dot" style="background:#00BCD4"></span>医疗</span>
-        <span><span class="legend-dot" style="background:#607D8B"></span>特殊</span>
-        <span id="map-legend-location" style="margin-left:auto;color:#9090b0;font-size:11px">📍 🌌 银河系 > 太阳主星 · 🏛️ 银河联邦</span>
-      </div>
-    </section>
-
-    <!-- Trade Panel ------------------------------------------------- -->
-    <aside id="trade-panel">
-
-      <!-- Company -->
-      <div class="company-info-bar">
-        <button id="company-name-display" class="company-name-btn" title="点击重命名公司">🏢 <span id="company-name-text">星际信使贸易公司</span> ✏️</button>
-
-        <div id="player-stats">
-          <div class="stat-block">
-            <span class="stat-label">信用积分</span>
-            <span id="credits" class="stat-value stat-credits">1,000</span>
+          <div id="map-legend">
+            <span
+              ><span class="legend-dot" style="background: #4caf50"></span
+              >农业</span
+            >
+            <span
+              ><span class="legend-dot" style="background: #2196f3"></span
+              >科技</span
+            >
+            <span
+              ><span class="legend-dot" style="background: #ff9800"></span
+              >矿业</span
+            >
+            <span
+              ><span class="legend-dot" style="background: #e91e63"></span
+              >军事</span
+            >
+            <span
+              ><span class="legend-dot" style="background: #9c27b0"></span
+              >商业</span
+            >
+            <span
+              ><span class="legend-dot" style="background: #00bcd4"></span
+              >医疗</span
+            >
+            <span
+              ><span class="legend-dot" style="background: #607d8b"></span
+              >特殊</span
+            >
+            <span
+              id="map-legend-location"
+              style="margin-left: auto; color: #9090b0; font-size: 11px"
+              >SIGNAL ▸ 银河系 / 太阳主星 / 银河联邦</span
+            >
           </div>
-          <div class="stat-block">
-            <span class="stat-label">净资产</span>
-            <span id="net-worth" class="stat-value stat-networth">1,000</span>
+        </section>
+
+        <!-- Trade Panel ------------------------------------------------- -->
+        <aside id="trade-panel">
+          <!-- Company Dashboard (紧凑仪表盘) -->
+          <div class="company-dashboard">
+            <button
+              id="company-name-display"
+              class="company-name-btn"
+              title="点击重命名公司"
+            >
+              ◉ <span id="company-name-text">蓝脉信使物流体</span> ✏️
+            </button>
+
+            <div class="stat-strip">
+              <div class="stat-strip-item">
+                <span class="stat-strip-label">💰 积分</span>
+                <span id="credits" class="stat-strip-value stat-credits"
+                  >1,000</span
+                >
+              </div>
+              <div class="stat-strip-item">
+                <span class="stat-strip-label">📊 资产</span>
+                <span id="net-worth" class="stat-strip-value stat-networth"
+                  >1,000</span
+                >
+              </div>
+              <div class="stat-strip-item">
+                <span class="stat-strip-label">📅 天数</span>
+                <span id="galactic-day" class="stat-strip-value stat-day"
+                  >1</span
+                >
+              </div>
+              <div class="stat-strip-item">
+                <span class="stat-strip-label">经济</span>
+                <span id="economy-cycle" class="stat-strip-value stat-cycle"
+                  >⚖️稳定</span
+                >
+              </div>
+            </div>
+
+            <div id="player-level" class="player-level-bar"></div>
+
+            <div id="company-level-line" class="company-level-line">
+              CORP Lv.1 · 0/120
+            </div>
+            <div class="company-level-track">
+              <div id="company-level-fill" class="company-level-fill"></div>
+            </div>
           </div>
-          <div class="stat-block">
-            <span class="stat-label">银河历</span>
-            <span id="galactic-day" class="stat-value stat-day">第 1 天</span>
+
+          <!-- Tabs + 内联概览 -->
+          <nav class="tabs fleet-tabs">
+            <button
+              class="tab-btn active"
+              data-tab="tab-fleet"
+              data-tab-group="trade"
+            >
+              🚢 船队
+            </button>
+            <button class="tab-btn" data-tab="tab-shop" data-tab-group="trade">
+              🏪 商店
+            </button>
+            <span class="fleet-inline-summary">
+              <span id="ov-ship-count">1</span>船 ·
+              <span id="ov-dispatch-count">0</span>派遣 · Σ<span
+                id="ov-total-profit"
+                >0</span
+              >
+            </span>
+          </nav>
+
+          <div class="tab-content">
+            <!-- Fleet tab (船队系统) -->
+            <div id="tab-fleet" class="tab-pane active" data-tab-group="trade">
+              <div
+                id="auto-trade-controls"
+                class="auto-trade-controls hidden"
+              ></div>
+              <div id="fleet-list"></div>
+            </div>
+
+            <!-- Ship Shop tab -->
+            <div id="tab-shop" class="tab-pane" data-tab-group="trade">
+              <div id="shop-list"></div>
+            </div>
           </div>
-        </div>
+          <!-- /tab-content -->
+        </aside>
+      </main>
 
-        <div id="player-level" class="player-level-bar"></div>
-
-        <div id="company-level-line" class="company-level-line">🏢 新创企业 Lv.1 · 0/120</div>
-        <div class="company-level-track"><div id="company-level-fill" class="company-level-fill"></div></div>
-      </div>
-
-      <!-- Fleet Overview -->
-      <div id="ship-mini">
-        <div class="fleet-overview-row">
-          <div class="fleet-ov-item">
-            <span class="fleet-ov-label">🚢 船只</span>
-            <span id="ov-ship-count" class="fleet-ov-value">1</span>
-          </div>
-          <div class="fleet-ov-item">
-            <span class="fleet-ov-label">📡 派遣</span>
-            <span id="ov-dispatch-count" class="fleet-ov-value">0</span>
-          </div>
-          <div class="fleet-ov-item">
-            <span class="fleet-ov-label">💰 总利润</span>
-            <span id="ov-total-profit" class="fleet-ov-value">0</span>
-          </div>
-          <div class="fleet-ov-item">
-            <span class="fleet-ov-label">📦 贸易</span>
-            <span id="ov-trade-count" class="fleet-ov-value">0</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Tabs -->
-      <nav class="tabs">
-        <button class="tab-btn active" data-tab="tab-fleet"    data-tab-group="trade">🚢 船队</button>
-        <button class="tab-btn"        data-tab="tab-shop"     data-tab-group="trade">🏪 商店</button>
-      </nav>
-
-      <div class="tab-content">
-
-        <!-- Fleet tab (船队系统) -->
-        <div id="tab-fleet" class="tab-pane active" data-tab-group="trade">
-          <div id="auto-trade-controls" class="auto-trade-controls hidden"></div>
-          <div id="fleet-list"></div>
-        </div>
-
-        <!-- Ship Shop tab -->
-        <div id="tab-shop" class="tab-pane" data-tab-group="trade">
-          <div id="shop-list"></div>
-        </div>
-
-      </div><!-- /tab-content -->
-    </aside>
-
-  </main>
-
-  <!-- ================================================================
+      <!-- ================================================================
        Status bar
   ================================================================ -->
-  <footer id="status-bar">
-    <div id="message-log"></div>
-  </footer>
+      <footer id="status-bar">
+        <div id="message-log"></div>
+      </footer>
+    </div>
+    <!-- /game-shell -->
 
-</div><!-- /game-shell -->
-
-<!-- ================================================================
+    <!-- ================================================================
      Trade modal
 ================================================================ -->
-<div id="trade-modal" class="modal hidden" role="dialog" aria-modal="true">
-  <div class="modal-box">
-    <h3 id="modal-title">交易</h3>
-    <p  id="modal-desc"></p>
-    <div class="modal-stepper">
-      <button id="modal-decrease" aria-label="减少数量">−</button>
-      <input  id="modal-amount" type="number" min="1" value="1" aria-label="交易数量" />
-      <button id="modal-increase" aria-label="增加数量">+</button>
+    <div id="trade-modal" class="modal hidden" role="dialog" aria-modal="true">
+      <div class="modal-box">
+        <h3 id="modal-title">交易</h3>
+        <p id="modal-desc"></p>
+        <div class="modal-stepper">
+          <button id="modal-decrease" aria-label="减少数量">−</button>
+          <input
+            id="modal-amount"
+            type="number"
+            min="1"
+            value="1"
+            aria-label="交易数量"
+          />
+          <button id="modal-increase" aria-label="增加数量">+</button>
+        </div>
+        <button id="modal-all" class="btn-all">全部</button>
+        <div id="modal-total"></div>
+        <div class="modal-actions">
+          <button id="modal-confirm" class="btn-primary">确认</button>
+          <button id="modal-cancel" class="btn-secondary">取消</button>
+        </div>
+      </div>
     </div>
-    <button id="modal-all" class="btn-all">全部</button>
-    <div id="modal-total"></div>
-    <div class="modal-actions">
-      <button id="modal-confirm" class="btn-primary">确认</button>
-      <button id="modal-cancel"  class="btn-secondary">取消</button>
-    </div>
-  </div>
-</div>
 
-<!-- ================================================================
+    <!-- ================================================================
      Event modal (群星风格随机事件)
 ================================================================ -->
-<div id="event-modal" class="modal hidden" role="dialog" aria-modal="true">
-  <div class="modal-box event-modal-box">
-    <div class="event-header">
-      <span id="event-icon" class="event-icon-large"></span>
-      <h3 id="event-title">事件</h3>
+    <div id="event-modal" class="modal hidden" role="dialog" aria-modal="true">
+      <div class="modal-box event-modal-box">
+        <div class="event-header">
+          <span id="event-icon" class="event-icon-large"></span>
+          <h3 id="event-title">事件</h3>
+        </div>
+        <p id="event-desc" class="event-description"></p>
+        <div id="event-choices" class="event-choices"></div>
+      </div>
     </div>
-    <p id="event-desc" class="event-description"></p>
-    <div id="event-choices" class="event-choices"></div>
-  </div>
-</div>
 
-<!-- ================================================================
+    <!-- ================================================================
      Game-over / Victory modal
 ================================================================ -->
-<div id="gameover-modal" class="modal hidden" role="dialog" aria-modal="true">
-  <div class="modal-box gameover-box">
-    <h2 id="gameover-title">游戏结束</h2>
-    <pre id="gameover-message" class="gameover-message"></pre>
-    <button id="restart-btn" class="btn-primary" style="margin-top:12px">重新开始</button>
-  </div>
-</div>
+    <div
+      id="gameover-modal"
+      class="modal hidden"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div class="modal-box gameover-box">
+        <h2 id="gameover-title">游戏结束</h2>
+        <pre id="gameover-message" class="gameover-message"></pre>
+        <button id="restart-btn" class="btn-primary" style="margin-top: 12px">
+          重新开始
+        </button>
+      </div>
+    </div>
 
-<!-- ================================================================
+    <!-- ================================================================
      Dispatch modal (派遣贸易路线配置)
 ================================================================ -->
-<div id="dispatch-modal" class="modal hidden" role="dialog" aria-modal="true">
-  <div class="modal-box">
-    <h3 id="dispatch-title">📡 派遣贸易</h3>
-    <div class="dispatch-form">
-      <label class="dispatch-label">买入星系
-        <select id="dispatch-buy-system" class="dispatch-select"></select>
-      </label>
-      <label class="dispatch-label">卖出星系
-        <select id="dispatch-sell-system" class="dispatch-select"></select>
-      </label>
-      <label class="dispatch-label">贸易商品
-        <select id="dispatch-good" class="dispatch-select"></select>
-      </label>
+    <div
+      id="dispatch-modal"
+      class="modal hidden"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div class="modal-box">
+        <h3 id="dispatch-title">📡 派遣贸易</h3>
+        <div class="dispatch-form">
+          <label class="dispatch-label"
+            >买入星系
+            <select id="dispatch-buy-system" class="dispatch-select"></select>
+          </label>
+          <label class="dispatch-label"
+            >卖出星系
+            <select id="dispatch-sell-system" class="dispatch-select"></select>
+          </label>
+          <label class="dispatch-label"
+            >贸易商品
+            <select id="dispatch-good" class="dispatch-select"></select>
+          </label>
+        </div>
+        <div id="dispatch-estimate" class="dispatch-estimate"></div>
+        <div class="modal-actions">
+          <button id="dispatch-confirm" class="btn-primary">确认派遣</button>
+          <button id="dispatch-cancel" class="btn-secondary">取消</button>
+        </div>
+      </div>
     </div>
-    <div id="dispatch-estimate" class="dispatch-estimate"></div>
-    <div class="modal-actions">
-      <button id="dispatch-confirm" class="btn-primary">确认派遣</button>
-      <button id="dispatch-cancel" class="btn-secondary">取消</button>
-    </div>
-  </div>
-</div>
 
-<!-- ================================================================
+    <!-- ================================================================
      Upgrade modal (船只升级弹窗)
 ================================================================ -->
-<div id="upgrade-modal" class="modal hidden" role="dialog" aria-modal="true">
-  <div class="modal-box upgrade-modal-box">
-    <h3 id="upgrade-modal-title">⚙️ 船只升级</h3>
-    <div id="upgrade-modal-body"></div>
-    <div class="modal-actions">
-      <button id="upgrade-modal-close" class="btn-secondary">关闭</button>
+    <div
+      id="upgrade-modal"
+      class="modal hidden"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div class="modal-box upgrade-modal-box">
+        <h3 id="upgrade-modal-title">⚙️ 船只升级</h3>
+        <div id="upgrade-modal-body"></div>
+        <div class="modal-actions">
+          <button id="upgrade-modal-close" class="btn-secondary">关闭</button>
+        </div>
+      </div>
     </div>
-  </div>
-</div>
 
-<!-- ================================================================
+    <!-- ================================================================
      Mod modal (飞船改装弹窗)
 ================================================================ -->
-<div id="mod-modal" class="modal hidden" role="dialog" aria-modal="true">
-  <div class="modal-box mod-modal-box">
-    <h3 id="mod-modal-title">🔧 飞船改装</h3>
-    <div id="mod-modal-body"></div>
-    <div class="modal-actions">
-      <button id="mod-modal-close" class="btn-secondary">关闭</button>
+    <div id="mod-modal" class="modal hidden" role="dialog" aria-modal="true">
+      <div class="modal-box mod-modal-box">
+        <h3 id="mod-modal-title">🔧 飞船改装</h3>
+        <div id="mod-modal-body"></div>
+        <div class="modal-actions">
+          <button id="mod-modal-close" class="btn-secondary">关闭</button>
+        </div>
+      </div>
     </div>
-  </div>
-</div>
 
-<!-- ================================================================
+    <!-- ================================================================
      Tutorial: 新手引导遮罩 & 提示框
 ================================================================ -->
-<div id="tutorial-overlay" class="hidden"></div>
-<div id="tutorial-tooltip" class="tutorial-tooltip hidden"></div>
+    <div id="tutorial-overlay" class="hidden"></div>
+    <div id="tutorial-tooltip" class="tutorial-tooltip hidden"></div>
 
-<!-- ================================================================
+    <!-- ================================================================
      Tutorial: 首次启动弹窗
 ================================================================ -->
-<!-- ================================================================
+    <!-- ================================================================
      Company Rename modal (公司重命名)
 ================================================================ -->
-<div id="company-rename-modal" class="modal hidden" role="dialog" aria-modal="true">
-  <div class="modal-box company-rename-box">
-    <div class="company-rename-title">🏢 为你的公司命名</div>
-    <p class="company-rename-desc">你已继承了这家公司，现在可以赋予它一个新的名称，开创属于你的商业传奇！</p>
-    <div class="company-rename-form">
-      <input id="company-name-input" class="company-name-input" type="text" maxlength="24" placeholder="输入公司名称…" />
-      <div id="company-name-error" class="company-name-error hidden">名称不能为空</div>
+    <div
+      id="company-rename-modal"
+      class="modal hidden"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div class="modal-box company-rename-box">
+        <div class="company-rename-title">◉ 注册企业代号</div>
+        <p class="company-rename-desc">
+          你已接管这家深空贸易实体。为它写入新的识别代号，然后接入整条蓝脉航路。
+        </p>
+        <div class="company-rename-form">
+          <input
+            id="company-name-input"
+            class="company-name-input"
+            type="text"
+            maxlength="24"
+            placeholder="输入企业代号…"
+          />
+          <div id="company-name-error" class="company-name-error hidden">
+            名称不能为空
+          </div>
+        </div>
+        <div class="company-rename-actions">
+          <button id="company-rename-confirm" class="tut-btn tut-btn-primary">
+            ✅ 写入代号
+          </button>
+          <button id="company-rename-skip" class="tut-btn tut-btn-secondary">
+            沿用默认代号
+          </button>
+        </div>
+      </div>
     </div>
-    <div class="company-rename-actions">
-      <button id="company-rename-confirm" class="tut-btn tut-btn-primary">✅ 确认命名</button>
-      <button id="company-rename-skip" class="tut-btn tut-btn-secondary">保留原名</button>
-    </div>
-  </div>
-</div>
 
-<div id="tutorial-start-modal" class="modal hidden" role="dialog" aria-modal="true">
-  <div class="modal-box">
-    <div class="tut-start-title">⭐ 欢迎，继承者！</div>
-    <p class="tut-start-desc">
-      你意外继承了一家星际贸易公司。<br>
-      要先了解一下星际贸易的基础知识吗？
-    </p>
-    <div class="tut-start-actions">
-      <button id="tut-start-yes" class="tut-btn tut-btn-primary">🚀 开始新手教程</button>
-      <button id="tut-start-no" class="tut-btn tut-btn-secondary">我是老手，直接开始</button>
+    <div
+      id="tutorial-start-modal"
+      class="modal hidden"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div class="modal-box">
+        <div class="tut-start-title">✦ 欢迎接入蓝脉</div>
+        <p class="tut-start-desc">
+          你刚接管一条濒临停摆的深空贸易航线。<br />
+          要先完成一轮基础接入训练吗？
+        </p>
+        <div class="tut-start-actions">
+          <button id="tut-start-yes" class="tut-btn tut-btn-primary">
+            🚀 启动接入教程
+          </button>
+          <button id="tut-start-no" class="tut-btn tut-btn-secondary">
+            跳过校准，直接上线
+          </button>
+        </div>
+        <div class="tut-start-hint">教程约 2 分钟，随时可中断</div>
+      </div>
     </div>
-    <div class="tut-start-hint">教程约 2 分钟，可随时跳过</div>
-  </div>
-</div>
 
-<!-- ================================================================
+    <!-- ================================================================
      Victory Progress modal (胜利路径进度)
 ================================================================ -->
-<div id="victory-modal" class="modal hidden" role="dialog" aria-modal="true">
-  <div class="modal-box victory-modal-box">
-    <h3>🏆 胜利路径进度</h3>
-    <div id="victory-modal-body" class="victory-modal-body"></div>
-    <div class="modal-actions">
-      <button id="victory-modal-close" class="btn-secondary">关闭</button>
+    <div
+      id="victory-modal"
+      class="modal hidden"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div class="modal-box victory-modal-box">
+        <h3>▣ 协议进度</h3>
+        <div id="victory-modal-body" class="victory-modal-body"></div>
+        <div class="modal-actions">
+          <button id="victory-modal-close" class="btn-secondary">关闭</button>
+        </div>
+      </div>
     </div>
-  </div>
-</div>
 
-<script type="module" src="js/main.js"></script>
-</body>
+    <div
+      id="settings-modal"
+      class="modal hidden"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div class="modal-box settings-modal-box">
+        <!-- 装饰角标 -->
+        <span class="settings-corner settings-corner--tl"></span>
+        <span class="settings-corner settings-corner--tr"></span>
+        <span class="settings-corner settings-corner--bl"></span>
+        <span class="settings-corner settings-corner--br"></span>
+
+        <div class="settings-layout">
+          <!-- Radio 放在 layout 顶层，使 CSS ~ 选择器能同时控制 sidebar 和 main -->
+          <input
+            id="settings-tab-display"
+            class="settings-tab-radio"
+            type="radio"
+            name="settings-tab"
+            checked
+          />
+          <input
+            id="settings-tab-game"
+            class="settings-tab-radio"
+            type="radio"
+            name="settings-tab"
+          />
+          <input
+            id="settings-tab-data"
+            class="settings-tab-radio"
+            type="radio"
+            name="settings-tab"
+          />
+
+          <!-- 左侧导航栏 -->
+          <nav class="settings-sidebar">
+            <div class="settings-sidebar-title">⚙ 设置</div>
+            <div class="settings-nav-list" role="tablist" aria-label="设置分页">
+              <label
+                class="settings-nav-item"
+                for="settings-tab-display"
+                role="tab"
+                aria-selected="true"
+                data-settings-panel-target="display"
+              >
+                <span class="settings-nav-icon">◈</span>显示
+              </label>
+              <label
+                class="settings-nav-item"
+                for="settings-tab-game"
+                role="tab"
+                aria-selected="false"
+                data-settings-panel-target="game"
+              >
+                <span class="settings-nav-icon">◈</span>游戏
+              </label>
+              <label
+                class="settings-nav-item settings-nav-item--danger"
+                for="settings-tab-data"
+                role="tab"
+                aria-selected="false"
+                data-settings-panel-target="data"
+              >
+                <span class="settings-nav-icon">◈</span>数据
+              </label>
+            </div>
+            <div class="settings-sidebar-footer">
+              <button
+                id="settings-reset-defaults-btn"
+                class="settings-sidebar-btn"
+              >
+                ↺ 恢复默认
+              </button>
+            </div>
+          </nav>
+
+          <!-- 右侧内容区 -->
+          <div class="settings-main">
+            <div class="settings-main-header">
+              <div class="settings-main-title" id="settings-page-title">
+                显示设置
+              </div>
+              <a
+                id="settings-close-btn"
+                href="#"
+                class="settings-close-btn"
+                aria-label="关闭设置"
+                >✕</a
+              >
+            </div>
+
+            <div class="settings-main-content">
+              <section
+                class="settings-panel-page settings-panel-page--display"
+                data-settings-panel="display"
+              >
+                <div class="settings-row">
+                  <div class="settings-row-label">
+                    <span class="settings-label">动画强度</span>
+                    <span class="settings-row-desc"
+                      >控制界面动效、地图脉冲和背景漂移强度</span
+                    >
+                  </div>
+                  <div class="settings-row-control">
+                    <select
+                      id="settings-motion-level"
+                      class="dispatch-select settings-select"
+                    >
+                      <option value="full">完整</option>
+                      <option value="reduced">降低</option>
+                      <option value="off">关闭</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="settings-hint-row">
+                  推荐默认值。降低或关闭后，页面会保留主要状态反馈，但减少持续动画。
+                </div>
+              </section>
+
+              <section
+                class="settings-panel-page settings-panel-page--game"
+                data-settings-panel="game"
+              >
+                <div class="settings-row">
+                  <div class="settings-row-label">
+                    <span class="settings-label">游戏难度</span>
+                    <span class="settings-row-desc"
+                      >切换当前游戏与后续新开局默认难度</span
+                    >
+                  </div>
+                  <div class="settings-row-control">
+                    <select
+                      id="settings-difficulty-level"
+                      class="settings-select"
+                    >
+                      <option value="easy">休闲模式</option>
+                      <option value="normal">标准模式</option>
+                      <option value="hard">挑战模式</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="settings-hint-row">
+                  变更后立即生效，并作为后续重新开始时的默认难度；不会重置你当前的资金与进度。
+                </div>
+                <div class="settings-divider"></div>
+                <div class="settings-row">
+                  <div class="settings-row-label">
+                    <span class="settings-label">重置教程</span>
+                    <span class="settings-row-desc"
+                      >重新初始化游戏状态并进入教程流程</span
+                    >
+                  </div>
+                  <div class="settings-row-control">
+                    <button
+                      id="settings-reset-tutorial-btn"
+                      class="settings-action-btn settings-action-btn--danger"
+                    >
+                      重新开始
+                    </button>
+                  </div>
+                </div>
+                <div class="settings-hint-row">
+                  会重新初始化当前游戏状态，并在开局重新进入教程。
+                </div>
+              </section>
+
+              <section
+                class="settings-panel-page settings-panel-page--data"
+                data-settings-panel="data"
+              >
+                <div class="settings-row">
+                  <div class="settings-row-label">
+                    <span class="settings-label">清除存档</span>
+                    <span class="settings-row-desc"
+                      >清理所有本地存档数据（不可恢复）</span
+                    >
+                  </div>
+                  <div class="settings-row-control">
+                    <button
+                      id="settings-clear-saves-btn"
+                      class="settings-action-btn settings-action-btn--danger"
+                    >
+                      清空存档
+                    </button>
+                  </div>
+                </div>
+                <div class="settings-divider"></div>
+                <div class="settings-data-section-title">存档管理</div>
+                <div class="settings-save-shell">
+                  <div id="save-list"></div>
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="js/main.js"></script>
+  </body>
 </html>

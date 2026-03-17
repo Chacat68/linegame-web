@@ -29,16 +29,16 @@ function _genName(r, used) {
 
 /* ── 星球类型模板 ── */
 const _TYPES = [
-  { t:'agricultural',l:'农业',c:['#4CAF50','#66BB6A','#81C784'],b:{food:.5,water:.6,minerals:1.3,technology:1.7,luxury:1.8,weapons:1.5,medicine:1.2,fuel:.9}},
-  { t:'technology',l:'科技',c:['#2196F3','#42A5F5','#64B5F6'],b:{food:1.6,water:1.4,minerals:1.3,technology:.4,luxury:1.4,weapons:1.2,medicine:.7,fuel:.9}},
-  { t:'mining',l:'矿业',c:['#FF9800','#FFA726','#FFB74D'],b:{food:1.5,water:1.3,minerals:.4,technology:1.4,luxury:1.7,weapons:1.3,medicine:1.4,fuel:.6}},
-  { t:'commercial',l:'商业',c:['#9C27B0','#AB47BC','#CE93D8'],b:{food:1.2,water:1.1,minerals:1.3,technology:1.1,luxury:.6,weapons:1.5,medicine:1.2,fuel:1}},
-  { t:'military',l:'军事',c:['#E91E63','#EC407A','#F06292'],b:{food:1.8,water:1.6,minerals:1.4,technology:1.3,luxury:2,weapons:.4,medicine:2,fuel:1.2}},
-  { t:'medical',l:'医疗',c:['#00BCD4','#26C6DA','#4DD0E1'],b:{food:1.4,water:1.2,minerals:1.5,technology:.8,luxury:1.4,weapons:1.6,medicine:.4,fuel:1}},
-  { t:'industrial',l:'工业',c:['#FF7043','#FF8A65','#FFAB91'],b:{food:1.4,water:1.2,minerals:.6,technology:.8,luxury:1.5,weapons:.7,medicine:1.4,fuel:.8}},
-  { t:'energy',l:'能源',c:['#FFEE58','#FFF176','#FFF59D'],b:{food:1.5,water:1.3,minerals:1.2,technology:1.2,luxury:1.6,weapons:1.4,medicine:1.5,fuel:.3}},
-  { t:'research',l:'研究',c:['#66BB6A','#81C784','#A5D6A7'],b:{food:1.3,water:1.1,minerals:1.6,technology:.5,luxury:1.3,weapons:1.8,medicine:.4,fuel:1}},
-  { t:'special',l:'特殊',c:['#607D8B','#78909C','#90A4AE'],b:{food:.9,water:.8,minerals:.7,technology:.8,luxury:.7,weapons:.6,medicine:.8,fuel:.7}},
+  { t:'agricultural',l:'农业',c:['#4CAF50','#66BB6A','#81C784'],d:200,b:{food:.5,water:.6,minerals:1.3,technology:1.7,luxury:1.8,weapons:1.5,medicine:1.2,fuel:.9}},
+  { t:'technology',l:'科技',c:['#2196F3','#42A5F5','#64B5F6'],d:200,b:{food:1.6,water:1.4,minerals:1.3,technology:.4,luxury:1.4,weapons:1.2,medicine:.7,fuel:.9}},
+  { t:'mining',l:'矿业',c:['#FF9800','#FFA726','#FFB74D'],d:150,b:{food:1.5,water:1.3,minerals:.4,technology:1.4,luxury:1.7,weapons:1.3,medicine:1.4,fuel:.6}},
+  { t:'commercial',l:'商业',c:['#9C27B0','#AB47BC','#CE93D8'],d:400,b:{food:1.2,water:1.1,minerals:1.3,technology:1.1,luxury:.6,weapons:1.5,medicine:1.2,fuel:1}},
+  { t:'military',l:'军事',c:['#E91E63','#EC407A','#F06292'],d:180,b:{food:1.8,water:1.6,minerals:1.4,technology:1.3,luxury:2,weapons:.4,medicine:2,fuel:1.2}},
+  { t:'medical',l:'医疗',c:['#00BCD4','#26C6DA','#4DD0E1'],d:200,b:{food:1.4,water:1.2,minerals:1.5,technology:.8,luxury:1.4,weapons:1.6,medicine:.4,fuel:1}},
+  { t:'industrial',l:'工业',c:['#FF7043','#FF8A65','#FFAB91'],d:250,b:{food:1.4,water:1.2,minerals:.6,technology:.8,luxury:1.5,weapons:.7,medicine:1.4,fuel:.8}},
+  { t:'energy',l:'能源',c:['#FFEE58','#FFF176','#FFF59D'],d:250,b:{food:1.5,water:1.3,minerals:1.2,technology:1.2,luxury:1.6,weapons:1.4,medicine:1.5,fuel:.3}},
+  { t:'research',l:'研究',c:['#66BB6A','#81C784','#A5D6A7'],d:150,b:{food:1.3,water:1.1,minerals:1.6,technology:.5,luxury:1.3,weapons:1.8,medicine:.4,fuel:1}},
+  { t:'special',l:'特殊',c:['#607D8B','#78909C','#90A4AE'],d:100,b:{food:.9,water:.8,minerals:.7,technology:.8,luxury:.7,weapons:.6,medicine:.8,fuel:.7}},
 ];
 const _DESC = {
   agricultural:['粮食产地','生态农场','田园殖民地'],technology:['科研前哨','数据中心','技术枢纽'],
@@ -423,6 +423,7 @@ function _gen(galaxyId, seed, targetCount, seedPlanets, typeBias) {
       type: tp.t, typeLabel: tp.l,
       description: nm + ' — ' + descs[r() * descs.length | 0],
       prices: _genPrices(r, tp.b),
+      marketDepth: tp.d || 200,
       generated: true,
       minLevel: genMinLevel,
     });

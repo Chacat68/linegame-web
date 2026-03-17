@@ -1,0 +1,18 @@
+/* ---- Status bar -------------------------------------------------------- */
+#status-bar {
+  flex-shrink: 0;
+  height: 78px;
+  overflow-y: auto;
+  background: #06061a;
+  border-top: 1px solid var(--border);
+  padding: 4px 10px;
+}
+.msg { font-size: 12px; padding: 2px 0; }
+.msg-info    { color: var(--text-dim); }
+.msg-tip     { color: #aaa8ff; }
+.msg-travel  { color: var(--accent-blue); }
+.msg-buy     { color: var(--accent-green); }
+.msg-sell    { color: #ffb74d; }
+.msg-upgrade { color: var(--accent-cyan); }
+.msg-error   { color: var(--accent-red); }
+

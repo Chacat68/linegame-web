@@ -1,0 +1,174 @@
+// js/core/DispatchController.js — 激活船只自动派遣控制器
+// 依赖：core/EventBus.js, systems/fleet/FleetSystem.js,
+//       systems/trade/AutoTradeSystem.js, systems/economy/Economy.js
+// 导出：startActiveDispatch, stopActiveDispatch, isRunning,
+//       runActiveDispatchTick, updateActiveDispatchUI
+//
+// 从 GameManager 中提取的派遣定时器与 tick 逻辑。
+// tick 函数返回动作描述，由 GameManager 执行具体的状态变更。
+
+import * as EventBus  from './EventBus.js';
+import * as Fleet     from '../systems/fleet/FleetSystem.js';
+import * as AutoTrade from '../systems/trade/AutoTradeSystem.js';
+import * as Economy   from '../systems/economy/Economy.js';
+
+let _activeDispatchInterval = null;
+const ACTIVE_DISPATCH_TICK_MS = 2000;
+
+// ---------------------------------------------------------------------------
+// 公开 API
+// ---------------------------------------------------------------------------
+
+/**
+ * 启动自动派遣定时器
+ * @param {Function} tickFn  每 tick 调用的函数
+ */
+export function startActiveDispatch(tickFn) {
+  stopActiveDispatch();
+  _activeDispatchInterval = setInterval(tickFn, ACTIVE_DISPATCH_TICK_MS);
+  updateActiveDispatchUI();
+  EventBus.emit('log:message', { text: '📡 激活船只已派遣！每 2 秒执行一次操作。', type: 'info' });
+}
+
+/**
+ * 停止自动派遣定时器
+ */
+export function stopActiveDispatch() {
+  if (_activeDispatchInterval) {
+    clearInterval(_activeDispatchInterval);
+    _activeDispatchInterval = null;
+  }
+  updateActiveDispatchUI();
+}
+
+/**
+ * 是否正在运行
+ * @returns {boolean}
+ */
+export function isRunning() {
+  return _activeDispatchInterval !== null;
+}
+
+/**
+ * 单次派遣 tick 处理逻辑
+ *
+ * 返回一个动作描述，由 GameManager 执行具体操作。
+ *
+ * @param {object} state  游戏状态
+ * @param {object} options
+ * @param {Function} options.isModalVisible  (modalId) => boolean 检查弹窗是否可见
+ * @returns {{ action: string, payload?: *, msgs: Array }}
+ *   action 可为：
+ *     - 'noop'        : 无需操作（弹窗打开中或非派遣状态）
+ *     - 'stopped'     : 已自动停止
+ *     - 'travel'      : 需要旅行到 payload.systemId
+ *     - 'buy'         : 需要买入 payload { goodId, quantity }
+ *     - 'sell'        : 需要卖出 payload { goodId, quantity }
+ *     - 'fuel_failed' : 燃料不足已召回
+ */
+export function runActiveDispatchTick(state, options) {
+  const msgs = [];
+  const isModalVisible = options.isModalVisible;
+
+  // 有弹窗时暂停
+  if (isModalVisible('event-modal')) {
+    return { action: 'noop', msgs };
+  }
+  if (isModalVisible('gameover-modal')) {
+    return { action: 'stopped', msgs };
+  }
+
+  // 检查激活船只是否仍在派遣中
+  if (!Fleet.isActiveDispatched(state)) {
+    return { action: 'stopped', msgs };
+  }
+
+  // 每个 tick 开始时检查任务路线
+  var activeShip = Fleet.getActiveShip(state);
+  if (activeShip && activeShip.route) {
+    var qr = AutoTrade.findQuestRoute(state);
+    if (qr) {
+      var curRoute = activeShip.route;
+      if (curRoute.questId !== qr.questId ||
+          curRoute.buySystemId !== qr.buySystemId ||
+          curRoute.sellSystemId !== qr.sellSystemId ||
+          curRoute.goodId !== qr.goodId) {
+        curRoute.buySystemId  = qr.buySystemId;
+        curRoute.sellSystemId = qr.sellSystemId;
+        curRoute.goodId       = qr.goodId;
+        curRoute.status       = qr.status;
+        curRoute.questId      = qr.questId;
+        msgs.push({
+          text: '📋 任务路线：前往完成「' + qr.questName + '」',
+          type: 'info',
+        });
+      }
+    } else if (activeShip.route.questId) {
+      delete activeShip.route.questId;
+    }
+  }
+
+  var result = Fleet.tickActiveShipDispatch(state);
+  msgs.push(...result.msgs);
+
+  // 需要旅行
+  if (result.needTravel) {
+    var fuelCost = Economy.getFuelCost(state.currentSystem, result.needTravel, state.fuelEfficiency);
+    if (state.fuel < fuelCost) {
+      return {
+        action: 'travel_need_refuel',
+        payload: { systemId: result.needTravel, fuelCost },
+        msgs,
+      };
+    }
+    return { action: 'travel', payload: { systemId: result.needTravel }, msgs };
+  }
+
+  // 需要买入
+  if (result.needBuy) {
+    var route = result.needBuy;
+    var buyPrice = Economy.getBuyPrice(route.buySystemId, route.goodId, state);
+    var cargoUsed = Object.values(state.cargo).reduce(function (s, q) { return s + q; }, 0);
+    var space = state.maxCargo - cargoUsed;
+    var canAfford = Math.floor(state.credits / buyPrice);
+    var qty = Math.min(space, canAfford);
+
+    if (qty > 0) {
+      // 先执行买入
+      return { action: 'buy', payload: { goodId: route.goodId, quantity: qty }, msgs };
+    }
+    // 即使买不到也要转入前往卖出地状态
+    var ship = Fleet.getActiveShip(state);
+    if (ship && ship.route) ship.route.status = 'traveling_sell';
+    return { action: 'noop', msgs };
+  }
+
+  // 需要卖出
+  if (result.needSell) {
+    var routeS = result.needSell;
+    var sellQty = state.cargo[routeS.goodId] || 0;
+    if (sellQty > 0) {
+      return { action: 'sell', payload: { goodId: routeS.goodId, quantity: sellQty }, msgs };
+    }
+    var shipS = Fleet.getActiveShip(state);
+    if (shipS && shipS.route) shipS.route.status = 'traveling_buy';
+    return { action: 'noop', msgs };
+  }
+
+  return { action: 'noop', msgs };
+}
+
+/**
+ * 更新派遣 UI 指示器
+ */
+export function updateActiveDispatchUI() {
+  var ctrlDiv = document.getElementById('auto-trade-controls');
+  if (!ctrlDiv) return;
+  if (_activeDispatchInterval) {
+    ctrlDiv.classList.remove('hidden');
+    ctrlDiv.innerHTML = '<span class="dispatch-active-indicator">📡 激活船只派遣中…</span>';
+  } else {
+    ctrlDiv.classList.add('hidden');
+    ctrlDiv.innerHTML = '';
+  }
+}

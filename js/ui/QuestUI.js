@@ -12,6 +12,37 @@ const _goodNameById = GOODS.reduce(function (acc, good) {
   return acc;
 }, Object.create(null));
 
+// ---------------------------------------------------------------------------
+// 提取任务的目标星球列表（去重）
+// ---------------------------------------------------------------------------
+function _questTargetSystems(quest) {
+  if (!quest || !quest.objectives) return [];
+  var seen = Object.create(null);
+  var result = [];
+  quest.objectives.forEach(function (obj) {
+    if (obj.targetSystem && !seen[obj.targetSystem]) {
+      seen[obj.targetSystem] = true;
+      var sys = findSystem(obj.targetSystem);
+      if (sys) {
+        result.push(sys);
+      }
+    }
+  });
+  return result;
+}
+
+function _renderTargetSystems(targets) {
+  if (targets.length === 0) return '';
+  var chips = targets.map(function (sys) {
+    return '<span class="quest-target-chip">' +
+      '<span class="quest-target-dot" style="background:' + sys.color + '"></span>' +
+      sys.name +
+      '<span class="quest-target-type">' + sys.typeLabel + '</span>' +
+      '</span>';
+  }).join('');
+  return '<div class="quest-target-row">📍 目标：' + chips + '</div>';
+}
+
 /**
  * 渲染任务面板
  * @param {object}   state
@@ -23,6 +54,8 @@ export function render(state, onAccept, onAbandon) {
   if (!container) return;
 
   let html = '';
+  const recommended = Quest.getStarterRecommendations(state, 3);
+  const recommendedIds = recommended.map(function (quest) { return quest.id; });
 
   // ---- 当前章节 ----
   const currentPhaseProgress = Quest.getCurrentQuestPhaseProgress(state);
@@ -69,6 +102,10 @@ export function render(state, onAccept, onAbandon) {
           '</div>';
       });
 
+      // 目标星球
+      var targets = _questTargetSystems(quest);
+      html += _renderTargetSystems(targets);
+
       // 奖励
       html += '<div class="quest-rewards">' +
         '<span>🎁 奖励:</span>' +
@@ -86,19 +123,28 @@ export function render(state, onAccept, onAbandon) {
   const available = Quest.getAvailableQuests(state);
   html += '<div class="quest-section-title" style="margin-top:12px">📜 可接取 (' + available.length + ')</div>';
 
+  if (recommended.length > 0 && (state.quests || []).length === 0) {
+    html += '<div class="quest-empty" style="margin-bottom:10px">' +
+      '💡 教程后的推荐路线：' + recommended.map(function (quest) { return '「' + quest.name + '」'; }).join('、') + '。' +
+      '</div>';
+  }
+
   if (available.length === 0) {
     html += '<div class="quest-empty">当前章节暂无可接任务。请先推进进行中任务。</div>';
   } else {
     available.forEach(function (quest) {
       const typeInfo = QUEST_TYPES[quest.type] || {};
+      const isRecommended = recommendedIds.includes(quest.id);
       html += '<div class="quest-card available-quest">' +
         '<div class="quest-card-header">' +
           '<span class="quest-type-badge" style="background:' + (typeInfo.color || '#666') + '">' +
             (typeInfo.icon || '📋') + ' ' + (typeInfo.name || quest.type) + '</span>' +
+          (isRecommended ? '<span class="quest-time">⭐ 推荐</span>' : '') +
           (quest.timeLimit > 0 ? '<span class="quest-time">⏰ ' + quest.timeLimit + ' 天限制</span>' : '') +
         '</div>' +
         '<div class="quest-name">' + quest.name + '</div>' +
         '<div class="quest-desc">' + quest.description + '</div>' +
+        _renderTargetSystems(_questTargetSystems(quest)) +
         '<div class="quest-rewards">' +
           '<span>🎁</span>' +
           '<span>💰 ' + quest.rewards.credits + '</span>' +

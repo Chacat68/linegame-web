@@ -23,6 +23,8 @@ export const RANDOM_EVENTS = [
   // ===== 贸易类事件 =====
   {
     id: 'merchant_caravan',
+    stage: 'early',
+    risk: 'safe',
     title: '流浪商队',
     description: '一支星际流浪商队出现在附近星域。他们携带着来自银河边缘的珍稀货物，提出与你进行交易。商队领袖看了看你的飞船，露出了神秘的微笑。',
     icon: '🐪',
@@ -74,10 +76,15 @@ export const RANDOM_EVENTS = [
 
   {
     id: 'pirate_ambush',
+    stage: 'mid',
+    risk: 'dangerous',
+    protection: { avoidWhenLowHull: true, avoidWhenLowFuel: true },
     title: '海盗伏击',
     description: '警告！前方检测到多个不明飞行物信号！这是一支星际海盗的伏击编队。他们正在锁定你的飞船，通讯频道传来威胁："交出货物，或者我们自己来取！"',
     icon: '☠️',
     weight: 12,
+    chainFollowUp: { 2: 'pirate_revenge' },
+    chainDelay: 7,
     choices: [
       {
         text: '交出部分货物',
@@ -144,10 +151,14 @@ export const RANDOM_EVENTS = [
 
   {
     id: 'distress_signal',
+    stage: 'early',
+    risk: 'safe',
     title: '求救信号',
     description: '你的通讯系统接收到一个微弱的求救信号。信号来自附近一艘失去动力的小型运输船。扫描显示船上有生命体征，但飞船周围的能量场不太稳定。',
     icon: '🆘',
     weight: 10,
+    chainFollowUp: { 0: 'distress_followup_rescue', 1: 'distress_followup_loot' },
+    chainDelay: 5,
     choices: [
       {
         text: '前往救援',
@@ -204,6 +215,9 @@ export const RANDOM_EVENTS = [
 
   {
     id: 'solar_storm',
+    stage: 'mid',
+    risk: 'dangerous',
+    protection: { avoidWhenLowHull: true, avoidWhenLowFuel: true },
     title: '超新星冲击波',
     description: '船载传感器检测到一波强烈的超新星冲击波正在朝你的方向袭来！能量读数不断攀升，你必须在几秒钟内做出决定。',
     icon: '🌟',
@@ -246,6 +260,9 @@ export const RANDOM_EVENTS = [
 
   {
     id: 'abandoned_station',
+    stage: 'early',
+    risk: 'risky',
+    protection: { avoidWhenLowHull: true, avoidWhenLowFuel: true },
     title: '废弃空间站',
     description: '导航系统检测到一座被遗忘的空间站漂浮在星际虚空中。站体外壳上覆盖着厚重的陨石尘埃，但内部似乎仍有微弱能量信号。这是远古星际文明的遗迹，还是近期废弃的前哨站？',
     icon: '🏚️',
@@ -311,6 +328,8 @@ export const RANDOM_EVENTS = [
 
   {
     id: 'trade_festival',
+    stage: 'early',
+    risk: 'safe',
     title: '星际贸易节',
     description: '你抵达时恰逢当地星球一年一度的"星际贸易节"！港口装饰一新，各路商人云集。本地政府宣布今日所有贸易税减免 50%，并提供免费补给。',
     icon: '🎉',
@@ -350,6 +369,9 @@ export const RANDOM_EVENTS = [
 
   {
     id: 'wormhole_anomaly',
+    stage: 'late',
+    risk: 'dangerous',
+    protection: { avoidWhenLowHull: true, avoidWhenLowFuel: true },
     title: '虫洞异常',
     description: '空间扫描仪发出刺耳的警报——前方出现了一个不稳定的时空裂缝！这个微型虫洞正在缓慢收缩，但它似乎连接着银河系的另一个角落。通过虫洞可能会跳过漫长的航行，但风险未知。',
     icon: '🌀',
@@ -410,6 +432,8 @@ export const RANDOM_EVENTS = [
 
   {
     id: 'alien_artifact',
+    stage: 'late',
+    risk: 'risky',
     title: '远古文明遗物',
     description: '飞船的考古扫描仪检测到一个强烈的文明遗迹信号！在漂浮的小行星碎片中，一个散发着蓝色光芒的物体引起了你的注意。这可能是远古第一银河帝国留下的科技结晶。',
     icon: '🏺',
@@ -461,6 +485,9 @@ export const RANDOM_EVENTS = [
 
   {
     id: 'fuel_crisis',
+    stage: 'mid',
+    risk: 'risky',
+    protection: { avoidWhenLowFuel: true, avoidWhenLowCredits: true },
     title: '能源危机',
     description: '前方星域爆发了大规模的能源危机！多个星球的燃料供应链断裂，价格飙升。这对你来说既是危险（燃料难以补充），也是巨大的商业机会。',
     icon: '⚠️',
@@ -515,6 +542,9 @@ export const RANDOM_EVENTS = [
 
   {
     id: 'mysterious_signal',
+    stage: 'late',
+    risk: 'risky',
+    protection: { avoidWhenLowFuel: true },
     title: '神秘信号',
     description: '你的长波接收器捕获到了一段加密信号。经过初步解析，这似乎是一条来自银河系外缘的坐标数据。信号格式与已知文明的通讯协议都不匹配。这究竟是谁发出的？',
     icon: '📡',
@@ -559,6 +589,166 @@ export const RANDOM_EVENTS = [
         tooltip: '什么都不做',
         effect() {
           return { msgs: [{ text: '📡 你关闭了长波接收器，继续原定航线。', type: 'info' }] };
+        },
+      },
+    ],
+  },
+
+  // ===== 事件链后续 =====
+  {
+    id: 'distress_followup_rescue',
+    stage: 'chain',
+    risk: 'safe',
+    title: '感恩的船长',
+    description: '你之前救助的那位运输船船长联系了你！他的飞船已经修好了，并且他想报答你的救命之恩。他说自己发现了一条秘密贸易路线，愿意与你分享情报。',
+    icon: '🤝',
+    weight: 0, // 不会被随机选中，只通过事件链触发
+    choices: [
+      {
+        text: '接受情报',
+        tooltip: '获得大量积分和声望',
+        effect(state) {
+          const reward = 800 + Math.floor(Math.random() * 1200);
+          state.credits += reward;
+          state.reputation = (state.reputation || 0) + 150;
+          return {
+            msgs: [
+              { text: '🤝 船长感激地向你分享了秘密贸易路线情报！', type: 'info' },
+              { text: '💰 获得 ' + reward + ' 积分和 150 声望！善有善报。', type: 'sell' },
+            ],
+          };
+        },
+      },
+      {
+        text: '请他介绍合作伙伴',
+        tooltip: '提升所有派系关系',
+        effect(state) {
+          if (state.factionRelations) {
+            Object.keys(state.factionRelations).forEach(function (fid) {
+              state.factionRelations[fid] = Math.min(100, state.factionRelations[fid] + 8);
+            });
+          }
+          state.reputation = (state.reputation || 0) + 100;
+          return {
+            msgs: [
+              { text: '🤝 船长在各大星港为你做了引荐！所有派系好感度 +8，声望 +100', type: 'upgrade' },
+            ],
+          };
+        },
+      },
+    ],
+  },
+
+  {
+    id: 'distress_followup_loot',
+    stage: 'chain',
+    risk: 'dangerous',
+    protection: { bypassProtection: true },
+    title: '死者的复仇',
+    description: '一艘武装飞船拦截了你！对方自称是你之前搜刮残骸的那位船长的弟弟。"我哥哥等着救援，你却只顾搜刮他的财物！他没有等到救援……"通讯频道传来愤怒的咆哮。',
+    icon: '💀',
+    weight: 0,
+    choices: [
+      {
+        text: '支付赔偿金',
+        tooltip: '花费 800 积分平息怒火',
+        effect(state) {
+          const cost = Math.min(800, state.credits);
+          state.credits -= cost;
+          return {
+            msgs: [
+              { text: '💀 你支付了 ' + cost + ' 积分作为赔偿。对方冷冷地离开了。', type: 'error' },
+              { text: '📉 因果循环，恶有恶报。', type: 'info' },
+            ],
+          };
+        },
+      },
+      {
+        text: '全速逃跑',
+        tooltip: '消耗燃料逃跑，有被击中风险',
+        effect(state) {
+          state.fuel = Math.max(0, state.fuel - 20);
+          if (Math.random() < 0.5) {
+            state.shipHull = Math.max(0, (state.shipHull || 100) - 30);
+            return {
+              msgs: [
+                { text: '💥 逃跑途中被击中！船体完整度 -30，消耗 20 燃料。', type: 'error' },
+              ],
+            };
+          }
+          return {
+            msgs: [{ text: '🚀 你勉强甩掉了追击者，消耗 20 燃料。', type: 'travel' }],
+          };
+        },
+      },
+    ],
+  },
+
+  {
+    id: 'pirate_revenge',
+    stage: 'chain',
+    risk: 'dangerous',
+    protection: { bypassProtection: true },
+    title: '海盗的报复',
+    description: '你之前从海盗手中逃脱的事迹传开了。海盗头目觉得颜面尽失，派出精锐追击你。这次他们带来了更强大的火力。但与此同时，一支巡逻舰队也注意到了海盗的异动……',
+    icon: '⚔️',
+    weight: 0,
+    choices: [
+      {
+        text: '向巡逻舰队求援',
+        tooltip: '安全解决，获得声望',
+        effect(state) {
+          state.reputation = (state.reputation || 0) + 200;
+          state.credits += 500;
+          return {
+            msgs: [
+              { text: '🛡️ 巡逻舰队及时赶到，海盗四散而逃！', type: 'info' },
+              { text: '💰 巡逻队长感谢你的举报情报，奖励 500 积分。声望 +200', type: 'sell' },
+            ],
+          };
+        },
+      },
+      {
+        text: '利用地形伏击海盗',
+        tooltip: '高风险高回报',
+        effect(state) {
+          if (Math.random() < 0.45) {
+            const loot = 1500 + Math.floor(Math.random() * 2000);
+            state.credits += loot;
+            state.reputation = (state.reputation || 0) + 100;
+            return {
+              msgs: [
+                { text: '⚔️ 精彩的反击！你利用小行星带伏击了海盗，缴获了他们的战利品！', type: 'info' },
+                { text: '💰 获得 ' + loot + ' 积分的战利品！声望 +100', type: 'sell' },
+              ],
+            };
+          } else {
+            state.shipHull = Math.max(0, (state.shipHull || 100) - 35);
+            Object.keys(state.cargo).forEach(function (goodId) {
+              var lost = Math.ceil(state.cargo[goodId] * 0.4);
+              state.cargo[goodId] -= lost;
+              if (state.cargo[goodId] <= 0) delete state.cargo[goodId];
+            });
+            return {
+              msgs: [
+                { text: '💥 伏击失败！海盗火力太强，你损失惨重。', type: 'error' },
+                { text: '🔧 船体完整度 -35，40% 货物被劫。', type: 'error' },
+              ],
+            };
+          }
+        },
+      },
+      {
+        text: '交出全部货物求饶',
+        tooltip: '失去所有货物，保全飞船',
+        effect(state) {
+          state.cargo = {};
+          state.cargoCost = {};
+          return {
+            msgs: [
+              { text: '☠️ 你交出了所有货物。海盗头目满意地离开了："这才识趣。"', type: 'error' },
+            ],
+          };
         },
       },
     ],

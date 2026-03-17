@@ -1,0 +1,433 @@
+/* ---- Info panel (left: 科技/派系/成就/存档) ----------------------------- */
+#info-panel {
+  width: 300px;
+  flex-shrink: 0;
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: width 0.25s ease, min-width 0.25s ease;
+}
+#info-panel.collapsed {
+  width: 32px;
+  min-width: 32px;
+}
+#info-panel.collapsed .tab-content,
+#info-panel.collapsed .tabs {
+  display: none;
+}
+#info-panel.collapsed .info-panel-quest-tracker {
+  display: none;
+}
+.info-panel-header {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-dark);
+}
+.info-panel-header .tabs {
+  flex: 1;
+  border-bottom: none;
+}
+.info-panel-toggle {
+  flex-shrink: 0;
+  width: 32px;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 13px;
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.info-panel-toggle:hover {
+  color: var(--accent-gold);
+  background: rgba(255,255,255,0.05);
+}
+.info-panel-quest-tracker {
+  padding: 8px 10px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  background: linear-gradient(180deg, rgba(6, 16, 34, 0.82), rgba(6, 16, 34, 0));
+}
+#info-panel.collapsed .info-panel-header {
+  flex-direction: column;
+  height: 100%;
+}
+#info-panel.collapsed .info-panel-toggle {
+  width: 100%;
+  height: 100%;
+}
+
+/* ---- Trade panel ------------------------------------------------------- */
+#trade-panel {
+  width: 360px;
+  flex-shrink: 0;
+  background: var(--bg-panel);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Location bar */
+#location-bar {
+  padding: 8px 12px 6px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-card);
+}
+#current-location {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-gold);
+}
+#location-desc {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+/* Location bar in header (top-left) */
+#game-header #location-bar {
+  margin-top: 4px;
+  padding: 0;
+  border-bottom: none;
+  background: transparent;
+}
+#game-header #current-location {
+  font-size: 12px;
+}
+#game-header #location-desc {
+  font-size: 11px;
+}
+
+/* Company dashboard (compact) */
+.company-dashboard {
+  padding: 8px 12px 6px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-card);
+}
+.company-dashboard .company-name-btn {
+  margin-top: 0;
+}
+
+/* Stat strip — 4 indicators in one row */
+.stat-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  margin-top: 6px;
+}
+.stat-strip-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+.stat-strip-label {
+  font-size: 9px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+.stat-strip-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-gold);
+  white-space: nowrap;
+}
+.stat-strip-value.stat-credits { color: var(--accent-gold); }
+.stat-strip-value.stat-networth { color: var(--accent-cyan); }
+.stat-strip-value.stat-day { color: var(--text-primary); }
+.stat-strip-value.stat-cycle { font-size: 11px; color: #88aadd; }
+
+.company-dashboard .player-level-bar {
+  margin-top: 6px;
+}
+.company-level-line {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-primary);
+}
+.company-level-track {
+  height: 4px;
+  margin-top: 4px;
+  border-radius: 3px;
+  background: #202040;
+  overflow: hidden;
+}
+.company-level-fill {
+  width: 0;
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-gold), #ffec7a);
+  border-radius: 3px;
+  transition: width .25s;
+}
+
+.quest-tracker-card {
+  margin: 0;
+  padding: 10px;
+  border: 1px solid rgba(56, 189, 248, 0.18);
+  border-radius: 10px;
+  background:
+    linear-gradient(180deg, rgba(8, 24, 50, 0.92), rgba(5, 15, 32, 0.9)),
+    radial-gradient(circle at top right, rgba(34, 211, 238, 0.12), transparent 40%);
+  box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.05);
+}
+.quest-tracker-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.quest-tracker-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent-gold);
+  letter-spacing: 0.04em;
+}
+.quest-tracker-hint {
+  margin-top: 2px;
+  font-size: 10px;
+  color: var(--text-dim);
+}
+.quest-tracker-open-btn {
+  border: 1px solid rgba(118, 228, 255, 0.28);
+  border-radius: 999px;
+  background: rgba(34, 211, 238, 0.08);
+  color: var(--accent-green);
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+.quest-tracker-open-btn:hover {
+  border-color: rgba(118, 228, 255, 0.55);
+  background: rgba(34, 211, 238, 0.14);
+}
+.quest-tracker-empty {
+  margin-top: 8px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-dim);
+}
+.quest-tracker-item {
+  margin-top: 8px;
+  padding: 8px;
+  border-radius: 8px;
+  background: rgba(7, 18, 38, 0.72);
+  border: 1px solid rgba(56, 189, 248, 0.12);
+}
+.quest-tracker-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.quest-tracker-item-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.quest-tracker-badge {
+  flex-shrink: 0;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(118, 228, 255, 0.1);
+  color: var(--accent-green);
+  font-size: 10px;
+  font-weight: 700;
+}
+.quest-tracker-objective {
+  margin-top: 6px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-main);
+}
+.quest-tracker-meta {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 10px;
+  color: var(--text-dim);
+}
+.quest-tracker-reward {
+  color: var(--accent-gold);
+}
+.quest-tracker-progress-text {
+  color: var(--accent-cyan);
+  font-weight: 700;
+}
+.quest-tracker-progress {
+  margin-top: 6px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.quest-tracker-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #22d3ee, #76e4ff);
+  transition: width 0.25s ease;
+}
+
+/* Fleet overview (removed — now inline in tab bar) */
+
+/* Fleet inline summary in tab bar */
+.fleet-tabs {
+  position: relative;
+}
+.fleet-inline-summary {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 8px;
+  white-space: nowrap;
+}
+.fleet-inline-summary span {
+  font-weight: 700;
+  color: var(--accent-cyan);
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-dark);
+  flex-shrink: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.tab-btn {
+  flex: 0 0 auto;
+  padding: 7px 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 11px;
+  white-space: nowrap;
+  transition: color .2s, border-bottom .2s;
+  border-bottom: 2px solid transparent;
+}
+.tab-btn:hover  { color: var(--text-primary); }
+.tab-btn.active { color: var(--accent-gold); border-bottom-color: var(--accent-gold); }
+
+.tab-content { flex: 1; overflow-y: auto; }
+
+.tab-pane { display: none; padding: 8px 10px; }
+.tab-pane.active { display: block; }
+
+/* Market table */
+#market-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+#market-table th {
+  text-align: left;
+  padding: 4px 4px;
+  color: var(--text-dim);
+  font-weight: 600;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  border-bottom: 1px solid var(--border);
+}
+#market-table td {
+  padding: 5px 4px;
+  border-bottom: 1px solid #12122a;
+  vertical-align: middle;
+}
+#market-table tr:hover td { background: rgba(255,255,255,.03); }
+
+.good-icon { font-size: 14px; margin-right: 3px; }
+.sd-indicator { font-size: 10px; margin-left: 4px; opacity: 0.7; cursor: help; }
+.price-low  { color: var(--accent-green); font-weight: 600; }
+.price-high { color: var(--accent-red);   font-weight: 600; }
+.qty-badge {
+  display: inline-block;
+  padding: 1px 5px;
+  background: #222255;
+  border-radius: 8px;
+  font-size: 11px;
+}
+.action-cell { white-space: nowrap; }
+
+.btn-action {
+  padding: 2px 7px;
+  border: 1px solid;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 11px;
+  margin-right: 2px;
+  transition: background .15s;
+}
+.buy-btn  { background: #1b3a1b; border-color: #3a7a3a; color: #80e080; }
+.buy-btn:hover  { background: #2a5a2a; }
+.sell-btn { background: #3a1b1b; border-color: #7a3a3a; color: #e08080; }
+.sell-btn:hover { background: #5a2a2a; }
+
+.btn-refuel {
+  width: 100%;
+  padding: 5px 0;
+  background: #1a2a3a;
+  border: 1px solid #2a4a6a;
+  color: #80c0ff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.btn-refuel:hover { background: #243850; }
+
+/* Cargo pane */
+.empty-note { color: var(--text-dim); font-size: 12px; padding: 8px 0; }
+.cargo-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+  border-bottom: 1px solid #12122a;
+  font-size: 12px;
+}
+.cargo-meta { color: var(--text-dim); font-size: 11px; }
+
+/* Upgrades pane */
+#upgrade-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 0;
+}
+.upg-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid #303060;
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  cursor: pointer;
+  text-align: left;
+  color: var(--text-primary);
+  transition: background .15s, border-color .15s;
+  width: 100%;
+}
+.upg-btn:hover:not(:disabled) { background: #202048; border-color: #5555aa; }
+.upg-btn.purchased { border-color: #336633; background: #0f2010; cursor: default; }
+.upg-btn.locked    { opacity: .45; cursor: not-allowed; }
+.upg-btn.unaffordable { opacity: .6; }
+
+.upg-name { font-weight: 700; font-size: 12px; }
+.upg-desc { font-size: 11px; color: var(--text-dim); }
+.upg-cost { font-size: 11px; color: var(--accent-gold); margin-top: 1px; }
+

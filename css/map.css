@@ -1,0 +1,207 @@
+/* ---- Main area --------------------------------------------------------- */
+#game-main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ---- Map section ------------------------------------------------------- */
+#map-section {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  position: relative;
+}
+
+#map-container {
+  flex: 1;
+  position: relative;
+  cursor: crosshair;
+  overflow: hidden;
+}
+
+.map-hud-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.hud-corner {
+  position: absolute;
+  width: 46px;
+  height: 46px;
+  border-color: rgba(103, 232, 249, 0.7);
+  filter: drop-shadow(0 0 10px rgba(34, 211, 238, 0.32));
+}
+
+.hud-corner-tl {
+  top: 10px;
+  left: 10px;
+  border-top: 2px solid;
+  border-left: 2px solid;
+}
+
+.hud-corner-tr {
+  top: 10px;
+  right: 10px;
+  border-top: 2px solid;
+  border-right: 2px solid;
+}
+
+.hud-corner-bl {
+  bottom: 10px;
+  left: 10px;
+  border-bottom: 2px solid;
+  border-left: 2px solid;
+}
+
+.hud-corner-br {
+  bottom: 10px;
+  right: 10px;
+  border-bottom: 2px solid;
+  border-right: 2px solid;
+}
+
+.map-scanlines,
+.map-noise {
+  position: absolute;
+  inset: 0;
+}
+
+.map-scanlines {
+  background: repeating-linear-gradient(
+    180deg,
+    rgba(125, 211, 252, 0.06) 0,
+    rgba(125, 211, 252, 0.06) 1px,
+    transparent 1px,
+    transparent 5px
+  );
+  mix-blend-mode: screen;
+  opacity: 0.3;
+  animation: scan-pan 10s linear infinite;
+}
+
+.map-noise {
+  background:
+    radial-gradient(circle at 20% 30%, rgba(56, 189, 248, 0.12), transparent 18%),
+    radial-gradient(circle at 75% 40%, rgba(34, 211, 238, 0.1), transparent 20%),
+    radial-gradient(circle at 55% 75%, rgba(59, 130, 246, 0.08), transparent 24%);
+  opacity: 0.5;
+}
+
+.map-status-stack {
+  position: absolute;
+  top: 14px;
+  left: 72px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.map-status-chip,
+.map-atlas-tag {
+  padding: 4px 10px;
+  border: 1px solid rgba(103, 232, 249, 0.28);
+  background: linear-gradient(180deg, rgba(3, 19, 37, 0.88), rgba(3, 13, 28, 0.82));
+  color: #aef3ff;
+  font-family: "Orbitron", "Rajdhani", sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  box-shadow: 0 0 18px rgba(34, 211, 238, 0.08);
+}
+
+.map-status-chip.alt {
+  color: #bfe8ff;
+  border-color: rgba(56, 189, 248, 0.24);
+}
+
+.map-atlas-tag {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+}
+
+@keyframes scan-pan {
+  0% { transform: translateY(-6px); }
+  50% { transform: translateY(0); }
+  100% { transform: translateY(6px); }
+}
+
+#webgl-canvas,
+#map-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+#map-legend {
+  display: flex;
+  gap: 10px;
+  padding: 4px 10px;
+  background: rgba(0,0,0,.4);
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.legend-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+.planet-detail-panel {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 8;
+  width: 320px;
+  max-width: calc(100% - 16px);
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(12, 14, 35, 0.94);
+  backdrop-filter: blur(2px);
+  box-shadow: 0 6px 18px rgba(0,0,0,.35);
+  display: none;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 12px;
+  font-size: 11px;
+  pointer-events: none;
+}
+.planet-detail-panel.visible {
+  display: grid;
+}
+.planet-detail-title {
+  grid-column: 1 / -1;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-gold);
+}
+.planet-detail-desc {
+  grid-column: 1 / -1;
+  color: var(--text-dim);
+  font-size: 11px;
+  margin-bottom: 2px;
+}
+.planet-detail-item {
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.planet-detail-label {
+  color: var(--text-dim);
+  margin-right: 4px;
+}
+
+@media (max-width: 1024px) {
+  .planet-detail-panel {
+    width: 280px;
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,491 @@
+/* ============================================================
+   Cyberpunk Blue Theme Overrides
+    margin-bottom: 10px;
+
+
+  .save-meta-pill {
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(56, 189, 248, 0.08);
+  }
+
+#game-header,
+.info-panel-header,
+.tabs,
+    flex-wrap: wrap;
+#status-bar,
+#info-panel,
+#trade-panel,
+.company-dashboard,
+.modal-box,
+.tutorial-tooltip,
+
+  .save-transfer-bar {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(56, 189, 248, 0.12);
+  }
+
+  .save-transfer-copy {
+    margin-bottom: 10px;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+.market-overlay,
+.planet-detail-panel,
+.faction-card,
+    margin-top: 0;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+.save-slot,
+.research-card,
+.research-active,
+.research-queue,
+.fleet-ship-card,
+.fleet-shop-card,
+.upg-modal-item,
+.mod-modal-item,
+.vp-card {
+  backdrop-filter: blur(16px);
+}
+
+#game-header {
+  padding: 10px 16px;
+  background: linear-gradient(180deg, rgba(4, 12, 28, 0.96), rgba(4, 12, 28, 0.78));
+  border-bottom: 1px solid rgba(56, 189, 248, 0.25);
+  box-shadow: 0 10px 28px rgba(2, 8, 20, 0.42);
+}
+
+.hdr-title h1,
+.company-rename-title,
+#tutorial-start-modal .tut-start-title,
+.victory-progress-btn,
+.save-header,
+.ach-header,
+.quest-section-title,
+.fleet-section-title,
+.modal-box h2,
+.modal-box h3 {
+  font-family: "Orbitron", "Rajdhani", sans-serif;
+  letter-spacing: 0.08em;
+}
+
+.hdr-title h1 {
+  color: #8ae8ff;
+  text-shadow: 0 0 12px rgba(34, 211, 238, 0.35);
+}
+
+.hdr-title .subtitle,
+#map-legend,
+.stat-label,
+.fleet-ov-label,
+.quest-desc,
+.ach-desc,
+.faction-desc,
+.save-slot-info,
+.research-card-desc,
+.market-overlay-location,
+.market-overview-toolbar,
+.market-price-toggle,
+.market-detail-location,
+.gameover-message,
+.auto-trade-status,
+.fleet-switch-hint,
+.company-rename-desc,
+.tut-start-hint {
+  color: #8cb9dc;
+}
+
+.company-name-btn,
+.victory-progress-btn,
+.fleet-slot-buy-btn,
+.upg-modal-buy-btn,
+.btn-auto-trade,
+.market-galaxy-btn,
+.market-back-btn,
+.slot-switch-btn {
+  border: 1px solid rgba(34, 211, 238, 0.36);
+  background: linear-gradient(180deg, rgba(10, 49, 79, 0.88), rgba(6, 26, 45, 0.9));
+  color: #9cecff;
+  box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.06), 0 0 18px rgba(34, 211, 238, 0.08);
+}
+
+.company-name-btn:hover,
+.victory-progress-btn:hover,
+.fleet-slot-buy-btn.slot-can-buy:hover,
+.upg-modal-buy-btn:hover:not(:disabled),
+.btn-auto-trade:hover,
+.market-galaxy-btn:hover,
+.market-back-btn:hover,
+.slot-switch-btn:hover {
+  border-color: rgba(103, 232, 249, 0.72);
+  background: linear-gradient(180deg, rgba(16, 68, 108, 0.94), rgba(9, 40, 66, 0.94));
+  box-shadow: var(--glow-strong);
+}
+
+#info-panel,
+#trade-panel {
+  background: linear-gradient(180deg, rgba(7, 18, 38, 0.9), rgba(4, 14, 30, 0.78));
+  border-color: rgba(56, 189, 248, 0.2);
+}
+
+.info-panel-header,
+.tabs {
+  background: linear-gradient(180deg, rgba(6, 20, 42, 0.92), rgba(4, 14, 30, 0.78));
+  border-bottom-color: rgba(56, 189, 248, 0.18);
+}
+
+.tab-btn {
+  position: relative;
+  padding: 9px 10px;
+  color: #7ea6c9;
+  letter-spacing: 0.04em;
+}
+
+.tab-btn:hover {
+  color: #d9f7ff;
+  background: rgba(34, 211, 238, 0.06);
+}
+
+.tab-btn.active {
+  color: #9cecff;
+  border-bottom-color: transparent;
+}
+
+.tab-btn.active::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 2px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, #38bdf8, #67e8f9, transparent);
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.45);
+}
+
+.company-dashboard,
+#location-bar,
+#auto-trade-controls {
+  background: linear-gradient(180deg, rgba(8, 24, 48, 0.8), rgba(4, 16, 32, 0.78));
+  border-bottom-color: rgba(56, 189, 248, 0.18);
+}
+
+.stat-strip-value,
+.research-cost,
+.market-detail-location,
+#modal-total,
+.faction-bonus,
+.research-card-effect,
+.quest-obj-count,
+.research-effect-text,
+.dispatch-estimate {
+  color: #7fe7ff;
+}
+
+.company-level-track,
+.level-bar-track,
+.quest-progress-track,
+.vp-card-bar-track {
+  background: rgba(11, 31, 58, 0.9);
+  box-shadow: inset 0 0 0 1px rgba(34, 211, 238, 0.1);
+}
+
+.company-level-fill,
+.level-bar-fill,
+.quest-progress-fill,
+.vp-card-bar-fill,
+.research-fill,
+.hull-fill,
+.tut-progress-fill {
+  background: linear-gradient(90deg, #0ea5e9, #22d3ee, #67e8f9) !important;
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.38);
+}
+
+.save-slot,
+.quest-card,
+.ach-card,
+.faction-card,
+.research-card,
+.research-active,
+.research-queue,
+.fleet-slot,
+.fleet-ship-card,
+.fleet-shop-card,
+.upg-modal-item,
+.mod-modal-item,
+.vp-card,
+.market-overview-toolbar,
+.market-detail-bar {
+  background: linear-gradient(180deg, rgba(8, 28, 56, 0.84), rgba(5, 16, 34, 0.78));
+  border-color: rgba(73, 146, 226, 0.24);
+  box-shadow: var(--glow-soft);
+}
+
+.quest-card:hover,
+.ach-card:hover,
+.research-card:hover,
+.fleet-ship-card:hover,
+.fleet-shop-card:hover,
+.upg-modal-item:not(.upg-modal-locked):not(.upg-modal-capped):hover,
+.mod-modal-item:hover,
+.mkt-ov-row:hover {
+  border-color: rgba(103, 232, 249, 0.48);
+  box-shadow: var(--glow-strong);
+}
+
+.fleet-ship-card.fleet-active,
+.fleet-slot.slot-active,
+.mkt-ov-current,
+.save-slot.has-data,
+.quest-card.active-quest,
+.ach-unlocked,
+.fleet-dispatched {
+  border-color: rgba(34, 211, 238, 0.7);
+  box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.28), 0 0 22px rgba(34, 211, 238, 0.18);
+}
+
+#map-legend {
+  background: linear-gradient(180deg, rgba(2, 10, 22, 0.82), rgba(2, 8, 20, 0.92));
+  border-top-color: rgba(56, 189, 248, 0.2);
+}
+
+#map-legend-location,
+.legend-dot + span {
+  color: #89b6db;
+}
+
+.planet-detail-panel {
+  border-color: rgba(56, 189, 248, 0.32);
+  background: linear-gradient(180deg, rgba(6, 20, 40, 0.94), rgba(5, 16, 34, 0.9));
+  box-shadow: 0 10px 32px rgba(2, 8, 20, 0.5), 0 0 18px rgba(34, 211, 238, 0.12);
+}
+
+.planet-detail-title,
+.research-active-name,
+.faction-name,
+.ach-name,
+.quest-name,
+.fleet-ship-name,
+.market-overlay-header h3,
+.vp-card-name {
+  color: #dff8ff;
+}
+
+.modal {
+  background: rgba(1, 4, 12, 0.78);
+  backdrop-filter: blur(10px);
+}
+
+.modal-box,
+.event-modal-box,
+.victory-modal-box,
+.upgrade-modal-box,
+.mod-modal-box,
+.company-rename-box,
+.settings-modal-box {
+  background: linear-gradient(180deg, rgba(7, 21, 42, 0.96), rgba(5, 16, 33, 0.92));
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45), 0 0 36px rgba(34, 211, 238, 0.12);
+}
+
+.modal-stepper button,
+#modal-all,
+.dispatch-select,
+#modal-amount,
+.company-name-input {
+  background: linear-gradient(180deg, rgba(4, 20, 38, 0.98), rgba(3, 13, 26, 0.98));
+  border-color: rgba(56, 189, 248, 0.24);
+  color: #dff8ff;
+}
+
+.btn-primary,
+.quest-accept-btn,
+.fleet-switch-primary,
+.fleet-dispatch-btn,
+.btn-research,
+.map-overlay-btn.active,
+.tut-btn-primary {
+  background: linear-gradient(90deg, #0284c7, #06b6d4);
+  border: 1px solid rgba(125, 211, 252, 0.5);
+  color: #f3fbff !important;
+  box-shadow: 0 10px 24px rgba(2, 132, 199, 0.22);
+}
+
+.btn-primary:hover,
+.quest-accept-btn:hover,
+.fleet-switch-primary:hover,
+.fleet-dispatch-btn:hover,
+.btn-research:hover,
+.map-overlay-btn:hover,
+.map-overlay-btn.active:hover,
+.tut-btn-primary:hover {
+  background: linear-gradient(90deg, #0ea5e9, #22d3ee);
+}
+
+.btn-secondary,
+.fleet-switch-btn,
+.fleet-open-upg-btn,
+.fleet-open-mod-btn,
+.tut-btn-secondary,
+.market-close-btn {
+  background: linear-gradient(180deg, rgba(8, 30, 56, 0.82), rgba(4, 16, 32, 0.82));
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  color: #9cc7ea;
+}
+
+.buy-btn,
+.fleet-buy-btn,
+.mod-modal-buy-btn {
+  background: linear-gradient(90deg, rgba(4, 120, 173, 0.75), rgba(8, 145, 178, 0.7));
+  border-color: rgba(103, 232, 249, 0.34);
+  color: #ecfeff;
+}
+
+.sell-btn,
+.fleet-cancel-btn,
+.queue-cancel-btn,
+.queue-clear-btn,
+.del-btn,
+.mod-modal-uninstall-btn {
+  background: linear-gradient(90deg, rgba(159, 18, 57, 0.45), rgba(190, 24, 93, 0.35));
+  border-color: rgba(251, 113, 133, 0.38) !important;
+  color: #ffd4dc !important;
+}
+
+.fleet-sell-btn {
+  background: linear-gradient(90deg, rgba(12, 74, 110, 0.9), rgba(3, 105, 161, 0.8));
+  border-color: rgba(125, 211, 252, 0.34);
+  color: #dff8ff;
+}
+
+#status-bar {
+  background: linear-gradient(180deg, rgba(2, 8, 20, 0.95), rgba(4, 12, 28, 0.98));
+  border-top-color: rgba(56, 189, 248, 0.18);
+}
+
+#message-log {
+  position: relative;
+}
+
+#message-log::before {
+  content: "SYSTEM FEED";
+  display: block;
+  margin-bottom: 4px;
+  font-family: "Orbitron", sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  color: rgba(125, 211, 252, 0.7);
+}
+
+.msg {
+  border-left: 2px solid rgba(56, 189, 248, 0.2);
+  padding-left: 8px;
+}
+
+.event-description,
+.fleet-route-info,
+.fleet-ship-cargo-section,
+.fleet-ship-upg-section,
+.fleet-bonus-section,
+.fleet-ship-skills-section,
+.market-overlay-header,
+.market-galaxy-nav,
+.market-overlay-body,
+.market-overview-scroll,
+.dispatch-form,
+.gameover-message {
+  background-color: transparent;
+}
+
+.tutorial-tooltip {
+  background: linear-gradient(180deg, rgba(5, 20, 42, 0.98), rgba(4, 14, 30, 0.95));
+  border-color: rgba(34, 211, 238, 0.36);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 30px rgba(34, 211, 238, 0.14);
+}
+
+.tut-highlight {
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.72), 0 0 28px rgba(34, 211, 238, 0.35) !important;
+}
+
+.tut-keyword,
+.rep-badge,
+.completed-tech-badge,
+.quest-phase-chip.active,
+.fleet-bonus-chip,
+.fleet-mod-chip,
+.fleet-shop-skill-chip,
+.qty-badge {
+  background: rgba(14, 165, 233, 0.12);
+  border-color: rgba(56, 189, 248, 0.28);
+  color: #9cecff;
+}
+
+#market-table th,
+#market-overview-table th,
+#market-table td,
+.mkt-ov-row td {
+  border-bottom-color: rgba(56, 189, 248, 0.1);
+}
+
+#market-table tr:hover td,
+.mkt-ov-row:hover td {
+  background: rgba(14, 165, 233, 0.08);
+}
+
+.market-overlay {
+  background:
+    radial-gradient(circle at top right, rgba(34, 211, 238, 0.12), transparent 24%),
+    linear-gradient(180deg, rgba(3, 13, 28, 0.96), rgba(4, 12, 26, 0.98));
+}
+
+.market-overlay-header,
+.market-galaxy-nav,
+.market-overview-toolbar,
+.market-detail-bar {
+  border-bottom-color: rgba(56, 189, 248, 0.14);
+}
+
+.map-overlay-btn {
+  background: linear-gradient(180deg, rgba(5, 18, 38, 0.88), rgba(4, 14, 28, 0.94));
+  border-color: rgba(56, 189, 248, 0.26);
+  color: #aeeeff;
+  box-shadow: 0 12px 24px rgba(2, 8, 20, 0.32);
+}
+
+.faction-pref-liked,
+.price-low,
+.msg-buy,
+.fleet-route-status,
+.upg-modal-chip-done,
+.mod-modal-all-done,
+.upg-modal-all-done,
+.fleet-upg-all-done,
+.fleet-upg-all-done-inline {
+  color: #7df9ff;
+}
+
+.price-high,
+.msg-error,
+.quest-time,
+.company-name-error {
+  color: #ff7c9a;
+}
+
+.fleet-skill-name,
+.fleet-bonus-name,
+.queue-index,
+.research-time,
+.dispatch-active-indicator,
+.msg-travel,
+.msg-upgrade {
+  color: #7cdcff;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(56, 189, 248, 0.5), rgba(6, 182, 212, 0.7));
+  border-radius: 999px;
+}
+

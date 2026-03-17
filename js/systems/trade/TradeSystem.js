@@ -215,13 +215,27 @@ export function travelTo(state, systemId) {
     state.currentGalaxy = toSys.galaxyId;
     state.viewingGalaxy = toSys.galaxyId;
   }
-  for (let d = 0; d < days; d++) Economy.advanceDay();
+  var _cycleChanged = null;
+  for (let d = 0; d < days; d++) {
+    var _cycleResult = Economy.advanceDay();
+    if (_cycleResult && _cycleResult.cycleChanged) {
+      _cycleChanged = _cycleResult.cycle;
+    }
+  }
 
   const sys  = findSystem(systemId);
   const msgs = [{
     text: (crossGalaxy ? '🌌 超空间跃迁！' : '🚀 ') + '已抵达 ' + sys.name + '！消耗 ' + cost + ' 燃料。银河历第 ' + state.day + ' 天。',
     type: 'travel',
   }];
+
+  // 经济周期变更通知
+  if (_cycleChanged) {
+    msgs.push({
+      text: _cycleChanged.icon + ' 经济周期转入「' + _cycleChanged.name + '」——市场价格将受到影响！',
+      type: 'info',
+    });
+  }
 
   // 深空补给站免费赠燃料
   if (systemId === 'fuel_depot') {

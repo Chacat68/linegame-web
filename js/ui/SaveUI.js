@@ -14,16 +14,24 @@ export function render(onSave, onLoad) {
   if (!container) return;
 
   const slots = Save.listSlots();
-  let html = '<div class="save-header">💾 存档管理</div>';
+  let html =
+    '<div class="save-header-row">' +
+      '<div>' +
+        '<div class="save-header">💾 存档工作区</div>' +
+        '<div class="save-header-subtitle">自动存档、手动槽位与跨设备导入导出都集中在这里。</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="save-slot-grid">';
 
   slots.forEach(function (slot) {
     const isAuto = slot.slotId === 0;
     const label  = isAuto ? '🔄 自动存档' : '📁 槽位 ' + slot.slotId;
+    const badge  = isAuto ? 'AUTO' : 'MANUAL';
 
     if (slot.isEmpty) {
       html += '<div class="save-slot empty-slot">' +
-        '<div class="save-slot-header">' + label + '</div>' +
-        '<div class="save-slot-info">— 空 —</div>' +
+        '<div class="save-slot-header-row"><div class="save-slot-header">' + label + '</div><span class="save-slot-badge">' + badge + '</span></div>' +
+        '<div class="save-slot-info"><span class="save-meta-pill">— 空槽位 —</span></div>' +
         (!isAuto ? '<button class="btn-action save-btn" data-slot="' + slot.slotId + '">保存</button>' : '') +
         '</div>';
     } else {
@@ -32,11 +40,11 @@ export function render(onSave, onLoad) {
       const timeStr = date.toLocaleDateString('zh-CN') + ' ' +
                       date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
       html += '<div class="save-slot has-data">' +
-        '<div class="save-slot-header">' + label + '</div>' +
+        '<div class="save-slot-header-row"><div class="save-slot-header">' + label + '</div><span class="save-slot-badge">' + badge + '</span></div>' +
         '<div class="save-slot-info">' +
-          '<span>📅 ' + timeStr + '</span>' +
-          '<span>💰 ' + (m.credits || 0).toLocaleString() + '</span>' +
-          '<span>📆 第 ' + (m.day || 1) + ' 天</span>' +
+          '<span class="save-meta-pill">📅 ' + timeStr + '</span>' +
+          '<span class="save-meta-pill">💰 ' + (m.credits || 0).toLocaleString() + '</span>' +
+          '<span class="save-meta-pill">📆 第 ' + (m.day || 1) + ' 天</span>' +
         '</div>' +
         '<div class="save-slot-actions">' +
           '<button class="btn-action load-btn" data-slot="' + slot.slotId + '">读取</button>' +
@@ -47,10 +55,15 @@ export function render(onSave, onLoad) {
     }
   });
 
+  html += '</div>';
+
   // 导出/导入按钮
-  html += '<div class="save-export-row">' +
+  html += '<div class="save-transfer-bar">' +
+    '<div class="save-transfer-copy">导入会写入槽位 1，导出默认使用自动存档。</div>' +
+    '<div class="save-export-row">' +
     '<button class="btn-action export-btn">📤 导出存档</button>' +
     '<button class="btn-action import-btn">📥 导入存档</button>' +
+    '</div>' +
     '</div>';
 
   container.innerHTML = html;

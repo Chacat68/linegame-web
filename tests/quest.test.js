@@ -62,6 +62,87 @@ describe('Quest.getAvailableQuests', () => {
   });
 });
 
+describe('Quest.getStarterRecommendations', () => {
+  it('优先返回教程后可立即接取的入门任务', () => {
+    const state = createTestState();
+    Faction.init(state);
+    Quest.init(state);
+
+    const recommended = Quest.getStarterRecommendations(state, 3);
+    const ids = recommended.map(q => q.id);
+
+    expect(ids).toContain('starter_first_trade');
+    expect(ids).toContain('starter_visit_2');
+    expect(recommended.length).toBeLessThanOrEqual(3);
+  });
+
+  it('不会推荐已接取或已完成的任务', () => {
+    const state = createTestState({
+      quests: [{ id: 'starter_first_trade', objectives: [{ type: 'trade_count', amount: 1, current: 0 }] }],
+      completedQuests: ['starter_visit_2'],
+    });
+    Faction.init(state);
+    Quest.init(state);
+
+    const ids = Quest.getStarterRecommendations(state, 3).map(q => q.id);
+    expect(ids).not.toContain('starter_first_trade');
+    expect(ids).not.toContain('starter_visit_2');
+  });
+});
+
+describe('Quest.getQuestTracker', () => {
+  it('优先追踪进行中的任务，并将限时任务排在前面', () => {
+    const state = createTestState({
+      day: 5,
+      quests: [
+        {
+          id: 'starter_5_trades',
+          name: '五连交易',
+          type: 'trade',
+          phase: 1,
+          description: '完成 5 次贸易交易，积累实战经验。',
+          objectives: [{ type: 'trade_count', amount: 5, current: 2 }],
+          rewards: { credits: 300, exp: 20, reputation: 5 },
+          timeLimit: 0,
+          startDay: 1,
+        },
+        {
+          id: 'starter_deliver_medicine',
+          name: '疫情救援',
+          type: 'delivery',
+          phase: 1,
+          description: '医疗中枢的药物库存告急，紧急运送 3 单位药品。',
+          objectives: [{ type: 'deliver', goodId: 'medicine', targetSystem: 'medical_hub', amount: 3, current: 1 }],
+          rewards: { credits: 600, exp: 25, reputation: 8 },
+          timeLimit: 8,
+          startDay: 2,
+        },
+      ],
+    });
+
+    Quest.init(state);
+
+    const tracker = Quest.getQuestTracker(state, 2);
+
+    expect(tracker.mode).toBe('active');
+    expect(tracker.items.map(item => item.id)).toEqual(['starter_deliver_medicine', 'starter_5_trades']);
+    expect(tracker.items[0].statusText).toBe('剩余 5 天');
+    expect(tracker.items[0].progressText).toBe('1/3');
+  });
+
+  it('没有进行中任务时回退到推荐可接任务', () => {
+    const state = createTestState();
+    Faction.init(state);
+    Quest.init(state);
+
+    const tracker = Quest.getQuestTracker(state, 2);
+
+    expect(tracker.mode).toBe('recommended');
+    expect(tracker.items.map(item => item.id)).toEqual(['starter_first_trade', 'starter_visit_2']);
+    expect(tracker.items[0].statusText).toBe('推荐接取');
+  });
+});
+
 describe('Quest.acceptQuest', () => {
   it('成功接取任务', () => {
     const state = createTestState();

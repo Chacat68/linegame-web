@@ -31,26 +31,20 @@ import * as Quest      from '../systems/quest/QuestSystem.js';
 import * as Achievement from '../systems/achievement/AchievementSystem.js';
 import * as Tutorial   from '../systems/tutorial/TutorialSystem.js';
 import * as TutorialUI from '../ui/TutorialUI.js';
-import { INITIAL_STATE } from '../data/constants.js';
+import { INITIAL_STATE, DIFFICULTY_LEVELS } from '../data/constants.js';
 import * as Victory from '../systems/victory/VictorySystem.js';
 import { VICTORY_PATHS } from '../data/victoryConditions.js';
 import * as PlayerLevels from '../data/playerLevels.js';
 import { SYSTEMS } from '../data/systems.js';
+import * as Settings from './SettingsManager.js';
+import * as Progression from '../systems/progression/ProgressionSystem.js';
+import * as Dispatch from './DispatchController.js';
 
 const getLevel = PlayerLevels.getLevel;
-const getCompanyLevel = PlayerLevels.getCompanyLevel || function () {
-  return { level: 1, title: '新创企业', expRequired: 0, icon: '🏢' };
-};
-const COMPANY_LEVELS = PlayerLevels.COMPANY_LEVELS || [
-  { level: 1, title: '新创企业', expRequired: 0, icon: '🏢' },
-];
 
 let _state     = null;
 let _startTime = null;
-
-// 激活船只自动派遣
-let _activeDispatchInterval = null;
-const ACTIVE_DISPATCH_TICK_MS = 2000; // 派遣每步间隔（毫秒）
+let _settings  = { motionLevel: 'full' };
 
 // 教程完成回调引用（用于防止重复注册）
 let _onTutorialComplete = null;
@@ -59,9 +53,16 @@ let _onTutorialComplete = null;
 // 对外 API
 // ---------------------------------------------------------------------------
 
-export function init() {
-  _stopActiveDispatch();   // 重启时停止派遣
+export function init(difficulty) {
+  Dispatch.stopActiveDispatch();   // 重启时停止派遣
   _state = _deepClone(INITIAL_STATE);
+  _settings = Settings.loadSettings();
+
+  // 应用难度设定
+  var effectiveDifficulty = difficulty || _settings.difficulty || 'normal';
+  var diff = DIFFICULTY_LEVELS[effectiveDifficulty] || DIFFICULTY_LEVELS['normal'];
+  _state.difficulty = diff.id;
+  _state.credits = diff.startCredits;
 
   Economy.init();
   Fleet.init(_state);
@@ -70,6 +71,8 @@ export function init() {
   Quest.init(_state);
   Achievement.init(_state);
   Renderer.init();
+  Renderer.resetRuntimeState(_state.currentSystem);
+  Settings.applySettings(_settings, Renderer);
   HUD.init();
 
   // 注入回调给各 UI 模块
@@ -105,9 +108,12 @@ export function init() {
     function () { Tutorial.skip(); _updateUI(); }
   );
 
-  // 教程完成后弹出公司重命名弹窗
+  // 教程完成后推荐首批任务并弹出公司重命名弹窗
   if (_onTutorialComplete) EventBus.off('tutorial:complete', _onTutorialComplete);
-  _onTutorialComplete = function () { setTimeout(_showCompanyRenameModal, 400); };
+  _onTutorialComplete = function () {
+    _recommendStarterQuests();
+    setTimeout(_showCompanyRenameModal, 400);
+  };
   EventBus.on('tutorial:complete', _onTutorialComplete);
 
   // 点击 header 公司名按鈕随时重命名
@@ -116,10 +122,30 @@ export function init() {
     companyBtn.onclick = _showCompanyRenameModal;
   }
 
+  Settings.initSettingsModal({
+    settings: _settings,
+    Renderer: Renderer,
+    onDifficultyChanged: function (nextDifficulty) {
+      if (!DIFFICULTY_LEVELS[nextDifficulty]) return;
+      _state.difficulty = nextDifficulty;
+      _settings.difficulty = nextDifficulty;
+      _updateUI();
+    },
+    onResetTutorial: function () {
+      Tutorial.reset();
+      Settings.hideSettingsModal();
+      init();
+    },
+    onClearSaves: function () {
+      for (var slotId = 0; slotId < 4; slotId++) Save.deleteSlot(slotId);
+      EventBus.emit('log:message', { text: '🗑 本地存档已全部清空。', type: 'info' });
+      _updateUI();
+    },
+  });
+
   _updateUI();
   _startGameLoop();
 
-  // 新手教程：首次游戏弹出选择弹窗
   if (!Tutorial.isCompleted()) {
     _showTutorialStartModal();
   } else {
@@ -138,10 +164,36 @@ function _showWelcomeMessages() {
     type: 'tip',
   });
   EventBus.emit('log:message', {
-    text: '📋 新功能：【任务】标签接取任务赚取奖励，【成就】标签追踪成就进度，【存档】标签保存游戏！',
+    text: '📋 新功能：【任务】标签接取任务赚取奖励，【成就】标签追踪成就进度，右上角【设置】可管理存档！',
     type: 'tip',
   });
 }
+
+function _recommendStarterQuests() {
+  var recommendations = Quest.getStarterRecommendations(_state, 3);
+
+  _updateUI();
+  MapUI.activateTab('tab-quest');
+
+  if (recommendations.length === 0) {
+    EventBus.emit('log:message', {
+      text: '📋 教程结束后可前往任务页查看当前章节任务，继续推进你的贸易生涯。',
+      type: 'tip',
+    });
+    return;
+  }
+
+  EventBus.emit('log:message', {
+    text: '📋 下一步建议：先去【任务】页接取 ' + recommendations.map(function (quest) { return '「' + quest.name + '」'; }).join('、') + '。',
+    type: 'tip',
+  });
+  EventBus.emit('log:message', {
+    text: '🧭 我已替你切到任务页，这几项任务都可以立刻开始，适合作为教程后的第一阶段目标。',
+    type: 'info',
+  });
+}
+
+// 设置管理已提取到 js/core/SettingsManager.js
 
 function _showTutorialStartModal() {
   const modal = document.getElementById('tutorial-start-modal');
@@ -235,8 +287,10 @@ function _handleTravel(systemId) {
     // 新手引导：旅行触发
     Tutorial.checkTrigger('travel');
     // 旅行经验 + 声望
-    _gainExperience(5);
-    _gainCompanyExperience(2);
+    var expResult = Progression.gainExperience(_state, 5);
+    expResult.msgs.forEach(function (m) { EventBus.emit('log:message', { text: m.text, type: m.type }); });
+    var compExpResult = Progression.gainCompanyExperience(_state, 2);
+    compExpResult.msgs.forEach(function (m) { EventBus.emit('log:message', { text: m.text, type: m.type }); });
     _state.reputation = (_state.reputation || 0) + 1;
 
     // 连续无伤天数追踪（旅行前记录船体值）
@@ -331,12 +385,14 @@ function _handleTradeConfirm(action, goodId, quantity) {
     // 经验值 & 声望
     const expGain = Math.max(1, Math.ceil(quantity * 2));
     const repGain = Math.max(1, Math.ceil(quantity * 0.5));
-    _gainExperience(expGain);
+    var tradeExpResult = Progression.gainExperience(_state, expGain);
+    tradeExpResult.msgs.forEach(function (m) { EventBus.emit('log:message', { text: m.text, type: m.type }); });
     const profit = (result.meta && typeof result.meta.profit === 'number') ? result.meta.profit : 0;
     const companyExpGain = action === 'sell'
       ? Math.max(2, Math.ceil(quantity * 0.8) + Math.ceil(Math.max(0, profit) / 120))
       : Math.max(1, Math.ceil(quantity * 0.8));
-    _gainCompanyExperience(companyExpGain);
+    var tradeCompExpResult = Progression.gainCompanyExperience(_state, companyExpGain);
+    tradeCompExpResult.msgs.forEach(function (m) { EventBus.emit('log:message', { text: m.text, type: m.type }); });
     _state.reputation = (_state.reputation || 0) + repGain;
 
     // 任务进度：交易
@@ -406,6 +462,7 @@ function _handleAbandonQuest(questId) {
 
 function _handleSaveGame(slotId) {
   Fleet.syncShipFromState(_state); // 保存前同步船只状态
+  _state.economyCycle = Economy.getCycleState();
   const result = Save.saveGame(slotId, _state);
   EventBus.emit('log:message', { text: result.msg, type: result.ok ? 'info' : 'error' });
   _updateUI();
@@ -414,6 +471,7 @@ function _handleSaveGame(slotId) {
 function _handleLoadGame(slotId) {
   const result = Save.loadGame(slotId);
   if (result.ok) {
+    Settings.hideSettingsModal();
     _state = result.state;
     // 兼容旧存档：补充星系字段
     if (!_state.currentGalaxy) _state.currentGalaxy = 'milky_way';
@@ -428,6 +486,11 @@ function _handleLoadGame(slotId) {
       _state.companyExperience = 0;
     }
     _state.companyLevel = getCompanyLevel(_state.companyExperience || 0).level;
+    // 兼容旧存档：补充难度和事件链字段
+    if (!_state.difficulty) _state.difficulty = 'normal';
+    if (!_state._pendingChainEvents) _state._pendingChainEvents = [];
+    _settings.difficulty = _state.difficulty;
+    Settings.saveSettings(_settings);
     // 重新初始化依赖状态的子系统
     Fleet.init(_state);
     Faction.init(_state);
@@ -435,11 +498,13 @@ function _handleLoadGame(slotId) {
     Quest.init(_state);
     Achievement.init(_state);
     Economy.init();
+    Economy.setCycleState(_state.economyCycle);
+    Renderer.resetRuntimeState(_state.currentSystem);
     MapUI.refreshGalaxyBtn(_state);
     // 恢复派遣状态
-    _stopActiveDispatch();
+    Dispatch.stopActiveDispatch();
     if (Fleet.isActiveDispatched(_state)) {
-      _startActiveDispatch();
+      Dispatch.startActiveDispatch(_boundDispatchTick);
     }
     _updateUI();
     EventBus.emit('log:message', { text: result.msg, type: 'info' });
@@ -448,131 +513,7 @@ function _handleLoadGame(slotId) {
   }
 }
 
-/**
- * 增加经验并检查升级
- */
-function _gainExperience(amount) {
-  const oldLevel = getLevel(_state.experience || 0);
-  _state.experience = (_state.experience || 0) + amount;
-  const newLevel = getLevel(_state.experience);
-
-  if (newLevel.level > oldLevel.level) {
-    _state.playerLevel = newLevel.level;
-    EventBus.emit('log:message', {
-      text: '🎉 升级！你现在是 ' + newLevel.icon + ' ' + newLevel.title + ' (Lv.' + newLevel.level + ')',
-      type: 'upgrade',
-    });
-    // 应用升级奖励
-    _applyLevelPerk(newLevel.level);
-    // 提示新解锁的星球
-    _announceNewRoutes(oldLevel.level, newLevel.level);
-  }
-}
-
-/**
- * 增加公司经验并检查公司升级
- */
-function _gainCompanyExperience(amount) {
-  const oldLevel = getCompanyLevel(_state.companyExperience || 0);
-  _state.companyExperience = (_state.companyExperience || 0) + Math.max(0, amount || 0);
-  const newLevel = getCompanyLevel(_state.companyExperience || 0);
-  _state.companyLevel = newLevel.level;
-
-  if (newLevel.level > oldLevel.level) {
-    const nextLevel = COMPANY_LEVELS.find(function (l) { return l.level === newLevel.level + 1; });
-    EventBus.emit('log:message', {
-      text: '🏢 公司升级！「' + (_state.companyName || '星际信使贸易公司') + '」晋升为 ' + newLevel.icon + ' ' + newLevel.title + '（Lv.' + newLevel.level + '）！',
-      type: 'upgrade',
-    });
-    if (nextLevel) {
-      const need = Math.max(0, nextLevel.expRequired - (_state.companyExperience || 0));
-      EventBus.emit('log:message', {
-        text: '📈 距离下一公司等级还需 ' + need + ' 经验。',
-        type: 'info',
-      });
-    }
-  }
-}
-
-function _applyLevelPerk(level) {
-  switch (level) {
-    case 3:  // 卖出价格 +3%
-      _state.techSellBonus = (_state.techSellBonus || 0) + 0.03;
-      EventBus.emit('log:message', { text: '✨ 等级奖励：卖出价格 +3%', type: 'info' });
-      break;
-    case 4:  // 货舱 +5
-      {
-        const ship4 = Fleet.getActiveShip(_state);
-        if (ship4) ship4.maxCargo = Math.min(ship4.maxCargoCap, ship4.maxCargo + 5);
-        Fleet.syncStateFromShip(_state);
-      }
-      EventBus.emit('log:message', { text: '✨ 等级奖励：当前船只货舱容量 +5', type: 'info' });
-      break;
-    case 5:  // 买入价格 -3%
-      _state.techBuyDiscount = (_state.techBuyDiscount || 0) + 0.03;
-      EventBus.emit('log:message', { text: '✨ 等级奖励：买入价格 -3%', type: 'info' });
-      break;
-    case 6:  // 燃料效率 +10%
-      {
-        const ship6 = Fleet.getActiveShip(_state);
-        if (ship6) ship6.fuelEff = Math.max(ship6.minFuelEff, ship6.fuelEff * 0.9);
-        Fleet.syncStateFromShip(_state);
-      }
-      EventBus.emit('log:message', { text: '✨ 等级奖励：当前船只燃料效率 +10%', type: 'info' });
-      break;
-    case 7:  // 所有派系好感 +10
-      if (_state.factionRelations) {
-        Object.keys(_state.factionRelations).forEach(function (fid) {
-          _state.factionRelations[fid] = Math.min(100, _state.factionRelations[fid] + 10);
-        });
-      }
-      EventBus.emit('log:message', { text: '✨ 等级奖励：所有派系好感 +10', type: 'info' });
-      break;
-    case 8:  // 货舱 +10
-      {
-        const ship8 = Fleet.getActiveShip(_state);
-        if (ship8) ship8.maxCargo = Math.min(ship8.maxCargoCap, ship8.maxCargo + 10);
-        Fleet.syncStateFromShip(_state);
-      }
-      EventBus.emit('log:message', { text: '✨ 等级奖励：当前船只货舱容量 +10', type: 'info' });
-      break;
-    case 9:  // 卖出价格 +5%
-      _state.techSellBonus = (_state.techSellBonus || 0) + 0.05;
-      EventBus.emit('log:message', { text: '✨ 等级奖励：卖出价格 +5%', type: 'info' });
-      break;
-    case 10: // 全属性提升
-      {
-        const ship10 = Fleet.getActiveShip(_state);
-        if (ship10) {
-          ship10.maxCargo = Math.min(ship10.maxCargoCap, ship10.maxCargo + 10);
-          ship10.maxFuel  = Math.min(ship10.maxFuelCap, ship10.maxFuel + 20);
-        }
-        Fleet.syncStateFromShip(_state);
-      }
-      _state.techBuyDiscount = (_state.techBuyDiscount || 0) + 0.05;
-      _state.techSellBonus = (_state.techSellBonus || 0) + 0.05;
-      EventBus.emit('log:message', { text: '✨ 银河商业帝皇加冕！当前船只全属性大幅提升！', type: 'upgrade' });
-      break;
-  }
-}
-
-/**
- * 升级时通知玩家新解锁的星球/航线
- */
-function _announceNewRoutes(oldLvl, newLvl) {
-  const newPlanets = SYSTEMS.filter(function (s) {
-    const ml = s.minLevel || 1;
-    return ml > oldLvl && ml <= newLvl;
-  });
-  if (newPlanets.length > 0) {
-    const names = newPlanets.slice(0, 5).map(function (s) { return s.name; }).join('、');
-    const extra = newPlanets.length > 5 ? ' 等 ' + newPlanets.length + ' 颗星球' : '';
-    EventBus.emit('log:message', {
-      text: '🗺️ 新航线开放！解锁了 ' + names + extra + '！',
-      type: 'info',
-    });
-  }
-}
+// 等级进阶逻辑已提取到 js/systems/progression/ProgressionSystem.js
 
 // ---------------------------------------------------------------------------
 // 船队管理
@@ -586,7 +527,7 @@ function _handleBuyShip(shipTypeId) {
 
 function _handleSwitchShip(shipIndex) {
   // 切换前停止激活船只的自动派遣
-  _stopActiveDispatch();
+  Dispatch.stopActiveDispatch();
   Fleet.syncShipFromState(_state);
   const result = Fleet.switchShip(_state, shipIndex);
   if (result && result.ok) {
@@ -596,7 +537,7 @@ function _handleSwitchShip(shipIndex) {
   _dispatch(result);
   // 如果新激活的船只已有路线，重新启动派遣
   if (result && result.ok && Fleet.isActiveDispatched(_state)) {
-    _startActiveDispatch();
+    Dispatch.startActiveDispatch(_boundDispatchTick);
   }
 }
 
@@ -613,7 +554,7 @@ function _handleAssignRoute(shipIndex, buySystemId, sellSystemId, goodId) {
   _dispatch(result);
   // 如果是激活船只被派遣，启动自动派遣定时器
   if (result && result.ok && isActive) {
-    _startActiveDispatch();
+    Dispatch.startActiveDispatch(_boundDispatchTick);
   }
 }
 
@@ -623,7 +564,7 @@ function _handleCancelRoute(shipIndex) {
   _dispatch(result);
   // 如果是激活船只被召回，停止定时器
   if (isActive) {
-    _stopActiveDispatch();
+    Dispatch.stopActiveDispatch();
   }
 }
 
@@ -651,132 +592,59 @@ function _handleUninstallMod(shipIndex, modId) {
 }
 
 // ---------------------------------------------------------------------------
-// 激活船只自动派遣（替代原来的全局自动贸易）
+// 激活船只自动派遣 — 逻辑已提取到 js/core/DispatchController.js
+// GameManager 仅保留 tick 回调的胶水逻辑
 // ---------------------------------------------------------------------------
 
-function _startActiveDispatch() {
-  _stopActiveDispatch();
-  _activeDispatchInterval = setInterval(_runActiveDispatchTick, ACTIVE_DISPATCH_TICK_MS);
-  _updateActiveDispatchUI();
-  EventBus.emit('log:message', { text: '📡 激活船只已派遣！每 2 秒执行一次操作。', type: 'info' });
-}
-
-function _stopActiveDispatch() {
-  if (_activeDispatchInterval) {
-    clearInterval(_activeDispatchInterval);
-    _activeDispatchInterval = null;
-  }
-  _updateActiveDispatchUI();
-}
-
-function _runActiveDispatchTick() {
-  // 有弹窗时暂停
-  if (!document.getElementById('event-modal').classList.contains('hidden'))    return;
-  if (!document.getElementById('gameover-modal').classList.contains('hidden')) { _stopActiveDispatch(); return; }
-
-  // 检查激活船只是否仍在派遣中
-  if (!Fleet.isActiveDispatched(_state)) {
-    _stopActiveDispatch();
-    return;
-  }
-
-  // 每个 tick 开始时检查任务路线：如果有活跃任务需要特定路线，动态更新
-  var activeShip = Fleet.getActiveShip(_state);
-  if (activeShip && activeShip.route) {
-    var qr = AutoTrade.findQuestRoute(_state);
-    if (qr) {
-      // 任务路线与当前路线不同时才更新，避免重复日志
-      var curRoute = activeShip.route;
-      if (curRoute.questId !== qr.questId ||
-          curRoute.buySystemId !== qr.buySystemId ||
-          curRoute.sellSystemId !== qr.sellSystemId ||
-          curRoute.goodId !== qr.goodId) {
-        curRoute.buySystemId  = qr.buySystemId;
-        curRoute.sellSystemId = qr.sellSystemId;
-        curRoute.goodId       = qr.goodId;
-        curRoute.status       = qr.status;
-        curRoute.questId      = qr.questId;
-        EventBus.emit('log:message', {
-          text: '📋 任务路线：前往完成「' + qr.questName + '」',
-          type: 'info',
-        });
-      }
-    } else if (activeShip.route.questId) {
-      // 任务已完成或不再需要任务路线，清除任务标记
-      delete activeShip.route.questId;
-    }
-  }
-
-  var result = Fleet.tickActiveShipDispatch(_state);
+function _boundDispatchTick() {
+  var tickResult = Dispatch.runActiveDispatchTick(_state, {
+    isModalVisible: function (id) {
+      var el = document.getElementById(id);
+      return el && !el.classList.contains('hidden');
+    },
+  });
 
   // 处理日志
-  result.msgs.forEach(function (m) {
+  tickResult.msgs.forEach(function (m) {
     EventBus.emit('log:message', { text: m.text, type: m.type });
   });
 
-  // 需要旅行
-  if (result.needTravel) {
-    // 先补燃料
-    var fuelCost = Economy.getFuelCost(_state.currentSystem, result.needTravel, _state.fuelEfficiency);
-    if (_state.fuel < fuelCost) {
+  switch (tickResult.action) {
+    case 'stopped':
+      Dispatch.stopActiveDispatch();
+      _updateUI();
+      break;
+    case 'travel_need_refuel': {
       var refuelResult = Trade.refuel(_state);
       _dispatch(refuelResult);
-      if (_state.fuel < fuelCost) {
+      if (_state.fuel < tickResult.payload.fuelCost) {
         EventBus.emit('log:message', { text: '📡 派遣船只燃料不足，已召回。', type: 'error' });
         Fleet.cancelActiveDispatch(_state);
-        _stopActiveDispatch();
+        Dispatch.stopActiveDispatch();
         _updateUI();
-        return;
+      } else {
+        _handleTravel(tickResult.payload.systemId);
       }
+      break;
     }
-    _handleTravel(result.needTravel);
-    return;
-  }
-
-  // 需要买入
-  if (result.needBuy) {
-    var route = result.needBuy;
-    var cargoKeys = Object.keys(_state.cargo).filter(function (k) { return (_state.cargo[k] || 0) > 0 && k === route.goodId; });
-    // 买入商品
-    var buyPrice = Economy.getBuyPrice(route.buySystemId, route.goodId, _state);
-    var cargoUsed = Object.values(_state.cargo).reduce(function (s, q) { return s + q; }, 0);
-    var space = _state.maxCargo - cargoUsed;
-    var canAfford = Math.floor(_state.credits / buyPrice);
-    var qty = Math.min(space, canAfford);
-    if (qty > 0) {
-      _handleTradeConfirm('buy', route.goodId, qty);
-    }
-    // 转入前往卖出地状态
-    var ship = Fleet.getActiveShip(_state);
-    if (ship && ship.route) ship.route.status = 'traveling_sell';
-    _updateUI();
-    return;
-  }
-
-  // 需要卖出
-  if (result.needSell) {
-    var routeS = result.needSell;
-    var sellQty = _state.cargo[routeS.goodId] || 0;
-    if (sellQty > 0) {
-      _handleTradeConfirm('sell', routeS.goodId, sellQty);
-    }
-    // 循环：重新前往买入地（任务路线将在下一个 tick 开始时自动更新）
-    var shipS = Fleet.getActiveShip(_state);
-    if (shipS && shipS.route) shipS.route.status = 'traveling_buy';
-    _updateUI();
-    return;
-  }
-}
-
-function _updateActiveDispatchUI() {
-  var ctrlDiv = document.getElementById('auto-trade-controls');
-  if (!ctrlDiv) return;
-  if (_activeDispatchInterval) {
-    ctrlDiv.classList.remove('hidden');
-    ctrlDiv.innerHTML = '<span class="dispatch-active-indicator">📡 激活船只派遣中…</span>';
-  } else {
-    ctrlDiv.classList.add('hidden');
-    ctrlDiv.innerHTML = '';
+    case 'travel':
+      _handleTravel(tickResult.payload.systemId);
+      break;
+    case 'buy':
+      _handleTradeConfirm('buy', tickResult.payload.goodId, tickResult.payload.quantity);
+      // 转入前往卖出地状态
+      var shipB = Fleet.getActiveShip(_state);
+      if (shipB && shipB.route) shipB.route.status = 'traveling_sell';
+      _updateUI();
+      break;
+    case 'sell':
+      _handleTradeConfirm('sell', tickResult.payload.goodId, tickResult.payload.quantity);
+      // 循环：重新前往买入地
+      var shipS = Fleet.getActiveShip(_state);
+      if (shipS && shipS.route) shipS.route.status = 'traveling_buy';
+      _updateUI();
+      break;
+    // 'noop' — do nothing
   }
 }
 
@@ -815,7 +683,7 @@ function _updateUI() {
   FleetUI.renderShop(_state, _handleBuyShip);
   SaveUI.render(_handleSaveGame, _handleLoadGame);
   MapUI.refreshPlanetDetail(_state);
-  _updateActiveDispatchUI();
+  Dispatch.updateActiveDispatchUI();
 }
 
 // ---------------------------------------------------------------------------

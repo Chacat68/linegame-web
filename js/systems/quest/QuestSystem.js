@@ -1,12 +1,24 @@
 // js/systems/quest/QuestSystem.js — 任务系统（按章节推进解锁）
 // 依赖：data/quests.js, data/playerLevels.js, systems/faction/FactionSystem.js
-// 导出：init, getAvailableQuests, getLockedQuests, acceptQuest, checkProgress,
+// 导出：init, getAvailableQuests, getLockedQuests, getStarterRecommendations, getQuestTracker, acceptQuest, checkProgress,
 //       getActiveQuests, completeQuest, getQuestPhaseProgress,
 //       getCurrentQuestPhase, getCurrentQuestPhaseProgress
 
 import { QUESTS, QUEST_TYPES, QUEST_PHASES } from '../../data/quests.js';
 import { getLevel }            from '../../data/playerLevels.js';
 import * as Faction            from '../faction/FactionSystem.js';
+
+const STARTER_RECOMMENDATION_ORDER = [
+  'starter_first_trade',
+  'starter_visit_2',
+  'starter_earn_500',
+  'starter_5_trades',
+  'starter_deliver_medicine',
+  'starter_deliver_food',
+  'starter_explore_shadow',
+];
+
+const DEFAULT_TRACKER_LIMIT = 2;
 
 /**
  * 初始化任务系统
@@ -204,6 +216,71 @@ export function getLockedQuests(state) {
   });
 }
 
+export function getStarterRecommendations(state, limit) {
+  var maxCount = typeof limit === 'number' && limit > 0 ? Math.floor(limit) : 3;
+  var available = getAvailableQuests(state);
+  var byId = Object.create(null);
+  var picked = [];
+
+  available.forEach(function (quest) {
+    byId[quest.id] = quest;
+  });
+
+  STARTER_RECOMMENDATION_ORDER.forEach(function (questId) {
+    if (picked.length >= maxCount) return;
+    if (byId[questId]) picked.push(byId[questId]);
+  });
+
+  if (picked.length < maxCount) {
+    available.forEach(function (quest) {
+      if (picked.length >= maxCount) return;
+      if (!picked.some(function (item) { return item.id === quest.id; })) {
+        picked.push(quest);
+      }
+    });
+  }
+
+  return picked;
+}
+
+export function getQuestTracker(state, limit) {
+  var maxCount = typeof limit === 'number' && limit > 0 ? Math.floor(limit) : DEFAULT_TRACKER_LIMIT;
+  var active = getActiveQuests(state).slice().sort(function (left, right) {
+    return _compareTrackedQuestPriority(left, right, state);
+  });
+
+  if (active.length > 0) {
+    return {
+      mode: 'active',
+      items: active.slice(0, maxCount).map(function (quest) {
+        return _createTrackerItem(quest, state, 'active');
+      }),
+    };
+  }
+
+  var recommended = getStarterRecommendations(state, maxCount);
+  if (recommended.length > 0) {
+    return {
+      mode: 'recommended',
+      items: recommended.map(function (quest) {
+        return _createTrackerItem(quest, state, 'recommended');
+      }),
+    };
+  }
+
+  var available = getAvailableQuests(state).slice(0, maxCount);
+  if (available.length > 0) {
+    return {
+      mode: 'available',
+      items: available.map(function (quest) {
+        return _createTrackerItem(quest, state, 'available');
+      }),
+    };
+  }
+
+  return { mode: 'empty', items: [] };
+}
+
 /**
  * 获取各阶段的完成进度
  */
@@ -384,6 +461,82 @@ export function checkProgress(state, context) {
  */
 export function getActiveQuests(state) {
   return state.quests || [];
+}
+
+function _createTrackerItem(quest, state, mode) {
+  var primaryObjective = _getPrimaryObjective(quest);
+  var progressPercent = _getQuestProgressPercent(quest);
+  var remainingDays = quest.timeLimit > 0 && typeof quest.startDay === 'number'
+    ? Math.max(0, quest.timeLimit - ((state.day || 1) - quest.startDay))
+    : null;
+
+  return {
+    id: quest.id,
+    name: quest.name,
+    type: quest.type,
+    phase: quest.phase || 1,
+    mode: mode,
+    progressPercent: progressPercent,
+    progressText: _getObjectiveProgressText(primaryObjective),
+    statusText: _getTrackerStatusText(mode, remainingDays),
+    primaryObjective: primaryObjective ? JSON.parse(JSON.stringify(primaryObjective)) : null,
+    rewardSummary: JSON.parse(JSON.stringify(quest.rewards || {})),
+  };
+}
+
+function _getPrimaryObjective(quest) {
+  if (!quest || !Array.isArray(quest.objectives) || quest.objectives.length === 0) return null;
+
+  for (var i = 0; i < quest.objectives.length; i++) {
+    var objective = quest.objectives[i];
+    if ((objective.current || 0) < (objective.amount || 1)) {
+      return objective;
+    }
+  }
+
+  return quest.objectives[0];
+}
+
+function _getQuestProgressPercent(quest) {
+  if (!quest || !Array.isArray(quest.objectives) || quest.objectives.length === 0) return 0;
+
+  var totalPercent = quest.objectives.reduce(function (sum, objective) {
+    var amount = objective.amount || 1;
+    var current = objective.current || 0;
+    return sum + Math.min(1, current / Math.max(1, amount));
+  }, 0);
+
+  return Math.round(totalPercent / quest.objectives.length * 100);
+}
+
+function _getObjectiveProgressText(objective) {
+  if (!objective) return '';
+  return (objective.current || 0) + '/' + (objective.amount || 1);
+}
+
+function _getTrackerStatusText(mode, remainingDays) {
+  if (mode === 'active') {
+    if (typeof remainingDays === 'number') return '剩余 ' + remainingDays + ' 天';
+    return '进行中';
+  }
+  if (mode === 'recommended') return '推荐接取';
+  return '可接取';
+}
+
+function _compareTrackedQuestPriority(left, right, state) {
+  var leftTimed = left.timeLimit > 0;
+  var rightTimed = right.timeLimit > 0;
+
+  if (leftTimed !== rightTimed) return leftTimed ? -1 : 1;
+
+  if (leftTimed && rightTimed) {
+    var currentDay = state.day || 1;
+    var leftRemaining = Math.max(0, left.timeLimit - (currentDay - (left.startDay || currentDay)));
+    var rightRemaining = Math.max(0, right.timeLimit - (currentDay - (right.startDay || currentDay)));
+    if (leftRemaining !== rightRemaining) return leftRemaining - rightRemaining;
+  }
+
+  return _getQuestProgressPercent(right) - _getQuestProgressPercent(left);
 }
 
 // ---------------------------------------------------------------------------
