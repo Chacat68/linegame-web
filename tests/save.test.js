@@ -40,7 +40,7 @@ describe('Save.saveGame', () => {
     const raw = globalThis.localStorage.getItem('startrader_save_1');
     const parsed = JSON.parse(raw);
 
-    expect(parsed.meta.schemaVersion).toBe(2);
+    expect(parsed.meta.schemaVersion).toBe(3);
     expect(parsed.meta.saveName).toBe('手工测试存档');
     expect(parsed.meta.difficulty).toBe('hard');
     expect(parsed.meta.companyName).toBe('迁移测试公司');
@@ -114,7 +114,7 @@ describe('Save.loadGame', () => {
     expect(result.state.economyCycle).toEqual({ phaseIndex: 2 });
 
     const stored = JSON.parse(globalThis.localStorage.getItem('startrader_save_1'));
-    expect(stored.meta.schemaVersion).toBe(2);
+    expect(stored.meta.schemaVersion).toBe(3);
     expect(stored.meta.difficulty).toBe('normal');
   });
 });
@@ -162,7 +162,7 @@ describe('Save.importSave', () => {
     expect(result.ok).toBe(true);
 
     const stored = JSON.parse(globalThis.localStorage.getItem('startrader_save_2'));
-    expect(stored.meta.schemaVersion).toBe(2);
+    expect(stored.meta.schemaVersion).toBe(3);
     expect(stored.meta.slotId).toBe(2);
     expect(stored.meta.credits).toBe(2048);
   });

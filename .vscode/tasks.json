@@ -10,7 +10,7 @@
 				"http.server",
 				"4173",
 				"--directory",
-				"/Users/charliefoo/Dev/chaos/Web/linegame-web"
+				"${workspaceFolder}"
 			],
 			"isBackground": true,
 			"group": "build"
@@ -24,7 +24,7 @@
 				"http.server",
 				"4174",
 				"--directory",
-				"/Users/charliefoo/Dev/chaos/Web/linegame-web"
+				"${workspaceFolder}"
 			],
 			"isBackground": true,
 			"group": "build"

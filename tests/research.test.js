@@ -36,7 +36,7 @@ describe('ResearchSystem.drawOptions', () => {
     // 先手动标记一些科技为已研究
     state.researchedTechs = ['basic_scanners', 'trade_algorithms'];
     Research.drawOptions(state);
-    const optionIds = state.researchOptions.map(o => o.id);
+    const optionIds = state.researchOptions;
     expect(optionIds).not.toContain('basic_scanners');
     expect(optionIds).not.toContain('trade_algorithms');
   });
@@ -60,7 +60,7 @@ describe('ResearchSystem.startResearch', () => {
     const option = state.researchOptions[0];
     if (!option) return; // 跳过如果无选项
 
-    const result = Research.startResearch(state, option.id);
+    const result = Research.startResearch(state, option);
     expect(result.ok).toBe(true);
     expect(state.currentResearch).not.toBe(null);
     expect(state.credits).toBeLessThan(5000);
@@ -73,7 +73,7 @@ describe('ResearchSystem.startResearch', () => {
     const option = state.researchOptions[0];
     if (!option) return;
 
-    const result = Research.startResearch(state, option.id);
+    const result = Research.startResearch(state, option);
     // 可能失败也可能加入队列，取决于是否已有 currentResearch
     if (state.currentResearch === null) {
       expect(result.ok).toBe(false);
@@ -86,11 +86,11 @@ describe('ResearchSystem.startResearch', () => {
     Research.drawOptions(state);
     if (state.researchOptions.length < 2) return;
 
-    Research.startResearch(state, state.researchOptions[0].id);
+    Research.startResearch(state, state.researchOptions[0]);
     // 刷新选项
     Research.drawOptions(state);
     if (state.researchOptions.length === 0) return;
-    const result2 = Research.startResearch(state, state.researchOptions[0].id);
+    const result2 = Research.startResearch(state, state.researchOptions[0]);
     expect(result2.ok).toBe(true);
     expect(state.researchQueue.length).toBeGreaterThanOrEqual(1);
   });
@@ -102,7 +102,7 @@ describe('ResearchSystem.advanceResearch', () => {
     Research.init(state);
     Research.drawOptions(state);
     if (state.researchOptions[0]) {
-      Research.startResearch(state, state.researchOptions[0].id);
+      Research.startResearch(state, state.researchOptions[0]);
     }
     expect(() => {
       for (let i = 0; i < 100; i++) {
@@ -141,16 +141,16 @@ describe('ResearchSystem.cancelQueuedResearch', () => {
     Research.drawOptions(state);
     if (state.researchOptions.length < 2) return;
 
-    Research.startResearch(state, state.researchOptions[0].id);
+    Research.startResearch(state, state.researchOptions[0]);
     Research.drawOptions(state);
     if (state.researchOptions.length === 0) return;
 
-    const queuedTechId = state.researchOptions[0].id;
+    const queuedTechId = state.researchOptions[0];
     Research.startResearch(state, queuedTechId);
     const creditsBefore = state.credits;
 
     if (state.researchQueue.length > 0) {
-      const result = Research.cancelQueuedResearch(state, state.researchQueue[0].id);
+      const result = Research.cancelQueuedResearch(state, state.researchQueue[0].techId);
       expect(result.ok).toBe(true);
       expect(state.credits).toBeGreaterThanOrEqual(creditsBefore);
     }
