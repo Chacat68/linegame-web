@@ -181,6 +181,16 @@ function _migrateSchema(envelope) {
       next.meta.schemaVersion = 3;
       continue;
     }
+    if (next.meta.schemaVersion === 3) {
+      _migrateSchema3To4(next);
+      next.meta.schemaVersion = 4;
+      continue;
+    }
+    if (next.meta.schemaVersion === 4) {
+      _migrateSchema4To5(next);
+      next.meta.schemaVersion = 5;
+      continue;
+    }
     throw new Error('不支持的存档版本：' + next.meta.schemaVersion);
   }
 
@@ -211,6 +221,16 @@ function _migrateSchema2To3(envelope) {
       }
     });
   }
+  envelope.data = _normalizeState(envelope.data);
+}
+
+function _migrateSchema3To4(envelope) {
+  if (!envelope.data) envelope.data = {};
+  envelope.data = _normalizeState(envelope.data);
+}
+
+function _migrateSchema4To5(envelope) {
+  if (!envelope.data) envelope.data = {};
   envelope.data = _normalizeState(envelope.data);
 }
 

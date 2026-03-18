@@ -175,8 +175,8 @@ export const EVENT_CONFIG = {
   },
 };
 
-export const SAVE_SCHEMA_VERSION = 3;
-export const GAME_VERSION = '0.3.0';
+export const SAVE_SCHEMA_VERSION = 5;
+export const GAME_VERSION = '0.5.0';
 
 /**
  * SaveEnvelope.meta 契约
@@ -253,6 +253,11 @@ export const SAVE_STATE_SCHEMA = {
   economyCycle:       { type: 'object',  default: null,               since: 2, desc: '经济周期状态' },
   // ---- v3 新增 ----
   smugglingStats:     { type: 'object',  default: { caught: 0, evaded: 0, finesPaid: 0, blackMarketTrades: 0 }, since: 3, desc: '走私统计' },
+  // ---- v4 新增 ----
+  crewRoster:         { type: 'array',   default: [],                 since: 4, desc: '已雇佣船员列表' },
+  crewCounter:        { type: 'number',  default: 1,                  since: 4, desc: '船员实例自增编号' },
+  // ---- v5 新增 ----
+  crewMarket:         { type: 'object',  default: {},                 since: 5, desc: '各星球人才市场缓存' },
 };
 
 /**

@@ -24,6 +24,7 @@ import * as SaveUI     from '../ui/SaveUI.js';
 import * as QuestUI    from '../ui/QuestUI.js';
 import * as AchievementUI from '../ui/AchievementUI.js';
 import * as Fleet      from '../systems/fleet/FleetSystem.js';
+import * as Crew       from '../systems/fleet/CrewSystem.js';
 import * as AutoTrade  from '../systems/trade/AutoTradeSystem.js';
 import * as FleetUI    from '../ui/FleetUI.js';
 import * as Save       from '../systems/save/SaveSystem.js';
@@ -268,6 +269,7 @@ function _dispatch(result) {
 }
 
 function _handleTravel(systemId) {
+  const previousDay = _state.day || 1;
   const result = Trade.travelTo(_state, systemId);
   _dispatch(result);
 
@@ -284,6 +286,14 @@ function _handleTravel(systemId) {
     smuggleResult.msgs.forEach(function (m) {
       EventBus.emit('log:message', { text: m.text, type: m.type });
     });
+    if (smuggleResult.caught) {
+      var activeShipAfterCheck = Fleet.getActiveShip(_state);
+      if (activeShipAfterCheck && activeShipAfterCheck.route && activeShipAfterCheck.route.marketMode === 'black') {
+        Fleet.cancelActiveDispatch(_state);
+        Dispatch.stopActiveDispatch();
+        EventBus.emit('log:message', { text: '⏹️ 黑市自动派遣因走私被查获而中止。', type: 'error' });
+      }
+    }
     if (!smuggleResult.caught && smuggleResult.msgs.length === 0) {
       // 携带违禁品且未被检查 → 记录走私成功
       var hasContraband = Object.keys(_state.cargo).some(function (gid) {
@@ -311,6 +321,11 @@ function _handleTravel(systemId) {
     compExpResult.msgs.forEach(function (m) { EventBus.emit('log:message', { text: m.text, type: m.type }); });
     _state.reputation = (_state.reputation || 0) + 1;
 
+    var wageResult = Crew.payDailyWages(_state, Math.max(0, (_state.day || 1) - previousDay));
+    wageResult.msgs.forEach(function (m) {
+      EventBus.emit('log:message', { text: m.text, type: m.type });
+    });
+
     // 连续无伤天数追踪（旅行前记录船体值）
     var _hullBefore = _state.shipHull || 100;
 
@@ -334,8 +349,11 @@ function _handleTravel(systemId) {
     }
 
     // 自动修复（如果有科技）
-    if (_state.autoRepair && _state.autoRepair > 0) {
-      _state.shipHull = Math.min(_state.maxHull || 100, (_state.shipHull || 100) + _state.autoRepair);
+    var activeShip = Fleet.getActiveShip(_state);
+    var activeShipStats = Fleet.getEffectiveShipStats(_state, activeShip);
+    var totalAutoRepair = (_state.autoRepair || 0) + (activeShipStats.autoRepair || 0);
+    if (totalAutoRepair > 0) {
+      _state.shipHull = Math.min(_state.maxHull || 100, (_state.shipHull || 100) + totalAutoRepair);
     }
 
     // 随机事件触发（群星风格）——教程期间不触发
@@ -397,6 +415,17 @@ function _handleTradeConfirm(action, goodId, quantity, marketType) {
   if (result && result.ok) {
     // 同步船只状态
     Fleet.syncShipFromState(_state);
+    var activeRoute = Fleet.getActiveShip(_state) ? Fleet.getActiveShip(_state).route : null;
+    if (activeRoute && activeRoute.goodId === goodId) {
+      if (action === 'buy') {
+        activeRoute.lastBuyPrice = marketType === 'black'
+          ? Economy.getBlackMarketBuyPrice(_state.currentSystem, goodId, _state)
+          : Economy.getBuyPrice(_state.currentSystem, goodId, _state);
+      } else if (action === 'sell') {
+        activeRoute.lastBuyPrice = null;
+      }
+      activeRoute.lastPolicyMessage = null;
+    }
     // 新手引导：交易触发
     Tutorial.checkTrigger(action);
 
@@ -654,10 +683,10 @@ function _handleUpgradeShip(shipIndex, upgradeId) {
   _dispatch(result);
 }
 
-function _handleAssignRoute(shipIndex, buySystemId, sellSystemId, goodId) {
+function _handleAssignRoute(shipIndex, buySystemId, sellSystemId, goodId, tradePolicy) {
   Fleet.syncShipFromState(_state);
   var isActive = shipIndex === (_state.activeShipIndex || 0);
-  const result = Fleet.assignRoute(_state, shipIndex, buySystemId, sellSystemId, goodId);
+  const result = Fleet.assignRoute(_state, shipIndex, buySystemId, sellSystemId, goodId, tradePolicy);
   _dispatch(result);
   // 如果是激活船只被派遣，启动自动派遣定时器
   if (result && result.ok && isActive) {
@@ -695,6 +724,37 @@ function _handleInstallMod(shipIndex, modId) {
 function _handleUninstallMod(shipIndex, modId) {
   Fleet.syncShipFromState(_state);
   const result = Fleet.uninstallMod(_state, modId, shipIndex);
+  _dispatch(result);
+}
+
+function _handleRecruitCrew(offerId) {
+  const result = Crew.recruitCrew(_state, offerId, _state.currentSystem);
+  _dispatch(result);
+}
+
+function _handleAssignCrew(shipIndex, crewId) {
+  const result = Crew.assignCrewToShip(_state, crewId, shipIndex);
+  if (result && result.ok && shipIndex === (_state.activeShipIndex || 0)) {
+    Fleet.syncStateFromShip(_state);
+  }
+  _dispatch(result);
+}
+
+function _handleUnassignCrew(shipIndex, crewId) {
+  const result = Crew.unassignCrewFromShip(_state, crewId, shipIndex);
+  if (result && result.ok && shipIndex === (_state.activeShipIndex || 0)) {
+    Fleet.syncStateFromShip(_state);
+  }
+  _dispatch(result);
+}
+
+function _handleDismissCrew(crewId) {
+  var existingCrew = Crew.getCrewById(_state, crewId);
+  var affectedShipIndex = existingCrew ? existingCrew.assignedShipIndex : null;
+  const result = Crew.dismissCrew(_state, crewId);
+  if (result && result.ok && affectedShipIndex === (_state.activeShipIndex || 0)) {
+    Fleet.syncStateFromShip(_state);
+  }
   _dispatch(result);
 }
 
@@ -738,14 +798,14 @@ function _boundDispatchTick() {
       _handleTravel(tickResult.payload.systemId);
       break;
     case 'buy':
-      _handleTradeConfirm('buy', tickResult.payload.goodId, tickResult.payload.quantity);
+      _handleTradeConfirm('buy', tickResult.payload.goodId, tickResult.payload.quantity, tickResult.payload.marketType);
       // 转入前往卖出地状态
       var shipB = Fleet.getActiveShip(_state);
       if (shipB && shipB.route) shipB.route.status = 'traveling_sell';
       _updateUI();
       break;
     case 'sell':
-      _handleTradeConfirm('sell', tickResult.payload.goodId, tickResult.payload.quantity);
+      _handleTradeConfirm('sell', tickResult.payload.goodId, tickResult.payload.quantity, tickResult.payload.marketType);
       // 循环：重新前往买入地
       var shipS = Fleet.getActiveShip(_state);
       if (shipS && shipS.route) shipS.route.status = 'traveling_buy';
@@ -788,7 +848,7 @@ function _updateUI() {
   FactionUI.render(_state);
   QuestUI.render(_state, _handleAcceptQuest, _handleAbandonQuest);
   AchievementUI.render(_state);
-  FleetUI.render(_state, _handleBuyShip, _handleSwitchShip, _handleUpgradeShip, _handleAssignRoute, _handleCancelRoute, _handleBuySlot, _handleSellShip, _handleInstallMod, _handleUninstallMod);
+  FleetUI.render(_state, _handleBuyShip, _handleSwitchShip, _handleUpgradeShip, _handleAssignRoute, _handleCancelRoute, _handleBuySlot, _handleSellShip, _handleInstallMod, _handleUninstallMod, _handleRecruitCrew, _handleAssignCrew, _handleUnassignCrew, _handleDismissCrew);
   FleetUI.renderShop(_state, _handleBuyShip);
   SaveUI.render(_handleSaveGame, _handleLoadGame);
   MapUI.refreshPlanetDetail(_state);

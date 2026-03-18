@@ -1,13 +1,18 @@
 // tests/fleet.test.js — FleetSystem 测试
 // 覆盖: C2（_fuelCost 崩溃）、M6（syncState 一致性）、sellShip activeShipIndex
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as Fleet from '../js/systems/fleet/FleetSystem.js';
 import * as Economy from '../js/systems/economy/Economy.js';
+import * as Faction from '../js/systems/faction/FactionSystem.js';
 import { createTestState } from './helpers.js';
 
 beforeEach(() => {
   Economy.init();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe('Fleet.init', () => {
@@ -300,6 +305,54 @@ describe('Fleet.assignRoute / cancelRoute', () => {
     expect(Fleet.assignRoute(state, 999, 'sol_prime', 'nova_station', 'food').ok).toBe(false);
     expect(Fleet.cancelRoute(state, 999).ok).toBe(false);
   });
+
+  it('分配路线时保存自动贸易策略', () => {
+    const state = createTestState({ credits: 10000 });
+    Fleet.init(state);
+    state.fleetSlots = 2;
+    Fleet.buyShip(state, 'freighter');
+
+    const result = Fleet.assignRoute(state, 1, 'sol_prime', 'nova_station', 'food', {
+      maxBuyPrice: 12,
+      minSellPrice: 20,
+      minProfitRate: 0.25,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(state.fleet[1].route.tradePolicy).toEqual({
+      marketMode: 'open',
+      maxBuyPrice: 12,
+      minSellPrice: 20,
+      minProfitRate: 0.25,
+      riskMode: 'balanced',
+    });
+  });
+
+  it('黑市派遣要求买卖地都具备黑市权限', () => {
+    const state = createTestState({
+      credits: 10000,
+      factionRelations: { federation: 0, syndicate: 50, technocracy: 0 },
+    });
+    Faction.init(state);
+    Fleet.init(state);
+    state.fleetSlots = 2;
+    Fleet.buyShip(state, 'freighter');
+
+    const okResult = Fleet.assignRoute(state, 1, 'shadow_haven', 'frontier_outpost', 'weapons', {
+      marketMode: 'black',
+    });
+    expect(okResult.ok).toBe(true);
+
+    const openSellResult = Fleet.assignRoute(state, 1, 'shadow_haven', 'sol_prime', 'weapons', {
+      marketMode: 'black',
+    });
+    expect(openSellResult.ok).toBe(true);
+
+    const failResult = Fleet.assignRoute(state, 1, 'sol_prime', 'frontier_outpost', 'weapons', {
+      marketMode: 'black',
+    });
+    expect(failResult.ok).toBe(false);
+  });
 });
 
 describe('Fleet.tickFleetRoutes', () => {
@@ -331,6 +384,72 @@ describe('Fleet.tickFleetRoutes', () => {
     const result = Fleet.tickFleetRoutes(state);
     expect(state.fleet[1].route).toBeNull();
     expect(result.msgs.length).toBeGreaterThan(0);
+  });
+
+  it('买入价高于阈值时等待而不是买入', () => {
+    const state = createTestState({ credits: 10000 });
+    Fleet.init(state);
+    state.fleetSlots = 2;
+    Fleet.buyShip(state, 'freighter');
+
+    Fleet.assignRoute(state, 1, 'sol_prime', 'nova_station', 'food', { maxBuyPrice: 1 });
+    state.fleet[1].location = 'sol_prime';
+
+    const result = Fleet.tickFleetRoutes(state);
+
+    expect(state.fleet[1].route).not.toBeNull();
+    expect(state.fleet[1].route.status).toBe('buying');
+    expect(state.fleet[1].cargo.food).toBeUndefined();
+    expect(result.msgs.some(function (msg) { return msg.text.indexOf('等待买点') !== -1; })).toBe(true);
+  });
+
+  it('卖出价低于阈值时等待而不是卖出', () => {
+    const state = createTestState({ credits: 10000 });
+    Fleet.init(state);
+    state.fleetSlots = 2;
+    Fleet.buyShip(state, 'freighter');
+
+    Fleet.assignRoute(state, 1, 'sol_prime', 'nova_station', 'food', { minSellPrice: 9999 });
+    state.fleet[1].location = 'nova_station';
+    state.fleet[1].route.status = 'selling';
+    state.fleet[1].route.lastBuyPrice = 10;
+    state.fleet[1].cargo.food = 5;
+
+    const result = Fleet.tickFleetRoutes(state);
+
+    expect(state.fleet[1].route).not.toBeNull();
+    expect(state.fleet[1].route.status).toBe('selling');
+    expect(state.fleet[1].cargo.food).toBe(5);
+    expect(result.msgs.some(function (msg) { return msg.text.indexOf('等待卖点') !== -1; })).toBe(true);
+  });
+
+  it('黑市派遣被查获后会罚没并中止路线', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+
+    const state = createTestState({
+      credits: 10000,
+      reputation: -100,
+      factionRelations: { federation: 0, syndicate: 50, technocracy: 0 },
+    });
+    Faction.init(state);
+    Fleet.init(state);
+    state.fleetSlots = 2;
+    Fleet.buyShip(state, 'freighter');
+
+    Fleet.assignRoute(state, 1, 'shadow_haven', 'sol_prime', 'weapons', { marketMode: 'black', riskMode: 'aggressive' });
+    state.fleet[1].route.status = 'traveling_sell';
+    state.fleet[1].location = 'shadow_haven';
+    state.fleet[1].cargo.weapons = 5;
+    state.fleet[1].fuel = 999;
+    state.fleet[1].hull = 150;
+
+    const result = Fleet.tickFleetRoutes(state);
+
+    expect(state.fleet[1].route).toBeNull();
+    expect(state.fleet[1].cargo.weapons).toBeUndefined();
+    expect(state.credits).toBeLessThan(10000);
+    expect(state.fleet[1].hull).toBeLessThan(150);
+    expect(result.msgs.some(function (msg) { return msg.text.indexOf('中止') !== -1; })).toBe(true);
   });
 });
 

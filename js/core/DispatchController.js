@@ -15,6 +15,17 @@ import * as Economy   from '../systems/economy/Economy.js';
 let _activeDispatchInterval = null;
 const ACTIVE_DISPATCH_TICK_MS = 2000;
 
+function _queuePolicyMessage(route, msgs, text) {
+  if (!route || !text || route.lastPolicyMessage === text) return;
+  route.lastPolicyMessage = text;
+  msgs.push({ text: text, type: 'info' });
+}
+
+function _clearPolicyMessage(route) {
+  if (!route) return;
+  route.lastPolicyMessage = null;
+}
+
 // ---------------------------------------------------------------------------
 // 公开 API
 // ---------------------------------------------------------------------------
@@ -127,15 +138,29 @@ export function runActiveDispatchTick(state, options) {
   // 需要买入
   if (result.needBuy) {
     var route = result.needBuy;
-    var buyPrice = Economy.getBuyPrice(route.buySystemId, route.goodId, state);
+    var marketType = route.marketMode || 'open';
+    var buyPrice = marketType === 'black'
+      ? Economy.getBlackMarketBuyPrice(route.buySystemId, route.goodId, state)
+      : Economy.getBuyPrice(route.buySystemId, route.goodId, state);
+    var canBlackSell = marketType === 'black' && AutoTrade.canUseMarket(state, route.sellSystemId, 'black') && Economy.isBlackMarketGood(route.goodId);
+    var sellPrice = canBlackSell
+      ? Economy.getBlackMarketSellPrice(route.sellSystemId, route.goodId, state)
+      : Economy.getSellPrice(route.sellSystemId, route.goodId, state);
+    var buyPolicyCheck = AutoTrade.evaluateTradePolicy(buyPrice, sellPrice, route.tradePolicy);
     var cargoUsed = Object.values(state.cargo).reduce(function (s, q) { return s + q; }, 0);
     var space = state.maxCargo - cargoUsed;
     var canAfford = Math.floor(state.credits / buyPrice);
     var qty = Math.min(space, canAfford);
 
+    if (!buyPolicyCheck.ok) {
+      _queuePolicyMessage(route, msgs, '⏸️ 自动派遣等待买点：' + buyPolicyCheck.reasons.join('、') + '。');
+      return { action: 'noop', msgs };
+    }
+
     if (qty > 0) {
+      _clearPolicyMessage(route);
       // 先执行买入
-      return { action: 'buy', payload: { goodId: route.goodId, quantity: qty }, msgs };
+      return { action: 'buy', payload: { goodId: route.goodId, quantity: qty, marketType: marketType }, msgs };
     }
     // 即使买不到也要转入前往卖出地状态
     var ship = Fleet.getActiveShip(state);
@@ -147,8 +172,24 @@ export function runActiveDispatchTick(state, options) {
   if (result.needSell) {
     var routeS = result.needSell;
     var sellQty = state.cargo[routeS.goodId] || 0;
+    var marketTypeS = routeS.marketMode || 'open';
+    var canBlackSellS = marketTypeS === 'black' && AutoTrade.canUseMarket(state, routeS.sellSystemId, 'black') && Economy.isBlackMarketGood(routeS.goodId);
+    var buyReference = routeS.lastBuyPrice != null ? routeS.lastBuyPrice : (marketTypeS === 'black'
+      ? Economy.getBlackMarketBuyPrice(routeS.buySystemId, routeS.goodId, state)
+      : Economy.getBuyPrice(routeS.buySystemId, routeS.goodId, state));
+    var sellPrice = canBlackSellS
+      ? Economy.getBlackMarketSellPrice(routeS.sellSystemId, routeS.goodId, state)
+      : Economy.getSellPrice(routeS.sellSystemId, routeS.goodId, state);
+    var sellPolicyCheck = AutoTrade.evaluateTradePolicy(buyReference, sellPrice, routeS.tradePolicy);
+
+    if (!sellPolicyCheck.ok && sellQty > 0) {
+      _queuePolicyMessage(routeS, msgs, '⏸️ 自动派遣等待卖点：' + sellPolicyCheck.reasons.join('、') + '。');
+      return { action: 'noop', msgs };
+    }
+
     if (sellQty > 0) {
-      return { action: 'sell', payload: { goodId: routeS.goodId, quantity: sellQty }, msgs };
+      _clearPolicyMessage(routeS);
+      return { action: 'sell', payload: { goodId: routeS.goodId, quantity: sellQty, marketType: canBlackSellS ? 'black' : 'open' }, msgs };
     }
     var shipS = Fleet.getActiveShip(state);
     if (shipS && shipS.route) shipS.route.status = 'traveling_buy';

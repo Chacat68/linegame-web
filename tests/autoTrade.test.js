@@ -72,6 +72,34 @@ describe('AutoTrade.findBestTrade', () => {
       expect(result.goodId).not.toBe('fuel');
     }
   });
+
+  it('支持按最高买入价过滤路线', () => {
+    const state = createTestState({
+      credits: 50000,
+      maxCargo: 100,
+      cargo: {},
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+      playerLevel: 5,
+    });
+
+    const result = AutoTrade.findBestTrade(state, { maxBuyPrice: 0 });
+    expect(result).toBeNull();
+  });
+
+  it('支持按最低利润率过滤路线', () => {
+    const state = createTestState({
+      credits: 50000,
+      maxCargo: 100,
+      cargo: {},
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+      playerLevel: 5,
+    });
+
+    const result = AutoTrade.findBestTrade(state, { minProfitRate: 5000 });
+    expect(result).toBeNull();
+  });
 });
 
 describe('AutoTrade.findBestSellSystem', () => {
@@ -104,6 +132,127 @@ describe('AutoTrade.findBestSellSystem', () => {
 
     const result = AutoTrade.findBestSellSystem(state);
     expect(result).toBeNull();
+  });
+});
+
+describe('AutoTrade.findBestDispatchRoute', () => {
+  it('可为派遣船只推荐完整买卖路线', () => {
+    const state = createTestState({
+      credits: 5000,
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+      fuelEfficiency: 1.0,
+      playerLevel: 3,
+    });
+
+    const result = AutoTrade.findBestDispatchRoute(state, {
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+      fuelEfficiency: 1.0,
+      cargoFree: 20,
+      credits: 5000,
+      systemIds: ['sol_prime', 'nova_station', 'frontier_outpost'],
+    });
+
+    if (result) {
+      expect(result).toHaveProperty('buySystemId');
+      expect(result).toHaveProperty('sellSystemId');
+      expect(result).toHaveProperty('goodId');
+      expect(result.buySystemId).not.toBe(result.sellSystemId);
+    }
+  });
+
+  it('在策略过严时返回 null', () => {
+    const state = createTestState({
+      credits: 5000,
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+      fuelEfficiency: 1.0,
+      playerLevel: 3,
+    });
+
+    const result = AutoTrade.findBestDispatchRoute(state, {
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+      fuelEfficiency: 1.0,
+      cargoFree: 20,
+      credits: 5000,
+      systemIds: ['sol_prime', 'nova_station', 'frontier_outpost'],
+    }, {
+      maxBuyPrice: 0,
+    });
+
+    expect(result).toBeNull();
+  });
+
+  it('黑市模式可推荐黑市路线', () => {
+    const state = createTestState({
+      credits: 5000,
+      currentSystem: 'shadow_haven',
+      currentGalaxy: 'milky_way',
+      fuelEfficiency: 1.0,
+      playerLevel: 3,
+      factionRelations: { federation: 0, syndicate: 50, technocracy: 0 },
+    });
+
+    const result = AutoTrade.findBestDispatchRoute(state, {
+      currentSystem: 'shadow_haven',
+      currentGalaxy: 'milky_way',
+      fuelEfficiency: 1.0,
+      cargoFree: 20,
+      credits: 5000,
+      systemIds: ['shadow_haven', 'frontier_outpost'],
+    }, {
+      marketMode: 'black',
+      riskMode: 'aggressive',
+    });
+
+    if (result) {
+      expect(result.marketMode).toBe('black');
+      expect(['weapons', 'technology', 'luxury']).toContain(result.goodId);
+    }
+  });
+
+  it('保守模式会拒绝受监管高风险路线', () => {
+    const technology = { id: 'technology', legality: 'restricted', marketAccess: ['open', 'black'] };
+    const risk = AutoTrade.assessTradeRisk(technology, 'shadow_haven', 'sol_prime');
+    const adjusted = AutoTrade.applyRiskPreference(1000, risk, { riskMode: 'safe' });
+
+    expect(adjusted.allowed).toBe(false);
+  });
+
+  it('自动贸易不会推荐黑市专属商品', () => {
+    const weapons = { id: 'weapons', legality: 'illegal', marketAccess: ['black'] };
+    expect(AutoTrade.isOpenMarketGood(weapons)).toBe(false);
+  });
+
+  it('可估算派遣卖出入港时的查获风险', () => {
+    const state = createTestState({
+      reputation: 0,
+      factionRelations: { federation: 0, syndicate: 0, technocracy: 0 },
+    });
+    const weapons = { id: 'weapons', name: '武器', legality: 'illegal', marketAccess: ['black'] };
+
+    const risk = AutoTrade.estimateDispatchInspectionRisk(state, weapons, 10, 'sol_prime', 'black');
+
+    expect(risk.hasContraband).toBe(true);
+    expect(risk.isHighEnforcement).toBe(true);
+    expect(risk.contrabandGoods).toContain('武器');
+    expect(risk.checkChancePercent).toBeGreaterThan(0);
+  });
+
+  it('辛迪加庇护区的违禁派遣查获风险为 0', () => {
+    const state = createTestState({
+      reputation: 0,
+      factionRelations: { federation: 0, syndicate: 50, technocracy: 0 },
+    });
+    const weapons = { id: 'weapons', name: '武器', legality: 'illegal', marketAccess: ['black'] };
+
+    const risk = AutoTrade.estimateDispatchInspectionRisk(state, weapons, 10, 'shadow_haven', 'black');
+
+    expect(risk.hasContraband).toBe(true);
+    expect(risk.protectedByBlackMarket).toBe(true);
+    expect(risk.checkChancePercent).toBe(0);
   });
 });
 

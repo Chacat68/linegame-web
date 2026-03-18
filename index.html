@@ -410,9 +410,40 @@
             >贸易商品
             <select id="dispatch-good" class="dispatch-select"></select>
           </label>
+          <label class="dispatch-label"
+            >交易市场
+            <select id="dispatch-market-mode" class="dispatch-select">
+              <option value="open" selected>公开市场</option>
+              <option value="black">黑市</option>
+            </select>
+          </label>
+          <label class="dispatch-label"
+            >最高买入价
+            <input id="dispatch-max-buy-price" class="dispatch-select" type="number" min="0" step="1" placeholder="留空则不限制" />
+          </label>
+          <label class="dispatch-label"
+            >最低卖出价
+            <input id="dispatch-min-sell-price" class="dispatch-select" type="number" min="0" step="1" placeholder="留空则不限制" />
+          </label>
+          <label class="dispatch-label"
+            >最低利润率（%）
+            <input id="dispatch-min-profit-rate" class="dispatch-select" type="number" min="0" step="1" placeholder="留空则不限制" />
+          </label>
+          <label class="dispatch-label"
+            >风险偏好
+            <select id="dispatch-risk-mode" class="dispatch-select">
+              <option value="safe">保守</option>
+              <option value="balanced" selected>平衡</option>
+              <option value="aggressive">激进</option>
+            </select>
+          </label>
         </div>
         <div id="dispatch-estimate" class="dispatch-estimate"></div>
         <div class="modal-actions">
+          <div class="dispatch-suggest-group">
+            <button id="dispatch-suggest" class="btn-secondary">智能推荐</button>
+            <span id="dispatch-suggest-risk" class="dispatch-suggest-risk dispatch-suggest-risk--none" aria-label="当前策略下暂无可推荐路线" title="当前策略下暂无可推荐路线"></span>
+          </div>
           <button id="dispatch-confirm" class="btn-primary">确认派遣</button>
           <button id="dispatch-cancel" class="btn-secondary">取消</button>
         </div>
@@ -446,6 +477,28 @@
         <div id="mod-modal-body"></div>
         <div class="modal-actions">
           <button id="mod-modal-close" class="btn-secondary">关闭</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="crew-modal" class="modal hidden" role="dialog" aria-modal="true">
+      <div class="modal-box crew-modal-box">
+        <h3 id="crew-modal-title">👥 船员管理</h3>
+        <div id="crew-modal-summary" class="crew-modal-summary"></div>
+        <div class="crew-modal-section">
+          <h4>当前船员</h4>
+          <div id="crew-assigned-list" class="crew-list"></div>
+        </div>
+        <div class="crew-modal-section">
+          <h4>预备队</h4>
+          <div id="crew-reserve-list" class="crew-list"></div>
+        </div>
+        <div class="crew-modal-section">
+          <h4>港口招募</h4>
+          <div id="crew-market-list" class="crew-list"></div>
+        </div>
+        <div class="modal-actions">
+          <button id="crew-modal-close" class="btn-secondary">关闭</button>
         </div>
       </div>
     </div>

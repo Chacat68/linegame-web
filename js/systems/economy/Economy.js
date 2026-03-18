@@ -10,6 +10,7 @@ import { ECONOMY_CONFIG }                from '../../data/constants.js';
 import { SHIP_TYPES, SHIP_MODS, FLEET_BONUSES } from '../../data/ships.js';
 import { SYSTEMS, FUEL_COST_PER_UNIT, GALAXY_JUMP_FUEL, findSystem } from '../../data/systems.js';
 import * as Faction                       from '../faction/FactionSystem.js';
+import * as Crew                         from '../fleet/CrewSystem.js';
 
 // ---------------------------------------------------------------------------
 // 价格历史记录（30 天环形缓冲）
@@ -392,6 +393,7 @@ function _getFleetTradeEffects(state) {
   var activeShip = state.fleet[state.activeShipIndex] || state.fleet[0];
   _mergeTradeEffects(effects, _getShipSkillTradeEffects(activeShip));
   _mergeTradeEffects(effects, _getShipModTradeEffects(activeShip));
+  _mergeTradeEffects(effects, Crew.getShipEffects(state, activeShip));
   _mergeTradeEffects(effects, _getFleetBonusTradeEffects(state.fleet));
   return effects;
 }
@@ -529,6 +531,10 @@ function _getEnforcementLevel(systemId) {
   return 'medium';
 }
 
+export function getEnforcementLevel(systemId) {
+  return _getEnforcementLevel(systemId);
+}
+
 /**
  * 计算走私品价值占比
  */
@@ -551,65 +557,119 @@ function _getContraband(state) {
   return { items: items, contrabandValue: contrabandValue, totalValue: totalValue, ratio: totalValue > 0 ? contrabandValue / totalValue : 0 };
 }
 
-/**
- * 入港时执法检查 —— 返回 { caught, fine, confiscated, msgs }
- * 仅在携带违禁品且目标星系非辛迪加友好区时触发
- */
-export function checkSmuggling(state, systemId) {
-  const contraband = _getContraband(state);
-  if (contraband.items.length === 0) {
+function _getContrabandFromCargo(cargo) {
+  const items = [];
+  let contrabandValue = 0;
+  let totalValue = 0;
+  Object.keys(cargo || {}).forEach(function (goodId) {
+    const qty = cargo[goodId];
+    if (qty <= 0) return;
+    const good = GOODS.find(function (g) { return g.id === goodId; });
+    if (!good) return;
+    const price = good.basePrice * qty;
+    totalValue += price;
+    if (good.legality === 'illegal') {
+      contrabandValue += price;
+      items.push({ goodId: goodId, name: good.name, emoji: good.emoji, qty: qty, value: price });
+    }
+  });
+  return { items: items, contrabandValue: contrabandValue, totalValue: totalValue, ratio: totalValue > 0 ? contrabandValue / totalValue : 0 };
+}
+
+export function estimateSmugglingCargoRisk(state, systemId, cargo) {
+  const cfg = ECONOMY_CONFIG.smuggling;
+  const enforcement = _getEnforcementLevel(systemId);
+  const contraband = _getContrabandFromCargo(cargo || {});
+  const protectedByBlackMarket = Faction.canAccessBlackMarket(state, systemId);
+  const reputationMod = Math.max(0.2, 1 - (state.reputation || 0) / cfg.reputationDivisor);
+  let checkChance = 0;
+
+  if (!protectedByBlackMarket && contraband.items.length > 0) {
+    checkChance = cfg.baseCheckChance * (cfg.enforcementLevels[enforcement] || 1.0) * contraband.ratio * reputationMod;
+  }
+
+  checkChance = Math.max(0, Math.min(1, checkChance));
+
+  return {
+    enforcement: enforcement,
+    enforcementLabel: enforcement === 'high' ? '高执法区' : enforcement === 'medium' ? '中执法区' : '低执法区',
+    hasContraband: contraband.items.length > 0,
+    contrabandGoods: contraband.items.map(function (item) { return item.name; }),
+    contrabandRatio: contraband.ratio,
+    contrabandValue: contraband.contrabandValue,
+    totalValue: contraband.totalValue,
+    protectedByBlackMarket: protectedByBlackMarket,
+    reputationModifier: reputationMod,
+    checkChance: checkChance,
+    checkChancePercent: Math.round(checkChance * 100),
+  };
+}
+
+export function checkSmugglingCargo(state, systemId, cargo, options) {
+  options = options || {};
+  const riskEstimate = estimateSmugglingCargoRisk(state, systemId, cargo);
+  const contraband = _getContrabandFromCargo(cargo || {});
+  if (!riskEstimate.hasContraband) {
     return { caught: false, fine: 0, confiscated: [], msgs: [] };
   }
 
   const cfg = ECONOMY_CONFIG.smuggling;
-  const enforcement = _getEnforcementLevel(systemId);
-  const enforcementMod = cfg.enforcementLevels[enforcement] || 1.0;
-  const reputationMod = Math.max(0.2, 1 - (state.reputation || 0) / cfg.reputationDivisor);
-  const checkChance = cfg.baseCheckChance * enforcementMod * contraband.ratio * reputationMod;
 
-  // 辛迪加友好区域免检
-  if (Faction.canAccessBlackMarket(state, systemId)) {
+  if (riskEstimate.protectedByBlackMarket) {
     return { caught: false, fine: 0, confiscated: [], msgs: [{ text: '🕶 辛迪加势力庇护，安全入港。', type: 'info' }] };
   }
 
-  if (Math.random() >= checkChance) {
+  if (Math.random() >= riskEstimate.checkChance) {
     return { caught: false, fine: 0, confiscated: [], msgs: [{ text: '🕶 安全通过入港检查。', type: 'info' }] };
   }
 
-  // 被抓
   const fine = Math.round(contraband.contrabandValue * cfg.fineMultiplier + cfg.baseFine);
   const msgs = [];
   const confiscated = [];
+  const cargoCost = options.cargoCost && typeof options.cargoCost === 'object' ? options.cargoCost : null;
 
   msgs.push({ text: '🚨 入港安检发现走私品！', type: 'danger' });
 
-  // 扣款
   const actualFine = Math.min(fine, state.credits);
   state.credits -= actualFine;
   msgs.push({ text: '💸 罚款 ' + actualFine + ' 积分。', type: 'error' });
 
-  // 没收违禁品
   if (cfg.confiscate) {
     contraband.items.forEach(function (item) {
       confiscated.push({ goodId: item.goodId, name: item.name, qty: item.qty });
-      delete state.cargo[item.goodId];
-      if (state.cargoCost) delete state.cargoCost[item.goodId];
+      delete cargo[item.goodId];
+      if (cargoCost) delete cargoCost[item.goodId];
     });
     msgs.push({ text: '📦 违禁品被没收：' + confiscated.map(function (c) { return c.name + '×' + c.qty; }).join('、'), type: 'error' });
   }
 
-  // 船体受损
   if (cfg.hullDamage) {
-    state.shipHull = Math.max(1, (state.shipHull || 100) - cfg.hullDamage);
+    if (typeof options.applyHullDamage === 'function') {
+      options.applyHullDamage(cfg.hullDamage);
+    } else {
+      state.shipHull = Math.max(1, (state.shipHull || 100) - cfg.hullDamage);
+    }
     msgs.push({ text: '💥 强制搜查造成船体损伤 -' + cfg.hullDamage, type: 'error' });
   }
 
-  // 更新走私统计
   if (!state.smugglingStats) state.smugglingStats = { caught: 0, evaded: 0, finesPaid: 0, blackMarketTrades: 0 };
   state.smugglingStats.caught++;
   state.smugglingStats.finesPaid += actualFine;
 
   return { caught: true, fine: actualFine, confiscated: confiscated, msgs: msgs };
+}
+
+/**
+ * 入港时执法检查 —— 返回 { caught, fine, confiscated, msgs }
+ * 仅在携带违禁品且目标星系非辛迪加友好区时触发
+ */
+export function checkSmuggling(state, systemId) {
+  return checkSmugglingCargo(state, systemId, state.cargo, {
+    cargoCost: state.cargoCost,
+    applyHullDamage: function (damage) {
+      state.shipHull = Math.max(1, (state.shipHull || 100) - damage);
+    },
+  });
 }
 
 /**

@@ -299,9 +299,9 @@ describe('Save schema v2→v3 migration', () => {
     const result = Save.loadGame(1);
     expect(result.ok).toBe(true);
 
-    // 加载后 schema 应升级到 3
+    // 加载后 schema 应升级到当前版本
     const stored = JSON.parse(globalThis.localStorage.getItem('startrader_save_1'));
-    expect(stored.meta.schemaVersion).toBe(3);
+    expect(stored.meta.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
 
     // 每艘船应有 mods 数组
     result.state.fleet.forEach(ship => {

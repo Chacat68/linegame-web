@@ -12,6 +12,8 @@ import { SHIP_TYPES, SHIP_UPGRADES, FLEET_SLOTS, SHIP_MODS, FLEET_BONUSES } from
 import { SYSTEMS, FUEL_COST_PER_UNIT, findSystem } from '../../data/systems.js';
 import { GOODS } from '../../data/goods.js';
 import * as Economy from '../economy/Economy.js';
+import * as AutoTrade from '../trade/AutoTradeSystem.js';
+import * as Crew from './CrewSystem.js';
 
 /**
  * 创建一艘船只实例
@@ -37,6 +39,8 @@ function _createShip(shipType) {
     upgrades:     [],  // 已购买的升级 ID
     mods:         [],  // 已安装的改装组件 ID
     modSlots:     shipType.modSlots || 1, // 改装槽位数
+    crewIds:      [],
+    crewCapacity: Crew.getDefaultCrewCapacity(shipType),
     location:     null, // 当前所在星系 ID（非激活船只用），null 表示跟随旗舰
     route:        null, // 派遣路线 { buySystemId, sellSystemId, goodId, status:'buying'|'traveling'|'selling'|'returning' }
   };
@@ -50,6 +54,7 @@ function _createShip(shipType) {
  * 初始化船队系统 — 如果 state 中没有船队数据则创建初始船只
  */
 export function init(state) {
+  Crew.ensureState(state);
   if (!state.fleet || state.fleet.length === 0) {
     const starter = _createShip(SHIP_TYPES[0]); // 穿梭机
     state.fleet = [starter];
@@ -66,6 +71,7 @@ export function init(state) {
       var st = SHIP_TYPES.find(function (t) { return t.id === ship.typeId; });
       ship.modSlots = st ? (st.modSlots || 1) : 1;
     }
+    Crew.ensureShip(ship, SHIP_TYPES.find(function (type) { return type.id === ship.typeId; }));
   });
   // 确保当前 state 与激活船只同步
   syncStateFromShip(state);
@@ -347,11 +353,12 @@ export function upgradeShip(state, upgradeId, shipIndex) {
 export function syncStateFromShip(state) {
   const ship = getActiveShip(state);
   if (!ship) return;
+  var effective = getEffectiveShipStats(state, ship);
   state.cargo          = ship.cargo;
-  state.maxCargo       = ship.maxCargo;
+  state.maxCargo       = effective.maxCargo;
   state.fuel           = ship.fuel;
   state.maxFuel        = ship.maxFuel;
-  state.fuelEfficiency = ship.fuelEff;
+  state.fuelEfficiency = effective.fuelEff;
   state.shipHull       = ship.hull;
   state.maxHull        = ship.maxHull;
 }
@@ -398,6 +405,84 @@ function _fuelCost(fromId, toId, fuelEff) {
   return Math.max(1, Math.ceil(_distance(s1, s2) * 100 * FUEL_COST_PER_UNIT * fuelEff));
 }
 
+export function getEffectiveShipStats(state, ship) {
+  if (!ship) {
+    return {
+      maxCargo: 0,
+      fuelEff: 1,
+      autoRepair: 0,
+      buyDiscount: 0,
+      sellBonus: 0,
+      crewEffects: {},
+    };
+  }
+
+  var crewEffects = Crew.getShipEffects(state, ship);
+  var modEffects = getShipModEffects(ship);
+
+  return {
+    maxCargo: Math.max(1, ship.maxCargo + (crewEffects.cargo || 0)),
+    fuelEff: Math.max(ship.minFuelEff || 0.1, Math.round(ship.fuelEff * (crewEffects.fuelEffMultiplier || 1) * 10000) / 10000),
+    autoRepair: (crewEffects.autoRepair || 0) + (modEffects.autoRepair || 0),
+    buyDiscount: (crewEffects.buyDiscount || 0) + (modEffects.buyDiscount || 0),
+    sellBonus: (crewEffects.sellBonus || 0) + (modEffects.sellBonus || 0),
+    crewEffects: crewEffects,
+  };
+}
+
+function _formatTradePolicySummary(policy) {
+  var normalized = AutoTrade.normalizeTradePolicy(policy);
+  var parts = [];
+  parts.push(normalized.marketMode === 'black' ? '黑市' : '公开');
+  if (normalized.maxBuyPrice != null) parts.push('买入≤' + normalized.maxBuyPrice);
+  if (normalized.minSellPrice != null) parts.push('卖出≥' + normalized.minSellPrice);
+  if (normalized.minProfitRate != null) parts.push('利润率≥' + Math.round(normalized.minProfitRate * 100) + '%');
+  if (normalized.riskMode === 'safe') parts.push('保守');
+  else if (normalized.riskMode === 'aggressive') parts.push('激进');
+  else parts.push('平衡');
+  return parts.join(' · ');
+}
+
+function _queuePolicyMessage(route, msgs, text) {
+  if (!route || !text || route.lastPolicyMessage === text) return;
+  route.lastPolicyMessage = text;
+  msgs.push({ text: text, type: 'info' });
+}
+
+function _clearPolicyMessage(route) {
+  if (!route) return;
+  route.lastPolicyMessage = null;
+}
+
+function _getRouteSellPrice(state, route) {
+  if (route.marketMode === 'black' && AutoTrade.canUseMarket(state, route.sellSystemId, 'black') && Economy.isBlackMarketGood(route.goodId)) {
+    return Economy.getBlackMarketSellPrice(route.sellSystemId, route.goodId, state);
+  }
+  return Economy.getSellPrice(route.sellSystemId, route.goodId, state);
+}
+
+function _handleShipSmugglingCheck(state, ship, route, msgs) {
+  if (!route || route.marketMode !== 'black') return false;
+
+  var result = Economy.checkSmugglingCargo(state, ship.location, ship.cargo, {
+    applyHullDamage: function (damage) {
+      ship.hull = Math.max(1, (ship.hull || ship.maxHull || 100) - damage);
+    },
+  });
+
+  result.msgs.forEach(function (msg) {
+    msgs.push({ text: '🚨 「' + ship.name + '」' + msg.text.replace(/^🚨\s*/, ''), type: msg.type });
+  });
+
+  if (result.caught) {
+    ship.route = null;
+    msgs.push({ text: '⏹️ 「' + ship.name + '」黑市派遣因走私被查获而中止。', type: 'error' });
+    return true;
+  }
+
+  return false;
+}
+
 /**
  * 为船只分配贸易路线（派遣）
  * 支持激活船只和非激活船只
@@ -406,9 +491,10 @@ function _fuelCost(fromId, toId, fuelEff) {
  * @param {string} buySystemId  买入星系
  * @param {string} sellSystemId 卖出星系
  * @param {string} goodId       贸易商品
+ * @param {object} [tradePolicy]  自动贸易策略 { marketMode, maxBuyPrice, minSellPrice, minProfitRate, riskMode }
  * @returns {{ ok: boolean, msgs: Array }}
  */
-export function assignRoute(state, shipIndex, buySystemId, sellSystemId, goodId) {
+export function assignRoute(state, shipIndex, buySystemId, sellSystemId, goodId, tradePolicy) {
   var ship = state.fleet[shipIndex];
   if (!ship) {
     return { ok: false, msgs: [{ text: '❌ 无效的船只！', type: 'error' }] };
@@ -420,6 +506,13 @@ export function assignRoute(state, shipIndex, buySystemId, sellSystemId, goodId)
 
   if (!busSys || !sellSys || !good) {
     return { ok: false, msgs: [{ text: '❌ 无效的路线参数！', type: 'error' }] };
+  }
+  var normalizedPolicy = AutoTrade.normalizeTradePolicy(tradePolicy);
+  if (!AutoTrade.isGoodAllowedInMarket(good, normalizedPolicy.marketMode)) {
+    return { ok: false, msgs: [{ text: normalizedPolicy.marketMode === 'black' ? '⚠️ 该商品无法在黑市派遣中交易。' : '⚠️ 派遣贸易当前仅支持公开市场商品。', type: 'error' }] };
+  }
+  if (!AutoTrade.canUseMarket(state, buySystemId, normalizedPolicy.marketMode)) {
+    return { ok: false, msgs: [{ text: normalizedPolicy.marketMode === 'black' ? '🔒 黑市派遣的买入地必须具备黑市访问资格。' : '⚠️ 当前路线无法访问所选市场。', type: 'error' }] };
   }
 
   // 派遣路线必须在同一星系内
@@ -434,13 +527,20 @@ export function assignRoute(state, shipIndex, buySystemId, sellSystemId, goodId)
     sellSystemId: sellSystemId,
     goodId:       goodId,
     status:       'traveling_buy',  // 先前往买入地
+    tradePolicy:  normalizedPolicy,
+    marketMode:   normalizedPolicy.marketMode,
+    lastBuyPrice: null,
+    lastPolicyMessage: null,
   };
+
+  var policySummary = _formatTradePolicySummary(normalizedPolicy);
 
   return {
     ok: true,
     msgs: [{
       text: '📡 「' + ship.emoji + ' ' + ship.name + '」已派遣！路线：' +
-            busSys.name + '(' + good.emoji + good.name + ') → ' + sellSys.name,
+            busSys.name + '(' + good.emoji + good.name + ') → ' + sellSys.name +
+            (policySummary ? ' · 策略：' + policySummary : ''),
       type: 'info',
     }],
   };
@@ -488,7 +588,7 @@ export function tickFleetRoutes(state) {
           // 立即执行买入
           _doShipBuy(state, ship, route, msgs);
         } else {
-          var cost = _fuelCost(loc, route.buySystemId, ship.fuelEff);
+          var cost = _fuelCost(loc, route.buySystemId, getEffectiveShipStats(state, ship).fuelEff);
           if (ship.fuel < cost) {
             // 尝试用积分补燃料
             _autoRefuelShip(state, ship, cost, msgs);
@@ -501,6 +601,7 @@ export function tickFleetRoutes(state) {
           ship.fuel    -= cost;
           ship.location = route.buySystemId;
           msgs.push({ text: '🚀 「' + ship.name + '」抵达买入地。', type: 'travel' });
+          if (_handleShipSmugglingCheck(state, ship, route, msgs)) return;
           _doShipBuy(state, ship, route, msgs);
         }
         break;
@@ -518,7 +619,7 @@ export function tickFleetRoutes(state) {
           route.status = 'selling';
           _doShipSell(state, ship, route, msgs);
         } else {
-          var cost2 = _fuelCost(loc, route.sellSystemId, ship.fuelEff);
+          var cost2 = _fuelCost(loc, route.sellSystemId, getEffectiveShipStats(state, ship).fuelEff);
           if (ship.fuel < cost2) {
             _autoRefuelShip(state, ship, cost2, msgs);
             if (ship.fuel < cost2) {
@@ -530,6 +631,7 @@ export function tickFleetRoutes(state) {
           ship.fuel    -= cost2;
           ship.location = route.sellSystemId;
           msgs.push({ text: '🚀 「' + ship.name + '」抵达卖出地。', type: 'travel' });
+          if (_handleShipSmugglingCheck(state, ship, route, msgs)) return;
           _doShipSell(state, ship, route, msgs);
         }
         break;
@@ -550,9 +652,26 @@ export function tickFleetRoutes(state) {
  * 船只自动买入
  */
 function _doShipBuy(state, ship, route, msgs) {
-  var buyPrice = Economy.getBuyPrice(route.buySystemId, route.goodId, state);
+  var effective = getEffectiveShipStats(state, ship);
+  var isBlack = route.marketMode === 'black';
+  var buyPrice = isBlack
+    ? Economy.getBlackMarketBuyPrice(route.buySystemId, route.goodId, state)
+    : Economy.getBuyPrice(route.buySystemId, route.goodId, state);
+  var sellPrice = _getRouteSellPrice(state, route);
+  var policyCheck = AutoTrade.evaluateTradePolicy(buyPrice, sellPrice, route.tradePolicy);
+
+  if (!policyCheck.ok) {
+    _queuePolicyMessage(
+      route,
+      msgs,
+      '⏸️ 「' + ship.name + '」在' + _sysName(route.buySystemId) + '等待买点：' + policyCheck.reasons.join('、') + '。'
+    );
+    route.status = 'buying';
+    return;
+  }
+
   var cargoUsed = Object.values(ship.cargo).reduce(function (s, q) { return s + q; }, 0);
-  var space     = ship.maxCargo - cargoUsed;
+  var space     = effective.maxCargo - cargoUsed;
   var canAfford = Math.floor(state.credits / buyPrice);
   var qty       = Math.min(space, canAfford);
 
@@ -565,11 +684,16 @@ function _doShipBuy(state, ship, route, msgs) {
   var totalCost = qty * buyPrice;
   state.credits -= totalCost;
   ship.cargo[route.goodId] = (ship.cargo[route.goodId] || 0) + qty;
+  route.lastBuyPrice = buyPrice;
+  _clearPolicyMessage(route);
+  if (isBlack) {
+    Economy.recordBlackMarketTrade(state);
+  }
   Economy.onPlayerBuy(route.buySystemId, route.goodId, qty);
 
   var good = GOODS.find(function (g) { return g.id === route.goodId; });
   msgs.push({
-    text: '📦 「' + ship.name + '」在' + _sysName(route.buySystemId) + '买入 ' + qty + ' 单位' + good.name + '，花费 ' + totalCost + ' 积分。',
+    text: (isBlack ? '🕶 ' : '📦 ') + '「' + ship.name + '」在' + _sysName(route.buySystemId) + (isBlack ? '黑市' : '') + '买入 ' + qty + ' 单位' + good.name + '，花费 ' + totalCost + ' 积分。',
     type: 'buy',
   });
 
@@ -580,22 +704,44 @@ function _doShipBuy(state, ship, route, msgs) {
  * 船只自动卖出
  */
 function _doShipSell(state, ship, route, msgs) {
+  var isBlack = route.marketMode === 'black';
   var qty = ship.cargo[route.goodId] || 0;
   if (qty <= 0) {
     // 没有货物，重新开始循环
+    _clearPolicyMessage(route);
     route.status = 'traveling_buy';
     return;
   }
 
-  var sellPrice  = Economy.getSellPrice(route.sellSystemId, route.goodId, state);
+  var sellPrice  = _getRouteSellPrice(state, route);
+  var buyReference = route.lastBuyPrice != null ? route.lastBuyPrice : (isBlack
+    ? Economy.getBlackMarketBuyPrice(route.buySystemId, route.goodId, state)
+    : Economy.getBuyPrice(route.buySystemId, route.goodId, state));
+  var policyCheck = AutoTrade.evaluateTradePolicy(buyReference, sellPrice, route.tradePolicy);
+
+  if (!policyCheck.ok) {
+    _queuePolicyMessage(
+      route,
+      msgs,
+      '⏸️ 「' + ship.name + '」在' + _sysName(route.sellSystemId) + '等待卖点：' + policyCheck.reasons.join('、') + '。'
+    );
+    route.status = 'selling';
+    return;
+  }
+
   var totalEarned = qty * sellPrice;
   state.credits += totalEarned;
   delete ship.cargo[route.goodId];
+  route.lastBuyPrice = null;
+  _clearPolicyMessage(route);
+  if (isBlack) {
+    Economy.recordBlackMarketTrade(state);
+  }
   Economy.onPlayerSell(route.sellSystemId, route.goodId, qty);
 
   var good = GOODS.find(function (g) { return g.id === route.goodId; });
   msgs.push({
-    text: '💰 「' + ship.name + '」在' + _sysName(route.sellSystemId) + '卖出 ' + qty + ' 单位' + good.name + '，获得 ' + totalEarned + ' 积分。',
+    text: (isBlack ? '🕶 ' : '💰 ') + '「' + ship.name + '」在' + _sysName(route.sellSystemId) + (isBlack ? '黑市' : '') + '卖出 ' + qty + ' 单位' + good.name + '，获得 ' + totalEarned + ' 积分。',
     type: 'sell',
   });
 
@@ -643,8 +789,8 @@ export function isActiveDispatched(state) {
 /**
  * 为激活船只设置派遣路线
  */
-export function dispatchActiveShip(state, buySystemId, sellSystemId, goodId) {
-  return assignRoute(state, state.activeShipIndex, buySystemId, sellSystemId, goodId);
+export function dispatchActiveShip(state, buySystemId, sellSystemId, goodId, tradePolicy) {
+  return assignRoute(state, state.activeShipIndex, buySystemId, sellSystemId, goodId, tradePolicy);
 }
 
 /**
