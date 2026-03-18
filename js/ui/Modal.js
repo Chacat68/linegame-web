@@ -42,13 +42,19 @@ export function init(onConfirmCb) {
 /**
  * 打开交易模态框
  * @param {'buy'|'sell'} action
- * @param {object}       good   商品定义对象
- * @param {object}       state  当前游戏状态（只读用于计算上限）
+ * @param {object}       good       商品定义对象
+ * @param {object}       state      当前游戏状态（只读用于计算上限）
+ * @param {string}       [marketType] 'open' | 'black'（默认 'open'）
  */
-export function openTradeModal(action, good, state) {
-  const price  = action === 'buy'
-    ? Economy.getBuyPrice(state.currentSystem, good.id, state)
-    : Economy.getSellPrice(state.currentSystem, good.id, state);
+export function openTradeModal(action, good, state, marketType) {
+  const isBlack = marketType === 'black';
+  const price  = isBlack
+    ? (action === 'buy'
+      ? Economy.getBlackMarketBuyPrice(state.currentSystem, good.id, state)
+      : Economy.getBlackMarketSellPrice(state.currentSystem, good.id, state))
+    : (action === 'buy'
+      ? Economy.getBuyPrice(state.currentSystem, good.id, state)
+      : Economy.getSellPrice(state.currentSystem, good.id, state));
 
   const maxQty = action === 'buy'
     ? Math.min(
@@ -60,20 +66,21 @@ export function openTradeModal(action, good, state) {
   const safeMax = Math.max(0, maxQty);
 
   document.getElementById('modal-title').textContent =
-    (action === 'buy' ? '💰 购买 ' : '💸 出售 ') + good.emoji + ' ' + good.name;
+    (isBlack ? '🕶 ' : '') + (action === 'buy' ? '💰 购买 ' : '💸 出售 ') + good.emoji + ' ' + good.name;
   document.getElementById('modal-desc').textContent =
-    '单价: ' + price + ' 积分  ·  最多可' +
+    (isBlack ? '[黑市] ' : '') + '单价: ' + price + ' 积分  ·  最多可' +
     (action === 'buy' ? '购买' : '出售') + ': ' + safeMax + ' 单位';
 
   const inp     = document.getElementById('modal-amount');
   inp.max       = safeMax;
   inp.value     = Math.max(0, Math.min(1, safeMax));
   inp.dataset.price = price;
+  inp.dataset.marketType = marketType || 'open';
   _refreshTotal();
 
   document.getElementById('modal-confirm').onclick = function () {
     const qty = parseInt(inp.value) || 0;
-    if (qty > 0 && _onConfirm) _onConfirm(action, good.id, qty);
+    if (qty > 0 && _onConfirm) _onConfirm(action, good.id, qty, inp.dataset.marketType);
     document.getElementById('trade-modal').classList.add('hidden');
   };
 

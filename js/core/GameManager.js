@@ -34,17 +34,17 @@ import * as TutorialUI from '../ui/TutorialUI.js';
 import { INITIAL_STATE, DIFFICULTY_LEVELS } from '../data/constants.js';
 import * as Victory from '../systems/victory/VictorySystem.js';
 import { VICTORY_PATHS } from '../data/victoryConditions.js';
-import * as PlayerLevels from '../data/playerLevels.js';
+import { getLevel } from '../data/playerLevels.js';
 import { SYSTEMS } from '../data/systems.js';
+import { GOODS } from '../data/goods.js';
 import * as Settings from './SettingsManager.js';
 import * as Progression from '../systems/progression/ProgressionSystem.js';
 import * as Dispatch from './DispatchController.js';
 
-const getLevel = PlayerLevels.getLevel;
-
 let _state     = null;
 let _startTime = null;
 let _settings  = { motionLevel: 'full' };
+let _blackMarketMode = false; // 当前是否处于黑市交易模式
 
 // 教程完成回调引用（用于防止重复注册）
 let _onTutorialComplete = null;
@@ -84,9 +84,12 @@ export function init(difficulty) {
   MapUI.setRefreshMarket(function (mode) {
     if (mode === 'detail') {
       const sysId = MapUI.getMarketViewSystem(_state);
-      MarketUI.showDetail(sysId);
-      MarketUI.render(_state, _handleOpenBuy, _handleOpenSell, _handleRefuel, sysId);
+      var bmMode = _blackMarketMode ? 'black' : 'open';
+      MarketUI.showDetail(sysId, bmMode);
+      MarketUI.render(_state, _handleOpenBuy, _handleOpenSell, _handleRefuel, sysId, bmMode, _handleBlackMarketBuy, _handleBlackMarketSell);
+      _bindMarketModeButtons();
     } else {
+      _blackMarketMode = false;
       MarketUI.showOverview();
       MarketUI.renderOverview(_state, MapUI.getMarketViewGalaxy(_state), function (systemId) {
         MapUI.showMarketDetail(systemId);
@@ -275,6 +278,21 @@ function _handleTravel(systemId) {
     }
     // 刷新市场位置信息
     MapUI.refreshMarketLocation(_state);
+
+    // 走私检查（入港时）
+    var smuggleResult = Economy.checkSmuggling(_state, _state.currentSystem);
+    smuggleResult.msgs.forEach(function (m) {
+      EventBus.emit('log:message', { text: m.text, type: m.type });
+    });
+    if (!smuggleResult.caught && smuggleResult.msgs.length === 0) {
+      // 携带违禁品且未被检查 → 记录走私成功
+      var hasContraband = Object.keys(_state.cargo).some(function (gid) {
+        var g = GOODS.find(function (x) { return x.id === gid; });
+        return g && g.legality === 'illegal' && _state.cargo[gid] > 0;
+      });
+      if (hasContraband) Economy.recordSmugglingEvaded(_state);
+    }
+
     // 探索追踪：记录已访问的星球和星系
     if (!_state.visitedSystems) _state.visitedSystems = [];
     if (!_state.visitedGalaxies) _state.visitedGalaxies = [];
@@ -363,7 +381,13 @@ function _handleGalaxyJump(systemId) {
   _handleTravel(systemId);
 }
 
-function _handleTradeConfirm(action, goodId, quantity) {
+function _handleTradeConfirm(action, goodId, quantity, marketType) {
+  // 黑市交易走独立逻辑
+  if (marketType === 'black') {
+    _handleBlackMarketTradeConfirm(action, goodId, quantity);
+    return;
+  }
+
   const result = action === 'buy'
     ? Trade.buyGood(_state, goodId, quantity)
     : Trade.sellGood(_state, goodId, quantity);
@@ -425,6 +449,105 @@ function _handleOpenSell(good) {
   Modal.openTradeModal('sell', good, _state);
 }
 
+// ---------------------------------------------------------------------------
+// 黑市交易
+// ---------------------------------------------------------------------------
+
+function _handleBlackMarketBuy(good) {
+  Modal.openTradeModal('buy', good, _state, 'black');
+}
+
+function _handleBlackMarketSell(good) {
+  Modal.openTradeModal('sell', good, _state, 'black');
+}
+
+function _handleBlackMarketTradeConfirm(action, goodId, quantity) {
+  // 黑市交易使用黑市价格手动计算
+  var price = action === 'buy'
+    ? Economy.getBlackMarketBuyPrice(_state.currentSystem, goodId, _state)
+    : Economy.getBlackMarketSellPrice(_state.currentSystem, goodId, _state);
+
+  var result;
+  if (action === 'buy') {
+    var totalCost = price * quantity;
+    if (totalCost > _state.credits) {
+      result = { ok: false, msgs: [{ text: '💰 信用积分不足！', type: 'error' }] };
+    } else if (Trade.getTotalCargo(_state) + quantity > _state.maxCargo) {
+      result = { ok: false, msgs: [{ text: '📦 货舱空间不足！', type: 'error' }] };
+    } else {
+      _state.credits -= totalCost;
+      _state.cargo[goodId] = (_state.cargo[goodId] || 0) + quantity;
+      if (!_state.cargoCost) _state.cargoCost = {};
+      _state.cargoCost[goodId] = (_state.cargoCost[goodId] || 0) + totalCost;
+      if (!_state.goodsTraded) _state.goodsTraded = {};
+      _state.goodsTraded[goodId] = (_state.goodsTraded[goodId] || 0) + quantity;
+      Economy.onPlayerBuy(_state.currentSystem, goodId, quantity);
+      var good = GOODS.find(function (g) { return g.id === goodId; });
+      result = { ok: true, msgs: [{ text: '🕶 黑市购入 ' + quantity + ' 单位 ' + (good ? good.name : goodId) + '，花费 ' + totalCost + ' 积分。', type: 'buy' }], meta: { goodId: goodId, quantity: quantity, totalCost: totalCost } };
+    }
+  } else {
+    var available = _state.cargo[goodId] || 0;
+    if (quantity > available) {
+      result = { ok: false, msgs: [{ text: '📦 货物数量不足！', type: 'error' }] };
+    } else {
+      var totalEarned = price * quantity;
+      if (!_state.cargoCost) _state.cargoCost = {};
+      var totalCostForGood = _state.cargoCost[goodId] || 0;
+      var currentQty = _state.cargo[goodId] || 0;
+      var avgCost = currentQty > 0 ? totalCostForGood / currentQty : 0;
+      var costBasis = avgCost * quantity;
+      var profit = totalEarned - costBasis;
+      _state.credits += totalEarned;
+      _state.cargo[goodId] -= quantity;
+      if (_state.cargo[goodId] <= 0) { delete _state.cargo[goodId]; delete _state.cargoCost[goodId]; }
+      else { _state.cargoCost[goodId] = totalCostForGood - costBasis; }
+      _state.totalProfit = (_state.totalProfit || 0) + profit;
+      if (!_state.goodsTraded) _state.goodsTraded = {};
+      _state.goodsTraded[goodId] = (_state.goodsTraded[goodId] || 0) + quantity;
+      if (profit > (_state.maxSingleProfit || 0)) _state.maxSingleProfit = profit;
+      Economy.onPlayerSell(_state.currentSystem, goodId, quantity);
+      var good = GOODS.find(function (g) { return g.id === goodId; });
+      result = { ok: true, msgs: [{ text: '🕶 黑市出售 ' + quantity + ' 单位 ' + (good ? good.name : goodId) + '，获得 ' + totalEarned + ' 积分。', type: 'sell' }], meta: { goodId: goodId, quantity: quantity, totalEarned: totalEarned, profit: profit } };
+    }
+  }
+
+  _dispatch(result);
+
+  if (result && result.ok) {
+    Economy.recordBlackMarketTrade(_state);
+    Fleet.syncShipFromState(_state);
+    Tutorial.checkTrigger(action);
+    var factionMsgs = Faction.onTrade(_state, _state.currentSystem, goodId, action, quantity);
+    factionMsgs.forEach(function (m) { EventBus.emit('log:message', { text: m.text, type: m.type }); });
+    _state.tradeCount = (_state.tradeCount || 0) + 1;
+    var expGain = Math.max(1, Math.ceil(quantity * 3)); // 黑市交易经验更高
+    var tradeExpResult = Progression.gainExperience(_state, expGain);
+    tradeExpResult.msgs.forEach(function (m) { EventBus.emit('log:message', { text: m.text, type: m.type }); });
+    _state.reputation = (_state.reputation || 0) + Math.max(1, Math.ceil(quantity * 0.5));
+    _updateUI();
+  }
+}
+
+/**
+ * 绑定市场模式切换按钮（公开市场 ↔ 黑市）
+ * 在每次渲染 market detail 后调用
+ */
+function _bindMarketModeButtons() {
+  var btns = document.querySelectorAll('.market-mode-btn:not(.disabled)');
+  btns.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var mode = btn.dataset.mode;
+      _blackMarketMode = mode === 'black';
+      // 重新渲染详情
+      var sysId = MapUI.getMarketViewSystem(_state);
+      var bmMode = _blackMarketMode ? 'black' : 'open';
+      MarketUI.showDetail(sysId, bmMode);
+      MarketUI.render(_state, _handleOpenBuy, _handleOpenSell, _handleRefuel, sysId, bmMode, _handleBlackMarketBuy, _handleBlackMarketSell);
+      _bindMarketModeButtons();
+    });
+  });
+}
+
 function _handleStartResearch(techId) {
   const result = Research.startResearch(_state, techId);
   _dispatch(result);
@@ -473,22 +596,6 @@ function _handleLoadGame(slotId) {
   if (result.ok) {
     Settings.hideSettingsModal();
     _state = result.state;
-    // 兼容旧存档：补充星系字段
-    if (!_state.currentGalaxy) _state.currentGalaxy = 'milky_way';
-    if (!_state.viewingGalaxy) _state.viewingGalaxy = _state.currentGalaxy;
-    if (!_state.mapView) _state.mapView = 'planets';
-    // 兼容旧存档：补充玩家等级
-    if (!_state.playerLevel) {
-      _state.playerLevel = getLevel(_state.experience || 0).level;
-    }
-    // 兼容旧存档：补充公司等级
-    if (_state.companyExperience === undefined) {
-      _state.companyExperience = 0;
-    }
-    _state.companyLevel = getCompanyLevel(_state.companyExperience || 0).level;
-    // 兼容旧存档：补充难度和事件链字段
-    if (!_state.difficulty) _state.difficulty = 'normal';
-    if (!_state._pendingChainEvents) _state._pendingChainEvents = [];
     _settings.difficulty = _state.difficulty;
     Settings.saveSettings(_settings);
     // 重新初始化依赖状态的子系统
@@ -660,7 +767,9 @@ function _updateUI() {
   if (MapUI.isMarketOpen()) {
     const mode = MapUI.getMarketMode();
     if (mode === 'detail') {
-      MarketUI.render(_state, _handleOpenBuy, _handleOpenSell, _handleRefuel, MapUI.getMarketViewSystem(_state));
+      var bmMode = _blackMarketMode ? 'black' : 'open';
+      MarketUI.render(_state, _handleOpenBuy, _handleOpenSell, _handleRefuel, MapUI.getMarketViewSystem(_state), bmMode, _handleBlackMarketBuy, _handleBlackMarketSell);
+      _bindMarketModeButtons();
     } else {
       MarketUI.renderOverview(_state, MapUI.getMarketViewGalaxy(_state), function (systemId) {
         MapUI.showMarketDetail(systemId);

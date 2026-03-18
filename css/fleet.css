@@ -1297,3 +1297,59 @@
   color: #4FC3F7;
   font-weight: 700;
 }
+
+/* ---- 黑市 UI ---- */
+.market-mode-bar {
+  display: flex;
+  gap: 6px;
+  padding: 6px 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid rgba(79, 195, 247, 0.1);
+}
+.market-mode-btn {
+  padding: 4px 12px;
+  border: 1px solid rgba(79, 195, 247, 0.3);
+  border-radius: 4px;
+  background: transparent;
+  color: #8090b0;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.market-mode-btn:hover:not(.disabled) {
+  background: rgba(79, 195, 247, 0.1);
+  color: #4FC3F7;
+}
+.market-mode-btn.active {
+  background: rgba(79, 195, 247, 0.15);
+  color: #4FC3F7;
+  border-color: #4FC3F7;
+}
+.market-mode-btn.active[data-mode="black"] {
+  background: rgba(156, 39, 176, 0.2);
+  color: #CE93D8;
+  border-color: #CE93D8;
+}
+.market-mode-btn.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.black-market-banner {
+  background: rgba(156, 39, 176, 0.08) !important;
+  color: #CE93D8 !important;
+  border-bottom: 1px solid rgba(156, 39, 176, 0.2);
+}
+.bm-warning {
+  display: block;
+  margin-top: 3px;
+  font-size: 10px;
+  color: #EF9A9A;
+}
+.bm-btn {
+  background: rgba(156, 39, 176, 0.15) !important;
+  border-color: rgba(156, 39, 176, 0.4) !important;
+  color: #CE93D8 !important;
+}
+.bm-btn:hover {
+  background: rgba(156, 39, 176, 0.3) !important;
+}

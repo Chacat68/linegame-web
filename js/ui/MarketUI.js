@@ -5,6 +5,7 @@
 import { GOODS }    from '../data/goods.js';
 import { getSystemsByGalaxy, findSystem, isSystemAccessible } from '../data/systems.js';
 import * as Economy from '../systems/economy/Economy.js';
+import * as Faction from '../systems/faction/FactionSystem.js';
 
 // ---------------------------------------------------------------------------
 // Sparkline 辅助（Unicode block 字符 8 级走势图）
@@ -41,6 +42,18 @@ function _supplyChainTooltip(good) {
     return (upGood ? upGood.emoji + upGood.name : dep.goodId) + '(' + Math.round(dep.weight * 100) + '%)';
   }).join(', ');
   return '🔗 依赖: ' + deps;
+}
+
+function _marketAccessLabel(good) {
+  if (!good.marketAccess || good.marketAccess.indexOf('black') === -1) return '';
+  if (good.legality === 'illegal') return '☠ 黑市货';
+  return '🕶 灰市货';
+}
+
+function _legalityTooltip(good) {
+  if (good.legality === 'illegal') return '仅可在黑市安全流通';
+  if (good.legality === 'restricted') return '受监管商品，在黑市需求更高';
+  return '';
 }
 
 // ---------------------------------------------------------------------------
@@ -142,11 +155,15 @@ export function renderOverview(state, galaxyId, onPlanetClick) {
  * @param {Function} onSell         (good) => void
  * @param {Function} onRefuel       () => void
  * @param {string}   [viewingSystem] 查看的星球 ID（默认为当前星球）
+ * @param {string}   [marketMode]   'open' | 'black'（默认 'open'）
+ * @param {Function} [onBlackBuy]   黑市买入回调 (good) => void
+ * @param {Function} [onBlackSell]  黑市卖出回调 (good) => void
  */
-export function render(state, onBuy, onSell, onRefuel, viewingSystem) {
+export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode, onBlackBuy, onBlackSell) {
   const sysId         = viewingSystem || state.currentSystem;
   const isCurrentSys  = sysId === state.currentSystem;
   const tbody         = document.getElementById('market-tbody');
+  const isBlack       = marketMode === 'black';
   tbody.innerHTML     = '';
 
   // 非当前星球时显示只读提示
@@ -156,20 +173,59 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem) {
     tbody.appendChild(noteRow);
   }
 
-  // 市场深度信息行
+  // 黑市模式横幅
+  var blackMarketUnlocked = Faction.canAccessBlackMarket(state, sysId);
+  var systemFaction = Faction.getFactionForSystem(sysId);
+
+  // 市场模式切换栏（仅在有黑市权限的星系显示）
+  if (systemFaction && systemFaction.marketAccess && systemFaction.marketAccess.blackMarket) {
+    var modeRow = document.createElement('tr');
+    modeRow.className = 'market-mode-row';
+    modeRow.innerHTML = '<td colspan="6" class="market-mode-bar">' +
+      '<button class="market-mode-btn' + (!isBlack ? ' active' : '') + '" data-mode="open">🏪 公开市场</button>' +
+      (blackMarketUnlocked
+        ? '<button class="market-mode-btn' + (isBlack ? ' active' : '') + '" data-mode="black">🕶 黑市</button>'
+        : '<button class="market-mode-btn disabled" disabled title="需与辛迪加达到友好关系">🔒 黑市</button>') +
+      '</td>';
+    tbody.appendChild(modeRow);
+  }
+
+  // 市场深度 / 黑市横幅
   var depth = Economy.getMarketDepth(sysId);
   var depthLabel = depth >= 350 ? '深度市场' : depth >= 200 ? '中等市场' : '浅层市场';
   var depthRow = document.createElement('tr');
   depthRow.className = 'market-depth-row';
-  depthRow.innerHTML = '<td colspan="6" class="market-depth-info">' +
-    '📊 市场深度：<strong>' + depth + '</strong>（' + depthLabel + '）——' +
-    (depth >= 350 ? '大宗交易对价格影响较小' : depth >= 200 ? '交易影响适中' : '大宗交易将显著影响价格') +
-    '</td>';
+
+  if (isBlack) {
+    depthRow.innerHTML = '<td colspan="6" class="market-depth-info black-market-banner">' +
+      '🕶 黑市交易 —— 高风险高回报，违禁品不受监管' +
+      '<span class="bm-warning">⚠ 携带违禁品前往联邦区域将触发执法检查</span>' +
+      '</td>';
+  } else {
+    depthRow.innerHTML = '<td colspan="6" class="market-depth-info">' +
+      '📊 市场深度：<strong>' + depth + '</strong>（' + depthLabel + '）——' +
+      (depth >= 350 ? '大宗交易对价格影响较小' : depth >= 200 ? '交易影响适中' : '大宗交易将显著影响价格') +
+      (systemFaction && systemFaction.marketAccess && systemFaction.marketAccess.blackMarket
+        ? (blackMarketUnlocked
+          ? ' · 🕶 黑市资格已解锁'
+          : ' · 🔒 黑市需与辛迪加达到友好关系')
+        : '') +
+      '</td>';
+  }
   tbody.appendChild(depthRow);
 
-  GOODS.forEach(function (good) {
-    const buyPrice    = Economy.getBuyPrice(sysId, good.id, state);
-    const sellPrice   = Economy.getSellPrice(sysId, good.id, state);
+  // 根据市场模式筛选商品
+  var goodsList = isBlack ? Economy.getBlackMarketGoods() : GOODS;
+
+  goodsList.forEach(function (good) {
+    var buyPrice, sellPrice;
+    if (isBlack) {
+      buyPrice  = Economy.getBlackMarketBuyPrice(sysId, good.id, state);
+      sellPrice = Economy.getBlackMarketSellPrice(sysId, good.id, state);
+    } else {
+      buyPrice  = Economy.getBuyPrice(sysId, good.id, state);
+      sellPrice = Economy.getSellPrice(sysId, good.id, state);
+    }
     const inCargo     = state.cargo[good.id] || 0;
     const mult        = Economy.getSystemMultiplier(sysId, good.id);
     const sd          = Economy.getSupplyDemand(sysId, good.id);
@@ -185,6 +241,8 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem) {
     var history = Economy.getPriceHistory(sysId, good.id);
     var spark = _sparkline(history);
     var trend = _trendArrow(history);
+    var marketTag = _marketAccessLabel(good);
+    var legalityTip = _legalityTooltip(good);
 
     // 产业链提示
     var chainTip = _supplyChainTooltip(good);
@@ -194,23 +252,26 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem) {
       '<td><span class="good-icon">' + good.emoji + '</span>' + good.name +
         '<span class="sd-indicator" title="供:' + sd.supply + ' 需:' + sd.demand + '">' + sdIcon + '</span>' +
         (chainTip ? '<span class="chain-indicator" title="' + chainTip + '">🔗</span>' : '') +
+        (marketTag ? '<span class="chain-indicator" title="' + legalityTip + '">' + marketTag + '</span>' : '') +
         '</td>' +
       '<td class="' + (isCheap ? 'price-low' : isExpensive ? 'price-high' : '') + '">' + buyPrice + '</td>' +
       '<td class="' + (isCheap ? 'price-low' : isExpensive ? 'price-high' : '') + '">' + sellPrice + '</td>' +
       '<td>' + (inCargo > 0 ? '<span class="qty-badge">' + inCargo + '</span>' : '—') + '</td>' +
       '<td class="action-cell">' +
-        (isCurrentSys ? '<button class="btn-action buy-btn" data-id="' + good.id + '">买入</button>' : '') +
-        (isCurrentSys && inCargo > 0 ? '<button class="btn-action sell-btn" data-id="' + good.id + '">卖出</button>' : '') +
+        (isCurrentSys ? '<button class="btn-action buy-btn' + (isBlack ? ' bm-btn' : '') + '" data-id="' + good.id + '">' + (isBlack ? '🕶买' : '买入') + '</button>' : '') +
+        (isCurrentSys && inCargo > 0 ? '<button class="btn-action sell-btn' + (isBlack ? ' bm-btn' : '') + '" data-id="' + good.id + '">' + (isBlack ? '🕶卖' : '卖出') + '</button>' : '') +
       '</td>' +
       '<td class="sparkline-cell">' +
         (spark ? '<span class="sparkline" title="30天价格走势">' + spark + '<span class="trend-arrow">' + trend + '</span></span>' : '<span class="sparkline-empty">—</span>') +
       '</td>';
 
     if (isCurrentSys) {
-      tr.querySelector('.buy-btn').addEventListener('click', function () { onBuy(good); });
+      var buyCallback = isBlack && onBlackBuy ? onBlackBuy : onBuy;
+      var sellCallback = isBlack && onBlackSell ? onBlackSell : onSell;
+      tr.querySelector('.buy-btn').addEventListener('click', function () { buyCallback(good); });
       const sellBtn = tr.querySelector('.sell-btn');
       if (sellBtn) {
-        sellBtn.addEventListener('click', function () { onSell(good); });
+        sellBtn.addEventListener('click', function () { sellCallback(good); });
       }
     }
     tbody.appendChild(tr);
@@ -247,7 +308,7 @@ export function showOverview() {
 }
 
 /** 显示详情，隐藏总览 */
-export function showDetail(systemId) {
+export function showDetail(systemId, marketMode) {
   const ov = document.getElementById('market-overview');
   const dt = document.getElementById('market-detail');
   const loc = document.getElementById('market-detail-location');
@@ -255,8 +316,9 @@ export function showDetail(systemId) {
   if (ov) ov.classList.add('hidden');
   if (dt) dt.classList.remove('hidden');
   const sys = findSystem(systemId);
+  const isBlack = marketMode === 'black';
   if (sys && loc) {
     loc.textContent = sys.name + ' [' + sys.typeLabel + '] — ' + sys.description;
   }
-  if (title) title.textContent = '🏪 ' + (sys ? sys.name : '');
+  if (title) title.textContent = (isBlack ? '🕶 ' : '🏪 ') + (sys ? sys.name : '');
 }

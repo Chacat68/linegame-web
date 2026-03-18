@@ -1,6 +1,9 @@
 // js/data/constants.js — 游戏全局常量与初始状态
 // 依赖：无
-// 导出：INITIAL_STATE, DIFFICULTY_LEVELS, SAVE_STATE_SCHEMA
+// 导出：INITIAL_STATE, DIFFICULTY_LEVELS, SAVE_STATE_SCHEMA,
+//       SAVE_SCHEMA_VERSION, GAME_VERSION, SAVE_META_SCHEMA,
+//       PERSISTED_STATE_DEFAULTS, RUNTIME_ONLY_FIELDS,
+//       createInitialState, createPersistedState, createSaveMeta
 //
 // 状态定义的唯一真理来源是 SAVE_STATE_SCHEMA。
 // INITIAL_STATE 由 SAVE_STATE_SCHEMA 自动生成 + 运行时专用字段。
@@ -67,6 +70,9 @@ export const ECONOMY_CONFIG = {
     buyMultiplier: 1.10,
     sellMultiplier: 0.95,
     minimumPrice: 1,
+    sellTaxBase: 2.0,
+    buyAdjustmentOrder: ['factionTax', 'techBuyDiscount', 'fleetTradeBonus'],
+    sellAdjustmentOrder: ['factionTax', 'techSellBonus', 'fleetTradeBonus'],
   },
   peaks: {
     modifierBase: 1.8,
@@ -81,7 +87,33 @@ export const ECONOMY_CONFIG = {
     propagationFactor: 0.3,   // 上游商品价格变动向下游传导的系数
   },
   marketDepth: {
+    defaultDepth: 200,
     depthScaleFactor: 1.0,    // 交易量/市场深度 的影响缩放
+  },
+  blackMarket: {
+    pricePremium: 1.35,          // 黑市买入溢价倍率
+    sellPremium: 1.50,           // 黑市卖出溢价（高利润驱动走私）
+    volatility: 1.8,             // 黑市价格波动倍率（相对公开市场）
+    restrictedSellBonus: 1.25,   // 受监管商品在黑市的额外卖出加成
+    illegalSellBonus: 1.60,      // 违禁品在黑市的卖出加成
+  },
+  smuggling: {
+    baseCheckChance: 0.10,       // 基础检查概率 10%/入港
+    enforcementLevels: {
+      low: 0.7, medium: 1.0, high: 1.5,
+    },
+    reputationDivisor: 200,      // 声望调整 = 1 - reputation / 200
+    fineMultiplier: 3.0,         // 罚款 = 走私品价值 × 3
+    baseFine: 500,               // 基础罚款
+    confiscate: true,            // 被抓时没收违禁品
+    hullDamage: 10,              // 被抓时船体受损
+  },
+  travel: {
+    invalidSystemFuelCost: 999,
+    intraGalaxyDistanceScale: 100,
+    crossGalaxyOriginX: 0.5,
+    crossGalaxyOriginY: 0.5,
+    crossGalaxyDistanceScale: 50,
   },
   cycle: {
     initialPhaseIndex: 1,
@@ -92,6 +124,38 @@ export const ECONOMY_CONFIG = {
       { id: 'decline',    name: '衰退期', icon: '📉', priceMod: 0.90, demandBoost: -10, supplyBoost: 10, peakChance: 0.20, duration: [20, 35] },
       { id: 'recession',  name: '萧条期', icon: '🔻', priceMod: 0.80, demandBoost: -20, supplyBoost: 20, peakChance: 0.15, duration: [15, 30] },
     ],
+  },
+};
+
+export const FACTION_CONFIG = {
+  relations: {
+    min: -100,
+    max: 100,
+  },
+  tradeImpact: {
+    basePerUnit: 0.5,
+    likedMultiplier: 1.5,
+    sellMultiplier: 1.2,
+  },
+};
+
+export const PROGRESSION_CONFIG = {
+  levelPerks: {
+    3:  { type: 'sellBonus', value: 0.03, message: '✨ 等级奖励：卖出价格 +3%' },
+    4:  { type: 'cargo', value: 5, message: '✨ 等级奖励：当前船只货舱容量 +5' },
+    5:  { type: 'buyDiscount', value: 0.03, message: '✨ 等级奖励：买入价格 -3%' },
+    6:  { type: 'fuelEfficiencyMultiplier', value: 0.9, message: '✨ 等级奖励：当前船只燃料效率 +10%' },
+    7:  { type: 'factionBonus', value: 10, message: '✨ 等级奖励：所有派系好感 +10' },
+    8:  { type: 'cargo', value: 10, message: '✨ 等级奖励：当前船只货舱容量 +10' },
+    9:  { type: 'sellBonus', value: 0.05, message: '✨ 等级奖励：卖出价格 +5%' },
+    10: {
+      type: 'composite',
+      cargo: 10,
+      maxFuel: 20,
+      buyDiscount: 0.05,
+      sellBonus: 0.05,
+      message: '✨ 银河商业帝皇加冕！当前船只全属性大幅提升！',
+    },
   },
 };
 
@@ -111,9 +175,30 @@ export const EVENT_CONFIG = {
   },
 };
 
+export const SAVE_SCHEMA_VERSION = 3;
+export const GAME_VERSION = '0.3.0';
+
+/**
+ * SaveEnvelope.meta 契约
+ * 说明：摘要字段仅用于槽位展示、版本迁移与调试排障，不承载完整游戏状态。
+ */
+export const SAVE_META_SCHEMA = {
+  schemaVersion: { type: 'number', default: SAVE_SCHEMA_VERSION, desc: '存档结构版本' },
+  gameVersion:   { type: 'string', default: GAME_VERSION,        desc: '游戏版本号' },
+  slotId:        { type: 'string', default: '0',                 desc: '存档槽位 ID（兼容数字槽位与字符串测试槽位）' },
+  saveName:      { type: 'string', default: '自动存档',           desc: '存档名称' },
+  timestampMs:   { type: 'number', default: 0,                   desc: '保存时间戳（毫秒）' },
+  day:           { type: 'number', default: 1,                   desc: '保存时的游戏天数' },
+  credits:       { type: 'number', default: 1000,                desc: '保存时积分' },
+  currentSystem: { type: 'string', default: 'sol_prime',         desc: '保存时所在星球' },
+  difficulty:    { type: 'string', default: 'normal',            desc: '保存时难度' },
+  companyName:   { type: 'string', default: '星际信使贸易公司',   desc: '保存时公司名称' },
+  isAutosave:    { type: 'boolean', default: false,              desc: '是否自动存档' },
+};
+
 /**
  * 存档状态字段契约 — 唯一真理来源
- * 每增减字段必须同步更新此清单和 SCHEMA_VERSION（在 SaveSystem.js）
+ * 每增减字段必须同步更新此清单和 SAVE_SCHEMA_VERSION。
  * @type {Object<string, { type: string, default: *, since: number, desc: string }>}
  */
 export const SAVE_STATE_SCHEMA = {
@@ -166,6 +251,8 @@ export const SAVE_STATE_SCHEMA = {
   // ---- v2 新增 ----
   _pendingChainEvents:{ type: 'array',   default: [],                 since: 2, desc: '待触发事件链' },
   economyCycle:       { type: 'object',  default: null,               since: 2, desc: '经济周期状态' },
+  // ---- v3 新增 ----
+  smugglingStats:     { type: 'object',  default: { caught: 0, evaded: 0, finesPaid: 0, blackMarketTrades: 0 }, since: 3, desc: '走私统计' },
 };
 
 /**
@@ -173,22 +260,81 @@ export const SAVE_STATE_SCHEMA = {
  */
 export const RUNTIME_ONLY_FIELDS = ['hoveredSystem'];
 
+export const PERSISTED_STATE_DEFAULTS = createPersistedState();
+
 /**
  * 初始游戏状态 — 由 SAVE_STATE_SCHEMA 自动生成
  * 新增字段只需修改 SAVE_STATE_SCHEMA，此处自动同步
  */
-export const INITIAL_STATE = _buildInitialState();
+export const INITIAL_STATE = createInitialState();
 
-function _buildInitialState() {
+export function createInitialState(overrides) {
+  return _createState(true, overrides);
+}
+
+export function createPersistedState(overrides) {
+  return _createState(false, overrides);
+}
+
+export function createSaveMeta(slotId, state, options) {
+  options = options || {};
+  var snapshot = state && typeof state === 'object' ? state : PERSISTED_STATE_DEFAULTS;
+  var actualSlotId = _normalizeSlotId(slotId);
+  var isAutosave = actualSlotId === 0 || actualSlotId === '0';
+
+  return {
+    schemaVersion: SAVE_SCHEMA_VERSION,
+    gameVersion: GAME_VERSION,
+    slotId: actualSlotId,
+    saveName: options.saveName || (isAutosave ? '自动存档' : '手动存档 ' + actualSlotId),
+    timestampMs: typeof options.timestampMs === 'number' ? options.timestampMs : Date.now(),
+    day: typeof snapshot.day === 'number' ? snapshot.day : SAVE_META_SCHEMA.day.default,
+    credits: typeof snapshot.credits === 'number' ? snapshot.credits : SAVE_META_SCHEMA.credits.default,
+    currentSystem: typeof snapshot.currentSystem === 'string' && snapshot.currentSystem
+      ? snapshot.currentSystem
+      : SAVE_META_SCHEMA.currentSystem.default,
+    difficulty: typeof snapshot.difficulty === 'string' && snapshot.difficulty
+      ? snapshot.difficulty
+      : SAVE_META_SCHEMA.difficulty.default,
+    companyName: typeof snapshot.companyName === 'string' && snapshot.companyName
+      ? snapshot.companyName
+      : SAVE_META_SCHEMA.companyName.default,
+    isAutosave: isAutosave,
+  };
+}
+
+function _createState(includeRuntimeFields, overrides) {
   const state = {};
   Object.keys(SAVE_STATE_SCHEMA).forEach(function (key) {
-    var def = SAVE_STATE_SCHEMA[key].default;
-    // 深拷贝引用类型防止共享
-    state[key] = (def !== null && typeof def === 'object')
-      ? JSON.parse(JSON.stringify(def))
-      : def;
+    state[key] = _cloneValue(SAVE_STATE_SCHEMA[key].default);
   });
-  // 追加运行时专用字段（不入存档）
-  state.hoveredSystem = null;
+
+  if (includeRuntimeFields) {
+    RUNTIME_ONLY_FIELDS.forEach(function (field) {
+      state[field] = null;
+    });
+  }
+
+  if (overrides && typeof overrides === 'object') {
+    Object.keys(overrides).forEach(function (key) {
+      state[key] = _cloneValue(overrides[key]);
+    });
+  }
+
   return state;
+}
+
+function _cloneValue(value) {
+  return (value !== null && typeof value === 'object')
+    ? JSON.parse(JSON.stringify(value))
+    : value;
+}
+
+function _normalizeSlotId(slotId) {
+  if (Number.isInteger(slotId) && slotId >= 0) return slotId;
+  if (typeof slotId === 'string' && slotId.length > 0) {
+    if (/^\d+$/.test(slotId)) return Number(slotId);
+    return slotId;
+  }
+  return SAVE_META_SCHEMA.slotId.default;
 }
