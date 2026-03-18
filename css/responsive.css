@@ -221,6 +221,13 @@
   .save-export-row {
     flex-direction: column;
   }
+  .save-import-target {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .save-import-slot-select {
+    width: 100%;
+  }
   .save-slot-actions .btn-action,
   .save-export-row .btn-action {
     width: 100%;

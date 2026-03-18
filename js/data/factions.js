@@ -35,6 +35,9 @@ export const FACTIONS = [
       friendly: '联邦星系内贸易税 -10%',
       allied:   '联邦提供免费护航，海盗事件概率 -50%',
     },
+    marketAccess: {
+      blackMarket: false,
+    },
   },
   {
     id: 'syndicate',
@@ -52,6 +55,10 @@ export const FACTIONS = [
       friendly: '辛迪加星系内可访问黑市，独家商品',
       allied:   '辛迪加成员为你提供海盗免疫',
     },
+    marketAccess: {
+      blackMarket: true,
+      unlockLevel: 'friendly',
+    },
   },
   {
     id: 'technocracy',
@@ -68,6 +75,9 @@ export const FACTIONS = [
     bonuses: {
       friendly: '共同体星系内科技商品打折 -15%',
       allied:   '解锁高级科技研究选项',
+    },
+    marketAccess: {
+      blackMarket: false,
     },
   },
 ];

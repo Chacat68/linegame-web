@@ -64,6 +64,13 @@ export function render(state) {
               ? '🎁 ' + (f.bonuses[level.id] || '')
               : '<span style="color:var(--text-dim)">提升关系以解锁派系奖励</span>') +
           '</div>' +
+          '<div class="faction-bonus">' +
+            (f.marketAccess && f.marketAccess.blackMarket
+              ? (Faction.canAccessBlackMarket(state, f.controlledSystems[0])
+                ? '🕶 黑市资格：已解锁'
+                : '🔒 黑市资格：需达到友好')
+              : '<span style="color:var(--text-dim)">该派系不提供黑市访问</span>') +
+          '</div>' +
         '</div>' +
       '</div>';
   });

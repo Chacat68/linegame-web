@@ -6,6 +6,7 @@
 // 所有函数均通过参数接收 state，返回 { msgs } 格式。
 
 import * as PlayerLevels from '../../data/playerLevels.js';
+import { FACTION_CONFIG, PROGRESSION_CONFIG } from '../../data/constants.js';
 import { SYSTEMS } from '../../data/systems.js';
 import * as Fleet from '../fleet/FleetSystem.js';
 
@@ -89,64 +90,65 @@ export function gainCompanyExperience(state, amount) {
  */
 export function applyLevelPerk(state, level) {
   const msgs = [];
+  const perk = PROGRESSION_CONFIG.levelPerks[level];
 
   switch (level) {
     case 3:  // 卖出价格 +3%
-      state.techSellBonus = (state.techSellBonus || 0) + 0.03;
-      msgs.push({ text: '✨ 等级奖励：卖出价格 +3%', type: 'info' });
+      state.techSellBonus = (state.techSellBonus || 0) + perk.value;
+      msgs.push({ text: perk.message, type: 'info' });
       break;
     case 4:  // 货舱 +5
       {
         const ship4 = Fleet.getActiveShip(state);
-        if (ship4) ship4.maxCargo = Math.min(ship4.maxCargoCap, ship4.maxCargo + 5);
+        if (ship4) ship4.maxCargo = Math.min(ship4.maxCargoCap, ship4.maxCargo + perk.value);
         Fleet.syncStateFromShip(state);
       }
-      msgs.push({ text: '✨ 等级奖励：当前船只货舱容量 +5', type: 'info' });
+      msgs.push({ text: perk.message, type: 'info' });
       break;
     case 5:  // 买入价格 -3%
-      state.techBuyDiscount = (state.techBuyDiscount || 0) + 0.03;
-      msgs.push({ text: '✨ 等级奖励：买入价格 -3%', type: 'info' });
+      state.techBuyDiscount = (state.techBuyDiscount || 0) + perk.value;
+      msgs.push({ text: perk.message, type: 'info' });
       break;
     case 6:  // 燃料效率 +10%
       {
         const ship6 = Fleet.getActiveShip(state);
-        if (ship6) ship6.fuelEff = Math.max(ship6.minFuelEff, ship6.fuelEff * 0.9);
+        if (ship6) ship6.fuelEff = Math.max(ship6.minFuelEff, ship6.fuelEff * perk.value);
         Fleet.syncStateFromShip(state);
       }
-      msgs.push({ text: '✨ 等级奖励：当前船只燃料效率 +10%', type: 'info' });
+      msgs.push({ text: perk.message, type: 'info' });
       break;
     case 7:  // 所有派系好感 +10
       if (state.factionRelations) {
         Object.keys(state.factionRelations).forEach(function (fid) {
-          state.factionRelations[fid] = Math.min(100, state.factionRelations[fid] + 10);
+          state.factionRelations[fid] = Math.min(FACTION_CONFIG.relations.max, state.factionRelations[fid] + perk.value);
         });
       }
-      msgs.push({ text: '✨ 等级奖励：所有派系好感 +10', type: 'info' });
+      msgs.push({ text: perk.message, type: 'info' });
       break;
     case 8:  // 货舱 +10
       {
         const ship8 = Fleet.getActiveShip(state);
-        if (ship8) ship8.maxCargo = Math.min(ship8.maxCargoCap, ship8.maxCargo + 10);
+        if (ship8) ship8.maxCargo = Math.min(ship8.maxCargoCap, ship8.maxCargo + perk.value);
         Fleet.syncStateFromShip(state);
       }
-      msgs.push({ text: '✨ 等级奖励：当前船只货舱容量 +10', type: 'info' });
+      msgs.push({ text: perk.message, type: 'info' });
       break;
     case 9:  // 卖出价格 +5%
-      state.techSellBonus = (state.techSellBonus || 0) + 0.05;
-      msgs.push({ text: '✨ 等级奖励：卖出价格 +5%', type: 'info' });
+      state.techSellBonus = (state.techSellBonus || 0) + perk.value;
+      msgs.push({ text: perk.message, type: 'info' });
       break;
     case 10: // 全属性提升
       {
         const ship10 = Fleet.getActiveShip(state);
         if (ship10) {
-          ship10.maxCargo = Math.min(ship10.maxCargoCap, ship10.maxCargo + 10);
-          ship10.maxFuel  = Math.min(ship10.maxFuelCap, ship10.maxFuel + 20);
+          ship10.maxCargo = Math.min(ship10.maxCargoCap, ship10.maxCargo + perk.cargo);
+          ship10.maxFuel  = Math.min(ship10.maxFuelCap, ship10.maxFuel + perk.maxFuel);
         }
         Fleet.syncStateFromShip(state);
       }
-      state.techBuyDiscount = (state.techBuyDiscount || 0) + 0.05;
-      state.techSellBonus = (state.techSellBonus || 0) + 0.05;
-      msgs.push({ text: '✨ 银河商业帝皇加冕！当前船只全属性大幅提升！', type: 'upgrade' });
+      state.techBuyDiscount = (state.techBuyDiscount || 0) + perk.buyDiscount;
+      state.techSellBonus = (state.techSellBonus || 0) + perk.sellBonus;
+      msgs.push({ text: perk.message, type: 'upgrade' });
       break;
   }
 

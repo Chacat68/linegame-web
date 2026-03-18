@@ -338,6 +338,7 @@
 .del-btn:hover { background: rgba(239,83,80,0.15) !important; }
 .save-export-row {
   display: flex;
+  align-items: center;
   gap: 8px;
   margin-top: 12px;
   justify-content: center;
@@ -345,6 +346,26 @@
 .save-export-row .btn-action {
   font-size: 11px;
   padding: 5px 14px;
+}
+.save-import-target {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.save-import-slot-select {
+  min-width: 88px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-main);
+  font-size: 11px;
+}
+.save-import-slot-select:focus {
+  outline: none;
+  border-color: var(--accent-blue);
 }
 
 /* ==========================================================

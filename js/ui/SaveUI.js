@@ -26,13 +26,26 @@ export function render(onSave, onLoad) {
   slots.forEach(function (slot) {
     const isAuto = slot.slotId === 0;
     const label  = isAuto ? '🔄 自动存档' : '📁 槽位 ' + slot.slotId;
-    const badge  = isAuto ? 'AUTO' : 'MANUAL';
+    const badge  = slot.isCorrupted ? 'BROKEN' : (isAuto ? 'AUTO' : 'MANUAL');
 
     if (slot.isEmpty) {
       html += '<div class="save-slot empty-slot">' +
         '<div class="save-slot-header-row"><div class="save-slot-header">' + label + '</div><span class="save-slot-badge">' + badge + '</span></div>' +
         '<div class="save-slot-info"><span class="save-meta-pill">— 空槽位 —</span></div>' +
         (!isAuto ? '<button class="btn-action save-btn" data-slot="' + slot.slotId + '">保存</button>' : '') +
+        '</div>';
+    } else if (slot.isCorrupted) {
+      html += '<div class="save-slot has-data">' +
+        '<div class="save-slot-header-row"><div class="save-slot-header">' + label + '</div><span class="save-slot-badge">' + badge + '</span></div>' +
+        '<div class="save-slot-info">' +
+          '<span class="save-meta-pill">⚠️ 存档已损坏</span>' +
+          '<span class="save-meta-pill">请删除或覆盖</span>' +
+        '</div>' +
+        '<div class="save-transfer-copy">' + (slot.errorMessage || '该槽位数据无法解析。') + '</div>' +
+        '<div class="save-slot-actions">' +
+          (!isAuto ? '<button class="btn-action save-btn" data-slot="' + slot.slotId + '">覆盖</button>' : '') +
+          '<button class="btn-action del-btn" data-slot="' + slot.slotId + '">删除</button>' +
+        '</div>' +
         '</div>';
     } else {
       const m    = slot.meta;
@@ -59,9 +72,17 @@ export function render(onSave, onLoad) {
 
   // 导出/导入按钮
   html += '<div class="save-transfer-bar">' +
-    '<div class="save-transfer-copy">导入会写入槽位 1，导出默认使用自动存档。</div>' +
+    '<div class="save-transfer-copy">导出默认使用自动存档；导入时可选择写入的手动槽位。</div>' +
     '<div class="save-export-row">' +
     '<button class="btn-action export-btn">📤 导出存档</button>' +
+    '<label class="save-import-target">' +
+      '<span>导入到</span>' +
+      '<select class="save-import-slot-select" aria-label="选择导入目标槽位">' +
+        '<option value="1">槽位 1</option>' +
+        '<option value="2">槽位 2</option>' +
+        '<option value="3">槽位 3</option>' +
+      '</select>' +
+    '</label>' +
     '<button class="btn-action import-btn">📥 导入存档</button>' +
     '</div>' +
     '</div>';
@@ -103,6 +124,8 @@ export function render(onSave, onLoad) {
 
   // 导入
   container.querySelector('.import-btn').addEventListener('click', function () {
+    const importTarget = container.querySelector('.save-import-slot-select');
+    const targetSlot = importTarget ? parseInt(importTarget.value, 10) : 1;
     const input = document.createElement('input');
     input.type  = 'file';
     input.accept = '.json';
@@ -111,7 +134,7 @@ export function render(onSave, onLoad) {
       if (!file) return;
       const reader = new FileReader();
       reader.onload = function () {
-        const result = Save.importSave(1, reader.result);
+        const result = Save.importSave(targetSlot, reader.result);
         alert(result.msg);
         if (result.ok) render(onSave, onLoad);
       };

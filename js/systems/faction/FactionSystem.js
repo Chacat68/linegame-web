@@ -1,8 +1,10 @@
 // js/systems/faction/FactionSystem.js — 派系外交系统（群星风格）
 // 依赖：data/factions.js, core/EventBus.js
-// 导出：init, getRelation, getLevel, changeRelation, getFactionForSystem, getTaxModifier, getAllRelations
+// 导出：init, getRelation, getLevel, changeRelation, getFactionForSystem,
+//       getTaxModifier, canAccessBlackMarket, getAllRelations
 
 import { FACTIONS, FACTION_LEVELS } from '../../data/factions.js';
+import { FACTION_CONFIG } from '../../data/constants.js';
 import * as EventBus from '../../core/EventBus.js';
 
 /**
@@ -50,7 +52,10 @@ export function changeRelation(state, factionId, delta) {
   const oldVal = state.factionRelations[factionId] || 0;
   const oldLevel = getLevel(state, factionId);
 
-  state.factionRelations[factionId] = Math.max(-100, Math.min(100, oldVal + delta));
+  state.factionRelations[factionId] = Math.max(
+    FACTION_CONFIG.relations.min,
+    Math.min(FACTION_CONFIG.relations.max, oldVal + delta)
+  );
 
   const newLevel = getLevel(state, factionId);
   const faction = FACTIONS.find(function (f) { return f.id === factionId; });
@@ -90,6 +95,19 @@ export function getTaxModifier(state, systemId) {
 }
 
 /**
+ * 判断玩家在指定星球是否已解锁黑市访问资格
+ */
+export function canAccessBlackMarket(state, systemId) {
+  const faction = getFactionForSystem(systemId);
+  if (!faction || !faction.marketAccess || !faction.marketAccess.blackMarket) {
+    return false;
+  }
+
+  const level = getLevel(state, faction.id);
+  return level.id === faction.marketAccess.unlockLevel || level.id === 'allied';
+}
+
+/**
  * 交易时自动更新派系关系
  * @param {object} state
  * @param {string} systemId  交易发生的星系
@@ -101,17 +119,17 @@ export function onTrade(state, systemId, goodId, action, quantity) {
   const faction = getFactionForSystem(systemId);
   if (!faction) return [];
 
-  let delta = Math.ceil(quantity * 0.5); // 基础好感度变化
+  let delta = Math.ceil(quantity * FACTION_CONFIG.tradeImpact.basePerUnit);
 
   // 检查商品偏好
   if (faction.tradePreference.liked.includes(goodId)) {
-    delta = Math.ceil(delta * 1.5);
+    delta = Math.ceil(delta * FACTION_CONFIG.tradeImpact.likedMultiplier);
   } else if (faction.tradePreference.disliked.includes(goodId)) {
     delta = -Math.abs(delta);
   }
 
   // 卖出在对方星球 = 他们需要你，好感度增加更多
-  if (action === 'sell') delta = Math.ceil(delta * 1.2);
+  if (action === 'sell') delta = Math.ceil(delta * FACTION_CONFIG.tradeImpact.sellMultiplier);
 
   const result = changeRelation(state, faction.id, delta);
   return result.msgs;

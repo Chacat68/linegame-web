@@ -3,6 +3,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as Save from '../js/systems/save/SaveSystem.js';
+import { SAVE_SCHEMA_VERSION, createSaveMeta } from '../js/data/constants.js';
 import { createTestState } from './helpers.js';
 
 // vitest 在 Node 环境中没有 localStorage，需要 polyfill
@@ -40,7 +41,7 @@ describe('Save.saveGame', () => {
     const raw = globalThis.localStorage.getItem('startrader_save_1');
     const parsed = JSON.parse(raw);
 
-    expect(parsed.meta.schemaVersion).toBe(3);
+    expect(parsed.meta.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
     expect(parsed.meta.saveName).toBe('手工测试存档');
     expect(parsed.meta.difficulty).toBe('hard');
     expect(parsed.meta.companyName).toBe('迁移测试公司');
@@ -80,6 +81,15 @@ describe('Save.loadGame', () => {
     expect(result.ok).toBe(false);
   });
 
+  it('损坏存档返回明确错误信息', () => {
+    globalThis.localStorage.setItem('startrader_save_2', '{broken json');
+
+    const result = Save.loadGame(2);
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe('SAVE_JSON_INVALID');
+    expect(result.msg).toContain('读档失败');
+  });
+
   it('加载后补全缺失字段', () => {
     // 模拟旧存档（缺少新字段）
     const oldState = { credits: 500, day: 10, cargo: {}, currentSystem: 'sol_prime' };
@@ -100,6 +110,27 @@ describe('Save.loadGame', () => {
     expect(result.state.difficulty).toBe('normal');
     expect(result.state._pendingChainEvents).toEqual([]);
     expect(result.state.economyCycle).toBeNull();
+    expect(result.state.playerLevel).toBe(1);
+    expect(result.state.companyLevel).toBe(1);
+  });
+
+  it('旧存档缺少等级字段时，会根据经验自动回填 playerLevel 和 companyLevel', () => {
+    const envelope = {
+      meta: { schemaVersion: 1, gameVersion: '0.1.0', slotId: 1, timestampMs: Date.now() },
+      data: {
+        credits: 500,
+        day: 10,
+        currentSystem: 'sol_prime',
+        experience: 1200,
+        companyExperience: 1400,
+      },
+    };
+    globalThis.localStorage.setItem('startrader_save_1', JSON.stringify(envelope));
+
+    const result = Save.loadGame(1);
+    expect(result.ok).toBe(true);
+    expect(result.state.playerLevel).toBeGreaterThan(1);
+    expect(result.state.companyLevel).toBeGreaterThan(1);
   });
 
   it('加载旧 schema 存档后会自动迁移并回写', () => {
@@ -114,7 +145,7 @@ describe('Save.loadGame', () => {
     expect(result.state.economyCycle).toEqual({ phaseIndex: 2 });
 
     const stored = JSON.parse(globalThis.localStorage.getItem('startrader_save_1'));
-    expect(stored.meta.schemaVersion).toBe(3);
+    expect(stored.meta.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
     expect(stored.meta.difficulty).toBe('normal');
   });
 });
@@ -123,16 +154,28 @@ describe('Save.importSave', () => {
   it('无效 JSON 返回失败', () => {
     const result = Save.importSave(1, 'not json at all');
     expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe('SAVE_JSON_INVALID');
   });
 
   it('缺少 meta 字段返回失败', () => {
     const result = Save.importSave(1, JSON.stringify({ data: {} }));
     expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe('SAVE_META_MISSING');
   });
 
   it('缺少 data 字段返回失败', () => {
     const result = Save.importSave(1, JSON.stringify({ meta: {} }));
     expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe('SAVE_DATA_MISSING');
+  });
+
+  it('非法 meta 类型返回失败', () => {
+    const result = Save.importSave(1, JSON.stringify({
+      meta: { schemaVersion: '3', slotId: 1 },
+      data: { credits: 10 },
+    }));
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe('SAVE_META_TYPE_INVALID');
   });
 
   it('恶意数据（credits 为字符串）导入后被类型校验修正 [C4]', () => {
@@ -162,7 +205,7 @@ describe('Save.importSave', () => {
     expect(result.ok).toBe(true);
 
     const stored = JSON.parse(globalThis.localStorage.getItem('startrader_save_2'));
-    expect(stored.meta.schemaVersion).toBe(3);
+    expect(stored.meta.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
     expect(stored.meta.slotId).toBe(2);
     expect(stored.meta.credits).toBe(2048);
   });
@@ -218,6 +261,14 @@ describe('Save.listSlots', () => {
     expect(slots[0].isEmpty).toBe(false);
     expect(slots[1].isEmpty).toBe(true);
   });
+
+  it('损坏槽位会标记为 isCorrupted', () => {
+    globalThis.localStorage.setItem('startrader_save_3', '{bad json');
+    const slots = Save.listSlots();
+    expect(slots[3].isEmpty).toBe(false);
+    expect(slots[3].isCorrupted).toBe(true);
+    expect(slots[3].errorCode).toBe('SAVE_JSON_INVALID');
+  });
 });
 
 describe('Save.deleteSlot', () => {
@@ -256,5 +307,32 @@ describe('Save schema v2→v3 migration', () => {
     result.state.fleet.forEach(ship => {
       expect(Array.isArray(ship.mods)).toBe(true);
     });
+  });
+});
+
+describe('Save contract helpers', () => {
+  it('createTestState 与运行时初始状态契约保持一致', () => {
+    const state = createTestState();
+
+    expect(state.hoveredSystem).toBeNull();
+    expect(state.companyName).toBe('测试公司');
+    expect(Array.isArray(state.quests)).toBe(true);
+    expect(Array.isArray(state.fleet)).toBe(true);
+    expect(state.economyCycle).toBeNull();
+  });
+
+  it('createSaveMeta 使用统一契约生成槽位摘要', () => {
+    const meta = createSaveMeta(2, createTestState({ credits: 2468, day: 12 }), {
+      saveName: '契约测试档',
+      timestampMs: 123456789,
+    });
+
+    expect(meta.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(meta.slotId).toBe(2);
+    expect(meta.saveName).toBe('契约测试档');
+    expect(meta.timestampMs).toBe(123456789);
+    expect(meta.credits).toBe(2468);
+    expect(meta.day).toBe(12);
+    expect(meta.isAutosave).toBe(false);
   });
 });

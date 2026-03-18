@@ -2,6 +2,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import * as Faction from '../js/systems/faction/FactionSystem.js';
+import { FACTION_CONFIG } from '../js/data/constants.js';
 import { FACTIONS, FACTION_LEVELS } from '../js/data/factions.js';
 import { createTestState } from './helpers.js';
 
@@ -91,10 +92,10 @@ describe('FactionSystem.changeRelation', () => {
     const state = createTestState();
     Faction.init(state);
     Faction.changeRelation(state, 'federation', 200);
-    expect(Faction.getRelation(state, 'federation')).toBe(100);
+    expect(Faction.getRelation(state, 'federation')).toBe(FACTION_CONFIG.relations.max);
 
     Faction.changeRelation(state, 'federation', -300);
-    expect(Faction.getRelation(state, 'federation')).toBe(-100);
+    expect(Faction.getRelation(state, 'federation')).toBe(FACTION_CONFIG.relations.min);
   });
 
   it('等级变更时返回消息', () => {
@@ -166,6 +167,24 @@ describe('FactionSystem.onTrade', () => {
     expect(() => {
       Faction.onTrade(state, 'nonexistent', 'food', 'buy', 5);
     }).not.toThrow();
+  });
+
+  it('辛迪加友好后解锁黑市访问', () => {
+    const state = createTestState();
+    Faction.init(state);
+
+    expect(Faction.canAccessBlackMarket(state, 'shadow_haven')).toBe(false);
+
+    state.factionRelations.syndicate = 35;
+    expect(Faction.canAccessBlackMarket(state, 'shadow_haven')).toBe(true);
+  });
+
+  it('非辛迪加控制区不会解锁黑市访问', () => {
+    const state = createTestState();
+    Faction.init(state);
+    state.factionRelations.federation = 100;
+
+    expect(Faction.canAccessBlackMarket(state, 'sol_prime')).toBe(false);
   });
 });
 

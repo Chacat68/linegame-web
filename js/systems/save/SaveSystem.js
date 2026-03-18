@@ -5,11 +5,18 @@
 // 4 个存档槽位：0 = 自动存档，1-3 = 手动存档
 // 存档格式参考 docs/design/存档系统设计.md 的 SaveEnvelope 结构
 
-import { INITIAL_STATE, SAVE_STATE_SCHEMA, RUNTIME_ONLY_FIELDS } from '../../data/constants.js';
+import {
+  SAVE_STATE_SCHEMA,
+  SAVE_META_SCHEMA,
+  RUNTIME_ONLY_FIELDS,
+  SAVE_SCHEMA_VERSION,
+  GAME_VERSION,
+  PERSISTED_STATE_DEFAULTS,
+  createSaveMeta,
+} from '../../data/constants.js';
+import { getLevel, getCompanyLevel } from '../../data/playerLevels.js';
 
 const SAVE_KEY_PREFIX = 'startrader_save_';
-const SCHEMA_VERSION  = 3;
-const GAME_VERSION    = '0.3.0';
 const MAX_SLOTS       = 4; // 0=auto, 1-3=manual
 
 // ———————————————————————————————————————————————————————————————————————
@@ -29,7 +36,7 @@ Object.keys(SAVE_STATE_SCHEMA).forEach(function (key) {
   }
 });
 
-const SAVE_STATE_DEFAULTS = _createSaveStateDefaults();
+const SAVE_STATE_DEFAULTS = _deepClone(PERSISTED_STATE_DEFAULTS);
 
 // ---------------------------------------------------------------------------
 // 公开 API
@@ -47,19 +54,7 @@ export function saveGame(slotId, state, options) {
   try {
     const normalizedState = _normalizeState(state);
     const envelope = {
-      meta: {
-        schemaVersion:   SCHEMA_VERSION,
-        gameVersion:     GAME_VERSION,
-        slotId:          slotId,
-        saveName:        options.saveName || (slotId === 0 ? '自动存档' : '手动存档 ' + slotId),
-        timestampMs:     Date.now(),
-        day:             normalizedState.day,
-        credits:         normalizedState.credits,
-        currentSystem:   normalizedState.currentSystem,
-        difficulty:      normalizedState.difficulty,
-        companyName:     normalizedState.companyName,
-        isAutosave:      slotId === 0,
-      },
+      meta: createSaveMeta(slotId, normalizedState, options),
       data: _serializeState(normalizedState),
     };
     const json = JSON.stringify(envelope);
@@ -88,7 +83,7 @@ export function loadGame(slotId) {
     return { ok: true, state: state, msg: '📂 读档成功！' };
   } catch (e) {
     console.error('Load failed:', e);
-    return { ok: false, msg: '❌ 读档失败：' + e.message };
+    return { ok: false, msg: _formatSaveError('读档失败', e), errorCode: e && e.code ? e.code : 'SAVE_LOAD_FAILED' };
   }
 }
 
@@ -104,8 +99,14 @@ export function listSlots() {
       try {
         const envelope = _parseEnvelope(json);
         slots.push({ slotId: i, meta: envelope.meta, isEmpty: false });
-      } catch (_) {
-        slots.push({ slotId: i, isEmpty: true });
+      } catch (error) {
+        slots.push({
+          slotId: i,
+          isEmpty: false,
+          isCorrupted: true,
+          errorCode: error && error.code ? error.code : 'SAVE_SLOT_CORRUPTED',
+          errorMessage: _formatSaveError('存档损坏', error),
+        });
       }
     } else {
       slots.push({ slotId: i, isEmpty: true });
@@ -136,10 +137,12 @@ export function importSave(slotId, jsonStr) {
   try {
     const envelope = _migrateSchema(_parseEnvelope(jsonStr));
     envelope.meta.slotId = slotId;
+    envelope.meta.isAutosave = slotId === 0 || slotId === '0';
+    envelope.meta.saveName = envelope.meta.isAutosave ? '自动存档' : (envelope.meta.saveName || ('手动存档 ' + slotId));
     localStorage.setItem(SAVE_KEY_PREFIX + slotId, JSON.stringify(envelope));
     return { ok: true, msg: '📂 导入成功！' };
   } catch (e) {
-    return { ok: false, msg: '❌ 导入失败：' + e.message };
+    return { ok: false, msg: _formatSaveError('导入失败', e), errorCode: e && e.code ? e.code : 'SAVE_IMPORT_FAILED' };
   }
 }
 
@@ -167,7 +170,7 @@ function _migrateSchema(envelope) {
   if (!next.meta) next.meta = {};
   if (next.meta.schemaVersion == null) next.meta.schemaVersion = 1;
 
-  while (next.meta.schemaVersion < SCHEMA_VERSION) {
+  while (next.meta.schemaVersion < SAVE_SCHEMA_VERSION) {
     if (next.meta.schemaVersion === 1) {
       _migrateSchema1To2(next);
       next.meta.schemaVersion = 2;
@@ -181,17 +184,11 @@ function _migrateSchema(envelope) {
     throw new Error('不支持的存档版本：' + next.meta.schemaVersion);
   }
 
-  next.meta.gameVersion = next.meta.gameVersion || GAME_VERSION;
-  next.meta.saveName = next.meta.saveName || (next.meta.slotId === 0 ? '自动存档' : '手动存档 ' + next.meta.slotId);
-  next.meta.timestampMs = typeof next.meta.timestampMs === 'number' ? next.meta.timestampMs : Date.now();
-  next.meta.isAutosave = next.meta.slotId === 0;
-
   next.data = _normalizeState(next.data);
-  next.meta.day = next.data.day;
-  next.meta.credits = next.data.credits;
-  next.meta.currentSystem = next.data.currentSystem;
-  next.meta.difficulty = next.data.difficulty;
-  next.meta.companyName = next.data.companyName;
+  next.meta = createSaveMeta(next.meta.slotId, next.data, {
+    saveName: next.meta.saveName,
+    timestampMs: next.meta.timestampMs,
+  });
 
   return next;
 }
@@ -218,16 +215,24 @@ function _migrateSchema2To3(envelope) {
 }
 
 function _parseEnvelope(jsonStr) {
-  const envelope = JSON.parse(jsonStr);
+  var envelope;
+  try {
+    envelope = JSON.parse(jsonStr);
+  } catch (_) {
+    throw _createSaveError('SAVE_JSON_INVALID', '无效的 JSON 数据。');
+  }
   if (!envelope || typeof envelope !== 'object') {
-    throw new Error('无效的存档数据。');
+    throw _createSaveError('SAVE_ENVELOPE_INVALID', '无效的存档数据。');
   }
   if (!envelope.meta || typeof envelope.meta !== 'object') {
-    throw new Error('无效的存档数据：缺少 meta。');
+    throw _createSaveError('SAVE_META_MISSING', '无效的存档数据：缺少 meta。');
   }
   if (!('data' in envelope) || !envelope.data || typeof envelope.data !== 'object') {
-    throw new Error('无效的存档数据：缺少 data。');
+    throw _createSaveError('SAVE_DATA_MISSING', '无效的存档数据：缺少 data。');
   }
+
+  _validateEnvelopeMeta(envelope.meta);
+
   return envelope;
 }
 
@@ -276,17 +281,66 @@ function _normalizeState(data) {
   if (normalized.fleetSlots < 1) normalized.fleetSlots = SAVE_STATE_DEFAULTS.fleetSlots;
   if (normalized.activeShipIndex < 0) normalized.activeShipIndex = SAVE_STATE_DEFAULTS.activeShipIndex;
 
-  return normalized;
-}
+  normalized.playerLevel = getLevel(normalized.experience || 0).level;
+  normalized.companyLevel = getCompanyLevel(normalized.companyExperience || 0).level;
+  if (!normalized.viewingGalaxy) normalized.viewingGalaxy = normalized.currentGalaxy;
 
-function _createSaveStateDefaults() {
-  const defaults = _deepClone(INITIAL_STATE);
-  RUNTIME_ONLY_FIELDS.forEach(function (field) {
-    delete defaults[field];
-  });
-  return defaults;
+  return normalized;
 }
 
 function _deepClone(value) {
   return JSON.parse(JSON.stringify(value));
+}
+
+function _validateEnvelopeMeta(meta) {
+  if ('schemaVersion' in meta && meta.schemaVersion != null) {
+    if (typeof meta.schemaVersion !== 'number') {
+      throw _createSaveError('SAVE_META_TYPE_INVALID', '无效的存档数据：schemaVersion 类型错误。');
+    }
+    if (!Number.isInteger(meta.schemaVersion) || meta.schemaVersion < 1) {
+      throw _createSaveError('SAVE_META_SCHEMA_INVALID', '无效的存档数据：schemaVersion 必须是正整数。');
+    }
+  }
+  if ('slotId' in meta && meta.slotId != null) {
+    if (typeof meta.slotId === 'number') {
+      if (!Number.isInteger(meta.slotId) || meta.slotId < 0) {
+        throw _createSaveError('SAVE_META_SLOT_INVALID', '无效的存档数据：slotId 非法。');
+      }
+    } else if (typeof meta.slotId === 'string') {
+      if (meta.slotId.length === 0) {
+        throw _createSaveError('SAVE_META_SLOT_INVALID', '无效的存档数据：slotId 非法。');
+      }
+    } else {
+      throw _createSaveError('SAVE_META_TYPE_INVALID', '无效的存档数据：slotId 类型错误。');
+    }
+  }
+  if ('timestampMs' in meta && (typeof meta.timestampMs !== 'number' || !Number.isFinite(meta.timestampMs))) {
+    throw _createSaveError('SAVE_META_TIMESTAMP_INVALID', '无效的存档数据：timestampMs 非法。');
+  }
+
+  Object.keys(SAVE_META_SCHEMA).forEach(function (key) {
+    if (!(key in meta) || meta[key] == null) return;
+    if (key === 'slotId' || key === 'schemaVersion') return;
+    var expectedType = SAVE_META_SCHEMA[key].type;
+    if (expectedType === 'boolean' && typeof meta[key] !== 'boolean') {
+      throw _createSaveError('SAVE_META_TYPE_INVALID', '无效的存档数据：' + key + ' 类型错误。');
+    }
+    if (expectedType === 'number' && typeof meta[key] !== 'number') {
+      throw _createSaveError('SAVE_META_TYPE_INVALID', '无效的存档数据：' + key + ' 类型错误。');
+    }
+    if (expectedType === 'string' && typeof meta[key] !== 'string') {
+      throw _createSaveError('SAVE_META_TYPE_INVALID', '无效的存档数据：' + key + ' 类型错误。');
+    }
+  });
+}
+
+function _createSaveError(code, message) {
+  var error = new Error(message);
+  error.code = code;
+  return error;
+}
+
+function _formatSaveError(actionLabel, error) {
+  var message = error && error.message ? error.message : '未知错误。';
+  return '❌ ' + actionLabel + '：' + message;
 }

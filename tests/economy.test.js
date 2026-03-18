@@ -4,6 +4,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import * as Economy from '../js/systems/economy/Economy.js';
 import * as Faction from '../js/systems/faction/FactionSystem.js';
+import * as Fleet from '../js/systems/fleet/FleetSystem.js';
 import { ECONOMY_CONFIG } from '../js/data/constants.js';
 import { createTestState } from './helpers.js';
 
@@ -25,6 +26,12 @@ describe('Economy configuration', () => {
   it('经济周期默认使用配置中的初始阶段', () => {
     const cycle = Economy.getEconomyCycle();
     expect(cycle.phase).toBe(ECONOMY_CONFIG.cycle.phases[ECONOMY_CONFIG.cycle.initialPhaseIndex].id);
+  });
+
+  it('买入/卖出价格修正顺序暴露在配置中', () => {
+    const config = Economy.getEconomyConfig();
+    expect(config.pricing.buyAdjustmentOrder).toEqual(['factionTax', 'techBuyDiscount', 'fleetTradeBonus']);
+    expect(config.pricing.sellAdjustmentOrder).toEqual(['factionTax', 'techSellBonus', 'fleetTradeBonus']);
   });
 });
 
@@ -54,6 +61,23 @@ describe('Economy.getBuyPrice', () => {
   it('不传 state 时仍返回正整数', () => {
     const price = Economy.getBuyPrice('sol_prime', 'food');
     expect(price).toBeGreaterThanOrEqual(1);
+  });
+
+  it('激活货运飞船时，船只技能会降低买入价格', () => {
+    const baseState = createTestState();
+    Faction.init(baseState);
+    Fleet.init(baseState);
+    const basePrice = Economy.getBuyPrice('sol_prime', 'weapons', baseState);
+
+    const freighterState = createTestState({ credits: 10000 });
+    Faction.init(freighterState);
+    Fleet.init(freighterState);
+    freighterState.fleetSlots = 2;
+    Fleet.buyShip(freighterState, 'freighter');
+    Fleet.switchShip(freighterState, 1);
+
+    const discountedPrice = Economy.getBuyPrice('sol_prime', 'weapons', freighterState);
+    expect(discountedPrice).toBeLessThan(basePrice);
   });
 });
 
@@ -100,6 +124,24 @@ describe('Economy.getSellPrice', () => {
     expect(price).toBeGreaterThanOrEqual(1);
     expect(Number.isFinite(price)).toBe(true);
   });
+
+  it('完整舰队编队加成会提高卖出价格', () => {
+    const baseState = createTestState({ credits: 50000 });
+    Faction.init(baseState);
+    Fleet.init(baseState);
+    const basePrice = Economy.getSellPrice('sol_prime', 'luxury', baseState);
+
+    const fleetState = createTestState({ credits: 50000 });
+    Faction.init(fleetState);
+    Fleet.init(fleetState);
+    fleetState.fleetSlots = 4;
+    Fleet.buyShip(fleetState, 'freighter');
+    Fleet.buyShip(fleetState, 'clipper');
+    Fleet.buyShip(fleetState, 'galleon');
+
+    const boostedPrice = Economy.getSellPrice('sol_prime', 'luxury', fleetState);
+    expect(boostedPrice).toBeGreaterThan(basePrice);
+  });
 });
 
 describe('Economy.getFuelCost', () => {
@@ -111,7 +153,7 @@ describe('Economy.getFuelCost', () => {
 
   it('对无效 systemId 不崩溃（返回 999）', () => {
     const cost = Economy.getFuelCost('nonexistent_a', 'nonexistent_b', 1.0);
-    expect(cost).toBe(999);
+    expect(cost).toBe(ECONOMY_CONFIG.travel.invalidSystemFuelCost);
   });
 
   it('更高效率系数应消耗更少燃料', () => {
