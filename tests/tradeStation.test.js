@@ -4,6 +4,8 @@ import * as TradeStation from '../js/systems/trade/TradeStationSystem.js';
 import { GOODS } from '../js/data/goods.js';
 import { createTestState } from './helpers.js';
 
+const DEFAULT_BASE_PRICE = 10;
+
 describe('TradeStationSystem', () => {
   beforeEach(() => {
     Economy.init();
@@ -65,7 +67,7 @@ describe('TradeStationSystem', () => {
     let priceRatio = 1.45;
     vi.spyOn(Economy, 'getBuyPrice').mockImplementation(function (systemId, goodId) {
       const good = GOODS.find(function (entry) { return entry.id === goodId; });
-      return Math.round((good ? good.basePrice : 10) * priceRatio);
+      return Math.round((good ? good.basePrice : DEFAULT_BASE_PRICE) * priceRatio);
     });
     vi.spyOn(Economy, 'getMarketDepth').mockReturnValue(260);
     vi.spyOn(Economy, 'getEconomyCycle').mockReturnValue({ priceMod: 1.1 });

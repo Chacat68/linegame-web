@@ -15,6 +15,25 @@ import {
 } from '../../data/tradeStations.js';
 import * as Economy from '../economy/Economy.js';
 
+const ECONOMY_FACTOR_LIMITS = {
+  fallbackFactor: 0.75,
+  fallbackMarketFactor: 0.75,
+  fallbackDepthFactor: 0.95,
+  fallbackCycleFactor: 1.0,
+  marketMin: 0.8,
+  marketMax: 1.3,
+  depthMin: 0.9,
+  depthMax: 1.15,
+  depthBaseline: 220,
+  cycleMin: 0.85,
+  cycleMax: 1.15,
+  factorMin: 0.75,
+  factorMax: 1.35,
+  marketWeight: 0.6,
+  depthWeight: 0.25,
+  cycleWeight: 0.15,
+};
+
 const _goodsById = GOODS.reduce(function (acc, good) {
   acc[good.id] = good;
   return acc;
@@ -53,7 +72,12 @@ function _getSystemFocusGoods(system, strategy) {
 function _getDailySnapshot(systemId, station) {
   const system = findSystem(systemId);
   if (!system) {
-    return { factor: 0.75, marketFactor: 0.75, depthFactor: 0.95, cycleFactor: 1.0 };
+    return {
+      factor: ECONOMY_FACTOR_LIMITS.fallbackFactor,
+      marketFactor: ECONOMY_FACTOR_LIMITS.fallbackMarketFactor,
+      depthFactor: ECONOMY_FACTOR_LIMITS.fallbackDepthFactor,
+      cycleFactor: ECONOMY_FACTOR_LIMITS.fallbackCycleFactor,
+    };
   }
 
   const strategy = _getStrategyConfig(station.strategyId);
@@ -64,16 +88,27 @@ function _getDailySnapshot(systemId, station) {
     return Economy.getBuyPrice(systemId, goodId) / good.basePrice;
   });
   const avgRatio = ratios.reduce(function (sum, ratio) { return sum + ratio; }, 0) / Math.max(1, ratios.length);
-  const marketFactor = Math.max(0.8, Math.min(1.3, avgRatio));
+  const marketFactor = Math.max(ECONOMY_FACTOR_LIMITS.marketMin, Math.min(ECONOMY_FACTOR_LIMITS.marketMax, avgRatio));
   const marketDepth = typeof Economy.getMarketDepth === 'function'
     ? Economy.getMarketDepth(systemId)
     : (system.marketDepth || 200);
-  const depthFactor = Math.max(0.9, Math.min(1.15, marketDepth / 220));
+  const depthFactor = Math.max(
+    ECONOMY_FACTOR_LIMITS.depthMin,
+    Math.min(ECONOMY_FACTOR_LIMITS.depthMax, marketDepth / ECONOMY_FACTOR_LIMITS.depthBaseline)
+  );
   const cycle = typeof Economy.getEconomyCycle === 'function'
     ? Economy.getEconomyCycle()
     : { priceMod: 1 };
-  const cycleFactor = Math.max(0.85, Math.min(1.15, cycle.priceMod || 1));
-  const factor = Math.max(0.75, Math.min(1.35, marketFactor * 0.6 + depthFactor * 0.25 + cycleFactor * 0.15));
+  const cycleFactor = Math.max(ECONOMY_FACTOR_LIMITS.cycleMin, Math.min(ECONOMY_FACTOR_LIMITS.cycleMax, cycle.priceMod || 1));
+  const factor = Math.max(
+    ECONOMY_FACTOR_LIMITS.factorMin,
+    Math.min(
+      ECONOMY_FACTOR_LIMITS.factorMax,
+      marketFactor * ECONOMY_FACTOR_LIMITS.marketWeight +
+      depthFactor * ECONOMY_FACTOR_LIMITS.depthWeight +
+      cycleFactor * ECONOMY_FACTOR_LIMITS.cycleWeight
+    )
+  );
   return { factor, marketFactor, depthFactor, cycleFactor };
 }
 
@@ -341,11 +376,11 @@ export function advanceDay(state) {
     const station = stations[systemId];
     const meta = _getStationMeta(state, station);
     const income = meta.projectedIncome;
+    station.lastProcessedDay = typeof state.day === 'number' ? state.day : (station.lastProcessedDay || 1);
+    station.lastIncome = Math.max(0, income);
     if (income <= 0) return;
 
-    station.lastIncome = income;
     station.totalIncome = (station.totalIncome || 0) + income;
-    station.lastProcessedDay = state.day || (station.lastProcessedDay || 1);
     state.credits += income;
     totalIncome += income;
     perStation.push(meta.system.name + ' +' + income.toLocaleString());

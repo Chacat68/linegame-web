@@ -214,8 +214,7 @@ function _migrateSchema(envelope) {
 }
 
 function _migrateSchema1To2(envelope) {
-  if (!envelope.data) envelope.data = {};
-  envelope.data = _normalizeState(envelope.data);
+  _normalizeEnvelopeData(envelope);
 }
 
 /**
@@ -231,25 +230,26 @@ function _migrateSchema2To3(envelope) {
       }
     });
   }
-  envelope.data = _normalizeState(envelope.data);
+  _normalizeEnvelopeData(envelope);
 }
 
 function _migrateSchema3To4(envelope) {
-  if (!envelope.data) envelope.data = {};
-  envelope.data = _normalizeState(envelope.data);
+  _normalizeEnvelopeData(envelope);
 }
 
 function _migrateSchema4To5(envelope) {
-  if (!envelope.data) envelope.data = {};
-  envelope.data = _normalizeState(envelope.data);
+  _normalizeEnvelopeData(envelope);
 }
 
 function _migrateSchema5To6(envelope) {
-  if (!envelope.data) envelope.data = {};
-  envelope.data = _normalizeState(envelope.data);
+  _normalizeEnvelopeData(envelope);
 }
 
 function _migrateSchema6To7(envelope) {
+  _normalizeEnvelopeData(envelope);
+}
+
+function _normalizeEnvelopeData(envelope) {
   if (!envelope.data) envelope.data = {};
   envelope.data = _normalizeState(envelope.data);
 }

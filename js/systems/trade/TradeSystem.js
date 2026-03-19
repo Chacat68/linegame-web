@@ -223,7 +223,7 @@ export function travelTo(state, systemId) {
     if (_cycleResult && _cycleResult.cycleChanged) {
       _cycleChanged = _cycleResult.cycle;
     }
-    var _stationResult = TradeStation.advanceDay(state);
+    const _stationResult = TradeStation.advanceDay(state);
     if (_stationResult && _stationResult.msgs && _stationResult.msgs.length > 0) {
       msgs.push.apply(msgs, _stationResult.msgs);
     }

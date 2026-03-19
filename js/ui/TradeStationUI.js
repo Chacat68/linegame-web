@@ -57,7 +57,7 @@ export function render(state, onBuild, onUpgrade, onHireManager, onSetStrategy) 
     html += '<div class="trade-station-empty">还没有贸易站。先完成第一笔长期投资，建立你的商业节点网络。</div>';
   } else {
     ownedStations.forEach(function (entry) {
-      var station = entry.station;
+      const station = entry.station;
       html += '<div class="trade-station-card">' +
         '<div class="trade-station-card-head">' +
           '<span class="trade-station-card-name">' + entry.system.name + ' 贸易站</span>' +
@@ -81,7 +81,7 @@ export function render(state, onBuild, onUpgrade, onHireManager, onSetStrategy) 
         '<div class="trade-station-subsection">👤 管理员</div>' +
         '<div class="trade-station-choice-row">' +
           TRADE_STATION_MANAGERS.map(function (manager) {
-            var activeClass = station.managerId === manager.id ? ' active' : '';
+            const activeClass = station.managerId === manager.id ? ' active' : '';
             return '<button class="trade-station-choice-btn' + activeClass + '"' +
               ' data-action="hire-manager" data-system-id="' + station.systemId + '" data-manager-id="' + manager.id + '">' +
               manager.name + '<span>' + manager.hireCost.toLocaleString() + '</span></button>';
@@ -90,7 +90,7 @@ export function render(state, onBuild, onUpgrade, onHireManager, onSetStrategy) 
         '<div class="trade-station-subsection">📈 经营策略</div>' +
         '<div class="trade-station-choice-row">' +
           TRADE_STATION_STRATEGIES.map(function (strategy) {
-            var activeClass = station.strategyId === strategy.id ? ' active' : '';
+            const activeClass = station.strategyId === strategy.id ? ' active' : '';
             return '<button class="trade-station-choice-btn' + activeClass + '"' +
               ' data-action="set-strategy" data-system-id="' + station.systemId + '" data-strategy-id="' + strategy.id + '">' +
               strategy.name + '<span>' + Math.round(strategy.incomeMultiplier * 100) + '%</span></button>';
