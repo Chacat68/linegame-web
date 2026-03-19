@@ -201,6 +201,11 @@ function _migrateSchema(envelope) {
       next.meta.schemaVersion = 7;
       continue;
     }
+    if (next.meta.schemaVersion === 7) {
+      _migrateSchema7To8(next);
+      next.meta.schemaVersion = 8;
+      continue;
+    }
     throw new Error('不支持的存档版本：' + next.meta.schemaVersion);
   }
 
@@ -246,6 +251,10 @@ function _migrateSchema5To6(envelope) {
 }
 
 function _migrateSchema6To7(envelope) {
+  _normalizeEnvelopeData(envelope);
+}
+
+function _migrateSchema7To8(envelope) {
   _normalizeEnvelopeData(envelope);
 }
 

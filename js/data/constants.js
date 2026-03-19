@@ -178,8 +178,8 @@ export const EVENT_CONFIG = {
   },
 };
 
-export const SAVE_SCHEMA_VERSION = 7;
-export const GAME_VERSION = '0.5.2';
+export const SAVE_SCHEMA_VERSION = 8;
+export const GAME_VERSION = '0.5.3';
 
 /**
  * SaveEnvelope.meta 契约
@@ -266,6 +266,15 @@ export const SAVE_STATE_SCHEMA = {
   _eventHistory:      { type: 'array',   default: [],                 since: 6, desc: '随机事件历史记录' },
   // ---- v7 新增 ----
   tradeStations:      { type: 'object',  default: {},                 since: 7, desc: '已建设贸易站 {systemId: stationState}' },
+  // ---- v8 新增 ----
+  creditRating:       { type: 'number',  default: 620,                since: 8, desc: '信用评级 300-850' },
+  loans:              { type: 'array',   default: [],                 since: 8, desc: '银行贷款列表' },
+  stockPortfolio:     { type: 'object',  default: {},                 since: 8, desc: '股票持仓 {stockId: holding}' },
+  stockMarket:        { type: 'object',  default: {},                 since: 8, desc: '股票市场快照 {stockId: quote}' },
+  tradeInvestments:   { type: 'object',  default: {},                 since: 8, desc: '贸易站金融投资 {systemId: position}' },
+  insurancePolicies:  { type: 'object',  default: {},                 since: 8, desc: '生效中的保险保单 {policyType: policy}' },
+  insuranceClaims:    { type: 'array',   default: [],                 since: 8, desc: '保险理赔申请列表' },
+  financeLastProcessedDay: { type: 'number', default: 1,              since: 8, desc: '金融系统最后结算天数' },
 };
 
 /**

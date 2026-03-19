@@ -115,6 +115,14 @@ describe('Save.loadGame', () => {
     expect(result.state._eventCooldowns).toEqual({});
     expect(result.state._eventHistory).toEqual([]);
     expect(result.state.tradeStations).toEqual({});
+    expect(result.state.creditRating).toBe(620);
+    expect(result.state.loans).toEqual([]);
+    expect(result.state.stockPortfolio).toEqual({});
+    expect(result.state.stockMarket).toEqual({});
+    expect(result.state.tradeInvestments).toEqual({});
+    expect(result.state.insurancePolicies).toEqual({});
+    expect(result.state.insuranceClaims).toEqual([]);
+    expect(result.state.financeLastProcessedDay).toBe(1);
   });
 
   it('旧存档缺少等级字段时，会根据经验自动回填 playerLevel 和 companyLevel', () => {

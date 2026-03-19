@@ -9,6 +9,7 @@ import { GOODS }    from '../../data/goods.js';
 import { SYSTEMS, findSystem, GALAXY_JUMP_DAYS }  from '../../data/systems.js';
 import { UPGRADES } from '../../data/upgrades.js';
 import * as Economy from '../economy/Economy.js';
+import * as Finance from '../finance/FinanceSystem.js';
 import * as TradeStation from './TradeStationSystem.js';
 
 // ---------------------------------------------------------------------------
@@ -24,6 +25,7 @@ export function getNetWorth(state) {
   Object.entries(state.cargo).forEach(function (entry) {
     worth += Economy.getSellPrice(state.currentSystem, entry[0], state) * entry[1];
   });
+  worth += Finance.getNetWorthAdjustment(state);
   return worth;
 }
 
@@ -226,6 +228,10 @@ export function travelTo(state, systemId) {
     const _stationResult = TradeStation.advanceDay(state);
     if (_stationResult && _stationResult.msgs && _stationResult.msgs.length > 0) {
       msgs.push.apply(msgs, _stationResult.msgs);
+    }
+    const _financeResult = Finance.advanceDay(state);
+    if (_financeResult && _financeResult.msgs && _financeResult.msgs.length > 0) {
+      msgs.push.apply(msgs, _financeResult.msgs);
     }
   }
 
