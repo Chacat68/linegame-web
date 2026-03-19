@@ -1,5 +1,6 @@
 import { SYSTEMS, findSystem } from '../../data/systems.js';
 import { SHIP_TYPES } from '../../data/ships.js';
+import { GOODS } from '../../data/goods.js';
 import * as Economy from '../economy/Economy.js';
 
 const DEFAULT_CREDIT_RATING = 620;
@@ -17,6 +18,15 @@ const INSURANCE_PRODUCTS = {
   hull: { id: 'hull', name: '船体维修险', premiumRate: 0.08, deductibleRate: 0.15, durationDays: 20 },
   cargo: { id: 'cargo', name: '货舱货损险', premiumRate: 0.06, deductibleRate: 0.10, durationDays: 15 },
   fleet: { id: 'fleet', name: '舰船全损险', premiumRate: 0.12, deductibleRate: 0.20, durationDays: 25 },
+};
+
+const FUTURES_CONFIG = {
+  contractDurations: [7, 15, 30],  // 可选的合约期限（天数）
+  marginRate: 0.15,                // 保证金比例（15%）
+  maintenanceMarginRate: 0.10,     // 维持保证金比例（10%）
+  liquidationFee: 0.02,            // 强平手续费（2%）
+  closingFee: 0.005,               // 平仓手续费（0.5%）
+  maxPositionsPerGood: 3,          // 每种商品最多持仓数
 };
 
 function _isValidFiniteNumber(value) {
@@ -41,6 +51,7 @@ function _ensureFinanceState(state) {
     state.insurancePolicies = {};
   }
   if (!Array.isArray(state.insuranceClaims)) state.insuranceClaims = [];
+  if (!Array.isArray(state.futuresContracts)) state.futuresContracts = [];
   if (!_isValidFiniteNumber(state.financeLastProcessedDay)) {
     state.financeLastProcessedDay = Math.max(1, state.day || 1);
   }
@@ -269,6 +280,84 @@ function _processInsuranceDay(state, day, msgs) {
     policy.totalClaimsPaid = (policy.totalClaimsPaid || 0) + claim.approvedAmount;
     msgs.push({ text: '🧾 ' + policy.name + ' 理赔到账 ' + claim.approvedAmount.toLocaleString() + ' 积分。', type: 'upgrade' });
   });
+}
+
+function _processFuturesDay(state, day, msgs) {
+  const activeContracts = state.futuresContracts.filter(function (c) { return c.status === 'active'; });
+
+  activeContracts.forEach(function (contract) {
+    // 更新当前市场价格
+    const currentPrice = Economy.getBuyPrice(state.currentSystem, contract.goodId, state);
+    contract.currentPrice = currentPrice;
+
+    // 计算当前盈亏
+    const priceDiff = contract.direction === 'long'
+      ? (currentPrice - contract.openPrice)
+      : (contract.openPrice - currentPrice);
+    const unrealizedPnL = priceDiff * contract.quantity;
+    contract.unrealizedPnL = unrealizedPnL;
+
+    // 计算保证金使用率
+    const marginUsed = contract.margin;
+    const equity = marginUsed + unrealizedPnL;
+    const maintenanceMargin = contract.openPrice * contract.quantity * FUTURES_CONFIG.maintenanceMarginRate;
+
+    // 检查是否需要强制平仓
+    if (equity < maintenanceMargin) {
+      const liquidationFee = Math.round(contract.margin * FUTURES_CONFIG.liquidationFee);
+      const returnAmount = Math.max(0, equity - liquidationFee);
+
+      contract.status = 'liquidated';
+      contract.closeDay = day;
+      contract.closePrice = currentPrice;
+      contract.realizedPnL = unrealizedPnL - liquidationFee;
+
+      state.credits += returnAmount;
+
+      msgs.push({
+        text: '⚠️ 期货合约「' + contract.goodId + '」因保证金不足被强制平仓，亏损 ' +
+              Math.abs(contract.realizedPnL).toLocaleString() + ' 积分。',
+        type: 'error'
+      });
+      return;
+    }
+
+    // 检查是否到期需要交割
+    if (day >= contract.expiryDay) {
+      const closingFee = Math.round(contract.openPrice * contract.quantity * FUTURES_CONFIG.closingFee);
+      const netPnL = unrealizedPnL - closingFee;
+
+      contract.status = 'settled';
+      contract.closeDay = day;
+      contract.closePrice = currentPrice;
+      contract.realizedPnL = netPnL;
+
+      const returnAmount = contract.margin + netPnL;
+      state.credits += returnAmount;
+
+      if (netPnL > 0) {
+        msgs.push({
+          text: '📊 期货合约「' + contract.goodId + '」到期交割，盈利 ' +
+                netPnL.toLocaleString() + ' 积分。',
+          type: 'upgrade'
+        });
+      } else {
+        msgs.push({
+          text: '📊 期货合约「' + contract.goodId + '」到期交割，亏损 ' +
+                Math.abs(netPnL).toLocaleString() + ' 积分。',
+          type: 'info'
+        });
+      }
+    }
+  });
+}
+
+function _getActiveFuturesContracts(state) {
+  return state.futuresContracts.filter(function (c) { return c.status === 'active'; });
+}
+
+function _countPositions(state, goodId) {
+  return _getActiveFuturesContracts(state).filter(function (c) { return c.goodId === goodId; }).length;
 }
 
 // 生成稳定伪随机种子，用于按“股票代码 + 天数”推进可复现的股价波动。
@@ -625,7 +714,219 @@ export function getNetWorthAdjustment(state) {
   const stockValue = getOverview(state).stockValue;
   const tradeInvestmentValue = getOverview(state).tradeInvestmentValue;
   const loanLiability = getOverview(state).outstandingLoanBalance;
-  return stockValue + tradeInvestmentValue - loanLiability;
+  const futuresMargin = _getActiveFuturesContracts(state).reduce(function (sum, c) {
+    return sum + c.margin + (c.unrealizedPnL || 0);
+  }, 0);
+  return stockValue + tradeInvestmentValue + futuresMargin - loanLiability;
+}
+
+export function getFuturesAvailableGoods(state) {
+  _ensureFinanceState(state);
+
+  return GOODS.filter(function (good) {
+    // 排除燃料，只允许可交易商品
+    return good.id !== 'fuel';
+  }).map(function (good) {
+    const currentPrice = Economy.getBuyPrice(state.currentSystem, good.id, state);
+    const activePositions = _countPositions(state, good.id);
+
+    return {
+      goodId: good.id,
+      name: good.name,
+      emoji: good.emoji,
+      currentPrice: currentPrice,
+      activePositions: activePositions,
+      maxPositions: FUTURES_CONFIG.maxPositionsPerGood,
+      canOpenPosition: activePositions < FUTURES_CONFIG.maxPositionsPerGood,
+    };
+  });
+}
+
+export function getFuturesContractOptions(state, goodId) {
+  _ensureFinanceState(state);
+  const currentPrice = Economy.getBuyPrice(state.currentSystem, goodId, state);
+
+  return FUTURES_CONFIG.contractDurations.map(function (duration) {
+    const margin = Math.round(currentPrice * 10 * FUTURES_CONFIG.marginRate); // 默认10单位
+    const expiryDay = (state.day || 1) + duration;
+
+    return {
+      duration: duration,
+      expiryDay: expiryDay,
+      marginRequired: margin,
+      currentPrice: currentPrice,
+    };
+  });
+}
+
+export function openFuturesPosition(state, goodId, direction, quantity, duration) {
+  _ensureFinanceState(state);
+
+  // 验证参数
+  if (!goodId || (direction !== 'long' && direction !== 'short')) {
+    return { ok: false, msgs: [{ text: '📊 无效的合约参数。', type: 'error' }] };
+  }
+
+  const qty = Math.max(1, Math.floor(quantity || 10));
+  const dur = FUTURES_CONFIG.contractDurations.includes(duration) ? duration : FUTURES_CONFIG.contractDurations[0];
+
+  // 检查持仓限制
+  if (_countPositions(state, goodId) >= FUTURES_CONFIG.maxPositionsPerGood) {
+    return {
+      ok: false,
+      msgs: [{ text: '📊 该商品期货持仓已达上限。', type: 'error' }]
+    };
+  }
+
+  // 计算保证金
+  const openPrice = Economy.getBuyPrice(state.currentSystem, goodId, state);
+  const margin = Math.round(openPrice * qty * FUTURES_CONFIG.marginRate);
+
+  // 检查资金
+  if ((state.credits || 0) < margin) {
+    return {
+      ok: false,
+      msgs: [{ text: '💰 积分不足，无法开立期货合约。需要保证金 ' + margin.toLocaleString() + '。', type: 'error' }]
+    };
+  }
+
+  // 创建合约
+  const contract = {
+    id: _generateId('futures', state, state.futuresContracts),
+    goodId: goodId,
+    direction: direction,
+    quantity: qty,
+    openPrice: openPrice,
+    currentPrice: openPrice,
+    margin: margin,
+    openDay: state.day || 1,
+    expiryDay: (state.day || 1) + dur,
+    duration: dur,
+    status: 'active',
+    unrealizedPnL: 0,
+    realizedPnL: 0,
+  };
+
+  state.futuresContracts.push(contract);
+  state.credits -= margin;
+
+  const directionText = direction === 'long' ? '做多' : '做空';
+
+  return {
+    ok: true,
+    msgs: [{
+      text: '📊 已开立期货合约：' + directionText + ' ' + goodId + ' ×' + qty +
+            '，保证金 ' + margin.toLocaleString() + '，' + dur + '天后到期。',
+      type: 'info'
+    }],
+    meta: { contractId: contract.id, margin: margin },
+  };
+}
+
+export function closeFuturesPosition(state, contractId) {
+  _ensureFinanceState(state);
+
+  const contract = state.futuresContracts.find(function (c) {
+    return c.id === contractId && c.status === 'active';
+  });
+
+  if (!contract) {
+    return { ok: false, msgs: [{ text: '📊 未找到有效的期货合约。', type: 'error' }] };
+  }
+
+  // 获取当前价格
+  const currentPrice = Economy.getBuyPrice(state.currentSystem, contract.goodId, state);
+
+  // 计算盈亏
+  const priceDiff = contract.direction === 'long'
+    ? (currentPrice - contract.openPrice)
+    : (contract.openPrice - currentPrice);
+  const grossPnL = priceDiff * contract.quantity;
+  const closingFee = Math.round(contract.openPrice * contract.quantity * FUTURES_CONFIG.closingFee);
+  const netPnL = grossPnL - closingFee;
+
+  // 更新合约状态
+  contract.status = 'closed';
+  contract.closeDay = state.day || 1;
+  contract.closePrice = currentPrice;
+  contract.realizedPnL = netPnL;
+
+  // 返还保证金和盈亏
+  const returnAmount = contract.margin + netPnL;
+  state.credits += returnAmount;
+
+  if (netPnL > 0) {
+    return {
+      ok: true,
+      msgs: [{
+        text: '📊 已平仓期货合约「' + contract.goodId + '」，盈利 ' +
+              netPnL.toLocaleString() + ' 积分（含手续费 ' + closingFee + '）。',
+        type: 'upgrade'
+      }],
+      meta: { contractId: contract.id, pnl: netPnL },
+    };
+  } else {
+    return {
+      ok: true,
+      msgs: [{
+        text: '📊 已平仓期货合约「' + contract.goodId + '」，亏损 ' +
+              Math.abs(netPnL).toLocaleString() + ' 积分（含手续费 ' + closingFee + '）。',
+        type: 'info'
+      }],
+      meta: { contractId: contract.id, pnl: netPnL },
+    };
+  }
+}
+
+export function getFuturesPositions(state) {
+  _ensureFinanceState(state);
+
+  return state.futuresContracts.map(function (contract) {
+    if (contract.status === 'active') {
+      // 更新当前价格和浮动盈亏
+      const currentPrice = Economy.getBuyPrice(state.currentSystem, contract.goodId, state);
+      const priceDiff = contract.direction === 'long'
+        ? (currentPrice - contract.openPrice)
+        : (contract.openPrice - currentPrice);
+      const unrealizedPnL = priceDiff * contract.quantity;
+
+      return Object.assign({}, contract, {
+        currentPrice: currentPrice,
+        unrealizedPnL: unrealizedPnL,
+        daysRemaining: Math.max(0, contract.expiryDay - (state.day || 1)),
+      });
+    }
+    return contract;
+  });
+}
+
+export function getFuturesOverview(state) {
+  _ensureFinanceState(state);
+
+  const activeContracts = _getActiveFuturesContracts(state);
+  const totalMargin = activeContracts.reduce(function (sum, c) { return sum + c.margin; }, 0);
+  const totalUnrealizedPnL = activeContracts.reduce(function (sum, c) {
+    const currentPrice = Economy.getBuyPrice(state.currentSystem, c.goodId, state);
+    const priceDiff = c.direction === 'long'
+      ? (currentPrice - c.openPrice)
+      : (c.openPrice - currentPrice);
+    return sum + (priceDiff * c.quantity);
+  }, 0);
+
+  const closedContracts = state.futuresContracts.filter(function (c) {
+    return c.status === 'closed' || c.status === 'settled';
+  });
+  const totalRealizedPnL = closedContracts.reduce(function (sum, c) {
+    return sum + (c.realizedPnL || 0);
+  }, 0);
+
+  return {
+    activePositions: activeContracts.length,
+    totalMargin: totalMargin,
+    totalUnrealizedPnL: totalUnrealizedPnL,
+    totalRealizedPnL: totalRealizedPnL,
+    totalPnL: totalUnrealizedPnL + totalRealizedPnL,
+  };
 }
 
 export function advanceDay(state) {
@@ -640,6 +941,7 @@ export function advanceDay(state) {
   _processStockDay(state, processingDay, msgs);
   _processTradeInvestmentDay(state, msgs);
   _processInsuranceDay(state, processingDay, msgs);
+  _processFuturesDay(state, processingDay, msgs);
   state.financeLastProcessedDay = processingDay;
 
   return { ok: true, day: processingDay, msgs: msgs };
