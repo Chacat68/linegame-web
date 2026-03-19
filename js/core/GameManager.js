@@ -28,6 +28,7 @@ import * as Fleet      from '../systems/fleet/FleetSystem.js';
 import * as Crew       from '../systems/fleet/CrewSystem.js';
 import * as AutoTrade  from '../systems/trade/AutoTradeSystem.js';
 import * as TradeStation from '../systems/trade/TradeStationSystem.js';
+import * as Finance from '../systems/finance/FinanceSystem.js';
 import * as FleetUI    from '../ui/FleetUI.js';
 import * as Save       from '../systems/save/SaveSystem.js';
 import * as Quest      from '../systems/quest/QuestSystem.js';
@@ -75,6 +76,7 @@ export function init(difficulty) {
   Quest.init(_state);
   Achievement.init(_state);
   TradeStation.init(_state);
+  Finance.init(_state);
   Renderer.init();
   Renderer.resetRuntimeState(_state.currentSystem);
   Settings.applySettings(_settings, Renderer);
@@ -626,6 +628,41 @@ function _handleSetTradeStationStrategy(systemId, strategyId) {
   _dispatch(result);
 }
 
+function _handleTakeLoan(offerId) {
+  const result = Finance.takeLoan(_state, offerId);
+  _dispatch(result);
+}
+
+function _handleRepayLoan(loanId) {
+  const result = Finance.repayLoan(_state, loanId);
+  _dispatch(result);
+}
+
+function _handleBuyStock(stockId) {
+  const result = Finance.buyStock(_state, stockId, 1);
+  _dispatch(result);
+}
+
+function _handleSellStock(stockId) {
+  const result = Finance.sellStock(_state, stockId, 1);
+  _dispatch(result);
+}
+
+function _handleInvestTradeStation(systemId) {
+  const result = Finance.investInTradeStation(_state, systemId);
+  _dispatch(result);
+}
+
+function _handlePurchaseInsurance(policyType) {
+  const result = Finance.purchaseInsurance(_state, policyType);
+  _dispatch(result);
+}
+
+function _handleSubmitInsuranceClaim(policyType) {
+  const result = Finance.submitClaim(_state, policyType);
+  _dispatch(result);
+}
+
 function _handleAcceptQuest(questId) {
   const result = Quest.acceptQuest(_state, questId);
   _dispatch(result);
@@ -659,6 +696,7 @@ function _handleLoadGame(slotId) {
     Quest.init(_state);
     Achievement.init(_state);
     TradeStation.init(_state);
+    Finance.init(_state);
     Economy.init();
     Economy.setCycleState(_state.economyCycle);
     Renderer.resetRuntimeState(_state.currentSystem);
@@ -879,7 +917,16 @@ function _updateUI() {
     _handleBuildTradeStation,
     _handleUpgradeTradeStation,
     _handleHireTradeStationManager,
-    _handleSetTradeStationStrategy
+    _handleSetTradeStationStrategy,
+    {
+      onTakeLoan: _handleTakeLoan,
+      onRepayLoan: _handleRepayLoan,
+      onBuyStock: _handleBuyStock,
+      onSellStock: _handleSellStock,
+      onInvestTradeStation: _handleInvestTradeStation,
+      onPurchaseInsurance: _handlePurchaseInsurance,
+      onSubmitInsuranceClaim: _handleSubmitInsuranceClaim,
+    }
   );
   FleetUI.render(_state, _handleBuyShip, _handleSwitchShip, _handleUpgradeShip, _handleAssignRoute, _handleCancelRoute, _handleBuySlot, _handleSellShip, _handleInstallMod, _handleUninstallMod, _handleRecruitCrew, _handleAssignCrew, _handleUnassignCrew, _handleDismissCrew);
   FleetUI.renderShop(_state, _handleBuyShip);
