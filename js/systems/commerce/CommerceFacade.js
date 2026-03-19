@@ -174,8 +174,9 @@ export function getCommerceSnapshot(state) {
 function _calcStockPortfolioValue(state) {
   if (!state.stockPortfolio || !state.stockMarket) return 0;
   return Object.keys(state.stockPortfolio).reduce(function (sum, stockId) {
-    const shares = state.stockPortfolio[stockId] || 0;
-    const stock  = state.stockMarket[stockId];
+    const holding = state.stockPortfolio[stockId];
+    const shares  = (holding && typeof holding === 'object') ? (holding.shares || 0) : 0;
+    const stock   = state.stockMarket[stockId];
     return sum + shares * (stock ? stock.price : 0);
   }, 0);
 }

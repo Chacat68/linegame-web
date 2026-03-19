@@ -54,16 +54,17 @@ describe('Commerce.buyGood (黑市)', () => {
   });
 
   it('黑市买入使用更高的黑市价格', () => {
+    // 使用 minerals (basePrice=30) 确保价格差异在整数精度下可见
     const state = createTestState({ credits: 100000, maxCargo: 100 });
     Faction.init(state);
 
     const stateCopy = createTestState({ credits: 100000, maxCargo: 100 });
     Faction.init(stateCopy);
 
-    Commerce.buyGood(state, 'food', 10, 'black');
-    Commerce.buyGood(stateCopy, 'food', 10, 'open');
+    Commerce.buyGood(state, 'minerals', 10, 'black');
+    Commerce.buyGood(stateCopy, 'minerals', 10, 'open');
 
-    // 黑市应该花费更多
+    // 黑市应该花费更多（黑市溢价 1.35）
     expect(state.credits).toBeLessThan(stateCopy.credits);
   });
 });
