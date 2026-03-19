@@ -275,6 +275,9 @@ export const SAVE_STATE_SCHEMA = {
   insurancePolicies:  { type: 'object',  default: {},                 since: 8, desc: '生效中的保险保单 {policyType: policy}' },
   insuranceClaims:    { type: 'array',   default: [],                 since: 8, desc: '保险理赔申请列表' },
   financeLastProcessedDay: { type: 'number', default: 1,              since: 8, desc: '金融系统最后结算天数' },
+  // ---- v9 新增 ----
+  futuresContracts:        { type: 'array',   default: [],                 since: 9, desc: '期货合约列表' },
+  futuresLastProcessedDay: { type: 'number',  default: 1,                  since: 9, desc: '期货系统最后结算天数' },
 };
 
 /**

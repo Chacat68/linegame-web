@@ -1,5 +1,5 @@
 // js/ui/TradeStationUI.js — 贸易站 / 金融中心标签页渲染
-// 依赖：systems/trade/TradeStationSystem.js, systems/finance/FinanceSystem.js
+// 依赖：systems/trade/TradeStationSystem.js, systems/finance/FinanceSystem.js, systems/finance/FuturesSystem.js
 // 导出：render
 
 import {
@@ -7,7 +7,10 @@ import {
   TRADE_STATION_STRATEGIES,
 } from '../data/tradeStations.js';
 import * as Finance from '../systems/finance/FinanceSystem.js';
+import * as Futures from '../systems/finance/FuturesSystem.js';
 import * as TradeStation from '../systems/trade/TradeStationSystem.js';
+
+const DEFAULT_TERM_DAYS_DISPLAY = Futures.DEFAULT_TERM_DAYS;
 
 function _getStockPriceDelta(listing) {
   const lastPrice = listing.lastPrice || listing.price || 0;
@@ -129,6 +132,59 @@ export function render(state, onBuild, onUpgrade, onHireManager, onSetStrategy, 
     html += '<div class="trade-station-subsection">🧾 待处理理赔</div>';
     html += pendingClaims.map(function (claim) {
       return '<div class="trade-station-card-meta">' + claim.policyType + ' · 预计到账 ' + Math.floor(claim.approvedAmount).toLocaleString() + ' · 处理日 第 ' + claim.processDay + ' 天</div>';
+    }).join('');
+  }
+
+  // ---- 期货市场 ----
+  const futuresListings = Futures.getFuturesListings(state);
+  const openContracts = Futures.getOpenContracts(state);
+  const closedContracts = Futures.getClosedContracts(state).slice(-4); // 最近4条成交记录
+  html += '<div class="trade-station-section-title">📋 期货市场</div>';
+  html += '<div class="trade-station-summary-tip">期货合约允许你以当前价格锁定商品，' + DEFAULT_TERM_DAYS_DISPLAY + ' 天后按市价结算。做多预测涨价，做空预测跌价，高风险高回报。保证金为合约价值的 20%。</div>';
+  html += futuresListings.map(function (listing) {
+    const pnlClass = listing.heldLong > 0 || listing.heldShort > 0 ? ' trade-station-card--active' : '';
+    return '<div class="trade-station-card' + pnlClass + '">' +
+      '<div class="trade-station-card-head">' +
+        '<span class="trade-station-card-name">' + (listing.emoji ? listing.emoji + ' ' : '') + listing.name + '</span>' +
+        '<span class="trade-station-card-badge">当前价 ' + listing.currentPrice.toLocaleString() + '</span>' +
+      '</div>' +
+      '<div class="trade-station-card-meta">' +
+        '合约规模 ' + listing.contractUnit + ' 单位 · 保证金 ' + listing.margin.toLocaleString() + ' · ' +
+        '持多 ' + listing.heldLong + ' 份 · 持空 ' + listing.heldShort + ' 份' +
+      '</div>' +
+      '<div class="trade-station-actions">' +
+        '<button class="btn-action" data-action="futures-long" data-good-id="' + listing.goodId + '">做多 📈</button>' +
+        '<button class="btn-action" data-action="futures-short" data-good-id="' + listing.goodId + '">做空 📉</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+
+  if (openContracts.length > 0) {
+    html += '<div class="trade-station-subsection">📂 持仓合约</div>';
+    html += openContracts.map(function (c) {
+      const pnlLabel = c.unrealizedPnl >= 0 ? '<span style="color:#4caf50">+' + c.unrealizedPnl.toLocaleString() + '</span>' : '<span style="color:#f44336">' + c.unrealizedPnl.toLocaleString() + '</span>';
+      const dirLabel = c.direction === 'long' ? '多头' : '空头';
+      return '<div class="trade-station-card">' +
+        '<div class="trade-station-card-head">' +
+          '<span class="trade-station-card-name">' + c.goodName + ' ' + dirLabel + '</span>' +
+          '<span class="trade-station-card-badge">剩余 ' + c.daysLeft + ' 天</span>' +
+        '</div>' +
+        '<div class="trade-station-card-meta">' +
+          '锁定价 ' + c.lockedPrice.toLocaleString() + ' · 当前价 ' + c.currentPrice.toLocaleString() + ' · 未实现盈亏 ' + pnlLabel +
+        '</div>' +
+        '<div class="trade-station-actions">' +
+          '<button class="btn-action" data-action="futures-close" data-contract-id="' + c.id + '">提前平仓</button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  if (closedContracts.length > 0) {
+    html += '<div class="trade-station-subsection">📜 近期成交</div>';
+    html += closedContracts.map(function (c) {
+      const pnlLabel = (c.pnl || 0) >= 0 ? '+' + (c.pnl || 0).toLocaleString() : (c.pnl || 0).toLocaleString();
+      const dirLabel = c.direction === 'long' ? '多头' : '空头';
+      return '<div class="trade-station-card-meta">' + c.goodName + ' ' + dirLabel + ' · 结算价 ' + (c.settlementPrice || 0).toLocaleString() + ' · 盈亏 ' + pnlLabel + ' · 第 ' + (c.closedDay || 0) + ' 天</div>';
     }).join('');
   }
 
@@ -279,6 +335,24 @@ export function render(state, onBuild, onUpgrade, onHireManager, onSetStrategy, 
   container.querySelectorAll('[data-action="submit-claim"]').forEach(function (button) {
     button.addEventListener('click', function () {
       if (financeActions.onSubmitInsuranceClaim) financeActions.onSubmitInsuranceClaim(button.dataset.policyType);
+    });
+  });
+
+  container.querySelectorAll('[data-action="futures-long"]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      if (financeActions.onFuturesLong) financeActions.onFuturesLong(button.dataset.goodId);
+    });
+  });
+
+  container.querySelectorAll('[data-action="futures-short"]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      if (financeActions.onFuturesShort) financeActions.onFuturesShort(button.dataset.goodId);
+    });
+  });
+
+  container.querySelectorAll('[data-action="futures-close"]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      if (financeActions.onFuturesClose) financeActions.onFuturesClose(button.dataset.contractId);
     });
   });
 }

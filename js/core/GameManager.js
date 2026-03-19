@@ -29,6 +29,7 @@ import * as Crew       from '../systems/fleet/CrewSystem.js';
 import * as AutoTrade  from '../systems/trade/AutoTradeSystem.js';
 import * as TradeStation from '../systems/trade/TradeStationSystem.js';
 import * as Finance from '../systems/finance/FinanceSystem.js';
+import * as Futures from '../systems/finance/FuturesSystem.js';
 import * as FleetUI    from '../ui/FleetUI.js';
 import * as Save       from '../systems/save/SaveSystem.js';
 import * as Quest      from '../systems/quest/QuestSystem.js';
@@ -663,6 +664,21 @@ function _handleSubmitInsuranceClaim(policyType) {
   _dispatch(result);
 }
 
+function _handleFuturesLong(goodId) {
+  const result = Futures.openLongContract(_state, goodId);
+  _dispatch(result);
+}
+
+function _handleFuturesShort(goodId) {
+  const result = Futures.openShortContract(_state, goodId);
+  _dispatch(result);
+}
+
+function _handleFuturesClose(contractId) {
+  const result = Futures.closeContract(_state, contractId);
+  _dispatch(result);
+}
+
 function _handleAcceptQuest(questId) {
   const result = Quest.acceptQuest(_state, questId);
   _dispatch(result);
@@ -926,6 +942,9 @@ function _updateUI() {
       onInvestTradeStation: _handleInvestTradeStation,
       onPurchaseInsurance: _handlePurchaseInsurance,
       onSubmitInsuranceClaim: _handleSubmitInsuranceClaim,
+      onFuturesLong: _handleFuturesLong,
+      onFuturesShort: _handleFuturesShort,
+      onFuturesClose: _handleFuturesClose,
     }
   );
   FleetUI.render(_state, _handleBuyShip, _handleSwitchShip, _handleUpgradeShip, _handleAssignRoute, _handleCancelRoute, _handleBuySlot, _handleSellShip, _handleInstallMod, _handleUninstallMod, _handleRecruitCrew, _handleAssignCrew, _handleUnassignCrew, _handleDismissCrew);
