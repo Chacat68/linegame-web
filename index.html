@@ -66,13 +66,6 @@
               </button>
               <button
                 class="tab-btn"
-                data-tab="tab-trade-station"
-                data-tab-group="info"
-              >
-                🏪 贸易站
-              </button>
-              <button
-                class="tab-btn"
                 data-tab="tab-achievement"
                 data-tab-group="info"
               >
@@ -105,10 +98,6 @@
             <div id="tab-faction" class="tab-pane" data-tab-group="info">
               <div id="faction-list"></div>
             </div>
-            <!-- Trade station tab (贸易站系统) -->
-            <div id="tab-trade-station" class="tab-pane" data-tab-group="info">
-              <div id="trade-station-list"></div>
-            </div>
             <!-- Achievement tab (成就系统) -->
             <div id="tab-achievement" class="tab-pane" data-tab-group="info">
               <div id="achievement-list"></div>
@@ -136,18 +125,37 @@
             <canvas id="map-canvas"></canvas>
             <div id="planet-detail-panel" class="planet-detail-panel"></div>
             <div class="map-btn-group">
-              <button id="market-view-btn" class="map-overlay-btn">
-                🏪 市场
-              </button>
-              <button id="galaxy-view-btn" class="map-overlay-btn">
-                🌌 星系总览
-              </button>
+              <div class="map-secondary-entry-group" aria-label="快捷入口">
+                <button id="market-open-company" class="map-overlay-btn map-secondary-entry-btn" type="button" title="蓝脉信使物流体">
+                  <span class="map-entry-icon">🏢</span>
+                  <span class="map-entry-label">公司</span>
+                  <span id="market-company-entry-name" class="map-entry-meta">蓝脉信使物流体</span>
+                </button>
+                <button id="market-open-fleet" class="map-overlay-btn map-secondary-entry-btn" type="button" title="1 船 · 0 派遣">
+                  <span class="map-entry-icon">🚢</span>
+                  <span class="map-entry-label">舰队</span>
+                  <span id="market-fleet-entry-summary" class="map-entry-meta">1 船 · 0 派遣</span>
+                </button>
+                <button id="market-open-shop" class="map-overlay-btn map-secondary-entry-btn" type="button" title="停靠港口船坞">
+                  <span class="map-entry-icon">🏪</span>
+                  <span class="map-entry-label">商店</span>
+                  <span id="market-shop-entry-summary" class="map-entry-meta">停靠港口船坞</span>
+                </button>
+              </div>
+              <div class="map-primary-entry-group">
+                <button id="market-view-btn" class="map-overlay-btn">
+                  🏪 市场
+                </button>
+                <button id="galaxy-view-btn" class="map-overlay-btn">
+                  🌌 星系总览
+                </button>
+              </div>
             </div>
 
             <!-- Market overlay panel -->
             <div id="market-overlay" class="market-overlay hidden">
               <div class="market-overlay-header">
-                <h3 id="market-header-title">◈ 蓝脉交易终端</h3>
+                <h3 id="market-header-title">◈ 蓝脉商业终端</h3>
                 <button id="market-close-btn" class="market-close-btn">
                   ✕
                 </button>
@@ -155,49 +163,64 @@
               <!-- Galaxy navigation -->
               <div id="market-galaxy-nav" class="market-galaxy-nav"></div>
 
-              <!-- ▸ Overview mode: price matrix -->
-              <div id="market-overview" class="market-overview">
-                <div class="market-overview-toolbar">
-                  <span class="market-overview-hint"
-                    >扫描星球节点，接入本地市场并执行交易</span
-                  >
-                  <label class="market-price-toggle">
-                    <input type="checkbox" id="market-show-sell" /> 显示卖出价
-                  </label>
-                </div>
-                <div class="market-overview-scroll">
-                  <table id="market-overview-table">
-                    <thead id="market-overview-thead"></thead>
-                    <tbody id="market-overview-tbody"></tbody>
-                  </table>
-                </div>
-              </div>
+              <div class="market-overlay-shell">
+                <div class="market-overlay-panels">
 
-              <!-- ▸ Detail mode: single planet -->
-              <div id="market-detail" class="market-detail hidden">
-                <div class="market-detail-bar">
-                  <button id="market-back-btn" class="market-back-btn">
-                    ← 返回节点矩阵
-                  </button>
-                  <span
-                    id="market-detail-location"
-                    class="market-detail-location"
-                  ></span>
-                </div>
-                <div class="market-overlay-body">
-                  <table id="market-table">
-                    <thead>
-                      <tr>
-                        <th>商品</th>
-                        <th>买入</th>
-                        <th>卖出</th>
-                        <th>持有</th>
-                        <th>操作</th>
-                        <th>走势</th>
-                      </tr>
-                    </thead>
-                    <tbody id="market-tbody"></tbody>
-                  </table>
+                  <!-- ▸ Overview mode: price matrix -->
+                  <div id="market-overview" class="market-overview">
+                    <div class="market-overview-toolbar">
+                      <span class="market-overview-hint"
+                        >扫描星球节点，接入交易、金融与站点投资终端</span
+                      >
+                      <label class="market-price-toggle">
+                        <input type="checkbox" id="market-show-sell" /> 显示卖出价
+                      </label>
+                    </div>
+                    <div class="market-overview-scroll">
+                      <table id="market-overview-table">
+                        <thead id="market-overview-thead"></thead>
+                        <tbody id="market-overview-tbody"></tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <!-- ▸ Detail mode: single planet -->
+                  <div id="market-detail" class="market-detail hidden">
+                    <div class="market-detail-bar">
+                      <button id="market-back-btn" class="market-back-btn">
+                        ← 返回节点矩阵
+                      </button>
+                      <span
+                        id="market-detail-location"
+                        class="market-detail-location"
+                      ></span>
+                    </div>
+                    <div class="market-overlay-body">
+                      <div id="market-terminal-dashboard" class="market-terminal-dashboard"></div>
+                      <div id="market-workspace-tabs" class="market-workspace-tabs"></div>
+                      <div id="market-spot-pane" class="market-workspace-pane">
+                        <table id="market-table">
+                          <thead>
+                            <tr>
+                              <th>商品</th>
+                              <th>买入</th>
+                              <th>卖出</th>
+                              <th>持有</th>
+                              <th>操作</th>
+                              <th>K线</th>
+                            </tr>
+                          </thead>
+                          <tbody id="market-tbody"></tbody>
+                        </table>
+                      </div>
+                      <div id="market-capital-pane" class="market-workspace-pane hidden">
+                        <div id="market-capital-panels" class="market-finance-panels"></div>
+                      </div>
+                      <div id="market-operations-pane" class="market-workspace-pane hidden">
+                        <div id="market-operations-panels" class="market-finance-panels"></div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -240,93 +263,6 @@
           </div>
         </section>
 
-        <!-- Trade Panel ------------------------------------------------- -->
-        <aside id="trade-panel">
-          <!-- Company Dashboard (紧凑仪表盘) -->
-          <div class="company-dashboard">
-            <button
-              id="company-name-display"
-              class="company-name-btn"
-              title="点击重命名公司"
-            >
-              ◉ <span id="company-name-text">蓝脉信使物流体</span> ✏️
-            </button>
-
-            <div class="stat-strip">
-              <div class="stat-strip-item">
-                <span class="stat-strip-label">💰 积分</span>
-                <span id="credits" class="stat-strip-value stat-credits"
-                  >1,000</span
-                >
-              </div>
-              <div class="stat-strip-item">
-                <span class="stat-strip-label">📊 资产</span>
-                <span id="net-worth" class="stat-strip-value stat-networth"
-                  >1,000</span
-                >
-              </div>
-              <div class="stat-strip-item">
-                <span class="stat-strip-label">📅 天数</span>
-                <span id="galactic-day" class="stat-strip-value stat-day"
-                  >1</span
-                >
-              </div>
-              <div class="stat-strip-item">
-                <span class="stat-strip-label">经济</span>
-                <span id="economy-cycle" class="stat-strip-value stat-cycle"
-                  >⚖️稳定</span
-                >
-              </div>
-            </div>
-
-            <div id="player-level" class="player-level-bar"></div>
-
-            <div id="company-level-line" class="company-level-line">
-              CORP Lv.1 · 0/120
-            </div>
-            <div class="company-level-track">
-              <div id="company-level-fill" class="company-level-fill"></div>
-            </div>
-          </div>
-
-          <!-- Tabs + 内联概览 -->
-          <nav class="tabs fleet-tabs">
-            <button
-              class="tab-btn active"
-              data-tab="tab-fleet"
-              data-tab-group="trade"
-            >
-              🚢 船队
-            </button>
-            <button class="tab-btn" data-tab="tab-shop" data-tab-group="trade">
-              🏪 商店
-            </button>
-            <span class="fleet-inline-summary">
-              <span id="ov-ship-count">1</span>船 ·
-              <span id="ov-dispatch-count">0</span>派遣 · Σ<span
-                id="ov-total-profit"
-                >0</span
-              >
-            </span>
-          </nav>
-
-          <div class="tab-content">
-            <!-- Fleet tab (船队系统) -->
-            <div id="tab-fleet" class="tab-pane active" data-tab-group="trade">
-              <div
-                id="auto-trade-controls"
-                class="auto-trade-controls hidden"
-              ></div>
-              <div id="fleet-list"></div>
-            </div>
-
-            <!-- Ship Shop tab -->
-            <div id="tab-shop" class="tab-pane" data-tab-group="trade">
-              <div id="shop-list"></div>
-            </div>
-          </div>
-          <!-- /tab-content -->
-        </aside>
       </main>
 
       <!-- ================================================================
@@ -512,6 +448,121 @@
         <div class="modal-actions">
           <button id="crew-modal-close" class="btn-secondary">关闭</button>
         </div>
+      </div>
+    </div>
+
+    <div id="company-panel-modal" class="modal hidden" role="dialog" aria-modal="true">
+      <div class="modal-box secondary-panel-modal-box company-panel-modal-box">
+        <div class="secondary-panel-head">
+          <div>
+            <h3>🏢 公司总览</h3>
+            <div id="company-panel-subtitle" class="secondary-panel-subtitle">查看企业状态与当前运营概览</div>
+          </div>
+          <button class="secondary-panel-close" type="button" data-close-secondary-panel="company-panel-modal">✕</button>
+        </div>
+
+        <section class="secondary-panel-pane active">
+          <div class="company-dashboard company-dashboard-modal">
+            <button
+              id="company-name-display"
+              class="company-name-btn"
+              title="点击重命名公司"
+            >
+              ◉ <span id="company-name-text">蓝脉信使物流体</span> ✏️
+            </button>
+
+            <div class="stat-strip">
+              <div class="stat-strip-item">
+                <span class="stat-strip-label">💰 积分</span>
+                <span id="credits" class="stat-strip-value stat-credits">1,000</span>
+              </div>
+              <div class="stat-strip-item">
+                <span class="stat-strip-label">📊 资产</span>
+                <span id="net-worth" class="stat-strip-value stat-networth">1,000</span>
+              </div>
+              <div class="stat-strip-item">
+                <span class="stat-strip-label">📅 天数</span>
+                <span id="galactic-day" class="stat-strip-value stat-day">1</span>
+              </div>
+              <div class="stat-strip-item">
+                <span class="stat-strip-label">经济</span>
+                <span id="economy-cycle" class="stat-strip-value stat-cycle">⚖️稳定</span>
+              </div>
+            </div>
+
+            <div id="player-level" class="player-level-bar"></div>
+
+            <div id="company-level-line" class="company-level-line">
+              CORP Lv.1 · 0/120
+            </div>
+            <div class="company-level-track">
+              <div id="company-level-fill" class="company-level-fill"></div>
+            </div>
+          </div>
+
+          <div class="company-panel-grid">
+            <article class="company-panel-card">
+              <span class="company-panel-card-label">当前停靠</span>
+              <strong id="company-panel-location">太阳主星</strong>
+            </article>
+            <article class="company-panel-card">
+              <span class="company-panel-card-label">舰队规模</span>
+              <strong id="company-panel-fleet">1 船 / 0 派遣</strong>
+            </article>
+            <article class="company-panel-card">
+              <span class="company-panel-card-label">累计利润</span>
+              <strong id="company-panel-profit">0</strong>
+            </article>
+            <article class="company-panel-card">
+              <span class="company-panel-card-label">交易次数</span>
+              <strong id="company-panel-trade-count">0</strong>
+            </article>
+          </div>
+        </section>
+
+      </div>
+    </div>
+
+    <div id="fleet-panel-modal" class="modal hidden" role="dialog" aria-modal="true">
+      <div class="modal-box secondary-panel-modal-box fleet-panel-modal-box">
+        <div class="secondary-panel-head">
+          <div>
+            <h3>🚢 舰队中心</h3>
+            <div id="fleet-panel-subtitle" class="secondary-panel-subtitle">统一查看舰船、席位与派遣状态</div>
+          </div>
+          <button class="secondary-panel-close" type="button" data-close-secondary-panel="fleet-panel-modal">✕</button>
+        </div>
+
+        <section class="secondary-panel-pane active">
+          <div class="secondary-panel-toolbar">
+            <span class="fleet-inline-summary">
+              <span id="ov-ship-count">1</span>船 ·
+              <span id="ov-dispatch-count">0</span>派遣 · Σ<span id="ov-total-profit">0</span>
+            </span>
+            <span class="secondary-panel-meta">交易 <span id="ov-trade-count">0</span> 次</span>
+          </div>
+
+          <div id="auto-trade-controls" class="auto-trade-controls hidden"></div>
+          <div id="fleet-list" class="secondary-panel-scroll"></div>
+        </section>
+
+      </div>
+    </div>
+
+    <div id="shop-panel-modal" class="modal hidden" role="dialog" aria-modal="true">
+      <div class="modal-box secondary-panel-modal-box shop-panel-modal-box">
+        <div class="secondary-panel-head">
+          <div>
+            <h3>🏪 船坞商店</h3>
+            <div id="shop-panel-subtitle" class="secondary-panel-subtitle">在当前港口采购新舰并扩充运力</div>
+          </div>
+          <button class="secondary-panel-close" type="button" data-close-secondary-panel="shop-panel-modal">✕</button>
+        </div>
+
+        <section class="secondary-panel-pane active">
+          <div id="shop-list" class="secondary-panel-scroll"></div>
+        </section>
+
       </div>
     </div>
 

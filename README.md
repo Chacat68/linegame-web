@@ -129,7 +129,7 @@ python3 -m http.server 8080
 │   └── ui/                 # 界面组件
 │       ├── Renderer.js     # 星图渲染
 │       ├── HUD.js          # 顶部状态栏
-│       ├── MarketUI.js     # 市场界面
+│       ├── MarketUI.js     # 商业终端（现货/资本/经营）
 │       ├── MapUI.js        # 星图交互
 │       ├── ShipUI.js       # 飞船与货舱界面
 │       ├── Modal.js        # 通用模态框

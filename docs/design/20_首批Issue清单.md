@@ -371,7 +371,7 @@
 
 - 新增 [js/data/tradeStations.js](js/data/tradeStations.js)
 - 新增 [js/systems/trade/TradeStationSystem.js](js/systems/trade/TradeStationSystem.js)
-- 新增 [js/ui/TradeStationUI.js](js/ui/TradeStationUI.js)
+- 已并入 [js/ui/MarketUI.js](js/ui/MarketUI.js) 的“经营”页签
 - [js/systems/progression/ProgressionSystem.js](js/systems/progression/ProgressionSystem.js)
 - [js/data/quests.js](js/data/quests.js)
 

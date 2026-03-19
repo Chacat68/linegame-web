@@ -79,6 +79,34 @@
   .fleet-ov-value { font-size: 12px; }
 
   .modal-box { min-width: 240px; max-width: 320px; padding: 16px 18px; }
+  .secondary-panel-modal-box {
+    width: calc(100vw - 24px);
+    max-height: calc(100vh - 24px);
+    padding: 14px;
+  }
+  .map-btn-group {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 2px;
+    padding: 3px;
+  }
+  .map-secondary-entry-group,
+  .map-primary-entry-group {
+    justify-content: flex-end;
+    gap: 2px;
+  }
+  .map-secondary-entry-group {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+  .map-secondary-entry-btn {
+    min-width: 180px;
+    max-width: none;
+  }
+  .company-panel-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   .victory-modal-box { min-width: 280px; max-width: 420px; }
   .event-modal-box { min-width: 280px; max-width: 360px; }
   .settings-modal-box {
@@ -138,6 +166,15 @@
   .settings-storage-head {
     flex-direction: column;
   }
+  .market-finance-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .market-finance-layout {
+    grid-template-columns: 1fr;
+  }
+  .market-workspace-tabs {
+    grid-template-columns: 1fr;
+  }
 
   #map-legend { font-size: 11px; gap: 6px; padding: 3px 8px; }
   #status-bar { height: 60px; }
@@ -168,6 +205,25 @@
   #trade-panel { width: 200px; }
 
   .modal-box { min-width: 200px; max-width: 95vw; padding: 14px 12px; }
+  .secondary-panel-toolbar,
+  .secondary-panel-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .secondary-panel-close {
+    align-self: flex-end;
+  }
+  .company-panel-grid {
+    grid-template-columns: 1fr;
+  }
+  .map-secondary-entry-btn {
+    min-width: 148px;
+    padding: 10px 9px;
+  }
+  .map-overlay-btn {
+    min-height: 32px;
+    padding: 4px 9px;
+  }
   .victory-modal-box { min-width: 200px; max-width: 95vw; }
   .event-modal-box { min-width: 200px; max-width: 95vw; }
   .gameover-box { max-width: 95vw; }
@@ -231,6 +287,9 @@
   .save-slot-actions .btn-action,
   .save-export-row .btn-action {
     width: 100%;
+  }
+  .market-finance-summary-grid {
+    grid-template-columns: 1fr;
   }
 
   #map-legend { font-size: 10px; gap: 4px; padding: 2px 6px; }
