@@ -49,6 +49,7 @@ describe('RandomEvent.rollEvent', () => {
   });
 
   it('事件概率读取难度配置', () => {
+    // 依次对应：easy 的触发判定、hard 的触发判定、hard 触发后的加权选取
     vi.spyOn(Math, 'random')
       .mockReturnValueOnce(0.45)
       .mockReturnValueOnce(0)
