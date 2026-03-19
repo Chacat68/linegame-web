@@ -11,6 +11,7 @@ export function showEvent(event, onChoice) {
   document.getElementById('event-icon').textContent  = event.icon;
   document.getElementById('event-title').textContent = event.title;
   document.getElementById('event-desc').textContent  = event.description;
+  _renderMeta(event);
 
   const choicesDiv = document.getElementById('event-choices');
   choicesDiv.innerHTML = '';
@@ -36,4 +37,49 @@ export function showEvent(event, onChoice) {
  */
 export function hideEvent() {
   document.getElementById('event-modal').classList.add('hidden');
+}
+
+function _renderMeta(event) {
+  const metaDiv = document.getElementById('event-meta');
+  if (!metaDiv) return;
+
+  metaDiv.innerHTML = '';
+
+  const tags = [
+    {
+      text: _getRiskLabel(event.risk),
+      className: 'event-tag event-tag-risk-' + (event.risk || 'risky'),
+    },
+    {
+      text: _getStageLabel(event.stage),
+      className: 'event-tag',
+    },
+  ];
+
+  if (event.stage === 'chain' || event.chainFollowUp) {
+    tags.push({
+      text: event.stage === 'chain' ? '事件链后续' : '可能引发后续事件',
+      className: 'event-tag event-tag-chain',
+    });
+  }
+
+  tags.forEach(function (tag) {
+    const badge = document.createElement('span');
+    badge.className = tag.className;
+    badge.textContent = tag.text;
+    metaDiv.appendChild(badge);
+  });
+}
+
+function _getRiskLabel(risk) {
+  if (risk === 'safe') return '低风险';
+  if (risk === 'dangerous') return '高风险';
+  return '中风险';
+}
+
+function _getStageLabel(stage) {
+  if (stage === 'early') return '前期事件';
+  if (stage === 'late') return '后期事件';
+  if (stage === 'chain') return '连续事件';
+  return '中期事件';
 }

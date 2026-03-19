@@ -1,12 +1,16 @@
 // tests/randomEvent.test.js — RandomEvent 系统测试
 // 覆盖: M3（resolveChoice 越界）、事件触发、事件池筛选
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as RandomEvent from '../js/systems/event/RandomEvent.js';
 import { createTestState } from './helpers.js';
 
 beforeEach(() => {
   RandomEvent.resetRuntimeState();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe('RandomEvent.rollEvent', () => {
@@ -41,6 +45,41 @@ describe('RandomEvent.rollEvent', () => {
     // 内部会 chance *= 1.5，测试不崩溃即可
     RandomEvent.rollEvent(state, 0.5);
     expect(true).toBe(true);
+  });
+
+  it('事件概率读取难度配置', () => {
+    vi.spyOn(Math, 'random')
+      .mockReturnValueOnce(0.45)
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(0);
+
+    const easyState = createTestState({ difficulty: 'easy' });
+    const hardState = createTestState({ difficulty: 'hard', day: 20, playerLevel: 5, fuel: 100, shipHull: 100, credits: 1000 });
+
+    const easyResult = RandomEvent.rollEvent(easyState, 0.5);
+    const hardResult = RandomEvent.rollEvent(hardState, 0.5);
+
+    expect(easyResult).toBeNull();
+    expect(hardResult).toBeDefined();
+  });
+
+  it('高难度更偏向高风险事件池权重', () => {
+    const randomSpy = vi.spyOn(Math, 'random')
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(0.77)
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(0.77);
+
+    const easyState = createTestState({ difficulty: 'easy', day: 20, playerLevel: 5, fuel: 100, shipHull: 100, credits: 1000 });
+    const hardState = createTestState({ difficulty: 'hard', day: 20, playerLevel: 5, fuel: 100, shipHull: 100, credits: 1000 });
+
+    const easyEvent = RandomEvent.rollEvent(easyState, 1);
+    RandomEvent.resetRuntimeState();
+    const hardEvent = RandomEvent.rollEvent(hardState, 1);
+
+    expect(randomSpy).toHaveBeenCalled();
+    expect(easyEvent.id).toBe('fuel_crisis');
+    expect(hardEvent.id).toBe('solar_storm');
   });
 });
 
@@ -140,5 +179,38 @@ describe('RandomEvent.resolveChoice', () => {
     const ev = RandomEvent.rollEvent(state, 1);
     expect(ev).toBeDefined();
     expect(ev.id).toBe('pirate_revenge');
+  });
+
+  it('冷却与历史会同步写回 state', () => {
+    vi.spyOn(Math, 'random')
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(0);
+
+    const state = createTestState();
+    const event = RandomEvent.rollEvent(state, 1);
+
+    expect(state._eventCooldowns[event.id]).toBe(state.day);
+
+    RandomEvent.resolveChoice(state, 0);
+
+    expect(state._eventHistory).toHaveLength(1);
+    expect(state._eventHistory[0]).toMatchObject({
+      eventId: event.id,
+      day: state.day,
+      choiceIndex: 0,
+    });
+  });
+
+  it('读档后的事件冷却会继续生效', () => {
+    const state = createTestState({
+      day: 12,
+      _eventCooldowns: { merchant_caravan: 8 },
+      _eventHistory: [{ eventId: 'merchant_caravan', day: 8, choiceIndex: 0 }],
+    });
+
+    const ids = RandomEvent.getEligibleEvents(state).map(ev => ev.id);
+
+    expect(ids).not.toContain('merchant_caravan');
+    expect(RandomEvent.getEventHistory()).toHaveLength(1);
   });
 });

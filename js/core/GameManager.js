@@ -64,6 +64,7 @@ export function init(difficulty) {
   var diff = DIFFICULTY_LEVELS[effectiveDifficulty] || DIFFICULTY_LEVELS['normal'];
   _state.difficulty = diff.id;
   _state.credits = diff.startCredits;
+  RandomEvent.resetRuntimeState(_state);
 
   Economy.init();
   Fleet.init(_state);
@@ -625,6 +626,7 @@ function _handleLoadGame(slotId) {
   if (result.ok) {
     Settings.hideSettingsModal();
     _state = result.state;
+    RandomEvent.syncRuntimeState(_state);
     _settings.difficulty = _state.difficulty;
     Settings.saveSettings(_settings);
     // 重新初始化依赖状态的子系统
