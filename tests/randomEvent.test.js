@@ -11,6 +11,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  RandomEvent.resetRuntimeState();
 });
 
 describe('RandomEvent.rollEvent', () => {
