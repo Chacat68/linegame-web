@@ -663,6 +663,16 @@ function _handleSubmitInsuranceClaim(policyType) {
   _dispatch(result);
 }
 
+function _handleOpenFutures(contractId, direction) {
+  const result = Finance.openFuturesPosition(_state, contractId, direction);
+  _dispatch(result);
+}
+
+function _handleCloseFutures(positionId) {
+  const result = Finance.closeFuturesPosition(_state, positionId);
+  _dispatch(result);
+}
+
 function _handleAcceptQuest(questId) {
   const result = Quest.acceptQuest(_state, questId);
   _dispatch(result);
@@ -926,6 +936,8 @@ function _updateUI() {
       onInvestTradeStation: _handleInvestTradeStation,
       onPurchaseInsurance: _handlePurchaseInsurance,
       onSubmitInsuranceClaim: _handleSubmitInsuranceClaim,
+      onOpenFutures: _handleOpenFutures,
+      onCloseFutures: _handleCloseFutures,
     }
   );
   FleetUI.render(_state, _handleBuyShip, _handleSwitchShip, _handleUpgradeShip, _handleAssignRoute, _handleCancelRoute, _handleBuySlot, _handleSellShip, _handleInstallMod, _handleUninstallMod, _handleRecruitCrew, _handleAssignCrew, _handleUnassignCrew, _handleDismissCrew);

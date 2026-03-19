@@ -24,6 +24,9 @@ export function render(state, onBuild, onUpgrade, onHireManager, onSetStrategy, 
   const stockListings = Finance.getStockListings(state).slice(0, 4);
   const tradeInvestments = Finance.getTradeInvestmentOptions(state).slice(0, 4);
   const insuranceProducts = Finance.getInsuranceProducts(state);
+  const futuresSnapshot = Finance.getFuturesSnapshot(state);
+  const futuresQuotes = futuresSnapshot.quotes;
+  const futuresPositions = futuresSnapshot.positions;
   const activeLoans = (state.loans || []).filter(function (loan) { return loan.status === 'active' && loan.balance > 0; });
   const pendingClaims = (state.insuranceClaims || []).filter(function (claim) { return claim.status === 'pending'; });
 
@@ -91,6 +94,57 @@ export function render(state, onBuild, onUpgrade, onHireManager, onSetStrategy, 
       '</div>' +
     '</div>';
   }).join('');
+
+  const futuresContractSize = futuresQuotes.length > 0 ? futuresQuotes[0].contractSize : 10;
+  html += '<div class="trade-station-section-title">📊 期货市场</div>';
+  html += '<div class="trade-station-card">' +
+    '<div class="trade-station-card-head">' +
+      '<span class="trade-station-card-name">保证金占用</span>' +
+      '<span class="trade-station-card-badge">' + Math.floor(futuresSnapshot.marginLocked || 0).toLocaleString() + '</span>' +
+    '</div>' +
+    '<div class="trade-station-card-meta">未结算盈亏 ' + Math.floor(futuresSnapshot.unrealizedPnl || 0).toLocaleString() +
+      ' · 合约规模 ×' + futuresContractSize + '</div>' +
+  '</div>';
+  html += '<div class="trade-station-subsection">行情报价</div>';
+  if (futuresQuotes.length === 0) {
+    html += '<div class="trade-station-empty">今天暂无可交易的合约，明日再来看看新的行情。</div>';
+  } else {
+    html += futuresQuotes.map(function (quote) {
+      return '<div class="trade-station-card">' +
+        '<div class="trade-station-card-head">' +
+          '<span class="trade-station-card-name">' + (quote.emoji || '') + ' ' + quote.name + '</span>' +
+          '<span class="trade-station-card-badge">锁定价 ' + quote.lockPrice.toLocaleString() + '</span>' +
+        '</div>' +
+        '<div class="trade-station-card-meta">第 ' + quote.settlementDay + ' 天交割 · 保证金 ' + quote.margin.toLocaleString() + ' · 合约 ×' + quote.contractSize + '</div>' +
+        '<div class="trade-station-card-meta">当前 ' + Math.floor(quote.basisPrice).toLocaleString() + ' · 趋势 ' + quote.trendLabel + ' · 波动 ' + quote.volatility + '×</div>' +
+        '<div class="trade-station-actions">' +
+          '<button class="btn-action" data-action="open-futures" data-direction="long" data-contract-id="' + quote.id + '">做多</button>' +
+          '<button class="btn-action" data-action="open-futures" data-direction="short" data-contract-id="' + quote.id + '">做空</button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  html += '<div class="trade-station-subsection">我的持仓</div>';
+  if (futuresPositions.length === 0) {
+    html += '<div class="trade-station-empty">暂无期货持仓，提前锁价可对冲风险或博取差价。</div>';
+  } else {
+    html += futuresPositions.map(function (pos) {
+      const dirLabel = pos.direction === 'short' ? '空头' : '多头';
+      return '<div class="trade-station-card">' +
+        '<div class="trade-station-card-head">' +
+          '<span class="trade-station-card-name">' + (pos.emoji || '') + ' ' + pos.name + '</span>' +
+          '<span class="trade-station-card-badge">' + dirLabel + ' · 锁定 ' + pos.lockPrice.toLocaleString() + '</span>' +
+        '</div>' +
+        '<div class="trade-station-card-meta">现价 ' + Math.floor(pos.currentPrice).toLocaleString() + ' · 未结盈亏 ' + Math.floor(pos.unrealizedPnl).toLocaleString() +
+          ' · 结算日 第 ' + pos.settlementDay + ' 天（' + pos.daysToSettlement + ' 天后）</div>' +
+        '<div class="trade-station-card-meta">保证金 ' + Math.floor(pos.margin).toLocaleString() + ' · 合约规模 ×' + pos.contractSize + '</div>' +
+        '<div class="trade-station-actions">' +
+          '<button class="btn-action" data-action="close-futures" data-position-id="' + pos.id + '">提前平仓</button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
 
   html += '<div class="trade-station-section-title">🏪 贸易站投资</div>';
   if (tradeInvestments.length === 0) {
@@ -279,6 +333,18 @@ export function render(state, onBuild, onUpgrade, onHireManager, onSetStrategy, 
   container.querySelectorAll('[data-action="submit-claim"]').forEach(function (button) {
     button.addEventListener('click', function () {
       if (financeActions.onSubmitInsuranceClaim) financeActions.onSubmitInsuranceClaim(button.dataset.policyType);
+    });
+  });
+
+  container.querySelectorAll('[data-action="open-futures"]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      if (financeActions.onOpenFutures) financeActions.onOpenFutures(button.dataset.contractId, button.dataset.direction);
+    });
+  });
+
+  container.querySelectorAll('[data-action="close-futures"]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      if (financeActions.onCloseFutures) financeActions.onCloseFutures(button.dataset.positionId);
     });
   });
 }

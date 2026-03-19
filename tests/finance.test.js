@@ -1,10 +1,14 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as Economy from '../js/systems/economy/Economy.js';
 import * as Finance from '../js/systems/finance/FinanceSystem.js';
 import { createTestState } from './helpers.js';
 
 beforeEach(() => {
   Economy.init();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe('FinanceSystem', () => {
@@ -112,5 +116,76 @@ describe('FinanceSystem', () => {
     expect(Finance.getNetWorthAdjustment(state)).toBe(
       overview.stockValue + overview.tradeInvestmentValue - overview.outstandingLoanBalance
     );
+  });
+
+  it('期货合约支持开仓与到期结算（多头盈利）', () => {
+    const state = createTestState({ credits: 10000, day: 1, currentSystem: 'sol_prime' });
+    Finance.init(state);
+
+    const customQuote = {
+      id: 'fut_water_3',
+      goodId: 'water',
+      name: '水资源',
+      emoji: '💧',
+      systemId: state.currentSystem,
+      lockPrice: 10,
+      contractSize: 5,
+      settlementDay: state.day + 2,
+      margin: 300,
+      basisPrice: 10,
+      trendLabel: '看涨',
+    };
+    state.futuresMarket.quotes = [customQuote];
+    state.futuresMarket.lastGeneratedDay = state.day;
+
+    const open = Finance.openFuturesPosition(state, customQuote.id, 'long');
+    expect(open.ok).toBe(true);
+    expect(state.futuresPositions).toHaveLength(1);
+    expect(state.credits).toBe(10000 - customQuote.margin);
+
+    const settlePrice = 16;
+    vi.spyOn(Economy, 'getSellPrice').mockReturnValue(settlePrice);
+    state.day = customQuote.settlementDay - 1;
+    Finance.advanceDay(state);
+    state.day = customQuote.settlementDay;
+    Finance.advanceDay(state);
+
+    const expectedPnl = Math.round((settlePrice - customQuote.lockPrice) * customQuote.contractSize);
+    expect(state.futuresPositions).toHaveLength(0);
+    expect(state.credits).toBe(10000 + expectedPnl);
+  });
+
+  it('空头期货在价格上行时会产生亏损，平仓返还保证金', () => {
+    const state = createTestState({ credits: 8000, day: 2, currentSystem: 'sol_prime' });
+    Finance.init(state);
+
+    const quote = {
+      id: 'fut_food_4',
+      goodId: 'food',
+      name: '食物',
+      emoji: '🌾',
+      systemId: state.currentSystem,
+      lockPrice: 12,
+      contractSize: 4,
+      settlementDay: state.day + 1,
+      margin: 200,
+      basisPrice: 12,
+      trendLabel: '震荡',
+    };
+    state.futuresMarket.quotes = [quote];
+    state.futuresMarket.lastGeneratedDay = state.day;
+
+    const open = Finance.openFuturesPosition(state, quote.id, 'short');
+    expect(open.ok).toBe(true);
+    expect(state.futuresPositions[0].direction).toBe('short');
+
+    const settlePrice = 15;
+    vi.spyOn(Economy, 'getSellPrice').mockReturnValue(settlePrice);
+    const pnl = Math.round((quote.lockPrice - settlePrice) * quote.contractSize);
+
+    const close = Finance.closeFuturesPosition(state, state.futuresPositions[0].id);
+    expect(close.ok).toBe(true);
+    expect(state.futuresPositions).toHaveLength(0);
+    expect(state.credits).toBe(8000 + pnl);
   });
 });

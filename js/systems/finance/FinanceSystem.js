@@ -1,11 +1,25 @@
 import { SYSTEMS, findSystem } from '../../data/systems.js';
 import { SHIP_TYPES } from '../../data/ships.js';
+import { GOODS } from '../../data/goods.js';
 import * as Economy from '../economy/Economy.js';
 
 const DEFAULT_CREDIT_RATING = 620;
 const MIN_CREDIT_RATING = 300;
 const MAX_CREDIT_RATING = 850;
 const DEFAULT_INVESTMENT_AMOUNT = 5000;
+
+const FUTURES_CONFIG = {
+  marginRate: 0.3,
+  minMargin: 250,
+  contractSize: 10,
+  minTenorDays: 3,
+  maxTenorDays: 7,
+  offerCount: 3,
+  refreshCooldownDays: 1,
+  trendBias: 0.04,
+  volatilityFloor: 0.9,
+  volatilityCeiling: 1.4,
+};
 
 const LOAN_TIERS = [
   { id: 'starter', name: '星港周转贷', amount: 5000, termDays: 12, dailyInterestRate: 0.012 },
@@ -46,6 +60,7 @@ function _ensureFinanceState(state) {
   }
   state.creditRating = Math.max(MIN_CREDIT_RATING, Math.min(MAX_CREDIT_RATING, Math.round(state.creditRating)));
   _hydrateStockMarket(state);
+  _ensureFuturesState(state);
   return state;
 }
 
@@ -83,6 +98,94 @@ function _hydrateStockMarket(state) {
     current.lastPrice = Math.max(10, Math.round(current.lastPrice || current.price));
     current.dividendYield = typeof current.dividendYield === 'number' ? current.dividendYield : defaults[stockId].dividendYield;
     current.volatility = typeof current.volatility === 'number' ? current.volatility : defaults[stockId].volatility;
+  });
+}
+
+function _ensureFuturesState(state) {
+  if (!state.futuresMarket || typeof state.futuresMarket !== 'object' || Array.isArray(state.futuresMarket)) {
+    state.futuresMarket = {};
+  }
+  if (!Array.isArray(state.futuresPositions)) state.futuresPositions = [];
+  if (!Array.isArray(state.futuresMarket.quotes)) {
+    state.futuresMarket.quotes = [];
+  }
+  if (!_isValidFiniteNumber(state.futuresMarket.lastGeneratedDay)) {
+    state.futuresMarket.lastGeneratedDay = state.day || 1;
+  }
+}
+
+function _getFuturesSystemId(state) {
+  return (state && state.currentSystem) || 'sol_prime';
+}
+
+function _estimateTrend(systemId, goodId) {
+  const history = Economy.getPriceHistory(systemId, goodId) || [];
+  if (!Array.isArray(history) || history.length < 2) {
+    return { label: '中性', direction: 'long', bias: 1, volatility: 1 };
+  }
+  const recent = history.slice(-5);
+  const first = recent[0];
+  const last = recent[recent.length - 1];
+  const avg = recent.reduce(function (sum, value) { return sum + value; }, 0) / Math.max(1, recent.length);
+  const spread = Math.max.apply(null, recent) - Math.min.apply(null, recent);
+  const volatility = Math.max(
+    FUTURES_CONFIG.volatilityFloor,
+    Math.min(FUTURES_CONFIG.volatilityCeiling, spread / Math.max(1, avg))
+  );
+  const changeRatio = (last - first) / Math.max(1, Math.abs(first));
+  if (changeRatio > 0.08) return { label: '看涨', direction: 'long', bias: 1 + FUTURES_CONFIG.trendBias, volatility: volatility };
+  if (changeRatio < -0.08) return { label: '看跌', direction: 'short', bias: 1 - FUTURES_CONFIG.trendBias, volatility: volatility };
+  return { label: '震荡', direction: 'long', bias: 1, volatility: volatility };
+}
+
+function _generateFuturesQuotes(state) {
+  const systemId = _getFuturesSystemId(state);
+  const today = state.day || 1;
+  const goodsPool = GOODS.filter(function (good) {
+    return good.marketAccess && good.marketAccess.indexOf('open') !== -1;
+  });
+  const shuffled = goodsPool.slice().sort(function () { return Math.random() - 0.5; });
+  return shuffled.slice(0, FUTURES_CONFIG.offerCount).map(function (good) {
+    const spot = Math.max(1, Economy.getSellPrice(systemId, good.id, state));
+    const trend = _estimateTrend(systemId, good.id);
+    const lockPrice = Math.max(1, Math.round(spot * trend.bias));
+    const tenor = FUTURES_CONFIG.minTenorDays +
+      Math.floor(Math.random() * (FUTURES_CONFIG.maxTenorDays - FUTURES_CONFIG.minTenorDays + 1));
+    const settlementDay = today + tenor;
+    const margin = Math.max(FUTURES_CONFIG.minMargin, Math.round(lockPrice * FUTURES_CONFIG.contractSize * FUTURES_CONFIG.marginRate));
+    return {
+      id: 'fut_' + good.id + '_' + settlementDay,
+      goodId: good.id,
+      systemId: systemId,
+      name: good.name,
+      emoji: good.emoji,
+      lockPrice: lockPrice,
+      contractSize: FUTURES_CONFIG.contractSize,
+      settlementDay: settlementDay,
+      margin: margin,
+      basisPrice: spot,
+      trendLabel: trend.label,
+      suggestedDirection: trend.direction,
+      volatility: Number(trend.volatility.toFixed(2)),
+    };
+  });
+}
+
+function _computeFuturesPnL(position, settlePrice) {
+  const size = position.contractSize || FUTURES_CONFIG.contractSize;
+  const directionMultiplier = position.direction === 'short' ? -1 : 1;
+  return Math.round((settlePrice - position.lockPrice) * directionMultiplier * size);
+}
+
+function _enrichFuturesPosition(position, state) {
+  const good = GOODS.find(function (g) { return g.id === position.goodId; });
+  const currentPrice = Economy.getSellPrice(position.systemId, position.goodId, state);
+  return Object.assign({}, position, {
+    name: good ? good.name : position.goodId,
+    emoji: good ? good.emoji : '',
+    currentPrice: currentPrice,
+    unrealizedPnl: _computeFuturesPnL(position, currentPrice),
+    daysToSettlement: Math.max(0, (position.settlementDay || (state.day || 1)) - (state.day || 1)),
   });
 }
 
@@ -271,6 +374,27 @@ function _processInsuranceDay(state, day, msgs) {
   });
 }
 
+function _processFuturesDay(state, day, msgs) {
+  const remaining = [];
+  state.futuresPositions.forEach(function (position) {
+    if (!position || position.settlementDay > day) {
+      remaining.push(position);
+      return;
+    }
+    const settlePrice = Economy.getSellPrice(position.systemId, position.goodId, state);
+    const pnl = _computeFuturesPnL(position, settlePrice);
+    const payout = position.margin + pnl;
+    state.credits += payout;
+    const good = GOODS.find(function (g) { return g.id === position.goodId; });
+    msgs.push({
+      text: '📊 期货合约结算：' + (good ? good.name : position.goodId) + ' 价格 ' + settlePrice.toLocaleString() +
+        '，盈亏 ' + pnl.toLocaleString() + '，保证金返还 ' + position.margin.toLocaleString() + '。',
+      type: pnl >= 0 ? 'upgrade' : 'error',
+    });
+  });
+  state.futuresPositions = remaining;
+}
+
 // 生成稳定伪随机种子，用于按“股票代码 + 天数”推进可复现的股价波动。
 function _hashCode(text) {
   let hash = 0;
@@ -302,6 +426,9 @@ export function getOverview(state) {
     return state.insurancePolicies[key] && state.insurancePolicies[key].active !== false;
   }).length;
   const pendingClaims = state.insuranceClaims.filter(function (claim) { return claim.status === 'pending'; }).length;
+  const futuresPositions = getFuturesPositions(state);
+  const futuresMargin = state.futuresPositions.reduce(function (sum, pos) { return sum + (pos.margin || 0); }, 0);
+  const futuresUnrealized = futuresPositions.reduce(function (sum, pos) { return sum + (pos.unrealizedPnl || 0); }, 0);
 
   return {
     creditRating: state.creditRating,
@@ -311,6 +438,8 @@ export function getOverview(state) {
     tradeInvestmentValue: investmentValue,
     activePolicies: activePolicies,
     pendingClaims: pendingClaims,
+    futuresMargin: futuresMargin,
+    futuresUnrealized: futuresUnrealized,
   };
 }
 
@@ -477,6 +606,114 @@ export function sellStock(state, stockId, shares) {
   };
 }
 
+export function getFuturesQuotes(state) {
+  _ensureFinanceState(state);
+  _ensureFuturesState(state);
+  const today = state.day || 1;
+  const needsRefresh = !state.futuresMarket.lastGeneratedDay ||
+    today > state.futuresMarket.lastGeneratedDay + (FUTURES_CONFIG.refreshCooldownDays - 1);
+  if (needsRefresh) {
+    state.futuresMarket.quotes = _generateFuturesQuotes(state);
+    state.futuresMarket.lastGeneratedDay = today;
+  }
+  return state.futuresMarket.quotes.slice();
+}
+
+export function getFuturesPositions(state) {
+  _ensureFinanceState(state);
+  _ensureFuturesState(state);
+  return state.futuresPositions.map(function (pos) {
+    return _enrichFuturesPosition(pos, state);
+  });
+}
+
+export function getFuturesSnapshot(state) {
+  _ensureFinanceState(state);
+  _ensureFuturesState(state);
+  const positions = getFuturesPositions(state);
+  const marginLocked = state.futuresPositions.reduce(function (sum, pos) {
+    return sum + (pos.margin || 0);
+  }, 0);
+  const unrealized = positions.reduce(function (sum, pos) {
+    return sum + (pos.unrealizedPnl || 0);
+  }, 0);
+  return {
+    quotes: getFuturesQuotes(state),
+    positions: positions,
+    marginLocked: marginLocked,
+    unrealizedPnl: unrealized,
+  };
+}
+
+export function openFuturesPosition(state, contractId, direction) {
+  _ensureFinanceState(state);
+  _ensureFuturesState(state);
+  const quotes = getFuturesQuotes(state);
+  const quote = quotes.find(function (entry) { return entry.id === contractId; });
+  if (!quote) {
+    return { ok: false, msgs: [{ text: '📊 未找到该期货合约。', type: 'error' }] };
+  }
+
+  const dir = direction === 'short' ? 'short' : 'long';
+  if ((state.credits || 0) < quote.margin) {
+    return { ok: false, msgs: [{ text: '💰 积分不足，无法支付期货保证金。', type: 'error' }] };
+  }
+
+  const position = {
+    id: _generateId('fut', state, state.futuresPositions),
+    goodId: quote.goodId,
+    systemId: quote.systemId,
+    lockPrice: quote.lockPrice,
+    contractSize: quote.contractSize,
+    margin: quote.margin,
+    settlementDay: quote.settlementDay,
+    openedDay: state.day || 1,
+    direction: dir,
+    basisPrice: quote.basisPrice,
+    trendLabel: quote.trendLabel,
+  };
+
+  state.credits -= quote.margin;
+  state.futuresPositions.push(position);
+
+  const good = GOODS.find(function (g) { return g.id === quote.goodId; });
+  return {
+    ok: true,
+    msgs: [{
+      text: '📊 已开仓 ' + (good ? good.name : quote.goodId) + ' 期货（' + (dir === 'long' ? '多' : '空') + '），锁定价 ' +
+        quote.lockPrice.toLocaleString() + '，保证金 ' + quote.margin.toLocaleString() + '。',
+      type: 'info',
+    }],
+    meta: { positionId: position.id, margin: quote.margin },
+  };
+}
+
+export function closeFuturesPosition(state, positionId) {
+  _ensureFinanceState(state);
+  _ensureFuturesState(state);
+  const idx = state.futuresPositions.findIndex(function (pos) { return pos.id === positionId; });
+  if (idx === -1) {
+    return { ok: false, msgs: [{ text: '📊 未找到该期货持仓。', type: 'error' }] };
+  }
+  const position = state.futuresPositions[idx];
+  const settlePrice = Economy.getSellPrice(position.systemId, position.goodId, state);
+  const pnl = _computeFuturesPnL(position, settlePrice);
+  const payout = position.margin + pnl;
+  state.credits += payout;
+  state.futuresPositions.splice(idx, 1);
+
+  const good = GOODS.find(function (g) { return g.id === position.goodId; });
+  return {
+    ok: true,
+    msgs: [{
+      text: '📊 平仓 ' + (good ? good.name : position.goodId) + ' 期货，结算价 ' +
+        settlePrice.toLocaleString() + '，盈亏 ' + pnl.toLocaleString() + '。',
+      type: pnl >= 0 ? 'upgrade' : 'error',
+    }],
+    meta: { positionId: positionId, pnl: pnl, settlePrice: settlePrice },
+  };
+}
+
 export function getTradeInvestmentOptions(state) {
   _ensureFinanceState(state);
   const visited = state.visitedSystems || [state.currentSystem];
@@ -622,10 +859,13 @@ export function submitClaim(state, policyType, requestedAmount, details) {
 
 export function getNetWorthAdjustment(state) {
   _ensureFinanceState(state);
-  const stockValue = getOverview(state).stockValue;
-  const tradeInvestmentValue = getOverview(state).tradeInvestmentValue;
-  const loanLiability = getOverview(state).outstandingLoanBalance;
-  return stockValue + tradeInvestmentValue - loanLiability;
+  const overview = getOverview(state);
+  const futures = getFuturesSnapshot(state);
+  return overview.stockValue +
+    overview.tradeInvestmentValue +
+    (futures.marginLocked || 0) +
+    (futures.unrealizedPnl || 0) -
+    overview.outstandingLoanBalance;
 }
 
 export function advanceDay(state) {
@@ -640,6 +880,7 @@ export function advanceDay(state) {
   _processStockDay(state, processingDay, msgs);
   _processTradeInvestmentDay(state, msgs);
   _processInsuranceDay(state, processingDay, msgs);
+  _processFuturesDay(state, processingDay, msgs);
   state.financeLastProcessedDay = processingDay;
 
   return { ok: true, day: processingDay, msgs: msgs };

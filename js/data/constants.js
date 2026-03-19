@@ -178,8 +178,8 @@ export const EVENT_CONFIG = {
   },
 };
 
-export const SAVE_SCHEMA_VERSION = 8;
-export const GAME_VERSION = '0.5.3';
+export const SAVE_SCHEMA_VERSION = 9;
+export const GAME_VERSION = '0.5.4';
 
 /**
  * SaveEnvelope.meta 契约
@@ -275,6 +275,9 @@ export const SAVE_STATE_SCHEMA = {
   insurancePolicies:  { type: 'object',  default: {},                 since: 8, desc: '生效中的保险保单 {policyType: policy}' },
   insuranceClaims:    { type: 'array',   default: [],                 since: 8, desc: '保险理赔申请列表' },
   financeLastProcessedDay: { type: 'number', default: 1,              since: 8, desc: '金融系统最后结算天数' },
+  // ---- v9 新增 ----
+  futuresPositions:   { type: 'array',   default: [],                 since: 9, desc: '期货持仓列表' },
+  futuresMarket:      { type: 'object',  default: {},                 since: 9, desc: '期货行情缓存与刷新状态' },
 };
 
 /**
