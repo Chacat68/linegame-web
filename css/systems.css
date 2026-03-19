@@ -296,6 +296,142 @@
 }
 
 /* ==========================================================
+   Trade Station System
+   ========================================================== */
+.trade-station-summary-card,
+.trade-station-card,
+.trade-station-build-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.trade-station-summary-head,
+.trade-station-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.trade-station-summary-title,
+.trade-station-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-gold);
+}
+.trade-station-summary-sub,
+.trade-station-card-meta,
+.trade-station-summary-tip,
+.trade-station-card-desc {
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.45;
+}
+.trade-station-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin: 8px 0;
+}
+.trade-station-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(10, 20, 38, 0.72);
+}
+.trade-station-metric-label {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+.trade-station-metric-value {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent-cyan);
+}
+.trade-station-section-title {
+  margin: 12px 0 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.trade-station-card-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.trade-station-card-badge {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(79, 195, 247, 0.08);
+  border: 1px solid rgba(79, 195, 247, 0.24);
+  color: var(--accent-cyan);
+}
+.trade-station-card-desc {
+  margin: 6px 0 8px;
+}
+.trade-station-income-row,
+.trade-station-actions,
+.trade-station-choice-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.trade-station-income-row {
+  margin: 8px 0 6px;
+  font-size: 11px;
+  color: var(--text-primary);
+}
+.trade-station-actions {
+  margin-top: 8px;
+}
+.trade-station-upgrade-btn,
+.trade-station-build-btn {
+  width: 100%;
+}
+.trade-station-subsection {
+  margin-top: 10px;
+  margin-bottom: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent-gold);
+}
+.trade-station-choice-btn {
+  flex: 1 1 calc(33.333% - 6px);
+  min-width: 76px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(10, 20, 38, 0.72);
+  color: var(--text-primary);
+  font-size: 11px;
+  cursor: pointer;
+}
+.trade-station-choice-btn span {
+  color: var(--text-dim);
+  font-size: 10px;
+}
+.trade-station-choice-btn:hover {
+  border-color: var(--accent-blue);
+}
+.trade-station-choice-btn.active {
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
+  background: rgba(255, 215, 79, 0.08);
+}
+.trade-station-empty {
+  padding: 12px 0;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+/* ==========================================================
    Save / Load System
    ========================================================== */
 .save-header {
@@ -833,4 +969,3 @@
   color: var(--text-dim);
   margin-top: 10px;
 }
-

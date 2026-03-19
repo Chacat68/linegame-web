@@ -114,6 +114,7 @@ describe('Save.loadGame', () => {
     expect(result.state.companyLevel).toBe(1);
     expect(result.state._eventCooldowns).toEqual({});
     expect(result.state._eventHistory).toEqual([]);
+    expect(result.state.tradeStations).toEqual({});
   });
 
   it('旧存档缺少等级字段时，会根据经验自动回填 playerLevel 和 companyLevel', () => {

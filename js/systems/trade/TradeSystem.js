@@ -9,6 +9,7 @@ import { GOODS }    from '../../data/goods.js';
 import { SYSTEMS, findSystem, GALAXY_JUMP_DAYS }  from '../../data/systems.js';
 import { UPGRADES } from '../../data/upgrades.js';
 import * as Economy from '../economy/Economy.js';
+import * as TradeStation from './TradeStationSystem.js';
 
 // ---------------------------------------------------------------------------
 // 辅助工具
@@ -211,6 +212,7 @@ export function travelTo(state, systemId) {
   state.currentSystem  = systemId;
   const days = crossGalaxy ? GALAXY_JUMP_DAYS : 1;
   state.day += days;
+  const msgs = [];
   if (crossGalaxy && toSys) {
     state.currentGalaxy = toSys.galaxyId;
     state.viewingGalaxy = toSys.galaxyId;
@@ -221,13 +223,17 @@ export function travelTo(state, systemId) {
     if (_cycleResult && _cycleResult.cycleChanged) {
       _cycleChanged = _cycleResult.cycle;
     }
+    var _stationResult = TradeStation.advanceDay(state);
+    if (_stationResult && _stationResult.msgs && _stationResult.msgs.length > 0) {
+      msgs.push.apply(msgs, _stationResult.msgs);
+    }
   }
 
   const sys  = findSystem(systemId);
-  const msgs = [{
+  msgs.push({
     text: (crossGalaxy ? '🌌 超空间跃迁！' : '🚀 ') + '已抵达 ' + sys.name + '！消耗 ' + cost + ' 燃料。银河历第 ' + state.day + ' 天。',
     type: 'travel',
-  }];
+  });
 
   // 经济周期变更通知
   if (_cycleChanged) {

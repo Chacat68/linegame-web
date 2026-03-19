@@ -178,8 +178,8 @@ export const EVENT_CONFIG = {
   },
 };
 
-export const SAVE_SCHEMA_VERSION = 6;
-export const GAME_VERSION = '0.5.1';
+export const SAVE_SCHEMA_VERSION = 7;
+export const GAME_VERSION = '0.5.2';
 
 /**
  * SaveEnvelope.meta 契约
@@ -264,6 +264,8 @@ export const SAVE_STATE_SCHEMA = {
   // ---- v6 新增 ----
   _eventCooldowns:    { type: 'object',  default: {},                 since: 6, desc: '随机事件冷却状态' },
   _eventHistory:      { type: 'array',   default: [],                 since: 6, desc: '随机事件历史记录' },
+  // ---- v7 新增 ----
+  tradeStations:      { type: 'object',  default: {},                 since: 7, desc: '已建设贸易站 {systemId: stationState}' },
 };
 
 /**
