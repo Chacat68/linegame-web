@@ -431,3 +431,16 @@
 .upg-desc { font-size: 11px; color: var(--text-dim); }
 .upg-cost { font-size: 11px; color: var(--accent-gold); margin-top: 1px; }
 
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   期货市场正负值样式
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.positive {
+  color: #5fd38d !important;
+  font-weight: 600;
+}
+
+.negative {
+  color: #ff6b6b !important;
+  font-weight: 600;
+}
+
