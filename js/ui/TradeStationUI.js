@@ -132,6 +132,64 @@ export function render(state, onBuild, onUpgrade, onHireManager, onSetStrategy, 
     }).join('');
   }
 
+  // 期货市场
+  html += '<div class="trade-station-section-title">📊 期货市场</div>';
+  const futuresOverview = Finance.getFuturesOverview(state);
+  const futuresPositions = Finance.getFuturesPositions(state).filter(function (c) { return c.status === 'active'; });
+  const futuresGoods = Finance.getFuturesAvailableGoods(state);
+
+  html += '<div class="trade-station-summary-card">' +
+    '<div class="trade-station-summary-head">' +
+      '<span class="trade-station-summary-title">📊 期货总览</span>' +
+      '<span class="trade-station-summary-sub">持仓 ' + futuresOverview.activePositions + ' 单</span>' +
+    '</div>' +
+    '<div class="trade-station-summary-grid">' +
+      '<div class="trade-station-metric"><span class="trade-station-metric-label">占用保证金</span><span class="trade-station-metric-value">' + Math.floor(futuresOverview.totalMargin).toLocaleString() + '</span></div>' +
+      '<div class="trade-station-metric"><span class="trade-station-metric-label">浮动盈亏</span><span class="trade-station-metric-value' + (futuresOverview.totalUnrealizedPnL >= 0 ? ' positive' : ' negative') + '">' + (futuresOverview.totalUnrealizedPnL >= 0 ? '+' : '') + Math.floor(futuresOverview.totalUnrealizedPnL).toLocaleString() + '</span></div>' +
+      '<div class="trade-station-metric"><span class="trade-station-metric-label">已实现盈亏</span><span class="trade-station-metric-value' + (futuresOverview.totalRealizedPnL >= 0 ? ' positive' : ' negative') + '">' + (futuresOverview.totalRealizedPnL >= 0 ? '+' : '') + Math.floor(futuresOverview.totalRealizedPnL).toLocaleString() + '</span></div>' +
+      '<div class="trade-station-metric"><span class="trade-station-metric-label">总盈亏</span><span class="trade-station-metric-value' + (futuresOverview.totalPnL >= 0 ? ' positive' : ' negative') + '">' + (futuresOverview.totalPnL >= 0 ? '+' : '') + Math.floor(futuresOverview.totalPnL).toLocaleString() + '</span></div>' +
+    '</div>' +
+    '<div class="trade-station-summary-tip">期货交易高风险高回报，预测商品价格走势，做多看涨、做空看跌。合约到期自动交割，保证金不足强制平仓。</div>' +
+    '</div>';
+
+  if (futuresPositions.length > 0) {
+    html += '<div class="trade-station-subsection">📋 当前持仓</div>';
+    futuresPositions.forEach(function (contract) {
+      const directionText = contract.direction === 'long' ? '做多' : '做空';
+      const directionEmoji = contract.direction === 'long' ? '📈' : '📉';
+      const pnlColor = contract.unrealizedPnL >= 0 ? ' positive' : ' negative';
+
+      html += '<div class="trade-station-card">' +
+        '<div class="trade-station-card-head">' +
+          '<span class="trade-station-card-name">' + directionEmoji + ' ' + contract.goodId + ' ' + directionText + '</span>' +
+          '<span class="trade-station-card-badge">×' + contract.quantity + '</span>' +
+        '</div>' +
+        '<div class="trade-station-card-meta">开仓价 ' + Math.floor(contract.openPrice).toLocaleString() +
+          ' → 当前价 ' + Math.floor(contract.currentPrice).toLocaleString() +
+          ' · 保证金 ' + Math.floor(contract.margin).toLocaleString() +
+          ' · 剩余 ' + contract.daysRemaining + ' 天</div>' +
+        '<div class="trade-station-card-meta">浮动盈亏：<span class="' + pnlColor + '">' +
+          (contract.unrealizedPnL >= 0 ? '+' : '') + Math.floor(contract.unrealizedPnL).toLocaleString() +
+          '</span></div>' +
+        '<div class="trade-station-actions">' +
+          '<button class="btn-action" data-action="close-futures" data-contract-id="' + contract.id + '">平仓</button>' +
+        '</div>' +
+      '</div>';
+    });
+  }
+
+  html += '<div class="trade-station-subsection">🆕 开立新合约</div>';
+  html += '<div class="trade-station-choice-row">' + futuresGoods.slice(0, 6).map(function (good) {
+    const canOpen = good.canOpenPosition;
+    return '<button class="trade-station-choice-btn' + (canOpen ? '' : ' disabled') + '"' +
+      ' data-action="open-futures" data-good-id="' + good.goodId + '"' + (canOpen ? '' : ' disabled') + '>' +
+      good.emoji + ' ' + good.name + '<span>' + Math.floor(good.currentPrice).toLocaleString() + '</span></button>';
+  }).join('') + '</div>';
+
+  if (futuresGoods.length === 0) {
+    html += '<div class="trade-station-empty">期货市场暂时关闭。</div>';
+  }
+
   html += '<div class="trade-station-summary-card">' +
     '<div class="trade-station-summary-head">' +
       '<span class="trade-station-summary-title">🏪 商业版图</span>' +
@@ -279,6 +337,18 @@ export function render(state, onBuild, onUpgrade, onHireManager, onSetStrategy, 
   container.querySelectorAll('[data-action="submit-claim"]').forEach(function (button) {
     button.addEventListener('click', function () {
       if (financeActions.onSubmitInsuranceClaim) financeActions.onSubmitInsuranceClaim(button.dataset.policyType);
+    });
+  });
+
+  container.querySelectorAll('[data-action="open-futures"]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      if (financeActions.onOpenFutures) financeActions.onOpenFutures(button.dataset.goodId);
+    });
+  });
+
+  container.querySelectorAll('[data-action="close-futures"]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      if (financeActions.onCloseFutures) financeActions.onCloseFutures(button.dataset.contractId);
     });
   });
 }

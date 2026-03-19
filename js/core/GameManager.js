@@ -663,6 +663,86 @@ function _handleSubmitInsuranceClaim(policyType) {
   _dispatch(result);
 }
 
+function _handleOpenFutures(goodId) {
+  // 使用Modal让用户选择方向和数量
+  Modal.show({
+    title: '开立期货合约 - ' + goodId,
+    message: '选择合约方向、数量和期限：',
+    buttons: [
+      {
+        label: '做多 (看涨) - 10单位 - 7天',
+        callback: function () {
+          const result = Finance.openFuturesPosition(_state, goodId, 'long', 10, 7);
+          _dispatch(result);
+        },
+      },
+      {
+        label: '做多 (看涨) - 10单位 - 15天',
+        callback: function () {
+          const result = Finance.openFuturesPosition(_state, goodId, 'long', 10, 15);
+          _dispatch(result);
+        },
+      },
+      {
+        label: '做多 (看涨) - 10单位 - 30天',
+        callback: function () {
+          const result = Finance.openFuturesPosition(_state, goodId, 'long', 10, 30);
+          _dispatch(result);
+        },
+      },
+      {
+        label: '做空 (看跌) - 10单位 - 7天',
+        callback: function () {
+          const result = Finance.openFuturesPosition(_state, goodId, 'short', 10, 7);
+          _dispatch(result);
+        },
+      },
+      {
+        label: '做空 (看跌) - 10单位 - 15天',
+        callback: function () {
+          const result = Finance.openFuturesPosition(_state, goodId, 'short', 10, 15);
+          _dispatch(result);
+        },
+      },
+      {
+        label: '做空 (看跌) - 10单位 - 30天',
+        callback: function () {
+          const result = Finance.openFuturesPosition(_state, goodId, 'short', 10, 30);
+          _dispatch(result);
+        },
+      },
+      {
+        label: '取消',
+        callback: function () {
+          // 什么都不做
+        },
+      },
+    ],
+  });
+}
+
+function _handleCloseFutures(contractId) {
+  Modal.show({
+    title: '平仓确认',
+    message: '确定要平仓这个期货合约吗？',
+    buttons: [
+      {
+        label: '确认平仓',
+        callback: function () {
+          const result = Finance.closeFuturesPosition(_state, contractId);
+          _dispatch(result);
+        },
+      },
+      {
+        label: '取消',
+        callback: function () {
+          // 什么都不做
+        },
+      },
+    ],
+  });
+}
+
 function _handleAcceptQuest(questId) {
   const result = Quest.acceptQuest(_state, questId);
   _dispatch(result);
@@ -926,6 +1006,8 @@ function _updateUI() {
       onInvestTradeStation: _handleInvestTradeStation,
       onPurchaseInsurance: _handlePurchaseInsurance,
       onSubmitInsuranceClaim: _handleSubmitInsuranceClaim,
+      onOpenFutures: _handleOpenFutures,
+      onCloseFutures: _handleCloseFutures,
     }
   );
   FleetUI.render(_state, _handleBuyShip, _handleSwitchShip, _handleUpgradeShip, _handleAssignRoute, _handleCancelRoute, _handleBuySlot, _handleSellShip, _handleInstallMod, _handleUninstallMod, _handleRecruitCrew, _handleAssignCrew, _handleUnassignCrew, _handleDismissCrew);
