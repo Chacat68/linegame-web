@@ -1,9 +1,10 @@
 // js/systems/event/RandomEvent.js — 随机事件系统（群星风格选择事件）
 // 依赖：data/events.js, data/constants.js, core/EventBus.js
-// 导出：rollEvent, getActiveEvent, resolveChoice, getCooldownState, getEventHistory, getEligibleEvents, resetRuntimeState
+// 导出：rollEvent, getActiveEvent, resolveChoice, getCooldownState, getEventHistory,
+//       getEligibleEvents, resetRuntimeState, syncRuntimeState
 
 import { RANDOM_EVENTS } from '../../data/events.js';
-import { EVENT_CONFIG } from '../../data/constants.js';
+import { DIFFICULTY_LEVELS, EVENT_CONFIG } from '../../data/constants.js';
 import * as EventBus from '../../core/EventBus.js';
 
 let _activeEvent = null;
@@ -24,12 +25,10 @@ const MAX_HISTORY = 30;
  */
 export function rollEvent(state, chance) {
   if (typeof chance === 'undefined') chance = 0.25;
+  _hydrateRuntimeState(state);
 
-  // 难度调节事件概率
-  if (state.difficulty) {
-    var diffSettings = { easy: 0.8, hard: 1.3 };
-    chance *= (diffSettings[state.difficulty] || 1.0);
-  }
+  const difficulty = _getDifficultySettings(state);
+  chance *= difficulty.eventChanceMod || 1.0;
 
   // 科技 deep_scanner 提升概率
   if (state.researchedTechs && state.researchedTechs.includes('deep_scanner')) {
@@ -51,16 +50,17 @@ export function rollEvent(state, chance) {
   if (pool.length === 0) { _activeEvent = null; return null; }
 
   // 加权随机选取
-  const totalWeight = pool.reduce(function (sum, ev) { return sum + (ev.weight || 10); }, 0);
+  const totalWeight = pool.reduce(function (sum, ev) { return sum + _getEventWeight(ev, difficulty); }, 0);
   let roll = Math.random() * totalWeight;
   let chosen = pool[0];
   for (let i = 0; i < pool.length; i++) {
-    roll -= (pool[i].weight || 10);
+    roll -= _getEventWeight(pool[i], difficulty);
     if (roll <= 0) { chosen = pool[i]; break; }
   }
 
   // 设定冷却
   _cooldowns[chosen.id] = currentDay;
+  _persistRuntimeState(state);
 
   _activeEvent = chosen;
   state.totalEvents = (state.totalEvents || 0) + 1;
@@ -83,6 +83,7 @@ export function getActiveEvent() {
  */
 export function resolveChoice(state, choiceIndex) {
   if (!_activeEvent) return { msgs: [] };
+  _hydrateRuntimeState(state);
 
   const choice = _activeEvent.choices[choiceIndex];
   if (!choice) return { msgs: [] };
@@ -107,6 +108,7 @@ export function resolveChoice(state, choiceIndex) {
     }
   }
 
+  _persistRuntimeState(state);
   _activeEvent = null;
 
   EventBus.emit('event:resolved', { eventId, choiceIndex });
@@ -144,13 +146,22 @@ export function getEventHistory() {
   return _eventHistory.slice();
 }
 
-export function resetRuntimeState() {
+export function syncRuntimeState(state) {
+  _hydrateRuntimeState(state);
+}
+
+export function resetRuntimeState(state) {
   _activeEvent = null;
   Object.keys(_cooldowns).forEach(function (key) { delete _cooldowns[key]; });
   _eventHistory.length = 0;
+  if (state && typeof state === 'object') {
+    state._eventCooldowns = {};
+    state._eventHistory = [];
+  }
 }
 
 export function getEligibleEvents(state) {
+  _hydrateRuntimeState(state);
   const currentDay = state.day || 1;
   return RANDOM_EVENTS.filter(function (ev) {
     if (ev.stage === 'chain') return false;
@@ -160,6 +171,46 @@ export function getEligibleEvents(state) {
     if (!_passesProtection(ev, state)) return false;
     return true;
   });
+}
+
+function _getDifficultySettings(state) {
+  return DIFFICULTY_LEVELS[(state && state.difficulty) || 'normal'] || DIFFICULTY_LEVELS.normal;
+}
+
+function _getEventWeight(eventDef, difficulty) {
+  var riskWeights = difficulty && difficulty.eventRiskWeights ? difficulty.eventRiskWeights : null;
+  var risk = eventDef.risk || 'risky';
+  var riskMod = riskWeights && typeof riskWeights[risk] === 'number' ? riskWeights[risk] : 1;
+  return (eventDef.weight || 10) * riskMod;
+}
+
+function _hydrateRuntimeState(state) {
+  if (!state || typeof state !== 'object') return;
+
+  if (!state._eventCooldowns || typeof state._eventCooldowns !== 'object' || Array.isArray(state._eventCooldowns)) {
+    state._eventCooldowns = {};
+  }
+  if (!Array.isArray(state._eventHistory)) {
+    state._eventHistory = [];
+  }
+
+  Object.keys(_cooldowns).forEach(function (key) { delete _cooldowns[key]; });
+  Object.keys(state._eventCooldowns).forEach(function (key) {
+    if (typeof state._eventCooldowns[key] === 'number') {
+      _cooldowns[key] = state._eventCooldowns[key];
+    }
+  });
+
+  _eventHistory.length = 0;
+  state._eventHistory.slice(-MAX_HISTORY).forEach(function (entry) {
+    _eventHistory.push(entry);
+  });
+}
+
+function _persistRuntimeState(state) {
+  if (!state || typeof state !== 'object') return;
+  state._eventCooldowns = Object.assign({}, _cooldowns);
+  state._eventHistory = _eventHistory.slice(-MAX_HISTORY);
 }
 
 function _isOnCooldown(eventDef, currentDay) {

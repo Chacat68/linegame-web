@@ -119,6 +119,39 @@
   font-weight: 700;
   color: var(--accent-gold);
 }
+.event-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.event-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid #3a3a66;
+  background: rgba(26, 26, 58, 0.9);
+  color: var(--text-dim);
+  font-size: 11px;
+  letter-spacing: .02em;
+}
+.event-tag-risk-safe {
+  border-color: rgba(102, 187, 106, 0.5);
+  color: #9fe6a3;
+}
+.event-tag-risk-risky {
+  border-color: rgba(255, 183, 77, 0.5);
+  color: #ffd089;
+}
+.event-tag-risk-dangerous {
+  border-color: rgba(239, 83, 80, 0.55);
+  color: #ff9b99;
+}
+.event-tag-chain {
+  border-color: rgba(79, 195, 247, 0.5);
+  color: #8fdefd;
+}
 .event-description {
   font-size: 13px;
   line-height: 1.7;
@@ -162,4 +195,3 @@
   margin-top: 3px;
   font-style: italic;
 }
-

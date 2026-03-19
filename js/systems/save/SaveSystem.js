@@ -191,6 +191,11 @@ function _migrateSchema(envelope) {
       next.meta.schemaVersion = 5;
       continue;
     }
+    if (next.meta.schemaVersion === 5) {
+      _migrateSchema5To6(next);
+      next.meta.schemaVersion = 6;
+      continue;
+    }
     throw new Error('不支持的存档版本：' + next.meta.schemaVersion);
   }
 
@@ -230,6 +235,11 @@ function _migrateSchema3To4(envelope) {
 }
 
 function _migrateSchema4To5(envelope) {
+  if (!envelope.data) envelope.data = {};
+  envelope.data = _normalizeState(envelope.data);
+}
+
+function _migrateSchema5To6(envelope) {
   if (!envelope.data) envelope.data = {};
   envelope.data = _normalizeState(envelope.data);
 }

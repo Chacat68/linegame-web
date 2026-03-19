@@ -112,6 +112,8 @@ describe('Save.loadGame', () => {
     expect(result.state.economyCycle).toBeNull();
     expect(result.state.playerLevel).toBe(1);
     expect(result.state.companyLevel).toBe(1);
+    expect(result.state._eventCooldowns).toEqual({});
+    expect(result.state._eventHistory).toEqual([]);
   });
 
   it('旧存档缺少等级字段时，会根据经验自动回填 playerLevel 和 companyLevel', () => {
@@ -147,6 +149,20 @@ describe('Save.loadGame', () => {
     const stored = JSON.parse(globalThis.localStorage.getItem('startrader_save_1'));
     expect(stored.meta.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
     expect(stored.meta.difficulty).toBe('normal');
+  });
+
+  it('随机事件冷却与历史会随存档保留', () => {
+    const state = createTestState({
+      _eventCooldowns: { merchant_caravan: 6 },
+      _eventHistory: [{ eventId: 'merchant_caravan', day: 6, choiceIndex: 1 }],
+    });
+
+    Save.saveGame(1, state);
+    const result = Save.loadGame(1);
+
+    expect(result.ok).toBe(true);
+    expect(result.state._eventCooldowns).toEqual({ merchant_caravan: 6 });
+    expect(result.state._eventHistory).toEqual([{ eventId: 'merchant_caravan', day: 6, choiceIndex: 1 }]);
   });
 });
 

@@ -19,6 +19,7 @@ export const DIFFICULTY_LEVELS = {
     startCredits: 3000,
     priceVolatility: 0.8,      // 价格波动幅度缩减 20%
     eventChanceMod: 0.8,       // 事件概率降低
+    eventRiskWeights: { safe: 1.2, risky: 1.0, dangerous: 0.7 },
     damageMod: 0.6,            // 受损减少 40%
     rewardMod: 1.2,            // 奖励增加 20%
   },
@@ -28,6 +29,7 @@ export const DIFFICULTY_LEVELS = {
     startCredits: 1000,
     priceVolatility: 1.0,
     eventChanceMod: 1.0,
+    eventRiskWeights: { safe: 1.0, risky: 1.0, dangerous: 1.0 },
     damageMod: 1.0,
     rewardMod: 1.0,
   },
@@ -37,6 +39,7 @@ export const DIFFICULTY_LEVELS = {
     startCredits: 500,
     priceVolatility: 1.3,      // 价格波动幅度增加 30%
     eventChanceMod: 1.3,       // 事件概率增加
+    eventRiskWeights: { safe: 0.9, risky: 1.05, dangerous: 1.4 },
     damageMod: 1.5,            // 受损增加 50%
     rewardMod: 0.8,            // 奖励减少 20%
   },
@@ -175,8 +178,8 @@ export const EVENT_CONFIG = {
   },
 };
 
-export const SAVE_SCHEMA_VERSION = 5;
-export const GAME_VERSION = '0.5.0';
+export const SAVE_SCHEMA_VERSION = 6;
+export const GAME_VERSION = '0.5.1';
 
 /**
  * SaveEnvelope.meta 契约
@@ -258,6 +261,9 @@ export const SAVE_STATE_SCHEMA = {
   crewCounter:        { type: 'number',  default: 1,                  since: 4, desc: '船员实例自增编号' },
   // ---- v5 新增 ----
   crewMarket:         { type: 'object',  default: {},                 since: 5, desc: '各星球人才市场缓存' },
+  // ---- v6 新增 ----
+  _eventCooldowns:    { type: 'object',  default: {},                 since: 6, desc: '随机事件冷却状态' },
+  _eventHistory:      { type: 'array',   default: [],                 since: 6, desc: '随机事件历史记录' },
 };
 
 /**
