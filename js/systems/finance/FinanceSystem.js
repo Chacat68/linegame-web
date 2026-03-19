@@ -1,6 +1,7 @@
 import { SYSTEMS, findSystem } from '../../data/systems.js';
 import { SHIP_TYPES } from '../../data/ships.js';
 import * as Economy from '../economy/Economy.js';
+import * as Futures from './FuturesSystem.js';
 
 const DEFAULT_CREDIT_RATING = 620;
 const MIN_CREDIT_RATING = 300;
@@ -284,6 +285,7 @@ function _hashCode(text) {
 export function init(state) {
   _ensureFinanceState(state);
   state.financeLastProcessedDay = Math.max(1, state.day || 1);
+  Futures.init(state);
 }
 
 export function getOverview(state) {
@@ -625,7 +627,8 @@ export function getNetWorthAdjustment(state) {
   const stockValue = getOverview(state).stockValue;
   const tradeInvestmentValue = getOverview(state).tradeInvestmentValue;
   const loanLiability = getOverview(state).outstandingLoanBalance;
-  return stockValue + tradeInvestmentValue - loanLiability;
+  const futuresUnrealized = Futures.getNetWorthAdjustment(state);
+  return stockValue + tradeInvestmentValue - loanLiability + futuresUnrealized;
 }
 
 export function advanceDay(state) {
@@ -641,6 +644,12 @@ export function advanceDay(state) {
   _processTradeInvestmentDay(state, msgs);
   _processInsuranceDay(state, processingDay, msgs);
   state.financeLastProcessedDay = processingDay;
+
+  // 期货合约每天结算到期合约
+  const futuresResult = Futures.advanceDay(state);
+  if (futuresResult.msgs) {
+    futuresResult.msgs.forEach(function (m) { msgs.push(m); });
+  }
 
   return { ok: true, day: processingDay, msgs: msgs };
 }
