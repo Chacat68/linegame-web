@@ -1,6 +1,16 @@
 // js/ui/TradeStationUI.js — 贸易站 / 金融中心标签页渲染
-// 依赖：systems/trade/TradeStationSystem.js, systems/finance/FinanceSystem.js, systems/finance/FuturesSystem.js
+// 依赖：systems/trade/TradeStationSystem.js, systems/finance/FinanceSystem.js,
+//       systems/finance/FuturesSystem.js, systems/commerce/CommerceFacade.js
 // 导出：render
+//
+// 结构（自上而下）：
+//   1. 商业终端概览（CommerceFacade.getCommerceSnapshot）
+//   2. 银行贷款
+//   3. 股票市场
+//   4. 贸易站投资
+//   5. 保险与理赔
+//   6. 期货市场
+//   7. 商业版图（建站 + 已建站管理）
 
 import {
   TRADE_STATION_MANAGERS,
@@ -9,56 +19,63 @@ import {
 import * as Finance from '../systems/finance/FinanceSystem.js';
 import * as Futures from '../systems/finance/FuturesSystem.js';
 import * as TradeStation from '../systems/trade/TradeStationSystem.js';
+import * as Commerce from '../systems/commerce/CommerceFacade.js';
 
 const DEFAULT_TERM_DAYS_DISPLAY = Futures.DEFAULT_TERM_DAYS;
+
+// ---------------------------------------------------------------------------
+// 辅助工具
+// ---------------------------------------------------------------------------
 
 function _getStockPriceDelta(listing) {
   const lastPrice = listing.lastPrice || listing.price || 0;
   return (listing.price || 0) - lastPrice;
 }
 
-export function render(state, onBuild, onUpgrade, onHireManager, onSetStrategy, financeActions) {
-  const container = document.getElementById('trade-station-list');
-  if (!container) return;
-  financeActions = financeActions || {};
+function _pnlSpan(value) {
+  return value >= 0
+    ? '<span style="color:#4caf50">+' + value.toLocaleString() + '</span>'
+    : '<span style="color:#f44336">' + value.toLocaleString() + '</span>';
+}
 
-  const financeOverview = Finance.getOverview(state);
-  const loanOffers = Finance.getLoanOffers(state);
-  const stockListings = Finance.getStockListings(state).slice(0, 4);
-  const tradeInvestments = Finance.getTradeInvestmentOptions(state).slice(0, 4);
-  const insuranceProducts = Finance.getInsuranceProducts(state);
-  const activeLoans = (state.loans || []).filter(function (loan) { return loan.status === 'active' && loan.balance > 0; });
-  const pendingClaims = (state.insuranceClaims || []).filter(function (claim) { return claim.status === 'pending'; });
+// ---------------------------------------------------------------------------
+// 分区渲染函数
+// ---------------------------------------------------------------------------
 
-  const summary = TradeStation.getSummary(state);
-  const ownedStations = TradeStation.getOwnedStations(state);
-  const buildCandidates = TradeStation.getBuildCandidates(state);
-
-  let html = '';
-
-  html += '<div class="trade-station-summary-card">' +
+/** 1. 商业终端概览卡片 */
+function _renderCommerceOverview(state) {
+  const snap = Commerce.getCommerceSnapshot(state);
+  const creditClass = snap.creditRating >= 700 ? 'metric-good' : snap.creditRating >= 500 ? '' : 'metric-bad';
+  return '<div class="trade-station-summary-card">' +
     '<div class="trade-station-summary-head">' +
-      '<span class="trade-station-summary-title">🏦 金融中心</span>' +
-      '<span class="trade-station-summary-sub">信用评级 ' + financeOverview.creditRating + '</span>' +
+      '<span class="trade-station-summary-title">🏦 商业终端概览</span>' +
+      '<span class="trade-station-summary-sub ' + creditClass + '">信用评级 ' + snap.creditRating + '</span>' +
     '</div>' +
     '<div class="trade-station-summary-grid">' +
-      '<div class="trade-station-metric"><span class="trade-station-metric-label">贷款余额</span><span class="trade-station-metric-value">' + Math.floor(financeOverview.outstandingLoanBalance).toLocaleString() + '</span></div>' +
-      '<div class="trade-station-metric"><span class="trade-station-metric-label">股票市值</span><span class="trade-station-metric-value">' + Math.floor(financeOverview.stockValue).toLocaleString() + '</span></div>' +
-      '<div class="trade-station-metric"><span class="trade-station-metric-label">站点投资</span><span class="trade-station-metric-value">' + Math.floor(financeOverview.tradeInvestmentValue).toLocaleString() + '</span></div>' +
-      '<div class="trade-station-metric"><span class="trade-station-metric-label">保险/理赔</span><span class="trade-station-metric-value">' + financeOverview.activePolicies + '/' + financeOverview.pendingClaims + '</span></div>' +
+      '<div class="trade-station-metric"><span class="trade-station-metric-label">贸易站被动收益/日</span><span class="trade-station-metric-value">+' + snap.stationDailyIncome.toLocaleString() + '</span></div>' +
+      '<div class="trade-station-metric"><span class="trade-station-metric-label">贷款余额</span><span class="trade-station-metric-value">' + snap.totalLoans.toLocaleString() + '</span></div>' +
+      '<div class="trade-station-metric"><span class="trade-station-metric-label">股票组合市值</span><span class="trade-station-metric-value">' + snap.stockPortfolioValue.toLocaleString() + '</span></div>' +
+      '<div class="trade-station-metric"><span class="trade-station-metric-label">期货未结盈亏</span><span class="trade-station-metric-value">' + _pnlSpan(snap.futuresUnrealizedPnl) + '</span></div>' +
     '</div>' +
-    '<div class="trade-station-summary-tip">贷款会按天计息并自动扣款；股票与贸易站投资会随天数推进分红；保险理赔将在次日审核发放。</div>' +
-    '</div>';
+    '<div class="trade-station-summary-tip">贸易站每日自动产生收益；贷款按天计息自动扣款；股票与投资每 5 天分红；保险理赔次日审核发放。</div>' +
+  '</div>';
+}
 
-  html += '<div class="trade-station-section-title">🏦 银行贷款</div>';
+/** 2. 银行贷款 */
+function _renderLoansSection(loanOffers, activeLoans) {
+  let html = '<div class="trade-station-section-title">🏦 银行贷款</div>';
+
   if (loanOffers.length === 0) {
     html += '<div class="trade-station-empty">当前暂无可申请的贷款方案。</div>';
   } else {
-    html += '<div class="trade-station-choice-row">' + loanOffers.map(function (offer) {
-      return '<button class="trade-station-choice-btn' + (offer.available ? '' : ' disabled') + '"' +
-        ' data-action="take-loan" data-loan-offer-id="' + offer.id + '"' + (offer.available ? '' : ' disabled') + '>' +
-        offer.name + '<span>+' + offer.principal.toLocaleString() + ' / ' + offer.termDays + '天</span></button>';
-    }).join('') + '</div>';
+    html += '<div class="trade-station-choice-row">' +
+      loanOffers.map(function (offer) {
+        return '<button class="trade-station-choice-btn' + (offer.available ? '' : ' disabled') + '"' +
+          ' data-action="take-loan" data-loan-offer-id="' + offer.id + '"' +
+          (offer.available ? '' : ' disabled') + '>' +
+          offer.name + '<span>+' + offer.principal.toLocaleString() + ' / ' + offer.termDays + '天</span></button>';
+      }).join('') +
+    '</div>';
   }
 
   if (activeLoans.length === 0) {
@@ -70,7 +87,9 @@ export function render(state, onBuild, onUpgrade, onHireManager, onSetStrategy, 
           '<span class="trade-station-card-name">' + loan.name + '</span>' +
           '<span class="trade-station-card-badge">剩余 ' + loan.remainingDays + ' 天</span>' +
         '</div>' +
-        '<div class="trade-station-card-meta">余额 ' + Math.floor(loan.balance).toLocaleString() + ' · 日扣款 ' + Math.floor(loan.dailyPayment).toLocaleString() + ' · 利率 ' + (loan.dailyInterestRate * 100).toFixed(2) + '%</div>' +
+        '<div class="trade-station-card-meta">余额 ' + Math.floor(loan.balance).toLocaleString() +
+          ' · 日扣款 ' + Math.floor(loan.dailyPayment).toLocaleString() +
+          ' · 利率 ' + (loan.dailyInterestRate * 100).toFixed(2) + '%</div>' +
         '<div class="trade-station-actions">' +
           '<button class="btn-action" data-action="repay-loan" data-loan-id="' + loan.id + '">手动还款</button>' +
         '</div>' +
@@ -78,7 +97,18 @@ export function render(state, onBuild, onUpgrade, onHireManager, onSetStrategy, 
     });
   }
 
-  html += '<div class="trade-station-section-title">📈 股票市场</div>';
+  return html;
+}
+
+/** 3. 股票市场 */
+function _renderStockSection(stockListings) {
+  let html = '<div class="trade-station-section-title">📈 股票市场</div>';
+
+  if (stockListings.length === 0) {
+    html += '<div class="trade-station-empty">暂无可交易股票。先探索更多星球以解锁。</div>';
+    return html;
+  }
+
   html += stockListings.map(function (listing) {
     const delta = _getStockPriceDelta(listing);
     const deltaText = (delta >= 0 ? '+' : '') + delta.toLocaleString();
@@ -87,43 +117,66 @@ export function render(state, onBuild, onUpgrade, onHireManager, onSetStrategy, 
         '<span class="trade-station-card-name">' + listing.name + '</span>' +
         '<span class="trade-station-card-badge">股价 ' + listing.price.toLocaleString() + '</span>' +
       '</div>' +
-      '<div class="trade-station-card-meta">持仓 ' + listing.shares + ' 股 · 均价 ' + Math.floor(listing.avgCost || 0).toLocaleString() + ' · 日波动 ' + deltaText + '</div>' +
+      '<div class="trade-station-card-meta">持仓 ' + listing.shares + ' 股 · 均价 ' +
+        Math.floor(listing.avgCost || 0).toLocaleString() + ' · 日波动 ' + deltaText + '</div>' +
       '<div class="trade-station-actions">' +
         '<button class="btn-action" data-action="buy-stock" data-stock-id="' + listing.id + '">买入 1 股</button>' +
-        '<button class="btn-action' + (listing.shares > 0 ? '' : ' disabled') + '" data-action="sell-stock" data-stock-id="' + listing.id + '"' + (listing.shares > 0 ? '' : ' disabled') + '>卖出 1 股</button>' +
+        '<button class="btn-action' + (listing.shares > 0 ? '' : ' disabled') + '"' +
+          ' data-action="sell-stock" data-stock-id="' + listing.id + '"' +
+          (listing.shares > 0 ? '' : ' disabled') + '>卖出 1 股</button>' +
       '</div>' +
     '</div>';
   }).join('');
 
-  html += '<div class="trade-station-section-title">🏪 贸易站投资</div>';
+  return html;
+}
+
+/** 4. 贸易站投资 */
+function _renderTradeInvestmentSection(tradeInvestments) {
+  let html = '<div class="trade-station-section-title">🏪 贸易站投资</div>';
+
   if (tradeInvestments.length === 0) {
     html += '<div class="trade-station-empty">先探索星球，才能解锁新的站点投资标的。</div>';
-  } else {
-    html += tradeInvestments.map(function (entry) {
-      return '<div class="trade-station-card">' +
-        '<div class="trade-station-card-head">' +
-          '<span class="trade-station-card-name">' + entry.name + '</span>' +
-          '<span class="trade-station-card-badge">预估日分红 ' + (entry.expectedYieldRate * 100).toFixed(2) + '%</span>' +
-        '</div>' +
-        '<div class="trade-station-card-meta">当前已投 ' + Math.floor(entry.investedAmount || 0).toLocaleString() + ' · 建议追加 ' + entry.suggestedAmount.toLocaleString() + '</div>' +
-        '<div class="trade-station-actions">' +
-          '<button class="btn-action" data-action="invest-trade-station" data-system-id="' + entry.systemId + '">追加投资</button>' +
-        '</div>' +
-      '</div>';
-    }).join('');
+    return html;
   }
 
-  html += '<div class="trade-station-section-title">🛡️ 保险与理赔</div>';
+  html += tradeInvestments.map(function (entry) {
+    return '<div class="trade-station-card">' +
+      '<div class="trade-station-card-head">' +
+        '<span class="trade-station-card-name">' + entry.name + '</span>' +
+        '<span class="trade-station-card-badge">预估日分红 ' + (entry.expectedYieldRate * 100).toFixed(2) + '%</span>' +
+      '</div>' +
+      '<div class="trade-station-card-meta">当前已投 ' + Math.floor(entry.investedAmount || 0).toLocaleString() +
+        ' · 建议追加 ' + entry.suggestedAmount.toLocaleString() + '</div>' +
+      '<div class="trade-station-actions">' +
+        '<button class="btn-action" data-action="invest-trade-station" data-system-id="' + entry.systemId + '">追加投资</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+
+  return html;
+}
+
+/** 5. 保险与理赔 */
+function _renderInsuranceSection(insuranceProducts, pendingClaims) {
+  let html = '<div class="trade-station-section-title">🛡️ 保险与理赔</div>';
+
   html += insuranceProducts.map(function (product) {
     return '<div class="trade-station-card">' +
       '<div class="trade-station-card-head">' +
         '<span class="trade-station-card-name">' + product.name + '</span>' +
         '<span class="trade-station-card-badge">保额 ' + Math.floor(product.coverage).toLocaleString() + '</span>' +
       '</div>' +
-      '<div class="trade-station-card-meta">保费 ' + Math.floor(product.premium).toLocaleString() + ' · 免赔 ' + Math.round(product.deductibleRate * 100) + '% · 可赔 ' + Math.floor(product.claimableAmount).toLocaleString() + '</div>' +
+      '<div class="trade-station-card-meta">保费 ' + Math.floor(product.premium).toLocaleString() +
+        ' · 免赔 ' + Math.round(product.deductibleRate * 100) + '% · 可赔 ' +
+        Math.floor(product.claimableAmount).toLocaleString() + '</div>' +
       '<div class="trade-station-actions">' +
-        '<button class="btn-action' + (product.active ? ' disabled' : '') + '" data-action="purchase-insurance" data-policy-type="' + product.id + '"' + (product.active ? ' disabled' : '') + '>投保</button>' +
-        '<button class="btn-action' + (product.claimableAmount > 0 ? '' : ' disabled') + '" data-action="submit-claim" data-policy-type="' + product.id + '"' + (product.claimableAmount > 0 ? '' : ' disabled') + '>申请理赔</button>' +
+        '<button class="btn-action' + (product.active ? ' disabled' : '') + '"' +
+          ' data-action="purchase-insurance" data-policy-type="' + product.id + '"' +
+          (product.active ? ' disabled' : '') + '>投保</button>' +
+        '<button class="btn-action' + (product.claimableAmount > 0 ? '' : ' disabled') + '"' +
+          ' data-action="submit-claim" data-policy-type="' + product.id + '"' +
+          (product.claimableAmount > 0 ? '' : ' disabled') + '>申请理赔</button>' +
       '</div>' +
     '</div>';
   }).join('');
@@ -131,26 +184,31 @@ export function render(state, onBuild, onUpgrade, onHireManager, onSetStrategy, 
   if (pendingClaims.length > 0) {
     html += '<div class="trade-station-subsection">🧾 待处理理赔</div>';
     html += pendingClaims.map(function (claim) {
-      return '<div class="trade-station-card-meta">' + claim.policyType + ' · 预计到账 ' + Math.floor(claim.approvedAmount).toLocaleString() + ' · 处理日 第 ' + claim.processDay + ' 天</div>';
+      return '<div class="trade-station-card-meta">' + claim.policyType +
+        ' · 预计到账 ' + Math.floor(claim.approvedAmount).toLocaleString() +
+        ' · 处理日 第 ' + claim.processDay + ' 天</div>';
     }).join('');
   }
 
-  // ---- 期货市场 ----
-  const futuresListings = Futures.getFuturesListings(state);
-  const openContracts = Futures.getOpenContracts(state);
-  const closedContracts = Futures.getClosedContracts(state).slice(-4); // 最近4条成交记录
-  html += '<div class="trade-station-section-title">📋 期货市场</div>';
-  html += '<div class="trade-station-summary-tip">期货合约允许你以当前价格锁定商品，' + DEFAULT_TERM_DAYS_DISPLAY + ' 天后按市价结算。做多预测涨价，做空预测跌价，高风险高回报。保证金为合约价值的 20%。</div>';
+  return html;
+}
+
+/** 6. 期货市场 */
+function _renderFuturesSection(futuresListings, openContracts, closedContracts) {
+  let html = '<div class="trade-station-section-title">📋 期货市场</div>';
+  html += '<div class="trade-station-summary-tip">期货合约允许你以当前价格锁定商品，' +
+    DEFAULT_TERM_DAYS_DISPLAY + ' 天后按市价结算。做多预测涨价，做空预测跌价，保证金为合约价值的 20%。</div>';
+
   html += futuresListings.map(function (listing) {
-    const pnlClass = listing.heldLong > 0 || listing.heldShort > 0 ? ' trade-station-card--active' : '';
-    return '<div class="trade-station-card' + pnlClass + '">' +
+    const isActive = listing.heldLong > 0 || listing.heldShort > 0;
+    return '<div class="trade-station-card' + (isActive ? ' trade-station-card--active' : '') + '">' +
       '<div class="trade-station-card-head">' +
         '<span class="trade-station-card-name">' + (listing.emoji ? listing.emoji + ' ' : '') + listing.name + '</span>' +
         '<span class="trade-station-card-badge">当前价 ' + listing.currentPrice.toLocaleString() + '</span>' +
       '</div>' +
       '<div class="trade-station-card-meta">' +
-        '合约规模 ' + listing.contractUnit + ' 单位 · 保证金 ' + listing.margin.toLocaleString() + ' · ' +
-        '持多 ' + listing.heldLong + ' 份 · 持空 ' + listing.heldShort + ' 份' +
+        '合约规模 ' + listing.contractUnit + ' 单位 · 保证金 ' + listing.margin.toLocaleString() +
+        ' · 持多 ' + listing.heldLong + ' 份 · 持空 ' + listing.heldShort + ' 份' +
       '</div>' +
       '<div class="trade-station-actions">' +
         '<button class="btn-action" data-action="futures-long" data-good-id="' + listing.goodId + '">做多 📈</button>' +
@@ -162,7 +220,6 @@ export function render(state, onBuild, onUpgrade, onHireManager, onSetStrategy, 
   if (openContracts.length > 0) {
     html += '<div class="trade-station-subsection">📂 持仓合约</div>';
     html += openContracts.map(function (c) {
-      const pnlLabel = c.unrealizedPnl >= 0 ? '<span style="color:#4caf50">+' + c.unrealizedPnl.toLocaleString() + '</span>' : '<span style="color:#f44336">' + c.unrealizedPnl.toLocaleString() + '</span>';
       const dirLabel = c.direction === 'long' ? '多头' : '空头';
       return '<div class="trade-station-card">' +
         '<div class="trade-station-card-head">' +
@@ -170,7 +227,8 @@ export function render(state, onBuild, onUpgrade, onHireManager, onSetStrategy, 
           '<span class="trade-station-card-badge">剩余 ' + c.daysLeft + ' 天</span>' +
         '</div>' +
         '<div class="trade-station-card-meta">' +
-          '锁定价 ' + c.lockedPrice.toLocaleString() + ' · 当前价 ' + c.currentPrice.toLocaleString() + ' · 未实现盈亏 ' + pnlLabel +
+          '锁定价 ' + c.lockedPrice.toLocaleString() + ' · 当前价 ' + c.currentPrice.toLocaleString() +
+          ' · 未实现盈亏 ' + _pnlSpan(c.unrealizedPnl) +
         '</div>' +
         '<div class="trade-station-actions">' +
           '<button class="btn-action" data-action="futures-close" data-contract-id="' + c.id + '">提前平仓</button>' +
@@ -184,11 +242,18 @@ export function render(state, onBuild, onUpgrade, onHireManager, onSetStrategy, 
     html += closedContracts.map(function (c) {
       const pnlLabel = (c.pnl || 0) >= 0 ? '+' + (c.pnl || 0).toLocaleString() : (c.pnl || 0).toLocaleString();
       const dirLabel = c.direction === 'long' ? '多头' : '空头';
-      return '<div class="trade-station-card-meta">' + c.goodName + ' ' + dirLabel + ' · 结算价 ' + (c.settlementPrice || 0).toLocaleString() + ' · 盈亏 ' + pnlLabel + ' · 第 ' + (c.closedDay || 0) + ' 天</div>';
+      return '<div class="trade-station-card-meta">' +
+        c.goodName + ' ' + dirLabel + ' · 结算价 ' + (c.settlementPrice || 0).toLocaleString() +
+        ' · 盈亏 ' + pnlLabel + ' · 第 ' + (c.closedDay || 0) + ' 天</div>';
     }).join('');
   }
 
-  html += '<div class="trade-station-summary-card">' +
+  return html;
+}
+
+/** 7. 商业版图（建站候选 + 已建站管理） */
+function _renderEmpireSection(summary, buildCandidates, ownedStations) {
+  let html = '<div class="trade-station-summary-card">' +
     '<div class="trade-station-summary-head">' +
       '<span class="trade-station-summary-title">🏪 商业版图</span>' +
       '<span class="trade-station-summary-sub">已建 ' + summary.count + ' 座贸易站</span>' +
@@ -196,10 +261,10 @@ export function render(state, onBuild, onUpgrade, onHireManager, onSetStrategy, 
     '<div class="trade-station-summary-grid">' +
       '<div class="trade-station-metric"><span class="trade-station-metric-label">预计日收益</span><span class="trade-station-metric-value">+' + Math.floor(summary.projectedIncome).toLocaleString() + '</span></div>' +
       '<div class="trade-station-metric"><span class="trade-station-metric-label">累计收益</span><span class="trade-station-metric-value">' + Math.floor(summary.totalIncome).toLocaleString() + '</span></div>' +
-      '<div class="trade-station-metric"><span class="trade-station-metric-label">管理员</span><span class="trade-station-metric-value">' + summary.managedCount + '/' + summary.count + '</span></div>' +
+      '<div class="trade-station-metric"><span class="trade-station-metric-label">管理员配置</span><span class="trade-station-metric-value">' + summary.managedCount + '/' + summary.count + '</span></div>' +
     '</div>' +
-    '<div class="trade-station-summary-tip">每日收益会随当地市场深度、重点商品行情与经济周期自动波动。</div>' +
-    '</div>';
+    '<div class="trade-station-summary-tip">每日收益随当地市场深度、重点商品行情与经济周期自动波动。</div>' +
+  '</div>';
 
   html += '<div class="trade-station-section-title">🏗 建站候选</div>';
   if (buildCandidates.length === 0) {
@@ -238,14 +303,19 @@ export function render(state, onBuild, onUpgrade, onHireManager, onSetStrategy, 
           '<span>上一日 +' + Math.floor(station.lastIncome || 0).toLocaleString() + '</span>' +
           '<span>累计 ' + Math.floor(station.totalIncome || 0).toLocaleString() + '</span>' +
         '</div>' +
-        '<div class="trade-station-card-meta">经济系数 ×' + entry.economicFactor.toFixed(2) + ' · 累计投资 ' + Math.floor(station.investment || 0).toLocaleString() + ' · 建于第 ' + (station.buildDay || 1) + ' 天</div>' +
-        '<div class="trade-station-card-meta">管理员：' + (entry.manager ? (entry.manager.name + '（日薪 ' + entry.manager.dailySalary + '）') : '未雇佣') +
+        '<div class="trade-station-card-meta">经济系数 ×' + entry.economicFactor.toFixed(2) +
+          ' · 累计投资 ' + Math.floor(station.investment || 0).toLocaleString() +
+          ' · 建于第 ' + (station.buildDay || 1) + ' 天</div>' +
+        '<div class="trade-station-card-meta">管理员：' +
+          (entry.manager ? (entry.manager.name + '（日薪 ' + entry.manager.dailySalary + '）') : '未雇佣') +
           ' · 策略：' + entry.strategy.name + '</div>' +
         '<div class="trade-station-actions">' +
           '<button class="btn-action trade-station-upgrade-btn' + (entry.nextLevel ? '' : ' disabled') + '"' +
             ' data-action="upgrade" data-system-id="' + station.systemId + '"' +
             (entry.nextLevel ? '' : ' disabled') + '>' +
-            (entry.nextLevel ? ('升级至 Lv.' + entry.nextLevel.level + '（+' + entry.nextUpgradeCost.toLocaleString() + '）') : '已达满级') +
+            (entry.nextLevel
+              ? ('升级至 Lv.' + entry.nextLevel.level + '（+' + entry.nextUpgradeCost.toLocaleString() + '）')
+              : '已达满级') +
           '</button>' +
         '</div>' +
         '<div class="trade-station-subsection">👤 管理员</div>' +
@@ -270,89 +340,92 @@ export function render(state, onBuild, onUpgrade, onHireManager, onSetStrategy, 
     });
   }
 
-  container.innerHTML = html;
+  return html;
+}
 
-  container.querySelectorAll('[data-action="build"]').forEach(function (button) {
-    button.addEventListener('click', function () {
-      onBuild(button.dataset.systemId);
-    });
-  });
+// ---------------------------------------------------------------------------
+// 事件绑定
+// ---------------------------------------------------------------------------
 
-  container.querySelectorAll('[data-action="upgrade"]').forEach(function (button) {
-    button.addEventListener('click', function () {
-      onUpgrade(button.dataset.systemId);
-    });
-  });
+function _bindEvents(container, onBuild, onUpgrade, onHireManager, onSetStrategy, financeActions) {
+  const fa = financeActions || {};
 
-  container.querySelectorAll('[data-action="hire-manager"]').forEach(function (button) {
-    button.addEventListener('click', function () {
-      onHireManager(button.dataset.systemId, button.dataset.managerId);
-    });
+  container.querySelectorAll('[data-action="build"]').forEach(function (btn) {
+    btn.addEventListener('click', function () { onBuild(btn.dataset.systemId); });
   });
+  container.querySelectorAll('[data-action="upgrade"]').forEach(function (btn) {
+    btn.addEventListener('click', function () { onUpgrade(btn.dataset.systemId); });
+  });
+  container.querySelectorAll('[data-action="hire-manager"]').forEach(function (btn) {
+    btn.addEventListener('click', function () { onHireManager(btn.dataset.systemId, btn.dataset.managerId); });
+  });
+  container.querySelectorAll('[data-action="set-strategy"]').forEach(function (btn) {
+    btn.addEventListener('click', function () { onSetStrategy(btn.dataset.systemId, btn.dataset.strategyId); });
+  });
+  container.querySelectorAll('[data-action="take-loan"]').forEach(function (btn) {
+    btn.addEventListener('click', function () { if (fa.onTakeLoan) fa.onTakeLoan(btn.dataset.loanOfferId); });
+  });
+  container.querySelectorAll('[data-action="repay-loan"]').forEach(function (btn) {
+    btn.addEventListener('click', function () { if (fa.onRepayLoan) fa.onRepayLoan(btn.dataset.loanId); });
+  });
+  container.querySelectorAll('[data-action="buy-stock"]').forEach(function (btn) {
+    btn.addEventListener('click', function () { if (fa.onBuyStock) fa.onBuyStock(btn.dataset.stockId); });
+  });
+  container.querySelectorAll('[data-action="sell-stock"]').forEach(function (btn) {
+    btn.addEventListener('click', function () { if (fa.onSellStock) fa.onSellStock(btn.dataset.stockId); });
+  });
+  container.querySelectorAll('[data-action="invest-trade-station"]').forEach(function (btn) {
+    btn.addEventListener('click', function () { if (fa.onInvestTradeStation) fa.onInvestTradeStation(btn.dataset.systemId); });
+  });
+  container.querySelectorAll('[data-action="purchase-insurance"]').forEach(function (btn) {
+    btn.addEventListener('click', function () { if (fa.onPurchaseInsurance) fa.onPurchaseInsurance(btn.dataset.policyType); });
+  });
+  container.querySelectorAll('[data-action="submit-claim"]').forEach(function (btn) {
+    btn.addEventListener('click', function () { if (fa.onSubmitInsuranceClaim) fa.onSubmitInsuranceClaim(btn.dataset.policyType); });
+  });
+  container.querySelectorAll('[data-action="futures-long"]').forEach(function (btn) {
+    btn.addEventListener('click', function () { if (fa.onFuturesLong) fa.onFuturesLong(btn.dataset.goodId); });
+  });
+  container.querySelectorAll('[data-action="futures-short"]').forEach(function (btn) {
+    btn.addEventListener('click', function () { if (fa.onFuturesShort) fa.onFuturesShort(btn.dataset.goodId); });
+  });
+  container.querySelectorAll('[data-action="futures-close"]').forEach(function (btn) {
+    btn.addEventListener('click', function () { if (fa.onFuturesClose) fa.onFuturesClose(btn.dataset.contractId); });
+  });
+}
 
-  container.querySelectorAll('[data-action="set-strategy"]').forEach(function (button) {
-    button.addEventListener('click', function () {
-      onSetStrategy(button.dataset.systemId, button.dataset.strategyId);
-    });
-  });
+// ---------------------------------------------------------------------------
+// 主渲染入口
+// ---------------------------------------------------------------------------
 
-  container.querySelectorAll('[data-action="take-loan"]').forEach(function (button) {
-    button.addEventListener('click', function () {
-      if (financeActions.onTakeLoan) financeActions.onTakeLoan(button.dataset.loanOfferId);
-    });
-  });
+export function render(state, onBuild, onUpgrade, onHireManager, onSetStrategy, financeActions) {
+  const container = document.getElementById('trade-station-list');
+  if (!container) return;
 
-  container.querySelectorAll('[data-action="repay-loan"]').forEach(function (button) {
-    button.addEventListener('click', function () {
-      if (financeActions.onRepayLoan) financeActions.onRepayLoan(button.dataset.loanId);
-    });
-  });
+  // 数据获取
+  const loanOffers        = Finance.getLoanOffers(state);
+  const activeLoans       = (state.loans || []).filter(function (loan) { return loan.status === 'active' && loan.balance > 0; });
+  const stockListings     = Finance.getStockListings(state).slice(0, 4);
+  const tradeInvestments  = Finance.getTradeInvestmentOptions(state).slice(0, 4);
+  const insuranceProducts = Finance.getInsuranceProducts(state);
+  const pendingClaims     = (state.insuranceClaims || []).filter(function (claim) { return claim.status === 'pending'; });
+  const futuresListings   = Futures.getFuturesListings(state);
+  const openContracts     = Futures.getOpenContracts(state);
+  const closedContracts   = Futures.getClosedContracts(state).slice(-4);
+  const summary           = TradeStation.getSummary(state);
+  const ownedStations     = TradeStation.getOwnedStations(state);
+  const buildCandidates   = TradeStation.getBuildCandidates(state);
 
-  container.querySelectorAll('[data-action="buy-stock"]').forEach(function (button) {
-    button.addEventListener('click', function () {
-      if (financeActions.onBuyStock) financeActions.onBuyStock(button.dataset.stockId);
-    });
-  });
+  // 组装 HTML（分区渲染）
+  container.innerHTML =
+    _renderCommerceOverview(state) +
+    _renderLoansSection(loanOffers, activeLoans) +
+    _renderStockSection(stockListings) +
+    _renderTradeInvestmentSection(tradeInvestments) +
+    _renderInsuranceSection(insuranceProducts, pendingClaims) +
+    _renderFuturesSection(futuresListings, openContracts, closedContracts) +
+    _renderEmpireSection(summary, buildCandidates, ownedStations);
 
-  container.querySelectorAll('[data-action="sell-stock"]').forEach(function (button) {
-    button.addEventListener('click', function () {
-      if (financeActions.onSellStock) financeActions.onSellStock(button.dataset.stockId);
-    });
-  });
-
-  container.querySelectorAll('[data-action="invest-trade-station"]').forEach(function (button) {
-    button.addEventListener('click', function () {
-      if (financeActions.onInvestTradeStation) financeActions.onInvestTradeStation(button.dataset.systemId);
-    });
-  });
-
-  container.querySelectorAll('[data-action="purchase-insurance"]').forEach(function (button) {
-    button.addEventListener('click', function () {
-      if (financeActions.onPurchaseInsurance) financeActions.onPurchaseInsurance(button.dataset.policyType);
-    });
-  });
-
-  container.querySelectorAll('[data-action="submit-claim"]').forEach(function (button) {
-    button.addEventListener('click', function () {
-      if (financeActions.onSubmitInsuranceClaim) financeActions.onSubmitInsuranceClaim(button.dataset.policyType);
-    });
-  });
-
-  container.querySelectorAll('[data-action="futures-long"]').forEach(function (button) {
-    button.addEventListener('click', function () {
-      if (financeActions.onFuturesLong) financeActions.onFuturesLong(button.dataset.goodId);
-    });
-  });
-
-  container.querySelectorAll('[data-action="futures-short"]').forEach(function (button) {
-    button.addEventListener('click', function () {
-      if (financeActions.onFuturesShort) financeActions.onFuturesShort(button.dataset.goodId);
-    });
-  });
-
-  container.querySelectorAll('[data-action="futures-close"]').forEach(function (button) {
-    button.addEventListener('click', function () {
-      if (financeActions.onFuturesClose) financeActions.onFuturesClose(button.dataset.contractId);
-    });
-  });
+  // 绑定事件
+  _bindEvents(container, onBuild, onUpgrade, onHireManager, onSetStrategy, financeActions);
 }
