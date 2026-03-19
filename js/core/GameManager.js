@@ -23,9 +23,11 @@ import * as FactionUI  from '../ui/FactionUI.js';
 import * as SaveUI     from '../ui/SaveUI.js';
 import * as QuestUI    from '../ui/QuestUI.js';
 import * as AchievementUI from '../ui/AchievementUI.js';
+import * as TradeStationUI from '../ui/TradeStationUI.js';
 import * as Fleet      from '../systems/fleet/FleetSystem.js';
 import * as Crew       from '../systems/fleet/CrewSystem.js';
 import * as AutoTrade  from '../systems/trade/AutoTradeSystem.js';
+import * as TradeStation from '../systems/trade/TradeStationSystem.js';
 import * as FleetUI    from '../ui/FleetUI.js';
 import * as Save       from '../systems/save/SaveSystem.js';
 import * as Quest      from '../systems/quest/QuestSystem.js';
@@ -72,6 +74,7 @@ export function init(difficulty) {
   Research.init(_state);
   Quest.init(_state);
   Achievement.init(_state);
+  TradeStation.init(_state);
   Renderer.init();
   Renderer.resetRuntimeState(_state.currentSystem);
   Settings.applySettings(_settings, Renderer);
@@ -603,6 +606,26 @@ function _handleClearResearchQueue() {
   _dispatch(result);
 }
 
+function _handleBuildTradeStation(systemId) {
+  const result = TradeStation.buildStation(_state, systemId);
+  _dispatch(result);
+}
+
+function _handleUpgradeTradeStation(systemId) {
+  const result = TradeStation.upgradeStation(_state, systemId);
+  _dispatch(result);
+}
+
+function _handleHireTradeStationManager(systemId, managerId) {
+  const result = TradeStation.hireManager(_state, systemId, managerId);
+  _dispatch(result);
+}
+
+function _handleSetTradeStationStrategy(systemId, strategyId) {
+  const result = TradeStation.setStrategy(_state, systemId, strategyId);
+  _dispatch(result);
+}
+
 function _handleAcceptQuest(questId) {
   const result = Quest.acceptQuest(_state, questId);
   _dispatch(result);
@@ -635,6 +658,7 @@ function _handleLoadGame(slotId) {
     Research.init(_state);
     Quest.init(_state);
     Achievement.init(_state);
+    TradeStation.init(_state);
     Economy.init();
     Economy.setCycleState(_state.economyCycle);
     Renderer.resetRuntimeState(_state.currentSystem);
@@ -850,6 +874,13 @@ function _updateUI() {
   FactionUI.render(_state);
   QuestUI.render(_state, _handleAcceptQuest, _handleAbandonQuest);
   AchievementUI.render(_state);
+  TradeStationUI.render(
+    _state,
+    _handleBuildTradeStation,
+    _handleUpgradeTradeStation,
+    _handleHireTradeStationManager,
+    _handleSetTradeStationStrategy
+  );
   FleetUI.render(_state, _handleBuyShip, _handleSwitchShip, _handleUpgradeShip, _handleAssignRoute, _handleCancelRoute, _handleBuySlot, _handleSellShip, _handleInstallMod, _handleUninstallMod, _handleRecruitCrew, _handleAssignCrew, _handleUnassignCrew, _handleDismissCrew);
   FleetUI.renderShop(_state, _handleBuyShip);
   SaveUI.render(_handleSaveGame, _handleLoadGame);
