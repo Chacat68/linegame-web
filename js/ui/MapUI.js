@@ -2,7 +2,7 @@
 // 依赖：ui/Renderer.js
 // 导出：init, initTabs, refreshGalaxyBtn, openMarket, closeMarket, isMarketOpen,
 //        setRefreshMarket, getMarketViewSystem, refreshMarketLocation,
-//        showMarketOverview, showMarketDetail, refreshPlanetDetail
+//        showMarketDetail, refreshPlanetDetail
 
 import * as Renderer from './Renderer.js';
 import * as Faction from '../systems/faction/FactionSystem.js';
@@ -15,14 +15,14 @@ let _smallScreenMql = null;
 // 市场浏览状态
 let _marketViewGalaxy = null;
 let _marketViewSystem = null;      // 详情模式时选中的星球
-let _marketMode = 'overview';       // 'overview' | 'detail'
+let _marketMode = 'detail';
 // 市场刷新回调（由 GameManager 注入）
 let _refreshMarket = null;          // (mode) => void
 let _stateRef = null;               // 用于内部事件引用
 
 /**
  * 注入市场刷新回调（在 GameManager.init 中调用）
- * @param {Function} fn  (mode:'overview'|'detail') => void  — 刷新市场
+ * @param {Function} fn  (mode:'detail') => void  — 刷新市场
  */
 export function setRefreshMarket(fn) {
   _refreshMarket = fn;
@@ -45,13 +45,6 @@ export function getMarketViewGalaxy(state) {
 /** 获取当前市场模式 */
 export function getMarketMode() {
   return _marketMode;
-}
-
-/** 切换到总览模式 */
-export function showMarketOverview() {
-  _marketMode = 'overview';
-  _marketViewSystem = null;
-  if (_refreshMarket) _refreshMarket('overview');
 }
 
 /** 切换到详情模式 */
@@ -282,21 +275,21 @@ export function refreshPlanetDetail(stateRef) {
   panel.style.top = top + 'px';
 }
 
-/** 打开市场面板（默认总览模式） */
+/** 打开市场面板（默认当前节点功能页） */
 export function openMarket(stateRef) {
   const overlay = document.getElementById('market-overlay');
   const marketBtn = document.getElementById('market-view-btn');
   if (!overlay) return;
   _stateRef = stateRef;
   _marketViewGalaxy = stateRef.currentGalaxy;
-  _marketViewSystem = null;
-  _marketMode = 'overview';
+  _marketViewSystem = stateRef.currentSystem;
+  _marketMode = 'detail';
   _marketOpen = true;
   overlay.classList.remove('hidden');
   if (marketBtn) marketBtn.classList.add('active');
   _buildMarketGalaxyNav(stateRef);
   _bindMarketDetailEvents(stateRef);
-  if (_refreshMarket) _refreshMarket('overview');
+  if (_refreshMarket) _refreshMarket('detail');
 }
 
 /** 关闭市场面板 */
@@ -314,29 +307,23 @@ export function isMarketOpen() {
   return _marketOpen;
 }
 
-/** 旅行后刷新市场（重置为总览模式） */
+/** 旅行后刷新市场（保持当前节点功能页） */
 export function refreshMarketLocation(stateRef) {
   if (!_marketOpen) return;
   _stateRef = stateRef;
   _marketViewGalaxy = stateRef.currentGalaxy;
-  _marketViewSystem = null;
-  _marketMode = 'overview';
+  _marketViewSystem = stateRef.currentSystem;
+  _marketMode = 'detail';
   _buildMarketGalaxyNav(stateRef);
-  if (_refreshMarket) _refreshMarket('overview');
+  if (_refreshMarket) _refreshMarket('detail');
 }
 
-/** 绑定详情模式中的返回按钮和卖出价开关 */
+/** 绑定详情模式中的表格开关 */
 function _bindMarketDetailEvents(state) {
-  const backBtn = document.getElementById('market-back-btn');
-  if (backBtn) {
-    backBtn.onclick = function () {
-      showMarketOverview();
-    };
-  }
   const sellToggle = document.getElementById('market-show-sell');
   if (sellToggle) {
     sellToggle.onchange = function () {
-      if (_marketMode === 'overview' && _refreshMarket) _refreshMarket('overview');
+      if (_refreshMarket) _refreshMarket('detail');
     };
   }
 }
@@ -356,10 +343,8 @@ function _buildMarketGalaxyNav(state) {
     btn.textContent = g.icon + ' ' + g.name;
     btn.addEventListener('click', function () {
       _marketViewGalaxy = g.id;
-      _marketViewSystem = null;
-      _marketMode = 'overview';
       _buildMarketGalaxyNav(state);
-      if (_refreshMarket) _refreshMarket('overview');
+      if (_refreshMarket) _refreshMarket(_marketMode || 'detail');
     });
     nav.appendChild(btn);
   });

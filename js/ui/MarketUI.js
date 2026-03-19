@@ -22,8 +22,30 @@ const MARKET_WORKSPACE_TABS = [
   { id: 'capital', label: '🏦 资本', hint: '贷款、保险、股票、期货' },
   { id: 'operations', label: '🏪 经营', hint: '建站、升级与经营策略' },
 ];
+const MARKET_SUBWORKSPACE_TABS = {
+  spot: [
+    { id: 'trade', label: '📦 交易', hint: '现货买卖与补给' },
+    { id: 'intel', label: '🧭 情报', hint: '节点行情与机会摘要' },
+    { id: 'black', label: '🕶 黑市', hint: '特殊市场与风险提示' },
+  ],
+  capital: [
+    { id: 'local', label: '🏦 调度', hint: '贷款、保险、本地投资' },
+    { id: 'stocks', label: '📈 股票', hint: '指数与持仓' },
+    { id: 'futures', label: '📋 期货', hint: '合约与持仓' },
+  ],
+  operations: [
+    { id: 'local', label: '🏪 本地节点', hint: '当前节点经营' },
+    { id: 'network', label: '📡 商网总览', hint: '网络快照与指标' },
+    { id: 'stations', label: '🛰 站点编排', hint: '候选与已建站点' },
+  ],
+};
 
 let _activeMarketWorkspaceTab = 'spot';
+let _activeMarketSubworkspaceTabs = {
+  spot: 'trade',
+  capital: 'local',
+  operations: 'local',
+};
 
 function _applyMarketWorkspaceTabState() {
   var tabs = document.getElementById('market-workspace-tabs');
@@ -64,6 +86,270 @@ function _renderMarketWorkspaceTabs() {
   });
 
   _applyMarketWorkspaceTabState();
+}
+
+function _getMarketSubworkspaceTabs(workspaceId) {
+  return MARKET_SUBWORKSPACE_TABS[workspaceId] || [];
+}
+
+function _ensureMarketSubworkspaceState(workspaceId) {
+  var tabs = _getMarketSubworkspaceTabs(workspaceId);
+  if (tabs.length === 0) return '';
+  var activeTab = _activeMarketSubworkspaceTabs[workspaceId];
+  if (!tabs.some(function (entry) { return entry.id === activeTab; })) {
+    activeTab = tabs[0].id;
+    _activeMarketSubworkspaceTabs[workspaceId] = activeTab;
+  }
+  return activeTab;
+}
+
+function _renderMarketSubworkspace(workspaceId, sections) {
+  var tabs = _getMarketSubworkspaceTabs(workspaceId);
+  if (tabs.length === 0) return '';
+
+  var activeTab = _ensureMarketSubworkspaceState(workspaceId);
+
+  return '<div class="market-subworkspace" data-market-subworkspace="' + workspaceId + '">' +
+    '<div class="market-subworkspace-tabs" role="tablist" aria-label="' + workspaceId + ' 二级菜单">' +
+      tabs.map(function (entry) {
+        return '<button class="market-subworkspace-tab' + (entry.id === activeTab ? ' active' : '') + '" data-market-subworkspace-tab="' + workspaceId + '" data-market-subworkspace-id="' + entry.id + '">' +
+          '<span class="market-subworkspace-tab-label">' + entry.label + '</span>' +
+          '<span class="market-subworkspace-tab-hint">' + entry.hint + '</span>' +
+        '</button>';
+      }).join('') +
+    '</div>' +
+    '<div class="market-subworkspace-panes">' +
+      tabs.map(function (entry) {
+        return '<div class="market-subworkspace-pane' + (entry.id === activeTab ? '' : ' hidden') + '" data-market-subworkspace-pane="' + workspaceId + '" data-market-subworkspace-id="' + entry.id + '">' +
+          (sections[entry.id] || '<div class="market-finance-empty">该分区暂无可用内容。</div>') +
+        '</div>';
+      }).join('') +
+    '</div>' +
+  '</div>';
+}
+
+function _bindMarketSubworkspaceTabs(container) {
+  if (!container) return;
+
+  container.querySelectorAll('[data-market-subworkspace-tab]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      var workspaceId = button.dataset.marketSubworkspaceTab;
+      var tabId = button.dataset.marketSubworkspaceId;
+      if (!workspaceId || !tabId) return;
+      _activeMarketSubworkspaceTabs[workspaceId] = tabId;
+
+      container.querySelectorAll('[data-market-subworkspace-tab="' + workspaceId + '"]').forEach(function (entry) {
+        entry.classList.toggle('active', entry.dataset.marketSubworkspaceId === tabId);
+      });
+      container.querySelectorAll('[data-market-subworkspace-pane="' + workspaceId + '"]').forEach(function (pane) {
+        pane.classList.toggle('hidden', pane.dataset.marketSubworkspaceId !== tabId);
+      });
+    });
+  });
+}
+
+function _pickSnapshot(snapshots, comparator) {
+  if (!snapshots || snapshots.length === 0) return null;
+  return snapshots.slice().sort(comparator)[0] || null;
+}
+
+function _getMarketHeatMeta(multiplier) {
+  if (multiplier < 0.65) {
+    return { className: 'mkt-ov-price-freeze', label: '冰点价', note: '强烈低估，适合买入' };
+  }
+  if (multiplier < 0.85) {
+    return { className: 'mkt-ov-price-cool', label: '低位区', note: '价格偏低，可考虑建仓' };
+  }
+  if (multiplier <= 1.15) {
+    return { className: 'mkt-ov-price-neutral', label: '均衡区', note: '价格接近常态' };
+  }
+  if (multiplier <= 1.45) {
+    return { className: 'mkt-ov-price-warm', label: '溢价区', note: '价格偏高，适合观察卖点' };
+  }
+  return { className: 'mkt-ov-price-hot', label: '过热区', note: '价格显著偏高，适合出货' };
+}
+
+function _formatMarketHeatDelta(multiplier) {
+  var deltaPct = Math.round((multiplier - 1) * 100);
+  if (deltaPct > 0) {
+    return { text: '▲' + deltaPct + '%', className: 'up' };
+  }
+  if (deltaPct < 0) {
+    return { text: '▼' + Math.abs(deltaPct) + '%', className: 'down' };
+  }
+  return { text: '•0%', className: 'flat' };
+}
+
+function _renderSpotTradeSection() {
+  return '<section class="market-finance-section market-trade-overview-section">' +
+      '<div class="market-finance-section-head">' +
+        '<div>' +
+          '<div class="market-finance-title">🗺 星系交易图表</div>' +
+          '<div class="market-finance-subtitle">把当前星系的资源价格矩阵压进交易页，点选任意节点可切换本地交易工作台。颜色越冷越适合买入，越热越接近卖出窗口。</div>' +
+        '</div>' +
+        '<label class="market-price-toggle market-price-toggle-inline">' +
+          '<input type="checkbox" id="market-trade-show-sell" /> 显示卖出价' +
+        '</label>' +
+      '</div>' +
+      '<div class="market-heatmap-legend" aria-label="交易热力图图例">' +
+        '<span class="market-heatmap-legend-item freeze">冰点价</span>' +
+        '<span class="market-heatmap-legend-item cool">低位区</span>' +
+        '<span class="market-heatmap-legend-item neutral">均衡区</span>' +
+        '<span class="market-heatmap-legend-item warm">溢价区</span>' +
+        '<span class="market-heatmap-legend-item hot">过热区</span>' +
+      '</div>' +
+      '<div class="market-trade-overview-scroll">' +
+        '<table id="market-trade-overview-table">' +
+          '<thead id="market-trade-overview-thead"></thead>' +
+          '<tbody id="market-trade-overview-tbody"></tbody>' +
+        '</table>' +
+      '</div>' +
+    '</section>' +
+    '<div id="market-terminal-dashboard" class="market-terminal-dashboard"></div>' +
+    '<table id="market-table">' +
+      '<thead>' +
+        '<tr>' +
+          '<th>商品</th>' +
+          '<th>买入</th>' +
+          '<th>卖出</th>' +
+          '<th>持有</th>' +
+          '<th>操作</th>' +
+          '<th>K线</th>' +
+        '</tr>' +
+      '</thead>' +
+      '<tbody id="market-tbody"></tbody>' +
+    '</table>';
+}
+
+function _renderSpotIntelSection(state, sysId, snapshots, marketMode, systemFaction, blackMarketUnlocked) {
+  var system = findSystem(sysId);
+  var bestDemand = _pickSnapshot(snapshots, function (a, b) {
+    return b.supplyDemand.ratio - a.supplyDemand.ratio;
+  });
+  var biggestSwing = _pickSnapshot(snapshots, function (a, b) {
+    return b.swing - a.swing;
+  });
+  var lowestBuy = _pickSnapshot(snapshots, function (a, b) {
+    return a.buyPrice - b.buyPrice;
+  });
+  var widestSpread = _pickSnapshot(snapshots, function (a, b) {
+    return b.spread - a.spread;
+  });
+  var watchList = snapshots.slice().sort(function (a, b) {
+    return (b.supplyDemand.ratio + b.swing / 100) - (a.supplyDemand.ratio + a.swing / 100);
+  }).slice(0, 4);
+  var marketDepth = Economy.getMarketDepth(sysId);
+
+  return '<section class="market-finance-section">' +
+    '<div class="market-finance-section-head">' +
+      '<div>' +
+        '<div class="market-finance-title">🧭 市场情报台</div>' +
+        '<div class="market-finance-subtitle">把当前节点的价格、波动和准入状态压缩成一张作战看板，方便决定下一笔交易。</div>' +
+      '</div>' +
+      '<span class="market-finance-chip">' + (marketMode === 'black' ? '黑市视图' : '公开视图') + '</span>' +
+    '</div>' +
+    '<div class="market-finance-summary-grid market-spot-intel-grid">' +
+      '<div class="market-finance-summary-metric"><span>最低买入</span><strong>' + (lowestBuy ? (lowestBuy.good.emoji + ' ' + lowestBuy.buyPrice.toLocaleString()) : '—') + '</strong></div>' +
+      '<div class="market-finance-summary-metric"><span>最高需求</span><strong>' + (bestDemand ? (bestDemand.good.emoji + ' ' + bestDemand.supplyDemand.ratio.toFixed(2) + 'x') : '—') + '</strong></div>' +
+      '<div class="market-finance-summary-metric"><span>最大波动</span><strong>' + (biggestSwing ? (biggestSwing.good.emoji + ' ' + biggestSwing.swing.toLocaleString()) : '—') + '</strong></div>' +
+      '<div class="market-finance-summary-metric"><span>买卖价差</span><strong>' + (widestSpread ? (widestSpread.good.emoji + ' ' + widestSpread.spread.toLocaleString()) : '—') + '</strong></div>' +
+    '</div>' +
+  '</section>' +
+  '<section class="market-finance-section">' +
+    '<div class="market-finance-section-head">' +
+      '<div>' +
+        '<div class="market-finance-title">📡 节点速览</div>' +
+        '<div class="market-finance-subtitle">查看该节点的深度、势力和特殊市场准入，判断它更适合买货、出货还是布点。</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="market-finance-action-list">' +
+      '<div class="market-finance-action-row">' +
+        '<div class="market-finance-action-main">' +
+          '<div class="market-finance-action-title">' + (system ? system.name : '当前节点') + '</div>' +
+          '<div class="market-finance-action-meta">市场深度 ' + marketDepth + ' · ' + (system ? system.typeLabel : '未知类型') + ' · ' + (system ? system.description : '无节点说明') + '</div>' +
+        '</div>' +
+        '<div class="market-finance-network-note">' + (systemFaction ? systemFaction.name : '中立地带') + '</div>' +
+      '</div>' +
+      '<div class="market-finance-action-row">' +
+        '<div class="market-finance-action-main">' +
+          '<div class="market-finance-action-title">特殊市场准入</div>' +
+          '<div class="market-finance-action-meta">' + (systemFaction && systemFaction.marketAccess && systemFaction.marketAccess.blackMarket ? '该势力辖区存在黑市通路。' : '该节点无黑市入口，现货交易仅限公开市场。') + '</div>' +
+        '</div>' +
+        '<div class="market-finance-network-note">' + (blackMarketUnlocked ? '已解锁' : '未解锁') + '</div>' +
+      '</div>' +
+    '</div>' +
+  '</section>' +
+  '<section class="market-finance-section">' +
+    '<div class="market-finance-section-head">' +
+      '<div>' +
+        '<div class="market-finance-title">🎯 值得盯盘的货物</div>' +
+        '<div class="market-finance-subtitle">优先把波动和需求同时较高的品类拉进观察名单。</div>' +
+      '</div>' +
+    '</div>' +
+    (watchList.length > 0
+      ? '<div class="market-finance-action-list">' + watchList.map(function (entry) {
+          return '<div class="market-finance-action-row">' +
+            '<div class="market-finance-action-main">' +
+              '<div class="market-finance-action-title">' + entry.good.emoji + ' ' + entry.good.name + '</div>' +
+              '<div class="market-finance-action-meta">买入 ' + entry.buyPrice.toLocaleString() + ' · 卖出 ' + entry.sellPrice.toLocaleString() + ' · 需求/供给 ' + entry.supplyDemand.ratio.toFixed(2) + 'x</div>' +
+            '</div>' +
+            '<div class="market-finance-network-note">波动 ' + entry.swing.toLocaleString() + '</div>' +
+          '</div>';
+        }).join('') + '</div>'
+      : '<div class="market-finance-empty">当前没有足够的行情数据生成观察名单。</div>') +
+  '</section>';
+}
+
+function _renderBlackMarketSection(state, sysId, marketMode, systemFaction, blackMarketUnlocked) {
+  var hasBlackMarket = !!(systemFaction && systemFaction.marketAccess && systemFaction.marketAccess.blackMarket);
+  var blackGoods = Economy.getBlackMarketGoods();
+
+  return '<section class="market-finance-section">' +
+    '<div class="market-finance-section-head">' +
+      '<div>' +
+        '<div class="market-finance-title">🕶 特殊市场接入</div>' +
+        '<div class="market-finance-subtitle">把公开市场和黑市切换单独收进这一页，避免交易表里混入额外控制按钮。</div>' +
+      '</div>' +
+      '<span class="market-finance-chip">当前 ' + (marketMode === 'black' ? '黑市' : '公开') + '</span>' +
+    '</div>' +
+    (hasBlackMarket
+      ? '<div class="market-black-switcher">' +
+          '<div class="market-mode-bar market-mode-bar-panel">' +
+            '<button class="market-mode-btn' + (marketMode !== 'black' ? ' active' : '') + '" data-mode="open">🏪 公开市场</button>' +
+            (blackMarketUnlocked
+              ? '<button class="market-mode-btn' + (marketMode === 'black' ? ' active' : '') + '" data-mode="black">🕶 黑市</button>'
+              : '<button class="market-mode-btn disabled" disabled title="需与辛迪加达到友好关系">🔒 黑市</button>') +
+          '</div>' +
+          '<div class="market-finance-card' + (marketMode === 'black' ? ' is-featured' : '') + '">' +
+            '<div class="market-finance-card-head"><span class="market-finance-card-title">' + (marketMode === 'black' ? '黑市已接管前台视图' : '当前仍停留在公开市场') + '</span><span class="market-finance-chip">' + (blackMarketUnlocked ? '可切换' : '权限不足') + '</span></div>' +
+            '<div class="market-finance-card-meta">' + (blackMarketUnlocked
+              ? '切换到黑市后，现货交易子页会改用灰市/违禁品报价与对应买卖动作。'
+              : '该节点存在黑市，但当前资格不足，只能提前查看风险说明。') + '</div>' +
+            '<div class="market-finance-card-meta">⚠ 携带违禁品进入联邦区域会触发执法检查，黑市收益高，但路线风险和名望代价更大。</div>' +
+          '</div>' +
+        '</div>'
+      : '<div class="market-finance-locked">📡 当前节点不提供黑市入口。若要走特殊货物流通，需要前往允许黑市交易的势力辖区。</div>') +
+  '</section>' +
+  '<section class="market-finance-section">' +
+    '<div class="market-finance-section-head">' +
+      '<div>' +
+        '<div class="market-finance-title">☠ 灰市货目录</div>' +
+        '<div class="market-finance-subtitle">这里列出可能出现在黑市的商品，用于提前规划货舱和路线。</div>' +
+      '</div>' +
+    '</div>' +
+    (blackGoods.length > 0
+      ? '<div class="market-finance-card-grid">' + blackGoods.map(function (good) {
+          return '<article class="market-finance-card">' +
+            '<div class="market-finance-card-head">' +
+              '<span class="market-finance-card-title">' + good.emoji + ' ' + good.name + '</span>' +
+              '<span class="market-finance-chip">' + (good.legality === 'illegal' ? '违禁' : '灰市') + '</span>' +
+            '</div>' +
+            '<div class="market-finance-card-meta">' + _legalityTooltip(good) + '</div>' +
+            '<div class="market-finance-card-meta">' + (_supplyChainTooltip(good) || '无额外产业链提示') + '</div>' +
+          '</article>';
+        }).join('') + '</div>'
+      : '<div class="market-finance-empty">当前没有定义黑市商品。</div>') +
+  '</section>';
 }
 
 // ---------------------------------------------------------------------------
@@ -414,8 +700,7 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
     '</div>' +
   '</section>';
 
-  var capitalHtml = summarySection;
-  capitalHtml += '<section class="market-finance-section">' +
+  var capitalLocalSection = '<section class="market-finance-section">' +
     '<div class="market-finance-section-head">' +
       '<div>' +
         '<div class="market-finance-title">🏦 本地资本调度</div>' +
@@ -424,9 +709,9 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
     '</div>';
 
   if (!isCurrentSys) {
-    capitalHtml += '<div class="market-finance-locked">📡 当前是远程查看模式。抵达该节点后，可在这里申请贷款、办理保险并追加本地站点投资。</div>';
+    capitalLocalSection += '<div class="market-finance-locked">📡 当前是远程查看模式。抵达该节点后，可在这里申请贷款、办理保险并追加本地站点投资。</div>';
   } else {
-    capitalHtml += '<div class="market-finance-layout">' +
+    capitalLocalSection += '<div class="market-finance-layout">' +
       '<div class="market-finance-column">' +
         '<div class="market-finance-subsection">🏦 贷款席位</div>' +
         (activeLoans.length > 0
@@ -474,10 +759,9 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
     '</div>';
   }
 
-  capitalHtml += '</section>';
+  capitalLocalSection += '</section>';
 
-  var operationsHtml = summarySection;
-  operationsHtml += '<section class="market-finance-section">' +
+  var operationsLocalSection = '<section class="market-finance-section">' +
     '<div class="market-finance-section-head">' +
       '<div>' +
         '<div class="market-finance-title">🏪 节点经营</div>' +
@@ -487,7 +771,7 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
     '</div>';
 
   if (localStation) {
-    operationsHtml += '<div class="market-finance-card is-featured">' +
+    operationsLocalSection += '<div class="market-finance-card is-featured">' +
       '<div class="market-finance-card-head">' +
         '<span class="market-finance-card-title">' + localStation.system.name + ' 贸易站</span>' +
         '<span class="market-finance-chip">Lv.' + localStation.station.level + ' · ' + localStation.levelConfig.name + '</span>' +
@@ -517,7 +801,7 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
         : '<div class="market-finance-locked">📡 远程查看模式：可审阅该站点收益与配置，抵达后才能升级、雇佣和切换策略。</div>') +
     '</div>';
   } else if (buildCandidate) {
-    operationsHtml += '<div class="market-finance-card">' +
+    operationsLocalSection += '<div class="market-finance-card">' +
       '<div class="market-finance-card-head">' +
         '<span class="market-finance-card-title">在 ' + buildCandidate.system.name + ' 建立商业节点</span>' +
         '<span class="market-finance-chip">' + buildCandidate.system.typeLabel + '</span>' +
@@ -535,11 +819,11 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
         : '<div class="market-finance-locked">📡 这是可建站候选节点。抵达后可直接在此发起投资。</div>') +
     '</div>';
   } else {
-    operationsHtml += '<div class="market-finance-empty">该节点暂不提供贸易站建设资格，或尚未完成前置探索。</div>';
+    operationsLocalSection += '<div class="market-finance-empty">该节点暂不提供贸易站建设资格，或尚未完成前置探索。</div>';
   }
 
   if (ownedStations.length > 0) {
-    operationsHtml += '<div class="market-finance-subsection">📡 商网快照</div>' +
+    operationsLocalSection += '<div class="market-finance-subsection">📡 商网快照</div>' +
       '<div class="market-finance-action-list">' + ownedStations.slice(0, 4).map(function (entry) {
         return '<div class="market-finance-network-row">' +
           '<div class="market-finance-network-main">' +
@@ -551,9 +835,9 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
       }).join('') + '</div>';
   }
 
-  operationsHtml += '</section>';
+  operationsLocalSection += '</section>';
 
-  operationsHtml += '<section class="market-finance-section">' +
+  var operationsNetworkSection = '<section class="market-finance-section">' +
     '<div class="trade-station-summary-card">' +
       '<div class="trade-station-summary-head">' +
         '<span class="trade-station-summary-title">📡 商业网络总览</span>' +
@@ -571,12 +855,27 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
     '</div>' +
   '</section>';
 
-  operationsHtml += '<section class="market-finance-section">' +
+  if (ownedStations.length > 0) {
+    operationsNetworkSection += '<section class="market-finance-section">' +
+      '<div class="trade-station-section-title">⚡ 核心站点快照</div>' +
+      '<div class="market-finance-action-list">' + ownedStations.slice(0, 6).map(function (entry) {
+        return '<div class="market-finance-network-row">' +
+          '<div class="market-finance-network-main">' +
+            '<div class="market-finance-action-title">' + entry.system.name + ' · Lv.' + entry.station.level + '</div>' +
+            '<div class="market-finance-action-meta">日收益 +' + Math.floor(entry.projectedIncome).toLocaleString() + ' · 管理员 ' + (entry.manager ? entry.manager.name : '未配置') + ' · 策略 ' + entry.strategy.name + '</div>' +
+          '</div>' +
+          '<div class="market-finance-network-note">累计 ' + Math.floor(entry.station.totalIncome || 0).toLocaleString() + '</div>' +
+        '</div>';
+      }).join('') + '</div>' +
+    '</section>';
+  }
+
+  var operationsStationsSection = '<section class="market-finance-section">' +
     '<div class="trade-station-section-title">🏗 建站候选</div>';
 
   if (buildCandidate || TradeStation.getBuildCandidates(state).length > 0) {
     TradeStation.getBuildCandidates(state).forEach(function (candidate) {
-      operationsHtml += '<div class="trade-station-build-card">' +
+      operationsStationsSection += '<div class="trade-station-build-card">' +
         '<div class="trade-station-card-head">' +
           '<span class="trade-station-card-name">' + candidate.system.name + '</span>' +
           '<span class="trade-station-card-badge">' + candidate.system.typeLabel + '</span>' +
@@ -587,20 +886,20 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
       '</div>';
     });
   } else {
-    operationsHtml += '<div class="trade-station-empty">先探索更多星球，才能解锁新的建站候选。</div>';
+    operationsStationsSection += '<div class="trade-station-empty">先探索更多星球，才能解锁新的建站候选。</div>';
   }
 
-  operationsHtml += '</section>';
+  operationsStationsSection += '</section>';
 
-  operationsHtml += '<section class="market-finance-section">' +
+  operationsStationsSection += '<section class="market-finance-section">' +
     '<div class="trade-station-section-title">📡 已建贸易站</div>';
 
   if (ownedStations.length === 0) {
-    operationsHtml += '<div class="trade-station-empty">还没有贸易站。先在当前停靠节点完成第一笔长期投资。</div>';
+    operationsStationsSection += '<div class="trade-station-empty">还没有贸易站。先在当前停靠节点完成第一笔长期投资。</div>';
   } else {
     ownedStations.forEach(function (entry) {
       var station = entry.station;
-      operationsHtml += '<div class="trade-station-card">' +
+      operationsStationsSection += '<div class="trade-station-card">' +
         '<div class="trade-station-card-head">' +
           '<span class="trade-station-card-name">' + entry.system.name + ' 贸易站</span>' +
           '<span class="trade-station-card-badge">Lv.' + station.level + ' · ' + entry.levelConfig.name + '</span>' +
@@ -637,9 +936,9 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
     });
   }
 
-  operationsHtml += '</section>';
+  operationsStationsSection += '</section>';
 
-  capitalHtml += '<section class="market-finance-section">' +
+  var capitalStocksSection = '<section class="market-finance-section">' +
     '<div class="market-finance-section-head">' +
       '<div>' +
         '<div class="market-finance-title">📈 股票市场</div>' +
@@ -648,9 +947,9 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
     '</div>';
 
   if (stockListings.length === 0) {
-    capitalHtml += '<div class="market-finance-empty">暂无可交易股票。</div>';
+    capitalStocksSection += '<div class="market-finance-empty">暂无可交易股票。</div>';
   } else {
-    capitalHtml += '<div class="market-finance-card-grid">' + stockListings.map(function (listing) {
+    capitalStocksSection += '<div class="market-finance-card-grid">' + stockListings.map(function (listing) {
       var delta = _getStockPriceDelta(listing);
       var deltaClass = delta >= 0 ? 'market-finance-value-up' : 'market-finance-value-down';
       var deltaText = (delta >= 0 ? '+' : '') + delta.toLocaleString();
@@ -668,9 +967,9 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
       '</article>';
     }).join('') + '</div>';
   }
-  capitalHtml += '</section>';
+  capitalStocksSection += '</section>';
 
-  capitalHtml += '<section class="market-finance-section">' +
+  var capitalFuturesSection = '<section class="market-finance-section">' +
     '<div class="market-finance-section-head">' +
       '<div>' +
         '<div class="market-finance-title">📋 期货市场</div>' +
@@ -680,9 +979,9 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
     '</div>';
 
   if (futuresListings.length === 0) {
-    capitalHtml += '<div class="market-finance-empty">暂无可交易期货标的。</div>';
+    capitalFuturesSection += '<div class="market-finance-empty">暂无可交易期货标的。</div>';
   } else {
-    capitalHtml += '<div class="market-finance-card-grid">' + futuresListings.map(function (listing) {
+    capitalFuturesSection += '<div class="market-finance-card-grid">' + futuresListings.map(function (listing) {
       return '<article class="market-finance-card">' +
         '<div class="market-finance-card-head">' +
           '<span class="market-finance-card-title">' + (listing.emoji ? listing.emoji + ' ' : '') + listing.name + '</span>' +
@@ -699,7 +998,7 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
   }
 
   if (openContracts.length > 0) {
-    capitalHtml += '<div class="market-finance-subsection">📂 当前持仓</div>' +
+    capitalFuturesSection += '<div class="market-finance-subsection">📂 当前持仓</div>' +
       '<div class="market-finance-contract-list">' + openContracts.map(function (contract) {
         var pnlClass = (contract.unrealizedPnl || 0) >= 0 ? 'market-finance-value-up' : 'market-finance-value-down';
         var pnlText = ((contract.unrealizedPnl || 0) >= 0 ? '+' : '') + (contract.unrealizedPnl || 0).toLocaleString();
@@ -717,7 +1016,7 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
   }
 
   if (recentClosedContracts.length > 0) {
-    capitalHtml += '<div class="market-finance-subsection">📜 近期成交</div>' +
+    capitalFuturesSection += '<div class="market-finance-subsection">📜 近期成交</div>' +
       '<div class="market-finance-history">' + recentClosedContracts.map(function (contract) {
         var pnl = contract.pnl || 0;
         return '<div class="market-finance-history-row">' +
@@ -727,12 +1026,23 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
       }).join('') + '</div>';
   }
 
-  capitalHtml += '</section>';
-  capitalContainer.innerHTML = capitalHtml;
-  operationsContainer.innerHTML = operationsHtml;
+  capitalFuturesSection += '</section>';
+
+  capitalContainer.innerHTML = summarySection + _renderMarketSubworkspace('capital', {
+    local: capitalLocalSection,
+    stocks: capitalStocksSection,
+    futures: capitalFuturesSection,
+  });
+  operationsContainer.innerHTML = summarySection + _renderMarketSubworkspace('operations', {
+    local: operationsLocalSection,
+    network: operationsNetworkSection,
+    stations: operationsStationsSection,
+  });
 
   [capitalContainer, operationsContainer].forEach(function (container) {
     if (!container) return;
+
+    _bindMarketSubworkspaceTabs(container);
 
     container.querySelectorAll('[data-action="market-buy-stock"]').forEach(function (button) {
       button.addEventListener('click', function () {
@@ -830,12 +1140,12 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
  * @param {string}   galaxyId       当前查看的星系
  * @param {Function} onPlanetClick  (systemId) => void
  */
-export function renderOverview(state, galaxyId, onPlanetClick) {
-  const thead = document.getElementById('market-overview-thead');
-  const tbody = document.getElementById('market-overview-tbody');
+function _renderOverviewTable(state, galaxyId, onPlanetClick, tableIds) {
+  const thead = document.getElementById(tableIds.theadId);
+  const tbody = document.getElementById(tableIds.tbodyId);
   if (!thead || !tbody) return;
 
-  const showSell = document.getElementById('market-show-sell');
+  const showSell = document.getElementById(tableIds.toggleId);
   const isSell = showSell && showSell.checked;
 
   // 表头：星球 + 各商品
@@ -890,10 +1200,15 @@ export function renderOverview(state, galaxyId, onPlanetClick) {
         ? Economy.getSellPrice(sys.id, good.id, state)
         : Economy.getBuyPrice(sys.id, good.id, state);
       const mult = Economy.getSystemMultiplier(sys.id, good.id);
-      const isCheap = mult < 0.7;
-      const isExpensive = mult > 1.4;
-      const cls = isCheap ? 'price-low' : isExpensive ? 'price-high' : '';
-      priceCells += '<td class="mkt-ov-price ' + cls + '">' + price + '</td>';
+      const heatMeta = _getMarketHeatMeta(mult);
+      const heatDelta = _formatMarketHeatDelta(mult);
+      const cls = mult < 0.7 ? 'price-low' : (mult > 1.4 ? 'price-high' : '');
+      priceCells += '<td class="mkt-ov-price-cell ' + heatMeta.className + ' ' + cls + '" title="' + good.name + ' · ' + heatMeta.label + ' · ' + heatMeta.note + '">' +
+        '<span class="mkt-ov-price-chip">' +
+          '<span class="mkt-ov-price-value">' + price + '</span>' +
+          '<span class="mkt-ov-price-delta ' + heatDelta.className + '">' + heatDelta.text + '</span>' +
+        '</span>' +
+      '</td>';
     });
 
     tr.innerHTML = planetCell + priceCells;
@@ -920,45 +1235,79 @@ export function renderOverview(state, galaxyId, onPlanetClick) {
  * @param {Function} onRefuel       () => void
  * @param {string}   [viewingSystem] 查看的星球 ID（默认为当前星球）
  * @param {string}   [marketMode]   'open' | 'black'（默认 'open'）
- * @param {Function} [onBlackBuy]   黑市买入回调 (good) => void
- * @param {Function} [onBlackSell]  黑市卖出回调 (good) => void
+ * @param {string}   [viewingGalaxy] 查看的星系 ID（用于交易图表）
+ * @param {Function} [onBlackBuy]    黑市买入回调 (good) => void
+ * @param {Function} [onBlackSell]   黑市卖出回调 (good) => void
  * @param {object}   [financeActions] 股票/期货市场动作回调
  */
-export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode, onBlackBuy, onBlackSell, financeActions) {
+export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode, viewingGalaxy, onBlackBuy, onBlackSell, financeActions) {
   const sysId         = viewingSystem || state.currentSystem;
   const isCurrentSys  = sysId === state.currentSystem;
-  const tbody         = document.getElementById('market-tbody');
   const isBlack       = marketMode === 'black';
-  const dashboard     = document.getElementById('market-terminal-dashboard');
+  const spotContainer = document.getElementById('market-spot-panels');
+  const tradeGalaxyId = viewingGalaxy || state.currentGalaxy;
   _renderMarketWorkspaceTabs();
-  tbody.innerHTML     = '';
-  if (dashboard) dashboard.innerHTML = '';
+
+  if (isBlack && _activeMarketSubworkspaceTabs.spot === 'trade') {
+    _activeMarketSubworkspaceTabs.spot = 'black';
+  } else if (!isBlack && _activeMarketSubworkspaceTabs.spot === 'black') {
+    _activeMarketSubworkspaceTabs.spot = 'trade';
+  }
 
   // 非当前星球时显示只读提示
+  // 黑市模式横幅
+  var blackMarketUnlocked = Faction.canAccessBlackMarket(state, sysId);
+  var systemFaction = Faction.getFactionForSystem(sysId);
+
+  // 根据市场模式筛选商品
+  var goodsList = isBlack ? Economy.getBlackMarketGoods() : GOODS;
+  var focusKey = sysId + ':' + (marketMode || 'open');
+  if (!_marketChartRange[focusKey]) _marketChartRange[focusKey] = 14;
+  var snapshots = _buildMarketSnapshots(state, sysId, goodsList, isBlack, _marketChartRange[focusKey]);
+
+  if (spotContainer) {
+    spotContainer.innerHTML = _renderMarketSubworkspace('spot', {
+      trade: _renderSpotTradeSection(),
+      intel: _renderSpotIntelSection(state, sysId, snapshots, marketMode || 'open', systemFaction, blackMarketUnlocked),
+      black: _renderBlackMarketSection(state, sysId, marketMode || 'open', systemFaction, blackMarketUnlocked),
+    });
+    _bindMarketSubworkspaceTabs(spotContainer);
+  }
+
+  _renderOverviewTable(state, tradeGalaxyId, function (systemId) {
+    showDetail(systemId, marketMode || 'open');
+    render(state, onBuy, onSell, onRefuel, systemId, marketMode, tradeGalaxyId, onBlackBuy, onBlackSell, financeActions);
+  }, {
+    theadId: 'market-trade-overview-thead',
+    tbodyId: 'market-trade-overview-tbody',
+    toggleId: 'market-trade-show-sell',
+  });
+
+  var tradeSellToggle = document.getElementById('market-trade-show-sell');
+  if (tradeSellToggle) {
+    tradeSellToggle.onchange = function () {
+      _renderOverviewTable(state, tradeGalaxyId, function (systemId) {
+        showDetail(systemId, marketMode || 'open');
+        render(state, onBuy, onSell, onRefuel, systemId, marketMode, tradeGalaxyId, onBlackBuy, onBlackSell, financeActions);
+      }, {
+        theadId: 'market-trade-overview-thead',
+        tbodyId: 'market-trade-overview-tbody',
+        toggleId: 'market-trade-show-sell',
+      });
+    };
+  }
+
+  const tbody = document.getElementById('market-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  _renderMarketDashboard(state, sysId, marketMode || 'open', snapshots);
+
   if (!isCurrentSys) {
     const noteRow = document.createElement('tr');
     noteRow.innerHTML = '<td colspan="6" class="market-readonly-note">⚠️ 仅查看价格，交易请前往该星球</td>';
     tbody.appendChild(noteRow);
   }
 
-  // 黑市模式横幅
-  var blackMarketUnlocked = Faction.canAccessBlackMarket(state, sysId);
-  var systemFaction = Faction.getFactionForSystem(sysId);
-
-  // 市场模式切换栏（仅在有黑市权限的星系显示）
-  if (systemFaction && systemFaction.marketAccess && systemFaction.marketAccess.blackMarket) {
-    var modeRow = document.createElement('tr');
-    modeRow.className = 'market-mode-row';
-    modeRow.innerHTML = '<td colspan="6" class="market-mode-bar">' +
-      '<button class="market-mode-btn' + (!isBlack ? ' active' : '') + '" data-mode="open">🏪 公开市场</button>' +
-      (blackMarketUnlocked
-        ? '<button class="market-mode-btn' + (isBlack ? ' active' : '') + '" data-mode="black">🕶 黑市</button>'
-        : '<button class="market-mode-btn disabled" disabled title="需与辛迪加达到友好关系">🔒 黑市</button>') +
-      '</td>';
-    tbody.appendChild(modeRow);
-  }
-
-  // 市场深度 / 黑市横幅
   var depth = Economy.getMarketDepth(sysId);
   var depthLabel = depth >= 350 ? '深度市场' : depth >= 200 ? '中等市场' : '浅层市场';
   var depthRow = document.createElement('tr');
@@ -981,13 +1330,6 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode
       '</td>';
   }
   tbody.appendChild(depthRow);
-
-  // 根据市场模式筛选商品
-  var goodsList = isBlack ? Economy.getBlackMarketGoods() : GOODS;
-  var focusKey = sysId + ':' + (marketMode || 'open');
-  if (!_marketChartRange[focusKey]) _marketChartRange[focusKey] = 14;
-  var snapshots = _buildMarketSnapshots(state, sysId, goodsList, isBlack, _marketChartRange[focusKey]);
-  _renderMarketDashboard(state, sysId, marketMode || 'open', snapshots);
   var activeGoodId = _focusedMarketGood[focusKey] || (snapshots[0] && snapshots[0].good.id);
 
   goodsList.forEach(function (good) {
@@ -1055,7 +1397,7 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode
     }
     tr.addEventListener('click', function () {
       _focusedMarketGood[focusKey] = good.id;
-      render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode, onBlackBuy, onBlackSell, financeActions);
+      render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode, tradeGalaxyId, onBlackBuy, onBlackSell, financeActions);
     });
     tbody.appendChild(tr);
   });
@@ -1083,29 +1425,14 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode
 // 视图切换辅助
 // ---------------------------------------------------------------------------
 
-/** 显示总览，隐藏详情 */
-export function showOverview() {
-  const ov = document.getElementById('market-overview');
-  const dt = document.getElementById('market-detail');
-  const title = document.getElementById('market-header-title');
-  const capital = document.getElementById('market-capital-panels');
-  const operations = document.getElementById('market-operations-panels');
-  if (ov) ov.classList.remove('hidden');
-  if (dt) dt.classList.add('hidden');
-  _activeMarketWorkspaceTab = 'spot';
-  if (capital) capital.innerHTML = '';
-  if (operations) operations.innerHTML = '';
-  if (title) title.textContent = '◈ 蓝脉商业终端';
-}
-
 /** 显示详情，隐藏总览 */
 export function showDetail(systemId, marketMode) {
-  const ov = document.getElementById('market-overview');
   const dt = document.getElementById('market-detail');
   const loc = document.getElementById('market-detail-location');
   const title = document.getElementById('market-header-title');
-  if (ov) ov.classList.add('hidden');
+  const tabs = document.getElementById('market-workspace-tabs');
   if (dt) dt.classList.remove('hidden');
+  if (tabs) tabs.classList.remove('hidden');
   const sys = findSystem(systemId);
   const isBlack = marketMode === 'black';
   if (sys && loc) {

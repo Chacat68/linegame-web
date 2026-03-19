@@ -82,7 +82,7 @@ export const STEPS = [
     id: 'explain_market',
     phase: 2,
     title: '认识市场',
-    content: '现在来学习赚钱！点击地图上方的 【🏪 市场】 按钮打开市场面板。\n你现在在 太阳主星（农业星球），注意看——食物和水资源价格很低（绿色数字），这就是买入的好时机！',
+    content: '现在来学习赚钱！点击地图上方的 【🏪 商业终端】 按钮打开市场面板。\n你现在在 太阳主星（农业星球），注意看——食物和水资源价格很低（绿色数字），这就是买入的好时机！',
     highlight: '#market-view-btn',
     position: 'left',
     trigger: 'manual',

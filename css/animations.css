@@ -87,7 +87,6 @@
 .save-slot-info,
 .research-card-desc,
 .market-overlay-location,
-.market-overview-toolbar,
 .market-price-toggle,
 .market-detail-location,
 .gameover-message,
@@ -104,7 +103,6 @@
 .upg-modal-buy-btn,
 .btn-auto-trade,
 .market-galaxy-btn,
-.market-back-btn,
 .slot-switch-btn {
   border: 1px solid rgba(34, 211, 238, 0.36);
   background: linear-gradient(180deg, rgba(10, 49, 79, 0.88), rgba(6, 26, 45, 0.9));
@@ -118,7 +116,6 @@
 .upg-modal-buy-btn:hover:not(:disabled),
 .btn-auto-trade:hover,
 .market-galaxy-btn:hover,
-.market-back-btn:hover,
 .slot-switch-btn:hover {
   border-color: rgba(103, 232, 249, 0.72);
   background: linear-gradient(180deg, rgba(16, 68, 108, 0.94), rgba(9, 40, 66, 0.94));
@@ -217,7 +214,6 @@
 .upg-modal-item,
 .mod-modal-item,
 .vp-card,
-.market-overview-toolbar,
 .market-detail-bar {
   background: linear-gradient(180deg, rgba(8, 28, 56, 0.84), rgba(5, 16, 34, 0.78));
   border-color: rgba(73, 146, 226, 0.24);
@@ -394,7 +390,6 @@
 .market-overlay-header,
 .market-galaxy-nav,
 .market-overlay-body,
-.market-overview-scroll,
 .dispatch-form,
 .gameover-message {
   background-color: transparent;
@@ -424,7 +419,7 @@
 }
 
 #market-table th,
-#market-overview-table th,
+#market-trade-overview-table th,
 #market-table td,
 .mkt-ov-row td {
   border-bottom-color: rgba(56, 189, 248, 0.1);
@@ -443,7 +438,6 @@
 
 .market-overlay-header,
 .market-galaxy-nav,
-.market-overview-toolbar,
 .market-detail-bar {
   border-bottom-color: rgba(56, 189, 248, 0.14);
 }

@@ -110,19 +110,11 @@ export function init(difficulty) {
   });
   // 注入市场刷新回调（让 MapUI 可以触发市场表格重绘）
   MapUI.setRefreshMarket(function (mode) {
-    if (mode === 'detail') {
-      const sysId = MapUI.getMarketViewSystem(_state);
-      var bmMode = _blackMarketMode ? 'black' : 'open';
-      MarketUI.showDetail(sysId, bmMode);
-      MarketUI.render(_state, _handleOpenBuy, _handleOpenSell, _handleRefuel, sysId, bmMode, _handleBlackMarketBuy, _handleBlackMarketSell, _getMarketFinanceActions());
-      _bindMarketModeButtons();
-    } else {
-      _blackMarketMode = false;
-      MarketUI.showOverview();
-      MarketUI.renderOverview(_state, MapUI.getMarketViewGalaxy(_state), function (systemId) {
-        MapUI.showMarketDetail(systemId);
-      });
-    }
+    const sysId = MapUI.getMarketViewSystem(_state);
+    var bmMode = _blackMarketMode ? 'black' : 'open';
+    MarketUI.showDetail(sysId, bmMode);
+    MarketUI.render(_state, _handleOpenBuy, _handleOpenSell, _handleRefuel, sysId, bmMode, MapUI.getMarketViewGalaxy(_state), _handleBlackMarketBuy, _handleBlackMarketSell, _getMarketFinanceActions());
+    _bindMarketModeButtons();
   });
   Modal.init(_handleTradeConfirm);
 
@@ -686,7 +678,7 @@ function _bindMarketModeButtons() {
       var sysId = MapUI.getMarketViewSystem(_state);
       var bmMode = _blackMarketMode ? 'black' : 'open';
       MarketUI.showDetail(sysId, bmMode);
-      MarketUI.render(_state, _handleOpenBuy, _handleOpenSell, _handleRefuel, sysId, bmMode, _handleBlackMarketBuy, _handleBlackMarketSell, _getMarketFinanceActions());
+      MarketUI.render(_state, _handleOpenBuy, _handleOpenSell, _handleRefuel, sysId, bmMode, MapUI.getMarketViewGalaxy(_state), _handleBlackMarketBuy, _handleBlackMarketSell, _getMarketFinanceActions());
       _bindMarketModeButtons();
     });
   });
@@ -1014,16 +1006,9 @@ function _updateUI() {
   _updateSecondaryPanelSummaries(netWorth);
   // 市场：根据当前模式刷新
   if (MapUI.isMarketOpen()) {
-    const mode = MapUI.getMarketMode();
-    if (mode === 'detail') {
-      var bmMode = _blackMarketMode ? 'black' : 'open';
-      MarketUI.render(_state, _handleOpenBuy, _handleOpenSell, _handleRefuel, MapUI.getMarketViewSystem(_state), bmMode, _handleBlackMarketBuy, _handleBlackMarketSell, _getMarketFinanceActions());
-      _bindMarketModeButtons();
-    } else {
-      MarketUI.renderOverview(_state, MapUI.getMarketViewGalaxy(_state), function (systemId) {
-        MapUI.showMarketDetail(systemId);
-      });
-    }
+    var bmMode = _blackMarketMode ? 'black' : 'open';
+    MarketUI.render(_state, _handleOpenBuy, _handleOpenSell, _handleRefuel, MapUI.getMarketViewSystem(_state), bmMode, MapUI.getMarketViewGalaxy(_state), _handleBlackMarketBuy, _handleBlackMarketSell, _getMarketFinanceActions());
+    _bindMarketModeButtons();
   }
   ShipUI.renderShipStats(_state);
   ResearchUI.render(

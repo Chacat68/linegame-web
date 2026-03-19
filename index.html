@@ -144,7 +144,7 @@
               </div>
               <div class="map-primary-entry-group">
                 <button id="market-view-btn" class="map-overlay-btn">
-                  🏪 市场
+                  🏪 商业终端
                 </button>
                 <button id="galaxy-view-btn" class="map-overlay-btn">
                   🌌 星系总览
@@ -160,58 +160,23 @@
                   ✕
                 </button>
               </div>
-              <!-- Galaxy navigation -->
-              <div id="market-galaxy-nav" class="market-galaxy-nav"></div>
+              <div class="market-command-bar">
+                <div id="market-galaxy-nav" class="market-galaxy-nav"></div>
+                <div id="market-workspace-tabs" class="market-workspace-tabs"></div>
+              </div>
 
               <div class="market-overlay-shell">
                 <div class="market-overlay-panels">
-
-                  <!-- ▸ Overview mode: price matrix -->
-                  <div id="market-overview" class="market-overview">
-                    <div class="market-overview-toolbar">
-                      <span class="market-overview-hint"
-                        >扫描星球节点，接入交易、金融与站点投资终端</span
-                      >
-                      <label class="market-price-toggle">
-                        <input type="checkbox" id="market-show-sell" /> 显示卖出价
-                      </label>
-                    </div>
-                    <div class="market-overview-scroll">
-                      <table id="market-overview-table">
-                        <thead id="market-overview-thead"></thead>
-                        <tbody id="market-overview-tbody"></tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  <!-- ▸ Detail mode: single planet -->
-                  <div id="market-detail" class="market-detail hidden">
+                  <div id="market-detail" class="market-detail">
                     <div class="market-detail-bar">
-                      <button id="market-back-btn" class="market-back-btn">
-                        ← 返回节点矩阵
-                      </button>
                       <span
                         id="market-detail-location"
                         class="market-detail-location"
                       ></span>
                     </div>
                     <div class="market-overlay-body">
-                      <div id="market-terminal-dashboard" class="market-terminal-dashboard"></div>
-                      <div id="market-workspace-tabs" class="market-workspace-tabs"></div>
                       <div id="market-spot-pane" class="market-workspace-pane">
-                        <table id="market-table">
-                          <thead>
-                            <tr>
-                              <th>商品</th>
-                              <th>买入</th>
-                              <th>卖出</th>
-                              <th>持有</th>
-                              <th>操作</th>
-                              <th>K线</th>
-                            </tr>
-                          </thead>
-                          <tbody id="market-tbody"></tbody>
-                        </table>
+                        <div id="market-spot-panels" class="market-finance-panels"></div>
                       </div>
                       <div id="market-capital-pane" class="market-workspace-pane hidden">
                         <div id="market-capital-panels" class="market-finance-panels"></div>
