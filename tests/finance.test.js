@@ -108,6 +108,9 @@ describe('FinanceSystem', () => {
     Finance.buyStock(state, listing.id, 1);
     Finance.investInTradeStation(state, 'sol_prime', 5000);
 
-    expect(Finance.getNetWorthAdjustment(state)).not.toBe(0);
+    const overview = Finance.getOverview(state);
+    expect(Finance.getNetWorthAdjustment(state)).toBe(
+      overview.stockValue + overview.tradeInvestmentValue - overview.outstandingLoanBalance
+    );
   });
 });

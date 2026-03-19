@@ -19,8 +19,12 @@ const INSURANCE_PRODUCTS = {
   fleet: { id: 'fleet', name: '舰船全损险', premiumRate: 0.12, deductibleRate: 0.20, durationDays: 25 },
 };
 
+function _isValidFiniteNumber(value) {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
 function _ensureFinanceState(state) {
-  if (typeof state.creditRating !== 'number' || !Number.isFinite(state.creditRating)) {
+  if (!_isValidFiniteNumber(state.creditRating)) {
     state.creditRating = DEFAULT_CREDIT_RATING;
   }
   if (!Array.isArray(state.loans)) state.loans = [];
@@ -37,7 +41,7 @@ function _ensureFinanceState(state) {
     state.insurancePolicies = {};
   }
   if (!Array.isArray(state.insuranceClaims)) state.insuranceClaims = [];
-  if (typeof state.financeLastProcessedDay !== 'number' || !Number.isFinite(state.financeLastProcessedDay)) {
+  if (!_isValidFiniteNumber(state.financeLastProcessedDay)) {
     state.financeLastProcessedDay = Math.max(1, state.day || 1);
   }
   state.creditRating = Math.max(MIN_CREDIT_RATING, Math.min(MAX_CREDIT_RATING, Math.round(state.creditRating)));
@@ -82,8 +86,8 @@ function _hydrateStockMarket(state) {
   });
 }
 
-function _generateId(prefix, collection) {
-  return prefix + '_' + (collection.length + 1) + '_' + Date.now();
+function _generateId(prefix, state, collection) {
+  return prefix + '_' + (state.day || 1) + '_' + (collection.length + 1);
 }
 
 function _getCargoMarketValue(state) {
@@ -267,6 +271,7 @@ function _processInsuranceDay(state, day, msgs) {
   });
 }
 
+// 生成稳定伪随机种子，用于按“股票代码 + 天数”推进可复现的股价波动。
 function _hashCode(text) {
   let hash = 0;
   for (let i = 0; i < text.length; i++) {
@@ -339,7 +344,7 @@ export function takeLoan(state, offerId) {
   }
 
   const loan = {
-    id: _generateId('loan', state.loans),
+    id: _generateId('loan', state, state.loans),
     offerId: offer.id,
     name: offer.name,
     principal: offer.principal,
@@ -595,7 +600,7 @@ export function submitClaim(state, policyType, requestedAmount, details) {
 
   const approved = Math.max(0, Math.round(requested * (1 - (policy.deductibleRate || 0))));
   const claim = {
-    id: _generateId('claim', state.insuranceClaims),
+    id: _generateId('claim', state, state.insuranceClaims),
     policyType: policyType,
     requestedAmount: requested,
     approvedAmount: approved,

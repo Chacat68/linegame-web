@@ -9,6 +9,11 @@ import {
 import * as Finance from '../systems/finance/FinanceSystem.js';
 import * as TradeStation from '../systems/trade/TradeStationSystem.js';
 
+function _getStockPriceDelta(listing) {
+  const lastPrice = listing.lastPrice || listing.price || 0;
+  return (listing.price || 0) - lastPrice;
+}
+
 export function render(state, onBuild, onUpgrade, onHireManager, onSetStrategy, financeActions) {
   const container = document.getElementById('trade-station-list');
   if (!container) return;
@@ -72,7 +77,7 @@ export function render(state, onBuild, onUpgrade, onHireManager, onSetStrategy, 
 
   html += '<div class="trade-station-section-title">📈 股票市场</div>';
   html += stockListings.map(function (listing) {
-    const delta = (listing.price || 0) - (listing.lastPrice || listing.price || 0);
+    const delta = _getStockPriceDelta(listing);
     const deltaText = (delta >= 0 ? '+' : '') + delta.toLocaleString();
     return '<div class="trade-station-card">' +
       '<div class="trade-station-card-head">' +
