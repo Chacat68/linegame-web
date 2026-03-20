@@ -1,9 +1,8 @@
 /* ---- Layout ------------------------------------------------------------ */
 #game-shell {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
   position: relative;
+  height: 100vh;
+  overflow: hidden;
   z-index: 1;
 }
 
@@ -14,41 +13,44 @@
 }
 
 #map-section { animation-delay: 0.08s; }
-#status-bar { animation-delay: 0.16s; }
+#status-bar  { animation-delay: 0.16s; }
 
-/* Main fills all remaining space; map-section takes full width */
+/* Main fills entire viewport — map is the hero */
 #game-main {
-  flex: 1;
+  position: absolute;
+  inset: 0;
   display: flex;
   overflow: hidden;
-  position: relative;
 }
 
 /* Side panel overlays (info & trade) */
 .side-panel-overlay {
   position: absolute;
-  top: 0;
-  bottom: 0;
+  top: 48px;   /* below floating header */
+  bottom: 72px; /* above floating dock */
   z-index: 20;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   background: var(--bg-panel);
   border-color: var(--border);
-  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
-  /* Hidden by default */
+  transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.32s ease;
   pointer-events: none;
   visibility: hidden;
+  opacity: 0;
 }
 .side-panel-overlay.panel-open {
   pointer-events: auto;
   visibility: visible;
+  opacity: 1;
 }
 
 .side-panel-overlay--left {
   left: 0;
-  width: 310px;
+  width: 320px;
   border-right: 1px solid var(--border);
+  border-radius: 0 12px 12px 0;
   transform: translateX(-100%);
 }
 .side-panel-overlay--left.panel-open {
@@ -59,6 +61,7 @@
   right: 0;
   width: 370px;
   border-left: 1px solid var(--border);
+  border-radius: 12px 0 0 12px;
   transform: translateX(100%);
 }
 .side-panel-overlay--right.panel-open {
@@ -67,26 +70,31 @@
 
 /* Console panel (bottom overlay) */
 .side-panel-overlay--bottom {
-  left: 0;
+  left: 140px;
   right: 0;
-  bottom: 0;
+  bottom: 72px;
   top: auto;
   height: 220px;
   border-top: 1px solid var(--border);
+  border-radius: 12px 12px 0 0;
   transform: translateY(100%);
-  background: rgba(4, 8, 22, 0.97);
+  background: rgba(4, 8, 22, 0.94);
+  backdrop-filter: blur(16px);
+  opacity: 1;
 }
 .side-panel-overlay--bottom.panel-open {
   transform: translateY(0);
+  visibility: visible;
+  pointer-events: auto;
 }
 
 .console-panel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 12px;
+  padding: 8px 14px;
   border-bottom: 1px solid var(--border);
-  background: var(--bg-dark);
+  background: rgba(4, 8, 20, 0.6);
   flex-shrink: 0;
 }
 .console-panel-title {
@@ -98,6 +106,6 @@
 .console-message-log {
   flex: 1;
   overflow-y: auto;
-  padding: 6px 12px;
+  padding: 8px 14px;
 }
 

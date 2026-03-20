@@ -1,4 +1,4 @@
-/* ---- Map section ------------------------------------------------------- */
+/* ---- Map section (full viewport hero) ---------------------------------- */
 #map-section {
   flex: 1 1 0;
   display: flex;
@@ -30,28 +30,28 @@
 }
 
 .hud-corner-tl {
-  top: 10px;
+  top: 50px;
   left: 10px;
   border-top: 2px solid;
   border-left: 2px solid;
 }
 
 .hud-corner-tr {
-  top: 10px;
+  top: 50px;
   right: 10px;
   border-top: 2px solid;
   border-right: 2px solid;
 }
 
 .hud-corner-bl {
-  bottom: 10px;
+  bottom: 76px;
   left: 10px;
   border-bottom: 2px solid;
   border-left: 2px solid;
 }
 
 .hud-corner-br {
-  bottom: 10px;
+  bottom: 76px;
   right: 10px;
   border-bottom: 2px solid;
   border-right: 2px solid;
@@ -87,7 +87,7 @@
 /* HUD data overlays (top-left nav data, bottom-right sensor data) */
 .map-hud-nav-data {
   position: absolute;
-  top: 18px;
+  top: 56px;   /* below floating header */
   left: 72px;
   display: flex;
   flex-direction: column;
@@ -96,7 +96,7 @@
 
 .map-hud-sensor-data {
   position: absolute;
-  bottom: 24px;
+  bottom: 84px;  /* above floating dock */
   right: 18px;
   display: flex;
   flex-direction: column;
@@ -134,12 +134,27 @@
 }
 
 #map-legend {
+  position: absolute;
+  bottom: 70px;  /* above floating dock */
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
-  gap: 10px;
-  padding: 4px 10px;
-  background: rgba(0,0,0,.4);
-  border-top: 1px solid var(--border);
-  flex-wrap: wrap;
+  gap: 8px;
+  padding: 5px 12px;
+  background: rgba(4, 8, 20, 0.45);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(56, 189, 248, 0.08);
+  border-radius: 10px;
+  flex-wrap: nowrap;
+  justify-content: center;
+  z-index: 5;
+  font-size: 11px;
+  white-space: nowrap;
+}
+/* Hide redundant location text inside legend (already shown in header) */
+#map-legend-location {
+  display: none;
 }
 .legend-dot {
   display: inline-block;

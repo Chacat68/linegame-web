@@ -14,27 +14,38 @@
   .side-panel-overlay--right { width: 300px; }
 }
 
-/* --- Tablet / small screens (≤768px): Compact header --- */
+/* --- Tablet / small screens (≤768px): Compact header & dock --- */
 @media (max-width: 768px) {
   #game-header {
-    gap: 10px;
+    gap: 8px;
     padding: 0 10px;
-    height: 46px;
+    height: 40px;
   }
-  .hdr-logo { font-size: 14px; }
-  .hdr-version { font-size: 9px; }
+  .hdr-logo { font-size: 12px; }
+  .hdr-version { display: none; }
   .hdr-system-status { display: none; }
-  .hdr-stats { gap: 14px; }
+  .hdr-stats { gap: 12px; }
   .hdr-stat-value { font-size: 12px; }
-  .hdr-stat-label { font-size: 8px; }
+  .hdr-stat-label { font-size: 7px; }
+  .hdr-stat-block { gap: 4px; }
+  .hdr-icon-btn { width: 28px; height: 28px; }
 
-  .side-panel-overlay--left  { width: calc(100vw - 32px); }
-  .side-panel-overlay--right { width: calc(100vw - 32px); }
+  .side-panel-overlay--left  { width: calc(100vw - 32px); top: 44px; }
+  .side-panel-overlay--right { width: calc(100vw - 32px); top: 44px; }
 
-  .status-ship-stats { gap: 14px; }
-  .status-stat { min-width: 70px; }
-  .bottom-nav-btn { padding: 4px 10px; min-width: 50px; }
-  .bottom-nav-btn span { font-size: 7px; }
+  .status-ship-stats {
+    position: fixed;
+    bottom: 68px;
+    left: 10px;
+    padding: 8px 10px;
+    gap: 6px;
+  }
+  .status-stat { min-width: 80px; }
+
+  .bottom-nav { padding: 4px 6px; border-radius: 14px; }
+  .bottom-nav-btn { padding: 4px 10px; min-width: 48px; }
+  .bottom-nav-btn span { font-size: 6px; }
+  .bottom-nav-icon { width: 16px; height: 16px; }
 
   .modal-box { min-width: 240px; max-width: 320px; padding: 16px 18px; }
   .secondary-panel-modal-box {
@@ -43,6 +54,7 @@
     padding: 14px;
   }
   .map-btn-group {
+    top: 48px;
     flex-direction: row;
     flex-wrap: wrap;
     justify-content: flex-end;
@@ -137,25 +149,45 @@
     grid-template-columns: 1fr;
   }
 
-  #map-legend { font-size: 11px; gap: 6px; padding: 3px 8px; }
-  #status-bar { height: 64px; }
+  #map-legend {
+    font-size: 10px;
+    gap: 5px;
+    padding: 4px 8px;
+    left: 10px;
+    bottom: 68px;
+  }
+
+  .hud-corner-tl,
+  .hud-corner-tr { top: 44px; }
+  .hud-corner-bl,
+  .hud-corner-br { bottom: 68px; }
+  .map-hud-nav-data { top: 50px; }
+  .map-hud-sensor-data { bottom: 76px; }
 }
 
 /* --- Mobile screens (≤480px): Full-width panels, stacked layout --- */
 @media (max-width: 480px) {
-  #game-header { padding: 0 8px; gap: 8px; height: 42px; }
-  .hdr-logo { font-size: 13px; }
+  #game-header { padding: 0 8px; gap: 6px; height: 38px; }
+  .hdr-logo { font-size: 11px; }
   .hdr-stat-value { font-size: 11px; }
-  .hdr-stats { gap: 10px; }
+  .hdr-stats { gap: 8px; }
+  .hdr-icon-btns { gap: 2px; padding-left: 4px; }
 
   .side-panel-overlay--left,
-  .side-panel-overlay--right { width: 100vw; }
+  .side-panel-overlay--right { width: 100vw; top: 38px; }
 
-  .status-ship-stats { gap: 10px; }
-  .status-stat { min-width: 60px; }
-  .status-stat-label { font-size: 8px; }
+  .status-ship-stats {
+    bottom: 64px;
+    left: 8px;
+    padding: 6px 10px;
+    gap: 5px;
+  }
+  .status-stat { min-width: 70px; }
+  .status-stat-label { font-size: 7px; }
   .status-stat-pct { font-size: 9px; }
-  .bottom-nav-btn { padding: 3px 6px; min-width: 42px; }
+
+  .bottom-nav { padding: 3px 5px; border-radius: 12px; }
+  .bottom-nav-btn { padding: 4px 8px; min-width: 40px; }
   .bottom-nav-icon { width: 16px; height: 16px; }
   .bottom-nav-btn span { font-size: 6px; }
 

@@ -52,10 +52,14 @@
 }
 
 #game-header {
-  padding: 10px 16px;
-  background: linear-gradient(180deg, rgba(4, 12, 28, 0.96), rgba(4, 12, 28, 0.78));
-  border-bottom: 1px solid rgba(56, 189, 248, 0.25);
-  box-shadow: 0 10px 28px rgba(2, 8, 20, 0.42);
+  padding: 0 20px;
+  background: rgba(4, 8, 20, 0.5);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  border-bottom: 1px solid rgba(56, 189, 248, 0.12);
+  box-shadow:
+    0 1px 0 rgba(56, 189, 248, 0.06),
+    0 4px 24px rgba(2, 8, 20, 0.2);
 }
 
 .hdr-title h1,
@@ -124,8 +128,10 @@
 
 #info-panel,
 #trade-panel {
-  background: linear-gradient(180deg, rgba(7, 18, 38, 0.9), rgba(4, 14, 30, 0.78));
-  border-color: rgba(56, 189, 248, 0.2);
+  background: linear-gradient(180deg, rgba(7, 18, 38, 0.85), rgba(4, 14, 30, 0.75));
+  backdrop-filter: blur(20px) saturate(1.3);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+  border-color: rgba(56, 189, 248, 0.15);
 }
 
 .info-panel-header,
@@ -244,8 +250,11 @@
 }
 
 #map-legend {
-  background: linear-gradient(180deg, rgba(2, 10, 22, 0.82), rgba(2, 8, 20, 0.92));
-  border-top-color: rgba(56, 189, 248, 0.2);
+  background: rgba(4, 10, 22, 0.45);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(56, 189, 248, 0.08);
+  border-radius: 10px;
 }
 
 #map-legend-location,
@@ -358,8 +367,8 @@
 }
 
 #status-bar {
-  background: linear-gradient(180deg, rgba(2, 8, 20, 0.95), rgba(4, 12, 28, 0.98));
-  border-top-color: rgba(56, 189, 248, 0.18);
+  background: transparent;
+  border-top: none;
 }
 
 #message-log {
@@ -443,10 +452,12 @@
 }
 
 .map-overlay-btn {
-  background: linear-gradient(180deg, rgba(5, 18, 38, 0.88), rgba(4, 14, 28, 0.94));
-  border-color: rgba(56, 189, 248, 0.26);
+  background: rgba(5, 18, 38, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-color: rgba(56, 189, 248, 0.2);
   color: #aeeeff;
-  box-shadow: 0 12px 24px rgba(2, 8, 20, 0.32);
+  box-shadow: 0 4px 16px rgba(2, 8, 20, 0.2);
 }
 
 .faction-pref-liked,
