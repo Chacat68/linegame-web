@@ -1,9 +1,14 @@
 // js/systems/trade/TradeSystem.js — 交易、航行、升级核心逻辑
 // 依赖：data/goods.js, data/systems.js, data/upgrades.js, systems/economy/Economy.js
-// 导出：getTotalCargo, getNetWorth, buyGood, sellGood, buyUpgrade, refuel, travelTo
+// 导出：getTotalCargo, getNetWorth, buyGood, sellGood,
+//       buyGoodOnMarket, sellGoodOnMarket, buyUpgrade, refuel, travelTo
 //
 // 所有函数接收 state 对象（引用传递，直接修改）并返回
 // { ok: boolean, msgs: Array<{ text: string, type: string }> }
+//
+// buyGoodOnMarket / sellGoodOnMarket 是统一入口：
+//   marketType = 'open'  → 使用公开市场价格
+//   marketType = 'black' → 使用黑市价格（含违禁品溢价）
 
 import { GOODS }    from '../../data/goods.js';
 import { SYSTEMS, findSystem, GALAXY_JUMP_DAYS }  from '../../data/systems.js';
@@ -114,6 +119,103 @@ export function sellGood(state, goodId, quantity) {
     ok:   true,
     msgs: [{ text: '💸 出售了 ' + quantity + ' 单位 ' + good.name + '，获得 ' + totalEarned + ' 积分。', type: 'sell' }],
     meta: { goodId: goodId, quantity: quantity, totalEarned: totalEarned, profit: profit },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// 统一市场交易入口（公开市场 + 黑市）
+// ---------------------------------------------------------------------------
+
+/**
+ * 在指定市场类型买入商品。
+ * @param {object} state
+ * @param {string} goodId
+ * @param {number} quantity
+ * @param {'open'|'black'} [marketType='open']
+ * @returns {{ ok: boolean, msgs: Array, meta?: object }}
+ */
+export function buyGoodOnMarket(state, goodId, quantity, marketType) {
+  if (marketType !== 'black') {
+    return buyGood(state, goodId, quantity);
+  }
+
+  // 黑市买入：使用黑市价格，更新黑市统计
+  const price     = Economy.getBlackMarketBuyPrice(state.currentSystem, goodId, state);
+  const totalCost = price * quantity;
+
+  if (totalCost > state.credits) {
+    return { ok: false, msgs: [{ text: '💰 信用积分不足！', type: 'error' }] };
+  }
+  if (getTotalCargo(state) + quantity > state.maxCargo) {
+    return { ok: false, msgs: [{ text: '📦 货舱空间不足！', type: 'error' }] };
+  }
+
+  state.credits           -= totalCost;
+  state.cargo[goodId]      = (state.cargo[goodId] || 0) + quantity;
+  if (!state.cargoCost)    state.cargoCost = {};
+  state.cargoCost[goodId]  = (state.cargoCost[goodId] || 0) + totalCost;
+  if (!state.goodsTraded)  state.goodsTraded = {};
+  state.goodsTraded[goodId] = (state.goodsTraded[goodId] || 0) + quantity;
+
+  Economy.onPlayerBuy(state.currentSystem, goodId, quantity);
+
+  const good = GOODS.find(function (g) { return g.id === goodId; });
+  return {
+    ok:   true,
+    msgs: [{ text: '🕶 黑市购入 ' + quantity + ' 单位 ' + (good ? good.name : goodId) + '，花费 ' + totalCost + ' 积分。', type: 'buy' }],
+    meta: { goodId: goodId, quantity: quantity, totalCost: totalCost, marketType: 'black' },
+  };
+}
+
+/**
+ * 在指定市场类型卖出商品。
+ * @param {object} state
+ * @param {string} goodId
+ * @param {number} quantity
+ * @param {'open'|'black'} [marketType='open']
+ * @returns {{ ok: boolean, msgs: Array, meta?: object }}
+ */
+export function sellGoodOnMarket(state, goodId, quantity, marketType) {
+  if (marketType !== 'black') {
+    return sellGood(state, goodId, quantity);
+  }
+
+  // 黑市卖出：使用黑市价格，更新走私统计
+  const available = state.cargo[goodId] || 0;
+  if (quantity > available) {
+    return { ok: false, msgs: [{ text: '📦 货物数量不足！', type: 'error' }] };
+  }
+
+  const price      = Economy.getBlackMarketSellPrice(state.currentSystem, goodId, state);
+  const totalEarned = price * quantity;
+
+  if (!state.cargoCost) state.cargoCost = {};
+  const totalCostForGood = state.cargoCost[goodId] || 0;
+  const currentQty       = state.cargo[goodId] || 0;
+  const avgCost          = currentQty > 0 ? totalCostForGood / currentQty : 0;
+  const costBasis        = avgCost * quantity;
+  const profit           = totalEarned - costBasis;
+
+  state.credits += totalEarned;
+  state.cargo[goodId] -= quantity;
+  if (state.cargo[goodId] <= 0) {
+    delete state.cargo[goodId];
+    delete state.cargoCost[goodId];
+  } else {
+    state.cargoCost[goodId] = totalCostForGood - costBasis;
+  }
+  state.totalProfit = (state.totalProfit || 0) + profit;
+  if (!state.goodsTraded) state.goodsTraded = {};
+  state.goodsTraded[goodId] = (state.goodsTraded[goodId] || 0) + quantity;
+  if (profit > (state.maxSingleProfit || 0)) state.maxSingleProfit = profit;
+
+  Economy.onPlayerSell(state.currentSystem, goodId, quantity);
+
+  const good = GOODS.find(function (g) { return g.id === goodId; });
+  return {
+    ok:   true,
+    msgs: [{ text: '🕶 黑市出售 ' + quantity + ' 单位 ' + (good ? good.name : goodId) + '，获得 ' + totalEarned + ' 积分。', type: 'sell' }],
+    meta: { goodId: goodId, quantity: quantity, totalEarned: totalEarned, profit: profit, marketType: 'black' },
   };
 }
 

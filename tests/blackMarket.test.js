@@ -60,13 +60,16 @@ describe('Economy.getBlackMarketSellPrice', () => {
     const state = createTestState();
     Faction.init(state);
     let illegalTotal = 0, restrictedTotal = 0;
-    for (let i = 0; i < 50; i++) {
-      illegalTotal += Economy.getBlackMarketSellPrice('sol_prime', 'weapons', state);
-      restrictedTotal += Economy.getBlackMarketSellPrice('sol_prime', 'technology', state);
+    // 使用 nova_station：weapons 系数 1.2，technology 系数 0.4
+    // 确保无论随机修正如何，违禁品溢价倍数（1.6）远超受监管（1.25）都能体现
+    for (let i = 0; i < 100; i++) {
+      illegalTotal += Economy.getBlackMarketSellPrice('nova_station', 'weapons', state);
+      restrictedTotal += Economy.getBlackMarketSellPrice('nova_station', 'technology', state);
     }
-    // 武器 basePrice=120 vs 科技 basePrice=60，但违禁品加成 1.6 vs 受监管 1.25
-    // 所以 weaponsAvg / techAvg > (120/60) 简单比值
-    expect(illegalTotal / restrictedTotal).toBeGreaterThan(1.5);
+    // nova_station: weapons basePrice=120×1.2 vs technology basePrice=60×0.4
+    // illegalSellBonus=1.6 vs restrictedSellBonus=1.25
+    // 预期比值 ≈ (120×1.2×1.6)/(60×0.4×1.25) = 230.4/30 = 7.68，即使考虑随机修正也远高于 2.0
+    expect(illegalTotal / restrictedTotal).toBeGreaterThan(2.0);
   });
 });
 
