@@ -2,9 +2,10 @@
 // 依赖：ui/Renderer.js
 // 导出：init, initTabs, refreshGalaxyBtn, openMarket, closeMarket, isMarketOpen,
 //        setRefreshMarket, getMarketViewSystem, refreshMarketLocation,
-//        showMarketDetail, refreshPlanetDetail
+//        showMarketOverview, showMarketDetail, refreshPlanetDetail, getMapView, getCurrentGalaxyId
 
 import * as Renderer from './Renderer.js';
+import * as Renderer3D from './Renderer3D.js';
 import * as Faction from '../systems/faction/FactionSystem.js';
 import { GALAXIES, findSystem, findGalaxy }  from '../data/systems.js';
 
@@ -47,6 +48,23 @@ export function getMarketMode() {
   return _marketMode;
 }
 
+/** 获取当前地图视图模式 */
+export function getMapView() {
+  return _stateRef ? _stateRef.mapView : 'planets';
+}
+
+/** 获取当前查看的星系ID */
+export function getCurrentGalaxyId() {
+  return _stateRef ? (_stateRef.viewingGalaxy || _stateRef.currentGalaxy) : 'milky_way';
+}
+
+/** 切换到总览模式 */
+export function showMarketOverview() {
+  _marketMode = 'overview';
+  _marketViewSystem = null;
+  if (_refreshMarket) _refreshMarket('overview');
+}
+
 /** 切换到详情模式 */
 export function showMarketDetail(systemId) {
   _marketMode = 'detail';
@@ -63,6 +81,9 @@ export function showMarketDetail(systemId) {
 export function init(stateRef, onTravel, onGalaxyJump) {
   const mapCanvas = document.getElementById('map-canvas');
   if (!mapCanvas) return;
+
+  // 保存状态引用供底部导航使用
+  _stateRef = stateRef;
 
   mapCanvas.addEventListener('mousemove', function (e) {
     const r = mapCanvas.getBoundingClientRect();
@@ -153,14 +174,57 @@ export function init(stateRef, onTravel, onGalaxyJump) {
     marketBtn.addEventListener('click', function () {
       if (_marketOpen) {
         closeMarket();
+        _setBottomNavActive('starmap');
       } else {
+        _closeAllOverlayPanels();
         openMarket(stateRef);
+        _setBottomNavActive('market');
       }
     });
   }
   if (marketCloseBtn) {
     marketCloseBtn.addEventListener('click', function () {
       closeMarket();
+      _setBottomNavActive('starmap');
+    });
+  }
+
+  // 3D视图切换按钮
+  const toggle3DBtn = document.getElementById('map-3d-toggle-btn');
+  if (toggle3DBtn) {
+    toggle3DBtn.addEventListener('click', function () {
+      Renderer3D.toggleView();
+      // Setup callbacks for 3D renderer
+      if (Renderer3D.isActive()) {
+        toggle3DBtn.textContent = '📊 2D视图';
+        // Setup hover callback for 3D
+        window._mapHoverCallback = function(data) {
+          if (data) {
+            if (data.type === 'system') {
+              stateRef.hoveredSystem = data.id;
+            } else {
+              stateRef.hoveredSystem = null;
+            }
+            refreshPlanetDetail(stateRef);
+          } else {
+            stateRef.hoveredSystem = null;
+            refreshPlanetDetail(stateRef);
+          }
+        };
+        // Setup click callbacks for 3D
+        window._mapClickCallback = function(systemId) {
+          if (onTravel) onTravel(systemId);
+        };
+        window._galaxyClickCallback = function(galaxyId) {
+          if (onGalaxyJump) onGalaxyJump(galaxyId);
+        };
+      } else {
+        toggle3DBtn.textContent = '🌐 3D视图';
+        // Clear callbacks
+        window._mapHoverCallback = null;
+        window._mapClickCallback = null;
+        window._galaxyClickCallback = null;
+      }
     });
   }
 
@@ -362,25 +426,130 @@ export function initTabs(onTabClick) {
     });
   });
 
-  // 左侧面板收起/展开
-  var toggleBtn = document.getElementById('info-panel-toggle');
-  var infoPanel = document.getElementById('info-panel');
-  if (toggleBtn && infoPanel) {
-    if (!_smallScreenMql) {
-      _smallScreenMql = window.matchMedia('(max-width: 1024px)');
-    }
-    toggleBtn.addEventListener('click', function () {
-      if (_smallScreenMql.matches) {
-        var expanded = infoPanel.classList.toggle('expanded-sm');
-        toggleBtn.textContent = expanded ? '◀' : '▶';
-        toggleBtn.title = expanded ? '收起面板' : '展开面板';
-      } else {
-        var collapsed = infoPanel.classList.toggle('collapsed');
-        toggleBtn.textContent = collapsed ? '▶' : '◀';
-        toggleBtn.title = collapsed ? '展开面板' : '收起面板';
-      }
+  // 面板关闭按钮（新设计：覆盖层关闭按钮）
+  var infoPanelToggle = document.getElementById('info-panel-toggle');
+  if (infoPanelToggle) {
+    infoPanelToggle.addEventListener('click', function () {
+      _closeOverlayPanel('info-panel');
+      _setBottomNavActive('starmap');
     });
   }
+
+  var consolePanelClose = document.getElementById('console-panel-close');
+  if (consolePanelClose) {
+    consolePanelClose.addEventListener('click', function () {
+      _closeOverlayPanel('console-panel');
+      _setBottomNavActive('starmap');
+    });
+  }
+
+  // 底部导航按钮
+  var bottomNav = document.getElementById('bottom-nav');
+  if (bottomNav) {
+    bottomNav.addEventListener('click', function (e) {
+      var btn = e.target.closest('.bottom-nav-btn');
+      if (!btn) return;
+      var view = btn.dataset.view;
+      _handleBottomNav(view);
+    });
+  }
+}
+
+/**
+ * 底部导航按钮处理
+ * @param {string} view  按钮对应的视图名
+ */
+function _handleBottomNav(view) {
+  var currentActive = document.querySelector('.bottom-nav-btn.active');
+  var currentView = currentActive ? currentActive.dataset.view : 'starmap';
+
+  if (view === 'starmap') {
+    _closeAllOverlayPanels();
+    closeMarket();
+    _setBottomNavActive('starmap');
+    return;
+  }
+
+  if (view === 'market') {
+    // If already open, close it
+    if (currentView === 'market' && _marketOpen) {
+      closeMarket();
+      _setBottomNavActive('starmap');
+    } else {
+      _closeAllOverlayPanels();
+      _setBottomNavActive('market');
+      if (_stateRef) {
+        openMarket(_stateRef);
+      }
+      // If _stateRef is not set yet, skip opening market (will be set on init)
+    }
+    return;
+  }
+
+  if (view === 'hangar') {
+    if (currentView === 'hangar') {
+      _closeOverlayPanel('trade-panel');
+      _setBottomNavActive('starmap');
+    } else {
+      _closeAllOverlayPanels();
+      closeMarket();
+      _openOverlayPanel('trade-panel');
+      _setBottomNavActive('hangar');
+    }
+    return;
+  }
+
+  if (view === 'quests') {
+    if (currentView === 'quests') {
+      _closeOverlayPanel('info-panel');
+      _setBottomNavActive('starmap');
+    } else {
+      _closeAllOverlayPanels();
+      closeMarket();
+      _openOverlayPanel('info-panel');
+      _setBottomNavActive('quests');
+    }
+    return;
+  }
+
+  if (view === 'console') {
+    if (currentView === 'console') {
+      _closeOverlayPanel('console-panel');
+      _setBottomNavActive('starmap');
+    } else {
+      _closeAllOverlayPanels();
+      closeMarket();
+      _openOverlayPanel('console-panel');
+      _setBottomNavActive('console');
+    }
+    return;
+  }
+}
+
+function _openOverlayPanel(id) {
+  var el = document.getElementById(id);
+  if (el) el.classList.add('panel-open');
+}
+
+function _closeOverlayPanel(id) {
+  var el = document.getElementById(id);
+  if (el) el.classList.remove('panel-open');
+}
+
+function _closeAllOverlayPanels() {
+  ['info-panel', 'trade-panel', 'console-panel'].forEach(function (id) {
+    _closeOverlayPanel(id);
+  });
+}
+
+function _setBottomNavActive(view) {
+  document.querySelectorAll('.bottom-nav-btn').forEach(function (btn) {
+    if (btn.dataset.view === view) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
 }
 
 export function activateTab(tabId) {
@@ -394,6 +563,15 @@ export function activateTab(tabId) {
 
   var pane = document.getElementById(tabId);
   if (pane) pane.classList.add('active');
+
+  // 如果所属面板是隐藏的覆盖层，则自动打开它并更新底部导航
+  if (group === 'info') {
+    _openOverlayPanel('info-panel');
+    _setBottomNavActive('quests');
+  } else if (group === 'trade') {
+    _openOverlayPanel('trade-panel');
+    _setBottomNavActive('hangar');
+  }
 
   if (_tabClickCallback) _tabClickCallback(tabId);
 }

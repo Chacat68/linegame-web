@@ -2,108 +2,123 @@
 #game-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 6px 14px;
-  background: #080818;
-  border-bottom: 1px solid var(--border);
+  gap: 20px;
+  padding: 0 16px;
+  height: 52px;
+  background: rgba(4, 8, 20, 0.96);
+  border-bottom: 1px solid rgba(56, 189, 248, 0.22);
   flex-shrink: 0;
   position: relative;
   z-index: 40;
 }
 
-.hdr-title h1 {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--accent-gold);
-  letter-spacing: .5px;
-}
-.hdr-title .subtitle {
-  font-size: 11px;
-  color: var(--text-dim);
-}
-
-/* 公司名按鈕 */
-.company-name-btn {
-  display: block;
-  margin-top: 4px;
-  background: none;
-  border: 1px dashed rgba(255,200,50,0.3);
-  border-radius: 4px;
-  color: var(--accent-gold);
-  font-size: 11px;
-  font-family: inherit;
-  padding: 2px 6px;
-  cursor: pointer;
-  transition: border-color 0.2s, background 0.2s;
-  white-space: nowrap;
-}
-.company-name-btn:hover {
-  border-color: var(--accent-gold);
-  background: rgba(255,200,50,0.08);
-}
-
-#player-stats {
+/* Brand (AETHER_OS) */
+.hdr-brand {
   display: flex;
-  gap: 18px;
+  align-items: baseline;
+  gap: 6px;
+  flex-shrink: 0;
 }
-.stat-block {
-  text-align: center;
+.hdr-logo {
+  font-family: "Orbitron", monospace;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent-cyan);
+  letter-spacing: 0.06em;
+  text-shadow: 0 0 16px rgba(34, 211, 238, 0.6);
 }
-.stat-label {
-  display: block;
-  font-size: 10px;
+.hdr-version {
+  font-family: "Orbitron", monospace;
+  font-size: 11px;
+  color: rgba(103, 232, 249, 0.55);
+  letter-spacing: 0.04em;
+}
+
+/* System status */
+.hdr-system-status {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.hdr-sys-label {
+  font-size: 9px;
   color: var(--text-dim);
   text-transform: uppercase;
-  letter-spacing: .5px;
+  letter-spacing: 0.1em;
+  font-family: "Orbitron", monospace;
 }
-.stat-value {
-  font-size: 15px;
-  font-weight: 700;
+.hdr-sys-value {
+  font-size: 12px;
+  font-weight: 600;
+  color: #4ade80;
+  font-family: "Orbitron", monospace;
+  letter-spacing: 0.03em;
 }
-.stat-credits  { color: var(--accent-gold); }
-.stat-networth { color: var(--accent-cyan); }
-.stat-day      { color: var(--accent-blue); }
 
-/* Economy Cycle Indicator */
-.stat-cycle {
+/* Stats block (credits + location) */
+.hdr-stats {
+  display: flex;
+  gap: 24px;
+  margin-left: auto;
+  align-items: center;
+}
+.hdr-stat-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+.hdr-stat-label {
+  font-size: 9px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-family: "Orbitron", monospace;
+}
+.hdr-stat-value {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+.hdr-credits {
+  color: #f472b6;
+  text-shadow: 0 0 10px rgba(244, 114, 182, 0.5);
+}
+.hdr-location {
+  color: var(--accent-cyan);
+  font-size: 12px;
+}
+
+/* Icon buttons */
+.hdr-icon-btns {
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 12px;
+  flex-shrink: 0;
 }
-.stat-cycle .cycle-icon { font-size: 14px; }
-.stat-cycle .cycle-name { color: var(--accent-cyan); font-weight: 600; }
-.stat-cycle .cycle-remaining { color: var(--text-dim); font-size: 11px; }
-.stat-cycle .cycle-bar-track {
-  width: 40px; height: 3px;
-  background: rgba(255,255,255,0.08);
-  border-radius: 2px; overflow: hidden;
-}
-.stat-cycle .cycle-bar-fill {
-  height: 100%; border-radius: 2px;
-  transition: width 0.3s ease;
-}
-.stat-cycle .cycle-prosperity { background: #4caf50; }
-.stat-cycle .cycle-stability { background: #2196f3; }
-.stat-cycle .cycle-decline { background: #ff9800; }
-.stat-cycle .cycle-recession { background: #f44336; }
-
-/* Victory progress button */
-.victory-progress-btn {
-  background: rgba(255, 215, 0, 0.08);
-  border: 1px solid rgba(255, 215, 0, 0.3);
-  border-radius: 5px;
-  color: var(--accent-gold);
-  font-size: 12px;
-  font-family: inherit;
-  padding: 4px 10px;
+.hdr-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  background: rgba(56, 189, 248, 0.06);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: 6px;
+  color: var(--text-dim);
   cursor: pointer;
-  transition: background 0.2s, border-color 0.2s;
-  white-space: nowrap;
+  text-decoration: none;
+  transition: color 0.2s, background 0.2s, border-color 0.2s;
 }
-.victory-progress-btn:hover {
-  background: rgba(255, 215, 0, 0.16);
-  border-color: var(--accent-gold);
+.hdr-icon-btn:hover {
+  color: var(--accent-cyan);
+  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(56, 189, 248, 0.4);
+}
+
+/* Hidden elements – keep in DOM for JS compatibility, invisible */
+.hdr-hidden {
+  display: none !important;
 }
 
 /* Victory modal */

@@ -1,30 +1,16 @@
-/* ---- Info panel (left: 科技/派系/成就/存档) ----------------------------- */
+/* ---- Info panel (left overlay) ----------------------------------------- */
 #info-panel {
-  width: 300px;
-  flex-shrink: 0;
-  background: var(--bg-panel);
-  border-right: 1px solid var(--border);
+  /* width & border set by .side-panel-overlay--left in layout.css */
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  transition: width 0.25s ease, min-width 0.25s ease;
-}
-#info-panel.collapsed {
-  width: 32px;
-  min-width: 32px;
-}
-#info-panel.collapsed .tab-content,
-#info-panel.collapsed .tabs {
-  display: none;
-}
-#info-panel.collapsed .info-panel-quest-tracker {
-  display: none;
 }
 .info-panel-header {
   display: flex;
   align-items: stretch;
   border-bottom: 1px solid var(--border);
   background: var(--bg-dark);
+  flex-shrink: 0;
 }
 .info-panel-header .tabs {
   flex: 1;
@@ -51,58 +37,18 @@
   padding: 8px 10px 0;
   border-bottom: 1px solid rgba(255,255,255,0.04);
   background: linear-gradient(180deg, rgba(6, 16, 34, 0.82), rgba(6, 16, 34, 0));
-}
-#info-panel.collapsed .info-panel-header {
-  flex-direction: column;
-  height: 100%;
-}
-#info-panel.collapsed .info-panel-toggle {
-  width: 100%;
-  height: 100%;
+  flex-shrink: 0;
 }
 
-/* ---- Trade panel ------------------------------------------------------- */
+/* ---- Trade panel (right overlay) --------------------------------------- */
 #trade-panel {
-  width: 360px;
-  flex-shrink: 0;
-  background: var(--bg-panel);
-  border-left: 1px solid var(--border);
+  /* width & border set by .side-panel-overlay--right in layout.css */
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-/* Location bar */
-#location-bar {
-  padding: 8px 12px 6px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-card);
-}
-#current-location {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--accent-gold);
-}
-#location-desc {
-  font-size: 11px;
-  color: var(--text-dim);
-  margin-top: 2px;
-}
-
-/* Location bar in header (top-left) */
-#game-header #location-bar {
-  margin-top: 4px;
-  padding: 0;
-  border-bottom: none;
-  background: transparent;
-}
-#game-header #current-location {
-  font-size: 12px;
-}
-#game-header #location-desc {
-  font-size: 11px;
-}
-
+/* Company name button */
 /* Company dashboard (compact) */
 .company-dashboard {
   padding: 8px 12px 6px;

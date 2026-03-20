@@ -1,10 +1,3 @@
-/* ---- Main area --------------------------------------------------------- */
-#game-main {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-}
-
 /* ---- Map section ------------------------------------------------------- */
 #map-section {
   flex: 1 1 0;
@@ -91,31 +84,33 @@
   opacity: 0.5;
 }
 
-.map-status-stack {
+/* HUD data overlays (top-left nav data, bottom-right sensor data) */
+.map-hud-nav-data {
   position: absolute;
-  top: 14px;
+  top: 18px;
   left: 72px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
-.map-status-chip,
-.map-atlas-tag {
-  padding: 4px 10px;
-  border: 1px solid rgba(103, 232, 249, 0.28);
-  background: linear-gradient(180deg, rgba(3, 19, 37, 0.88), rgba(3, 13, 28, 0.82));
-  color: #aef3ff;
-  font-family: "Orbitron", "Rajdhani", sans-serif;
+.map-hud-sensor-data {
+  position: absolute;
+  bottom: 24px;
+  right: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.map-hud-data-line {
+  font-family: "Orbitron", monospace;
   font-size: 10px;
-  letter-spacing: 0.12em;
+  color: rgba(103, 232, 249, 0.75);
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  box-shadow: 0 0 18px rgba(34, 211, 238, 0.08);
-}
-
-.map-status-chip.alt {
-  color: #bfe8ff;
-  border-color: rgba(56, 189, 248, 0.24);
+  text-shadow: 0 0 8px rgba(34, 211, 238, 0.4);
 }
 
 .map-atlas-tag {

@@ -8,10 +8,12 @@
 import * as EventBus   from './EventBus.js';
 import * as Economy    from '../systems/economy/Economy.js';
 import * as Trade      from '../systems/trade/TradeSystem.js';
+import * as Commerce   from '../systems/commerce/CommerceFacade.js';
 import * as RandomEvent from '../systems/event/RandomEvent.js';
 import * as Faction    from '../systems/faction/FactionSystem.js';
 import * as Research   from '../systems/research/ResearchSystem.js';
 import * as Renderer   from '../ui/Renderer.js';
+import * as Renderer3D from '../ui/Renderer3D.js';
 import * as HUD        from '../ui/HUD.js';
 import * as MarketUI   from '../ui/MarketUI.js';
 import * as ShipUI     from '../ui/ShipUI.js';
@@ -99,6 +101,8 @@ export function init(difficulty) {
   Finance.init(_state);
   Renderer.init();
   Renderer.resetRuntimeState(_state.currentSystem);
+  Renderer3D.init();
+  Renderer3D.resetRuntimeState(_state.currentSystem);
   Settings.applySettings(_settings, Renderer);
   HUD.init();
   _initSecondaryPanels();
@@ -507,25 +511,19 @@ function _handleGalaxyJump(systemId) {
 }
 
 function _handleTradeConfirm(action, goodId, quantity, marketType) {
-  // 黑市交易走独立逻辑
-  if (marketType === 'black') {
-    _handleBlackMarketTradeConfirm(action, goodId, quantity);
-    return;
-  }
-
+  // 统一通过 CommerceFacade 处理公开市场与黑市交易
+  const effectiveMarket = marketType === 'black' ? 'black' : 'open';
   const result = action === 'buy'
-    ? Trade.buyGood(_state, goodId, quantity)
-    : Trade.sellGood(_state, goodId, quantity);
+    ? Commerce.buyGood(_state, goodId, quantity, effectiveMarket)
+    : Commerce.sellGood(_state, goodId, quantity, effectiveMarket);
   _dispatch(result);
 
-  // 交易后更新派系关系
   if (result && result.ok) {
-    // 同步船只状态
     Fleet.syncShipFromState(_state);
     var activeRoute = Fleet.getActiveShip(_state) ? Fleet.getActiveShip(_state).route : null;
     if (activeRoute && activeRoute.goodId === goodId) {
       if (action === 'buy') {
-        activeRoute.lastBuyPrice = marketType === 'black'
+        activeRoute.lastBuyPrice = effectiveMarket === 'black'
           ? Economy.getBlackMarketBuyPrice(_state.currentSystem, goodId, _state)
           : Economy.getBuyPrice(_state.currentSystem, goodId, _state);
       } else if (action === 'sell') {
@@ -533,7 +531,6 @@ function _handleTradeConfirm(action, goodId, quantity, marketType) {
       }
       activeRoute.lastPolicyMessage = null;
     }
-    // 新手引导：交易触发
     Tutorial.checkTrigger(action);
 
     const factionMsgs = Faction.onTrade(_state, _state.currentSystem, goodId, action, quantity);
@@ -542,39 +539,42 @@ function _handleTradeConfirm(action, goodId, quantity, marketType) {
     });
     _state.tradeCount = (_state.tradeCount || 0) + 1;
 
-    // 经验值 & 声望
-    const expGain = Math.max(1, Math.ceil(quantity * 2));
+    // 经验值 & 声望（黑市交易经验更高）
+    const isBlack = effectiveMarket === 'black';
+    const expGain = Math.max(1, Math.ceil(quantity * (isBlack ? 3 : 2)));
     const repGain = Math.max(1, Math.ceil(quantity * 0.5));
     var tradeExpResult = Progression.gainExperience(_state, expGain);
     tradeExpResult.msgs.forEach(function (m) { EventBus.emit('log:message', { text: m.text, type: m.type }); });
-    const profit = (result.meta && typeof result.meta.profit === 'number') ? result.meta.profit : 0;
-    const companyExpGain = action === 'sell'
-      ? Math.max(2, Math.ceil(quantity * 0.8) + Math.ceil(Math.max(0, profit) / 120))
-      : Math.max(1, Math.ceil(quantity * 0.8));
-    var tradeCompExpResult = Progression.gainCompanyExperience(_state, companyExpGain);
-    tradeCompExpResult.msgs.forEach(function (m) { EventBus.emit('log:message', { text: m.text, type: m.type }); });
-    _state.reputation = (_state.reputation || 0) + repGain;
+    if (!isBlack) {
+      const profit = (result.meta && typeof result.meta.profit === 'number') ? result.meta.profit : 0;
+      const companyExpGain = action === 'sell'
+        ? Math.max(2, Math.ceil(quantity * 0.8) + Math.ceil(Math.max(0, profit) / 120))
+        : Math.max(1, Math.ceil(quantity * 0.8));
+      var tradeCompExpResult = Progression.gainCompanyExperience(_state, companyExpGain);
+      tradeCompExpResult.msgs.forEach(function (m) { EventBus.emit('log:message', { text: m.text, type: m.type }); });
 
-    // 任务进度：交易
-    const tradeFaction = Faction.getFactionForSystem(_state.currentSystem);
-    const tradeQuestResult = Quest.checkProgress(_state, {
-      action: action,
-      goodId: goodId,
-      quantity: quantity,
-      systemId: _state.currentSystem,
-      factionId: tradeFaction ? tradeFaction.id : null,
-      totalEarned: action === 'sell' ? (Economy.getSellPrice(_state.currentSystem, goodId, _state) * quantity) : 0,
-    });
-    tradeQuestResult.msgs.forEach(function (m) {
-      EventBus.emit('log:message', { text: m.text, type: m.type });
-    });
+      // 任务进度：仅公开市场交易触发任务检查
+      const tradeFaction = Faction.getFactionForSystem(_state.currentSystem);
+      const tradeQuestResult = Quest.checkProgress(_state, {
+        action: action,
+        goodId: goodId,
+        quantity: quantity,
+        systemId: _state.currentSystem,
+        factionId: tradeFaction ? tradeFaction.id : null,
+        totalEarned: action === 'sell' ? (Economy.getSellPrice(_state.currentSystem, goodId, _state) * quantity) : 0,
+      });
+      tradeQuestResult.msgs.forEach(function (m) {
+        EventBus.emit('log:message', { text: m.text, type: m.type });
+      });
+    }
+    _state.reputation = (_state.reputation || 0) + repGain;
 
     _updateUI();
   }
 }
 
 function _handleRefuel() {
-  _dispatch(Trade.refuel(_state));
+  _dispatch(Commerce.refuel(_state));
 }
 
 function _handleOpenBuy(good) {
@@ -586,7 +586,7 @@ function _handleOpenSell(good) {
 }
 
 // ---------------------------------------------------------------------------
-// 黑市交易
+// 黑市交易（UI 入口：打开确认弹窗）
 // ---------------------------------------------------------------------------
 
 function _handleBlackMarketBuy(good) {
@@ -595,73 +595,6 @@ function _handleBlackMarketBuy(good) {
 
 function _handleBlackMarketSell(good) {
   Modal.openTradeModal('sell', good, _state, 'black');
-}
-
-function _handleBlackMarketTradeConfirm(action, goodId, quantity) {
-  // 黑市交易使用黑市价格手动计算
-  var price = action === 'buy'
-    ? Economy.getBlackMarketBuyPrice(_state.currentSystem, goodId, _state)
-    : Economy.getBlackMarketSellPrice(_state.currentSystem, goodId, _state);
-
-  var result;
-  if (action === 'buy') {
-    var totalCost = price * quantity;
-    if (totalCost > _state.credits) {
-      result = { ok: false, msgs: [{ text: '💰 信用积分不足！', type: 'error' }] };
-    } else if (Trade.getTotalCargo(_state) + quantity > _state.maxCargo) {
-      result = { ok: false, msgs: [{ text: '📦 货舱空间不足！', type: 'error' }] };
-    } else {
-      _state.credits -= totalCost;
-      _state.cargo[goodId] = (_state.cargo[goodId] || 0) + quantity;
-      if (!_state.cargoCost) _state.cargoCost = {};
-      _state.cargoCost[goodId] = (_state.cargoCost[goodId] || 0) + totalCost;
-      if (!_state.goodsTraded) _state.goodsTraded = {};
-      _state.goodsTraded[goodId] = (_state.goodsTraded[goodId] || 0) + quantity;
-      Economy.onPlayerBuy(_state.currentSystem, goodId, quantity);
-      var good = GOODS.find(function (g) { return g.id === goodId; });
-      result = { ok: true, msgs: [{ text: '🕶 黑市购入 ' + quantity + ' 单位 ' + (good ? good.name : goodId) + '，花费 ' + totalCost + ' 积分。', type: 'buy' }], meta: { goodId: goodId, quantity: quantity, totalCost: totalCost } };
-    }
-  } else {
-    var available = _state.cargo[goodId] || 0;
-    if (quantity > available) {
-      result = { ok: false, msgs: [{ text: '📦 货物数量不足！', type: 'error' }] };
-    } else {
-      var totalEarned = price * quantity;
-      if (!_state.cargoCost) _state.cargoCost = {};
-      var totalCostForGood = _state.cargoCost[goodId] || 0;
-      var currentQty = _state.cargo[goodId] || 0;
-      var avgCost = currentQty > 0 ? totalCostForGood / currentQty : 0;
-      var costBasis = avgCost * quantity;
-      var profit = totalEarned - costBasis;
-      _state.credits += totalEarned;
-      _state.cargo[goodId] -= quantity;
-      if (_state.cargo[goodId] <= 0) { delete _state.cargo[goodId]; delete _state.cargoCost[goodId]; }
-      else { _state.cargoCost[goodId] = totalCostForGood - costBasis; }
-      _state.totalProfit = (_state.totalProfit || 0) + profit;
-      if (!_state.goodsTraded) _state.goodsTraded = {};
-      _state.goodsTraded[goodId] = (_state.goodsTraded[goodId] || 0) + quantity;
-      if (profit > (_state.maxSingleProfit || 0)) _state.maxSingleProfit = profit;
-      Economy.onPlayerSell(_state.currentSystem, goodId, quantity);
-      var good = GOODS.find(function (g) { return g.id === goodId; });
-      result = { ok: true, msgs: [{ text: '🕶 黑市出售 ' + quantity + ' 单位 ' + (good ? good.name : goodId) + '，获得 ' + totalEarned + ' 积分。', type: 'sell' }], meta: { goodId: goodId, quantity: quantity, totalEarned: totalEarned, profit: profit } };
-    }
-  }
-
-  _dispatch(result);
-
-  if (result && result.ok) {
-    Economy.recordBlackMarketTrade(_state);
-    Fleet.syncShipFromState(_state);
-    Tutorial.checkTrigger(action);
-    var factionMsgs = Faction.onTrade(_state, _state.currentSystem, goodId, action, quantity);
-    factionMsgs.forEach(function (m) { EventBus.emit('log:message', { text: m.text, type: m.type }); });
-    _state.tradeCount = (_state.tradeCount || 0) + 1;
-    var expGain = Math.max(1, Math.ceil(quantity * 3)); // 黑市交易经验更高
-    var tradeExpResult = Progression.gainExperience(_state, expGain);
-    tradeExpResult.msgs.forEach(function (m) { EventBus.emit('log:message', { text: m.text, type: m.type }); });
-    _state.reputation = (_state.reputation || 0) + Math.max(1, Math.ceil(quantity * 0.5));
-    _updateUI();
-  }
 }
 
 /**
@@ -710,72 +643,72 @@ function _handleClearResearchQueue() {
 }
 
 function _handleBuildTradeStation(systemId) {
-  const result = TradeStation.buildStation(_state, systemId);
+  const result = Commerce.buildTradeStation(_state, systemId);
   _dispatch(result);
 }
 
 function _handleUpgradeTradeStation(systemId) {
-  const result = TradeStation.upgradeStation(_state, systemId);
+  const result = Commerce.upgradeTradeStation(_state, systemId);
   _dispatch(result);
 }
 
 function _handleHireTradeStationManager(systemId, managerId) {
-  const result = TradeStation.hireManager(_state, systemId, managerId);
+  const result = Commerce.hireTradeStationManager(_state, systemId, managerId);
   _dispatch(result);
 }
 
 function _handleSetTradeStationStrategy(systemId, strategyId) {
-  const result = TradeStation.setStrategy(_state, systemId, strategyId);
+  const result = Commerce.setTradeStationStrategy(_state, systemId, strategyId);
   _dispatch(result);
 }
 
 function _handleTakeLoan(offerId) {
-  const result = Finance.takeLoan(_state, offerId);
+  const result = Commerce.takeLoan(_state, offerId);
   _dispatch(result);
 }
 
 function _handleRepayLoan(loanId) {
-  const result = Finance.repayLoan(_state, loanId);
+  const result = Commerce.repayLoan(_state, loanId);
   _dispatch(result);
 }
 
 function _handleBuyStock(stockId) {
-  const result = Finance.buyStock(_state, stockId, 1);
+  const result = Commerce.buyStock(_state, stockId);
   _dispatch(result);
 }
 
 function _handleSellStock(stockId) {
-  const result = Finance.sellStock(_state, stockId, 1);
+  const result = Commerce.sellStock(_state, stockId);
   _dispatch(result);
 }
 
 function _handleInvestTradeStation(systemId) {
-  const result = Finance.investInTradeStation(_state, systemId);
+  const result = Commerce.investInTradeStation(_state, systemId);
   _dispatch(result);
 }
 
 function _handlePurchaseInsurance(policyType) {
-  const result = Finance.purchaseInsurance(_state, policyType);
+  const result = Commerce.purchaseInsurance(_state, policyType);
   _dispatch(result);
 }
 
 function _handleSubmitInsuranceClaim(policyType) {
-  const result = Finance.submitClaim(_state, policyType);
+  const result = Commerce.submitInsuranceClaim(_state, policyType);
   _dispatch(result);
 }
 
 function _handleFuturesLong(goodId) {
-  const result = Futures.openLongContract(_state, goodId);
+  const result = Commerce.openFuturesLong(_state, goodId);
   _dispatch(result);
 }
 
 function _handleFuturesShort(goodId) {
-  const result = Futures.openShortContract(_state, goodId);
+  const result = Commerce.openFuturesShort(_state, goodId);
   _dispatch(result);
 }
 
 function _handleFuturesClose(contractId) {
-  const result = Futures.closeContract(_state, contractId);
+  const result = Commerce.closeFutures(_state, contractId);
   _dispatch(result);
 }
 
@@ -1077,8 +1010,16 @@ function _startGameLoop() {
   _startTime = performance.now();
   (function loop(ts) {
     const t = ts - _startTime;
-    Renderer.renderStars(t);
-    Renderer.renderMap(_state, t);
+    if (Renderer3D.isActive()) {
+      // 3D mode - handled by Renderer3D's internal animation loop
+      const mapView = MapUI.getMapView ? MapUI.getMapView() : 'planets';
+      const galaxyId = MapUI.getCurrentGalaxyId ? MapUI.getCurrentGalaxyId() : 'milky_way';
+      Renderer3D.render(_state, mapView, galaxyId);
+    } else {
+      // 2D mode - traditional rendering
+      Renderer.renderStars(t);
+      Renderer.renderMap(_state, t);
+    }
     requestAnimationFrame(loop);
   }(_startTime));
 }
