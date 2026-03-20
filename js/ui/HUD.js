@@ -73,6 +73,14 @@ export function updateStats(state, netWorth) {
   document.getElementById('galactic-day').textContent = '第 ' + state.day + ' 天';
   document.getElementById('net-worth').textContent    = Math.floor(netWorth).toLocaleString();
 
+  // 同步船队面板中的镜像元素（无独立 id，通过 class 更新）
+  document.querySelectorAll('.hdr-credits-mirror').forEach(function (el) {
+    el.textContent = Math.floor(state.credits).toLocaleString();
+  });
+
+  // 更新底部状态栏：燃料 / 护盾 / 货舱
+  _updateStatusBars(state);
+
   // 多路径胜利进度 — 更新按钮摘要 & 弹窗内容
   const progressList = Victory.getProgress(state);
   _lastProgressList = progressList;
@@ -99,16 +107,17 @@ export function updateStats(state, netWorth) {
   const repRank = getRepRank(state.reputation || 0);
 
   const levelEl = document.getElementById('player-level');
-  if (levelEl) {
-    const expCur = (state.experience || 0) - lvl.expRequired;
-    const expNext = nextLvl ? (nextLvl.expRequired - lvl.expRequired) : 1;
-    const lvlPct = nextLvl ? Math.min(100, (expCur / expNext) * 100) : 100;
-    levelEl.innerHTML =
-      '<span class="level-icon">' + lvl.icon + '</span>' +
-      '<span class="level-title">' + lvl.title + ' Lv.' + lvl.level + '</span>' +
-      '<span class="rep-badge" title="声望: ' + (state.reputation || 0) + '">' + repRank.icon + ' ' + repRank.name + '</span>' +
-      '<div class="level-bar-track"><div class="level-bar-fill" style="width:' + lvlPct + '%"></div></div>';
-  }
+  const levelPanelEl = document.getElementById('player-level-panel');
+  const expCur = (state.experience || 0) - lvl.expRequired;
+  const expNext = nextLvl ? (nextLvl.expRequired - lvl.expRequired) : 1;
+  const lvlPct = nextLvl ? Math.min(100, (expCur / expNext) * 100) : 100;
+  const lvlHtml =
+    '<span class="level-icon">' + lvl.icon + '</span>' +
+    '<span class="level-title">' + lvl.title + ' Lv.' + lvl.level + '</span>' +
+    '<span class="rep-badge" title="声望: ' + (state.reputation || 0) + '">' + repRank.icon + ' ' + repRank.name + '</span>' +
+    '<div class="level-bar-track"><div class="level-bar-fill" style="width:' + lvlPct + '%"></div></div>';
+  if (levelEl) levelEl.innerHTML = lvlHtml;
+  if (levelPanelEl) levelPanelEl.innerHTML = lvlHtml;
 
   // 当前位置 + 派系信息
   const sys = findSystem(state.currentSystem);
@@ -132,11 +141,16 @@ export function updateStats(state, netWorth) {
     const cycle = Economy.getEconomyCycle();
     const nextPhase = Economy.getNextCyclePhase();
     const remaining = cycle.phaseDuration - cycle.dayInPhase;
-    cycleEl.innerHTML =
+    const cycleHtml =
       '<span class="cycle-icon">' + cycle.icon + '</span>' +
       '<span class="cycle-name">' + cycle.name + '</span>' +
       '<span class="cycle-remaining" title="距离下一阶段「' + nextPhase.name + '」还有 ' + remaining + ' 天">' + remaining + '天</span>' +
       '<div class="cycle-bar-track"><div class="cycle-bar-fill cycle-' + cycle.phase + '" style="width:' + cycle.progressPercent + '%"></div></div>';
+    cycleEl.innerHTML = cycleHtml;
+    // 同步船队面板中的镜像元素
+    document.querySelectorAll('.hdr-cycle-mirror').forEach(function (el) {
+      el.innerHTML = cycleHtml;
+    });
   }
 
   _renderQuestTracker(state);
@@ -171,6 +185,7 @@ export function updateCompanyName(state) {
 
 export function addMessage(text, type) {
   const log = document.getElementById('message-log');
+  if (!log) return;
   const div = document.createElement('div');
   div.className   = 'msg msg-' + (type || 'info');
   div.textContent = text;
@@ -179,6 +194,45 @@ export function addMessage(text, type) {
 }
 
 // ---------------------------------------------------------------------------
+// 内部：更新底部状态栏（燃料 / 护盾 / 货舱）
+// ---------------------------------------------------------------------------
+
+function _updateStatusBars(state) {
+  // 燃料
+  var fuelPct = state.maxFuel > 0
+    ? Math.round((state.fuel / state.maxFuel) * 100)
+    : 100;
+  fuelPct = Math.max(0, Math.min(100, fuelPct));
+  var fuelFillEl = document.getElementById('status-fuel-fill');
+  var fuelPctEl  = document.getElementById('status-fuel-pct');
+  if (fuelFillEl) fuelFillEl.style.width = fuelPct + '%';
+  if (fuelPctEl)  fuelPctEl.textContent  = fuelPct + '%';
+
+  // 护盾（船体耐久）
+  var hullPct = state.maxHull > 0
+    ? Math.round(((state.shipHull != null ? state.shipHull : state.maxHull) / state.maxHull) * 100)
+    : 100;
+  hullPct = Math.max(0, Math.min(100, hullPct));
+  var shieldFillEl = document.getElementById('status-shield-fill');
+  var shieldPctEl  = document.getElementById('status-shield-pct');
+  if (shieldFillEl) shieldFillEl.style.width = hullPct + '%';
+  if (shieldPctEl)  shieldPctEl.textContent  = hullPct + '%';
+
+  // 货舱使用率
+  var cargoUsed = state.cargo
+    ? Object.values(state.cargo).reduce(function (s, q) { return s + q; }, 0)
+    : 0;
+  var cargoPct = state.maxCargo > 0
+    ? Math.round((cargoUsed / state.maxCargo) * 100)
+    : 0;
+  cargoPct = Math.max(0, Math.min(100, cargoPct));
+  var cargoFillEl = document.getElementById('status-cargo-fill');
+  var cargoPctEl  = document.getElementById('status-cargo-pct');
+  if (cargoFillEl) cargoFillEl.style.width = cargoPct + '%';
+  if (cargoPctEl)  cargoPctEl.textContent  = cargoPct + '%';
+}
+
+
 // 内部：渲染胜利路径弹窗内容
 // ---------------------------------------------------------------------------
 
