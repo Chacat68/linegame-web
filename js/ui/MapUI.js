@@ -522,5 +522,14 @@ export function activateTab(tabId) {
   var pane = document.getElementById(tabId);
   if (pane) pane.classList.add('active');
 
+  // 如果所属面板是隐藏的覆盖层，则自动打开它并更新底部导航
+  if (group === 'info') {
+    _openOverlayPanel('info-panel');
+    _setBottomNavActive('quests');
+  } else if (group === 'trade') {
+    _openOverlayPanel('trade-panel');
+    _setBottomNavActive('hangar');
+  }
+
   if (_tabClickCallback) _tabClickCallback(tabId);
 }
