@@ -2,9 +2,10 @@
 // 依赖：ui/Renderer.js
 // 导出：init, initTabs, refreshGalaxyBtn, openMarket, closeMarket, isMarketOpen,
 //        setRefreshMarket, getMarketViewSystem, refreshMarketLocation,
-//        showMarketOverview, showMarketDetail, refreshPlanetDetail
+//        showMarketOverview, showMarketDetail, refreshPlanetDetail, getMapView, getCurrentGalaxyId
 
 import * as Renderer from './Renderer.js';
+import * as Renderer3D from './Renderer3D.js';
 import * as Faction from '../systems/faction/FactionSystem.js';
 import { GALAXIES, findSystem, findGalaxy }  from '../data/systems.js';
 
@@ -45,6 +46,16 @@ export function getMarketViewGalaxy(state) {
 /** 获取当前市场模式 */
 export function getMarketMode() {
   return _marketMode;
+}
+
+/** 获取当前地图视图模式 */
+export function getMapView() {
+  return _stateRef ? _stateRef.mapView : 'planets';
+}
+
+/** 获取当前查看的星系ID */
+export function getCurrentGalaxyId() {
+  return _stateRef ? (_stateRef.viewingGalaxy || _stateRef.currentGalaxy) : 'milky_way';
 }
 
 /** 切换到总览模式 */
@@ -175,6 +186,45 @@ export function init(stateRef, onTravel, onGalaxyJump) {
     marketCloseBtn.addEventListener('click', function () {
       closeMarket();
       _setBottomNavActive('starmap');
+    });
+  }
+
+  // 3D视图切换按钮
+  const toggle3DBtn = document.getElementById('map-3d-toggle-btn');
+  if (toggle3DBtn) {
+    toggle3DBtn.addEventListener('click', function () {
+      Renderer3D.toggleView();
+      // Setup callbacks for 3D renderer
+      if (Renderer3D.isActive()) {
+        toggle3DBtn.textContent = '📊 2D视图';
+        // Setup hover callback for 3D
+        window._mapHoverCallback = function(data) {
+          if (data) {
+            if (data.type === 'system') {
+              stateRef.hoveredSystem = data.id;
+            } else {
+              stateRef.hoveredSystem = null;
+            }
+            refreshPlanetDetail(stateRef);
+          } else {
+            stateRef.hoveredSystem = null;
+            refreshPlanetDetail(stateRef);
+          }
+        };
+        // Setup click callbacks for 3D
+        window._mapClickCallback = function(systemId) {
+          if (onTravel) onTravel(systemId);
+        };
+        window._galaxyClickCallback = function(galaxyId) {
+          if (onGalaxyJump) onGalaxyJump(galaxyId);
+        };
+      } else {
+        toggle3DBtn.textContent = '🌐 3D视图';
+        // Clear callbacks
+        window._mapHoverCallback = null;
+        window._mapClickCallback = null;
+        window._galaxyClickCallback = null;
+      }
     });
   }
 
