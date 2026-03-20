@@ -2,81 +2,39 @@
    Responsive — adapt layout for different screen resolutions
    ============================================================ */
 
-/* --- Medium screens (≤1200px): Reduce panel widths --- */
+/* --- Medium screens (≤1200px): Narrower panels --- */
 @media (max-width: 1200px) {
-  #info-panel { width: 250px; }
-  #trade-panel { width: 310px; }
+  .side-panel-overlay--left  { width: 280px; }
+  .side-panel-overlay--right { width: 320px; }
 }
 
-/* --- Small-medium screens (≤1024px): Collapse left panel, narrow right --- */
+/* --- Small-medium screens (≤1024px): Narrower panels --- */
 @media (max-width: 1024px) {
-  #info-panel {
-    width: 32px;
-    min-width: 32px;
-  }
-  #info-panel .tab-content,
-  #info-panel .tabs,
-  #info-panel .info-panel-quest-tracker {
-    display: none;
-  }
-  #info-panel .info-panel-header {
-    flex-direction: column;
-    height: 100%;
-  }
-  #info-panel .info-panel-toggle {
-    width: 100%;
-    height: 100%;
-  }
-  /* When explicitly expanded on small screen, use narrower width */
-  #info-panel.expanded-sm {
-    width: 260px;
-    min-width: 260px;
-  }
-  #info-panel.expanded-sm .tab-content,
-  #info-panel.expanded-sm .tabs,
-  #info-panel.expanded-sm .info-panel-quest-tracker {
-    display: flex;
-  }
-  #info-panel.expanded-sm .tab-content {
-    display: block;
-  }
-  #info-panel.expanded-sm .info-panel-quest-tracker {
-    display: block;
-  }
-  #info-panel.expanded-sm .info-panel-header {
-    flex-direction: row;
-    height: auto;
-  }
-  #info-panel.expanded-sm .info-panel-toggle {
-    width: 32px;
-    height: auto;
-  }
-  #trade-panel { width: 280px; }
+  .side-panel-overlay--left  { width: 260px; }
+  .side-panel-overlay--right { width: 300px; }
 }
 
-/* --- Tablet / small screens (≤768px): Compact header, narrower panels --- */
+/* --- Tablet / small screens (≤768px): Compact header --- */
 @media (max-width: 768px) {
   #game-header {
-    flex-wrap: wrap;
-    gap: 4px;
-    padding: 4px 10px;
+    gap: 10px;
+    padding: 0 10px;
+    height: 46px;
   }
-  .hdr-title h1 { font-size: 14px; }
-  .hdr-title .subtitle { display: none; }
-  #player-stats { gap: 10px; }
-  .stat-value { font-size: 13px; }
-  .stat-label { font-size: 9px; }
-  .player-level-bar { font-size: 10px; }
-  .level-bar-track { width: 60px; }
-  .victory-progress-btn { font-size: 11px; padding: 3px 7px; }
+  .hdr-logo { font-size: 14px; }
+  .hdr-version { font-size: 9px; }
+  .hdr-system-status { display: none; }
+  .hdr-stats { gap: 14px; }
+  .hdr-stat-value { font-size: 12px; }
+  .hdr-stat-label { font-size: 8px; }
 
-  .quest-tracker-card { padding: 8px; }
-  .quest-tracker-item { padding: 7px; }
+  .side-panel-overlay--left  { width: calc(100vw - 32px); }
+  .side-panel-overlay--right { width: calc(100vw - 32px); }
 
-  #trade-panel { width: 240px; }
-  #current-location { font-size: 12px; }
-  .fleet-ov-label { font-size: 9px; }
-  .fleet-ov-value { font-size: 12px; }
+  .status-ship-stats { gap: 14px; }
+  .status-stat { min-width: 70px; }
+  .bottom-nav-btn { padding: 4px 10px; min-width: 50px; }
+  .bottom-nav-btn span { font-size: 7px; }
 
   .modal-box { min-width: 240px; max-width: 320px; padding: 16px 18px; }
   .victory-modal-box { min-width: 280px; max-width: 420px; }
@@ -86,9 +44,7 @@
     max-width: none;
     padding: 0;
   }
-  .settings-layout {
-    flex-direction: column;
-  }
+  .settings-layout { flex-direction: column; }
   .settings-sidebar {
     width: 100%;
     min-width: 0;
@@ -97,147 +53,69 @@
     border-bottom: 1px solid rgba(56, 189, 248, 0.18);
     align-items: center;
   }
-  .settings-sidebar-title {
-    padding: 10px 14px;
-    border-bottom: none;
-    font-size: 12px;
-  }
-  .settings-nav-list {
-    flex-direction: row;
-    padding: 0;
-    gap: 0;
-    flex: 1;
-  }
-  .settings-nav-item {
-    padding: 10px 12px;
-    border-left: none;
-    border-bottom: 2px solid transparent;
-    font-size: 12px;
-  }
+  .settings-sidebar-title { padding: 10px 14px; border-bottom: none; font-size: 12px; }
+  .settings-nav-list { flex-direction: row; padding: 0; gap: 0; flex: 1; }
+  .settings-nav-item { padding: 10px 12px; border-left: none; border-bottom: 2px solid transparent; font-size: 12px; }
   #settings-tab-display:checked ~ .settings-sidebar .settings-nav-list label[for="settings-tab-display"],
   #settings-tab-game:checked ~ .settings-sidebar .settings-nav-list label[for="settings-tab-game"],
   #settings-tab-data:checked ~ .settings-sidebar .settings-nav-list label[for="settings-tab-data"] {
     border-left-color: transparent;
     border-bottom-color: #67e8f9;
   }
-  .settings-sidebar-footer {
-    padding: 6px 10px;
-    border-top: none;
-    margin-top: 0;
-  }
-  .settings-sidebar-btn {
-    padding: 5px 8px;
-    font-size: 10px;
-  }
-  .save-slot-grid {
-    grid-template-columns: 1fr;
-  }
-  .settings-main-content {
-    padding: 14px;
-  }
-  .settings-storage-head {
-    flex-direction: column;
-  }
+  .settings-sidebar-footer { padding: 6px 10px; border-top: none; margin-top: 0; }
+  .settings-sidebar-btn { padding: 5px 8px; font-size: 10px; }
+  .save-slot-grid { grid-template-columns: 1fr; }
+  .settings-main-content { padding: 14px; }
+  .settings-storage-head { flex-direction: column; }
 
   #map-legend { font-size: 11px; gap: 6px; padding: 3px 8px; }
-  #status-bar { height: 60px; }
+  #status-bar { height: 64px; }
 }
 
 /* --- Mobile screens (≤480px): Full-width panels, stacked layout --- */
 @media (max-width: 480px) {
-  #game-header {
-    padding: 4px 6px;
-  }
-  .hdr-title h1 { font-size: 13px; }
-  .company-name-btn { font-size: 10px; }
-  #player-stats { gap: 6px; }
-  .stat-value { font-size: 12px; }
-  .player-level-bar { font-size: 9px; }
-  .level-bar-track { width: 50px; }
-  .victory-progress-btn { font-size: 10px; padding: 2px 6px; }
-  .rep-badge { font-size: 9px; padding: 1px 4px; }
+  #game-header { padding: 0 8px; gap: 8px; height: 42px; }
+  .hdr-logo { font-size: 13px; }
+  .hdr-stat-value { font-size: 11px; }
+  .hdr-stats { gap: 10px; }
 
-  .quest-tracker-head,
-  .quest-tracker-meta,
-  .quest-tracker-item-head {
-    flex-direction: column;
-    align-items: flex-start;
-  }
+  .side-panel-overlay--left,
+  .side-panel-overlay--right { width: 100vw; }
 
-  #info-panel { display: none; }
-  #trade-panel { width: 200px; }
+  .status-ship-stats { gap: 10px; }
+  .status-stat { min-width: 60px; }
+  .status-stat-label { font-size: 8px; }
+  .status-stat-pct { font-size: 9px; }
+  .bottom-nav-btn { padding: 3px 6px; min-width: 42px; }
+  .bottom-nav-icon { width: 16px; height: 16px; }
+  .bottom-nav-btn span { font-size: 6px; }
 
   .modal-box { min-width: 200px; max-width: 95vw; padding: 14px 12px; }
   .victory-modal-box { min-width: 200px; max-width: 95vw; }
   .event-modal-box { min-width: 200px; max-width: 95vw; }
   .gameover-box { max-width: 95vw; }
   .company-rename-box { max-width: 95vw; }
-  .settings-modal-box {
-    width: calc(100vw - 12px);
-    max-height: 90vh;
-  }
-  .settings-sidebar {
-    flex-wrap: wrap;
-  }
-  .settings-sidebar-title {
-    padding: 8px 10px;
-    font-size: 11px;
-  }
-  .settings-nav-item {
-    padding: 8px 10px;
-    font-size: 11px;
-  }
-  .settings-nav-icon {
-    display: none;
-  }
-  .settings-main-header {
-    padding: 10px 14px;
-  }
-  .settings-main-content {
-    padding: 12px;
-  }
-  .settings-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 12px;
-  }
-  .settings-row-control {
-    width: 100%;
-  }
-  .settings-select {
-    width: 100%;
-  }
-  .settings-action-btn {
-    width: 100%;
-  }
-  .settings-save-shell {
-    padding: 10px;
-  }
-  .settings-sidebar-footer {
-    display: none;
-  }
-  .save-slot-actions,
-  .save-export-row {
-    flex-direction: column;
-  }
-  .save-import-target {
-    width: 100%;
-    justify-content: space-between;
-  }
-  .save-import-slot-select {
-    width: 100%;
-  }
-  .save-slot-actions .btn-action,
-  .save-export-row .btn-action {
-    width: 100%;
-  }
+  .settings-modal-box { width: calc(100vw - 12px); max-height: 90vh; }
+  .settings-sidebar { flex-wrap: wrap; }
+  .settings-sidebar-title { padding: 8px 10px; font-size: 11px; }
+  .settings-nav-item { padding: 8px 10px; font-size: 11px; }
+  .settings-nav-icon { display: none; }
+  .settings-main-header { padding: 10px 14px; }
+  .settings-main-content { padding: 12px; }
+  .settings-row { flex-direction: column; align-items: flex-start; gap: 10px; padding: 12px; }
+  .settings-row-control { width: 100%; }
+  .settings-select { width: 100%; }
+  .settings-action-btn { width: 100%; }
+  .settings-save-shell { padding: 10px; }
+  .settings-sidebar-footer { display: none; }
+  .save-slot-actions, .save-export-row { flex-direction: column; }
+  .save-import-target { width: 100%; justify-content: space-between; }
+  .save-import-slot-select { width: 100%; }
+  .save-slot-actions .btn-action, .save-export-row .btn-action { width: 100%; }
 
   #map-legend { font-size: 10px; gap: 4px; padding: 2px 6px; }
   #map-legend span:last-child { display: none; }
-  #status-bar { height: 48px; }
-  .msg { font-size: 11px; }
-
+  #status-bar { height: 58px; }
   .map-overlay-btn { padding: 4px 8px; font-size: 10px; }
 }
 
@@ -260,14 +138,8 @@
 }
 
 @keyframes log-entry {
-  from {
-    opacity: 0;
-    transform: translateX(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 
 @keyframes terminal-caret {
@@ -294,9 +166,7 @@
 .settings-btn::before {
   content: "";
   position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
+  top: 0; bottom: 0; left: 0;
   width: 42%;
   background: linear-gradient(90deg, transparent, rgba(186, 230, 253, 0.26), transparent);
   transform: translateX(-140%);
@@ -316,7 +186,6 @@
 
 .market-overlay-header h3,
 .market-detail-location,
-.map-status-chip,
 .map-atlas-tag {
   text-shadow: 0 0 10px rgba(34, 211, 238, 0.28);
 }
@@ -331,10 +200,8 @@
 #market-table th::after {
   content: "";
   position: absolute;
-  left: -120%;
-  top: 0;
-  width: 40%;
-  height: 100%;
+  left: -120%; top: 0;
+  width: 40%; height: 100%;
   background: linear-gradient(90deg, transparent, rgba(186, 230, 253, 0.2), transparent);
   animation: border-sweep 3.8s linear infinite;
 }
@@ -349,9 +216,7 @@
 #market-table tbody tr::before {
   content: "";
   position: absolute;
-  left: 0;
-  top: 6px;
-  bottom: 6px;
+  left: 0; top: 6px; bottom: 6px;
   width: 2px;
   background: linear-gradient(180deg, transparent, rgba(34, 211, 238, 0.9), transparent);
   opacity: 0;
@@ -438,61 +303,29 @@ body[data-motion="off"] *::after {
 }
 
 @keyframes pane-enter {
-  from {
-    opacity: 0;
-    transform: translateY(8px) scale(0.985);
-    filter: blur(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-    filter: blur(0);
-  }
+  from { opacity: 0; transform: translateY(8px) scale(0.985); filter: blur(4px); }
+  to   { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
 }
 
 @keyframes overlay-enter {
-  from {
-    opacity: 0;
-    transform: scale(1.015);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
+  from { opacity: 0; transform: scale(1.015); }
+  to   { opacity: 1; transform: scale(1); }
 }
 
 @keyframes slide-enter-right {
-  from {
-    opacity: 0;
-    transform: translateX(18px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+  from { opacity: 0; transform: translateX(18px); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 
 @keyframes slide-enter-left {
-  from {
-    opacity: 0;
-    transform: translateX(-14px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+  from { opacity: 0; transform: translateX(-14px); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 
 @keyframes button-press-glow {
-  0% {
-    box-shadow: 0 0 0 rgba(34, 211, 238, 0);
-  }
-  50% {
-    box-shadow: 0 0 18px rgba(34, 211, 238, 0.24);
-  }
-  100% {
-    box-shadow: 0 0 0 rgba(34, 211, 238, 0);
-  }
+  0%   { box-shadow: 0 0 0 rgba(34, 211, 238, 0); }
+  50%  { box-shadow: 0 0 18px rgba(34, 211, 238, 0.24); }
+  100% { box-shadow: 0 0 0 rgba(34, 211, 238, 0); }
 }
 
 .tab-btn,
@@ -502,13 +335,8 @@ body[data-motion="off"] *::after {
   will-change: transform, opacity;
 }
 
-.tab-btn {
-  transition: color 0.18s ease, background 0.18s ease, transform 0.18s ease;
-}
-
-.tab-btn:hover {
-  transform: translateY(-1px);
-}
+.tab-btn { transition: color 0.18s ease, background 0.18s ease, transform 0.18s ease; }
+.tab-btn:hover { transform: translateY(-1px); }
 
 .tab-btn:active,
 .market-back-btn:active,
@@ -517,25 +345,14 @@ body[data-motion="off"] *::after {
   transform: translateY(1px) scale(0.99);
 }
 
-.tab-pane.active {
-  animation: pane-enter 0.22s ease-out;
-}
-
-.market-overlay {
-  animation: overlay-enter 0.24s ease-out;
-  transform-origin: center;
-}
-
-.market-overview:not(.hidden) {
-  animation: slide-enter-left 0.22s ease-out;
-}
-
-.market-detail:not(.hidden) {
-  animation: slide-enter-right 0.22s ease-out;
-}
+.tab-pane.active          { animation: pane-enter 0.22s ease-out; }
+.market-overlay           { animation: overlay-enter 0.24s ease-out; transform-origin: center; }
+.market-overview:not(.hidden) { animation: slide-enter-left 0.22s ease-out; }
+.market-detail:not(.hidden)   { animation: slide-enter-right 0.22s ease-out; }
 
 .market-back-btn:hover,
 .market-galaxy-btn:hover,
 .map-overlay-btn:hover {
   animation: button-press-glow 0.45s ease-out;
 }
+

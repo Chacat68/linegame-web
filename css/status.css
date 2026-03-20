@@ -1,13 +1,119 @@
-/* ---- Status bar -------------------------------------------------------- */
+/* ---- Status bar (bottom: ship stats + navigation tabs) ----------------- */
 #status-bar {
   flex-shrink: 0;
-  height: 78px;
-  overflow-y: auto;
-  background: #06061a;
-  border-top: 1px solid var(--border);
-  padding: 4px 10px;
+  height: 72px;
+  background: rgba(4, 8, 20, 0.97);
+  border-top: 1px solid rgba(56, 189, 248, 0.22);
+  display: flex;
+  align-items: center;
+  padding: 0 16px 0 24px;
+  gap: 0;
 }
-.msg { font-size: 12px; padding: 2px 0; }
+
+/* Ship status bars (left side) */
+.status-ship-stats {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-shrink: 0;
+}
+
+.status-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 90px;
+}
+
+.status-stat-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.status-stat-label {
+  font-family: "Orbitron", monospace;
+  font-size: 9px;
+  color: var(--text-dim);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.status-stat-pct {
+  font-family: "Orbitron", monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent-cyan);
+}
+
+.status-stat-track {
+  height: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.status-stat-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+.status-stat-fill--fuel   { background: linear-gradient(90deg, #22d3ee, #67e8f9); }
+.status-stat-fill--shield { background: linear-gradient(90deg, #f472b6, #fb7185); }
+.status-stat-fill--cargo  { background: linear-gradient(90deg, #818cf8, #a78bfa); }
+
+/* Bottom navigation tabs (right side) */
+.bottom-nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.bottom-nav-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 6px 18px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: color 0.18s, background 0.18s;
+  min-width: 64px;
+}
+
+.bottom-nav-btn:hover {
+  color: var(--accent-cyan);
+  background: rgba(34, 211, 238, 0.06);
+}
+
+.bottom-nav-btn.active {
+  color: var(--accent-cyan);
+  background: rgba(34, 211, 238, 0.12);
+  border: 1px solid rgba(34, 211, 238, 0.3);
+}
+
+.bottom-nav-icon {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+}
+
+.bottom-nav-btn span {
+  font-family: "Orbitron", monospace;
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Legacy message log (used in console panel) */
+.console-message-log .msg { font-size: 12px; padding: 2px 0; }
 .msg-info    { color: var(--text-dim); }
 .msg-tip     { color: #aaa8ff; }
 .msg-travel  { color: var(--accent-blue); }
