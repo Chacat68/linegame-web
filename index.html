@@ -94,8 +94,12 @@
             </div>
             <canvas id="webgl-canvas"></canvas>
             <canvas id="map-canvas"></canvas>
+            <canvas id="map-3d-canvas" style="display: none;"></canvas>
             <div id="planet-detail-panel" class="planet-detail-panel"></div>
             <div class="map-btn-group">
+              <button id="map-3d-toggle-btn" class="map-overlay-btn">
+                🌐 3D视图
+              </button>
               <button id="market-view-btn" class="map-overlay-btn">
                 🏪 市场
               </button>
@@ -899,6 +903,15 @@
       </div>
     </div>
 
+    <!-- Three.js library for 3D rendering -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
     <script type="module" src="js/main.js"></script>
   </body>
 </html>

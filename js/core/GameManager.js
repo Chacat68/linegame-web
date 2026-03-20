@@ -13,6 +13,7 @@ import * as RandomEvent from '../systems/event/RandomEvent.js';
 import * as Faction    from '../systems/faction/FactionSystem.js';
 import * as Research   from '../systems/research/ResearchSystem.js';
 import * as Renderer   from '../ui/Renderer.js';
+import * as Renderer3D from '../ui/Renderer3D.js';
 import * as HUD        from '../ui/HUD.js';
 import * as MarketUI   from '../ui/MarketUI.js';
 import * as ShipUI     from '../ui/ShipUI.js';
@@ -81,6 +82,8 @@ export function init(difficulty) {
   Finance.init(_state);
   Renderer.init();
   Renderer.resetRuntimeState(_state.currentSystem);
+  Renderer3D.init();
+  Renderer3D.resetRuntimeState(_state.currentSystem);
   Settings.applySettings(_settings, Renderer);
   HUD.init();
 
@@ -932,8 +935,16 @@ function _startGameLoop() {
   _startTime = performance.now();
   (function loop(ts) {
     const t = ts - _startTime;
-    Renderer.renderStars(t);
-    Renderer.renderMap(_state, t);
+    if (Renderer3D.isActive()) {
+      // 3D mode - handled by Renderer3D's internal animation loop
+      const mapView = MapUI.getMapView ? MapUI.getMapView() : 'planets';
+      const galaxyId = MapUI.getCurrentGalaxyId ? MapUI.getCurrentGalaxyId() : 'milky_way';
+      Renderer3D.render(_state, mapView, galaxyId);
+    } else {
+      // 2D mode - traditional rendering
+      Renderer.renderStars(t);
+      Renderer.renderMap(_state, t);
+    }
     requestAnimationFrame(loop);
   }(_startTime));
 }
