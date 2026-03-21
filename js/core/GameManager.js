@@ -27,6 +27,7 @@ import * as SaveUI     from '../ui/SaveUI.js';
 import * as QuestUI    from '../ui/QuestUI.js';
 import * as AchievementUI from '../ui/AchievementUI.js';
 import * as TradeStationUI from '../ui/TradeStationUI.js';
+import * as BusinessTerminalUI from '../ui/BusinessTerminalUI.js';
 import * as Fleet      from '../systems/fleet/FleetSystem.js';
 import * as Crew       from '../systems/fleet/CrewSystem.js';
 import * as AutoTrade  from '../systems/trade/AutoTradeSystem.js';
@@ -94,6 +95,35 @@ export function init(difficulty) {
   MapUI.initTabs(function (tabId) {
     Tutorial.checkTabClick(tabId);
   });
+
+  // 初始化商业终端
+  BusinessTerminalUI.init(_state, {
+    onOpenBuy: _handleOpenBuy,
+    onOpenSell: _handleOpenSell,
+    onTakeLoan: _handleTakeLoan,
+    onRepayLoan: _handleRepayLoan,
+    onBuyStock: _handleBuyStock,
+    onSellStock: _handleSellStock,
+    onPurchaseInsurance: _handlePurchaseInsurance,
+    onSubmitInsuranceClaim: _handleSubmitInsuranceClaim,
+    onFuturesLong: _handleFuturesLong,
+    onFuturesShort: _handleFuturesShort,
+    onFuturesClose: _handleFuturesClose,
+    onBuildStation: _handleBuildTradeStation,
+    onUpgradeStation: _handleUpgradeTradeStation,
+    onHireManager: _handleHireTradeStationManager,
+    onSetStrategy: _handleSetTradeStationStrategy,
+    onSwitchShip: _handleSwitchShip,
+  });
+
+  // 暴露商业终端 API 给 MapUI
+  window.GameManagerAPI = {
+    openBusinessTerminal: function () {
+      BusinessTerminalUI.show();
+      BusinessTerminalUI.render(_state);
+    }
+  };
+
   // 注入市场刷新回调（让 MapUI 可以触发市场表格重绘）
   MapUI.setRefreshMarket(function (mode) {
     if (mode === 'detail') {
@@ -894,6 +924,12 @@ function _updateUI() {
   SaveUI.render(_handleSaveGame, _handleLoadGame);
   MapUI.refreshPlanetDetail(_state);
   Dispatch.updateActiveDispatchUI();
+
+  // 更新商业终端（如果已打开）
+  const btTerminal = document.getElementById('business-terminal');
+  if (btTerminal && !btTerminal.classList.contains('hidden')) {
+    BusinessTerminalUI.render(_state);
+  }
 }
 
 // ---------------------------------------------------------------------------
