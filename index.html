@@ -98,29 +98,9 @@
             <canvas id="map-3d-canvas" style="display: none;"></canvas>
             <div id="planet-detail-panel" class="planet-detail-panel"></div>
             <div class="map-btn-group">
-              <div class="map-secondary-entry-group" aria-label="快捷入口">
-                <button id="market-open-company" class="map-overlay-btn map-secondary-entry-btn" type="button" title="蓝脉信使物流体">
-                  <span class="map-entry-icon">🏢</span>
-                  <span class="map-entry-label">公司</span>
-                  <span id="market-company-entry-name" class="map-entry-meta">蓝脉信使物流体</span>
-                </button>
-                <button id="market-open-fleet" class="map-overlay-btn map-secondary-entry-btn" type="button" title="1 船 · 0 派遣">
-                  <span class="map-entry-icon">🚢</span>
-                  <span class="map-entry-label">舰队</span>
-                  <span id="market-fleet-entry-summary" class="map-entry-meta">1 船 · 0 派遣</span>
-                </button>
-                <button id="market-open-shop" class="map-overlay-btn map-secondary-entry-btn" type="button" title="停靠港口船坞">
-                  <span class="map-entry-icon">🏪</span>
-                  <span class="map-entry-label">商店</span>
-                  <span id="market-shop-entry-summary" class="map-entry-meta">停靠港口船坞</span>
-                </button>
-              </div>
               <div class="map-primary-entry-group">
                 <button id="map-3d-toggle-btn" class="map-overlay-btn">
                   🌐 3D视图
-                </button>
-                <button id="market-view-btn" class="map-overlay-btn">
-                  🏪 商业终端
                 </button>
                 <button id="galaxy-view-btn" class="map-overlay-btn">
                   🌌 星系总览
@@ -405,23 +385,23 @@
         <nav class="bottom-nav" id="bottom-nav">
           <button class="bottom-nav-btn" data-view="console" title="控制台">
             <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-            <span>CONSOLE</span>
+            <span>控制台</span>
           </button>
           <button class="bottom-nav-btn" data-view="market" title="市场">
             <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-            <span>MARKET</span>
+            <span>市场</span>
           </button>
           <button class="bottom-nav-btn" data-view="hangar" title="机库">
             <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-            <span>HANGAR</span>
+            <span>机库</span>
           </button>
           <button class="bottom-nav-btn active" data-view="starmap" title="星图">
             <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg>
-            <span>STAR MAP</span>
+            <span>星图</span>
           </button>
           <button class="bottom-nav-btn" data-view="quests" title="任务">
             <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-            <span>QUESTS</span>
+            <span>任务</span>
           </button>
         </nav>
       </footer>
@@ -605,120 +585,7 @@
       </div>
     </div>
 
-    <div id="company-panel-modal" class="modal hidden" role="dialog" aria-modal="true">
-      <div class="modal-box secondary-panel-modal-box company-panel-modal-box">
-        <div class="secondary-panel-head">
-          <div>
-            <h3>🏢 公司总览</h3>
-            <div id="company-panel-subtitle" class="secondary-panel-subtitle">查看企业状态与当前运营概览</div>
-          </div>
-          <button class="secondary-panel-close" type="button" data-close-secondary-panel="company-panel-modal">✕</button>
-        </div>
 
-        <section class="secondary-panel-pane active">
-          <div class="company-dashboard company-dashboard-modal">
-            <button
-              id="company-name-display"
-              class="company-name-btn"
-              title="点击重命名公司"
-            >
-              ◉ <span id="company-name-text">蓝脉信使物流体</span> ✏️
-            </button>
-
-            <div class="stat-strip">
-              <div class="stat-strip-item">
-                <span class="stat-strip-label">💰 积分</span>
-                <span id="credits" class="stat-strip-value stat-credits">1,000</span>
-              </div>
-              <div class="stat-strip-item">
-                <span class="stat-strip-label">📊 资产</span>
-                <span id="net-worth" class="stat-strip-value stat-networth">1,000</span>
-              </div>
-              <div class="stat-strip-item">
-                <span class="stat-strip-label">📅 天数</span>
-                <span id="galactic-day" class="stat-strip-value stat-day">1</span>
-              </div>
-              <div class="stat-strip-item">
-                <span class="stat-strip-label">经济</span>
-                <span id="economy-cycle" class="stat-strip-value stat-cycle">⚖️稳定</span>
-              </div>
-            </div>
-
-            <div id="player-level" class="player-level-bar"></div>
-
-            <div id="company-level-line" class="company-level-line">
-              CORP Lv.1 · 0/120
-            </div>
-            <div class="company-level-track">
-              <div id="company-level-fill" class="company-level-fill"></div>
-            </div>
-          </div>
-
-          <div class="company-panel-grid">
-            <article class="company-panel-card">
-              <span class="company-panel-card-label">当前停靠</span>
-              <strong id="company-panel-location">太阳主星</strong>
-            </article>
-            <article class="company-panel-card">
-              <span class="company-panel-card-label">舰队规模</span>
-              <strong id="company-panel-fleet">1 船 / 0 派遣</strong>
-            </article>
-            <article class="company-panel-card">
-              <span class="company-panel-card-label">累计利润</span>
-              <strong id="company-panel-profit">0</strong>
-            </article>
-            <article class="company-panel-card">
-              <span class="company-panel-card-label">交易次数</span>
-              <strong id="company-panel-trade-count">0</strong>
-            </article>
-          </div>
-        </section>
-
-      </div>
-    </div>
-
-    <div id="fleet-panel-modal" class="modal hidden" role="dialog" aria-modal="true">
-      <div class="modal-box secondary-panel-modal-box fleet-panel-modal-box">
-        <div class="secondary-panel-head">
-          <div>
-            <h3>🚢 舰队中心</h3>
-            <div id="fleet-panel-subtitle" class="secondary-panel-subtitle">统一查看舰船、席位与派遣状态</div>
-          </div>
-          <button class="secondary-panel-close" type="button" data-close-secondary-panel="fleet-panel-modal">✕</button>
-        </div>
-
-        <section class="secondary-panel-pane active">
-          <div class="secondary-panel-toolbar">
-            <span class="fleet-inline-summary">
-              <span id="ov-ship-count">1</span>船 ·
-              <span id="ov-dispatch-count">0</span>派遣 · Σ<span id="ov-total-profit">0</span>
-            </span>
-            <span class="secondary-panel-meta">交易 <span id="ov-trade-count">0</span> 次</span>
-          </div>
-
-          <div id="auto-trade-controls" class="auto-trade-controls hidden"></div>
-          <div id="fleet-list" class="secondary-panel-scroll"></div>
-        </section>
-
-      </div>
-    </div>
-
-    <div id="shop-panel-modal" class="modal hidden" role="dialog" aria-modal="true">
-      <div class="modal-box secondary-panel-modal-box shop-panel-modal-box">
-        <div class="secondary-panel-head">
-          <div>
-            <h3>🏪 船坞商店</h3>
-            <div id="shop-panel-subtitle" class="secondary-panel-subtitle">在当前港口采购新舰并扩充运力</div>
-          </div>
-          <button class="secondary-panel-close" type="button" data-close-secondary-panel="shop-panel-modal">✕</button>
-        </div>
-
-        <section class="secondary-panel-pane active">
-          <div id="shop-list" class="secondary-panel-scroll"></div>
-        </section>
-
-      </div>
-    </div>
 
     <!-- ================================================================
      Tutorial: 新手引导遮罩 & 提示框

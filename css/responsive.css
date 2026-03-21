@@ -160,9 +160,9 @@
   .hud-corner-tl,
   .hud-corner-tr { top: 44px; }
   .hud-corner-bl,
-  .hud-corner-br { bottom: 68px; }
+  .hud-corner-br { bottom: 0; }
   .map-hud-nav-data { top: 50px; }
-  .map-hud-sensor-data { bottom: 76px; }
+  .map-hud-sensor-data { bottom: 6px; }
 }
 
 /* --- Mobile screens (≤480px): Full-width panels, stacked layout --- */

@@ -52,7 +52,6 @@ let _state     = null;
 let _startTime = null;
 let _settings  = { motionLevel: 'full' };
 let _blackMarketMode = false; // 当前是否处于黑市交易模式
-const _secondaryPanelModalIds = ['company-panel-modal', 'fleet-panel-modal', 'shop-panel-modal'];
 
 function _getMarketFinanceActions() {
   return {
@@ -107,7 +106,6 @@ export function init(difficulty) {
   Renderer3D.resetRuntimeState(_state.currentSystem);
   Settings.applySettings(_settings, Renderer);
   HUD.init();
-  _initSecondaryPanels();
 
   // 注入回调给各 UI 模块
   MapUI.init(_state, _handleTravel, _handleGalaxyJump);
@@ -273,93 +271,7 @@ function _showCompanyRenameModal() {
   };
 }
 
-function _initSecondaryPanels() {
-  [
-    { triggerId: 'market-open-company', modalId: 'company-panel-modal' },
-    { triggerId: 'market-open-fleet', modalId: 'fleet-panel-modal' },
-    { triggerId: 'market-open-shop', modalId: 'shop-panel-modal' },
-  ].forEach(function (entry) {
-    var trigger = document.getElementById(entry.triggerId);
-    if (!trigger) return;
-    trigger.onclick = function () {
-      _openSecondaryPanel(entry.modalId);
-    };
-  });
 
-  document.querySelectorAll('[data-close-secondary-panel]').forEach(function (button) {
-    button.onclick = function () {
-      _closeSecondaryPanel(button.dataset.closeSecondaryPanel);
-    };
-  });
-
-  _secondaryPanelModalIds.forEach(function (modalId) {
-    var modal = document.getElementById(modalId);
-    if (!modal) return;
-    modal.addEventListener('click', function (event) {
-      if (event.target === modal) {
-        _closeSecondaryPanel(modalId);
-      }
-    });
-  });
-
-  var marketCloseBtn = document.getElementById('market-close-btn');
-  if (marketCloseBtn) {
-    marketCloseBtn.addEventListener('click', function () {
-      _closeAllSecondaryPanels();
-    });
-  }
-}
-
-function _openSecondaryPanel(modalId) {
-  _closeAllSecondaryPanels();
-  var modal = document.getElementById(modalId);
-  if (modal) modal.classList.remove('hidden');
-}
-
-function _closeSecondaryPanel(modalId) {
-  var modal = document.getElementById(modalId);
-  if (modal) modal.classList.add('hidden');
-}
-
-function _closeAllSecondaryPanels() {
-  _secondaryPanelModalIds.forEach(function (modalId) {
-    _closeSecondaryPanel(modalId);
-  });
-}
-
-function _updateSecondaryPanelSummaries(netWorth) {
-  var currentSystem = SYSTEMS.find(function (system) { return system.id === _state.currentSystem; });
-  var fleet = _state.fleet || [];
-  var dispatchCount = fleet.filter(function (ship) { return !!ship.route; }).length;
-  var companyEntryBtn = document.getElementById('market-open-company');
-  var fleetEntryBtn = document.getElementById('market-open-fleet');
-  var shopEntryBtn = document.getElementById('market-open-shop');
-  var companyEntryName = document.getElementById('market-company-entry-name');
-  var fleetEntrySummary = document.getElementById('market-fleet-entry-summary');
-  var shopEntrySummary = document.getElementById('market-shop-entry-summary');
-  var companyPanelLocation = document.getElementById('company-panel-location');
-  var companyPanelFleet = document.getElementById('company-panel-fleet');
-  var companyPanelProfit = document.getElementById('company-panel-profit');
-  var companyPanelTradeCount = document.getElementById('company-panel-trade-count');
-  if (companyEntryName) companyEntryName.textContent = _state.companyName || '星际信使贸易公司';
-  if (fleetEntrySummary) fleetEntrySummary.textContent = fleet.length + ' 船 · ' + dispatchCount + ' 派遣';
-  if (shopEntrySummary) shopEntrySummary.textContent = currentSystem ? ('停靠 ' + currentSystem.name + ' 船坞') : '停靠港口船坞';
-  if (companyEntryBtn) companyEntryBtn.title = _state.companyName || '星际信使贸易公司';
-  if (fleetEntryBtn) fleetEntryBtn.title = fleet.length + ' 船 · ' + dispatchCount + ' 派遣';
-  if (shopEntryBtn) shopEntryBtn.title = currentSystem ? ('停靠 ' + currentSystem.name + ' 船坞') : '停靠港口船坞';
-
-  if (companyPanelLocation) companyPanelLocation.textContent = currentSystem ? currentSystem.name : '未知星球';
-  if (companyPanelFleet) companyPanelFleet.textContent = fleet.length + ' 船 / ' + dispatchCount + ' 派遣';
-  if (companyPanelProfit) companyPanelProfit.textContent = Math.floor(_state.totalProfit || 0).toLocaleString();
-  if (companyPanelTradeCount) companyPanelTradeCount.textContent = (_state.tradeCount || 0).toLocaleString();
-
-  var companyPanelSubtitle = document.getElementById('company-panel-subtitle');
-  var fleetPanelSubtitle = document.getElementById('fleet-panel-subtitle');
-  var shopPanelSubtitle = document.getElementById('shop-panel-subtitle');
-  if (companyPanelSubtitle) companyPanelSubtitle.textContent = '净资产 ' + Math.floor(netWorth).toLocaleString() + ' · 当前停靠 ' + (currentSystem ? currentSystem.name : '未知星球');
-  if (fleetPanelSubtitle) fleetPanelSubtitle.textContent = '当前可调度 ' + fleet.length + ' 艘舰船，其中 ' + dispatchCount + ' 艘执行航线';
-  if (shopPanelSubtitle) shopPanelSubtitle.textContent = currentSystem ? ('当前停靠 ' + currentSystem.name + '，可直接购入新舰') : '在当前港口采购新舰并扩充运力';
-}
 
 // ---------------------------------------------------------------------------
 // 动作处理（所有状态变更入口）
@@ -945,7 +857,6 @@ function _updateUI() {
   const netWorth = Trade.getNetWorth(_state);
   HUD.updateStats(_state, netWorth);
   HUD.updateCompanyName(_state);
-  _updateSecondaryPanelSummaries(netWorth);
   // 市场：根据当前模式刷新
   if (MapUI.isMarketOpen()) {
     var bmMode = _blackMarketMode ? 'black' : 'open';

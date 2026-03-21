@@ -44,15 +44,15 @@
 }
 
 .hud-corner-bl {
-  bottom: 76px;
-  left: 10px;
+  bottom: 0;
+  left: 0;
   border-bottom: 2px solid;
   border-left: 2px solid;
 }
 
 .hud-corner-br {
-  bottom: 76px;
-  right: 10px;
+  bottom: 0;
+  right: 0;
   border-bottom: 2px solid;
   border-right: 2px solid;
 }
@@ -96,8 +96,8 @@
 
 .map-hud-sensor-data {
   position: absolute;
-  bottom: 84px;  /* above floating dock */
-  right: 18px;
+  bottom: 6px;
+  right: 6px;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
