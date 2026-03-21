@@ -532,6 +532,14 @@ function _handleBottomNav(view) {
     }
     return;
   }
+
+  if (view === 'business-terminal') {
+    // 商业终端是全屏覆盖，需要通知 GameManager 打开
+    if (window.GameManagerAPI && window.GameManagerAPI.openBusinessTerminal) {
+      window.GameManagerAPI.openBusinessTerminal();
+    }
+    return;
+  }
 }
 
 function _openOverlayPanel(id) {
