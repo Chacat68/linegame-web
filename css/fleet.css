@@ -53,35 +53,35 @@
 .fleet-slot-bar {
   display: flex;
   gap: 6px;
-  padding: 6px 0 8px;
+  padding: 8px 0 10px;
 }
 .fleet-slot {
   flex: 1;
-  height: 40px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
-  border: 2px dashed #33335a;
-  background: #0a0a1e;
+  border-radius: 8px;
+  border: 1px dashed rgba(79, 195, 247, 0.18);
+  background: linear-gradient(180deg, rgba(8, 16, 34, 0.7), rgba(5, 12, 26, 0.9));
   font-size: 16px;
-  transition: border-color 0.2s, background 0.2s;
+  transition: border-color 0.25s, background 0.25s, box-shadow 0.25s;
 }
 .fleet-slot.slot-owned {
-  border: 2px solid #44446a;
-  background: #12122a;
+  border: 1px solid rgba(79, 195, 247, 0.22);
+  background: linear-gradient(180deg, rgba(10, 20, 42, 0.85), rgba(6, 14, 30, 0.95));
 }
 .fleet-slot.slot-filled {
-  border-color: var(--accent-gold);
-  background: #1a1828;
+  border-color: rgba(118, 228, 255, 0.4);
+  background: linear-gradient(180deg, rgba(12, 24, 48, 0.9), rgba(8, 18, 38, 0.95));
 }
 .fleet-slot.slot-locked {
-  opacity: 0.45;
+  opacity: 0.35;
 }
 .fleet-slot.slot-active {
-  border-color: #4fc3f7;
-  background: #15203a;
-  box-shadow: 0 0 8px rgba(79, 195, 247, 0.25);
+  border-color: rgba(118, 228, 255, 0.55);
+  background: linear-gradient(180deg, rgba(14, 30, 60, 0.95), rgba(10, 22, 46, 0.98));
+  box-shadow: 0 0 12px rgba(118, 228, 255, 0.15), inset 0 0 0 1px rgba(118, 228, 255, 0.08);
   position: relative;
 }
 .fleet-slot {
@@ -95,44 +95,48 @@
 .slot-lock-icon { font-size: 14px; }
 .slot-active-label {
   font-size: 9px;
-  color: #4fc3f7;
-  font-weight: 600;
+  color: var(--accent-cyan);
+  font-weight: 700;
   letter-spacing: 1px;
+  text-shadow: 0 0 8px rgba(34, 211, 238, 0.4);
 }
 .slot-dispatch-label {
   font-size: 9px;
-  color: #ff9800;
-  font-weight: 600;
+  color: var(--accent-gold);
+  font-weight: 700;
+  text-shadow: 0 0 6px rgba(118, 228, 255, 0.35);
 }
 .slot-switch-btn {
   font-size: 10px;
   font-weight: 600;
-  padding: 1px 6px;
-  border: 1px solid rgba(255, 193, 7, 0.35);
-  background: rgba(255, 193, 7, 0.12);
-  border-radius: 3px;
+  padding: 2px 8px;
+  border: 1px solid rgba(118, 228, 255, 0.35);
+  background: rgba(118, 228, 255, 0.1);
+  border-radius: 4px;
   color: var(--accent-gold);
   cursor: pointer;
   line-height: 1.4;
-  transition: background 0.2s, transform 0.15s, border-color 0.2s;
+  transition: background 0.2s, transform 0.15s, border-color 0.2s, box-shadow 0.2s;
 }
 .slot-switch-btn:hover {
-  background: rgba(255, 193, 7, 0.25);
-  border-color: var(--accent-gold);
-  transform: scale(1.05);
+  background: rgba(118, 228, 255, 0.2);
+  border-color: rgba(118, 228, 255, 0.6);
+  transform: scale(1.06);
+  box-shadow: 0 0 8px rgba(118, 228, 255, 0.2);
 }
 
 .fleet-slot-info {
-  padding: 4px 0 8px;
+  padding: 6px 0 10px;
   font-size: 11px;
   color: var(--text-dim);
-  border-bottom: 1px solid #33335a;
+  border-bottom: 1px solid rgba(79, 195, 247, 0.12);
   margin-bottom: 8px;
 }
 .fleet-slot-route-lvl {
   font-size: 12px;
   color: var(--accent-cyan);
-  font-weight: 600;
+  font-weight: 700;
+  text-shadow: 0 0 8px rgba(34, 211, 238, 0.3);
 }
 .fleet-slot-next {
   display: flex;
@@ -143,58 +147,65 @@
 }
 .fleet-slot-buy-btn {
   flex-shrink: 0;
-  padding: 4px 12px;
+  padding: 5px 14px;
   font-size: 11px;
-  background: rgba(255, 193, 7, 0.12);
-  border: 1px solid rgba(255, 193, 7, 0.35);
-  border-radius: 4px;
+  background: linear-gradient(180deg, rgba(118, 228, 255, 0.12), rgba(56, 189, 248, 0.08));
+  border: 1px solid rgba(118, 228, 255, 0.3);
+  border-radius: 6px;
   color: var(--accent-gold);
   cursor: pointer;
   font-weight: 600;
-  transition: background 0.2s, box-shadow 0.2s;
+  transition: background 0.2s, box-shadow 0.2s, border-color 0.2s;
 }
 .fleet-slot-buy-btn.slot-can-buy:hover {
-  background: rgba(255, 193, 7, 0.25);
-  box-shadow: 0 2px 8px rgba(255, 193, 7, 0.2);
+  background: linear-gradient(180deg, rgba(118, 228, 255, 0.22), rgba(56, 189, 248, 0.15));
+  border-color: rgba(118, 228, 255, 0.55);
+  box-shadow: 0 2px 12px rgba(118, 228, 255, 0.2);
 }
 .fleet-slot-buy-btn:disabled {
-  opacity: 0.45;
+  opacity: 0.4;
   cursor: not-allowed;
+  color: var(--text-dim);
+  border-color: rgba(79, 195, 247, 0.15);
 }
 
 /* Dispatch active indicator */
 .dispatch-active-indicator {
   font-size: 12px;
-  color: #2196F3;
-  font-weight: 600;
+  color: var(--accent-cyan);
+  font-weight: 700;
   animation: auto-trade-pulse 1.8s ease-in-out infinite;
+  text-shadow: 0 0 8px rgba(34, 211, 238, 0.4);
 }
 
 .fleet-section-title {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--accent-gold);
-  padding: 6px 0 4px;
-  border-bottom: 1px solid #33335a;
-  margin-bottom: 6px;
+  padding: 8px 0 6px;
+  border-bottom: 1px solid rgba(118, 228, 255, 0.15);
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
+  text-shadow: 0 0 10px rgba(118, 228, 255, 0.2);
 }
 
 .fleet-ship-card {
-  background: #12122a;
-  border: 1px solid #33335a;
-  border-radius: 8px;
-  padding: 10px 12px;
-  margin-bottom: 8px;
+  background: linear-gradient(180deg, rgba(10, 22, 46, 0.88), rgba(6, 14, 30, 0.95));
+  border: 1px solid rgba(79, 195, 247, 0.15);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
   transition: border-color 0.3s, box-shadow 0.3s;
+  backdrop-filter: blur(4px);
 }
 .fleet-ship-card.fleet-active {
-  border-color: rgba(255, 193, 7, 0.6);
-  box-shadow: 0 0 8px rgba(255, 193, 7, 0.15);
+  border-color: rgba(118, 228, 255, 0.45);
+  box-shadow: 0 0 16px rgba(118, 228, 255, 0.12), inset 0 0 0 1px rgba(118, 228, 255, 0.06);
   animation: fleet-active-breathe 3s ease-in-out infinite;
 }
 @keyframes fleet-active-breathe {
-  0%, 100% { box-shadow: 0 0 8px rgba(255, 193, 7, 0.12); border-color: rgba(255, 193, 7, 0.5); }
-  50% { box-shadow: 0 0 16px rgba(255, 193, 7, 0.28); border-color: rgba(255, 193, 7, 0.75); }
+  0%, 100% { box-shadow: 0 0 12px rgba(118, 228, 255, 0.1); border-color: rgba(118, 228, 255, 0.4); }
+  50% { box-shadow: 0 0 22px rgba(118, 228, 255, 0.22); border-color: rgba(118, 228, 255, 0.6); }
 }
 
 .fleet-ship-card.fleet-switch-flash {
@@ -228,33 +239,36 @@
 .fleet-active-badge {
   display: inline-block;
   font-size: 10px;
-  background: var(--accent-gold);
-  color: #111;
-  padding: 1px 6px;
-  border-radius: 3px;
-  margin-left: 4px;
+  background: linear-gradient(135deg, rgba(118, 228, 255, 0.85), rgba(34, 211, 238, 0.75));
+  color: #071225;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-left: 6px;
   font-weight: 700;
+  letter-spacing: 0.3px;
+  box-shadow: 0 0 8px rgba(118, 228, 255, 0.3);
 }
 
 .fleet-idle-badge {
   display: inline-block;
   font-size: 10px;
-  background: rgba(79, 195, 247, 0.12);
-  color: var(--accent-blue);
-  border: 1px solid rgba(79, 195, 247, 0.32);
-  padding: 1px 6px;
-  border-radius: 3px;
-  margin-left: 4px;
+  background: rgba(79, 195, 247, 0.08);
+  color: var(--text-dim);
+  border: 1px solid rgba(79, 195, 247, 0.22);
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-left: 6px;
   font-weight: 600;
 }
 
 .fleet-ship-stats {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 12px;
+  gap: 6px 14px;
   font-size: 11px;
-  color: var(--text-dim);
+  color: var(--text-secondary);
   margin-bottom: 6px;
+  padding: 4px 0;
 }
 .fleet-stat { display: flex; align-items: center; gap: 4px; }
 .fleet-crew-summary {
@@ -277,8 +291,8 @@
   gap: 4px;
   padding: 2px 8px;
   border-radius: 999px;
-  background: rgba(79, 195, 247, 0.12);
-  border: 1px solid rgba(79, 195, 247, 0.25);
+  background: rgba(79, 195, 247, 0.08);
+  border: 1px solid rgba(79, 195, 247, 0.18);
   color: var(--text-primary);
   font-size: 11px;
 }
@@ -290,25 +304,30 @@
 
 .fleet-switch-btn {
   width: 100%;
-  padding: 5px 0;
+  padding: 6px 0;
   font-size: 12px;
-  background: #1a2a4a;
-  border: 1px solid #44446a;
-  border-radius: 4px;
-  color: var(--text-primary);
+  background: linear-gradient(180deg, rgba(14, 30, 60, 0.8), rgba(10, 22, 46, 0.9));
+  border: 1px solid rgba(79, 195, 247, 0.2);
+  border-radius: 6px;
+  color: var(--text-secondary);
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
-.fleet-switch-btn:hover { background: #2a3a5a; }
+.fleet-switch-btn:hover {
+  background: linear-gradient(180deg, rgba(20, 40, 75, 0.9), rgba(14, 30, 60, 0.95));
+  border-color: rgba(79, 195, 247, 0.35);
+}
 
 .fleet-switch-primary {
-  background: rgba(255, 193, 7, 0.18);
-  border-color: rgba(255, 193, 7, 0.42);
+  background: linear-gradient(180deg, rgba(118, 228, 255, 0.12), rgba(56, 189, 248, 0.08));
+  border-color: rgba(118, 228, 255, 0.35);
   color: var(--accent-gold);
   font-weight: 600;
 }
 .fleet-switch-primary:hover {
-  background: rgba(255, 193, 7, 0.28);
+  background: linear-gradient(180deg, rgba(118, 228, 255, 0.2), rgba(56, 189, 248, 0.14));
+  border-color: rgba(118, 228, 255, 0.5);
+  box-shadow: 0 0 8px rgba(118, 228, 255, 0.15);
 }
 
 /* Shop hint */
@@ -322,11 +341,15 @@
 
 /* Shop cards */
 .fleet-shop-card {
-  background: #10102a;
-  border: 1px solid #2a2a50;
-  border-radius: 8px;
-  padding: 10px 12px;
-  margin-bottom: 8px;
+  background: linear-gradient(180deg, rgba(10, 20, 42, 0.85), rgba(6, 14, 30, 0.95));
+  border: 1px solid rgba(79, 195, 247, 0.14);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.fleet-shop-card:hover {
+  border-color: rgba(79, 195, 247, 0.28);
 }
 .fleet-shop-header {
   display: flex;
@@ -353,21 +376,26 @@
 
 .fleet-buy-btn {
   width: 100%;
-  padding: 5px 0;
+  padding: 6px 0;
   font-size: 12px;
-  background: #2a4a2a;
-  border: 1px solid #336633;
-  border-radius: 4px;
-  color: #cfc;
+  background: linear-gradient(180deg, rgba(34, 211, 238, 0.12), rgba(6, 182, 212, 0.08));
+  border: 1px solid rgba(34, 211, 238, 0.3);
+  border-radius: 6px;
+  color: var(--accent-cyan);
   cursor: pointer;
-  transition: background 0.2s;
+  font-weight: 600;
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
-.fleet-buy-btn:hover:not(:disabled) { background: #3a5a3a; }
+.fleet-buy-btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, rgba(34, 211, 238, 0.2), rgba(6, 182, 212, 0.14));
+  border-color: rgba(34, 211, 238, 0.5);
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.15);
+}
 .fleet-buy-btn:disabled {
-  opacity: 0.45;
+  opacity: 0.4;
   cursor: not-allowed;
-  background: #1a1a38;
-  border-color: #33335a;
+  background: rgba(10, 20, 42, 0.6);
+  border-color: rgba(79, 195, 247, 0.1);
   color: var(--text-dim);
 }
 
@@ -378,33 +406,41 @@
   width: 100%;
   padding: 8px 10px;
   margin-bottom: 4px;
-  border: 1px solid #33335a;
-  border-radius: 6px;
-  background: #12122a;
+  border: 1px solid rgba(79, 195, 247, 0.15);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(10, 22, 46, 0.8), rgba(6, 14, 30, 0.9));
   color: var(--text-primary);
   cursor: pointer;
   text-align: left;
   font-size: 12px;
-  transition: background 0.2s;
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
-.fleet-upg-btn:hover:not(:disabled) { background: #202048; border-color: #5555aa; }
-.fleet-upg-installed { border-color: #336633; background: #0f2010; cursor: default; }
-.fleet-upg-locked    { opacity: .45; cursor: not-allowed; }
-.fleet-upg-capped    { opacity: .55; cursor: not-allowed; border-color: #553320; }
-.fleet-upg-poor      { opacity: .6; }
+.fleet-upg-btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, rgba(16, 32, 64, 0.9), rgba(10, 22, 46, 0.95));
+  border-color: rgba(79, 195, 247, 0.35);
+  box-shadow: 0 0 6px rgba(79, 195, 247, 0.1);
+}
+.fleet-upg-installed { border-color: rgba(34, 211, 238, 0.25); background: linear-gradient(180deg, rgba(6, 30, 30, 0.6), rgba(3, 20, 22, 0.7)); cursor: default; }
+.fleet-upg-locked    { opacity: .4; cursor: not-allowed; }
+.fleet-upg-capped    { opacity: .5; cursor: not-allowed; border-color: rgba(251, 146, 60, 0.2); }
+.fleet-upg-poor      { opacity: .55; }
 
 /* Fleet dispatch */
-.fleet-dispatched { border-color: #2196F3; box-shadow: 0 0 6px rgba(33,150,243,0.15); }
+.fleet-dispatched {
+  border-color: rgba(56, 189, 248, 0.4);
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.12), inset 0 0 0 1px rgba(56, 189, 248, 0.06);
+}
 
 .fleet-dispatch-badge {
   display: inline-block;
   font-size: 10px;
-  background: #2196F3;
-  color: #fff;
-  padding: 1px 6px;
-  border-radius: 3px;
-  margin-left: 4px;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.8), rgba(34, 211, 238, 0.7));
+  color: #071225;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-left: 6px;
   font-weight: 700;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.3);
 }
 
 .fleet-actions {
@@ -421,63 +457,94 @@
 }
 
 .fleet-dispatch-btn {
-  flex: 1;
-  padding: 5px 0;
-  font-size: 12px;
-  background: #1a2a5a;
-  border: 1px solid #3355aa;
-  border-radius: 4px;
-  color: #aaccff;
+  flex: 1.5;
+  padding: 8px 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  background: linear-gradient(180deg, rgba(34, 211, 238, 0.22), rgba(6, 182, 212, 0.14));
+  border: 1px solid rgba(34, 211, 238, 0.55);
+  border-radius: 8px;
+  color: #e0faff;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.25s, border-color 0.25s, box-shadow 0.25s, transform 0.15s;
+  position: relative;
+  overflow: hidden;
+  text-shadow: 0 0 12px rgba(34, 211, 238, 0.5);
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.15), inset 0 0 0 1px rgba(118, 228, 255, 0.08);
 }
-.fleet-dispatch-btn:hover { background: #2a3a6a; }
+.fleet-dispatch-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(118, 228, 255, 0.08), transparent);
+  animation: dispatch-shimmer 3s ease-in-out infinite;
+}
+@keyframes dispatch-shimmer {
+  0% { transform: translateX(-100%); }
+  50% { transform: translateX(100%); }
+  100% { transform: translateX(100%); }
+}
+.fleet-dispatch-btn:hover {
+  background: linear-gradient(180deg, rgba(34, 211, 238, 0.35), rgba(6, 182, 212, 0.25));
+  border-color: rgba(34, 211, 238, 0.75);
+  box-shadow: 0 0 24px rgba(34, 211, 238, 0.3), 0 0 8px rgba(118, 228, 255, 0.15), inset 0 0 0 1px rgba(118, 228, 255, 0.12);
+  transform: translateY(-1px);
+}
 
 .fleet-cancel-btn {
   width: 100%;
-  padding: 4px 0;
+  padding: 5px 0;
   font-size: 11px;
-  background: #3a1a1a;
-  border: 1px solid #663333;
-  border-radius: 4px;
-  color: #ffaaaa;
+  background: linear-gradient(180deg, rgba(251, 113, 133, 0.1), rgba(220, 80, 100, 0.06));
+  border: 1px solid rgba(251, 113, 133, 0.3);
+  border-radius: 6px;
+  color: var(--accent-red);
   cursor: pointer;
-  margin-top: 4px;
-  transition: background 0.2s;
+  margin-top: 6px;
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
-.fleet-cancel-btn:hover { background: #5a2a2a; }
+.fleet-cancel-btn:hover {
+  background: linear-gradient(180deg, rgba(251, 113, 133, 0.18), rgba(220, 80, 100, 0.12));
+  border-color: rgba(251, 113, 133, 0.5);
+  box-shadow: 0 0 8px rgba(251, 113, 133, 0.15);
+}
 
 .fleet-sell-btn {
-  padding: 4px 10px;
+  padding: 5px 12px;
   font-size: 11px;
-  background: #3a2a1a;
-  border: 1px solid #997733;
-  border-radius: 4px;
-  color: #ffdd88;
+  background: linear-gradient(180deg, rgba(251, 146, 60, 0.1), rgba(234, 120, 40, 0.06));
+  border: 1px solid rgba(251, 146, 60, 0.3);
+  border-radius: 6px;
+  color: #fbbf24;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
-.fleet-sell-btn:hover { background: #5a3a1a; }
+.fleet-sell-btn:hover {
+  background: linear-gradient(180deg, rgba(251, 146, 60, 0.18), rgba(234, 120, 40, 0.12));
+  border-color: rgba(251, 146, 60, 0.5);
+  box-shadow: 0 0 8px rgba(251, 146, 60, 0.15);
+}
 
 .fleet-route-info {
-  background: #0a1530;
-  border: 1px solid #223366;
-  border-radius: 6px;
-  padding: 6px 8px;
-  margin-top: 6px;
+  background: linear-gradient(180deg, rgba(8, 18, 38, 0.9), rgba(5, 12, 28, 0.95));
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-top: 8px;
   font-size: 11px;
 }
-.fleet-route-text { color: #aaccff; margin-bottom: 2px; }
-.fleet-route-arrow { color: var(--accent-gold); margin: 0 2px; }
-.fleet-route-status { color: #88aa88; font-size: 10px; margin-bottom: 4px; }
+.fleet-route-text { color: var(--text-secondary); margin-bottom: 3px; }
+.fleet-route-arrow { color: var(--accent-gold); margin: 0 3px; }
+.fleet-route-status { color: var(--accent-green); font-size: 10px; margin-bottom: 4px; }
 
 /* ---- 每船货舱区域 ---- */
 .fleet-ship-cargo-section {
   margin-top: 6px;
-  padding: 5px 6px;
-  background: rgba(0,0,0,0.2);
-  border-radius: 5px;
-  border: 1px solid rgba(255,255,255,0.05);
+  padding: 6px 8px;
+  background: rgba(8, 18, 38, 0.5);
+  border-radius: 6px;
+  border: 1px solid rgba(79, 195, 247, 0.08);
 }
 .fleet-cargo-header {
   font-size: 11px;
@@ -498,11 +565,11 @@
 }
 .fleet-cargo-chip {
   font-size: 10px;
-  background: rgba(76,175,80,0.15);
-  border: 1px solid rgba(76,175,80,0.3);
+  background: rgba(34, 211, 238, 0.08);
+  border: 1px solid rgba(34, 211, 238, 0.2);
   border-radius: 10px;
   padding: 1px 7px;
-  color: #b0d8b0;
+  color: var(--accent-green);
 }
 
 /* Chips row (inline skills + mods) */
@@ -513,12 +580,12 @@
   margin: 4px 0;
 }
 .fleet-chips-row .fleet-skill-chip {
-  background: rgba(60, 40, 100, 0.3);
-  border: 1px solid rgba(140, 100, 220, 0.25);
+  background: rgba(79, 195, 247, 0.08);
+  border: 1px solid rgba(79, 195, 247, 0.18);
   border-radius: 10px;
   padding: 1px 7px;
   font-size: 10px;
-  color: #ccaaee;
+  color: var(--text-secondary);
   cursor: help;
 }
 
@@ -539,14 +606,15 @@
 /* ---- Card action row ---- */
 .fleet-card-action-row {
   display: flex;
-  gap: 4px;
-  margin-top: 6px;
+  gap: 6px;
+  margin-top: 8px;
   flex-wrap: wrap;
+  align-items: stretch;
 }
 
 .fleet-upg-all-done {
   font-size: 10px;
-  color: #88bb88;
+  color: var(--accent-green);
   text-align: center;
   padding: 2px 0;
 }
@@ -554,40 +622,64 @@
 /* Ship action buttons (inline row) */
 .fleet-open-upg-btn,
 .fleet-open-mod-btn {
-  display: inline-block;
-  padding: 4px 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 12px;
   font-size: 11px;
-  border-radius: 5px;
+  border-radius: 6px;
   cursor: pointer;
   font-weight: 600;
-  transition: background 0.2s, border-color 0.2s;
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
 .fleet-open-upg-btn {
-  background: rgba(144, 144, 208, 0.1);
-  border: 1px solid #44448a;
-  color: #b0b0e0;
+  background: linear-gradient(180deg, rgba(79, 195, 247, 0.08), rgba(56, 189, 248, 0.04));
+  border: 1px solid rgba(79, 195, 247, 0.22);
+  color: var(--text-secondary);
 }
 .fleet-open-upg-btn:hover {
-  background: rgba(144, 144, 208, 0.22);
-  border-color: #6666aa;
+  background: linear-gradient(180deg, rgba(79, 195, 247, 0.16), rgba(56, 189, 248, 0.1));
+  border-color: rgba(79, 195, 247, 0.4);
+  box-shadow: 0 0 6px rgba(79, 195, 247, 0.12);
 }
 .fleet-upg-all-done-inline {
   display: inline-block;
   font-size: 11px;
-  color: #88bb88;
+  color: var(--accent-green);
   padding: 4px 0;
+}
+
+/* Crew management button */
+.fleet-open-crew-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 12px;
+  font-size: 11px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  background: linear-gradient(180deg, rgba(79, 195, 247, 0.08), rgba(56, 189, 248, 0.04));
+  border: 1px solid rgba(79, 195, 247, 0.22);
+  color: var(--text-secondary);
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+.fleet-open-crew-btn:hover {
+  background: linear-gradient(180deg, rgba(79, 195, 247, 0.16), rgba(56, 189, 248, 0.1));
+  border-color: rgba(79, 195, 247, 0.4);
+  box-shadow: 0 0 6px rgba(79, 195, 247, 0.12);
 }
 
 /* Upgrade modal */
 .upgrade-modal-box {
-  max-width: 400px;
+  max-width: 420px;
   max-height: 80vh;
   overflow-y: auto;
 }
 .upg-modal-section-title {
   font-size: 11px;
-  font-weight: 600;
-  color: #9090d0;
+  font-weight: 700;
+  color: var(--accent-gold);
   margin: 10px 0 6px;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -600,11 +692,11 @@
 }
 .upg-modal-chip-done {
   font-size: 11px;
-  background: rgba(51,102,51,0.3);
-  border: 1px solid #336633;
+  background: rgba(34, 211, 238, 0.08);
+  border: 1px solid rgba(34, 211, 238, 0.2);
   border-radius: 12px;
   padding: 2px 10px;
-  color: #88bb88;
+  color: var(--accent-green);
 }
 .upg-modal-list {
   display: flex;
@@ -616,14 +708,15 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  background: #0e0e28;
-  border: 1px solid #2a2a55;
-  border-radius: 6px;
+  background: linear-gradient(180deg, rgba(10, 22, 46, 0.7), rgba(6, 14, 30, 0.85));
+  border: 1px solid rgba(79, 195, 247, 0.12);
+  border-radius: 8px;
   padding: 8px 10px;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 .upg-modal-item:not(.upg-modal-locked):not(.upg-modal-capped):hover {
-  border-color: #5555aa;
+  border-color: rgba(79, 195, 247, 0.35);
+  box-shadow: 0 0 6px rgba(79, 195, 247, 0.1);
 }
 .upg-modal-locked {
   opacity: 0.45;
@@ -651,25 +744,27 @@
 }
 .upg-modal-item-prereq {
   font-size: 10px;
-  color: #aa6644;
+  color: var(--accent-red);
   margin-top: 2px;
+  opacity: 0.8;
 }
 .upg-modal-buy-btn {
   flex-shrink: 0;
   padding: 5px 12px;
   font-size: 11px;
   font-weight: 600;
-  background: rgba(255, 193, 7, 0.12);
-  border: 1px solid rgba(255, 193, 7, 0.35);
-  border-radius: 5px;
+  background: linear-gradient(180deg, rgba(118, 228, 255, 0.12), rgba(56, 189, 248, 0.08));
+  border: 1px solid rgba(118, 228, 255, 0.35);
+  border-radius: 6px;
   color: var(--accent-gold);
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.2s, box-shadow 0.2s;
+  transition: background 0.2s, box-shadow 0.2s, border-color 0.2s;
 }
 .upg-modal-buy-btn:hover:not(:disabled) {
-  background: rgba(255, 193, 7, 0.25);
-  box-shadow: 0 2px 8px rgba(255, 193, 7, 0.2);
+  background: linear-gradient(180deg, rgba(118, 228, 255, 0.22), rgba(56, 189, 248, 0.15));
+  border-color: rgba(118, 228, 255, 0.55);
+  box-shadow: 0 2px 12px rgba(118, 228, 255, 0.2);
 }
 .upg-modal-buy-btn:disabled,
 .upg-modal-no-afford {
@@ -679,7 +774,7 @@
 }
 .upg-modal-all-done {
   font-size: 13px;
-  color: #88bb88;
+  color: var(--accent-green);
   text-align: center;
   padding: 16px 0;
 }
@@ -692,11 +787,11 @@
 
 /* Fleet bonuses section */
 .fleet-bonus-section {
-  margin: 8px 0;
-  padding: 8px;
-  background: rgba(40, 60, 100, 0.3);
-  border-radius: 6px;
-  border: 1px solid rgba(100, 140, 200, 0.25);
+  margin: 10px 0;
+  padding: 10px;
+  background: linear-gradient(180deg, rgba(14, 28, 56, 0.6), rgba(8, 18, 38, 0.7));
+  border-radius: 8px;
+  border: 1px solid rgba(79, 195, 247, 0.15);
 }
 .fleet-bonus-list {
   display: flex;
@@ -708,14 +803,14 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  background: rgba(50, 80, 140, 0.4);
-  padding: 4px 8px;
-  border-radius: 4px;
+  background: linear-gradient(180deg, rgba(14, 30, 60, 0.7), rgba(8, 20, 42, 0.8));
+  padding: 5px 10px;
+  border-radius: 6px;
   font-size: 11px;
-  border: 1px solid rgba(100, 160, 255, 0.3);
+  border: 1px solid rgba(79, 195, 247, 0.2);
 }
 .fleet-bonus-emoji { font-size: 14px; }
-.fleet-bonus-name { font-weight: 600; color: #aaccff; }
+.fleet-bonus-name { font-weight: 600; color: var(--accent-gold); }
 .fleet-bonus-desc { color: var(--text-dim); font-size: 10px; }
 .fleet-bonus-hint {
   margin: 4px 0;
@@ -724,7 +819,11 @@
 }
 .fleet-bonus-hint summary {
   cursor: pointer;
-  color: #7799bb;
+  color: var(--text-dim);
+  transition: color 0.2s;
+}
+.fleet-bonus-hint summary:hover {
+  color: var(--accent-gold);
 }
 .fleet-bonus-locked {
   display: flex;
@@ -732,25 +831,26 @@
   gap: 2px;
   padding: 3px 0;
   font-size: 11px;
-  color: #667788;
+  color: var(--text-dim);
 }
 .fleet-bonus-missing {
   font-size: 10px;
-  color: #886644;
+  color: var(--accent-red);
+  opacity: 0.7;
 }
 
 /* Ship skills section */
 .fleet-ship-skills-section {
   margin-top: 6px;
   padding: 6px 8px;
-  background: rgba(60, 40, 100, 0.25);
-  border-radius: 5px;
-  border: 1px solid rgba(140, 100, 220, 0.2);
+  background: rgba(14, 28, 56, 0.5);
+  border-radius: 6px;
+  border: 1px solid rgba(79, 195, 247, 0.12);
 }
 .fleet-skills-header {
   font-size: 11px;
   font-weight: 600;
-  color: #bb99dd;
+  color: var(--accent-gold);
   margin-bottom: 4px;
 }
 .fleet-skills-list {
@@ -768,7 +868,7 @@
 .fleet-skill-emoji { font-size: 13px; }
 .fleet-skill-name {
   font-weight: 600;
-  color: #ccaaee;
+  color: var(--accent-gold);
   min-width: 60px;
 }
 .fleet-skill-desc {
@@ -781,12 +881,14 @@
   margin-top: 4px;
 }
 .fleet-open-mod-btn {
-  background: rgba(60, 80, 50, 0.5);
-  border: 1px solid rgba(120, 160, 80, 0.4);
-  color: #bbddaa;
+  background: linear-gradient(180deg, rgba(79, 195, 247, 0.08), rgba(56, 189, 248, 0.04));
+  border: 1px solid rgba(79, 195, 247, 0.22);
+  color: var(--text-secondary);
 }
 .fleet-open-mod-btn:hover {
-  background: rgba(80, 110, 60, 0.6);
+  background: linear-gradient(180deg, rgba(79, 195, 247, 0.16), rgba(56, 189, 248, 0.1));
+  border-color: rgba(79, 195, 247, 0.4);
+  box-shadow: 0 0 6px rgba(79, 195, 247, 0.12);
 }
 .fleet-mod-chips {
   display: flex;
@@ -795,27 +897,27 @@
   margin-top: 4px;
 }
 .fleet-mod-chip {
-  background: rgba(50, 80, 50, 0.4);
-  padding: 2px 6px;
-  border-radius: 3px;
+  background: rgba(34, 211, 238, 0.08);
+  padding: 2px 7px;
+  border-radius: 4px;
   font-size: 10px;
-  color: #aaddaa;
-  border: 1px solid rgba(100, 160, 100, 0.3);
+  color: var(--accent-green);
+  border: 1px solid rgba(34, 211, 238, 0.18);
 }
 
 /* Mod modal */
 .mod-modal-box {
-  max-width: 440px;
+  max-width: 460px;
   max-height: 80vh;
   overflow-y: auto;
 }
 .mod-modal-section-title {
   font-size: 12px;
   font-weight: 700;
-  color: var(--text-secondary);
+  color: var(--accent-gold);
   margin: 12px 0 6px;
   padding-bottom: 3px;
-  border-bottom: 1px solid rgba(100, 140, 200, 0.2);
+  border-bottom: 1px solid rgba(79, 195, 247, 0.12);
 }
 .mod-modal-section-title:first-child { margin-top: 0; }
 .mod-modal-installed {
@@ -826,7 +928,7 @@
 .mod-modal-category {
   font-size: 11px;
   font-weight: 600;
-  color: #88aacc;
+  color: var(--text-secondary);
   margin: 8px 0 4px;
 }
 .mod-modal-list {
@@ -838,18 +940,19 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: rgba(30, 40, 70, 0.5);
-  border: 1px solid rgba(80, 100, 160, 0.25);
-  border-radius: 5px;
+  background: linear-gradient(180deg, rgba(10, 22, 46, 0.7), rgba(6, 14, 30, 0.85));
+  border: 1px solid rgba(79, 195, 247, 0.12);
+  border-radius: 6px;
   padding: 6px 8px;
-  transition: background 0.2s;
+  transition: background 0.2s, border-color 0.2s;
 }
 .mod-modal-item:hover {
-  background: rgba(40, 55, 90, 0.6);
+  background: linear-gradient(180deg, rgba(16, 32, 64, 0.8), rgba(10, 22, 46, 0.9));
+  border-color: rgba(79, 195, 247, 0.25);
 }
 .mod-modal-installed-item {
-  background: rgba(30, 50, 40, 0.5);
-  border-color: rgba(80, 160, 100, 0.3);
+  background: linear-gradient(180deg, rgba(8, 30, 28, 0.6), rgba(5, 20, 18, 0.7));
+  border-color: rgba(34, 211, 238, 0.2);
 }
 .mod-modal-full {
   opacity: 0.5;
@@ -873,18 +976,20 @@
 }
 .mod-modal-buy-btn {
   flex-shrink: 0;
-  background: rgba(40, 80, 50, 0.6);
-  border: 1px solid rgba(100, 180, 100, 0.4);
-  border-radius: 4px;
-  color: #aaddaa;
+  background: linear-gradient(180deg, rgba(34, 211, 238, 0.1), rgba(6, 182, 212, 0.06));
+  border: 1px solid rgba(34, 211, 238, 0.3);
+  border-radius: 6px;
+  color: var(--accent-cyan);
   font-size: 11px;
-  padding: 4px 10px;
+  padding: 4px 12px;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
   margin-left: 8px;
 }
 .mod-modal-buy-btn:hover:not(:disabled) {
-  background: rgba(50, 100, 60, 0.8);
+  background: linear-gradient(180deg, rgba(34, 211, 238, 0.2), rgba(6, 182, 212, 0.12));
+  border-color: rgba(34, 211, 238, 0.5);
+  box-shadow: 0 0 8px rgba(34, 211, 238, 0.15);
 }
 .mod-modal-buy-btn:disabled,
 .mod-modal-no-afford {
@@ -894,10 +999,10 @@
 }
 .mod-modal-uninstall-btn {
   flex-shrink: 0;
-  background: rgba(80, 40, 40, 0.5);
-  border: 1px solid rgba(180, 80, 80, 0.4);
-  border-radius: 4px;
-  color: #ddaaaa;
+  background: linear-gradient(180deg, rgba(251, 113, 133, 0.08), rgba(220, 80, 100, 0.04));
+  border: 1px solid rgba(251, 113, 133, 0.25);
+  border-radius: 6px;
+  color: var(--accent-red);
   font-size: 11px;
   padding: 4px 10px;
   cursor: pointer;
@@ -905,11 +1010,12 @@
   margin-left: 8px;
 }
 .mod-modal-uninstall-btn:hover {
-  background: rgba(100, 50, 50, 0.7);
+  background: linear-gradient(180deg, rgba(251, 113, 133, 0.16), rgba(220, 80, 100, 0.1));
+  border-color: rgba(251, 113, 133, 0.45);
 }
 .mod-modal-all-done {
   font-size: 13px;
-  color: #88bb88;
+  color: var(--accent-green);
   text-align: center;
   padding: 16px 0;
 }
@@ -924,19 +1030,19 @@
   color: var(--text-dim);
 }
 .fleet-shop-mod-slots {
-  color: #aaddaa;
+  color: var(--accent-green);
 }
 .fleet-shop-skills {
   display: flex;
   gap: 4px;
 }
 .fleet-shop-skill-chip {
-  background: rgba(60, 40, 100, 0.3);
+  background: rgba(79, 195, 247, 0.08);
   padding: 1px 5px;
   border-radius: 3px;
   font-size: 10px;
-  color: #ccaaee;
-  border: 1px solid rgba(140, 100, 220, 0.2);
+  color: var(--text-secondary);
+  border: 1px solid rgba(79, 195, 247, 0.18);
   cursor: help;
 }
 
@@ -955,12 +1061,18 @@
   gap: 3px;
 }
 .dispatch-select {
-  background: var(--bg-input);
-  border: 1px solid #44446a;
-  border-radius: 4px;
+  background: rgba(8, 18, 38, 0.85);
+  border: 1px solid rgba(79, 195, 247, 0.2);
+  border-radius: 6px;
   color: var(--text-primary);
   font-size: 13px;
-  padding: 5px 6px;
+  padding: 6px 8px;
+  transition: border-color 0.2s;
+}
+.dispatch-select:focus {
+  border-color: rgba(118, 228, 255, 0.45);
+  outline: none;
+  box-shadow: 0 0 6px rgba(118, 228, 255, 0.12);
 }
 .dispatch-estimate {
   font-size: 12px;
@@ -1110,8 +1222,8 @@
   gap: 10px;
   padding: 10px 12px;
   border-radius: 8px;
-  border: 1px solid rgba(79, 195, 247, 0.2);
-  background: rgba(12, 18, 36, 0.92);
+  border: 1px solid rgba(79, 195, 247, 0.15);
+  background: linear-gradient(180deg, rgba(10, 22, 46, 0.85), rgba(6, 14, 30, 0.95));
 }
 .crew-card-main {
   display: flex;
@@ -1134,9 +1246,9 @@
 .crew-empty {
   padding: 12px;
   border-radius: 8px;
-  background: rgba(12, 18, 36, 0.7);
+  background: rgba(8, 18, 38, 0.5);
   color: var(--text-dim);
-  border: 1px dashed rgba(126, 166, 201, 0.22);
+  border: 1px dashed rgba(79, 195, 247, 0.15);
 }
 @media (max-width: 640px) {
   .crew-card {
@@ -1274,9 +1386,9 @@
   color: #e0e0ff;
 }
 .market-close-btn {
-  background: none;
-  border: 1px solid rgba(255,255,255,0.15);
-  color: #aaa;
+  background: rgba(14, 30, 60, 0.6);
+  border: 1px solid rgba(79, 195, 247, 0.18);
+  color: var(--text-dim);
   font-size: 14px;
   width: 28px;
   height: 28px;
@@ -1285,12 +1397,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.2s, color 0.2s;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
 }
 .market-close-btn:hover {
-  background: rgba(255,60,60,0.2);
-  color: #ff6666;
-  border-color: #ff6666;
+  background: rgba(251, 113, 133, 0.12);
+  color: var(--accent-red);
+  border-color: rgba(251, 113, 133, 0.4);
 }
 .market-overlay-location {
   padding: 6px 14px;
@@ -1331,9 +1443,9 @@
 .market-galaxy-btn {
   padding: 3px 8px;
   font-size: 11px;
-  border: 1px solid rgba(255,255,255,0.15);
-  background: rgba(255,255,255,0.04);
-  color: #9090b0;
+  border: 1px solid rgba(79, 195, 247, 0.15);
+  background: rgba(14, 30, 60, 0.5);
+  color: var(--text-dim);
   border-radius: 4px;
   cursor: pointer;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
