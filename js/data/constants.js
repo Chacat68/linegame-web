@@ -178,8 +178,8 @@ export const EVENT_CONFIG = {
   },
 };
 
-export const SAVE_SCHEMA_VERSION = 8;
-export const GAME_VERSION = '0.5.3';
+export const SAVE_SCHEMA_VERSION = 10;
+export const GAME_VERSION = '0.6.0';
 
 /**
  * SaveEnvelope.meta 契约
@@ -278,6 +278,8 @@ export const SAVE_STATE_SCHEMA = {
   // ---- v9 新增 ----
   futuresContracts:        { type: 'array',   default: [],                 since: 9, desc: '期货合约列表' },
   futuresLastProcessedDay: { type: 'number',  default: 1,                  since: 9, desc: '期货系统最后结算天数' },
+  // ---- v10 新增 ----
+  galaxyStates:            { type: 'object',  default: {},                 since: 10, desc: '星系数据层状态 {planetId: planetState}' },
 };
 
 /**

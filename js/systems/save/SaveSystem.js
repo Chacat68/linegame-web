@@ -206,6 +206,16 @@ function _migrateSchema(envelope) {
       next.meta.schemaVersion = 8;
       continue;
     }
+    if (next.meta.schemaVersion === 8) {
+      _migrateSchema8To9(next);
+      next.meta.schemaVersion = 9;
+      continue;
+    }
+    if (next.meta.schemaVersion === 9) {
+      _migrateSchema9To10(next);
+      next.meta.schemaVersion = 10;
+      continue;
+    }
     throw new Error('不支持的存档版本：' + next.meta.schemaVersion);
   }
 
@@ -255,6 +265,24 @@ function _migrateSchema6To7(envelope) {
 }
 
 function _migrateSchema7To8(envelope) {
+  _normalizeEnvelopeData(envelope);
+}
+
+/**
+ * v8 → v9：添加期货系统字段
+ */
+function _migrateSchema8To9(envelope) {
+  _normalizeEnvelopeData(envelope);
+}
+
+/**
+ * v9 → v10：添加星系数据层状态字段
+ */
+function _migrateSchema9To10(envelope) {
+  if (!envelope.data) envelope.data = {};
+  if (!envelope.data.galaxyStates || typeof envelope.data.galaxyStates !== 'object') {
+    envelope.data.galaxyStates = {};
+  }
   _normalizeEnvelopeData(envelope);
 }
 

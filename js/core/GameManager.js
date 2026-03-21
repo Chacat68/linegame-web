@@ -14,6 +14,7 @@ import * as Faction    from '../systems/faction/FactionSystem.js';
 import * as Research   from '../systems/research/ResearchSystem.js';
 import * as Renderer   from '../ui/Renderer.js';
 import * as Renderer3D from '../ui/Renderer3D.js';
+import * as GalaxyData from '../systems/galaxy/GalaxyDataLayer.js';
 import * as HUD        from '../ui/HUD.js';
 import * as MarketUI   from '../ui/MarketUI.js';
 import * as ShipUI     from '../ui/ShipUI.js';
@@ -99,6 +100,7 @@ export function init(difficulty) {
   Achievement.init(_state);
   TradeStation.init(_state);
   Finance.init(_state);
+  GalaxyData.init(_state); // Initialize galaxy data layer
   Renderer.init();
   Renderer.resetRuntimeState(_state.currentSystem);
   Renderer3D.init();
@@ -484,6 +486,7 @@ function _handleTravel(systemId) {
       EventBus.emit('log:message', { text: m.text, type: m.type });
     });
 
+    _state.galaxyStates = GalaxyData.getAllPlanetStates(); // 保存星系数据层状态
     Save.saveGame(0, _state, { isAutosave: true });
 
     // 连续无伤天数追踪
@@ -725,6 +728,7 @@ function _handleAbandonQuest(questId) {
 function _handleSaveGame(slotId) {
   Fleet.syncShipFromState(_state); // 保存前同步船只状态
   _state.economyCycle = Economy.getCycleState();
+  _state.galaxyStates = GalaxyData.getAllPlanetStates(); // 保存星系数据层状态
   const result = Save.saveGame(slotId, _state);
   EventBus.emit('log:message', { text: result.msg, type: result.ok ? 'info' : 'error' });
   _updateUI();
@@ -746,9 +750,14 @@ function _handleLoadGame(slotId) {
     Achievement.init(_state);
     TradeStation.init(_state);
     Finance.init(_state);
+    GalaxyData.init(_state); // 重新初始化星系数据层
+    if (_state.galaxyStates && Object.keys(_state.galaxyStates).length > 0) {
+      GalaxyData.restorePlanetStates(_state.galaxyStates); // 恢复星系状态
+    }
     Economy.init();
     Economy.setCycleState(_state.economyCycle);
     Renderer.resetRuntimeState(_state.currentSystem);
+    Renderer3D.resetRuntimeState(_state.currentSystem);
     MapUI.refreshGalaxyBtn(_state);
     // 恢复派遣状态
     Dispatch.stopActiveDispatch();
