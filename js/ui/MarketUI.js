@@ -181,33 +181,52 @@ function _formatMarketHeatDelta(multiplier) {
 }
 
 function _renderSpotTradeSection() {
-  return '<section class="market-finance-section market-trade-overview-section">' +
-      '<div class="market-finance-section-head">' +
-        '<div>' +
-          '<div class="market-finance-title">🗺 星系交易图表</div>' +
-          '<div class="market-finance-subtitle">把当前星系的资源价格矩阵压进交易页，点选任意节点可切换本地交易工作台。颜色越冷越适合买入，越热越接近卖出窗口。</div>' +
+  return '<div class="market-spot-trade-layout">' +
+      '<div class="market-spot-main-col">' +
+        /* ── 主 K 线图面板 ── */
+        '<div id="market-kline-panel" class="market-kline-panel">' +
+          '<div class="market-kline-header">' +
+            '<div class="market-kline-title" id="market-kline-title"></div>' +
+            '<div class="market-kline-range-bar" id="market-kline-range-bar"></div>' +
+          '</div>' +
+          '<div class="market-kline-ohlc" id="market-kline-ohlc"></div>' +
+          '<div class="market-kline-body" id="market-kline-body"></div>' +
+          '<div class="market-kline-footer">' +
+            '<div class="market-kline-metrics" id="market-kline-metrics"></div>' +
+          '</div>' +
         '</div>' +
-        '<label class="market-price-toggle market-price-toggle-inline">' +
-          '<input type="checkbox" id="market-trade-show-sell" /> 显示卖出价' +
-        '</label>' +
+        /* ── 商品列表 ── */
+        '<div id="market-goods-list" class="market-goods-list"></div>' +
+        '<details class="market-collapse market-collapse-chart">' +
+          '<summary>🗺 星系价格矩阵 <span class="market-collapse-hint">展开查看各节点价格热力图</span></summary>' +
+          '<div class="market-collapse-body">' +
+            '<div class="market-heatmap-toolbar">' +
+              '<div class="market-heatmap-legend" aria-label="交易热力图图例">' +
+                '<span class="market-heatmap-legend-item freeze">冰点价</span>' +
+                '<span class="market-heatmap-legend-item cool">低位区</span>' +
+                '<span class="market-heatmap-legend-item neutral">均衡区</span>' +
+                '<span class="market-heatmap-legend-item warm">溢价区</span>' +
+                '<span class="market-heatmap-legend-item hot">过热区</span>' +
+              '</div>' +
+              '<label class="market-price-toggle market-price-toggle-inline">' +
+                '<input type="checkbox" id="market-trade-show-sell" /> 显示卖出价' +
+              '</label>' +
+            '</div>' +
+            '<div class="market-trade-overview-scroll">' +
+              '<table id="market-trade-overview-table">' +
+                '<thead id="market-trade-overview-thead"></thead>' +
+                '<tbody id="market-trade-overview-tbody"></tbody>' +
+              '</table>' +
+            '</div>' +
+          '</div>' +
+        '</details>' +
+        '<details class="market-collapse market-collapse-chart">' +
+          '<summary>📈 行情仪表盘 <span class="market-collapse-hint">展开查看价格走势与排行</span></summary>' +
+          '<div class="market-collapse-body">' +
+            '<div id="market-terminal-dashboard" class="market-terminal-dashboard"></div>' +
+          '</div>' +
+        '</details>' +
       '</div>' +
-      '<div class="market-heatmap-legend" aria-label="交易热力图图例">' +
-        '<span class="market-heatmap-legend-item freeze">冰点价</span>' +
-        '<span class="market-heatmap-legend-item cool">低位区</span>' +
-        '<span class="market-heatmap-legend-item neutral">均衡区</span>' +
-        '<span class="market-heatmap-legend-item warm">溢价区</span>' +
-        '<span class="market-heatmap-legend-item hot">过热区</span>' +
-      '</div>' +
-      '<div class="market-trade-overview-scroll">' +
-        '<table id="market-trade-overview-table">' +
-          '<thead id="market-trade-overview-thead"></thead>' +
-          '<tbody id="market-trade-overview-tbody"></tbody>' +
-        '</table>' +
-      '</div>' +
-    '</section>' +
-    '<div id="market-terminal-dashboard" class="market-terminal-dashboard"></div>' +
-    '<div class="market-spot-trade-layout">' +
-      '<div id="market-goods-list" class="market-goods-list"></div>' +
       '<div id="market-analysis-panel" class="market-analysis-panel"></div>' +
     '</div>';
 }
@@ -217,6 +236,8 @@ function _renderAnalysisPanel(container, state, sysId, snapshots, marketMode) {
     container.innerHTML = '';
     return;
   }
+
+  var system = findSystem(sysId);
 
   // 市场总指标
   var totalVolume = snapshots.reduce(function (sum, s) { return sum + s.buyPrice; }, 0);
@@ -231,14 +252,22 @@ function _renderAnalysisPanel(container, state, sysId, snapshots, marketMode) {
 
   // 货舱概览
   var cargoItems = snapshots.filter(function (s) { return (state.cargo[s.good.id] || 0) > 0; });
+  var cargoUsed = Object.values(state.cargo || {}).reduce(function (sum, q) { return sum + q; }, 0);
+  var cargoMax = state.maxCargo || 100;
 
   container.innerHTML =
-    '<div class="market-analysis-card">' +
-      '<div class="market-analysis-title">📊 市场分析</div>' +
+    '<div class="market-analysis-card market-analysis-main">' +
+      '<div class="market-analysis-header">' +
+        '<div class="market-analysis-title">📊 市场分析</div>' +
+      '</div>' +
+      '<div class="market-analysis-tab-bar">' +
+        '<button class="market-analysis-tab active" data-tab="index">星系指数</button>' +
+        '<button class="market-analysis-tab" data-tab="stable">稳定</button>' +
+      '</div>' +
       '<div class="market-analysis-metrics">' +
         '<div class="market-analysis-metric">' +
           '<span class="market-analysis-metric-label">买入量</span>' +
-          '<span class="market-analysis-metric-value">' + (totalVolume >= 1000 ? (totalVolume / 1000).toFixed(1) + '<small>K</small>' : totalVolume.toLocaleString()) + ' <small>CR/HR</small></span>' +
+          '<span class="market-analysis-metric-value">' + (totalVolume >= 1000000 ? (totalVolume / 1000000).toFixed(1) + '<small>M</small>' : totalVolume >= 1000 ? (totalVolume / 1000).toFixed(1) + '<small>K</small>' : totalVolume.toLocaleString()) + ' <small>CR/HR</small></span>' +
         '</div>' +
         '<div class="market-analysis-metric">' +
           '<span class="market-analysis-metric-label">交易密度</span>' +
@@ -249,7 +278,8 @@ function _renderAnalysisPanel(container, state, sysId, snapshots, marketMode) {
       '<div class="market-analysis-section-title">近期波动</div>' +
       '<div class="market-analysis-mover-list">' +
         movers.map(function (entry) {
-          var deltaClass = parseFloat(entry.delta.text) > 0.5 ? 'up' : (parseFloat(entry.delta.text) < -0.5 ? 'down' : 'flat');
+          var deltaVal = parseFloat(entry.delta.text);
+          var deltaClass = deltaVal > 0.5 ? 'up' : (deltaVal < -0.5 ? 'down' : 'flat');
           return '<div class="market-analysis-mover">' +
             '<span class="market-analysis-mover-name">' + entry.good.emoji + ' ' + entry.good.name + '</span>' +
             '<span class="market-analysis-mover-delta ' + deltaClass + '">' + entry.delta.text + '</span>' +
@@ -258,7 +288,13 @@ function _renderAnalysisPanel(container, state, sysId, snapshots, marketMode) {
       '</div>' +
     '</div>' +
     '<div class="market-analysis-card">' +
-      '<div class="market-analysis-title">📦 货舱概览</div>' +
+      '<div class="market-analysis-title">📦 货舱</div>' +
+      '<div class="market-analysis-cargo-bar">' +
+        '<div class="market-analysis-cargo-bar-track">' +
+          '<div class="market-analysis-cargo-bar-fill" style="width:' + Math.min(100, Math.round(cargoUsed / cargoMax * 100)) + '%"></div>' +
+        '</div>' +
+        '<span class="market-analysis-cargo-bar-text">' + cargoUsed + '/' + cargoMax + '</span>' +
+      '</div>' +
       (cargoItems.length > 0
         ? '<div class="market-analysis-cargo-list">' +
             cargoItems.map(function (entry) {
@@ -286,6 +322,10 @@ function _renderAnalysisPanel(container, state, sysId, snapshots, marketMode) {
           '<span class="market-analysis-mover-name">当前模式</span>' +
           '<span class="market-analysis-mover-delta flat">' + (marketMode === 'black' ? '🕶 黑市' : '🏪 公开') + '</span>' +
         '</div>' +
+        (system ? '<div class="market-analysis-mover">' +
+          '<span class="market-analysis-mover-name">节点类型</span>' +
+          '<span class="market-analysis-mover-delta flat">' + system.typeLabel + '</span>' +
+        '</div>' : '') +
       '</div>' +
     '</div>';
 }
@@ -548,6 +588,187 @@ function _renderMiniMarketChart(history, currentPrice, goodLabel) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// 主 K 线图（股市风格，含 Y 轴刻度、X 轴日期、网格、当前价线、OHLC）
+// ---------------------------------------------------------------------------
+
+function _renderFullKlineChart(history, currentPrice, goodLabel, range) {
+  var normalized = _normalizeChartHistory(history, currentPrice, range);
+  var candles = _buildPseudoCandles(normalized);
+  var ma5 = _movingAverage(normalized, 5);
+  var ma10 = _movingAverage(normalized, Math.min(10, normalized.length));
+
+  // 尺寸设定
+  var W = 560, H = 260;
+  var marginLeft = 52, marginRight = 10, marginTop = 8, marginBottom = 32;
+  var chartLeft = marginLeft, chartRight = W - marginRight;
+  var chartTop = marginTop, chartBottom = H - marginBottom - 40;
+  var volumeTop = chartBottom + 6, volumeBottom = H - marginBottom;
+
+  var allPrices = candles.reduce(function (arr, c) { return arr.concat([c.high, c.low]); }, []).concat(ma5).concat(ma10);
+  var minP = Math.min.apply(null, allPrices);
+  var maxP = Math.max.apply(null, allPrices);
+  var priceRange = Math.max(1, maxP - minP);
+  var maxVol = Math.max.apply(null, candles.map(function (c) { return c.volume; }));
+
+  var chartW = chartRight - chartLeft;
+  var slot = chartW / candles.length;
+  var bodyW = Math.max(4, Math.min(12, slot - 4));
+
+  function yPrice(v) {
+    return chartTop + ((maxP - v) / priceRange) * (chartBottom - chartTop);
+  }
+  function yVol(v) {
+    var h = Math.max(2, (v / Math.max(1, maxVol)) * (volumeBottom - volumeTop - 2));
+    return volumeBottom - h;
+  }
+
+  // ── 网格线（4 条水平线） ──
+  var gridCount = 4;
+  var gridLines = '';
+  var priceLabels = '';
+  for (var gi = 0; gi <= gridCount; gi++) {
+    var gv = minP + (priceRange * gi / gridCount);
+    var gy = yPrice(gv);
+    gridLines += '<line x1="' + chartLeft + '" y1="' + gy.toFixed(1) + '" x2="' + chartRight + '" y2="' + gy.toFixed(1) + '" class="kline-grid" />';
+    priceLabels += '<text x="' + (chartLeft - 6) + '" y="' + (gy + 3).toFixed(1) + '" class="kline-price-label">' + Math.round(gv) + '</text>';
+  }
+
+  // ── 成交量分隔线 ──
+  gridLines += '<line x1="' + chartLeft + '" y1="' + volumeTop + '" x2="' + chartRight + '" y2="' + volumeTop + '" class="kline-grid kline-grid-vol" />';
+
+  // ── 成交量柱 ──
+  var volBars = candles.map(function (c, i) {
+    var cx = chartLeft + i * slot + slot / 2;
+    var bx = cx - bodyW / 2;
+    var vy = yVol(c.volume);
+    var cls = c.close >= c.open ? 'up' : 'down';
+    return '<rect x="' + bx.toFixed(1) + '" y="' + vy.toFixed(1) + '" width="' + bodyW.toFixed(1) + '" height="' + (volumeBottom - vy).toFixed(1) + '" class="kline-vol ' + cls + '" />';
+  }).join('');
+
+  // ── K 线蜡烛 ──
+  var candleSvg = candles.map(function (c, i) {
+    var cx = chartLeft + i * slot + slot / 2;
+    var bx = cx - bodyW / 2;
+    var oY = yPrice(c.open), cY = yPrice(c.close);
+    var hY = yPrice(c.high), lY = yPrice(c.low);
+    var topBody = Math.min(oY, cY);
+    var bH = Math.max(2, Math.abs(cY - oY));
+    var cls = c.close >= c.open ? 'up' : 'down';
+    return '<line x1="' + cx.toFixed(1) + '" y1="' + hY.toFixed(1) + '" x2="' + cx.toFixed(1) + '" y2="' + lY.toFixed(1) + '" class="kline-wick ' + cls + '" />' +
+      '<rect x="' + bx.toFixed(1) + '" y="' + topBody.toFixed(1) + '" width="' + bodyW.toFixed(1) + '" height="' + bH.toFixed(1) + '" rx="1" class="kline-candle ' + cls + '" />';
+  }).join('');
+
+  // ── 均线 ──
+  function maPath(values, cls) {
+    var d = values.map(function (v, i) {
+      var x = chartLeft + i * slot + slot / 2;
+      var y = yPrice(v);
+      return (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1);
+    }).join(' ');
+    return '<path d="' + d + '" class="kline-ma ' + cls + '" />';
+  }
+  var maPaths = maPath(ma5, 'kline-ma5') + maPath(ma10, 'kline-ma10');
+
+  // ── 当前价线 ──
+  var lastClose = candles[candles.length - 1].close;
+  var lastY = yPrice(lastClose);
+  var priceLine = '<line x1="' + chartLeft + '" y1="' + lastY.toFixed(1) + '" x2="' + chartRight + '" y2="' + lastY.toFixed(1) + '" class="kline-current-line" />' +
+    '<rect x="' + (chartRight - 1) + '" y="' + (lastY - 9).toFixed(1) + '" width="48" height="18" rx="3" class="kline-current-tag-bg" />' +
+    '<text x="' + (chartRight + 23) + '" y="' + (lastY + 4).toFixed(1) + '" class="kline-current-tag">' + lastClose + '</text>';
+
+  // ── X 轴日期标签 ──
+  var xLabels = '';
+  var labelInterval = Math.max(1, Math.floor(candles.length / 6));
+  for (var xi = 0; xi < candles.length; xi += labelInterval) {
+    var lx = chartLeft + xi * slot + slot / 2;
+    xLabels += '<text x="' + lx.toFixed(1) + '" y="' + (H - 6) + '" class="kline-date-label">D' + (xi + 1) + '</text>';
+  }
+
+  // ── 边框 ──
+  var border = '<rect x="' + chartLeft + '" y="' + chartTop + '" width="' + chartW + '" height="' + (volumeBottom - chartTop) + '" rx="0" class="kline-border" />';
+
+  // ── 组装 ──
+  return '<svg class="market-kline-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + goodLabel + ' K线走势图">' +
+    border + gridLines + priceLabels +
+    volBars + candleSvg + maPaths + priceLine + xLabels +
+    '<text x="' + (chartLeft + 4) + '" y="' + (chartTop + 12) + '" class="kline-ma-legend kline-ma5">MA5</text>' +
+    '<text x="' + (chartLeft + 36) + '" y="' + (chartTop + 12) + '" class="kline-ma-legend kline-ma10">MA10</text>' +
+  '</svg>';
+}
+
+function _updateMainKlineChart(state, sysId, snapshots, marketMode) {
+  var panel = document.getElementById('market-kline-panel');
+  if (!panel) return;
+
+  var focusKey = sysId + ':' + (marketMode || 'open');
+  var range = _marketChartRange[focusKey] || 14;
+  var focusedId = _focusedMarketGood[focusKey];
+  var focused = snapshots.find(function (s) { return s.good.id === focusedId; }) || snapshots[0];
+  if (!focused) return;
+
+  var isBlack = marketMode === 'black';
+  var history = _normalizeChartHistory(
+    Economy.getPriceHistory(sysId, focused.good.id), focused.sellPrice, range
+  );
+  var candles = _buildPseudoCandles(history);
+  var last = candles[candles.length - 1];
+  var delta = _formatChartDelta(history);
+
+  // 标题
+  var titleEl = document.getElementById('market-kline-title');
+  if (titleEl) {
+    titleEl.innerHTML = '<span class="kline-title-emoji">' + focused.good.emoji + '</span>' +
+      '<span class="kline-title-name">' + focused.good.name + '</span>' +
+      '<span class="kline-title-price">' + focused.sellPrice.toLocaleString() + ' CR</span>' +
+      '<span class="kline-title-delta ' + delta.className + '">' + delta.text + '</span>';
+  }
+
+  // 档期选择
+  var rangeBar = document.getElementById('market-kline-range-bar');
+  if (rangeBar) {
+    rangeBar.innerHTML = MARKET_RANGE_OPTIONS.map(function (d) {
+      return '<button class="kline-range-btn' + (d === range ? ' active' : '') + '" data-kline-range="' + d + '">' + d + 'D</button>';
+    }).join('');
+    rangeBar.querySelectorAll('[data-kline-range]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        _marketChartRange[focusKey] = Number(btn.dataset.klineRange);
+        _updateMainKlineChart(state, sysId, snapshots, marketMode);
+      });
+    });
+  }
+
+  // OHLC 数据条
+  var ohlcEl = document.getElementById('market-kline-ohlc');
+  if (ohlcEl) {
+    ohlcEl.innerHTML =
+      '<span class="kline-ohlc-item">O <em>' + last.open + '</em></span>' +
+      '<span class="kline-ohlc-item">H <em>' + last.high + '</em></span>' +
+      '<span class="kline-ohlc-item">L <em>' + last.low + '</em></span>' +
+      '<span class="kline-ohlc-item">C <em>' + last.close + '</em></span>' +
+      '<span class="kline-ohlc-item">Vol <em>' + last.volume + '</em></span>' +
+      '<span class="kline-ohlc-item">买卖差 <em>' + focused.spread + '</em></span>';
+  }
+
+  // K 线图主体
+  var bodyEl = document.getElementById('market-kline-body');
+  if (bodyEl) {
+    bodyEl.innerHTML = _renderFullKlineChart(history, focused.sellPrice, focused.good.name, range);
+  }
+
+  // 底部指标
+  var metricsEl = document.getElementById('market-kline-metrics');
+  if (metricsEl) {
+    var sd = focused.supplyDemand;
+    var pressureLabel = sd.ratio > 1.3 ? '追涨区' : (sd.ratio < 0.8 ? '承压区' : '盘整区');
+    metricsEl.innerHTML =
+      '<span class="kline-metric">供需比 <em>' + sd.ratio.toFixed(2) + 'x</em></span>' +
+      '<span class="kline-metric">压力区 <em>' + pressureLabel + '</em></span>' +
+      '<span class="kline-metric">波动度 <em>' + focused.swing + '</em></span>' +
+      '<span class="kline-metric">' + (isBlack ? '黑市溢价' : '市场模式') + ' <em>' + (isBlack ? '×1.35' : '公开') + '</em></span>';
+  }
+}
+
 function _buildMarketSnapshots(state, sysId, goodsList, isBlack, range) {
   return goodsList.map(function (good) {
     var buyPrice = isBlack
@@ -678,6 +899,7 @@ function _renderMarketDashboard(state, sysId, marketMode, snapshots) {
         _marketChartRange[focusKey]
       );
       _renderMarketDashboard(state, sysId, marketMode, updatedSnapshots);
+      _updateMainKlineChart(state, sysId, updatedSnapshots, marketMode);
     });
   });
 }
@@ -721,8 +943,8 @@ function _legalityTooltip(good) {
 }
 
 function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions) {
-  var capitalContainer = document.getElementById('market-capital-panels');
-  var operationsContainer = document.getElementById('market-operations-panels');
+  var capitalContainer = document.getElementById('market-capital-pane');
+  var operationsContainer = document.getElementById('market-operations-pane');
   if (!capitalContainer || !operationsContainer) return;
 
   financeActions = financeActions || {};
@@ -1313,7 +1535,7 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode
   const sysId         = viewingSystem || state.currentSystem;
   const isCurrentSys  = sysId === state.currentSystem;
   const isBlack       = marketMode === 'black';
-  const spotContainer = document.getElementById('market-spot-panels');
+  const spotContainer = document.getElementById('market-spot-pane');
   const tradeGalaxyId = viewingGalaxy || state.currentGalaxy;
   _renderMarketWorkspaceTabs();
 
@@ -1371,6 +1593,7 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode
   if (!goodsListEl) return;
   goodsListEl.innerHTML = '';
   _renderMarketDashboard(state, sysId, marketMode || 'open', snapshots);
+  _updateMainKlineChart(state, sysId, snapshots, marketMode || 'open');
 
   // 市场深度提示
   var depth = Economy.getMarketDepth(sysId);
@@ -1394,8 +1617,8 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode
 
   if (!isCurrentSys) {
     var noteDiv = document.createElement('div');
-    noteDiv.className = 'market-goods-depth-info';
-    noteDiv.textContent = '⚠️ 仅查看价格，交易请前往该星球';
+    noteDiv.className = 'market-goods-readonly-note';
+    noteDiv.innerHTML = '<span class="readonly-icon">📡</span> 远程查看模式 · 交易请前往该星球';
     goodsListEl.appendChild(noteDiv);
   }
 
@@ -1421,7 +1644,7 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode
     var chartHistory = _normalizeChartHistory(history, sellPrice, 8);
     var chartDelta = _formatChartDelta(chartHistory);
     var miniChart = _renderMarketChart(chartHistory, sellPrice, good.name, {
-      width: 80, height: 36, topPad: 3, chartBottom: 26, volumeBase: 33, className: 'market-good-card-chart',
+      width: 72, height: 40, topPad: 4, chartBottom: 28, volumeBase: 36, className: 'market-good-card-chart',
     });
 
     // Tags
@@ -1429,12 +1652,16 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode
     if (good.legality === 'illegal') {
       tag = '<span class="market-good-tag tag-illegal">违禁</span>';
     } else if (good.legality === 'restricted') {
-      tag = '<span class="market-good-tag tag-illegal">灰市</span>';
+      tag = '<span class="market-good-tag tag-restricted">灰市</span>';
     } else if (sd.ratio > 1.3) {
       tag = '<span class="market-good-tag tag-hot">高需求</span>';
     } else if (sd.ratio < 0.7) {
       tag = '<span class="market-good-tag tag-cold">充足</span>';
     }
+
+    // Heat color for icon bg
+    var heatMeta = _getMarketHeatMeta(mult);
+    var iconColorClass = heatMeta.className.replace('mkt-ov-', 'icon-');
 
     var card = document.createElement('div');
     card.className = 'market-good-card' +
@@ -1445,17 +1672,19 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode
     card.dataset.legality = good.legality || 'legal';
 
     card.innerHTML =
-      '<div class="market-good-card-icon">' + good.emoji + '</div>' +
+      '<div class="market-good-card-icon ' + iconColorClass + '">' + good.emoji + '</div>' +
       '<div class="market-good-card-info">' +
         '<div class="market-good-card-name">' + good.name + tag + '</div>' +
         '<div class="market-good-card-desc">' + good.desc +
-          (inCargo > 0 ? ' · <span class="market-good-card-held">持有 ' + inCargo + '</span>' : '') +
+          (inCargo > 0 ? ' · <span class="market-good-card-held">×' + inCargo + '</span>' : '') +
         '</div>' +
       '</div>' +
+      '<div class="market-good-card-chart-col">' +
+        '<div class="market-good-card-chart-label">价格纪录</div>' +
+        miniChart +
+      '</div>' +
       '<div class="market-good-card-price-block">' +
-        '<div class="market-good-card-id">ITEM_ID:' + good.id.toUpperCase() + '</div>' +
         '<div class="market-good-card-price-row">' +
-          miniChart +
           '<span class="market-good-card-price">' + buyPrice.toLocaleString() + '</span>' +
           '<span class="market-good-card-unit">CR</span>' +
         '</div>' +
@@ -1465,10 +1694,10 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode
       '</div>' +
       '<div class="market-good-card-actions">' +
         (isCurrentSys && inCargo > 0
-          ? '<button class="market-card-btn sell-card-btn' + (isBlack ? ' bm-card-btn' : '') + '" data-id="' + good.id + '">' + (isBlack ? '🕶卖' : '出售') + '</button>'
+          ? '<button class="market-card-btn sell-card-btn' + (isBlack ? ' bm-card-btn' : '') + '" data-id="' + good.id + '">' + (isBlack ? '🕶 卖' : '出售') + '</button>'
           : '') +
         (isCurrentSys
-          ? '<button class="market-card-btn buy-card-btn' + (isBlack ? ' bm-card-btn' : '') + '" data-id="' + good.id + '">' + (isBlack ? '🕶买' : '买入') + '</button>'
+          ? '<button class="market-card-btn buy-card-btn' + (isBlack ? ' bm-card-btn' : '') + '" data-id="' + good.id + '">' + (isBlack ? '🕶 买' : '买入') + '</button>'
           : '') +
       '</div>';
 
@@ -1524,7 +1753,11 @@ export function showDetail(systemId, marketMode) {
   const sys = findSystem(systemId);
   const isBlack = marketMode === 'black';
   if (sys && loc) {
-    loc.textContent = sys.name + ' [' + sys.typeLabel + '] — ' + sys.description;
+    loc.innerHTML = '<span class="market-detail-loc-name">' + sys.name + '</span>' +
+      '<span class="market-detail-loc-sep"> // </span>' +
+      '<span class="market-detail-loc-type">' + sys.typeLabel + '</span>' +
+      '<span class="market-detail-loc-sep"> // </span>' +
+      '<span class="market-detail-loc-status">终端状态: ' + (isBlack ? '🕶 黑市模式' : '在线') + '</span>';
   }
-  if (title) title.textContent = (isBlack ? '🕶 ' : '🏪 ') + (sys ? sys.name : '');
+  if (title) title.textContent = '交易所终端';
 }
