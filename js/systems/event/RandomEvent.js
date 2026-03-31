@@ -24,30 +24,41 @@ const MAX_HISTORY = 30;
  * @returns {object|null} 触发的事件定义，或 null
  */
 export function rollEvent(state, chance) {
-  if (typeof chance === 'undefined') chance = 0.25;
+  if (typeof chance === 'undefined') chance = EVENT_CONFIG.baseChance || 0.25;
   _hydrateRuntimeState(state);
 
-  const difficulty = _getDifficultySettings(state);
-  chance *= difficulty.eventChanceMod || 1.0;
+  // 旅行计数器：每次 rollEvent 调用即一次旅行
+  state._tripsSinceLastEvent = (typeof state._tripsSinceLastEvent === 'number'
+    ? state._tripsSinceLastEvent : 999) + 1;
 
-  // 科技 deep_scanner 提升概率
-  if (state.researchedTechs && state.researchedTechs.includes('deep_scanner')) {
-    chance *= 1.5;
-  }
-
-  if (Math.random() > chance) {
+  const currentDay = state.day || 1;
+  const pacingResult = _evaluatePacing(state, currentDay);
+  if (!pacingResult.allow) {
+    _persistRuntimeState(state);
     _activeEvent = null;
     return null;
   }
 
-  const currentDay = state.day || 1;
+  const difficulty = _getDifficultySettings(state);
+  chance *= (difficulty.eventChanceMod || 1.0) * pacingResult.chanceMod;
+
+  // 科技 deep_scanner 提升概率（适度加成）
+  if (state.researchedTechs && state.researchedTechs.includes('deep_scanner')) {
+    chance *= 1.25;
+  }
+
+  if (Math.random() > chance) {
+    _persistRuntimeState(state);
+    _activeEvent = null;
+    return null;
+  }
 
   // 优先检查是否有待触发的事件链后续
   const chainEvent = _checkEventChain(state);
 
   const pool = chainEvent ? [chainEvent] : getEligibleEvents(state);
 
-  if (pool.length === 0) { _activeEvent = null; return null; }
+  if (pool.length === 0) { _persistRuntimeState(state); _activeEvent = null; return null; }
 
   // 加权随机选取
   const totalWeight = pool.reduce(function (sum, ev) { return sum + _getEventWeight(ev, difficulty); }, 0);
@@ -58,8 +69,9 @@ export function rollEvent(state, chance) {
     if (roll <= 0) { chosen = pool[i]; break; }
   }
 
-  // 设定冷却
+  // 设定冷却 & 重置旅行计数器
   _cooldowns[chosen.id] = currentDay;
+  state._tripsSinceLastEvent = 0;
   _persistRuntimeState(state);
 
   _activeEvent = chosen;
@@ -157,6 +169,7 @@ export function resetRuntimeState(state) {
   if (state && typeof state === 'object') {
     state._eventCooldowns = {};
     state._eventHistory = [];
+    state._tripsSinceLastEvent = 999;
   }
 }
 
@@ -261,4 +274,59 @@ function _passesProtection(eventDef, state) {
     return false;
   }
   return true;
+}
+
+function _evaluatePacing(state, currentDay) {
+  var pacing = EVENT_CONFIG.pacing || {};
+  var lastEventDay = _getLastEventDay();
+  var chanceMod = 1;
+
+  if (_triggeredToday(currentDay)) {
+    return { allow: false, chanceMod: 0 };
+  }
+
+  // 旅行次数静默期：事件触发后 N 次旅行内硬性屏蔽
+  var quietTrips = pacing.quietTripsAfterEvent || 0;
+  var tripsSince = typeof state._tripsSinceLastEvent === 'number' ? state._tripsSinceLastEvent : 999;
+  if (quietTrips > 0 && tripsSince <= quietTrips) {
+    return { allow: false, chanceMod: 0 };
+  }
+
+  var minDaysBetween = pacing.minDaysBetweenEvents || 0;
+  if (lastEventDay != null && (currentDay - lastEventDay) < minDaysBetween) {
+    return { allow: false, chanceMod: 0 };
+  }
+
+  var windowDays = pacing.rollingWindowDays || 0;
+  var maxEvents = pacing.maxEventsInRollingWindow || 0;
+  if (windowDays > 0 && maxEvents > 0) {
+    var recentCount = _eventHistory.filter(function (entry) {
+      return (currentDay - entry.day) < windowDays;
+    }).length;
+    if (recentCount >= maxEvents) {
+      return { allow: false, chanceMod: 0 };
+    }
+  }
+
+  var graceDays = pacing.newPlayerGraceDays || 0;
+  if (currentDay <= graceDays) {
+    chanceMod *= pacing.newPlayerChanceMod || 1;
+  }
+
+  var recentWindow = pacing.recentEventWindowDays || 0;
+  if (lastEventDay != null && (currentDay - lastEventDay) <= recentWindow) {
+    chanceMod *= pacing.recentEventChanceMod || 1;
+  }
+
+  return { allow: true, chanceMod: chanceMod };
+}
+
+function _getLastEventDay() {
+  if (_eventHistory.length === 0) return null;
+  var last = _eventHistory[_eventHistory.length - 1];
+  return typeof last.day === 'number' ? last.day : null;
+}
+
+function _triggeredToday(currentDay) {
+  return _eventHistory.some(function (entry) { return entry.day === currentDay; });
 }

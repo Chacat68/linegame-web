@@ -111,35 +111,31 @@
             <!-- Market overlay panel -->
             <div id="market-overlay" class="market-overlay hidden">
               <div class="market-overlay-header">
-                <h3 id="market-header-title">◈ 蓝脉商业终端</h3>
-                <button id="market-close-btn" class="market-close-btn">
-                  ✕
-                </button>
+                <div class="market-header-row">
+                  <div class="market-header-left">
+                    <h3 id="market-header-title">◈ 蓝脉商业终端</h3>
+                  </div>
+                  <div class="market-header-right">
+                    <div id="market-mode-toggle" class="market-mode-toggle"></div>
+                    <button id="market-close-btn" class="market-close-btn">✕</button>
+                  </div>
+                </div>
               </div>
-              <div class="market-command-bar">
+              <div class="market-cmd-bar">
                 <div id="market-galaxy-nav" class="market-galaxy-nav"></div>
-                <div id="market-workspace-tabs" class="market-workspace-tabs"></div>
+                <div id="market-main-tabs" class="market-main-tabs"></div>
               </div>
 
               <div class="market-overlay-shell">
                 <div class="market-overlay-panels">
                   <div id="market-detail" class="market-detail">
                     <div class="market-detail-bar">
-                      <span
-                        id="market-detail-location"
-                        class="market-detail-location"
-                      ></span>
+                      <span id="market-detail-location" class="market-detail-location"></span>
                     </div>
                     <div class="market-overlay-body">
-                      <div id="market-spot-pane" class="market-workspace-pane">
-                        <div id="market-spot-panels" class="market-finance-panels"></div>
-                      </div>
-                      <div id="market-capital-pane" class="market-workspace-pane hidden">
-                        <div id="market-capital-panels" class="market-finance-panels"></div>
-                      </div>
-                      <div id="market-operations-pane" class="market-workspace-pane hidden">
-                        <div id="market-operations-panels" class="market-finance-panels"></div>
-                      </div>
+                      <div id="market-spot-pane" class="market-main-pane"></div>
+                      <div id="market-capital-pane" class="market-main-pane hidden"></div>
+                      <div id="market-operations-pane" class="market-main-pane hidden"></div>
                     </div>
                   </div>
                 </div>
@@ -433,6 +429,15 @@
           <button id="modal-cancel" class="btn-secondary">取消</button>
         </div>
       </div>
+    </div>
+
+    <!-- ================================================================
+     Event notification bar (非阻塞事件通知)
+================================================================ -->
+    <div id="event-notification" class="event-notification hidden">
+      <span id="event-notif-icon" class="event-notif-icon"></span>
+      <span id="event-notif-text" class="event-notif-text"></span>
+      <button id="event-notif-open" class="event-notif-btn">查看事件</button>
     </div>
 
     <!-- ================================================================

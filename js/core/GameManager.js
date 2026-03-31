@@ -294,6 +294,13 @@ function _dispatch(result) {
 }
 
 function _handleTravel(systemId) {
+  // 旅行前：如有待处理事件，强制弹出，阻止本次旅行
+  if (EventUI.hasPendingEvent()) {
+    EventUI.forcePendingEvent();
+    EventBus.emit('log:message', { text: '⚠️ 请先处理当前事件再继续航行。', type: 'error' });
+    return;
+  }
+
   const previousDay = _state.day || 1;
   const result = Trade.travelTo(_state, systemId);
   _dispatch(result);
@@ -382,11 +389,13 @@ function _handleTravel(systemId) {
     }
 
     // 随机事件触发（群星风格）——教程期间不触发
+    // 使用非阻塞通知条代替立即弹窗，让玩家可以延后处理
     const event = Tutorial.isActive() ? null : RandomEvent.rollEvent(_state);
     if (event) {
-      EventUI.showEvent(event, function (choiceIndex) {
+      EventUI.showEventNotification(event, function (choiceIndex) {
         _handleEventChoice(choiceIndex);
       });
+      EventBus.emit('log:message', { text: '📢 遭遇事件：' + event.title + '！查看底部通知处理。', type: 'info' });
     }
 
     // 自动存档

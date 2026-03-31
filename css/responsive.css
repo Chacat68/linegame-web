@@ -148,6 +148,23 @@
   .market-subworkspace-tabs {
     grid-template-columns: 1fr;
   }
+  .market-spot-trade-layout {
+    grid-template-columns: 1fr;
+  }
+  .market-good-card {
+    grid-template-columns: auto 1fr auto;
+    gap: 10px;
+    padding: 12px;
+  }
+  .market-good-card-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+  .market-good-card-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 22px;
+  }
 
   #map-legend {
     font-size: 10px;

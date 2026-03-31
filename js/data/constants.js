@@ -163,6 +163,7 @@ export const PROGRESSION_CONFIG = {
 };
 
 export const EVENT_CONFIG = {
+  baseChance: 0.12,
   cooldownDays: 10,
   stages: {
     early: { maxDay: 12, maxPlayerLevel: 3 },
@@ -175,6 +176,21 @@ export const EVENT_CONFIG = {
     lowCreditsThreshold: 150,
     earlyDangerousMaxDay: 10,
     earlyDangerousMaxLevel: 3,
+  },
+  pacing: {
+    // 新手期适度降频，避免连续被打断学习主循环。
+    newPlayerGraceDays: 4,
+    newPlayerChanceMod: 0.25,
+    // 防止旅行后连续数天都弹事件。
+    minDaysBetweenEvents: 3,
+    // 近期刚触发过事件时继续降权，形成更平滑节奏。
+    recentEventWindowDays: 5,
+    recentEventChanceMod: 0.4,
+    // 短周期硬上限，避免事件过密。
+    rollingWindowDays: 10,
+    maxEventsInRollingWindow: 2,
+    // 事件触发后保证 N 次旅行绝对安静（不靠概率，硬性屏蔽）。
+    quietTripsAfterEvent: 3,
   },
 };
 
@@ -280,6 +296,7 @@ export const SAVE_STATE_SCHEMA = {
   futuresLastProcessedDay: { type: 'number',  default: 1,                  since: 9, desc: '期货系统最后结算天数' },
   // ---- v10 新增 ----
   galaxyStates:            { type: 'object',  default: {},                 since: 10, desc: '星系数据层状态 {planetId: planetState}' },
+  _tripsSinceLastEvent:    { type: 'number',  default: 999,                since: 10, desc: '上次事件后旅行次数（静默期）' },
 };
 
 /**

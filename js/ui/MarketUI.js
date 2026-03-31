@@ -206,19 +206,88 @@ function _renderSpotTradeSection() {
       '</div>' +
     '</section>' +
     '<div id="market-terminal-dashboard" class="market-terminal-dashboard"></div>' +
-    '<table id="market-table">' +
-      '<thead>' +
-        '<tr>' +
-          '<th>商品</th>' +
-          '<th>买入</th>' +
-          '<th>卖出</th>' +
-          '<th>持有</th>' +
-          '<th>操作</th>' +
-          '<th>K线</th>' +
-        '</tr>' +
-      '</thead>' +
-      '<tbody id="market-tbody"></tbody>' +
-    '</table>';
+    '<div class="market-spot-trade-layout">' +
+      '<div id="market-goods-list" class="market-goods-list"></div>' +
+      '<div id="market-analysis-panel" class="market-analysis-panel"></div>' +
+    '</div>';
+}
+
+function _renderAnalysisPanel(container, state, sysId, snapshots, marketMode) {
+  if (!container || !snapshots || snapshots.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+
+  // 市场总指标
+  var totalVolume = snapshots.reduce(function (sum, s) { return sum + s.buyPrice; }, 0);
+  var avgSpread = snapshots.reduce(function (sum, s) { return sum + s.spread; }, 0) / snapshots.length;
+  var marketDepth = Economy.getMarketDepth(sysId);
+  var densityLabel = marketDepth >= 350 ? '高' : marketDepth >= 200 ? '中' : '低';
+
+  // 近期波动排行（按涨跌幅排序，取 Top 4）
+  var movers = snapshots.slice().sort(function (a, b) {
+    return Math.abs(parseFloat(b.delta.text)) - Math.abs(parseFloat(a.delta.text));
+  }).slice(0, 4);
+
+  // 货舱概览
+  var cargoItems = snapshots.filter(function (s) { return (state.cargo[s.good.id] || 0) > 0; });
+
+  container.innerHTML =
+    '<div class="market-analysis-card">' +
+      '<div class="market-analysis-title">📊 市场分析</div>' +
+      '<div class="market-analysis-metrics">' +
+        '<div class="market-analysis-metric">' +
+          '<span class="market-analysis-metric-label">买入量</span>' +
+          '<span class="market-analysis-metric-value">' + (totalVolume >= 1000 ? (totalVolume / 1000).toFixed(1) + '<small>K</small>' : totalVolume.toLocaleString()) + ' <small>CR/HR</small></span>' +
+        '</div>' +
+        '<div class="market-analysis-metric">' +
+          '<span class="market-analysis-metric-label">交易密度</span>' +
+          '<span class="market-analysis-metric-value">' + densityLabel + '</span>' +
+        '</div>' +
+      '</div>' +
+      '<hr class="market-analysis-divider" />' +
+      '<div class="market-analysis-section-title">近期波动</div>' +
+      '<div class="market-analysis-mover-list">' +
+        movers.map(function (entry) {
+          var deltaClass = parseFloat(entry.delta.text) > 0.5 ? 'up' : (parseFloat(entry.delta.text) < -0.5 ? 'down' : 'flat');
+          return '<div class="market-analysis-mover">' +
+            '<span class="market-analysis-mover-name">' + entry.good.emoji + ' ' + entry.good.name + '</span>' +
+            '<span class="market-analysis-mover-delta ' + deltaClass + '">' + entry.delta.text + '</span>' +
+          '</div>';
+        }).join('') +
+      '</div>' +
+    '</div>' +
+    '<div class="market-analysis-card">' +
+      '<div class="market-analysis-title">📦 货舱概览</div>' +
+      (cargoItems.length > 0
+        ? '<div class="market-analysis-cargo-list">' +
+            cargoItems.map(function (entry) {
+              var qty = state.cargo[entry.good.id] || 0;
+              return '<div class="market-analysis-cargo-row">' +
+                '<span>' + entry.good.emoji + ' ' + entry.good.name + '</span>' +
+                '<span class="market-analysis-cargo-qty">×' + qty + '</span>' +
+              '</div>';
+            }).join('') +
+          '</div>'
+        : '<div class="market-analysis-empty">货舱为空</div>') +
+    '</div>' +
+    '<div class="market-analysis-card">' +
+      '<div class="market-analysis-title">📋 交易参数</div>' +
+      '<div class="market-analysis-mover-list">' +
+        '<div class="market-analysis-mover">' +
+          '<span class="market-analysis-mover-name">市场深度</span>' +
+          '<span class="market-analysis-mover-delta flat">' + marketDepth + '</span>' +
+        '</div>' +
+        '<div class="market-analysis-mover">' +
+          '<span class="market-analysis-mover-name">平均利差</span>' +
+          '<span class="market-analysis-mover-delta flat">' + Math.round(avgSpread).toLocaleString() + ' CR</span>' +
+        '</div>' +
+        '<div class="market-analysis-mover">' +
+          '<span class="market-analysis-mover-name">当前模式</span>' +
+          '<span class="market-analysis-mover-delta flat">' + (marketMode === 'black' ? '🕶 黑市' : '🏪 公开') + '</span>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
 }
 
 function _renderSpotIntelSection(state, sysId, snapshots, marketMode, systemFaction, blackMarketUnlocked) {
@@ -1297,39 +1366,39 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode
     };
   }
 
-  const tbody = document.getElementById('market-tbody');
-  if (!tbody) return;
-  tbody.innerHTML = '';
+  const goodsListEl = document.getElementById('market-goods-list');
+  const analysisPanelEl = document.getElementById('market-analysis-panel');
+  if (!goodsListEl) return;
+  goodsListEl.innerHTML = '';
   _renderMarketDashboard(state, sysId, marketMode || 'open', snapshots);
 
-  if (!isCurrentSys) {
-    const noteRow = document.createElement('tr');
-    noteRow.innerHTML = '<td colspan="6" class="market-readonly-note">⚠️ 仅查看价格，交易请前往该星球</td>';
-    tbody.appendChild(noteRow);
-  }
-
+  // 市场深度提示
   var depth = Economy.getMarketDepth(sysId);
   var depthLabel = depth >= 350 ? '深度市场' : depth >= 200 ? '中等市场' : '浅层市场';
-  var depthRow = document.createElement('tr');
-  depthRow.className = 'market-depth-row';
-
+  var depthDiv = document.createElement('div');
   if (isBlack) {
-    depthRow.innerHTML = '<td colspan="6" class="market-depth-info black-market-banner">' +
-      '🕶 黑市交易 —— 高风险高回报，违禁品不受监管' +
-      '<span class="bm-warning">⚠ 携带违禁品前往联邦区域将触发执法检查</span>' +
-      '</td>';
+    depthDiv.className = 'market-goods-depth-info black-banner';
+    depthDiv.innerHTML = '🕶 黑市交易 —— 高风险高回报，违禁品不受监管' +
+      '<span class="bm-warning">⚠ 携带违禁品前往联邦区域将触发执法检查</span>';
   } else {
-    depthRow.innerHTML = '<td colspan="6" class="market-depth-info">' +
-      '📊 市场深度：<strong>' + depth + '</strong>（' + depthLabel + '）——' +
+    depthDiv.className = 'market-goods-depth-info';
+    depthDiv.innerHTML = '📊 市场深度：<strong>' + depth + '</strong>（' + depthLabel + '）——' +
       (depth >= 350 ? '大宗交易对价格影响较小' : depth >= 200 ? '交易影响适中' : '大宗交易将显著影响价格') +
       (systemFaction && systemFaction.marketAccess && systemFaction.marketAccess.blackMarket
         ? (blackMarketUnlocked
           ? ' · 🕶 黑市资格已解锁'
           : ' · 🔒 黑市需与辛迪加达到友好关系')
-        : '') +
-      '</td>';
+        : '');
   }
-  tbody.appendChild(depthRow);
+  goodsListEl.appendChild(depthDiv);
+
+  if (!isCurrentSys) {
+    var noteDiv = document.createElement('div');
+    noteDiv.className = 'market-goods-depth-info';
+    noteDiv.textContent = '⚠️ 仅查看价格，交易请前往该星球';
+    goodsListEl.appendChild(noteDiv);
+  }
+
   var activeGoodId = _focusedMarketGood[focusKey] || (snapshots[0] && snapshots[0].good.id);
 
   goodsList.forEach(function (good) {
@@ -1341,80 +1410,99 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode
       buyPrice  = Economy.getBuyPrice(sysId, good.id, state);
       sellPrice = Economy.getSellPrice(sysId, good.id, state);
     }
-    const inCargo     = state.cargo[good.id] || 0;
-    const mult        = Economy.getSystemMultiplier(sysId, good.id);
-    const sd          = Economy.getSupplyDemand(sysId, good.id);
-    const isCheap     = mult < 0.7;
-    const isExpensive = mult > 1.4;
+    var inCargo     = state.cargo[good.id] || 0;
+    var mult        = Economy.getSystemMultiplier(sysId, good.id);
+    var sd          = Economy.getSupplyDemand(sysId, good.id);
+    var isCheap     = mult < 0.7;
+    var isExpensive = mult > 1.4;
 
-    // 供需指示器
-    let sdIcon = '⚖️';
-    if (sd.ratio > 1.4) sdIcon = '🔥';      // 高需求
-    else if (sd.ratio < 0.7) sdIcon = '📦';  // 高供给
-
-    // Sparkline 走势图
+    // Sparkline
     var history = Economy.getPriceHistory(sysId, good.id);
     var chartHistory = _normalizeChartHistory(history, sellPrice, 8);
     var chartDelta = _formatChartDelta(chartHistory);
-    var miniChart = _renderMiniMarketChart(chartHistory, sellPrice, good.id);
-    var marketTag = _marketAccessLabel(good);
-    var legalityTip = _legalityTooltip(good);
+    var miniChart = _renderMarketChart(chartHistory, sellPrice, good.name, {
+      width: 80, height: 36, topPad: 3, chartBottom: 26, volumeBase: 33, className: 'market-good-card-chart',
+    });
 
-    // 产业链提示
-    var chainTip = _supplyChainTooltip(good);
+    // Tags
+    var tag = '';
+    if (good.legality === 'illegal') {
+      tag = '<span class="market-good-tag tag-illegal">违禁</span>';
+    } else if (good.legality === 'restricted') {
+      tag = '<span class="market-good-tag tag-illegal">灰市</span>';
+    } else if (sd.ratio > 1.3) {
+      tag = '<span class="market-good-tag tag-hot">高需求</span>';
+    } else if (sd.ratio < 0.7) {
+      tag = '<span class="market-good-tag tag-cold">充足</span>';
+    }
 
-    const tr = document.createElement('tr');
-    tr.dataset.marketGood = good.id;
-    tr.className = activeGoodId === good.id ? 'market-row-active' : '';
-    tr.innerHTML =
-      '<td><span class="good-icon">' + good.emoji + '</span>' + good.name +
-        '<span class="sd-indicator" title="供:' + sd.supply + ' 需:' + sd.demand + '">' + sdIcon + '</span>' +
-        (chainTip ? '<span class="chain-indicator" title="' + chainTip + '">🔗</span>' : '') +
-        (marketTag ? '<span class="chain-indicator" title="' + legalityTip + '">' + marketTag + '</span>' : '') +
-        '</td>' +
-      '<td class="' + (isCheap ? 'price-low' : isExpensive ? 'price-high' : '') + '">' + buyPrice + '</td>' +
-      '<td class="' + (isCheap ? 'price-low' : isExpensive ? 'price-high' : '') + '">' + sellPrice + '</td>' +
-      '<td>' + (inCargo > 0 ? '<span class="qty-badge">' + inCargo + '</span>' : '—') + '</td>' +
-      '<td class="action-cell">' +
-        (isCurrentSys ? '<button class="btn-action buy-btn' + (isBlack ? ' bm-btn' : '') + '" data-id="' + good.id + '">' + (isBlack ? '🕶买' : '买入') + '</button>' : '') +
-        (isCurrentSys && inCargo > 0 ? '<button class="btn-action sell-btn' + (isBlack ? ' bm-btn' : '') + '" data-id="' + good.id + '">' + (isBlack ? '🕶卖' : '卖出') + '</button>' : '') +
-      '</td>' +
-      '<td class="sparkline-cell">' +
-        '<div class="market-chart-shell" title="近 ' + chartHistory.length + ' 日价格走势（K线 + 均线）">' +
-          miniChart +
-          '<span class="market-chart-delta ' + chartDelta.className + '">' + chartDelta.text + '</span>' +
+    var card = document.createElement('div');
+    card.className = 'market-good-card' +
+      (activeGoodId === good.id ? ' is-active' : '') +
+      (isCheap ? ' price-low-card' : '') +
+      (isExpensive ? ' price-high-card' : '');
+    card.dataset.marketGood = good.id;
+    card.dataset.legality = good.legality || 'legal';
+
+    card.innerHTML =
+      '<div class="market-good-card-icon">' + good.emoji + '</div>' +
+      '<div class="market-good-card-info">' +
+        '<div class="market-good-card-name">' + good.name + tag + '</div>' +
+        '<div class="market-good-card-desc">' + good.desc +
+          (inCargo > 0 ? ' · <span class="market-good-card-held">持有 ' + inCargo + '</span>' : '') +
         '</div>' +
-      '</td>';
+      '</div>' +
+      '<div class="market-good-card-price-block">' +
+        '<div class="market-good-card-id">ITEM_ID:' + good.id.toUpperCase() + '</div>' +
+        '<div class="market-good-card-price-row">' +
+          miniChart +
+          '<span class="market-good-card-price">' + buyPrice.toLocaleString() + '</span>' +
+          '<span class="market-good-card-unit">CR</span>' +
+        '</div>' +
+        '<div class="market-good-card-delta ' + chartDelta.className.replace('market-chart-', '') + '">' +
+          chartDelta.text + ' △' +
+        '</div>' +
+      '</div>' +
+      '<div class="market-good-card-actions">' +
+        (isCurrentSys && inCargo > 0
+          ? '<button class="market-card-btn sell-card-btn' + (isBlack ? ' bm-card-btn' : '') + '" data-id="' + good.id + '">' + (isBlack ? '🕶卖' : '出售') + '</button>'
+          : '') +
+        (isCurrentSys
+          ? '<button class="market-card-btn buy-card-btn' + (isBlack ? ' bm-card-btn' : '') + '" data-id="' + good.id + '">' + (isBlack ? '🕶买' : '买入') + '</button>'
+          : '') +
+      '</div>';
 
+    // Bind events
     if (isCurrentSys) {
       var buyCallback = isBlack && onBlackBuy ? onBlackBuy : onBuy;
       var sellCallback = isBlack && onBlackSell ? onBlackSell : onSell;
-      tr.querySelector('.buy-btn').addEventListener('click', function (event) { event.stopPropagation(); buyCallback(good); });
-      const sellBtn = tr.querySelector('.sell-btn');
-      if (sellBtn) {
-        sellBtn.addEventListener('click', function (event) { event.stopPropagation(); sellCallback(good); });
-      }
+      var buyBtn = card.querySelector('.buy-card-btn');
+      if (buyBtn) buyBtn.addEventListener('click', function (e) { e.stopPropagation(); buyCallback(good); });
+      var sellBtn = card.querySelector('.sell-card-btn');
+      if (sellBtn) sellBtn.addEventListener('click', function (e) { e.stopPropagation(); sellCallback(good); });
     }
-    tr.addEventListener('click', function () {
+    card.addEventListener('click', function () {
       _focusedMarketGood[focusKey] = good.id;
       render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode, tradeGalaxyId, onBlackBuy, onBlackSell, financeActions);
     });
-    tbody.appendChild(tr);
+    goodsListEl.appendChild(card);
   });
 
-  // 补燃料行（仅当前星球）
+  // 补燃料（仅当前星球）
   if (isCurrentSys) {
-    const fuelNeeded = Math.ceil(state.maxFuel - state.fuel);
+    var fuelNeeded = Math.ceil(state.maxFuel - state.fuel);
     if (fuelNeeded > 0) {
-      const tr = document.createElement('tr');
-      tr.className = 'refuel-row';
-      tr.innerHTML =
-        '<td colspan="6">' +
-          '<button id="refuel-btn" class="btn-refuel">⚡ 补充燃料（' + fuelNeeded + ' 单位）</button>' +
-        '</td>';
-      tr.querySelector('#refuel-btn').addEventListener('click', onRefuel);
-      tbody.appendChild(tr);
+      var refuelDiv = document.createElement('div');
+      refuelDiv.className = 'market-goods-refuel';
+      refuelDiv.innerHTML = '<button id="refuel-btn" class="btn-refuel">⚡ 补充燃料（' + fuelNeeded + ' 单位）</button>';
+      refuelDiv.querySelector('#refuel-btn').addEventListener('click', onRefuel);
+      goodsListEl.appendChild(refuelDiv);
     }
+  }
+
+  // 右侧分析面板
+  if (analysisPanelEl) {
+    _renderAnalysisPanel(analysisPanelEl, state, sysId, snapshots, marketMode || 'open');
   }
 
   _renderFinancePanels(state, sysId, isCurrentSys, financeActions);
