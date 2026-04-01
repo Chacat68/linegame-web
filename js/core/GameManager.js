@@ -13,7 +13,7 @@ import * as RandomEvent from '../systems/event/RandomEvent.js';
 import * as Faction    from '../systems/faction/FactionSystem.js';
 import * as Research   from '../systems/research/ResearchSystem.js';
 import * as Renderer   from '../ui/Renderer.js';
-import * as Renderer3D from '../ui/Renderer3D.js';
+import * as Renderer3D from '../ui/Renderer3DAdvanced.js';
 import * as GalaxyData from '../systems/galaxy/GalaxyDataLayer.js';
 import * as HUD        from '../ui/HUD.js';
 import * as MarketUI   from '../ui/MarketUI.js';
@@ -112,6 +112,10 @@ export function init(difficulty) {
   MapUI.initTabs(function (tabId) {
     Tutorial.checkTabClick(tabId);
   });
+
+  // 默认启用3D视角
+  const toggle3DBtn = document.getElementById('map-3d-toggle-btn');
+  if (toggle3DBtn) toggle3DBtn.click();
   // 注入市场刷新回调（让 MapUI 可以触发市场表格重绘）
   MapUI.setRefreshMarket(function (mode) {
     const sysId = MapUI.getMarketViewSystem(_state);
@@ -301,11 +305,17 @@ function _handleTravel(systemId) {
     return;
   }
 
+  const previousSystem = _state.currentSystem;
   const previousDay = _state.day || 1;
   const result = Trade.travelTo(_state, systemId);
   _dispatch(result);
 
   if (result && result.ok) {
+    // 3D 飞船飞行动画
+    if (Renderer3D.isActive() && previousSystem) {
+      Renderer3D.flyShipTo(previousSystem, systemId);
+    }
+
     // 跨星系旅行后刷新地图按钮
     if (result.meta && result.meta.crossGalaxy) {
       MapUI.refreshGalaxyBtn(_state);

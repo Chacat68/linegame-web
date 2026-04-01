@@ -5,7 +5,7 @@
 //        showMarketOverview, showMarketDetail, refreshPlanetDetail, getMapView, getCurrentGalaxyId
 
 import * as Renderer from './Renderer.js';
-import * as Renderer3D from './Renderer3D.js';
+import * as Renderer3D from './Renderer3DAdvanced.js';
 import * as Faction from '../systems/faction/FactionSystem.js';
 import { GALAXIES, findSystem, findGalaxy }  from '../data/systems.js';
 
@@ -213,10 +213,36 @@ export function init(stateRef, onTravel, onGalaxyJump) {
         };
         // Setup click callbacks for 3D
         window._mapClickCallback = function(systemId) {
-          if (onTravel) onTravel(systemId);
+          const sys = findSystem(systemId);
+          if (sys && sys.id !== stateRef.currentSystem) {
+            const playerLevel = stateRef.playerLevel || 1;
+            if (playerLevel < (sys.minLevel || 1)) return;
+            if (sys.galaxyId !== stateRef.currentGalaxy) {
+              if (onGalaxyJump) onGalaxyJump(sys.id);
+            } else {
+              if (onTravel) onTravel(sys.id);
+            }
+          }
         };
         window._galaxyClickCallback = function(galaxyId) {
-          if (onGalaxyJump) onGalaxyJump(galaxyId);
+          // Mirror 2D behavior: switch to viewing that galaxy's planets
+          const gal = findGalaxy(galaxyId);
+          if (gal) {
+            const unlocked = gal.unlocked ||
+              (stateRef.researchedTechs && stateRef.researchedTechs.includes(gal.techRequired));
+            if (unlocked) {
+              stateRef.viewingGalaxy = gal.id;
+              stateRef.mapView = 'planets';
+              _updateGalaxyBtn(stateRef);
+              refreshPlanetDetail(stateRef);
+            }
+          }
+        };
+        // Zoom-out triggers galaxy overview
+        window._switchToGalaxyView = function() {
+          stateRef.mapView = 'galaxies';
+          _updateGalaxyBtn(stateRef);
+          refreshPlanetDetail(stateRef);
         };
       } else {
         toggle3DBtn.textContent = '🌐 3D视图';
@@ -224,6 +250,7 @@ export function init(stateRef, onTravel, onGalaxyJump) {
         window._mapHoverCallback = null;
         window._mapClickCallback = null;
         window._galaxyClickCallback = null;
+        window._switchToGalaxyView = null;
       }
     });
   }
