@@ -449,11 +449,13 @@ function _clearPlanetMeshes() {
   _dispatchRouteLines = [];
   _dispatchShipMarkers.forEach(obj => {
     _scene.remove(obj);
-    if (obj.geometry) obj.geometry.dispose();
-    if (obj.material) {
-      if (obj.material.map) obj.material.map.dispose();
-      obj.material.dispose();
-    }
+    obj.traverse(function (child) {
+      if (child.geometry) child.geometry.dispose();
+      if (child.material) {
+        if (child.material.map) child.material.map.dispose();
+        child.material.dispose();
+      }
+    });
   });
   _dispatchShipMarkers = [];
 }
@@ -975,7 +977,7 @@ function _renderDispatchRoutes(state) {
     const sellPos = posMap.get(ship.route.sellSystemId);
     if (!buyPos || !sellPos) return;
 
-    // 弧线路径（仅用于动画插值，不渲染静态线）
+    // 弧线路径
     const mid = buyPos.clone().lerp(sellPos, 0.5);
     const dist = buyPos.distanceTo(sellPos);
     mid.y += Math.max(dist * 0.15, 3);
@@ -985,32 +987,33 @@ function _renderDispatchRoutes(state) {
     const routeColor = isActive ? 0x22d3ee : 0xfbbf24;
     var goingToSell = ship.route.status === 'traveling_sell' || ship.route.status === 'selling';
 
-    // 飞行光点
-    var markerGeo = new THREE.SphereGeometry(1.2, 8, 8);
-    var markerMat = new THREE.MeshBasicMaterial({
+    // ── 航线轨迹（虚线弧线）──
+    var routePoints = curve.getPoints(48);
+    var routeGeo = new THREE.BufferGeometry().setFromPoints(routePoints);
+    var routeMat = new THREE.LineDashedMaterial({
       color: routeColor,
+      dashSize: 1.5,
+      gapSize: 1.0,
       transparent: true,
-      opacity: 0.9,
+      opacity: 0.35,
+      depthWrite: false,
     });
-    var marker = new THREE.Mesh(markerGeo, markerMat);
-    marker.userData._dispatchCurve = curve;
-    marker.userData._direction = goingToSell ? 1 : -1;
-    marker.userData._phaseOffset = idx * 1.1; // 多船相位错开
-    marker.position.copy(curve.getPointAt(0));
-    _scene.add(marker);
-    _dispatchShipMarkers.push(marker);
-    // 发光光晕
-    var glowGeo = new THREE.SphereGeometry(2.0, 8, 8);
-    var glowMat = new THREE.MeshBasicMaterial({
-      color: routeColor,
-      transparent: true,
-      opacity: 0.25,
-    });
-    var glow = new THREE.Mesh(glowGeo, glowMat);
-    marker.add(glow);
+    var routeLine = new THREE.Line(routeGeo, routeMat);
+    routeLine.computeLineDistances();
+    _scene.add(routeLine);
+    _dispatchRouteLines.push(routeLine);
 
-    // 尾迹粒子线（跟随光点的短拖尾）
-    var trailCount = 20;
+    // ── 飞船模型 ──
+    var shipModel = _createDispatchShipMesh(routeColor);
+    shipModel.userData._dispatchCurve = curve;
+    shipModel.userData._direction = goingToSell ? 1 : -1;
+    shipModel.userData._phaseOffset = idx * 1.1;
+    shipModel.position.copy(curve.getPointAt(0));
+    _scene.add(shipModel);
+    _dispatchShipMarkers.push(shipModel);
+
+    // ── 尾迹粒子（跟随飞船的引擎拖尾）──
+    var trailCount = 30;
     var trailGeo = new THREE.BufferGeometry();
     var trailPositions = new Float32Array(trailCount * 3);
     var initPos = curve.getPointAt(0);
@@ -1022,7 +1025,7 @@ function _renderDispatchRoutes(state) {
     trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
     var trailMat = new THREE.PointsMaterial({
       color: routeColor,
-      size: 0.4,
+      size: 0.35,
       transparent: true,
       opacity: 0.5,
       blending: THREE.AdditiveBlending,
@@ -1032,10 +1035,95 @@ function _renderDispatchRoutes(state) {
     var trail = new THREE.Points(trailGeo, trailMat);
     trail.userData._head = 0;
     trail.userData._count = trailCount;
-    marker.userData._trail = trail;
+    shipModel.userData._trail = trail;
     _scene.add(trail);
-    _dispatchRouteLines.push(trail); // 复用 cleanup 数组
+    _dispatchRouteLines.push(trail);
   });
+}
+
+/**
+ * 创建派遣飞船模型（与主飞船同款，颜色不同）
+ */
+function _createDispatchShipMesh(tintColor) {
+  const group = new THREE.Group();
+
+  // 主体 — 尖锥形机身
+  const bodyGeo = new THREE.ConeGeometry(0.3, 1.3, 6);
+  bodyGeo.rotateX(Math.PI / 2);
+  const bodyMat = new THREE.MeshPhongMaterial({
+    color: 0xc0c8d8,
+    emissive: tintColor,
+    emissiveIntensity: 0.15,
+    shininess: 80,
+  });
+  group.add(new THREE.Mesh(bodyGeo, bodyMat));
+
+  // 机翼
+  const wingGeo = new THREE.BoxGeometry(1.8, 0.05, 0.55);
+  const wingMat = new THREE.MeshPhongMaterial({
+    color: 0x7888aa,
+    emissive: tintColor,
+    emissiveIntensity: 0.1,
+  });
+  const wings = new THREE.Mesh(wingGeo, wingMat);
+  wings.position.z = -0.15;
+  group.add(wings);
+
+  // 驾驶舱
+  const cockpitGeo = new THREE.SphereGeometry(0.15, 8, 8);
+  const cockpitMat = new THREE.MeshPhongMaterial({
+    color: tintColor,
+    emissive: tintColor,
+    emissiveIntensity: 0.6,
+    transparent: true,
+    opacity: 0.7,
+  });
+  const cockpit = new THREE.Mesh(cockpitGeo, cockpitMat);
+  cockpit.position.set(0, 0.12, 0.25);
+  group.add(cockpit);
+
+  // 引擎喷口
+  const engineGeo = new THREE.SphereGeometry(0.1, 6, 6);
+  const engineMat = new THREE.MeshBasicMaterial({
+    color: 0xff6622,
+    transparent: true,
+    opacity: 0.9,
+  });
+  const eL = new THREE.Mesh(engineGeo, engineMat);
+  eL.position.set(-0.35, 0, -0.5);
+  const eR = new THREE.Mesh(engineGeo, engineMat);
+  eR.position.set(0.35, 0, -0.5);
+  group.add(eL, eR);
+
+  // 引擎尾焰
+  const flameCanvas = document.createElement('canvas');
+  flameCanvas.width = 64;
+  flameCanvas.height = 64;
+  const fCtx = flameCanvas.getContext('2d');
+  const flameGrad = fCtx.createRadialGradient(32, 32, 0, 32, 32, 32);
+  flameGrad.addColorStop(0, 'rgba(255,180,50,0.9)');
+  flameGrad.addColorStop(0.3, 'rgba(255,100,20,0.5)');
+  flameGrad.addColorStop(1, 'rgba(255,50,10,0)');
+  fCtx.fillStyle = flameGrad;
+  fCtx.fillRect(0, 0, 64, 64);
+  const flameTex = new THREE.CanvasTexture(flameCanvas);
+  const flameMat = new THREE.SpriteMaterial({
+    map: flameTex,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+  const flL = new THREE.Sprite(flameMat);
+  flL.scale.set(0.5, 0.5, 1);
+  flL.position.set(-0.35, 0, -0.75);
+  const flR = new THREE.Sprite(flameMat.clone());
+  flR.scale.set(0.5, 0.5, 1);
+  flR.position.set(0.35, 0, -0.75);
+  group.add(flL, flR);
+  group.userData._flames = [flL, flR];
+
+  group.scale.set(1.2, 1.2, 1.2);
+  return group;
 }
 
 // ---------------------------------------------------------------------------
@@ -1410,6 +1498,19 @@ function _animate() {
     if (marker.userData._direction < 0) eased = 1 - eased;
     var pos = marker.userData._dispatchCurve.getPointAt(eased);
     marker.position.copy(pos);
+
+    // Orient ship along travel direction
+    var tangent = marker.userData._dispatchCurve.getTangentAt(eased);
+    if (marker.userData._direction < 0) tangent.negate();
+    var lookTarget = pos.clone().add(tangent);
+    marker.lookAt(lookTarget);
+
+    // Animate engine flames
+    if (marker.userData._flames) {
+      var flicker = 0.5 + Math.sin(time * 8 + phase) * 0.15 + Math.random() * 0.1;
+      marker.userData._flames.forEach(function (f) { f.scale.set(flicker, flicker, 1); });
+    }
+
     // Update trail
     var trail = marker.userData._trail;
     if (trail) {
