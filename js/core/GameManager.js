@@ -12,7 +12,6 @@ import * as Commerce   from '../systems/commerce/CommerceFacade.js';
 import * as RandomEvent from '../systems/event/RandomEvent.js';
 import * as Faction    from '../systems/faction/FactionSystem.js';
 import * as Research   from '../systems/research/ResearchSystem.js';
-import * as Renderer   from '../ui/Renderer.js';
 import * as Renderer3D from '../ui/Renderer3DAdvanced.js';
 import * as GalaxyData from '../systems/galaxy/GalaxyDataLayer.js';
 import * as HUD        from '../ui/HUD.js';
@@ -100,11 +99,9 @@ export function init(difficulty) {
   TradeStation.init(_state);
   Finance.init(_state);
   GalaxyData.init(_state); // Initialize galaxy data layer
-  Renderer.init();
-  Renderer.resetRuntimeState(_state.currentSystem);
   Renderer3D.init();
   Renderer3D.resetRuntimeState(_state.currentSystem);
-  Settings.applySettings(_settings, Renderer);
+  Settings.applySettings(_settings, Renderer3D);
   HUD.init();
 
   // 注入回调给各 UI 模块
@@ -113,9 +110,8 @@ export function init(difficulty) {
     Tutorial.checkTabClick(tabId);
   });
 
-  // 默认启用3D视角
-  const toggle3DBtn = document.getElementById('map-3d-toggle-btn');
-  if (toggle3DBtn) toggle3DBtn.click();
+  // 3D视角默认启用，确保回调已绑定
+  MapUI.init3DCallbacks(_state, _handleTravel, _handleGalaxyJump);
   // 注入市场刷新回调（让 MapUI 可以触发市场表格重绘）
   MapUI.setRefreshMarket(function (mode) {
     const sysId = MapUI.getMarketViewSystem(_state);
@@ -155,7 +151,7 @@ export function init(difficulty) {
 
   Settings.initSettingsModal({
     settings: _settings,
-    Renderer: Renderer,
+    Renderer: Renderer3D,
     onDifficultyChanged: function (nextDifficulty) {
       if (!DIFFICULTY_LEVELS[nextDifficulty]) return;
       _state.difficulty = nextDifficulty;
@@ -687,7 +683,6 @@ function _handleLoadGame(slotId) {
     }
     Economy.init();
     Economy.setCycleState(_state.economyCycle);
-    Renderer.resetRuntimeState(_state.currentSystem);
     Renderer3D.resetRuntimeState(_state.currentSystem);
     MapUI.refreshGalaxyBtn(_state);
     // 恢复派遣状态
@@ -948,17 +943,9 @@ function _checkVictory() {
 function _startGameLoop() {
   _startTime = performance.now();
   (function loop(ts) {
-    const t = ts - _startTime;
-    if (Renderer3D.isActive()) {
-      // 3D mode - handled by Renderer3D's internal animation loop
-      const mapView = MapUI.getMapView ? MapUI.getMapView() : 'planets';
-      const galaxyId = MapUI.getCurrentGalaxyId ? MapUI.getCurrentGalaxyId() : 'milky_way';
-      Renderer3D.render(_state, mapView, galaxyId);
-    } else {
-      // 2D mode - traditional rendering
-      Renderer.renderStars(t);
-      Renderer.renderMap(_state, t);
-    }
+    const mapView = MapUI.getMapView ? MapUI.getMapView() : 'planets';
+    const galaxyId = MapUI.getCurrentGalaxyId ? MapUI.getCurrentGalaxyId() : 'milky_way';
+    Renderer3D.render(_state, mapView, galaxyId);
     requestAnimationFrame(loop);
   }(_startTime));
 }

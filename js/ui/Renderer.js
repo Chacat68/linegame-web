@@ -642,6 +642,52 @@ function _renderPlanetMap(ctx, w, h, gameState, time) {
     }
   }
 
+  // --- 派遣飞船飞行轨迹 ---
+  if (gameState.fleet && gameState.fleet.length > 0) {
+    gameState.fleet.forEach(function (ship, idx) {
+      if (!ship.route) return;
+      var buySys = findSystem(ship.route.buySystemId);
+      var sellSys = findSystem(ship.route.sellSystemId);
+      if (!buySys || !sellSys) return;
+      if (buySys.galaxyId !== viewGal || sellSys.galaxyId !== viewGal) return;
+      var isActive = idx === (gameState.activeShipIndex || 0);
+      var goingToSell = ship.route.status === 'traveling_sell' || ship.route.status === 'selling';
+      var bx = buySys.x * w, by = buySys.y * h;
+      var ex = sellSys.x * w, ey = sellSys.y * h;
+      if (!goingToSell) { var tmp; tmp = bx; bx = ex; ex = tmp; tmp = by; by = ey; ey = tmp; }
+      // 每艘船用不同相位偏移，避免多船轨迹完全重叠
+      var phase = idx * 1.1;
+      var prog = (((time * 0.001) + phase) % 3) / 3;
+      var eased = prog < 0.5 ? 2 * prog * prog : 1 - Math.pow(-2 * prog + 2, 2) / 2;
+      var px = bx + (ex - bx) * eased;
+      var py = by + (ey - by) * eased;
+      var dotColor = isActive ? '#22d3ee' : '#fbbf24';
+      var glowAlpha = isActive ? '0.25' : '0.2';
+      // 渐变尾迹（从起点40%处到当前位置）
+      var tailStartX = bx + (px - bx) * 0.4;
+      var tailStartY = by + (py - by) * 0.4;
+      var tailGrad = ctx.createLinearGradient(tailStartX, tailStartY, px, py);
+      tailGrad.addColorStop(0, 'rgba(0,0,0,0)');
+      tailGrad.addColorStop(1, dotColor + 'cc');
+      ctx.save();
+      ctx.strokeStyle = tailGrad;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(tailStartX, tailStartY);
+      ctx.lineTo(px, py);
+      ctx.stroke();
+      // 发光光点
+      _drawNeonNode(ctx, px, py, 4, dotColor, {
+        glowExtra: 12,
+        glowColor: dotColor,
+        strokeColor: 'rgba(255,255,255,0.9)',
+        strokeWidth: 1,
+        coreColor: '#ffffff',
+      });
+      ctx.restore();
+    });
+  }
+
   // --- 星球节点 ---
   planets.forEach(function (sys) {
     const x = sys.x * w;

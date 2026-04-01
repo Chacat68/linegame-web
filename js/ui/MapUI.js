@@ -1,10 +1,7 @@
 // js/ui/MapUI.js — 星系地图交互事件绑定（支持星系/星球双层视图 + 市场面板）
-// 依赖：ui/Renderer.js
-// 导出：init, initTabs, refreshGalaxyBtn, openMarket, closeMarket, isMarketOpen,
+// 导出：init, initTabs, init3DCallbacks, refreshGalaxyBtn, openMarket, closeMarket, isMarketOpen,
 //        setRefreshMarket, getMarketViewSystem, refreshMarketLocation,
 //        showMarketOverview, showMarketDetail, refreshPlanetDetail, getMapView, getCurrentGalaxyId
-
-import * as Renderer from './Renderer.js';
 import * as Renderer3D from './Renderer3DAdvanced.js';
 import * as Faction from '../systems/faction/FactionSystem.js';
 import { GALAXIES, findSystem, findGalaxy }  from '../data/systems.js';
@@ -79,76 +76,8 @@ export function showMarketDetail(systemId) {
  * @param {Function} onGalaxyJump (galaxyId: string) => void  跨星系跳转回调
  */
 export function init(stateRef, onTravel, onGalaxyJump) {
-  const mapCanvas = document.getElementById('map-canvas');
-  if (!mapCanvas) return;
-
   // 保存状态引用供底部导航使用
   _stateRef = stateRef;
-
-  mapCanvas.addEventListener('mousemove', function (e) {
-    const r = mapCanvas.getBoundingClientRect();
-    const mx = e.clientX - r.left, my = e.clientY - r.top;
-
-    if (stateRef.mapView === 'galaxies') {
-      const gal = Renderer.getGalaxyAtPoint(mx, my, r.width, r.height);
-      mapCanvas.title = gal ? gal.name : '';
-      stateRef.hoveredSystem = null;
-      refreshPlanetDetail(stateRef);
-    } else {
-      const sys = Renderer.getSystemAtPoint(mx, my, r.width, r.height,
-        stateRef.viewingGalaxy || stateRef.currentGalaxy);
-      const newId = sys ? sys.id : null;
-      if (newId !== stateRef.hoveredSystem) {
-        stateRef.hoveredSystem = newId;
-        refreshPlanetDetail(stateRef);
-        // 星球悬停仅保留详情面板，不再显示浏览器原生 tooltip
-        mapCanvas.title = '';
-      }
-    }
-  });
-
-  mapCanvas.addEventListener('mouseleave', function () {
-    stateRef.hoveredSystem = null;
-    refreshPlanetDetail(stateRef);
-  });
-
-  mapCanvas.addEventListener('click', function (e) {
-    const r = mapCanvas.getBoundingClientRect();
-    const mx = e.clientX - r.left, my = e.clientY - r.top;
-
-    if (stateRef.mapView === 'galaxies') {
-      // 星系总览 — 点击星系切换到该星系的星球视图
-      const gal = Renderer.getGalaxyAtPoint(mx, my, r.width, r.height);
-      if (gal) {
-        const unlocked = gal.unlocked ||
-          (stateRef.researchedTechs && stateRef.researchedTechs.includes(gal.techRequired));
-        if (unlocked) {
-          stateRef.viewingGalaxy = gal.id;
-          stateRef.mapView = 'planets';
-          _updateGalaxyBtn(stateRef);
-          refreshPlanetDetail(stateRef);
-        }
-      }
-    } else {
-      // 星球视图 — 点击星球旅行
-      const sys = Renderer.getSystemAtPoint(mx, my, r.width, r.height,
-        stateRef.viewingGalaxy || stateRef.currentGalaxy);
-      if (sys && sys.id !== stateRef.currentSystem) {
-        // 等级锁定检查
-        const playerLevel = stateRef.playerLevel || 1;
-        if (playerLevel < (sys.minLevel || 1)) {
-          // 星球未解锁，不允许旅行
-          return;
-        }
-        if (sys.galaxyId !== stateRef.currentGalaxy) {
-          // 跨星系旅行
-          if (onGalaxyJump) onGalaxyJump(sys.id);
-        } else {
-          onTravel(sys.id);
-        }
-      }
-    }
-  });
 
   // 星系视图切换按钮
   const btn = document.getElementById('galaxy-view-btn');
@@ -189,73 +118,66 @@ export function init(stateRef, onTravel, onGalaxyJump) {
     });
   }
 
-  // 3D视图切换按钮
+  // 3D视图默认启用，按钮隐藏
   const toggle3DBtn = document.getElementById('map-3d-toggle-btn');
   if (toggle3DBtn) {
-    toggle3DBtn.addEventListener('click', function () {
-      Renderer3D.toggleView();
-      // Setup callbacks for 3D renderer
-      if (Renderer3D.isActive()) {
-        toggle3DBtn.textContent = '📊 2D视图';
-        // Setup hover callback for 3D
-        window._mapHoverCallback = function(data) {
-          if (data) {
-            if (data.type === 'system') {
-              stateRef.hoveredSystem = data.id;
-            } else {
-              stateRef.hoveredSystem = null;
-            }
-            refreshPlanetDetail(stateRef);
-          } else {
-            stateRef.hoveredSystem = null;
-            refreshPlanetDetail(stateRef);
-          }
-        };
-        // Setup click callbacks for 3D
-        window._mapClickCallback = function(systemId) {
-          const sys = findSystem(systemId);
-          if (sys && sys.id !== stateRef.currentSystem) {
-            const playerLevel = stateRef.playerLevel || 1;
-            if (playerLevel < (sys.minLevel || 1)) return;
-            if (sys.galaxyId !== stateRef.currentGalaxy) {
-              if (onGalaxyJump) onGalaxyJump(sys.id);
-            } else {
-              if (onTravel) onTravel(sys.id);
-            }
-          }
-        };
-        window._galaxyClickCallback = function(galaxyId) {
-          // Mirror 2D behavior: switch to viewing that galaxy's planets
-          const gal = findGalaxy(galaxyId);
-          if (gal) {
-            const unlocked = gal.unlocked ||
-              (stateRef.researchedTechs && stateRef.researchedTechs.includes(gal.techRequired));
-            if (unlocked) {
-              stateRef.viewingGalaxy = gal.id;
-              stateRef.mapView = 'planets';
-              _updateGalaxyBtn(stateRef);
-              refreshPlanetDetail(stateRef);
-            }
-          }
-        };
-        // Zoom-out triggers galaxy overview
-        window._switchToGalaxyView = function() {
-          stateRef.mapView = 'galaxies';
-          _updateGalaxyBtn(stateRef);
-          refreshPlanetDetail(stateRef);
-        };
-      } else {
-        toggle3DBtn.textContent = '🌐 3D视图';
-        // Clear callbacks
-        window._mapHoverCallback = null;
-        window._mapClickCallback = null;
-        window._galaxyClickCallback = null;
-        window._switchToGalaxyView = null;
-      }
-    });
+    toggle3DBtn.style.display = 'none';
   }
 
   refreshPlanetDetail(stateRef);
+}
+
+/**
+ * 初始化3D地图回调（由 GameManager 在 init 后调用）
+ */
+export function init3DCallbacks(stateRef, onTravel, onGalaxyJump) {
+  // 确保3D渲染器已激活
+  if (!Renderer3D.isActive()) {
+    Renderer3D.toggleView();
+  }
+  window._mapHoverCallback = function(data) {
+    if (data) {
+      if (data.type === 'system') {
+        stateRef.hoveredSystem = data.id;
+      } else {
+        stateRef.hoveredSystem = null;
+      }
+      refreshPlanetDetail(stateRef);
+    } else {
+      stateRef.hoveredSystem = null;
+      refreshPlanetDetail(stateRef);
+    }
+  };
+  window._mapClickCallback = function(systemId) {
+    const sys = findSystem(systemId);
+    if (sys && sys.id !== stateRef.currentSystem) {
+      const playerLevel = stateRef.playerLevel || 1;
+      if (playerLevel < (sys.minLevel || 1)) return;
+      if (sys.galaxyId !== stateRef.currentGalaxy) {
+        if (onGalaxyJump) onGalaxyJump(sys.id);
+      } else {
+        if (onTravel) onTravel(sys.id);
+      }
+    }
+  };
+  window._galaxyClickCallback = function(galaxyId) {
+    const gal = findGalaxy(galaxyId);
+    if (gal) {
+      const unlocked = gal.unlocked ||
+        (stateRef.researchedTechs && stateRef.researchedTechs.includes(gal.techRequired));
+      if (unlocked) {
+        stateRef.viewingGalaxy = gal.id;
+        stateRef.mapView = 'planets';
+        _updateGalaxyBtn(stateRef);
+        refreshPlanetDetail(stateRef);
+      }
+    }
+  };
+  window._switchToGalaxyView = function() {
+    stateRef.mapView = 'galaxies';
+    _updateGalaxyBtn(stateRef);
+    refreshPlanetDetail(stateRef);
+  };
 }
 
 function _updateGalaxyBtn(stateRef) {

@@ -55,6 +55,10 @@ let _shipTrail = null;             // Engine trail particles
 let _flightPath = null;            // { curve, progress, fromId, toId, duration, startTime, onComplete }
 let _shipVisible = false;
 
+// 派遣航线可视化
+let _dispatchRouteLines = [];      // Dispatch route line meshes
+let _dispatchShipMarkers = [];     // Markers for dispatched ships
+
 // Raycaster
 let _raycaster, _mouse;
 
@@ -214,18 +218,12 @@ export function isActive() {
 
 export function toggleView() {
   _isActive = !_isActive;
-  const canvas2d = document.getElementById('map-canvas');
-  const canvasWebgl = document.getElementById('webgl-canvas');
 
   if (_isActive) {
     _canvas.style.display = 'block';
-    canvas2d.style.display = 'none';
-    canvasWebgl.style.display = 'none';
     _startAnimation();
   } else {
     _canvas.style.display = 'none';
-    canvas2d.style.display = 'block';
-    canvasWebgl.style.display = 'block';
     _stopAnimation();
   }
 }
@@ -411,6 +409,9 @@ export function render(state, mapView, galaxyId) {
 
     // Render connection lines
     _renderConnections(hierarchy.allPlanets);
+
+    // Render dispatch route lines for fleet ships
+    _renderDispatchRoutes(state);
   }
 }
 
@@ -439,6 +440,22 @@ function _clearPlanetMeshes() {
     s.material.dispose();
   });
   _textLabels = [];
+  // 清理派遣航线
+  _dispatchRouteLines.forEach(obj => {
+    _scene.remove(obj);
+    if (obj.geometry) obj.geometry.dispose();
+    if (obj.material) obj.material.dispose();
+  });
+  _dispatchRouteLines = [];
+  _dispatchShipMarkers.forEach(obj => {
+    _scene.remove(obj);
+    if (obj.geometry) obj.geometry.dispose();
+    if (obj.material) {
+      if (obj.material.map) obj.material.map.dispose();
+      obj.material.dispose();
+    }
+  });
+  _dispatchShipMarkers = [];
 }
 
 function _clearGalaxyMeshes() {
@@ -942,6 +959,86 @@ function _renderConnections(planets) {
 }
 
 // ---------------------------------------------------------------------------
+// 派遣航线可视化
+// ---------------------------------------------------------------------------
+
+function _renderDispatchRoutes(state) {
+  if (!state.fleet || state.fleet.length < 1) return;
+
+  const posMap = new Map();
+  _planetMetadata.forEach(m => posMap.set(m.id, m.position));
+
+  state.fleet.forEach(function (ship, idx) {
+    if (!ship.route) return;
+
+    const buyPos = posMap.get(ship.route.buySystemId);
+    const sellPos = posMap.get(ship.route.sellSystemId);
+    if (!buyPos || !sellPos) return;
+
+    // 弧线路径（仅用于动画插值，不渲染静态线）
+    const mid = buyPos.clone().lerp(sellPos, 0.5);
+    const dist = buyPos.distanceTo(sellPos);
+    mid.y += Math.max(dist * 0.15, 3);
+    const curve = new THREE.QuadraticBezierCurve3(buyPos, mid, sellPos);
+
+    const isActive = idx === (state.activeShipIndex || 0);
+    const routeColor = isActive ? 0x22d3ee : 0xfbbf24;
+    var goingToSell = ship.route.status === 'traveling_sell' || ship.route.status === 'selling';
+
+    // 飞行光点
+    var markerGeo = new THREE.SphereGeometry(1.2, 8, 8);
+    var markerMat = new THREE.MeshBasicMaterial({
+      color: routeColor,
+      transparent: true,
+      opacity: 0.9,
+    });
+    var marker = new THREE.Mesh(markerGeo, markerMat);
+    marker.userData._dispatchCurve = curve;
+    marker.userData._direction = goingToSell ? 1 : -1;
+    marker.userData._phaseOffset = idx * 1.1; // 多船相位错开
+    marker.position.copy(curve.getPointAt(0));
+    _scene.add(marker);
+    _dispatchShipMarkers.push(marker);
+    // 发光光晕
+    var glowGeo = new THREE.SphereGeometry(2.0, 8, 8);
+    var glowMat = new THREE.MeshBasicMaterial({
+      color: routeColor,
+      transparent: true,
+      opacity: 0.25,
+    });
+    var glow = new THREE.Mesh(glowGeo, glowMat);
+    marker.add(glow);
+
+    // 尾迹粒子线（跟随光点的短拖尾）
+    var trailCount = 20;
+    var trailGeo = new THREE.BufferGeometry();
+    var trailPositions = new Float32Array(trailCount * 3);
+    var initPos = curve.getPointAt(0);
+    for (var ti = 0; ti < trailCount; ti++) {
+      trailPositions[ti * 3]     = initPos.x;
+      trailPositions[ti * 3 + 1] = initPos.y;
+      trailPositions[ti * 3 + 2] = initPos.z;
+    }
+    trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
+    var trailMat = new THREE.PointsMaterial({
+      color: routeColor,
+      size: 0.4,
+      transparent: true,
+      opacity: 0.5,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      sizeAttenuation: true,
+    });
+    var trail = new THREE.Points(trailGeo, trailMat);
+    trail.userData._head = 0;
+    trail.userData._count = trailCount;
+    marker.userData._trail = trail;
+    _scene.add(trail);
+    _dispatchRouteLines.push(trail); // 复用 cleanup 数组
+  });
+}
+
+// ---------------------------------------------------------------------------
 // 选择环
 // ---------------------------------------------------------------------------
 
@@ -1303,6 +1400,26 @@ function _animate() {
 
   // Update ship flight
   _updateShipFlight(performance.now());
+
+  // Update dispatch ship markers (animated along curves with trails)
+  _dispatchShipMarkers.forEach(function (marker) {
+    if (!marker.userData._dispatchCurve) return;
+    var phase = marker.userData._phaseOffset || 0;
+    var prog = (((time + phase) % 3) / 3);
+    var eased = prog < 0.5 ? 2 * prog * prog : 1 - Math.pow(-2 * prog + 2, 2) / 2;
+    if (marker.userData._direction < 0) eased = 1 - eased;
+    var pos = marker.userData._dispatchCurve.getPointAt(eased);
+    marker.position.copy(pos);
+    // Update trail
+    var trail = marker.userData._trail;
+    if (trail) {
+      var posAttr = trail.geometry.attributes.position;
+      var head = trail.userData._head;
+      posAttr.setXYZ(head, pos.x, pos.y, pos.z);
+      trail.userData._head = (head + 1) % trail.userData._count;
+      posAttr.needsUpdate = true;
+    }
+  });
 
   // Update selection ring
   if (_selectionRing.visible) {
