@@ -30,6 +30,7 @@ export function on(event, fn) {
 export function off(event, fn) {
   if (!_listeners[event]) return;
   _listeners[event] = _listeners[event].filter(function (f) { return f !== fn; });
+  if (_listeners[event].length === 0) delete _listeners[event];
 }
 
 /**

@@ -174,7 +174,7 @@ function _getPolicyClaimableAmount(state, policyType) {
 
 function _processLoanDay(state, day, msgs) {
   _getActiveLoans(state).forEach(function (loan) {
-    const interest = Math.max(1, Math.round(loan.balance * loan.dailyInterestRate));
+    const interest = Math.max(0, Math.round(loan.balance * loan.dailyInterestRate));
     loan.balance += interest;
     loan.accruedInterest = (loan.accruedInterest || 0) + interest;
     loan.remainingDays = Math.max(0, (loan.remainingDays || 0) - 1);

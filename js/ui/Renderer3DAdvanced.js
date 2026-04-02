@@ -160,6 +160,7 @@ export function isActive() {
 }
 
 export function toggleView() {
+  if (!_engine || !_scene) return; // engine not initialized
   _isActive = !_isActive;
   const canvas2d = document.getElementById('map-canvas');
   const canvasWebgl = document.getElementById('webgl-canvas');
@@ -220,13 +221,14 @@ function _createDistantStars() {
   // buildMeshAsync is async; store a placeholder object so rotation code has a target
   const placeholder = { rotation: { y: 0 }, dispose: () => {} };
   pcs.buildMeshAsync().then(() => {
+    if (!pcs.mesh) return;
     const mesh = pcs.mesh;
     // Copy any rotation applied while building
     mesh.rotation.y = placeholder.rotation.y;
     if (_backgroundLayers) {
       _backgroundLayers.stars = mesh;
     }
-  });
+  }).catch(err => console.error('[Renderer3DAdvanced] buildMeshAsync error:', err));
 
   return placeholder;
 }
@@ -327,7 +329,7 @@ function _createGalaxyDisk() {
 // ---------------------------------------------------------------------------
 
 export function render(state, mapView, galaxyId) {
-  if (!_isActive) return;
+  if (!_isActive || !_scene || !_engine) return;
 
   _currentGalaxyId = galaxyId || 'milky_way';
   _currentSystem = state.currentSystem;

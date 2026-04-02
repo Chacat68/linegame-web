@@ -142,11 +142,17 @@ export function init(difficulty) {
   });
   Modal.init(_handleTradeConfirm);
 
-  document.getElementById('restart-btn').addEventListener('click', function () {
-    document.getElementById('gameover-modal').classList.add('hidden');
-    Tutorial.reset();
-    init();
-  });
+  // 重新绑定重启按钮（用 cloneNode 去掉旧 listener 避免叠加）
+  var oldRestartBtn = document.getElementById('restart-btn');
+  if (oldRestartBtn) {
+    var newRestartBtn = oldRestartBtn.cloneNode(true);
+    oldRestartBtn.parentNode.replaceChild(newRestartBtn, oldRestartBtn);
+    newRestartBtn.addEventListener('click', function () {
+      document.getElementById('gameover-modal').classList.add('hidden');
+      Tutorial.reset();
+      init();
+    });
+  }
 
   // 新手引导系统
   Tutorial.init(_state);
@@ -537,8 +543,11 @@ function _handleBlackMarketSell(good) {
 function _bindMarketModeButtons() {
   var btns = document.querySelectorAll('.market-mode-btn:not(.disabled)');
   btns.forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      var mode = btn.dataset.mode;
+    // 用 cloneNode 替换旧节点，避免重复绑定 listener
+    var fresh = btn.cloneNode(true);
+    btn.parentNode.replaceChild(fresh, btn);
+    fresh.addEventListener('click', function () {
+      var mode = fresh.dataset.mode;
       _blackMarketMode = mode === 'black';
       // 重新渲染详情
       var sysId = MapUI.getMarketViewSystem(_state);

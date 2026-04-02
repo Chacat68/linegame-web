@@ -13,10 +13,13 @@ import * as EventBus from '../../core/EventBus.js';
 export function init(state) {
   if (!state.factionRelations) {
     state.factionRelations = {};
-    FACTIONS.forEach(function (f) {
-      state.factionRelations[f.id] = 0; // 初始中立
-    });
   }
+  // 确保所有派系都有初始关系值
+  FACTIONS.forEach(function (f) {
+    if (state.factionRelations[f.id] === undefined) {
+      state.factionRelations[f.id] = 0; // 初始中立
+    }
+  });
 }
 
 /**

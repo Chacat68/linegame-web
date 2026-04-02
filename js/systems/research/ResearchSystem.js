@@ -139,7 +139,8 @@ export function advanceResearch(state) {
       state.currentResearch = { techId: next.techId, daysLeft: next.daysLeft };
       const nextTech = TECHNOLOGIES.find(function (t) { return t.id === next.techId; });
       EventBus.emit('research:started', { techId: next.techId, fromQueue: true });
-      msgs.push({ text: '▶️ 队列接力：开始研究「' + nextTech.name + '」，剩余 ' + next.daysLeft + ' 天。', type: 'info' });
+      const nextName = nextTech ? nextTech.name : next.techId;
+      msgs.push({ text: '▶️ 队列接力：开始研究「' + nextName + '」，剩余 ' + next.daysLeft + ' 天。', type: 'info' });
     }
 
     EventBus.emit('research:completed', { techId });
@@ -149,9 +150,11 @@ export function advanceResearch(state) {
     };
   }
 
+  const currentTech = TECHNOLOGIES.find(function (t) { return t.id === state.currentResearch.techId; });
+  const currentName = currentTech ? currentTech.name : state.currentResearch.techId;
   return {
     completed: false,
-    msgs: [{ text: '🔬 研究进度：「' + TECHNOLOGIES.find(function (t) { return t.id === state.currentResearch.techId; }).name + '」剩余 ' + state.currentResearch.daysLeft + ' 天。', type: 'info' }],
+    msgs: [{ text: '🔬 研究进度：「' + currentName + '」剩余 ' + state.currentResearch.daysLeft + ' 天。', type: 'info' }],
   };
 }
 

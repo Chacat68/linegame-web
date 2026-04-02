@@ -109,6 +109,7 @@ export function isActive() {
 }
 
 export function toggleView() {
+  if (!_engine || !_scene) return; // engine not initialized (e.g. WebGL unavailable)
   _isActive = !_isActive;
   const canvas2d = document.getElementById('map-canvas');
   const canvasWebgl = document.getElementById('webgl-canvas');
@@ -155,7 +156,7 @@ function _createStarField() {
 // ---------------------------------------------------------------------------
 
 export function render(state, mapView, currentGalaxyId) {
-  if (!_isActive) return;
+  if (!_isActive || !_scene || !_engine) return;
 
   _mapView = mapView || 'planets';
   _currentGalaxyId = currentGalaxyId || 'milky_way';

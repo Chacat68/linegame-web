@@ -393,7 +393,7 @@ export function checkProgress(state, context) {
 
   state.quests.forEach(function (quest) {
     // 检查是否超时
-    if (quest.timeLimit > 0 && state.day - quest.startDay > quest.timeLimit) {
+    if (quest.timeLimit > 0 && state.day - quest.startDay >= quest.timeLimit) {
       msgs.push({
         text: '⏰ 任务「' + quest.name + '」已超时失败！',
         type: 'error',
