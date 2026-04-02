@@ -2,7 +2,7 @@
 
 ## 概述
 
-基于 Three.js 实现的高性能星系可视化系统，支持数百个星球的策略级交互。采用分层数据架构和先进的渲染技术，在保持流畅性能的同时提供丰富的视觉效果。
+基于 Babylon.js 实现的高性能星系可视化系统，支持数百个星球的策略级交互。采用分层数据架构和先进的渲染技术，在保持流畅性能的同时提供丰富的视觉效果。
 
 ## 系统架构
 
@@ -95,7 +95,7 @@ GalaxyData.importGalaxyConfig(config);
 
 #### 功能特性
 
-- **InstancedMesh批量渲染**: 单次DrawCall渲染所有星球
+- **Thin Instances批量渲染**: 单次DrawCall渲染所有星球
 - **分层背景系统**: 远景恒星、星云、银河盘面
 - **势力边界可视化**: 凸包算法计算边界
 - **航线连接**: 星球间连接线显示
@@ -171,7 +171,7 @@ const QUALITY_SETTINGS = {
 
 ```javascript
 function _createDistantStars() {
-  const geometry = new THREE.BufferGeometry();
+  const geometry = new BABYLON.PointsCloudSystem("pcs", 2, _scene);
   const positions = [];
   const colors = [];
 
@@ -193,7 +193,7 @@ function _createDistantStars() {
     } // ...
   }
 
-  return new THREE.Points(geometry, material);
+  return pcs.mesh;
 }
 ```
 
@@ -219,7 +219,7 @@ function _createNebula() {
   const imageData = ctx.getImageData(0, 0, 512, 512);
   // ... 噪声处理
 
-  return new THREE.Mesh(geometry, material);
+  return BABYLON.MeshBuilder.CreateSphere("nebula", {diameter: 800}, _scene);
 }
 ```
 
@@ -230,7 +230,7 @@ function _createNebula() {
 - 大型平面(500x500)水平放置
 - 低透明度(0.15)提供空间感
 
-### 4. InstancedMesh 渲染
+### 4. Thin Instances 渲染
 
 #### 批量渲染优势
 
@@ -239,7 +239,7 @@ function _createNebula() {
 - GPU切换材质/几何体开销大
 - 性能随星球数线性下降
 
-InstancedMesh方式:
+Thin Instances方式:
 - 50个星球 = 1次DrawCall
 - 共享几何体和材质
 - 通过矩阵数组控制位置/缩放/颜色
@@ -249,22 +249,22 @@ InstancedMesh方式:
 
 ```javascript
 function _renderPlanetsInstanced(planets) {
-  const geometry = new THREE.SphereGeometry(1, 32, 32);
-  const material = new THREE.MeshPhongMaterial({
-    emissive: new THREE.Color(0x38bdf8),
+  const geometry = BABYLON.MeshBuilder.CreateSphere(1, 32, 32);
+  const material = new BABYLON.StandardMaterial({
+    emissive: BABYLON.Color3.FromHexString(0x38bdf8),
     emissiveIntensity: 0.3,
   });
 
-  _instancedPlanets = new THREE.InstancedMesh(
+  _instancedPlanets = new Thin Instances(
     geometry,
     material,
     planets.length
   );
 
-  const matrix = new THREE.Matrix4();
-  const position = new THREE.Vector3();
-  const scale = new THREE.Vector3();
-  const color = new THREE.Color();
+  const matrix = BABYLON.Matrix.Identity();
+  const position = new BABYLON.Vector3();
+  const scale = new BABYLON.Vector3();
+  const color = BABYLON.Color3.FromHexString();
 
   planets.forEach((planet, i) => {
     // 计算3D位置
@@ -279,7 +279,7 @@ function _renderPlanetsInstanced(planets) {
     scale.setScalar(size);
 
     // 应用变换
-    matrix.compose(position, new THREE.Quaternion(), scale);
+    matrix.compose(position, BABYLON.Quaternion.Identity(), scale);
     _instancedPlanets.setMatrixAt(i, matrix);
 
     // 设置颜色
@@ -331,13 +331,13 @@ function _convexHull(points) {
 
 ### 6. 性能优化策略
 
-#### InstancedMesh 批量渲染
+#### Thin Instances 批量渲染
 - ✅ 单次DrawCall渲染所有星球
 - ✅ 减少CPU-GPU通信
 - ✅ 共享几何体和材质
 
 #### 视锥剔除 (Frustum Culling)
-- ✅ Three.js自动剔除视口外对象
+- ✅ Babylon.js自动剔除视口外对象
 - ✅ 减少不必要的渲染计算
 
 #### 空间分割 (Octree)
@@ -438,7 +438,7 @@ function moveFleet(fromPlanetId, toPlanetId, shipCount) {
   const from = GalaxyData.getPlanetData(fromPlanetId);
   const to = GalaxyData.getPlanetData(toPlanetId);
 
-  // 创建舰队实例 (也用InstancedMesh渲染)
+  // 创建舰队实例 (也用Thin Instances渲染)
   createFleetInstance({
     startPos: from.position,
     endPos: to.position,
@@ -453,9 +453,9 @@ function moveFleet(fromPlanetId, toPlanetId, shipCount) {
 ```javascript
 // 粒子系统表现爆炸
 function createExplosion(position) {
-  const particles = new THREE.Points(
+  const particles = new Points(
     geometry,
-    new THREE.ShaderMaterial({
+    new BABYLON.ShaderMaterial({
       // 自定义着色器
     })
   );
@@ -468,12 +468,10 @@ function createExplosion(position) {
 ### 3. 后期处理
 
 ```javascript
-import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer';
-import { BloomPass } from 'three/examples/jsm/postprocessing/BloomPass';
-
+// Babylon.js 内置辉光效果
 // 可选开启泛光效果
-const composer = new EffectComposer(_renderer);
-composer.addPass(new BloomPass());
+const glowLayer = new BABYLON.GlowLayer('glow', _scene);
+glowLayer.intensity = 0.5;
 ```
 
 ## 故障排查
@@ -483,7 +481,7 @@ composer.addPass(new BloomPass());
 **Q: 星球不显示**
 - 检查GalaxyData是否已初始化
 - 确认Renderer3DAdvanced.isActive() 返回true
-- 检查浏览器控制台是否有Three.js错误
+- 检查浏览器控制台是否有Babylon.js错误
 
 **Q: 性能卡顿**
 - 降低画质设置: `setQuality('medium')` 或 `'low'`
@@ -521,13 +519,13 @@ composer.addPass(new BloomPass());
 
 ## 参考资料
 
-- [Three.js官方文档](https://threejs.org/docs/)
-- [InstancedMesh性能指南](https://threejs.org/docs/#api/en/objects/InstancedMesh)
+- [Babylon.js官方文档](https://doc.babylonjs.com/)
+- [Thin Instances性能指南](https://doc.babylonjs.com/)
 - [凸包算法详解](https://en.wikipedia.org/wiki/Convex_hull)
 - [LOD渲染技术](https://en.wikipedia.org/wiki/Level_of_detail)
 
 ## 贡献者
 
 - 初始实现: Claude Sonnet 4.5
-- 技术指导: Three.js社区
+- 技术指导: Babylon.js社区
 - 需求设计: 项目团队

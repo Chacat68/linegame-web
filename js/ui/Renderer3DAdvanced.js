@@ -1,39 +1,36 @@
-// js/ui/Renderer3DAdvanced.js — 增强型 3D 星图渲染器
-// 依赖：three.js, GalaxyDataLayer, data/systems.js, data/factions.js
-// 导出：init, render, focusPlanet, setQuality
+// js/ui/Renderer3DAdvanced.js — 增强型 3D 星图渲染器 (Babylon.js)
+// 依赖：babylon.js (global), GalaxyDataLayer, data/factions.js
+// 导出：init, render, focusPlanet, setQuality, setMotionLevel, isActive, toggleView,
+//       getSystemAtPoint, resetRuntimeState, resetCamera
 
 /**
- * 高级 3D 星图渲染系统
+ * 高级 3D 星图渲染系统 (Babylon.js)
  *
  * 特性：
- * - InstancedMesh 批量渲染星球（高性能）
+ * - Thin Instances 批量渲染星球（高性能）
  * - 分层背景系统（远景恒星、星云、银河盘面）
  * - 势力边界可视化（凸包算法）
  * - 航线与跃迁通道动画
  * - LOD 层级细节系统
- * - 空间分割优化（八叉树）
- * - 自定义 Shader 材质
+ * - 选择环指示器（脉冲动画）
+ * - 画质等级管理
  */
 
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import * as GalaxyData from '../systems/galaxy/GalaxyDataLayer.js';
 import { FACTIONS } from '../data/factions.js';
 
 // 渲染上下文
-let _scene, _camera, _renderer, _controls, _canvas;
-let _animationId = null;
+let _engine, _scene, _camera, _canvas;
 let _isActive = false;
 
 // 渲染对象
-let _instancedPlanets = null;      // InstancedMesh for planets
+let _basePlanetMesh = null;        // Base mesh for thin instances
 let _instanceCount = 0;
-let _planetMetadata = [];          // { id, index, position, size, color }
-let _backgroundLayers = null;      // { stars, nebula, disk }
-let _factionBoundaries = [];       // Faction boundary meshes
-let _connectionLines = [];         // Trade routes
-let _selectionRing = null;         // Selection indicator
-let _octree = null;                // Spatial partitioning
+let _planetMetadata = [];           // { id, index, position, size, color }
+let _backgroundLayers = null;       // { stars, nebula, disk }
+let _factionBoundaries = [];        // Faction boundary meshes
+let _connectionLines = [];          // Trade routes
+let _selectionRing = null;          // Selection indicator
 
 // 状态
 let _currentGalaxyId = 'milky_way';
@@ -41,12 +38,9 @@ let _currentSystem = null;
 let _hoveredPlanet = null;
 let _selectedPlanet = null;
 let _motionLevel = 'full';
-let _qualityLevel = 'high';        // high, medium, low
-let _cameraTarget = null;          // For smooth camera transitions
+let _qualityLevel = 'high';
+let _cameraTarget = null;
 let _cameraTransitionProgress = 0;
-
-// Raycaster
-let _raycaster, _mouse;
 
 // 质量设置
 const _QUALITY_SETTINGS = {
@@ -78,14 +72,12 @@ const _QUALITY_SETTINGS = {
 
 // 颜色方案
 const _COLORS = {
-  bgTop: 0x020817,
-  bgBottom: 0x061528,
-  starCore: 0xdffbff,
-  starGlow: 0x38bdf8,
-  current: 0x67e8f9,
-  hover: 0xffffff,
-  selected: 0xffff00,
-  neutral: 0x607d8b,
+  bgTop: new BABYLON.Color4(0.008, 0.031, 0.09, 1),
+  starGlow: new BABYLON.Color3(0.22, 0.74, 0.97),
+  current: new BABYLON.Color3(0.40, 0.91, 0.98),
+  hover: new BABYLON.Color3(1, 1, 1),
+  selected: new BABYLON.Color3(1, 1, 0),
+  neutral: new BABYLON.Color3(0.376, 0.490, 0.545),
 };
 
 // ---------------------------------------------------------------------------
@@ -99,48 +91,46 @@ export function init() {
     return;
   }
 
-  // Setup scene
-  _scene = new THREE.Scene();
-  _scene.background = new THREE.Color(_COLORS.bgTop);
-  _scene.fog = new THREE.Fog(_COLORS.bgTop, 100, 500);
-
-  // Setup camera
-  const container = document.getElementById('map-container');
-  const aspect = container.clientWidth / container.clientHeight;
-  _camera = new THREE.PerspectiveCamera(60, aspect, 0.1, 1000);
-  _camera.position.set(0, 80, 150);
-  _camera.lookAt(0, 0, 0);
-
-  // Setup renderer
-  _renderer = new THREE.WebGLRenderer({
-    canvas: _canvas,
-    antialias: _qualityLevel !== 'low',
-    alpha: false,
+  // Create engine
+  _engine = new BABYLON.Engine(_canvas, _qualityLevel !== 'low', {
+    preserveDrawingBuffer: true,
+    stencil: true,
     powerPreference: 'high-performance',
   });
-  _renderer.setSize(container.clientWidth, container.clientHeight);
-  _renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-  // Setup controls
-  _controls = new OrbitControls(_camera, _canvas);
-  _controls.enableDamping = true;
-  _controls.dampingFactor = 0.05;
-  _controls.screenSpacePanning = false;
-  _controls.minDistance = 20;
-  _controls.maxDistance = 400;
-  _controls.maxPolarAngle = Math.PI / 1.8;
+  // Create scene
+  _scene = new BABYLON.Scene(_engine);
+  _scene.clearColor = _COLORS.bgTop;
+  _scene.fogMode = BABYLON.Scene.FOGMODE_LINEAR;
+  _scene.fogColor = new BABYLON.Color3(0.008, 0.031, 0.09);
+  _scene.fogStart = 100;
+  _scene.fogEnd = 500;
 
-  // Setup lights
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
-  _scene.add(ambientLight);
+  // Create ArcRotateCamera (built-in orbit controls)
+  _camera = new BABYLON.ArcRotateCamera(
+    'advCamera',
+    -Math.PI / 2,    // alpha
+    Math.PI / 3,     // beta
+    170,             // radius (~equivalent to position (0, 80, 150))
+    new BABYLON.Vector3(0, 0, 0),
+    _scene
+  );
+  _camera.attachControl(_canvas, true);
+  _camera.inertia = 0.9;
+  _camera.lowerRadiusLimit = 20;
+  _camera.upperRadiusLimit = 400;
+  _camera.upperBetaLimit = Math.PI / 1.8;
+  _camera.minZ = 0.1;
+  _camera.maxZ = 1000;
 
-  const pointLight = new THREE.PointLight(0x38bdf8, 1.5, 500);
-  pointLight.position.set(0, 100, 100);
-  _scene.add(pointLight);
+  // Lights
+  const hemiLight = new BABYLON.HemisphericLight('hemiLight', new BABYLON.Vector3(0, 1, 0), _scene);
+  hemiLight.intensity = 0.3;
 
-  // Setup raycaster
-  _raycaster = new THREE.Raycaster();
-  _mouse = new THREE.Vector2();
+  const pointLight = new BABYLON.PointLight('pointLight', new BABYLON.Vector3(0, 100, 100), _scene);
+  pointLight.diffuse = new BABYLON.Color3(0.22, 0.74, 0.97);
+  pointLight.intensity = 1.5;
+  pointLight.range = 500;
 
   // Create background layers
   _createBackgroundLayers();
@@ -149,11 +139,11 @@ export function init() {
   _createSelectionRing();
 
   // Setup event listeners
-  window.addEventListener('resize', _onResize);
-  _canvas.addEventListener('mousemove', _onMouseMove);
-  _canvas.addEventListener('click', _onClick);
+  window.addEventListener('resize', () => _engine.resize());
+  _scene.onPointerMove = _onPointerMove;
+  _scene.onPointerPick = _onPointerPick;
 
-  console.log('Renderer3DAdvanced initialized');
+  console.log('Renderer3DAdvanced initialized (Babylon.js)');
 }
 
 export function setQuality(level) {
@@ -178,6 +168,7 @@ export function toggleView() {
     _canvas.style.display = 'block';
     canvas2d.style.display = 'none';
     canvasWebgl.style.display = 'none';
+    _engine.resize();
     _startAnimation();
   } else {
     _canvas.style.display = 'none';
@@ -201,57 +192,47 @@ function _createBackgroundLayers() {
 
 function _createDistantStars() {
   const quality = _QUALITY_SETTINGS[_qualityLevel];
-  const geometry = new THREE.BufferGeometry();
-  const positions = [];
-  const colors = [];
+  const pcs = new BABYLON.PointsCloudSystem('distantStars', 2, _scene);
 
-  for (let i = 0; i < quality.starCount; i++) {
+  pcs.addPoints(quality.starCount, function (particle) {
     // Spherical distribution
     const theta = Math.random() * Math.PI * 2;
     const phi = Math.acos(Math.random() * 2 - 1);
     const radius = 300 + Math.random() * 200;
 
-    const x = radius * Math.sin(phi) * Math.cos(theta);
-    const y = radius * Math.sin(phi) * Math.sin(theta);
-    const z = radius * Math.cos(phi);
-
-    positions.push(x, y, z);
+    particle.position = new BABYLON.Vector3(
+      radius * Math.sin(phi) * Math.cos(theta),
+      radius * Math.sin(phi) * Math.sin(theta),
+      radius * Math.cos(phi)
+    );
 
     // Varying colors
     const colorVariation = Math.random();
     if (colorVariation < 0.7) {
-      colors.push(0.8, 0.9, 1); // Blue-white
+      particle.color = new BABYLON.Color4(0.8, 0.9, 1, 0.8);   // Blue-white
     } else if (colorVariation < 0.9) {
-      colors.push(1, 0.9, 0.7); // Yellow-white
+      particle.color = new BABYLON.Color4(1, 0.9, 0.7, 0.8);   // Yellow-white
     } else {
-      colors.push(1, 0.7, 0.6); // Orange-red
+      particle.color = new BABYLON.Color4(1, 0.7, 0.6, 0.8);   // Orange-red
     }
-  }
-
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-
-  const material = new THREE.PointsMaterial({
-    size: 1.5,
-    vertexColors: true,
-    transparent: true,
-    opacity: 0.8,
-    sizeAttenuation: true,
-    depthWrite: false,
   });
 
-  const stars = new THREE.Points(geometry, material);
-  _scene.add(stars);
+  let starsMesh = null;
+  pcs.buildMeshAsync().then(() => {
+    starsMesh = pcs.mesh;
+    if (_backgroundLayers) {
+      _backgroundLayers.stars = starsMesh;
+    }
+  });
 
-  return stars;
+  return starsMesh; // Will be null initially, updated async
 }
 
 function _createNebula() {
   // Create procedural nebula texture
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 512;
-  const ctx = canvas.getContext('2d');
+  const dtex = new BABYLON.DynamicTexture('nebulaTex', { width: 512, height: 512 }, _scene);
+  dtex.hasAlpha = true;
+  const ctx = dtex.getContext();
 
   // Gradient background
   const gradient = ctx.createRadialGradient(256, 256, 0, 256, 256, 256);
@@ -266,43 +247,41 @@ function _createNebula() {
   const data = imageData.data;
   for (let i = 0; i < data.length; i += 4) {
     const noise = Math.random() * 30;
-    data[i] += noise;
-    data[i + 1] += noise;
-    data[i + 2] += noise;
+    data[i] = Math.min(255, data[i] + noise);
+    data[i + 1] = Math.min(255, data[i + 1] + noise);
+    data[i + 2] = Math.min(255, data[i + 2] + noise);
   }
   ctx.putImageData(imageData, 0, 0);
+  dtex.update();
 
-  const texture = new THREE.CanvasTexture(canvas);
-  const geometry = new THREE.SphereGeometry(400, 32, 32);
-  const material = new THREE.MeshBasicMaterial({
-    map: texture,
-    transparent: true,
-    opacity: 0.3,
-    side: THREE.BackSide,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-  });
+  const nebula = BABYLON.MeshBuilder.CreateSphere('nebula', {
+    diameter: 800, segments: 32, sideOrientation: BABYLON.Mesh.BACKSIDE,
+  }, _scene);
 
-  const nebula = new THREE.Mesh(geometry, material);
-  _scene.add(nebula);
+  const mat = new BABYLON.StandardMaterial('nebulaMat', _scene);
+  mat.diffuseTexture = dtex;
+  mat.emissiveColor = new BABYLON.Color3(0.3, 0.3, 0.4);
+  mat.disableLighting = true;
+  mat.alpha = 0.3;
+  mat.backFaceCulling = false;
+  nebula.material = mat;
+  nebula.isPickable = false;
 
   return nebula;
 }
 
 function _createGalaxyDisk() {
   // Create spiral galaxy disk texture
-  const canvas = document.createElement('canvas');
-  canvas.width = 1024;
-  canvas.height = 1024;
-  const ctx = canvas.getContext('2d');
+  const dtex = new BABYLON.DynamicTexture('diskTex', { width: 1024, height: 1024 }, _scene);
+  dtex.hasAlpha = true;
+  const ctx = dtex.getContext();
 
   const centerX = 512;
   const centerY = 512;
 
-  // Draw spiral arms
-  ctx.fillStyle = 'rgba(0, 0, 0, 0)';
-  ctx.fillRect(0, 0, 1024, 1024);
+  ctx.clearRect(0, 0, 1024, 1024);
 
+  // Draw spiral arms
   for (let arm = 0; arm < 3; arm++) {
     const armAngle = (arm / 3) * Math.PI * 2;
     ctx.strokeStyle = `rgba(103, 232, 249, ${0.1 + Math.random() * 0.1})`;
@@ -319,27 +298,29 @@ function _createGalaxyDisk() {
     }
     ctx.stroke();
   }
+  dtex.update();
 
-  const texture = new THREE.CanvasTexture(canvas);
-  const geometry = new THREE.PlaneGeometry(500, 500);
-  const material = new THREE.MeshBasicMaterial({
-    map: texture,
-    transparent: true,
-    opacity: 0.15,
-    side: THREE.DoubleSide,
-    depthWrite: false,
-  });
-
-  const disk = new THREE.Mesh(geometry, material);
-  disk.rotation.x = -Math.PI / 2;
+  const disk = BABYLON.MeshBuilder.CreatePlane('galaxyDisk', {
+    width: 500, height: 500, sideOrientation: BABYLON.Mesh.DOUBLESIDE,
+  }, _scene);
+  disk.rotation.x = Math.PI / 2;
   disk.position.y = -5;
-  _scene.add(disk);
+
+  const mat = new BABYLON.StandardMaterial('diskMat', _scene);
+  mat.diffuseTexture = dtex;
+  mat.emissiveColor = new BABYLON.Color3(0.3, 0.5, 0.6);
+  mat.disableLighting = true;
+  mat.alpha = 0.15;
+  mat.backFaceCulling = false;
+  mat.useAlphaFromDiffuseTexture = true;
+  disk.material = mat;
+  disk.isPickable = false;
 
   return disk;
 }
 
 // ---------------------------------------------------------------------------
-// 星球渲染（InstancedMesh）
+// 星球渲染（Thin Instances）
 // ---------------------------------------------------------------------------
 
 export function render(state, mapView, galaxyId) {
@@ -349,18 +330,16 @@ export function render(state, mapView, galaxyId) {
   _currentSystem = state.currentSystem;
 
   // Clear existing planet meshes
-  if (_instancedPlanets) {
-    _scene.remove(_instancedPlanets);
-    _instancedPlanets.geometry.dispose();
-    _instancedPlanets.material.dispose();
-    _instancedPlanets = null;
+  if (_basePlanetMesh) {
+    _basePlanetMesh.dispose();
+    _basePlanetMesh = null;
   }
 
   // Get galaxy hierarchy from data layer
   const hierarchy = GalaxyData.getGalaxyHierarchy(_currentGalaxyId);
   if (!hierarchy) return;
 
-  // Render planets with instancing
+  // Render planets with thin instancing
   _renderPlanetsInstanced(hierarchy.allPlanets, state);
 
   // Render faction boundaries
@@ -375,22 +354,22 @@ function _renderPlanetsInstanced(planets, state) {
   _instanceCount = planets.length;
   _planetMetadata = [];
 
-  // Create shared geometry and material
-  const geometry = new THREE.SphereGeometry(1, quality.planetSegments, quality.planetSegments);
-  const material = new THREE.MeshPhongMaterial({
-    emissive: new THREE.Color(_COLORS.starGlow),
-    emissiveIntensity: 0.3,
-    shininess: 30,
-  });
+  if (_instanceCount === 0) return;
 
-  // Create instanced mesh
-  _instancedPlanets = new THREE.InstancedMesh(geometry, material, _instanceCount);
-  _instancedPlanets.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  // Create base mesh for thin instances
+  _basePlanetMesh = BABYLON.MeshBuilder.CreateSphere('basePlanet', {
+    diameter: 2, segments: quality.planetSegments,
+  }, _scene);
 
-  const matrix = new THREE.Matrix4();
-  const color = new THREE.Color();
-  const position = new THREE.Vector3();
-  const scale = new THREE.Vector3();
+  const material = new BABYLON.StandardMaterial('planetMat', _scene);
+  material.emissiveColor = _COLORS.starGlow.scale(0.3);
+  material.specularPower = 30;
+  _basePlanetMesh.material = material;
+
+  // Use thin instances for high-performance batch rendering
+  // First instance is the base mesh itself, so we set it up
+  const matrices = [];
+  const colors = [];
 
   planets.forEach((planet, i) => {
     // Calculate 3D position
@@ -399,42 +378,65 @@ function _renderPlanetsInstanced(planets, state) {
     const y = Math.sin(planet.position.x * Math.PI * 2) * 10 +
               Math.cos(planet.position.y * Math.PI * 2) * 5;
 
-    position.set(x, y, z);
+    const position = new BABYLON.Vector3(x, y, z);
 
     // Calculate size based on type
     const baseSize = 2 + Math.random() * 2;
     const sizeMultiplier = planet.type === 'special' ? 1.5 : 1.0;
-    scale.setScalar(baseSize * sizeMultiplier);
+    const finalSize = baseSize * sizeMultiplier;
+    const scale = new BABYLON.Vector3(finalSize, finalSize, finalSize);
 
-    // Set matrix
-    matrix.compose(position, new THREE.Quaternion(), scale);
-    _instancedPlanets.setMatrixAt(i, matrix);
+    // Compose matrix
+    const matrix = BABYLON.Matrix.Compose(
+      scale,
+      BABYLON.Quaternion.Identity(),
+      position
+    );
 
-    // Set color
-    color.set(_getSystemColor(planet.type));
-    _instancedPlanets.setColorAt(i, color);
+    if (i === 0) {
+      // First instance uses the base mesh world matrix
+      _basePlanetMesh.position = position;
+      _basePlanetMesh.scaling = scale;
+    } else {
+      matrices.push(matrix);
+    }
+
+    // Color
+    const hexColor = _getSystemColor(planet.type);
+    const color = BABYLON.Color3.FromHexString(hexColor);
+    if (i > 0) {
+      colors.push(color.r, color.g, color.b, 1);
+    }
 
     // Store metadata
     _planetMetadata.push({
       id: planet.id,
       index: i,
       position: position.clone(),
-      size: baseSize * sizeMultiplier,
-      color: color.clone(),
+      size: finalSize,
+      color: color,
       type: planet.type,
       owner: planet.owner,
     });
   });
 
-  _instancedPlanets.instanceMatrix.needsUpdate = true;
-  if (_instancedPlanets.instanceColor) {
-    _instancedPlanets.instanceColor.needsUpdate = true;
+  // Add thin instances (skip index 0, that's the base mesh)
+  if (matrices.length > 0) {
+    const matrixArray = new Float32Array(matrices.length * 16);
+    matrices.forEach((mat, i) => {
+      mat.copyToArray(matrixArray, i * 16);
+    });
+    _basePlanetMesh.thinInstanceSetBuffer('matrix', matrixArray, 16);
+
+    // Set instance colors
+    if (colors.length > 0) {
+      const colorArray = new Float32Array(colors);
+      _basePlanetMesh.thinInstanceSetBuffer('color', colorArray, 4);
+    }
   }
 
-  _scene.add(_instancedPlanets);
-
-  // Build octree for fast raycasting
-  _buildOctree();
+  // Enable thin instance picking
+  _basePlanetMesh.thinInstanceEnablePicking = true;
 }
 
 function _getSystemColor(type) {
@@ -462,7 +464,7 @@ function _renderFactionBoundaries(planets) {
   if (!quality.enableBoundaries) return;
 
   // Clear existing boundaries
-  _factionBoundaries.forEach(b => _scene.remove(b));
+  _factionBoundaries.forEach(b => b.dispose());
   _factionBoundaries = [];
 
   // Group planets by faction
@@ -478,7 +480,7 @@ function _renderFactionBoundaries(planets) {
 
   // Draw boundary for each faction
   Object.entries(factionPlanets).forEach(([factionId, factionPlanetList]) => {
-    if (factionPlanetList.length < 3) return; // Need at least 3 points for a boundary
+    if (factionPlanetList.length < 3) return;
 
     const faction = FACTIONS.find(f => f.id === factionId);
     if (!faction) return;
@@ -493,19 +495,19 @@ function _renderFactionBoundaries(planets) {
     if (hull.length < 3) return;
 
     // Create boundary line
-    const points3D = hull.map(p => new THREE.Vector3(p.x, 5, p.y));
+    const points3D = hull.map(p => new BABYLON.Vector3(p.x, 5, p.y));
     points3D.push(points3D[0].clone()); // Close the loop
 
-    const geometry = new THREE.BufferGeometry().setFromPoints(points3D);
-    const material = new THREE.LineBasicMaterial({
-      color: faction.color || '#4FC3F7',
-      transparent: true,
-      opacity: 0.4,
-      linewidth: 2,
-    });
+    const boundary = BABYLON.MeshBuilder.CreateLines('boundary_' + factionId, {
+      points: points3D,
+      updatable: false,
+    }, _scene);
 
-    const boundary = new THREE.Line(geometry, material);
-    _scene.add(boundary);
+    const factionColor = BABYLON.Color3.FromHexString(faction.color || '#4FC3F7');
+    boundary.color = factionColor;
+    boundary.alpha = 0.4;
+    boundary.isPickable = false;
+
     _factionBoundaries.push(boundary);
   });
 }
@@ -514,7 +516,6 @@ function _renderFactionBoundaries(planets) {
 function _convexHull(points) {
   if (points.length < 3) return points;
 
-  // Find leftmost point
   let leftmost = points[0];
   points.forEach(p => {
     if (p.x < leftmost.x || (p.x === leftmost.x && p.y < leftmost.y)) {
@@ -555,19 +556,17 @@ function _convexHull(points) {
 
 function _renderConnections(planets) {
   // Clear existing connections
-  _connectionLines.forEach(line => _scene.remove(line));
+  _connectionLines.forEach(line => line.dispose());
   _connectionLines = [];
 
-  // Draw connections between nearby planets
   planets.forEach(planet => {
-    const p1 = {
-      x: (planet.position.x - 0.5) * 120,
-      z: (planet.position.y - 0.5) * 120,
-      y: Math.sin(planet.position.x * Math.PI * 2) * 10 +
-          Math.cos(planet.position.y * Math.PI * 2) * 5,
-    };
+    const p1 = new BABYLON.Vector3(
+      (planet.position.x - 0.5) * 120,
+      Math.sin(planet.position.x * Math.PI * 2) * 10 +
+        Math.cos(planet.position.y * Math.PI * 2) * 5,
+      (planet.position.y - 0.5) * 120
+    );
 
-    // Find nearby planets
     planets.forEach(other => {
       if (planet.id >= other.id) return; // Avoid duplicates
 
@@ -576,27 +575,20 @@ function _renderConnections(planets) {
       const dist = Math.sqrt(dx * dx + dy * dy);
 
       if (dist < 0.12) {
-        const p2 = {
-          x: (other.position.x - 0.5) * 120,
-          z: (other.position.y - 0.5) * 120,
-          y: Math.sin(other.position.x * Math.PI * 2) * 10 +
-              Math.cos(other.position.y * Math.PI * 2) * 5,
-        };
+        const p2 = new BABYLON.Vector3(
+          (other.position.x - 0.5) * 120,
+          Math.sin(other.position.x * Math.PI * 2) * 10 +
+            Math.cos(other.position.y * Math.PI * 2) * 5,
+          (other.position.y - 0.5) * 120
+        );
 
-        const points = [
-          new THREE.Vector3(p1.x, p1.y, p1.z),
-          new THREE.Vector3(p2.x, p2.y, p2.z),
-        ];
-
-        const geometry = new THREE.BufferGeometry().setFromPoints(points);
-        const material = new THREE.LineBasicMaterial({
-          color: 0x38bdf8,
-          transparent: true,
-          opacity: 0.1,
-        });
-
-        const line = new THREE.Line(geometry, material);
-        _scene.add(line);
+        const line = BABYLON.MeshBuilder.CreateLines('conn_' + planet.id + '_' + other.id, {
+          points: [p1, p2],
+          updatable: false,
+        }, _scene);
+        line.color = new BABYLON.Color3(0.22, 0.74, 0.97);
+        line.alpha = 0.1;
+        line.isPickable = false;
         _connectionLines.push(line);
       }
     });
@@ -608,36 +600,18 @@ function _renderConnections(planets) {
 // ---------------------------------------------------------------------------
 
 function _createSelectionRing() {
-  const geometry = new THREE.RingGeometry(3, 3.5, 32);
-  const material = new THREE.MeshBasicMaterial({
-    color: _COLORS.selected,
-    side: THREE.DoubleSide,
-    transparent: true,
-    opacity: 0.8,
-  });
+  _selectionRing = BABYLON.MeshBuilder.CreateTorus('selectionRing', {
+    diameter: 7, thickness: 0.5, tessellation: 32,
+  }, _scene);
+  _selectionRing.rotation.x = Math.PI / 2;
 
-  _selectionRing = new THREE.Mesh(geometry, material);
-  _selectionRing.rotation.x = -Math.PI / 2;
-  _selectionRing.visible = false;
-  _scene.add(_selectionRing);
-}
-
-// ---------------------------------------------------------------------------
-// 空间分割（八叉树）
-// ---------------------------------------------------------------------------
-
-function _buildOctree() {
-  // Simple octree implementation for fast raycasting
-  _octree = {
-    bounds: { min: { x: -60, y: -30, z: -60 }, max: { x: 60, y: 30, z: 60 } },
-    planets: _planetMetadata,
-  };
-}
-
-function _queryOctree(ray) {
-  // For now, return all planets (simple implementation)
-  // In production, this would traverse the octree
-  return _planetMetadata;
+  const mat = new BABYLON.StandardMaterial('selectionRingMat', _scene);
+  mat.emissiveColor = _COLORS.selected;
+  mat.disableLighting = true;
+  mat.alpha = 0.8;
+  _selectionRing.material = mat;
+  _selectionRing.isPickable = false;
+  _selectionRing.setEnabled(false);
 }
 
 // ---------------------------------------------------------------------------
@@ -656,13 +630,13 @@ export function focusPlanet(planetId, smooth = true) {
     _cameraTarget = targetPos;
     _cameraTransitionProgress = 0;
   } else {
-    _camera.position.copy(targetPos);
-    _camera.lookAt(metadata.position);
+    _camera.setPosition(targetPos);
+    _camera.setTarget(metadata.position);
   }
 }
 
 export function resetCamera() {
-  _cameraTarget = new THREE.Vector3(0, 80, 150);
+  _cameraTarget = new BABYLON.Vector3(0, 80, 150);
   _cameraTransitionProgress = 0;
 }
 
@@ -670,112 +644,108 @@ export function resetCamera() {
 // 动画循环
 // ---------------------------------------------------------------------------
 
+let _renderLoopFn = null;
+
 function _startAnimation() {
-  if (_animationId) return;
-  _animate();
+  if (_renderLoopFn) return;
+
+  _renderLoopFn = () => {
+    const time = Date.now() * 0.001;
+
+    // Camera transition
+    if (_cameraTarget && _cameraTransitionProgress < 1) {
+      _cameraTransitionProgress += 0.02;
+      const currentPos = _camera.position;
+      _camera.position = BABYLON.Vector3.Lerp(currentPos, _cameraTarget, 0.05);
+
+      if (_cameraTransitionProgress >= 1) {
+        _cameraTarget = null;
+      }
+    }
+
+    // Rotate background slowly
+    if (_backgroundLayers && _motionLevel !== 'off') {
+      const speed = _motionLevel === 'reduced' ? 0.0001 : 0.0003;
+      if (_backgroundLayers.stars) {
+        _backgroundLayers.stars.rotation.y += speed;
+      }
+      if (_backgroundLayers.nebula) {
+        _backgroundLayers.nebula.rotation.y += speed * 0.5;
+      }
+    }
+
+    // Update selection ring
+    if (_selectionRing && _selectionRing.isEnabled()) {
+      _selectionRing.rotation.z += 0.01;
+      const s = 1 + Math.sin(time * 3) * 0.1;
+      _selectionRing.scaling = new BABYLON.Vector3(s, s, s);
+    }
+
+    _scene.render();
+  };
+
+  _engine.runRenderLoop(_renderLoopFn);
 }
 
 function _stopAnimation() {
-  if (_animationId) {
-    cancelAnimationFrame(_animationId);
-    _animationId = null;
+  if (_renderLoopFn) {
+    _engine.stopRenderLoop(_renderLoopFn);
+    _renderLoopFn = null;
   }
-}
-
-function _animate() {
-  _animationId = requestAnimationFrame(_animate);
-
-  const time = Date.now() * 0.001;
-
-  // Update controls
-  _controls.update();
-
-  // Camera transition
-  if (_cameraTarget && _cameraTransitionProgress < 1) {
-    _cameraTransitionProgress += 0.02;
-    _camera.position.lerp(_cameraTarget, 0.05);
-
-    if (_cameraTransitionProgress >= 1) {
-      _cameraTarget = null;
-    }
-  }
-
-  // Rotate background slowly
-  if (_backgroundLayers && _motionLevel !== 'off') {
-    const speed = _motionLevel === 'reduced' ? 0.0001 : 0.0003;
-    _backgroundLayers.stars.rotation.y += speed;
-    _backgroundLayers.nebula.rotation.y += speed * 0.5;
-  }
-
-  // Update selection ring
-  if (_selectionRing.visible) {
-    _selectionRing.rotation.z += 0.01;
-    _selectionRing.scale.setScalar(1 + Math.sin(time * 3) * 0.1);
-  }
-
-  _renderer.render(_scene, _camera);
 }
 
 // ---------------------------------------------------------------------------
 // 事件处理
 // ---------------------------------------------------------------------------
 
-function _onResize() {
-  if (!_isActive) return;
-  const container = document.getElementById('map-container');
-  const w = container.clientWidth;
-  const h = container.clientHeight;
-  _camera.aspect = w / h;
-  _camera.updateProjectionMatrix();
-  _renderer.setSize(w, h);
-}
-
-function _onMouseMove(event) {
-  const rect = _canvas.getBoundingClientRect();
-  _mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-  _mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
-  _raycaster.setFromCamera(_mouse, _camera);
-
-  // Raycast against instanced mesh
-  const intersects = _raycaster.intersectObject(_instancedPlanets);
-
+function _onPointerMove(evt, pickResult) {
   if (_hoveredPlanet) {
     _hoveredPlanet = null;
   }
 
-  if (intersects.length > 0) {
-    const instanceId = intersects[0].instanceId;
-    const metadata = _planetMetadata[instanceId];
+  if (pickResult.hit && pickResult.pickedMesh) {
+    const mesh = pickResult.pickedMesh;
 
-    if (metadata) {
-      _hoveredPlanet = metadata;
-      _canvas.style.cursor = 'pointer';
+    // Handle thin instance picking
+    if (mesh === _basePlanetMesh) {
+      const instanceIndex = pickResult.thinInstanceIndex;
+      // thinInstanceIndex: 0 = base mesh, 1+ = thin instances
+      // Our metadata index 0 = base mesh, metadata index 1+ corresponds to thin instance index
+      const metaIndex = instanceIndex >= 0 ? instanceIndex : 0;
+      const metadata = _planetMetadata[metaIndex];
 
-      // Dispatch hover event
-      if (window._mapHoverCallback) {
-        const planetData = GalaxyData.getPlanetData(metadata.id);
-        window._mapHoverCallback(planetData);
+      if (metadata) {
+        _hoveredPlanet = metadata;
+        _canvas.style.cursor = 'pointer';
+
+        if (window._mapHoverCallback) {
+          const planetData = GalaxyData.getPlanetData(metadata.id);
+          window._mapHoverCallback(planetData);
+        }
+        return;
       }
     }
-  } else {
-    _canvas.style.cursor = 'default';
-    if (window._mapHoverCallback) {
-      window._mapHoverCallback(null);
-    }
+  }
+
+  _canvas.style.cursor = 'default';
+  if (window._mapHoverCallback) {
+    window._mapHoverCallback(null);
   }
 }
 
-function _onClick(event) {
+function _onPointerPick(evt, pickResult) {
   if (!_hoveredPlanet) return;
 
   _selectedPlanet = _hoveredPlanet;
 
   // Position selection ring
-  _selectionRing.position.copy(_hoveredPlanet.position);
-  _selectionRing.position.y += 0.1;
-  _selectionRing.scale.setScalar(_hoveredPlanet.size + 0.5);
-  _selectionRing.visible = true;
+  if (_selectionRing) {
+    _selectionRing.position = _hoveredPlanet.position.clone();
+    _selectionRing.position.y += 0.1;
+    const ringScale = _hoveredPlanet.size + 0.5;
+    _selectionRing.scaling = new BABYLON.Vector3(ringScale, ringScale, ringScale);
+    _selectionRing.setEnabled(true);
+  }
 
   // Dispatch click event
   if (window._mapClickCallback) {
@@ -788,18 +758,9 @@ function _onClick(event) {
 // ---------------------------------------------------------------------------
 
 function _applyQualitySettings() {
-  const quality = _QUALITY_SETTINGS[_qualityLevel];
-
-  // Update renderer
-  _renderer.setPixelRatio(
-    _qualityLevel === 'low' ? 1 : Math.min(window.devicePixelRatio, 2)
-  );
-
-  // Rebuild background if needed
-  if (_backgroundLayers) {
-    _scene.remove(_backgroundLayers.stars);
-    _backgroundLayers.stars.geometry.dispose();
-    _backgroundLayers.stars.material.dispose();
+  // Rebuild background stars with new quality
+  if (_backgroundLayers && _backgroundLayers.stars) {
+    _backgroundLayers.stars.dispose();
     _backgroundLayers.stars = _createDistantStars();
   }
 
@@ -820,6 +781,6 @@ export function resetRuntimeState(currentSystemId) {
   _hoveredPlanet = null;
   _selectedPlanet = null;
   if (_selectionRing) {
-    _selectionRing.visible = false;
+    _selectionRing.setEnabled(false);
   }
 }
