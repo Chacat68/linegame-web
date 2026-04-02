@@ -217,15 +217,18 @@ function _createDistantStars() {
     }
   });
 
-  let starsMesh = null;
+  // buildMeshAsync is async; store a placeholder object so rotation code has a target
+  const placeholder = { rotation: { y: 0 }, dispose: () => {} };
   pcs.buildMeshAsync().then(() => {
-    starsMesh = pcs.mesh;
+    const mesh = pcs.mesh;
+    // Copy any rotation applied while building
+    mesh.rotation.y = placeholder.rotation.y;
     if (_backgroundLayers) {
-      _backgroundLayers.stars = starsMesh;
+      _backgroundLayers.stars = mesh;
     }
   });
 
-  return starsMesh; // Will be null initially, updated async
+  return placeholder;
 }
 
 function _createNebula() {
@@ -393,18 +396,19 @@ function _renderPlanetsInstanced(planets, state) {
       position
     );
 
+    // Color
+    const hexColor = _getSystemColor(planet.type);
+    const color = BABYLON.Color3.FromHexString(hexColor);
+
     if (i === 0) {
       // First instance uses the base mesh world matrix
       _basePlanetMesh.position = position;
       _basePlanetMesh.scaling = scale;
+      // Set first planet color on the base mesh material
+      material.diffuseColor = color;
+      material.emissiveColor = color.scale(0.3);
     } else {
       matrices.push(matrix);
-    }
-
-    // Color
-    const hexColor = _getSystemColor(planet.type);
-    const color = BABYLON.Color3.FromHexString(hexColor);
-    if (i > 0) {
       colors.push(color.r, color.g, color.b, 1);
     }
 
@@ -412,7 +416,7 @@ function _renderPlanetsInstanced(planets, state) {
     _planetMetadata.push({
       id: planet.id,
       index: i,
-      position: position.clone(),
+      position: position,
       size: finalSize,
       color: color,
       type: planet.type,
@@ -709,9 +713,8 @@ function _onPointerMove(evt, pickResult) {
     // Handle thin instance picking
     if (mesh === _basePlanetMesh) {
       const instanceIndex = pickResult.thinInstanceIndex;
-      // thinInstanceIndex: 0 = base mesh, 1+ = thin instances
-      // Our metadata index 0 = base mesh, metadata index 1+ corresponds to thin instance index
-      const metaIndex = instanceIndex >= 0 ? instanceIndex : 0;
+      // thinInstanceIndex: -1 = base mesh (metadata[0]), 0+ = thin instances (metadata[1+])
+      const metaIndex = instanceIndex >= 0 ? instanceIndex + 1 : 0;
       const metadata = _planetMetadata[metaIndex];
 
       if (metadata) {
