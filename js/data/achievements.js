@@ -153,7 +153,7 @@ export const ACHIEVEMENTS = [
     description: '到过 5 个不同的星系旅行。',
     icon: '🚀',
     category: 'explore',
-    condition: function (state) { return (state.day || 1) >= 10; },
+    condition: function (state) { return (state.visitedGalaxies || []).length >= 5; },
     reward: { credits: 200 },
   },
   {
@@ -291,7 +291,8 @@ export const ACHIEVEMENTS = [
     category: 'faction',
     condition: function (state) {
       if (!state.factionRelations) return false;
-      return Object.values(state.factionRelations).every(function (v) { return v >= 30; });
+      var vals = Object.values(state.factionRelations);
+      return vals.length > 0 && vals.every(function (v) { return v >= 30; });
     },
     reward: { credits: 3000, exp: 100 },
   },
@@ -303,7 +304,8 @@ export const ACHIEVEMENTS = [
     category: 'faction',
     condition: function (state) {
       if (!state.factionRelations) return false;
-      return Object.values(state.factionRelations).every(function (v) { return v >= 70; });
+      var vals = Object.values(state.factionRelations);
+      return vals.length > 0 && vals.every(function (v) { return v >= 70; });
     },
     reward: { credits: 8000, exp: 300 },
   },

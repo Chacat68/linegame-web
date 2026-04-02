@@ -240,7 +240,7 @@ export const SAVE_STATE_SCHEMA = {
   shipHull:           { type: 'number',  default: 100,                since: 1, desc: '船体生命值' },
   maxHull:            { type: 'number',  default: 100,                since: 1, desc: '最大船体' },
   autoRepair:         { type: 'number',  default: 0,                  since: 1, desc: '自动修复值' },
-  factionRelations:   { type: 'object',  default: null,               since: 1, desc: '派系关系' },
+  factionRelations:   { type: 'object',  default: {},                 since: 1, desc: '派系关系' },
   reputation:         { type: 'number',  default: 0,                  since: 1, desc: '声望' },
   researchedTechs:    { type: 'array',   default: [],                 since: 1, desc: '已研究科技' },
   currentResearch:    { type: 'object',  default: null,               since: 1, desc: '当前研究' },

@@ -25,6 +25,8 @@ import * as FactionUI  from '../ui/FactionUI.js';
 import * as SaveUI     from '../ui/SaveUI.js';
 import * as QuestUI    from '../ui/QuestUI.js';
 import * as AchievementUI from '../ui/AchievementUI.js';
+import * as TradeStationUI from '../ui/TradeStationUI.js';
+import * as BusinessTerminalUI from '../ui/BusinessTerminalUI.js';
 import * as Fleet      from '../systems/fleet/FleetSystem.js';
 import * as Crew       from '../systems/fleet/CrewSystem.js';
 import * as AutoTrade  from '../systems/trade/AutoTradeSystem.js';
@@ -112,6 +114,34 @@ export function init(difficulty) {
 
   // 3D视角默认启用，确保回调已绑定
   MapUI.init3DCallbacks(_state, _handleTravel, _handleGalaxyJump);
+
+  // 初始化商业终端
+  BusinessTerminalUI.init(_state, {
+    onOpenBuy: _handleOpenBuy,
+    onOpenSell: _handleOpenSell,
+    onTakeLoan: _handleTakeLoan,
+    onRepayLoan: _handleRepayLoan,
+    onBuyStock: _handleBuyStock,
+    onSellStock: _handleSellStock,
+    onPurchaseInsurance: _handlePurchaseInsurance,
+    onSubmitInsuranceClaim: _handleSubmitInsuranceClaim,
+    onFuturesLong: _handleFuturesLong,
+    onFuturesShort: _handleFuturesShort,
+    onFuturesClose: _handleFuturesClose,
+    onBuildStation: _handleBuildTradeStation,
+    onUpgradeStation: _handleUpgradeTradeStation,
+    onHireManager: _handleHireTradeStationManager,
+    onSetStrategy: _handleSetTradeStationStrategy,
+    onSwitchShip: _handleSwitchShip,
+  });
+
+  // 暴露商业终端 API 给 MapUI
+  window.GameManagerAPI = {
+    openBusinessTerminal: function () {
+      BusinessTerminalUI.show();
+      BusinessTerminalUI.render(_state);
+    }
+  };
   // 注入市场刷新回调（让 MapUI 可以触发市场表格重绘）
   MapUI.setRefreshMarket(function (mode) {
     const sysId = MapUI.getMarketViewSystem(_state);
@@ -122,11 +152,17 @@ export function init(difficulty) {
   });
   Modal.init(_handleTradeConfirm);
 
-  document.getElementById('restart-btn').addEventListener('click', function () {
-    document.getElementById('gameover-modal').classList.add('hidden');
-    Tutorial.reset();
-    init();
-  });
+  // 重新绑定重启按钮（用 cloneNode 去掉旧 listener 避免叠加）
+  var oldRestartBtn = document.getElementById('restart-btn');
+  if (oldRestartBtn) {
+    var newRestartBtn = oldRestartBtn.cloneNode(true);
+    oldRestartBtn.parentNode.replaceChild(newRestartBtn, oldRestartBtn);
+    newRestartBtn.addEventListener('click', function () {
+      document.getElementById('gameover-modal').classList.add('hidden');
+      Tutorial.reset();
+      init();
+    });
+  }
 
   // 新手引导系统
   Tutorial.init(_state);
@@ -534,8 +570,11 @@ function _handleBlackMarketSell(good) {
 function _bindMarketModeButtons() {
   var btns = document.querySelectorAll('.market-mode-btn:not(.disabled)');
   btns.forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      var mode = btn.dataset.mode;
+    // 用 cloneNode 替换旧节点，避免重复绑定 listener
+    var fresh = btn.cloneNode(true);
+    btn.parentNode.replaceChild(fresh, btn);
+    fresh.addEventListener('click', function () {
+      var mode = fresh.dataset.mode;
       _blackMarketMode = mode === 'black';
       // 重新渲染详情
       var sysId = MapUI.getMarketViewSystem(_state);
@@ -894,6 +933,12 @@ function _updateUI() {
   SaveUI.render(_handleSaveGame, _handleLoadGame);
   MapUI.refreshPlanetDetail(_state);
   Dispatch.updateActiveDispatchUI();
+
+  // 更新商业终端（如果已打开）
+  const btTerminal = document.getElementById('business-terminal');
+  if (btTerminal && !btTerminal.classList.contains('hidden')) {
+    BusinessTerminalUI.render(_state);
+  }
 }
 
 // ---------------------------------------------------------------------------

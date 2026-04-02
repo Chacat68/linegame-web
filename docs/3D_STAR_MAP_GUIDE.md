@@ -57,13 +57,13 @@ Click the **🌐 3D View** button in the button group on the left side of the st
 
 ### 使用的技术 / Technologies Used
 
-- **Three.js v0.160.0**: 3D渲染引擎
+- **Babylon.js**: 3D渲染引擎
   - 3D rendering engine
 
-- **OrbitControls**: 轨道相机控制器，支持拖拽旋转
-  - Orbit camera controller for drag-to-rotate
+- **ArcRotateCamera (内置轨道控制)**: 轨道相机控制器，支持拖拽旋转
+  - ArcRotateCamera - built-in orbit camera controller for drag-to-rotate
 
-- **Raycasting**: 鼠标拾取和交互
+- **Scene Picking**: 鼠标拾取和交互
   - Mouse picking and interaction
 
 - **WebGL**: 硬件加速渲染
@@ -89,7 +89,7 @@ Click the **🌐 3D View** button in the button group on the left side of the st
 js/ui/Renderer3D.js       # 3D渲染器主模块 / Main 3D renderer module
 js/core/GameManager.js    # 集成3D渲染循环 / Integrated 3D render loop
 js/ui/MapUI.js            # 3D切换按钮处理 / 3D toggle button handler
-index.html                # Three.js导入和3D画布 / Three.js import and 3D canvas
+index.html                # Babylon.js导入和3D画布 / Babylon.js import and 3D canvas
 ```
 
 ## 已知限制 / Known Limitations

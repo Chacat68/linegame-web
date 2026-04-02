@@ -1,43 +1,36 @@
-// js/ui/Renderer3DAdvanced.js — 增强型 3D 星图渲染器
-// 依赖：three.js, GalaxyDataLayer, data/systems.js, data/factions.js
-// 导出：init, render, focusPlanet, setQuality
+// js/ui/Renderer3DAdvanced.js — 增强型 3D 星图渲染器 (Babylon.js)
+// 依赖：babylon.js (global), GalaxyDataLayer, data/factions.js
+// 导出：init, render, focusPlanet, setQuality, setMotionLevel, isActive, toggleView,
+//       getSystemAtPoint, resetRuntimeState, resetCamera
 
 /**
- * 高级 3D 星图渲染系统
+ * 高级 3D 星图渲染系统 (Babylon.js)
  *
  * 特性：
- * - InstancedMesh 批量渲染星球（高性能）
+ * - Thin Instances 批量渲染星球（高性能）
  * - 分层背景系统（远景恒星、星云、银河盘面）
  * - 势力边界可视化（凸包算法）
  * - 航线与跃迁通道动画
  * - LOD 层级细节系统
- * - 空间分割优化（八叉树）
- * - 自定义 Shader 材质
+ * - 选择环指示器（脉冲动画）
+ * - 画质等级管理
  */
 
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import * as GalaxyData from '../systems/galaxy/GalaxyDataLayer.js';
 import { FACTIONS } from '../data/factions.js';
-import { GALAXIES, getSystemsByGalaxy, findSystem, isSystemAccessible } from '../data/systems.js';
 
 // 渲染上下文
-let _scene, _camera, _renderer, _controls, _canvas;
-let _animationId = null;
+let _engine, _scene, _camera, _canvas;
 let _isActive = false;
 
 // 渲染对象
-let _instancedPlanets = null;      // InstancedMesh for planets
+let _basePlanetMesh = null;        // Base mesh for thin instances
 let _instanceCount = 0;
-let _planetMetadata = [];          // { id, index, position, size, color }
-let _backgroundLayers = null;      // { stars, nebula, disk }
-let _factionBoundaries = [];       // Faction boundary meshes
-let _connectionLines = [];         // Trade routes
-let _selectionRing = null;         // Selection indicator
-let _octree = null;                // Spatial partitioning
-let _galaxyMeshes = [];            // Galaxy spheres for galaxy view
-let _textLabels = [];              // Sprite text labels
-let _mapView = 'planets';          // 'planets' or 'galaxies'
+let _planetMetadata = [];           // { id, index, position, size, color }
+let _backgroundLayers = null;       // { stars, nebula, disk }
+let _factionBoundaries = [];        // Faction boundary meshes
+let _connectionLines = [];          // Trade routes
+let _selectionRing = null;          // Selection indicator
 
 // 状态
 let _currentGalaxyId = 'milky_way';
@@ -45,22 +38,9 @@ let _currentSystem = null;
 let _hoveredPlanet = null;
 let _selectedPlanet = null;
 let _motionLevel = 'full';
-let _qualityLevel = 'high';        // high, medium, low
-let _cameraTarget = null;          // For smooth camera transitions
+let _qualityLevel = 'high';
+let _cameraTarget = null;
 let _cameraTransitionProgress = 0;
-
-// 飞船
-let _shipMesh = null;              // Ship 3D group
-let _shipTrail = null;             // Engine trail particles
-let _flightPath = null;            // { curve, progress, fromId, toId, duration, startTime, onComplete }
-let _shipVisible = false;
-
-// 派遣航线可视化
-let _dispatchRouteLines = [];      // Dispatch route line meshes
-let _dispatchShipMarkers = [];     // Markers for dispatched ships
-
-// Raycaster
-let _raycaster, _mouse;
 
 // 质量设置
 const _QUALITY_SETTINGS = {
@@ -92,14 +72,12 @@ const _QUALITY_SETTINGS = {
 
 // 颜色方案
 const _COLORS = {
-  bgTop: 0x020817,
-  bgBottom: 0x061528,
-  starCore: 0xdffbff,
-  starGlow: 0x38bdf8,
-  current: 0x67e8f9,
-  hover: 0xffffff,
-  selected: 0xffff00,
-  neutral: 0x607d8b,
+  bgTop: new BABYLON.Color4(0.008, 0.031, 0.09, 1),
+  starGlow: new BABYLON.Color3(0.22, 0.74, 0.97),
+  current: new BABYLON.Color3(0.40, 0.91, 0.98),
+  hover: new BABYLON.Color3(1, 1, 1),
+  selected: new BABYLON.Color3(1, 1, 0),
+  neutral: new BABYLON.Color3(0.376, 0.490, 0.545),
 };
 
 // ---------------------------------------------------------------------------
@@ -113,81 +91,46 @@ export function init() {
     return;
   }
 
-  // Setup scene
-  _scene = new THREE.Scene();
-  _scene.background = new THREE.Color(_COLORS.bgTop);
-  _scene.fog = new THREE.Fog(_COLORS.bgTop, 200, 800);
-
-  // Setup camera
-  const container = document.getElementById('map-container');
-  const aspect = container.clientWidth / container.clientHeight;
-  _camera = new THREE.PerspectiveCamera(60, aspect, 0.1, 2000);
-  _camera.position.set(0, 80, 180);
-  _camera.lookAt(0, 0, 0);
-
-  // Setup renderer
-  _renderer = new THREE.WebGLRenderer({
-    canvas: _canvas,
-    antialias: _qualityLevel !== 'low',
-    alpha: false,
+  // Create engine
+  _engine = new BABYLON.Engine(_canvas, _qualityLevel !== 'low', {
+    preserveDrawingBuffer: true,
+    stencil: true,
     powerPreference: 'high-performance',
   });
-  _renderer.setSize(container.clientWidth, container.clientHeight);
-  _renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-  // Setup controls
-  _controls = new OrbitControls(_camera, _canvas);
-  _controls.enableDamping = true;
-  _controls.dampingFactor = 0.05;
-  _controls.screenSpacePanning = false;
-  _controls.minDistance = 50;
-  _controls.maxDistance = 500;
-  _controls.maxPolarAngle = Math.PI / 1.8;
+  // Create scene
+  _scene = new BABYLON.Scene(_engine);
+  _scene.clearColor = _COLORS.bgTop;
+  _scene.fogMode = BABYLON.Scene.FOGMODE_LINEAR;
+  _scene.fogColor = new BABYLON.Color3(0.008, 0.031, 0.09);
+  _scene.fogStart = 100;
+  _scene.fogEnd = 500;
 
-  // Clamp target so camera cannot pan beyond planet area (~150 units from center)
-  const PAN_LIMIT = 160;
-  _controls.addEventListener('change', () => {
-    const t = _controls.target;
-    t.x = Math.max(-PAN_LIMIT, Math.min(PAN_LIMIT, t.x));
-    t.y = Math.max(-30, Math.min(60, t.y));
-    t.z = Math.max(-PAN_LIMIT, Math.min(PAN_LIMIT, t.z));
-  });
+  // Create ArcRotateCamera (built-in orbit controls)
+  _camera = new BABYLON.ArcRotateCamera(
+    'advCamera',
+    -Math.PI / 2,    // alpha
+    Math.PI / 3,     // beta
+    170,             // radius (~equivalent to position (0, 80, 150))
+    new BABYLON.Vector3(0, 0, 0),
+    _scene
+  );
+  _camera.attachControl(_canvas, true);
+  _camera.inertia = 0.9;
+  _camera.lowerRadiusLimit = 20;
+  _camera.upperRadiusLimit = 400;
+  _camera.upperBetaLimit = Math.PI / 1.8;
+  _camera.minZ = 0.1;
+  _camera.maxZ = 1000;
 
-  // When zooming out hits max distance, switch to galaxy overview
-  let _zoomOutTriggerPending = false;
-  _canvas.addEventListener('wheel', (e) => {
-    if (!_isActive || _mapView !== 'planets') return;
-    // e.deltaY > 0 means zooming out
-    if (e.deltaY > 0) {
-      const dist = _camera.position.distanceTo(_controls.target);
-      if (dist >= _controls.maxDistance - 5) {
-        if (!_zoomOutTriggerPending) {
-          _zoomOutTriggerPending = true;
-          // Trigger galaxy map via the global callback
-          if (window._switchToGalaxyView) {
-            window._switchToGalaxyView();
-          }
-          setTimeout(() => { _zoomOutTriggerPending = false; }, 800);
-        }
-      }
-    }
-  }, { passive: true });
+  // Lights
+  const hemiLight = new BABYLON.HemisphericLight('hemiLight', new BABYLON.Vector3(0, 1, 0), _scene);
+  hemiLight.intensity = 0.3;
 
-  // Setup lights — multiple to show spherical shape from all angles
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.35);
-  _scene.add(ambientLight);
-
-  const pointLight = new THREE.PointLight(0x38bdf8, 1.5, 1000);
-  pointLight.position.set(0, 200, 200);
-  _scene.add(pointLight);
-
-  const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
-  fillLight.position.set(-50, 30, -50);
-  _scene.add(fillLight);
-
-  // Setup raycaster
-  _raycaster = new THREE.Raycaster();
-  _mouse = new THREE.Vector2();
+  const pointLight = new BABYLON.PointLight('pointLight', new BABYLON.Vector3(0, 100, 100), _scene);
+  pointLight.diffuse = new BABYLON.Color3(0.22, 0.74, 0.97);
+  pointLight.intensity = 1.5;
+  pointLight.range = 500;
 
   // Create background layers
   _createBackgroundLayers();
@@ -196,11 +139,11 @@ export function init() {
   _createSelectionRing();
 
   // Setup event listeners
-  window.addEventListener('resize', _onResize);
-  _canvas.addEventListener('mousemove', _onMouseMove);
-  _canvas.addEventListener('click', _onClick);
+  window.addEventListener('resize', () => _engine.resize());
+  _scene.onPointerMove = _onPointerMove;
+  _scene.onPointerPick = _onPointerPick;
 
-  console.log('Renderer3DAdvanced initialized');
+  console.log('Renderer3DAdvanced initialized (Babylon.js)');
 }
 
 export function setQuality(level) {
@@ -217,13 +160,21 @@ export function isActive() {
 }
 
 export function toggleView() {
+  if (!_engine || !_scene) return; // engine not initialized
   _isActive = !_isActive;
+  const canvas2d = document.getElementById('map-canvas');
+  const canvasWebgl = document.getElementById('webgl-canvas');
 
   if (_isActive) {
     _canvas.style.display = 'block';
+    canvas2d.style.display = 'none';
+    canvasWebgl.style.display = 'none';
+    _engine.resize();
     _startAnimation();
   } else {
     _canvas.style.display = 'none';
+    canvas2d.style.display = 'block';
+    canvasWebgl.style.display = 'block';
     _stopAnimation();
   }
 }
@@ -242,57 +193,54 @@ function _createBackgroundLayers() {
 
 function _createDistantStars() {
   const quality = _QUALITY_SETTINGS[_qualityLevel];
-  const geometry = new THREE.BufferGeometry();
-  const positions = [];
-  const colors = [];
+  const pcs = new BABYLON.PointsCloudSystem('distantStars', 2, _scene);
 
-  for (let i = 0; i < quality.starCount; i++) {
+  pcs.addPoints(quality.starCount, function (particle) {
     // Spherical distribution
     const theta = Math.random() * Math.PI * 2;
     const phi = Math.acos(Math.random() * 2 - 1);
     const radius = 300 + Math.random() * 200;
 
-    const x = radius * Math.sin(phi) * Math.cos(theta);
-    const y = radius * Math.sin(phi) * Math.sin(theta);
-    const z = radius * Math.cos(phi);
-
-    positions.push(x, y, z);
+    particle.position = new BABYLON.Vector3(
+      radius * Math.sin(phi) * Math.cos(theta),
+      radius * Math.sin(phi) * Math.sin(theta),
+      radius * Math.cos(phi)
+    );
 
     // Varying colors
     const colorVariation = Math.random();
     if (colorVariation < 0.7) {
-      colors.push(0.8, 0.9, 1); // Blue-white
+      particle.color = new BABYLON.Color4(0.8, 0.9, 1, 0.8);   // Blue-white
     } else if (colorVariation < 0.9) {
-      colors.push(1, 0.9, 0.7); // Yellow-white
+      particle.color = new BABYLON.Color4(1, 0.9, 0.7, 0.8);   // Yellow-white
     } else {
-      colors.push(1, 0.7, 0.6); // Orange-red
+      particle.color = new BABYLON.Color4(1, 0.7, 0.6, 0.8);   // Orange-red
     }
-  }
-
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-
-  const material = new THREE.PointsMaterial({
-    size: 1.5,
-    vertexColors: true,
-    transparent: true,
-    opacity: 0.8,
-    sizeAttenuation: true,
-    depthWrite: false,
   });
 
-  const stars = new THREE.Points(geometry, material);
-  _scene.add(stars);
+  // buildMeshAsync is async; store a placeholder object so rotation code has a target
+  const placeholder = { rotation: { y: 0 }, dispose: () => {} };
+  pcs.buildMeshAsync().then(() => {
+    if (!pcs.mesh) {
+      console.warn('[Renderer3DAdvanced] buildMeshAsync resolved but mesh is null');
+      return;
+    }
+    const mesh = pcs.mesh;
+    // Copy any rotation applied while building
+    mesh.rotation.y = placeholder.rotation.y;
+    if (_backgroundLayers) {
+      _backgroundLayers.stars = mesh;
+    }
+  }).catch(err => console.error('[Renderer3DAdvanced] buildMeshAsync error:', err));
 
-  return stars;
+  return placeholder;
 }
 
 function _createNebula() {
   // Create procedural nebula texture
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 512;
-  const ctx = canvas.getContext('2d');
+  const dtex = new BABYLON.DynamicTexture('nebulaTex', { width: 512, height: 512 }, _scene);
+  dtex.hasAlpha = true;
+  const ctx = dtex.getContext();
 
   // Gradient background
   const gradient = ctx.createRadialGradient(256, 256, 0, 256, 256, 256);
@@ -307,43 +255,41 @@ function _createNebula() {
   const data = imageData.data;
   for (let i = 0; i < data.length; i += 4) {
     const noise = Math.random() * 30;
-    data[i] += noise;
-    data[i + 1] += noise;
-    data[i + 2] += noise;
+    data[i] = Math.min(255, data[i] + noise);
+    data[i + 1] = Math.min(255, data[i + 1] + noise);
+    data[i + 2] = Math.min(255, data[i + 2] + noise);
   }
   ctx.putImageData(imageData, 0, 0);
+  dtex.update();
 
-  const texture = new THREE.CanvasTexture(canvas);
-  const geometry = new THREE.SphereGeometry(400, 32, 32);
-  const material = new THREE.MeshBasicMaterial({
-    map: texture,
-    transparent: true,
-    opacity: 0.3,
-    side: THREE.BackSide,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-  });
+  const nebula = BABYLON.MeshBuilder.CreateSphere('nebula', {
+    diameter: 800, segments: 32, sideOrientation: BABYLON.Mesh.BACKSIDE,
+  }, _scene);
 
-  const nebula = new THREE.Mesh(geometry, material);
-  _scene.add(nebula);
+  const mat = new BABYLON.StandardMaterial('nebulaMat', _scene);
+  mat.diffuseTexture = dtex;
+  mat.emissiveColor = new BABYLON.Color3(0.3, 0.3, 0.4);
+  mat.disableLighting = true;
+  mat.alpha = 0.3;
+  mat.backFaceCulling = false;
+  nebula.material = mat;
+  nebula.isPickable = false;
 
   return nebula;
 }
 
 function _createGalaxyDisk() {
   // Create spiral galaxy disk texture
-  const canvas = document.createElement('canvas');
-  canvas.width = 1024;
-  canvas.height = 1024;
-  const ctx = canvas.getContext('2d');
+  const dtex = new BABYLON.DynamicTexture('diskTex', { width: 1024, height: 1024 }, _scene);
+  dtex.hasAlpha = true;
+  const ctx = dtex.getContext();
 
   const centerX = 512;
   const centerY = 512;
 
-  // Draw spiral arms
-  ctx.fillStyle = 'rgba(0, 0, 0, 0)';
-  ctx.fillRect(0, 0, 1024, 1024);
+  ctx.clearRect(0, 0, 1024, 1024);
 
+  // Draw spiral arms
   for (let arm = 0; arm < 3; arm++) {
     const armAngle = (arm / 3) * Math.PI * 2;
     ctx.strokeStyle = `rgba(103, 232, 249, ${0.1 + Math.random() * 0.1})`;
@@ -360,321 +306,55 @@ function _createGalaxyDisk() {
     }
     ctx.stroke();
   }
+  dtex.update();
 
-  const texture = new THREE.CanvasTexture(canvas);
-  const geometry = new THREE.PlaneGeometry(500, 500);
-  const material = new THREE.MeshBasicMaterial({
-    map: texture,
-    transparent: true,
-    opacity: 0.15,
-    side: THREE.DoubleSide,
-    depthWrite: false,
-  });
-
-  const disk = new THREE.Mesh(geometry, material);
-  disk.rotation.x = -Math.PI / 2;
+  const disk = BABYLON.MeshBuilder.CreatePlane('galaxyDisk', {
+    width: 500, height: 500, sideOrientation: BABYLON.Mesh.DOUBLESIDE,
+  }, _scene);
+  disk.rotation.x = Math.PI / 2;
   disk.position.y = -5;
-  _scene.add(disk);
+
+  const mat = new BABYLON.StandardMaterial('diskMat', _scene);
+  mat.diffuseTexture = dtex;
+  mat.emissiveColor = new BABYLON.Color3(0.3, 0.5, 0.6);
+  mat.disableLighting = true;
+  mat.alpha = 0.15;
+  mat.backFaceCulling = false;
+  mat.useAlphaFromDiffuseTexture = true;
+  disk.material = mat;
+  disk.isPickable = false;
 
   return disk;
 }
 
 // ---------------------------------------------------------------------------
-// 星球渲染（InstancedMesh）
+// 星球渲染（Thin Instances）
 // ---------------------------------------------------------------------------
 
 export function render(state, mapView, galaxyId) {
-  if (!_isActive) return;
+  if (!_isActive || !_scene || !_engine) return;
 
-  _mapView = mapView || 'planets';
   _currentGalaxyId = galaxyId || 'milky_way';
   _currentSystem = state.currentSystem;
 
-  // Clear existing meshes
-  _clearPlanetMeshes();
-  _clearGalaxyMeshes();
-
-  if (_mapView === 'galaxies') {
-    _renderGalaxies(state);
-  } else {
-    // Get galaxy hierarchy from data layer
-    const hierarchy = GalaxyData.getGalaxyHierarchy(_currentGalaxyId);
-    if (!hierarchy) return;
-
-    // Render planets with instancing
-    _renderPlanetsInstanced(hierarchy.allPlanets, state);
-
-    // Render faction territory auras
-    _renderFactionBoundaries(hierarchy.allPlanets);
-
-    // Render connection lines
-    _renderConnections(hierarchy.allPlanets);
-
-    // Render dispatch route lines for fleet ships
-    _renderDispatchRoutes(state);
-  }
-}
-
-function _clearPlanetMeshes() {
-  if (_instancedPlanets) {
-    _scene.remove(_instancedPlanets);
-    _instancedPlanets.geometry.dispose();
-    _instancedPlanets.material.dispose();
-    _instancedPlanets = null;
-  }
-  _connectionLines.forEach(line => {
-    _scene.remove(line);
-    line.geometry.dispose();
-    line.material.dispose();
-  });
-  _connectionLines = [];
-  _factionBoundaries.forEach(b => {
-    _scene.remove(b);
-    b.geometry.dispose();
-    b.material.dispose();
-  });
-  _factionBoundaries = [];
-  _textLabels.forEach(s => {
-    _scene.remove(s);
-    if (s.material.map) s.material.map.dispose();
-    s.material.dispose();
-  });
-  _textLabels = [];
-  // 清理派遣航线
-  _dispatchRouteLines.forEach(obj => {
-    _scene.remove(obj);
-    if (obj.geometry) obj.geometry.dispose();
-    if (obj.material) obj.material.dispose();
-  });
-  _dispatchRouteLines = [];
-  _dispatchShipMarkers.forEach(obj => {
-    _scene.remove(obj);
-    obj.traverse(function (child) {
-      if (child.geometry) child.geometry.dispose();
-      if (child.material) {
-        if (child.material.map) child.material.map.dispose();
-        child.material.dispose();
-      }
-    });
-  });
-  _dispatchShipMarkers = [];
-}
-
-function _clearGalaxyMeshes() {
-  _galaxyMeshes.forEach(mesh => {
-    _scene.remove(mesh);
-    mesh.traverse(child => {
-      if (child.geometry) child.geometry.dispose();
-      if (child.material) {
-        if (child.material.map) child.material.map.dispose();
-        child.material.dispose();
-      }
-    });
-  });
-  _galaxyMeshes = [];
-}
-
-// ---------------------------------------------------------------------------
-// 星系总览渲染 — 程序化星云纹理
-// ---------------------------------------------------------------------------
-
-// 生成柔和的星云纹理 (canvas)
-function _createNebulaTexture(color, seed, size) {
-  const res = size || 256;
-  const canvas = document.createElement('canvas');
-  canvas.width = res;
-  canvas.height = res;
-  const ctx = canvas.getContext('2d');
-
-  const cx = res / 2, cy = res / 2;
-  const r = new THREE.Color(color);
-  const rng = (i) => {
-    const v = Math.sin(seed + i * 9873.1) * 43758.5453;
-    return v - Math.floor(v);
-  };
-
-  // Clear
-  ctx.clearRect(0, 0, res, res);
-
-  // 1) Base radial glow — soft center falloff
-  const baseGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, cx);
-  baseGrad.addColorStop(0, `rgba(${Math.floor(r.r*255)},${Math.floor(r.g*255)},${Math.floor(r.b*255)},0.7)`);
-  baseGrad.addColorStop(0.15, `rgba(${Math.floor(r.r*255)},${Math.floor(r.g*255)},${Math.floor(r.b*255)},0.35)`);
-  baseGrad.addColorStop(0.5, `rgba(${Math.floor(r.r*255)},${Math.floor(r.g*255)},${Math.floor(r.b*255)},0.08)`);
-  baseGrad.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = baseGrad;
-  ctx.fillRect(0, 0, res, res);
-
-  // 2) Spiral arms or wispy tendrils
-  const armCount = 2 + Math.floor(rng(0) * 2); // 2-3 arms
-  ctx.globalCompositeOperation = 'lighter';
-  for (let arm = 0; arm < armCount; arm++) {
-    const armAngle = (arm / armCount) * Math.PI * 2 + rng(arm + 5) * 0.5;
-    const twist = 2.5 + rng(arm + 10) * 2; // spiral tightness
-
-    ctx.beginPath();
-    for (let t = 0; t < Math.PI * twist; t += 0.08) {
-      const radius = (t / (Math.PI * twist)) * cx * 0.85;
-      const angle = armAngle + t;
-      const px = cx + radius * Math.cos(angle);
-      const py = cy + radius * Math.sin(angle);
-
-      // Vary width along the arm
-      const width = 8 + 15 * (1 - t / (Math.PI * twist)) * (0.6 + rng(arm * 100 + Math.floor(t * 10)) * 0.4);
-      const alpha = 0.12 * (1 - t / (Math.PI * twist));
-
-      const armGrad = ctx.createRadialGradient(px, py, 0, px, py, width);
-      armGrad.addColorStop(0, `rgba(${Math.floor(r.r*255)},${Math.floor(r.g*255)},${Math.floor(r.b*255)},${alpha})`);
-      armGrad.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = armGrad;
-      ctx.fillRect(px - width, py - width, width * 2, width * 2);
-    }
+  // Clear existing planet meshes
+  if (_basePlanetMesh) {
+    _basePlanetMesh.dispose();
+    _basePlanetMesh = null;
   }
 
-  // 3) Scattered bright knots — mimic star-forming regions
-  const knotCount = 15 + Math.floor(rng(20) * 20);
-  for (let k = 0; k < knotCount; k++) {
-    const angle = rng(k + 30) * Math.PI * 2;
-    const dist = rng(k + 40) * cx * 0.7;
-    const kx = cx + dist * Math.cos(angle);
-    const ky = cy + dist * Math.sin(angle);
-    const kSize = 1.5 + rng(k + 50) * 4;
-    const kAlpha = 0.15 + rng(k + 60) * 0.25;
+  // Get galaxy hierarchy from data layer
+  const hierarchy = GalaxyData.getGalaxyHierarchy(_currentGalaxyId);
+  if (!hierarchy) return;
 
-    const kGrad = ctx.createRadialGradient(kx, ky, 0, kx, ky, kSize);
-    kGrad.addColorStop(0, `rgba(255,255,255,${kAlpha})`);
-    kGrad.addColorStop(0.4, `rgba(${Math.floor(r.r*255)},${Math.floor(r.g*255)},${Math.floor(r.b*255)},${kAlpha*0.4})`);
-    kGrad.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = kGrad;
-    ctx.fillRect(kx - kSize, ky - kSize, kSize * 2, kSize * 2);
-  }
+  // Render planets with thin instancing
+  _renderPlanetsInstanced(hierarchy.allPlanets, state);
 
-  // 4) Bright core hotspot
-  ctx.globalCompositeOperation = 'lighter';
-  const coreGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, cx * 0.12);
-  coreGrad.addColorStop(0, 'rgba(255,255,255,0.9)');
-  coreGrad.addColorStop(0.5, `rgba(${Math.floor(r.r*255)},${Math.floor(r.g*255)},${Math.floor(r.b*255)},0.5)`);
-  coreGrad.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = coreGrad;
-  ctx.fillRect(0, 0, res, res);
+  // Render faction boundaries
+  _renderFactionBoundaries(hierarchy.allPlanets);
 
-  return new THREE.CanvasTexture(canvas);
-}
-
-function _renderGalaxies(state) {
-  GALAXIES.forEach((galaxy) => {
-    const x = (galaxy.gx - 0.5) * 200;
-    const z = (galaxy.gy - 0.5) * 200;
-    const y = Math.sin(galaxy.gx * 3.14) * 15;
-
-    const color = new THREE.Color(galaxy.color || '#4FC3F7');
-    const isUnlocked = galaxy.unlocked ||
-      (state.researchedTechs && state.researchedTechs.includes(galaxy.techRequired));
-    const baseOpacity = isUnlocked ? 1.0 : 0.3;
-
-    // Deterministic seed
-    let seed = 0;
-    for (let c = 0; c < galaxy.id.length; c++) seed = ((seed << 5) - seed) + galaxy.id.charCodeAt(c);
-    const rng = (i) => {
-      const v = Math.sin(seed + i * 9873.1) * 43758.5453;
-      return v - Math.floor(v);
-    };
-
-    const group = new THREE.Group();
-    group.position.set(x, y, z);
-    group.userData = { type: 'galaxy', id: galaxy.id, data: galaxy };
-
-    // Galaxy disk size
-    const galaxySize = 18 + rng(0) * 10;
-
-    // 1) Main disk — billboard sprite with procedural texture
-    const diskTex = _createNebulaTexture(color, seed, 512);
-    const diskMat = new THREE.SpriteMaterial({
-      map: diskTex,
-      transparent: true,
-      opacity: baseOpacity * 0.85,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
-    const disk = new THREE.Sprite(diskMat);
-    disk.scale.set(galaxySize * 2, galaxySize * 2, 1);
-    group.add(disk);
-
-    // 2) Second layer — slightly rotated, different seed for depth
-    const disk2Tex = _createNebulaTexture(color, seed + 777, 256);
-    const disk2Mat = new THREE.SpriteMaterial({
-      map: disk2Tex,
-      transparent: true,
-      opacity: baseOpacity * 0.3,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
-    const disk2 = new THREE.Sprite(disk2Mat);
-    disk2.scale.set(galaxySize * 2.4, galaxySize * 2.4, 1);
-    disk2.position.set(0, 0, 0.1);
-    group.add(disk2);
-
-    // 3) Scattered star particles around the galaxy
-    const starCount = 30 + Math.floor(rng(1) * 30);
-    const starGeo = new THREE.BufferGeometry();
-    const starPos = [];
-    const starColors = [];
-    for (let s = 0; s < starCount; s++) {
-      const angle = rng(s + 100) * Math.PI * 2;
-      const dist = rng(s + 200) * galaxySize * 0.8;
-      const sx = dist * Math.cos(angle);
-      const sy = (rng(s + 300) - 0.5) * galaxySize * 0.15;
-      const sz = dist * Math.sin(angle);
-      starPos.push(sx, sy, sz);
-
-      // Warm white to galaxy color
-      const mix = rng(s + 400);
-      starColors.push(
-        0.8 + mix * color.r * 0.2,
-        0.8 + mix * color.g * 0.2,
-        0.9 + mix * color.b * 0.1
-      );
-    }
-    starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
-    starGeo.setAttribute('color', new THREE.Float32BufferAttribute(starColors, 3));
-    const starMat = new THREE.PointsMaterial({
-      size: 0.6,
-      vertexColors: true,
-      transparent: true,
-      opacity: baseOpacity * 0.8,
-      sizeAttenuation: true,
-      depthWrite: false,
-    });
-    const stars = new THREE.Points(starGeo, starMat);
-    group.add(stars);
-
-    _scene.add(group);
-    _galaxyMeshes.push(group);
-
-    // Text label
-    _addTextLabel(galaxy.name, group.position, galaxySize + 3);
-  });
-}
-
-function _addTextLabel(text, position, offsetY) {
-  const canvas = document.createElement('canvas');
-  const context = canvas.getContext('2d');
-  canvas.width = 256;
-  canvas.height = 64;
-
-  context.fillStyle = '#38bdf8';
-  context.font = 'Bold 24px Arial';
-  context.textAlign = 'center';
-  context.fillText(text, 128, 40);
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.premultiplyAlpha = false;
-  const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false });
-  const sprite = new THREE.Sprite(spriteMaterial);
-  sprite.position.set(position.x, position.y + offsetY, position.z);
-  sprite.scale.set(10, 2.5, 1);
-  _scene.add(sprite);
-  _textLabels.push(sprite);
+  // Render connection lines
+  _renderConnections(hierarchy.allPlanets);
 }
 
 function _renderPlanetsInstanced(planets, state) {
@@ -682,98 +362,90 @@ function _renderPlanetsInstanced(planets, state) {
   _instanceCount = planets.length;
   _planetMetadata = [];
 
-  // Create shared geometry and material
-  const geometry = new THREE.SphereGeometry(1, quality.planetSegments, quality.planetSegments);
-  const material = new THREE.MeshPhongMaterial({
-    color: 0xffffff,            // Base white — tinted per-instance by setColorAt
-    emissive: new THREE.Color(0x000000),
-    emissiveIntensity: 0.4,
-    shininess: 60,
-    specular: new THREE.Color(0x444444),
-  });
+  if (_instanceCount === 0) return;
 
-  // Create instanced mesh
-  _instancedPlanets = new THREE.InstancedMesh(geometry, material, _instanceCount);
-  _instancedPlanets.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  // Create base mesh for thin instances
+  _basePlanetMesh = BABYLON.MeshBuilder.CreateSphere('basePlanet', {
+    diameter: 2, segments: quality.planetSegments,
+  }, _scene);
 
-  const matrix = new THREE.Matrix4();
-  const color = new THREE.Color();
-  const position = new THREE.Vector3();
-  const scale = new THREE.Vector3();
+  const material = new BABYLON.StandardMaterial('planetMat', _scene);
+  material.emissiveColor = _COLORS.starGlow.scale(0.3);
+  material.specularPower = 30;
+  _basePlanetMesh.material = material;
+
+  // Use thin instances for high-performance batch rendering
+  // First instance is the base mesh itself, so we set it up
+  const matrices = [];
+  const colors = [];
 
   planets.forEach((planet, i) => {
-    // Calculate 3D position — wide spread for star system feel
-    const x = (planet.position.x - 0.5) * 300;
-    const z = (planet.position.y - 0.5) * 300;
-    const y = Math.sin(planet.position.x * Math.PI * 2) * 25 +
-              Math.cos(planet.position.y * Math.PI * 2) * 15;
+    // Calculate 3D position
+    const x = (planet.position.x - 0.5) * 120;
+    const z = (planet.position.y - 0.5) * 120;
+    const y = Math.sin(planet.position.x * Math.PI * 2) * 10 +
+              Math.cos(planet.position.y * Math.PI * 2) * 5;
 
-    position.set(x, y, z);
+    const position = new BABYLON.Vector3(x, y, z);
 
-    // Size based on resource richness: lower total prices = richer = bigger
-    const prices = planet.prices || {};
-    const priceValues = Object.values(prices);
-    const totalPrice = priceValues.length > 0
-      ? priceValues.reduce((s, v) => s + v, 0) / priceValues.length
-      : 1.0;
-    // totalPrice typically ranges ~0.5 (very rich) to ~1.8 (very poor)
-    // Map to size: rich → 1.8, poor → 0.6
-    const baseSize = Math.max(0.6, Math.min(1.8, 2.5 - totalPrice));
-    const sizeMultiplier = planet.type === 'special' ? 1.4 : 1.0;
-    scale.setScalar(baseSize * sizeMultiplier);
+    // Calculate size based on type
+    const baseSize = 2 + Math.random() * 2;
+    const sizeMultiplier = planet.type === 'special' ? 1.5 : 1.0;
+    const finalSize = baseSize * sizeMultiplier;
+    const scale = new BABYLON.Vector3(finalSize, finalSize, finalSize);
 
-    // Set matrix
-    matrix.compose(position, new THREE.Quaternion(), scale);
-    _instancedPlanets.setMatrixAt(i, matrix);
+    // Compose matrix
+    const matrix = BABYLON.Matrix.Compose(
+      scale,
+      BABYLON.Quaternion.Identity(),
+      position
+    );
 
-    // Set color
-    color.set(_getSystemColor(planet.type));
-    _instancedPlanets.setColorAt(i, color);
+    // Color
+    const hexColor = _getSystemColor(planet.type);
+    const color = BABYLON.Color3.FromHexString(hexColor);
+
+    if (i === 0) {
+      // First instance uses the base mesh world matrix
+      _basePlanetMesh.position = position;
+      _basePlanetMesh.scaling = scale;
+      // Set first planet color on the base mesh material
+      material.diffuseColor = color;
+      material.emissiveColor = color.scale(0.3);
+    } else {
+      matrices.push(matrix);
+      colors.push(color.r, color.g, color.b, 1);
+    }
 
     // Store metadata
     _planetMetadata.push({
       id: planet.id,
       index: i,
-      position: position.clone(),
-      size: baseSize * sizeMultiplier,
-      color: color.clone(),
+      position: position,
+      size: finalSize,
+      color: color,
       type: planet.type,
       owner: planet.owner,
     });
   });
 
-  _instancedPlanets.instanceMatrix.needsUpdate = true;
-  if (_instancedPlanets.instanceColor) {
-    _instancedPlanets.instanceColor.needsUpdate = true;
-  }
-
-  _scene.add(_instancedPlanets);
-
-  // Add glow ring for current system
-  const currentMeta = _planetMetadata.find(m => m.id === state.currentSystem);
-  if (currentMeta) {
-    const glowGeo = new THREE.SphereGeometry(currentMeta.size + 0.8, 24, 24);
-    const glowMat = new THREE.MeshBasicMaterial({
-      color: _COLORS.current,
-      transparent: true,
-      opacity: 0.25,
+  // Add thin instances (skip index 0, that's the base mesh)
+  if (matrices.length > 0) {
+    const matrixArray = new Float32Array(matrices.length * 16);
+    matrices.forEach((mat, i) => {
+      mat.copyToArray(matrixArray, i * 16);
     });
-    const glowMesh = new THREE.Mesh(glowGeo, glowMat);
-    glowMesh.position.copy(currentMeta.position);
-    _scene.add(glowMesh);
-    _connectionLines.push(glowMesh); // reuse array for cleanup
+    _basePlanetMesh.thinInstanceSetBuffer('matrix', matrixArray, 16);
+
+    // Set instance colors
+    if (colors.length > 0) {
+      const colorArray = new Float32Array(colors);
+      _basePlanetMesh.thinInstanceSetBuffer('color', colorArray, 4);
+    }
   }
 
-  // Add text labels for planets
-  _planetMetadata.forEach(meta => {
-    const planet = planets.find(p => p.id === meta.id);
-    if (planet) {
-      _addTextLabel(planet.name, meta.position, meta.size + 2);
-    }
-  });
-
-  // Build octree for fast raycasting
-  _buildOctree();
+  // Enable thin instance picking
+  _basePlanetMesh.thinInstanceEnablePicking = true;
 }
 
 function _getSystemColor(type) {
@@ -800,84 +472,52 @@ function _renderFactionBoundaries(planets) {
   const quality = _QUALITY_SETTINGS[_qualityLevel];
   if (!quality.enableBoundaries) return;
 
-  // Build position lookup from metadata
-  const posMap = new Map();
-  _planetMetadata.forEach(m => posMap.set(m.id, m));
+  // Clear existing boundaries
+  _factionBoundaries.forEach(b => b.dispose());
+  _factionBoundaries = [];
 
   // Group planets by faction
   const factionPlanets = {};
   planets.forEach(planet => {
     if (planet.owner && planet.owner !== 'player') {
-      if (!factionPlanets[planet.owner]) factionPlanets[planet.owner] = [];
+      if (!factionPlanets[planet.owner]) {
+        factionPlanets[planet.owner] = [];
+      }
       factionPlanets[planet.owner].push(planet);
     }
   });
 
-  const ADJACENCY_DIST = 0.15; // in normalized coords
-  const AURA_RADIUS = 12;      // 3D world units
+  // Draw boundary for each faction
+  Object.entries(factionPlanets).forEach(([factionId, factionPlanetList]) => {
+    if (factionPlanetList.length < 3) return;
 
-  Object.entries(factionPlanets).forEach(([factionId, fPlanets]) => {
     const faction = FACTIONS.find(f => f.id === factionId);
     if (!faction) return;
-    const fColor = new THREE.Color(faction.color || '#4FC3F7');
 
-    // 1) Draw a translucent disc aura under each faction planet
-    fPlanets.forEach(planet => {
-      const meta = posMap.get(planet.id);
-      if (!meta) return;
+    // Calculate convex hull in 2D (x, z plane)
+    const points2D = factionPlanetList.map(p => ({
+      x: (p.position.x - 0.5) * 120,
+      y: (p.position.y - 0.5) * 120,
+    }));
 
-      const discGeo = new THREE.CircleGeometry(AURA_RADIUS, 48);
-      const discMat = new THREE.MeshBasicMaterial({
-        color: fColor,
-        transparent: true,
-        opacity: 0.10,
-        side: THREE.DoubleSide,
-        depthWrite: false,
-      });
-      const disc = new THREE.Mesh(discGeo, discMat);
-      disc.rotation.x = -Math.PI / 2;
-      disc.position.set(meta.position.x, meta.position.y - 0.5, meta.position.z);
-      _scene.add(disc);
-      _factionBoundaries.push(disc);
-    });
+    const hull = _convexHull(points2D);
+    if (hull.length < 3) return;
 
-    // 2) Draw wide "bridge" tubes between adjacent same-faction planets
-    for (let i = 0; i < fPlanets.length; i++) {
-      for (let j = i + 1; j < fPlanets.length; j++) {
-        const a = fPlanets[i], b = fPlanets[j];
-        const dx = a.position.x - b.position.x;
-        const dy = a.position.y - b.position.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist >= ADJACENCY_DIST) continue;
+    // Create boundary line
+    const points3D = hull.map(p => new BABYLON.Vector3(p.x, 5, p.y));
+    points3D.push(points3D[0].clone()); // Close the loop
 
-        const posA = posMap.get(a.id)?.position;
-        const posB = posMap.get(b.id)?.position;
-        if (!posA || !posB) continue;
+    const boundary = BABYLON.MeshBuilder.CreateLines('boundary_' + factionId, {
+      points: points3D,
+      updatable: false,
+    }, _scene);
 
-        // Draw a translucent wide line (using a thin box) between the two
-        const midPoint = new THREE.Vector3().addVectors(posA, posB).multiplyScalar(0.5);
-        const direction = new THREE.Vector3().subVectors(posB, posA);
-        const length = direction.length();
-        direction.normalize();
+    const factionColor = BABYLON.Color3.FromHexString(faction.color || '#4FC3F7');
+    boundary.color = factionColor;
+    boundary.alpha = 0.4;
+    boundary.isPickable = false;
 
-        const bridgeGeo = new THREE.PlaneGeometry(length, AURA_RADIUS * 1.2);
-        const bridgeMat = new THREE.MeshBasicMaterial({
-          color: fColor,
-          transparent: true,
-          opacity: 0.06,
-          side: THREE.DoubleSide,
-          depthWrite: false,
-        });
-        const bridge = new THREE.Mesh(bridgeGeo, bridgeMat);
-        bridge.position.copy(midPoint);
-        bridge.position.y -= 0.5;
-        bridge.rotation.x = -Math.PI / 2;
-        // Rotate to align with direction in XZ plane
-        bridge.rotation.z = -Math.atan2(direction.z, direction.x);
-        _scene.add(bridge);
-        _factionBoundaries.push(bridge);
-      }
-    }
+    _factionBoundaries.push(boundary);
   });
 }
 
@@ -885,7 +525,6 @@ function _renderFactionBoundaries(planets) {
 function _convexHull(points) {
   if (points.length < 3) return points;
 
-  // Find leftmost point
   let leftmost = points[0];
   points.forEach(p => {
     if (p.x < leftmost.x || (p.x === leftmost.x && p.y < leftmost.y)) {
@@ -925,205 +564,44 @@ function _convexHull(points) {
 // ---------------------------------------------------------------------------
 
 function _renderConnections(planets) {
-  // Build a lookup from planet id to its stored 3D position
-  const posMap = new Map();
-  _planetMetadata.forEach(m => posMap.set(m.id, m.position));
+  // Clear existing connections
+  _connectionLines.forEach(line => line.dispose());
+  _connectionLines = [];
 
-  // Draw connections between nearby planets using exact metadata positions
-  for (let i = 0; i < planets.length; i++) {
-    const a = planets[i];
-    const posA = posMap.get(a.id);
-    if (!posA) continue;
+  planets.forEach(planet => {
+    const p1 = new BABYLON.Vector3(
+      (planet.position.x - 0.5) * 120,
+      Math.sin(planet.position.x * Math.PI * 2) * 10 +
+        Math.cos(planet.position.y * Math.PI * 2) * 5,
+      (planet.position.y - 0.5) * 120
+    );
 
-    for (let j = i + 1; j < planets.length; j++) {
-      const b = planets[j];
-      const dx = a.position.x - b.position.x;
-      const dy = a.position.y - b.position.y;
+    planets.forEach(other => {
+      if (planet.id >= other.id) return; // Avoid duplicates
+
+      const dx = planet.position.x - other.position.x;
+      const dy = planet.position.y - other.position.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
 
       if (dist < 0.12) {
-        const posB = posMap.get(b.id);
-        if (!posB) continue;
+        const p2 = new BABYLON.Vector3(
+          (other.position.x - 0.5) * 120,
+          Math.sin(other.position.x * Math.PI * 2) * 10 +
+            Math.cos(other.position.y * Math.PI * 2) * 5,
+          (other.position.y - 0.5) * 120
+        );
 
-        const geometry = new THREE.BufferGeometry().setFromPoints([posA, posB]);
-        const material = new THREE.LineBasicMaterial({
-          color: 0x38bdf8,
-          transparent: true,
-          opacity: 0.15,
-        });
-
-        const line = new THREE.Line(geometry, material);
-        _scene.add(line);
+        const line = BABYLON.MeshBuilder.CreateLines('conn_' + planet.id + '_' + other.id, {
+          points: [p1, p2],
+          updatable: false,
+        }, _scene);
+        line.color = new BABYLON.Color3(0.22, 0.74, 0.97);
+        line.alpha = 0.1;
+        line.isPickable = false;
         _connectionLines.push(line);
       }
-    }
-  }
-}
-
-// ---------------------------------------------------------------------------
-// 派遣航线可视化
-// ---------------------------------------------------------------------------
-
-function _renderDispatchRoutes(state) {
-  if (!state.fleet || state.fleet.length < 1) return;
-
-  const posMap = new Map();
-  _planetMetadata.forEach(m => posMap.set(m.id, m.position));
-
-  state.fleet.forEach(function (ship, idx) {
-    if (!ship.route) return;
-
-    const buyPos = posMap.get(ship.route.buySystemId);
-    const sellPos = posMap.get(ship.route.sellSystemId);
-    if (!buyPos || !sellPos) return;
-
-    // 弧线路径
-    const mid = buyPos.clone().lerp(sellPos, 0.5);
-    const dist = buyPos.distanceTo(sellPos);
-    mid.y += Math.max(dist * 0.15, 3);
-    const curve = new THREE.QuadraticBezierCurve3(buyPos, mid, sellPos);
-
-    const isActive = idx === (state.activeShipIndex || 0);
-    const routeColor = isActive ? 0x22d3ee : 0xfbbf24;
-    var goingToSell = ship.route.status === 'traveling_sell' || ship.route.status === 'selling';
-
-    // ── 航线轨迹（虚线弧线）──
-    var routePoints = curve.getPoints(48);
-    var routeGeo = new THREE.BufferGeometry().setFromPoints(routePoints);
-    var routeMat = new THREE.LineDashedMaterial({
-      color: routeColor,
-      dashSize: 1.5,
-      gapSize: 1.0,
-      transparent: true,
-      opacity: 0.35,
-      depthWrite: false,
     });
-    var routeLine = new THREE.Line(routeGeo, routeMat);
-    routeLine.computeLineDistances();
-    _scene.add(routeLine);
-    _dispatchRouteLines.push(routeLine);
-
-    // ── 飞船模型 ──
-    var shipModel = _createDispatchShipMesh(routeColor);
-    shipModel.userData._dispatchCurve = curve;
-    shipModel.userData._direction = goingToSell ? 1 : -1;
-    shipModel.userData._phaseOffset = idx * 1.1;
-    shipModel.position.copy(curve.getPointAt(0));
-    _scene.add(shipModel);
-    _dispatchShipMarkers.push(shipModel);
-
-    // ── 尾迹粒子（跟随飞船的引擎拖尾）──
-    var trailCount = 30;
-    var trailGeo = new THREE.BufferGeometry();
-    var trailPositions = new Float32Array(trailCount * 3);
-    var initPos = curve.getPointAt(0);
-    for (var ti = 0; ti < trailCount; ti++) {
-      trailPositions[ti * 3]     = initPos.x;
-      trailPositions[ti * 3 + 1] = initPos.y;
-      trailPositions[ti * 3 + 2] = initPos.z;
-    }
-    trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
-    var trailMat = new THREE.PointsMaterial({
-      color: routeColor,
-      size: 0.35,
-      transparent: true,
-      opacity: 0.5,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      sizeAttenuation: true,
-    });
-    var trail = new THREE.Points(trailGeo, trailMat);
-    trail.userData._head = 0;
-    trail.userData._count = trailCount;
-    shipModel.userData._trail = trail;
-    _scene.add(trail);
-    _dispatchRouteLines.push(trail);
   });
-}
-
-/**
- * 创建派遣飞船模型（与主飞船同款，颜色不同）
- */
-function _createDispatchShipMesh(tintColor) {
-  const group = new THREE.Group();
-
-  // 主体 — 尖锥形机身
-  const bodyGeo = new THREE.ConeGeometry(0.3, 1.3, 6);
-  bodyGeo.rotateX(Math.PI / 2);
-  const bodyMat = new THREE.MeshPhongMaterial({
-    color: 0xc0c8d8,
-    emissive: tintColor,
-    emissiveIntensity: 0.15,
-    shininess: 80,
-  });
-  group.add(new THREE.Mesh(bodyGeo, bodyMat));
-
-  // 机翼
-  const wingGeo = new THREE.BoxGeometry(1.8, 0.05, 0.55);
-  const wingMat = new THREE.MeshPhongMaterial({
-    color: 0x7888aa,
-    emissive: tintColor,
-    emissiveIntensity: 0.1,
-  });
-  const wings = new THREE.Mesh(wingGeo, wingMat);
-  wings.position.z = -0.15;
-  group.add(wings);
-
-  // 驾驶舱
-  const cockpitGeo = new THREE.SphereGeometry(0.15, 8, 8);
-  const cockpitMat = new THREE.MeshPhongMaterial({
-    color: tintColor,
-    emissive: tintColor,
-    emissiveIntensity: 0.6,
-    transparent: true,
-    opacity: 0.7,
-  });
-  const cockpit = new THREE.Mesh(cockpitGeo, cockpitMat);
-  cockpit.position.set(0, 0.12, 0.25);
-  group.add(cockpit);
-
-  // 引擎喷口
-  const engineGeo = new THREE.SphereGeometry(0.1, 6, 6);
-  const engineMat = new THREE.MeshBasicMaterial({
-    color: 0xff6622,
-    transparent: true,
-    opacity: 0.9,
-  });
-  const eL = new THREE.Mesh(engineGeo, engineMat);
-  eL.position.set(-0.35, 0, -0.5);
-  const eR = new THREE.Mesh(engineGeo, engineMat);
-  eR.position.set(0.35, 0, -0.5);
-  group.add(eL, eR);
-
-  // 引擎尾焰
-  const flameCanvas = document.createElement('canvas');
-  flameCanvas.width = 64;
-  flameCanvas.height = 64;
-  const fCtx = flameCanvas.getContext('2d');
-  const flameGrad = fCtx.createRadialGradient(32, 32, 0, 32, 32, 32);
-  flameGrad.addColorStop(0, 'rgba(255,180,50,0.9)');
-  flameGrad.addColorStop(0.3, 'rgba(255,100,20,0.5)');
-  flameGrad.addColorStop(1, 'rgba(255,50,10,0)');
-  fCtx.fillStyle = flameGrad;
-  fCtx.fillRect(0, 0, 64, 64);
-  const flameTex = new THREE.CanvasTexture(flameCanvas);
-  const flameMat = new THREE.SpriteMaterial({
-    map: flameTex,
-    transparent: true,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-  });
-  const flL = new THREE.Sprite(flameMat);
-  flL.scale.set(0.5, 0.5, 1);
-  flL.position.set(-0.35, 0, -0.75);
-  const flR = new THREE.Sprite(flameMat.clone());
-  flR.scale.set(0.5, 0.5, 1);
-  flR.position.set(0.35, 0, -0.75);
-  group.add(flL, flR);
-  group.userData._flames = [flL, flR];
-
-  group.scale.set(1.2, 1.2, 1.2);
-  return group;
 }
 
 // ---------------------------------------------------------------------------
@@ -1131,273 +609,23 @@ function _createDispatchShipMesh(tintColor) {
 // ---------------------------------------------------------------------------
 
 function _createSelectionRing() {
-  const geometry = new THREE.RingGeometry(3, 3.5, 32);
-  const material = new THREE.MeshBasicMaterial({
-    color: _COLORS.selected,
-    side: THREE.DoubleSide,
-    transparent: true,
-    opacity: 0.8,
-  });
+  _selectionRing = BABYLON.MeshBuilder.CreateTorus('selectionRing', {
+    diameter: 7, thickness: 0.5, tessellation: 32,
+  }, _scene);
+  _selectionRing.rotation.x = Math.PI / 2;
 
-  _selectionRing = new THREE.Mesh(geometry, material);
-  _selectionRing.rotation.x = -Math.PI / 2;
-  _selectionRing.visible = false;
-  _scene.add(_selectionRing);
-}
-
-// ---------------------------------------------------------------------------
-// 空间分割（八叉树）
-// ---------------------------------------------------------------------------
-
-function _buildOctree() {
-  // Simple octree implementation for fast raycasting
-  _octree = {
-    bounds: { min: { x: -60, y: -30, z: -60 }, max: { x: 60, y: 30, z: 60 } },
-    planets: _planetMetadata,
-  };
-}
-
-function _queryOctree(ray) {
-  // For now, return all planets (simple implementation)
-  // In production, this would traverse the octree
-  return _planetMetadata;
+  const mat = new BABYLON.StandardMaterial('selectionRingMat', _scene);
+  mat.emissiveColor = _COLORS.selected;
+  mat.disableLighting = true;
+  mat.alpha = 0.8;
+  _selectionRing.material = mat;
+  _selectionRing.isPickable = false;
+  _selectionRing.setEnabled(false);
 }
 
 // ---------------------------------------------------------------------------
 // 相机控制
 // ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
-// 飞船系统
-// ---------------------------------------------------------------------------
-
-function _createShipMesh() {
-  const group = new THREE.Group();
-
-  // 主体 — 尖锥形机身
-  const bodyGeo = new THREE.ConeGeometry(0.35, 1.6, 6);
-  bodyGeo.rotateX(Math.PI / 2); // point forward (+Z)
-  const bodyMat = new THREE.MeshPhongMaterial({
-    color: 0xd0d8e8,
-    emissive: 0x223344,
-    emissiveIntensity: 0.3,
-    shininess: 80,
-  });
-  const body = new THREE.Mesh(bodyGeo, bodyMat);
-  group.add(body);
-
-  // 机翼 — 两侧三角翼
-  const wingGeo = new THREE.BoxGeometry(2.2, 0.06, 0.7);
-  const wingMat = new THREE.MeshPhongMaterial({
-    color: 0x8899bb,
-    emissive: 0x112233,
-    emissiveIntensity: 0.2,
-  });
-  const wings = new THREE.Mesh(wingGeo, wingMat);
-  wings.position.z = -0.2;
-  group.add(wings);
-
-  // 驾驶舱 — 半透明蓝色球
-  const cockpitGeo = new THREE.SphereGeometry(0.2, 8, 8);
-  const cockpitMat = new THREE.MeshPhongMaterial({
-    color: 0x44ccff,
-    emissive: 0x44ccff,
-    emissiveIntensity: 0.6,
-    transparent: true,
-    opacity: 0.7,
-  });
-  const cockpit = new THREE.Mesh(cockpitGeo, cockpitMat);
-  cockpit.position.set(0, 0.15, 0.3);
-  group.add(cockpit);
-
-  // 引擎喷口 — 两个橙色发光点
-  const engineGeo = new THREE.SphereGeometry(0.12, 6, 6);
-  const engineMat = new THREE.MeshBasicMaterial({
-    color: 0xff6622,
-    transparent: true,
-    opacity: 0.9,
-  });
-  const engineL = new THREE.Mesh(engineGeo, engineMat);
-  engineL.position.set(-0.4, 0, -0.6);
-  const engineR = new THREE.Mesh(engineGeo, engineMat);
-  engineR.position.set(0.4, 0, -0.6);
-  group.add(engineL, engineR);
-
-  // 引擎尾焰 — sprite
-  const flameCanvas = document.createElement('canvas');
-  flameCanvas.width = 64;
-  flameCanvas.height = 64;
-  const fCtx = flameCanvas.getContext('2d');
-  const flameGrad = fCtx.createRadialGradient(32, 32, 0, 32, 32, 32);
-  flameGrad.addColorStop(0, 'rgba(255,180,50,0.9)');
-  flameGrad.addColorStop(0.3, 'rgba(255,100,20,0.5)');
-  flameGrad.addColorStop(1, 'rgba(255,50,10,0)');
-  fCtx.fillStyle = flameGrad;
-  fCtx.fillRect(0, 0, 64, 64);
-  const flameTex = new THREE.CanvasTexture(flameCanvas);
-  const flameMat = new THREE.SpriteMaterial({
-    map: flameTex,
-    transparent: true,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-  });
-  const flameL = new THREE.Sprite(flameMat);
-  flameL.scale.set(0.6, 0.6, 1);
-  flameL.position.set(-0.4, 0, -0.9);
-  const flameR = new THREE.Sprite(flameMat.clone());
-  flameR.scale.set(0.6, 0.6, 1);
-  flameR.position.set(0.4, 0, -0.9);
-  group.add(flameL, flameR);
-  group.userData._flames = [flameL, flameR];
-
-  group.scale.set(1.5, 1.5, 1.5);
-  return group;
-}
-
-function _createShipTrail() {
-  const count = 60;
-  const geo = new THREE.BufferGeometry();
-  const positions = new Float32Array(count * 3);
-  const alphas = new Float32Array(count);
-  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geo.setAttribute('alpha', new THREE.BufferAttribute(alphas, 1));
-
-  const mat = new THREE.PointsMaterial({
-    color: 0xff8844,
-    size: 0.3,
-    transparent: true,
-    opacity: 0.6,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-    sizeAttenuation: true,
-  });
-  const points = new THREE.Points(geo, mat);
-  points.userData._count = count;
-  points.userData._head = 0;
-  return points;
-}
-
-function _updateShipTrail(position) {
-  if (!_shipTrail) return;
-  const posAttr = _shipTrail.geometry.attributes.position;
-  const head = _shipTrail.userData._head;
-  const count = _shipTrail.userData._count;
-
-  posAttr.setXYZ(head, position.x, position.y, position.z);
-  _shipTrail.userData._head = (head + 1) % count;
-  posAttr.needsUpdate = true;
-}
-
-/**
- * 触发飞船从 fromId 飞到 toId 的动画
- * @param {string} fromId - 起始星球ID
- * @param {string} toId - 目标星球ID
- * @param {Function} [onComplete] - 飞行完成后回调
- */
-export function flyShipTo(fromId, toId, onComplete) {
-  if (_mapView !== 'planets') return;
-
-  const fromMeta = _planetMetadata.find(m => m.id === fromId);
-  const toMeta = _planetMetadata.find(m => m.id === toId);
-  if (!fromMeta || !toMeta) {
-    if (onComplete) onComplete();
-    return;
-  }
-
-  const from = fromMeta.position.clone();
-  const to = toMeta.position.clone();
-
-  // 弧形飞行路径 — 中点抬高
-  const mid = from.clone().lerp(to, 0.5);
-  const dist = from.distanceTo(to);
-  mid.y += Math.max(dist * 0.2, 5);
-
-  const curve = new THREE.QuadraticBezierCurve3(from, mid, to);
-
-  // 显示飞船
-  if (!_shipMesh) {
-    _shipMesh = _createShipMesh();
-    _scene.add(_shipMesh);
-  }
-  if (!_shipTrail) {
-    _shipTrail = _createShipTrail();
-    _scene.add(_shipTrail);
-  }
-
-  _shipMesh.visible = true;
-  _shipTrail.visible = true;
-  _shipVisible = true;
-  _shipMesh.position.copy(from);
-
-  // Reset trail positions
-  const posAttr = _shipTrail.geometry.attributes.position;
-  for (let i = 0; i < _shipTrail.userData._count; i++) {
-    posAttr.setXYZ(i, from.x, from.y, from.z);
-  }
-  posAttr.needsUpdate = true;
-  _shipTrail.userData._head = 0;
-
-  // Duration based on distance — 1.5~3s
-  const duration = Math.min(3000, Math.max(1500, dist * 30));
-
-  _flightPath = {
-    curve,
-    progress: 0,
-    fromId,
-    toId,
-    duration,
-    startTime: performance.now(),
-    onComplete: onComplete || null,
-  };
-
-  // Camera follows the flight
-  _cameraTarget = null; // cancel any existing transition
-}
-
-function _updateShipFlight(time) {
-  if (!_flightPath || !_shipMesh) return;
-
-  const elapsed = time - _flightPath.startTime;
-  // Ease in-out
-  let t = Math.min(elapsed / _flightPath.duration, 1);
-  const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-
-  const pos = _flightPath.curve.getPointAt(eased);
-  _shipMesh.position.copy(pos);
-
-  // Orient ship along tangent
-  const tangent = _flightPath.curve.getTangentAt(eased);
-  const lookTarget = pos.clone().add(tangent);
-  _shipMesh.lookAt(lookTarget);
-
-  // Update trail
-  _updateShipTrail(pos);
-
-  // Animate engine flames
-  if (_shipMesh.userData._flames) {
-    const flicker = 0.5 + Math.sin(elapsed * 0.02) * 0.15 + Math.random() * 0.1;
-    _shipMesh.userData._flames.forEach(f => {
-      f.scale.set(flicker, flicker, 1);
-    });
-  }
-
-  // Camera stays free — no lock-on, player can orbit freely during flight
-
-  if (t >= 1) {
-    // Flight complete
-    const cb = _flightPath.onComplete;
-    _flightPath = null;
-
-    // Hide ship after a brief moment
-    setTimeout(() => {
-      if (_shipMesh) _shipMesh.visible = false;
-      if (_shipTrail) _shipTrail.visible = false;
-      _shipVisible = false;
-    }, 500);
-
-    if (cb) cb();
-  }
-}
 
 export function focusPlanet(planetId, smooth = true) {
   const metadata = _planetMetadata.find(m => m.id === planetId);
@@ -1411,13 +639,13 @@ export function focusPlanet(planetId, smooth = true) {
     _cameraTarget = targetPos;
     _cameraTransitionProgress = 0;
   } else {
-    _camera.position.copy(targetPos);
-    _camera.lookAt(metadata.position);
+    _camera.setPosition(targetPos);
+    _camera.setTarget(metadata.position);
   }
 }
 
 export function resetCamera() {
-  _cameraTarget = new THREE.Vector3(0, 80, 180);
+  _cameraTarget = new BABYLON.Vector3(0, 80, 150);
   _cameraTransitionProgress = 0;
 }
 
@@ -1425,214 +653,107 @@ export function resetCamera() {
 // 动画循环
 // ---------------------------------------------------------------------------
 
+let _renderLoopFn = null;
+
 function _startAnimation() {
-  if (_animationId) return;
-  _animate();
+  if (_renderLoopFn) return;
+
+  _renderLoopFn = () => {
+    const time = Date.now() * 0.001;
+
+    // Camera transition
+    if (_cameraTarget && _cameraTransitionProgress < 1) {
+      _cameraTransitionProgress += 0.02;
+      const currentPos = _camera.position;
+      _camera.position = BABYLON.Vector3.Lerp(currentPos, _cameraTarget, 0.05);
+
+      if (_cameraTransitionProgress >= 1) {
+        _cameraTarget = null;
+      }
+    }
+
+    // Rotate background slowly
+    if (_backgroundLayers && _motionLevel !== 'off') {
+      const speed = _motionLevel === 'reduced' ? 0.0001 : 0.0003;
+      if (_backgroundLayers.stars) {
+        _backgroundLayers.stars.rotation.y += speed;
+      }
+      if (_backgroundLayers.nebula) {
+        _backgroundLayers.nebula.rotation.y += speed * 0.5;
+      }
+    }
+
+    // Update selection ring
+    if (_selectionRing && _selectionRing.isEnabled()) {
+      _selectionRing.rotation.z += 0.01;
+      const s = 1 + Math.sin(time * 3) * 0.1;
+      _selectionRing.scaling = new BABYLON.Vector3(s, s, s);
+    }
+
+    _scene.render();
+  };
+
+  _engine.runRenderLoop(_renderLoopFn);
 }
 
 function _stopAnimation() {
-  if (_animationId) {
-    cancelAnimationFrame(_animationId);
-    _animationId = null;
+  if (_renderLoopFn) {
+    _engine.stopRenderLoop(_renderLoopFn);
+    _renderLoopFn = null;
   }
-}
-
-function _animate() {
-  _animationId = requestAnimationFrame(_animate);
-
-  const time = Date.now() * 0.001;
-
-  // Update controls
-  _controls.update();
-
-  // Camera transition
-  if (_cameraTarget && _cameraTransitionProgress < 1) {
-    _cameraTransitionProgress += 0.02;
-    _camera.position.lerp(_cameraTarget, 0.05);
-
-    if (_cameraTransitionProgress >= 1) {
-      _cameraTarget = null;
-    }
-  }
-
-  // Pulse current system in planet view
-  if (_motionLevel !== 'off' && _instancedPlanets && _currentSystem) {
-    const meta = _planetMetadata.find(m => m.id === _currentSystem);
-    if (meta) {
-      const pulseScale = meta.size * (1 + Math.sin(time * 2) * 0.1);
-      const matrix = new THREE.Matrix4();
-      matrix.compose(
-        meta.position,
-        new THREE.Quaternion(),
-        new THREE.Vector3(pulseScale, pulseScale, pulseScale)
-      );
-      _instancedPlanets.setMatrixAt(meta.index, matrix);
-      _instancedPlanets.instanceMatrix.needsUpdate = true;
-    }
-  }
-
-  // Slowly rotate galaxy nebulae in galaxy view
-  if (_motionLevel !== 'off' && _mapView === 'galaxies') {
-    const rotSpeed = _motionLevel === 'reduced' ? 0.002 : 0.005;
-    _galaxyMeshes.forEach(group => {
-      group.rotation.y += rotSpeed;
-    });
-  }
-
-  // Rotate background slowly
-  if (_backgroundLayers && _motionLevel !== 'off') {
-    const speed = _motionLevel === 'reduced' ? 0.0001 : 0.0003;
-    _backgroundLayers.stars.rotation.y += speed;
-    _backgroundLayers.nebula.rotation.y += speed * 0.5;
-  }
-
-  // Update ship flight
-  _updateShipFlight(performance.now());
-
-  // Update dispatch ship markers (animated along curves with trails)
-  _dispatchShipMarkers.forEach(function (marker) {
-    if (!marker.userData._dispatchCurve) return;
-    var phase = marker.userData._phaseOffset || 0;
-    var prog = (((time + phase) % 3) / 3);
-    var eased = prog < 0.5 ? 2 * prog * prog : 1 - Math.pow(-2 * prog + 2, 2) / 2;
-    if (marker.userData._direction < 0) eased = 1 - eased;
-    var pos = marker.userData._dispatchCurve.getPointAt(eased);
-    marker.position.copy(pos);
-
-    // Orient ship along travel direction
-    var tangent = marker.userData._dispatchCurve.getTangentAt(eased);
-    if (marker.userData._direction < 0) tangent.negate();
-    var lookTarget = pos.clone().add(tangent);
-    marker.lookAt(lookTarget);
-
-    // Animate engine flames
-    if (marker.userData._flames) {
-      var flicker = 0.5 + Math.sin(time * 8 + phase) * 0.15 + Math.random() * 0.1;
-      marker.userData._flames.forEach(function (f) { f.scale.set(flicker, flicker, 1); });
-    }
-
-    // Update trail
-    var trail = marker.userData._trail;
-    if (trail) {
-      var posAttr = trail.geometry.attributes.position;
-      var head = trail.userData._head;
-      posAttr.setXYZ(head, pos.x, pos.y, pos.z);
-      trail.userData._head = (head + 1) % trail.userData._count;
-      posAttr.needsUpdate = true;
-    }
-  });
-
-  // Update selection ring
-  if (_selectionRing.visible) {
-    _selectionRing.rotation.z += 0.01;
-    _selectionRing.scale.setScalar(1 + Math.sin(time * 3) * 0.1);
-  }
-
-  _renderer.render(_scene, _camera);
 }
 
 // ---------------------------------------------------------------------------
 // 事件处理
 // ---------------------------------------------------------------------------
 
-function _onResize() {
-  if (!_isActive) return;
-  const container = document.getElementById('map-container');
-  const w = container.clientWidth;
-  const h = container.clientHeight;
-  _camera.aspect = w / h;
-  _camera.updateProjectionMatrix();
-  _renderer.setSize(w, h);
-}
-
-function _onMouseMove(event) {
-  const rect = _canvas.getBoundingClientRect();
-  _mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-  _mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
-  _raycaster.setFromCamera(_mouse, _camera);
-
+function _onPointerMove(evt, pickResult) {
   if (_hoveredPlanet) {
     _hoveredPlanet = null;
   }
 
-  // Galaxy view: raycast against galaxy spheres
-  if (_mapView === 'galaxies' && _galaxyMeshes.length > 0) {
-    const intersects = _raycaster.intersectObjects(_galaxyMeshes, true);
-    if (intersects.length > 0) {
-      // Walk up to find the group with userData
-      let hit = intersects[0].object;
-      while (hit && !hit.userData.type) hit = hit.parent;
-      if (hit && hit.userData.type === 'galaxy') {
+  if (pickResult.hit && pickResult.pickedMesh) {
+    const mesh = pickResult.pickedMesh;
+
+    // Handle thin instance picking
+    if (mesh === _basePlanetMesh) {
+      const instanceIndex = pickResult.thinInstanceIndex;
+      // thinInstanceIndex: -1 = base mesh (metadata[0]), 0+ = thin instances (metadata[1+])
+      const metaIndex = instanceIndex >= 0 ? instanceIndex + 1 : 0;
+      const metadata = _planetMetadata[metaIndex];
+
+      if (metadata) {
+        _hoveredPlanet = metadata;
         _canvas.style.cursor = 'pointer';
+
         if (window._mapHoverCallback) {
-          window._mapHoverCallback({ type: 'galaxy', id: hit.userData.id, ...hit.userData.data });
+          const planetData = GalaxyData.getPlanetData(metadata.id);
+          window._mapHoverCallback(planetData);
         }
         return;
       }
     }
-    _canvas.style.cursor = 'default';
-    if (window._mapHoverCallback) {
-      window._mapHoverCallback(null);
-    }
-    return;
   }
 
-  // Planet view: raycast against instanced mesh
-  if (!_instancedPlanets) return;
-  const intersects = _raycaster.intersectObject(_instancedPlanets);
-
-  if (intersects.length > 0) {
-    const instanceId = intersects[0].instanceId;
-    const metadata = _planetMetadata[instanceId];
-
-    if (metadata) {
-      _hoveredPlanet = metadata;
-      _canvas.style.cursor = 'pointer';
-
-      // Dispatch hover event with correct format for MapUI
-      if (window._mapHoverCallback) {
-        window._mapHoverCallback({ type: 'system', id: metadata.id });
-      }
-    }
-  } else {
-    _canvas.style.cursor = 'default';
-    if (window._mapHoverCallback) {
-      window._mapHoverCallback(null);
-    }
+  _canvas.style.cursor = 'default';
+  if (window._mapHoverCallback) {
+    window._mapHoverCallback(null);
   }
 }
 
-function _onClick(event) {
-  const rect = _canvas.getBoundingClientRect();
-  _mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-  _mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
-  _raycaster.setFromCamera(_mouse, _camera);
-
-  // Galaxy view: click on galaxy
-  if (_mapView === 'galaxies' && _galaxyMeshes.length > 0) {
-    const intersects = _raycaster.intersectObjects(_galaxyMeshes, true);
-    if (intersects.length > 0) {
-      let hit = intersects[0].object;
-      while (hit && !hit.userData.type) hit = hit.parent;
-      if (hit && hit.userData.type === 'galaxy' && window._galaxyClickCallback) {
-        window._galaxyClickCallback(hit.userData.id);
-      }
-    }
-    return;
-  }
-
-  // Planet view: click on planet
+function _onPointerPick(evt, pickResult) {
   if (!_hoveredPlanet) return;
 
   _selectedPlanet = _hoveredPlanet;
 
   // Position selection ring
-  _selectionRing.position.copy(_hoveredPlanet.position);
-  _selectionRing.position.y += 0.1;
-  _selectionRing.scale.setScalar(_hoveredPlanet.size + 0.5);
-  _selectionRing.visible = true;
+  if (_selectionRing) {
+    _selectionRing.position = _hoveredPlanet.position.clone();
+    _selectionRing.position.y += 0.1;
+    const ringScale = _hoveredPlanet.size + 0.5;
+    _selectionRing.scaling = new BABYLON.Vector3(ringScale, ringScale, ringScale);
+    _selectionRing.setEnabled(true);
+  }
 
   // Dispatch click event
   if (window._mapClickCallback) {
@@ -1645,18 +766,9 @@ function _onClick(event) {
 // ---------------------------------------------------------------------------
 
 function _applyQualitySettings() {
-  const quality = _QUALITY_SETTINGS[_qualityLevel];
-
-  // Update renderer
-  _renderer.setPixelRatio(
-    _qualityLevel === 'low' ? 1 : Math.min(window.devicePixelRatio, 2)
-  );
-
-  // Rebuild background if needed
-  if (_backgroundLayers) {
-    _scene.remove(_backgroundLayers.stars);
-    _backgroundLayers.stars.geometry.dispose();
-    _backgroundLayers.stars.material.dispose();
+  // Rebuild background stars with new quality
+  if (_backgroundLayers && _backgroundLayers.stars) {
+    _backgroundLayers.stars.dispose();
     _backgroundLayers.stars = _createDistantStars();
   }
 
@@ -1677,6 +789,6 @@ export function resetRuntimeState(currentSystemId) {
   _hoveredPlanet = null;
   _selectedPlanet = null;
   if (_selectionRing) {
-    _selectionRing.visible = false;
+    _selectionRing.setEnabled(false);
   }
 }

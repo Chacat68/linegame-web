@@ -6,6 +6,7 @@
     <title>蓝脉航路 · 银河历 3045</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%23040814' stroke='%2322d3ee' stroke-width='2'/><circle cx='16' cy='16' r='4' fill='%2322d3ee'/><line x1='16' y1='2' x2='16' y2='8' stroke='%2322d3ee' stroke-width='1.5'/><line x1='16' y1='24' x2='16' y2='30' stroke='%2322d3ee' stroke-width='1.5'/><line x1='2' y1='16' x2='8' y2='16' stroke='%2322d3ee' stroke-width='1.5'/><line x1='24' y1='16' x2='30' y2='16' stroke='%2322d3ee' stroke-width='1.5'/></svg>" />
     <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/business-terminal.css" />
   </head>
   <body>
     <div id="game-shell">
@@ -383,6 +384,10 @@
           <button class="bottom-nav-btn" data-view="console" title="控制台">
             <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
             <span>控制台</span>
+          </button>
+          <button class="bottom-nav-btn" data-view="business-terminal" title="商业终端">
+            <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/><path d="M6 7h12M6 11h8"/></svg>
+            <span>TERMINAL</span>
           </button>
           <button class="bottom-nav-btn" data-view="market" title="市场">
             <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
@@ -880,15 +885,53 @@
       </div>
     </div>
 
-    <!-- Three.js library for 3D rendering -->
-    <script type="importmap">
-      {
-        "imports": {
-          "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-        }
-      }
-    </script>
+    <!-- ================================================================
+     Business Terminal (统一商业终端)
+================================================================ -->
+    <div id="business-terminal" class="hidden">
+      <div class="bt-header">
+        <div class="bt-header-title">
+          商业终端
+        </div>
+        <div class="bt-header-stats">
+          <div class="bt-header-stat">
+            <span class="bt-header-label">资金</span>
+            <span id="bt-credits" class="bt-header-value">0</span>
+          </div>
+          <div class="bt-header-stat">
+            <span class="bt-header-label">资产</span>
+            <span id="bt-networth" class="bt-header-value">0</span>
+          </div>
+          <div class="bt-header-stat">
+            <span class="bt-header-label">信用评级</span>
+            <span id="bt-credit-rating" class="bt-header-value">620</span>
+          </div>
+          <div class="bt-header-stat">
+            <span class="bt-header-label">日收益</span>
+            <span id="bt-daily-income" class="bt-header-value">+0</span>
+          </div>
+        </div>
+        <button id="business-terminal-close" class="bt-header-close">✕</button>
+      </div>
+
+      <div class="bt-tabs">
+        <button class="bt-tab-btn active" data-tab-target="dashboard">仪表盘</button>
+        <button class="bt-tab-btn" data-tab-target="market">市场</button>
+        <button class="bt-tab-btn" data-tab-target="finance">金融</button>
+        <button class="bt-tab-btn" data-tab-target="futures">期货</button>
+        <button class="bt-tab-btn" data-tab-target="stations">贸易站</button>
+        <button class="bt-tab-btn" data-tab-target="fleet">舰队</button>
+      </div>
+
+      <div class="bt-content">
+        <div id="business-terminal-content">
+          <!-- 动态内容由 BusinessTerminalUI.js 渲染 -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Babylon.js library for 3D rendering -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script type="module" src="js/main.js"></script>
   </body>
 </html>
