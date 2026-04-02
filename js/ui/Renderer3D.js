@@ -148,7 +148,7 @@ function _createStarField() {
 
   pcs.buildMeshAsync().then(() => {
     _starField = pcs.mesh;
-  });
+  }).catch(err => console.error('[Renderer3D] buildMeshAsync error:', err));
 }
 
 // ---------------------------------------------------------------------------

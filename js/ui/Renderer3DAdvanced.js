@@ -221,7 +221,10 @@ function _createDistantStars() {
   // buildMeshAsync is async; store a placeholder object so rotation code has a target
   const placeholder = { rotation: { y: 0 }, dispose: () => {} };
   pcs.buildMeshAsync().then(() => {
-    if (!pcs.mesh) return;
+    if (!pcs.mesh) {
+      console.warn('[Renderer3DAdvanced] buildMeshAsync resolved but mesh is null');
+      return;
+    }
     const mesh = pcs.mesh;
     // Copy any rotation applied while building
     mesh.rotation.y = placeholder.rotation.y;
