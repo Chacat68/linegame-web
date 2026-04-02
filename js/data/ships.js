@@ -257,9 +257,9 @@ export const SHIP_UPGRADES = [
   {
     id: "ship_engine_ii",
     name: "高效引擎 II",
-    desc: "耗油 ×0.8",
+    desc: "耗油 ×0.65",
     cost: 5000,
-    effect: { fuelEff: 0.8 },
+    effect: { fuelEff: 0.65 },
     requires: "ship_engine_i",
   },
   {

@@ -351,12 +351,12 @@ function _normalizeState(data) {
     }
   });
 
-  if (normalized.day < 1) normalized.day = SAVE_STATE_DEFAULTS.day;
-  if (normalized.playerLevel < 1) normalized.playerLevel = SAVE_STATE_DEFAULTS.playerLevel;
-  if (normalized.companyLevel < 1) normalized.companyLevel = SAVE_STATE_DEFAULTS.companyLevel;
-  if (normalized.questPhase < 1) normalized.questPhase = SAVE_STATE_DEFAULTS.questPhase;
-  if (normalized.fleetSlots < 1) normalized.fleetSlots = SAVE_STATE_DEFAULTS.fleetSlots;
-  if (normalized.activeShipIndex < 0) normalized.activeShipIndex = SAVE_STATE_DEFAULTS.activeShipIndex;
+  if (!Number.isFinite(normalized.day) || normalized.day < 1) normalized.day = SAVE_STATE_DEFAULTS.day;
+  if (!Number.isFinite(normalized.playerLevel) || normalized.playerLevel < 1) normalized.playerLevel = SAVE_STATE_DEFAULTS.playerLevel;
+  if (!Number.isFinite(normalized.companyLevel) || normalized.companyLevel < 1) normalized.companyLevel = SAVE_STATE_DEFAULTS.companyLevel;
+  if (!Number.isFinite(normalized.questPhase) || normalized.questPhase < 1) normalized.questPhase = SAVE_STATE_DEFAULTS.questPhase;
+  if (!Number.isFinite(normalized.fleetSlots) || normalized.fleetSlots < 1) normalized.fleetSlots = SAVE_STATE_DEFAULTS.fleetSlots;
+  if (!Number.isFinite(normalized.activeShipIndex) || normalized.activeShipIndex < 0) normalized.activeShipIndex = SAVE_STATE_DEFAULTS.activeShipIndex;
 
   normalized.playerLevel = getLevel(normalized.experience || 0).level;
   normalized.companyLevel = getCompanyLevel(normalized.companyExperience || 0).level;

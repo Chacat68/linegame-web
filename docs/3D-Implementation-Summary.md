@@ -2,7 +2,7 @@
 
 ## Overview
 
-This implementation delivers a comprehensive 3D galaxy visualization system based on the technical specifications provided. The system uses Three.js for WebGL rendering and implements advanced techniques for high-performance visualization of hundreds of planets.
+This implementation delivers a comprehensive 3D galaxy visualization system based on the technical specifications provided. The system uses Babylon.js for WebGL rendering and implements advanced techniques for high-performance visualization of hundreds of planets.
 
 ## What Was Implemented
 
@@ -16,7 +16,7 @@ This implementation delivers a comprehensive 3D galaxy visualization system base
    - 24 comprehensive tests
 
 2. **Advanced 3D Renderer** - `js/ui/Renderer3DAdvanced.js`
-   - InstancedMesh batch rendering (single draw call for all planets)
+   - Thin Instances batch rendering (single draw call for all planets)
    - Layered background system (stars, nebula, galaxy disk)
    - Faction boundary visualization with convex hull algorithm
    - Connection lines between planets
@@ -34,7 +34,7 @@ This implementation delivers a comprehensive 3D galaxy visualization system base
 
 ### Performance Optimizations
 
-- **InstancedMesh Rendering**: Reduced draw calls from N to 1 for N planets
+- **Thin Instances Rendering**: Reduced draw calls from N to 1 for N planets
 - **Frustum Culling**: Automatic off-screen object elimination
 - **Spatial Partitioning**: O(log n) raycasting with octree
 - **LOD System**: Three quality levels for different hardware
@@ -84,7 +84,7 @@ GalaxyDataLayer.getPlanetData()
 Renderer3DAdvanced.render()
     │
     ▼
-InstancedMesh Update
+Thin Instances Update
     │
     ▼
 GPU Rendering
@@ -284,7 +284,7 @@ Full technical documentation available at:
 Recommended improvements for future PRs:
 
 1. **HTML Overlay Panel**: Create dynamic info panels for selected planets
-2. **Fleet Visualization**: Extend InstancedMesh for moving ships
+2. **Fleet Visualization**: Extend Thin Instances for moving ships
 3. **Battle Effects**: Particle system for combat visualization
 4. **Performance Profiling**: Use Chrome DevTools to identify bottlenecks
 5. **Mobile Optimization**: Touch controls and lower default quality
