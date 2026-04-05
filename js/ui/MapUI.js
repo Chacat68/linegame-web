@@ -265,10 +265,20 @@ export function refreshPlanetDetail(stateRef) {
 
   panel.classList.add('visible');
 
-  const canvasW = mapCanvas.clientWidth;
-  const canvasH = mapCanvas.clientHeight;
-  const nodeX = sys.x * canvasW;
-  const nodeY = sys.y * canvasH;
+  const container = mapContainer;
+  const canvasW = container.clientWidth;
+  const canvasH = container.clientHeight;
+
+  // 优先使用3D投影坐标
+  let nodeX, nodeY;
+  const screenPos = Renderer3D.getPlanetScreenPosition(displayId);
+  if (screenPos) {
+    nodeX = screenPos.x;
+    nodeY = screenPos.y;
+  } else {
+    nodeX = sys.x * canvasW;
+    nodeY = sys.y * canvasH;
+  }
   const offset = 14;
 
   const panelW = Math.min(320, Math.max(200, canvasW - 16));
@@ -474,13 +484,7 @@ function _handleBottomNav(view) {
     return;
   }
 
-  if (view === 'business-terminal') {
-    // 商业终端是全屏覆盖，需要通知 GameManager 打开
-    if (window.GameManagerAPI && window.GameManagerAPI.openBusinessTerminal) {
-      window.GameManagerAPI.openBusinessTerminal();
-    }
-    return;
-  }
+
 }
 
 function _openOverlayPanel(id) {

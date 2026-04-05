@@ -13,7 +13,7 @@ import * as AutoTrade from '../systems/trade/AutoTradeSystem.js';
 import * as Economy   from '../systems/economy/Economy.js';
 
 let _activeDispatchInterval = null;
-const ACTIVE_DISPATCH_TICK_MS = 2000;
+const ACTIVE_DISPATCH_TICK_MS = 5000;
 
 function _queuePolicyMessage(route, msgs, text) {
   if (!route || !text || route.lastPolicyMessage === text) return;
@@ -38,7 +38,7 @@ export function startActiveDispatch(tickFn) {
   stopActiveDispatch();
   _activeDispatchInterval = setInterval(tickFn, ACTIVE_DISPATCH_TICK_MS);
   updateActiveDispatchUI();
-  EventBus.emit('log:message', { text: '📡 激活船只已派遣！每 2 秒执行一次操作。', type: 'info' });
+  EventBus.emit('log:message', { text: '📡 激活船只已派遣！每 5 秒执行一次操作。', type: 'info' });
 }
 
 /**

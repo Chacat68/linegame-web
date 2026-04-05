@@ -130,6 +130,12 @@ export function getAllPlanetStates() {
 // 数据更新
 // ---------------------------------------------------------------------------
 
+function _getNextLastUpdate(previousValue) {
+  const now = Date.now();
+  const previous = typeof previousValue === 'number' ? previousValue : 0;
+  return now > previous ? now : previous + 1;
+}
+
 /**
  * 更新星球运行时状态
  * @param {string} planetId - 星球ID
@@ -140,7 +146,7 @@ export function updatePlanetState(planetId, updates) {
   if (!state) return;
 
   const oldState = { ...state };
-  Object.assign(state, updates, { lastUpdate: Date.now() });
+  Object.assign(state, updates, { lastUpdate: _getNextLastUpdate(state.lastUpdate) });
 
   // 触发事件
   _notifyListeners({
@@ -165,7 +171,7 @@ export function batchUpdatePlanetStates(updates) {
     const state = _planetStates.get(planetId);
     if (state) {
       const oldState = { ...state };
-      Object.assign(state, upd, { lastUpdate: Date.now() });
+      Object.assign(state, upd, { lastUpdate: _getNextLastUpdate(state.lastUpdate) });
       changes.push({ planetId, oldState, newState: { ...state } });
     }
   });

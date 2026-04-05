@@ -2,7 +2,7 @@
 // 依赖：data/ships.js, data/systems.js, systems/economy/Economy.js
 // 导出：init, buyShip, sellShip, switchShip, upgradeShip, getActiveShip, getFleet,
 //       syncStateFromShip, syncShipFromState, getShipType,
-//       assignRoute, cancelRoute, tickFleetRoutes,
+//       getRouteDisplayInfo, assignRoute, cancelRoute, tickFleetRoutes,
 //       buySlot, getSlotCount, getMaxSlots, getAvailableSlotCount,
 //       getDispatchRouteLevel, dispatchActiveShip, cancelActiveDispatch,
 //       isActiveDispatched, tickActiveShipDispatch,
@@ -373,6 +373,7 @@ export function syncShipFromState(state) {
   ship.cargo   = state.cargo;
   ship.fuel    = state.fuel;
   ship.hull    = state.shipHull != null ? state.shipHull : ship.hull;
+  ship.location = state.currentSystem || ship.location;
 }
 
 /**
@@ -481,6 +482,64 @@ function _handleShipSmugglingCheck(state, ship, route, msgs) {
   }
 
   return false;
+}
+
+function _getRouteDisplayCurrentSystemId(state, ship, shipIndex) {
+  var route = ship && ship.route ? ship.route : null;
+  var activeIndex = state && typeof state.activeShipIndex === 'number' ? state.activeShipIndex : 0;
+  var isActive = shipIndex === activeIndex;
+  var currentSystemId = isActive
+    ? (state.currentSystem || ship.location)
+    : (ship.location || state.currentSystem);
+
+  if (currentSystemId) return currentSystemId;
+  if (!route) return null;
+  if (route.status === 'traveling_sell' || route.status === 'selling') {
+    return route.buySystemId || route.sellSystemId || null;
+  }
+  return route.sellSystemId || route.buySystemId || null;
+}
+
+export function getRouteDisplayInfo(state, ship, shipIndex) {
+  if (!ship || !ship.route) return null;
+
+  var route = ship.route;
+  var currentSystemId = _getRouteDisplayCurrentSystemId(state, ship, shipIndex);
+  var sameSystemRoute = route.buySystemId === route.sellSystemId;
+  var atBuySystem = currentSystemId === route.buySystemId;
+  var atSellSystem = currentSystemId === route.sellSystemId;
+  var targetSystemId = null;
+  var statusLabel = route.status;
+
+  if (sameSystemRoute) {
+    targetSystemId = currentSystemId || route.buySystemId || route.sellSystemId || null;
+    statusLabel = (route.status === 'traveling_sell' || route.status === 'selling')
+      ? '💰 同站卖出中'
+      : '📦 同站买入中';
+  } else if (atBuySystem) {
+    targetSystemId = route.sellSystemId;
+    statusLabel = (route.status === 'traveling_sell' || route.status === 'selling')
+      ? '🚀 前往卖出地'
+      : '📦 买入中';
+  } else if (atSellSystem) {
+    targetSystemId = route.buySystemId;
+    statusLabel = (route.status === 'traveling_buy' || route.status === 'buying')
+      ? '🚀 前往买入地'
+      : '💰 卖出中';
+  } else if (route.status === 'traveling_sell' || route.status === 'selling') {
+    targetSystemId = route.sellSystemId;
+    statusLabel = route.status === 'selling' ? '💰 卖出中' : '🚀 前往卖出地';
+  } else {
+    targetSystemId = route.buySystemId;
+    statusLabel = route.status === 'buying' ? '📦 买入中' : '🚀 前往买入地';
+  }
+
+  return {
+    startSystemId: currentSystemId,
+    endSystemId: targetSystemId || currentSystemId,
+    statusLabel: statusLabel,
+    sameSystemRoute: sameSystemRoute,
+  };
 }
 
 /**
@@ -810,6 +869,7 @@ export function tickActiveShipDispatch(state) {
   var ship = getActiveShip(state);
   if (!ship || !ship.route) return { msgs: msgs, needTravel: null, needBuy: null, needSell: null };
 
+  ship.location = state.currentSystem || ship.location;
   var route = ship.route;
 
   switch (route.status) {

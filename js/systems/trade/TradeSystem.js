@@ -157,7 +157,7 @@ export function buyGoodOnMarket(state, goodId, quantity, marketType) {
   if (!state.goodsTraded)  state.goodsTraded = {};
   state.goodsTraded[goodId] = (state.goodsTraded[goodId] || 0) + quantity;
 
-  Economy.onPlayerBuy(state.currentSystem, goodId, quantity);
+  // 黑市交易不应污染公开市场的供需曲线。
 
   const good = GOODS.find(function (g) { return g.id === goodId; });
   return {
@@ -209,7 +209,7 @@ export function sellGoodOnMarket(state, goodId, quantity, marketType) {
   state.goodsTraded[goodId] = (state.goodsTraded[goodId] || 0) + quantity;
   if (profit > (state.maxSingleProfit || 0)) state.maxSingleProfit = profit;
 
-  Economy.onPlayerSell(state.currentSystem, goodId, quantity);
+  // 黑市交易不应污染公开市场的供需曲线。
 
   const good = GOODS.find(function (g) { return g.id === goodId; });
   return {

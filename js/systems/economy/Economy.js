@@ -464,11 +464,11 @@ export function getBlackMarketBuyPrice(systemId, goodId, state) {
   // 黑市基础价使用公开价 × 黑市溢价
   const bm = ECONOMY_CONFIG.blackMarket;
   const openPrice = getBuyPrice(systemId, goodId, state);
-  let price = Math.round(openPrice * bm.pricePremium);
 
   // 额外波动
   const volatilityNoise = 1 + (Math.random() - 0.5) * (bm.volatility - 1);
-  price = Math.round(price * volatilityNoise);
+  const premiumMultiplier = Math.max(bm.pricePremium, bm.pricePremium * volatilityNoise);
+  const price = Math.round(openPrice * premiumMultiplier);
 
   return Math.max(ECONOMY_CONFIG.pricing.minimumPrice, price);
 }
@@ -482,18 +482,19 @@ export function getBlackMarketSellPrice(systemId, goodId, state) {
 
   const bm = ECONOMY_CONFIG.blackMarket;
   const openPrice = getSellPrice(systemId, goodId, state);
-  let price = Math.round(openPrice * bm.sellPremium);
+  let premiumMultiplier = bm.sellPremium;
 
   // 违禁品额外加成
   if (good.legality === 'illegal') {
-    price = Math.round(price * bm.illegalSellBonus);
+    premiumMultiplier *= bm.illegalSellBonus;
   } else if (good.legality === 'restricted') {
-    price = Math.round(price * bm.restrictedSellBonus);
+    premiumMultiplier *= bm.restrictedSellBonus;
   }
 
   // 额外波动
   const volatilityNoise = 1 + (Math.random() - 0.5) * (bm.volatility - 1);
-  price = Math.round(price * volatilityNoise);
+  const effectiveMultiplier = Math.max(premiumMultiplier, premiumMultiplier * volatilityNoise);
+  const price = Math.round(openPrice * effectiveMultiplier);
 
   return Math.max(ECONOMY_CONFIG.pricing.minimumPrice, price);
 }

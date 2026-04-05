@@ -81,18 +81,93 @@ describe('Fleet.syncStateFromShip / syncShipFromState', () => {
 
     state.fuel = 42;
     state.shipHull = 88;
+    state.currentSystem = 'nova_station';
 
     Fleet.syncShipFromState(state);
     const ship = Fleet.getActiveShip(state);
 
     expect(ship.fuel).toBe(42);
     expect(ship.hull).toBe(88);
+    expect(ship.location).toBe('nova_station');
   });
 
   it('船只不存在时不崩溃', () => {
     const state = createTestState({ fleet: [], activeShipIndex: 0 });
     expect(() => Fleet.syncStateFromShip(state)).not.toThrow();
     expect(() => Fleet.syncShipFromState(state)).not.toThrow();
+  });
+});
+
+describe('Fleet.getRouteDisplayInfo', () => {
+  function createRoute(status, buySystemId, sellSystemId) {
+    return {
+      buySystemId: buySystemId,
+      sellSystemId: sellSystemId,
+      goodId: 'food',
+      status: status,
+      tradePolicy: { marketMode: 'open', maxBuyPrice: null, minSellPrice: null, minProfitRate: null, riskMode: 'balanced' },
+      marketMode: 'open',
+      lastBuyPrice: null,
+      lastPolicyMessage: null,
+    };
+  }
+
+  it('激活船的当前航段起点优先使用 state.currentSystem', () => {
+    const state = createTestState({ currentSystem: 'nova_station' });
+    Fleet.init(state);
+    const ship = Fleet.getActiveShip(state);
+    ship.location = 'sol_prime';
+    ship.route = createRoute('traveling_buy', 'sol_prime', 'fuel_depot');
+
+    const info = Fleet.getRouteDisplayInfo(state, ship, 0);
+
+    expect(info.startSystemId).toBe('nova_station');
+    expect(info.endSystemId).toBe('sol_prime');
+    expect(info.statusLabel).toBe('🚀 前往买入地');
+  });
+
+  it('到达买入地后机库文案切到买入地到卖出地', () => {
+    const state = createTestState({ currentSystem: 'sol_prime' });
+    Fleet.init(state);
+    const ship = Fleet.getActiveShip(state);
+    ship.location = 'nova_station';
+    ship.route = createRoute('traveling_buy', 'sol_prime', 'fuel_depot');
+
+    const info = Fleet.getRouteDisplayInfo(state, ship, 0);
+
+    expect(info.startSystemId).toBe('sol_prime');
+    expect(info.endSystemId).toBe('fuel_depot');
+    expect(info.statusLabel).toBe('📦 买入中');
+  });
+
+  it('非激活船的当前航段起点使用 ship.location', () => {
+    const state = createTestState({ credits: 10000, currentSystem: 'sol_prime' });
+    Fleet.init(state);
+    state.fleetSlots = 2;
+    Fleet.buyShip(state, 'freighter');
+    const ship = state.fleet[1];
+    ship.location = 'mineral_belt';
+    ship.route = createRoute('traveling_sell', 'sol_prime', 'nova_station');
+
+    const info = Fleet.getRouteDisplayInfo(state, ship, 1);
+
+    expect(info.startSystemId).toBe('mineral_belt');
+    expect(info.endSystemId).toBe('nova_station');
+    expect(info.statusLabel).toBe('🚀 前往卖出地');
+  });
+
+  it('同站路线保留派遣但不再显示跨星球目标', () => {
+    const state = createTestState({ currentSystem: 'nova_station' });
+    Fleet.init(state);
+    const ship = Fleet.getActiveShip(state);
+    ship.route = createRoute('traveling_buy', 'nova_station', 'nova_station');
+
+    const info = Fleet.getRouteDisplayInfo(state, ship, 0);
+
+    expect(info.startSystemId).toBe('nova_station');
+    expect(info.endSystemId).toBe('nova_station');
+    expect(info.sameSystemRoute).toBe(true);
+    expect(info.statusLabel).toBe('📦 同站买入中');
   });
 });
 
@@ -450,6 +525,56 @@ describe('Fleet.tickFleetRoutes', () => {
     expect(state.credits).toBeLessThan(10000);
     expect(state.fleet[1].hull).toBeLessThan(150);
     expect(result.msgs.some(function (msg) { return msg.text.indexOf('中止') !== -1; })).toBe(true);
+  });
+});
+
+describe('Fleet.tickActiveShipDispatch', () => {
+  it('到达买入地后同步当前位置并进入买入阶段', () => {
+    const state = createTestState({ currentSystem: 'sol_prime' });
+    Fleet.init(state);
+    const ship = Fleet.getActiveShip(state);
+    ship.location = 'nova_station';
+    ship.route = {
+      buySystemId: 'sol_prime',
+      sellSystemId: 'nova_station',
+      goodId: 'food',
+      status: 'traveling_buy',
+      tradePolicy: { marketMode: 'open', maxBuyPrice: null, minSellPrice: null, minProfitRate: null, riskMode: 'balanced' },
+      marketMode: 'open',
+      lastBuyPrice: null,
+      lastPolicyMessage: null,
+    };
+
+    const result = Fleet.tickActiveShipDispatch(state);
+
+    expect(ship.location).toBe('sol_prime');
+    expect(ship.route.status).toBe('buying');
+    expect(result.needBuy).toBe(ship.route);
+    expect(result.needTravel).toBeNull();
+  });
+
+  it('到达卖出地后同步当前位置并进入卖出阶段', () => {
+    const state = createTestState({ currentSystem: 'nova_station' });
+    Fleet.init(state);
+    const ship = Fleet.getActiveShip(state);
+    ship.location = 'sol_prime';
+    ship.route = {
+      buySystemId: 'sol_prime',
+      sellSystemId: 'nova_station',
+      goodId: 'food',
+      status: 'traveling_sell',
+      tradePolicy: { marketMode: 'open', maxBuyPrice: null, minSellPrice: null, minProfitRate: null, riskMode: 'balanced' },
+      marketMode: 'open',
+      lastBuyPrice: 10,
+      lastPolicyMessage: null,
+    };
+
+    const result = Fleet.tickActiveShipDispatch(state);
+
+    expect(ship.location).toBe('nova_station');
+    expect(ship.route.status).toBe('selling');
+    expect(result.needSell).toBe(ship.route);
+    expect(result.needTravel).toBeNull();
   });
 });
 

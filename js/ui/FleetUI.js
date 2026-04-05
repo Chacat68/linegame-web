@@ -224,21 +224,16 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
 
     // ======== 派遣路线状态 ========
     if (ship.route) {
-      const busSys  = SYSTEMS.find(function (s) { return s.id === ship.route.buySystemId; });
-      const sellSys = SYSTEMS.find(function (s) { return s.id === ship.route.sellSystemId; });
-      const good    = GOODS.find(function (g) { return g.id === ship.route.goodId; });
-      const statusMap = {
-        'traveling_buy': '🚀 前往买入地',
-        'buying': '📦 买入中',
-        'traveling_sell': '🚀 前往卖出地',
-        'selling': '💰 卖出中',
-      };
+      const routeDisplay = Fleet.getRouteDisplayInfo(state, ship, idx);
+      const startSys = SYSTEMS.find(function (s) { return s.id === (routeDisplay ? routeDisplay.startSystemId : null); });
+      const targetSys = SYSTEMS.find(function (s) { return s.id === (routeDisplay ? routeDisplay.endSystemId : null); });
+      const good = GOODS.find(function (g) { return g.id === ship.route.goodId; });
       html += '<div class="fleet-route-info">';
-      html += '<div class="fleet-route-text">📡 ' + (busSys ? busSys.name : '?') +
-              ' <span class="fleet-route-arrow">→</span> ' + (sellSys ? sellSys.name : '?') +
+      html += '<div class="fleet-route-text">📡 ' + (startSys ? startSys.name : '?') +
+              ' <span class="fleet-route-arrow">→</span> ' + (targetSys ? targetSys.name : '?') +
               ' (' + (good ? good.emoji + good.name : '?') + ')</div>';
-      html += '<div class="fleet-route-status">' + (statusMap[ship.route.status] || ship.route.status) + '</div>';
-            html += '<div class="fleet-route-policy">🎛 ' + _formatTradePolicySummary(ship.route.tradePolicy) + '</div>';
+      html += '<div class="fleet-route-status">' + (routeDisplay ? routeDisplay.statusLabel : ship.route.status) + '</div>';
+      html += '<div class="fleet-route-policy">🎛 ' + _formatTradePolicySummary(ship.route.tradePolicy) + '</div>';
       html += '<button class="fleet-cancel-btn" data-index="' + idx + '">⏹️ 召回</button>';
       html += '</div>';
     }

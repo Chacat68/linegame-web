@@ -26,7 +26,6 @@ import * as SaveUI     from '../ui/SaveUI.js';
 import * as QuestUI    from '../ui/QuestUI.js';
 import * as AchievementUI from '../ui/AchievementUI.js';
 import * as TradeStationUI from '../ui/TradeStationUI.js';
-import * as BusinessTerminalUI from '../ui/BusinessTerminalUI.js';
 import * as Fleet      from '../systems/fleet/FleetSystem.js';
 import * as Crew       from '../systems/fleet/CrewSystem.js';
 import * as AutoTrade  from '../systems/trade/AutoTradeSystem.js';
@@ -115,33 +114,7 @@ export function init(difficulty) {
   // 3D视角默认启用，确保回调已绑定
   MapUI.init3DCallbacks(_state, _handleTravel, _handleGalaxyJump);
 
-  // 初始化商业终端
-  BusinessTerminalUI.init(_state, {
-    onOpenBuy: _handleOpenBuy,
-    onOpenSell: _handleOpenSell,
-    onTakeLoan: _handleTakeLoan,
-    onRepayLoan: _handleRepayLoan,
-    onBuyStock: _handleBuyStock,
-    onSellStock: _handleSellStock,
-    onPurchaseInsurance: _handlePurchaseInsurance,
-    onSubmitInsuranceClaim: _handleSubmitInsuranceClaim,
-    onFuturesLong: _handleFuturesLong,
-    onFuturesShort: _handleFuturesShort,
-    onFuturesClose: _handleFuturesClose,
-    onBuildStation: _handleBuildTradeStation,
-    onUpgradeStation: _handleUpgradeTradeStation,
-    onHireManager: _handleHireTradeStationManager,
-    onSetStrategy: _handleSetTradeStationStrategy,
-    onSwitchShip: _handleSwitchShip,
-  });
 
-  // 暴露商业终端 API 给 MapUI
-  window.GameManagerAPI = {
-    openBusinessTerminal: function () {
-      BusinessTerminalUI.show();
-      BusinessTerminalUI.render(_state);
-    }
-  };
   // 注入市场刷新回调（让 MapUI 可以触发市场表格重绘）
   MapUI.setRefreshMarket(function (mode) {
     const sysId = MapUI.getMarketViewSystem(_state);
@@ -337,15 +310,23 @@ function _handleTravel(systemId) {
     return;
   }
 
+  // 飞船飞行中不允许再次发起旅行，避免出现跳星球起飞
+  if (Renderer3D.isActive() && Renderer3D.isShipFlying && Renderer3D.isShipFlying()) {
+    EventBus.emit('log:message', { text: '🛰️ 飞船正在飞行中，请等待抵达后再发起下一次航行。', type: 'info' });
+    return;
+  }
+
   const previousSystem = _state.currentSystem;
   const previousDay = _state.day || 1;
   const result = Trade.travelTo(_state, systemId);
   _dispatch(result);
 
   if (result && result.ok) {
-    // 3D 飞船飞行动画
+    // 3D 飞船飞行动画（传入当前飞船类型）
     if (Renderer3D.isActive() && previousSystem) {
-      Renderer3D.flyShipTo(previousSystem, systemId);
+      var activeShipForFlight = Fleet.getActiveShip(_state);
+      var shipTypeId = activeShipForFlight ? activeShipForFlight.typeId : 'shuttle';
+      Renderer3D.flyShipTo(previousSystem, systemId, null, shipTypeId);
     }
 
     // 跨星系旅行后刷新地图按钮
@@ -931,14 +912,11 @@ function _updateUI() {
   FleetUI.render(_state, _handleBuyShip, _handleSwitchShip, _handleUpgradeShip, _handleAssignRoute, _handleCancelRoute, _handleBuySlot, _handleSellShip, _handleInstallMod, _handleUninstallMod, _handleRecruitCrew, _handleAssignCrew, _handleUnassignCrew, _handleDismissCrew);
   FleetUI.renderShop(_state, _handleBuyShip);
   SaveUI.render(_handleSaveGame, _handleLoadGame);
+  Renderer3D.invalidateScene();
   MapUI.refreshPlanetDetail(_state);
   Dispatch.updateActiveDispatchUI();
 
-  // 更新商业终端（如果已打开）
-  const btTerminal = document.getElementById('business-terminal');
-  if (btTerminal && !btTerminal.classList.contains('hidden')) {
-    BusinessTerminalUI.render(_state);
-  }
+
 }
 
 // ---------------------------------------------------------------------------
