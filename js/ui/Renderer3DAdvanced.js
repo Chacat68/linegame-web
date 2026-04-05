@@ -2,7 +2,7 @@
 // 依赖：babylon.js (global), GalaxyDataLayer, data/systems.js, data/factions.js
 // 导出：init, render, focusPlanet, setQuality, setMotionLevel, isActive, toggleView,
 //       getSystemAtPoint, getPlanetScreenPosition, invalidateScene, resetRuntimeState,
-//       resetCamera, flyShipTo, isShipFlying
+//       resetCamera, flyShipTo, isShipFlying, cancelShipFlight
 
 /**
  * 高级 3D 星图渲染系统 (Babylon.js)
@@ -387,6 +387,8 @@ function _createGalaxyDisk() {
 export function render(state, mapView, galaxyId) {
   if (!_isActive || !_scene || !_engine) return;
 
+  _syncFlightPathWithState(state);
+
   const gid = galaxyId || 'milky_way';
   const sys = state.currentSystem;
   const mv = mapView || 'planets';
@@ -415,6 +417,18 @@ export function render(state, mapView, galaxyId) {
     _renderPlanetsInstanced(hierarchy.allPlanets, state);
     _renderFactionBoundaries(hierarchy.allPlanets);
     _renderDispatchRoutes(state);
+  }
+}
+
+function _syncFlightPathWithState(state) {
+  if (!_flightPath || _flightPath.routeRevision == null) return;
+
+  const activeIndex = state && typeof state.activeShipIndex === 'number' ? state.activeShipIndex : 0;
+  const activeShip = state && state.fleet ? state.fleet[activeIndex] : null;
+  const currentRevision = activeShip && activeShip.route ? (activeShip.routeRevision || 0) : null;
+
+  if (_flightPath.shipIndex !== activeIndex || currentRevision !== _flightPath.routeRevision) {
+    cancelShipFlight();
   }
 }
 
@@ -1821,7 +1835,7 @@ function _updateShipTrail(position) {
   meta._head = _pushTrailPoint(_shipTrail, meta._positions, meta._head, position);
 }
 
-export function flyShipTo(fromId, toId, onComplete, shipTypeId) {
+export function flyShipTo(fromId, toId, onComplete, shipTypeId, flightMeta) {
   if (_mapView !== 'planets') return;
   if (fromId === toId) {
     _clearFlightVisuals();
@@ -1918,6 +1932,8 @@ export function flyShipTo(fromId, toId, onComplete, shipTypeId) {
     startTime: performance.now(),
     onComplete: onComplete || null,
     shipTypeId: typeId,
+    shipIndex: flightMeta && typeof flightMeta.shipIndex === 'number' ? flightMeta.shipIndex : 0,
+    routeRevision: flightMeta && flightMeta.routeRevision != null ? flightMeta.routeRevision : null,
   };
 
   _cameraTarget = null;
@@ -1925,6 +1941,15 @@ export function flyShipTo(fromId, toId, onComplete, shipTypeId) {
 
 export function isShipFlying() {
   return !!_flightPath;
+}
+
+export function cancelShipFlight() {
+  _flightPath = null;
+  _clearFlightVisuals();
+  if (_shipTrail) _shipTrail.setEnabled(false);
+  if (_shipMesh) _shipMesh.setEnabled(false);
+  _shipVisible = false;
+  _dirty = true;
 }
 
 function _clearFlightVisuals() {
@@ -2000,9 +2025,8 @@ function _updateShipFlight(time) {
   if (t >= 1) {
     const cb = _flightPath.onComplete;
     _flightPath = null;
-
-    if (_shipTrail) _shipTrail.setEnabled(false);
     _clearFlightVisuals();
+    if (_shipTrail) _shipTrail.setEnabled(false);
     _dirty = true;
 
     setTimeout(() => {

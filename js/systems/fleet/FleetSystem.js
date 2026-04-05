@@ -455,6 +455,12 @@ function _clearPolicyMessage(route) {
   route.lastPolicyMessage = null;
 }
 
+export function bumpRouteRevision(ship) {
+  if (!ship) return 0;
+  ship.routeRevision = (ship.routeRevision || 0) + 1;
+  return ship.routeRevision;
+}
+
 function _getRouteSellPrice(state, route) {
   if (route.marketMode === 'black' && AutoTrade.canUseMarket(state, route.sellSystemId, 'black') && Economy.isBlackMarketGood(route.goodId)) {
     return Economy.getBlackMarketSellPrice(route.sellSystemId, route.goodId, state);
@@ -581,6 +587,7 @@ export function assignRoute(state, shipIndex, buySystemId, sellSystemId, goodId,
 
   // 设置路线，船只从当前位置开始
   ship.location = ship.location || state.currentSystem;
+  var routeRevision = bumpRouteRevision(ship);
   ship.route = {
     buySystemId:  buySystemId,
     sellSystemId: sellSystemId,
@@ -590,6 +597,7 @@ export function assignRoute(state, shipIndex, buySystemId, sellSystemId, goodId,
     marketMode:   normalizedPolicy.marketMode,
     lastBuyPrice: null,
     lastPolicyMessage: null,
+    revision:     routeRevision,
   };
 
   var policySummary = _formatTradePolicySummary(normalizedPolicy);
@@ -616,6 +624,7 @@ export function cancelRoute(state, shipIndex) {
   if (!ship.route) {
     return { ok: false, msgs: [{ text: '⚠️ 该船只未在派遣中！', type: 'info' }] };
   }
+  bumpRouteRevision(ship);
   ship.route = null;
   return {
     ok: true,

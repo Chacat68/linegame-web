@@ -5,7 +5,7 @@
 import { SHIP_TYPES, SHIP_UPGRADES, FLEET_SLOTS, SHIP_MODS, FLEET_BONUSES } from '../data/ships.js';
 import { SYSTEMS, getSystemsByGalaxy } from '../data/systems.js';
 import { GOODS } from '../data/goods.js';
-import * as Fleet from '../systems/fleet/FleetSystem.js';
+import * as Fleet from '../systems/fleet/FleetSystem.js?v=20260406-routefix2';
 import * as Crew from '../systems/fleet/CrewSystem.js';
 import * as Economy from '../systems/economy/Economy.js';
 import * as AutoTrade from '../systems/trade/AutoTradeSystem.js';

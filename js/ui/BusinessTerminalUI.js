@@ -21,7 +21,7 @@ import * as Trade from '../systems/trade/TradeSystem.js';
 import * as Finance from '../systems/finance/FinanceSystem.js';
 import * as Futures from '../systems/finance/FuturesSystem.js';
 import * as Station from '../systems/trade/TradeStationSystem.js';
-import * as Fleet from '../systems/fleet/FleetSystem.js';
+import * as Fleet from '../systems/fleet/FleetSystem.js?v=20260406-routefix2';
 import * as Economy from '../systems/economy/Economy.js';
 import { GOODS } from '../data/goods.js';
 import { SYSTEMS } from '../data/systems.js';

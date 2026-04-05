@@ -2,7 +2,7 @@
 // 导出：init, initTabs, init3DCallbacks, refreshGalaxyBtn, openMarket, closeMarket, isMarketOpen,
 //        setRefreshMarket, getMarketViewSystem, refreshMarketLocation,
 //        showMarketOverview, showMarketDetail, refreshPlanetDetail, getMapView, getCurrentGalaxyId
-import * as Renderer3D from './Renderer3DAdvanced.js';
+import * as Renderer3D from './Renderer3DAdvanced.js?v=20260406-routefix2';
 import * as Faction from '../systems/faction/FactionSystem.js';
 import { GALAXIES, findSystem, findGalaxy }  from '../data/systems.js';
 

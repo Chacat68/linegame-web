@@ -8,7 +8,7 @@
 // tick 函数返回动作描述，由 GameManager 执行具体的状态变更。
 
 import * as EventBus  from './EventBus.js';
-import * as Fleet     from '../systems/fleet/FleetSystem.js';
+import * as Fleet     from '../systems/fleet/FleetSystem.js?v=20260406-routefix2';
 import * as AutoTrade from '../systems/trade/AutoTradeSystem.js';
 import * as Economy   from '../systems/economy/Economy.js';
 
@@ -104,11 +104,13 @@ export function runActiveDispatchTick(state, options) {
           curRoute.buySystemId !== qr.buySystemId ||
           curRoute.sellSystemId !== qr.sellSystemId ||
           curRoute.goodId !== qr.goodId) {
+        var routeRevision = Fleet.bumpRouteRevision(activeShip);
         curRoute.buySystemId  = qr.buySystemId;
         curRoute.sellSystemId = qr.sellSystemId;
         curRoute.goodId       = qr.goodId;
         curRoute.status       = qr.status;
         curRoute.questId      = qr.questId;
+        curRoute.revision     = routeRevision;
         msgs.push({
           text: '📋 任务路线：前往完成「' + qr.questName + '」',
           type: 'info',

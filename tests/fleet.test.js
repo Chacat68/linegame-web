@@ -350,6 +350,8 @@ describe('Fleet.assignRoute / cancelRoute', () => {
     const result = Fleet.assignRoute(state, 1, 'sol_prime', 'nova_station', 'food');
     expect(result.ok).toBe(true);
     expect(state.fleet[1].route).not.toBeNull();
+    expect(state.fleet[1].routeRevision).toBe(1);
+    expect(state.fleet[1].route.revision).toBe(1);
   });
 
   it('跨星系路线被拒绝', () => {
@@ -372,6 +374,22 @@ describe('Fleet.assignRoute / cancelRoute', () => {
     const result = Fleet.cancelRoute(state, 1);
     expect(result.ok).toBe(true);
     expect(state.fleet[1].route).toBeNull();
+    expect(state.fleet[1].routeRevision).toBe(2);
+  });
+
+  it('重新分配路线时递增路线版本', () => {
+    const state = createTestState({ credits: 10000 });
+    Fleet.init(state);
+    state.fleetSlots = 2;
+    Fleet.buyShip(state, 'freighter');
+
+    Fleet.assignRoute(state, 1, 'sol_prime', 'nova_station', 'food');
+    const result = Fleet.assignRoute(state, 1, 'sol_prime', 'fuel_depot', 'food');
+
+    expect(result.ok).toBe(true);
+    expect(state.fleet[1].routeRevision).toBe(2);
+    expect(state.fleet[1].route.sellSystemId).toBe('fuel_depot');
+    expect(state.fleet[1].route.revision).toBe(2);
   });
 
   it('无效船只索引被拒绝', () => {

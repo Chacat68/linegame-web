@@ -12,7 +12,7 @@ import * as Commerce   from '../systems/commerce/CommerceFacade.js';
 import * as RandomEvent from '../systems/event/RandomEvent.js';
 import * as Faction    from '../systems/faction/FactionSystem.js';
 import * as Research   from '../systems/research/ResearchSystem.js';
-import * as Renderer3D from '../ui/Renderer3DAdvanced.js';
+import * as Renderer3D from '../ui/Renderer3DAdvanced.js?v=20260406-routefix2';
 import * as GalaxyData from '../systems/galaxy/GalaxyDataLayer.js';
 import * as HUD        from '../ui/HUD.js';
 import * as MarketUI   from '../ui/MarketUI.js';
@@ -26,7 +26,7 @@ import * as SaveUI     from '../ui/SaveUI.js';
 import * as QuestUI    from '../ui/QuestUI.js';
 import * as AchievementUI from '../ui/AchievementUI.js';
 import * as TradeStationUI from '../ui/TradeStationUI.js';
-import * as Fleet      from '../systems/fleet/FleetSystem.js';
+import * as Fleet      from '../systems/fleet/FleetSystem.js?v=20260406-routefix2';
 import * as Crew       from '../systems/fleet/CrewSystem.js';
 import * as AutoTrade  from '../systems/trade/AutoTradeSystem.js';
 import * as TradeStation from '../systems/trade/TradeStationSystem.js';
@@ -46,7 +46,7 @@ import { SYSTEMS } from '../data/systems.js';
 import { GOODS } from '../data/goods.js';
 import * as Settings from './SettingsManager.js';
 import * as Progression from '../systems/progression/ProgressionSystem.js';
-import * as Dispatch from './DispatchController.js';
+import * as Dispatch from './DispatchController.js?v=20260406-routefix2';
 
 let _state     = null;
 let _startTime = null;
@@ -326,7 +326,12 @@ function _handleTravel(systemId) {
     if (Renderer3D.isActive() && previousSystem) {
       var activeShipForFlight = Fleet.getActiveShip(_state);
       var shipTypeId = activeShipForFlight ? activeShipForFlight.typeId : 'shuttle';
-      Renderer3D.flyShipTo(previousSystem, systemId, null, shipTypeId);
+      Renderer3D.flyShipTo(previousSystem, systemId, null, shipTypeId, {
+        shipIndex: _state.activeShipIndex || 0,
+        routeRevision: activeShipForFlight && activeShipForFlight.route
+          ? (activeShipForFlight.routeRevision || 0)
+          : null,
+      });
     }
 
     // 跨星系旅行后刷新地图按钮
@@ -755,6 +760,9 @@ function _handleAssignRoute(shipIndex, buySystemId, sellSystemId, goodId, tradeP
   Fleet.syncShipFromState(_state);
   var isActive = shipIndex === (_state.activeShipIndex || 0);
   const result = Fleet.assignRoute(_state, shipIndex, buySystemId, sellSystemId, goodId, tradePolicy);
+  if (result && result.ok && isActive && Renderer3D.cancelShipFlight) {
+    Renderer3D.cancelShipFlight();
+  }
   _dispatch(result);
   // 如果是激活船只被派遣，启动自动派遣定时器
   if (result && result.ok && isActive) {
@@ -765,6 +773,9 @@ function _handleAssignRoute(shipIndex, buySystemId, sellSystemId, goodId, tradeP
 function _handleCancelRoute(shipIndex) {
   var isActive = shipIndex === (_state.activeShipIndex || 0);
   const result = Fleet.cancelRoute(_state, shipIndex);
+  if (result && result.ok && isActive && Renderer3D.cancelShipFlight) {
+    Renderer3D.cancelShipFlight();
+  }
   _dispatch(result);
   // 如果是激活船只被召回，停止定时器
   if (isActive) {
