@@ -86,7 +86,7 @@ Click the **🌐 3D View** button in the button group on the left side of the st
 ### 文件结构 / File Structure
 
 ```
-js/ui/Renderer3D.js       # 3D渲染器主模块 / Main 3D renderer module
+js/ui/Renderer3DAdvanced.js # 增强型3D渲染器主模块 / Main advanced 3D renderer module
 js/core/GameManager.js    # 集成3D渲染循环 / Integrated 3D render loop
 js/ui/MapUI.js            # 3D切换按钮处理 / 3D toggle button handler
 index.html                # Babylon.js导入和3D画布 / Babylon.js import and 3D canvas

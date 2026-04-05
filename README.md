@@ -31,7 +31,7 @@
 
 ### 已实现（可运行原型）
 
-- ✅ WebGL 星空背景 + Canvas 2D 星图渲染
+- ✅ Babylon.js 3D 星图渲染与星系总览
 - ✅ 核心贸易循环（买入 → 航行 → 卖出）
 - ✅ 市场价格随机波动与峰值事件
 - ✅ 基础商品数据（8 种商品、10 个星系）
@@ -127,7 +127,7 @@ python3 -m http.server 8080
 │   │   ├── victory/        # 胜利条件
 │   │   └── save/           # 存档系统
 │   └── ui/                 # 界面组件
-│       ├── Renderer.js     # 星图渲染
+│       ├── Renderer3DAdvanced.js # 当前 3D 星图渲染主模块
 │       ├── HUD.js          # 顶部状态栏
 │       ├── MarketUI.js     # 商业终端（现货/资本/经营）
 │       ├── MapUI.js        # 星图交互
@@ -143,7 +143,7 @@ python3 -m http.server 8080
 ## 技术架构
 
 - **运行环境**：纯浏览器，无服务端依赖
-- **渲染**：WebGL（星空背景） + Canvas 2D（星图与 UI）
+- **渲染**：Babylon.js 3D 星图为主，保留辅助 Canvas 占位以兼容部分交互逻辑
 - **语言**：Vanilla JavaScript + ES Modules（无构建工具）
 - **存档**：localStorage 多槽位本地存储（4槽位，含自动存档）
 - **架构模式**：MVC + 事件总线（EventBus）解耦通信
