@@ -2,6 +2,7 @@
 // 依赖：babylon.js (global), GalaxyDataLayer, ExplorationSystem, data/systems.js, data/factions.js
 // 导出：init, render, focusPlanet, setQuality, setMotionLevel, isActive, toggleView,
 //       getSystemAtPoint, getPlanetScreenPosition, invalidateScene, resetRuntimeState,
+//       setSecretRoutesVisible, isSecretRoutesVisible,
 //       resetCamera, flyShipTo, isShipFlying, cancelShipFlight
 
 /**
@@ -67,6 +68,7 @@ let _cameraTransitionProgress = 0;
 let _lastRenderedGalaxyId = null;
 let _lastRenderedSystem = null;
 let _lastRenderedMapView = null;
+let _secretRoutesVisible = true;
 let _dirty = true;
 
 // 质量设置
@@ -417,7 +419,9 @@ export function render(state, mapView, galaxyId) {
     if (!hierarchy) return;
 
     _renderPlanetsInstanced(hierarchy.allPlanets, state);
-    _renderSecretRoutes(state);
+    if (_secretRoutesVisible) {
+      _renderSecretRoutes(state);
+    }
     _renderFactionBoundaries(hierarchy.allPlanets);
     _renderDispatchRoutes(state);
   }
@@ -2413,6 +2417,15 @@ export function getSystemAtPoint(x, y) {
 
 export function invalidateScene() {
   _dirty = true;
+}
+
+export function setSecretRoutesVisible(visible) {
+  _secretRoutesVisible = visible !== false;
+  _dirty = true;
+}
+
+export function isSecretRoutesVisible() {
+  return _secretRoutesVisible;
 }
 
 /**

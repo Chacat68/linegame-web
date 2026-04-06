@@ -2,7 +2,7 @@
 // 依赖：core/GameManager.js
 // 说明：浏览器加载完毕后初始化游戏
 
-import { init } from './core/GameManager.js?v=20260406-routefix2';
+import { init } from './core/GameManager.js?v=20260406-routefix3';
 
 window.addEventListener('load', function () {
 	init();

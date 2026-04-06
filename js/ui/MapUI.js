@@ -2,7 +2,7 @@
 // 导出：init, initTabs, init3DCallbacks, refreshGalaxyBtn, openMarket, closeMarket, isMarketOpen,
 //        setRefreshMarket, setExplorationActions, getMarketViewSystem, refreshMarketLocation,
 //        showMarketOverview, showMarketDetail, refreshPlanetDetail, getMapView, getCurrentGalaxyId
-import * as Renderer3D from './Renderer3DAdvanced.js?v=20260406-routefix2';
+import * as Renderer3D from './Renderer3DAdvanced.js?v=20260406-routefix3';
 import * as Faction from '../systems/faction/FactionSystem.js';
 import * as GalaxyData from '../systems/galaxy/GalaxyDataLayer.js';
 import * as Exploration from '../systems/galaxy/ExplorationSystem.js';
@@ -20,6 +20,16 @@ let _marketMode = 'detail';
 let _refreshMarket = null;          // (mode) => void
 let _stateRef = null;               // 用于内部事件引用
 let _explorationActions = null;
+
+function _updateSecretRoutesToggle() {
+  const btn = document.getElementById('secret-routes-toggle-btn');
+  if (!btn) return;
+
+  const visible = Renderer3D.isSecretRoutesVisible ? Renderer3D.isSecretRoutesVisible() : true;
+  btn.textContent = visible ? '🛰️ 暗线 开' : '🛰️ 暗线 关';
+  btn.setAttribute('aria-pressed', visible ? 'true' : 'false');
+  btn.classList.toggle('active', visible);
+}
 
 /**
  * 注入市场刷新回调（在 GameManager.init 中调用）
@@ -103,6 +113,18 @@ export function init(stateRef, onTravel, onGalaxyJump) {
       _updateGalaxyBtn(stateRef);
       refreshPlanetDetail(stateRef);
     });
+  }
+
+  const secretRoutesBtn = document.getElementById('secret-routes-toggle-btn');
+  if (secretRoutesBtn) {
+    secretRoutesBtn.addEventListener('click', function () {
+      const visible = Renderer3D.isSecretRoutesVisible ? Renderer3D.isSecretRoutesVisible() : true;
+      if (Renderer3D.setSecretRoutesVisible) {
+        Renderer3D.setSecretRoutesVisible(!visible);
+      }
+      _updateSecretRoutesToggle();
+    });
+    _updateSecretRoutesToggle();
   }
 
   // 市场按钮
@@ -204,6 +226,7 @@ function _updateGalaxyBtn(stateRef) {
 /** 外部调用刷新按钮状态 */
 export function refreshGalaxyBtn(stateRef) {
   _updateGalaxyBtn(stateRef);
+  _updateSecretRoutesToggle();
 }
 
 function _getSafetyLabel(score) {
