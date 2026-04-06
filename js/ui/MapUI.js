@@ -57,16 +57,6 @@ function _updateOrbitScanButton(stateRef) {
   btn.setAttribute('data-system-id', target.systemId);
 }
 
-function _updateSecretRoutesToggle() {
-  const btn = document.getElementById('secret-routes-toggle-btn');
-  if (!btn) return;
-
-  const visible = Renderer3D.isSecretRoutesVisible ? Renderer3D.isSecretRoutesVisible() : true;
-  btn.textContent = visible ? '🛰️ 暗线 开' : '🛰️ 暗线 关';
-  btn.setAttribute('aria-pressed', visible ? 'true' : 'false');
-  btn.classList.toggle('active', visible);
-}
-
 /**
  * 注入市场刷新回调（在 GameManager.init 中调用）
  * @param {Function} fn  (mode:'detail') => void  — 刷新市场

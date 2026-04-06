@@ -10,18 +10,22 @@ const SETTINGS_KEY = 'linegame_settings';
 const VALID_MOTION_LEVELS = ['full', 'reduced', 'off'];
 const VALID_DIFFICULTIES = ['easy', 'normal', 'hard'];
 
+function _normalizeSecretRoutesVisible(value) {
+  return value !== false;
+}
+
 // ---------------------------------------------------------------------------
 // 设置加载 / 持久化
 // ---------------------------------------------------------------------------
 
 /**
  * 从 localStorage 加载设置
- * @returns {{ motionLevel: string, difficulty: string }}
+ * @returns {{ motionLevel: string, difficulty: string, secretRoutesVisible: boolean }}
  */
 export function loadSettings() {
   try {
     var raw = localStorage.getItem(SETTINGS_KEY);
-    if (!raw) return { motionLevel: 'full', difficulty: 'normal' };
+    if (!raw) return { motionLevel: 'full', difficulty: 'normal', secretRoutesVisible: true };
     var parsed = JSON.parse(raw);
     return {
       motionLevel: VALID_MOTION_LEVELS.indexOf(parsed.motionLevel) >= 0
@@ -30,15 +34,16 @@ export function loadSettings() {
       difficulty: VALID_DIFFICULTIES.indexOf(parsed.difficulty) >= 0
         ? parsed.difficulty
         : 'normal',
+      secretRoutesVisible: _normalizeSecretRoutesVisible(parsed.secretRoutesVisible),
     };
   } catch (_) {
-    return { motionLevel: 'full', difficulty: 'normal' };
+    return { motionLevel: 'full', difficulty: 'normal', secretRoutesVisible: true };
   }
 }
 
 /**
  * 保存设置到 localStorage
- * @param {{ motionLevel: string, difficulty: string }} settings
+ * @param {{ motionLevel: string, difficulty: string, secretRoutesVisible: boolean }} settings
  */
 export function saveSettings(settings) {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
@@ -46,12 +51,15 @@ export function saveSettings(settings) {
 
 /**
  * 将设置应用到 DOM 和渲染器
- * @param {{ motionLevel: string }} settings
- * @param {{ setMotionLevel: Function }} Renderer
+ * @param {{ motionLevel: string, secretRoutesVisible: boolean }} settings
+ * @param {{ setMotionLevel: Function, setSecretRoutesVisible: Function }} Renderer
  */
 export function applySettings(settings, Renderer) {
   document.body.dataset.motion = settings.motionLevel || 'full';
   Renderer.setMotionLevel(settings.motionLevel || 'full');
+  if (Renderer.setSecretRoutesVisible) {
+    Renderer.setSecretRoutesVisible(_normalizeSecretRoutesVisible(settings.secretRoutesVisible));
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -61,18 +69,19 @@ export function applySettings(settings, Renderer) {
 /**
  * 初始化设置弹窗事件绑定
  * @param {object} callbacks
- * @param {{ motionLevel: string }} callbacks.settings  当前设置引用
+ * @param {{ motionLevel: string, secretRoutesVisible: boolean }} callbacks.settings  当前设置引用
  * @param {Function} callbacks.onSettingsChanged  设置变更后的回调
  * @param {Function} callbacks.onDifficultyChanged 难度变更回调
  * @param {Function} callbacks.onResetTutorial     重置教程回调
  * @param {Function} callbacks.onClearSaves        清空存档回调
- * @param {{ setMotionLevel: Function }} callbacks.Renderer  渲染器引用
+ * @param {{ setMotionLevel: Function, setSecretRoutesVisible: Function }} callbacks.Renderer  渲染器引用
  */
 export function initSettingsModal(callbacks) {
   var settingsBtn   = document.getElementById('settings-btn');
   var modal         = document.getElementById('settings-modal');
   var closeBtn      = document.getElementById('settings-close-btn');
   var motionSelect  = document.getElementById('settings-motion-level');
+  var secretRoutesToggle = document.getElementById('settings-secret-routes-visible');
   var difficultySelect = document.getElementById('settings-difficulty-level');
   var resetDefaultsBtn = document.getElementById('settings-reset-defaults-btn');
   var resetTutorialBtn = document.getElementById('settings-reset-tutorial-btn');
@@ -94,6 +103,17 @@ export function initSettingsModal(callbacks) {
       applySettings(callbacks.settings, callbacks.Renderer);
       EventBus.emit('log:message', {
         text: '⚙ 已更新动画强度：' + (motionSelect.value === 'full' ? '完整' : (motionSelect.value === 'reduced' ? '降低' : '关闭')) + '。',
+        type: 'info',
+      });
+    };
+  }
+  if (secretRoutesToggle) {
+    secretRoutesToggle.onchange = function () {
+      callbacks.settings.secretRoutesVisible = !!secretRoutesToggle.checked;
+      saveSettings(callbacks.settings);
+      applySettings(callbacks.settings, callbacks.Renderer);
+      EventBus.emit('log:message', {
+        text: '⚙ 已更新暗线显示：' + (secretRoutesToggle.checked ? '显示' : '隐藏') + '。',
         type: 'info',
       });
     };
@@ -120,9 +140,11 @@ export function initSettingsModal(callbacks) {
     resetDefaultsBtn.onclick = function () {
       callbacks.settings.motionLevel = 'full';
       callbacks.settings.difficulty = 'normal';
+      callbacks.settings.secretRoutesVisible = true;
       saveSettings(callbacks.settings);
       applySettings(callbacks.settings, callbacks.Renderer);
       if (motionSelect) motionSelect.value = 'full';
+      if (secretRoutesToggle) secretRoutesToggle.checked = true;
       if (difficultySelect) difficultySelect.value = 'normal';
       if (callbacks.onDifficultyChanged) callbacks.onDifficultyChanged('normal');
       EventBus.emit('log:message', { text: '⚙ 设置已恢复为默认值。', type: 'info' });
@@ -171,12 +193,14 @@ export function hideSettingsModal() {
 function _toggleSettingsModal(isVisible) {
   var modal = document.getElementById('settings-modal');
   var motionSelect = document.getElementById('settings-motion-level');
+  var secretRoutesToggle = document.getElementById('settings-secret-routes-visible');
   var difficultySelect = document.getElementById('settings-difficulty-level');
   if (!modal) return;
   if (motionSelect && isVisible) {
     // 读取当前 localStorage 设置同步到 select
     var current = loadSettings();
     motionSelect.value = current.motionLevel || 'full';
+    if (secretRoutesToggle) secretRoutesToggle.checked = _normalizeSecretRoutesVisible(current.secretRoutesVisible);
     if (difficultySelect) difficultySelect.value = current.difficulty || 'normal';
   }
   if (isVisible) _activateSettingsPanel(modal.dataset.activePanel || 'display');

@@ -301,6 +301,13 @@
   width: auto;
 }
 
+.settings-toggle {
+  width: 18px;
+  height: 18px;
+  accent-color: #67e8f9;
+  cursor: pointer;
+}
+
 /* === 提示行 === */
 .settings-hint-row {
   font-size: 11px;

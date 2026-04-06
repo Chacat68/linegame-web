@@ -2,7 +2,7 @@
 // 依赖：core/GameManager.js
 // 说明：浏览器加载完毕后初始化游戏
 
-import { init } from './core/GameManager.js?v=20260406-exploreflow2';
+import { init } from './core/GameManager.js?v=20260406-exploreflow3';
 
 window.addEventListener('load', function () {
 	init();
@@ -20,9 +20,11 @@ function bindSettingsModalFallback() {
 		var openBtn = event.target.closest('#settings-btn');
 		if (openBtn) {
 			var motionSelect = document.getElementById('settings-motion-level');
+			var secretRoutesToggle = document.getElementById('settings-secret-routes-visible');
 				var difficultySelect = document.getElementById('settings-difficulty-level');
 			var savedSettings = _readSavedSettings();
 			if (motionSelect) motionSelect.value = savedSettings.motionLevel;
+			if (secretRoutesToggle) secretRoutesToggle.checked = savedSettings.secretRoutesVisible !== false;
 				if (difficultySelect) difficultySelect.value = savedSettings.difficulty;
 			_activateSettingsPanelFallback(modal, modal.dataset.activePanel || 'display');
 			modal.classList.remove('hidden');
@@ -56,14 +58,15 @@ function bindSettingsModalFallback() {
 function _readSavedSettings() {
 	try {
 		var raw = localStorage.getItem('linegame_settings');
-		if (!raw) return { motionLevel: 'full', difficulty: 'normal' };
+		if (!raw) return { motionLevel: 'full', difficulty: 'normal', secretRoutesVisible: true };
 		var parsed = JSON.parse(raw);
 		return {
 			motionLevel: ['full', 'reduced', 'off'].indexOf(parsed.motionLevel) === -1 ? 'full' : parsed.motionLevel,
 			difficulty: ['easy', 'normal', 'hard'].indexOf(parsed.difficulty) === -1 ? 'normal' : parsed.difficulty,
+			secretRoutesVisible: parsed.secretRoutesVisible !== false,
 		};
 	} catch (_) {
-		return { motionLevel: 'full', difficulty: 'normal' };
+		return { motionLevel: 'full', difficulty: 'normal', secretRoutesVisible: true };
 	}
 }
 

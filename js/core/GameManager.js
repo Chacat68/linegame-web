@@ -18,7 +18,7 @@ import * as Exploration from '../systems/galaxy/ExplorationSystem.js';
 import * as HUD        from '../ui/HUD.js';
 import * as MarketUI   from '../ui/MarketUI.js';
 import * as ShipUI     from '../ui/ShipUI.js';
-import * as MapUI      from '../ui/MapUI.js?v=20260406-exploreflow2';
+import * as MapUI      from '../ui/MapUI.js?v=20260406-exploreflow3';
 import * as Modal      from '../ui/Modal.js';
 import * as EventUI    from '../ui/EventUI.js';
 import * as ResearchUI from '../ui/ResearchUI.js';
@@ -45,13 +45,13 @@ import { VICTORY_PATHS } from '../data/victoryConditions.js';
 import { getLevel } from '../data/playerLevels.js';
 import { SYSTEMS } from '../data/systems.js';
 import { GOODS } from '../data/goods.js';
-import * as Settings from './SettingsManager.js';
+import * as Settings from './SettingsManager.js?v=20260406-exploreflow3';
 import * as Progression from '../systems/progression/ProgressionSystem.js';
 import * as Dispatch from './DispatchController.js?v=20260406-routefix2';
 
 let _state     = null;
 let _startTime = null;
-let _settings  = { motionLevel: 'full' };
+let _settings  = { motionLevel: 'full', difficulty: 'normal', secretRoutesVisible: true };
 let _blackMarketMode = false; // 当前是否处于黑市交易模式
 
 function _getMarketFinanceActions() {

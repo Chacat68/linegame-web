@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>蓝脉航路 · 银河历 3045</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%23040814' stroke='%2322d3ee' stroke-width='2'/><circle cx='16' cy='16' r='4' fill='%2322d3ee'/><line x1='16' y1='2' x2='16' y2='8' stroke='%2322d3ee' stroke-width='1.5'/><line x1='16' y1='24' x2='16' y2='30' stroke='%2322d3ee' stroke-width='1.5'/><line x1='2' y1='16' x2='8' y2='16' stroke='%2322d3ee' stroke-width='1.5'/><line x1='24' y1='16' x2='30' y2='16' stroke='%2322d3ee' stroke-width='1.5'/></svg>" />
-    <link rel="stylesheet" href="css/style.css?v=20260406-exploreflow2" />
+    <link rel="stylesheet" href="css/style.css?v=20260406-exploreflow3" />
   </head>
   <body>
     <div id="game-shell">
@@ -105,9 +105,6 @@
                 </button>
                 <button id="galaxy-view-btn" class="map-overlay-btn">
                   🌌 星系总览
-                </button>
-                <button id="secret-routes-toggle-btn" class="map-overlay-btn active" aria-pressed="true">
-                  🛰️ 暗线 开
                 </button>
                 <button id="orbit-scan-btn" class="map-overlay-btn" hidden>
                   🔭 轨道扫描
@@ -807,6 +804,25 @@
                 <div class="settings-hint-row">
                   推荐默认值。降低或关闭后，页面会保留主要状态反馈，但减少持续动画。
                 </div>
+                <div class="settings-row">
+                  <div class="settings-row-label">
+                    <span class="settings-label">暗线显示</span>
+                    <span class="settings-row-desc"
+                      >控制地图中已解锁秘密航线的可视化显示，不影响实际折扣效果</span
+                    >
+                  </div>
+                  <div class="settings-row-control">
+                    <input
+                      id="settings-secret-routes-visible"
+                      class="settings-toggle"
+                      type="checkbox"
+                      checked
+                    />
+                  </div>
+                </div>
+                <div class="settings-hint-row">
+                  关闭后只隐藏地图上的暗线标注，已解锁航线仍然继续生效。
+                </div>
               </section>
 
               <section
@@ -892,6 +908,6 @@
 
     <!-- Babylon.js library for 3D rendering -->
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
-    <script type="module" src="js/main.js?v=20260406-exploreflow2"></script>
+    <script type="module" src="js/main.js?v=20260406-exploreflow3"></script>
   </body>
 </html>
