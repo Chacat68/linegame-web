@@ -21,6 +21,42 @@ let _refreshMarket = null;          // (mode) => void
 let _stateRef = null;               // 用于内部事件引用
 let _explorationActions = null;
 
+function _getCurrentSystemScanTarget(stateRef) {
+  if (!stateRef) return null;
+  if (stateRef.mapView !== 'planets') return null;
+  if (stateRef.viewingGalaxy !== stateRef.currentGalaxy) return null;
+
+  var sys = findSystem(stateRef.currentSystem);
+  var planetData = GalaxyData.getPlanetData(stateRef.currentSystem);
+  var exploration = planetData && planetData.exploration;
+  var playerLevel = stateRef.playerLevel || 1;
+
+  if (!sys || !exploration) return null;
+  if (playerLevel < (sys.minLevel || 1)) return null;
+  if (exploration.scanLevel > 0) return null;
+
+  return {
+    systemId: sys.id,
+    label: '🔭 轨道扫描',
+  };
+}
+
+function _updateOrbitScanButton(stateRef) {
+  var btn = document.getElementById('orbit-scan-btn');
+  var target = _getCurrentSystemScanTarget(stateRef || _stateRef);
+  if (!btn) return;
+
+  if (!target) {
+    btn.hidden = true;
+    btn.removeAttribute('data-system-id');
+    return;
+  }
+
+  btn.hidden = false;
+  btn.textContent = target.label;
+  btn.setAttribute('data-system-id', target.systemId);
+}
+
 function _updateSecretRoutesToggle() {
   const btn = document.getElementById('secret-routes-toggle-btn');
   if (!btn) return;
@@ -41,7 +77,7 @@ export function setRefreshMarket(fn) {
 
 export function setExplorationActions(actions) {
   _explorationActions = actions || null;
-  _bindPlanetDetailEvents();
+  _bindExplorationActionEvents();
 }
 
 /**
@@ -96,7 +132,7 @@ export function showMarketDetail(systemId) {
 export function init(stateRef, onTravel, onGalaxyJump) {
   // 保存状态引用供底部导航使用
   _stateRef = stateRef;
-  _bindPlanetDetailEvents();
+  _bindExplorationActionEvents();
 
   // 星系视图切换按钮
   const btn = document.getElementById('galaxy-view-btn');
@@ -125,6 +161,16 @@ export function init(stateRef, onTravel, onGalaxyJump) {
       _updateSecretRoutesToggle();
     });
     _updateSecretRoutesToggle();
+  }
+
+  const orbitScanBtn = document.getElementById('orbit-scan-btn');
+  if (orbitScanBtn) {
+    orbitScanBtn.addEventListener('click', function () {
+      var target = _getCurrentSystemScanTarget(_stateRef || stateRef);
+      if (!target || !_explorationActions || !_explorationActions.onScan) return;
+      _explorationActions.onScan(target.systemId);
+    });
+    _updateOrbitScanButton(stateRef);
   }
 
   // 市场按钮
@@ -227,6 +273,7 @@ function _updateGalaxyBtn(stateRef) {
 export function refreshGalaxyBtn(stateRef) {
   _updateGalaxyBtn(stateRef);
   _updateSecretRoutesToggle();
+  _updateOrbitScanButton(stateRef);
 }
 
 function _getSafetyLabel(score) {
@@ -236,13 +283,13 @@ function _getSafetyLabel(score) {
   return '危险';
 }
 
-function _bindPlanetDetailEvents() {
-  var panel = document.getElementById('planet-detail-panel');
-  if (!panel || panel.dataset.bound === 'true') return;
+function _bindExplorationActionContainer(containerId) {
+  var container = document.getElementById(containerId);
+  if (!container || container.dataset.bound === 'true') return;
 
-  panel.addEventListener('click', function (event) {
+  container.addEventListener('click', function (event) {
     var button = event.target.closest('[data-exploration-action]');
-    if (!button || button.disabled || !_explorationActions) return;
+    if (!button || button.disabled || !_explorationActions || !container.contains(button)) return;
 
     var action = button.dataset.explorationAction;
     var systemId = button.dataset.systemId;
@@ -264,54 +311,197 @@ function _bindPlanetDetailEvents() {
     }
   });
 
-  panel.dataset.bound = 'true';
+  container.dataset.bound = 'true';
 }
 
-function _buildExplorationSection(stateRef, sys, planetData, isCurrentSystem, isUnlocked) {
+function _bindExplorationActionEvents() {
+  _bindExplorationActionContainer('planet-detail-panel');
+  _bindExplorationActionContainer('current-system-exploration-card');
+}
+
+function _getExplorationFlow(stateRef, sys, planetData, isCurrentSystem, isUnlocked) {
   var exploration = planetData && planetData.exploration;
-  if (!exploration) return '';
+  if (!exploration) return null;
 
   var discoveredPois = (exploration.pois || []).filter(function (poi) { return poi.discovered; });
   var unresolvedPois = discoveredPois.filter(function (poi) { return !poi.resolved; });
+  var resolvedPois = discoveredPois.filter(function (poi) { return poi.resolved; });
   var discoveredRoutes = (exploration.secretRoutes || []).filter(function (route) { return route.discovered; });
-  var scanStatus = exploration.scanLevel > 1 ? '深度扫描完成' : (exploration.scanLevel > 0 ? '轨道扫描完成' : '未扫描');
-  var landingStatus = exploration.landed ? '已完成首次着陆' : '尚未着陆';
-  var roleTag = isCurrentSystem ? '当前停靠' : '目标星球';
+  var scanStatus = exploration.scanLevel > 1 ? '完成' : (exploration.scanLevel > 0 ? '已扫描' : '未扫描');
+  var landingStatus = exploration.landed ? '已着陆' : '未着陆';
+  var totalPois = (exploration.pois || []).length;
+  var flow = {
+    exploration: exploration,
+    discoveredPois: discoveredPois,
+    unresolvedPois: unresolvedPois,
+    resolvedPois: resolvedPois,
+    discoveredRoutes: discoveredRoutes,
+    resolvedCount: resolvedPois.length,
+    totalPois: totalPois,
+    scanStatus: scanStatus,
+    landingStatus: landingStatus,
+    roleTag: isCurrentSystem ? '当前停靠' : '悬停预览',
+    phase: '',
+    title: '',
+    detail: '',
+    nextAction: null,
+    secondaryNote: '',
+  };
 
-  var actionHtml = '';
   if (!isUnlocked) {
-    actionHtml = '<div class="planet-detail-note">当前等级不足，解锁后才能展开本地探索行动。</div>';
-  } else if (!isCurrentSystem) {
-    actionHtml = '<div class="planet-detail-note">抵达该星球后可执行扫描、着陆与 POI 调查。</div>';
-  } else if (exploration.scanLevel <= 0) {
-    actionHtml = '<div class="planet-detail-actions">' +
-      '<button class="planet-detail-action" data-exploration-action="scan" data-system-id="' + sys.id + '">执行轨道扫描</button>' +
-      '</div>';
-  } else if (!exploration.landed) {
-    actionHtml = '<div class="planet-detail-actions">' +
-      '<button class="planet-detail-action" data-exploration-action="land" data-system-id="' + sys.id + '">申请首次着陆</button>' +
-      '</div>';
-  } else if (unresolvedPois.length > 0) {
-    actionHtml = '<div class="planet-detail-actions">' + unresolvedPois.map(function (poi) {
-      return '<button class="planet-detail-action" data-exploration-action="poi" data-system-id="' + sys.id + '" data-poi-id="' + poi.id + '">' +
-        '调查 ' + poi.icon + ' ' + poi.name +
-      '</button>';
-    }).join('') + '</div>';
-  } else {
-    actionHtml = '<div class="planet-detail-note">当前星球的已发现探索点已全部调查完毕。</div>';
+    flow.phase = '尚未解锁';
+    flow.title = '等级不足，暂时无法展开本地探索';
+    flow.detail = '达到 Lv.' + (sys.minLevel || 1) + ' 后才能在这颗星球执行扫描、着陆与 POI 调查。';
+    return flow;
   }
 
-  var poiHtml = discoveredPois.length > 0
-    ? discoveredPois.map(function (poi) {
+  if (!isCurrentSystem) {
+    flow.phase = '抵达后可继续';
+    if (exploration.scanLevel <= 0) {
+      flow.title = '抵达后先执行轨道扫描';
+      flow.detail = '扫描会揭示地表探索点，帮助你判断这颗星球是否值得投入时间。';
+    } else if (!exploration.landed) {
+      flow.title = '扫描已完成，抵达后可申请首次着陆';
+      flow.detail = '当前已发现 ' + discoveredPois.length + ' 个探索点，着陆后才能展开地面调查。';
+    } else if (unresolvedPois.length > 0) {
+      flow.title = '抵达后可继续调查 ' + unresolvedPois.length + ' 个 POI';
+      flow.detail = '这颗星球还有未完成的探索内容，靠近后即可继续推进。';
+    } else if (discoveredRoutes.length > 0) {
+      flow.title = '本地探索已完成';
+      flow.detail = '这里已解锁 ' + discoveredRoutes.length + ' 条秘密航线，后续航行会自动享受燃料折扣。';
+    } else {
+      flow.title = '本地探索已完成';
+      flow.detail = '当前没有待处理的探索行动，抵达后可直接前往市场或继续航行。';
+    }
+    return flow;
+  }
+
+  if (exploration.scanLevel <= 0) {
+    flow.phase = '步骤 1 / 3';
+    flow.title = '先执行轨道扫描';
+    flow.detail = '扫描会揭示全部地表 POI，并决定是否值得继续着陆。';
+    flow.nextAction = { type: 'scan', systemId: sys.id, label: '执行轨道扫描' };
+    return flow;
+  }
+
+  if (!exploration.landed) {
+    flow.phase = '步骤 2 / 3';
+    flow.title = '扫描完成，准备首次着陆';
+    flow.detail = '已发现 ' + discoveredPois.length + ' 个探索点，着陆后即可展开地面调查。';
+    flow.nextAction = { type: 'land', systemId: sys.id, label: '申请首次着陆' };
+    return flow;
+  }
+
+  if (unresolvedPois.length > 0) {
+    var nextPoi = unresolvedPois[0];
+    flow.phase = '步骤 3 / 3';
+    flow.title = '继续调查地表探索点';
+    flow.detail = '优先处理 ' + nextPoi.icon + ' ' + nextPoi.name + '，完成后会自动切换到下一个待办。';
+    flow.nextAction = {
+      type: 'poi',
+      systemId: sys.id,
+      poiId: nextPoi.id,
+      label: '调查 ' + nextPoi.icon + ' ' + nextPoi.name,
+    };
+    if (unresolvedPois.length > 1) {
+      flow.secondaryNote = '当前还有 ' + unresolvedPois.length + ' 个 POI 待调查，悬停面板中可直接挑选具体目标。';
+    }
+    return flow;
+  }
+
+  flow.phase = '探索完成';
+  if (discoveredRoutes.length > 0) {
+    flow.title = '本地探索完成，暗线已接入航图';
+    flow.detail = '当前已解锁 ' + discoveredRoutes.length + ' 条秘密航线，之后从这里出发会自动应用燃料折扣。';
+  } else {
+    flow.title = '本地探索完成';
+    flow.detail = '当前星球没有待处理的探索行动，可以继续贸易或前往下一颗星球。';
+  }
+  return flow;
+}
+
+function _buildExplorationActionButton(action, extraClass) {
+  if (!action) return '';
+
+  var classes = 'planet-detail-action';
+  if (extraClass) classes += ' ' + extraClass;
+
+  return '<button class="' + classes + '" data-exploration-action="' + action.type + '" data-system-id="' + action.systemId + '"' +
+    (action.poiId ? ' data-poi-id="' + action.poiId + '"' : '') + '>' + action.label + '</button>';
+}
+
+function _buildExplorationFlowCard(flow, options) {
+  if (!flow) return '';
+
+  var className = (options && options.cardClass) || 'planet-detail-flow-card';
+  var includeAction = !options || options.includeAction !== false;
+  var actionHtml = includeAction && flow.nextAction
+    ? '<div class="planet-detail-actions">' + _buildExplorationActionButton(flow.nextAction, options && options.actionClass) + '</div>'
+    : '';
+  var noteHtml = flow.secondaryNote
+    ? '<div class="planet-detail-note">' + flow.secondaryNote + '</div>'
+    : '';
+
+  return '<div class="' + className + '">' +
+    '<div class="planet-detail-flow-kicker">' + flow.phase + '</div>' +
+    '<div class="planet-detail-flow-title">' + flow.title + '</div>' +
+    '<div class="planet-detail-flow-text">' + flow.detail + '</div>' +
+    actionHtml +
+    noteHtml +
+  '</div>';
+}
+
+function _buildExplorationProgressRow(flow) {
+  return '<div class="planet-detail-progress-row">' +
+    '<span class="planet-detail-progress-pill">扫描：' + flow.scanStatus + '</span>' +
+    '<span class="planet-detail-progress-pill">着陆：' + flow.landingStatus + '</span>' +
+    '<span class="planet-detail-progress-pill">POI：' + flow.resolvedCount + '/' + flow.totalPois + '</span>' +
+    '<span class="planet-detail-progress-pill">暗线：' + flow.discoveredRoutes.length + '</span>' +
+  '</div>';
+}
+
+function _buildExplorationActionBlock(flow, sys, isCurrentSystem) {
+  if (!flow || !isCurrentSystem || !flow.nextAction) return '';
+
+  if (flow.nextAction.type !== 'poi' || flow.unresolvedPois.length <= 1) {
+    return '<div class="planet-detail-actions">' + _buildExplorationActionButton(flow.nextAction) + '</div>';
+  }
+
+  return '<div class="planet-detail-actions">' + flow.unresolvedPois.map(function (poi) {
+    return _buildExplorationActionButton({
+      type: 'poi',
+      systemId: sys.id,
+      poiId: poi.id,
+      label: '调查 ' + poi.icon + ' ' + poi.name,
+    });
+  }).join('') + '</div>';
+}
+
+function _buildExplorationSection(stateRef, sys, planetData, isCurrentSystem, isUnlocked) {
+  var flow = _getExplorationFlow(stateRef, sys, planetData, isCurrentSystem, isUnlocked);
+  if (!flow) return '';
+  if (flow.exploration.scanLevel <= 0) return '';
+
+  var poiList = flow.discoveredPois.slice().sort(function (left, right) {
+    if (left.resolved === right.resolved) return 0;
+    return left.resolved ? 1 : -1;
+  });
+
+  var poiHtml = poiList.length > 0
+    ? poiList.map(function (poi) {
+      var badgeText = poi.resolved ? '已调查' : '待调查';
+      if (!poi.resolved && flow.unresolvedPois.length > 0 && flow.unresolvedPois[0].id === poi.id) {
+        badgeText = '下一步';
+      }
       return '<div class="planet-detail-list-row">' +
         '<span>' + poi.icon + ' ' + poi.name + '</span>' +
-        '<span class="planet-detail-badge">' + (poi.resolved ? '已调查' : '待调查') + '</span>' +
+        '<span class="planet-detail-badge">' + badgeText + '</span>' +
       '</div>';
     }).join('')
-    : '<div class="planet-detail-note">扫描完成后才会显示地面探索点。</div>';
+    : '';
 
-  var routeHtml = discoveredRoutes.length > 0
-    ? discoveredRoutes.map(function (route) {
+  var routeHtml = flow.discoveredRoutes.length > 0
+    ? flow.discoveredRoutes.map(function (route) {
       var routeInfo = Exploration.getTravelRouteInfo(stateRef, sys.id, route.targetSystemId);
       var fuelMultiplier = routeInfo.active ? routeInfo.fuelMultiplier : (route.fuelMultiplier || 1);
       var discount = Math.round((1 - fuelMultiplier) * 100);
@@ -320,29 +510,71 @@ function _buildExplorationSection(stateRef, sys, planetData, isCurrentSystem, is
         '<span class="planet-detail-badge">燃料 -' + discount + '%</span>' +
       '</div>';
     }).join('')
-    : '<div class="planet-detail-note">尚未发现可用的秘密航线。</div>';
+    : '';
 
   return '<div class="planet-detail-section planet-detail-wide">' +
     '<div class="planet-detail-section-head">' +
-      '<div class="planet-detail-section-title">探索状态</div>' +
-      '<span class="planet-detail-chip">' + roleTag + '</span>' +
+      '<div class="planet-detail-section-title">探索流程</div>' +
+      '<span class="planet-detail-chip">' + flow.roleTag + '</span>' +
     '</div>' +
-    '<div class="planet-detail-status-grid">' +
-      '<div class="planet-detail-item"><span class="planet-detail-label">扫描</span>' + scanStatus + '</div>' +
-      '<div class="planet-detail-item"><span class="planet-detail-label">着陆</span>' + landingStatus + '</div>' +
-      '<div class="planet-detail-item"><span class="planet-detail-label">POI</span>' + discoveredPois.length + ' / ' + (exploration.pois || []).length + '</div>' +
-      '<div class="planet-detail-item"><span class="planet-detail-label">暗线</span>' + discoveredRoutes.length + ' 条已解锁</div>' +
-    '</div>' +
-    actionHtml +
-    '<div class="planet-detail-subsection">' +
-      '<div class="planet-detail-subtitle">已发现探索点</div>' +
-      '<div class="planet-detail-list">' + poiHtml + '</div>' +
-    '</div>' +
-    '<div class="planet-detail-subsection">' +
-      '<div class="planet-detail-subtitle">秘密航线</div>' +
-      '<div class="planet-detail-list">' + routeHtml + '</div>' +
-    '</div>' +
+    _buildExplorationFlowCard(flow, { includeAction: false }) +
+    _buildExplorationProgressRow(flow) +
+    _buildExplorationActionBlock(flow, sys, isCurrentSystem) +
+    (poiHtml
+      ? '<div class="planet-detail-subsection">' +
+          '<div class="planet-detail-subtitle">探索点清单</div>' +
+          '<div class="planet-detail-list">' + poiHtml + '</div>' +
+        '</div>'
+      : '') +
+    (routeHtml
+      ? '<div class="planet-detail-subsection">' +
+          '<div class="planet-detail-subtitle">秘密航线</div>' +
+          '<div class="planet-detail-list">' + routeHtml + '</div>' +
+        '</div>'
+      : '') +
   '</div>';
+}
+
+function _renderCurrentSystemExplorationCard(stateRef) {
+  var card = document.getElementById('current-system-exploration-card');
+  if (!card) return;
+
+  var shouldShow = !!stateRef &&
+    stateRef.mapView === 'planets' &&
+    stateRef.viewingGalaxy === stateRef.currentGalaxy &&
+    !stateRef.hoveredSystem;
+
+  if (!shouldShow) {
+    card.classList.remove('visible');
+    return;
+  }
+
+  var sys = findSystem(stateRef.currentSystem);
+  var planetData = GalaxyData.getPlanetData(stateRef.currentSystem);
+  if (!sys || !planetData || !planetData.exploration) {
+    card.classList.remove('visible');
+    return;
+  }
+
+  var playerLevel = stateRef.playerLevel || 1;
+  var isUnlocked = playerLevel >= (sys.minLevel || 1);
+  var flow = _getExplorationFlow(stateRef, sys, planetData, true, isUnlocked);
+  if (!flow || flow.exploration.scanLevel <= 0) {
+    card.classList.remove('visible');
+    return;
+  }
+
+  card.innerHTML = '<div class="current-system-card-head">' +
+    '<div class="current-system-card-kicker">当前停靠</div>' +
+    '<div class="current-system-card-name">🪐 ' + sys.name + '</div>' +
+    '</div>' +
+    _buildExplorationFlowCard(flow, {
+      cardClass: 'planet-detail-flow-card current-system-flow-card',
+      actionClass: 'current-system-action',
+    }) +
+    _buildExplorationProgressRow(flow);
+
+  card.classList.add('visible');
 }
 
 export function refreshPlanetDetail(stateRef) {
@@ -352,8 +584,10 @@ export function refreshPlanetDetail(stateRef) {
   if (!panel) return;
   if (!mapCanvas || !mapContainer) return;
 
-  const fallbackSystemId = stateRef.viewingGalaxy === stateRef.currentGalaxy ? stateRef.currentSystem : null;
-  const displayId = stateRef.hoveredSystem || fallbackSystemId;
+  _updateOrbitScanButton(stateRef);
+  _renderCurrentSystemExplorationCard(stateRef);
+
+  const displayId = stateRef.hoveredSystem;
   if (stateRef.mapView !== 'planets' || !displayId) {
     panel.classList.remove('visible');
     return;

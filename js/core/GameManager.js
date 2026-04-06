@@ -18,7 +18,7 @@ import * as Exploration from '../systems/galaxy/ExplorationSystem.js';
 import * as HUD        from '../ui/HUD.js';
 import * as MarketUI   from '../ui/MarketUI.js';
 import * as ShipUI     from '../ui/ShipUI.js';
-import * as MapUI      from '../ui/MapUI.js?v=20260406-routefix3';
+import * as MapUI      from '../ui/MapUI.js?v=20260406-exploreflow2';
 import * as Modal      from '../ui/Modal.js';
 import * as EventUI    from '../ui/EventUI.js';
 import * as ResearchUI from '../ui/ResearchUI.js';
