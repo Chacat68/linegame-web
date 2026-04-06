@@ -11,6 +11,7 @@ import { SHIP_TYPES, SHIP_MODS, FLEET_BONUSES } from '../../data/ships.js';
 import { SYSTEMS, FUEL_COST_PER_UNIT, GALAXY_JUMP_FUEL, findSystem } from '../../data/systems.js';
 import * as Faction                       from '../faction/FactionSystem.js';
 import * as Crew                         from '../fleet/CrewSystem.js';
+import * as Exploration                  from '../galaxy/ExplorationSystem.js';
 
 // ---------------------------------------------------------------------------
 // 价格历史记录（30 天环形缓冲）
@@ -281,7 +282,7 @@ export function getSellPrice(systemId, goodId, state) {
   return Math.max(ECONOMY_CONFIG.pricing.minimumPrice, price);
 }
 
-export function getFuelCost(fromId, toId, efficiency) {
+export function getFuelCost(fromId, toId, efficiency, state) {
   const s1 = findSystem(fromId);
   const s2 = findSystem(toId);
   if (!s1 || !s2) return ECONOMY_CONFIG.travel.invalidSystemFuelCost;
@@ -298,9 +299,15 @@ export function getFuelCost(fromId, toId, efficiency) {
     );
   }
   const dist = euclideanDistance(s1.x, s1.y, s2.x, s2.y);
-  return Math.max(
+  var baseCost = Math.max(
     ECONOMY_CONFIG.pricing.minimumPrice,
     Math.ceil(dist * ECONOMY_CONFIG.travel.intraGalaxyDistanceScale * FUEL_COST_PER_UNIT * efficiency)
+  );
+  const routeInfo = state ? Exploration.getTravelRouteInfo(state, fromId, toId) : null;
+  if (!routeInfo || !routeInfo.active) return baseCost;
+  return Math.max(
+    ECONOMY_CONFIG.pricing.minimumPrice,
+    Math.ceil(baseCost * routeInfo.fuelMultiplier)
   );
 }
 

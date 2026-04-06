@@ -15,6 +15,7 @@ import { SYSTEMS, findSystem, GALAXY_JUMP_DAYS }  from '../../data/systems.js';
 import { UPGRADES } from '../../data/upgrades.js';
 import * as Economy from '../economy/Economy.js';
 import * as Finance from '../finance/FinanceSystem.js';
+import * as Exploration from '../galaxy/ExplorationSystem.js';
 import * as TradeStation from './TradeStationSystem.js';
 
 // ---------------------------------------------------------------------------
@@ -289,7 +290,8 @@ export function travelTo(state, systemId) {
     };
   }
 
-  const cost = Economy.getFuelCost(state.currentSystem, systemId, state.fuelEfficiency);
+  const routeInfo = Exploration.getTravelRouteInfo(state, state.currentSystem, systemId);
+  const cost = Economy.getFuelCost(state.currentSystem, systemId, state.fuelEfficiency, state);
   if (state.fuel < cost) {
     const dest = findSystem(systemId);
     return {
@@ -338,6 +340,12 @@ export function travelTo(state, systemId) {
   }
 
   const sys  = findSystem(systemId);
+  if (routeInfo.active) {
+    msgs.push({
+      text: '🛰️ 已启用秘密航线「' + routeInfo.label + '」，本次航行燃料节省约 ' + Math.round((1 - routeInfo.fuelMultiplier) * 100) + '%。',
+      type: 'tip',
+    });
+  }
   msgs.push({
     text: (crossGalaxy ? '🌌 超空间跃迁！' : '🚀 ') + '已抵达 ' + sys.name + '！消耗 ' + cost + ' 燃料。银河历第 ' + state.day + ' 天。',
     type: 'travel',
@@ -360,5 +368,5 @@ export function travelTo(state, systemId) {
     }
   }
 
-  return { ok: true, msgs, meta: { fromId, toId: systemId, fuelCost: cost, day: state.day, crossGalaxy } };
+  return { ok: true, msgs, meta: { fromId, toId: systemId, fuelCost: cost, day: state.day, crossGalaxy, secretRoute: routeInfo.active ? routeInfo.routeId : null } };
 }

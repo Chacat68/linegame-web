@@ -908,8 +908,8 @@ function _openDispatchModal(state, shipIndex, onAssignRoute) {
     var cargoUsed = Object.values(ship.cargo).reduce(function (s, q) { return s + q; }, 0);
     var space = effectiveShipStats.maxCargo - cargoUsed;
     var maxQty = Math.min(space, Math.floor(state.credits / bp));
-    var travelToBuyFuel = currentLocationSystemId === buyId ? 0 : Economy.getFuelCost(currentLocationSystemId, buyId, effectiveShipStats.fuelEff);
-    var travelToSellFuel = buyId === sellId ? 0 : Economy.getFuelCost(buyId, sellId, effectiveShipStats.fuelEff);
+    var travelToBuyFuel = currentLocationSystemId === buyId ? 0 : Economy.getFuelCost(currentLocationSystemId, buyId, effectiveShipStats.fuelEff, state);
+    var travelToSellFuel = buyId === sellId ? 0 : Economy.getFuelCost(buyId, sellId, effectiveShipStats.fuelEff, state);
     var totalFuelCost = travelToBuyFuel + travelToSellFuel;
     var fuelUnitPrice = Economy.getBuyPrice(currentLocationSystemId, 'fuel', state);
     var profit = (sp - bp) * maxQty - totalFuelCost * fuelUnitPrice;

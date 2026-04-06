@@ -126,7 +126,7 @@ export function runActiveDispatchTick(state, options) {
 
   // 需要旅行
   if (result.needTravel) {
-    var fuelCost = Economy.getFuelCost(state.currentSystem, result.needTravel, state.fuelEfficiency);
+    var fuelCost = Economy.getFuelCost(state.currentSystem, result.needTravel, state.fuelEfficiency, state);
     if (state.fuel < fuelCost) {
       return {
         action: 'travel_need_refuel',

@@ -1,5 +1,5 @@
 // js/ui/Renderer3DAdvanced.js — 增强型 3D 星图渲染器 (Babylon.js)
-// 依赖：babylon.js (global), GalaxyDataLayer, data/systems.js, data/factions.js
+// 依赖：babylon.js (global), GalaxyDataLayer, ExplorationSystem, data/systems.js, data/factions.js
 // 导出：init, render, focusPlanet, setQuality, setMotionLevel, isActive, toggleView,
 //       getSystemAtPoint, getPlanetScreenPosition, invalidateScene, resetRuntimeState,
 //       resetCamera, flyShipTo, isShipFlying, cancelShipFlight
@@ -21,6 +21,7 @@
  */
 
 import * as GalaxyData from '../systems/galaxy/GalaxyDataLayer.js';
+import * as Exploration from '../systems/galaxy/ExplorationSystem.js';
 import { FACTIONS } from '../data/factions.js';
 import { GALAXIES, getSystemsByGalaxy, findSystem, isSystemAccessible } from '../data/systems.js';
 
@@ -34,6 +35,7 @@ let _planetMetadata = [];           // { id, index, position, size, color, mesh,
 let _backgroundLayers = null;       // { stars, nebula, disk }
 let _factionBoundaries = [];        // Faction boundary meshes
 let _connectionLines = [];          // Trade routes + glow meshes
+let _secretRouteVisuals = [];       // 当前星球已发现暗线的可视化对象
 let _selectionRing = null;          // Selection indicator
 let _galaxyMeshes = [];             // Galaxy meshes for galaxy view
 let _galaxyPCS = [];                // Galaxy PointsCloudSystems (async meshes)
@@ -415,6 +417,7 @@ export function render(state, mapView, galaxyId) {
     if (!hierarchy) return;
 
     _renderPlanetsInstanced(hierarchy.allPlanets, state);
+    _renderSecretRoutes(state);
     _renderFactionBoundaries(hierarchy.allPlanets);
     _renderDispatchRoutes(state);
   }
@@ -440,6 +443,7 @@ function _clearPlanetMeshes() {
   _planetMeshes = [];
   _connectionLines.forEach(m => m.dispose());
   _connectionLines = [];
+  _secretRouteVisuals = [];
   _factionBoundaries.forEach(m => m.dispose());
   _factionBoundaries = [];
   _textLabels.forEach(m => {
@@ -791,6 +795,7 @@ function _addTextLabel(text, position, width) {
   plane.isPickable = false;
 
   _textLabels.push(plane);
+  return plane;
 }
 
 function _getSystemColor(type) {
@@ -1388,6 +1393,112 @@ function _renderConnections(planets) {
       }
     }
   }
+}
+
+function _renderSecretRoutes(state) {
+  var routes = Exploration.getCurrentSystemSecretRoutes(state);
+  if (!routes || routes.length === 0) return;
+
+  const posMap = new Map();
+  const metaMap = new Map();
+  _planetMetadata.forEach(function (meta) {
+    posMap.set(meta.id, meta.position);
+    metaMap.set(meta.id, meta);
+  });
+
+  const sourcePos = posMap.get(state.currentSystem);
+  const sourceMeta = metaMap.get(state.currentSystem);
+  if (!sourcePos || !sourceMeta) return;
+
+  routes.forEach(function (route, index) {
+    const targetPos = posMap.get(route.targetSystemId);
+    const targetMeta = metaMap.get(route.targetSystemId);
+    if (!targetPos || !targetMeta) return;
+
+    const curve = _createArcCurve(sourcePos, targetPos, 40);
+    const points = curve.getPoints();
+    const routeLine = BABYLON.MeshBuilder.CreateDashedLines('secretRoute_' + route.id, {
+      points: points,
+      dashSize: 2.0,
+      gapSize: 1.3,
+      dashNb: 46,
+    }, _scene);
+    routeLine.color = new BABYLON.Color3(0.49, 0.83, 0.99);
+    routeLine.alpha = 0.7;
+    routeLine.isPickable = false;
+    _connectionLines.push(routeLine);
+
+    const targetRing = BABYLON.MeshBuilder.CreateTorus('secretRouteTarget_' + route.id, {
+      diameter: Math.max((targetMeta.size + 0.9) * 2, 4.5),
+      thickness: 0.12,
+      tessellation: 32,
+    }, _scene);
+    targetRing.position = targetPos.clone();
+    targetRing.rotation.x = Math.PI / 2;
+    const ringMat = new BABYLON.StandardMaterial('secretRouteTargetMat_' + route.id, _scene);
+    ringMat.emissiveColor = new BABYLON.Color3(0.49, 0.83, 0.99);
+    ringMat.disableLighting = true;
+    ringMat.alpha = 0.45;
+    targetRing.material = ringMat;
+    targetRing.isPickable = false;
+    _connectionLines.push(targetRing);
+
+    const labelAnchor = BABYLON.Vector3.Lerp(sourcePos, targetPos, 0.62);
+    labelAnchor.y += Math.max(BABYLON.Vector3.Distance(sourcePos, targetPos) * 0.08, 3.2) + index * 1.2;
+    const label = _addTextLabel('暗线→' + route.targetSystemName + ' -' + route.discountPercent + '%', labelAnchor, Math.max(13, route.targetSystemName.length * 1.4 + 9));
+
+    _secretRouteVisuals.push({
+      routeId: route.id,
+      targetSystemId: route.targetSystemId,
+      line: routeLine,
+      ring: targetRing,
+      ringMaterial: ringMat,
+      label: label,
+      baseLabelScale: label.scaling.clone(),
+      baseLabelY: label.position.y,
+    });
+  });
+}
+
+function _updateSecretRouteHighlights(time) {
+  if (_secretRouteVisuals.length === 0) return;
+
+  const hoveredId = _hoveredPlanet ? _hoveredPlanet.id : null;
+  const pulse = 1 + Math.sin(time * 0.006) * 0.08;
+
+  _secretRouteVisuals.forEach(function (visual) {
+    const active = hoveredId != null && visual.targetSystemId === hoveredId;
+
+    if (visual.line) {
+      visual.line.alpha = active ? 0.95 : 0.7;
+      visual.line.color = active
+        ? new BABYLON.Color3(0.96, 0.99, 1.0)
+        : new BABYLON.Color3(0.49, 0.83, 0.99);
+    }
+
+    if (visual.ring && visual.ringMaterial) {
+      visual.ringMaterial.emissiveColor = active
+        ? new BABYLON.Color3(0.96, 0.99, 1.0)
+        : new BABYLON.Color3(0.49, 0.83, 0.99);
+      visual.ringMaterial.alpha = active ? 0.92 : 0.45;
+      const ringScale = active ? pulse * 1.14 : 1;
+      visual.ring.scaling = new BABYLON.Vector3(ringScale, ringScale, ringScale);
+    }
+
+    if (visual.label && visual.label.material) {
+      visual.label.material.emissiveColor = active
+        ? new BABYLON.Color3(1, 1, 1)
+        : new BABYLON.Color3(1, 1, 1);
+      visual.label.material.alpha = active ? 1 : 0.82;
+      const labelScale = active ? pulse * 1.06 : 1;
+      visual.label.scaling = new BABYLON.Vector3(
+        visual.baseLabelScale.x * labelScale,
+        visual.baseLabelScale.y * labelScale,
+        visual.baseLabelScale.z * labelScale
+      );
+      visual.label.position.y = visual.baseLabelY + (active ? Math.sin(time * 0.008) * 0.35 : 0);
+    }
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -2170,6 +2281,8 @@ function _startAnimation() {
       const s = 1 + Math.sin(time * 3) * 0.1;
       _selectionRing.scaling = new BABYLON.Vector3(s, s, s);
     }
+
+    _updateSecretRouteHighlights(time);
 
     _scene.render();
   };

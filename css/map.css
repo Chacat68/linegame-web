@@ -186,10 +186,13 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 4px 12px;
   font-size: 11px;
-  pointer-events: none;
+  max-height: calc(100% - 16px);
+  overflow-y: auto;
+  pointer-events: auto;
 }
 .planet-detail-panel.visible {
   display: grid;
+  animation: panel-rise 160ms ease;
 }
 .planet-detail-title {
   grid-column: 1 / -1;
@@ -213,10 +216,96 @@
   color: var(--text-dim);
   margin-right: 4px;
 }
+.planet-detail-wide {
+  grid-column: 1 / -1;
+}
+.planet-detail-section {
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(125, 211, 252, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.planet-detail-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.planet-detail-section-title,
+.planet-detail-subtitle {
+  color: var(--accent-blue);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.planet-detail-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(125, 211, 252, 0.18);
+  background: rgba(56, 189, 248, 0.08);
+  color: var(--text-secondary);
+  font-size: 10px;
+}
+.planet-detail-status-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 12px;
+}
+.planet-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.planet-detail-action {
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  background: linear-gradient(180deg, rgba(14, 165, 233, 0.18), rgba(8, 47, 73, 0.92));
+  color: var(--text-primary);
+  border-radius: 999px;
+  padding: 6px 10px;
+  font: inherit;
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+}
+.planet-detail-action:hover {
+  transform: translateY(-1px);
+  border-color: rgba(125, 211, 252, 0.35);
+  box-shadow: var(--glow-soft);
+}
+.planet-detail-note {
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+.planet-detail-subsection {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.planet-detail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.planet-detail-list-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--text-main);
+}
+.planet-detail-badge {
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
 
 @media (max-width: 1024px) {
   .planet-detail-panel {
     width: 280px;
+    grid-template-columns: 1fr;
+  }
+  .planet-detail-status-grid {
     grid-template-columns: 1fr;
   }
 }

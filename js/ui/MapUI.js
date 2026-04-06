@@ -1,9 +1,11 @@
 // js/ui/MapUI.js — 星系地图交互事件绑定（支持星系/星球双层视图 + 市场面板）
 // 导出：init, initTabs, init3DCallbacks, refreshGalaxyBtn, openMarket, closeMarket, isMarketOpen,
-//        setRefreshMarket, getMarketViewSystem, refreshMarketLocation,
+//        setRefreshMarket, setExplorationActions, getMarketViewSystem, refreshMarketLocation,
 //        showMarketOverview, showMarketDetail, refreshPlanetDetail, getMapView, getCurrentGalaxyId
 import * as Renderer3D from './Renderer3DAdvanced.js?v=20260406-routefix2';
 import * as Faction from '../systems/faction/FactionSystem.js';
+import * as GalaxyData from '../systems/galaxy/GalaxyDataLayer.js';
+import * as Exploration from '../systems/galaxy/ExplorationSystem.js';
 import { GALAXIES, findSystem, findGalaxy }  from '../data/systems.js';
 
 let _tabClickCallback = null;
@@ -17,6 +19,7 @@ let _marketMode = 'detail';
 // 市场刷新回调（由 GameManager 注入）
 let _refreshMarket = null;          // (mode) => void
 let _stateRef = null;               // 用于内部事件引用
+let _explorationActions = null;
 
 /**
  * 注入市场刷新回调（在 GameManager.init 中调用）
@@ -24,6 +27,11 @@ let _stateRef = null;               // 用于内部事件引用
  */
 export function setRefreshMarket(fn) {
   _refreshMarket = fn;
+}
+
+export function setExplorationActions(actions) {
+  _explorationActions = actions || null;
+  _bindPlanetDetailEvents();
 }
 
 /**
@@ -78,6 +86,7 @@ export function showMarketDetail(systemId) {
 export function init(stateRef, onTravel, onGalaxyJump) {
   // 保存状态引用供底部导航使用
   _stateRef = stateRef;
+  _bindPlanetDetailEvents();
 
   // 星系视图切换按钮
   const btn = document.getElementById('galaxy-view-btn');
@@ -204,6 +213,115 @@ function _getSafetyLabel(score) {
   return '危险';
 }
 
+function _bindPlanetDetailEvents() {
+  var panel = document.getElementById('planet-detail-panel');
+  if (!panel || panel.dataset.bound === 'true') return;
+
+  panel.addEventListener('click', function (event) {
+    var button = event.target.closest('[data-exploration-action]');
+    if (!button || button.disabled || !_explorationActions) return;
+
+    var action = button.dataset.explorationAction;
+    var systemId = button.dataset.systemId;
+    var poiId = button.dataset.poiId;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (action === 'scan' && _explorationActions.onScan) {
+      _explorationActions.onScan(systemId);
+      return;
+    }
+    if (action === 'land' && _explorationActions.onLand) {
+      _explorationActions.onLand(systemId);
+      return;
+    }
+    if (action === 'poi' && _explorationActions.onExplorePoi) {
+      _explorationActions.onExplorePoi(systemId, poiId);
+    }
+  });
+
+  panel.dataset.bound = 'true';
+}
+
+function _buildExplorationSection(stateRef, sys, planetData, isCurrentSystem, isUnlocked) {
+  var exploration = planetData && planetData.exploration;
+  if (!exploration) return '';
+
+  var discoveredPois = (exploration.pois || []).filter(function (poi) { return poi.discovered; });
+  var unresolvedPois = discoveredPois.filter(function (poi) { return !poi.resolved; });
+  var discoveredRoutes = (exploration.secretRoutes || []).filter(function (route) { return route.discovered; });
+  var scanStatus = exploration.scanLevel > 1 ? '深度扫描完成' : (exploration.scanLevel > 0 ? '轨道扫描完成' : '未扫描');
+  var landingStatus = exploration.landed ? '已完成首次着陆' : '尚未着陆';
+  var roleTag = isCurrentSystem ? '当前停靠' : '目标星球';
+
+  var actionHtml = '';
+  if (!isUnlocked) {
+    actionHtml = '<div class="planet-detail-note">当前等级不足，解锁后才能展开本地探索行动。</div>';
+  } else if (!isCurrentSystem) {
+    actionHtml = '<div class="planet-detail-note">抵达该星球后可执行扫描、着陆与 POI 调查。</div>';
+  } else if (exploration.scanLevel <= 0) {
+    actionHtml = '<div class="planet-detail-actions">' +
+      '<button class="planet-detail-action" data-exploration-action="scan" data-system-id="' + sys.id + '">执行轨道扫描</button>' +
+      '</div>';
+  } else if (!exploration.landed) {
+    actionHtml = '<div class="planet-detail-actions">' +
+      '<button class="planet-detail-action" data-exploration-action="land" data-system-id="' + sys.id + '">申请首次着陆</button>' +
+      '</div>';
+  } else if (unresolvedPois.length > 0) {
+    actionHtml = '<div class="planet-detail-actions">' + unresolvedPois.map(function (poi) {
+      return '<button class="planet-detail-action" data-exploration-action="poi" data-system-id="' + sys.id + '" data-poi-id="' + poi.id + '">' +
+        '调查 ' + poi.icon + ' ' + poi.name +
+      '</button>';
+    }).join('') + '</div>';
+  } else {
+    actionHtml = '<div class="planet-detail-note">当前星球的已发现探索点已全部调查完毕。</div>';
+  }
+
+  var poiHtml = discoveredPois.length > 0
+    ? discoveredPois.map(function (poi) {
+      return '<div class="planet-detail-list-row">' +
+        '<span>' + poi.icon + ' ' + poi.name + '</span>' +
+        '<span class="planet-detail-badge">' + (poi.resolved ? '已调查' : '待调查') + '</span>' +
+      '</div>';
+    }).join('')
+    : '<div class="planet-detail-note">扫描完成后才会显示地面探索点。</div>';
+
+  var routeHtml = discoveredRoutes.length > 0
+    ? discoveredRoutes.map(function (route) {
+      var routeInfo = Exploration.getTravelRouteInfo(stateRef, sys.id, route.targetSystemId);
+      var fuelMultiplier = routeInfo.active ? routeInfo.fuelMultiplier : (route.fuelMultiplier || 1);
+      var discount = Math.round((1 - fuelMultiplier) * 100);
+      return '<div class="planet-detail-list-row">' +
+        '<span>🛰️ ' + route.targetSystemName + '</span>' +
+        '<span class="planet-detail-badge">燃料 -' + discount + '%</span>' +
+      '</div>';
+    }).join('')
+    : '<div class="planet-detail-note">尚未发现可用的秘密航线。</div>';
+
+  return '<div class="planet-detail-section planet-detail-wide">' +
+    '<div class="planet-detail-section-head">' +
+      '<div class="planet-detail-section-title">探索状态</div>' +
+      '<span class="planet-detail-chip">' + roleTag + '</span>' +
+    '</div>' +
+    '<div class="planet-detail-status-grid">' +
+      '<div class="planet-detail-item"><span class="planet-detail-label">扫描</span>' + scanStatus + '</div>' +
+      '<div class="planet-detail-item"><span class="planet-detail-label">着陆</span>' + landingStatus + '</div>' +
+      '<div class="planet-detail-item"><span class="planet-detail-label">POI</span>' + discoveredPois.length + ' / ' + (exploration.pois || []).length + '</div>' +
+      '<div class="planet-detail-item"><span class="planet-detail-label">暗线</span>' + discoveredRoutes.length + ' 条已解锁</div>' +
+    '</div>' +
+    actionHtml +
+    '<div class="planet-detail-subsection">' +
+      '<div class="planet-detail-subtitle">已发现探索点</div>' +
+      '<div class="planet-detail-list">' + poiHtml + '</div>' +
+    '</div>' +
+    '<div class="planet-detail-subsection">' +
+      '<div class="planet-detail-subtitle">秘密航线</div>' +
+      '<div class="planet-detail-list">' + routeHtml + '</div>' +
+    '</div>' +
+  '</div>';
+}
+
 export function refreshPlanetDetail(stateRef) {
   const panel = document.getElementById('planet-detail-panel');
   const mapCanvas = document.getElementById('map-canvas');
@@ -211,12 +329,14 @@ export function refreshPlanetDetail(stateRef) {
   if (!panel) return;
   if (!mapCanvas || !mapContainer) return;
 
-  const displayId = stateRef.hoveredSystem;
+  const fallbackSystemId = stateRef.viewingGalaxy === stateRef.currentGalaxy ? stateRef.currentSystem : null;
+  const displayId = stateRef.hoveredSystem || fallbackSystemId;
   if (stateRef.mapView !== 'planets' || !displayId) {
     panel.classList.remove('visible');
     return;
   }
   const sys = findSystem(displayId);
+  const planetData = GalaxyData.getPlanetData(displayId);
   if (!sys) {
     panel.classList.remove('visible');
     return;
@@ -246,6 +366,8 @@ export function refreshPlanetDetail(stateRef) {
   }
 
   const playerLevel = stateRef.playerLevel || 1;
+  const isUnlocked = playerLevel >= (sys.minLevel || 1);
+  const isCurrentSystem = displayId === stateRef.currentSystem;
   const lockText = playerLevel >= (sys.minLevel || 1)
     ? '已解锁'
     : ('需 Lv.' + (sys.minLevel || 1) + '（当前 Lv.' + playerLevel + '）');
@@ -261,7 +383,8 @@ export function refreshPlanetDetail(stateRef) {
     '<div class="planet-detail-item"><span class="planet-detail-label">政体</span>' + government + '</div>' +
     '<div class="planet-detail-item"><span class="planet-detail-label">治安</span>' + safety + '</div>' +
     '<div class="planet-detail-item"><span class="planet-detail-label">特产</span>' + specialties + '</div>' +
-    '<div class="planet-detail-item"><span class="planet-detail-label">解锁</span>' + lockText + '</div>';
+    '<div class="planet-detail-item"><span class="planet-detail-label">解锁</span>' + lockText + '</div>' +
+    _buildExplorationSection(stateRef, sys, planetData, isCurrentSystem, isUnlocked);
 
   panel.classList.add('visible');
 
@@ -281,7 +404,7 @@ export function refreshPlanetDetail(stateRef) {
   }
   const offset = 14;
 
-  const panelW = Math.min(320, Math.max(200, canvasW - 16));
+  const panelW = Math.min(360, Math.max(220, canvasW - 16));
   panel.style.width = panelW + 'px';
 
   const maxLeft = Math.max(8, canvasW - panelW - 8);
@@ -289,9 +412,9 @@ export function refreshPlanetDetail(stateRef) {
   let left = placeRight ? (nodeX + offset) : (nodeX - panelW - offset);
   left = Math.max(8, Math.min(maxLeft, left));
 
-  const approxH = 160;
-  const maxTop = Math.max(8, canvasH - approxH - 8);
-  let top = nodeY - approxH * 0.5;
+  const panelH = Math.max(160, panel.offsetHeight || 0);
+  const maxTop = Math.max(8, canvasH - panelH - 8);
+  let top = nodeY - panelH * 0.5;
   top = Math.max(8, Math.min(maxTop, top));
 
   panel.style.left = left + 'px';

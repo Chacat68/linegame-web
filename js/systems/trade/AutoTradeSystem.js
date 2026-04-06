@@ -267,8 +267,8 @@ export function findBestDispatchRoute(state, options, tradePolicy) {
         if (!policyCheck.ok) return;
         var riskAssessment = assessTradeRisk(good, buySys.id, sellSys.id, normalizedPolicy.marketMode);
 
-        var travelToBuyFuel = currentSystem === buySys.id ? 0 : Economy.getFuelCost(currentSystem, buySys.id, fuelEfficiency);
-        var travelToSellFuel = buySys.id === sellSys.id ? 0 : Economy.getFuelCost(buySys.id, sellSys.id, fuelEfficiency);
+        var travelToBuyFuel = currentSystem === buySys.id ? 0 : Economy.getFuelCost(currentSystem, buySys.id, fuelEfficiency, state);
+        var travelToSellFuel = buySys.id === sellSys.id ? 0 : Economy.getFuelCost(buySys.id, sellSys.id, fuelEfficiency, state);
         var totalFuelCost = travelToBuyFuel + travelToSellFuel;
         var fuelCredits = totalFuelCost * fuelUnitPrice;
         var profit = (sellPrice - buyPrice) * canBuy - fuelCredits;
@@ -342,7 +342,7 @@ export function findBestTrade(state, tradePolicy) {
       // 跳过未解锁星球
       if ((state.playerLevel || 1) < (sys.minLevel || 1)) return;
       const sellPrice    = _getSellPriceForMarket(state, sys.id, good, normalizedPolicy.marketMode);
-      const fuelCost     = Economy.getFuelCost(state.currentSystem, sys.id, state.fuelEfficiency);
+      const fuelCost     = Economy.getFuelCost(state.currentSystem, sys.id, state.fuelEfficiency, state);
       const fuelCredits  = fuelCost * fuelUnitPrice;
       const profit       = (sellPrice - buyPrice) * canBuy - fuelCredits;
       const policyCheck  = evaluateTradePolicy(buyPrice, sellPrice, normalizedPolicy);
@@ -400,7 +400,7 @@ export function findBestSellSystem(state) {
       totalRevenue += Economy.getSellPrice(sys.id, entry[0], state) * entry[1];
     });
 
-    const fuelCost = Economy.getFuelCost(state.currentSystem, sys.id, state.fuelEfficiency);
+    const fuelCost = Economy.getFuelCost(state.currentSystem, sys.id, state.fuelEfficiency, state);
     const profit   = totalRevenue - fuelCost * fuelUnitPrice;
 
     if (!best || profit > best.profit) {

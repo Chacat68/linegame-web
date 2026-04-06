@@ -9,7 +9,7 @@
 //       installMod, uninstallMod, getShipSkills, getActiveFleetBonuses
 
 import { SHIP_TYPES, SHIP_UPGRADES, FLEET_SLOTS, SHIP_MODS, FLEET_BONUSES } from '../../data/ships.js';
-import { SYSTEMS, FUEL_COST_PER_UNIT, findSystem } from '../../data/systems.js';
+import { findSystem } from '../../data/systems.js';
 import { GOODS } from '../../data/goods.js';
 import * as Economy from '../economy/Economy.js';
 import * as AutoTrade from '../trade/AutoTradeSystem.js';
@@ -388,22 +388,10 @@ export function getShipType(typeId) {
 // ---------------------------------------------------------------------------
 
 /**
- * 计算两星系之间的距离
- */
-function _distance(sysA, sysB) {
-  var dx = sysA.x - sysB.x;
-  var dy = sysA.y - sysB.y;
-  return Math.sqrt(dx * dx + dy * dy);
-}
-
-/**
  * 计算燃料消耗
  */
-function _fuelCost(fromId, toId, fuelEff) {
-  var s1 = findSystem(fromId);
-  var s2 = findSystem(toId);
-  if (!s1 || !s2) return 999;
-  return Math.max(1, Math.ceil(_distance(s1, s2) * 100 * FUEL_COST_PER_UNIT * fuelEff));
+function _fuelCost(state, fromId, toId, fuelEff) {
+  return Economy.getFuelCost(fromId, toId, fuelEff, state);
 }
 
 export function getEffectiveShipStats(state, ship) {
@@ -656,7 +644,7 @@ export function tickFleetRoutes(state) {
           // 立即执行买入
           _doShipBuy(state, ship, route, msgs);
         } else {
-          var cost = _fuelCost(loc, route.buySystemId, getEffectiveShipStats(state, ship).fuelEff);
+          var cost = _fuelCost(state, loc, route.buySystemId, getEffectiveShipStats(state, ship).fuelEff);
           if (ship.fuel < cost) {
             // 尝试用积分补燃料
             _autoRefuelShip(state, ship, cost, msgs);
@@ -687,7 +675,7 @@ export function tickFleetRoutes(state) {
           route.status = 'selling';
           _doShipSell(state, ship, route, msgs);
         } else {
-          var cost2 = _fuelCost(loc, route.sellSystemId, getEffectiveShipStats(state, ship).fuelEff);
+          var cost2 = _fuelCost(state, loc, route.sellSystemId, getEffectiveShipStats(state, ship).fuelEff);
           if (ship.fuel < cost2) {
             _autoRefuelShip(state, ship, cost2, msgs);
             if (ship.fuel < cost2) {

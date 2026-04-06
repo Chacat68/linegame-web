@@ -14,6 +14,7 @@ import * as Faction    from '../systems/faction/FactionSystem.js';
 import * as Research   from '../systems/research/ResearchSystem.js';
 import * as Renderer3D from '../ui/Renderer3DAdvanced.js?v=20260406-routefix2';
 import * as GalaxyData from '../systems/galaxy/GalaxyDataLayer.js';
+import * as Exploration from '../systems/galaxy/ExplorationSystem.js';
 import * as HUD        from '../ui/HUD.js';
 import * as MarketUI   from '../ui/MarketUI.js';
 import * as ShipUI     from '../ui/ShipUI.js';
@@ -107,6 +108,11 @@ export function init(difficulty) {
 
   // 注入回调给各 UI 模块
   MapUI.init(_state, _handleTravel, _handleGalaxyJump);
+  MapUI.setExplorationActions({
+    onScan: _handleScanSystem,
+    onLand: _handleLandOnSystem,
+    onExplorePoi: _handleExplorePoi,
+  });
   MapUI.initTabs(function (tabId) {
     Tutorial.checkTabClick(tabId);
   });
@@ -300,6 +306,36 @@ function _dispatch(result) {
   });
   _updateUI();
   if (result && result.ok) _checkVictory();
+}
+
+function _handleScanSystem(systemId) {
+  Fleet.syncStateFromShip(_state);
+  const result = Exploration.scanSystem(_state, systemId);
+  if (result && result.ok) {
+    Fleet.syncShipFromState(_state);
+    _state.galaxyStates = GalaxyData.getAllPlanetStates();
+  }
+  _dispatch(result);
+}
+
+function _handleLandOnSystem(systemId) {
+  Fleet.syncStateFromShip(_state);
+  const result = Exploration.landOnSystem(_state, systemId);
+  if (result && result.ok) {
+    Fleet.syncShipFromState(_state);
+    _state.galaxyStates = GalaxyData.getAllPlanetStates();
+  }
+  _dispatch(result);
+}
+
+function _handleExplorePoi(systemId, poiId) {
+  Fleet.syncStateFromShip(_state);
+  const result = Exploration.explorePoi(_state, systemId, poiId);
+  if (result && result.ok) {
+    Fleet.syncShipFromState(_state);
+    _state.galaxyStates = GalaxyData.getAllPlanetStates();
+  }
+  _dispatch(result);
 }
 
 function _handleTravel(systemId) {

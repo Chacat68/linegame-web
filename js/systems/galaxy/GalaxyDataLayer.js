@@ -31,14 +31,7 @@ export function init(gameState) {
 
   // 初始化所有星球的运行时状态
   SYSTEMS.forEach(system => {
-    _planetStates.set(system.id, {
-      id: system.id,
-      owner: _determineInitialOwner(system, gameState),
-      resources: _calculateResources(system),
-      status: 'normal', // normal, contested, blockaded, etc.
-      population: system.details?.totalPopulation || '0亿',
-      lastUpdate: Date.now(),
-    });
+    _planetStates.set(system.id, _buildDefaultPlanetState(system, gameState));
   });
 
   // 生成星区划分
@@ -121,7 +114,7 @@ export function getSectorData(galaxyId, sectorId) {
 export function getAllPlanetStates() {
   const states = {};
   _planetStates.forEach((state, id) => {
-    states[id] = { ...state };
+    states[id] = _clonePlainObject(state);
   });
   return states;
 }
@@ -192,7 +185,12 @@ export function batchUpdatePlanetStates(updates) {
  */
 export function restorePlanetStates(savedStates) {
   Object.entries(savedStates).forEach(([planetId, state]) => {
-    _planetStates.set(planetId, { ...state });
+    const system = findSystem(planetId);
+    if (!system) return;
+    const defaults = _buildDefaultPlanetState(system, null);
+    const restored = Object.assign({}, defaults, state || {});
+    restored.exploration = _mergeExplorationState(defaults.exploration, state && state.exploration);
+    _planetStates.set(planetId, restored);
   });
 
   console.log('Restored', Object.keys(savedStates).length, 'planet states');
@@ -304,7 +302,159 @@ function _mergePlanetData(system, state) {
     status: state?.status || 'normal',
     population: state?.population || '0亿',
     lastUpdate: state?.lastUpdate || Date.now(),
+    exploration: _clonePlainObject(state?.exploration || _createExplorationState(system)),
   };
+}
+
+function _buildDefaultPlanetState(system, gameState) {
+  return {
+    id: system.id,
+    owner: _determineInitialOwner(system, gameState),
+    resources: _calculateResources(system),
+    status: 'normal',
+    population: system.details?.totalPopulation || '0亿',
+    exploration: _createExplorationState(system),
+    lastUpdate: Date.now(),
+  };
+}
+
+function _createExplorationState(system) {
+  const secretRoute = _createSecretRoute(system);
+  return {
+    scanLevel: 0,
+    scanCount: 0,
+    lastScannedDay: 0,
+    landed: false,
+    landingCount: 0,
+    lastLandedDay: 0,
+    pois: _createExplorationPois(system, secretRoute),
+    secretRoutes: secretRoute ? [secretRoute] : [],
+  };
+}
+
+function _createExplorationPois(system, secretRoute) {
+  const resourcePoi = _createResourcePoi(system);
+  const anomalyPoi = _createAnomalyPoi(system);
+  const routePoi = secretRoute ? {
+    id: system.id + '_poi_route',
+    kind: 'route_beacon',
+    icon: '🛰️',
+    name: '隐秘折跃信标',
+    description: '一次失真的导航回波，似乎指向「' + secretRoute.targetSystemName + '」附近的暗线跳点。',
+    discovered: false,
+    resolved: false,
+    secretRouteId: secretRoute.id,
+    rewards: { credits: 110, reputation: 2 },
+  } : {
+    id: system.id + '_poi_archive',
+    kind: 'resource_cache',
+    icon: '📚',
+    name: '遗落航海档案',
+    description: '旧时代航海数据库残片，仍可从中提取有价值的航路情报。',
+    discovered: false,
+    resolved: false,
+    rewards: { credits: 90, fuel: 0, reputation: 1 },
+  };
+  return [resourcePoi, anomalyPoi, routePoi];
+}
+
+function _createResourcePoi(system) {
+  const templates = {
+    agricultural: { icon: '🌾', name: '轨道种子库', description: '废弃农业补给舱里仍保存着可兑换的种子资产。', rewards: { credits: 140, fuel: 5, reputation: 1 } },
+    technology:   { icon: '💾', name: '失落数据站', description: '无人维护的数据站残留了可打包出售的技术快照。', rewards: { credits: 180, fuel: 3, reputation: 2 } },
+    mining:       { icon: '⛏️', name: '废弃采掘井', description: '矿层旁的采掘平台遗留了可回收的工业票据与补给。', rewards: { credits: 170, fuel: 4, reputation: 1 } },
+    commercial:   { icon: '📦', name: '黑箱货仓', description: '一座漂流货仓仍保留着可回收的账本与押运燃料。', rewards: { credits: 150, fuel: 6, reputation: 1 } },
+    military:     { icon: '🧰', name: '战备补给舱', description: '前线后勤留下的封存箱仍包含可折现的军需物资。', rewards: { credits: 160, fuel: 5, reputation: 1 } },
+    medical:      { icon: '🧪', name: '冷链药品仓', description: '一处失联冷链仓库中仍有完好的药品结算单与应急燃料。', rewards: { credits: 155, fuel: 5, reputation: 2 } },
+    industrial:   { icon: '🏭', name: '制造线残片', description: '废弃产线边缘仍堆放着未登记的工业票据。', rewards: { credits: 165, fuel: 4, reputation: 1 } },
+    energy:       { icon: '⚡', name: '储能模块群', description: '一组遗落储能模块可直接转化为舰船补给。', rewards: { credits: 130, fuel: 10, reputation: 1 } },
+    research:     { icon: '🔬', name: '观测站缓存', description: '研究站缓存中存放着一批仍可出售的数据样本。', rewards: { credits: 175, fuel: 2, reputation: 2 } },
+    special:      { icon: '🪙', name: '边境藏匿点', description: '隐秘储物点内遗留了一批未登记资产。', rewards: { credits: 190, fuel: 3, reputation: 0 } },
+  };
+  const template = templates[system.type] || templates.special;
+  return {
+    id: system.id + '_poi_resource',
+    kind: 'resource_cache',
+    icon: template.icon,
+    name: template.name,
+    description: template.description,
+    discovered: false,
+    resolved: false,
+    rewards: template.rewards,
+  };
+}
+
+function _createAnomalyPoi(system) {
+  return {
+    id: system.id + '_poi_anomaly',
+    kind: 'anomaly_site',
+    icon: '🌀',
+    name: '异常读数区',
+    description: '局部时空与能量读数持续异常，回收收益可观，但存在舰体受损风险。',
+    discovered: false,
+    resolved: false,
+    rewards: {
+      credits: 150 + (system.minLevel || 1) * 20,
+      hullDamage: 6 + (system.minLevel || 1) * 2,
+    },
+  };
+}
+
+function _createSecretRoute(system) {
+  const systems = getSystemsByGalaxy(system.galaxyId)
+    .filter(function (entry) {
+      return entry.id !== system.id;
+    })
+    .sort(function (a, b) {
+      return _distance(system, b) - _distance(system, a);
+    });
+  if (systems.length === 0) return null;
+
+  const preferred = systems.slice(0, Math.min(6, systems.length));
+  const idx = _hashString(system.id + '_secret_route') % preferred.length;
+  const target = preferred[idx];
+  return {
+    id: system.id + '_route_' + target.id,
+    sourceSystemId: system.id,
+    targetSystemId: target.id,
+    targetSystemName: target.name,
+    label: '暗线 · ' + system.name + ' → ' + target.name,
+    fuelMultiplier: 0.65,
+    discovered: false,
+    discoveredDay: 0,
+  };
+}
+
+function _mergeExplorationState(defaultState, savedState) {
+  const next = Object.assign({}, _clonePlainObject(defaultState), savedState || {});
+
+  const savedPoiById = Object.create(null);
+  (savedState && Array.isArray(savedState.pois) ? savedState.pois : []).forEach(function (poi) {
+    savedPoiById[poi.id] = poi;
+  });
+  next.pois = (defaultState.pois || []).map(function (poi) {
+    return Object.assign({}, poi, savedPoiById[poi.id] || {});
+  });
+
+  const savedRouteById = Object.create(null);
+  (savedState && Array.isArray(savedState.secretRoutes) ? savedState.secretRoutes : []).forEach(function (route) {
+    savedRouteById[route.id] = route;
+  });
+  next.secretRoutes = (defaultState.secretRoutes || []).map(function (route) {
+    return Object.assign({}, route, savedRouteById[route.id] || {});
+  });
+
+  return next;
+}
+
+function _clonePlainObject(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function _distance(a, b) {
+  const dx = (a.x || 0) - (b.x || 0);
+  const dy = (a.y || 0) - (b.y || 0);
+  return Math.sqrt(dx * dx + dy * dy);
 }
 
 function _determineInitialOwner(system, gameState) {
