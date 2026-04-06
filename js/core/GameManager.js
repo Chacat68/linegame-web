@@ -14,11 +14,11 @@ import * as Faction    from '../systems/faction/FactionSystem.js';
 import * as Research   from '../systems/research/ResearchSystem.js';
 import * as Renderer3D from '../ui/Renderer3DAdvanced.js?v=20260406-routefix3';
 import * as GalaxyData from '../systems/galaxy/GalaxyDataLayer.js';
-import * as Exploration from '../systems/galaxy/ExplorationSystem.js';
+import * as Exploration from '../systems/galaxy/ExplorationSystem.js?v=20260407-landpoi1';
 import * as HUD        from '../ui/HUD.js';
 import * as MarketUI   from '../ui/MarketUI.js';
 import * as ShipUI     from '../ui/ShipUI.js';
-import * as MapUI      from '../ui/MapUI.js?v=20260406-exploreflow3';
+import * as MapUI      from '../ui/MapUI.js?v=20260407-landpoi1';
 import * as Modal      from '../ui/Modal.js';
 import * as EventUI    from '../ui/EventUI.js';
 import * as ResearchUI from '../ui/ResearchUI.js';
@@ -112,6 +112,9 @@ export function init(difficulty) {
     onScan: _handleScanSystem,
     onLand: _handleLandOnSystem,
     onExplorePoi: _handleExplorePoi,
+    getScanStatus: _getScanStatus,
+    getLandingStatus: _getLandingStatus,
+    getPoiStatus: _getPoiStatus,
   });
   MapUI.initTabs(function (tabId) {
     Tutorial.checkTabClick(tabId);
@@ -306,6 +309,28 @@ function _dispatch(result) {
   });
   _updateUI();
   if (result && result.ok) _checkVictory();
+}
+
+function _getScanStatus(systemId) {
+  var shipStats = Fleet.getEffectiveShipStats(_state, Fleet.getActiveShip(_state));
+  return Exploration.getScanStatus(_state, systemId, {
+    scanFuelDiscount: shipStats.scanFuelDiscount,
+    forceDeepScan: shipStats.forceDeepScan,
+  });
+}
+
+function _getLandingStatus(systemId) {
+  var shipStats = Fleet.getEffectiveShipStats(_state, Fleet.getActiveShip(_state));
+  return Exploration.getLandingStatus(_state, systemId, {
+    landingFeeDiscount: shipStats.landingFeeDiscount,
+  });
+}
+
+function _getPoiStatus(systemId, poiId) {
+  var shipStats = Fleet.getEffectiveShipStats(_state, Fleet.getActiveShip(_state));
+  return Exploration.getPoiStatus(_state, systemId, poiId, {
+    poiRewardMultiplier: shipStats.poiRewardMultiplier,
+  });
 }
 
 function _handleScanSystem(systemId) {

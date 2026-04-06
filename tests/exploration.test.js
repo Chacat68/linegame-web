@@ -38,6 +38,59 @@ describe('ExplorationSystem', function () {
     expect(state.fuel).toBeLessThan(100);
   });
 
+  it('扫描预览应反映深度扫描折扣与可执行性', function () {
+    const planet = GalaxyData.getPlanetData('sol_prime');
+    const preview = Exploration.getScanStatus(state, 'sol_prime', {
+      scanFuelDiscount: 0.5,
+      forceDeepScan: true,
+    });
+
+    expect(preview.canScan).toBe(true);
+    expect(preview.scanMode).toBe('deep');
+    expect(preview.scanFuelCost).toBe(2);
+    expect(preview.poiCount).toBe(planet.exploration.pois.length);
+    expect(preview.actionLabel).toContain('2 燃料');
+  });
+
+  it('扫描预览应在燃料不足时给出阻塞原因', function () {
+    state.fuel = 1;
+
+    const preview = Exploration.getScanStatus(state, 'sol_prime');
+
+    expect(preview.canScan).toBe(false);
+    expect(preview.reason).toBe('insufficient-fuel');
+    expect(preview.blockedReason).toContain('燃料不足');
+  });
+
+  it('着陆预览应反映折扣费用与可调查 POI 数量', function () {
+    expect(Exploration.scanSystem(state, 'sol_prime').ok).toBe(true);
+
+    const preview = Exploration.getLandingStatus(state, 'sol_prime', {
+      landingFeeDiscount: 0.25,
+    });
+
+    expect(preview.canLand).toBe(true);
+    expect(preview.landingFee).toBe(45);
+    expect(preview.unresolvedPoiCount).toBe(3);
+    expect(preview.actionLabel).toContain('45 积分');
+  });
+
+  it('POI 预览应说明调查收益或风险', function () {
+    const basePlanet = GalaxyData.getPlanetData('sol_prime');
+    const anomalyPoi = basePlanet.exploration.pois.find(function (poi) {
+      return poi.kind === 'anomaly_site';
+    });
+
+    expect(Exploration.scanSystem(state, 'sol_prime').ok).toBe(true);
+    expect(Exploration.landOnSystem(state, 'sol_prime').ok).toBe(true);
+
+    const preview = Exploration.getPoiStatus(state, 'sol_prime', anomalyPoi.id);
+
+    expect(preview.canExplore).toBe(true);
+    expect(preview.actionLabel).toContain('无成本');
+    expect(preview.detailText).toContain('舰体');
+  });
+
   it('着陆前必须先完成扫描', function () {
     const result = Exploration.landOnSystem(state, 'sol_prime');
 
