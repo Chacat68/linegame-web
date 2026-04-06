@@ -39,7 +39,7 @@ import * as Quest      from '../systems/quest/QuestSystem.js';
 import * as Achievement from '../systems/achievement/AchievementSystem.js';
 import * as Tutorial   from '../systems/tutorial/TutorialSystem.js';
 import * as TutorialUI from '../ui/TutorialUI.js';
-import { INITIAL_STATE, DIFFICULTY_LEVELS } from '../data/constants.js';
+import { INITIAL_STATE, DIFFICULTY_LEVELS, EVENT_CONFIG } from '../data/constants.js';
 import * as Victory from '../systems/victory/VictorySystem.js';
 import { VICTORY_PATHS } from '../data/victoryConditions.js';
 import { getLevel } from '../data/playerLevels.js';
@@ -310,9 +310,19 @@ function _dispatch(result) {
 
 function _handleScanSystem(systemId) {
   Fleet.syncStateFromShip(_state);
-  const result = Exploration.scanSystem(_state, systemId);
+  var shipStats = Fleet.getEffectiveShipStats(_state, Fleet.getActiveShip(_state));
+  const result = Exploration.scanSystem(_state, systemId, {
+    scanFuelDiscount: shipStats.scanFuelDiscount,
+    forceDeepScan: shipStats.forceDeepScan,
+  });
   if (result && result.ok) {
-    Fleet.syncShipFromState(_state);
+    Fleet.recordShipActivity(_state, 'scan', {}, _state.activeShipIndex).msgs.forEach(function (m) {
+      EventBus.emit('log:message', { text: m.text, type: m.type });
+    });
+    Fleet.consumeShipProtocol(_state, _state.activeShipIndex, 'exploration').msgs.forEach(function (m) {
+      EventBus.emit('log:message', { text: m.text, type: m.type });
+    });
+    Fleet.commitActiveShipState(_state);
     _state.galaxyStates = GalaxyData.getAllPlanetStates();
   }
   _dispatch(result);
@@ -320,9 +330,18 @@ function _handleScanSystem(systemId) {
 
 function _handleLandOnSystem(systemId) {
   Fleet.syncStateFromShip(_state);
-  const result = Exploration.landOnSystem(_state, systemId);
+  var shipStats = Fleet.getEffectiveShipStats(_state, Fleet.getActiveShip(_state));
+  const result = Exploration.landOnSystem(_state, systemId, {
+    landingFeeDiscount: shipStats.landingFeeDiscount,
+  });
   if (result && result.ok) {
-    Fleet.syncShipFromState(_state);
+    Fleet.recordShipActivity(_state, 'land', {}, _state.activeShipIndex).msgs.forEach(function (m) {
+      EventBus.emit('log:message', { text: m.text, type: m.type });
+    });
+    Fleet.consumeShipProtocol(_state, _state.activeShipIndex, 'exploration').msgs.forEach(function (m) {
+      EventBus.emit('log:message', { text: m.text, type: m.type });
+    });
+    Fleet.commitActiveShipState(_state);
     _state.galaxyStates = GalaxyData.getAllPlanetStates();
   }
   _dispatch(result);
@@ -330,15 +349,26 @@ function _handleLandOnSystem(systemId) {
 
 function _handleExplorePoi(systemId, poiId) {
   Fleet.syncStateFromShip(_state);
-  const result = Exploration.explorePoi(_state, systemId, poiId);
+  var shipStats = Fleet.getEffectiveShipStats(_state, Fleet.getActiveShip(_state));
+  const result = Exploration.explorePoi(_state, systemId, poiId, {
+    poiRewardMultiplier: shipStats.poiRewardMultiplier,
+  });
   if (result && result.ok) {
-    Fleet.syncShipFromState(_state);
+    Fleet.recordShipActivity(_state, 'poi', {}, _state.activeShipIndex).msgs.forEach(function (m) {
+      EventBus.emit('log:message', { text: m.text, type: m.type });
+    });
+    Fleet.consumeShipProtocol(_state, _state.activeShipIndex, 'exploration').msgs.forEach(function (m) {
+      EventBus.emit('log:message', { text: m.text, type: m.type });
+    });
+    Fleet.commitActiveShipState(_state);
     _state.galaxyStates = GalaxyData.getAllPlanetStates();
   }
   _dispatch(result);
 }
 
 function _handleTravel(systemId) {
+  Fleet.syncStateFromShip(_state);
+
   // 旅行前：如有待处理事件，强制弹出，阻止本次旅行
   if (EventUI.hasPendingEvent()) {
     EventUI.forcePendingEvent();
@@ -378,7 +408,16 @@ function _handleTravel(systemId) {
     MapUI.refreshMarketLocation(_state);
 
     // 走私检查（入港时）
-    var smuggleResult = Economy.checkSmuggling(_state, _state.currentSystem);
+    var activeShipStats = Fleet.getEffectiveShipStats(_state, Fleet.getActiveShip(_state));
+    var smuggleResult = Economy.checkSmugglingCargo(_state, _state.currentSystem, _state.cargo, {
+      cargoCost: _state.cargoCost,
+      applyHullDamage: function (damage) {
+        _state.shipHull = Math.max(1, (_state.shipHull || 100) - damage);
+      },
+      checkChanceMultiplier: activeShipStats.smugglingCheckMultiplier || 1,
+      fineMultiplier: activeShipStats.smugglingFineMultiplier || 1,
+      hullDamageMultiplier: activeShipStats.smugglingHullMultiplier || 1,
+    });
     smuggleResult.msgs.forEach(function (m) {
       EventBus.emit('log:message', { text: m.text, type: m.type });
     });
@@ -396,8 +435,20 @@ function _handleTravel(systemId) {
         var g = GOODS.find(function (x) { return x.id === gid; });
         return g && g.legality === 'illegal' && _state.cargo[gid] > 0;
       });
-      if (hasContraband) Economy.recordSmugglingEvaded(_state);
+      if (hasContraband) {
+        Economy.recordSmugglingEvaded(_state);
+        Fleet.recordShipActivity(_state, 'smuggling_evaded', {}, _state.activeShipIndex).msgs.forEach(function (m) {
+          EventBus.emit('log:message', { text: m.text, type: m.type });
+        });
+      }
     }
+
+    Fleet.recordShipActivity(_state, 'travel', {
+      crossGalaxy: !!(result.meta && result.meta.crossGalaxy),
+      secretRoute: !!(result.meta && result.meta.secretRoute),
+    }, _state.activeShipIndex).msgs.forEach(function (m) {
+      EventBus.emit('log:message', { text: m.text, type: m.type });
+    });
 
     // 探索追踪：记录已访问的星球和星系
     if (!_state.visitedSystems) _state.visitedSystems = [];
@@ -445,8 +496,6 @@ function _handleTravel(systemId) {
     }
 
     // 自动修复（如果有科技）
-    var activeShip = Fleet.getActiveShip(_state);
-    var activeShipStats = Fleet.getEffectiveShipStats(_state, activeShip);
     var totalAutoRepair = (_state.autoRepair || 0) + (activeShipStats.autoRepair || 0);
     if (totalAutoRepair > 0) {
       _state.shipHull = Math.min(_state.maxHull || 100, (_state.shipHull || 100) + totalAutoRepair);
@@ -454,7 +503,8 @@ function _handleTravel(systemId) {
 
     // 随机事件触发（群星风格）——教程期间不触发
     // 使用非阻塞通知条代替立即弹窗，让玩家可以延后处理
-    const event = Tutorial.isActive() ? null : RandomEvent.rollEvent(_state);
+    const baseEventChance = EVENT_CONFIG.baseChance * (activeShipStats.eventChanceMultiplier || 1);
+    const event = Tutorial.isActive() ? null : RandomEvent.rollEvent(_state, baseEventChance);
     if (event) {
       EventUI.showEventNotification(event, function (choiceIndex) {
         _handleEventChoice(choiceIndex);
@@ -462,8 +512,12 @@ function _handleTravel(systemId) {
       EventBus.emit('log:message', { text: '📢 遭遇事件：' + event.title + '！查看底部通知处理。', type: 'info' });
     }
 
+    Fleet.consumeShipProtocol(_state, _state.activeShipIndex, 'travel').msgs.forEach(function (m) {
+      EventBus.emit('log:message', { text: m.text, type: m.type });
+    });
+
     // 自动存档
-    Fleet.syncShipFromState(_state);
+    Fleet.commitActiveShipState(_state);
 
     // 船队派遣贸易结算（每天一次）
     const fleetResult = Fleet.tickFleetRoutes(_state);
@@ -499,6 +553,8 @@ function _handleGalaxyJump(systemId) {
 }
 
 function _handleTradeConfirm(action, goodId, quantity, marketType) {
+  Fleet.syncStateFromShip(_state);
+
   // 统一通过 CommerceFacade 处理公开市场与黑市交易
   const effectiveMarket = marketType === 'black' ? 'black' : 'open';
   const result = action === 'buy'
@@ -507,7 +563,16 @@ function _handleTradeConfirm(action, goodId, quantity, marketType) {
   _dispatch(result);
 
   if (result && result.ok) {
-    Fleet.syncShipFromState(_state);
+    Fleet.recordShipActivity(_state, action === 'buy' ? 'trade_buy' : 'trade_sell', {
+      quantity: quantity,
+      profit: result.meta && typeof result.meta.profit === 'number' ? result.meta.profit : 0,
+    }, _state.activeShipIndex).msgs.forEach(function (m) {
+      EventBus.emit('log:message', { text: m.text, type: m.type });
+    });
+    Fleet.consumeShipProtocol(_state, _state.activeShipIndex, 'trade').msgs.forEach(function (m) {
+      EventBus.emit('log:message', { text: m.text, type: m.type });
+    });
+    Fleet.commitActiveShipState(_state);
     var activeRoute = Fleet.getActiveShip(_state) ? Fleet.getActiveShip(_state).route : null;
     if (activeRoute && activeRoute.goodId === goodId) {
       if (action === 'buy') {
@@ -792,6 +857,24 @@ function _handleUpgradeShip(shipIndex, upgradeId) {
   _dispatch(result);
 }
 
+function _handleSetShipDoctrine(shipIndex, doctrineId) {
+  Fleet.syncShipFromState(_state);
+  const result = Fleet.setShipDoctrine(_state, shipIndex, doctrineId);
+  if (result && result.ok && shipIndex === (_state.activeShipIndex || 0)) {
+    Fleet.syncStateFromShip(_state);
+  }
+  _dispatch(result);
+}
+
+function _handleActivateShipProtocol(shipIndex) {
+  Fleet.syncShipFromState(_state);
+  const result = Fleet.activateShipProtocol(_state, shipIndex);
+  if (result && result.ok && shipIndex === (_state.activeShipIndex || 0)) {
+    Fleet.syncStateFromShip(_state);
+  }
+  _dispatch(result);
+}
+
 function _handleAssignRoute(shipIndex, buySystemId, sellSystemId, goodId, tradePolicy) {
   Fleet.syncShipFromState(_state);
   var isActive = shipIndex === (_state.activeShipIndex || 0);
@@ -956,7 +1039,7 @@ function _updateUI() {
   FactionUI.render(_state);
   QuestUI.render(_state, _handleAcceptQuest, _handleAbandonQuest);
   AchievementUI.render(_state);
-  FleetUI.render(_state, _handleBuyShip, _handleSwitchShip, _handleUpgradeShip, _handleAssignRoute, _handleCancelRoute, _handleBuySlot, _handleSellShip, _handleInstallMod, _handleUninstallMod, _handleRecruitCrew, _handleAssignCrew, _handleUnassignCrew, _handleDismissCrew);
+  FleetUI.render(_state, _handleBuyShip, _handleSwitchShip, _handleUpgradeShip, _handleAssignRoute, _handleCancelRoute, _handleBuySlot, _handleSellShip, _handleInstallMod, _handleUninstallMod, _handleRecruitCrew, _handleAssignCrew, _handleUnassignCrew, _handleDismissCrew, _handleSetShipDoctrine, _handleActivateShipProtocol);
   FleetUI.renderShop(_state, _handleBuyShip);
   SaveUI.render(_handleSaveGame, _handleLoadGame);
   Renderer3D.invalidateScene();

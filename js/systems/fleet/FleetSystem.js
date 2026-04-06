@@ -14,6 +14,15 @@ import { GOODS } from '../../data/goods.js';
 import * as Economy from '../economy/Economy.js';
 import * as AutoTrade from '../trade/AutoTradeSystem.js';
 import * as Crew from './CrewSystem.js';
+import {
+  SHIP_DOCTRINES,
+  createDoctrineProtocol,
+  ensureShipSpecializationState,
+  getDoctrine,
+  getMasteryLevel,
+  getMasteryTrack,
+  getShipSpecializationProfile as buildShipSpecializationProfile,
+} from './ShipSpecialization.js';
 
 /**
  * 创建一艘船只实例
@@ -21,7 +30,7 @@ import * as Crew from './CrewSystem.js';
  * @returns {object} 船只实例
  */
 function _createShip(shipType) {
-  return {
+  var ship = {
     typeId:       shipType.id,
     name:         shipType.name,
     emoji:        shipType.emoji,
@@ -44,6 +53,8 @@ function _createShip(shipType) {
     location:     null, // 当前所在星系 ID（非激活船只用），null 表示跟随旗舰
     route:        null, // 派遣路线 { buySystemId, sellSystemId, goodId, status:'buying'|'traveling'|'selling'|'returning' }
   };
+  ensureShipSpecializationState(ship, shipType);
+  return ship;
 }
 
 // ---------------------------------------------------------------------------
@@ -71,6 +82,7 @@ export function init(state) {
       var st = SHIP_TYPES.find(function (t) { return t.id === ship.typeId; });
       ship.modSlots = st ? (st.modSlots || 1) : 1;
     }
+    ensureShipSpecializationState(ship, SHIP_TYPES.find(function (type) { return type.id === ship.typeId; }));
     Crew.ensureShip(ship, SHIP_TYPES.find(function (type) { return type.id === ship.typeId; }));
   });
   // 确保当前 state 与激活船只同步
@@ -377,10 +389,169 @@ export function syncShipFromState(state) {
 }
 
 /**
+ * 将根 state 的可变属性写回当前操控船只，并立即刷新派生属性。
+ * 用于交易/航行/探索后既更新船只实体，又保持 HUD、市场和自动派遣读取到最新有效值。
+ */
+export function commitActiveShipState(state) {
+  syncShipFromState(state);
+  syncStateFromShip(state);
+}
+
+/**
  * 获取船型信息
  */
 export function getShipType(typeId) {
   return SHIP_TYPES.find(function (s) { return s.id === typeId; });
+}
+
+export function getShipSpecializationSummary(state, ship) {
+  if (!ship) return null;
+  ensureShipSpecializationState(ship, getShipType(ship.typeId));
+  return buildShipSpecializationProfile(ship, state ? state.day : 1);
+}
+
+export function setShipDoctrine(state, shipIndex, doctrineId) {
+  var ship = shipIndex != null ? state.fleet[shipIndex] : getActiveShip(state);
+  if (!ship) {
+    return { ok: false, msgs: [{ text: '❌ 无效的船只！', type: 'error' }] };
+  }
+  if (!SHIP_DOCTRINES[doctrineId]) {
+    return { ok: false, msgs: [{ text: '❌ 未知专精协议！', type: 'error' }] };
+  }
+
+  var specialization = ensureShipSpecializationState(ship, getShipType(ship.typeId));
+  if (specialization.activeProtocol && (specialization.activeProtocol.remainingCharges || 0) > 0) {
+    return { ok: false, msgs: [{ text: '⚠️ 当前战术协议仍在运行，请先消耗完协议效果。', type: 'error' }] };
+  }
+  if (specialization.doctrine === doctrineId) {
+    return { ok: false, msgs: [{ text: 'ℹ️ 这艘船已经启用该专精协议。', type: 'info' }] };
+  }
+
+  specialization.doctrine = doctrineId;
+  var doctrine = getDoctrine(doctrineId);
+  return {
+    ok: true,
+    msgs: [{ text: '🧠 「' + ship.name + '」已切换至「' + doctrine.name + '」。', type: 'upgrade' }],
+  };
+}
+
+export function activateShipProtocol(state, shipIndex) {
+  var ship = shipIndex != null ? state.fleet[shipIndex] : getActiveShip(state);
+  if (!ship) {
+    return { ok: false, msgs: [{ text: '❌ 无效的船只！', type: 'error' }] };
+  }
+
+  var specialization = ensureShipSpecializationState(ship, getShipType(ship.typeId));
+  var doctrineId = specialization.doctrine;
+  var doctrine = getDoctrine(doctrineId);
+  var level = getMasteryLevel((specialization.xp && specialization.xp[doctrineId]) || 0);
+  var currentDay = state.day || 1;
+  var readyDay = specialization.protocolCooldowns[doctrineId] || 0;
+
+  if (level <= 0) {
+    return { ok: false, msgs: [{ text: '🔒 当前专精达到 Lv.1 后才能启动战术协议。', type: 'error' }] };
+  }
+  if (specialization.activeProtocol && (specialization.activeProtocol.remainingCharges || 0) > 0) {
+    return { ok: false, msgs: [{ text: '⚙️ 已有战术协议运行中，请先完成当前协议。', type: 'error' }] };
+  }
+  if (currentDay < readyDay) {
+    return { ok: false, msgs: [{ text: '⏳ 协议冷却中，还需 ' + (readyDay - currentDay) + ' 天。', type: 'error' }] };
+  }
+
+  specialization.activeProtocol = createDoctrineProtocol(doctrineId, level, currentDay);
+  specialization.protocolCooldowns[doctrineId] = currentDay + (doctrine.protocol.cooldownDays || 4);
+
+  return {
+    ok: true,
+    msgs: [{
+      text: doctrine.protocol.icon + ' 「' + ship.name + '」启动「' + doctrine.protocol.name + '」：' + doctrine.protocol.desc,
+      type: 'upgrade',
+    }],
+  };
+}
+
+export function consumeShipProtocol(state, shipIndex, triggerId) {
+  var ship = shipIndex != null ? state.fleet[shipIndex] : getActiveShip(state);
+  if (!ship) return { ok: false, msgs: [] };
+
+  var specialization = ensureShipSpecializationState(ship, getShipType(ship.typeId));
+  var activeProtocol = specialization.activeProtocol;
+  if (!activeProtocol || (activeProtocol.remainingCharges || 0) <= 0) {
+    return { ok: false, msgs: [] };
+  }
+
+  var doctrine = getDoctrine(activeProtocol.doctrineId);
+  if (!doctrine.protocol || doctrine.protocol.trigger !== triggerId) {
+    return { ok: false, msgs: [] };
+  }
+
+  activeProtocol.remainingCharges = Math.max(0, (activeProtocol.remainingCharges || 0) - 1);
+  if (activeProtocol.remainingCharges > 0) {
+    return { ok: true, consumed: true, msgs: [] };
+  }
+
+  specialization.activeProtocol = null;
+  return {
+    ok: true,
+    consumed: true,
+    msgs: [{ text: '✨ 「' + ship.name + '」的「' + doctrine.protocol.name + '」已结束并进入冷却。', type: 'info' }],
+  };
+}
+
+export function recordShipActivity(state, activityId, payload, shipIndex) {
+  var ship = shipIndex != null ? state.fleet[shipIndex] : getActiveShip(state);
+  if (!ship) return { ok: false, msgs: [] };
+
+  var specialization = ensureShipSpecializationState(ship, getShipType(ship.typeId));
+  var awards = _getActivityAwards(activityId, payload || {});
+  var msgs = [];
+
+  awards.forEach(function (award) {
+    if (!award || !award.trackId || !Number.isFinite(award.xp) || award.xp <= 0) return;
+    var beforeLevel = getMasteryLevel((specialization.xp[award.trackId] || 0));
+    specialization.xp[award.trackId] = (specialization.xp[award.trackId] || 0) + award.xp;
+    var afterLevel = getMasteryLevel(specialization.xp[award.trackId] || 0);
+    if (afterLevel > beforeLevel) {
+      var track = getMasteryTrack(award.trackId);
+      msgs.push({
+        text: track.icon + ' 「' + ship.name + '」' + track.name + '提升至 Lv.' + afterLevel + '！',
+        type: 'upgrade',
+      });
+    }
+  });
+
+  return { ok: true, msgs: msgs, awards: awards };
+}
+
+function _getActivityAwards(activityId, payload) {
+  if (activityId === 'trade_buy') {
+    return [{ trackId: 'trade', xp: Math.max(3, Math.ceil((payload.quantity || 1) / 2)) }];
+  }
+  if (activityId === 'trade_sell') {
+    return [{
+      trackId: 'trade',
+      xp: Math.max(4, Math.ceil((payload.quantity || 1) / 2) + Math.ceil(Math.max(0, payload.profit || 0) / 240)),
+    }];
+  }
+  if (activityId === 'travel') {
+    return [{
+      trackId: 'navigation',
+      xp: payload.crossGalaxy ? 14 : (payload.secretRoute ? 10 : 6),
+    }];
+  }
+  if (activityId === 'scan') {
+    return [{ trackId: 'exploration', xp: 12 }];
+  }
+  if (activityId === 'land') {
+    return [{ trackId: 'exploration', xp: 8 }];
+  }
+  if (activityId === 'poi') {
+    return [{ trackId: 'exploration', xp: 14 }];
+  }
+  if (activityId === 'smuggling_evaded') {
+    return [{ trackId: 'navigation', xp: 6 }];
+  }
+  return [];
 }
 
 // ---------------------------------------------------------------------------
@@ -402,19 +573,42 @@ export function getEffectiveShipStats(state, ship) {
       autoRepair: 0,
       buyDiscount: 0,
       sellBonus: 0,
+      eventChanceMultiplier: 1,
+      smugglingCheckMultiplier: 1,
+      smugglingFineMultiplier: 1,
+      smugglingHullMultiplier: 1,
+      scanFuelDiscount: 0,
+      landingFeeDiscount: 0,
+      poiRewardMultiplier: 1,
+      forceDeepScan: false,
+      specialization: null,
       crewEffects: {},
     };
   }
 
   var crewEffects = Crew.getShipEffects(state, ship);
   var modEffects = getShipModEffects(ship);
+  var specialization = getShipSpecializationSummary(state, ship);
+  var specEffects = specialization ? specialization.effects : {};
 
   return {
-    maxCargo: Math.max(1, ship.maxCargo + (crewEffects.cargo || 0)),
-    fuelEff: Math.max(ship.minFuelEff || 0.1, Math.round(ship.fuelEff * (crewEffects.fuelEffMultiplier || 1) * 10000) / 10000),
+    maxCargo: Math.max(1, Math.round(ship.maxCargo + (crewEffects.cargo || 0) + (specEffects.cargoBonus || 0))),
+    fuelEff: Math.max(
+      ship.minFuelEff || 0.1,
+      Math.round(ship.fuelEff * (crewEffects.fuelEffMultiplier || 1) * (specEffects.fuelEffMultiplier || 1) * 10000) / 10000
+    ),
     autoRepair: (crewEffects.autoRepair || 0) + (modEffects.autoRepair || 0),
-    buyDiscount: (crewEffects.buyDiscount || 0) + (modEffects.buyDiscount || 0),
-    sellBonus: (crewEffects.sellBonus || 0) + (modEffects.sellBonus || 0),
+    buyDiscount: (crewEffects.buyDiscount || 0) + (modEffects.buyDiscount || 0) + (specEffects.buyDiscount || 0),
+    sellBonus: (crewEffects.sellBonus || 0) + (modEffects.sellBonus || 0) + (specEffects.sellBonus || 0),
+    eventChanceMultiplier: specEffects.eventChanceMultiplier || 1,
+    smugglingCheckMultiplier: specEffects.smugglingCheckMultiplier || 1,
+    smugglingFineMultiplier: specEffects.smugglingFineMultiplier || 1,
+    smugglingHullMultiplier: specEffects.smugglingHullMultiplier || 1,
+    scanFuelDiscount: specEffects.scanFuelDiscount || 0,
+    landingFeeDiscount: specEffects.landingFeeDiscount || 0,
+    poiRewardMultiplier: specEffects.poiRewardMultiplier || 1,
+    forceDeepScan: !!specEffects.forceDeepScan,
+    specialization: specialization,
     crewEffects: crewEffects,
   };
 }
@@ -459,10 +653,15 @@ function _getRouteSellPrice(state, route) {
 function _handleShipSmugglingCheck(state, ship, route, msgs) {
   if (!route || route.marketMode !== 'black') return false;
 
+  var shipStats = getEffectiveShipStats(state, ship);
+
   var result = Economy.checkSmugglingCargo(state, ship.location, ship.cargo, {
     applyHullDamage: function (damage) {
       ship.hull = Math.max(1, (ship.hull || ship.maxHull || 100) - damage);
     },
+    checkChanceMultiplier: shipStats.smugglingCheckMultiplier || 1,
+    fineMultiplier: shipStats.smugglingFineMultiplier || 1,
+    hullDamageMultiplier: shipStats.smugglingHullMultiplier || 1,
   });
 
   result.msgs.forEach(function (msg) {
@@ -658,6 +857,8 @@ export function tickFleetRoutes(state) {
           ship.location = route.buySystemId;
           msgs.push({ text: '🚀 「' + ship.name + '」抵达买入地。', type: 'travel' });
           if (_handleShipSmugglingCheck(state, ship, route, msgs)) return;
+          recordShipActivity(state, 'travel', { secretRoute: false, crossGalaxy: false }, idx).msgs.forEach(function (m) { msgs.push(m); });
+          consumeShipProtocol(state, idx, 'travel').msgs.forEach(function (m) { msgs.push(m); });
           _doShipBuy(state, ship, route, msgs);
         }
         break;
@@ -688,6 +889,8 @@ export function tickFleetRoutes(state) {
           ship.location = route.sellSystemId;
           msgs.push({ text: '🚀 「' + ship.name + '」抵达卖出地。', type: 'travel' });
           if (_handleShipSmugglingCheck(state, ship, route, msgs)) return;
+          recordShipActivity(state, 'travel', { secretRoute: false, crossGalaxy: false }, idx).msgs.forEach(function (m) { msgs.push(m); });
+          consumeShipProtocol(state, idx, 'travel').msgs.forEach(function (m) { msgs.push(m); });
           _doShipSell(state, ship, route, msgs);
         }
         break;
@@ -753,6 +956,9 @@ function _doShipBuy(state, ship, route, msgs) {
     type: 'buy',
   });
 
+  recordShipActivity(state, 'trade_buy', { quantity: qty }, state.fleet.indexOf(ship)).msgs.forEach(function (m) { msgs.push(m); });
+  consumeShipProtocol(state, state.fleet.indexOf(ship), 'trade').msgs.forEach(function (m) { msgs.push(m); });
+
   route.status = 'traveling_sell';
 }
 
@@ -800,6 +1006,9 @@ function _doShipSell(state, ship, route, msgs) {
     text: (isBlack ? '🕶 ' : '💰 ') + '「' + ship.name + '」在' + _sysName(route.sellSystemId) + (isBlack ? '黑市' : '') + '卖出 ' + qty + ' 单位' + good.name + '，获得 ' + totalEarned + ' 积分。',
     type: 'sell',
   });
+
+  recordShipActivity(state, 'trade_sell', { quantity: qty, profit: totalEarned - (buyReference * qty) }, state.fleet.indexOf(ship)).msgs.forEach(function (m) { msgs.push(m); });
+  consumeShipProtocol(state, state.fleet.indexOf(ship), 'trade').msgs.forEach(function (m) { msgs.push(m); });
 
   // 循环：重新前往买入地
   route.status = 'traveling_buy';

@@ -670,6 +670,40 @@
   box-shadow: 0 0 6px rgba(79, 195, 247, 0.12);
 }
 
+.fleet-specialization-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.fleet-doctrine-chip,
+.fleet-specialization-chip,
+.fleet-protocol-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  background: rgba(109, 194, 255, 0.10);
+  border: 1px solid rgba(109, 194, 255, 0.18);
+  color: var(--text-dim);
+}
+
+.fleet-doctrine-chip {
+  color: var(--accent-gold);
+  border-color: rgba(244, 196, 48, 0.28);
+  background: rgba(244, 196, 48, 0.10);
+}
+
+.fleet-protocol-chip-active {
+  color: #b8fff6;
+  border-color: rgba(107, 255, 225, 0.35);
+  background: rgba(32, 112, 102, 0.24);
+}
+
 /* Upgrade modal */
 .upgrade-modal-box {
   max-width: 420px;
@@ -777,6 +811,136 @@
   color: var(--accent-green);
   text-align: center;
   padding: 16px 0;
+}
+
+.ship-specialization-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.ship-specialization-card {
+  border: 1px solid rgba(109, 194, 255, 0.14);
+  background: rgba(9, 18, 33, 0.72);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ship-specialization-card-active {
+  border-color: rgba(244, 196, 48, 0.32);
+  box-shadow: inset 0 0 0 1px rgba(244, 196, 48, 0.12);
+}
+
+.ship-specialization-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  color: var(--text-main);
+}
+
+.ship-specialization-card-head span {
+  font-size: 11px;
+  color: var(--accent-gold);
+}
+
+.ship-specialization-card-desc {
+  color: var(--text-dim);
+  font-size: 11px;
+  line-height: 1.45;
+  min-height: 48px;
+}
+
+.ship-specialization-progress {
+  height: 6px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.ship-specialization-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, rgba(96, 228, 255, 0.9), rgba(244, 196, 48, 0.75));
+}
+
+.ship-specialization-progress-text {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.ship-specialization-card-foot {
+  margin-top: auto;
+}
+
+.ship-specialization-badge,
+.ship-specialization-switch-btn,
+.ship-protocol-activate-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(109, 194, 255, 0.18);
+  background: rgba(109, 194, 255, 0.10);
+  color: var(--text-main);
+  font-size: 11px;
+}
+
+.ship-specialization-badge {
+  color: var(--accent-gold);
+  border-color: rgba(244, 196, 48, 0.24);
+  background: rgba(244, 196, 48, 0.10);
+}
+
+.ship-specialization-switch-btn,
+.ship-protocol-activate-btn {
+  cursor: pointer;
+}
+
+.ship-specialization-switch-btn:hover,
+.ship-protocol-activate-btn:hover {
+  border-color: rgba(109, 194, 255, 0.34);
+  transform: translateY(-1px);
+}
+
+.ship-protocol-panel {
+  border: 1px solid rgba(109, 194, 255, 0.14);
+  background: rgba(8, 15, 27, 0.76);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ship-protocol-panel-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+}
+
+.ship-protocol-panel-head span {
+  color: var(--accent-gold);
+  font-size: 11px;
+}
+
+.ship-protocol-panel-desc,
+.ship-protocol-panel-meta,
+.ship-protocol-status {
+  color: var(--text-dim);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.ship-protocol-status-active {
+  color: #b8fff6;
 }
 
 .fleet-hint {
@@ -1251,6 +1415,10 @@
   border: 1px dashed rgba(79, 195, 247, 0.15);
 }
 @media (max-width: 640px) {
+  .ship-specialization-grid {
+    grid-template-columns: 1fr;
+  }
+
   .crew-card {
     flex-direction: column;
   }

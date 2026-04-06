@@ -96,6 +96,39 @@ describe('Fleet.syncStateFromShip / syncShipFromState', () => {
     expect(() => Fleet.syncStateFromShip(state)).not.toThrow();
     expect(() => Fleet.syncShipFromState(state)).not.toThrow();
   });
+
+  it('commitActiveShipState 会在专精升级后刷新根状态镜像', () => {
+    const state = createTestState();
+    Fleet.init(state);
+    Fleet.syncStateFromShip(state);
+    const ship = Fleet.getActiveShip(state);
+
+    ship.specialization.xp.trade = 24;
+    Fleet.recordShipActivity(state, 'trade_buy', { quantity: 2 }, 0);
+    Fleet.commitActiveShipState(state);
+
+    expect(state.maxCargo).toBe(24);
+  });
+
+  it('commitActiveShipState 会在协议结束后刷新根状态镜像', () => {
+    const state = createTestState();
+    Fleet.init(state);
+    Fleet.syncStateFromShip(state);
+    const ship = Fleet.getActiveShip(state);
+
+    Fleet.setShipDoctrine(state, 0, 'navigation');
+    ship.specialization.xp.navigation = 25;
+    expect(Fleet.activateShipProtocol(state, 0).ok).toBe(true);
+
+    Fleet.commitActiveShipState(state);
+    expect(state.fuelEfficiency).toBeCloseTo(0.684, 5);
+
+    Fleet.consumeShipProtocol(state, 0, 'travel');
+    Fleet.consumeShipProtocol(state, 0, 'travel');
+    Fleet.commitActiveShipState(state);
+
+    expect(state.fuelEfficiency).toBeCloseTo(0.95, 5);
+  });
 });
 
 describe('Fleet.getRouteDisplayInfo', () => {
@@ -335,8 +368,8 @@ describe('Fleet.upgradeShip', () => {
   it('重复升级被拒绝', () => {
     const state = createTestState({ credits: 100000 });
     Fleet.init(state);
-    Fleet.upgradeShip(state, 'cargo_1');
-    const result = Fleet.upgradeShip(state, 'cargo_1');
+    Fleet.upgradeShip(state, 'ship_cargo_i');
+    const result = Fleet.upgradeShip(state, 'ship_cargo_i');
     expect(result.ok).toBe(false);
   });
 });
@@ -601,39 +634,31 @@ describe('Fleet.installMod / uninstallMod', () => {
     const state = createTestState({ credits: 50000 });
     Fleet.init(state);
     const ship = Fleet.getActiveShip(state);
-    const cargoBefore = ship.maxCargo;
 
-    const installResult = Fleet.installMod(state, 'cargo_pod');
-    // 可能成功也可能依赖 modId 是否存在
-    if (installResult.ok) {
-      expect(ship.mods.includes('cargo_pod')).toBe(true);
+    const installResult = Fleet.installMod(state, 'mod_cargo_rack');
+    expect(installResult.ok).toBe(true);
+    expect(ship.mods.includes('mod_cargo_rack')).toBe(true);
 
-      const uninstallResult = Fleet.uninstallMod(state, 'cargo_pod');
-      expect(uninstallResult.ok).toBe(true);
-      expect(ship.mods.includes('cargo_pod')).toBe(false);
-    }
+    const uninstallResult = Fleet.uninstallMod(state, 'mod_cargo_rack');
+    expect(uninstallResult.ok).toBe(true);
+    expect(ship.mods.includes('mod_cargo_rack')).toBe(false);
   });
 
   it('重复安装被拒绝', () => {
     const state = createTestState({ credits: 100000 });
     Fleet.init(state);
-    Fleet.installMod(state, 'cargo_pod');
-    const result = Fleet.installMod(state, 'cargo_pod');
-    if (state.fleet[0].mods.includes('cargo_pod')) {
-      expect(result.ok).toBe(false);
-    }
+    Fleet.installMod(state, 'mod_cargo_rack');
+    const result = Fleet.installMod(state, 'mod_cargo_rack');
+    expect(result.ok).toBe(false);
   });
 
   it('槽位满时被拒绝', () => {
     const state = createTestState({ credits: 500000 });
     Fleet.init(state);
     // 穿梭机只有 1 个 modSlots
-    Fleet.installMod(state, 'cargo_pod');
-    const result = Fleet.installMod(state, 'fuel_injector');
-    // 如果第一个安装成功且只有 1 个槽位，第二个应该失败
-    if (state.fleet[0].mods.length >= state.fleet[0].modSlots) {
-      expect(result.ok).toBe(false);
-    }
+    Fleet.installMod(state, 'mod_cargo_rack');
+    const result = Fleet.installMod(state, 'mod_fuel_cell');
+    expect(result.ok).toBe(false);
   });
 });
 
@@ -682,8 +707,84 @@ describe('Fleet.getActiveFleetBonuses', () => {
     Fleet.buyShip(state, 'freighter');
     Fleet.buyShip(state, 'galleon');
     const bonuses = Fleet.getActiveFleetBonuses(state);
-    const hasTradeSyndicate = bonuses.some(b => b.id === 'trade_syndicate');
-    expect(hasTradeSyndicate).toBe(true);
+    const hasHeavyConvoy = bonuses.some(b => b.id === 'heavy_convoy');
+    expect(hasHeavyConvoy).toBe(true);
+  });
+});
+
+describe('Fleet ship specialization', () => {
+  it('初始化时为旧船只补齐专精状态', () => {
+    const state = createTestState({
+      fleet: [{ typeId: 'shuttle', cargo: {}, mods: [], upgrades: [] }],
+      activeShipIndex: 0,
+    });
+
+    Fleet.init(state);
+
+    expect(state.fleet[0].specialization).toBeDefined();
+    expect(state.fleet[0].specialization.doctrine).toBe('navigation');
+    expect(state.fleet[0].specialization.xp.trade).toBe(0);
+  });
+
+  it('贸易专精会提升有效货舱和交易议价', () => {
+    const state = createTestState();
+    Fleet.init(state);
+    const ship = Fleet.getActiveShip(state);
+
+    ship.specialization.xp.trade = 75;
+    Fleet.syncStateFromShip(state);
+
+    const stats = Fleet.getEffectiveShipStats(state, ship);
+    expect(stats.maxCargo).toBe(28);
+    expect(stats.buyDiscount).toBeCloseTo(0.02, 5);
+    expect(stats.sellBonus).toBeCloseTo(0.03, 5);
+    expect(state.maxCargo).toBe(28);
+  });
+
+  it('记录航行行为后可以升级并启动航行协议', () => {
+    const state = createTestState();
+    Fleet.init(state);
+
+    for (let i = 0; i < 5; i++) {
+      Fleet.recordShipActivity(state, 'travel', { crossGalaxy: false, secretRoute: false }, 0);
+    }
+
+    const ship = Fleet.getActiveShip(state);
+    expect(ship.specialization.xp.navigation).toBeGreaterThanOrEqual(30);
+
+    const activateResult = Fleet.activateShipProtocol(state, 0);
+    expect(activateResult.ok).toBe(true);
+
+    let stats = Fleet.getEffectiveShipStats(state, ship);
+    expect(stats.specialization.activeProtocol).not.toBeNull();
+    expect(stats.fuelEff).toBeLessThan(1);
+    expect(stats.eventChanceMultiplier).toBeLessThan(0.92);
+
+    Fleet.consumeShipProtocol(state, 0, 'travel');
+    let profileAfterFirstUse = Fleet.getShipSpecializationSummary(state, ship);
+    expect(profileAfterFirstUse.activeProtocol).not.toBeNull();
+    expect(profileAfterFirstUse.activeProtocol.remainingCharges).toBe(1);
+
+    Fleet.consumeShipProtocol(state, 0, 'travel');
+    let profileAfterSecondUse = Fleet.getShipSpecializationSummary(state, ship);
+    expect(profileAfterSecondUse.activeProtocol).toBeNull();
+
+    stats = Fleet.getEffectiveShipStats(state, ship);
+    expect(stats.eventChanceMultiplier).toBeCloseTo(0.92, 5);
+  });
+
+  it('贸易专精会反映到经济系统买价中', () => {
+    const baseState = createTestState();
+    Fleet.init(baseState);
+
+    const boostedState = createTestState();
+    Fleet.init(boostedState);
+    boostedState.fleet[0].specialization.xp.trade = 300;
+
+    const normalPrice = Economy.getBuyPrice('sol_prime', 'technology', baseState);
+    const boostedPrice = Economy.getBuyPrice('sol_prime', 'technology', boostedState);
+
+    expect(boostedPrice).toBeLessThan(normalPrice);
   });
 });
 

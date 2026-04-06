@@ -12,6 +12,7 @@ import { SYSTEMS, FUEL_COST_PER_UNIT, GALAXY_JUMP_FUEL, findSystem } from '../..
 import * as Faction                       from '../faction/FactionSystem.js';
 import * as Crew                         from '../fleet/CrewSystem.js';
 import * as Exploration                  from '../galaxy/ExplorationSystem.js';
+import { ensureShipSpecializationState, getShipSpecializationProfile } from '../fleet/ShipSpecialization.js';
 
 // ---------------------------------------------------------------------------
 // 价格历史记录（30 天环形缓冲）
@@ -401,8 +402,16 @@ function _getFleetTradeEffects(state) {
   _mergeTradeEffects(effects, _getShipSkillTradeEffects(activeShip));
   _mergeTradeEffects(effects, _getShipModTradeEffects(activeShip));
   _mergeTradeEffects(effects, Crew.getShipEffects(state, activeShip));
+  _mergeTradeEffects(effects, _getShipSpecializationTradeEffects(activeShip, state));
   _mergeTradeEffects(effects, _getFleetBonusTradeEffects(state.fleet));
   return effects;
+}
+
+function _getShipSpecializationTradeEffects(ship, state) {
+  if (!ship) return {};
+  ensureShipSpecializationState(ship);
+  var profile = getShipSpecializationProfile(ship, state ? state.day : 1);
+  return profile && profile.effects ? profile.effects : {};
 }
 
 function _getShipSkillTradeEffects(ship) {
@@ -627,11 +636,13 @@ export function checkSmugglingCargo(state, systemId, cargo, options) {
     return { caught: false, fine: 0, confiscated: [], msgs: [{ text: '🕶 辛迪加势力庇护，安全入港。', type: 'info' }] };
   }
 
-  if (Math.random() >= riskEstimate.checkChance) {
+  var adjustedChance = Math.max(0, Math.min(1, riskEstimate.checkChance * (options.checkChanceMultiplier || 1)));
+
+  if (Math.random() >= adjustedChance) {
     return { caught: false, fine: 0, confiscated: [], msgs: [{ text: '🕶 安全通过入港检查。', type: 'info' }] };
   }
 
-  const fine = Math.round(contraband.contrabandValue * cfg.fineMultiplier + cfg.baseFine);
+  const fine = Math.round((contraband.contrabandValue * cfg.fineMultiplier + cfg.baseFine) * (options.fineMultiplier || 1));
   const msgs = [];
   const confiscated = [];
   const cargoCost = options.cargoCost && typeof options.cargoCost === 'object' ? options.cargoCost : null;
@@ -652,12 +663,15 @@ export function checkSmugglingCargo(state, systemId, cargo, options) {
   }
 
   if (cfg.hullDamage) {
+    var hullDamage = Math.max(0, Math.round(cfg.hullDamage * (options.hullDamageMultiplier || 1)));
     if (typeof options.applyHullDamage === 'function') {
-      options.applyHullDamage(cfg.hullDamage);
+      options.applyHullDamage(hullDamage);
     } else {
-      state.shipHull = Math.max(1, (state.shipHull || 100) - cfg.hullDamage);
+      state.shipHull = Math.max(1, (state.shipHull || 100) - hullDamage);
     }
-    msgs.push({ text: '💥 强制搜查造成船体损伤 -' + cfg.hullDamage, type: 'error' });
+    if (hullDamage > 0) {
+      msgs.push({ text: '💥 强制搜查造成船体损伤 -' + hullDamage, type: 'error' });
+    }
   }
 
   if (!state.smugglingStats) state.smugglingStats = { caught: 0, evaded: 0, finesPaid: 0, blackMarketTrades: 0 };

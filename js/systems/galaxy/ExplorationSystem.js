@@ -12,7 +12,8 @@ const LANDING_FEE_PER_LEVEL = 20;
 const BASE_SECRET_ROUTE_MULTIPLIER = 0.65;
 const CARTOGRAPHY_SECRET_ROUTE_MULTIPLIER = 0.5;
 
-export function scanSystem(state, systemId) {
+export function scanSystem(state, systemId, options) {
+  options = options || {};
   const system = findSystem(systemId);
   if (!system) {
     return { ok: false, msgs: [{ text: '🛰️ 未知星球，无法执行扫描。', type: 'error' }] };
@@ -29,7 +30,9 @@ export function scanSystem(state, systemId) {
     return { ok: false, msgs: [{ text: '🔍 该星球已完成轨道扫描。', type: 'info' }] };
   }
 
-  const scanFuelCost = _hasTech(state, 'deep_scanner') ? DEEP_SCAN_FUEL_COST : BASE_SCAN_FUEL_COST;
+  const hasDeepScan = options.forceDeepScan || _hasTech(state, 'deep_scanner');
+  const baseScanFuelCost = hasDeepScan ? DEEP_SCAN_FUEL_COST : BASE_SCAN_FUEL_COST;
+  const scanFuelCost = Math.max(0, Math.round(baseScanFuelCost * Math.max(0, 1 - (options.scanFuelDiscount || 0))));
   if ((state.fuel || 0) < scanFuelCost) {
     return {
       ok: false,
@@ -38,7 +41,7 @@ export function scanSystem(state, systemId) {
   }
 
   state.fuel -= scanFuelCost;
-  exploration.scanLevel = _hasTech(state, 'deep_scanner') ? 2 : 1;
+  exploration.scanLevel = hasDeepScan ? 2 : 1;
   exploration.scanCount = (exploration.scanCount || 0) + 1;
   exploration.lastScannedDay = state.day || 1;
   exploration.pois.forEach(function (poi) {
@@ -61,7 +64,8 @@ export function scanSystem(state, systemId) {
   return { ok: true, msgs: msgs, meta: { systemId: systemId, scanFuelCost: scanFuelCost } };
 }
 
-export function landOnSystem(state, systemId) {
+export function landOnSystem(state, systemId, options) {
+  options = options || {};
   const system = findSystem(systemId);
   if (!system) {
     return { ok: false, msgs: [{ text: '🛬 未知星球，无法着陆。', type: 'error' }] };
@@ -81,7 +85,7 @@ export function landOnSystem(state, systemId) {
     return { ok: false, msgs: [{ text: '🛬 该星球已完成首次着陆，可直接继续调查已发现的 POI。', type: 'info' }] };
   }
 
-  const landingFee = _getLandingFee(system);
+  const landingFee = Math.max(0, Math.round(_getLandingFee(system) * Math.max(0, 1 - (options.landingFeeDiscount || 0))));
   if ((state.credits || 0) < landingFee) {
     return { ok: false, msgs: [{ text: '💰 信用积分不足，着陆需要 ' + landingFee + ' 积分。', type: 'error' }] };
   }
@@ -106,7 +110,8 @@ export function landOnSystem(state, systemId) {
   };
 }
 
-export function explorePoi(state, systemId, poiId) {
+export function explorePoi(state, systemId, poiId, options) {
+  options = options || {};
   const system = findSystem(systemId);
   if (!system) {
     return { ok: false, msgs: [{ text: '🧭 未知星球，无法调查探索点。', type: 'error' }] };
@@ -131,7 +136,7 @@ export function explorePoi(state, systemId, poiId) {
     return { ok: false, msgs: [{ text: '✅ 该探索点已经调查完毕。', type: 'info' }] };
   }
 
-  var result = _resolvePoi(state, system, exploration, poi);
+  var result = _resolvePoi(state, system, exploration, poi, options);
   poi.resolved = true;
   poi.resolvedDay = state.day || 1;
   poi.lastOutcome = result.summary;
@@ -193,11 +198,13 @@ export function getCurrentSystemSecretRoutes(state) {
     });
 }
 
-function _resolvePoi(state, system, exploration, poi) {
+function _resolvePoi(state, system, exploration, poi, options) {
+  var rewardMultiplier = Math.max(1, options && options.poiRewardMultiplier ? options.poiRewardMultiplier : 1);
+
   if (poi.kind === 'resource_cache') {
-    var rewardCredits = (poi.rewards && poi.rewards.credits) || 0;
-    var rewardFuel = (poi.rewards && poi.rewards.fuel) || 0;
-    var rewardRep = (poi.rewards && poi.rewards.reputation) || 0;
+    var rewardCredits = Math.round(((poi.rewards && poi.rewards.credits) || 0) * rewardMultiplier);
+    var rewardFuel = Math.round(((poi.rewards && poi.rewards.fuel) || 0) * rewardMultiplier);
+    var rewardRep = Math.round(((poi.rewards && poi.rewards.reputation) || 0) * rewardMultiplier);
     state.credits += rewardCredits;
     state.fuel = Math.min(state.maxFuel || 100, (state.fuel || 0) + rewardFuel);
     state.reputation = (state.reputation || 0) + rewardRep;
@@ -209,7 +216,7 @@ function _resolvePoi(state, system, exploration, poi) {
   }
 
   if (poi.kind === 'anomaly_site') {
-    var anomalyCredits = (poi.rewards && poi.rewards.credits) || 0;
+    var anomalyCredits = Math.round(((poi.rewards && poi.rewards.credits) || 0) * rewardMultiplier);
     var hullDamage = (poi.rewards && poi.rewards.hullDamage) || 0;
     if (_hasTech(state, 'anomaly_research')) {
       anomalyCredits = Math.round(anomalyCredits * 1.15);
@@ -237,8 +244,8 @@ function _resolvePoi(state, system, exploration, poi) {
       route.discovered = true;
       route.discoveredDay = state.day || 1;
     }
-    state.credits += (poi.rewards && poi.rewards.credits) || 0;
-    state.reputation = (state.reputation || 0) + ((poi.rewards && poi.rewards.reputation) || 0);
+    state.credits += Math.round(((poi.rewards && poi.rewards.credits) || 0) * rewardMultiplier);
+    state.reputation = (state.reputation || 0) + Math.round(((poi.rewards && poi.rewards.reputation) || 0) * rewardMultiplier);
     var routeInfo = getTravelRouteInfo(state, system.id, route ? route.targetSystemId : null);
     var bonusPercent = Math.round((1 - routeInfo.fuelMultiplier) * 100);
     return {
