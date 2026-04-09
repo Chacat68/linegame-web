@@ -79,6 +79,18 @@ export function setTradeStationStrategy(state, systemId, strategyId) {
   return Station.setStrategy(state, systemId, strategyId);
 }
 
+export function batchUpgradeTradeStations(state, systemIds) {
+  return Station.batchUpgradeStations(state, systemIds);
+}
+
+export function batchHireTradeStationManager(state, managerId, systemIds) {
+  return Station.batchHireManagers(state, managerId, systemIds);
+}
+
+export function batchSetTradeStationStrategy(state, strategyId, systemIds) {
+  return Station.batchSetStrategies(state, strategyId, systemIds);
+}
+
 // ---------------------------------------------------------------------------
 // 金融操作（贷款、股票、保险、投资）
 // ---------------------------------------------------------------------------
@@ -101,6 +113,10 @@ export function sellStock(state, stockId) {
 
 export function investInTradeStation(state, systemId) {
   return Finance.investInTradeStation(state, systemId);
+}
+
+export function batchInvestInTradeStations(state, systemIds) {
+  return Finance.batchInvestInTradeStations(state, systemIds);
 }
 
 export function purchaseInsurance(state, policyType) {
@@ -139,35 +155,82 @@ export function closeFutures(state, contractId) {
 export function getCommerceSnapshot(state) {
   const ownedStations  = Station.getOwnedStations(state);
   const stationSummary = Station.getSummary(state);
-  const financeSnap    = Finance.getSnapshot ? Finance.getSnapshot(state) : null;
-  const futuresSnap    = Futures.getFuturesSnapshot ? Futures.getFuturesSnapshot(state) : null;
-
-  // 今日贸易站被动收入
-  const stationDailyIncome = ownedStations.reduce(function (sum, s) {
-    return sum + (Station.getProjectedDailyIncome(state, s.systemId) || 0);
-  }, 0);
-
-  // 贷款总额
-  const totalLoans = Array.isArray(state.loans)
-    ? state.loans.reduce(function (sum, loan) { return sum + (loan.balance || 0); }, 0)
-    : 0;
-
-  // 股票组合市值
-  const stockValue = _calcStockPortfolioValue(state);
-
-  // 期货未实现盈亏
-  const futuresPnl = futuresSnap ? (futuresSnap.totalUnrealizedPnl || 0) : 0;
+  const financeSnap    = _getFinanceSnapshot(state);
+  const futuresSnap    = _getFuturesSnapshot(state);
+  const stationDailyIncome = Math.round(stationSummary.projectedIncome || 0);
 
   return {
-    ownedStationCount:  ownedStations.length,
+    ownedStationCount: ownedStations.length,
     stationDailyIncome: Math.round(stationDailyIncome),
-    totalLoans:         Math.round(totalLoans),
-    stockPortfolioValue: Math.round(stockValue),
-    futuresUnrealizedPnl: Math.round(futuresPnl),
-    creditRating:       state.creditRating || 620,
-    stationSummary:     stationSummary,
-    activeLoans:        (state.loans || []).length,
-    blackMarketTrades:  (state.smugglingStats && state.smugglingStats.blackMarketTrades) || 0,
+    totalLoans: Math.round(financeSnap.outstandingLoanBalance || 0),
+    stockPortfolioValue: Math.round(financeSnap.stockPortfolioValue || 0),
+    tradeInvestmentValue: Math.round(financeSnap.tradeInvestmentValue || 0),
+    futuresUnrealizedPnl: Math.round(futuresSnap.totalUnrealizedPnl || 0),
+    futuresOpenContracts: futuresSnap.openContractCount || 0,
+    creditRating: financeSnap.creditRating || state.creditRating || 620,
+    stationSummary: stationSummary,
+    activeLoans: financeSnap.activeLoanCount || 0,
+    blackMarketTrades: (state.smugglingStats && state.smugglingStats.blackMarketTrades) || 0,
+    finance: financeSnap,
+    futures: futuresSnap,
+  };
+}
+
+function _getFinanceSnapshot(state) {
+  if (typeof Finance.getSnapshot === 'function') {
+    return Finance.getSnapshot(state);
+  }
+
+  const totalLoans = Array.isArray(state.loans)
+    ? state.loans.reduce(function (sum, loan) {
+        return loan && loan.status === 'active' && loan.balance > 0 ? sum + (loan.balance || 0) : sum;
+      }, 0)
+    : 0;
+  const activePolicies = state.insurancePolicies && typeof state.insurancePolicies === 'object'
+    ? Object.keys(state.insurancePolicies).filter(function (key) {
+        const policy = state.insurancePolicies[key];
+        return policy && policy.active !== false;
+      }).length
+    : 0;
+  const pendingClaims = Array.isArray(state.insuranceClaims)
+    ? state.insuranceClaims.filter(function (claim) { return claim && claim.status === 'pending'; }).length
+    : 0;
+
+  return {
+    creditRating: state.creditRating || 620,
+    activeLoanCount: Array.isArray(state.loans)
+      ? state.loans.filter(function (loan) { return loan && loan.status === 'active' && loan.balance > 0; }).length
+      : 0,
+    outstandingLoanBalance: totalLoans,
+    stockPortfolioValue: _calcStockPortfolioValue(state),
+    tradeInvestmentValue: _calcTradeInvestmentValue(state),
+    activePolicies: activePolicies,
+    pendingClaims: pendingClaims,
+  };
+}
+
+function _getFuturesSnapshot(state) {
+  if (typeof Futures.getFuturesSnapshot === 'function') {
+    return Futures.getFuturesSnapshot(state);
+  }
+
+  const openContracts = typeof Futures.getOpenContracts === 'function' ? Futures.getOpenContracts(state) : [];
+  const closedContracts = typeof Futures.getClosedContracts === 'function' ? Futures.getClosedContracts(state) : [];
+  const totalUnrealizedPnl = openContracts.reduce(function (sum, contract) {
+    return sum + (contract.unrealizedPnl || 0);
+  }, 0);
+
+  return {
+    openContractCount: openContracts.length,
+    closedContractCount: closedContracts.length,
+    totalMarginLocked: openContracts.reduce(function (sum, contract) {
+      return sum + (contract.margin || 0);
+    }, 0),
+    totalUnrealizedPnl: totalUnrealizedPnl,
+    netWorthAdjustment: totalUnrealizedPnl,
+    expiringSoonCount: openContracts.filter(function (contract) {
+      return (contract.daysLeft || 0) <= 2;
+    }).length,
   };
 }
 
@@ -178,5 +241,13 @@ function _calcStockPortfolioValue(state) {
     const shares  = (holding && typeof holding === 'object') ? (holding.shares || 0) : 0;
     const stock   = state.stockMarket[stockId];
     return sum + shares * (stock ? stock.price : 0);
+  }, 0);
+}
+
+function _calcTradeInvestmentValue(state) {
+  if (!state.tradeInvestments || typeof state.tradeInvestments !== 'object') return 0;
+  return Object.keys(state.tradeInvestments).reduce(function (sum, systemId) {
+    const investment = state.tradeInvestments[systemId];
+    return sum + ((investment && investment.amount) || 0);
   }, 0);
 }

@@ -214,6 +214,30 @@ export function getClosedContracts(state) {
   return (state.futuresContracts || []).filter(function (c) { return c.status === 'closed'; });
 }
 
+export function getFuturesSnapshot(state) {
+  _ensureFuturesState(state);
+  const openContracts = getOpenContracts(state);
+  const closedContracts = getClosedContracts(state);
+  const totalUnrealizedPnl = openContracts.reduce(function (sum, contract) {
+    return sum + (contract.unrealizedPnl || 0);
+  }, 0);
+  const totalMarginLocked = openContracts.reduce(function (sum, contract) {
+    return sum + (contract.margin || 0);
+  }, 0);
+  const expiringSoonCount = openContracts.filter(function (contract) {
+    return (contract.daysLeft || 0) <= 2;
+  }).length;
+
+  return {
+    openContractCount: openContracts.length,
+    closedContractCount: closedContracts.length,
+    totalMarginLocked: totalMarginLocked,
+    totalUnrealizedPnl: totalUnrealizedPnl,
+    netWorthAdjustment: totalUnrealizedPnl,
+    expiringSoonCount: expiringSoonCount,
+  };
+}
+
 /**
  * 净资产调整：未实现盈亏之和
  */

@@ -2,6 +2,7 @@
 // 依赖：data/tradeStations.js, data/systems.js, systems/economy/Economy.js
 // 导出：init, getOwnedStations, getBuildCandidates, getSummary, getStation,
 //       buildStation, upgradeStation, hireManager, setStrategy,
+//       batchUpgradeStations, batchHireManagers, batchSetStrategies,
 //       getProjectedDailyIncome, advanceDay
 
 import { GOODS } from '../../data/goods.js';
@@ -226,6 +227,165 @@ export function getSummary(state) {
     projectedIncome: stations.reduce(function (sum, entry) {
       return sum + (entry.projectedIncome || 0);
     }, 0),
+  };
+}
+
+function _getBatchTargets(state, systemIds, predicate) {
+  const filter = Array.isArray(systemIds) && systemIds.length > 0 ? new Set(systemIds) : null;
+  return getOwnedStations(state).filter(function (entry) {
+    if (filter && !filter.has(entry.station.systemId)) return false;
+    return typeof predicate === 'function' ? predicate(entry) : true;
+  });
+}
+
+function _summarizeSystems(systemIds) {
+  const names = (systemIds || []).map(function (systemId) {
+    const system = findSystem(systemId);
+    return system ? system.name : systemId;
+  }).filter(Boolean);
+
+  if (names.length === 0) return '';
+  if (names.length <= 3) return names.join('、');
+  return names.slice(0, 3).join('、') + ' 等 ' + names.length + ' 站';
+}
+
+export function batchUpgradeStations(state, systemIds) {
+  init(state);
+  const targets = _getBatchTargets(state, systemIds, function (entry) {
+    return !!entry.nextLevel && entry.nextUpgradeCost > 0;
+  });
+
+  if (targets.length === 0) {
+    return { ok: false, msgs: [{ text: '🏪 当前没有可批量升级的贸易站。', type: 'info' }], meta: { targetCount: 0, executedCount: 0 } };
+  }
+
+  const executedIds = [];
+  let spent = 0;
+  let skippedBudget = 0;
+
+  targets.forEach(function (entry) {
+    const cost = entry.nextUpgradeCost || 0;
+    if ((state.credits || 0) < cost) {
+      skippedBudget += 1;
+      return;
+    }
+
+    const station = state.tradeStations[entry.station.systemId];
+    if (!station) return;
+
+    station.level += 1;
+    station.investment = _getLevelConfig(station.level).investment;
+    state.credits -= cost;
+    spent += cost;
+    executedIds.push(station.systemId);
+  });
+
+  if (executedIds.length === 0) {
+    return {
+      ok: false,
+      msgs: [{ text: '💰 信用积分不足，无法启动商网升级波次。', type: 'error' }],
+      meta: { targetCount: targets.length, executedCount: 0, skippedBudget: skippedBudget },
+    };
+  }
+
+  return {
+    ok: true,
+    msgs: [{
+      text: '📡 商网升级波次已执行：' + executedIds.length + ' 站完成升级，追加投资 ' + spent.toLocaleString() + ' 积分（' + _summarizeSystems(executedIds) + '）。' +
+        (skippedBudget > 0 ? (' 另有 ' + skippedBudget + ' 站因预算不足暂缓。') : ''),
+      type: 'upgrade',
+    }],
+    meta: { targetCount: targets.length, executedCount: executedIds.length, spent: spent, skippedBudget: skippedBudget, systemIds: executedIds },
+  };
+}
+
+export function batchHireManagers(state, managerId, systemIds) {
+  init(state);
+  const manager = _getManagerConfig(managerId);
+  if (!manager) {
+    return { ok: false, msgs: [{ text: '👤 未知管理员方案。', type: 'error' }], meta: { targetCount: 0, executedCount: 0 } };
+  }
+
+  const targets = _getBatchTargets(state, systemIds, function (entry) {
+    return entry.station.managerId !== manager.id;
+  });
+
+  if (targets.length === 0) {
+    return {
+      ok: false,
+      msgs: [{ text: '👤 全网贸易站已由「' + manager.name + '」接管，无需重复指派。', type: 'info' }],
+      meta: { targetCount: 0, executedCount: 0 },
+    };
+  }
+
+  const executedIds = [];
+  let spent = 0;
+  let skippedBudget = 0;
+
+  targets.forEach(function (entry) {
+    if ((state.credits || 0) < manager.hireCost) {
+      skippedBudget += 1;
+      return;
+    }
+
+    const station = state.tradeStations[entry.station.systemId];
+    if (!station) return;
+
+    station.managerId = manager.id;
+    state.credits -= manager.hireCost;
+    spent += manager.hireCost;
+    executedIds.push(station.systemId);
+  });
+
+  if (executedIds.length === 0) {
+    return {
+      ok: false,
+      msgs: [{ text: '💰 信用积分不足，无法批量派驻「' + manager.name + '」。', type: 'error' }],
+      meta: { targetCount: targets.length, executedCount: 0, skippedBudget: skippedBudget },
+    };
+  }
+
+  return {
+    ok: true,
+    msgs: [{
+      text: '👤 已向 ' + executedIds.length + ' 座贸易站批量派驻「' + manager.name + '」，耗费 ' + spent.toLocaleString() + ' 积分（' + _summarizeSystems(executedIds) + '）。' +
+        (skippedBudget > 0 ? (' 另有 ' + skippedBudget + ' 站因预算不足暂缓。') : ''),
+      type: 'info',
+    }],
+    meta: { targetCount: targets.length, executedCount: executedIds.length, spent: spent, skippedBudget: skippedBudget, systemIds: executedIds, managerId: manager.id },
+  };
+}
+
+export function batchSetStrategies(state, strategyId, systemIds) {
+  init(state);
+  const strategy = _getStrategyConfig(strategyId);
+  const targets = _getBatchTargets(state, systemIds, function (entry) {
+    return entry.station.strategyId !== strategy.id;
+  });
+
+  if (targets.length === 0) {
+    return {
+      ok: false,
+      msgs: [{ text: '📈 全网贸易站已经在执行「' + strategy.name + '」，无需重复下令。', type: 'info' }],
+      meta: { targetCount: 0, executedCount: 0 },
+    };
+  }
+
+  const executedIds = [];
+  targets.forEach(function (entry) {
+    const station = state.tradeStations[entry.station.systemId];
+    if (!station) return;
+    station.strategyId = strategy.id;
+    executedIds.push(station.systemId);
+  });
+
+  return {
+    ok: true,
+    msgs: [{
+      text: '📈 已向 ' + executedIds.length + ' 座贸易站下达「' + strategy.name + '」全网经营指令（' + _summarizeSystems(executedIds) + '）。',
+      type: 'info',
+    }],
+    meta: { targetCount: targets.length, executedCount: executedIds.length, systemIds: executedIds, strategyId: strategy.id },
   };
 }
 

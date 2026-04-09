@@ -10,6 +10,7 @@ import {
 import { getSystemsByGalaxy, findSystem, isSystemAccessible } from '../data/systems.js';
 import * as Economy from '../systems/economy/Economy.js';
 import * as Faction from '../systems/faction/FactionSystem.js';
+import * as Commerce from '../systems/commerce/CommerceFacade.js';
 import * as Finance from '../systems/finance/FinanceSystem.js';
 import * as Futures from '../systems/finance/FuturesSystem.js';
 import * as TradeStation from '../systems/trade/TradeStationSystem.js';
@@ -942,6 +943,65 @@ function _legalityTooltip(good) {
   return '';
 }
 
+function _getBatchAffordablePlan(targets, budget, getCost) {
+  var remaining = budget || 0;
+  var affordableCount = 0;
+  var affordableCost = 0;
+  var totalCost = 0;
+
+  targets.forEach(function (target) {
+    var cost = Math.max(0, getCost(target) || 0);
+    totalCost += cost;
+    if (cost <= 0) return;
+    if (remaining >= cost) {
+      remaining -= cost;
+      affordableCount += 1;
+      affordableCost += cost;
+    }
+  });
+
+  return {
+    targetCount: targets.length,
+    affordableCount: affordableCount,
+    affordableCost: affordableCost,
+    totalCost: totalCost,
+  };
+}
+
+function _getManagerBatchPlan(state, ownedStations, manager) {
+  var targets = ownedStations.filter(function (entry) {
+    return entry.station.managerId !== manager.id;
+  });
+  var affordableCount = Math.min(targets.length, Math.floor((state.credits || 0) / Math.max(1, manager.hireCost)));
+  return {
+    targetCount: targets.length,
+    affordableCount: affordableCount,
+    affordableCost: affordableCount * manager.hireCost,
+    totalCost: targets.length * manager.hireCost,
+  };
+}
+
+function _getStrategyBatchPlan(ownedStations, strategy) {
+  var targets = ownedStations.filter(function (entry) {
+    return entry.station.strategyId !== strategy.id;
+  });
+  return {
+    targetCount: targets.length,
+  };
+}
+
+function _getInvestmentBatchPlan(state, ownedStations) {
+  var targets = Finance.getTradeInvestmentOptions(state, ownedStations.map(function (entry) {
+    return entry.station.systemId;
+  }));
+  var plan = _getBatchAffordablePlan(targets, state.credits || 0, function (entry) {
+    return entry.suggestedAmount || 0;
+  });
+
+  plan.suggestedAmount = targets[0] ? Math.max(1000, targets[0].suggestedAmount || 0) : 0;
+  return plan;
+}
+
 function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions) {
   var capitalContainer = document.getElementById('market-capital-pane');
   var operationsContainer = document.getElementById('market-operations-pane');
@@ -949,6 +1009,7 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
 
   financeActions = financeActions || {};
 
+  var commerceSnapshot = Commerce.getCommerceSnapshot(state);
   var financeOverview = Finance.getOverview(state);
   var loanOffers = Finance.getLoanOffers(state).slice(0, 3);
   var activeLoans = (state.loans || []).filter(function (loan) {
@@ -968,6 +1029,12 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
   }) || null;
   var tradeSummary = TradeStation.getSummary(state);
   var ownedStations = TradeStation.getOwnedStations(state);
+  var networkInvestmentPlan = _getInvestmentBatchPlan(state, ownedStations);
+  var networkUpgradePlan = _getBatchAffordablePlan(
+    ownedStations.filter(function (entry) { return !!entry.nextLevel && entry.nextUpgradeCost > 0; }),
+    state.credits || 0,
+    function (entry) { return entry.nextUpgradeCost || 0; }
+  );
   var localStation = ownedStations.find(function (entry) {
     return entry.station.systemId === viewingSystem;
   }) || null;
@@ -981,13 +1048,13 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
         '<div class="market-finance-title">🏛 商业中枢</div>' +
         '<div class="market-finance-subtitle">现货交易、资本调度与节点经营统一收口在同一终端，避免市场页和贸易站页重复承担本地操作。</div>' +
       '</div>' +
-      '<span class="market-finance-chip">信用评级 ' + financeOverview.creditRating + '</span>' +
+      '<span class="market-finance-chip">信用评级 ' + commerceSnapshot.creditRating + '</span>' +
     '</div>' +
     '<div class="market-finance-summary-grid">' +
-      '<div class="market-finance-summary-metric"><span>贷款余额</span><strong>' + Math.floor(financeOverview.outstandingLoanBalance).toLocaleString() + '</strong></div>' +
-      '<div class="market-finance-summary-metric"><span>股票市值</span><strong>' + Math.floor(financeOverview.stockValue).toLocaleString() + '</strong></div>' +
-      '<div class="market-finance-summary-metric"><span>站点投资</span><strong>' + Math.floor(financeOverview.tradeInvestmentValue).toLocaleString() + '</strong></div>' +
-      '<div class="market-finance-summary-metric"><span>商网日收益</span><strong>+' + Math.floor(tradeSummary.projectedIncome).toLocaleString() + '</strong></div>' +
+      '<div class="market-finance-summary-metric"><span>贷款余额</span><strong>' + Math.floor(commerceSnapshot.totalLoans).toLocaleString() + '</strong></div>' +
+      '<div class="market-finance-summary-metric"><span>股票市值</span><strong>' + Math.floor(commerceSnapshot.stockPortfolioValue).toLocaleString() + '</strong></div>' +
+      '<div class="market-finance-summary-metric"><span>站点投资</span><strong>' + Math.floor(commerceSnapshot.tradeInvestmentValue).toLocaleString() + '</strong></div>' +
+      '<div class="market-finance-summary-metric"><span>商网日收益</span><strong>+' + Math.floor(commerceSnapshot.stationDailyIncome).toLocaleString() + '</strong></div>' +
     '</div>' +
   '</section>';
 
@@ -1132,19 +1199,72 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
     '<div class="trade-station-summary-card">' +
       '<div class="trade-station-summary-head">' +
         '<span class="trade-station-summary-title">📡 商业网络总览</span>' +
-        '<span class="trade-station-summary-sub">信用评级 ' + financeOverview.creditRating + ' · 商网总览现由经营页统一承载</span>' +
+        '<span class="trade-station-summary-sub">信用评级 ' + commerceSnapshot.creditRating + ' · 商网总览现由经营页统一承载</span>' +
       '</div>' +
       '<div class="trade-station-summary-grid">' +
-        '<div class="trade-station-metric"><span class="trade-station-metric-label">站点数量</span><span class="trade-station-metric-value">' + tradeSummary.count + '</span></div>' +
-        '<div class="trade-station-metric"><span class="trade-station-metric-label">预计日收益</span><span class="trade-station-metric-value">+' + Math.floor(tradeSummary.projectedIncome).toLocaleString() + '</span></div>' +
+        '<div class="trade-station-metric"><span class="trade-station-metric-label">站点数量</span><span class="trade-station-metric-value">' + commerceSnapshot.ownedStationCount + '</span></div>' +
+        '<div class="trade-station-metric"><span class="trade-station-metric-label">预计日收益</span><span class="trade-station-metric-value">+' + Math.floor(commerceSnapshot.stationDailyIncome).toLocaleString() + '</span></div>' +
         '<div class="trade-station-metric"><span class="trade-station-metric-label">累计收益</span><span class="trade-station-metric-value">' + Math.floor(tradeSummary.totalIncome).toLocaleString() + '</span></div>' +
-        '<div class="trade-station-metric"><span class="trade-station-metric-label">股票市值</span><span class="trade-station-metric-value">' + Math.floor(financeOverview.stockValue).toLocaleString() + '</span></div>' +
-        '<div class="trade-station-metric"><span class="trade-station-metric-label">站点投资</span><span class="trade-station-metric-value">' + Math.floor(financeOverview.tradeInvestmentValue).toLocaleString() + '</span></div>' +
-        '<div class="trade-station-metric"><span class="trade-station-metric-label">贷款余额</span><span class="trade-station-metric-value">' + Math.floor(financeOverview.outstandingLoanBalance).toLocaleString() + '</span></div>' +
+        '<div class="trade-station-metric"><span class="trade-station-metric-label">股票市值</span><span class="trade-station-metric-value">' + Math.floor(commerceSnapshot.stockPortfolioValue).toLocaleString() + '</span></div>' +
+        '<div class="trade-station-metric"><span class="trade-station-metric-label">站点投资</span><span class="trade-station-metric-value">' + Math.floor(commerceSnapshot.tradeInvestmentValue).toLocaleString() + '</span></div>' +
+        '<div class="trade-station-metric"><span class="trade-station-metric-label">贷款余额</span><span class="trade-station-metric-value">' + Math.floor(commerceSnapshot.totalLoans).toLocaleString() + '</span></div>' +
       '</div>' +
       '<div class="trade-station-summary-tip">这里统一处理远程看盘、建站候选筛选与所有已建节点的经营编排，是当前唯一的商网管理入口。</div>' +
     '</div>' +
   '</section>';
+
+  if (ownedStations.length > 0) {
+    operationsNetworkSection += '<section class="market-finance-section">' +
+      '<div class="market-finance-section-head">' +
+        '<div>' +
+          '<div class="market-finance-title">🎛 远程指令台</div>' +
+          '<div class="market-finance-subtitle">对全网已建站点批量下达经营与资本指令。系统会自动跳过已满足条件的站点，并在预算不足时优先处理收益或殖利率更高的节点。</div>' +
+        '</div>' +
+        '<span class="market-finance-chip">可控 ' + ownedStations.length + ' 站</span>' +
+      '</div>' +
+      '<div class="trade-station-build-card trade-station-command-card">' +
+        '<div class="trade-station-card-head">' +
+          '<span class="trade-station-card-name">资本波次</span>' +
+          '<span class="trade-station-card-badge">殖利率优先</span>' +
+        '</div>' +
+        '<div class="trade-station-card-meta">候选 ' + networkInvestmentPlan.targetCount + ' 站 · 单站标准 ' + networkInvestmentPlan.suggestedAmount.toLocaleString() + ' · 当前预算可覆盖 ' + networkInvestmentPlan.affordableCount + ' 站</div>' +
+        '<div class="trade-station-card-desc">本轮可部署 ' + networkInvestmentPlan.affordableCost.toLocaleString() + ' / 全量需求 ' + networkInvestmentPlan.totalCost.toLocaleString() + ' 积分，优先增持预估分红率更高的节点。</div>' +
+        '<button class="btn-action trade-station-build-btn' + (networkInvestmentPlan.affordableCount > 0 ? '' : ' disabled') + '" data-action="market-batch-invest-trade-stations"' + (networkInvestmentPlan.affordableCount > 0 ? '' : ' disabled') + '>执行资本增配波次</button>' +
+      '</div>' +
+      '<div class="trade-station-build-card trade-station-command-card">' +
+        '<div class="trade-station-card-head">' +
+          '<span class="trade-station-card-name">升级波次</span>' +
+          '<span class="trade-station-card-badge">收益优先</span>' +
+        '</div>' +
+        '<div class="trade-station-card-meta">待升级 ' + networkUpgradePlan.targetCount + ' 站 · 当前预算可覆盖 ' + networkUpgradePlan.affordableCount + ' 站</div>' +
+        '<div class="trade-station-card-desc">本轮可执行投资 ' + networkUpgradePlan.affordableCost.toLocaleString() + ' / 全量需求 ' + networkUpgradePlan.totalCost.toLocaleString() + ' 积分。</div>' +
+        '<button class="btn-action trade-station-build-btn' + (networkUpgradePlan.affordableCount > 0 ? '' : ' disabled') + '" data-action="market-batch-upgrade-stations"' + (networkUpgradePlan.affordableCount > 0 ? '' : ' disabled') + '>执行商网升级波次</button>' +
+      '</div>' +
+      '<div class="trade-station-subsection">👤 全网经理指派</div>' +
+      '<div class="trade-station-choice-row">' +
+        TRADE_STATION_MANAGERS.map(function (manager) {
+          var plan = _getManagerBatchPlan(state, ownedStations, manager);
+          var disabled = plan.affordableCount <= 0;
+          var note = plan.targetCount === 0
+            ? '全网已完成'
+            : (plan.affordableCount > 0
+                ? ('可覆盖 ' + plan.affordableCount + '/' + plan.targetCount + ' 站 · ' + plan.affordableCost.toLocaleString())
+                : '预算不足');
+          return '<button class="trade-station-choice-btn' + (disabled ? ' disabled' : '') + '" data-action="market-batch-hire-manager" data-manager-id="' + manager.id + '"' + (disabled ? ' disabled' : '') + '>' +
+            manager.name + '<span>' + note + '</span></button>';
+        }).join('') +
+      '</div>' +
+      '<div class="trade-station-subsection">📈 全网经营策略</div>' +
+      '<div class="trade-station-choice-row">' +
+        TRADE_STATION_STRATEGIES.map(function (strategy) {
+          var plan = _getStrategyBatchPlan(ownedStations, strategy);
+          var disabled = plan.targetCount === 0;
+          return '<button class="trade-station-choice-btn' + (disabled ? ' disabled' : '') + '" data-action="market-batch-set-strategy" data-strategy-id="' + strategy.id + '"' + (disabled ? ' disabled' : '') + '>' +
+            strategy.name + '<span>' + (plan.targetCount > 0 ? ('切换 ' + plan.targetCount + ' 站') : '全网已同步') + '</span></button>';
+        }).join('') +
+      '</div>' +
+    '</section>';
+  }
 
   if (ownedStations.length > 0) {
     operationsNetworkSection += '<section class="market-finance-section">' +
@@ -1365,6 +1485,12 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
       });
     });
 
+    container.querySelectorAll('[data-action="market-batch-invest-trade-stations"]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        if (financeActions.onBatchInvestTradeStations) financeActions.onBatchInvestTradeStations();
+      });
+    });
+
     container.querySelectorAll('[data-action="market-purchase-insurance"]').forEach(function (button) {
       button.addEventListener('click', function () {
         if (financeActions.onPurchaseInsurance) financeActions.onPurchaseInsurance(button.dataset.policyType);
@@ -1398,6 +1524,24 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
     container.querySelectorAll('[data-action="market-set-strategy"]').forEach(function (button) {
       button.addEventListener('click', function () {
         if (financeActions.onSetTradeStationStrategy) financeActions.onSetTradeStationStrategy(button.dataset.systemId, button.dataset.strategyId);
+      });
+    });
+
+    container.querySelectorAll('[data-action="market-batch-upgrade-stations"]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        if (financeActions.onBatchUpgradeTradeStations) financeActions.onBatchUpgradeTradeStations();
+      });
+    });
+
+    container.querySelectorAll('[data-action="market-batch-hire-manager"]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        if (financeActions.onBatchHireTradeStationManager) financeActions.onBatchHireTradeStationManager(button.dataset.managerId);
+      });
+    });
+
+    container.querySelectorAll('[data-action="market-batch-set-strategy"]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        if (financeActions.onBatchSetTradeStationStrategy) financeActions.onBatchSetTradeStationStrategy(button.dataset.strategyId);
       });
     });
 

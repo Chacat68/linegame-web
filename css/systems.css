@@ -372,6 +372,9 @@
 .trade-station-card-desc {
   margin: 6px 0 8px;
 }
+.trade-station-command-card {
+  margin-top: 6px;
+}
 .trade-station-income-row,
 .trade-station-actions,
 .trade-station-choice-row {
@@ -418,6 +421,12 @@
 }
 .trade-station-choice-btn:hover {
   border-color: var(--accent-blue);
+}
+.trade-station-choice-btn.disabled,
+.trade-station-choice-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  border-color: var(--border);
 }
 .trade-station-choice-btn.active {
   border-color: var(--accent-gold);

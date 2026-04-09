@@ -146,6 +146,17 @@ function _estimateTradeInvestmentYield(systemId, state) {
   return 0.004 * depthMod * cycleMod;
 }
 
+function _summarizeSystems(systemIds) {
+  const names = (systemIds || []).map(function (systemId) {
+    const system = findSystem(systemId);
+    return system ? system.name : systemId;
+  }).filter(Boolean);
+
+  if (names.length === 0) return '';
+  if (names.length <= 3) return names.join('、');
+  return names.slice(0, 3).join('、') + ' 等 ' + names.length + ' 站';
+}
+
 function _updateCreditRating(state, delta) {
   _ensureFinanceState(state);
   state.creditRating = Math.max(MIN_CREDIT_RATING, Math.min(MAX_CREDIT_RATING, Math.round((state.creditRating || DEFAULT_CREDIT_RATING) + delta)));
@@ -316,6 +327,19 @@ export function getOverview(state) {
   };
 }
 
+export function getSnapshot(state) {
+  const overview = getOverview(state);
+  return {
+    creditRating: overview.creditRating,
+    activeLoanCount: overview.activeLoanCount,
+    outstandingLoanBalance: overview.outstandingLoanBalance,
+    stockPortfolioValue: overview.stockValue,
+    tradeInvestmentValue: overview.tradeInvestmentValue,
+    activePolicies: overview.activePolicies,
+    pendingClaims: overview.pendingClaims,
+  };
+}
+
 export function getLoanOffers(state) {
   _ensureFinanceState(state);
   const ratingFactor = Math.max(0.85, Math.min(1.35, state.creditRating / DEFAULT_CREDIT_RATING));
@@ -479,10 +503,16 @@ export function sellStock(state, stockId, shares) {
   };
 }
 
-export function getTradeInvestmentOptions(state) {
+export function getTradeInvestmentOptions(state, systemIds) {
   _ensureFinanceState(state);
-  const visited = state.visitedSystems || [state.currentSystem];
-  return visited.slice(0, 6).map(function (systemId) {
+  const targets = Array.isArray(systemIds) && systemIds.length > 0
+    ? systemIds
+    : (state.visitedSystems || [state.currentSystem]).slice(0, 6);
+  const uniqueTargets = targets.filter(function (systemId, index) {
+    return !!systemId && targets.indexOf(systemId) === index;
+  });
+
+  return uniqueTargets.map(function (systemId) {
     const system = findSystem(systemId);
     if (!system) return null;
     return {
@@ -523,6 +553,62 @@ export function investInTradeStation(state, systemId, amount) {
     ok: true,
     msgs: [{ text: '🏪 已向 ' + system.name + ' 贸易站追加投资 ' + investmentAmount.toLocaleString() + ' 积分。', type: 'upgrade' }],
     meta: { systemId: systemId, amount: investmentAmount },
+  };
+}
+
+export function batchInvestInTradeStations(state, systemIds, amount) {
+  _ensureFinanceState(state);
+  const investmentAmount = Math.max(1000, Math.floor(amount || DEFAULT_INVESTMENT_AMOUNT));
+  const targets = getTradeInvestmentOptions(state, systemIds);
+
+  if (targets.length === 0) {
+    return {
+      ok: false,
+      msgs: [{ text: '🏪 当前没有可批量增配的投资节点。', type: 'info' }],
+      meta: { targetCount: 0, executedCount: 0 },
+    };
+  }
+
+  const executedIds = [];
+  let spent = 0;
+  let skippedBudget = 0;
+
+  targets.forEach(function (target, index) {
+    if ((state.credits || 0) < investmentAmount) {
+      skippedBudget = targets.length - index;
+      return;
+    }
+
+    const result = investInTradeStation(state, target.systemId, investmentAmount);
+    if (!result.ok) return;
+
+    spent += result.meta && result.meta.amount ? result.meta.amount : investmentAmount;
+    executedIds.push(target.systemId);
+  });
+
+  if (executedIds.length === 0) {
+    return {
+      ok: false,
+      msgs: [{ text: '💰 信用积分不足，无法启动资本增配波次。', type: 'error' }],
+      meta: { targetCount: targets.length, executedCount: 0, skippedBudget: targets.length },
+    };
+  }
+
+  return {
+    ok: true,
+    msgs: [{
+      text: '💹 资本增配波次已执行：向 ' + executedIds.length + ' 个节点追加 ' + spent.toLocaleString() + ' 积分（' + _summarizeSystems(executedIds) + '）。' +
+        (skippedBudget > 0 ? (' 另有 ' + skippedBudget + ' 个节点因预算不足暂缓。') : ''),
+      type: 'upgrade',
+    }],
+    meta: {
+      targetCount: targets.length,
+      executedCount: executedIds.length,
+      spent: spent,
+      skippedBudget: skippedBudget,
+      amountPerTarget: investmentAmount,
+      systemIds: executedIds,
+    },
   };
 }
 

@@ -76,6 +76,29 @@ describe('FinanceSystem', () => {
     expect(state.tradeInvestments.nova_station.totalDividends).toBeGreaterThan(0);
   });
 
+  it('支持按殖利率优先批量追加贸易站投资，并在预算不足时部分执行', () => {
+    const state = createTestState({
+      credits: 12000,
+      day: 3,
+      currentSystem: 'sol_prime',
+      visitedSystems: ['sol_prime', 'nova_station', 'aegis_prime'],
+    });
+    Finance.init(state);
+
+    const targets = Finance.getTradeInvestmentOptions(state, ['sol_prime', 'nova_station', 'aegis_prime']).map(function (entry) {
+      return entry.systemId;
+    });
+    const result = Finance.batchInvestInTradeStations(state, ['sol_prime', 'nova_station', 'aegis_prime']);
+
+    expect(result.ok).toBe(true);
+    expect(result.meta.executedCount).toBe(2);
+    expect(result.meta.systemIds).toEqual(targets.slice(0, 2));
+    expect(state.tradeInvestments[targets[0]].amount).toBe(5000);
+    expect(state.tradeInvestments[targets[1]].amount).toBe(5000);
+    expect(state.tradeInvestments[targets[2]]).toBeUndefined();
+    expect(state.credits).toBe(2000);
+  });
+
   it('支持完整保险购买与次日理赔流程', () => {
     const state = createTestState({ credits: 10000, day: 8, shipHull: 100, maxHull: 100 });
     Finance.init(state);

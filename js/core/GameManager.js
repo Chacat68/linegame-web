@@ -26,7 +26,6 @@ import * as FactionUI  from '../ui/FactionUI.js';
 import * as SaveUI     from '../ui/SaveUI.js';
 import * as QuestUI    from '../ui/QuestUI.js';
 import * as AchievementUI from '../ui/AchievementUI.js';
-import * as TradeStationUI from '../ui/TradeStationUI.js';
 import * as Fleet      from '../systems/fleet/FleetSystem.js?v=20260406-routefix2';
 import * as Crew       from '../systems/fleet/CrewSystem.js';
 import * as AutoTrade  from '../systems/trade/AutoTradeSystem.js';
@@ -61,12 +60,16 @@ function _getMarketFinanceActions() {
     onBuyStock: _handleBuyStock,
     onSellStock: _handleSellStock,
     onInvestTradeStation: _handleInvestTradeStation,
+    onBatchInvestTradeStations: _handleBatchInvestTradeStations,
     onPurchaseInsurance: _handlePurchaseInsurance,
     onSubmitInsuranceClaim: _handleSubmitInsuranceClaim,
     onBuildTradeStation: _handleBuildTradeStation,
     onUpgradeTradeStation: _handleUpgradeTradeStation,
     onHireTradeStationManager: _handleHireTradeStationManager,
     onSetTradeStationStrategy: _handleSetTradeStationStrategy,
+    onBatchUpgradeTradeStations: _handleBatchUpgradeTradeStations,
+    onBatchHireTradeStationManager: _handleBatchHireTradeStationManager,
+    onBatchSetTradeStationStrategy: _handleBatchSetTradeStationStrategy,
     onFuturesLong: _handleFuturesLong,
     onFuturesShort: _handleFuturesShort,
     onFuturesClose: _handleFuturesClose,
@@ -743,6 +746,21 @@ function _handleSetTradeStationStrategy(systemId, strategyId) {
   _dispatch(result);
 }
 
+function _handleBatchUpgradeTradeStations() {
+  const result = Commerce.batchUpgradeTradeStations(_state);
+  _dispatch(result);
+}
+
+function _handleBatchHireTradeStationManager(managerId) {
+  const result = Commerce.batchHireTradeStationManager(_state, managerId);
+  _dispatch(result);
+}
+
+function _handleBatchSetTradeStationStrategy(strategyId) {
+  const result = Commerce.batchSetTradeStationStrategy(_state, strategyId);
+  _dispatch(result);
+}
+
 function _handleTakeLoan(offerId) {
   const result = Commerce.takeLoan(_state, offerId);
   _dispatch(result);
@@ -765,6 +783,12 @@ function _handleSellStock(stockId) {
 
 function _handleInvestTradeStation(systemId) {
   const result = Commerce.investInTradeStation(_state, systemId);
+  _dispatch(result);
+}
+
+function _handleBatchInvestTradeStations() {
+  const systemIds = Object.keys(_state.tradeStations || {});
+  const result = Commerce.batchInvestInTradeStations(_state, systemIds);
   _dispatch(result);
 }
 

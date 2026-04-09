@@ -1,7 +1,7 @@
 // tests/commerce.test.js — CommerceFacade 商业终端门面测试
 // 覆盖：统一市场交易、黑市统计、贸易站委托、金融委托
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as Commerce from '../js/systems/commerce/CommerceFacade.js';
 import * as Economy from '../js/systems/economy/Economy.js';
 import * as Faction from '../js/systems/faction/FactionSystem.js';
@@ -11,6 +11,10 @@ import { createTestState } from './helpers.js';
 
 beforeEach(() => {
   Economy.init();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 // ---------------------------------------------------------------------------
@@ -155,6 +159,41 @@ describe('Commerce.getCommerceSnapshot', () => {
     expect(snap.creditRating).toBeGreaterThanOrEqual(300);
     expect(snap.creditRating).toBeLessThanOrEqual(850);
   });
+
+  it('聚合金融、期货与商网指标到统一快照', () => {
+    const state = createTestState({
+      credits: 300000,
+      currentSystem: 'sol_prime',
+      visitedSystems: ['sol_prime'],
+    });
+    Faction.init(state);
+    Finance.init(state);
+    TradeStation.init(state);
+
+    expect(Commerce.buildTradeStation(state, 'sol_prime').ok).toBe(true);
+    expect(Commerce.takeLoan(state, 'starter').ok).toBe(true);
+
+    const stockId = Object.keys(state.stockMarket)[0];
+    expect(Commerce.buyStock(state, stockId).ok).toBe(true);
+    expect(Commerce.openFuturesLong(state, 'food').ok).toBe(true);
+
+    vi.spyOn(Economy, 'getSellPrice').mockImplementation(function (systemId, goodId) {
+      if (goodId === 'food') return 999;
+      return 100;
+    });
+
+    const snap = Commerce.getCommerceSnapshot(state);
+
+    expect(snap.ownedStationCount).toBe(1);
+    expect(snap.totalLoans).toBeGreaterThan(0);
+    expect(snap.stockPortfolioValue).toBeGreaterThan(0);
+    expect(snap.futuresUnrealizedPnl).toBeGreaterThan(0);
+    expect(snap.tradeInvestmentValue).toBe(0);
+    expect(snap.finance.stockPortfolioValue).toBe(snap.stockPortfolioValue);
+    expect(snap.finance.activeLoanCount).toBe(snap.activeLoans);
+    expect(snap.futures.totalUnrealizedPnl).toBe(snap.futuresUnrealizedPnl);
+    expect(snap.futures.openContractCount).toBe(snap.futuresOpenContracts);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -176,6 +215,38 @@ describe('Commerce.buildTradeStation', () => {
     TradeStation.init(state);
     const result = Commerce.buildTradeStation(state, 'nova_station');
     expect(result.ok).toBe(false);
+  });
+
+  it('支持通过 Commerce 门面下达全网批量策略', () => {
+    const state = createTestState({
+      credits: 300000,
+      currentSystem: 'sol_prime',
+      visitedSystems: ['sol_prime', 'nova_station'],
+    });
+    TradeStation.init(state);
+
+    expect(Commerce.buildTradeStation(state, 'sol_prime').ok).toBe(true);
+    expect(Commerce.buildTradeStation(state, 'nova_station').ok).toBe(true);
+
+    const result = Commerce.batchSetTradeStationStrategy(state, 'expansion');
+
+    expect(result.ok).toBe(true);
+    expect(state.tradeStations.sol_prime.strategyId).toBe('expansion');
+    expect(state.tradeStations.nova_station.strategyId).toBe('expansion');
+  });
+
+  it('支持通过 Commerce 门面下达批量投资波次', () => {
+    const state = createTestState({
+      credits: 12000,
+      currentSystem: 'sol_prime',
+      visitedSystems: ['sol_prime', 'nova_station', 'aegis_prime'],
+    });
+
+    const result = Commerce.batchInvestInTradeStations(state, ['sol_prime', 'nova_station', 'aegis_prime']);
+
+    expect(result.ok).toBe(true);
+    expect(result.meta.executedCount).toBe(2);
+    expect(Object.keys(state.tradeInvestments)).toHaveLength(2);
   });
 });
 
