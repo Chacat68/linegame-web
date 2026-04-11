@@ -2,9 +2,11 @@
 // 依赖：data/quests.js, data/playerLevels.js, systems/faction/FactionSystem.js
 // 导出：init, getAvailableQuests, getLockedQuests, getStarterRecommendations, getQuestTracker, acceptQuest, checkProgress,
 //       getActiveQuests, completeQuest, getQuestPhaseProgress,
-//       getCurrentQuestPhase, getCurrentQuestPhaseProgress
+//       getCurrentQuestPhase, getCurrentQuestPhaseProgress,
+//       getStoryRouteProfile, getQuestRewardSummary
 
 import { QUESTS, QUEST_TYPES, QUEST_PHASES } from '../../data/quests.js';
+import { FACTIONS }            from '../../data/factions.js';
 import { getLevel }            from '../../data/playerLevels.js';
 import * as Faction            from '../faction/FactionSystem.js';
 
@@ -19,6 +21,201 @@ const STARTER_RECOMMENDATION_ORDER = [
 ];
 
 const DEFAULT_TRACKER_LIMIT = 2;
+
+const QUEST_FACTION_ID_ALIASES = {
+  galactic_federation: 'federation',
+  stellar_syndicate: 'syndicate',
+  tech_commonwealth: 'technocracy',
+};
+
+const STORY_ROUTE_PROFILES = {
+  steady: {
+    id: 'steady',
+    label: '稳健起步',
+    rewardHint: '运输任务积分 +15%',
+    recommendationOrder: [
+      'starter_first_trade',
+      'starter_visit_2',
+      'starter_deliver_medicine',
+      'starter_deliver_food',
+      'starter_earn_500',
+      'starter_5_trades',
+      'starter_explore_shadow',
+    ],
+  },
+  network: {
+    id: 'network',
+    label: '航线扩张',
+    rewardHint: '探索/派系任务声望 +50%',
+    recommendationOrder: [
+      'starter_visit_2',
+      'starter_first_trade',
+      'starter_5_trades',
+      'starter_earn_500',
+      'starter_deliver_food',
+      'starter_deliver_medicine',
+      'starter_explore_shadow',
+    ],
+  },
+  shadow: {
+    id: 'shadow',
+    label: '高风险探索',
+    rewardHint: '探索/辛迪加任务积分 +20%',
+    recommendationOrder: [
+      'starter_visit_2',
+      'starter_first_trade',
+      'starter_explore_shadow',
+      'starter_5_trades',
+      'starter_earn_500',
+      'starter_deliver_food',
+      'starter_deliver_medicine',
+    ],
+  },
+};
+
+const STORY_ROUTE_QUEST_EFFECTS = {
+  steady: {
+    expand_deliver_tech: {
+      creditsMultiplier: 1.1,
+      reputationBonus: 2,
+      bonusText: '稳健起步：关键运输线额外整备',
+      factionShifts: [{ factionId: 'technocracy', delta: 6 }],
+    },
+    expand_water_crisis: {
+      creditsMultiplier: 1.1,
+      reputationBonus: 4,
+      bonusText: '稳健起步：危机补给合同溢价',
+      factionShifts: [{ factionId: 'syndicate', delta: 4 }],
+    },
+    rise_deliver_weapons: {
+      creditsMultiplier: 1.1,
+      reputationBonus: 3,
+      bonusText: '稳健起步：军需运输执行加成',
+      factionShifts: [{ factionId: 'syndicate', delta: 6 }],
+    },
+    reign_arms_race: {
+      creditsMultiplier: 1.15,
+      reputationBonus: 5,
+      bonusText: '稳健起步：军备调度额外结算',
+      factionShifts: [{ factionId: 'syndicate', delta: 8 }],
+    },
+    reign_medicine_tour: {
+      reputationBonus: 8,
+      bonusText: '稳健起步：医疗补给线口碑提升',
+      factionShifts: [
+        { factionId: 'technocracy', delta: 10 },
+        { factionId: 'federation', delta: 4 },
+      ],
+    },
+    legend_ultimate_delivery: {
+      creditsMultiplier: 1.15,
+      reputationBonus: 10,
+      bonusText: '稳健起步：终极联运获得额外履约奖',
+      factionShifts: [
+        { factionId: 'federation', delta: 6 },
+        { factionId: 'technocracy', delta: 6 },
+        { factionId: 'syndicate', delta: 4 },
+      ],
+    },
+  },
+  network: {
+    expand_explore_5: {
+      reputationBonus: 3,
+      bonusText: '航线扩张：新航线信誉扩散',
+    },
+    rise_fed_trade: {
+      reputationBonus: 5,
+      bonusText: '航线扩张：联邦合同口碑加成',
+      factionShifts: [{ factionId: 'federation', delta: 10 }],
+    },
+    rise_tech_research: {
+      reputationBonus: 6,
+      bonusText: '航线扩张：共同体合作加深',
+      factionShifts: [{ factionId: 'technocracy', delta: 10 }],
+    },
+    rise_explore_10: {
+      reputationBonus: 6,
+      bonusText: '航线扩张：核心星图名望提升',
+    },
+    reign_fed_friendship: {
+      reputationBonus: 10,
+      bonusText: '航线扩张：联邦关系线额外推进',
+      factionShifts: [{ factionId: 'federation', delta: 12 }],
+    },
+    reign_tech_ally: {
+      reputationBonus: 10,
+      bonusText: '航线扩张：共同体关系线额外推进',
+      factionShifts: [{ factionId: 'technocracy', delta: 12 }],
+    },
+    reign_galaxy_jump: {
+      reputationBonus: 8,
+      bonusText: '航线扩张：跨星系知名度提升',
+    },
+    legend_all_factions: {
+      reputationBonus: 15,
+      bonusText: '航线扩张：银河外交网络回响',
+      factionShifts: [
+        { factionId: 'federation', delta: 8 },
+        { factionId: 'technocracy', delta: 8 },
+        { factionId: 'syndicate', delta: 8 },
+      ],
+    },
+    legend_grand_tour: {
+      creditsMultiplier: 1.05,
+      reputationBonus: 10,
+      bonusText: '航线扩张：壮游纪录扩大品牌溢价',
+    },
+  },
+  shadow: {
+    expand_profit_1000: {
+      creditsMultiplier: 1.15,
+      bonusText: '高风险探索：利润目标额外抽成',
+    },
+    rise_profit_5000: {
+      creditsMultiplier: 1.15,
+      bonusText: '高风险探索：高波动利润结算加成',
+    },
+    rise_crystal_minerals: {
+      creditsMultiplier: 1.15,
+      bonusText: '高风险探索：特货线路额外收益',
+    },
+    rise_survival: {
+      creditsMultiplier: 1.1,
+      reputationBonus: 5,
+      bonusText: '高风险探索：极限航行名望与红利提升',
+    },
+    reign_syndicate_ally: {
+      reputationBonus: 10,
+      bonusText: '高风险探索：辛迪加线深度绑定',
+      factionShifts: [
+        { factionId: 'syndicate', delta: 12 },
+        { factionId: 'federation', delta: -4 },
+      ],
+    },
+    reign_profit_20000: {
+      creditsMultiplier: 1.15,
+      bonusText: '高风险探索：巨额利润线追加分成',
+    },
+    reign_luxury_circuit: {
+      creditsMultiplier: 1.1,
+      bonusText: '高风险探索：奢侈品巡回风险溢价',
+    },
+    reign_tech_monopoly: {
+      creditsMultiplier: 1.15,
+      bonusText: '高风险探索：科技套利窗口扩大',
+    },
+    legend_profit_50000: {
+      creditsMultiplier: 1.15,
+      bonusText: '高风险探索：终极利润线追加分成',
+    },
+    legend_galaxy_master: {
+      creditsMultiplier: 1.1,
+      reputationBonus: 10,
+      bonusText: '高风险探索：银河之主路线放大收益',
+      factionShifts: [{ factionId: 'syndicate', delta: 10 }],
+    },
+  },
+};
 
 /**
  * 初始化任务系统
@@ -156,8 +353,9 @@ function _checkUnlockConditions(quest, state) {
   }
 
   if (cond.requiredFactionRelation) {
+    var requiredFactionId = _normalizeFactionId(cond.requiredFactionRelation.factionId);
     var rel = Faction.getRelation
-      ? Faction.getRelation(state, cond.requiredFactionRelation.factionId)
+      ? Faction.getRelation(state, requiredFactionId)
       : 0;
     if (rel < cond.requiredFactionRelation.minRelation) {
       reasons.push('需提升派系关系至 ' + cond.requiredFactionRelation.minRelation);
@@ -221,12 +419,16 @@ export function getStarterRecommendations(state, limit) {
   var available = getAvailableQuests(state);
   var byId = Object.create(null);
   var picked = [];
+  var routeProfile = getStoryRouteProfile(state);
+  var recommendationOrder = routeProfile && Array.isArray(routeProfile.recommendationOrder)
+    ? routeProfile.recommendationOrder
+    : STARTER_RECOMMENDATION_ORDER;
 
   available.forEach(function (quest) {
     byId[quest.id] = quest;
   });
 
-  STARTER_RECOMMENDATION_ORDER.forEach(function (questId) {
+  recommendationOrder.forEach(function (questId) {
     if (picked.length >= maxCount) return;
     if (byId[questId]) picked.push(byId[questId]);
   });
@@ -241,6 +443,78 @@ export function getStarterRecommendations(state, limit) {
   }
 
   return picked;
+}
+
+export function getStoryRouteProfile(state) {
+  var decision = _getTutorialRouteDecision(state);
+  var profile = decision ? STORY_ROUTE_PROFILES[decision] : null;
+  if (!profile) return null;
+
+  return {
+    id: profile.id,
+    label: profile.label,
+    rewardHint: profile.rewardHint,
+    recommendationOrder: profile.recommendationOrder.slice(),
+  };
+}
+
+export function getQuestRewardSummary(state, quest) {
+  var baseRewards = quest && quest.rewards ? quest.rewards : {};
+  var summary = {
+    credits: baseRewards.credits || 0,
+    exp: baseRewards.exp || 0,
+    reputation: baseRewards.reputation || 0,
+    hasDecisionBonus: false,
+    routeLabel: null,
+    bonusText: '',
+  };
+  var profile = getStoryRouteProfile(state);
+  var bonusTexts = [];
+  var routeQuestEffect = profile && quest ? _getRouteQuestEffect(profile.id, quest.id) : null;
+
+  if (!profile || !quest) return summary;
+
+  summary.routeLabel = profile.label;
+
+  if (profile.id === 'steady' && quest.type === 'delivery' && summary.credits > 0) {
+    summary.credits = Math.round(summary.credits * 1.15);
+    if (summary.credits !== (baseRewards.credits || 0)) {
+      bonusTexts.push('稳健起步：运输任务积分 +15%');
+    }
+  }
+
+  if (profile.id === 'network' && (quest.type === 'explore' || quest.type === 'faction') && summary.reputation > 0) {
+    summary.reputation = Math.max(summary.reputation + 1, Math.round(summary.reputation * 1.5));
+    if (summary.reputation !== (baseRewards.reputation || 0)) {
+      bonusTexts.push('航线扩张：探索/派系任务声望 +50%');
+    }
+  }
+
+  if (profile.id === 'shadow' && summary.credits > 0 && (quest.type === 'explore' || _questTouchesFaction(quest, 'syndicate'))) {
+    summary.credits = Math.round(summary.credits * 1.2);
+    if (summary.credits !== (baseRewards.credits || 0)) {
+      bonusTexts.push('高风险探索：探索/辛迪加任务积分 +20%');
+    }
+  }
+
+  if (routeQuestEffect) {
+    if (routeQuestEffect.creditsMultiplier && summary.credits > 0) {
+      summary.credits = Math.round(summary.credits * routeQuestEffect.creditsMultiplier);
+    }
+    if (routeQuestEffect.reputationBonus) {
+      summary.reputation += routeQuestEffect.reputationBonus;
+    }
+    if (routeQuestEffect.reputationMultiplier && summary.reputation > 0) {
+      summary.reputation = Math.round(summary.reputation * routeQuestEffect.reputationMultiplier);
+    }
+    if (routeQuestEffect.bonusText) {
+      bonusTexts.push(routeQuestEffect.bonusText);
+    }
+  }
+
+  summary.hasDecisionBonus = bonusTexts.length > 0;
+  summary.bonusText = bonusTexts.join('；');
+  return summary;
 }
 
 export function getQuestTracker(state, limit) {
@@ -344,9 +618,7 @@ export function acceptQuest(state, questId) {
 
   // 若接取时目标已满足（例如“前往某星球”且当前已在目标地），立即完成
   if (_isQuestDone(quest)) {
-    state.credits     += quest.rewards.credits || 0;
-    state.experience   = (state.experience || 0) + (quest.rewards.exp || 0);
-    state.reputation   = (state.reputation || 0) + (quest.rewards.reputation || 0);
+    var immediateRewards = _applyQuestRewards(state, quest);
     if (!state.completedQuests.includes(quest.id)) {
       state.completedQuests.push(quest.id);
     }
@@ -358,11 +630,13 @@ export function acceptQuest(state, questId) {
       ok: true,
       completedImmediately: true,
       completedQuest: JSON.parse(JSON.stringify(quest)),
+      rewardSummary: immediateRewards,
       phaseAdvanced: phaseAfterImmediate > phaseBefore,
       newPhase: immediatePhase,
       msgs: [{
         text: (typeInfo.icon || '📋') + ' 任务「' + quest.name + '」已立即完成！奖励：💰' +
-              (quest.rewards.credits || 0) + ' 积分, ⭐' + (quest.rewards.exp || 0) + ' 经验',
+              immediateRewards.credits + ' 积分, ⭐' + immediateRewards.exp + ' 经验, 🏅' + immediateRewards.reputation + ' 声望' +
+              (immediateRewards.hasDecisionBonus ? ' · 🧭 ' + immediateRewards.bonusText : ''),
         type: 'upgrade',
       }],
     };
@@ -432,17 +706,19 @@ export function checkProgress(state, context) {
 
     if (!c.failed) {
       // 发放奖励
-      state.credits     += quest.rewards.credits || 0;
-      state.experience   = (state.experience || 0) + (quest.rewards.exp || 0);
-      state.reputation   = (state.reputation || 0) + (quest.rewards.reputation || 0);
+      var rewardSummary = _applyQuestRewards(state, quest);
       state.completedQuests.push(quest.id);
+      c.rewardSummary = JSON.parse(JSON.stringify(rewardSummary));
 
       const typeInfo = QUEST_TYPES[quest.type] || {};
       msgs.push({
         text: '🎉 任务完成「' + quest.name + '」！奖励：💰' +
-              quest.rewards.credits + ' 积分, ⭐' + quest.rewards.exp + ' 经验',
+              rewardSummary.credits + ' 积分, ⭐' + rewardSummary.exp + ' 经验, 🏅' + rewardSummary.reputation + ' 声望' +
+              (rewardSummary.hasDecisionBonus ? ' · 🧭 ' + rewardSummary.bonusText : ''),
         type: 'upgrade',
       });
+
+      _applyQuestDecisionEffects(state, quest, msgs);
     }
 
     // 从活跃列表移除
@@ -493,7 +769,7 @@ function _createTrackerItem(quest, state, mode) {
     progressText: _getObjectiveProgressText(primaryObjective),
     statusText: _getTrackerStatusText(mode, remainingDays),
     primaryObjective: primaryObjective ? JSON.parse(JSON.stringify(primaryObjective)) : null,
-    rewardSummary: JSON.parse(JSON.stringify(quest.rewards || {})),
+    rewardSummary: getQuestRewardSummary(state, quest),
   };
 }
 
@@ -534,6 +810,99 @@ function _getTrackerStatusText(mode, remainingDays) {
   }
   if (mode === 'recommended') return '推荐接取';
   return '可接取';
+}
+
+function _getTutorialRouteDecision(state) {
+  return state && state.storyDecisions ? state.storyDecisions.tutorial_postlude : null;
+}
+
+function _applyQuestRewards(state, quest) {
+  var rewardSummary = getQuestRewardSummary(state, quest);
+  state.credits = (state.credits || 0) + rewardSummary.credits;
+  state.experience = (state.experience || 0) + rewardSummary.exp;
+  state.reputation = (state.reputation || 0) + rewardSummary.reputation;
+  return rewardSummary;
+}
+
+function _applyQuestDecisionEffects(state, quest, msgs) {
+  if (!quest) return;
+
+  _applyRouteQuestFactionEffects(state, quest, msgs);
+
+  if (quest.id !== 'rise_syndicate_sell') return;
+
+  var decision = state.storyDecisions && state.storyDecisions.quest_accept_rise_syndicate_sell;
+  if (decision === 'profit') {
+    _pushFactionShift(state, 'syndicate', 12, msgs);
+    _pushFactionShift(state, 'federation', -4, msgs);
+    msgs.push({
+      text: '🕶️ 利润优先的表态让辛迪加更看重你，但联邦也因此提高了警惕。',
+      type: 'info',
+    });
+    return;
+  }
+
+  if (decision === 'cautious') {
+    _pushFactionShift(state, 'syndicate', 8, msgs);
+    msgs.push({
+      text: '🕶️ 谨慎试探的做法让辛迪加把你视为更可靠的长期合作对象。',
+      type: 'info',
+    });
+  }
+}
+
+function _pushFactionShift(state, factionId, delta, msgs) {
+  if (!delta) return;
+
+  var meta = FACTIONS.find(function (faction) { return faction.id === factionId; });
+  var result = Faction.changeRelation(state, factionId, delta);
+
+  msgs.push({
+    text: (meta ? meta.icon : '🏛️') + ' ' + (meta ? meta.name : factionId) + ' 关系 ' + (delta > 0 ? '+' + delta : String(delta)),
+    type: delta > 0 ? 'sell' : 'info',
+  });
+
+  if (result && Array.isArray(result.msgs) && result.msgs.length > 0) {
+    Array.prototype.push.apply(msgs, result.msgs);
+  }
+}
+
+function _applyRouteQuestFactionEffects(state, quest, msgs) {
+  var profile = getStoryRouteProfile(state);
+  var effect = profile ? _getRouteQuestEffect(profile.id, quest.id) : null;
+  if (!effect || !Array.isArray(effect.factionShifts) || effect.factionShifts.length === 0) return;
+
+  effect.factionShifts.forEach(function (entry) {
+    if (!entry || !entry.factionId || !entry.delta) return;
+    _pushFactionShift(state, entry.factionId, entry.delta, msgs);
+  });
+}
+
+function _getRouteQuestEffect(routeId, questId) {
+  if (!routeId || !questId) return null;
+  var routeEffects = STORY_ROUTE_QUEST_EFFECTS[routeId];
+  if (!routeEffects) return null;
+  return routeEffects[questId] || null;
+}
+
+function _normalizeFactionId(factionId) {
+  if (!factionId) return factionId;
+  return QUEST_FACTION_ID_ALIASES[factionId] || factionId;
+}
+
+function _questTouchesFaction(quest, factionId) {
+  if (!quest) return false;
+  if (_normalizeFactionId(quest.factionId) === factionId) return true;
+  if (!Array.isArray(quest.objectives)) return false;
+
+  return quest.objectives.some(function (objective) {
+    if (!objective) return false;
+    if (_normalizeFactionId(objective.factionId) === factionId) return true;
+    if (!objective.targetSystem) return false;
+
+    var owner = Faction.getFactionForSystem(objective.targetSystem);
+    return !!(owner && owner.id === factionId);
+  });
 }
 
 function _compareTrackedQuestPriority(left, right, state) {
@@ -610,13 +979,13 @@ function _updateObjective(obj, ctx, state) {
       break;
 
     case 'faction_trade':
-      if ((ctx.action === 'buy' || ctx.action === 'sell') && ctx.factionId === obj.factionId) {
+      if ((ctx.action === 'buy' || ctx.action === 'sell') && ctx.factionId === _normalizeFactionId(obj.factionId)) {
         obj.current = Math.min(obj.amount, obj.current + 1);
       }
       break;
 
     case 'sell_in_faction':
-      if (ctx.action === 'sell' && ctx.factionId === obj.factionId && ctx.goodId === obj.goodId) {
+      if (ctx.action === 'sell' && ctx.factionId === _normalizeFactionId(obj.factionId) && ctx.goodId === obj.goodId) {
         obj.current = Math.min(obj.amount, obj.current + ctx.quantity);
       }
       break;
@@ -631,8 +1000,9 @@ function _updateObjective(obj, ctx, state) {
 
     case 'faction_relation':
       // 派系关系检查（每次触发时从 state 读取实际关系值）
-      if (state.factionRelations && state.factionRelations[obj.factionId] != null) {
-        obj.current = state.factionRelations[obj.factionId];
+      var normalizedFactionId = _normalizeFactionId(obj.factionId);
+      if (state.factionRelations && state.factionRelations[normalizedFactionId] != null) {
+        obj.current = state.factionRelations[normalizedFactionId];
       }
       break;
 

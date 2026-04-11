@@ -9,7 +9,7 @@ import * as Faction             from '../systems/faction/FactionSystem.js';
 import * as PlayerLevels        from '../data/playerLevels.js';
 import * as Victory             from '../systems/victory/VictorySystem.js';
 import * as Economy             from '../systems/economy/Economy.js';
-import * as Quest               from '../systems/quest/QuestSystem.js';
+import * as Quest               from '../systems/quest/QuestSystem.js?v=20260412-branchfx1';
 
 const getLevel = PlayerLevels.getLevel;
 const getRepRank = PlayerLevels.getRepRank;

@@ -5,7 +5,7 @@
 import { QUEST_TYPES } from '../data/quests.js';
 import { GOODS } from '../data/goods.js';
 import { findSystem } from '../data/systems.js';
-import * as Quest      from '../systems/quest/QuestSystem.js';
+import * as Quest      from '../systems/quest/QuestSystem.js?v=20260412-branchfx1';
 
 const _goodNameById = GOODS.reduce(function (acc, good) {
   acc[good.id] = good.name;
@@ -56,6 +56,7 @@ export function render(state, onAccept, onAbandon) {
   let html = '';
   const recommended = Quest.getStarterRecommendations(state, 3);
   const recommendedIds = recommended.map(function (quest) { return quest.id; });
+  const storyRoute = Quest.getStoryRouteProfile(state);
 
   // ---- 当前章节 ----
   const currentPhaseProgress = Quest.getCurrentQuestPhaseProgress(state);
@@ -107,11 +108,13 @@ export function render(state, onAccept, onAbandon) {
       html += _renderTargetSystems(targets);
 
       // 奖励
+      const activeRewardSummary = Quest.getQuestRewardSummary(state, quest);
       html += '<div class="quest-rewards">' +
         '<span>🎁 奖励:</span>' +
-        '<span>💰 ' + quest.rewards.credits + '</span>' +
-        '<span>⭐ ' + quest.rewards.exp + ' 经验</span>' +
-        '<span>🏅 ' + quest.rewards.reputation + ' 声望</span>' +
+        '<span>💰 ' + activeRewardSummary.credits + '</span>' +
+        '<span>⭐ ' + activeRewardSummary.exp + ' 经验</span>' +
+        '<span>🏅 ' + activeRewardSummary.reputation + ' 声望</span>' +
+        (activeRewardSummary.hasDecisionBonus ? '<span title="' + activeRewardSummary.bonusText + '">🧭 分支加成</span>' : '') +
         '</div>';
 
       html += '<button class="btn-action quest-abandon-btn" data-id="' + quest.id + '">放弃</button>';
@@ -125,7 +128,8 @@ export function render(state, onAccept, onAbandon) {
 
   if (recommended.length > 0 && (state.quests || []).length === 0) {
     html += '<div class="quest-empty" style="margin-bottom:10px">' +
-      '💡 教程后的推荐路线：' + recommended.map(function (quest) { return '「' + quest.name + '」'; }).join('、') + '。' +
+      '💡 教程后的推荐路线' + (storyRoute ? '（' + storyRoute.label + '）' : '') + '：' + recommended.map(function (quest) { return '「' + quest.name + '」'; }).join('、') +
+      (storyRoute && storyRoute.rewardHint ? '。当前分支效果：' + storyRoute.rewardHint : '。') +
       '</div>';
   }
 
@@ -135,6 +139,7 @@ export function render(state, onAccept, onAbandon) {
     available.forEach(function (quest) {
       const typeInfo = QUEST_TYPES[quest.type] || {};
       const isRecommended = recommendedIds.includes(quest.id);
+      const rewardSummary = Quest.getQuestRewardSummary(state, quest);
       html += '<div class="quest-card available-quest">' +
         '<div class="quest-card-header">' +
           '<span class="quest-type-badge" style="background:' + (typeInfo.color || '#666') + '">' +
@@ -147,9 +152,10 @@ export function render(state, onAccept, onAbandon) {
         _renderTargetSystems(_questTargetSystems(quest)) +
         '<div class="quest-rewards">' +
           '<span>🎁</span>' +
-          '<span>💰 ' + quest.rewards.credits + '</span>' +
-          '<span>⭐ ' + quest.rewards.exp + '</span>' +
-          '<span>🏅 ' + quest.rewards.reputation + '</span>' +
+          '<span>💰 ' + rewardSummary.credits + '</span>' +
+          '<span>⭐ ' + rewardSummary.exp + '</span>' +
+          '<span>🏅 ' + rewardSummary.reputation + '</span>' +
+          (rewardSummary.hasDecisionBonus ? '<span title="' + rewardSummary.bonusText + '">🧭 分支加成</span>' : '') +
         '</div>' +
         '<button class="btn-action quest-accept-btn" data-id="' + quest.id + '">接取</button>' +
         '</div>';
@@ -162,6 +168,7 @@ export function render(state, onAccept, onAbandon) {
     html += '<div class="quest-section-title" style="margin-top:12px">🔒 未解锁 (' + locked.length + ')</div>';
     locked.forEach(function (quest) {
       const typeInfo = QUEST_TYPES[quest.type] || {};
+      const rewardSummary = Quest.getQuestRewardSummary(state, quest);
       html += '<div class="quest-card locked-quest">' +
         '<div class="quest-card-header">' +
           '<span class="quest-type-badge" style="background:' + (typeInfo.color || '#666') + '; opacity:0.6">' +
@@ -176,9 +183,10 @@ export function render(state, onAccept, onAbandon) {
       html += '</div>' +
         '<div class="quest-rewards" style="opacity:0.5">' +
           '<span>🎁</span>' +
-          '<span>💰 ' + quest.rewards.credits + '</span>' +
-          '<span>⭐ ' + quest.rewards.exp + '</span>' +
-          '<span>🏅 ' + quest.rewards.reputation + '</span>' +
+          '<span>💰 ' + rewardSummary.credits + '</span>' +
+          '<span>⭐ ' + rewardSummary.exp + '</span>' +
+          '<span>🏅 ' + rewardSummary.reputation + '</span>' +
+          (rewardSummary.hasDecisionBonus ? '<span title="' + rewardSummary.bonusText + '">🧭 分支加成</span>' : '') +
         '</div>' +
         '</div>';
     });
