@@ -308,6 +308,7 @@ export function getQuestPhaseProgress(state) {
 export function acceptQuest(state, questId) {
   const template = QUESTS.find(function (q) { return q.id === questId; });
   if (!template) return { ok: false, msgs: [{ text: '任务不存在。', type: 'error' }] };
+  var phaseBefore = getCurrentQuestPhase(state);
 
   if ((template.phase || 1) !== getCurrentQuestPhase(state)) {
     return { ok: false, msgs: [{ text: '该任务尚未解锁当前章节。', type: 'error' }] };
@@ -350,9 +351,15 @@ export function acceptQuest(state, questId) {
       state.completedQuests.push(quest.id);
     }
     _syncQuestPhase(state);
+    var phaseAfterImmediate = state.questPhase || 1;
+    var immediatePhase = phaseAfterImmediate > phaseBefore ? QUEST_PHASES[phaseAfterImmediate - 1] : null;
 
     return {
       ok: true,
+      completedImmediately: true,
+      completedQuest: JSON.parse(JSON.stringify(quest)),
+      phaseAdvanced: phaseAfterImmediate > phaseBefore,
+      newPhase: immediatePhase,
       msgs: [{
         text: (typeInfo.icon || '📋') + ' 任务「' + quest.name + '」已立即完成！奖励：💰' +
               (quest.rewards.credits || 0) + ' 积分, ⭐' + (quest.rewards.exp || 0) + ' 经验',
@@ -365,6 +372,7 @@ export function acceptQuest(state, questId) {
 
   return {
     ok: true,
+    quest: JSON.parse(JSON.stringify(quest)),
     msgs: [{
       text: (typeInfo.icon || '📋') + ' 接取任务「' + quest.name + '」！',
       type: 'upgrade',
@@ -398,7 +406,7 @@ export function checkProgress(state, context) {
         text: '⏰ 任务「' + quest.name + '」已超时失败！',
         type: 'error',
       });
-      completed.push({ id: quest.id, failed: true });
+      completed.push({ id: quest.id, failed: true, quest: JSON.parse(JSON.stringify(quest)) });
       return;
     }
 
@@ -413,7 +421,7 @@ export function checkProgress(state, context) {
     }
 
     if (allDone) {
-      completed.push({ id: quest.id, failed: false });
+      completed.push({ id: quest.id, failed: false, quest: JSON.parse(JSON.stringify(quest)) });
     }
   });
 
@@ -453,7 +461,12 @@ export function checkProgress(state, context) {
     }
   }
 
-  return { completedQuests: completed, msgs: msgs };
+  return {
+    completedQuests: completed,
+    msgs: msgs,
+    phaseAdvanced: phaseAfter > phaseBefore,
+    newPhase: phaseAfter > phaseBefore ? QUEST_PHASES[phaseAfter - 1] : null,
+  };
 }
 
 /**

@@ -192,4 +192,17 @@ describe('Trade.travelTo', () => {
       expect(result.msgs[0].type).toBe('error');
     }
   });
+
+  it('旅行会推进经济日结并写入价格历史', () => {
+    const state = createTestState({ fuel: 100, maxFuel: 100, day: 1 });
+    Faction.init(state);
+
+    const beforeHistory = Economy.getPriceHistory('sol_prime', 'food').length;
+    const result = Trade.travelTo(state, 'nova_station');
+    const afterHistory = Economy.getPriceHistory('sol_prime', 'food').length;
+
+    expect(result.ok).toBe(true);
+    expect(state.day).toBe(2);
+    expect(afterHistory).toBe(beforeHistory + 1);
+  });
 });

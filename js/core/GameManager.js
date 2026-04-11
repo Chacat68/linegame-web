@@ -21,6 +21,7 @@ import * as ShipUI     from '../ui/ShipUI.js';
 import * as MapUI      from '../ui/MapUI.js?v=20260407-landpoi1';
 import * as Modal      from '../ui/Modal.js';
 import * as EventUI    from '../ui/EventUI.js';
+import * as DialogueUI from '../ui/DialogueUI.js';
 import * as ResearchUI from '../ui/ResearchUI.js';
 import * as FactionUI  from '../ui/FactionUI.js';
 import * as SaveUI     from '../ui/SaveUI.js';
@@ -38,6 +39,7 @@ import * as Quest      from '../systems/quest/QuestSystem.js';
 import * as Achievement from '../systems/achievement/AchievementSystem.js';
 import * as Tutorial   from '../systems/tutorial/TutorialSystem.js';
 import * as TutorialUI from '../ui/TutorialUI.js';
+import * as Dialogue   from '../systems/story/DialogueSystem.js';
 import { INITIAL_STATE, DIFFICULTY_LEVELS, EVENT_CONFIG } from '../data/constants.js';
 import * as Victory from '../systems/victory/VictorySystem.js';
 import { VICTORY_PATHS } from '../data/victoryConditions.js';
@@ -52,6 +54,8 @@ let _state     = null;
 let _startTime = null;
 let _settings  = { motionLevel: 'full', difficulty: 'normal', secretRoutesVisible: true };
 let _blackMarketMode = false; // 当前是否处于黑市交易模式
+let _dialogueQueue = [];
+let _dialoguePlaying = false;
 
 function _getMarketFinanceActions() {
   return {
@@ -87,6 +91,8 @@ export function init(difficulty) {
   Dispatch.stopActiveDispatch();   // 重启时停止派遣
   _state = _deepClone(INITIAL_STATE);
   _settings = Settings.loadSettings();
+  _dialogueQueue = [];
+  _dialoguePlaying = false;
 
   // 应用难度设定
   var effectiveDifficulty = difficulty || _settings.difficulty || 'normal';
@@ -108,6 +114,9 @@ export function init(difficulty) {
   Renderer3D.resetRuntimeState(_state.currentSystem);
   Settings.applySettings(_settings, Renderer3D);
   HUD.init();
+  Dialogue.init(_state);
+  DialogueUI.init();
+  DialogueUI.hideScene();
 
   // 注入回调给各 UI 模块
   MapUI.init(_state, _handleTravel, _handleGalaxyJump);
@@ -159,8 +168,11 @@ export function init(difficulty) {
   // 教程完成后推荐首批任务并弹出公司重命名弹窗
   if (_onTutorialComplete) EventBus.off('tutorial:complete', _onTutorialComplete);
   _onTutorialComplete = function () {
-    _recommendStarterQuests();
-    setTimeout(_showCompanyRenameModal, 400);
+    var recommendations = Quest.getStarterRecommendations(_state, 3);
+    _playTriggerDialogue('tutorial_complete', { recommendations: recommendations }, function () {
+      _recommendStarterQuests();
+      setTimeout(_showCompanyRenameModal, 400);
+    });
   };
   EventBus.on('tutorial:complete', _onTutorialComplete);
 
@@ -239,6 +251,65 @@ function _recommendStarterQuests() {
     text: '🧭 我已替你切到任务页，这几项任务都可以立刻开始，适合作为教程后的第一阶段目标。',
     type: 'info',
   });
+}
+
+function _playTriggerDialogue(triggerType, context, onFinished) {
+  var scenes = Dialogue.getScenesForTrigger(_state, triggerType, context || {});
+  _queueDialogueScenes(scenes, onFinished);
+}
+
+function _queueDialogueScenes(scenes, onFinished) {
+  if (!Array.isArray(scenes) || scenes.length === 0) {
+    if (typeof onFinished === 'function') onFinished();
+    return;
+  }
+
+  scenes.forEach(function (scene, index) {
+    _dialogueQueue.push({
+      scene: scene,
+      onAfter: index === scenes.length - 1 ? onFinished : null,
+    });
+  });
+
+  _drainDialogueQueue();
+}
+
+function _drainDialogueQueue() {
+  if (_dialoguePlaying || _dialogueQueue.length === 0) return;
+
+  var next = _dialogueQueue.shift();
+  _dialoguePlaying = true;
+  DialogueUI.showScene(next.scene, function (result) {
+    Dialogue.finalizeScene(_state, next.scene && next.scene.id, result || {});
+    _dialoguePlaying = false;
+    if (typeof next.onAfter === 'function') next.onAfter();
+    _drainDialogueQueue();
+  });
+}
+
+function _queueQuestDialogueResult(result) {
+  if (!result) return;
+
+  var scenes = [];
+
+  if (Array.isArray(result.completedQuests)) {
+    result.completedQuests.forEach(function (entry) {
+      if (!entry || entry.failed) return;
+      scenes = scenes.concat(Dialogue.getScenesForTrigger(_state, 'quest_complete', {
+        questId: entry.id,
+        quest: entry.quest || null,
+      }));
+    });
+  }
+
+  if (result.phaseAdvanced && result.newPhase) {
+    scenes = scenes.concat(Dialogue.getScenesForTrigger(_state, 'phase_unlock', {
+      phaseId: result.newPhase.id,
+      phase: result.newPhase,
+    }));
+  }
+
+  _queueDialogueScenes(scenes);
 }
 
 // 设置管理已提取到 js/core/SettingsManager.js
@@ -514,6 +585,7 @@ function _handleTravel(systemId) {
     questResult.msgs.forEach(function (m) {
       EventBus.emit('log:message', { text: m.text, type: m.type });
     });
+    _queueQuestDialogueResult(questResult);
 
     // 科技研究进度推进
     const researchResult = Research.advanceResearch(_state);
@@ -647,6 +719,7 @@ function _handleTradeConfirm(action, goodId, quantity, marketType) {
       tradeQuestResult.msgs.forEach(function (m) {
         EventBus.emit('log:message', { text: m.text, type: m.type });
       });
+      _queueQuestDialogueResult(tradeQuestResult);
     }
     _state.reputation = (_state.reputation || 0) + repGain;
 
@@ -820,6 +893,23 @@ function _handleFuturesClose(contractId) {
 function _handleAcceptQuest(questId) {
   const result = Quest.acceptQuest(_state, questId);
   _dispatch(result);
+  if (!result || !result.ok) return;
+
+  if (result.completedImmediately && result.completedQuest) {
+    _queueQuestDialogueResult({
+      completedQuests: [{ id: result.completedQuest.id, failed: false, quest: result.completedQuest }],
+      phaseAdvanced: result.phaseAdvanced,
+      newPhase: result.newPhase,
+    });
+    return;
+  }
+
+  if (result.quest) {
+    _playTriggerDialogue('quest_accept', {
+      questId: result.quest.id,
+      quest: result.quest,
+    });
+  }
 }
 
 function _handleAbandonQuest(questId) {
@@ -841,6 +931,10 @@ function _handleLoadGame(slotId) {
   if (result.ok) {
     Settings.hideSettingsModal();
     _state = result.state;
+    _dialogueQueue = [];
+    _dialoguePlaying = false;
+    Dialogue.init(_state);
+    DialogueUI.hideScene();
     RandomEvent.syncRuntimeState(_state);
     _settings.difficulty = _state.difficulty;
     Settings.saveSettings(_settings);

@@ -4,7 +4,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import * as Economy from '../js/systems/economy/Economy.js';
 import * as Fleet from '../js/systems/fleet/FleetSystem.js';
+import * as Finance from '../js/systems/finance/FinanceSystem.js';
+import * as Futures from '../js/systems/finance/FuturesSystem.js';
 import * as Trade from '../js/systems/trade/TradeSystem.js';
+import * as TradeStation from '../js/systems/trade/TradeStationSystem.js';
 import * as Save from '../js/systems/save/SaveSystem.js';
 import * as Quest from '../js/systems/quest/QuestSystem.js';
 import * as Faction from '../js/systems/faction/FactionSystem.js';
@@ -168,5 +171,51 @@ describe('端到端：经济→天数推进', () => {
     const price = Economy.getBuyPrice('sol_prime', 'food', state);
     expect(price).toBeGreaterThan(0);
     expect(Number.isFinite(price)).toBe(true);
+  });
+
+  it('旅行日结会串联商网、金融、期货与派遣结算', () => {
+    const state = createTestState({
+      credits: 250000,
+      fuel: 120,
+      maxFuel: 120,
+      day: 1,
+      currentSystem: 'sol_prime',
+      visitedSystems: ['sol_prime', 'nova_station'],
+    });
+
+    Faction.init(state);
+    Economy.init();
+    Fleet.init(state);
+    Finance.init(state);
+    Futures.init(state);
+
+    expect(TradeStation.buildStation(state, 'sol_prime').ok).toBe(true);
+    expect(Finance.investInTradeStation(state, 'sol_prime', 5000).ok).toBe(true);
+
+    const loanOffer = Finance.getLoanOffers(state)[0];
+    expect(Finance.takeLoan(state, loanOffer.id).ok).toBe(true);
+    const loanBalanceBefore = state.loans[0].balance;
+
+    const futuresListing = Futures.getFuturesListings(state)[0];
+    expect(Futures.openLongContract(state, futuresListing.goodId).ok).toBe(true);
+
+    state.fleetSlots = 2;
+    expect(Fleet.buyShip(state, 'freighter').ok).toBe(true);
+    expect(Fleet.assignRoute(state, 1, 'sol_prime', 'nova_station', 'food').ok).toBe(true);
+
+    const creditsBeforeTravel = state.credits;
+    const travelResult = Trade.travelTo(state, 'nova_station');
+    const fleetResult = Fleet.tickFleetRoutes(state);
+
+    expect(travelResult.ok).toBe(true);
+    expect(state.day).toBe(2);
+    expect(state.financeLastProcessedDay).toBe(2);
+    expect(state.futuresLastProcessedDay).toBe(2);
+    expect(state.loans[0].balance).toBeLessThan(loanBalanceBefore);
+    expect(state.tradeStations.sol_prime.lastIncome).toBeGreaterThan(0);
+    expect(state.credits).not.toBe(creditsBeforeTravel);
+    expect(fleetResult.msgs.length).toBeGreaterThan(0);
+    expect(state.fleet[1].route.status).toBe('traveling_sell');
+    expect(state.fleet[1].cargo.food).toBeGreaterThan(0);
   });
 });

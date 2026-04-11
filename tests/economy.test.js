@@ -1,7 +1,7 @@
 // tests/economy.test.js — Economy 系统测试
 // 覆盖: C1（空指针崩溃）、H4（_modifiers 未初始化）、H5（sellTax 极端值）
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as Economy from '../js/systems/economy/Economy.js';
 import * as Faction from '../js/systems/faction/FactionSystem.js';
 import * as Fleet from '../js/systems/fleet/FleetSystem.js';
@@ -10,6 +10,10 @@ import { createTestState } from './helpers.js';
 
 beforeEach(() => {
   Economy.init();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe('Economy configuration', () => {
@@ -32,6 +36,19 @@ describe('Economy configuration', () => {
     const config = Economy.getEconomyConfig();
     expect(config.pricing.buyAdjustmentOrder).toEqual(['factionTax', 'techBuyDiscount', 'fleetTradeBonus']);
     expect(config.pricing.sellAdjustmentOrder).toEqual(['factionTax', 'techSellBonus', 'fleetTradeBonus']);
+  });
+
+  it('经济周期切换会直接影响同一商品价格', () => {
+    const state = createTestState();
+    Faction.init(state);
+
+    Economy.setCycleState({ phaseIndex: 0, dayInPhase: 0, phaseDuration: 40, totalCycles: 0 });
+    const prosperityPrice = Economy.getBuyPrice('sol_prime', 'technology', state);
+
+    Economy.setCycleState({ phaseIndex: 3, dayInPhase: 0, phaseDuration: 40, totalCycles: 0 });
+    const recessionPrice = Economy.getBuyPrice('sol_prime', 'technology', state);
+
+    expect(prosperityPrice).toBeGreaterThan(recessionPrice);
   });
 });
 
@@ -78,6 +95,27 @@ describe('Economy.getBuyPrice', () => {
 
     const discountedPrice = Economy.getBuyPrice('sol_prime', 'weapons', freighterState);
     expect(discountedPrice).toBeLessThan(basePrice);
+  });
+
+  it('买入价按 factionTax -> techBuyDiscount -> fleetTradeBonus 顺序叠加', () => {
+    const state = createTestState({ credits: 10000, techBuyDiscount: 0.10 });
+    Faction.init(state);
+    Fleet.init(state);
+    state.fleetSlots = 2;
+    expect(Fleet.buyShip(state, 'freighter').ok).toBe(true);
+    expect(Fleet.switchShip(state, 1).ok).toBe(true);
+
+    vi.spyOn(Faction, 'getTaxModifier').mockReturnValue(1.12);
+
+    const basePrice = Economy.getBuyPrice('sol_prime', 'food');
+    const actual = Economy.getBuyPrice('sol_prime', 'food', state);
+    const expected = Math.round(
+      Math.round(
+        Math.round(basePrice * 1.12) * (1 - state.techBuyDiscount)
+      ) * (1 - 0.03)
+    );
+
+    expect(actual).toBe(expected);
   });
 });
 
@@ -141,6 +179,27 @@ describe('Economy.getSellPrice', () => {
 
     const boostedPrice = Economy.getSellPrice('sol_prime', 'luxury', fleetState);
     expect(boostedPrice).toBeGreaterThan(basePrice);
+  });
+
+  it('卖出价按 factionTax -> techSellBonus -> fleetTradeBonus 顺序叠加', () => {
+    const state = createTestState({ credits: 50000, techSellBonus: 0.08 });
+    Faction.init(state);
+    Fleet.init(state);
+    state.fleetSlots = 2;
+    expect(Fleet.buyShip(state, 'galleon').ok).toBe(true);
+    expect(Fleet.switchShip(state, 1).ok).toBe(true);
+
+    vi.spyOn(Faction, 'getTaxModifier').mockReturnValue(0.92);
+
+    const basePrice = Economy.getSellPrice('sol_prime', 'food');
+    const actual = Economy.getSellPrice('sol_prime', 'food', state);
+    const expected = Math.round(
+      Math.round(
+        Math.round(basePrice * (ECONOMY_CONFIG.pricing.sellTaxBase - 0.92)) * (1 + state.techSellBonus)
+      ) * (1 + 0.05)
+    );
+
+    expect(actual).toBe(expected);
   });
 });
 

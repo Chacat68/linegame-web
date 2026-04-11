@@ -164,13 +164,14 @@ export function applyLevelPerk(state, level) {
  */
 export function announceNewRoutes(state, oldLvl, newLvl) {
   const msgs = [];
+  const previewLimit = PROGRESSION_CONFIG.routeAnnouncementPreviewLimit || 5;
   const newPlanets = SYSTEMS.filter(function (s) {
     const ml = s.minLevel || 1;
     return ml > oldLvl && ml <= newLvl;
   });
   if (newPlanets.length > 0) {
-    const names = newPlanets.slice(0, 5).map(function (s) { return s.name; }).join('、');
-    const extra = newPlanets.length > 5 ? ' 等 ' + newPlanets.length + ' 颗星球' : '';
+    const names = newPlanets.slice(0, previewLimit).map(function (s) { return s.name; }).join('、');
+    const extra = newPlanets.length > previewLimit ? ' 等 ' + newPlanets.length + ' 颗星球' : '';
     msgs.push({
       text: '🗺️ 新航线开放！解锁了 ' + names + extra + '！',
       type: 'info',

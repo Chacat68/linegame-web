@@ -143,6 +143,7 @@ export const FACTION_CONFIG = {
 };
 
 export const PROGRESSION_CONFIG = {
+  routeAnnouncementPreviewLimit: 5,
   levelPerks: {
     3:  { type: 'sellBonus', value: 0.03, message: '✨ 等级奖励：卖出价格 +3%' },
     4:  { type: 'cargo', value: 5, message: '✨ 等级奖励：当前船只货舱容量 +5' },
@@ -165,6 +166,15 @@ export const PROGRESSION_CONFIG = {
 export const EVENT_CONFIG = {
   baseChance: 0.12,
   cooldownDays: 10,
+  modifiers: {
+    deepScannerChanceMultiplier: 1.25,
+  },
+  history: {
+    maxEntries: 30,
+  },
+  chain: {
+    defaultDelay: 3,
+  },
   stages: {
     early: { maxDay: 12, maxPlayerLevel: 3 },
     mid: { maxDay: 35, maxPlayerLevel: 6 },
@@ -194,7 +204,11 @@ export const EVENT_CONFIG = {
   },
 };
 
-export const SAVE_SCHEMA_VERSION = 10;
+export const TUTORIAL_CONFIG = {
+  completionStorageKey: 'tutorial_completed',
+};
+
+export const SAVE_SCHEMA_VERSION = 12;
 export const GAME_VERSION = '0.6.0';
 
 /**
@@ -297,6 +311,10 @@ export const SAVE_STATE_SCHEMA = {
   // ---- v10 新增 ----
   galaxyStates:            { type: 'object',  default: {},                 since: 10, desc: '星系数据层状态 {planetId: planetState}' },
   _tripsSinceLastEvent:    { type: 'number',  default: 999,                since: 10, desc: '上次事件后旅行次数（静默期）' },
+  // ---- v11 新增 ----
+  storyFlags:              { type: 'object',  default: {},                 since: 11, desc: '轻量剧情/对话触发记录 {sceneId: seenDay}' },
+  // ---- v12 新增 ----
+  storyDecisions:          { type: 'object',  default: {},                 since: 12, desc: '轻量剧情对话选择记录 {sceneId: choiceId}' },
 };
 
 /**

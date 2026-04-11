@@ -462,6 +462,30 @@
     </div>
 
     <!-- ================================================================
+     Dialogue modal (轻量剧情演出)
+================================================================ -->
+    <div id="dialogue-modal" class="modal hidden" role="dialog" aria-modal="true">
+      <div class="modal-box dialogue-modal-box">
+        <div class="dialogue-scene-label" id="dialogue-scene-label">剧情演出</div>
+        <div class="dialogue-header">
+          <span id="dialogue-speaker-icon" class="dialogue-speaker-icon">💬</span>
+          <div class="dialogue-header-copy">
+            <div id="dialogue-speaker-name" class="dialogue-speaker-name">未知发言者</div>
+            <h3 id="dialogue-scene-title" class="dialogue-scene-title">通讯接入</h3>
+          </div>
+        </div>
+        <div id="dialogue-progress" class="dialogue-progress"></div>
+        <p id="dialogue-text" class="dialogue-text"></p>
+        <div id="dialogue-footer" class="dialogue-footer hidden"></div>
+        <div id="dialogue-choices" class="dialogue-choices hidden"></div>
+        <div class="modal-actions dialogue-actions">
+          <button id="dialogue-skip-btn" class="btn-secondary">收起</button>
+          <button id="dialogue-next-btn" class="btn-primary">下一句</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================================
      Game-over / Victory modal
 ================================================================ -->
     <div
@@ -908,6 +932,6 @@
 
     <!-- Babylon.js library for 3D rendering -->
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
-    <script type="module" src="js/main.js?v=20260407-landpoi1"></script>
+    <script type="module" src="js/main.js?v=20260412-dialogue-branch1"></script>
   </body>
 </html>

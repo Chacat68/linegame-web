@@ -3,6 +3,7 @@
 // 导出：init, getStep, advance, skip, isActive, checkTrigger, STEPS
 
 import * as EventBus from '../../core/EventBus.js';
+import { TUTORIAL_CONFIG } from '../../data/constants.js';
 
 // ---------------------------------------------------------------------------
 // 教程步骤定义
@@ -193,7 +194,7 @@ export function init(state) {
   _completed = false;
 
   // 检查 localStorage —— 老玩家跳过
-  if (localStorage.getItem('tutorial_completed') === '1') {
+  if (localStorage.getItem(TUTORIAL_CONFIG.completionStorageKey) === '1') {
     _completed = true;
     return;
   }
@@ -301,7 +302,7 @@ export function reset() {
   _currentIndex = 0;
   _active = false;
   _completed = false;
-  localStorage.removeItem('tutorial_completed');
+  localStorage.removeItem(TUTORIAL_CONFIG.completionStorageKey);
 }
 
 // ---------------------------------------------------------------------------
@@ -311,7 +312,7 @@ export function reset() {
 function _complete() {
   _active = false;
   _completed = true;
-  localStorage.setItem('tutorial_completed', '1');
+  localStorage.setItem(TUTORIAL_CONFIG.completionStorageKey, '1');
   EventBus.emit('tutorial:complete', {});
   EventBus.emit('log:message', { text: '📖 新手教程已完成！你可以在重新开始游戏时再次体验教程。', type: 'info' });
 }

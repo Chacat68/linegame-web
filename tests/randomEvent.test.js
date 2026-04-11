@@ -3,6 +3,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as RandomEvent from '../js/systems/event/RandomEvent.js';
+import { EVENT_CONFIG } from '../js/data/constants.js';
 import { createTestState } from './helpers.js';
 
 beforeEach(() => {
@@ -43,7 +44,8 @@ describe('RandomEvent.rollEvent', () => {
 
   it('deep_scanner 科技提升概率', () => {
     const state = createTestState({ researchedTechs: ['deep_scanner'] });
-    // 内部会 chance *= 1.5，测试不崩溃即可
+    // 触发倍率由 EVENT_CONFIG.modifiers 控制，测试不崩溃且配置存在即可
+    expect(EVENT_CONFIG.modifiers.deepScannerChanceMultiplier).toBeGreaterThan(1);
     RandomEvent.rollEvent(state, 0.5);
     expect(true).toBe(true);
   });
@@ -214,5 +216,17 @@ describe('RandomEvent.resolveChoice', () => {
 
     expect(ids).not.toContain('merchant_caravan');
     expect(RandomEvent.getEventHistory()).toHaveLength(1);
+  });
+
+  it('事件历史长度受配置上限裁剪', () => {
+    const state = createTestState({
+      _eventHistory: Array.from({ length: EVENT_CONFIG.history.maxEntries + 5 }, function (_, index) {
+        return { eventId: 'event_' + index, day: index + 1, choiceIndex: 0 };
+      }),
+    });
+
+    RandomEvent.syncRuntimeState(state);
+
+    expect(RandomEvent.getEventHistory()).toHaveLength(EVENT_CONFIG.history.maxEntries);
   });
 });

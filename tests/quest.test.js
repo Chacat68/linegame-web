@@ -2,6 +2,7 @@
 // 覆盖: C3（深拷贝丢失函数引用）、任务接取/进度/放弃
 
 import { describe, it, expect, beforeEach } from 'vitest';
+import { QUESTS } from '../js/data/quests.js';
 import * as Quest from '../js/systems/quest/QuestSystem.js';
 import * as Faction from '../js/systems/faction/FactionSystem.js';
 import { createTestState } from './helpers.js';
@@ -327,6 +328,38 @@ describe('Quest.checkProgress', () => {
     expect(state.credits).toBe(500);
     expect(state.experience).toBe(50);
     expect(state.reputation).toBe(25);
+  });
+
+  it('推进到下一章节时返回章节元数据', () => {
+    const state = createTestState();
+    Faction.init(state);
+    Quest.init(state);
+
+    const phaseOneIds = QUESTS.filter(function (quest) {
+      return (quest.phase || 1) === 1;
+    }).map(function (quest) {
+      return quest.id;
+    });
+
+    state.completedQuests = phaseOneIds.filter(function (questId) {
+      return questId !== 'starter_first_trade';
+    });
+    state.quests = [{
+      id: 'starter_first_trade',
+      name: '初次交易',
+      type: 'trade',
+      phase: 1,
+      objectives: [{ type: 'trade_count', amount: 1, current: 0 }],
+      rewards: { credits: 200, exp: 15, reputation: 3 },
+      timeLimit: 0,
+      startDay: 1,
+    }];
+    state.questPhase = 1;
+
+    const result = Quest.checkProgress(state, { action: 'buy', goodId: 'food', quantity: 1, systemId: 'sol_prime' });
+
+    expect(result.phaseAdvanced).toBe(true);
+    expect(result.newPhase.id).toBe('phase_2');
   });
 });
 
