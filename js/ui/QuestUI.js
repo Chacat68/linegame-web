@@ -12,6 +12,8 @@ const _goodNameById = GOODS.reduce(function (acc, good) {
   return acc;
 }, Object.create(null));
 
+let _selectedAvailableQuestId = null;
+
 // ---------------------------------------------------------------------------
 // 提取任务的目标星球列表（去重）
 // ---------------------------------------------------------------------------
@@ -31,16 +33,218 @@ function _questTargetSystems(quest) {
   return result;
 }
 
-function _renderTargetSystems(targets) {
+function _renderTargetSystems(targets, currentSystemId) {
   if (targets.length === 0) return '';
   var chips = targets.map(function (sys) {
-    return '<span class="quest-target-chip">' +
+    return '<span class="quest-target-chip' + (sys.id === currentSystemId ? ' is-current' : '') + '">' +
       '<span class="quest-target-dot" style="background:' + sys.color + '"></span>' +
       sys.name +
       '<span class="quest-target-type">' + sys.typeLabel + '</span>' +
       '</span>';
   }).join('');
   return '<div class="quest-target-row">📍 目标：' + chips + '</div>';
+}
+
+function _questHasCurrentSystemTarget(quest, state) {
+  if (!quest || !state || !quest.objectives) return false;
+  return quest.objectives.some(function (obj) {
+    return obj.targetSystem && obj.targetSystem === state.currentSystem;
+  });
+}
+
+function _getQuestActionContext(quest, state) {
+  var targets = _questTargetSystems(quest);
+  if (targets.length === 0) {
+    return {
+      label: '当前航线可推进',
+      tone: 'ready',
+      detail: '无需指定目的地，接取后在现有贸易或航行中就会开始累计进度。',
+    };
+  }
+
+  if (_questHasCurrentSystemTarget(quest, state)) {
+    return {
+      label: '当前星球可推进',
+      tone: 'current',
+      detail: '当前停靠星球就是目标地点，接取后可以立刻处理对应目标。',
+    };
+  }
+
+  if (targets.length === 1) {
+    return {
+      label: '下一站前往 ' + targets[0].name,
+      tone: 'travel',
+      detail: '接取后建议优先前往 ' + targets[0].name + '，避免路线来回折返。',
+    };
+  }
+
+  return {
+    label: '多站路线',
+    tone: 'travel',
+    detail: '任务涉及多个目标地点，先接取再按目标星球规划顺路航线会更省成本。',
+  };
+}
+
+function _getAvailableQuestPriority(quest, state, recommendedIds) {
+  var score = 0;
+  if (recommendedIds.includes(quest.id)) score += 100;
+
+  var context = _getQuestActionContext(quest, state);
+  if (context.tone === 'current') score += 60;
+  else if (context.tone === 'ready') score += 40;
+
+  if ((quest.timeLimit || 0) > 0) score += 5;
+  return score;
+}
+
+function _sortAvailableQuests(state, available, recommendedIds) {
+  return available.slice().sort(function (left, right) {
+    var scoreDiff = _getAvailableQuestPriority(right, state, recommendedIds) - _getAvailableQuestPriority(left, state, recommendedIds);
+    if (scoreDiff !== 0) return scoreDiff;
+    return (left.name || '').localeCompare((right.name || ''), 'zh-CN');
+  });
+}
+
+function _pickSelectedAvailableQuest(state, available, recommendedIds) {
+  var sorted = _sortAvailableQuests(state, available, recommendedIds);
+  if (sorted.length === 0) {
+    _selectedAvailableQuestId = null;
+    return { sorted: sorted, selected: null };
+  }
+
+  var selected = sorted.find(function (quest) {
+    return quest.id === _selectedAvailableQuestId;
+  }) || sorted[0];
+
+  _selectedAvailableQuestId = selected.id;
+  return { sorted: sorted, selected: selected };
+}
+
+function _objectivePlanText(obj) {
+  if (!obj) return '查看任务详情';
+
+  var base = _objectiveText(obj);
+  var amount = obj.amount || 1;
+
+  switch (obj.type) {
+    case 'deliver':
+    case 'buy_at':
+    case 'sell_at':
+    case 'trade_good':
+    case 'sell_in_faction':
+      return base + ' · ' + amount + ' 单位';
+    case 'earn_profit':
+      return base + ' · ' + amount.toLocaleString() + ' 积分';
+    case 'trade_count':
+    case 'faction_trade':
+    case 'galaxy_jump':
+      return base + ' · ' + amount + ' 次';
+    case 'visit_systems':
+      return base + ' · ' + amount + ' 个星球';
+    case 'visit_system':
+      return amount > 1 ? (base + ' · ' + amount + ' 次') : base;
+    case 'faction_relation':
+      return base + ' · 关系值 ' + amount;
+    case 'survive_days':
+      return base + ' · ' + amount + ' 天';
+    default:
+      return amount > 1 ? (base + ' · x' + amount) : base;
+  }
+}
+
+function _renderQuestBriefObjectives(quest) {
+  if (!quest || !quest.objectives || quest.objectives.length === 0) return '';
+
+  return '<div class="quest-brief-objectives">' + quest.objectives.map(function (obj, index) {
+    return '<div class="quest-brief-objective-row">' +
+      '<span class="quest-brief-objective-index">' + String(index + 1).padStart(2, '0') + '</span>' +
+      '<span class="quest-brief-objective-text">' + _objectivePlanText(obj) + '</span>' +
+      '</div>';
+  }).join('') + '</div>';
+}
+
+function _renderQuestAcceptHub(state, available, selectedQuest, recommendedIds, storyRoute, activeCount) {
+  if (!selectedQuest) return '';
+
+  var typeInfo = QUEST_TYPES[selectedQuest.type] || {};
+  var isRecommended = recommendedIds.includes(selectedQuest.id);
+  var rewardSummary = Quest.getQuestRewardSummary(state, selectedQuest);
+  var actionContext = _getQuestActionContext(selectedQuest, state);
+  var targets = _questTargetSystems(selectedQuest);
+  var limitReached = activeCount >= 5;
+
+  var flags = [
+    '<span class="quest-brief-flag quest-brief-flag-' + actionContext.tone + '">' + actionContext.label + '</span>',
+    isRecommended ? '<span class="quest-brief-flag quest-brief-flag-recommended">⭐ 推荐路线</span>' : '',
+    selectedQuest.timeLimit > 0 ? '<span class="quest-brief-flag quest-brief-flag-timed">⏰ ' + selectedQuest.timeLimit + ' 天限制</span>' : '',
+    storyRoute && rewardSummary.hasDecisionBonus ? '<span class="quest-brief-flag quest-brief-flag-route">🧭 ' + storyRoute.label + '</span>' : '',
+  ].filter(Boolean).join('');
+
+  return '<div class="quest-accept-hub">' +
+    '<div class="quest-accept-hub-head">' +
+      '<div>' +
+        '<div class="quest-accept-kicker">任务简报</div>' +
+        '<div class="quest-accept-title">先确认目标，再决定是否接取</div>' +
+      '</div>' +
+      '<div class="quest-accept-count">待选 ' + available.length + ' 项</div>' +
+    '</div>' +
+    '<div class="quest-card available-quest quest-accept-featured">' +
+      '<div class="quest-card-header">' +
+        '<span class="quest-type-badge" style="background:' + (typeInfo.color || '#666') + '">' +
+          (typeInfo.icon || '📋') + ' ' + (typeInfo.name || selectedQuest.type) + '</span>' +
+        '<span class="quest-time">' + (isRecommended ? '优先接取' : '待命委托') + '</span>' +
+      '</div>' +
+      '<div class="quest-name">' + selectedQuest.name + '</div>' +
+      '<div class="quest-desc">' + selectedQuest.description + '</div>' +
+      '<div class="quest-brief-flags">' + flags + '</div>' +
+      _renderQuestBriefObjectives(selectedQuest) +
+      _renderTargetSystems(targets, state.currentSystem) +
+      '<div class="quest-brief-note">' + actionContext.detail + '</div>' +
+      (rewardSummary.hasDecisionBonus
+        ? '<div class="quest-brief-bonus">🧭 分支加成：' + rewardSummary.bonusText + '</div>'
+        : '') +
+      '<div class="quest-rewards quest-brief-rewards">' +
+        '<span>🎁 奖励:</span>' +
+        '<span>💰 ' + rewardSummary.credits + '</span>' +
+        '<span>⭐ ' + rewardSummary.exp + '</span>' +
+        '<span>🏅 ' + rewardSummary.reputation + '</span>' +
+      '</div>' +
+      '<div class="quest-brief-actions">' +
+        '<button class="btn-action quest-accept-btn" data-id="' + selectedQuest.id + '"' +
+          (limitReached ? ' disabled title="当前最多同时进行 5 个任务"' : '') + '>接取任务</button>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+}
+
+function _renderAvailableQuestPicker(state, available, selectedQuest, recommendedIds) {
+  if (!selectedQuest || available.length === 0) return '';
+
+  return '<div class="quest-pick-list">' + available.map(function (quest) {
+    var typeInfo = QUEST_TYPES[quest.type] || {};
+    var rewardSummary = Quest.getQuestRewardSummary(state, quest);
+    var actionContext = _getQuestActionContext(quest, state);
+    var isSelected = selectedQuest.id === quest.id;
+    var primaryObjective = quest.objectives && quest.objectives.length > 0 ? quest.objectives[0] : null;
+
+    return '<button type="button" class="quest-pick-card' + (isSelected ? ' is-selected' : '') + '" data-quest-select-id="' + quest.id + '" aria-pressed="' + (isSelected ? 'true' : 'false') + '">' +
+      '<div class="quest-pick-card-head">' +
+        '<span class="quest-type-badge" style="background:' + (typeInfo.color || '#666') + '">' +
+          (typeInfo.icon || '📋') + ' ' + (typeInfo.name || quest.type) + '</span>' +
+        '<span class="quest-pick-state quest-pick-state-' + actionContext.tone + '">' + actionContext.label + '</span>' +
+      '</div>' +
+      '<div class="quest-pick-name-row">' +
+        '<span class="quest-pick-name">' + quest.name + '</span>' +
+        (recommendedIds.includes(quest.id) ? '<span class="quest-pick-recommended">⭐ 推荐</span>' : '') +
+      '</div>' +
+      '<div class="quest-pick-desc">' + _objectivePlanText(primaryObjective) + '</div>' +
+      '<div class="quest-pick-meta">' +
+        '<span>💰 ' + rewardSummary.credits + '</span>' +
+        '<span>⭐ ' + rewardSummary.exp + '</span>' +
+        (quest.timeLimit > 0 ? '<span>⏰ ' + quest.timeLimit + ' 天</span>' : '<span>🧭 可长期推进</span>') +
+      '</div>' +
+    '</button>';
+  }).join('') + '</div>';
 }
 
 /**
@@ -74,7 +278,7 @@ export function render(state, onAccept, onAbandon) {
   html += '<div class="quest-section-title">📋 进行中 (' + active.length + '/5)</div>';
 
   if (active.length === 0) {
-    html += '<div class="quest-empty">暂无进行中的任务。前往下方接取任务！</div>';
+    html += '<div class="quest-empty">暂无进行中的任务。请从下方任务简报里挑选一项开始推进。</div>';
   } else {
     active.forEach(function (quest) {
       const typeInfo = QUEST_TYPES[quest.type] || {};
@@ -105,7 +309,7 @@ export function render(state, onAccept, onAbandon) {
 
       // 目标星球
       var targets = _questTargetSystems(quest);
-      html += _renderTargetSystems(targets);
+      html += _renderTargetSystems(targets, state.currentSystem);
 
       // 奖励
       const activeRewardSummary = Quest.getQuestRewardSummary(state, quest);
@@ -124,6 +328,9 @@ export function render(state, onAccept, onAbandon) {
 
   // ---- 可接取任务 ----
   const available = Quest.getAvailableQuests(state);
+  const availableSelection = _pickSelectedAvailableQuest(state, available, recommendedIds);
+  const sortedAvailable = availableSelection.sorted;
+  const selectedAvailableQuest = availableSelection.selected;
   html += '<div class="quest-section-title" style="margin-top:12px">📜 可接取 (' + available.length + ')</div>';
 
   if (recommended.length > 0 && (state.quests || []).length === 0) {
@@ -136,30 +343,8 @@ export function render(state, onAccept, onAbandon) {
   if (available.length === 0) {
     html += '<div class="quest-empty">当前章节暂无可接任务。请先推进进行中任务。</div>';
   } else {
-    available.forEach(function (quest) {
-      const typeInfo = QUEST_TYPES[quest.type] || {};
-      const isRecommended = recommendedIds.includes(quest.id);
-      const rewardSummary = Quest.getQuestRewardSummary(state, quest);
-      html += '<div class="quest-card available-quest">' +
-        '<div class="quest-card-header">' +
-          '<span class="quest-type-badge" style="background:' + (typeInfo.color || '#666') + '">' +
-            (typeInfo.icon || '📋') + ' ' + (typeInfo.name || quest.type) + '</span>' +
-          (isRecommended ? '<span class="quest-time">⭐ 推荐</span>' : '') +
-          (quest.timeLimit > 0 ? '<span class="quest-time">⏰ ' + quest.timeLimit + ' 天限制</span>' : '') +
-        '</div>' +
-        '<div class="quest-name">' + quest.name + '</div>' +
-        '<div class="quest-desc">' + quest.description + '</div>' +
-        _renderTargetSystems(_questTargetSystems(quest)) +
-        '<div class="quest-rewards">' +
-          '<span>🎁</span>' +
-          '<span>💰 ' + rewardSummary.credits + '</span>' +
-          '<span>⭐ ' + rewardSummary.exp + '</span>' +
-          '<span>🏅 ' + rewardSummary.reputation + '</span>' +
-          (rewardSummary.hasDecisionBonus ? '<span title="' + rewardSummary.bonusText + '">🧭 分支加成</span>' : '') +
-        '</div>' +
-        '<button class="btn-action quest-accept-btn" data-id="' + quest.id + '">接取</button>' +
-        '</div>';
-    });
+    html += _renderQuestAcceptHub(state, sortedAvailable, selectedAvailableQuest, recommendedIds, storyRoute, active.length);
+    html += _renderAvailableQuestPicker(state, sortedAvailable, selectedAvailableQuest, recommendedIds);
   }
 
   // ---- 未解锁任务 ----
@@ -201,8 +386,15 @@ export function render(state, onAccept, onAbandon) {
   container.innerHTML = html;
 
   // 绑定事件
+  container.querySelectorAll('[data-quest-select-id]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      _selectedAvailableQuestId = btn.dataset.questSelectId;
+      render(state, onAccept, onAbandon);
+    });
+  });
   container.querySelectorAll('.quest-accept-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {
+      if (btn.disabled) return;
       onAccept(btn.dataset.id);
     });
   });

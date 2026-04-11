@@ -11,6 +11,7 @@ import { GALAXIES, findSystem, findGalaxy }  from '../data/systems.js';
 let _tabClickCallback = null;
 let _marketOpen = false;
 let _smallScreenMql = null;
+let _orbitScanPanelOpen = false;
 
 // 市场浏览状态
 let _marketViewGalaxy = null;
@@ -60,6 +61,7 @@ function _getCurrentSystemScanTarget(stateRef) {
   if (!stateRef) return null;
   if (stateRef.mapView !== 'planets') return null;
   if (stateRef.viewingGalaxy !== stateRef.currentGalaxy) return null;
+  if (stateRef.hoveredSystem) return null;
 
   var sys = findSystem(stateRef.currentSystem);
   var planetData = GalaxyData.getPlanetData(stateRef.currentSystem);
@@ -77,24 +79,58 @@ function _getCurrentSystemScanTarget(stateRef) {
   };
 }
 
+function _setOrbitScanPanelOpen(nextOpen, stateRef) {
+  var resolvedState = stateRef || _stateRef;
+  _orbitScanPanelOpen = !!nextOpen;
+  _updateOrbitScanButton(resolvedState);
+  _renderCurrentSystemExplorationCard(resolvedState);
+}
+
+function _closeOrbitScanPanel(stateRef) {
+  _setOrbitScanPanelOpen(false, stateRef);
+}
+
 function _updateOrbitScanButton(stateRef) {
   var btn = document.getElementById('orbit-scan-btn');
   var target = _getCurrentSystemScanTarget(stateRef || _stateRef);
   if (!btn) return;
 
+  btn.setAttribute('aria-controls', 'current-system-exploration-card');
+
   if (!target) {
+    _orbitScanPanelOpen = false;
     btn.hidden = true;
+    btn.classList.remove('active');
+    btn.setAttribute('aria-expanded', 'false');
     btn.removeAttribute('data-system-id');
     return;
   }
 
   btn.hidden = false;
-  btn.textContent = target.label;
-  btn.disabled = !!target.disabled;
-  btn.setAttribute('aria-disabled', target.disabled ? 'true' : 'false');
+  btn.textContent = _orbitScanPanelOpen ? '✕ 收起扫描' : '📡 扫描';
+  btn.disabled = false;
+  btn.removeAttribute('aria-disabled');
+  btn.classList.toggle('active', _orbitScanPanelOpen);
+  btn.setAttribute('aria-expanded', _orbitScanPanelOpen ? 'true' : 'false');
   if (target.title) btn.title = target.title;
   else btn.removeAttribute('title');
   btn.setAttribute('data-system-id', target.systemId);
+}
+
+function _bindOrbitScanPanelControls() {
+  var card = document.getElementById('current-system-exploration-card');
+  if (!card || card.dataset.closeBound === 'true') return;
+
+  card.addEventListener('click', function (event) {
+    var closeBtn = event.target.closest('[data-orbit-scan-close]');
+    if (!closeBtn || !card.contains(closeBtn)) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    _closeOrbitScanPanel();
+  });
+
+  card.dataset.closeBound = 'true';
 }
 
 /**
@@ -163,6 +199,7 @@ export function init(stateRef, onTravel, onGalaxyJump) {
   // 保存状态引用供底部导航使用
   _stateRef = stateRef;
   _bindExplorationActionEvents();
+  _bindOrbitScanPanelControls();
 
   // 星系视图切换按钮
   const btn = document.getElementById('galaxy-view-btn');
@@ -170,6 +207,7 @@ export function init(stateRef, onTravel, onGalaxyJump) {
     btn.addEventListener('click', function () {
       // 先关闭市场
       closeMarket();
+      _closeOrbitScanPanel(stateRef);
       if (stateRef.mapView === 'galaxies') {
         stateRef.mapView = 'planets';
         stateRef.viewingGalaxy = stateRef.currentGalaxy;
@@ -197,8 +235,11 @@ export function init(stateRef, onTravel, onGalaxyJump) {
   if (orbitScanBtn) {
     orbitScanBtn.addEventListener('click', function () {
       var target = _getCurrentSystemScanTarget(_stateRef || stateRef);
-      if (!target || !_explorationActions || !_explorationActions.onScan) return;
-      _explorationActions.onScan(target.systemId);
+      if (!target) {
+        _closeOrbitScanPanel(_stateRef || stateRef);
+        return;
+      }
+      _setOrbitScanPanelOpen(!_orbitScanPanelOpen, _stateRef || stateRef);
     });
     _updateOrbitScanButton(stateRef);
   }
@@ -329,6 +370,9 @@ function _bindExplorationActionContainer(containerId) {
     event.stopPropagation();
 
     if (action === 'scan' && _explorationActions.onScan) {
+      if (containerId === 'current-system-exploration-card') {
+        _orbitScanPanelOpen = false;
+      }
       _explorationActions.onScan(systemId);
       return;
     }
@@ -347,6 +391,7 @@ function _bindExplorationActionContainer(containerId) {
 function _bindExplorationActionEvents() {
   _bindExplorationActionContainer('planet-detail-panel');
   _bindExplorationActionContainer('current-system-exploration-card');
+  _bindOrbitScanPanelControls();
 }
 
 function _getExplorationFlow(stateRef, sys, planetData, isCurrentSystem, isUnlocked) {
@@ -611,8 +656,15 @@ function _renderCurrentSystemExplorationCard(stateRef) {
     stateRef.mapView === 'planets' &&
     stateRef.viewingGalaxy === stateRef.currentGalaxy &&
     !stateRef.hoveredSystem;
+  var scanTarget = _getCurrentSystemScanTarget(stateRef);
 
-  if (!shouldShow) {
+  if (!shouldShow || !scanTarget) {
+    _orbitScanPanelOpen = false;
+    card.classList.remove('visible');
+    return;
+  }
+
+  if (!_orbitScanPanelOpen) {
     card.classList.remove('visible');
     return;
   }
@@ -620,6 +672,7 @@ function _renderCurrentSystemExplorationCard(stateRef) {
   var sys = findSystem(stateRef.currentSystem);
   var planetData = GalaxyData.getPlanetData(stateRef.currentSystem);
   if (!sys || !planetData || !planetData.exploration) {
+    _orbitScanPanelOpen = false;
     card.classList.remove('visible');
     return;
   }
@@ -633,8 +686,11 @@ function _renderCurrentSystemExplorationCard(stateRef) {
   }
 
   card.innerHTML = '<div class="current-system-card-head">' +
-    '<div class="current-system-card-kicker">当前停靠</div>' +
-    '<div class="current-system-card-name">🪐 ' + sys.name + '</div>' +
+    '<div class="current-system-card-head-main">' +
+      '<div class="current-system-card-kicker">扫描终端</div>' +
+      '<div class="current-system-card-name">🪐 ' + sys.name + '</div>' +
+    '</div>' +
+    '<button class="current-system-card-close" type="button" aria-label="关闭扫描面板" data-orbit-scan-close="true">✕</button>' +
     '</div>' +
     _buildExplorationFlowCard(flow, {
       cardClass: 'planet-detail-flow-card current-system-flow-card',
@@ -751,6 +807,7 @@ export function openMarket(stateRef) {
   const overlay = document.getElementById('market-overlay');
   const marketBtn = document.getElementById('market-view-btn');
   if (!overlay) return;
+  _closeOrbitScanPanel(stateRef);
   _stateRef = stateRef;
   _marketViewGalaxy = stateRef.currentGalaxy;
   _marketViewSystem = stateRef.currentSystem;
@@ -946,6 +1003,7 @@ function _closeOverlayPanel(id) {
 }
 
 function _closeAllOverlayPanels() {
+  _closeOrbitScanPanel();
   ['info-panel', 'trade-panel', 'console-panel'].forEach(function (id) {
     _closeOverlayPanel(id);
   });

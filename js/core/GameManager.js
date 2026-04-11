@@ -15,17 +15,17 @@ import * as Research   from '../systems/research/ResearchSystem.js';
 import * as Renderer3D from '../ui/Renderer3DAdvanced.js?v=20260406-routefix3';
 import * as GalaxyData from '../systems/galaxy/GalaxyDataLayer.js';
 import * as Exploration from '../systems/galaxy/ExplorationSystem.js?v=20260407-landpoi1';
-import * as HUD        from '../ui/HUD.js';
+import * as HUD        from '../ui/HUD.js?v=20260412-questaccept1';
 import * as MarketUI   from '../ui/MarketUI.js';
 import * as ShipUI     from '../ui/ShipUI.js';
-import * as MapUI      from '../ui/MapUI.js?v=20260407-landpoi1';
+import * as MapUI      from '../ui/MapUI.js?v=20260412-scantrigger1';
 import * as Modal      from '../ui/Modal.js';
 import * as EventUI    from '../ui/EventUI.js';
 import * as DialogueUI from '../ui/DialogueUI.js';
 import * as ResearchUI from '../ui/ResearchUI.js';
 import * as FactionUI  from '../ui/FactionUI.js';
 import * as SaveUI     from '../ui/SaveUI.js';
-import * as QuestUI    from '../ui/QuestUI.js?v=20260412-branchfx1';
+import * as QuestUI    from '../ui/QuestUI.js?v=20260412-questaccept1';
 import * as AchievementUI from '../ui/AchievementUI.js';
 import * as Fleet      from '../systems/fleet/FleetSystem.js?v=20260406-routefix2';
 import * as Crew       from '../systems/fleet/CrewSystem.js';
@@ -114,6 +114,9 @@ export function init(difficulty) {
   Renderer3D.resetRuntimeState(_state.currentSystem);
   Settings.applySettings(_settings, Renderer3D);
   HUD.init();
+  HUD.setQuestActions({
+    onAcceptQuest: _handleAcceptQuest,
+  });
   Dialogue.init(_state);
   DialogueUI.init();
   DialogueUI.hideScene();

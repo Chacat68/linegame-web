@@ -27,6 +27,7 @@ const getCompanyLevel = PlayerLevels.getCompanyLevel || function (exp) {
 
 // 缓存最近一次胜利路径进度，避免点击弹窗时重复计算
 let _lastProgressList = [];
+let _questActions = null;
 
 // ---------------------------------------------------------------------------
 // 初始化：订阅 EventBus 日志事件
@@ -62,6 +63,10 @@ export function init() {
       if (e.target === vpModal) vpModal.classList.add('hidden');
     });
   }
+}
+
+export function setQuestActions(actions) {
+  _questActions = actions || null;
 }
 
 // ---------------------------------------------------------------------------
@@ -305,6 +310,13 @@ function _renderQuestTracker(state) {
         ? '<div class="quest-tracker-progress"><div class="quest-tracker-progress-fill" style="width:' + item.progressPercent + '%"></div></div>'
         : '';
       var progressMeta = item.progressText ? '<span class="quest-tracker-progress-text">' + item.progressText + '</span>' : '';
+      var actionHtml = '';
+
+      if (tracker.mode !== 'active' && _questActions && typeof _questActions.onAcceptQuest === 'function') {
+        actionHtml = '<div class="quest-tracker-actions">' +
+          '<button class="quest-tracker-accept-btn" type="button" data-quest-tracker-accept="' + item.id + '">立即接取</button>' +
+        '</div>';
+      }
 
       html +=
         '<div class="quest-tracker-item quest-tracker-' + tracker.mode + '">' +
@@ -317,6 +329,7 @@ function _renderQuestTracker(state) {
             '<span class="quest-tracker-reward">💰 ' + (item.rewardSummary.credits || 0) + '</span>' +
             progressMeta +
           '</div>' +
+          actionHtml +
           progressBar +
         '</div>';
     });
@@ -331,6 +344,16 @@ function _renderQuestTracker(state) {
       if (questTabBtn) questTabBtn.click();
     });
   }
+
+  trackerEl.querySelectorAll('[data-quest-tracker-accept]').forEach(function (btn) {
+    btn.addEventListener('click', function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (_questActions && typeof _questActions.onAcceptQuest === 'function') {
+        _questActions.onAcceptQuest(btn.dataset.questTrackerAccept);
+      }
+    });
+  });
 }
 
 function _objectiveText(obj) {

@@ -641,6 +641,11 @@
   color: #c0e0ff;
   font-weight: 500;
 }
+.quest-target-chip.is-current {
+  border-color: rgba(125, 211, 252, 0.42);
+  background: rgba(14, 165, 233, 0.18);
+  color: #effbff;
+}
 .quest-target-dot {
   display: inline-block;
   width: 7px;
@@ -652,6 +657,233 @@
   font-size: 9px;
   color: #7080a0;
   margin-left: 2px;
+}
+
+.quest-accept-hub {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.quest-accept-hub-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.quest-accept-kicker {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-cyan);
+}
+
+.quest-accept-title {
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.quest-accept-count {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.quest-accept-featured {
+  margin-bottom: 0;
+  border-left-width: 3px;
+  background: linear-gradient(180deg, rgba(255, 215, 64, 0.08), rgba(18, 22, 42, 0.96));
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
+}
+
+.quest-brief-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.quest-brief-flag,
+.quest-pick-state {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(125, 211, 252, 0.16);
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.quest-brief-flag-ready,
+.quest-pick-state-ready {
+  border-color: rgba(74, 222, 128, 0.2);
+  background: rgba(74, 222, 128, 0.12);
+  color: #a7f3d0;
+}
+
+.quest-brief-flag-current,
+.quest-pick-state-current {
+  border-color: rgba(56, 189, 248, 0.22);
+  background: rgba(56, 189, 248, 0.12);
+  color: #bae6fd;
+}
+
+.quest-brief-flag-travel,
+.quest-pick-state-travel {
+  border-color: rgba(251, 191, 36, 0.22);
+  background: rgba(251, 191, 36, 0.12);
+  color: #fde68a;
+}
+
+.quest-brief-flag-recommended {
+  border-color: rgba(250, 204, 21, 0.2);
+  background: rgba(250, 204, 21, 0.12);
+  color: var(--accent-gold);
+}
+
+.quest-brief-flag-timed {
+  border-color: rgba(248, 113, 113, 0.18);
+  background: rgba(248, 113, 113, 0.1);
+  color: #fecaca;
+}
+
+.quest-brief-flag-route {
+  border-color: rgba(167, 139, 250, 0.22);
+  background: rgba(167, 139, 250, 0.12);
+  color: #ddd6fe;
+}
+
+.quest-brief-objectives {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.quest-brief-objective-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.quest-brief-objective-index {
+  min-width: 24px;
+  font-size: 10px;
+  color: var(--accent-cyan);
+  font-family: "Orbitron", monospace;
+}
+
+.quest-brief-objective-text {
+  flex: 1;
+  font-size: 11px;
+  color: var(--text-main);
+  line-height: 1.4;
+}
+
+.quest-brief-note,
+.quest-brief-bonus {
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.quest-brief-note {
+  border: 1px solid rgba(125, 211, 252, 0.14);
+  background: rgba(14, 165, 233, 0.08);
+  color: var(--text-main);
+}
+
+.quest-brief-bonus {
+  border: 1px solid rgba(250, 204, 21, 0.14);
+  background: rgba(250, 204, 21, 0.08);
+  color: #fde68a;
+}
+
+.quest-brief-rewards {
+  margin-top: 8px;
+}
+
+.quest-brief-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.quest-pick-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.quest-pick-card {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: rgba(18, 22, 42, 0.9);
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color .2s, transform .2s, box-shadow .2s;
+}
+
+.quest-pick-card:hover {
+  border-color: var(--accent-blue);
+  transform: translateY(-1px);
+}
+
+.quest-pick-card.is-selected {
+  border-color: rgba(250, 204, 21, 0.48);
+  box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.18);
+}
+
+.quest-pick-card-head,
+.quest-pick-name-row,
+.quest-pick-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.quest-pick-card-head,
+.quest-pick-name-row {
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.quest-pick-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.quest-pick-recommended {
+  font-size: 10px;
+  color: var(--accent-gold);
+}
+
+.quest-pick-desc {
+  margin-bottom: 6px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-dim);
+}
+
+.quest-pick-meta {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  font-size: 10px;
+  color: var(--text-secondary);
 }
 
 /* ---- 任务进度阶段概览 ---- */
