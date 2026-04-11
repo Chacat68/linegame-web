@@ -5,7 +5,7 @@
 import { QUEST_TYPES } from '../data/quests.js';
 import { GOODS } from '../data/goods.js';
 import { findSystem } from '../data/systems.js';
-import * as Quest      from '../systems/quest/QuestSystem.js?v=20260412-branchfx1';
+import * as Quest      from '../systems/quest/QuestSystem.js?v=20260412-questroute1';
 
 const _goodNameById = GOODS.reduce(function (acc, good) {
   acc[good.id] = good.name;
@@ -163,6 +163,51 @@ function _renderQuestBriefObjectives(quest) {
   }).join('') + '</div>';
 }
 
+function _renderQuestRoutePreview(routePreview) {
+  if (!routePreview || !routePreview.items || routePreview.items.length === 0) return '';
+
+  return '<div class="quest-route-preview">' +
+    '<div class="quest-route-preview-head">' +
+      '<span class="quest-route-preview-title">航线预估</span>' +
+      '<span class="quest-route-preview-caption">基于当前停靠点测算</span>' +
+    '</div>' +
+    '<div class="quest-route-preview-list">' + routePreview.items.map(function (item) {
+      var tags = [
+        item.isPrimary ? '<span class="quest-route-tag quest-route-tag-primary">当前步骤</span>' : '',
+        item.isCurrentSystem ? '<span class="quest-route-tag quest-route-tag-current">当前停靠</span>' : '',
+        item.hasSecretRoute ? '<span class="quest-route-tag quest-route-tag-secret">暗线 -' + item.discountPercent + '%</span>' : '',
+      ].filter(Boolean).join('');
+
+      return '<div class="quest-route-stop' +
+        (item.isPrimary ? ' is-primary' : '') +
+        (item.blockedReason ? ' is-blocked' : '') +
+        (item.isCurrentSystem ? ' is-current' : '') +
+      '">' +
+        '<div class="quest-route-stop-head">' +
+          '<div class="quest-route-stop-main">' +
+            '<div class="quest-route-stop-name-row">' +
+              '<span class="quest-route-stop-name">' + item.systemName + '</span>' +
+              '<span class="quest-route-stop-purpose">' + item.purposeLabel + '</span>' +
+            '</div>' +
+            '<div class="quest-route-stop-galaxy">' + item.galaxyName + '</div>' +
+          '</div>' +
+          '<div class="quest-route-stop-tags">' + tags + '</div>' +
+        '</div>' +
+        '<div class="quest-route-metrics">' +
+          '<span>' + item.routeModeLabel + '</span>' +
+          '<span>' + item.distanceLabel + ' ' + item.distanceText + '</span>' +
+          '<span>' + item.fuelCost + ' 燃料</span>' +
+          '<span>' + item.etaDays + ' 天</span>' +
+        '</div>' +
+        (item.note
+          ? '<div class="quest-route-note' + (item.blockedReason ? ' is-warning' : '') + '">' + item.note + '</div>'
+          : '') +
+      '</div>';
+    }).join('') + '</div>' +
+    (routePreview.summaryText ? '<div class="quest-route-summary">' + routePreview.summaryText + '</div>' : '') +
+  '</div>';
+}
+
 function _renderQuestAcceptHub(state, available, selectedQuest, recommendedIds, storyRoute, activeCount) {
   if (!selectedQuest) return '';
 
@@ -171,6 +216,7 @@ function _renderQuestAcceptHub(state, available, selectedQuest, recommendedIds, 
   var rewardSummary = Quest.getQuestRewardSummary(state, selectedQuest);
   var actionContext = _getQuestActionContext(selectedQuest, state);
   var targets = _questTargetSystems(selectedQuest);
+  var routePreview = Quest.getQuestRoutePreview(state, selectedQuest, 3);
   var limitReached = activeCount >= 5;
 
   var flags = [
@@ -199,6 +245,7 @@ function _renderQuestAcceptHub(state, available, selectedQuest, recommendedIds, 
       '<div class="quest-brief-flags">' + flags + '</div>' +
       _renderQuestBriefObjectives(selectedQuest) +
       _renderTargetSystems(targets, state.currentSystem) +
+      _renderQuestRoutePreview(routePreview) +
       '<div class="quest-brief-note">' + actionContext.detail + '</div>' +
       (rewardSummary.hasDecisionBonus
         ? '<div class="quest-brief-bonus">🧭 分支加成：' + rewardSummary.bonusText + '</div>'

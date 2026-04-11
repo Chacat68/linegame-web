@@ -3,6 +3,9 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { QUESTS } from '../js/data/quests.js';
+import * as Economy from '../js/systems/economy/Economy.js';
+import * as GalaxyData from '../js/systems/galaxy/GalaxyDataLayer.js';
+import * as Exploration from '../js/systems/galaxy/ExplorationSystem.js';
 import * as Quest from '../js/systems/quest/QuestSystem.js';
 import * as Faction from '../js/systems/faction/FactionSystem.js';
 import { createTestState } from './helpers.js';
@@ -156,6 +159,82 @@ describe('Quest.getQuestTracker', () => {
     expect(tracker.mode).toBe('recommended');
     expect(tracker.items.map(item => item.id)).toEqual(['starter_first_trade', 'starter_visit_2']);
     expect(tracker.items[0].statusText).toBe('推荐接取');
+  });
+});
+
+describe('Quest.getQuestRoutePreview', () => {
+  let state;
+
+  beforeEach(() => {
+    state = createTestState({
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+      viewingGalaxy: 'milky_way',
+      fuel: 120,
+      maxFuel: 120,
+      playerLevel: 3,
+      researchedTechs: [],
+    });
+    Economy.init();
+    GalaxyData.init(state);
+    Faction.init(state);
+    Quest.init(state);
+  });
+
+  it('为明确目标任务返回距离、燃料与航程天数', () => {
+    const quest = {
+      id: 'test_route_delivery',
+      objectives: [{ type: 'deliver', goodId: 'food', targetSystem: 'war_front', amount: 5, current: 0 }],
+    };
+
+    const preview = Quest.getQuestRoutePreview(state, quest, 3);
+    const item = preview.items[0];
+
+    expect(item.systemId).toBe('war_front');
+    expect(item.routeModeLabel).toBe('直航');
+    expect(item.distanceText).not.toBe('0.00');
+    expect(item.fuelCost).toBe(Economy.getFuelCost('sol_prime', 'war_front', state.fuelEfficiency, state));
+    expect(item.etaDays).toBe(1);
+    expect(item.blockedReason).toBe('');
+  });
+
+  it('对跨星系目标提示跃迁科技限制', () => {
+    const quest = {
+      id: 'test_route_jump',
+      objectives: [{ type: 'visit_system', targetSystem: 'citadel_prime', amount: 1, current: 0 }],
+    };
+
+    const preview = Quest.getQuestRoutePreview(state, quest, 3);
+    const item = preview.items[0];
+
+    expect(item.isCrossGalaxy).toBe(true);
+    expect(item.routeModeLabel).toBe('跨星系跃迁');
+    expect(item.etaDays).toBe(3);
+    expect(item.blockedReason).toContain('超空间跃迁引擎');
+  });
+
+  it('会在任务预估中反映已发现暗线的燃料折扣', () => {
+    const basePlanet = GalaxyData.getPlanetData('sol_prime');
+    const routePoi = basePlanet.exploration.pois.find(function (poi) {
+      return poi.kind === 'route_beacon';
+    });
+    const targetSystemId = basePlanet.exploration.secretRoutes[0].targetSystemId;
+    const baseCost = Economy.getFuelCost('sol_prime', targetSystemId, 1, state);
+
+    expect(Exploration.scanSystem(state, 'sol_prime').ok).toBe(true);
+    expect(Exploration.landOnSystem(state, 'sol_prime').ok).toBe(true);
+    expect(Exploration.explorePoi(state, 'sol_prime', routePoi.id).ok).toBe(true);
+
+    const preview = Quest.getQuestRoutePreview(state, {
+      id: 'test_route_secret',
+      objectives: [{ type: 'visit_system', targetSystem: targetSystemId, amount: 1, current: 0 }],
+    }, 3);
+    const item = preview.items[0];
+
+    expect(item.hasSecretRoute).toBe(true);
+    expect(item.discountPercent).toBeGreaterThan(0);
+    expect(item.fuelCost).toBeLessThan(baseCost);
+    expect(item.note).toContain('暗线');
   });
 });
 

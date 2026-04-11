@@ -1,14 +1,18 @@
 // js/systems/quest/QuestSystem.js — 任务系统（按章节推进解锁）
 // 依赖：data/quests.js, data/playerLevels.js, systems/faction/FactionSystem.js
-// 导出：init, getAvailableQuests, getLockedQuests, getStarterRecommendations, getQuestTracker, acceptQuest, checkProgress,
+// 导出：init, getAvailableQuests, getLockedQuests, getStarterRecommendations, getQuestTracker, getQuestRoutePreview, acceptQuest, checkProgress,
 //       getActiveQuests, completeQuest, getQuestPhaseProgress,
 //       getCurrentQuestPhase, getCurrentQuestPhaseProgress,
 //       getStoryRouteProfile, getQuestRewardSummary
 
 import { QUESTS, QUEST_TYPES, QUEST_PHASES } from '../../data/quests.js';
 import { FACTIONS }            from '../../data/factions.js';
+import { ECONOMY_CONFIG }      from '../../data/constants.js';
 import { getLevel }            from '../../data/playerLevels.js';
+import { SYSTEMS, GALAXY_JUMP_DAYS, findSystem, findGalaxy } from '../../data/systems.js';
+import * as Economy            from '../economy/Economy.js';
 import * as Faction            from '../faction/FactionSystem.js';
+import * as Exploration        from '../galaxy/ExplorationSystem.js';
 
 const STARTER_RECOMMENDATION_ORDER = [
   'starter_first_trade',
@@ -21,6 +25,7 @@ const STARTER_RECOMMENDATION_ORDER = [
 ];
 
 const DEFAULT_TRACKER_LIMIT = 2;
+const DEFAULT_ROUTE_PREVIEW_LIMIT = 3;
 
 const QUEST_FACTION_ID_ALIASES = {
   galactic_federation: 'federation',
@@ -553,6 +558,369 @@ export function getQuestTracker(state, limit) {
   }
 
   return { mode: 'empty', items: [] };
+}
+
+export function getQuestRoutePreview(state, quest, limit) {
+  var maxCount = typeof limit === 'number' && limit > 0 ? Math.floor(limit) : DEFAULT_ROUTE_PREVIEW_LIMIT;
+  if (!state || !quest) {
+    return { mode: 'empty', summaryText: '', items: [] };
+  }
+
+  var descriptors = _collectQuestRouteTargets(state, quest, maxCount);
+  var items = descriptors.map(function (descriptor) {
+    return _createRoutePreviewItem(state, descriptor);
+  }).filter(Boolean);
+
+  if (items.length === 0 && state.currentSystem) {
+    var fallbackItem = _createRoutePreviewItem(state, {
+      systemId: state.currentSystem,
+      purposeLabel: '当前可推进',
+      note: '这项任务不依赖固定星球，接取后可以直接在当前经营循环中开始累计进度。',
+      isPrimary: true,
+    });
+    if (fallbackItem) items.push(fallbackItem);
+  }
+
+  return {
+    mode: items.length > 0 && items.every(function (item) { return item.isCurrentSystem; }) ? 'local' : 'route',
+    summaryText: _getQuestRoutePreviewSummary(items),
+    items: items,
+  };
+}
+
+function _collectQuestRouteTargets(state, quest, maxCount) {
+  var descriptors = [];
+  var seen = Object.create(null);
+  var primaryObjective = _getPrimaryObjective(quest);
+
+  if (primaryObjective) {
+    _appendObjectiveRouteTargets(descriptors, seen, state, quest, primaryObjective, maxCount, true);
+  }
+
+  if (Array.isArray(quest.objectives)) {
+    quest.objectives.forEach(function (objective) {
+      if (descriptors.length >= maxCount || objective === primaryObjective) return;
+      _appendObjectiveRouteTargets(descriptors, seen, state, quest, objective, maxCount, false);
+    });
+  }
+
+  if (descriptors.length === 0) {
+    _appendCurrentRouteTarget(descriptors, seen, state, primaryObjective);
+  }
+
+  return descriptors.slice(0, maxCount);
+}
+
+function _appendObjectiveRouteTargets(descriptors, seen, state, quest, objective, maxCount, isPrimary) {
+  if (!objective || descriptors.length >= maxCount) return;
+
+  if (objective.targetSystem) {
+    _pushRouteTarget(descriptors, seen, objective.targetSystem, {
+      purposeLabel: _getObjectiveRoutePurpose(objective),
+      note: _getObjectiveRouteNote(objective),
+      isPrimary: isPrimary,
+    });
+    return;
+  }
+
+  switch (objective.type) {
+    case 'visit_systems':
+      _appendVisitRouteTargets(descriptors, seen, state, maxCount, isPrimary);
+      return;
+    case 'faction_trade':
+    case 'sell_in_faction':
+    case 'faction_relation':
+      _appendFactionRouteTargets(descriptors, seen, state, objective, quest, maxCount, isPrimary);
+      return;
+    case 'galaxy_jump':
+      _appendGalaxyJumpRouteTargets(descriptors, seen, state, maxCount, isPrimary);
+      return;
+    default:
+      if (isPrimary) _appendCurrentRouteTarget(descriptors, seen, state, objective);
+  }
+}
+
+function _appendVisitRouteTargets(descriptors, seen, state, maxCount, isPrimary) {
+  var visited = Array.isArray(state && state.visitedSystems) ? state.visitedSystems : [];
+  var candidates = SYSTEMS.filter(function (system) {
+    return system && system.id !== state.currentSystem && visited.indexOf(system.id) === -1;
+  });
+
+  _appendSortedRouteTargets(descriptors, seen, state, candidates, maxCount, {
+    purposeLabel: '造访候选',
+    note: '优先选择尚未造访且更近的星球，抵达即可累计探索进度。',
+    isPrimary: isPrimary,
+  });
+
+  if (descriptors.length === 0) {
+    _appendCurrentRouteTarget(descriptors, seen, state, { type: 'visit_systems' });
+  }
+}
+
+function _appendFactionRouteTargets(descriptors, seen, state, objective, quest, maxCount, isPrimary) {
+  var factionId = _normalizeFactionId((objective && objective.factionId) || (quest && quest.factionId));
+  var factionMeta = factionId ? FACTIONS.find(function (faction) { return faction.id === factionId; }) : null;
+  var candidates = SYSTEMS.filter(function (system) {
+    var owner = Faction.getFactionForSystem(system.id);
+    return !!(owner && owner.id === factionId);
+  });
+
+  _appendSortedRouteTargets(descriptors, seen, state, candidates, maxCount, {
+    purposeLabel: factionMeta ? factionMeta.name : _getObjectiveRoutePurpose(objective),
+    note: _getObjectiveRouteNote(objective),
+    isPrimary: isPrimary,
+  });
+
+  if (descriptors.length === 0) {
+    _appendCurrentRouteTarget(descriptors, seen, state, objective);
+  }
+}
+
+function _appendGalaxyJumpRouteTargets(descriptors, seen, state, maxCount, isPrimary) {
+  var currentSystem = findSystem(state && state.currentSystem);
+  var currentGalaxyId = currentSystem ? currentSystem.galaxyId : null;
+  var candidates = SYSTEMS.filter(function (system) {
+    return system && system.galaxyId !== currentGalaxyId;
+  });
+
+  _appendSortedRouteTargets(descriptors, seen, state, candidates, maxCount, {
+    purposeLabel: '跃迁候选',
+    note: '完成一次跨星系跃迁即可推进该目标。',
+    isPrimary: isPrimary,
+  });
+
+  if (descriptors.length === 0) {
+    _appendCurrentRouteTarget(descriptors, seen, state, { type: 'galaxy_jump' });
+  }
+}
+
+function _appendSortedRouteTargets(descriptors, seen, state, systems, maxCount, options) {
+  var sorted = _sortSystemsByRoutePriority(state, systems || []);
+  sorted.forEach(function (system) {
+    if (descriptors.length >= maxCount) return;
+    _pushRouteTarget(descriptors, seen, system.id, options);
+  });
+}
+
+function _appendCurrentRouteTarget(descriptors, seen, state, objective) {
+  if (!state || !state.currentSystem) return;
+  _pushRouteTarget(descriptors, seen, state.currentSystem, {
+    purposeLabel: '当前可推进',
+    note: _getObjectiveRouteNote(objective),
+    isPrimary: true,
+  });
+}
+
+function _pushRouteTarget(descriptors, seen, systemId, options) {
+  if (!systemId || seen[systemId]) return;
+  seen[systemId] = true;
+  descriptors.push({
+    systemId: systemId,
+    purposeLabel: options && options.purposeLabel ? options.purposeLabel : '目标星球',
+    note: options && options.note ? options.note : '',
+    isPrimary: !!(options && options.isPrimary),
+  });
+}
+
+function _sortSystemsByRoutePriority(state, systems) {
+  var currentSystem = findSystem(state && state.currentSystem);
+  if (!currentSystem) return (systems || []).slice();
+
+  return (systems || []).slice().sort(function (left, right) {
+    var leftScore = _getRouteAvailabilityScore(state, currentSystem, left);
+    var rightScore = _getRouteAvailabilityScore(state, currentSystem, right);
+    if (leftScore !== rightScore) return leftScore - rightScore;
+
+    var leftCost = left.id === currentSystem.id ? 0 : Economy.getFuelCost(currentSystem.id, left.id, state.fuelEfficiency || 1, state);
+    var rightCost = right.id === currentSystem.id ? 0 : Economy.getFuelCost(currentSystem.id, right.id, state.fuelEfficiency || 1, state);
+    if (leftCost !== rightCost) return leftCost - rightCost;
+
+    var levelDiff = (left.minLevel || 1) - (right.minLevel || 1);
+    if (levelDiff !== 0) return levelDiff;
+    return (left.name || '').localeCompare((right.name || ''), 'zh-CN');
+  });
+}
+
+function _getRouteAvailabilityScore(state, currentSystem, targetSystem) {
+  if (!state || !currentSystem || !targetSystem) return 99;
+  if (currentSystem.id === targetSystem.id) return 0;
+
+  var playerLevel = state.playerLevel || 1;
+  if (playerLevel < (targetSystem.minLevel || 1)) return 3;
+  if (currentSystem.galaxyId !== targetSystem.galaxyId && !_hasTech(state, 'hyperspace_jump')) return 2;
+
+  var fuelCost = Economy.getFuelCost(currentSystem.id, targetSystem.id, state.fuelEfficiency || 1, state);
+  if ((state.fuel || 0) < fuelCost) return 1;
+  return 0;
+}
+
+function _createRoutePreviewItem(state, descriptor) {
+  var currentSystem = findSystem(state && state.currentSystem);
+  var targetSystem = descriptor && descriptor.systemId ? findSystem(descriptor.systemId) : null;
+  if (!currentSystem || !targetSystem) return null;
+
+  var isCurrentSystem = currentSystem.id === targetSystem.id;
+  var isCrossGalaxy = currentSystem.galaxyId !== targetSystem.galaxyId;
+  var routeInfo = isCurrentSystem ? null : Exploration.getTravelRouteInfo(state, currentSystem.id, targetSystem.id);
+  var rawDistance = isCurrentSystem ? 0 : _getSystemDistance(currentSystem, targetSystem);
+  var displayedDistance = isCrossGalaxy ? _getCrossGalaxyLocalDistance(targetSystem) : rawDistance;
+  var fuelCost = isCurrentSystem ? 0 : Economy.getFuelCost(currentSystem.id, targetSystem.id, state.fuelEfficiency || 1, state);
+  var blockedReason = _getRouteBlockedReason(state, currentSystem, targetSystem, fuelCost);
+  var galaxy = findGalaxy(targetSystem.galaxyId);
+
+  return {
+    systemId: targetSystem.id,
+    systemName: targetSystem.name,
+    galaxyName: galaxy ? galaxy.name : (targetSystem.galaxyId || '未知星区'),
+    purposeLabel: descriptor.purposeLabel || '目标星球',
+    note: _buildRoutePreviewNote(descriptor.note, blockedReason, routeInfo, isCurrentSystem),
+    routeModeLabel: isCurrentSystem ? '当前停靠' : (isCrossGalaxy ? '跨星系跃迁' : '直航'),
+    distanceLabel: isCurrentSystem ? '当前距离' : (isCrossGalaxy ? '跃迁后距离' : '星图距离'),
+    distanceText: _formatRouteDistance(displayedDistance),
+    fuelCost: fuelCost,
+    etaDays: isCurrentSystem ? 0 : (isCrossGalaxy ? GALAXY_JUMP_DAYS : 1),
+    isCurrentSystem: isCurrentSystem,
+    isCrossGalaxy: isCrossGalaxy,
+    isPrimary: !!descriptor.isPrimary,
+    blockedReason: blockedReason,
+    canTravel: !blockedReason,
+    hasSecretRoute: !!(routeInfo && routeInfo.active),
+    secretRouteLabel: routeInfo && routeInfo.active ? routeInfo.label : '',
+    discountPercent: routeInfo && routeInfo.active ? Math.round((1 - routeInfo.fuelMultiplier) * 100) : 0,
+    minLevel: targetSystem.minLevel || 1,
+  };
+}
+
+function _getQuestRoutePreviewSummary(items) {
+  if (!Array.isArray(items) || items.length === 0) return '';
+
+  var blockedCount = items.filter(function (item) {
+    return !item.isCurrentSystem && !!item.blockedReason;
+  }).length;
+
+  if (items.length === 1 && items[0].isCurrentSystem) {
+    return '按当前停靠点、燃料与科技测算：这项任务不需要额外跑图，接取后即可开始推进。';
+  }
+
+  if (blockedCount > 0) {
+    return '按当前停靠点、燃料与科技测算：部分航点暂不可直达，先补足条件再接会更稳。';
+  }
+
+  if (items.length === 1) {
+    return '按当前停靠点、燃料与科技测算：接取后可直接执行这条航线。';
+  }
+
+  return '按当前停靠点、燃料与科技测算：已将关键航点按可执行顺序列出，适合提前规划顺路航程。';
+}
+
+function _getRouteBlockedReason(state, currentSystem, targetSystem, fuelCost) {
+  if (!state || !currentSystem || !targetSystem || currentSystem.id === targetSystem.id) return '';
+
+  var playerLevel = state.playerLevel || 1;
+  if (playerLevel < (targetSystem.minLevel || 1)) {
+    return '需要达到 Lv.' + (targetSystem.minLevel || 1) + ' 才能前往。';
+  }
+
+  if (currentSystem.galaxyId !== targetSystem.galaxyId && !_hasTech(state, 'hyperspace_jump')) {
+    return '尚未研究超空间跃迁引擎，当前无法跨星系前往。';
+  }
+
+  if ((state.fuel || 0) < fuelCost) {
+    return '当前燃料不足，需要 ' + fuelCost + ' 燃料，现有 ' + Math.floor(state.fuel || 0) + '。';
+  }
+
+  return '';
+}
+
+function _buildRoutePreviewNote(baseNote, blockedReason, routeInfo, isCurrentSystem) {
+  if (blockedReason) return blockedReason;
+
+  var details = [];
+  if (baseNote) details.push(baseNote);
+  if (routeInfo && routeInfo.active && !isCurrentSystem) {
+    details.push('已发现暗线「' + routeInfo.label + '」，本次预计节省约 ' + Math.round((1 - routeInfo.fuelMultiplier) * 100) + '% 燃料。');
+  }
+  return details.join(' ');
+}
+
+function _getObjectiveRoutePurpose(objective) {
+  if (!objective) return '当前可推进';
+
+  switch (objective.type) {
+    case 'deliver':
+      return '交付地点';
+    case 'buy_at':
+      return '采购地点';
+    case 'sell_at':
+      return '销售地点';
+    case 'visit_system':
+      return '任务地点';
+    case 'visit_systems':
+      return '造访候选';
+    case 'faction_trade':
+      return '派系交易区';
+    case 'sell_in_faction':
+      return '派系销售区';
+    case 'faction_relation':
+      return '关系推进区';
+    case 'galaxy_jump':
+      return '跃迁候选';
+    default:
+      return '当前可推进';
+  }
+}
+
+function _getObjectiveRouteNote(objective) {
+  if (!objective) return '接取后可以按当前经营节奏开始推进。';
+
+  switch (objective.type) {
+    case 'deliver':
+      return '需要在此地完成交付或卖出指定货物。';
+    case 'buy_at':
+      return '需要在此地采购指定货物。';
+    case 'sell_at':
+      return '需要在此地完成指定销售。';
+    case 'visit_system':
+      return '抵达该星球即可推进任务。';
+    case 'visit_systems':
+      return '优先造访尚未记录的星球，能更快完成探索目标。';
+    case 'faction_trade':
+      return '在该派系控制区完成交易即可累计次数。';
+    case 'sell_in_faction':
+      return '需要在该派系控制区卖出指定货物。';
+    case 'faction_relation':
+      return '在该派系势力范围内活动，更利于推进关系目标。';
+    case 'trade_good':
+      return '当前或临近市场完成指定货物交易即可推进。';
+    case 'trade_count':
+      return '任意市场买卖都会累计交易次数。';
+    case 'earn_profit':
+      return '优先跑高利润航线，当前市场也可先开单。';
+    case 'survive_days':
+      return '持续航行并推进日期即可累计。';
+    case 'galaxy_jump':
+      return '完成一次跨星系跃迁即可推进。';
+    default:
+      return '接取后即可按当前经营节奏逐步推进。';
+  }
+}
+
+function _getSystemDistance(fromSystem, toSystem) {
+  return Math.sqrt(
+    Math.pow((fromSystem.x || 0) - (toSystem.x || 0), 2) +
+    Math.pow((fromSystem.y || 0) - (toSystem.y || 0), 2)
+  );
+}
+
+function _getCrossGalaxyLocalDistance(targetSystem) {
+  return Math.sqrt(
+    Math.pow((targetSystem.x || 0) - ECONOMY_CONFIG.travel.crossGalaxyOriginX, 2) +
+    Math.pow((targetSystem.y || 0) - ECONOMY_CONFIG.travel.crossGalaxyOriginY, 2)
+  );
+}
+
+function _formatRouteDistance(distance) {
+  return (Math.round((distance || 0) * 100) / 100).toFixed(2);
 }
 
 /**
