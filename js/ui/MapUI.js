@@ -1,5 +1,5 @@
 // js/ui/MapUI.js — 星系地图交互事件绑定（支持星系/星球双层视图 + 市场面板）
-// 导出：init, initTabs, init3DCallbacks, refreshGalaxyBtn, openMarket, closeMarket, isMarketOpen,
+// 导出：init, initTabs, init3DCallbacks, refreshGalaxyBtn, triggerArrivalScanPanel, openMarket, closeMarket, isMarketOpen,
 //        setRefreshMarket, setExplorationActions, getMarketViewSystem, refreshMarketLocation,
 //        showMarketOverview, showMarketDetail, refreshPlanetDetail, getMapView, getCurrentGalaxyId
 import * as Renderer3D from './Renderer3DAdvanced.js?v=20260406-routefix3';
@@ -61,7 +61,6 @@ function _getCurrentSystemScanTarget(stateRef) {
   if (!stateRef) return null;
   if (stateRef.mapView !== 'planets') return null;
   if (stateRef.viewingGalaxy !== stateRef.currentGalaxy) return null;
-  if (stateRef.hoveredSystem) return null;
 
   var sys = findSystem(stateRef.currentSystem);
   var planetData = GalaxyData.getPlanetData(stateRef.currentSystem);
@@ -92,29 +91,19 @@ function _closeOrbitScanPanel(stateRef) {
 
 function _updateOrbitScanButton(stateRef) {
   var btn = document.getElementById('orbit-scan-btn');
-  var target = _getCurrentSystemScanTarget(stateRef || _stateRef);
   if (!btn) return;
 
   btn.setAttribute('aria-controls', 'current-system-exploration-card');
-
-  if (!target) {
-    _orbitScanPanelOpen = false;
-    btn.hidden = true;
-    btn.classList.remove('active');
-    btn.setAttribute('aria-expanded', 'false');
-    btn.removeAttribute('data-system-id');
-    return;
-  }
-
   btn.hidden = false;
-  btn.textContent = _orbitScanPanelOpen ? '✕ 收起扫描' : '📡 扫描';
+  btn.hidden = true;
+  btn.textContent = '📡 扫描';
   btn.disabled = false;
   btn.removeAttribute('aria-disabled');
-  btn.classList.toggle('active', _orbitScanPanelOpen);
-  btn.setAttribute('aria-expanded', _orbitScanPanelOpen ? 'true' : 'false');
-  if (target.title) btn.title = target.title;
-  else btn.removeAttribute('title');
-  btn.setAttribute('data-system-id', target.systemId);
+  btn.classList.remove('active');
+  btn.setAttribute('aria-expanded', 'false');
+  btn.setAttribute('aria-hidden', 'true');
+  btn.removeAttribute('title');
+  btn.removeAttribute('data-system-id');
 }
 
 function _bindOrbitScanPanelControls() {
@@ -347,6 +336,17 @@ export function refreshGalaxyBtn(stateRef) {
   _updateOrbitScanButton(stateRef);
 }
 
+export function triggerArrivalScanPanel(stateRef) {
+  if (!stateRef) return false;
+
+  _stateRef = stateRef;
+  stateRef.hoveredSystem = null;
+  _orbitScanPanelOpen = !!_getCurrentSystemScanTarget(stateRef);
+  _updateOrbitScanButton(stateRef);
+  _renderCurrentSystemExplorationCard(stateRef);
+  return _orbitScanPanelOpen;
+}
+
 function _getSafetyLabel(score) {
   if (score >= 80) return '安定';
   if (score >= 60) return '可控';
@@ -370,10 +370,10 @@ function _bindExplorationActionContainer(containerId) {
     event.stopPropagation();
 
     if (action === 'scan' && _explorationActions.onScan) {
-      if (containerId === 'current-system-exploration-card') {
-        _orbitScanPanelOpen = false;
+      var scanResult = _explorationActions.onScan(systemId);
+      if (containerId === 'current-system-exploration-card' && scanResult && scanResult.ok) {
+        _closeOrbitScanPanel(_stateRef);
       }
-      _explorationActions.onScan(systemId);
       return;
     }
     if (action === 'land' && _explorationActions.onLand) {
@@ -652,14 +652,18 @@ function _renderCurrentSystemExplorationCard(stateRef) {
   var card = document.getElementById('current-system-exploration-card');
   if (!card) return;
 
-  var shouldShow = !!stateRef &&
+  var canUseCurrentSystemCard = !!stateRef &&
     stateRef.mapView === 'planets' &&
-    stateRef.viewingGalaxy === stateRef.currentGalaxy &&
-    !stateRef.hoveredSystem;
+    stateRef.viewingGalaxy === stateRef.currentGalaxy;
   var scanTarget = _getCurrentSystemScanTarget(stateRef);
 
-  if (!shouldShow || !scanTarget) {
+  if (!canUseCurrentSystemCard || !scanTarget) {
     _orbitScanPanelOpen = false;
+    card.classList.remove('visible');
+    return;
+  }
+
+  if (stateRef.hoveredSystem) {
     card.classList.remove('visible');
     return;
   }

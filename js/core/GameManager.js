@@ -18,7 +18,7 @@ import * as Exploration from '../systems/galaxy/ExplorationSystem.js?v=20260407-
 import * as HUD        from '../ui/HUD.js?v=20260412-questroute2';
 import * as MarketUI   from '../ui/MarketUI.js';
 import * as ShipUI     from '../ui/ShipUI.js';
-import * as MapUI      from '../ui/MapUI.js?v=20260412-scantrigger1';
+import * as MapUI      from '../ui/MapUI.js?v=20260412-scantrigger2';
 import * as Modal      from '../ui/Modal.js';
 import * as EventUI    from '../ui/EventUI.js';
 import * as DialogueUI from '../ui/DialogueUI.js';
@@ -457,6 +457,7 @@ function _handleScanSystem(systemId) {
     _state.galaxyStates = GalaxyData.getAllPlanetStates();
   }
   _dispatch(result);
+  return result;
 }
 
 function _handleLandOnSystem(systemId) {
@@ -589,6 +590,9 @@ function _handleTravel(systemId) {
     }
     if (_state.visitedGalaxies.indexOf(_state.currentGalaxy) === -1) {
       _state.visitedGalaxies.push(_state.currentGalaxy);
+    }
+    if (!Tutorial.isActive()) {
+      MapUI.triggerArrivalScanPanel(_state);
     }
     // 新手引导：旅行触发
     Tutorial.checkTrigger('travel');
