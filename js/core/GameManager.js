@@ -37,8 +37,8 @@ import * as FleetUI    from '../ui/FleetUI.js';
 import * as Save       from '../systems/save/SaveSystem.js';
 import * as Quest      from '../systems/quest/QuestSystem.js?v=20260412-questroute2';
 import * as Achievement from '../systems/achievement/AchievementSystem.js';
-import * as Tutorial   from '../systems/tutorial/TutorialSystem.js';
-import * as TutorialUI from '../ui/TutorialUI.js';
+import * as Tutorial   from '../systems/tutorial/TutorialSystem.js?v=20260412-tutquest1';
+import * as TutorialUI from '../ui/TutorialUI.js?v=20260412-tutquest1';
 import * as Dialogue   from '../systems/story/DialogueSystem.js';
 import { INITIAL_STATE, DIFFICULTY_LEVELS, EVENT_CONFIG } from '../data/constants.js';
 import * as Victory from '../systems/victory/VictorySystem.js';
@@ -172,7 +172,11 @@ export function init(difficulty) {
   if (_onTutorialComplete) EventBus.off('tutorial:complete', _onTutorialComplete);
   _onTutorialComplete = function () {
     var recommendations = Quest.getStarterRecommendations(_state, 3);
-    _playTriggerDialogue('tutorial_complete', { recommendations: recommendations }, function () {
+    var activeQuest = Quest.getActiveQuests(_state)[0] || null;
+    _playTriggerDialogue('tutorial_complete', {
+      recommendations: recommendations,
+      activeQuest: activeQuest,
+    }, function () {
       _recommendStarterQuests();
       setTimeout(_showCompanyRenameModal, 400);
     });
@@ -234,9 +238,26 @@ function _showWelcomeMessages() {
 
 function _recommendStarterQuests() {
   var recommendations = Quest.getStarterRecommendations(_state, 3);
+  var activeQuests = Quest.getActiveQuests(_state);
+  var activeQuest = activeQuests.length > 0 ? activeQuests[0] : null;
 
   _updateUI();
   MapUI.activateTab('tab-quest');
+
+  if (activeQuest) {
+    EventBus.emit('log:message', {
+      text: '📋 已将你切到任务页。当前正在推进「' + activeQuest.name + '」，目标和奖励都能在任务面板与追踪区里查看。',
+      type: 'info',
+    });
+
+    if (recommendations.length > 0) {
+      EventBus.emit('log:message', {
+        text: '🧭 跑完手头这单后，还可以继续接 ' + recommendations.map(function (quest) { return '「' + quest.name + '」'; }).join('、') + '。',
+        type: 'tip',
+      });
+    }
+    return;
+  }
 
   if (recommendations.length === 0) {
     EventBus.emit('log:message', {
@@ -290,7 +311,7 @@ function _drainDialogueQueue() {
   });
 }
 
-function _queueQuestDialogueResult(result) {
+function _queueQuestDialogueResult(result, onFinished) {
   if (!result) return;
 
   var scenes = [];
@@ -312,7 +333,7 @@ function _queueQuestDialogueResult(result) {
     }));
   }
 
-  _queueDialogueScenes(scenes);
+  _queueDialogueScenes(scenes, onFinished);
 }
 
 // 设置管理已提取到 js/core/SettingsManager.js
@@ -898,12 +919,17 @@ function _handleAcceptQuest(questId) {
   _dispatch(result);
   if (!result || !result.ok) return;
 
+  const advanceTutorialQuestStep = function () {
+    Tutorial.checkTrigger('accept_quest');
+    _updateUI();
+  };
+
   if (result.completedImmediately && result.completedQuest) {
     _queueQuestDialogueResult({
       completedQuests: [{ id: result.completedQuest.id, failed: false, quest: result.completedQuest }],
       phaseAdvanced: result.phaseAdvanced,
       newPhase: result.newPhase,
-    });
+    }, advanceTutorialQuestStep);
     return;
   }
 
@@ -911,8 +937,11 @@ function _handleAcceptQuest(questId) {
     _playTriggerDialogue('quest_accept', {
       questId: result.quest.id,
       quest: result.quest,
-    });
+    }, advanceTutorialQuestStep);
+    return;
   }
+
+  advanceTutorialQuestStep();
 }
 
 function _handleAbandonQuest(questId) {

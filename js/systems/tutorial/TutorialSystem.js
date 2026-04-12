@@ -137,9 +137,48 @@ export const STEPS = [
     id: 'show_tabs',
     phase: 3,
     title: '更多功能',
-    content: '恭喜完成第一笔交易！游戏还有更多系统等你探索：\n📦 货舱 - 管理你的货物\n⚙️ 升级 - 强化飞船\n🔬 科技 - 研究新技术\n🏛️ 派系 - 外交关系\n📋 任务 - 接取任务赚奖励',
+    content: '恭喜完成第一笔交易！游戏还有更多系统等你探索：\n📦 货舱 - 管理你的货物\n⚙️ 升级 - 强化飞船\n🔬 科技 - 研究新技术\n🏛️ 派系 - 外交关系\n📋 任务 - 把贸易、航行和交付串成正式成长路线',
     highlight: '.tabs',
     position: 'left',
+    trigger: 'manual',
+    npcName: '港口管理员 汤姆',
+    npcIcon: '👨‍✈️',
+    reward: null,
+    canSkip: false,
+  },
+  {
+    id: 'show_quest_board',
+    phase: 3,
+    title: '把教程接到任务',
+    content: '左侧的【任务】面板已经给你准备好了起步委托。这里会告诉你目标、奖励和建议航线。\n\n先看一眼任务简报，接下来我们把刚学会的贸易动作，正式接到第一张委托上。',
+    highlight: '#quest-list',
+    position: 'left',
+    trigger: 'manual',
+    npcName: '港口管理员 汤姆',
+    npcIcon: '👨‍✈️',
+    reward: null,
+    canSkip: false,
+  },
+  {
+    id: 'accept_first_quest',
+    phase: 3,
+    title: '接下第一份委托',
+    content: '点击任务简报或任务追踪里的【接取任务】按钮，先拿下一张起步单。\n\n之后你的买卖、航行和交付都会开始累计任务进度。',
+    highlight: '#quest-list',
+    position: 'left',
+    trigger: 'action:accept_quest',
+    npcName: '港口管理员 汤姆',
+    npcIcon: '👨‍✈️',
+    reward: null,
+    canSkip: false,
+  },
+  {
+    id: 'quest_tracker',
+    phase: 3,
+    title: '盯住任务追踪',
+    content: '任务接下后，左上角的追踪区会显示当前最重要的目标；如果刚才那单已经当场结算，它也会立刻刷新成下一批推荐任务。\n\n以后每次起航前，先看这里，你就知道下一步该跑什么。',
+    highlight: '#quest-tracker',
+    position: 'right',
     trigger: 'manual',
     npcName: '港口管理员 汤姆',
     npcIcon: '👨‍✈️',
@@ -163,7 +202,7 @@ export const STEPS = [
     id: 'tutorial_complete',
     phase: 3,
     title: '教程完成！',
-    content: '你已经掌握了星际贸易的基础！\n\n💡 赚钱秘诀：\n  · 在生产星球低价买入，到需求星球高价卖出\n  · 关注市场的 🔥（高需求）和 📦（高供给）标识\n  · 规划好航线，节省燃料\n\n目标：积累 50,000 信用积分，重振商业帝国！\n\n接下来，是时候为你继承的公司起一个新名字了……🚀',
+    content: '你已经掌握了星际贸易的基础，也把第一张正式委托接进了经营循环！\n\n💡 接下来怎么赚钱更稳：\n  · 在生产星球低价买入，到需求星球高价卖出\n  · 关注任务目标，把贸易和航行顺手做成章节进度\n  · 规划好航线，节省燃料和往返成本\n\n目标：积累 50,000 信用积分，重振商业帝国！\n\n接下来，是时候为你继承的公司起一个新名字了……🚀',
     highlight: null,
     position: 'center',
     trigger: 'manual',
@@ -264,7 +303,7 @@ export function advance() {
 
 /**
  * 检查是否触发了当前教程步骤（由 GameManager 在各种动作后调用）
- * @param {string} action  触发动作 'buy' | 'sell' | 'travel' | 'click:tab-xxx'
+ * @param {string} action  触发动作 'buy' | 'sell' | 'travel' | 'accept_quest' | 'click:tab-xxx'
  */
 export function checkTrigger(action) {
   if (!_active || _completed) return;

@@ -10,6 +10,14 @@ function _formatQuestList(context) {
   }).join('、');
 }
 
+function _getActiveQuestName(state, context) {
+  var activeQuest = context && context.activeQuest;
+  if (!activeQuest && state && Array.isArray(state.quests) && state.quests.length > 0) {
+    activeQuest = state.quests[0];
+  }
+  return activeQuest && activeQuest.name ? activeQuest.name : '';
+}
+
 function _line(speaker, icon, text) {
   return {
     speaker: speaker,
@@ -61,14 +69,22 @@ export const DIALOGUE_SCENES = [
       {
         speaker: '港口管理员 汤姆',
         icon: '👨‍✈️',
-        text: function (state) {
+        text: function (state, context) {
+          var activeQuestName = _getActiveQuestName(state, context);
+          if (activeQuestName) {
+            return '基础操作你已经学完了，' + (state.companyName || '这家公司') + ' 现在已经接下了第一份正式委托「' + activeQuestName + '」。';
+          }
           return '基础操作你已经学完了，' + (state.companyName || '这家公司') + ' 终于可以开始接真正的委托了。';
         },
       },
       {
         speaker: '港口管理员 汤姆',
         icon: '👨‍✈️',
-        text: function (_, context) {
+        text: function (state, context) {
+          var activeQuestName = _getActiveQuestName(state, context);
+          if (activeQuestName) {
+            return '先把手上的「' + activeQuestName + '」跑稳。我又替你筛了几份后续单子：' + _formatQuestList(context) + '。按你的节奏接着扩张。';
+          }
           return '我替你先筛了几份适合起步的单子：' + _formatQuestList(context) + '。先接一份，让银河重新记住你的名字。';
         },
       },

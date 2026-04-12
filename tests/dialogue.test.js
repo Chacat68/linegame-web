@@ -32,6 +32,24 @@ describe('DialogueSystem', () => {
     expect(scenes[0].choices).toHaveLength(3);
   });
 
+  it('教程完成对话会承接当前已接取的首个任务', () => {
+    const state = createTestState({
+      companyName: '北冕物流',
+      quests: [{ id: 'starter_deliver_food', name: '前线补给' }],
+    });
+    Dialogue.init(state);
+
+    const scenes = Dialogue.getScenesForTrigger(state, 'tutorial_complete', {
+      recommendations: [{ name: '疫情救援' }],
+      activeQuest: { id: 'starter_deliver_food', name: '前线补给' },
+    });
+
+    expect(scenes).toHaveLength(1);
+    expect(scenes[0].lines[0].text).toContain('前线补给');
+    expect(scenes[0].lines[1].text).toContain('疫情救援');
+    expect(scenes[0].lines[1].text).toContain('跑稳');
+  });
+
   it('结束场景时会记录已选分支', () => {
     const state = createTestState({ day: 6 });
     Dialogue.init(state);
