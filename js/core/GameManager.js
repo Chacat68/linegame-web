@@ -12,7 +12,7 @@ import * as Commerce   from '../systems/commerce/CommerceFacade.js';
 import * as RandomEvent from '../systems/event/RandomEvent.js';
 import * as Faction    from '../systems/faction/FactionSystem.js';
 import * as Research   from '../systems/research/ResearchSystem.js';
-import * as Renderer3D from '../ui/Renderer3DAdvanced.js?v=20260406-routefix3';
+import * as Renderer3D from '../ui/Renderer3DAdvanced.js?v=20260413-trailmesh1';
 import * as GalaxyData from '../systems/galaxy/GalaxyDataLayer.js';
 import * as Exploration from '../systems/galaxy/ExplorationSystem.js?v=20260407-landpoi1';
 import * as HUD        from '../ui/HUD.js?v=20260412-questroute2';

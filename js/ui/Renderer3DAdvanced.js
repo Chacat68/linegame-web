@@ -439,6 +439,14 @@ function _syncFlightPathWithState(state) {
   }
 }
 
+function _disposeRouteVisual(mesh) {
+  if (!mesh) return;
+  if (mesh.material && typeof mesh.material.dispose === 'function') {
+    mesh.material.dispose();
+  }
+  mesh.dispose();
+}
+
 function _clearPlanetMeshes() {
   _planetMeshes.forEach(m => {
     if (m.material) m.material.dispose();
@@ -456,7 +464,7 @@ function _clearPlanetMeshes() {
     m.dispose();
   });
   _textLabels = [];
-  _dispatchRouteLines.forEach(m => m.dispose());
+  _dispatchRouteLines.forEach(_disposeRouteVisual);
   _dispatchRouteLines = [];
   _dispatchShipMarkers.forEach(m => {
     m.getChildMeshes().forEach(c => c.dispose());
@@ -1556,6 +1564,70 @@ function _createArcCurve(fromPos, toPos, segments) {
   return BABYLON.Curve3.CreateQuadraticBezier(fromPos, mid, toPos, segments || 48);
 }
 
+function _createTrailMaterial(name, color, alpha) {
+  const material = new BABYLON.StandardMaterial(name, _scene);
+  material.emissiveColor = color.clone ? color.clone() : color;
+  material.diffuseColor = BABYLON.Color3.Black();
+  material.specularColor = BABYLON.Color3.Black();
+  material.disableLighting = true;
+  material.backFaceCulling = false;
+  material.alpha = alpha;
+  return material;
+}
+
+function _createTrailMesh(name, generator, color, options) {
+  if (!generator || !BABYLON.TrailMesh) return null;
+
+  const trail = new BABYLON.TrailMesh(name, generator, _scene, {
+    diameter: options && options.diameter != null ? options.diameter : 0.18,
+    length: options && options.length != null ? options.length : 48,
+    sections: options && options.sections != null ? options.sections : 4,
+    doNotTaper: !!(options && options.doNotTaper),
+    autoStart: false,
+  });
+
+  trail.material = _createTrailMaterial(
+    name + '_mat',
+    color,
+    options && options.alpha != null ? options.alpha : 0.55
+  );
+  trail.isPickable = false;
+  trail.setEnabled(false);
+  return trail;
+}
+
+function _disposeTrailMesh(trail) {
+  if (!trail) return null;
+  if (trail.material && typeof trail.material.dispose === 'function') {
+    trail.material.dispose();
+  }
+  trail.dispose();
+  return null;
+}
+
+function _resetTrailMesh(trail) {
+  if (!trail || typeof trail.reset !== 'function') return;
+  trail.reset();
+}
+
+function _updateTrailMesh(trail) {
+  if (!trail || typeof trail.update !== 'function') return;
+  try {
+    trail.update();
+  } catch (e) {
+    // Ignore updates on disposed trails.
+  }
+}
+
+function _getTrailDiameter(typeId, compact) {
+  const visuals = _SHIP_VISUALS[typeId] || _SHIP_VISUALS.shuttle;
+  const min = compact ? 0.12 : 0.16;
+  const max = compact ? 0.24 : 0.32;
+  const base = compact ? 0.06 : 0.08;
+  const offset = compact ? 0.06 : 0.08;
+  return Math.max(min, Math.min(max, offset + visuals.scale * base));
+}
+
 function _renderDispatchRoutes(state) {
   if (!state.fleet || state.fleet.length < 1) return;
 
@@ -1614,23 +1686,18 @@ function _renderDispatchRoutes(state) {
       shipModel.metadata._direction = 1;
       shipModel.position = points[0].clone();
 
-      // Trail (updatable lines)
-      const trailPositions = [];
-      const initPos = points[0];
-      for (let ti = 0; ti < 30; ti++) {
-        trailPositions.push(initPos.clone());
+      const trailMesh = _createTrailMesh('dispTrail_' + idx, shipModel, routeColor, {
+        diameter: _getTrailDiameter(shipTypeId, true),
+        length: 24,
+        sections: 4,
+        alpha: 0.4,
+      });
+      if (trailMesh) {
+        trailMesh.setEnabled(true);
+        _resetTrailMesh(trailMesh);
+        shipModel.metadata._trail = trailMesh;
+        _dispatchRouteLines.push(trailMesh);
       }
-      const trailLine = BABYLON.MeshBuilder.CreateLines('dispTrail_' + idx, {
-        points: trailPositions,
-        updatable: true,
-      }, _scene);
-      trailLine.color = routeColor;
-      trailLine.alpha = 0.5;
-      trailLine.isPickable = false;
-      shipModel.metadata._trail = trailLine;
-      shipModel.metadata._trailPositions = trailPositions;
-      shipModel.metadata._trailHead = 0;
-      _dispatchRouteLines.push(trailLine);
     }
 
     _dispatchShipMarkers.push(shipModel);
@@ -1903,51 +1970,8 @@ function _createShipMesh(typeId) {
   return parent;
 }
 
-function _createShipTrail(typeId) {
-  var count = 60;
-  var positions = [];
-  for (var i = 0; i < count; i++) {
-    positions.push(new BABYLON.Vector3(0, 0, 0));
-  }
-  var trail = BABYLON.MeshBuilder.CreateLines('shipTrail', {
-    points: positions,
-    updatable: true,
-  }, _scene);
-  var v = _SHIP_VISUALS[typeId] || _SHIP_VISUALS.shuttle;
-  trail.color = new BABYLON.Color3(v.trailColor[0], v.trailColor[1], v.trailColor[2]);
-  trail.alpha = 0.6;
-  trail.isPickable = false;
-  trail.metadata = { _count: count, _head: 0, _positions: positions };
-  return trail;
-}
-
-function _pushTrailPoint(trail, positions, head, position) {
-  if (!trail || !positions || positions.length === 0) return head;
-  positions[head] = position.clone();
-  const nextHead = (head + 1) % positions.length;
-
-  const orderedPoints = [];
-  for (let i = 0; i < positions.length; i++) {
-    const idx = (nextHead + i) % positions.length;
-    orderedPoints.push(positions[idx]);
-  }
-
-  try {
-    BABYLON.MeshBuilder.CreateLines(null, {
-      points: orderedPoints,
-      instance: trail,
-    });
-  } catch (e) {
-    // ignore update errors on disposed mesh
-  }
-
-  return nextHead;
-}
-
-function _updateShipTrail(position) {
-  if (!_shipTrail || !_shipTrail.metadata) return;
-  const meta = _shipTrail.metadata;
-  meta._head = _pushTrailPoint(_shipTrail, meta._positions, meta._head, position);
+function _updateShipTrail() {
+  _updateTrailMesh(_shipTrail);
 }
 
 export function flyShipTo(fromId, toId, onComplete, shipTypeId, flightMeta) {
@@ -1978,18 +2002,23 @@ export function flyShipTo(fromId, toId, onComplete, shipTypeId, flightMeta) {
   mid.y += Math.max(dist * 0.2, 5);
 
   const curve = BABYLON.Curve3.CreateQuadraticBezier(from, mid, to, 80);
+  const routePoints = curve.getPoints();
 
   // --- Flight route line (trajectory) ---
   _clearFlightVisuals();
-  const routePoints = curve.getPoints();
-  _flightRouteLine = BABYLON.MeshBuilder.CreateDashedLines('flightRoute', {
-    points: routePoints,
-    dashSize: 2,
-    gapSize: 1,
-    dashNb: 80,
+  _flightRouteLine = BABYLON.MeshBuilder.CreateTube('flightRoute', {
+    path: routePoints,
+    radius: 0.18,
+    tessellation: 12,
+    cap: BABYLON.Mesh.NO_CAP,
+    sideOrientation: BABYLON.Mesh.DOUBLESIDE,
   }, _scene);
-  _flightRouteLine.color = new BABYLON.Color3(0.4, 0.91, 0.98);
-  _flightRouteLine.alpha = 0.5;
+  _flightRouteLine.material = _createTrailMaterial(
+    'flightRouteMat',
+    new BABYLON.Color3(0.4, 0.91, 0.98),
+    0.42
+  );
+  _flightRouteLine.visibility = 0.92;
   _flightRouteLine.isPickable = false;
 
   // --- Target planet selection glow ---
@@ -2011,6 +2040,7 @@ export function flyShipTo(fromId, toId, onComplete, shipTypeId, flightMeta) {
   // --- Create ship mesh (type-specific) ---
   var typeId = shipTypeId || 'shuttle';
   if (_shipMesh && _currentShipType !== typeId) {
+    _shipTrail = _disposeTrailMesh(_shipTrail);
     _shipMesh.getChildMeshes().forEach(c => { if (c.material) c.material.dispose(); c.dispose(); });
     _shipMesh.dispose();
     _shipMesh = null;
@@ -2020,20 +2050,29 @@ export function flyShipTo(fromId, toId, onComplete, shipTypeId, flightMeta) {
     _currentShipType = typeId;
   }
   if (!_shipTrail) {
-    _shipTrail = _createShipTrail(typeId);
+    var visuals = _SHIP_VISUALS[typeId] || _SHIP_VISUALS.shuttle;
+    _shipTrail = _createTrailMesh(
+      'shipTrail',
+      _shipMesh,
+      new BABYLON.Color3(visuals.trailColor[0], visuals.trailColor[1], visuals.trailColor[2]),
+      {
+        diameter: _getTrailDiameter(typeId, false),
+        length: 56,
+        sections: 6,
+        alpha: 0.52,
+      }
+    );
   }
 
   _shipMesh.setEnabled(true);
-  _shipTrail.setEnabled(true);
   _shipVisible = true;
   _shipMesh.position = from.clone();
 
-  // Reset trail
-  const trailMeta = _shipTrail.metadata;
-  for (let i = 0; i < trailMeta._count; i++) {
-    trailMeta._positions[i] = from.clone();
+  if (_shipTrail) {
+    _shipTrail.setEnabled(true);
+    _resetTrailMesh(_shipTrail);
+    _updateShipTrail();
   }
-  trailMeta._head = 0;
 
   // Slower flight: 4x longer duration
   const duration = Math.min(12000, Math.max(5000, dist * 100));
@@ -2068,7 +2107,10 @@ export function cancelShipFlight() {
 }
 
 function _clearFlightVisuals() {
-  if (_flightRouteLine) { _flightRouteLine.dispose(); _flightRouteLine = null; }
+  if (_flightRouteLine) {
+    _disposeRouteVisual(_flightRouteLine);
+    _flightRouteLine = null;
+  }
   if (_flightTargetGlow) {
     if (_flightTargetGlow.material) _flightTargetGlow.material.dispose();
     _flightTargetGlow.dispose();
@@ -2098,7 +2140,7 @@ function _updateShipFlight(time) {
     _shipMesh.lookAt(lookTarget);
   }
 
-  _updateShipTrail(pos);
+  _updateShipTrail();
 
   // Animate engine flames (type-specific effects)
   if (_shipMesh.metadata && _shipMesh.metadata._flames) {
@@ -2128,7 +2170,7 @@ function _updateShipFlight(time) {
 
   // Animate flight route line fade
   if (_flightRouteLine) {
-    _flightRouteLine.alpha = 0.5 * (1 - t * 0.6);
+    _flightRouteLine.visibility = 0.92 * (1 - t * 0.6);
   }
   // Animate target glow
   if (_flightTargetGlow) {
@@ -2271,12 +2313,7 @@ function _startAnimation() {
       }
 
       // Update trail
-      const trail = marker.metadata._trail;
-      if (trail && marker.metadata._trailPositions) {
-        const trailPos = marker.metadata._trailPositions;
-        const head = marker.metadata._trailHead;
-        marker.metadata._trailHead = _pushTrailPoint(trail, trailPos, head, pos);
-      }
+      _updateTrailMesh(marker.metadata._trail);
     });
 
     // Update selection ring
