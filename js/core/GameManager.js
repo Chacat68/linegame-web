@@ -40,22 +40,29 @@ import * as Achievement from '../systems/achievement/AchievementSystem.js';
 import * as Tutorial   from '../systems/tutorial/TutorialSystem.js?v=20260412-tutquest2';
 import * as TutorialUI from '../ui/TutorialUI.js?v=20260412-tutquest1';
 import * as Dialogue   from '../systems/story/DialogueSystem.js';
-import { INITIAL_STATE, DIFFICULTY_LEVELS, EVENT_CONFIG } from '../data/constants.js';
+import * as GameTime from '../systems/time/GameTimeSystem.js';
+import { INITIAL_STATE, DIFFICULTY_LEVELS, EVENT_CONFIG, TIME_CONFIG } from '../data/constants.js';
 import * as Victory from '../systems/victory/VictorySystem.js';
 import { VICTORY_PATHS } from '../data/victoryConditions.js';
 import { getLevel } from '../data/playerLevels.js';
 import { SYSTEMS } from '../data/systems.js';
 import { GOODS } from '../data/goods.js';
-import * as Settings from './SettingsManager.js?v=20260406-exploreflow3';
+import * as Settings from './SettingsManager.js?v=20260412-timescale1';
 import * as Progression from '../systems/progression/ProgressionSystem.js';
 import * as Dispatch from './DispatchController.js?v=20260406-routefix2';
 
 let _state     = null;
 let _startTime = null;
-let _settings  = { motionLevel: 'full', difficulty: 'normal', secretRoutesVisible: true };
+let _settings  = {
+  motionLevel: 'full',
+  difficulty: 'normal',
+  secretRoutesVisible: true,
+  realtimeDayDurationMs: TIME_CONFIG.realtimeDayDurationMs,
+};
 let _blackMarketMode = false; // 当前是否处于黑市交易模式
 let _dialogueQueue = [];
 let _dialoguePlaying = false;
+let _realtimeClock = null;
 
 function _getMarketFinanceActions() {
   return {
@@ -93,6 +100,7 @@ export function init(difficulty) {
   _settings = Settings.loadSettings();
   _dialogueQueue = [];
   _dialoguePlaying = false;
+  _realtimeClock = null;
 
   // 应用难度设定
   var effectiveDifficulty = difficulty || _settings.difficulty || 'normal';
@@ -198,6 +206,10 @@ export function init(difficulty) {
       _settings.difficulty = nextDifficulty;
       _updateUI();
     },
+    onRealtimeDayDurationChanged: function (nextDurationMs) {
+      _settings.realtimeDayDurationMs = nextDurationMs;
+      _resetRealtimeClock(performance.now());
+    },
     onResetTutorial: function () {
       Tutorial.reset();
       Settings.hideSettingsModal();
@@ -211,6 +223,7 @@ export function init(difficulty) {
   });
 
   _updateUI();
+  _resetRealtimeClock(performance.now());
   _startGameLoop();
 
   if (!Tutorial.isCompleted()) {
@@ -515,7 +528,6 @@ function _handleTravel(systemId) {
   }
 
   const previousSystem = _state.currentSystem;
-  const previousDay = _state.day || 1;
   const result = Trade.travelTo(_state, systemId);
   _dispatch(result);
 
@@ -603,14 +615,6 @@ function _handleTravel(systemId) {
     compExpResult.msgs.forEach(function (m) { EventBus.emit('log:message', { text: m.text, type: m.type }); });
     _state.reputation = (_state.reputation || 0) + 1;
 
-    var wageResult = Crew.payDailyWages(_state, Math.max(0, (_state.day || 1) - previousDay));
-    wageResult.msgs.forEach(function (m) {
-      EventBus.emit('log:message', { text: m.text, type: m.type });
-    });
-
-    // 连续无伤天数追踪（旅行前记录船体值）
-    var _hullBefore = _state.shipHull || 100;
-
     // 任务进度：旅行
     const travelFaction = Faction.getFactionForSystem(_state.currentSystem);
     const questResult = Quest.checkProgress(_state, {
@@ -622,14 +626,6 @@ function _handleTravel(systemId) {
       EventBus.emit('log:message', { text: m.text, type: m.type });
     });
     _queueQuestDialogueResult(questResult);
-
-    // 科技研究进度推进
-    const researchResult = Research.advanceResearch(_state);
-    if (researchResult.msgs.length > 0) {
-      researchResult.msgs.forEach(function (m) {
-        EventBus.emit('log:message', { text: m.text, type: m.type });
-      });
-    }
 
     // 自动修复（如果有科技）
     var totalAutoRepair = (_state.autoRepair || 0) + (activeShipStats.autoRepair || 0);
@@ -663,13 +659,6 @@ function _handleTravel(systemId) {
 
     _state.galaxyStates = GalaxyData.getAllPlanetStates(); // 保存星系数据层状态
     Save.saveGame(0, _state, { isAutosave: true });
-
-    // 连续无伤天数追踪
-    if ((_state.shipHull || 100) >= _hullBefore) {
-      _state.daysWithoutDamage = (_state.daysWithoutDamage || 0) + 1;
-    } else {
-      _state.daysWithoutDamage = 0;
-    }
 
     _updateUI();
   }
@@ -1003,6 +992,7 @@ function _handleLoadGame(slotId) {
     if (Fleet.isActiveDispatched(_state)) {
       Dispatch.startActiveDispatch(_boundDispatchTick);
     }
+    _resetRealtimeClock(performance.now());
     _updateUI();
     EventBus.emit('log:message', { text: result.msg, type: 'info' });
   } else {
@@ -1035,6 +1025,9 @@ function _handleSwitchShip(shipIndex) {
   // 如果新激活的船只已有路线，重新启动派遣
   if (result && result.ok && Fleet.isActiveDispatched(_state)) {
     Dispatch.startActiveDispatch(_boundDispatchTick);
+  }
+  if (result && result.ok) {
+    _resetRealtimeClock(performance.now());
   }
 }
 
@@ -1276,13 +1269,74 @@ function _checkVictory() {
   document.getElementById('gameover-modal').classList.remove('hidden');
 }
 
+function _resetRealtimeClock(nowMs) {
+  _realtimeClock = GameTime.resetRealtimeClock(_realtimeClock, nowMs, _state ? _state.shipHull : 100);
+}
+
+function _isRealtimeClockPaused() {
+  return !!(document.hidden || document.querySelector('.modal:not(.hidden)'));
+}
+
+function _applyRealtimeDayProgress(days) {
+  var elapsedDays = Math.max(0, Number.isFinite(days) ? Math.floor(days) : 0);
+  if (elapsedDays <= 0) return;
+
+  var previousHull = _realtimeClock && Number.isFinite(_realtimeClock.lastHullSnapshot)
+    ? _realtimeClock.lastHullSnapshot
+    : (_state.shipHull || 100);
+  var result = GameTime.advanceDays(_state, elapsedDays);
+
+  result.questResults.forEach(function (questResult) {
+    _queueQuestDialogueResult(questResult);
+  });
+
+  if ((_state.shipHull || 100) >= previousHull) {
+    _state.daysWithoutDamage = (_state.daysWithoutDamage || 0) + elapsedDays;
+  } else {
+    _state.daysWithoutDamage = 0;
+  }
+
+  if (_realtimeClock) {
+    _realtimeClock.lastHullSnapshot = _state.shipHull || 100;
+  }
+
+  _state.galaxyStates = GalaxyData.getAllPlanetStates();
+  Save.saveGame(0, _state, { isAutosave: true });
+  _dispatch(result);
+}
+
+function _updateRealtimeClock(ts) {
+  if (!_state) return;
+  if (_isRealtimeClockPaused()) {
+    _resetRealtimeClock(ts);
+    return;
+  }
+
+  if (!_realtimeClock) {
+    _resetRealtimeClock(ts);
+  }
+
+  var tickResult = GameTime.consumeElapsedDays(_realtimeClock, ts, _getRealtimeDayDurationMs());
+  if (tickResult.elapsedDays > 0) {
+    _applyRealtimeDayProgress(tickResult.elapsedDays);
+  }
+}
+
+function _getRealtimeDayDurationMs() {
+  return Number.isFinite(_settings && _settings.realtimeDayDurationMs)
+    ? _settings.realtimeDayDurationMs
+    : TIME_CONFIG.realtimeDayDurationMs;
+}
+
 // ---------------------------------------------------------------------------
 // 游戏主循环
 // ---------------------------------------------------------------------------
 
 function _startGameLoop() {
   _startTime = performance.now();
+  _resetRealtimeClock(_startTime);
   (function loop(ts) {
+    _updateRealtimeClock(ts);
     const mapView = MapUI.getMapView ? MapUI.getMapView() : 'planets';
     const galaxyId = MapUI.getCurrentGalaxyId ? MapUI.getCurrentGalaxyId() : 'milky_way';
     Renderer3D.render(_state, mapView, galaxyId);

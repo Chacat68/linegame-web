@@ -1379,9 +1379,10 @@ function _updateObjective(obj, ctx, state) {
       break;
 
     case 'survive_days':
-      // 生存天数（每次旅行触发）
-      if (ctx.action === 'travel') {
-        obj.current = Math.min(obj.amount, (obj.current || 0) + 1);
+      // 生存天数（由每日推进触发）
+      if (ctx.action === 'advance_day') {
+        var advancedDays = Math.max(1, Math.floor(ctx.days || 1));
+        obj.current = Math.min(obj.amount, (obj.current || 0) + advancedDays);
       }
       break;
 

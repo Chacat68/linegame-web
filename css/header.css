@@ -124,6 +124,39 @@
   max-width: 220px;
 }
 
+.hdr-day-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  margin-left: 8px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(250, 204, 21, 0.12), rgba(56, 189, 248, 0.08));
+  border: 1px solid rgba(250, 204, 21, 0.18);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 0 18px rgba(250, 204, 21, 0.08);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.hdr-day-chip-label {
+  font-size: 8px;
+  color: rgba(250, 204, 21, 0.72);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-family: "Orbitron", monospace;
+}
+
+.hdr-day-chip-value {
+  font-size: 12px;
+  font-weight: 700;
+  color: #fde68a;
+  font-family: "Orbitron", monospace;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 12px rgba(250, 204, 21, 0.22);
+}
+
 /* Separator between stats and buttons */
 .hdr-icon-btns {
   display: flex;

@@ -6,6 +6,7 @@ import * as Economy from '../js/systems/economy/Economy.js';
 import * as Fleet from '../js/systems/fleet/FleetSystem.js';
 import * as Finance from '../js/systems/finance/FinanceSystem.js';
 import * as Futures from '../js/systems/finance/FuturesSystem.js';
+import * as GameTime from '../js/systems/time/GameTimeSystem.js';
 import * as Trade from '../js/systems/trade/TradeSystem.js';
 import * as TradeStation from '../js/systems/trade/TradeStationSystem.js';
 import * as Save from '../js/systems/save/SaveSystem.js';
@@ -173,7 +174,7 @@ describe('端到端：经济→天数推进', () => {
     expect(Number.isFinite(price)).toBe(true);
   });
 
-  it('旅行日结会串联商网、金融、期货与派遣结算', () => {
+  it('实时日推进会串联商网、金融、期货与派遣结算', () => {
     const state = createTestState({
       credits: 250000,
       fuel: 120,
@@ -203,18 +204,17 @@ describe('端到端：经济→天数推进', () => {
     expect(Fleet.buyShip(state, 'freighter').ok).toBe(true);
     expect(Fleet.assignRoute(state, 1, 'sol_prime', 'nova_station', 'food').ok).toBe(true);
 
-    const creditsBeforeTravel = state.credits;
-    const travelResult = Trade.travelTo(state, 'nova_station');
-    const fleetResult = Fleet.tickFleetRoutes(state);
+    const creditsBeforeAdvance = state.credits;
+    const timeResult = GameTime.advanceDays(state, 1);
 
-    expect(travelResult.ok).toBe(true);
+    expect(timeResult.ok).toBe(true);
     expect(state.day).toBe(2);
     expect(state.financeLastProcessedDay).toBe(2);
     expect(state.futuresLastProcessedDay).toBe(2);
     expect(state.loans[0].balance).toBeLessThan(loanBalanceBefore);
     expect(state.tradeStations.sol_prime.lastIncome).toBeGreaterThan(0);
-    expect(state.credits).not.toBe(creditsBeforeTravel);
-    expect(fleetResult.msgs.length).toBeGreaterThan(0);
+    expect(state.credits).not.toBe(creditsBeforeAdvance);
+    expect(timeResult.msgs.length).toBeGreaterThan(0);
     expect(state.fleet[1].route.status).toBe('traveling_sell');
     expect(state.fleet[1].cargo.food).toBeGreaterThan(0);
   });

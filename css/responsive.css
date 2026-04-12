@@ -28,6 +28,13 @@
   .hdr-stat-value { font-size: 12px; }
   .hdr-stat-label { font-size: 7px; }
   .hdr-stat-block { gap: 4px; }
+  .hdr-day-chip {
+    gap: 6px;
+    margin-left: 4px;
+    padding: 3px 8px;
+  }
+  .hdr-day-chip-label { font-size: 7px; }
+  .hdr-day-chip-value { font-size: 11px; }
   .hdr-icon-btn { width: 28px; height: 28px; }
 
   .side-panel-overlay--left  { width: calc(100vw - 32px); top: 44px; }
@@ -188,6 +195,14 @@
   .hdr-logo { font-size: 11px; }
   .hdr-stat-value { font-size: 11px; }
   .hdr-stats { gap: 8px; }
+  .hdr-location { display: none; }
+  .hdr-day-chip {
+    margin-left: 2px;
+    padding: 2px 7px;
+    gap: 5px;
+  }
+  .hdr-day-chip-label { font-size: 6px; }
+  .hdr-day-chip-value { font-size: 10px; }
   .hdr-icon-btns { gap: 2px; padding-left: 4px; }
 
   .side-panel-overlay--left,

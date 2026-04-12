@@ -4,14 +4,23 @@
 //       initSettingsModal, showSettingsModal, hideSettingsModal
 
 import * as EventBus from './EventBus.js';
+import { TIME_CONFIG } from '../data/constants.js';
 
 const SETTINGS_KEY = 'linegame_settings';
 
 const VALID_MOTION_LEVELS = ['full', 'reduced', 'off'];
 const VALID_DIFFICULTIES = ['easy', 'normal', 'hard'];
+const VALID_REALTIME_DAY_DURATIONS_MS = TIME_CONFIG.availableRealtimeDayDurationsMs || [TIME_CONFIG.realtimeDayDurationMs];
 
 function _normalizeSecretRoutesVisible(value) {
   return value !== false;
+}
+
+function _normalizeRealtimeDayDurationMs(value) {
+  var numericValue = Number(value);
+  return VALID_REALTIME_DAY_DURATIONS_MS.indexOf(numericValue) >= 0
+    ? numericValue
+    : TIME_CONFIG.realtimeDayDurationMs;
 }
 
 // ---------------------------------------------------------------------------
@@ -20,12 +29,19 @@ function _normalizeSecretRoutesVisible(value) {
 
 /**
  * 从 localStorage 加载设置
- * @returns {{ motionLevel: string, difficulty: string, secretRoutesVisible: boolean }}
+ * @returns {{ motionLevel: string, difficulty: string, secretRoutesVisible: boolean, realtimeDayDurationMs: number }}
  */
 export function loadSettings() {
   try {
     var raw = localStorage.getItem(SETTINGS_KEY);
-    if (!raw) return { motionLevel: 'full', difficulty: 'normal', secretRoutesVisible: true };
+    if (!raw) {
+      return {
+        motionLevel: 'full',
+        difficulty: 'normal',
+        secretRoutesVisible: true,
+        realtimeDayDurationMs: TIME_CONFIG.realtimeDayDurationMs,
+      };
+    }
     var parsed = JSON.parse(raw);
     return {
       motionLevel: VALID_MOTION_LEVELS.indexOf(parsed.motionLevel) >= 0
@@ -35,15 +51,21 @@ export function loadSettings() {
         ? parsed.difficulty
         : 'normal',
       secretRoutesVisible: _normalizeSecretRoutesVisible(parsed.secretRoutesVisible),
+      realtimeDayDurationMs: _normalizeRealtimeDayDurationMs(parsed.realtimeDayDurationMs),
     };
   } catch (_) {
-    return { motionLevel: 'full', difficulty: 'normal', secretRoutesVisible: true };
+    return {
+      motionLevel: 'full',
+      difficulty: 'normal',
+      secretRoutesVisible: true,
+      realtimeDayDurationMs: TIME_CONFIG.realtimeDayDurationMs,
+    };
   }
 }
 
 /**
  * 保存设置到 localStorage
- * @param {{ motionLevel: string, difficulty: string, secretRoutesVisible: boolean }} settings
+ * @param {{ motionLevel: string, difficulty: string, secretRoutesVisible: boolean, realtimeDayDurationMs: number }} settings
  */
 export function saveSettings(settings) {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
@@ -69,9 +91,10 @@ export function applySettings(settings, Renderer) {
 /**
  * 初始化设置弹窗事件绑定
  * @param {object} callbacks
- * @param {{ motionLevel: string, secretRoutesVisible: boolean }} callbacks.settings  当前设置引用
+ * @param {{ motionLevel: string, secretRoutesVisible: boolean, difficulty: string, realtimeDayDurationMs: number }} callbacks.settings  当前设置引用
  * @param {Function} callbacks.onSettingsChanged  设置变更后的回调
  * @param {Function} callbacks.onDifficultyChanged 难度变更回调
+ * @param {Function} callbacks.onRealtimeDayDurationChanged 实时天数流速变更回调
  * @param {Function} callbacks.onResetTutorial     重置教程回调
  * @param {Function} callbacks.onClearSaves        清空存档回调
  * @param {{ setMotionLevel: Function, setSecretRoutesVisible: Function }} callbacks.Renderer  渲染器引用
@@ -83,6 +106,7 @@ export function initSettingsModal(callbacks) {
   var motionSelect  = document.getElementById('settings-motion-level');
   var secretRoutesToggle = document.getElementById('settings-secret-routes-visible');
   var difficultySelect = document.getElementById('settings-difficulty-level');
+  var timeScaleSelect = document.getElementById('settings-time-scale');
   var resetDefaultsBtn = document.getElementById('settings-reset-defaults-btn');
   var resetTutorialBtn = document.getElementById('settings-reset-tutorial-btn');
   var clearSavesBtn    = document.getElementById('settings-clear-saves-btn');
@@ -136,17 +160,34 @@ export function initSettingsModal(callbacks) {
       });
     };
   }
+  if (timeScaleSelect) {
+    timeScaleSelect.onchange = function () {
+      var nextDurationMs = _normalizeRealtimeDayDurationMs(timeScaleSelect.value);
+      callbacks.settings.realtimeDayDurationMs = nextDurationMs;
+      saveSettings(callbacks.settings);
+      if (callbacks.onRealtimeDayDurationChanged) {
+        callbacks.onRealtimeDayDurationChanged(nextDurationMs);
+      }
+      EventBus.emit('log:message', {
+        text: '⚙ 已更新时间流速：' + _formatRealtimeDayDurationLabel(nextDurationMs) + '。',
+        type: 'info',
+      });
+    };
+  }
   if (resetDefaultsBtn) {
     resetDefaultsBtn.onclick = function () {
       callbacks.settings.motionLevel = 'full';
       callbacks.settings.difficulty = 'normal';
       callbacks.settings.secretRoutesVisible = true;
+      callbacks.settings.realtimeDayDurationMs = TIME_CONFIG.realtimeDayDurationMs;
       saveSettings(callbacks.settings);
       applySettings(callbacks.settings, callbacks.Renderer);
       if (motionSelect) motionSelect.value = 'full';
       if (secretRoutesToggle) secretRoutesToggle.checked = true;
       if (difficultySelect) difficultySelect.value = 'normal';
+      if (timeScaleSelect) timeScaleSelect.value = String(TIME_CONFIG.realtimeDayDurationMs);
       if (callbacks.onDifficultyChanged) callbacks.onDifficultyChanged('normal');
+      if (callbacks.onRealtimeDayDurationChanged) callbacks.onRealtimeDayDurationChanged(TIME_CONFIG.realtimeDayDurationMs);
       EventBus.emit('log:message', { text: '⚙ 设置已恢复为默认值。', type: 'info' });
     };
   }
@@ -195,6 +236,7 @@ function _toggleSettingsModal(isVisible) {
   var motionSelect = document.getElementById('settings-motion-level');
   var secretRoutesToggle = document.getElementById('settings-secret-routes-visible');
   var difficultySelect = document.getElementById('settings-difficulty-level');
+  var timeScaleSelect = document.getElementById('settings-time-scale');
   if (!modal) return;
   if (motionSelect && isVisible) {
     // 读取当前 localStorage 设置同步到 select
@@ -202,10 +244,15 @@ function _toggleSettingsModal(isVisible) {
     motionSelect.value = current.motionLevel || 'full';
     if (secretRoutesToggle) secretRoutesToggle.checked = _normalizeSecretRoutesVisible(current.secretRoutesVisible);
     if (difficultySelect) difficultySelect.value = current.difficulty || 'normal';
+    if (timeScaleSelect) timeScaleSelect.value = String(_normalizeRealtimeDayDurationMs(current.realtimeDayDurationMs));
   }
   if (isVisible) _activateSettingsPanel(modal.dataset.activePanel || 'display');
   modal.classList.toggle('hidden', !isVisible);
   modal.setAttribute('aria-hidden', isVisible ? 'false' : 'true');
+}
+
+function _formatRealtimeDayDurationLabel(durationMs) {
+  return Math.round(durationMs / 1000) + ' 秒 / 天';
 }
 
 function _activateSettingsPanel(panelId) {

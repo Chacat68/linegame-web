@@ -159,7 +159,7 @@ describe('Trade.travelTo', () => {
     const result = Trade.travelTo(state, 'nova_station');
     expect(result.ok).toBe(true);
     expect(state.currentSystem).toBe('nova_station');
-    expect(state.day).toBeGreaterThan(1);
+    expect(state.day).toBe(1);
     expect(state.fuel).toBeLessThan(100);
   });
 
@@ -193,7 +193,7 @@ describe('Trade.travelTo', () => {
     }
   });
 
-  it('旅行会推进经济日结并写入价格历史', () => {
+  it('旅行不会再直接推进经济日结或游戏天数', () => {
     const state = createTestState({ fuel: 100, maxFuel: 100, day: 1 });
     Faction.init(state);
 
@@ -202,7 +202,7 @@ describe('Trade.travelTo', () => {
     const afterHistory = Economy.getPriceHistory('sol_prime', 'food').length;
 
     expect(result.ok).toBe(true);
-    expect(state.day).toBe(2);
-    expect(afterHistory).toBe(beforeHistory + 1);
+    expect(state.day).toBe(1);
+    expect(afterHistory).toBe(beforeHistory);
   });
 });

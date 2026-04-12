@@ -82,6 +82,9 @@ export function updateStats(state, netWorth) {
   document.querySelectorAll('.hdr-credits-mirror').forEach(function (el) {
     el.textContent = Math.floor(state.credits).toLocaleString();
   });
+  document.querySelectorAll('.hdr-day-mirror').forEach(function (el) {
+    el.textContent = '第 ' + state.day + ' 天';
+  });
 
   // 更新底部状态栏：燃料 / 护盾 / 货舱
   _updateStatusBars(state);

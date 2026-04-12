@@ -379,6 +379,29 @@ describe('Quest.checkProgress', () => {
     expect(state.completedQuests).toContain('test_visit_quest');
   });
 
+  it('survive_days 目标只在每日推进时累计', () => {
+    const state = createTestState();
+    Faction.init(state);
+    Quest.init(state);
+
+    state.quests.push({
+      id: 'test_survive_days_quest',
+      name: '测试生存任务',
+      type: 'explore',
+      phase: 1,
+      objectives: [{ type: 'survive_days', amount: 3, current: 0 }],
+      rewards: { credits: 50, exp: 5, reputation: 2 },
+      timeLimit: 0,
+      startDay: 1,
+    });
+
+    Quest.checkProgress(state, { action: 'travel', systemId: 'nova_station' });
+    expect(state.quests[0].objectives[0].current).toBe(0);
+
+    Quest.checkProgress(state, { action: 'advance_day', days: 2 });
+    expect(state.quests[0].objectives[0].current).toBe(2);
+  });
+
   it('超时任务被标记为失败', () => {
     const state = createTestState({ day: 100 });
     Faction.init(state);

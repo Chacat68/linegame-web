@@ -11,12 +11,11 @@
 //   marketType = 'black' → 使用黑市价格（含违禁品溢价）
 
 import { GOODS }    from '../../data/goods.js';
-import { SYSTEMS, findSystem, GALAXY_JUMP_DAYS }  from '../../data/systems.js';
+import { SYSTEMS, findSystem }  from '../../data/systems.js';
 import { UPGRADES } from '../../data/upgrades.js';
 import * as Economy from '../economy/Economy.js';
 import * as Finance from '../finance/FinanceSystem.js';
 import * as Exploration from '../galaxy/ExplorationSystem.js';
-import * as TradeStation from './TradeStationSystem.js';
 
 // ---------------------------------------------------------------------------
 // 辅助工具
@@ -316,27 +315,10 @@ export function travelTo(state, systemId) {
   const fromId         = state.currentSystem;
   state.fuel          -= cost;
   state.currentSystem  = systemId;
-  const days = crossGalaxy ? GALAXY_JUMP_DAYS : 1;
-  state.day += days;
   const msgs = [];
   if (crossGalaxy && toSys) {
     state.currentGalaxy = toSys.galaxyId;
     state.viewingGalaxy = toSys.galaxyId;
-  }
-  var _cycleChanged = null;
-  for (let d = 0; d < days; d++) {
-    var _cycleResult = Economy.advanceDay();
-    if (_cycleResult && _cycleResult.cycleChanged) {
-      _cycleChanged = _cycleResult.cycle;
-    }
-    const _stationResult = TradeStation.advanceDay(state);
-    if (_stationResult && _stationResult.msgs && _stationResult.msgs.length > 0) {
-      msgs.push.apply(msgs, _stationResult.msgs);
-    }
-    const _financeResult = Finance.advanceDay(state);
-    if (_financeResult && _financeResult.msgs && _financeResult.msgs.length > 0) {
-      msgs.push.apply(msgs, _financeResult.msgs);
-    }
   }
 
   const sys  = findSystem(systemId);
@@ -350,14 +332,6 @@ export function travelTo(state, systemId) {
     text: (crossGalaxy ? '🌌 超空间跃迁！' : '🚀 ') + '已抵达 ' + sys.name + '！消耗 ' + cost + ' 燃料。银河历第 ' + state.day + ' 天。',
     type: 'travel',
   });
-
-  // 经济周期变更通知
-  if (_cycleChanged) {
-    msgs.push({
-      text: _cycleChanged.icon + ' 经济周期转入「' + _cycleChanged.name + '」——市场价格将受到影响！',
-      type: 'info',
-    });
-  }
 
   // 深空补给站免费赠燃料
   if (systemId === 'fuel_depot') {

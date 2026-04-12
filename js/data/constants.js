@@ -208,6 +208,11 @@ export const TUTORIAL_CONFIG = {
   completionStorageKey: 'tutorial_completed',
 };
 
+export const TIME_CONFIG = {
+  realtimeDayDurationMs: 60 * 1000,
+  availableRealtimeDayDurationsMs: [30 * 1000, 60 * 1000, 180 * 1000],
+};
+
 export const SAVE_SCHEMA_VERSION = 12;
 export const GAME_VERSION = '0.6.0';
 
