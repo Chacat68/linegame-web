@@ -5,7 +5,7 @@
 import { QUEST_TYPES } from '../data/quests.js';
 import { GOODS } from '../data/goods.js';
 import { findSystem } from '../data/systems.js';
-import * as Quest      from '../systems/quest/QuestSystem.js?v=20260412-questroute1';
+import * as Quest      from '../systems/quest/QuestSystem.js?v=20260412-questroute2';
 
 const _goodNameById = GOODS.reduce(function (acc, good) {
   acc[good.id] = good.name;
@@ -163,15 +163,22 @@ function _renderQuestBriefObjectives(quest) {
   }).join('') + '</div>';
 }
 
-function _renderQuestRoutePreview(routePreview) {
+function _renderQuestRoutePreview(routePreview, options) {
   if (!routePreview || !routePreview.items || routePreview.items.length === 0) return '';
 
-  return '<div class="quest-route-preview">' +
+  options = options || {};
+  var compact = !!options.compact;
+  var title = options.title || '航线预估';
+  var caption = options.caption || '基于当前停靠点测算';
+  var items = routePreview.items.slice(0, compact ? 2 : routePreview.items.length);
+  var containerClass = 'quest-route-preview' + (compact ? ' is-compact' : '');
+
+  return '<div class="' + containerClass + '">' +
     '<div class="quest-route-preview-head">' +
-      '<span class="quest-route-preview-title">航线预估</span>' +
-      '<span class="quest-route-preview-caption">基于当前停靠点测算</span>' +
+      '<span class="quest-route-preview-title">' + title + '</span>' +
+      '<span class="quest-route-preview-caption">' + caption + '</span>' +
     '</div>' +
-    '<div class="quest-route-preview-list">' + routePreview.items.map(function (item) {
+    '<div class="quest-route-preview-list">' + items.map(function (item) {
       var tags = [
         item.isPrimary ? '<span class="quest-route-tag quest-route-tag-primary">当前步骤</span>' : '',
         item.isCurrentSystem ? '<span class="quest-route-tag quest-route-tag-current">当前停靠</span>' : '',
@@ -204,7 +211,7 @@ function _renderQuestRoutePreview(routePreview) {
           : '') +
       '</div>';
     }).join('') + '</div>' +
-    (routePreview.summaryText ? '<div class="quest-route-summary">' + routePreview.summaryText + '</div>' : '') +
+    (routePreview.summaryText ? '<div class="quest-route-summary' + (compact ? ' is-compact' : '') + '">' + routePreview.summaryText + '</div>' : '') +
   '</div>';
 }
 
@@ -332,6 +339,7 @@ export function render(state, onAccept, onAbandon) {
       const timeleft = quest.timeLimit > 0
         ? '⏰ 剩余 ' + Math.max(0, quest.timeLimit - (state.day - quest.startDay)) + ' 天'
         : '';
+      const routePreview = Quest.getQuestRoutePreview(state, quest, 2);
 
       html += '<div class="quest-card active-quest">' +
         '<div class="quest-card-header">' +
@@ -357,6 +365,11 @@ export function render(state, onAccept, onAbandon) {
       // 目标星球
       var targets = _questTargetSystems(quest);
       html += _renderTargetSystems(targets, state.currentSystem);
+      html += _renderQuestRoutePreview(routePreview, {
+        compact: true,
+        title: '当前航线',
+        caption: '按现状继续推进',
+      });
 
       // 奖励
       const activeRewardSummary = Quest.getQuestRewardSummary(state, quest);

@@ -905,6 +905,10 @@ function _getObjectiveRouteNote(objective) {
   }
 }
 
+function _hasTech(state, techId) {
+  return !!(state && Array.isArray(state.researchedTechs) && state.researchedTechs.indexOf(techId) !== -1);
+}
+
 function _getSystemDistance(fromSystem, toSystem) {
   return Math.sqrt(
     Math.pow((fromSystem.x || 0) - (toSystem.x || 0), 2) +
