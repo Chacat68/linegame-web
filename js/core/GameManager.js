@@ -37,7 +37,7 @@ import * as FleetUI    from '../ui/FleetUI.js';
 import * as Save       from '../systems/save/SaveSystem.js';
 import * as Quest      from '../systems/quest/QuestSystem.js?v=20260412-questroute2';
 import * as Achievement from '../systems/achievement/AchievementSystem.js';
-import * as Tutorial   from '../systems/tutorial/TutorialSystem.js?v=20260412-tutquest1';
+import * as Tutorial   from '../systems/tutorial/TutorialSystem.js?v=20260412-tutquest2';
 import * as TutorialUI from '../ui/TutorialUI.js?v=20260412-tutquest1';
 import * as Dialogue   from '../systems/story/DialogueSystem.js';
 import { INITIAL_STATE, DIFFICULTY_LEVELS, EVENT_CONFIG } from '../data/constants.js';
@@ -315,10 +315,12 @@ function _queueQuestDialogueResult(result, onFinished) {
   if (!result) return;
 
   var scenes = [];
+  var hasCompletedQuest = false;
 
   if (Array.isArray(result.completedQuests)) {
     result.completedQuests.forEach(function (entry) {
       if (!entry || entry.failed) return;
+      hasCompletedQuest = true;
       scenes = scenes.concat(Dialogue.getScenesForTrigger(_state, 'quest_complete', {
         questId: entry.id,
         quest: entry.quest || null,
@@ -333,7 +335,13 @@ function _queueQuestDialogueResult(result, onFinished) {
     }));
   }
 
-  _queueDialogueScenes(scenes, onFinished);
+  _queueDialogueScenes(scenes, function () {
+    if (hasCompletedQuest) {
+      Tutorial.checkTrigger('complete_quest');
+      _updateUI();
+    }
+    if (typeof onFinished === 'function') onFinished();
+  });
 }
 
 // 设置管理已提取到 js/core/SettingsManager.js

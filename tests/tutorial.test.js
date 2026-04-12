@@ -54,7 +54,7 @@ describe('TutorialSystem', () => {
     Tutorial.reset();
   });
 
-  it('将任务接取纳入新手教程主流程', () => {
+  it('任务接取后会进入首单完成步骤', () => {
     const state = createTestState();
 
     Tutorial.init(state);
@@ -63,6 +63,32 @@ describe('TutorialSystem', () => {
 
     expect(Tutorial.getStep().id).toBe('accept_first_quest');
     Tutorial.checkTrigger('accept_quest');
+    expect(Tutorial.getStep().id).toBe('complete_first_quest');
+  });
+
+  it('首个任务完成后会推进到任务追踪步骤', () => {
+    const state = createTestState();
+
+    Tutorial.init(state);
+    Tutorial.start();
+    advanceToQuestAcceptStep();
+
+    Tutorial.checkTrigger('accept_quest');
+    expect(Tutorial.getStep().id).toBe('complete_first_quest');
+    Tutorial.checkTrigger('complete_quest');
+    expect(Tutorial.getStep().id).toBe('quest_tracker');
+  });
+
+  it('若任务在接取后立即结算，会自动越过完成步骤', () => {
+    const state = createTestState();
+
+    Tutorial.init(state);
+    Tutorial.start();
+    advanceToQuestAcceptStep();
+
+    Tutorial.checkTrigger('complete_quest');
+    Tutorial.checkTrigger('accept_quest');
+
     expect(Tutorial.getStep().id).toBe('quest_tracker');
   });
 
@@ -71,7 +97,9 @@ describe('TutorialSystem', () => {
 
     expect(ids).toContain('show_quest_board');
     expect(ids).toContain('accept_first_quest');
+    expect(ids).toContain('complete_first_quest');
     expect(ids).toContain('quest_tracker');
     expect(ids.indexOf('accept_first_quest')).toBeLessThan(ids.indexOf('fuel_warning'));
+    expect(ids.indexOf('complete_first_quest')).toBeLessThan(ids.indexOf('quest_tracker'));
   });
 });

@@ -18,6 +18,10 @@ function _getActiveQuestName(state, context) {
   return activeQuest && activeQuest.name ? activeQuest.name : '';
 }
 
+function _hasCompletedQuest(state) {
+  return !!(state && Array.isArray(state.completedQuests) && state.completedQuests.length > 0);
+}
+
 function _line(speaker, icon, text) {
   return {
     speaker: speaker,
@@ -74,6 +78,9 @@ export const DIALOGUE_SCENES = [
           if (activeQuestName) {
             return '基础操作你已经学完了，' + (state.companyName || '这家公司') + ' 现在已经接下了第一份正式委托「' + activeQuestName + '」。';
           }
+          if (_hasCompletedQuest(state)) {
+            return '基础操作你已经学完了，' + (state.companyName || '这家公司') + ' 刚刚已经把第一份正式委托顺利结清。';
+          }
           return '基础操作你已经学完了，' + (state.companyName || '这家公司') + ' 终于可以开始接真正的委托了。';
         },
       },
@@ -84,6 +91,9 @@ export const DIALOGUE_SCENES = [
           var activeQuestName = _getActiveQuestName(state, context);
           if (activeQuestName) {
             return '先把手上的「' + activeQuestName + '」跑稳。我又替你筛了几份后续单子：' + _formatQuestList(context) + '。按你的节奏接着扩张。';
+          }
+          if (_hasCompletedQuest(state)) {
+            return '第一张单子你已经跑通了。我又替你筛了几份后续单子：' + _formatQuestList(context) + '。接下来就把一次成功，扩成稳定航线。';
           }
           return '我替你先筛了几份适合起步的单子：' + _formatQuestList(context) + '。先接一份，让银河重新记住你的名字。';
         },

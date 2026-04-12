@@ -50,6 +50,23 @@ describe('DialogueSystem', () => {
     expect(scenes[0].lines[1].text).toContain('跑稳');
   });
 
+  it('教程完成对话会承接刚结清的首个任务', () => {
+    const state = createTestState({
+      companyName: '北冕物流',
+      completedQuests: ['starter_first_trade'],
+    });
+    Dialogue.init(state);
+
+    const scenes = Dialogue.getScenesForTrigger(state, 'tutorial_complete', {
+      recommendations: [{ name: '疫情救援' }, { name: '前线补给' }],
+    });
+
+    expect(scenes).toHaveLength(1);
+    expect(scenes[0].lines[0].text).toContain('第一份正式委托');
+    expect(scenes[0].lines[0].text).toContain('顺利结清');
+    expect(scenes[0].lines[1].text).toContain('第一张单子你已经跑通了');
+  });
+
   it('结束场景时会记录已选分支', () => {
     const state = createTestState({ day: 6 });
     Dialogue.init(state);
