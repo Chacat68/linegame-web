@@ -49,6 +49,7 @@ let _shipTrail = null;
 let _flightPath = null;
 let _shipVisible = false;
 let _flightRouteLine = null;   // 飞行轨迹线
+let _flightRouteGlow = null;   // 飞行轨迹外层辉光
 let _flightTargetGlow = null;  // 目标星球选中光环
 let _currentShipType = null;   // 当前飞船类型 ID
 
@@ -1564,9 +1565,10 @@ function _createArcCurve(fromPos, toPos, segments) {
   return BABYLON.Curve3.CreateQuadraticBezier(fromPos, mid, toPos, segments || 48);
 }
 
-function _createTrailMaterial(name, color, alpha) {
+function _createTrailMaterial(name, color, alpha, emissiveScale) {
+  const baseColor = color.clone ? color.clone() : color;
   const material = new BABYLON.StandardMaterial(name, _scene);
-  material.emissiveColor = color.clone ? color.clone() : color;
+  material.emissiveColor = baseColor.scale(emissiveScale != null ? emissiveScale : 1.2);
   material.diffuseColor = BABYLON.Color3.Black();
   material.specularColor = BABYLON.Color3.Black();
   material.disableLighting = true;
@@ -1589,11 +1591,55 @@ function _createTrailMesh(name, generator, color, options) {
   trail.material = _createTrailMaterial(
     name + '_mat',
     color,
-    options && options.alpha != null ? options.alpha : 0.55
+    options && options.alpha != null ? options.alpha : 0.55,
+    options && options.emissiveScale != null ? options.emissiveScale : 1.25
   );
   trail.isPickable = false;
   trail.setEnabled(false);
   return trail;
+}
+
+function _createRouteTubePair(name, path, color, options) {
+  if (!path || path.length < 2) return [];
+
+  const outerRadius = options && options.outerRadius != null ? options.outerRadius : 0.18;
+  const innerRadius = options && options.innerRadius != null ? options.innerRadius : 0.09;
+  const glowColor = options && options.glowColor ? options.glowColor : color;
+  const tessellation = options && options.tessellation != null ? options.tessellation : 12;
+
+  const glow = BABYLON.MeshBuilder.CreateTube(name + '_glow', {
+    path: path,
+    radius: outerRadius,
+    tessellation: tessellation,
+    cap: BABYLON.Mesh.NO_CAP,
+    sideOrientation: BABYLON.Mesh.DOUBLESIDE,
+  }, _scene);
+  glow.material = _createTrailMaterial(
+    name + '_glow_mat',
+    glowColor,
+    options && options.glowAlpha != null ? options.glowAlpha : 0.18,
+    options && options.glowEmissiveScale != null ? options.glowEmissiveScale : 0.9
+  );
+  glow.visibility = options && options.glowVisibility != null ? options.glowVisibility : 0.72;
+  glow.isPickable = false;
+
+  const core = BABYLON.MeshBuilder.CreateTube(name + '_core', {
+    path: path,
+    radius: innerRadius,
+    tessellation: tessellation,
+    cap: BABYLON.Mesh.NO_CAP,
+    sideOrientation: BABYLON.Mesh.DOUBLESIDE,
+  }, _scene);
+  core.material = _createTrailMaterial(
+    name + '_core_mat',
+    color,
+    options && options.coreAlpha != null ? options.coreAlpha : 0.42,
+    options && options.coreEmissiveScale != null ? options.coreEmissiveScale : 1.2
+  );
+  core.visibility = options && options.coreVisibility != null ? options.coreVisibility : 1;
+  core.isPickable = false;
+
+  return [glow, core];
 }
 
 function _disposeTrailMesh(trail) {
@@ -1621,10 +1667,10 @@ function _updateTrailMesh(trail) {
 
 function _getTrailDiameter(typeId, compact) {
   const visuals = _SHIP_VISUALS[typeId] || _SHIP_VISUALS.shuttle;
-  const min = compact ? 0.12 : 0.16;
-  const max = compact ? 0.24 : 0.32;
-  const base = compact ? 0.06 : 0.08;
-  const offset = compact ? 0.06 : 0.08;
+  const min = compact ? 0.14 : 0.2;
+  const max = compact ? 0.28 : 0.38;
+  const base = compact ? 0.07 : 0.095;
+  const offset = compact ? 0.07 : 0.1;
   return Math.max(min, Math.min(max, offset + visuals.scale * base));
 }
 
@@ -1657,17 +1703,20 @@ function _renderDispatchRoutes(state) {
     if (hasTravelSegment) {
       curve = _createArcCurve(currentPos, targetPos, 48);
       points = curve.getPoints();
-
-      const routeLine = BABYLON.MeshBuilder.CreateDashedLines('dispatch_' + idx, {
-        points: points,
-        dashSize: 1.5,
-        gapSize: 1.0,
-        dashNb: 60,
-      }, _scene);
-      routeLine.color = routeColor;
-      routeLine.alpha = 0.35;
-      routeLine.isPickable = false;
-      _dispatchRouteLines.push(routeLine);
+      const routeLines = _createRouteTubePair('dispatch_' + idx, points, routeColor, {
+        glowColor: routeColor.scale(0.78),
+        outerRadius: isActive ? 0.18 : 0.16,
+        innerRadius: isActive ? 0.074 : 0.062,
+        glowAlpha: isActive ? 0.16 : 0.14,
+        coreAlpha: isActive ? 0.4 : 0.34,
+        glowVisibility: isActive ? 0.54 : 0.48,
+        coreVisibility: isActive ? 0.78 : 0.68,
+        glowEmissiveScale: isActive ? 0.95 : 0.85,
+        coreEmissiveScale: isActive ? 1.1 : 1.0,
+      });
+      routeLines.forEach(function (mesh) {
+        _dispatchRouteLines.push(mesh);
+      });
     }
 
     // Ship model marker (type-specific)
@@ -1688,9 +1737,10 @@ function _renderDispatchRoutes(state) {
 
       const trailMesh = _createTrailMesh('dispTrail_' + idx, shipModel, routeColor, {
         diameter: _getTrailDiameter(shipTypeId, true),
-        length: 24,
+        length: 32,
         sections: 4,
-        alpha: 0.4,
+        alpha: 0.48,
+        emissiveScale: 1.15,
       });
       if (trailMesh) {
         trailMesh.setEnabled(true);
@@ -2006,26 +2056,28 @@ export function flyShipTo(fromId, toId, onComplete, shipTypeId, flightMeta) {
 
   // --- Flight route line (trajectory) ---
   _clearFlightVisuals();
-  _flightRouteLine = BABYLON.MeshBuilder.CreateTube('flightRoute', {
-    path: routePoints,
-    radius: 0.18,
-    tessellation: 12,
-    cap: BABYLON.Mesh.NO_CAP,
-    sideOrientation: BABYLON.Mesh.DOUBLESIDE,
-  }, _scene);
-  _flightRouteLine.material = _createTrailMaterial(
-    'flightRouteMat',
-    new BABYLON.Color3(0.4, 0.91, 0.98),
-    0.42
-  );
-  _flightRouteLine.visibility = 0.92;
-  _flightRouteLine.isPickable = false;
+  const routeColor = new BABYLON.Color3(0.58, 0.96, 1.0);
+  const routeGlowColor = new BABYLON.Color3(0.18, 0.72, 1.0);
+  const flightRouteMeshes = _createRouteTubePair('flightRoute', routePoints, routeColor, {
+    glowColor: routeGlowColor,
+    outerRadius: 0.24,
+    innerRadius: 0.11,
+    tessellation: 14,
+    glowAlpha: 0.12,
+    coreAlpha: 0.42,
+    glowVisibility: 0.5,
+    coreVisibility: 0.82,
+    glowEmissiveScale: 0.82,
+    coreEmissiveScale: 1.12,
+  });
+  _flightRouteGlow = flightRouteMeshes[0] || null;
+  _flightRouteLine = flightRouteMeshes[1] || null;
 
   // --- Target planet selection glow ---
   const targetSize = toMeta.size || toMeta.baseSize || 2.5;
   _flightTargetGlow = BABYLON.MeshBuilder.CreateTorus('flightTargetGlow', {
-    diameter: (targetSize + 1.5) * 2,
-    thickness: 0.4,
+    diameter: (targetSize + 1.3) * 2,
+    thickness: 0.34,
     tessellation: 36,
   }, _scene);
   _flightTargetGlow.rotation.x = Math.PI / 2;
@@ -2033,7 +2085,7 @@ export function flyShipTo(fromId, toId, onComplete, shipTypeId, flightMeta) {
   const tGlowMat = new BABYLON.StandardMaterial('flightTargetGlowMat', _scene);
   tGlowMat.emissiveColor = new BABYLON.Color3(1, 0.85, 0.2);
   tGlowMat.disableLighting = true;
-  tGlowMat.alpha = 0.85;
+  tGlowMat.alpha = 0.82;
   _flightTargetGlow.material = tGlowMat;
   _flightTargetGlow.isPickable = false;
 
@@ -2057,9 +2109,10 @@ export function flyShipTo(fromId, toId, onComplete, shipTypeId, flightMeta) {
       new BABYLON.Color3(visuals.trailColor[0], visuals.trailColor[1], visuals.trailColor[2]),
       {
         diameter: _getTrailDiameter(typeId, false),
-        length: 56,
+        length: 72,
         sections: 6,
-        alpha: 0.52,
+        alpha: 0.58,
+        emissiveScale: 1.18,
       }
     );
   }
@@ -2107,6 +2160,10 @@ export function cancelShipFlight() {
 }
 
 function _clearFlightVisuals() {
+  if (_flightRouteGlow) {
+    _disposeRouteVisual(_flightRouteGlow);
+    _flightRouteGlow = null;
+  }
   if (_flightRouteLine) {
     _disposeRouteVisual(_flightRouteLine);
     _flightRouteLine = null;
@@ -2169,14 +2226,20 @@ function _updateShipFlight(time) {
   }
 
   // Animate flight route line fade
+  if (_flightRouteGlow) {
+    _flightRouteGlow.visibility = (0.46 + Math.sin(elapsed * 0.01) * 0.05) * (1 - t * 0.42);
+  }
   if (_flightRouteLine) {
-    _flightRouteLine.visibility = 0.92 * (1 - t * 0.6);
+    _flightRouteLine.visibility = (0.78 + Math.sin(elapsed * 0.012) * 0.035) * (1 - t * 0.52);
+  }
+  if (_shipTrail && _shipTrail.material) {
+    _shipTrail.material.alpha = 0.54 + Math.sin(elapsed * 0.014) * 0.05;
   }
   // Animate target glow
   if (_flightTargetGlow) {
-    var pulse = 1 + Math.sin(elapsed * 0.005) * 0.15;
+    var pulse = 1 + Math.sin(elapsed * 0.005) * 0.12;
     _flightTargetGlow.scaling.set(pulse, pulse, pulse);
-    _flightTargetGlow.rotation.z += 0.015;
+    _flightTargetGlow.rotation.z += 0.016;
   }
 
   if (t >= 1) {
