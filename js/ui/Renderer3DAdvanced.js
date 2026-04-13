@@ -50,7 +50,6 @@ let _flightPath = null;
 let _shipVisible = false;
 let _flightRouteLine = null;   // 飞行轨迹线
 let _flightRouteGlow = null;   // 飞行轨迹外层辉光
-let _flightRouteFadeVisuals = [];
 let _flightTargetGlow = null;  // 目标星球选中光环
 let _currentShipType = null;   // 当前飞船类型 ID
 
@@ -1607,6 +1606,9 @@ function _createRouteTubePair(name, path, color, options) {
   const innerRadius = options && options.innerRadius != null ? options.innerRadius : 0.09;
   const glowColor = options && options.glowColor ? options.glowColor : color;
   const tessellation = options && options.tessellation != null ? options.tessellation : 12;
+  const gradientStops = options && options.gradientStops ? options.gradientStops : null;
+
+  const glowTexture = _createRouteGradientTexture(name + '_glow_tex', gradientStops);
 
   const glow = BABYLON.MeshBuilder.CreateTube(name + '_glow', {
     path: path,
@@ -1621,8 +1623,12 @@ function _createRouteTubePair(name, path, color, options) {
     options && options.glowAlpha != null ? options.glowAlpha : 0.18,
     options && options.glowEmissiveScale != null ? options.glowEmissiveScale : 0.9
   );
+  glow.material.emissiveTexture = glowTexture;
+  glow.material.opacityTexture = glowTexture;
   glow.visibility = options && options.glowVisibility != null ? options.glowVisibility : 0.72;
   glow.isPickable = false;
+
+  const coreTexture = _createRouteGradientTexture(name + '_core_tex', gradientStops);
 
   const core = BABYLON.MeshBuilder.CreateTube(name + '_core', {
     path: path,
@@ -1637,19 +1643,39 @@ function _createRouteTubePair(name, path, color, options) {
     options && options.coreAlpha != null ? options.coreAlpha : 0.42,
     options && options.coreEmissiveScale != null ? options.coreEmissiveScale : 1.2
   );
+  core.material.emissiveTexture = coreTexture;
+  core.material.opacityTexture = coreTexture;
   core.visibility = options && options.coreVisibility != null ? options.coreVisibility : 1;
   core.isPickable = false;
 
   return [glow, core];
 }
 
-function _sliceRoutePath(path, startRatio, endRatio) {
-  if (!path || path.length < 2) return null;
+function _createRouteGradientTexture(name, stops) {
+  const texture = new BABYLON.DynamicTexture(name, { width: 512, height: 8 }, _scene, false);
+  texture.hasAlpha = true;
+  texture.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+  texture.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
 
-  const maxIndex = path.length - 1;
-  const startIndex = Math.max(0, Math.min(maxIndex - 1, Math.floor(maxIndex * startRatio)));
-  const endIndex = Math.max(startIndex + 1, Math.min(maxIndex, Math.ceil(maxIndex * endRatio)));
-  return path.slice(startIndex, endIndex + 1);
+  const ctx = texture.getContext();
+  ctx.clearRect(0, 0, 512, 8);
+
+  const gradient = ctx.createLinearGradient(0, 0, 512, 0);
+  (stops || [
+    { offset: 0.0, alpha: 0.0 },
+    { offset: 0.08, alpha: 0.02 },
+    { offset: 0.18, alpha: 0.88 },
+    { offset: 0.82, alpha: 0.88 },
+    { offset: 0.92, alpha: 0.02 },
+    { offset: 1.0, alpha: 0.0 },
+  ]).forEach(function (stop) {
+    gradient.addColorStop(stop.offset, 'rgba(255,255,255,' + stop.alpha + ')');
+  });
+
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, 512, 8);
+  texture.update();
+  return texture;
 }
 
 function _configureAnimatedRouteVisual(mesh, options) {
@@ -1675,11 +1701,7 @@ function _animateRouteVisual(mesh, elapsed, t) {
 }
 
 function _createActiveFlightRouteVisuals(routePoints, routeColor, routeGlowColor) {
-  const mainPath = _sliceRoutePath(routePoints, 0.14, 0.86);
-  const tailPath = _sliceRoutePath(routePoints, 0.0, 0.18);
-  const headPath = _sliceRoutePath(routePoints, 0.82, 1.0);
-
-  const mainPair = _createRouteTubePair('flightRoute', mainPath, routeColor, {
+  const mainPair = _createRouteTubePair('flightRoute', routePoints, routeColor, {
     glowColor: routeGlowColor,
     outerRadius: 0.24,
     innerRadius: 0.11,
@@ -1704,60 +1726,9 @@ function _createActiveFlightRouteVisuals(routePoints, routeColor, routeGlowColor
     fadeMultiplier: 0.52,
   });
 
-  const tailPair = _createRouteTubePair('flightRouteTail', tailPath, routeColor, {
-    glowColor: routeGlowColor,
-    outerRadius: 0.16,
-    innerRadius: 0.07,
-    tessellation: 14,
-    glowAlpha: 0.05,
-    coreAlpha: 0.16,
-    glowVisibility: 0.14,
-    coreVisibility: 0.24,
-    glowEmissiveScale: 0.72,
-    coreEmissiveScale: 0.88,
-  });
-  _configureAnimatedRouteVisual(tailPair[0], {
-    baseVisibility: 0.14,
-    pulseAmplitude: 0.012,
-    pulseSpeed: 0.008,
-    fadeMultiplier: 0.42,
-  });
-  _configureAnimatedRouteVisual(tailPair[1], {
-    baseVisibility: 0.24,
-    pulseAmplitude: 0.015,
-    pulseSpeed: 0.009,
-    fadeMultiplier: 0.52,
-  });
-
-  const headPair = _createRouteTubePair('flightRouteHead', headPath, routeColor, {
-    glowColor: routeGlowColor,
-    outerRadius: 0.17,
-    innerRadius: 0.08,
-    tessellation: 14,
-    glowAlpha: 0.06,
-    coreAlpha: 0.18,
-    glowVisibility: 0.18,
-    coreVisibility: 0.28,
-    glowEmissiveScale: 0.76,
-    coreEmissiveScale: 0.92,
-  });
-  _configureAnimatedRouteVisual(headPair[0], {
-    baseVisibility: 0.18,
-    pulseAmplitude: 0.016,
-    pulseSpeed: 0.01,
-    fadeMultiplier: 0.42,
-  });
-  _configureAnimatedRouteVisual(headPair[1], {
-    baseVisibility: 0.28,
-    pulseAmplitude: 0.018,
-    pulseSpeed: 0.011,
-    fadeMultiplier: 0.52,
-  });
-
   return {
     glow: mainPair[0] || null,
     core: mainPair[1] || null,
-    extras: tailPair.concat(headPair),
   };
 }
 
@@ -2180,7 +2151,6 @@ export function flyShipTo(fromId, toId, onComplete, shipTypeId, flightMeta) {
   const flightRouteMeshes = _createActiveFlightRouteVisuals(routePoints, routeColor, routeGlowColor);
   _flightRouteGlow = flightRouteMeshes.glow || null;
   _flightRouteLine = flightRouteMeshes.core || null;
-  _flightRouteFadeVisuals = flightRouteMeshes.extras || [];
 
   // --- Target planet selection glow ---
   const targetSize = toMeta.size || toMeta.baseSize || 2.5;
@@ -2269,8 +2239,6 @@ export function cancelShipFlight() {
 }
 
 function _clearFlightVisuals() {
-  _flightRouteFadeVisuals.forEach(_disposeRouteVisual);
-  _flightRouteFadeVisuals = [];
   if (_flightRouteGlow) {
     _disposeRouteVisual(_flightRouteGlow);
     _flightRouteGlow = null;
@@ -2339,9 +2307,6 @@ function _updateShipFlight(time) {
   // Animate flight route line fade
   _animateRouteVisual(_flightRouteGlow, elapsed, t);
   _animateRouteVisual(_flightRouteLine, elapsed, t);
-  _flightRouteFadeVisuals.forEach(function (mesh) {
-    _animateRouteVisual(mesh, elapsed, t);
-  });
   if (_shipTrail && _shipTrail.material) {
     _shipTrail.material.alpha = 0.54 + Math.sin(elapsed * 0.014) * 0.05;
   }
