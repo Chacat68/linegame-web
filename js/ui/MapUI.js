@@ -12,6 +12,8 @@ let _tabClickCallback = null;
 let _marketOpen = false;
 let _smallScreenMql = null;
 let _orbitScanPanelOpen = false;
+const CURRENT_SYSTEM_SCAN_REVEAL_STEP_2_DELAY = 420;
+const CURRENT_SYSTEM_SCAN_REVEAL_STEP_3_DELAY = 980;
 
 // 市场浏览状态
 let _marketViewGalaxy = null;
@@ -21,6 +23,7 @@ let _marketMode = 'detail';
 let _refreshMarket = null;          // (mode) => void
 let _stateRef = null;               // 用于内部事件引用
 let _explorationActions = null;
+let _currentSystemScanReveal = null;
 
 function _getScanStatus(stateRef, systemId) {
   if (!stateRef || !systemId) return null;
@@ -51,10 +54,105 @@ function _appendFlowNote(flow, text) {
   flow.secondaryNote = flow.secondaryNote ? (flow.secondaryNote + ' ' + text) : text;
 }
 
+function _escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function _escapeHtmlAttr(value) {
   return String(value)
     .replace(/&/g, '&amp;')
     .replace(/"/g, '&quot;');
+}
+
+function _prefersReducedMotion() {
+  return !!(document && document.body && document.body.dataset.motion === 'reduced');
+}
+
+function _clearCurrentSystemScanReveal() {
+  if (_currentSystemScanReveal && Array.isArray(_currentSystemScanReveal.timerIds)) {
+    _currentSystemScanReveal.timerIds.forEach(function (timerId) {
+      clearTimeout(timerId);
+    });
+  }
+  _currentSystemScanReveal = null;
+}
+
+function _getCurrentSystemScanReveal(stateRef) {
+  if (!_currentSystemScanReveal) return null;
+  if (!stateRef || stateRef.currentSystem !== _currentSystemScanReveal.systemId) {
+    _clearCurrentSystemScanReveal();
+    return null;
+  }
+  return _currentSystemScanReveal;
+}
+
+function _setCurrentSystemScanRevealStage(systemId, stage, stateRef) {
+  if (!_currentSystemScanReveal || _currentSystemScanReveal.systemId !== systemId) return;
+  if (stage <= _currentSystemScanReveal.stage) return;
+  _currentSystemScanReveal.stage = stage;
+  _renderCurrentSystemExplorationCard(stateRef || _stateRef);
+}
+
+function _queueCurrentSystemScanRevealStage(systemId, stage, delay, stateRef) {
+  if (!_currentSystemScanReveal || _currentSystemScanReveal.systemId !== systemId) return;
+  if (delay <= 0) {
+    _setCurrentSystemScanRevealStage(systemId, stage, stateRef);
+    return;
+  }
+
+  var timerId = setTimeout(function () {
+    _setCurrentSystemScanRevealStage(systemId, stage, stateRef);
+  }, delay);
+
+  _currentSystemScanReveal.timerIds.push(timerId);
+}
+
+function _startCurrentSystemScanReveal(stateRef, systemId, scanResult) {
+  if (!stateRef || !systemId || !scanResult || !scanResult.ok) return;
+
+  var planetData = GalaxyData.getPlanetData(systemId);
+  var exploration = planetData && planetData.exploration;
+  if (!exploration) return;
+
+  _clearCurrentSystemScanReveal();
+  _currentSystemScanReveal = {
+    systemId: systemId,
+    stage: 1,
+    messages: (scanResult.msgs || []).slice(0, 2).map(function (message) {
+      return {
+        text: message && message.text ? message.text : '',
+        type: message && message.type ? message.type : 'info',
+      };
+    }).filter(function (message) {
+      return !!message.text;
+    }),
+    timerIds: [],
+  };
+
+  _orbitScanPanelOpen = true;
+  _updateOrbitScanButton(stateRef);
+  _renderCurrentSystemExplorationCard(stateRef);
+
+  if (_currentSystemScanReveal.messages.length > 1) {
+    _queueCurrentSystemScanRevealStage(
+      systemId,
+      2,
+      _prefersReducedMotion() ? 0 : CURRENT_SYSTEM_SCAN_REVEAL_STEP_2_DELAY,
+      stateRef
+    );
+  }
+
+  _queueCurrentSystemScanRevealStage(
+    systemId,
+    3,
+    _prefersReducedMotion() ? 0 : CURRENT_SYSTEM_SCAN_REVEAL_STEP_3_DELAY,
+    stateRef
+  );
 }
 
 function _getCurrentSystemScanTarget(stateRef) {
@@ -81,6 +179,7 @@ function _getCurrentSystemScanTarget(stateRef) {
 function _setOrbitScanPanelOpen(nextOpen, stateRef) {
   var resolvedState = stateRef || _stateRef;
   _orbitScanPanelOpen = !!nextOpen;
+  if (!_orbitScanPanelOpen) _clearCurrentSystemScanReveal();
   _updateOrbitScanButton(resolvedState);
   _renderCurrentSystemExplorationCard(resolvedState);
 }
@@ -371,16 +470,20 @@ function _bindExplorationActionContainer(containerId) {
 
     if (action === 'scan' && _explorationActions.onScan) {
       var scanResult = _explorationActions.onScan(systemId);
-      if (containerId === 'current-system-exploration-card' && scanResult && scanResult.ok) {
+      if (scanResult && scanResult.ok && _stateRef && systemId === _stateRef.currentSystem) {
+        _startCurrentSystemScanReveal(_stateRef, systemId, scanResult);
+      } else if (containerId === 'current-system-exploration-card' && scanResult && scanResult.ok) {
         _closeOrbitScanPanel(_stateRef);
       }
       return;
     }
     if (action === 'land' && _explorationActions.onLand) {
+      _clearCurrentSystemScanReveal();
       _explorationActions.onLand(systemId);
       return;
     }
     if (action === 'poi' && _explorationActions.onExplorePoi) {
+      _clearCurrentSystemScanReveal();
       _explorationActions.onExplorePoi(systemId, poiId);
     }
   });
@@ -560,6 +663,48 @@ function _buildExplorationFlowCard(flow, options) {
   '</div>';
 }
 
+function _buildCurrentSystemScanRevealCard(flow, reveal) {
+  if (!flow || !reveal) return '';
+
+  var visibleMessageCount = reveal.stage >= 2 ? reveal.messages.length : Math.min(1, reveal.messages.length);
+  var messageHtml = reveal.messages.slice(0, visibleMessageCount).map(function (message) {
+    return '<div class="current-system-scan-reveal-line current-system-scan-reveal-line--' + (message.type || 'info') + '">' +
+      _escapeHtml(message.text) +
+    '</div>';
+  }).join('');
+  var detailText = reveal.stage >= 3
+    ? flow.detail
+    : '扫描结果会自动写入探索终端，无需手动继续点击。';
+  var statusText = '';
+  if (reveal.stage === 1) {
+    statusText = '正在解包第一批轨道回传数据…';
+  } else if (reveal.stage === 2) {
+    statusText = '着陆窗口正在建立，下一步入口即将开放。';
+  } else if (flow.secondaryNote) {
+    statusText = flow.secondaryNote;
+  }
+  var statusHtml = statusText
+    ? '<div class="current-system-scan-reveal-status">' + _escapeHtml(statusText) + '</div>'
+    : '';
+  var actionHtml = reveal.stage >= 3 && flow.nextAction
+    ? '<div class="planet-detail-actions current-system-scan-reveal-actions">' +
+        _buildExplorationActionButton(flow.nextAction, 'current-system-action current-system-scan-reveal-action') +
+      '</div>'
+    : '';
+  var progressHtml = reveal.stage >= 2
+    ? _buildExplorationProgressRow(flow)
+    : '';
+
+  return '<div class="planet-detail-flow-card current-system-flow-card current-system-flow-card--reveal">' +
+    '<div class="planet-detail-flow-kicker">' + (reveal.stage >= 3 ? flow.phase : '扫描结果同步中') + '</div>' +
+    '<div class="planet-detail-flow-title">' + (reveal.stage >= 3 ? flow.title : '轨道扫描完成') + '</div>' +
+    '<div class="planet-detail-flow-text">' + detailText + '</div>' +
+    '<div class="current-system-scan-reveal-list">' + messageHtml + '</div>' +
+    statusHtml +
+    actionHtml +
+  '</div>' + progressHtml;
+}
+
 function _buildExplorationProgressRow(flow) {
   return '<div class="planet-detail-progress-row">' +
     '<span class="planet-detail-progress-pill">扫描：' + flow.scanStatus + '</span>' +
@@ -656,9 +801,11 @@ function _renderCurrentSystemExplorationCard(stateRef) {
     stateRef.mapView === 'planets' &&
     stateRef.viewingGalaxy === stateRef.currentGalaxy;
   var scanTarget = _getCurrentSystemScanTarget(stateRef);
+  var scanReveal = _getCurrentSystemScanReveal(stateRef);
 
-  if (!canUseCurrentSystemCard || !scanTarget) {
+  if (!canUseCurrentSystemCard || (!scanTarget && !scanReveal)) {
     _orbitScanPanelOpen = false;
+    _clearCurrentSystemScanReveal();
     card.classList.remove('visible');
     return;
   }
@@ -685,6 +832,7 @@ function _renderCurrentSystemExplorationCard(stateRef) {
   var isUnlocked = playerLevel >= (sys.minLevel || 1);
   var flow = _getExplorationFlow(stateRef, sys, planetData, true, isUnlocked);
   if (!flow) {
+    _clearCurrentSystemScanReveal();
     card.classList.remove('visible');
     return;
   }
@@ -696,11 +844,12 @@ function _renderCurrentSystemExplorationCard(stateRef) {
     '</div>' +
     '<button class="current-system-card-close" type="button" aria-label="关闭扫描面板" data-orbit-scan-close="true">✕</button>' +
     '</div>' +
-    _buildExplorationFlowCard(flow, {
-      cardClass: 'planet-detail-flow-card current-system-flow-card',
-      actionClass: 'current-system-action',
-    }) +
-    _buildExplorationProgressRow(flow);
+    (scanReveal
+      ? _buildCurrentSystemScanRevealCard(flow, scanReveal)
+      : _buildExplorationFlowCard(flow, {
+          cardClass: 'planet-detail-flow-card current-system-flow-card',
+          actionClass: 'current-system-action',
+        }) + _buildExplorationProgressRow(flow));
 
   card.classList.add('visible');
 }

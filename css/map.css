@@ -441,9 +441,71 @@
   background: transparent;
 }
 
+.current-system-flow-card--reveal {
+  gap: 8px;
+}
+
+.current-system-scan-reveal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.current-system-scan-reveal-line {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(125, 211, 252, 0.18);
+  background: rgba(8, 18, 38, 0.72);
+  color: var(--text-secondary);
+  line-height: 1.45;
+  animation: scan-result-reveal 220ms ease;
+}
+
+.current-system-scan-reveal-line--tip {
+  border-color: rgba(167, 139, 250, 0.26);
+  background: rgba(46, 16, 101, 0.18);
+  color: #d8d3ff;
+}
+
+.current-system-scan-reveal-line--error {
+  border-color: rgba(251, 113, 133, 0.28);
+  background: rgba(69, 10, 10, 0.22);
+  color: #ffd4dc;
+}
+
+.current-system-scan-reveal-status {
+  padding: 7px 10px;
+  border-radius: 10px;
+  border: 1px dashed rgba(125, 211, 252, 0.2);
+  background: rgba(14, 165, 233, 0.08);
+  color: rgba(191, 219, 254, 0.9);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.current-system-scan-reveal-actions {
+  margin-top: 2px;
+}
+
+.current-system-scan-reveal-action {
+  width: 100%;
+}
+
 .current-system-action {
   width: 100%;
   justify-content: center;
+}
+
+@keyframes scan-result-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 #orbit-scan-btn[hidden] {
