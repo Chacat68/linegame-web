@@ -50,6 +50,7 @@ let _flightPath = null;
 let _shipVisible = false;
 let _flightRouteLine = null;   // 飞行轨迹线
 let _flightRouteGlow = null;   // 飞行轨迹外层辉光
+let _flightRouteFadeVisuals = [];
 let _flightTargetGlow = null;  // 目标星球选中光环
 let _currentShipType = null;   // 当前飞船类型 ID
 
@@ -1642,6 +1643,124 @@ function _createRouteTubePair(name, path, color, options) {
   return [glow, core];
 }
 
+function _sliceRoutePath(path, startRatio, endRatio) {
+  if (!path || path.length < 2) return null;
+
+  const maxIndex = path.length - 1;
+  const startIndex = Math.max(0, Math.min(maxIndex - 1, Math.floor(maxIndex * startRatio)));
+  const endIndex = Math.max(startIndex + 1, Math.min(maxIndex, Math.ceil(maxIndex * endRatio)));
+  return path.slice(startIndex, endIndex + 1);
+}
+
+function _configureAnimatedRouteVisual(mesh, options) {
+  if (!mesh) return;
+  mesh.metadata = mesh.metadata || {};
+  mesh.metadata.routeBaseVisibility = options && options.baseVisibility != null ? options.baseVisibility : mesh.visibility;
+  mesh.metadata.routePulseAmplitude = options && options.pulseAmplitude != null ? options.pulseAmplitude : 0;
+  mesh.metadata.routePulseSpeed = options && options.pulseSpeed != null ? options.pulseSpeed : 0.012;
+  mesh.metadata.routeFadeMultiplier = options && options.fadeMultiplier != null ? options.fadeMultiplier : 0.5;
+  mesh.visibility = mesh.metadata.routeBaseVisibility;
+}
+
+function _animateRouteVisual(mesh, elapsed, t) {
+  if (!mesh) return;
+  const meta = mesh.metadata || {};
+  const baseVisibility = meta.routeBaseVisibility != null ? meta.routeBaseVisibility : mesh.visibility;
+  const pulseAmplitude = meta.routePulseAmplitude || 0;
+  const pulseSpeed = meta.routePulseSpeed || 0.012;
+  const fadeMultiplier = meta.routeFadeMultiplier != null ? meta.routeFadeMultiplier : 0.5;
+  const pulse = pulseAmplitude ? Math.sin(elapsed * pulseSpeed) * pulseAmplitude : 0;
+  const fade = Math.max(0, 1 - t * fadeMultiplier);
+  mesh.visibility = Math.max(0, (baseVisibility + pulse) * fade);
+}
+
+function _createActiveFlightRouteVisuals(routePoints, routeColor, routeGlowColor) {
+  const mainPath = _sliceRoutePath(routePoints, 0.14, 0.86);
+  const tailPath = _sliceRoutePath(routePoints, 0.0, 0.18);
+  const headPath = _sliceRoutePath(routePoints, 0.82, 1.0);
+
+  const mainPair = _createRouteTubePair('flightRoute', mainPath, routeColor, {
+    glowColor: routeGlowColor,
+    outerRadius: 0.24,
+    innerRadius: 0.11,
+    tessellation: 14,
+    glowAlpha: 0.12,
+    coreAlpha: 0.42,
+    glowVisibility: 0.5,
+    coreVisibility: 0.82,
+    glowEmissiveScale: 0.82,
+    coreEmissiveScale: 1.12,
+  });
+  _configureAnimatedRouteVisual(mainPair[0], {
+    baseVisibility: 0.5,
+    pulseAmplitude: 0.05,
+    pulseSpeed: 0.01,
+    fadeMultiplier: 0.42,
+  });
+  _configureAnimatedRouteVisual(mainPair[1], {
+    baseVisibility: 0.82,
+    pulseAmplitude: 0.035,
+    pulseSpeed: 0.012,
+    fadeMultiplier: 0.52,
+  });
+
+  const tailPair = _createRouteTubePair('flightRouteTail', tailPath, routeColor, {
+    glowColor: routeGlowColor,
+    outerRadius: 0.16,
+    innerRadius: 0.07,
+    tessellation: 14,
+    glowAlpha: 0.05,
+    coreAlpha: 0.16,
+    glowVisibility: 0.14,
+    coreVisibility: 0.24,
+    glowEmissiveScale: 0.72,
+    coreEmissiveScale: 0.88,
+  });
+  _configureAnimatedRouteVisual(tailPair[0], {
+    baseVisibility: 0.14,
+    pulseAmplitude: 0.012,
+    pulseSpeed: 0.008,
+    fadeMultiplier: 0.42,
+  });
+  _configureAnimatedRouteVisual(tailPair[1], {
+    baseVisibility: 0.24,
+    pulseAmplitude: 0.015,
+    pulseSpeed: 0.009,
+    fadeMultiplier: 0.52,
+  });
+
+  const headPair = _createRouteTubePair('flightRouteHead', headPath, routeColor, {
+    glowColor: routeGlowColor,
+    outerRadius: 0.17,
+    innerRadius: 0.08,
+    tessellation: 14,
+    glowAlpha: 0.06,
+    coreAlpha: 0.18,
+    glowVisibility: 0.18,
+    coreVisibility: 0.28,
+    glowEmissiveScale: 0.76,
+    coreEmissiveScale: 0.92,
+  });
+  _configureAnimatedRouteVisual(headPair[0], {
+    baseVisibility: 0.18,
+    pulseAmplitude: 0.016,
+    pulseSpeed: 0.01,
+    fadeMultiplier: 0.42,
+  });
+  _configureAnimatedRouteVisual(headPair[1], {
+    baseVisibility: 0.28,
+    pulseAmplitude: 0.018,
+    pulseSpeed: 0.011,
+    fadeMultiplier: 0.52,
+  });
+
+  return {
+    glow: mainPair[0] || null,
+    core: mainPair[1] || null,
+    extras: tailPair.concat(headPair),
+  };
+}
+
 function _disposeTrailMesh(trail) {
   if (!trail) return null;
   if (trail.material && typeof trail.material.dispose === 'function') {
@@ -2058,20 +2177,10 @@ export function flyShipTo(fromId, toId, onComplete, shipTypeId, flightMeta) {
   _clearFlightVisuals();
   const routeColor = new BABYLON.Color3(0.58, 0.96, 1.0);
   const routeGlowColor = new BABYLON.Color3(0.18, 0.72, 1.0);
-  const flightRouteMeshes = _createRouteTubePair('flightRoute', routePoints, routeColor, {
-    glowColor: routeGlowColor,
-    outerRadius: 0.24,
-    innerRadius: 0.11,
-    tessellation: 14,
-    glowAlpha: 0.12,
-    coreAlpha: 0.42,
-    glowVisibility: 0.5,
-    coreVisibility: 0.82,
-    glowEmissiveScale: 0.82,
-    coreEmissiveScale: 1.12,
-  });
-  _flightRouteGlow = flightRouteMeshes[0] || null;
-  _flightRouteLine = flightRouteMeshes[1] || null;
+  const flightRouteMeshes = _createActiveFlightRouteVisuals(routePoints, routeColor, routeGlowColor);
+  _flightRouteGlow = flightRouteMeshes.glow || null;
+  _flightRouteLine = flightRouteMeshes.core || null;
+  _flightRouteFadeVisuals = flightRouteMeshes.extras || [];
 
   // --- Target planet selection glow ---
   const targetSize = toMeta.size || toMeta.baseSize || 2.5;
@@ -2160,6 +2269,8 @@ export function cancelShipFlight() {
 }
 
 function _clearFlightVisuals() {
+  _flightRouteFadeVisuals.forEach(_disposeRouteVisual);
+  _flightRouteFadeVisuals = [];
   if (_flightRouteGlow) {
     _disposeRouteVisual(_flightRouteGlow);
     _flightRouteGlow = null;
@@ -2226,12 +2337,11 @@ function _updateShipFlight(time) {
   }
 
   // Animate flight route line fade
-  if (_flightRouteGlow) {
-    _flightRouteGlow.visibility = (0.46 + Math.sin(elapsed * 0.01) * 0.05) * (1 - t * 0.42);
-  }
-  if (_flightRouteLine) {
-    _flightRouteLine.visibility = (0.78 + Math.sin(elapsed * 0.012) * 0.035) * (1 - t * 0.52);
-  }
+  _animateRouteVisual(_flightRouteGlow, elapsed, t);
+  _animateRouteVisual(_flightRouteLine, elapsed, t);
+  _flightRouteFadeVisuals.forEach(function (mesh) {
+    _animateRouteVisual(mesh, elapsed, t);
+  });
   if (_shipTrail && _shipTrail.material) {
     _shipTrail.material.alpha = 0.54 + Math.sin(elapsed * 0.014) * 0.05;
   }
