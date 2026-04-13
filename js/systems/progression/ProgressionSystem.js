@@ -8,7 +8,7 @@
 import * as PlayerLevels from '../../data/playerLevels.js';
 import { FACTION_CONFIG, PROGRESSION_CONFIG } from '../../data/constants.js';
 import { SYSTEMS } from '../../data/systems.js';
-import * as Fleet from '../fleet/FleetSystem.js?v=20260406-routefix2';
+import * as Fleet from '../fleet/FleetSystem.js?v=20260414-routeunify1';
 
 const getLevel = PlayerLevels.getLevel;
 const getCompanyLevel = PlayerLevels.getCompanyLevel || function () {

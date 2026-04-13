@@ -1,5 +1,5 @@
 // js/ui/Renderer3DAdvanced.js — 增强型 3D 星图渲染器 (Babylon.js)
-// 依赖：babylon.js (global), GalaxyDataLayer, ExplorationSystem, data/systems.js, data/factions.js
+// 依赖：babylon.js (global), GalaxyDataLayer, RouteSystem, data/systems.js, data/factions.js
 // 导出：init, render, focusPlanet, setQuality, setMotionLevel, isActive, toggleView,
 //       getSystemAtPoint, getPlanetScreenPosition, invalidateScene, resetRuntimeState,
 //       setSecretRoutesVisible, isSecretRoutesVisible,
@@ -22,7 +22,7 @@
  */
 
 import * as GalaxyData from '../systems/galaxy/GalaxyDataLayer.js';
-import * as Exploration from '../systems/galaxy/ExplorationSystem.js';
+import * as RouteModel from '../systems/route/RouteSystem.js';
 import { FACTIONS } from '../data/factions.js';
 import { GALAXIES, getSystemsByGalaxy, findSystem, isSystemAccessible } from '../data/systems.js';
 
@@ -454,7 +454,7 @@ function _clearPlanetMeshes() {
     m.dispose();
   });
   _planetMeshes = [];
-  _connectionLines.forEach(m => m.dispose());
+  _connectionLines.forEach(_disposeRouteVisual);
   _connectionLines = [];
   _secretRouteVisuals = [];
   _factionBoundaries.forEach(m => m.dispose());
@@ -1409,7 +1409,7 @@ function _renderConnections(planets) {
 }
 
 function _renderSecretRoutes(state) {
-  var routes = Exploration.getCurrentSystemSecretRoutes(state);
+  var routes = RouteModel.getSecretRouteDescriptors(state);
   if (!routes || routes.length === 0) return;
 
   const posMap = new Map();
@@ -1419,29 +1419,46 @@ function _renderSecretRoutes(state) {
     metaMap.set(meta.id, meta);
   });
 
-  const sourcePos = posMap.get(state.currentSystem);
-  const sourceMeta = metaMap.get(state.currentSystem);
-  if (!sourcePos || !sourceMeta) return;
-
   routes.forEach(function (route, index) {
-    const targetPos = posMap.get(route.targetSystemId);
+    const sourcePos = posMap.get(route.startSystemId);
+    const sourceMeta = metaMap.get(route.startSystemId);
+    const targetPos = posMap.get(route.endSystemId);
     const targetMeta = metaMap.get(route.targetSystemId);
-    if (!targetPos || !targetMeta) return;
+    if (!sourcePos || !sourceMeta || !targetPos || !targetMeta) return;
 
-    const curve = _createArcCurve(sourcePos, targetPos, 40);
-    const points = curve.getPoints();
-    const routeLine = BABYLON.MeshBuilder.CreateDashedLines('secretRoute_' + route.id, {
-      points: points,
-      dashSize: 2.0,
-      gapSize: 1.3,
-      dashNb: 46,
-    }, _scene);
-    routeLine.color = new BABYLON.Color3(0.49, 0.83, 0.99);
-    routeLine.alpha = 0.7;
-    routeLine.isPickable = false;
-    _connectionLines.push(routeLine);
+    const routeSegment = _createRouteSegmentVisual(
+      'secretRoute_' + route.routeId,
+      sourcePos,
+      targetPos,
+      new BABYLON.Color3(0.49, 0.83, 0.99),
+      {
+        segments: 40,
+        heightFactor: 0.14,
+        minHeight: 3.2,
+        tubeOptions: {
+          glowColor: new BABYLON.Color3(0.31, 0.7, 0.94),
+          outerRadius: 0.13,
+          innerRadius: 0.055,
+          glowAlpha: 0.14,
+          coreAlpha: 0.34,
+          glowVisibility: 0.38,
+          coreVisibility: 0.62,
+          glowEmissiveScale: 0.86,
+          coreEmissiveScale: 1.02,
+          gradientStops: [
+            { offset: 0.0, alpha: 0.0 },
+            { offset: 0.1, alpha: 0.05 },
+            { offset: 0.2, alpha: 0.82 },
+            { offset: 0.8, alpha: 0.82 },
+            { offset: 0.9, alpha: 0.05 },
+            { offset: 1.0, alpha: 0.0 },
+          ],
+        },
+      },
+      _connectionLines
+    );
 
-    const targetRing = BABYLON.MeshBuilder.CreateTorus('secretRouteTarget_' + route.id, {
+    const targetRing = BABYLON.MeshBuilder.CreateTorus('secretRouteTarget_' + route.routeId, {
       diameter: Math.max((targetMeta.size + 0.9) * 2, 4.5),
       thickness: 0.12,
       tessellation: 32,
@@ -1461,9 +1478,18 @@ function _renderSecretRoutes(state) {
     const label = _addTextLabel('暗线→' + route.targetSystemName + ' -' + route.discountPercent + '%', labelAnchor, Math.max(13, route.targetSystemName.length * 1.4 + 9));
 
     _secretRouteVisuals.push({
-      routeId: route.id,
+      routeId: route.routeId,
       targetSystemId: route.targetSystemId,
-      line: routeLine,
+      glow: routeSegment ? routeSegment.glow : null,
+      core: routeSegment ? routeSegment.core : null,
+      glowBaseVisibility: routeSegment && routeSegment.glow ? routeSegment.glow.visibility : 0,
+      coreBaseVisibility: routeSegment && routeSegment.core ? routeSegment.core.visibility : 0,
+      glowBaseEmissiveColor: routeSegment && routeSegment.glow && routeSegment.glow.material
+        ? routeSegment.glow.material.emissiveColor.clone()
+        : null,
+      coreBaseEmissiveColor: routeSegment && routeSegment.core && routeSegment.core.material
+        ? routeSegment.core.material.emissiveColor.clone()
+        : null,
       ring: targetRing,
       ringMaterial: ringMat,
       label: label,
@@ -1478,21 +1504,34 @@ function _updateSecretRouteHighlights(time) {
 
   const hoveredId = _hoveredPlanet ? _hoveredPlanet.id : null;
   const pulse = 1 + Math.sin(time * 0.006) * 0.08;
+  const baseColor = new BABYLON.Color3(0.49, 0.83, 0.99);
+  const highlightColor = new BABYLON.Color3(0.96, 0.99, 1.0);
 
   _secretRouteVisuals.forEach(function (visual) {
     const active = hoveredId != null && visual.targetSystemId === hoveredId;
 
-    if (visual.line) {
-      visual.line.alpha = active ? 0.95 : 0.7;
-      visual.line.color = active
-        ? new BABYLON.Color3(0.96, 0.99, 1.0)
-        : new BABYLON.Color3(0.49, 0.83, 0.99);
+    if (visual.glow) {
+      visual.glow.visibility = active
+        ? Math.min(1, (visual.glowBaseVisibility || 0.38) + 0.18)
+        : (visual.glowBaseVisibility || 0.38);
+      if (visual.glow.material && visual.glowBaseEmissiveColor) {
+        visual.glow.material.emissiveColor.copyFrom(active ? highlightColor : visual.glowBaseEmissiveColor);
+      }
+    }
+
+    if (visual.core) {
+      visual.core.visibility = active
+        ? Math.min(1, (visual.coreBaseVisibility || 0.62) + 0.18)
+        : (visual.coreBaseVisibility || 0.62);
+      if (visual.core.material && visual.coreBaseEmissiveColor) {
+        visual.core.material.emissiveColor.copyFrom(active ? highlightColor : visual.coreBaseEmissiveColor);
+      }
     }
 
     if (visual.ring && visual.ringMaterial) {
       visual.ringMaterial.emissiveColor = active
-        ? new BABYLON.Color3(0.96, 0.99, 1.0)
-        : new BABYLON.Color3(0.49, 0.83, 0.99);
+        ? highlightColor
+        : baseColor;
       visual.ringMaterial.alpha = active ? 0.92 : 0.45;
       const ringScale = active ? pulse * 1.14 : 1;
       visual.ring.scaling = new BABYLON.Vector3(ringScale, ringScale, ringScale);
@@ -1515,54 +1554,34 @@ function _updateSecretRouteHighlights(time) {
 }
 
 // ---------------------------------------------------------------------------
-// 派遣航线可视化
+// 航线段渲染
 // ---------------------------------------------------------------------------
 
-function _getDispatchCurrentSystemId(state, ship, isActive) {
-  if (isActive) return state.currentSystem;
-  return ship.location || state.currentSystem;
-}
-
-function _resolveDispatchRouteState(route, currentSystemId) {
-  const sameSystemRoute = route.buySystemId === route.sellSystemId;
-  const atBuySystem = currentSystemId === route.buySystemId;
-  const atSellSystem = currentSystemId === route.sellSystemId;
-
-  if (sameSystemRoute) {
-    return {
-      targetSystemId: currentSystemId,
-      isTraveling: false,
-      sameSystemRoute: true,
-    };
-  }
-
-  let targetSystemId;
-  if (atBuySystem) {
-    targetSystemId = route.sellSystemId;
-  } else if (atSellSystem) {
-    targetSystemId = route.buySystemId;
-  } else if (route.status === 'traveling_sell' || route.status === 'selling') {
-    targetSystemId = route.sellSystemId;
-  } else {
-    targetSystemId = route.buySystemId;
-  }
-
-  const isTraveling =
-    (route.status === 'traveling_buy' && !atBuySystem) ||
-    (route.status === 'traveling_sell' && !atSellSystem);
-
-  return {
-    targetSystemId: targetSystemId,
-    isTraveling: isTraveling,
-    sameSystemRoute: false,
-  };
-}
-
-function _createArcCurve(fromPos, toPos, segments) {
+function _createArcCurve(fromPos, toPos, segments, options) {
   const mid = BABYLON.Vector3.Lerp(fromPos, toPos, 0.5);
   const dist = BABYLON.Vector3.Distance(fromPos, toPos);
-  mid.y += Math.max(dist * 0.15, 3);
+  const heightFactor = options && options.heightFactor != null ? options.heightFactor : 0.15;
+  const minHeight = options && options.minHeight != null ? options.minHeight : 3;
+  mid.y += Math.max(dist * heightFactor, minHeight);
   return BABYLON.Curve3.CreateQuadraticBezier(fromPos, mid, toPos, segments || 48);
+}
+
+function _createRouteSegmentVisual(name, fromPos, toPos, color, options, bucket) {
+  if (!fromPos || !toPos || BABYLON.Vector3.Distance(fromPos, toPos) < 0.001) return null;
+
+  const curve = _createArcCurve(fromPos, toPos, options && options.segments, options);
+  const points = curve.getPoints();
+  const routeMeshes = _createRouteTubePair(name, points, color, options && options.tubeOptions);
+  routeMeshes.forEach(function (mesh) {
+    if (bucket) bucket.push(mesh);
+  });
+
+  return {
+    curve: curve,
+    points: points,
+    glow: routeMeshes[0] || null,
+    core: routeMeshes[1] || null,
+  };
 }
 
 function _createTrailMaterial(name, color, alpha, emissiveScale) {
@@ -1770,62 +1789,55 @@ function _renderDispatchRoutes(state) {
   const posMap = new Map();
   _planetMetadata.forEach(m => posMap.set(m.id, m.position));
 
-  state.fleet.forEach(function (ship, idx) {
-    if (!ship.route) return;
+  const activeIndex = state.activeShipIndex || 0;
+  const routes = RouteModel.getFleetRouteDescriptors(state, {
+    skipShipIndex: _flightPath ? activeIndex : null,
+  });
 
-    // 当飞行动画进行中时，跳过活跃飞船的派遣航线（避免重复绘制）
-    const isActive = idx === (state.activeShipIndex || 0);
-    if (isActive && _flightPath) return;
-
-    const currentSystemId = _getDispatchCurrentSystemId(state, ship, isActive);
-    const currentPos = posMap.get(currentSystemId);
+  routes.forEach(function (route) {
+    const isActive = route.shipIndex === activeIndex;
+    const currentPos = posMap.get(route.startSystemId);
     if (!currentPos) return;
 
-    const routeState = _resolveDispatchRouteState(ship.route, currentSystemId);
-    const targetPos = posMap.get(routeState.targetSystemId);
-    const hasTravelSegment = !!targetPos && currentSystemId !== routeState.targetSystemId;
+    const targetPos = posMap.get(route.endSystemId);
 
     const routeColorHex = isActive ? '#22d3ee' : '#fbbf24';
     const routeColor = BABYLON.Color3.FromHexString(routeColorHex);
 
-    let curve = null;
-    let points = null;
-    if (hasTravelSegment) {
-      curve = _createArcCurve(currentPos, targetPos, 48);
-      points = curve.getPoints();
-      const routeLines = _createRouteTubePair('dispatch_' + idx, points, routeColor, {
-        glowColor: routeColor.scale(0.78),
-        outerRadius: isActive ? 0.18 : 0.16,
-        innerRadius: isActive ? 0.074 : 0.062,
-        glowAlpha: isActive ? 0.16 : 0.14,
-        coreAlpha: isActive ? 0.4 : 0.34,
-        glowVisibility: isActive ? 0.54 : 0.48,
-        coreVisibility: isActive ? 0.78 : 0.68,
-        glowEmissiveScale: isActive ? 0.95 : 0.85,
-        coreEmissiveScale: isActive ? 1.1 : 1.0,
-      });
-      routeLines.forEach(function (mesh) {
-        _dispatchRouteLines.push(mesh);
-      });
-    }
+    const routeSegment = route.hasTravelSegment && targetPos
+      ? _createRouteSegmentVisual('dispatch_' + route.shipIndex, currentPos, targetPos, routeColor, {
+          segments: 48,
+          tubeOptions: {
+            glowColor: routeColor.scale(0.78),
+            outerRadius: isActive ? 0.18 : 0.16,
+            innerRadius: isActive ? 0.074 : 0.062,
+            glowAlpha: isActive ? 0.16 : 0.14,
+            coreAlpha: isActive ? 0.4 : 0.34,
+            glowVisibility: isActive ? 0.54 : 0.48,
+            coreVisibility: isActive ? 0.78 : 0.68,
+            glowEmissiveScale: isActive ? 0.95 : 0.85,
+            coreEmissiveScale: isActive ? 1.1 : 1.0,
+          },
+        }, _dispatchRouteLines)
+      : null;
 
     // Ship model marker (type-specific)
-    var shipTypeId = ship.typeId || 'shuttle';
+    var shipTypeId = route.shipTypeId || 'shuttle';
     const shipModel = _createDispatchShipMesh(routeColor, shipTypeId);
     shipModel.metadata = shipModel.metadata || {};
-    shipModel.metadata._phaseOffset = idx * 1.1;
+    shipModel.metadata._phaseOffset = (route.shipIndex || 0) * 1.1;
     shipModel.position = currentPos.clone();
 
-    if (targetPos && hasTravelSegment) {
+    if (targetPos && route.hasTravelSegment) {
       shipModel.lookAt(targetPos);
     }
 
-    if (routeState.isTraveling && curve && points) {
-      shipModel.metadata._dispatchCurve = curve;
+    if (route.isTraveling && routeSegment && routeSegment.curve && routeSegment.points) {
+      shipModel.metadata._dispatchCurve = routeSegment.curve;
       shipModel.metadata._direction = 1;
-      shipModel.position = points[0].clone();
+      shipModel.position = routeSegment.points[0].clone();
 
-      const trailMesh = _createTrailMesh('dispTrail_' + idx, shipModel, routeColor, {
+      const trailMesh = _createTrailMesh('dispTrail_' + route.shipIndex, shipModel, routeColor, {
         diameter: _getTrailDiameter(shipTypeId, true),
         length: 32,
         sections: 4,
@@ -2135,14 +2147,17 @@ export function flyShipTo(fromId, toId, onComplete, shipTypeId, flightMeta) {
 
   const from = fromMeta.position.clone();
   const to = toMeta.position.clone();
+  var typeId = shipTypeId || 'shuttle';
+  const routeDescriptor = RouteModel.createFlightRouteDescriptor(fromId, toId, {
+    shipIndex: flightMeta && typeof flightMeta.shipIndex === 'number' ? flightMeta.shipIndex : 0,
+    shipTypeId: typeId,
+    routeRevision: flightMeta && flightMeta.routeRevision != null ? flightMeta.routeRevision : null,
+  });
 
   // Arc flight path
-  const mid = BABYLON.Vector3.Lerp(from, to, 0.5);
-  const dist = BABYLON.Vector3.Distance(from, to);
-  mid.y += Math.max(dist * 0.2, 5);
-
-  const curve = BABYLON.Curve3.CreateQuadraticBezier(from, mid, to, 80);
+  const curve = _createArcCurve(from, to, 80, { heightFactor: 0.2, minHeight: 5 });
   const routePoints = curve.getPoints();
+  const dist = BABYLON.Vector3.Distance(from, to);
 
   // --- Flight route line (trajectory) ---
   _clearFlightVisuals();
@@ -2169,7 +2184,6 @@ export function flyShipTo(fromId, toId, onComplete, shipTypeId, flightMeta) {
   _flightTargetGlow.isPickable = false;
 
   // --- Create ship mesh (type-specific) ---
-  var typeId = shipTypeId || 'shuttle';
   if (_shipMesh && _currentShipType !== typeId) {
     _shipTrail = _disposeTrailMesh(_shipTrail);
     _shipMesh.getChildMeshes().forEach(c => { if (c.material) c.material.dispose(); c.dispose(); });
@@ -2218,8 +2232,9 @@ export function flyShipTo(fromId, toId, onComplete, shipTypeId, flightMeta) {
     startTime: performance.now(),
     onComplete: onComplete || null,
     shipTypeId: typeId,
-    shipIndex: flightMeta && typeof flightMeta.shipIndex === 'number' ? flightMeta.shipIndex : 0,
-    routeRevision: flightMeta && flightMeta.routeRevision != null ? flightMeta.routeRevision : null,
+    routeDescriptor: routeDescriptor,
+    shipIndex: routeDescriptor.shipIndex,
+    routeRevision: routeDescriptor.routeRevision,
   };
 
   _cameraTarget = null;

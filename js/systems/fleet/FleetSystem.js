@@ -14,6 +14,7 @@ import { GOODS } from '../../data/goods.js';
 import * as Economy from '../economy/Economy.js';
 import * as AutoTrade from '../trade/AutoTradeSystem.js';
 import * as Crew from './CrewSystem.js';
+import * as RouteModel from '../route/RouteSystem.js';
 import {
   SHIP_DOCTRINES,
   createDoctrineProtocol,
@@ -677,61 +678,15 @@ function _handleShipSmugglingCheck(state, ship, route, msgs) {
   return false;
 }
 
-function _getRouteDisplayCurrentSystemId(state, ship, shipIndex) {
-  var route = ship && ship.route ? ship.route : null;
-  var activeIndex = state && typeof state.activeShipIndex === 'number' ? state.activeShipIndex : 0;
-  var isActive = shipIndex === activeIndex;
-  var currentSystemId = isActive
-    ? (state.currentSystem || ship.location)
-    : (ship.location || state.currentSystem);
-
-  if (currentSystemId) return currentSystemId;
-  if (!route) return null;
-  if (route.status === 'traveling_sell' || route.status === 'selling') {
-    return route.buySystemId || route.sellSystemId || null;
-  }
-  return route.sellSystemId || route.buySystemId || null;
-}
-
 export function getRouteDisplayInfo(state, ship, shipIndex) {
-  if (!ship || !ship.route) return null;
-
-  var route = ship.route;
-  var currentSystemId = _getRouteDisplayCurrentSystemId(state, ship, shipIndex);
-  var sameSystemRoute = route.buySystemId === route.sellSystemId;
-  var atBuySystem = currentSystemId === route.buySystemId;
-  var atSellSystem = currentSystemId === route.sellSystemId;
-  var targetSystemId = null;
-  var statusLabel = route.status;
-
-  if (sameSystemRoute) {
-    targetSystemId = currentSystemId || route.buySystemId || route.sellSystemId || null;
-    statusLabel = (route.status === 'traveling_sell' || route.status === 'selling')
-      ? '💰 同站卖出中'
-      : '📦 同站买入中';
-  } else if (atBuySystem) {
-    targetSystemId = route.sellSystemId;
-    statusLabel = (route.status === 'traveling_sell' || route.status === 'selling')
-      ? '🚀 前往卖出地'
-      : '📦 买入中';
-  } else if (atSellSystem) {
-    targetSystemId = route.buySystemId;
-    statusLabel = (route.status === 'traveling_buy' || route.status === 'buying')
-      ? '🚀 前往买入地'
-      : '💰 卖出中';
-  } else if (route.status === 'traveling_sell' || route.status === 'selling') {
-    targetSystemId = route.sellSystemId;
-    statusLabel = route.status === 'selling' ? '💰 卖出中' : '🚀 前往卖出地';
-  } else {
-    targetSystemId = route.buySystemId;
-    statusLabel = route.status === 'buying' ? '📦 买入中' : '🚀 前往买入地';
-  }
+  var descriptor = RouteModel.getShipRouteDescriptor(state, ship, shipIndex);
+  if (!descriptor) return null;
 
   return {
-    startSystemId: currentSystemId,
-    endSystemId: targetSystemId || currentSystemId,
-    statusLabel: statusLabel,
-    sameSystemRoute: sameSystemRoute,
+    startSystemId: descriptor.startSystemId,
+    endSystemId: descriptor.endSystemId,
+    statusLabel: descriptor.statusLabel,
+    sameSystemRoute: descriptor.sameSystemRoute,
   };
 }
 
