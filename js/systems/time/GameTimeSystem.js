@@ -75,6 +75,7 @@ export function advanceDays(state, days) {
     _appendMessages(msgs, TradeStation.advanceDay(state));
     _appendMessages(msgs, Finance.advanceDay(state));
     _appendMessages(msgs, Crew.payDailyWages(state, 1));
+    _appendMessages(msgs, Fleet.advanceFleetDay(state));
     _appendMessages(msgs, Research.advanceResearch(state));
 
     var questResult = Quest.checkProgress(state, { action: 'advance_day', days: 1, day: state.day });

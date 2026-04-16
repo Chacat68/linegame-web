@@ -1,8 +1,10 @@
-// js/systems/galaxy/ExplorationSystem.js — 探索系统（扫描 / 着陆 / POI / 秘密航线）
+// js/systems/galaxy/ExplorationSystem.js — 探索系统（扫描 / 着陆 / POI / 秘密航线 / 探索报告）
 // 依赖：data/systems.js, systems/galaxy/GalaxyDataLayer.js
-// 导出：getScanStatus, getLandingStatus, getPoiStatus, scanSystem, landOnSystem, explorePoi, getTravelRouteInfo, getCurrentSystemSecretRoutes
+// 导出：getScanStatus, getLandingStatus, getPoiStatus, getSurveySummary,
+//       scanSystem, landOnSystem, explorePoi, getTravelRouteInfo, getCurrentSystemSecretRoutes
 
-import { findSystem } from '../../data/systems.js';
+import { GOODS } from '../../data/goods.js';
+import { findSystem, getSystemsByGalaxy } from '../../data/systems.js';
 import * as GalaxyData from './GalaxyDataLayer.js';
 
 const BASE_SCAN_FUEL_COST = 6;
@@ -22,9 +24,11 @@ export function getScanStatus(state, systemId, options) {
   const scanFuelCost = Math.max(0, Math.round(baseScanFuelCost * Math.max(0, 1 - (options.scanFuelDiscount || 0))));
   const poiCount = exploration && Array.isArray(exploration.pois) ? exploration.pois.length : 0;
   const routeCount = exploration && Array.isArray(exploration.secretRoutes) ? exploration.secretRoutes.length : 0;
+  const surveyProfile = system && exploration ? _getSurveyProfile(system, exploration) : null;
   const modeLabel = hasDeepScan ? '深度扫描' : '轨道扫描';
   const detailText = '执行' + modeLabel + '需要 ' + scanFuelCost + ' 单位燃料，可揭示 ' + poiCount + ' 个探索点' +
-    (routeCount > 0 ? '，并校准 ' + routeCount + ' 条可疑暗线信标。' : '。');
+    (routeCount > 0 ? '，并校准 ' + routeCount + ' 条可疑暗线信标。' : '。') +
+    (surveyProfile ? (' 当前档案预估为' + surveyProfile.threatLabel + ' / ' + surveyProfile.opportunityLabel + '区域。') : '');
 
   const result = {
     canScan: true,
@@ -127,6 +131,7 @@ export function getLandingStatus(state, systemId, options) {
   const unresolvedPoiCount = exploration && Array.isArray(exploration.pois)
     ? exploration.pois.filter(function (poi) { return poi.discovered && !poi.resolved; }).length
     : 0;
+  const surveyProfile = system && exploration ? _getSurveyProfile(system, exploration) : null;
 
   const result = {
     canLand: true,
@@ -135,7 +140,8 @@ export function getLandingStatus(state, systemId, options) {
     landingFee: landingFee,
     unresolvedPoiCount: unresolvedPoiCount,
     actionLabel: '申请首次着陆 · ' + landingFee + ' 积分',
-    detailText: '首次着陆需要 ' + landingFee + ' 积分，落地后可立即调查 ' + unresolvedPoiCount + ' 个探索点。',
+    detailText: '首次着陆需要 ' + landingFee + ' 积分，落地后可立即调查 ' + unresolvedPoiCount + ' 个探索点。' +
+      (surveyProfile ? (' 本地测绘目标偏向' + surveyProfile.opportunityLabel + '，完探奖励为「' + surveyProfile.completionRewardLabel + '」。') : ''),
     blockedReason: '',
   };
 
@@ -286,6 +292,42 @@ export function getPoiStatus(state, systemId, poiId, options) {
   return result;
 }
 
+export function getSurveySummary(state, systemId) {
+  const system = findSystem(systemId);
+  const exploration = system ? _getExplorationState(systemId) : null;
+  if (!system || !exploration) return null;
+
+  const profile = _getSurveyProfile(system, exploration);
+  const totalPois = Array.isArray(exploration.pois) ? exploration.pois.length : 0;
+  const resolvedCount = Array.isArray(exploration.pois)
+    ? exploration.pois.filter(function (poi) { return poi.resolved; }).length
+    : 0;
+  const pendingCount = Math.max(0, totalPois - resolvedCount);
+  const reports = Array.isArray(exploration.reports)
+    ? exploration.reports.slice().sort(function (left, right) {
+        return (right.day || 0) - (left.day || 0);
+      })
+    : [];
+
+  return {
+    threatLevel: profile.threatLevel,
+    threatLabel: profile.threatLabel,
+    opportunityFocus: profile.opportunityFocus,
+    opportunityLabel: profile.opportunityLabel,
+    completionRewardKind: profile.completionRewardKind,
+    completionRewardLabel: profile.completionRewardLabel,
+    intelLevel: exploration.intelLevel || 0,
+    reportCount: reports.length,
+    reports: reports,
+    resolvedCount: resolvedCount,
+    totalPois: totalPois,
+    pendingCount: pendingCount,
+    completed: _isSurveyComplete(exploration),
+    completionBonusClaimed: !!exploration.completionBonusClaimed,
+    completedDay: exploration.completedDay || 0,
+  };
+}
+
 export function explorePoi(state, systemId, poiId, options) {
   const poiStatus = getPoiStatus(state, systemId, poiId, options);
   const system = findSystem(systemId);
@@ -304,13 +346,35 @@ export function explorePoi(state, systemId, poiId, options) {
   poi.resolved = true;
   poi.resolvedDay = state.day || 1;
   poi.lastOutcome = result.summary;
+  if (result.report) {
+    _appendExplorationReport(exploration, result.report);
+  }
+  var completionBonus = _grantSurveyCompletionBonus(state, system, exploration);
   _saveExplorationState(systemId, exploration);
 
   var msgs = [{ text: poi.icon + ' ' + poi.name + '：' + result.summary, type: result.type || 'info' }];
+  if (result.report) {
+    msgs.push({ text: result.report.icon + ' 已写入勘探报告：「' + result.report.title + '」。', type: 'tip' });
+  }
   if (result.followup) {
     msgs.push({ text: result.followup, type: 'tip' });
   }
-  return { ok: true, msgs: msgs, meta: { systemId: systemId, poiId: poiId, poiKind: poi.kind } };
+  if (completionBonus && Array.isArray(completionBonus.msgs)) {
+    completionBonus.msgs.forEach(function (message) {
+      msgs.push(message);
+    });
+  }
+  return {
+    ok: true,
+    msgs: msgs,
+    meta: {
+      systemId: systemId,
+      poiId: poiId,
+      poiKind: poi.kind,
+      reportId: result.report ? result.report.id : null,
+      completionBonus: !!completionBonus,
+    },
+  };
 }
 
 export function getTravelRouteInfo(state, fromId, toId) {
@@ -376,6 +440,7 @@ function _resolvePoi(state, system, exploration, poi, options) {
       summary: '回收了补给与账本，获得 ' + rewardCredits + ' 积分、' + rewardFuel + ' 单位燃料。',
       followup: rewardRep > 0 ? '📈 此次发现还提升了你的公共声望。' : '',
       type: 'upgrade',
+      report: _createManifestReport(system, state),
     };
   }
 
@@ -385,11 +450,13 @@ function _resolvePoi(state, system, exploration, poi, options) {
     if (_hasTech(state, 'anomaly_research')) {
       anomalyCredits = Math.round(anomalyCredits * 1.15);
       hullDamage = 0;
+      state.credits += anomalyCredits;
       state.reputation = (state.reputation || 0) + 2;
       return {
         summary: '凭借异常分析协议，你稳定提取了样本数据，获得 ' + anomalyCredits + ' 积分并避免了舰体损伤。',
         followup: '🔬 深入分析带来的研究信誉让你额外获得了 2 点声望。',
         type: 'upgrade',
+        report: _createAnomalyReport(system, exploration, state),
       };
     }
 
@@ -399,6 +466,7 @@ function _resolvePoi(state, system, exploration, poi, options) {
       summary: '异常区带来了 ' + anomalyCredits + ' 积分收益，但飞船在回收过程中受损 ' + hullDamage + ' 点。',
       followup: '⚠️ 研究「异常分析协议」后可以显著降低这类风险。',
       type: 'info',
+      report: _createAnomalyReport(system, exploration, state),
     };
   }
 
@@ -416,6 +484,7 @@ function _resolvePoi(state, system, exploration, poi, options) {
       summary: '你重启了隐秘折跃信标，解锁了通往「' + (route ? route.targetSystemName : '未知航点') + '」的秘密航线。',
       followup: '🛰️ 该航线现可提供约 ' + bonusPercent + '% 的燃料节省。',
       type: 'upgrade',
+      report: _createRouteReport(system, route, routeInfo, state.day || 1),
     };
   }
 
@@ -504,7 +573,7 @@ function _getPoiPreviewText(state, system, exploration, poi, options) {
     var rewardRep = Math.round(((poi.rewards && poi.rewards.reputation) || 0) * rewardMultiplier);
     return '无需额外费用，预计回收 ' + rewardCredits + ' 积分' +
       (rewardFuel > 0 ? '、' + rewardFuel + ' 单位燃料' : '') +
-      (rewardRep > 0 ? '，并提升 ' + rewardRep + ' 点声望' : '') + '。';
+      (rewardRep > 0 ? '，并提升 ' + rewardRep + ' 点声望' : '') + '，同时会整理 1 条本地补给或贸易线索。';
   }
 
   if (poi.kind === 'anomaly_site') {
@@ -512,9 +581,9 @@ function _getPoiPreviewText(state, system, exploration, poi, options) {
     var hullDamage = (poi.rewards && poi.rewards.hullDamage) || 0;
     if (_hasTech(state, 'anomaly_research')) {
       anomalyCredits = Math.round(anomalyCredits * 1.15);
-      return '无需额外费用，预计稳定提取样本，获得 ' + anomalyCredits + ' 积分，并避免舰体受损。';
+      return '无需额外费用，预计稳定提取样本，获得 ' + anomalyCredits + ' 积分，并避免舰体受损，同时更新该星球的异常风险剖面。';
     }
-    return '无需额外费用，预计获得 ' + anomalyCredits + ' 积分，但可能损伤舰体 ' + hullDamage + ' 点。';
+    return '无需额外费用，预计获得 ' + anomalyCredits + ' 积分，但可能损伤舰体 ' + hullDamage + ' 点，并写入一份风险评估报告。';
   }
 
   if (poi.kind === 'route_beacon') {
@@ -527,10 +596,309 @@ function _getPoiPreviewText(state, system, exploration, poi, options) {
     }
     var discount = Math.round((1 - fuelMultiplier) * 100);
     return '无需额外费用，预计解锁前往「' + (route ? route.targetSystemName : '未知航点') + '」的秘密航线，航程燃料约 -' + discount + '%，并获得 ' + routeCredits + ' 积分' +
-      (routeRep > 0 ? ' 与 ' + routeRep + ' 点声望' : '') + '。';
+      (routeRep > 0 ? ' 与 ' + routeRep + ' 点声望' : '') + '，并将航线写入长期航图。';
   }
 
   return '无需额外费用，完成后会立即结算本次调查收益。';
+}
+
+function _getSurveyProfile(system, exploration) {
+  var defaults = _getDefaultSurveyProfile(system);
+  return {
+    threatLevel: (exploration && exploration.threatLevel) || defaults.threatLevel,
+    threatLabel: (exploration && exploration.threatLabel) || defaults.threatLabel,
+    opportunityFocus: (exploration && exploration.opportunityFocus) || defaults.opportunityFocus,
+    opportunityLabel: (exploration && exploration.opportunityLabel) || defaults.opportunityLabel,
+    completionRewardKind: (exploration && exploration.completionRewardKind) || defaults.completionRewardKind,
+    completionRewardLabel: (exploration && exploration.completionRewardLabel) || defaults.completionRewardLabel,
+  };
+}
+
+function _getDefaultSurveyProfile(system) {
+  if (!system) {
+    return {
+      threatLevel: 'low',
+      threatLabel: '低风险',
+      opportunityFocus: 'logistics',
+      opportunityLabel: '补给回收',
+      completionRewardKind: 'logistics',
+      completionRewardLabel: '补给回收包',
+    };
+  }
+
+  var level = system.minLevel || 1;
+  var threatLevel = 'low';
+  if (level >= 4 || ['commercial', 'special', 'military'].indexOf(system.type) !== -1) threatLevel = 'high';
+  else if (level >= 2 || ['mining', 'industrial'].indexOf(system.type) !== -1) threatLevel = 'medium';
+
+  var opportunityFocus = 'logistics';
+  if (['technology', 'research'].indexOf(system.type) !== -1) opportunityFocus = 'research';
+  else if (['commercial', 'special', 'military'].indexOf(system.type) !== -1) opportunityFocus = 'market';
+
+  var threatLabelMap = {
+    low: '低风险',
+    medium: '中风险',
+    high: '高风险',
+  };
+  var opportunityLabelMap = {
+    logistics: '补给回收',
+    market: '贸易情报',
+    research: '科研样本',
+  };
+  var completionLabelMap = {
+    logistics: '补给回收包',
+    market: '贸易综述',
+    research: '研究线索',
+  };
+
+  return {
+    threatLevel: threatLevel,
+    threatLabel: threatLabelMap[threatLevel],
+    opportunityFocus: opportunityFocus,
+    opportunityLabel: opportunityLabelMap[opportunityFocus],
+    completionRewardKind: opportunityFocus,
+    completionRewardLabel: completionLabelMap[opportunityFocus],
+  };
+}
+
+function _isSurveyComplete(exploration) {
+  return !!(exploration && Array.isArray(exploration.pois) && exploration.pois.length > 0 && exploration.pois.every(function (poi) {
+    return !!poi.resolved;
+  }));
+}
+
+function _appendExplorationReport(exploration, report) {
+  if (!exploration || !report) return false;
+  if (!Array.isArray(exploration.reports)) exploration.reports = [];
+
+  var normalizedReport = Object.assign({
+    badge: '勘探报告',
+    intelValue: 1,
+    day: 0,
+  }, report);
+  var existingIndex = exploration.reports.findIndex(function (entry) {
+    return entry.id === normalizedReport.id;
+  });
+  if (existingIndex !== -1) {
+    exploration.reports.splice(existingIndex, 1, normalizedReport);
+    return false;
+  }
+
+  exploration.reports.unshift(normalizedReport);
+  exploration.intelLevel = (exploration.intelLevel || 0) + (normalizedReport.intelValue || 1);
+  return true;
+}
+
+function _grantSurveyCompletionBonus(state, system, exploration) {
+  if (!system || !exploration || exploration.completionBonusClaimed || !_isSurveyComplete(exploration)) {
+    return null;
+  }
+
+  var profile = _getSurveyProfile(system, exploration);
+  var bonusCredits = 90 + (system.minLevel || 1) * 35;
+  var bonusReputation = 2 + Math.max(1, Math.floor((system.minLevel || 1) / 2));
+
+  state.credits += bonusCredits;
+  state.reputation = (state.reputation || 0) + bonusReputation;
+  exploration.completionBonusClaimed = true;
+  exploration.completedDay = state.day || 1;
+
+  var msgs = [{
+    text: '📘 已完成对「' + system.name + '」的区域测绘，获得 ' + bonusCredits + ' 积分与 ' + bonusReputation + ' 点声望。',
+    type: 'upgrade',
+  }];
+  var completionReport = null;
+
+  if (profile.completionRewardKind === 'research') {
+    var reducedDays = 0;
+    if (state.currentResearch && state.currentResearch.daysLeft > 1) {
+      state.currentResearch.daysLeft -= 1;
+      reducedDays = 1;
+    }
+    completionReport = _createResearchCompletionReport(system, state.day || 1, reducedDays);
+    if (reducedDays > 0) {
+      msgs.push({ text: '🔬 完整测绘档案让当前科研项目提速 1 天。', type: 'tip' });
+    }
+  } else if (profile.completionRewardKind === 'market') {
+    completionReport = _createCompletionTradeReport(system, state.day || 1);
+  } else {
+    var bonusFuel = 4 + Math.max(1, system.minLevel || 1);
+    var hullRepair = 3 + Math.floor((system.minLevel || 1) / 2);
+    state.fuel = Math.min(state.maxFuel || 100, (state.fuel || 0) + bonusFuel);
+    state.shipHull = Math.min(state.maxHull || 100, (state.shipHull || 100) + hullRepair);
+    completionReport = _createLogisticsCompletionReport(system, state.day || 1, bonusFuel, hullRepair);
+    msgs.push({
+      text: '⛽ 勘探队额外回收了 ' + bonusFuel + ' 单位燃料，并完成 ' + hullRepair + ' 点舰体整备。',
+      type: 'info',
+    });
+  }
+
+  if (completionReport) {
+    _appendExplorationReport(exploration, completionReport);
+    msgs.push({ text: completionReport.icon + ' 完探奖励已归档：「' + completionReport.title + '」。', type: 'tip' });
+  }
+
+  return { msgs: msgs };
+}
+
+function _createManifestReport(system, state) {
+  var opportunity = _getBestTradeOpportunity(system, { legalOnly: false });
+  if (!opportunity) {
+    return {
+      id: system.id + '_report_manifest',
+      kind: 'market',
+      badge: '补给情报',
+      icon: '📦',
+      title: '回收货运清单',
+      detail: '回收账本显示「' + system.name + '」仍有可重复利用的地面补给链，适合作为中短线整补节点。',
+      day: state.day || 1,
+      intelValue: 1,
+    };
+  }
+
+  return {
+    id: system.id + '_report_manifest',
+    kind: 'market',
+    badge: '贸易情报',
+    icon: '📦',
+    title: '回收货运清单',
+    detail: '货运清单显示「' + opportunity.goodEmoji + ' ' + opportunity.goodName + '」在「' + system.name + '」长期低于周边均价，优先运往「' + opportunity.targetSystemName + '」存在' + opportunity.marginBand + '强度价差窗口。',
+    day: state.day || 1,
+    intelValue: 1,
+  };
+}
+
+function _createAnomalyReport(system, exploration, state) {
+  var profile = _getSurveyProfile(system, exploration);
+  var riskHint = profile.threatLevel === 'high'
+    ? '局部异常对低维护舰船依然有持续威胁，后续行动应优先保证舰体安全。'
+    : (profile.threatLevel === 'medium'
+      ? '异常读数可控，但仍建议在燃料与维修充足时继续深挖。'
+      : '当前异常读数整体稳定，适合作为低压勘探点持续观察。');
+
+  return {
+    id: system.id + '_report_anomaly',
+    kind: 'research',
+    badge: '风险评估',
+    icon: '🧪',
+    title: '异常场剖面',
+    detail: '分析确认「' + system.name + '」属于' + profile.threatLabel + '勘探区。' + riskHint + (_hasTech(state, 'anomaly_research') ? ' 现有异常分析协议已足以稳定处理样本。' : ' 若补完「异常分析协议」，可显著提高这类点位的净收益。'),
+    day: state.day || 1,
+    intelValue: 1,
+  };
+}
+
+function _createRouteReport(system, route, routeInfo, day) {
+  var discount = Math.round((1 - (routeInfo && routeInfo.fuelMultiplier ? routeInfo.fuelMultiplier : BASE_SECRET_ROUTE_MULTIPLIER)) * 100);
+  return {
+    id: system.id + '_report_route',
+    kind: 'route',
+    badge: '航线情报',
+    icon: '🛰️',
+    title: '暗线航图录入',
+    detail: '已将通往「' + (route ? route.targetSystemName : '未知航点') + '」的暗线写入长期航图。后续从「' + system.name + '」出发可节省约 ' + discount + '% 燃料。',
+    day: day || 0,
+    intelValue: 1,
+  };
+}
+
+function _createResearchCompletionReport(system, day, reducedDays) {
+  return {
+    id: system.id + '_report_completion',
+    kind: 'completion',
+    badge: '完探奖励',
+    icon: '📘',
+    title: '区域测绘归档',
+    detail: reducedDays > 0
+      ? '对「' + system.name + '」的完整测绘已归档到研究部门，当前科研项目因此额外提速 1 天。'
+      : '对「' + system.name + '」的完整测绘已归档，后续可直接复用这份研究样本与地表剖面。',
+    day: day,
+    intelValue: 2,
+  };
+}
+
+function _createCompletionTradeReport(system, day) {
+  var opportunity = _getBestTradeOpportunity(system, { legalOnly: false });
+  if (!opportunity) {
+    return {
+      id: system.id + '_report_completion',
+      kind: 'completion',
+      badge: '完探奖励',
+      icon: '📘',
+      title: '区域贸易综述',
+      detail: '完整测绘确认「' + system.name + '」具备稳定的边境套利价值，可作为中后期高风险航线的跳板节点。',
+      day: day,
+      intelValue: 2,
+    };
+  }
+
+  return {
+    id: system.id + '_report_completion',
+    kind: 'completion',
+    badge: '完探奖励',
+    icon: '📘',
+    title: '区域贸易综述',
+    detail: '完整测绘确认：以「' + opportunity.goodEmoji + ' ' + opportunity.goodName + '」为主的出货路线最值得优先关注，建议从「' + system.name + '」直连「' + opportunity.targetSystemName + '」。',
+    day: day,
+    intelValue: 2,
+  };
+}
+
+function _createLogisticsCompletionReport(system, day, bonusFuel, hullRepair) {
+  return {
+    id: system.id + '_report_completion',
+    kind: 'completion',
+    badge: '完探奖励',
+    icon: '📘',
+    title: '补给节点归整',
+    detail: '完整测绘回收了本地补给节点的剩余资源，为舰队额外提供 ' + bonusFuel + ' 单位燃料与 ' + hullRepair + ' 点整备余量。',
+    day: day,
+    intelValue: 2,
+  };
+}
+
+function _getBestTradeOpportunity(system, options) {
+  if (!system) return null;
+
+  var legalOnly = !!(options && options.legalOnly);
+  var candidates = getSystemsByGalaxy(system.galaxyId).filter(function (entry) {
+    return entry.id !== system.id;
+  });
+  var best = null;
+
+  GOODS.forEach(function (good) {
+    if (!good.marketAccess || good.marketAccess.indexOf('open') === -1) return;
+    if (legalOnly && good.legality !== 'legal') return;
+
+    var sourceMultiplier = (system.prices && system.prices[good.id]) || 1;
+    candidates.forEach(function (target) {
+      var targetMultiplier = (target.prices && target.prices[good.id]) || 1;
+      var delta = targetMultiplier - sourceMultiplier;
+      if (delta <= 0.18) return;
+
+      var score = delta * good.basePrice;
+      if (!best || score > best.score) {
+        best = {
+          goodId: good.id,
+          goodName: good.name,
+          goodEmoji: good.emoji,
+          targetSystemId: target.id,
+          targetSystemName: target.name,
+          score: score,
+          delta: delta,
+          marginBand: _getOpportunityMarginBand(delta),
+        };
+      }
+    });
+  });
+
+  return best;
+}
+
+function _getOpportunityMarginBand(delta) {
+  if (delta >= 1.0) return '高';
+  if (delta >= 0.55) return '中';
+  return '低';
 }
 
 function _getLandingFee(system) {

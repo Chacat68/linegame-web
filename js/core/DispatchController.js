@@ -8,7 +8,7 @@
 // tick 函数返回动作描述，由 GameManager 执行具体的状态变更。
 
 import * as EventBus  from './EventBus.js';
-import * as Fleet     from '../systems/fleet/FleetSystem.js?v=20260414-routeunify1';
+import * as Fleet     from '../systems/fleet/FleetSystem.js?v=20260417-fleetops21';
 import * as AutoTrade from '../systems/trade/AutoTradeSystem.js';
 import * as Economy   from '../systems/economy/Economy.js';
 

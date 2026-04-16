@@ -14,11 +14,11 @@ import * as Faction    from '../systems/faction/FactionSystem.js';
 import * as Research   from '../systems/research/ResearchSystem.js';
 import * as Renderer3D from '../ui/Renderer3DAdvanced.js?v=20260414-routeunify1';
 import * as GalaxyData from '../systems/galaxy/GalaxyDataLayer.js';
-import * as Exploration from '../systems/galaxy/ExplorationSystem.js?v=20260407-landpoi1';
+import * as Exploration from '../systems/galaxy/ExplorationSystem.js?v=20260417-exploration20';
 import * as HUD        from '../ui/HUD.js?v=20260412-questroute2';
 import * as MarketUI   from '../ui/MarketUI.js';
 import * as ShipUI     from '../ui/ShipUI.js';
-import * as MapUI      from '../ui/MapUI.js?v=20260414-scanreveal1';
+import * as MapUI      from '../ui/MapUI.js?v=20260417-exploration20';
 import * as Modal      from '../ui/Modal.js';
 import * as EventUI    from '../ui/EventUI.js';
 import * as DialogueUI from '../ui/DialogueUI.js';
@@ -27,13 +27,13 @@ import * as FactionUI  from '../ui/FactionUI.js';
 import * as SaveUI     from '../ui/SaveUI.js';
 import * as QuestUI    from '../ui/QuestUI.js?v=20260412-questroute3';
 import * as AchievementUI from '../ui/AchievementUI.js';
-import * as Fleet      from '../systems/fleet/FleetSystem.js?v=20260414-routeunify1';
+import * as Fleet      from '../systems/fleet/FleetSystem.js?v=20260417-fleetops21';
 import * as Crew       from '../systems/fleet/CrewSystem.js';
 import * as AutoTrade  from '../systems/trade/AutoTradeSystem.js';
 import * as TradeStation from '../systems/trade/TradeStationSystem.js';
 import * as Finance from '../systems/finance/FinanceSystem.js';
 import * as Futures from '../systems/finance/FuturesSystem.js';
-import * as FleetUI    from '../ui/FleetUI.js?v=20260414-routeunify1';
+import * as FleetUI    from '../ui/FleetUI.js?v=20260417-fleetops21';
 import * as Save       from '../systems/save/SaveSystem.js';
 import * as Quest      from '../systems/quest/QuestSystem.js?v=20260412-questroute2';
 import * as Achievement from '../systems/achievement/AchievementSystem.js';
@@ -532,6 +532,10 @@ function _handleTravel(systemId) {
   _dispatch(result);
 
   if (result && result.ok) {
+    Fleet.applyTravelWear(_state, _state.activeShipIndex, result.meta).msgs.forEach(function (m) {
+      EventBus.emit('log:message', { text: m.text, type: m.type });
+    });
+
     // 3D 飞船飞行动画（传入当前飞船类型）
     if (Renderer3D.isActive() && previousSystem) {
       var activeShipForFlight = Fleet.getActiveShip(_state);
@@ -1105,6 +1109,12 @@ function _handleUninstallMod(shipIndex, modId) {
   _dispatch(result);
 }
 
+function _handleServiceShip(shipIndex, tierId) {
+  Fleet.syncShipFromState(_state);
+  const result = Fleet.serviceShip(_state, shipIndex, tierId);
+  _dispatch(result);
+}
+
 function _handleRecruitCrew(offerId) {
   const result = Crew.recruitCrew(_state, offerId, _state.currentSystem);
   _dispatch(result);
@@ -1219,7 +1229,7 @@ function _updateUI() {
   FactionUI.render(_state);
   QuestUI.render(_state, _handleAcceptQuest, _handleAbandonQuest);
   AchievementUI.render(_state);
-  FleetUI.render(_state, _handleBuyShip, _handleSwitchShip, _handleUpgradeShip, _handleAssignRoute, _handleCancelRoute, _handleBuySlot, _handleSellShip, _handleInstallMod, _handleUninstallMod, _handleRecruitCrew, _handleAssignCrew, _handleUnassignCrew, _handleDismissCrew, _handleSetShipDoctrine, _handleActivateShipProtocol);
+  FleetUI.render(_state, _handleBuyShip, _handleSwitchShip, _handleUpgradeShip, _handleAssignRoute, _handleCancelRoute, _handleBuySlot, _handleSellShip, _handleInstallMod, _handleUninstallMod, _handleServiceShip, _handleRecruitCrew, _handleAssignCrew, _handleUnassignCrew, _handleDismissCrew, _handleSetShipDoctrine, _handleActivateShipProtocol);
   FleetUI.renderShop(_state, _handleBuyShip);
   SaveUI.render(_handleSaveGame, _handleLoadGame);
   Renderer3D.invalidateScene();

@@ -5,7 +5,7 @@
 import { SHIP_TYPES, SHIP_UPGRADES, FLEET_SLOTS, SHIP_MODS, FLEET_BONUSES } from '../data/ships.js';
 import { SYSTEMS, getSystemsByGalaxy } from '../data/systems.js';
 import { GOODS } from '../data/goods.js';
-import * as Fleet from '../systems/fleet/FleetSystem.js?v=20260414-routeunify1';
+import * as Fleet from '../systems/fleet/FleetSystem.js?v=20260417-fleetops21';
 import * as Crew from '../systems/fleet/CrewSystem.js';
 import * as Economy from '../systems/economy/Economy.js';
 import * as AutoTrade from '../systems/trade/AutoTradeSystem.js';
@@ -36,6 +36,7 @@ function _formatTradePolicySummary(policy) {
  * @param {Function} onSellShip     (shipIndex) => void
  * @param {Function} onInstallMod   (shipIndex, modId) => void
  * @param {Function} onUninstallMod (shipIndex, modId) => void
+ * @param {Function} onServiceShip  (shipIndex, tierId) => void
  * @param {Function} onRecruitCrew  (offerId) => void
  * @param {Function} onAssignCrew   (shipIndex, crewId) => void
  * @param {Function} onUnassignCrew (shipIndex, crewId) => void
@@ -43,7 +44,7 @@ function _formatTradePolicySummary(policy) {
  * @param {Function} onSetShipDoctrine (shipIndex, doctrineId) => void
  * @param {Function} onActivateShipProtocol (shipIndex) => void
  */
-export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRoute, onCancelRoute, onBuySlot, onSellShip, onInstallMod, onUninstallMod, onRecruitCrew, onAssignCrew, onUnassignCrew, onDismissCrew, onSetShipDoctrine, onActivateShipProtocol) {
+export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRoute, onCancelRoute, onBuySlot, onSellShip, onInstallMod, onUninstallMod, onServiceShip, onRecruitCrew, onAssignCrew, onUnassignCrew, onDismissCrew, onSetShipDoctrine, onActivateShipProtocol) {
   const container = document.getElementById('fleet-list');
   if (!container) return;
 
@@ -158,6 +159,9 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
     const shipStats = Fleet.getEffectiveShipStats(state, ship);
     const specialization = shipStats.specialization || Fleet.getShipSpecializationSummary(state, ship);
     const doctrine = specialization ? specialization.doctrine : null;
+    const maintenance = shipStats.maintenance || Fleet.getShipMaintenanceSummary(state, ship);
+    const roleProfile = shipStats.roleProfile || Fleet.getShipRoleProfile(state, ship);
+    const faults = shipStats.faults || Fleet.getShipFaultSummaries(ship);
 
     html += '<div class="fleet-ship-card' + (isActive ? ' fleet-active' : '') +
         (isSwitchFlashing ? ' fleet-switch-flash' : '') +
@@ -191,6 +195,28 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
       html += '<span>航耗 -' + Math.round((1 - shipStats.crewEffects.fuelEffMultiplier) * 100) + '%</span>';
     }
     html += '</div>';
+
+    html += '<div class="fleet-ops-summary">';
+    html += '<span class="fleet-role-chip" title="' + roleProfile.summary + '">🎯 ' + roleProfile.label + '</span>';
+    html += '<span class="fleet-maintenance-chip fleet-maintenance-' + maintenance.band + '" title="恢复至 100% 预计花费 ' + maintenance.serviceCost.toLocaleString() + ' 积分">🧰 ' + maintenance.label + ' ' + Math.round(maintenance.value) + '% · ' + maintenance.upkeepCost + '/天</span>';
+    html += '<span class="fleet-ops-chip">损耗 ' + maintenance.dailyDecay.toFixed(1) + '/天</span>';
+    html += '</div>';
+
+    if (roleProfile.tags && roleProfile.tags.length > 0) {
+      html += '<div class="fleet-role-tags">';
+      roleProfile.tags.forEach(function (tag) {
+        html += '<span class="fleet-role-tag">' + tag + '</span>';
+      });
+      html += '</div>';
+    }
+
+    if (faults.length > 0) {
+      html += '<div class="fleet-fault-list">';
+      faults.forEach(function (fault) {
+        html += '<span class="fleet-fault-chip" title="' + _escapeHtml(fault.desc) + '">' + fault.icon + ' ' + _escapeHtml(fault.label) + '</span>';
+      });
+      html += '</div>';
+    }
 
     if (specialization && doctrine) {
       html += '<div class="fleet-specialization-summary">';
@@ -275,6 +301,9 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
             '🔧' + shipMods.length + '/' + modSlots +
             '</button>';
     html += '<button class="fleet-open-crew-btn" data-ship-index="' + idx + '">👥' + shipCrew.length + '/' + (ship.crewCapacity || 0) + '</button>';
+    if (maintenance.value < 99.5 || faults.length > 0 || ship.hull < ship.maxHull) {
+      html += '<button class="fleet-service-btn" data-index="' + idx + '" title="查看快速保养、深度坞修与应急抢修方案">🛠️ 维护</button>';
+    }
 
     // 派遣/切换/卖出
     if (!ship.route) {
@@ -339,6 +368,12 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
   container.querySelectorAll('.fleet-open-crew-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {
       _openCrewModal(state, parseInt(btn.dataset.shipIndex), onRecruitCrew, onAssignCrew, onUnassignCrew, onDismissCrew);
+    });
+  });
+
+  container.querySelectorAll('.fleet-service-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      _openServiceModal(state, parseInt(btn.dataset.index), onServiceShip);
     });
   });
 
@@ -746,6 +781,98 @@ function _openUpgradeModal(state, shipIndex, onUpgradeShip, onSetShipDoctrine, o
     modal.classList.add('hidden');
   };
 
+  modal.classList.remove('hidden');
+}
+
+// ---------------------------------------------------------------------------
+// 维护弹窗
+// ---------------------------------------------------------------------------
+
+function _openServiceModal(state, shipIndex, onServiceShip) {
+  var modal = document.getElementById('service-modal');
+  if (!modal) return;
+
+  var titleEl = document.getElementById('service-modal-title');
+  var bodyEl = document.getElementById('service-modal-body');
+  var closeBtn = document.getElementById('service-modal-close');
+
+  function _renderServiceModal() {
+    var ship = state.fleet[shipIndex];
+    if (!ship) {
+      modal.classList.add('hidden');
+      return;
+    }
+
+    var shipStats = Fleet.getEffectiveShipStats(state, ship);
+    var maintenance = shipStats.maintenance || Fleet.getShipMaintenanceSummary(state, ship);
+    var roleProfile = shipStats.roleProfile || Fleet.getShipRoleProfile(state, ship);
+    var faults = shipStats.faults || Fleet.getShipFaultSummaries(ship);
+    var options = Fleet.getShipServiceOptions(state, shipIndex);
+    var hullMissing = Math.max(0, (ship.maxHull || ship.hull || 0) - (ship.hull || 0));
+
+    titleEl.textContent = '🛠️ 维护调度 · ' + ship.emoji + ' ' + ship.name;
+
+    var html = '';
+    html += '<div class="fleet-service-summary">';
+    html += '<div class="fleet-service-summary-head">';
+    html += '<span class="fleet-role-chip" title="' + _escapeHtml(roleProfile.summary) + '">🎯 ' + _escapeHtml(roleProfile.label) + '</span>';
+    html += '<span class="fleet-maintenance-chip fleet-maintenance-' + maintenance.band + '">🧰 ' + _escapeHtml(maintenance.label) + ' ' + Math.round(maintenance.value) + '%</span>';
+    html += '</div>';
+    html += '<div class="fleet-service-summary-meta">';
+    html += '<span>日常养护 ' + maintenance.upkeepCost + '/天</span>';
+    html += '<span>磨损 ' + maintenance.dailyDecay.toFixed(1) + '/天</span>';
+    html += '<span>船体缺口 ' + hullMissing + '</span>';
+    html += '<span>' + (ship.route ? '当前状态：派遣中，仅可远程抢修' : '当前状态：已停靠，可执行全部检修') + '</span>';
+    html += '</div>';
+    if (faults.length > 0) {
+      html += '<div class="fleet-service-faults">';
+      faults.forEach(function (fault) {
+        html += '<div class="fleet-service-fault-card">';
+        html += '<div class="fleet-service-fault-name">' + fault.icon + ' ' + _escapeHtml(fault.label) + '</div>';
+        html += '<div class="fleet-service-fault-desc">' + _escapeHtml(fault.desc) + '</div>';
+        html += '</div>';
+      });
+      html += '</div>';
+    } else {
+      html += '<div class="fleet-service-clear">当前无活动故障，主要压力来自维护损耗。</div>';
+    }
+    html += '</div>';
+
+    html += '<div class="fleet-service-option-list">';
+    options.forEach(function (option) {
+      var disabled = !!option.disabledReason;
+      html += '<div class="fleet-service-option' + (disabled ? ' fleet-service-option-disabled' : '') + '">';
+      html += '<div class="fleet-service-option-head">';
+      html += '<div class="fleet-service-option-title">' + option.icon + ' ' + _escapeHtml(option.name) + '</div>';
+      html += '<div class="fleet-service-option-cost">' + option.cost.toLocaleString() + ' 积分</div>';
+      html += '</div>';
+      html += '<div class="fleet-service-option-desc">' + _escapeHtml(option.desc) + '</div>';
+      html += '<div class="fleet-service-option-effect">' + _escapeHtml(option.effectSummary) + '</div>';
+      if (disabled) {
+        html += '<div class="fleet-service-option-disabled-reason">' + _escapeHtml(option.disabledReason) + '</div>';
+      }
+      html += '<button class="btn-primary fleet-service-option-btn" data-tier="' + option.id + '"' + (disabled ? ' disabled' : '') + '>执行 ' + _escapeHtml(option.name) + '</button>';
+      html += '</div>';
+    });
+    html += '</div>';
+
+    bodyEl.innerHTML = html;
+
+    bodyEl.querySelectorAll('.fleet-service-option-btn:not([disabled])').forEach(function (btn) {
+      btn.onclick = function () {
+        if (onServiceShip) onServiceShip(shipIndex, btn.dataset.tier);
+        setTimeout(function () {
+          _renderServiceModal();
+        }, 50);
+      };
+    });
+  }
+
+  closeBtn.onclick = function () {
+    modal.classList.add('hidden');
+  };
+
+  _renderServiceModal();
   modal.classList.remove('hidden');
 }
 

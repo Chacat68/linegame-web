@@ -5,7 +5,7 @@
 import * as Renderer3D from './Renderer3DAdvanced.js?v=20260414-routeunify1';
 import * as Faction from '../systems/faction/FactionSystem.js';
 import * as GalaxyData from '../systems/galaxy/GalaxyDataLayer.js';
-import * as Exploration from '../systems/galaxy/ExplorationSystem.js?v=20260407-landpoi1';
+import * as Exploration from '../systems/galaxy/ExplorationSystem.js?v=20260417-exploration20';
 import { GALAXIES, findSystem, findGalaxy }  from '../data/systems.js';
 
 let _tabClickCallback = null;
@@ -714,6 +714,62 @@ function _buildExplorationProgressRow(flow) {
   '</div>';
 }
 
+function _buildSurveyMetricCard(label, value, note, extraClass) {
+  var className = 'planet-detail-survey-card' + (extraClass ? (' ' + extraClass) : '');
+  var noteHtml = note
+    ? '<div class="planet-detail-survey-note">' + _escapeHtml(note) + '</div>'
+    : '';
+  return '<div class="' + className + '">' +
+    '<div class="planet-detail-survey-label">' + _escapeHtml(label) + '</div>' +
+    '<div class="planet-detail-survey-value">' + _escapeHtml(value) + '</div>' +
+    noteHtml +
+  '</div>';
+}
+
+function _buildSurveySummaryBlock(summary) {
+  if (!summary) return '';
+
+  var threatClass = summary.threatLevel === 'high'
+    ? 'planet-detail-survey-card--danger'
+    : (summary.threatLevel === 'medium' ? 'planet-detail-survey-card--warning' : 'planet-detail-survey-card--stable');
+  var rewardValue = summary.completionBonusClaimed ? '已领取' : summary.completionRewardLabel;
+  var rewardNote = summary.completionBonusClaimed
+    ? '本地完探奖励已结算'
+    : '完成全部 POI 后自动发放';
+
+  return '<div class="planet-detail-subsection">' +
+    '<div class="planet-detail-subtitle">探索简报</div>' +
+    '<div class="planet-detail-survey-grid">' +
+      _buildSurveyMetricCard('威胁评级', summary.threatLabel, '建议按当前舰体与补给状态安排行动', threatClass) +
+      _buildSurveyMetricCard('机会焦点', summary.opportunityLabel, '决定本地报告更偏贸易、补给还是科研') +
+      _buildSurveyMetricCard('情报等级', 'Lv.' + summary.intelLevel, '已归档 ' + summary.reportCount + ' 份勘探报告') +
+      _buildSurveyMetricCard('完探奖励', rewardValue, rewardNote) +
+    '</div>' +
+  '</div>';
+}
+
+function _buildSurveyReportsBlock(summary) {
+  if (!summary || !Array.isArray(summary.reports) || summary.reports.length === 0) return '';
+
+  var reportHtml = summary.reports.map(function (report) {
+    var metaParts = [];
+    if (report.badge) metaParts.push(report.badge);
+    if (report.day) metaParts.push('D' + report.day);
+    return '<div class="planet-detail-report-card">' +
+      '<div class="planet-detail-report-head">' +
+        '<span class="planet-detail-report-title">' + _escapeHtml((report.icon || '📘') + ' ' + (report.title || '勘探报告')) + '</span>' +
+        '<span class="planet-detail-report-badge">' + _escapeHtml(metaParts.join(' · ') || '勘探报告') + '</span>' +
+      '</div>' +
+      '<div class="planet-detail-report-text">' + _escapeHtml(report.detail || '') + '</div>' +
+    '</div>';
+  }).join('');
+
+  return '<div class="planet-detail-subsection">' +
+    '<div class="planet-detail-subtitle">调查结论</div>' +
+    '<div class="planet-detail-report-list">' + reportHtml + '</div>' +
+  '</div>';
+}
+
 function _buildExplorationActionBlock(flow, sys, isCurrentSystem, stateRef) {
   if (!flow || !isCurrentSystem || !flow.nextAction) return '';
 
@@ -737,6 +793,7 @@ function _buildExplorationActionBlock(flow, sys, isCurrentSystem, stateRef) {
 function _buildExplorationSection(stateRef, sys, planetData, isCurrentSystem, isUnlocked) {
   var flow = _getExplorationFlow(stateRef, sys, planetData, isCurrentSystem, isUnlocked);
   if (!flow) return '';
+  var surveySummary = Exploration.getSurveySummary(stateRef, sys.id);
 
   var poiList = flow.exploration.scanLevel > 0
     ? flow.discoveredPois.slice().sort(function (left, right) {
@@ -777,7 +834,9 @@ function _buildExplorationSection(stateRef, sys, planetData, isCurrentSystem, is
     '</div>' +
     _buildExplorationFlowCard(flow, { includeAction: false }) +
     _buildExplorationProgressRow(flow) +
+    _buildSurveySummaryBlock(surveySummary) +
     _buildExplorationActionBlock(flow, sys, isCurrentSystem, stateRef) +
+    _buildSurveyReportsBlock(surveySummary) +
     (poiHtml
       ? '<div class="planet-detail-subsection">' +
           '<div class="planet-detail-subtitle">探索点清单</div>' +

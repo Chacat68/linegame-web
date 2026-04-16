@@ -354,6 +354,101 @@
   white-space: nowrap;
 }
 
+.planet-detail-survey-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.planet-detail-survey-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 9px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(125, 211, 252, 0.14);
+  background: rgba(8, 18, 38, 0.68);
+}
+
+.planet-detail-survey-card--stable {
+  border-color: rgba(74, 222, 128, 0.2);
+  background: linear-gradient(180deg, rgba(22, 101, 52, 0.26), rgba(8, 18, 38, 0.72));
+}
+
+.planet-detail-survey-card--warning {
+  border-color: rgba(250, 204, 21, 0.22);
+  background: linear-gradient(180deg, rgba(133, 77, 14, 0.28), rgba(8, 18, 38, 0.72));
+}
+
+.planet-detail-survey-card--danger {
+  border-color: rgba(251, 113, 133, 0.24);
+  background: linear-gradient(180deg, rgba(127, 29, 29, 0.3), rgba(8, 18, 38, 0.72));
+}
+
+.planet-detail-survey-label {
+  color: rgba(191, 219, 254, 0.75);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.planet-detail-survey-value {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.planet-detail-survey-note {
+  color: var(--text-dim);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.planet-detail-report-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.planet-detail-report-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(125, 211, 252, 0.14);
+  background: linear-gradient(180deg, rgba(14, 23, 48, 0.92), rgba(8, 15, 34, 0.94));
+}
+
+.planet-detail-report-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.planet-detail-report-title {
+  color: var(--text-primary);
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.planet-detail-report-badge {
+  flex: 0 0 auto;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(125, 211, 252, 0.08);
+  border: 1px solid rgba(125, 211, 252, 0.14);
+  color: var(--text-secondary);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.planet-detail-report-text {
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
 .current-system-exploration-card {
   position: absolute;
   left: 14px;
@@ -576,6 +671,19 @@
 
   .planet-detail-progress-row {
     gap: 4px;
+  }
+
+  .planet-detail-survey-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .planet-detail-report-head {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .planet-detail-report-badge {
+    white-space: normal;
   }
 
   .planet-detail-progress-pill {

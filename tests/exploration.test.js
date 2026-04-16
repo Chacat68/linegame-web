@@ -91,11 +91,40 @@ describe('ExplorationSystem', function () {
     expect(preview.detailText).toContain('舰体');
   });
 
+  it('探索摘要应提供威胁评级、机会焦点与完探奖励说明', function () {
+    const summary = Exploration.getSurveySummary(state, 'sol_prime');
+
+    expect(summary).toBeTruthy();
+    expect(summary.threatLabel).toBeTruthy();
+    expect(summary.opportunityLabel).toBeTruthy();
+    expect(summary.completionRewardLabel).toBeTruthy();
+    expect(summary.intelLevel).toBe(0);
+    expect(summary.reportCount).toBe(0);
+  });
+
   it('着陆前必须先完成扫描', function () {
     const result = Exploration.landOnSystem(state, 'sol_prime');
 
     expect(result.ok).toBe(false);
     expect(result.msgs[0].text).toContain('请先完成轨道扫描');
+  });
+
+  it('调查资源点后应生成勘探报告并提升情报等级', function () {
+    const basePlanet = GalaxyData.getPlanetData('sol_prime');
+    const resourcePoi = basePlanet.exploration.pois.find(function (poi) {
+      return poi.kind === 'resource_cache';
+    });
+
+    expect(Exploration.scanSystem(state, 'sol_prime').ok).toBe(true);
+    expect(Exploration.landOnSystem(state, 'sol_prime').ok).toBe(true);
+
+    const result = Exploration.explorePoi(state, 'sol_prime', resourcePoi.id);
+    const summary = Exploration.getSurveySummary(state, 'sol_prime');
+
+    expect(result.ok).toBe(true);
+    expect(summary.reportCount).toBe(1);
+    expect(summary.intelLevel).toBeGreaterThan(0);
+    expect(summary.reports[0].title).toContain('清单');
   });
 
   it('调查秘密航线信标后应降低对应航线燃料消耗', function () {
@@ -141,6 +170,64 @@ describe('ExplorationSystem', function () {
     expect(routes[0].discountPercent).toBeGreaterThan(0);
   });
 
+  it('完成全部 POI 后应发放完探奖励并归档完成报告', function () {
+    const startingCredits = state.credits;
+
+    expect(Exploration.scanSystem(state, 'sol_prime').ok).toBe(true);
+    expect(Exploration.landOnSystem(state, 'sol_prime').ok).toBe(true);
+
+    GalaxyData.getPlanetData('sol_prime').exploration.pois.forEach(function (poi) {
+      const result = Exploration.explorePoi(state, 'sol_prime', poi.id);
+      expect(result.ok).toBe(true);
+    });
+
+    const summary = Exploration.getSurveySummary(state, 'sol_prime');
+
+    expect(summary.completed).toBe(true);
+    expect(summary.completionBonusClaimed).toBe(true);
+    expect(summary.reportCount).toBe(4);
+    expect(summary.reports.some(function (report) {
+      return report.id === 'sol_prime_report_completion';
+    })).toBe(true);
+    expect(state.credits).toBeGreaterThan(startingCredits);
+  });
+
+  it('科研型星球完探后应缩短当前研究进度', function () {
+    state = createTestState({
+      currentSystem: 'nova_station',
+      currentGalaxy: 'milky_way',
+      viewingGalaxy: 'milky_way',
+      fuel: 100,
+      maxFuel: 100,
+      credits: 2000,
+      shipHull: 100,
+      maxHull: 100,
+      researchedTechs: [],
+      currentResearch: { techId: 'deep_scanner', daysLeft: 3 },
+      researchQueue: [],
+      researchOptions: [],
+    });
+
+    Economy.init();
+    GalaxyData.init(state);
+
+    expect(Exploration.scanSystem(state, 'nova_station').ok).toBe(true);
+    expect(Exploration.landOnSystem(state, 'nova_station').ok).toBe(true);
+
+    GalaxyData.getPlanetData('nova_station').exploration.pois.forEach(function (poi) {
+      const result = Exploration.explorePoi(state, 'nova_station', poi.id);
+      expect(result.ok).toBe(true);
+    });
+
+    const summary = Exploration.getSurveySummary(state, 'nova_station');
+
+    expect(state.currentResearch.daysLeft).toBe(2);
+    expect(summary.completionBonusClaimed).toBe(true);
+    expect(summary.reports.some(function (report) {
+      return report.id === 'nova_station_report_completion';
+    })).toBe(true);
+  });
+
   it('恢复旧存档时应补齐默认探索状态', function () {
     GalaxyData.restorePlanetStates({
       sol_prime: {
@@ -155,5 +242,7 @@ describe('ExplorationSystem', function () {
     expect(restoredPlanet.exploration).toBeTruthy();
     expect(Array.isArray(restoredPlanet.exploration.pois)).toBe(true);
     expect(Array.isArray(restoredPlanet.exploration.secretRoutes)).toBe(true);
+    expect(Array.isArray(restoredPlanet.exploration.reports)).toBe(true);
+    expect(restoredPlanet.exploration.completionRewardLabel).toBeTruthy();
   });
 });

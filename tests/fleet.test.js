@@ -37,6 +37,19 @@ describe('Fleet.init', () => {
     expect(state.fleet[0].mods).toBeDefined();
     expect(state.fleet[0].modSlots).toBeGreaterThanOrEqual(1);
   });
+
+  it('补全旧存档缺少的 maintenance 字段', () => {
+    const state = createTestState({
+      fleet: [{ typeId: 'shuttle', cargo: {}, mods: [], upgrades: [], hull: 100, maxHull: 100, maxCargo: 20, maxFuel: 100, fuel: 100, fuelEff: 1, minFuelEff: 0.6 }],
+      activeShipIndex: 0,
+    });
+
+    Fleet.init(state);
+
+    expect(state.fleet[0].maintenance).toBe(100);
+    expect(state.fleet[0].lastServiceDay).toBe(0);
+    expect(state.fleet[0].faults).toEqual([]);
+  });
 });
 
 describe('Fleet.getActiveShip', () => {
@@ -681,6 +694,130 @@ describe('Fleet.buySlot', () => {
   });
 });
 
+describe('Fleet maintenance operations', () => {
+  it('低维护度会抬高燃耗并放大事件风险', () => {
+    const state = createTestState();
+    Fleet.init(state);
+    const ship = Fleet.getActiveShip(state);
+
+    ship.maintenance = 22;
+
+    const stats = Fleet.getEffectiveShipStats(state, ship);
+    expect(stats.fuelEff).toBeCloseTo(1.22, 5);
+    expect(stats.eventChanceMultiplier).toBeCloseTo(1.28, 5);
+    expect(stats.maintenance.band).toBe('critical');
+  });
+
+  it('advanceFleetDay 会扣除养护费并降低派遣船维护度', () => {
+    const state = createTestState({ credits: 10000 });
+    Fleet.init(state);
+    state.fleetSlots = 2;
+    Fleet.buyShip(state, 'freighter');
+    Fleet.assignRoute(state, 1, 'sol_prime', 'nova_station', 'food');
+    state.fleet[1].maintenance = 90;
+
+    const creditsBefore = state.credits;
+    const result = Fleet.advanceFleetDay(state);
+
+    expect(state.credits).toBeLessThan(creditsBefore);
+    expect(state.fleet[1].maintenance).toBeLessThan(90);
+    expect(result.msgs.some(function (msg) { return msg.text.indexOf('养护') !== -1; })).toBe(true);
+  });
+
+  it('快速保养只恢复部分维护度且不清除故障', () => {
+    const state = createTestState({ credits: 5000 });
+    Fleet.init(state);
+    const ship = Fleet.getActiveShip(state);
+    ship.maintenance = 52.5;
+    ship.faults = ['engine_vibration'];
+
+    const creditsBefore = state.credits;
+    const result = Fleet.serviceShip(state, 0, 'quick');
+
+    expect(result.ok).toBe(true);
+    expect(ship.maintenance).toBeCloseTo(80.5, 5);
+    expect(ship.faults).toEqual(['engine_vibration']);
+    expect(state.credits).toBeLessThan(creditsBefore);
+  });
+
+  it('深度坞修会恢复满维护并清除全部故障', () => {
+    const state = createTestState({ credits: 5000 });
+    Fleet.init(state);
+    const ship = Fleet.getActiveShip(state);
+    ship.maintenance = 44;
+    ship.hull = 92;
+    ship.faults = ['engine_vibration', 'cargo_lock'];
+
+    const result = Fleet.serviceShip(state, 0, 'overhaul');
+
+    expect(result.ok).toBe(true);
+    expect(ship.maintenance).toBe(100);
+    expect(ship.hull).toBeGreaterThan(92);
+    expect(ship.faults).toEqual([]);
+  });
+
+  it('应急抢修可在派遣中执行并排除一项故障', () => {
+    const state = createTestState({ credits: 5000 });
+    Fleet.init(state);
+    const ship = Fleet.getActiveShip(state);
+    ship.maintenance = 36;
+    ship.route = {
+      buySystemId: 'sol_prime',
+      sellSystemId: 'nova_station',
+      goodId: 'food',
+      status: 'traveling_buy',
+    };
+    ship.faults = ['sensor_blindspot'];
+
+    const result = Fleet.serviceShip(state, 0, 'emergency');
+
+    expect(result.ok).toBe(true);
+    expect(ship.maintenance).toBeGreaterThan(36);
+    expect(ship.maintenance).toBeLessThan(100);
+    expect(ship.faults).toEqual([]);
+  });
+
+  it('欠费且重度失养时可能触发故障', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+
+    const state = createTestState({ credits: 10000 });
+    Fleet.init(state);
+    state.fleetSlots = 2;
+    Fleet.buyShip(state, 'freighter');
+    state.credits = 0;
+    state.fleet[1].maintenance = 18;
+
+    Fleet.advanceFleetDay(state);
+
+    expect(state.fleet[1].faults.length).toBeGreaterThan(0);
+  });
+
+  it('故障会压低有效属性', () => {
+    const state = createTestState();
+    Fleet.init(state);
+    const ship = Fleet.getActiveShip(state);
+    ship.faults = ['cargo_lock'];
+
+    const stats = Fleet.getEffectiveShipStats(state, ship);
+
+    expect(stats.maxCargo).toBe(14);
+    expect(stats.sellBonus).toBeCloseTo(-0.015, 5);
+    expect(stats.faults.map(function (fault) { return fault.id; })).toContain('cargo_lock');
+  });
+
+  it('applyTravelWear 会在航行后增加磨损', () => {
+    const state = createTestState();
+    Fleet.init(state);
+    const ship = Fleet.getActiveShip(state);
+
+    const result = Fleet.applyTravelWear(state, 0, { fuelCost: 12, crossGalaxy: false, secretRoute: false });
+
+    expect(result.ok).toBe(true);
+    expect(ship.maintenance).toBeLessThan(100);
+    expect(result.meta.wear).toBeGreaterThan(0);
+  });
+});
+
 describe('Fleet.getActiveFleetBonuses', () => {
   it('单船时返回空或匹配的加成', () => {
     const state = createTestState();
@@ -771,6 +908,34 @@ describe('Fleet ship specialization', () => {
 
     stats = Fleet.getEffectiveShipStats(state, ship);
     expect(stats.eventChanceMultiplier).toBeCloseTo(0.92, 5);
+  });
+
+  it('功能型改装会改变走私与探索系数', () => {
+    const state = createTestState({ credits: 50000 });
+    Fleet.init(state);
+    state.fleetSlots = 2;
+    Fleet.buyShip(state, 'freighter');
+
+    expect(Fleet.installMod(state, 'mod_smuggler_hold', 1).ok).toBe(true);
+    expect(Fleet.installMod(state, 'mod_survey_array', 1).ok).toBe(true);
+
+    const stats = Fleet.getEffectiveShipStats(state, state.fleet[1]);
+    expect(stats.smugglingCheckMultiplier).toBeCloseTo(0.78, 5);
+    expect(stats.scanFuelDiscount).toBeCloseTo(0.2, 5);
+    expect(stats.poiRewardMultiplier).toBeCloseTo(1.12, 5);
+  });
+
+  it('会根据配置识别舰船分工', () => {
+    const state = createTestState({ credits: 50000 });
+    Fleet.init(state);
+    state.fleetSlots = 2;
+    Fleet.buyShip(state, 'clipper');
+
+    expect(Fleet.installMod(state, 'mod_survey_array', 1).ok).toBe(true);
+
+    const profile = Fleet.getShipRoleProfile(state, state.fleet[1]);
+    expect(profile.id).toBe('survey');
+    expect(profile.label).toBe('勘探支援');
   });
 
   it('贸易专精会反映到经济系统买价中', () => {

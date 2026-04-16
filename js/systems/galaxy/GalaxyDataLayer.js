@@ -320,6 +320,7 @@ function _buildDefaultPlanetState(system, gameState) {
 
 function _createExplorationState(system) {
   const secretRoute = _createSecretRoute(system);
+  const profile = _createExplorationProfile(system);
   return {
     scanLevel: 0,
     scanCount: 0,
@@ -327,8 +328,59 @@ function _createExplorationState(system) {
     landed: false,
     landingCount: 0,
     lastLandedDay: 0,
+    intelLevel: 0,
+    threatLevel: profile.threatLevel,
+    threatLabel: profile.threatLabel,
+    opportunityFocus: profile.opportunityFocus,
+    opportunityLabel: profile.opportunityLabel,
+    completionRewardKind: profile.completionRewardKind,
+    completionRewardLabel: profile.completionRewardLabel,
+    completionBonusClaimed: false,
+    completedDay: 0,
+    reports: [],
     pois: _createExplorationPois(system, secretRoute),
     secretRoutes: secretRoute ? [secretRoute] : [],
+  };
+}
+
+function _createExplorationProfile(system) {
+  const level = system.minLevel || 1;
+  const marketTypes = ['commercial', 'special', 'military'];
+  const researchTypes = ['technology', 'research'];
+  const logisticsTypes = ['agricultural', 'mining', 'industrial', 'energy', 'medical'];
+
+  let threatLevel = 'low';
+  if (level >= 4 || marketTypes.indexOf(system.type) !== -1) threatLevel = 'high';
+  else if (level >= 2 || ['mining', 'industrial'].indexOf(system.type) !== -1) threatLevel = 'medium';
+
+  let opportunityFocus = 'logistics';
+  if (researchTypes.indexOf(system.type) !== -1) opportunityFocus = 'research';
+  else if (marketTypes.indexOf(system.type) !== -1) opportunityFocus = 'market';
+  else if (logisticsTypes.indexOf(system.type) !== -1) opportunityFocus = 'logistics';
+
+  const threatLabelMap = {
+    low: '低风险',
+    medium: '中风险',
+    high: '高风险',
+  };
+  const opportunityLabelMap = {
+    logistics: '补给回收',
+    market: '贸易情报',
+    research: '科研样本',
+  };
+  const completionRewardLabelMap = {
+    logistics: '补给回收包',
+    market: '贸易综述',
+    research: '研究线索',
+  };
+
+  return {
+    threatLevel: threatLevel,
+    threatLabel: threatLabelMap[threatLevel],
+    opportunityFocus: opportunityFocus,
+    opportunityLabel: opportunityLabelMap[opportunityFocus],
+    completionRewardKind: opportunityFocus,
+    completionRewardLabel: completionRewardLabelMap[opportunityFocus],
   };
 }
 
@@ -443,6 +495,10 @@ function _mergeExplorationState(defaultState, savedState) {
   next.secretRoutes = (defaultState.secretRoutes || []).map(function (route) {
     return Object.assign({}, route, savedRouteById[route.id] || {});
   });
+
+  next.reports = Array.isArray(savedState && savedState.reports)
+    ? savedState.reports.map(function (report) { return _clonePlainObject(report); })
+    : _clonePlainObject(defaultState.reports || []);
 
   return next;
 }
