@@ -9,7 +9,7 @@
 
 import * as EventBus  from './EventBus.js';
 import * as Fleet     from '../systems/fleet/FleetSystem.js?v=20260417-fleetops21';
-import * as AutoTrade from '../systems/trade/AutoTradeSystem.js';
+import * as AutoTrade from '../systems/trade/AutoTradeSystem.js?v=20260417-dispatchroute2';
 import * as Economy   from '../systems/economy/Economy.js';
 
 let _activeDispatchInterval = null;
@@ -97,27 +97,42 @@ export function runActiveDispatchTick(state, options) {
   // 每个 tick 开始时检查任务路线
   var activeShip = Fleet.getActiveShip(state);
   if (activeShip && activeShip.route) {
-    var qr = AutoTrade.findQuestRoute(state);
+    var activeShipStats = Fleet.getEffectiveShipStats(state, activeShip);
+    var qr = AutoTrade.findQuestRoute(state, {
+      currentSystem: state.currentSystem,
+      currentGalaxy: state.currentGalaxy || 'milky_way',
+      playerLevel: state.playerLevel || 1,
+      cargo: state.cargo || {},
+      fuelEfficiency: activeShipStats.fuelEff,
+      dispatchProfile: activeShipStats.dispatchProfile || null,
+    });
     if (qr) {
       var curRoute = activeShip.route;
       if (curRoute.questId !== qr.questId ||
           curRoute.buySystemId !== qr.buySystemId ||
           curRoute.sellSystemId !== qr.sellSystemId ||
-          curRoute.goodId !== qr.goodId) {
+          curRoute.goodId !== qr.goodId ||
+          curRoute.strategySummary !== qr.strategySummary) {
         var routeRevision = Fleet.bumpRouteRevision(activeShip);
         curRoute.buySystemId  = qr.buySystemId;
         curRoute.sellSystemId = qr.sellSystemId;
         curRoute.goodId       = qr.goodId;
         curRoute.status       = qr.status;
         curRoute.questId      = qr.questId;
+        curRoute.strategyLabel = qr.strategyLabel || null;
+        curRoute.strategySummary = qr.strategySummary || null;
+        curRoute.routeFitScore = qr.routeFitScore || 0;
         curRoute.revision     = routeRevision;
         msgs.push({
-          text: '📋 任务路线：前往完成「' + qr.questName + '」',
+          text: '📋 任务路线：前往完成「' + qr.questName + '」' + (qr.strategySummary ? ' · ' + qr.strategySummary : ''),
           type: 'info',
         });
       }
     } else if (activeShip.route.questId) {
       delete activeShip.route.questId;
+      delete activeShip.route.strategyLabel;
+      delete activeShip.route.strategySummary;
+      delete activeShip.route.routeFitScore;
     }
   }
 

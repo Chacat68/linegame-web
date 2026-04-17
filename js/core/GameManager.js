@@ -22,18 +22,18 @@ import * as MapUI      from '../ui/MapUI.js?v=20260417-exploration20';
 import * as Modal      from '../ui/Modal.js';
 import * as EventUI    from '../ui/EventUI.js';
 import * as DialogueUI from '../ui/DialogueUI.js';
-import * as ResearchUI from '../ui/ResearchUI.js';
+import * as ResearchUI from '../ui/ResearchUI.js?v=20260417-researchhandoff1';
 import * as FactionUI  from '../ui/FactionUI.js';
 import * as SaveUI     from '../ui/SaveUI.js';
 import * as QuestUI    from '../ui/QuestUI.js?v=20260412-questroute3';
 import * as AchievementUI from '../ui/AchievementUI.js';
 import * as Fleet      from '../systems/fleet/FleetSystem.js?v=20260417-fleetops21';
 import * as Crew       from '../systems/fleet/CrewSystem.js';
-import * as AutoTrade  from '../systems/trade/AutoTradeSystem.js';
+import * as AutoTrade  from '../systems/trade/AutoTradeSystem.js?v=20260417-dispatchroute2';
 import * as TradeStation from '../systems/trade/TradeStationSystem.js';
 import * as Finance from '../systems/finance/FinanceSystem.js';
 import * as Futures from '../systems/finance/FuturesSystem.js';
-import * as FleetUI    from '../ui/FleetUI.js?v=20260417-fleetops21';
+import * as FleetUI    from '../ui/FleetUI.js?v=20260417-researchhandoff1';
 import * as Save       from '../systems/save/SaveSystem.js';
 import * as Quest      from '../systems/quest/QuestSystem.js?v=20260412-questroute2';
 import * as Achievement from '../systems/achievement/AchievementSystem.js';
@@ -49,7 +49,7 @@ import { SYSTEMS } from '../data/systems.js';
 import { GOODS } from '../data/goods.js';
 import * as Settings from './SettingsManager.js?v=20260412-timescale1';
 import * as Progression from '../systems/progression/ProgressionSystem.js';
-import * as Dispatch from './DispatchController.js?v=20260414-routeunify1';
+import * as Dispatch from './DispatchController.js?v=20260417-dispatchroute2';
 
 let _state     = null;
 let _startTime = null;
@@ -828,6 +828,32 @@ function _handleClearResearchQueue() {
   _dispatch(result);
 }
 
+function _handleApplyResearchDispatch(recommendation) {
+  var activeShip = Fleet.getActiveShip(_state);
+  var activeShipIndex = _state.activeShipIndex || 0;
+  if (!activeShip || !recommendation) return;
+
+  MapUI.activateTab('tab-fleet');
+  FleetUI.openDispatchModal(_state, activeShipIndex, _handleAssignRoute, {
+    buySystemId: recommendation.buySystemId,
+    sellSystemId: recommendation.sellSystemId,
+    goodId: recommendation.goodId,
+    tradePolicy: recommendation.recommendedTradePolicy || {
+      maxBuyPrice: null,
+      minSellPrice: null,
+      minProfitRate: null,
+      riskMode: 'balanced',
+      marketMode: 'open',
+    },
+    recommendation: recommendation,
+  });
+
+  EventBus.emit('log:message', {
+    text: '🛰️ 已将科研补给建议带入「' + activeShip.emoji + ' ' + activeShip.name + '」派遣配置：' + recommendation.buySystemName + ' → ' + recommendation.sellSystemName + ' · ' + recommendation.goodName + '。',
+    type: 'info',
+  });
+}
+
 function _handleBuildTradeStation(systemId) {
   const result = Commerce.buildTradeStation(_state, systemId);
   _dispatch(result);
@@ -1209,6 +1235,19 @@ function _boundDispatchTick() {
 
 function _updateUI() {
   const netWorth = Trade.getNetWorth(_state);
+  const activeShip = Fleet.getActiveShip(_state);
+  const activeShipStats = Fleet.getEffectiveShipStats(_state, activeShip);
+  const researchDispatchContext = {
+    currentSystem: _state.currentSystem,
+    currentGalaxy: _state.currentGalaxy || 'milky_way',
+    fuelEfficiency: activeShipStats.fuelEff,
+    cargoFree: Math.max(0, activeShipStats.maxCargo - Object.values((activeShip && activeShip.cargo) || {}).reduce(function (sum, qty) {
+      return sum + qty;
+    }, 0)),
+    credits: _state.credits,
+    playerLevel: _state.playerLevel || 1,
+    dispatchProfile: activeShipStats.dispatchProfile || null,
+  };
   HUD.updateStats(_state, netWorth);
   HUD.updateCompanyName(_state);
   // 市场：根据当前模式刷新
@@ -1224,7 +1263,9 @@ function _updateUI() {
     _handleCancelQueuedResearch,
     _handleMoveQueuedResearchUp,
     _handleMoveQueuedResearchDown,
-    _handleClearResearchQueue
+    _handleClearResearchQueue,
+    researchDispatchContext,
+    _handleApplyResearchDispatch
   );
   FactionUI.render(_state);
   QuestUI.render(_state, _handleAcceptQuest, _handleAbandonQuest);

@@ -4,6 +4,7 @@
 
 import { GOODS }   from '../../data/goods.js';
 import { SYSTEMS, getSystemsByGalaxy } from '../../data/systems.js';
+import { TECHNOLOGIES, TECH_CATEGORIES } from '../../data/technologies.js';
 import * as Economy from '../economy/Economy.js';
 import * as Faction from '../faction/FactionSystem.js';
 import { getTotalCargo } from './TradeSystem.js';
@@ -95,6 +96,234 @@ export function canUseMarket(state, systemId, marketMode) {
     return Faction.canAccessBlackMarket(state, systemId);
   }
   return true;
+}
+
+function _normalizeDispatchProfile(dispatchProfile) {
+  var normalized = {
+    roleId: 'logistics',
+    roleLabel: '主力商运',
+    strategyLabel: '标准派遣',
+    strategyNote: '按当前利润与风险偏好筛选路线。',
+    inspectionRiskMultiplier: 1,
+    openMarketBonus: 0,
+    blackMarketBonus: 0,
+    lowRiskBonus: 0,
+    highRiskPenalty: 0,
+    fuelCostWeight: 1,
+    cargoValueWeight: 1,
+    legalTradeBonus: 0,
+    techRouteBonus: 0,
+    faultPressurePenalty: 0,
+    faultPressure: 0,
+    faultCount: 0,
+    maintenanceValue: 100,
+    maintenanceBand: 'pristine',
+  };
+
+  if (!dispatchProfile || typeof dispatchProfile !== 'object') return normalized;
+
+  Object.keys(normalized).forEach(function (key) {
+    if (dispatchProfile[key] != null) normalized[key] = dispatchProfile[key];
+  });
+
+  return normalized;
+}
+
+function _isTechRouteSystem(system) {
+  return !!(system && ['technology', 'research', 'medical', 'special'].indexOf(system.type) !== -1);
+}
+
+var RESEARCH_SUPPLY_FOCUSES = {
+  engineering: {
+    label: '工程补给',
+    summary: '偏好工业材料、技术组件与制造链补给。',
+    goodScores: { technology: 112, minerals: 96, medicine: 18 },
+    buySystemScores: { mining: 80, industrial: 72, technology: 56, energy: 34 },
+    sellSystemScores: { technology: 94, industrial: 82, research: 68, military: 36 },
+    riskMode: 'balanced',
+  },
+  commerce: {
+    label: '贸易补给',
+    summary: '偏好高附加值货物与商业终端循环。',
+    goodScores: { luxury: 108, technology: 78, medicine: 34, food: 20 },
+    buySystemScores: { commercial: 82, technology: 52, agricultural: 30, medical: 22 },
+    sellSystemScores: { commercial: 100, special: 58, technology: 44, medical: 28 },
+    riskMode: 'balanced',
+  },
+  exploration: {
+    label: '远征补给',
+    summary: '偏好科研样本、远征物资与边疆研究站。',
+    goodScores: { technology: 104, medicine: 76, luxury: 18, water: 14 },
+    buySystemScores: { research: 76, technology: 66, medical: 60, special: 24 },
+    sellSystemScores: { research: 102, special: 80, technology: 58, medical: 42 },
+    riskMode: 'safe',
+  },
+};
+
+function _getGoodById(goodId) {
+  return GOODS.find(function (good) { return good.id === goodId; }) || null;
+}
+
+function _getSystemById(systemId) {
+  return SYSTEMS.find(function (system) { return system.id === systemId; }) || null;
+}
+
+function _buildDispatchStrategySummary(dispatchProfile, routeFit, fallbackNote) {
+  var reasons = routeFit && Array.isArray(routeFit.reasons) ? routeFit.reasons : [];
+  return dispatchProfile.strategyLabel + (reasons.length > 0
+    ? '：' + reasons.join('，')
+    : (fallbackNote ? '：' + fallbackNote : ''));
+}
+
+function _getResearchSupplyFocus(state, options) {
+  options = options || {};
+
+  var techId = options.researchTechId || options.techId || null;
+  var sourceLabel = '候选方向';
+
+  if (!techId && state.currentResearch && state.currentResearch.techId) {
+    techId = state.currentResearch.techId;
+    sourceLabel = '当前研究';
+  }
+
+  if (!techId) {
+    var optionTechId = Array.isArray(options.researchOptions) && options.researchOptions.length > 0
+      ? options.researchOptions[0]
+      : ((state.researchOptions || [])[0] || null);
+    techId = optionTechId;
+  }
+
+  if (!techId) return null;
+
+  var tech = TECHNOLOGIES.find(function (item) { return item.id === techId; });
+  if (!tech) return null;
+
+  var category = TECH_CATEGORIES.find(function (item) { return item.id === tech.category; });
+  return {
+    techId: tech.id,
+    techName: tech.name,
+    categoryId: tech.category,
+    categoryLabel: category ? category.name : tech.category,
+    sourceLabel: sourceLabel,
+  };
+}
+
+function _scoreDispatchRouteFit(dispatchProfile, context) {
+  var score = 0;
+  var reasons = [];
+
+  if (context.marketMode === 'black' && dispatchProfile.blackMarketBonus) {
+    score += dispatchProfile.blackMarketBonus;
+    reasons.push('匹配黑市偏好');
+  }
+  if (context.marketMode === 'open' && dispatchProfile.openMarketBonus) {
+    score += dispatchProfile.openMarketBonus;
+    reasons.push('匹配公开市场');
+  }
+  if (context.riskAssessment && context.riskAssessment.riskLevel === 'low' && dispatchProfile.lowRiskBonus) {
+    score += dispatchProfile.lowRiskBonus;
+    reasons.push('低风险契合');
+  }
+  if (context.riskAssessment && context.riskAssessment.riskLevel === 'high' && dispatchProfile.highRiskPenalty) {
+    score -= dispatchProfile.highRiskPenalty;
+    reasons.push('高风险扣分');
+  }
+  if (context.good && context.good.legality === 'legal' && dispatchProfile.legalTradeBonus) {
+    score += dispatchProfile.legalTradeBonus;
+    reasons.push('适配合规货运');
+  }
+  if ((_isTechRouteSystem(context.buySystem) || _isTechRouteSystem(context.sellSystem)) && dispatchProfile.techRouteBonus) {
+    score += dispatchProfile.techRouteBonus;
+    reasons.push('匹配科研敏感航线');
+  }
+  if (dispatchProfile.cargoValueWeight > 1 && Number.isFinite(context.canBuy)) {
+    score += Math.round((dispatchProfile.cargoValueWeight - 1) * Math.min(24, context.canBuy) * 4);
+  }
+  if (dispatchProfile.fuelCostWeight > 1 && Number.isFinite(context.fuelCredits)) {
+    score -= Math.round(context.fuelCredits * (dispatchProfile.fuelCostWeight - 1) * 0.5);
+    if (context.fuelCredits > 0) reasons.push('压低长航程');
+  }
+  if (dispatchProfile.faultPressure > 0) {
+    var pressurePenalty = 0;
+    if (context.marketMode === 'black') pressurePenalty += dispatchProfile.faultPressurePenalty;
+    if (context.riskAssessment && context.riskAssessment.riskLevel === 'high') {
+      pressurePenalty += Math.round(dispatchProfile.faultPressurePenalty * 0.75);
+    } else if (context.riskAssessment && context.riskAssessment.riskLevel === 'medium') {
+      pressurePenalty += Math.round(dispatchProfile.faultPressurePenalty * 0.35);
+    }
+    if (context.inspectionRisk && !context.inspectionRisk.protectedByBlackMarket && (context.inspectionRisk.checkChancePercent || 0) >= 10) {
+      pressurePenalty += Math.round(dispatchProfile.faultPressurePenalty * 0.5);
+    }
+
+    if (pressurePenalty > 0) {
+      score -= pressurePenalty;
+      reasons.push('当前船况压制高风险');
+    } else if (context.riskAssessment && context.riskAssessment.riskLevel === 'low') {
+      reasons.push('当前船况适合低压循环');
+    }
+  }
+
+  return {
+    score: score,
+    reasons: Array.from(new Set(reasons)).slice(0, 2),
+  };
+}
+
+function _scoreQuestRouteCandidate(state, route, dispatchProfile, options) {
+  var good = _getGoodById(route.goodId);
+  var buySystem = _getSystemById(route.buySystemId);
+  var sellSystem = _getSystemById(route.sellSystemId);
+  var currentSystem = options.currentSystem || state.currentSystem;
+  var fuelEfficiency = options.fuelEfficiency || state.fuelEfficiency || 1;
+  var fuelUnitPrice = Number.isFinite(options.fuelUnitPrice)
+    ? options.fuelUnitPrice
+    : Economy.getBuyPrice(currentSystem, 'fuel', state);
+  var travelToBuyFuel = currentSystem === route.buySystemId
+    ? 0
+    : Economy.getFuelCost(currentSystem, route.buySystemId, fuelEfficiency, state);
+  var travelToSellFuel = route.buySystemId === route.sellSystemId
+    ? 0
+    : Economy.getFuelCost(route.buySystemId, route.sellSystemId, fuelEfficiency, state);
+  var totalFuelCost = travelToBuyFuel + travelToSellFuel;
+  var fuelCredits = totalFuelCost * fuelUnitPrice;
+  var riskAssessment = good
+    ? assessTradeRisk(good, route.buySystemId, route.sellSystemId, 'open')
+    : { riskLevel: 'low', buyEnforcement: 'low', sellEnforcement: 'low', tags: [] };
+  var inspectionRisk = good
+    ? estimateDispatchInspectionRisk(state, good, Math.max(1, route.quantity || 1), route.sellSystemId, 'open', {
+      checkChanceMultiplier: dispatchProfile.inspectionRiskMultiplier,
+    })
+    : { protectedByBlackMarket: false, checkChancePercent: 0 };
+  var routeFit = _scoreDispatchRouteFit(dispatchProfile, {
+    marketMode: 'open',
+    good: good,
+    buySystem: buySystem,
+    sellSystem: sellSystem,
+    canBuy: route.quantity || 1,
+    fuelCredits: fuelCredits,
+    riskAssessment: riskAssessment,
+    inspectionRisk: inspectionRisk,
+  });
+  var quantity = Math.max(1, route.quantity || 1);
+  var score = (route.priority || 0) * 1000
+    + routeFit.score
+    + (route.inCargo ? 160 : 0)
+    + (((route.unitRevenue || 0) - (route.unitCost || 0)) * quantity)
+    - fuelCredits
+    - ((route.unitCost || 0) * quantity * (route.inCargo ? 0 : 0.2));
+
+  return {
+    score: score,
+    route: Object.assign({}, route, {
+      strategyLabel: dispatchProfile.strategyLabel,
+      strategySummary: _buildDispatchStrategySummary(dispatchProfile, routeFit, dispatchProfile.strategyNote),
+      routeFitScore: routeFit.score,
+      dispatchProfile: dispatchProfile,
+      riskLevel: riskAssessment.riskLevel,
+      inspectionRisk: inspectionRisk,
+      estimatedFuelCost: totalFuelCost,
+    }),
+  };
 }
 
 function _getSellPriceForMarket(state, systemId, good, marketMode) {
@@ -195,7 +424,8 @@ export function applyRiskPreference(profit, riskAssessment, policy) {
   return { allowed: true, adjustedProfit: profit - riskScore * 30 };
 }
 
-export function estimateDispatchInspectionRisk(state, good, quantity, sellSystemId, marketMode) {
+export function estimateDispatchInspectionRisk(state, good, quantity, sellSystemId, marketMode, options) {
+  options = options || {};
   var cargo = {};
   var riskEstimate;
 
@@ -204,6 +434,7 @@ export function estimateDispatchInspectionRisk(state, good, quantity, sellSystem
   }
 
   riskEstimate = Economy.estimateSmugglingCargoRisk(state, sellSystemId, cargo);
+  var adjustedChance = Math.max(0, Math.min(1, riskEstimate.checkChance * (options.checkChanceMultiplier || 1)));
 
   return {
     marketMode: marketMode || 'open',
@@ -213,14 +444,15 @@ export function estimateDispatchInspectionRisk(state, good, quantity, sellSystem
     hasContraband: riskEstimate.hasContraband,
     contrabandGoods: riskEstimate.contrabandGoods,
     protectedByBlackMarket: riskEstimate.protectedByBlackMarket,
-    checkChance: riskEstimate.checkChance,
-    checkChancePercent: riskEstimate.checkChancePercent,
+    checkChance: adjustedChance,
+    checkChancePercent: Math.round(adjustedChance * 100),
   };
 }
 
 export function findBestDispatchRoute(state, options, tradePolicy) {
   options = options || {};
   var normalizedPolicy = normalizeTradePolicy(tradePolicy);
+  var dispatchProfile = _normalizeDispatchProfile(options.dispatchProfile);
 
   var currentSystem = options.currentSystem || state.currentSystem;
   var currentGalaxy = options.currentGalaxy || state.currentGalaxy || 'milky_way';
@@ -273,11 +505,24 @@ export function findBestDispatchRoute(state, options, tradePolicy) {
         var fuelCredits = totalFuelCost * fuelUnitPrice;
         var profit = (sellPrice - buyPrice) * canBuy - fuelCredits;
         var riskAdjusted = applyRiskPreference(profit, riskAssessment, normalizedPolicy);
-        var inspectionRisk = estimateDispatchInspectionRisk(state, good, canBuy, sellSys.id, normalizedPolicy.marketMode);
+        var inspectionRisk = estimateDispatchInspectionRisk(state, good, canBuy, sellSys.id, normalizedPolicy.marketMode, {
+          checkChanceMultiplier: dispatchProfile.inspectionRiskMultiplier,
+        });
+        var routeFit = _scoreDispatchRouteFit(dispatchProfile, {
+          marketMode: normalizedPolicy.marketMode,
+          good: good,
+          buySystem: buySys,
+          sellSystem: sellSys,
+          canBuy: canBuy,
+          fuelCredits: fuelCredits,
+          riskAssessment: riskAssessment,
+          inspectionRisk: inspectionRisk,
+        });
+        var totalScore = riskAdjusted.adjustedProfit + routeFit.score;
 
         if (!riskAdjusted.allowed) return;
 
-        if (!best || riskAdjusted.adjustedProfit > best.adjustedProfit) {
+        if (!best || totalScore > best.adjustedProfit) {
           best = {
             buySystemId: buySys.id,
             buySystemName: buySys.name,
@@ -289,7 +534,8 @@ export function findBestDispatchRoute(state, options, tradePolicy) {
             buyPrice: buyPrice,
             sellPrice: sellPrice,
             profit: profit,
-            adjustedProfit: riskAdjusted.adjustedProfit,
+            adjustedProfit: totalScore,
+            baseAdjustedProfit: riskAdjusted.adjustedProfit,
             profitRate: policyCheck.profitRate,
             fuelCost: totalFuelCost,
             riskLevel: riskAssessment.riskLevel,
@@ -298,6 +544,10 @@ export function findBestDispatchRoute(state, options, tradePolicy) {
             sellEnforcement: riskAssessment.sellEnforcement,
             inspectionRisk: inspectionRisk,
             marketMode: normalizedPolicy.marketMode,
+            strategyLabel: dispatchProfile.strategyLabel,
+            strategySummary: dispatchProfile.strategyLabel + (routeFit.reasons.length > 0 ? '：' + routeFit.reasons.join('，') : ''),
+            routeFitScore: routeFit.score,
+            dispatchProfile: dispatchProfile,
           };
         }
       });
@@ -424,19 +674,24 @@ export function findBestSellSystem(state) {
  * @param {object} state
  * @returns {{ buySystemId, sellSystemId, goodId, status, questId, questName } | null}
  */
-export function findQuestRoute(state) {
+export function findQuestRoute(state, options) {
+  options = options || {};
   if (!state.quests || state.quests.length === 0) return null;
 
-  var currentGalaxy = state.currentGalaxy || 'milky_way';
-  var playerLevel   = state.playerLevel || 1;
+  var currentSystem = options.currentSystem || state.currentSystem;
+  var currentGalaxy = options.currentGalaxy || state.currentGalaxy || 'milky_way';
+  var playerLevel   = options.playerLevel || state.playerLevel || 1;
+  var cargo         = options.cargo || state.cargo || {};
+  var dispatchProfile = _normalizeDispatchProfile(options.dispatchProfile);
+  var fuelUnitPrice = Economy.getBuyPrice(currentSystem, 'fuel', state);
   var galaxySystems = getSystemsByGalaxy(currentGalaxy).filter(function (sys) {
     return playerLevel >= (sys.minLevel || 1);
   });
 
   if (galaxySystems.length < 2) return null;
 
-  var bestRoute    = null;
-  var bestPriority = -1;
+  var bestRoute = null;
+  var bestScore = -Infinity;
 
   state.quests.forEach(function (quest) {
     quest.objectives.forEach(function (obj) {
@@ -457,74 +712,225 @@ export function findQuestRoute(state) {
         var daysLeft = quest.timeLimit - ((state.day || 0) - (quest.startDay || 0));
         priority = 100 - Math.max(0, daysLeft);
       }
-      if (priority < bestPriority) return;
 
       var route = null;
+      var scoredCandidate = null;
+      var neededQty = Math.max(1, (obj.amount || 1) - (obj.current || 0));
 
       if (obj.type === 'deliver' || obj.type === 'sell_at') {
         // 需要在 targetSystem 卖出/交付 goodId
-        var inCargo = (state.cargo && state.cargo[obj.goodId]) || 0;
+        var inCargo = cargo[obj.goodId] || 0;
         if (inCargo > 0) {
           // 手中已有货物，直接前往目标星球卖出
           route = {
-            buySystemId:  state.currentSystem,
+            buySystemId:  currentSystem,
             sellSystemId: obj.targetSystem,
             goodId:       obj.goodId,
-            status:       state.currentSystem === obj.targetSystem ? 'selling' : 'traveling_sell',
+            status:       currentSystem === obj.targetSystem ? 'selling' : 'traveling_sell',
             questId:      quest.id,
             questName:    quest.name,
+            quantity:     Math.min(inCargo, neededQty),
+            inCargo:      true,
+            priority:     priority,
           };
         } else {
-          // 需要先买货物：寻找最便宜的来源星球
-          var cheapestId    = null;
-          var cheapestPrice = Infinity;
+          // 需要先买货物：在价格、航程和分工偏好之间找最优来源
           galaxySystems.forEach(function (sys) {
             if (sys.id === obj.targetSystem) return; // 不在目标星球买
             var price = Economy.getBuyPrice(sys.id, obj.goodId, state);
-            if (price > 0 && price < cheapestPrice) {
-              cheapestPrice = price;
-              cheapestId    = sys.id;
+            if (price <= 0) return;
+
+            var candidate = _scoreQuestRouteCandidate(state, {
+              buySystemId: sys.id,
+              sellSystemId: obj.targetSystem,
+              goodId: obj.goodId,
+              status: currentSystem === sys.id ? 'buying' : 'traveling_buy',
+              questId: quest.id,
+              questName: quest.name,
+              quantity: neededQty,
+              unitCost: price,
+              priority: priority,
+            }, dispatchProfile, {
+              currentSystem: currentSystem,
+              fuelEfficiency: options.fuelEfficiency || state.fuelEfficiency || 1,
+              fuelUnitPrice: fuelUnitPrice,
+            });
+
+            if (!scoredCandidate || candidate.score > scoredCandidate.score) {
+              scoredCandidate = candidate;
             }
           });
-          if (cheapestId) {
-            route = {
-              buySystemId:  cheapestId,
-              sellSystemId: obj.targetSystem,
-              goodId:       obj.goodId,
-              status:       state.currentSystem === cheapestId ? 'buying' : 'traveling_buy',
-              questId:      quest.id,
-              questName:    quest.name,
-            };
-          }
+
+          if (scoredCandidate) route = scoredCandidate.route;
         }
       } else if (obj.type === 'buy_at') {
         // 需要在 targetSystem 买入 goodId，买完后寻找最优卖出地
-        var bestSellId    = null;
-        var bestSellPrice = 0;
+        var buyPriceAtTarget = Economy.getBuyPrice(obj.targetSystem, obj.goodId, state);
+        if (buyPriceAtTarget <= 0) return;
+
         galaxySystems.forEach(function (sys) {
           if (sys.id === obj.targetSystem) return;
           var price = Economy.getSellPrice(sys.id, obj.goodId, state);
-          if (price > bestSellPrice) {
-            bestSellPrice = price;
-            bestSellId    = sys.id;
+          if (price <= 0) return;
+
+          var candidate = _scoreQuestRouteCandidate(state, {
+            buySystemId: obj.targetSystem,
+            sellSystemId: sys.id,
+            goodId: obj.goodId,
+            status: currentSystem === obj.targetSystem ? 'buying' : 'traveling_buy',
+            questId: quest.id,
+            questName: quest.name,
+            quantity: neededQty,
+            unitCost: buyPriceAtTarget,
+            unitRevenue: price,
+            priority: priority,
+          }, dispatchProfile, {
+            currentSystem: currentSystem,
+            fuelEfficiency: options.fuelEfficiency || state.fuelEfficiency || 1,
+            fuelUnitPrice: fuelUnitPrice,
+          });
+
+          if (!scoredCandidate || candidate.score > scoredCandidate.score) {
+            scoredCandidate = candidate;
           }
         });
-        route = {
-          buySystemId:  obj.targetSystem,
-          sellSystemId: bestSellId || state.currentSystem,
-          goodId:       obj.goodId,
-          status:       state.currentSystem === obj.targetSystem ? 'buying' : 'traveling_buy',
-          questId:      quest.id,
-          questName:    quest.name,
-        };
+
+        if (scoredCandidate) route = scoredCandidate.route;
       }
 
-      if (route && priority >= bestPriority) {
-        bestRoute    = route;
-        bestPriority = priority;
+      if (route && !scoredCandidate) {
+        scoredCandidate = _scoreQuestRouteCandidate(state, route, dispatchProfile, {
+          currentSystem: currentSystem,
+          fuelEfficiency: options.fuelEfficiency || state.fuelEfficiency || 1,
+          fuelUnitPrice: fuelUnitPrice,
+        });
+      }
+
+      if (scoredCandidate && scoredCandidate.score > bestScore) {
+        bestRoute = scoredCandidate.route;
+        bestScore = scoredCandidate.score;
       }
     });
   });
 
   return bestRoute;
+}
+
+export function findResearchSupplyRoute(state, options) {
+  options = options || {};
+
+  var focus = _getResearchSupplyFocus(state, options);
+  if (!focus) return null;
+
+  var focusConfig = RESEARCH_SUPPLY_FOCUSES[focus.categoryId];
+  if (!focusConfig) return null;
+
+  var currentSystem = options.currentSystem || state.currentSystem;
+  var currentGalaxy = options.currentGalaxy || state.currentGalaxy || 'milky_way';
+  var playerLevel = options.playerLevel || state.playerLevel || 1;
+  var fuelEfficiency = options.fuelEfficiency || state.fuelEfficiency || 1;
+  var cargoFree = Number.isFinite(options.cargoFree) ? options.cargoFree : (state.maxCargo - getTotalCargo(state));
+  var credits = Number.isFinite(options.credits) ? options.credits : state.credits;
+  var dispatchProfile = _normalizeDispatchProfile(options.dispatchProfile);
+  var recommendedRiskMode = focusConfig.riskMode || dispatchProfile.preferredRiskMode || 'balanced';
+  var galaxySystems = getSystemsByGalaxy(currentGalaxy).filter(function (sys) {
+    return playerLevel >= (sys.minLevel || 1);
+  });
+
+  if (cargoFree <= 0 || credits <= 0 || galaxySystems.length < 2) return null;
+
+  var fuelUnitPrice = Economy.getBuyPrice(currentSystem, 'fuel', state);
+  var best = null;
+
+  GOODS.forEach(function (good) {
+    var goodFocusScore = (focusConfig.goodScores && focusConfig.goodScores[good.id]) || 0;
+    if (goodFocusScore <= 0 || good.id === 'fuel' || !isGoodAllowedInMarket(good, 'open')) return;
+
+    galaxySystems.forEach(function (buySys) {
+      var buyTypeScore = (focusConfig.buySystemScores && focusConfig.buySystemScores[buySys.type]) || 0;
+      var buyPrice = Economy.getBuyPrice(buySys.id, good.id, state);
+      if (buyPrice <= 0) return;
+
+      var canBuy = Math.min(cargoFree, Math.floor(credits / buyPrice));
+      if (canBuy <= 0) return;
+
+      galaxySystems.forEach(function (sellSys) {
+        if (sellSys.id === buySys.id) return;
+
+        var sellTypeScore = (focusConfig.sellSystemScores && focusConfig.sellSystemScores[sellSys.type]) || 0;
+        if (sellTypeScore <= 0 && buyTypeScore <= 0) return;
+
+        var sellPrice = Economy.getSellPrice(sellSys.id, good.id, state);
+        var travelToBuyFuel = currentSystem === buySys.id ? 0 : Economy.getFuelCost(currentSystem, buySys.id, fuelEfficiency, state);
+        var travelToSellFuel = buySys.id === sellSys.id ? 0 : Economy.getFuelCost(buySys.id, sellSys.id, fuelEfficiency, state);
+        var totalFuelCost = travelToBuyFuel + travelToSellFuel;
+        var fuelCredits = totalFuelCost * fuelUnitPrice;
+        var profit = (sellPrice - buyPrice) * canBuy - fuelCredits;
+        var riskAssessment = assessTradeRisk(good, buySys.id, sellSys.id, 'open');
+        var riskAdjusted = applyRiskPreference(profit, riskAssessment, {
+          riskMode: recommendedRiskMode,
+          marketMode: 'open',
+        });
+        var inspectionRisk = estimateDispatchInspectionRisk(state, good, canBuy, sellSys.id, 'open', {
+          checkChanceMultiplier: dispatchProfile.inspectionRiskMultiplier,
+        });
+        var routeFit = _scoreDispatchRouteFit(dispatchProfile, {
+          marketMode: 'open',
+          good: good,
+          buySystem: buySys,
+          sellSystem: sellSys,
+          canBuy: canBuy,
+          fuelCredits: fuelCredits,
+          riskAssessment: riskAssessment,
+          inspectionRisk: inspectionRisk,
+        });
+        var focusScore = goodFocusScore + buyTypeScore + sellTypeScore;
+        var totalScore = riskAdjusted.adjustedProfit + routeFit.score + focusScore;
+
+        if (!riskAdjusted.allowed) return;
+
+        if (!best || totalScore > best.adjustedProfit) {
+          best = {
+            buySystemId: buySys.id,
+            buySystemName: buySys.name,
+            sellSystemId: sellSys.id,
+            sellSystemName: sellSys.name,
+            goodId: good.id,
+            goodName: good.name,
+            goodEmoji: good.emoji,
+            quantity: canBuy,
+            profit: profit,
+            adjustedProfit: totalScore,
+            baseAdjustedProfit: riskAdjusted.adjustedProfit,
+            buyPrice: buyPrice,
+            sellPrice: sellPrice,
+            fuelCost: totalFuelCost,
+            riskLevel: riskAssessment.riskLevel,
+            inspectionRisk: inspectionRisk,
+            routeFitScore: routeFit.score,
+            focusScore: focusScore,
+            strategyLabel: dispatchProfile.strategyLabel,
+            strategySummary: _buildDispatchStrategySummary(dispatchProfile, routeFit, focusConfig.summary),
+            dispatchProfile: dispatchProfile,
+            focusTypeLabel: focus.sourceLabel,
+            focusCategoryId: focus.categoryId,
+            focusCategoryLabel: focus.categoryLabel,
+            focusTechId: focus.techId,
+            focusTechName: focus.techName,
+            focusLabel: focusConfig.label,
+            focusSummary: focusConfig.summary,
+            recommendedTradePolicy: {
+              maxBuyPrice: null,
+              minSellPrice: null,
+              minProfitRate: null,
+              riskMode: recommendedRiskMode,
+              marketMode: 'open',
+            },
+          };
+        }
+      });
+    });
+  });
+
+  return best;
 }

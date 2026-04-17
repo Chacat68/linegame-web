@@ -43,6 +43,77 @@
   color: var(--accent-cyan);
   margin-top: 6px;
 }
+.research-route-card {
+  margin-bottom: 12px;
+  background: linear-gradient(180deg, rgba(10, 24, 48, 0.92), rgba(7, 18, 36, 0.92));
+  border: 1px solid rgba(79, 195, 247, 0.2);
+  border-radius: var(--radius);
+  padding: 10px;
+  box-shadow: inset 0 1px 0 rgba(125, 211, 252, 0.05);
+}
+.research-route-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.research-route-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent-gold);
+}
+.research-route-caption {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+.research-route-main {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+.research-route-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--accent-blue);
+}
+.research-route-note {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--accent-cyan);
+  line-height: 1.45;
+}
+.research-route-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+}
+.research-route-apply-btn {
+  border: 1px solid rgba(79, 195, 247, 0.28);
+  background: rgba(7, 26, 44, 0.92);
+  color: var(--accent-gold);
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color .18s ease, transform .18s ease, background .18s ease;
+}
+.research-route-apply-btn:hover {
+  border-color: rgba(125, 211, 252, 0.55);
+  background: rgba(10, 35, 58, 0.96);
+  transform: translateY(-1px);
+}
+.research-route-action-hint {
+  font-size: 10px;
+  color: var(--text-dim);
+}
 .research-queue {
   margin-top: 8px;
   background: var(--bg-card);

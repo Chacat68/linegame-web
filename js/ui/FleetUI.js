@@ -8,7 +8,7 @@ import { GOODS } from '../data/goods.js';
 import * as Fleet from '../systems/fleet/FleetSystem.js?v=20260417-fleetops21';
 import * as Crew from '../systems/fleet/CrewSystem.js';
 import * as Economy from '../systems/economy/Economy.js';
-import * as AutoTrade from '../systems/trade/AutoTradeSystem.js';
+import * as AutoTrade from '../systems/trade/AutoTradeSystem.js?v=20260417-dispatchroute2';
 import * as Faction from '../systems/faction/FactionSystem.js';
 
 function _formatTradePolicySummary(policy) {
@@ -380,7 +380,7 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
   // 派遣按钮 → 打开派遣配置弹窗（所有船只，包括激活船只）
   container.querySelectorAll('.fleet-dispatch-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      _openDispatchModal(state, parseInt(btn.dataset.index), onAssignRoute);
+      openDispatchModal(state, parseInt(btn.dataset.index), onAssignRoute);
     });
   });
 
@@ -623,6 +623,10 @@ export function renderShop(state, onBuyShip) {
       onBuyShip(btn.dataset.type);
     });
   });
+}
+
+export function openDispatchModal(state, shipIndex, onAssignRoute, preset) {
+  _openDispatchModal(state, shipIndex, onAssignRoute, preset);
 }
 
 // ---------------------------------------------------------------------------
@@ -1007,12 +1011,14 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod) {
 // 派遣配置弹窗
 // ---------------------------------------------------------------------------
 
-function _openDispatchModal(state, shipIndex, onAssignRoute) {
+function _openDispatchModal(state, shipIndex, onAssignRoute, preset) {
   const modal = document.getElementById('dispatch-modal');
   if (!modal) return;
 
   const ship = state.fleet[shipIndex];
   const effectiveShipStats = Fleet.getEffectiveShipStats(state, ship);
+  const dispatchPreset = preset || null;
+  const presetRecommendation = dispatchPreset && dispatchPreset.recommendation ? dispatchPreset.recommendation : null;
   const isActive = shipIndex === (state.activeShipIndex || 0);
   const routeLevel = Fleet.getDispatchRouteLevel(state);
   const shipLocationSystem = SYSTEMS.find(function (sys) { return sys.id === ship.location; });
@@ -1036,7 +1042,9 @@ function _openDispatchModal(state, shipIndex, onAssignRoute) {
   const suggestBtn = document.getElementById('dispatch-suggest');
   const suggestRiskEl = document.getElementById('dispatch-suggest-risk');
   const estimateEl = document.getElementById('dispatch-estimate');
-  var existingPolicy = ship.route && ship.route.tradePolicy ? ship.route.tradePolicy : {};
+  var existingPolicy = dispatchPreset && dispatchPreset.tradePolicy
+    ? dispatchPreset.tradePolicy
+    : (ship.route && ship.route.tradePolicy ? ship.route.tradePolicy : {});
 
   // 对于激活船只，显示同星系已解锁星球
   // 对于非激活船只，根据席位航线等级过滤
@@ -1105,6 +1113,12 @@ function _openDispatchModal(state, shipIndex, onAssignRoute) {
     if ((!sellSelect.value || sellSelect.value === buySelect.value) && sellSelect.options.length > 1) {
       sellSelect.selectedIndex = sellSelect.options[0].value === buySelect.value ? 1 : 0;
     }
+
+    if (dispatchPreset) {
+      if (dispatchPreset.buySystemId && buySelect.querySelector('option[value="' + dispatchPreset.buySystemId + '"]')) buySelect.value = dispatchPreset.buySystemId;
+      if (dispatchPreset.sellSystemId && sellSelect.querySelector('option[value="' + dispatchPreset.sellSystemId + '"]')) sellSelect.value = dispatchPreset.sellSystemId;
+      if (dispatchPreset.goodId && goodSelect.querySelector('option[value="' + dispatchPreset.goodId + '"]')) goodSelect.value = dispatchPreset.goodId;
+    }
   }
 
   function _readTradePolicy() {
@@ -1143,7 +1157,10 @@ function _openDispatchModal(state, shipIndex, onAssignRoute) {
     var profitRate = bp > 0 ? ((sp - bp) / bp) : 0;
     var good = GOODS.find(function (g) { return g.id === gId; });
     var routeRisk = AutoTrade.assessTradeRisk(good, buyId, sellId, tradePolicy.marketMode);
-    var inspectionRisk = AutoTrade.estimateDispatchInspectionRisk(state, good, maxQty, sellId, tradePolicy.marketMode);
+    var dispatchProfile = effectiveShipStats.dispatchProfile || null;
+    var inspectionRisk = AutoTrade.estimateDispatchInspectionRisk(state, good, maxQty, sellId, tradePolicy.marketMode, {
+      checkChanceMultiplier: dispatchProfile && dispatchProfile.inspectionRiskMultiplier,
+    });
 
     return {
       buyId: buyId,
@@ -1158,6 +1175,7 @@ function _openDispatchModal(state, shipIndex, onAssignRoute) {
       tradePolicy: tradePolicy,
       routeRisk: routeRisk,
       inspectionRisk: inspectionRisk,
+      dispatchProfile: dispatchProfile,
     };
   }
 
@@ -1210,6 +1228,7 @@ function _openDispatchModal(state, shipIndex, onAssignRoute) {
       credits: state.credits,
       playerLevel: playerLevel,
       systemIds: allGalaxyPlanets.map(function (sys) { return sys.id; }),
+      dispatchProfile: effectiveShipStats.dispatchProfile || null,
     }, _readTradePolicy());
   }
 
@@ -1240,6 +1259,7 @@ function _openDispatchModal(state, shipIndex, onAssignRoute) {
       }
 
       badgeTitle = recommendation.buySystemName + ' → ' + recommendation.sellSystemName + ' · ' + recommendation.goodName + ' · 预计查获风险 ' + ((inspectionRisk && inspectionRisk.protectedByBlackMarket) ? '0%（辛迪加庇护）' : ((inspectionRisk && inspectionRisk.checkChancePercent) || 0) + '%');
+      if (recommendation.strategySummary) badgeTitle += ' · ' + recommendation.strategySummary;
     }
 
     suggestRiskEl.className = badgeClass;
@@ -1251,6 +1271,7 @@ function _openDispatchModal(state, shipIndex, onAssignRoute) {
   function _renderEstimate(estimate, recommendation, warnings) {
     var riskAssessment = estimate.routeRisk;
     var riskSummary = _buildRiskSummary(estimate);
+    var dispatchProfile = estimate.dispatchProfile || (recommendation && recommendation.dispatchProfile) || effectiveShipStats.dispatchProfile || {};
     var marketLabel = estimate.tradePolicy.marketMode === 'black' ? '黑市' : '公开';
     var riskModeLabel = estimate.tradePolicy.riskMode === 'safe'
       ? '保守'
@@ -1266,9 +1287,16 @@ function _openDispatchModal(state, shipIndex, onAssignRoute) {
     var recommendationHtml = recommendation
       ? '<div class="dispatch-estimate-head">推荐：' + _escapeHtml(recommendation.buySystemName) + ' → ' + _escapeHtml(recommendation.sellSystemName) + '（' + _escapeHtml(recommendation.goodName) + '）</div>'
       : '';
+    var strategyHtml = dispatchProfile.strategyLabel
+      ? '<div class="dispatch-estimate-note">' + _escapeHtml((dispatchProfile.roleLabel || '标准派遣') + ' · ' + dispatchProfile.strategyLabel + '：' + (recommendation && recommendation.strategySummary ? recommendation.strategySummary.replace(/^.*：/, '') : (dispatchProfile.strategyNote || '按当前利润与风险偏好筛选路线。'))) + '</div>'
+      : '';
+    var pressureHtml = dispatchProfile.faultPressure > 0
+      ? '<div class="dispatch-estimate-note dispatch-estimate-note--warning">船况压力 ' + _escapeHtml(String(dispatchProfile.faultPressure)) + '，系统会下调高风险与高执法路线优先级。</div>'
+      : '';
 
     estimateEl.innerHTML =
       recommendationHtml +
+      strategyHtml +
       '<div class="dispatch-estimate-main">' +
         '<span class="dispatch-estimate-highlight">' + marketLabel + '买' + estimate.maxQty + '单位</span>' +
         '<span>单次利润 ≈ ' + Math.floor(estimate.profit) + ' 积分</span>' +
@@ -1296,6 +1324,7 @@ function _openDispatchModal(state, shipIndex, onAssignRoute) {
         '</div>' +
       '</div>' +
       lossHtml +
+        pressureHtml +
       warningHtml;
   }
 
@@ -1354,7 +1383,7 @@ function _openDispatchModal(state, shipIndex, onAssignRoute) {
     _updateEstimate();
   };
   suggestBtn.onclick = _applySuggestedRoute;
-  _updateEstimate();
+  _updateEstimate(presetRecommendation);
 
   // 确认
   document.getElementById('dispatch-confirm').onclick = function () {

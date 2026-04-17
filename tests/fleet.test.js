@@ -805,6 +805,75 @@ describe('Fleet maintenance operations', () => {
     expect(stats.faults.map(function (fault) { return fault.id; })).toContain('cargo_lock');
   });
 
+  it('快航分工可减轻引擎震动的燃耗惩罚', () => {
+    const state = createTestState({ credits: 50000 });
+    Fleet.init(state);
+    state.fleetSlots = 3;
+    Fleet.buyShip(state, 'clipper');
+    Fleet.buyShip(state, 'freighter');
+    expect(Fleet.setShipDoctrine(state, 1, 'trade').ok).toBe(true);
+
+    const courierShip = state.fleet[1];
+    const logisticsShip = state.fleet[2];
+    const courierBaseFuelEff = Fleet.getEffectiveShipStats(state, courierShip).fuelEff;
+    const logisticsBaseFuelEff = Fleet.getEffectiveShipStats(state, logisticsShip).fuelEff;
+
+    courierShip.faults = ['engine_vibration'];
+    logisticsShip.faults = ['engine_vibration'];
+
+    const courierFaultFuelEff = Fleet.getEffectiveShipStats(state, courierShip).fuelEff;
+    const logisticsFaultFuelEff = Fleet.getEffectiveShipStats(state, logisticsShip).fuelEff;
+
+    expect(Fleet.getShipDispatchProfile(state, courierShip).roleId).toBe('courier');
+    expect(courierFaultFuelEff / courierBaseFuelEff).toBeLessThan(logisticsFaultFuelEff / logisticsBaseFuelEff);
+  });
+
+  it('勘探分工可减轻传感盲区对扫描折扣的损失', () => {
+    const state = createTestState({ credits: 80000 });
+    Fleet.init(state);
+    state.fleetSlots = 3;
+    Fleet.buyShip(state, 'clipper');
+    Fleet.buyShip(state, 'freighter');
+
+    expect(Fleet.installMod(state, 'mod_survey_array', 1).ok).toBe(true);
+    expect(Fleet.installMod(state, 'mod_survey_array', 2).ok).toBe(true);
+
+    const surveyShip = state.fleet[1];
+    const logisticsShip = state.fleet[2];
+    const surveyBaseDiscount = Fleet.getEffectiveShipStats(state, surveyShip).scanFuelDiscount;
+    const logisticsBaseDiscount = Fleet.getEffectiveShipStats(state, logisticsShip).scanFuelDiscount;
+
+    surveyShip.faults = ['sensor_blindspot'];
+    logisticsShip.faults = ['sensor_blindspot'];
+
+    const surveyFaultDiscount = Fleet.getEffectiveShipStats(state, surveyShip).scanFuelDiscount;
+    const logisticsFaultDiscount = Fleet.getEffectiveShipStats(state, logisticsShip).scanFuelDiscount;
+
+    expect(Fleet.getShipDispatchProfile(state, surveyShip).roleId).toBe('survey');
+    expect(surveyFaultDiscount / surveyBaseDiscount).toBeGreaterThan(logisticsFaultDiscount / logisticsBaseDiscount);
+  });
+
+  it('后勤分工的保养方案恢复更高且成本更低', () => {
+    const state = createTestState({ credits: 80000 });
+    Fleet.init(state);
+    state.fleetSlots = 3;
+    Fleet.buyShip(state, 'freighter');
+    Fleet.buyShip(state, 'freighter');
+    expect(Fleet.setShipDoctrine(state, 2, 'navigation').ok).toBe(true);
+
+    expect(Fleet.installMod(state, 'mod_service_bay', 2).ok).toBe(true);
+
+    state.fleet[1].maintenance = 40;
+    state.fleet[2].maintenance = 40;
+
+    const logisticsQuick = Fleet.getShipServiceOptions(state, 1).find(function (option) { return option.id === 'quick'; });
+    const supportQuick = Fleet.getShipServiceOptions(state, 2).find(function (option) { return option.id === 'quick'; });
+
+    expect(Fleet.getShipDispatchProfile(state, state.fleet[2]).roleId).toBe('support');
+    expect(supportQuick.targetMaintenance).toBeGreaterThan(logisticsQuick.targetMaintenance);
+    expect(supportQuick.cost).toBeLessThan(logisticsQuick.cost);
+  });
+
   it('applyTravelWear 会在航行后增加磨损', () => {
     const state = createTestState();
     Fleet.init(state);

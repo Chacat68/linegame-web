@@ -12,7 +12,7 @@ import { SHIP_TYPES, SHIP_UPGRADES, FLEET_SLOTS, SHIP_MODS, FLEET_BONUSES } from
 import { findSystem } from '../../data/systems.js';
 import { GOODS } from '../../data/goods.js';
 import * as Economy from '../economy/Economy.js';
-import * as AutoTrade from '../trade/AutoTradeSystem.js';
+import * as AutoTrade from '../trade/AutoTradeSystem.js?v=20260417-dispatchroute2';
 import * as Crew from './CrewSystem.js';
 import * as RouteModel from '../route/RouteSystem.js';
 import {
@@ -160,12 +160,147 @@ function _getShipConditionFault(faultId) {
   return SHIP_CONDITION_FAULTS.find(function (fault) { return fault.id === faultId; }) || null;
 }
 
-function _getShipFaultEffects(ship) {
+function _scalePenaltyAboveOne(multiplier, reductionFactor) {
+  if (!Number.isFinite(multiplier)) return 1;
+  return 1 + Math.max(0, multiplier - 1) * (Number.isFinite(reductionFactor) ? reductionFactor : 1);
+}
+
+function _scalePenaltyBelowOne(multiplier, reductionFactor) {
+  if (!Number.isFinite(multiplier)) return 1;
+  return 1 - Math.max(0, 1 - multiplier) * (Number.isFinite(reductionFactor) ? reductionFactor : 1);
+}
+
+function _getShipOperationalRoleEffects(state, ship) {
+  var roleProfile = getShipRoleProfile(state, ship);
+  var effects = {
+    roleId: roleProfile.id,
+    roleLabel: roleProfile.label,
+    travelWearMultiplier: 1,
+    maintenanceDecayMultiplier: 1,
+    faultTriggerMultiplier: 1,
+    engineFuelPenaltyMultiplier: 1,
+    engineWearPenaltyMultiplier: 1,
+    sensorEventPenaltyMultiplier: 1,
+    sensorDiscountPenaltyMultiplier: 1,
+    cargoPenaltyMultiplier: 1,
+    cargoSellPenaltyMultiplier: 1,
+    serviceCostMultiplier: 1,
+    serviceMaintenanceBonus: { quick: 0, overhaul: 0, emergency: 0 },
+    serviceHullBonus: { quick: 0, overhaul: 0, emergency: 0 },
+    dispatchStrategyLabel: '标准派遣',
+    dispatchStrategyNote: '按当前利润与风险偏好筛选路线。',
+    preferredRiskMode: 'balanced',
+    preferredMarketMode: 'open',
+    inspectionRiskMultiplier: 1,
+    openMarketBonus: 0,
+    blackMarketBonus: 0,
+    lowRiskBonus: 0,
+    highRiskPenalty: 0,
+    fuelCostWeight: 1,
+    cargoValueWeight: 1,
+    legalTradeBonus: 0,
+    techRouteBonus: 0,
+    faultPressurePenalty: 18,
+  };
+
+  if (roleProfile.id === 'courier') {
+    effects.travelWearMultiplier = 0.9;
+    effects.engineFuelPenaltyMultiplier = 0.7;
+    effects.engineWearPenaltyMultiplier = 0.65;
+    effects.dispatchStrategyLabel = '短线周转';
+    effects.dispatchStrategyNote = '偏好低燃耗、低磨损的快速循环路线。';
+    effects.preferredRiskMode = 'balanced';
+    effects.fuelCostWeight = 1.35;
+    effects.highRiskPenalty = 24;
+    effects.faultPressurePenalty = 16;
+  } else if (roleProfile.id === 'survey') {
+    effects.sensorEventPenaltyMultiplier = 0.72;
+    effects.sensorDiscountPenaltyMultiplier = 0.45;
+    effects.dispatchStrategyLabel = '谨慎测绘';
+    effects.dispatchStrategyNote = '偏好低执法、低故障压力的稳定航线。';
+    effects.preferredRiskMode = 'safe';
+    effects.lowRiskBonus = 96;
+    effects.highRiskPenalty = 48;
+    effects.techRouteBonus = 42;
+    effects.faultPressurePenalty = 24;
+  } else if (roleProfile.id === 'covert') {
+    effects.dispatchStrategyLabel = '灰市穿透';
+    effects.dispatchStrategyNote = '偏好黑市与受限商品套利，能承受更高查缉压力。';
+    effects.preferredRiskMode = 'aggressive';
+    effects.preferredMarketMode = 'black';
+    effects.inspectionRiskMultiplier = 0.78;
+    effects.blackMarketBonus = 140;
+    effects.highRiskPenalty = 10;
+    effects.faultPressurePenalty = 12;
+  } else if (roleProfile.id === 'support') {
+    effects.maintenanceDecayMultiplier = 0.9;
+    effects.faultTriggerMultiplier = 0.65;
+    effects.serviceCostMultiplier = 0.92;
+    effects.serviceMaintenanceBonus.quick = 6;
+    effects.serviceMaintenanceBonus.emergency = 8;
+    effects.serviceHullBonus.overhaul = 3;
+    effects.serviceHullBonus.emergency = 1;
+    effects.dispatchStrategyLabel = '后勤保底';
+    effects.dispatchStrategyNote = '在船况承压时优先规避高风险路线，维持持续运转。';
+    effects.preferredRiskMode = 'safe';
+    effects.lowRiskBonus = 110;
+    effects.highRiskPenalty = 72;
+    effects.fuelCostWeight = 1.12;
+    effects.openMarketBonus = 48;
+    effects.faultPressurePenalty = 34;
+  } else {
+    effects.cargoPenaltyMultiplier = 0.5;
+    effects.cargoSellPenaltyMultiplier = 0.5;
+    effects.dispatchStrategyLabel = '稳态商运';
+    effects.dispatchStrategyNote = '偏好公开市场与高装载收益的稳定货运路线。';
+    effects.preferredRiskMode = 'balanced';
+    effects.openMarketBonus = 82;
+    effects.cargoValueWeight = 1.25;
+    effects.legalTradeBonus = 42;
+    effects.highRiskPenalty = 28;
+    effects.faultPressurePenalty = 20;
+  }
+
+  return effects;
+}
+
+function _getShipFaultEffects(state, ship) {
   _ensureShipOperationalState(ship);
+  var roleEffects = _getShipOperationalRoleEffects(state, ship);
 
   return ship.faults.reduce(function (effects, faultId) {
     var fault = _getShipConditionFault(faultId);
     if (!fault || !fault.effects) return effects;
+
+    if (fault.id === 'engine_vibration') {
+      if (fault.effects.fuelEffMultiplier) {
+        effects.fuelEffMultiplier *= _scalePenaltyAboveOne(fault.effects.fuelEffMultiplier, roleEffects.engineFuelPenaltyMultiplier);
+      }
+      if (fault.effects.travelWearMultiplier) {
+        effects.travelWearMultiplier *= _scalePenaltyAboveOne(fault.effects.travelWearMultiplier, roleEffects.engineWearPenaltyMultiplier);
+      }
+      return effects;
+    }
+
+    if (fault.id === 'sensor_blindspot') {
+      if (fault.effects.eventChanceMultiplier) {
+        effects.eventChanceMultiplier *= _scalePenaltyAboveOne(fault.effects.eventChanceMultiplier, roleEffects.sensorEventPenaltyMultiplier);
+      }
+      if (fault.effects.scanFuelDiscountMultiplier) {
+        effects.scanFuelDiscountMultiplier *= _scalePenaltyBelowOne(fault.effects.scanFuelDiscountMultiplier, roleEffects.sensorDiscountPenaltyMultiplier);
+      }
+      return effects;
+    }
+
+    if (fault.id === 'cargo_lock') {
+      if (fault.effects.cargoPenalty) {
+        effects.cargoPenalty += Math.round(fault.effects.cargoPenalty * (roleEffects.cargoPenaltyMultiplier || 1));
+      }
+      if (fault.effects.sellBonus) {
+        effects.sellBonus += fault.effects.sellBonus * (roleEffects.cargoSellPenaltyMultiplier || 1);
+      }
+      return effects;
+    }
 
     if (fault.effects.fuelEffMultiplier) effects.fuelEffMultiplier *= fault.effects.fuelEffMultiplier;
     if (fault.effects.eventChanceMultiplier) effects.eventChanceMultiplier *= fault.effects.eventChanceMultiplier;
@@ -218,12 +353,15 @@ function _triggerConditionFault(ship, preferredIds, msgs) {
 function _maybeTriggerConditionFault(state, ship, context, msgs) {
   _ensureShipOperationalState(ship);
   if (ship.faults.length >= 2) return null;
+  var roleEffects = _getShipOperationalRoleEffects(state, ship);
 
   var chance = 0;
   if (context && context.unpaidUpkeep) chance += 0.16 + Math.min(0.16, context.unpaidUpkeep / 240);
   if (context && context.maintenanceBand === 'critical') chance += 0.12;
   else if (context && context.maintenanceBand === 'worn') chance += 0.04;
   if (context && context.travelWear >= 5) chance += 0.08;
+
+  chance *= roleEffects.faultTriggerMultiplier || 1;
 
   if (chance <= 0 || Math.random() >= Math.min(0.6, chance)) return null;
 
@@ -629,6 +767,7 @@ export function getShipMaintenanceSummary(state, ship) {
   _ensureShipOperationalState(ship);
 
   var modEffects = getShipModEffects(ship);
+  var roleEffects = _getShipOperationalRoleEffects(state, ship);
   var serviceConfig = _getShipServiceConfig(ship);
   var value = _clampMaintenance(ship.maintenance);
   var band = 'pristine';
@@ -669,6 +808,7 @@ export function getShipMaintenanceSummary(state, ship) {
     (0.2 + (ship.route ? 0.85 : 0.12) + ((ship.hull || ship.maxHull || 0) < (ship.maxHull || ship.hull || 0) ? 0.2 : 0))
     * serviceConfig.maintenanceDecay
     * (modEffects.maintenanceDecayMultiplier || 1)
+    * (roleEffects.maintenanceDecayMultiplier || 1)
   );
   var serviceCost = Math.max(0, Math.round((100 - value) * serviceConfig.serviceRate));
 
@@ -785,6 +925,39 @@ export function getShipRoleProfile(state, ship) {
   };
 }
 
+export function getShipDispatchProfile(state, ship) {
+  var maintenance = getShipMaintenanceSummary(state, ship);
+  var roleEffects = _getShipOperationalRoleEffects(state, ship);
+  var activeFaultCount = ship && Array.isArray(ship.faults) ? ship.faults.length : 0;
+  var faultPressure = activeFaultCount;
+
+  if (maintenance.band === 'critical') faultPressure += 2;
+  else if (maintenance.band === 'worn') faultPressure += 1;
+
+  return {
+    roleId: roleEffects.roleId,
+    roleLabel: roleEffects.roleLabel,
+    strategyLabel: roleEffects.dispatchStrategyLabel,
+    strategyNote: roleEffects.dispatchStrategyNote,
+    preferredRiskMode: roleEffects.preferredRiskMode,
+    preferredMarketMode: roleEffects.preferredMarketMode,
+    inspectionRiskMultiplier: roleEffects.inspectionRiskMultiplier,
+    openMarketBonus: roleEffects.openMarketBonus,
+    blackMarketBonus: roleEffects.blackMarketBonus,
+    lowRiskBonus: roleEffects.lowRiskBonus,
+    highRiskPenalty: roleEffects.highRiskPenalty,
+    fuelCostWeight: roleEffects.fuelCostWeight,
+    cargoValueWeight: roleEffects.cargoValueWeight,
+    legalTradeBonus: roleEffects.legalTradeBonus,
+    techRouteBonus: roleEffects.techRouteBonus,
+    faultPressurePenalty: roleEffects.faultPressurePenalty,
+    faultCount: activeFaultCount,
+    faultPressure: faultPressure,
+    maintenanceValue: maintenance.value,
+    maintenanceBand: maintenance.band,
+  };
+}
+
 export function getShipFaultSummaries(ship) {
   if (!ship) return [];
   _ensureShipOperationalState(ship);
@@ -802,6 +975,7 @@ export function getShipServiceOptions(state, shipIndex) {
   _ensureShipOperationalState(ship);
 
   var profile = getShipMaintenanceSummary(state, ship);
+  var roleEffects = _getShipOperationalRoleEffects(state, ship);
   var faultSummaries = getShipFaultSummaries(ship);
   var hullMissing = Math.max(0, (ship.maxHull || ship.hull || 0) - (ship.hull || 0));
 
@@ -814,25 +988,25 @@ export function getShipServiceOptions(state, shipIndex) {
     var effectSummary = '';
 
     if (tier.id === 'quick') {
-      cost = Math.max(35, Math.round(profile.serviceCost * 0.38 + faultSummaries.length * 12));
-      targetMaintenance = Math.min(100, profile.value + 28);
+      cost = Math.max(35, Math.round((profile.serviceCost * 0.38 + faultSummaries.length * 12) * (roleEffects.serviceCostMultiplier || 1)));
+      targetMaintenance = Math.min(100, profile.value + 28 + ((roleEffects.serviceMaintenanceBonus && roleEffects.serviceMaintenanceBonus.quick) || 0));
       effectSummary = '维护度恢复至 ' + Math.round(targetMaintenance) + '%';
       if (ship.route) disabledReason = '需召回后执行';
       else if (profile.value >= 92 && faultSummaries.length === 0) disabledReason = '当前无需保养';
     } else if (tier.id === 'emergency') {
-      cost = Math.max(60, Math.round(profile.serviceCost * 0.26 + faultSummaries.length * 22 + (ship.route ? 40 : 0)));
-      targetMaintenance = Math.min(100, profile.value + 16);
+      cost = Math.max(60, Math.round((profile.serviceCost * 0.26 + faultSummaries.length * 22 + (ship.route ? 40 : 0)) * (roleEffects.serviceCostMultiplier || 1)));
+      targetMaintenance = Math.min(100, profile.value + 16 + ((roleEffects.serviceMaintenanceBonus && roleEffects.serviceMaintenanceBonus.emergency) || 0));
       clearFaults = faultSummaries.length > 0 ? 1 : 0;
-      hullRepair = Math.min(4, hullMissing);
+      hullRepair = Math.min(4 + ((roleEffects.serviceHullBonus && roleEffects.serviceHullBonus.emergency) || 0), hullMissing);
       effectSummary = '维护度恢复至 ' + Math.round(targetMaintenance) + '%';
       if (clearFaults > 0) effectSummary += '，排除 1 项故障';
       if (hullRepair > 0) effectSummary += '，修复 ' + hullRepair + ' 点船体';
       if (profile.value >= 86 && faultSummaries.length === 0 && hullMissing <= 0) disabledReason = '当前无需抢修';
     } else {
-      cost = Math.max(80, Math.round(profile.serviceCost + hullMissing * 2.5 + faultSummaries.length * 35));
+      cost = Math.max(80, Math.round((profile.serviceCost + hullMissing * 2.5 + faultSummaries.length * 35) * (roleEffects.serviceCostMultiplier || 1)));
       targetMaintenance = 100;
       clearFaults = faultSummaries.length;
-      hullRepair = Math.min(18, hullMissing);
+      hullRepair = Math.min(18 + ((roleEffects.serviceHullBonus && roleEffects.serviceHullBonus.overhaul) || 0), hullMissing);
       effectSummary = '维护度恢复至 100%';
       if (clearFaults > 0) effectSummary += '，清除全部故障';
       if (hullRepair > 0) effectSummary += '，修复 ' + hullRepair + ' 点船体';
@@ -912,8 +1086,9 @@ export function applyTravelWear(state, shipIndex, travelMeta) {
 
   var beforeProfile = getShipMaintenanceSummary(state, ship);
   var modEffects = getShipModEffects(ship);
+  var roleEffects = _getShipOperationalRoleEffects(state, ship);
   var serviceConfig = _getShipServiceConfig(ship);
-  var faultEffects = _getShipFaultEffects(ship);
+  var faultEffects = _getShipFaultEffects(state, ship);
   var cargoLoadRatio = _getShipCargoUsed(ship) / Math.max(1, ship.maxCargo || 1);
   var fuelCost = Number.isFinite(travelMeta && travelMeta.fuelCost) ? travelMeta.fuelCost : 0;
   var baseWear = travelMeta && travelMeta.crossGalaxy ? 6 : (travelMeta && travelMeta.secretRoute ? 2.5 : 3.5);
@@ -921,6 +1096,7 @@ export function applyTravelWear(state, shipIndex, travelMeta) {
     (baseWear + Math.min(4, fuelCost * 0.08) + cargoLoadRatio * 2)
     * serviceConfig.maintenanceDecay
     * (modEffects.maintenanceDecayMultiplier || 1)
+    * (roleEffects.travelWearMultiplier || 1)
     * (faultEffects.travelWearMultiplier || 1)
   );
 
@@ -1188,6 +1364,7 @@ export function getEffectiveShipStats(state, ship) {
       specialization: null,
       maintenance: getShipMaintenanceSummary(state, null),
       roleProfile: getShipRoleProfile(state, null),
+      dispatchProfile: getShipDispatchProfile(state, null),
       upkeepCost: 0,
       crewEffects: {},
     };
@@ -1195,12 +1372,13 @@ export function getEffectiveShipStats(state, ship) {
 
   var crewEffects = Crew.getShipEffects(state, ship);
   var modEffects = getShipModEffects(ship);
-  var faultEffects = _getShipFaultEffects(ship);
+  var faultEffects = _getShipFaultEffects(state, ship);
   var specialization = getShipSpecializationSummary(state, ship);
   var specEffects = specialization ? specialization.effects : {};
   var maintenance = getShipMaintenanceSummary(state, ship);
   var roleProfile = getShipRoleProfile(state, ship);
   var faultSummaries = getShipFaultSummaries(ship);
+  var dispatchProfile = getShipDispatchProfile(state, ship);
 
   return {
     maxCargo: Math.max(1, Math.round(ship.maxCargo + (crewEffects.cargo || 0) + (specEffects.cargoBonus || 0) - (faultEffects.cargoPenalty || 0))),
@@ -1223,6 +1401,7 @@ export function getEffectiveShipStats(state, ship) {
     maintenance: maintenance,
     faults: faultSummaries,
     roleProfile: roleProfile,
+    dispatchProfile: dispatchProfile,
     upkeepCost: maintenance.upkeepCost || 0,
     crewEffects: crewEffects,
   };

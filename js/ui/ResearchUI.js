@@ -4,6 +4,7 @@
 
 import { TECHNOLOGIES, TECH_CATEGORIES } from '../data/technologies.js';
 import * as Research from '../systems/research/ResearchSystem.js';
+import * as AutoTrade from '../systems/trade/AutoTradeSystem.js?v=20260417-dispatchroute2';
 
 /**
  * 渲染科技研究标签页
@@ -13,10 +14,12 @@ import * as Research from '../systems/research/ResearchSystem.js';
  * @param {Function} onMoveQueuedResearchUp (techId) => void
  * @param {Function} onMoveQueuedResearchDown (techId) => void
  * @param {Function} onClearResearchQueue () => void
+ * @param {object}   researchDispatchContext
+ * @param {Function} onApplyResearchDispatch (recommendation) => void
  */
-export function render(state, onStartResearch, onCancelQueuedResearch, onMoveQueuedResearchUp, onMoveQueuedResearchDown, onClearResearchQueue) {
+export function render(state, onStartResearch, onCancelQueuedResearch, onMoveQueuedResearchUp, onMoveQueuedResearchDown, onClearResearchQueue, researchDispatchContext, onApplyResearchDispatch) {
   _renderStatus();
-  _renderOptions(state, onStartResearch, onCancelQueuedResearch, onMoveQueuedResearchUp, onMoveQueuedResearchDown, onClearResearchQueue);
+  _renderOptions(state, onStartResearch, onCancelQueuedResearch, onMoveQueuedResearchUp, onMoveQueuedResearchDown, onClearResearchQueue, researchDispatchContext, onApplyResearchDispatch);
   _renderCompleted(state);
 }
 
@@ -26,55 +29,46 @@ function _renderStatus() {
   container.innerHTML = '';
 }
 
-function _renderOptions(state, onStartResearch, onCancelQueuedResearch, onMoveQueuedResearchUp, onMoveQueuedResearchDown, onClearResearchQueue) {
+function _renderOptions(state, onStartResearch, onCancelQueuedResearch, onMoveQueuedResearchUp, onMoveQueuedResearchDown, onClearResearchQueue, researchDispatchContext, onApplyResearchDispatch) {
   const container = document.getElementById('research-options');
+  const researchRecommendation = AutoTrade.findResearchSupplyRoute(state, researchDispatchContext);
 
-  let html = _renderResearchOverview(state);
+  let html = _renderResearchOverview(state, researchRecommendation, !!onApplyResearchDispatch);
   const options = state.researchOptions || [];
   if (options.length === 0) {
     html += '<p class="research-hint">所有可用科技已研究完毕！🎉</p>';
-    container.innerHTML = html;
-    _bindQueueActions(container, onCancelQueuedResearch, onMoveQueuedResearchUp, onMoveQueuedResearchDown, onClearResearchQueue);
-    return;
+  } else {
+    const queueMode = !!state.currentResearch;
+    const queueLen = (state.researchQueue || []).length;
+    html += '<div class="research-label">' + (queueMode ? '可加入研究队列（当前排队 ' + queueLen + ' 项）' : '选择研究方向（三选一）') + '</div><div class="research-cards">';
+    options.forEach(function (techId) {
+      const tech = TECHNOLOGIES.find(function (t) { return t.id === techId; });
+      const cat = TECH_CATEGORIES.find(function (c) { return c.id === tech.category; });
+      const canAfford = state.credits >= tech.cost;
+
+      html +=
+        '<div class="research-card' + (canAfford ? '' : ' unaffordable') + '" data-tech="' + tech.id + '">' +
+          '<div class="research-card-header" style="border-left: 3px solid ' + cat.color + '">' +
+            '<span class="research-cat-badge" style="background:' + cat.color + '22;color:' + cat.color + '">' + cat.icon + ' ' + cat.name + '</span>' +
+            '<span class="research-tier">T' + tech.tier + '</span>' +
+          '</div>' +
+          '<div class="research-card-icon">' + tech.icon + '</div>' +
+          '<div class="research-card-name">' + tech.name + '</div>' +
+          '<div class="research-card-desc">' + tech.description + '</div>' +
+          '<div class="research-card-effect">✨ ' + tech.effectText + '</div>' +
+          '<div class="research-card-footer">' +
+            '<span class="research-cost">💰 ' + tech.cost + '</span>' +
+            '<span class="research-time">⏱️ ' + tech.researchDays + ' 天</span>' +
+          '</div>' +
+          '<button class="btn-research">' + (queueMode ? '加入队列' : '开始研究') + '</button>' +
+        '</div>';
+    });
+    html += '</div>';
   }
-
-  const queueMode = !!state.currentResearch;
-  const queueLen = (state.researchQueue || []).length;
-  html += '<div class="research-label">' + (queueMode ? '可加入研究队列（当前排队 ' + queueLen + ' 项）' : '选择研究方向（三选一）') + '</div><div class="research-cards">';
-  options.forEach(function (techId) {
-    const tech = TECHNOLOGIES.find(function (t) { return t.id === techId; });
-    const cat = TECH_CATEGORIES.find(function (c) { return c.id === tech.category; });
-    const canAfford = state.credits >= tech.cost;
-
-    html +=
-      '<div class="research-card' + (canAfford ? '' : ' unaffordable') + '" data-tech="' + tech.id + '">' +
-        '<div class="research-card-header" style="border-left: 3px solid ' + cat.color + '">' +
-          '<span class="research-cat-badge" style="background:' + cat.color + '22;color:' + cat.color + '">' + cat.icon + ' ' + cat.name + '</span>' +
-          '<span class="research-tier">T' + tech.tier + '</span>' +
-        '</div>' +
-        '<div class="research-card-icon">' + tech.icon + '</div>' +
-        '<div class="research-card-name">' + tech.name + '</div>' +
-        '<div class="research-card-desc">' + tech.description + '</div>' +
-        '<div class="research-card-effect">✨ ' + tech.effectText + '</div>' +
-        '<div class="research-card-footer">' +
-          '<span class="research-cost">💰 ' + tech.cost + '</span>' +
-          '<span class="research-time">⏱️ ' + tech.researchDays + ' 天</span>' +
-        '</div>' +
-        '<button class="btn-research">' + (queueMode ? '加入队列' : '开始研究') + '</button>' +
-      '</div>';
-  });
-  html += '</div>';
 
   container.innerHTML = html;
   _bindQueueActions(container, onCancelQueuedResearch, onMoveQueuedResearchUp, onMoveQueuedResearchDown, onClearResearchQueue);
-
-  // 绑定按钮事件
-  container.querySelectorAll('.btn-research').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      const card = btn.closest('.research-card');
-      onStartResearch(card.dataset.tech);
-    });
-  });
+  _bindResearchActions(container, onStartResearch, onApplyResearchDispatch, researchRecommendation);
 }
 
 function _renderCompleted(state) {
@@ -96,13 +90,15 @@ function _renderCompleted(state) {
   container.innerHTML = html;
 }
 
-function _renderResearchOverview(state) {
+function _renderResearchOverview(state, researchRecommendation, canApplyResearchDispatch) {
+  const dispatchRecommendationHtml = _renderResearchDispatchRecommendation(researchRecommendation, canApplyResearchDispatch);
+
   if (!state.currentResearch) {
     const queueWhenIdle = state.researchQueue || [];
     if (queueWhenIdle.length === 0) {
-      return '<p class="research-hint">🔬 选择一项科技开始研究</p>';
+      return dispatchRecommendationHtml + '<p class="research-hint">🔬 选择一项科技开始研究</p>';
     }
-    return _renderQueueHtml(queueWhenIdle, '🗂️ 研究队列（待启动）');
+    return dispatchRecommendationHtml + _renderQueueHtml(queueWhenIdle, '🗂️ 研究队列（待启动）');
   }
 
   const tech = TECHNOLOGIES.find(function (t) { return t.id === state.currentResearch.techId; });
@@ -123,12 +119,47 @@ function _renderResearchOverview(state) {
       '<div class="research-effect-text">' + tech.effectText + '</div>' +
     '</div>';
 
+  html += dispatchRecommendationHtml;
+
   const queue = state.researchQueue || [];
   if (queue.length > 0) {
     html += _renderQueueHtml(queue, '🗂️ 研究队列（' + queue.length + '）');
   }
 
   return html;
+}
+
+function _renderResearchDispatchRecommendation(recommendation, canApplyResearchDispatch) {
+  if (!recommendation) return '';
+
+  const riskLabel = recommendation.inspectionRisk && recommendation.inspectionRisk.protectedByBlackMarket
+    ? '0%（辛迪加庇护）'
+    : ((recommendation.inspectionRisk && recommendation.inspectionRisk.checkChancePercent) || 0) + '%';
+  const roleLabel = recommendation.dispatchProfile && recommendation.dispatchProfile.roleLabel
+    ? recommendation.dispatchProfile.roleLabel
+    : '标准派遣';
+
+  return (
+    '<div class="research-route-card">' +
+      '<div class="research-route-head">' +
+        '<div class="research-route-title">🛰️ 科研补给建议</div>' +
+        '<div class="research-route-caption">' + recommendation.focusTypeLabel + ' · ' + recommendation.focusCategoryLabel + '</div>' +
+      '</div>' +
+      '<div class="research-route-main">' + recommendation.focusTechName + ' · ' + recommendation.buySystemName + ' → ' + recommendation.sellSystemName + ' · ' + recommendation.goodEmoji + ' ' + recommendation.goodName + '</div>' +
+      '<div class="research-route-meta">' +
+        '<span>预计利润 ' + Math.floor(recommendation.profit) + '</span>' +
+        '<span>装载 ' + recommendation.quantity + '</span>' +
+        '<span>查获 ' + riskLabel + '</span>' +
+      '</div>' +
+      '<div class="research-route-note">' + roleLabel + ' · ' + recommendation.strategySummary + '</div>' +
+      (canApplyResearchDispatch
+        ? '<div class="research-route-actions">' +
+            '<button class="research-route-apply-btn">带入机库派遣</button>' +
+            '<span class="research-route-action-hint">切到机库并预填这条补给线</span>' +
+          '</div>'
+        : '') +
+    '</div>'
+  );
 }
 
 function _renderQueueHtml(queue, title) {
@@ -183,4 +214,20 @@ function _bindQueueActions(container, onCancelQueuedResearch, onMoveQueuedResear
       }
     });
   });
+}
+
+function _bindResearchActions(container, onStartResearch, onApplyResearchDispatch, researchRecommendation) {
+  container.querySelectorAll('.btn-research').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const card = btn.closest('.research-card');
+      onStartResearch(card.dataset.tech);
+    });
+  });
+
+  var applyBtn = container.querySelector('.research-route-apply-btn');
+  if (applyBtn && typeof onApplyResearchDispatch === 'function' && researchRecommendation) {
+    applyBtn.addEventListener('click', function () {
+      onApplyResearchDispatch(researchRecommendation);
+    });
+  }
 }
