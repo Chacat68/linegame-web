@@ -22,18 +22,18 @@ import * as MapUI      from '../ui/MapUI.js?v=20260417-exploration20';
 import * as Modal      from '../ui/Modal.js';
 import * as EventUI    from '../ui/EventUI.js';
 import * as DialogueUI from '../ui/DialogueUI.js';
-import * as ResearchUI from '../ui/ResearchUI.js?v=20260417-researchhandoff1';
+import * as ResearchUI from '../ui/ResearchUI.js?v=20260418-questblocker1';
 import * as FactionUI  from '../ui/FactionUI.js';
 import * as SaveUI     from '../ui/SaveUI.js';
-import * as QuestUI    from '../ui/QuestUI.js?v=20260412-questroute3';
+import * as QuestUI    from '../ui/QuestUI.js?v=20260418-questblocker1';
 import * as AchievementUI from '../ui/AchievementUI.js';
-import * as Fleet      from '../systems/fleet/FleetSystem.js?v=20260417-fleetops21';
+import * as Fleet      from '../systems/fleet/FleetSystem.js?v=20260418-questblocker1';
 import * as Crew       from '../systems/fleet/CrewSystem.js';
-import * as AutoTrade  from '../systems/trade/AutoTradeSystem.js?v=20260417-dispatchroute2';
+import * as AutoTrade  from '../systems/trade/AutoTradeSystem.js?v=20260418-questblocker1';
 import * as TradeStation from '../systems/trade/TradeStationSystem.js';
 import * as Finance from '../systems/finance/FinanceSystem.js';
 import * as Futures from '../systems/finance/FuturesSystem.js';
-import * as FleetUI    from '../ui/FleetUI.js?v=20260417-researchhandoff1';
+import * as FleetUI    from '../ui/FleetUI.js?v=20260418-questblocker1';
 import * as Save       from '../systems/save/SaveSystem.js';
 import * as Quest      from '../systems/quest/QuestSystem.js?v=20260412-questroute2';
 import * as Achievement from '../systems/achievement/AchievementSystem.js';
@@ -49,7 +49,7 @@ import { SYSTEMS } from '../data/systems.js';
 import { GOODS } from '../data/goods.js';
 import * as Settings from './SettingsManager.js?v=20260412-timescale1';
 import * as Progression from '../systems/progression/ProgressionSystem.js';
-import * as Dispatch from './DispatchController.js?v=20260417-dispatchroute2';
+import * as Dispatch from './DispatchController.js?v=20260418-questblocker1';
 
 let _state     = null;
 let _startTime = null;
@@ -829,6 +829,14 @@ function _handleClearResearchQueue() {
 }
 
 function _handleApplyResearchDispatch(recommendation) {
+  _openRecommendedDispatch(recommendation, '科研补给建议', '🛰️');
+}
+
+function _handleApplyQuestDispatch(recommendation) {
+  _openRecommendedDispatch(recommendation, '任务派遣建议', '📋');
+}
+
+function _openRecommendedDispatch(recommendation, sourceLabel, icon) {
   var activeShip = Fleet.getActiveShip(_state);
   var activeShipIndex = _state.activeShipIndex || 0;
   if (!activeShip || !recommendation) return;
@@ -849,7 +857,7 @@ function _handleApplyResearchDispatch(recommendation) {
   });
 
   EventBus.emit('log:message', {
-    text: '🛰️ 已将科研补给建议带入「' + activeShip.emoji + ' ' + activeShip.name + '」派遣配置：' + recommendation.buySystemName + ' → ' + recommendation.sellSystemName + ' · ' + recommendation.goodName + '。',
+    text: icon + ' 已将' + sourceLabel + '带入「' + activeShip.emoji + ' ' + activeShip.name + '」派遣配置：' + (recommendation.buySystemName || recommendation.buySystemId) + ' → ' + (recommendation.sellSystemName || recommendation.sellSystemId) + ' · ' + (recommendation.goodName || recommendation.goodId) + '。',
     type: 'info',
   });
 }
@@ -1237,7 +1245,7 @@ function _updateUI() {
   const netWorth = Trade.getNetWorth(_state);
   const activeShip = Fleet.getActiveShip(_state);
   const activeShipStats = Fleet.getEffectiveShipStats(_state, activeShip);
-  const researchDispatchContext = {
+  const activeShipDispatchContext = {
     currentSystem: _state.currentSystem,
     currentGalaxy: _state.currentGalaxy || 'milky_way',
     fuelEfficiency: activeShipStats.fuelEff,
@@ -1264,11 +1272,11 @@ function _updateUI() {
     _handleMoveQueuedResearchUp,
     _handleMoveQueuedResearchDown,
     _handleClearResearchQueue,
-    researchDispatchContext,
+    activeShipDispatchContext,
     _handleApplyResearchDispatch
   );
   FactionUI.render(_state);
-  QuestUI.render(_state, _handleAcceptQuest, _handleAbandonQuest);
+  QuestUI.render(_state, _handleAcceptQuest, _handleAbandonQuest, activeShipDispatchContext, _handleApplyQuestDispatch);
   AchievementUI.render(_state);
   FleetUI.render(_state, _handleBuyShip, _handleSwitchShip, _handleUpgradeShip, _handleAssignRoute, _handleCancelRoute, _handleBuySlot, _handleSellShip, _handleInstallMod, _handleUninstallMod, _handleServiceShip, _handleRecruitCrew, _handleAssignCrew, _handleUnassignCrew, _handleDismissCrew, _handleSetShipDoctrine, _handleActivateShipProtocol);
   FleetUI.renderShop(_state, _handleBuyShip);

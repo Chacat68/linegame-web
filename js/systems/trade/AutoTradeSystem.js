@@ -104,6 +104,7 @@ function _normalizeDispatchProfile(dispatchProfile) {
     roleLabel: '主力商运',
     strategyLabel: '标准派遣',
     strategyNote: '按当前利润与风险偏好筛选路线。',
+    preferredRiskMode: 'balanced',
     inspectionRiskMultiplier: 1,
     openMarketBonus: 0,
     blackMarketBonus: 0,
@@ -315,6 +316,9 @@ function _scoreQuestRouteCandidate(state, route, dispatchProfile, options) {
   return {
     score: score,
     route: Object.assign({}, route, {
+      buySystemName: buySystem ? buySystem.name : route.buySystemId,
+      sellSystemName: sellSystem ? sellSystem.name : route.sellSystemId,
+      goodName: good ? good.name : route.goodId,
       strategyLabel: dispatchProfile.strategyLabel,
       strategySummary: _buildDispatchStrategySummary(dispatchProfile, routeFit, dispatchProfile.strategyNote),
       routeFitScore: routeFit.score,
@@ -322,6 +326,13 @@ function _scoreQuestRouteCandidate(state, route, dispatchProfile, options) {
       riskLevel: riskAssessment.riskLevel,
       inspectionRisk: inspectionRisk,
       estimatedFuelCost: totalFuelCost,
+      recommendedTradePolicy: {
+        maxBuyPrice: null,
+        minSellPrice: null,
+        minProfitRate: null,
+        riskMode: dispatchProfile.preferredRiskMode || 'balanced',
+        marketMode: 'open',
+      },
     }),
   };
 }

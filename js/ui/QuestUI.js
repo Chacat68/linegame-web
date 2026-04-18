@@ -5,6 +5,7 @@
 import { QUEST_TYPES } from '../data/quests.js';
 import { GOODS } from '../data/goods.js';
 import { findSystem } from '../data/systems.js';
+import * as AutoTrade  from '../systems/trade/AutoTradeSystem.js?v=20260418-questblocker1';
 import * as Quest      from '../systems/quest/QuestSystem.js?v=20260412-questroute2';
 
 const _goodNameById = GOODS.reduce(function (acc, good) {
@@ -215,6 +216,82 @@ function _renderQuestRoutePreview(routePreview, options) {
   '</div>';
 }
 
+function _renderQuestDispatchRecommendation(recommendation, canApplyQuestDispatch) {
+  if (!recommendation) return '';
+
+  var riskLabel = recommendation.inspectionRisk && recommendation.inspectionRisk.protectedByBlackMarket
+    ? '0%（辛迪加庇护）'
+    : ((recommendation.inspectionRisk && recommendation.inspectionRisk.checkChancePercent) || 0) + '%';
+  var riskLevelLabel = recommendation.riskLevel === 'high'
+    ? '高'
+    : recommendation.riskLevel === 'medium'
+      ? '中'
+      : '低';
+  var roleLabel = recommendation.dispatchProfile && recommendation.dispatchProfile.roleLabel
+    ? recommendation.dispatchProfile.roleLabel
+    : '标准派遣';
+
+  return '<div class="quest-dispatch-card">' +
+    '<div class="quest-dispatch-head">' +
+      '<div class="quest-dispatch-title">📡 任务派遣建议</div>' +
+      '<div class="quest-dispatch-caption">当前优先目标 · ' + recommendation.questName + '</div>' +
+    '</div>' +
+    '<div class="quest-dispatch-main">' + _systemName(recommendation.buySystemId) + ' → ' + _systemName(recommendation.sellSystemId) + ' · ' + _goodName(recommendation.goodId) + '</div>' +
+    '<div class="quest-dispatch-meta">' +
+      '<span>预计燃料 ' + Math.max(0, recommendation.estimatedFuelCost || 0) + '</span>' +
+      '<span>风险 ' + riskLevelLabel + '</span>' +
+      '<span>查获 ' + riskLabel + '</span>' +
+    '</div>' +
+    '<div class="quest-dispatch-note">' + roleLabel + ' · ' + recommendation.strategySummary + '</div>' +
+    (canApplyQuestDispatch
+      ? '<div class="quest-dispatch-actions">' +
+          '<button class="quest-dispatch-apply-btn">带入机库派遣</button>' +
+          '<span class="quest-dispatch-action-hint">切到机库并预填当前任务路线</span>' +
+        '</div>'
+      : '') +
+  '</div>';
+}
+
+function _collectQuestDispatchBlockers(routePreview) {
+  if (!routePreview || !Array.isArray(routePreview.items)) return [];
+
+  var seen = Object.create(null);
+  return routePreview.items.filter(function (item) {
+    return item && !item.isCurrentSystem && item.blockedReason;
+  }).map(function (item) {
+    var key = item.systemId + '::' + item.blockedReason;
+    if (seen[key]) return null;
+    seen[key] = true;
+    return {
+      systemName: item.systemName,
+      purposeLabel: item.purposeLabel,
+      blockedReason: item.blockedReason,
+    };
+  }).filter(Boolean);
+}
+
+function _renderQuestDispatchBlocker(quest, routePreview) {
+  var blockers = _collectQuestDispatchBlockers(routePreview);
+  if (blockers.length === 0) return '';
+
+  return '<div class="quest-dispatch-card is-blocked">' +
+    '<div class="quest-dispatch-head">' +
+      '<div class="quest-dispatch-title">⛔ 暂不生成派遣建议</div>' +
+      '<div class="quest-dispatch-caption">当前目标 · ' + quest.name + '</div>' +
+    '</div>' +
+    '<div class="quest-dispatch-main">当前航点仍有阻塞条件，补足后会自动恢复机库派遣建议。</div>' +
+    '<div class="quest-dispatch-blocker-list">' + blockers.map(function (blocker) {
+      return '<div class="quest-dispatch-blocker-item">' +
+        '<div class="quest-dispatch-blocker-system">' + blocker.systemName + ' · ' + blocker.purposeLabel + '</div>' +
+        '<div class="quest-dispatch-blocker-reason">' + blocker.blockedReason + '</div>' +
+      '</div>';
+    }).join('') + '</div>' +
+    (routePreview && routePreview.summaryText
+      ? '<div class="quest-dispatch-note is-blocked">' + routePreview.summaryText + '</div>'
+      : '') +
+  '</div>';
+}
+
 function _renderQuestAcceptHub(state, available, selectedQuest, recommendedIds, storyRoute, activeCount) {
   if (!selectedQuest) return '';
 
@@ -306,8 +383,10 @@ function _renderAvailableQuestPicker(state, available, selectedQuest, recommende
  * @param {object}   state
  * @param {Function} onAccept   (questId) => void
  * @param {Function} onAbandon  (questId) => void
+ * @param {object}   questDispatchContext
+ * @param {Function} onApplyQuestDispatch (recommendation) => void
  */
-export function render(state, onAccept, onAbandon) {
+export function render(state, onAccept, onAbandon, questDispatchContext, onApplyQuestDispatch) {
   const container = document.getElementById('quest-list');
   if (!container) return;
 
@@ -329,6 +408,11 @@ export function render(state, onAccept, onAbandon) {
 
   // ---- 当前任务 ----
   const active = Quest.getActiveQuests(state);
+  const activeQuestRecommendation = active.length > 0
+    ? AutoTrade.findQuestRoute(state, Object.assign({
+        cargo: state.cargo || {},
+      }, questDispatchContext || {}))
+    : null;
   html += '<div class="quest-section-title">📋 进行中 (' + active.length + '/5)</div>';
 
   if (active.length === 0) {
@@ -370,6 +454,11 @@ export function render(state, onAccept, onAbandon) {
         title: '当前航线',
         caption: '按现状继续推进',
       });
+      if (activeQuestRecommendation && activeQuestRecommendation.questId === quest.id) {
+        html += _renderQuestDispatchRecommendation(activeQuestRecommendation, !!onApplyQuestDispatch);
+      } else {
+        html += _renderQuestDispatchBlocker(quest, routePreview);
+      }
 
       // 奖励
       const activeRewardSummary = Quest.getQuestRewardSummary(state, quest);
@@ -449,7 +538,7 @@ export function render(state, onAccept, onAbandon) {
   container.querySelectorAll('[data-quest-select-id]').forEach(function (btn) {
     btn.addEventListener('click', function () {
       _selectedAvailableQuestId = btn.dataset.questSelectId;
-      render(state, onAccept, onAbandon);
+      render(state, onAccept, onAbandon, questDispatchContext, onApplyQuestDispatch);
     });
   });
   container.querySelectorAll('.quest-accept-btn').forEach(function (btn) {
@@ -463,6 +552,12 @@ export function render(state, onAccept, onAbandon) {
       if (confirm('确定放弃此任务？')) onAbandon(btn.dataset.id);
     });
   });
+  var questDispatchBtn = container.querySelector('.quest-dispatch-apply-btn');
+  if (questDispatchBtn && typeof onApplyQuestDispatch === 'function' && activeQuestRecommendation) {
+    questDispatchBtn.addEventListener('click', function () {
+      onApplyQuestDispatch(activeQuestRecommendation);
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------

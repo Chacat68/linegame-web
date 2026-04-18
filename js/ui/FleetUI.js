@@ -5,10 +5,10 @@
 import { SHIP_TYPES, SHIP_UPGRADES, FLEET_SLOTS, SHIP_MODS, FLEET_BONUSES } from '../data/ships.js';
 import { SYSTEMS, getSystemsByGalaxy } from '../data/systems.js';
 import { GOODS } from '../data/goods.js';
-import * as Fleet from '../systems/fleet/FleetSystem.js?v=20260417-fleetops21';
+import * as Fleet from '../systems/fleet/FleetSystem.js?v=20260418-questblocker1';
 import * as Crew from '../systems/fleet/CrewSystem.js';
 import * as Economy from '../systems/economy/Economy.js';
-import * as AutoTrade from '../systems/trade/AutoTradeSystem.js?v=20260417-dispatchroute2';
+import * as AutoTrade from '../systems/trade/AutoTradeSystem.js?v=20260418-questblocker1';
 import * as Faction from '../systems/faction/FactionSystem.js';
 
 function _formatTradePolicySummary(policy) {

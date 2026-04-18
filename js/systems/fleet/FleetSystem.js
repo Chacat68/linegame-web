@@ -12,7 +12,7 @@ import { SHIP_TYPES, SHIP_UPGRADES, FLEET_SLOTS, SHIP_MODS, FLEET_BONUSES } from
 import { findSystem } from '../../data/systems.js';
 import { GOODS } from '../../data/goods.js';
 import * as Economy from '../economy/Economy.js';
-import * as AutoTrade from '../trade/AutoTradeSystem.js?v=20260417-dispatchroute2';
+import * as AutoTrade from '../trade/AutoTradeSystem.js?v=20260418-questblocker1';
 import * as Crew from './CrewSystem.js';
 import * as RouteModel from '../route/RouteSystem.js';
 import {

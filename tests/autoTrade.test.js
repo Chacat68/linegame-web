@@ -428,9 +428,16 @@ describe('AutoTrade.findQuestRoute', () => {
     expect(result).not.toBeNull();
     if (result) {
       expect(result.questId).toBe('priority_quest');
+      expect(result.buySystemName).toBe('太阳主星');
+      expect(result.sellSystemName).toBe('新北京站');
+      expect(result.goodName).toBe('食物');
       expect(result.strategyLabel).toBe('短线周转');
       expect(result.strategySummary).toContain('短线周转');
       expect(result.dispatchProfile.roleId).toBe('courier');
+      expect(result.recommendedTradePolicy).toMatchObject({
+        marketMode: 'open',
+        riskMode: 'balanced',
+      });
       expect(typeof result.routeFitScore).toBe('number');
     }
   });

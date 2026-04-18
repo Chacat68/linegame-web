@@ -4,7 +4,7 @@
 
 import { TECHNOLOGIES, TECH_CATEGORIES } from '../data/technologies.js';
 import * as Research from '../systems/research/ResearchSystem.js';
-import * as AutoTrade from '../systems/trade/AutoTradeSystem.js?v=20260417-dispatchroute2';
+import * as AutoTrade from '../systems/trade/AutoTradeSystem.js?v=20260418-questblocker1';
 
 /**
  * 渲染科技研究标签页
