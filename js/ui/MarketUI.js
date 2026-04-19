@@ -48,7 +48,63 @@ let _activeMarketSubworkspaceTabs = {
   operations: 'local',
 };
 
+function _hasDocument() {
+  return typeof document !== 'undefined';
+}
+
+function _normalizeMarketWorkspaceFocus(focus) {
+  if (!focus || typeof focus !== 'object') return null;
+
+  var workspaceId = typeof focus.workspaceId === 'string' ? focus.workspaceId : '';
+  if (!MARKET_WORKSPACE_TABS.some(function (entry) { return entry.id === workspaceId; })) return null;
+
+  var subworkspaceTabs = _getMarketSubworkspaceTabs(workspaceId);
+  var subworkspaceId = typeof focus.subworkspaceId === 'string' ? focus.subworkspaceId : '';
+  if (subworkspaceTabs.length > 0 && !subworkspaceTabs.some(function (entry) { return entry.id === subworkspaceId; })) {
+    subworkspaceId = subworkspaceTabs[0].id;
+  }
+
+  return {
+    workspaceId: workspaceId,
+    subworkspaceId: subworkspaceTabs.length > 0 ? subworkspaceId : '',
+  };
+}
+
+function _applyMarketSubworkspaceTabState(container, workspaceId) {
+  if (!container || !workspaceId) return;
+
+  var activeTab = _ensureMarketSubworkspaceState(workspaceId);
+  container.querySelectorAll('[data-market-subworkspace-tab="' + workspaceId + '"]').forEach(function (entry) {
+    entry.classList.toggle('active', entry.dataset.marketSubworkspaceId === activeTab);
+  });
+  container.querySelectorAll('[data-market-subworkspace-pane="' + workspaceId + '"]').forEach(function (pane) {
+    pane.classList.toggle('hidden', pane.dataset.marketSubworkspaceId !== activeTab);
+  });
+}
+
+export function setMarketWorkspaceFocus(focus) {
+  var normalized = _normalizeMarketWorkspaceFocus(focus);
+  if (!normalized) return false;
+
+  _activeMarketWorkspaceTab = normalized.workspaceId;
+  if (normalized.subworkspaceId) {
+    _activeMarketSubworkspaceTabs[normalized.workspaceId] = normalized.subworkspaceId;
+  }
+
+  if (_hasDocument()) {
+    _applyMarketWorkspaceTabState();
+    _applyMarketSubworkspaceTabState(
+      document.getElementById('market-' + normalized.workspaceId + '-pane'),
+      normalized.workspaceId
+    );
+  }
+
+  return true;
+}
+
 function _applyMarketWorkspaceTabState() {
+  if (!_hasDocument()) return;
+
   var tabs = document.getElementById('market-workspace-tabs');
   var paneMap = {
     spot: document.getElementById('market-spot-pane'),
@@ -138,13 +194,7 @@ function _bindMarketSubworkspaceTabs(container) {
       var tabId = button.dataset.marketSubworkspaceId;
       if (!workspaceId || !tabId) return;
       _activeMarketSubworkspaceTabs[workspaceId] = tabId;
-
-      container.querySelectorAll('[data-market-subworkspace-tab="' + workspaceId + '"]').forEach(function (entry) {
-        entry.classList.toggle('active', entry.dataset.marketSubworkspaceId === tabId);
-      });
-      container.querySelectorAll('[data-market-subworkspace-pane="' + workspaceId + '"]').forEach(function (pane) {
-        pane.classList.toggle('hidden', pane.dataset.marketSubworkspaceId !== tabId);
-      });
+      _applyMarketSubworkspaceTabState(container, workspaceId);
     });
   });
 }

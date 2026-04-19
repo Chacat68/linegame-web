@@ -4,7 +4,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import * as Research from '../js/systems/research/ResearchSystem.js';
 import * as Faction from '../js/systems/faction/FactionSystem.js';
 import * as Quest from '../js/systems/quest/QuestSystem.js';
-import { getResearchDispatchBlockerState, getResearchDispatchBlockerActions } from '../js/ui/ResearchUI.js?v=20260418-researchblocker2';
+import { getResearchDispatchBlockerState, getResearchDispatchBlockerActions } from '../js/ui/ResearchUI.js?v=20260419-marketfocus1';
 import { createTestState } from './helpers.js';
 
 describe('ResearchSystem.init', () => {
@@ -172,6 +172,39 @@ describe('ResearchSystem.getResearchState', () => {
 });
 
 describe('ResearchUI blocker helpers', () => {
+  it('舱位不足时把主动作导向现货交易区清货', () => {
+    const state = createTestState({
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+      credits: 1800,
+      maxCargo: 12,
+      cargo: { food: 12 },
+    });
+    Faction.init(state);
+    Quest.init(state);
+    Research.init(state);
+    state.researchOptions = ['market_analysis'];
+
+    const blocker = getResearchDispatchBlockerState(state, {
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+      cargoFree: 0,
+      credits: 1800,
+      playerLevel: 2,
+    });
+    const actions = getResearchDispatchBlockerActions(state, blocker);
+
+    expect(blocker).toMatchObject({ reasonId: 'cargo', techId: 'market_analysis' });
+    expect(actions[0]).toMatchObject({
+      actionId: 'market',
+      reasonId: 'cargo',
+      label: '前往市场清货',
+      marketWorkspaceId: 'spot',
+      marketSubworkspaceId: 'trade',
+      marketFocusLabel: '现货交易区',
+    });
+  });
+
   it('资金不足时给出市场周转主动作和本地任务次动作', () => {
     const state = createTestState({
       currentSystem: 'sol_prime',
@@ -193,7 +226,14 @@ describe('ResearchUI blocker helpers', () => {
     const actions = getResearchDispatchBlockerActions(state, blocker);
 
     expect(blocker).toMatchObject({ reasonId: 'credits', techId: 'market_analysis' });
-    expect(actions[0]).toMatchObject({ actionId: 'market', reasonId: 'credits', label: '前往市场周转' });
+    expect(actions[0]).toMatchObject({
+      actionId: 'market',
+      reasonId: 'credits',
+      label: '前往市场周转',
+      marketWorkspaceId: 'capital',
+      marketSubworkspaceId: 'local',
+      marketFocusLabel: '资本调度区',
+    });
     expect(actions[1]).toMatchObject({ actionId: 'quest-focus', label: '先做本地任务', targetQuestId: 'starter_first_trade' });
     expect(actions[1].hint).not.toContain('燃料');
     expect(actions[1].hint).toContain('科研周转资金');
@@ -220,7 +260,14 @@ describe('ResearchUI blocker helpers', () => {
     const actions = getResearchDispatchBlockerActions(state, blocker);
 
     expect(blocker).toMatchObject({ reasonId: 'level', techId: 'advanced_thrusters' });
-    expect(actions[0]).toMatchObject({ actionId: 'market', reasonId: 'level', label: '去市场跑单升级' });
+    expect(actions[0]).toMatchObject({
+      actionId: 'market',
+      reasonId: 'level',
+      label: '去市场跑单升级',
+      marketWorkspaceId: 'operations',
+      marketSubworkspaceId: 'local',
+      marketFocusLabel: '本地节点经营区',
+    });
     expect(actions[1]).toMatchObject({ actionId: 'quest-focus', label: '先补等级', targetQuestId: 'starter_first_trade' });
   });
 });

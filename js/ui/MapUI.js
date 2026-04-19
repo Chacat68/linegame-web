@@ -19,11 +19,25 @@ const CURRENT_SYSTEM_SCAN_REVEAL_STEP_3_DELAY = 980;
 let _marketViewGalaxy = null;
 let _marketViewSystem = null;      // 详情模式时选中的星球
 let _marketMode = 'detail';
+let _pendingMarketPanelFocus = null;
 // 市场刷新回调（由 GameManager 注入）
 let _refreshMarket = null;          // (mode) => void
 let _stateRef = null;               // 用于内部事件引用
 let _explorationActions = null;
 let _currentSystemScanReveal = null;
+
+function _normalizeMarketPanelFocus(focus) {
+  if (!focus || typeof focus !== 'object') return null;
+
+  var workspaceId = typeof focus.workspaceId === 'string' ? focus.workspaceId.trim() : '';
+  if (!workspaceId) return null;
+
+  var subworkspaceId = typeof focus.subworkspaceId === 'string' ? focus.subworkspaceId.trim() : '';
+  return {
+    workspaceId: workspaceId,
+    subworkspaceId: subworkspaceId,
+  };
+}
 
 function _getScanStatus(stateRef, systemId) {
   if (!stateRef || !systemId) return null;
@@ -251,6 +265,12 @@ export function getMarketViewGalaxy(state) {
 /** 获取当前市场模式 */
 export function getMarketMode() {
   return _marketMode;
+}
+
+export function consumePendingMarketPanelFocus() {
+  var focus = _pendingMarketPanelFocus;
+  _pendingMarketPanelFocus = null;
+  return focus;
 }
 
 /** 获取当前地图视图模式 */
@@ -1015,12 +1035,13 @@ export function refreshPlanetDetail(stateRef) {
 }
 
 /** 打开市场面板（默认当前节点功能页） */
-export function openMarket(stateRef) {
+export function openMarket(stateRef, marketFocus) {
   const overlay = document.getElementById('market-overlay');
   const marketBtn = document.getElementById('market-view-btn');
   if (!overlay) return;
   _closeOrbitScanPanel(stateRef);
   _stateRef = stateRef;
+  _pendingMarketPanelFocus = _normalizeMarketPanelFocus(marketFocus);
   _marketViewGalaxy = stateRef.currentGalaxy;
   _marketViewSystem = stateRef.currentSystem;
   _marketMode = 'detail';
@@ -1033,13 +1054,13 @@ export function openMarket(stateRef) {
 }
 
 /** 以正式导航状态打开市场面板 */
-export function openMarketPanel(stateRef) {
+export function openMarketPanel(stateRef, marketFocus) {
   _stateRef = stateRef || _stateRef;
   if (!_stateRef) return;
   _closeAllOverlayPanels();
   closeMarket();
   _setBottomNavActive('market');
-  openMarket(_stateRef);
+  openMarket(_stateRef, marketFocus);
 }
 
 /** 关闭市场面板 */

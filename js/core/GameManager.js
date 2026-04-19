@@ -16,13 +16,13 @@ import * as Renderer3D from '../ui/Renderer3DAdvanced.js?v=20260414-routeunify1'
 import * as GalaxyData from '../systems/galaxy/GalaxyDataLayer.js';
 import * as Exploration from '../systems/galaxy/ExplorationSystem.js?v=20260417-exploration20';
 import * as HUD        from '../ui/HUD.js?v=20260412-questroute2';
-import * as MarketUI   from '../ui/MarketUI.js';
+import * as MarketUI   from '../ui/MarketUI.js?v=20260419-marketfocus1';
 import * as ShipUI     from '../ui/ShipUI.js';
-import * as MapUI      from '../ui/MapUI.js?v=20260418-questactions1';
+import * as MapUI      from '../ui/MapUI.js?v=20260419-marketfocus1';
 import * as Modal      from '../ui/Modal.js';
 import * as EventUI    from '../ui/EventUI.js';
 import * as DialogueUI from '../ui/DialogueUI.js';
-import * as ResearchUI from '../ui/ResearchUI.js?v=20260418-researchblocker2';
+import * as ResearchUI from '../ui/ResearchUI.js?v=20260419-marketfocus1';
 import * as FactionUI  from '../ui/FactionUI.js';
 import * as SaveUI     from '../ui/SaveUI.js';
 import * as QuestUI    from '../ui/QuestUI.js?v=20260418-researchblocker1';
@@ -151,6 +151,10 @@ export function init(difficulty) {
   MapUI.setRefreshMarket(function (mode) {
     const sysId = MapUI.getMarketViewSystem(_state);
     var bmMode = _blackMarketMode ? 'black' : 'open';
+    var pendingMarketFocus = MapUI.consumePendingMarketPanelFocus();
+    if (pendingMarketFocus) {
+      MarketUI.setMarketWorkspaceFocus(pendingMarketFocus);
+    }
     MarketUI.showDetail(sysId, bmMode);
     MarketUI.render(_state, _handleOpenBuy, _handleOpenSell, _handleRefuel, sysId, bmMode, MapUI.getMarketViewGalaxy(_state), _handleBlackMarketBuy, _handleBlackMarketSell, _getMarketFinanceActions());
     _bindMarketModeButtons();
@@ -847,15 +851,18 @@ function _handleResolveResearchBlocker(action) {
   }
 
   if (action.actionId === 'market') {
-    MapUI.openMarketPanel(_state);
+    MapUI.openMarketPanel(_state, {
+      workspaceId: action.marketWorkspaceId,
+      subworkspaceId: action.marketSubworkspaceId,
+    });
     EventBus.emit('log:message', {
       text: action.reasonId === 'cargo'
-        ? '📦 已打开当前市场，先清理货舱腾出舱位，再回来规划科研补给。'
+        ? '📦 已打开当前市场的现货交易区，先清理货舱腾出舱位，再回来规划科研补给。'
         : action.reasonId === 'credits'
-          ? '💰 已打开当前市场，先做一笔周转补足资金，再回来补科研线。'
+          ? '💰 已打开当前市场的资本调度区，先做一笔周转补足资金，再回来补科研线。'
           : action.reasonId === 'level'
-            ? '📈 已打开当前市场，先跑几笔交易抬等级，再回来规划科研补给。'
-            : '📊 已打开当前市场，先观察本地行情，再回来看看科研补给线。',
+            ? '📈 已打开当前市场的本地节点经营区，先补一轮升级节奏，再回来规划科研补给。'
+            : '📊 已打开当前市场的情报分区，先观察本地行情，再回来看看科研补给线。',
       type: 'tip',
     });
   }

@@ -9,6 +9,13 @@ import * as AutoTrade from '../systems/trade/AutoTradeSystem.js?v=20260418-quest
 import * as Quest from '../systems/quest/QuestSystem.js?v=20260412-questroute2';
 import { getQuestBlockerActions, getPreferredAvailableQuest } from './QuestUI.js?v=20260418-researchblocker1';
 
+const RESEARCH_BLOCKER_MARKET_FOCUS = {
+  cargo: { workspaceId: 'spot', subworkspaceId: 'trade', label: '现货交易区' },
+  credits: { workspaceId: 'capital', subworkspaceId: 'local', label: '资本调度区' },
+  level: { workspaceId: 'operations', subworkspaceId: 'local', label: '本地节点经营区' },
+  generic: { workspaceId: 'spot', subworkspaceId: 'intel', label: '市场情报区' },
+};
+
 function _getResearchSupplyFocus(state) {
   var techId = state.currentResearch && state.currentResearch.techId
     ? state.currentResearch.techId
@@ -91,46 +98,57 @@ function _getResearchBlockerCopySeed(blocker) {
   return [{ blockedReason: '当前燃料不足，需要 8 燃料，现有 2。' }];
 }
 
+function _getResearchBlockerMarketFocus(reasonId) {
+  var focus = RESEARCH_BLOCKER_MARKET_FOCUS[reasonId] || RESEARCH_BLOCKER_MARKET_FOCUS.generic;
+  return Object.assign({}, focus);
+}
+
+function _buildResearchMarketAction(reasonId, label, hint) {
+  var marketFocus = _getResearchBlockerMarketFocus(reasonId);
+  return {
+    actionId: 'market',
+    reasonId: reasonId,
+    label: label,
+    hint: hint,
+    variant: 'primary',
+    marketWorkspaceId: marketFocus.workspaceId,
+    marketSubworkspaceId: marketFocus.subworkspaceId,
+    marketFocusLabel: marketFocus.label,
+  };
+}
+
 function _buildResearchPrimaryAction(blocker) {
   if (!blocker) return null;
 
   if (blocker.reasonId === 'cargo') {
-    return {
-      actionId: 'market',
-      reasonId: 'cargo',
-      label: '前往市场清货',
-      hint: '先卖掉一部分货物，腾出舱位后再回来规划科研补给。',
-      variant: 'primary',
-    };
+    return _buildResearchMarketAction(
+      'cargo',
+      '前往市场清货',
+      '先卖掉一部分货物，腾出舱位后再回来规划科研补给。'
+    );
   }
 
   if (blocker.reasonId === 'credits') {
-    return {
-      actionId: 'market',
-      reasonId: 'credits',
-      label: '前往市场周转',
-      hint: '先做一笔回款或卖货，补足进货资金后再回来。',
-      variant: 'primary',
-    };
+    return _buildResearchMarketAction(
+      'credits',
+      '前往市场周转',
+      '先做一笔回款或卖货，补足进货资金后再回来。'
+    );
   }
 
   if (blocker.reasonId === 'level') {
-    return {
-      actionId: 'market',
-      reasonId: 'level',
-      label: '去市场跑单升级',
-      hint: '先提升等级，解锁更多科研相关补给点。',
-      variant: 'primary',
-    };
+    return _buildResearchMarketAction(
+      'level',
+      '去市场跑单升级',
+      '先提升等级，解锁更多科研相关补给点。'
+    );
   }
 
-  return {
-    actionId: 'market',
-    reasonId: 'generic',
-    label: '前往市场看看',
-    hint: '先看看本地行情和库存，再回来等待更稳的科研补给线。',
-    variant: 'primary',
-  };
+  return _buildResearchMarketAction(
+    'generic',
+    '前往市场看看',
+    '先看看本地行情和库存，再回来等待更稳的科研补给线。'
+  );
 }
 
 function _adaptResearchFallbackHint(hint, blocker) {
@@ -210,7 +228,7 @@ function _renderResearchDispatchBlocker(blocker, canResolveResearchBlocker, stat
       (canResolveResearchBlocker && actions.length > 0
         ? '<div class="research-route-actions is-blocked">' + actions.map(function (action) {
             return '<div class="research-route-action-item' + (action.variant === 'secondary' ? ' is-secondary' : '') + '">' +
-              '<button class="research-route-blocker-btn' + (action.variant === 'secondary' ? ' is-secondary' : '') + '" data-action-id="' + action.actionId + '" data-reason-id="' + action.reasonId + '" data-target-quest-id="' + (action.targetQuestId || '') + '" data-target-quest-name="' + (action.targetQuestName || '') + '" data-focus-tech-id="' + blocker.techId + '" data-focus-tech-name="' + blocker.techName + '">' + action.label + '</button>' +
+              '<button class="research-route-blocker-btn' + (action.variant === 'secondary' ? ' is-secondary' : '') + '" data-action-id="' + action.actionId + '" data-reason-id="' + action.reasonId + '" data-target-quest-id="' + (action.targetQuestId || '') + '" data-target-quest-name="' + (action.targetQuestName || '') + '" data-market-workspace-id="' + (action.marketWorkspaceId || '') + '" data-market-subworkspace-id="' + (action.marketSubworkspaceId || '') + '" data-market-focus-label="' + (action.marketFocusLabel || '') + '" data-focus-tech-id="' + blocker.techId + '" data-focus-tech-name="' + blocker.techName + '">' + action.label + '</button>' +
               '<span class="research-route-action-hint">' + action.hint + '</span>' +
             '</div>';
           }).join('') + '</div>'
@@ -459,6 +477,9 @@ function _bindResearchActions(container, onStartResearch, onApplyResearchDispatc
         reasonId: btn.dataset.reasonId,
         targetQuestId: btn.dataset.targetQuestId,
         targetQuestName: btn.dataset.targetQuestName,
+        marketWorkspaceId: btn.dataset.marketWorkspaceId,
+        marketSubworkspaceId: btn.dataset.marketSubworkspaceId,
+        marketFocusLabel: btn.dataset.marketFocusLabel,
         focusTechId: btn.dataset.focusTechId,
         focusTechName: btn.dataset.focusTechName,
       });
