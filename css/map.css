@@ -360,6 +360,10 @@
   gap: 8px;
 }
 
+.planet-detail-survey-actions {
+  margin-top: 8px;
+}
+
 .planet-detail-survey-card {
   display: flex;
   flex-direction: column;

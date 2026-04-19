@@ -4,7 +4,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import * as Research from '../js/systems/research/ResearchSystem.js';
 import * as Faction from '../js/systems/faction/FactionSystem.js';
 import * as Quest from '../js/systems/quest/QuestSystem.js';
-import { getResearchDispatchBlockerState, getResearchDispatchBlockerActions } from '../js/ui/ResearchUI.js?v=20260419-marketfocus1';
+import { getResearchDispatchBlockerState, getResearchDispatchBlockerActions } from '../js/ui/ResearchUI.js?v=20260419-marketfocus4';
 import { createTestState } from './helpers.js';
 
 describe('ResearchSystem.init', () => {

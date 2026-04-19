@@ -5,6 +5,7 @@
 import { QUEST_TYPES } from '../data/quests.js';
 import { GOODS } from '../data/goods.js';
 import { findSystem } from '../data/systems.js';
+import { buildMarketFocusAction, MARKET_FOCUS_PRESET_IDS } from './MarketFocus.js?v=20260419-marketcta2';
 import * as AutoTrade  from '../systems/trade/AutoTradeSystem.js?v=20260418-questblocker1';
 import * as Quest      from '../systems/quest/QuestSystem.js?v=20260412-questroute2';
 
@@ -14,6 +15,12 @@ const _goodNameById = GOODS.reduce(function (acc, good) {
 }, Object.create(null));
 
 let _selectedAvailableQuestId = null;
+
+const QUEST_BLOCKER_MARKET_PRESETS = {
+  fuel: MARKET_FOCUS_PRESET_IDS.SPOT_TRADE,
+  level: MARKET_FOCUS_PRESET_IDS.SPOT_TRADE,
+  general: MARKET_FOCUS_PRESET_IDS.SPOT_INTEL,
+};
 
 // ---------------------------------------------------------------------------
 // 提取任务的目标星球列表（去重）
@@ -419,6 +426,16 @@ function _buildQuestFallbackAction(fallbackQuest, state, primaryReasonId) {
   };
 }
 
+function _buildQuestMarketAction(reasonId, label, hint) {
+  return buildMarketFocusAction(
+    reasonId,
+    label,
+    hint,
+    QUEST_BLOCKER_MARKET_PRESETS[reasonId] || QUEST_BLOCKER_MARKET_PRESETS.general,
+    'primary'
+  );
+}
+
 export function getQuestBlockerActions(blockers, fallbackQuest, state) {
   if (!Array.isArray(blockers) || blockers.length === 0) return [];
 
@@ -436,23 +453,19 @@ export function getQuestBlockerActions(blockers, fallbackQuest, state) {
   }
 
   else if (primaryReasonId === 'fuel') {
-    actions.push({
-      actionId: 'market',
-      reasonId: 'fuel',
-      label: '前往市场补给',
-      hint: '先补充燃料或调整货舱，再回来恢复派遣建议。',
-      variant: 'primary',
-    });
+    actions.push(_buildQuestMarketAction(
+      'fuel',
+      '前往市场补给',
+      '先补充燃料或调整货舱，再回来恢复派遣建议。'
+    ));
   }
 
   else if (primaryReasonId === 'level') {
-    actions.push({
-      actionId: 'market',
-      reasonId: 'level',
-      label: '去市场跑单升级',
-      hint: '先做几笔交易和补给，把等级提上来再接这条线。',
-      variant: 'primary',
-    });
+    actions.push(_buildQuestMarketAction(
+      'level',
+      '去市场跑单升级',
+      '先做几笔交易和补给，把等级提上来再接这条线。'
+    ));
   }
 
   var fallbackAction = _buildQuestFallbackAction(fallbackQuest, state, primaryReasonId);
@@ -469,7 +482,7 @@ function _renderQuestBlockerActions(actions, quest) {
   return '<div class="quest-dispatch-actions is-blocked">' + actions.map(function (action) {
     var btnClass = 'quest-dispatch-blocker-btn' + (action.variant === 'secondary' ? ' is-secondary' : '');
     return '<div class="quest-dispatch-action-item' + (action.variant === 'secondary' ? ' is-secondary' : '') + '">' +
-      '<button class="' + btnClass + '" data-action-id="' + action.actionId + '" data-reason-id="' + action.reasonId + '" data-quest-id="' + quest.id + '" data-quest-name="' + quest.name + '" data-target-quest-id="' + (action.targetQuestId || '') + '" data-target-quest-name="' + (action.targetQuestName || '') + '">' + action.label + '</button>' +
+      '<button class="' + btnClass + '" data-action-id="' + action.actionId + '" data-reason-id="' + action.reasonId + '" data-quest-id="' + quest.id + '" data-quest-name="' + quest.name + '" data-target-quest-id="' + (action.targetQuestId || '') + '" data-target-quest-name="' + (action.targetQuestName || '') + '" data-market-workspace-id="' + (action.marketWorkspaceId || '') + '" data-market-subworkspace-id="' + (action.marketSubworkspaceId || '') + '" data-market-focus-label="' + (action.marketFocusLabel || '') + '">' + action.label + '</button>' +
       '<span class="quest-dispatch-action-hint">' + action.hint + '</span>' +
     '</div>';
   }).join('') + '</div>';
@@ -778,6 +791,9 @@ export function render(state, onAccept, onAbandon, questDispatchContext, onApply
         questName: btn.dataset.questName,
         targetQuestId: btn.dataset.targetQuestId,
         targetQuestName: btn.dataset.targetQuestName,
+        marketWorkspaceId: btn.dataset.marketWorkspaceId,
+        marketSubworkspaceId: btn.dataset.marketSubworkspaceId,
+        marketFocusLabel: btn.dataset.marketFocusLabel,
       };
 
       if (action.actionId === 'quest-focus') {

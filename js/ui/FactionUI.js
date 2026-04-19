@@ -4,12 +4,53 @@
 
 import * as Faction from '../systems/faction/FactionSystem.js';
 import { FACTIONS, FACTION_LEVELS } from '../data/factions.js';
+import { findSystem } from '../data/systems.js';
+import {
+  buildContextualMarketAction,
+  getMarketFocusCtaLabel,
+} from './MarketFocus.js?v=20260419-marketcta2';
+
+export function getFactionMarketAction(state, faction) {
+  const factionData = typeof faction === 'string'
+    ? FACTIONS.find(function (entry) { return entry.id === faction; })
+    : faction;
+  if (!factionData || !Array.isArray(factionData.controlledSystems) || factionData.controlledSystems.length === 0) {
+    return null;
+  }
+
+  const representativeSystemId = factionData.controlledSystems[0];
+  const representativeSystem = findSystem(representativeSystemId);
+  const canAccessBlackMarket = !!(factionData.marketAccess && factionData.marketAccess.blackMarket && Faction.canAccessBlackMarket(state, representativeSystemId));
+  const action = buildContextualMarketAction(state, representativeSystemId, {
+    context: 'faction',
+  });
+
+  action.factionId = factionData.id;
+  action.factionName = factionData.name;
+  action.systemId = representativeSystemId;
+  action.systemName = representativeSystem ? representativeSystem.name : representativeSystemId;
+
+  if (factionData.marketAccess && factionData.marketAccess.blackMarket && !canAccessBlackMarket) {
+    action.label = '查看黑市条件';
+    action.contextHint = '辛迪加黑市尚未开放，先看公开情报与准入门槛。';
+    action.hint = action.systemName + ' · ' + action.contextHint;
+    return action;
+  }
+
+  action.label = getMarketFocusCtaLabel({
+    workspaceId: action.marketWorkspaceId,
+    subworkspaceId: action.marketSubworkspaceId,
+    marketMode: action.marketMode,
+  }, 'faction');
+  action.hint = action.systemName + ' · ' + (action.contextHint || action.marketFocusLabel || '市场页');
+  return action;
+}
 
 /**
  * 渲染派系关系标签页
  * @param {object} state
  */
-export function render(state) {
+export function render(state, onOpenFactionMarket) {
   const container = document.getElementById('faction-list');
   const relations = Faction.getAllRelations(state);
 
@@ -27,8 +68,7 @@ export function render(state) {
     // 关系百分比 (映射 -100~100 到 0~100%)
     const barPct = ((rel + 100) / 200 * 100).toFixed(0);
 
-    // 控制星系列表
-    const systemNames = f.controlledSystems.join('、');
+    const marketAction = getFactionMarketAction(state, f);
 
     html +=
       '<div class="faction-card" style="border-left: 3px solid ' + f.color + '">' +
@@ -71,11 +111,49 @@ export function render(state) {
                 : '🔒 黑市资格：需达到友好')
               : '<span style="color:var(--text-dim)">该派系不提供黑市访问</span>') +
           '</div>' +
+          (marketAction
+            ? '<div class="faction-actions">' +
+                '<button class="planet-detail-action faction-market-btn" type="button"' +
+                  ' data-faction-market="true"' +
+                  ' data-faction-id="' + marketAction.factionId + '"' +
+                  ' data-faction-name="' + marketAction.factionName + '"' +
+                  ' data-system-id="' + marketAction.systemId + '"' +
+                  ' data-system-name="' + marketAction.systemName + '"' +
+                  ' data-market-workspace-id="' + marketAction.marketWorkspaceId + '"' +
+                  ' data-market-subworkspace-id="' + marketAction.marketSubworkspaceId + '"' +
+                  ' data-market-focus-label="' + marketAction.marketFocusLabel + '"' +
+                  (marketAction.marketMode ? ' data-market-mode="' + marketAction.marketMode + '"' : '') +
+                  (marketAction.hint ? ' data-market-hint="' + marketAction.hint + '" title="' + marketAction.hint + '"' : '') +
+                '>' + marketAction.label + '</button>' +
+                '<div class="faction-action-note">' + marketAction.hint + '</div>' +
+              '</div>'
+            : '') +
         '</div>' +
       '</div>';
   });
 
   container.innerHTML = html;
+
+  if (typeof onOpenFactionMarket === 'function') {
+    container.querySelectorAll('[data-faction-market="true"]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        onOpenFactionMarket({
+          actionId: 'market',
+          factionId: button.dataset.factionId,
+          factionName: button.dataset.factionName,
+          systemId: button.dataset.systemId,
+          systemName: button.dataset.systemName,
+          marketWorkspaceId: button.dataset.marketWorkspaceId,
+          marketSubworkspaceId: button.dataset.marketSubworkspaceId,
+          marketFocusLabel: button.dataset.marketFocusLabel,
+          marketMode: button.dataset.marketMode || '',
+          hint: button.dataset.marketHint || '',
+          contextHint: button.dataset.marketHint || '',
+          label: button.textContent.trim(),
+        });
+      });
+    });
+  }
 }
 
 const _GOOD_EMOJIS = {

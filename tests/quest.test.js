@@ -8,7 +8,7 @@ import * as GalaxyData from '../js/systems/galaxy/GalaxyDataLayer.js';
 import * as Exploration from '../js/systems/galaxy/ExplorationSystem.js';
 import * as Quest from '../js/systems/quest/QuestSystem.js';
 import * as Faction from '../js/systems/faction/FactionSystem.js';
-import { getQuestBlockerActions } from '../js/ui/QuestUI.js?v=20260418-questactions3';
+import { getQuestBlockerActions } from '../js/ui/QuestUI.js?v=20260419-marketfocus4';
 import { createTestState } from './helpers.js';
 
 describe('Quest.init', () => {
@@ -125,7 +125,14 @@ describe('QuestUI.getQuestBlockerActions', () => {
     }, state);
 
     expect(actions).toHaveLength(2);
-    expect(actions[0]).toMatchObject({ actionId: 'market', reasonId: 'level', label: '去市场跑单升级' });
+    expect(actions[0]).toMatchObject({
+      actionId: 'market',
+      reasonId: 'level',
+      label: '去市场跑单升级',
+      marketWorkspaceId: 'spot',
+      marketSubworkspaceId: 'trade',
+      marketFocusLabel: '现货交易区',
+    });
     expect(actions[1]).toMatchObject({ actionId: 'quest-focus', reasonId: 'fallback', label: '先补等级', targetQuestId: 'starter_first_trade', targetQuestName: '初次交易' });
     expect(actions[1].hint).toContain('补等级');
   });
@@ -143,7 +150,14 @@ describe('QuestUI.getQuestBlockerActions', () => {
       objectives: [{ type: 'deliver', goodId: 'food', targetSystem: 'war_front', amount: 5, current: 0 }],
     }, state);
 
-    expect(actions[0]).toMatchObject({ actionId: 'market', reasonId: 'fuel', label: '前往市场补给' });
+    expect(actions[0]).toMatchObject({
+      actionId: 'market',
+      reasonId: 'fuel',
+      label: '前往市场补给',
+      marketWorkspaceId: 'spot',
+      marketSubworkspaceId: 'trade',
+      marketFocusLabel: '现货交易区',
+    });
     expect(actions[1]).toMatchObject({ actionId: 'quest-focus', label: '先跑短线补给', targetQuestId: 'starter_deliver_food' });
     expect(actions[1].hint).toContain('回补燃料');
   });
@@ -172,7 +186,14 @@ describe('QuestUI.getQuestBlockerActions', () => {
     ]);
 
     expect(actions).toHaveLength(1);
-    expect(actions[0]).toMatchObject({ actionId: 'market', reasonId: 'fuel', label: '前往市场补给' });
+    expect(actions[0]).toMatchObject({
+      actionId: 'market',
+      reasonId: 'fuel',
+      label: '前往市场补给',
+      marketWorkspaceId: 'spot',
+      marketSubworkspaceId: 'trade',
+      marketFocusLabel: '现货交易区',
+    });
   });
 });
 

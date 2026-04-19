@@ -437,6 +437,18 @@
   color: var(--accent-cyan);
   padding: 4px 0;
 }
+.faction-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 8px;
+}
+.faction-action-note {
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--text-dim);
+}
 
 /* ==========================================================
    Trade Station System

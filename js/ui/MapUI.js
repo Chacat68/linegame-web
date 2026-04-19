@@ -6,6 +6,10 @@ import * as Renderer3D from './Renderer3DAdvanced.js?v=20260414-routeunify1';
 import * as Faction from '../systems/faction/FactionSystem.js';
 import * as GalaxyData from '../systems/galaxy/GalaxyDataLayer.js';
 import * as Exploration from '../systems/galaxy/ExplorationSystem.js?v=20260417-exploration20';
+import {
+  buildContextualMarketAction,
+  getContextualMarketFocus,
+} from './MarketFocus.js?v=20260419-marketcta2';
 import { GALAXIES, findSystem, findGalaxy }  from '../data/systems.js';
 
 let _tabClickCallback = null;
@@ -33,9 +37,11 @@ function _normalizeMarketPanelFocus(focus) {
   if (!workspaceId) return null;
 
   var subworkspaceId = typeof focus.subworkspaceId === 'string' ? focus.subworkspaceId.trim() : '';
+  var marketMode = typeof focus.marketMode === 'string' ? focus.marketMode.trim() : '';
   return {
     workspaceId: workspaceId,
     subworkspaceId: subworkspaceId,
+    marketMode: marketMode,
   };
 }
 
@@ -502,6 +508,14 @@ function _bindExplorationActionContainer(containerId) {
       _explorationActions.onLand(systemId);
       return;
     }
+    if (action === 'market') {
+      openMarketSystemPanel(_stateRef, systemId, {
+        workspaceId: button.dataset.marketWorkspaceId,
+        subworkspaceId: button.dataset.marketSubworkspaceId,
+        marketMode: button.dataset.marketMode || '',
+      });
+      return;
+    }
     if (action === 'poi' && _explorationActions.onExplorePoi) {
       _clearCurrentSystemScanReveal();
       _explorationActions.onExplorePoi(systemId, poiId);
@@ -657,9 +671,23 @@ function _buildExplorationActionButton(action, extraClass) {
   if (extraClass) classes += ' ' + extraClass;
   var disabledAttr = action.disabled ? ' disabled aria-disabled="true"' : '';
   var titleAttr = action.title ? ' title="' + _escapeHtmlAttr(action.title) + '"' : '';
+  var marketDataset = '';
+
+  if (action.marketWorkspaceId) {
+    marketDataset += ' data-market-workspace-id="' + _escapeHtmlAttr(action.marketWorkspaceId) + '"';
+  }
+  if (action.marketSubworkspaceId) {
+    marketDataset += ' data-market-subworkspace-id="' + _escapeHtmlAttr(action.marketSubworkspaceId) + '"';
+  }
+  if (action.marketFocusLabel) {
+    marketDataset += ' data-market-focus-label="' + _escapeHtmlAttr(action.marketFocusLabel) + '"';
+  }
+  if (action.marketMode) {
+    marketDataset += ' data-market-mode="' + _escapeHtmlAttr(action.marketMode) + '"';
+  }
 
   return '<button class="' + classes + '" data-exploration-action="' + action.type + '" data-system-id="' + action.systemId + '"' +
-    (action.poiId ? ' data-poi-id="' + action.poiId + '"' : '') + disabledAttr + titleAttr + '>' + action.label + '</button>';
+    (action.poiId ? ' data-poi-id="' + action.poiId + '"' : '') + marketDataset + disabledAttr + titleAttr + '>' + action.label + '</button>';
 }
 
 function _buildExplorationFlowCard(flow, options) {
@@ -746,7 +774,7 @@ function _buildSurveyMetricCard(label, value, note, extraClass) {
   '</div>';
 }
 
-function _buildSurveySummaryBlock(summary) {
+function _buildSurveySummaryBlock(summary, systemId) {
   if (!summary) return '';
 
   var threatClass = summary.threatLevel === 'high'
@@ -756,6 +784,19 @@ function _buildSurveySummaryBlock(summary) {
   var rewardNote = summary.completionBonusClaimed
     ? '本地完探奖励已结算'
     : '完成全部 POI 后自动发放';
+  var marketActionHtml = '';
+
+  if (_stateRef && systemId) {
+    var marketAction = buildContextualMarketAction(_stateRef, systemId, {
+      context: 'survey',
+    });
+    marketAction.type = 'market';
+    marketAction.title = '打开 ' + (marketAction.systemName || '当前节点') + ' 的 ' + (marketAction.marketFocusLabel || '市场页');
+    marketActionHtml = '<div class="planet-detail-actions planet-detail-survey-actions">' +
+      _buildExplorationActionButton(marketAction) +
+      (marketAction.contextHint ? '<div class="planet-detail-note">' + _escapeHtml(marketAction.contextHint) + '</div>' : '') +
+    '</div>';
+  }
 
   return '<div class="planet-detail-subsection">' +
     '<div class="planet-detail-subtitle">探索简报</div>' +
@@ -765,6 +806,7 @@ function _buildSurveySummaryBlock(summary) {
       _buildSurveyMetricCard('情报等级', 'Lv.' + summary.intelLevel, '已归档 ' + summary.reportCount + ' 份勘探报告') +
       _buildSurveyMetricCard('完探奖励', rewardValue, rewardNote) +
     '</div>' +
+    marketActionHtml +
   '</div>';
 }
 
@@ -854,7 +896,7 @@ function _buildExplorationSection(stateRef, sys, planetData, isCurrentSystem, is
     '</div>' +
     _buildExplorationFlowCard(flow, { includeAction: false }) +
     _buildExplorationProgressRow(flow) +
-    _buildSurveySummaryBlock(surveySummary) +
+    _buildSurveySummaryBlock(surveySummary, sys.id) +
     _buildExplorationActionBlock(flow, sys, isCurrentSystem, stateRef) +
     _buildSurveyReportsBlock(surveySummary) +
     (poiHtml
@@ -1041,7 +1083,7 @@ export function openMarket(stateRef, marketFocus) {
   if (!overlay) return;
   _closeOrbitScanPanel(stateRef);
   _stateRef = stateRef;
-  _pendingMarketPanelFocus = _normalizeMarketPanelFocus(marketFocus);
+  _pendingMarketPanelFocus = _normalizeMarketPanelFocus(marketFocus || getContextualMarketFocus(stateRef));
   _marketViewGalaxy = stateRef.currentGalaxy;
   _marketViewSystem = stateRef.currentSystem;
   _marketMode = 'detail';
@@ -1061,6 +1103,15 @@ export function openMarketPanel(stateRef, marketFocus) {
   closeMarket();
   _setBottomNavActive('market');
   openMarket(_stateRef, marketFocus);
+}
+
+export function openMarketSystemPanel(stateRef, systemId, marketFocus) {
+  if (!stateRef) return;
+
+  openMarketPanel(stateRef, marketFocus);
+  if (systemId && systemId !== stateRef.currentSystem) {
+    showMarketDetail(systemId);
+  }
 }
 
 /** 关闭市场面板 */

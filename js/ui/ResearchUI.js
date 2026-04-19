@@ -4,16 +4,17 @@
 
 import { TECHNOLOGIES, TECH_CATEGORIES } from '../data/technologies.js';
 import { getSystemsByGalaxy } from '../data/systems.js';
+import { buildMarketFocusAction, MARKET_FOCUS_PRESET_IDS } from './MarketFocus.js?v=20260419-marketcta2';
 import * as Research from '../systems/research/ResearchSystem.js';
 import * as AutoTrade from '../systems/trade/AutoTradeSystem.js?v=20260418-questblocker1';
 import * as Quest from '../systems/quest/QuestSystem.js?v=20260412-questroute2';
-import { getQuestBlockerActions, getPreferredAvailableQuest } from './QuestUI.js?v=20260418-researchblocker1';
+import { getQuestBlockerActions, getPreferredAvailableQuest } from './QuestUI.js?v=20260419-marketcta2';
 
-const RESEARCH_BLOCKER_MARKET_FOCUS = {
-  cargo: { workspaceId: 'spot', subworkspaceId: 'trade', label: '现货交易区' },
-  credits: { workspaceId: 'capital', subworkspaceId: 'local', label: '资本调度区' },
-  level: { workspaceId: 'operations', subworkspaceId: 'local', label: '本地节点经营区' },
-  generic: { workspaceId: 'spot', subworkspaceId: 'intel', label: '市场情报区' },
+const RESEARCH_BLOCKER_MARKET_PRESETS = {
+  cargo: MARKET_FOCUS_PRESET_IDS.SPOT_TRADE,
+  credits: MARKET_FOCUS_PRESET_IDS.CAPITAL_LOCAL,
+  level: MARKET_FOCUS_PRESET_IDS.OPERATIONS_LOCAL,
+  generic: MARKET_FOCUS_PRESET_IDS.SPOT_INTEL,
 };
 
 function _getResearchSupplyFocus(state) {
@@ -98,23 +99,14 @@ function _getResearchBlockerCopySeed(blocker) {
   return [{ blockedReason: '当前燃料不足，需要 8 燃料，现有 2。' }];
 }
 
-function _getResearchBlockerMarketFocus(reasonId) {
-  var focus = RESEARCH_BLOCKER_MARKET_FOCUS[reasonId] || RESEARCH_BLOCKER_MARKET_FOCUS.generic;
-  return Object.assign({}, focus);
-}
-
 function _buildResearchMarketAction(reasonId, label, hint) {
-  var marketFocus = _getResearchBlockerMarketFocus(reasonId);
-  return {
-    actionId: 'market',
-    reasonId: reasonId,
-    label: label,
-    hint: hint,
-    variant: 'primary',
-    marketWorkspaceId: marketFocus.workspaceId,
-    marketSubworkspaceId: marketFocus.subworkspaceId,
-    marketFocusLabel: marketFocus.label,
-  };
+  return buildMarketFocusAction(
+    reasonId,
+    label,
+    hint,
+    RESEARCH_BLOCKER_MARKET_PRESETS[reasonId] || RESEARCH_BLOCKER_MARKET_PRESETS.generic,
+    'primary'
+  );
 }
 
 function _buildResearchPrimaryAction(blocker) {

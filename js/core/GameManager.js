@@ -16,16 +16,16 @@ import * as Renderer3D from '../ui/Renderer3DAdvanced.js?v=20260414-routeunify1'
 import * as GalaxyData from '../systems/galaxy/GalaxyDataLayer.js';
 import * as Exploration from '../systems/galaxy/ExplorationSystem.js?v=20260417-exploration20';
 import * as HUD        from '../ui/HUD.js?v=20260412-questroute2';
-import * as MarketUI   from '../ui/MarketUI.js?v=20260419-marketfocus1';
+import * as MarketUI   from '../ui/MarketUI.js?v=20260419-marketfocus3';
 import * as ShipUI     from '../ui/ShipUI.js';
-import * as MapUI      from '../ui/MapUI.js?v=20260419-marketfocus1';
+import * as MapUI      from '../ui/MapUI.js?v=20260419-marketcta2';
 import * as Modal      from '../ui/Modal.js';
 import * as EventUI    from '../ui/EventUI.js';
 import * as DialogueUI from '../ui/DialogueUI.js';
-import * as ResearchUI from '../ui/ResearchUI.js?v=20260419-marketfocus1';
-import * as FactionUI  from '../ui/FactionUI.js';
+import * as ResearchUI from '../ui/ResearchUI.js?v=20260419-marketcta2';
+import * as FactionUI  from '../ui/FactionUI.js?v=20260419-marketcta2';
 import * as SaveUI     from '../ui/SaveUI.js';
-import * as QuestUI    from '../ui/QuestUI.js?v=20260418-researchblocker1';
+import * as QuestUI    from '../ui/QuestUI.js?v=20260419-marketcta2';
 import * as AchievementUI from '../ui/AchievementUI.js';
 import * as Fleet      from '../systems/fleet/FleetSystem.js?v=20260418-questblocker1';
 import * as Crew       from '../systems/fleet/CrewSystem.js';
@@ -150,13 +150,16 @@ export function init(difficulty) {
   // 注入市场刷新回调（让 MapUI 可以触发市场表格重绘）
   MapUI.setRefreshMarket(function (mode) {
     const sysId = MapUI.getMarketViewSystem(_state);
-    var bmMode = _blackMarketMode ? 'black' : 'open';
     var pendingMarketFocus = MapUI.consumePendingMarketPanelFocus();
+    var bmMode = pendingMarketFocus
+      ? ((pendingMarketFocus.marketMode || 'open') === 'black' ? 'black' : 'open')
+      : (_blackMarketMode ? 'black' : 'open');
+    _blackMarketMode = bmMode === 'black';
+    MarketUI.showDetail(sysId, bmMode);
+    MarketUI.render(_state, _handleOpenBuy, _handleOpenSell, _handleRefuel, sysId, bmMode, MapUI.getMarketViewGalaxy(_state), _handleBlackMarketBuy, _handleBlackMarketSell, _getMarketFinanceActions());
     if (pendingMarketFocus) {
       MarketUI.setMarketWorkspaceFocus(pendingMarketFocus);
     }
-    MarketUI.showDetail(sysId, bmMode);
-    MarketUI.render(_state, _handleOpenBuy, _handleOpenSell, _handleRefuel, sysId, bmMode, MapUI.getMarketViewGalaxy(_state), _handleBlackMarketBuy, _handleBlackMarketSell, _getMarketFinanceActions());
     _bindMarketModeButtons();
   });
   Modal.init(_handleTradeConfirm);
@@ -836,6 +839,25 @@ function _handleApplyResearchDispatch(recommendation) {
   _openRecommendedDispatch(recommendation, '科研补给建议', '🛰️');
 }
 
+function _handleOpenFactionMarket(action) {
+  if (!action || action.actionId !== 'market') return;
+
+  MapUI.openMarketSystemPanel(_state, action.systemId, {
+    workspaceId: action.marketWorkspaceId,
+    subworkspaceId: action.marketSubworkspaceId,
+    marketMode: action.marketMode || '',
+  });
+
+  EventBus.emit('log:message', {
+    text: action.label === '查看黑市条件'
+      ? '🔒 已打开' + (action.systemName || '代表节点') + '的' + (action.marketFocusLabel || '市场情报区') + '，先看准入门槛，再回来争取' + (action.factionName || '该派系') + '的黑市资格。'
+      : action.marketMode === 'black'
+        ? '🕶 已打开' + (action.systemName || '代表节点') + '的' + (action.marketFocusLabel || '黑市分区') + '，可以沿着' + (action.factionName || '该派系') + '的地下通路继续找机会。'
+        : '🏛 已打开' + (action.systemName || '代表节点') + '的' + (action.marketFocusLabel || '市场页') + '，可以从' + (action.factionName || '该派系') + '的代表节点继续观察行情。',
+    type: 'tip',
+  });
+}
+
 function _handleResolveResearchBlocker(action) {
   if (!action || !action.actionId) return;
 
@@ -857,12 +879,12 @@ function _handleResolveResearchBlocker(action) {
     });
     EventBus.emit('log:message', {
       text: action.reasonId === 'cargo'
-        ? '📦 已打开当前市场的现货交易区，先清理货舱腾出舱位，再回来规划科研补给。'
+        ? '📦 已打开当前市场的' + (action.marketFocusLabel || '现货交易区') + '，先清理货舱腾出舱位，再回来规划科研补给。'
         : action.reasonId === 'credits'
-          ? '💰 已打开当前市场的资本调度区，先做一笔周转补足资金，再回来补科研线。'
+          ? '💰 已打开当前市场的' + (action.marketFocusLabel || '资本调度区') + '，先做一笔周转补足资金，再回来补科研线。'
           : action.reasonId === 'level'
-            ? '📈 已打开当前市场的本地节点经营区，先补一轮升级节奏，再回来规划科研补给。'
-            : '📊 已打开当前市场的情报分区，先观察本地行情，再回来看看科研补给线。',
+            ? '📈 已打开当前市场的' + (action.marketFocusLabel || '本地节点经营区') + '，先补一轮升级节奏，再回来规划科研补给。'
+            : '📊 已打开当前市场的' + (action.marketFocusLabel || '市场情报区') + '，先观察本地行情，再回来看看科研补给线。',
       type: 'tip',
     });
   }
@@ -893,11 +915,14 @@ function _handleResolveQuestBlocker(action) {
   }
 
   if (action.actionId === 'market') {
-    MapUI.openMarketPanel(_state);
+    MapUI.openMarketPanel(_state, {
+      workspaceId: action.marketWorkspaceId,
+      subworkspaceId: action.marketSubworkspaceId,
+    });
     EventBus.emit('log:message', {
       text: action.reasonId === 'fuel'
-        ? '⛽ 已打开当前市场，先补足燃料或调整补给，再回来推进「' + (action.questName || '当前任务') + '」。'
-        : '💰 已打开当前市场，先跑几笔交易抬升等级，再回来推进「' + (action.questName || '当前任务') + '」。',
+        ? '⛽ 已打开当前市场的' + (action.marketFocusLabel || '现货交易区') + '，先补足燃料或调整补给，再回来推进「' + (action.questName || '当前任务') + '」。'
+        : '💰 已打开当前市场的' + (action.marketFocusLabel || '现货交易区') + '，先跑几笔交易抬升等级，再回来推进「' + (action.questName || '当前任务') + '」。',
       type: 'tip',
     });
   }
@@ -1343,7 +1368,7 @@ function _updateUI() {
     _handleApplyResearchDispatch,
     _handleResolveResearchBlocker
   );
-  FactionUI.render(_state);
+  FactionUI.render(_state, _handleOpenFactionMarket);
   QuestUI.render(_state, _handleAcceptQuest, _handleAbandonQuest, activeShipDispatchContext, _handleApplyQuestDispatch, _handleResolveQuestBlocker);
   AchievementUI.render(_state);
   FleetUI.render(_state, _handleBuyShip, _handleSwitchShip, _handleUpgradeShip, _handleAssignRoute, _handleCancelRoute, _handleBuySlot, _handleSellShip, _handleInstallMod, _handleUninstallMod, _handleServiceShip, _handleRecruitCrew, _handleAssignCrew, _handleUnassignCrew, _handleDismissCrew, _handleSetShipDoctrine, _handleActivateShipProtocol);
