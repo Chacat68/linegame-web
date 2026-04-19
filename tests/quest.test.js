@@ -286,7 +286,9 @@ describe('Quest.getQuestRoutePreview', () => {
     expect(item.blockedReason).toBe('');
   });
 
-  it('对跨星系目标提示跃迁科技限制', () => {
+  it('等级不足时对跨星系目标提示星系开放等级', () => {
+    state.playerLevel = 1;
+
     const quest = {
       id: 'test_route_jump',
       objectives: [{ type: 'visit_system', targetSystem: 'citadel_prime', amount: 1, current: 0 }],
@@ -298,7 +300,22 @@ describe('Quest.getQuestRoutePreview', () => {
     expect(item.isCrossGalaxy).toBe(true);
     expect(item.routeModeLabel).toBe('跨星系跃迁');
     expect(item.etaDays).toBe(3);
-    expect(item.blockedReason).toContain('超空间跃迁引擎');
+    expect(item.blockedReason).toContain('Lv.2');
+  });
+
+  it('达到开放等级后跨星系目标不再提示跃迁科技限制', () => {
+    state.playerLevel = 2;
+
+    const quest = {
+      id: 'test_route_jump_open',
+      objectives: [{ type: 'visit_system', targetSystem: 'citadel_prime', amount: 1, current: 0 }],
+    };
+
+    const preview = Quest.getQuestRoutePreview(state, quest, 3);
+    const item = preview.items[0];
+
+    expect(item.isCrossGalaxy).toBe(true);
+    expect(item.blockedReason).toBe('');
   });
 
   it('会在任务预估中反映已发现暗线的燃料折扣', () => {

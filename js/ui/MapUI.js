@@ -2,15 +2,29 @@
 // 导出：init, initTabs, init3DCallbacks, refreshGalaxyBtn, triggerArrivalScanPanel, openMarket, closeMarket, isMarketOpen,
 //        setRefreshMarket, setExplorationActions, getMarketViewSystem, refreshMarketLocation,
 //        showMarketOverview, showMarketDetail, refreshPlanetDetail, getMapView, getCurrentGalaxyId
-import * as Renderer3D from './Renderer3DAdvanced.js?v=20260420-planetdetailclick1';
+import * as Renderer3D from './Renderer3DAdvanced.js?v=20260420-balance3';
 import * as Faction from '../systems/faction/FactionSystem.js';
 import * as GalaxyData from '../systems/galaxy/GalaxyDataLayer.js';
 import * as Exploration from '../systems/galaxy/ExplorationSystem.js?v=20260417-exploration20';
+import { GOODS } from '../data/goods.js';
 import {
   buildContextualMarketAction,
   getContextualMarketFocus,
 } from './MarketFocus.js?v=20260419-marketcta2';
-import { GALAXIES, findSystem, findGalaxy }  from '../data/systems.js';
+import {
+  GALAXIES,
+  findSystem,
+  findGalaxy,
+  getSystemsByGalaxy,
+  getAccessibleGalaxies,
+  getAccessibleSystems,
+  getGalaxyAccessState,
+}  from '../data/systems.js?v=20260420-balance3';
+
+const _goodsById = GOODS.reduce(function (lookup, good) {
+  lookup[good.id] = good;
+  return lookup;
+}, Object.create(null));
 
 let _tabClickCallback = null;
 let _marketOpen = false;
@@ -33,6 +47,7 @@ let _planetDetailDisclosureState = Object.create(null);
 let _selectedPlanetDetailSystem = null;
 let _travelActionHandler = null;
 let _galaxyJumpActionHandler = null;
+let _hoveredGalaxyId = null;
 
 function _normalizeMarketPanelFocus(focus) {
   if (!focus || typeof focus !== 'object') return null;
@@ -140,6 +155,23 @@ function _buildPlanetTravelAction(stateRef, sys) {
   }
 
   var crossGalaxy = sys.galaxyId !== stateRef.currentGalaxy;
+  if (crossGalaxy) {
+    var galaxyAccess = getGalaxyAccessState(sys.galaxyId, playerLevel, stateRef.researchedTechs || []);
+    if (!galaxyAccess.unlocked) {
+      var galaxyName = galaxyAccess.galaxy ? galaxyAccess.galaxy.name : '目标星系';
+      return {
+        type: 'travel',
+        systemId: sys.id,
+        label: '星系未开放',
+        disabled: true,
+        title: galaxyName + ' 需 Lv.' + galaxyAccess.requiredLevel + ' 解锁',
+        hint: galaxyAccess.techRequired
+          ? ('达到 Lv.' + galaxyAccess.requiredLevel + ' 或研究超空间跃迁后，才可切换到该星系。')
+          : ('达到 Lv.' + galaxyAccess.requiredLevel + ' 后，才可切换到该星系。'),
+      };
+    }
+  }
+
   return {
     type: 'travel',
     systemId: sys.id,
@@ -161,6 +193,7 @@ function _travelToPlanet(systemId) {
 
   _clearSelectedPlanetDetail(false);
   _stateRef.hoveredSystem = null;
+  _hoveredGalaxyId = null;
 
   if (sys.galaxyId !== _stateRef.currentGalaxy) {
     if (_galaxyJumpActionHandler) {
@@ -177,11 +210,42 @@ function _travelToPlanet(systemId) {
   return false;
 }
 
+function _switchToGalaxy(galaxyId) {
+  if (!_stateRef || !galaxyId) return false;
+
+  var accessState = getGalaxyAccessState(galaxyId, _stateRef.playerLevel || 1, _stateRef.researchedTechs || []);
+  if (!accessState.unlocked) return false;
+
+  _clearSelectedPlanetDetail(false);
+  _closeOrbitScanPanel(_stateRef);
+  _stateRef.hoveredSystem = null;
+  _hoveredGalaxyId = null;
+  _stateRef.viewingGalaxy = galaxyId;
+  _stateRef.mapView = 'planets';
+  _updateGalaxyBtn(_stateRef);
+  refreshPlanetDetail(_stateRef);
+  return true;
+}
+
 function _bindPlanetDetailPanelEvents() {
   var panel = document.getElementById('planet-detail-panel');
   if (!panel || panel.dataset.detailUiBound === 'true') return;
 
   panel.addEventListener('click', function (event) {
+    var galaxyButton = event.target.closest('[data-galaxy-action]');
+    if (galaxyButton && panel.contains(galaxyButton)) {
+      var galaxyAction = galaxyButton.dataset.galaxyAction;
+      var galaxyId = galaxyButton.dataset.galaxyId;
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (galaxyAction === 'open') {
+        _switchToGalaxy(galaxyId);
+      }
+      return;
+    }
+
     var actionButton = event.target.closest('[data-planet-detail-action]');
     if (!actionButton || !panel.contains(actionButton)) return;
 
@@ -259,6 +323,31 @@ function _buildPlanetDetailField(label, value) {
   return '<div class="planet-detail-item planet-detail-item--wrap">' +
     '<span class="planet-detail-label">' + _escapeHtml(label) + '</span>' + _escapeHtml(value) +
   '</div>';
+}
+
+function _formatTradeGoods(goodIds) {
+  if (!Array.isArray(goodIds) || goodIds.length === 0) return '综合供需';
+  return goodIds.map(function (goodId) {
+    var good = _goodsById[goodId];
+    if (!good) return goodId;
+    return good.emoji + ' ' + good.name;
+  }).join(' · ');
+}
+
+function _buildGalaxyTradeProfileRows(galaxy) {
+  var tradeProfile = galaxy && galaxy.tradeProfile;
+  if (!tradeProfile) return '';
+
+  return '<div class="planet-detail-list">' +
+    '<div class="planet-detail-list-row"><span class="planet-detail-badge">主供货物</span><span>' + _escapeHtml(_formatTradeGoods(tradeProfile.exports)) + '</span></div>' +
+    '<div class="planet-detail-list-row"><span class="planet-detail-badge">高价收购</span><span>' + _escapeHtml(_formatTradeGoods(tradeProfile.imports)) + '</span></div>' +
+  '</div>';
+}
+
+function _buildGalaxyTradeProfileSummary(galaxy) {
+  var tradeProfile = galaxy && galaxy.tradeProfile;
+  if (!tradeProfile) return '综合供需，适合作为中转市场';
+  return '主供 ' + _formatTradeGoods(tradeProfile.exports) + '；高价收 ' + _formatTradeGoods(tradeProfile.imports);
 }
 
 function _buildPlanetDetailDisclosure(sectionId, title, bodyHtml, options) {
@@ -591,21 +680,25 @@ export function init3DCallbacks(stateRef, onTravel, onGalaxyJump) {
   _travelActionHandler = onTravel || null;
   _galaxyJumpActionHandler = onGalaxyJump || null;
   window._mapHoverCallback = function(data) {
+    var nextHoveredSystem = null;
+    var nextHoveredGalaxy = null;
     if (data) {
-      if (data.type === 'system') {
-        stateRef.hoveredSystem = data.id;
-      } else {
-        stateRef.hoveredSystem = null;
-      }
-      refreshPlanetDetail(stateRef);
-    } else {
-      stateRef.hoveredSystem = null;
+      if (data.type === 'system') nextHoveredSystem = data.id;
+      if (data.type === 'galaxy') nextHoveredGalaxy = data.id;
+    }
+
+    var changed = stateRef.hoveredSystem !== nextHoveredSystem || _hoveredGalaxyId !== nextHoveredGalaxy;
+    stateRef.hoveredSystem = nextHoveredSystem;
+    _hoveredGalaxyId = nextHoveredGalaxy;
+
+    if (changed) {
       refreshPlanetDetail(stateRef);
     }
   };
   window._mapClickCallback = function(systemId) {
     const sys = findSystem(systemId);
     if (!sys) return;
+    _hoveredGalaxyId = null;
 
     if (_selectedPlanetDetailSystem !== systemId) {
       _setSelectedPlanetDetail(systemId);
@@ -621,21 +714,11 @@ export function init3DCallbacks(stateRef, onTravel, onGalaxyJump) {
     _clearSelectedPlanetDetail(true);
   };
   window._galaxyClickCallback = function(galaxyId) {
-    const gal = findGalaxy(galaxyId);
-    if (gal) {
-      const unlocked = gal.unlocked ||
-        (stateRef.researchedTechs && stateRef.researchedTechs.includes(gal.techRequired));
-      if (unlocked) {
-        _clearSelectedPlanetDetail(false);
-        stateRef.viewingGalaxy = gal.id;
-        stateRef.mapView = 'planets';
-        _updateGalaxyBtn(stateRef);
-        refreshPlanetDetail(stateRef);
-      }
-    }
+    _switchToGalaxy(galaxyId);
   };
   window._switchToGalaxyView = function() {
     _clearSelectedPlanetDetail(false);
+    _hoveredGalaxyId = null;
     stateRef.mapView = 'galaxies';
     _updateGalaxyBtn(stateRef);
     refreshPlanetDetail(stateRef);
@@ -1192,6 +1275,110 @@ function _buildExplorationSection(stateRef, sys, planetData, isCurrentSystem, is
   '</div>';
 }
 
+function _buildGalaxyHubCard(stateRef, galaxy, focusGalaxyId) {
+  var playerLevel = stateRef.playerLevel || 1;
+  var accessState = getGalaxyAccessState(galaxy.id, playerLevel, stateRef.researchedTechs || []);
+  var allSystems = getSystemsByGalaxy(galaxy.id);
+  var accessibleSystems = getAccessibleSystems(galaxy.id, playerLevel, stateRef.researchedTechs || []);
+  var visitedGalaxies = stateRef.visitedGalaxies && stateRef.visitedGalaxies.length > 0
+    ? stateRef.visitedGalaxies
+    : [stateRef.currentGalaxy];
+  var isVisited = visitedGalaxies.indexOf(galaxy.id) !== -1;
+  var isCurrentGalaxy = galaxy.id === stateRef.currentGalaxy;
+  var isFocusGalaxy = focusGalaxyId === galaxy.id;
+  var cardClass = 'galaxy-switcher-card';
+  if (!accessState.unlocked) cardClass += ' galaxy-switcher-card--locked';
+  if (isCurrentGalaxy) cardClass += ' galaxy-switcher-card--current';
+  if (isFocusGalaxy) cardClass += ' galaxy-switcher-card--focus';
+
+  var chipRow = [
+    accessState.unlocked
+      ? _buildPlanetDetailChip(isCurrentGalaxy ? '当前星系' : '已开放', isCurrentGalaxy ? 'accent' : 'stable')
+      : _buildPlanetDetailChip('Lv.' + accessState.requiredLevel + ' 开放', 'warning'),
+    _buildPlanetDetailChip(isVisited ? '已访问' : '未访问', 'muted'),
+  ].join('');
+
+  var note = accessState.unlocked
+    ? (accessState.unlockedBy === 'tech' && playerLevel < accessState.requiredLevel
+      ? '已通过超空间跃迁提前开放，可直接查看与跃迁。'
+      : (isCurrentGalaxy ? '当前航线已驻留此星系，可返回本地星图继续移动。' : '已开放，可直接查看星图并挑选目标星球跃迁。'))
+    : (accessState.techRequired
+      ? ('达到 Lv.' + accessState.requiredLevel + ' 或研究超空间跃迁后即可开放。')
+      : ('达到 Lv.' + accessState.requiredLevel + ' 后即可开放。'));
+  var tradeProfileRows = _buildGalaxyTradeProfileRows(galaxy);
+
+  var disabledAttr = accessState.unlocked ? '' : ' disabled aria-disabled="true"';
+  var buttonLabel = accessState.unlocked
+    ? (isCurrentGalaxy ? '查看当前星系' : '进入该星系')
+    : ('Lv.' + accessState.requiredLevel + ' 开放');
+
+  return '<div class="' + cardClass + '">' +
+    '<div class="galaxy-switcher-card-head">' +
+      '<div class="galaxy-switcher-card-title">' + _escapeHtml(galaxy.icon + ' ' + galaxy.name) + '</div>' +
+      '<div class="galaxy-switcher-card-meta">可探索 ' + accessibleSystems.length + ' / ' + allSystems.length + '</div>' +
+    '</div>' +
+    '<div class="planet-detail-chip-row">' + chipRow + '</div>' +
+    '<div class="planet-detail-desc galaxy-switcher-desc">' + _escapeHtml(galaxy.description || '') + '</div>' +
+    tradeProfileRows +
+    '<div class="planet-detail-note galaxy-switcher-note">' + _escapeHtml(note) + '</div>' +
+    '<div class="planet-detail-actions galaxy-switcher-actions">' +
+      '<button class="planet-detail-action" data-galaxy-action="open" data-galaxy-id="' + _escapeHtmlAttr(galaxy.id) + '"' + disabledAttr + '>' + _escapeHtml(buttonLabel) + '</button>' +
+    '</div>' +
+  '</div>';
+}
+
+function _buildGalaxyHubPanel(stateRef) {
+  var playerLevel = stateRef.playerLevel || 1;
+  var currentGalaxy = findGalaxy(stateRef.currentGalaxy || 'milky_way') || GALAXIES[0];
+  var focusGalaxy = findGalaxy(_hoveredGalaxyId || stateRef.currentGalaxy || 'milky_way') || currentGalaxy;
+  var focusAccess = getGalaxyAccessState(focusGalaxy.id, playerLevel, stateRef.researchedTechs || []);
+  var accessibleGalaxies = getAccessibleGalaxies(playerLevel, stateRef.researchedTechs || []);
+  var galaxyList = GALAXIES.slice().sort(function (left, right) {
+    var leftLevel = left.minLevel || 1;
+    var rightLevel = right.minLevel || 1;
+    if (leftLevel !== rightLevel) return leftLevel - rightLevel;
+    return left.name.localeCompare(right.name, 'zh-CN');
+  });
+  var visitedGalaxies = stateRef.visitedGalaxies && stateRef.visitedGalaxies.length > 0
+    ? stateRef.visitedGalaxies
+    : [stateRef.currentGalaxy];
+  var focusSystems = getSystemsByGalaxy(focusGalaxy.id);
+  var focusAccessibleSystems = getAccessibleSystems(focusGalaxy.id, playerLevel, stateRef.researchedTechs || []);
+  var focusUnlockText = focusAccess.unlocked
+    ? (focusAccess.unlockedBy === 'tech' && playerLevel < focusAccess.requiredLevel ? '科技提前开放' : '已开放')
+    : ('Lv.' + focusAccess.requiredLevel + ' 开放');
+
+  return '<div class="planet-detail-hero planet-detail-wide">' +
+      '<div class="planet-detail-title">🌌 星系航标 · ' + _escapeHtml(focusGalaxy.icon + ' ' + focusGalaxy.name) + '</div>' +
+      '<div class="planet-detail-chip-row">' +
+        _buildPlanetDetailChip('Lv.' + playerLevel, 'accent') +
+        _buildPlanetDetailChip('已开放 ' + accessibleGalaxies.length + ' / ' + GALAXIES.length, 'stable') +
+        _buildPlanetDetailChip('已访问 ' + visitedGalaxies.length + ' 个', 'muted') +
+        _buildPlanetDetailChip(focusUnlockText, focusAccess.unlocked ? 'stable' : 'warning') +
+      '</div>' +
+      '<div class="planet-detail-desc">' + _escapeHtml(focusGalaxy.description || '') + '</div>' +
+      '<div class="planet-detail-key-grid">' +
+        _buildPlanetDetailKeyCard('当前驻留', currentGalaxy.icon + ' ' + currentGalaxy.name) +
+        _buildPlanetDetailKeyCard('焦点星系', focusGalaxy.icon + ' ' + focusGalaxy.name) +
+        _buildPlanetDetailKeyCard('可探索星球', focusAccessibleSystems.length + ' / ' + focusSystems.length) +
+        _buildPlanetDetailKeyCard('切换方式', '点击星云或使用目录按钮进入', { wide: true }) +
+        _buildPlanetDetailKeyCard('套利线索', _buildGalaxyTradeProfileSummary(focusGalaxy), { wide: true }) +
+      '</div>' +
+      '<div class="planet-detail-note planet-detail-note--hint">点击星系总览里的星云模型，或直接使用下方目录按钮，即可切换到已开放的新星系。</div>' +
+    '</div>' +
+    '<div class="planet-detail-section planet-detail-wide">' +
+      '<div class="planet-detail-section-head">' +
+        '<div class="planet-detail-section-title">星系跃迁目录</div>' +
+        _buildPlanetDetailChip(_hoveredGalaxyId ? '悬停焦点' : '当前导航', 'muted') +
+      '</div>' +
+      '<div class="galaxy-switcher-list">' +
+          galaxyList.map(function (galaxy) {
+          return _buildGalaxyHubCard(stateRef, galaxy, focusGalaxy.id);
+        }).join('') +
+      '</div>' +
+    '</div>';
+}
+
 function _renderCurrentSystemExplorationCard(stateRef) {
   var card = document.getElementById('current-system-exploration-card');
   if (!card) return;
@@ -1263,11 +1450,30 @@ export function refreshPlanetDetail(stateRef) {
   _updateOrbitScanButton(stateRef);
   _renderCurrentSystemExplorationCard(stateRef);
 
+  if (stateRef.mapView === 'galaxies') {
+    if (_selectedPlanetDetailSystem) {
+      _clearSelectedPlanetDetail(false);
+    }
+
+    panel.classList.remove('planet-detail-panel--summary', 'planet-detail-panel--pinned');
+    panel.classList.add('planet-detail-panel--galaxy-hub');
+    panel.innerHTML = _buildGalaxyHubPanel(stateRef);
+    panel.classList.add('visible');
+
+    const canvasW = mapContainer.clientWidth;
+    const panelW = Math.min(360, Math.max(260, canvasW - 16));
+    panel.style.width = panelW + 'px';
+    panel.style.left = Math.max(8, canvasW - panelW - 12) + 'px';
+    panel.style.top = '12px';
+    return;
+  }
+
   const displayId = _getPlanetDetailDisplayId(stateRef);
   if (stateRef.mapView !== 'planets' || !displayId) {
     if (stateRef.mapView !== 'planets' && _selectedPlanetDetailSystem) {
       _clearSelectedPlanetDetail(false);
     }
+    panel.classList.remove('planet-detail-panel--galaxy-hub');
     panel.classList.remove('visible');
     return;
   }
@@ -1336,6 +1542,7 @@ export function refreshPlanetDetail(stateRef) {
     lockText: lockText,
   });
 
+  panel.classList.remove('planet-detail-panel--galaxy-hub');
   panel.classList.toggle('planet-detail-panel--pinned', isPinned);
   panel.classList.toggle('planet-detail-panel--summary', !isPinned);
 

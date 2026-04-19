@@ -199,6 +199,10 @@
   gap: 4px 12px;
 }
 
+.planet-detail-panel--galaxy-hub {
+  gap: 8px 12px;
+}
+
 .planet-detail-hero {
   display: flex;
   flex-direction: column;
@@ -401,6 +405,67 @@
   border-radius: 10px;
   border: 1px dashed rgba(125, 211, 252, 0.18);
   background: rgba(14, 165, 233, 0.08);
+}
+
+.galaxy-switcher-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.galaxy-switcher-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(125, 211, 252, 0.14);
+  background: rgba(8, 18, 38, 0.72);
+}
+
+.galaxy-switcher-card--focus {
+  border-color: rgba(125, 211, 252, 0.3);
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.14);
+}
+
+.galaxy-switcher-card--current {
+  background: linear-gradient(180deg, rgba(14, 165, 233, 0.14), rgba(8, 18, 38, 0.82));
+}
+
+.galaxy-switcher-card--locked {
+  border-color: rgba(250, 204, 21, 0.18);
+  background: rgba(32, 24, 12, 0.6);
+}
+
+.galaxy-switcher-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.galaxy-switcher-card-title {
+  color: var(--text-primary);
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.galaxy-switcher-card-meta {
+  color: var(--text-dim);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.galaxy-switcher-desc {
+  -webkit-line-clamp: 3;
+}
+
+.galaxy-switcher-note {
+  font-size: 10px;
+}
+
+.galaxy-switcher-actions {
+  justify-content: flex-start;
 }
 .planet-detail-subsection {
   display: flex;

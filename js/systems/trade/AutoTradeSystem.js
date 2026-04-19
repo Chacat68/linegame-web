@@ -3,7 +3,7 @@
 // 导出：findBestTrade, findBestSellSystem, findQuestRoute
 
 import { GOODS }   from '../../data/goods.js';
-import { SYSTEMS, getSystemsByGalaxy } from '../../data/systems.js';
+import { SYSTEMS, getSystemsByGalaxy, getAccessibleGalaxies, findGalaxy } from '../../data/systems.js?v=20260420-balance5';
 import { TECHNOLOGIES, TECH_CATEGORIES } from '../../data/technologies.js';
 import * as Economy from '../economy/Economy.js';
 import * as Faction from '../faction/FactionSystem.js';
@@ -169,8 +169,113 @@ function _getSystemById(systemId) {
   return SYSTEMS.find(function (system) { return system.id === systemId; }) || null;
 }
 
-function _buildDispatchStrategySummary(dispatchProfile, routeFit, fallbackNote) {
-  var reasons = routeFit && Array.isArray(routeFit.reasons) ? routeFit.reasons : [];
+function _getTradeCandidateSystems(state, options) {
+  options = options || {};
+
+  var allowedSystemIds = Array.isArray(options.systemIds) && options.systemIds.length > 0
+    ? Array.from(new Set(options.systemIds))
+    : null;
+  var playerLevel = options.playerLevel || state.playerLevel || 1;
+  var currentGalaxy = options.currentGalaxy || state.currentGalaxy || 'milky_way';
+  var researchedTechs = Array.isArray(options.researchedTechs)
+    ? options.researchedTechs
+    : (state.researchedTechs || []);
+
+  if (allowedSystemIds) {
+    return allowedSystemIds.map(function (id) {
+      return _getSystemById(id);
+    }).filter(function (system) {
+      return !!system && playerLevel >= (system.minLevel || 1);
+    });
+  }
+
+  if (!options.allowCrossGalaxy) {
+    return getSystemsByGalaxy(currentGalaxy).filter(function (system) {
+      return playerLevel >= (system.minLevel || 1);
+    });
+  }
+
+  var accessibleGalaxyIds = getAccessibleGalaxies(playerLevel, researchedTechs).map(function (galaxy) {
+    return galaxy.id;
+  });
+
+  return SYSTEMS.filter(function (system) {
+    return accessibleGalaxyIds.indexOf(system.galaxyId) !== -1
+      && playerLevel >= (system.minLevel || 1);
+  });
+}
+
+function _getGalaxyTradeProfile(galaxyId) {
+  var galaxy = findGalaxy(galaxyId);
+  return galaxy && galaxy.tradeProfile ? galaxy.tradeProfile : null;
+}
+
+function _scoreTradeThemeRoute(good, buySystem, sellSystem) {
+  if (!good || !buySystem || !sellSystem) {
+    return {
+      score: 0,
+      reasons: [],
+      summary: '',
+      routeModeLabel: '星系内中转',
+      isCrossGalaxy: false,
+      buyGalaxyName: buySystem && buySystem.galaxyId ? ((findGalaxy(buySystem.galaxyId) || {}).name || buySystem.galaxyId) : '',
+      sellGalaxyName: sellSystem && sellSystem.galaxyId ? ((findGalaxy(sellSystem.galaxyId) || {}).name || sellSystem.galaxyId) : '',
+    };
+  }
+
+  var buyGalaxy = findGalaxy(buySystem.galaxyId);
+  var sellGalaxy = findGalaxy(sellSystem.galaxyId);
+  var buyProfile = _getGalaxyTradeProfile(buySystem.galaxyId);
+  var sellProfile = _getGalaxyTradeProfile(sellSystem.galaxyId);
+  var isCrossGalaxy = buySystem.galaxyId !== sellSystem.galaxyId;
+  var reasons = [];
+  var summaryParts = [];
+  var score = 0;
+
+  if (buyProfile && Array.isArray(buyProfile.exports) && buyProfile.exports.indexOf(good.id) !== -1) {
+    score += isCrossGalaxy ? 90 : 55;
+    reasons.push('顺着' + (buyGalaxy ? buyGalaxy.name : '买入地') + '主供');
+    summaryParts.push((buyGalaxy ? buyGalaxy.name : '买入地') + '主供' + good.name);
+  }
+
+  if (sellProfile && Array.isArray(sellProfile.imports) && sellProfile.imports.indexOf(good.id) !== -1) {
+    score += isCrossGalaxy ? 110 : 70;
+    reasons.push('命中' + (sellGalaxy ? sellGalaxy.name : '卖出地') + '缺口');
+    summaryParts.push((sellGalaxy ? sellGalaxy.name : '卖出地') + '高价收' + good.name);
+  }
+
+  if (buyProfile && Array.isArray(buyProfile.imports) && buyProfile.imports.indexOf(good.id) !== -1) {
+    score -= 36;
+  }
+
+  if (sellProfile && Array.isArray(sellProfile.exports) && sellProfile.exports.indexOf(good.id) !== -1) {
+    score -= 36;
+  }
+
+  if (isCrossGalaxy && summaryParts.length >= 2) {
+    score += 58;
+    reasons.push('形成跨星系套利线');
+  }
+
+  return {
+    score: score,
+    reasons: Array.from(new Set(reasons)).slice(0, 2),
+    summary: summaryParts.length > 0 ? summaryParts.join(' → ') : '',
+    routeModeLabel: isCrossGalaxy ? '跨星系套利' : '星系内中转',
+    isCrossGalaxy: isCrossGalaxy,
+    buyGalaxyName: buyGalaxy ? buyGalaxy.name : buySystem.galaxyId,
+    sellGalaxyName: sellGalaxy ? sellGalaxy.name : sellSystem.galaxyId,
+  };
+}
+
+function _buildDispatchStrategySummary(dispatchProfile, routeFit, fallbackNote, extraReasons, prioritizeExtra) {
+  var routeReasons = routeFit && Array.isArray(routeFit.reasons) ? routeFit.reasons : [];
+  var additionalReasons = Array.isArray(extraReasons) ? extraReasons : [];
+  var reasons = prioritizeExtra
+    ? additionalReasons.concat(routeReasons)
+    : routeReasons.concat(additionalReasons);
+
+  reasons = Array.from(new Set(reasons)).slice(0, 2);
   return dispatchProfile.strategyLabel + (reasons.length > 0
     ? '：' + reasons.join('，')
     : (fallbackNote ? '：' + fallbackNote : ''));
@@ -305,9 +410,11 @@ function _scoreQuestRouteCandidate(state, route, dispatchProfile, options) {
     riskAssessment: riskAssessment,
     inspectionRisk: inspectionRisk,
   });
+  var themeFit = _scoreTradeThemeRoute(good, buySystem, sellSystem);
   var quantity = Math.max(1, route.quantity || 1);
   var score = (route.priority || 0) * 1000
     + routeFit.score
+    + themeFit.score
     + (route.inCargo ? 160 : 0)
     + (((route.unitRevenue || 0) - (route.unitCost || 0)) * quantity)
     - fuelCredits
@@ -318,10 +425,17 @@ function _scoreQuestRouteCandidate(state, route, dispatchProfile, options) {
     route: Object.assign({}, route, {
       buySystemName: buySystem ? buySystem.name : route.buySystemId,
       sellSystemName: sellSystem ? sellSystem.name : route.sellSystemId,
+      buyGalaxyId: buySystem ? buySystem.galaxyId : null,
+      buyGalaxyName: themeFit.buyGalaxyName,
+      sellGalaxyId: sellSystem ? sellSystem.galaxyId : null,
+      sellGalaxyName: themeFit.sellGalaxyName,
       goodName: good ? good.name : route.goodId,
       strategyLabel: dispatchProfile.strategyLabel,
-      strategySummary: _buildDispatchStrategySummary(dispatchProfile, routeFit, dispatchProfile.strategyNote),
+      strategySummary: _buildDispatchStrategySummary(dispatchProfile, routeFit, dispatchProfile.strategyNote, themeFit.reasons, true),
       routeFitScore: routeFit.score,
+      themeScore: themeFit.score,
+      tradeThemeSummary: themeFit.summary,
+      routeModeLabel: themeFit.routeModeLabel,
       dispatchProfile: dispatchProfile,
       riskLevel: riskAssessment.riskLevel,
       inspectionRisk: inspectionRisk,
@@ -475,13 +589,13 @@ export function findBestDispatchRoute(state, options, tradePolicy) {
 
   if (!currentSystem || cargoFree <= 0 || credits <= 0) return null;
 
-  var systems = allowedSystemIds
-    ? allowedSystemIds.map(function (id) {
-        return SYSTEMS.find(function (sys) { return sys.id === id; });
-      }).filter(Boolean)
-    : getSystemsByGalaxy(currentGalaxy).filter(function (sys) {
-        return playerLevel >= (sys.minLevel || 1);
-      });
+  var systems = _getTradeCandidateSystems(state, {
+    systemIds: allowedSystemIds,
+    currentGalaxy: currentGalaxy,
+    playerLevel: playerLevel,
+    researchedTechs: state.researchedTechs || [],
+    allowCrossGalaxy: !!options.allowCrossGalaxy,
+  });
 
   if (systems.length < 2) return null;
 
@@ -529,7 +643,8 @@ export function findBestDispatchRoute(state, options, tradePolicy) {
           riskAssessment: riskAssessment,
           inspectionRisk: inspectionRisk,
         });
-        var totalScore = riskAdjusted.adjustedProfit + routeFit.score;
+        var themeFit = _scoreTradeThemeRoute(good, buySys, sellSys);
+        var totalScore = riskAdjusted.adjustedProfit + routeFit.score + themeFit.score;
 
         if (!riskAdjusted.allowed) return;
 
@@ -539,6 +654,10 @@ export function findBestDispatchRoute(state, options, tradePolicy) {
             buySystemName: buySys.name,
             sellSystemId: sellSys.id,
             sellSystemName: sellSys.name,
+            buyGalaxyId: buySys.galaxyId,
+            buyGalaxyName: themeFit.buyGalaxyName,
+            sellGalaxyId: sellSys.galaxyId,
+            sellGalaxyName: themeFit.sellGalaxyName,
             goodId: good.id,
             goodName: good.name,
             quantity: canBuy,
@@ -556,8 +675,11 @@ export function findBestDispatchRoute(state, options, tradePolicy) {
             inspectionRisk: inspectionRisk,
             marketMode: normalizedPolicy.marketMode,
             strategyLabel: dispatchProfile.strategyLabel,
-            strategySummary: dispatchProfile.strategyLabel + (routeFit.reasons.length > 0 ? '：' + routeFit.reasons.join('，') : ''),
+            strategySummary: _buildDispatchStrategySummary(dispatchProfile, routeFit, dispatchProfile.strategyNote, themeFit.reasons, true),
             routeFitScore: routeFit.score,
+            themeScore: themeFit.score,
+            tradeThemeSummary: themeFit.summary,
+            routeModeLabel: themeFit.routeModeLabel,
             dispatchProfile: dispatchProfile,
           };
         }
@@ -695,11 +817,15 @@ export function findQuestRoute(state, options) {
   var cargo         = options.cargo || state.cargo || {};
   var dispatchProfile = _normalizeDispatchProfile(options.dispatchProfile);
   var fuelUnitPrice = Economy.getBuyPrice(currentSystem, 'fuel', state);
-  var galaxySystems = getSystemsByGalaxy(currentGalaxy).filter(function (sys) {
-    return playerLevel >= (sys.minLevel || 1);
+  var candidateSystems = _getTradeCandidateSystems(state, {
+    systemIds: options.systemIds,
+    currentGalaxy: currentGalaxy,
+    playerLevel: playerLevel,
+    researchedTechs: state.researchedTechs || [],
+    allowCrossGalaxy: options.allowCrossGalaxy !== false,
   });
 
-  if (galaxySystems.length < 2) return null;
+  if (candidateSystems.length < 2) return null;
 
   var bestRoute = null;
   var bestScore = -Infinity;
@@ -714,7 +840,7 @@ export function findQuestRoute(state, options) {
       if (obj.type !== 'deliver' && obj.type !== 'sell_at' && obj.type !== 'buy_at') return;
 
       // 检查目标星球是否在当前星系内且已解锁
-      var targetAccessible = galaxySystems.some(function (s) { return s.id === obj.targetSystem; });
+      var targetAccessible = candidateSystems.some(function (s) { return s.id === obj.targetSystem; });
       if (!targetAccessible) return;
 
       // 计算优先级：有时间限制的任务更紧急
@@ -746,7 +872,7 @@ export function findQuestRoute(state, options) {
           };
         } else {
           // 需要先买货物：在价格、航程和分工偏好之间找最优来源
-          galaxySystems.forEach(function (sys) {
+          candidateSystems.forEach(function (sys) {
             if (sys.id === obj.targetSystem) return; // 不在目标星球买
             var price = Economy.getBuyPrice(sys.id, obj.goodId, state);
             if (price <= 0) return;
@@ -779,7 +905,7 @@ export function findQuestRoute(state, options) {
         var buyPriceAtTarget = Economy.getBuyPrice(obj.targetSystem, obj.goodId, state);
         if (buyPriceAtTarget <= 0) return;
 
-        galaxySystems.forEach(function (sys) {
+        candidateSystems.forEach(function (sys) {
           if (sys.id === obj.targetSystem) return;
           var price = Economy.getSellPrice(sys.id, obj.goodId, state);
           if (price <= 0) return;
@@ -844,11 +970,21 @@ export function findResearchSupplyRoute(state, options) {
   var credits = Number.isFinite(options.credits) ? options.credits : state.credits;
   var dispatchProfile = _normalizeDispatchProfile(options.dispatchProfile);
   var recommendedRiskMode = focusConfig.riskMode || dispatchProfile.preferredRiskMode || 'balanced';
-  var galaxySystems = getSystemsByGalaxy(currentGalaxy).filter(function (sys) {
-    return playerLevel >= (sys.minLevel || 1);
+  var tradeSystems = _getTradeCandidateSystems(state, {
+    systemIds: options.systemIds,
+    currentGalaxy: currentGalaxy,
+    playerLevel: playerLevel,
+    researchedTechs: state.researchedTechs || [],
+    allowCrossGalaxy: options.allowCrossGalaxy !== false,
+  });
+  var buySystems = tradeSystems.filter(function (system) {
+    return ((focusConfig.buySystemScores && focusConfig.buySystemScores[system.type]) || 0) > 0;
+  });
+  var sellSystems = tradeSystems.filter(function (system) {
+    return ((focusConfig.sellSystemScores && focusConfig.sellSystemScores[system.type]) || 0) > 0;
   });
 
-  if (cargoFree <= 0 || credits <= 0 || galaxySystems.length < 2) return null;
+  if (cargoFree <= 0 || credits <= 0 || buySystems.length === 0 || sellSystems.length === 0) return null;
 
   var fuelUnitPrice = Economy.getBuyPrice(currentSystem, 'fuel', state);
   var best = null;
@@ -857,7 +993,7 @@ export function findResearchSupplyRoute(state, options) {
     var goodFocusScore = (focusConfig.goodScores && focusConfig.goodScores[good.id]) || 0;
     if (goodFocusScore <= 0 || good.id === 'fuel' || !isGoodAllowedInMarket(good, 'open')) return;
 
-    galaxySystems.forEach(function (buySys) {
+    buySystems.forEach(function (buySys) {
       var buyTypeScore = (focusConfig.buySystemScores && focusConfig.buySystemScores[buySys.type]) || 0;
       var buyPrice = Economy.getBuyPrice(buySys.id, good.id, state);
       if (buyPrice <= 0) return;
@@ -865,7 +1001,7 @@ export function findResearchSupplyRoute(state, options) {
       var canBuy = Math.min(cargoFree, Math.floor(credits / buyPrice));
       if (canBuy <= 0) return;
 
-      galaxySystems.forEach(function (sellSys) {
+      sellSystems.forEach(function (sellSys) {
         if (sellSys.id === buySys.id) return;
 
         var sellTypeScore = (focusConfig.sellSystemScores && focusConfig.sellSystemScores[sellSys.type]) || 0;
@@ -895,8 +1031,9 @@ export function findResearchSupplyRoute(state, options) {
           riskAssessment: riskAssessment,
           inspectionRisk: inspectionRisk,
         });
+        var themeFit = _scoreTradeThemeRoute(good, buySys, sellSys);
         var focusScore = goodFocusScore + buyTypeScore + sellTypeScore;
-        var totalScore = riskAdjusted.adjustedProfit + routeFit.score + focusScore;
+        var totalScore = riskAdjusted.adjustedProfit + routeFit.score + focusScore + themeFit.score;
 
         if (!riskAdjusted.allowed) return;
 
@@ -906,6 +1043,10 @@ export function findResearchSupplyRoute(state, options) {
             buySystemName: buySys.name,
             sellSystemId: sellSys.id,
             sellSystemName: sellSys.name,
+            buyGalaxyId: buySys.galaxyId,
+            buyGalaxyName: themeFit.buyGalaxyName,
+            sellGalaxyId: sellSys.galaxyId,
+            sellGalaxyName: themeFit.sellGalaxyName,
             goodId: good.id,
             goodName: good.name,
             goodEmoji: good.emoji,
@@ -919,9 +1060,12 @@ export function findResearchSupplyRoute(state, options) {
             riskLevel: riskAssessment.riskLevel,
             inspectionRisk: inspectionRisk,
             routeFitScore: routeFit.score,
+            themeScore: themeFit.score,
+            tradeThemeSummary: themeFit.summary,
+            routeModeLabel: themeFit.routeModeLabel,
             focusScore: focusScore,
             strategyLabel: dispatchProfile.strategyLabel,
-            strategySummary: _buildDispatchStrategySummary(dispatchProfile, routeFit, focusConfig.summary),
+            strategySummary: _buildDispatchStrategySummary(dispatchProfile, routeFit, focusConfig.summary, themeFit.reasons, true),
             dispatchProfile: dispatchProfile,
             focusTypeLabel: focus.sourceLabel,
             focusCategoryId: focus.categoryId,

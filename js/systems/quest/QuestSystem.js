@@ -9,7 +9,7 @@ import { QUESTS, QUEST_TYPES, QUEST_PHASES } from '../../data/quests.js';
 import { FACTIONS }            from '../../data/factions.js';
 import { ECONOMY_CONFIG }      from '../../data/constants.js';
 import { getLevel }            from '../../data/playerLevels.js';
-import { SYSTEMS, GALAXY_JUMP_DAYS, findSystem, findGalaxy } from '../../data/systems.js';
+import { SYSTEMS, GALAXY_JUMP_DAYS, findSystem, findGalaxy, getGalaxyAccessState } from '../../data/systems.js?v=20260420-balance3';
 import * as Economy            from '../economy/Economy.js';
 import * as Faction            from '../faction/FactionSystem.js';
 import * as Exploration        from '../galaxy/ExplorationSystem.js';
@@ -747,7 +747,7 @@ function _getRouteAvailabilityScore(state, currentSystem, targetSystem) {
 
   var playerLevel = state.playerLevel || 1;
   if (playerLevel < (targetSystem.minLevel || 1)) return 3;
-  if (currentSystem.galaxyId !== targetSystem.galaxyId && !_hasTech(state, 'hyperspace_jump')) return 2;
+  if (currentSystem.galaxyId !== targetSystem.galaxyId && !getGalaxyAccessState(targetSystem.galaxyId, playerLevel, state.researchedTechs).unlocked) return 2;
 
   var fuelCost = Economy.getFuelCost(currentSystem.id, targetSystem.id, state.fuelEfficiency || 1, state);
   if ((state.fuel || 0) < fuelCost) return 1;
@@ -799,18 +799,18 @@ function _getQuestRoutePreviewSummary(items) {
   }).length;
 
   if (items.length === 1 && items[0].isCurrentSystem) {
-    return '按当前停靠点、燃料与科技测算：这项任务不需要额外跑图，接取后即可开始推进。';
+    return '按当前停靠点、燃料与解锁条件测算：这项任务不需要额外跑图，接取后即可开始推进。';
   }
 
   if (blockedCount > 0) {
-    return '按当前停靠点、燃料与科技测算：部分航点暂不可直达，先补足条件再接会更稳。';
+    return '按当前停靠点、燃料与解锁条件测算：部分航点暂不可直达，先补足条件再接会更稳。';
   }
 
   if (items.length === 1) {
-    return '按当前停靠点、燃料与科技测算：接取后可直接执行这条航线。';
+    return '按当前停靠点、燃料与解锁条件测算：接取后可直接执行这条航线。';
   }
 
-  return '按当前停靠点、燃料与科技测算：已将关键航点按可执行顺序列出，适合提前规划顺路航程。';
+  return '按当前停靠点、燃料与解锁条件测算：已将关键航点按可执行顺序列出，适合提前规划顺路航程。';
 }
 
 function _getRouteBlockedReason(state, currentSystem, targetSystem, fuelCost) {
@@ -821,8 +821,16 @@ function _getRouteBlockedReason(state, currentSystem, targetSystem, fuelCost) {
     return '需要达到 Lv.' + (targetSystem.minLevel || 1) + ' 才能前往。';
   }
 
-  if (currentSystem.galaxyId !== targetSystem.galaxyId && !_hasTech(state, 'hyperspace_jump')) {
-    return '尚未研究超空间跃迁引擎，当前无法跨星系前往。';
+  if (currentSystem.galaxyId !== targetSystem.galaxyId) {
+    var galaxyAccess = getGalaxyAccessState(targetSystem.galaxyId, playerLevel, state.researchedTechs);
+    if (!galaxyAccess.unlocked) {
+      var galaxyName = galaxyAccess.galaxy ? galaxyAccess.galaxy.name : (targetSystem.galaxyId || '目标星系');
+      var blockerMessage = galaxyName + ' 需达到 Lv.' + galaxyAccess.requiredLevel + ' 才会开放。';
+      if (galaxyAccess.techRequired) {
+        blockerMessage += ' 研究超空间跃迁也可提前解锁。';
+      }
+      return blockerMessage;
+    }
   }
 
   if ((state.fuel || 0) < fuelCost) {

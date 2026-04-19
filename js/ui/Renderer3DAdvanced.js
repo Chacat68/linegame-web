@@ -24,7 +24,7 @@
 import * as GalaxyData from '../systems/galaxy/GalaxyDataLayer.js';
 import * as RouteModel from '../systems/route/RouteSystem.js';
 import { FACTIONS } from '../data/factions.js';
-import { GALAXIES, getSystemsByGalaxy, findSystem, isSystemAccessible } from '../data/systems.js';
+import { GALAXIES, getSystemsByGalaxy, findSystem, isSystemAccessible, getGalaxyAccessState } from '../data/systems.js?v=20260420-balance3';
 
 // 渲染上下文
 let _engine, _scene, _camera, _canvas;
@@ -584,8 +584,8 @@ function _renderGalaxies(state) {
     const z = (galaxy.gy - 0.5) * 200;
     const y = Math.sin(galaxy.gx * 3.14) * 15;
 
-    const isUnlocked = galaxy.unlocked ||
-      (state.researchedTechs && state.researchedTechs.includes(galaxy.techRequired));
+    const accessState = getGalaxyAccessState(galaxy.id, state.playerLevel || 1, state.researchedTechs || []);
+    const isUnlocked = accessState.unlocked;
     const baseOpacity = isUnlocked ? 1.0 : 0.3;
 
     // Deterministic seed from galaxy id
@@ -598,7 +598,7 @@ function _renderGalaxies(state) {
 
     const parent = new BABYLON.TransformNode('galaxy_' + galaxy.id, _scene);
     parent.position = new BABYLON.Vector3(x, y, z);
-    parent.metadata = { type: 'galaxy', id: galaxy.id, data: galaxy };
+    parent.metadata = { type: 'galaxy', id: galaxy.id, data: Object.assign({}, galaxy, { accessState: accessState }) };
 
     const galaxySize = 18 + rng(0) * 10;
 
@@ -618,7 +618,7 @@ function _renderGalaxies(state) {
     diskMat.useAlphaFromDiffuseTexture = true;
     diskPlane.material = diskMat;
     diskPlane.isPickable = true;
-    diskPlane.metadata = { type: 'galaxy', id: galaxy.id, data: galaxy };
+    diskPlane.metadata = { type: 'galaxy', id: galaxy.id, data: Object.assign({}, galaxy, { accessState: accessState }) };
 
     // 2) Second nebula layer
     const disk2Tex = _createNebulaTexture(galaxy.color || '#4FC3F7', seed + 777, 256);
@@ -669,6 +669,9 @@ function _renderGalaxies(state) {
 
     // Text label
     _addTextLabel(galaxy.name, new BABYLON.Vector3(x, y + galaxySize + 3, z), 10);
+    if (!isUnlocked) {
+      _addTextLabel('Lv.' + accessState.requiredLevel + ' 开放', new BABYLON.Vector3(x, y + galaxySize + 0.2, z), 11);
+    }
   });
 }
 
@@ -716,6 +719,14 @@ function _renderPlanetsInstanced(planets, state) {
 
     // Name label below the planet
     const label = _createPlanetLabel(planet.name, position, finalSize);
+    const isUnlocked = isSystemAccessible(planet.id, state.playerLevel || 1, state.researchedTechs || []);
+    if (!isUnlocked) {
+      mat.alpha = 0.42;
+      mat.emissiveColor = color.scale(0.55);
+      if (label && label.material) {
+        label.material.alpha = 0.55;
+      }
+    }
 
     _planetMetadata.push({
       id: planet.id,
@@ -2509,7 +2520,8 @@ function _onPointerMove(event) {
       // Walk up to find metadata with type='galaxy'
       while (mesh) {
         if (mesh.metadata && mesh.metadata.type === 'galaxy') {
-          _canvas.style.cursor = 'pointer';
+          const accessState = mesh.metadata.data && mesh.metadata.data.accessState;
+          _canvas.style.cursor = accessState && accessState.unlocked === false ? 'not-allowed' : 'pointer';
           if (window._mapHoverCallback) {
             window._mapHoverCallback({ type: 'galaxy', id: mesh.metadata.id, ...mesh.metadata.data });
           }
@@ -2556,6 +2568,10 @@ function _onClick(event) {
       let mesh = pickResult.pickedMesh;
       while (mesh) {
         if (mesh.metadata && mesh.metadata.type === 'galaxy') {
+          const accessState = mesh.metadata.data && mesh.metadata.data.accessState;
+          if (accessState && accessState.unlocked === false) {
+            return;
+          }
           if (window._galaxyClickCallback) {
             window._galaxyClickCallback(mesh.metadata.id);
           }

@@ -7,8 +7,8 @@
 
 import * as PlayerLevels from '../../data/playerLevels.js';
 import { FACTION_CONFIG, PROGRESSION_CONFIG } from '../../data/constants.js';
-import { SYSTEMS } from '../../data/systems.js';
-import * as Fleet from '../fleet/FleetSystem.js?v=20260418-questblocker1';
+import { SYSTEMS, GALAXIES } from '../../data/systems.js?v=20260420-balance3';
+import * as Fleet from '../fleet/FleetSystem.js?v=20260420-balance5';
 
 const getLevel = PlayerLevels.getLevel;
 const getCompanyLevel = PlayerLevels.getCompanyLevel || function () {
@@ -177,5 +177,19 @@ export function announceNewRoutes(state, oldLvl, newLvl) {
       type: 'info',
     });
   }
+
+  const newGalaxies = GALAXIES.filter(function (galaxy) {
+    const requiredLevel = galaxy.minLevel || 1;
+    return !galaxy.unlocked && requiredLevel > oldLvl && requiredLevel <= newLvl;
+  });
+  if (newGalaxies.length > 0) {
+    msgs.push({
+      text: '🌌 新星系开放！现可切换至 ' + newGalaxies.map(function (galaxy) {
+        return galaxy.icon + ' ' + galaxy.name;
+      }).join('、') + '。',
+      type: 'upgrade',
+    });
+  }
+
   return { msgs };
 }

@@ -11,7 +11,7 @@
 //   marketType = 'black' → 使用黑市价格（含违禁品溢价）
 
 import { GOODS }    from '../../data/goods.js';
-import { SYSTEMS, findSystem }  from '../../data/systems.js';
+import { SYSTEMS, findSystem, getGalaxyAccessState }  from '../../data/systems.js?v=20260420-balance3';
 import { UPGRADES } from '../../data/upgrades.js';
 import * as Economy from '../economy/Economy.js';
 import * as Finance from '../finance/FinanceSystem.js';
@@ -307,8 +307,14 @@ export function travelTo(state, systemId) {
   const fromSys = findSystem(state.currentSystem);
   const crossGalaxy = fromSys && toSys && fromSys.galaxyId !== toSys.galaxyId;
   if (crossGalaxy) {
-    if (!state.researchedTechs || !state.researchedTechs.includes('hyperspace_jump')) {
-      return { ok: false, msgs: [{ text: '🔒 需要研究「超空间跃迁引擎」才能进行跨星系旅行！', type: 'error' }] };
+    const galaxyAccess = getGalaxyAccessState(toSys.galaxyId, playerLevel, state.researchedTechs);
+    if (!galaxyAccess.unlocked) {
+      const galaxyName = galaxyAccess.galaxy ? galaxyAccess.galaxy.name : '目标星系';
+      let message = '🔒 ' + galaxyName + ' 需 Lv.' + galaxyAccess.requiredLevel + ' 才能跃迁前往！当前等级：' + playerLevel + '。';
+      if (galaxyAccess.techRequired) {
+        message += ' 研究「超空间跃迁引擎」也可提前解锁。';
+      }
+      return { ok: false, msgs: [{ text: message, type: 'error' }] };
     }
   }
 

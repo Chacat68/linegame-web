@@ -6,7 +6,7 @@ import { QUEST_TYPES } from '../data/quests.js';
 import { GOODS } from '../data/goods.js';
 import { findSystem } from '../data/systems.js';
 import { buildMarketFocusAction, MARKET_FOCUS_PRESET_IDS } from './MarketFocus.js?v=20260419-marketcta2';
-import * as AutoTrade  from '../systems/trade/AutoTradeSystem.js?v=20260418-questblocker1';
+import * as AutoTrade  from '../systems/trade/AutoTradeSystem.js?v=20260420-balance5';
 import * as Quest      from '../systems/quest/QuestSystem.js?v=20260412-questroute2';
 
 const _goodNameById = GOODS.reduce(function (acc, good) {
@@ -282,10 +282,11 @@ function _renderQuestDispatchRecommendation(recommendation, canApplyQuestDispatc
     '<div class="quest-dispatch-main">' + _systemName(recommendation.buySystemId) + ' → ' + _systemName(recommendation.sellSystemId) + ' · ' + _goodName(recommendation.goodId) + '</div>' +
     '<div class="quest-dispatch-meta">' +
       '<span>预计燃料 ' + Math.max(0, recommendation.estimatedFuelCost || 0) + '</span>' +
+      '<span>' + (recommendation.routeModeLabel || '星系内中转') + '</span>' +
       '<span>风险 ' + riskLevelLabel + '</span>' +
       '<span>查获 ' + riskLabel + '</span>' +
     '</div>' +
-    '<div class="quest-dispatch-note">' + roleLabel + ' · ' + recommendation.strategySummary + '</div>' +
+    '<div class="quest-dispatch-note">' + roleLabel + ' · ' + recommendation.strategySummary + (recommendation.tradeThemeSummary ? ' · ' + recommendation.tradeThemeSummary : '') + '</div>' +
     (canApplyQuestDispatch
       ? '<div class="quest-dispatch-actions">' +
           '<button class="quest-dispatch-apply-btn">带入机库派遣</button>' +

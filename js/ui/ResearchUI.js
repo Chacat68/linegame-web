@@ -6,9 +6,9 @@ import { TECHNOLOGIES, TECH_CATEGORIES } from '../data/technologies.js';
 import { getSystemsByGalaxy } from '../data/systems.js';
 import { buildMarketFocusAction, MARKET_FOCUS_PRESET_IDS } from './MarketFocus.js?v=20260419-marketcta2';
 import * as Research from '../systems/research/ResearchSystem.js';
-import * as AutoTrade from '../systems/trade/AutoTradeSystem.js?v=20260418-questblocker1';
+import * as AutoTrade from '../systems/trade/AutoTradeSystem.js?v=20260420-balance5';
 import * as Quest from '../systems/quest/QuestSystem.js?v=20260412-questroute2';
-import { getQuestBlockerActions, getPreferredAvailableQuest } from './QuestUI.js?v=20260419-marketcta2';
+import { getQuestBlockerActions, getPreferredAvailableQuest } from './QuestUI.js?v=20260420-balance5';
 
 const RESEARCH_BLOCKER_MARKET_PRESETS = {
   cargo: MARKET_FOCUS_PRESET_IDS.SPOT_TRADE,
@@ -379,9 +379,10 @@ function _renderResearchDispatchRecommendation(recommendation, canApplyResearchD
       '<div class="research-route-meta">' +
         '<span>预计利润 ' + Math.floor(recommendation.profit) + '</span>' +
         '<span>装载 ' + recommendation.quantity + '</span>' +
+        '<span>' + (recommendation.routeModeLabel || '星系内中转') + '</span>' +
         '<span>查获 ' + riskLabel + '</span>' +
       '</div>' +
-      '<div class="research-route-note">' + roleLabel + ' · ' + recommendation.strategySummary + '</div>' +
+      '<div class="research-route-note">' + roleLabel + ' · ' + recommendation.strategySummary + (recommendation.tradeThemeSummary ? ' · ' + recommendation.tradeThemeSummary : '') + '</div>' +
       (canApplyResearchDispatch
         ? '<div class="research-route-actions">' +
             '<button class="research-route-apply-btn">带入机库派遣</button>' +

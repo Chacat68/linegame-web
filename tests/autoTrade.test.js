@@ -441,6 +441,52 @@ describe('AutoTrade.findQuestRoute', () => {
       expect(typeof result.routeFitScore).toBe('number');
     }
   });
+
+  it('跨星系任务会结合星系主题给出套利路线', () => {
+    const state = createTestState({
+      credits: 9000,
+      cargo: {},
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+      playerLevel: 5,
+      researchedTechs: ['hyperspace_jump'],
+      quests: [{
+        id: 'cross_trade_quest',
+        name: '跨星系科技套利',
+        timeLimit: 10,
+        startDay: 1,
+        objectives: [{
+          type: 'deliver',
+          goodId: 'technology',
+          targetSystem: 'golden_palace',
+          amount: 6,
+          current: 0,
+        }],
+      }],
+    });
+
+    const result = AutoTrade.findQuestRoute(state, {
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+      playerLevel: 5,
+      cargo: state.cargo,
+      researchedTechs: state.researchedTechs,
+      fuelEfficiency: 1.0,
+      systemIds: ['sol_prime', 'quantum_lab', 'golden_palace'],
+      allowCrossGalaxy: true,
+    });
+
+    expect(result).not.toBeNull();
+    if (result) {
+      expect(result.questId).toBe('cross_trade_quest');
+      expect(result.buySystemId).toBe('quantum_lab');
+      expect(result.sellSystemId).toBe('golden_palace');
+      expect(result.routeModeLabel).toBe('跨星系套利');
+      expect(result.tradeThemeSummary).toContain('仙女座星系');
+      expect(result.tradeThemeSummary).toContain('麦哲伦星云');
+      expect(result.themeScore).toBeGreaterThan(0);
+    }
+  });
 });
 
 describe('AutoTrade.findResearchSupplyRoute', () => {
@@ -514,5 +560,52 @@ describe('AutoTrade.findResearchSupplyRoute', () => {
     });
 
     expect(result).toBeNull();
+  });
+
+  it('跨星系科研补给会优先命中星系主题供需', () => {
+    const state = createTestState({
+      credits: 12000,
+      maxCargo: 24,
+      cargo: {},
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+      fuelEfficiency: 1.0,
+      playerLevel: 5,
+      researchedTechs: ['hyperspace_jump'],
+      currentResearch: { techId: 'market_analysis', daysLeft: 2 },
+      researchOptions: ['negotiation_ai', 'deep_scanner'],
+    });
+
+    const result = AutoTrade.findResearchSupplyRoute(state, {
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+      fuelEfficiency: 1.0,
+      cargoFree: 24,
+      credits: 12000,
+      playerLevel: 5,
+      researchedTechs: state.researchedTechs,
+      systemIds: ['sol_prime', 'quantum_lab', 'golden_palace'],
+      allowCrossGalaxy: true,
+      dispatchProfile: {
+        roleId: 'logistics',
+        roleLabel: '主力商运',
+        strategyLabel: '稳态商运',
+        strategyNote: '偏好公开市场与高装载收益的稳定货运路线。',
+        openMarketBonus: 82,
+        cargoValueWeight: 1.25,
+        legalTradeBonus: 42,
+        highRiskPenalty: 28,
+        faultPressurePenalty: 20,
+        faultPressure: 0,
+      },
+    });
+
+    expect(result).not.toBeNull();
+    if (result) {
+      expect(result.routeModeLabel).toBe('跨星系套利');
+      expect(result.buyGalaxyId).not.toBe(result.sellGalaxyId);
+      expect(result.tradeThemeSummary).toContain('高价收');
+      expect(result.themeScore).toBeGreaterThan(0);
+    }
   });
 });

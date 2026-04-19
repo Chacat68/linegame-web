@@ -171,13 +171,39 @@ describe('Trade.travelTo', () => {
     expect(state.currentSystem).toBe('sol_prime');
   });
 
-  it('跨星系旅行没有科技时失败', () => {
-    const state = createTestState({ fuel: 1000, maxFuel: 1000 });
+  it('等级不足时跨星系旅行失败', () => {
+    const state = createTestState({ fuel: 1000, maxFuel: 1000, playerLevel: 1 });
     Faction.init(state);
-    // 使用仙女座星系的真实星球 'citadel_prime'
     const result = Trade.travelTo(state, 'citadel_prime');
     expect(result.ok).toBe(false);
-    expect(result.msgs[0].text).toContain('超空间跃迁');
+    expect(result.msgs[0].text).toContain('Lv.2');
+  });
+
+  it('达到星系等级后可直接跨星系旅行', () => {
+    const state = createTestState({ fuel: 1000, maxFuel: 1000, playerLevel: 2 });
+    Faction.init(state);
+
+    const result = Trade.travelTo(state, 'citadel_prime');
+
+    expect(result.ok).toBe(true);
+    expect(state.currentSystem).toBe('citadel_prime');
+    expect(state.currentGalaxy).toBe('andromeda');
+    expect(state.viewingGalaxy).toBe('andromeda');
+  });
+
+  it('研究超空间后可提前跨星系旅行', () => {
+    const state = createTestState({
+      fuel: 1000,
+      maxFuel: 1000,
+      playerLevel: 1,
+      researchedTechs: ['hyperspace_jump'],
+    });
+    Faction.init(state);
+
+    const result = Trade.travelTo(state, 'citadel_prime');
+
+    expect(result.ok).toBe(true);
+    expect(state.currentSystem).toBe('citadel_prime');
   });
 
   it('等级不足时旅行失败', () => {

@@ -5,10 +5,10 @@
 import { SHIP_TYPES, SHIP_UPGRADES, FLEET_SLOTS, SHIP_MODS, FLEET_BONUSES } from '../data/ships.js';
 import { SYSTEMS, getSystemsByGalaxy } from '../data/systems.js';
 import { GOODS } from '../data/goods.js';
-import * as Fleet from '../systems/fleet/FleetSystem.js?v=20260418-questblocker1';
+import * as Fleet from '../systems/fleet/FleetSystem.js?v=20260420-balance5';
 import * as Crew from '../systems/fleet/CrewSystem.js';
 import * as Economy from '../systems/economy/Economy.js';
-import * as AutoTrade from '../systems/trade/AutoTradeSystem.js?v=20260418-questblocker1';
+import * as AutoTrade from '../systems/trade/AutoTradeSystem.js?v=20260420-balance5';
 import * as Faction from '../systems/faction/FactionSystem.js';
 
 function _formatTradePolicySummary(policy) {
@@ -1058,6 +1058,26 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, preset) {
       return minLvl <= routeLevel;
     }
   });
+  var planetLookup = Object.create(null);
+  allGalaxyPlanets.forEach(function (system) {
+    planetLookup[system.id] = true;
+  });
+
+  function _appendPresetSystem(systemId) {
+    var system = SYSTEMS.find(function (entry) { return entry.id === systemId; });
+    if (!system || planetLookup[system.id]) return;
+    allGalaxyPlanets.push(system);
+    planetLookup[system.id] = true;
+  }
+
+  if (dispatchPreset) {
+    _appendPresetSystem(dispatchPreset.buySystemId);
+    _appendPresetSystem(dispatchPreset.sellSystemId);
+  }
+  if (presetRecommendation) {
+    _appendPresetSystem(presetRecommendation.buySystemId);
+    _appendPresetSystem(presetRecommendation.sellSystemId);
+  }
 
   maxBuyInput.value = Number.isFinite(existingPolicy.maxBuyPrice) ? existingPolicy.maxBuyPrice : '';
   minSellInput.value = Number.isFinite(existingPolicy.minSellPrice) ? existingPolicy.minSellPrice : '';

@@ -7,7 +7,7 @@ import {
   TRADE_STATION_MANAGERS,
   TRADE_STATION_STRATEGIES,
 } from '../data/tradeStations.js';
-import { getSystemsByGalaxy, findSystem, isSystemAccessible } from '../data/systems.js';
+import { getSystemsByGalaxy, findSystem, isSystemAccessible } from '../data/systems.js?v=20260420-balance3';
 import * as Economy from '../systems/economy/Economy.js';
 import * as Faction from '../systems/faction/FactionSystem.js';
 import * as Commerce from '../systems/commerce/CommerceFacade.js';
@@ -1646,7 +1646,7 @@ function _renderOverviewTable(state, galaxyId, onPlanetClick, tableIds) {
   const playerLevel = state.playerLevel || 1;
   const allSystems = getSystemsByGalaxy(galaxyId);
   const accessible = allSystems.filter(function (s) {
-    return isSystemAccessible(s.id, playerLevel);
+    return isSystemAccessible(s.id, playerLevel, state.researchedTechs);
   });
   // 玩家已访问的星球排前面，当前星球最优先
   const visited = state.visitedSystems || [];
