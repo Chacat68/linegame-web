@@ -2,7 +2,7 @@
 // 导出：init, initTabs, init3DCallbacks, refreshGalaxyBtn, triggerArrivalScanPanel, openMarket, closeMarket, isMarketOpen,
 //        setRefreshMarket, setExplorationActions, getMarketViewSystem, refreshMarketLocation,
 //        showMarketOverview, showMarketDetail, refreshPlanetDetail, getMapView, getCurrentGalaxyId
-import * as Renderer3D from './Renderer3DAdvanced.js?v=20260414-routeunify1';
+import * as Renderer3D from './Renderer3DAdvanced.js?v=20260420-planetdetailclick1';
 import * as Faction from '../systems/faction/FactionSystem.js';
 import * as GalaxyData from '../systems/galaxy/GalaxyDataLayer.js';
 import * as Exploration from '../systems/galaxy/ExplorationSystem.js?v=20260417-exploration20';
@@ -29,6 +29,10 @@ let _refreshMarket = null;          // (mode) => void
 let _stateRef = null;               // 用于内部事件引用
 let _explorationActions = null;
 let _currentSystemScanReveal = null;
+let _planetDetailDisclosureState = Object.create(null);
+let _selectedPlanetDetailSystem = null;
+let _travelActionHandler = null;
+let _galaxyJumpActionHandler = null;
 
 function _normalizeMarketPanelFocus(focus) {
   if (!focus || typeof focus !== 'object') return null;
@@ -91,6 +95,191 @@ function _escapeHtmlAttr(value) {
 
 function _prefersReducedMotion() {
   return !!(document && document.body && document.body.dataset.motion === 'reduced');
+}
+
+function _clearSelectedPlanetDetail(shouldRefresh) {
+  _selectedPlanetDetailSystem = null;
+  if (Renderer3D.clearSelection) Renderer3D.clearSelection();
+  if (shouldRefresh && _stateRef) refreshPlanetDetail(_stateRef);
+}
+
+function _setSelectedPlanetDetail(systemId) {
+  _selectedPlanetDetailSystem = systemId || null;
+}
+
+function _getPlanetDetailDisplayId(stateRef) {
+  if (_selectedPlanetDetailSystem) return _selectedPlanetDetailSystem;
+  return stateRef ? stateRef.hoveredSystem : null;
+}
+
+function _buildPlanetTravelAction(stateRef, sys) {
+  if (!stateRef || !sys) return null;
+
+  var playerLevel = stateRef.playerLevel || 1;
+  var requiredLevel = sys.minLevel || 1;
+  if (playerLevel < requiredLevel) {
+    return {
+      type: 'travel',
+      systemId: sys.id,
+      label: '等级不足',
+      disabled: true,
+      title: '需 Lv.' + requiredLevel + '（当前 Lv.' + playerLevel + '）',
+      hint: '达到对应等级后才能前往这颗星球。',
+    };
+  }
+
+  if (sys.id === stateRef.currentSystem) {
+    return {
+      type: 'travel',
+      systemId: sys.id,
+      label: '当前停靠中',
+      disabled: true,
+      title: '你已经停靠在这颗星球。',
+      hint: '这里的详细探索信息已展开，可以直接执行扫描、着陆或 POI 调查。',
+    };
+  }
+
+  var crossGalaxy = sys.galaxyId !== stateRef.currentGalaxy;
+  return {
+    type: 'travel',
+    systemId: sys.id,
+    label: crossGalaxy ? '跃迁前往' : '前往该星球',
+    disabled: false,
+    title: crossGalaxy ? '跨星系跳转到该星球' : '前往该星球',
+    hint: crossGalaxy
+      ? '单击先看详情，再次点击同一星球或按钮可立即跃迁。'
+      : '单击先看详情，再次点击同一星球或按钮可立即前往。',
+  };
+}
+
+function _travelToPlanet(systemId) {
+  if (!_stateRef || !systemId) return false;
+
+  var sys = findSystem(systemId);
+  var travelAction = _buildPlanetTravelAction(_stateRef, sys);
+  if (!sys || !travelAction || travelAction.disabled) return false;
+
+  _clearSelectedPlanetDetail(false);
+  _stateRef.hoveredSystem = null;
+
+  if (sys.galaxyId !== _stateRef.currentGalaxy) {
+    if (_galaxyJumpActionHandler) {
+      _galaxyJumpActionHandler(sys.id);
+      return true;
+    }
+    return false;
+  }
+
+  if (_travelActionHandler) {
+    _travelActionHandler(sys.id);
+    return true;
+  }
+  return false;
+}
+
+function _bindPlanetDetailPanelEvents() {
+  var panel = document.getElementById('planet-detail-panel');
+  if (!panel || panel.dataset.detailUiBound === 'true') return;
+
+  panel.addEventListener('click', function (event) {
+    var actionButton = event.target.closest('[data-planet-detail-action]');
+    if (!actionButton || !panel.contains(actionButton)) return;
+
+    var action = actionButton.dataset.planetDetailAction;
+    var systemId = actionButton.dataset.systemId;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (action === 'close-detail') {
+      _clearSelectedPlanetDetail(true);
+      return;
+    }
+
+    if (action === 'travel') {
+      _travelToPlanet(systemId);
+    }
+  });
+
+  panel.addEventListener('click', function (event) {
+    var summary = event.target.closest('summary');
+    if (!summary || !panel.contains(summary)) return;
+
+    var detail = summary.parentElement;
+    if (!detail || detail.tagName !== 'DETAILS') return;
+
+    var sectionId = detail.dataset.detailSection;
+    if (!sectionId) return;
+    _planetDetailDisclosureState[sectionId] = !detail.open;
+  }, true);
+
+  panel.addEventListener('toggle', function (event) {
+    var target = event.target;
+    if (!target || target.tagName !== 'DETAILS') return;
+
+    var sectionId = target.dataset.detailSection;
+    if (!sectionId) return;
+    _planetDetailDisclosureState[sectionId] = target.open;
+  }, true);
+
+  panel.dataset.detailUiBound = 'true';
+}
+
+function _isPlanetDetailSectionOpen(sectionId, defaultOpen) {
+  if (Object.prototype.hasOwnProperty.call(_planetDetailDisclosureState, sectionId)) {
+    return !!_planetDetailDisclosureState[sectionId];
+  }
+  return !!defaultOpen;
+}
+
+function _buildPlanetDetailChip(text, tone) {
+  if (!text) return '';
+
+  var className = 'planet-detail-chip';
+  if (tone) className += ' planet-detail-chip--' + tone;
+  return '<span class="' + className + '">' + _escapeHtml(text) + '</span>';
+}
+
+function _buildPlanetDetailKeyCard(label, value, options) {
+  if (!label || !value) return '';
+
+  var opts = options || {};
+  var className = 'planet-detail-key-card';
+  if (opts.wide) className += ' planet-detail-key-card--wide';
+  if (opts.tone) className += ' planet-detail-key-card--' + opts.tone;
+
+  return '<div class="' + className + '">' +
+    '<div class="planet-detail-key-label">' + _escapeHtml(label) + '</div>' +
+    '<div class="planet-detail-key-value">' + _escapeHtml(value) + '</div>' +
+  '</div>';
+}
+
+function _buildPlanetDetailField(label, value) {
+  if (!label || !value) return '';
+  return '<div class="planet-detail-item planet-detail-item--wrap">' +
+    '<span class="planet-detail-label">' + _escapeHtml(label) + '</span>' + _escapeHtml(value) +
+  '</div>';
+}
+
+function _buildPlanetDetailDisclosure(sectionId, title, bodyHtml, options) {
+  if (!bodyHtml) return '';
+
+  var opts = options || {};
+  var className = 'planet-detail-disclosure';
+  if (opts.compact) className += ' planet-detail-disclosure--compact';
+  var openAttr = _isPlanetDetailSectionOpen(sectionId, opts.defaultOpen) ? ' open' : '';
+  var previewHtml = opts.preview
+    ? '<span class="planet-detail-disclosure-preview">' + _escapeHtml(opts.preview) + '</span>'
+    : '';
+
+  return '<details class="' + className + '" data-detail-section="' + _escapeHtmlAttr(sectionId) + '"' + openAttr + '>' +
+    '<summary class="planet-detail-disclosure-summary">' +
+      '<span class="planet-detail-disclosure-title">' + _escapeHtml(title) + '</span>' +
+      previewHtml +
+      '<span class="planet-detail-disclosure-caret" aria-hidden="true">▾</span>' +
+    '</summary>' +
+    '<div class="planet-detail-disclosure-body">' + bodyHtml + '</div>' +
+  '</details>';
 }
 
 function _clearCurrentSystemScanReveal() {
@@ -312,6 +501,7 @@ export function showMarketDetail(systemId) {
 export function init(stateRef, onTravel, onGalaxyJump) {
   // 保存状态引用供底部导航使用
   _stateRef = stateRef;
+  _clearSelectedPlanetDetail(false);
   _bindExplorationActionEvents();
   _bindOrbitScanPanelControls();
 
@@ -321,6 +511,7 @@ export function init(stateRef, onTravel, onGalaxyJump) {
     btn.addEventListener('click', function () {
       // 先关闭市场
       closeMarket();
+      _clearSelectedPlanetDetail(false);
       _closeOrbitScanPanel(stateRef);
       if (stateRef.mapView === 'galaxies') {
         stateRef.mapView = 'planets';
@@ -397,6 +588,8 @@ export function init3DCallbacks(stateRef, onTravel, onGalaxyJump) {
   if (!Renderer3D.isActive()) {
     Renderer3D.toggleView();
   }
+  _travelActionHandler = onTravel || null;
+  _galaxyJumpActionHandler = onGalaxyJump || null;
   window._mapHoverCallback = function(data) {
     if (data) {
       if (data.type === 'system') {
@@ -412,15 +605,20 @@ export function init3DCallbacks(stateRef, onTravel, onGalaxyJump) {
   };
   window._mapClickCallback = function(systemId) {
     const sys = findSystem(systemId);
-    if (sys && sys.id !== stateRef.currentSystem) {
-      const playerLevel = stateRef.playerLevel || 1;
-      if (playerLevel < (sys.minLevel || 1)) return;
-      if (sys.galaxyId !== stateRef.currentGalaxy) {
-        if (onGalaxyJump) onGalaxyJump(sys.id);
-      } else {
-        if (onTravel) onTravel(sys.id);
-      }
+    if (!sys) return;
+
+    if (_selectedPlanetDetailSystem !== systemId) {
+      _setSelectedPlanetDetail(systemId);
+      stateRef.hoveredSystem = systemId;
+      refreshPlanetDetail(stateRef);
+      return;
     }
+
+    _travelToPlanet(systemId);
+  };
+  window._mapBackgroundClickCallback = function() {
+    if (!_selectedPlanetDetailSystem) return;
+    _clearSelectedPlanetDetail(true);
   };
   window._galaxyClickCallback = function(galaxyId) {
     const gal = findGalaxy(galaxyId);
@@ -428,6 +626,7 @@ export function init3DCallbacks(stateRef, onTravel, onGalaxyJump) {
       const unlocked = gal.unlocked ||
         (stateRef.researchedTechs && stateRef.researchedTechs.includes(gal.techRequired));
       if (unlocked) {
+        _clearSelectedPlanetDetail(false);
         stateRef.viewingGalaxy = gal.id;
         stateRef.mapView = 'planets';
         _updateGalaxyBtn(stateRef);
@@ -436,6 +635,7 @@ export function init3DCallbacks(stateRef, onTravel, onGalaxyJump) {
     }
   };
   window._switchToGalaxyView = function() {
+    _clearSelectedPlanetDetail(false);
     stateRef.mapView = 'galaxies';
     _updateGalaxyBtn(stateRef);
     refreshPlanetDetail(stateRef);
@@ -465,6 +665,7 @@ export function triggerArrivalScanPanel(stateRef) {
   if (!stateRef) return false;
 
   _stateRef = stateRef;
+  _clearSelectedPlanetDetail(false);
   stateRef.hoveredSystem = null;
   _orbitScanPanelOpen = !!_getCurrentSystemScanTarget(stateRef);
   _updateOrbitScanButton(stateRef);
@@ -528,6 +729,7 @@ function _bindExplorationActionContainer(containerId) {
 function _bindExplorationActionEvents() {
   _bindExplorationActionContainer('planet-detail-panel');
   _bindExplorationActionContainer('current-system-exploration-card');
+  _bindPlanetDetailPanelEvents();
   _bindOrbitScanPanelControls();
 }
 
@@ -774,8 +976,10 @@ function _buildSurveyMetricCard(label, value, note, extraClass) {
   '</div>';
 }
 
-function _buildSurveySummaryBlock(summary, systemId) {
+function _buildSurveySummaryBlock(summary, systemId, options) {
   if (!summary) return '';
+
+  var opts = options || {};
 
   var threatClass = summary.threatLevel === 'high'
     ? 'planet-detail-survey-card--danger'
@@ -799,19 +1003,21 @@ function _buildSurveySummaryBlock(summary, systemId) {
   }
 
   return '<div class="planet-detail-subsection">' +
-    '<div class="planet-detail-subtitle">探索简报</div>' +
+    (opts.hideHeading ? '' : '<div class="planet-detail-subtitle">探索简报</div>') +
     '<div class="planet-detail-survey-grid">' +
-      _buildSurveyMetricCard('威胁评级', summary.threatLabel, '建议按当前舰体与补给状态安排行动', threatClass) +
-      _buildSurveyMetricCard('机会焦点', summary.opportunityLabel, '决定本地报告更偏贸易、补给还是科研') +
-      _buildSurveyMetricCard('情报等级', 'Lv.' + summary.intelLevel, '已归档 ' + summary.reportCount + ' 份勘探报告') +
+      _buildSurveyMetricCard('威胁评级', summary.threatLabel, '决定行动节奏', threatClass) +
+      _buildSurveyMetricCard('机会焦点', summary.opportunityLabel, '决定收益侧重') +
+      _buildSurveyMetricCard('情报等级', 'Lv.' + summary.intelLevel, '已归档 ' + summary.reportCount + ' 份') +
       _buildSurveyMetricCard('完探奖励', rewardValue, rewardNote) +
     '</div>' +
     marketActionHtml +
   '</div>';
 }
 
-function _buildSurveyReportsBlock(summary) {
+function _buildSurveyReportsBlock(summary, options) {
   if (!summary || !Array.isArray(summary.reports) || summary.reports.length === 0) return '';
+
+  var opts = options || {};
 
   var reportHtml = summary.reports.map(function (report) {
     var metaParts = [];
@@ -827,9 +1033,58 @@ function _buildSurveyReportsBlock(summary) {
   }).join('');
 
   return '<div class="planet-detail-subsection">' +
-    '<div class="planet-detail-subtitle">调查结论</div>' +
+    (opts.hideHeading ? '' : '<div class="planet-detail-subtitle">调查结论</div>') +
     '<div class="planet-detail-report-list">' + reportHtml + '</div>' +
   '</div>';
+}
+
+function _buildPlanetArchiveDisclosure(info) {
+  if (!info) return '';
+
+  var archiveHtml = '<div class="planet-detail-archive-grid">' +
+    _buildPlanetDetailField('居民', info.races) +
+    _buildPlanetDetailField('人口', info.population) +
+    _buildPlanetDetailField('政体', info.government) +
+    _buildPlanetDetailField('治安', info.safety) +
+    _buildPlanetDetailField('解锁', info.lockText) +
+  '</div>';
+
+  return _buildPlanetDetailDisclosure('archive', '星球档案', archiveHtml, {
+    preview: info.population,
+    defaultOpen: false,
+  });
+}
+
+function _buildPinnedPlanetDetailActions(travelAction) {
+  var buttons = [];
+  if (travelAction) {
+    var disabledAttr = travelAction.disabled ? ' disabled aria-disabled="true"' : '';
+    var titleAttr = travelAction.title ? ' title="' + _escapeHtmlAttr(travelAction.title) + '"' : '';
+    buttons.push(
+      '<button class="planet-detail-action" data-planet-detail-action="travel" data-system-id="' + _escapeHtmlAttr(travelAction.systemId) + '"' + disabledAttr + titleAttr + '>' +
+        _escapeHtml(travelAction.label) +
+      '</button>'
+    );
+  }
+  buttons.push('<button class="planet-detail-action planet-detail-action--quiet" data-planet-detail-action="close-detail">收起详情</button>');
+
+  return '<div class="planet-detail-actions planet-detail-actions--panel">' + buttons.join('') + '</div>' +
+    (travelAction && travelAction.hint ? '<div class="planet-detail-note planet-detail-note--hint">' + _escapeHtml(travelAction.hint) + '</div>' : '');
+}
+
+function _buildPlanetHoverSummaryNote(travelAction, isCurrentSystem) {
+  var message = '';
+  if (isCurrentSystem) {
+    message = '点击锁定本地探索详情。';
+  } else if (travelAction && !travelAction.disabled) {
+    message = travelAction.hint;
+  } else if (travelAction && travelAction.hint) {
+    message = travelAction.hint;
+  } else {
+    message = '点击锁定这颗星球的详细信息。';
+  }
+
+  return '<div class="planet-detail-note planet-detail-note--hint">' + _escapeHtml(message) + '</div>';
 }
 
 function _buildExplorationActionBlock(flow, sys, isCurrentSystem, stateRef) {
@@ -889,6 +1144,22 @@ function _buildExplorationSection(stateRef, sys, planetData, isCurrentSystem, is
     }).join('')
     : '';
 
+  var actionHtml = _buildExplorationActionBlock(flow, sys, isCurrentSystem, stateRef);
+  var surveyPreview = surveySummary
+    ? (surveySummary.threatLabel + ' · ' + surveySummary.opportunityLabel)
+    : '暂无简报';
+  var reportsPreview = surveySummary && Array.isArray(surveySummary.reports) && surveySummary.reports.length > 0
+    ? (surveySummary.reports.length + ' 份归档')
+    : '暂无报告';
+  var poiPreview = poiList.length > 0
+    ? (flow.unresolvedPois.length > 0
+      ? ('待处理 ' + flow.unresolvedPois.length + ' / 已发现 ' + poiList.length)
+      : ('已处理 ' + poiList.length + ' 个'))
+    : '暂无探索点';
+  var routePreview = flow.discoveredRoutes.length > 0
+    ? (flow.discoveredRoutes.length + ' 条已录入')
+    : '未发现';
+
   return '<div class="planet-detail-section planet-detail-wide">' +
     '<div class="planet-detail-section-head">' +
       '<div class="planet-detail-section-title">探索流程</div>' +
@@ -896,21 +1167,28 @@ function _buildExplorationSection(stateRef, sys, planetData, isCurrentSystem, is
     '</div>' +
     _buildExplorationFlowCard(flow, { includeAction: false }) +
     _buildExplorationProgressRow(flow) +
-    _buildSurveySummaryBlock(surveySummary, sys.id) +
-    _buildExplorationActionBlock(flow, sys, isCurrentSystem, stateRef) +
-    _buildSurveyReportsBlock(surveySummary) +
-    (poiHtml
-      ? '<div class="planet-detail-subsection">' +
-          '<div class="planet-detail-subtitle">探索点清单</div>' +
-          '<div class="planet-detail-list">' + poiHtml + '</div>' +
-        '</div>'
-      : '') +
-    (routeHtml
-      ? '<div class="planet-detail-subsection">' +
-          '<div class="planet-detail-subtitle">秘密航线</div>' +
-          '<div class="planet-detail-list">' + routeHtml + '</div>' +
-        '</div>'
-      : '') +
+    actionHtml +
+    _buildPlanetDetailDisclosure('intel', '勘探简报', _buildSurveySummaryBlock(surveySummary, sys.id, {
+      hideHeading: true,
+    }), {
+      preview: surveyPreview,
+      defaultOpen: false,
+      compact: true,
+    }) +
+    _buildPlanetDetailDisclosure('reports', '调查结论', _buildSurveyReportsBlock(surveySummary, {
+      hideHeading: true,
+    }), {
+      preview: reportsPreview,
+      defaultOpen: false,
+    }) +
+    _buildPlanetDetailDisclosure('poi', '探索点清单', poiHtml ? '<div class="planet-detail-list">' + poiHtml + '</div>' : '', {
+      preview: poiPreview,
+      defaultOpen: false,
+    }) +
+    _buildPlanetDetailDisclosure('routes', '秘密航线', routeHtml ? '<div class="planet-detail-list">' + routeHtml + '</div>' : '', {
+      preview: routePreview,
+      defaultOpen: false,
+    }) +
   '</div>';
 }
 
@@ -931,7 +1209,7 @@ function _renderCurrentSystemExplorationCard(stateRef) {
     return;
   }
 
-  if (stateRef.hoveredSystem) {
+  if (stateRef.hoveredSystem || _selectedPlanetDetailSystem) {
     card.classList.remove('visible');
     return;
   }
@@ -985,8 +1263,11 @@ export function refreshPlanetDetail(stateRef) {
   _updateOrbitScanButton(stateRef);
   _renderCurrentSystemExplorationCard(stateRef);
 
-  const displayId = stateRef.hoveredSystem;
+  const displayId = _getPlanetDetailDisplayId(stateRef);
   if (stateRef.mapView !== 'planets' || !displayId) {
+    if (stateRef.mapView !== 'planets' && _selectedPlanetDetailSystem) {
+      _clearSelectedPlanetDetail(false);
+    }
     panel.classList.remove('visible');
     return;
   }
@@ -1023,23 +1304,52 @@ export function refreshPlanetDetail(stateRef) {
   const playerLevel = stateRef.playerLevel || 1;
   const isUnlocked = playerLevel >= (sys.minLevel || 1);
   const isCurrentSystem = displayId === stateRef.currentSystem;
+  const isPinned = _selectedPlanetDetailSystem === displayId;
   const lockText = playerLevel >= (sys.minLevel || 1)
     ? '已解锁'
     : ('需 Lv.' + (sys.minLevel || 1) + '（当前 Lv.' + playerLevel + '）');
+  const safetyChipText = typeof details.safety === 'number'
+    ? ('治安 ' + _getSafetyLabel(details.safety))
+    : '治安未知';
+  const safetyTone = typeof details.safety === 'number'
+    ? (details.safety >= 80 ? 'stable' : (details.safety >= 60 ? 'accent' : (details.safety >= 40 ? 'warning' : 'danger')))
+    : 'muted';
+  const lockTone = isUnlocked ? 'stable' : 'warning';
+  const roleTone = isCurrentSystem ? 'accent' : 'muted';
+  const heroChips = [
+    _buildPlanetDetailChip(sys.typeLabel, 'accent'),
+    _buildPlanetDetailChip(isCurrentSystem ? '当前停靠' : '悬停预览', roleTone),
+    _buildPlanetDetailChip(safetyChipText, safetyTone),
+    _buildPlanetDetailChip(lockText, lockTone),
+  ].join('');
+  const heroGrid = '<div class="planet-detail-key-grid">' +
+    _buildPlanetDetailKeyCard('势力', factionText) +
+    _buildPlanetDetailKeyCard('友好度', relationText) +
+    _buildPlanetDetailKeyCard('特产', specialties, { wide: true }) +
+  '</div>';
+  const travelAction = _buildPlanetTravelAction(stateRef, sys);
+  const archiveDisclosure = _buildPlanetArchiveDisclosure({
+    races: races,
+    population: details.totalPopulation || '未知',
+    government: government,
+    safety: safety,
+    lockText: lockText,
+  });
+
+  panel.classList.toggle('planet-detail-panel--pinned', isPinned);
+  panel.classList.toggle('planet-detail-panel--summary', !isPinned);
 
   panel.innerHTML =
-    '<div class="planet-detail-title">🪐 ' + sys.name + ' · ' + (gal ? (gal.icon + ' ' + gal.name) : '未知星系') + '</div>' +
-    '<div class="planet-detail-desc">' + sys.description + '</div>' +
-    '<div class="planet-detail-item"><span class="planet-detail-label">类型</span>' + sys.typeLabel + '</div>' +
-    '<div class="planet-detail-item"><span class="planet-detail-label">势力</span>' + factionText + '</div>' +
-    '<div class="planet-detail-item"><span class="planet-detail-label">友好度</span>' + relationText + '</div>' +
-    '<div class="planet-detail-item"><span class="planet-detail-label">居民</span>' + races + '</div>' +
-    '<div class="planet-detail-item"><span class="planet-detail-label">人口</span>' + (details.totalPopulation || '未知') + '</div>' +
-    '<div class="planet-detail-item"><span class="planet-detail-label">政体</span>' + government + '</div>' +
-    '<div class="planet-detail-item"><span class="planet-detail-label">治安</span>' + safety + '</div>' +
-    '<div class="planet-detail-item"><span class="planet-detail-label">特产</span>' + specialties + '</div>' +
-    '<div class="planet-detail-item"><span class="planet-detail-label">解锁</span>' + lockText + '</div>' +
-    _buildExplorationSection(stateRef, sys, planetData, isCurrentSystem, isUnlocked);
+    '<div class="planet-detail-hero planet-detail-wide">' +
+      '<div class="planet-detail-title">🪐 ' + sys.name + ' · ' + (gal ? (gal.icon + ' ' + gal.name) : '未知星系') + '</div>' +
+      '<div class="planet-detail-chip-row">' + heroChips + '</div>' +
+      '<div class="planet-detail-desc">' + sys.description + '</div>' +
+      heroGrid +
+      (isPinned
+        ? _buildPinnedPlanetDetailActions(travelAction)
+        : _buildPlanetHoverSummaryNote(travelAction, isCurrentSystem)) +
+    '</div>' +
+    (isPinned ? (_buildExplorationSection(stateRef, sys, planetData, isCurrentSystem, isUnlocked) + archiveDisclosure) : '');
 
   panel.classList.add('visible');
 
@@ -1059,7 +1369,9 @@ export function refreshPlanetDetail(stateRef) {
   }
   const offset = 14;
 
-  const panelW = Math.min(360, Math.max(220, canvasW - 16));
+  const preferredWidth = isPinned ? 360 : 300;
+  const minimumWidth = isPinned ? 240 : 220;
+  const panelW = Math.min(preferredWidth, Math.max(minimumWidth, canvasW - 16));
   panel.style.width = panelW + 'px';
 
   const maxLeft = Math.max(8, canvasW - panelW - 8);

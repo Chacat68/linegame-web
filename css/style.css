@@ -6,7 +6,7 @@
 @import url("base.css");            /* 变量、重置、字体、body 背景 */
 @import url("layout.css");          /* 全局布局、game-shell */
 @import url("header.css");          /* 顶部 header、状态栏、等级 */
-@import url("map.css");             /* 星系地图、HUD 角标、扫描线 */
+@import url("map.css?v=20260420-planettips2");             /* 星系地图、HUD 角标、扫描线 */
 @import url("panels.css");          /* 左/右面板、标签、市场、货物 */
 @import url("status.css");          /* 底部消息日志 */
 @import url("modals.css");          /* 通用弹窗、船体值、事件弹窗 */

@@ -2568,7 +2568,12 @@ function _onClick(event) {
   }
 
   // Planet view: click on planet
-  if (!_hoveredPlanet) return;
+  if (!_hoveredPlanet) {
+    if (window._mapBackgroundClickCallback) {
+      window._mapBackgroundClickCallback();
+    }
+    return;
+  }
 
   _selectedPlanet = _hoveredPlanet;
 
@@ -2648,12 +2653,16 @@ export function getPlanetScreenPosition(planetId) {
   };
 }
 
-export function resetRuntimeState(currentSystemId) {
-  _currentSystem = currentSystemId || null;
-  _hoveredPlanet = null;
+export function clearSelection() {
   _selectedPlanet = null;
-  _dirty = true;
   if (_selectionRing) {
     _selectionRing.setEnabled(false);
   }
+  _dirty = true;
+}
+
+export function resetRuntimeState(currentSystemId) {
+  _currentSystem = currentSystemId || null;
+  _hoveredPlanet = null;
+  clearSelection();
 }
