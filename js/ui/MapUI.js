@@ -1032,6 +1032,16 @@ export function openMarket(stateRef) {
   if (_refreshMarket) _refreshMarket('detail');
 }
 
+/** 以正式导航状态打开市场面板 */
+export function openMarketPanel(stateRef) {
+  _stateRef = stateRef || _stateRef;
+  if (!_stateRef) return;
+  _closeAllOverlayPanels();
+  closeMarket();
+  _setBottomNavActive('market');
+  openMarket(_stateRef);
+}
+
 /** 关闭市场面板 */
 export function closeMarket() {
   const overlay = document.getElementById('market-overlay');

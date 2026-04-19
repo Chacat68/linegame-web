@@ -18,14 +18,14 @@ import * as Exploration from '../systems/galaxy/ExplorationSystem.js?v=20260417-
 import * as HUD        from '../ui/HUD.js?v=20260412-questroute2';
 import * as MarketUI   from '../ui/MarketUI.js';
 import * as ShipUI     from '../ui/ShipUI.js';
-import * as MapUI      from '../ui/MapUI.js?v=20260417-exploration20';
+import * as MapUI      from '../ui/MapUI.js?v=20260418-questactions1';
 import * as Modal      from '../ui/Modal.js';
 import * as EventUI    from '../ui/EventUI.js';
 import * as DialogueUI from '../ui/DialogueUI.js';
-import * as ResearchUI from '../ui/ResearchUI.js?v=20260418-questblocker1';
+import * as ResearchUI from '../ui/ResearchUI.js?v=20260418-researchblocker2';
 import * as FactionUI  from '../ui/FactionUI.js';
 import * as SaveUI     from '../ui/SaveUI.js';
-import * as QuestUI    from '../ui/QuestUI.js?v=20260418-questblocker1';
+import * as QuestUI    from '../ui/QuestUI.js?v=20260418-researchblocker1';
 import * as AchievementUI from '../ui/AchievementUI.js';
 import * as Fleet      from '../systems/fleet/FleetSystem.js?v=20260418-questblocker1';
 import * as Crew       from '../systems/fleet/CrewSystem.js';
@@ -832,8 +832,68 @@ function _handleApplyResearchDispatch(recommendation) {
   _openRecommendedDispatch(recommendation, '科研补给建议', '🛰️');
 }
 
+function _handleResolveResearchBlocker(action) {
+  if (!action || !action.actionId) return;
+
+  if (action.actionId === 'quest-focus') {
+    QuestUI.setSelectedAvailableQuest(action.targetQuestId);
+    MapUI.activateTab('tab-quest');
+    _updateUI();
+    EventBus.emit('log:message', {
+      text: '📋 已切到任务页，先推进「' + (action.targetQuestName || '推荐任务') + '」，再回来补科研补给。',
+      type: 'tip',
+    });
+    return;
+  }
+
+  if (action.actionId === 'market') {
+    MapUI.openMarketPanel(_state);
+    EventBus.emit('log:message', {
+      text: action.reasonId === 'cargo'
+        ? '📦 已打开当前市场，先清理货舱腾出舱位，再回来规划科研补给。'
+        : action.reasonId === 'credits'
+          ? '💰 已打开当前市场，先做一笔周转补足资金，再回来补科研线。'
+          : action.reasonId === 'level'
+            ? '📈 已打开当前市场，先跑几笔交易抬等级，再回来规划科研补给。'
+            : '📊 已打开当前市场，先观察本地行情，再回来看看科研补给线。',
+      type: 'tip',
+    });
+  }
+}
+
 function _handleApplyQuestDispatch(recommendation) {
   _openRecommendedDispatch(recommendation, '任务派遣建议', '📋');
+}
+
+function _handleResolveQuestBlocker(action) {
+  if (!action || !action.actionId) return;
+
+  if (action.actionId === 'quest-focus') {
+    EventBus.emit('log:message', {
+      text: '📋 已定位到可接任务「' + (action.targetQuestName || '推荐任务') + '」，可以先补成长再回来推进「' + (action.questName || '当前任务') + '」。',
+      type: 'tip',
+    });
+    return;
+  }
+
+  if (action.actionId === 'research') {
+    MapUI.activateTab('tab-research');
+    EventBus.emit('log:message', {
+      text: '🔬 已切到科技页，优先补出关键跃迁科技后再推进「' + (action.questName || '当前任务') + '」。',
+      type: 'tip',
+    });
+    return;
+  }
+
+  if (action.actionId === 'market') {
+    MapUI.openMarketPanel(_state);
+    EventBus.emit('log:message', {
+      text: action.reasonId === 'fuel'
+        ? '⛽ 已打开当前市场，先补足燃料或调整补给，再回来推进「' + (action.questName || '当前任务') + '」。'
+        : '💰 已打开当前市场，先跑几笔交易抬升等级，再回来推进「' + (action.questName || '当前任务') + '」。',
+      type: 'tip',
+    });
+  }
 }
 
 function _openRecommendedDispatch(recommendation, sourceLabel, icon) {
@@ -1273,10 +1333,11 @@ function _updateUI() {
     _handleMoveQueuedResearchDown,
     _handleClearResearchQueue,
     activeShipDispatchContext,
-    _handleApplyResearchDispatch
+    _handleApplyResearchDispatch,
+    _handleResolveResearchBlocker
   );
   FactionUI.render(_state);
-  QuestUI.render(_state, _handleAcceptQuest, _handleAbandonQuest, activeShipDispatchContext, _handleApplyQuestDispatch);
+  QuestUI.render(_state, _handleAcceptQuest, _handleAbandonQuest, activeShipDispatchContext, _handleApplyQuestDispatch, _handleResolveQuestBlocker);
   AchievementUI.render(_state);
   FleetUI.render(_state, _handleBuyShip, _handleSwitchShip, _handleUpgradeShip, _handleAssignRoute, _handleCancelRoute, _handleBuySlot, _handleSellShip, _handleInstallMod, _handleUninstallMod, _handleServiceShip, _handleRecruitCrew, _handleAssignCrew, _handleUnassignCrew, _handleDismissCrew, _handleSetShipDoctrine, _handleActivateShipProtocol);
   FleetUI.renderShop(_state, _handleBuyShip);

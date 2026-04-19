@@ -2,6 +2,9 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import * as Research from '../js/systems/research/ResearchSystem.js';
+import * as Faction from '../js/systems/faction/FactionSystem.js';
+import * as Quest from '../js/systems/quest/QuestSystem.js';
+import { getResearchDispatchBlockerState, getResearchDispatchBlockerActions } from '../js/ui/ResearchUI.js?v=20260418-researchblocker2';
 import { createTestState } from './helpers.js';
 
 describe('ResearchSystem.init', () => {
@@ -165,5 +168,59 @@ describe('ResearchSystem.getResearchState', () => {
     expect(researchState).toBeDefined();
     expect(researchState).toHaveProperty('current');
     expect(researchState).toHaveProperty('queue');
+  });
+});
+
+describe('ResearchUI blocker helpers', () => {
+  it('资金不足时给出市场周转主动作和本地任务次动作', () => {
+    const state = createTestState({
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+      credits: 0,
+    });
+    Faction.init(state);
+    Quest.init(state);
+    Research.init(state);
+    state.researchOptions = ['market_analysis'];
+
+    const blocker = getResearchDispatchBlockerState(state, {
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+      cargoFree: 10,
+      credits: 0,
+      playerLevel: 1,
+    });
+    const actions = getResearchDispatchBlockerActions(state, blocker);
+
+    expect(blocker).toMatchObject({ reasonId: 'credits', techId: 'market_analysis' });
+    expect(actions[0]).toMatchObject({ actionId: 'market', reasonId: 'credits', label: '前往市场周转' });
+    expect(actions[1]).toMatchObject({ actionId: 'quest-focus', label: '先做本地任务', targetQuestId: 'starter_first_trade' });
+    expect(actions[1].hint).not.toContain('燃料');
+    expect(actions[1].hint).toContain('科研周转资金');
+  });
+
+  it('可达补给点不足时给出升级导向的双动作', () => {
+    const state = createTestState({
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+      credits: 1200,
+    });
+    Faction.init(state);
+    Quest.init(state);
+    Research.init(state);
+    state.researchOptions = ['advanced_thrusters'];
+
+    const blocker = getResearchDispatchBlockerState(state, {
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+      cargoFree: 10,
+      credits: 1200,
+      playerLevel: 0,
+    });
+    const actions = getResearchDispatchBlockerActions(state, blocker);
+
+    expect(blocker).toMatchObject({ reasonId: 'level', techId: 'advanced_thrusters' });
+    expect(actions[0]).toMatchObject({ actionId: 'market', reasonId: 'level', label: '去市场跑单升级' });
+    expect(actions[1]).toMatchObject({ actionId: 'quest-focus', label: '先补等级', targetQuestId: 'starter_first_trade' });
   });
 });

@@ -121,6 +121,42 @@ function _pickSelectedAvailableQuest(state, available, recommendedIds) {
   return { sorted: sorted, selected: selected };
 }
 
+export function getPreferredAvailableQuest(state) {
+  var recommendedIds = Quest.getStarterRecommendations(state, 3).map(function (quest) {
+    return quest.id;
+  });
+  return _sortAvailableQuests(state, Quest.getAvailableQuests(state), recommendedIds)[0] || null;
+}
+
+export function setSelectedAvailableQuest(questId) {
+  _selectedAvailableQuestId = questId || null;
+}
+
+function _focusQuestFallbackAction(action, state, onAccept, onAbandon, questDispatchContext, onApplyQuestDispatch, onResolveQuestBlocker) {
+  if (!action || !action.targetQuestId) return;
+
+  _selectedAvailableQuestId = action.targetQuestId;
+  render(state, onAccept, onAbandon, questDispatchContext, onApplyQuestDispatch, onResolveQuestBlocker);
+
+  var container = document.getElementById('quest-list');
+  if (!container) return;
+
+  var acceptHub = container.querySelector('[data-quest-accept-hub]');
+  if (acceptHub && typeof acceptHub.scrollIntoView === 'function') {
+    acceptHub.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  var selectedCard = container.querySelector('[data-quest-select-id="' + action.targetQuestId + '"]');
+  if (!selectedCard) return;
+
+  if (typeof selectedCard.scrollIntoView === 'function') {
+    selectedCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+  if (typeof selectedCard.focus === 'function') {
+    selectedCard.focus();
+  }
+}
+
 function _objectivePlanText(obj) {
   if (!obj) return '查看任务详情';
 
@@ -270,8 +306,178 @@ function _collectQuestDispatchBlockers(routePreview) {
   }).filter(Boolean);
 }
 
-function _renderQuestDispatchBlocker(quest, routePreview) {
+function _isTradeRouteObjective(obj) {
+  if (!obj || !obj.type) return false;
+  return ['deliver', 'buy_at', 'sell_at', 'trade_good', 'sell_in_faction'].includes(obj.type);
+}
+
+function _getQuestBlockerReasonId(blockers) {
+  if (!Array.isArray(blockers) || blockers.length === 0) return 'general';
+
+  if (blockers.some(function (blocker) {
+    return blocker.blockedReason && blocker.blockedReason.indexOf('超空间跃迁引擎') !== -1;
+  })) {
+    return 'hyperspace';
+  }
+
+  if (blockers.some(function (blocker) {
+    return blocker.blockedReason && blocker.blockedReason.indexOf('燃料不足') !== -1;
+  })) {
+    return 'fuel';
+  }
+
+  if (blockers.some(function (blocker) {
+    return blocker.blockedReason && blocker.blockedReason.indexOf('需要达到 Lv.') !== -1;
+  })) {
+    return 'level';
+  }
+
+  return 'general';
+}
+
+function _getQuestFallbackCopy(fallbackQuest, state, primaryReasonId) {
+  var questName = fallbackQuest.name;
+  var context = _getQuestActionContext(fallbackQuest, state || {});
+  var primaryObjective = fallbackQuest.objectives && fallbackQuest.objectives.length > 0 ? fallbackQuest.objectives[0] : null;
+  var targets = _questTargetSystems(fallbackQuest);
+  var hasSingleTarget = targets.length === 1;
+  var isTradeLine = _isTradeRouteObjective(primaryObjective);
+  var staysInCurrentGalaxy = !state || !state.currentGalaxy || targets.length === 0 || targets.every(function (sys) {
+    return sys.galaxyId === state.currentGalaxy;
+  });
+
+  if (primaryReasonId === 'level') {
+    return {
+      label: '先补等级',
+      hint: (context.tone === 'current' || context.tone === 'ready')
+        ? '「' + questName + '」当前就能推进，先补等级和基础收益，再回来冲更高门槛。'
+        : (hasSingleTarget && isTradeLine)
+          ? '「' + questName + '」门槛更低，先跑这条短线把等级和现金流抬起来。'
+          : '已为你定位到「' + questName + '」，先用这条低门槛任务补等级，再回来继续。',
+    };
+  }
+
+  if (context.tone === 'current' || context.tone === 'ready') {
+    return {
+      label: '先做本地任务',
+      hint: primaryReasonId === 'fuel'
+        ? '「' + questName + '」不用额外跑图，先做一单回点现金，再回来补燃料。'
+        : primaryReasonId === 'hyperspace'
+          ? '「' + questName + '」不需要跨星系，先把银河内进度往前推一格。'
+          : '已为你定位到「' + questName + '」，当前就能开始推进。',
+    };
+  }
+
+  if (hasSingleTarget && isTradeLine) {
+    return {
+      label: '先跑短线补给',
+      hint: primaryReasonId === 'fuel'
+        ? '「' + questName + '」航程更短，先跑这条线回补燃料和现金流。'
+        : primaryReasonId === 'hyperspace'
+          ? '「' + questName + '」仍在当前银河内，先跑这条短线，等跃迁科技完成。'
+          : '已为你定位到「' + questName + '」，先用这条短线把节奏稳住。',
+    };
+  }
+
+  if (primaryReasonId === 'hyperspace' && staysInCurrentGalaxy) {
+    return {
+      label: '先做银河内任务',
+      hint: '「' + questName + '」不需要跨星系，先推进这条银河内任务，等跃迁科技补齐。',
+    };
+  }
+
+  if (hasSingleTarget) {
+    return {
+      label: '先接近线任务',
+      hint: primaryReasonId === 'fuel'
+        ? '「' + questName + '」航程更近，先跑这条近线把燃料和节奏稳住。'
+        : '已为你定位到「' + questName + '」，先推进这条近线任务。',
+    };
+  }
+
+  return {
+    label: primaryReasonId === 'fuel' ? '先做近程任务' : '先看推荐任务',
+    hint: primaryReasonId === 'hyperspace'
+      ? '已为你定位到「' + questName + '」，先推进当前星域内的可接任务。'
+      : '已为你定位到「' + questName + '」，先用这条可接任务补成长节奏。',
+  };
+}
+
+function _buildQuestFallbackAction(fallbackQuest, state, primaryReasonId) {
+  if (!fallbackQuest || !fallbackQuest.id) return null;
+
+  var copy = _getQuestFallbackCopy(fallbackQuest, state, primaryReasonId);
+
+  return {
+    actionId: 'quest-focus',
+    reasonId: 'fallback',
+    label: copy.label,
+    hint: copy.hint,
+    targetQuestId: fallbackQuest.id,
+    targetQuestName: fallbackQuest.name,
+    variant: 'secondary',
+  };
+}
+
+export function getQuestBlockerActions(blockers, fallbackQuest, state) {
+  if (!Array.isArray(blockers) || blockers.length === 0) return [];
+
+  var actions = [];
+  var primaryReasonId = _getQuestBlockerReasonId(blockers);
+
+  if (primaryReasonId === 'hyperspace') {
+    actions.push({
+      actionId: 'research',
+      reasonId: 'hyperspace',
+      label: '前往科技页研究',
+      hint: '优先补出超空间跃迁引擎，再回来规划这条跨区航线。',
+      variant: 'primary',
+    });
+  }
+
+  else if (primaryReasonId === 'fuel') {
+    actions.push({
+      actionId: 'market',
+      reasonId: 'fuel',
+      label: '前往市场补给',
+      hint: '先补充燃料或调整货舱，再回来恢复派遣建议。',
+      variant: 'primary',
+    });
+  }
+
+  else if (primaryReasonId === 'level') {
+    actions.push({
+      actionId: 'market',
+      reasonId: 'level',
+      label: '去市场跑单升级',
+      hint: '先做几笔交易和补给，把等级提上来再接这条线。',
+      variant: 'primary',
+    });
+  }
+
+  var fallbackAction = _buildQuestFallbackAction(fallbackQuest, state, primaryReasonId);
+  if (fallbackAction) {
+    actions.push(fallbackAction);
+  }
+
+  return actions;
+}
+
+function _renderQuestBlockerActions(actions, quest) {
+  if (!Array.isArray(actions) || actions.length === 0) return '';
+
+  return '<div class="quest-dispatch-actions is-blocked">' + actions.map(function (action) {
+    var btnClass = 'quest-dispatch-blocker-btn' + (action.variant === 'secondary' ? ' is-secondary' : '');
+    return '<div class="quest-dispatch-action-item' + (action.variant === 'secondary' ? ' is-secondary' : '') + '">' +
+      '<button class="' + btnClass + '" data-action-id="' + action.actionId + '" data-reason-id="' + action.reasonId + '" data-quest-id="' + quest.id + '" data-quest-name="' + quest.name + '" data-target-quest-id="' + (action.targetQuestId || '') + '" data-target-quest-name="' + (action.targetQuestName || '') + '">' + action.label + '</button>' +
+      '<span class="quest-dispatch-action-hint">' + action.hint + '</span>' +
+    '</div>';
+  }).join('') + '</div>';
+}
+
+function _renderQuestDispatchBlocker(quest, routePreview, canResolveQuestBlocker, fallbackQuest, state) {
   var blockers = _collectQuestDispatchBlockers(routePreview);
+  var actions = getQuestBlockerActions(blockers, fallbackQuest, state);
   if (blockers.length === 0) return '';
 
   return '<div class="quest-dispatch-card is-blocked">' +
@@ -286,6 +492,9 @@ function _renderQuestDispatchBlocker(quest, routePreview) {
         '<div class="quest-dispatch-blocker-reason">' + blocker.blockedReason + '</div>' +
       '</div>';
     }).join('') + '</div>' +
+    (canResolveQuestBlocker && actions.length > 0
+      ? _renderQuestBlockerActions(actions, quest)
+      : '') +
     (routePreview && routePreview.summaryText
       ? '<div class="quest-dispatch-note is-blocked">' + routePreview.summaryText + '</div>'
       : '') +
@@ -310,7 +519,7 @@ function _renderQuestAcceptHub(state, available, selectedQuest, recommendedIds, 
     storyRoute && rewardSummary.hasDecisionBonus ? '<span class="quest-brief-flag quest-brief-flag-route">🧭 ' + storyRoute.label + '</span>' : '',
   ].filter(Boolean).join('');
 
-  return '<div class="quest-accept-hub">' +
+  return '<div class="quest-accept-hub" data-quest-accept-hub="true">' +
     '<div class="quest-accept-hub-head">' +
       '<div>' +
         '<div class="quest-accept-kicker">任务简报</div>' +
@@ -385,8 +594,9 @@ function _renderAvailableQuestPicker(state, available, selectedQuest, recommende
  * @param {Function} onAbandon  (questId) => void
  * @param {object}   questDispatchContext
  * @param {Function} onApplyQuestDispatch (recommendation) => void
+ * @param {Function} onResolveQuestBlocker (action) => void
  */
-export function render(state, onAccept, onAbandon, questDispatchContext, onApplyQuestDispatch) {
+export function render(state, onAccept, onAbandon, questDispatchContext, onApplyQuestDispatch, onResolveQuestBlocker) {
   const container = document.getElementById('quest-list');
   if (!container) return;
 
@@ -394,6 +604,11 @@ export function render(state, onAccept, onAbandon, questDispatchContext, onApply
   const recommended = Quest.getStarterRecommendations(state, 3);
   const recommendedIds = recommended.map(function (quest) { return quest.id; });
   const storyRoute = Quest.getStoryRouteProfile(state);
+  const available = Quest.getAvailableQuests(state);
+  const availableSelection = _pickSelectedAvailableQuest(state, available, recommendedIds);
+  const sortedAvailable = availableSelection.sorted;
+  const selectedAvailableQuest = availableSelection.selected;
+  const fallbackQuest = sortedAvailable[0] || null;
 
   // ---- 当前章节 ----
   const currentPhaseProgress = Quest.getCurrentQuestPhaseProgress(state);
@@ -457,7 +672,7 @@ export function render(state, onAccept, onAbandon, questDispatchContext, onApply
       if (activeQuestRecommendation && activeQuestRecommendation.questId === quest.id) {
         html += _renderQuestDispatchRecommendation(activeQuestRecommendation, !!onApplyQuestDispatch);
       } else {
-        html += _renderQuestDispatchBlocker(quest, routePreview);
+        html += _renderQuestDispatchBlocker(quest, routePreview, !!onResolveQuestBlocker, fallbackQuest, state);
       }
 
       // 奖励
@@ -476,10 +691,6 @@ export function render(state, onAccept, onAbandon, questDispatchContext, onApply
   }
 
   // ---- 可接取任务 ----
-  const available = Quest.getAvailableQuests(state);
-  const availableSelection = _pickSelectedAvailableQuest(state, available, recommendedIds);
-  const sortedAvailable = availableSelection.sorted;
-  const selectedAvailableQuest = availableSelection.selected;
   html += '<div class="quest-section-title" style="margin-top:12px">📜 可接取 (' + available.length + ')</div>';
 
   if (recommended.length > 0 && (state.quests || []).length === 0) {
@@ -538,7 +749,7 @@ export function render(state, onAccept, onAbandon, questDispatchContext, onApply
   container.querySelectorAll('[data-quest-select-id]').forEach(function (btn) {
     btn.addEventListener('click', function () {
       _selectedAvailableQuestId = btn.dataset.questSelectId;
-      render(state, onAccept, onAbandon, questDispatchContext, onApplyQuestDispatch);
+      render(state, onAccept, onAbandon, questDispatchContext, onApplyQuestDispatch, onResolveQuestBlocker);
     });
   });
   container.querySelectorAll('.quest-accept-btn').forEach(function (btn) {
@@ -558,6 +769,26 @@ export function render(state, onAccept, onAbandon, questDispatchContext, onApply
       onApplyQuestDispatch(activeQuestRecommendation);
     });
   }
+  container.querySelectorAll('.quest-dispatch-blocker-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var action = {
+        actionId: btn.dataset.actionId,
+        reasonId: btn.dataset.reasonId,
+        questId: btn.dataset.questId,
+        questName: btn.dataset.questName,
+        targetQuestId: btn.dataset.targetQuestId,
+        targetQuestName: btn.dataset.targetQuestName,
+      };
+
+      if (action.actionId === 'quest-focus') {
+        _focusQuestFallbackAction(action, state, onAccept, onAbandon, questDispatchContext, onApplyQuestDispatch, onResolveQuestBlocker);
+      }
+
+      if (typeof onResolveQuestBlocker === 'function') {
+        onResolveQuestBlocker(action);
+      }
+    });
+  });
 }
 
 // ---------------------------------------------------------------------------
