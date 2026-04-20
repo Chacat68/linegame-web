@@ -33,7 +33,7 @@ import * as AutoTrade  from '../systems/trade/AutoTradeSystem.js?v=20260420-bala
 import * as TradeStation from '../systems/trade/TradeStationSystem.js';
 import * as Finance from '../systems/finance/FinanceSystem.js';
 import * as Futures from '../systems/finance/FuturesSystem.js';
-import * as FleetUI    from '../ui/FleetUI.js?v=20260421-balance6';
+import * as FleetUI    from '../ui/FleetUI.js?v=20260421-balance7';
 import * as Save       from '../systems/save/SaveSystem.js';
 import * as Quest      from '../systems/quest/QuestSystem.js?v=20260412-questroute2';
 import * as Achievement from '../systems/achievement/AchievementSystem.js';

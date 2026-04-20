@@ -1055,11 +1055,29 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, preset) {
   }
 
   function _formatSystemOptionLabel(system) {
-    var label = system.name + ' [' + system.typeLabel + ']';
-    if (system.galaxyId && system.galaxyId !== dispatchGalaxyId) {
-      label += ' · ' + _getGalaxyName(system.galaxyId);
-    }
-    return label;
+    return system.name + ' [' + system.typeLabel + ']';
+  }
+
+  function _buildGroupedSystemOptions(systems) {
+    var groupedSystems = Object.create(null);
+    var galaxyOrder = [];
+
+    systems.forEach(function (system) {
+      var galaxyId = system.galaxyId || 'unknown';
+      if (!groupedSystems[galaxyId]) {
+        groupedSystems[galaxyId] = [];
+        galaxyOrder.push(galaxyId);
+      }
+      groupedSystems[galaxyId].push(system);
+    });
+
+    return galaxyOrder.map(function (galaxyId) {
+      var groupLabel = _getGalaxyName(galaxyId);
+      if (galaxyId === dispatchGalaxyId) groupLabel += ' · 当前星系';
+      return '<optgroup label="' + _escapeHtml(groupLabel) + '">' + groupedSystems[galaxyId].map(function (system) {
+        return '<option value="' + system.id + '">' + _escapeHtml(_formatSystemOptionLabel(system)) + '</option>';
+      }).join('') + '</optgroup>';
+    }).join('');
   }
 
   var playerLevel = state.playerLevel || 1;
@@ -1122,16 +1140,12 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, preset) {
     goodSelect.innerHTML = '';
 
     if (buyPlanets.length === 0 || sellPlanets.length < 2) {
-      var emptyText = marketMode === 'black' ? '当前星系无可用黑市路线' : '需要更多航线（购买席位解锁）';
+      var emptyText = marketMode === 'black' ? '当前候选中无可用黑市路线' : '需要更多航线（购买席位解锁）';
       buySelect.innerHTML = '<option value="">' + emptyText + '</option>';
       sellSelect.innerHTML = '<option value="">' + emptyText + '</option>';
     } else {
-      buyPlanets.forEach(function (sys) {
-        buySelect.innerHTML += '<option value="' + sys.id + '">' + _formatSystemOptionLabel(sys) + '</option>';
-      });
-      sellPlanets.forEach(function (sys) {
-        sellSelect.innerHTML += '<option value="' + sys.id + '">' + _formatSystemOptionLabel(sys) + '</option>';
-      });
+      buySelect.innerHTML = _buildGroupedSystemOptions(buyPlanets);
+      sellSelect.innerHTML = _buildGroupedSystemOptions(sellPlanets);
     }
 
     GOODS.forEach(function (g) {
