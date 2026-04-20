@@ -185,6 +185,38 @@ describe('AutoTrade.findBestDispatchRoute', () => {
     expect(result).toBeNull();
   });
 
+  it('允许机库派遣推荐主动命中跨星系路线', () => {
+    const state = createTestState({
+      credits: 12000,
+      currentSystem: 'quantum_lab',
+      currentGalaxy: 'andromeda',
+      fuelEfficiency: 1.0,
+      playerLevel: 5,
+      researchedTechs: ['hyperspace_jump'],
+    });
+
+    const result = AutoTrade.findBestDispatchRoute(state, {
+      currentSystem: 'quantum_lab',
+      currentGalaxy: 'andromeda',
+      fuelEfficiency: 1.0,
+      cargoFree: 24,
+      credits: 12000,
+      playerLevel: 5,
+      researchedTechs: state.researchedTechs,
+      systemIds: ['quantum_lab', 'golden_palace'],
+      allowCrossGalaxy: true,
+    });
+
+    expect(result).not.toBeNull();
+    if (result) {
+      expect(result.routeModeLabel).toBe('跨星系套利');
+      expect(result.buyGalaxyId).not.toBe(result.sellGalaxyId);
+      expect(result.tradeThemeSummary).toContain('仙女座星系');
+      expect(result.tradeThemeSummary).toContain('麦哲伦星云');
+      expect(result.themeScore).toBeGreaterThan(0);
+    }
+  });
+
   it('黑市模式可推荐黑市路线', () => {
     const state = createTestState({
       credits: 5000,

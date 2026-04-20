@@ -400,15 +400,16 @@ describe('Fleet.assignRoute / cancelRoute', () => {
     expect(state.fleet[1].route.revision).toBe(1);
   });
 
-  it('跨星系路线被拒绝', () => {
+  it('支持跨星系派遣路线', () => {
     const state = createTestState({ credits: 10000 });
     Fleet.init(state);
     state.fleetSlots = 2;
     Fleet.buyShip(state, 'freighter');
-    // andromeda 中的星球 vs milky_way 中的星球
-    const result = Fleet.assignRoute(state, 1, 'sol_prime', 'sol_prime', 'food');
-    // 同星球路线应该成功（虽然无意义）
+
+    const result = Fleet.assignRoute(state, 1, 'sol_prime', 'citadel_prime', 'food');
+
     expect(result.ok).toBe(true);
+    expect(state.fleet[1].route.sellSystemId).toBe('citadel_prime');
   });
 
   it('取消路线', () => {

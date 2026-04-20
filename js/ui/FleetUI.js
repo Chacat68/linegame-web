@@ -3,9 +3,9 @@
 // 导出：render
 
 import { SHIP_TYPES, SHIP_UPGRADES, FLEET_SLOTS, SHIP_MODS, FLEET_BONUSES } from '../data/ships.js';
-import { SYSTEMS, getSystemsByGalaxy } from '../data/systems.js';
+import { GALAXIES, SYSTEMS, getAccessibleGalaxies, getSystemsByGalaxy } from '../data/systems.js';
 import { GOODS } from '../data/goods.js';
-import * as Fleet from '../systems/fleet/FleetSystem.js?v=20260420-balance5';
+import * as Fleet from '../systems/fleet/FleetSystem.js?v=20260421-balance6';
 import * as Crew from '../systems/fleet/CrewSystem.js';
 import * as Economy from '../systems/economy/Economy.js';
 import * as AutoTrade from '../systems/trade/AutoTradeSystem.js?v=20260420-balance5';
@@ -1045,18 +1045,40 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, preset) {
   var existingPolicy = dispatchPreset && dispatchPreset.tradePolicy
     ? dispatchPreset.tradePolicy
     : (ship.route && ship.route.tradePolicy ? ship.route.tradePolicy : {});
+  var galaxyNames = Object.create(null);
+  GALAXIES.forEach(function (galaxy) {
+    galaxyNames[galaxy.id] = galaxy.name;
+  });
 
-  // 对于激活船只，显示同星系已解锁星球
-  // 对于非激活船只，根据席位航线等级过滤
+  function _getGalaxyName(galaxyId) {
+    return galaxyNames[galaxyId] || galaxyId;
+  }
+
+  function _formatSystemOptionLabel(system) {
+    var label = system.name + ' [' + system.typeLabel + ']';
+    if (system.galaxyId && system.galaxyId !== dispatchGalaxyId) {
+      label += ' · ' + _getGalaxyName(system.galaxyId);
+    }
+    return label;
+  }
+
   var playerLevel = state.playerLevel || 1;
+  var dispatchAccessLevel = isActive ? playerLevel : routeLevel;
+  var recommendationPlanets = [];
+  var recommendationPlanetLookup = Object.create(null);
+  getAccessibleGalaxies(playerLevel, state.researchedTechs || []).forEach(function (galaxy) {
+    getSystemsByGalaxy(galaxy.id).forEach(function (sys) {
+      var minLvl = sys.minLevel || 1;
+      if (dispatchAccessLevel < minLvl || recommendationPlanetLookup[sys.id]) return;
+      recommendationPlanets.push(sys);
+      recommendationPlanetLookup[sys.id] = true;
+    });
+  });
+
+  // 默认仍展示当前星系航线，推荐按钮会主动搜索全部已开放星系
   var allGalaxyPlanets = getSystemsByGalaxy(dispatchGalaxyId).filter(function (sys) {
     var minLvl = sys.minLevel || 1;
-    // 激活船只用玩家等级过滤，非激活船只用席位航线等级
-    if (isActive) {
-      return playerLevel >= minLvl;
-    } else {
-      return minLvl <= routeLevel;
-    }
+    return dispatchAccessLevel >= minLvl;
   });
   var planetLookup = Object.create(null);
   allGalaxyPlanets.forEach(function (system) {
@@ -1105,10 +1127,10 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, preset) {
       sellSelect.innerHTML = '<option value="">' + emptyText + '</option>';
     } else {
       buyPlanets.forEach(function (sys) {
-        buySelect.innerHTML += '<option value="' + sys.id + '">' + sys.name + ' [' + sys.typeLabel + ']</option>';
+        buySelect.innerHTML += '<option value="' + sys.id + '">' + _formatSystemOptionLabel(sys) + '</option>';
       });
       sellPlanets.forEach(function (sys) {
-        sellSelect.innerHTML += '<option value="' + sys.id + '">' + sys.name + ' [' + sys.typeLabel + ']</option>';
+        sellSelect.innerHTML += '<option value="' + sys.id + '">' + _formatSystemOptionLabel(sys) + '</option>';
       });
     }
 
@@ -1247,7 +1269,8 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, preset) {
       cargoFree: effectiveShipStats.maxCargo - Object.values(ship.cargo).reduce(function (s, q) { return s + q; }, 0),
       credits: state.credits,
       playerLevel: playerLevel,
-      systemIds: allGalaxyPlanets.map(function (sys) { return sys.id; }),
+      systemIds: recommendationPlanets.map(function (sys) { return sys.id; }),
+      allowCrossGalaxy: true,
       dispatchProfile: effectiveShipStats.dispatchProfile || null,
     }, _readTradePolicy());
   }
@@ -1355,6 +1378,12 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, preset) {
       estimateEl.textContent = '未找到符合当前策略的派遣路线。请放宽价格阈值、风险偏好要求，或确认已解锁黑市权限。';
       _updateSuggestRiskIndicator(null);
       return;
+    }
+
+    if (!planetLookup[recommendation.buySystemId] || !planetLookup[recommendation.sellSystemId]) {
+      _appendPresetSystem(recommendation.buySystemId);
+      _appendPresetSystem(recommendation.sellSystemId);
+      _buildMarketOptions();
     }
 
     buySelect.value = recommendation.buySystemId;

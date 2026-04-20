@@ -1345,6 +1345,12 @@ function _fuelCost(state, fromId, toId, fuelEff) {
   return Economy.getFuelCost(fromId, toId, fuelEff, state);
 }
 
+function _isCrossGalaxyTravel(fromId, toId) {
+  var fromSystem = findSystem(fromId);
+  var toSystem = findSystem(toId);
+  return !!fromSystem && !!toSystem && fromSystem.galaxyId !== toSystem.galaxyId;
+}
+
 export function getEffectiveShipStats(state, ship) {
   if (!ship) {
     return {
@@ -1515,11 +1521,6 @@ export function assignRoute(state, shipIndex, buySystemId, sellSystemId, goodId,
     return { ok: false, msgs: [{ text: normalizedPolicy.marketMode === 'black' ? '🔒 黑市派遣的买入地必须具备黑市访问资格。' : '⚠️ 当前路线无法访问所选市场。', type: 'error' }] };
   }
 
-  // 派遣路线必须在同一星系内
-  if (busSys.galaxyId !== sellSys.galaxyId) {
-    return { ok: false, msgs: [{ text: '⚠️ 派遣路线必须在同一星系内！', type: 'error' }] };
-  }
-
   // 设置路线，船只从当前位置开始
   ship.location = ship.location || state.currentSystem;
   var routeRevision = bumpRouteRevision(ship);
@@ -1592,6 +1593,7 @@ export function tickFleetRoutes(state) {
           _doShipBuy(state, ship, route, msgs);
         } else {
           var cost = _fuelCost(state, loc, route.buySystemId, getEffectiveShipStats(state, ship).fuelEff);
+          var crossGalaxyBuyTravel = _isCrossGalaxyTravel(loc, route.buySystemId);
           if (ship.fuel < cost) {
             // 尝试用积分补燃料
             _autoRefuelShip(state, ship, cost, msgs);
@@ -1603,10 +1605,10 @@ export function tickFleetRoutes(state) {
           }
           ship.fuel    -= cost;
           ship.location = route.buySystemId;
-          applyTravelWear(state, idx, { fuelCost: cost, crossGalaxy: false, secretRoute: false }).msgs.forEach(function (m) { msgs.push(m); });
+          applyTravelWear(state, idx, { fuelCost: cost, crossGalaxy: crossGalaxyBuyTravel, secretRoute: false }).msgs.forEach(function (m) { msgs.push(m); });
           msgs.push({ text: '🚀 「' + ship.name + '」抵达买入地。', type: 'travel' });
           if (_handleShipSmugglingCheck(state, ship, route, msgs)) return;
-          recordShipActivity(state, 'travel', { secretRoute: false, crossGalaxy: false }, idx).msgs.forEach(function (m) { msgs.push(m); });
+          recordShipActivity(state, 'travel', { secretRoute: false, crossGalaxy: crossGalaxyBuyTravel }, idx).msgs.forEach(function (m) { msgs.push(m); });
           consumeShipProtocol(state, idx, 'travel').msgs.forEach(function (m) { msgs.push(m); });
           _doShipBuy(state, ship, route, msgs);
         }
@@ -1626,6 +1628,7 @@ export function tickFleetRoutes(state) {
           _doShipSell(state, ship, route, msgs);
         } else {
           var cost2 = _fuelCost(state, loc, route.sellSystemId, getEffectiveShipStats(state, ship).fuelEff);
+          var crossGalaxySellTravel = _isCrossGalaxyTravel(loc, route.sellSystemId);
           if (ship.fuel < cost2) {
             _autoRefuelShip(state, ship, cost2, msgs);
             if (ship.fuel < cost2) {
@@ -1636,10 +1639,10 @@ export function tickFleetRoutes(state) {
           }
           ship.fuel    -= cost2;
           ship.location = route.sellSystemId;
-          applyTravelWear(state, idx, { fuelCost: cost2, crossGalaxy: false, secretRoute: false }).msgs.forEach(function (m) { msgs.push(m); });
+          applyTravelWear(state, idx, { fuelCost: cost2, crossGalaxy: crossGalaxySellTravel, secretRoute: false }).msgs.forEach(function (m) { msgs.push(m); });
           msgs.push({ text: '🚀 「' + ship.name + '」抵达卖出地。', type: 'travel' });
           if (_handleShipSmugglingCheck(state, ship, route, msgs)) return;
-          recordShipActivity(state, 'travel', { secretRoute: false, crossGalaxy: false }, idx).msgs.forEach(function (m) { msgs.push(m); });
+          recordShipActivity(state, 'travel', { secretRoute: false, crossGalaxy: crossGalaxySellTravel }, idx).msgs.forEach(function (m) { msgs.push(m); });
           consumeShipProtocol(state, idx, 'travel').msgs.forEach(function (m) { msgs.push(m); });
           _doShipSell(state, ship, route, msgs);
         }
