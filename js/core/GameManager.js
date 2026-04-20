@@ -18,9 +18,9 @@ import * as Exploration from '../systems/galaxy/ExplorationSystem.js?v=20260417-
 import * as HUD        from '../ui/HUD.js?v=20260412-questroute2';
 import * as MarketUI   from '../ui/MarketUI.js?v=20260420-balance3';
 import * as ShipUI     from '../ui/ShipUI.js';
-import * as MapUI      from '../ui/MapUI.js?v=20260420-balance3';
+import * as MapUI      from '../ui/MapUI.js?v=20260421-scanevent2';
 import * as Modal      from '../ui/Modal.js';
-import * as EventUI    from '../ui/EventUI.js';
+import * as EventUI    from '../ui/EventUI.js?v=20260421-scanevent2';
 import * as DialogueUI from '../ui/DialogueUI.js';
 import * as ResearchUI from '../ui/ResearchUI.js?v=20260420-balance5';
 import * as FactionUI  from '../ui/FactionUI.js?v=20260419-marketcta2';

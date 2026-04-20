@@ -2,7 +2,7 @@
 // 依赖：core/GameManager.js
 // 说明：浏览器加载完毕后初始化游戏
 
-import { init } from './core/GameManager.js?v=20260421-dispatchoneclick2';
+import { init } from './core/GameManager.js?v=20260421-scanevent2';
 
 window.addEventListener('load', function () {
 	init();

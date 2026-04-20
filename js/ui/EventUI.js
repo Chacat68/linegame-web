@@ -17,9 +17,9 @@ export function showEvent(event, onChoice) {
   _pendingEvent = null;
   _pendingOnChoice = null;
 
-  document.getElementById('event-icon').textContent  = event.icon;
-  document.getElementById('event-title').textContent = event.title;
-  document.getElementById('event-desc').textContent  = event.description;
+  document.getElementById('event-icon').textContent  = event.icon || '📡';
+  document.getElementById('event-title').textContent = event.title || '事件';
+  document.getElementById('event-desc').textContent  = event.description || '';
   _renderMeta(event);
 
   const choicesDiv = document.getElementById('event-choices');
@@ -124,6 +124,11 @@ function _renderMeta(event) {
   if (!metaDiv) return;
 
   metaDiv.innerHTML = '';
+  if (event && event.metaHidden) {
+    metaDiv.hidden = true;
+    return;
+  }
+  metaDiv.hidden = false;
 
   const tags = [
     {

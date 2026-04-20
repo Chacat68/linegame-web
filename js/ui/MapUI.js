@@ -6,6 +6,7 @@ import * as Renderer3D from './Renderer3DAdvanced.js?v=20260420-balance3';
 import * as Faction from '../systems/faction/FactionSystem.js';
 import * as GalaxyData from '../systems/galaxy/GalaxyDataLayer.js';
 import * as Exploration from '../systems/galaxy/ExplorationSystem.js?v=20260417-exploration20';
+import * as EventUI from './EventUI.js?v=20260421-scanevent2';
 import { GOODS } from '../data/goods.js';
 import {
   buildContextualMarketAction,
@@ -737,6 +738,46 @@ function _updateGalaxyBtn(stateRef) {
   }
 }
 
+function _showArrivalScanPrompt(stateRef) {
+  if (!stateRef || !_explorationActions || typeof _explorationActions.onScan !== 'function') return false;
+
+  var systemId = stateRef.currentSystem;
+  var sys = findSystem(systemId);
+  var scanStatus = _getScanStatus(stateRef, systemId);
+  if (!sys || !scanStatus) return false;
+
+  var canScan = !!scanStatus.canScan;
+  var description = '已进入「' + sys.name + '」轨道。\n' +
+    (scanStatus.detailText || '确认后会立即完成本地扫描。');
+
+  if (!canScan && scanStatus.blockedReason) {
+    description += '\n' + scanStatus.blockedReason;
+  } else if (canScan) {
+    description += '\n确认后会直接写入扫描结果，不再展开独立探索面板。';
+  }
+
+  EventUI.showEvent({
+    icon: scanStatus.scanMode === 'deep' ? '🔭' : '📡',
+    title: sys.name + ' · ' + (scanStatus.scanModeLabel || '轨道扫描'),
+    description: description,
+    metaHidden: true,
+    choices: [{
+      text: canScan
+        ? (scanStatus.actionLabel || '执行轨道扫描')
+        : '知道了',
+      tooltip: canScan
+        ? '确认后立即完成扫描。'
+        : (scanStatus.blockedReason || '当前无法执行扫描。'),
+    }],
+  }, function () {
+    if (canScan) {
+      _explorationActions.onScan(systemId);
+    }
+  });
+
+  return true;
+}
+
 /** 外部调用刷新按钮状态 */
 export function refreshGalaxyBtn(stateRef) {
   _updateGalaxyBtn(stateRef);
@@ -750,10 +791,13 @@ export function triggerArrivalScanPanel(stateRef) {
   _stateRef = stateRef;
   _clearSelectedPlanetDetail(false);
   stateRef.hoveredSystem = null;
-  _orbitScanPanelOpen = !!_getCurrentSystemScanTarget(stateRef);
+  _clearCurrentSystemScanReveal();
+  _orbitScanPanelOpen = false;
   _updateOrbitScanButton(stateRef);
   _renderCurrentSystemExplorationCard(stateRef);
-  return _orbitScanPanelOpen;
+
+  if (!_getCurrentSystemScanTarget(stateRef)) return false;
+  return _showArrivalScanPrompt(stateRef);
 }
 
 function _getSafetyLabel(score) {
@@ -780,11 +824,8 @@ function _bindExplorationActionContainer(containerId) {
 
     if (action === 'scan' && _explorationActions.onScan) {
       var scanResult = _explorationActions.onScan(systemId);
-      if (scanResult && scanResult.ok && _stateRef && systemId === _stateRef.currentSystem) {
-        _startCurrentSystemScanReveal(_stateRef, systemId, scanResult);
-      } else if (containerId === 'current-system-exploration-card' && scanResult && scanResult.ok) {
-        _closeOrbitScanPanel(_stateRef);
-      }
+      _clearCurrentSystemScanReveal();
+      _closeOrbitScanPanel(_stateRef);
       return;
     }
     if (action === 'land' && _explorationActions.onLand) {
@@ -1383,61 +1424,10 @@ function _renderCurrentSystemExplorationCard(stateRef) {
   var card = document.getElementById('current-system-exploration-card');
   if (!card) return;
 
-  var canUseCurrentSystemCard = !!stateRef &&
-    stateRef.mapView === 'planets' &&
-    stateRef.viewingGalaxy === stateRef.currentGalaxy;
-  var scanTarget = _getCurrentSystemScanTarget(stateRef);
-  var scanReveal = _getCurrentSystemScanReveal(stateRef);
-
-  if (!canUseCurrentSystemCard || (!scanTarget && !scanReveal)) {
-    _orbitScanPanelOpen = false;
-    _clearCurrentSystemScanReveal();
-    card.classList.remove('visible');
-    return;
-  }
-
-  if (stateRef.hoveredSystem || _selectedPlanetDetailSystem) {
-    card.classList.remove('visible');
-    return;
-  }
-
-  if (!_orbitScanPanelOpen) {
-    card.classList.remove('visible');
-    return;
-  }
-
-  var sys = findSystem(stateRef.currentSystem);
-  var planetData = GalaxyData.getPlanetData(stateRef.currentSystem);
-  if (!sys || !planetData || !planetData.exploration) {
-    _orbitScanPanelOpen = false;
-    card.classList.remove('visible');
-    return;
-  }
-
-  var playerLevel = stateRef.playerLevel || 1;
-  var isUnlocked = playerLevel >= (sys.minLevel || 1);
-  var flow = _getExplorationFlow(stateRef, sys, planetData, true, isUnlocked);
-  if (!flow) {
-    _clearCurrentSystemScanReveal();
-    card.classList.remove('visible');
-    return;
-  }
-
-  card.innerHTML = '<div class="current-system-card-head">' +
-    '<div class="current-system-card-head-main">' +
-      '<div class="current-system-card-kicker">扫描终端</div>' +
-      '<div class="current-system-card-name">🪐 ' + sys.name + '</div>' +
-    '</div>' +
-    '<button class="current-system-card-close" type="button" aria-label="关闭扫描面板" data-orbit-scan-close="true">✕</button>' +
-    '</div>' +
-    (scanReveal
-      ? _buildCurrentSystemScanRevealCard(flow, scanReveal)
-      : _buildExplorationFlowCard(flow, {
-          cardClass: 'planet-detail-flow-card current-system-flow-card',
-          actionClass: 'current-system-action',
-        }) + _buildExplorationProgressRow(flow));
-
-  card.classList.add('visible');
+  _orbitScanPanelOpen = false;
+  _clearCurrentSystemScanReveal();
+  card.innerHTML = '';
+  card.classList.remove('visible');
 }
 
 export function refreshPlanetDetail(stateRef) {
