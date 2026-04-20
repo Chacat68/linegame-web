@@ -1420,12 +1420,24 @@
   gap: 8px;
   margin: 10px 0;
 }
+.dispatch-form--core,
+.dispatch-form--advanced {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 10px;
+}
+.dispatch-form--advanced {
+  margin: 10px 0 0;
+}
 .dispatch-label {
   display: flex;
   flex-direction: column;
   font-size: 12px;
   color: var(--text-dim);
   gap: 3px;
+}
+.dispatch-label--full {
+  grid-column: 1 / -1;
 }
 .dispatch-select {
   background: rgba(8, 18, 38, 0.85);
@@ -1440,6 +1452,58 @@
   border-color: rgba(118, 228, 255, 0.45);
   outline: none;
   box-shadow: 0 0 6px rgba(118, 228, 255, 0.12);
+}
+.dispatch-primary-hint {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(79, 195, 247, 0.18);
+  background: rgba(10, 20, 40, 0.78);
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.dispatch-primary-hint--ready {
+  border-color: rgba(34, 211, 238, 0.26);
+  color: #b8fff6;
+}
+.dispatch-primary-hint--warning {
+  border-color: rgba(251, 191, 36, 0.3);
+  color: #ffd38a;
+}
+.dispatch-advanced-panel {
+  margin: 0 0 10px;
+  border-radius: 8px;
+  border: 1px dashed rgba(79, 195, 247, 0.18);
+  background: rgba(7, 15, 30, 0.62);
+}
+.dispatch-advanced-panel[open] {
+  border-style: solid;
+}
+.dispatch-advanced-panel > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 12px;
+  list-style: none;
+}
+.dispatch-advanced-panel > summary::-webkit-details-marker {
+  display: none;
+}
+.dispatch-advanced-panel > summary::after {
+  content: '展开';
+  color: var(--accent-cyan);
+  font-size: 11px;
+}
+.dispatch-advanced-panel[open] > summary::after {
+  content: '收起';
+}
+.dispatch-advanced-panel > summary + .dispatch-form--advanced {
+  padding: 0 12px 12px;
 }
 .dispatch-estimate {
   font-size: 12px;
@@ -1541,6 +1605,10 @@
   color: var(--accent-red);
 }
 @media (max-width: 640px) {
+  .dispatch-form--core,
+  .dispatch-form--advanced {
+    grid-template-columns: 1fr;
+  }
   .dispatch-suggest-group {
     flex-direction: column;
     align-items: stretch;

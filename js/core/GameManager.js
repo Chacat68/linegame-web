@@ -33,7 +33,7 @@ import * as AutoTrade  from '../systems/trade/AutoTradeSystem.js?v=20260420-bala
 import * as TradeStation from '../systems/trade/TradeStationSystem.js';
 import * as Finance from '../systems/finance/FinanceSystem.js';
 import * as Futures from '../systems/finance/FuturesSystem.js';
-import * as FleetUI    from '../ui/FleetUI.js?v=20260421-balance7';
+import * as FleetUI    from '../ui/FleetUI.js?v=20260421-dispatchoneclick1';
 import * as Save       from '../systems/save/SaveSystem.js';
 import * as Quest      from '../systems/quest/QuestSystem.js?v=20260412-questroute2';
 import * as Achievement from '../systems/achievement/AchievementSystem.js';
@@ -49,7 +49,7 @@ import { SYSTEMS } from '../data/systems.js';
 import { GOODS } from '../data/goods.js';
 import * as Settings from './SettingsManager.js?v=20260412-timescale1';
 import * as Progression from '../systems/progression/ProgressionSystem.js?v=20260421-balance6';
-import * as Dispatch from './DispatchController.js?v=20260421-balance6';
+import * as Dispatch from './DispatchController.js?v=20260421-dispatchoneclick1';
 
 let _state     = null;
 let _startTime = null;
@@ -934,7 +934,7 @@ function _openRecommendedDispatch(recommendation, sourceLabel, icon) {
   if (!activeShip || !recommendation) return;
 
   MapUI.activateTab('tab-fleet');
-  FleetUI.openDispatchModal(_state, activeShipIndex, _handleAssignRoute, {
+  FleetUI.openDispatchModal(_state, activeShipIndex, _handleAssignRoute, _handleCancelRoute, {
     buySystemId: recommendation.buySystemId,
     sellSystemId: recommendation.sellSystemId,
     goodId: recommendation.goodId,
@@ -949,7 +949,7 @@ function _openRecommendedDispatch(recommendation, sourceLabel, icon) {
   });
 
   EventBus.emit('log:message', {
-    text: icon + ' 已将' + sourceLabel + '带入「' + activeShip.emoji + ' ' + activeShip.name + '」派遣配置：' + (recommendation.buySystemName || recommendation.buySystemId) + ' → ' + (recommendation.sellSystemName || recommendation.sellSystemId) + ' · ' + (recommendation.goodName || recommendation.goodId) + '。',
+    text: icon + ' 已按' + sourceLabel + '为「' + activeShip.emoji + ' ' + activeShip.name + '」直接派遣：' + (recommendation.buySystemName || recommendation.buySystemId) + ' → ' + (recommendation.sellSystemName || recommendation.sellSystemId) + ' · ' + (recommendation.goodName || recommendation.goodId) + '；若要回退，可在弹窗里撤销。',
     type: 'info',
   });
 }
@@ -1197,6 +1197,7 @@ function _handleAssignRoute(shipIndex, buySystemId, sellSystemId, goodId, tradeP
   if (result && result.ok && isActive) {
     Dispatch.startActiveDispatch(_boundDispatchTick);
   }
+  return result;
 }
 
 function _handleCancelRoute(shipIndex) {
@@ -1210,6 +1211,7 @@ function _handleCancelRoute(shipIndex) {
   if (isActive) {
     Dispatch.stopActiveDispatch();
   }
+  return result;
 }
 
 function _handleBuySlot() {

@@ -380,7 +380,7 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
   // 派遣按钮 → 打开派遣配置弹窗（所有船只，包括激活船只）
   container.querySelectorAll('.fleet-dispatch-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      openDispatchModal(state, parseInt(btn.dataset.index), onAssignRoute);
+      openDispatchModal(state, parseInt(btn.dataset.index), onAssignRoute, onCancelRoute);
     });
   });
 
@@ -625,8 +625,8 @@ export function renderShop(state, onBuyShip) {
   });
 }
 
-export function openDispatchModal(state, shipIndex, onAssignRoute, preset) {
-  _openDispatchModal(state, shipIndex, onAssignRoute, preset);
+export function openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, preset) {
+  _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, preset);
 }
 
 // ---------------------------------------------------------------------------
@@ -1011,7 +1011,7 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod) {
 // 派遣配置弹窗
 // ---------------------------------------------------------------------------
 
-function _openDispatchModal(state, shipIndex, onAssignRoute, preset) {
+function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, preset) {
   const modal = document.getElementById('dispatch-modal');
   if (!modal) return;
 
@@ -1041,7 +1041,15 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, preset) {
   const marketModeSelect = document.getElementById('dispatch-market-mode');
   const suggestBtn = document.getElementById('dispatch-suggest');
   const suggestRiskEl = document.getElementById('dispatch-suggest-risk');
+  const suggestGroup = suggestBtn ? suggestBtn.closest('.dispatch-suggest-group') : null;
   const estimateEl = document.getElementById('dispatch-estimate');
+  const confirmBtn = document.getElementById('dispatch-confirm');
+  const cancelBtn = document.getElementById('dispatch-cancel');
+  const primaryHintEl = document.getElementById('dispatch-primary-hint');
+  const advancedPanel = document.getElementById('dispatch-advanced-panel');
+  const coreForm = modal.querySelector('.dispatch-form--core');
+  var modalMode = 'manual';
+  var autoAppliedRecommendation = null;
   var existingPolicy = dispatchPreset && dispatchPreset.tradePolicy
     ? dispatchPreset.tradePolicy
     : (ship.route && ship.route.tradePolicy ? ship.route.tradePolicy : {});
@@ -1052,6 +1060,92 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, preset) {
 
   function _getGalaxyName(galaxyId) {
     return galaxyNames[galaxyId] || galaxyId;
+  }
+
+  function _hasCustomTradePolicy(policy) {
+    if (!policy || typeof policy !== 'object') return false;
+    return Number.isFinite(policy.maxBuyPrice)
+      || Number.isFinite(policy.minSellPrice)
+      || Number.isFinite(policy.minProfitRate)
+      || (policy.riskMode && policy.riskMode !== 'balanced')
+      || (policy.marketMode && policy.marketMode !== 'open');
+  }
+
+  function _formatRiskModeLabel(riskMode) {
+    if (riskMode === 'safe') return '保守';
+    if (riskMode === 'aggressive') return '激进';
+    return '平衡';
+  }
+
+  function _formatRouteRiskLabel(level) {
+    if (level === 'high') return '高';
+    if (level === 'medium') return '中';
+    return '低';
+  }
+
+  function _getCurrentShip() {
+    return state.fleet[shipIndex] || ship;
+  }
+
+  function _isReviewMode() {
+    var currentShip = _getCurrentShip();
+    return modalMode === 'review' && !!(currentShip && currentShip.route);
+  }
+
+  function _setModalMode(mode, recommendation) {
+    modalMode = mode;
+    autoAppliedRecommendation = mode === 'review' ? (recommendation || autoAppliedRecommendation) : null;
+    if (coreForm) coreForm.hidden = mode === 'review';
+    if (advancedPanel) advancedPanel.hidden = mode === 'review';
+    if (suggestGroup) suggestGroup.hidden = mode === 'review';
+    if (cancelBtn) cancelBtn.textContent = mode === 'review' ? '关闭' : '取消';
+  }
+
+  function _isRecommendationSelected(recommendation) {
+    return !!recommendation
+      && buySelect.value === recommendation.buySystemId
+      && sellSelect.value === recommendation.sellSystemId
+      && goodSelect.value === recommendation.goodId;
+  }
+
+  function _updatePrimaryHint(estimate, recommendation) {
+    var matchesRecommendation = estimate && _isRecommendationSelected(recommendation);
+    var hasCustomPolicy = _hasCustomTradePolicy(_readTradePolicy());
+    var currentShip = _getCurrentShip();
+
+    if (!confirmBtn || !primaryHintEl) return;
+
+    if (_isReviewMode()) {
+      primaryHintEl.className = 'dispatch-primary-hint dispatch-primary-hint--ready';
+      primaryHintEl.textContent = '已按推荐路线直接派遣；如果只是误触，可立即撤销这次推荐。';
+      confirmBtn.disabled = !(currentShip && currentShip.route);
+      confirmBtn.textContent = '撤销这次推荐';
+      return;
+    }
+
+    confirmBtn.disabled = !estimate;
+
+    if (!estimate) {
+      primaryHintEl.className = 'dispatch-primary-hint dispatch-primary-hint--warning';
+      primaryHintEl.textContent = recommendation
+        ? '当前推荐路线不可直接使用，请调整主路线或展开高级策略后再确认。'
+        : '当前没有可直接派遣的路线，请先选择买入地、卖出地和商品。';
+      confirmBtn.textContent = '确认派遣';
+      return;
+    }
+
+    if (matchesRecommendation) {
+      primaryHintEl.className = 'dispatch-primary-hint dispatch-primary-hint--ready';
+      primaryHintEl.textContent = '已填入当前推荐路线，可直接确认；需要更细条件再展开高级策略。';
+      confirmBtn.textContent = '确认推荐派遣';
+      return;
+    }
+
+    primaryHintEl.className = 'dispatch-primary-hint';
+    primaryHintEl.textContent = hasCustomPolicy
+      ? '当前为自定义策略，可直接确认；需要系统重新找线可点“刷新推荐”。'
+      : '当前为手动路线，可直接确认；需要系统重新找线可点“刷新推荐”。';
+    confirmBtn.textContent = '按当前配置派遣';
   }
 
   function _formatSystemOptionLabel(system) {
@@ -1289,6 +1383,20 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, preset) {
     }, _readTradePolicy());
   }
 
+  function _applyRecommendationSelection(recommendation) {
+    if (!recommendation) return;
+
+    if (!planetLookup[recommendation.buySystemId] || !planetLookup[recommendation.sellSystemId]) {
+      _appendPresetSystem(recommendation.buySystemId);
+      _appendPresetSystem(recommendation.sellSystemId);
+      _buildMarketOptions();
+    }
+
+    buySelect.value = recommendation.buySystemId;
+    sellSelect.value = recommendation.sellSystemId;
+    goodSelect.value = recommendation.goodId;
+  }
+
   function _updateSuggestRiskIndicator(recommendation) {
     var badgeClass = 'dispatch-suggest-risk dispatch-suggest-risk--none';
     var badgeLabel = '当前策略下暂无可推荐路线';
@@ -1330,11 +1438,7 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, preset) {
     var riskSummary = _buildRiskSummary(estimate);
     var dispatchProfile = estimate.dispatchProfile || (recommendation && recommendation.dispatchProfile) || effectiveShipStats.dispatchProfile || {};
     var marketLabel = estimate.tradePolicy.marketMode === 'black' ? '黑市' : '公开';
-    var riskModeLabel = estimate.tradePolicy.riskMode === 'safe'
-      ? '保守'
-      : estimate.tradePolicy.riskMode === 'aggressive'
-        ? '激进'
-        : '平衡';
+    var riskModeLabel = _formatRiskModeLabel(estimate.tradePolicy.riskMode);
     var warningHtml = warnings.length > 0
       ? '<div class="dispatch-estimate-note dispatch-estimate-note--warning">策略将等待：' + _escapeHtml(warnings.join('、')) + '</div>'
       : '';
@@ -1359,7 +1463,7 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, preset) {
         '<span>单次利润 ≈ ' + Math.floor(estimate.profit) + ' 积分</span>' +
         '<span>利润率 ' + Math.round(estimate.profitRate * 100) + '%</span>' +
         '<span>航程燃料 ' + estimate.fuelCost + ' 单位</span>' +
-        '<span>路线风险 ' + _escapeHtml(riskAssessment.riskLevel) + '</span>' +
+        '<span>路线风险 ' + _escapeHtml(_formatRouteRiskLabel(riskAssessment.riskLevel)) + '</span>' +
         '<span>风险偏好 ' + riskModeLabel + '</span>' +
       '</div>' +
       '<div class="dispatch-risk-grid">' +
@@ -1389,22 +1493,31 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, preset) {
     var recommendation = _getSuggestedRecommendation();
 
     if (!recommendation) {
-      estimateEl.textContent = '未找到符合当前策略的派遣路线。请放宽价格阈值、风险偏好要求，或确认已解锁黑市权限。';
+      _setModalMode('manual');
+      estimateEl.textContent = '未找到符合当前策略的派遣路线。可手动调整主路线，或展开高级策略放宽条件后再试。';
       _updateSuggestRiskIndicator(null);
+      _updatePrimaryHint(null, null);
       return;
     }
 
-    if (!planetLookup[recommendation.buySystemId] || !planetLookup[recommendation.sellSystemId]) {
-      _appendPresetSystem(recommendation.buySystemId);
-      _appendPresetSystem(recommendation.sellSystemId);
-      _buildMarketOptions();
-    }
-
-    buySelect.value = recommendation.buySystemId;
-    sellSelect.value = recommendation.sellSystemId;
-    goodSelect.value = recommendation.goodId;
+    _setModalMode('manual');
+    _applyRecommendationSelection(recommendation);
     _updateSuggestRiskIndicator(recommendation);
     _updateEstimate(recommendation);
+  }
+
+  function _tryAutoDispatch(recommendation, tradePolicy) {
+    var currentShip = _getCurrentShip();
+    if (!recommendation || !onAssignRoute || (currentShip && currentShip.route)) return false;
+
+    _applyRecommendationSelection(recommendation);
+    onAssignRoute(shipIndex, recommendation.buySystemId, recommendation.sellSystemId, recommendation.goodId, tradePolicy);
+
+    currentShip = _getCurrentShip();
+    if (!currentShip || !currentShip.route) return false;
+
+    _setModalMode('review', recommendation);
+    return true;
   }
 
   // 预估利润
@@ -1414,6 +1527,7 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, preset) {
     if (!estimate) {
       estimateEl.textContent = '无法预估（航线不足）';
       _updateSuggestRiskIndicator(suggestedRecommendation);
+      _updatePrimaryHint(null, suggestedRecommendation);
       return;
     }
     var warnings = [];
@@ -1431,9 +1545,11 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, preset) {
 
     _updateSuggestRiskIndicator(suggestedRecommendation);
     _renderEstimate(estimate, recommendation, warnings);
+    _updatePrimaryHint(estimate, suggestedRecommendation);
   }
 
   _buildMarketOptions();
+  if (advancedPanel) advancedPanel.open = _hasCustomTradePolicy(existingPolicy);
   buySelect.onchange  = _updateEstimate;
   sellSelect.onchange = _updateEstimate;
   goodSelect.onchange = _updateEstimate;
@@ -1446,15 +1562,52 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, preset) {
     _updateEstimate();
   };
   suggestBtn.onclick = _applySuggestedRoute;
-  _updateEstimate(presetRecommendation);
+
+  var hasPresetRoute = !!(dispatchPreset && dispatchPreset.buySystemId && dispatchPreset.sellSystemId && dispatchPreset.goodId);
+  var allowAutoDispatch = !dispatchPreset || dispatchPreset.autoDispatch !== false;
+  var initialRecommendation = !hasPresetRoute && presetRecommendation
+    ? presetRecommendation
+    : (!hasPresetRoute ? _getSuggestedRecommendation() : null);
+  var initialTradePolicy = dispatchPreset && dispatchPreset.tradePolicy
+    ? dispatchPreset.tradePolicy
+    : (initialRecommendation && initialRecommendation.recommendedTradePolicy) || _readTradePolicy();
+
+  if (hasPresetRoute && !initialRecommendation) {
+    initialRecommendation = {
+      buySystemId: dispatchPreset.buySystemId,
+      sellSystemId: dispatchPreset.sellSystemId,
+      goodId: dispatchPreset.goodId,
+      buySystemName: (SYSTEMS.find(function (sys) { return sys.id === dispatchPreset.buySystemId; }) || {}).name || dispatchPreset.buySystemId,
+      sellSystemName: (SYSTEMS.find(function (sys) { return sys.id === dispatchPreset.sellSystemId; }) || {}).name || dispatchPreset.sellSystemId,
+      goodName: (GOODS.find(function (good) { return good.id === dispatchPreset.goodId; }) || {}).name || dispatchPreset.goodId,
+      recommendedTradePolicy: initialTradePolicy,
+    };
+  }
+
+  if (initialRecommendation && allowAutoDispatch && _tryAutoDispatch(initialRecommendation, initialTradePolicy)) {
+    _updateSuggestRiskIndicator(initialRecommendation);
+    _updateEstimate(initialRecommendation);
+  } else if (initialRecommendation) {
+    _setModalMode('manual');
+    _applyRecommendationSelection(initialRecommendation);
+    _updateEstimate(initialRecommendation);
+  } else {
+    _setModalMode('manual');
+    _updateEstimate(presetRecommendation);
+  }
 
   // 确认
-  document.getElementById('dispatch-confirm').onclick = function () {
+  confirmBtn.onclick = function () {
+    if (_isReviewMode()) {
+      if (onCancelRoute) onCancelRoute(shipIndex);
+      modal.classList.add('hidden');
+      return;
+    }
     onAssignRoute(shipIndex, buySelect.value, sellSelect.value, goodSelect.value, _readTradePolicy());
     modal.classList.add('hidden');
   };
 
-  document.getElementById('dispatch-cancel').onclick = function () {
+  cancelBtn.onclick = function () {
     modal.classList.add('hidden');
   };
 

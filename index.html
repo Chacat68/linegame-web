@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>蓝脉航路 · 银河历 3045</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%23040814' stroke='%2322d3ee' stroke-width='2'/><circle cx='16' cy='16' r='4' fill='%2322d3ee'/><line x1='16' y1='2' x2='16' y2='8' stroke='%2322d3ee' stroke-width='1.5'/><line x1='16' y1='24' x2='16' y2='30' stroke='%2322d3ee' stroke-width='1.5'/><line x1='2' y1='16' x2='8' y2='16' stroke='%2322d3ee' stroke-width='1.5'/><line x1='24' y1='16' x2='30' y2='16' stroke='%2322d3ee' stroke-width='1.5'/></svg>" />
-    <link rel="stylesheet" href="css/style.css?v=20260420-planettips2" />
+    <link rel="stylesheet" href="css/style.css?v=20260421-dispatchlite1" />
   </head>
   <body>
     <div id="game-shell">
@@ -519,7 +519,8 @@
     >
       <div class="modal-box">
         <h3 id="dispatch-title">📡 派遣贸易</h3>
-        <div class="dispatch-form">
+        <div id="dispatch-primary-hint" class="dispatch-primary-hint"></div>
+        <div class="dispatch-form dispatch-form--core">
           <label class="dispatch-label"
             >买入星系
             <select id="dispatch-buy-system" class="dispatch-select"></select>
@@ -528,42 +529,47 @@
             >卖出星系
             <select id="dispatch-sell-system" class="dispatch-select"></select>
           </label>
-          <label class="dispatch-label"
+          <label class="dispatch-label dispatch-label--full"
             >贸易商品
             <select id="dispatch-good" class="dispatch-select"></select>
           </label>
-          <label class="dispatch-label"
-            >交易市场
-            <select id="dispatch-market-mode" class="dispatch-select">
-              <option value="open" selected>公开市场</option>
-              <option value="black">黑市</option>
-            </select>
-          </label>
-          <label class="dispatch-label"
-            >最高买入价
-            <input id="dispatch-max-buy-price" class="dispatch-select" type="number" min="0" step="1" placeholder="留空则不限制" />
-          </label>
-          <label class="dispatch-label"
-            >最低卖出价
-            <input id="dispatch-min-sell-price" class="dispatch-select" type="number" min="0" step="1" placeholder="留空则不限制" />
-          </label>
-          <label class="dispatch-label"
-            >最低利润率（%）
-            <input id="dispatch-min-profit-rate" class="dispatch-select" type="number" min="0" step="1" placeholder="留空则不限制" />
-          </label>
-          <label class="dispatch-label"
-            >风险偏好
-            <select id="dispatch-risk-mode" class="dispatch-select">
-              <option value="safe">保守</option>
-              <option value="balanced" selected>平衡</option>
-              <option value="aggressive">激进</option>
-            </select>
-          </label>
         </div>
+        <details id="dispatch-advanced-panel" class="dispatch-advanced-panel">
+          <summary>高级策略（市场、风险、价格阈值）</summary>
+          <div class="dispatch-form dispatch-form--advanced">
+            <label class="dispatch-label"
+              >交易市场
+              <select id="dispatch-market-mode" class="dispatch-select">
+                <option value="open" selected>公开市场</option>
+                <option value="black">黑市</option>
+              </select>
+            </label>
+            <label class="dispatch-label"
+              >风险偏好
+              <select id="dispatch-risk-mode" class="dispatch-select">
+                <option value="safe">保守</option>
+                <option value="balanced" selected>平衡</option>
+                <option value="aggressive">激进</option>
+              </select>
+            </label>
+            <label class="dispatch-label"
+              >最高买入价
+              <input id="dispatch-max-buy-price" class="dispatch-select" type="number" min="0" step="1" placeholder="留空则不限制" />
+            </label>
+            <label class="dispatch-label"
+              >最低卖出价
+              <input id="dispatch-min-sell-price" class="dispatch-select" type="number" min="0" step="1" placeholder="留空则不限制" />
+            </label>
+            <label class="dispatch-label dispatch-label--full"
+              >最低利润率（%）
+              <input id="dispatch-min-profit-rate" class="dispatch-select" type="number" min="0" step="1" placeholder="留空则不限制" />
+            </label>
+          </div>
+        </details>
         <div id="dispatch-estimate" class="dispatch-estimate"></div>
         <div class="modal-actions">
           <div class="dispatch-suggest-group">
-            <button id="dispatch-suggest" class="btn-secondary">智能推荐</button>
+            <button id="dispatch-suggest" class="btn-secondary">刷新推荐</button>
             <span id="dispatch-suggest-risk" class="dispatch-suggest-risk dispatch-suggest-risk--none" aria-label="当前策略下暂无可推荐路线" title="当前策略下暂无可推荐路线"></span>
           </div>
           <button id="dispatch-confirm" class="btn-primary">确认派遣</button>
@@ -971,6 +977,6 @@
 
     <!-- Babylon.js library for 3D rendering -->
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
-    <script type="module" src="js/main.js?v=20260421-balance7"></script>
+    <script type="module" src="js/main.js?v=20260421-dispatchoneclick2"></script>
   </body>
 </html>

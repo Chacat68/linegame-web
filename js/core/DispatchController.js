@@ -82,7 +82,7 @@ export function runActiveDispatchTick(state, options) {
   const isModalVisible = options.isModalVisible;
 
   // 有弹窗时暂停
-  if (isModalVisible('event-modal')) {
+  if (isModalVisible('event-modal') || isModalVisible('dispatch-modal')) {
     return { action: 'noop', msgs };
   }
   if (isModalVisible('gameover-modal')) {

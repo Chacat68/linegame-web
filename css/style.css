@@ -11,7 +11,7 @@
 @import url("status.css");          /* 底部消息日志 */
 @import url("modals.css");          /* 通用弹窗、船体值、事件弹窗 */
 @import url("systems.css?v=20260418-researchblocker1");         /* 科技、派系、存档、任务、成就、教程 */
-@import url("fleet.css?v=20260405"); /* 舰队管理、船只卡片、改装 */
+@import url("fleet.css?v=20260421-dispatchlite1"); /* 舰队管理、船只卡片、改装 */
 @import url("settings.css");        /* 公司重命名、设置弹窗 */
 @import url("animations.css");      /* 动画偏好、reduced-motion */
 @import url("responsive.css");      /* 响应式 media queries */
