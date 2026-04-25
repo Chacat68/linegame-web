@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>蓝脉航路 · 银河历 3045</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%23040814' stroke='%2322d3ee' stroke-width='2'/><circle cx='16' cy='16' r='4' fill='%2322d3ee'/><line x1='16' y1='2' x2='16' y2='8' stroke='%2322d3ee' stroke-width='1.5'/><line x1='16' y1='24' x2='16' y2='30' stroke='%2322d3ee' stroke-width='1.5'/><line x1='2' y1='16' x2='8' y2='16' stroke='%2322d3ee' stroke-width='1.5'/><line x1='24' y1='16' x2='30' y2='16' stroke='%2322d3ee' stroke-width='1.5'/></svg>" />
-    <link rel="stylesheet" href="css/style.css?v=20260421-dispatchlite1" />
+    <link rel="stylesheet" href="css/style.css?v=20260421-modrepair1" />
   </head>
   <body>
     <div id="game-shell">
@@ -568,43 +568,8 @@
         </details>
         <div id="dispatch-estimate" class="dispatch-estimate"></div>
         <div class="modal-actions">
-          <div class="dispatch-suggest-group">
-            <button id="dispatch-suggest" class="btn-secondary">刷新推荐</button>
-            <span id="dispatch-suggest-risk" class="dispatch-suggest-risk dispatch-suggest-risk--none" aria-label="当前策略下暂无可推荐路线" title="当前策略下暂无可推荐路线"></span>
-          </div>
-          <button id="dispatch-confirm" class="btn-primary">确认派遣</button>
+          <button id="dispatch-confirm" class="btn-primary">一键派遣</button>
           <button id="dispatch-cancel" class="btn-secondary">取消</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- ================================================================
-     Upgrade modal (船只升级弹窗)
-================================================================ -->
-    <div
-      id="upgrade-modal"
-      class="modal hidden"
-      role="dialog"
-      aria-modal="true"
-    >
-      <div class="modal-box upgrade-modal-box">
-        <h3 id="upgrade-modal-title">⚙️ 船只升级</h3>
-        <div id="upgrade-modal-body"></div>
-        <div class="modal-actions">
-          <button id="upgrade-modal-close" class="btn-secondary">关闭</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- ================================================================
-     Service modal (维护调度弹窗)
-================================================================ -->
-    <div id="service-modal" class="modal hidden" role="dialog" aria-modal="true">
-      <div class="modal-box service-modal-box">
-        <h3 id="service-modal-title">🛠️ 维护调度</h3>
-        <div id="service-modal-body"></div>
-        <div class="modal-actions">
-          <button id="service-modal-close" class="btn-secondary">关闭</button>
         </div>
       </div>
     </div>
@@ -977,6 +942,6 @@
 
     <!-- Babylon.js library for 3D rendering -->
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
-    <script type="module" src="js/main.js?v=20260421-scanevent2"></script>
+    <script type="module" src="js/main.js?v=20260421-shipcardcompact1"></script>
   </body>
 </html>

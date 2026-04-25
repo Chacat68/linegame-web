@@ -287,7 +287,6 @@
 .modal-box,
 .event-modal-box,
 .victory-modal-box,
-.upgrade-modal-box,
 .mod-modal-box,
 .company-rename-box,
 .settings-modal-box {
@@ -332,7 +331,6 @@
 
 .btn-secondary,
 .fleet-switch-btn,
-.fleet-open-upg-btn,
 .fleet-open-mod-btn,
 .tut-btn-secondary,
 .market-close-btn {

@@ -49,6 +49,7 @@ describe('Fleet.init', () => {
     expect(state.fleet[0].maintenance).toBe(100);
     expect(state.fleet[0].lastServiceDay).toBe(0);
     expect(state.fleet[0].faults).toEqual([]);
+    expect(state.fleet[0].repairJob).toBe(null);
   });
 });
 
@@ -725,23 +726,7 @@ describe('Fleet maintenance operations', () => {
     expect(result.msgs.some(function (msg) { return msg.text.indexOf('养护') !== -1; })).toBe(true);
   });
 
-  it('快速保养只恢复部分维护度且不清除故障', () => {
-    const state = createTestState({ credits: 5000 });
-    Fleet.init(state);
-    const ship = Fleet.getActiveShip(state);
-    ship.maintenance = 52.5;
-    ship.faults = ['engine_vibration'];
-
-    const creditsBefore = state.credits;
-    const result = Fleet.serviceShip(state, 0, 'quick');
-
-    expect(result.ok).toBe(true);
-    expect(ship.maintenance).toBeCloseTo(80.5, 5);
-    expect(ship.faults).toEqual(['engine_vibration']);
-    expect(state.credits).toBeLessThan(creditsBefore);
-  });
-
-  it('深度坞修会恢复满维护并清除全部故障', () => {
+  it('开始维修会立即扣款并创建维修倒计时，不会立刻清除故障', () => {
     const state = createTestState({ credits: 5000 });
     Fleet.init(state);
     const ship = Fleet.getActiveShip(state);
@@ -749,33 +734,54 @@ describe('Fleet maintenance operations', () => {
     ship.hull = 92;
     ship.faults = ['engine_vibration', 'cargo_lock'];
 
-    const result = Fleet.serviceShip(state, 0, 'overhaul');
+    const quote = Fleet.getShipRepairQuote(state, 0);
+    const creditsBefore = state.credits;
+    const result = Fleet.serviceShip(state, 0);
 
     expect(result.ok).toBe(true);
+    expect(ship.repairJob).toBeTruthy();
+    expect(ship.repairJob.remainingDays).toBe(quote.durationDays);
+    expect(ship.maintenance).toBe(44);
+    expect(ship.hull).toBe(92);
+    expect(ship.faults).toEqual(['engine_vibration', 'cargo_lock']);
+    expect(state.credits).toBe(creditsBefore - quote.cost);
+  });
+
+  it('维修倒计时结束后会恢复维护度和船体并清除全部故障', () => {
+    const state = createTestState({ credits: 5000 });
+    Fleet.init(state);
+    const ship = Fleet.getActiveShip(state);
+    ship.maintenance = 44;
+    ship.hull = 92;
+    ship.faults = ['engine_vibration', 'cargo_lock'];
+
+    expect(Fleet.serviceShip(state, 0).ok).toBe(true);
+
+    let lastResult = null;
+    const remainingDays = ship.repairJob.remainingDays;
+    for (let day = 0; day < remainingDays; day += 1) {
+      lastResult = Fleet.advanceFleetDay(state);
+    }
+
+    expect(lastResult.msgs.some(function (msg) { return msg.text.indexOf('维修完成') !== -1; })).toBe(true);
+    expect(ship.repairJob).toBe(null);
     expect(ship.maintenance).toBe(100);
-    expect(ship.hull).toBeGreaterThan(92);
+    expect(ship.hull).toBe(ship.maxHull);
     expect(ship.faults).toEqual([]);
   });
 
-  it('应急抢修可在派遣中执行并排除一项故障', () => {
+  it('维修中的船只无法派遣', () => {
     const state = createTestState({ credits: 5000 });
     Fleet.init(state);
     const ship = Fleet.getActiveShip(state);
     ship.maintenance = 36;
-    ship.route = {
-      buySystemId: 'sol_prime',
-      sellSystemId: 'nova_station',
-      goodId: 'food',
-      status: 'traveling_buy',
-    };
     ship.faults = ['sensor_blindspot'];
 
-    const result = Fleet.serviceShip(state, 0, 'emergency');
+    expect(Fleet.serviceShip(state, 0).ok).toBe(true);
+    const result = Fleet.assignRoute(state, 0, 'sol_prime', 'nova_station', 'food');
 
-    expect(result.ok).toBe(true);
-    expect(ship.maintenance).toBeGreaterThan(36);
-    expect(ship.maintenance).toBeLessThan(100);
-    expect(ship.faults).toEqual([]);
+    expect(result.ok).toBe(false);
+    expect(result.msgs[0].text).toContain('维修中');
   });
 
   it('欠费且重度失养时可能触发故障', () => {
@@ -854,7 +860,7 @@ describe('Fleet maintenance operations', () => {
     expect(surveyFaultDiscount / surveyBaseDiscount).toBeGreaterThan(logisticsFaultDiscount / logisticsBaseDiscount);
   });
 
-  it('后勤分工的保养方案恢复更高且成本更低', () => {
+  it('后勤分工的维修报价更快且成本更低', () => {
     const state = createTestState({ credits: 80000 });
     Fleet.init(state);
     state.fleetSlots = 3;
@@ -867,12 +873,12 @@ describe('Fleet maintenance operations', () => {
     state.fleet[1].maintenance = 40;
     state.fleet[2].maintenance = 40;
 
-    const logisticsQuick = Fleet.getShipServiceOptions(state, 1).find(function (option) { return option.id === 'quick'; });
-    const supportQuick = Fleet.getShipServiceOptions(state, 2).find(function (option) { return option.id === 'quick'; });
+    const logisticsQuote = Fleet.getShipRepairQuote(state, 1);
+    const supportQuote = Fleet.getShipRepairQuote(state, 2);
 
     expect(Fleet.getShipDispatchProfile(state, state.fleet[2]).roleId).toBe('support');
-    expect(supportQuick.targetMaintenance).toBeGreaterThan(logisticsQuick.targetMaintenance);
-    expect(supportQuick.cost).toBeLessThan(logisticsQuick.cost);
+    expect(supportQuote.durationDays).toBeLessThan(logisticsQuote.durationDays);
+    expect(supportQuote.cost).toBeLessThan(logisticsQuote.cost);
   });
 
   it('applyTravelWear 会在航行后增加磨损', () => {

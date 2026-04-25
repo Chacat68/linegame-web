@@ -58,26 +58,8 @@ const SHIP_CONDITION_FAULTS = [
   },
 ];
 
-const SHIP_SERVICE_TIERS = [
-  {
-    id: 'quick',
-    name: '快速保养',
-    icon: '🧽',
-    desc: '低成本恢复部分维护度，适合靠港周转。',
-  },
-  {
-    id: 'overhaul',
-    name: '深度坞修',
-    icon: '🏗️',
-    desc: '完全恢复维护度，清除全部故障，并修复部分船体。',
-  },
-  {
-    id: 'emergency',
-    name: '应急抢修',
-    icon: '🚑',
-    desc: '可在派遣状态远程执行，快速稳住船况并排除一项故障。',
-  },
-];
+const REPAIR_JOB_MIN_DAYS = 1;
+const REPAIR_JOB_MAX_DAYS = 4;
 
 /**
  * 创建一艘船只实例
@@ -107,6 +89,7 @@ function _createShip(shipType) {
     crewCapacity: Crew.getDefaultCrewCapacity(shipType),
     maintenance:  100,
     lastServiceDay: 0,
+    repairJob:    null,
     location:     null, // 当前所在星系 ID（非激活船只用），null 表示跟随旗舰
     route:        null, // 派遣路线 { buySystemId, sellSystemId, goodId, status:'buying'|'traveling'|'selling'|'returning' }
   };
@@ -131,6 +114,20 @@ function _ensureShipOperationalState(ship) {
   ship.faults = ship.faults.filter(function (faultId) {
     return !!_getShipConditionFault(faultId);
   });
+  if (!ship.repairJob || typeof ship.repairJob !== 'object') {
+    ship.repairJob = null;
+  } else {
+    var remainingDays = Math.max(0, Math.ceil(ship.repairJob.remainingDays || 0));
+    var totalDays = Math.max(REPAIR_JOB_MIN_DAYS, Math.ceil(ship.repairJob.totalDays || remainingDays || REPAIR_JOB_MIN_DAYS));
+    ship.repairJob = remainingDays > 0
+      ? {
+          remainingDays: remainingDays,
+          totalDays: totalDays,
+          cost: Math.max(0, Math.round(ship.repairJob.cost || 0)),
+          startedDay: Number.isFinite(ship.repairJob.startedDay) ? ship.repairJob.startedDay : 0,
+        }
+      : null;
+  }
 }
 
 function _getShipServiceConfig(ship) {
@@ -968,9 +965,57 @@ export function getShipFaultSummaries(ship) {
   }).filter(Boolean);
 }
 
-export function getShipServiceOptions(state, shipIndex) {
+function _buildShipRepairDuration(profile, hullMissing, faultCount, roleEffects) {
+  var rawDays = Math.ceil(
+    Math.max(0, (100 - (profile && profile.value || 100)) / 45)
+    + Math.max(0, hullMissing || 0) / 90
+    + Math.max(0, faultCount || 0) * 0.75
+  );
+  var repairEfficiency = 0;
+  if (roleEffects && roleEffects.serviceMaintenanceBonus) {
+    repairEfficiency += Math.max(
+      roleEffects.serviceMaintenanceBonus.quick || 0,
+      roleEffects.serviceMaintenanceBonus.emergency || 0
+    ) / 16;
+  }
+  if (roleEffects && roleEffects.serviceHullBonus) {
+    repairEfficiency += Math.max(
+      roleEffects.serviceHullBonus.overhaul || 0,
+      roleEffects.serviceHullBonus.emergency || 0
+    ) / 6;
+  }
+  return Math.max(
+    REPAIR_JOB_MIN_DAYS,
+    Math.min(REPAIR_JOB_MAX_DAYS, (rawDays || REPAIR_JOB_MIN_DAYS) - Math.floor(repairEfficiency))
+  );
+}
+
+function _completeShipRepair(state, ship) {
+  var clearedFaultIds = _clearShipFaults(ship, 'all');
+  var clearedFaultLabels = clearedFaultIds.map(function (faultId) {
+    var fault = _getShipConditionFault(faultId);
+    return fault ? fault.label : faultId;
+  });
+
+  ship.maintenance = 100;
+  ship.lastServiceDay = state.day || 1;
+  ship.hull = ship.maxHull || ship.hull || 0;
+  ship.repairJob = null;
+
+  var detailParts = ['维护度恢复至 100%', '船体已完全修复'];
+  if (clearedFaultLabels.length > 0) {
+    detailParts.push('排除故障：' + clearedFaultLabels.join('、'));
+  }
+
+  return {
+    text: '✅ 「' + ship.name + '」维修完成：' + detailParts.join('，') + '。',
+    type: 'upgrade',
+  };
+}
+
+export function getShipRepairQuote(state, shipIndex) {
   var ship = shipIndex != null ? state.fleet[shipIndex] : getActiveShip(state);
-  if (!ship) return [];
+  if (!ship) return null;
 
   _ensureShipOperationalState(ship);
 
@@ -978,59 +1023,38 @@ export function getShipServiceOptions(state, shipIndex) {
   var roleEffects = _getShipOperationalRoleEffects(state, ship);
   var faultSummaries = getShipFaultSummaries(ship);
   var hullMissing = Math.max(0, (ship.maxHull || ship.hull || 0) - (ship.hull || 0));
+  var repairNeeded = profile.value < 99.5 || faultSummaries.length > 0 || hullMissing > 0;
+  var durationDays = _buildShipRepairDuration(profile, hullMissing, faultSummaries.length, roleEffects);
+  var cost = Math.max(80, Math.round(
+    (profile.serviceCost + hullMissing * 2.5 + faultSummaries.length * 35)
+    * (roleEffects.serviceCostMultiplier || 1)
+  ));
+  var disabledReason = '';
 
-  return SHIP_SERVICE_TIERS.map(function (tier) {
-    var cost = 0;
-    var targetMaintenance = profile.value;
-    var clearFaults = 0;
-    var hullRepair = 0;
-    var disabledReason = '';
-    var effectSummary = '';
+  if (ship.repairJob) disabledReason = '维修已在进行中';
+  else if (ship.route) disabledReason = '派遣中无法入坞维修';
+  else if (!repairNeeded) disabledReason = '当前无需维修';
+  else if ((state.credits || 0) < cost) disabledReason = '积分不足';
 
-    if (tier.id === 'quick') {
-      cost = Math.max(35, Math.round((profile.serviceCost * 0.38 + faultSummaries.length * 12) * (roleEffects.serviceCostMultiplier || 1)));
-      targetMaintenance = Math.min(100, profile.value + 28 + ((roleEffects.serviceMaintenanceBonus && roleEffects.serviceMaintenanceBonus.quick) || 0));
-      effectSummary = '维护度恢复至 ' + Math.round(targetMaintenance) + '%';
-      if (ship.route) disabledReason = '需召回后执行';
-      else if (profile.value >= 92 && faultSummaries.length === 0) disabledReason = '当前无需保养';
-    } else if (tier.id === 'emergency') {
-      cost = Math.max(60, Math.round((profile.serviceCost * 0.26 + faultSummaries.length * 22 + (ship.route ? 40 : 0)) * (roleEffects.serviceCostMultiplier || 1)));
-      targetMaintenance = Math.min(100, profile.value + 16 + ((roleEffects.serviceMaintenanceBonus && roleEffects.serviceMaintenanceBonus.emergency) || 0));
-      clearFaults = faultSummaries.length > 0 ? 1 : 0;
-      hullRepair = Math.min(4 + ((roleEffects.serviceHullBonus && roleEffects.serviceHullBonus.emergency) || 0), hullMissing);
-      effectSummary = '维护度恢复至 ' + Math.round(targetMaintenance) + '%';
-      if (clearFaults > 0) effectSummary += '，排除 1 项故障';
-      if (hullRepair > 0) effectSummary += '，修复 ' + hullRepair + ' 点船体';
-      if (profile.value >= 86 && faultSummaries.length === 0 && hullMissing <= 0) disabledReason = '当前无需抢修';
-    } else {
-      cost = Math.max(80, Math.round((profile.serviceCost + hullMissing * 2.5 + faultSummaries.length * 35) * (roleEffects.serviceCostMultiplier || 1)));
-      targetMaintenance = 100;
-      clearFaults = faultSummaries.length;
-      hullRepair = Math.min(18 + ((roleEffects.serviceHullBonus && roleEffects.serviceHullBonus.overhaul) || 0), hullMissing);
-      effectSummary = '维护度恢复至 100%';
-      if (clearFaults > 0) effectSummary += '，清除全部故障';
-      if (hullRepair > 0) effectSummary += '，修复 ' + hullRepair + ' 点船体';
-      if (ship.route) disabledReason = '派遣中无法坞修';
-      else if (profile.value >= 99.5 && faultSummaries.length === 0 && hullMissing <= 0) disabledReason = '当前无需坞修';
-    }
+  return {
+    id: 'repair',
+    name: '标准维修',
+    icon: '🔧',
+    desc: '扣款后进入维修队列，完成时恢复维护度、修复船体并清除故障。',
+    cost: cost,
+    durationDays: durationDays,
+    targetMaintenance: 100,
+    targetHull: ship.maxHull || ship.hull || 0,
+    hullMissing: hullMissing,
+    faultCount: faultSummaries.length,
+    disabledReason: disabledReason,
+    effectSummary: '完成后恢复维护度至 100%，修复 ' + hullMissing + ' 点船体缺口，并清除 ' + faultSummaries.length + ' 项故障。',
+  };
+}
 
-    if (!disabledReason && state.credits < cost) {
-      disabledReason = '积分不足';
-    }
-
-    return {
-      id: tier.id,
-      name: tier.name,
-      icon: tier.icon,
-      desc: tier.desc,
-      cost: cost,
-      targetMaintenance: targetMaintenance,
-      clearFaults: clearFaults,
-      hullRepair: hullRepair,
-      disabledReason: disabledReason,
-      effectSummary: effectSummary,
-    };
-  });
+export function getShipServiceOptions(state, shipIndex) {
+  var quote = getShipRepairQuote(state, shipIndex);
+  return quote ? [quote] : [];
 }
 
 export function serviceShip(state, shipIndex, tierId) {
@@ -1040,39 +1064,26 @@ export function serviceShip(state, shipIndex, tierId) {
   }
 
   _ensureShipOperationalState(ship);
-  var selectedTierId = tierId || 'overhaul';
-  var serviceOption = getShipServiceOptions(state, shipIndex).find(function (option) {
-    return option.id === selectedTierId;
-  });
-  if (!serviceOption) {
-    return { ok: false, msgs: [{ text: '❌ 未知检修方案！', type: 'error' }] };
+  var repairQuote = getShipRepairQuote(state, shipIndex);
+  if (!repairQuote) {
+    return { ok: false, msgs: [{ text: '❌ 无法生成维修方案！', type: 'error' }] };
   }
-  if (serviceOption.disabledReason) {
-    return { ok: false, msgs: [{ text: '🚫 ' + serviceOption.disabledReason + '。', type: 'error' }] };
+  if (repairQuote.disabledReason) {
+    return { ok: false, msgs: [{ text: '🚫 ' + repairQuote.disabledReason + '。', type: 'error' }] };
   }
 
-  state.credits -= serviceOption.cost;
-  ship.maintenance = serviceOption.targetMaintenance;
-  ship.lastServiceDay = state.day || 1;
-  ship.hull = Math.min(ship.maxHull || ship.hull || 0, (ship.hull || 0) + (serviceOption.hullRepair || 0));
-  var clearedFaultIds = _clearShipFaults(ship, serviceOption.id === 'overhaul' ? 'all' : serviceOption.clearFaults);
-  var clearedFaultLabels = clearedFaultIds.map(function (faultId) {
-    var fault = _getShipConditionFault(faultId);
-    return fault ? fault.label : faultId;
-  });
-
-  if ((shipIndex != null ? shipIndex : state.activeShipIndex) === state.activeShipIndex) {
-    syncStateFromShip(state);
-  }
-
-  var detailParts = ['维护度恢复至 ' + Math.round(ship.maintenance) + '%'];
-  if ((serviceOption.hullRepair || 0) > 0) detailParts.push('船体 +' + serviceOption.hullRepair);
-  if (clearedFaultLabels.length > 0) detailParts.push('排除故障：' + clearedFaultLabels.join('、'));
+  state.credits -= repairQuote.cost;
+  ship.repairJob = {
+    remainingDays: repairQuote.durationDays,
+    totalDays: repairQuote.durationDays,
+    cost: repairQuote.cost,
+    startedDay: state.day || 1,
+  };
 
   return {
     ok: true,
     msgs: [{
-      text: serviceOption.icon + ' 「' + ship.name + '」完成「' + serviceOption.name + '」：' + detailParts.join('，') + '（花费 ' + serviceOption.cost.toLocaleString() + ' 积分）。',
+      text: '🔧 「' + ship.name + '」已开始维修：花费 ' + repairQuote.cost.toLocaleString() + ' 积分，预计 ' + repairQuote.durationDays + ' 天后完成。',
       type: 'upgrade',
     }],
   };
@@ -1137,6 +1148,14 @@ export function advanceFleetDay(state) {
     if (paid > 0) {
       state.credits -= paid;
       totalUpkeep += paid;
+    }
+
+    if (ship.repairJob) {
+      ship.repairJob.remainingDays = Math.max(0, ship.repairJob.remainingDays - 1);
+      if (ship.repairJob.remainingDays <= 0) {
+        msgs.push(_completeShipRepair(state, ship));
+      }
+      return;
     }
 
     var decay = beforeProfile.dailyDecay || 0;
@@ -1504,6 +1523,10 @@ export function assignRoute(state, shipIndex, buySystemId, sellSystemId, goodId,
   var ship = state.fleet[shipIndex];
   if (!ship) {
     return { ok: false, msgs: [{ text: '❌ 无效的船只！', type: 'error' }] };
+  }
+  _ensureShipOperationalState(ship);
+  if (ship.repairJob) {
+    return { ok: false, msgs: [{ text: '🔧 该船正在维修中，完成前无法派遣。', type: 'error' }] };
   }
 
   var busSys  = findSystem(buySystemId);

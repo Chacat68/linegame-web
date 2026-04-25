@@ -18,7 +18,7 @@ import * as Exploration from '../systems/galaxy/ExplorationSystem.js?v=20260417-
 import * as HUD        from '../ui/HUD.js?v=20260412-questroute2';
 import * as MarketUI   from '../ui/MarketUI.js?v=20260420-balance3';
 import * as ShipUI     from '../ui/ShipUI.js';
-import * as MapUI      from '../ui/MapUI.js?v=20260421-scanevent2';
+import * as MapUI      from '../ui/MapUI.js?v=20260421-modrepair1';
 import * as Modal      from '../ui/Modal.js';
 import * as EventUI    from '../ui/EventUI.js?v=20260421-scanevent2';
 import * as DialogueUI from '../ui/DialogueUI.js';
@@ -27,13 +27,13 @@ import * as FactionUI  from '../ui/FactionUI.js?v=20260419-marketcta2';
 import * as SaveUI     from '../ui/SaveUI.js';
 import * as QuestUI    from '../ui/QuestUI.js?v=20260420-balance5';
 import * as AchievementUI from '../ui/AchievementUI.js';
-import * as Fleet      from '../systems/fleet/FleetSystem.js?v=20260421-balance6';
+import * as Fleet      from '../systems/fleet/FleetSystem.js?v=20260421-modrepair1';
 import * as Crew       from '../systems/fleet/CrewSystem.js';
 import * as AutoTrade  from '../systems/trade/AutoTradeSystem.js?v=20260420-balance5';
 import * as TradeStation from '../systems/trade/TradeStationSystem.js';
 import * as Finance from '../systems/finance/FinanceSystem.js';
 import * as Futures from '../systems/finance/FuturesSystem.js';
-import * as FleetUI    from '../ui/FleetUI.js?v=20260421-dispatchoneclick1';
+import * as FleetUI    from '../ui/FleetUI.js?v=20260421-modrepair1';
 import * as Save       from '../systems/save/SaveSystem.js';
 import * as Quest      from '../systems/quest/QuestSystem.js?v=20260412-questroute2';
 import * as Achievement from '../systems/achievement/AchievementSystem.js';
@@ -520,6 +520,15 @@ function _handleExplorePoi(systemId, poiId) {
 
 function _handleTravel(systemId) {
   Fleet.syncStateFromShip(_state);
+  var activeShip = Fleet.getActiveShip(_state);
+
+  if (activeShip && activeShip.repairJob && activeShip.repairJob.remainingDays > 0) {
+    EventBus.emit('log:message', {
+      text: '🔧 当前飞船仍在维修中，剩余 ' + activeShip.repairJob.remainingDays + ' 天，完成前无法出航。',
+      type: 'error',
+    });
+    return;
+  }
 
   // 旅行前：如有待处理事件，强制弹出，阻止本次旅行
   if (EventUI.hasPendingEvent()) {
@@ -949,7 +958,7 @@ function _openRecommendedDispatch(recommendation, sourceLabel, icon) {
   });
 
   EventBus.emit('log:message', {
-    text: icon + ' 已按' + sourceLabel + '为「' + activeShip.emoji + ' ' + activeShip.name + '」直接派遣：' + (recommendation.buySystemName || recommendation.buySystemId) + ' → ' + (recommendation.sellSystemName || recommendation.sellSystemId) + ' · ' + (recommendation.goodName || recommendation.goodId) + '；若要回退，可在弹窗里撤销。',
+    text: icon + ' 已为「' + activeShip.emoji + ' ' + activeShip.name + '」载入' + sourceLabel + '推荐路线：' + (recommendation.buySystemName || recommendation.buySystemId) + ' → ' + (recommendation.sellSystemName || recommendation.sellSystemId) + ' · ' + (recommendation.goodName || recommendation.goodId) + '；确认“一键派遣”后即可执行。',
     type: 'info',
   });
 }

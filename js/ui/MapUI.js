@@ -155,6 +155,20 @@ function _buildPlanetTravelAction(stateRef, sys) {
     };
   }
 
+  var activeShip = Array.isArray(stateRef.fleet)
+    ? stateRef.fleet[stateRef.activeShipIndex || 0]
+    : null;
+  if (activeShip && activeShip.repairJob && activeShip.repairJob.remainingDays > 0) {
+    return {
+      type: 'travel',
+      systemId: sys.id,
+      label: '维修中',
+      disabled: true,
+      title: '当前飞船仍在维修中',
+      hint: '剩余 ' + activeShip.repairJob.remainingDays + ' 天，维修完成后方可出航。',
+    };
+  }
+
   var crossGalaxy = sys.galaxyId !== stateRef.currentGalaxy;
   if (crossGalaxy) {
     var galaxyAccess = getGalaxyAccessState(sys.galaxyId, playerLevel, stateRef.researchedTechs || []);
