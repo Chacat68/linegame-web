@@ -623,30 +623,69 @@ export function render(state, onAccept, onAbandon, questDispatchContext, onApply
   const sortedAvailable = availableSelection.sorted;
   const selectedAvailableQuest = availableSelection.selected;
   const fallbackQuest = sortedAvailable[0] || null;
+  const active = Quest.getActiveQuests(state);
+  const locked = Quest.getLockedQuests(state);
 
   // ---- 当前章节 ----
   const currentPhaseProgress = Quest.getCurrentQuestPhaseProgress(state);
   const currentPhase = currentPhaseProgress.phase;
+  const phaseProgressPct = currentPhaseProgress.total > 0
+    ? Math.min(100, Math.round((currentPhaseProgress.completed / currentPhaseProgress.total) * 100))
+    : 0;
+  const phaseName = currentPhase ? currentPhase.name : '未知章节';
+  const phaseDesc = currentPhase ? currentPhase.description : '任务协议同步中，等待新的星际委托。';
+  const commandFocusQuest = selectedAvailableQuest || active[0] || fallbackQuest;
+  const commandFocusLabel = commandFocusQuest
+    ? (selectedAvailableQuest ? '建议接取：' : '当前目标：') + commandFocusQuest.name
+    : '等待新委托';
+  const commandRouteLabel = storyRoute ? storyRoute.label : '自由贸易路线';
+
+  html += '<section class="quest-command-deck">' +
+    '<div class="quest-command-visual" aria-hidden="true">' +
+      '<span class="quest-command-orbit quest-command-orbit-a"></span>' +
+      '<span class="quest-command-orbit quest-command-orbit-b"></span>' +
+      '<span class="quest-command-pulse"></span>' +
+      '<span class="quest-command-icon">' + (currentPhase ? currentPhase.icon : '📖') + '</span>' +
+    '</div>' +
+    '<div class="quest-command-copy">' +
+      '<div class="quest-command-kicker">MISSION CONTROL</div>' +
+      '<h2>' + phaseName + '</h2>' +
+      '<p>' + phaseDesc + '</p>' +
+      '<div class="quest-command-tags">' +
+        '<span>路线 · ' + commandRouteLabel + '</span>' +
+        '<span>' + commandFocusLabel + '</span>' +
+      '</div>' +
+    '</div>' +
+    '<div class="quest-command-metrics">' +
+      '<div><span>ACTIVE</span><strong>' + active.length + '/5</strong></div>' +
+      '<div><span>AVAILABLE</span><strong>' + available.length + '</strong></div>' +
+      '<div><span>LOCKED</span><strong>' + locked.length + '</strong></div>' +
+      '<div><span>PHASE</span><strong>' + currentPhaseProgress.completed + '/' + currentPhaseProgress.total + '</strong></div>' +
+    '</div>' +
+  '</section>';
+
   html += '<div class="quest-phase-overview">' +
     '<div class="quest-phase-chip active" title="' + (currentPhase ? currentPhase.description : '') + '">' +
     '<span class="phase-icon">' + (currentPhase ? currentPhase.icon : '📖') + '</span>' +
-    '<span class="phase-name">当前章节：' + (currentPhase ? currentPhase.name : '未知章节') + '</span>' +
+    '<span class="phase-name">当前章节：' + phaseName + '</span>' +
+    '<span class="phase-bar"><span class="phase-bar-fill" style="width:' + phaseProgressPct + '%"></span></span>' +
     '<span class="phase-progress">' + currentPhaseProgress.completed + '/' + currentPhaseProgress.total + '</span>' +
     '</div>' +
     '</div>';
 
   // ---- 当前任务 ----
-  const active = Quest.getActiveQuests(state);
   const activeQuestRecommendation = active.length > 0
     ? AutoTrade.findQuestRoute(state, Object.assign({
         cargo: state.cargo || {},
       }, questDispatchContext || {}))
     : null;
+  html += '<section class="quest-module quest-module-active">';
   html += '<div class="quest-section-title">📋 进行中 (' + active.length + '/5)</div>';
 
   if (active.length === 0) {
     html += '<div class="quest-empty">暂无进行中的任务。请从下方任务简报里挑选一项开始推进。</div>';
   } else {
+    html += '<div class="quest-active-grid">';
     active.forEach(function (quest) {
       const typeInfo = QUEST_TYPES[quest.type] || {};
       const timeleft = quest.timeLimit > 0
@@ -702,10 +741,13 @@ export function render(state, onAccept, onAbandon, questDispatchContext, onApply
       html += '<button class="btn-action quest-abandon-btn" data-id="' + quest.id + '">放弃</button>';
       html += '</div>';
     });
+    html += '</div>';
   }
+  html += '</section>';
 
   // ---- 可接取任务 ----
-  html += '<div class="quest-section-title" style="margin-top:12px">📜 可接取 (' + available.length + ')</div>';
+  html += '<section class="quest-module quest-module-available">';
+  html += '<div class="quest-section-title">📜 可接取 (' + available.length + ')</div>';
 
   if (recommended.length > 0 && (state.quests || []).length === 0) {
     html += '<div class="quest-empty" style="margin-bottom:10px">' +
@@ -720,11 +762,13 @@ export function render(state, onAccept, onAbandon, questDispatchContext, onApply
     html += _renderQuestAcceptHub(state, sortedAvailable, selectedAvailableQuest, recommendedIds, storyRoute, active.length);
     html += _renderAvailableQuestPicker(state, sortedAvailable, selectedAvailableQuest, recommendedIds);
   }
+  html += '</section>';
 
   // ---- 未解锁任务 ----
-  const locked = Quest.getLockedQuests(state);
+  html += '<section class="quest-module quest-module-locked">';
   if (locked.length > 0) {
-    html += '<div class="quest-section-title" style="margin-top:12px">🔒 未解锁 (' + locked.length + ')</div>';
+    html += '<div class="quest-section-title">🔒 未解锁 (' + locked.length + ')</div>';
+    html += '<div class="quest-locked-grid">';
     locked.forEach(function (quest) {
       const typeInfo = QUEST_TYPES[quest.type] || {};
       const rewardSummary = Quest.getQuestRewardSummary(state, quest);
@@ -749,13 +793,15 @@ export function render(state, onAccept, onAbandon, questDispatchContext, onApply
         '</div>' +
         '</div>';
     });
+    html += '</div>';
   } else {
     if (currentPhaseProgress.isFinalPhase && currentPhaseProgress.completed === currentPhaseProgress.total && currentPhaseProgress.total > 0) {
-      html += '<div class="quest-empty" style="margin-top:12px">🏁 所有章节任务已完成，全部胜利条件已开放。</div>';
+      html += '<div class="quest-empty">🏁 所有章节任务已完成，全部胜利条件已开放。</div>';
     } else if (currentPhaseProgress.completed === currentPhaseProgress.total && currentPhaseProgress.total > 0) {
-      html += '<div class="quest-empty" style="margin-top:12px">✅ 当前章节任务已全部完成，下一次任务结算后将进入新章节。</div>';
+      html += '<div class="quest-empty">✅ 当前章节任务已全部完成，下一次任务结算后将进入新章节。</div>';
     }
   }
+  html += '</section>';
 
   container.innerHTML = html;
 

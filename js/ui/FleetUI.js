@@ -57,10 +57,59 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
   const slotCount  = Fleet.getSlotCount(state);
   const maxSlots   = Fleet.getMaxSlots();
   const routeLevel = Fleet.getDispatchRouteLevel(state);
+  const activeShipStats = activeShip ? Fleet.getEffectiveShipStats(state, activeShip) : null;
+  const activeCargoUsed = activeShip
+    ? Object.values(activeShip.cargo || {}).reduce(function (sum, qty) { return sum + qty; }, 0)
+    : 0;
+  const activeCrewCount = activeShip ? Crew.getShipCrew(state, activeShip).length : 0;
+  const activeMaintenance = activeShipStats
+    ? (activeShipStats.maintenance || Fleet.getShipMaintenanceSummary(state, activeShip))
+    : null;
+  const activeRoleProfile = activeShipStats
+    ? (activeShipStats.roleProfile || Fleet.getShipRoleProfile(state, activeShip))
+    : null;
+  const activeMissionLabel = activeShip
+    ? (activeShip.route ? '派遣航线运行中' : '停靠待命，等待调度')
+    : '未配置旗舰';
+  const activeFuelPct = activeShip
+    ? Math.max(0, Math.min(100, Math.round((activeShip.fuel / Math.max(1, activeShip.maxFuel || 1)) * 100)))
+    : 0;
+  const fleetRouteCount = fleet.filter(function (ship) { return !!ship.route; }).length;
+  const fleetCargoCap = fleet.reduce(function (sum, ship) {
+    var stats = Fleet.getEffectiveShipStats(state, ship);
+    return sum + (stats.maxCargo || ship.maxCargo || 0);
+  }, 0);
 
   let html = '';
 
+  html += '<section class="hangar-command-deck">';
+  html += '<div class="hangar-bay-visual" aria-hidden="true">';
+  html += '<span class="hangar-bay-rings"></span>';
+  html += '<span class="hangar-ship-silhouette">' + (activeShip ? activeShip.emoji : '◇') + '</span>';
+  html += '<span class="hangar-dock-light hangar-dock-light--a"></span>';
+  html += '<span class="hangar-dock-light hangar-dock-light--b"></span>';
+  html += '</div>';
+  html += '<div class="hangar-command-copy">';
+  html += '<div class="hangar-command-kicker">ORBITAL DRYDOCK</div>';
+  html += '<h2>' + (activeShip ? _escapeHtml(activeShip.name) : '未配置旗舰') + '</h2>';
+  html += '<p>' + _escapeHtml(activeMissionLabel) + ' · ' + _escapeHtml(activeRoleProfile ? activeRoleProfile.label : '综合用途') + '</p>';
+  html += '<div class="hangar-command-tags">';
+  html += '<span>航线 Lv.' + routeLevel + '</span>';
+  html += '<span>燃料 ' + activeFuelPct + '%</span>';
+  html += '<span>维护 ' + (activeMaintenance ? Math.round(activeMaintenance.value) : 0) + '%</span>';
+  html += '</div>';
+  html += '</div>';
+  html += '<div class="hangar-command-metrics">';
+  html += '<div><span>舰船</span><strong>' + fleet.length + '/' + slotCount + '</strong></div>';
+  html += '<div><span>派遣</span><strong>' + fleetRouteCount + '</strong></div>';
+  html += '<div><span>旗舰货舱</span><strong>' + activeCargoUsed + '/' + (activeShipStats ? activeShipStats.maxCargo : 0) + '</strong></div>';
+  html += '<div><span>总舱容</span><strong>' + fleetCargoCap + '</strong></div>';
+  html += '<div><span>船员</span><strong>' + activeCrewCount + '/' + (activeShip ? (activeShip.crewCapacity || 0) : 0) + '</strong></div>';
+  html += '</div>';
+  html += '</section>';
+
   // ========== 席位区域 ==========
+  html += '<section class="hangar-module hangar-slot-deck">';
   html += '<div class="fleet-section-title">🎫 船队席位（' + slotCount + '/' + maxSlots + '）</div>';
   html += '<div class="fleet-slot-bar">';
   for (var si = 0; si < maxSlots; si++) {
@@ -106,6 +155,7 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
     html += '<div class="fleet-slot-next"><span>🏆 已解锁全部席位！</span></div>';
   }
   html += '</div>';
+  html += '</section>';
 
   // ========== 舰队编队加成 ==========
   const activeBonuses = Fleet.getActiveFleetBonuses(state);
@@ -149,6 +199,7 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
   }
 
   // ========== 已拥有的船只 ==========
+  html += '<section class="hangar-module hangar-fleet-manifest">';
   html += '<div class="fleet-section-title" style="margin-top:12px">⚓ 我的船队（' + fleet.length + '/' + slotCount + '）</div>';
 
   fleet.forEach(function (ship, idx) {
@@ -380,6 +431,7 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
 
     html += '</div>'; // fleet-ship-card
   });
+  html += '</section>';
 
   container.innerHTML = html;
 
@@ -834,9 +886,15 @@ export function renderShop(state, onBuyShip) {
 
   var html = '';
 
-  html += '<div class="fleet-section-title">🏪 船只商店</div>';
+  html += '<section class="hangar-shop-hero">';
+  html += '<div class="hangar-shop-kicker">SHIP ACQUISITION</div>';
+  html += '<h2>船坞采购甲板</h2>';
+  html += '<p>按机库席位、现金流和航线等级选择下一艘船。购买后可进入改装与人员配置流程。</p>';
   html += '<div class="shop-slot-hint">🎫 席位：' + fleetLen + '/' + slotCount +
           (hasAvailableSlot ? ' — 可购买新船' : ' — 席位已满，需先购买席位') + '</div>';
+  html += '</section>';
+  html += '<div class="fleet-section-title">🏪 船只商店</div>';
+  html += '<div class="hangar-shop-grid">';
 
   SHIP_TYPES.forEach(function (st) {
     const canAfford = state.credits >= st.cost;
@@ -877,6 +935,7 @@ export function renderShop(state, onBuyShip) {
     }
     html += '</div>';
   });
+  html += '</div>';
 
   container.innerHTML = html;
 

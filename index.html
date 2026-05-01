@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>蓝脉航路 · 银河历 3045</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%23040814' stroke='%2322d3ee' stroke-width='2'/><circle cx='16' cy='16' r='4' fill='%2322d3ee'/><line x1='16' y1='2' x2='16' y2='8' stroke='%2322d3ee' stroke-width='1.5'/><line x1='16' y1='24' x2='16' y2='30' stroke='%2322d3ee' stroke-width='1.5'/><line x1='2' y1='16' x2='8' y2='16' stroke='%2322d3ee' stroke-width='1.5'/><line x1='24' y1='16' x2='30' y2='16' stroke='%2322d3ee' stroke-width='1.5'/></svg>" />
-    <link rel="stylesheet" href="css/style.css?v=20260421-modrepair1" />
+    <link rel="stylesheet" href="css/style.css?v=20260428-questdeck1" />
   </head>
   <body>
     <div id="game-shell">
@@ -15,14 +15,17 @@
       <header id="game-header">
         <!-- Brand -->
         <div class="hdr-brand">
-          <span class="hdr-logo">AETHER_OS</span>
-          <span class="hdr-version">v.2.04</span>
+          <span class="hdr-brand-mark" aria-hidden="true"></span>
+          <span class="hdr-brand-copy">
+            <span class="hdr-logo">INTERSTELLAR</span>
+            <span class="hdr-version">TRADER</span>
+          </span>
         </div>
 
         <!-- System status -->
         <div class="hdr-system-status">
-          <span class="hdr-sys-label">SYSTEM STATUS</span>
-          <span class="hdr-sys-value">CONNECTED // SECTOR 7-G</span>
+          <span class="hdr-sys-label">GALACTIC YEAR</span>
+          <span class="hdr-sys-value">3045.05.17 // LINKED</span>
         </div>
 
         <!-- Credits & Location (dynamic) -->
@@ -34,6 +37,40 @@
           <div class="hdr-stat-block">
             <span class="hdr-stat-label">LOCATION</span>
             <span id="current-location" class="hdr-stat-value hdr-location">NEBULA-9</span>
+          </div>
+          <div class="hdr-stat-block hdr-stat-block--ship">
+            <span class="hdr-stat-label">SHIP</span>
+            <span id="hdr-ship-name" class="hdr-stat-value hdr-ship">Wayfarer T2-7</span>
+          </div>
+        </div>
+
+        <div class="hdr-meter-group" aria-label="舰船资源">
+          <div class="hdr-meter-block">
+            <div class="hdr-meter-head">
+              <span class="hdr-stat-label">FUEL</span>
+              <span id="hdr-fuel-pct" class="hdr-meter-pct">100%</span>
+            </div>
+            <div class="hdr-meter-track">
+              <div id="hdr-fuel-fill" class="hdr-meter-fill hdr-meter-fill--fuel" style="width:100%"></div>
+            </div>
+          </div>
+          <div class="hdr-meter-block">
+            <div class="hdr-meter-head">
+              <span class="hdr-stat-label">CARGO</span>
+              <span id="hdr-cargo-pct" class="hdr-meter-pct">0%</span>
+            </div>
+            <div class="hdr-meter-track">
+              <div id="hdr-cargo-fill" class="hdr-meter-fill hdr-meter-fill--cargo" style="width:0%"></div>
+            </div>
+          </div>
+          <div class="hdr-meter-block hdr-meter-block--rep">
+            <div class="hdr-meter-head">
+              <span class="hdr-stat-label">REPUTATION</span>
+              <span id="hdr-reputation-value" class="hdr-meter-pct">0</span>
+            </div>
+            <div class="hdr-meter-track">
+              <div id="hdr-reputation-fill" class="hdr-meter-fill hdr-meter-fill--rep" style="width:0%"></div>
+            </div>
           </div>
         </div>
 
@@ -101,6 +138,105 @@
             <canvas id="webgl-canvas" style="display: none;"></canvas>
             <canvas id="map-canvas" style="display: none;"></canvas>
             <canvas id="map-3d-canvas"></canvas>
+            <div class="starmap-control-rail" aria-hidden="true">
+              <span class="starmap-rail-btn is-active">•••</span>
+              <span class="starmap-rail-btn">◇</span>
+              <span class="starmap-rail-btn">✧</span>
+              <span class="starmap-rail-btn">◎</span>
+              <span class="starmap-rail-btn">▱</span>
+            </div>
+            <aside class="galactic-map-widget" aria-label="银河地图搜索面板">
+              <div class="hud-widget-head">
+                <span>GALACTIC MAP</span>
+                <span aria-hidden="true">×</span>
+              </div>
+              <div class="hud-search-shell">
+                <span>Search system...</span>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              </div>
+            </aside>
+            <aside class="market-overview-widget" aria-label="本地市场概览">
+              <div class="hud-widget-head">
+                <span>MARKET OVERVIEW</span>
+                <span aria-hidden="true">×</span>
+              </div>
+              <div class="market-overview-tabs">
+                <span class="is-active">Local Market</span>
+                <span>Price Trend</span>
+              </div>
+              <table class="hud-market-table">
+                <thead>
+                  <tr>
+                    <th>商品</th>
+                    <th>Buy</th>
+                    <th>Sell</th>
+                    <th>趋势</th>
+                  </tr>
+                </thead>
+                <tbody id="hud-market-overview-body">
+                  <tr>
+                    <td colspan="4">行情同步中...</td>
+                  </tr>
+                </tbody>
+              </table>
+              <div class="hud-widget-foot">
+                <span>数据源: 本地交易网络</span>
+                <span id="hud-market-updated">DAY 1</span>
+              </div>
+            </aside>
+            <aside class="target-intel-widget" aria-label="当前目标">
+              <div class="hud-widget-head">
+                <span>当前目标</span>
+                <span aria-hidden="true">×</span>
+              </div>
+              <div class="target-intel-hero">
+                <div>
+                  <h2 id="hud-target-name">Sol Prime</h2>
+                  <p id="hud-target-type">星球</p>
+                </div>
+                <div class="target-planet-orb" aria-hidden="true"></div>
+              </div>
+              <dl class="target-intel-list">
+                <div>
+                  <dt>所属星系</dt>
+                  <dd id="hud-target-galaxy">银河系</dd>
+                </div>
+                <div>
+                  <dt>政体</dt>
+                  <dd id="hud-target-faction">中立地带</dd>
+                </div>
+                <div>
+                  <dt>经济类型</dt>
+                  <dd id="hud-target-economy">贸易 / 探索</dd>
+                </div>
+                <div>
+                  <dt>治安等级</dt>
+                  <dd id="hud-target-security">A (稳定)</dd>
+                </div>
+              </dl>
+              <div class="supply-index-list" id="hud-supply-index-list"></div>
+              <div class="station-action-list">
+                <div><span>空间站服务</span><button type="button" tabindex="-1">停靠</button></div>
+                <div><span>交易所</span><button type="button" tabindex="-1">进入</button></div>
+                <div><span>任务板</span><button type="button" tabindex="-1">查看</button></div>
+              </div>
+            </aside>
+            <aside class="network-status-widget" aria-label="贸易网络状态">
+              <div class="hud-widget-head">
+                <span>贸易网络状态</span>
+                <span aria-hidden="true">×</span>
+              </div>
+              <div class="network-widget-body">
+                <div class="network-spark" aria-hidden="true">
+                  <span></span><span></span><span></span><span></span><span></span><span></span>
+                </div>
+                <div class="network-stats">
+                  <span>连接节点 <strong id="hud-network-nodes">1 / 256</strong></span>
+                  <span>活跃航线 <strong id="hud-network-routes">0</strong></span>
+                  <span>市场波动率 <strong id="hud-network-volatility">0.0%</strong></span>
+                </div>
+              </div>
+            </aside>
             <div id="planet-detail-panel" class="planet-detail-panel"></div>
             <div id="current-system-exploration-card" class="current-system-exploration-card"></div>
             <div class="map-btn-group">
@@ -942,6 +1078,6 @@
 
     <!-- Babylon.js library for 3D rendering -->
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
-    <script type="module" src="js/main.js?v=20260421-shipcardcompact1"></script>
+    <script type="module" src="js/main.js?v=20260428-questdeck1"></script>
   </body>
 </html>

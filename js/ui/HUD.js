@@ -25,6 +25,15 @@ const getCompanyLevel = PlayerLevels.getCompanyLevel || function (exp) {
   return COMPANY_LEVELS[0];
 };
 
+function _escapeHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // 缓存最近一次胜利路径进度，避免点击弹窗时重复计算
 let _lastProgressList = [];
 let _questActions = null;
@@ -86,8 +95,8 @@ export function updateStats(state, netWorth) {
     el.textContent = '第 ' + state.day + ' 天';
   });
 
-  // 更新底部状态栏：燃料 / 护盾 / 货舱
-  _updateStatusBars(state);
+  // 更新状态栏与顶部资源仪表：燃料 / 护盾 / 货舱
+  const statusSnapshot = _updateStatusBars(state);
 
   // 多路径胜利进度 — 更新按钮摘要 & 弹窗内容
   const progressList = Victory.getProgress(state);
@@ -142,6 +151,7 @@ export function updateStats(state, netWorth) {
   if (locationDescEl) locationDescEl.textContent = sys.description;
   const mapLegendLocationEl = document.getElementById('map-legend-location');
   if (mapLegendLocationEl) mapLegendLocationEl.textContent = locationText;
+  _updateInterstellarHud(state, netWorth, sys, gal, faction, repRank, statusSnapshot);
 
   // 经济周期指示器
   const cycleEl = document.getElementById('economy-cycle');
@@ -215,6 +225,10 @@ function _updateStatusBars(state) {
   var fuelPctEl  = document.getElementById('status-fuel-pct');
   if (fuelFillEl) fuelFillEl.style.width = fuelPct + '%';
   if (fuelPctEl)  fuelPctEl.textContent  = fuelPct + '%';
+  var hdrFuelFillEl = document.getElementById('hdr-fuel-fill');
+  var hdrFuelPctEl  = document.getElementById('hdr-fuel-pct');
+  if (hdrFuelFillEl) hdrFuelFillEl.style.width = fuelPct + '%';
+  if (hdrFuelPctEl)  hdrFuelPctEl.textContent  = fuelPct + '%';
 
   // 护盾（船体耐久）
   var hullPct = state.maxHull > 0
@@ -238,6 +252,152 @@ function _updateStatusBars(state) {
   var cargoPctEl  = document.getElementById('status-cargo-pct');
   if (cargoFillEl) cargoFillEl.style.width = cargoPct + '%';
   if (cargoPctEl)  cargoPctEl.textContent  = cargoPct + '%';
+  var hdrCargoFillEl = document.getElementById('hdr-cargo-fill');
+  var hdrCargoPctEl  = document.getElementById('hdr-cargo-pct');
+  if (hdrCargoFillEl) hdrCargoFillEl.style.width = cargoPct + '%';
+  if (hdrCargoPctEl)  hdrCargoPctEl.textContent  = cargoPct + '%';
+
+  return {
+    cargoUsed: cargoUsed,
+    cargoPct: cargoPct,
+    fuelPct: fuelPct,
+    hullPct: hullPct,
+  };
+}
+
+function _updateInterstellarHud(state, netWorth, sys, gal, faction, repRank, statusSnapshot) {
+  const activeShip = Array.isArray(state.fleet)
+    ? state.fleet[state.activeShipIndex || 0]
+    : null;
+  const shipNameEl = document.getElementById('hdr-ship-name');
+  if (shipNameEl) {
+    shipNameEl.textContent = activeShip
+      ? ((activeShip.emoji ? activeShip.emoji + ' ' : '') + activeShip.name)
+      : '旗舰未配置';
+  }
+
+  const reputation = Number(state.reputation || 0);
+  const repPct = Math.max(0, Math.min(100, Math.round((reputation + 100) / 10)));
+  const repValueEl = document.getElementById('hdr-reputation-value');
+  const repFillEl = document.getElementById('hdr-reputation-fill');
+  if (repValueEl) repValueEl.textContent = repRank.name + ' ' + reputation.toLocaleString();
+  if (repFillEl) repFillEl.style.width = repPct + '%';
+
+  const targetNameEl = document.getElementById('hud-target-name');
+  const targetTypeEl = document.getElementById('hud-target-type');
+  const targetGalaxyEl = document.getElementById('hud-target-galaxy');
+  const targetFactionEl = document.getElementById('hud-target-faction');
+  const targetEconomyEl = document.getElementById('hud-target-economy');
+  const targetSecurityEl = document.getElementById('hud-target-security');
+  if (sys) {
+    if (targetNameEl) targetNameEl.textContent = sys.name;
+    if (targetTypeEl) targetTypeEl.textContent = sys.typeLabel || '星球';
+    if (targetGalaxyEl) targetGalaxyEl.textContent = gal ? gal.name : '未知星系';
+    if (targetFactionEl) targetFactionEl.textContent = faction ? faction.name : '中立地带';
+    if (targetEconomyEl) targetEconomyEl.textContent = (sys.typeLabel || '综合') + ' / ' + Math.round(sys.marketDepth || 200);
+    if (targetSecurityEl) targetSecurityEl.textContent = _getSecurityLabel(state, sys, faction);
+  }
+
+  _renderHudMarketOverview(state, sys);
+  _renderHudSupplyIndex(state, sys);
+  _renderHudNetworkStatus(state, statusSnapshot, netWorth);
+}
+
+function _getSecurityLabel(state, sys, faction) {
+  const relation = faction && state.factionRelations
+    ? Number(state.factionRelations[faction.id] || 0)
+    : 0;
+  const level = Number(sys.minLevel || 1);
+  if (relation >= 60 || level <= 1) return 'A (稳定)';
+  if (relation >= 10 || level <= 3) return 'B (可控)';
+  if (relation >= -30 || level <= 5) return 'C (警戒)';
+  return 'D (高危)';
+}
+
+function _getOpenMarketGoods() {
+  return GOODS.filter(function (good) {
+    return !good.marketAccess || good.marketAccess.indexOf('open') !== -1;
+  });
+}
+
+function _getMarketSnapshot(state, sys) {
+  if (!sys) return [];
+  return _getOpenMarketGoods().map(function (good) {
+    const sd = Economy.getSupplyDemand(sys.id, good.id);
+    const buy = Economy.getBuyPrice(sys.id, good.id, state);
+    const sell = Economy.getSellPrice(sys.id, good.id, state);
+    const drift = Math.round((sd.ratio - 1) * 100);
+    return { good: good, buy: buy, sell: sell, ratio: sd.ratio, drift: drift };
+  });
+}
+
+function _renderHudMarketOverview(state, sys) {
+  const body = document.getElementById('hud-market-overview-body');
+  if (!body || !sys) return;
+
+  const rows = _getMarketSnapshot(state, sys)
+    .sort(function (a, b) { return Math.abs(b.drift) - Math.abs(a.drift); })
+    .slice(0, 6);
+
+  body.innerHTML = rows.map(function (entry) {
+    const trendClass = entry.drift > 0 ? 'is-up' : (entry.drift < 0 ? 'is-down' : 'is-flat');
+    const trendText = entry.drift > 0
+      ? '▲ ' + entry.drift + '%'
+      : (entry.drift < 0 ? '▼ ' + Math.abs(entry.drift) + '%' : '◆ 0%');
+    return '<tr>' +
+      '<td><span class="hud-good-icon">' + _escapeHtml(entry.good.emoji || '') + '</span>' + _escapeHtml(entry.good.name) + '</td>' +
+      '<td>' + Math.round(entry.buy).toLocaleString() + '</td>' +
+      '<td>' + Math.round(entry.sell).toLocaleString() + '</td>' +
+      '<td><span class="hud-trend ' + trendClass + '">' + trendText + '</span></td>' +
+    '</tr>';
+  }).join('');
+
+  const updatedEl = document.getElementById('hud-market-updated');
+  if (updatedEl) updatedEl.textContent = 'DAY ' + (state.day || 1);
+}
+
+function _renderHudSupplyIndex(state, sys) {
+  const list = document.getElementById('hud-supply-index-list');
+  if (!list || !sys) return;
+
+  const rows = _getMarketSnapshot(state, sys)
+    .sort(function (a, b) { return b.ratio - a.ratio; })
+    .slice(0, 5);
+
+  list.innerHTML = rows.map(function (entry) {
+    const demandClass = entry.ratio >= 1.08 ? 'is-demand' : (entry.ratio <= 0.92 ? 'is-supply' : 'is-neutral');
+    const label = entry.ratio >= 1.08 ? '需求高' : (entry.ratio <= 0.92 ? '供给足' : '均衡');
+    const pct = Math.max(10, Math.min(100, Math.round(entry.ratio * 50)));
+    const delta = entry.drift >= 0 ? '+' + entry.drift + '%' : entry.drift + '%';
+    return '<div class="supply-index-row ' + demandClass + '">' +
+      '<span>' + _escapeHtml(entry.good.emoji || '') + ' ' + _escapeHtml(entry.good.name) + '</span>' +
+      '<strong>' + label + '</strong>' +
+      '<i style="--supply-width:' + pct + '%"></i>' +
+      '<em>' + delta + '</em>' +
+    '</div>';
+  }).join('');
+}
+
+function _renderHudNetworkStatus(state, statusSnapshot, netWorth) {
+  const nodesEl = document.getElementById('hud-network-nodes');
+  const routesEl = document.getElementById('hud-network-routes');
+  const volatilityEl = document.getElementById('hud-network-volatility');
+
+  const visitedCount = Array.isArray(state.visitedSystems) ? state.visitedSystems.length : 1;
+  const activeRoutes = Array.isArray(state.fleet)
+    ? state.fleet.filter(function (ship) { return !!ship.route; }).length
+    : 0;
+  const volatility = Math.max(
+    0,
+    Math.min(
+      99,
+      Math.round(((statusSnapshot ? statusSnapshot.cargoPct : 0) * 0.08) + ((state.day || 1) % 9) + ((netWorth || 0) > 5000 ? 4 : 1))
+    )
+  );
+
+  if (nodesEl) nodesEl.textContent = visitedCount + ' / ' + SYSTEMS.length;
+  if (routesEl) routesEl.textContent = String(activeRoutes);
+  if (volatilityEl) volatilityEl.textContent = volatility.toFixed(1) + '%';
 }
 
 
