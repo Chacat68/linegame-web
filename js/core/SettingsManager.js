@@ -5,12 +5,14 @@
 
 import * as EventBus from './EventBus.js';
 import { TIME_CONFIG } from '../data/constants.js';
+import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from '../ui/SurfaceManager.js?v=20260505-surface4';
 
 const SETTINGS_KEY = 'linegame_settings';
 
 const VALID_MOTION_LEVELS = ['full', 'reduced', 'off'];
 const VALID_DIFFICULTIES = ['easy', 'normal', 'hard'];
 const VALID_REALTIME_DAY_DURATIONS_MS = TIME_CONFIG.availableRealtimeDayDurationsMs || [TIME_CONFIG.realtimeDayDurationMs];
+let _settingsModalCallbacks = null;
 
 function _normalizeSecretRoutesVisible(value) {
   return value !== false;
@@ -21,6 +23,20 @@ function _normalizeRealtimeDayDurationMs(value) {
   return VALID_REALTIME_DAY_DURATIONS_MS.indexOf(numericValue) >= 0
     ? numericValue
     : TIME_CONFIG.realtimeDayDurationMs;
+}
+
+function _getSettingsModalCallbacks() {
+  return _settingsModalCallbacks || {
+    settings: loadSettings(),
+    Renderer: {
+      setMotionLevel: function () {},
+      setSecretRoutesVisible: function () {},
+    },
+    onDifficultyChanged: null,
+    onRealtimeDayDurationChanged: null,
+    onResetTutorial: null,
+    onClearSaves: null,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -100,6 +116,8 @@ export function applySettings(settings, Renderer) {
  * @param {{ setMotionLevel: Function, setSecretRoutesVisible: Function }} callbacks.Renderer  渲染器引用
  */
 export function initSettingsModal(callbacks) {
+  _settingsModalCallbacks = callbacks || null;
+
   var settingsBtn   = document.getElementById('settings-btn');
   var modal         = document.getElementById('settings-modal');
   var closeBtn      = document.getElementById('settings-close-btn');
@@ -114,6 +132,7 @@ export function initSettingsModal(callbacks) {
 
   if (settingsBtn.dataset.settingsBound === 'true') return;
   settingsBtn.dataset.settingsBound = 'true';
+  bindBlockingSurfaceDismiss('settings-modal');
 
   settingsBtn.addEventListener('click', function (e) {
     e.preventDefault();
@@ -122,9 +141,10 @@ export function initSettingsModal(callbacks) {
   if (closeBtn) closeBtn.addEventListener('click', hideSettingsModal);
   if (motionSelect) {
     motionSelect.onchange = function () {
-      callbacks.settings.motionLevel = motionSelect.value;
-      saveSettings(callbacks.settings);
-      applySettings(callbacks.settings, callbacks.Renderer);
+      var activeCallbacks = _getSettingsModalCallbacks();
+      activeCallbacks.settings.motionLevel = motionSelect.value;
+      saveSettings(activeCallbacks.settings);
+      applySettings(activeCallbacks.settings, activeCallbacks.Renderer);
       EventBus.emit('log:message', {
         text: '⚙ 已更新动画强度：' + (motionSelect.value === 'full' ? '完整' : (motionSelect.value === 'reduced' ? '降低' : '关闭')) + '。',
         type: 'info',
@@ -133,9 +153,10 @@ export function initSettingsModal(callbacks) {
   }
   if (secretRoutesToggle) {
     secretRoutesToggle.onchange = function () {
-      callbacks.settings.secretRoutesVisible = !!secretRoutesToggle.checked;
-      saveSettings(callbacks.settings);
-      applySettings(callbacks.settings, callbacks.Renderer);
+      var activeCallbacks = _getSettingsModalCallbacks();
+      activeCallbacks.settings.secretRoutesVisible = !!secretRoutesToggle.checked;
+      saveSettings(activeCallbacks.settings);
+      applySettings(activeCallbacks.settings, activeCallbacks.Renderer);
       EventBus.emit('log:message', {
         text: '⚙ 已更新暗线显示：' + (secretRoutesToggle.checked ? '显示' : '隐藏') + '。',
         type: 'info',
@@ -144,10 +165,11 @@ export function initSettingsModal(callbacks) {
   }
   if (difficultySelect) {
     difficultySelect.onchange = function () {
-      callbacks.settings.difficulty = difficultySelect.value;
-      saveSettings(callbacks.settings);
-      if (callbacks.onDifficultyChanged) {
-        callbacks.onDifficultyChanged(difficultySelect.value);
+      var activeCallbacks = _getSettingsModalCallbacks();
+      activeCallbacks.settings.difficulty = difficultySelect.value;
+      saveSettings(activeCallbacks.settings);
+      if (activeCallbacks.onDifficultyChanged) {
+        activeCallbacks.onDifficultyChanged(difficultySelect.value);
       }
       var labelMap = {
         easy: '休闲模式',
@@ -162,11 +184,12 @@ export function initSettingsModal(callbacks) {
   }
   if (timeScaleSelect) {
     timeScaleSelect.onchange = function () {
+      var activeCallbacks = _getSettingsModalCallbacks();
       var nextDurationMs = _normalizeRealtimeDayDurationMs(timeScaleSelect.value);
-      callbacks.settings.realtimeDayDurationMs = nextDurationMs;
-      saveSettings(callbacks.settings);
-      if (callbacks.onRealtimeDayDurationChanged) {
-        callbacks.onRealtimeDayDurationChanged(nextDurationMs);
+      activeCallbacks.settings.realtimeDayDurationMs = nextDurationMs;
+      saveSettings(activeCallbacks.settings);
+      if (activeCallbacks.onRealtimeDayDurationChanged) {
+        activeCallbacks.onRealtimeDayDurationChanged(nextDurationMs);
       }
       EventBus.emit('log:message', {
         text: '⚙ 已更新时间流速：' + _formatRealtimeDayDurationLabel(nextDurationMs) + '。',
@@ -176,41 +199,36 @@ export function initSettingsModal(callbacks) {
   }
   if (resetDefaultsBtn) {
     resetDefaultsBtn.onclick = function () {
-      callbacks.settings.motionLevel = 'full';
-      callbacks.settings.difficulty = 'normal';
-      callbacks.settings.secretRoutesVisible = true;
-      callbacks.settings.realtimeDayDurationMs = TIME_CONFIG.realtimeDayDurationMs;
-      saveSettings(callbacks.settings);
-      applySettings(callbacks.settings, callbacks.Renderer);
+      var activeCallbacks = _getSettingsModalCallbacks();
+      activeCallbacks.settings.motionLevel = 'full';
+      activeCallbacks.settings.difficulty = 'normal';
+      activeCallbacks.settings.secretRoutesVisible = true;
+      activeCallbacks.settings.realtimeDayDurationMs = TIME_CONFIG.realtimeDayDurationMs;
+      saveSettings(activeCallbacks.settings);
+      applySettings(activeCallbacks.settings, activeCallbacks.Renderer);
       if (motionSelect) motionSelect.value = 'full';
       if (secretRoutesToggle) secretRoutesToggle.checked = true;
       if (difficultySelect) difficultySelect.value = 'normal';
       if (timeScaleSelect) timeScaleSelect.value = String(TIME_CONFIG.realtimeDayDurationMs);
-      if (callbacks.onDifficultyChanged) callbacks.onDifficultyChanged('normal');
-      if (callbacks.onRealtimeDayDurationChanged) callbacks.onRealtimeDayDurationChanged(TIME_CONFIG.realtimeDayDurationMs);
+      if (activeCallbacks.onDifficultyChanged) activeCallbacks.onDifficultyChanged('normal');
+      if (activeCallbacks.onRealtimeDayDurationChanged) activeCallbacks.onRealtimeDayDurationChanged(TIME_CONFIG.realtimeDayDurationMs);
       EventBus.emit('log:message', { text: '⚙ 设置已恢复为默认值。', type: 'info' });
     };
   }
   if (resetTutorialBtn) {
     resetTutorialBtn.onclick = function () {
       if (!confirm('这会重新开始当前游戏，并在开局重新进入教程。是否继续？')) return;
-      callbacks.onResetTutorial();
+      var activeCallbacks = _getSettingsModalCallbacks();
+      if (activeCallbacks.onResetTutorial) activeCallbacks.onResetTutorial();
     };
   }
   if (clearSavesBtn) {
     clearSavesBtn.onclick = function () {
       if (!confirm('确定清空所有本地存档吗？此操作不可撤销。')) return;
-      callbacks.onClearSaves();
+      var activeCallbacks = _getSettingsModalCallbacks();
+      if (activeCallbacks.onClearSaves) activeCallbacks.onClearSaves();
     };
   }
-  modal.addEventListener('click', function (e) {
-    if (e.target === modal) hideSettingsModal();
-  });
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
-      hideSettingsModal();
-    }
-  });
 }
 
 /**
@@ -247,8 +265,8 @@ function _toggleSettingsModal(isVisible) {
     if (timeScaleSelect) timeScaleSelect.value = String(_normalizeRealtimeDayDurationMs(current.realtimeDayDurationMs));
   }
   if (isVisible) _activateSettingsPanel(modal.dataset.activePanel || 'display');
-  modal.classList.toggle('hidden', !isVisible);
-  modal.setAttribute('aria-hidden', isVisible ? 'false' : 'true');
+  if (isVisible) showBlockingSurface('settings-modal');
+  else hideBlockingSurface('settings-modal');
 }
 
 function _formatRealtimeDayDurationLabel(durationMs) {

@@ -10,6 +10,7 @@ import * as PlayerLevels        from '../data/playerLevels.js';
 import * as Victory             from '../systems/victory/VictorySystem.js';
 import * as Economy             from '../systems/economy/Economy.js';
 import * as Quest               from '../systems/quest/QuestSystem.js?v=20260412-questroute2';
+import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from './SurfaceManager.js?v=20260505-surface4';
 
 const getLevel = PlayerLevels.getLevel;
 const getRepRank = PlayerLevels.getRepRank;
@@ -21,6 +22,9 @@ const _goodNameById = GOODS.reduce(function (acc, good) {
   acc[good.id] = good.name;
   return acc;
 }, Object.create(null));
+const HUD_WIDGET_COLLAPSED_CLASS = 'hud-widget-collapsed';
+const HUD_WIDGET_ACTIVE_CLASS = 'hud-widget-active';
+const DEFAULT_HUD_WIDGET_ID = 'galactic-map';
 const getCompanyLevel = PlayerLevels.getCompanyLevel || function (exp) {
   return COMPANY_LEVELS[0];
 };
@@ -34,15 +38,28 @@ function _escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
+function _setTextWithTitle(element, value) {
+  if (!element) return;
+  var text = String(value == null ? '' : value);
+  element.textContent = text;
+  if (text) element.setAttribute('title', text);
+  else element.removeAttribute('title');
+}
+
 // 缓存最近一次胜利路径进度，避免点击弹窗时重复计算
 let _lastProgressList = [];
 let _questActions = null;
+let _initialized = false;
+let _activeHudWidgetId = DEFAULT_HUD_WIDGET_ID;
 
 // ---------------------------------------------------------------------------
 // 初始化：订阅 EventBus 日志事件
 // ---------------------------------------------------------------------------
 
 export function init() {
+  if (_initialized) return;
+  _initialized = true;
+
   EventBus.on('log:message', function (data) {
     addMessage(data.text, data.type);
   });
@@ -54,7 +71,7 @@ export function init() {
   if (vpBtn) {
     vpBtn.addEventListener('click', function () {
       _renderVictoryModal(_lastProgressList);
-      vpModal.classList.remove('hidden');
+      showBlockingSurface('victory-modal');
     });
   }
 
@@ -62,20 +79,161 @@ export function init() {
   const vpClose = document.getElementById('victory-modal-close');
   if (vpClose) {
     vpClose.addEventListener('click', function () {
-      vpModal.classList.add('hidden');
+      hideBlockingSurface('victory-modal');
     });
   }
 
-  // 点击遮罩关闭弹窗
-  if (vpModal) {
-    vpModal.addEventListener('click', function (e) {
-      if (e.target === vpModal) vpModal.classList.add('hidden');
-    });
-  }
+  if (vpModal) bindBlockingSurfaceDismiss('victory-modal');
+
+  _bindHudWidgetControls();
 }
 
 export function setQuestActions(actions) {
   _questActions = actions || null;
+}
+
+function _bindHudWidgetControls() {
+  _bindHudDockControls();
+
+  var widgets = document.querySelectorAll('[data-hud-widget]');
+  if (!widgets || typeof widgets.forEach !== 'function') return;
+
+  widgets.forEach(function (widget) {
+    var toggleBtn = widget.querySelector('[data-hud-widget-toggle]');
+    if (!toggleBtn || toggleBtn.dataset.hudWidgetBound === 'true') return;
+
+    _syncHudWidgetToggle(widget);
+    toggleBtn.addEventListener('click', function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      _setHudWidgetCollapsed(widget, true);
+    });
+    toggleBtn.dataset.hudWidgetBound = 'true';
+  });
+
+  _selectHudWidget(_activeHudWidgetId);
+  _setHudWidgetCollapsed(_getHudWidget(_activeHudWidgetId), true);
+}
+
+function _setHudWidgetCollapsed(widget, collapsed) {
+  if (!widget) return;
+
+  widget.classList.toggle(HUD_WIDGET_COLLAPSED_CLASS, !!collapsed);
+  widget.setAttribute('data-hud-widget-state', collapsed ? 'collapsed' : 'open');
+  _syncHudWidgetToggle(widget);
+  _syncHudDockControls();
+}
+
+function _syncHudWidgetToggle(widget) {
+  if (!widget) return;
+
+  var toggleBtn = widget.querySelector('[data-hud-widget-toggle]');
+  if (!toggleBtn) return;
+
+  var label = widget.getAttribute('aria-label') || '窗口';
+  var collapsed = widget.classList.contains(HUD_WIDGET_COLLAPSED_CLASS);
+  var actionLabel = collapsed ? '通过左侧控制台重新打开' + label : '关闭' + label;
+
+  toggleBtn.textContent = '×';
+  toggleBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+  toggleBtn.setAttribute('aria-label', actionLabel);
+  toggleBtn.setAttribute('title', actionLabel);
+}
+
+function _bindHudDockControls() {
+  var dockToggle = document.querySelector('[data-hud-dock-toggle]');
+  if (dockToggle && dockToggle.dataset.hudDockBound !== 'true') {
+    dockToggle.addEventListener('click', function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      _toggleHudDock();
+    });
+    dockToggle.dataset.hudDockBound = 'true';
+  }
+
+  var panelButtons = document.querySelectorAll('[data-hud-dock-panel]');
+  if (!panelButtons || typeof panelButtons.forEach !== 'function') return;
+
+  panelButtons.forEach(function (button) {
+    if (button.dataset.hudDockBound === 'true') return;
+
+    button.addEventListener('click', function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      _selectHudWidget(button.dataset.hudDockPanel);
+    });
+    button.dataset.hudDockBound = 'true';
+  });
+}
+
+function _getHudWidget(widgetId) {
+  if (!widgetId) return null;
+  return document.querySelector('[data-hud-widget="' + widgetId + '"]');
+}
+
+function _isHudWidgetOpen(widget) {
+  return !!(widget && widget.classList.contains(HUD_WIDGET_ACTIVE_CLASS) && !widget.classList.contains(HUD_WIDGET_COLLAPSED_CLASS));
+}
+
+function _toggleHudDock() {
+  var activeWidget = _getHudWidget(_activeHudWidgetId);
+  if (activeWidget && _isHudWidgetOpen(activeWidget)) {
+    _setHudWidgetCollapsed(activeWidget, true);
+    return;
+  }
+
+  _selectHudWidget(_activeHudWidgetId || DEFAULT_HUD_WIDGET_ID);
+}
+
+function _selectHudWidget(widgetId) {
+  var widgets = document.querySelectorAll('[data-hud-widget]');
+  if (!widgets || typeof widgets.forEach !== 'function' || widgets.length === 0) return;
+
+  var nextActiveId = widgetId;
+  if (!_getHudWidget(nextActiveId)) {
+    nextActiveId = widgets[0].dataset.hudWidget || DEFAULT_HUD_WIDGET_ID;
+  }
+  _activeHudWidgetId = nextActiveId;
+
+  widgets.forEach(function (widget) {
+    var isActive = widget.dataset.hudWidget === _activeHudWidgetId;
+    widget.classList.toggle(HUD_WIDGET_ACTIVE_CLASS, isActive);
+    if (isActive) {
+      _setHudWidgetCollapsed(widget, false);
+      return;
+    }
+
+    widget.classList.remove(HUD_WIDGET_ACTIVE_CLASS);
+    widget.classList.add(HUD_WIDGET_COLLAPSED_CLASS);
+    widget.setAttribute('data-hud-widget-state', 'collapsed');
+    _syncHudWidgetToggle(widget);
+  });
+
+  _syncHudDockControls();
+}
+
+function _syncHudDockControls() {
+  var activeWidget = _getHudWidget(_activeHudWidgetId);
+  var dockOpen = _isHudWidgetOpen(activeWidget);
+  var dockToggle = document.querySelector('[data-hud-dock-toggle]');
+  if (dockToggle) {
+    dockToggle.classList.toggle('is-active', dockOpen);
+    dockToggle.setAttribute('aria-pressed', dockOpen ? 'true' : 'false');
+    dockToggle.setAttribute('aria-label', dockOpen ? '收起 HUD 面板' : '展开 HUD 面板');
+    dockToggle.setAttribute('title', dockOpen ? '收起 HUD 面板' : '展开 HUD 面板');
+  }
+
+  var panelButtons = document.querySelectorAll('[data-hud-dock-panel]');
+  if (!panelButtons || typeof panelButtons.forEach !== 'function') return;
+
+  panelButtons.forEach(function (button) {
+    var panelId = button.dataset.hudDockPanel;
+    var isSelected = panelId === _activeHudWidgetId;
+    var isOpen = isSelected && dockOpen;
+    button.classList.toggle('is-selected', isSelected);
+    button.classList.toggle('is-active', isOpen);
+    button.setAttribute('aria-pressed', isOpen ? 'true' : 'false');
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -83,9 +241,13 @@ export function setQuestActions(actions) {
 // ---------------------------------------------------------------------------
 
 export function updateStats(state, netWorth) {
-  document.getElementById('credits').textContent      = Math.floor(state.credits).toLocaleString();
-  document.getElementById('galactic-day').textContent = '第 ' + state.day + ' 天';
-  document.getElementById('net-worth').textContent    = Math.floor(netWorth).toLocaleString();
+  var creditsEl = document.getElementById('credits');
+  var galacticDayEl = document.getElementById('galactic-day');
+  var netWorthEl = document.getElementById('net-worth');
+
+  if (creditsEl) creditsEl.textContent = Math.floor(state.credits).toLocaleString();
+  if (galacticDayEl) galacticDayEl.textContent = '第 ' + state.day + ' 天';
+  if (netWorthEl) netWorthEl.textContent = Math.floor(netWorth).toLocaleString();
 
   // 同步船队面板中的镜像元素（无独立 id，通过 class 更新）
   document.querySelectorAll('.hdr-credits-mirror').forEach(function (el) {
@@ -146,7 +308,7 @@ export function updateStats(state, netWorth) {
   const galTag = gal ? gal.icon + ' ' + gal.name + ' > ' : '';
   const locationText = '📍 ' + galTag + sys.name + factionTag;
   const locationEl = document.getElementById('current-location');
-  if (locationEl) locationEl.textContent = locationText;
+  _setTextWithTitle(locationEl, locationText);
   const locationDescEl = document.getElementById('location-desc');
   if (locationDescEl) locationDescEl.textContent = sys.description;
   const mapLegendLocationEl = document.getElementById('map-legend-location');
@@ -270,11 +432,12 @@ function _updateInterstellarHud(state, netWorth, sys, gal, faction, repRank, sta
     ? state.fleet[state.activeShipIndex || 0]
     : null;
   const shipNameEl = document.getElementById('hdr-ship-name');
-  if (shipNameEl) {
-    shipNameEl.textContent = activeShip
+  _setTextWithTitle(
+    shipNameEl,
+    activeShip
       ? ((activeShip.emoji ? activeShip.emoji + ' ' : '') + activeShip.name)
-      : '旗舰未配置';
-  }
+      : '旗舰未配置'
+  );
 
   const reputation = Number(state.reputation || 0);
   const repPct = Math.max(0, Math.min(100, Math.round((reputation + 100) / 10)));
@@ -287,31 +450,50 @@ function _updateInterstellarHud(state, netWorth, sys, gal, faction, repRank, sta
   const targetTypeEl = document.getElementById('hud-target-type');
   const targetGalaxyEl = document.getElementById('hud-target-galaxy');
   const targetFactionEl = document.getElementById('hud-target-faction');
-  const targetEconomyEl = document.getElementById('hud-target-economy');
-  const targetSecurityEl = document.getElementById('hud-target-security');
   if (sys) {
     if (targetNameEl) targetNameEl.textContent = sys.name;
     if (targetTypeEl) targetTypeEl.textContent = sys.typeLabel || '星球';
     if (targetGalaxyEl) targetGalaxyEl.textContent = gal ? gal.name : '未知星系';
     if (targetFactionEl) targetFactionEl.textContent = faction ? faction.name : '中立地带';
-    if (targetEconomyEl) targetEconomyEl.textContent = (sys.typeLabel || '综合') + ' / ' + Math.round(sys.marketDepth || 200);
-    if (targetSecurityEl) targetSecurityEl.textContent = _getSecurityLabel(state, sys, faction);
   }
 
+  _renderHudGalacticMapSummary(state, sys, gal);
   _renderHudMarketOverview(state, sys);
-  _renderHudSupplyIndex(state, sys);
+  _renderHudTargetAction();
   _renderHudNetworkStatus(state, statusSnapshot, netWorth);
 }
 
-function _getSecurityLabel(state, sys, faction) {
-  const relation = faction && state.factionRelations
-    ? Number(state.factionRelations[faction.id] || 0)
-    : 0;
-  const level = Number(sys.minLevel || 1);
-  if (relation >= 60 || level <= 1) return 'A (稳定)';
-  if (relation >= 10 || level <= 3) return 'B (可控)';
-  if (relation >= -30 || level <= 5) return 'C (警戒)';
-  return 'D (高危)';
+function _renderHudGalacticMapSummary(state, sys, gal) {
+  const viewEl = document.getElementById('hud-galactic-map-view');
+  const focusEl = document.getElementById('hud-galactic-map-focus');
+  const captionEl = document.getElementById('hud-galactic-map-caption');
+  const toggleBtn = document.getElementById('hud-galactic-map-toggle');
+  if (!viewEl && !focusEl && !captionEl && !toggleBtn) return;
+
+  const viewingGalaxy = findGalaxy(state.viewingGalaxy || state.currentGalaxy) || gal;
+  const currentGalaxy = findGalaxy(state.currentGalaxy) || gal;
+  const isGalaxyView = state.mapView === 'galaxies';
+  const viewText = isGalaxyView ? '星系总览' : '星球视图';
+  const focusText = isGalaxyView
+    ? ((currentGalaxy ? currentGalaxy.name : '当前星系') + ' · 跃迁网络')
+    : ((viewingGalaxy ? viewingGalaxy.name : '未知星系') + (sys ? ' · ' + sys.name : ''));
+  const captionText = isGalaxyView ? '返回当前星系局部视图' : '切换到跨星系跃迁总览';
+  const buttonText = isGalaxyView ? '回到当前星系' : '星系总览';
+
+  if (viewEl) viewEl.textContent = viewText;
+  if (focusEl) focusEl.textContent = focusText;
+  if (captionEl) captionEl.textContent = captionText;
+  if (toggleBtn) {
+    toggleBtn.textContent = buttonText;
+    toggleBtn.setAttribute('title', captionText);
+    if (toggleBtn.dataset.bound !== 'true') {
+      toggleBtn.addEventListener('click', function () {
+        var galaxyViewBtn = document.getElementById('galaxy-view-btn');
+        if (galaxyViewBtn) galaxyViewBtn.click();
+      });
+      toggleBtn.dataset.bound = 'true';
+    }
+  }
 }
 
 function _getOpenMarketGoods() {
@@ -337,7 +519,7 @@ function _renderHudMarketOverview(state, sys) {
 
   const rows = _getMarketSnapshot(state, sys)
     .sort(function (a, b) { return Math.abs(b.drift) - Math.abs(a.drift); })
-    .slice(0, 6);
+    .slice(0, 3);
 
   body.innerHTML = rows.map(function (entry) {
     const trendClass = entry.drift > 0 ? 'is-up' : (entry.drift < 0 ? 'is-down' : 'is-flat');
@@ -354,28 +536,52 @@ function _renderHudMarketOverview(state, sys) {
 
   const updatedEl = document.getElementById('hud-market-updated');
   if (updatedEl) updatedEl.textContent = 'DAY ' + (state.day || 1);
+
+  const openBtn = document.getElementById('hud-market-open');
+  if (openBtn && openBtn.dataset.bound !== 'true') {
+    openBtn.addEventListener('click', function () {
+      var marketNavBtn = document.querySelector('.bottom-nav-btn[data-view="market"]');
+      if (marketNavBtn) marketNavBtn.click();
+    });
+    openBtn.dataset.bound = 'true';
+  }
 }
 
-function _renderHudSupplyIndex(state, sys) {
-  const list = document.getElementById('hud-supply-index-list');
-  if (!list || !sys) return;
+function _renderHudTargetAction() {
+  const openBtn = document.getElementById('hud-target-detail-open');
+  if (!openBtn) return;
 
-  const rows = _getMarketSnapshot(state, sys)
-    .sort(function (a, b) { return b.ratio - a.ratio; })
-    .slice(0, 5);
+  const orbitScanBtn = document.getElementById('orbit-scan-btn');
+  const isPanelOpen = !!(orbitScanBtn && orbitScanBtn.getAttribute('aria-expanded') === 'true');
+  const hasTargetAction = !!(
+    orbitScanBtn &&
+    orbitScanBtn.hidden !== true &&
+    orbitScanBtn.getAttribute('aria-hidden') !== 'true' &&
+    !isPanelOpen
+  );
+  const isDisabled = !hasTargetAction || !!orbitScanBtn.disabled;
+  const buttonLabel = hasTargetAction
+    ? ((orbitScanBtn.textContent || '').trim() || '扫描终端')
+    : '扫描终端';
+  const buttonTitle = hasTargetAction
+    ? (orbitScanBtn.getAttribute('title') || '打开当前航点的扫描终端')
+    : '当前航点暂无可打开的扫描终端';
 
-  list.innerHTML = rows.map(function (entry) {
-    const demandClass = entry.ratio >= 1.08 ? 'is-demand' : (entry.ratio <= 0.92 ? 'is-supply' : 'is-neutral');
-    const label = entry.ratio >= 1.08 ? '需求高' : (entry.ratio <= 0.92 ? '供给足' : '均衡');
-    const pct = Math.max(10, Math.min(100, Math.round(entry.ratio * 50)));
-    const delta = entry.drift >= 0 ? '+' + entry.drift + '%' : entry.drift + '%';
-    return '<div class="supply-index-row ' + demandClass + '">' +
-      '<span>' + _escapeHtml(entry.good.emoji || '') + ' ' + _escapeHtml(entry.good.name) + '</span>' +
-      '<strong>' + label + '</strong>' +
-      '<i style="--supply-width:' + pct + '%"></i>' +
-      '<em>' + delta + '</em>' +
-    '</div>';
-  }).join('');
+  openBtn.hidden = !hasTargetAction;
+  openBtn.textContent = buttonLabel;
+  openBtn.disabled = isDisabled;
+  openBtn.setAttribute('title', buttonTitle);
+  openBtn.setAttribute('aria-disabled', isDisabled ? 'true' : 'false');
+
+  if (openBtn.dataset.bound !== 'true') {
+    openBtn.addEventListener('click', function () {
+      var scanBtn = document.getElementById('orbit-scan-btn');
+      if (!scanBtn || scanBtn.hidden || scanBtn.disabled) return;
+      scanBtn.click();
+      _renderHudTargetAction();
+    });
+    openBtn.dataset.bound = 'true';
+  }
 }
 
 function _renderHudNetworkStatus(state, statusSnapshot, netWorth) {
@@ -467,35 +673,33 @@ function _renderQuestTracker(state) {
   if (tracker.items.length === 0) {
     html += '<div class="quest-tracker-empty">当前没有任务需要处理。继续贸易、探索或等待章节推进。</div>';
   } else {
-    tracker.items.forEach(function (item) {
-      var objectiveText = item.primaryObjective ? _objectiveText(item.primaryObjective) : '查看任务详情';
-      var progressBar = tracker.mode === 'active'
-        ? '<div class="quest-tracker-progress"><div class="quest-tracker-progress-fill" style="width:' + item.progressPercent + '%"></div></div>'
-        : '';
-      var progressMeta = item.progressText ? '<span class="quest-tracker-progress-text">' + item.progressText + '</span>' : '';
-      var actionHtml = '';
+    var item = tracker.items[0];
+    var objectiveText = item.primaryObjective ? _objectiveText(item.primaryObjective) : '查看任务详情';
+    var progressBar = tracker.mode === 'active'
+      ? '<div class="quest-tracker-progress"><div class="quest-tracker-progress-fill" style="width:' + item.progressPercent + '%"></div></div>'
+      : '';
+    var metaParts = [];
 
-      if (tracker.mode !== 'active' && _questActions && typeof _questActions.onAcceptQuest === 'function') {
-        actionHtml = '<div class="quest-tracker-actions">' +
-          '<button class="quest-tracker-accept-btn" type="button" data-quest-tracker-accept="' + item.id + '">立即接取</button>' +
-        '</div>';
-      }
+    if (item.progressText) {
+      metaParts.push('<span class="quest-tracker-progress-text">' + item.progressText + '</span>');
+    }
+    if (tracker.items.length > 1) {
+      metaParts.push('<span class="quest-tracker-more">另 ' + (tracker.items.length - 1) + ' 项</span>');
+    }
+    if (metaParts.length === 0) {
+      metaParts.push('<span class="quest-tracker-progress-text">前往任务页查看详情</span>');
+    }
 
-      html +=
-        '<div class="quest-tracker-item quest-tracker-' + tracker.mode + '">' +
-          '<div class="quest-tracker-item-head">' +
-            '<span class="quest-tracker-item-name">' + item.name + '</span>' +
-            '<span class="quest-tracker-badge">' + item.statusText + '</span>' +
-          '</div>' +
-          '<div class="quest-tracker-objective">' + objectiveText + '</div>' +
-          '<div class="quest-tracker-meta">' +
-            '<span class="quest-tracker-reward">💰 ' + (item.rewardSummary.credits || 0) + '</span>' +
-            progressMeta +
-          '</div>' +
-          actionHtml +
-          progressBar +
-        '</div>';
-    });
+    html +=
+      '<div class="quest-tracker-item quest-tracker-' + tracker.mode + '">' +
+        '<div class="quest-tracker-item-head">' +
+          '<span class="quest-tracker-item-name">' + item.name + '</span>' +
+          '<span class="quest-tracker-badge">' + item.statusText + '</span>' +
+        '</div>' +
+        '<div class="quest-tracker-objective">' + objectiveText + '</div>' +
+        '<div class="quest-tracker-meta">' + metaParts.join('') + '</div>' +
+        progressBar +
+      '</div>';
   }
 
   trackerEl.innerHTML = html;
@@ -503,20 +707,16 @@ function _renderQuestTracker(state) {
   var openBtn = document.getElementById('quest-tracker-open');
   if (openBtn) {
     openBtn.addEventListener('click', function () {
+      var questNavBtn = document.querySelector('.bottom-nav-btn[data-view="quests"]');
+      if (questNavBtn) {
+        questNavBtn.click();
+        return;
+      }
+
       var questTabBtn = document.querySelector('.tab-btn[data-tab="tab-quest"]');
       if (questTabBtn) questTabBtn.click();
     });
   }
-
-  trackerEl.querySelectorAll('[data-quest-tracker-accept]').forEach(function (btn) {
-    btn.addEventListener('click', function (event) {
-      event.preventDefault();
-      event.stopPropagation();
-      if (_questActions && typeof _questActions.onAcceptQuest === 'function') {
-        _questActions.onAcceptQuest(btn.dataset.questTrackerAccept);
-      }
-    });
-  });
 }
 
 function _objectiveText(obj) {

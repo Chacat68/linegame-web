@@ -68,11 +68,13 @@ export function isRunning() {
  * @param {object} state  游戏状态
  * @param {object} options
  * @param {Function} options.isModalVisible  (modalId) => boolean 检查弹窗是否可见
+ * @param {Function} [options.hasBlockingSurfaceOpen]  () => boolean 检查是否存在任意阻塞层
  * @returns {{ action: string, payload?: *, msgs: Array }}
  *   action 可为：
  *     - 'noop'        : 无需操作（弹窗打开中或非派遣状态）
  *     - 'stopped'     : 已自动停止
  *     - 'travel'      : 需要旅行到 payload.systemId
+ *     - 'buy_need_refuel': 买入前需先补足下一段航程燃料
  *     - 'buy'         : 需要买入 payload { goodId, quantity }
  *     - 'sell'        : 需要卖出 payload { goodId, quantity }
  *     - 'fuel_failed' : 燃料不足已召回
@@ -80,13 +82,14 @@ export function isRunning() {
 export function runActiveDispatchTick(state, options) {
   const msgs = [];
   const isModalVisible = options.isModalVisible;
+  const hasBlockingSurfaceOpen = options.hasBlockingSurfaceOpen;
 
   // 有弹窗时暂停
-  if (isModalVisible('event-modal') || isModalVisible('dispatch-modal')) {
-    return { action: 'noop', msgs };
-  }
   if (isModalVisible('gameover-modal')) {
     return { action: 'stopped', msgs };
+  }
+  if ((typeof hasBlockingSurfaceOpen === 'function' && hasBlockingSurfaceOpen()) || isModalVisible('event-modal') || isModalVisible('dispatch-modal')) {
+    return { action: 'noop', msgs };
   }
 
   // 检查激活船只是否仍在派遣中
@@ -168,6 +171,7 @@ export function runActiveDispatchTick(state, options) {
     var space = state.maxCargo - cargoUsed;
     var canAfford = Math.floor(state.credits / buyPrice);
     var qty = Math.min(space, canAfford);
+    var nextTravelFuelCost = Economy.getFuelCost(route.buySystemId, route.sellSystemId, state.fuelEfficiency, state);
 
     if (!buyPolicyCheck.ok) {
       _queuePolicyMessage(route, msgs, '⏸️ 自动派遣等待买点：' + buyPolicyCheck.reasons.join('、') + '。');
@@ -175,6 +179,18 @@ export function runActiveDispatchTick(state, options) {
     }
 
     if (qty > 0) {
+      if (state.fuel < nextTravelFuelCost) {
+        return {
+          action: 'buy_need_refuel',
+          payload: {
+            goodId: route.goodId,
+            quantity: qty,
+            marketType: marketType,
+            fuelCost: nextTravelFuelCost,
+          },
+          msgs,
+        };
+      }
       _clearPolicyMessage(route);
       // 先执行买入
       return { action: 'buy', payload: { goodId: route.goodId, quantity: qty, marketType: marketType }, msgs };

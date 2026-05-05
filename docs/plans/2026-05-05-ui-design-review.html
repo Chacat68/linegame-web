@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Linegame UI Design Review · 2026-05-05</title>
+  <style>
+    :root {
+      --bg: #071018;
+      --panel: #0d1824;
+      --panel-2: #111f2d;
+      --text: #e8f4ff;
+      --muted: #8fa8bb;
+      --line: rgba(118, 228, 255, 0.22);
+      --accent: #6ce7ff;
+      --warn: #ffb86b;
+      --bad: #ff7a68;
+      --ok: #57e39d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(circle at 30% 10%, rgba(108, 231, 255, 0.12), transparent 32%), var(--bg);
+      color: var(--text);
+      font: 14px/1.6 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    main {
+      width: min(1180px, calc(100vw - 40px));
+      margin: 0 auto;
+      padding: 34px 0 48px;
+    }
+    header {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 24px;
+      align-items: end;
+      padding-bottom: 22px;
+      border-bottom: 1px solid var(--line);
+    }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: clamp(28px, 4vw, 48px); line-height: 1.05; letter-spacing: 0; }
+    h2 { font-size: 18px; margin-bottom: 12px; color: var(--accent); }
+    h3 { font-size: 15px; margin-bottom: 8px; }
+    .meta { color: var(--muted); margin-top: 10px; }
+    .verdict {
+      max-width: 380px;
+      border: 1px solid var(--line);
+      background: rgba(13, 24, 36, 0.8);
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 340px minmax(0, 1fr);
+      gap: 18px;
+      margin-top: 24px;
+    }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(13, 24, 36, 0.86);
+      padding: 16px;
+    }
+    .scores {
+      display: grid;
+      gap: 12px;
+    }
+    .score-row {
+      display: grid;
+      grid-template-columns: 130px minmax(0, 1fr) 44px;
+      gap: 10px;
+      align-items: center;
+      color: var(--muted);
+    }
+    .bar {
+      height: 8px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      overflow: hidden;
+    }
+    .bar span {
+      display: block;
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--warn));
+    }
+    .dimension {
+      display: grid;
+      gap: 14px;
+    }
+    .dimension article {
+      border: 1px solid rgba(118, 228, 255, 0.16);
+      border-radius: 8px;
+      background: rgba(17, 31, 45, 0.78);
+      padding: 14px;
+    }
+    .score {
+      color: var(--warn);
+      font-weight: 700;
+      margin-left: 8px;
+    }
+    .evidence {
+      color: var(--muted);
+    }
+    ul {
+      margin: 8px 0 0;
+      padding-left: 20px;
+    }
+    li + li { margin-top: 6px; }
+    code {
+      color: #d7fbff;
+      background: rgba(108, 231, 255, 0.08);
+      border: 1px solid rgba(108, 231, 255, 0.14);
+      border-radius: 4px;
+      padding: 1px 5px;
+    }
+    .lists {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+      margin-top: 18px;
+    }
+    .fix strong { color: var(--bad); }
+    .keep strong { color: var(--ok); }
+    .quick strong { color: var(--warn); }
+    @media (max-width: 860px) {
+      header, .grid, .lists { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <h1>Linegame UI Design Review</h1>
+        <p class="meta">Artifact: <code>index.html</code>, <code>css/*</code>, <code>js/ui/*</code> · Reviewer: OD Critique skill · Date: 2026-05-05</p>
+      </div>
+      <div class="verdict">
+        <h3>Verdict</h3>
+        <p>视觉方向有辨识度，星图和终端感成立；但信息架构仍偏重，底部导航与主要工作区发生遮挡，任务/市场/机库的密度超出当前布局承载能力。</p>
+      </div>
+    </header>
+
+    <section class="grid">
+      <div class="card">
+        <h2>Scores</h2>
+        <div class="scores">
+          <div class="score-row"><span>哲学一致性</span><div class="bar"><span style="width:60%"></span></div><strong>6/10</strong></div>
+          <div class="score-row"><span>视觉层级</span><div class="bar"><span style="width:50%"></span></div><strong>5/10</strong></div>
+          <div class="score-row"><span>细节执行</span><div class="bar"><span style="width:50%"></span></div><strong>5/10</strong></div>
+          <div class="score-row"><span>功能性</span><div class="bar"><span style="width:60%"></span></div><strong>6/10</strong></div>
+          <div class="score-row"><span>创新性</span><div class="bar"><span style="width:70%"></span></div><strong>7/10</strong></div>
+        </div>
+      </div>
+
+      <div class="dimension">
+        <article>
+          <h3>哲学一致性 <span class="score">6/10</span></h3>
+          <p class="evidence">当前界面基本选择了硬科幻 HUD 方向，<code>css/interstellar-trader.css</code> 的变量和星图覆盖层能支撑这个方向。但设计文档仍强调像素/复古科幻，实际界面大量使用玻璃拟态、发光面板和 emoji 图标，风格承诺不完全一致。</p>
+        </article>
+        <article>
+          <h3>视觉层级 <span class="score">5/10</span></h3>
+          <p class="evidence">星图首屏层级清楚，品牌、资源和底部导航可读。但市场、任务和机库打开后，卡片、图表、指标、右侧摘要和底部导航同时争夺注意力；市场截图中底部导航直接覆盖 K 线图与行动摘要。</p>
+        </article>
+        <article>
+          <h3>细节执行 <span class="score">5/10</span></h3>
+          <p class="evidence">设置、胜利进度和控制台的单点完成度较高；问题集中在叠层坐标、safe area 和隐藏状态。<code>.bottom-nav</code> 被提升为 fixed 大按钮组，市场 overlay 没有为它保留足够底部空间，导致视觉遮挡。</p>
+        </article>
+        <article>
+          <h3>功能性 <span class="score">6/10</span></h3>
+          <p class="evidence">底部导航的互斥逻辑已基本建立，modal 也通过 <code>SurfaceManager</code> 保证单实例。问题是新手跳过后的顺序会先推到任务面板，再弹公司重命名，初次用户容易被连续阻塞和自动切页打断。</p>
+        </article>
+        <article>
+          <h3>创新性 <span class="score">7/10</span></h3>
+          <p class="evidence">星图作为中心工作区、市场指挥台、行动摘要和控制台日志都有记忆点，不是普通管理后台套皮。需要做的是收敛，而不是推翻。</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="lists">
+      <div class="card keep">
+        <h2>Keep</h2>
+        <ul>
+          <li><strong>星图主场景</strong>：第一视觉信号正确，沉浸感强。</li>
+          <li><strong>底部主导航概念</strong>：五个入口的心智清楚。</li>
+          <li><strong>SurfaceManager</strong>：modal 单实例规则值得保留。</li>
+          <li><strong>设置页</strong>：信息密度和层级最稳定。</li>
+        </ul>
+      </div>
+      <div class="card fix">
+        <h2>Fix</h2>
+        <ul>
+          <li><strong>P0</strong>：给所有 primary/secondary surface 统一底部 safe area，避免 fixed bottom nav 覆盖内容。</li>
+          <li><strong>P0</strong>：把市场、机库、任务的首屏信息削减到一个主任务，不要同时展示全量 KPI、说明、列表和摘要。</li>
+          <li><strong>P1</strong>：重新设计新手跳过后的流程，避免自动开任务面板后又弹公司命名 modal。</li>
+          <li><strong>P1</strong>：统一视觉语言，明确要硬科幻 HUD 还是像素复古，不要两套风格并存。</li>
+        </ul>
+      </div>
+      <div class="card quick">
+        <h2>Quick Wins</h2>
+        <ul>
+          <li><strong>15 min</strong>：市场 overlay 底部加 <code>padding-bottom</code> 或使用 CSS 变量引用 nav 高度。</li>
+          <li><strong>15 min</strong>：把底部 nav 从 82px 高降到 56-64px，图标保留、文字压缩。</li>
+          <li><strong>10 min</strong>：首次跳过教程后只给日志建议，不自动打开任务面板。</li>
+          <li><strong>10 min</strong>：公司命名弹窗隐藏错误文案，直到用户提交空值。</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

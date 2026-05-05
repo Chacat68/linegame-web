@@ -3,8 +3,21 @@
 // 导出：showEvent, hideEvent, showEventNotification, hasPendingEvent,
 //       forcePendingEvent, hidePendingNotification
 
+import { bindBlockingSurfaceDismiss, hasBlockingSurfaceOpen, hideBlockingSurface, hideEventNotificationBar, observeBlockingSurfaceState, showBlockingSurface } from './SurfaceManager.js?v=20260505-surface4';
+
 let _pendingEvent = null;
 let _pendingOnChoice = null;
+let _surfaceObserverBound = false;
+
+function _ensureSurfaceObserver() {
+  if (_surfaceObserverBound) return;
+  _surfaceObserverBound = true;
+
+  observeBlockingSurfaceState(function (snapshot) {
+    if (!snapshot || snapshot.hasBlockingSurfaceOpen || !_pendingEvent) return;
+    _renderPendingNotification();
+  });
+}
 
 /**
  * 显示随机事件模态框
@@ -12,8 +25,10 @@ let _pendingOnChoice = null;
  * @param {Function} onChoice   (choiceIndex: number) => void
  */
 export function showEvent(event, onChoice) {
+  _ensureSurfaceObserver();
+  bindBlockingSurfaceDismiss('event-modal');
   // 如果有通知条，先隐藏
-  _hideNotification();
+  hideEventNotificationBar();
   _pendingEvent = null;
   _pendingOnChoice = null;
 
@@ -32,20 +47,20 @@ export function showEvent(event, onChoice) {
       '<span class="choice-text">' + choice.text + '</span>' +
       (choice.tooltip ? '<span class="choice-tooltip">' + choice.tooltip + '</span>' : '');
     btn.addEventListener('click', function () {
-      document.getElementById('event-modal').classList.add('hidden');
+      hideBlockingSurface('event-modal');
       onChoice(index);
     });
     choicesDiv.appendChild(btn);
   });
 
-  document.getElementById('event-modal').classList.remove('hidden');
+  showBlockingSurface('event-modal');
 }
 
 /**
  * 隐藏事件模态框
  */
 export function hideEvent() {
-  document.getElementById('event-modal').classList.add('hidden');
+  hideBlockingSurface('event-modal');
 }
 
 /**
@@ -54,12 +69,27 @@ export function hideEvent() {
  * @param {Function} onChoice   (choiceIndex: number) => void
  */
 export function showEventNotification(event, onChoice) {
+  _ensureSurfaceObserver();
   _pendingEvent = event;
   _pendingOnChoice = onChoice;
 
+  if (hasBlockingSurfaceOpen()) {
+    hideEventNotificationBar();
+    return;
+  }
+
+  _renderPendingNotification();
+}
+
+function _renderPendingNotification() {
+  if (!_pendingEvent || hasBlockingSurfaceOpen()) {
+    hideEventNotificationBar();
+    return;
+  }
+
   var notifEl = document.getElementById('event-notification');
-  document.getElementById('event-notif-icon').textContent = event.icon;
-  document.getElementById('event-notif-text').textContent = event.title + ' — 点击查看详情';
+  document.getElementById('event-notif-icon').textContent = _pendingEvent.icon;
+  document.getElementById('event-notif-text').textContent = _pendingEvent.title + ' — 点击查看详情';
 
   // 绑定点击整个通知条或按钮来弹出完整事件
   var openBtn = document.getElementById('event-notif-open');
@@ -106,17 +136,13 @@ export function forcePendingEvent() {
  * 隐藏通知条并清除待处理事件
  */
 export function hidePendingNotification() {
-  _hideNotification();
+  hideEventNotificationBar();
   _pendingEvent = null;
   _pendingOnChoice = null;
 }
 
 function _hideNotification() {
-  var notifEl = document.getElementById('event-notification');
-  if (notifEl) {
-    notifEl.classList.add('hidden');
-    notifEl.onclick = null;
-  }
+  hideEventNotificationBar();
 }
 
 function _renderMeta(event) {

@@ -1,5 +1,5 @@
 // js/ui/MapUI.js — 星系地图交互事件绑定（支持星系/星球双层视图 + 市场面板）
-// 导出：init, initTabs, init3DCallbacks, refreshGalaxyBtn, triggerArrivalScanPanel, openMarket, closeMarket, isMarketOpen,
+// 导出：init, initTabs, init3DCallbacks, refreshGalaxyBtn, triggerArrivalScanPanel, showCurrentSystemScanReveal, openMarket, closeMarket, isMarketOpen,
 //        setRefreshMarket, setExplorationActions, getMarketViewSystem, refreshMarketLocation,
 //        showMarketOverview, showMarketDetail, refreshPlanetDetail, getMapView, getCurrentGalaxyId
 import * as Renderer3D from './Renderer3DAdvanced.js?v=20260420-balance3';
@@ -49,6 +49,8 @@ let _selectedPlanetDetailSystem = null;
 let _travelActionHandler = null;
 let _galaxyJumpActionHandler = null;
 let _hoveredGalaxyId = null;
+let _mainBindingsInitialized = false;
+let _tabBindingsInitialized = false;
 
 function _normalizeMarketPanelFocus(focus) {
   if (!focus || typeof focus !== 'object') return null;
@@ -489,6 +491,22 @@ function _getCurrentSystemScanTarget(stateRef) {
   };
 }
 
+function _getOrbitScanBadge(label) {
+  var match = String(label || '').match(/(\d+)\s*燃料/);
+  return match ? match[1] : '';
+}
+
+function _setOrbitScanButtonPresentation(btn, label, title) {
+  var displayLabel = String(label || '轨道扫描');
+  var titleText = title ? (displayLabel + ' · ' + title) : displayLabel;
+
+  btn.textContent = displayLabel;
+  btn.dataset.scanGlyph = '⌖';
+  btn.dataset.scanBadge = _getOrbitScanBadge(displayLabel);
+  btn.setAttribute('aria-label', displayLabel);
+  btn.setAttribute('title', titleText);
+}
+
 function _setOrbitScanPanelOpen(nextOpen, stateRef) {
   var resolvedState = stateRef || _stateRef;
   _orbitScanPanelOpen = !!nextOpen;
@@ -505,17 +523,76 @@ function _updateOrbitScanButton(stateRef) {
   var btn = document.getElementById('orbit-scan-btn');
   if (!btn) return;
 
+  var target = _getCurrentSystemScanTarget(stateRef);
+  var reveal = _getCurrentSystemScanReveal(stateRef);
+  var shouldShow = !!target || (!!reveal && _orbitScanPanelOpen);
+
   btn.setAttribute('aria-controls', 'current-system-exploration-card');
-  btn.hidden = false;
-  btn.hidden = true;
-  btn.textContent = '📡 扫描';
+  btn.hidden = !shouldShow;
+  btn.setAttribute('aria-hidden', shouldShow ? 'false' : 'true');
+  _setOrbitScanButtonPresentation(btn, '轨道扫描', '打开当前轨道扫描终端');
   btn.disabled = false;
   btn.removeAttribute('aria-disabled');
-  btn.classList.remove('active');
-  btn.setAttribute('aria-expanded', 'false');
-  btn.setAttribute('aria-hidden', 'true');
-  btn.removeAttribute('title');
+  btn.classList.toggle('active', !!_orbitScanPanelOpen);
+  btn.setAttribute('aria-expanded', _orbitScanPanelOpen ? 'true' : 'false');
   btn.removeAttribute('data-system-id');
+
+  if (!shouldShow) return;
+
+  if (target) {
+    _setOrbitScanButtonPresentation(btn, target.label || '轨道扫描', target.title || '打开当前轨道扫描终端');
+    btn.dataset.systemId = target.systemId || '';
+    if (target.disabled) {
+      btn.disabled = true;
+      btn.setAttribute('aria-disabled', 'true');
+    }
+    return;
+  }
+
+  _setOrbitScanButtonPresentation(btn, '扫描终端', '查看当前轨道扫描结果');
+  if (reveal && reveal.systemId) btn.dataset.systemId = reveal.systemId;
+}
+
+function _hideCurrentSystemExplorationCard() {
+  var card = document.getElementById('current-system-exploration-card');
+  if (!card) return;
+  card.innerHTML = '';
+  card.classList.remove('visible');
+}
+
+function _buildCurrentSystemExplorationCard(flow, sys, reveal) {
+  if (!flow || !sys) return '';
+
+  var flowHtml = reveal
+    ? _buildCurrentSystemScanRevealCard(flow, reveal)
+    : _buildExplorationFlowCard(flow, {
+      cardClass: 'planet-detail-flow-card current-system-flow-card',
+      actionClass: 'current-system-action',
+    }) + _buildExplorationProgressRow(flow);
+
+  return '<div class="current-system-card-head">' +
+    '<div class="current-system-card-head-main">' +
+      '<div class="current-system-card-kicker">ORBIT SCAN TERMINAL</div>' +
+      '<div class="current-system-card-name">' + _escapeHtml(sys.name) + '</div>' +
+    '</div>' +
+    '<button class="current-system-card-close" type="button" data-orbit-scan-close aria-label="关闭轨道扫描终端" title="关闭轨道扫描终端">×</button>' +
+  '</div>' + flowHtml;
+}
+
+export function showCurrentSystemScanReveal(stateRef, systemId, scanResult) {
+  if (stateRef) _stateRef = stateRef;
+  _startCurrentSystemScanReveal(stateRef || _stateRef, systemId, scanResult);
+}
+
+function _updateSecretRoutesToggle() {
+  var btn = document.getElementById('secret-routes-toggle-btn');
+  if (!btn) return;
+
+  var visible = Renderer3D.isSecretRoutesVisible ? Renderer3D.isSecretRoutesVisible() : true;
+  btn.classList.toggle('active', !!visible);
+  btn.setAttribute('aria-pressed', visible ? 'true' : 'false');
+  btn.textContent = visible ? '🛰 暗线已显示' : '🛰 显示暗线';
+  btn.title = visible ? '点击隐藏已发现暗线' : '点击显示已发现暗线';
 }
 
 function _bindOrbitScanPanelControls() {
@@ -609,78 +686,86 @@ export function init(stateRef, onTravel, onGalaxyJump) {
   _bindExplorationActionEvents();
   _bindOrbitScanPanelControls();
 
-  // 星系视图切换按钮
-  const btn = document.getElementById('galaxy-view-btn');
-  if (btn) {
-    btn.addEventListener('click', function () {
-      // 先关闭市场
-      closeMarket();
-      _clearSelectedPlanetDetail(false);
-      _closeOrbitScanPanel(stateRef);
-      if (stateRef.mapView === 'galaxies') {
-        stateRef.mapView = 'planets';
-        stateRef.viewingGalaxy = stateRef.currentGalaxy;
-      } else {
-        stateRef.mapView = 'galaxies';
-      }
-      _updateGalaxyBtn(stateRef);
-      refreshPlanetDetail(stateRef);
-    });
-  }
+  if (!_mainBindingsInitialized) {
+    _mainBindingsInitialized = true;
 
-  const secretRoutesBtn = document.getElementById('secret-routes-toggle-btn');
-  if (secretRoutesBtn) {
-    secretRoutesBtn.addEventListener('click', function () {
-      const visible = Renderer3D.isSecretRoutesVisible ? Renderer3D.isSecretRoutesVisible() : true;
-      if (Renderer3D.setSecretRoutesVisible) {
-        Renderer3D.setSecretRoutesVisible(!visible);
-      }
-      _updateSecretRoutesToggle();
-    });
-    _updateSecretRoutesToggle();
-  }
+    // 星系视图切换按钮
+    const btn = document.getElementById('galaxy-view-btn');
+    if (btn) {
+      btn.addEventListener('click', function () {
+        var currentState = _stateRef || stateRef;
+        if (!currentState) return;
 
-  const orbitScanBtn = document.getElementById('orbit-scan-btn');
-  if (orbitScanBtn) {
-    orbitScanBtn.addEventListener('click', function () {
-      var target = _getCurrentSystemScanTarget(_stateRef || stateRef);
-      if (!target) {
-        _closeOrbitScanPanel(_stateRef || stateRef);
-        return;
-      }
-      _setOrbitScanPanelOpen(!_orbitScanPanelOpen, _stateRef || stateRef);
-    });
-    _updateOrbitScanButton(stateRef);
-  }
+        closeMarket();
+        _clearSelectedPlanetDetail(false);
+        _closeOrbitScanPanel(currentState);
+        if (currentState.mapView === 'galaxies') {
+          currentState.mapView = 'planets';
+          currentState.viewingGalaxy = currentState.currentGalaxy;
+        } else {
+          currentState.mapView = 'galaxies';
+        }
+        _updateGalaxyBtn(currentState);
+        refreshPlanetDetail(currentState);
+      });
+    }
 
-  // 市场按钮
-  const marketBtn = document.getElementById('market-view-btn');
-  const marketCloseBtn = document.getElementById('market-close-btn');
-  if (marketBtn) {
-    marketBtn.addEventListener('click', function () {
-      if (_marketOpen) {
+    const secretRoutesBtn = document.getElementById('secret-routes-toggle-btn');
+    if (secretRoutesBtn) {
+      secretRoutesBtn.addEventListener('click', function () {
+        const visible = Renderer3D.isSecretRoutesVisible ? Renderer3D.isSecretRoutesVisible() : true;
+        if (Renderer3D.setSecretRoutesVisible) {
+          Renderer3D.setSecretRoutesVisible(!visible);
+        }
+        _updateSecretRoutesToggle();
+      });
+    }
+
+    const orbitScanBtn = document.getElementById('orbit-scan-btn');
+    if (orbitScanBtn) {
+      orbitScanBtn.addEventListener('click', function () {
+        var currentState = _stateRef || stateRef;
+        var target = _getCurrentSystemScanTarget(currentState);
+        if (!target) {
+          _closeOrbitScanPanel(currentState);
+          return;
+        }
+        _setOrbitScanPanelOpen(!_orbitScanPanelOpen, currentState);
+      });
+    }
+
+    // 市场按钮
+    const marketBtn = document.getElementById('market-view-btn');
+    const marketCloseBtn = document.getElementById('market-close-btn');
+    if (marketBtn) {
+      marketBtn.addEventListener('click', function () {
+        var currentState = _stateRef || stateRef;
+        if (_marketOpen) {
+          closeMarket();
+          _setBottomNavActive('starmap');
+        } else if (currentState) {
+          _closeAllOverlayPanels();
+          openMarket(currentState);
+          _setBottomNavActive('market');
+        }
+      });
+    }
+    if (marketCloseBtn) {
+      marketCloseBtn.addEventListener('click', function () {
         closeMarket();
         _setBottomNavActive('starmap');
-      } else {
-        _closeAllOverlayPanels();
-        openMarket(stateRef);
-        _setBottomNavActive('market');
-      }
-    });
-  }
-  if (marketCloseBtn) {
-    marketCloseBtn.addEventListener('click', function () {
-      closeMarket();
-      _setBottomNavActive('starmap');
-    });
+      });
+    }
+
+    // 3D视图默认启用，按钮隐藏
+    const toggle3DBtn = document.getElementById('map-3d-toggle-btn');
+    if (toggle3DBtn) {
+      toggle3DBtn.style.display = 'none';
+    }
   }
 
-  // 3D视图默认启用，按钮隐藏
-  const toggle3DBtn = document.getElementById('map-3d-toggle-btn');
-  if (toggle3DBtn) {
-    toggle3DBtn.style.display = 'none';
-  }
-
+  _updateSecretRoutesToggle();
+  _updateOrbitScanButton(stateRef);
   refreshPlanetDetail(stateRef);
 }
 
@@ -837,9 +922,7 @@ function _bindExplorationActionContainer(containerId) {
     event.stopPropagation();
 
     if (action === 'scan' && _explorationActions.onScan) {
-      var scanResult = _explorationActions.onScan(systemId);
-      _clearCurrentSystemScanReveal();
-      _closeOrbitScanPanel(_stateRef);
+      _explorationActions.onScan(systemId);
       return;
     }
     if (action === 'land' && _explorationActions.onLand) {
@@ -1438,10 +1521,36 @@ function _renderCurrentSystemExplorationCard(stateRef) {
   var card = document.getElementById('current-system-exploration-card');
   if (!card) return;
 
-  _orbitScanPanelOpen = false;
-  _clearCurrentSystemScanReveal();
-  card.innerHTML = '';
-  card.classList.remove('visible');
+  var resolvedState = stateRef || _stateRef;
+  var reveal = _getCurrentSystemScanReveal(resolvedState);
+
+  if (!resolvedState || resolvedState.mapView !== 'planets' || resolvedState.viewingGalaxy !== resolvedState.currentGalaxy) {
+    if (!reveal) _orbitScanPanelOpen = false;
+    _hideCurrentSystemExplorationCard();
+    return;
+  }
+
+  if (!_orbitScanPanelOpen && !reveal) {
+    _hideCurrentSystemExplorationCard();
+    return;
+  }
+
+  var sys = findSystem(resolvedState.currentSystem);
+  var planetData = GalaxyData.getPlanetData(resolvedState.currentSystem);
+  if (!sys || !planetData) {
+    _hideCurrentSystemExplorationCard();
+    return;
+  }
+
+  var isUnlocked = (resolvedState.playerLevel || 1) >= (sys.minLevel || 1);
+  var flow = _getExplorationFlow(resolvedState, sys, planetData, true, isUnlocked);
+  if (!flow) {
+    _hideCurrentSystemExplorationCard();
+    return;
+  }
+
+  card.innerHTML = _buildCurrentSystemExplorationCard(flow, sys, reveal);
+  card.classList.add('visible');
 }
 
 export function refreshPlanetDetail(stateRef) {
@@ -1701,6 +1810,9 @@ function _buildMarketGalaxyNav(state) {
  */
 export function initTabs(onTabClick) {
   _tabClickCallback = onTabClick || null;
+  if (_tabBindingsInitialized) return;
+  _tabBindingsInitialized = true;
+
   document.querySelectorAll('.tab-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {
       activateTab(btn.dataset.tab);

@@ -2,6 +2,8 @@
 // 依赖：无
 // 导出：init, showScene, hideScene, isOpen
 
+import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from './SurfaceManager.js?v=20260505-surface4';
+
 let _activeScene = null;
 let _activeLineIndex = 0;
 let _onComplete = null;
@@ -31,19 +33,15 @@ export function init() {
     });
   }
 
-  modal.addEventListener('click', function (event) {
-    if (event.target === modal) {
+  bindBlockingSurfaceDismiss('dialogue-modal', {
+    onDismiss: function () {
       _finish(true);
-    }
+    },
   });
 
   if (!_keydownBound) {
     document.addEventListener('keydown', function (event) {
       if (!isOpen()) return;
-      if (event.key === 'Escape') {
-        _finish(true);
-        return;
-      }
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
         _advance();
@@ -68,12 +66,11 @@ export function showScene(scene, onComplete) {
   _onComplete = onComplete || null;
 
   _render();
-  document.getElementById('dialogue-modal').classList.remove('hidden');
+  showBlockingSurface('dialogue-modal');
 }
 
 export function hideScene() {
-  var modal = document.getElementById('dialogue-modal');
-  if (modal) modal.classList.add('hidden');
+  hideBlockingSurface('dialogue-modal');
   _activeScene = null;
   _activeLineIndex = 0;
   _choiceMode = false;

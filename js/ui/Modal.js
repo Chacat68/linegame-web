@@ -4,8 +4,10 @@
 
 import * as Economy     from '../systems/economy/Economy.js';
 import { getTotalCargo } from '../systems/trade/TradeSystem.js';
+import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from './SurfaceManager.js?v=20260505-surface4';
 
 let _onConfirm = null; // 注入的确认回调，由 GameManager 提供
+let _initialized = false;
 
 /**
  * 初始化模态框按钮事件（只需调用一次）
@@ -13,6 +15,10 @@ let _onConfirm = null; // 注入的确认回调，由 GameManager 提供
  */
 export function init(onConfirmCb) {
   _onConfirm = onConfirmCb;
+  if (_initialized) return;
+  _initialized = true;
+
+  bindBlockingSurfaceDismiss('trade-modal');
 
   document.getElementById('modal-decrease').addEventListener('click', function () {
     const inp = document.getElementById('modal-amount');
@@ -35,7 +41,7 @@ export function init(onConfirmCb) {
   document.getElementById('modal-amount').addEventListener('input', _refreshTotal);
 
   document.getElementById('modal-cancel').addEventListener('click', function () {
-    document.getElementById('trade-modal').classList.add('hidden');
+    hideBlockingSurface('trade-modal');
   });
 }
 
@@ -81,10 +87,10 @@ export function openTradeModal(action, good, state, marketType) {
   document.getElementById('modal-confirm').onclick = function () {
     const qty = parseInt(inp.value) || 0;
     if (qty > 0 && _onConfirm) _onConfirm(action, good.id, qty, inp.dataset.marketType);
-    document.getElementById('trade-modal').classList.add('hidden');
+    hideBlockingSurface('trade-modal');
   };
 
-  document.getElementById('trade-modal').classList.remove('hidden');
+  showBlockingSurface('trade-modal');
 }
 
 function _refreshTotal() {

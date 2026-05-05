@@ -374,83 +374,118 @@
 }
 
 .company-rename-desc {
-  font-size: 13px;
-  color: var(--text-primary);
-  line-height: 1.6;
   margin-bottom: 16px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
 }
+
 .company-rename-form {
   margin-bottom: 16px;
 }
+
 .company-name-input {
   width: 100%;
   box-sizing: border-box;
-  padding: 8px 12px;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,200,50,0.4);
-  border-radius: 6px;
+  padding: 10px 12px;
+  border: 1px solid rgba(108, 231, 255, 0.22);
+  border-radius: 8px;
+  background: rgba(2, 10, 18, 0.72);
   color: var(--text-primary);
-  font-size: 15px;
   font-family: inherit;
+  font-size: 15px;
   text-align: center;
-    font-size: 15px;
-  transition: border-color 0.2s;
-.company-name-input:focus {
-  border-color: var(--accent-gold);
-
-  .save-header-row {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 14px;
-  }
-
-  .save-header-subtitle {
-    margin-top: 4px;
-    font-size: 12px;
-    line-height: 1.6;
-    color: var(--text-dim);
-  }
-
-  .save-slot-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-  }
-
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
 }
+
+.company-name-input:focus {
+  outline: none;
+  border-color: rgba(255, 184, 107, 0.58);
+  background: rgba(5, 18, 30, 0.86);
+  box-shadow: 0 0 0 2px rgba(255, 184, 107, 0.08), 0 0 18px rgba(255, 184, 107, 0.12);
+}
+
 .company-name-error {
   margin-top: 6px;
-    border-radius: 14px;
-    padding: 12px 14px;
-    margin-bottom: 0;
+  color: var(--accent-red);
+  font-size: 11px;
+}
+
 .company-rename-actions {
   display: flex;
   flex-direction: column;
-  .save-slot-header-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    margin-bottom: 8px;
-  }
-  gap: 8px;
   align-items: center;
+  gap: 8px;
 }
-  }
 
-  .save-slot-badge {
-    padding: 2px 8px;
-    border-radius: 999px;
-    font-size: 10px;
-    letter-spacing: 0.08em;
-    color: #9cecff;
-    border: 1px solid rgba(56, 189, 248, 0.18);
-    background: rgba(56, 189, 248, 0.08);
-  width: 200px;
+.save-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
 
-  padding: 10px;
-  font-size: 13px;
-    gap: 8px;
+.save-header-subtitle {
+  margin-top: 4px;
+  color: var(--text-dim);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.save-slot-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.save-slot-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.save-slot-badge,
+.save-meta-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  border: 1px solid rgba(108, 231, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(108, 231, 255, 0.08);
+  color: #9cecff;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+}
+
+.save-slot-badge {
+  padding: 2px 8px;
+  letter-spacing: 0.08em;
+}
+
+.save-meta-pill {
+  padding: 3px 8px;
+  color: var(--text-secondary);
+}
+
+.save-transfer-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid rgba(108, 231, 255, 0.12);
+  border-radius: 10px;
+  background: rgba(2, 10, 18, 0.5);
+}
+
+.save-transfer-copy {
+  color: var(--text-dim);
+  font-size: 11px;
+  line-height: 1.5;
+}
 

@@ -121,6 +121,11 @@ export function init() {
     return;
   }
 
+  if (_engine && _scene) {
+    _dirty = true;
+    return;
+  }
+
   // Create engine
   _engine = new BABYLON.Engine(_canvas, _qualityLevel !== 'low', {
     preserveDrawingBuffer: true,

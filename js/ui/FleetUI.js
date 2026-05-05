@@ -10,6 +10,7 @@ import * as Crew from '../systems/fleet/CrewSystem.js';
 import * as Economy from '../systems/economy/Economy.js';
 import * as AutoTrade from '../systems/trade/AutoTradeSystem.js?v=20260420-balance5';
 import * as Faction from '../systems/faction/FactionSystem.js';
+import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from './SurfaceManager.js?v=20260505-surface4';
 
 function _formatTradePolicySummary(policy) {
   if (!policy || typeof policy !== 'object') return '默认：按当前价格循环';
@@ -682,6 +683,7 @@ function _getSpecializationMeta(trackId) {
 function _openCrewModal(state, shipIndex, onRecruitCrew, onAssignCrew, onUnassignCrew, onDismissCrew, onSwitchShip, onSetShipDoctrine, onActivateShipProtocol) {
   var modal = document.getElementById('crew-modal');
   if (!modal) return;
+  bindBlockingSurfaceDismiss('crew-modal');
 
   var ship = state.fleet[shipIndex];
   if (!ship) return;
@@ -861,9 +863,9 @@ function _openCrewModal(state, shipIndex, onRecruitCrew, onAssignCrew, onUnassig
 
   renderCrewModal();
   document.getElementById('crew-modal-close').onclick = function () {
-    modal.classList.add('hidden');
+    hideBlockingSurface('crew-modal');
   };
-  modal.classList.remove('hidden');
+  showBlockingSurface('crew-modal');
 }
 
 // ---------------------------------------------------------------------------
@@ -958,11 +960,12 @@ export function openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute
 function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgradeShip, onServiceShip, onSellShip) {
   var modal = document.getElementById('mod-modal');
   if (!modal) return;
+  bindBlockingSurfaceDismiss('mod-modal');
 
   function _renderModModal() {
     var ship = state.fleet[shipIndex];
     if (!ship) {
-      modal.classList.add('hidden');
+      hideBlockingSurface('mod-modal');
       return;
     }
 
@@ -1220,7 +1223,7 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
         if (onSellShip) onSellShip(shipIndex);
         setTimeout(function () {
           if (state.fleet.length <= shipIndex || state.fleet[shipIndex] !== currentShip) {
-            modal.classList.add('hidden');
+            hideBlockingSurface('mod-modal');
             return;
           }
           _renderModModal();
@@ -1233,10 +1236,10 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
 
   // 关闭
   document.getElementById('mod-modal-close').onclick = function () {
-    modal.classList.add('hidden');
+    hideBlockingSurface('mod-modal');
   };
 
-  modal.classList.remove('hidden');
+  showBlockingSurface('mod-modal');
 }
 
 // ---------------------------------------------------------------------------
@@ -1246,6 +1249,7 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
 function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, preset) {
   const modal = document.getElementById('dispatch-modal');
   if (!modal) return;
+  bindBlockingSurfaceDismiss('dispatch-modal');
 
   const ship = state.fleet[shipIndex];
   const effectiveShipStats = Fleet.getEffectiveShipStats(state, ship);
@@ -1745,12 +1749,12 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
   // 确认
   confirmBtn.onclick = function () {
     onAssignRoute(shipIndex, buySelect.value, sellSelect.value, goodSelect.value, _readTradePolicy());
-    modal.classList.add('hidden');
+    hideBlockingSurface('dispatch-modal');
   };
 
   cancelBtn.onclick = function () {
-    modal.classList.add('hidden');
+    hideBlockingSurface('dispatch-modal');
   };
 
-  modal.classList.remove('hidden');
+  showBlockingSurface('dispatch-modal');
 }

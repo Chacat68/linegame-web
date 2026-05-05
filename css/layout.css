@@ -27,7 +27,7 @@
 .side-panel-overlay {
   position: absolute;
   top: 48px;   /* below floating header */
-  bottom: 72px; /* above floating dock */
+  bottom: var(--secondary-overlay-offset, 72px); /* above floating dock */
   z-index: 20;
   display: flex;
   flex-direction: column;
@@ -72,7 +72,7 @@
 .side-panel-overlay--bottom {
   left: 140px;
   right: 0;
-  bottom: 72px;
+  bottom: var(--secondary-overlay-offset, 72px);
   top: auto;
   height: 220px;
   border-top: 1px solid var(--border);

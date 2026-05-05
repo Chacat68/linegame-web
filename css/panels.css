@@ -107,7 +107,7 @@
 /* Stat strip — 4 glass indicator cards */
 .stat-strip {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
   gap: 6px;
   margin-top: 10px;
 }

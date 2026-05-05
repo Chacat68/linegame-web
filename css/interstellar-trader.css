@@ -24,6 +24,11 @@
   --radius: 12px;
   --glow-soft: 0 0 0 1px rgba(108, 231, 255, 0.16), 0 0 26px rgba(37, 170, 255, 0.12);
   --glow-strong: 0 0 0 1px rgba(108, 231, 255, 0.38), 0 0 34px rgba(54, 184, 255, 0.26);
+  --bottom-nav-offset: 56px;
+  --bottom-nav-height: 112px;
+  --floating-stack-gap: 16px;
+  --secondary-overlay-offset: calc(var(--bottom-nav-offset) + var(--bottom-nav-height) + var(--floating-stack-gap));
+  --event-notification-offset: calc(var(--bottom-nav-offset) + var(--bottom-nav-height) + var(--floating-stack-gap));
 }
 
 html,
@@ -116,7 +121,7 @@ body::after {
 
 #game-header {
   height: 72px;
-  padding: 0 18px;
+  padding: 0 clamp(10px, 1vw, 18px);
   gap: 0;
   align-items: stretch;
   overflow: hidden;
@@ -147,10 +152,12 @@ body::after {
 }
 
 .hdr-brand {
-  width: 250px;
+  width: clamp(190px, 18vw, 250px);
+  min-width: 170px;
+  flex: 0 1 clamp(190px, 18vw, 250px);
   align-items: center;
   gap: 14px;
-  padding-right: 22px;
+  padding-right: clamp(12px, 1.2vw, 22px);
   border-right: 1px solid var(--hud-line);
 }
 
@@ -183,6 +190,7 @@ body::after {
   flex-direction: column;
   gap: 2px;
   line-height: 1;
+  min-width: 0;
 }
 
 .hdr-logo {
@@ -199,20 +207,6 @@ body::after {
   text-shadow: 0 0 18px rgba(108, 231, 255, 0.52);
 }
 
-.hdr-system-status {
-  width: 205px;
-  min-width: 170px;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
-  gap: 6px;
-  padding: 0 28px;
-  border: 0;
-  border-right: 1px solid var(--hud-line);
-  border-radius: 0;
-  background: transparent;
-}
-
 .hdr-sys-label,
 .hdr-stat-label,
 .status-stat-label {
@@ -224,6 +218,12 @@ body::after {
 }
 
 .hdr-sys-value {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: rgba(238, 248, 255, 0.94);
   font-family: "Rajdhani", "PingFang SC", sans-serif;
   font-size: 14px;
@@ -235,26 +235,36 @@ body::after {
   height: 100%;
   margin-left: 0;
   gap: 0;
-  flex: 1 1 auto;
-  min-width: 420px;
+  display: grid;
+  grid-template-columns: minmax(112px, 0.72fr) minmax(0, 1.55fr) minmax(0, 1fr);
+  flex: 1 1 420px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .hdr-stat-block {
   height: 100%;
-  min-width: 142px;
+  min-width: 0;
   flex-direction: column;
   align-items: flex-start;
   justify-content: center;
   gap: 5px;
-  padding: 0 22px;
+  padding: 0 clamp(12px, 1.2vw, 22px);
   border-right: 1px solid var(--hud-line);
+  overflow: hidden;
 }
 
 .hdr-stat-block--ship {
-  min-width: 158px;
+  min-width: 0;
 }
 
 .hdr-stat-value {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: rgba(246, 250, 255, 0.94);
   font-size: 18px;
   font-weight: 600;
@@ -268,7 +278,8 @@ body::after {
 
 .hdr-location,
 .hdr-ship {
-  max-width: 210px;
+  max-width: none;
+  min-width: 0;
   color: rgba(234, 245, 255, 0.94);
   font-size: 15px;
   text-shadow: none;
@@ -279,21 +290,24 @@ body::after {
   align-items: stretch;
   height: 100%;
   flex: 0 0 auto;
+  min-width: 0;
   border-right: 1px solid var(--hud-line);
 }
 
 .hdr-meter-block {
-  width: 132px;
+  width: clamp(102px, 7vw, 132px);
+  min-width: 92px;
   display: flex;
   flex-direction: column;
   justify-content: center;
   gap: 8px;
-  padding: 0 20px;
+  padding: 0 clamp(12px, 1vw, 20px);
   border-right: 1px solid rgba(118, 228, 255, 0.1);
 }
 
 .hdr-meter-block--rep {
-  width: 160px;
+  width: clamp(124px, 8.8vw, 160px);
+  min-width: 116px;
   border-right: 0;
 }
 
@@ -354,8 +368,9 @@ body::after {
 
 .hdr-day-chip {
   align-self: center;
-  margin: 0 16px;
-  padding: 6px 11px;
+  margin: 0 clamp(8px, 0.9vw, 16px);
+  padding: 6px clamp(9px, 0.8vw, 11px);
+  gap: 6px;
   border-color: rgba(255, 184, 107, 0.3);
   background: rgba(255, 184, 107, 0.08);
   border-radius: 8px;
@@ -371,15 +386,16 @@ body::after {
 }
 
 .hdr-icon-btns {
-  gap: 12px;
+  gap: clamp(8px, 0.75vw, 12px);
   margin-left: 0;
   padding-left: 0;
   border-left: 0;
+  flex-shrink: 0;
 }
 
 .hdr-icon-btn {
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   border: 0;
   border-radius: 999px;
   background: transparent;
@@ -421,22 +437,19 @@ body::after {
 }
 
 .map-hud-nav-data {
-  top: 138px;
-  left: 88px;
-  opacity: 0.72;
+  display: none;
 }
 
 .map-hud-sensor-data {
-  right: 430px;
-  bottom: 116px;
-  opacity: 0.58;
+  display: none;
 }
 
 .starmap-control-rail,
 .galactic-map-widget,
 .market-overview-widget,
 .target-intel-widget,
-.network-status-widget {
+.network-status-widget,
+.quest-tracker-widget {
   position: absolute;
   z-index: 12;
   pointer-events: none;
@@ -448,6 +461,69 @@ body::after {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  pointer-events: auto;
+}
+
+.orbit-scan-menu-btn {
+  position: absolute;
+  top: 322px;
+  left: 18px;
+  z-index: 13;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  font-size: 0;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.orbit-scan-menu-btn::before {
+  content: attr(data-scan-glyph);
+  display: grid;
+  place-items: center;
+  font-family: "Orbitron", monospace;
+  font-size: 17px;
+  line-height: 1;
+}
+
+.orbit-scan-menu-btn::after {
+  content: attr(data-scan-badge);
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  padding: 0 4px;
+  border: 1px solid rgba(255, 184, 107, 0.42);
+  border-radius: 999px;
+  background: rgba(12, 24, 36, 0.92);
+  color: rgba(255, 213, 142, 0.96);
+  font-family: "Rajdhani", sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: 0 0 14px rgba(255, 184, 107, 0.2);
+}
+
+.orbit-scan-menu-btn[data-scan-badge=""]::after,
+.orbit-scan-menu-btn:not([data-scan-badge])::after {
+  display: none;
+}
+
+.orbit-scan-menu-btn.active {
+  color: var(--accent-cyan);
+  border-color: var(--hud-border-strong);
+  background: rgba(20, 70, 96, 0.74);
+  box-shadow: var(--glow-strong);
+}
+
+.orbit-scan-menu-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  transform: none;
 }
 
 .starmap-rail-btn {
@@ -461,7 +537,22 @@ body::after {
   color: rgba(215, 242, 255, 0.76);
   font-family: "Orbitron", monospace;
   font-size: 16px;
+  padding: 0;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+.starmap-rail-btn.orbit-scan-menu-btn {
+  font-size: 0;
+}
+
+.starmap-rail-btn:hover {
+  color: rgba(235, 248, 255, 0.92);
+  border-color: rgba(108, 231, 255, 0.3);
+  background: rgba(12, 38, 56, 0.72);
+  transform: translateY(-1px);
 }
 
 .starmap-rail-btn.is-active {
@@ -471,10 +562,22 @@ body::after {
   text-shadow: 0 0 12px rgba(108, 231, 255, 0.7);
 }
 
+.starmap-rail-btn.is-selected:not(.is-active) {
+  color: rgba(196, 240, 255, 0.92);
+  border-color: rgba(108, 231, 255, 0.22);
+  background: rgba(9, 28, 40, 0.72);
+}
+
+.starmap-rail-btn:focus-visible {
+  outline: 1px solid rgba(108, 231, 255, 0.48);
+  outline-offset: 2px;
+}
+
 .galactic-map-widget,
 .market-overview-widget,
 .target-intel-widget,
-.network-status-widget {
+.network-status-widget,
+.quest-tracker-widget {
   border: 1px solid var(--hud-border);
   border-radius: 10px;
   background:
@@ -489,7 +592,8 @@ body::after {
 .galactic-map-widget::before,
 .market-overview-widget::before,
 .target-intel-widget::before,
-.network-status-widget::before {
+.network-status-widget::before,
+.quest-tracker-widget::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -516,30 +620,78 @@ body::after {
   font-weight: 700;
   letter-spacing: 0.06em;
   border-bottom: 1px solid rgba(108, 231, 255, 0.11);
+  pointer-events: auto;
+}
+
+.hud-widget-close {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid rgba(108, 231, 255, 0.14);
+  border-radius: 6px;
+  background: rgba(3, 12, 22, 0.7);
+  color: rgba(230, 244, 255, 0.82);
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: border-color 0.18s ease, color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+
+.hud-widget-close:hover {
+  border-color: rgba(108, 231, 255, 0.32);
+  color: #f3fbff;
+  background: rgba(18, 58, 78, 0.72);
+  transform: translateY(-1px);
+}
+
+.hud-widget-close:focus-visible {
+  outline: 1px solid rgba(108, 231, 255, 0.48);
+  outline-offset: 2px;
+}
+
+.galactic-map-widget.hud-widget-collapsed,
+.market-overview-widget.hud-widget-collapsed,
+.target-intel-widget.hud-widget-collapsed,
+.network-status-widget.hud-widget-collapsed,
+.quest-tracker-widget.hud-widget-collapsed {
+  display: none;
 }
 
 .galactic-map-widget {
   top: 20px;
   left: 74px;
   width: 224px;
-  padding-bottom: 12px;
 }
 
-.hud-search-shell {
-  position: relative;
-  z-index: 1;
-  height: 36px;
-  margin: 10px 13px 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.hud-galactic-summary {
+  display: grid;
   gap: 10px;
-  padding: 0 10px;
-  border: 1px solid rgba(108, 231, 255, 0.12);
-  border-radius: 5px;
-  background: rgba(1, 8, 14, 0.56);
-  color: rgba(200, 224, 236, 0.58);
+  margin: 16px 18px 0;
+  padding: 14px 15px;
+  border: 1px solid rgba(108, 231, 255, 0.16);
+}
+
+.hud-galactic-row {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.hud-galactic-label {
+  color: rgba(181, 207, 219, 0.66);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hud-galactic-value {
+  color: rgba(238, 248, 255, 0.92);
   font-size: 13px;
+  line-height: 1.45;
 }
 
 .market-overview-widget {
@@ -548,33 +700,11 @@ body::after {
   width: 438px;
 }
 
-.market-overview-tabs {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  gap: 8px;
-  padding: 8px 14px 0;
-}
-
-.market-overview-tabs span {
-  padding: 4px 10px;
-  border-radius: 999px;
-  color: rgba(210, 232, 242, 0.66);
-  font-size: 11px;
-  background: rgba(108, 231, 255, 0.04);
-}
-
-.market-overview-tabs .is-active {
-  color: var(--accent-cyan);
-  border-bottom: 1px solid var(--accent-cyan);
-  background: rgba(108, 231, 255, 0.1);
-}
-
 .hud-market-table {
   position: relative;
   z-index: 1;
   width: calc(100% - 26px);
-  margin: 8px 13px 0;
+  margin: 12px 13px 0;
   border-collapse: collapse;
   font-size: 13px;
 }
@@ -625,6 +755,29 @@ body::after {
   padding: 10px 13px 12px;
   color: rgba(181, 207, 219, 0.62);
   font-size: 11px;
+}
+
+.hud-widget-foot-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hud-widget-link-btn {
+  border: 1px solid rgba(118, 228, 255, 0.24);
+  border-radius: 999px;
+  background: rgba(34, 211, 238, 0.08);
+  color: rgba(118, 228, 255, 0.94);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+
+.hud-widget-link-btn:hover {
+  border-color: rgba(118, 228, 255, 0.52);
+  background: rgba(34, 211, 238, 0.14);
 }
 
 .target-intel-widget {
@@ -698,98 +851,92 @@ body::after {
   text-align: left;
 }
 
-.supply-index-list {
+.target-intel-actions {
   position: relative;
   z-index: 1;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px 18px;
-  border-bottom: 1px solid rgba(108, 231, 255, 0.1);
-}
-
-.supply-index-row {
-  display: grid;
-  grid-template-columns: 1fr 54px 52px;
-  align-items: center;
-  gap: 8px;
-  color: rgba(232, 245, 252, 0.84);
-  font-size: 12px;
-}
-
-.supply-index-row strong {
-  color: var(--accent-gold);
-  font-size: 11px;
-}
-
-.supply-index-row i {
-  position: relative;
-  grid-column: 2 / 3;
-  height: 4px;
-  border-radius: 999px;
-  background: rgba(225, 241, 255, 0.13);
-  overflow: hidden;
-}
-
-.supply-index-row i::before {
-  content: "";
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: var(--supply-width, 50%);
-  border-radius: inherit;
-  background: currentColor;
-}
-
-.supply-index-row em {
-  color: rgba(239, 248, 255, 0.86);
-  font-style: normal;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-.supply-index-row.is-demand {
-  color: #ffb86b;
-}
-
-.supply-index-row.is-supply {
-  color: #57e39d;
-}
-
-.supply-index-row.is-neutral {
-  color: #72dfff;
-}
-
-.station-action-list {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  padding: 10px 14px 14px;
-}
-
-.station-action-list div {
-  display: grid;
-  grid-template-columns: 1fr 86px;
-  align-items: center;
-  gap: 8px;
-  color: rgba(218, 236, 246, 0.86);
-  font-size: 12px;
-}
-
-.station-action-list button {
-  height: 26px;
-  border: 1px solid rgba(108, 231, 255, 0.18);
-  border-radius: 4px;
-  background: linear-gradient(180deg, rgba(62, 143, 200, 0.32), rgba(17, 45, 65, 0.72));
-  color: rgba(232, 248, 255, 0.88);
-  font: inherit;
+  justify-content: flex-end;
+  padding: 12px 18px 14px;
 }
 
 .network-status-widget {
   right: 18px;
   bottom: 88px;
   width: 390px;
+}
+
+[data-hud-widget] {
+  top: 20px;
+  left: 74px;
+  right: auto;
+  bottom: auto;
+  display: none;
+  pointer-events: auto;
+  max-height: calc(100% - 40px);
+  overflow: auto;
+}
+
+[data-hud-widget].hud-widget-active:not(.hud-widget-collapsed) {
+  display: block;
+}
+
+.galactic-map-widget {
+  width: 448px;
+}
+
+.market-overview-widget {
+  width: 448px;
+}
+
+.target-intel-widget {
+  width: 340px;
+}
+
+.network-status-widget {
+  width: 360px;
+}
+
+.quest-tracker-widget {
+  width: min(360px, calc(100vw - 96px));
+}
+
+.quest-tracker-widget-body {
+  position: relative;
+  z-index: 1;
+  padding: 12px;
+}
+
+.quest-tracker-widget .quest-tracker-card {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.quest-tracker-widget .quest-tracker-item {
+  padding: 7px 8px;
+  background: rgba(7, 18, 38, 0.58);
+}
+
+.quest-tracker-widget .quest-tracker-objective {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.quest-tracker-widget .quest-tracker-meta {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.quest-tracker-widget .quest-tracker-more {
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(118, 228, 255, 0.08);
+  color: rgba(118, 228, 255, 0.92);
 }
 
 .network-widget-body {
@@ -871,7 +1018,8 @@ body::after {
 
 .map-btn-group {
   top: 20px;
-  right: 362px;
+  right: clamp(16px, 1.5vw, 24px);
+  left: auto;
   z-index: 13;
 }
 
@@ -901,13 +1049,18 @@ body::after {
 }
 
 .current-system-exploration-card {
-  left: 476px;
-  bottom: 98px;
+  top: 322px;
+  left: 74px;
+  bottom: auto;
+  z-index: 13;
+  width: 344px;
+  max-width: min(360px, calc(100% - 92px));
+  max-height: min(300px, calc(100dvh - 344px));
 }
 
 .side-panel-overlay {
   top: 88px;
-  bottom: 58px;
+  bottom: var(--secondary-overlay-offset);
   background:
     linear-gradient(180deg, rgba(6, 20, 32, 0.92), rgba(3, 11, 20, 0.92)),
     radial-gradient(circle at top left, rgba(108, 231, 255, 0.12), transparent 44%);
@@ -929,6 +1082,24 @@ body::after {
   width: 410px;
   border-radius: 12px;
   transform: translateX(calc(100% + 26px));
+}
+
+.side-panel-overlay.panel-open {
+  pointer-events: auto;
+  visibility: visible;
+  opacity: 1;
+}
+
+.side-panel-overlay--left.panel-open {
+  transform: translateX(0);
+}
+
+.side-panel-overlay--right.panel-open {
+  transform: translateX(0);
+}
+
+.side-panel-overlay--bottom.panel-open {
+  transform: translateY(0);
 }
 
 .info-panel-header,
@@ -2171,7 +2342,7 @@ body::after {
 .market-overlay {
   top: 16px;
   right: 18px;
-  bottom: 16px;
+  bottom: var(--secondary-overlay-offset);
   left: 18px;
   z-index: 28;
   border: 1px solid rgba(108, 231, 255, 0.24);
@@ -2213,24 +2384,6 @@ body::after {
   border-top: 1px solid rgba(108, 231, 255, 0.2);
   box-shadow: 0 -14px 36px rgba(0, 0, 0, 0.38);
   pointer-events: none;
-}
-
-#status-bar::before {
-  order: 1;
-  content: "贸易网络连接正常";
-  color: rgba(121, 237, 170, 0.94);
-  font-size: 13px;
-  font-weight: 700;
-  margin-right: 26px;
-  text-shadow: 0 0 12px rgba(87, 227, 157, 0.28);
-}
-
-#status-bar::after {
-  order: 2;
-  content: "当前星区: 本地航域     星系主权: 实时同步     安全等级: 动态评估     经济状态: 在线 ▲";
-  color: rgba(221, 237, 246, 0.74);
-  font-size: 13px;
-  word-spacing: 0.12em;
 }
 
 .status-ship-stats {
@@ -2281,7 +2434,7 @@ body::after {
 .bottom-nav {
   position: fixed;
   left: 50%;
-  bottom: 56px;
+  bottom: var(--bottom-nav-offset);
   z-index: 31;
   transform: translateX(-50%);
   gap: 12px;
@@ -2347,10 +2500,6 @@ body::after {
 }
 
 @media (max-width: 1440px) {
-  .hdr-system-status {
-    display: none;
-  }
-
   .hdr-brand {
     width: 225px;
   }
@@ -2395,11 +2544,34 @@ body::after {
     font-size: 11px;
   }
 
+  .hdr-stats {
+    min-width: 0;
+    grid-template-columns: minmax(100px, 0.72fr) minmax(0, 1.35fr);
+  }
+
+  .hdr-stat-block,
+  .hdr-meter-block {
+    padding: 0 12px;
+  }
+
   .hdr-stat-block--ship,
   .hdr-meter-block--rep,
   .market-overview-widget,
   .target-intel-widget {
     display: none;
+  }
+
+  .hdr-meter-block {
+    width: 96px;
+  }
+
+  .hdr-day-chip {
+    margin: 0 8px;
+  }
+
+  .hdr-icon-btn {
+    width: 30px;
+    height: 30px;
   }
 
   .map-btn-group {
@@ -2412,6 +2584,11 @@ body::after {
 }
 
 @media (max-width: 900px) {
+  :root {
+    --bottom-nav-offset: 52px;
+    --bottom-nav-height: 72px;
+  }
+
   #game-main {
     inset: 56px 0 42px;
   }
@@ -2459,10 +2636,31 @@ body::after {
   .market-overview-widget,
   .target-intel-widget,
   .network-status-widget,
+  .quest-tracker-widget,
   #map-legend,
   .map-hud-nav-data,
   .map-hud-sensor-data {
     display: none;
+  }
+
+  .orbit-scan-menu-btn {
+    top: 68px;
+    left: 12px;
+    width: 42px;
+    height: 42px;
+    max-width: none;
+    z-index: 14;
+  }
+
+  .current-system-exploration-card {
+    top: 114px;
+    left: 12px;
+    right: auto;
+    bottom: auto;
+    transform: none;
+    width: min(340px, calc(100vw - 24px));
+    max-width: calc(100vw - 24px);
+    max-height: min(240px, calc(100dvh - 206px));
   }
 
   .side-panel-overlay {
@@ -2547,7 +2745,6 @@ body::after {
   }
 
   .bottom-nav {
-    bottom: 52px;
     gap: 5px;
     padding: 7px 8px;
   }
@@ -2578,6 +2775,11 @@ body::after {
 }
 
 @media (max-width: 560px) {
+  :root {
+    --bottom-nav-offset: 52px;
+    --bottom-nav-height: 72px;
+  }
+
   #game-main {
     inset: 52px 0 40px;
   }
@@ -2591,8 +2793,7 @@ body::after {
   }
 
   .hdr-version,
-  .hdr-stat-block:not(:first-child),
-  .hdr-icon-btns .hdr-icon-btn--notify {
+  .hdr-stat-block:not(:first-child) {
     display: none;
   }
 
@@ -2621,6 +2822,20 @@ body::after {
     flex: 1;
   }
 
+  .orbit-scan-menu-btn {
+    top: 64px;
+    left: 8px;
+    max-width: none;
+  }
+
+  .current-system-exploration-card {
+    top: 108px;
+    left: 8px;
+    width: calc(100vw - 16px);
+    max-width: calc(100vw - 16px);
+    max-height: min(220px, calc(100dvh - 188px));
+  }
+
   .quest-command-metrics,
   #tab-quest .quest-pick-list {
     grid-template-columns: 1fr;
@@ -2628,5 +2843,704 @@ body::after {
 
   #tab-quest .quest-objective {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ============================================================
+   Unified Bridge Surface System
+   将所有功能界面收束到主星图 HUD 的视觉语言
+   ============================================================ */
+
+:root {
+  --ui-surface: linear-gradient(180deg, rgba(6, 20, 32, 0.92), rgba(2, 10, 18, 0.94));
+  --ui-surface-raised: linear-gradient(145deg, rgba(8, 28, 42, 0.9), rgba(2, 10, 18, 0.94));
+  --ui-surface-soft: rgba(1, 8, 14, 0.42);
+  --ui-line: rgba(108, 231, 255, 0.16);
+  --ui-line-strong: rgba(108, 231, 255, 0.34);
+  --ui-line-warm: rgba(255, 184, 107, 0.28);
+  --ui-radius-panel: 8px;
+  --ui-radius-control: 6px;
+  --ui-control-h: 34px;
+  --ui-focus-ring: 0 0 0 2px rgba(108, 231, 255, 0.12), 0 0 20px rgba(108, 231, 255, 0.16);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  letter-spacing: 0;
+}
+
+button,
+[role="button"],
+label[role="tab"] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+label[role="tab"]:focus-visible {
+  outline: 1px solid rgba(108, 231, 255, 0.72);
+  outline-offset: 2px;
+  box-shadow: var(--ui-focus-ring);
+}
+
+.modal-box,
+.settings-modal-box,
+.secondary-panel-modal-box,
+.side-panel-overlay,
+[data-hud-widget],
+.planet-detail-panel,
+.current-system-exploration-card,
+.event-notification,
+.tutorial-tooltip {
+  border-color: var(--ui-line);
+  border-radius: var(--ui-radius-panel);
+  background:
+    var(--ui-surface),
+    radial-gradient(circle at 18% 0, rgba(108, 231, 255, 0.12), transparent 42%);
+  box-shadow: var(--hud-shadow);
+  backdrop-filter: blur(20px) saturate(1.16);
+  -webkit-backdrop-filter: blur(20px) saturate(1.16);
+}
+
+.quest-command-deck,
+#tab-quest .quest-module,
+.hangar-command-deck,
+.hangar-module,
+.hangar-shop-hero,
+.fleet-bonus-section,
+.fleet-bonus-hint,
+.fleet-ship-card,
+.fleet-shop-card,
+.research-active,
+.research-queue,
+.research-card,
+.research-route-card,
+.faction-card,
+.ach-card,
+.trade-station-summary-card,
+.trade-station-card,
+.trade-station-build-card,
+.company-dashboard,
+.company-panel-card,
+.settings-row,
+.settings-save-shell,
+.save-slot,
+.save-transfer-bar,
+.quest-card,
+.quest-route-preview,
+.quest-dispatch-card,
+.quest-pick-card,
+.market-finance-section,
+.market-good-card,
+.market-workspace-deck,
+.market-spot-command-deck,
+.market-analysis-card,
+.market-batch-plan-card {
+  border-color: var(--ui-line);
+  border-radius: var(--ui-radius-panel);
+  background:
+    var(--ui-surface-raised),
+    radial-gradient(circle at 12% 0, rgba(108, 231, 255, 0.1), transparent 38%),
+    radial-gradient(circle at 92% 8%, rgba(255, 184, 107, 0.07), transparent 34%);
+  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.quest-command-deck::before,
+#tab-quest .quest-module::before,
+.hangar-command-deck::before,
+.hangar-module::before,
+.hangar-shop-hero::before,
+.market-good-card::before,
+.fleet-shop-card::before,
+#tab-quest .quest-card::before {
+  border-radius: inherit;
+  opacity: 0.54;
+}
+
+.btn-primary,
+.btn-secondary,
+.btn-action,
+.btn-refuel,
+.btn-research,
+.btn-queue-action,
+.research-route-apply-btn,
+.research-route-blocker-btn,
+.planet-detail-action,
+.event-notif-btn,
+.event-choice-btn,
+.dialogue-choice-btn,
+.tut-btn,
+.settings-action-btn,
+.settings-sidebar-btn,
+.hud-widget-link-btn,
+.quest-tracker-open-btn,
+.quest-tracker-accept-btn,
+.quest-accept-btn,
+.quest-abandon-btn,
+.fleet-slot-buy-btn,
+.slot-switch-btn,
+.fleet-switch-btn,
+.fleet-buy-btn,
+.fleet-upg-btn,
+.fleet-dispatch-btn,
+.fleet-cancel-btn,
+.fleet-sell-btn,
+.fleet-manage-btn,
+.fleet-service-option-btn,
+.fleet-open-mod-btn,
+.market-close-btn,
+.market-galaxy-btn,
+.market-card-btn,
+.market-mode-btn,
+.market-mode-toggle-btn,
+.market-finance-btn,
+.market-batch-plan-sort-btn,
+.trade-station-build-btn,
+.trade-station-upgrade-btn,
+.trade-station-choice-btn {
+  min-height: var(--ui-control-h);
+  max-width: 100%;
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius-control);
+  background:
+    linear-gradient(180deg, rgba(17, 50, 70, 0.7), rgba(3, 14, 23, 0.86)),
+    radial-gradient(circle at 50% 0, rgba(108, 231, 255, 0.12), transparent 60%);
+  color: rgba(232, 248, 255, 0.88);
+  text-decoration: none;
+  text-shadow: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+  overflow-wrap: anywhere;
+}
+
+.btn-primary,
+.tut-btn-primary,
+.quest-accept-btn,
+#tab-quest .quest-accept-btn,
+.fleet-dispatch-btn,
+.trade-station-build-btn,
+.market-card-btn.buy-card-btn,
+.market-finance-btn-long,
+.save-btn,
+.load-btn,
+.import-btn,
+.export-btn {
+  border-color: rgba(108, 231, 255, 0.42);
+  background:
+    linear-gradient(180deg, rgba(34, 211, 238, 0.26), rgba(5, 92, 112, 0.38)),
+    radial-gradient(circle at 50% 0, rgba(215, 250, 255, 0.18), transparent 60%);
+  color: #f3fcff;
+  font-weight: 700;
+}
+
+.btn-secondary,
+.tut-btn-secondary,
+.quest-abandon-btn,
+.fleet-switch-btn,
+.fleet-upg-btn,
+.trade-station-choice-btn,
+.settings-sidebar-btn {
+  border-color: rgba(108, 231, 255, 0.14);
+  background: rgba(2, 10, 18, 0.62);
+  color: var(--text-secondary);
+}
+
+.settings-action-btn--danger,
+.del-btn,
+.fleet-cancel-btn,
+.market-card-btn.sell-card-btn,
+.market-finance-btn-short {
+  border-color: rgba(251, 113, 133, 0.34) !important;
+  background: linear-gradient(180deg, rgba(70, 21, 30, 0.7), rgba(22, 8, 14, 0.82)) !important;
+  color: #ffc2cd !important;
+}
+
+.btn-primary:hover,
+.btn-secondary:hover,
+.btn-action:hover,
+.btn-refuel:hover,
+.btn-research:hover,
+.btn-queue-action:hover,
+.research-route-apply-btn:hover,
+.research-route-blocker-btn:hover,
+.planet-detail-action:hover,
+.event-notif-btn:hover,
+.event-choice-btn:hover,
+.dialogue-choice-btn:hover,
+.tut-btn:hover,
+.settings-action-btn:hover,
+.settings-sidebar-btn:hover,
+.hud-widget-link-btn:hover,
+.quest-tracker-open-btn:hover,
+.quest-tracker-accept-btn:hover,
+.quest-accept-btn:hover,
+.quest-abandon-btn:hover,
+.fleet-slot-buy-btn:hover:not(:disabled),
+.slot-switch-btn:hover,
+.fleet-switch-btn:hover,
+.fleet-buy-btn:hover:not(:disabled),
+.fleet-upg-btn:hover:not(:disabled),
+.fleet-dispatch-btn:hover,
+.fleet-cancel-btn:hover,
+.fleet-sell-btn:hover,
+.fleet-manage-btn:hover:not(:disabled),
+.fleet-service-option-btn:hover:not(:disabled),
+.fleet-open-mod-btn:hover,
+.market-close-btn:hover,
+.market-galaxy-btn:hover,
+.market-card-btn:hover:not(:disabled),
+.market-mode-btn:hover:not(.disabled),
+.market-mode-toggle-btn:hover:not(.active):not(:disabled),
+.market-finance-btn:hover:not(:disabled),
+.market-batch-plan-sort-btn:hover,
+.trade-station-build-btn:hover:not(:disabled),
+.trade-station-upgrade-btn:hover:not(:disabled),
+.trade-station-choice-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: var(--ui-line-strong);
+  background:
+    linear-gradient(180deg, rgba(34, 94, 124, 0.78), rgba(5, 22, 34, 0.92)),
+    radial-gradient(circle at 50% 0, rgba(108, 231, 255, 0.2), transparent 62%);
+  color: #fff;
+  box-shadow: 0 0 20px rgba(108, 231, 255, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+
+button:disabled,
+button.disabled,
+.btn-research.disabled,
+.btn-queue-action.disabled,
+.trade-station-choice-btn.disabled,
+.market-card-btn.disabled,
+.market-finance-btn.disabled,
+.market-mode-btn.disabled {
+  cursor: not-allowed;
+  opacity: 0.46;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea,
+.dispatch-select,
+.settings-select,
+.save-import-slot-select,
+#modal-amount {
+  min-height: var(--ui-control-h);
+  border: 1px solid rgba(108, 231, 255, 0.2);
+  border-radius: var(--ui-radius-control);
+  background: rgba(2, 10, 18, 0.76);
+  color: var(--text-primary);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+input:not([type="checkbox"]):not([type="radio"]):focus,
+select:focus,
+textarea:focus,
+.dispatch-select:focus,
+.settings-select:focus,
+.save-import-slot-select:focus,
+#modal-amount:focus {
+  outline: none;
+  border-color: rgba(108, 231, 255, 0.5);
+  box-shadow: var(--ui-focus-ring);
+}
+
+.tabs,
+.market-workspace-tabs,
+.market-subworkspace-tabs,
+.settings-nav-list {
+  gap: 6px;
+  padding: 6px;
+  background: rgba(2, 10, 18, 0.54);
+}
+
+.tab-btn,
+.market-workspace-tab,
+.market-subworkspace-tab,
+.settings-nav-item {
+  min-height: 34px;
+  border: 1px solid rgba(108, 231, 255, 0.1);
+  border-radius: var(--ui-radius-control);
+  background: rgba(3, 14, 23, 0.42);
+  color: rgba(201, 224, 236, 0.76);
+  letter-spacing: 0;
+}
+
+.tab-btn.active,
+.market-workspace-tab.active,
+.market-subworkspace-tab.active,
+#settings-tab-display:checked ~ .settings-sidebar .settings-nav-list label[for="settings-tab-display"],
+#settings-tab-game:checked ~ .settings-sidebar .settings-nav-list label[for="settings-tab-game"],
+#settings-tab-data:checked ~ .settings-sidebar .settings-nav-list label[for="settings-tab-data"] {
+  border-color: var(--ui-line-strong);
+  background:
+    linear-gradient(180deg, rgba(21, 72, 96, 0.58), rgba(3, 14, 23, 0.72)),
+    radial-gradient(circle at 50% 0, rgba(108, 231, 255, 0.16), transparent 62%);
+  color: #fff;
+  box-shadow: inset 0 2px 0 rgba(108, 231, 255, 0.28);
+}
+
+.info-panel-header,
+.console-panel-header,
+.market-overlay-header,
+.market-detail-bar,
+.settings-main-header {
+  min-height: 44px;
+  border-bottom-color: var(--ui-line);
+  background: rgba(2, 10, 18, 0.68);
+}
+
+.tab-content,
+.settings-main-content,
+.market-overlay-body,
+.secondary-panel-scroll,
+.console-message-log,
+.stack-modal-scroll {
+  scrollbar-color: rgba(108, 231, 255, 0.32) transparent;
+}
+
+.side-panel-overlay {
+  max-width: calc(100vw - 36px);
+  max-height: calc(100dvh - 124px);
+}
+
+.side-panel-overlay--bottom {
+  left: 18px;
+  right: 18px;
+  height: min(260px, 36dvh);
+}
+
+#trade-panel,
+#info-panel {
+  width: min(640px, calc(100vw - 36px));
+}
+
+.market-overlay {
+  max-width: calc(100vw - 36px);
+  max-height: calc(100dvh - var(--secondary-overlay-offset) - 16px);
+  overflow: hidden;
+}
+
+.modal {
+  padding: clamp(10px, 2vw, 24px);
+}
+
+.modal-box,
+.stack-modal-box,
+.secondary-panel-modal-box,
+.settings-modal-box,
+.victory-modal-box,
+.event-modal-box,
+.dialogue-modal-box,
+.crew-modal-box,
+.mod-modal-box,
+.company-rename-box {
+  width: min(var(--modal-w, 520px), calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow: hidden;
+}
+
+.event-choice-btn,
+.dialogue-choice-btn,
+.fleet-manage-btn,
+.trade-station-choice-btn {
+  align-items: flex-start;
+  text-align: left;
+}
+
+.ach-header,
+.ach-category,
+.save-header,
+.research-label,
+.trade-station-section-title,
+.quest-section-title,
+.fleet-section-title,
+.settings-main-title,
+.settings-data-section-title {
+  color: rgba(238, 248, 255, 0.92);
+  font-family: "Orbitron", "Rajdhani", sans-serif;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.ach-card,
+.faction-card,
+.research-card,
+.save-slot,
+.trade-station-card {
+  margin-bottom: 10px;
+}
+
+.ach-card,
+.faction-card,
+.save-slot,
+.research-card,
+.trade-station-card,
+.quest-card,
+.fleet-ship-card,
+.fleet-shop-card {
+  overflow: hidden;
+}
+
+.ach-card,
+.faction-header,
+.save-slot-header-row,
+.trade-station-summary-head,
+.trade-station-card-head {
+  min-width: 0;
+}
+
+.ach-info,
+.faction-info,
+.market-good-card-info,
+.fleet-ship-name,
+.save-slot-header {
+  min-width: 0;
+}
+
+.save-slot-info,
+.save-slot-actions,
+.save-export-row,
+.settings-row,
+.modal-actions,
+.event-notification,
+.faction-pref,
+.trade-station-actions,
+.trade-station-choice-row {
+  flex-wrap: wrap;
+}
+
+.save-slot-actions .btn-action,
+.save-export-row .btn-action,
+.modal-actions button {
+  flex: 1 1 120px;
+}
+
+.save-import-target {
+  min-height: var(--ui-control-h);
+  padding: 0 8px;
+  border: 1px solid rgba(108, 231, 255, 0.12);
+  border-radius: var(--ui-radius-control);
+  background: rgba(2, 10, 18, 0.46);
+}
+
+@media (max-width: 1024px) {
+  .market-overlay {
+    left: 12px;
+    right: 12px;
+    top: 12px;
+    bottom: var(--secondary-overlay-offset);
+    max-width: calc(100vw - 24px);
+    max-height: calc(100dvh - var(--secondary-overlay-offset) - 12px);
+  }
+
+  .market-overlay-shell,
+  .market-overlay-panels,
+  .market-detail,
+  .market-overlay-body {
+    min-height: 0;
+  }
+
+  .side-panel-overlay--bottom {
+    left: 12px;
+    right: 12px;
+  }
+}
+
+@media (max-width: 760px) {
+  :root {
+    --ui-control-h: 36px;
+  }
+
+  .modal {
+    align-items: center;
+    padding: 10px;
+  }
+
+  .modal-box,
+  .stack-modal-box,
+  .secondary-panel-modal-box,
+  .settings-modal-box,
+  .victory-modal-box,
+  .event-modal-box,
+  .dialogue-modal-box,
+  .crew-modal-box,
+  .mod-modal-box,
+  .company-rename-box {
+    width: calc(100vw - 20px);
+    max-width: calc(100vw - 20px);
+    max-height: calc(100dvh - 20px);
+  }
+
+  .side-panel-overlay {
+    top: 62px;
+    bottom: 94px;
+    max-height: calc(100dvh - 156px);
+  }
+
+  .side-panel-overlay--left,
+  .side-panel-overlay--right,
+  #trade-panel,
+  #info-panel {
+    left: 10px;
+    right: 10px;
+    width: calc(100vw - 20px);
+  }
+
+  .side-panel-overlay--left {
+    transform: translateX(calc(-100% - 20px));
+  }
+
+  .side-panel-overlay--right {
+    transform: translateX(calc(100% + 20px));
+  }
+
+  .side-panel-overlay--bottom {
+    left: 10px;
+    right: 10px;
+    height: min(280px, 42dvh);
+  }
+
+  .settings-layout {
+    min-height: 0;
+  }
+
+  .settings-main-content,
+  .tab-pane,
+  #tab-quest.tab-pane.active,
+  #tab-fleet.tab-pane.active,
+  #tab-shop.tab-pane.active {
+    padding: 10px;
+  }
+
+  .save-slot-grid,
+  .company-panel-grid,
+  .trade-station-summary-grid,
+  .market-finance-summary-grid,
+  .market-spot-intel-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-row,
+  .secondary-panel-toolbar,
+  .secondary-panel-head,
+  .market-header-row,
+  .market-cmd-bar,
+  .market-command-bar,
+  .save-header-row,
+  .save-export-row {
+    align-items: stretch;
+  }
+
+  .settings-row,
+  .market-header-row,
+  .market-cmd-bar,
+  .market-command-bar,
+  .save-export-row {
+    flex-direction: column;
+  }
+
+  .market-galaxy-nav,
+  .market-workspace-tabs,
+  .market-subworkspace-tabs,
+  .tabs {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .market-galaxy-nav::-webkit-scrollbar,
+  .market-workspace-tabs::-webkit-scrollbar,
+  .market-subworkspace-tabs::-webkit-scrollbar,
+  .tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .event-notification {
+    left: 10px;
+    right: 10px;
+    transform: none;
+    justify-content: space-between;
+  }
+
+  .event-notification:hover {
+    transform: translateY(-2px);
+  }
+}
+
+@media (max-width: 560px) {
+  .bottom-nav {
+    gap: 4px;
+    padding: 6px;
+  }
+
+  .bottom-nav-btn {
+    min-height: 50px;
+    padding: 7px 5px;
+  }
+
+  .bottom-nav-icon {
+    width: 19px;
+    height: 19px;
+  }
+
+  .bottom-nav-btn span {
+    font-size: 10px;
+    white-space: normal;
+    line-height: 1.05;
+  }
+
+  .market-overlay {
+    left: 6px;
+    right: 6px;
+    top: 6px;
+    bottom: var(--secondary-overlay-offset);
+    max-width: calc(100vw - 12px);
+    max-height: calc(100dvh - var(--secondary-overlay-offset) - 6px);
+    border-radius: var(--ui-radius-panel);
+  }
+
+  .modal-actions,
+  .company-rename-actions,
+  #tutorial-start-modal .tut-start-actions,
+  .save-slot-actions,
+  .save-export-row {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  #tutorial-start-modal .tut-start-actions .tut-btn,
+  .company-rename-actions .tut-btn,
+  .save-slot-actions .btn-action,
+  .save-export-row .btn-action,
+  .settings-action-btn,
+  .settings-select,
+  .dispatch-select,
+  .save-import-slot-select {
+    width: 100%;
+  }
+
+  .quest-command-deck,
+  .hangar-command-deck,
+  #tab-quest .quest-module,
+  .hangar-module,
+  .hangar-shop-hero,
+  #tab-quest .quest-card,
+  #trade-panel .fleet-ship-card,
+  #trade-panel .fleet-shop-card {
+    padding: 12px;
+  }
+
+  .event-notif-text {
+    max-width: none;
+    white-space: normal;
   }
 }

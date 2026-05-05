@@ -84,35 +84,6 @@
   opacity: 0.5;
 }
 
-/* HUD data overlays (top-left nav data, bottom-right sensor data) */
-.map-hud-nav-data {
-  position: absolute;
-  top: 56px;   /* below floating header */
-  left: 72px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.map-hud-sensor-data {
-  position: absolute;
-  bottom: 6px;
-  right: 6px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
-}
-
-.map-hud-data-line {
-  font-family: "Orbitron", monospace;
-  font-size: 10px;
-  color: rgba(103, 232, 249, 0.75);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  text-shadow: 0 0 8px rgba(34, 211, 238, 0.4);
-}
-
 .map-atlas-tag {
   position: absolute;
   right: 18px;

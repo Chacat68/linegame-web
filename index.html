@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>蓝脉航路 · 银河历 3045</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%23040814' stroke='%2322d3ee' stroke-width='2'/><circle cx='16' cy='16' r='4' fill='%2322d3ee'/><line x1='16' y1='2' x2='16' y2='8' stroke='%2322d3ee' stroke-width='1.5'/><line x1='16' y1='24' x2='16' y2='30' stroke='%2322d3ee' stroke-width='1.5'/><line x1='2' y1='16' x2='8' y2='16' stroke='%2322d3ee' stroke-width='1.5'/><line x1='24' y1='16' x2='30' y2='16' stroke='%2322d3ee' stroke-width='1.5'/></svg>" />
-    <link rel="stylesheet" href="css/style.css?v=20260428-questdeck1" />
+    <link rel="stylesheet" href="css/style.css?v=20260506-orbitscan2" />
   </head>
   <body>
     <div id="game-shell">
@@ -20,12 +20,6 @@
             <span class="hdr-logo">INTERSTELLAR</span>
             <span class="hdr-version">TRADER</span>
           </span>
-        </div>
-
-        <!-- System status -->
-        <div class="hdr-system-status">
-          <span class="hdr-sys-label">GALACTIC YEAR</span>
-          <span class="hdr-sys-value">3045.05.17 // LINKED</span>
         </div>
 
         <!-- Credits & Location (dynamic) -->
@@ -44,25 +38,7 @@
           </div>
         </div>
 
-        <div class="hdr-meter-group" aria-label="舰船资源">
-          <div class="hdr-meter-block">
-            <div class="hdr-meter-head">
-              <span class="hdr-stat-label">FUEL</span>
-              <span id="hdr-fuel-pct" class="hdr-meter-pct">100%</span>
-            </div>
-            <div class="hdr-meter-track">
-              <div id="hdr-fuel-fill" class="hdr-meter-fill hdr-meter-fill--fuel" style="width:100%"></div>
-            </div>
-          </div>
-          <div class="hdr-meter-block">
-            <div class="hdr-meter-head">
-              <span class="hdr-stat-label">CARGO</span>
-              <span id="hdr-cargo-pct" class="hdr-meter-pct">0%</span>
-            </div>
-            <div class="hdr-meter-track">
-              <div id="hdr-cargo-fill" class="hdr-meter-fill hdr-meter-fill--cargo" style="width:0%"></div>
-            </div>
-          </div>
+        <div class="hdr-meter-group" aria-label="公司声望">
           <div class="hdr-meter-block hdr-meter-block--rep">
             <div class="hdr-meter-head">
               <span class="hdr-stat-label">REPUTATION</span>
@@ -76,7 +52,7 @@
 
         <div class="hdr-day-chip" aria-label="当前游戏天数">
           <span class="hdr-day-chip-label">DAY</span>
-          <span class="hdr-day-chip-value hdr-day-mirror">第 1 天</span>
+          <span id="galactic-day" class="hdr-day-chip-value hdr-day-mirror">第 1 天</span>
         </div>
 
         <!-- Icon buttons -->
@@ -88,9 +64,6 @@
             aria-label="胜利路径进度"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-          </button>
-          <button class="hdr-icon-btn hdr-icon-btn--notify" title="通知" aria-label="通知">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
           </button>
           <a
             id="settings-btn"
@@ -122,47 +95,47 @@
               <div class="hud-corner hud-corner-br"></div>
               <div class="map-scanlines"></div>
               <div class="map-noise"></div>
-              <!-- Top-left nav data -->
-              <div class="map-hud-nav-data">
-                <div id="hud-nav-line1" class="map-hud-data-line">VECT_NAV: ACTIVE</div>
-                <div id="hud-nav-line2" class="map-hud-data-line">HDG: 24.120.9</div>
-                <div id="hud-nav-line3" class="map-hud-data-line">SPD: MACH 4.2</div>
-              </div>
-              <!-- Bottom-right sensor data -->
-              <div class="map-hud-sensor-data">
-                <div id="hud-sensor-line1" class="map-hud-data-line">OBJ_RECOG: OFFLINE</div>
-                <div id="hud-sensor-line2" class="map-hud-data-line">SIG_STRENGTH: 98%</div>
-                <div id="hud-sensor-line3" class="map-hud-data-line">COORD: [42.0.1//8.1.5]</div>
-              </div>
             </div>
             <canvas id="webgl-canvas" style="display: none;"></canvas>
             <canvas id="map-canvas" style="display: none;"></canvas>
             <canvas id="map-3d-canvas"></canvas>
-            <div class="starmap-control-rail" aria-hidden="true">
-              <span class="starmap-rail-btn is-active">•••</span>
-              <span class="starmap-rail-btn">◇</span>
-              <span class="starmap-rail-btn">✧</span>
-              <span class="starmap-rail-btn">◎</span>
-              <span class="starmap-rail-btn">▱</span>
+            <div class="starmap-control-rail" aria-label="星图 HUD 控制台">
+              <button class="starmap-rail-btn starmap-rail-btn--dock" type="button" data-hud-dock-toggle aria-label="展开 HUD 面板" aria-pressed="false" title="展开 HUD 面板">•••</button>
+              <button class="starmap-rail-btn is-selected" type="button" data-hud-dock-panel="galactic-map" aria-label="切换到银河地图搜索" aria-pressed="false" title="银河地图搜索">◇</button>
+              <button class="starmap-rail-btn" type="button" data-hud-dock-panel="market-overview" aria-label="切换到市场总览" aria-pressed="false" title="市场总览">✧</button>
+              <button class="starmap-rail-btn" type="button" data-hud-dock-panel="target-intel" aria-label="切换到当前航点" aria-pressed="false" title="当前航点">◎</button>
+              <button class="starmap-rail-btn" type="button" data-hud-dock-panel="network-status" aria-label="切换到贸易网络状态" aria-pressed="false" title="贸易网络状态">▱</button>
+              <button class="starmap-rail-btn" type="button" data-hud-dock-panel="quest-tracker" aria-label="切换到任务追踪" aria-pressed="false" title="任务追踪">☰</button>
             </div>
-            <aside class="galactic-map-widget" aria-label="银河地图搜索面板">
+            <button id="orbit-scan-btn" class="starmap-rail-btn orbit-scan-menu-btn" type="button" hidden>
+              🔭 轨道扫描
+            </button>
+            <aside class="galactic-map-widget" data-hud-widget="galactic-map" aria-label="银河地图搜索面板">
               <div class="hud-widget-head">
                 <span>GALACTIC MAP</span>
-                <span aria-hidden="true">×</span>
+                <button class="hud-widget-close" type="button" data-hud-widget-toggle aria-label="关闭银河地图搜索面板" aria-expanded="true" title="关闭银河地图搜索面板">×</button>
               </div>
-              <div class="hud-search-shell">
-                <span>Search system...</span>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              <div class="hud-galactic-summary">
+                <div class="hud-galactic-row">
+                  <span class="hud-galactic-label">视图</span>
+                  <strong id="hud-galactic-map-view" class="hud-galactic-value">星球视图</strong>
+                </div>
+                <div class="hud-galactic-row">
+                  <span class="hud-galactic-label">范围</span>
+                  <strong id="hud-galactic-map-focus" class="hud-galactic-value">银河系 · 太阳主星</strong>
+                </div>
+              </div>
+              <div class="hud-widget-foot">
+                <span id="hud-galactic-map-caption">切换到跨星系跃迁总览</span>
+                <div class="hud-widget-foot-actions">
+                  <button id="hud-galactic-map-toggle" class="hud-widget-link-btn" type="button">星系总览</button>
+                </div>
               </div>
             </aside>
-            <aside class="market-overview-widget" aria-label="本地市场概览">
+            <aside class="market-overview-widget" data-hud-widget="market-overview" aria-label="本地市场概览">
               <div class="hud-widget-head">
                 <span>MARKET OVERVIEW</span>
-                <span aria-hidden="true">×</span>
-              </div>
-              <div class="market-overview-tabs">
-                <span class="is-active">Local Market</span>
-                <span>Price Trend</span>
+                <button class="hud-widget-close" type="button" data-hud-widget-toggle aria-label="关闭本地市场概览" aria-expanded="true" title="关闭本地市场概览">×</button>
               </div>
               <table class="hud-market-table">
                 <thead>
@@ -180,14 +153,17 @@
                 </tbody>
               </table>
               <div class="hud-widget-foot">
-                <span>数据源: 本地交易网络</span>
-                <span id="hud-market-updated">DAY 1</span>
+                <span>本地波动前 3</span>
+                <div class="hud-widget-foot-actions">
+                  <button id="hud-market-open" class="hud-widget-link-btn" type="button">市场页</button>
+                  <span id="hud-market-updated">DAY 1</span>
+                </div>
               </div>
             </aside>
-            <aside class="target-intel-widget" aria-label="当前目标">
+            <aside class="target-intel-widget" data-hud-widget="target-intel" aria-label="当前航点">
               <div class="hud-widget-head">
-                <span>当前目标</span>
-                <span aria-hidden="true">×</span>
+                <span>当前航点</span>
+                <button class="hud-widget-close" type="button" data-hud-widget-toggle aria-label="关闭当前航点" aria-expanded="true" title="关闭当前航点">×</button>
               </div>
               <div class="target-intel-hero">
                 <div>
@@ -205,26 +181,15 @@
                   <dt>政体</dt>
                   <dd id="hud-target-faction">中立地带</dd>
                 </div>
-                <div>
-                  <dt>经济类型</dt>
-                  <dd id="hud-target-economy">贸易 / 探索</dd>
-                </div>
-                <div>
-                  <dt>治安等级</dt>
-                  <dd id="hud-target-security">A (稳定)</dd>
-                </div>
               </dl>
-              <div class="supply-index-list" id="hud-supply-index-list"></div>
-              <div class="station-action-list">
-                <div><span>空间站服务</span><button type="button" tabindex="-1">停靠</button></div>
-                <div><span>交易所</span><button type="button" tabindex="-1">进入</button></div>
-                <div><span>任务板</span><button type="button" tabindex="-1">查看</button></div>
+              <div class="target-intel-actions">
+                <button id="hud-target-detail-open" class="hud-widget-link-btn" type="button" hidden>扫描终端</button>
               </div>
             </aside>
-            <aside class="network-status-widget" aria-label="贸易网络状态">
+            <aside class="network-status-widget" data-hud-widget="network-status" aria-label="贸易网络状态">
               <div class="hud-widget-head">
                 <span>贸易网络状态</span>
-                <span aria-hidden="true">×</span>
+                <button class="hud-widget-close" type="button" data-hud-widget-toggle aria-label="关闭贸易网络状态" aria-expanded="true" title="关闭贸易网络状态">×</button>
               </div>
               <div class="network-widget-body">
                 <div class="network-spark" aria-hidden="true">
@@ -237,6 +202,15 @@
                 </div>
               </div>
             </aside>
+            <aside class="quest-tracker-widget" data-hud-widget="quest-tracker" aria-label="任务追踪">
+              <div class="hud-widget-head">
+                <span>TASK TRACKER</span>
+                <button class="hud-widget-close" type="button" data-hud-widget-toggle aria-label="关闭任务追踪" aria-expanded="true" title="关闭任务追踪">×</button>
+              </div>
+              <div class="quest-tracker-widget-body">
+                <div id="quest-tracker" class="quest-tracker-card quest-tracker-card--hud"></div>
+              </div>
+            </aside>
             <div id="planet-detail-panel" class="planet-detail-panel"></div>
             <div id="current-system-exploration-card" class="current-system-exploration-card"></div>
             <div class="map-btn-group">
@@ -246,9 +220,6 @@
                 </button>
                 <button id="galaxy-view-btn" class="map-overlay-btn">
                   🌌 星系总览
-                </button>
-                <button id="orbit-scan-btn" class="map-overlay-btn" hidden>
-                  🔭 轨道扫描
                 </button>
               </div>
             </div>
@@ -318,11 +289,6 @@
               ><span class="legend-dot" style="background: #607d8b"></span
               >特殊</span
             >
-            <span
-              id="map-legend-location"
-              style="margin-left: auto; color: #9090b0; font-size: 11px"
-              >SIGNAL ▸ 银河系 / 太阳主星 / 银河联邦</span
-            >
           </div>
         </section>
 
@@ -367,9 +333,6 @@
               ✕
             </button>
           </div>
-          <div class="info-panel-quest-tracker">
-            <div id="quest-tracker" class="quest-tracker-card"></div>
-          </div>
           <div class="tab-content">
             <!-- Quest tab (任务系统) -->
             <div id="tab-quest" class="tab-pane active" data-tab-group="info">
@@ -406,19 +369,9 @@
 
             <div class="stat-strip">
               <div class="stat-strip-item">
-                <span class="stat-strip-label">💰 积分</span>
-                <span class="stat-strip-value stat-credits hdr-credits-mirror">1,000</span>
-              </div>
-              <div class="stat-strip-item">
                 <span class="stat-strip-label">📊 资产</span>
                 <span id="net-worth" class="stat-strip-value stat-networth"
                   >1,000</span
-                >
-              </div>
-              <div class="stat-strip-item">
-                <span class="stat-strip-label">📅 天数</span>
-                <span id="galactic-day" class="stat-strip-value stat-day"
-                  >1</span
                 >
               </div>
               <div class="stat-strip-item">
@@ -555,22 +508,24 @@
      Trade modal
 ================================================================ -->
     <div id="trade-modal" class="modal hidden" role="dialog" aria-modal="true">
-      <div class="modal-box">
-        <h3 id="modal-title">交易</h3>
-        <p id="modal-desc"></p>
-        <div class="modal-stepper">
-          <button id="modal-decrease" aria-label="减少数量">−</button>
-          <input
-            id="modal-amount"
-            type="number"
-            min="1"
-            value="1"
-            aria-label="交易数量"
-          />
-          <button id="modal-increase" aria-label="增加数量">+</button>
+      <div class="modal-box stack-modal-box">
+        <div class="stack-modal-scroll">
+          <h3 id="modal-title">交易</h3>
+          <p id="modal-desc"></p>
+          <div class="modal-stepper">
+            <button id="modal-decrease" aria-label="减少数量">−</button>
+            <input
+              id="modal-amount"
+              type="number"
+              min="1"
+              value="1"
+              aria-label="交易数量"
+            />
+            <button id="modal-increase" aria-label="增加数量">+</button>
+          </div>
+          <button id="modal-all" class="btn-all">全部</button>
+          <div id="modal-total"></div>
         </div>
-        <button id="modal-all" class="btn-all">全部</button>
-        <div id="modal-total"></div>
         <div class="modal-actions">
           <button id="modal-confirm" class="btn-primary">确认</button>
           <button id="modal-cancel" class="btn-secondary">取消</button>
@@ -591,14 +546,16 @@
      Event modal (群星风格随机事件)
 ================================================================ -->
     <div id="event-modal" class="modal hidden" role="dialog" aria-modal="true">
-      <div class="modal-box event-modal-box">
-        <div class="event-header">
-          <span id="event-icon" class="event-icon-large"></span>
-          <h3 id="event-title">事件</h3>
+      <div class="modal-box stack-modal-box event-modal-box">
+        <div class="stack-modal-scroll">
+          <div class="event-header">
+            <span id="event-icon" class="event-icon-large"></span>
+            <h3 id="event-title">事件</h3>
+          </div>
+          <div id="event-meta" class="event-meta"></div>
+          <p id="event-desc" class="event-description"></p>
+          <div id="event-choices" class="event-choices"></div>
         </div>
-        <div id="event-meta" class="event-meta"></div>
-        <p id="event-desc" class="event-description"></p>
-        <div id="event-choices" class="event-choices"></div>
       </div>
     </div>
 
@@ -606,19 +563,21 @@
      Dialogue modal (轻量剧情演出)
 ================================================================ -->
     <div id="dialogue-modal" class="modal hidden" role="dialog" aria-modal="true">
-      <div class="modal-box dialogue-modal-box">
-        <div class="dialogue-scene-label" id="dialogue-scene-label">剧情演出</div>
-        <div class="dialogue-header">
-          <span id="dialogue-speaker-icon" class="dialogue-speaker-icon">💬</span>
-          <div class="dialogue-header-copy">
-            <div id="dialogue-speaker-name" class="dialogue-speaker-name">未知发言者</div>
-            <h3 id="dialogue-scene-title" class="dialogue-scene-title">通讯接入</h3>
+      <div class="modal-box stack-modal-box dialogue-modal-box">
+        <div class="stack-modal-scroll">
+          <div class="dialogue-scene-label" id="dialogue-scene-label">剧情演出</div>
+          <div class="dialogue-header">
+            <span id="dialogue-speaker-icon" class="dialogue-speaker-icon">💬</span>
+            <div class="dialogue-header-copy">
+              <div id="dialogue-speaker-name" class="dialogue-speaker-name">未知发言者</div>
+              <h3 id="dialogue-scene-title" class="dialogue-scene-title">通讯接入</h3>
+            </div>
           </div>
+          <div id="dialogue-progress" class="dialogue-progress"></div>
+          <p id="dialogue-text" class="dialogue-text"></p>
+          <div id="dialogue-footer" class="dialogue-footer hidden"></div>
+          <div id="dialogue-choices" class="dialogue-choices hidden"></div>
         </div>
-        <div id="dialogue-progress" class="dialogue-progress"></div>
-        <p id="dialogue-text" class="dialogue-text"></p>
-        <div id="dialogue-footer" class="dialogue-footer hidden"></div>
-        <div id="dialogue-choices" class="dialogue-choices hidden"></div>
         <div class="modal-actions dialogue-actions">
           <button id="dialogue-skip-btn" class="btn-secondary">收起</button>
           <button id="dialogue-next-btn" class="btn-primary">下一句</button>
@@ -635,9 +594,11 @@
       role="dialog"
       aria-modal="true"
     >
-      <div class="modal-box gameover-box">
-        <h2 id="gameover-title">游戏结束</h2>
-        <pre id="gameover-message" class="gameover-message"></pre>
+      <div class="modal-box stack-modal-box gameover-box">
+        <div class="stack-modal-scroll">
+          <h2 id="gameover-title">游戏结束</h2>
+          <pre id="gameover-message" class="gameover-message"></pre>
+        </div>
         <button id="restart-btn" class="btn-primary" style="margin-top: 12px">
           重新开始
         </button>
@@ -826,9 +787,9 @@
       role="dialog"
       aria-modal="true"
     >
-      <div class="modal-box victory-modal-box">
+      <div class="modal-box stack-modal-box victory-modal-box">
         <h3>▣ 协议进度</h3>
-        <div id="victory-modal-body" class="victory-modal-body"></div>
+        <div id="victory-modal-body" class="victory-modal-body stack-modal-scroll"></div>
         <div class="modal-actions">
           <button id="victory-modal-close" class="btn-secondary">关闭</button>
         </div>
@@ -1078,6 +1039,6 @@
 
     <!-- Babylon.js library for 3D rendering -->
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
-    <script type="module" src="js/main.js?v=20260428-questdeck1"></script>
+    <script type="module" src="js/main.js?v=20260506-orbitscan1"></script>
   </body>
 </html>

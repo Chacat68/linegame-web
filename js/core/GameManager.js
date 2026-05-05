@@ -15,13 +15,13 @@ import * as Research   from '../systems/research/ResearchSystem.js';
 import * as Renderer3D from '../ui/Renderer3DAdvanced.js?v=20260420-balance3';
 import * as GalaxyData from '../systems/galaxy/GalaxyDataLayer.js';
 import * as Exploration from '../systems/galaxy/ExplorationSystem.js?v=20260417-exploration20';
-import * as HUD        from '../ui/HUD.js?v=20260428-hud1';
-import * as MarketUI   from '../ui/MarketUI.js?v=20260420-balance3';
+import * as HUD        from '../ui/HUD.js?v=20260505-uibatch19';
+import * as MarketUI   from '../ui/MarketUI.js?v=20260504-marketdeck2';
 import * as ShipUI     from '../ui/ShipUI.js';
-import * as MapUI      from '../ui/MapUI.js?v=20260421-modrepair1';
-import * as Modal      from '../ui/Modal.js';
-import * as EventUI    from '../ui/EventUI.js?v=20260421-scanevent2';
-import * as DialogueUI from '../ui/DialogueUI.js';
+import * as MapUI      from '../ui/MapUI.js?v=20260506-orbitscan1';
+import * as Modal      from '../ui/Modal.js?v=20260505-surface4';
+import * as EventUI    from '../ui/EventUI.js?v=20260505-surface4';
+import * as DialogueUI from '../ui/DialogueUI.js?v=20260505-surface4';
 import * as ResearchUI from '../ui/ResearchUI.js?v=20260420-balance5';
 import * as FactionUI  from '../ui/FactionUI.js?v=20260419-marketcta2';
 import * as SaveUI     from '../ui/SaveUI.js';
@@ -33,7 +33,7 @@ import * as AutoTrade  from '../systems/trade/AutoTradeSystem.js?v=20260420-bala
 import * as TradeStation from '../systems/trade/TradeStationSystem.js';
 import * as Finance from '../systems/finance/FinanceSystem.js';
 import * as Futures from '../systems/finance/FuturesSystem.js';
-import * as FleetUI    from '../ui/FleetUI.js?v=20260428-questdeck1';
+import * as FleetUI    from '../ui/FleetUI.js?v=20260505-surface4';
 import * as Save       from '../systems/save/SaveSystem.js';
 import * as Quest      from '../systems/quest/QuestSystem.js?v=20260412-questroute2';
 import * as Achievement from '../systems/achievement/AchievementSystem.js';
@@ -47,9 +47,10 @@ import { VICTORY_PATHS } from '../data/victoryConditions.js';
 import { getLevel } from '../data/playerLevels.js';
 import { SYSTEMS } from '../data/systems.js';
 import { GOODS } from '../data/goods.js';
-import * as Settings from './SettingsManager.js?v=20260412-timescale1';
+import * as Settings from './SettingsManager.js?v=20260505-surface5';
 import * as Progression from '../systems/progression/ProgressionSystem.js?v=20260421-balance6';
-import * as Dispatch from './DispatchController.js?v=20260421-dispatchoneclick1';
+import * as Dispatch from './DispatchController.js?v=20260505-surface1';
+import { hasBlockingSurfaceOpen, hideBlockingSurface, showBlockingSurface } from '../ui/SurfaceManager.js?v=20260505-surface4';
 
 let _state     = null;
 let _startTime = null;
@@ -63,6 +64,7 @@ let _blackMarketMode = false; // 当前是否处于黑市交易模式
 let _dialogueQueue = [];
 let _dialoguePlaying = false;
 let _realtimeClock = null;
+let _gameLoopFrameId = null;
 
 function _getMarketFinanceActions() {
   return {
@@ -95,6 +97,7 @@ let _onTutorialComplete = null;
 // ---------------------------------------------------------------------------
 
 export function init(difficulty) {
+  _stopGameLoop();
   Dispatch.stopActiveDispatch();   // 重启时停止派遣
   _state = _deepClone(INITIAL_STATE);
   _settings = Settings.loadSettings();
@@ -170,7 +173,7 @@ export function init(difficulty) {
     var newRestartBtn = oldRestartBtn.cloneNode(true);
     oldRestartBtn.parentNode.replaceChild(newRestartBtn, oldRestartBtn);
     newRestartBtn.addEventListener('click', function () {
-      document.getElementById('gameover-modal').classList.add('hidden');
+      hideBlockingSurface('gameover-modal');
       Tutorial.reset();
       init();
     });
@@ -368,15 +371,15 @@ function _queueQuestDialogueResult(result, onFinished) {
 
 function _showTutorialStartModal() {
   const modal = document.getElementById('tutorial-start-modal');
-  modal.classList.remove('hidden');
+  showBlockingSurface('tutorial-start-modal');
 
   document.getElementById('tut-start-yes').onclick = function () {
-    modal.classList.add('hidden');
+    hideBlockingSurface('tutorial-start-modal');
     Tutorial.start();
   };
 
   document.getElementById('tut-start-no').onclick = function () {
-    modal.classList.add('hidden');
+    hideBlockingSurface('tutorial-start-modal');
     Tutorial.skip();
     _showWelcomeMessages();
   };
@@ -390,7 +393,7 @@ function _showCompanyRenameModal() {
   // 预填当前公司名
   input.value = _state.companyName || '';
   errorEl.classList.add('hidden');
-  modal.classList.remove('hidden');
+  showBlockingSurface('company-rename-modal');
 
   // 聚焦并全选
   setTimeout(function () { input.focus(); input.select(); }, 50);
@@ -402,7 +405,7 @@ function _showCompanyRenameModal() {
       return;
     }
     _state.companyName = name;
-    modal.classList.add('hidden');
+    hideBlockingSurface('company-rename-modal');
     _updateUI();
     EventBus.emit('log:message', {
       text: '🏢 公司已正式更名为「' + name + '」！愿财富与你同行！',
@@ -411,7 +414,7 @@ function _showCompanyRenameModal() {
   };
 
   document.getElementById('company-rename-skip').onclick = function () {
-    modal.classList.add('hidden');
+    hideBlockingSurface('company-rename-modal');
   };
 }
 
@@ -477,6 +480,9 @@ function _handleScanSystem(systemId) {
     _state.galaxyStates = GalaxyData.getAllPlanetStates();
   }
   _dispatch(result);
+  if (result && result.ok && systemId === _state.currentSystem && MapUI.showCurrentSystemScanReveal) {
+    MapUI.showCurrentSystemScanReveal(_state, systemId, result);
+  }
   return result;
 }
 
@@ -983,18 +989,33 @@ function _handleSetTradeStationStrategy(systemId, strategyId) {
   _dispatch(result);
 }
 
-function _handleBatchUpgradeTradeStations() {
-  const result = Commerce.batchUpgradeTradeStations(_state);
+function _normalizeBatchSystemIds(systemIds) {
+  if (Array.isArray(systemIds)) {
+    return systemIds.filter(Boolean);
+  }
+  if (typeof systemIds === 'string') {
+    return systemIds.split(',').map(function (entry) {
+      return entry.trim();
+    }).filter(Boolean);
+  }
+  return null;
+}
+
+function _handleBatchUpgradeTradeStations(systemIds) {
+  const normalizedSystemIds = _normalizeBatchSystemIds(systemIds);
+  const result = Commerce.batchUpgradeTradeStations(_state, normalizedSystemIds);
   _dispatch(result);
 }
 
-function _handleBatchHireTradeStationManager(managerId) {
-  const result = Commerce.batchHireTradeStationManager(_state, managerId);
+function _handleBatchHireTradeStationManager(managerId, systemIds) {
+  const normalizedSystemIds = _normalizeBatchSystemIds(systemIds);
+  const result = Commerce.batchHireTradeStationManager(_state, managerId, normalizedSystemIds);
   _dispatch(result);
 }
 
-function _handleBatchSetTradeStationStrategy(strategyId) {
-  const result = Commerce.batchSetTradeStationStrategy(_state, strategyId);
+function _handleBatchSetTradeStationStrategy(strategyId, systemIds) {
+  const normalizedSystemIds = _normalizeBatchSystemIds(systemIds);
+  const result = Commerce.batchSetTradeStationStrategy(_state, strategyId, normalizedSystemIds);
   _dispatch(result);
 }
 
@@ -1023,9 +1044,12 @@ function _handleInvestTradeStation(systemId) {
   _dispatch(result);
 }
 
-function _handleBatchInvestTradeStations() {
-  const systemIds = Object.keys(_state.tradeStations || {});
-  const result = Commerce.batchInvestInTradeStations(_state, systemIds);
+function _handleBatchInvestTradeStations(systemIds, amount) {
+  const normalizedSystemIds = _normalizeBatchSystemIds(systemIds);
+  const targetSystemIds = normalizedSystemIds && normalizedSystemIds.length > 0
+    ? normalizedSystemIds
+    : Object.keys(_state.tradeStations || {});
+  const result = Commerce.batchInvestInTradeStations(_state, targetSystemIds, amount);
   _dispatch(result);
 }
 
@@ -1294,6 +1318,9 @@ function _boundDispatchTick() {
       var el = document.getElementById(id);
       return el && !el.classList.contains('hidden');
     },
+    hasBlockingSurfaceOpen: function () {
+      return hasBlockingSurfaceOpen('gameover-modal');
+    },
   });
 
   // 处理日志
@@ -1316,6 +1343,22 @@ function _boundDispatchTick() {
         _updateUI();
       } else {
         _handleTravel(tickResult.payload.systemId);
+      }
+      break;
+    }
+    case 'buy_need_refuel': {
+      var preBuyRefuelResult = Trade.refuel(_state);
+      _dispatch(preBuyRefuelResult);
+      if (_state.fuel < tickResult.payload.fuelCost) {
+        EventBus.emit('log:message', { text: '📡 派遣船只补给后仍无法完成下一段航程，已召回。', type: 'error' });
+        Fleet.cancelActiveDispatch(_state);
+        Dispatch.stopActiveDispatch();
+        _updateUI();
+      } else {
+        _handleTradeConfirm('buy', tickResult.payload.goodId, tickResult.payload.quantity, tickResult.payload.marketType);
+        var shipRefueled = Fleet.getActiveShip(_state);
+        if (shipRefueled && shipRefueled.route) shipRefueled.route.status = 'traveling_sell';
+        _updateUI();
       }
       break;
     }
@@ -1429,7 +1472,7 @@ function _checkVictory() {
   });
 
   document.getElementById('gameover-message').textContent = msg;
-  document.getElementById('gameover-modal').classList.remove('hidden');
+  showBlockingSurface('gameover-modal');
 }
 
 function _resetRealtimeClock(nowMs) {
@@ -1491,20 +1534,30 @@ function _getRealtimeDayDurationMs() {
     : TIME_CONFIG.realtimeDayDurationMs;
 }
 
+function _stopGameLoop() {
+  if (_gameLoopFrameId == null) return;
+  cancelAnimationFrame(_gameLoopFrameId);
+  _gameLoopFrameId = null;
+}
+
 // ---------------------------------------------------------------------------
 // 游戏主循环
 // ---------------------------------------------------------------------------
 
 function _startGameLoop() {
+  _stopGameLoop();
   _startTime = performance.now();
   _resetRealtimeClock(_startTime);
-  (function loop(ts) {
+
+  function loop(ts) {
     _updateRealtimeClock(ts);
     const mapView = MapUI.getMapView ? MapUI.getMapView() : 'planets';
     const galaxyId = MapUI.getCurrentGalaxyId ? MapUI.getCurrentGalaxyId() : 'milky_way';
     Renderer3D.render(_state, mapView, galaxyId);
-    requestAnimationFrame(loop);
-  }(_startTime));
+    _gameLoopFrameId = requestAnimationFrame(loop);
+  }
+
+  loop(_startTime);
 }
 
 // ---------------------------------------------------------------------------
