@@ -13,6 +13,8 @@ const BASE_LANDING_FEE = 40;
 const LANDING_FEE_PER_LEVEL = 20;
 const BASE_SECRET_ROUTE_MULTIPLIER = 0.65;
 const CARTOGRAPHY_SECRET_ROUTE_MULTIPLIER = 0.5;
+const ORBIT_SCAN_LANDING_DISCOUNT = 0.15;
+const DEEP_SCAN_LANDING_DISCOUNT = 0.3;
 
 export function getScanStatus(state, systemId, options) {
   options = options || {};
@@ -26,17 +28,28 @@ export function getScanStatus(state, systemId, options) {
   const routeCount = exploration && Array.isArray(exploration.secretRoutes) ? exploration.secretRoutes.length : 0;
   const surveyProfile = system && exploration ? _getSurveyProfile(system, exploration) : null;
   const modeLabel = hasDeepScan ? '深度扫描' : '轨道扫描';
+  const scanMode = hasDeepScan ? 'deep' : 'orbit';
+  const scanYield = system && exploration ? _getScanYield(state, system, exploration, surveyProfile, scanMode) : _emptyScanYield();
+  const scanDirective = system && exploration ? _getScanDirective(state, system, exploration, surveyProfile) : null;
+  const scanSignalGrade = system && exploration ? _getScanSignalGrade(system, exploration, surveyProfile, scanMode) : 'C';
+  const scanLandingFeeDiscount = _getScanLandingFeeDiscount(scanMode);
   const detailText = '执行' + modeLabel + '需要 ' + scanFuelCost + ' 单位燃料，可揭示 ' + poiCount + ' 个探索点' +
     (routeCount > 0 ? '，并校准 ' + routeCount + ' 条可疑暗线信标。' : '。') +
-    (surveyProfile ? (' 当前档案预估为' + surveyProfile.threatLabel + ' / ' + surveyProfile.opportunityLabel + '区域。') : '');
+    (surveyProfile ? (' 当前档案预估为' + surveyProfile.threatLabel + ' / ' + surveyProfile.opportunityLabel + '区域。') : '') +
+    ' 扫描会生成测绘图谱，立即结算' + _formatScanYield(scanYield) + '，并让首次着陆费用降低 ' + Math.round(scanLandingFeeDiscount * 100) + '%。' +
+    (scanDirective ? (' 建议优先跟进「' + scanDirective.poiName + '」。') : '');
 
   const result = {
     canScan: true,
     alreadyScanned: false,
     reason: 'ready',
-    scanMode: hasDeepScan ? 'deep' : 'orbit',
+    scanMode: scanMode,
     scanModeLabel: modeLabel,
     scanFuelCost: scanFuelCost,
+    scanSignalGrade: scanSignalGrade,
+    scanYield: scanYield,
+    scanLandingFeeDiscount: scanLandingFeeDiscount,
+    scanDirective: scanDirective,
     poiCount: poiCount,
     routeCount: routeCount,
     buttonLabel: '🔭 ' + modeLabel + ' · ' + scanFuelCost + '燃料',
@@ -100,14 +113,26 @@ export function scanSystem(state, systemId, options) {
   exploration.scanLevel = scanStatus.scanMode === 'deep' ? 2 : 1;
   exploration.scanCount = (exploration.scanCount || 0) + 1;
   exploration.lastScannedDay = state.day || 1;
+  exploration.scanSignalGrade = scanStatus.scanSignalGrade;
+  exploration.scanLandingFeeDiscount = scanStatus.scanLandingFeeDiscount || 0;
+  exploration.scanYield = _clone(scanStatus.scanYield || _emptyScanYield());
+  exploration.scanRecommendation = scanStatus.scanDirective ? scanStatus.scanDirective.reason : '';
+  exploration.scanPriorityPoiId = scanStatus.scanDirective ? scanStatus.scanDirective.poiId : '';
+  exploration.scanPriorityPoiName = scanStatus.scanDirective ? scanStatus.scanDirective.poiName : '';
   exploration.pois.forEach(function (poi) {
     poi.discovered = true;
     poi.discoveredDay = state.day || 1;
   });
+  _applyScanYield(state, scanStatus.scanYield);
+  const scanReport = _createScanReport(system, exploration, scanStatus, state.day || 1);
+  if (scanReport) _appendExplorationReport(exploration, scanReport);
   _saveExplorationState(systemId, exploration);
 
   var routeCount = (exploration.secretRoutes || []).length;
   var poiCount = (exploration.pois || []).length;
+  var directiveText = scanStatus.scanDirective
+    ? ('🧭 推荐优先调查「' + scanStatus.scanDirective.poiName + '」：' + scanStatus.scanDirective.reason)
+    : '🧭 未发现明确优先目标，可按 POI 清单顺序调查。';
   var msgs = [{
     text: '🔍 已完成对「' + system.name + '」的' + (exploration.scanLevel > 1 ? '深度' : '轨道') + '扫描，消耗 ' + scanStatus.scanFuelCost + ' 单位燃料。',
     type: 'info',
@@ -116,8 +141,25 @@ export function scanSystem(state, systemId, options) {
     text: '🗺️ 已标记 ' + poiCount + ' 个可调查探索点' + (routeCount > 0 ? '，并锁定到 ' + routeCount + ' 条可疑暗线信标。' : '。'),
     type: 'tip',
   });
+  msgs.push({
+    text: '📊 测绘图谱评级 ' + scanStatus.scanSignalGrade + '，结算' + _formatScanYield(scanStatus.scanYield) + '，首次着陆费 -' + Math.round((scanStatus.scanLandingFeeDiscount || 0) * 100) + '%。',
+    type: 'upgrade',
+  });
+  msgs.push({ text: directiveText, type: 'tip' });
 
-  return { ok: true, msgs: msgs, meta: { systemId: systemId, scanFuelCost: scanStatus.scanFuelCost } };
+  return {
+    ok: true,
+    msgs: msgs,
+    meta: {
+      systemId: systemId,
+      scanFuelCost: scanStatus.scanFuelCost,
+      scanSignalGrade: scanStatus.scanSignalGrade,
+      scanYield: scanStatus.scanYield,
+      scanLandingFeeDiscount: scanStatus.scanLandingFeeDiscount,
+      scanDirective: scanStatus.scanDirective,
+      scanReportId: scanReport ? scanReport.id : null,
+    },
+  };
 }
 
 export function getLandingStatus(state, systemId, options) {
@@ -125,8 +167,10 @@ export function getLandingStatus(state, systemId, options) {
 
   const system = findSystem(systemId);
   const exploration = system ? _getExplorationState(systemId) : null;
+  const scanLandingFeeDiscount = exploration ? Math.max(0, Math.min(0.8, exploration.scanLandingFeeDiscount || 0)) : 0;
+  const landingFeeDiscount = _combineDiscounts(options.landingFeeDiscount || 0, scanLandingFeeDiscount);
   const landingFee = system
-    ? Math.max(0, Math.round(_getLandingFee(system) * Math.max(0, 1 - (options.landingFeeDiscount || 0))))
+    ? Math.max(0, Math.round(_getLandingFee(system) * Math.max(0, 1 - landingFeeDiscount)))
     : 0;
   const unresolvedPoiCount = exploration && Array.isArray(exploration.pois)
     ? exploration.pois.filter(function (poi) { return poi.discovered && !poi.resolved; }).length
@@ -138,9 +182,13 @@ export function getLandingStatus(state, systemId, options) {
     alreadyLanded: false,
     reason: 'ready',
     landingFee: landingFee,
+    landingFeeDiscount: landingFeeDiscount,
+    scanLandingFeeDiscount: scanLandingFeeDiscount,
     unresolvedPoiCount: unresolvedPoiCount,
     actionLabel: '申请首次着陆 · ' + landingFee + ' 积分',
     detailText: '首次着陆需要 ' + landingFee + ' 积分，落地后可立即调查 ' + unresolvedPoiCount + ' 个探索点。' +
+      (scanLandingFeeDiscount > 0 ? (' 扫描校准已抵扣 ' + Math.round(scanLandingFeeDiscount * 100) + '% 着陆费用。') : '') +
+      (exploration && exploration.scanRecommendation ? (' 当前推荐优先跟进：' + exploration.scanRecommendation) : '') +
       (surveyProfile ? (' 本地测绘目标偏向' + surveyProfile.opportunityLabel + '，完探奖励为「' + surveyProfile.completionRewardLabel + '」。') : ''),
     blockedReason: '',
   };
@@ -325,6 +373,11 @@ export function getSurveySummary(state, systemId) {
     completed: _isSurveyComplete(exploration),
     completionBonusClaimed: !!exploration.completionBonusClaimed,
     completedDay: exploration.completedDay || 0,
+    scanSignalGrade: exploration.scanSignalGrade || '',
+    scanLandingFeeDiscount: exploration.scanLandingFeeDiscount || 0,
+    scanRecommendation: exploration.scanRecommendation || '',
+    scanPriorityPoiId: exploration.scanPriorityPoiId || '',
+    scanPriorityPoiName: exploration.scanPriorityPoiName || '',
   };
 }
 
@@ -424,6 +477,141 @@ export function getCurrentSystemSecretRoutes(state) {
         discountPercent: Math.round((1 - fuelMultiplier) * 100),
       };
     });
+}
+
+function _emptyScanYield() {
+  return { credits: 0, fuel: 0, reputation: 0, researchDays: 0 };
+}
+
+function _getScanLandingFeeDiscount(scanMode) {
+  return scanMode === 'deep' ? DEEP_SCAN_LANDING_DISCOUNT : ORBIT_SCAN_LANDING_DISCOUNT;
+}
+
+function _combineDiscounts(firstDiscount, secondDiscount) {
+  var first = Math.max(0, Math.min(0.95, firstDiscount || 0));
+  var second = Math.max(0, Math.min(0.95, secondDiscount || 0));
+  return Math.max(0, Math.min(0.95, 1 - ((1 - first) * (1 - second))));
+}
+
+function _getScanYield(state, system, exploration, profile, scanMode) {
+  if (!system || !exploration) return _emptyScanYield();
+
+  profile = profile || _getSurveyProfile(system, exploration);
+  var level = system.minLevel || 1;
+  var poiCount = Array.isArray(exploration.pois) ? exploration.pois.length : 0;
+  var routeCount = Array.isArray(exploration.secretRoutes) ? exploration.secretRoutes.length : 0;
+  var modeMultiplier = scanMode === 'deep' ? 1.45 : 1;
+  var focusMultiplier = profile.opportunityFocus === 'market'
+    ? 1.25
+    : (profile.opportunityFocus === 'research' ? 1.12 : 1);
+  var credits = Math.round((28 + level * 11 + poiCount * 8 + routeCount * 16) * modeMultiplier * focusMultiplier);
+  var fuel = 0;
+  var reputation = 0;
+  var researchDays = 0;
+
+  if (profile.opportunityFocus === 'logistics') {
+    fuel = Math.round((2 + level + routeCount) * (scanMode === 'deep' ? 1.5 : 1));
+  } else if (profile.opportunityFocus === 'market') {
+    reputation = scanMode === 'deep' ? 2 : 1;
+  } else if (
+    profile.opportunityFocus === 'research' &&
+    scanMode === 'deep' &&
+    state &&
+    state.currentResearch &&
+    state.currentResearch.daysLeft > 1
+  ) {
+    researchDays = 1;
+  }
+
+  return {
+    credits: Math.max(0, credits),
+    fuel: Math.max(0, fuel),
+    reputation: Math.max(0, reputation),
+    researchDays: Math.max(0, researchDays),
+  };
+}
+
+function _applyScanYield(state, scanYield) {
+  if (!state || !scanYield) return;
+
+  state.credits = (state.credits || 0) + (scanYield.credits || 0);
+  if (scanYield.fuel) {
+    state.fuel = Math.min(state.maxFuel || 100, (state.fuel || 0) + scanYield.fuel);
+  }
+  if (scanYield.reputation) {
+    state.reputation = (state.reputation || 0) + scanYield.reputation;
+  }
+  if (scanYield.researchDays && state.currentResearch && state.currentResearch.daysLeft > 1) {
+    state.currentResearch.daysLeft = Math.max(1, state.currentResearch.daysLeft - scanYield.researchDays);
+  }
+}
+
+function _formatScanYield(scanYield) {
+  var parts = [];
+  if (scanYield && scanYield.credits) parts.push(scanYield.credits + ' 积分');
+  if (scanYield && scanYield.fuel) parts.push(scanYield.fuel + ' 燃料');
+  if (scanYield && scanYield.reputation) parts.push(scanYield.reputation + ' 声望');
+  if (scanYield && scanYield.researchDays) parts.push('科研进度 +' + scanYield.researchDays + ' 天');
+  return parts.length > 0 ? parts.join('、') : '扫描情报';
+}
+
+function _getScanSignalGrade(system, exploration, profile, scanMode) {
+  if (!system || !exploration) return 'C';
+
+  profile = profile || _getSurveyProfile(system, exploration);
+  var poiCount = Array.isArray(exploration.pois) ? exploration.pois.length : 0;
+  var routeCount = Array.isArray(exploration.secretRoutes) ? exploration.secretRoutes.length : 0;
+  var score = 48 + poiCount * 7 + routeCount * 12 + (system.minLevel || 1) * 4;
+  if (scanMode === 'deep') score += 20;
+  if (profile.threatLevel === 'high') score += 10;
+  else if (profile.threatLevel === 'medium') score += 5;
+
+  if (score >= 92) return 'S';
+  if (score >= 76) return 'A';
+  if (score >= 60) return 'B';
+  return 'C';
+}
+
+function _getScanDirective(state, system, exploration, profile) {
+  if (!system || !exploration || !Array.isArray(exploration.pois)) return null;
+
+  profile = profile || _getSurveyProfile(system, exploration);
+  var poi = null;
+  var reason = '';
+
+  if (profile.threatLevel === 'high' && !_hasTech(state, 'anomaly_research')) {
+    poi = _findPoiByKind(exploration, 'route_beacon') || _findPoiByKind(exploration, 'resource_cache');
+    reason = '高风险区先锁定低损耗收益，异常点建议等舰体或科技准备后处理。';
+  }
+
+  if (!poi && profile.opportunityFocus === 'research') {
+    poi = _findPoiByKind(exploration, 'anomaly_site');
+    reason = '本地读数偏向科研样本，异常点最可能产出有效研究报告。';
+  }
+  if (!poi && profile.opportunityFocus === 'market') {
+    poi = _findPoiByKind(exploration, 'route_beacon') || _findPoiByKind(exploration, 'resource_cache');
+    reason = '贸易情报优先级最高，暗线或货运清单会直接影响后续路线收益。';
+  }
+  if (!poi) {
+    poi = _findPoiByKind(exploration, 'resource_cache') || _findPoiByKind(exploration, 'route_beacon') || _findPoiByKind(exploration, 'anomaly_site');
+    reason = '先回收稳定补给，可以抵消扫描与着陆消耗。';
+  }
+
+  if (!poi) return null;
+
+  return {
+    poiId: poi.id,
+    poiKind: poi.kind,
+    poiName: (poi.icon ? (poi.icon + ' ') : '') + poi.name,
+    reason: reason,
+  };
+}
+
+function _findPoiByKind(exploration, kind) {
+  if (!exploration || !Array.isArray(exploration.pois)) return null;
+  return exploration.pois.find(function (poi) {
+    return poi.kind === kind && !poi.resolved;
+  }) || null;
 }
 
 function _resolvePoi(state, system, exploration, poi, options) {
@@ -765,6 +953,30 @@ function _createManifestReport(system, state) {
     detail: '货运清单显示「' + opportunity.goodEmoji + ' ' + opportunity.goodName + '」在「' + system.name + '」长期低于周边均价，优先运往「' + opportunity.targetSystemName + '」存在' + opportunity.marginBand + '强度价差窗口。',
     day: state.day || 1,
     intelValue: 1,
+  };
+}
+
+function _createScanReport(system, exploration, scanStatus, day) {
+  if (!system || !exploration || !scanStatus) return null;
+
+  var profile = _getSurveyProfile(system, exploration);
+  var directive = scanStatus.scanDirective || null;
+  var landingDiscount = Math.round((scanStatus.scanLandingFeeDiscount || 0) * 100);
+  var directiveText = directive
+    ? ('推荐优先跟进「' + directive.poiName + '」：' + directive.reason)
+    : '未识别出明确优先点位，可按扫描终端给出的探索点清单逐项处理。';
+
+  return {
+    id: system.id + '_report_scan',
+    kind: 'scan',
+    badge: scanStatus.scanMode === 'deep' ? '深度图谱' : '轨道图谱',
+    icon: '📡',
+    title: '轨道测绘图谱 · ' + (scanStatus.scanSignalGrade || 'C') + ' 级',
+    detail: '扫描确认「' + system.name + '」为' + profile.threatLabel + ' / ' + profile.opportunityLabel + '区域。' +
+      '本次图谱已降低首次着陆费约 ' + landingDiscount + '%，并结算' + _formatScanYield(scanStatus.scanYield) + '。' +
+      directiveText,
+    day: day || 0,
+    intelValue: scanStatus.scanMode === 'deep' ? 2 : 1,
   };
 }
 

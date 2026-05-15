@@ -1,5 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { bindBlockingSurfaceDismiss, hasBlockingSurfaceOpen, hideBlockingSurface, isBlockingSurfaceVisible, showBlockingSurface } from '../js/ui/SurfaceManager.js';
+import {
+  bindBlockingSurfaceDismiss,
+  closeAllNonBlockingSurfaces,
+  hasBlockingSurfaceOpen,
+  hideBlockingSurface,
+  isBlockingSurfaceVisible,
+  openPrimarySurface,
+  openSecondarySurface,
+  showBlockingSurface,
+} from '../js/ui/SurfaceManager.js';
 
 function createFakeClassList(initialValues) {
   var values = new Set(initialValues || []);
@@ -177,5 +186,80 @@ describe('SurfaceManager', function () {
     documentListeners.keydown[0]({ key: 'Escape' });
     expect(tradeModal.classList.contains('hidden')).toBe(true);
     expect(dismissCount).toBe(2);
+  });
+
+  it('openPrimarySurface 会打开唯一 primary workspace 并关闭 secondary overlays', function () {
+    var marketOverlay = createFakeElement(['hidden']);
+    marketOverlay.id = 'market-overlay';
+    var infoPanel = createFakeElement(['panel-open']);
+    infoPanel.id = 'info-panel';
+    var tradePanel = createFakeElement(['panel-open']);
+    tradePanel.id = 'trade-panel';
+    var consolePanel = createFakeElement(['panel-open']);
+    consolePanel.id = 'console-panel';
+
+    var elements = {
+      'market-overlay': marketOverlay,
+      'info-panel': infoPanel,
+      'trade-panel': tradePanel,
+      'console-panel': consolePanel,
+    };
+
+    globalThis.document = {
+      getElementById: function (id) { return elements[id] || null; },
+      querySelectorAll: function (selector) {
+        if (selector === '.modal') return [];
+        return [];
+      },
+    };
+
+    openPrimarySurface('market-overlay');
+
+    expect(marketOverlay.classList.contains('hidden')).toBe(false);
+    expect(infoPanel.classList.contains('panel-open')).toBe(false);
+    expect(tradePanel.classList.contains('panel-open')).toBe(false);
+    expect(consolePanel.classList.contains('panel-open')).toBe(false);
+    expect(marketOverlay.getAttribute('aria-hidden')).toBe('false');
+    expect(infoPanel.getAttribute('aria-hidden')).toBe('true');
+  });
+
+  it('openSecondarySurface 会保持 secondary 互斥并关闭 primary workspace', function () {
+    var marketOverlay = createFakeElement();
+    marketOverlay.id = 'market-overlay';
+    var infoPanel = createFakeElement(['panel-open']);
+    infoPanel.id = 'info-panel';
+    var tradePanel = createFakeElement();
+    tradePanel.id = 'trade-panel';
+    var consolePanel = createFakeElement(['panel-open']);
+    consolePanel.id = 'console-panel';
+
+    var elements = {
+      'market-overlay': marketOverlay,
+      'info-panel': infoPanel,
+      'trade-panel': tradePanel,
+      'console-panel': consolePanel,
+    };
+
+    globalThis.document = {
+      getElementById: function (id) { return elements[id] || null; },
+      querySelectorAll: function (selector) {
+        if (selector === '.modal') return [];
+        return [];
+      },
+    };
+
+    openSecondarySurface('trade-panel');
+
+    expect(marketOverlay.classList.contains('hidden')).toBe(true);
+    expect(infoPanel.classList.contains('panel-open')).toBe(false);
+    expect(tradePanel.classList.contains('panel-open')).toBe(true);
+    expect(consolePanel.classList.contains('panel-open')).toBe(false);
+    expect(tradePanel.getAttribute('aria-hidden')).toBe('false');
+
+    closeAllNonBlockingSurfaces();
+
+    expect(marketOverlay.classList.contains('hidden')).toBe(true);
+    expect(tradePanel.classList.contains('panel-open')).toBe(false);
+    expect(tradePanel.getAttribute('aria-hidden')).toBe('true');
   });
 });

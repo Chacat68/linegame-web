@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>蓝脉航路 · 银河历 3045</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%23040814' stroke='%2322d3ee' stroke-width='2'/><circle cx='16' cy='16' r='4' fill='%2322d3ee'/><line x1='16' y1='2' x2='16' y2='8' stroke='%2322d3ee' stroke-width='1.5'/><line x1='16' y1='24' x2='16' y2='30' stroke='%2322d3ee' stroke-width='1.5'/><line x1='2' y1='16' x2='8' y2='16' stroke='%2322d3ee' stroke-width='1.5'/><line x1='24' y1='16' x2='30' y2='16' stroke='%2322d3ee' stroke-width='1.5'/></svg>" />
-    <link rel="stylesheet" href="css/style.css?v=20260506-orbitscan2" />
+    <link rel="stylesheet" href="css/style.css?v=20260513-navguide1" />
   </head>
   <body>
     <div id="game-shell">
@@ -141,9 +141,8 @@
                 <thead>
                   <tr>
                     <th>商品</th>
-                    <th>Buy</th>
-                    <th>Sell</th>
-                    <th>趋势</th>
+                    <th>信号</th>
+                    <th>波动</th>
                   </tr>
                 </thead>
                 <tbody id="hud-market-overview-body">
@@ -153,9 +152,9 @@
                 </tbody>
               </table>
               <div class="hud-widget-foot">
-                <span>本地波动前 3</span>
+                <span>只显示本地市场摘要</span>
                 <div class="hud-widget-foot-actions">
-                  <button id="hud-market-open" class="hud-widget-link-btn" type="button">市场页</button>
+                  <button id="hud-market-open" class="hud-widget-link-btn" type="button">打开市场</button>
                   <span id="hud-market-updated">DAY 1</span>
                 </div>
               </div>
@@ -180,6 +179,14 @@
                 <div>
                   <dt>政体</dt>
                   <dd id="hud-target-faction">中立地带</dd>
+                </div>
+                <div>
+                  <dt>勘探</dt>
+                  <dd id="hud-target-survey">未扫描</dd>
+                </div>
+                <div>
+                  <dt>后续</dt>
+                  <dd id="hud-target-next">等待轨道扫描</dd>
                 </div>
               </dl>
               <div class="target-intel-actions">
@@ -223,6 +230,7 @@
                 </button>
               </div>
             </div>
+            <div id="action-guide" class="action-guide" aria-live="polite" hidden></div>
 
             <!-- Market overlay panel -->
             <div id="market-overlay" class="market-overlay hidden">
@@ -369,15 +377,9 @@
 
             <div class="stat-strip">
               <div class="stat-strip-item">
-                <span class="stat-strip-label">📊 资产</span>
+                <span class="stat-strip-label">📊 公司资产</span>
                 <span id="net-worth" class="stat-strip-value stat-networth"
                   >1,000</span
-                >
-              </div>
-              <div class="stat-strip-item">
-                <span class="stat-strip-label">经济</span>
-                <span class="stat-strip-value stat-cycle hdr-cycle-mirror"
-                  >⚖️稳定</span
                 >
               </div>
             </div>
@@ -1039,6 +1041,6 @@
 
     <!-- Babylon.js library for 3D rendering -->
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
-    <script type="module" src="js/main.js?v=20260506-orbitscan1"></script>
+    <script type="module" src="js/main.js?v=20260513-navguide1"></script>
   </body>
 </html>

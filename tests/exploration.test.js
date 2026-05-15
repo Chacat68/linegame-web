@@ -24,7 +24,8 @@ describe('ExplorationSystem', function () {
     GalaxyData.init(state);
   });
 
-  it('扫描后应揭示当前星球的 POI', function () {
+  it('扫描后应揭示当前星球的 POI 并生成测绘收益', function () {
+    const startingCredits = state.credits;
     const beforeScan = GalaxyData.getPlanetData('sol_prime');
     expect(beforeScan.exploration.scanLevel).toBe(0);
     expect(beforeScan.exploration.pois.every(function (poi) { return poi.discovered === false; })).toBe(true);
@@ -32,10 +33,19 @@ describe('ExplorationSystem', function () {
     const result = Exploration.scanSystem(state, 'sol_prime');
 
     expect(result.ok).toBe(true);
+    expect(result.meta.scanSignalGrade).toBeTruthy();
+    expect(result.meta.scanLandingFeeDiscount).toBeGreaterThan(0);
+    expect(result.meta.scanYield.credits).toBeGreaterThan(0);
+    expect(result.meta.scanDirective.poiId).toBeTruthy();
     const afterScan = GalaxyData.getPlanetData('sol_prime');
     expect(afterScan.exploration.scanLevel).toBeGreaterThan(0);
     expect(afterScan.exploration.pois.every(function (poi) { return poi.discovered === true; })).toBe(true);
+    expect(afterScan.exploration.scanPriorityPoiId).toBeTruthy();
+    expect(afterScan.exploration.reports.some(function (report) {
+      return report.id === 'sol_prime_report_scan';
+    })).toBe(true);
     expect(state.fuel).toBeLessThan(100);
+    expect(state.credits).toBeGreaterThan(startingCredits);
   });
 
   it('扫描预览应反映深度扫描折扣与可执行性', function () {
@@ -49,6 +59,8 @@ describe('ExplorationSystem', function () {
     expect(preview.scanMode).toBe('deep');
     expect(preview.scanFuelCost).toBe(2);
     expect(preview.poiCount).toBe(planet.exploration.pois.length);
+    expect(preview.scanLandingFeeDiscount).toBeGreaterThan(0.2);
+    expect(preview.scanSignalGrade).toBeTruthy();
     expect(preview.actionLabel).toContain('2 燃料');
   });
 
@@ -70,9 +82,9 @@ describe('ExplorationSystem', function () {
     });
 
     expect(preview.canLand).toBe(true);
-    expect(preview.landingFee).toBe(45);
+    expect(preview.landingFee).toBeLessThan(45);
     expect(preview.unresolvedPoiCount).toBe(3);
-    expect(preview.actionLabel).toContain('45 积分');
+    expect(preview.detailText).toContain('扫描校准');
   });
 
   it('POI 预览应说明调查收益或风险', function () {
@@ -122,9 +134,11 @@ describe('ExplorationSystem', function () {
     const summary = Exploration.getSurveySummary(state, 'sol_prime');
 
     expect(result.ok).toBe(true);
-    expect(summary.reportCount).toBe(1);
+    expect(summary.reportCount).toBe(2);
     expect(summary.intelLevel).toBeGreaterThan(0);
-    expect(summary.reports[0].title).toContain('清单');
+    expect(summary.reports.some(function (report) {
+      return report.title.indexOf('清单') !== -1;
+    })).toBe(true);
   });
 
   it('调查秘密航线信标后应降低对应航线燃料消耗', function () {
@@ -185,7 +199,7 @@ describe('ExplorationSystem', function () {
 
     expect(summary.completed).toBe(true);
     expect(summary.completionBonusClaimed).toBe(true);
-    expect(summary.reportCount).toBe(4);
+    expect(summary.reportCount).toBe(5);
     expect(summary.reports.some(function (report) {
       return report.id === 'sol_prime_report_completion';
     })).toBe(true);

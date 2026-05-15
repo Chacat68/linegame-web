@@ -202,6 +202,8 @@ describe('ResearchUI blocker helpers', () => {
       marketWorkspaceId: 'spot',
       marketSubworkspaceId: 'trade',
       marketFocusLabel: '现货交易区',
+      commandSurface: 'market',
+      commandIntent: '现货交易区',
     });
   });
 
@@ -233,8 +235,16 @@ describe('ResearchUI blocker helpers', () => {
       marketWorkspaceId: 'capital',
       marketSubworkspaceId: 'local',
       marketFocusLabel: '资本调度区',
+      commandSurface: 'market',
+      commandIntent: '资本调度区',
     });
-    expect(actions[1]).toMatchObject({ actionId: 'quest-focus', label: '先做本地任务', targetQuestId: 'starter_first_trade' });
+    expect(actions[1]).toMatchObject({
+      actionId: 'quest-focus',
+      label: '先做本地任务',
+      targetQuestId: 'starter_first_trade',
+      commandSurface: 'quest',
+      commandIntent: '替代任务',
+    });
     expect(actions[1].hint).not.toContain('燃料');
     expect(actions[1].hint).toContain('科研周转资金');
   });
@@ -267,7 +277,15 @@ describe('ResearchUI blocker helpers', () => {
       marketWorkspaceId: 'operations',
       marketSubworkspaceId: 'local',
       marketFocusLabel: '本地节点经营区',
+      commandSurface: 'market',
+      commandIntent: '本地节点经营区',
     });
-    expect(actions[1]).toMatchObject({ actionId: 'quest-focus', label: '先补等级', targetQuestId: 'starter_first_trade' });
+    expect(actions[1]).toMatchObject({
+      actionId: 'quest-focus',
+      label: '先补等级',
+      targetQuestId: 'starter_first_trade',
+      commandSurface: 'quest',
+      commandIntent: '替代任务',
+    });
   });
 });

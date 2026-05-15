@@ -94,7 +94,77 @@ function _normalizeMarketWorkspaceFocus(focus) {
   return {
     workspaceId: workspaceId,
     subworkspaceId: subworkspaceTabs.length > 0 ? subworkspaceId : '',
+    goodId: typeof focus.goodId === 'string' ? focus.goodId.trim() : '',
+    tradeAction: typeof focus.tradeAction === 'string' ? focus.tradeAction.trim() : '',
   };
+}
+
+function _getMarketFocusKey(sysId, marketMode) {
+  if (!sysId) return '';
+  return sysId + ':' + (marketMode || 'open');
+}
+
+function _escapeSelectorValue(value) {
+  var text = String(value);
+  if (typeof CSS !== 'undefined' && CSS.escape) {
+    return CSS.escape(text);
+  }
+  if (typeof globalThis !== 'undefined' && globalThis.CSS && globalThis.CSS.escape) {
+    return globalThis.CSS.escape(text);
+  }
+  return text.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+function _clearMarketGuideFocus() {
+  if (!_hasDocument() || !document.querySelectorAll) return;
+
+  document.querySelectorAll('.market-good-card--guide-focus').forEach(function (card) {
+    card.classList.remove('market-good-card--guide-focus');
+    if (card.removeAttribute) card.removeAttribute('data-guide-focus');
+  });
+  document.querySelectorAll('.market-card-btn--guide-focus').forEach(function (button) {
+    button.classList.remove('market-card-btn--guide-focus');
+  });
+}
+
+function _revealMarketGoodFocus(goodId, options) {
+  if (!_hasDocument() || !goodId || !document.querySelector) return false;
+
+  _clearMarketGuideFocus();
+
+  var card = document.querySelector('[data-market-good="' + _escapeSelectorValue(goodId) + '"]');
+  if (!card) return false;
+  var opts = options || {};
+  var tradeAction = opts.tradeAction === 'sell' ? 'sell' : 'buy';
+
+  card.classList.add('market-good-card--guide-focus');
+  if (card.setAttribute) card.setAttribute('data-guide-focus', 'true');
+
+  var actionButton = card.querySelector
+    ? card.querySelector(tradeAction === 'sell' ? '.sell-card-btn' : '.buy-card-btn')
+    : null;
+  if (actionButton) {
+    actionButton.classList.add('market-card-btn--guide-focus');
+  }
+
+  if (typeof card.scrollIntoView === 'function') {
+    card.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+  }
+
+  return true;
+}
+
+export function revealMarketGoodFocus(goodId, options) {
+  return _revealMarketGoodFocus(goodId, options);
+}
+
+export function setFocusedMarketGood(sysId, marketMode, goodId) {
+  var normalizedGoodId = typeof goodId === 'string' ? goodId.trim() : '';
+  var focusKey = _getMarketFocusKey(sysId, marketMode);
+  if (!focusKey || !normalizedGoodId) return false;
+
+  _focusedMarketGood[focusKey] = normalizedGoodId;
+  return true;
 }
 
 function _applyMarketSubworkspaceTabState(container, workspaceId) {
@@ -124,6 +194,11 @@ export function setMarketWorkspaceFocus(focus) {
       document.getElementById('market-' + normalized.workspaceId + '-pane'),
       normalized.workspaceId
     );
+    if (normalized.goodId) {
+      _revealMarketGoodFocus(normalized.goodId, { tradeAction: normalized.tradeAction });
+    } else {
+      _clearMarketGuideFocus();
+    }
   }
 
   return true;

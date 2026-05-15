@@ -5,6 +5,7 @@
 import { TECHNOLOGIES, TECH_CATEGORIES } from '../data/technologies.js';
 import { getSystemsByGalaxy } from '../data/systems.js';
 import { buildMarketFocusAction, MARKET_FOCUS_PRESET_IDS } from './MarketFocus.js?v=20260419-marketcta2';
+import { getCommandActionAttributes, normalizeCommandAction, renderCommandActionContent } from './CommandAction.js?v=20260510-command1';
 import * as Research from '../systems/research/ResearchSystem.js';
 import * as AutoTrade from '../systems/trade/AutoTradeSystem.js?v=20260420-balance5';
 import * as Quest from '../systems/quest/QuestSystem.js?v=20260412-questroute2';
@@ -16,6 +17,21 @@ const RESEARCH_BLOCKER_MARKET_PRESETS = {
   level: MARKET_FOCUS_PRESET_IDS.OPERATIONS_LOCAL,
   generic: MARKET_FOCUS_PRESET_IDS.SPOT_INTEL,
 };
+
+function _escapeHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function _escapeHtmlAttr(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;');
+}
 
 function _getResearchSupplyFocus(state) {
   var techId = state.currentResearch && state.currentResearch.techId
@@ -190,6 +206,9 @@ export function getResearchDispatchBlockerActions(state, blocker) {
       reasonId: blocker.reasonId,
       label: sharedFallbackAction.label,
       hint: _adaptResearchFallbackHint(sharedFallbackAction.hint, blocker),
+      commandSurface: sharedFallbackAction.commandSurface,
+      commandIntent: sharedFallbackAction.commandIntent,
+      commandVerb: sharedFallbackAction.commandVerb || sharedFallbackAction.label,
       targetQuestId: sharedFallbackAction.targetQuestId,
       targetQuestName: sharedFallbackAction.targetQuestName,
       variant: 'secondary',
@@ -219,9 +238,10 @@ function _renderResearchDispatchBlocker(blocker, canResolveResearchBlocker, stat
       '</div>' +
       (canResolveResearchBlocker && actions.length > 0
         ? '<div class="research-route-actions is-blocked">' + actions.map(function (action) {
+            var commandAction = normalizeCommandAction(action);
             return '<div class="research-route-action-item' + (action.variant === 'secondary' ? ' is-secondary' : '') + '">' +
-              '<button class="research-route-blocker-btn' + (action.variant === 'secondary' ? ' is-secondary' : '') + '" data-action-id="' + action.actionId + '" data-reason-id="' + action.reasonId + '" data-target-quest-id="' + (action.targetQuestId || '') + '" data-target-quest-name="' + (action.targetQuestName || '') + '" data-market-workspace-id="' + (action.marketWorkspaceId || '') + '" data-market-subworkspace-id="' + (action.marketSubworkspaceId || '') + '" data-market-focus-label="' + (action.marketFocusLabel || '') + '" data-focus-tech-id="' + blocker.techId + '" data-focus-tech-name="' + blocker.techName + '">' + action.label + '</button>' +
-              '<span class="research-route-action-hint">' + action.hint + '</span>' +
+              '<button class="research-route-blocker-btn command-action-btn' + (commandAction.variant === 'secondary' ? ' is-secondary' : '') + '" data-action-id="' + _escapeHtmlAttr(action.actionId || '') + '" data-reason-id="' + _escapeHtmlAttr(action.reasonId || '') + '" data-target-quest-id="' + _escapeHtmlAttr(action.targetQuestId || '') + '" data-target-quest-name="' + _escapeHtmlAttr(action.targetQuestName || '') + '" data-market-workspace-id="' + _escapeHtmlAttr(action.marketWorkspaceId || '') + '" data-market-subworkspace-id="' + _escapeHtmlAttr(action.marketSubworkspaceId || '') + '" data-market-focus-label="' + _escapeHtmlAttr(action.marketFocusLabel || '') + '" data-focus-tech-id="' + _escapeHtmlAttr(blocker.techId || '') + '" data-focus-tech-name="' + _escapeHtmlAttr(blocker.techName || '') + '"' + getCommandActionAttributes(commandAction, _escapeHtmlAttr) + '>' + renderCommandActionContent(commandAction, _escapeHtml) + '</button>' +
+              '<span class="research-route-action-hint">' + _escapeHtml(action.hint || '') + '</span>' +
             '</div>';
           }).join('') + '</div>'
         : '') +
@@ -385,7 +405,14 @@ function _renderResearchDispatchRecommendation(recommendation, canApplyResearchD
       '<div class="research-route-note">' + roleLabel + ' · ' + recommendation.strategySummary + (recommendation.tradeThemeSummary ? ' · ' + recommendation.tradeThemeSummary : '') + '</div>' +
       (canApplyResearchDispatch
         ? '<div class="research-route-actions">' +
-            '<button class="research-route-apply-btn">带入机库派遣</button>' +
+            '<button class="research-route-apply-btn command-action-btn" data-command-surface="fleet" data-command-intent="科研补给" data-command-verb="带入机库派遣">' +
+              renderCommandActionContent({
+                actionId: 'dispatch',
+                label: '带入机库派遣',
+                commandSurface: 'fleet',
+                commandIntent: '科研补给',
+              }, _escapeHtml) +
+            '</button>' +
             '<span class="research-route-action-hint">切到机库并预填这条补给线</span>' +
           '</div>'
         : '') +

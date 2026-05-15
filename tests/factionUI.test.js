@@ -33,6 +33,9 @@ describe('FactionUI market CTA helper', function () {
       marketSubworkspaceId: 'black',
       marketFocusLabel: '黑市分区',
       marketMode: 'black',
+      commandSurface: 'market',
+      commandIntent: '黑市分区',
+      commandVerb: '查看黑市通路',
     });
     expect(action.hint).toContain('暗影港湾');
     expect(action.hint).toContain('黑市通路');
@@ -49,6 +52,9 @@ describe('FactionUI market CTA helper', function () {
       marketSubworkspaceId: 'intel',
       marketFocusLabel: '市场情报区',
       marketMode: '',
+      commandSurface: 'market',
+      commandIntent: '市场情报区',
+      commandVerb: '查看黑市条件',
     });
     expect(action.contextHint).toContain('辛迪加黑市尚未开放');
     expect(action.hint).toContain('公开情报');
@@ -66,6 +72,9 @@ describe('FactionUI market CTA helper', function () {
       marketSubworkspaceId: 'trade',
       marketFocusLabel: '现货交易区',
       marketMode: '',
+      commandSurface: 'market',
+      commandIntent: '现货交易区',
+      commandVerb: '查看代表市场',
     });
     expect(action.hint).toContain('太阳主星');
     expect(action.hint).toContain('现货交易区');

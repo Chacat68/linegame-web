@@ -9,6 +9,22 @@ import {
   buildContextualMarketAction,
   getMarketFocusCtaLabel,
 } from './MarketFocus.js?v=20260419-marketcta2';
+import { getCommandActionAttributes, renderCommandActionContent } from './CommandAction.js?v=20260510-command1';
+
+function _escapeHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function _escapeHtmlAttr(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;');
+}
 
 export function getFactionMarketAction(state, faction) {
   const factionData = typeof faction === 'string'
@@ -32,6 +48,7 @@ export function getFactionMarketAction(state, faction) {
 
   if (factionData.marketAccess && factionData.marketAccess.blackMarket && !canAccessBlackMarket) {
     action.label = '查看黑市条件';
+    action.commandVerb = action.label;
     action.contextHint = '辛迪加黑市尚未开放，先看公开情报与准入门槛。';
     action.hint = action.systemName + ' · ' + action.contextHint;
     return action;
@@ -42,6 +59,7 @@ export function getFactionMarketAction(state, faction) {
     subworkspaceId: action.marketSubworkspaceId,
     marketMode: action.marketMode,
   }, 'faction');
+  action.commandVerb = action.label;
   action.hint = action.systemName + ' · ' + (action.contextHint || action.marketFocusLabel || '市场页');
   return action;
 }
@@ -113,19 +131,20 @@ export function render(state, onOpenFactionMarket) {
           '</div>' +
           (marketAction
             ? '<div class="faction-actions">' +
-                '<button class="planet-detail-action faction-market-btn" type="button"' +
+                '<button class="planet-detail-action planet-detail-action--command command-action-btn faction-market-btn" type="button"' +
                   ' data-faction-market="true"' +
-                  ' data-faction-id="' + marketAction.factionId + '"' +
-                  ' data-faction-name="' + marketAction.factionName + '"' +
-                  ' data-system-id="' + marketAction.systemId + '"' +
-                  ' data-system-name="' + marketAction.systemName + '"' +
-                  ' data-market-workspace-id="' + marketAction.marketWorkspaceId + '"' +
-                  ' data-market-subworkspace-id="' + marketAction.marketSubworkspaceId + '"' +
-                  ' data-market-focus-label="' + marketAction.marketFocusLabel + '"' +
-                  (marketAction.marketMode ? ' data-market-mode="' + marketAction.marketMode + '"' : '') +
-                  (marketAction.hint ? ' data-market-hint="' + marketAction.hint + '" title="' + marketAction.hint + '"' : '') +
-                '>' + marketAction.label + '</button>' +
-                '<div class="faction-action-note">' + marketAction.hint + '</div>' +
+                  ' data-faction-id="' + _escapeHtmlAttr(marketAction.factionId) + '"' +
+                  ' data-faction-name="' + _escapeHtmlAttr(marketAction.factionName) + '"' +
+                  ' data-system-id="' + _escapeHtmlAttr(marketAction.systemId) + '"' +
+                  ' data-system-name="' + _escapeHtmlAttr(marketAction.systemName) + '"' +
+                  ' data-market-workspace-id="' + _escapeHtmlAttr(marketAction.marketWorkspaceId) + '"' +
+                  ' data-market-subworkspace-id="' + _escapeHtmlAttr(marketAction.marketSubworkspaceId) + '"' +
+                  ' data-market-focus-label="' + _escapeHtmlAttr(marketAction.marketFocusLabel) + '"' +
+                  (marketAction.marketMode ? ' data-market-mode="' + _escapeHtmlAttr(marketAction.marketMode) + '"' : '') +
+                  (marketAction.hint ? ' data-market-hint="' + _escapeHtmlAttr(marketAction.hint) + '" title="' + _escapeHtmlAttr(marketAction.hint) + '"' : '') +
+                  getCommandActionAttributes(marketAction, _escapeHtmlAttr) +
+                '>' + renderCommandActionContent(marketAction, _escapeHtml) + '</button>' +
+                '<div class="faction-action-note">' + _escapeHtml(marketAction.hint) + '</div>' +
               '</div>'
             : '') +
         '</div>' +
@@ -149,7 +168,10 @@ export function render(state, onOpenFactionMarket) {
           marketMode: button.dataset.marketMode || '',
           hint: button.dataset.marketHint || '',
           contextHint: button.dataset.marketHint || '',
-          label: button.textContent.trim(),
+          label: button.dataset.commandVerb || button.textContent.trim(),
+          commandSurface: button.dataset.commandSurface || 'market',
+          commandIntent: button.dataset.commandIntent || '',
+          commandVerb: button.dataset.commandVerb || '',
         });
       });
     });

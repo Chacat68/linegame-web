@@ -92,8 +92,12 @@ describe('MapUI current system scan card', function () {
       researchedTechs: [],
     });
 
-    Economy.init();
-    GalaxyData.init(state);
+    var EconomyModule = await import('../js/systems/economy/Economy.js');
+    var GalaxyDataModule = await import('../js/systems/galaxy/GalaxyDataLayer.js');
+    var ExplorationModule = await import('../js/systems/galaxy/ExplorationSystem.js');
+
+    EconomyModule.init();
+    GalaxyDataModule.init(state);
 
     var orbitScanBtn = createFakeElement();
     var scanCard = createFakeElement();
@@ -127,13 +131,79 @@ describe('MapUI current system scan card', function () {
     expect(orbitScanBtn.textContent).toContain('扫描');
     expect(orbitScanBtn.getAttribute('aria-expanded')).toBe('false');
 
-    var scanResult = Exploration.scanSystem(state, 'sol_prime');
+    var scanResult = ExplorationModule.scanSystem(state, 'sol_prime');
     MapUI.showCurrentSystemScanReveal(state, 'sol_prime', scanResult);
 
     expect(scanCard.classList.contains('visible')).toBe(true);
     expect(scanCard.innerHTML).toContain('轨道扫描完成');
+    expect(scanCard.innerHTML).toContain('评级');
+    expect(scanCard.innerHTML).toContain('优先');
     expect(scanCard.innerHTML).toContain('太阳主星');
     expect(orbitScanBtn.hidden).toBe(false);
     expect(orbitScanBtn.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('扫描完成后仍保留当前航点探索终端入口', async function () {
+    vi.resetModules();
+
+    var state = createTestState({
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+      viewingGalaxy: 'milky_way',
+      mapView: 'planets',
+      fuel: 100,
+      maxFuel: 100,
+      credits: 2000,
+      shipHull: 100,
+      maxHull: 100,
+      researchedTechs: [],
+    });
+
+    var EconomyModule = await import('../js/systems/economy/Economy.js');
+    var GalaxyDataModule = await import('../js/systems/galaxy/GalaxyDataLayer.js');
+    var ExplorationModule = await import('../js/systems/galaxy/ExplorationSystem.js');
+
+    EconomyModule.init();
+    GalaxyDataModule.init(state);
+
+    var orbitScanBtn = createFakeElement();
+    var scanCard = createFakeElement();
+    var elements = {
+      'orbit-scan-btn': orbitScanBtn,
+      'current-system-exploration-card': scanCard,
+    };
+
+    globalThis.window = {};
+    globalThis.BABYLON = {
+      Color3: function () {},
+      Color4: function () {},
+    };
+    globalThis.document = {
+      getElementById: function (id) {
+        return elements[id] || null;
+      },
+      querySelectorAll: function () {
+        return [];
+      },
+      querySelector: function () {
+        return null;
+      },
+    };
+
+    var MapUI = await import('../js/ui/MapUI.js');
+
+    expect(ExplorationModule.scanSystem(state, 'sol_prime').ok).toBe(true);
+    MapUI.refreshGalaxyBtn(state);
+
+    expect(orbitScanBtn.hidden).toBe(false);
+    expect(orbitScanBtn.disabled).toBe(false);
+    expect(orbitScanBtn.textContent).toContain('着陆终端');
+
+    expect(ExplorationModule.landOnSystem(state, 'sol_prime').ok).toBe(true);
+    MapUI.refreshGalaxyBtn(state);
+
+    expect(orbitScanBtn.hidden).toBe(false);
+    expect(orbitScanBtn.disabled).toBe(false);
+    expect(orbitScanBtn.textContent).toContain('探索终端');
   });
 });

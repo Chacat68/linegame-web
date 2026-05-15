@@ -97,6 +97,9 @@ describe('MarketFocus contextual defaults', function () {
       marketSubworkspaceId: 'trade',
       marketFocusLabel: '现货交易区',
       marketMode: '',
+      commandSurface: 'market',
+      commandIntent: '现货交易区',
+      commandVerb: '查看现货交易',
     });
     expect(action.contextHint).toContain('现货交易区');
     expect(action.contextHint).toContain('补给与现货周转');
@@ -116,6 +119,9 @@ describe('MarketFocus contextual defaults', function () {
       marketSubworkspaceId: 'black',
       marketFocusLabel: '黑市分区',
       marketMode: 'black',
+      commandSurface: 'market',
+      commandIntent: '黑市分区',
+      commandVerb: '查看黑市通路',
     });
     expect(action.contextHint).toContain('黑市通路');
     expect(action.contextHint).toContain('黑市分区');
@@ -136,6 +142,9 @@ describe('MarketFocus contextual defaults', function () {
       marketSubworkspaceId: 'intel',
       marketFocusLabel: '市场情报区',
       marketMode: '',
+      commandSurface: 'market',
+      commandIntent: '市场情报区',
+      commandVerb: '查看市场情报',
     });
     expect(action.contextHint).toContain('科研线索');
     expect(action.contextHint).toContain('市场情报区');
