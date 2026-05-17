@@ -10,6 +10,8 @@ import * as PlayerLevels        from '../data/playerLevels.js';
 import * as Victory             from '../systems/victory/VictorySystem.js';
 import * as Economy             from '../systems/economy/Economy.js';
 import * as Quest               from '../systems/quest/QuestSystem.js?v=20260412-questroute2';
+import * as GalaxyData          from '../systems/galaxy/GalaxyDataLayer.js';
+import * as Exploration         from '../systems/galaxy/ExplorationSystem.js';
 import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from './SurfaceManager.js?v=20260505-surface4';
 
 const getLevel = PlayerLevels.getLevel;
@@ -25,6 +27,8 @@ const _goodNameById = GOODS.reduce(function (acc, good) {
 const HUD_WIDGET_COLLAPSED_CLASS = 'hud-widget-collapsed';
 const HUD_WIDGET_ACTIVE_CLASS = 'hud-widget-active';
 const DEFAULT_HUD_WIDGET_ID = 'galactic-map';
+const STARMAP_RAIL_PANEL_OPEN_EVENT = 'starmap-rail:panel-open';
+const STARMAP_RAIL_SOURCE_HUD = 'hud';
 const getCompanyLevel = PlayerLevels.getCompanyLevel || function (exp) {
   return COMPANY_LEVELS[0];
 };
@@ -62,6 +66,11 @@ export function init() {
 
   EventBus.on('log:message', function (data) {
     addMessage(data.text, data.type);
+  });
+
+  EventBus.on(STARMAP_RAIL_PANEL_OPEN_EVENT, function (data) {
+    if (data && data.source === STARMAP_RAIL_SOURCE_HUD) return;
+    _collapseActiveHudWidget();
   });
 
   const vpModal = document.getElementById('victory-modal');
@@ -111,7 +120,7 @@ function _bindHudWidgetControls() {
     toggleBtn.dataset.hudWidgetBound = 'true';
   });
 
-  _selectHudWidget(_activeHudWidgetId);
+  _selectHudWidget(_activeHudWidgetId, { notifyRail: false });
   _setHudWidgetCollapsed(_getHudWidget(_activeHudWidgetId), true);
 }
 
@@ -175,6 +184,16 @@ function _isHudWidgetOpen(widget) {
   return !!(widget && widget.classList.contains(HUD_WIDGET_ACTIVE_CLASS) && !widget.classList.contains(HUD_WIDGET_COLLAPSED_CLASS));
 }
 
+function _collapseActiveHudWidget() {
+  var activeWidget = _getHudWidget(_activeHudWidgetId);
+  if (!activeWidget) {
+    _syncHudDockControls();
+    return;
+  }
+
+  _setHudWidgetCollapsed(activeWidget, true);
+}
+
 function _toggleHudDock() {
   var activeWidget = _getHudWidget(_activeHudWidgetId);
   if (activeWidget && _isHudWidgetOpen(activeWidget)) {
@@ -185,9 +204,10 @@ function _toggleHudDock() {
   _selectHudWidget(_activeHudWidgetId || DEFAULT_HUD_WIDGET_ID);
 }
 
-function _selectHudWidget(widgetId) {
+function _selectHudWidget(widgetId, options) {
   var widgets = document.querySelectorAll('[data-hud-widget]');
   if (!widgets || typeof widgets.forEach !== 'function' || widgets.length === 0) return;
+  var shouldNotifyRail = !options || options.notifyRail !== false;
 
   var nextActiveId = widgetId;
   if (!_getHudWidget(nextActiveId)) {
@@ -210,6 +230,13 @@ function _selectHudWidget(widgetId) {
   });
 
   _syncHudDockControls();
+
+  if (shouldNotifyRail && _isHudWidgetOpen(_getHudWidget(_activeHudWidgetId))) {
+    EventBus.emit(STARMAP_RAIL_PANEL_OPEN_EVENT, {
+      source: STARMAP_RAIL_SOURCE_HUD,
+      panelId: _activeHudWidgetId,
+    });
+  }
 }
 
 function _syncHudDockControls() {
@@ -450,17 +477,61 @@ function _updateInterstellarHud(state, netWorth, sys, gal, faction, repRank, sta
   const targetTypeEl = document.getElementById('hud-target-type');
   const targetGalaxyEl = document.getElementById('hud-target-galaxy');
   const targetFactionEl = document.getElementById('hud-target-faction');
+  const targetSurveyEl = document.getElementById('hud-target-survey');
+  const targetNextEl = document.getElementById('hud-target-next');
   if (sys) {
     if (targetNameEl) targetNameEl.textContent = sys.name;
     if (targetTypeEl) targetTypeEl.textContent = sys.typeLabel || '星球';
     if (targetGalaxyEl) targetGalaxyEl.textContent = gal ? gal.name : '未知星系';
     if (targetFactionEl) targetFactionEl.textContent = faction ? faction.name : '中立地带';
+    _renderHudTargetSurvey(state, sys, targetSurveyEl, targetNextEl);
   }
 
   _renderHudGalacticMapSummary(state, sys, gal);
   _renderHudMarketOverview(state, sys);
   _renderHudTargetAction();
   _renderHudNetworkStatus(state, statusSnapshot, netWorth);
+}
+
+function _renderHudTargetSurvey(state, sys, targetSurveyEl, targetNextEl) {
+  if (!sys) return;
+
+  var planetData = GalaxyData.getPlanetData(sys.id);
+  var exploration = planetData && planetData.exploration;
+  var summary = Exploration.getSurveySummary(state, sys.id);
+
+  if (!exploration || !summary) {
+    _setTextWithTitle(targetSurveyEl, '勘探档案同步中');
+    _setTextWithTitle(targetNextEl, '等待航图同步');
+    return;
+  }
+
+  var scanText = (exploration.scanLevel || 0) > 1
+    ? '深度扫描'
+    : ((exploration.scanLevel || 0) > 0 ? '已扫描' : '未扫描');
+  var poiText = summary.totalPois > 0
+    ? (summary.resolvedCount + '/' + summary.totalPois + ' POI')
+    : '无 POI';
+
+  _setTextWithTitle(
+    targetSurveyEl,
+    scanText + ' · ' + poiText + ' · 情报 Lv.' + (summary.intelLevel || 0)
+  );
+
+  var nextText = '等待轨道扫描';
+  if ((exploration.scanLevel || 0) <= 0) {
+    nextText = '下一步：轨道扫描';
+  } else if (!exploration.landed) {
+    nextText = '下一步：首次着陆';
+  } else if (summary.pendingCount > 0) {
+    nextText = '下一步：调查 ' + summary.pendingCount + ' 个 POI';
+  } else if (summary.completed) {
+    nextText = '探索完成 · ' + summary.reportCount + ' 份报告';
+  } else {
+    nextText = '暂无待办 · 可继续贸易';
+  }
+
+  _setTextWithTitle(targetNextEl, nextText);
 }
 
 function _renderHudGalacticMapSummary(state, sys, gal) {
@@ -526,16 +597,21 @@ function _renderHudMarketOverview(state, sys) {
     const trendText = entry.drift > 0
       ? '▲ ' + entry.drift + '%'
       : (entry.drift < 0 ? '▼ ' + Math.abs(entry.drift) + '%' : '◆ 0%');
+    const signalText = entry.drift > 0
+      ? '供给偏紧'
+      : (entry.drift < 0 ? '供给宽松' : '价格稳定');
     return '<tr>' +
       '<td><span class="hud-good-icon">' + _escapeHtml(entry.good.emoji || '') + '</span>' + _escapeHtml(entry.good.name) + '</td>' +
-      '<td>' + Math.round(entry.buy).toLocaleString() + '</td>' +
-      '<td>' + Math.round(entry.sell).toLocaleString() + '</td>' +
+      '<td><span class="hud-market-signal">' + signalText + '</span></td>' +
       '<td><span class="hud-trend ' + trendClass + '">' + trendText + '</span></td>' +
     '</tr>';
   }).join('');
 
   const updatedEl = document.getElementById('hud-market-updated');
-  if (updatedEl) updatedEl.textContent = 'DAY ' + (state.day || 1);
+  if (updatedEl) {
+    const cycle = Economy.getEconomyCycle();
+    updatedEl.textContent = 'DAY ' + (state.day || 1) + (cycle && cycle.name ? (' · ' + cycle.name) : '');
+  }
 
   const openBtn = document.getElementById('hud-market-open');
   if (openBtn && openBtn.dataset.bound !== 'true') {
@@ -674,10 +750,6 @@ function _renderQuestTracker(state) {
     html += '<div class="quest-tracker-empty">当前没有任务需要处理。继续贸易、探索或等待章节推进。</div>';
   } else {
     var item = tracker.items[0];
-    var objectiveText = item.primaryObjective ? _objectiveText(item.primaryObjective) : '查看任务详情';
-    var progressBar = tracker.mode === 'active'
-      ? '<div class="quest-tracker-progress"><div class="quest-tracker-progress-fill" style="width:' + item.progressPercent + '%"></div></div>'
-      : '';
     var metaParts = [];
 
     if (item.progressText) {
@@ -696,9 +768,8 @@ function _renderQuestTracker(state) {
           '<span class="quest-tracker-item-name">' + item.name + '</span>' +
           '<span class="quest-tracker-badge">' + item.statusText + '</span>' +
         '</div>' +
-        '<div class="quest-tracker-objective">' + objectiveText + '</div>' +
+        '<div class="quest-tracker-summary-line">完整目标、奖励和路线留在任务页。</div>' +
         '<div class="quest-tracker-meta">' + metaParts.join('') + '</div>' +
-        progressBar +
       '</div>';
   }
 

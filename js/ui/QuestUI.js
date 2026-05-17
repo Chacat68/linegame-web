@@ -6,6 +6,7 @@ import { QUEST_TYPES } from '../data/quests.js';
 import { GOODS } from '../data/goods.js';
 import { findSystem } from '../data/systems.js';
 import { buildMarketFocusAction, MARKET_FOCUS_PRESET_IDS } from './MarketFocus.js?v=20260419-marketcta2';
+import { getCommandActionAttributes, normalizeCommandAction, renderCommandActionContent } from './CommandAction.js?v=20260510-command1';
 import * as AutoTrade  from '../systems/trade/AutoTradeSystem.js?v=20260420-balance5';
 import * as Quest      from '../systems/quest/QuestSystem.js?v=20260412-questroute2';
 
@@ -21,6 +22,21 @@ const QUEST_BLOCKER_MARKET_PRESETS = {
   level: MARKET_FOCUS_PRESET_IDS.SPOT_TRADE,
   general: MARKET_FOCUS_PRESET_IDS.SPOT_INTEL,
 };
+
+function _escapeHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function _escapeHtmlAttr(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;');
+}
 
 // ---------------------------------------------------------------------------
 // 提取任务的目标星球列表（去重）
@@ -289,7 +305,14 @@ function _renderQuestDispatchRecommendation(recommendation, canApplyQuestDispatc
     '<div class="quest-dispatch-note">' + roleLabel + ' · ' + recommendation.strategySummary + (recommendation.tradeThemeSummary ? ' · ' + recommendation.tradeThemeSummary : '') + '</div>' +
     (canApplyQuestDispatch
       ? '<div class="quest-dispatch-actions">' +
-          '<button class="quest-dispatch-apply-btn">带入机库派遣</button>' +
+          '<button class="quest-dispatch-apply-btn command-action-btn" data-command-surface="fleet" data-command-intent="任务派遣" data-command-verb="带入机库派遣">' +
+            renderCommandActionContent({
+              actionId: 'dispatch',
+              label: '带入机库派遣',
+              commandSurface: 'fleet',
+              commandIntent: '任务派遣',
+            }, _escapeHtml) +
+          '</button>' +
           '<span class="quest-dispatch-action-hint">切到机库并预填当前任务路线</span>' +
         '</div>'
       : '') +
@@ -421,6 +444,9 @@ function _buildQuestFallbackAction(fallbackQuest, state, primaryReasonId) {
     reasonId: 'fallback',
     label: copy.label,
     hint: copy.hint,
+    commandSurface: 'quest',
+    commandIntent: '替代任务',
+    commandVerb: copy.label,
     targetQuestId: fallbackQuest.id,
     targetQuestName: fallbackQuest.name,
     variant: 'secondary',
@@ -450,6 +476,9 @@ export function getQuestBlockerActions(blockers, fallbackQuest, state) {
       label: '前往科技页研究',
       hint: '优先补出超空间跃迁引擎，再回来规划这条跨区航线。',
       variant: 'primary',
+      commandSurface: 'research',
+      commandIntent: '跃迁科技',
+      commandVerb: '前往科技页研究',
     });
   }
 
@@ -481,10 +510,12 @@ function _renderQuestBlockerActions(actions, quest) {
   if (!Array.isArray(actions) || actions.length === 0) return '';
 
   return '<div class="quest-dispatch-actions is-blocked">' + actions.map(function (action) {
-    var btnClass = 'quest-dispatch-blocker-btn' + (action.variant === 'secondary' ? ' is-secondary' : '');
+    var commandAction = normalizeCommandAction(action);
+    var btnClass = 'quest-dispatch-blocker-btn command-action-btn' + (commandAction.variant === 'secondary' ? ' is-secondary' : '');
+    var commandAttrs = getCommandActionAttributes(commandAction, _escapeHtmlAttr);
     return '<div class="quest-dispatch-action-item' + (action.variant === 'secondary' ? ' is-secondary' : '') + '">' +
-      '<button class="' + btnClass + '" data-action-id="' + action.actionId + '" data-reason-id="' + action.reasonId + '" data-quest-id="' + quest.id + '" data-quest-name="' + quest.name + '" data-target-quest-id="' + (action.targetQuestId || '') + '" data-target-quest-name="' + (action.targetQuestName || '') + '" data-market-workspace-id="' + (action.marketWorkspaceId || '') + '" data-market-subworkspace-id="' + (action.marketSubworkspaceId || '') + '" data-market-focus-label="' + (action.marketFocusLabel || '') + '">' + action.label + '</button>' +
-      '<span class="quest-dispatch-action-hint">' + action.hint + '</span>' +
+      '<button class="' + btnClass + '" data-action-id="' + _escapeHtmlAttr(action.actionId || '') + '" data-reason-id="' + _escapeHtmlAttr(action.reasonId || '') + '" data-quest-id="' + _escapeHtmlAttr(quest.id || '') + '" data-quest-name="' + _escapeHtmlAttr(quest.name || '') + '" data-target-quest-id="' + _escapeHtmlAttr(action.targetQuestId || '') + '" data-target-quest-name="' + _escapeHtmlAttr(action.targetQuestName || '') + '" data-market-workspace-id="' + _escapeHtmlAttr(action.marketWorkspaceId || '') + '" data-market-subworkspace-id="' + _escapeHtmlAttr(action.marketSubworkspaceId || '') + '" data-market-focus-label="' + _escapeHtmlAttr(action.marketFocusLabel || '') + '"' + commandAttrs + '>' + renderCommandActionContent(commandAction, _escapeHtml) + '</button>' +
+      '<span class="quest-dispatch-action-hint">' + _escapeHtml(action.hint || '') + '</span>' +
     '</div>';
   }).join('') + '</div>';
 }

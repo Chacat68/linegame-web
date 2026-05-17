@@ -1630,6 +1630,9 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
     var strategyHtml = dispatchProfile.strategyLabel
       ? '<div class="dispatch-estimate-note">' + _escapeHtml((dispatchProfile.roleLabel || '标准派遣') + ' · ' + dispatchProfile.strategyLabel + '：' + (recommendation && recommendation.strategySummary ? recommendation.strategySummary.replace(/^.*：/, '') : (dispatchProfile.strategyNote || '按当前利润与风险偏好筛选路线。'))) + '</div>'
       : '';
+    var surveyIntelHtml = recommendation && recommendation.surveyIntelSummary
+      ? '<div class="dispatch-estimate-note">' + _escapeHtml(recommendation.surveyIntelSummary) + '</div>'
+      : '';
     var pressureHtml = dispatchProfile.faultPressure > 0
       ? '<div class="dispatch-estimate-note dispatch-estimate-note--warning">船况压力 ' + _escapeHtml(String(dispatchProfile.faultPressure)) + '，系统会下调高风险与高执法路线优先级。</div>'
       : '';
@@ -1637,6 +1640,7 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
     estimateEl.innerHTML =
       recommendationHtml +
       strategyHtml +
+      surveyIntelHtml +
       '<div class="dispatch-estimate-main">' +
         '<span class="dispatch-estimate-highlight">' + marketLabel + '买' + estimate.maxQty + '单位</span>' +
         '<span>单次利润 ≈ ' + Math.floor(estimate.profit) + ' 积分</span>' +

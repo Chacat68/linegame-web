@@ -132,8 +132,18 @@ describe('QuestUI.getQuestBlockerActions', () => {
       marketWorkspaceId: 'spot',
       marketSubworkspaceId: 'trade',
       marketFocusLabel: '现货交易区',
+      commandSurface: 'market',
+      commandIntent: '现货交易区',
     });
-    expect(actions[1]).toMatchObject({ actionId: 'quest-focus', reasonId: 'fallback', label: '先补等级', targetQuestId: 'starter_first_trade', targetQuestName: '初次交易' });
+    expect(actions[1]).toMatchObject({
+      actionId: 'quest-focus',
+      reasonId: 'fallback',
+      label: '先补等级',
+      targetQuestId: 'starter_first_trade',
+      targetQuestName: '初次交易',
+      commandSurface: 'quest',
+      commandIntent: '替代任务',
+    });
     expect(actions[1].hint).toContain('补等级');
   });
 
@@ -157,6 +167,8 @@ describe('QuestUI.getQuestBlockerActions', () => {
       marketWorkspaceId: 'spot',
       marketSubworkspaceId: 'trade',
       marketFocusLabel: '现货交易区',
+      commandSurface: 'market',
+      commandIntent: '现货交易区',
     });
     expect(actions[1]).toMatchObject({ actionId: 'quest-focus', label: '先跑短线补给', targetQuestId: 'starter_deliver_food' });
     expect(actions[1].hint).toContain('回补燃料');
@@ -175,7 +187,13 @@ describe('QuestUI.getQuestBlockerActions', () => {
       objectives: [{ type: 'visit_system', targetSystem: 'war_front', amount: 1, current: 0 }],
     }, state);
 
-    expect(actions[0]).toMatchObject({ actionId: 'research', reasonId: 'hyperspace', label: '前往科技页研究' });
+    expect(actions[0]).toMatchObject({
+      actionId: 'research',
+      reasonId: 'hyperspace',
+      label: '前往科技页研究',
+      commandSurface: 'research',
+      commandIntent: '跃迁科技',
+    });
     expect(actions[1]).toMatchObject({ actionId: 'quest-focus', label: '先做银河内任务', targetQuestId: 'local_scout' });
     expect(actions[1].hint).toContain('不需要跨星系');
   });
@@ -193,6 +211,8 @@ describe('QuestUI.getQuestBlockerActions', () => {
       marketWorkspaceId: 'spot',
       marketSubworkspaceId: 'trade',
       marketFocusLabel: '现货交易区',
+      commandSurface: 'market',
+      commandIntent: '现货交易区',
     });
   });
 });

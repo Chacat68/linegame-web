@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import * as Faction from '../js/systems/faction/FactionSystem.js';
 import * as GalaxyData from '../js/systems/galaxy/GalaxyDataLayer.js';
+import * as Exploration from '../js/systems/galaxy/ExplorationSystem.js';
 import {
   buildContextualMarketAction,
   getContextualMarketFocus,
@@ -97,9 +98,36 @@ describe('MarketFocus contextual defaults', function () {
       marketSubworkspaceId: 'trade',
       marketFocusLabel: '现货交易区',
       marketMode: '',
+      commandSurface: 'market',
+      commandIntent: '现货交易区',
+      commandVerb: '查看现货交易',
     });
     expect(action.contextHint).toContain('现货交易区');
     expect(action.contextHint).toContain('补给与现货周转');
+  });
+
+  it('有贸易勘探报告时优先把市场 CTA 导向情报区', function () {
+    state.fuel = 100;
+    state.credits = 2000;
+    expect(Exploration.scanSystem(state, 'sol_prime').ok).toBe(true);
+    expect(Exploration.landOnSystem(state, 'sol_prime').ok).toBe(true);
+
+    const resourcePoi = GalaxyData.getPlanetData('sol_prime').exploration.pois.find(function (poi) {
+      return poi.kind === 'resource_cache';
+    });
+    expect(Exploration.explorePoi(state, 'sol_prime', resourcePoi.id).ok).toBe(true);
+
+    const action = buildContextualMarketAction(state, 'sol_prime', {
+      context: 'survey',
+    });
+
+    expect(action).toMatchObject({
+      label: '查看市场情报',
+      marketWorkspaceId: 'spot',
+      marketSubworkspaceId: 'intel',
+      marketFocusLabel: '市场情报区',
+    });
+    expect(action.contextHint).toContain('勘探报告');
   });
 
   it('黑市节点的 CTA payload 会保留 black mode', function () {
@@ -116,6 +144,9 @@ describe('MarketFocus contextual defaults', function () {
       marketSubworkspaceId: 'black',
       marketFocusLabel: '黑市分区',
       marketMode: 'black',
+      commandSurface: 'market',
+      commandIntent: '黑市分区',
+      commandVerb: '查看黑市通路',
     });
     expect(action.contextHint).toContain('黑市通路');
     expect(action.contextHint).toContain('黑市分区');
@@ -136,6 +167,9 @@ describe('MarketFocus contextual defaults', function () {
       marketSubworkspaceId: 'intel',
       marketFocusLabel: '市场情报区',
       marketMode: '',
+      commandSurface: 'market',
+      commandIntent: '市场情报区',
+      commandVerb: '查看市场情报',
     });
     expect(action.contextHint).toContain('科研线索');
     expect(action.contextHint).toContain('市场情报区');

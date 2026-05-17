@@ -282,6 +282,12 @@
   line-height: 1.4;
   color: var(--text-main);
 }
+.quest-tracker-summary-line {
+  margin-top: 6px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--text-dim);
+}
 .quest-tracker-meta {
   margin-top: 6px;
   display: flex;
@@ -486,4 +492,3 @@
 .upg-name { font-weight: 700; font-size: 12px; }
 .upg-desc { font-size: 11px; color: var(--text-dim); }
 .upg-cost { font-size: 11px; color: var(--accent-gold); margin-top: 1px; }
-

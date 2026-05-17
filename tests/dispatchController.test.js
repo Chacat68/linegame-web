@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as Dispatch from '../js/core/DispatchController.js';
 import * as Economy from '../js/systems/economy/Economy.js';
 import * as Fleet from '../js/systems/fleet/FleetSystem.js';
@@ -7,6 +7,11 @@ import { createTestState } from './helpers.js';
 describe('DispatchController.runActiveDispatchTick', function () {
   beforeEach(function () {
     Economy.init();
+  });
+
+  afterEach(function () {
+    Dispatch.stopActiveDispatch();
+    vi.useRealTimers();
   });
 
   it('买入前会先检查卖出航段燃料预算', function () {
@@ -41,5 +46,30 @@ describe('DispatchController.runActiveDispatchTick', function () {
     expect(result.action).toBe('buy_need_refuel');
     expect(result.payload.fuelCost).toBe(requiredFuel);
     expect(result.payload.goodId).toBe('food');
+  });
+
+  it('启动自动派遣后会立即执行首个 tick', function () {
+    vi.useFakeTimers();
+    var tickFn = vi.fn();
+
+    Dispatch.startActiveDispatch(tickFn);
+
+    expect(tickFn).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(0);
+
+    expect(tickFn).toHaveBeenCalledTimes(1);
+    expect(Dispatch.isRunning()).toBe(true);
+  });
+
+  it('停止自动派遣会取消尚未执行的启动 tick', function () {
+    vi.useFakeTimers();
+    var tickFn = vi.fn();
+
+    Dispatch.startActiveDispatch(tickFn);
+    Dispatch.stopActiveDispatch();
+    vi.advanceTimersByTime(0);
+
+    expect(tickFn).not.toHaveBeenCalled();
+    expect(Dispatch.isRunning()).toBe(false);
   });
 });
