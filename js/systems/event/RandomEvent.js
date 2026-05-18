@@ -15,7 +15,7 @@ const COOLDOWN_DAYS = EVENT_CONFIG.cooldownDays;
 
 // 事件历史：[{ eventId, day, choiceIndex }]（最近 30 条）
 const _eventHistory = [];
-const MAX_HISTORY = 30;
+const MAX_HISTORY = EVENT_CONFIG.history.maxEntries;
 
 /**
  * 航行到达时掷骰判定是否触发事件
@@ -44,7 +44,7 @@ export function rollEvent(state, chance) {
 
   // 科技 deep_scanner 提升概率（适度加成）
   if (state.researchedTechs && state.researchedTechs.includes('deep_scanner')) {
-    chance *= 1.25;
+    chance *= EVENT_CONFIG.modifiers.deepScannerChanceMultiplier;
   }
 
   if (Math.random() > chance) {
@@ -114,8 +114,8 @@ export function resolveChoice(state, choiceIndex) {
       if (!state._pendingChainEvents) state._pendingChainEvents = [];
       state._pendingChainEvents.push({
         eventId: followUp,
-        triggerAfterDays: _activeEvent.chainDelay || 3,
-        scheduledDay: (state.day || 1) + (_activeEvent.chainDelay || 3),
+        triggerAfterDays: _activeEvent.chainDelay || EVENT_CONFIG.chain.defaultDelay,
+        scheduledDay: (state.day || 1) + (_activeEvent.chainDelay || EVENT_CONFIG.chain.defaultDelay),
       });
     }
   }

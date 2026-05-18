@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as Economy from '../js/systems/economy/Economy.js';
 import * as TradeStation from '../js/systems/trade/TradeStationSystem.js';
 import { GOODS } from '../js/data/goods.js';
+import { SYSTEMS } from '../js/data/systems.js';
 import { createTestState } from './helpers.js';
 
 const DEFAULT_BASE_PRICE = 10;
@@ -86,5 +87,95 @@ describe('TradeStationSystem', () => {
     expect(result.totalIncome).toBe(richMarketIncome);
     expect(state.credits).toBe(creditsBefore + richMarketIncome);
     expect(TradeStation.getStation(state, 'sol_prime').lastIncome).toBe(richMarketIncome);
+  });
+
+  it('支持按收益优先批量升级贸易站', () => {
+    const visitedSystems = SYSTEMS.map(function (system) { return system.id; });
+    const state = createTestState({
+      credits: 560000,
+      currentSystem: 'sol_prime',
+      visitedSystems: visitedSystems,
+    });
+
+    const stationIds = TradeStation.getBuildCandidates(state).slice(0, 2).map(function (entry) {
+      return entry.system.id;
+    });
+
+    stationIds.forEach(function (systemId) {
+      expect(TradeStation.buildStation(state, systemId).ok).toBe(true);
+    });
+
+    vi.spyOn(Economy, 'getBuyPrice').mockImplementation(function (systemId) {
+      return systemId === stationIds[0] ? 220 : 80;
+    });
+    vi.spyOn(Economy, 'getMarketDepth').mockReturnValue(260);
+    vi.spyOn(Economy, 'getEconomyCycle').mockReturnValue({ priceMod: 1.0 });
+
+    const priorityOrder = TradeStation.getOwnedStations(state).map(function (entry) {
+      return entry.station.systemId;
+    });
+    const result = TradeStation.batchUpgradeStations(state);
+
+    expect(result.ok).toBe(true);
+    expect(result.meta.executedCount).toBe(1);
+    expect(TradeStation.getStation(state, priorityOrder[0]).level).toBe(2);
+    expect(TradeStation.getStation(state, priorityOrder[1]).level).toBe(1);
+  });
+
+  it('支持批量派驻经理，并在预算不足时部分执行', () => {
+    const visitedSystems = SYSTEMS.map(function (system) { return system.id; });
+    const state = createTestState({
+      credits: 350000,
+      currentSystem: 'sol_prime',
+      visitedSystems: visitedSystems,
+    });
+
+    const stationIds = TradeStation.getBuildCandidates(state).slice(0, 3).map(function (entry) {
+      return entry.system.id;
+    });
+
+    stationIds.forEach(function (systemId) {
+      expect(TradeStation.buildStation(state, systemId).ok).toBe(true);
+    });
+
+    vi.spyOn(Economy, 'getBuyPrice').mockImplementation(function (systemId) {
+      return systemId === stationIds[0] ? 240 : 90;
+    });
+    vi.spyOn(Economy, 'getMarketDepth').mockReturnValue(260);
+    vi.spyOn(Economy, 'getEconomyCycle').mockReturnValue({ priceMod: 1.0 });
+
+    const priorityOrder = TradeStation.getOwnedStations(state).map(function (entry) {
+      return entry.station.systemId;
+    });
+    const result = TradeStation.batchHireManagers(state, 'logistics_director');
+
+    expect(result.ok).toBe(true);
+    expect(result.meta.executedCount).toBe(1);
+    expect(TradeStation.getStation(state, priorityOrder[0]).managerId).toBe('logistics_director');
+    expect(TradeStation.getStation(state, priorityOrder[1]).managerId).toBe(null);
+  });
+
+  it('支持全网批量切换经营策略', () => {
+    const visitedSystems = SYSTEMS.map(function (system) { return system.id; });
+    const state = createTestState({
+      credits: 300000,
+      currentSystem: 'sol_prime',
+      visitedSystems: visitedSystems,
+    });
+
+    const stationIds = TradeStation.getBuildCandidates(state).slice(0, 2).map(function (entry) {
+      return entry.system.id;
+    });
+
+    stationIds.forEach(function (systemId) {
+      expect(TradeStation.buildStation(state, systemId).ok).toBe(true);
+    });
+
+    const result = TradeStation.batchSetStrategies(state, 'premium');
+
+    expect(result.ok).toBe(true);
+    stationIds.forEach(function (systemId) {
+      expect(TradeStation.getStation(state, systemId).strategyId).toBe('premium');
+    });
   });
 });

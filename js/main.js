@@ -2,7 +2,8 @@
 // 依赖：core/GameManager.js
 // 说明：浏览器加载完毕后初始化游戏
 
-import { init } from './core/GameManager.js?v=20260407-landpoi1';
+import { init } from './core/GameManager.js?v=20260517-marketflow1';
+import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from './ui/SurfaceManager.js?v=20260505-surface4';
 
 window.addEventListener('load', function () {
 	init();
@@ -12,6 +13,7 @@ window.addEventListener('load', function () {
 function bindSettingsModalFallback() {
 	if (document.body.dataset.settingsFallbackBound === 'true') return;
 	document.body.dataset.settingsFallbackBound = 'true';
+	bindBlockingSurfaceDismiss('settings-modal');
 
 	document.addEventListener('click', function (event) {
 		var modal = document.getElementById('settings-modal');
@@ -21,14 +23,15 @@ function bindSettingsModalFallback() {
 		if (openBtn) {
 			var motionSelect = document.getElementById('settings-motion-level');
 			var secretRoutesToggle = document.getElementById('settings-secret-routes-visible');
-				var difficultySelect = document.getElementById('settings-difficulty-level');
+			var difficultySelect = document.getElementById('settings-difficulty-level');
+			var timeScaleSelect = document.getElementById('settings-time-scale');
 			var savedSettings = _readSavedSettings();
 			if (motionSelect) motionSelect.value = savedSettings.motionLevel;
 			if (secretRoutesToggle) secretRoutesToggle.checked = savedSettings.secretRoutesVisible !== false;
-				if (difficultySelect) difficultySelect.value = savedSettings.difficulty;
+			if (difficultySelect) difficultySelect.value = savedSettings.difficulty;
+			if (timeScaleSelect) timeScaleSelect.value = String(savedSettings.realtimeDayDurationMs);
 			_activateSettingsPanelFallback(modal, modal.dataset.activePanel || 'display');
-			modal.classList.remove('hidden');
-			modal.setAttribute('aria-hidden', 'false');
+			showBlockingSurface('settings-modal');
 			return;
 		}
 
@@ -39,18 +42,8 @@ function bindSettingsModalFallback() {
 		}
 
 		var closeBtn = event.target.closest('#settings-close-btn');
-		if (closeBtn || event.target === modal) {
-			modal.classList.add('hidden');
-			modal.setAttribute('aria-hidden', 'true');
-		}
-	});
-
-	document.addEventListener('keydown', function (event) {
-		var modal = document.getElementById('settings-modal');
-		if (!modal || modal.classList.contains('hidden')) return;
-		if (event.key === 'Escape') {
-			modal.classList.add('hidden');
-			modal.setAttribute('aria-hidden', 'true');
+		if (closeBtn) {
+			hideBlockingSurface('settings-modal');
 		}
 	});
 }
@@ -58,15 +51,28 @@ function bindSettingsModalFallback() {
 function _readSavedSettings() {
 	try {
 		var raw = localStorage.getItem('linegame_settings');
-		if (!raw) return { motionLevel: 'full', difficulty: 'normal', secretRoutesVisible: true };
+		if (!raw) {
+			return {
+				motionLevel: 'full',
+				difficulty: 'normal',
+				secretRoutesVisible: true,
+				realtimeDayDurationMs: 60000,
+			};
+		}
 		var parsed = JSON.parse(raw);
 		return {
 			motionLevel: ['full', 'reduced', 'off'].indexOf(parsed.motionLevel) === -1 ? 'full' : parsed.motionLevel,
 			difficulty: ['easy', 'normal', 'hard'].indexOf(parsed.difficulty) === -1 ? 'normal' : parsed.difficulty,
 			secretRoutesVisible: parsed.secretRoutesVisible !== false,
+			realtimeDayDurationMs: [30000, 60000, 180000].indexOf(parsed.realtimeDayDurationMs) === -1 ? 60000 : parsed.realtimeDayDurationMs,
 		};
 	} catch (_) {
-		return { motionLevel: 'full', difficulty: 'normal', secretRoutesVisible: true };
+		return {
+			motionLevel: 'full',
+			difficulty: 'normal',
+			secretRoutesVisible: true,
+			realtimeDayDurationMs: 60000,
+		};
 	}
 }
 

@@ -12,47 +12,62 @@ import * as Commerce   from '../systems/commerce/CommerceFacade.js';
 import * as RandomEvent from '../systems/event/RandomEvent.js';
 import * as Faction    from '../systems/faction/FactionSystem.js';
 import * as Research   from '../systems/research/ResearchSystem.js';
-import * as Renderer3D from '../ui/Renderer3DAdvanced.js?v=20260406-routefix3';
+import * as Renderer3D from '../ui/Renderer3DAdvanced.js?v=20260513-navguide1';
 import * as GalaxyData from '../systems/galaxy/GalaxyDataLayer.js';
-import * as Exploration from '../systems/galaxy/ExplorationSystem.js?v=20260407-landpoi1';
-import * as HUD        from '../ui/HUD.js';
-import * as MarketUI   from '../ui/MarketUI.js';
+import * as Exploration from '../systems/galaxy/ExplorationSystem.js?v=20260507-scanplay1';
+import * as HUD        from '../ui/HUD.js?v=20260517-railmutex1';
+import * as MarketUI   from '../ui/MarketUI.js?v=20260517-marketflow1';
 import * as ShipUI     from '../ui/ShipUI.js';
-import * as MapUI      from '../ui/MapUI.js?v=20260407-landpoi1';
-import * as Modal      from '../ui/Modal.js';
-import * as EventUI    from '../ui/EventUI.js';
-import * as ResearchUI from '../ui/ResearchUI.js';
-import * as FactionUI  from '../ui/FactionUI.js';
+import * as MapUI      from '../ui/MapUI.js?v=20260517-scanui1';
+import * as Modal      from '../ui/Modal.js?v=20260505-surface4';
+import * as EventUI    from '../ui/EventUI.js?v=20260505-surface4';
+import * as DialogueUI from '../ui/DialogueUI.js?v=20260505-surface4';
+import * as ActionGuideUI from '../ui/ActionGuideUI.js?v=20260517-direct1';
+import * as ResearchUI from '../ui/ResearchUI.js?v=20260420-balance5';
+import * as FactionUI  from '../ui/FactionUI.js?v=20260419-marketcta2';
 import * as SaveUI     from '../ui/SaveUI.js';
-import * as QuestUI    from '../ui/QuestUI.js';
+import * as QuestUI    from '../ui/QuestUI.js?v=20260428-questdeck1';
+import { buildCommandFeedback } from '../ui/CommandAction.js?v=20260510-command1';
 import * as AchievementUI from '../ui/AchievementUI.js';
-import * as TradeStationUI from '../ui/TradeStationUI.js';
-import * as Fleet      from '../systems/fleet/FleetSystem.js?v=20260406-routefix2';
+import * as Fleet      from '../systems/fleet/FleetSystem.js?v=20260421-modrepair1';
 import * as Crew       from '../systems/fleet/CrewSystem.js';
-import * as AutoTrade  from '../systems/trade/AutoTradeSystem.js';
+import * as AutoTrade  from '../systems/trade/AutoTradeSystem.js?v=20260420-balance5';
 import * as TradeStation from '../systems/trade/TradeStationSystem.js';
 import * as Finance from '../systems/finance/FinanceSystem.js';
 import * as Futures from '../systems/finance/FuturesSystem.js';
-import * as FleetUI    from '../ui/FleetUI.js';
+import * as FleetUI    from '../ui/FleetUI.js?v=20260505-surface4';
 import * as Save       from '../systems/save/SaveSystem.js';
-import * as Quest      from '../systems/quest/QuestSystem.js';
+import * as Quest      from '../systems/quest/QuestSystem.js?v=20260412-questroute2';
 import * as Achievement from '../systems/achievement/AchievementSystem.js';
-import * as Tutorial   from '../systems/tutorial/TutorialSystem.js';
-import * as TutorialUI from '../ui/TutorialUI.js';
-import { INITIAL_STATE, DIFFICULTY_LEVELS, EVENT_CONFIG } from '../data/constants.js';
+import * as Tutorial   from '../systems/tutorial/TutorialSystem.js?v=20260412-tutquest2';
+import * as TutorialUI from '../ui/TutorialUI.js?v=20260412-tutquest1';
+import * as Dialogue   from '../systems/story/DialogueSystem.js';
+import * as GameTime from '../systems/time/GameTimeSystem.js';
+import { INITIAL_STATE, DIFFICULTY_LEVELS, EVENT_CONFIG, TIME_CONFIG } from '../data/constants.js';
 import * as Victory from '../systems/victory/VictorySystem.js';
 import { VICTORY_PATHS } from '../data/victoryConditions.js';
 import { getLevel } from '../data/playerLevels.js';
 import { SYSTEMS } from '../data/systems.js';
 import { GOODS } from '../data/goods.js';
-import * as Settings from './SettingsManager.js?v=20260406-exploreflow3';
-import * as Progression from '../systems/progression/ProgressionSystem.js';
-import * as Dispatch from './DispatchController.js?v=20260406-routefix2';
+import * as Settings from './SettingsManager.js?v=20260505-surface5';
+import * as Progression from '../systems/progression/ProgressionSystem.js?v=20260421-balance6';
+import * as Guidance from '../systems/guidance/GuidanceSystem.js?v=20260517-direct1';
+import * as Dispatch from './DispatchController.js?v=20260505-surface1';
+import { hasBlockingSurfaceOpen, hideBlockingSurface, showBlockingSurface } from '../ui/SurfaceManager.js?v=20260505-surface4';
 
 let _state     = null;
 let _startTime = null;
-let _settings  = { motionLevel: 'full', difficulty: 'normal', secretRoutesVisible: true };
+let _settings  = {
+  motionLevel: 'full',
+  difficulty: 'normal',
+  secretRoutesVisible: true,
+  realtimeDayDurationMs: TIME_CONFIG.realtimeDayDurationMs,
+};
 let _blackMarketMode = false; // 当前是否处于黑市交易模式
+let _dialogueQueue = [];
+let _dialoguePlaying = false;
+let _realtimeClock = null;
+let _gameLoopFrameId = null;
 
 function _getMarketFinanceActions() {
   return {
@@ -61,12 +76,16 @@ function _getMarketFinanceActions() {
     onBuyStock: _handleBuyStock,
     onSellStock: _handleSellStock,
     onInvestTradeStation: _handleInvestTradeStation,
+    onBatchInvestTradeStations: _handleBatchInvestTradeStations,
     onPurchaseInsurance: _handlePurchaseInsurance,
     onSubmitInsuranceClaim: _handleSubmitInsuranceClaim,
     onBuildTradeStation: _handleBuildTradeStation,
     onUpgradeTradeStation: _handleUpgradeTradeStation,
     onHireTradeStationManager: _handleHireTradeStationManager,
     onSetTradeStationStrategy: _handleSetTradeStationStrategy,
+    onBatchUpgradeTradeStations: _handleBatchUpgradeTradeStations,
+    onBatchHireTradeStationManager: _handleBatchHireTradeStationManager,
+    onBatchSetTradeStationStrategy: _handleBatchSetTradeStationStrategy,
     onFuturesLong: _handleFuturesLong,
     onFuturesShort: _handleFuturesShort,
     onFuturesClose: _handleFuturesClose,
@@ -81,9 +100,13 @@ let _onTutorialComplete = null;
 // ---------------------------------------------------------------------------
 
 export function init(difficulty) {
+  _stopGameLoop();
   Dispatch.stopActiveDispatch();   // 重启时停止派遣
   _state = _deepClone(INITIAL_STATE);
   _settings = Settings.loadSettings();
+  _dialogueQueue = [];
+  _dialoguePlaying = false;
+  _realtimeClock = null;
 
   // 应用难度设定
   var effectiveDifficulty = difficulty || _settings.difficulty || 'normal';
@@ -105,6 +128,12 @@ export function init(difficulty) {
   Renderer3D.resetRuntimeState(_state.currentSystem);
   Settings.applySettings(_settings, Renderer3D);
   HUD.init();
+  HUD.setQuestActions({
+    onAcceptQuest: _handleAcceptQuest,
+  });
+  Dialogue.init(_state);
+  DialogueUI.init();
+  DialogueUI.hideScene();
 
   // 注入回调给各 UI 模块
   MapUI.init(_state, _handleTravel, _handleGalaxyJump);
@@ -119,6 +148,10 @@ export function init(difficulty) {
   MapUI.initTabs(function (tabId) {
     Tutorial.checkTabClick(tabId);
   });
+  MapUI.setNavigationChangeCallback(function () {
+    _refreshActionGuide();
+  });
+  ActionGuideUI.init(_handleActionGuideAction);
 
   // 3D视角默认启用，确保回调已绑定
   MapUI.init3DCallbacks(_state, _handleTravel, _handleGalaxyJump);
@@ -127,9 +160,19 @@ export function init(difficulty) {
   // 注入市场刷新回调（让 MapUI 可以触发市场表格重绘）
   MapUI.setRefreshMarket(function (mode) {
     const sysId = MapUI.getMarketViewSystem(_state);
-    var bmMode = _blackMarketMode ? 'black' : 'open';
+    var pendingMarketFocus = MapUI.consumePendingMarketPanelFocus();
+    var bmMode = pendingMarketFocus
+      ? ((pendingMarketFocus.marketMode || 'open') === 'black' ? 'black' : 'open')
+      : (_blackMarketMode ? 'black' : 'open');
+    _blackMarketMode = bmMode === 'black';
+    if (pendingMarketFocus && pendingMarketFocus.goodId) {
+      MarketUI.setFocusedMarketGood(sysId, bmMode, pendingMarketFocus.goodId);
+    }
     MarketUI.showDetail(sysId, bmMode);
     MarketUI.render(_state, _handleOpenBuy, _handleOpenSell, _handleRefuel, sysId, bmMode, MapUI.getMarketViewGalaxy(_state), _handleBlackMarketBuy, _handleBlackMarketSell, _getMarketFinanceActions());
+    if (pendingMarketFocus) {
+      MarketUI.setMarketWorkspaceFocus(pendingMarketFocus);
+    }
     _bindMarketModeButtons();
   });
   Modal.init(_handleTradeConfirm);
@@ -140,7 +183,7 @@ export function init(difficulty) {
     var newRestartBtn = oldRestartBtn.cloneNode(true);
     oldRestartBtn.parentNode.replaceChild(newRestartBtn, oldRestartBtn);
     newRestartBtn.addEventListener('click', function () {
-      document.getElementById('gameover-modal').classList.add('hidden');
+      hideBlockingSurface('gameover-modal');
       Tutorial.reset();
       init();
     });
@@ -156,8 +199,15 @@ export function init(difficulty) {
   // 教程完成后推荐首批任务并弹出公司重命名弹窗
   if (_onTutorialComplete) EventBus.off('tutorial:complete', _onTutorialComplete);
   _onTutorialComplete = function () {
-    _recommendStarterQuests();
-    setTimeout(_showCompanyRenameModal, 400);
+    var recommendations = Quest.getStarterRecommendations(_state, 3);
+    var activeQuest = Quest.getActiveQuests(_state)[0] || null;
+    _playTriggerDialogue('tutorial_complete', {
+      recommendations: recommendations,
+      activeQuest: activeQuest,
+    }, function () {
+      _recommendStarterQuests();
+      _refreshActionGuide();
+    });
   };
   EventBus.on('tutorial:complete', _onTutorialComplete);
 
@@ -176,6 +226,10 @@ export function init(difficulty) {
       _settings.difficulty = nextDifficulty;
       _updateUI();
     },
+    onRealtimeDayDurationChanged: function (nextDurationMs) {
+      _settings.realtimeDayDurationMs = nextDurationMs;
+      _resetRealtimeClock(performance.now());
+    },
     onResetTutorial: function () {
       Tutorial.reset();
       Settings.hideSettingsModal();
@@ -189,6 +243,7 @@ export function init(difficulty) {
   });
 
   _updateUI();
+  _resetRealtimeClock(performance.now());
   _startGameLoop();
 
   if (!Tutorial.isCompleted()) {
@@ -216,9 +271,25 @@ function _showWelcomeMessages() {
 
 function _recommendStarterQuests() {
   var recommendations = Quest.getStarterRecommendations(_state, 3);
+  var activeQuests = Quest.getActiveQuests(_state);
+  var activeQuest = activeQuests.length > 0 ? activeQuests[0] : null;
 
   _updateUI();
-  MapUI.activateTab('tab-quest');
+
+  if (activeQuest) {
+    EventBus.emit('log:message', {
+      text: '📋 当前正在推进「' + activeQuest.name + '」，底部当前行动会继续给出可直接执行的下一步。',
+      type: 'info',
+    });
+
+    if (recommendations.length > 0) {
+      EventBus.emit('log:message', {
+        text: '🧭 跑完手头这单后，还可以继续接 ' + recommendations.map(function (quest) { return '「' + quest.name + '」'; }).join('、') + '。',
+        type: 'tip',
+      });
+    }
+    return;
+  }
 
   if (recommendations.length === 0) {
     EventBus.emit('log:message', {
@@ -229,12 +300,79 @@ function _recommendStarterQuests() {
   }
 
   EventBus.emit('log:message', {
-    text: '📋 下一步建议：先去【任务】页接取 ' + recommendations.map(function (quest) { return '「' + quest.name + '」'; }).join('、') + '。',
+    text: '📋 下一步建议：接取 ' + recommendations.map(function (quest) { return '「' + quest.name + '」'; }).join('、') + '。',
     type: 'tip',
   });
   EventBus.emit('log:message', {
-    text: '🧭 我已替你切到任务页，这几项任务都可以立刻开始，适合作为教程后的第一阶段目标。',
+    text: '🧭 底部当前行动会直接接取并推进适合作为教程后第一阶段目标的任务。',
     type: 'info',
+  });
+}
+
+function _playTriggerDialogue(triggerType, context, onFinished) {
+  var scenes = Dialogue.getScenesForTrigger(_state, triggerType, context || {});
+  _queueDialogueScenes(scenes, onFinished);
+}
+
+function _queueDialogueScenes(scenes, onFinished) {
+  if (!Array.isArray(scenes) || scenes.length === 0) {
+    if (typeof onFinished === 'function') onFinished();
+    return;
+  }
+
+  scenes.forEach(function (scene, index) {
+    _dialogueQueue.push({
+      scene: scene,
+      onAfter: index === scenes.length - 1 ? onFinished : null,
+    });
+  });
+
+  _drainDialogueQueue();
+}
+
+function _drainDialogueQueue() {
+  if (_dialoguePlaying || _dialogueQueue.length === 0) return;
+
+  var next = _dialogueQueue.shift();
+  _dialoguePlaying = true;
+  DialogueUI.showScene(next.scene, function (result) {
+    Dialogue.finalizeScene(_state, next.scene && next.scene.id, result || {});
+    _dialoguePlaying = false;
+    if (typeof next.onAfter === 'function') next.onAfter();
+    _drainDialogueQueue();
+  });
+}
+
+function _queueQuestDialogueResult(result, onFinished) {
+  if (!result) return;
+
+  var scenes = [];
+  var hasCompletedQuest = false;
+
+  if (Array.isArray(result.completedQuests)) {
+    result.completedQuests.forEach(function (entry) {
+      if (!entry || entry.failed) return;
+      hasCompletedQuest = true;
+      scenes = scenes.concat(Dialogue.getScenesForTrigger(_state, 'quest_complete', {
+        questId: entry.id,
+        quest: entry.quest || null,
+      }));
+    });
+  }
+
+  if (result.phaseAdvanced && result.newPhase) {
+    scenes = scenes.concat(Dialogue.getScenesForTrigger(_state, 'phase_unlock', {
+      phaseId: result.newPhase.id,
+      phase: result.newPhase,
+    }));
+  }
+
+  _queueDialogueScenes(scenes, function () {
+    if (hasCompletedQuest) {
+      Tutorial.checkTrigger('complete_quest');
+      _updateUI();
+    }
+    if (typeof onFinished === 'function') onFinished();
   });
 }
 
@@ -242,17 +380,20 @@ function _recommendStarterQuests() {
 
 function _showTutorialStartModal() {
   const modal = document.getElementById('tutorial-start-modal');
-  modal.classList.remove('hidden');
+  showBlockingSurface('tutorial-start-modal');
+  _refreshActionGuide();
 
   document.getElementById('tut-start-yes').onclick = function () {
-    modal.classList.add('hidden');
+    hideBlockingSurface('tutorial-start-modal');
     Tutorial.start();
+    _refreshActionGuide();
   };
 
   document.getElementById('tut-start-no').onclick = function () {
-    modal.classList.add('hidden');
+    hideBlockingSurface('tutorial-start-modal');
     Tutorial.skip();
     _showWelcomeMessages();
+    _updateUI();
   };
 }
 
@@ -264,7 +405,8 @@ function _showCompanyRenameModal() {
   // 预填当前公司名
   input.value = _state.companyName || '';
   errorEl.classList.add('hidden');
-  modal.classList.remove('hidden');
+  showBlockingSurface('company-rename-modal');
+  _refreshActionGuide();
 
   // 聚焦并全选
   setTimeout(function () { input.focus(); input.select(); }, 50);
@@ -276,7 +418,7 @@ function _showCompanyRenameModal() {
       return;
     }
     _state.companyName = name;
-    modal.classList.add('hidden');
+    hideBlockingSurface('company-rename-modal');
     _updateUI();
     EventBus.emit('log:message', {
       text: '🏢 公司已正式更名为「' + name + '」！愿财富与你同行！',
@@ -285,7 +427,8 @@ function _showCompanyRenameModal() {
   };
 
   document.getElementById('company-rename-skip').onclick = function () {
-    modal.classList.add('hidden');
+    hideBlockingSurface('company-rename-modal');
+    _refreshActionGuide();
   };
 }
 
@@ -311,6 +454,241 @@ function _dispatch(result) {
   if (result && result.ok) _checkVictory();
 }
 
+function _getNextGuidancePoi(systemId) {
+  var planetData = systemId ? GalaxyData.getPlanetData(systemId) : null;
+  var exploration = planetData && planetData.exploration;
+  if (!exploration || !exploration.landed || !Array.isArray(exploration.pois)) return null;
+
+  var priorityPoiId = exploration.scanPriorityPoiId || '';
+  return exploration.pois.filter(function (poi) {
+    return poi && poi.discovered && !poi.resolved;
+  }).sort(function (left, right) {
+    if (priorityPoiId) {
+      if (left.id === priorityPoiId && right.id !== priorityPoiId) return -1;
+      if (right.id === priorityPoiId && left.id !== priorityPoiId) return 1;
+    }
+    return 0;
+  }).map(function (poi) {
+    return {
+      id: poi.id,
+      poiId: poi.id,
+      icon: poi.icon || '',
+      name: poi.name || '探索点',
+    };
+  })[0] || null;
+}
+
+function _refreshActionGuide() {
+  if (!_state) return;
+  var scanStatus = null;
+  var landingStatus = null;
+  var nextPoi = null;
+  var nextPoiStatus = null;
+  if (_state.currentSystem) {
+    scanStatus = _getScanStatus(_state.currentSystem);
+    landingStatus = _getLandingStatus(_state.currentSystem);
+    nextPoi = _getNextGuidancePoi(_state.currentSystem);
+    if (nextPoi) {
+      nextPoiStatus = _getPoiStatus(_state.currentSystem, nextPoi.poiId);
+    }
+  }
+  ActionGuideUI.render(Guidance.getCurrentSuggestion(_state, {
+    marketOpen: MapUI.isMarketOpen(),
+    scanStatus: scanStatus,
+    landingStatus: landingStatus,
+    nextPoi: nextPoi,
+    nextPoiStatus: nextPoiStatus,
+    tutorialActive: Tutorial.isActive(),
+    blockingModalOpen: hasBlockingSurfaceOpen(),
+    eventPending: EventUI.hasPendingEvent(),
+  }));
+}
+
+function _getGoodDisplayName(goodId) {
+  var good = GOODS.find(function (item) { return item.id === goodId; });
+  return good ? good.name : (goodId || '商品');
+}
+
+function _getGuidanceTradeQuantity(action, goodId, marketType) {
+  Fleet.syncStateFromShip(_state);
+  if (action === 'sell') {
+    return Math.max(0, Number((_state.cargo || {})[goodId] || 0));
+  }
+
+  var price = marketType === 'black'
+    ? Economy.getBlackMarketBuyPrice(_state.currentSystem, goodId, _state)
+    : Economy.getBuyPrice(_state.currentSystem, goodId, _state);
+  if (!Number.isFinite(price) || price <= 0) return 0;
+
+  var cargoUsed = Object.values(_state.cargo || {}).reduce(function (sum, qty) {
+    return sum + Number(qty || 0);
+  }, 0);
+  var cargoSpace = Math.max(0, (_state.maxCargo || 0) - cargoUsed);
+  var canAfford = Math.floor((_state.credits || 0) / price);
+  return Math.max(0, Math.min(cargoSpace, canAfford));
+}
+
+function _executeGuidanceTrade(action, payload) {
+  var goodId = payload && payload.goodId ? payload.goodId : '';
+  var marketType = payload && payload.marketType === 'black' ? 'black' : 'open';
+  if (!goodId) {
+    EventBus.emit('log:message', { text: '⚠️ 当前行动缺少商品目标，无法自动交易。', type: 'error' });
+    _refreshActionGuide();
+    return;
+  }
+
+  var quantity = _getGuidanceTradeQuantity(action, goodId, marketType);
+  if (quantity <= 0) {
+    EventBus.emit('log:message', {
+      text: action === 'sell'
+        ? '⚠️ 货舱中没有可卖出的「' + _getGoodDisplayName(goodId) + '」。'
+        : '⚠️ 当前积分或货舱空间不足，无法自动买入「' + _getGoodDisplayName(goodId) + '」。',
+      type: 'error',
+    });
+    _refreshActionGuide();
+    return;
+  }
+
+  _handleTradeConfirm(action, goodId, quantity, marketType);
+}
+
+function _prepareDirectGuidanceExecution() {
+  if (MapUI.focusStarmap) {
+    MapUI.focusStarmap();
+  }
+}
+
+function _handleActionGuideAction(suggestion) {
+  if (!suggestion || !suggestion.actionType) return;
+
+  ActionGuideUI.showProcessing(suggestion, '已执行，正在生成下一条建议');
+
+  switch (suggestion.actionType) {
+    case 'quest.accept':
+      if (suggestion.payload && suggestion.payload.questId) {
+        _prepareDirectGuidanceExecution();
+        _handleAcceptQuest(suggestion.payload.questId);
+      }
+      return;
+
+    case 'quest.open':
+      if (suggestion.payload && suggestion.payload.questId) {
+        QuestUI.setSelectedAvailableQuest(suggestion.payload.questId);
+      }
+      MapUI.activateTab('tab-quest');
+      _updateUI();
+      return;
+
+    case 'trade.buy':
+      _prepareDirectGuidanceExecution();
+      _executeGuidanceTrade('buy', suggestion.payload || {});
+      return;
+
+    case 'trade.sell':
+      _prepareDirectGuidanceExecution();
+      _executeGuidanceTrade('sell', suggestion.payload || {});
+      return;
+
+    case 'market.open':
+    case 'market.focus':
+      var marketFocusGoodId = suggestion.payload && suggestion.payload.goodId ? suggestion.payload.goodId : '';
+      var marketFocusTradeAction = suggestion.payload && suggestion.payload.tradeAction ? suggestion.payload.tradeAction : '';
+      MapUI.openMarketPanel(_state, {
+        workspaceId: suggestion.payload && suggestion.payload.workspaceId ? suggestion.payload.workspaceId : 'spot',
+        subworkspaceId: suggestion.payload && suggestion.payload.subworkspaceId ? suggestion.payload.subworkspaceId : 'trade',
+        goodId: marketFocusGoodId,
+        tradeAction: marketFocusTradeAction,
+      });
+      EventBus.emit('log:message', {
+        text: buildCommandFeedback({
+          actionId: 'market',
+          commandSurface: 'market',
+          commandIntent: '现货交易区',
+          label: suggestion.actionLabel || '打开市场',
+        }, {
+          icon: '📊',
+          destination: '当前市场 · 现货交易区',
+          nextStep: suggestion.title,
+          returnTo: '底部指挥条会继续提示下一步',
+        }),
+        type: 'tip',
+      });
+      _updateUI();
+      if (marketFocusGoodId) {
+        MarketUI.revealMarketGoodFocus(marketFocusGoodId, { tradeAction: marketFocusTradeAction });
+      }
+      return;
+
+    case 'travel.execute':
+      var directDestinationSystemId = suggestion.payload && suggestion.payload.destinationSystemId ? suggestion.payload.destinationSystemId : '';
+      if (directDestinationSystemId) {
+        _prepareDirectGuidanceExecution();
+        _handleTravel(directDestinationSystemId);
+      } else if (MapUI.focusStarmap) {
+        MapUI.focusStarmap();
+        _updateUI();
+      } else {
+        _refreshActionGuide();
+      }
+      return;
+
+    case 'map.focus':
+      var destinationSystemId = suggestion.payload && suggestion.payload.destinationSystemId ? suggestion.payload.destinationSystemId : '';
+      var navigationFocused = false;
+      if (destinationSystemId && MapUI.focusNavigationTarget) {
+        navigationFocused = MapUI.focusNavigationTarget(_state, destinationSystemId, {
+          goodId: suggestion.payload && suggestion.payload.goodId ? suggestion.payload.goodId : '',
+          title: suggestion.title || '',
+        });
+      }
+      if (!navigationFocused && MapUI.focusStarmap) {
+        MapUI.focusStarmap();
+      }
+      EventBus.emit('log:message', {
+        text: buildCommandFeedback({
+          actionId: 'navigation',
+          commandSurface: 'navigation',
+          commandIntent: navigationFocused ? '卖货航点' : '星图',
+          label: suggestion.actionLabel || '查看星图',
+        }, {
+          icon: '🧭',
+          destination: navigationFocused && suggestion.payload && suggestion.payload.destinationSystemName
+            ? ('星图 · ' + suggestion.payload.destinationSystemName)
+            : '星图 · 航线判断',
+          nextStep: suggestion.title,
+          returnTo: navigationFocused ? '目标详情面板的“前往卖货点”' : '选择目的地后继续贸易循环',
+        }),
+        type: 'tip',
+      });
+      _updateUI();
+      return;
+
+    case 'exploration.scan':
+      _prepareDirectGuidanceExecution();
+      _handleScanSystem((suggestion.payload && suggestion.payload.systemId) || _state.currentSystem, {
+        suppressReveal: true,
+      });
+      return;
+
+    case 'exploration.land':
+      _prepareDirectGuidanceExecution();
+      _handleLandOnSystem((suggestion.payload && suggestion.payload.systemId) || _state.currentSystem);
+      return;
+
+    case 'exploration.poi':
+      if (suggestion.payload && suggestion.payload.poiId) {
+        _prepareDirectGuidanceExecution();
+        _handleExplorePoi(suggestion.payload.systemId || _state.currentSystem, suggestion.payload.poiId);
+      } else {
+        _refreshActionGuide();
+      }
+      return;
+
+    default:
+      _refreshActionGuide();
+  }
+}
+
 function _getScanStatus(systemId) {
   var shipStats = Fleet.getEffectiveShipStats(_state, Fleet.getActiveShip(_state));
   return Exploration.getScanStatus(_state, systemId, {
@@ -333,7 +711,8 @@ function _getPoiStatus(systemId, poiId) {
   });
 }
 
-function _handleScanSystem(systemId) {
+function _handleScanSystem(systemId, options) {
+  var opts = options || {};
   Fleet.syncStateFromShip(_state);
   var shipStats = Fleet.getEffectiveShipStats(_state, Fleet.getActiveShip(_state));
   const result = Exploration.scanSystem(_state, systemId, {
@@ -351,6 +730,10 @@ function _handleScanSystem(systemId) {
     _state.galaxyStates = GalaxyData.getAllPlanetStates();
   }
   _dispatch(result);
+  if (!opts.suppressReveal && result && result.ok && systemId === _state.currentSystem && MapUI.showCurrentSystemScanReveal) {
+    MapUI.showCurrentSystemScanReveal(_state, systemId, result);
+  }
+  return result;
 }
 
 function _handleLandOnSystem(systemId) {
@@ -393,6 +776,15 @@ function _handleExplorePoi(systemId, poiId) {
 
 function _handleTravel(systemId) {
   Fleet.syncStateFromShip(_state);
+  var activeShip = Fleet.getActiveShip(_state);
+
+  if (activeShip && activeShip.repairJob && activeShip.repairJob.remainingDays > 0) {
+    EventBus.emit('log:message', {
+      text: '🔧 当前飞船仍在维修中，剩余 ' + activeShip.repairJob.remainingDays + ' 天，完成前无法出航。',
+      type: 'error',
+    });
+    return;
+  }
 
   // 旅行前：如有待处理事件，强制弹出，阻止本次旅行
   if (EventUI.hasPendingEvent()) {
@@ -408,11 +800,14 @@ function _handleTravel(systemId) {
   }
 
   const previousSystem = _state.currentSystem;
-  const previousDay = _state.day || 1;
   const result = Trade.travelTo(_state, systemId);
   _dispatch(result);
 
   if (result && result.ok) {
+    Fleet.applyTravelWear(_state, _state.activeShipIndex, result.meta).msgs.forEach(function (m) {
+      EventBus.emit('log:message', { text: m.text, type: m.type });
+    });
+
     // 3D 飞船飞行动画（传入当前飞船类型）
     if (Renderer3D.isActive() && previousSystem) {
       var activeShipForFlight = Fleet.getActiveShip(_state);
@@ -484,6 +879,9 @@ function _handleTravel(systemId) {
     if (_state.visitedGalaxies.indexOf(_state.currentGalaxy) === -1) {
       _state.visitedGalaxies.push(_state.currentGalaxy);
     }
+    if (!Tutorial.isActive()) {
+      MapUI.triggerArrivalScanPanel(_state);
+    }
     // 新手引导：旅行触发
     Tutorial.checkTrigger('travel');
     // 旅行经验 + 声望
@@ -492,14 +890,6 @@ function _handleTravel(systemId) {
     var compExpResult = Progression.gainCompanyExperience(_state, 2);
     compExpResult.msgs.forEach(function (m) { EventBus.emit('log:message', { text: m.text, type: m.type }); });
     _state.reputation = (_state.reputation || 0) + 1;
-
-    var wageResult = Crew.payDailyWages(_state, Math.max(0, (_state.day || 1) - previousDay));
-    wageResult.msgs.forEach(function (m) {
-      EventBus.emit('log:message', { text: m.text, type: m.type });
-    });
-
-    // 连续无伤天数追踪（旅行前记录船体值）
-    var _hullBefore = _state.shipHull || 100;
 
     // 任务进度：旅行
     const travelFaction = Faction.getFactionForSystem(_state.currentSystem);
@@ -511,14 +901,7 @@ function _handleTravel(systemId) {
     questResult.msgs.forEach(function (m) {
       EventBus.emit('log:message', { text: m.text, type: m.type });
     });
-
-    // 科技研究进度推进
-    const researchResult = Research.advanceResearch(_state);
-    if (researchResult.msgs.length > 0) {
-      researchResult.msgs.forEach(function (m) {
-        EventBus.emit('log:message', { text: m.text, type: m.type });
-      });
-    }
+    _queueQuestDialogueResult(questResult);
 
     // 自动修复（如果有科技）
     var totalAutoRepair = (_state.autoRepair || 0) + (activeShipStats.autoRepair || 0);
@@ -552,13 +935,6 @@ function _handleTravel(systemId) {
 
     _state.galaxyStates = GalaxyData.getAllPlanetStates(); // 保存星系数据层状态
     Save.saveGame(0, _state, { isAutosave: true });
-
-    // 连续无伤天数追踪
-    if ((_state.shipHull || 100) >= _hullBefore) {
-      _state.daysWithoutDamage = (_state.daysWithoutDamage || 0) + 1;
-    } else {
-      _state.daysWithoutDamage = 0;
-    }
 
     _updateUI();
   }
@@ -644,6 +1020,7 @@ function _handleTradeConfirm(action, goodId, quantity, marketType) {
       tradeQuestResult.msgs.forEach(function (m) {
         EventBus.emit('log:message', { text: m.text, type: m.type });
       });
+      _queueQuestDialogueResult(tradeQuestResult);
     }
     _state.reputation = (_state.reputation || 0) + repGain;
 
@@ -723,6 +1100,170 @@ function _handleClearResearchQueue() {
   _dispatch(result);
 }
 
+function _handleApplyResearchDispatch(recommendation) {
+  _openRecommendedDispatch(recommendation, '科研补给建议', '🛰️');
+}
+
+function _handleOpenFactionMarket(action) {
+  if (!action || action.actionId !== 'market') return;
+
+  MapUI.openMarketSystemPanel(_state, action.systemId, {
+    workspaceId: action.marketWorkspaceId,
+    subworkspaceId: action.marketSubworkspaceId,
+    marketMode: action.marketMode || '',
+  });
+
+  var factionName = action.factionName || '该派系';
+  var factionNextStep = action.label === '查看黑市条件'
+    ? '查看准入门槛与公开情报'
+    : action.marketMode === 'black'
+      ? '沿着' + factionName + '的地下通路继续找机会'
+      : '观察' + factionName + '代表节点行情';
+
+  EventBus.emit('log:message', {
+    text: buildCommandFeedback(action, {
+      icon: action.label === '查看黑市条件' ? '🔒' : (action.marketMode === 'black' ? '🕶' : '🏛'),
+      destination: (action.systemName || '代表节点') + ' · ' + (action.marketFocusLabel || '市场页'),
+      nextStep: factionNextStep,
+      returnTo: '派系页继续调整关系策略',
+    }),
+    type: 'tip',
+  });
+}
+
+function _handleResolveResearchBlocker(action) {
+  if (!action || !action.actionId) return;
+
+  if (action.actionId === 'quest-focus') {
+    QuestUI.setSelectedAvailableQuest(action.targetQuestId);
+    MapUI.activateTab('tab-quest');
+    _updateUI();
+    EventBus.emit('log:message', {
+      text: buildCommandFeedback(action, {
+        openedVerb: '已切到',
+        destination: '任务页 · 替代任务',
+        nextStep: '先推进「' + (action.targetQuestName || '推荐任务') + '」',
+        returnTo: '科研页继续规划补给',
+      }),
+      type: 'tip',
+    });
+    return;
+  }
+
+  if (action.actionId === 'market') {
+    MapUI.openMarketPanel(_state, {
+      workspaceId: action.marketWorkspaceId,
+      subworkspaceId: action.marketSubworkspaceId,
+    });
+    var researchMarketNextStep = action.reasonId === 'cargo'
+      ? '清理货舱腾出科研补给舱位'
+      : action.reasonId === 'credits'
+        ? '做一笔周转补足科研资金'
+        : action.reasonId === 'level'
+          ? '补一轮升级节奏，扩大可达补给池'
+          : '观察本地行情，等待稳定科研补给线';
+    EventBus.emit('log:message', {
+      text: buildCommandFeedback(action, {
+        icon: action.reasonId === 'cargo' ? '📦' : (action.reasonId === 'credits' ? '💰' : (action.reasonId === 'level' ? '📈' : '📊')),
+        destination: '当前市场 · ' + (action.marketFocusLabel || '市场页'),
+        nextStep: researchMarketNextStep,
+        returnTo: '科研页继续规划补给',
+      }),
+      type: 'tip',
+    });
+  }
+}
+
+function _handleApplyQuestDispatch(recommendation) {
+  _openRecommendedDispatch(recommendation, '任务派遣建议', '📋');
+}
+
+function _handleResolveQuestBlocker(action) {
+  if (!action || !action.actionId) return;
+
+  if (action.actionId === 'quest-focus') {
+    EventBus.emit('log:message', {
+      text: buildCommandFeedback(action, {
+        openedVerb: '已定位到',
+        destination: '任务页 · 替代任务',
+        nextStep: '先推进「' + (action.targetQuestName || '推荐任务') + '」补成长',
+        returnTo: '任务页继续处理「' + (action.questName || '当前任务') + '」',
+      }),
+      type: 'tip',
+    });
+    return;
+  }
+
+  if (action.actionId === 'research') {
+    MapUI.activateTab('tab-research');
+    EventBus.emit('log:message', {
+      text: buildCommandFeedback(action, {
+        openedVerb: '已切到',
+        destination: '科技页 · 跃迁科技',
+        nextStep: '优先补出关键跃迁科技',
+        returnTo: '任务页继续推进「' + (action.questName || '当前任务') + '」',
+      }),
+      type: 'tip',
+    });
+    return;
+  }
+
+  if (action.actionId === 'market') {
+    MapUI.openMarketPanel(_state, {
+      workspaceId: action.marketWorkspaceId,
+      subworkspaceId: action.marketSubworkspaceId,
+    });
+    var questMarketNextStep = action.reasonId === 'fuel'
+      ? '补足燃料或调整补给'
+      : '跑几笔交易抬升等级';
+    EventBus.emit('log:message', {
+      text: buildCommandFeedback(action, {
+        icon: action.reasonId === 'fuel' ? '⛽' : '💰',
+        destination: '当前市场 · ' + (action.marketFocusLabel || '现货交易区'),
+        nextStep: questMarketNextStep,
+        returnTo: '任务页继续推进「' + (action.questName || '当前任务') + '」',
+      }),
+      type: 'tip',
+    });
+  }
+}
+
+function _openRecommendedDispatch(recommendation, sourceLabel, icon) {
+  var activeShip = Fleet.getActiveShip(_state);
+  var activeShipIndex = _state.activeShipIndex || 0;
+  if (!activeShip || !recommendation) return;
+
+  MapUI.activateTab('tab-fleet');
+  FleetUI.openDispatchModal(_state, activeShipIndex, _handleAssignRoute, _handleCancelRoute, {
+    buySystemId: recommendation.buySystemId,
+    sellSystemId: recommendation.sellSystemId,
+    goodId: recommendation.goodId,
+    tradePolicy: recommendation.recommendedTradePolicy || {
+      maxBuyPrice: null,
+      minSellPrice: null,
+      minProfitRate: null,
+      riskMode: 'balanced',
+      marketMode: 'open',
+    },
+    recommendation: recommendation,
+  });
+
+  EventBus.emit('log:message', {
+    text: buildCommandFeedback({
+      actionId: 'dispatch',
+      commandSurface: 'fleet',
+      commandIntent: sourceLabel,
+      label: '载入推荐路线',
+    }, {
+      icon: icon,
+      destination: '「' + activeShip.emoji + ' ' + activeShip.name + '」 · ' + sourceLabel,
+      nextStep: '检查 ' + (recommendation.buySystemName || recommendation.buySystemId) + ' → ' + (recommendation.sellSystemName || recommendation.sellSystemId) + ' · ' + (recommendation.goodName || recommendation.goodId),
+      returnTo: '确认“一键派遣”后执行路线',
+    }),
+    type: 'info',
+  });
+}
+
 function _handleBuildTradeStation(systemId) {
   const result = Commerce.buildTradeStation(_state, systemId);
   _dispatch(result);
@@ -740,6 +1281,36 @@ function _handleHireTradeStationManager(systemId, managerId) {
 
 function _handleSetTradeStationStrategy(systemId, strategyId) {
   const result = Commerce.setTradeStationStrategy(_state, systemId, strategyId);
+  _dispatch(result);
+}
+
+function _normalizeBatchSystemIds(systemIds) {
+  if (Array.isArray(systemIds)) {
+    return systemIds.filter(Boolean);
+  }
+  if (typeof systemIds === 'string') {
+    return systemIds.split(',').map(function (entry) {
+      return entry.trim();
+    }).filter(Boolean);
+  }
+  return null;
+}
+
+function _handleBatchUpgradeTradeStations(systemIds) {
+  const normalizedSystemIds = _normalizeBatchSystemIds(systemIds);
+  const result = Commerce.batchUpgradeTradeStations(_state, normalizedSystemIds);
+  _dispatch(result);
+}
+
+function _handleBatchHireTradeStationManager(managerId, systemIds) {
+  const normalizedSystemIds = _normalizeBatchSystemIds(systemIds);
+  const result = Commerce.batchHireTradeStationManager(_state, managerId, normalizedSystemIds);
+  _dispatch(result);
+}
+
+function _handleBatchSetTradeStationStrategy(strategyId, systemIds) {
+  const normalizedSystemIds = _normalizeBatchSystemIds(systemIds);
+  const result = Commerce.batchSetTradeStationStrategy(_state, strategyId, normalizedSystemIds);
   _dispatch(result);
 }
 
@@ -765,6 +1336,15 @@ function _handleSellStock(stockId) {
 
 function _handleInvestTradeStation(systemId) {
   const result = Commerce.investInTradeStation(_state, systemId);
+  _dispatch(result);
+}
+
+function _handleBatchInvestTradeStations(systemIds, amount) {
+  const normalizedSystemIds = _normalizeBatchSystemIds(systemIds);
+  const targetSystemIds = normalizedSystemIds && normalizedSystemIds.length > 0
+    ? normalizedSystemIds
+    : Object.keys(_state.tradeStations || {});
+  const result = Commerce.batchInvestInTradeStations(_state, targetSystemIds, amount);
   _dispatch(result);
 }
 
@@ -796,6 +1376,31 @@ function _handleFuturesClose(contractId) {
 function _handleAcceptQuest(questId) {
   const result = Quest.acceptQuest(_state, questId);
   _dispatch(result);
+  if (!result || !result.ok) return;
+
+  const advanceTutorialQuestStep = function () {
+    Tutorial.checkTrigger('accept_quest');
+    _updateUI();
+  };
+
+  if (result.completedImmediately && result.completedQuest) {
+    _queueQuestDialogueResult({
+      completedQuests: [{ id: result.completedQuest.id, failed: false, quest: result.completedQuest }],
+      phaseAdvanced: result.phaseAdvanced,
+      newPhase: result.newPhase,
+    }, advanceTutorialQuestStep);
+    return;
+  }
+
+  if (result.quest) {
+    _playTriggerDialogue('quest_accept', {
+      questId: result.quest.id,
+      quest: result.quest,
+    }, advanceTutorialQuestStep);
+    return;
+  }
+
+  advanceTutorialQuestStep();
 }
 
 function _handleAbandonQuest(questId) {
@@ -817,6 +1422,10 @@ function _handleLoadGame(slotId) {
   if (result.ok) {
     Settings.hideSettingsModal();
     _state = result.state;
+    _dialogueQueue = [];
+    _dialoguePlaying = false;
+    Dialogue.init(_state);
+    DialogueUI.hideScene();
     RandomEvent.syncRuntimeState(_state);
     _settings.difficulty = _state.difficulty;
     Settings.saveSettings(_settings);
@@ -841,6 +1450,7 @@ function _handleLoadGame(slotId) {
     if (Fleet.isActiveDispatched(_state)) {
       Dispatch.startActiveDispatch(_boundDispatchTick);
     }
+    _resetRealtimeClock(performance.now());
     _updateUI();
     EventBus.emit('log:message', { text: result.msg, type: 'info' });
   } else {
@@ -873,6 +1483,9 @@ function _handleSwitchShip(shipIndex) {
   // 如果新激活的船只已有路线，重新启动派遣
   if (result && result.ok && Fleet.isActiveDispatched(_state)) {
     Dispatch.startActiveDispatch(_boundDispatchTick);
+  }
+  if (result && result.ok) {
+    _resetRealtimeClock(performance.now());
   }
 }
 
@@ -912,6 +1525,7 @@ function _handleAssignRoute(shipIndex, buySystemId, sellSystemId, goodId, tradeP
   if (result && result.ok && isActive) {
     Dispatch.startActiveDispatch(_boundDispatchTick);
   }
+  return result;
 }
 
 function _handleCancelRoute(shipIndex) {
@@ -925,6 +1539,7 @@ function _handleCancelRoute(shipIndex) {
   if (isActive) {
     Dispatch.stopActiveDispatch();
   }
+  return result;
 }
 
 function _handleBuySlot() {
@@ -947,6 +1562,12 @@ function _handleInstallMod(shipIndex, modId) {
 function _handleUninstallMod(shipIndex, modId) {
   Fleet.syncShipFromState(_state);
   const result = Fleet.uninstallMod(_state, modId, shipIndex);
+  _dispatch(result);
+}
+
+function _handleServiceShip(shipIndex, tierId) {
+  Fleet.syncShipFromState(_state);
+  const result = Fleet.serviceShip(_state, shipIndex, tierId);
   _dispatch(result);
 }
 
@@ -992,6 +1613,9 @@ function _boundDispatchTick() {
       var el = document.getElementById(id);
       return el && !el.classList.contains('hidden');
     },
+    hasBlockingSurfaceOpen: function () {
+      return hasBlockingSurfaceOpen('gameover-modal');
+    },
   });
 
   // 处理日志
@@ -1014,6 +1638,22 @@ function _boundDispatchTick() {
         _updateUI();
       } else {
         _handleTravel(tickResult.payload.systemId);
+      }
+      break;
+    }
+    case 'buy_need_refuel': {
+      var preBuyRefuelResult = Trade.refuel(_state);
+      _dispatch(preBuyRefuelResult);
+      if (_state.fuel < tickResult.payload.fuelCost) {
+        EventBus.emit('log:message', { text: '📡 派遣船只补给后仍无法完成下一段航程，已召回。', type: 'error' });
+        Fleet.cancelActiveDispatch(_state);
+        Dispatch.stopActiveDispatch();
+        _updateUI();
+      } else {
+        _handleTradeConfirm('buy', tickResult.payload.goodId, tickResult.payload.quantity, tickResult.payload.marketType);
+        var shipRefueled = Fleet.getActiveShip(_state);
+        if (shipRefueled && shipRefueled.route) shipRefueled.route.status = 'traveling_sell';
+        _updateUI();
       }
       break;
     }
@@ -1044,6 +1684,19 @@ function _boundDispatchTick() {
 
 function _updateUI() {
   const netWorth = Trade.getNetWorth(_state);
+  const activeShip = Fleet.getActiveShip(_state);
+  const activeShipStats = Fleet.getEffectiveShipStats(_state, activeShip);
+  const activeShipDispatchContext = {
+    currentSystem: _state.currentSystem,
+    currentGalaxy: _state.currentGalaxy || 'milky_way',
+    fuelEfficiency: activeShipStats.fuelEff,
+    cargoFree: Math.max(0, activeShipStats.maxCargo - Object.values((activeShip && activeShip.cargo) || {}).reduce(function (sum, qty) {
+      return sum + qty;
+    }, 0)),
+    credits: _state.credits,
+    playerLevel: _state.playerLevel || 1,
+    dispatchProfile: activeShipStats.dispatchProfile || null,
+  };
   HUD.updateStats(_state, netWorth);
   HUD.updateCompanyName(_state);
   // 市场：根据当前模式刷新
@@ -1059,17 +1712,21 @@ function _updateUI() {
     _handleCancelQueuedResearch,
     _handleMoveQueuedResearchUp,
     _handleMoveQueuedResearchDown,
-    _handleClearResearchQueue
+    _handleClearResearchQueue,
+    activeShipDispatchContext,
+    _handleApplyResearchDispatch,
+    _handleResolveResearchBlocker
   );
-  FactionUI.render(_state);
-  QuestUI.render(_state, _handleAcceptQuest, _handleAbandonQuest);
+  FactionUI.render(_state, _handleOpenFactionMarket);
+  QuestUI.render(_state, _handleAcceptQuest, _handleAbandonQuest, activeShipDispatchContext, _handleApplyQuestDispatch, _handleResolveQuestBlocker);
   AchievementUI.render(_state);
-  FleetUI.render(_state, _handleBuyShip, _handleSwitchShip, _handleUpgradeShip, _handleAssignRoute, _handleCancelRoute, _handleBuySlot, _handleSellShip, _handleInstallMod, _handleUninstallMod, _handleRecruitCrew, _handleAssignCrew, _handleUnassignCrew, _handleDismissCrew, _handleSetShipDoctrine, _handleActivateShipProtocol);
+  FleetUI.render(_state, _handleBuyShip, _handleSwitchShip, _handleUpgradeShip, _handleAssignRoute, _handleCancelRoute, _handleBuySlot, _handleSellShip, _handleInstallMod, _handleUninstallMod, _handleServiceShip, _handleRecruitCrew, _handleAssignCrew, _handleUnassignCrew, _handleDismissCrew, _handleSetShipDoctrine, _handleActivateShipProtocol);
   FleetUI.renderShop(_state, _handleBuyShip);
   SaveUI.render(_handleSaveGame, _handleLoadGame);
   Renderer3D.invalidateScene();
   MapUI.refreshPlanetDetail(_state);
   Dispatch.updateActiveDispatchUI();
+  _refreshActionGuide();
 
 
 }
@@ -1111,7 +1768,72 @@ function _checkVictory() {
   });
 
   document.getElementById('gameover-message').textContent = msg;
-  document.getElementById('gameover-modal').classList.remove('hidden');
+  showBlockingSurface('gameover-modal');
+}
+
+function _resetRealtimeClock(nowMs) {
+  _realtimeClock = GameTime.resetRealtimeClock(_realtimeClock, nowMs, _state ? _state.shipHull : 100);
+}
+
+function _isRealtimeClockPaused() {
+  return !!(document.hidden || document.querySelector('.modal:not(.hidden)'));
+}
+
+function _applyRealtimeDayProgress(days) {
+  var elapsedDays = Math.max(0, Number.isFinite(days) ? Math.floor(days) : 0);
+  if (elapsedDays <= 0) return;
+
+  var previousHull = _realtimeClock && Number.isFinite(_realtimeClock.lastHullSnapshot)
+    ? _realtimeClock.lastHullSnapshot
+    : (_state.shipHull || 100);
+  var result = GameTime.advanceDays(_state, elapsedDays);
+
+  result.questResults.forEach(function (questResult) {
+    _queueQuestDialogueResult(questResult);
+  });
+
+  if ((_state.shipHull || 100) >= previousHull) {
+    _state.daysWithoutDamage = (_state.daysWithoutDamage || 0) + elapsedDays;
+  } else {
+    _state.daysWithoutDamage = 0;
+  }
+
+  if (_realtimeClock) {
+    _realtimeClock.lastHullSnapshot = _state.shipHull || 100;
+  }
+
+  _state.galaxyStates = GalaxyData.getAllPlanetStates();
+  Save.saveGame(0, _state, { isAutosave: true });
+  _dispatch(result);
+}
+
+function _updateRealtimeClock(ts) {
+  if (!_state) return;
+  if (_isRealtimeClockPaused()) {
+    _resetRealtimeClock(ts);
+    return;
+  }
+
+  if (!_realtimeClock) {
+    _resetRealtimeClock(ts);
+  }
+
+  var tickResult = GameTime.consumeElapsedDays(_realtimeClock, ts, _getRealtimeDayDurationMs());
+  if (tickResult.elapsedDays > 0) {
+    _applyRealtimeDayProgress(tickResult.elapsedDays);
+  }
+}
+
+function _getRealtimeDayDurationMs() {
+  return Number.isFinite(_settings && _settings.realtimeDayDurationMs)
+    ? _settings.realtimeDayDurationMs
+    : TIME_CONFIG.realtimeDayDurationMs;
+}
+
+function _stopGameLoop() {
+  if (_gameLoopFrameId == null) return;
+  cancelAnimationFrame(_gameLoopFrameId);
+  _gameLoopFrameId = null;
 }
 
 // ---------------------------------------------------------------------------
@@ -1119,13 +1841,19 @@ function _checkVictory() {
 // ---------------------------------------------------------------------------
 
 function _startGameLoop() {
+  _stopGameLoop();
   _startTime = performance.now();
-  (function loop(ts) {
+  _resetRealtimeClock(_startTime);
+
+  function loop(ts) {
+    _updateRealtimeClock(ts);
     const mapView = MapUI.getMapView ? MapUI.getMapView() : 'planets';
     const galaxyId = MapUI.getCurrentGalaxyId ? MapUI.getCurrentGalaxyId() : 'milky_way';
     Renderer3D.render(_state, mapView, galaxyId);
-    requestAnimationFrame(loop);
-  }(_startTime));
+    _gameLoopFrameId = requestAnimationFrame(loop);
+  }
+
+  loop(_startTime);
 }
 
 // ---------------------------------------------------------------------------

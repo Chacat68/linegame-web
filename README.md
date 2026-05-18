@@ -64,13 +64,21 @@
 git clone https://github.com/Chacat68/linegame-web.git
 cd linegame-web
 
-# 用任意本地静态服务器运行（推荐，避免 ES Module 跨域限制）
-npx serve .
-# 或
-python3 -m http.server 8080
+# 默认本地启动方式
+npm run dev
+
+# 或直接使用 Python 静态服务器
+python3 -m http.server 4173 --directory .
+
+# 如果 4173 已被占用，可改用备用端口
+npm run dev:alt
 ```
 
-然后在浏览器中访问 `http://localhost:8080`。
+然后在浏览器中访问 `http://localhost:4173`。
+
+如果使用备用端口，则访问 `http://localhost:4174`。
+
+> VS Code 工作区内置的 `Run local web server` 任务也使用 4173 端口，因此 README、任务和命令行入口现在保持一致。
 
 > 也可以直接双击 `index.html` 打开，但 ES Module 在部分浏览器中需要通过 HTTP(S) 协议访问。
 

@@ -1,6 +1,6 @@
 // js/ui/Renderer3DAdvanced.js — 增强型 3D 星图渲染器 (Babylon.js)
-// 依赖：babylon.js (global), GalaxyDataLayer, ExplorationSystem, data/systems.js, data/factions.js
-// 导出：init, render, focusPlanet, setQuality, setMotionLevel, isActive, toggleView,
+// 依赖：babylon.js (global), GalaxyDataLayer, RouteSystem, data/systems.js, data/factions.js
+// 导出：init, render, focusPlanet, selectPlanet, setQuality, setMotionLevel, isActive, toggleView,
 //       getSystemAtPoint, getPlanetScreenPosition, invalidateScene, resetRuntimeState,
 //       setSecretRoutesVisible, isSecretRoutesVisible,
 //       resetCamera, flyShipTo, isShipFlying, cancelShipFlight
@@ -22,9 +22,9 @@
  */
 
 import * as GalaxyData from '../systems/galaxy/GalaxyDataLayer.js';
-import * as Exploration from '../systems/galaxy/ExplorationSystem.js';
+import * as RouteModel from '../systems/route/RouteSystem.js';
 import { FACTIONS } from '../data/factions.js';
-import { GALAXIES, getSystemsByGalaxy, findSystem, isSystemAccessible } from '../data/systems.js';
+import { GALAXIES, getSystemsByGalaxy, findSystem, isSystemAccessible, getGalaxyAccessState } from '../data/systems.js?v=20260420-balance3';
 
 // 渲染上下文
 let _engine, _scene, _camera, _canvas;
@@ -49,6 +49,7 @@ let _shipTrail = null;
 let _flightPath = null;
 let _shipVisible = false;
 let _flightRouteLine = null;   // 飞行轨迹线
+let _flightRouteGlow = null;   // 飞行轨迹外层辉光
 let _flightTargetGlow = null;  // 目标星球选中光环
 let _currentShipType = null;   // 当前飞船类型 ID
 
@@ -117,6 +118,11 @@ export function init() {
   _canvas = document.getElementById('map-3d-canvas');
   if (!_canvas) {
     console.error('3D canvas not found');
+    return;
+  }
+
+  if (_engine && _scene) {
+    _dirty = true;
     return;
   }
 
@@ -439,13 +445,21 @@ function _syncFlightPathWithState(state) {
   }
 }
 
+function _disposeRouteVisual(mesh) {
+  if (!mesh) return;
+  if (mesh.material && typeof mesh.material.dispose === 'function') {
+    mesh.material.dispose();
+  }
+  mesh.dispose();
+}
+
 function _clearPlanetMeshes() {
   _planetMeshes.forEach(m => {
     if (m.material) m.material.dispose();
     m.dispose();
   });
   _planetMeshes = [];
-  _connectionLines.forEach(m => m.dispose());
+  _connectionLines.forEach(_disposeRouteVisual);
   _connectionLines = [];
   _secretRouteVisuals = [];
   _factionBoundaries.forEach(m => m.dispose());
@@ -456,7 +470,7 @@ function _clearPlanetMeshes() {
     m.dispose();
   });
   _textLabels = [];
-  _dispatchRouteLines.forEach(m => m.dispose());
+  _dispatchRouteLines.forEach(_disposeRouteVisual);
   _dispatchRouteLines = [];
   _dispatchShipMarkers.forEach(m => {
     m.getChildMeshes().forEach(c => c.dispose());
@@ -575,8 +589,8 @@ function _renderGalaxies(state) {
     const z = (galaxy.gy - 0.5) * 200;
     const y = Math.sin(galaxy.gx * 3.14) * 15;
 
-    const isUnlocked = galaxy.unlocked ||
-      (state.researchedTechs && state.researchedTechs.includes(galaxy.techRequired));
+    const accessState = getGalaxyAccessState(galaxy.id, state.playerLevel || 1, state.researchedTechs || []);
+    const isUnlocked = accessState.unlocked;
     const baseOpacity = isUnlocked ? 1.0 : 0.3;
 
     // Deterministic seed from galaxy id
@@ -589,7 +603,7 @@ function _renderGalaxies(state) {
 
     const parent = new BABYLON.TransformNode('galaxy_' + galaxy.id, _scene);
     parent.position = new BABYLON.Vector3(x, y, z);
-    parent.metadata = { type: 'galaxy', id: galaxy.id, data: galaxy };
+    parent.metadata = { type: 'galaxy', id: galaxy.id, data: Object.assign({}, galaxy, { accessState: accessState }) };
 
     const galaxySize = 18 + rng(0) * 10;
 
@@ -609,7 +623,7 @@ function _renderGalaxies(state) {
     diskMat.useAlphaFromDiffuseTexture = true;
     diskPlane.material = diskMat;
     diskPlane.isPickable = true;
-    diskPlane.metadata = { type: 'galaxy', id: galaxy.id, data: galaxy };
+    diskPlane.metadata = { type: 'galaxy', id: galaxy.id, data: Object.assign({}, galaxy, { accessState: accessState }) };
 
     // 2) Second nebula layer
     const disk2Tex = _createNebulaTexture(galaxy.color || '#4FC3F7', seed + 777, 256);
@@ -660,6 +674,9 @@ function _renderGalaxies(state) {
 
     // Text label
     _addTextLabel(galaxy.name, new BABYLON.Vector3(x, y + galaxySize + 3, z), 10);
+    if (!isUnlocked) {
+      _addTextLabel('Lv.' + accessState.requiredLevel + ' 开放', new BABYLON.Vector3(x, y + galaxySize + 0.2, z), 11);
+    }
   });
 }
 
@@ -707,6 +724,14 @@ function _renderPlanetsInstanced(planets, state) {
 
     // Name label below the planet
     const label = _createPlanetLabel(planet.name, position, finalSize);
+    const isUnlocked = isSystemAccessible(planet.id, state.playerLevel || 1, state.researchedTechs || []);
+    if (!isUnlocked) {
+      mat.alpha = 0.42;
+      mat.emissiveColor = color.scale(0.55);
+      if (label && label.material) {
+        label.material.alpha = 0.55;
+      }
+    }
 
     _planetMetadata.push({
       id: planet.id,
@@ -1400,7 +1425,7 @@ function _renderConnections(planets) {
 }
 
 function _renderSecretRoutes(state) {
-  var routes = Exploration.getCurrentSystemSecretRoutes(state);
+  var routes = RouteModel.getSecretRouteDescriptors(state);
   if (!routes || routes.length === 0) return;
 
   const posMap = new Map();
@@ -1410,29 +1435,46 @@ function _renderSecretRoutes(state) {
     metaMap.set(meta.id, meta);
   });
 
-  const sourcePos = posMap.get(state.currentSystem);
-  const sourceMeta = metaMap.get(state.currentSystem);
-  if (!sourcePos || !sourceMeta) return;
-
   routes.forEach(function (route, index) {
-    const targetPos = posMap.get(route.targetSystemId);
+    const sourcePos = posMap.get(route.startSystemId);
+    const sourceMeta = metaMap.get(route.startSystemId);
+    const targetPos = posMap.get(route.endSystemId);
     const targetMeta = metaMap.get(route.targetSystemId);
-    if (!targetPos || !targetMeta) return;
+    if (!sourcePos || !sourceMeta || !targetPos || !targetMeta) return;
 
-    const curve = _createArcCurve(sourcePos, targetPos, 40);
-    const points = curve.getPoints();
-    const routeLine = BABYLON.MeshBuilder.CreateDashedLines('secretRoute_' + route.id, {
-      points: points,
-      dashSize: 2.0,
-      gapSize: 1.3,
-      dashNb: 46,
-    }, _scene);
-    routeLine.color = new BABYLON.Color3(0.49, 0.83, 0.99);
-    routeLine.alpha = 0.7;
-    routeLine.isPickable = false;
-    _connectionLines.push(routeLine);
+    const routeSegment = _createRouteSegmentVisual(
+      'secretRoute_' + route.routeId,
+      sourcePos,
+      targetPos,
+      new BABYLON.Color3(0.49, 0.83, 0.99),
+      {
+        segments: 40,
+        heightFactor: 0.14,
+        minHeight: 3.2,
+        tubeOptions: {
+          glowColor: new BABYLON.Color3(0.31, 0.7, 0.94),
+          outerRadius: 0.13,
+          innerRadius: 0.055,
+          glowAlpha: 0.14,
+          coreAlpha: 0.34,
+          glowVisibility: 0.38,
+          coreVisibility: 0.62,
+          glowEmissiveScale: 0.86,
+          coreEmissiveScale: 1.02,
+          gradientStops: [
+            { offset: 0.0, alpha: 0.0 },
+            { offset: 0.1, alpha: 0.05 },
+            { offset: 0.2, alpha: 0.82 },
+            { offset: 0.8, alpha: 0.82 },
+            { offset: 0.9, alpha: 0.05 },
+            { offset: 1.0, alpha: 0.0 },
+          ],
+        },
+      },
+      _connectionLines
+    );
 
-    const targetRing = BABYLON.MeshBuilder.CreateTorus('secretRouteTarget_' + route.id, {
+    const targetRing = BABYLON.MeshBuilder.CreateTorus('secretRouteTarget_' + route.routeId, {
       diameter: Math.max((targetMeta.size + 0.9) * 2, 4.5),
       thickness: 0.12,
       tessellation: 32,
@@ -1452,9 +1494,18 @@ function _renderSecretRoutes(state) {
     const label = _addTextLabel('暗线→' + route.targetSystemName + ' -' + route.discountPercent + '%', labelAnchor, Math.max(13, route.targetSystemName.length * 1.4 + 9));
 
     _secretRouteVisuals.push({
-      routeId: route.id,
+      routeId: route.routeId,
       targetSystemId: route.targetSystemId,
-      line: routeLine,
+      glow: routeSegment ? routeSegment.glow : null,
+      core: routeSegment ? routeSegment.core : null,
+      glowBaseVisibility: routeSegment && routeSegment.glow ? routeSegment.glow.visibility : 0,
+      coreBaseVisibility: routeSegment && routeSegment.core ? routeSegment.core.visibility : 0,
+      glowBaseEmissiveColor: routeSegment && routeSegment.glow && routeSegment.glow.material
+        ? routeSegment.glow.material.emissiveColor.clone()
+        : null,
+      coreBaseEmissiveColor: routeSegment && routeSegment.core && routeSegment.core.material
+        ? routeSegment.core.material.emissiveColor.clone()
+        : null,
       ring: targetRing,
       ringMaterial: ringMat,
       label: label,
@@ -1469,21 +1520,34 @@ function _updateSecretRouteHighlights(time) {
 
   const hoveredId = _hoveredPlanet ? _hoveredPlanet.id : null;
   const pulse = 1 + Math.sin(time * 0.006) * 0.08;
+  const baseColor = new BABYLON.Color3(0.49, 0.83, 0.99);
+  const highlightColor = new BABYLON.Color3(0.96, 0.99, 1.0);
 
   _secretRouteVisuals.forEach(function (visual) {
     const active = hoveredId != null && visual.targetSystemId === hoveredId;
 
-    if (visual.line) {
-      visual.line.alpha = active ? 0.95 : 0.7;
-      visual.line.color = active
-        ? new BABYLON.Color3(0.96, 0.99, 1.0)
-        : new BABYLON.Color3(0.49, 0.83, 0.99);
+    if (visual.glow) {
+      visual.glow.visibility = active
+        ? Math.min(1, (visual.glowBaseVisibility || 0.38) + 0.18)
+        : (visual.glowBaseVisibility || 0.38);
+      if (visual.glow.material && visual.glowBaseEmissiveColor) {
+        visual.glow.material.emissiveColor.copyFrom(active ? highlightColor : visual.glowBaseEmissiveColor);
+      }
+    }
+
+    if (visual.core) {
+      visual.core.visibility = active
+        ? Math.min(1, (visual.coreBaseVisibility || 0.62) + 0.18)
+        : (visual.coreBaseVisibility || 0.62);
+      if (visual.core.material && visual.coreBaseEmissiveColor) {
+        visual.core.material.emissiveColor.copyFrom(active ? highlightColor : visual.coreBaseEmissiveColor);
+      }
     }
 
     if (visual.ring && visual.ringMaterial) {
       visual.ringMaterial.emissiveColor = active
-        ? new BABYLON.Color3(0.96, 0.99, 1.0)
-        : new BABYLON.Color3(0.49, 0.83, 0.99);
+        ? highlightColor
+        : baseColor;
       visual.ringMaterial.alpha = active ? 0.92 : 0.45;
       const ringScale = active ? pulse * 1.14 : 1;
       visual.ring.scaling = new BABYLON.Vector3(ringScale, ringScale, ringScale);
@@ -1506,54 +1570,233 @@ function _updateSecretRouteHighlights(time) {
 }
 
 // ---------------------------------------------------------------------------
-// 派遣航线可视化
+// 航线段渲染
 // ---------------------------------------------------------------------------
 
-function _getDispatchCurrentSystemId(state, ship, isActive) {
-  if (isActive) return state.currentSystem;
-  return ship.location || state.currentSystem;
+function _createArcCurve(fromPos, toPos, segments, options) {
+  const mid = BABYLON.Vector3.Lerp(fromPos, toPos, 0.5);
+  const dist = BABYLON.Vector3.Distance(fromPos, toPos);
+  const heightFactor = options && options.heightFactor != null ? options.heightFactor : 0.15;
+  const minHeight = options && options.minHeight != null ? options.minHeight : 3;
+  mid.y += Math.max(dist * heightFactor, minHeight);
+  return BABYLON.Curve3.CreateQuadraticBezier(fromPos, mid, toPos, segments || 48);
 }
 
-function _resolveDispatchRouteState(route, currentSystemId) {
-  const sameSystemRoute = route.buySystemId === route.sellSystemId;
-  const atBuySystem = currentSystemId === route.buySystemId;
-  const atSellSystem = currentSystemId === route.sellSystemId;
+function _createRouteSegmentVisual(name, fromPos, toPos, color, options, bucket) {
+  if (!fromPos || !toPos || BABYLON.Vector3.Distance(fromPos, toPos) < 0.001) return null;
 
-  if (sameSystemRoute) {
-    return {
-      targetSystemId: currentSystemId,
-      isTraveling: false,
-      sameSystemRoute: true,
-    };
-  }
-
-  let targetSystemId;
-  if (atBuySystem) {
-    targetSystemId = route.sellSystemId;
-  } else if (atSellSystem) {
-    targetSystemId = route.buySystemId;
-  } else if (route.status === 'traveling_sell' || route.status === 'selling') {
-    targetSystemId = route.sellSystemId;
-  } else {
-    targetSystemId = route.buySystemId;
-  }
-
-  const isTraveling =
-    (route.status === 'traveling_buy' && !atBuySystem) ||
-    (route.status === 'traveling_sell' && !atSellSystem);
+  const curve = _createArcCurve(fromPos, toPos, options && options.segments, options);
+  const points = curve.getPoints();
+  const routeMeshes = _createRouteTubePair(name, points, color, options && options.tubeOptions);
+  routeMeshes.forEach(function (mesh) {
+    if (bucket) bucket.push(mesh);
+  });
 
   return {
-    targetSystemId: targetSystemId,
-    isTraveling: isTraveling,
-    sameSystemRoute: false,
+    curve: curve,
+    points: points,
+    glow: routeMeshes[0] || null,
+    core: routeMeshes[1] || null,
   };
 }
 
-function _createArcCurve(fromPos, toPos, segments) {
-  const mid = BABYLON.Vector3.Lerp(fromPos, toPos, 0.5);
-  const dist = BABYLON.Vector3.Distance(fromPos, toPos);
-  mid.y += Math.max(dist * 0.15, 3);
-  return BABYLON.Curve3.CreateQuadraticBezier(fromPos, mid, toPos, segments || 48);
+function _createTrailMaterial(name, color, alpha, emissiveScale) {
+  const baseColor = color.clone ? color.clone() : color;
+  const material = new BABYLON.StandardMaterial(name, _scene);
+  material.emissiveColor = baseColor.scale(emissiveScale != null ? emissiveScale : 1.2);
+  material.diffuseColor = BABYLON.Color3.Black();
+  material.specularColor = BABYLON.Color3.Black();
+  material.disableLighting = true;
+  material.backFaceCulling = false;
+  material.alpha = alpha;
+  return material;
+}
+
+function _createTrailMesh(name, generator, color, options) {
+  if (!generator || !BABYLON.TrailMesh) return null;
+
+  const trail = new BABYLON.TrailMesh(name, generator, _scene, {
+    diameter: options && options.diameter != null ? options.diameter : 0.18,
+    length: options && options.length != null ? options.length : 48,
+    sections: options && options.sections != null ? options.sections : 4,
+    doNotTaper: !!(options && options.doNotTaper),
+    autoStart: false,
+  });
+
+  trail.material = _createTrailMaterial(
+    name + '_mat',
+    color,
+    options && options.alpha != null ? options.alpha : 0.55,
+    options && options.emissiveScale != null ? options.emissiveScale : 1.25
+  );
+  trail.isPickable = false;
+  trail.setEnabled(false);
+  return trail;
+}
+
+function _createRouteTubePair(name, path, color, options) {
+  if (!path || path.length < 2) return [];
+
+  const outerRadius = options && options.outerRadius != null ? options.outerRadius : 0.18;
+  const innerRadius = options && options.innerRadius != null ? options.innerRadius : 0.09;
+  const glowColor = options && options.glowColor ? options.glowColor : color;
+  const tessellation = options && options.tessellation != null ? options.tessellation : 12;
+  const gradientStops = options && options.gradientStops ? options.gradientStops : null;
+
+  const glowTexture = _createRouteGradientTexture(name + '_glow_tex', gradientStops);
+
+  const glow = BABYLON.MeshBuilder.CreateTube(name + '_glow', {
+    path: path,
+    radius: outerRadius,
+    tessellation: tessellation,
+    cap: BABYLON.Mesh.NO_CAP,
+    sideOrientation: BABYLON.Mesh.DOUBLESIDE,
+  }, _scene);
+  glow.material = _createTrailMaterial(
+    name + '_glow_mat',
+    glowColor,
+    options && options.glowAlpha != null ? options.glowAlpha : 0.18,
+    options && options.glowEmissiveScale != null ? options.glowEmissiveScale : 0.9
+  );
+  glow.material.emissiveTexture = glowTexture;
+  glow.material.opacityTexture = glowTexture;
+  glow.visibility = options && options.glowVisibility != null ? options.glowVisibility : 0.72;
+  glow.isPickable = false;
+
+  const coreTexture = _createRouteGradientTexture(name + '_core_tex', gradientStops);
+
+  const core = BABYLON.MeshBuilder.CreateTube(name + '_core', {
+    path: path,
+    radius: innerRadius,
+    tessellation: tessellation,
+    cap: BABYLON.Mesh.NO_CAP,
+    sideOrientation: BABYLON.Mesh.DOUBLESIDE,
+  }, _scene);
+  core.material = _createTrailMaterial(
+    name + '_core_mat',
+    color,
+    options && options.coreAlpha != null ? options.coreAlpha : 0.42,
+    options && options.coreEmissiveScale != null ? options.coreEmissiveScale : 1.2
+  );
+  core.material.emissiveTexture = coreTexture;
+  core.material.opacityTexture = coreTexture;
+  core.visibility = options && options.coreVisibility != null ? options.coreVisibility : 1;
+  core.isPickable = false;
+
+  return [glow, core];
+}
+
+function _createRouteGradientTexture(name, stops) {
+  const texture = new BABYLON.DynamicTexture(name, { width: 512, height: 8 }, _scene, false);
+  texture.hasAlpha = true;
+  texture.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+  texture.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+
+  const ctx = texture.getContext();
+  ctx.clearRect(0, 0, 512, 8);
+
+  const gradient = ctx.createLinearGradient(0, 0, 512, 0);
+  (stops || [
+    { offset: 0.0, alpha: 0.0 },
+    { offset: 0.08, alpha: 0.02 },
+    { offset: 0.18, alpha: 0.88 },
+    { offset: 0.82, alpha: 0.88 },
+    { offset: 0.92, alpha: 0.02 },
+    { offset: 1.0, alpha: 0.0 },
+  ]).forEach(function (stop) {
+    gradient.addColorStop(stop.offset, 'rgba(255,255,255,' + stop.alpha + ')');
+  });
+
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, 512, 8);
+  texture.update();
+  return texture;
+}
+
+function _configureAnimatedRouteVisual(mesh, options) {
+  if (!mesh) return;
+  mesh.metadata = mesh.metadata || {};
+  mesh.metadata.routeBaseVisibility = options && options.baseVisibility != null ? options.baseVisibility : mesh.visibility;
+  mesh.metadata.routePulseAmplitude = options && options.pulseAmplitude != null ? options.pulseAmplitude : 0;
+  mesh.metadata.routePulseSpeed = options && options.pulseSpeed != null ? options.pulseSpeed : 0.012;
+  mesh.metadata.routeFadeMultiplier = options && options.fadeMultiplier != null ? options.fadeMultiplier : 0.5;
+  mesh.visibility = mesh.metadata.routeBaseVisibility;
+}
+
+function _animateRouteVisual(mesh, elapsed, t) {
+  if (!mesh) return;
+  const meta = mesh.metadata || {};
+  const baseVisibility = meta.routeBaseVisibility != null ? meta.routeBaseVisibility : mesh.visibility;
+  const pulseAmplitude = meta.routePulseAmplitude || 0;
+  const pulseSpeed = meta.routePulseSpeed || 0.012;
+  const fadeMultiplier = meta.routeFadeMultiplier != null ? meta.routeFadeMultiplier : 0.5;
+  const pulse = pulseAmplitude ? Math.sin(elapsed * pulseSpeed) * pulseAmplitude : 0;
+  const fade = Math.max(0, 1 - t * fadeMultiplier);
+  mesh.visibility = Math.max(0, (baseVisibility + pulse) * fade);
+}
+
+function _createActiveFlightRouteVisuals(routePoints, routeColor, routeGlowColor) {
+  const mainPair = _createRouteTubePair('flightRoute', routePoints, routeColor, {
+    glowColor: routeGlowColor,
+    outerRadius: 0.24,
+    innerRadius: 0.11,
+    tessellation: 14,
+    glowAlpha: 0.12,
+    coreAlpha: 0.42,
+    glowVisibility: 0.5,
+    coreVisibility: 0.82,
+    glowEmissiveScale: 0.82,
+    coreEmissiveScale: 1.12,
+  });
+  _configureAnimatedRouteVisual(mainPair[0], {
+    baseVisibility: 0.5,
+    pulseAmplitude: 0.05,
+    pulseSpeed: 0.01,
+    fadeMultiplier: 0.42,
+  });
+  _configureAnimatedRouteVisual(mainPair[1], {
+    baseVisibility: 0.82,
+    pulseAmplitude: 0.035,
+    pulseSpeed: 0.012,
+    fadeMultiplier: 0.52,
+  });
+
+  return {
+    glow: mainPair[0] || null,
+    core: mainPair[1] || null,
+  };
+}
+
+function _disposeTrailMesh(trail) {
+  if (!trail) return null;
+  if (trail.material && typeof trail.material.dispose === 'function') {
+    trail.material.dispose();
+  }
+  trail.dispose();
+  return null;
+}
+
+function _resetTrailMesh(trail) {
+  if (!trail || typeof trail.reset !== 'function') return;
+  trail.reset();
+}
+
+function _updateTrailMesh(trail) {
+  if (!trail || typeof trail.update !== 'function') return;
+  try {
+    trail.update();
+  } catch (e) {
+    // Ignore updates on disposed trails.
+  }
+}
+
+function _getTrailDiameter(typeId, compact) {
+  const visuals = _SHIP_VISUALS[typeId] || _SHIP_VISUALS.shuttle;
+  const min = compact ? 0.14 : 0.2;
+  const max = compact ? 0.28 : 0.38;
+  const base = compact ? 0.07 : 0.095;
+  const offset = compact ? 0.07 : 0.1;
+  return Math.max(min, Math.min(max, offset + visuals.scale * base));
 }
 
 function _renderDispatchRoutes(state) {
@@ -1562,75 +1805,67 @@ function _renderDispatchRoutes(state) {
   const posMap = new Map();
   _planetMetadata.forEach(m => posMap.set(m.id, m.position));
 
-  state.fleet.forEach(function (ship, idx) {
-    if (!ship.route) return;
+  const activeIndex = state.activeShipIndex || 0;
+  const routes = RouteModel.getFleetRouteDescriptors(state, {
+    skipShipIndex: _flightPath ? activeIndex : null,
+  });
 
-    // 当飞行动画进行中时，跳过活跃飞船的派遣航线（避免重复绘制）
-    const isActive = idx === (state.activeShipIndex || 0);
-    if (isActive && _flightPath) return;
-
-    const currentSystemId = _getDispatchCurrentSystemId(state, ship, isActive);
-    const currentPos = posMap.get(currentSystemId);
+  routes.forEach(function (route) {
+    const isActive = route.shipIndex === activeIndex;
+    const currentPos = posMap.get(route.startSystemId);
     if (!currentPos) return;
 
-    const routeState = _resolveDispatchRouteState(ship.route, currentSystemId);
-    const targetPos = posMap.get(routeState.targetSystemId);
-    const hasTravelSegment = !!targetPos && currentSystemId !== routeState.targetSystemId;
+    const targetPos = posMap.get(route.endSystemId);
 
     const routeColorHex = isActive ? '#22d3ee' : '#fbbf24';
     const routeColor = BABYLON.Color3.FromHexString(routeColorHex);
 
-    let curve = null;
-    let points = null;
-    if (hasTravelSegment) {
-      curve = _createArcCurve(currentPos, targetPos, 48);
-      points = curve.getPoints();
-
-      const routeLine = BABYLON.MeshBuilder.CreateDashedLines('dispatch_' + idx, {
-        points: points,
-        dashSize: 1.5,
-        gapSize: 1.0,
-        dashNb: 60,
-      }, _scene);
-      routeLine.color = routeColor;
-      routeLine.alpha = 0.35;
-      routeLine.isPickable = false;
-      _dispatchRouteLines.push(routeLine);
-    }
+    const routeSegment = route.hasTravelSegment && targetPos
+      ? _createRouteSegmentVisual('dispatch_' + route.shipIndex, currentPos, targetPos, routeColor, {
+          segments: 48,
+          tubeOptions: {
+            glowColor: routeColor.scale(0.78),
+            outerRadius: isActive ? 0.18 : 0.16,
+            innerRadius: isActive ? 0.074 : 0.062,
+            glowAlpha: isActive ? 0.16 : 0.14,
+            coreAlpha: isActive ? 0.4 : 0.34,
+            glowVisibility: isActive ? 0.54 : 0.48,
+            coreVisibility: isActive ? 0.78 : 0.68,
+            glowEmissiveScale: isActive ? 0.95 : 0.85,
+            coreEmissiveScale: isActive ? 1.1 : 1.0,
+          },
+        }, _dispatchRouteLines)
+      : null;
 
     // Ship model marker (type-specific)
-    var shipTypeId = ship.typeId || 'shuttle';
+    var shipTypeId = route.shipTypeId || 'shuttle';
     const shipModel = _createDispatchShipMesh(routeColor, shipTypeId);
     shipModel.metadata = shipModel.metadata || {};
-    shipModel.metadata._phaseOffset = idx * 1.1;
+    shipModel.metadata._phaseOffset = (route.shipIndex || 0) * 1.1;
     shipModel.position = currentPos.clone();
 
-    if (targetPos && hasTravelSegment) {
+    if (targetPos && route.hasTravelSegment) {
       shipModel.lookAt(targetPos);
     }
 
-    if (routeState.isTraveling && curve && points) {
-      shipModel.metadata._dispatchCurve = curve;
+    if (route.isTraveling && routeSegment && routeSegment.curve && routeSegment.points) {
+      shipModel.metadata._dispatchCurve = routeSegment.curve;
       shipModel.metadata._direction = 1;
-      shipModel.position = points[0].clone();
+      shipModel.position = routeSegment.points[0].clone();
 
-      // Trail (updatable lines)
-      const trailPositions = [];
-      const initPos = points[0];
-      for (let ti = 0; ti < 30; ti++) {
-        trailPositions.push(initPos.clone());
+      const trailMesh = _createTrailMesh('dispTrail_' + route.shipIndex, shipModel, routeColor, {
+        diameter: _getTrailDiameter(shipTypeId, true),
+        length: 32,
+        sections: 4,
+        alpha: 0.48,
+        emissiveScale: 1.15,
+      });
+      if (trailMesh) {
+        trailMesh.setEnabled(true);
+        _resetTrailMesh(trailMesh);
+        shipModel.metadata._trail = trailMesh;
+        _dispatchRouteLines.push(trailMesh);
       }
-      const trailLine = BABYLON.MeshBuilder.CreateLines('dispTrail_' + idx, {
-        points: trailPositions,
-        updatable: true,
-      }, _scene);
-      trailLine.color = routeColor;
-      trailLine.alpha = 0.5;
-      trailLine.isPickable = false;
-      shipModel.metadata._trail = trailLine;
-      shipModel.metadata._trailPositions = trailPositions;
-      shipModel.metadata._trailHead = 0;
-      _dispatchRouteLines.push(trailLine);
     }
 
     _dispatchShipMarkers.push(shipModel);
@@ -1903,51 +2138,8 @@ function _createShipMesh(typeId) {
   return parent;
 }
 
-function _createShipTrail(typeId) {
-  var count = 60;
-  var positions = [];
-  for (var i = 0; i < count; i++) {
-    positions.push(new BABYLON.Vector3(0, 0, 0));
-  }
-  var trail = BABYLON.MeshBuilder.CreateLines('shipTrail', {
-    points: positions,
-    updatable: true,
-  }, _scene);
-  var v = _SHIP_VISUALS[typeId] || _SHIP_VISUALS.shuttle;
-  trail.color = new BABYLON.Color3(v.trailColor[0], v.trailColor[1], v.trailColor[2]);
-  trail.alpha = 0.6;
-  trail.isPickable = false;
-  trail.metadata = { _count: count, _head: 0, _positions: positions };
-  return trail;
-}
-
-function _pushTrailPoint(trail, positions, head, position) {
-  if (!trail || !positions || positions.length === 0) return head;
-  positions[head] = position.clone();
-  const nextHead = (head + 1) % positions.length;
-
-  const orderedPoints = [];
-  for (let i = 0; i < positions.length; i++) {
-    const idx = (nextHead + i) % positions.length;
-    orderedPoints.push(positions[idx]);
-  }
-
-  try {
-    BABYLON.MeshBuilder.CreateLines(null, {
-      points: orderedPoints,
-      instance: trail,
-    });
-  } catch (e) {
-    // ignore update errors on disposed mesh
-  }
-
-  return nextHead;
-}
-
-function _updateShipTrail(position) {
-  if (!_shipTrail || !_shipTrail.metadata) return;
-  const meta = _shipTrail.metadata;
-  meta._head = _pushTrailPoint(_shipTrail, meta._positions, meta._head, position);
+function _updateShipTrail() {
+  _updateTrailMesh(_shipTrail);
 }
 
 export function flyShipTo(fromId, toId, onComplete, shipTypeId, flightMeta) {
@@ -1971,32 +2163,31 @@ export function flyShipTo(fromId, toId, onComplete, shipTypeId, flightMeta) {
 
   const from = fromMeta.position.clone();
   const to = toMeta.position.clone();
+  var typeId = shipTypeId || 'shuttle';
+  const routeDescriptor = RouteModel.createFlightRouteDescriptor(fromId, toId, {
+    shipIndex: flightMeta && typeof flightMeta.shipIndex === 'number' ? flightMeta.shipIndex : 0,
+    shipTypeId: typeId,
+    routeRevision: flightMeta && flightMeta.routeRevision != null ? flightMeta.routeRevision : null,
+  });
 
   // Arc flight path
-  const mid = BABYLON.Vector3.Lerp(from, to, 0.5);
+  const curve = _createArcCurve(from, to, 80, { heightFactor: 0.2, minHeight: 5 });
+  const routePoints = curve.getPoints();
   const dist = BABYLON.Vector3.Distance(from, to);
-  mid.y += Math.max(dist * 0.2, 5);
-
-  const curve = BABYLON.Curve3.CreateQuadraticBezier(from, mid, to, 80);
 
   // --- Flight route line (trajectory) ---
   _clearFlightVisuals();
-  const routePoints = curve.getPoints();
-  _flightRouteLine = BABYLON.MeshBuilder.CreateDashedLines('flightRoute', {
-    points: routePoints,
-    dashSize: 2,
-    gapSize: 1,
-    dashNb: 80,
-  }, _scene);
-  _flightRouteLine.color = new BABYLON.Color3(0.4, 0.91, 0.98);
-  _flightRouteLine.alpha = 0.5;
-  _flightRouteLine.isPickable = false;
+  const routeColor = new BABYLON.Color3(0.58, 0.96, 1.0);
+  const routeGlowColor = new BABYLON.Color3(0.18, 0.72, 1.0);
+  const flightRouteMeshes = _createActiveFlightRouteVisuals(routePoints, routeColor, routeGlowColor);
+  _flightRouteGlow = flightRouteMeshes.glow || null;
+  _flightRouteLine = flightRouteMeshes.core || null;
 
   // --- Target planet selection glow ---
   const targetSize = toMeta.size || toMeta.baseSize || 2.5;
   _flightTargetGlow = BABYLON.MeshBuilder.CreateTorus('flightTargetGlow', {
-    diameter: (targetSize + 1.5) * 2,
-    thickness: 0.4,
+    diameter: (targetSize + 1.3) * 2,
+    thickness: 0.34,
     tessellation: 36,
   }, _scene);
   _flightTargetGlow.rotation.x = Math.PI / 2;
@@ -2004,13 +2195,13 @@ export function flyShipTo(fromId, toId, onComplete, shipTypeId, flightMeta) {
   const tGlowMat = new BABYLON.StandardMaterial('flightTargetGlowMat', _scene);
   tGlowMat.emissiveColor = new BABYLON.Color3(1, 0.85, 0.2);
   tGlowMat.disableLighting = true;
-  tGlowMat.alpha = 0.85;
+  tGlowMat.alpha = 0.82;
   _flightTargetGlow.material = tGlowMat;
   _flightTargetGlow.isPickable = false;
 
   // --- Create ship mesh (type-specific) ---
-  var typeId = shipTypeId || 'shuttle';
   if (_shipMesh && _currentShipType !== typeId) {
+    _shipTrail = _disposeTrailMesh(_shipTrail);
     _shipMesh.getChildMeshes().forEach(c => { if (c.material) c.material.dispose(); c.dispose(); });
     _shipMesh.dispose();
     _shipMesh = null;
@@ -2020,20 +2211,30 @@ export function flyShipTo(fromId, toId, onComplete, shipTypeId, flightMeta) {
     _currentShipType = typeId;
   }
   if (!_shipTrail) {
-    _shipTrail = _createShipTrail(typeId);
+    var visuals = _SHIP_VISUALS[typeId] || _SHIP_VISUALS.shuttle;
+    _shipTrail = _createTrailMesh(
+      'shipTrail',
+      _shipMesh,
+      new BABYLON.Color3(visuals.trailColor[0], visuals.trailColor[1], visuals.trailColor[2]),
+      {
+        diameter: _getTrailDiameter(typeId, false),
+        length: 72,
+        sections: 6,
+        alpha: 0.58,
+        emissiveScale: 1.18,
+      }
+    );
   }
 
   _shipMesh.setEnabled(true);
-  _shipTrail.setEnabled(true);
   _shipVisible = true;
   _shipMesh.position = from.clone();
 
-  // Reset trail
-  const trailMeta = _shipTrail.metadata;
-  for (let i = 0; i < trailMeta._count; i++) {
-    trailMeta._positions[i] = from.clone();
+  if (_shipTrail) {
+    _shipTrail.setEnabled(true);
+    _resetTrailMesh(_shipTrail);
+    _updateShipTrail();
   }
-  trailMeta._head = 0;
 
   // Slower flight: 4x longer duration
   const duration = Math.min(12000, Math.max(5000, dist * 100));
@@ -2047,8 +2248,9 @@ export function flyShipTo(fromId, toId, onComplete, shipTypeId, flightMeta) {
     startTime: performance.now(),
     onComplete: onComplete || null,
     shipTypeId: typeId,
-    shipIndex: flightMeta && typeof flightMeta.shipIndex === 'number' ? flightMeta.shipIndex : 0,
-    routeRevision: flightMeta && flightMeta.routeRevision != null ? flightMeta.routeRevision : null,
+    routeDescriptor: routeDescriptor,
+    shipIndex: routeDescriptor.shipIndex,
+    routeRevision: routeDescriptor.routeRevision,
   };
 
   _cameraTarget = null;
@@ -2068,7 +2270,14 @@ export function cancelShipFlight() {
 }
 
 function _clearFlightVisuals() {
-  if (_flightRouteLine) { _flightRouteLine.dispose(); _flightRouteLine = null; }
+  if (_flightRouteGlow) {
+    _disposeRouteVisual(_flightRouteGlow);
+    _flightRouteGlow = null;
+  }
+  if (_flightRouteLine) {
+    _disposeRouteVisual(_flightRouteLine);
+    _flightRouteLine = null;
+  }
   if (_flightTargetGlow) {
     if (_flightTargetGlow.material) _flightTargetGlow.material.dispose();
     _flightTargetGlow.dispose();
@@ -2098,7 +2307,7 @@ function _updateShipFlight(time) {
     _shipMesh.lookAt(lookTarget);
   }
 
-  _updateShipTrail(pos);
+  _updateShipTrail();
 
   // Animate engine flames (type-specific effects)
   if (_shipMesh.metadata && _shipMesh.metadata._flames) {
@@ -2127,14 +2336,16 @@ function _updateShipFlight(time) {
   }
 
   // Animate flight route line fade
-  if (_flightRouteLine) {
-    _flightRouteLine.alpha = 0.5 * (1 - t * 0.6);
+  _animateRouteVisual(_flightRouteGlow, elapsed, t);
+  _animateRouteVisual(_flightRouteLine, elapsed, t);
+  if (_shipTrail && _shipTrail.material) {
+    _shipTrail.material.alpha = 0.54 + Math.sin(elapsed * 0.014) * 0.05;
   }
   // Animate target glow
   if (_flightTargetGlow) {
-    var pulse = 1 + Math.sin(elapsed * 0.005) * 0.15;
+    var pulse = 1 + Math.sin(elapsed * 0.005) * 0.12;
     _flightTargetGlow.scaling.set(pulse, pulse, pulse);
-    _flightTargetGlow.rotation.z += 0.015;
+    _flightTargetGlow.rotation.z += 0.016;
   }
 
   if (t >= 1) {
@@ -2167,6 +2378,26 @@ export function focusPlanet(planetId, smooth = true) {
   } else {
     _camera.setTarget(metadata.position);
   }
+}
+
+export function selectPlanet(planetId, options) {
+  const metadata = _planetMetadata.find(m => m.id === planetId);
+  if (!metadata) return false;
+
+  _selectedPlanet = metadata;
+  if (_selectionRing) {
+    _selectionRing.position = metadata.position.clone();
+    _selectionRing.position.y += 0.1;
+    const ringScale = metadata.size + 0.5;
+    _selectionRing.scaling = new BABYLON.Vector3(ringScale, ringScale, ringScale);
+    _selectionRing.setEnabled(true);
+  }
+
+  if (!options || options.focus !== false) {
+    focusPlanet(planetId, !options || options.smooth !== false);
+  }
+  _dirty = true;
+  return true;
 }
 
 export function resetCamera() {
@@ -2271,12 +2502,7 @@ function _startAnimation() {
       }
 
       // Update trail
-      const trail = marker.metadata._trail;
-      if (trail && marker.metadata._trailPositions) {
-        const trailPos = marker.metadata._trailPositions;
-        const head = marker.metadata._trailHead;
-        marker.metadata._trailHead = _pushTrailPoint(trail, trailPos, head, pos);
-      }
+      _updateTrailMesh(marker.metadata._trail);
     });
 
     // Update selection ring
@@ -2319,7 +2545,8 @@ function _onPointerMove(event) {
       // Walk up to find metadata with type='galaxy'
       while (mesh) {
         if (mesh.metadata && mesh.metadata.type === 'galaxy') {
-          _canvas.style.cursor = 'pointer';
+          const accessState = mesh.metadata.data && mesh.metadata.data.accessState;
+          _canvas.style.cursor = accessState && accessState.unlocked === false ? 'not-allowed' : 'pointer';
           if (window._mapHoverCallback) {
             window._mapHoverCallback({ type: 'galaxy', id: mesh.metadata.id, ...mesh.metadata.data });
           }
@@ -2366,6 +2593,10 @@ function _onClick(event) {
       let mesh = pickResult.pickedMesh;
       while (mesh) {
         if (mesh.metadata && mesh.metadata.type === 'galaxy') {
+          const accessState = mesh.metadata.data && mesh.metadata.data.accessState;
+          if (accessState && accessState.unlocked === false) {
+            return;
+          }
           if (window._galaxyClickCallback) {
             window._galaxyClickCallback(mesh.metadata.id);
           }
@@ -2378,7 +2609,12 @@ function _onClick(event) {
   }
 
   // Planet view: click on planet
-  if (!_hoveredPlanet) return;
+  if (!_hoveredPlanet) {
+    if (window._mapBackgroundClickCallback) {
+      window._mapBackgroundClickCallback();
+    }
+    return;
+  }
 
   _selectedPlanet = _hoveredPlanet;
 
@@ -2458,12 +2694,16 @@ export function getPlanetScreenPosition(planetId) {
   };
 }
 
-export function resetRuntimeState(currentSystemId) {
-  _currentSystem = currentSystemId || null;
-  _hoveredPlanet = null;
+export function clearSelection() {
   _selectedPlanet = null;
-  _dirty = true;
   if (_selectionRing) {
     _selectionRing.setEnabled(false);
   }
+  _dirty = true;
+}
+
+export function resetRuntimeState(currentSystemId) {
+  _currentSystem = currentSystemId || null;
+  _hoveredPlanet = null;
+  clearSelection();
 }

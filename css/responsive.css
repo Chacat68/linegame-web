@@ -23,11 +23,17 @@
   }
   .hdr-logo { font-size: 12px; }
   .hdr-version { display: none; }
-  .hdr-system-status { display: none; }
   .hdr-stats { gap: 12px; }
   .hdr-stat-value { font-size: 12px; }
   .hdr-stat-label { font-size: 7px; }
   .hdr-stat-block { gap: 4px; }
+  .hdr-day-chip {
+    gap: 6px;
+    margin-left: 4px;
+    padding: 3px 8px;
+  }
+  .hdr-day-chip-label { font-size: 7px; }
+  .hdr-day-chip-value { font-size: 11px; }
   .hdr-icon-btn { width: 28px; height: 28px; }
 
   .side-panel-overlay--left  { width: calc(100vw - 32px); top: 44px; }
@@ -35,7 +41,7 @@
 
   .status-ship-stats {
     position: fixed;
-    bottom: 68px;
+    bottom: calc(var(--bottom-nav-offset, 52px) + var(--floating-stack-gap, 16px));
     left: 10px;
     padding: 8px 10px;
     gap: 6px;
@@ -79,6 +85,7 @@
   }
   .victory-modal-box { min-width: 280px; max-width: 420px; }
   .event-modal-box { min-width: 280px; max-width: 360px; }
+  .dialogue-modal-box { min-width: 280px; max-width: 420px; }
   .settings-modal-box {
     width: min(100vw - 24px, 720px);
     max-width: none;
@@ -138,6 +145,7 @@
   .market-workspace-tabs {
     grid-template-columns: 1fr;
   }
+  .market-cmd-bar,
   .market-command-bar {
     flex-direction: column;
     align-items: stretch;
@@ -148,17 +156,75 @@
   .market-subworkspace-tabs {
     grid-template-columns: 1fr;
   }
+  .market-spot-command-hero {
+    flex-direction: column;
+  }
+  .market-workspace-deck-hero {
+    flex-direction: column;
+  }
+  .market-spot-command-emphasis {
+    width: 100%;
+    text-align: left;
+  }
+  .market-workspace-deck-emphasis {
+    width: 100%;
+    text-align: left;
+  }
+  .market-spot-command-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .market-workspace-deck-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .market-batch-plan-grid,
+  .market-batch-plan-grid-major {
+    grid-template-columns: 1fr;
+  }
+  .market-batch-plan-sort-row,
+  .market-batch-plan-deferred-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .market-batch-plan-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .market-batch-plan-card-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .market-batch-plan-card-footer .trade-station-build-btn {
+    width: 100%;
+  }
+  .market-goods-toolbar {
+    flex-direction: column;
+  }
+  .market-goods-toolbar-pills {
+    justify-content: flex-start;
+  }
   .market-spot-trade-layout {
     grid-template-columns: 1fr;
   }
+  .market-analysis-panel {
+    position: static;
+    max-height: none;
+  }
   .market-good-card {
-    grid-template-columns: auto 1fr auto;
+    grid-template-columns: 44px minmax(0, 1fr);
     gap: 10px;
     padding: 12px;
   }
+  .market-good-card-chart-col,
+  .market-good-card-price-block,
   .market-good-card-actions {
     grid-column: 1 / -1;
-    justify-content: flex-end;
+    justify-content: flex-start;
+  }
+  .market-good-card-price-block {
+    align-items: flex-start;
+  }
+  .market-good-card-secondary,
+  .market-good-card-delta {
+    text-align: left;
   }
   .market-good-card-icon {
     width: 36px;
@@ -171,15 +237,13 @@
     gap: 5px;
     padding: 4px 8px;
     left: 10px;
-    bottom: 68px;
+    bottom: calc(var(--bottom-nav-offset, 52px) + var(--floating-stack-gap, 16px));
   }
 
   .hud-corner-tl,
   .hud-corner-tr { top: 44px; }
   .hud-corner-bl,
   .hud-corner-br { bottom: 0; }
-  .map-hud-nav-data { top: 50px; }
-  .map-hud-sensor-data { bottom: 6px; }
 }
 
 /* --- Mobile screens (≤480px): Full-width panels, stacked layout --- */
@@ -188,13 +252,21 @@
   .hdr-logo { font-size: 11px; }
   .hdr-stat-value { font-size: 11px; }
   .hdr-stats { gap: 8px; }
+  .hdr-location { display: none; }
+  .hdr-day-chip {
+    margin-left: 2px;
+    padding: 2px 7px;
+    gap: 5px;
+  }
+  .hdr-day-chip-label { font-size: 6px; }
+  .hdr-day-chip-value { font-size: 10px; }
   .hdr-icon-btns { gap: 2px; padding-left: 4px; }
 
   .side-panel-overlay--left,
   .side-panel-overlay--right { width: 100vw; top: 38px; }
 
   .status-ship-stats {
-    bottom: 64px;
+    bottom: calc(var(--bottom-nav-offset, 52px) + 12px);
     left: 8px;
     padding: 6px 10px;
     gap: 5px;
@@ -228,6 +300,7 @@
     min-height: 32px;
     padding: 4px 9px;
   }
+  .market-cmd-bar,
   .market-command-bar {
     padding: 8px 8px 6px;
     gap: 6px;
@@ -252,11 +325,64 @@
   .market-workspace-tab {
     padding: 8px 10px;
   }
+  .market-spot-command-deck {
+    margin: 0 4px 12px;
+    padding: 14px;
+  }
+  .market-workspace-deck {
+    margin: 0 4px 12px;
+    padding: 14px;
+  }
+  .market-spot-command-grid {
+    grid-template-columns: 1fr;
+  }
+  .market-workspace-deck-grid {
+    grid-template-columns: 1fr;
+  }
+  .market-batch-plan-metrics {
+    grid-template-columns: 1fr;
+  }
+  .market-batch-plan-summary-pill {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .market-batch-plan-sort-options {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+  .market-batch-plan-sort-btn {
+    width: 100%;
+  }
+  .market-batch-plan-card {
+    padding: 12px;
+  }
+  .market-batch-plan-card-head {
+    flex-direction: column;
+  }
+  .market-spot-command-title {
+    font-size: 20px;
+  }
+  .market-workspace-deck-title {
+    font-size: 20px;
+  }
+  .market-goods-shell {
+    padding: 10px;
+  }
+  .market-goods-toolbar-pill,
+  .market-spot-command-pill,
+  .market-workspace-deck-pill {
+    min-height: 24px;
+    padding: 4px 8px;
+  }
+  .market-analysis-card {
+    padding: 14px;
+  }
   .market-spot-intel-grid {
     grid-template-columns: 1fr;
   }
   .victory-modal-box { min-width: 200px; max-width: 95vw; }
   .event-modal-box { min-width: 200px; max-width: 95vw; }
+  .dialogue-modal-box { min-width: 200px; max-width: 95vw; }
   .gameover-box { max-width: 95vw; }
   .company-rename-box { max-width: 95vw; }
   .settings-modal-box {

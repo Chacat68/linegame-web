@@ -2,8 +2,13 @@
 // 覆盖: C3（深拷贝丢失函数引用）、任务接取/进度/放弃
 
 import { describe, it, expect, beforeEach } from 'vitest';
+import { QUESTS } from '../js/data/quests.js';
+import * as Economy from '../js/systems/economy/Economy.js';
+import * as GalaxyData from '../js/systems/galaxy/GalaxyDataLayer.js';
+import * as Exploration from '../js/systems/galaxy/ExplorationSystem.js';
 import * as Quest from '../js/systems/quest/QuestSystem.js';
 import * as Faction from '../js/systems/faction/FactionSystem.js';
+import { getQuestBlockerActions } from '../js/ui/QuestUI.js?v=20260419-marketfocus4';
 import { createTestState } from './helpers.js';
 
 describe('Quest.init', () => {
@@ -76,6 +81,21 @@ describe('Quest.getStarterRecommendations', () => {
     expect(recommended.length).toBeLessThanOrEqual(3);
   });
 
+  it('会根据教程分支切换推荐顺序', () => {
+    const state = createTestState({
+      storyDecisions: { tutorial_postlude: 'shadow' },
+      completedQuests: ['starter_first_trade', 'starter_visit_2'],
+    });
+    Faction.init(state);
+    Quest.init(state);
+
+    const ids = Quest.getStarterRecommendations(state, 3).map(function (quest) {
+      return quest.id;
+    });
+
+    expect(ids).toEqual(['starter_explore_shadow', 'starter_5_trades', 'starter_earn_500']);
+  });
+
   it('不会推荐已接取或已完成的任务', () => {
     const state = createTestState({
       quests: [{ id: 'starter_first_trade', objectives: [{ type: 'trade_count', amount: 1, current: 0 }] }],
@@ -87,6 +107,113 @@ describe('Quest.getStarterRecommendations', () => {
     const ids = Quest.getStarterRecommendations(state, 3).map(q => q.id);
     expect(ids).not.toContain('starter_first_trade');
     expect(ids).not.toContain('starter_visit_2');
+  });
+});
+
+describe('QuestUI.getQuestBlockerActions', () => {
+  it('为等级阻塞生成更明确的补等级次动作文案', () => {
+    const state = createTestState({
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+    });
+    const actions = getQuestBlockerActions([
+      { blockedReason: '需要达到 Lv.4 才能进入该区域' },
+    ], {
+      id: 'starter_first_trade',
+      name: '初次交易',
+      objectives: [{ type: 'trade_count', amount: 1, current: 0 }],
+    }, state);
+
+    expect(actions).toHaveLength(2);
+    expect(actions[0]).toMatchObject({
+      actionId: 'market',
+      reasonId: 'level',
+      label: '去市场跑单升级',
+      marketWorkspaceId: 'spot',
+      marketSubworkspaceId: 'trade',
+      marketFocusLabel: '现货交易区',
+      commandSurface: 'market',
+      commandIntent: '现货交易区',
+    });
+    expect(actions[1]).toMatchObject({
+      actionId: 'quest-focus',
+      reasonId: 'fallback',
+      label: '先补等级',
+      targetQuestId: 'starter_first_trade',
+      targetQuestName: '初次交易',
+      commandSurface: 'quest',
+      commandIntent: '替代任务',
+    });
+    expect(actions[1].hint).toContain('补等级');
+  });
+
+  it('为燃料阻塞的短线任务生成补给导向文案', () => {
+    const state = createTestState({
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+    });
+    const actions = getQuestBlockerActions([
+      { blockedReason: '当前燃料不足，需要 8 燃料，现有 2。' },
+    ], {
+      id: 'starter_deliver_food',
+      name: '前线补给',
+      objectives: [{ type: 'deliver', goodId: 'food', targetSystem: 'war_front', amount: 5, current: 0 }],
+    }, state);
+
+    expect(actions[0]).toMatchObject({
+      actionId: 'market',
+      reasonId: 'fuel',
+      label: '前往市场补给',
+      marketWorkspaceId: 'spot',
+      marketSubworkspaceId: 'trade',
+      marketFocusLabel: '现货交易区',
+      commandSurface: 'market',
+      commandIntent: '现货交易区',
+    });
+    expect(actions[1]).toMatchObject({ actionId: 'quest-focus', label: '先跑短线补给', targetQuestId: 'starter_deliver_food' });
+    expect(actions[1].hint).toContain('回补燃料');
+  });
+
+  it('为跃迁科技阻塞生成银河内过渡任务文案', () => {
+    const state = createTestState({
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+    });
+    const actions = getQuestBlockerActions([
+      { blockedReason: '尚未掌握超空间跃迁引擎，无法跨星系航行' },
+    ], {
+      id: 'local_scout',
+      name: '周边巡航',
+      objectives: [{ type: 'visit_system', targetSystem: 'war_front', amount: 1, current: 0 }],
+    }, state);
+
+    expect(actions[0]).toMatchObject({
+      actionId: 'research',
+      reasonId: 'hyperspace',
+      label: '前往科技页研究',
+      commandSurface: 'research',
+      commandIntent: '跃迁科技',
+    });
+    expect(actions[1]).toMatchObject({ actionId: 'quest-focus', label: '先做银河内任务', targetQuestId: 'local_scout' });
+    expect(actions[1].hint).toContain('不需要跨星系');
+  });
+
+  it('没有可切换任务时只保留单个主动作', () => {
+    const actions = getQuestBlockerActions([
+      { blockedReason: '燃料不足，无法完成当前航段' },
+    ]);
+
+    expect(actions).toHaveLength(1);
+    expect(actions[0]).toMatchObject({
+      actionId: 'market',
+      reasonId: 'fuel',
+      label: '前往市场补给',
+      marketWorkspaceId: 'spot',
+      marketSubworkspaceId: 'trade',
+      marketFocusLabel: '现货交易区',
+      commandSurface: 'market',
+      commandIntent: '现货交易区',
+    });
   });
 });
 
@@ -140,6 +267,99 @@ describe('Quest.getQuestTracker', () => {
     expect(tracker.mode).toBe('recommended');
     expect(tracker.items.map(item => item.id)).toEqual(['starter_first_trade', 'starter_visit_2']);
     expect(tracker.items[0].statusText).toBe('推荐接取');
+  });
+});
+
+describe('Quest.getQuestRoutePreview', () => {
+  let state;
+
+  beforeEach(() => {
+    state = createTestState({
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+      viewingGalaxy: 'milky_way',
+      fuel: 120,
+      maxFuel: 120,
+      playerLevel: 3,
+      researchedTechs: [],
+    });
+    Economy.init();
+    GalaxyData.init(state);
+    Faction.init(state);
+    Quest.init(state);
+  });
+
+  it('为明确目标任务返回距离、燃料与航程天数', () => {
+    const quest = {
+      id: 'test_route_delivery',
+      objectives: [{ type: 'deliver', goodId: 'food', targetSystem: 'war_front', amount: 5, current: 0 }],
+    };
+
+    const preview = Quest.getQuestRoutePreview(state, quest, 3);
+    const item = preview.items[0];
+
+    expect(item.systemId).toBe('war_front');
+    expect(item.routeModeLabel).toBe('直航');
+    expect(item.distanceText).not.toBe('0.00');
+    expect(item.fuelCost).toBe(Economy.getFuelCost('sol_prime', 'war_front', state.fuelEfficiency, state));
+    expect(item.etaDays).toBe(1);
+    expect(item.blockedReason).toBe('');
+  });
+
+  it('等级不足时对跨星系目标提示星系开放等级', () => {
+    state.playerLevel = 1;
+
+    const quest = {
+      id: 'test_route_jump',
+      objectives: [{ type: 'visit_system', targetSystem: 'citadel_prime', amount: 1, current: 0 }],
+    };
+
+    const preview = Quest.getQuestRoutePreview(state, quest, 3);
+    const item = preview.items[0];
+
+    expect(item.isCrossGalaxy).toBe(true);
+    expect(item.routeModeLabel).toBe('跨星系跃迁');
+    expect(item.etaDays).toBe(3);
+    expect(item.blockedReason).toContain('Lv.2');
+  });
+
+  it('达到开放等级后跨星系目标不再提示跃迁科技限制', () => {
+    state.playerLevel = 2;
+
+    const quest = {
+      id: 'test_route_jump_open',
+      objectives: [{ type: 'visit_system', targetSystem: 'citadel_prime', amount: 1, current: 0 }],
+    };
+
+    const preview = Quest.getQuestRoutePreview(state, quest, 3);
+    const item = preview.items[0];
+
+    expect(item.isCrossGalaxy).toBe(true);
+    expect(item.blockedReason).toBe('');
+  });
+
+  it('会在任务预估中反映已发现暗线的燃料折扣', () => {
+    const basePlanet = GalaxyData.getPlanetData('sol_prime');
+    const routePoi = basePlanet.exploration.pois.find(function (poi) {
+      return poi.kind === 'route_beacon';
+    });
+    const targetSystemId = basePlanet.exploration.secretRoutes[0].targetSystemId;
+    const baseCost = Economy.getFuelCost('sol_prime', targetSystemId, 1, state);
+
+    expect(Exploration.scanSystem(state, 'sol_prime').ok).toBe(true);
+    expect(Exploration.landOnSystem(state, 'sol_prime').ok).toBe(true);
+    expect(Exploration.explorePoi(state, 'sol_prime', routePoi.id).ok).toBe(true);
+
+    const preview = Quest.getQuestRoutePreview(state, {
+      id: 'test_route_secret',
+      objectives: [{ type: 'visit_system', targetSystem: targetSystemId, amount: 1, current: 0 }],
+    }, 3);
+    const item = preview.items[0];
+
+    expect(item.hasSecretRoute).toBe(true);
+    expect(item.discountPercent).toBeGreaterThan(0);
+    expect(item.fuelCost).toBeLessThan(baseCost);
+    expect(item.note).toContain('暗线');
   });
 });
 
@@ -284,6 +504,29 @@ describe('Quest.checkProgress', () => {
     expect(state.completedQuests).toContain('test_visit_quest');
   });
 
+  it('survive_days 目标只在每日推进时累计', () => {
+    const state = createTestState();
+    Faction.init(state);
+    Quest.init(state);
+
+    state.quests.push({
+      id: 'test_survive_days_quest',
+      name: '测试生存任务',
+      type: 'explore',
+      phase: 1,
+      objectives: [{ type: 'survive_days', amount: 3, current: 0 }],
+      rewards: { credits: 50, exp: 5, reputation: 2 },
+      timeLimit: 0,
+      startDay: 1,
+    });
+
+    Quest.checkProgress(state, { action: 'travel', systemId: 'nova_station' });
+    expect(state.quests[0].objectives[0].current).toBe(0);
+
+    Quest.checkProgress(state, { action: 'advance_day', days: 2 });
+    expect(state.quests[0].objectives[0].current).toBe(2);
+  });
+
   it('超时任务被标记为失败', () => {
     const state = createTestState({ day: 100 });
     Faction.init(state);
@@ -327,6 +570,200 @@ describe('Quest.checkProgress', () => {
     expect(state.credits).toBe(500);
     expect(state.experience).toBe(50);
     expect(state.reputation).toBe(25);
+  });
+
+  it('会给当前剧情路线匹配的任务应用奖励倾向', () => {
+    const state = createTestState({
+      storyDecisions: { tutorial_postlude: 'network' },
+    });
+    Faction.init(state);
+    Quest.init(state);
+
+    const summary = Quest.getQuestRewardSummary(state, {
+      id: 'test_explore_reward',
+      type: 'explore',
+      rewards: { credits: 200, exp: 10, reputation: 4 },
+      objectives: [{ type: 'visit_system', targetSystem: 'nova_station', amount: 1, current: 0 }],
+    });
+
+    expect(summary.credits).toBe(200);
+    expect(summary.reputation).toBe(6);
+    expect(summary.hasDecisionBonus).toBe(true);
+  });
+
+  it('关键主线任务会叠加章节级路线奖励', () => {
+    const state = createTestState({
+      storyDecisions: { tutorial_postlude: 'shadow' },
+    });
+    Faction.init(state);
+    Quest.init(state);
+
+    const summary = Quest.getQuestRewardSummary(state, {
+      id: 'legend_profit_50000',
+      type: 'trade',
+      rewards: { credits: 10000, exp: 200, reputation: 50 },
+      objectives: [{ type: 'earn_profit', amount: 50000, current: 0 }],
+    });
+
+    expect(summary.credits).toBe(11500);
+    expect(summary.reputation).toBe(50);
+    expect(summary.bonusText).toContain('终极利润线追加分成');
+  });
+
+  it('分支后的奖励倾向会参与实际结算', () => {
+    const state = createTestState({
+      credits: 0,
+      experience: 0,
+      reputation: 0,
+      storyDecisions: { tutorial_postlude: 'steady' },
+    });
+    Faction.init(state);
+    Quest.init(state);
+
+    state.quests.push({
+      id: 'test_delivery_bonus',
+      name: '测试运输奖励倾向',
+      type: 'delivery',
+      phase: 1,
+      objectives: [{ type: 'trade_count', amount: 1, current: 0 }],
+      rewards: { credits: 100, exp: 10, reputation: 5 },
+      timeLimit: 0,
+      startDay: 1,
+    });
+
+    Quest.checkProgress(state, { action: 'buy', goodId: 'food', quantity: 1, systemId: 'sol_prime' });
+
+    expect(state.credits).toBe(115);
+    expect(state.experience).toBe(10);
+    expect(state.reputation).toBe(5);
+  });
+
+  it('辛迪加分支完成后会影响派系关系', () => {
+    const state = createTestState({
+      storyDecisions: { quest_accept_rise_syndicate_sell: 'profit' },
+      factionRelations: { federation: 0, syndicate: 0, technocracy: 0 },
+    });
+    Faction.init(state);
+    Quest.init(state);
+
+    state.quests.push({
+      id: 'rise_syndicate_sell',
+      name: '辛迪加的危险试探',
+      type: 'faction',
+      phase: 3,
+      objectives: [{ type: 'trade_count', amount: 1, current: 0 }],
+      rewards: { credits: 300, exp: 20, reputation: 6 },
+      timeLimit: 0,
+      startDay: 1,
+    });
+
+    Quest.checkProgress(state, { action: 'buy', goodId: 'weapons', quantity: 1, systemId: 'shadow_haven' });
+
+    expect(state.factionRelations.syndicate).toBe(12);
+    expect(state.factionRelations.federation).toBe(-4);
+  });
+
+  it('联邦主线完成后会叠加航线扩张的派系收益', () => {
+    const state = createTestState({
+      storyDecisions: { tutorial_postlude: 'network' },
+      factionRelations: { federation: 0, syndicate: 0, technocracy: 0 },
+    });
+    Faction.init(state);
+    Quest.init(state);
+
+    state.quests.push({
+      id: 'rise_fed_trade',
+      name: '联邦贸易合约',
+      type: 'faction',
+      phase: 3,
+      objectives: [{ type: 'trade_count', amount: 1, current: 0 }],
+      rewards: { credits: 1500, exp: 40, reputation: 15 },
+      timeLimit: 0,
+      startDay: 1,
+    });
+
+    Quest.checkProgress(state, { action: 'buy', goodId: 'food', quantity: 1, systemId: 'sol_prime', factionId: 'federation' });
+
+    expect(state.reputation).toBe(28);
+    expect(state.factionRelations.federation).toBe(10);
+  });
+
+  it('派系任务目标会兼容旧 quest factionId 命名', () => {
+    const state = createTestState({
+      factionRelations: { federation: 32, syndicate: 0, technocracy: 0 },
+    });
+    Faction.init(state);
+    Quest.init(state);
+
+    state.quests.push({
+      id: 'test_fed_relation_alias',
+      name: '联邦关系兼容',
+      type: 'faction',
+      phase: 4,
+      objectives: [{ type: 'faction_relation', factionId: 'galactic_federation', amount: 30, current: 0 }],
+      rewards: { credits: 100, exp: 10, reputation: 5 },
+      timeLimit: 0,
+      startDay: 1,
+    });
+
+    const result = Quest.checkProgress(state, { action: 'travel', systemId: 'sol_prime', factionId: 'federation' });
+
+    expect(result.completedQuests).toHaveLength(1);
+    expect(result.completedQuests[0].failed).toBe(false);
+  });
+
+  it('派系贸易目标会兼容旧 quest factionId 命名', () => {
+    const state = createTestState();
+    Faction.init(state);
+    Quest.init(state);
+
+    state.quests.push({
+      id: 'test_fed_trade_alias',
+      name: '联邦贸易兼容',
+      type: 'faction',
+      phase: 3,
+      objectives: [{ type: 'faction_trade', factionId: 'galactic_federation', amount: 1, current: 0 }],
+      rewards: { credits: 100, exp: 10, reputation: 5 },
+      timeLimit: 0,
+      startDay: 1,
+    });
+
+    const result = Quest.checkProgress(state, { action: 'buy', goodId: 'food', quantity: 1, systemId: 'sol_prime', factionId: 'federation' });
+
+    expect(result.completedQuests).toHaveLength(1);
+    expect(state.completedQuests).toContain('test_fed_trade_alias');
+  });
+
+  it('推进到下一章节时返回章节元数据', () => {
+    const state = createTestState();
+    Faction.init(state);
+    Quest.init(state);
+
+    const phaseOneIds = QUESTS.filter(function (quest) {
+      return (quest.phase || 1) === 1;
+    }).map(function (quest) {
+      return quest.id;
+    });
+
+    state.completedQuests = phaseOneIds.filter(function (questId) {
+      return questId !== 'starter_first_trade';
+    });
+    state.quests = [{
+      id: 'starter_first_trade',
+      name: '初次交易',
+      type: 'trade',
+      phase: 1,
+      objectives: [{ type: 'trade_count', amount: 1, current: 0 }],
+      rewards: { credits: 200, exp: 15, reputation: 3 },
+      timeLimit: 0,
+      startDay: 1,
+    }];
+    state.questPhase = 1;
+
+    const result = Quest.checkProgress(state, { action: 'buy', goodId: 'food', quantity: 1, systemId: 'sol_prime' });
+
+    expect(result.phaseAdvanced).toBe(true);
+    expect(result.newPhase.id).toBe('phase_2');
   });
 });
 

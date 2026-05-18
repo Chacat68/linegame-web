@@ -164,11 +164,19 @@ function _deserializeState(data) {
   return normalized;
 }
 
+// schema 只允许从旧版本逐步向当前版本迁移。
+// 如果读到来自未来版本的存档，必须显式拒绝，避免静默吞掉未知字段。
 function _migrateSchema(envelope) {
   const next = _deepClone(envelope);
 
   if (!next.meta) next.meta = {};
   if (next.meta.schemaVersion == null) next.meta.schemaVersion = 1;
+  if (next.meta.schemaVersion > SAVE_SCHEMA_VERSION) {
+    throw _createSaveError(
+      'SAVE_SCHEMA_UNSUPPORTED',
+      '不支持的存档版本：' + next.meta.schemaVersion + '（当前最高支持 v' + SAVE_SCHEMA_VERSION + '）。'
+    );
+  }
 
   while (next.meta.schemaVersion < SAVE_SCHEMA_VERSION) {
     if (next.meta.schemaVersion === 1) {
@@ -216,7 +224,17 @@ function _migrateSchema(envelope) {
       next.meta.schemaVersion = 10;
       continue;
     }
-    throw new Error('不支持的存档版本：' + next.meta.schemaVersion);
+    if (next.meta.schemaVersion === 10) {
+      _migrateSchema10To11(next);
+      next.meta.schemaVersion = 11;
+      continue;
+    }
+    if (next.meta.schemaVersion === 11) {
+      _migrateSchema11To12(next);
+      next.meta.schemaVersion = 12;
+      continue;
+    }
+    throw _createSaveError('SAVE_SCHEMA_UNSUPPORTED', '不支持的存档版本：' + next.meta.schemaVersion + '。');
   }
 
   next.data = _normalizeState(next.data);
@@ -282,6 +300,28 @@ function _migrateSchema9To10(envelope) {
   if (!envelope.data) envelope.data = {};
   if (!envelope.data.galaxyStates || typeof envelope.data.galaxyStates !== 'object') {
     envelope.data.galaxyStates = {};
+  }
+  _normalizeEnvelopeData(envelope);
+}
+
+/**
+ * v10 → v11：添加轻量剧情标记字段
+ */
+function _migrateSchema10To11(envelope) {
+  if (!envelope.data) envelope.data = {};
+  if (!envelope.data.storyFlags || typeof envelope.data.storyFlags !== 'object' || Array.isArray(envelope.data.storyFlags)) {
+    envelope.data.storyFlags = {};
+  }
+  _normalizeEnvelopeData(envelope);
+}
+
+/**
+ * v11 → v12：添加轻量剧情选择记录字段
+ */
+function _migrateSchema11To12(envelope) {
+  if (!envelope.data) envelope.data = {};
+  if (!envelope.data.storyDecisions || typeof envelope.data.storyDecisions !== 'object' || Array.isArray(envelope.data.storyDecisions)) {
+    envelope.data.storyDecisions = {};
   }
   _normalizeEnvelopeData(envelope);
 }

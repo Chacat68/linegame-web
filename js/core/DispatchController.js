@@ -8,11 +8,12 @@
 // tick 函数返回动作描述，由 GameManager 执行具体的状态变更。
 
 import * as EventBus  from './EventBus.js';
-import * as Fleet     from '../systems/fleet/FleetSystem.js?v=20260406-routefix2';
-import * as AutoTrade from '../systems/trade/AutoTradeSystem.js';
+import * as Fleet     from '../systems/fleet/FleetSystem.js?v=20260421-balance6';
+import * as AutoTrade from '../systems/trade/AutoTradeSystem.js?v=20260420-balance5';
 import * as Economy   from '../systems/economy/Economy.js';
 
 let _activeDispatchInterval = null;
+let _activeDispatchKickoffTimeout = null;
 const ACTIVE_DISPATCH_TICK_MS = 5000;
 
 function _queuePolicyMessage(route, msgs, text) {
@@ -37,6 +38,12 @@ function _clearPolicyMessage(route) {
 export function startActiveDispatch(tickFn) {
   stopActiveDispatch();
   _activeDispatchInterval = setInterval(tickFn, ACTIVE_DISPATCH_TICK_MS);
+  _activeDispatchKickoffTimeout = setTimeout(function () {
+    _activeDispatchKickoffTimeout = null;
+    if (_activeDispatchInterval && typeof tickFn === 'function') {
+      tickFn();
+    }
+  }, 0);
   updateActiveDispatchUI();
   EventBus.emit('log:message', { text: '📡 激活船只已派遣！每 5 秒执行一次操作。', type: 'info' });
 }
@@ -45,6 +52,10 @@ export function startActiveDispatch(tickFn) {
  * 停止自动派遣定时器
  */
 export function stopActiveDispatch() {
+  if (_activeDispatchKickoffTimeout) {
+    clearTimeout(_activeDispatchKickoffTimeout);
+    _activeDispatchKickoffTimeout = null;
+  }
   if (_activeDispatchInterval) {
     clearInterval(_activeDispatchInterval);
     _activeDispatchInterval = null;
@@ -68,11 +79,13 @@ export function isRunning() {
  * @param {object} state  游戏状态
  * @param {object} options
  * @param {Function} options.isModalVisible  (modalId) => boolean 检查弹窗是否可见
+ * @param {Function} [options.hasBlockingSurfaceOpen]  () => boolean 检查是否存在任意阻塞层
  * @returns {{ action: string, payload?: *, msgs: Array }}
  *   action 可为：
  *     - 'noop'        : 无需操作（弹窗打开中或非派遣状态）
  *     - 'stopped'     : 已自动停止
  *     - 'travel'      : 需要旅行到 payload.systemId
+ *     - 'buy_need_refuel': 买入前需先补足下一段航程燃料
  *     - 'buy'         : 需要买入 payload { goodId, quantity }
  *     - 'sell'        : 需要卖出 payload { goodId, quantity }
  *     - 'fuel_failed' : 燃料不足已召回
@@ -80,13 +93,14 @@ export function isRunning() {
 export function runActiveDispatchTick(state, options) {
   const msgs = [];
   const isModalVisible = options.isModalVisible;
+  const hasBlockingSurfaceOpen = options.hasBlockingSurfaceOpen;
 
   // 有弹窗时暂停
-  if (isModalVisible('event-modal')) {
-    return { action: 'noop', msgs };
-  }
   if (isModalVisible('gameover-modal')) {
     return { action: 'stopped', msgs };
+  }
+  if ((typeof hasBlockingSurfaceOpen === 'function' && hasBlockingSurfaceOpen()) || isModalVisible('event-modal') || isModalVisible('dispatch-modal')) {
+    return { action: 'noop', msgs };
   }
 
   // 检查激活船只是否仍在派遣中
@@ -97,27 +111,42 @@ export function runActiveDispatchTick(state, options) {
   // 每个 tick 开始时检查任务路线
   var activeShip = Fleet.getActiveShip(state);
   if (activeShip && activeShip.route) {
-    var qr = AutoTrade.findQuestRoute(state);
+    var activeShipStats = Fleet.getEffectiveShipStats(state, activeShip);
+    var qr = AutoTrade.findQuestRoute(state, {
+      currentSystem: state.currentSystem,
+      currentGalaxy: state.currentGalaxy || 'milky_way',
+      playerLevel: state.playerLevel || 1,
+      cargo: state.cargo || {},
+      fuelEfficiency: activeShipStats.fuelEff,
+      dispatchProfile: activeShipStats.dispatchProfile || null,
+    });
     if (qr) {
       var curRoute = activeShip.route;
       if (curRoute.questId !== qr.questId ||
           curRoute.buySystemId !== qr.buySystemId ||
           curRoute.sellSystemId !== qr.sellSystemId ||
-          curRoute.goodId !== qr.goodId) {
+          curRoute.goodId !== qr.goodId ||
+          curRoute.strategySummary !== qr.strategySummary) {
         var routeRevision = Fleet.bumpRouteRevision(activeShip);
         curRoute.buySystemId  = qr.buySystemId;
         curRoute.sellSystemId = qr.sellSystemId;
         curRoute.goodId       = qr.goodId;
         curRoute.status       = qr.status;
         curRoute.questId      = qr.questId;
+        curRoute.strategyLabel = qr.strategyLabel || null;
+        curRoute.strategySummary = qr.strategySummary || null;
+        curRoute.routeFitScore = qr.routeFitScore || 0;
         curRoute.revision     = routeRevision;
         msgs.push({
-          text: '📋 任务路线：前往完成「' + qr.questName + '」',
+          text: '📋 任务路线：前往完成「' + qr.questName + '」' + (qr.strategySummary ? ' · ' + qr.strategySummary : ''),
           type: 'info',
         });
       }
     } else if (activeShip.route.questId) {
       delete activeShip.route.questId;
+      delete activeShip.route.strategyLabel;
+      delete activeShip.route.strategySummary;
+      delete activeShip.route.routeFitScore;
     }
   }
 
@@ -153,6 +182,7 @@ export function runActiveDispatchTick(state, options) {
     var space = state.maxCargo - cargoUsed;
     var canAfford = Math.floor(state.credits / buyPrice);
     var qty = Math.min(space, canAfford);
+    var nextTravelFuelCost = Economy.getFuelCost(route.buySystemId, route.sellSystemId, state.fuelEfficiency, state);
 
     if (!buyPolicyCheck.ok) {
       _queuePolicyMessage(route, msgs, '⏸️ 自动派遣等待买点：' + buyPolicyCheck.reasons.join('、') + '。');
@@ -160,6 +190,18 @@ export function runActiveDispatchTick(state, options) {
     }
 
     if (qty > 0) {
+      if (state.fuel < nextTravelFuelCost) {
+        return {
+          action: 'buy_need_refuel',
+          payload: {
+            goodId: route.goodId,
+            quantity: qty,
+            marketType: marketType,
+            fuelCost: nextTravelFuelCost,
+          },
+          msgs,
+        };
+      }
       _clearPolicyMessage(route);
       // 先执行买入
       return { action: 'buy', payload: { goodId: route.goodId, quantity: qty, marketType: marketType }, msgs };
@@ -205,6 +247,7 @@ export function runActiveDispatchTick(state, options) {
  * 更新派遣 UI 指示器
  */
 export function updateActiveDispatchUI() {
+  if (!globalThis.document || typeof document.getElementById !== 'function') return;
   var ctrlDiv = document.getElementById('auto-trade-controls');
   if (!ctrlDiv) return;
   if (_activeDispatchInterval) {

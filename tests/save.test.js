@@ -123,6 +123,22 @@ describe('Save.loadGame', () => {
     expect(result.state.insurancePolicies).toEqual({});
     expect(result.state.insuranceClaims).toEqual([]);
     expect(result.state.financeLastProcessedDay).toBe(1);
+    expect(result.state.storyFlags).toEqual({});
+    expect(result.state.storyDecisions).toEqual({});
+  });
+
+  it('上一版存档迁移后会补齐剧情标记与选择字段', () => {
+    const envelope = {
+      meta: { schemaVersion: SAVE_SCHEMA_VERSION - 1, gameVersion: '0.6.0', slotId: 1, timestampMs: Date.now() },
+      data: { credits: 900, day: 7, currentSystem: 'sol_prime' },
+    };
+    globalThis.localStorage.setItem('startrader_save_1', JSON.stringify(envelope));
+
+    const result = Save.loadGame(1);
+
+    expect(result.ok).toBe(true);
+    expect(result.state.storyFlags).toEqual({});
+    expect(result.state.storyDecisions).toEqual({});
   });
 
   it('旧存档缺少等级字段时，会根据经验自动回填 playerLevel 和 companyLevel', () => {
@@ -158,6 +174,19 @@ describe('Save.loadGame', () => {
     const stored = JSON.parse(globalThis.localStorage.getItem('startrader_save_1'));
     expect(stored.meta.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
     expect(stored.meta.difficulty).toBe('normal');
+  });
+
+  it('未来版本的存档会被拒绝，避免静默降级', () => {
+    const envelope = {
+      meta: { schemaVersion: SAVE_SCHEMA_VERSION + 1, gameVersion: '9.9.9', slotId: 1, timestampMs: Date.now() },
+      data: { credits: 900, day: 7, currentSystem: 'sol_prime' },
+    };
+    globalThis.localStorage.setItem('startrader_save_1', JSON.stringify(envelope));
+
+    const result = Save.loadGame(1);
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe('SAVE_SCHEMA_UNSUPPORTED');
+    expect(result.msg).toContain('不支持的存档版本');
   });
 
   it('随机事件冷却与历史会随存档保留', () => {
@@ -235,12 +264,31 @@ describe('Save.importSave', () => {
     expect(stored.meta.credits).toBe(2048);
   });
 
-  it('正常存档可以导入', () => {
+  it('正常存档导出后重新导入，核心状态保持一致', () => {
     const state = createTestState({ credits: 12345 });
     Save.saveGame(2, state);
     const exported = Save.exportSave(2);
     const result = Save.importSave(1, exported);
     expect(result.ok).toBe(true);
+
+    const loaded = Save.loadGame(1);
+    expect(loaded.ok).toBe(true);
+    expect(loaded.state.credits).toBe(12345);
+    expect(loaded.state.currentSystem).toBe(state.currentSystem);
+  });
+
+  it('非法导入不会覆盖目标槽位里已有的有效存档', () => {
+    const originalState = createTestState({ credits: 6789, day: 16 });
+    Save.saveGame(1, originalState, { saveName: '原始存档' });
+
+    const failed = Save.importSave(1, '{broken');
+    expect(failed.ok).toBe(false);
+    expect(failed.errorCode).toBe('SAVE_JSON_INVALID');
+
+    const loaded = Save.loadGame(1);
+    expect(loaded.ok).toBe(true);
+    expect(loaded.state.credits).toBe(6789);
+    expect(loaded.state.day).toBe(16);
   });
 });
 

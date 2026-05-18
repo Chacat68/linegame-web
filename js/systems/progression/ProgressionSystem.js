@@ -7,8 +7,8 @@
 
 import * as PlayerLevels from '../../data/playerLevels.js';
 import { FACTION_CONFIG, PROGRESSION_CONFIG } from '../../data/constants.js';
-import { SYSTEMS } from '../../data/systems.js';
-import * as Fleet from '../fleet/FleetSystem.js?v=20260406-routefix2';
+import { SYSTEMS, GALAXIES } from '../../data/systems.js?v=20260420-balance3';
+import * as Fleet from '../fleet/FleetSystem.js?v=20260421-balance6';
 
 const getLevel = PlayerLevels.getLevel;
 const getCompanyLevel = PlayerLevels.getCompanyLevel || function () {
@@ -164,17 +164,32 @@ export function applyLevelPerk(state, level) {
  */
 export function announceNewRoutes(state, oldLvl, newLvl) {
   const msgs = [];
+  const previewLimit = PROGRESSION_CONFIG.routeAnnouncementPreviewLimit || 5;
   const newPlanets = SYSTEMS.filter(function (s) {
     const ml = s.minLevel || 1;
     return ml > oldLvl && ml <= newLvl;
   });
   if (newPlanets.length > 0) {
-    const names = newPlanets.slice(0, 5).map(function (s) { return s.name; }).join('、');
-    const extra = newPlanets.length > 5 ? ' 等 ' + newPlanets.length + ' 颗星球' : '';
+    const names = newPlanets.slice(0, previewLimit).map(function (s) { return s.name; }).join('、');
+    const extra = newPlanets.length > previewLimit ? ' 等 ' + newPlanets.length + ' 颗星球' : '';
     msgs.push({
       text: '🗺️ 新航线开放！解锁了 ' + names + extra + '！',
       type: 'info',
     });
   }
+
+  const newGalaxies = GALAXIES.filter(function (galaxy) {
+    const requiredLevel = galaxy.minLevel || 1;
+    return !galaxy.unlocked && requiredLevel > oldLvl && requiredLevel <= newLvl;
+  });
+  if (newGalaxies.length > 0) {
+    msgs.push({
+      text: '🌌 新星系开放！现可切换至 ' + newGalaxies.map(function (galaxy) {
+        return galaxy.icon + ' ' + galaxy.name;
+      }).join('、') + '。',
+      type: 'upgrade',
+    });
+  }
+
   return { msgs };
 }

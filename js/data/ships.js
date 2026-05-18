@@ -17,6 +17,9 @@
  *   fuelEff      初始燃料效率（越低越省油）
  *   minFuelEff   燃料效率下限（最好值）
  *   modSlots     改装槽位数
+ *   upkeep       日常养护费
+ *   serviceRate  每点维护度的检修报价
+ *   maintenanceDecay  维护损耗倍率
  *   skills       特殊技能列表
  *   desc         描述
  */
@@ -35,6 +38,9 @@ export const SHIP_TYPES = [
     fuelEff: 1.0,
     minFuelEff: 0.6,
     modSlots: 1,
+    upkeep: 0,
+    serviceRate: 5,
+    maintenanceDecay: 0.85,
     skills: [
       {
         id: "quick_trade",
@@ -61,6 +67,9 @@ export const SHIP_TYPES = [
     fuelEff: 1.2,
     minFuelEff: 0.5,
     modSlots: 2,
+    upkeep: 28,
+    serviceRate: 7,
+    maintenanceDecay: 1,
     skills: [
       {
         id: "bulk_discount",
@@ -95,6 +104,9 @@ export const SHIP_TYPES = [
     fuelEff: 0.7,
     minFuelEff: 0.3,
     modSlots: 2,
+    upkeep: 36,
+    serviceRate: 8,
+    maintenanceDecay: 1.08,
     skills: [
       {
         id: "evasion",
@@ -129,6 +141,9 @@ export const SHIP_TYPES = [
     fuelEff: 1.5,
     minFuelEff: 0.6,
     modSlots: 3,
+    upkeep: 78,
+    serviceRate: 11,
+    maintenanceDecay: 1.18,
     skills: [
       {
         id: "market_dominance",
@@ -289,7 +304,8 @@ export const SHIP_UPGRADES = [
  *   cost       安装费用
  *   category   分类：cargo / engine / hull / trade
  *   desc       描述
- *   effect     效果：{ cargo, maxFuel, fuelEff, hull, buyDiscount, sellBonus }
+ *   upkeep     日常养护附加费
+ *   effect     效果：{ cargo, maxFuel, fuelEff, hull, buyDiscount, sellBonus, autoRepair, maintenanceDecayMultiplier }
  */
 export const SHIP_MODS = [
   {
@@ -317,6 +333,7 @@ export const SHIP_MODS = [
     cost: 600,
     category: "engine",
     desc: "燃料 +30",
+    upkeep: 4,
     effect: { maxFuel: 30 },
   },
   {
@@ -326,6 +343,7 @@ export const SHIP_MODS = [
     cost: 1800,
     category: "engine",
     desc: "耗油 ×0.9",
+    upkeep: 7,
     effect: { fuelEff: 0.9 },
   },
   {
@@ -335,6 +353,7 @@ export const SHIP_MODS = [
     cost: 1000,
     category: "hull",
     desc: "船体 +30",
+    upkeep: 5,
     effect: { hull: 30 },
   },
   {
@@ -344,7 +363,18 @@ export const SHIP_MODS = [
     cost: 2500,
     category: "hull",
     desc: "船体 +50，自动修复",
+    upkeep: 9,
     effect: { hull: 50, autoRepair: 2 },
+  },
+  {
+    id: "mod_service_bay",
+    name: "舰务维护舱",
+    emoji: "🧰",
+    cost: 2200,
+    category: "hull",
+    desc: "自动修复 +1，维护损耗 ×0.75",
+    upkeep: 8,
+    effect: { autoRepair: 1, maintenanceDecayMultiplier: 0.75 },
   },
   {
     id: "mod_trade_computer",
@@ -353,6 +383,7 @@ export const SHIP_MODS = [
     cost: 2000,
     category: "trade",
     desc: "买入折扣 2%",
+    upkeep: 6,
     effect: { buyDiscount: 0.02 },
   },
   {
@@ -362,7 +393,28 @@ export const SHIP_MODS = [
     cost: 3000,
     category: "trade",
     desc: "卖出加价 3%",
+    upkeep: 8,
     effect: { sellBonus: 0.03 },
+  },
+  {
+    id: "mod_smuggler_hold",
+    name: "隐匿货柜",
+    emoji: "🕶️",
+    cost: 2600,
+    category: "trade",
+    desc: "走私检查率 ×0.78，罚款 ×0.85",
+    upkeep: 7,
+    effect: { smugglingCheckMultiplier: 0.78, smugglingFineMultiplier: 0.85 },
+  },
+  {
+    id: "mod_survey_array",
+    name: "深空测绘阵列",
+    emoji: "📡",
+    cost: 2800,
+    category: "engine",
+    desc: "扫描燃料 -20%，勘探收益 +12%",
+    upkeep: 8,
+    effect: { scanFuelDiscount: 0.2, poiRewardMultiplier: 1.12 },
   },
   // --- 高级改装（带前置条件） ---
   {
@@ -372,6 +424,7 @@ export const SHIP_MODS = [
     cost: 3500,
     category: "cargo",
     desc: "货舱 +35",
+    upkeep: 9,
     effect: { cargo: 35 },
     requires: "mod_cargo_compress",
   },
@@ -382,6 +435,7 @@ export const SHIP_MODS = [
     cost: 4000,
     category: "engine",
     desc: "耗油 ×0.8",
+    upkeep: 10,
     effect: { fuelEff: 0.8 },
     requires: "mod_ion_drive",
   },
@@ -392,6 +446,7 @@ export const SHIP_MODS = [
     cost: 5000,
     category: "hull",
     desc: "船体 +80，自动修复 3",
+    upkeep: 12,
     effect: { hull: 80, autoRepair: 3 },
     requires: "mod_nano_repair",
   },
@@ -402,6 +457,7 @@ export const SHIP_MODS = [
     cost: 6000,
     category: "trade",
     desc: "买入折扣 4%，卖出加价 3%",
+    upkeep: 12,
     effect: { buyDiscount: 0.04, sellBonus: 0.03 },
     requires: "mod_broker_ai",
   },

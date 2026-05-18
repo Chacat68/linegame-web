@@ -159,7 +159,7 @@ describe('Trade.travelTo', () => {
     const result = Trade.travelTo(state, 'nova_station');
     expect(result.ok).toBe(true);
     expect(state.currentSystem).toBe('nova_station');
-    expect(state.day).toBeGreaterThan(1);
+    expect(state.day).toBe(1);
     expect(state.fuel).toBeLessThan(100);
   });
 
@@ -171,13 +171,39 @@ describe('Trade.travelTo', () => {
     expect(state.currentSystem).toBe('sol_prime');
   });
 
-  it('跨星系旅行没有科技时失败', () => {
-    const state = createTestState({ fuel: 1000, maxFuel: 1000 });
+  it('等级不足时跨星系旅行失败', () => {
+    const state = createTestState({ fuel: 1000, maxFuel: 1000, playerLevel: 1 });
     Faction.init(state);
-    // 使用仙女座星系的真实星球 'citadel_prime'
     const result = Trade.travelTo(state, 'citadel_prime');
     expect(result.ok).toBe(false);
-    expect(result.msgs[0].text).toContain('超空间跃迁');
+    expect(result.msgs[0].text).toContain('Lv.2');
+  });
+
+  it('达到星系等级后可直接跨星系旅行', () => {
+    const state = createTestState({ fuel: 1000, maxFuel: 1000, playerLevel: 2 });
+    Faction.init(state);
+
+    const result = Trade.travelTo(state, 'citadel_prime');
+
+    expect(result.ok).toBe(true);
+    expect(state.currentSystem).toBe('citadel_prime');
+    expect(state.currentGalaxy).toBe('andromeda');
+    expect(state.viewingGalaxy).toBe('andromeda');
+  });
+
+  it('研究超空间后可提前跨星系旅行', () => {
+    const state = createTestState({
+      fuel: 1000,
+      maxFuel: 1000,
+      playerLevel: 1,
+      researchedTechs: ['hyperspace_jump'],
+    });
+    Faction.init(state);
+
+    const result = Trade.travelTo(state, 'citadel_prime');
+
+    expect(result.ok).toBe(true);
+    expect(state.currentSystem).toBe('citadel_prime');
   });
 
   it('等级不足时旅行失败', () => {
@@ -191,5 +217,18 @@ describe('Trade.travelTo', () => {
       // 可能是等级锁定或其他原因
       expect(result.msgs[0].type).toBe('error');
     }
+  });
+
+  it('旅行不会再直接推进经济日结或游戏天数', () => {
+    const state = createTestState({ fuel: 100, maxFuel: 100, day: 1 });
+    Faction.init(state);
+
+    const beforeHistory = Economy.getPriceHistory('sol_prime', 'food').length;
+    const result = Trade.travelTo(state, 'nova_station');
+    const afterHistory = Economy.getPriceHistory('sol_prime', 'food').length;
+
+    expect(result.ok).toBe(true);
+    expect(state.day).toBe(1);
+    expect(afterHistory).toBe(beforeHistory);
   });
 });

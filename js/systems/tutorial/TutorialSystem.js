@@ -3,6 +3,7 @@
 // 导出：init, getStep, advance, skip, isActive, checkTrigger, STEPS
 
 import * as EventBus from '../../core/EventBus.js';
+import { TUTORIAL_CONFIG } from '../../data/constants.js';
 
 // ---------------------------------------------------------------------------
 // 教程步骤定义
@@ -136,9 +137,61 @@ export const STEPS = [
     id: 'show_tabs',
     phase: 3,
     title: '更多功能',
-    content: '恭喜完成第一笔交易！游戏还有更多系统等你探索：\n📦 货舱 - 管理你的货物\n⚙️ 升级 - 强化飞船\n🔬 科技 - 研究新技术\n🏛️ 派系 - 外交关系\n📋 任务 - 接取任务赚奖励',
+    content: '恭喜完成第一笔交易！游戏还有更多系统等你探索：\n📦 货舱 - 管理你的货物\n⚙️ 升级 - 强化飞船\n🔬 科技 - 研究新技术\n🏛️ 派系 - 外交关系\n📋 任务 - 把贸易、航行和交付串成正式成长路线',
     highlight: '.tabs',
     position: 'left',
+    trigger: 'manual',
+    npcName: '港口管理员 汤姆',
+    npcIcon: '👨‍✈️',
+    reward: null,
+    canSkip: false,
+  },
+  {
+    id: 'show_quest_board',
+    phase: 3,
+    title: '把教程接到任务',
+    content: '左侧的【任务】面板已经给你准备好了起步委托。这里会告诉你目标、奖励和建议航线。\n\n先看一眼任务简报，接下来我们把刚学会的贸易动作，正式接到第一张委托上。',
+    highlight: '#quest-list',
+    position: 'left',
+    trigger: 'manual',
+    npcName: '港口管理员 汤姆',
+    npcIcon: '👨‍✈️',
+    reward: null,
+    canSkip: false,
+  },
+  {
+    id: 'accept_first_quest',
+    phase: 3,
+    title: '接下第一份委托',
+    content: '点击任务简报或任务追踪里的【接取任务】按钮，先拿下一张起步单。\n\n你刚才在教程里做过的买卖和航行，也会开始被任务系统计入进度。',
+    highlight: '#quest-list',
+    position: 'left',
+    trigger: 'action:accept_quest',
+    npcName: '港口管理员 汤姆',
+    npcIcon: '👨‍✈️',
+    reward: null,
+    canSkip: false,
+  },
+  {
+    id: 'complete_first_quest',
+    phase: 3,
+    title: '完成第一份委托',
+    content: '现在把第一张委托真正收尾。部分起步任务会直接吃到你刚才的教程记录，当场结算；如果还没完成，就照着任务目标再跑一段。\n\n任务完成时，你会看到任务回信和奖励结算。',
+    highlight: '#quest-list',
+    position: 'left',
+    trigger: 'action:complete_quest',
+    npcName: '港口管理员 汤姆',
+    npcIcon: '👨‍✈️',
+    reward: null,
+    canSkip: false,
+  },
+  {
+    id: 'quest_tracker',
+    phase: 3,
+    title: '盯住任务追踪',
+    content: '第一张委托完成后，左上角的追踪区会自动切到当前最重要的目标；如果暂时没有进行中的任务，它也会刷新成下一批推荐任务。\n\n以后每次起航前，先看这里，你就知道下一步该跑什么。',
+    highlight: '#quest-tracker',
+    position: 'right',
     trigger: 'manual',
     npcName: '港口管理员 汤姆',
     npcIcon: '👨‍✈️',
@@ -162,7 +215,7 @@ export const STEPS = [
     id: 'tutorial_complete',
     phase: 3,
     title: '教程完成！',
-    content: '你已经掌握了星际贸易的基础！\n\n💡 赚钱秘诀：\n  · 在生产星球低价买入，到需求星球高价卖出\n  · 关注市场的 🔥（高需求）和 📦（高供给）标识\n  · 规划好航线，节省燃料\n\n目标：积累 50,000 信用积分，重振商业帝国！\n\n接下来，是时候为你继承的公司起一个新名字了……🚀',
+    content: '你已经掌握了星际贸易的基础，也亲手完成了第一张正式委托！\n\n💡 接下来怎么赚钱更稳：\n  · 在生产星球低价买入，到需求星球高价卖出\n  · 关注任务目标，把贸易和航行顺手做成章节进度\n  · 规划好航线，节省燃料和往返成本\n\n目标：积累 50,000 信用积分，重振商业帝国！\n\n接下来，是时候为你继承的公司起一个新名字了……🚀',
     highlight: null,
     position: 'center',
     trigger: 'manual',
@@ -181,6 +234,7 @@ let _currentIndex = 0;
 let _active       = false;
 let _completed    = false;  // 教程已全部完成
 let _stateRef     = null;   // 对游戏状态的引用
+let _pendingActions = Object.create(null);
 
 // ---------------------------------------------------------------------------
 // API
@@ -191,9 +245,10 @@ export function init(state) {
   _currentIndex = 0;
   _active = false;
   _completed = false;
+  _pendingActions = Object.create(null);
 
   // 检查 localStorage —— 老玩家跳过
-  if (localStorage.getItem('tutorial_completed') === '1') {
+  if (localStorage.getItem(TUTORIAL_CONFIG.completionStorageKey) === '1') {
     _completed = true;
     return;
   }
@@ -214,7 +269,8 @@ export function start() {
   if (_completed) return;
   _currentIndex = 0;
   _active = true;
-  EventBus.emit('tutorial:step', { step: STEPS[_currentIndex], index: _currentIndex, total: STEPS.length });
+  _pendingActions = Object.create(null);
+  _showCurrentStep();
 }
 
 /** 获取当前步骤 */
@@ -238,41 +294,24 @@ export function getTotalSteps() {
  */
 export function advance() {
   if (!_active || _completed) return;
-
-  const current = STEPS[_currentIndex];
-
-  // 发放本步骤奖励
-  if (current.reward && _stateRef) {
-    if (current.reward.credits) {
-      _stateRef.credits += current.reward.credits;
-    }
-    if (current.reward.msg) {
-      EventBus.emit('log:message', { text: current.reward.msg, type: 'upgrade' });
-    }
-  }
-
-  _currentIndex++;
-
-  if (_currentIndex >= STEPS.length) {
-    _complete();
-    return;
-  }
-
-  EventBus.emit('tutorial:step', { step: STEPS[_currentIndex], index: _currentIndex, total: STEPS.length });
+  _finishCurrentStep();
+  _showCurrentStep();
 }
 
 /**
  * 检查是否触发了当前教程步骤（由 GameManager 在各种动作后调用）
- * @param {string} action  触发动作 'buy' | 'sell' | 'travel' | 'click:tab-xxx'
+ * @param {string} action  触发动作 'buy' | 'sell' | 'travel' | 'accept_quest' | 'complete_quest' | 'click:tab-xxx'
  */
 export function checkTrigger(action) {
-  if (!_active || _completed) return;
+  if (!_active || _completed || !action) return;
+
+  _pendingActions[action] = true;
 
   const current = STEPS[_currentIndex];
   if (!current) return;
 
-  if (current.trigger === 'action:' + action) {
-    advance();
+  if (_getActionTrigger(current) === action) {
+    _showCurrentStep();
   }
 }
 
@@ -301,17 +340,62 @@ export function reset() {
   _currentIndex = 0;
   _active = false;
   _completed = false;
-  localStorage.removeItem('tutorial_completed');
+  _pendingActions = Object.create(null);
+  localStorage.removeItem(TUTORIAL_CONFIG.completionStorageKey);
 }
 
 // ---------------------------------------------------------------------------
 // 内部
 // ---------------------------------------------------------------------------
 
+function _showCurrentStep() {
+  while (_active && !_completed) {
+    if (_currentIndex >= STEPS.length) {
+      _complete();
+      return;
+    }
+
+    const current = STEPS[_currentIndex];
+    const requiredAction = _getActionTrigger(current);
+
+    if (requiredAction && _pendingActions[requiredAction]) {
+      delete _pendingActions[requiredAction];
+      _finishCurrentStep();
+      continue;
+    }
+
+    EventBus.emit('tutorial:step', { step: current, index: _currentIndex, total: STEPS.length });
+    return;
+  }
+}
+
+function _finishCurrentStep() {
+  const current = STEPS[_currentIndex];
+  if (!current) return;
+
+  if (current.reward && _stateRef) {
+    if (current.reward.credits) {
+      _stateRef.credits += current.reward.credits;
+    }
+    if (current.reward.msg) {
+      EventBus.emit('log:message', { text: current.reward.msg, type: 'upgrade' });
+    }
+  }
+
+  _currentIndex++;
+}
+
+function _getActionTrigger(step) {
+  if (!step || typeof step.trigger !== 'string' || step.trigger.indexOf('action:') !== 0) {
+    return '';
+  }
+  return step.trigger.slice('action:'.length);
+}
+
 function _complete() {
   _active = false;
   _completed = true;
-  localStorage.setItem('tutorial_completed', '1');
+  localStorage.setItem(TUTORIAL_CONFIG.completionStorageKey, '1');
   EventBus.emit('tutorial:complete', {});
   EventBus.emit('log:message', { text: '📖 新手教程已完成！你可以在重新开始游戏时再次体验教程。', type: 'info' });
 }

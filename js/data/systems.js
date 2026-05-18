@@ -184,33 +184,138 @@ function _genPrices(r, base) {
   const p = {}; for (const k in base) p[k] = Math.round(base[k] * (.7 + r() * .6) * 100) / 100; return p;
 }
 
+const _TRADE_PROFILES = {
+  milky_way: {
+    exports: ['food', 'fuel'],
+    imports: ['luxury', 'technology'],
+    priceBias: { food: -0.04, fuel: -0.06, luxury: 0.08, technology: 0.04 },
+  },
+  andromeda: {
+    exports: ['technology', 'medicine'],
+    imports: ['minerals', 'luxury'],
+    priceBias: { technology: -0.14, medicine: -0.08, minerals: 0.16, luxury: 0.14, weapons: 0.10 },
+  },
+  orion_arm: {
+    exports: ['minerals', 'weapons'],
+    imports: ['food', 'medicine'],
+    priceBias: { minerals: -0.16, weapons: -0.14, fuel: -0.06, food: 0.18, water: 0.12, medicine: 0.18, luxury: 0.14 },
+  },
+  magellanic_cloud: {
+    exports: ['luxury', 'fuel'],
+    imports: ['weapons', 'technology'],
+    priceBias: { luxury: -0.16, fuel: -0.10, food: -0.06, weapons: 0.12, technology: 0.08, medicine: 0.06 },
+  },
+  dark_sector: {
+    exports: ['weapons', 'luxury'],
+    imports: ['food', 'medicine'],
+    priceBias: { weapons: -0.14, luxury: -0.12, technology: -0.08, food: 0.18, water: 0.16, medicine: 0.18, fuel: 0.08 },
+  },
+  phoenix_nebula: {
+    exports: ['fuel', 'minerals'],
+    imports: ['food', 'medicine'],
+    priceBias: { fuel: -0.12, minerals: -0.10, weapons: -0.06, food: 0.14, water: 0.10, medicine: 0.14, luxury: 0.08 },
+  },
+  jade_expanse: {
+    exports: ['food', 'medicine'],
+    imports: ['minerals', 'weapons'],
+    priceBias: { food: -0.14, water: -0.10, medicine: -0.16, minerals: 0.16, weapons: 0.14, technology: 0.08 },
+  },
+  chrono_rift: {
+    exports: ['technology', 'minerals'],
+    imports: ['food', 'medicine'],
+    priceBias: { technology: -0.18, minerals: -0.10, food: 0.16, water: 0.12, medicine: 0.16, fuel: 0.08 },
+  },
+};
+
 /* ── 星系定义 ── */
 export const GALAXIES = [
   { id:'milky_way',        name:'银河系',     description:'人类文明的发源地，资源均衡的标准星系',
-    color:'#4FC3F7', icon:'🌌', gx:.35, gy:.45, unlocked:true,  techRequired:null,
+    color:'#4FC3F7', icon:'🌌', gx:.35, gy:.45, unlocked:true, minLevel:1, techRequired:null,
+    priceVarianceScale:1.00, marketDepthMultiplier:1.00,
+    tradeProfile:_TRADE_PROFILES.milky_way,
     targetCount:50, seed:42,  typeBias:null },
   { id:'andromeda',        name:'仙女座星系', description:'科技高度发达的星系，先进文明的遗产遍布其中',
-    color:'#AB47BC', icon:'🔮', gx:.75, gy:.25, unlocked:false, techRequired:'hyperspace_jump',
+    color:'#AB47BC', icon:'🔮', gx:.75, gy:.25, unlocked:false, minLevel:2, techRequired:'hyperspace_jump',
+    priceVarianceScale:0.92, marketDepthMultiplier:1.12,
+    tradeProfile:_TRADE_PROFILES.andromeda,
     targetCount:60, seed:137, typeBias:['technology','research','medical'] },
   { id:'orion_arm',        name:'猎户座旋臂', description:'矿产丰富但战事频繁的边陲星域',
-    color:'#FF7043', icon:'⚔️', gx:.65, gy:.75, unlocked:false, techRequired:'hyperspace_jump',
+    color:'#FF7043', icon:'⚔️', gx:.65, gy:.75, unlocked:false, minLevel:4, techRequired:'hyperspace_jump',
+    priceVarianceScale:1.02, marketDepthMultiplier:0.92,
+    tradeProfile:_TRADE_PROFILES.orion_arm,
     targetCount:45, seed:256, typeBias:['military','mining','industrial'] },
   { id:'magellanic_cloud', name:'麦哲伦星云', description:'奢华与商贸的天堂，银河巨贾的聚集地',
-    color:'#FFD54F', icon:'💎', gx:.20, gy:.75, unlocked:false, techRequired:'hyperspace_jump',
+    color:'#FFD54F', icon:'💎', gx:.20, gy:.75, unlocked:false, minLevel:5, techRequired:'hyperspace_jump',
+    priceVarianceScale:1.08, marketDepthMultiplier:1.18,
+    tradeProfile:_TRADE_PROFILES.magellanic_cloud,
     targetCount:55, seed:512, typeBias:['commercial','agricultural','energy'] },
   { id:'dark_sector',      name:'暗星域',     description:'危机四伏的未知领域，蕴藏难以想象的财富',
-    color:'#78909C', icon:'🕳️', gx:.50, gy:.15, unlocked:false, techRequired:'hyperspace_jump',
+    color:'#78909C', icon:'🕳️', gx:.50, gy:.15, unlocked:false, minLevel:8, techRequired:'hyperspace_jump',
+    priceVarianceScale:1.18, marketDepthMultiplier:0.72,
+    tradeProfile:_TRADE_PROFILES.dark_sector,
     targetCount:35, seed:666, typeBias:['special','military'] },
   { id:'phoenix_nebula',   name:'凤凰星云',   description:'浴火重生的星域，恒星诞生之地，能源与矿产极为丰富',
-    color:'#FF6E40', icon:'🔥', gx:.10, gy:.25, unlocked:false, techRequired:'hyperspace_jump',
+    color:'#FF6E40', icon:'🔥', gx:.10, gy:.25, unlocked:false, minLevel:6, techRequired:'hyperspace_jump',
+    priceVarianceScale:1.10, marketDepthMultiplier:0.95,
+    tradeProfile:_TRADE_PROFILES.phoenix_nebula,
     targetCount:40, seed:777, typeBias:['energy','mining','industrial'] },
   { id:'jade_expanse',     name:'翠玉疆域',   description:'生态多样性极高的富饶星域，农业与医疗闻名银河',
-    color:'#00E676', icon:'🌿', gx:.88, gy:.50, unlocked:false, techRequired:'hyperspace_jump',
+    color:'#00E676', icon:'🌿', gx:.88, gy:.50, unlocked:false, minLevel:7, techRequired:'hyperspace_jump',
+    priceVarianceScale:0.98, marketDepthMultiplier:1.08,
+    tradeProfile:_TRADE_PROFILES.jade_expanse,
     targetCount:45, seed:888, typeBias:['agricultural','medical','research'] },
   { id:'chrono_rift',      name:'时空裂隙',   description:'时空异常频发的禁区，古今文明交错，危机与宝藏并存',
-    color:'#D500F9', icon:'🌀', gx:.42, gy:.88, unlocked:false, techRequired:'hyperspace_jump',
+    color:'#D500F9', icon:'🌀', gx:.42, gy:.88, unlocked:false, minLevel:9, techRequired:'hyperspace_jump',
+    priceVarianceScale:1.24, marketDepthMultiplier:0.65,
+    tradeProfile:_TRADE_PROFILES.chrono_rift,
     targetCount:30, seed:999, typeBias:['special','technology','research'] },
 ];
+
+function _getGalaxyProfile(galaxyId) {
+  return GALAXIES.find(function (galaxy) { return galaxy.id === galaxyId; }) || null;
+}
+
+function _scalePriceMultiplier(value, scale) {
+  return Math.max(0.15, Math.round((1 + ((value || 1) - 1) * scale) * 100) / 100);
+}
+
+function _offsetPriceMultiplier(value, offset) {
+  return Math.max(0.15, Math.round(((value || 1) + (offset || 0)) * 100) / 100);
+}
+
+function _getGalaxySystemMinLevel(galaxyId, ratio, r) {
+  var galaxy = _getGalaxyProfile(galaxyId);
+  var baseLevel = galaxy ? (galaxy.minLevel || 1) : 1;
+  if (baseLevel <= 1) {
+    return ratio < .30 ? 1 : ratio < .55 ? 2 : ratio < .75 ? 3 : ratio < .90 ? 4 : 5 + (r() * 3 | 0);
+  }
+
+  if (ratio < .20) return Math.min(10, baseLevel);
+  if (ratio < .40) return Math.min(10, baseLevel + 1);
+  if (ratio < .65) return Math.min(10, baseLevel + 2);
+  if (ratio < .82) return Math.min(10, baseLevel + 3);
+  if (ratio < .93) return Math.min(10, baseLevel + 4);
+  return Math.min(10, baseLevel + 5 + (r() * 2 | 0));
+}
+
+function _applyGalaxyEconomyProfile(galaxyId, system) {
+  var galaxy = _getGalaxyProfile(galaxyId);
+  if (!galaxy || !system) return system;
+
+  var varianceScale = galaxy.priceVarianceScale || 1;
+  var marketDepthMultiplier = galaxy.marketDepthMultiplier || 1;
+  var tradeBias = galaxy.tradeProfile && galaxy.tradeProfile.priceBias ? galaxy.tradeProfile.priceBias : null;
+  var adjustedPrices = {};
+  Object.keys(system.prices || {}).forEach(function (goodId) {
+    var scaled = _scalePriceMultiplier(system.prices[goodId], varianceScale);
+    adjustedPrices[goodId] = _offsetPriceMultiplier(scaled, tradeBias && tradeBias[goodId] ? tradeBias[goodId] : 0);
+  });
+
+  return Object.assign({}, system, {
+    prices: adjustedPrices,
+    marketDepth: Math.max(80, Math.round((system.marketDepth || 200) * marketDepthMultiplier)),
+  });
+}
 
 /* ── 银河系种子星球 ── */
 const _SEEDS_MW = [
@@ -329,71 +434,71 @@ const _SEEDS_MW = [
 /* ── 其他星系种子星球 ── */
 const _SEEDS_OTHER = {
   andromeda: [
-    { id:'citadel_prime', name:'学术圣殿', x:.50, y:.45, color:'#7C4DFF', type:'research', typeLabel:'研究',
+    { id:'citadel_prime', name:'学术圣殿', minLevel:1, x:.50, y:.45, color:'#7C4DFF', type:'research', typeLabel:'研究',
       description:'仙女座最大的学术中心', prices:{food:1.3,water:1.1,minerals:1.5,technology:.3,luxury:1.5,weapons:2,medicine:.4,fuel:.9}},
-    { id:'quantum_lab', name:'量子实验场', x:.28, y:.22, color:'#448AFF', type:'technology', typeLabel:'科技',
+    { id:'quantum_lab', name:'量子实验场', minLevel:2, x:.28, y:.22, color:'#448AFF', type:'technology', typeLabel:'科技',
       description:'量子力学尖端实验设施', prices:{food:1.8,water:1.5,minerals:1.6,technology:.3,luxury:1.8,weapons:1.5,medicine:.5,fuel:1}},
-    { id:'harmony_world', name:'和谐世界', x:.72, y:.68, color:'#69F0AE', type:'agricultural', typeLabel:'农业',
+    { id:'harmony_world', name:'和谐世界', minLevel:3, x:.72, y:.68, color:'#69F0AE', type:'agricultural', typeLabel:'农业',
       description:'仙女座的粮仓星球', prices:{food:.3,water:.4,minerals:1.5,technology:2,luxury:2.2,weapons:2.5,medicine:1.5,fuel:.8}},
-    { id:'neon_bazaar', name:'霓虹集市', x:.82, y:.30, color:'#FF4081', type:'commercial', typeLabel:'商业',
+    { id:'neon_bazaar', name:'霓虹集市', minLevel:3, x:.82, y:.30, color:'#FF4081', type:'commercial', typeLabel:'商业',
       description:'仙女座最繁华的不夜城', prices:{food:1.1,water:1,minerals:1.2,technology:.8,luxury:.4,weapons:1.3,medicine:1,fuel:.9}},
   ],
   orion_arm: [
-    { id:'iron_fortress', name:'铁壁要塞', x:.40, y:.35, color:'#D50000', type:'military', typeLabel:'军事',
+    { id:'iron_fortress', name:'铁壁要塞', minLevel:4, x:.40, y:.35, color:'#D50000', type:'military', typeLabel:'军事',
       description:'猎户座旋臂最坚固的堡垒', prices:{food:2.2,water:1.9,minerals:1.2,technology:1.5,luxury:2.8,weapons:.3,medicine:2.5,fuel:1.3}},
-    { id:'deep_mine', name:'深渊矿井', x:.65, y:.60, color:'#FF6D00', type:'mining', typeLabel:'矿业',
+    { id:'deep_mine', name:'深渊矿井', minLevel:4, x:.65, y:.60, color:'#FF6D00', type:'mining', typeLabel:'矿业',
       description:'深入星球核心的超级矿井', prices:{food:1.8,water:1.5,minerals:.2,technology:1.6,luxury:2,weapons:1.2,medicine:1.6,fuel:.5}},
-    { id:'warmonger_dock', name:'战贩船坞', x:.25, y:.72, color:'#C62828', type:'industrial', typeLabel:'工业',
+    { id:'warmonger_dock', name:'战贩船坞', minLevel:5, x:.25, y:.72, color:'#C62828', type:'industrial', typeLabel:'工业',
       description:'军火制造与战舰维修船坞', prices:{food:1.6,water:1.4,minerals:.6,technology:.9,luxury:1.8,weapons:.3,medicine:1.8,fuel:.7}},
   ],
   magellanic_cloud: [
-    { id:'golden_palace', name:'黄金宫殿', x:.50, y:.40, color:'#FFD700', type:'commercial', typeLabel:'商业',
+    { id:'golden_palace', name:'黄金宫殿', minLevel:5, x:.50, y:.40, color:'#FFD700', type:'commercial', typeLabel:'商业',
       description:'银河首富的私人空间站', prices:{food:1.5,water:1.3,minerals:1.8,technology:1.3,luxury:.3,weapons:2.2,medicine:1.5,fuel:1.1}},
-    { id:'garden_eden', name:'伊甸园', x:.28, y:.25, color:'#00E676', type:'agricultural', typeLabel:'农业',
+    { id:'garden_eden', name:'伊甸园', minLevel:5, x:.28, y:.25, color:'#00E676', type:'agricultural', typeLabel:'农业',
       description:'产出最优质食物与水源的星球', prices:{food:.3,water:.3,minerals:1.8,technology:2,luxury:1.8,weapons:2.5,medicine:1,fuel:.9}},
-    { id:'plasma_reactor', name:'等离子炉', x:.75, y:.60, color:'#FFAB00', type:'energy', typeLabel:'能源',
+    { id:'plasma_reactor', name:'等离子炉', minLevel:6, x:.75, y:.60, color:'#FFAB00', type:'energy', typeLabel:'能源',
       description:'麦哲伦星云最大的能源中心', prices:{food:1.4,water:1.2,minerals:1.1,technology:1,luxury:1.5,weapons:1.3,medicine:1.4,fuel:.15}},
-    { id:'silk_road', name:'星际丝路', x:.60, y:.80, color:'#E040FB', type:'commercial', typeLabel:'商业',
+    { id:'silk_road', name:'星际丝路', minLevel:6, x:.60, y:.80, color:'#E040FB', type:'commercial', typeLabel:'商业',
       description:'商队络绎不绝的贸易枢纽', prices:{food:.8,water:.8,minerals:.9,technology:.9,luxury:.5,weapons:1,medicine:.9,fuel:.8}},
   ],
   dark_sector: [
-    { id:'void_station', name:'虚空站', x:.50, y:.45, color:'#455A64', type:'special', typeLabel:'特殊',
+    { id:'void_station', name:'虚空站', minLevel:8, x:.50, y:.45, color:'#455A64', type:'special', typeLabel:'特殊',
       description:'一切交易不留痕迹的神秘空间站', prices:{food:.7,water:.6,minerals:.5,technology:.6,luxury:.5,weapons:.4,medicine:.6,fuel:.5}},
-    { id:'dead_world', name:'死寂星', x:.22, y:.28, color:'#37474F', type:'special', typeLabel:'遗迹',
+    { id:'dead_world', name:'死寂星', minLevel:9, x:.22, y:.28, color:'#37474F', type:'special', typeLabel:'遗迹',
       description:'废墟中隐藏着远古文明的秘密', prices:{food:2.5,water:2,minerals:.5,technology:.4,luxury:.3,weapons:1,medicine:2.5,fuel:1.5}},
-    { id:'pirate_haven', name:'海盗天堂', x:.78, y:.68, color:'#B71C1C', type:'military', typeLabel:'军事',
+    { id:'pirate_haven', name:'海盗天堂', minLevel:9, x:.78, y:.68, color:'#B71C1C', type:'military', typeLabel:'军事',
       description:'银河最大的海盗据点', prices:{food:1,water:.9,minerals:.7,technology:.8,luxury:.4,weapons:.3,medicine:1.5,fuel:.8}},
   ],
   phoenix_nebula: [
-    { id:'solar_cradle', name:'恒星摇篮', x:.45, y:.40, color:'#FF6E40', type:'energy', typeLabel:'能源',
+    { id:'solar_cradle', name:'恒星摇篮', minLevel:6, x:.45, y:.40, color:'#FF6E40', type:'energy', typeLabel:'能源',
       description:'新生恒星密集的区域，能量充沛', prices:{food:1.6,water:1.4,minerals:1.1,technology:1.1,luxury:1.7,weapons:1.4,medicine:1.5,fuel:.15}},
-    { id:'magma_forge', name:'熔岩锻造厂', x:.25, y:.65, color:'#DD2C00', type:'industrial', typeLabel:'工业',
+    { id:'magma_forge', name:'熔岩锻造厂', minLevel:6, x:.25, y:.65, color:'#DD2C00', type:'industrial', typeLabel:'工业',
       description:'利用行星地热的超级工业设施', prices:{food:1.7,water:1.5,minerals:.4,technology:.7,luxury:1.8,weapons:.5,medicine:1.6,fuel:.6}},
-    { id:'ember_mine', name:'余烬矿场', x:.70, y:.28, color:'#FF9100', type:'mining', typeLabel:'矿业',
+    { id:'ember_mine', name:'余烬矿场', minLevel:7, x:.70, y:.28, color:'#FF9100', type:'mining', typeLabel:'矿业',
       description:'超新星残骸中的稀有矿藏', prices:{food:1.9,water:1.6,minerals:.25,technology:1.5,luxury:2,weapons:1.2,medicine:1.7,fuel:.5}},
-    { id:'phoenix_market', name:'浴火集市', x:.78, y:.72, color:'#FFAB40', type:'commercial', typeLabel:'商业',
+    { id:'phoenix_market', name:'浴火集市', minLevel:7, x:.78, y:.72, color:'#FFAB40', type:'commercial', typeLabel:'商业',
       description:'凤凰星云的贸易枢纽', prices:{food:1.1,water:1,minerals:1,technology:1,luxury:.6,weapons:1.1,medicine:1,fuel:.8}},
   ],
   jade_expanse: [
-    { id:'verdant_heart', name:'翠心星', x:.50, y:.42, color:'#00C853', type:'agricultural', typeLabel:'农业',
+    { id:'verdant_heart', name:'翠心星', minLevel:7, x:.50, y:.42, color:'#00C853', type:'agricultural', typeLabel:'农业',
       description:'整个星球被郁郁葱葱的植被覆盖', prices:{food:.25,water:.35,minerals:1.5,technology:1.9,luxury:2,weapons:2,medicine:1,fuel:.9}},
-    { id:'bloom_clinic', name:'百花疗养院', x:.30, y:.25, color:'#00BFA5', type:'medical', typeLabel:'医疗',
+    { id:'bloom_clinic', name:'百花疗养院', minLevel:7, x:.30, y:.25, color:'#00BFA5', type:'medical', typeLabel:'医疗',
       description:'以天然草药闻名的高端医疗中心', prices:{food:1.2,water:1,minerals:1.6,technology:.7,luxury:1.5,weapons:2,medicine:.25,fuel:1}},
-    { id:'bio_lab', name:'生物研究所', x:.72, y:.60, color:'#76FF03', type:'research', typeLabel:'研究',
+    { id:'bio_lab', name:'生物研究所', minLevel:8, x:.72, y:.60, color:'#76FF03', type:'research', typeLabel:'研究',
       description:'银河顶级的生物科学研究机构', prices:{food:1.3,water:1.1,minerals:1.7,technology:.4,luxury:1.4,weapons:1.9,medicine:.35,fuel:1}},
-    { id:'jade_port', name:'翠玉港', x:.60, y:.80, color:'#1DE9B6', type:'commercial', typeLabel:'商业',
+    { id:'jade_port', name:'翠玉港', minLevel:8, x:.60, y:.80, color:'#1DE9B6', type:'commercial', typeLabel:'商业',
       description:'翠玉疆域最大的有机货物集散地', prices:{food:.7,water:.6,minerals:1.3,technology:1.2,luxury:.5,weapons:1.5,medicine:.7,fuel:.9}},
-    { id:'spore_farm', name:'孢子农场', x:.20, y:.70, color:'#64DD17', type:'agricultural', typeLabel:'农业',
+    { id:'spore_farm', name:'孢子农场', minLevel:7, x:.20, y:.70, color:'#64DD17', type:'agricultural', typeLabel:'农业',
       description:'培育珍稀菌类的特殊农业星球', prices:{food:.35,water:.45,minerals:1.4,technology:1.8,luxury:1.8,weapons:1.7,medicine:.5,fuel:.85}},
   ],
   chrono_rift: [
-    { id:'time_anchor', name:'时锚站', x:.48, y:.45, color:'#AA00FF', type:'special', typeLabel:'特殊',
+    { id:'time_anchor', name:'时锚站', minLevel:9, x:.48, y:.45, color:'#AA00FF', type:'special', typeLabel:'特殊',
       description:'用于锚定时空坐标的神秘设施', prices:{food:.8,water:.7,minerals:.6,technology:.5,luxury:.5,weapons:.6,medicine:.7,fuel:.5}},
-    { id:'paradox_lab', name:'悖论实验室', x:.28, y:.30, color:'#D500F9', type:'research', typeLabel:'研究',
+    { id:'paradox_lab', name:'悖论实验室', minLevel:9, x:.28, y:.30, color:'#D500F9', type:'research', typeLabel:'研究',
       description:'研究时空悖论的前沿实验室', prices:{food:1.4,water:1.2,minerals:1.7,technology:.3,luxury:1.6,weapons:2,medicine:.5,fuel:1}},
-    { id:'echo_ruins', name:'回声遗迹', x:.72, y:.65, color:'#E040FB', type:'special', typeLabel:'遗迹',
+    { id:'echo_ruins', name:'回声遗迹', minLevel:10, x:.72, y:.65, color:'#E040FB', type:'special', typeLabel:'遗迹',
       description:'过去与未来交织的古老遗迹', prices:{food:2,water:1.8,minerals:.5,technology:.4,luxury:.3,weapons:1.2,medicine:2,fuel:1.2}},
-    { id:'warp_bazaar', name:'扭曲市场', x:.65, y:.22, color:'#EA80FC', type:'commercial', typeLabel:'商业',
+    { id:'warp_bazaar', name:'扭曲市场', minLevel:10, x:.65, y:.22, color:'#EA80FC', type:'commercial', typeLabel:'商业',
       description:'时空裂隙边缘的黑市交易中心', prices:{food:.8,water:.7,minerals:.7,technology:.7,luxury:.4,weapons:.5,medicine:.8,fuel:.6}},
   ],
 };
@@ -402,7 +507,9 @@ const _SEEDS_OTHER = {
 function _gen(galaxyId, seed, targetCount, seedPlanets, typeBias) {
   const r = _rng(seed);
   const used = new Set(seedPlanets.map(p => p.name));
-  const list = seedPlanets.map(p => Object.assign({}, p, { galaxyId: galaxyId }));
+  const list = seedPlanets.map(function (p) {
+    return _applyGalaxyEconomyProfile(galaxyId, Object.assign({}, p, { galaxyId: galaxyId }));
+  });
   const need = targetCount - seedPlanets.length;
   for (let i = 0; i < need; i++) {
     const tp = _pickType(r, typeBias);
@@ -413,10 +520,10 @@ function _gen(galaxyId, seed, targetCount, seedPlanets, typeBias) {
     }
     const nm = _genName(r, used);
     const descs = _DESC[tp.t] || ['星球'];
-    // 根据生成顺序分配 minLevel（前30% → 1, 30-55% → 2, 55-75% → 3, 75-90% → 4, 90%+ → 5+）
+    // 不同星系按照自身开放等级继续分层，避免一解锁就倾倒出半个星系的可访问节点。
     const ratio = i / need;
-    const genMinLevel = ratio < .30 ? 1 : ratio < .55 ? 2 : ratio < .75 ? 3 : ratio < .90 ? 4 : 5 + (r() * 3 | 0);
-    list.push({
+    const genMinLevel = _getGalaxySystemMinLevel(galaxyId, ratio, r);
+    list.push(_applyGalaxyEconomyProfile(galaxyId, {
       id: galaxyId + '_' + i, name: nm, galaxyId: galaxyId,
       x: x, y: y,
       color: tp.c[r() * tp.c.length | 0],
@@ -426,7 +533,7 @@ function _gen(galaxyId, seed, targetCount, seedPlanets, typeBias) {
       marketDepth: tp.d || 200,
       generated: true,
       minLevel: genMinLevel,
-    });
+    }));
   }
   return list;
 }
@@ -457,23 +564,90 @@ export function findSystem(id) { return _byId[id] || null; }
 export function getSystemsByGalaxy(gid) { return _all.filter(function (p) { return p.galaxyId === gid; }); }
 export function findGalaxy(id) { return GALAXIES.find(function (g) { return g.id === id; }) || null; }
 
+function _normalizePlayerLevel(playerLevel) {
+  return Math.max(1, Number(playerLevel) || 1);
+}
+
+function _normalizeResearchedTechs(researchedTechs) {
+  return Array.isArray(researchedTechs) ? researchedTechs : [];
+}
+
+export function getGalaxyUnlockLevel(galaxyId) {
+  const galaxy = findGalaxy(galaxyId);
+  return galaxy ? (galaxy.minLevel || 1) : 1;
+}
+
+export function isGalaxyAccessible(galaxyId, playerLevel, researchedTechs) {
+  const galaxy = findGalaxy(galaxyId);
+  if (!galaxy) return false;
+  if (galaxy.unlocked) return true;
+
+  const normalizedLevel = _normalizePlayerLevel(playerLevel);
+  if (normalizedLevel >= (galaxy.minLevel || 1)) return true;
+
+  return !!(galaxy.techRequired && _normalizeResearchedTechs(researchedTechs).includes(galaxy.techRequired));
+}
+
+export function getGalaxyAccessState(galaxyId, playerLevel, researchedTechs) {
+  const galaxy = findGalaxy(galaxyId);
+  if (!galaxy) {
+    return {
+      galaxy: null,
+      unlocked: false,
+      unlockedBy: 'unknown',
+      requiredLevel: 1,
+      techRequired: null,
+      levelUnlocked: false,
+      techUnlocked: false,
+    };
+  }
+
+  const normalizedLevel = _normalizePlayerLevel(playerLevel);
+  const requiredLevel = galaxy.minLevel || 1;
+  const techUnlocked = !!(galaxy.techRequired && _normalizeResearchedTechs(researchedTechs).includes(galaxy.techRequired));
+  const levelUnlocked = normalizedLevel >= requiredLevel;
+  const unlocked = !!galaxy.unlocked || levelUnlocked || techUnlocked;
+
+  let unlockedBy = 'locked';
+  if (galaxy.unlocked) unlockedBy = 'default';
+  else if (levelUnlocked) unlockedBy = 'level';
+  else if (techUnlocked) unlockedBy = 'tech';
+
+  return {
+    galaxy: galaxy,
+    unlocked: unlocked,
+    unlockedBy: unlockedBy,
+    requiredLevel: requiredLevel,
+    techRequired: galaxy.techRequired || null,
+    levelUnlocked: levelUnlocked,
+    techUnlocked: techUnlocked,
+  };
+}
+
+export function getAccessibleGalaxies(playerLevel, researchedTechs) {
+  return GALAXIES.filter(function (galaxy) {
+    return isGalaxyAccessible(galaxy.id, playerLevel, researchedTechs);
+  });
+}
+
 /**
  * 判断星球是否对玩家已解锁（基于等级）
  * @param {string} systemId  星球 ID
  * @param {number} playerLevel 玩家等级
  * @returns {boolean}
  */
-export function isSystemAccessible(systemId, playerLevel) {
+export function isSystemAccessible(systemId, playerLevel, researchedTechs) {
   const sys = _byId[systemId];
   if (!sys) return false;
-  return playerLevel >= (sys.minLevel || 1);
+  if (!isGalaxyAccessible(sys.galaxyId, playerLevel, researchedTechs)) return false;
+  return _normalizePlayerLevel(playerLevel) >= (sys.minLevel || 1);
 }
 
 /**
  * 获取指定星系中已解锁的星球列表
  */
-export function getAccessibleSystems(galaxyId, playerLevel) {
+export function getAccessibleSystems(galaxyId, playerLevel, researchedTechs) {
   return _all.filter(function (p) {
-    return p.galaxyId === galaxyId && playerLevel >= (p.minLevel || 1);
+    return p.galaxyId === galaxyId && isSystemAccessible(p.id, playerLevel, researchedTechs);
   });
 }

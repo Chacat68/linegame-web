@@ -7,6 +7,9 @@
     "doc": "docs"
   },
   "scripts": {
+    "dev": "python3 -m http.server 4173 --directory .",
+    "dev:alt": "python3 -m http.server 4174 --directory .",
+    "start": "npm run dev",
     "test": "vitest run",
     "test:watch": "vitest"
   },

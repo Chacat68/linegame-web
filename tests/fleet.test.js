@@ -37,6 +37,20 @@ describe('Fleet.init', () => {
     expect(state.fleet[0].mods).toBeDefined();
     expect(state.fleet[0].modSlots).toBeGreaterThanOrEqual(1);
   });
+
+  it('补全旧存档缺少的 maintenance 字段', () => {
+    const state = createTestState({
+      fleet: [{ typeId: 'shuttle', cargo: {}, mods: [], upgrades: [], hull: 100, maxHull: 100, maxCargo: 20, maxFuel: 100, fuel: 100, fuelEff: 1, minFuelEff: 0.6 }],
+      activeShipIndex: 0,
+    });
+
+    Fleet.init(state);
+
+    expect(state.fleet[0].maintenance).toBe(100);
+    expect(state.fleet[0].lastServiceDay).toBe(0);
+    expect(state.fleet[0].faults).toEqual([]);
+    expect(state.fleet[0].repairJob).toBe(null);
+  });
 });
 
 describe('Fleet.getActiveShip', () => {
@@ -387,15 +401,16 @@ describe('Fleet.assignRoute / cancelRoute', () => {
     expect(state.fleet[1].route.revision).toBe(1);
   });
 
-  it('跨星系路线被拒绝', () => {
+  it('支持跨星系派遣路线', () => {
     const state = createTestState({ credits: 10000 });
     Fleet.init(state);
     state.fleetSlots = 2;
     Fleet.buyShip(state, 'freighter');
-    // andromeda 中的星球 vs milky_way 中的星球
-    const result = Fleet.assignRoute(state, 1, 'sol_prime', 'sol_prime', 'food');
-    // 同星球路线应该成功（虽然无意义）
+
+    const result = Fleet.assignRoute(state, 1, 'sol_prime', 'citadel_prime', 'food');
+
     expect(result.ok).toBe(true);
+    expect(state.fleet[1].route.sellSystemId).toBe('citadel_prime');
   });
 
   it('取消路线', () => {
@@ -681,6 +696,204 @@ describe('Fleet.buySlot', () => {
   });
 });
 
+describe('Fleet maintenance operations', () => {
+  it('低维护度会抬高燃耗并放大事件风险', () => {
+    const state = createTestState();
+    Fleet.init(state);
+    const ship = Fleet.getActiveShip(state);
+
+    ship.maintenance = 22;
+
+    const stats = Fleet.getEffectiveShipStats(state, ship);
+    expect(stats.fuelEff).toBeCloseTo(1.22, 5);
+    expect(stats.eventChanceMultiplier).toBeCloseTo(1.28, 5);
+    expect(stats.maintenance.band).toBe('critical');
+  });
+
+  it('advanceFleetDay 会扣除养护费并降低派遣船维护度', () => {
+    const state = createTestState({ credits: 10000 });
+    Fleet.init(state);
+    state.fleetSlots = 2;
+    Fleet.buyShip(state, 'freighter');
+    Fleet.assignRoute(state, 1, 'sol_prime', 'nova_station', 'food');
+    state.fleet[1].maintenance = 90;
+
+    const creditsBefore = state.credits;
+    const result = Fleet.advanceFleetDay(state);
+
+    expect(state.credits).toBeLessThan(creditsBefore);
+    expect(state.fleet[1].maintenance).toBeLessThan(90);
+    expect(result.msgs.some(function (msg) { return msg.text.indexOf('养护') !== -1; })).toBe(true);
+  });
+
+  it('开始维修会立即扣款并创建维修倒计时，不会立刻清除故障', () => {
+    const state = createTestState({ credits: 5000 });
+    Fleet.init(state);
+    const ship = Fleet.getActiveShip(state);
+    ship.maintenance = 44;
+    ship.hull = 92;
+    ship.faults = ['engine_vibration', 'cargo_lock'];
+
+    const quote = Fleet.getShipRepairQuote(state, 0);
+    const creditsBefore = state.credits;
+    const result = Fleet.serviceShip(state, 0);
+
+    expect(result.ok).toBe(true);
+    expect(ship.repairJob).toBeTruthy();
+    expect(ship.repairJob.remainingDays).toBe(quote.durationDays);
+    expect(ship.maintenance).toBe(44);
+    expect(ship.hull).toBe(92);
+    expect(ship.faults).toEqual(['engine_vibration', 'cargo_lock']);
+    expect(state.credits).toBe(creditsBefore - quote.cost);
+  });
+
+  it('维修倒计时结束后会恢复维护度和船体并清除全部故障', () => {
+    const state = createTestState({ credits: 5000 });
+    Fleet.init(state);
+    const ship = Fleet.getActiveShip(state);
+    ship.maintenance = 44;
+    ship.hull = 92;
+    ship.faults = ['engine_vibration', 'cargo_lock'];
+
+    expect(Fleet.serviceShip(state, 0).ok).toBe(true);
+
+    let lastResult = null;
+    const remainingDays = ship.repairJob.remainingDays;
+    for (let day = 0; day < remainingDays; day += 1) {
+      lastResult = Fleet.advanceFleetDay(state);
+    }
+
+    expect(lastResult.msgs.some(function (msg) { return msg.text.indexOf('维修完成') !== -1; })).toBe(true);
+    expect(ship.repairJob).toBe(null);
+    expect(ship.maintenance).toBe(100);
+    expect(ship.hull).toBe(ship.maxHull);
+    expect(ship.faults).toEqual([]);
+  });
+
+  it('维修中的船只无法派遣', () => {
+    const state = createTestState({ credits: 5000 });
+    Fleet.init(state);
+    const ship = Fleet.getActiveShip(state);
+    ship.maintenance = 36;
+    ship.faults = ['sensor_blindspot'];
+
+    expect(Fleet.serviceShip(state, 0).ok).toBe(true);
+    const result = Fleet.assignRoute(state, 0, 'sol_prime', 'nova_station', 'food');
+
+    expect(result.ok).toBe(false);
+    expect(result.msgs[0].text).toContain('维修中');
+  });
+
+  it('欠费且重度失养时可能触发故障', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+
+    const state = createTestState({ credits: 10000 });
+    Fleet.init(state);
+    state.fleetSlots = 2;
+    Fleet.buyShip(state, 'freighter');
+    state.credits = 0;
+    state.fleet[1].maintenance = 18;
+
+    Fleet.advanceFleetDay(state);
+
+    expect(state.fleet[1].faults.length).toBeGreaterThan(0);
+  });
+
+  it('故障会压低有效属性', () => {
+    const state = createTestState();
+    Fleet.init(state);
+    const ship = Fleet.getActiveShip(state);
+    ship.faults = ['cargo_lock'];
+
+    const stats = Fleet.getEffectiveShipStats(state, ship);
+
+    expect(stats.maxCargo).toBe(14);
+    expect(stats.sellBonus).toBeCloseTo(-0.015, 5);
+    expect(stats.faults.map(function (fault) { return fault.id; })).toContain('cargo_lock');
+  });
+
+  it('快航分工可减轻引擎震动的燃耗惩罚', () => {
+    const state = createTestState({ credits: 50000 });
+    Fleet.init(state);
+    state.fleetSlots = 3;
+    Fleet.buyShip(state, 'clipper');
+    Fleet.buyShip(state, 'freighter');
+    expect(Fleet.setShipDoctrine(state, 1, 'trade').ok).toBe(true);
+
+    const courierShip = state.fleet[1];
+    const logisticsShip = state.fleet[2];
+    const courierBaseFuelEff = Fleet.getEffectiveShipStats(state, courierShip).fuelEff;
+    const logisticsBaseFuelEff = Fleet.getEffectiveShipStats(state, logisticsShip).fuelEff;
+
+    courierShip.faults = ['engine_vibration'];
+    logisticsShip.faults = ['engine_vibration'];
+
+    const courierFaultFuelEff = Fleet.getEffectiveShipStats(state, courierShip).fuelEff;
+    const logisticsFaultFuelEff = Fleet.getEffectiveShipStats(state, logisticsShip).fuelEff;
+
+    expect(Fleet.getShipDispatchProfile(state, courierShip).roleId).toBe('courier');
+    expect(courierFaultFuelEff / courierBaseFuelEff).toBeLessThan(logisticsFaultFuelEff / logisticsBaseFuelEff);
+  });
+
+  it('勘探分工可减轻传感盲区对扫描折扣的损失', () => {
+    const state = createTestState({ credits: 80000 });
+    Fleet.init(state);
+    state.fleetSlots = 3;
+    Fleet.buyShip(state, 'clipper');
+    Fleet.buyShip(state, 'freighter');
+
+    expect(Fleet.installMod(state, 'mod_survey_array', 1).ok).toBe(true);
+    expect(Fleet.installMod(state, 'mod_survey_array', 2).ok).toBe(true);
+
+    const surveyShip = state.fleet[1];
+    const logisticsShip = state.fleet[2];
+    const surveyBaseDiscount = Fleet.getEffectiveShipStats(state, surveyShip).scanFuelDiscount;
+    const logisticsBaseDiscount = Fleet.getEffectiveShipStats(state, logisticsShip).scanFuelDiscount;
+
+    surveyShip.faults = ['sensor_blindspot'];
+    logisticsShip.faults = ['sensor_blindspot'];
+
+    const surveyFaultDiscount = Fleet.getEffectiveShipStats(state, surveyShip).scanFuelDiscount;
+    const logisticsFaultDiscount = Fleet.getEffectiveShipStats(state, logisticsShip).scanFuelDiscount;
+
+    expect(Fleet.getShipDispatchProfile(state, surveyShip).roleId).toBe('survey');
+    expect(surveyFaultDiscount / surveyBaseDiscount).toBeGreaterThan(logisticsFaultDiscount / logisticsBaseDiscount);
+  });
+
+  it('后勤分工的维修报价更快且成本更低', () => {
+    const state = createTestState({ credits: 80000 });
+    Fleet.init(state);
+    state.fleetSlots = 3;
+    Fleet.buyShip(state, 'freighter');
+    Fleet.buyShip(state, 'freighter');
+    expect(Fleet.setShipDoctrine(state, 2, 'navigation').ok).toBe(true);
+
+    expect(Fleet.installMod(state, 'mod_service_bay', 2).ok).toBe(true);
+
+    state.fleet[1].maintenance = 40;
+    state.fleet[2].maintenance = 40;
+
+    const logisticsQuote = Fleet.getShipRepairQuote(state, 1);
+    const supportQuote = Fleet.getShipRepairQuote(state, 2);
+
+    expect(Fleet.getShipDispatchProfile(state, state.fleet[2]).roleId).toBe('support');
+    expect(supportQuote.durationDays).toBeLessThan(logisticsQuote.durationDays);
+    expect(supportQuote.cost).toBeLessThan(logisticsQuote.cost);
+  });
+
+  it('applyTravelWear 会在航行后增加磨损', () => {
+    const state = createTestState();
+    Fleet.init(state);
+    const ship = Fleet.getActiveShip(state);
+
+    const result = Fleet.applyTravelWear(state, 0, { fuelCost: 12, crossGalaxy: false, secretRoute: false });
+
+    expect(result.ok).toBe(true);
+    expect(ship.maintenance).toBeLessThan(100);
+    expect(result.meta.wear).toBeGreaterThan(0);
+  });
+});
+
 describe('Fleet.getActiveFleetBonuses', () => {
   it('单船时返回空或匹配的加成', () => {
     const state = createTestState();
@@ -771,6 +984,34 @@ describe('Fleet ship specialization', () => {
 
     stats = Fleet.getEffectiveShipStats(state, ship);
     expect(stats.eventChanceMultiplier).toBeCloseTo(0.92, 5);
+  });
+
+  it('功能型改装会改变走私与探索系数', () => {
+    const state = createTestState({ credits: 50000 });
+    Fleet.init(state);
+    state.fleetSlots = 2;
+    Fleet.buyShip(state, 'freighter');
+
+    expect(Fleet.installMod(state, 'mod_smuggler_hold', 1).ok).toBe(true);
+    expect(Fleet.installMod(state, 'mod_survey_array', 1).ok).toBe(true);
+
+    const stats = Fleet.getEffectiveShipStats(state, state.fleet[1]);
+    expect(stats.smugglingCheckMultiplier).toBeCloseTo(0.78, 5);
+    expect(stats.scanFuelDiscount).toBeCloseTo(0.2, 5);
+    expect(stats.poiRewardMultiplier).toBeCloseTo(1.12, 5);
+  });
+
+  it('会根据配置识别舰船分工', () => {
+    const state = createTestState({ credits: 50000 });
+    Fleet.init(state);
+    state.fleetSlots = 2;
+    Fleet.buyShip(state, 'clipper');
+
+    expect(Fleet.installMod(state, 'mod_survey_array', 1).ok).toBe(true);
+
+    const profile = Fleet.getShipRoleProfile(state, state.fleet[1]);
+    expect(profile.id).toBe('survey');
+    expect(profile.label).toBe('勘探支援');
   });
 
   it('贸易专精会反映到经济系统买价中', () => {

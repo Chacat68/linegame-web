@@ -12,8 +12,9 @@ import { SHIP_TYPES, SHIP_UPGRADES, FLEET_SLOTS, SHIP_MODS, FLEET_BONUSES } from
 import { findSystem } from '../../data/systems.js';
 import { GOODS } from '../../data/goods.js';
 import * as Economy from '../economy/Economy.js';
-import * as AutoTrade from '../trade/AutoTradeSystem.js';
+import * as AutoTrade from '../trade/AutoTradeSystem.js?v=20260420-balance5';
 import * as Crew from './CrewSystem.js';
+import * as RouteModel from '../route/RouteSystem.js';
 import {
   SHIP_DOCTRINES,
   createDoctrineProtocol,
@@ -23,6 +24,42 @@ import {
   getMasteryTrack,
   getShipSpecializationProfile as buildShipSpecializationProfile,
 } from './ShipSpecialization.js';
+
+const SHIP_CONDITION_FAULTS = [
+  {
+    id: 'engine_vibration',
+    icon: '⚙️',
+    label: '引擎振荡',
+    desc: '推进回路不稳，燃耗上升，持续航行会进一步放大磨损。',
+    effects: {
+      fuelEffMultiplier: 1.08,
+      travelWearMultiplier: 1.14,
+    },
+  },
+  {
+    id: 'sensor_blindspot',
+    icon: '📡',
+    label: '传感盲区',
+    desc: '扫描和预警读数漂移，事件压力上升，勘探折扣利用率下降。',
+    effects: {
+      eventChanceMultiplier: 1.1,
+      scanFuelDiscountMultiplier: 0.5,
+    },
+  },
+  {
+    id: 'cargo_lock',
+    icon: '📦',
+    label: '货舱卡滞',
+    desc: '装卸机构卡滞，有效货舱下降，卖货议价效率受损。',
+    effects: {
+      cargoPenalty: 6,
+      sellBonus: -0.015,
+    },
+  },
+];
+
+const REPAIR_JOB_MIN_DAYS = 1;
+const REPAIR_JOB_MAX_DAYS = 4;
 
 /**
  * 创建一艘船只实例
@@ -50,11 +87,320 @@ function _createShip(shipType) {
     modSlots:     shipType.modSlots || 1, // 改装槽位数
     crewIds:      [],
     crewCapacity: Crew.getDefaultCrewCapacity(shipType),
+    maintenance:  100,
+    lastServiceDay: 0,
+    repairJob:    null,
     location:     null, // 当前所在星系 ID（非激活船只用），null 表示跟随旗舰
     route:        null, // 派遣路线 { buySystemId, sellSystemId, goodId, status:'buying'|'traveling'|'selling'|'returning' }
   };
   ensureShipSpecializationState(ship, shipType);
+  _ensureShipOperationalState(ship);
   return ship;
+}
+
+function _roundOpsValue(value) {
+  return Math.round(value * 10) / 10;
+}
+
+function _clampMaintenance(value) {
+  return Math.max(0, Math.min(100, _roundOpsValue(Number.isFinite(value) ? value : 100)));
+}
+
+function _ensureShipOperationalState(ship) {
+  if (!ship || typeof ship !== 'object') return;
+  ship.maintenance = _clampMaintenance(ship.maintenance);
+  if (!Number.isFinite(ship.lastServiceDay)) ship.lastServiceDay = 0;
+  if (!Array.isArray(ship.faults)) ship.faults = [];
+  ship.faults = ship.faults.filter(function (faultId) {
+    return !!_getShipConditionFault(faultId);
+  });
+  if (!ship.repairJob || typeof ship.repairJob !== 'object') {
+    ship.repairJob = null;
+  } else {
+    var remainingDays = Math.max(0, Math.ceil(ship.repairJob.remainingDays || 0));
+    var totalDays = Math.max(REPAIR_JOB_MIN_DAYS, Math.ceil(ship.repairJob.totalDays || remainingDays || REPAIR_JOB_MIN_DAYS));
+    ship.repairJob = remainingDays > 0
+      ? {
+          remainingDays: remainingDays,
+          totalDays: totalDays,
+          cost: Math.max(0, Math.round(ship.repairJob.cost || 0)),
+          startedDay: Number.isFinite(ship.repairJob.startedDay) ? ship.repairJob.startedDay : 0,
+        }
+      : null;
+  }
+}
+
+function _getShipServiceConfig(ship) {
+  var shipType = getShipType(ship && ship.typeId);
+  return {
+    upkeep: shipType && Number.isFinite(shipType.upkeep) ? shipType.upkeep : 0,
+    serviceRate: shipType && Number.isFinite(shipType.serviceRate) ? shipType.serviceRate : 6,
+    maintenanceDecay: shipType && Number.isFinite(shipType.maintenanceDecay) ? shipType.maintenanceDecay : 1,
+  };
+}
+
+function _getShipCargoUsed(ship) {
+  return Object.values((ship && ship.cargo) || {}).reduce(function (sum, quantity) {
+    return sum + quantity;
+  }, 0);
+}
+
+function _getShipModUpkeep(ship) {
+  if (!ship || !Array.isArray(ship.mods)) return 0;
+  return ship.mods.reduce(function (sum, modId) {
+    var mod = SHIP_MODS.find(function (item) { return item.id === modId; });
+    return sum + (mod && Number.isFinite(mod.upkeep) ? mod.upkeep : 0);
+  }, 0);
+}
+
+function _getShipConditionFault(faultId) {
+  return SHIP_CONDITION_FAULTS.find(function (fault) { return fault.id === faultId; }) || null;
+}
+
+function _scalePenaltyAboveOne(multiplier, reductionFactor) {
+  if (!Number.isFinite(multiplier)) return 1;
+  return 1 + Math.max(0, multiplier - 1) * (Number.isFinite(reductionFactor) ? reductionFactor : 1);
+}
+
+function _scalePenaltyBelowOne(multiplier, reductionFactor) {
+  if (!Number.isFinite(multiplier)) return 1;
+  return 1 - Math.max(0, 1 - multiplier) * (Number.isFinite(reductionFactor) ? reductionFactor : 1);
+}
+
+function _getShipOperationalRoleEffects(state, ship) {
+  var roleProfile = getShipRoleProfile(state, ship);
+  var effects = {
+    roleId: roleProfile.id,
+    roleLabel: roleProfile.label,
+    travelWearMultiplier: 1,
+    maintenanceDecayMultiplier: 1,
+    faultTriggerMultiplier: 1,
+    engineFuelPenaltyMultiplier: 1,
+    engineWearPenaltyMultiplier: 1,
+    sensorEventPenaltyMultiplier: 1,
+    sensorDiscountPenaltyMultiplier: 1,
+    cargoPenaltyMultiplier: 1,
+    cargoSellPenaltyMultiplier: 1,
+    serviceCostMultiplier: 1,
+    serviceMaintenanceBonus: { quick: 0, overhaul: 0, emergency: 0 },
+    serviceHullBonus: { quick: 0, overhaul: 0, emergency: 0 },
+    dispatchStrategyLabel: '标准派遣',
+    dispatchStrategyNote: '按当前利润与风险偏好筛选路线。',
+    preferredRiskMode: 'balanced',
+    preferredMarketMode: 'open',
+    inspectionRiskMultiplier: 1,
+    openMarketBonus: 0,
+    blackMarketBonus: 0,
+    lowRiskBonus: 0,
+    highRiskPenalty: 0,
+    fuelCostWeight: 1,
+    cargoValueWeight: 1,
+    legalTradeBonus: 0,
+    techRouteBonus: 0,
+    faultPressurePenalty: 18,
+  };
+
+  if (roleProfile.id === 'courier') {
+    effects.travelWearMultiplier = 0.9;
+    effects.engineFuelPenaltyMultiplier = 0.7;
+    effects.engineWearPenaltyMultiplier = 0.65;
+    effects.dispatchStrategyLabel = '短线周转';
+    effects.dispatchStrategyNote = '偏好低燃耗、低磨损的快速循环路线。';
+    effects.preferredRiskMode = 'balanced';
+    effects.fuelCostWeight = 1.35;
+    effects.highRiskPenalty = 24;
+    effects.faultPressurePenalty = 16;
+  } else if (roleProfile.id === 'survey') {
+    effects.sensorEventPenaltyMultiplier = 0.72;
+    effects.sensorDiscountPenaltyMultiplier = 0.45;
+    effects.dispatchStrategyLabel = '谨慎测绘';
+    effects.dispatchStrategyNote = '偏好低执法、低故障压力的稳定航线。';
+    effects.preferredRiskMode = 'safe';
+    effects.lowRiskBonus = 96;
+    effects.highRiskPenalty = 48;
+    effects.techRouteBonus = 42;
+    effects.faultPressurePenalty = 24;
+  } else if (roleProfile.id === 'covert') {
+    effects.dispatchStrategyLabel = '灰市穿透';
+    effects.dispatchStrategyNote = '偏好黑市与受限商品套利，能承受更高查缉压力。';
+    effects.preferredRiskMode = 'aggressive';
+    effects.preferredMarketMode = 'black';
+    effects.inspectionRiskMultiplier = 0.78;
+    effects.blackMarketBonus = 140;
+    effects.highRiskPenalty = 10;
+    effects.faultPressurePenalty = 12;
+  } else if (roleProfile.id === 'support') {
+    effects.maintenanceDecayMultiplier = 0.9;
+    effects.faultTriggerMultiplier = 0.65;
+    effects.serviceCostMultiplier = 0.92;
+    effects.serviceMaintenanceBonus.quick = 6;
+    effects.serviceMaintenanceBonus.emergency = 8;
+    effects.serviceHullBonus.overhaul = 3;
+    effects.serviceHullBonus.emergency = 1;
+    effects.dispatchStrategyLabel = '后勤保底';
+    effects.dispatchStrategyNote = '在船况承压时优先规避高风险路线，维持持续运转。';
+    effects.preferredRiskMode = 'safe';
+    effects.lowRiskBonus = 110;
+    effects.highRiskPenalty = 72;
+    effects.fuelCostWeight = 1.12;
+    effects.openMarketBonus = 48;
+    effects.faultPressurePenalty = 34;
+  } else {
+    effects.cargoPenaltyMultiplier = 0.5;
+    effects.cargoSellPenaltyMultiplier = 0.5;
+    effects.dispatchStrategyLabel = '稳态商运';
+    effects.dispatchStrategyNote = '偏好公开市场与高装载收益的稳定货运路线。';
+    effects.preferredRiskMode = 'balanced';
+    effects.openMarketBonus = 82;
+    effects.cargoValueWeight = 1.25;
+    effects.legalTradeBonus = 42;
+    effects.highRiskPenalty = 28;
+    effects.faultPressurePenalty = 20;
+  }
+
+  return effects;
+}
+
+function _getShipFaultEffects(state, ship) {
+  _ensureShipOperationalState(ship);
+  var roleEffects = _getShipOperationalRoleEffects(state, ship);
+
+  return ship.faults.reduce(function (effects, faultId) {
+    var fault = _getShipConditionFault(faultId);
+    if (!fault || !fault.effects) return effects;
+
+    if (fault.id === 'engine_vibration') {
+      if (fault.effects.fuelEffMultiplier) {
+        effects.fuelEffMultiplier *= _scalePenaltyAboveOne(fault.effects.fuelEffMultiplier, roleEffects.engineFuelPenaltyMultiplier);
+      }
+      if (fault.effects.travelWearMultiplier) {
+        effects.travelWearMultiplier *= _scalePenaltyAboveOne(fault.effects.travelWearMultiplier, roleEffects.engineWearPenaltyMultiplier);
+      }
+      return effects;
+    }
+
+    if (fault.id === 'sensor_blindspot') {
+      if (fault.effects.eventChanceMultiplier) {
+        effects.eventChanceMultiplier *= _scalePenaltyAboveOne(fault.effects.eventChanceMultiplier, roleEffects.sensorEventPenaltyMultiplier);
+      }
+      if (fault.effects.scanFuelDiscountMultiplier) {
+        effects.scanFuelDiscountMultiplier *= _scalePenaltyBelowOne(fault.effects.scanFuelDiscountMultiplier, roleEffects.sensorDiscountPenaltyMultiplier);
+      }
+      return effects;
+    }
+
+    if (fault.id === 'cargo_lock') {
+      if (fault.effects.cargoPenalty) {
+        effects.cargoPenalty += Math.round(fault.effects.cargoPenalty * (roleEffects.cargoPenaltyMultiplier || 1));
+      }
+      if (fault.effects.sellBonus) {
+        effects.sellBonus += fault.effects.sellBonus * (roleEffects.cargoSellPenaltyMultiplier || 1);
+      }
+      return effects;
+    }
+
+    if (fault.effects.fuelEffMultiplier) effects.fuelEffMultiplier *= fault.effects.fuelEffMultiplier;
+    if (fault.effects.eventChanceMultiplier) effects.eventChanceMultiplier *= fault.effects.eventChanceMultiplier;
+    if (fault.effects.scanFuelDiscountMultiplier) effects.scanFuelDiscountMultiplier *= fault.effects.scanFuelDiscountMultiplier;
+    if (fault.effects.travelWearMultiplier) effects.travelWearMultiplier *= fault.effects.travelWearMultiplier;
+    if (fault.effects.cargoPenalty) effects.cargoPenalty += fault.effects.cargoPenalty;
+    if (fault.effects.buyDiscount) effects.buyDiscount += fault.effects.buyDiscount;
+    if (fault.effects.sellBonus) effects.sellBonus += fault.effects.sellBonus;
+    return effects;
+  }, {
+    fuelEffMultiplier: 1,
+    eventChanceMultiplier: 1,
+    scanFuelDiscountMultiplier: 1,
+    travelWearMultiplier: 1,
+    cargoPenalty: 0,
+    buyDiscount: 0,
+    sellBonus: 0,
+  });
+}
+
+function _triggerConditionFault(ship, preferredIds, msgs) {
+  _ensureShipOperationalState(ship);
+  if (ship.faults.length >= 2) return null;
+
+  var candidates = SHIP_CONDITION_FAULTS.filter(function (fault) {
+    return ship.faults.indexOf(fault.id) === -1;
+  });
+  if (candidates.length === 0) return null;
+
+  if (Array.isArray(preferredIds) && preferredIds.length > 0) {
+    var preferred = candidates.filter(function (fault) {
+      return preferredIds.indexOf(fault.id) !== -1;
+    });
+    if (preferred.length > 0) candidates = preferred;
+  }
+
+  var fault = candidates[Math.floor(Math.random() * candidates.length)] || null;
+  if (!fault) return null;
+
+  ship.faults.push(fault.id);
+  if (Array.isArray(msgs)) {
+    msgs.push({
+      text: fault.icon + ' 「' + ship.name + '」出现故障：' + fault.label + '。' + fault.desc,
+      type: 'error',
+    });
+  }
+  return fault;
+}
+
+function _maybeTriggerConditionFault(state, ship, context, msgs) {
+  _ensureShipOperationalState(ship);
+  if (ship.faults.length >= 2) return null;
+  var roleEffects = _getShipOperationalRoleEffects(state, ship);
+
+  var chance = 0;
+  if (context && context.unpaidUpkeep) chance += 0.16 + Math.min(0.16, context.unpaidUpkeep / 240);
+  if (context && context.maintenanceBand === 'critical') chance += 0.12;
+  else if (context && context.maintenanceBand === 'worn') chance += 0.04;
+  if (context && context.travelWear >= 5) chance += 0.08;
+
+  chance *= roleEffects.faultTriggerMultiplier || 1;
+
+  if (chance <= 0 || Math.random() >= Math.min(0.6, chance)) return null;
+
+  var preferredIds = context && context.travelWear >= 5
+    ? ['engine_vibration', 'sensor_blindspot']
+    : ['cargo_lock', 'engine_vibration', 'sensor_blindspot'];
+  return _triggerConditionFault(ship, preferredIds, msgs);
+}
+
+function _clearShipFaults(ship, clearMode) {
+  _ensureShipOperationalState(ship);
+  if (!ship.faults.length || !clearMode) return [];
+
+  if (clearMode === 'all') {
+    var allFaults = ship.faults.slice();
+    ship.faults = [];
+    return allFaults;
+  }
+
+  var cleared = ship.faults.slice(0, Math.max(0, clearMode));
+  ship.faults = ship.faults.slice(cleared.length);
+  return cleared;
+}
+
+function _pushMaintenanceTransitionMsg(ship, beforeProfile, afterProfile, msgs) {
+  if (!ship || !beforeProfile || !afterProfile || !Array.isArray(msgs)) return;
+  if (beforeProfile.band === afterProfile.band) return;
+
+  if (afterProfile.band === 'worn') {
+    msgs.push({
+      text: '🧰 「' + ship.name + '」维护度降至 ' + Math.round(afterProfile.value) + '%，进入磨损状态。',
+      type: 'info',
+    });
+    return;
+  }
+
+  if (afterProfile.band === 'critical') {
+    msgs.push({
+      text: '🚨 「' + ship.name + '」维护度仅剩 ' + Math.round(afterProfile.value) + '%，请尽快检修。',
+      type: 'error',
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -82,6 +428,7 @@ export function init(state) {
       var st = SHIP_TYPES.find(function (t) { return t.id === ship.typeId; });
       ship.modSlots = st ? (st.modSlots || 1) : 1;
     }
+    _ensureShipOperationalState(ship);
     ensureShipSpecializationState(ship, SHIP_TYPES.find(function (type) { return type.id === ship.typeId; }));
     Crew.ensureShip(ship, SHIP_TYPES.find(function (type) { return type.id === ship.typeId; }));
   });
@@ -397,6 +744,458 @@ export function commitActiveShipState(state) {
   syncStateFromShip(state);
 }
 
+export function getShipMaintenanceSummary(state, ship) {
+  if (!ship) {
+    return {
+      value: 100,
+      band: 'pristine',
+      label: '整备',
+      faultCount: 0,
+      upkeepCost: 0,
+      serviceCost: 0,
+      dailyDecay: 0,
+      fuelEffMultiplier: 1,
+      eventChanceMultiplier: 1,
+      autoRepairMultiplier: 1,
+      smugglingCheckMultiplier: 1,
+    };
+  }
+
+  _ensureShipOperationalState(ship);
+
+  var modEffects = getShipModEffects(ship);
+  var roleEffects = _getShipOperationalRoleEffects(state, ship);
+  var serviceConfig = _getShipServiceConfig(ship);
+  var value = _clampMaintenance(ship.maintenance);
+  var band = 'pristine';
+  var label = '整备';
+  var fuelEffMultiplier = 1;
+  var eventChanceMultiplier = 1;
+  var autoRepairMultiplier = 1;
+  var smugglingCheckMultiplier = 1;
+
+  if (value < 25) {
+    band = 'critical';
+    label = '危险';
+    fuelEffMultiplier = 1.22;
+    eventChanceMultiplier = 1.28;
+    autoRepairMultiplier = 0.45;
+    smugglingCheckMultiplier = 1.12;
+  } else if (value < 50) {
+    band = 'worn';
+    label = '磨损';
+    fuelEffMultiplier = 1.12;
+    eventChanceMultiplier = 1.16;
+    autoRepairMultiplier = 0.7;
+    smugglingCheckMultiplier = 1.08;
+  } else if (value < 75) {
+    band = 'steady';
+    label = '稳定';
+    fuelEffMultiplier = 1.04;
+    eventChanceMultiplier = 1.05;
+    autoRepairMultiplier = 0.9;
+    smugglingCheckMultiplier = 1.03;
+  }
+
+  var upkeepBase = serviceConfig.upkeep + _getShipModUpkeep(ship);
+  var upkeepCost = Math.max(0, Math.round(
+    upkeepBase * (ship.route ? 1.15 : 1) * (1 + Math.max(0, 80 - value) / 260)
+  ));
+  var dailyDecay = _roundOpsValue(
+    (0.2 + (ship.route ? 0.85 : 0.12) + ((ship.hull || ship.maxHull || 0) < (ship.maxHull || ship.hull || 0) ? 0.2 : 0))
+    * serviceConfig.maintenanceDecay
+    * (modEffects.maintenanceDecayMultiplier || 1)
+    * (roleEffects.maintenanceDecayMultiplier || 1)
+  );
+  var serviceCost = Math.max(0, Math.round((100 - value) * serviceConfig.serviceRate));
+
+  return {
+    value: value,
+    band: band,
+    label: label,
+    faultCount: ship.faults.length,
+    upkeepCost: upkeepCost,
+    serviceCost: serviceCost,
+    dailyDecay: dailyDecay,
+    fuelEffMultiplier: fuelEffMultiplier,
+    eventChanceMultiplier: eventChanceMultiplier,
+    autoRepairMultiplier: autoRepairMultiplier,
+    smugglingCheckMultiplier: smugglingCheckMultiplier,
+  };
+}
+
+export function getShipRoleProfile(state, ship) {
+  if (!ship) {
+    return {
+      id: 'logistics',
+      label: '主力商运',
+      summary: '承担常规货运与套利。',
+      tags: [],
+    };
+  }
+
+  var scores = {
+    logistics: 0,
+    courier: 0,
+    survey: 0,
+    covert: 0,
+    support: 0,
+  };
+  var tags = [];
+
+  if (ship.typeId === 'freighter') {
+    scores.logistics += 3;
+    scores.support += 1.2;
+  } else if (ship.typeId === 'clipper') {
+    scores.courier += 2.5;
+    scores.covert += 2;
+    scores.survey += 1.5;
+  } else if (ship.typeId === 'galleon') {
+    scores.logistics += 3.5;
+    scores.support += 2;
+  } else {
+    scores.courier += 1.5;
+    scores.survey += 1;
+    scores.covert += 1;
+  }
+
+  var specialization = getShipSpecializationSummary(state, ship);
+  if (specialization && specialization.doctrine) {
+    tags.push(specialization.doctrine.shortName);
+    if (specialization.doctrine.id === 'trade') scores.logistics += 2;
+    else if (specialization.doctrine.id === 'navigation') scores.courier += 2;
+    else scores.survey += 2;
+  }
+
+  (ship.mods || []).forEach(function (modId) {
+    if (modId === 'mod_service_bay') {
+      scores.support += 3;
+      tags.push('维护');
+    } else if (modId === 'mod_survey_array') {
+      scores.survey += 3;
+      tags.push('测绘');
+    } else if (modId === 'mod_smuggler_hold') {
+      scores.covert += 3;
+      tags.push('灰市');
+    } else if (modId.indexOf('cargo') !== -1 || modId === 'mod_market_link') {
+      scores.logistics += 1.2;
+    } else if (modId.indexOf('fuel') !== -1 || modId.indexOf('drive') !== -1) {
+      scores.courier += 1;
+    }
+  });
+
+  Crew.getShipCrew(state, ship).forEach(function (crewMember) {
+    if (crewMember.specialtyId === 'gray_channel') {
+      scores.covert += 1.8;
+      tags.push('黑市');
+    } else if (crewMember.specialtyId === 'route_savant' || crewMember.specialtyId === 'void_runner') {
+      scores.courier += 1.6;
+      tags.push('快航');
+    } else if (crewMember.specialtyId === 'container_architect' || crewMember.specialtyId === 'cold_chain_keeper') {
+      scores.logistics += 1.5;
+    } else if (crewMember.specialtyId === 'damage_control' || crewMember.specialtyId === 'salvage_rigger') {
+      scores.support += 1.5;
+      tags.push('维保');
+    } else if (crewMember.specialtyId === 'salvage_logistician') {
+      scores.survey += 1.2;
+    }
+  });
+
+  var roleDefs = {
+    logistics: { label: '主力商运', summary: '承担常规货运、套利与仓位效率。' },
+    courier: { label: '快航中继', summary: '适合快线补给、短循环调度与响应。' },
+    survey: { label: '勘探支援', summary: '偏向扫描折扣、探索收益与情报获取。' },
+    covert: { label: '灰市突破', summary: '适合违禁品运输与黑市风险压制。' },
+    support: { label: '后勤维护', summary: '擅长维保、修复与为舰队托底。' },
+  };
+
+  var bestRoleId = 'logistics';
+  Object.keys(scores).forEach(function (roleId) {
+    if (scores[roleId] > scores[bestRoleId]) bestRoleId = roleId;
+  });
+
+  return {
+    id: bestRoleId,
+    label: roleDefs[bestRoleId].label,
+    summary: roleDefs[bestRoleId].summary,
+    tags: Array.from(new Set(tags)).slice(0, 3),
+  };
+}
+
+export function getShipDispatchProfile(state, ship) {
+  var maintenance = getShipMaintenanceSummary(state, ship);
+  var roleEffects = _getShipOperationalRoleEffects(state, ship);
+  var activeFaultCount = ship && Array.isArray(ship.faults) ? ship.faults.length : 0;
+  var faultPressure = activeFaultCount;
+
+  if (maintenance.band === 'critical') faultPressure += 2;
+  else if (maintenance.band === 'worn') faultPressure += 1;
+
+  return {
+    roleId: roleEffects.roleId,
+    roleLabel: roleEffects.roleLabel,
+    strategyLabel: roleEffects.dispatchStrategyLabel,
+    strategyNote: roleEffects.dispatchStrategyNote,
+    preferredRiskMode: roleEffects.preferredRiskMode,
+    preferredMarketMode: roleEffects.preferredMarketMode,
+    inspectionRiskMultiplier: roleEffects.inspectionRiskMultiplier,
+    openMarketBonus: roleEffects.openMarketBonus,
+    blackMarketBonus: roleEffects.blackMarketBonus,
+    lowRiskBonus: roleEffects.lowRiskBonus,
+    highRiskPenalty: roleEffects.highRiskPenalty,
+    fuelCostWeight: roleEffects.fuelCostWeight,
+    cargoValueWeight: roleEffects.cargoValueWeight,
+    legalTradeBonus: roleEffects.legalTradeBonus,
+    techRouteBonus: roleEffects.techRouteBonus,
+    faultPressurePenalty: roleEffects.faultPressurePenalty,
+    faultCount: activeFaultCount,
+    faultPressure: faultPressure,
+    maintenanceValue: maintenance.value,
+    maintenanceBand: maintenance.band,
+  };
+}
+
+export function getShipFaultSummaries(ship) {
+  if (!ship) return [];
+  _ensureShipOperationalState(ship);
+
+  return ship.faults.map(function (faultId) {
+    var fault = _getShipConditionFault(faultId);
+    return fault ? Object.assign({}, fault) : null;
+  }).filter(Boolean);
+}
+
+function _buildShipRepairDuration(profile, hullMissing, faultCount, roleEffects) {
+  var rawDays = Math.ceil(
+    Math.max(0, (100 - (profile && profile.value || 100)) / 45)
+    + Math.max(0, hullMissing || 0) / 90
+    + Math.max(0, faultCount || 0) * 0.75
+  );
+  var repairEfficiency = 0;
+  if (roleEffects && roleEffects.serviceMaintenanceBonus) {
+    repairEfficiency += Math.max(
+      roleEffects.serviceMaintenanceBonus.quick || 0,
+      roleEffects.serviceMaintenanceBonus.emergency || 0
+    ) / 16;
+  }
+  if (roleEffects && roleEffects.serviceHullBonus) {
+    repairEfficiency += Math.max(
+      roleEffects.serviceHullBonus.overhaul || 0,
+      roleEffects.serviceHullBonus.emergency || 0
+    ) / 6;
+  }
+  return Math.max(
+    REPAIR_JOB_MIN_DAYS,
+    Math.min(REPAIR_JOB_MAX_DAYS, (rawDays || REPAIR_JOB_MIN_DAYS) - Math.floor(repairEfficiency))
+  );
+}
+
+function _completeShipRepair(state, ship) {
+  var clearedFaultIds = _clearShipFaults(ship, 'all');
+  var clearedFaultLabels = clearedFaultIds.map(function (faultId) {
+    var fault = _getShipConditionFault(faultId);
+    return fault ? fault.label : faultId;
+  });
+
+  ship.maintenance = 100;
+  ship.lastServiceDay = state.day || 1;
+  ship.hull = ship.maxHull || ship.hull || 0;
+  ship.repairJob = null;
+
+  var detailParts = ['维护度恢复至 100%', '船体已完全修复'];
+  if (clearedFaultLabels.length > 0) {
+    detailParts.push('排除故障：' + clearedFaultLabels.join('、'));
+  }
+
+  return {
+    text: '✅ 「' + ship.name + '」维修完成：' + detailParts.join('，') + '。',
+    type: 'upgrade',
+  };
+}
+
+export function getShipRepairQuote(state, shipIndex) {
+  var ship = shipIndex != null ? state.fleet[shipIndex] : getActiveShip(state);
+  if (!ship) return null;
+
+  _ensureShipOperationalState(ship);
+
+  var profile = getShipMaintenanceSummary(state, ship);
+  var roleEffects = _getShipOperationalRoleEffects(state, ship);
+  var faultSummaries = getShipFaultSummaries(ship);
+  var hullMissing = Math.max(0, (ship.maxHull || ship.hull || 0) - (ship.hull || 0));
+  var repairNeeded = profile.value < 99.5 || faultSummaries.length > 0 || hullMissing > 0;
+  var durationDays = _buildShipRepairDuration(profile, hullMissing, faultSummaries.length, roleEffects);
+  var cost = Math.max(80, Math.round(
+    (profile.serviceCost + hullMissing * 2.5 + faultSummaries.length * 35)
+    * (roleEffects.serviceCostMultiplier || 1)
+  ));
+  var disabledReason = '';
+
+  if (ship.repairJob) disabledReason = '维修已在进行中';
+  else if (ship.route) disabledReason = '派遣中无法入坞维修';
+  else if (!repairNeeded) disabledReason = '当前无需维修';
+  else if ((state.credits || 0) < cost) disabledReason = '积分不足';
+
+  return {
+    id: 'repair',
+    name: '标准维修',
+    icon: '🔧',
+    desc: '扣款后进入维修队列，完成时恢复维护度、修复船体并清除故障。',
+    cost: cost,
+    durationDays: durationDays,
+    targetMaintenance: 100,
+    targetHull: ship.maxHull || ship.hull || 0,
+    hullMissing: hullMissing,
+    faultCount: faultSummaries.length,
+    disabledReason: disabledReason,
+    effectSummary: '完成后恢复维护度至 100%，修复 ' + hullMissing + ' 点船体缺口，并清除 ' + faultSummaries.length + ' 项故障。',
+  };
+}
+
+export function getShipServiceOptions(state, shipIndex) {
+  var quote = getShipRepairQuote(state, shipIndex);
+  return quote ? [quote] : [];
+}
+
+export function serviceShip(state, shipIndex, tierId) {
+  var ship = shipIndex != null ? state.fleet[shipIndex] : getActiveShip(state);
+  if (!ship) {
+    return { ok: false, msgs: [{ text: '❌ 无效的船只！', type: 'error' }] };
+  }
+
+  _ensureShipOperationalState(ship);
+  var repairQuote = getShipRepairQuote(state, shipIndex);
+  if (!repairQuote) {
+    return { ok: false, msgs: [{ text: '❌ 无法生成维修方案！', type: 'error' }] };
+  }
+  if (repairQuote.disabledReason) {
+    return { ok: false, msgs: [{ text: '🚫 ' + repairQuote.disabledReason + '。', type: 'error' }] };
+  }
+
+  state.credits -= repairQuote.cost;
+  ship.repairJob = {
+    remainingDays: repairQuote.durationDays,
+    totalDays: repairQuote.durationDays,
+    cost: repairQuote.cost,
+    startedDay: state.day || 1,
+  };
+
+  return {
+    ok: true,
+    msgs: [{
+      text: '🔧 「' + ship.name + '」已开始维修：花费 ' + repairQuote.cost.toLocaleString() + ' 积分，预计 ' + repairQuote.durationDays + ' 天后完成。',
+      type: 'upgrade',
+    }],
+  };
+}
+
+export function applyTravelWear(state, shipIndex, travelMeta) {
+  var ship = shipIndex != null ? state.fleet[shipIndex] : getActiveShip(state);
+  if (!ship) return { ok: false, msgs: [] };
+
+  _ensureShipOperationalState(ship);
+
+  var beforeProfile = getShipMaintenanceSummary(state, ship);
+  var modEffects = getShipModEffects(ship);
+  var roleEffects = _getShipOperationalRoleEffects(state, ship);
+  var serviceConfig = _getShipServiceConfig(ship);
+  var faultEffects = _getShipFaultEffects(state, ship);
+  var cargoLoadRatio = _getShipCargoUsed(ship) / Math.max(1, ship.maxCargo || 1);
+  var fuelCost = Number.isFinite(travelMeta && travelMeta.fuelCost) ? travelMeta.fuelCost : 0;
+  var baseWear = travelMeta && travelMeta.crossGalaxy ? 6 : (travelMeta && travelMeta.secretRoute ? 2.5 : 3.5);
+  var wear = _roundOpsValue(
+    (baseWear + Math.min(4, fuelCost * 0.08) + cargoLoadRatio * 2)
+    * serviceConfig.maintenanceDecay
+    * (modEffects.maintenanceDecayMultiplier || 1)
+    * (roleEffects.travelWearMultiplier || 1)
+    * (faultEffects.travelWearMultiplier || 1)
+  );
+
+  if (wear <= 0) return { ok: true, msgs: [], meta: { wear: 0, maintenance: ship.maintenance } };
+
+  ship.maintenance = _clampMaintenance(ship.maintenance - wear);
+  var afterProfile = getShipMaintenanceSummary(state, ship);
+  var msgs = [];
+  _pushMaintenanceTransitionMsg(ship, beforeProfile, afterProfile, msgs);
+  _maybeTriggerConditionFault(state, ship, {
+    travelWear: wear,
+    maintenanceBand: afterProfile.band,
+  }, msgs);
+
+  return {
+    ok: true,
+    msgs: msgs,
+    meta: {
+      wear: wear,
+      maintenance: ship.maintenance,
+    },
+  };
+}
+
+export function advanceFleetDay(state) {
+  var msgs = [];
+  var totalUpkeep = 0;
+  var unpaidShips = [];
+
+  (state.fleet || []).forEach(function (ship) {
+    _ensureShipOperationalState(ship);
+
+    var beforeProfile = getShipMaintenanceSummary(state, ship);
+    var upkeep = beforeProfile.upkeepCost || 0;
+    var paid = Math.min(Math.max(0, state.credits || 0), upkeep);
+    var unpaid = Math.max(0, upkeep - paid);
+
+    if (paid > 0) {
+      state.credits -= paid;
+      totalUpkeep += paid;
+    }
+
+    if (ship.repairJob) {
+      ship.repairJob.remainingDays = Math.max(0, ship.repairJob.remainingDays - 1);
+      if (ship.repairJob.remainingDays <= 0) {
+        msgs.push(_completeShipRepair(state, ship));
+      }
+      return;
+    }
+
+    var decay = beforeProfile.dailyDecay || 0;
+    if (unpaid > 0) {
+      unpaidShips.push(ship.name);
+      decay += Math.min(12, unpaid / Math.max(4, _getShipServiceConfig(ship).serviceRate));
+    }
+
+    ship.maintenance = _clampMaintenance(ship.maintenance - decay);
+
+    var repairAmount = 0;
+    if ((ship.hull || 0) < (ship.maxHull || ship.hull || 0)) {
+      repairAmount = Math.min(
+        (ship.maxHull || ship.hull || 0) - (ship.hull || 0),
+        getEffectiveShipStats(state, ship).autoRepair || 0
+      );
+      if (repairAmount > 0) {
+        ship.hull = Math.min(ship.maxHull, ship.hull + repairAmount);
+      }
+    }
+
+    var afterProfile = getShipMaintenanceSummary(state, ship);
+    _pushMaintenanceTransitionMsg(ship, beforeProfile, afterProfile, msgs);
+    _maybeTriggerConditionFault(state, ship, {
+      unpaidUpkeep: unpaid,
+      maintenanceBand: afterProfile.band,
+    }, msgs);
+  });
+
+  if (totalUpkeep > 0) {
+    msgs.unshift({ text: '🧰 舰队日常养护支出 ' + totalUpkeep.toLocaleString() + ' 积分。', type: 'info' });
+  }
+  if (unpaidShips.length > 0) {
+    msgs.push({ text: '💸 养护资金不足：' + unpaidShips.join('、') + ' 维护损耗加剧。', type: 'error' });
+  }
+
+  syncStateFromShip(state);
+  return { msgs: msgs };
+}
+
 /**
  * 获取船型信息
  */
@@ -565,6 +1364,12 @@ function _fuelCost(state, fromId, toId, fuelEff) {
   return Economy.getFuelCost(fromId, toId, fuelEff, state);
 }
 
+function _isCrossGalaxyTravel(fromId, toId) {
+  var fromSystem = findSystem(fromId);
+  var toSystem = findSystem(toId);
+  return !!fromSystem && !!toSystem && fromSystem.galaxyId !== toSystem.galaxyId;
+}
+
 export function getEffectiveShipStats(state, ship) {
   if (!ship) {
     return {
@@ -582,33 +1387,47 @@ export function getEffectiveShipStats(state, ship) {
       poiRewardMultiplier: 1,
       forceDeepScan: false,
       specialization: null,
+      maintenance: getShipMaintenanceSummary(state, null),
+      roleProfile: getShipRoleProfile(state, null),
+      dispatchProfile: getShipDispatchProfile(state, null),
+      upkeepCost: 0,
       crewEffects: {},
     };
   }
 
   var crewEffects = Crew.getShipEffects(state, ship);
   var modEffects = getShipModEffects(ship);
+  var faultEffects = _getShipFaultEffects(state, ship);
   var specialization = getShipSpecializationSummary(state, ship);
   var specEffects = specialization ? specialization.effects : {};
+  var maintenance = getShipMaintenanceSummary(state, ship);
+  var roleProfile = getShipRoleProfile(state, ship);
+  var faultSummaries = getShipFaultSummaries(ship);
+  var dispatchProfile = getShipDispatchProfile(state, ship);
 
   return {
-    maxCargo: Math.max(1, Math.round(ship.maxCargo + (crewEffects.cargo || 0) + (specEffects.cargoBonus || 0))),
+    maxCargo: Math.max(1, Math.round(ship.maxCargo + (crewEffects.cargo || 0) + (specEffects.cargoBonus || 0) - (faultEffects.cargoPenalty || 0))),
     fuelEff: Math.max(
       ship.minFuelEff || 0.1,
-      Math.round(ship.fuelEff * (crewEffects.fuelEffMultiplier || 1) * (specEffects.fuelEffMultiplier || 1) * 10000) / 10000
+      Math.round(ship.fuelEff * (crewEffects.fuelEffMultiplier || 1) * (specEffects.fuelEffMultiplier || 1) * (maintenance.fuelEffMultiplier || 1) * (faultEffects.fuelEffMultiplier || 1) * 10000) / 10000
     ),
-    autoRepair: (crewEffects.autoRepair || 0) + (modEffects.autoRepair || 0),
-    buyDiscount: (crewEffects.buyDiscount || 0) + (modEffects.buyDiscount || 0) + (specEffects.buyDiscount || 0),
-    sellBonus: (crewEffects.sellBonus || 0) + (modEffects.sellBonus || 0) + (specEffects.sellBonus || 0),
-    eventChanceMultiplier: specEffects.eventChanceMultiplier || 1,
-    smugglingCheckMultiplier: specEffects.smugglingCheckMultiplier || 1,
-    smugglingFineMultiplier: specEffects.smugglingFineMultiplier || 1,
+    autoRepair: Math.round(((crewEffects.autoRepair || 0) + (modEffects.autoRepair || 0)) * (maintenance.autoRepairMultiplier || 1) * 10) / 10,
+    buyDiscount: (crewEffects.buyDiscount || 0) + (modEffects.buyDiscount || 0) + (specEffects.buyDiscount || 0) + (faultEffects.buyDiscount || 0),
+    sellBonus: (crewEffects.sellBonus || 0) + (modEffects.sellBonus || 0) + (specEffects.sellBonus || 0) + (faultEffects.sellBonus || 0),
+    eventChanceMultiplier: (specEffects.eventChanceMultiplier || 1) * (maintenance.eventChanceMultiplier || 1) * (faultEffects.eventChanceMultiplier || 1),
+    smugglingCheckMultiplier: (specEffects.smugglingCheckMultiplier || 1) * (modEffects.smugglingCheckMultiplier || 1) * (maintenance.smugglingCheckMultiplier || 1),
+    smugglingFineMultiplier: (specEffects.smugglingFineMultiplier || 1) * (modEffects.smugglingFineMultiplier || 1),
     smugglingHullMultiplier: specEffects.smugglingHullMultiplier || 1,
-    scanFuelDiscount: specEffects.scanFuelDiscount || 0,
+    scanFuelDiscount: Math.min(0.95, ((specEffects.scanFuelDiscount || 0) + (modEffects.scanFuelDiscount || 0)) * (faultEffects.scanFuelDiscountMultiplier || 1)),
     landingFeeDiscount: specEffects.landingFeeDiscount || 0,
-    poiRewardMultiplier: specEffects.poiRewardMultiplier || 1,
+    poiRewardMultiplier: (specEffects.poiRewardMultiplier || 1) * (modEffects.poiRewardMultiplier || 1),
     forceDeepScan: !!specEffects.forceDeepScan,
     specialization: specialization,
+    maintenance: maintenance,
+    faults: faultSummaries,
+    roleProfile: roleProfile,
+    dispatchProfile: dispatchProfile,
+    upkeepCost: maintenance.upkeepCost || 0,
     crewEffects: crewEffects,
   };
 }
@@ -677,61 +1496,15 @@ function _handleShipSmugglingCheck(state, ship, route, msgs) {
   return false;
 }
 
-function _getRouteDisplayCurrentSystemId(state, ship, shipIndex) {
-  var route = ship && ship.route ? ship.route : null;
-  var activeIndex = state && typeof state.activeShipIndex === 'number' ? state.activeShipIndex : 0;
-  var isActive = shipIndex === activeIndex;
-  var currentSystemId = isActive
-    ? (state.currentSystem || ship.location)
-    : (ship.location || state.currentSystem);
-
-  if (currentSystemId) return currentSystemId;
-  if (!route) return null;
-  if (route.status === 'traveling_sell' || route.status === 'selling') {
-    return route.buySystemId || route.sellSystemId || null;
-  }
-  return route.sellSystemId || route.buySystemId || null;
-}
-
 export function getRouteDisplayInfo(state, ship, shipIndex) {
-  if (!ship || !ship.route) return null;
-
-  var route = ship.route;
-  var currentSystemId = _getRouteDisplayCurrentSystemId(state, ship, shipIndex);
-  var sameSystemRoute = route.buySystemId === route.sellSystemId;
-  var atBuySystem = currentSystemId === route.buySystemId;
-  var atSellSystem = currentSystemId === route.sellSystemId;
-  var targetSystemId = null;
-  var statusLabel = route.status;
-
-  if (sameSystemRoute) {
-    targetSystemId = currentSystemId || route.buySystemId || route.sellSystemId || null;
-    statusLabel = (route.status === 'traveling_sell' || route.status === 'selling')
-      ? '💰 同站卖出中'
-      : '📦 同站买入中';
-  } else if (atBuySystem) {
-    targetSystemId = route.sellSystemId;
-    statusLabel = (route.status === 'traveling_sell' || route.status === 'selling')
-      ? '🚀 前往卖出地'
-      : '📦 买入中';
-  } else if (atSellSystem) {
-    targetSystemId = route.buySystemId;
-    statusLabel = (route.status === 'traveling_buy' || route.status === 'buying')
-      ? '🚀 前往买入地'
-      : '💰 卖出中';
-  } else if (route.status === 'traveling_sell' || route.status === 'selling') {
-    targetSystemId = route.sellSystemId;
-    statusLabel = route.status === 'selling' ? '💰 卖出中' : '🚀 前往卖出地';
-  } else {
-    targetSystemId = route.buySystemId;
-    statusLabel = route.status === 'buying' ? '📦 买入中' : '🚀 前往买入地';
-  }
+  var descriptor = RouteModel.getShipRouteDescriptor(state, ship, shipIndex);
+  if (!descriptor) return null;
 
   return {
-    startSystemId: currentSystemId,
-    endSystemId: targetSystemId || currentSystemId,
-    statusLabel: statusLabel,
-    sameSystemRoute: sameSystemRoute,
+    startSystemId: descriptor.startSystemId,
+    endSystemId: descriptor.endSystemId,
+    statusLabel: descriptor.statusLabel,
+    sameSystemRoute: descriptor.sameSystemRoute,
   };
 }
 
@@ -751,6 +1524,10 @@ export function assignRoute(state, shipIndex, buySystemId, sellSystemId, goodId,
   if (!ship) {
     return { ok: false, msgs: [{ text: '❌ 无效的船只！', type: 'error' }] };
   }
+  _ensureShipOperationalState(ship);
+  if (ship.repairJob) {
+    return { ok: false, msgs: [{ text: '🔧 该船正在维修中，完成前无法派遣。', type: 'error' }] };
+  }
 
   var busSys  = findSystem(buySystemId);
   var sellSys = findSystem(sellSystemId);
@@ -765,11 +1542,6 @@ export function assignRoute(state, shipIndex, buySystemId, sellSystemId, goodId,
   }
   if (!AutoTrade.canUseMarket(state, buySystemId, normalizedPolicy.marketMode)) {
     return { ok: false, msgs: [{ text: normalizedPolicy.marketMode === 'black' ? '🔒 黑市派遣的买入地必须具备黑市访问资格。' : '⚠️ 当前路线无法访问所选市场。', type: 'error' }] };
-  }
-
-  // 派遣路线必须在同一星系内
-  if (busSys.galaxyId !== sellSys.galaxyId) {
-    return { ok: false, msgs: [{ text: '⚠️ 派遣路线必须在同一星系内！', type: 'error' }] };
   }
 
   // 设置路线，船只从当前位置开始
@@ -844,6 +1616,7 @@ export function tickFleetRoutes(state) {
           _doShipBuy(state, ship, route, msgs);
         } else {
           var cost = _fuelCost(state, loc, route.buySystemId, getEffectiveShipStats(state, ship).fuelEff);
+          var crossGalaxyBuyTravel = _isCrossGalaxyTravel(loc, route.buySystemId);
           if (ship.fuel < cost) {
             // 尝试用积分补燃料
             _autoRefuelShip(state, ship, cost, msgs);
@@ -855,9 +1628,10 @@ export function tickFleetRoutes(state) {
           }
           ship.fuel    -= cost;
           ship.location = route.buySystemId;
+          applyTravelWear(state, idx, { fuelCost: cost, crossGalaxy: crossGalaxyBuyTravel, secretRoute: false }).msgs.forEach(function (m) { msgs.push(m); });
           msgs.push({ text: '🚀 「' + ship.name + '」抵达买入地。', type: 'travel' });
           if (_handleShipSmugglingCheck(state, ship, route, msgs)) return;
-          recordShipActivity(state, 'travel', { secretRoute: false, crossGalaxy: false }, idx).msgs.forEach(function (m) { msgs.push(m); });
+          recordShipActivity(state, 'travel', { secretRoute: false, crossGalaxy: crossGalaxyBuyTravel }, idx).msgs.forEach(function (m) { msgs.push(m); });
           consumeShipProtocol(state, idx, 'travel').msgs.forEach(function (m) { msgs.push(m); });
           _doShipBuy(state, ship, route, msgs);
         }
@@ -877,6 +1651,7 @@ export function tickFleetRoutes(state) {
           _doShipSell(state, ship, route, msgs);
         } else {
           var cost2 = _fuelCost(state, loc, route.sellSystemId, getEffectiveShipStats(state, ship).fuelEff);
+          var crossGalaxySellTravel = _isCrossGalaxyTravel(loc, route.sellSystemId);
           if (ship.fuel < cost2) {
             _autoRefuelShip(state, ship, cost2, msgs);
             if (ship.fuel < cost2) {
@@ -887,9 +1662,10 @@ export function tickFleetRoutes(state) {
           }
           ship.fuel    -= cost2;
           ship.location = route.sellSystemId;
+          applyTravelWear(state, idx, { fuelCost: cost2, crossGalaxy: crossGalaxySellTravel, secretRoute: false }).msgs.forEach(function (m) { msgs.push(m); });
           msgs.push({ text: '🚀 「' + ship.name + '」抵达卖出地。', type: 'travel' });
           if (_handleShipSmugglingCheck(state, ship, route, msgs)) return;
-          recordShipActivity(state, 'travel', { secretRoute: false, crossGalaxy: false }, idx).msgs.forEach(function (m) { msgs.push(m); });
+          recordShipActivity(state, 'travel', { secretRoute: false, crossGalaxy: crossGalaxySellTravel }, idx).msgs.forEach(function (m) { msgs.push(m); });
           consumeShipProtocol(state, idx, 'travel').msgs.forEach(function (m) { msgs.push(m); });
           _doShipSell(state, ship, route, msgs);
         }
@@ -1286,13 +2062,24 @@ export function getShipSkillEffects(ship) {
  */
 export function getShipModEffects(ship) {
   if (!ship || !ship.mods) return {};
-  var effects = {};
+  var effects = {
+    maintenanceDecayMultiplier: 1,
+    smugglingCheckMultiplier: 1,
+    smugglingFineMultiplier: 1,
+    poiRewardMultiplier: 1,
+    scanFuelDiscount: 0,
+  };
   ship.mods.forEach(function (modId) {
     var mod = SHIP_MODS.find(function (m) { return m.id === modId; });
     if (mod && mod.effect) {
       if (mod.effect.buyDiscount) effects.buyDiscount = (effects.buyDiscount || 0) + mod.effect.buyDiscount;
       if (mod.effect.sellBonus) effects.sellBonus = (effects.sellBonus || 0) + mod.effect.sellBonus;
       if (mod.effect.autoRepair) effects.autoRepair = (effects.autoRepair || 0) + mod.effect.autoRepair;
+      if (mod.effect.maintenanceDecayMultiplier) effects.maintenanceDecayMultiplier = (effects.maintenanceDecayMultiplier || 1) * mod.effect.maintenanceDecayMultiplier;
+      if (mod.effect.smugglingCheckMultiplier) effects.smugglingCheckMultiplier = (effects.smugglingCheckMultiplier || 1) * mod.effect.smugglingCheckMultiplier;
+      if (mod.effect.smugglingFineMultiplier) effects.smugglingFineMultiplier = (effects.smugglingFineMultiplier || 1) * mod.effect.smugglingFineMultiplier;
+      if (mod.effect.scanFuelDiscount) effects.scanFuelDiscount = (effects.scanFuelDiscount || 0) + mod.effect.scanFuelDiscount;
+      if (mod.effect.poiRewardMultiplier) effects.poiRewardMultiplier = (effects.poiRewardMultiplier || 1) * mod.effect.poiRewardMultiplier;
     }
   });
   return effects;
