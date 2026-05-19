@@ -8,6 +8,7 @@
 import * as PlayerLevels from '../../data/playerLevels.js';
 import { FACTION_CONFIG, PROGRESSION_CONFIG } from '../../data/constants.js';
 import { SYSTEMS, GALAXIES } from '../../data/systems.js?v=20260420-balance3';
+import { getCompanyUnlocksAtLevel } from '../../data/companyAccess.js';
 import * as Fleet from '../fleet/FleetSystem.js?v=20260421-balance6';
 
 const getLevel = PlayerLevels.getLevel;
@@ -70,6 +71,13 @@ export function gainCompanyExperience(state, amount) {
       text: '🏢 公司升级！「' + (state.companyName || '星际信使贸易公司') + '」晋升为 ' + newLevel.icon + ' ' + newLevel.title + '（Lv.' + newLevel.level + '）！',
       type: 'upgrade',
     });
+    const unlockSummary = _formatCompanyUnlockSummary(oldLevel.level, newLevel.level);
+    if (unlockSummary) {
+      msgs.push({
+        text: '🧭 新公司权限开放：' + unlockSummary + '。',
+        type: 'upgrade',
+      });
+    }
     if (nextLevel) {
       const need = Math.max(0, nextLevel.expRequired - (state.companyExperience || 0));
       msgs.push({
@@ -80,6 +88,16 @@ export function gainCompanyExperience(state, amount) {
   }
 
   return { msgs };
+}
+
+function _formatCompanyUnlockSummary(oldLevel, newLevel) {
+  const summaries = [];
+  for (let level = Math.max(1, oldLevel + 1); level <= newLevel; level += 1) {
+    const milestone = getCompanyUnlocksAtLevel(level);
+    if (!milestone || !milestone.items || milestone.items.length === 0) continue;
+    summaries.push('Lv.' + milestone.level + ' ' + milestone.title + '：' + milestone.items.join('、'));
+  }
+  return summaries.join('；');
 }
 
 /**

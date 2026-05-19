@@ -201,6 +201,36 @@
   100% { background-position: -200% 0; }
 }
 
+.company-unlock-roadmap {
+  margin-top: 8px;
+  padding: 7px 8px;
+  border: 1px solid rgba(79, 195, 247, 0.12);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(8, 22, 46, 0.72), rgba(5, 14, 30, 0.84));
+  box-shadow: inset 0 1px 0 rgba(125, 211, 252, 0.06);
+}
+.company-unlock-roadmap-kicker {
+  color: var(--text-dim);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.company-unlock-roadmap-title {
+  margin-top: 2px;
+  color: var(--accent-cyan);
+  font-size: 12px;
+  font-weight: 700;
+}
+.company-unlock-roadmap-items {
+  margin-top: 3px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
 .quest-tracker-card {
   margin: 0;
   padding: 10px;
@@ -281,6 +311,12 @@
   font-size: 11px;
   line-height: 1.4;
   color: var(--text-main);
+}
+.quest-tracker-summary-line {
+  margin-top: 6px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--text-dim);
 }
 .quest-tracker-meta {
   margin-top: 6px;
@@ -364,6 +400,7 @@
 }
 .tab-btn {
   flex: 0 0 auto;
+  position: relative;
   padding: 7px 8px;
   border: none;
   background: transparent;
@@ -376,6 +413,28 @@
 }
 .tab-btn:hover  { color: var(--text-primary); }
 .tab-btn.active { color: var(--accent-gold); border-bottom-color: var(--accent-gold); }
+
+.archive-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  margin-left: 5px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgba(34, 211, 238, 0.16);
+  border: 1px solid rgba(34, 211, 238, 0.28);
+  color: #bff8ff;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.archive-tab-badge[hidden] {
+  display: none;
+}
 
 .tab-content { flex: 1; overflow-y: auto; }
 
@@ -486,4 +545,3 @@
 .upg-name { font-weight: 700; font-size: 12px; }
 .upg-desc { font-size: 11px; color: var(--text-dim); }
 .upg-cost { font-size: 11px; color: var(--accent-gold); margin-top: 1px; }
-

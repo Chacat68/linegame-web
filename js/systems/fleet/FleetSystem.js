@@ -11,6 +11,7 @@
 import { SHIP_TYPES, SHIP_UPGRADES, FLEET_SLOTS, SHIP_MODS, FLEET_BONUSES } from '../../data/ships.js';
 import { findSystem } from '../../data/systems.js';
 import { GOODS } from '../../data/goods.js';
+import { getCompanyLevelValue, getFleetSlotCompanyRequirement } from '../../data/companyAccess.js';
 import * as Economy from '../economy/Economy.js';
 import * as AutoTrade from '../trade/AutoTradeSystem.js?v=20260420-balance5';
 import * as Crew from './CrewSystem.js';
@@ -495,6 +496,17 @@ export function buySlot(state) {
     return { ok: false, msgs: [{ text: '🚫 席位已达上限！', type: 'error' }] };
   }
   var nextSlot = FLEET_SLOTS[current]; // 下一个席位（0-indexed, current = 已拥有数）
+  var requiredCompanyLevel = getFleetSlotCompanyRequirement(nextSlot.id);
+  var companyLevel = getCompanyLevelValue(state);
+  if (companyLevel < requiredCompanyLevel) {
+    return {
+      ok: false,
+      msgs: [{
+        text: '🏢 解锁「' + nextSlot.name + '」需要公司 Lv.' + requiredCompanyLevel + '，当前公司 Lv.' + companyLevel + '。',
+        type: 'error',
+      }],
+    };
+  }
   if (state.credits < nextSlot.cost) {
     return { ok: false, msgs: [{ text: '💰 积分不足！需要 ' + nextSlot.cost.toLocaleString() + ' 积分。', type: 'error' }] };
   }

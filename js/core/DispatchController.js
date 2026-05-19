@@ -13,6 +13,7 @@ import * as AutoTrade from '../systems/trade/AutoTradeSystem.js?v=20260420-balan
 import * as Economy   from '../systems/economy/Economy.js';
 
 let _activeDispatchInterval = null;
+let _activeDispatchKickoffTimeout = null;
 const ACTIVE_DISPATCH_TICK_MS = 5000;
 
 function _queuePolicyMessage(route, msgs, text) {
@@ -37,6 +38,12 @@ function _clearPolicyMessage(route) {
 export function startActiveDispatch(tickFn) {
   stopActiveDispatch();
   _activeDispatchInterval = setInterval(tickFn, ACTIVE_DISPATCH_TICK_MS);
+  _activeDispatchKickoffTimeout = setTimeout(function () {
+    _activeDispatchKickoffTimeout = null;
+    if (_activeDispatchInterval && typeof tickFn === 'function') {
+      tickFn();
+    }
+  }, 0);
   updateActiveDispatchUI();
   EventBus.emit('log:message', { text: '📡 激活船只已派遣！每 5 秒执行一次操作。', type: 'info' });
 }
@@ -45,6 +52,10 @@ export function startActiveDispatch(tickFn) {
  * 停止自动派遣定时器
  */
 export function stopActiveDispatch() {
+  if (_activeDispatchKickoffTimeout) {
+    clearTimeout(_activeDispatchKickoffTimeout);
+    _activeDispatchKickoffTimeout = null;
+  }
   if (_activeDispatchInterval) {
     clearInterval(_activeDispatchInterval);
     _activeDispatchInterval = null;
@@ -236,6 +247,7 @@ export function runActiveDispatchTick(state, options) {
  * 更新派遣 UI 指示器
  */
 export function updateActiveDispatchUI() {
+  if (!globalThis.document || typeof document.getElementById !== 'function') return;
   var ctrlDiv = document.getElementById('auto-trade-controls');
   if (!ctrlDiv) return;
   if (_activeDispatchInterval) {

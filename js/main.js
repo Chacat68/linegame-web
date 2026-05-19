@@ -2,7 +2,7 @@
 // 依赖：core/GameManager.js
 // 说明：浏览器加载完毕后初始化游戏
 
-import { init } from './core/GameManager.js?v=20260506-orbitscan1';
+import { init } from './core/GameManager.js?v=20260519-ux7';
 import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from './ui/SurfaceManager.js?v=20260505-surface4';
 
 window.addEventListener('load', function () {

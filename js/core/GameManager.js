@@ -12,20 +12,22 @@ import * as Commerce   from '../systems/commerce/CommerceFacade.js';
 import * as RandomEvent from '../systems/event/RandomEvent.js';
 import * as Faction    from '../systems/faction/FactionSystem.js';
 import * as Research   from '../systems/research/ResearchSystem.js';
-import * as Renderer3D from '../ui/Renderer3DAdvanced.js?v=20260420-balance3';
+import * as Renderer3D from '../ui/Renderer3DAdvanced.js?v=20260513-navguide1';
 import * as GalaxyData from '../systems/galaxy/GalaxyDataLayer.js';
-import * as Exploration from '../systems/galaxy/ExplorationSystem.js?v=20260417-exploration20';
-import * as HUD        from '../ui/HUD.js?v=20260505-uibatch19';
-import * as MarketUI   from '../ui/MarketUI.js?v=20260504-marketdeck2';
+import * as Exploration from '../systems/galaxy/ExplorationSystem.js?v=20260507-scanplay1';
+import * as HUD        from '../ui/HUD.js?v=20260519-ux5';
+import * as MarketUI   from '../ui/MarketUI.js?v=20260519-ux5';
 import * as ShipUI     from '../ui/ShipUI.js';
-import * as MapUI      from '../ui/MapUI.js?v=20260506-orbitscan1';
-import * as Modal      from '../ui/Modal.js?v=20260505-surface4';
+import * as MapUI      from '../ui/MapUI.js?v=20260519-ux7';
+import * as Modal      from '../ui/Modal.js?v=20260519-ux7';
 import * as EventUI    from '../ui/EventUI.js?v=20260505-surface4';
 import * as DialogueUI from '../ui/DialogueUI.js?v=20260505-surface4';
+import * as ActionGuideUI from '../ui/ActionGuideUI.js?v=20260519-ux5';
 import * as ResearchUI from '../ui/ResearchUI.js?v=20260420-balance5';
 import * as FactionUI  from '../ui/FactionUI.js?v=20260419-marketcta2';
 import * as SaveUI     from '../ui/SaveUI.js';
 import * as QuestUI    from '../ui/QuestUI.js?v=20260428-questdeck1';
+import { buildCommandFeedback } from '../ui/CommandAction.js?v=20260510-command1';
 import * as AchievementUI from '../ui/AchievementUI.js';
 import * as Fleet      from '../systems/fleet/FleetSystem.js?v=20260421-modrepair1';
 import * as Crew       from '../systems/fleet/CrewSystem.js';
@@ -37,7 +39,7 @@ import * as FleetUI    from '../ui/FleetUI.js?v=20260505-surface4';
 import * as Save       from '../systems/save/SaveSystem.js';
 import * as Quest      from '../systems/quest/QuestSystem.js?v=20260412-questroute2';
 import * as Achievement from '../systems/achievement/AchievementSystem.js';
-import * as Tutorial   from '../systems/tutorial/TutorialSystem.js?v=20260412-tutquest2';
+import * as Tutorial   from '../systems/tutorial/TutorialSystem.js?v=20260518-ux2';
 import * as TutorialUI from '../ui/TutorialUI.js?v=20260412-tutquest1';
 import * as Dialogue   from '../systems/story/DialogueSystem.js';
 import * as GameTime from '../systems/time/GameTimeSystem.js';
@@ -48,7 +50,8 @@ import { getLevel } from '../data/playerLevels.js';
 import { SYSTEMS } from '../data/systems.js';
 import { GOODS } from '../data/goods.js';
 import * as Settings from './SettingsManager.js?v=20260505-surface5';
-import * as Progression from '../systems/progression/ProgressionSystem.js?v=20260421-balance6';
+import * as Progression from '../systems/progression/ProgressionSystem.js?v=20260518-ux2';
+import * as Guidance from '../systems/guidance/GuidanceSystem.js?v=20260519-ux5';
 import * as Dispatch from './DispatchController.js?v=20260505-surface1';
 import { hasBlockingSurfaceOpen, hideBlockingSurface, showBlockingSurface } from '../ui/SurfaceManager.js?v=20260505-surface4';
 
@@ -86,6 +89,7 @@ function _getMarketFinanceActions() {
     onFuturesLong: _handleFuturesLong,
     onFuturesShort: _handleFuturesShort,
     onFuturesClose: _handleFuturesClose,
+    onFocusRemoteSystem: _handleFocusRemoteMarketSystem,
   };
 }
 
@@ -145,6 +149,10 @@ export function init(difficulty) {
   MapUI.initTabs(function (tabId) {
     Tutorial.checkTabClick(tabId);
   });
+  MapUI.setNavigationChangeCallback(function () {
+    _refreshActionGuide();
+  });
+  ActionGuideUI.init(_handleActionGuideAction);
 
   // 3D视角默认启用，确保回调已绑定
   MapUI.init3DCallbacks(_state, _handleTravel, _handleGalaxyJump);
@@ -158,6 +166,9 @@ export function init(difficulty) {
       ? ((pendingMarketFocus.marketMode || 'open') === 'black' ? 'black' : 'open')
       : (_blackMarketMode ? 'black' : 'open');
     _blackMarketMode = bmMode === 'black';
+    if (pendingMarketFocus && pendingMarketFocus.goodId) {
+      MarketUI.setFocusedMarketGood(sysId, bmMode, pendingMarketFocus.goodId);
+    }
     MarketUI.showDetail(sysId, bmMode);
     MarketUI.render(_state, _handleOpenBuy, _handleOpenSell, _handleRefuel, sysId, bmMode, MapUI.getMarketViewGalaxy(_state), _handleBlackMarketBuy, _handleBlackMarketSell, _getMarketFinanceActions());
     if (pendingMarketFocus) {
@@ -186,7 +197,7 @@ export function init(difficulty) {
     function () { Tutorial.skip(); _updateUI(); }
   );
 
-  // 教程完成后推荐首批任务并弹出公司重命名弹窗
+  // 教程完成后推荐首批任务，并把后续节奏交给底部当前行动条。
   if (_onTutorialComplete) EventBus.off('tutorial:complete', _onTutorialComplete);
   _onTutorialComplete = function () {
     var recommendations = Quest.getStarterRecommendations(_state, 3);
@@ -196,7 +207,7 @@ export function init(difficulty) {
       activeQuest: activeQuest,
     }, function () {
       _recommendStarterQuests();
-      setTimeout(_showCompanyRenameModal, 400);
+      _refreshActionGuide();
     });
   };
   EventBus.on('tutorial:complete', _onTutorialComplete);
@@ -254,7 +265,7 @@ function _showWelcomeMessages() {
     type: 'tip',
   });
   EventBus.emit('log:message', {
-    text: '📋 新功能：【任务】标签接取任务赚取奖励，【成就】标签追踪成就进度，右上角【设置】可管理存档！',
+    text: '📋 新功能：【档案】入口可接取任务、研究科技、查看派系与成就，右上角【设置】可管理存档！',
     type: 'tip',
   });
 }
@@ -265,11 +276,10 @@ function _recommendStarterQuests() {
   var activeQuest = activeQuests.length > 0 ? activeQuests[0] : null;
 
   _updateUI();
-  MapUI.activateTab('tab-quest');
 
   if (activeQuest) {
     EventBus.emit('log:message', {
-      text: '📋 已将你切到任务页。当前正在推进「' + activeQuest.name + '」，目标和奖励都能在任务面板与追踪区里查看。',
+      text: '📋 当前正在推进「' + activeQuest.name + '」，底部当前行动会继续给出可直接执行的下一步。',
       type: 'info',
     });
 
@@ -291,11 +301,11 @@ function _recommendStarterQuests() {
   }
 
   EventBus.emit('log:message', {
-    text: '📋 下一步建议：先去【任务】页接取 ' + recommendations.map(function (quest) { return '「' + quest.name + '」'; }).join('、') + '。',
+    text: '📋 下一步建议：接取 ' + recommendations.map(function (quest) { return '「' + quest.name + '」'; }).join('、') + '。',
     type: 'tip',
   });
   EventBus.emit('log:message', {
-    text: '🧭 我已替你切到任务页，这几项任务都可以立刻开始，适合作为教程后的第一阶段目标。',
+    text: '🧭 底部当前行动会直接接取并推进适合作为教程后第一阶段目标的任务。',
     type: 'info',
   });
 }
@@ -372,16 +382,19 @@ function _queueQuestDialogueResult(result, onFinished) {
 function _showTutorialStartModal() {
   const modal = document.getElementById('tutorial-start-modal');
   showBlockingSurface('tutorial-start-modal');
+  _refreshActionGuide();
 
   document.getElementById('tut-start-yes').onclick = function () {
     hideBlockingSurface('tutorial-start-modal');
     Tutorial.start();
+    _refreshActionGuide();
   };
 
   document.getElementById('tut-start-no').onclick = function () {
     hideBlockingSurface('tutorial-start-modal');
     Tutorial.skip();
     _showWelcomeMessages();
+    _updateUI();
   };
 }
 
@@ -394,6 +407,7 @@ function _showCompanyRenameModal() {
   input.value = _state.companyName || '';
   errorEl.classList.add('hidden');
   showBlockingSurface('company-rename-modal');
+  _refreshActionGuide();
 
   // 聚焦并全选
   setTimeout(function () { input.focus(); input.select(); }, 50);
@@ -415,6 +429,7 @@ function _showCompanyRenameModal() {
 
   document.getElementById('company-rename-skip').onclick = function () {
     hideBlockingSurface('company-rename-modal');
+    _refreshActionGuide();
   };
 }
 
@@ -440,6 +455,294 @@ function _dispatch(result) {
   if (result && result.ok) _checkVictory();
 }
 
+function _getNextGuidancePoi(systemId) {
+  var planetData = systemId ? GalaxyData.getPlanetData(systemId) : null;
+  var exploration = planetData && planetData.exploration;
+  if (!exploration || !exploration.landed || !Array.isArray(exploration.pois)) return null;
+
+  var priorityPoiId = exploration.scanPriorityPoiId || '';
+  return exploration.pois.filter(function (poi) {
+    return poi && poi.discovered && !poi.resolved;
+  }).sort(function (left, right) {
+    if (priorityPoiId) {
+      if (left.id === priorityPoiId && right.id !== priorityPoiId) return -1;
+      if (right.id === priorityPoiId && left.id !== priorityPoiId) return 1;
+    }
+    return 0;
+  }).map(function (poi) {
+    return {
+      id: poi.id,
+      poiId: poi.id,
+      icon: poi.icon || '',
+      name: poi.name || '探索点',
+    };
+  })[0] || null;
+}
+
+function _refreshActionGuide() {
+  if (!_state) return;
+  var scanStatus = null;
+  var landingStatus = null;
+  var nextPoi = null;
+  var nextPoiStatus = null;
+  if (_state.currentSystem) {
+    scanStatus = _getScanStatus(_state.currentSystem);
+    landingStatus = _getLandingStatus(_state.currentSystem);
+    nextPoi = _getNextGuidancePoi(_state.currentSystem);
+    if (nextPoi) {
+      nextPoiStatus = _getPoiStatus(_state.currentSystem, nextPoi.poiId);
+    }
+  }
+  ActionGuideUI.render(Guidance.getCurrentSuggestion(_state, {
+    marketOpen: MapUI.isMarketOpen(),
+    scanStatus: scanStatus,
+    landingStatus: landingStatus,
+    nextPoi: nextPoi,
+    nextPoiStatus: nextPoiStatus,
+    tutorialActive: Tutorial.isActive(),
+    blockingModalOpen: hasBlockingSurfaceOpen(),
+    eventPending: EventUI.hasPendingEvent(),
+  }));
+}
+
+function _getGoodDisplayName(goodId) {
+  var good = GOODS.find(function (item) { return item.id === goodId; });
+  return good ? good.name : (goodId || '商品');
+}
+
+function _getGuidanceTradeQuantity(action, goodId, marketType) {
+  Fleet.syncStateFromShip(_state);
+  if (action === 'sell') {
+    return Math.max(0, Number((_state.cargo || {})[goodId] || 0));
+  }
+
+  var price = marketType === 'black'
+    ? Economy.getBlackMarketBuyPrice(_state.currentSystem, goodId, _state)
+    : Economy.getBuyPrice(_state.currentSystem, goodId, _state);
+  if (!Number.isFinite(price) || price <= 0) return 0;
+
+  var cargoUsed = Object.values(_state.cargo || {}).reduce(function (sum, qty) {
+    return sum + Number(qty || 0);
+  }, 0);
+  var cargoSpace = Math.max(0, (_state.maxCargo || 0) - cargoUsed);
+  var canAfford = Math.floor((_state.credits || 0) / price);
+  return Math.max(0, Math.min(cargoSpace, canAfford));
+}
+
+function _openGuidanceTradeConfirmation(action, payload) {
+  var goodId = payload && payload.goodId ? payload.goodId : '';
+  var marketType = payload && payload.marketType === 'black' ? 'black' : 'open';
+  if (!goodId) {
+    EventBus.emit('log:message', { text: '⚠️ 当前行动缺少商品目标，无法自动交易。', type: 'error' });
+    _refreshActionGuide();
+    return;
+  }
+
+  var good = GOODS.find(function (item) {
+    return item.id === goodId;
+  });
+  if (!good) {
+    EventBus.emit('log:message', { text: '⚠️ 当前行动指向的商品不存在，无法打开交易确认。', type: 'error' });
+    _refreshActionGuide();
+    return;
+  }
+
+  var quantity = _getGuidanceTradeQuantity(action, goodId, marketType);
+  if (quantity <= 0) {
+    EventBus.emit('log:message', {
+      text: action === 'sell'
+        ? '⚠️ 货舱中没有可卖出的「' + _getGoodDisplayName(goodId) + '」。'
+        : '⚠️ 当前积分或货舱空间不足，无法打开「' + _getGoodDisplayName(goodId) + '」买入确认。',
+      type: 'error',
+    });
+    _refreshActionGuide();
+    return;
+  }
+
+  MapUI.openMarketPanel(_state, {
+    workspaceId: 'spot',
+    subworkspaceId: marketType === 'black' ? 'black' : 'trade',
+    marketMode: marketType,
+    goodId: goodId,
+    tradeAction: action,
+  });
+  if (MarketUI.revealMarketGoodFocus) {
+    MarketUI.revealMarketGoodFocus(goodId, { tradeAction: action });
+  }
+  EventBus.emit('log:message', {
+    text: buildCommandFeedback({
+      actionId: 'market',
+      commandSurface: 'market',
+      commandIntent: action === 'buy' ? '买入确认' : '卖出确认',
+      label: action === 'buy' ? '确认买入' : '确认卖出',
+    }, {
+      icon: '📊',
+      destination: '当前市场 · ' + (action === 'buy' ? '买入确认' : '卖出确认'),
+      nextStep: payload && payload.questName
+        ? '检查数量并确认成交，完成后将推进「' + payload.questName + '」'
+        : '检查数量后确认成交',
+      returnTo: '关闭弹窗可继续查看行情',
+    }),
+    type: 'tip',
+  });
+  Modal.openTradeModal(action, good, _state, marketType, {
+    initialQuantity: quantity,
+  });
+  _refreshActionGuide();
+}
+
+function _prepareDirectGuidanceExecution() {
+  if (MapUI.focusStarmap) {
+    MapUI.focusStarmap();
+  }
+}
+
+function _getActionGuideProcessingMessage(suggestion) {
+  if (!suggestion) return '已执行，正在生成下一条建议';
+  if (suggestion.actionType === 'trade.buy' || suggestion.actionType === 'trade.sell') {
+    var questName = suggestion.payload && suggestion.payload.questName ? suggestion.payload.questName : '';
+    return questName
+      ? '已打开交易确认，完成后将推进「' + questName + '」'
+      : '已打开交易确认，完成后会刷新下一步';
+  }
+  if (suggestion.actionType === 'quest.accept') return '已接入任务档案，正在衔接下一步';
+  if (suggestion.actionType === 'map.focus') return '已定位航点，查看详情后可起航';
+  if (suggestion.actionType === 'travel.execute') return '已执行航行指令，抵达后刷新建议';
+  if (suggestion.actionType && suggestion.actionType.indexOf('exploration.') === 0) return '已执行探索指令，正在刷新现场建议';
+  return '已执行，正在生成下一条建议';
+}
+
+function _handleActionGuideAction(suggestion) {
+  if (!suggestion || !suggestion.actionType) return;
+
+  ActionGuideUI.showProcessing(suggestion, _getActionGuideProcessingMessage(suggestion));
+
+  switch (suggestion.actionType) {
+    case 'quest.accept':
+      if (suggestion.payload && suggestion.payload.questId) {
+        _prepareDirectGuidanceExecution();
+        _handleAcceptQuest(suggestion.payload.questId);
+      }
+      return;
+
+    case 'quest.open':
+      if (suggestion.payload && suggestion.payload.questId) {
+        QuestUI.setSelectedAvailableQuest(suggestion.payload.questId);
+      }
+      MapUI.activateTab('tab-quest');
+      _updateUI();
+      return;
+
+    case 'trade.buy':
+      _prepareDirectGuidanceExecution();
+      _openGuidanceTradeConfirmation('buy', suggestion.payload || {});
+      return;
+
+    case 'trade.sell':
+      _prepareDirectGuidanceExecution();
+      _openGuidanceTradeConfirmation('sell', suggestion.payload || {});
+      return;
+
+    case 'market.open':
+    case 'market.focus':
+      var marketFocusGoodId = suggestion.payload && suggestion.payload.goodId ? suggestion.payload.goodId : '';
+      var marketFocusTradeAction = suggestion.payload && suggestion.payload.tradeAction ? suggestion.payload.tradeAction : '';
+      MapUI.openMarketPanel(_state, {
+        workspaceId: suggestion.payload && suggestion.payload.workspaceId ? suggestion.payload.workspaceId : 'spot',
+        subworkspaceId: suggestion.payload && suggestion.payload.subworkspaceId ? suggestion.payload.subworkspaceId : 'trade',
+        goodId: marketFocusGoodId,
+        tradeAction: marketFocusTradeAction,
+      });
+      EventBus.emit('log:message', {
+        text: buildCommandFeedback({
+          actionId: 'market',
+          commandSurface: 'market',
+          commandIntent: '现货交易区',
+          label: suggestion.actionLabel || '打开市场',
+        }, {
+          icon: '📊',
+          destination: '当前市场 · 现货交易区',
+          nextStep: suggestion.title,
+          returnTo: '底部指挥条会继续提示下一步',
+        }),
+        type: 'tip',
+      });
+      _updateUI();
+      if (marketFocusGoodId) {
+        MarketUI.revealMarketGoodFocus(marketFocusGoodId, { tradeAction: marketFocusTradeAction });
+      }
+      return;
+
+    case 'travel.execute':
+      var directDestinationSystemId = suggestion.payload && suggestion.payload.destinationSystemId ? suggestion.payload.destinationSystemId : '';
+      if (directDestinationSystemId) {
+        _prepareDirectGuidanceExecution();
+        _handleTravel(directDestinationSystemId);
+      } else if (MapUI.focusStarmap) {
+        MapUI.focusStarmap();
+        _updateUI();
+      } else {
+        _refreshActionGuide();
+      }
+      return;
+
+    case 'map.focus':
+      var destinationSystemId = suggestion.payload && suggestion.payload.destinationSystemId ? suggestion.payload.destinationSystemId : '';
+      var navigationFocused = false;
+      if (destinationSystemId && MapUI.focusNavigationTarget) {
+        navigationFocused = MapUI.focusNavigationTarget(_state, destinationSystemId, {
+          goodId: suggestion.payload && suggestion.payload.goodId ? suggestion.payload.goodId : '',
+          title: suggestion.title || '',
+        });
+      }
+      if (!navigationFocused && MapUI.focusStarmap) {
+        MapUI.focusStarmap();
+      }
+      EventBus.emit('log:message', {
+        text: buildCommandFeedback({
+          actionId: 'navigation',
+          commandSurface: 'navigation',
+          commandIntent: navigationFocused ? '卖货航点' : '星图',
+          label: suggestion.actionLabel || '查看星图',
+        }, {
+          icon: '🧭',
+          destination: navigationFocused && suggestion.payload && suggestion.payload.destinationSystemName
+            ? ('星图 · ' + suggestion.payload.destinationSystemName)
+            : '星图 · 航线判断',
+          nextStep: suggestion.title,
+          returnTo: navigationFocused ? '目标详情面板的“前往卖货点”' : '选择目的地后继续贸易循环',
+        }),
+        type: 'tip',
+      });
+      _updateUI();
+      return;
+
+    case 'exploration.scan':
+      _prepareDirectGuidanceExecution();
+      _handleScanSystem((suggestion.payload && suggestion.payload.systemId) || _state.currentSystem, {
+        suppressReveal: true,
+      });
+      return;
+
+    case 'exploration.land':
+      _prepareDirectGuidanceExecution();
+      _handleLandOnSystem((suggestion.payload && suggestion.payload.systemId) || _state.currentSystem);
+      return;
+
+    case 'exploration.poi':
+      if (suggestion.payload && suggestion.payload.poiId) {
+        _prepareDirectGuidanceExecution();
+        _handleExplorePoi(suggestion.payload.systemId || _state.currentSystem, suggestion.payload.poiId);
+      } else {
+        _refreshActionGuide();
+      }
+      return;
+
+    default:
+      _refreshActionGuide();
+  }
+}
+
 function _getScanStatus(systemId) {
   var shipStats = Fleet.getEffectiveShipStats(_state, Fleet.getActiveShip(_state));
   return Exploration.getScanStatus(_state, systemId, {
@@ -462,7 +765,8 @@ function _getPoiStatus(systemId, poiId) {
   });
 }
 
-function _handleScanSystem(systemId) {
+function _handleScanSystem(systemId, options) {
+  var opts = options || {};
   Fleet.syncStateFromShip(_state);
   var shipStats = Fleet.getEffectiveShipStats(_state, Fleet.getActiveShip(_state));
   const result = Exploration.scanSystem(_state, systemId, {
@@ -480,7 +784,7 @@ function _handleScanSystem(systemId) {
     _state.galaxyStates = GalaxyData.getAllPlanetStates();
   }
   _dispatch(result);
-  if (result && result.ok && systemId === _state.currentSystem && MapUI.showCurrentSystemScanReveal) {
+  if (!opts.suppressReveal && result && result.ok && systemId === _state.currentSystem && MapUI.showCurrentSystemScanReveal) {
     MapUI.showCurrentSystemScanReveal(_state, systemId, result);
   }
   return result;
@@ -863,12 +1167,20 @@ function _handleOpenFactionMarket(action) {
     marketMode: action.marketMode || '',
   });
 
+  var factionName = action.factionName || '该派系';
+  var factionNextStep = action.label === '查看黑市条件'
+    ? '查看准入门槛与公开情报'
+    : action.marketMode === 'black'
+      ? '沿着' + factionName + '的地下通路继续找机会'
+      : '观察' + factionName + '代表节点行情';
+
   EventBus.emit('log:message', {
-    text: action.label === '查看黑市条件'
-      ? '🔒 已打开' + (action.systemName || '代表节点') + '的' + (action.marketFocusLabel || '市场情报区') + '，先看准入门槛，再回来争取' + (action.factionName || '该派系') + '的黑市资格。'
-      : action.marketMode === 'black'
-        ? '🕶 已打开' + (action.systemName || '代表节点') + '的' + (action.marketFocusLabel || '黑市分区') + '，可以沿着' + (action.factionName || '该派系') + '的地下通路继续找机会。'
-        : '🏛 已打开' + (action.systemName || '代表节点') + '的' + (action.marketFocusLabel || '市场页') + '，可以从' + (action.factionName || '该派系') + '的代表节点继续观察行情。',
+    text: buildCommandFeedback(action, {
+      icon: action.label === '查看黑市条件' ? '🔒' : (action.marketMode === 'black' ? '🕶' : '🏛'),
+      destination: (action.systemName || '代表节点') + ' · ' + (action.marketFocusLabel || '市场页'),
+      nextStep: factionNextStep,
+      returnTo: '派系页继续调整关系策略',
+    }),
     type: 'tip',
   });
 }
@@ -881,7 +1193,12 @@ function _handleResolveResearchBlocker(action) {
     MapUI.activateTab('tab-quest');
     _updateUI();
     EventBus.emit('log:message', {
-      text: '📋 已切到任务页，先推进「' + (action.targetQuestName || '推荐任务') + '」，再回来补科研补给。',
+      text: buildCommandFeedback(action, {
+        openedVerb: '已切到',
+        destination: '任务页 · 替代任务',
+        nextStep: '先推进「' + (action.targetQuestName || '推荐任务') + '」',
+        returnTo: '科研页继续规划补给',
+      }),
       type: 'tip',
     });
     return;
@@ -892,14 +1209,20 @@ function _handleResolveResearchBlocker(action) {
       workspaceId: action.marketWorkspaceId,
       subworkspaceId: action.marketSubworkspaceId,
     });
+    var researchMarketNextStep = action.reasonId === 'cargo'
+      ? '清理货舱腾出科研补给舱位'
+      : action.reasonId === 'credits'
+        ? '做一笔周转补足科研资金'
+        : action.reasonId === 'level'
+          ? '补一轮升级节奏，扩大可达补给池'
+          : '观察本地行情，等待稳定科研补给线';
     EventBus.emit('log:message', {
-      text: action.reasonId === 'cargo'
-        ? '📦 已打开当前市场的' + (action.marketFocusLabel || '现货交易区') + '，先清理货舱腾出舱位，再回来规划科研补给。'
-        : action.reasonId === 'credits'
-          ? '💰 已打开当前市场的' + (action.marketFocusLabel || '资本调度区') + '，先做一笔周转补足资金，再回来补科研线。'
-          : action.reasonId === 'level'
-            ? '📈 已打开当前市场的' + (action.marketFocusLabel || '本地节点经营区') + '，先补一轮升级节奏，再回来规划科研补给。'
-            : '📊 已打开当前市场的' + (action.marketFocusLabel || '市场情报区') + '，先观察本地行情，再回来看看科研补给线。',
+      text: buildCommandFeedback(action, {
+        icon: action.reasonId === 'cargo' ? '📦' : (action.reasonId === 'credits' ? '💰' : (action.reasonId === 'level' ? '📈' : '📊')),
+        destination: '当前市场 · ' + (action.marketFocusLabel || '市场页'),
+        nextStep: researchMarketNextStep,
+        returnTo: '科研页继续规划补给',
+      }),
       type: 'tip',
     });
   }
@@ -914,7 +1237,12 @@ function _handleResolveQuestBlocker(action) {
 
   if (action.actionId === 'quest-focus') {
     EventBus.emit('log:message', {
-      text: '📋 已定位到可接任务「' + (action.targetQuestName || '推荐任务') + '」，可以先补成长再回来推进「' + (action.questName || '当前任务') + '」。',
+      text: buildCommandFeedback(action, {
+        openedVerb: '已定位到',
+        destination: '任务页 · 替代任务',
+        nextStep: '先推进「' + (action.targetQuestName || '推荐任务') + '」补成长',
+        returnTo: '任务页继续处理「' + (action.questName || '当前任务') + '」',
+      }),
       type: 'tip',
     });
     return;
@@ -923,7 +1251,12 @@ function _handleResolveQuestBlocker(action) {
   if (action.actionId === 'research') {
     MapUI.activateTab('tab-research');
     EventBus.emit('log:message', {
-      text: '🔬 已切到科技页，优先补出关键跃迁科技后再推进「' + (action.questName || '当前任务') + '」。',
+      text: buildCommandFeedback(action, {
+        openedVerb: '已切到',
+        destination: '科技页 · 跃迁科技',
+        nextStep: '优先补出关键跃迁科技',
+        returnTo: '任务页继续推进「' + (action.questName || '当前任务') + '」',
+      }),
       type: 'tip',
     });
     return;
@@ -934,10 +1267,16 @@ function _handleResolveQuestBlocker(action) {
       workspaceId: action.marketWorkspaceId,
       subworkspaceId: action.marketSubworkspaceId,
     });
+    var questMarketNextStep = action.reasonId === 'fuel'
+      ? '补足燃料或调整补给'
+      : '跑几笔交易抬升等级';
     EventBus.emit('log:message', {
-      text: action.reasonId === 'fuel'
-        ? '⛽ 已打开当前市场的' + (action.marketFocusLabel || '现货交易区') + '，先补足燃料或调整补给，再回来推进「' + (action.questName || '当前任务') + '」。'
-        : '💰 已打开当前市场的' + (action.marketFocusLabel || '现货交易区') + '，先跑几笔交易抬升等级，再回来推进「' + (action.questName || '当前任务') + '」。',
+      text: buildCommandFeedback(action, {
+        icon: action.reasonId === 'fuel' ? '⛽' : '💰',
+        destination: '当前市场 · ' + (action.marketFocusLabel || '现货交易区'),
+        nextStep: questMarketNextStep,
+        returnTo: '任务页继续推进「' + (action.questName || '当前任务') + '」',
+      }),
       type: 'tip',
     });
   }
@@ -964,9 +1303,45 @@ function _openRecommendedDispatch(recommendation, sourceLabel, icon) {
   });
 
   EventBus.emit('log:message', {
-    text: icon + ' 已为「' + activeShip.emoji + ' ' + activeShip.name + '」载入' + sourceLabel + '推荐路线：' + (recommendation.buySystemName || recommendation.buySystemId) + ' → ' + (recommendation.sellSystemName || recommendation.sellSystemId) + ' · ' + (recommendation.goodName || recommendation.goodId) + '；确认“一键派遣”后即可执行。',
+    text: buildCommandFeedback({
+      actionId: 'dispatch',
+      commandSurface: 'fleet',
+      commandIntent: sourceLabel,
+      label: '载入推荐路线',
+    }, {
+      icon: icon,
+      destination: '「' + activeShip.emoji + ' ' + activeShip.name + '」 · ' + sourceLabel,
+      nextStep: '检查 ' + (recommendation.buySystemName || recommendation.buySystemId) + ' → ' + (recommendation.sellSystemName || recommendation.sellSystemId) + ' · ' + (recommendation.goodName || recommendation.goodId),
+      returnTo: '确认“一键派遣”后执行路线',
+    }),
     type: 'info',
   });
+}
+
+function _handleFocusRemoteMarketSystem(systemId) {
+  var system = SYSTEMS.find(function (entry) { return entry.id === systemId; });
+  var focused = system && MapUI.focusNavigationTarget
+    ? MapUI.focusNavigationTarget(_state, systemId, {
+        title: '前往「' + system.name + '」处理市场操作',
+      })
+    : false;
+
+  EventBus.emit('log:message', {
+    text: buildCommandFeedback({
+      actionId: 'navigation',
+      commandSurface: 'navigation',
+      commandIntent: focused ? '远程市场航点' : '星图',
+      label: focused ? '设为航点' : '查看星图',
+    }, {
+      icon: '🧭',
+      destination: focused && system ? ('星图 · ' + system.name) : '星图 · 航线判断',
+      nextStep: focused ? '在目标详情面板确认航行条件' : '手动选择可达目的地',
+      returnTo: '抵达后回到市场执行交易、补给或本地经营',
+    }),
+    type: focused ? 'tip' : 'error',
+  });
+
+  _updateUI();
 }
 
 function _handleBuildTradeStation(systemId) {
@@ -1404,6 +1779,7 @@ function _updateUI() {
   };
   HUD.updateStats(_state, netWorth);
   HUD.updateCompanyName(_state);
+  HUD.updateArchiveBadges(_state);
   // 市场：根据当前模式刷新
   if (MapUI.isMarketOpen()) {
     var bmMode = _blackMarketMode ? 'black' : 'open';
@@ -1431,6 +1807,7 @@ function _updateUI() {
   Renderer3D.invalidateScene();
   MapUI.refreshPlanetDetail(_state);
   Dispatch.updateActiveDispatchUI();
+  _refreshActionGuide();
 
 
 }

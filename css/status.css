@@ -162,10 +162,31 @@
 
 .bottom-nav-btn span {
   font-family: "Orbitron", monospace;
-  font-size: 7px;
-  letter-spacing: 0.08em;
+  font-size: 11px;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
   white-space: nowrap;
+}
+
+.bottom-nav-btn .bottom-nav-badge {
+  position: absolute;
+  top: 3px;
+  right: 8px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 5px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(248, 113, 113, 0.92);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 16px;
+  text-align: center;
+  box-shadow: 0 0 10px rgba(248, 113, 113, 0.32);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Legacy message log (used in console panel) */
@@ -177,4 +198,3 @@
 .msg-sell    { color: #ffb74d; }
 .msg-upgrade { color: var(--accent-cyan); }
 .msg-error   { color: var(--accent-red); }
-

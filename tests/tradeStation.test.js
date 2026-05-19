@@ -19,6 +19,7 @@ describe('TradeStationSystem', () => {
   it('可在已访问星球建设贸易站并扣除投资', () => {
     const state = createTestState({
       credits: 150000,
+      companyLevel: 4,
       currentSystem: 'sol_prime',
       visitedSystems: ['sol_prime', 'nova_station'],
     });
@@ -38,6 +39,7 @@ describe('TradeStationSystem', () => {
   it('贸易站支持升级、雇佣管理员与切换经营策略', () => {
     const state = createTestState({
       credits: 600000,
+      companyLevel: 5,
       currentSystem: 'sol_prime',
       visitedSystems: ['sol_prime'],
     });
@@ -56,6 +58,7 @@ describe('TradeStationSystem', () => {
   it('每日收益会自动结算，且受当地经济影响', () => {
     const state = createTestState({
       credits: 300000,
+      companyLevel: 5,
       currentSystem: 'sol_prime',
       visitedSystems: ['sol_prime'],
       day: 12,
@@ -93,6 +96,7 @@ describe('TradeStationSystem', () => {
     const visitedSystems = SYSTEMS.map(function (system) { return system.id; });
     const state = createTestState({
       credits: 560000,
+      companyLevel: 6,
       currentSystem: 'sol_prime',
       visitedSystems: visitedSystems,
     });
@@ -126,6 +130,7 @@ describe('TradeStationSystem', () => {
     const visitedSystems = SYSTEMS.map(function (system) { return system.id; });
     const state = createTestState({
       credits: 350000,
+      companyLevel: 6,
       currentSystem: 'sol_prime',
       visitedSystems: visitedSystems,
     });
@@ -159,6 +164,7 @@ describe('TradeStationSystem', () => {
     const visitedSystems = SYSTEMS.map(function (system) { return system.id; });
     const state = createTestState({
       credits: 300000,
+      companyLevel: 6,
       currentSystem: 'sol_prime',
       visitedSystems: visitedSystems,
     });
@@ -177,5 +183,41 @@ describe('TradeStationSystem', () => {
     stationIds.forEach(function (systemId) {
       expect(TradeStation.getStation(state, systemId).strategyId).toBe('premium');
     });
+  });
+
+  it('公司等级不足时拒绝建站和贸易站管理动作', () => {
+    const state = createTestState({
+      credits: 600000,
+      companyLevel: 3,
+      currentSystem: 'sol_prime',
+      visitedSystems: ['sol_prime'],
+    });
+
+    expect(TradeStation.buildStation(state, 'sol_prime').ok).toBe(false);
+
+    state.companyLevel = 4;
+    expect(TradeStation.buildStation(state, 'sol_prime').ok).toBe(true);
+    expect(TradeStation.upgradeStation(state, 'sol_prime').ok).toBe(false);
+    expect(TradeStation.hireManager(state, 'sol_prime', 'local_broker').ok).toBe(false);
+
+    state.companyLevel = 5;
+    expect(TradeStation.upgradeStation(state, 'sol_prime').ok).toBe(true);
+    expect(TradeStation.hireManager(state, 'sol_prime', 'local_broker').ok).toBe(true);
+  });
+
+  it('全网批量指令需要公司 Lv.6', () => {
+    const state = createTestState({
+      credits: 300000,
+      companyLevel: 5,
+      currentSystem: 'sol_prime',
+      visitedSystems: ['sol_prime'],
+    });
+
+    expect(TradeStation.buildStation(state, 'sol_prime').ok).toBe(true);
+
+    const result = TradeStation.batchSetStrategies(state, 'premium');
+
+    expect(result.ok).toBe(false);
+    expect(result.msgs[0].text).toContain('公司 Lv.6');
   });
 });

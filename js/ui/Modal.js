@@ -51,8 +51,11 @@ export function init(onConfirmCb) {
  * @param {object}       good       商品定义对象
  * @param {object}       state      当前游戏状态（只读用于计算上限）
  * @param {string}       [marketType] 'open' | 'black'（默认 'open'）
+ * @param {object}       [options]
+ * @param {number}       [options.initialQuantity] 打开时预填数量
  */
-export function openTradeModal(action, good, state, marketType) {
+export function openTradeModal(action, good, state, marketType, options) {
+  const opts = options || {};
   const isBlack = marketType === 'black';
   const price  = isBlack
     ? (action === 'buy'
@@ -79,15 +82,18 @@ export function openTradeModal(action, good, state, marketType) {
 
   const inp     = document.getElementById('modal-amount');
   inp.max       = safeMax;
-  inp.value     = Math.max(0, Math.min(1, safeMax));
+  const initialQuantity = Number.isFinite(opts.initialQuantity)
+    ? Math.floor(opts.initialQuantity)
+    : 1;
+  inp.value     = safeMax > 0 ? Math.max(1, Math.min(initialQuantity || 1, safeMax)) : 0;
   inp.dataset.price = price;
   inp.dataset.marketType = marketType || 'open';
   _refreshTotal();
 
   document.getElementById('modal-confirm').onclick = function () {
     const qty = parseInt(inp.value) || 0;
-    if (qty > 0 && _onConfirm) _onConfirm(action, good.id, qty, inp.dataset.marketType);
     hideBlockingSurface('trade-modal');
+    if (qty > 0 && _onConfirm) _onConfirm(action, good.id, qty, inp.dataset.marketType);
   };
 
   showBlockingSurface('trade-modal');

@@ -2,16 +2,28 @@
 // 导出：init, initTabs, init3DCallbacks, refreshGalaxyBtn, triggerArrivalScanPanel, showCurrentSystemScanReveal, openMarket, closeMarket, isMarketOpen,
 //        setRefreshMarket, setExplorationActions, getMarketViewSystem, refreshMarketLocation,
 //        showMarketOverview, showMarketDetail, refreshPlanetDetail, getMapView, getCurrentGalaxyId
-import * as Renderer3D from './Renderer3DAdvanced.js?v=20260420-balance3';
+import * as Renderer3D from './Renderer3DAdvanced.js?v=20260513-navguide1';
 import * as Faction from '../systems/faction/FactionSystem.js';
 import * as GalaxyData from '../systems/galaxy/GalaxyDataLayer.js';
 import * as Exploration from '../systems/galaxy/ExplorationSystem.js?v=20260417-exploration20';
+import * as Quest from '../systems/quest/QuestSystem.js?v=20260412-questroute2';
+import * as EventBus from '../core/EventBus.js';
 import * as EventUI from './EventUI.js?v=20260421-scanevent2';
 import { GOODS } from '../data/goods.js';
 import {
   buildContextualMarketAction,
   getContextualMarketFocus,
 } from './MarketFocus.js?v=20260419-marketcta2';
+import { getCommandActionAttributes, normalizeCommandAction, renderCommandActionContent } from './CommandAction.js?v=20260510-command1';
+import {
+  closeAllSecondarySurfaces,
+  closePrimarySurface,
+  closeSecondarySurface,
+  hasBlockingSurfaceOpen,
+  isPrimarySurfaceVisible,
+  openPrimarySurface,
+  openSecondarySurface,
+} from './SurfaceManager.js?v=20260510-surfaces1';
 import {
   GALAXIES,
   findSystem,
@@ -28,11 +40,15 @@ const _goodsById = GOODS.reduce(function (lookup, good) {
 }, Object.create(null));
 
 let _tabClickCallback = null;
+let _navigationChangeCallback = null;
+let _navigationGuideFocus = null;
 let _marketOpen = false;
 let _smallScreenMql = null;
 let _orbitScanPanelOpen = false;
 const CURRENT_SYSTEM_SCAN_REVEAL_STEP_2_DELAY = 420;
 const CURRENT_SYSTEM_SCAN_REVEAL_STEP_3_DELAY = 980;
+const STARMAP_RAIL_PANEL_OPEN_EVENT = 'starmap-rail:panel-open';
+const STARMAP_RAIL_SOURCE_ORBIT_SCAN = 'orbit-scan';
 
 // 市场浏览状态
 let _marketViewGalaxy = null;
@@ -51,6 +67,7 @@ let _galaxyJumpActionHandler = null;
 let _hoveredGalaxyId = null;
 let _mainBindingsInitialized = false;
 let _tabBindingsInitialized = false;
+let _railMutualExclusionBound = false;
 
 function _normalizeMarketPanelFocus(focus) {
   if (!focus || typeof focus !== 'object') return null;
@@ -60,10 +77,14 @@ function _normalizeMarketPanelFocus(focus) {
 
   var subworkspaceId = typeof focus.subworkspaceId === 'string' ? focus.subworkspaceId.trim() : '';
   var marketMode = typeof focus.marketMode === 'string' ? focus.marketMode.trim() : '';
+  var goodId = typeof focus.goodId === 'string' ? focus.goodId.trim() : '';
+  var tradeAction = typeof focus.tradeAction === 'string' ? focus.tradeAction.trim() : '';
   return {
     workspaceId: workspaceId,
     subworkspaceId: subworkspaceId,
     marketMode: marketMode,
+    goodId: goodId,
+    tradeAction: tradeAction,
   };
 }
 
@@ -117,12 +138,32 @@ function _prefersReducedMotion() {
 
 function _clearSelectedPlanetDetail(shouldRefresh) {
   _selectedPlanetDetailSystem = null;
+  _navigationGuideFocus = null;
   if (Renderer3D.clearSelection) Renderer3D.clearSelection();
   if (shouldRefresh && _stateRef) refreshPlanetDetail(_stateRef);
 }
 
 function _setSelectedPlanetDetail(systemId) {
   _selectedPlanetDetailSystem = systemId || null;
+}
+
+function _getDefaultArchiveTab(stateRef) {
+  var safeState = stateRef || {};
+  var activeQuestCount = Array.isArray(safeState.quests) ? safeState.quests.length : 0;
+  var availableQuestCount = 0;
+  try {
+    availableQuestCount = Quest.getAvailableQuests(safeState).length;
+  } catch (err) {
+    availableQuestCount = 0;
+  }
+  if (activeQuestCount > 0 || availableQuestCount > 0) return 'tab-quest';
+  if ((safeState.currentResearch && safeState.currentResearch.techId) || (safeState.researchOptions || []).length > 0) return 'tab-research';
+  return 'tab-quest';
+}
+
+function _getGoodName(goodId) {
+  var good = goodId ? _goodsById[goodId] : null;
+  return good ? good.name : goodId;
 }
 
 function _getPlanetDetailDisplayId(stateRef) {
@@ -438,7 +479,7 @@ function _startCurrentSystemScanReveal(stateRef, systemId, scanResult) {
   _currentSystemScanReveal = {
     systemId: systemId,
     stage: 1,
-    messages: (scanResult.msgs || []).slice(0, 2).map(function (message) {
+    messages: (scanResult.msgs || []).slice(0, 4).map(function (message) {
       return {
         text: message && message.text ? message.text : '',
         type: message && message.type ? message.type : 'info',
@@ -446,12 +487,14 @@ function _startCurrentSystemScanReveal(stateRef, systemId, scanResult) {
     }).filter(function (message) {
       return !!message.text;
     }),
+    meta: scanResult.meta || {},
     timerIds: [],
   };
 
   _orbitScanPanelOpen = true;
   _updateOrbitScanButton(stateRef);
   _renderCurrentSystemExplorationCard(stateRef);
+  _notifyOrbitScanPanelOpened();
 
   if (_currentSystemScanReveal.messages.length > 1) {
     _queueCurrentSystemScanRevealStage(
@@ -478,16 +521,37 @@ function _getCurrentSystemScanTarget(stateRef) {
   var sys = findSystem(stateRef.currentSystem);
   var planetData = GalaxyData.getPlanetData(stateRef.currentSystem);
   var exploration = planetData && planetData.exploration;
-  var scanStatus = _getScanStatus(stateRef, stateRef.currentSystem);
 
   if (!sys || !exploration) return null;
-  if ((exploration.scanLevel || 0) > 0) return null;
+
+  var isUnlocked = (stateRef.playerLevel || 1) >= (sys.minLevel || 1);
+  var flow = _getExplorationFlow(stateRef, sys, planetData, true, isUnlocked);
+  if (!flow) return null;
+
+  var label = '航点终端';
+  var title = flow.title || '打开当前航点终端';
+
+  if (!isUnlocked) {
+    label = '🔒 航点锁定';
+  } else if ((exploration.scanLevel || 0) <= 0) {
+    var scanStatus = _getScanStatus(stateRef, stateRef.currentSystem);
+    label = scanStatus && scanStatus.buttonLabel ? scanStatus.buttonLabel : '🔭 轨道扫描';
+    title = scanStatus && scanStatus.blockedReason
+      ? (flow.title + ' · ' + scanStatus.blockedReason)
+      : flow.title;
+  } else if (!exploration.landed) {
+    label = '🛬 着陆终端';
+  } else if (flow.unresolvedPois && flow.unresolvedPois.length > 0) {
+    label = '🧭 探索终端 · ' + flow.unresolvedPois.length;
+  } else {
+    label = '📘 航点档案';
+  }
 
   return {
     systemId: sys.id,
-    label: scanStatus && scanStatus.buttonLabel ? scanStatus.buttonLabel : '🔭 轨道扫描',
-    disabled: !!(scanStatus && !scanStatus.canScan),
-    title: scanStatus && scanStatus.blockedReason ? scanStatus.blockedReason : '',
+    label: label,
+    disabled: false,
+    title: title,
   };
 }
 
@@ -499,13 +563,39 @@ function _getOrbitScanBadge(label) {
 function _setOrbitScanButtonPresentation(btn, label, title) {
   var displayLabel = String(label || '轨道扫描');
   var titleText = title ? (displayLabel + ' · ' + title) : displayLabel;
+  var labelEl = typeof btn.querySelector === 'function'
+    ? btn.querySelector('[data-starmap-rail-label]')
+    : null;
 
-  btn.textContent = displayLabel;
-  btn.dataset.scanGlyph = '⌖';
+  if (labelEl) {
+    labelEl.textContent = displayLabel;
+  } else {
+    btn.textContent = displayLabel;
+  }
   btn.dataset.scanBadge = _getOrbitScanBadge(displayLabel);
   btn.setAttribute('aria-label', displayLabel);
   btn.setAttribute('title', titleText);
 }
+
+function _bindStarmapRailMutualExclusion() {
+  if (_railMutualExclusionBound) return;
+  _railMutualExclusionBound = true;
+
+  EventBus.on(STARMAP_RAIL_PANEL_OPEN_EVENT, function (data) {
+    if (data && data.source === STARMAP_RAIL_SOURCE_ORBIT_SCAN) return;
+    if (!_orbitScanPanelOpen) return;
+    _closeOrbitScanPanel(_stateRef);
+  });
+}
+
+function _notifyOrbitScanPanelOpened() {
+  EventBus.emit(STARMAP_RAIL_PANEL_OPEN_EVENT, {
+    source: STARMAP_RAIL_SOURCE_ORBIT_SCAN,
+    panelId: 'orbit-scan',
+  });
+}
+
+_bindStarmapRailMutualExclusion();
 
 function _setOrbitScanPanelOpen(nextOpen, stateRef) {
   var resolvedState = stateRef || _stateRef;
@@ -513,6 +603,7 @@ function _setOrbitScanPanelOpen(nextOpen, stateRef) {
   if (!_orbitScanPanelOpen) _clearCurrentSystemScanReveal();
   _updateOrbitScanButton(resolvedState);
   _renderCurrentSystemExplorationCard(resolvedState);
+  if (_orbitScanPanelOpen) _notifyOrbitScanPanelOpened();
 }
 
 function _closeOrbitScanPanel(stateRef) {
@@ -534,6 +625,8 @@ function _updateOrbitScanButton(stateRef) {
   btn.disabled = false;
   btn.removeAttribute('aria-disabled');
   btn.classList.toggle('active', !!_orbitScanPanelOpen);
+  btn.classList.toggle('is-active', !!_orbitScanPanelOpen);
+  btn.setAttribute('aria-pressed', _orbitScanPanelOpen ? 'true' : 'false');
   btn.setAttribute('aria-expanded', _orbitScanPanelOpen ? 'true' : 'false');
   btn.removeAttribute('data-system-id');
 
@@ -562,6 +655,9 @@ function _hideCurrentSystemExplorationCard() {
 
 function _buildCurrentSystemExplorationCard(flow, sys, reveal) {
   if (!flow || !sys) return '';
+  var terminalState = reveal
+    ? (reveal.stage >= 3 ? '已同步' : '同步中')
+    : flow.phase;
 
   var flowHtml = reveal
     ? _buildCurrentSystemScanRevealCard(flow, reveal)
@@ -571,12 +667,14 @@ function _buildCurrentSystemExplorationCard(flow, sys, reveal) {
     }) + _buildExplorationProgressRow(flow);
 
   return '<div class="current-system-card-head">' +
+    '<div class="current-system-card-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#rail-icon-scan"></use></svg></div>' +
     '<div class="current-system-card-head-main">' +
       '<div class="current-system-card-kicker">ORBIT SCAN TERMINAL</div>' +
       '<div class="current-system-card-name">' + _escapeHtml(sys.name) + '</div>' +
     '</div>' +
-    '<button class="current-system-card-close" type="button" data-orbit-scan-close aria-label="关闭轨道扫描终端" title="关闭轨道扫描终端">×</button>' +
-  '</div>' + flowHtml;
+    '<div class="current-system-card-state">' + _escapeHtml(terminalState) + '</div>' +
+    '<button class="current-system-card-close hud-widget-close" type="button" data-orbit-scan-close aria-label="关闭轨道扫描终端" title="关闭轨道扫描终端">×</button>' +
+  '</div><div class="current-system-card-body">' + flowHtml + '</div>';
 }
 
 export function showCurrentSystemScanReveal(stateRef, systemId, scanResult) {
@@ -683,6 +781,7 @@ export function init(stateRef, onTravel, onGalaxyJump) {
   // 保存状态引用供底部导航使用
   _stateRef = stateRef;
   _clearSelectedPlanetDetail(false);
+  _bindStarmapRailMutualExclusion();
   _bindExplorationActionEvents();
   _bindOrbitScanPanelControls();
 
@@ -959,7 +1058,7 @@ function _getExplorationFlow(stateRef, sys, planetData, isCurrentSystem, isUnloc
   if (!exploration) return null;
 
   var discoveredPois = (exploration.pois || []).filter(function (poi) { return poi.discovered; });
-  var unresolvedPois = discoveredPois.filter(function (poi) { return !poi.resolved; });
+  var unresolvedPois = _orderPoisForExploration(exploration, discoveredPois.filter(function (poi) { return !poi.resolved; }));
   var resolvedPois = discoveredPois.filter(function (poi) { return poi.resolved; });
   var discoveredRoutes = (exploration.secretRoutes || []).filter(function (route) { return route.discovered; });
   var scanProgressStatus = exploration.scanLevel > 1 ? '完成' : (exploration.scanLevel > 0 ? '已扫描' : '未扫描');
@@ -1087,30 +1186,48 @@ function _getExplorationFlow(stateRef, sys, planetData, isCurrentSystem, isUnloc
   return flow;
 }
 
+function _orderPoisForExploration(exploration, pois) {
+  if (!Array.isArray(pois) || pois.length <= 1) return pois || [];
+
+  var priorityPoiId = exploration && exploration.scanPriorityPoiId;
+  return pois.slice().sort(function (left, right) {
+    if (priorityPoiId) {
+      if (left.id === priorityPoiId && right.id !== priorityPoiId) return -1;
+      if (right.id === priorityPoiId && left.id !== priorityPoiId) return 1;
+    }
+    if (left.resolved !== right.resolved) return left.resolved ? 1 : -1;
+    return 0;
+  });
+}
+
 function _buildExplorationActionButton(action, extraClass) {
   if (!action) return '';
 
-  var classes = 'planet-detail-action';
+  var commandAction = normalizeCommandAction(action);
+  var classes = 'planet-detail-action planet-detail-action--command command-action-btn';
   if (extraClass) classes += ' ' + extraClass;
-  var disabledAttr = action.disabled ? ' disabled aria-disabled="true"' : '';
-  var titleAttr = action.title ? ' title="' + _escapeHtmlAttr(action.title) + '"' : '';
+  var disabledAttr = commandAction.disabled ? ' disabled aria-disabled="true"' : '';
+  var titleAttr = commandAction.title ? ' title="' + _escapeHtmlAttr(commandAction.title) + '"' : '';
+  var commandAttrs = getCommandActionAttributes(commandAction, _escapeHtmlAttr);
   var marketDataset = '';
 
-  if (action.marketWorkspaceId) {
-    marketDataset += ' data-market-workspace-id="' + _escapeHtmlAttr(action.marketWorkspaceId) + '"';
+  if (commandAction.marketWorkspaceId) {
+    marketDataset += ' data-market-workspace-id="' + _escapeHtmlAttr(commandAction.marketWorkspaceId) + '"';
   }
-  if (action.marketSubworkspaceId) {
-    marketDataset += ' data-market-subworkspace-id="' + _escapeHtmlAttr(action.marketSubworkspaceId) + '"';
+  if (commandAction.marketSubworkspaceId) {
+    marketDataset += ' data-market-subworkspace-id="' + _escapeHtmlAttr(commandAction.marketSubworkspaceId) + '"';
   }
-  if (action.marketFocusLabel) {
-    marketDataset += ' data-market-focus-label="' + _escapeHtmlAttr(action.marketFocusLabel) + '"';
+  if (commandAction.marketFocusLabel) {
+    marketDataset += ' data-market-focus-label="' + _escapeHtmlAttr(commandAction.marketFocusLabel) + '"';
   }
-  if (action.marketMode) {
-    marketDataset += ' data-market-mode="' + _escapeHtmlAttr(action.marketMode) + '"';
+  if (commandAction.marketMode) {
+    marketDataset += ' data-market-mode="' + _escapeHtmlAttr(commandAction.marketMode) + '"';
   }
 
-  return '<button class="' + classes + '" data-exploration-action="' + action.type + '" data-system-id="' + action.systemId + '"' +
-    (action.poiId ? ' data-poi-id="' + action.poiId + '"' : '') + marketDataset + disabledAttr + titleAttr + '>' + action.label + '</button>';
+  return '<button class="' + classes + '" data-exploration-action="' + _escapeHtmlAttr(commandAction.type || '') + '" data-system-id="' + _escapeHtmlAttr(commandAction.systemId || '') + '"' +
+    (commandAction.poiId ? ' data-poi-id="' + _escapeHtmlAttr(commandAction.poiId) + '"' : '') + marketDataset + commandAttrs + disabledAttr + titleAttr + '>' +
+    renderCommandActionContent(commandAction, _escapeHtml) +
+  '</button>';
 }
 
 function _buildExplorationFlowCard(flow, options) {
@@ -1165,15 +1282,68 @@ function _buildCurrentSystemScanRevealCard(flow, reveal) {
   var progressHtml = reveal.stage >= 2
     ? _buildExplorationProgressRow(flow)
     : '';
+  var scanMetaHtml = reveal.stage >= 1
+    ? _buildCurrentSystemScanMeta(reveal.meta || {})
+    : '';
 
-  return '<div class="planet-detail-flow-card current-system-flow-card current-system-flow-card--reveal">' +
-    '<div class="planet-detail-flow-kicker">' + (reveal.stage >= 3 ? flow.phase : '扫描结果同步中') + '</div>' +
-    '<div class="planet-detail-flow-title">' + (reveal.stage >= 3 ? flow.title : '轨道扫描完成') + '</div>' +
-    '<div class="planet-detail-flow-text">' + detailText + '</div>' +
-    '<div class="current-system-scan-reveal-list">' + messageHtml + '</div>' +
-    statusHtml +
-    actionHtml +
-  '</div>' + progressHtml;
+  return '<div class="current-system-scan-dashboard">' +
+    '<section class="planet-detail-flow-card current-system-flow-card current-system-flow-card--reveal current-system-scan-primary">' +
+      '<div class="planet-detail-flow-kicker">' + (reveal.stage >= 3 ? flow.phase : '扫描结果同步中') + '</div>' +
+      '<div class="planet-detail-flow-title">' + (reveal.stage >= 3 ? flow.title : '轨道扫描完成') + '</div>' +
+      '<div class="planet-detail-flow-text">' + detailText + '</div>' +
+      statusHtml +
+      actionHtml +
+    '</section>' +
+    '<aside class="current-system-scan-side">' +
+      scanMetaHtml +
+      (progressHtml ? '<div class="current-system-scan-progress">' + progressHtml + '</div>' : '') +
+    '</aside>' +
+    '<section class="current-system-scan-log">' +
+      '<div class="current-system-scan-log-head">' +
+        '<span>扫描日志</span>' +
+        '<strong>' + visibleMessageCount + '/' + reveal.messages.length + '</strong>' +
+      '</div>' +
+      '<div class="current-system-scan-reveal-list">' + messageHtml + '</div>' +
+    '</section>' +
+  '</div>';
+}
+
+function _buildCurrentSystemScanMetric(label, value, note, tone) {
+  var className = 'current-system-scan-metric' + (tone ? (' current-system-scan-metric--' + tone) : '');
+  return '<div class="' + className + '">' +
+    '<span class="current-system-scan-metric-label">' + _escapeHtml(label) + '</span>' +
+    '<strong class="current-system-scan-metric-value">' + _escapeHtml(value) + '</strong>' +
+    (note ? '<span class="current-system-scan-metric-note">' + _escapeHtml(note) + '</span>' : '') +
+  '</div>';
+}
+
+function _buildCurrentSystemScanMeta(meta) {
+  if (!meta) return '';
+
+  var chips = [];
+  if (meta.scanSignalGrade) {
+    chips.push(_buildCurrentSystemScanMetric('扫描评级', meta.scanSignalGrade, '轨道回传质量', 'grade'));
+  }
+  if (meta.scanYield) {
+    var yieldParts = [];
+    if (meta.scanYield.credits) yieldParts.push('+' + meta.scanYield.credits + ' 积分');
+    if (meta.scanYield.fuel) yieldParts.push('+' + meta.scanYield.fuel + ' 燃料');
+    if (meta.scanYield.reputation) yieldParts.push('+' + meta.scanYield.reputation + ' 声望');
+    if (meta.scanYield.researchDays) yieldParts.push('科研 +' + meta.scanYield.researchDays + ' 天');
+    if (yieldParts.length > 0) {
+      chips.push(_buildCurrentSystemScanMetric('回收收益', yieldParts.join(' / '), '已自动入账', 'gain'));
+    }
+  }
+  if (meta.scanLandingFeeDiscount) {
+    chips.push(_buildCurrentSystemScanMetric('着陆窗口', '-' + Math.round(meta.scanLandingFeeDiscount * 100) + '%', '费用校准', 'discount'));
+  }
+  if (meta.scanDirective && meta.scanDirective.poiName) {
+    chips.push(_buildCurrentSystemScanMetric('优先目标', meta.scanDirective.poiName, '建议优先跟进', 'priority'));
+  }
+
+  return chips.length > 0
+    ? '<div class="current-system-scan-metric-grid">' + chips.join('') + '</div>'
+    : '';
 }
 
 function _buildExplorationProgressRow(flow) {
@@ -1209,6 +1379,13 @@ function _buildSurveySummaryBlock(summary, systemId, options) {
   var rewardNote = summary.completionBonusClaimed
     ? '本地完探奖励已结算'
     : '完成全部 POI 后自动发放';
+  var scanMetricHtml = summary.scanSignalGrade
+    ? _buildSurveyMetricCard(
+      '扫描评级',
+      summary.scanSignalGrade,
+      summary.scanLandingFeeDiscount > 0 ? ('着陆费 -' + Math.round(summary.scanLandingFeeDiscount * 100) + '%') : '已完成轨道测绘'
+    )
+    : '';
   var marketActionHtml = '';
 
   if (_stateRef && systemId) {
@@ -1229,6 +1406,7 @@ function _buildSurveySummaryBlock(summary, systemId, options) {
       _buildSurveyMetricCard('威胁评级', summary.threatLabel, '决定行动节奏', threatClass) +
       _buildSurveyMetricCard('机会焦点', summary.opportunityLabel, '决定收益侧重') +
       _buildSurveyMetricCard('情报等级', 'Lv.' + summary.intelLevel, '已归档 ' + summary.reportCount + ' 份') +
+      scanMetricHtml +
       _buildSurveyMetricCard('完探奖励', rewardValue, rewardNote) +
     '</div>' +
     marketActionHtml +
@@ -1276,21 +1454,38 @@ function _buildPlanetArchiveDisclosure(info) {
   });
 }
 
-function _buildPinnedPlanetDetailActions(travelAction) {
+function _buildNavigationGuideBanner(guideFocus, sys) {
+  if (!guideFocus || !sys) return '';
+
+  var goodName = guideFocus.goodId ? _getGoodName(guideFocus.goodId) : '';
+  return '<div class="planet-detail-guide-banner">' +
+    '<span class="planet-detail-guide-kicker">当前指引</span>' +
+    '<strong class="planet-detail-guide-title">前往 ' + _escapeHtml(sys.name) + '</strong>' +
+    '<span class="planet-detail-guide-text">' +
+      (goodName ? ('抵达后打开市场，卖出「' + _escapeHtml(goodName) + '」。') : '抵达后继续当前贸易目标。') +
+    '</span>' +
+  '</div>';
+}
+
+function _buildPinnedPlanetDetailActions(travelAction, guideFocus) {
   var buttons = [];
   if (travelAction) {
     var disabledAttr = travelAction.disabled ? ' disabled aria-disabled="true"' : '';
     var titleAttr = travelAction.title ? ' title="' + _escapeHtmlAttr(travelAction.title) + '"' : '';
+    var actionClass = 'planet-detail-action' + (guideFocus ? ' planet-detail-action--guide-target' : '');
+    var actionLabel = guideFocus && !travelAction.disabled ? '前往卖货点' : travelAction.label;
     buttons.push(
-      '<button class="planet-detail-action" data-planet-detail-action="travel" data-system-id="' + _escapeHtmlAttr(travelAction.systemId) + '"' + disabledAttr + titleAttr + '>' +
-        _escapeHtml(travelAction.label) +
+      '<button class="' + actionClass + '" data-planet-detail-action="travel" data-system-id="' + _escapeHtmlAttr(travelAction.systemId) + '"' + disabledAttr + titleAttr + '>' +
+        _escapeHtml(actionLabel) +
       '</button>'
     );
   }
   buttons.push('<button class="planet-detail-action planet-detail-action--quiet" data-planet-detail-action="close-detail">收起详情</button>');
 
   return '<div class="planet-detail-actions planet-detail-actions--panel">' + buttons.join('') + '</div>' +
-    (travelAction && travelAction.hint ? '<div class="planet-detail-note planet-detail-note--hint">' + _escapeHtml(travelAction.hint) + '</div>' : '');
+    (guideFocus
+      ? '<div class="planet-detail-note planet-detail-note--hint">点击“前往卖货点”出航；抵达后行动条会继续提示卖出步骤。</div>'
+      : (travelAction && travelAction.hint ? '<div class="planet-detail-note planet-detail-note--hint">' + _escapeHtml(travelAction.hint) + '</div>' : ''));
 }
 
 function _buildPlanetHoverSummaryNote(travelAction, isCurrentSystem) {
@@ -1334,7 +1529,7 @@ function _buildExplorationSection(stateRef, sys, planetData, isCurrentSystem, is
   var surveySummary = Exploration.getSurveySummary(stateRef, sys.id);
 
   var poiList = flow.exploration.scanLevel > 0
-    ? flow.discoveredPois.slice().sort(function (left, right) {
+    ? _orderPoisForExploration(flow.exploration, flow.discoveredPois).sort(function (left, right) {
       if (left.resolved === right.resolved) return 0;
       return left.resolved ? 1 : -1;
     })
@@ -1568,7 +1763,7 @@ export function refreshPlanetDetail(stateRef) {
       _clearSelectedPlanetDetail(false);
     }
 
-    panel.classList.remove('planet-detail-panel--summary', 'planet-detail-panel--pinned');
+    panel.classList.remove('planet-detail-panel--summary', 'planet-detail-panel--pinned', 'planet-detail-panel--guide-target');
     panel.classList.add('planet-detail-panel--galaxy-hub');
     panel.innerHTML = _buildGalaxyHubPanel(stateRef);
     panel.classList.add('visible');
@@ -1587,6 +1782,7 @@ export function refreshPlanetDetail(stateRef) {
       _clearSelectedPlanetDetail(false);
     }
     panel.classList.remove('planet-detail-panel--galaxy-hub');
+    panel.classList.remove('planet-detail-panel--guide-target');
     panel.classList.remove('visible');
     return;
   }
@@ -1624,6 +1820,9 @@ export function refreshPlanetDetail(stateRef) {
   const isUnlocked = playerLevel >= (sys.minLevel || 1);
   const isCurrentSystem = displayId === stateRef.currentSystem;
   const isPinned = _selectedPlanetDetailSystem === displayId;
+  const guideFocus = _navigationGuideFocus && _navigationGuideFocus.systemId === displayId
+    ? _navigationGuideFocus
+    : null;
   const lockText = playerLevel >= (sys.minLevel || 1)
     ? '已解锁'
     : ('需 Lv.' + (sys.minLevel || 1) + '（当前 Lv.' + playerLevel + '）');
@@ -1635,12 +1834,16 @@ export function refreshPlanetDetail(stateRef) {
     : 'muted';
   const lockTone = isUnlocked ? 'stable' : 'warning';
   const roleTone = isCurrentSystem ? 'accent' : 'muted';
-  const heroChips = [
+  var heroChipParts = [
     _buildPlanetDetailChip(sys.typeLabel, 'accent'),
     _buildPlanetDetailChip(isCurrentSystem ? '当前停靠' : '悬停预览', roleTone),
     _buildPlanetDetailChip(safetyChipText, safetyTone),
     _buildPlanetDetailChip(lockText, lockTone),
-  ].join('');
+  ];
+  if (guideFocus) {
+    heroChipParts.push(_buildPlanetDetailChip(guideFocus.goodId ? ('卖出 ' + _getGoodName(guideFocus.goodId)) : '当前指引', 'warning'));
+  }
+  const heroChips = heroChipParts.join('');
   const heroGrid = '<div class="planet-detail-key-grid">' +
     _buildPlanetDetailKeyCard('势力', factionText) +
     _buildPlanetDetailKeyCard('友好度', relationText) +
@@ -1658,6 +1861,7 @@ export function refreshPlanetDetail(stateRef) {
   panel.classList.remove('planet-detail-panel--galaxy-hub');
   panel.classList.toggle('planet-detail-panel--pinned', isPinned);
   panel.classList.toggle('planet-detail-panel--summary', !isPinned);
+  panel.classList.toggle('planet-detail-panel--guide-target', !!guideFocus);
 
   panel.innerHTML =
     '<div class="planet-detail-hero planet-detail-wide">' +
@@ -1665,8 +1869,9 @@ export function refreshPlanetDetail(stateRef) {
       '<div class="planet-detail-chip-row">' + heroChips + '</div>' +
       '<div class="planet-detail-desc">' + sys.description + '</div>' +
       heroGrid +
+      _buildNavigationGuideBanner(guideFocus, sys) +
       (isPinned
-        ? _buildPinnedPlanetDetailActions(travelAction)
+        ? _buildPinnedPlanetDetailActions(travelAction, guideFocus)
         : _buildPlanetHoverSummaryNote(travelAction, isCurrentSystem)) +
     '</div>' +
     (isPinned ? (_buildExplorationSection(stateRef, sys, planetData, isCurrentSystem, isUnlocked) + archiveDisclosure) : '');
@@ -1720,7 +1925,7 @@ export function openMarket(stateRef, marketFocus) {
   _marketViewSystem = stateRef.currentSystem;
   _marketMode = 'detail';
   _marketOpen = true;
-  overlay.classList.remove('hidden');
+  openPrimarySurface('market-overlay');
   if (marketBtn) marketBtn.classList.add('active');
   _buildMarketGalaxyNav(stateRef);
   _bindMarketDetailEvents(stateRef);
@@ -1752,13 +1957,13 @@ export function closeMarket() {
   const marketBtn = document.getElementById('market-view-btn');
   if (!overlay) return;
   _marketOpen = false;
-  overlay.classList.add('hidden');
+  closePrimarySurface('market-overlay');
   if (marketBtn) marketBtn.classList.remove('active');
 }
 
 /** 市场是否打开 */
 export function isMarketOpen() {
-  return _marketOpen;
+  return _marketOpen && isPrimarySurfaceVisible('market-overlay');
 }
 
 /** 旅行后刷新市场（保持当前节点功能页） */
@@ -1842,10 +2047,53 @@ export function initTabs(onTabClick) {
     bottomNav.addEventListener('click', function (e) {
       var btn = e.target.closest('.bottom-nav-btn');
       if (!btn) return;
+      if (hasBlockingSurfaceOpen()) {
+        if (typeof e.preventDefault === 'function') e.preventDefault();
+        if (typeof e.stopPropagation === 'function') e.stopPropagation();
+        return;
+      }
       var view = btn.dataset.view;
       _handleBottomNav(view);
     });
   }
+}
+
+export function setNavigationChangeCallback(callback) {
+  _navigationChangeCallback = typeof callback === 'function' ? callback : null;
+}
+
+export function focusNavigationTarget(stateRef, systemId, options) {
+  var resolvedState = stateRef || _stateRef;
+  var sys = findSystem(systemId);
+  if (!resolvedState || !sys) return false;
+
+  var accessState = getGalaxyAccessState(sys.galaxyId, resolvedState.playerLevel || 1, resolvedState.researchedTechs || []);
+  if (!accessState.unlocked) return false;
+
+  _stateRef = resolvedState;
+  _closeAllOverlayPanels();
+  closeMarket();
+  _hoveredGalaxyId = null;
+  resolvedState.mapView = 'planets';
+  resolvedState.viewingGalaxy = sys.galaxyId;
+  resolvedState.hoveredSystem = sys.id;
+  _setSelectedPlanetDetail(sys.id);
+  _navigationGuideFocus = {
+    systemId: sys.id,
+    goodId: options && options.goodId ? options.goodId : '',
+    title: options && options.title ? options.title : '',
+  };
+  _setBottomNavActive('starmap');
+  _updateGalaxyBtn(resolvedState);
+  refreshPlanetDetail(resolvedState);
+
+  if (Renderer3D.selectPlanet) {
+    Renderer3D.selectPlanet(sys.id, { focus: true, smooth: true });
+  } else if (Renderer3D.focusPlanet) {
+    Renderer3D.focusPlanet(sys.id, true);
+  }
+
+  return true;
 }
 
 /**
@@ -1899,8 +2147,13 @@ function _handleBottomNav(view) {
     } else {
       _closeAllOverlayPanels();
       closeMarket();
-      _openOverlayPanel('info-panel');
-      _setBottomNavActive('quests');
+      var archiveTabId = _getDefaultArchiveTab(_stateRef);
+      if (document.querySelector('.tab-btn[data-tab="' + archiveTabId + '"]')) {
+        activateTab(archiveTabId);
+      } else {
+        _openOverlayPanel('info-panel');
+        _setBottomNavActive('quests');
+      }
     }
     return;
   }
@@ -1922,20 +2175,17 @@ function _handleBottomNav(view) {
 }
 
 function _openOverlayPanel(id) {
-  var el = document.getElementById(id);
-  if (el) el.classList.add('panel-open');
+  if (_marketOpen) closeMarket();
+  openSecondarySurface(id);
 }
 
 function _closeOverlayPanel(id) {
-  var el = document.getElementById(id);
-  if (el) el.classList.remove('panel-open');
+  closeSecondarySurface(id);
 }
 
 function _closeAllOverlayPanels() {
   _closeOrbitScanPanel();
-  ['info-panel', 'trade-panel', 'console-panel'].forEach(function (id) {
-    _closeOverlayPanel(id);
-  });
+  closeAllSecondarySurfaces();
 }
 
 function _setBottomNavActive(view) {
@@ -1946,6 +2196,11 @@ function _setBottomNavActive(view) {
       btn.classList.remove('active');
     }
   });
+  if (_navigationChangeCallback) _navigationChangeCallback(view);
+}
+
+export function focusStarmap() {
+  _handleBottomNav('starmap');
 }
 
 export function activateTab(tabId) {

@@ -1,5 +1,6 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import * as Modal from '../js/ui/Modal.js';
+import { createTestState } from './helpers.js';
 
 function createFakeClassList(initialValues) {
   var values = new Set(initialValues || []);
@@ -233,5 +234,124 @@ describe('UI lifecycle idempotency', function () {
       expect(starmapBtn.classList.contains('active')).toBe(true);
       expect(marketOverlay.classList.contains('hidden')).toBe(true);
     });
+  });
+
+  it('阻塞弹窗打开时底部导航不会切换底层面板', function () {
+    vi.resetModules();
+
+    var starmapBtn = createFakeElement(['bottom-nav-btn', 'active']);
+    starmapBtn.dataset.view = 'starmap';
+    var questsBtn = createFakeElement(['bottom-nav-btn']);
+    questsBtn.dataset.view = 'quests';
+    var bottomButtons = [starmapBtn, questsBtn];
+
+    var bottomNav = createFakeElement();
+    var infoPanel = createFakeElement();
+    var tradePanel = createFakeElement();
+    var consolePanel = createFakeElement();
+    var marketOverlay = createFakeElement(['hidden']);
+    var tutorialModal = createFakeElement(['modal']);
+    tutorialModal.id = 'tutorial-start-modal';
+
+    var prevented = false;
+    var stopped = false;
+
+    function findActiveBottomButton() {
+      return bottomButtons.find(function (button) {
+        return button.classList.contains('active');
+      }) || null;
+    }
+
+    globalThis.window = {};
+    globalThis.BABYLON = {
+      Color3: function () {},
+      Color4: function () {},
+    };
+    globalThis.document = {
+      querySelectorAll: function (selector) {
+        if (selector === '.tab-btn') return [];
+        if (selector === '.bottom-nav-btn') return bottomButtons;
+        if (selector === '.modal') return [tutorialModal];
+        return [];
+      },
+      querySelector: function (selector) {
+        if (selector === '.bottom-nav-btn.active') return findActiveBottomButton();
+        return null;
+      },
+      getElementById: function (id) {
+        if (id === 'bottom-nav') return bottomNav;
+        if (id === 'info-panel') return infoPanel;
+        if (id === 'trade-panel') return tradePanel;
+        if (id === 'console-panel') return consolePanel;
+        if (id === 'market-overlay') return marketOverlay;
+        return null;
+      },
+    };
+
+    return import('../js/ui/MapUI.js').then(function (MapUI) {
+      MapUI.initTabs(function () {});
+
+      bottomNav.dispatchEvent('click', {
+        target: {
+          closest: function (selector) {
+            return selector === '.bottom-nav-btn' ? questsBtn : null;
+          },
+        },
+        preventDefault: function () { prevented = true; },
+        stopPropagation: function () { stopped = true; },
+      });
+
+      expect(prevented).toBe(true);
+      expect(stopped).toBe(true);
+      expect(infoPanel.classList.contains('panel-open')).toBe(false);
+      expect(questsBtn.classList.contains('active')).toBe(false);
+      expect(starmapBtn.classList.contains('active')).toBe(true);
+    });
+  });
+
+  it('交易确认会先关闭阻塞弹窗再执行成交回调', function () {
+    var observedHiddenDuringConfirm = null;
+    var elements = {
+      'modal-decrease': createFakeElement(),
+      'modal-increase': createFakeElement(),
+      'modal-all': createFakeElement(),
+      'modal-amount': createFakeElement(),
+      'modal-cancel': createFakeElement(),
+      'modal-confirm': createFakeElement(),
+      'modal-title': createFakeElement(),
+      'modal-desc': createFakeElement(),
+      'modal-total': createFakeElement(),
+      'trade-modal': createFakeElement(['hidden', 'modal']),
+    };
+
+    globalThis.document = {
+      getElementById: function (id) { return elements[id] || null; },
+      querySelectorAll: function (selector) {
+        return selector === '.modal' ? [elements['trade-modal']] : [];
+      },
+      addEventListener: function () {},
+    };
+
+    Modal.init(function () {
+      observedHiddenDuringConfirm = elements['trade-modal'].classList.contains('hidden');
+    });
+
+    Modal.openTradeModal('buy', {
+      id: 'food',
+      emoji: '🌾',
+      name: '食物',
+    }, createTestState({
+      credits: 5000,
+      maxCargo: 20,
+      cargo: {},
+      currentSystem: 'sol_prime',
+    }), 'open', {
+      initialQuantity: 1,
+    });
+
+    expect(elements['trade-modal'].classList.contains('hidden')).toBe(false);
+    elements['modal-confirm'].onclick();
+
+    expect(observedHiddenDuringConfirm).toBe(true);
   });
 });

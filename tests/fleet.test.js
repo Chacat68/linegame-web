@@ -686,13 +686,21 @@ describe('Fleet.buySlot', () => {
   });
 
   it('成功购买增加席位', () => {
-    const state = createTestState({ credits: 100000 });
+    const state = createTestState({ credits: 100000, companyLevel: 2 });
     Fleet.init(state);
     const slotsBefore = Fleet.getSlotCount(state);
     const result = Fleet.buySlot(state);
     if (result.ok) {
       expect(Fleet.getSlotCount(state)).toBe(slotsBefore + 1);
     }
+  });
+
+  it('公司等级不足时不能购买下一席位', () => {
+    const state = createTestState({ credits: 100000, companyLevel: 1 });
+    Fleet.init(state);
+    const result = Fleet.buySlot(state);
+    expect(result.ok).toBe(false);
+    expect(result.msgs[0].text).toContain('公司 Lv.2');
   });
 });
 

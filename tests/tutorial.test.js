@@ -102,4 +102,18 @@ describe('TutorialSystem', () => {
     expect(ids.indexOf('accept_first_quest')).toBeLessThan(ids.indexOf('fuel_warning'));
     expect(ids.indexOf('complete_first_quest')).toBeLessThan(ids.indexOf('quest_tracker'));
   });
+
+  it('教程高亮入口使用当前界面的稳定选择器', () => {
+    const staleSelectors = ['#market-view-btn', '#market-tbody', '#fuel-fill', '#map-canvas'];
+    const highlights = Tutorial.STEPS.map(function (step) {
+      return step.highlight;
+    }).filter(Boolean);
+
+    staleSelectors.forEach(function (selector) {
+      expect(highlights).not.toContain(selector);
+    });
+    expect(highlights).toContain('.bottom-nav-btn[data-view="market"]');
+    expect(highlights).toContain('#status-fuel-fill');
+    expect(highlights).toContain('#map-3d-canvas');
+  });
 });

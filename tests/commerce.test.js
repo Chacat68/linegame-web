@@ -163,6 +163,7 @@ describe('Commerce.getCommerceSnapshot', () => {
   it('聚合金融、期货与商网指标到统一快照', () => {
     const state = createTestState({
       credits: 300000,
+      companyLevel: 6,
       currentSystem: 'sol_prime',
       visitedSystems: ['sol_prime'],
     });
@@ -202,7 +203,7 @@ describe('Commerce.getCommerceSnapshot', () => {
 
 describe('Commerce.buildTradeStation', () => {
   it('积分不足时建站失败', () => {
-    const state = createTestState({ credits: 0, visitedSystems: ['sol_prime'] });
+    const state = createTestState({ credits: 0, companyLevel: 4, visitedSystems: ['sol_prime'] });
     Faction.init(state);
     TradeStation.init(state);
     const result = Commerce.buildTradeStation(state, 'sol_prime');
@@ -210,7 +211,7 @@ describe('Commerce.buildTradeStation', () => {
   });
 
   it('未访问的星球无法建站', () => {
-    const state = createTestState({ credits: 999999 });
+    const state = createTestState({ credits: 999999, companyLevel: 4 });
     Faction.init(state);
     TradeStation.init(state);
     const result = Commerce.buildTradeStation(state, 'nova_station');
@@ -220,6 +221,7 @@ describe('Commerce.buildTradeStation', () => {
   it('支持通过 Commerce 门面下达全网批量策略', () => {
     const state = createTestState({
       credits: 300000,
+      companyLevel: 6,
       currentSystem: 'sol_prime',
       visitedSystems: ['sol_prime', 'nova_station'],
     });
@@ -238,6 +240,7 @@ describe('Commerce.buildTradeStation', () => {
   it('支持通过 Commerce 门面下达批量投资波次', () => {
     const state = createTestState({
       credits: 12000,
+      companyLevel: 2,
       currentSystem: 'sol_prime',
       visitedSystems: ['sol_prime', 'nova_station', 'aegis_prime'],
     });
@@ -255,8 +258,16 @@ describe('Commerce.buildTradeStation', () => {
 // ---------------------------------------------------------------------------
 
 describe('Commerce.takeLoan', () => {
+  it('公司等级不足时拒绝资本入口', () => {
+    const state = createTestState({ credits: 500, companyLevel: 1 });
+    Finance.init(state);
+    const result = Commerce.takeLoan(state, 'starter');
+    expect(result.ok).toBe(false);
+    expect(result.msgs[0].text).toContain('公司 Lv.2');
+  });
+
   it('申请贷款成功', () => {
-    const state = createTestState({ credits: 500 });
+    const state = createTestState({ credits: 500, companyLevel: 2 });
     Finance.init(state);
     const result = Commerce.takeLoan(state, 'starter');
     expect(result.ok).toBe(true);
@@ -265,7 +276,7 @@ describe('Commerce.takeLoan', () => {
   });
 
   it('已有 3 笔贷款时不能继续申请', () => {
-    const state = createTestState({ credits: 500 });
+    const state = createTestState({ credits: 500, companyLevel: 2 });
     Finance.init(state);
     Commerce.takeLoan(state, 'starter');
     Commerce.takeLoan(state, 'starter');
@@ -277,8 +288,19 @@ describe('Commerce.takeLoan', () => {
 });
 
 describe('Commerce.buyStock / sellStock', () => {
+  it('公司等级不足时拒绝买入股票', () => {
+    const state = createTestState({ credits: 100000, companyLevel: 2 });
+    Finance.init(state);
+
+    const stockId = Object.keys(state.stockMarket)[0];
+    const result = Commerce.buyStock(state, stockId);
+
+    expect(result.ok).toBe(false);
+    expect(result.msgs[0].text).toContain('公司 Lv.3');
+  });
+
   it('买卖股票成功', () => {
-    const state = createTestState({ credits: 100000 });
+    const state = createTestState({ credits: 100000, companyLevel: 3 });
     Finance.init(state);
 
     const stockId = Object.keys(state.stockMarket)[0];

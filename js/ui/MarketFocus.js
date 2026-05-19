@@ -95,14 +95,28 @@ function _getContextualMarketDecision(state, systemId) {
   }
 
   var surveySummary = Exploration.getSurveySummary(state, targetSystemId);
+  var surveyIntel = Exploration.getSurveyDecisionIntel(state, targetSystemId);
   var opportunityFocus = _getSystemOpportunityFocus(system, surveySummary);
   var contextLabel = _getSystemContextLabel(system);
+  var hasReportIntel = !!(surveyIntel && surveyIntel.hasIntel);
+  var marketHint = hasReportIntel ? surveyIntel.marketHint : '';
   if (opportunityFocus === 'market' && system.type === 'special' && Faction.canAccessBlackMarket(state, targetSystemId)) {
     return {
       presetId: MARKET_FOCUS_PRESET_IDS.SPOT_BLACK,
       system: system,
       opportunityFocus: opportunityFocus,
-      contextHint: contextLabel + '已解锁黑市通路，优先落到黑市分区。',
+      contextHint: hasReportIntel
+        ? (marketHint + ' 该节点也已解锁黑市通路，可切到黑市分区验证特殊价格。')
+        : contextLabel + '已解锁黑市通路，优先落到黑市分区。',
+    };
+  }
+
+  if (hasReportIntel && surveyIntel.primarySignal === 'route') {
+    return {
+      presetId: MARKET_FOCUS_PRESET_IDS.SPOT_INTEL,
+      system: system,
+      opportunityFocus: opportunityFocus,
+      contextHint: marketHint,
     };
   }
 
@@ -111,7 +125,9 @@ function _getContextualMarketDecision(state, systemId) {
       presetId: MARKET_FOCUS_PRESET_IDS.SPOT_INTEL,
       system: system,
       opportunityFocus: opportunityFocus,
-      contextHint: contextLabel + '更偏科研线索，先看市场情报区再决定补给或交易。',
+      contextHint: hasReportIntel
+        ? marketHint
+        : contextLabel + '更偏科研线索，先看市场情报区再决定补给或交易。',
     };
   }
 
@@ -120,7 +136,18 @@ function _getContextualMarketDecision(state, systemId) {
       presetId: MARKET_FOCUS_PRESET_IDS.SPOT_INTEL,
       system: system,
       opportunityFocus: opportunityFocus,
-      contextHint: contextLabel + '更偏机会侦察，先看市场情报区再决定是否进场。',
+      contextHint: hasReportIntel
+        ? marketHint
+        : contextLabel + '更偏机会侦察，先看市场情报区再决定是否进场。',
+    };
+  }
+
+  if (hasReportIntel && surveyIntel.marketSignal) {
+    return {
+      presetId: MARKET_FOCUS_PRESET_IDS.SPOT_INTEL,
+      system: system,
+      opportunityFocus: opportunityFocus,
+      contextHint: marketHint,
     };
   }
 
@@ -128,7 +155,9 @@ function _getContextualMarketDecision(state, systemId) {
     presetId: MARKET_FOCUS_PRESET_IDS.SPOT_TRADE,
     system: system,
     opportunityFocus: opportunityFocus,
-    contextHint: contextLabel + '更适合补给与现货周转，先落到现货交易区。',
+    contextHint: hasReportIntel
+      ? marketHint
+      : contextLabel + '更适合补给与现货周转，先落到现货交易区。',
   };
 }
 
@@ -177,6 +206,9 @@ export function buildContextualMarketAction(state, systemId, options) {
     label: options && options.label ? options.label : getMarketFocusCtaLabel(marketFocus, context),
     hint: options && options.hint ? options.hint : marketDecision.contextHint,
     variant: options && options.variant ? options.variant : 'primary',
+    commandSurface: 'market',
+    commandIntent: marketFocus.label,
+    commandVerb: options && options.label ? options.label : getMarketFocusCtaLabel(marketFocus, context),
     systemId: targetSystemId,
     systemName: targetSystem ? targetSystem.name : targetSystemId,
     marketWorkspaceId: marketFocus.workspaceId,
@@ -195,6 +227,9 @@ export function buildMarketFocusAction(reasonId, label, hint, presetId, variant)
     label: label,
     hint: hint,
     variant: variant || 'primary',
+    commandSurface: 'market',
+    commandIntent: marketFocus.label,
+    commandVerb: label,
     marketWorkspaceId: marketFocus.workspaceId,
     marketSubworkspaceId: marketFocus.subworkspaceId,
     marketFocusLabel: marketFocus.label,

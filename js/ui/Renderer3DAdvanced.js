@@ -1,6 +1,6 @@
 // js/ui/Renderer3DAdvanced.js — 增强型 3D 星图渲染器 (Babylon.js)
 // 依赖：babylon.js (global), GalaxyDataLayer, RouteSystem, data/systems.js, data/factions.js
-// 导出：init, render, focusPlanet, setQuality, setMotionLevel, isActive, toggleView,
+// 导出：init, render, focusPlanet, selectPlanet, setQuality, setMotionLevel, isActive, toggleView,
 //       getSystemAtPoint, getPlanetScreenPosition, invalidateScene, resetRuntimeState,
 //       setSecretRoutesVisible, isSecretRoutesVisible,
 //       resetCamera, flyShipTo, isShipFlying, cancelShipFlight
@@ -2378,6 +2378,26 @@ export function focusPlanet(planetId, smooth = true) {
   } else {
     _camera.setTarget(metadata.position);
   }
+}
+
+export function selectPlanet(planetId, options) {
+  const metadata = _planetMetadata.find(m => m.id === planetId);
+  if (!metadata) return false;
+
+  _selectedPlanet = metadata;
+  if (_selectionRing) {
+    _selectionRing.position = metadata.position.clone();
+    _selectionRing.position.y += 0.1;
+    const ringScale = metadata.size + 0.5;
+    _selectionRing.scaling = new BABYLON.Vector3(ringScale, ringScale, ringScale);
+    _selectionRing.setEnabled(true);
+  }
+
+  if (!options || options.focus !== false) {
+    focusPlanet(planetId, !options || options.smooth !== false);
+  }
+  _dirty = true;
+  return true;
 }
 
 export function resetCamera() {

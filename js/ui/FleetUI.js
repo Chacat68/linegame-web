@@ -5,6 +5,7 @@
 import { SHIP_TYPES, SHIP_UPGRADES, FLEET_SLOTS, SHIP_MODS, FLEET_BONUSES } from '../data/ships.js';
 import { GALAXIES, SYSTEMS, getAccessibleGalaxies, getSystemsByGalaxy } from '../data/systems.js';
 import { GOODS } from '../data/goods.js';
+import { getCompanyLevelValue, getFleetSlotCompanyRequirement } from '../data/companyAccess.js';
 import * as Fleet from '../systems/fleet/FleetSystem.js?v=20260421-balance6';
 import * as Crew from '../systems/fleet/CrewSystem.js';
 import * as Economy from '../systems/economy/Economy.js';
@@ -145,11 +146,20 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
   if (slotCount < maxSlots) {
     var nextSlot = FLEET_SLOTS[slotCount];
     var canAffordSlot = state.credits >= nextSlot.cost;
+    var requiredCompanyLevel = getFleetSlotCompanyRequirement(nextSlot.id);
+    var companyLevel = getCompanyLevelValue(state);
+    var hasCompanyLevel = companyLevel >= requiredCompanyLevel;
+    var canBuySlot = canAffordSlot && hasCompanyLevel;
+    var slotButtonLabel = canBuySlot
+      ? '🎫 解锁 ' + nextSlot.cost.toLocaleString() + ' 积分'
+      : (!hasCompanyLevel
+          ? '公司 Lv.' + requiredCompanyLevel + ' 解锁'
+          : '积分不足 (' + nextSlot.cost.toLocaleString() + ')');
     html += '<div class="fleet-slot-next">';
-    html += '<span>下一席位：<b>' + nextSlot.name + '</b> — ' + nextSlot.desc + '</span>';
-    html += '<button class="fleet-slot-buy-btn' + (canAffordSlot ? ' slot-can-buy' : '') + '"' +
-            (canAffordSlot ? '' : ' disabled') + '>' +
-            (canAffordSlot ? '🎫 解锁 ' + nextSlot.cost.toLocaleString() + ' 积分' : '积分不足 (' + nextSlot.cost.toLocaleString() + ')') +
+    html += '<span>下一席位：<b>' + nextSlot.name + '</b> — ' + nextSlot.desc + ' · 需公司 Lv.' + requiredCompanyLevel + '</span>';
+    html += '<button class="fleet-slot-buy-btn' + (canBuySlot ? ' slot-can-buy' : '') + '"' +
+            (canBuySlot ? '' : ' disabled') + '>' +
+            slotButtonLabel +
             '</button>';
     html += '</div>';
   } else {
@@ -1630,6 +1640,9 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
     var strategyHtml = dispatchProfile.strategyLabel
       ? '<div class="dispatch-estimate-note">' + _escapeHtml((dispatchProfile.roleLabel || '标准派遣') + ' · ' + dispatchProfile.strategyLabel + '：' + (recommendation && recommendation.strategySummary ? recommendation.strategySummary.replace(/^.*：/, '') : (dispatchProfile.strategyNote || '按当前利润与风险偏好筛选路线。'))) + '</div>'
       : '';
+    var surveyIntelHtml = recommendation && recommendation.surveyIntelSummary
+      ? '<div class="dispatch-estimate-note">' + _escapeHtml(recommendation.surveyIntelSummary) + '</div>'
+      : '';
     var pressureHtml = dispatchProfile.faultPressure > 0
       ? '<div class="dispatch-estimate-note dispatch-estimate-note--warning">船况压力 ' + _escapeHtml(String(dispatchProfile.faultPressure)) + '，系统会下调高风险与高执法路线优先级。</div>'
       : '';
@@ -1637,6 +1650,7 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
     estimateEl.innerHTML =
       recommendationHtml +
       strategyHtml +
+      surveyIntelHtml +
       '<div class="dispatch-estimate-main">' +
         '<span class="dispatch-estimate-highlight">' + marketLabel + '买' + estimate.maxQty + '单位</span>' +
         '<span>单次利润 ≈ ' + Math.floor(estimate.profit) + ' 积分</span>' +

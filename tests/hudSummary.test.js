@@ -40,6 +40,7 @@ function createFakeElement(initialClasses) {
   var attributes = Object.create(null);
   return {
     dataset: {},
+    hidden: false,
     textContent: '',
     innerHTML: '',
     style: {},
@@ -120,6 +121,42 @@ describe('HUD summary cards', function () {
 
   afterEach(function () {
     globalThis.document = originalDocument;
+  });
+
+  it('档案入口会显示任务、科技、派系和成就角标', async function () {
+    vi.resetModules();
+
+    var elements = {
+      'archive-tab-quest-badge': createFakeElement(),
+      'archive-tab-research-badge': createFakeElement(),
+      'archive-tab-faction-badge': createFakeElement(),
+      'archive-tab-achievement-badge': createFakeElement(),
+      'archive-nav-badge': createFakeElement(),
+    };
+    globalThis.document = {
+      getElementById: function (id) {
+        return elements[id] || null;
+      },
+    };
+
+    var HUD = await import('../js/ui/HUD.js');
+    var state = createTestState({
+      quests: [{ id: 'active_quest' }],
+      researchOptions: ['cargo_optimization'],
+      achievements: ['first_trade'],
+      factionRelations: {
+        federation: 35,
+      },
+    });
+
+    HUD.updateArchiveBadges(state);
+
+    expect(elements['archive-tab-quest-badge'].hidden).toBe(false);
+    expect(Number(elements['archive-tab-quest-badge'].textContent)).toBeGreaterThan(0);
+    expect(elements['archive-tab-research-badge'].textContent).toBe('1');
+    expect(elements['archive-tab-faction-badge'].textContent).toBe('1');
+    expect(elements['archive-tab-achievement-badge'].textContent).toBe('1');
+    expect(Number(elements['archive-nav-badge'].textContent)).toBeGreaterThan(0);
   });
 
   it('银河地图 HUD 会显示当前星图摘要并绑定视图切换入口一次', async function () {
@@ -237,12 +274,15 @@ describe('HUD summary cards', function () {
     expect(trackerEl.innerHTML).toContain(tracker.items[0].name);
     expect(trackerEl.innerHTML).not.toContain(tracker.items[1].name);
     expect(trackerEl.innerHTML).toContain('另 1 项');
+    expect(trackerEl.innerHTML).toContain('完整目标、奖励和路线留在任务页');
+    expect(trackerEl.innerHTML).not.toContain('quest-tracker-objective');
+    expect(trackerEl.innerHTML).not.toContain('quest-tracker-progress-fill');
     expect(trackerEl.innerHTML).not.toContain('立即接取');
     expect(trackerEl.querySelectorAll('[data-quest-tracker-accept]').length).toBe(0);
     expect(trackerOpenBtn.listenerCount('click')).toBe(1);
   });
 
-  it('市场概览 HUD 只渲染 3 条波动摘要并绑定市场页入口一次', async function () {
+  it('市场概览 HUD 只渲染 3 条波动信号并绑定市场页入口一次', async function () {
     vi.resetModules();
 
     var state = createTestState({
@@ -294,14 +334,16 @@ describe('HUD summary cards', function () {
     var rowCount = (marketBodyEl.innerHTML.match(/<tr>/g) || []).length;
 
     expect(rowCount).toBe(3);
-    expect(marketUpdatedEl.textContent).toBe('DAY 1');
+    expect(marketBodyEl.innerHTML).toContain('hud-market-signal');
+    expect(marketBodyEl.innerHTML).not.toContain('hud-market-price');
+    expect(marketUpdatedEl.textContent).toBe('DAY 1 · 稳定期');
     expect(marketOpenBtn.listenerCount('click')).toBe(1);
 
     marketOpenBtn.dispatchEvent('click');
     expect(marketNavClicks).toBe(1);
   });
 
-  it('当前航点 HUD 只保留位置摘要和扫描终端入口', async function () {
+  it('当前航点 HUD 会显示位置摘要、勘探状态和终端入口', async function () {
     vi.resetModules();
 
     var state = createTestState({
@@ -314,6 +356,8 @@ describe('HUD summary cards', function () {
     Economy.init();
     Faction.init(state);
     Quest.init(state);
+    var GalaxyDataModule = await import('../js/systems/galaxy/GalaxyDataLayer.js');
+    GalaxyDataModule.init(state);
 
     var orbitScanBtn = createFakeElement();
     var orbitScanClicks = 0;
@@ -331,6 +375,8 @@ describe('HUD summary cards', function () {
       'hud-target-type': createFakeElement(),
       'hud-target-galaxy': createFakeElement(),
       'hud-target-faction': createFakeElement(),
+      'hud-target-survey': createFakeElement(),
+      'hud-target-next': createFakeElement(),
       'hud-target-detail-open': targetDetailOpenBtn,
       'hud-market-overview-body': createHtmlElement(),
       'hud-market-updated': createFakeElement(),
@@ -358,6 +404,8 @@ describe('HUD summary cards', function () {
 
     expect(elements['hud-target-name'].textContent).toBe('太阳主星');
     expect(elements['hud-target-galaxy'].textContent).toBe('银河系');
+    expect(elements['hud-target-survey'].textContent).toBe('未扫描 · 0/3 POI · 情报 Lv.0');
+    expect(elements['hud-target-next'].textContent).toBe('下一步：轨道扫描');
     expect(targetDetailOpenBtn.textContent).toBe('📡 扫描终端');
     expect(targetDetailOpenBtn.hidden).toBe(false);
     expect(targetDetailOpenBtn.listenerCount('click')).toBe(1);

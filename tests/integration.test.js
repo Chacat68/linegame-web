@@ -177,6 +177,7 @@ describe('端到端：经济→天数推进', () => {
   it('实时日推进会串联商网、金融、期货与派遣结算', () => {
     const state = createTestState({
       credits: 250000,
+      companyLevel: 6,
       fuel: 120,
       maxFuel: 120,
       day: 1,

@@ -7,6 +7,7 @@ import { SYSTEMS, getSystemsByGalaxy, getAccessibleGalaxies, findGalaxy } from '
 import { TECHNOLOGIES, TECH_CATEGORIES } from '../../data/technologies.js';
 import * as Economy from '../economy/Economy.js';
 import * as Faction from '../faction/FactionSystem.js';
+import * as Exploration from '../galaxy/ExplorationSystem.js?v=20260417-exploration20';
 import { getTotalCargo } from './TradeSystem.js';
 
 export function normalizeTradePolicy(policy) {
@@ -375,6 +376,52 @@ function _scoreDispatchRouteFit(dispatchProfile, context) {
   };
 }
 
+function _scoreSurveyIntelForRoute(state, buySystem, sellSystem, focus) {
+  var score = 0;
+  var reasons = [];
+  var summaries = [];
+  var focusCategory = focus && focus.categoryId ? focus.categoryId : '';
+  var buyIntel = buySystem ? Exploration.getSurveyDecisionIntel(state, buySystem.id) : null;
+  var sellIntel = sellSystem ? Exploration.getSurveyDecisionIntel(state, sellSystem.id) : null;
+
+  function applyIntel(intel, roleLabel) {
+    if (!intel || !intel.hasIntel) return;
+
+    if (intel.routeSignal) {
+      score += 38;
+      reasons.push(roleLabel + '暗线已归档');
+      summaries.push(roleLabel + intel.dispatchHint);
+    }
+    if (intel.marketSignal) {
+      score += focusCategory === 'commerce' ? 76 : 42;
+      reasons.push(roleLabel + '贸易报告');
+      summaries.push(roleLabel + intel.marketHint);
+    }
+    if (intel.researchSignal) {
+      score += (focusCategory === 'engineering' || focusCategory === 'exploration') ? 74 : 32;
+      reasons.push(roleLabel + '科研报告');
+      if (intel.researchHint) summaries.push(roleLabel + intel.researchHint);
+    }
+    if (intel.logisticsSignal) {
+      score += roleLabel === '买入地' ? 28 : 16;
+      reasons.push(roleLabel + '补给报告');
+      summaries.push(roleLabel + intel.marketHint);
+    }
+  }
+
+  applyIntel(buyIntel, '买入地');
+  applyIntel(sellIntel, '卖出地');
+
+  reasons = Array.from(new Set(reasons)).slice(0, 2);
+  summaries = Array.from(new Set(summaries)).slice(0, 1);
+
+  return {
+    score: score,
+    reasons: reasons,
+    summary: summaries.length > 0 ? ('勘探情报：' + summaries[0]) : '',
+  };
+}
+
 function _scoreQuestRouteCandidate(state, route, dispatchProfile, options) {
   var good = _getGoodById(route.goodId);
   var buySystem = _getSystemById(route.buySystemId);
@@ -411,10 +458,12 @@ function _scoreQuestRouteCandidate(state, route, dispatchProfile, options) {
     inspectionRisk: inspectionRisk,
   });
   var themeFit = _scoreTradeThemeRoute(good, buySystem, sellSystem);
+  var surveyFit = _scoreSurveyIntelForRoute(state, buySystem, sellSystem, null);
   var quantity = Math.max(1, route.quantity || 1);
   var score = (route.priority || 0) * 1000
     + routeFit.score
     + themeFit.score
+    + surveyFit.score
     + (route.inCargo ? 160 : 0)
     + (((route.unitRevenue || 0) - (route.unitCost || 0)) * quantity)
     - fuelCredits
@@ -431,9 +480,11 @@ function _scoreQuestRouteCandidate(state, route, dispatchProfile, options) {
       sellGalaxyName: themeFit.sellGalaxyName,
       goodName: good ? good.name : route.goodId,
       strategyLabel: dispatchProfile.strategyLabel,
-      strategySummary: _buildDispatchStrategySummary(dispatchProfile, routeFit, dispatchProfile.strategyNote, themeFit.reasons, true),
+      strategySummary: _buildDispatchStrategySummary(dispatchProfile, routeFit, dispatchProfile.strategyNote, surveyFit.reasons.concat(themeFit.reasons), true),
       routeFitScore: routeFit.score,
       themeScore: themeFit.score,
+      surveyIntelScore: surveyFit.score,
+      surveyIntelSummary: surveyFit.summary,
       tradeThemeSummary: themeFit.summary,
       routeModeLabel: themeFit.routeModeLabel,
       dispatchProfile: dispatchProfile,
@@ -644,7 +695,8 @@ export function findBestDispatchRoute(state, options, tradePolicy) {
           inspectionRisk: inspectionRisk,
         });
         var themeFit = _scoreTradeThemeRoute(good, buySys, sellSys);
-        var totalScore = riskAdjusted.adjustedProfit + routeFit.score + themeFit.score;
+        var surveyFit = _scoreSurveyIntelForRoute(state, buySys, sellSys, null);
+        var totalScore = riskAdjusted.adjustedProfit + routeFit.score + themeFit.score + surveyFit.score;
 
         if (!riskAdjusted.allowed) return;
 
@@ -675,9 +727,11 @@ export function findBestDispatchRoute(state, options, tradePolicy) {
             inspectionRisk: inspectionRisk,
             marketMode: normalizedPolicy.marketMode,
             strategyLabel: dispatchProfile.strategyLabel,
-            strategySummary: _buildDispatchStrategySummary(dispatchProfile, routeFit, dispatchProfile.strategyNote, themeFit.reasons, true),
+            strategySummary: _buildDispatchStrategySummary(dispatchProfile, routeFit, dispatchProfile.strategyNote, surveyFit.reasons.concat(themeFit.reasons), true),
             routeFitScore: routeFit.score,
             themeScore: themeFit.score,
+            surveyIntelScore: surveyFit.score,
+            surveyIntelSummary: surveyFit.summary,
             tradeThemeSummary: themeFit.summary,
             routeModeLabel: themeFit.routeModeLabel,
             dispatchProfile: dispatchProfile,
@@ -1032,8 +1086,9 @@ export function findResearchSupplyRoute(state, options) {
           inspectionRisk: inspectionRisk,
         });
         var themeFit = _scoreTradeThemeRoute(good, buySys, sellSys);
+        var surveyFit = _scoreSurveyIntelForRoute(state, buySys, sellSys, focus);
         var focusScore = goodFocusScore + buyTypeScore + sellTypeScore;
-        var totalScore = riskAdjusted.adjustedProfit + routeFit.score + focusScore + themeFit.score;
+        var totalScore = riskAdjusted.adjustedProfit + routeFit.score + focusScore + themeFit.score + surveyFit.score;
 
         if (!riskAdjusted.allowed) return;
 
@@ -1061,11 +1116,13 @@ export function findResearchSupplyRoute(state, options) {
             inspectionRisk: inspectionRisk,
             routeFitScore: routeFit.score,
             themeScore: themeFit.score,
+            surveyIntelScore: surveyFit.score,
+            surveyIntelSummary: surveyFit.summary,
             tradeThemeSummary: themeFit.summary,
             routeModeLabel: themeFit.routeModeLabel,
             focusScore: focusScore,
             strategyLabel: dispatchProfile.strategyLabel,
-            strategySummary: _buildDispatchStrategySummary(dispatchProfile, routeFit, focusConfig.summary, themeFit.reasons, true),
+            strategySummary: _buildDispatchStrategySummary(dispatchProfile, routeFit, focusConfig.summary, surveyFit.reasons.concat(themeFit.reasons), true),
             dispatchProfile: dispatchProfile,
             focusTypeLabel: focus.sourceLabel,
             focusCategoryId: focus.categoryId,

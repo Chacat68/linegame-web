@@ -8,12 +8,14 @@ import {
   TRADE_STATION_STRATEGIES,
 } from '../data/tradeStations.js';
 import { getSystemsByGalaxy, findSystem, isSystemAccessible } from '../data/systems.js?v=20260420-balance3';
+import { getCompanyAccessState, getCompanyLevelValue } from '../data/companyAccess.js';
 import * as Economy from '../systems/economy/Economy.js';
 import * as Faction from '../systems/faction/FactionSystem.js';
 import * as Commerce from '../systems/commerce/CommerceFacade.js';
 import * as Finance from '../systems/finance/FinanceSystem.js';
 import * as Futures from '../systems/finance/FuturesSystem.js';
 import * as TradeStation from '../systems/trade/TradeStationSystem.js';
+import * as Exploration from '../systems/galaxy/ExplorationSystem.js?v=20260417-exploration20';
 
 const _focusedMarketGood = Object.create(null);
 const _marketChartRange = Object.create(null);
@@ -46,25 +48,25 @@ const MARKET_BATCH_PLAN_SORT_OPTIONS = {
 };
 const MARKET_RANGE_OPTIONS = [7, 14, 30];
 const MARKET_WORKSPACE_TABS = [
-  { id: 'spot', label: '📦 现货', hint: '商品交易与补给' },
-  { id: 'capital', label: '🏦 资本', hint: '贷款、保险、股票、期货' },
-  { id: 'operations', label: '🏪 经营', hint: '建站、升级与经营策略' },
+  { id: 'spot', label: '现货', hint: '买卖与补给', stage: '01' },
+  { id: 'capital', label: '资本', hint: '融资与仓位', stage: '03' },
+  { id: 'operations', label: '商网', hint: '站点与经营', stage: '05' },
 ];
 const MARKET_SUBWORKSPACE_TABS = {
   spot: [
-    { id: 'trade', label: '📦 交易', hint: '现货买卖与补给' },
-    { id: 'intel', label: '🧭 情报', hint: '节点行情与机会摘要' },
-    { id: 'black', label: '🕶 黑市', hint: '特殊市场与风险提示' },
+    { id: 'trade', label: '交易', hint: '执行买卖与补给' },
+    { id: 'intel', label: '行情', hint: '价格与勘探线索' },
+    { id: 'black', label: '黑市', hint: '特殊市场与风险' },
   ],
   capital: [
-    { id: 'local', label: '🏦 调度', hint: '贷款、保险、本地投资' },
-    { id: 'stocks', label: '📈 股票', hint: '指数与持仓' },
-    { id: 'futures', label: '📋 期货', hint: '合约与持仓' },
+    { id: 'local', label: '调度', hint: '贷款、保险、本地投资' },
+    { id: 'stocks', label: '股票', hint: '指数与持仓' },
+    { id: 'futures', label: '期货', hint: '合约与持仓' },
   ],
   operations: [
-    { id: 'local', label: '🏪 本地节点', hint: '当前节点经营' },
-    { id: 'network', label: '📡 商网总览', hint: '网络快照与指标' },
-    { id: 'stations', label: '🛰 站点编排', hint: '候选与已建站点' },
+    { id: 'local', label: '本地', hint: '当前节点经营' },
+    { id: 'network', label: '总览', hint: '网络快照与指标' },
+    { id: 'stations', label: '站点', hint: '候选与已建站点' },
   ],
 };
 
@@ -74,33 +76,405 @@ let _activeMarketSubworkspaceTabs = {
   capital: 'local',
   operations: 'local',
 };
+let _lastMarketProgression = null;
 
 function _hasDocument() {
   return typeof document !== 'undefined';
 }
 
-function _normalizeMarketWorkspaceFocus(focus) {
+function _countObjectKeys(value) {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? Object.keys(value).length
+    : 0;
+}
+
+function _countStockHoldings(state) {
+  if (!state || !state.stockPortfolio || typeof state.stockPortfolio !== 'object') return 0;
+  return Object.keys(state.stockPortfolio).filter(function (stockId) {
+    var holding = state.stockPortfolio[stockId];
+    return holding && (holding.shares || 0) > 0;
+  }).length;
+}
+
+function _countOpenFutures(state) {
+  return (state && Array.isArray(state.futuresContracts) ? state.futuresContracts : []).filter(function (contract) {
+    return contract && contract.status === 'open';
+  }).length;
+}
+
+function _hasTradeInvestment(state) {
+  return !!(state && state.tradeInvestments && typeof state.tradeInvestments === 'object' && Object.keys(state.tradeInvestments).some(function (systemId) {
+    var investment = state.tradeInvestments[systemId];
+    return investment && (investment.amount || investment.investedAmount || 0) > 0;
+  }));
+}
+
+function _hasCapitalFootprint(state) {
+  var activeLoans = (state && Array.isArray(state.loans) ? state.loans : []).some(function (loan) {
+    return loan && loan.status === 'active' && (loan.balance || 0) > 0;
+  });
+  var activePolicies = (state && Array.isArray(state.insurancePolicies) ? state.insurancePolicies : []).some(function (policy) {
+    return policy && policy.active;
+  });
+  return activeLoans || activePolicies || _countStockHoldings(state) > 0 || _countOpenFutures(state) > 0 || _hasTradeInvestment(state);
+}
+
+function _getSurveyIntelFlag(state, sysId) {
+  try {
+    var surveyIntel = Exploration.getSurveyDecisionIntel(state || {}, sysId);
+    return !!(surveyIntel && surveyIntel.hasIntel);
+  } catch (err) {
+    return false;
+  }
+}
+
+function _getMarketExperienceStats(state, sysId, options) {
+  var safeState = state || {};
+  var opts = options || {};
+  var systemFaction = opts.systemFaction || Faction.getFactionForSystem(sysId);
+  var blackMarketUnlocked = typeof opts.blackMarketUnlocked === 'boolean'
+    ? opts.blackMarketUnlocked
+    : Faction.canAccessBlackMarket(safeState, sysId);
+  var visitedSystems = Array.isArray(safeState.visitedSystems) ? safeState.visitedSystems : [];
+  var stationCount = _countObjectKeys(safeState.tradeStations);
+  var stockHoldingCount = _countStockHoldings(safeState);
+  var openFuturesCount = _countOpenFutures(safeState);
+  var playerLevel = Math.max(1, Number(safeState.playerLevel) || 1);
+  var companyLevel = getCompanyLevelValue(safeState);
+  var day = Math.max(1, Number(safeState.day) || 1);
+  var credits = Math.max(0, Number(safeState.credits) || 0);
+  var hasCapitalFootprint = _hasCapitalFootprint(safeState);
+  var hasOperationsFootprint = stationCount > 0 || _hasTradeInvestment(safeState);
+  var hasSurveyIntel = _getSurveyIntelFlag(safeState, sysId);
+
+  return {
+    playerLevel: playerLevel,
+    companyLevel: companyLevel,
+    day: day,
+    credits: credits,
+    visitedCount: Math.max(visitedSystems.length, safeState.currentSystem ? 1 : 0),
+    stationCount: stationCount,
+    stockHoldingCount: stockHoldingCount,
+    openFuturesCount: openFuturesCount,
+    hasCapitalFootprint: hasCapitalFootprint,
+    hasOperationsFootprint: hasOperationsFootprint,
+    hasSurveyIntel: hasSurveyIntel,
+    hasBlackMarket: !!(systemFaction && systemFaction.marketAccess && systemFaction.marketAccess.blackMarket),
+    blackMarketUnlocked: !!blackMarketUnlocked,
+  };
+}
+
+function _buildCompanyUnlockPath(access, extraCondition) {
+  if (!access || access.unlocked) return '';
+  var text = '当前公司 Lv.' + access.currentLevel + ' / 需要 Lv.' + access.requiredLevel + '。';
+  if (extraCondition) text += extraCondition + ' ';
+  return text + '最近获得公司经验：完成手动交易、任务结算、舰队派遣和贸易站投资。';
+}
+
+function _buildMarketProgression(state, sysId, options) {
+  var stats = _getMarketExperienceStats(state, sysId, options);
+  var capitalAccess = getCompanyAccessState(state, 'capitalLocal');
+  var stocksAccess = getCompanyAccessState(state, 'stocks');
+  var futuresAccess = getCompanyAccessState(state, 'futures');
+  var tradeStationBuildAccess = getCompanyAccessState(state, 'tradeStationBuild');
+  var operationsNetworkAccess = getCompanyAccessState(state, 'operationsNetwork');
+  var capitalLocalUnlocked = capitalAccess.unlocked || stats.hasCapitalFootprint;
+  var stocksUnlocked = stocksAccess.unlocked || stats.stockHoldingCount > 0;
+  var futuresUnlocked = futuresAccess.unlocked || stats.openFuturesCount > 0;
+  var operationsLocalUnlocked = capitalAccess.unlocked || stats.hasOperationsFootprint;
+  var operationsNetworkUnlocked = stats.stationCount > 0 && operationsNetworkAccess.unlocked;
+  var operationsStationsUnlocked = tradeStationBuildAccess.unlocked || stats.stationCount > 0;
+  var capitalUnlocked = capitalLocalUnlocked || stocksUnlocked || futuresUnlocked;
+  var operationsUnlocked = operationsLocalUnlocked || operationsNetworkUnlocked || operationsStationsUnlocked;
+  var blackUnlockLabel = stats.hasBlackMarket ? '需辛迪加友好关系' : '需找到黑市辖区';
+  var capitalLockDetail = _buildCompanyUnlockPath(capitalAccess);
+  var stocksLockDetail = _buildCompanyUnlockPath(stocksAccess);
+  var futuresLockDetail = _buildCompanyUnlockPath(futuresAccess);
+  var tradeStationLockDetail = _buildCompanyUnlockPath(tradeStationBuildAccess);
+  var operationsNetworkLockDetail = _buildCompanyUnlockPath(operationsNetworkAccess, '同时需要至少建成 1 座贸易站。');
+
+  return {
+    stats: stats,
+    workspace: {
+      spot: { unlocked: true, stateLabel: '已开放', unlockLabel: '从这里开始' },
+      capital: {
+        unlocked: capitalUnlocked,
+        stateLabel: capitalUnlocked ? '已开放' : '待解锁',
+        unlockLabel: capitalAccess.lockLabel,
+        lockDetail: capitalLockDetail,
+      },
+      operations: {
+        unlocked: operationsUnlocked,
+        stateLabel: operationsUnlocked ? '已开放' : '待解锁',
+        unlockLabel: capitalAccess.lockLabel,
+        lockDetail: capitalLockDetail,
+      },
+    },
+    subworkspace: {
+      spot: {
+        trade: { unlocked: true, stateLabel: '核心', unlockLabel: '默认开放' },
+        intel: { unlocked: true, stateLabel: stats.hasSurveyIntel ? '有报告' : '已开放', unlockLabel: '默认开放' },
+        black: {
+          unlocked: stats.blackMarketUnlocked,
+          stateLabel: stats.blackMarketUnlocked ? '已开放' : '锁定',
+          unlockLabel: blackUnlockLabel,
+        },
+      },
+      capital: {
+        local: {
+          unlocked: capitalLocalUnlocked,
+          stateLabel: capitalLocalUnlocked ? '已开放' : '锁定',
+          unlockLabel: capitalAccess.lockLabel,
+          lockDetail: capitalLockDetail,
+        },
+        stocks: {
+          unlocked: stocksUnlocked,
+          stateLabel: stocksUnlocked ? '已开放' : '锁定',
+          unlockLabel: stocksAccess.lockLabel,
+          lockDetail: stocksLockDetail,
+        },
+        futures: {
+          unlocked: futuresUnlocked,
+          stateLabel: futuresUnlocked ? '已开放' : '锁定',
+          unlockLabel: futuresAccess.lockLabel,
+          lockDetail: futuresLockDetail,
+        },
+      },
+      operations: {
+        local: {
+          unlocked: operationsLocalUnlocked,
+          stateLabel: operationsLocalUnlocked ? '已开放' : '锁定',
+          unlockLabel: capitalAccess.lockLabel,
+          lockDetail: capitalLockDetail,
+        },
+        network: {
+          unlocked: operationsNetworkUnlocked,
+          stateLabel: operationsNetworkUnlocked ? '已开放' : '锁定',
+          unlockLabel: operationsNetworkAccess.lockLabel + ' + 建成 1 座贸易站',
+          lockDetail: operationsNetworkLockDetail,
+        },
+        stations: {
+          unlocked: operationsStationsUnlocked,
+          stateLabel: operationsStationsUnlocked ? '已开放' : '锁定',
+          unlockLabel: tradeStationBuildAccess.lockLabel,
+          lockDetail: tradeStationLockDetail,
+        },
+      },
+    },
+    routeStages: [
+      {
+        id: 'trade',
+        index: '01',
+        label: '现货成交',
+        note: '买卖、补给、看当前货舱',
+        workspaceId: 'spot',
+        subworkspaceId: 'trade',
+        unlocked: true,
+      },
+      {
+        id: 'intel',
+        index: '02',
+        label: '行情判断',
+        note: '价格矩阵、波动榜、勘探报告',
+        workspaceId: 'spot',
+        subworkspaceId: 'intel',
+        unlocked: true,
+      },
+      {
+        id: 'capital',
+        index: '03',
+        label: '资本调度',
+        note: '贷款、保险、本地投资',
+        workspaceId: 'capital',
+        subworkspaceId: 'local',
+        unlocked: capitalLocalUnlocked,
+        unlockLabel: capitalAccess.lockLabel,
+        lockDetail: capitalLockDetail,
+      },
+      {
+        id: 'positions',
+        index: '04',
+        label: '长期仓位',
+        note: '股票与期货分开开放',
+        workspaceId: 'capital',
+        subworkspaceId: stocksUnlocked ? 'stocks' : 'futures',
+        unlocked: stocksUnlocked || futuresUnlocked,
+        unlockLabel: stocksAccess.lockLabel + '，' + futuresAccess.lockLabel + '开放期货',
+        lockDetail: (stocksUnlocked ? futuresLockDetail : stocksLockDetail),
+      },
+      {
+        id: 'network',
+        index: '05',
+        label: '商网经营',
+        note: '建站、升级、全网编排',
+        workspaceId: 'operations',
+        subworkspaceId: 'local',
+        unlocked: operationsUnlocked,
+        unlockLabel: capitalAccess.lockLabel,
+        lockDetail: capitalLockDetail,
+      },
+    ],
+  };
+}
+
+export function getMarketExperienceRoute(state, sysId) {
+  var progression = _buildMarketProgression(state || {}, sysId || (state && state.currentSystem));
+  return {
+    stats: progression.stats,
+    stages: progression.routeStages.map(function (stage) {
+      return Object.assign({}, stage);
+    }),
+    workspace: {
+      spot: Object.assign({}, progression.workspace.spot),
+      capital: Object.assign({}, progression.workspace.capital),
+      operations: Object.assign({}, progression.workspace.operations),
+    },
+    subworkspace: {
+      spot: Object.assign({}, progression.subworkspace.spot),
+      capital: Object.assign({}, progression.subworkspace.capital),
+      operations: Object.assign({}, progression.subworkspace.operations),
+    },
+  };
+}
+
+function _normalizeMarketWorkspaceFocus(focus, progression) {
   if (!focus || typeof focus !== 'object') return null;
 
   var workspaceId = typeof focus.workspaceId === 'string' ? focus.workspaceId : '';
   if (!MARKET_WORKSPACE_TABS.some(function (entry) { return entry.id === workspaceId; })) return null;
+  if (!_isMarketWorkspaceUnlocked(workspaceId, progression)) {
+    workspaceId = _getFirstUnlockedWorkspace(progression);
+  }
 
-  var subworkspaceTabs = _getMarketSubworkspaceTabs(workspaceId);
+  var subworkspaceTabs = _getMarketSubworkspaceTabs(workspaceId, progression);
   var subworkspaceId = typeof focus.subworkspaceId === 'string' ? focus.subworkspaceId : '';
-  if (subworkspaceTabs.length > 0 && !subworkspaceTabs.some(function (entry) { return entry.id === subworkspaceId; })) {
-    subworkspaceId = subworkspaceTabs[0].id;
+  if (subworkspaceTabs.length > 0 && !subworkspaceTabs.some(function (entry) { return entry.id === subworkspaceId && entry.unlocked !== false; })) {
+    var firstUnlocked = subworkspaceTabs.find(function (entry) { return entry.unlocked !== false; });
+    subworkspaceId = (firstUnlocked || subworkspaceTabs[0]).id;
   }
 
   return {
     workspaceId: workspaceId,
     subworkspaceId: subworkspaceTabs.length > 0 ? subworkspaceId : '',
+    goodId: typeof focus.goodId === 'string' ? focus.goodId.trim() : '',
+    tradeAction: typeof focus.tradeAction === 'string' ? focus.tradeAction.trim() : '',
   };
 }
 
-function _applyMarketSubworkspaceTabState(container, workspaceId) {
+function _getMarketFocusKey(sysId, marketMode) {
+  if (!sysId) return '';
+  return sysId + ':' + (marketMode || 'open');
+}
+
+function _escapeSelectorValue(value) {
+  var text = String(value);
+  if (typeof CSS !== 'undefined' && CSS.escape) {
+    return CSS.escape(text);
+  }
+  if (typeof globalThis !== 'undefined' && globalThis.CSS && globalThis.CSS.escape) {
+    return globalThis.CSS.escape(text);
+  }
+  return text.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+function _escapeHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function _escapeHtmlAttr(value) {
+  return _escapeHtml(value);
+}
+
+function _clearMarketGuideFocus() {
+  if (!_hasDocument() || !document.querySelectorAll) return;
+
+  document.querySelectorAll('.market-good-card--guide-focus').forEach(function (card) {
+    card.classList.remove('market-good-card--guide-focus');
+    if (card.removeAttribute) card.removeAttribute('data-guide-focus');
+  });
+  document.querySelectorAll('.market-card-btn--guide-focus').forEach(function (button) {
+    button.classList.remove('market-card-btn--guide-focus');
+  });
+}
+
+function _revealMarketGoodFocus(goodId, options) {
+  if (!_hasDocument() || !goodId || !document.querySelector) return false;
+
+  _clearMarketGuideFocus();
+
+  var card = document.querySelector('[data-market-good="' + _escapeSelectorValue(goodId) + '"]');
+  if (!card) return false;
+  var opts = options || {};
+  var tradeAction = opts.tradeAction === 'sell' ? 'sell' : 'buy';
+
+  card.classList.add('market-good-card--guide-focus');
+  if (card.setAttribute) card.setAttribute('data-guide-focus', 'true');
+
+  var actionButton = card.querySelector
+    ? card.querySelector(tradeAction === 'sell' ? '.sell-card-btn' : '.buy-card-btn')
+    : null;
+  if (actionButton) {
+    actionButton.classList.add('market-card-btn--guide-focus');
+  }
+
+  if (typeof card.scrollIntoView === 'function') {
+    card.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+  }
+
+  return true;
+}
+
+export function revealMarketGoodFocus(goodId, options) {
+  return _revealMarketGoodFocus(goodId, options);
+}
+
+export function setFocusedMarketGood(sysId, marketMode, goodId) {
+  var normalizedGoodId = typeof goodId === 'string' ? goodId.trim() : '';
+  var focusKey = _getMarketFocusKey(sysId, marketMode);
+  if (!focusKey || !normalizedGoodId) return false;
+
+  _focusedMarketGood[focusKey] = normalizedGoodId;
+  return true;
+}
+
+function _isMarketWorkspaceUnlocked(workspaceId, progression) {
+  if (!progression || !progression.workspace || !progression.workspace[workspaceId]) return true;
+  return progression.workspace[workspaceId].unlocked !== false;
+}
+
+function _isMarketSubworkspaceUnlocked(workspaceId, subworkspaceId, progression) {
+  if (!progression || !progression.subworkspace || !progression.subworkspace[workspaceId]) return true;
+  var access = progression.subworkspace[workspaceId][subworkspaceId];
+  return !access || access.unlocked !== false;
+}
+
+function _getFirstUnlockedWorkspace(progression) {
+  var first = MARKET_WORKSPACE_TABS.find(function (entry) {
+    return _isMarketWorkspaceUnlocked(entry.id, progression);
+  });
+  return first ? first.id : 'spot';
+}
+
+function _ensureMarketWorkspaceState(progression) {
+  if (!MARKET_WORKSPACE_TABS.some(function (entry) { return entry.id === _activeMarketWorkspaceTab; })) {
+    _activeMarketWorkspaceTab = 'spot';
+  }
+  if (!_isMarketWorkspaceUnlocked(_activeMarketWorkspaceTab, progression)) {
+    _activeMarketWorkspaceTab = _getFirstUnlockedWorkspace(progression);
+  }
+  _ensureMarketSubworkspaceState(_activeMarketWorkspaceTab, progression);
+  return _activeMarketWorkspaceTab;
+}
+
+function _applyMarketSubworkspaceTabState(container, workspaceId, progression) {
   if (!container || !workspaceId) return;
 
-  var activeTab = _ensureMarketSubworkspaceState(workspaceId);
+  var activeTab = _ensureMarketSubworkspaceState(workspaceId, progression);
   container.querySelectorAll('[data-market-subworkspace-tab="' + workspaceId + '"]').forEach(function (entry) {
     entry.classList.toggle('active', entry.dataset.marketSubworkspaceId === activeTab);
   });
@@ -110,7 +484,7 @@ function _applyMarketSubworkspaceTabState(container, workspaceId) {
 }
 
 export function setMarketWorkspaceFocus(focus) {
-  var normalized = _normalizeMarketWorkspaceFocus(focus);
+  var normalized = _normalizeMarketWorkspaceFocus(focus, _lastMarketProgression);
   if (!normalized) return false;
 
   _activeMarketWorkspaceTab = normalized.workspaceId;
@@ -119,19 +493,27 @@ export function setMarketWorkspaceFocus(focus) {
   }
 
   if (_hasDocument()) {
-    _applyMarketWorkspaceTabState();
+    _applyMarketWorkspaceTabState(_lastMarketProgression);
     _applyMarketSubworkspaceTabState(
       document.getElementById('market-' + normalized.workspaceId + '-pane'),
-      normalized.workspaceId
+      normalized.workspaceId,
+      _lastMarketProgression
     );
+    _renderMarketExperienceRoute(_lastMarketProgression);
+    if (normalized.goodId) {
+      _revealMarketGoodFocus(normalized.goodId, { tradeAction: normalized.tradeAction });
+    } else {
+      _clearMarketGuideFocus();
+    }
   }
 
   return true;
 }
 
-function _applyMarketWorkspaceTabState() {
+function _applyMarketWorkspaceTabState(progression) {
   if (!_hasDocument()) return;
 
+  if (progression) _ensureMarketWorkspaceState(progression);
   var tabs = document.getElementById('market-workspace-tabs');
   var paneMap = {
     spot: document.getElementById('market-spot-pane'),
@@ -151,77 +533,175 @@ function _applyMarketWorkspaceTabState() {
   });
 }
 
-function _renderMarketWorkspaceTabs() {
+function _getMarketWorkspaceTabs(progression) {
+  return MARKET_WORKSPACE_TABS.map(function (entry) {
+    var access = progression && progression.workspace ? progression.workspace[entry.id] : null;
+    return Object.assign({}, entry, {
+      unlocked: !access || access.unlocked !== false,
+      stateLabel: access && access.stateLabel ? access.stateLabel : '已开放',
+      unlockLabel: access && access.unlockLabel ? access.unlockLabel : '',
+      lockDetail: access && access.lockDetail ? access.lockDetail : '',
+    });
+  });
+}
+
+function _renderMarketWorkspaceTabs(progression) {
   var tabs = document.getElementById('market-workspace-tabs');
   if (!tabs) return;
 
-  tabs.innerHTML = MARKET_WORKSPACE_TABS.map(function (entry) {
-    return '<button class="market-workspace-tab' + (entry.id === _activeMarketWorkspaceTab ? ' active' : '') + '" data-market-workspace-tab="' + entry.id + '">' +
-      '<span class="market-workspace-tab-label">' + entry.label + '</span>' +
-      '<span class="market-workspace-tab-hint">' + entry.hint + '</span>' +
+  _ensureMarketWorkspaceState(progression);
+  tabs.innerHTML = _getMarketWorkspaceTabs(progression).map(function (entry) {
+    var locked = entry.unlocked === false;
+    return '<button class="market-workspace-tab' + (entry.id === _activeMarketWorkspaceTab ? ' active' : '') + (locked ? ' is-locked' : '') + '" data-market-workspace-tab="' + entry.id + '" data-market-locked="' + (locked ? 'true' : 'false') + '"' + (locked ? ' disabled aria-disabled="true"' : '') + '>' +
+      '<span class="market-workspace-tab-stage">' + entry.stage + '</span>' +
+      '<span class="market-workspace-tab-copy">' +
+        '<span class="market-workspace-tab-label">' + entry.label + '</span>' +
+        '<span class="market-workspace-tab-hint">' + entry.hint + '</span>' +
+      '</span>' +
+      '<span class="market-workspace-tab-state">' + (locked ? entry.unlockLabel : entry.stateLabel) + '</span>' +
     '</button>';
   }).join('');
 
   tabs.querySelectorAll('[data-market-workspace-tab]').forEach(function (button) {
     button.addEventListener('click', function () {
+      if (button.disabled || button.dataset.marketLocked === 'true') return;
       _activeMarketWorkspaceTab = button.dataset.marketWorkspaceTab || 'spot';
-      _applyMarketWorkspaceTabState();
+      _ensureMarketSubworkspaceState(_activeMarketWorkspaceTab, progression);
+      _applyMarketWorkspaceTabState(progression);
+      _renderMarketExperienceRoute(progression);
     });
   });
 
-  _applyMarketWorkspaceTabState();
+  _applyMarketWorkspaceTabState(progression);
 }
 
-function _getMarketSubworkspaceTabs(workspaceId) {
-  return MARKET_SUBWORKSPACE_TABS[workspaceId] || [];
+function _getMarketSubworkspaceTabs(workspaceId, progression) {
+  var tabs = MARKET_SUBWORKSPACE_TABS[workspaceId] || [];
+  return tabs.map(function (entry) {
+    var workspaceAccess = progression && progression.subworkspace ? progression.subworkspace[workspaceId] : null;
+    var access = workspaceAccess ? workspaceAccess[entry.id] : null;
+    return Object.assign({}, entry, {
+      unlocked: !access || access.unlocked !== false,
+      stateLabel: access && access.stateLabel ? access.stateLabel : '已开放',
+      unlockLabel: access && access.unlockLabel ? access.unlockLabel : '',
+      lockDetail: access && access.lockDetail ? access.lockDetail : '',
+    });
+  });
 }
 
-function _ensureMarketSubworkspaceState(workspaceId) {
-  var tabs = _getMarketSubworkspaceTabs(workspaceId);
+function _ensureMarketSubworkspaceState(workspaceId, progression) {
+  var tabs = _getMarketSubworkspaceTabs(workspaceId, progression);
   if (tabs.length === 0) return '';
   var activeTab = _activeMarketSubworkspaceTabs[workspaceId];
-  if (!tabs.some(function (entry) { return entry.id === activeTab; })) {
-    activeTab = tabs[0].id;
+  if (!tabs.some(function (entry) { return entry.id === activeTab && entry.unlocked !== false; })) {
+    var firstUnlocked = tabs.find(function (entry) { return entry.unlocked !== false; });
+    activeTab = (firstUnlocked || tabs[0]).id;
     _activeMarketSubworkspaceTabs[workspaceId] = activeTab;
   }
   return activeTab;
 }
 
-function _renderMarketSubworkspace(workspaceId, sections) {
-  var tabs = _getMarketSubworkspaceTabs(workspaceId);
+function _renderMarketLockedPane(entry) {
+  return '<section class="market-locked-pane">' +
+    '<div class="market-locked-pane-mark">LOCK</div>' +
+    '<div class="market-locked-pane-copy">' +
+      '<div class="market-locked-pane-title">' + _escapeHtml(entry.label) + ' 暂未开放</div>' +
+      '<div class="market-locked-pane-text">为了让市场体验按顺序展开，这个功能会在完成前置进度后加入终端。</div>' +
+      '<div class="market-locked-pane-condition">' + _escapeHtml(entry.unlockLabel || '继续推进贸易路线') + '</div>' +
+      (entry.lockDetail ? '<div class="market-locked-pane-path">' + _escapeHtml(entry.lockDetail) + '</div>' : '') +
+    '</div>' +
+  '</section>';
+}
+
+function _renderMarketSubworkspace(workspaceId, sections, progression) {
+  var tabs = _getMarketSubworkspaceTabs(workspaceId, progression);
   if (tabs.length === 0) return '';
 
-  var activeTab = _ensureMarketSubworkspaceState(workspaceId);
+  var activeTab = _ensureMarketSubworkspaceState(workspaceId, progression);
 
   return '<div class="market-subworkspace" data-market-subworkspace="' + workspaceId + '">' +
     '<div class="market-subworkspace-tabs" role="tablist" aria-label="' + workspaceId + ' 二级菜单">' +
       tabs.map(function (entry) {
-        return '<button class="market-subworkspace-tab' + (entry.id === activeTab ? ' active' : '') + '" data-market-subworkspace-tab="' + workspaceId + '" data-market-subworkspace-id="' + entry.id + '">' +
+        var locked = entry.unlocked === false;
+        return '<button class="market-subworkspace-tab' + (entry.id === activeTab ? ' active' : '') + (locked ? ' is-locked' : '') + '" data-market-subworkspace-tab="' + workspaceId + '" data-market-subworkspace-id="' + entry.id + '" data-market-locked="' + (locked ? 'true' : 'false') + '"' + (locked ? ' disabled aria-disabled="true"' : '') + '>' +
           '<span class="market-subworkspace-tab-label">' + entry.label + '</span>' +
           '<span class="market-subworkspace-tab-hint">' + entry.hint + '</span>' +
+          '<span class="market-subworkspace-tab-state">' + (locked ? entry.unlockLabel : entry.stateLabel) + '</span>' +
         '</button>';
       }).join('') +
     '</div>' +
     '<div class="market-subworkspace-panes">' +
       tabs.map(function (entry) {
         return '<div class="market-subworkspace-pane' + (entry.id === activeTab ? '' : ' hidden') + '" data-market-subworkspace-pane="' + workspaceId + '" data-market-subworkspace-id="' + entry.id + '">' +
-          (sections[entry.id] || '<div class="market-finance-empty">该分区暂无可用内容。</div>') +
+          (entry.unlocked === false ? _renderMarketLockedPane(entry) : (sections[entry.id] || '<div class="market-finance-empty">该分区暂无可用内容。</div>')) +
         '</div>';
       }).join('') +
     '</div>' +
   '</div>';
 }
 
-function _bindMarketSubworkspaceTabs(container) {
+function _bindMarketSubworkspaceTabs(container, progression) {
   if (!container) return;
 
   container.querySelectorAll('[data-market-subworkspace-tab]').forEach(function (button) {
     button.addEventListener('click', function () {
+      if (button.disabled || button.dataset.marketLocked === 'true') return;
       var workspaceId = button.dataset.marketSubworkspaceTab;
       var tabId = button.dataset.marketSubworkspaceId;
       if (!workspaceId || !tabId) return;
       _activeMarketSubworkspaceTabs[workspaceId] = tabId;
-      _applyMarketSubworkspaceTabState(container, workspaceId);
+      _applyMarketSubworkspaceTabState(container, workspaceId, progression);
+      _renderMarketExperienceRoute(progression);
+    });
+  });
+}
+
+function _isMarketRouteStageActive(stage) {
+  if (!stage) return false;
+  if (stage.workspaceId !== _activeMarketWorkspaceTab) return false;
+  if (!stage.subworkspaceId) return true;
+  return _activeMarketSubworkspaceTabs[stage.workspaceId] === stage.subworkspaceId;
+}
+
+function _renderMarketExperienceRoute(progression) {
+  if (!_hasDocument()) return;
+
+  var routeEl = document.getElementById('market-experience-route');
+  if (!routeEl || !progression || !Array.isArray(progression.routeStages)) return;
+
+  var stats = progression.stats || {};
+  routeEl.innerHTML = '<section class="market-experience-route" aria-label="市场体验线路">' +
+    '<div class="market-experience-route-copy">' +
+      '<div class="market-experience-route-kicker">MARKET FLOW</div>' +
+      '<div class="market-experience-route-title">先成交，再扩张</div>' +
+      '<div class="market-experience-route-note">公司 Lv.' + _escapeHtml(stats.companyLevel || 1) + ' · 玩家 Lv.' + _escapeHtml(stats.playerLevel || 1) + ' · 已访问 ' + _escapeHtml(stats.visitedCount || 1) + ' 站 · 贸易站 ' + _escapeHtml(stats.stationCount || 0) + ' 座</div>' +
+    '</div>' +
+    '<div class="market-experience-route-steps">' +
+      progression.routeStages.map(function (stage) {
+        var locked = stage.unlocked === false;
+        var active = _isMarketRouteStageActive(stage);
+        return '<button class="market-experience-step' + (active ? ' active' : '') + (locked ? ' is-locked' : '') + '" type="button" data-market-route-workspace="' + _escapeHtmlAttr(stage.workspaceId) + '" data-market-route-subworkspace="' + _escapeHtmlAttr(stage.subworkspaceId || '') + '" data-market-locked="' + (locked ? 'true' : 'false') + '"' + (locked ? ' disabled aria-disabled="true"' : '') + '>' +
+          '<span class="market-experience-step-index">' + _escapeHtml(stage.index) + '</span>' +
+          '<span class="market-experience-step-copy">' +
+            '<span class="market-experience-step-label">' + _escapeHtml(stage.label) + '</span>' +
+            '<span class="market-experience-step-note">' + _escapeHtml(locked ? (stage.unlockLabel || '继续推进贸易路线') : stage.note) + '</span>' +
+            (locked && stage.lockDetail ? '<span class="market-experience-step-path">' + _escapeHtml(stage.lockDetail) + '</span>' : '') +
+          '</span>' +
+        '</button>';
+      }).join('') +
+    '</div>' +
+  '</section>';
+
+  routeEl.querySelectorAll('[data-market-route-workspace]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      if (button.disabled || button.dataset.marketLocked === 'true') return;
+      var workspaceId = button.dataset.marketRouteWorkspace || 'spot';
+      var subworkspaceId = button.dataset.marketRouteSubworkspace || '';
+      _activeMarketWorkspaceTab = workspaceId;
+      if (subworkspaceId) _activeMarketSubworkspaceTabs[workspaceId] = subworkspaceId;
+      _applyMarketWorkspaceTabState(progression);
+      _applyMarketSubworkspaceTabState(document.getElementById('market-' + workspaceId + '-pane'), workspaceId, progression);
+      _renderMarketExperienceRoute(progression);
     });
   });
 }
@@ -577,6 +1057,7 @@ function _renderAnalysisPanel(container, state, sysId, snapshots, marketMode) {
 
 function _renderSpotIntelSection(state, sysId, snapshots, marketMode, systemFaction, blackMarketUnlocked) {
   var system = findSystem(sysId);
+  var surveyIntel = Exploration.getSurveyDecisionIntel(state, sysId);
   var bestDemand = _pickSnapshot(snapshots, function (a, b) {
     return b.supplyDemand.ratio - a.supplyDemand.ratio;
   });
@@ -609,6 +1090,7 @@ function _renderSpotIntelSection(state, sysId, snapshots, marketMode, systemFact
       '<div class="market-finance-summary-metric"><span>买卖价差</span><strong>' + (widestSpread ? (widestSpread.good.emoji + ' ' + widestSpread.spread.toLocaleString()) : '—') + '</strong></div>' +
     '</div>' +
   '</section>' +
+  _renderSurveyIntelMarketSection(surveyIntel) +
   '<section class="market-finance-section">' +
     '<div class="market-finance-section-head">' +
       '<div>' +
@@ -651,6 +1133,36 @@ function _renderSpotIntelSection(state, sysId, snapshots, marketMode, systemFact
           '</div>';
         }).join('') + '</div>'
       : '<div class="market-finance-empty">当前没有足够的行情数据生成观察名单。</div>') +
+  '</section>';
+}
+
+function _renderSurveyIntelMarketSection(surveyIntel) {
+  if (!surveyIntel || !surveyIntel.hasIntel) return '';
+
+  var signalNotes = [];
+  if (surveyIntel.marketSignal) signalNotes.push('贸易窗口');
+  if (surveyIntel.researchSignal) signalNotes.push('科研样本');
+  if (surveyIntel.routeSignal) signalNotes.push('暗线航图');
+  if (surveyIntel.logisticsSignal) signalNotes.push('补给节点');
+  if (signalNotes.length === 0) signalNotes.push(surveyIntel.opportunityLabel || '勘探情报');
+
+  return '<section class="market-finance-section">' +
+    '<div class="market-finance-section-head">' +
+      '<div>' +
+        '<div class="market-finance-title">📘 勘探报告联动</div>' +
+        '<div class="market-finance-subtitle">' + _escapeHtml(surveyIntel.marketHint) + '</div>' +
+      '</div>' +
+      '<span class="market-finance-chip">' + _escapeHtml(surveyIntel.primaryLabel) + '</span>' +
+    '</div>' +
+    '<div class="market-finance-action-list">' +
+      '<div class="market-finance-action-row">' +
+        '<div class="market-finance-action-main">' +
+          '<div class="market-finance-action-title">' + _escapeHtml(surveyIntel.recentReportTitle || '勘探报告') + '</div>' +
+          '<div class="market-finance-action-meta">情报等级 Lv.' + _escapeHtml(surveyIntel.intelLevel) + ' · 已归档 ' + _escapeHtml(surveyIntel.reportCount) + ' 份 · ' + _escapeHtml(signalNotes.join(' / ')) + '</div>' +
+        '</div>' +
+        '<div class="market-finance-network-note">' + _escapeHtml(surveyIntel.dispatchHint || '行情参考') + '</div>' +
+      '</div>' +
+    '</div>' +
   '</section>';
 }
 
@@ -1834,7 +2346,7 @@ function _renderOverviewTable(state, galaxyId, onPlanetClick, tableIds) {
   });
 }
 
-function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions) {
+function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions, progression) {
   var capitalContainer = document.getElementById('market-capital-pane');
   var operationsContainer = document.getElementById('market-operations-pane');
   if (!capitalContainer || !operationsContainer) return;
@@ -1958,7 +2470,7 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
         : '') +
       (isCurrentSys
         ? '<div class="market-finance-actions">' +
-            '<button class="btn-action market-finance-btn' + (localStation.nextLevel ? '' : ' disabled') + '" data-action="market-upgrade-station" data-system-id="' + localStation.station.systemId + '"' + (localStation.nextLevel ? '' : ' disabled') + '>' + (localStation.nextLevel ? ('升级 +' + localStation.nextUpgradeCost.toLocaleString()) : '已满级') + '</button>' +
+            '<button class="btn-action market-finance-btn' + (localStation.nextLevel ? '' : ' disabled') + '" data-action="market-upgrade-station" data-system-id="' + localStation.station.systemId + '"' + (localStation.nextLevel ? '' : ' disabled') + '>' + (localStation.nextLevel ? ('升级 +' + localStation.nextUpgradeCost.toLocaleString()) : (localStation.nextLevelLockLabel || '已满级')) + '</button>' +
             (localInvestment ? '<button class="btn-action market-finance-btn" data-action="market-invest-trade-station" data-system-id="' + localInvestment.systemId + '">追加投资</button>' : '') +
           '</div>' +
           '<div class="market-finance-station-stack">' +
@@ -1982,13 +2494,13 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
         '<span class="market-finance-chip">' + buildCandidate.system.typeLabel + '</span>' +
       '</div>' +
       '<div class="market-finance-card-meta">市场深度 ' + (buildCandidate.system.marketDepth || 200) + ' · ' + buildCandidate.system.description + '</div>' +
-      '<div class="market-finance-card-meta">建站后可持续吃到本地行情与经济周期红利。</div>' +
+      '<div class="market-finance-card-meta">' + (buildCandidate.lockReason || '建站后可持续吃到本地行情与经济周期红利。') + '</div>' +
       (localInvestment
         ? '<div class="market-finance-card-meta">同步可做站点投资：已投 ' + Math.floor(localInvestment.investedAmount || 0).toLocaleString() + ' · 建议追加 ' + localInvestment.suggestedAmount.toLocaleString() + '</div>'
         : '') +
       (isCurrentSys
         ? '<div class="market-finance-actions">' +
-            '<button class="btn-action market-finance-btn' + (buildCandidate.canAfford ? '' : ' disabled') + '" data-action="market-build-station" data-system-id="' + buildCandidate.system.id + '"' + (buildCandidate.canAfford ? '' : ' disabled') + '>投资 ' + buildCandidate.buildCost.toLocaleString() + '</button>' +
+            '<button class="btn-action market-finance-btn' + (buildCandidate.canAfford ? '' : ' disabled') + '" data-action="market-build-station" data-system-id="' + buildCandidate.system.id + '"' + (buildCandidate.canAfford ? '' : ' disabled') + '>' + (buildCandidate.canAfford ? ('投资 ' + buildCandidate.buildCost.toLocaleString()) : (buildCandidate.lockReason || ('投资 ' + buildCandidate.buildCost.toLocaleString()))) + '</button>' +
             (localInvestment ? '<button class="btn-action market-finance-btn" data-action="market-invest-trade-station" data-system-id="' + localInvestment.systemId + '">先做财务投资</button>' : '') +
           '</div>'
         : '<div class="market-finance-locked">📡 这是可建站候选节点。抵达后可直接在此发起投资。</div>') +
@@ -2061,7 +2573,7 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
         '</div>' +
         '<div class="trade-station-card-meta">市场深度 ' + (candidate.system.marketDepth || 200) + ' · ' + (candidate.isCurrent ? '当前停靠中，可立即投资' : '已访问，可先纳入建站计划') + '</div>' +
         '<div class="trade-station-card-desc">' + candidate.system.description + '</div>' +
-        '<button class="btn-action trade-station-build-btn' + (candidate.canAfford ? '' : ' disabled') + '" data-action="market-build-station" data-system-id="' + candidate.system.id + '"' + (candidate.canAfford ? '' : ' disabled') + '>投资 ' + candidate.buildCost.toLocaleString() + ' 积分</button>' +
+        '<button class="btn-action trade-station-build-btn' + (candidate.canAfford ? '' : ' disabled') + '" data-action="market-build-station" data-system-id="' + candidate.system.id + '"' + (candidate.canAfford ? '' : ' disabled') + '>' + (candidate.canAfford ? ('投资 ' + candidate.buildCost.toLocaleString() + ' 积分') : (candidate.lockReason || ('投资 ' + candidate.buildCost.toLocaleString() + ' 积分'))) + '</button>' +
       '</div>';
     });
   } else {
@@ -2092,7 +2604,7 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
         '<div class="trade-station-card-meta">管理员：' + (entry.manager ? (entry.manager.name + '（日薪 ' + entry.manager.dailySalary + '）') : '未雇佣') + ' · 策略：' + entry.strategy.name + '</div>' +
         '<div class="trade-station-actions">' +
           '<button class="btn-action trade-station-upgrade-btn' + (entry.nextLevel ? '' : ' disabled') + '" data-action="market-upgrade-station" data-system-id="' + station.systemId + '"' + (entry.nextLevel ? '' : ' disabled') + '>' +
-            (entry.nextLevel ? ('升级至 Lv.' + entry.nextLevel.level + '（+' + entry.nextUpgradeCost.toLocaleString() + '）') : '已达满级') +
+            (entry.nextLevel ? ('升级至 Lv.' + entry.nextLevel.level + '（+' + entry.nextUpgradeCost.toLocaleString() + '）') : (entry.nextLevelLockLabel || '已达满级')) +
           '</button>' +
         '</div>' +
         '<div class="trade-station-subsection">👤 管理员</div>' +
@@ -2218,7 +2730,7 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
     local: capitalLocalSection,
     stocks: capitalStocksSection,
     futures: capitalFuturesSection,
-  }) + '</div>';
+  }, progression) + '</div>';
   operationsContainer.innerHTML = _renderOperationsCommandDeck(
     viewingSystem,
     commerceSnapshot,
@@ -2233,12 +2745,12 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
     local: operationsLocalSection,
     network: operationsNetworkSection,
     stations: operationsStationsSection,
-  }) + '</div>';
+  }, progression) + '</div>';
 
   [capitalContainer, operationsContainer].forEach(function (container) {
     if (!container) return;
 
-    _bindMarketSubworkspaceTabs(container);
+    _bindMarketSubworkspaceTabs(container, progression);
 
     container.querySelectorAll('[data-action="market-batch-set-sort"]').forEach(function (button) {
       button.addEventListener('click', function () {
@@ -2384,10 +2896,21 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
 export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode, viewingGalaxy, onBlackBuy, onBlackSell, financeActions) {
   const sysId         = viewingSystem || state.currentSystem;
   const isCurrentSys  = sysId === state.currentSystem;
-  const isBlack       = marketMode === 'black';
   const spotContainer = document.getElementById('market-spot-pane');
   const tradeGalaxyId = viewingGalaxy || state.currentGalaxy;
-  _renderMarketWorkspaceTabs();
+
+  // 非当前星球时显示只读提示
+  // 黑市模式横幅
+  var blackMarketUnlocked = Faction.canAccessBlackMarket(state, sysId);
+  var systemFaction = Faction.getFactionForSystem(sysId);
+  var requestedMarketMode = marketMode === 'black' ? 'black' : 'open';
+  var effectiveMarketMode = requestedMarketMode === 'black' && blackMarketUnlocked ? 'black' : 'open';
+  const isBlack = effectiveMarketMode === 'black';
+  var progression = _buildMarketProgression(state, sysId, {
+    systemFaction: systemFaction,
+    blackMarketUnlocked: blackMarketUnlocked,
+  });
+  _lastMarketProgression = progression;
 
   if (isBlack && _activeMarketSubworkspaceTabs.spot === 'trade') {
     _activeMarketSubworkspaceTabs.spot = 'black';
@@ -2395,29 +2918,28 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode
     _activeMarketSubworkspaceTabs.spot = 'trade';
   }
 
-  // 非当前星球时显示只读提示
-  // 黑市模式横幅
-  var blackMarketUnlocked = Faction.canAccessBlackMarket(state, sysId);
-  var systemFaction = Faction.getFactionForSystem(sysId);
+  _ensureMarketWorkspaceState(progression);
+  _renderMarketWorkspaceTabs(progression);
+  _updateMarketDetailMode(state, sysId, isCurrentSys, effectiveMarketMode);
 
   // 根据市场模式筛选商品
   var goodsList = isBlack ? Economy.getBlackMarketGoods() : GOODS;
-  var focusKey = sysId + ':' + (marketMode || 'open');
+  var focusKey = sysId + ':' + effectiveMarketMode;
   if (!_marketChartRange[focusKey]) _marketChartRange[focusKey] = 14;
   var snapshots = _buildMarketSnapshots(state, sysId, goodsList, isBlack, _marketChartRange[focusKey]);
 
   if (spotContainer) {
     spotContainer.innerHTML = _renderMarketSubworkspace('spot', {
       trade: _renderSpotTradeSection(),
-      intel: _renderSpotIntelSection(state, sysId, snapshots, marketMode || 'open', systemFaction, blackMarketUnlocked),
-      black: _renderBlackMarketSection(state, sysId, marketMode || 'open', systemFaction, blackMarketUnlocked),
-    });
-    _bindMarketSubworkspaceTabs(spotContainer);
+      intel: _renderSpotIntelSection(state, sysId, snapshots, effectiveMarketMode, systemFaction, blackMarketUnlocked),
+      black: _renderBlackMarketSection(state, sysId, effectiveMarketMode, systemFaction, blackMarketUnlocked),
+    }, progression);
+    _bindMarketSubworkspaceTabs(spotContainer, progression);
   }
 
   _renderOverviewTable(state, tradeGalaxyId, function (systemId) {
-    showDetail(systemId, marketMode || 'open');
-    render(state, onBuy, onSell, onRefuel, systemId, marketMode, tradeGalaxyId, onBlackBuy, onBlackSell, financeActions);
+    showDetail(systemId, effectiveMarketMode);
+    render(state, onBuy, onSell, onRefuel, systemId, effectiveMarketMode, tradeGalaxyId, onBlackBuy, onBlackSell, financeActions);
   }, {
     theadId: 'market-trade-overview-thead',
     tbodyId: 'market-trade-overview-tbody',
@@ -2428,8 +2950,8 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode
   if (tradeSellToggle) {
     tradeSellToggle.onchange = function () {
       _renderOverviewTable(state, tradeGalaxyId, function (systemId) {
-        showDetail(systemId, marketMode || 'open');
-        render(state, onBuy, onSell, onRefuel, systemId, marketMode, tradeGalaxyId, onBlackBuy, onBlackSell, financeActions);
+        showDetail(systemId, effectiveMarketMode);
+        render(state, onBuy, onSell, onRefuel, systemId, effectiveMarketMode, tradeGalaxyId, onBlackBuy, onBlackSell, financeActions);
       }, {
         theadId: 'market-trade-overview-thead',
         tbodyId: 'market-trade-overview-tbody',
@@ -2448,18 +2970,18 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode
       state,
       sysId,
       snapshots,
-      marketMode || 'open',
+      effectiveMarketMode,
       isCurrentSys,
       systemFaction,
       blackMarketUnlocked
     );
   }
   if (goodsToolbarEl) {
-    goodsToolbarEl.innerHTML = _renderSpotGoodsToolbar(state, sysId, snapshots, marketMode || 'open');
+    goodsToolbarEl.innerHTML = _renderSpotGoodsToolbar(state, sysId, snapshots, effectiveMarketMode);
   }
   goodsListEl.innerHTML = '';
-  _renderMarketDashboard(state, sysId, marketMode || 'open', snapshots);
-  _updateMainKlineChart(state, sysId, snapshots, marketMode || 'open');
+  _renderMarketDashboard(state, sysId, effectiveMarketMode, snapshots);
+  _updateMainKlineChart(state, sysId, snapshots, effectiveMarketMode);
 
   // 市场深度提示
   var depth = Economy.getMarketDepth(sysId);
@@ -2483,8 +3005,26 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode
 
   if (!isCurrentSys) {
     var noteDiv = document.createElement('div');
+    var currentSystem = findSystem(state.currentSystem);
+    var viewedSystem = findSystem(sysId);
+    var currentName = currentSystem ? currentSystem.name : '当前停靠点';
+    var viewedName = viewedSystem ? viewedSystem.name : '该节点';
+    var canFocusRemote = financeActions && typeof financeActions.onFocusRemoteSystem === 'function';
     noteDiv.className = 'market-goods-readonly-note';
-    noteDiv.innerHTML = '<span class="readonly-icon">📡</span> 远程查看模式 · 交易请前往该星球';
+    noteDiv.innerHTML = '<span class="readonly-icon">📡</span>' +
+      '<span class="market-goods-readonly-copy"><strong>远程只读</strong> · 当前停靠「' + _escapeHtml(currentName) + '」，前往「' + _escapeHtml(viewedName) + '」后可交易、补给和本地经营。</span>' +
+      (canFocusRemote
+        ? '<button class="market-goods-readonly-action command-action-btn" type="button" data-action="market-focus-remote-system" data-system-id="' + _escapeHtmlAttr(sysId) + '">设为航点</button>'
+        : '');
+    if (canFocusRemote) {
+      var focusRemoteBtn = noteDiv.querySelector('[data-action="market-focus-remote-system"]');
+      if (focusRemoteBtn) {
+        focusRemoteBtn.addEventListener('click', function (event) {
+          event.stopPropagation();
+          financeActions.onFocusRemoteSystem(focusRemoteBtn.dataset.systemId);
+        });
+      }
+    }
     goodsListEl.appendChild(noteDiv);
   }
 
@@ -2593,7 +3133,7 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode
     }
     card.addEventListener('click', function () {
       _focusedMarketGood[focusKey] = good.id;
-      render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode, tradeGalaxyId, onBlackBuy, onBlackSell, financeActions);
+      render(state, onBuy, onSell, onRefuel, viewingSystem, effectiveMarketMode, tradeGalaxyId, onBlackBuy, onBlackSell, financeActions);
     });
     goodsListEl.appendChild(card);
   });
@@ -2612,11 +3152,12 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode
 
   // 右侧分析面板
   if (analysisPanelEl) {
-    _renderAnalysisPanel(analysisPanelEl, state, sysId, snapshots, marketMode || 'open');
+    _renderAnalysisPanel(analysisPanelEl, state, sysId, snapshots, effectiveMarketMode);
   }
 
-  _renderFinancePanels(state, sysId, isCurrentSys, financeActions);
-  _applyMarketWorkspaceTabState();
+  _renderFinancePanels(state, sysId, isCurrentSys, financeActions, progression);
+  _applyMarketWorkspaceTabState(progression);
+  _renderMarketExperienceRoute(progression);
 }
 
 // ---------------------------------------------------------------------------
@@ -2641,4 +3182,24 @@ export function showDetail(systemId, marketMode) {
       '<span class="market-detail-loc-status">终端状态: ' + (isBlack ? '🕶 黑市模式' : '在线') + '</span>';
   }
   if (title) title.textContent = '交易所终端';
+}
+
+function _updateMarketDetailMode(state, systemId, isCurrentSys, marketMode) {
+  const modeEl = document.getElementById('market-detail-mode');
+  if (!modeEl) return;
+  const target = findSystem(systemId);
+  const current = findSystem(state && state.currentSystem);
+  const targetName = target ? target.name : '目标节点';
+  const currentName = current ? current.name : '当前停靠点';
+  const isBlack = marketMode === 'black';
+  modeEl.className = 'market-detail-mode ' + (isCurrentSys ? 'is-local' : 'is-remote') + (isBlack ? ' is-black' : '');
+  if (isCurrentSys) {
+    modeEl.textContent = isBlack ? '当前停靠 · 黑市可操作' : '当前停靠 · 可交易';
+    modeEl.title = isBlack
+      ? '你正停靠在「' + targetName + '」，可以执行黑市交易。'
+      : '你正停靠在「' + targetName + '」，可以执行买卖、补给和本地经营。';
+    return;
+  }
+  modeEl.textContent = '远程只读 · 需前往';
+  modeEl.title = '你停靠在「' + currentName + '」，正在远程查看「' + targetName + '」行情；交易、补给和本地经营需要抵达该节点。';
 }

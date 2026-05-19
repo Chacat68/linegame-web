@@ -14,6 +14,12 @@ import {
   TRADE_STATION_STRATEGIES,
   TRADE_STATION_TYPE_FOCUS,
 } from '../../data/tradeStations.js';
+import {
+  getCompanyAccessState,
+  getCompanyLevelValue,
+  getMaxTradeStationLevel,
+  getTradeStationLevelRequirement,
+} from '../../data/companyAccess.js';
 import * as Economy from '../economy/Economy.js';
 
 const ECONOMY_FACTOR_LIMITS = {
@@ -142,7 +148,12 @@ function _getStationMeta(state, station) {
   const strategy = _getStrategyConfig(station.strategyId);
   const snapshot = _getDailySnapshot(station.systemId, station);
   const projected = _calculateDailyIncome(station, snapshot.factor, manager, strategy);
-  const nextLevel = station.level < TRADE_STATION_LEVELS.length ? _getLevelConfig(station.level + 1) : null;
+  const companyMaxLevel = getMaxTradeStationLevel(state);
+  const actualNextLevel = station.level < TRADE_STATION_LEVELS.length ? _getLevelConfig(station.level + 1) : null;
+  const nextLevel = actualNextLevel && actualNextLevel.level <= companyMaxLevel ? actualNextLevel : null;
+  const nextLevelLockLabel = actualNextLevel && actualNextLevel.level > companyMaxLevel
+    ? _formatCompanyRequirement(getTradeStationLevelRequirement(actualNextLevel.level), getCompanyLevelValue(state), '升级至 Lv.' + actualNextLevel.level)
+    : '';
 
   return {
     system: system,
@@ -156,6 +167,8 @@ function _getStationMeta(state, station) {
     economicFactor: snapshot.factor,
     nextUpgradeCost: nextLevel ? _getUpgradeCost(station.level) : 0,
     nextLevel: nextLevel,
+    companyMaxLevel: companyMaxLevel,
+    nextLevelLockLabel: nextLevelLockLabel,
   };
 }
 
@@ -200,15 +213,19 @@ export function getOwnedStations(state) {
 export function getBuildCandidates(state) {
   const visited = state.visitedSystems || [state.currentSystem];
   const stations = _ensureStations(state);
+  const access = getCompanyAccessState(state, 'tradeStationBuild');
   return SYSTEMS.filter(function (system) {
     return _isSystemEligible(system) && visited.indexOf(system.id) >= 0 && !stations[system.id];
   }).map(function (system) {
     const levelConfig = _getLevelConfig(1);
+    const canAfford = (state.credits || 0) >= levelConfig.investment;
     return {
       system: system,
       buildCost: levelConfig.investment,
       isCurrent: system.id === state.currentSystem,
-      canAfford: (state.credits || 0) >= levelConfig.investment,
+      canAfford: canAfford && access.unlocked,
+      companyAccess: access,
+      lockReason: access.unlocked ? '' : access.lockLabel,
     };
   }).sort(function (a, b) {
     if (a.isCurrent !== b.isCurrent) return a.isCurrent ? -1 : 1;
@@ -249,8 +266,25 @@ function _summarizeSystems(systemIds) {
   return names.slice(0, 3).join('、') + ' 等 ' + names.length + ' 站';
 }
 
+function _formatCompanyRequirement(requiredLevel, currentLevel, actionLabel) {
+  return actionLabel + '需要公司 Lv.' + requiredLevel + '（当前公司 Lv.' + currentLevel + '）。';
+}
+
+function _getCompanyFeatureGate(state, featureId, actionLabel) {
+  const access = getCompanyAccessState(state, featureId);
+  if (access.unlocked) return { ok: true, msg: '' };
+  return {
+    ok: false,
+    msg: _formatCompanyRequirement(access.requiredLevel, access.currentLevel, actionLabel),
+  };
+}
+
 export function batchUpgradeStations(state, systemIds) {
   init(state);
+  const gate = _getCompanyFeatureGate(state, 'tradeStationBatchOps', '批量升级贸易站');
+  if (!gate.ok) {
+    return { ok: false, msgs: [{ text: '🏢 ' + gate.msg, type: 'error' }], meta: { targetCount: 0, executedCount: 0 } };
+  }
   const targets = _getBatchTargets(state, systemIds, function (entry) {
     return !!entry.nextLevel && entry.nextUpgradeCost > 0;
   });
@@ -301,6 +335,10 @@ export function batchUpgradeStations(state, systemIds) {
 
 export function batchHireManagers(state, managerId, systemIds) {
   init(state);
+  const gate = _getCompanyFeatureGate(state, 'tradeStationBatchOps', '批量派驻经理');
+  if (!gate.ok) {
+    return { ok: false, msgs: [{ text: '🏢 ' + gate.msg, type: 'error' }], meta: { targetCount: 0, executedCount: 0 } };
+  }
   const manager = _getManagerConfig(managerId);
   if (!manager) {
     return { ok: false, msgs: [{ text: '👤 未知管理员方案。', type: 'error' }], meta: { targetCount: 0, executedCount: 0 } };
@@ -358,6 +396,10 @@ export function batchHireManagers(state, managerId, systemIds) {
 
 export function batchSetStrategies(state, strategyId, systemIds) {
   init(state);
+  const gate = _getCompanyFeatureGate(state, 'tradeStationBatchOps', '批量下达经营策略');
+  if (!gate.ok) {
+    return { ok: false, msgs: [{ text: '🏢 ' + gate.msg, type: 'error' }], meta: { targetCount: 0, executedCount: 0 } };
+  }
   const strategy = _getStrategyConfig(strategyId);
   const targets = _getBatchTargets(state, systemIds, function (entry) {
     return entry.station.strategyId !== strategy.id;
@@ -396,6 +438,10 @@ export function canBuildStation(state, systemId) {
 
   if (!system) {
     return { ok: false, msg: '未知星球，无法建设贸易站。' };
+  }
+  const companyGate = _getCompanyFeatureGate(state, 'tradeStationBuild', '建设贸易站');
+  if (!companyGate.ok) {
+    return { ok: false, msg: companyGate.msg };
   }
   if (!_isSystemEligible(system)) {
     return { ok: false, msg: system.name + ' 当前不支持建设贸易站。' };
@@ -443,6 +489,18 @@ export function upgradeStation(state, systemId) {
   if (station.level >= TRADE_STATION_LEVELS.length) {
     return { ok: false, msgs: [{ text: '🏪 贸易站已达到最高等级。', type: 'info' }] };
   }
+  const nextStationLevel = station.level + 1;
+  const requiredCompanyLevel = getTradeStationLevelRequirement(nextStationLevel);
+  const companyLevel = getCompanyLevelValue(state);
+  if (companyLevel < requiredCompanyLevel) {
+    return {
+      ok: false,
+      msgs: [{
+        text: '🏢 ' + _formatCompanyRequirement(requiredCompanyLevel, companyLevel, '升级贸易站至 Lv.' + nextStationLevel),
+        type: 'error',
+      }],
+    };
+  }
 
   const cost = _getUpgradeCost(station.level);
   if ((state.credits || 0) < cost) {
@@ -473,6 +531,10 @@ export function hireManager(state, systemId, managerId) {
   if (!manager) {
     return { ok: false, msgs: [{ text: '👤 未知管理员方案。', type: 'error' }] };
   }
+  const managerGate = _getCompanyFeatureGate(state, 'tradeStationManager', '雇佣贸易站管理员');
+  if (!managerGate.ok) {
+    return { ok: false, msgs: [{ text: '🏢 ' + managerGate.msg, type: 'error' }] };
+  }
   if (station.managerId === managerId) {
     return { ok: false, msgs: [{ text: '👤 当前贸易站已雇佣这位管理员。', type: 'info' }] };
   }
@@ -499,6 +561,10 @@ export function setStrategy(state, systemId, strategyId) {
   const strategy = _getStrategyConfig(strategyId);
   if (!station) {
     return { ok: false, msgs: [{ text: '🏪 请先建设贸易站，再调整经营策略。', type: 'error' }] };
+  }
+  const strategyGate = _getCompanyFeatureGate(state, 'tradeStationStrategy', '调整贸易站经营策略');
+  if (!strategyGate.ok) {
+    return { ok: false, msgs: [{ text: '🏢 ' + strategyGate.msg, type: 'error' }] };
   }
   if (station.strategyId === strategy.id) {
     return { ok: false, msgs: [{ text: '📈 当前已在执行该经营策略。', type: 'info' }] };

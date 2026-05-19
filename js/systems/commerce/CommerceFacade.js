@@ -15,6 +15,20 @@ import * as Finance  from '../finance/FinanceSystem.js';
 import * as Futures  from '../finance/FuturesSystem.js';
 import * as Station  from '../trade/TradeStationSystem.js';
 import * as Economy  from '../economy/Economy.js';
+import { getCompanyAccessState } from '../../data/companyAccess.js';
+
+function _requireCompanyAccess(state, featureId, actionLabel) {
+  const access = getCompanyAccessState(state, featureId);
+  if (access.unlocked) return null;
+  return {
+    ok: false,
+    msgs: [{
+      text: '🏢 ' + actionLabel + '需要公司 Lv.' + access.requiredLevel + '，当前公司 Lv.' + access.currentLevel + '。',
+      type: 'error',
+    }],
+    meta: { requiredCompanyLevel: access.requiredLevel, currentCompanyLevel: access.currentLevel },
+  };
+}
 
 // ---------------------------------------------------------------------------
 // 市场交易
@@ -96,6 +110,8 @@ export function batchSetTradeStationStrategy(state, strategyId, systemIds) {
 // ---------------------------------------------------------------------------
 
 export function takeLoan(state, offerId) {
+  const gate = _requireCompanyAccess(state, 'capitalLocal', '申请贷款');
+  if (gate) return gate;
   return Finance.takeLoan(state, offerId);
 }
 
@@ -104,6 +120,8 @@ export function repayLoan(state, loanId) {
 }
 
 export function buyStock(state, stockId) {
+  const gate = _requireCompanyAccess(state, 'stocks', '买入股票');
+  if (gate) return gate;
   return Finance.buyStock(state, stockId, 1);
 }
 
@@ -112,14 +130,20 @@ export function sellStock(state, stockId) {
 }
 
 export function investInTradeStation(state, systemId) {
+  const gate = _requireCompanyAccess(state, 'tradeInvestment', '追加站点投资');
+  if (gate) return gate;
   return Finance.investInTradeStation(state, systemId);
 }
 
 export function batchInvestInTradeStations(state, systemIds) {
+  const gate = _requireCompanyAccess(state, 'tradeInvestment', '批量站点投资');
+  if (gate) return gate;
   return Finance.batchInvestInTradeStations(state, systemIds);
 }
 
 export function purchaseInsurance(state, policyType) {
+  const gate = _requireCompanyAccess(state, 'capitalLocal', '购买保险');
+  if (gate) return gate;
   return Finance.purchaseInsurance(state, policyType);
 }
 
@@ -132,10 +156,14 @@ export function submitInsuranceClaim(state, policyType) {
 // ---------------------------------------------------------------------------
 
 export function openFuturesLong(state, goodId) {
+  const gate = _requireCompanyAccess(state, 'futures', '开立期货合约');
+  if (gate) return gate;
   return Futures.openLongContract(state, goodId);
 }
 
 export function openFuturesShort(state, goodId) {
+  const gate = _requireCompanyAccess(state, 'futures', '开立期货合约');
+  if (gate) return gate;
   return Futures.openShortContract(state, goodId);
 }
 
