@@ -16,16 +16,17 @@ import * as Renderer3D from '../ui/Renderer3DAdvanced.js?v=20260513-navguide1';
 import * as GalaxyData from '../systems/galaxy/GalaxyDataLayer.js';
 import * as Exploration from '../systems/galaxy/ExplorationSystem.js?v=20260507-scanplay1';
 import * as HUD        from '../ui/HUD.js?v=20260519-ux5';
-import * as MarketUI   from '../ui/MarketUI.js?v=20260519-ux5';
+import * as MarketUI   from '../ui/MarketUI.js?v=20260520-guide2';
 import * as ShipUI     from '../ui/ShipUI.js';
-import * as MapUI      from '../ui/MapUI.js?v=20260519-ux7';
+import * as MapUI      from '../ui/MapUI.js?v=20260520-guide3';
 import * as Modal      from '../ui/Modal.js?v=20260519-ux7';
 import * as EventUI    from '../ui/EventUI.js?v=20260505-surface4';
 import * as DialogueUI from '../ui/DialogueUI.js?v=20260505-surface4';
-import * as ActionGuideUI from '../ui/ActionGuideUI.js?v=20260519-ux5';
+import * as ActionGuideUI from '../ui/ActionGuideUI.js?v=20260520-guide1';
 import * as ResearchUI from '../ui/ResearchUI.js?v=20260420-balance5';
 import * as FactionUI  from '../ui/FactionUI.js?v=20260419-marketcta2';
 import * as SaveUI     from '../ui/SaveUI.js';
+import * as UIManager  from '../ui/UIManager.js';
 import * as QuestUI    from '../ui/QuestUI.js?v=20260428-questdeck1';
 import { buildCommandFeedback } from '../ui/CommandAction.js?v=20260510-command1';
 import * as AchievementUI from '../ui/AchievementUI.js';
@@ -51,7 +52,8 @@ import { SYSTEMS } from '../data/systems.js';
 import { GOODS } from '../data/goods.js';
 import * as Settings from './SettingsManager.js?v=20260505-surface5';
 import * as Progression from '../systems/progression/ProgressionSystem.js?v=20260518-ux2';
-import * as Guidance from '../systems/guidance/GuidanceSystem.js?v=20260519-ux5';
+import * as Guidance from '../systems/guidance/GuidanceSystem.js?v=20260520-guide2';
+import * as GuidanceAction from './GuidanceActionController.js?v=20260524-action2';
 import * as Dispatch from './DispatchController.js?v=20260505-surface1';
 import { hasBlockingSurfaceOpen, hideBlockingSurface, showBlockingSurface } from '../ui/SurfaceManager.js?v=20260505-surface4';
 
@@ -138,6 +140,22 @@ export function init(difficulty) {
 
   // 注入回调给各 UI 模块
   MapUI.init(_state, _handleTravel, _handleGalaxyJump);
+
+  // 初始化全局视图管理器 UIManager
+  UIManager.init(_state, {
+    onOpenMarket: function (state) {
+      MapUI.openMarket(state);
+    },
+    onCloseMarket: function () {
+      MapUI.closeMarket();
+    },
+    onGetMarketOpen: function () {
+      return MapUI.isMarketOpen();
+    },
+    onOpenQuests: function (state) {
+      MapUI.openQuestsPanel(state);
+    }
+  });
   MapUI.setExplorationActions({
     onScan: _handleScanSystem,
     onLand: _handleLandOnSystem,
@@ -479,12 +497,69 @@ function _getNextGuidancePoi(systemId) {
   })[0] || null;
 }
 
+function _getActiveShipDispatchContext() {
+  var activeShip = Fleet.getActiveShip(_state);
+  var activeShipStats = Fleet.getEffectiveShipStats(_state, activeShip);
+  return {
+    currentSystem: _state.currentSystem,
+    currentGalaxy: _state.currentGalaxy || 'milky_way',
+    fuelEfficiency: activeShipStats.fuelEff,
+    cargoFree: Math.max(0, activeShipStats.maxCargo - Object.values((activeShip && activeShip.cargo) || {}).reduce(function (sum, qty) {
+      return sum + qty;
+    }, 0)),
+    credits: _state.credits,
+    playerLevel: _state.playerLevel || 1,
+    dispatchProfile: activeShipStats.dispatchProfile || null,
+  };
+}
+
+function _getActiveShipServiceStatus() {
+  var activeShipIndex = _state && Number.isInteger(_state.activeShipIndex) ? _state.activeShipIndex : 0;
+  var activeShip = Fleet.getActiveShip(_state);
+  if (!activeShip) return null;
+  var repairQuote = typeof Fleet.getShipRepairQuote === 'function'
+    ? Fleet.getShipRepairQuote(_state, activeShipIndex)
+    : null;
+  var maintenance = typeof Fleet.getShipMaintenanceSummary === 'function'
+    ? Fleet.getShipMaintenanceSummary(_state, activeShip)
+    : null;
+  var maxHull = Number(activeShip.maxHull || activeShip.hull || 0);
+  var hull = Number(activeShip.hull || maxHull || 0);
+
+  return {
+    shipIndex: activeShipIndex,
+    repairQuote: repairQuote,
+    hullRatio: maxHull > 0 ? Math.max(0, Math.min(1, hull / maxHull)) : 1,
+    maintenance: maintenance,
+    maintenanceValue: maintenance ? maintenance.value : 100,
+    maintenanceBand: maintenance ? maintenance.band : 'pristine',
+  };
+}
+
+function _getActionGuideMarketFocus() {
+  if (!MapUI.isMarketOpen()) return null;
+  var focus = MarketUI.getActiveMarketWorkspaceFocus
+    ? MarketUI.getActiveMarketWorkspaceFocus()
+    : {};
+  return Object.assign({}, focus || {}, {
+    systemId: MapUI.getMarketViewSystem(_state) || (_state && _state.currentSystem) || '',
+  });
+}
+
 function _refreshActionGuide() {
   if (!_state) return;
   var scanStatus = null;
   var landingStatus = null;
   var nextPoi = null;
   var nextPoiStatus = null;
+  var tutorialActive = Tutorial.isActive();
+  var blockingModalOpen = hasBlockingSurfaceOpen();
+  var eventPending = EventUI.hasPendingEvent();
+  var researchSupplyRoute = null;
+  var researchBlocker = null;
+  var dispatchRouteRecommendation = null;
+  var serviceStatus = null;
+  var surveyIntel = null;
   if (_state.currentSystem) {
     scanStatus = _getScanStatus(_state.currentSystem);
     landingStatus = _getLandingStatus(_state.currentSystem);
@@ -492,16 +567,34 @@ function _refreshActionGuide() {
     if (nextPoi) {
       nextPoiStatus = _getPoiStatus(_state.currentSystem, nextPoi.poiId);
     }
+    surveyIntel = Exploration.getSurveyDecisionIntel(_state, _state.currentSystem);
+  }
+  if (!tutorialActive && !blockingModalOpen) {
+    var dispatchContext = _getActiveShipDispatchContext();
+    researchSupplyRoute = AutoTrade.findResearchSupplyRoute(_state, dispatchContext);
+    if (!researchSupplyRoute && ResearchUI.getResearchDispatchBlockerState) {
+      researchBlocker = ResearchUI.getResearchDispatchBlockerState(_state, dispatchContext);
+    }
+    if (!researchSupplyRoute) {
+      dispatchRouteRecommendation = AutoTrade.findBestDispatchRoute(_state, dispatchContext);
+    }
+    serviceStatus = _getActiveShipServiceStatus();
   }
   ActionGuideUI.render(Guidance.getCurrentSuggestion(_state, {
     marketOpen: MapUI.isMarketOpen(),
+    marketFocus: _getActionGuideMarketFocus(),
     scanStatus: scanStatus,
     landingStatus: landingStatus,
     nextPoi: nextPoi,
     nextPoiStatus: nextPoiStatus,
-    tutorialActive: Tutorial.isActive(),
-    blockingModalOpen: hasBlockingSurfaceOpen(),
-    eventPending: EventUI.hasPendingEvent(),
+    researchSupplyRoute: researchSupplyRoute,
+    researchBlocker: researchBlocker,
+    dispatchRouteRecommendation: dispatchRouteRecommendation,
+    serviceStatus: serviceStatus,
+    surveyIntel: surveyIntel,
+    tutorialActive: tutorialActive,
+    blockingModalOpen: blockingModalOpen,
+    eventPending: eventPending,
   }));
 }
 
@@ -597,150 +690,34 @@ function _prepareDirectGuidanceExecution() {
   }
 }
 
-function _getActionGuideProcessingMessage(suggestion) {
-  if (!suggestion) return '已执行，正在生成下一条建议';
-  if (suggestion.actionType === 'trade.buy' || suggestion.actionType === 'trade.sell') {
-    var questName = suggestion.payload && suggestion.payload.questName ? suggestion.payload.questName : '';
-    return questName
-      ? '已打开交易确认，完成后将推进「' + questName + '」'
-      : '已打开交易确认，完成后会刷新下一步';
-  }
-  if (suggestion.actionType === 'quest.accept') return '已接入任务档案，正在衔接下一步';
-  if (suggestion.actionType === 'map.focus') return '已定位航点，查看详情后可起航';
-  if (suggestion.actionType === 'travel.execute') return '已执行航行指令，抵达后刷新建议';
-  if (suggestion.actionType && suggestion.actionType.indexOf('exploration.') === 0) return '已执行探索指令，正在刷新现场建议';
-  return '已执行，正在生成下一条建议';
-}
-
 function _handleActionGuideAction(suggestion) {
   if (!suggestion || !suggestion.actionType) return;
 
-  ActionGuideUI.showProcessing(suggestion, _getActionGuideProcessingMessage(suggestion));
-
-  switch (suggestion.actionType) {
-    case 'quest.accept':
-      if (suggestion.payload && suggestion.payload.questId) {
-        _prepareDirectGuidanceExecution();
-        _handleAcceptQuest(suggestion.payload.questId);
-      }
-      return;
-
-    case 'quest.open':
-      if (suggestion.payload && suggestion.payload.questId) {
-        QuestUI.setSelectedAvailableQuest(suggestion.payload.questId);
-      }
-      MapUI.activateTab('tab-quest');
-      _updateUI();
-      return;
-
-    case 'trade.buy':
-      _prepareDirectGuidanceExecution();
-      _openGuidanceTradeConfirmation('buy', suggestion.payload || {});
-      return;
-
-    case 'trade.sell':
-      _prepareDirectGuidanceExecution();
-      _openGuidanceTradeConfirmation('sell', suggestion.payload || {});
-      return;
-
-    case 'market.open':
-    case 'market.focus':
-      var marketFocusGoodId = suggestion.payload && suggestion.payload.goodId ? suggestion.payload.goodId : '';
-      var marketFocusTradeAction = suggestion.payload && suggestion.payload.tradeAction ? suggestion.payload.tradeAction : '';
-      MapUI.openMarketPanel(_state, {
-        workspaceId: suggestion.payload && suggestion.payload.workspaceId ? suggestion.payload.workspaceId : 'spot',
-        subworkspaceId: suggestion.payload && suggestion.payload.subworkspaceId ? suggestion.payload.subworkspaceId : 'trade',
-        goodId: marketFocusGoodId,
-        tradeAction: marketFocusTradeAction,
-      });
-      EventBus.emit('log:message', {
-        text: buildCommandFeedback({
-          actionId: 'market',
-          commandSurface: 'market',
-          commandIntent: '现货交易区',
-          label: suggestion.actionLabel || '打开市场',
-        }, {
-          icon: '📊',
-          destination: '当前市场 · 现货交易区',
-          nextStep: suggestion.title,
-          returnTo: '底部指挥条会继续提示下一步',
-        }),
-        type: 'tip',
-      });
-      _updateUI();
-      if (marketFocusGoodId) {
-        MarketUI.revealMarketGoodFocus(marketFocusGoodId, { tradeAction: marketFocusTradeAction });
-      }
-      return;
-
-    case 'travel.execute':
-      var directDestinationSystemId = suggestion.payload && suggestion.payload.destinationSystemId ? suggestion.payload.destinationSystemId : '';
-      if (directDestinationSystemId) {
-        _prepareDirectGuidanceExecution();
-        _handleTravel(directDestinationSystemId);
-      } else if (MapUI.focusStarmap) {
-        MapUI.focusStarmap();
-        _updateUI();
-      } else {
-        _refreshActionGuide();
-      }
-      return;
-
-    case 'map.focus':
-      var destinationSystemId = suggestion.payload && suggestion.payload.destinationSystemId ? suggestion.payload.destinationSystemId : '';
-      var navigationFocused = false;
-      if (destinationSystemId && MapUI.focusNavigationTarget) {
-        navigationFocused = MapUI.focusNavigationTarget(_state, destinationSystemId, {
-          goodId: suggestion.payload && suggestion.payload.goodId ? suggestion.payload.goodId : '',
-          title: suggestion.title || '',
-        });
-      }
-      if (!navigationFocused && MapUI.focusStarmap) {
-        MapUI.focusStarmap();
-      }
-      EventBus.emit('log:message', {
-        text: buildCommandFeedback({
-          actionId: 'navigation',
-          commandSurface: 'navigation',
-          commandIntent: navigationFocused ? '卖货航点' : '星图',
-          label: suggestion.actionLabel || '查看星图',
-        }, {
-          icon: '🧭',
-          destination: navigationFocused && suggestion.payload && suggestion.payload.destinationSystemName
-            ? ('星图 · ' + suggestion.payload.destinationSystemName)
-            : '星图 · 航线判断',
-          nextStep: suggestion.title,
-          returnTo: navigationFocused ? '目标详情面板的“前往卖货点”' : '选择目的地后继续贸易循环',
-        }),
-        type: 'tip',
-      });
-      _updateUI();
-      return;
-
-    case 'exploration.scan':
-      _prepareDirectGuidanceExecution();
-      _handleScanSystem((suggestion.payload && suggestion.payload.systemId) || _state.currentSystem, {
-        suppressReveal: true,
-      });
-      return;
-
-    case 'exploration.land':
-      _prepareDirectGuidanceExecution();
-      _handleLandOnSystem((suggestion.payload && suggestion.payload.systemId) || _state.currentSystem);
-      return;
-
-    case 'exploration.poi':
-      if (suggestion.payload && suggestion.payload.poiId) {
-        _prepareDirectGuidanceExecution();
-        _handleExplorePoi(suggestion.payload.systemId || _state.currentSystem, suggestion.payload.poiId);
-      } else {
-        _refreshActionGuide();
-      }
-      return;
-
-    default:
-      _refreshActionGuide();
-  }
+  ActionGuideUI.showProcessing(suggestion, GuidanceAction.getProcessingMessage(suggestion));
+  GuidanceAction.handleGuidanceAction(suggestion, {
+    getState: function () { return _state; },
+    prepareDirectExecution: _prepareDirectGuidanceExecution,
+    acceptQuest: _handleAcceptQuest,
+    selectAvailableQuest: QuestUI.setSelectedAvailableQuest,
+    activateTab: MapUI.activateTab,
+    updateUI: _updateUI,
+    openTradeConfirmation: _openGuidanceTradeConfirmation,
+    refuel: _handleRefuel,
+    forcePendingEvent: EventUI.forcePendingEvent,
+    refreshActionGuide: _refreshActionGuide,
+    openRecommendedDispatch: _openRecommendedDispatch,
+    emitLog: function (message) {
+      EventBus.emit('log:message', message);
+    },
+    openMarketPanel: MapUI.openMarketPanel,
+    revealMarketGoodFocus: MarketUI.revealMarketGoodFocus,
+    travel: _handleTravel,
+    focusStarmap: MapUI.focusStarmap,
+    focusNavigationTarget: MapUI.focusNavigationTarget,
+    scanSystem: _handleScanSystem,
+    landOnSystem: _handleLandOnSystem,
+    explorePoi: _handleExplorePoi,
+  });
 }
 
 function _getScanStatus(systemId) {
@@ -1764,19 +1741,7 @@ function _boundDispatchTick() {
 
 function _updateUI() {
   const netWorth = Trade.getNetWorth(_state);
-  const activeShip = Fleet.getActiveShip(_state);
-  const activeShipStats = Fleet.getEffectiveShipStats(_state, activeShip);
-  const activeShipDispatchContext = {
-    currentSystem: _state.currentSystem,
-    currentGalaxy: _state.currentGalaxy || 'milky_way',
-    fuelEfficiency: activeShipStats.fuelEff,
-    cargoFree: Math.max(0, activeShipStats.maxCargo - Object.values((activeShip && activeShip.cargo) || {}).reduce(function (sum, qty) {
-      return sum + qty;
-    }, 0)),
-    credits: _state.credits,
-    playerLevel: _state.playerLevel || 1,
-    dispatchProfile: activeShipStats.dispatchProfile || null,
-  };
+  const activeShipDispatchContext = _getActiveShipDispatchContext();
   HUD.updateStats(_state, netWorth);
   HUD.updateCompanyName(_state);
   HUD.updateArchiveBadges(_state);

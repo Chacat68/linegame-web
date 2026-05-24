@@ -33,6 +33,14 @@ function _getCommandIntent(suggestion) {
       return '航线定位';
     case 'travel.execute':
       return '自动航行';
+    case 'trade.refuel':
+      return '燃料补给';
+    case 'event.open':
+      return '事件处理';
+    case 'fleet.dispatch.prefill':
+      return '派遣预填';
+    case 'fleet.service.open':
+      return '维修船坞';
     case 'exploration.scan':
       return '轨道测绘';
     case 'exploration.land':
