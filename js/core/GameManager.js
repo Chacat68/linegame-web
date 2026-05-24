@@ -18,7 +18,7 @@ import * as Exploration from '../systems/galaxy/ExplorationSystem.js?v=20260507-
 import * as HUD        from '../ui/HUD.js?v=20260519-ux5';
 import * as MarketUI   from '../ui/MarketUI.js?v=20260520-guide2';
 import * as ShipUI     from '../ui/ShipUI.js';
-import * as MapUI      from '../ui/MapUI.js?v=20260520-guide3';
+import * as MapUI      from '../ui/MapUI.js?v=20260525-navfix1';
 import * as Modal      from '../ui/Modal.js?v=20260519-ux7';
 import * as EventUI    from '../ui/EventUI.js?v=20260505-surface4';
 import * as DialogueUI from '../ui/DialogueUI.js?v=20260505-surface4';
@@ -50,7 +50,8 @@ import { VICTORY_PATHS } from '../data/victoryConditions.js';
 import { getLevel } from '../data/playerLevels.js';
 import { SYSTEMS } from '../data/systems.js';
 import { GOODS } from '../data/goods.js';
-import * as Settings from './SettingsManager.js?v=20260505-surface5';
+import * as Settings from './SettingsManager.js?v=20260525-audio1';
+import * as Audio from './AudioManager.js';
 import * as Progression from '../systems/progression/ProgressionSystem.js?v=20260518-ux2';
 import * as Guidance from '../systems/guidance/GuidanceSystem.js?v=20260520-guide2';
 import * as GuidanceAction from './GuidanceActionController.js?v=20260524-action2';
@@ -107,6 +108,7 @@ export function init(difficulty) {
   Dispatch.stopActiveDispatch();   // 重启时停止派遣
   _state = _deepClone(INITIAL_STATE);
   _settings = Settings.loadSettings();
+  Audio.init(_settings);
   _dialogueQueue = [];
   _dialoguePlaying = false;
   _realtimeClock = null;
@@ -463,6 +465,9 @@ function _dispatch(result) {
     result.msgs.forEach(function (m) {
       EventBus.emit('log:message', { text: m.text, type: m.type });
     });
+  }
+  if (result && result.ok === false) {
+    EventBus.emit('audio:cue', { cue: 'error' });
   }
   // 成就检查（每次状态变更后）
   const achResult = Achievement.checkAll(_state);
@@ -835,6 +840,7 @@ function _handleTravel(systemId) {
   _dispatch(result);
 
   if (result && result.ok) {
+    EventBus.emit('audio:cue', { cue: 'travel' });
     Fleet.applyTravelWear(_state, _state.activeShipIndex, result.meta).msgs.forEach(function (m) {
       EventBus.emit('log:message', { text: m.text, type: m.type });
     });
@@ -945,6 +951,7 @@ function _handleTravel(systemId) {
     const baseEventChance = EVENT_CONFIG.baseChance * (activeShipStats.eventChanceMultiplier || 1);
     const event = Tutorial.isActive() ? null : RandomEvent.rollEvent(_state, baseEventChance);
     if (event) {
+      EventBus.emit('audio:cue', { cue: 'event.alert' });
       EventUI.showEventNotification(event, function (choiceIndex) {
         _handleEventChoice(choiceIndex);
       });
@@ -995,6 +1002,7 @@ function _handleTradeConfirm(action, goodId, quantity, marketType) {
   _dispatch(result);
 
   if (result && result.ok) {
+    EventBus.emit('audio:cue', { cue: action === 'buy' ? 'trade.buy' : 'trade.sell' });
     Fleet.recordShipActivity(_state, action === 'buy' ? 'trade_buy' : 'trade_sell', {
       quantity: quantity,
       profit: result.meta && typeof result.meta.profit === 'number' ? result.meta.profit : 0,
