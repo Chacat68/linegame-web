@@ -2,7 +2,8 @@
 // 依赖：无
 // 导出：TRADE_STATION_LEVELS, TRADE_STATION_MANAGERS,
 //       TRADE_STATION_STRATEGIES, TRADE_STATION_ALLOWED_TYPES,
-//       TRADE_STATION_TYPE_FOCUS
+//       TRADE_STATION_TYPE_FOCUS, TRADE_STATION_ROLES,
+//       TRADE_STATION_REGION_SYNERGIES
 
 export const TRADE_STATION_LEVELS = [
   { level: 1, name: '小型贸易站', investment: 100000, baseIncome: 500 },
@@ -92,3 +93,48 @@ export const TRADE_STATION_TYPE_FOCUS = {
   research: ['technology', 'medicine', 'luxury'],
   special: ['luxury', 'technology', 'fuel'],
 };
+
+export const TRADE_STATION_ROLES = [
+  {
+    id: 'supply_node',
+    name: '补给站',
+    desc: '承接粮食、燃料、矿物和工业产能，是区域物流的底座。',
+    systemTypes: ['agricultural', 'mining', 'industrial', 'energy'],
+  },
+  {
+    id: 'market_hub',
+    name: '枢纽站',
+    desc: '负责撮合订单、金融结算和跨区转运，是商网的收益放大器。',
+    systemTypes: ['commercial', 'technology', 'special'],
+  },
+  {
+    id: 'research_link',
+    name: '科研联络站',
+    desc: '把医疗、科研和高端样本接入商网，适合形成高附加值链路。',
+    systemTypes: ['medical', 'research'],
+  },
+];
+
+export const TRADE_STATION_REGION_SYNERGIES = [
+  {
+    id: 'supply_market_loop',
+    name: '补给商贸环',
+    desc: '补给站为枢纽站提供稳定货源，提升区域周转效率。',
+    roleIds: ['supply_node', 'market_hub'],
+    incomeBonus: 0.06,
+  },
+  {
+    id: 'research_market_loop',
+    name: '研发变现链',
+    desc: '科研联络站把高端需求导入枢纽站，提升精品订单成交率。',
+    roleIds: ['research_link', 'market_hub'],
+    incomeBonus: 0.05,
+  },
+  {
+    id: 'regional_mesh',
+    name: '三角商网',
+    desc: '补给、枢纽与科研三类站点齐备后，区域调度形成完整闭环。',
+    roleIds: ['supply_node', 'market_hub', 'research_link'],
+    incomeBonus: 0.08,
+  },
+];

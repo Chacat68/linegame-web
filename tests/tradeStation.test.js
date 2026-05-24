@@ -1,11 +1,26 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as Economy from '../js/systems/economy/Economy.js';
+import * as Exploration from '../js/systems/galaxy/ExplorationSystem.js';
+import * as GalaxyData from '../js/systems/galaxy/GalaxyDataLayer.js';
 import * as TradeStation from '../js/systems/trade/TradeStationSystem.js';
 import { GOODS } from '../js/data/goods.js';
 import { SYSTEMS } from '../js/data/systems.js';
 import { createTestState } from './helpers.js';
 
 const DEFAULT_BASE_PRICE = 10;
+
+function createSurveyIntel(overrides) {
+  return Object.assign({
+    systemId: 'sol_prime',
+    hasIntel: true,
+    marketSignal: false,
+    researchSignal: false,
+    routeSignal: false,
+    logisticsSignal: false,
+    primarySignal: 'market',
+    recentReportTitle: '测试勘探报告',
+  }, overrides || {});
+}
 
 describe('TradeStationSystem', () => {
   beforeEach(() => {
@@ -90,6 +105,287 @@ describe('TradeStationSystem', () => {
     expect(result.totalIncome).toBe(richMarketIncome);
     expect(state.credits).toBe(creditsBefore + richMarketIncome);
     expect(TradeStation.getStation(state, 'sol_prime').lastIncome).toBe(richMarketIncome);
+  });
+
+  it('同星系不同角色贸易站会形成区域组合收益', () => {
+    const state = createTestState({
+      credits: 250000,
+      companyLevel: 5,
+      currentSystem: 'sol_prime',
+      visitedSystems: ['sol_prime', 'nova_station'],
+    });
+
+    vi.spyOn(Economy, 'getBuyPrice').mockImplementation(function (systemId, goodId) {
+      const good = GOODS.find(function (entry) { return entry.id === goodId; });
+      return good ? good.basePrice : DEFAULT_BASE_PRICE;
+    });
+    vi.spyOn(Economy, 'getMarketDepth').mockReturnValue(220);
+    vi.spyOn(Economy, 'getEconomyCycle').mockReturnValue({ priceMod: 1.0 });
+
+    expect(TradeStation.buildStation(state, 'sol_prime').ok).toBe(true);
+
+    const novaCandidate = TradeStation.getBuildCandidates(state).find(function (entry) {
+      return entry.system.id === 'nova_station';
+    });
+    expect(novaCandidate.role.id).toBe('market_hub');
+    expect(novaCandidate.prospectiveRegionalSynergy.bonusMultiplier).toBeCloseTo(0.06);
+
+    expect(TradeStation.buildStation(state, 'nova_station').ok).toBe(true);
+
+    const ownedStations = TradeStation.getOwnedStations(state);
+    const solEntry = ownedStations.find(function (entry) { return entry.station.systemId === 'sol_prime'; });
+    const novaEntry = ownedStations.find(function (entry) { return entry.station.systemId === 'nova_station'; });
+
+    expect(solEntry.role.id).toBe('supply_node');
+    expect(novaEntry.role.id).toBe('market_hub');
+    expect(solEntry.regionalSynergy.label).toContain('补给商贸环');
+    expect(solEntry.regionalSynergy.bonusMultiplier).toBeCloseTo(0.06);
+    expect(solEntry.networkMultiplier).toBeCloseTo(1.06);
+    expect(solEntry.grossIncome).toBe(530);
+    expect(solEntry.projectedIncome).toBe(490);
+  });
+
+  it('会根据勘探报告推荐贸易站经营策略', () => {
+    const state = createTestState({
+      credits: 300000,
+      companyLevel: 5,
+      currentSystem: 'sol_prime',
+      visitedSystems: ['sol_prime', 'nova_station'],
+    });
+
+    vi.spyOn(Exploration, 'getSurveyDecisionIntel').mockImplementation(function (queryState, systemId) {
+      if (systemId === 'nova_station') {
+        return createSurveyIntel({
+          systemId: systemId,
+          researchSignal: true,
+          primarySignal: 'research',
+        });
+      }
+      return createSurveyIntel({
+        systemId: systemId,
+        logisticsSignal: true,
+        primarySignal: 'logistics',
+      });
+    });
+
+    const logisticsRecommendation = TradeStation.getStrategyRecommendation(state, 'sol_prime');
+    const researchRecommendation = TradeStation.getStrategyRecommendation(state, 'nova_station');
+
+    expect(logisticsRecommendation).toMatchObject({
+      strategyId: 'expansion',
+      confidence: 'high',
+      intelSignal: 'logistics',
+      shouldSwitch: true,
+    });
+    expect(logisticsRecommendation.reason).toContain('扩张经营');
+    expect(researchRecommendation).toMatchObject({
+      strategyId: 'premium',
+      confidence: 'high',
+      intelSignal: 'research',
+      shouldSwitch: true,
+    });
+
+    state.tradeStations.nova_station = {
+      systemId: 'nova_station',
+      level: 1,
+      strategyId: 'premium',
+      managerId: null,
+      totalIncome: 0,
+      investment: 100000,
+      lastIncome: 0,
+      buildDay: 1,
+      lastProcessedDay: 1,
+    };
+    expect(TradeStation.getStrategyRecommendation(state, 'nova_station').shouldSwitch).toBe(false);
+  });
+
+  it('无勘探报告时保持均衡经营，当前策略匹配时不提示切换', () => {
+    const state = createTestState({
+      credits: 300000,
+      companyLevel: 5,
+      currentSystem: 'sol_prime',
+      visitedSystems: ['sol_prime'],
+    });
+
+    vi.spyOn(Exploration, 'getSurveyDecisionIntel').mockReturnValue(createSurveyIntel({
+      hasIntel: false,
+      marketSignal: false,
+      primarySignal: 'logistics',
+    }));
+
+    expect(TradeStation.buildStation(state, 'sol_prime').ok).toBe(true);
+
+    const recommendation = TradeStation.getStrategyRecommendation(state, 'sol_prime');
+    const entry = TradeStation.getOwnedStations(state).find(function (stationEntry) {
+      return stationEntry.station.systemId === 'sol_prime';
+    });
+
+    expect(recommendation).toMatchObject({
+      strategyId: 'balanced',
+      confidence: 'low',
+      intelSignal: 'none',
+      shouldSwitch: false,
+    });
+    expect(entry.strategyRecommendation.shouldSwitch).toBe(false);
+  });
+
+  it('候选站点会带出建站后的策略推荐', () => {
+    const state = createTestState({
+      credits: 300000,
+      companyLevel: 5,
+      currentSystem: 'sol_prime',
+      visitedSystems: ['sol_prime'],
+    });
+
+    vi.spyOn(Exploration, 'getSurveyDecisionIntel').mockReturnValue(createSurveyIntel({
+      systemId: 'sol_prime',
+      marketSignal: true,
+      primarySignal: 'market',
+    }));
+
+    const candidate = TradeStation.getBuildCandidates(state).find(function (entry) {
+      return entry.system.id === 'sol_prime';
+    });
+
+    expect(candidate.strategyRecommendation).toMatchObject({
+      strategyId: 'expansion',
+      confidence: 'high',
+      intelSignal: 'market',
+      shouldSwitch: true,
+    });
+  });
+
+  it('下一笔商网动作优先推荐可触发区域协同的建站', () => {
+    const state = createTestState({
+      credits: 220000,
+      companyLevel: 5,
+      currentSystem: 'sol_prime',
+      visitedSystems: ['sol_prime', 'nova_station'],
+    });
+
+    expect(TradeStation.buildStation(state, 'sol_prime').ok).toBe(true);
+
+    const action = TradeStation.getNextNetworkAction(state);
+
+    expect(action).toMatchObject({
+      type: 'build',
+      systemId: 'nova_station',
+      payload: {
+        action: 'market-build-station',
+        systemId: 'nova_station',
+      },
+    });
+    expect(action.reason).toContain('补给商贸环');
+  });
+
+  it('下一笔商网动作会在无协同建站时推荐升级或派经理', () => {
+    const upgradeState = createTestState({
+      credits: 260000,
+      companyLevel: 5,
+      currentSystem: 'sol_prime',
+      visitedSystems: ['sol_prime'],
+      tradeStations: {
+        sol_prime: {
+          systemId: 'sol_prime',
+          level: 1,
+          strategyId: 'balanced',
+          managerId: null,
+          totalIncome: 0,
+          investment: 100000,
+          lastIncome: 0,
+          buildDay: 1,
+          lastProcessedDay: 1,
+        },
+      },
+    });
+    expect(TradeStation.getNextNetworkAction(upgradeState)).toMatchObject({
+      type: 'upgrade',
+      systemId: 'sol_prime',
+      payload: {
+        action: 'market-upgrade-station',
+      },
+    });
+
+    const managerState = createTestState({
+      credits: 30000,
+      companyLevel: 5,
+      currentSystem: 'sol_prime',
+      visitedSystems: ['sol_prime'],
+      tradeStations: {
+        sol_prime: {
+          systemId: 'sol_prime',
+          level: 1,
+          strategyId: 'balanced',
+          managerId: null,
+          totalIncome: 0,
+          investment: 100000,
+          lastIncome: 0,
+          buildDay: 1,
+          lastProcessedDay: 1,
+        },
+      },
+    });
+    expect(TradeStation.getNextNetworkAction(managerState)).toMatchObject({
+      type: 'manager',
+      systemId: 'sol_prime',
+      payload: {
+        action: 'market-hire-manager',
+        managerId: 'local_broker',
+      },
+    });
+  });
+
+  it('下一笔商网动作会推荐策略切换或提示资金缺口', () => {
+    vi.spyOn(Exploration, 'getSurveyDecisionIntel').mockReturnValue(createSurveyIntel({
+      systemId: 'sol_prime',
+      logisticsSignal: true,
+      primarySignal: 'logistics',
+    }));
+    const strategyState = createTestState({
+      credits: 0,
+      companyLevel: 5,
+      currentSystem: 'sol_prime',
+      visitedSystems: ['sol_prime'],
+      tradeStations: {
+        sol_prime: {
+          systemId: 'sol_prime',
+          level: 1,
+          strategyId: 'balanced',
+          managerId: 'local_broker',
+          totalIncome: 0,
+          investment: 100000,
+          lastIncome: 0,
+          buildDay: 1,
+          lastProcessedDay: 1,
+        },
+      },
+    });
+    expect(TradeStation.getNextNetworkAction(strategyState)).toMatchObject({
+      type: 'strategy',
+      systemId: 'sol_prime',
+      payload: {
+        action: 'market-set-strategy',
+        strategyId: 'expansion',
+      },
+    });
+
+    vi.restoreAllMocks();
+    const fundingState = createTestState({
+      credits: 50000,
+      companyLevel: 4,
+      currentSystem: 'sol_prime',
+      visitedSystems: ['sol_prime'],
+      tradeStations: {},
+    });
+    const fundingAction = TradeStation.getNextNetworkAction(fundingState);
+
+    expect(fundingAction).toMatchObject({
+      type: 'funding',
+      systemId: 'sol_prime',
+      disabled: true,
+      fundingGap: 50000,
+    });
+    expect(fundingAction.reason).toContain('还差 50,000');
   });
 
   it('支持按收益优先批量升级贸易站', () => {
@@ -219,5 +515,69 @@ describe('TradeStationSystem', () => {
 
     expect(result.ok).toBe(false);
     expect(result.msgs[0].text).toContain('公司 Lv.6');
+  });
+
+  it('勘探报告会串起建站候选、区域协同、策略推荐和下一笔商网动作', () => {
+    const state = createTestState({
+      credits: 360000,
+      companyLevel: 5,
+      currentSystem: 'nova_station',
+      currentGalaxy: 'milky_way',
+      viewingGalaxy: 'milky_way',
+      fuel: 100,
+      maxFuel: 100,
+      shipHull: 100,
+      maxHull: 100,
+      visitedSystems: ['sol_prime', 'nova_station'],
+      currentResearch: { techId: 'deep_scanner', daysLeft: 4 },
+      researchOptions: [],
+    });
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(function () {});
+
+    GalaxyData.init(state);
+    try {
+      expect(TradeStation.buildStation(state, 'sol_prime').ok).toBe(true);
+      expect(Exploration.scanSystem(state, 'nova_station').ok).toBe(true);
+      expect(Exploration.landOnSystem(state, 'nova_station').ok).toBe(true);
+
+      const anomalyPoi = GalaxyData.getPlanetData('nova_station').exploration.pois.find(function (poi) {
+        return poi.kind === 'anomaly_site';
+      });
+      expect(anomalyPoi).toBeTruthy();
+      expect(Exploration.explorePoi(state, 'nova_station', anomalyPoi.id).ok).toBe(true);
+
+      const candidate = TradeStation.getBuildCandidates(state).find(function (entry) {
+        return entry.system.id === 'nova_station';
+      });
+      expect(candidate).toBeTruthy();
+      expect(candidate.canAfford).toBe(true);
+      expect(candidate.role.id).toBe('market_hub');
+      expect(candidate.prospectiveRegionalSynergy.label).toContain('补给商贸环');
+      expect(candidate.strategyRecommendation).toMatchObject({
+        strategyId: 'premium',
+        confidence: 'high',
+        intelSignal: 'research',
+        shouldSwitch: true,
+      });
+      expect(candidate.strategyRecommendation.reason).toContain('科研样本');
+
+      const action = TradeStation.getNextNetworkAction(state);
+      expect(action).toMatchObject({
+        type: 'build',
+        systemId: 'nova_station',
+        payload: {
+          action: 'market-build-station',
+          systemId: 'nova_station',
+        },
+      });
+      expect(action.reason).toContain('补给商贸环');
+    } finally {
+      GalaxyData.init(createTestState({
+        currentSystem: 'sol_prime',
+        currentGalaxy: 'milky_way',
+        viewingGalaxy: 'milky_way',
+      }));
+      consoleSpy.mockRestore();
+    }
   });
 });

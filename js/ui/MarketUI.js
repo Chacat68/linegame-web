@@ -510,6 +510,16 @@ export function setMarketWorkspaceFocus(focus) {
   return true;
 }
 
+export function getActiveMarketWorkspaceFocus() {
+  var workspaceId = _activeMarketWorkspaceTab || 'spot';
+  var subworkspaceId = _activeMarketSubworkspaceTabs[workspaceId] || '';
+  return {
+    workspaceId: workspaceId,
+    subworkspaceId: subworkspaceId,
+    marketMode: subworkspaceId === 'black' ? 'black' : 'open',
+  };
+}
+
 function _applyMarketWorkspaceTabState(progression) {
   if (!_hasDocument()) return;
 
@@ -807,7 +817,7 @@ function _getFocusedMarketSnapshot(sysId, marketMode, snapshots) {
 
 function _describeTradeOpportunity(sysId, snapshot, heldQuantity) {
   if (!snapshot) {
-    return { label: '均衡看盘', note: '当前没有足够数据生成建议。', className: 'balance' };
+    return { label: '均衡看盘', note: '当前没有足够数据形成交易信号。', className: 'balance' };
   }
 
   var multiplier = Economy.getSystemMultiplier(sysId, snapshot.good.id);
@@ -892,7 +902,7 @@ function _renderSpotCommandDeck(state, sysId, snapshots, marketMode, isCurrentSy
     renderPill('深度', String(marketDepth)) +
     renderPill('势力', systemFaction ? systemFaction.name : '中立地带') +
     renderPill('黑市', blackMarketUnlocked ? '已解锁' : '未解锁', blackMarketUnlocked ? 'accumulate' : '') +
-    renderPill('建议', focusSignal.label, focusSignal.className) +
+    renderPill('信号', focusSignal.label, focusSignal.className) +
   '</div>';
 }
 
@@ -914,7 +924,7 @@ function _renderSpotGoodsToolbar(state, sysId, snapshots, marketMode) {
 
   return '<div class="market-goods-toolbar-copy">' +
     '<div class="market-goods-toolbar-title">执行列表</div>' +
-    '<div class="market-goods-toolbar-note">当前盯盘：' + focused.good.emoji + ' ' + focused.good.name + ' · ' + focusSignal.label + '。点击任意货物可刷新主图、建议和右侧行动摘要。</div>' +
+    '<div class="market-goods-toolbar-note">当前盯盘：' + focused.good.emoji + ' ' + focused.good.name + ' · ' + focusSignal.label + '。点击任意货物可刷新主图和本地成交按钮。</div>' +
   '</div>' +
   '<div class="market-goods-toolbar-pills">' +
     renderPill('商品', String(snapshots.length)) +
@@ -2271,6 +2281,147 @@ function _renderOperationsCommandDeck(viewingSystem, commerceSnapshot, tradeSumm
   '</section>';
 }
 
+export function getTradeStationCandidateIntel(state, systemId) {
+  var intel = Exploration.getSurveyDecisionIntel(state || {}, systemId);
+  if (!intel || !intel.hasIntel) return null;
+
+  if (intel.marketSignal) {
+    return {
+      systemId: systemId,
+      signal: 'market',
+      label: '贸易窗口',
+      note: intel.marketHint || '勘探报告显示该节点存在可复核的本地行情窗口。',
+    };
+  }
+  if (intel.logisticsSignal) {
+    return {
+      systemId: systemId,
+      signal: 'logistics',
+      label: '补给节点',
+      note: intel.dispatchHint || intel.marketHint || '勘探报告显示该节点可作为后勤补给支点。',
+    };
+  }
+  if (intel.routeSignal) {
+    return {
+      systemId: systemId,
+      signal: 'route',
+      label: '暗线航图',
+      note: intel.dispatchHint || '勘探报告包含航线情报，适合作为商网路径判断参考。',
+    };
+  }
+  if (intel.researchSignal) {
+    return {
+      systemId: systemId,
+      signal: 'research',
+      label: '科研样本',
+      note: intel.researchHint || '勘探报告显示该节点可为科研补给链提供参考。',
+    };
+  }
+
+  return {
+    systemId: systemId,
+    signal: intel.primarySignal || 'survey',
+    label: intel.primaryLabel || '勘探情报',
+    note: intel.marketHint || intel.dispatchHint || '该节点已有归档勘探情报，可作为建站判断参考。',
+  };
+}
+
+function _renderTradeStationCandidateIntel(state, systemId, className) {
+  var intel = getTradeStationCandidateIntel(state, systemId);
+  if (!intel) return '';
+  var extraClass = className ? (' ' + className) : '';
+  return '<div class="trade-station-intel-note' + extraClass + '">' +
+    '<span class="market-finance-chip">勘探支持 · ' + _escapeHtml(intel.label) + '</span>' +
+    '<span>' + _escapeHtml(intel.note) + '</span>' +
+  '</div>';
+}
+
+function _formatSynergyBonus(synergy) {
+  if (!synergy || !synergy.bonusMultiplier) return '';
+  return '+' + Math.round((synergy.bonusMultiplier || 0) * 100) + '%';
+}
+
+function _renderTradeStationRoleMeta(role, synergy, prefix) {
+  if (!role) return '';
+  var label = prefix || '角色';
+  var bonus = _formatSynergyBonus(synergy);
+  var synergyText = bonus
+    ? ((synergy.galaxyName ? (synergy.galaxyName + ' · ') : '') + synergy.label + ' ' + bonus)
+    : '区域协同待补齐';
+  return '<div class="trade-station-card-meta">' +
+    _escapeHtml(label + '：' + role.name + ' · ' + synergyText) +
+  '</div>';
+}
+
+function _renderMarketFinanceRoleMeta(role, synergy, prefix) {
+  if (!role) return '';
+  var label = prefix || '角色';
+  var bonus = _formatSynergyBonus(synergy);
+  var synergyText = bonus
+    ? ((synergy.galaxyName ? (synergy.galaxyName + ' · ') : '') + synergy.label + ' ' + bonus)
+    : '区域协同待补齐';
+  return '<div class="market-finance-card-meta">' +
+    _escapeHtml(label + '：' + role.name + ' · ' + synergyText) +
+  '</div>';
+}
+
+function _formatStrategyConfidence(confidence) {
+  if (confidence === 'high') return '高置信';
+  if (confidence === 'medium') return '中置信';
+  return '低置信';
+}
+
+function _renderStrategyRecommendationMeta(recommendation, className) {
+  if (!recommendation || !recommendation.strategy) return '';
+  var metaClass = className || 'trade-station-card-meta';
+  var status = recommendation.shouldSwitch ? '建议切换' : '当前匹配';
+  return '<div class="' + metaClass + '">' +
+    _escapeHtml('建议策略：' + recommendation.strategy.name + ' · ' + status + ' · ' + _formatStrategyConfidence(recommendation.confidence) + ' · ' + recommendation.reason) +
+  '</div>';
+}
+
+function _renderStrategyRecommendationButton(entry, className) {
+  if (!entry || !entry.station || !entry.strategyRecommendation || !entry.strategyRecommendation.shouldSwitch) return '';
+  var recommendation = entry.strategyRecommendation;
+  var buttonClass = className || 'trade-station-upgrade-btn';
+  return '<button class="btn-action ' + buttonClass + '" data-action="market-set-strategy" data-system-id="' + _escapeHtmlAttr(entry.station.systemId) + '" data-strategy-id="' + _escapeHtmlAttr(recommendation.strategyId) + '">' +
+    '切换为建议策略' +
+  '</button>';
+}
+
+function _renderNextNetworkAction(action) {
+  if (!action) {
+    return '<div class="market-finance-card">' +
+      '<div class="market-finance-card-head">' +
+        '<span class="market-finance-card-title">下一笔商网动作</span>' +
+        '<span class="market-finance-chip">暂无待处理</span>' +
+      '</div>' +
+      '<div class="market-finance-card-meta">当前商网没有明显优先动作，可继续跑贸易、探索情报或积累资金。</div>' +
+    '</div>';
+  }
+
+  var buttonHtml = '';
+  if (action.payload && action.payload.action && !action.disabled) {
+    var attrs = ' data-action="' + _escapeHtmlAttr(action.payload.action) + '"';
+    if (action.payload.systemId) attrs += ' data-system-id="' + _escapeHtmlAttr(action.payload.systemId) + '"';
+    if (action.payload.managerId) attrs += ' data-manager-id="' + _escapeHtmlAttr(action.payload.managerId) + '"';
+    if (action.payload.strategyId) attrs += ' data-strategy-id="' + _escapeHtmlAttr(action.payload.strategyId) + '"';
+    buttonHtml = '<div class="market-finance-actions">' +
+      '<button class="btn-action market-finance-btn"' + attrs + '>' + _escapeHtml(action.actionLabel || '执行') + '</button>' +
+    '</div>';
+  }
+
+  return '<div class="market-finance-card is-featured">' +
+    '<div class="market-finance-card-head">' +
+      '<span class="market-finance-card-title">下一笔商网动作</span>' +
+      '<span class="market-finance-chip">' + _escapeHtml(action.disabled ? '资金准备' : action.actionLabel) + '</span>' +
+    '</div>' +
+    '<div class="market-finance-card-meta">' + _escapeHtml(action.title) + '</div>' +
+    '<div class="market-finance-card-meta">' + _escapeHtml(action.reason) + '</div>' +
+    buttonHtml +
+  '</div>';
+}
+
 function _renderOverviewTable(state, galaxyId, onPlanetClick, tableIds) {
   var thead = document.getElementById(tableIds.theadId);
   var tbody = document.getElementById(tableIds.tbodyId);
@@ -2374,6 +2525,7 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
   var tradeSummary = TradeStation.getSummary(state);
   var ownedStations = TradeStation.getOwnedStations(state);
   var buildCandidates = TradeStation.getBuildCandidates(state);
+  var nextNetworkAction = TradeStation.getNextNetworkAction(state);
   var networkInvestmentPlan = _getInvestmentBatchPlan(state, ownedStations);
   var networkUpgradePlan = _getBatchAffordablePlan(
     ownedStations.filter(function (entry) { return !!entry.nextLevel && entry.nextUpgradeCost > 0; }),
@@ -2464,12 +2616,15 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
         '<span class="market-finance-chip">Lv.' + localStation.station.level + ' · ' + localStation.levelConfig.name + '</span>' +
       '</div>' +
       '<div class="market-finance-card-meta">预计日收益 +' + Math.floor(localStation.projectedIncome).toLocaleString() + ' · 累计 ' + Math.floor(localStation.station.totalIncome || 0).toLocaleString() + ' · 经济系数 ×' + localStation.economicFactor.toFixed(2) + '</div>' +
+      _renderMarketFinanceRoleMeta(localStation.role, localStation.regionalSynergy, '站点角色') +
+      _renderStrategyRecommendationMeta(localStation.strategyRecommendation, 'market-finance-card-meta') +
       '<div class="market-finance-card-meta">管理员：' + (localStation.manager ? localStation.manager.name : '未配置') + ' · 策略：' + localStation.strategy.name + '</div>' +
       (localInvestment
         ? '<div class="market-finance-card-meta">本地追加投资：已投 ' + Math.floor(localInvestment.investedAmount || 0).toLocaleString() + ' · 建议追加 ' + localInvestment.suggestedAmount.toLocaleString() + ' · 预估日分红 ' + (localInvestment.expectedYieldRate * 100).toFixed(2) + '%</div>'
         : '') +
       (isCurrentSys
         ? '<div class="market-finance-actions">' +
+            _renderStrategyRecommendationButton(localStation, 'market-finance-btn') +
             '<button class="btn-action market-finance-btn' + (localStation.nextLevel ? '' : ' disabled') + '" data-action="market-upgrade-station" data-system-id="' + localStation.station.systemId + '"' + (localStation.nextLevel ? '' : ' disabled') + '>' + (localStation.nextLevel ? ('升级 +' + localStation.nextUpgradeCost.toLocaleString()) : (localStation.nextLevelLockLabel || '已满级')) + '</button>' +
             (localInvestment ? '<button class="btn-action market-finance-btn" data-action="market-invest-trade-station" data-system-id="' + localInvestment.systemId + '">追加投资</button>' : '') +
           '</div>' +
@@ -2494,6 +2649,9 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
         '<span class="market-finance-chip">' + buildCandidate.system.typeLabel + '</span>' +
       '</div>' +
       '<div class="market-finance-card-meta">市场深度 ' + (buildCandidate.system.marketDepth || 200) + ' · ' + buildCandidate.system.description + '</div>' +
+      _renderMarketFinanceRoleMeta(buildCandidate.role, buildCandidate.prospectiveRegionalSynergy, '预期角色') +
+      _renderStrategyRecommendationMeta(buildCandidate.strategyRecommendation, 'market-finance-card-meta') +
+      _renderTradeStationCandidateIntel(state, buildCandidate.system.id, 'is-local') +
       '<div class="market-finance-card-meta">' + (buildCandidate.lockReason || '建站后可持续吃到本地行情与经济周期红利。') + '</div>' +
       (localInvestment
         ? '<div class="market-finance-card-meta">同步可做站点投资：已投 ' + Math.floor(localInvestment.investedAmount || 0).toLocaleString() + ' · 建议追加 ' + localInvestment.suggestedAmount.toLocaleString() + '</div>'
@@ -2515,7 +2673,7 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
         return '<div class="market-finance-network-row">' +
           '<div class="market-finance-network-main">' +
             '<div class="market-finance-action-title">' + entry.system.name + ' · Lv.' + entry.station.level + '</div>' +
-            '<div class="market-finance-action-meta">日收益 +' + Math.floor(entry.projectedIncome).toLocaleString() + ' · 管理员 ' + (entry.manager ? entry.manager.name : '未配置') + ' · 策略 ' + entry.strategy.name + '</div>' +
+            '<div class="market-finance-action-meta">日收益 +' + Math.floor(entry.projectedIncome).toLocaleString() + ' · ' + (entry.role ? entry.role.name : '未分工') + ' · 管理员 ' + (entry.manager ? entry.manager.name : '未配置') + ' · 策略 ' + entry.strategy.name + '</div>' +
           '</div>' +
           '<div class="market-finance-network-note">累计 ' + Math.floor(entry.station.totalIncome || 0).toLocaleString() + '</div>' +
         '</div>';
@@ -2540,6 +2698,7 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
       '</div>' +
       '<div class="trade-station-summary-tip">这里统一处理远程看盘、建站候选筛选与所有已建节点的经营编排，是当前唯一的商网管理入口。</div>' +
     '</div>' +
+    _renderNextNetworkAction(nextNetworkAction) +
   '</section>';
 
   if (ownedStations.length > 0) {
@@ -2553,7 +2712,7 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
         return '<div class="market-finance-network-row">' +
           '<div class="market-finance-network-main">' +
             '<div class="market-finance-action-title">' + entry.system.name + ' · Lv.' + entry.station.level + '</div>' +
-            '<div class="market-finance-action-meta">日收益 +' + Math.floor(entry.projectedIncome).toLocaleString() + ' · 管理员 ' + (entry.manager ? entry.manager.name : '未配置') + ' · 策略 ' + entry.strategy.name + '</div>' +
+            '<div class="market-finance-action-meta">日收益 +' + Math.floor(entry.projectedIncome).toLocaleString() + ' · ' + (entry.role ? entry.role.name : '未分工') + ' · 管理员 ' + (entry.manager ? entry.manager.name : '未配置') + ' · 策略 ' + entry.strategy.name + '</div>' +
           '</div>' +
           '<div class="market-finance-network-note">累计 ' + Math.floor(entry.station.totalIncome || 0).toLocaleString() + '</div>' +
         '</div>';
@@ -2572,6 +2731,9 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
           '<span class="trade-station-card-badge">' + candidate.system.typeLabel + '</span>' +
         '</div>' +
         '<div class="trade-station-card-meta">市场深度 ' + (candidate.system.marketDepth || 200) + ' · ' + (candidate.isCurrent ? '当前停靠中，可立即投资' : '已访问，可先纳入建站计划') + '</div>' +
+        _renderTradeStationRoleMeta(candidate.role, candidate.prospectiveRegionalSynergy, '预期角色') +
+        _renderStrategyRecommendationMeta(candidate.strategyRecommendation, 'trade-station-card-meta') +
+        _renderTradeStationCandidateIntel(state, candidate.system.id, 'is-candidate') +
         '<div class="trade-station-card-desc">' + candidate.system.description + '</div>' +
         '<button class="btn-action trade-station-build-btn' + (candidate.canAfford ? '' : ' disabled') + '" data-action="market-build-station" data-system-id="' + candidate.system.id + '"' + (candidate.canAfford ? '' : ' disabled') + '>' + (candidate.canAfford ? ('投资 ' + candidate.buildCost.toLocaleString() + ' 积分') : (candidate.lockReason || ('投资 ' + candidate.buildCost.toLocaleString() + ' 积分'))) + '</button>' +
       '</div>';
@@ -2600,9 +2762,12 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
           '<span>上一日 +' + Math.floor(station.lastIncome || 0).toLocaleString() + '</span>' +
           '<span>累计 ' + Math.floor(station.totalIncome || 0).toLocaleString() + '</span>' +
         '</div>' +
+        _renderTradeStationRoleMeta(entry.role, entry.regionalSynergy, '站点角色') +
+        _renderStrategyRecommendationMeta(entry.strategyRecommendation, 'trade-station-card-meta') +
         '<div class="trade-station-card-meta">经济系数 ×' + entry.economicFactor.toFixed(2) + ' · 累计投资 ' + Math.floor(station.investment || 0).toLocaleString() + ' · 建于第 ' + (station.buildDay || 1) + ' 天</div>' +
         '<div class="trade-station-card-meta">管理员：' + (entry.manager ? (entry.manager.name + '（日薪 ' + entry.manager.dailySalary + '）') : '未雇佣') + ' · 策略：' + entry.strategy.name + '</div>' +
         '<div class="trade-station-actions">' +
+          _renderStrategyRecommendationButton(entry, 'trade-station-upgrade-btn') +
           '<button class="btn-action trade-station-upgrade-btn' + (entry.nextLevel ? '' : ' disabled') + '" data-action="market-upgrade-station" data-system-id="' + station.systemId + '"' + (entry.nextLevel ? '' : ' disabled') + '>' +
             (entry.nextLevel ? ('升级至 Lv.' + entry.nextLevel.level + '（+' + entry.nextUpgradeCost.toLocaleString() + '）') : (entry.nextLevelLockLabel || '已达满级')) +
           '</button>' +

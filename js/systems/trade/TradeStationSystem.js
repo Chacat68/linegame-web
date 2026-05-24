@@ -3,14 +3,17 @@
 // 导出：init, getOwnedStations, getBuildCandidates, getSummary, getStation,
 //       buildStation, upgradeStation, hireManager, setStrategy,
 //       batchUpgradeStations, batchHireManagers, batchSetStrategies,
+//       getStrategyRecommendation, getNextNetworkAction,
 //       getProjectedDailyIncome, advanceDay
 
 import { GOODS } from '../../data/goods.js';
-import { findSystem, SYSTEMS } from '../../data/systems.js';
+import { findGalaxy, findSystem, SYSTEMS } from '../../data/systems.js';
 import {
   TRADE_STATION_ALLOWED_TYPES,
   TRADE_STATION_LEVELS,
   TRADE_STATION_MANAGERS,
+  TRADE_STATION_REGION_SYNERGIES,
+  TRADE_STATION_ROLES,
   TRADE_STATION_STRATEGIES,
   TRADE_STATION_TYPE_FOCUS,
 } from '../../data/tradeStations.js';
@@ -21,6 +24,7 @@ import {
   getTradeStationLevelRequirement,
 } from '../../data/companyAccess.js';
 import * as Economy from '../economy/Economy.js';
+import * as Exploration from '../galaxy/ExplorationSystem.js';
 
 const ECONOMY_FACTOR_LIMITS = {
   fallbackFactor: 0.75,
@@ -65,8 +69,126 @@ function _getStrategyConfig(strategyId) {
   return TRADE_STATION_STRATEGIES.find(function (entry) { return entry.id === strategyId; }) || TRADE_STATION_STRATEGIES[0];
 }
 
+function _getRoleConfig(roleId) {
+  return TRADE_STATION_ROLES.find(function (entry) { return entry.id === roleId; }) || TRADE_STATION_ROLES[0];
+}
+
 function _isSystemEligible(system) {
   return !!(system && TRADE_STATION_ALLOWED_TYPES.indexOf(system.type) >= 0);
+}
+
+function _getStationRole(system) {
+  if (!system) return _getRoleConfig('market_hub');
+  return TRADE_STATION_ROLES.find(function (role) {
+    return Array.isArray(role.systemTypes) && role.systemTypes.indexOf(system.type) >= 0;
+  }) || _getRoleConfig('market_hub');
+}
+
+function _getCurrentStrategyId(state, systemId) {
+  if (!state || !state.tradeStations || typeof state.tradeStations !== 'object') return 'balanced';
+  const station = state.tradeStations[systemId];
+  return station && station.strategyId ? station.strategyId : 'balanced';
+}
+
+function _getStrategyRecommendation(state, systemId, currentStrategyId) {
+  const system = findSystem(systemId);
+  const currentId = currentStrategyId || _getCurrentStrategyId(state, systemId);
+  const intel = system && Exploration.getSurveyDecisionIntel(state || {}, systemId);
+  let strategyId = 'balanced';
+  let confidence = 'low';
+  let intelSignal = 'none';
+  let reason = '暂无可用勘探报告，建议先保持均衡经营。';
+
+  if (intel && intel.hasIntel) {
+    if (intel.researchSignal) {
+      strategyId = 'premium';
+      confidence = 'high';
+      intelSignal = 'research';
+      reason = '勘探报告包含科研样本，适合精品经营承接高附加值订单。';
+    } else if (intel.logisticsSignal) {
+      strategyId = 'expansion';
+      confidence = 'high';
+      intelSignal = 'logistics';
+      reason = '勘探报告显示该节点具备补给与走量条件，适合扩张经营。';
+    } else if (intel.marketSignal) {
+      const premiumTypes = ['technology', 'medical', 'research'];
+      strategyId = premiumTypes.indexOf(system.type) >= 0 ? 'premium' : 'expansion';
+      confidence = 'high';
+      intelSignal = 'market';
+      reason = strategyId === 'premium'
+        ? '勘探报告显示本地存在高端行情窗口，适合精品经营提高单笔利润。'
+        : '勘探报告显示本地存在贸易窗口，适合扩张经营放大周转。';
+    } else if (intel.routeSignal) {
+      strategyId = 'balanced';
+      confidence = 'medium';
+      intelSignal = 'route';
+      reason = '勘探报告包含航线情报，先保持均衡经营承接稳定转运。';
+    }
+  }
+
+  const strategy = _getStrategyConfig(strategyId);
+  return {
+    strategyId: strategy.id,
+    strategy: strategy,
+    confidence: confidence,
+    reason: reason,
+    intelSignal: intelSignal,
+    shouldSwitch: currentId !== strategy.id,
+  };
+}
+
+function _getRegionalSynergy(state, systemId, includeSystem) {
+  const system = findSystem(systemId);
+  if (!system) {
+    return {
+      bonusMultiplier: 0,
+      multiplier: 1,
+      galaxyName: '',
+      roleCounts: {},
+      synergies: [],
+      label: '未形成区域协同',
+      summary: '缺少星系信息，暂不计算区域协同。',
+    };
+  }
+
+  const stations = _ensureStations(state);
+  const roleCounts = {};
+  Object.keys(stations).forEach(function (stationSystemId) {
+    const stationSystem = findSystem(stationSystemId);
+    if (!stationSystem || stationSystem.galaxyId !== system.galaxyId) return;
+    const role = _getStationRole(stationSystem);
+    roleCounts[role.id] = (roleCounts[role.id] || 0) + 1;
+  });
+  if (includeSystem && !stations[systemId]) {
+    const role = _getStationRole(system);
+    roleCounts[role.id] = (roleCounts[role.id] || 0) + 1;
+  }
+
+  const matched = TRADE_STATION_REGION_SYNERGIES.filter(function (synergy) {
+    return synergy.roleIds.every(function (roleId) {
+      return (roleCounts[roleId] || 0) > 0;
+    });
+  });
+  const bonusMultiplier = matched.reduce(function (sum, synergy) {
+    return sum + (synergy.incomeBonus || 0);
+  }, 0);
+  const galaxy = findGalaxy(system.galaxyId);
+  const label = matched.length > 0
+    ? matched.map(function (synergy) { return synergy.name; }).join(' + ')
+    : '未形成区域协同';
+  const summary = matched.length > 0
+    ? (label + '：区域日收益 +' + Math.round(bonusMultiplier * 100) + '%。')
+    : '同星系补齐不同角色后，可获得区域组合收益。';
+
+  return {
+    bonusMultiplier: bonusMultiplier,
+    multiplier: 1 + bonusMultiplier,
+    galaxyName: galaxy ? galaxy.name : (system.galaxyId || ''),
+    roleCounts: roleCounts,
+    synergies: matched,
+    label: label,
+    summary: summary,
+  };
 }
 
 function _getSystemFocusGoods(system, strategy) {
@@ -146,8 +268,11 @@ function _getStationMeta(state, station) {
   const levelConfig = _getLevelConfig(station.level);
   const manager = _getManagerConfig(station.managerId);
   const strategy = _getStrategyConfig(station.strategyId);
+  const role = _getStationRole(system);
+  const regionalSynergy = _getRegionalSynergy(state, station.systemId);
+  const strategyRecommendation = _getStrategyRecommendation(state, station.systemId, station.strategyId);
   const snapshot = _getDailySnapshot(station.systemId, station);
-  const projected = _calculateDailyIncome(station, snapshot.factor, manager, strategy);
+  const projected = _calculateDailyIncome(station, snapshot.factor, manager, strategy, regionalSynergy.multiplier);
   const companyMaxLevel = getMaxTradeStationLevel(state);
   const actualNextLevel = station.level < TRADE_STATION_LEVELS.length ? _getLevelConfig(station.level + 1) : null;
   const nextLevel = actualNextLevel && actualNextLevel.level <= companyMaxLevel ? actualNextLevel : null;
@@ -161,6 +286,10 @@ function _getStationMeta(state, station) {
     levelConfig: levelConfig,
     manager: manager,
     strategy: strategy,
+    role: role,
+    regionalSynergy: regionalSynergy,
+    networkMultiplier: regionalSynergy.multiplier,
+    strategyRecommendation: strategyRecommendation,
     projectedIncome: projected.net,
     grossIncome: projected.gross,
     upkeep: projected.upkeep,
@@ -172,13 +301,15 @@ function _getStationMeta(state, station) {
   };
 }
 
-function _calculateDailyIncome(station, economicFactor, manager, strategy) {
+function _calculateDailyIncome(station, economicFactor, manager, strategy, networkMultiplier) {
   const levelConfig = _getLevelConfig(station.level);
+  const safeNetworkMultiplier = Math.max(1, Number.isFinite(networkMultiplier) ? networkMultiplier : 1);
   const gross = Math.max(0, Math.round(
     levelConfig.baseIncome *
     economicFactor *
     (strategy ? strategy.incomeMultiplier : 1) *
-    (manager ? manager.incomeMultiplier : 1)
+    (manager ? manager.incomeMultiplier : 1) *
+    safeNetworkMultiplier
   ));
   const upkeep = Math.max(0, Math.round(
     levelConfig.baseIncome *
@@ -218,9 +349,15 @@ export function getBuildCandidates(state) {
     return _isSystemEligible(system) && visited.indexOf(system.id) >= 0 && !stations[system.id];
   }).map(function (system) {
     const levelConfig = _getLevelConfig(1);
+    const role = _getStationRole(system);
+    const prospectiveRegionalSynergy = _getRegionalSynergy(state, system.id, true);
+    const strategyRecommendation = _getStrategyRecommendation(state, system.id, 'balanced');
     const canAfford = (state.credits || 0) >= levelConfig.investment;
     return {
       system: system,
+      role: role,
+      prospectiveRegionalSynergy: prospectiveRegionalSynergy,
+      strategyRecommendation: strategyRecommendation,
       buildCost: levelConfig.investment,
       isCurrent: system.id === state.currentSystem,
       canAfford: canAfford && access.unlocked,
@@ -231,6 +368,153 @@ export function getBuildCandidates(state) {
     if (a.isCurrent !== b.isCurrent) return a.isCurrent ? -1 : 1;
     return (b.system.marketDepth || 0) - (a.system.marketDepth || 0);
   });
+}
+
+export function getStrategyRecommendation(state, systemId) {
+  return _getStrategyRecommendation(state, systemId, _getCurrentStrategyId(state, systemId));
+}
+
+function _createNetworkAction(type, priority, title, reason, actionLabel, systemId, payload, extra) {
+  return Object.assign({
+    id: type + '-' + systemId,
+    type: type,
+    priority: priority,
+    title: title,
+    reason: reason,
+    actionLabel: actionLabel,
+    systemId: systemId,
+    payload: payload || null,
+    disabled: false,
+  }, extra || {});
+}
+
+function _sortActionCandidates(a, b) {
+  if ((a.priority || 0) !== (b.priority || 0)) return (b.priority || 0) - (a.priority || 0);
+  return String(a.systemId || '').localeCompare(String(b.systemId || ''));
+}
+
+export function getNextNetworkAction(state) {
+  init(state);
+  const credits = state.credits || 0;
+  const ownedStations = getOwnedStations(state);
+  const buildCandidates = getBuildCandidates(state);
+  const actions = [];
+
+  const synergyBuild = buildCandidates.filter(function (candidate) {
+    return candidate.canAfford &&
+      candidate.prospectiveRegionalSynergy &&
+      candidate.prospectiveRegionalSynergy.bonusMultiplier > 0;
+  }).sort(function (a, b) {
+    const bonusDiff = (b.prospectiveRegionalSynergy.bonusMultiplier || 0) - (a.prospectiveRegionalSynergy.bonusMultiplier || 0);
+    if (bonusDiff !== 0) return bonusDiff;
+    if (a.isCurrent !== b.isCurrent) return a.isCurrent ? -1 : 1;
+    return (b.system.marketDepth || 0) - (a.system.marketDepth || 0);
+  })[0];
+  if (synergyBuild) {
+    const bonus = Math.round((synergyBuild.prospectiveRegionalSynergy.bonusMultiplier || 0) * 100);
+    actions.push(_createNetworkAction(
+      'build',
+      82,
+      '补齐' + (synergyBuild.prospectiveRegionalSynergy.galaxyName || '本星系') + '商网协同',
+      '在「' + synergyBuild.system.name + '」建站后可触发「' + synergyBuild.prospectiveRegionalSynergy.label + '」，区域日收益 +' + bonus + '%。',
+      '投资 ' + synergyBuild.buildCost.toLocaleString(),
+      synergyBuild.system.id,
+      { action: 'market-build-station', systemId: synergyBuild.system.id }
+    ));
+  }
+
+  const upgradeTarget = ownedStations.filter(function (entry) {
+    return !!entry.nextLevel && entry.nextUpgradeCost > 0 && credits >= entry.nextUpgradeCost;
+  }).sort(function (a, b) {
+    const aScore = (a.projectedIncome || 0) / Math.max(1, a.nextUpgradeCost || 1);
+    const bScore = (b.projectedIncome || 0) / Math.max(1, b.nextUpgradeCost || 1);
+    if (aScore !== bScore) return bScore - aScore;
+    return (b.projectedIncome || 0) - (a.projectedIncome || 0);
+  })[0];
+  if (upgradeTarget) {
+    actions.push(_createNetworkAction(
+      'upgrade',
+      70,
+      '升级' + upgradeTarget.system.name + '贸易站',
+      '该站当前预计日收益 +' + Math.floor(upgradeTarget.projectedIncome || 0).toLocaleString() + '，升级后可扩大长期现金流。',
+      '升级至 Lv.' + upgradeTarget.nextLevel.level,
+      upgradeTarget.station.systemId,
+      { action: 'market-upgrade-station', systemId: upgradeTarget.station.systemId }
+    ));
+  }
+
+  const managerAccess = getCompanyAccessState(state, 'tradeStationManager');
+  const manager = TRADE_STATION_MANAGERS[0];
+  const managerTarget = managerAccess.unlocked && manager && credits >= manager.hireCost
+    ? ownedStations.filter(function (entry) {
+        return !entry.station.managerId;
+      }).sort(function (a, b) {
+        return (b.projectedIncome || 0) - (a.projectedIncome || 0);
+      })[0]
+    : null;
+  if (managerTarget) {
+    actions.push(_createNetworkAction(
+      'manager',
+      60,
+      '派驻' + manager.name,
+      '「' + managerTarget.system.name + '」还没有管理员，先派驻基础经理能稳定抬高净收益。',
+      '派驻 ' + manager.name,
+      managerTarget.station.systemId,
+      { action: 'market-hire-manager', systemId: managerTarget.station.systemId, managerId: manager.id }
+    ));
+  }
+
+  const strategyAccess = getCompanyAccessState(state, 'tradeStationStrategy');
+  const strategyTarget = strategyAccess.unlocked
+    ? ownedStations.filter(function (entry) {
+        return entry.strategyRecommendation && entry.strategyRecommendation.shouldSwitch;
+      }).sort(function (a, b) {
+        const aConfidence = a.strategyRecommendation.confidence === 'high' ? 2 : (a.strategyRecommendation.confidence === 'medium' ? 1 : 0);
+        const bConfidence = b.strategyRecommendation.confidence === 'high' ? 2 : (b.strategyRecommendation.confidence === 'medium' ? 1 : 0);
+        if (aConfidence !== bConfidence) return bConfidence - aConfidence;
+        return (b.projectedIncome || 0) - (a.projectedIncome || 0);
+      })[0]
+    : null;
+  if (strategyTarget) {
+    actions.push(_createNetworkAction(
+      'strategy',
+      50,
+      '调整' + strategyTarget.system.name + '经营策略',
+      strategyTarget.strategyRecommendation.reason,
+      '切换为' + strategyTarget.strategyRecommendation.strategy.name,
+      strategyTarget.station.systemId,
+      {
+        action: 'market-set-strategy',
+        systemId: strategyTarget.station.systemId,
+        strategyId: strategyTarget.strategyRecommendation.strategyId,
+      }
+    ));
+  }
+
+  if (actions.length > 0) {
+    return actions.sort(_sortActionCandidates)[0];
+  }
+
+  const fundingTarget = buildCandidates.filter(function (candidate) {
+    return candidate.companyAccess && candidate.companyAccess.unlocked && credits < candidate.buildCost;
+  }).sort(function (a, b) {
+    return (a.buildCost || 0) - (b.buildCost || 0);
+  })[0];
+  if (fundingTarget) {
+    const gap = Math.max(0, (fundingTarget.buildCost || 0) - credits);
+    return _createNetworkAction(
+      'funding',
+      20,
+      '准备下一座贸易站资金',
+      '「' + fundingTarget.system.name + '」已具备建站资格，还差 ' + gap.toLocaleString() + ' 积分即可启动首期投资。',
+      '资金不足',
+      fundingTarget.system.id,
+      null,
+      { disabled: true, fundingGap: gap }
+    );
+  }
+
+  return null;
 }
 
 export function getSummary(state) {
