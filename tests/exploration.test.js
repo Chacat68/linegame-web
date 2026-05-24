@@ -162,6 +162,78 @@ describe('ExplorationSystem', function () {
     expect(intel.dispatchHint).toContain('贸易报告');
   });
 
+  it('勘探决策情报会稳定输出物流、贸易、科研和航线信号', function () {
+    function createSurveyState(systemId, overrides) {
+      const nextState = createTestState(Object.assign({
+        currentSystem: systemId,
+        currentGalaxy: 'milky_way',
+        viewingGalaxy: 'milky_way',
+        fuel: 100,
+        maxFuel: 100,
+        credits: 3000,
+        shipHull: 100,
+        maxHull: 100,
+      }, overrides || {}));
+      Economy.init();
+      GalaxyData.init(nextState);
+      return nextState;
+    }
+
+    const logisticsState = createSurveyState('sol_prime');
+    expect(Exploration.scanSystem(logisticsState, 'sol_prime').ok).toBe(true);
+    const logisticsIntel = Exploration.getSurveyDecisionIntel(logisticsState, 'sol_prime');
+    expect(logisticsIntel).toMatchObject({
+      hasIntel: true,
+      logisticsSignal: true,
+      primarySignal: 'logistics',
+    });
+    expect(logisticsIntel.marketSignal).toBe(false);
+
+    const marketPlanet = GalaxyData.getPlanetData('sol_prime');
+    const resourcePoi = marketPlanet.exploration.pois.find(function (poi) {
+      return poi.kind === 'resource_cache';
+    });
+    expect(Exploration.landOnSystem(logisticsState, 'sol_prime').ok).toBe(true);
+    expect(Exploration.explorePoi(logisticsState, 'sol_prime', resourcePoi.id).ok).toBe(true);
+    const marketIntel = Exploration.getSurveyDecisionIntel(logisticsState, 'sol_prime');
+    expect(marketIntel).toMatchObject({
+      marketSignal: true,
+      logisticsSignal: true,
+      primarySignal: 'market',
+    });
+
+    const researchState = createSurveyState('nova_station', {
+      currentResearch: { techId: 'deep_scanner', daysLeft: 4 },
+      researchOptions: [],
+    });
+    expect(Exploration.scanSystem(researchState, 'nova_station').ok).toBe(true);
+    expect(Exploration.landOnSystem(researchState, 'nova_station').ok).toBe(true);
+    const anomalyPoi = GalaxyData.getPlanetData('nova_station').exploration.pois.find(function (poi) {
+      return poi.kind === 'anomaly_site';
+    });
+    expect(Exploration.explorePoi(researchState, 'nova_station', anomalyPoi.id).ok).toBe(true);
+    const researchIntel = Exploration.getSurveyDecisionIntel(researchState, 'nova_station');
+    expect(researchIntel).toMatchObject({
+      researchSignal: true,
+      primarySignal: 'research',
+    });
+    expect(researchIntel.researchHint).toContain('科研');
+
+    const routeState = createSurveyState('sol_prime');
+    expect(Exploration.scanSystem(routeState, 'sol_prime').ok).toBe(true);
+    expect(Exploration.landOnSystem(routeState, 'sol_prime').ok).toBe(true);
+    const routePoi = GalaxyData.getPlanetData('sol_prime').exploration.pois.find(function (poi) {
+      return poi.kind === 'route_beacon';
+    });
+    expect(Exploration.explorePoi(routeState, 'sol_prime', routePoi.id).ok).toBe(true);
+    const routeIntel = Exploration.getSurveyDecisionIntel(routeState, 'sol_prime');
+    expect(routeIntel).toMatchObject({
+      routeSignal: true,
+      primarySignal: 'route',
+    });
+    expect(routeIntel.dispatchHint).toContain('暗线');
+  });
+
   it('调查秘密航线信标后应降低对应航线燃料消耗', function () {
     const basePlanet = GalaxyData.getPlanetData('sol_prime');
     const routePoi = basePlanet.exploration.pois.find(function (poi) {

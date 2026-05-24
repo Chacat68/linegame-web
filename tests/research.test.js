@@ -312,6 +312,20 @@ describe('Research supply survey intel', function () {
     Economy.init();
     GalaxyData.init(state);
 
+    const baselineRecommendation = AutoTrade.findResearchSupplyRoute(state, {
+      currentSystem: 'medical_hub',
+      currentGalaxy: 'milky_way',
+      playerLevel: 3,
+      cargoFree: 20,
+      credits: 6000,
+      researchTechId: 'deep_scanner',
+      systemIds: ['nova_station', 'medical_hub', 'shadow_haven'],
+    });
+
+    expect(baselineRecommendation).toBeTruthy();
+    expect(baselineRecommendation.surveyIntelScore).toBe(0);
+    expect(baselineRecommendation.surveyIntelSummary).toBe('');
+
     expect(Exploration.scanSystem(state, 'medical_hub').ok).toBe(true);
     expect(Exploration.landOnSystem(state, 'medical_hub').ok).toBe(true);
 
@@ -334,5 +348,6 @@ describe('Research supply survey intel', function () {
     expect(recommendation.surveyIntelScore).toBeGreaterThan(0);
     expect(recommendation.surveyIntelSummary).toContain('勘探情报');
     expect(recommendation.strategySummary).toContain('科研报告');
+    expect(recommendation.adjustedProfit).toBeGreaterThan(baselineRecommendation.adjustedProfit);
   });
 });
