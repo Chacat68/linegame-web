@@ -45,7 +45,7 @@ function _getSettingsModalCallbacks() {
 
 /**
  * 从 localStorage 加载设置
- * @returns {{ motionLevel: string, difficulty: string, secretRoutesVisible: boolean, realtimeDayDurationMs: number }}
+ * @returns {{ motionLevel: string, difficulty: string, secretRoutesVisible: boolean, realtimeDayDurationMs: number, terminalBlur: boolean }}
  */
 export function loadSettings() {
   try {
@@ -56,6 +56,7 @@ export function loadSettings() {
         difficulty: 'normal',
         secretRoutesVisible: true,
         realtimeDayDurationMs: TIME_CONFIG.realtimeDayDurationMs,
+        terminalBlur: true,
       };
     }
     var parsed = JSON.parse(raw);
@@ -68,6 +69,7 @@ export function loadSettings() {
         : 'normal',
       secretRoutesVisible: _normalizeSecretRoutesVisible(parsed.secretRoutesVisible),
       realtimeDayDurationMs: _normalizeRealtimeDayDurationMs(parsed.realtimeDayDurationMs),
+      terminalBlur: parsed.terminalBlur !== false,
     };
   } catch (_) {
     return {
@@ -75,6 +77,7 @@ export function loadSettings() {
       difficulty: 'normal',
       secretRoutesVisible: true,
       realtimeDayDurationMs: TIME_CONFIG.realtimeDayDurationMs,
+      terminalBlur: true,
     };
   }
 }
@@ -123,6 +126,7 @@ export function initSettingsModal(callbacks) {
   var closeBtn      = document.getElementById('settings-close-btn');
   var motionSelect  = document.getElementById('settings-motion-level');
   var secretRoutesToggle = document.getElementById('settings-secret-routes-visible');
+  var terminalBlurToggle = document.getElementById('settings-terminal-blur');
   var difficultySelect = document.getElementById('settings-difficulty-level');
   var timeScaleSelect = document.getElementById('settings-time-scale');
   var resetDefaultsBtn = document.getElementById('settings-reset-defaults-btn');
@@ -159,6 +163,18 @@ export function initSettingsModal(callbacks) {
       applySettings(activeCallbacks.settings, activeCallbacks.Renderer);
       EventBus.emit('log:message', {
         text: '⚙ 已更新暗线显示：' + (secretRoutesToggle.checked ? '显示' : '隐藏') + '。',
+        type: 'info',
+      });
+    };
+  }
+  if (terminalBlurToggle) {
+    terminalBlurToggle.onchange = function () {
+      var activeCallbacks = _getSettingsModalCallbacks();
+      activeCallbacks.settings.terminalBlur = !!terminalBlurToggle.checked;
+      saveSettings(activeCallbacks.settings);
+      EventBus.emit('settings:terminalBlur:changed', activeCallbacks.settings.terminalBlur);
+      EventBus.emit('log:message', {
+        text: '⚙ 已更新全息终端高斯模糊特效：' + (terminalBlurToggle.checked ? '开启 (高品质)' : '关闭 (低开销)') + '。',
         type: 'info',
       });
     };
@@ -204,14 +220,17 @@ export function initSettingsModal(callbacks) {
       activeCallbacks.settings.difficulty = 'normal';
       activeCallbacks.settings.secretRoutesVisible = true;
       activeCallbacks.settings.realtimeDayDurationMs = TIME_CONFIG.realtimeDayDurationMs;
+      activeCallbacks.settings.terminalBlur = true;
       saveSettings(activeCallbacks.settings);
       applySettings(activeCallbacks.settings, activeCallbacks.Renderer);
       if (motionSelect) motionSelect.value = 'full';
       if (secretRoutesToggle) secretRoutesToggle.checked = true;
+      if (terminalBlurToggle) terminalBlurToggle.checked = true;
       if (difficultySelect) difficultySelect.value = 'normal';
       if (timeScaleSelect) timeScaleSelect.value = String(TIME_CONFIG.realtimeDayDurationMs);
       if (activeCallbacks.onDifficultyChanged) activeCallbacks.onDifficultyChanged('normal');
       if (activeCallbacks.onRealtimeDayDurationChanged) activeCallbacks.onRealtimeDayDurationChanged(TIME_CONFIG.realtimeDayDurationMs);
+      EventBus.emit('settings:terminalBlur:changed', true);
       EventBus.emit('log:message', { text: '⚙ 设置已恢复为默认值。', type: 'info' });
     };
   }
@@ -253,6 +272,7 @@ function _toggleSettingsModal(isVisible) {
   var modal = document.getElementById('settings-modal');
   var motionSelect = document.getElementById('settings-motion-level');
   var secretRoutesToggle = document.getElementById('settings-secret-routes-visible');
+  var terminalBlurToggle = document.getElementById('settings-terminal-blur');
   var difficultySelect = document.getElementById('settings-difficulty-level');
   var timeScaleSelect = document.getElementById('settings-time-scale');
   if (!modal) return;
@@ -261,6 +281,7 @@ function _toggleSettingsModal(isVisible) {
     var current = loadSettings();
     motionSelect.value = current.motionLevel || 'full';
     if (secretRoutesToggle) secretRoutesToggle.checked = _normalizeSecretRoutesVisible(current.secretRoutesVisible);
+    if (terminalBlurToggle) terminalBlurToggle.checked = current.terminalBlur !== false;
     if (difficultySelect) difficultySelect.value = current.difficulty || 'normal';
     if (timeScaleSelect) timeScaleSelect.value = String(_normalizeRealtimeDayDurationMs(current.realtimeDayDurationMs));
   }

@@ -1037,6 +1037,55 @@ describe('Fleet ship specialization', () => {
   });
 });
 
+describe('Fleet.getShipModRecommendation', () => {
+  it('维护压力高时优先推荐舰务维护舱', () => {
+    const state = createTestState({ credits: 50000 });
+    Fleet.init(state);
+    const ship = Fleet.getActiveShip(state);
+    ship.maintenance = 42;
+
+    const recommendation = Fleet.getShipModRecommendation(state, 0);
+
+    expect(recommendation).toMatchObject({
+      modId: 'mod_service_bay',
+      canInstall: true,
+      disabledReason: '',
+    });
+    expect(recommendation.reason).toContain('维护');
+  });
+
+  it('勘探支援船优先推荐深空测绘阵列', () => {
+    const state = createTestState({ credits: 50000 });
+    Fleet.init(state);
+    state.fleetSlots = 2;
+    expect(Fleet.buyShip(state, 'clipper').ok).toBe(true);
+
+    const recommendation = Fleet.getShipModRecommendation(state, 1);
+
+    expect(recommendation).toMatchObject({
+      modId: 'mod_survey_array',
+      canInstall: true,
+    });
+    expect(recommendation.reason).toContain('勘探支援');
+  });
+
+  it('槽位已满时仍返回最相关推荐并说明阻塞原因', () => {
+    const state = createTestState({ credits: 50000 });
+    Fleet.init(state);
+    expect(Fleet.installMod(state, 'mod_cargo_rack', 0).ok).toBe(true);
+    const ship = Fleet.getActiveShip(state);
+    ship.maintenance = 35;
+
+    const recommendation = Fleet.getShipModRecommendation(state, 0);
+
+    expect(recommendation).toMatchObject({
+      modId: 'mod_service_bay',
+      canInstall: false,
+      disabledReason: '改装槽位已满',
+    });
+  });
+});
+
 describe('Fleet.installMod requires (前置条件)', () => {
   it('安装高级改装时前置条件未满足则失败', () => {
     const state = createTestState({ credits: 100000 });

@@ -1,0 +1,179 @@
+// js/ui/UIManager.js — 全局面板视图管理器
+// 职责：遵循 SOLID 原则，统一管理界面大面板（星图、交易所、机库、个人档案、详细日志）的显示隐藏、互斥和星图背景高斯模糊状态。
+
+import * as EventBus from '../core/EventBus.js';
+import { hasBlockingSurfaceOpen, openSecondarySurface, closeSecondarySurface, closeAllSecondarySurfaces, showBlockingSurface, hideBlockingSurface } from './SurfaceManager.js?v=20260505-surface4';
+import { loadSettings } from '../core/SettingsManager.js';
+
+let _stateRef = null;
+let _currentView = 'starmap';
+let _handlers = {
+  onOpenMarket: null,
+  onCloseMarket: null,
+  onGetMarketOpen: null,
+  onOpenQuests: null
+};
+
+/**
+ * 初始化全局视图管理器
+ * @param {Object} stateRef 游戏全局状态的引用
+ * @param {Object} handlers 用于和其它UI解耦的动作回调
+ */
+export function init(stateRef, handlers) {
+  _stateRef = stateRef;
+  _currentView = 'starmap';
+  
+  if (handlers) {
+    _handlers = Object.assign(_handlers, handlers);
+  }
+
+  // 绑定底栏点击事件
+  var bottomNav = document.getElementById('bottom-nav');
+  if (bottomNav) {
+    // 移除旧事件监听器（克隆节点）防止重复绑定
+    var newBottomNav = bottomNav.cloneNode(true);
+    bottomNav.parentNode.replaceChild(newBottomNav, bottomNav);
+    newBottomNav.addEventListener('click', function (e) {
+      var btn = e.target.closest('.bottom-nav-btn');
+      if (!btn) return;
+
+      // 允许在 logs-modal 打开时点击底栏切换，其它 modal 打开时拦截
+      if (hasBlockingSurfaceOpen('logs-modal')) {
+        if (typeof e.preventDefault === 'function') e.preventDefault();
+        if (typeof e.stopPropagation === 'function') e.stopPropagation();
+        return;
+      }
+
+      var view = btn.dataset.view;
+      switchView(view);
+    });
+  }
+
+  // 绑定详细日志弹窗的关闭按钮
+  var logsCloseBtn = document.getElementById('logs-modal-close');
+  if (logsCloseBtn) {
+    logsCloseBtn.onclick = function () {
+      switchView('starmap');
+    };
+  }
+
+  // 注册全局事件总线监听，支持以事件形式触发视图切换
+  EventBus.on('view:switch', function (view) {
+    switchView(view);
+  });
+
+  // 监听全息特效开关的变化，并即时更新模糊样式
+  EventBus.on('settings:terminalBlur:changed', function (enabled) {
+    var canvas = document.getElementById('map-3d-canvas');
+    if (canvas) {
+      _applyBlurStyle(canvas, _currentView);
+    }
+  });
+
+  // 注册挂载到全局
+  globalThis.__linegameUIManager = {
+    switchView: switchView,
+    setBottomNavActiveDirectly: _setBottomNavActive,
+    getCurrentView: getCurrentView
+  };
+}
+
+/**
+ * 获取当前处于活动状态的视图名称
+ */
+export function getCurrentView() {
+  return _currentView;
+}
+
+/**
+ * 切换大终端视图（核心互斥和背景高斯模糊逻辑）
+ * @param {string} view 目标视图名称
+ */
+export function switchView(view) {
+  var previousView = _currentView;
+
+  // 1. 如果点击的是当前已激活的非星图视图，则代表“再次点击折叠”，返回星图
+  if (view !== 'starmap' && view === previousView) {
+    view = 'starmap';
+  }
+
+  // 2. 清理和关闭所有已打开的面板状态
+  if (_handlers.onCloseMarket) {
+    _handlers.onCloseMarket();
+  }
+  closeAllSecondarySurfaces();
+  hideBlockingSurface('logs-modal');
+
+  // 3. 驱动 3D 星图 Canvas 容器动态加减模糊样式
+  var canvas = document.getElementById('map-3d-canvas');
+  if (canvas) {
+    _applyBlurStyle(canvas, view);
+  }
+
+  // 4. 执行具体 View 的唤起行为
+  if (view === 'starmap') {
+    _currentView = 'starmap';
+  } else if (view === 'market') {
+    _currentView = 'market';
+    if (_handlers.onOpenMarket && _stateRef) {
+      _handlers.onOpenMarket(_stateRef);
+    }
+  } else if (view === 'hangar') {
+    _currentView = 'hangar';
+    openSecondarySurface('trade-panel');
+  } else if (view === 'quests') {
+    _currentView = 'quests';
+    if (_handlers.onOpenQuests && _stateRef) {
+      _handlers.onOpenQuests(_stateRef);
+    } else {
+      openSecondarySurface('info-panel');
+    }
+  } else if (view === 'logs') {
+    _currentView = 'logs';
+    showBlockingSurface('logs-modal');
+    // 通知日志弹窗加载详细日志列表
+    EventBus.emit('logs:modal:opened');
+  }
+
+  // 5. 更新底部导航激活态高亮
+  _setBottomNavActive(view);
+}
+
+/**
+ * 更新底部导航栏高亮，并向 EventBus 广播变化
+ * @param {string} view 激活的视图
+ */
+function _setBottomNavActive(view) {
+  document.querySelectorAll('.bottom-nav-btn').forEach(function (btn) {
+    if (btn.dataset.view === view) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+
+  EventBus.emit('navigation:changed', view);
+}
+
+/**
+ * 驱动星图 3D Canvas 应用特效模糊或低性能降级遮罩
+ * @param {HTMLElement} canvas 
+ * @param {string} view 
+ */
+function _applyBlurStyle(canvas, view) {
+  if (!canvas) return;
+  var settings = loadSettings();
+  var useBlur = settings.terminalBlur !== false;
+
+  canvas.classList.remove('starmap-blur-active');
+  canvas.classList.remove('starmap-blur-active-lowperf');
+
+  if (view !== 'starmap') {
+    if (useBlur) {
+      canvas.classList.add('starmap-blur-active');
+    } else {
+      canvas.classList.add('starmap-blur-active-lowperf');
+    }
+  }
+}
+

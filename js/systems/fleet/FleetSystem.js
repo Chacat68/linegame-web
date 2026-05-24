@@ -967,6 +967,150 @@ export function getShipDispatchProfile(state, ship) {
   };
 }
 
+function _getModConfig(modId) {
+  return SHIP_MODS.find(function (mod) { return mod.id === modId; }) || null;
+}
+
+function _getShipModInstallBlocker(state, ship, mod) {
+  if (!ship || !mod) return '无效的改装组件';
+  var installed = ship.mods || [];
+  if (installed.indexOf(mod.id) >= 0) return '该组件已安装';
+  if (mod.requires && installed.indexOf(mod.requires) < 0) {
+    var required = _getModConfig(mod.requires);
+    return '需要先安装「' + (required ? required.name : mod.requires) + '」';
+  }
+  if (installed.length >= (ship.modSlots || 1)) return '改装槽位已满';
+  if ((state && state.credits || 0) < (mod.cost || 0)) return '积分不足';
+  return '';
+}
+
+function _scoreModRecommendation(state, ship, mod, context) {
+  var score = 0;
+  var reasons = [];
+  var roleId = context.roleProfile.id;
+  var installed = ship.mods || [];
+
+  function add(points, reason) {
+    score += points;
+    if (reason) reasons.push(reason);
+  }
+
+  if (mod.id === 'mod_service_bay') {
+    if (context.maintenance.value < 65 || context.faultCount > 0 || context.hullMissing > 0) add(120, '当前维护或船体承压，维护舱可降低后续损耗。');
+    if (roleId === 'support') add(80, '后勤维护分工需要强化修复与维保效率。');
+  }
+
+  if (mod.id === 'mod_nano_repair') {
+    if (context.hullMissing > 0 || context.faultCount > 0) add(74, '船体和故障压力较高，自动修复能降低连续停航风险。');
+  }
+
+  if (mod.id === 'mod_ablative_armor' && installed.indexOf('mod_nano_repair') >= 0) {
+    if (context.hullMissing > 0 || context.maintenance.band === 'critical') add(72, '已有纳米修复后可继续强化重载防护。');
+  }
+
+  if (mod.id === 'mod_survey_array') {
+    if (roleId === 'survey') add(110, '勘探支援分工适合提升扫描折扣和 POI 收益。');
+    if (context.doctrineId === 'exploration') add(44, '当前探索协议会放大测绘组件收益。');
+  }
+
+  if (mod.id === 'mod_smuggler_hold') {
+    if (roleId === 'covert') add(110, '灰市突破分工需要压低走私检查和罚款压力。');
+    if (context.routeMarketMode === 'black') add(52, '当前派遣策略偏黑市，隐匿货柜能降低查缉压力。');
+  }
+
+  if (mod.id === 'mod_ion_drive') {
+    if (roleId === 'courier') add(92, '快航中继优先降低燃耗，适合短循环和跨点响应。');
+    if (context.maintenance.band === 'worn' || context.maintenance.band === 'critical') add(20, '维护压力下先降低燃耗可缓和航行成本。');
+  }
+
+  if (mod.id === 'mod_warp_drive' && installed.indexOf('mod_ion_drive') >= 0) {
+    if (roleId === 'courier') add(86, '已有离子推进器后可继续强化快航路线效率。');
+  }
+
+  if (mod.id === 'mod_fuel_cell') {
+    if (roleId === 'courier') add(58, '快航船需要更高燃料余量。');
+    if (ship.fuel < Math.max(1, ship.maxFuel || 1) * 0.35) add(44, '当前燃料余量偏低，辅助电池能增加安全边界。');
+  }
+
+  if (mod.id === 'mod_cargo_compress') {
+    if (roleId === 'logistics') add(90, '主力商运优先扩展有效仓位。');
+    if (context.cargoLoadRatio >= 0.65) add(48, '当前装载压力较高，压缩货舱能提升周转空间。');
+  }
+
+  if (mod.id === 'mod_cargo_bay' && installed.indexOf('mod_cargo_compress') >= 0) {
+    if (roleId === 'logistics' || context.cargoLoadRatio >= 0.65) add(86, '已有压缩货舱后，大型货仓能继续放大商运收益。');
+  }
+
+  if (mod.id === 'mod_trade_computer') {
+    if (roleId === 'logistics') add(66, '主力商运可先提高买入议价能力。');
+  }
+
+  if (mod.id === 'mod_broker_ai') {
+    if (roleId === 'logistics') add(62, '主力商运可通过卖出加价提升单轮利润。');
+  }
+
+  if (mod.id === 'mod_market_link' && installed.indexOf('mod_broker_ai') >= 0) {
+    if (roleId === 'logistics') add(82, '已有经纪人 AI 后，市场直连能同时强化买卖两端议价。');
+  }
+
+  return {
+    mod: mod,
+    score: score,
+    reason: reasons[0] || '',
+  };
+}
+
+export function getShipModRecommendation(state, shipIndex) {
+  if (!state || !Array.isArray(state.fleet)) return null;
+  var ship = shipIndex != null ? state.fleet[shipIndex] : getActiveShip(state);
+  if (!ship) return null;
+
+  _ensureShipOperationalState(ship);
+  if (!Array.isArray(ship.mods)) ship.mods = [];
+
+  var maintenance = getShipMaintenanceSummary(state, ship);
+  var roleProfile = getShipRoleProfile(state, ship);
+  var specialization = getShipSpecializationSummary(state, ship);
+  var cargoUsed = _getShipCargoUsed(ship);
+  var route = ship.route || {};
+  var context = {
+    maintenance: maintenance,
+    roleProfile: roleProfile,
+    doctrineId: specialization && specialization.doctrineId,
+    faultCount: ship.faults.length,
+    hullMissing: Math.max(0, (ship.maxHull || ship.hull || 0) - (ship.hull || 0)),
+    cargoLoadRatio: cargoUsed / Math.max(1, ship.maxCargo || 1),
+    routeMarketMode: route.marketMode || (route.tradePolicy && route.tradePolicy.marketMode) || 'open',
+  };
+
+  var candidates = SHIP_MODS.filter(function (mod) {
+    return ship.mods.indexOf(mod.id) < 0;
+  }).map(function (mod) {
+    var scored = _scoreModRecommendation(state, ship, mod, context);
+    var disabledReason = _getShipModInstallBlocker(state, ship, mod);
+    return {
+      modId: mod.id,
+      mod: mod,
+      score: scored.score,
+      reason: scored.reason,
+      roleId: roleProfile.id,
+      roleLabel: roleProfile.label,
+      canInstall: disabledReason === '',
+      disabledReason: disabledReason,
+      slotsLeft: Math.max(0, (ship.modSlots || 1) - ship.mods.length),
+      canAfford: (state.credits || 0) >= (mod.cost || 0),
+    };
+  }).filter(function (entry) {
+    return entry.score > 0 && entry.reason;
+  }).sort(function (left, right) {
+    if (left.canInstall !== right.canInstall) return left.canInstall ? -1 : 1;
+    if (left.score !== right.score) return right.score - left.score;
+    return (left.mod.cost || 0) - (right.mod.cost || 0);
+  });
+
+  return candidates[0] || null;
+}
+
 export function getShipFaultSummaries(ship) {
   if (!ship) return [];
   _ensureShipOperationalState(ship);
