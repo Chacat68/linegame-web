@@ -2,7 +2,7 @@
 // 依赖：core/GameManager.js
 // 说明：浏览器加载完毕后初始化游戏
 
-import { init } from './core/GameManager.js?v=20260520-guide3';
+import { init } from './core/GameManager.js?v=20260525-audio1';
 import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from './ui/SurfaceManager.js?v=20260505-surface4';
 
 window.addEventListener('load', function () {
@@ -25,11 +25,17 @@ function bindSettingsModalFallback() {
 			var secretRoutesToggle = document.getElementById('settings-secret-routes-visible');
 			var difficultySelect = document.getElementById('settings-difficulty-level');
 			var timeScaleSelect = document.getElementById('settings-time-scale');
+			var soundEffectsToggle = document.getElementById('settings-sfx-enabled');
+			var soundEffectsVolume = document.getElementById('settings-sfx-volume');
+			var soundEffectsVolumeValue = document.getElementById('settings-sfx-volume-value');
 			var savedSettings = _readSavedSettings();
 			if (motionSelect) motionSelect.value = savedSettings.motionLevel;
 			if (secretRoutesToggle) secretRoutesToggle.checked = savedSettings.secretRoutesVisible !== false;
 			if (difficultySelect) difficultySelect.value = savedSettings.difficulty;
 			if (timeScaleSelect) timeScaleSelect.value = String(savedSettings.realtimeDayDurationMs);
+			if (soundEffectsToggle) soundEffectsToggle.checked = savedSettings.soundEffectsEnabled !== false;
+			if (soundEffectsVolume) soundEffectsVolume.value = String(savedSettings.soundEffectsVolume);
+			if (soundEffectsVolumeValue) soundEffectsVolumeValue.textContent = Math.round(savedSettings.soundEffectsVolume * 100) + '%';
 			_activateSettingsPanelFallback(modal, modal.dataset.activePanel || 'display');
 			showBlockingSurface('settings-modal');
 			return;
@@ -57,6 +63,8 @@ function _readSavedSettings() {
 				difficulty: 'normal',
 				secretRoutesVisible: true,
 				realtimeDayDurationMs: 60000,
+				soundEffectsEnabled: true,
+				soundEffectsVolume: 0.35,
 			};
 		}
 		var parsed = JSON.parse(raw);
@@ -65,6 +73,8 @@ function _readSavedSettings() {
 			difficulty: ['easy', 'normal', 'hard'].indexOf(parsed.difficulty) === -1 ? 'normal' : parsed.difficulty,
 			secretRoutesVisible: parsed.secretRoutesVisible !== false,
 			realtimeDayDurationMs: [30000, 60000, 180000].indexOf(parsed.realtimeDayDurationMs) === -1 ? 60000 : parsed.realtimeDayDurationMs,
+			soundEffectsEnabled: parsed.soundEffectsEnabled !== false,
+			soundEffectsVolume: _normalizeSoundEffectsVolumeFallback(parsed.soundEffectsVolume),
 		};
 	} catch (_) {
 		return {
@@ -72,8 +82,16 @@ function _readSavedSettings() {
 			difficulty: 'normal',
 			secretRoutesVisible: true,
 			realtimeDayDurationMs: 60000,
+			soundEffectsEnabled: true,
+			soundEffectsVolume: 0.35,
 		};
 	}
+}
+
+function _normalizeSoundEffectsVolumeFallback(value) {
+	var numericValue = Number(value);
+	if (!Number.isFinite(numericValue)) return 0.35;
+	return Math.max(0, Math.min(1, numericValue));
 }
 
 function _activateSettingsPanelFallback(modal, panelId) {

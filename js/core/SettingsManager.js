@@ -4,6 +4,7 @@
 //       initSettingsModal, showSettingsModal, hideSettingsModal
 
 import * as EventBus from './EventBus.js';
+import * as Audio from './AudioManager.js';
 import { TIME_CONFIG } from '../data/constants.js';
 import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from '../ui/SurfaceManager.js?v=20260505-surface4';
 
@@ -12,6 +13,7 @@ const SETTINGS_KEY = 'linegame_settings';
 const VALID_MOTION_LEVELS = ['full', 'reduced', 'off'];
 const VALID_DIFFICULTIES = ['easy', 'normal', 'hard'];
 const VALID_REALTIME_DAY_DURATIONS_MS = TIME_CONFIG.availableRealtimeDayDurationsMs || [TIME_CONFIG.realtimeDayDurationMs];
+const DEFAULT_SOUND_EFFECTS_VOLUME = 0.35;
 let _settingsModalCallbacks = null;
 
 function _normalizeSecretRoutesVisible(value) {
@@ -23,6 +25,12 @@ function _normalizeRealtimeDayDurationMs(value) {
   return VALID_REALTIME_DAY_DURATIONS_MS.indexOf(numericValue) >= 0
     ? numericValue
     : TIME_CONFIG.realtimeDayDurationMs;
+}
+
+function _normalizeSoundEffectsVolume(value) {
+  var numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) return DEFAULT_SOUND_EFFECTS_VOLUME;
+  return Math.max(0, Math.min(1, numericValue));
 }
 
 function _getSettingsModalCallbacks() {
@@ -45,7 +53,7 @@ function _getSettingsModalCallbacks() {
 
 /**
  * 从 localStorage 加载设置
- * @returns {{ motionLevel: string, difficulty: string, secretRoutesVisible: boolean, realtimeDayDurationMs: number, terminalBlur: boolean }}
+ * @returns {{ motionLevel: string, difficulty: string, secretRoutesVisible: boolean, realtimeDayDurationMs: number, terminalBlur: boolean, soundEffectsEnabled: boolean, soundEffectsVolume: number }}
  */
 export function loadSettings() {
   try {
@@ -57,6 +65,8 @@ export function loadSettings() {
         secretRoutesVisible: true,
         realtimeDayDurationMs: TIME_CONFIG.realtimeDayDurationMs,
         terminalBlur: true,
+        soundEffectsEnabled: true,
+        soundEffectsVolume: DEFAULT_SOUND_EFFECTS_VOLUME,
       };
     }
     var parsed = JSON.parse(raw);
@@ -70,6 +80,8 @@ export function loadSettings() {
       secretRoutesVisible: _normalizeSecretRoutesVisible(parsed.secretRoutesVisible),
       realtimeDayDurationMs: _normalizeRealtimeDayDurationMs(parsed.realtimeDayDurationMs),
       terminalBlur: parsed.terminalBlur !== false,
+      soundEffectsEnabled: parsed.soundEffectsEnabled !== false,
+      soundEffectsVolume: _normalizeSoundEffectsVolume(parsed.soundEffectsVolume),
     };
   } catch (_) {
     return {
@@ -78,6 +90,8 @@ export function loadSettings() {
       secretRoutesVisible: true,
       realtimeDayDurationMs: TIME_CONFIG.realtimeDayDurationMs,
       terminalBlur: true,
+      soundEffectsEnabled: true,
+      soundEffectsVolume: DEFAULT_SOUND_EFFECTS_VOLUME,
     };
   }
 }
@@ -101,6 +115,7 @@ export function applySettings(settings, Renderer) {
   if (Renderer.setSecretRoutesVisible) {
     Renderer.setSecretRoutesVisible(_normalizeSecretRoutesVisible(settings.secretRoutesVisible));
   }
+  Audio.applySettings(settings);
 }
 
 // ---------------------------------------------------------------------------
@@ -127,6 +142,9 @@ export function initSettingsModal(callbacks) {
   var motionSelect  = document.getElementById('settings-motion-level');
   var secretRoutesToggle = document.getElementById('settings-secret-routes-visible');
   var terminalBlurToggle = document.getElementById('settings-terminal-blur');
+  var soundEffectsToggle = document.getElementById('settings-sfx-enabled');
+  var soundEffectsVolume = document.getElementById('settings-sfx-volume');
+  var soundEffectsVolumeValue = document.getElementById('settings-sfx-volume-value');
   var difficultySelect = document.getElementById('settings-difficulty-level');
   var timeScaleSelect = document.getElementById('settings-time-scale');
   var resetDefaultsBtn = document.getElementById('settings-reset-defaults-btn');
@@ -179,6 +197,31 @@ export function initSettingsModal(callbacks) {
       });
     };
   }
+  if (soundEffectsToggle) {
+    soundEffectsToggle.onchange = function () {
+      var activeCallbacks = _getSettingsModalCallbacks();
+      activeCallbacks.settings.soundEffectsEnabled = !!soundEffectsToggle.checked;
+      saveSettings(activeCallbacks.settings);
+      Audio.applySettings(activeCallbacks.settings);
+      if (soundEffectsToggle.checked) Audio.playCue('settings.change');
+      EventBus.emit('log:message', {
+        text: '⚙ 已更新音效反馈：' + (soundEffectsToggle.checked ? '开启' : '关闭') + '。',
+        type: 'info',
+      });
+    };
+  }
+  if (soundEffectsVolume) {
+    soundEffectsVolume.oninput = function () {
+      var activeCallbacks = _getSettingsModalCallbacks();
+      activeCallbacks.settings.soundEffectsVolume = _normalizeSoundEffectsVolume(soundEffectsVolume.value);
+      saveSettings(activeCallbacks.settings);
+      Audio.applySettings(activeCallbacks.settings);
+      _syncSoundEffectsVolumeLabel(soundEffectsVolumeValue, activeCallbacks.settings.soundEffectsVolume);
+    };
+    soundEffectsVolume.onchange = function () {
+      Audio.playCue('settings.change');
+    };
+  }
   if (difficultySelect) {
     difficultySelect.onchange = function () {
       var activeCallbacks = _getSettingsModalCallbacks();
@@ -221,16 +264,22 @@ export function initSettingsModal(callbacks) {
       activeCallbacks.settings.secretRoutesVisible = true;
       activeCallbacks.settings.realtimeDayDurationMs = TIME_CONFIG.realtimeDayDurationMs;
       activeCallbacks.settings.terminalBlur = true;
+      activeCallbacks.settings.soundEffectsEnabled = true;
+      activeCallbacks.settings.soundEffectsVolume = DEFAULT_SOUND_EFFECTS_VOLUME;
       saveSettings(activeCallbacks.settings);
       applySettings(activeCallbacks.settings, activeCallbacks.Renderer);
       if (motionSelect) motionSelect.value = 'full';
       if (secretRoutesToggle) secretRoutesToggle.checked = true;
       if (terminalBlurToggle) terminalBlurToggle.checked = true;
+      if (soundEffectsToggle) soundEffectsToggle.checked = true;
+      if (soundEffectsVolume) soundEffectsVolume.value = String(DEFAULT_SOUND_EFFECTS_VOLUME);
+      _syncSoundEffectsVolumeLabel(soundEffectsVolumeValue, DEFAULT_SOUND_EFFECTS_VOLUME);
       if (difficultySelect) difficultySelect.value = 'normal';
       if (timeScaleSelect) timeScaleSelect.value = String(TIME_CONFIG.realtimeDayDurationMs);
       if (activeCallbacks.onDifficultyChanged) activeCallbacks.onDifficultyChanged('normal');
       if (activeCallbacks.onRealtimeDayDurationChanged) activeCallbacks.onRealtimeDayDurationChanged(TIME_CONFIG.realtimeDayDurationMs);
       EventBus.emit('settings:terminalBlur:changed', true);
+      Audio.playCue('settings.change');
       EventBus.emit('log:message', { text: '⚙ 设置已恢复为默认值。', type: 'info' });
     };
   }
@@ -273,6 +322,9 @@ function _toggleSettingsModal(isVisible) {
   var motionSelect = document.getElementById('settings-motion-level');
   var secretRoutesToggle = document.getElementById('settings-secret-routes-visible');
   var terminalBlurToggle = document.getElementById('settings-terminal-blur');
+  var soundEffectsToggle = document.getElementById('settings-sfx-enabled');
+  var soundEffectsVolume = document.getElementById('settings-sfx-volume');
+  var soundEffectsVolumeValue = document.getElementById('settings-sfx-volume-value');
   var difficultySelect = document.getElementById('settings-difficulty-level');
   var timeScaleSelect = document.getElementById('settings-time-scale');
   if (!modal) return;
@@ -282,12 +334,20 @@ function _toggleSettingsModal(isVisible) {
     motionSelect.value = current.motionLevel || 'full';
     if (secretRoutesToggle) secretRoutesToggle.checked = _normalizeSecretRoutesVisible(current.secretRoutesVisible);
     if (terminalBlurToggle) terminalBlurToggle.checked = current.terminalBlur !== false;
+    if (soundEffectsToggle) soundEffectsToggle.checked = current.soundEffectsEnabled !== false;
+    if (soundEffectsVolume) soundEffectsVolume.value = String(_normalizeSoundEffectsVolume(current.soundEffectsVolume));
+    _syncSoundEffectsVolumeLabel(soundEffectsVolumeValue, current.soundEffectsVolume);
     if (difficultySelect) difficultySelect.value = current.difficulty || 'normal';
     if (timeScaleSelect) timeScaleSelect.value = String(_normalizeRealtimeDayDurationMs(current.realtimeDayDurationMs));
   }
   if (isVisible) _activateSettingsPanel(modal.dataset.activePanel || 'display');
   if (isVisible) showBlockingSurface('settings-modal');
   else hideBlockingSurface('settings-modal');
+}
+
+function _syncSoundEffectsVolumeLabel(labelEl, volume) {
+  if (!labelEl) return;
+  labelEl.textContent = Math.round(_normalizeSoundEffectsVolume(volume) * 100) + '%';
 }
 
 function _formatRealtimeDayDurationLabel(durationMs) {
