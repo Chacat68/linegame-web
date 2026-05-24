@@ -3,6 +3,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import * as AutoTrade from '../js/systems/trade/AutoTradeSystem.js';
 import * as Economy from '../js/systems/economy/Economy.js';
+import * as Exploration from '../js/systems/galaxy/ExplorationSystem.js';
+import * as GalaxyData from '../js/systems/galaxy/GalaxyDataLayer.js';
 import { createTestState } from './helpers.js';
 
 beforeEach(() => {
@@ -339,6 +341,65 @@ describe('AutoTrade.findBestDispatchRoute', () => {
       expect(result.dispatchProfile.roleId).toBe('covert');
       expect(result.routeFitScore).toBeGreaterThan(0);
       expect(result.adjustedProfit).toBeGreaterThan(result.baseAdjustedProfit);
+      expect(result.recommendedTradePolicy).toMatchObject({
+        marketMode: 'black',
+        riskMode: 'aggressive',
+      });
+    }
+  });
+
+  it('普通派遣推荐会吸收已归档的勘探行情情报', () => {
+    const state = createTestState({
+      credits: 6000,
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+      viewingGalaxy: 'milky_way',
+      fuel: 100,
+      maxFuel: 100,
+      fuelEfficiency: 1.0,
+      playerLevel: 3,
+    });
+
+    GalaxyData.init(state);
+
+    const baseline = AutoTrade.findBestDispatchRoute(state, {
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+      fuelEfficiency: 1.0,
+      cargoFree: 20,
+      credits: 6000,
+      systemIds: ['sol_prime', 'nova_station'],
+    });
+
+    expect(baseline).not.toBeNull();
+    if (baseline) {
+      expect(baseline.surveyIntelScore).toBe(0);
+      expect(baseline.surveyIntelSummary).toBe('');
+    }
+
+    const basePlanet = GalaxyData.getPlanetData('sol_prime');
+    const resourcePoi = basePlanet.exploration.pois.find(function (poi) {
+      return poi.kind === 'resource_cache';
+    });
+
+    expect(Exploration.scanSystem(state, 'sol_prime').ok).toBe(true);
+    expect(Exploration.landOnSystem(state, 'sol_prime').ok).toBe(true);
+    expect(Exploration.explorePoi(state, 'sol_prime', resourcePoi.id).ok).toBe(true);
+
+    const result = AutoTrade.findBestDispatchRoute(state, {
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+      fuelEfficiency: 1.0,
+      cargoFree: 20,
+      credits: 6000,
+      systemIds: ['sol_prime', 'nova_station'],
+    });
+
+    expect(result).not.toBeNull();
+    if (result) {
+      expect(result.surveyIntelScore).toBeGreaterThan(0);
+      expect(result.surveyIntelSummary).toContain('勘探情报');
+      expect(result.strategySummary).toContain('贸易报告');
     }
   });
 });

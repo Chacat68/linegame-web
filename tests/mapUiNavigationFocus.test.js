@@ -130,5 +130,10 @@ describe('MapUI navigation target focus', function () {
     expect(panel.innerHTML).toContain('当前指引');
     expect(panel.innerHTML).toContain('食物');
     expect(panel.innerHTML).toContain('前往卖货点');
+    expect(panel.innerHTML).toContain('data-planet-guide-route');
+    expect(panel.innerHTML).toContain('燃料');
+    expect(panel.innerHTML).toContain('预计');
+    expect(panel.innerHTML).toContain('风险');
+    expect(panel.innerHTML).toContain('确认卖出');
   });
 });

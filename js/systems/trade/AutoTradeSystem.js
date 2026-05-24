@@ -735,6 +735,13 @@ export function findBestDispatchRoute(state, options, tradePolicy) {
             tradeThemeSummary: themeFit.summary,
             routeModeLabel: themeFit.routeModeLabel,
             dispatchProfile: dispatchProfile,
+            recommendedTradePolicy: {
+              maxBuyPrice: normalizedPolicy.maxBuyPrice,
+              minSellPrice: normalizedPolicy.minSellPrice,
+              minProfitRate: normalizedPolicy.minProfitRate,
+              riskMode: normalizedPolicy.riskMode,
+              marketMode: normalizedPolicy.marketMode,
+            },
           };
         }
       });

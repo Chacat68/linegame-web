@@ -233,7 +233,7 @@ describe('GuidanceSystem', function () {
     expect(getCurrentSuggestion(state, { blockingModalOpen: true })).toBe(null);
   });
 
-  it('有待处理事件时只定位卖货点，不直接起航', function () {
+  it('有待处理事件时优先处理事件', function () {
     var state = createTestState({
       quests: [createFirstTradeQuest()],
       cargo: { food: 2 },
@@ -243,12 +243,829 @@ describe('GuidanceSystem', function () {
     var suggestion = getCurrentSuggestion(state, { eventPending: true });
 
     expect(suggestion).toMatchObject({
+      id: 'handle-pending-event',
+      actionType: 'event.open',
+      actionLabel: '查看事件',
+    });
+    expect(suggestion.reason).toContain('阻塞航行');
+  });
+
+  it('待处理事件优先于低燃料和派遣建议', function () {
+    var state = createTestState({
+      quests: [],
+      completedQuests: ['starter_first_trade', 'starter_visit_2'],
+      cargo: {},
+      credits: 5000,
+      fuel: 10,
+      maxFuel: 100,
+      currentSystem: 'sol_prime',
+    });
+    var suggestion = getCurrentSuggestion(state, {
+      eventPending: true,
+      dispatchRouteRecommendation: {
+        buySystemId: 'sol_prime',
+        sellSystemId: 'nova_station',
+        goodId: 'food',
+      },
+    });
+
+    expect(suggestion).toMatchObject({
+      id: 'handle-pending-event',
+      actionType: 'event.open',
+    });
+  });
+
+  it('初次交易进行中且低燃料时先推荐补给再买货', function () {
+    var state = createTestState({
+      quests: [createFirstTradeQuest()],
+      cargo: {},
+      credits: 5000,
+      fuel: 10,
+      maxFuel: 100,
+      currentSystem: 'sol_prime',
+    });
+    var suggestion = getCurrentSuggestion(state, { marketOpen: false });
+
+    expect(suggestion).toMatchObject({
+      id: 'refuel-low-tank',
+      actionType: 'trade.refuel',
+      actionLabel: '补充燃料',
+      payload: {
+        fuelNeeded: 90,
+        workspaceId: 'spot',
+        subworkspaceId: 'trade',
+      },
+    });
+  });
+
+  it('低燃料优先于探索和派遣成长建议', function () {
+    var state = createTestState({
+      quests: [],
+      completedQuests: ['starter_first_trade', 'starter_visit_2'],
+      cargo: {},
+      credits: 5000,
+      fuel: 12,
+      maxFuel: 100,
+      currentSystem: 'sol_prime',
+    });
+    var suggestion = getCurrentSuggestion(state, {
+      scanStatus: { canScan: true, scanLevel: 0 },
+      dispatchRouteRecommendation: {
+        buySystemId: 'sol_prime',
+        sellSystemId: 'nova_station',
+        goodId: 'food',
+      },
+    });
+
+    expect(suggestion).toMatchObject({
+      id: 'refuel-low-tank',
+      actionType: 'trade.refuel',
+    });
+  });
+
+  it('早期闭环结束后会推荐科研补给派遣', function () {
+    var researchSupplyRoute = {
+      buySystemId: 'sol_prime',
+      buySystemName: '太阳系-主星',
+      sellSystemId: 'nova_station',
+      sellSystemName: '新星站',
+      goodId: 'technology',
+      goodName: '科技组件',
+      recommendedTradePolicy: { riskMode: 'balanced', marketMode: 'open' },
+    };
+    var state = createTestState({
+      quests: [],
+      completedQuests: ['starter_first_trade', 'starter_visit_2'],
+      cargo: {},
+      fuel: 100,
+      maxFuel: 100,
+      currentSystem: 'sol_prime',
+    });
+    var suggestion = getCurrentSuggestion(state, {
+      researchSupplyRoute: researchSupplyRoute,
+    });
+
+    expect(suggestion).toMatchObject({
+      id: 'prefill-research-supply-dispatch',
+      actionType: 'fleet.dispatch.prefill',
+      actionLabel: '带入机库',
+      payload: {
+        sourceLabel: '科研补给建议',
+        recommendation: researchSupplyRoute,
+      },
+      surface: 'fleet',
+    });
+  });
+
+  it('科研补给建议不会抢占未完成的货物卖出闭环', function () {
+    var state = createTestState({
+      quests: [],
+      completedQuests: ['starter_first_trade', 'starter_visit_2'],
+      cargo: { food: 2 },
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+    });
+    var suggestion = getCurrentSuggestion(state, {
+      researchSupplyRoute: {
+        buySystemId: 'sol_prime',
+        sellSystemId: 'nova_station',
+        goodId: 'technology',
+      },
+    });
+
+    expect(suggestion).toMatchObject({
       id: 'find-sell-destination',
-      actionType: 'map.focus',
-      actionLabel: '定位卖货点',
+      actionType: 'travel.execute',
+    });
+  });
+
+  it('科研补给资金不足时推荐先打开市场周转', function () {
+    var state = createTestState({
+      quests: [],
+      completedQuests: ['starter_first_trade', 'starter_visit_2'],
+      cargo: {},
+      fuel: 100,
+      maxFuel: 100,
+      currentSystem: 'sol_prime',
+    });
+    var suggestion = getCurrentSuggestion(state, {
+      researchBlocker: {
+        reasonId: 'credits',
+        blockedReason: '当前资金不足，暂时无法为科研补给垫付进货成本。',
+      },
+    });
+
+    expect(suggestion).toMatchObject({
+      id: 'resolve-research-funding',
+      actionType: 'market.open',
+      payload: {
+        workspaceId: 'spot',
+        subworkspaceId: 'trade',
+      },
+    });
+  });
+
+  it('早期闭环结束后会推荐普通派遣策略预填', function () {
+    var dispatchRouteRecommendation = {
+      buySystemId: 'sol_prime',
+      buySystemName: '太阳主星',
+      sellSystemId: 'nova_station',
+      sellSystemName: '新北京站',
+      goodId: 'food',
+      goodName: '食物',
+      strategySummary: '稳态商运：匹配公开市场',
+      surveyIntelSummary: '勘探情报：买入地贸易报告',
+      recommendedTradePolicy: { riskMode: 'balanced', marketMode: 'open' },
+    };
+    var state = createTestState({
+      quests: [],
+      completedQuests: ['starter_first_trade', 'starter_visit_2'],
+      cargo: {},
+      fuel: 100,
+      maxFuel: 100,
+      currentSystem: 'sol_prime',
+    });
+    var suggestion = getCurrentSuggestion(state, {
+      dispatchRouteRecommendation: dispatchRouteRecommendation,
+    });
+
+    expect(suggestion).toMatchObject({
+      id: 'prefill-profitable-dispatch',
+      actionType: 'fleet.dispatch.prefill',
+      actionLabel: '带入机库',
+      payload: {
+        sourceLabel: '派遣策略建议',
+        recommendation: dispatchRouteRecommendation,
+      },
+      surface: 'fleet',
+    });
+    expect(suggestion.reason).toContain('太阳主星');
+    expect(suggestion.reason).toContain('勘探情报');
+  });
+
+  it('船况明显受损时推荐进入机库维修', function () {
+    var state = createTestState({
+      quests: [],
+      completedQuests: ['starter_first_trade', 'starter_visit_2'],
+      cargo: {},
+      fuel: 100,
+      maxFuel: 100,
+      currentSystem: 'sol_prime',
+    });
+    var suggestion = getCurrentSuggestion(state, {
+      serviceStatus: {
+        shipIndex: 0,
+        hullRatio: 0.6,
+        repairQuote: {
+          cost: 280,
+          faultCount: 0,
+          disabledReason: '',
+        },
+      },
+      researchBlocker: { reasonId: 'credits' },
+    });
+
+    expect(suggestion).toMatchObject({
+      id: 'service-active-ship',
+      actionType: 'fleet.service.open',
+      actionLabel: '打开机库',
+      payload: {
+        shipIndex: 0,
+        repairCost: 280,
+      },
+    });
+  });
+
+  it('维护度进入磨损区间时也推荐进入机库维修', function () {
+    var state = createTestState({
+      quests: [],
+      completedQuests: ['starter_first_trade', 'starter_visit_2'],
+      cargo: {},
+      fuel: 100,
+      maxFuel: 100,
+      currentSystem: 'sol_prime',
+    });
+    var suggestion = getCurrentSuggestion(state, {
+      serviceStatus: {
+        shipIndex: 0,
+        hullRatio: 1,
+        maintenanceValue: 42,
+        maintenanceBand: 'worn',
+        repairQuote: {
+          cost: 360,
+          faultCount: 0,
+          disabledReason: '',
+        },
+      },
+      dispatchRouteRecommendation: {
+        buySystemId: 'sol_prime',
+        sellSystemId: 'nova_station',
+        goodId: 'food',
+      },
+    });
+
+    expect(suggestion).toMatchObject({
+      id: 'service-active-ship',
+      actionType: 'fleet.service.open',
+      payload: {
+        shipIndex: 0,
+        repairCost: 360,
+        maintenanceValue: 42,
+      },
+    });
+    expect(suggestion.reason).toContain('维护度');
+  });
+
+  it('维修资金不足时推荐先去市场周转', function () {
+    var state = createTestState({
+      quests: [],
+      completedQuests: ['starter_first_trade', 'starter_visit_2'],
+      cargo: {},
+      fuel: 100,
+      maxFuel: 100,
+      currentSystem: 'sol_prime',
+    });
+    var suggestion = getCurrentSuggestion(state, {
+      serviceStatus: {
+        shipIndex: 0,
+        hullRatio: 0.5,
+        repairQuote: {
+          cost: 280,
+          faultCount: 0,
+          disabledReason: '积分不足',
+        },
+      },
+    });
+
+    expect(suggestion).toMatchObject({
+      id: 'fund-ship-service',
+      actionType: 'market.open',
+      payload: {
+        workspaceId: 'spot',
+        subworkspaceId: 'trade',
+      },
+    });
+  });
+
+  it('仅维护度维修资金不足时也推荐先去市场周转', function () {
+    var state = createTestState({
+      quests: [],
+      completedQuests: ['starter_first_trade', 'starter_visit_2'],
+      cargo: {},
+      fuel: 100,
+      maxFuel: 100,
+      currentSystem: 'sol_prime',
+    });
+    var suggestion = getCurrentSuggestion(state, {
+      serviceStatus: {
+        shipIndex: 0,
+        hullRatio: 1,
+        maintenanceValue: 39,
+        maintenanceBand: 'worn',
+        repairQuote: {
+          cost: 420,
+          faultCount: 0,
+          disabledReason: '积分不足',
+        },
+      },
+    });
+
+    expect(suggestion).toMatchObject({
+      id: 'fund-ship-service',
+      actionType: 'market.open',
+      payload: {
+        workspaceId: 'spot',
+        subworkspaceId: 'trade',
+      },
+    });
+  });
+
+  it('资金足够且公司等级满足时推荐建设贸易站', function () {
+    var state = createTestState({
+      quests: [],
+      completedQuests: ['starter_first_trade', 'starter_visit_2'],
+      cargo: {},
+      credits: 150000,
+      companyLevel: 4,
+      fuel: 100,
+      maxFuel: 100,
+      currentSystem: 'sol_prime',
+      visitedSystems: ['sol_prime'],
+      tradeStations: {},
+    });
+    var suggestion = getCurrentSuggestion(state);
+
+    expect(suggestion).toMatchObject({
+      id: 'build-trade-station',
+      actionType: 'market.open',
+      actionLabel: '打开经营页',
+      payload: {
+        workspaceId: 'operations',
+        subworkspaceId: 'local',
+        systemId: 'sol_prime',
+      },
+    });
+  });
+
+  it('商网阶段有多个可升级站点时推荐批量升级波次', function () {
+    var state = createTestState({
+      quests: [],
+      completedQuests: ['starter_first_trade', 'starter_visit_2'],
+      cargo: {},
+      credits: 500000,
+      companyLevel: 6,
+      fuel: 100,
+      maxFuel: 100,
+      currentSystem: 'sol_prime',
+      visitedSystems: ['sol_prime', 'nova_station'],
+      tradeStations: {
+        sol_prime: {
+          systemId: 'sol_prime',
+          level: 1,
+          strategyId: 'balanced',
+          managerId: null,
+          totalIncome: 0,
+          investment: 100000,
+          lastIncome: 0,
+          buildDay: 1,
+          lastProcessedDay: 1,
+        },
+        nova_station: {
+          systemId: 'nova_station',
+          level: 1,
+          strategyId: 'balanced',
+          managerId: null,
+          totalIncome: 0,
+          investment: 100000,
+          lastIncome: 0,
+          buildDay: 1,
+          lastProcessedDay: 1,
+        },
+      },
+    });
+    var suggestion = getCurrentSuggestion(state);
+
+    expect(suggestion).toMatchObject({
+      id: 'batch-upgrade-trade-stations',
+      actionType: 'market.open',
+      actionLabel: '打开批量面板',
+      payload: {
+        workspaceId: 'operations',
+        subworkspaceId: 'network',
+        batchScope: 'upgrade',
+      },
+    });
+    expect(suggestion.payload.systemIds.slice().sort()).toEqual(['nova_station', 'sol_prime']);
+  });
+
+  it('商网阶段没有升级目标时推荐批量资本增配', function () {
+    var state = createTestState({
+      quests: [],
+      completedQuests: ['starter_first_trade', 'starter_visit_2'],
+      cargo: {},
+      credits: 30000,
+      companyLevel: 6,
+      fuel: 100,
+      maxFuel: 100,
+      currentSystem: 'sol_prime',
+      visitedSystems: ['sol_prime', 'nova_station'],
+      tradeInvestments: {},
+      tradeStations: {
+        sol_prime: {
+          systemId: 'sol_prime',
+          level: 3,
+          strategyId: 'balanced',
+          managerId: null,
+          totalIncome: 0,
+          investment: 1000000,
+          lastIncome: 0,
+          buildDay: 1,
+          lastProcessedDay: 1,
+        },
+        nova_station: {
+          systemId: 'nova_station',
+          level: 3,
+          strategyId: 'balanced',
+          managerId: null,
+          totalIncome: 0,
+          investment: 1000000,
+          lastIncome: 0,
+          buildDay: 1,
+          lastProcessedDay: 1,
+        },
+      },
+    });
+    var suggestion = getCurrentSuggestion(state);
+
+    expect(suggestion).toMatchObject({
+      id: 'batch-invest-trade-stations',
+      actionType: 'market.open',
+      payload: {
+        workspaceId: 'operations',
+        subworkspaceId: 'network',
+        batchScope: 'investment',
+      },
+    });
+    expect(suggestion.payload.systemIds.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('有可用勘探经营情报时推荐打开市场情报区', function () {
+    var state = createTestState({
+      quests: [],
+      completedQuests: ['starter_first_trade', 'starter_visit_2'],
+      cargo: {},
+      credits: 5000,
+      fuel: 100,
+      maxFuel: 100,
+      currentSystem: 'sol_prime',
+    });
+    var suggestion = getCurrentSuggestion(state, {
+      surveyIntel: {
+        systemId: 'sol_prime',
+        hasIntel: true,
+        marketSignal: true,
+        researchSignal: false,
+        routeSignal: false,
+        logisticsSignal: false,
+        primarySignal: 'market',
+        recentReportTitle: '轨道种子库清单',
+      },
+    });
+
+    expect(suggestion).toMatchObject({
+      id: 'review-survey-market-intel',
+      actionType: 'market.open',
+      actionLabel: '查看行情',
+      payload: {
+        workspaceId: 'spot',
+        subworkspaceId: 'intel',
+        systemId: 'sol_prime',
+        intelSignal: 'market',
+      },
+    });
+    expect(suggestion.reason).toContain('贸易窗口');
+  });
+
+  it('市场情报区已经打开时不会反复推荐查看同一份勘探行情', function () {
+    var state = createTestState({
+      quests: [],
+      completedQuests: ['starter_first_trade', 'starter_visit_2'],
+      cargo: {},
+      credits: 5000,
+      fuel: 100,
+      maxFuel: 100,
+      currentSystem: 'sol_prime',
+    });
+    var suggestion = getCurrentSuggestion(state, {
+      marketOpen: true,
+      marketFocus: {
+        workspaceId: 'spot',
+        subworkspaceId: 'intel',
+        systemId: 'sol_prime',
+      },
+      surveyIntel: {
+        systemId: 'sol_prime',
+        hasIntel: true,
+        marketSignal: true,
+        primarySignal: 'market',
+        recentReportTitle: '轨道种子库清单',
+      },
+    });
+
+    expect(suggestion).toBe(null);
+  });
+
+  it('市场打开但未到目标分区时仍保留市场导航建议', function () {
+    var state = createTestState({
+      quests: [],
+      completedQuests: ['starter_first_trade', 'starter_visit_2'],
+      cargo: {},
+      credits: 5000,
+      fuel: 100,
+      maxFuel: 100,
+      currentSystem: 'sol_prime',
+    });
+    var suggestion = getCurrentSuggestion(state, {
+      marketOpen: true,
+      marketFocus: {
+        workspaceId: 'spot',
+        subworkspaceId: 'trade',
+        systemId: 'sol_prime',
+      },
+      surveyIntel: {
+        systemId: 'sol_prime',
+        hasIntel: true,
+        marketSignal: true,
+        primarySignal: 'market',
+        recentReportTitle: '轨道种子库清单',
+      },
+    });
+
+    expect(suggestion).toMatchObject({
+      id: 'review-survey-market-intel',
+      actionType: 'market.open',
+      payload: {
+        workspaceId: 'spot',
+        subworkspaceId: 'intel',
+      },
+    });
+  });
+
+  it('目标资本分区已经打开时跳过对应市场导航建议', function () {
+    var state = createTestState({
+      quests: [],
+      completedQuests: ['starter_first_trade', 'starter_visit_2'],
+      cargo: {},
+      credits: 2000,
+      companyLevel: 2,
+      fuel: 100,
+      maxFuel: 100,
+      currentSystem: 'sol_prime',
+      loans: [{
+        id: 'loan_due',
+        name: '星港周转贷',
+        balance: 3200,
+        dailyPayment: 280,
+        remainingDays: 1,
+        status: 'active',
+      }],
+    });
+    var suggestion = getCurrentSuggestion(state, {
+      marketOpen: true,
+      marketFocus: {
+        workspaceId: 'capital',
+        subworkspaceId: 'local',
+        systemId: 'sol_prime',
+      },
+    });
+
+    expect(suggestion).toBe(null);
+  });
+
+  it('金融风险不会抢占未完成的货物卖出闭环', function () {
+    var state = createTestState({
+      quests: [],
+      completedQuests: ['starter_first_trade', 'starter_visit_2'],
+      cargo: { food: 2 },
+      credits: 2000,
+      companyLevel: 2,
+      fuel: 100,
+      maxFuel: 100,
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+      loans: [{
+        id: 'loan_due',
+        name: '星港周转贷',
+        balance: 3200,
+        dailyPayment: 280,
+        remainingDays: 1,
+        status: 'active',
+      }],
+    });
+    var suggestion = getCurrentSuggestion(state);
+
+    expect(suggestion).toMatchObject({
+      id: 'find-sell-destination',
+      actionType: 'travel.execute',
       payload: { goodId: 'food' },
     });
-    expect(suggestion.reason).toContain('待处理事件');
+  });
+
+  it('贷款临近展期时推荐打开资本调度区', function () {
+    var state = createTestState({
+      quests: [],
+      completedQuests: ['starter_first_trade', 'starter_visit_2'],
+      cargo: {},
+      credits: 2000,
+      companyLevel: 2,
+      fuel: 100,
+      maxFuel: 100,
+      currentSystem: 'sol_prime',
+      loans: [{
+        id: 'loan_due',
+        name: '星港周转贷',
+        balance: 3200,
+        dailyPayment: 280,
+        remainingDays: 1,
+        status: 'active',
+      }],
+    });
+    var suggestion = getCurrentSuggestion(state);
+
+    expect(suggestion).toMatchObject({
+      id: 'review-loan-obligation',
+      actionType: 'market.open',
+      actionLabel: '查看资本',
+      payload: {
+        workspaceId: 'capital',
+        subworkspaceId: 'local',
+        loanId: 'loan_due',
+      },
+    });
+  });
+
+  it('期货临近到期时推荐打开期货合约区', function () {
+    var state = createTestState({
+      quests: [],
+      completedQuests: ['starter_first_trade', 'starter_visit_2'],
+      cargo: {},
+      credits: 2000,
+      companyLevel: 5,
+      fuel: 100,
+      maxFuel: 100,
+      currentSystem: 'sol_prime',
+      day: 8,
+      futuresContracts: [{
+        id: 'fut_food_due',
+        goodId: 'food',
+        goodName: '食物',
+        direction: 'long',
+        lockedPrice: 90,
+        contractUnit: 10,
+        margin: 200,
+        systemId: 'sol_prime',
+        openDay: 1,
+        expiryDay: 9,
+        status: 'open',
+      }],
+    });
+    var suggestion = getCurrentSuggestion(state);
+
+    expect(suggestion).toMatchObject({
+      id: 'review-futures-contract',
+      actionType: 'market.open',
+      actionLabel: '查看期货',
+      payload: {
+        workspaceId: 'capital',
+        subworkspaceId: 'futures',
+        contractId: 'fut_food_due',
+      },
+    });
+  });
+
+  it('证券解锁且无持仓时推荐查看股票标的', function () {
+    var state = createTestState({
+      quests: [],
+      completedQuests: ['starter_first_trade', 'starter_visit_2'],
+      cargo: {},
+      credits: 2000,
+      companyLevel: 3,
+      fuel: 100,
+      maxFuel: 100,
+      currentSystem: 'sol_prime',
+      stockPortfolio: {},
+    });
+    var suggestion = getCurrentSuggestion(state);
+
+    expect(suggestion).toMatchObject({
+      id: 'open-stock-position',
+      actionType: 'market.open',
+      actionLabel: '查看股票',
+      payload: {
+        workspaceId: 'capital',
+        subworkspaceId: 'stocks',
+      },
+    });
+    expect(suggestion.payload.stockId).toBeTruthy();
+  });
+
+  it('商网总览目标已经打开时跳过重复批量经营导航', function () {
+    var state = createTestState({
+      quests: [],
+      completedQuests: ['starter_first_trade', 'starter_visit_2'],
+      cargo: {},
+      credits: 500000,
+      companyLevel: 6,
+      fuel: 100,
+      maxFuel: 100,
+      currentSystem: 'sol_prime',
+      visitedSystems: ['sol_prime', 'nova_station'],
+      stockPortfolio: {
+        federation_index: { shares: 1 },
+      },
+      tradeStations: {
+        sol_prime: {
+          systemId: 'sol_prime',
+          level: 1,
+          strategyId: 'balanced',
+          managerId: null,
+          totalIncome: 0,
+          investment: 100000,
+          lastIncome: 0,
+          buildDay: 1,
+          lastProcessedDay: 1,
+        },
+        nova_station: {
+          systemId: 'nova_station',
+          level: 1,
+          strategyId: 'balanced',
+          managerId: null,
+          totalIncome: 0,
+          investment: 100000,
+          lastIncome: 0,
+          buildDay: 1,
+          lastProcessedDay: 1,
+        },
+      },
+    });
+    var suggestion = getCurrentSuggestion(state, {
+      marketOpen: true,
+      marketFocus: {
+        workspaceId: 'operations',
+        subworkspaceId: 'network',
+        systemId: 'sol_prime',
+      },
+    });
+
+    expect(suggestion).toBe(null);
+  });
+
+  it('批量条件不足时保留单站升级建议', function () {
+    var state = createTestState({
+      quests: [],
+      completedQuests: ['starter_first_trade', 'starter_visit_2'],
+      cargo: {},
+      credits: 250000,
+      companyLevel: 5,
+      fuel: 100,
+      maxFuel: 100,
+      currentSystem: 'sol_prime',
+      visitedSystems: ['sol_prime', 'nova_station'],
+      tradeStations: {
+        sol_prime: {
+          systemId: 'sol_prime',
+          level: 1,
+          strategyId: 'balanced',
+          managerId: null,
+          totalIncome: 0,
+          investment: 100000,
+          lastIncome: 0,
+          buildDay: 1,
+          lastProcessedDay: 1,
+        },
+        nova_station: {
+          systemId: 'nova_station',
+          level: 1,
+          strategyId: 'balanced',
+          managerId: null,
+          totalIncome: 0,
+          investment: 100000,
+          lastIncome: 0,
+          buildDay: 1,
+          lastProcessedDay: 1,
+        },
+      },
+    });
+    var suggestion = getCurrentSuggestion(state);
+
+    expect(suggestion).toMatchObject({
+      id: 'upgrade-trade-station',
+      actionType: 'market.open',
+      payload: {
+        workspaceId: 'operations',
+        subworkspaceId: 'stations',
+      },
+    });
   });
 
   it('扫描完成后推荐申请首次着陆', function () {
