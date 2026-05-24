@@ -2101,6 +2101,7 @@ export function initTabs(onTabClick) {
     bottomNav.addEventListener('click', function (e) {
       var btn = e.target.closest('.bottom-nav-btn');
       if (!btn) return;
+      if (globalThis.__linegameUIManager) return;
       if (hasBlockingSurfaceOpen()) {
         if (typeof e.preventDefault === 'function') e.preventDefault();
         if (typeof e.stopPropagation === 'function') e.stopPropagation();
