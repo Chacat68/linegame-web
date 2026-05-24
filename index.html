@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>蓝脉航路 · 银河历 3045</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%23040814' stroke='%2322d3ee' stroke-width='2'/><circle cx='16' cy='16' r='4' fill='%2322d3ee'/><line x1='16' y1='2' x2='16' y2='8' stroke='%2322d3ee' stroke-width='1.5'/><line x1='16' y1='24' x2='16' y2='30' stroke='%2322d3ee' stroke-width='1.5'/><line x1='2' y1='16' x2='8' y2='16' stroke='%2322d3ee' stroke-width='1.5'/><line x1='24' y1='16' x2='30' y2='16' stroke='%2322d3ee' stroke-width='1.5'/></svg>" />
-    <link rel="stylesheet" href="css/style.css?v=20260519-ux6" />
+    <link rel="stylesheet" href="css/style.css?v=20260520-guide3" />
   </head>
   <body>
     <div id="game-shell">
@@ -38,7 +38,7 @@
           </div>
         </div>
 
-        <div class="hdr-meter-group" aria-label="公司声望">
+        <div class="hdr-meter-group" aria-label="公司声望与飞船状态">
           <div class="hdr-meter-block hdr-meter-block--rep">
             <div class="hdr-meter-head">
               <span class="hdr-stat-label">REPUTATION</span>
@@ -46,6 +46,33 @@
             </div>
             <div class="hdr-meter-track">
               <div id="hdr-reputation-fill" class="hdr-meter-fill hdr-meter-fill--rep" style="width:0%"></div>
+            </div>
+          </div>
+          <div class="hdr-meter-block hdr-meter-block--fuel">
+            <div class="hdr-meter-head">
+              <span class="hdr-stat-label">FUEL</span>
+              <span id="status-fuel-pct" class="hdr-meter-pct">100%</span>
+            </div>
+            <div class="hdr-meter-track">
+              <div id="status-fuel-fill" class="hdr-meter-fill hdr-meter-fill--fuel" style="width:100%"></div>
+            </div>
+          </div>
+          <div class="hdr-meter-block hdr-meter-block--shield">
+            <div class="hdr-meter-head">
+              <span class="hdr-stat-label">SHIELD</span>
+              <span id="status-shield-pct" class="hdr-meter-pct">100%</span>
+            </div>
+            <div class="hdr-meter-track">
+              <div id="status-shield-fill" class="hdr-meter-fill hdr-meter-fill--shield" style="width:100%"></div>
+            </div>
+          </div>
+          <div class="hdr-meter-block hdr-meter-block--cargo">
+            <div class="hdr-meter-head">
+              <span class="hdr-stat-label">CARGO</span>
+              <span id="status-cargo-pct" class="hdr-meter-pct">0%</span>
+            </div>
+            <div class="hdr-meter-track">
+              <div id="status-cargo-fill" class="hdr-meter-fill hdr-meter-fill--cargo" style="width:0%"></div>
             </div>
           </div>
         </div>
@@ -230,8 +257,8 @@
                   <dd id="hud-target-survey">未扫描</dd>
                 </div>
                 <div>
-                  <dt>后续</dt>
-                  <dd id="hud-target-next">等待轨道扫描</dd>
+                  <dt>探索状态</dt>
+                  <dd id="hud-target-next">待扫描</dd>
                 </div>
               </dl>
               <div class="target-intel-actions">
@@ -479,6 +506,7 @@
                 class="auto-trade-controls hidden"
               ></div>
               <div id="fleet-list"></div>
+              <div id="fleet-inline-container" class="fleet-inline-container hidden"></div>
             </div>
 
             <!-- Ship Shop tab -->
@@ -489,65 +517,28 @@
           <!-- /tab-content -->
         </aside>
 
-        <!-- Console Panel (overlay: CONSOLE tab) ----------------------------- -->
-        <div id="console-panel" class="side-panel-overlay side-panel-overlay--bottom">
-          <div class="console-panel-header">
-            <span class="console-panel-title">CONSOLE LOG</span>
-            <button id="console-panel-close" class="info-panel-toggle" title="关闭">✕</button>
-          </div>
-          <div id="message-log" class="console-message-log"></div>
-        </div>
       </main>
 
       <!-- ================================================================
        Status bar (bottom: ship status + navigation tabs)
   ================================================================ -->
       <footer id="status-bar">
-        <!-- Ship status bars -->
-        <div class="status-ship-stats">
-          <div class="status-stat">
-            <div class="status-stat-header">
-              <span class="status-stat-label">FUEL</span>
-              <span id="status-fuel-pct" class="status-stat-pct">100%</span>
-            </div>
-            <div class="status-stat-track">
-              <div id="status-fuel-fill" class="status-stat-fill status-stat-fill--fuel" style="width:100%"></div>
-            </div>
-          </div>
-          <div class="status-stat">
-            <div class="status-stat-header">
-              <span class="status-stat-label">SHIELD</span>
-              <span id="status-shield-pct" class="status-stat-pct">100%</span>
-            </div>
-            <div class="status-stat-track">
-              <div id="status-shield-fill" class="status-stat-fill status-stat-fill--shield" style="width:100%"></div>
-            </div>
-          </div>
-          <div class="status-stat">
-            <div class="status-stat-header">
-              <span class="status-stat-label">CARGO</span>
-              <span id="status-cargo-pct" class="status-stat-pct">0%</span>
-            </div>
-            <div class="status-stat-track">
-              <div id="status-cargo-fill" class="status-stat-fill status-stat-fill--cargo" style="width:0%"></div>
-            </div>
-          </div>
+        <!-- Mini Console Broadcast Bar (单行滚动日志广播) -->
+        <div id="mini-console-broadcast" class="mini-console-broadcast">
+          <span class="broadcast-icon">📟</span>
+          <span id="broadcast-content" class="broadcast-content">系统准备就绪。蓝脉星区航路已锁定。</span>
+          <button id="broadcast-history-btn" class="broadcast-history-btn" type="button" title="查看完整历史通讯">历史记录 ↗</button>
         </div>
 
         <!-- Bottom navigation tabs -->
         <nav class="bottom-nav" id="bottom-nav">
-          <button class="bottom-nav-btn" data-view="console" title="控制台">
-            <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-            <span>控制台</span>
-          </button>
-
-          <button class="bottom-nav-btn" data-view="market" title="市场">
-            <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-            <span>市场</span>
-          </button>
           <button class="bottom-nav-btn active" data-view="starmap" title="星图">
             <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg>
             <span>星图</span>
+          </button>
+          <button class="bottom-nav-btn" data-view="market" title="市场">
+            <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+            <span>市场</span>
           </button>
           <button class="bottom-nav-btn" data-view="hangar" title="机库">
             <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
@@ -558,10 +549,32 @@
             <span>档案</span>
             <span id="archive-nav-badge" class="bottom-nav-badge" hidden></span>
           </button>
+          <button class="bottom-nav-btn" data-view="logs" title="通讯日志">
+            <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+            <span>日志</span>
+          </button>
         </nav>
       </footer>
     </div>
     <!-- /game-shell -->
+
+    <!-- ================================================================
+     Logs modal (通讯历史终端弹窗)
+================================================================ -->
+    <div id="logs-modal" class="modal hidden" role="dialog" aria-modal="true">
+      <div class="modal-box stack-modal-box logs-modal-box">
+        <div class="stack-modal-scroll">
+          <div class="logs-header">
+            <span class="logs-icon-large">📟</span>
+            <h3 id="logs-title">通讯历史终端</h3>
+          </div>
+          <div id="logs-modal-list" class="console-message-log-detailed"></div>
+        </div>
+        <div class="modal-actions">
+          <button id="logs-modal-close" class="btn-secondary">关闭</button>
+        </div>
+      </div>
+    </div>
 
     <!-- ================================================================
      Trade modal
@@ -992,6 +1005,25 @@
                 <div class="settings-hint-row">
                   关闭后只隐藏地图上的暗线标注，已解锁航线仍然继续生效。
                 </div>
+                <div class="settings-row">
+                  <div class="settings-row-label">
+                    <span class="settings-label">终端模糊特效</span>
+                    <span class="settings-row-desc"
+                      >开启后在大终端打开时对星图背景进行高品质高斯模糊，关闭可提高帧率</span
+                    >
+                  </div>
+                  <div class="settings-row-control">
+                    <input
+                      id="settings-terminal-blur"
+                      class="settings-toggle"
+                      type="checkbox"
+                      checked
+                    />
+                  </div>
+                </div>
+                <div class="settings-hint-row">
+                  推荐性能较好的设备开启。若关闭，将切换为极速的扁平半透明遮罩降级替代。
+                </div>
               </section>
 
               <section
@@ -1098,6 +1130,6 @@
 
     <!-- Babylon.js library for 3D rendering -->
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
-    <script type="module" src="js/main.js?v=20260519-ux7"></script>
+    <script type="module" src="js/main.js?v=20260520-guide3"></script>
   </body>
 </html>

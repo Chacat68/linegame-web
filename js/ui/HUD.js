@@ -57,6 +57,7 @@ let _lastProgressList = [];
 let _questActions = null;
 let _initialized = false;
 let _activeHudWidgetId = DEFAULT_HUD_WIDGET_ID;
+let _logsHistory = [];
 
 // ---------------------------------------------------------------------------
 // 初始化：订阅 EventBus 日志事件
@@ -95,6 +96,27 @@ export function init() {
   }
 
   if (vpModal) bindBlockingSurfaceDismiss('victory-modal');
+
+  // 绑定底栏滚动日志和历史按钮的点击事件，跳转至日志大终端
+  const broadcastBar = document.getElementById('mini-console-broadcast');
+  if (broadcastBar) {
+    broadcastBar.addEventListener('click', function (e) {
+      EventBus.emit('view:switch', 'logs');
+    });
+  }
+
+  const historyBtn = document.getElementById('broadcast-history-btn');
+  if (historyBtn) {
+    historyBtn.addEventListener('click', function (e) {
+      e.stopPropagation(); // 阻止冒泡触发父级容器的点击
+      EventBus.emit('view:switch', 'logs');
+    });
+  }
+
+  // 监听大弹窗打开事件
+  EventBus.on('logs:modal:opened', function () {
+    _renderDetailedLogs();
+  });
 
   _bindHudWidgetControls();
 }
@@ -454,13 +476,68 @@ export function updateArchiveBadges(state) {
 
 
 export function addMessage(text, type) {
+  // 1. 存入历史数组，限制最大 200 条，最新在顶部 (方案 A)
+  _logsHistory.unshift({ text: text, type: type || 'info', time: new Date() });
+  if (_logsHistory.length > 200) {
+    _logsHistory.pop();
+  }
+
+  // 2. 同步更新底栏滚动广播，自动加上 Emoji 前缀
+  const broadcastContent = document.getElementById('broadcast-content');
+  if (broadcastContent) {
+    let prefix = '';
+    if (type === 'error') prefix = '🚨 ';
+    else if (type === 'warning') prefix = '⚠️ ';
+    else if (type === 'success' || type === 'buy') prefix = '✅ ';
+    else if (type === 'sell') prefix = '🪙 ';
+    else if (type === 'travel') prefix = '🚀 ';
+    else if (type === 'upgrade') prefix = '🔧 ';
+    else if (type === 'tip') prefix = '💡 ';
+    else prefix = 'ℹ️ ';
+    broadcastContent.textContent = prefix + text;
+  }
+
+  // 3. 向下兼容旧版 message-log (如果有的话)
   const log = document.getElementById('message-log');
-  if (!log) return;
-  const div = document.createElement('div');
-  div.className   = 'msg msg-' + (type || 'info');
-  div.textContent = text;
-  log.insertBefore(div, log.firstChild);
-  while (log.children.length > 10) log.removeChild(log.lastChild);
+  if (log) {
+    const div = document.createElement('div');
+    div.className   = 'msg msg-' + (type || 'info');
+    div.textContent = text;
+    log.insertBefore(div, log.firstChild);
+    while (log.children.length > 10) log.removeChild(log.lastChild);
+  }
+}
+
+/**
+ * 渲染全屏详细历史日志终端列表
+ */
+function _renderDetailedLogs() {
+  const container = document.getElementById('logs-modal-list');
+  if (!container) return;
+
+  if (_logsHistory.length === 0) {
+    container.innerHTML = '<div class="msg msg-info" style="text-align: center; color: var(--text-dim); padding: 20px;">暂无历史通讯记录。</div>';
+    return;
+  }
+
+  container.innerHTML = _logsHistory.map(function (item) {
+    const t = item.time || new Date();
+    const hours = String(t.getHours()).padStart(2, '0');
+    const minutes = String(t.getMinutes()).padStart(2, '0');
+    const seconds = String(t.getSeconds()).padStart(2, '0');
+    const timeStr = hours + ':' + minutes + ':' + seconds;
+
+    let typeLabel = 'INFO';
+    if (item.type) {
+      typeLabel = item.type.toUpperCase();
+    }
+
+    return '<div class="msg msg-' + _escapeHtml(item.type || 'info') + '">' +
+      '<span class="log-time" style="color: var(--text-dim); margin-right: 8px; font-family: monospace;">[' + timeStr + ']</span>' +
+      '<span class="log-label" style="font-weight: 600; margin-right: 6px; font-family: monospace;">[' + typeLabel + ']</span> ' +
+      _escapeHtml(item.text) +
+    '</div>';
+  }).join('');
 }
 
 // ---------------------------------------------------------------------------
@@ -477,10 +554,6 @@ function _updateStatusBars(state) {
   var fuelPctEl  = document.getElementById('status-fuel-pct');
   if (fuelFillEl) fuelFillEl.style.width = fuelPct + '%';
   if (fuelPctEl)  fuelPctEl.textContent  = fuelPct + '%';
-  var hdrFuelFillEl = document.getElementById('hdr-fuel-fill');
-  var hdrFuelPctEl  = document.getElementById('hdr-fuel-pct');
-  if (hdrFuelFillEl) hdrFuelFillEl.style.width = fuelPct + '%';
-  if (hdrFuelPctEl)  hdrFuelPctEl.textContent  = fuelPct + '%';
 
   // 护盾（船体耐久）
   var hullPct = state.maxHull > 0
@@ -504,10 +577,6 @@ function _updateStatusBars(state) {
   var cargoPctEl  = document.getElementById('status-cargo-pct');
   if (cargoFillEl) cargoFillEl.style.width = cargoPct + '%';
   if (cargoPctEl)  cargoPctEl.textContent  = cargoPct + '%';
-  var hdrCargoFillEl = document.getElementById('hdr-cargo-fill');
-  var hdrCargoPctEl  = document.getElementById('hdr-cargo-pct');
-  if (hdrCargoFillEl) hdrCargoFillEl.style.width = cargoPct + '%';
-  if (hdrCargoPctEl)  hdrCargoPctEl.textContent  = cargoPct + '%';
 
   return {
     cargoUsed: cargoUsed,
@@ -565,7 +634,7 @@ function _renderHudTargetSurvey(state, sys, targetSurveyEl, targetNextEl) {
 
   if (!exploration || !summary) {
     _setTextWithTitle(targetSurveyEl, '勘探档案同步中');
-    _setTextWithTitle(targetNextEl, '等待航图同步');
+    _setTextWithTitle(targetNextEl, '档案同步中');
     return;
   }
 
@@ -581,13 +650,13 @@ function _renderHudTargetSurvey(state, sys, targetSurveyEl, targetNextEl) {
     scanText + ' · ' + poiText + ' · 情报 Lv.' + (summary.intelLevel || 0)
   );
 
-  var nextText = '等待轨道扫描';
+  var nextText = '待扫描';
   if ((exploration.scanLevel || 0) <= 0) {
-    nextText = '下一步：轨道扫描';
+    nextText = '待扫描 · 轨道数据未建档';
   } else if (!exploration.landed) {
-    nextText = '下一步：首次着陆';
+    nextText = '待着陆 · 着陆窗口未建立';
   } else if (summary.pendingCount > 0) {
-    nextText = '下一步：调查 ' + summary.pendingCount + ' 个 POI';
+    nextText = '待调查 · ' + summary.pendingCount + ' 个 POI';
   } else if (summary.completed) {
     nextText = '探索完成 · ' + summary.reportCount + ' 份报告';
   } else {
@@ -787,17 +856,17 @@ function _renderQuestTracker(state) {
 
   var tracker = Quest.getQuestTracker(state, 2);
   var title = '当前目标';
-  var hint = '优先推进进行中的任务';
+  var hint = '仅显示任务摘要';
 
   if (tracker.mode === 'recommended') {
-    title = '下一步建议';
-    hint = '先接取一项入门任务，保持成长节奏';
+    title = '推荐任务';
+    hint = '接取与路线留在任务页';
   } else if (tracker.mode === 'available') {
     title = '可接任务';
-    hint = '当前没有激活任务，可从任务页接新委托';
+    hint = '任务页处理接取';
   } else if (tracker.mode === 'empty') {
     title = '任务状态';
-    hint = '当前章节暂无可追踪目标';
+    hint = '暂无可追踪目标';
   }
 
   var html =
@@ -831,7 +900,7 @@ function _renderQuestTracker(state) {
           '<span class="quest-tracker-item-name">' + item.name + '</span>' +
           '<span class="quest-tracker-badge">' + item.statusText + '</span>' +
         '</div>' +
-        '<div class="quest-tracker-summary-line">完整目标、奖励和路线留在任务页。</div>' +
+        '<div class="quest-tracker-summary-line">目标、奖励和路线留在任务页。</div>' +
         '<div class="quest-tracker-meta">' + metaParts.join('') + '</div>' +
       '</div>';
   }

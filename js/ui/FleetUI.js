@@ -12,6 +12,87 @@ import * as Economy from '../systems/economy/Economy.js';
 import * as AutoTrade from '../systems/trade/AutoTradeSystem.js?v=20260420-balance5';
 import * as Faction from '../systems/faction/FactionSystem.js';
 import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from './SurfaceManager.js?v=20260505-surface4';
+import * as EventBus from '../core/EventBus.js';
+
+let _activeInlineModalId = null;
+let _currentPortalCleanup = null;
+
+// 全局监听重置事件（用于视图切换时自动归还节点）
+EventBus.on('hangar:reset', function() {
+  if (_currentPortalCleanup) {
+    _currentPortalCleanup();
+  }
+});
+
+/**
+ * 核心 Portal 函数：将弹窗中的 .modal-box 搬移至内联容器
+ * @param {string} modalId 弹窗元素的ID（如 'mod-modal'）
+ * @param {Function} onCloseCallback 当点击返回或关闭时调用的额外回调
+ */
+function _openInlinePortal(modalId, onCloseCallback) {
+  // 如果之前已经有活动的 portal，先静默归还
+  if (_currentPortalCleanup) {
+    _currentPortalCleanup();
+  }
+
+  const listContainer = document.getElementById('fleet-list');
+  const inlineContainer = document.getElementById('fleet-inline-container');
+  const modal = document.getElementById(modalId);
+  if (!listContainer || !inlineContainer || !modal) return false;
+
+  const modalBox = modal.querySelector('.modal-box');
+  if (!modalBox) return false;
+
+  _activeInlineModalId = modalId;
+
+  // 1. 隐藏原主列表，显示内嵌容器
+  listContainer.classList.add('hidden');
+  inlineContainer.classList.remove('hidden');
+  inlineContainer.innerHTML = '';
+
+  // 2. 创建高颜值的 [ ← 返回机库列表 ] 的青色毛玻璃窄条
+  const backBar = document.createElement('div');
+  backBar.className = 'inline-portal-back-bar';
+  backBar.innerHTML = `<button class="inline-portal-back-btn" type="button">← 返回机库列表 (BACK TO HANGAR)</button>`;
+  
+  // 3. 将返回条和搬移过来的 modalBox 插入到内联容器
+  inlineContainer.appendChild(backBar);
+  inlineContainer.appendChild(modalBox);
+
+  // 4. 定义清理（还原）函数
+  const cleanup = function() {
+    if (_activeInlineModalId !== modalId) return; // 避免重复清理
+
+    // 把 .modal-box 移回原 modal 容器
+    modal.appendChild(modalBox);
+    
+    // 隐藏并清空内嵌容器，重新展现列表
+    inlineContainer.classList.add('hidden');
+    inlineContainer.innerHTML = '';
+    listContainer.classList.remove('hidden');
+    
+    _activeInlineModalId = null;
+    _currentPortalCleanup = null;
+
+    if (onCloseCallback) {
+      onCloseCallback();
+    }
+  };
+
+  _currentPortalCleanup = cleanup;
+
+  // 5. 绑定返回按钮事件
+  backBar.querySelector('.inline-portal-back-btn').onclick = function(e) {
+    e.preventDefault();
+    cleanup();
+    // 触发全局渲染以更新主列表状态
+    if (globalThis.__linegameGameManager && typeof globalThis.__linegameGameManager.renderUI === 'function') {
+      globalThis.__linegameGameManager.renderUI();
+    }
+  };
+
+  return true;
+}
 
 function _formatTradePolicySummary(policy) {
   if (!policy || typeof policy !== 'object') return '默认：按当前价格循环';
@@ -47,6 +128,9 @@ function _formatTradePolicySummary(policy) {
  * @param {Function} onActivateShipProtocol (shipIndex) => void
  */
 export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRoute, onCancelRoute, onBuySlot, onSellShip, onInstallMod, onUninstallMod, onServiceShip, onRecruitCrew, onAssignCrew, onUnassignCrew, onDismissCrew, onSetShipDoctrine, onActivateShipProtocol) {
+  if (_activeInlineModalId !== null) {
+    return;
+  }
   const container = document.getElementById('fleet-list');
   if (!container) return;
 
@@ -224,6 +308,9 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
     const maintenance = shipStats.maintenance || Fleet.getShipMaintenanceSummary(state, ship);
     const roleProfile = shipStats.roleProfile || Fleet.getShipRoleProfile(state, ship);
     const faults = shipStats.faults || Fleet.getShipFaultSummaries(ship);
+    const modRecommendation = Fleet.getShipModRecommendation
+      ? Fleet.getShipModRecommendation(state, idx)
+      : null;
     const repairJob = ship.repairJob && ship.repairJob.remainingDays > 0 ? ship.repairJob : null;
 
     html += '<div class="fleet-ship-card' + (isActive ? ' fleet-active' : '') +
@@ -291,6 +378,9 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
     }
     if (faults.length > 0) {
       html += '<span class="fleet-summary-chip fleet-summary-chip--warning" title="存在 ' + faults.length + ' 项故障">⚠️ 故障 ' + faults.length + '</span>';
+    }
+    if (modRecommendation) {
+      html += '<span class="fleet-summary-chip fleet-summary-chip--recommend" title="' + _escapeHtml(modRecommendation.reason) + '">🧩 推荐 ' + _escapeHtml(modRecommendation.mod.name) + '</span>';
     }
     html += '</div>';
 
@@ -393,6 +483,16 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
           if (mod) html += '<span class="fleet-mod-chip">' + mod.emoji + ' ' + _escapeHtml(mod.name) + '</span>';
         });
         html += '</div>';
+        html += '</div>';
+      }
+
+      if (modRecommendation) {
+        html += '<div class="fleet-detail-section">';
+        html += '<div class="fleet-detail-section-title">改装建议</div>';
+        html += '<div class="fleet-detail-copy">' + modRecommendation.mod.emoji + ' ' + _escapeHtml(modRecommendation.mod.name) + '：' + _escapeHtml(modRecommendation.reason) + '</div>';
+        if (modRecommendation.disabledReason) {
+          html += '<div class="fleet-detail-copy">当前限制：' + _escapeHtml(modRecommendation.disabledReason) + '</div>';
+        }
         html += '</div>';
       }
 
@@ -693,10 +793,16 @@ function _getSpecializationMeta(trackId) {
 function _openCrewModal(state, shipIndex, onRecruitCrew, onAssignCrew, onUnassignCrew, onDismissCrew, onSwitchShip, onSetShipDoctrine, onActivateShipProtocol) {
   var modal = document.getElementById('crew-modal');
   if (!modal) return;
-  bindBlockingSurfaceDismiss('crew-modal');
+
+  _openInlinePortal('crew-modal', function() {
+    hideBlockingSurface('crew-modal');
+  });
 
   var ship = state.fleet[shipIndex];
-  if (!ship) return;
+  if (!ship) {
+    if (_currentPortalCleanup) _currentPortalCleanup();
+    return;
+  }
 
   var titleEl = document.getElementById('crew-modal-title');
   var summaryEl = document.getElementById('crew-modal-summary');
@@ -873,9 +979,11 @@ function _openCrewModal(state, shipIndex, onRecruitCrew, onAssignCrew, onUnassig
 
   renderCrewModal();
   document.getElementById('crew-modal-close').onclick = function () {
-    hideBlockingSurface('crew-modal');
+    if (_currentPortalCleanup) _currentPortalCleanup();
+    if (globalThis.__linegameGameManager && typeof globalThis.__linegameGameManager.renderUI === 'function') {
+      globalThis.__linegameGameManager.renderUI();
+    }
   };
-  showBlockingSurface('crew-modal');
 }
 
 // ---------------------------------------------------------------------------
@@ -970,12 +1078,15 @@ export function openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute
 function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgradeShip, onServiceShip, onSellShip) {
   var modal = document.getElementById('mod-modal');
   if (!modal) return;
-  bindBlockingSurfaceDismiss('mod-modal');
+
+  _openInlinePortal('mod-modal', function() {
+    hideBlockingSurface('mod-modal');
+  });
 
   function _renderModModal() {
     var ship = state.fleet[shipIndex];
     if (!ship) {
-      hideBlockingSurface('mod-modal');
+      if (_currentPortalCleanup) _currentPortalCleanup();
       return;
     }
 
@@ -983,6 +1094,9 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
     var maintenance = shipStats.maintenance || Fleet.getShipMaintenanceSummary(state, ship);
     var roleProfile = shipStats.roleProfile || Fleet.getShipRoleProfile(state, ship);
     var faults = shipStats.faults || Fleet.getShipFaultSummaries(ship);
+    var modRecommendation = Fleet.getShipModRecommendation
+      ? Fleet.getShipModRecommendation(state, shipIndex)
+      : null;
     var repairQuote = Fleet.getShipRepairQuote(state, shipIndex);
     var repairJob = ship.repairJob && ship.repairJob.remainingDays > 0 ? ship.repairJob : null;
     var hullMissing = Math.max(0, (ship.maxHull || ship.hull || 0) - (ship.hull || 0));
@@ -1023,6 +1137,23 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
     html += '<span class="mod-modal-overview-stat' + (repairJob ? ' mod-modal-overview-stat--repair' : '') + '">' + _escapeHtml(repairJob ? _getRepairCountdownText(repairJob) : (ship.route ? '派遣中，需召回后维修' : '已停靠，可安排维修')) + '</span>';
     html += '</div>';
 
+    if (modRecommendation) {
+      html += '<div class="mod-modal-recommendation">';
+      html += '<div class="mod-modal-recommendation-copy">';
+      html += '<div class="mod-modal-recommendation-title">🧩 推荐组件 · ' + modRecommendation.mod.emoji + ' ' + _escapeHtml(modRecommendation.mod.name) + '</div>';
+      html += '<div class="mod-modal-recommendation-reason">' + _escapeHtml(modRecommendation.reason) + '</div>';
+      if (modRecommendation.disabledReason) {
+        html += '<div class="mod-modal-recommendation-note">当前限制：' + _escapeHtml(modRecommendation.disabledReason) + '</div>';
+      }
+      html += '</div>';
+      html += '<button class="mod-modal-buy-btn mod-modal-recommendation-btn"' +
+              (modRecommendation.canInstall ? '' : ' disabled') +
+              ' data-mod="' + modRecommendation.modId + '">' +
+              (modRecommendation.canInstall ? ('安装 · ' + modRecommendation.mod.cost.toLocaleString()) : '暂不可装') +
+              '</button>';
+      html += '</div>';
+    }
+
     html += '<div class="mod-modal-section-title">结构模块</div>';
     html += '<div class="mod-modal-structure-grid">';
     structureModules.forEach(function (moduleState) {
@@ -1049,7 +1180,7 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
       html += '</div>';
       if (nextUpgrade) {
         html += '<div class="mod-modal-structure-next">';
-        html += '<div class="mod-modal-structure-next-label">下一步</div>';
+        html += '<div class="mod-modal-structure-next-label">可升级项</div>';
         html += '<div class="mod-modal-structure-next-name">' + _escapeHtml(nextUpgrade.name) + '</div>';
         html += '<div class="mod-modal-structure-next-desc">' + _escapeHtml(moduleState.nextEffectText || nextUpgrade.desc) + '</div>';
         if (disabled) {
@@ -1233,7 +1364,10 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
         if (onSellShip) onSellShip(shipIndex);
         setTimeout(function () {
           if (state.fleet.length <= shipIndex || state.fleet[shipIndex] !== currentShip) {
-            hideBlockingSurface('mod-modal');
+            if (_currentPortalCleanup) _currentPortalCleanup();
+            if (globalThis.__linegameGameManager && typeof globalThis.__linegameGameManager.renderUI === 'function') {
+              globalThis.__linegameGameManager.renderUI();
+            }
             return;
           }
           _renderModModal();
@@ -1246,10 +1380,11 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
 
   // 关闭
   document.getElementById('mod-modal-close').onclick = function () {
-    hideBlockingSurface('mod-modal');
+    if (_currentPortalCleanup) _currentPortalCleanup();
+    if (globalThis.__linegameGameManager && typeof globalThis.__linegameGameManager.renderUI === 'function') {
+      globalThis.__linegameGameManager.renderUI();
+    }
   };
-
-  showBlockingSurface('mod-modal');
 }
 
 // ---------------------------------------------------------------------------
@@ -1259,7 +1394,10 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
 function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, preset) {
   const modal = document.getElementById('dispatch-modal');
   if (!modal) return;
-  bindBlockingSurfaceDismiss('dispatch-modal');
+
+  _openInlinePortal('dispatch-modal', function() {
+    hideBlockingSurface('dispatch-modal');
+  });
 
   const ship = state.fleet[shipIndex];
   const effectiveShipStats = Fleet.getEffectiveShipStats(state, ship);
@@ -1763,12 +1901,16 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
   // 确认
   confirmBtn.onclick = function () {
     onAssignRoute(shipIndex, buySelect.value, sellSelect.value, goodSelect.value, _readTradePolicy());
-    hideBlockingSurface('dispatch-modal');
+    if (_currentPortalCleanup) _currentPortalCleanup();
+    if (globalThis.__linegameGameManager && typeof globalThis.__linegameGameManager.renderUI === 'function') {
+      globalThis.__linegameGameManager.renderUI();
+    }
   };
 
   cancelBtn.onclick = function () {
-    hideBlockingSurface('dispatch-modal');
+    if (_currentPortalCleanup) _currentPortalCleanup();
+    if (globalThis.__linegameGameManager && typeof globalThis.__linegameGameManager.renderUI === 'function') {
+      globalThis.__linegameGameManager.renderUI();
+    }
   };
-
-  showBlockingSurface('dispatch-modal');
 }

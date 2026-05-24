@@ -11,8 +11,8 @@
 @import url("status.css?v=20260519-ux5");          /* 底部消息日志 */
 @import url("modals.css?v=20260505-uibatch8");          /* 通用弹窗、船体值、事件弹窗 */
 @import url("systems.css?v=20260418-researchblocker1");         /* 科技、派系、存档、任务、成就、教程 */
-@import url("fleet.css?v=20260519-ux5"); /* 舰队管理、船只卡片、改装 */
+@import url("fleet.css?v=20260520-guide2"); /* 舰队管理、船只卡片、改装 */
 @import url("settings.css?v=20260505-unified1");        /* 公司重命名、设置弹窗 */
 @import url("animations.css");      /* 动画偏好、reduced-motion */
 @import url("responsive.css?v=20260519-ux5");      /* 响应式 media queries */
-@import url("interstellar-trader.css?v=20260519-ux5"); /* 参考图风格覆盖层 */
+@import url("interstellar-trader.css?v=20260520-guide3"); /* 参考图风格覆盖层 */

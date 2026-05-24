@@ -304,6 +304,11 @@
   border-color: rgba(250, 204, 21, 0.28);
   background: rgba(117, 84, 18, 0.22);
 }
+.fleet-summary-chip--recommend {
+  color: #d8b4fe;
+  border-color: rgba(168, 85, 247, 0.28);
+  background: rgba(88, 28, 135, 0.18);
+}
 .fleet-crew-summary {
   display: flex;
   flex-wrap: wrap;
@@ -529,9 +534,38 @@
 .fleet-upg-poor      { opacity: .55; }
 
 /* Fleet dispatch */
+@keyframes fleet-pulse-cyan {
+  0% {
+    border-color: rgba(56, 189, 248, 0.4);
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.12), inset 0 0 0 1px rgba(56, 189, 248, 0.06);
+  }
+  50% {
+    border-color: rgba(34, 211, 238, 0.85);
+    box-shadow: 0 0 20px rgba(34, 211, 238, 0.35), inset 0 0 0 1px rgba(34, 211, 238, 0.15);
+  }
+  100% {
+    border-color: rgba(56, 189, 248, 0.4);
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.12), inset 0 0 0 1px rgba(56, 189, 248, 0.06);
+  }
+}
+
+@keyframes badge-pulse-cyan {
+  0% {
+    box-shadow: 0 0 8px rgba(56, 189, 248, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 16px rgba(34, 211, 238, 0.7);
+    filter: brightness(1.1);
+  }
+  100% {
+    box-shadow: 0 0 8px rgba(56, 189, 248, 0.3);
+  }
+}
+
 .fleet-dispatched {
   border-color: rgba(56, 189, 248, 0.4);
   box-shadow: 0 0 12px rgba(56, 189, 248, 0.12), inset 0 0 0 1px rgba(56, 189, 248, 0.06);
+  animation: fleet-pulse-cyan 3s infinite ease-in-out;
 }
 
 .fleet-dispatch-badge {
@@ -544,6 +578,17 @@
   margin-left: 6px;
   font-weight: 700;
   box-shadow: 0 0 8px rgba(56, 189, 248, 0.3);
+  animation: badge-pulse-cyan 3s infinite ease-in-out;
+}
+
+/* 性能与无障碍降级：减弱或关闭动画 */
+body[data-motion="reduced"] .fleet-dispatched,
+body[data-motion="off"] .fleet-dispatched {
+  animation: none !important;
+}
+body[data-motion="reduced"] .fleet-dispatch-badge,
+body[data-motion="off"] .fleet-dispatch-badge {
+  animation: none !important;
 }
 
 .fleet-actions {
@@ -1369,6 +1414,36 @@
   color: #ffe8a3;
   border-color: rgba(250, 204, 21, 0.26);
   background: rgba(117, 84, 18, 0.22);
+}
+.mod-modal-recommendation {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  margin: 0 0 12px;
+  border: 1px solid rgba(168, 85, 247, 0.28);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(42, 22, 70, 0.66), rgba(16, 22, 44, 0.86));
+}
+.mod-modal-recommendation-copy {
+  flex: 1;
+  min-width: 0;
+}
+.mod-modal-recommendation-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #e9d5ff;
+}
+.mod-modal-recommendation-reason,
+.mod-modal-recommendation-note {
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+.mod-modal-recommendation-btn {
+  margin-left: 0;
 }
 .mod-modal-section-title {
   font-size: 12px;
@@ -3758,6 +3833,27 @@
   background: rgba(255, 200, 87, 0.08);
   color: #ffd68f;
 }
+.trade-station-intel-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 10px 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(72, 187, 120, 0.18);
+  border-radius: 8px;
+  background: rgba(14, 40, 32, 0.34);
+  color: #cae7da;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.trade-station-intel-note .market-finance-chip {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  border-color: rgba(72, 187, 120, 0.26);
+  background: rgba(72, 187, 120, 0.12);
+  color: #b8f1d1;
+}
 .market-operations-board .market-finance-card.is-featured {
   border-color: rgba(255, 200, 87, 0.3);
   box-shadow: inset 0 0 0 1px rgba(255, 200, 87, 0.08);
@@ -5607,4 +5703,67 @@ details.market-collapse {
 
 details.market-collapse summary {
   padding: 13px 14px;
+}
+
+/* ==========================================================================
+   Hangar Inline Portal (免弹窗内联 Portal)
+   ========================================================================== */
+.fleet-inline-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+.inline-portal-back-bar {
+  display: flex;
+  align-items: center;
+  background: rgba(10, 30, 50, 0.4);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 240, 255, 0.25);
+  border-radius: 8px;
+  padding: 10px 16px;
+  margin-bottom: 8px;
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.08);
+}
+
+.inline-portal-back-btn {
+  background: transparent;
+  border: none;
+  color: #00f0ff;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.95rem;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  text-shadow: 0 0 5px rgba(0, 240, 255, 0.5);
+  padding: 4px 10px;
+  border-radius: 4px;
+}
+
+.inline-portal-back-btn:hover {
+  color: #ffffff;
+  background: rgba(0, 240, 255, 0.15);
+  text-shadow: 0 0 8px #ffffff, 0 0 15px #00f0ff;
+}
+
+/* 覆盖 modal-box 在内嵌容器中的样式，去掉原本弹窗的遮罩和固定宽高 */
+.fleet-inline-container .modal-box {
+  background: rgba(10, 20, 35, 0.5) !important;
+  backdrop-filter: blur(15px) !important;
+  -webkit-backdrop-filter: blur(15px) !important;
+  border: 1px solid rgba(0, 240, 255, 0.15) !important;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3) !important;
+  border-radius: 12px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  position: static !important;
+  transform: none !important;
+  margin: 0 !important;
+  padding: 20px !important;
+  overflow: visible !important;
 }

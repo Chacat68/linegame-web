@@ -4,6 +4,7 @@
 //        showMarketOverview, showMarketDetail, refreshPlanetDetail, getMapView, getCurrentGalaxyId
 import * as Renderer3D from './Renderer3DAdvanced.js?v=20260513-navguide1';
 import * as Faction from '../systems/faction/FactionSystem.js';
+import * as Economy from '../systems/economy/Economy.js';
 import * as GalaxyData from '../systems/galaxy/GalaxyDataLayer.js';
 import * as Exploration from '../systems/galaxy/ExplorationSystem.js?v=20260417-exploration20';
 import * as Quest from '../systems/quest/QuestSystem.js?v=20260412-questroute2';
@@ -28,6 +29,7 @@ import {
   GALAXIES,
   findSystem,
   findGalaxy,
+  GALAXY_JUMP_DAYS,
   getSystemsByGalaxy,
   getAccessibleGalaxies,
   getAccessibleSystems,
@@ -1267,7 +1269,7 @@ function _buildCurrentSystemScanRevealCard(flow, reveal) {
   if (reveal.stage === 1) {
     statusText = '正在解包第一批轨道回传数据…';
   } else if (reveal.stage === 2) {
-    statusText = '着陆窗口正在建立，下一步入口即将开放。';
+    statusText = '着陆窗口正在建立，入口即将开放。';
   } else if (flow.secondaryNote) {
     statusText = flow.secondaryNote;
   }
@@ -1338,7 +1340,7 @@ function _buildCurrentSystemScanMeta(meta) {
     chips.push(_buildCurrentSystemScanMetric('着陆窗口', '-' + Math.round(meta.scanLandingFeeDiscount * 100) + '%', '费用校准', 'discount'));
   }
   if (meta.scanDirective && meta.scanDirective.poiName) {
-    chips.push(_buildCurrentSystemScanMetric('优先目标', meta.scanDirective.poiName, '建议优先跟进', 'priority'));
+    chips.push(_buildCurrentSystemScanMetric('优先目标', meta.scanDirective.poiName, '优先跟进', 'priority'));
   }
 
   return chips.length > 0
@@ -1467,6 +1469,57 @@ function _buildNavigationGuideBanner(guideFocus, sys) {
   '</div>';
 }
 
+function _getGuideRouteRiskLabel(stateRef, fuelCost, fuelLeft, crossGalaxy, routeInfo, travelAction) {
+  if (travelAction && travelAction.disabled) return '暂不可达';
+  if (fuelLeft < 0) return '燃料不足';
+
+  var maxFuel = Math.max(1, Number(stateRef && stateRef.maxFuel) || 1);
+  if (fuelLeft <= Math.max(5, Math.round(maxFuel * 0.15))) return '燃料紧张';
+  if (routeInfo && routeInfo.active) return '暗线低耗';
+  if (crossGalaxy) return '跃迁航线';
+  if (fuelCost <= 8) return '短程直航';
+  return '常规直航';
+}
+
+function _buildNavigationGuideRoutePlan(stateRef, sys, guideFocus, travelAction) {
+  if (!guideFocus || !stateRef || !sys) return '';
+
+  var current = findSystem(stateRef.currentSystem);
+  if (!current) return '';
+
+  var isCurrentSystem = current.id === sys.id;
+  var crossGalaxy = current.galaxyId !== sys.galaxyId;
+  var routeInfo = isCurrentSystem
+    ? null
+    : Exploration.getTravelRouteInfo(stateRef, current.id, sys.id);
+  var fuelCost = isCurrentSystem
+    ? 0
+    : Economy.getFuelCost(current.id, sys.id, stateRef.fuelEfficiency || 1, stateRef);
+  var etaDays = isCurrentSystem ? 0 : (crossGalaxy ? GALAXY_JUMP_DAYS : 1);
+  var currentFuel = Math.floor(Number(stateRef.fuel) || 0);
+  var fuelLeft = currentFuel - fuelCost;
+  var riskLabel = _getGuideRouteRiskLabel(stateRef, fuelCost, fuelLeft, crossGalaxy, routeInfo, travelAction);
+  var routeMode = routeInfo && routeInfo.active
+    ? ('秘密航线 · 燃料 -' + Math.round((1 - routeInfo.fuelMultiplier) * 100) + '%')
+    : (crossGalaxy ? '跨星系跃迁' : '星图直航');
+  var goodName = guideFocus.goodId ? _getGoodName(guideFocus.goodId) : '';
+  var nextStep = goodName
+    ? ('抵达后打开市场，确认卖出「' + goodName + '」。')
+    : '抵达后继续当前行动。';
+
+  return '<div class="planet-detail-guide-route" data-planet-guide-route>' +
+    '<div class="planet-detail-guide-route-grid">' +
+      '<div class="planet-detail-guide-route-card"><span>燃料</span><strong>' + _escapeHtml(fuelCost + ' / 余 ' + Math.max(0, fuelLeft)) + '</strong></div>' +
+      '<div class="planet-detail-guide-route-card"><span>预计</span><strong>' + _escapeHtml(etaDays + ' 天') + '</strong></div>' +
+      '<div class="planet-detail-guide-route-card"><span>风险</span><strong>' + _escapeHtml(riskLabel) + '</strong></div>' +
+    '</div>' +
+    '<div class="planet-detail-guide-route-foot">' +
+      '<span>' + _escapeHtml(routeMode) + '</span>' +
+      '<span>' + _escapeHtml(nextStep) + '</span>' +
+    '</div>' +
+  '</div>';
+}
+
 function _buildPinnedPlanetDetailActions(travelAction, guideFocus) {
   var buttons = [];
   if (travelAction) {
@@ -1484,7 +1537,7 @@ function _buildPinnedPlanetDetailActions(travelAction, guideFocus) {
 
   return '<div class="planet-detail-actions planet-detail-actions--panel">' + buttons.join('') + '</div>' +
     (guideFocus
-      ? '<div class="planet-detail-note planet-detail-note--hint">点击“前往卖货点”出航；抵达后行动条会继续提示卖出步骤。</div>'
+      ? '<div class="planet-detail-note planet-detail-note--hint">点击“前往卖货点”出航；抵达后在市场处理卖出。</div>'
       : (travelAction && travelAction.hint ? '<div class="planet-detail-note planet-detail-note--hint">' + _escapeHtml(travelAction.hint) + '</div>' : ''));
 }
 
@@ -1539,7 +1592,7 @@ function _buildExplorationSection(stateRef, sys, planetData, isCurrentSystem, is
     ? poiList.map(function (poi) {
       var badgeText = poi.resolved ? '已调查' : '待调查';
       if (!poi.resolved && flow.unresolvedPois.length > 0 && flow.unresolvedPois[0].id === poi.id) {
-        badgeText = '下一步';
+        badgeText = '优先';
       }
       return '<div class="planet-detail-list-row">' +
         '<span>' + poi.icon + ' ' + poi.name + '</span>' +
@@ -1870,6 +1923,7 @@ export function refreshPlanetDetail(stateRef) {
       '<div class="planet-detail-desc">' + sys.description + '</div>' +
       heroGrid +
       _buildNavigationGuideBanner(guideFocus, sys) +
+      _buildNavigationGuideRoutePlan(stateRef, sys, guideFocus, travelAction) +
       (isPinned
         ? _buildPinnedPlanetDetailActions(travelAction, guideFocus)
         : _buildPlanetHoverSummaryNote(travelAction, isCurrentSystem)) +
@@ -2101,6 +2155,11 @@ export function focusNavigationTarget(stateRef, systemId, options) {
  * @param {string} view  按钮对应的视图名
  */
 function _handleBottomNav(view) {
+  if (globalThis.__linegameUIManager) {
+    globalThis.__linegameUIManager.switchView(view);
+    return;
+  }
+
   var currentActive = document.querySelector('.bottom-nav-btn.active');
   var currentView = currentActive ? currentActive.dataset.view : 'starmap';
 
@@ -2170,8 +2229,16 @@ function _handleBottomNav(view) {
     }
     return;
   }
+}
 
-
+export function openQuestsPanel(stateRef) {
+  _stateRef = stateRef || _stateRef;
+  var archiveTabId = _getDefaultArchiveTab(_stateRef);
+  if (document.querySelector('.tab-btn[data-tab="' + archiveTabId + '"]')) {
+    activateTab(archiveTabId);
+  } else {
+    _openOverlayPanel('info-panel');
+  }
 }
 
 function _openOverlayPanel(id) {
@@ -2189,13 +2256,17 @@ function _closeAllOverlayPanels() {
 }
 
 function _setBottomNavActive(view) {
-  document.querySelectorAll('.bottom-nav-btn').forEach(function (btn) {
-    if (btn.dataset.view === view) {
-      btn.classList.add('active');
-    } else {
-      btn.classList.remove('active');
-    }
-  });
+  if (globalThis.__linegameUIManager) {
+    globalThis.__linegameUIManager.setBottomNavActiveDirectly(view);
+  } else {
+    document.querySelectorAll('.bottom-nav-btn').forEach(function (btn) {
+      if (btn.dataset.view === view) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+  }
   if (_navigationChangeCallback) _navigationChangeCallback(view);
 }
 

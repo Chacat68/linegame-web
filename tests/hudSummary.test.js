@@ -274,7 +274,7 @@ describe('HUD summary cards', function () {
     expect(trackerEl.innerHTML).toContain(tracker.items[0].name);
     expect(trackerEl.innerHTML).not.toContain(tracker.items[1].name);
     expect(trackerEl.innerHTML).toContain('另 1 项');
-    expect(trackerEl.innerHTML).toContain('完整目标、奖励和路线留在任务页');
+    expect(trackerEl.innerHTML).toContain('目标、奖励和路线留在任务页');
     expect(trackerEl.innerHTML).not.toContain('quest-tracker-objective');
     expect(trackerEl.innerHTML).not.toContain('quest-tracker-progress-fill');
     expect(trackerEl.innerHTML).not.toContain('立即接取');
@@ -405,7 +405,7 @@ describe('HUD summary cards', function () {
     expect(elements['hud-target-name'].textContent).toBe('太阳主星');
     expect(elements['hud-target-galaxy'].textContent).toBe('银河系');
     expect(elements['hud-target-survey'].textContent).toBe('未扫描 · 0/3 POI · 情报 Lv.0');
-    expect(elements['hud-target-next'].textContent).toBe('下一步：轨道扫描');
+    expect(elements['hud-target-next'].textContent).toBe('待扫描 · 轨道数据未建档');
     expect(targetDetailOpenBtn.textContent).toBe('📡 扫描终端');
     expect(targetDetailOpenBtn.hidden).toBe(false);
     expect(targetDetailOpenBtn.listenerCount('click')).toBe(1);
