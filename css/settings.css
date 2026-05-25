@@ -308,6 +308,28 @@
   cursor: pointer;
 }
 
+.settings-range-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 170px;
+}
+
+.settings-range {
+  width: 118px;
+  accent-color: #67e8f9;
+  cursor: pointer;
+}
+
+.settings-range-value {
+  min-width: 36px;
+  color: #9cecff;
+  font-family: "Rajdhani", sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: right;
+}
+
 /* === 提示行 === */
 .settings-hint-row {
   font-size: 11px;
@@ -488,4 +510,3 @@
   font-size: 11px;
   line-height: 1.5;
 }
-

@@ -64,15 +64,22 @@ function createFakeElement(initialClasses) {
 describe('UI lifecycle idempotency', function () {
   var originalDocument;
   var originalWindow;
+  var originalUIManager;
 
   beforeEach(function () {
     originalDocument = globalThis.document;
     originalWindow = globalThis.window;
+    originalUIManager = globalThis.__linegameUIManager;
   });
 
   afterEach(function () {
     globalThis.document = originalDocument;
     globalThis.window = originalWindow;
+    if (typeof originalUIManager === 'undefined') {
+      delete globalThis.__linegameUIManager;
+    } else {
+      globalThis.__linegameUIManager = originalUIManager;
+    }
   });
 
   it('Modal.init 重复调用不会叠加按钮监听', function () {
@@ -306,6 +313,86 @@ describe('UI lifecycle idempotency', function () {
       expect(infoPanel.classList.contains('panel-open')).toBe(false);
       expect(questsBtn.classList.contains('active')).toBe(false);
       expect(starmapBtn.classList.contains('active')).toBe(true);
+    });
+  });
+
+  it('UIManager 接管底部导航时 MapUI 不会二次切换', function () {
+    vi.resetModules();
+
+    var starmapBtn = createFakeElement(['bottom-nav-btn', 'active']);
+    starmapBtn.dataset.view = 'starmap';
+    var marketBtn = createFakeElement(['bottom-nav-btn']);
+    marketBtn.dataset.view = 'market';
+    var bottomButtons = [starmapBtn, marketBtn];
+    var bottomNav = createFakeElement();
+    var calls = [];
+
+    function setActive(view) {
+      bottomButtons.forEach(function (button) {
+        button.classList.toggle('active', button.dataset.view === view);
+      });
+    }
+
+    globalThis.__linegameUIManager = {
+      currentView: 'starmap',
+      switchView: function (view) {
+        var nextView = view;
+        if (nextView !== 'starmap' && nextView === this.currentView) {
+          nextView = 'starmap';
+        }
+        this.currentView = nextView;
+        setActive(nextView);
+        calls.push(nextView);
+      },
+      setBottomNavActiveDirectly: setActive,
+      getCurrentView: function () { return this.currentView; },
+    };
+
+    bottomNav.addEventListener('click', function (event) {
+      var btn = event.target.closest('.bottom-nav-btn');
+      if (btn) globalThis.__linegameUIManager.switchView(btn.dataset.view);
+    });
+
+    globalThis.window = {};
+    globalThis.BABYLON = {
+      Color3: function () {},
+      Color4: function () {},
+    };
+    globalThis.document = {
+      querySelectorAll: function (selector) {
+        if (selector === '.tab-btn') return [];
+        if (selector === '.bottom-nav-btn') return bottomButtons;
+        if (selector === '.modal') return [];
+        return [];
+      },
+      querySelector: function (selector) {
+        if (selector === '.bottom-nav-btn.active') {
+          return bottomButtons.find(function (button) {
+            return button.classList.contains('active');
+          }) || null;
+        }
+        return null;
+      },
+      getElementById: function (id) {
+        if (id === 'bottom-nav') return bottomNav;
+        return null;
+      },
+    };
+
+    return import('../js/ui/MapUI.js').then(function (MapUI) {
+      MapUI.initTabs(function () {});
+
+      bottomNav.dispatchEvent('click', {
+        target: {
+          closest: function (selector) {
+            return selector === '.bottom-nav-btn' ? marketBtn : null;
+          },
+        },
+      });
+
+      expect(calls).toEqual(['market']);
+      expect(marketBtn.classList.contains('active')).toBe(true);
+      expect(starmapBtn.classList.contains('active')).toBe(false);
     });
   });
 

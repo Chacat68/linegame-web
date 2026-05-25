@@ -23,6 +23,8 @@ describe('Settings.loadSettings', function () {
     const settings = Settings.loadSettings();
 
     expect(settings.realtimeDayDurationMs).toBe(TIME_CONFIG.realtimeDayDurationMs);
+    expect(settings.soundEffectsEnabled).toBe(true);
+    expect(settings.soundEffectsVolume).toBe(0.35);
   });
 
   it('保留合法的时间流速设置', function () {
@@ -47,6 +49,27 @@ describe('Settings.loadSettings', function () {
 
     const settings = Settings.loadSettings();
     expect(settings.realtimeDayDurationMs).toBe(TIME_CONFIG.realtimeDayDurationMs);
+  });
+
+  it('将非法音效音量归一到默认值并钳制范围', function () {
+    globalThis.localStorage.setItem('linegame_settings', JSON.stringify({
+      motionLevel: 'full',
+      difficulty: 'normal',
+      secretRoutesVisible: true,
+      realtimeDayDurationMs: TIME_CONFIG.realtimeDayDurationMs,
+      soundEffectsEnabled: false,
+      soundEffectsVolume: 3,
+    }));
+
+    expect(Settings.loadSettings().soundEffectsVolume).toBe(1);
+
+    globalThis.localStorage.setItem('linegame_settings', JSON.stringify({
+      soundEffectsVolume: 'bad-value',
+    }));
+
+    const settings = Settings.loadSettings();
+    expect(settings.soundEffectsEnabled).toBe(true);
+    expect(settings.soundEffectsVolume).toBe(0.35);
   });
 });
 
@@ -101,6 +124,10 @@ describe('Settings.initSettingsModal', function () {
       'settings-close-btn': createFakeElement(),
       'settings-motion-level': createFakeElement(),
       'settings-secret-routes-visible': createFakeElement(),
+      'settings-terminal-blur': createFakeElement(),
+      'settings-sfx-enabled': createFakeElement(),
+      'settings-sfx-volume': createFakeElement(),
+      'settings-sfx-volume-value': createFakeElement(),
       'settings-difficulty-level': createFakeElement(),
       'settings-time-scale': createFakeElement(),
       'settings-reset-defaults-btn': createFakeElement(),
@@ -124,12 +151,18 @@ describe('Settings.initSettingsModal', function () {
       difficulty: 'normal',
       secretRoutesVisible: true,
       realtimeDayDurationMs: TIME_CONFIG.realtimeDayDurationMs,
+      terminalBlur: true,
+      soundEffectsEnabled: true,
+      soundEffectsVolume: 0.35,
     };
     var secondSettings = {
       motionLevel: 'full',
       difficulty: 'normal',
       secretRoutesVisible: true,
       realtimeDayDurationMs: TIME_CONFIG.realtimeDayDurationMs,
+      terminalBlur: true,
+      soundEffectsEnabled: true,
+      soundEffectsVolume: 0.35,
     };
 
     Settings.initSettingsModal({ settings: firstSettings, Renderer: renderer });
@@ -140,5 +173,57 @@ describe('Settings.initSettingsModal', function () {
 
     expect(firstSettings.motionLevel).toBe('full');
     expect(secondSettings.motionLevel).toBe('off');
+  });
+
+  it('音效控件会写入设置并更新音量标签', function () {
+    var elements = {
+      'settings-btn': createFakeElement(),
+      'settings-modal': createFakeElement(),
+      'settings-close-btn': createFakeElement(),
+      'settings-motion-level': createFakeElement(),
+      'settings-secret-routes-visible': createFakeElement(),
+      'settings-terminal-blur': createFakeElement(),
+      'settings-sfx-enabled': createFakeElement(),
+      'settings-sfx-volume': createFakeElement(),
+      'settings-sfx-volume-value': createFakeElement(),
+      'settings-difficulty-level': createFakeElement(),
+      'settings-time-scale': createFakeElement(),
+      'settings-reset-defaults-btn': createFakeElement(),
+      'settings-reset-tutorial-btn': createFakeElement(),
+      'settings-clear-saves-btn': createFakeElement(),
+    };
+
+    globalThis.document = {
+      body: { dataset: {} },
+      getElementById: function (id) { return elements[id] || null; },
+      addEventListener: function () {},
+    };
+
+    var settings = {
+      motionLevel: 'full',
+      difficulty: 'normal',
+      secretRoutesVisible: true,
+      realtimeDayDurationMs: TIME_CONFIG.realtimeDayDurationMs,
+      terminalBlur: true,
+      soundEffectsEnabled: true,
+      soundEffectsVolume: 0.35,
+    };
+
+    Settings.initSettingsModal({
+      settings: settings,
+      Renderer: {
+        setMotionLevel: function () {},
+        setSecretRoutesVisible: function () {},
+      },
+    });
+
+    elements['settings-sfx-enabled'].checked = false;
+    elements['settings-sfx-enabled'].onchange();
+    expect(settings.soundEffectsEnabled).toBe(false);
+
+    elements['settings-sfx-volume'].value = '0.6';
+    elements['settings-sfx-volume'].oninput();
+    expect(settings.soundEffectsVolume).toBe(0.6);
+    expect(elements['settings-sfx-volume-value'].textContent).toBe('60%');
   });
 });
