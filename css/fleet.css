@@ -1426,6 +1426,10 @@ body[data-motion="off"] .fleet-dispatch-badge {
   border-radius: 12px;
   background: linear-gradient(180deg, rgba(42, 22, 70, 0.66), rgba(16, 22, 44, 0.86));
 }
+.mod-modal-recommendation--focus {
+  border-color: rgba(34, 211, 238, 0.72);
+  box-shadow: 0 0 18px rgba(34, 211, 238, 0.18), inset 0 0 0 1px rgba(34, 211, 238, 0.14);
+}
 .mod-modal-recommendation-copy {
   flex: 1;
   min-width: 0;
@@ -1584,6 +1588,17 @@ body[data-motion="off"] .fleet-dispatch-badge {
 .mod-modal-installed-item {
   background: linear-gradient(180deg, rgba(8, 30, 28, 0.6), rgba(5, 20, 18, 0.7));
   border-color: rgba(34, 211, 238, 0.2);
+}
+.mod-modal-item--focus {
+  border-color: rgba(34, 211, 238, 0.78);
+  box-shadow: 0 0 16px rgba(34, 211, 238, 0.2), inset 0 0 0 1px rgba(34, 211, 238, 0.1);
+}
+.mod-modal-guidance-focus {
+  animation: fleet-pulse-cyan 2.4s ease-in-out 2;
+}
+body[data-motion="reduced"] .mod-modal-guidance-focus,
+body[data-motion="off"] .mod-modal-guidance-focus {
+  animation: none !important;
 }
 .mod-modal-full {
   opacity: 0.5;
