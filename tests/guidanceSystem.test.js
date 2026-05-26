@@ -443,6 +443,38 @@ describe('GuidanceSystem', function () {
     expect(suggestion.reason).toContain('勘探情报');
   });
 
+  it('同一路线草案已在派遣弹窗打开时不会重复推荐派遣预填', function () {
+    var dispatchRouteRecommendation = {
+      buySystemId: 'sol_prime',
+      buySystemName: '太阳主星',
+      sellSystemId: 'nova_station',
+      sellSystemName: '新北京站',
+      goodId: 'food',
+      goodName: '食物',
+      strategySummary: '稳态商运：匹配公开市场',
+      recommendedTradePolicy: { riskMode: 'balanced', marketMode: 'open' },
+    };
+    var state = createTestState({
+      quests: [],
+      completedQuests: ['starter_first_trade', 'starter_visit_2'],
+      cargo: {},
+      fuel: 100,
+      maxFuel: 100,
+      currentSystem: 'sol_prime',
+    });
+    var suggestion = getCurrentSuggestion(state, {
+      dispatchRouteRecommendation: dispatchRouteRecommendation,
+      dispatchModalContext: {
+        shipIndex: 0,
+        buySystemId: 'sol_prime',
+        sellSystemId: 'nova_station',
+        goodId: 'food',
+      },
+    });
+
+    expect(suggestion).toBe(null);
+  });
+
   it('船况明显受损时推荐进入机库维修', function () {
     var state = createTestState({
       quests: [],
@@ -576,6 +608,126 @@ describe('GuidanceSystem', function () {
       payload: {
         workspaceId: 'spot',
         subworkspaceId: 'trade',
+      },
+    });
+  });
+
+  it('中期空档时会推荐进入机库查看可安装的功能改装', function () {
+    var state = createTestState({
+      quests: [],
+      completedQuests: ['starter_first_trade', 'starter_visit_2'],
+      cargo: {},
+      credits: 5000,
+      fuel: 100,
+      maxFuel: 100,
+      currentSystem: 'sol_prime',
+    });
+    var suggestion = getCurrentSuggestion(state, {
+      modRecommendation: {
+        shipIndex: 0,
+        modId: 'mod_survey_array',
+        mod: {
+          id: 'mod_survey_array',
+          name: '深空测绘阵列',
+          cost: 2800,
+        },
+        canInstall: true,
+        reason: '勘探支援分工适合提升扫描折扣和 POI 收益。',
+      },
+    });
+
+    expect(suggestion).toMatchObject({
+      id: 'install-recommended-ship-mod',
+      actionType: 'fleet.mod.open',
+      actionLabel: '打开机库',
+      payload: {
+        shipIndex: 0,
+        modId: 'mod_survey_array',
+        modName: '深空测绘阵列',
+        modCost: 2800,
+      },
+      commandIntent: '模块改装',
+    });
+    expect(suggestion.reason).toContain('勘探支援');
+  });
+
+  it('同一推荐组件已在机库改装视图打开时不会重复提示', function () {
+    var state = createTestState({
+      quests: [],
+      completedQuests: ['starter_first_trade', 'starter_visit_2'],
+      cargo: {},
+      credits: 5000,
+      fuel: 100,
+      maxFuel: 100,
+      currentSystem: 'sol_prime',
+    });
+    var suggestion = getCurrentSuggestion(state, {
+      modRecommendation: {
+        shipIndex: 0,
+        modId: 'mod_survey_array',
+        mod: {
+          id: 'mod_survey_array',
+          name: '深空测绘阵列',
+          cost: 2800,
+        },
+        canInstall: true,
+        reason: '勘探支援分工适合提升扫描折扣和 POI 收益。',
+      },
+      modModalContext: {
+        shipIndex: 0,
+        focusModId: 'mod_survey_array',
+        recommendedModId: 'mod_survey_array',
+      },
+    });
+
+    expect(suggestion).toBe(null);
+  });
+
+  it('刚完成改装安装后会跳过同舰船改装推荐并转向派遣建议', function () {
+    var state = createTestState({
+      quests: [],
+      completedQuests: ['starter_first_trade', 'starter_visit_2'],
+      cargo: {},
+      credits: 5000,
+      fuel: 100,
+      maxFuel: 100,
+      currentSystem: 'sol_prime',
+    });
+    var suggestion = getCurrentSuggestion(state, {
+      modRecommendation: {
+        shipIndex: 0,
+        modId: 'mod_survey_array',
+        mod: {
+          id: 'mod_survey_array',
+          name: '深空测绘阵列',
+          cost: 2800,
+        },
+        canInstall: true,
+        reason: '勘探支援分工适合提升扫描折扣和 POI 收益。',
+      },
+      recentModInstallContext: {
+        shipIndex: 0,
+        modId: 'mod_service_bay',
+      },
+      dispatchRouteRecommendation: {
+        buySystemId: 'sol_prime',
+        buySystemName: '太阳前哨',
+        sellSystemId: 'alpha_centauri',
+        sellSystemName: '半人马港',
+        goodId: 'food',
+        goodName: '食品',
+        strategySummary: '常规套利路线。',
+      },
+    });
+
+    expect(suggestion).toMatchObject({
+      id: 'prefill-profitable-dispatch',
+      actionType: 'fleet.dispatch.prefill',
+      payload: {
+        sourceLabel: '派遣策略建议',
+        recommendation: {
+          goodId: 'food',
+        },
       },
     });
   });

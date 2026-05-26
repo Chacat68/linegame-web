@@ -1091,6 +1091,7 @@ export function getShipModRecommendation(state, shipIndex) {
     return {
       modId: mod.id,
       mod: mod,
+      shipIndex: shipIndex != null ? shipIndex : (state.activeShipIndex || 0),
       score: scored.score,
       reason: scored.reason,
       roleId: roleProfile.id,

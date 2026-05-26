@@ -6,7 +6,7 @@ import { SHIP_TYPES, SHIP_UPGRADES, FLEET_SLOTS, SHIP_MODS, FLEET_BONUSES } from
 import { GALAXIES, SYSTEMS, getAccessibleGalaxies, getSystemsByGalaxy } from '../data/systems.js';
 import { GOODS } from '../data/goods.js';
 import { getCompanyLevelValue, getFleetSlotCompanyRequirement } from '../data/companyAccess.js';
-import * as Fleet from '../systems/fleet/FleetSystem.js?v=20260421-balance6';
+import * as Fleet from '../systems/fleet/FleetSystem.js?v=20260526-modfocus1';
 import * as Crew from '../systems/fleet/CrewSystem.js';
 import * as Economy from '../systems/economy/Economy.js';
 import * as AutoTrade from '../systems/trade/AutoTradeSystem.js?v=20260420-balance5';
@@ -16,6 +16,8 @@ import * as EventBus from '../core/EventBus.js';
 
 let _activeInlineModalId = null;
 let _currentPortalCleanup = null;
+let _activeModModalContext = null;
+let _activeDispatchModalContext = null;
 
 // 全局监听重置事件（用于视图切换时自动归还节点）
 EventBus.on('hangar:reset', function() {
@@ -73,6 +75,11 @@ function _openInlinePortal(modalId, onCloseCallback) {
     
     _activeInlineModalId = null;
     _currentPortalCleanup = null;
+    if (modalId === 'mod-modal') {
+      _activeModModalContext = null;
+    } else if (modalId === 'dispatch-modal') {
+      _activeDispatchModalContext = null;
+    }
 
     if (onCloseCallback) {
       onCloseCallback();
@@ -607,6 +614,21 @@ function _escapeHtml(text) {
     .replace(/'/g, '&#39;');
 }
 
+function _focusGuidedMod(container, focusModId) {
+  if (!container || !focusModId || typeof container.querySelector !== 'function') return;
+
+  var target = container.querySelector('[data-focus-mod="item"]')
+    || container.querySelector('[data-focus-mod="recommendation"]');
+  if (!target) return;
+
+  if (target.classList && typeof target.classList.add === 'function') {
+    target.classList.add('mod-modal-guidance-focus');
+  }
+  if (typeof target.scrollIntoView === 'function') {
+    target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+}
+
 function _formatCrewEffectParts(effect) {
   var parts = [];
   if (effect.fuelEffMultiplier && effect.fuelEffMultiplier < 1) parts.push('航耗 -' + Math.round((1 - effect.fuelEffMultiplier) * 100) + '%');
@@ -1071,13 +1093,34 @@ export function openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute
   _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, preset);
 }
 
+export function openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgradeShip, onServiceShip, onSellShip, options) {
+  _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgradeShip, onServiceShip, onSellShip, options);
+}
+
+export function getActiveModModalContext() {
+  if (_activeInlineModalId !== 'mod-modal' || !_activeModModalContext) return null;
+  return Object.assign({}, _activeModModalContext);
+}
+
+export function getActiveDispatchModalContext() {
+  if (_activeInlineModalId !== 'dispatch-modal' || !_activeDispatchModalContext) return null;
+  return Object.assign({}, _activeDispatchModalContext);
+}
+
 // ---------------------------------------------------------------------------
 // 改装弹窗
 // ---------------------------------------------------------------------------
 
-function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgradeShip, onServiceShip, onSellShip) {
+function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgradeShip, onServiceShip, onSellShip, options) {
   var modal = document.getElementById('mod-modal');
   if (!modal) return;
+  var opts = options || {};
+  var focusModId = opts.focusModId || '';
+  _activeModModalContext = {
+    shipIndex: shipIndex,
+    focusModId: focusModId,
+    recommendedModId: '',
+  };
 
   _openInlinePortal('mod-modal', function() {
     hideBlockingSurface('mod-modal');
@@ -1097,6 +1140,11 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
     var modRecommendation = Fleet.getShipModRecommendation
       ? Fleet.getShipModRecommendation(state, shipIndex)
       : null;
+    _activeModModalContext = {
+      shipIndex: shipIndex,
+      focusModId: focusModId,
+      recommendedModId: modRecommendation ? modRecommendation.modId : '',
+    };
     var repairQuote = Fleet.getShipRepairQuote(state, shipIndex);
     var repairJob = ship.repairJob && ship.repairJob.remainingDays > 0 ? ship.repairJob : null;
     var hullMissing = Math.max(0, (ship.maxHull || ship.hull || 0) - (ship.hull || 0));
@@ -1138,7 +1186,9 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
     html += '</div>';
 
     if (modRecommendation) {
-      html += '<div class="mod-modal-recommendation">';
+      var recommendationFocused = !!(focusModId && modRecommendation.modId === focusModId);
+      html += '<div class="mod-modal-recommendation' + (recommendationFocused ? ' mod-modal-recommendation--focus' : '') + '"' +
+              (recommendationFocused ? ' data-focus-mod="recommendation"' : '') + '>';
       html += '<div class="mod-modal-recommendation-copy">';
       html += '<div class="mod-modal-recommendation-title">🧩 推荐组件 · ' + modRecommendation.mod.emoji + ' ' + _escapeHtml(modRecommendation.mod.name) + '</div>';
       html += '<div class="mod-modal-recommendation-reason">' + _escapeHtml(modRecommendation.reason) + '</div>';
@@ -1215,7 +1265,10 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
         html += '<div class="mod-modal-subtitle">已装配</div>';
         html += '<div class="mod-modal-list">';
         group.installed.forEach(function (mod) {
-          html += '<div class="mod-modal-item mod-modal-installed-item">';
+          var installedFocused = !!(focusModId && mod.id === focusModId);
+          html += '<div class="mod-modal-item mod-modal-installed-item' + (installedFocused ? ' mod-modal-item--focus' : '') + '"' +
+                  ' data-mod-id="' + _escapeHtml(mod.id) + '"' +
+                  (installedFocused ? ' data-focus-mod="item"' : '') + '>';
           html += '<div class="mod-modal-item-info">';
           html += '<div class="mod-modal-item-name">' + mod.emoji + ' ' + _escapeHtml(mod.name) + '</div>';
           html += '<div class="mod-modal-item-desc">' + _escapeHtml(mod.desc) + '</div>';
@@ -1233,10 +1286,13 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
           var canAfford = group.credits >= mod.cost;
           var disabled = group.slotsLeft <= 0 || !canAfford;
           var cls = 'mod-modal-item';
+          var itemFocused = !!(focusModId && mod.id === focusModId);
           if (group.slotsLeft <= 0) cls += ' mod-modal-full';
           else if (!canAfford) cls += ' mod-modal-poor';
+          if (itemFocused) cls += ' mod-modal-item--focus';
 
-          html += '<div class="' + cls + '">';
+          html += '<div class="' + cls + '" data-mod-id="' + _escapeHtml(mod.id) + '"' +
+                  (itemFocused ? ' data-focus-mod="item"' : '') + '>';
           html += '<div class="mod-modal-item-info">';
           html += '<div class="mod-modal-item-name">' + mod.emoji + ' ' + _escapeHtml(mod.name) + '</div>';
           html += '<div class="mod-modal-item-desc">' + _escapeHtml(mod.desc) + '</div>';
@@ -1322,6 +1378,7 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
     }
 
     body.innerHTML = html;
+    _focusGuidedMod(body, focusModId);
 
     body.querySelectorAll('.upg-modal-buy-btn:not([disabled])').forEach(function (btn) {
       btn.addEventListener('click', function () {
@@ -1403,6 +1460,12 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
   const effectiveShipStats = Fleet.getEffectiveShipStats(state, ship);
   const dispatchPreset = preset || null;
   const presetRecommendation = dispatchPreset && dispatchPreset.recommendation ? dispatchPreset.recommendation : null;
+  _activeDispatchModalContext = {
+    shipIndex: shipIndex,
+    buySystemId: (presetRecommendation && presetRecommendation.buySystemId) || (dispatchPreset && dispatchPreset.buySystemId) || '',
+    sellSystemId: (presetRecommendation && presetRecommendation.sellSystemId) || (dispatchPreset && dispatchPreset.sellSystemId) || '',
+    goodId: (presetRecommendation && presetRecommendation.goodId) || (dispatchPreset && dispatchPreset.goodId) || '',
+  };
   const isActive = shipIndex === (state.activeShipIndex || 0);
   const routeLevel = Fleet.getDispatchRouteLevel(state);
   const shipLocationSystem = SYSTEMS.find(function (sys) { return sys.id === ship.location; });

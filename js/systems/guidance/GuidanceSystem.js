@@ -178,6 +178,13 @@ function _getDispatchRouteReason(dispatchRouteRecommendation) {
   return parts.slice(0, 3).join(' ');
 }
 
+function _isRouteRecommendationOpen(recommendation, dispatchModalContext) {
+  if (!_shouldOfferDispatchRoute(recommendation) || !dispatchModalContext) return false;
+  return dispatchModalContext.buySystemId === recommendation.buySystemId
+    && dispatchModalContext.sellSystemId === recommendation.sellSystemId
+    && dispatchModalContext.goodId === recommendation.goodId;
+}
+
 function _shouldOfferRepair(serviceStatus) {
   if (!serviceStatus || !serviceStatus.repairQuote) return false;
   var quote = serviceStatus.repairQuote;
@@ -218,6 +225,27 @@ function _getRepairSuggestionReason(serviceStatus) {
     return '激活飞船维护度已降至 ' + Math.round(_getServiceMaintenanceValue(serviceStatus)) + '%，先入坞维修可避免燃耗、事件和派遣稳定性继续恶化。';
   }
   return '当前船况已影响后续派遣和航行稳定性，先进入机库确认维修方案。';
+}
+
+function _shouldOfferModRecommendation(modRecommendation) {
+  return !!(
+    modRecommendation &&
+    modRecommendation.canInstall &&
+    modRecommendation.modId &&
+    modRecommendation.mod
+  );
+}
+
+function _isModRecommendationOpen(modRecommendation, modModalContext) {
+  if (!_shouldOfferModRecommendation(modRecommendation) || !modModalContext) return false;
+  if (modModalContext.shipIndex !== modRecommendation.shipIndex) return false;
+  return modModalContext.recommendedModId === modRecommendation.modId
+    || modModalContext.focusModId === modRecommendation.modId;
+}
+
+function _wasModRecentlyInstalled(modRecommendation, recentModInstallContext) {
+  if (!_shouldOfferModRecommendation(modRecommendation) || !recentModInstallContext) return false;
+  return recentModInstallContext.shipIndex === modRecommendation.shipIndex;
 }
 
 function _shouldOfferSurveyIntel(surveyIntel) {
@@ -817,7 +845,7 @@ export function getCurrentSuggestion(state, options) {
     }));
   }
 
-  if (_shouldOfferResearchSupply(opts.researchSupplyRoute)) {
+  if (_shouldOfferResearchSupply(opts.researchSupplyRoute) && !_isRouteRecommendationOpen(opts.researchSupplyRoute, opts.dispatchModalContext)) {
     suggestions.push(_createSuggestion({
       id: 'prefill-research-supply-dispatch',
       priority: 24,
@@ -848,7 +876,7 @@ export function getCurrentSuggestion(state, options) {
     }));
   }
 
-  if (!_shouldOfferResearchSupply(opts.researchSupplyRoute) && _shouldOfferDispatchRoute(opts.dispatchRouteRecommendation)) {
+  if (!_shouldOfferResearchSupply(opts.researchSupplyRoute) && _shouldOfferDispatchRoute(opts.dispatchRouteRecommendation) && !_isRouteRecommendationOpen(opts.dispatchRouteRecommendation, opts.dispatchModalContext)) {
     suggestions.push(_createSuggestion({
       id: 'prefill-profitable-dispatch',
       priority: 23,
@@ -888,6 +916,29 @@ export function getCurrentSuggestion(state, options) {
 
   var tradeNetworkSuggestion = _getTradeNetworkSuggestion(state);
   if (tradeNetworkSuggestion) suggestions.push(tradeNetworkSuggestion);
+
+  if (
+    _shouldOfferModRecommendation(opts.modRecommendation) &&
+    !_isModRecommendationOpen(opts.modRecommendation, opts.modModalContext) &&
+    !_wasModRecentlyInstalled(opts.modRecommendation, opts.recentModInstallContext)
+  ) {
+    suggestions.push(_createSuggestion({
+      id: 'install-recommended-ship-mod',
+      priority: 19,
+      title: '安装「' + opts.modRecommendation.mod.name + '」',
+      reason: opts.modRecommendation.reason,
+      actionLabel: '打开机库',
+      actionType: 'fleet.mod.open',
+      payload: {
+        shipIndex: opts.modRecommendation.shipIndex || 0,
+        modId: opts.modRecommendation.modId,
+        modName: opts.modRecommendation.mod.name,
+        modCost: opts.modRecommendation.mod.cost || 0,
+      },
+      surface: 'fleet',
+      commandIntent: '模块改装',
+    }));
+  }
 
   if (_shouldOfferScan(opts.scanStatus)) {
     suggestions.push(_createSuggestion({

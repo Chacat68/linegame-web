@@ -170,4 +170,34 @@ describe('ActionGuideUI', function () {
     expect(root.hidden).toBe(true);
     expect(root.classList.contains('is-processing')).toBe(false);
   });
+
+  it('可以短暂显示行动完成态并保留下一条建议', function () {
+    var root = createFakeRoot();
+    globalThis.document = {
+      getElementById: function (id) {
+        return id === 'action-guide' ? root : null;
+      },
+    };
+
+    ActionGuideUI.init(function () {});
+    ActionGuideUI.render({
+      id: 'prefill-profitable-dispatch',
+      title: '规划「食品」派遣',
+      reason: '安装完成后可以继续配置路线。',
+      actionLabel: '带入机库',
+      actionType: 'fleet.dispatch.prefill',
+      surface: 'fleet',
+    });
+
+    ActionGuideUI.showCompletion('已安装「深空测绘阵列」', '下一条派遣或经营建议已刷新', { durationMs: 0 });
+
+    expect(root.hidden).toBe(false);
+    expect(root.classList.contains('is-complete')).toBe(true);
+    expect(root.innerHTML).toContain('行动完成');
+    expect(root.innerHTML).toContain('已安装「深空测绘阵列」');
+    expect(root.innerHTML).toContain('下一条派遣或经营建议已刷新');
+
+    ActionGuideUI.render(null);
+    expect(root.classList.contains('is-complete')).toBe(false);
+  });
 });
