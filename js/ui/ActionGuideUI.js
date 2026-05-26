@@ -5,6 +5,8 @@ let _suggestion = null;
 let _collapsed = false;
 let _boundRoot = null;
 let _lastSuggestionKey = '';
+let _completionTimer = null;
+let _completionToken = 0;
 
 function _escapeHtml(value) {
   return String(value == null ? '' : value)
@@ -39,6 +41,8 @@ function _getCommandIntent(suggestion) {
       return '事件处理';
     case 'fleet.dispatch.prefill':
       return '派遣预填';
+    case 'fleet.mod.open':
+      return '模块改装';
     case 'fleet.service.open':
       return '维修船坞';
     case 'exploration.scan':
@@ -90,6 +94,17 @@ function _bind(root) {
   _boundRoot = root;
 }
 
+function _clearCompletion(root) {
+  if (_completionTimer) {
+    clearTimeout(_completionTimer);
+    _completionTimer = null;
+  }
+  _completionToken += 1;
+  if (root && root.classList) {
+    root.classList.remove('is-complete');
+  }
+}
+
 function _renderExpanded(suggestion) {
   var commandAction = _getSuggestionCommandAction(suggestion);
   return '<div class="action-guide-shell" data-guide-surface="' + _escapeHtml(suggestion.surface || 'system') + '">' +
@@ -132,6 +147,7 @@ export function render(suggestion) {
   var root = _getRoot();
   if (!root) return;
   _bind(root);
+  _clearCompletion(root);
 
   if (!_suggestion) {
     _lastSuggestionKey = '';
@@ -162,6 +178,7 @@ export function showProcessing(suggestion, message) {
   _collapsed = false;
   var root = _getRoot();
   if (!root || !_suggestion) return;
+  _clearCompletion(root);
   root.hidden = false;
   root.classList.remove('is-collapsed');
   root.classList.add('is-processing');
@@ -176,6 +193,41 @@ export function showProcessing(suggestion, message) {
       '</div>' +
     '</div>' +
   '</div>';
+}
+
+export function showCompletion(message, detail, options) {
+  var opts = options || {};
+  var root = _getRoot();
+  if (!root) return;
+  _bind(root);
+  _clearCompletion(root);
+
+  var token = _completionToken;
+  var durationMs = Number.isFinite(opts.durationMs) ? opts.durationMs : 1600;
+  root.hidden = false;
+  root.classList.remove('is-collapsed');
+  root.classList.remove('is-processing');
+  root.classList.add('is-complete');
+  root.dataset.guideId = _suggestion ? (_suggestion.id || '') : '';
+  root.innerHTML = '<div class="action-guide-shell action-guide-shell--complete" data-guide-surface="system">' +
+    '<div class="action-guide-status" aria-hidden="true"></div>' +
+    '<div class="action-guide-copy">' +
+      '<div class="action-guide-kicker">行动完成</div>' +
+      '<div class="action-guide-main">' +
+        '<strong class="action-guide-title">' + _escapeHtml(message || '已完成，下一步建议已刷新') + '</strong>' +
+        '<span class="action-guide-reason">' + _escapeHtml(detail || (_suggestion ? _suggestion.title : '')) + '</span>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+
+  if (durationMs > 0) {
+    _completionTimer = setTimeout(function () {
+      if (token !== _completionToken) return;
+      _completionTimer = null;
+      root.classList.remove('is-complete');
+      render(_suggestion);
+    }, durationMs);
+  }
 }
 
 export function isCollapsed() {

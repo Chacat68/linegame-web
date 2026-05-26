@@ -24,6 +24,9 @@ function createCallContext(extra) {
       calls.push(['revealMarketGoodFocus', goodId, options]);
     },
     refreshActionGuide: function () { calls.push(['refreshActionGuide']); },
+    showCompletion: function (message, detail) {
+      calls.push(['showCompletion', message, detail]);
+    },
   }, extra || {});
   context.calls = calls;
   context.state = state;
@@ -37,6 +40,7 @@ describe('GuidanceActionController', function () {
       payload: { questName: '补给合约' },
     })).toBe('已打开交易确认，完成后将推进「补给合约」');
     expect(getProcessingMessage({ actionType: 'fleet.service.open' })).toBe('已切到机库，检查维修方案');
+    expect(getProcessingMessage({ actionType: 'fleet.mod.open' })).toBe('已切到机库，查看推荐改装');
     expect(getProcessingMessage({ actionType: 'exploration.scan' })).toBe('已执行探索指令，正在刷新现场建议');
   });
 
@@ -78,6 +82,7 @@ describe('GuidanceActionController', function () {
     expect(context.calls[1][0]).toBe('emitLog');
     expect(context.calls[1][1].text).toContain('经营页 · 商网总览区');
     expect(context.calls[2]).toEqual(['updateUI']);
+    expect(context.calls[3]).toEqual(['showCompletion', '已打开市场导航', '下一条行动建议已刷新']);
   });
 
   it('市场聚焦带商品时会同步高亮商品', function () {
@@ -97,6 +102,32 @@ describe('GuidanceActionController', function () {
       'ore',
       { tradeAction: 'sell' },
     ]);
+    expect(context.calls[4]).toEqual(['showCompletion', '已打开市场导航', '下一条行动建议已刷新']);
+  });
+
+  it('地图聚焦完成后会展示完成态', function () {
+    var context = createCallContext({
+      focusNavigationTarget: function (state, systemId, options) {
+        context.calls.push(['focusNavigationTarget', state, systemId, options]);
+        return true;
+      },
+      focusStarmap: function () { context.calls.push(['focusStarmap']); },
+    });
+
+    handleGuidanceAction({
+      actionType: 'map.focus',
+      title: '前往半人马港卖货',
+      actionLabel: '查看航点',
+      payload: {
+        destinationSystemId: 'alpha_centauri',
+        destinationSystemName: '半人马港',
+        goodId: 'food',
+      },
+    }, context);
+
+    expect(context.calls[0][0]).toBe('focusNavigationTarget');
+    expect(context.calls[2]).toEqual(['updateUI']);
+    expect(context.calls[3]).toEqual(['showCompletion', '已定位航点', '检查目标详情后确认航行']);
   });
 
   it('探索行动会委托到探索控制器并保留直接执行准备', function () {
@@ -115,6 +146,38 @@ describe('GuidanceActionController', function () {
       ['prepareDirectExecution'],
       ['scanSystem', 'alpha_centauri', { suppressReveal: true }],
     ]);
+  });
+
+  it('推荐改装行动会切到机库、打开推荐组件并写入模块反馈', function () {
+    var context = createCallContext({
+      activateTab: function (tabId) { context.calls.push(['activateTab', tabId]); },
+      openRecommendedMod: function (payload) { context.calls.push(['openRecommendedMod', payload]); },
+    });
+
+    handleGuidanceAction({
+      actionType: 'fleet.mod.open',
+      actionLabel: '打开机库',
+      payload: {
+        shipIndex: 1,
+        modId: 'mod_survey_array',
+        modName: '深空测绘阵列',
+        modCost: 2800,
+      },
+    }, context);
+
+    expect(context.calls[0]).toEqual(['activateTab', 'tab-fleet']);
+    expect(context.calls[1]).toEqual([
+      'openRecommendedMod',
+      {
+        shipIndex: 1,
+        modId: 'mod_survey_array',
+        modName: '深空测绘阵列',
+        modCost: 2800,
+      },
+    ]);
+    expect(context.calls[2][0]).toBe('emitLog');
+    expect(context.calls[2][1].text).toContain('模块改装');
+    expect(context.calls[2][1].text).toContain('深空测绘阵列');
   });
 
   it('可复用市场目的地文案映射', function () {

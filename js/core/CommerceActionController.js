@@ -1,4 +1,5 @@
 import { buildCommandFeedback } from '../ui/CommandAction.js?v=20260510-command1';
+import { getMarketNavigationCompletion, showContextCompletion } from './ActionGuideCompletion.js?v=20260526-helper1';
 
 function _getState(context) {
   if (context && typeof context.getState === 'function') return context.getState();
@@ -64,6 +65,7 @@ export function handleCommerceAction(suggestion, context) {
   if (marketFocusGoodId) {
     _call(context, 'revealMarketGoodFocus', marketFocusGoodId, { tradeAction: marketFocusTradeAction });
   }
+  showContextCompletion(context, getMarketNavigationCompletion());
 
   return true;
 }

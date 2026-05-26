@@ -18,6 +18,9 @@ function createContext(extra) {
     revealMarketGoodFocus: function (goodId, options) {
       calls.push(['revealMarketGoodFocus', goodId, options]);
     },
+    showCompletion: function (message, detail) {
+      calls.push(['showCompletion', message, detail]);
+    },
   }, extra || {});
   context.calls = calls;
   context.state = state;
@@ -59,6 +62,7 @@ describe('CommerceActionController', function () {
     expect(context.calls[1][0]).toBe('emitLog');
     expect(context.calls[1][1].text).toContain('经营页 · 商网总览区');
     expect(context.calls[2]).toEqual(['updateUI']);
+    expect(context.calls[3]).toEqual(['showCompletion', '已打开市场导航', '下一条行动建议已刷新']);
   });
 
   it('市场聚焦带商品时会同步高亮商品', function () {
@@ -78,6 +82,7 @@ describe('CommerceActionController', function () {
       'ore',
       { tradeAction: 'sell' },
     ]);
+    expect(context.calls[4]).toEqual(['showCompletion', '已打开市场导航', '下一条行动建议已刷新']);
   });
 
   it('可复用市场目的地文案映射', function () {

@@ -1,8 +1,9 @@
 import { buildCommandFeedback } from '../ui/CommandAction.js?v=20260510-command1';
-import * as CommerceAction from './CommerceActionController.js?v=20260524-action2';
+import * as CommerceAction from './CommerceActionController.js?v=20260526-completionhelper1';
+import { getNavigationFocusCompletion, showContextCompletion } from './ActionGuideCompletion.js?v=20260526-helper1';
 import * as ExplorationAction from './ExplorationActionController.js?v=20260524-action2';
 
-export { getMarketActionDestination } from './CommerceActionController.js?v=20260524-action2';
+export { getMarketActionDestination } from './CommerceActionController.js?v=20260526-completionhelper1';
 
 function _getState(context) {
   if (context && typeof context.getState === 'function') return context.getState();
@@ -28,6 +29,7 @@ export function getProcessingMessage(suggestion) {
   if (suggestion.actionType === 'trade.refuel') return '已执行燃料补给，正在刷新下一步';
   if (suggestion.actionType === 'event.open') return '已打开待处理事件，完成后继续刷新建议';
   if (suggestion.actionType === 'fleet.dispatch.prefill') return '已载入派遣草案，确认后执行路线';
+  if (suggestion.actionType === 'fleet.mod.open') return '已切到机库，查看推荐改装';
   if (suggestion.actionType === 'fleet.service.open') return '已切到机库，检查维修方案';
   if (ExplorationAction.isExplorationAction(suggestion.actionType)) return ExplorationAction.getProcessingMessage(suggestion);
   return '已执行，正在生成下一条建议';
@@ -112,6 +114,32 @@ export function handleGuidanceAction(suggestion, context) {
       _call(ctx, 'updateUI');
       return;
 
+    case 'fleet.mod.open':
+      _call(ctx, 'activateTab', 'tab-fleet');
+      if (typeof ctx.openRecommendedMod === 'function') {
+        _call(ctx, 'openRecommendedMod', payload);
+      } else {
+        _call(ctx, 'updateUI');
+      }
+      _call(ctx, 'emitLog', {
+        text: buildCommandFeedback({
+          actionId: 'mod',
+          commandSurface: 'fleet',
+          commandIntent: '模块改装',
+          label: suggestion.actionLabel || '打开机库',
+        }, {
+          icon: '🧩',
+          openedVerb: '已切到',
+          destination: '机库 · 模块改装',
+          nextStep: payload.modName
+            ? ('优先查看「' + payload.modName + '」' + (payload.modCost ? ('，安装成本 ' + Number(payload.modCost || 0).toLocaleString() + ' 积分') : ''))
+            : '查看推荐组件并确认是否安装',
+          returnTo: '安装后继续派遣、探索或经营调度',
+        }),
+        type: 'tip',
+      });
+      return;
+
     case 'travel.execute':
       var directDestinationSystemId = payload.destinationSystemId || '';
       if (directDestinationSystemId) {
@@ -154,6 +182,7 @@ export function handleGuidanceAction(suggestion, context) {
         type: 'tip',
       });
       _call(ctx, 'updateUI');
+      showContextCompletion(ctx, getNavigationFocusCompletion(navigationFocused));
       return;
 
     default:

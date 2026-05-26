@@ -1,0 +1,296 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import * as Economy from '../js/systems/economy/Economy.js';
+import * as Faction from '../js/systems/faction/FactionSystem.js';
+import * as Fleet from '../js/systems/fleet/FleetSystem.js';
+import * as GalaxyData from '../js/systems/galaxy/GalaxyDataLayer.js';
+import * as Guidance from '../js/systems/guidance/GuidanceSystem.js';
+import * as Quest from '../js/systems/quest/QuestSystem.js';
+import * as Research from '../js/systems/research/ResearchSystem.js';
+import * as Tutorial from '../js/systems/tutorial/TutorialSystem.js';
+import * as FleetUI from '../js/ui/FleetUI.js?v=20260526-complete2';
+import { createTestState } from './helpers.js';
+
+function createFakeClassList(initialValues) {
+  var values = new Set(initialValues || []);
+  return {
+    add: function (value) { values.add(value); },
+    remove: function (value) { values.delete(value); },
+    contains: function (value) { return values.has(value); },
+    toggle: function (value, force) {
+      var shouldAdd = typeof force === 'boolean' ? force : !values.has(value);
+      if (shouldAdd) values.add(value);
+      else values.delete(value);
+      return shouldAdd;
+    },
+  };
+}
+
+function createFakeElement(id, initialClasses) {
+  var html = '';
+  return {
+    id: id || '',
+    children: [],
+    className: '',
+    dataset: {},
+    disabled: false,
+    hidden: false,
+    onclick: null,
+    parentNode: null,
+    style: {},
+    textContent: '',
+    value: '',
+    classList: createFakeClassList(initialClasses),
+    appendChild: function (child) {
+      this.children.push(child);
+      child.parentNode = this;
+    },
+    addEventListener: function () {},
+    cloneNode: function () {
+      return createFakeElement(id, initialClasses);
+    },
+    querySelector: function () { return null; },
+    querySelectorAll: function () { return []; },
+    removeAttribute: function (name) {
+      if (this.dataset && name === 'data-guide-id') delete this.dataset.guideId;
+    },
+    setAttribute: function () {},
+    set innerHTML(value) { html = String(value || ''); },
+    get innerHTML() { return html; },
+  };
+}
+
+function createFakeSelectElement(initialValue) {
+  var el = createFakeElement();
+  var optionValues = [];
+  var value = initialValue || '';
+
+  Object.defineProperty(el, 'innerHTML', {
+    configurable: true,
+    get: function () {
+      return el._html || '';
+    },
+    set: function (next) {
+      var html = String(next || '');
+      var match;
+      var optionRe = /<option[^>]*value="([^"]*)"/g;
+      el._html = html;
+      optionValues = [];
+      while ((match = optionRe.exec(html))) {
+        optionValues.push(match[1]);
+      }
+      if (optionValues.length === 0) {
+        value = '';
+      } else if (!optionValues.includes(value)) {
+        value = optionValues[0];
+      }
+    },
+  });
+
+  Object.defineProperty(el, 'value', {
+    configurable: true,
+    get: function () { return value; },
+    set: function (next) { value = String(next || ''); },
+  });
+
+  Object.defineProperty(el, 'options', {
+    configurable: true,
+    get: function () {
+      return optionValues.map(function (optionValue) {
+        return { value: optionValue };
+      });
+    },
+  });
+
+  Object.defineProperty(el, 'selectedIndex', {
+    configurable: true,
+    get: function () { return optionValues.indexOf(value); },
+    set: function (next) {
+      if (optionValues[next]) value = optionValues[next];
+    },
+  });
+
+  el.querySelector = function (selector) {
+    var match = /^option\[value="([^"]*)"\]$/.exec(selector);
+    if (!match) return null;
+    return optionValues.includes(match[1]) ? { value: match[1] } : null;
+  };
+
+  return el;
+}
+
+function createActionGuideSmokeDom() {
+  var actionGuide = createFakeElement('action-guide');
+  var dispatchModalBox = createFakeElement();
+  var dispatchModal = createFakeElement('dispatch-modal', ['modal', 'hidden']);
+  dispatchModal.querySelector = function (selector) {
+    return selector === '.modal-box' ? dispatchModalBox : null;
+  };
+
+  var backButton = createFakeElement();
+  var fleetTab = createFakeElement();
+  fleetTab.dataset.tab = 'tab-fleet';
+  fleetTab.dataset.tabGroup = 'trade';
+
+  var tradePanel = createFakeElement('trade-panel');
+  var fleetPane = createFakeElement('tab-fleet');
+  var elements = {
+    'action-guide': actionGuide,
+    'fleet-list': createFakeElement('fleet-list'),
+    'fleet-inline-container': createFakeElement('fleet-inline-container', ['hidden']),
+    'dispatch-modal': dispatchModal,
+    'dispatch-title': createFakeElement('dispatch-title'),
+    'dispatch-primary-hint': createFakeElement('dispatch-primary-hint'),
+    'dispatch-buy-system': createFakeSelectElement(),
+    'dispatch-sell-system': createFakeSelectElement(),
+    'dispatch-good': createFakeSelectElement(),
+    'dispatch-market-mode': createFakeSelectElement('open'),
+    'dispatch-risk-mode': createFakeSelectElement('balanced'),
+    'dispatch-max-buy-price': createFakeElement('dispatch-max-buy-price'),
+    'dispatch-min-sell-price': createFakeElement('dispatch-min-sell-price'),
+    'dispatch-min-profit-rate': createFakeElement('dispatch-min-profit-rate'),
+    'dispatch-estimate': createFakeElement('dispatch-estimate'),
+    'dispatch-confirm': createFakeElement('dispatch-confirm'),
+    'dispatch-cancel': createFakeElement('dispatch-cancel'),
+    'dispatch-advanced-panel': createFakeElement('dispatch-advanced-panel'),
+    'event-notification': createFakeElement('event-notification', ['hidden']),
+    'info-panel': createFakeElement('info-panel'),
+    'market-overlay': createFakeElement('market-overlay', ['hidden']),
+    'trade-panel': tradePanel,
+    'console-panel': createFakeElement('console-panel'),
+    'tab-fleet': fleetPane,
+  };
+
+  return {
+    actionGuide: actionGuide,
+    backButton: backButton,
+    document: {
+      getElementById: function (id) {
+        return elements[id] || null;
+      },
+      querySelector: function (selector) {
+        if (selector === '.tab-btn[data-tab="tab-fleet"]') return fleetTab;
+        return null;
+      },
+      querySelectorAll: function (selector) {
+        if (selector === '.modal') return [dispatchModal];
+        if (selector === '.tab-btn[data-tab-group="trade"]') return [fleetTab];
+        if (selector === '.tab-pane[data-tab-group="trade"]') return [fleetPane];
+        return [];
+      },
+      createElement: function () {
+        var el = createFakeElement();
+        el.querySelector = function (selector) {
+          return selector === '.inline-portal-back-btn' ? backButton : null;
+        };
+        return el;
+      },
+    },
+    elements: elements,
+  };
+}
+
+describe('GameManager action guide smoke', function () {
+  var originalDocument = globalThis.document;
+  var originalUIManager = globalThis.__linegameUIManager;
+  var originalBabylon = globalThis.BABYLON;
+  var gameManager = null;
+
+  afterEach(function () {
+    globalThis.document = originalDocument;
+    globalThis.__linegameUIManager = originalUIManager;
+    globalThis.BABYLON = originalBabylon;
+    if (gameManager) gameManager._setStateForTest(null);
+    gameManager = null;
+    vi.useRealTimers();
+  });
+
+  it('通过管理器行动回调载入派遣草案后会展示完成态并避免重复推荐', async function () {
+    vi.useFakeTimers();
+    var dom = createActionGuideSmokeDom();
+    globalThis.document = dom.document;
+    globalThis.__linegameUIManager = {
+      switchView: function () {},
+      setBottomNavActiveDirectly: function () {},
+    };
+    globalThis.BABYLON = {
+      Color3: function (r, g, b) {
+        this.r = r;
+        this.g = g;
+        this.b = b;
+      },
+      Color4: function (r, g, b, a) {
+        this.r = r;
+        this.g = g;
+        this.b = b;
+        this.a = a;
+      },
+    };
+    gameManager = await import('../js/core/GameManager.js');
+
+    var state = createTestState({
+      quests: [],
+      completedQuests: ['starter_first_trade', 'starter_visit_2'],
+      credits: 50000,
+      fuel: 100,
+      maxFuel: 100,
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+      playerLevel: 5,
+    });
+    Economy.init();
+    Fleet.init(state);
+    Faction.init(state);
+    Research.init(state);
+    Quest.init(state);
+    GalaxyData.init(state);
+    Tutorial.init(state);
+    Tutorial.skip();
+    gameManager._setStateForTest(state);
+
+    var recommendation = {
+      buySystemId: 'sol_prime',
+      buySystemName: '太阳主星',
+      sellSystemId: 'alpha_centauri',
+      sellSystemName: '半人马港',
+      goodId: 'food',
+      goodName: '食物',
+      strategySummary: '稳态商运：匹配公开市场',
+      recommendedTradePolicy: { riskMode: 'balanced', marketMode: 'open' },
+    };
+
+    gameManager._handleActionGuideActionForTest({
+      id: 'prefill-profitable-dispatch',
+      actionType: 'fleet.dispatch.prefill',
+      actionLabel: '带入机库',
+      title: '载入派遣草案',
+      reason: '测试推荐路线',
+      payload: {
+        sourceLabel: '派遣策略建议',
+        recommendation: recommendation,
+      },
+      surface: 'fleet',
+    });
+
+    var dispatchContext = FleetUI.getActiveDispatchModalContext();
+    expect(dispatchContext).toMatchObject({
+      shipIndex: 0,
+      buySystemId: 'sol_prime',
+      sellSystemId: 'alpha_centauri',
+      goodId: 'food',
+    });
+    expect(dom.elements['dispatch-buy-system'].value).toBe('sol_prime');
+    expect(dom.elements['dispatch-sell-system'].value).toBe('alpha_centauri');
+    expect(dom.elements['dispatch-good'].value).toBe('food');
+    expect(dom.actionGuide.classList.contains('is-complete')).toBe(true);
+    expect(dom.actionGuide.innerHTML).toContain('已载入派遣草案');
+    expect(dom.actionGuide.innerHTML).toContain('确认“一键派遣”后执行路线');
+
+    expect(Guidance.getCurrentSuggestion(state, {
+      dispatchRouteRecommendation: recommendation,
+      dispatchModalContext: dispatchContext,
+    })).toBe(null);
+
+    dom.backButton.onclick({ preventDefault: function () {} });
+    expect(FleetUI.getActiveDispatchModalContext()).toBe(null);
+  });
+});

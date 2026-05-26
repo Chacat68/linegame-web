@@ -22,7 +22,7 @@ import * as MapUI      from '../ui/MapUI.js?v=20260525-navfix1';
 import * as Modal      from '../ui/Modal.js?v=20260519-ux7';
 import * as EventUI    from '../ui/EventUI.js?v=20260505-surface4';
 import * as DialogueUI from '../ui/DialogueUI.js?v=20260505-surface4';
-import * as ActionGuideUI from '../ui/ActionGuideUI.js?v=20260520-guide1';
+import * as ActionGuideUI from '../ui/ActionGuideUI.js?v=20260526-complete1';
 import * as ResearchUI from '../ui/ResearchUI.js?v=20260420-balance5';
 import * as FactionUI  from '../ui/FactionUI.js?v=20260419-marketcta2';
 import * as SaveUI     from '../ui/SaveUI.js';
@@ -30,13 +30,13 @@ import * as UIManager  from '../ui/UIManager.js';
 import * as QuestUI    from '../ui/QuestUI.js?v=20260428-questdeck1';
 import { buildCommandFeedback } from '../ui/CommandAction.js?v=20260510-command1';
 import * as AchievementUI from '../ui/AchievementUI.js';
-import * as Fleet      from '../systems/fleet/FleetSystem.js?v=20260421-modrepair1';
+import * as Fleet      from '../systems/fleet/FleetSystem.js?v=20260526-modfocus1';
 import * as Crew       from '../systems/fleet/CrewSystem.js';
 import * as AutoTrade  from '../systems/trade/AutoTradeSystem.js?v=20260420-balance5';
 import * as TradeStation from '../systems/trade/TradeStationSystem.js';
 import * as Finance from '../systems/finance/FinanceSystem.js';
 import * as Futures from '../systems/finance/FuturesSystem.js';
-import * as FleetUI    from '../ui/FleetUI.js?v=20260505-surface4';
+import * as FleetUI    from '../ui/FleetUI.js?v=20260526-complete2';
 import * as Save       from '../systems/save/SaveSystem.js';
 import * as Quest      from '../systems/quest/QuestSystem.js?v=20260412-questroute2';
 import * as Achievement from '../systems/achievement/AchievementSystem.js';
@@ -50,11 +50,20 @@ import { VICTORY_PATHS } from '../data/victoryConditions.js';
 import { getLevel } from '../data/playerLevels.js';
 import { SYSTEMS } from '../data/systems.js';
 import { GOODS } from '../data/goods.js';
+import { SHIP_MODS } from '../data/ships.js';
+import {
+  getDispatchConfirmedCompletion,
+  getDispatchDraftCompletion,
+  getModInstalledCompletion,
+  getRefuelCompletion,
+  getRemoteMarketFocusCompletion,
+  getServiceScheduledCompletion,
+} from './ActionGuideCompletion.js?v=20260526-helper1';
 import * as Settings from './SettingsManager.js?v=20260525-audio1';
 import * as Audio from './AudioManager.js';
 import * as Progression from '../systems/progression/ProgressionSystem.js?v=20260518-ux2';
-import * as Guidance from '../systems/guidance/GuidanceSystem.js?v=20260520-guide2';
-import * as GuidanceAction from './GuidanceActionController.js?v=20260524-action2';
+import * as Guidance from '../systems/guidance/GuidanceSystem.js?v=20260526-complete2';
+import * as GuidanceAction from './GuidanceActionController.js?v=20260526-completionhelper1';
 import * as Dispatch from './DispatchController.js?v=20260505-surface1';
 import { hasBlockingSurfaceOpen, hideBlockingSurface, showBlockingSurface } from '../ui/SurfaceManager.js?v=20260505-surface4';
 
@@ -70,6 +79,7 @@ let _blackMarketMode = false; // 当前是否处于黑市交易模式
 let _dialogueQueue = [];
 let _dialoguePlaying = false;
 let _realtimeClock = null;
+let _recentModInstallContext = null;
 let _gameLoopFrameId = null;
 
 function _getMarketFinanceActions() {
@@ -274,6 +284,15 @@ export function init(difficulty) {
   }
 }
 
+export function _setStateForTest(state) {
+  _state = state || null;
+  _recentModInstallContext = null;
+}
+
+export function _handleActionGuideActionForTest(suggestion) {
+  _handleActionGuideAction(suggestion);
+}
+
 function _showWelcomeMessages() {
   EventBus.emit('log:message', { text: '🚀 欢迎来到银河历 3045 年！您的星际贸易之旅由此开始……', type: 'info' });
   EventBus.emit('log:message', {
@@ -288,6 +307,12 @@ function _showWelcomeMessages() {
     text: '📋 新功能：【档案】入口可接取任务、研究科技、查看派系与成就，右上角【设置】可管理存档！',
     type: 'tip',
   });
+}
+
+function _showActionGuideCompletion(completion, options) {
+  if (completion && ActionGuideUI.showCompletion) {
+    ActionGuideUI.showCompletion(completion.message, completion.detail, options);
+  }
 }
 
 function _recommendStarterQuests() {
@@ -564,6 +589,8 @@ function _refreshActionGuide() {
   var researchBlocker = null;
   var dispatchRouteRecommendation = null;
   var serviceStatus = null;
+  var modRecommendation = null;
+  var recentModInstallContext = _recentModInstallContext;
   var surveyIntel = null;
   if (_state.currentSystem) {
     scanStatus = _getScanStatus(_state.currentSystem);
@@ -584,6 +611,9 @@ function _refreshActionGuide() {
       dispatchRouteRecommendation = AutoTrade.findBestDispatchRoute(_state, dispatchContext);
     }
     serviceStatus = _getActiveShipServiceStatus();
+    if (Fleet.getShipModRecommendation) {
+      modRecommendation = Fleet.getShipModRecommendation(_state, _state.activeShipIndex || 0);
+    }
   }
   ActionGuideUI.render(Guidance.getCurrentSuggestion(_state, {
     marketOpen: MapUI.isMarketOpen(),
@@ -596,11 +626,18 @@ function _refreshActionGuide() {
     researchBlocker: researchBlocker,
     dispatchRouteRecommendation: dispatchRouteRecommendation,
     serviceStatus: serviceStatus,
+    modRecommendation: modRecommendation,
+    modModalContext: FleetUI.getActiveModModalContext ? FleetUI.getActiveModModalContext() : null,
+    dispatchModalContext: FleetUI.getActiveDispatchModalContext ? FleetUI.getActiveDispatchModalContext() : null,
+    recentModInstallContext: recentModInstallContext,
     surveyIntel: surveyIntel,
     tutorialActive: tutorialActive,
     blockingModalOpen: blockingModalOpen,
     eventPending: eventPending,
   }));
+  if (recentModInstallContext && _recentModInstallContext === recentModInstallContext) {
+    _recentModInstallContext = null;
+  }
 }
 
 function _getGoodDisplayName(goodId) {
@@ -711,6 +748,10 @@ function _handleActionGuideAction(suggestion) {
     forcePendingEvent: EventUI.forcePendingEvent,
     refreshActionGuide: _refreshActionGuide,
     openRecommendedDispatch: _openRecommendedDispatch,
+    openRecommendedMod: _openRecommendedMod,
+    showCompletion: function (message, detail, options) {
+      if (ActionGuideUI.showCompletion) ActionGuideUI.showCompletion(message, detail, options);
+    },
     emitLog: function (message) {
       EventBus.emit('log:message', message);
     },
@@ -1068,7 +1109,11 @@ function _handleTradeConfirm(action, goodId, quantity, marketType) {
 }
 
 function _handleRefuel() {
-  _dispatch(Commerce.refuel(_state));
+  var result = Commerce.refuel(_state);
+  _dispatch(result);
+  if (result && result.ok) {
+    _showActionGuideCompletion(getRefuelCompletion());
+  }
 }
 
 function _handleOpenBuy(good) {
@@ -1301,6 +1346,33 @@ function _openRecommendedDispatch(recommendation, sourceLabel, icon) {
     }),
     type: 'info',
   });
+  _refreshActionGuide();
+  _showActionGuideCompletion(getDispatchDraftCompletion());
+}
+
+function _openRecommendedMod(payload) {
+  var data = payload || {};
+  var shipIndex = Number.isFinite(Number(data.shipIndex))
+    ? Number(data.shipIndex)
+    : (_state.activeShipIndex || 0);
+
+  if (!_state.fleet || !_state.fleet[shipIndex]) {
+    shipIndex = _state.activeShipIndex || 0;
+  }
+  if (!_state.fleet || !_state.fleet[shipIndex]) return;
+
+  _updateUI();
+  FleetUI.openModModal(
+    _state,
+    shipIndex,
+    _handleInstallMod,
+    _handleUninstallMod,
+    _handleUpgradeShip,
+    _handleServiceShip,
+    _handleSellShip,
+    { focusModId: data.modId || '' },
+  );
+  _refreshActionGuide();
 }
 
 function _handleFocusRemoteMarketSystem(systemId) {
@@ -1327,6 +1399,9 @@ function _handleFocusRemoteMarketSystem(systemId) {
   });
 
   _updateUI();
+  if (focused) {
+    _showActionGuideCompletion(getRemoteMarketFocusCompletion());
+  }
 }
 
 function _handleBuildTradeStation(systemId) {
@@ -1590,6 +1665,10 @@ function _handleAssignRoute(shipIndex, buySystemId, sellSystemId, goodId, tradeP
   if (result && result.ok && isActive) {
     Dispatch.startActiveDispatch(_boundDispatchTick);
   }
+  if (result && result.ok) {
+    var good = GOODS.find(function (item) { return item.id === goodId; });
+    _showActionGuideCompletion(getDispatchConfirmedCompletion(good ? good.name : ''));
+  }
   return result;
 }
 
@@ -1621,7 +1700,17 @@ function _handleSellShip(shipIndex) {
 function _handleInstallMod(shipIndex, modId) {
   Fleet.syncShipFromState(_state);
   const result = Fleet.installMod(_state, modId, shipIndex);
+  var installedMod = SHIP_MODS.find(function (mod) { return mod.id === modId; });
+  if (result && result.ok) {
+    _recentModInstallContext = {
+      shipIndex: shipIndex != null ? shipIndex : (_state.activeShipIndex || 0),
+      modId: modId,
+    };
+  }
   _dispatch(result);
+  if (result && result.ok) {
+    _showActionGuideCompletion(getModInstalledCompletion(installedMod ? installedMod.name : ''));
+  }
 }
 
 function _handleUninstallMod(shipIndex, modId) {
@@ -1634,6 +1723,9 @@ function _handleServiceShip(shipIndex, tierId) {
   Fleet.syncShipFromState(_state);
   const result = Fleet.serviceShip(_state, shipIndex, tierId);
   _dispatch(result);
+  if (result && result.ok) {
+    _showActionGuideCompletion(getServiceScheduledCompletion());
+  }
 }
 
 function _handleRecruitCrew(offerId) {
