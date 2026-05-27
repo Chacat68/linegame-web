@@ -5,7 +5,7 @@
 //       meetsCompanyLevel, getFleetSlotCompanyRequirement,
 //       getMaxTradeStationLevel, getTradeStationLevelRequirement
 
-import { getCompanyLevel } from './playerLevels.js';
+import { COMPANY_LEVELS, getCompanyLevel } from './playerLevels.js';
 
 export const COMPANY_FEATURE_REQUIREMENTS = {
   capitalLocal: 2,
@@ -79,6 +79,31 @@ const TRADE_STATION_LEVEL_REQUIREMENTS = {
   5: 9,
 };
 
+const TRADE_STATION_CAPACITY_BY_COMPANY_LEVEL = {
+  1: 0,
+  2: 0,
+  3: 0,
+  4: 2,
+  5: 4,
+  6: 8,
+  7: 10,
+  8: 12,
+  9: 16,
+  10: 20,
+};
+
+const COMPANY_FEATURE_LABELS = {
+  capitalLocal: '贷款与保险',
+  tradeInvestment: '站点投资',
+  stocks: '股票交易',
+  tradeStationBuild: '贸易站建设',
+  tradeStationStrategy: '站点策略',
+  tradeStationManager: '经理派驻',
+  futures: '期货交易',
+  tradeStationBatchOps: '批量指令',
+  operationsNetwork: '商网总览',
+};
+
 export function getCompanyLevelValue(state) {
   const safeState = state || {};
   const explicitLevel = Number.isFinite(safeState.companyLevel)
@@ -120,6 +145,122 @@ export function getCompanyUnlockRoadmap(state, limit) {
       current: currentLevel === entry.level,
     };
   });
+}
+
+export function getMaxFleetSlots(state) {
+  const companyLevel = getCompanyLevelValue(state);
+  let maxSlots = 1;
+  Object.keys(FLEET_SLOT_REQUIREMENTS).forEach(function (slotText) {
+    const slotId = Number(slotText);
+    if (companyLevel >= FLEET_SLOT_REQUIREMENTS[slotId]) {
+      maxSlots = Math.max(maxSlots, slotId);
+    }
+  });
+  return maxSlots;
+}
+
+export function getMaxTradeStations(state) {
+  const companyLevel = Math.min(10, getCompanyLevelValue(state));
+  let maxStations = 0;
+  Object.keys(TRADE_STATION_CAPACITY_BY_COMPANY_LEVEL).forEach(function (levelText) {
+    const level = Number(levelText);
+    if (companyLevel >= level) {
+      maxStations = Math.max(maxStations, TRADE_STATION_CAPACITY_BY_COMPANY_LEVEL[level]);
+    }
+  });
+  return maxStations;
+}
+
+export function getTradeStationCapacityState(state) {
+  const stations = state && state.tradeStations && typeof state.tradeStations === 'object'
+    ? state.tradeStations
+    : {};
+  const used = Object.keys(stations).length;
+  const max = getMaxTradeStations(state);
+  return {
+    used: used,
+    max: max,
+    available: Math.max(0, max - used),
+    full: max > 0 && used >= max,
+    unlocked: max > 0,
+    label: max > 0 ? (used + '/' + max + ' 站') : '未开放',
+  };
+}
+
+function _getCompanyLevelDefinition(level) {
+  const normalizedLevel = Math.max(1, Math.floor(level || 1));
+  return COMPANY_LEVELS.find(function (entry) {
+    return entry.level === normalizedLevel;
+  }) || COMPANY_LEVELS[0];
+}
+
+function _getUnlockedCompanyFeatures(state) {
+  return Object.keys(COMPANY_FEATURE_REQUIREMENTS).filter(function (featureId) {
+    return getCompanyAccessState(state, featureId).unlocked;
+  }).map(function (featureId) {
+    return {
+      id: featureId,
+      label: COMPANY_FEATURE_LABELS[featureId] || featureId,
+      requiredLevel: getCompanyFeatureRequirement(featureId),
+    };
+  }).sort(function (left, right) {
+    return left.requiredLevel - right.requiredLevel;
+  });
+}
+
+export function getCompanyPrivilegeSummary(state) {
+  const safeState = state || {};
+  const currentLevel = getCompanyLevelValue(safeState);
+  const currentDef = _getCompanyLevelDefinition(currentLevel);
+  const nextDef = COMPANY_LEVELS.find(function (entry) {
+    return entry.level > currentLevel;
+  }) || null;
+  const companyExperience = Math.max(0, Number(safeState.companyExperience) || 0);
+  const expIntoLevel = Math.max(0, companyExperience - (currentDef.expRequired || 0));
+  const expSpan = nextDef ? Math.max(1, (nextDef.expRequired || 0) - (currentDef.expRequired || 0)) : 1;
+  const expToNext = nextDef ? Math.max(0, (nextDef.expRequired || 0) - companyExperience) : 0;
+  const stationCapacity = getTradeStationCapacityState(safeState);
+  const maxStationLevel = getMaxTradeStationLevel(safeState);
+  const fleetSlotsUnlocked = getMaxFleetSlots(safeState);
+  const nextMilestone = COMPANY_UNLOCK_MILESTONES.find(function (entry) {
+    return entry.level > currentLevel;
+  }) || null;
+  const currentMilestone = getCompanyUnlocksAtLevel(currentLevel);
+
+  return {
+    level: currentLevel,
+    title: currentDef.title,
+    icon: currentDef.icon,
+    companyExperience: companyExperience,
+    expIntoLevel: expIntoLevel,
+    expSpan: expSpan,
+    expToNext: expToNext,
+    progressRatio: nextDef ? Math.max(0, Math.min(1, expIntoLevel / expSpan)) : 1,
+    nextLevel: nextDef ? {
+      level: nextDef.level,
+      title: nextDef.title,
+      icon: nextDef.icon,
+      expRequired: nextDef.expRequired,
+    } : null,
+    currentMilestone: currentMilestone,
+    nextMilestone: nextMilestone ? {
+      level: nextMilestone.level,
+      title: nextMilestone.title,
+      items: nextMilestone.items.slice(),
+    } : null,
+    unlockedFeatures: _getUnlockedCompanyFeatures(safeState),
+    caps: {
+      fleetSlots: {
+        used: Math.max(1, Number(safeState.fleetSlots) || 1),
+        max: fleetSlotsUnlocked,
+      },
+      tradeStations: stationCapacity,
+      tradeStationLevel: {
+        max: maxStationLevel,
+        label: maxStationLevel > 0 ? ('Lv.' + maxStationLevel) : '未开放',
+      },
+    },
+  };
 }
 
 export function getCompanyAccessState(state, featureId) {
