@@ -523,6 +523,8 @@ function _getNextGuidancePoi(systemId) {
       poiId: poi.id,
       icon: poi.icon || '',
       name: poi.name || '探索点',
+      chainKind: poi.chain && poi.chain.kind ? poi.chain.kind : '',
+      chainLabel: poi.chain && poi.chain.label ? poi.chain.label : '',
     };
   })[0] || null;
 }
