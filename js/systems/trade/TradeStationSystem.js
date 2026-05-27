@@ -21,6 +21,7 @@ import {
   getCompanyAccessState,
   getCompanyLevelValue,
   getMaxTradeStationLevel,
+  getTradeStationCapacityState,
   getTradeStationLevelRequirement,
 } from '../../data/companyAccess.js';
 import * as Economy from '../economy/Economy.js';
@@ -345,6 +346,8 @@ export function getBuildCandidates(state) {
   const visited = state.visitedSystems || [state.currentSystem];
   const stations = _ensureStations(state);
   const access = getCompanyAccessState(state, 'tradeStationBuild');
+  const capacity = getTradeStationCapacityState(state);
+  const hasStationCapacity = !capacity.full;
   return SYSTEMS.filter(function (system) {
     return _isSystemEligible(system) && visited.indexOf(system.id) >= 0 && !stations[system.id];
   }).map(function (system) {
@@ -360,9 +363,12 @@ export function getBuildCandidates(state) {
       strategyRecommendation: strategyRecommendation,
       buildCost: levelConfig.investment,
       isCurrent: system.id === state.currentSystem,
-      canAfford: canAfford && access.unlocked,
+      canAfford: canAfford && access.unlocked && hasStationCapacity,
       companyAccess: access,
-      lockReason: access.unlocked ? '' : access.lockLabel,
+      stationCapacity: capacity,
+      lockReason: access.unlocked
+        ? (hasStationCapacity ? '' : '公司站点容量已满：' + capacity.label)
+        : access.lockLabel,
     };
   }).sort(function (a, b) {
     if (a.isCurrent !== b.isCurrent) return a.isCurrent ? -1 : 1;
@@ -496,7 +502,10 @@ export function getNextNetworkAction(state) {
   }
 
   const fundingTarget = buildCandidates.filter(function (candidate) {
-    return candidate.companyAccess && candidate.companyAccess.unlocked && credits < candidate.buildCost;
+    return candidate.companyAccess &&
+      candidate.companyAccess.unlocked &&
+      !(candidate.stationCapacity && candidate.stationCapacity.full) &&
+      credits < candidate.buildCost;
   }).sort(function (a, b) {
     return (a.buildCost || 0) - (b.buildCost || 0);
   })[0];
@@ -511,6 +520,28 @@ export function getNextNetworkAction(state) {
       fundingTarget.system.id,
       null,
       { disabled: true, fundingGap: gap }
+    );
+  }
+
+  const capacityTarget = buildCandidates.filter(function (candidate) {
+    return candidate.companyAccess &&
+      candidate.companyAccess.unlocked &&
+      candidate.stationCapacity &&
+      candidate.stationCapacity.full;
+  }).sort(function (a, b) {
+    if (a.isCurrent !== b.isCurrent) return a.isCurrent ? -1 : 1;
+    return (b.system.marketDepth || 0) - (a.system.marketDepth || 0);
+  })[0];
+  if (capacityTarget) {
+    return _createNetworkAction(
+      'companyGrowth',
+      18,
+      '提升公司等级扩张商网',
+      '当前贸易站容量为 ' + capacityTarget.stationCapacity.label + '，继续提升公司等级后才能在「' + capacityTarget.system.name + '」建站。',
+      '提升公司等级',
+      capacityTarget.system.id,
+      null,
+      { disabled: true, disabledLabel: '容量已满', stationCapacity: capacityTarget.stationCapacity }
     );
   }
 
@@ -732,6 +763,13 @@ export function canBuildStation(state, systemId) {
   }
   if (stations[systemId]) {
     return { ok: false, msg: system.name + ' 已经拥有贸易站。' };
+  }
+  const capacity = getTradeStationCapacityState(state);
+  if (capacity.full) {
+    return {
+      ok: false,
+      msg: '当前公司贸易站容量已满（' + capacity.label + '），提升公司等级后可继续扩张。',
+    };
   }
   if ((state.visitedSystems || []).indexOf(systemId) === -1 && state.currentSystem !== systemId) {
     return { ok: false, msg: '需先亲自到访 ' + system.name + '，才能决定建站。' };

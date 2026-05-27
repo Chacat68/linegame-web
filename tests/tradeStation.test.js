@@ -51,6 +51,39 @@ describe('TradeStationSystem', () => {
     });
   });
 
+  it('公司贸易站容量满时拒绝继续建站', () => {
+    const state = createTestState({
+      credits: 500000,
+      companyLevel: 4,
+      currentSystem: 'mineral_belt',
+      visitedSystems: ['sol_prime', 'nova_station', 'mineral_belt'],
+      tradeStations: {
+        sol_prime: { systemId: 'sol_prime', level: 1 },
+        nova_station: { systemId: 'nova_station', level: 1 },
+      },
+    });
+
+    const guard = TradeStation.canBuildStation(state, 'mineral_belt');
+    const candidate = TradeStation.getBuildCandidates(state).find(function (entry) {
+      return entry.system.id === 'mineral_belt';
+    });
+    const nextAction = TradeStation.getNextNetworkAction(state);
+
+    expect(guard.ok).toBe(false);
+    expect(guard.msg).toContain('容量已满');
+    expect(candidate).toBeTruthy();
+    expect(candidate.canAfford).toBe(false);
+    expect(candidate.stationCapacity).toMatchObject({ used: 2, max: 2, full: true });
+    expect(candidate.lockReason).toContain('容量已满');
+    expect(nextAction).toMatchObject({
+      type: 'companyGrowth',
+      disabled: true,
+      disabledLabel: '容量已满',
+      stationCapacity: { used: 2, max: 2, full: true },
+    });
+    expect(nextAction.reason).toContain('提升公司等级');
+  });
+
   it('贸易站支持升级、雇佣管理员与切换经营策略', () => {
     const state = createTestState({
       credits: 600000,

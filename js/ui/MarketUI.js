@@ -8,7 +8,7 @@ import {
   TRADE_STATION_STRATEGIES,
 } from '../data/tradeStations.js';
 import { getSystemsByGalaxy, findSystem, isSystemAccessible } from '../data/systems.js?v=20260420-balance3';
-import { getCompanyAccessState, getCompanyLevelValue } from '../data/companyAccess.js';
+import { getCompanyAccessState, getCompanyLevelValue, getCompanyPrivilegeSummary } from '../data/companyAccess.js';
 import * as Economy from '../systems/economy/Economy.js';
 import * as Faction from '../systems/faction/FactionSystem.js';
 import * as Commerce from '../systems/commerce/CommerceFacade.js';
@@ -141,6 +141,7 @@ function _getMarketExperienceStats(state, sysId, options) {
   var openFuturesCount = _countOpenFutures(safeState);
   var playerLevel = Math.max(1, Number(safeState.playerLevel) || 1);
   var companyLevel = getCompanyLevelValue(safeState);
+  var companyPrivileges = getCompanyPrivilegeSummary(safeState);
   var day = Math.max(1, Number(safeState.day) || 1);
   var credits = Math.max(0, Number(safeState.credits) || 0);
   var hasCapitalFootprint = _hasCapitalFootprint(safeState);
@@ -154,6 +155,7 @@ function _getMarketExperienceStats(state, sysId, options) {
     credits: credits,
     visitedCount: Math.max(visitedSystems.length, safeState.currentSystem ? 1 : 0),
     stationCount: stationCount,
+    companyPrivileges: companyPrivileges,
     stockHoldingCount: stockHoldingCount,
     openFuturesCount: openFuturesCount,
     hasCapitalFootprint: hasCapitalFootprint,
@@ -680,11 +682,20 @@ function _renderMarketExperienceRoute(progression) {
   if (!routeEl || !progression || !Array.isArray(progression.routeStages)) return;
 
   var stats = progression.stats || {};
+  var privileges = stats.companyPrivileges || {};
+  var caps = privileges.caps || {};
+  var stationCapacity = caps.tradeStations || {};
+  var stationLevel = caps.tradeStationLevel || {};
+  var fleetSlots = caps.fleetSlots || {};
+  var privilegeNote = '贸易站 ' + (stationCapacity.label || ((stats.stationCount || 0) + ' 座')) +
+    ' · 站点上限 ' + (stationLevel.label || '未开放') +
+    ' · 舰队席位 ' + (fleetSlots.used || 1) + '/' + (fleetSlots.max || 1);
   routeEl.innerHTML = '<section class="market-experience-route" aria-label="市场体验线路">' +
     '<div class="market-experience-route-copy">' +
       '<div class="market-experience-route-kicker">MARKET FLOW</div>' +
       '<div class="market-experience-route-title">先成交，再扩张</div>' +
-      '<div class="market-experience-route-note">公司 Lv.' + _escapeHtml(stats.companyLevel || 1) + ' · 玩家 Lv.' + _escapeHtml(stats.playerLevel || 1) + ' · 已访问 ' + _escapeHtml(stats.visitedCount || 1) + ' 站 · 贸易站 ' + _escapeHtml(stats.stationCount || 0) + ' 座</div>' +
+      '<div class="market-experience-route-note">公司 Lv.' + _escapeHtml(stats.companyLevel || 1) + ' · 玩家 Lv.' + _escapeHtml(stats.playerLevel || 1) + ' · 已访问 ' + _escapeHtml(stats.visitedCount || 1) + ' 站</div>' +
+      '<div class="market-experience-route-note">' + _escapeHtml(privilegeNote) + '</div>' +
     '</div>' +
     '<div class="market-experience-route-steps">' +
       progression.routeStages.map(function (stage) {
@@ -1170,7 +1181,7 @@ function _renderSurveyIntelMarketSection(surveyIntel) {
           '<div class="market-finance-action-title">' + _escapeHtml(surveyIntel.recentReportTitle || '勘探报告') + '</div>' +
           '<div class="market-finance-action-meta">情报等级 Lv.' + _escapeHtml(surveyIntel.intelLevel) + ' · 已归档 ' + _escapeHtml(surveyIntel.reportCount) + ' 份 · ' + _escapeHtml(signalNotes.join(' / ')) + '</div>' +
         '</div>' +
-        '<div class="market-finance-network-note">' + _escapeHtml(surveyIntel.dispatchHint || '行情参考') + '</div>' +
+        '<div class="market-finance-network-note">' + _escapeHtml(surveyIntel.anomalyHint || surveyIntel.dispatchHint || '行情参考') + '</div>' +
       '</div>' +
     '</div>' +
   '</section>';
@@ -2285,20 +2296,12 @@ export function getTradeStationCandidateIntel(state, systemId) {
   var intel = Exploration.getSurveyDecisionIntel(state || {}, systemId);
   if (!intel || !intel.hasIntel) return null;
 
-  if (intel.marketSignal) {
-    return {
-      systemId: systemId,
-      signal: 'market',
-      label: '贸易窗口',
-      note: intel.marketHint || '勘探报告显示该节点存在可复核的本地行情窗口。',
-    };
-  }
-  if (intel.logisticsSignal) {
+  if (intel.depotSignal) {
     return {
       systemId: systemId,
       signal: 'logistics',
-      label: '补给节点',
-      note: intel.dispatchHint || intel.marketHint || '勘探报告显示该节点可作为后勤补给支点。',
+      label: '废弃补给站',
+      note: intel.anomalyHint || intel.dispatchHint || intel.marketHint || '勘探报告显示该节点可作为后勤补给支点。',
     };
   }
   if (intel.routeSignal) {
@@ -2313,8 +2316,24 @@ export function getTradeStationCandidateIntel(state, systemId) {
     return {
       systemId: systemId,
       signal: 'research',
-      label: '科研样本',
+      label: intel.relicSignal ? '古代遗迹' : '科研样本',
       note: intel.researchHint || '勘探报告显示该节点可为科研补给链提供参考。',
+    };
+  }
+  if (intel.marketSignal) {
+    return {
+      systemId: systemId,
+      signal: 'market',
+      label: '贸易窗口',
+      note: intel.marketHint || '勘探报告显示该节点存在可复核的本地行情窗口。',
+    };
+  }
+  if (intel.logisticsSignal) {
+    return {
+      systemId: systemId,
+      signal: 'logistics',
+      label: '补给节点',
+      note: intel.dispatchHint || intel.marketHint || '勘探报告显示该节点可作为后勤补给支点。',
     };
   }
 
@@ -2411,10 +2430,13 @@ function _renderNextNetworkAction(action) {
     '</div>';
   }
 
+  var chipLabel = action.disabled
+    ? (action.disabledLabel || '资金准备')
+    : action.actionLabel;
   return '<div class="market-finance-card is-featured">' +
     '<div class="market-finance-card-head">' +
       '<span class="market-finance-card-title">下一笔商网动作</span>' +
-      '<span class="market-finance-chip">' + _escapeHtml(action.disabled ? '资金准备' : action.actionLabel) + '</span>' +
+      '<span class="market-finance-chip">' + _escapeHtml(chipLabel) + '</span>' +
     '</div>' +
     '<div class="market-finance-card-meta">' + _escapeHtml(action.title) + '</div>' +
     '<div class="market-finance-card-meta">' + _escapeHtml(action.reason) + '</div>' +

@@ -265,10 +265,10 @@ describe('MarketUI guided focus', function () {
 
     expect(intel).toMatchObject({
       systemId: 'sol_prime',
-      signal: 'market',
-      label: '贸易窗口',
+      signal: 'logistics',
+      label: '废弃补给站',
     });
-    expect(intel.note).toContain('勘探报告');
+    expect(intel.note).toContain('补给');
   });
 
   it('商网页会展示候选站点的建议策略', async function () {
