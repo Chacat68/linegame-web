@@ -99,7 +99,9 @@ describe('ExplorationSystem', function () {
     const preview = Exploration.getPoiStatus(state, 'sol_prime', anomalyPoi.id);
 
     expect(preview.canExplore).toBe(true);
+    expect(preview.chainKind).toBe('ancient_relic');
     expect(preview.actionLabel).toContain('无成本');
+    expect(preview.detailText).toContain('事件链「古代遗迹」');
     expect(preview.detailText).toContain('舰体');
   });
 
@@ -112,6 +114,12 @@ describe('ExplorationSystem', function () {
     expect(summary.completionRewardLabel).toBeTruthy();
     expect(summary.intelLevel).toBe(0);
     expect(summary.reportCount).toBe(0);
+    expect(summary.anomalyChainCount).toBe(3);
+    expect(summary.anomalyChains.map(function (chain) { return chain.kind; }).sort()).toEqual([
+      'ancient_relic',
+      'derelict_depot',
+      'lost_beacon',
+    ]);
   });
 
   it('着陆前必须先完成扫描', function () {
@@ -137,7 +145,7 @@ describe('ExplorationSystem', function () {
     expect(summary.reportCount).toBe(2);
     expect(summary.intelLevel).toBeGreaterThan(0);
     expect(summary.reports.some(function (report) {
-      return report.title.indexOf('清单') !== -1;
+      return report.title.indexOf('补给站') !== -1 && report.chainKind === 'derelict_depot';
     })).toBe(true);
   });
 
@@ -156,10 +164,13 @@ describe('ExplorationSystem', function () {
     expect(intel).toMatchObject({
       hasIntel: true,
       marketSignal: true,
+      logisticsSignal: true,
+      depotSignal: true,
       primarySignal: 'market',
     });
     expect(intel.marketHint).toContain('勘探报告');
     expect(intel.dispatchHint).toContain('贸易报告');
+    expect(intel.anomalyHint).toContain('废弃补给站');
   });
 
   it('勘探决策情报会稳定输出物流、贸易、科研和航线信号', function () {
@@ -215,9 +226,11 @@ describe('ExplorationSystem', function () {
     const researchIntel = Exploration.getSurveyDecisionIntel(researchState, 'nova_station');
     expect(researchIntel).toMatchObject({
       researchSignal: true,
+      relicSignal: true,
       primarySignal: 'research',
     });
     expect(researchIntel.researchHint).toContain('科研');
+    expect(researchIntel.anomalyHint).toContain('古代遗迹');
 
     const routeState = createSurveyState('sol_prime');
     expect(Exploration.scanSystem(routeState, 'sol_prime').ok).toBe(true);
@@ -229,9 +242,11 @@ describe('ExplorationSystem', function () {
     const routeIntel = Exploration.getSurveyDecisionIntel(routeState, 'sol_prime');
     expect(routeIntel).toMatchObject({
       routeSignal: true,
+      beaconSignal: true,
       primarySignal: 'route',
     });
     expect(routeIntel.dispatchHint).toContain('暗线');
+    expect(routeIntel.anomalyHint).toContain('失落航标');
   });
 
   it('调查秘密航线信标后应降低对应航线燃料消耗', function () {
@@ -328,7 +343,7 @@ describe('ExplorationSystem', function () {
 
     const summary = Exploration.getSurveySummary(state, 'nova_station');
 
-    expect(state.currentResearch.daysLeft).toBe(2);
+    expect(state.currentResearch.daysLeft).toBe(1);
     expect(summary.completionBonusClaimed).toBe(true);
     expect(summary.reports.some(function (report) {
       return report.id === 'nova_station_report_completion';

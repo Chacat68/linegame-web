@@ -391,10 +391,11 @@ function _createExplorationPois(system, secretRoute) {
     id: system.id + '_poi_route',
     kind: 'route_beacon',
     icon: '🛰️',
-    name: '隐秘折跃信标',
+    name: '失落航标',
     description: '一次失真的导航回波，似乎指向「' + secretRoute.targetSystemName + '」附近的暗线跳点。',
     discovered: false,
     resolved: false,
+    chain: _createPoiChain(system, 'lost_beacon'),
     secretRouteId: secretRoute.id,
     rewards: { credits: 110, reputation: 2 },
   } : {
@@ -405,9 +406,42 @@ function _createExplorationPois(system, secretRoute) {
     description: '旧时代航海数据库残片，仍可从中提取有价值的航路情报。',
     discovered: false,
     resolved: false,
+    chain: _createPoiChain(system, 'derelict_depot'),
     rewards: { credits: 90, fuel: 0, reputation: 1 },
   };
   return [resourcePoi, anomalyPoi, routePoi];
+}
+
+function _createPoiChain(system, chainKind) {
+  const templates = {
+    derelict_depot: {
+      label: '废弃补给站',
+      badge: '补给链',
+      signal: 'logistics',
+      stageLabels: ['扫描残骸', '复原库存', '归档补给信号'],
+    },
+    ancient_relic: {
+      label: '古代遗迹',
+      badge: '遗迹链',
+      signal: 'research',
+      stageLabels: ['定位遗迹', '提取样本', '归档科研线索'],
+    },
+    lost_beacon: {
+      label: '失落航标',
+      badge: '航标链',
+      signal: 'route',
+      stageLabels: ['校准回波', '重启航标', '归档暗线航图'],
+    },
+  };
+  const template = templates[chainKind] || templates.derelict_depot;
+  return {
+    id: system.id + '_chain_' + chainKind,
+    kind: chainKind,
+    label: template.label,
+    badge: template.badge,
+    signal: template.signal,
+    stageLabels: template.stageLabels,
+  };
 }
 
 function _createResourcePoi(system) {
@@ -432,6 +466,7 @@ function _createResourcePoi(system) {
     description: template.description,
     discovered: false,
     resolved: false,
+    chain: _createPoiChain(system, 'derelict_depot'),
     rewards: template.rewards,
   };
 }
@@ -441,13 +476,15 @@ function _createAnomalyPoi(system) {
     id: system.id + '_poi_anomaly',
     kind: 'anomaly_site',
     icon: '🌀',
-    name: '异常读数区',
-    description: '局部时空与能量读数持续异常，回收收益可观，但存在舰体受损风险。',
+    name: '古代遗迹阵列',
+    description: '局部时空与能量读数持续异常，遗迹样本价值可观，但存在舰体受损风险。',
     discovered: false,
     resolved: false,
+    chain: _createPoiChain(system, 'ancient_relic'),
     rewards: {
       credits: 150 + (system.minLevel || 1) * 20,
       hullDamage: 6 + (system.minLevel || 1) * 2,
+      researchDays: (['technology', 'research', 'medical'].indexOf(system.type) !== -1) ? 1 : 0,
     },
   };
 }

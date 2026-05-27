@@ -15,6 +15,11 @@ const BASE_SECRET_ROUTE_MULTIPLIER = 0.65;
 const CARTOGRAPHY_SECRET_ROUTE_MULTIPLIER = 0.5;
 const ORBIT_SCAN_LANDING_DISCOUNT = 0.15;
 const DEEP_SCAN_LANDING_DISCOUNT = 0.3;
+const CHAIN_SIGNAL_LABELS = {
+  derelict_depot: '废弃补给站',
+  ancient_relic: '古代遗迹',
+  lost_beacon: '失落航标',
+};
 
 export function getScanStatus(state, systemId, options) {
   options = options || {};
@@ -33,8 +38,10 @@ export function getScanStatus(state, systemId, options) {
   const scanDirective = system && exploration ? _getScanDirective(state, system, exploration, surveyProfile) : null;
   const scanSignalGrade = system && exploration ? _getScanSignalGrade(system, exploration, surveyProfile, scanMode) : 'C';
   const scanLandingFeeDiscount = _getScanLandingFeeDiscount(scanMode);
+  const chainOverview = exploration ? _formatChainScanOverview(exploration) : '';
   const detailText = '执行' + modeLabel + '需要 ' + scanFuelCost + ' 单位燃料，可揭示 ' + poiCount + ' 个探索点' +
     (routeCount > 0 ? '，并校准 ' + routeCount + ' 条可疑暗线信标。' : '。') +
+    (chainOverview ? (' 本地可能存在' + chainOverview + '。') : '') +
     (surveyProfile ? (' 当前档案预估为' + surveyProfile.threatLabel + ' / ' + surveyProfile.opportunityLabel + '区域。') : '') +
     ' 扫描会生成测绘图谱，立即结算' + _formatScanYield(scanYield) + '，并让首次着陆费用降低 ' + Math.round(scanLandingFeeDiscount * 100) + '%。' +
     (scanDirective ? (' 建议优先跟进「' + scanDirective.poiName + '」。') : '');
@@ -283,6 +290,8 @@ export function getPoiStatus(state, systemId, poiId, options) {
     canExplore: true,
     reason: 'ready',
     poiKind: poi ? poi.kind : null,
+    chainKind: poi && poi.chain ? poi.chain.kind : '',
+    chainLabel: poi && poi.chain ? poi.chain.label : '',
     actionLabel: poi ? ('调查 ' + poi.icon + ' ' + poi.name + ' · 无成本') : '调查探索点',
     detailText: poi ? _getPoiPreviewText(state, system, exploration, poi, options) : '',
     blockedReason: '',
@@ -356,6 +365,7 @@ export function getSurveySummary(state, systemId) {
         return (right.day || 0) - (left.day || 0);
       })
     : [];
+  const anomalyChains = _getExplorationChainSummary(exploration);
 
   return {
     threatLevel: profile.threatLevel,
@@ -367,6 +377,9 @@ export function getSurveySummary(state, systemId) {
     intelLevel: exploration.intelLevel || 0,
     reportCount: reports.length,
     reports: reports,
+    anomalyChainCount: anomalyChains.length,
+    resolvedAnomalyChainCount: anomalyChains.filter(function (chain) { return chain.resolved; }).length,
+    anomalyChains: anomalyChains,
     resolvedCount: resolvedCount,
     totalPois: totalPois,
     pendingCount: pendingCount,
@@ -387,12 +400,16 @@ export function getSurveyDecisionIntel(state, systemId) {
 
   const reports = Array.isArray(summary.reports) ? summary.reports : [];
   const hasIntel = reports.length > 0;
-  const hasMarketReport = _hasReportKind(reports, 'market') ||
+  const hasDepotReport = _hasReportChainKind(reports, 'derelict_depot');
+  const hasRelicReport = _hasReportChainKind(reports, 'ancient_relic');
+  const hasBeaconReport = _hasReportChainKind(reports, 'lost_beacon');
+  const hasMarketReport = _hasReportSignal(reports, 'market') ||
     (summary.completed && summary.completionRewardKind === 'market');
-  const hasResearchReport = _hasReportKind(reports, 'research') ||
+  const hasResearchReport = _hasReportSignal(reports, 'research') || hasRelicReport ||
     (summary.completed && summary.completionRewardKind === 'research');
-  const hasRouteReport = _hasReportKind(reports, 'route');
-  const hasLogisticsReport = (hasIntel && summary.opportunityFocus === 'logistics') ||
+  const hasRouteReport = _hasReportSignal(reports, 'route') || hasBeaconReport;
+  const hasLogisticsReport = _hasReportSignal(reports, 'logistics') || hasDepotReport ||
+    (hasIntel && summary.opportunityFocus === 'logistics') ||
     (summary.completed && summary.completionRewardKind === 'logistics');
   const primarySignal = _getPrimaryDecisionSignal(summary, {
     market: hasMarketReport,
@@ -417,9 +434,18 @@ export function getSurveyDecisionIntel(state, systemId) {
     researchSignal: hasResearchReport,
     routeSignal: hasRouteReport,
     logisticsSignal: hasLogisticsReport,
+    depotSignal: hasDepotReport,
+    relicSignal: hasRelicReport,
+    beaconSignal: hasBeaconReport,
+    anomalySignals: {
+      derelictDepot: hasDepotReport,
+      ancientRelic: hasRelicReport,
+      lostBeacon: hasBeaconReport,
+    },
     marketHint: _getSurveyMarketHint(summary, primarySignal, hasIntel),
     researchHint: _getSurveyResearchHint(summary, primarySignal, hasIntel),
     dispatchHint: _getSurveyDispatchHint(summary, primarySignal, hasIntel),
+    anomalyHint: _getAnomalyChainHint(reports),
   };
 }
 
@@ -521,10 +547,51 @@ export function getCurrentSystemSecretRoutes(state) {
     });
 }
 
-function _hasReportKind(reports, kind) {
+function _hasReportSignal(reports, signal) {
   return Array.isArray(reports) && reports.some(function (report) {
-    return report && report.kind === kind;
+    if (!report) return false;
+    if (report.kind === signal) return true;
+    return Array.isArray(report.signalTags) && report.signalTags.indexOf(signal) !== -1;
   });
+}
+
+function _hasReportChainKind(reports, chainKind) {
+  return Array.isArray(reports) && reports.some(function (report) {
+    return report && report.chainKind === chainKind;
+  });
+}
+
+function _getExplorationChainSummary(exploration) {
+  if (!exploration || !Array.isArray(exploration.pois)) return [];
+  return exploration.pois.filter(function (poi) {
+    return poi && poi.chain && poi.chain.kind;
+  }).map(function (poi) {
+    var chain = poi.chain || {};
+    var stageLabels = Array.isArray(chain.stageLabels) ? chain.stageLabels : [];
+    return {
+      id: chain.id || (poi.id + '_chain'),
+      kind: chain.kind || '',
+      label: chain.label || CHAIN_SIGNAL_LABELS[chain.kind] || '探索链',
+      badge: chain.badge || '探索链',
+      signal: chain.signal || '',
+      poiId: poi.id,
+      poiName: poi.name || '探索点',
+      discovered: !!poi.discovered,
+      resolved: !!poi.resolved,
+      stageLabel: poi.resolved
+        ? (stageLabels[2] || '已归档')
+        : (poi.discovered ? (stageLabels[1] || '待调查') : (stageLabels[0] || '待扫描')),
+    };
+  });
+}
+
+function _formatChainScanOverview(exploration) {
+  var chains = _getExplorationChainSummary(exploration).map(function (chain) {
+    return chain.label;
+  });
+  chains = Array.from(new Set(chains)).filter(Boolean);
+  if (chains.length === 0) return '';
+  return chains.join('、');
 }
 
 function _getPrimaryDecisionSignal(summary, signals) {
@@ -609,6 +676,19 @@ function _getSurveyDispatchHint(summary, signal, hasIntel) {
   }
 }
 
+function _getAnomalyChainHint(reports) {
+  if (_hasReportChainKind(reports, 'lost_beacon')) {
+    return '失落航标已归档，派遣和旅行会优先参考这条低燃耗暗线。';
+  }
+  if (_hasReportChainKind(reports, 'ancient_relic')) {
+    return '古代遗迹样本已归档，可作为科研补给和后续技术路线的依据。';
+  }
+  if (_hasReportChainKind(reports, 'derelict_depot')) {
+    return '废弃补给站已复原，适合作为商网站点和后勤扩张判断依据。';
+  }
+  return '';
+}
+
 function _emptyScanYield() {
   return { credits: 0, fuel: 0, reputation: 0, researchDays: 0 };
 }
@@ -674,6 +754,15 @@ function _applyScanYield(state, scanYield) {
   if (scanYield.researchDays && state.currentResearch && state.currentResearch.daysLeft > 1) {
     state.currentResearch.daysLeft = Math.max(1, state.currentResearch.daysLeft - scanYield.researchDays);
   }
+}
+
+function _applyPoiResearchProgress(state, poi, rewardMultiplier) {
+  if (!state || !poi || !state.currentResearch || state.currentResearch.daysLeft <= 1) return 0;
+  var baseDays = Math.round(((poi.rewards && poi.rewards.researchDays) || 0) * Math.max(1, rewardMultiplier || 1));
+  if (baseDays <= 0) return 0;
+  var reducedDays = Math.min(baseDays, Math.max(0, state.currentResearch.daysLeft - 1));
+  state.currentResearch.daysLeft = Math.max(1, state.currentResearch.daysLeft - reducedDays);
+  return reducedDays;
 }
 
 function _formatScanYield(scanYield) {
@@ -754,17 +843,21 @@ function _resolvePoi(state, system, exploration, poi, options) {
     state.credits += rewardCredits;
     state.fuel = Math.min(state.maxFuel || 100, (state.fuel || 0) + rewardFuel);
     state.reputation = (state.reputation || 0) + rewardRep;
+    var depotFollowup = [];
+    if (rewardRep > 0) depotFollowup.push('📈 此次发现还提升了你的公共声望。');
+    depotFollowup.push('废弃补给站信号会进入商网和派遣的后勤判断。');
     return {
       summary: '回收了补给与账本，获得 ' + rewardCredits + ' 积分、' + rewardFuel + ' 单位燃料。',
-      followup: rewardRep > 0 ? '📈 此次发现还提升了你的公共声望。' : '',
+      followup: depotFollowup.join(' '),
       type: 'upgrade',
-      report: _createManifestReport(system, state),
+      report: _createManifestReport(system, state, poi),
     };
   }
 
   if (poi.kind === 'anomaly_site') {
     var anomalyCredits = Math.round(((poi.rewards && poi.rewards.credits) || 0) * rewardMultiplier);
     var hullDamage = (poi.rewards && poi.rewards.hullDamage) || 0;
+    var researchDays = _applyPoiResearchProgress(state, poi, rewardMultiplier);
     if (_hasTech(state, 'anomaly_research')) {
       anomalyCredits = Math.round(anomalyCredits * 1.15);
       hullDamage = 0;
@@ -772,9 +865,10 @@ function _resolvePoi(state, system, exploration, poi, options) {
       state.reputation = (state.reputation || 0) + 2;
       return {
         summary: '凭借异常分析协议，你稳定提取了样本数据，获得 ' + anomalyCredits + ' 积分并避免了舰体损伤。',
-        followup: '🔬 深入分析带来的研究信誉让你额外获得了 2 点声望。',
+        followup: '🔬 深入分析带来的研究信誉让你额外获得了 2 点声望。' +
+          (researchDays > 0 ? (' 古代遗迹样本让当前科研提速 ' + researchDays + ' 天。') : ''),
         type: 'upgrade',
-        report: _createAnomalyReport(system, exploration, state),
+        report: _createAnomalyReport(system, exploration, state, researchDays),
       };
     }
 
@@ -782,9 +876,10 @@ function _resolvePoi(state, system, exploration, poi, options) {
     state.shipHull = Math.max(1, (state.shipHull || 100) - hullDamage);
     return {
       summary: '异常区带来了 ' + anomalyCredits + ' 积分收益，但飞船在回收过程中受损 ' + hullDamage + ' 点。',
-      followup: '⚠️ 研究「异常分析协议」后可以显著降低这类风险。',
+      followup: '⚠️ 研究「异常分析协议」后可以显著降低这类风险。' +
+        (researchDays > 0 ? (' 古代遗迹样本仍让当前科研提速 ' + researchDays + ' 天。') : ''),
       type: 'info',
-      report: _createAnomalyReport(system, exploration, state),
+      report: _createAnomalyReport(system, exploration, state, researchDays),
     };
   }
 
@@ -799,8 +894,8 @@ function _resolvePoi(state, system, exploration, poi, options) {
     var routeInfo = getTravelRouteInfo(state, system.id, route ? route.targetSystemId : null);
     var bonusPercent = Math.round((1 - routeInfo.fuelMultiplier) * 100);
     return {
-      summary: '你重启了隐秘折跃信标，解锁了通往「' + (route ? route.targetSystemName : '未知航点') + '」的秘密航线。',
-      followup: '🛰️ 该航线现可提供约 ' + bonusPercent + '% 的燃料节省。',
+      summary: '你重启了失落航标，解锁了通往「' + (route ? route.targetSystemName : '未知航点') + '」的秘密航线。',
+      followup: '🛰️ 该航线现可提供约 ' + bonusPercent + '% 的燃料节省。失落航标信号会进入后续派遣评分。',
       type: 'upgrade',
       report: _createRouteReport(system, route, routeInfo, state.day || 1),
     };
@@ -884,12 +979,13 @@ function _getPoiFailureMessage(poiStatus) {
 
 function _getPoiPreviewText(state, system, exploration, poi, options) {
   var rewardMultiplier = Math.max(1, options && options.poiRewardMultiplier ? options.poiRewardMultiplier : 1);
+  var chainPrefix = _getPoiChainPreviewPrefix(poi);
 
   if (poi.kind === 'resource_cache') {
     var rewardCredits = Math.round(((poi.rewards && poi.rewards.credits) || 0) * rewardMultiplier);
     var rewardFuel = Math.round(((poi.rewards && poi.rewards.fuel) || 0) * rewardMultiplier);
     var rewardRep = Math.round(((poi.rewards && poi.rewards.reputation) || 0) * rewardMultiplier);
-    return '无需额外费用，预计回收 ' + rewardCredits + ' 积分' +
+    return chainPrefix + '无需额外费用，预计回收 ' + rewardCredits + ' 积分' +
       (rewardFuel > 0 ? '、' + rewardFuel + ' 单位燃料' : '') +
       (rewardRep > 0 ? '，并提升 ' + rewardRep + ' 点声望' : '') + '，同时会整理 1 条本地补给或贸易线索。';
   }
@@ -897,11 +993,16 @@ function _getPoiPreviewText(state, system, exploration, poi, options) {
   if (poi.kind === 'anomaly_site') {
     var anomalyCredits = Math.round(((poi.rewards && poi.rewards.credits) || 0) * rewardMultiplier);
     var hullDamage = (poi.rewards && poi.rewards.hullDamage) || 0;
+    var researchDays = (poi.rewards && poi.rewards.researchDays) || 0;
     if (_hasTech(state, 'anomaly_research')) {
       anomalyCredits = Math.round(anomalyCredits * 1.15);
-      return '无需额外费用，预计稳定提取样本，获得 ' + anomalyCredits + ' 积分，并避免舰体受损，同时更新该星球的异常风险剖面。';
+      return chainPrefix + '无需额外费用，预计稳定提取样本，获得 ' + anomalyCredits + ' 积分，并避免舰体受损' +
+        (researchDays > 0 ? ('，当前科研预计提速 ' + researchDays + ' 天') : '') +
+        '，同时更新该星球的异常风险剖面。';
     }
-    return '无需额外费用，预计获得 ' + anomalyCredits + ' 积分，但可能损伤舰体 ' + hullDamage + ' 点，并写入一份风险评估报告。';
+    return chainPrefix + '无需额外费用，预计获得 ' + anomalyCredits + ' 积分，但可能损伤舰体 ' + hullDamage + ' 点' +
+      (researchDays > 0 ? ('，当前科研预计提速 ' + researchDays + ' 天') : '') +
+      '，并写入一份风险评估报告。';
   }
 
   if (poi.kind === 'route_beacon') {
@@ -913,11 +1014,18 @@ function _getPoiPreviewText(state, system, exploration, poi, options) {
       fuelMultiplier = Math.min(fuelMultiplier, CARTOGRAPHY_SECRET_ROUTE_MULTIPLIER);
     }
     var discount = Math.round((1 - fuelMultiplier) * 100);
-    return '无需额外费用，预计解锁前往「' + (route ? route.targetSystemName : '未知航点') + '」的秘密航线，航程燃料约 -' + discount + '%，并获得 ' + routeCredits + ' 积分' +
+    return chainPrefix + '无需额外费用，预计解锁前往「' + (route ? route.targetSystemName : '未知航点') + '」的秘密航线，航程燃料约 -' + discount + '%，并获得 ' + routeCredits + ' 积分' +
       (routeRep > 0 ? ' 与 ' + routeRep + ' 点声望' : '') + '，并将航线写入长期航图。';
   }
 
-  return '无需额外费用，完成后会立即结算本次调查收益。';
+  return chainPrefix + '无需额外费用，完成后会立即结算本次调查收益。';
+}
+
+function _getPoiChainPreviewPrefix(poi) {
+  if (!poi || !poi.chain || !poi.chain.label) return '';
+  var stages = Array.isArray(poi.chain.stageLabels) ? poi.chain.stageLabels : [];
+  var stageText = stages.length > 1 ? (' · ' + stages[1]) : '';
+  return '事件链「' + poi.chain.label + '」' + stageText + '：';
 }
 
 function _getSurveyProfile(system, exploration) {
@@ -1059,16 +1167,23 @@ function _grantSurveyCompletionBonus(state, system, exploration) {
   return { msgs: msgs };
 }
 
-function _createManifestReport(system, state) {
+function _getPoiChainLabel(poi, fallback) {
+  return poi && poi.chain && poi.chain.label ? poi.chain.label : fallback;
+}
+
+function _createManifestReport(system, state, poi) {
   var opportunity = _getBestTradeOpportunity(system, { legalOnly: false });
   if (!opportunity) {
     return {
       id: system.id + '_report_manifest',
       kind: 'market',
-      badge: '补给情报',
+      signalTags: ['market', 'logistics'],
+      chainKind: 'derelict_depot',
+      chainLabel: _getPoiChainLabel(poi, '废弃补给站'),
+      badge: '补给链',
       icon: '📦',
-      title: '回收货运清单',
-      detail: '回收账本显示「' + system.name + '」仍有可重复利用的地面补给链，适合作为中短线整补节点。',
+      title: '废弃补给站复原',
+      detail: '回收账本显示「' + system.name + '」仍有可重复利用的地面补给链，适合作为中短线整补节点和商网扩张支点。',
       day: state.day || 1,
       intelValue: 1,
     };
@@ -1077,10 +1192,13 @@ function _createManifestReport(system, state) {
   return {
     id: system.id + '_report_manifest',
     kind: 'market',
-    badge: '贸易情报',
+    signalTags: ['market', 'logistics'],
+    chainKind: 'derelict_depot',
+    chainLabel: _getPoiChainLabel(poi, '废弃补给站'),
+    badge: '补给链',
     icon: '📦',
-    title: '回收货运清单',
-    detail: '货运清单显示「' + opportunity.goodEmoji + ' ' + opportunity.goodName + '」在「' + system.name + '」长期低于周边均价，优先运往「' + opportunity.targetSystemName + '」存在' + opportunity.marginBand + '强度价差窗口。',
+    title: '废弃补给站复原',
+    detail: '货运清单显示「' + opportunity.goodEmoji + ' ' + opportunity.goodName + '」在「' + system.name + '」长期低于周边均价，优先运往「' + opportunity.targetSystemName + '」存在' + opportunity.marginBand + '强度价差窗口。补给站复原后也可作为商网扩张和派遣整备依据。',
     day: state.day || 1,
     intelValue: 1,
   };
@@ -1092,6 +1210,7 @@ function _createScanReport(system, exploration, scanStatus, day) {
   var profile = _getSurveyProfile(system, exploration);
   var directive = scanStatus.scanDirective || null;
   var landingDiscount = Math.round((scanStatus.scanLandingFeeDiscount || 0) * 100);
+  var chainOverview = _formatChainScanOverview(exploration);
   var directiveText = directive
     ? ('推荐优先跟进「' + directive.poiName + '」：' + directive.reason)
     : '未识别出明确优先点位，可按扫描终端给出的探索点清单逐项处理。';
@@ -1103,6 +1222,7 @@ function _createScanReport(system, exploration, scanStatus, day) {
     icon: '📡',
     title: '轨道测绘图谱 · ' + (scanStatus.scanSignalGrade || 'C') + ' 级',
     detail: '扫描确认「' + system.name + '」为' + profile.threatLabel + ' / ' + profile.opportunityLabel + '区域。' +
+      (chainOverview ? ('同时识别出' + chainOverview + '链路。') : '') +
       '本次图谱已降低首次着陆费约 ' + landingDiscount + '%，并结算' + _formatScanYield(scanStatus.scanYield) + '。' +
       directiveText,
     day: day || 0,
@@ -1110,7 +1230,7 @@ function _createScanReport(system, exploration, scanStatus, day) {
   };
 }
 
-function _createAnomalyReport(system, exploration, state) {
+function _createAnomalyReport(system, exploration, state, reducedDays) {
   var profile = _getSurveyProfile(system, exploration);
   var riskHint = profile.threatLevel === 'high'
     ? '局部异常对低维护舰船依然有持续威胁，后续行动应优先保证舰体安全。'
@@ -1121,11 +1241,16 @@ function _createAnomalyReport(system, exploration, state) {
   return {
     id: system.id + '_report_anomaly',
     kind: 'research',
-    badge: '风险评估',
+    signalTags: ['research'],
+    chainKind: 'ancient_relic',
+    chainLabel: '古代遗迹',
+    badge: '遗迹链',
     icon: '🧪',
-    title: '异常场剖面',
-    detail: '分析确认「' + system.name + '」属于' + profile.threatLabel + '勘探区。' + riskHint + (_hasTech(state, 'anomaly_research') ? ' 现有异常分析协议已足以稳定处理样本。' : ' 若补完「异常分析协议」，可显著提高这类点位的净收益。'),
+    title: '古代遗迹样本',
+    detail: '分析确认「' + system.name + '」属于' + profile.threatLabel + '勘探区。' + riskHint + (_hasTech(state, 'anomaly_research') ? ' 现有异常分析协议已足以稳定处理样本。' : ' 若补完「异常分析协议」，可显著提高这类点位的净收益。') +
+      ((reducedDays || 0) > 0 ? (' 本次古代遗迹样本已让当前科研提速 ' + reducedDays + ' 天。') : ''),
     day: state.day || 1,
+    reducedResearchDays: reducedDays || 0,
     intelValue: 1,
   };
 }
@@ -1135,10 +1260,13 @@ function _createRouteReport(system, route, routeInfo, day) {
   return {
     id: system.id + '_report_route',
     kind: 'route',
-    badge: '航线情报',
+    signalTags: ['route'],
+    chainKind: 'lost_beacon',
+    chainLabel: '失落航标',
+    badge: '航标链',
     icon: '🛰️',
-    title: '暗线航图录入',
-    detail: '已将通往「' + (route ? route.targetSystemName : '未知航点') + '」的暗线写入长期航图。后续从「' + system.name + '」出发可节省约 ' + discount + '% 燃料。',
+    title: '失落航标重启',
+    detail: '已将通往「' + (route ? route.targetSystemName : '未知航点') + '」的暗线写入长期航图。后续从「' + system.name + '」出发可节省约 ' + discount + '% 燃料，并提高相关派遣路线的可解释评分。',
     day: day || 0,
     intelValue: 1,
   };
