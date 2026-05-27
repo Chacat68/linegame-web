@@ -1249,7 +1249,13 @@ describe('GuidanceSystem', function () {
     var suggestion = getCurrentSuggestion(state, {
       scanStatus: { canScan: false, reason: 'already-scanned', scanLevel: 1 },
       landingStatus: { canLand: false, reason: 'already-landed' },
-      nextPoi: { id: 'sol_prime_poi_resource', icon: '🌾', name: '轨道种子库' },
+      nextPoi: {
+        id: 'sol_prime_poi_resource',
+        icon: '🌾',
+        name: '轨道种子库',
+        chainKind: 'derelict_depot',
+        chainLabel: '废弃补给站',
+      },
       nextPoiStatus: { canExplore: true, actionLabel: '调查 🌾 轨道种子库 · 无成本' },
     });
 
@@ -1263,6 +1269,7 @@ describe('GuidanceSystem', function () {
       },
       surface: 'exploration',
     });
-    expect(suggestion.reason).toContain('勘探报告');
+    expect(suggestion.reason).toContain('废弃补给站');
+    expect(suggestion.reason).toContain('商网');
   });
 });

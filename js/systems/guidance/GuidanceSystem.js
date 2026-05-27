@@ -143,6 +143,22 @@ function _getPoiName(nextPoi) {
   return icon + (nextPoi.name || '探索点');
 }
 
+function _getPoiChainReason(nextPoi) {
+  if (!nextPoi || !nextPoi.chainKind) {
+    return '调查结论会写入勘探报告，并可能影响贸易、航线或科研收益。';
+  }
+  if (nextPoi.chainKind === 'ancient_relic') {
+    return '古代遗迹样本可推进科研，并写入后续科研补给与派遣判断。';
+  }
+  if (nextPoi.chainKind === 'lost_beacon') {
+    return '失落航标可能重启暗线航图，降低后续旅行和派遣燃料压力。';
+  }
+  if (nextPoi.chainKind === 'derelict_depot') {
+    return '废弃补给站可复原后勤信号，影响商网站点策略和派遣整备判断。';
+  }
+  return '调查结论会写入勘探报告，并可能影响贸易、航线或科研收益。';
+}
+
 function _shouldOfferResearchSupply(researchSupplyRoute) {
   return !!(
     researchSupplyRoute &&
@@ -258,6 +274,9 @@ function _shouldOfferSurveyIntel(surveyIntel) {
 
 function _getSurveyIntelReason(surveyIntel) {
   if (!surveyIntel) return '勘探报告已经归档，先查看它对交易和派遣的影响。';
+  if (surveyIntel.beaconSignal) return '失落航标已写入暗线航图，可用于后续航线和派遣判断。';
+  if (surveyIntel.relicSignal) return '古代遗迹样本已经归档，可用于判断后续研究补给方向。';
+  if (surveyIntel.depotSignal) return '废弃补给站已经复原，可用于后续派遣和商网经营。';
   if (surveyIntel.marketSignal) return '勘探报告已经形成贸易窗口，先查看行情分区再决定买卖或建站。';
   if (surveyIntel.routeSignal) return '勘探报告包含暗线航图，可用于后续航线和派遣判断。';
   if (surveyIntel.researchSignal) return '勘探报告包含科研样本，可用于判断后续研究补给方向。';
@@ -972,7 +991,7 @@ export function getCurrentSuggestion(state, options) {
       id: 'explore-current-poi',
       priority: 36,
       title: '调查「' + poiName + '」',
-      reason: '调查结论会写入勘探报告，并可能影响贸易、航线或科研收益。',
+      reason: _getPoiChainReason(opts.nextPoi),
       actionLabel: opts.nextPoiStatus.actionLabel || ('调查 ' + poiName),
       actionType: 'exploration.poi',
       payload: {
