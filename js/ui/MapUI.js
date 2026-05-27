@@ -1422,6 +1422,7 @@ function _buildSurveyReportsBlock(summary, options) {
 
   var reportHtml = summary.reports.map(function (report) {
     var metaParts = [];
+    if (report.chainLabel) metaParts.push(report.chainLabel);
     if (report.badge) metaParts.push(report.badge);
     if (report.day) metaParts.push('D' + report.day);
     return '<div class="planet-detail-report-card">' +
@@ -1594,8 +1595,9 @@ function _buildExplorationSection(stateRef, sys, planetData, isCurrentSystem, is
       if (!poi.resolved && flow.unresolvedPois.length > 0 && flow.unresolvedPois[0].id === poi.id) {
         badgeText = '优先';
       }
+      var chainLabel = poi.chain && poi.chain.label ? (' · ' + poi.chain.label) : '';
       return '<div class="planet-detail-list-row">' +
-        '<span>' + poi.icon + ' ' + poi.name + '</span>' +
+        '<span>' + poi.icon + ' ' + poi.name + _escapeHtml(chainLabel) + '</span>' +
         '<span class="planet-detail-badge">' + badgeText + '</span>' +
       '</div>';
     }).join('')

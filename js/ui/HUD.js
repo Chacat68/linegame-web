@@ -13,7 +13,7 @@ import * as Quest               from '../systems/quest/QuestSystem.js?v=20260412
 import * as Achievement         from '../systems/achievement/AchievementSystem.js';
 import * as GalaxyData          from '../systems/galaxy/GalaxyDataLayer.js';
 import * as Exploration         from '../systems/galaxy/ExplorationSystem.js';
-import { getCompanyLevelValue, getCompanyUnlockRoadmap } from '../data/companyAccess.js';
+import { getCompanyLevelValue, getCompanyPrivilegeSummary, getCompanyUnlockRoadmap } from '../data/companyAccess.js';
 import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from './SurfaceManager.js?v=20260505-surface4';
 
 const getLevel = PlayerLevels.getLevel;
@@ -419,6 +419,7 @@ function _renderCompanyUnlockRoadmap(state) {
   if (!roadmapEl) return;
 
   const currentLevel = getCompanyLevelValue(state || {});
+  const privilegeSummary = getCompanyPrivilegeSummary(state || {});
   const roadmap = getCompanyUnlockRoadmap(state || {}, 2);
   const nextMilestone = roadmap.find(function (entry) {
     return !entry.unlocked;
@@ -429,9 +430,11 @@ function _renderCompanyUnlockRoadmap(state) {
   const milestone = nextMilestone || currentMilestone || roadmap[0] || null;
 
   if (!milestone) {
+    const capLine = _formatCompanyPrivilegeCaps(privilegeSummary);
     roadmapEl.innerHTML =
       '<div class="company-unlock-roadmap-kicker">公司权限</div>' +
-      '<div class="company-unlock-roadmap-title">全部核心权限已开放</div>';
+      '<div class="company-unlock-roadmap-title">全部核心权限已开放</div>' +
+      '<div class="company-unlock-roadmap-caps">' + _escapeHtml(capLine) + '</div>';
     return;
   }
 
@@ -443,7 +446,18 @@ function _renderCompanyUnlockRoadmap(state) {
   roadmapEl.innerHTML =
     '<div class="company-unlock-roadmap-kicker">' + _escapeHtml(statusLabel) + ' · 当前 Lv.' + _escapeHtml(currentLevel) + '</div>' +
     '<div class="company-unlock-roadmap-title">Lv.' + _escapeHtml(milestone.level) + ' · ' + _escapeHtml(milestone.title) + '</div>' +
-    '<div class="company-unlock-roadmap-items">' + _escapeHtml(itemText) + '</div>';
+    '<div class="company-unlock-roadmap-items">' + _escapeHtml(itemText) + '</div>' +
+    '<div class="company-unlock-roadmap-caps">' + _escapeHtml(_formatCompanyPrivilegeCaps(privilegeSummary)) + '</div>';
+}
+
+function _formatCompanyPrivilegeCaps(summary) {
+  if (!summary || !summary.caps) return '权限摘要暂不可用';
+  var stations = summary.caps.tradeStations || {};
+  var stationLevel = summary.caps.tradeStationLevel || {};
+  var fleetSlots = summary.caps.fleetSlots || {};
+  return '贸易站 ' + (stations.label || '未开放') +
+    ' · 站点上限 ' + (stationLevel.label || '未开放') +
+    ' · 舰队席位 ' + (fleetSlots.used || 1) + '/' + (fleetSlots.max || 1);
 }
 
 function _setBadgeValue(id, count, labelPrefix) {
