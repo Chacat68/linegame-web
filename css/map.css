@@ -666,6 +666,97 @@
   line-height: 1.45;
 }
 
+.planet-detail-chain-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.planet-detail-chain-grid--compact {
+  margin-top: 10px;
+  gap: 6px;
+}
+
+.planet-detail-chain-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(125, 211, 252, 0.14);
+  background: rgba(8, 18, 38, 0.74);
+}
+
+.planet-detail-chain-card--discovered {
+  border-color: rgba(250, 204, 21, 0.22);
+  background: linear-gradient(180deg, rgba(113, 63, 18, 0.28), rgba(8, 18, 38, 0.76));
+}
+
+.planet-detail-chain-card--archived {
+  border-color: rgba(74, 222, 128, 0.22);
+  background: linear-gradient(180deg, rgba(22, 101, 52, 0.26), rgba(8, 18, 38, 0.76));
+}
+
+.planet-detail-chain-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.planet-detail-chain-title {
+  min-width: 0;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.planet-detail-chain-stage {
+  flex: 0 0 auto;
+  max-width: 45%;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(125, 211, 252, 0.16);
+  color: var(--text-secondary);
+  font-size: 10px;
+  line-height: 1.25;
+  white-space: normal;
+  text-align: right;
+}
+
+.planet-detail-chain-meta,
+.planet-detail-chain-note {
+  color: var(--text-dim);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.planet-detail-chain-track {
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.16);
+}
+
+.planet-detail-chain-track span {
+  display: block;
+  height: 100%;
+  width: 24%;
+  border-radius: inherit;
+  background: rgba(148, 163, 184, 0.72);
+}
+
+.planet-detail-chain-card--discovered .planet-detail-chain-track span {
+  width: 62%;
+  background: #facc15;
+}
+
+.planet-detail-chain-card--archived .planet-detail-chain-track span {
+  width: 100%;
+  background: #4ade80;
+}
+
 .current-system-exploration-card {
   position: absolute;
   left: 14px;

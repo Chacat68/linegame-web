@@ -213,8 +213,8 @@ export const TIME_CONFIG = {
   availableRealtimeDayDurationsMs: [30 * 1000, 60 * 1000, 180 * 1000],
 };
 
-export const SAVE_SCHEMA_VERSION = 12;
-export const GAME_VERSION = '0.6.0';
+export const SAVE_SCHEMA_VERSION = 13;
+export const GAME_VERSION = '0.6.1';
 
 /**
  * SaveEnvelope.meta 契约
@@ -320,6 +320,8 @@ export const SAVE_STATE_SCHEMA = {
   storyFlags:              { type: 'object',  default: {},                 since: 11, desc: '轻量剧情/对话触发记录 {sceneId: seenDay}' },
   // ---- v12 新增 ----
   storyDecisions:          { type: 'object',  default: {},                 since: 12, desc: '轻量剧情对话选择记录 {sceneId: choiceId}' },
+  // ---- v13 新增 ----
+  companyDirectiveClaims:  { type: 'object',  default: {},                 since: 13, desc: '公司指令奖励领取记录 {claimId: claimMeta}' },
 };
 
 /**

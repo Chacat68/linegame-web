@@ -3,7 +3,7 @@
 // 导出：createRealtimeClockState, resetRealtimeClock, consumeElapsedDays, advanceDays
 
 import * as Economy from '../economy/Economy.js';
-import * as TradeStation from '../trade/TradeStationSystem.js';
+import * as TradeStation from '../trade/TradeStationSystem.js?v=20260531-chainfollow1';
 import * as Finance from '../finance/FinanceSystem.js';
 import * as Crew from '../fleet/CrewSystem.js';
 import * as Research from '../research/ResearchSystem.js';

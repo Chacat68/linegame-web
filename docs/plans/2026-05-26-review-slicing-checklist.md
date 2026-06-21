@@ -129,3 +129,24 @@ npx vitest run tests/actionGuideCss.test.js tests/actionGuideUI.test.js
 - 是否接受 `GameManager` 暴露 `_setStateForTest` 和 `_handleActionGuideActionForTest` 作为无构建环境下的 smoke 测试入口。
 - 是否把视觉走查结果补入 `2026-05-24-change-set-closeout.md` 后再提交。
 - 是否需要把 UIManager / 贸易网络 / 探索情报相关历史改动继续拆成后续独立清单。
+
+## 2026-05-28 视觉验收状态
+
+本轮已完成的自动化前置检查：
+
+- 本地页面入口可访问：`http://127.0.0.1:4174/index.html` 返回 200。
+- DOM 入口存在：`index.html` 包含 `#action-guide`、`#bottom-nav`、`#dispatch-modal`、`#mod-modal`。
+- CSS 断言存在：`tests/actionGuideCss.test.js` 覆盖标题 / 说明两行限制、560px 以下两行 grid、CSS 入口版本。
+- 行为断言存在：`tests/fleetUiModFocus.test.js` 覆盖推荐改装聚焦、滚动、高亮类名、派遣草案上下文和关闭清理。
+
+未完成项：
+
+- 真实截图级视觉走查仍未完成。本轮环境没有暴露 Browser 插件工具，Computer Use 未取得 Chrome 窗口句柄，Chrome headless 截图未获授权。
+
+人工走查脚本：
+
+1. 桌面宽度 1280px：打开本地页面，确认行动条悬浮在底栏上方，不遮挡底栏图标、星图主操作和 HUD。
+2. 窄屏宽度 560px：确认行动条切成“文案 / 按钮”两行，标题和说明不超过两行，主按钮与折叠按钮不挤压文案。
+3. 移动宽度 390px：确认底栏、行动条 mini 态和完整态都保留安全间距，不贴边、不溢出。
+4. 从行动条触发推荐改装：确认机库打开后目标组件有明显高亮，弹窗主体可滚动到目标，不遮挡关闭按钮。
+5. 从行动条触发派遣草案：确认买入星系、卖出星系、货物预填正确，估算区可读，关闭后再次刷新不会被旧上下文压制。
