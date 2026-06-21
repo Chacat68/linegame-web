@@ -1,0 +1,70 @@
+import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+
+describe('Secondary terminal UI structure', function () {
+  it('档案和机库二级终端包含标题绑定、状态条、tabpanel 关系和移动端适配锚点', function () {
+    var html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+    var css = readFileSync(new URL('../css/interstellar-trader.css', import.meta.url), 'utf8');
+    var js = readFileSync(new URL('../js/ui/MapUI.js', import.meta.url), 'utf8');
+
+    expect(html).toContain('aria-labelledby="archive-terminal-title"');
+    expect(html).toContain('aria-describedby="archive-terminal-subtitle"');
+    expect(html).toContain('class="secondary-terminal-status" role="list" aria-label="档案终端模块"');
+    expect(html).toContain('id="archive-tab-quest"');
+    expect(html).toContain('aria-labelledby="archive-tab-quest" aria-hidden="false"');
+    expect(html).toContain('aria-labelledby="hangar-terminal-title"');
+    expect(html).toContain('class="secondary-terminal-status" role="list" aria-label="机库终端模块"');
+    expect(html).toContain('id="hangar-tab-fleet"');
+    expect(html).toContain('aria-labelledby="hangar-tab-fleet" aria-hidden="false"');
+    expect(html).toContain('id="company-level-track" class="company-level-track" role="progressbar"');
+    expect(html).toContain('class="company-unlock-roadmap"');
+    expect(html).toContain('aria-label="公司权限台"');
+    expect(html).toContain('id="market-overlay"');
+    expect(html).toContain('role="region"\n              aria-labelledby="market-header-title"\n              aria-hidden="true"\n              tabindex="-1"');
+    expect(html).toContain('id="market-close-btn" class="market-close-btn" type="button" aria-label="返回星图"');
+    expect(html).toContain('content="width=device-width, initial-scale=1.0, viewport-fit=cover"');
+
+    expect(js).toContain('btn.addEventListener(\'keydown\', _handleTerminalTabKeydown)');
+    expect(js).toContain('key !== \'ArrowLeft\'');
+    expect(js).toContain('activateTab(nextButton.dataset.tab)');
+
+    expect(css).toContain('.secondary-terminal-status');
+    expect(css).toContain('grid-template-columns: repeat(4, minmax(0, 1fr))');
+    expect(css).toContain('.achievement-distribution-grid');
+    expect(css).toContain('.archive-achievement-focus');
+    expect(css).toContain('.achievement-focus-list');
+    expect(css).toContain('.faction-relation-distribution');
+    expect(css).toContain('.faction-focus-panel');
+    expect(css).toContain('.faction-focus-list');
+    expect(css).toContain('.research-category-matrix');
+    expect(css).toContain('.research-focus-panel');
+    expect(css).toContain('.research-focus-list');
+    expect(css).toContain('.quest-triage-panel');
+    expect(css).toContain('.quest-triage-grid');
+    expect(css).toContain('.quest-focus-panel');
+    expect(css).toContain('.hangar-triage-panel');
+    expect(css).toContain('.hangar-triage-grid');
+    expect(css).toContain('.hangar-focus-panel');
+    expect(css).toContain('.hangar-focus-list');
+    expect(css).toContain('.hangar-shop-brief');
+    expect(css).toContain('.hangar-shop-brief-grid');
+    expect(css).toContain('.hangar-shop-focus');
+    expect(css).toContain('.fleet-shop-signal-strip');
+    expect(css).toContain('.company-dashboard-primary');
+    expect(css).toContain('.company-permission-grid');
+    expect(css).toContain('.company-permission-focus[data-tone="near"]');
+    expect(css).toContain('#trade-panel .company-unlock-roadmap {\n    grid-column: 1 / -1;');
+    expect(css).not.toContain('#trade-panel .company-unlock-roadmap {\n    display: none;');
+    expect(css).toContain('.secondary-terminal-nav .tab-btn:focus-visible');
+    expect(css).toContain('#info-panel .secondary-terminal-content > .tab-pane:focus-visible');
+    expect(css).toContain('@media (max-width: 760px)');
+    expect(css).toContain('grid-template-columns: repeat(2, minmax(0, 1fr))');
+    expect(css).toContain('--safe-top: env(safe-area-inset-top, 0px)');
+    expect(css).toContain('--safe-right: env(safe-area-inset-right, 0px)');
+    expect(css).toContain('--safe-left: env(safe-area-inset-left, 0px)');
+    expect(css).toContain('top: max(8px, var(--safe-top)) !important');
+    expect(css).toContain('max(var(--modal-safe-gap), var(--safe-left))');
+    expect(css).toContain('height: calc(52px + var(--safe-top))');
+    expect(css).toContain('left: max(8px, var(--safe-left))');
+  });
+});

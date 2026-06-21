@@ -125,9 +125,10 @@ describe('Save.loadGame', () => {
     expect(result.state.financeLastProcessedDay).toBe(1);
     expect(result.state.storyFlags).toEqual({});
     expect(result.state.storyDecisions).toEqual({});
+    expect(result.state.companyDirectiveClaims).toEqual({});
   });
 
-  it('上一版存档迁移后会补齐剧情标记与选择字段', () => {
+  it('上一版存档迁移后会补齐公司指令领取记录', () => {
     const envelope = {
       meta: { schemaVersion: SAVE_SCHEMA_VERSION - 1, gameVersion: '0.6.0', slotId: 1, timestampMs: Date.now() },
       data: { credits: 900, day: 7, currentSystem: 'sol_prime' },
@@ -139,6 +140,7 @@ describe('Save.loadGame', () => {
     expect(result.ok).toBe(true);
     expect(result.state.storyFlags).toEqual({});
     expect(result.state.storyDecisions).toEqual({});
+    expect(result.state.companyDirectiveClaims).toEqual({});
   });
 
   it('旧存档缺少等级字段时，会根据经验自动回填 playerLevel 和 companyLevel', () => {
@@ -201,6 +203,29 @@ describe('Save.loadGame', () => {
     expect(result.ok).toBe(true);
     expect(result.state._eventCooldowns).toEqual({ merchant_caravan: 6 });
     expect(result.state._eventHistory).toEqual([{ eventId: 'merchant_caravan', day: 6, choiceIndex: 1 }]);
+  });
+
+  it('公司指令领取记录会随存档保留', () => {
+    const state = createTestState({
+      companyDirectiveClaims: {
+        'cashflow:L2': {
+          directiveId: 'cashflow',
+          code: 'CF-02',
+          claimedDay: 8,
+          reward: { credits: 650, companyExperience: 80, reputation: 3 },
+        },
+      },
+    });
+
+    Save.saveGame(1, state);
+    const result = Save.loadGame(1);
+
+    expect(result.ok).toBe(true);
+    expect(result.state.companyDirectiveClaims['cashflow:L2']).toMatchObject({
+      directiveId: 'cashflow',
+      code: 'CF-02',
+      claimedDay: 8,
+    });
   });
 });
 

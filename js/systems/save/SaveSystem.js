@@ -234,6 +234,11 @@ function _migrateSchema(envelope) {
       next.meta.schemaVersion = 12;
       continue;
     }
+    if (next.meta.schemaVersion === 12) {
+      _migrateSchema12To13(next);
+      next.meta.schemaVersion = 13;
+      continue;
+    }
     throw _createSaveError('SAVE_SCHEMA_UNSUPPORTED', '不支持的存档版本：' + next.meta.schemaVersion + '。');
   }
 
@@ -322,6 +327,17 @@ function _migrateSchema11To12(envelope) {
   if (!envelope.data) envelope.data = {};
   if (!envelope.data.storyDecisions || typeof envelope.data.storyDecisions !== 'object' || Array.isArray(envelope.data.storyDecisions)) {
     envelope.data.storyDecisions = {};
+  }
+  _normalizeEnvelopeData(envelope);
+}
+
+/**
+ * v12 → v13：添加公司指令奖励领取记录
+ */
+function _migrateSchema12To13(envelope) {
+  if (!envelope.data) envelope.data = {};
+  if (!envelope.data.companyDirectiveClaims || typeof envelope.data.companyDirectiveClaims !== 'object' || Array.isArray(envelope.data.companyDirectiveClaims)) {
+    envelope.data.companyDirectiveClaims = {};
   }
   _normalizeEnvelopeData(envelope);
 }
