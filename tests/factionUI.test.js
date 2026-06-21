@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import * as Faction from '../js/systems/faction/FactionSystem.js';
 import * as GalaxyData from '../js/systems/galaxy/GalaxyDataLayer.js';
-import { getFactionMarketAction } from '../js/ui/FactionUI.js?v=20260419-marketcta2';
+import { getFactionMarketAction } from '../js/ui/FactionUI.js?v=20260609-factionfocus1';
 import { createTestState } from './helpers.js';
 
 describe('FactionUI market CTA helper', function () {
