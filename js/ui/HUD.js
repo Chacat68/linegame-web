@@ -7,14 +7,14 @@ import { GOODS } from '../data/goods.js';
 import { SYSTEMS, findSystem, findGalaxy } from '../data/systems.js';
 import * as Faction             from '../systems/faction/FactionSystem.js';
 import * as PlayerLevels        from '../data/playerLevels.js';
-import * as Victory             from '../systems/victory/VictorySystem.js';
+import * as Victory             from '../systems/victory/VictorySystem.js?v=20260619-endingresult1';
 import * as Economy             from '../systems/economy/Economy.js';
 import * as Quest               from '../systems/quest/QuestSystem.js?v=20260412-questroute2';
 import * as Achievement         from '../systems/achievement/AchievementSystem.js';
 import * as GalaxyData          from '../systems/galaxy/GalaxyDataLayer.js';
-import * as Exploration         from '../systems/galaxy/ExplorationSystem.js';
-import { getCompanyLevelValue, getCompanyPrivilegeSummary, getCompanyUnlockRoadmap } from '../data/companyAccess.js';
-import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from './SurfaceManager.js?v=20260505-surface4';
+import * as Exploration         from '../systems/galaxy/ExplorationSystem.js?v=20260531-chainfollow1';
+import { getCompanyLevelValue, getCompanyPrivilegeSummary } from '../data/companyAccess.js';
+import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from './SurfaceManager.js?v=20260621-settingsfallback1';
 
 const getLevel = PlayerLevels.getLevel;
 const getRepRank = PlayerLevels.getRepRank;
@@ -52,12 +52,58 @@ function _setTextWithTitle(element, value) {
   else element.removeAttribute('title');
 }
 
+function _clampNumber(value, min, max) {
+  var numberValue = Number(value);
+  if (!Number.isFinite(numberValue)) return min;
+  return Math.max(min, Math.min(max, numberValue));
+}
+
+function _setMeterValue(element, value, options) {
+  if (!element || typeof element.setAttribute !== 'function') return;
+
+  var opts = options || {};
+  var min = opts.min != null ? Number(opts.min) : 0;
+  var max = opts.max != null ? Number(opts.max) : 100;
+  var normalizedMin = Number.isFinite(min) ? min : 0;
+  var normalizedMax = Number.isFinite(max) ? max : 100;
+  var now = _clampNumber(value, normalizedMin, normalizedMax);
+
+  element.setAttribute('aria-valuemin', String(normalizedMin));
+  element.setAttribute('aria-valuemax', String(normalizedMax));
+  element.setAttribute('aria-valuenow', String(Math.round(now)));
+
+  if (opts.valueText) {
+    element.setAttribute('aria-valuetext', opts.valueText);
+    element.setAttribute('title', opts.valueText);
+  } else {
+    element.removeAttribute('aria-valuetext');
+    element.removeAttribute('title');
+  }
+
+  if (element.dataset) {
+    element.dataset.meterState = opts.state || 'nominal';
+  }
+}
+
+function _getResourceMeterState(percent, dangerWhenHigh) {
+  if (dangerWhenHigh) {
+    if (percent >= 95) return 'critical';
+    if (percent >= 75) return 'warning';
+    return 'nominal';
+  }
+  if (percent <= 20) return 'critical';
+  if (percent <= 40) return 'warning';
+  return 'nominal';
+}
+
 // 缓存最近一次胜利路径进度，避免点击弹窗时重复计算
 let _lastProgressList = [];
 let _questActions = null;
 let _initialized = false;
 let _activeHudWidgetId = DEFAULT_HUD_WIDGET_ID;
 let _logsHistory = [];
+let _hudDismissControlsBound = false;
+let _activeLogsFilter = 'all';
 
 // ---------------------------------------------------------------------------
 // 初始化：订阅 EventBus 日志事件
@@ -83,7 +129,7 @@ export function init() {
   if (vpBtn) {
     vpBtn.addEventListener('click', function () {
       _renderVictoryModal(_lastProgressList);
-      showBlockingSurface('victory-modal');
+      showBlockingSurface('victory-modal', { focusSelector: '#victory-modal-close' });
     });
   }
 
@@ -100,25 +146,18 @@ export function init() {
   // 绑定底栏滚动日志和历史按钮的点击事件，跳转至日志大终端
   const broadcastBar = document.getElementById('mini-console-broadcast');
   if (broadcastBar) {
-    broadcastBar.addEventListener('click', function (e) {
-      EventBus.emit('view:switch', 'logs');
-    });
-  }
-
-  const historyBtn = document.getElementById('broadcast-history-btn');
-  if (historyBtn) {
-    historyBtn.addEventListener('click', function (e) {
-      e.stopPropagation(); // 阻止冒泡触发父级容器的点击
+    broadcastBar.addEventListener('click', function () {
       EventBus.emit('view:switch', 'logs');
     });
   }
 
   // 监听大弹窗打开事件
   EventBus.on('logs:modal:opened', function () {
-    _renderDetailedLogs();
+    _renderDetailedLogs({ focusActiveFilter: true });
   });
 
   _bindHudWidgetControls();
+  _bindLogsModalControls();
 }
 
 export function setQuestActions(actions) {
@@ -127,6 +166,7 @@ export function setQuestActions(actions) {
 
 function _bindHudWidgetControls() {
   _bindHudDockControls();
+  _bindHudDismissControls();
 
   var widgets = document.querySelectorAll('[data-hud-widget]');
   if (!widgets || typeof widgets.forEach !== 'function') return;
@@ -140,6 +180,7 @@ function _bindHudWidgetControls() {
       event.preventDefault();
       event.stopPropagation();
       _setHudWidgetCollapsed(widget, true);
+      _focusHudDockPanelButton(widget.dataset.hudWidget);
     });
     toggleBtn.dataset.hudWidgetBound = 'true';
   });
@@ -193,9 +234,45 @@ function _bindHudDockControls() {
     button.addEventListener('click', function (event) {
       event.preventDefault();
       event.stopPropagation();
+      var targetWidget = _getHudWidget(button.dataset.hudDockPanel);
+      if (targetWidget && _isHudWidgetOpen(targetWidget)) {
+        _setHudWidgetCollapsed(targetWidget, true);
+        return;
+      }
       _selectHudWidget(button.dataset.hudDockPanel);
     });
     button.dataset.hudDockBound = 'true';
+  });
+}
+
+function _bindHudDismissControls() {
+  if (_hudDismissControlsBound || typeof document.addEventListener !== 'function') return;
+  _hudDismissControlsBound = true;
+
+  document.addEventListener('keydown', function (event) {
+    if (!event || event.key !== 'Escape') return;
+    var activeWidget = _getHudWidget(_activeHudWidgetId);
+    var restoreFocus = !!(
+      activeWidget &&
+      globalThis.document &&
+      typeof activeWidget.contains === 'function' &&
+      activeWidget.contains(document.activeElement)
+    );
+    _collapseActiveHudWidget({ restoreFocus: restoreFocus });
+  });
+
+  document.addEventListener('pointerdown', function (event) {
+    var activeWidget = _getHudWidget(_activeHudWidgetId);
+    if (!_isHudWidgetOpen(activeWidget)) return;
+
+    var target = event && event.target;
+    if (!target || typeof target.closest !== 'function') return;
+    if (target.closest('[data-hud-widget], .starmap-control-rail, #orbit-scan-btn')) return;
+
+    var mapContainer = document.getElementById('map-container');
+    if (mapContainer && typeof mapContainer.contains === 'function' && mapContainer.contains(target)) {
+      _collapseActiveHudWidget();
+    }
   });
 }
 
@@ -208,7 +285,7 @@ function _isHudWidgetOpen(widget) {
   return !!(widget && widget.classList.contains(HUD_WIDGET_ACTIVE_CLASS) && !widget.classList.contains(HUD_WIDGET_COLLAPSED_CLASS));
 }
 
-function _collapseActiveHudWidget() {
+function _collapseActiveHudWidget(options) {
   var activeWidget = _getHudWidget(_activeHudWidgetId);
   if (!activeWidget) {
     _syncHudDockControls();
@@ -216,6 +293,20 @@ function _collapseActiveHudWidget() {
   }
 
   _setHudWidgetCollapsed(activeWidget, true);
+  if (options && options.restoreFocus) {
+    _focusHudDockPanelButton(_activeHudWidgetId);
+  }
+}
+
+function _focusHudDockPanelButton(widgetId) {
+  if (!widgetId || typeof document.querySelector !== 'function') return;
+  var button = document.querySelector('[data-hud-dock-panel="' + widgetId + '"]');
+  if (!button || typeof button.focus !== 'function') return;
+  try {
+    button.focus({ preventScroll: true });
+  } catch (err) {
+    button.focus();
+  }
 }
 
 function _toggleHudDock() {
@@ -284,6 +375,7 @@ function _syncHudDockControls() {
     button.classList.toggle('is-selected', isSelected);
     button.classList.toggle('is-active', isOpen);
     button.setAttribute('aria-pressed', isOpen ? 'true' : 'false');
+    button.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
   });
 }
 
@@ -398,6 +490,7 @@ export function updateCompanyName(state) {
 
   const lvlLineEl = document.getElementById('company-level-line');
   const lvlFillEl = document.getElementById('company-level-fill');
+  const lvlTrackEl = document.getElementById('company-level-track');
   if (!lvlLineEl || !lvlFillEl) return;
 
   const lvl = getCompanyLevel(state.companyExperience || 0);
@@ -412,6 +505,26 @@ export function updateCompanyName(state) {
     lvlLineEl.textContent = lvl.icon + ' ' + lvl.title + ' Lv.' + lvl.level + ' · 已满级';
   }
   lvlFillEl.style.width = pct + '%';
+  if (lvlTrackEl) {
+    const progressNow = nextLvl ? Math.max(0, Math.min(expNeed, expCur)) : 1;
+    const progressMax = nextLvl ? expNeed : 1;
+    const progressText = nextLvl
+      ? ('公司等级 ' + lvl.level + '，' + progressNow + '/' + progressMax)
+      : ('公司等级 ' + lvl.level + '，已满级');
+    lvlTrackEl.setAttribute('aria-valuemin', '0');
+    lvlTrackEl.setAttribute('aria-valuemax', String(progressMax));
+    lvlTrackEl.setAttribute('aria-valuenow', String(progressNow));
+    lvlTrackEl.setAttribute('aria-valuetext', progressText);
+    lvlTrackEl.setAttribute('title', progressText);
+  }
+}
+
+function _renderCompanyPermissionMetric(label, value, note, toneClass) {
+  return '<div class="company-permission-metric' + (toneClass ? ' ' + toneClass : '') + '" role="listitem">' +
+    '<span>' + _escapeHtml(label) + '</span>' +
+    '<strong>' + _escapeHtml(value) + '</strong>' +
+    '<small>' + _escapeHtml(note) + '</small>' +
+  '</div>';
 }
 
 function _renderCompanyUnlockRoadmap(state) {
@@ -420,34 +533,39 @@ function _renderCompanyUnlockRoadmap(state) {
 
   const currentLevel = getCompanyLevelValue(state || {});
   const privilegeSummary = getCompanyPrivilegeSummary(state || {});
-  const roadmap = getCompanyUnlockRoadmap(state || {}, 2);
-  const nextMilestone = roadmap.find(function (entry) {
-    return !entry.unlocked;
-  });
-  const currentMilestone = roadmap.find(function (entry) {
-    return entry.current;
-  });
-  const milestone = nextMilestone || currentMilestone || roadmap[0] || null;
-
-  if (!milestone) {
-    const capLine = _formatCompanyPrivilegeCaps(privilegeSummary);
-    roadmapEl.innerHTML =
-      '<div class="company-unlock-roadmap-kicker">公司权限</div>' +
-      '<div class="company-unlock-roadmap-title">全部核心权限已开放</div>' +
-      '<div class="company-unlock-roadmap-caps">' + _escapeHtml(capLine) + '</div>';
-    return;
-  }
-
-  const statusLabel = nextMilestone
-    ? '下一开放'
-    : (milestone.current ? '当前权限' : '公司权限');
-  const itemText = milestone.items.slice(0, 4).join(' · ');
+  const fleetSlots = privilegeSummary.caps.fleetSlots || {};
+  const tradeStations = privilegeSummary.caps.tradeStations || {};
+  const stationLevel = privilegeSummary.caps.tradeStationLevel || {};
+  const fleetAvailable = Math.max(0, (fleetSlots.max || 0) - (fleetSlots.used || 0));
+  const milestone = privilegeSummary.nextMilestone;
+  const focusTone = milestone
+    ? (privilegeSummary.progressRatio >= 0.75 ? 'near' : 'locked')
+    : 'open';
+  const focusTitle = milestone
+    ? ('Lv.' + milestone.level + ' · ' + milestone.title)
+    : '核心权限全部开放';
+  const focusNote = milestone
+    ? (milestone.items.slice(0, 4).join(' · ') + ' · 还需 ' + privilegeSummary.expToNext + ' 公司经验')
+    : _formatCompanyPrivilegeCaps(privilegeSummary);
 
   roadmapEl.innerHTML =
-    '<div class="company-unlock-roadmap-kicker">' + _escapeHtml(statusLabel) + ' · 当前 Lv.' + _escapeHtml(currentLevel) + '</div>' +
-    '<div class="company-unlock-roadmap-title">Lv.' + _escapeHtml(milestone.level) + ' · ' + _escapeHtml(milestone.title) + '</div>' +
-    '<div class="company-unlock-roadmap-items">' + _escapeHtml(itemText) + '</div>' +
-    '<div class="company-unlock-roadmap-caps">' + _escapeHtml(_formatCompanyPrivilegeCaps(privilegeSummary)) + '</div>';
+    '<div class="company-permission-head">' +
+      '<div>' +
+        '<span class="company-permission-kicker">Company Access</span>' +
+        '<strong class="company-permission-title">公司权限台</strong>' +
+      '</div>' +
+      '<span class="company-permission-level">Lv.' + _escapeHtml(currentLevel) + '</span>' +
+    '</div>' +
+    '<div class="company-permission-grid" role="list" aria-label="公司权限容量">' +
+      _renderCompanyPermissionMetric('舰队席位', (fleetSlots.used || 0) + '/' + (fleetSlots.max || 0), '空余 ' + fleetAvailable + ' 席', fleetAvailable > 0 ? 'tone-open' : 'tone-full') +
+      _renderCompanyPermissionMetric('贸易站', tradeStations.label || '未开放', tradeStations.unlocked ? ('空余 ' + (tradeStations.available || 0) + ' 站') : '等级权限未开放', tradeStations.unlocked && !tradeStations.full ? 'tone-open' : 'tone-full') +
+      _renderCompanyPermissionMetric('站点上限', stationLevel.label || '未开放', '公司当前许可', stationLevel.max > 0 ? 'tone-open' : 'tone-full') +
+    '</div>' +
+    '<div class="company-permission-focus" data-tone="' + focusTone + '" role="status">' +
+      '<span class="company-permission-focus-kicker">' + (milestone ? '下一开放' : '权限状态') + '</span>' +
+      '<strong>' + _escapeHtml(focusTitle) + '</strong>' +
+      '<small>' + _escapeHtml(focusNote) + '</small>' +
+    '</div>';
 }
 
 function _formatCompanyPrivilegeCaps(summary) {
@@ -495,6 +613,7 @@ export function addMessage(text, type) {
   if (_logsHistory.length > 200) {
     _logsHistory.pop();
   }
+  _refreshOpenLogsModal();
 
   // 2. 同步更新底栏滚动广播，自动加上 Emoji 前缀
   const broadcastContent = document.getElementById('broadcast-content');
@@ -509,6 +628,10 @@ export function addMessage(text, type) {
     else if (type === 'tip') prefix = '💡 ';
     else prefix = 'ℹ️ ';
     broadcastContent.textContent = prefix + text;
+  }
+  const broadcastBar = document.getElementById('mini-console-broadcast');
+  if (broadcastBar && typeof broadcastBar.setAttribute === 'function') {
+    broadcastBar.setAttribute('aria-label', '打开通讯历史。最新消息：' + text);
   }
 
   // 3. 向下兼容旧版 message-log (如果有的话)
@@ -525,33 +648,188 @@ export function addMessage(text, type) {
 /**
  * 渲染全屏详细历史日志终端列表
  */
-function _renderDetailedLogs() {
+function _renderDetailedLogs(options) {
   const container = document.getElementById('logs-modal-list');
   if (!container) return;
 
-  if (_logsHistory.length === 0) {
-    container.innerHTML = '<div class="msg msg-info" style="text-align: center; color: var(--text-dim); padding: 20px;">暂无历史通讯记录。</div>';
-    return;
+  var opts = options || {};
+  var previousScrollTop = Number(container.scrollTop) || 0;
+  var previousScrollHeight = Number(container.scrollHeight) || 0;
+  var preserveHistoryPosition = !!opts.preserveScroll && previousScrollTop > 8;
+
+  _updateLogsModalSummary();
+  _syncLogsFilterControls();
+
+  var filteredLogs = _filterLogsForActiveView(_logsHistory);
+  var filterLabel = _getLogFilterLabel(_activeLogsFilter);
+  var feedStatusEl = document.getElementById('logs-modal-feed-status');
+  if (feedStatusEl) {
+    feedStatusEl.textContent = '显示' + filterLabel + '通讯记录：' + filteredLogs.length + ' 条';
+  }
+  if (container.dataset) {
+    container.dataset.filter = _activeLogsFilter;
   }
 
-  container.innerHTML = _logsHistory.map(function (item) {
-    const t = item.time || new Date();
-    const hours = String(t.getHours()).padStart(2, '0');
-    const minutes = String(t.getMinutes()).padStart(2, '0');
-    const seconds = String(t.getSeconds()).padStart(2, '0');
-    const timeStr = hours + ':' + minutes + ':' + seconds;
+  var contentHtml = '';
+  if (_logsHistory.length === 0) {
+    contentHtml =
+      '<div class="logs-modal-empty" role="listitem">' +
+        '<strong>暂无历史通讯记录</strong>' +
+        '<span>执行交易、航行、任务或系统操作后，这里会显示完整回溯。</span>' +
+      '</div>';
+  } else if (filteredLogs.length === 0) {
+    contentHtml =
+      '<div class="logs-modal-empty" role="listitem">' +
+        '<strong>没有匹配的' + _escapeHtml(filterLabel) + '记录</strong>' +
+        '<span>切换到全部记录，或继续执行相关操作后再查看。</span>' +
+      '</div>';
+  } else {
+    contentHtml = filteredLogs.map(function (item) {
+      const t = item.time || new Date();
+      const hours = String(t.getHours()).padStart(2, '0');
+      const minutes = String(t.getMinutes()).padStart(2, '0');
+      const seconds = String(t.getSeconds()).padStart(2, '0');
+      const timeStr = hours + ':' + minutes + ':' + seconds;
 
-    let typeLabel = 'INFO';
-    if (item.type) {
-      typeLabel = item.type.toUpperCase();
-    }
+      let typeLabel = 'INFO';
+      if (item.type) {
+        typeLabel = item.type.toUpperCase();
+      }
 
-    return '<div class="msg msg-' + _escapeHtml(item.type || 'info') + '">' +
-      '<span class="log-time" style="color: var(--text-dim); margin-right: 8px; font-family: monospace;">[' + timeStr + ']</span>' +
-      '<span class="log-label" style="font-weight: 600; margin-right: 6px; font-family: monospace;">[' + typeLabel + ']</span> ' +
-      _escapeHtml(item.text) +
-    '</div>';
-  }).join('');
+      return '<article class="msg msg-' + _escapeHtml(item.type || 'info') + ' logs-modal-entry" role="listitem">' +
+        '<span class="log-time">[' + timeStr + ']</span>' +
+        '<span class="log-label">[' + _escapeHtml(typeLabel) + ']</span>' +
+        '<span class="log-text">' + _escapeHtml(item.text) + '</span>' +
+      '</article>';
+    }).join('');
+  }
+
+  container.innerHTML = contentHtml;
+  if (preserveHistoryPosition) {
+    var nextScrollHeight = Number(container.scrollHeight) || previousScrollHeight;
+    container.scrollTop = Math.max(0, previousScrollTop + (nextScrollHeight - previousScrollHeight));
+  } else {
+    container.scrollTop = 0;
+  }
+  if (opts.focusActiveFilter) _focusActiveLogsFilter();
+}
+
+function _bindLogsModalControls() {
+  var chips = Array.prototype.slice.call(document.querySelectorAll('[data-logs-filter]') || []);
+  chips.forEach(function (chip, index) {
+    chip.addEventListener('click', function () {
+      var nextFilter = chip.dataset && chip.dataset.logsFilter ? chip.dataset.logsFilter : 'all';
+      _activeLogsFilter = _isKnownLogFilter(nextFilter) ? nextFilter : 'all';
+      _renderDetailedLogs();
+    });
+    chip.addEventListener('keydown', function (event) {
+      if (!event) return;
+      var nextIndex = index;
+      if (event.key === 'ArrowRight' || event.key === 'ArrowDown') nextIndex = (index + 1) % chips.length;
+      else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') nextIndex = (index - 1 + chips.length) % chips.length;
+      else if (event.key === 'Home') nextIndex = 0;
+      else if (event.key === 'End') nextIndex = chips.length - 1;
+      else return;
+
+      event.preventDefault();
+      var targetChip = chips[nextIndex];
+      if (!targetChip) return;
+      var nextFilter = targetChip.dataset && targetChip.dataset.logsFilter ? targetChip.dataset.logsFilter : 'all';
+      _activeLogsFilter = _isKnownLogFilter(nextFilter) ? nextFilter : 'all';
+      _renderDetailedLogs();
+      if (typeof targetChip.focus === 'function') targetChip.focus();
+    });
+  });
+  _syncLogsFilterControls();
+}
+
+function _refreshOpenLogsModal() {
+  var modal = document.getElementById('logs-modal');
+  if (modal && !modal.classList.contains('hidden')) {
+    _renderDetailedLogs({ preserveScroll: true });
+  }
+}
+
+function _updateLogsModalSummary() {
+  var totalEl = document.getElementById('logs-summary-total');
+  var tradeEl = document.getElementById('logs-summary-trade');
+  var riskEl = document.getElementById('logs-summary-risk');
+  var latestEl = document.getElementById('logs-summary-latest');
+  var tradeCount = 0;
+  var riskCount = 0;
+
+  _logsHistory.forEach(function (item) {
+    var group = _getLogTypeGroup(item.type);
+    if (group === 'trade') tradeCount += 1;
+    if (group === 'risk') riskCount += 1;
+  });
+
+  if (totalEl) totalEl.textContent = String(_logsHistory.length);
+  if (tradeEl) tradeEl.textContent = String(tradeCount);
+  if (riskEl) riskEl.textContent = String(riskCount);
+  if (latestEl) {
+    latestEl.textContent = _logsHistory.length > 0
+      ? _formatLogTypeLabel(_logsHistory[0].type)
+      : '暂无';
+  }
+}
+
+function _syncLogsFilterControls() {
+  var chips = Array.prototype.slice.call(document.querySelectorAll('[data-logs-filter]') || []);
+  chips.forEach(function (chip) {
+    var isActive = chip.dataset && chip.dataset.logsFilter === _activeLogsFilter;
+    chip.classList.toggle('is-active', isActive);
+    chip.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    chip.setAttribute('tabindex', isActive ? '0' : '-1');
+  });
+}
+
+function _focusActiveLogsFilter() {
+  var chips = Array.prototype.slice.call(document.querySelectorAll('[data-logs-filter]') || []);
+  var activeChip = chips.find(function (chip) {
+    return chip.dataset && chip.dataset.logsFilter === _activeLogsFilter;
+  });
+  if (activeChip && typeof activeChip.focus === 'function') activeChip.focus();
+}
+
+function _filterLogsForActiveView(logs) {
+  if (_activeLogsFilter === 'all') return logs.slice();
+  return logs.filter(function (item) {
+    return _getLogTypeGroup(item.type) === _activeLogsFilter;
+  });
+}
+
+function _isKnownLogFilter(filter) {
+  return filter === 'all' || filter === 'trade' || filter === 'travel' || filter === 'risk' || filter === 'system';
+}
+
+function _getLogFilterLabel(filter) {
+  if (filter === 'trade') return '交易';
+  if (filter === 'travel') return '航行';
+  if (filter === 'risk') return '风险';
+  if (filter === 'system') return '系统';
+  return '全部';
+}
+
+function _getLogTypeGroup(type) {
+  var normalizedType = String(type || 'info').toLowerCase();
+  if (normalizedType === 'buy' || normalizedType === 'sell' || normalizedType === 'success') return 'trade';
+  if (normalizedType === 'travel') return 'travel';
+  if (normalizedType === 'error' || normalizedType === 'warning') return 'risk';
+  return 'system';
+}
+
+function _formatLogTypeLabel(type) {
+  var normalizedType = String(type || 'info').toLowerCase();
+  if (normalizedType === 'buy') return '买入';
+  if (normalizedType === 'sell') return '卖出';
+  if (normalizedType === 'travel') return '航行';
+  if (normalizedType === 'error') return '错误';
+  if (normalizedType === 'warning') return '警告';
+  if (normalizedType === 'success') return '成功';
+  if (normalizedType === 'upgrade') return '升级';
+  if (normalizedType === 'tip') return '提示';
+  return '系统';
 }
 
 // ---------------------------------------------------------------------------
@@ -566,18 +844,37 @@ function _updateStatusBars(state) {
   fuelPct = Math.max(0, Math.min(100, fuelPct));
   var fuelFillEl = document.getElementById('status-fuel-fill');
   var fuelPctEl  = document.getElementById('status-fuel-pct');
+  var fuelMeterEl = document.getElementById('status-fuel-meter');
+  var fuelText = '燃料 ' + (state.fuel || 0) + '/' + (state.maxFuel || 0) + '（' + fuelPct + '%）';
   if (fuelFillEl) fuelFillEl.style.width = fuelPct + '%';
-  if (fuelPctEl)  fuelPctEl.textContent  = fuelPct + '%';
+  if (fuelPctEl) {
+    fuelPctEl.textContent = fuelPct + '%';
+    fuelPctEl.setAttribute('title', fuelText);
+  }
+  _setMeterValue(fuelMeterEl, fuelPct, {
+    valueText: fuelText,
+    state: _getResourceMeterState(fuelPct, false),
+  });
 
   // 护盾（船体耐久）
+  var currentHull = state.shipHull != null ? state.shipHull : state.maxHull;
   var hullPct = state.maxHull > 0
-    ? Math.round(((state.shipHull != null ? state.shipHull : state.maxHull) / state.maxHull) * 100)
+    ? Math.round((currentHull / state.maxHull) * 100)
     : 100;
   hullPct = Math.max(0, Math.min(100, hullPct));
   var shieldFillEl = document.getElementById('status-shield-fill');
   var shieldPctEl  = document.getElementById('status-shield-pct');
+  var shieldMeterEl = document.getElementById('status-shield-meter');
+  var shieldText = '护盾 ' + (currentHull || 0) + '/' + (state.maxHull || 0) + '（' + hullPct + '%）';
   if (shieldFillEl) shieldFillEl.style.width = hullPct + '%';
-  if (shieldPctEl)  shieldPctEl.textContent  = hullPct + '%';
+  if (shieldPctEl) {
+    shieldPctEl.textContent = hullPct + '%';
+    shieldPctEl.setAttribute('title', shieldText);
+  }
+  _setMeterValue(shieldMeterEl, hullPct, {
+    valueText: shieldText,
+    state: _getResourceMeterState(hullPct, false),
+  });
 
   // 货舱使用率
   var cargoUsed = state.cargo
@@ -589,8 +886,17 @@ function _updateStatusBars(state) {
   cargoPct = Math.max(0, Math.min(100, cargoPct));
   var cargoFillEl = document.getElementById('status-cargo-fill');
   var cargoPctEl  = document.getElementById('status-cargo-pct');
+  var cargoMeterEl = document.getElementById('status-cargo-meter');
+  var cargoText = '货舱 ' + cargoUsed + '/' + (state.maxCargo || 0) + '（' + cargoPct + '%）';
   if (cargoFillEl) cargoFillEl.style.width = cargoPct + '%';
-  if (cargoPctEl)  cargoPctEl.textContent  = cargoPct + '%';
+  if (cargoPctEl) {
+    cargoPctEl.textContent = cargoPct + '%';
+    cargoPctEl.setAttribute('title', cargoText);
+  }
+  _setMeterValue(cargoMeterEl, cargoPct, {
+    valueText: cargoText,
+    state: _getResourceMeterState(cargoPct, true),
+  });
 
   return {
     cargoUsed: cargoUsed,
@@ -616,8 +922,20 @@ function _updateInterstellarHud(state, netWorth, sys, gal, faction, repRank, sta
   const repPct = Math.max(0, Math.min(100, Math.round((reputation + 100) / 10)));
   const repValueEl = document.getElementById('hdr-reputation-value');
   const repFillEl = document.getElementById('hdr-reputation-fill');
-  if (repValueEl) repValueEl.textContent = repRank.name + ' ' + reputation.toLocaleString();
+  const repMeterEl = document.getElementById('hdr-reputation-meter');
+  const repText = repRank.name + ' ' + reputation.toLocaleString();
+  const repMeterText = '公司声望 ' + repRank.name + '：' + reputation.toLocaleString();
+  if (repValueEl) {
+    repValueEl.textContent = repText;
+    repValueEl.setAttribute('title', repMeterText);
+  }
   if (repFillEl) repFillEl.style.width = repPct + '%';
+  _setMeterValue(repMeterEl, reputation, {
+    min: -100,
+    max: 900,
+    valueText: repMeterText,
+    state: reputation < 0 ? 'critical' : (reputation < 200 ? 'warning' : 'nominal'),
+  });
 
   const targetNameEl = document.getElementById('hud-target-name');
   const targetTypeEl = document.getElementById('hud-target-type');
@@ -730,6 +1048,22 @@ function _getMarketSnapshot(state, sys) {
   });
 }
 
+function _openMarketWorkspace(workspaceId) {
+  var marketNavBtn = document.querySelector('.bottom-nav-btn[data-view="market"]');
+  if (marketNavBtn) marketNavBtn.click();
+
+  var focusWorkspace = function () {
+    var workspaceTab = document.querySelector('[data-market-workspace-tab="' + workspaceId + '"]');
+    if (!workspaceTab) return false;
+    workspaceTab.click();
+    return true;
+  };
+
+  if (!focusWorkspace() && typeof setTimeout === 'function') {
+    setTimeout(focusWorkspace, 0);
+  }
+}
+
 function _renderHudMarketOverview(state, sys) {
   const body = document.getElementById('hud-market-overview-body');
   if (!body || !sys) return;
@@ -762,8 +1096,7 @@ function _renderHudMarketOverview(state, sys) {
   const openBtn = document.getElementById('hud-market-open');
   if (openBtn && openBtn.dataset.bound !== 'true') {
     openBtn.addEventListener('click', function () {
-      var marketNavBtn = document.querySelector('.bottom-nav-btn[data-view="market"]');
-      if (marketNavBtn) marketNavBtn.click();
+      _openMarketWorkspace('spot');
     });
     openBtn.dataset.bound = 'true';
   }
@@ -810,22 +1143,67 @@ function _renderHudNetworkStatus(state, statusSnapshot, netWorth) {
   const nodesEl = document.getElementById('hud-network-nodes');
   const routesEl = document.getElementById('hud-network-routes');
   const volatilityEl = document.getElementById('hud-network-volatility');
+  const signalEl = document.getElementById('hud-network-signal');
+  const updatedEl = document.getElementById('hud-network-updated');
+  const openBtn = document.getElementById('hud-network-open');
 
   const visitedCount = Array.isArray(state.visitedSystems) ? state.visitedSystems.length : 1;
-  const activeRoutes = Array.isArray(state.fleet)
-    ? state.fleet.filter(function (ship) { return !!ship.route; }).length
+  const fleet = Array.isArray(state.fleet) ? state.fleet : [];
+  const activeRoutes = fleet.length > 0
+    ? fleet.filter(function (ship) { return !!ship.route; }).length
     : 0;
+  const cargoPct = statusSnapshot ? statusSnapshot.cargoPct : 0;
   const volatility = Math.max(
     0,
     Math.min(
       99,
-      Math.round(((statusSnapshot ? statusSnapshot.cargoPct : 0) * 0.08) + ((state.day || 1) % 9) + ((netWorth || 0) > 5000 ? 4 : 1))
+      Math.round((cargoPct * 0.08) + ((state.day || 1) % 9) + ((netWorth || 0) > 5000 ? 4 : 1))
     )
   );
+  var routeLoad = fleet.length > 0 ? Math.round((activeRoutes / fleet.length) * 100) : 0;
+  var signalTitle = '贸易网络运行稳定';
+  var signalNote = activeRoutes + ' 条航线运行中，舰队负载 ' + routeLoad + '%，市场波动处于可观察区间。';
+  var signalTone = 'stable';
+
+  if (visitedCount <= 1 && activeRoutes === 0) {
+    signalTitle = '网络尚未铺开';
+    signalNote = '当前仅连接起始节点，尚未形成跨节点贸易航线。';
+    signalTone = 'idle';
+  } else if (activeRoutes === 0) {
+    signalTitle = '航线席位空闲';
+    signalNote = '已连接 ' + visitedCount + ' 个节点，但当前没有执行中的舰队航线。';
+    signalTone = 'watch';
+  } else if (fleet.length > 0 && activeRoutes >= fleet.length) {
+    signalTitle = '航线负载已满';
+    signalNote = '全部 ' + fleet.length + ' 艘船均在执行路线，当前没有空闲派遣席位。';
+    signalTone = 'watch';
+  } else if (volatility >= 15) {
+    signalTitle = '市场波动抬升';
+    signalNote = '网络波动率 ' + volatility.toFixed(1) + '%，现有 ' + activeRoutes + ' 条航线需要持续观察。';
+    signalTone = 'risk';
+  } else if (cargoPct >= 85) {
+    signalTitle = '货舱压力偏高';
+    signalNote = '当前货舱占用 ' + Math.round(cargoPct) + '%，网络吞吐空间接近上限。';
+    signalTone = 'watch';
+  }
 
   if (nodesEl) nodesEl.textContent = visitedCount + ' / ' + SYSTEMS.length;
   if (routesEl) routesEl.textContent = String(activeRoutes);
   if (volatilityEl) volatilityEl.textContent = volatility.toFixed(1) + '%';
+  if (signalEl) {
+    signalEl.dataset.tone = signalTone;
+    signalEl.innerHTML =
+      '<span class="hud-network-signal-kicker">局部信号</span>' +
+      '<strong class="hud-network-signal-title">' + _escapeHtml(signalTitle) + '</strong>' +
+      '<span class="hud-network-signal-note">' + _escapeHtml(signalNote) + '</span>';
+  }
+  if (updatedEl) updatedEl.textContent = 'DAY ' + (state.day || 1);
+  if (openBtn && openBtn.dataset.bound !== 'true') {
+    openBtn.addEventListener('click', function () {
+      _openMarketWorkspace('operations');
+    });
+    openBtn.dataset.bound = 'true';
+  }
 }
 
 
@@ -835,33 +1213,97 @@ function _renderHudNetworkStatus(state, statusSnapshot, netWorth) {
 function _renderVictoryModal(progressList) {
   const body = document.getElementById('victory-modal-body');
   if (!body) return;
-  let html = '';
-  progressList.forEach(function (p) {
-    const pctVal = Math.min(100, Math.floor(p.progress * 100));
+  var paths = Array.isArray(progressList) ? progressList : [];
+  var completedCount = paths.filter(function (p) { return !!p.completed; }).length;
+  var totalCount = Math.max(1, paths.length);
+  var completionPct = Math.round((completedCount / totalCount) * 100);
+  var bestPath = paths.reduce(function (best, current) {
+    if (!best) return current;
+    return (current.progress || 0) > (best.progress || 0) ? current : best;
+  }, null);
+  var bestPathNextReq = _getVictoryNextRequirement(bestPath);
+  var bestPathNextText = bestPathNextReq
+    ? (bestPathNextReq.label + ' · ' + bestPathNextReq.current + '/' + bestPathNextReq.target)
+    : (bestPath && bestPath.completed ? '该路径已达成' : '暂无可追踪缺口');
+
+  body.setAttribute('role', 'region');
+  body.setAttribute('aria-live', 'polite');
+  body.setAttribute('aria-label', '胜利协议进度详情');
+
+  let html =
+    '<section class="vp-overview" aria-label="胜利协议总览">' +
+      '<div class="vp-overview-copy">' +
+        '<div class="vp-overview-kicker">协议总览</div>' +
+        '<div class="vp-overview-title">' + _escapeHtml(completedCount > 0 ? '已有路径达成' : '持续推进多路径胜利') + '</div>' +
+        '<div class="vp-overview-desc">' + _escapeHtml(bestPath ? ('当前最接近：' + bestPath.name) : '暂无可追踪路径') + '</div>' +
+        '<div class="vp-overview-next"><span>下一缺口</span><strong>' + _escapeHtml(bestPathNextText) + '</strong></div>' +
+      '</div>' +
+      '<div class="vp-overview-grid" role="list" aria-label="协议统计">' +
+        '<div class="vp-overview-stat" role="listitem"><span>路径</span><strong>' + paths.length + '</strong></div>' +
+        '<div class="vp-overview-stat" role="listitem"><span>已达成</span><strong>' + completedCount + '</strong></div>' +
+        '<div class="vp-overview-stat" role="listitem"><span>达成率</span><strong>' + completionPct + '%</strong></div>' +
+        '<div class="vp-overview-stat" role="listitem"><span>最高进度</span><strong>' + (bestPath ? Math.min(100, Math.floor((bestPath.progress || 0) * 100)) : 0) + '%</strong></div>' +
+      '</div>' +
+    '</section>' +
+    '<div class="vp-card-list" role="list" aria-label="胜利路径列表">';
+
+  if (paths.length === 0) {
+    html += '<div class="vp-empty" role="listitem">暂无胜利协议数据，继续完成贸易、探索、研究或任务后再查看。</div>';
+  }
+
+  paths.forEach(function (p) {
+    const pctVal = Math.min(100, Math.floor((p.progress || 0) * 100));
     const doneClass = p.completed ? ' vp-done' : '';
+    const progressText = p.completed
+      ? (p.name + ' 已达成')
+      : (p.name + ' 当前完成 ' + pctVal + '%');
+    const nextReq = _getVictoryNextRequirement(p);
+    const nextReqText = nextReq
+      ? (nextReq.label + ' · ' + nextReq.current + '/' + nextReq.target)
+      : (p.completed ? '所有条件已完成' : '暂无拆分条件');
     let reqsHtml = '';
-    p.requirements.forEach(function (r) {
+    (Array.isArray(p.requirements) ? p.requirements : []).forEach(function (r) {
       const doneReq = r.done ? ' done' : '';
+      const reqStatus = r.done ? '已完成' : '未完成';
       reqsHtml +=
-        '<div class="vp-card-req' + doneReq + '">' +
-          (r.done ? '✅' : '⬜') + ' ' +
-          r.label + ' <span class="vp-req-count">(' + r.current + '/' + r.target + ')</span>' +
+        '<div class="vp-card-req' + doneReq + '" role="listitem" aria-label="' + _escapeHtml(r.label + '，' + reqStatus + '，' + r.current + '/' + r.target) + '">' +
+          '<span class="vp-req-state" aria-hidden="true">' + (r.done ? '✅' : '⬜') + '</span>' +
+          '<span class="vp-req-label">' + _escapeHtml(r.label) + '</span>' +
+          '<span class="vp-req-count">(' + _escapeHtml(r.current) + '/' + _escapeHtml(r.target) + ')</span>' +
         '</div>';
     });
+    if (!reqsHtml) {
+      reqsHtml = '<div class="vp-card-req" role="listitem">暂无拆分条件</div>';
+    }
     html +=
-      '<div class="vp-card' + doneClass + '">' +
+      '<article class="vp-card' + doneClass + '" role="listitem" aria-label="' + _escapeHtml(progressText) + '">' +
         '<div class="vp-card-header">' +
-          '<span class="vp-card-icon">' + p.icon + '</span>' +
-          '<span class="vp-card-name">' + p.name + '</span>' +
+          '<span class="vp-card-icon" aria-hidden="true">' + _escapeHtml(p.icon) + '</span>' +
+          '<span class="vp-card-name">' + _escapeHtml(p.name) + '</span>' +
           '<span class="vp-card-pct">' + pctVal + '%</span>' +
         '</div>' +
-        '<div class="vp-card-bar-track">' +
-          '<div class="vp-card-bar-fill" style="width:' + pctVal + '%;background:' + p.color + '"></div>' +
+        '<div class="vp-card-bar-track" role="progressbar" aria-label="' + _escapeHtml(p.name) + '完成度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pctVal + '" aria-valuetext="' + _escapeHtml(progressText) + '">' +
+          '<div class="vp-card-bar-fill" style="width:' + pctVal + '%;background:' + _escapeHtml(p.color || 'var(--accent-cyan)') + '"></div>' +
         '</div>' +
-        '<div class="vp-card-reqs">' + reqsHtml + '</div>' +
-      '</div>';
+        '<div class="vp-card-next"><span>下一条件</span><strong>' + _escapeHtml(nextReqText) + '</strong></div>' +
+        '<div class="vp-card-reqs" role="list" aria-label="' + _escapeHtml(p.name) + '条件">' + reqsHtml + '</div>' +
+      '</article>';
   });
+  html += '</div>';
   body.innerHTML = html;
+}
+
+function _getVictoryNextRequirement(pathProgress) {
+  if (!pathProgress || !Array.isArray(pathProgress.requirements)) return null;
+  var pending = pathProgress.requirements.filter(function (req) {
+    return req && !req.done;
+  });
+  if (pending.length === 0) return null;
+  return pending.sort(function (left, right) {
+    var leftRatio = left.target > 0 ? left.current / left.target : 0;
+    var rightRatio = right.target > 0 ? right.current / right.target : 0;
+    return rightRatio - leftRatio;
+  })[0];
 }
 
 function _renderQuestTracker(state) {

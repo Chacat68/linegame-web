@@ -2,17 +2,17 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>蓝脉航路 · 银河历 3045</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%23040814' stroke='%2322d3ee' stroke-width='2'/><circle cx='16' cy='16' r='4' fill='%2322d3ee'/><line x1='16' y1='2' x2='16' y2='8' stroke='%2322d3ee' stroke-width='1.5'/><line x1='16' y1='24' x2='16' y2='30' stroke='%2322d3ee' stroke-width='1.5'/><line x1='2' y1='16' x2='8' y2='16' stroke='%2322d3ee' stroke-width='1.5'/><line x1='24' y1='16' x2='30' y2='16' stroke='%2322d3ee' stroke-width='1.5'/></svg>" />
-    <link rel="stylesheet" href="css/style.css?v=20260525-audio1" />
+    <link rel="stylesheet" href="css/style.css?v=20260621-settingsfallback1" />
   </head>
   <body>
     <div id="game-shell">
       <!-- ================================================================
        Header
   ================================================================ -->
-      <header id="game-header">
+      <header id="game-header" aria-label="顶部状态栏">
         <!-- Brand -->
         <div class="hdr-brand">
           <span class="hdr-brand-mark" aria-hidden="true"></span>
@@ -44,7 +44,16 @@
               <span class="hdr-stat-label">REPUTATION</span>
               <span id="hdr-reputation-value" class="hdr-meter-pct">0</span>
             </div>
-            <div class="hdr-meter-track">
+            <div
+              id="hdr-reputation-meter"
+              class="hdr-meter-track"
+              role="meter"
+              aria-label="公司声望"
+              aria-valuemin="-100"
+              aria-valuemax="900"
+              aria-valuenow="0"
+              aria-valuetext="声望 0"
+            >
               <div id="hdr-reputation-fill" class="hdr-meter-fill hdr-meter-fill--rep" style="width:0%"></div>
             </div>
           </div>
@@ -53,7 +62,16 @@
               <span class="hdr-stat-label">FUEL</span>
               <span id="status-fuel-pct" class="hdr-meter-pct">100%</span>
             </div>
-            <div class="hdr-meter-track">
+            <div
+              id="status-fuel-meter"
+              class="hdr-meter-track"
+              role="meter"
+              aria-label="燃料"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-valuenow="100"
+              aria-valuetext="燃料 100%"
+            >
               <div id="status-fuel-fill" class="hdr-meter-fill hdr-meter-fill--fuel" style="width:100%"></div>
             </div>
           </div>
@@ -62,7 +80,16 @@
               <span class="hdr-stat-label">SHIELD</span>
               <span id="status-shield-pct" class="hdr-meter-pct">100%</span>
             </div>
-            <div class="hdr-meter-track">
+            <div
+              id="status-shield-meter"
+              class="hdr-meter-track"
+              role="meter"
+              aria-label="护盾"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-valuenow="100"
+              aria-valuetext="护盾 100%"
+            >
               <div id="status-shield-fill" class="hdr-meter-fill hdr-meter-fill--shield" style="width:100%"></div>
             </div>
           </div>
@@ -71,7 +98,16 @@
               <span class="hdr-stat-label">CARGO</span>
               <span id="status-cargo-pct" class="hdr-meter-pct">0%</span>
             </div>
-            <div class="hdr-meter-track">
+            <div
+              id="status-cargo-meter"
+              class="hdr-meter-track"
+              role="meter"
+              aria-label="货舱"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-valuenow="0"
+              aria-valuetext="货舱 0%"
+            >
               <div id="status-cargo-fill" class="hdr-meter-fill hdr-meter-fill--cargo" style="width:0%"></div>
             </div>
           </div>
@@ -85,8 +121,18 @@
         <!-- Icon buttons -->
         <div class="hdr-icon-btns">
           <button
+            id="company-directives-btn"
+            class="hdr-icon-btn"
+            type="button"
+            title="公司指令"
+            aria-label="公司指令"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 4h8l1 2h3v14H4V6h3l1-2Z"/><path d="M8 11h8M8 15h5"/><path d="M9 4h6"/></svg>
+          </button>
+          <button
             id="victory-progress-btn"
             class="hdr-icon-btn"
+            type="button"
             title="查看胜利路径进度"
             aria-label="胜利路径进度"
           >
@@ -274,10 +320,22 @@
                 <div class="network-spark" aria-hidden="true">
                   <span></span><span></span><span></span><span></span><span></span><span></span>
                 </div>
-                <div class="network-stats">
-                  <span>连接节点 <strong id="hud-network-nodes">1 / 256</strong></span>
-                  <span>活跃航线 <strong id="hud-network-routes">0</strong></span>
-                  <span>市场波动率 <strong id="hud-network-volatility">0.0%</strong></span>
+                <div class="network-stats" role="list" aria-label="贸易网络指标">
+                  <span role="listitem">连接节点 <strong id="hud-network-nodes">1 / 256</strong></span>
+                  <span role="listitem">活跃航线 <strong id="hud-network-routes">0</strong></span>
+                  <span role="listitem">市场波动率 <strong id="hud-network-volatility">0.0%</strong></span>
+                </div>
+                <div id="hud-network-signal" class="hud-network-signal" role="status" aria-live="polite">
+                  <span class="hud-network-signal-kicker">局部信号</span>
+                  <strong class="hud-network-signal-title">网络状态同步中</strong>
+                  <span class="hud-network-signal-note">正在读取节点覆盖与航线负载。</span>
+                </div>
+              </div>
+              <div class="hud-widget-foot network-widget-foot">
+                <span>基于当前节点覆盖与舰队派遣</span>
+                <div class="hud-widget-foot-actions">
+                  <button id="hud-network-open" class="hud-widget-link-btn" type="button">打开商网</button>
+                  <span id="hud-network-updated">DAY 1</span>
                 </div>
               </div>
             </aside>
@@ -294,18 +352,45 @@
             <div id="current-system-exploration-card" class="current-system-exploration-card"></div>
             <div class="map-btn-group">
               <div class="map-primary-entry-group">
-                <button id="map-3d-toggle-btn" class="map-overlay-btn" style="display:none !important;">
+                <button id="map-3d-toggle-btn" class="map-overlay-btn" type="button" style="display:none !important;">
                   🌐 3D视图
                 </button>
-                <button id="galaxy-view-btn" class="map-overlay-btn">
+                <button id="galaxy-view-btn" class="map-overlay-btn" type="button">
                   🌌 星系总览
                 </button>
               </div>
             </div>
-            <div id="action-guide" class="action-guide" aria-live="polite" hidden></div>
+            <div id="floating-command-stack" class="floating-command-stack">
+              <button
+                id="event-notification"
+                class="event-notification hidden"
+                type="button"
+                aria-live="polite"
+                aria-atomic="true"
+                aria-hidden="true"
+                aria-label="待处理事件"
+                tabindex="-1"
+              >
+                <span id="event-notif-icon" class="event-notif-icon" aria-hidden="true"></span>
+                <span class="event-notif-copy">
+                  <span id="event-notif-kicker" class="event-notif-kicker">待处理事件</span>
+                  <strong id="event-notif-text" class="event-notif-text"></strong>
+                  <small id="event-notif-meta" class="event-notif-meta"></small>
+                </span>
+                <span class="event-notif-btn" aria-hidden="true">查看事件</span>
+              </button>
+              <div id="action-guide" class="action-guide" aria-live="polite" hidden></div>
+            </div>
 
             <!-- Market overlay panel -->
-            <div id="market-overlay" class="market-overlay hidden">
+            <div
+              id="market-overlay"
+              class="market-overlay hidden"
+              role="region"
+              aria-labelledby="market-header-title"
+              aria-hidden="true"
+              tabindex="-1"
+            >
               <div class="market-overlay-header">
                 <div class="market-header-row">
                   <div class="market-header-left">
@@ -313,13 +398,18 @@
                   </div>
                   <div class="market-header-right">
                     <div id="market-mode-toggle" class="market-mode-toggle"></div>
-                    <button id="market-close-btn" class="market-close-btn">✕</button>
+                    <button id="market-close-btn" class="market-close-btn" type="button" aria-label="返回星图">✕</button>
                   </div>
                 </div>
               </div>
               <div class="market-cmd-bar">
-                <div id="market-galaxy-nav" class="market-galaxy-nav"></div>
-                <div id="market-workspace-tabs" class="market-workspace-tabs"></div>
+                <div id="market-galaxy-nav" class="market-galaxy-nav" aria-label="星系市场导航"></div>
+                <div
+                  id="market-workspace-tabs"
+                  class="market-workspace-tabs"
+                  role="tablist"
+                  aria-label="市场工作区"
+                ></div>
               </div>
 
               <div class="market-overlay-shell">
@@ -332,9 +422,26 @@
                     </div>
                     <div id="market-experience-route" class="market-experience-route-host"></div>
                     <div class="market-overlay-body">
-                      <div id="market-spot-pane" class="market-main-pane"></div>
-                      <div id="market-capital-pane" class="market-main-pane hidden"></div>
-                      <div id="market-operations-pane" class="market-main-pane hidden"></div>
+                      <div
+                        id="market-spot-pane"
+                        class="market-main-pane"
+                        role="tabpanel"
+                        aria-label="现货交易"
+                      ></div>
+                      <div
+                        id="market-capital-pane"
+                        class="market-main-pane hidden"
+                        role="tabpanel"
+                        aria-label="资本控制"
+                        aria-hidden="true"
+                      ></div>
+                      <div
+                        id="market-operations-pane"
+                        class="market-main-pane hidden"
+                        role="tabpanel"
+                        aria-label="商网运营"
+                        aria-hidden="true"
+                      ></div>
                     </div>
                   </div>
                 </div>
@@ -375,146 +482,255 @@
         </section>
 
         <!-- Info Panel (overlay: QUESTS tab) -------------------------------- -->
-        <aside id="info-panel" class="side-panel-overlay side-panel-overlay--left">
-          <div class="info-panel-header">
-            <nav class="tabs" data-tab-group="info">
+        <aside
+          id="info-panel"
+          class="side-panel-overlay side-panel-overlay--left"
+          role="dialog"
+          aria-modal="false"
+          aria-labelledby="archive-terminal-title"
+          aria-describedby="archive-terminal-subtitle"
+          aria-hidden="true"
+          tabindex="-1"
+        >
+          <div class="secondary-terminal-shell secondary-terminal-shell--archive">
+            <header class="secondary-terminal-chrome">
+              <div class="secondary-terminal-title-block">
+                <span class="secondary-terminal-kicker">ARCHIVE TERMINAL</span>
+                <h2 id="archive-terminal-title" class="secondary-terminal-title">档案终端</h2>
+              </div>
+              <p id="archive-terminal-subtitle" class="secondary-terminal-subtitle">任务、科技、派系与成就集中管理。</p>
+              <div class="secondary-terminal-status" role="list" aria-label="档案终端模块">
+                <span class="secondary-terminal-status-item" role="listitem">任务</span>
+                <span class="secondary-terminal-status-item" role="listitem">科技</span>
+                <span class="secondary-terminal-status-item" role="listitem">派系</span>
+                <span class="secondary-terminal-status-item" role="listitem">成就</span>
+              </div>
               <button
-                class="tab-btn active"
-                data-tab="tab-quest"
-                data-tab-group="info"
+                id="info-panel-toggle"
+                class="info-panel-toggle secondary-terminal-close"
+                type="button"
+                title="返回星图"
+                aria-label="返回星图"
               >
-                📋 任务
-                <span id="archive-tab-quest-badge" class="archive-tab-badge" hidden></span>
+                ✕
               </button>
-              <button
-                class="tab-btn"
-                data-tab="tab-research"
-                data-tab-group="info"
-              >
-                🔬 科技
-                <span id="archive-tab-research-badge" class="archive-tab-badge" hidden></span>
-              </button>
-              <button
-                class="tab-btn"
-                data-tab="tab-faction"
-                data-tab-group="info"
-              >
-                🏛️ 派系
-                <span id="archive-tab-faction-badge" class="archive-tab-badge" hidden></span>
-              </button>
-              <button
-                class="tab-btn"
-                data-tab="tab-achievement"
-                data-tab-group="info"
-              >
-                🏆 成就
-                <span id="archive-tab-achievement-badge" class="archive-tab-badge" hidden></span>
-              </button>
-            </nav>
-            <button
-              id="info-panel-toggle"
-              class="info-panel-toggle"
-              title="收起面板"
-            >
-              ✕
-            </button>
-          </div>
-          <div class="tab-content">
-            <!-- Quest tab (任务系统) -->
-            <div id="tab-quest" class="tab-pane active" data-tab-group="info">
-              <div id="quest-list"></div>
-            </div>
-            <!-- Research tab (群星风格科技树) -->
-            <div id="tab-research" class="tab-pane" data-tab-group="info">
-              <div id="research-status"></div>
-              <div id="research-options"></div>
-              <div id="research-completed"></div>
-            </div>
-            <!-- Faction tab (派系外交) -->
-            <div id="tab-faction" class="tab-pane" data-tab-group="info">
-              <div id="faction-list"></div>
-            </div>
-            <!-- Achievement tab (成就系统) -->
-            <div id="tab-achievement" class="tab-pane" data-tab-group="info">
-              <div id="achievement-list"></div>
+            </header>
+
+            <div class="secondary-terminal-body secondary-terminal-body--archive">
+              <div class="info-panel-header secondary-terminal-nav">
+                <nav class="tabs" data-tab-group="info" role="tablist" aria-label="档案分类">
+                  <button
+                    id="archive-tab-quest"
+                    class="tab-btn active"
+                    type="button"
+                    data-tab="tab-quest"
+                    data-tab-group="info"
+                    role="tab"
+                    aria-controls="tab-quest"
+                    aria-selected="true"
+                  >
+                    任务
+                    <span id="archive-tab-quest-badge" class="archive-tab-badge" hidden></span>
+                  </button>
+                  <button
+                    id="archive-tab-research"
+                    class="tab-btn"
+                    type="button"
+                    data-tab="tab-research"
+                    data-tab-group="info"
+                    role="tab"
+                    aria-controls="tab-research"
+                    aria-selected="false"
+                  >
+                    科技
+                    <span id="archive-tab-research-badge" class="archive-tab-badge" hidden></span>
+                  </button>
+                  <button
+                    id="archive-tab-faction"
+                    class="tab-btn"
+                    type="button"
+                    data-tab="tab-faction"
+                    data-tab-group="info"
+                    role="tab"
+                    aria-controls="tab-faction"
+                    aria-selected="false"
+                  >
+                    派系
+                    <span id="archive-tab-faction-badge" class="archive-tab-badge" hidden></span>
+                  </button>
+                  <button
+                    id="archive-tab-achievement"
+                    class="tab-btn"
+                    type="button"
+                    data-tab="tab-achievement"
+                    data-tab-group="info"
+                    role="tab"
+                    aria-controls="tab-achievement"
+                    aria-selected="false"
+                  >
+                    成就
+                    <span id="archive-tab-achievement-badge" class="archive-tab-badge" hidden></span>
+                  </button>
+                </nav>
+              </div>
+              <div class="tab-content secondary-terminal-content">
+                <!-- Quest tab (任务系统) -->
+                <div id="tab-quest" class="tab-pane active" data-tab-group="info" role="tabpanel" aria-labelledby="archive-tab-quest" aria-hidden="false" tabindex="0">
+                  <div id="quest-list"></div>
+                </div>
+                <!-- Research tab (群星风格科技树) -->
+                <div id="tab-research" class="tab-pane" data-tab-group="info" role="tabpanel" aria-labelledby="archive-tab-research" aria-hidden="true" tabindex="0">
+                  <div id="research-status"></div>
+                  <div id="research-options"></div>
+                  <div id="research-completed"></div>
+                </div>
+                <!-- Faction tab (派系外交) -->
+                <div id="tab-faction" class="tab-pane" data-tab-group="info" role="tabpanel" aria-labelledby="archive-tab-faction" aria-hidden="true" tabindex="0">
+                  <div id="faction-list"></div>
+                </div>
+                <!-- Achievement tab (成就系统) -->
+                <div id="tab-achievement" class="tab-pane" data-tab-group="info" role="tabpanel" aria-labelledby="archive-tab-achievement" aria-hidden="true" tabindex="0">
+                  <div id="achievement-list"></div>
+                </div>
+              </div>
             </div>
           </div>
         </aside>
 
         <!-- Trade Panel (overlay: HANGAR tab) ------------------------------- -->
-        <aside id="trade-panel" class="side-panel-overlay side-panel-overlay--right">
-          <!-- Company Dashboard (紧凑仪表盘) -->
-          <div class="company-dashboard">
-            <button
-              id="company-name-display"
-              class="company-name-btn"
-              title="点击重命名公司"
-            >
-              ◉ <span id="company-name-text">蓝脉信使物流体</span> ✏️
-            </button>
-
-            <div class="stat-strip">
-              <div class="stat-strip-item">
-                <span class="stat-strip-label">📊 公司资产</span>
-                <span id="net-worth" class="stat-strip-value stat-networth"
-                  >1,000</span
-                >
+        <aside
+          id="trade-panel"
+          class="side-panel-overlay side-panel-overlay--right"
+          role="dialog"
+          aria-modal="false"
+          aria-labelledby="hangar-terminal-title"
+          aria-describedby="hangar-terminal-subtitle"
+          aria-hidden="true"
+          tabindex="-1"
+        >
+          <div class="secondary-terminal-shell secondary-terminal-shell--hangar">
+            <header class="secondary-terminal-chrome">
+              <div class="secondary-terminal-title-block">
+                <span class="secondary-terminal-kicker">HANGAR COMMAND</span>
+                <h2 id="hangar-terminal-title" class="secondary-terminal-title">机库终端</h2>
               </div>
-            </div>
-
-            <div id="player-level-panel" class="player-level-bar"></div>
-
-            <div id="company-level-line" class="company-level-line">
-              CORP Lv.1 · 0/120
-            </div>
-            <div class="company-level-track">
-              <div id="company-level-fill" class="company-level-fill"></div>
-            </div>
-            <div
-              id="company-unlock-roadmap"
-              class="company-unlock-roadmap"
-              aria-live="polite"
-            ></div>
-          </div>
-
-          <!-- Tabs + 内联概览 -->
-          <nav class="tabs fleet-tabs">
-            <button
-              class="tab-btn active"
-              data-tab="tab-fleet"
-              data-tab-group="trade"
-            >
-              🚢 船队
-            </button>
-            <button class="tab-btn" data-tab="tab-shop" data-tab-group="trade">
-              🏪 商店
-            </button>
-            <span class="fleet-inline-summary">
-              <span id="ov-ship-count">1</span>船 ·
-              <span id="ov-dispatch-count">0</span>派遣 · Σ<span
-                id="ov-total-profit"
-                >0</span
+              <p id="hangar-terminal-subtitle" class="secondary-terminal-subtitle">管理船队、改装、派遣和采购。</p>
+              <div class="secondary-terminal-status" role="list" aria-label="机库终端模块">
+                <span class="secondary-terminal-status-item" role="listitem">船队</span>
+                <span class="secondary-terminal-status-item" role="listitem">商店</span>
+                <span class="secondary-terminal-status-item" role="listitem">改装</span>
+                <span class="secondary-terminal-status-item" role="listitem">派遣</span>
+              </div>
+              <button
+                id="trade-panel-toggle"
+                class="info-panel-toggle trade-panel-toggle secondary-terminal-close"
+                type="button"
+                title="返回星图"
+                aria-label="返回星图"
               >
-            </span>
-          </nav>
+                ✕
+              </button>
+            </header>
 
-          <div class="tab-content">
-            <!-- Fleet tab (船队系统) -->
-            <div id="tab-fleet" class="tab-pane active" data-tab-group="trade">
-              <div
-                id="auto-trade-controls"
-                class="auto-trade-controls hidden"
-              ></div>
-              <div id="fleet-list"></div>
-              <div id="fleet-inline-container" class="fleet-inline-container hidden"></div>
-            </div>
+            <div class="secondary-terminal-body secondary-terminal-body--hangar">
+              <aside class="secondary-terminal-sidebar" aria-label="公司与机库导航">
+                <!-- Company Dashboard (紧凑仪表盘) -->
+                <div class="company-dashboard">
+                  <div class="company-dashboard-primary">
+                    <button
+                      id="company-name-display"
+                      class="company-name-btn"
+                      title="点击重命名公司"
+                      aria-label="重命名公司"
+                    >
+                      ◉ <span id="company-name-text">蓝脉信使物流体</span> ✎
+                    </button>
 
-            <!-- Ship Shop tab -->
-            <div id="tab-shop" class="tab-pane" data-tab-group="trade">
-              <div id="shop-list"></div>
+                    <div class="stat-strip" role="list" aria-label="公司资产摘要">
+                      <div class="stat-strip-item" role="listitem">
+                        <span class="stat-strip-label">公司资产</span>
+                        <span id="net-worth" class="stat-strip-value stat-networth"
+                          >1,000</span
+                        >
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="company-level-stack">
+                    <div id="player-level-panel" class="player-level-bar"></div>
+
+                    <div id="company-level-line" class="company-level-line">
+                      CORP Lv.1 · 0/120
+                    </div>
+                    <div id="company-level-track" class="company-level-track" role="progressbar" aria-label="公司等级进度" aria-valuemin="0" aria-valuemax="120" aria-valuenow="0" aria-valuetext="公司等级 1，0/120">
+                      <div id="company-level-fill" class="company-level-fill"></div>
+                    </div>
+                  </div>
+
+                  <div
+                    id="company-unlock-roadmap"
+                    class="company-unlock-roadmap"
+                    role="group"
+                    aria-label="公司权限台"
+                    aria-live="polite"
+                  ></div>
+                </div>
+
+                <!-- Tabs + 内联概览 -->
+                <nav class="tabs fleet-tabs" role="tablist" aria-label="机库分类">
+                  <button
+                    id="hangar-tab-fleet"
+                    class="tab-btn active"
+                    type="button"
+                    data-tab="tab-fleet"
+                    data-tab-group="trade"
+                    role="tab"
+                    aria-controls="tab-fleet"
+                    aria-selected="true"
+                  >
+                    船队
+                  </button>
+                  <button
+                    id="hangar-tab-shop"
+                    class="tab-btn"
+                    type="button"
+                    data-tab="tab-shop"
+                    data-tab-group="trade"
+                    role="tab"
+                    aria-controls="tab-shop"
+                    aria-selected="false"
+                  >
+                    商店
+                  </button>
+                  <span class="fleet-inline-summary">
+                    <span id="ov-ship-count">1</span>船 ·
+                    <span id="ov-dispatch-count">0</span>派遣 · Σ<span
+                      id="ov-total-profit"
+                      >0</span
+                    >
+                  </span>
+                </nav>
+              </aside>
+
+              <div class="tab-content secondary-terminal-content">
+                <!-- Fleet tab (船队系统) -->
+                <div id="tab-fleet" class="tab-pane active" data-tab-group="trade" role="tabpanel" aria-labelledby="hangar-tab-fleet" aria-hidden="false" tabindex="0">
+                  <div
+                    id="auto-trade-controls"
+                    class="auto-trade-controls hidden"
+                  ></div>
+                  <div id="fleet-list"></div>
+                  <div id="fleet-inline-container" class="fleet-inline-container hidden" aria-hidden="true" inert></div>
+                </div>
+
+                <!-- Ship Shop tab -->
+                <div id="tab-shop" class="tab-pane" data-tab-group="trade" role="tabpanel" aria-labelledby="hangar-tab-shop" aria-hidden="true" tabindex="0">
+                  <div id="shop-list"></div>
+                </div>
+              </div>
+              <!-- /tab-content -->
             </div>
           </div>
-          <!-- /tab-content -->
         </aside>
 
       </main>
@@ -524,32 +740,37 @@
   ================================================================ -->
       <footer id="status-bar">
         <!-- Mini Console Broadcast Bar (单行滚动日志广播) -->
-        <div id="mini-console-broadcast" class="mini-console-broadcast">
+        <button
+          id="mini-console-broadcast"
+          class="mini-console-broadcast"
+          type="button"
+          aria-label="打开通讯历史。最新消息：系统准备就绪，蓝脉星区航路已锁定"
+        >
           <span class="broadcast-icon">📟</span>
-          <span id="broadcast-content" class="broadcast-content">系统准备就绪。蓝脉星区航路已锁定。</span>
-          <button id="broadcast-history-btn" class="broadcast-history-btn" type="button" title="查看完整历史通讯">历史记录 ↗</button>
-        </div>
+          <span id="broadcast-content" class="broadcast-content" role="status" aria-live="polite" aria-atomic="true">系统准备就绪。蓝脉星区航路已锁定。</span>
+          <span id="broadcast-history-btn" class="broadcast-history-btn" aria-hidden="true">查看历史</span>
+        </button>
 
         <!-- Bottom navigation tabs -->
-        <nav class="bottom-nav" id="bottom-nav">
-          <button class="bottom-nav-btn active" data-view="starmap" title="星图">
+        <nav class="bottom-nav" id="bottom-nav" aria-label="主界面导航">
+          <button class="bottom-nav-btn active" type="button" data-view="starmap" title="星图" aria-current="page" aria-pressed="true">
             <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg>
             <span>星图</span>
           </button>
-          <button class="bottom-nav-btn" data-view="market" title="市场">
+          <button class="bottom-nav-btn" type="button" data-view="market" title="市场" aria-pressed="false">
             <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
             <span>市场</span>
           </button>
-          <button class="bottom-nav-btn" data-view="hangar" title="机库">
+          <button class="bottom-nav-btn" type="button" data-view="hangar" title="机库" aria-pressed="false">
             <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
             <span>机库</span>
           </button>
-          <button class="bottom-nav-btn" data-view="quests" title="档案：任务、科技、派系、成就" aria-label="档案：任务、科技、派系、成就">
+          <button class="bottom-nav-btn" type="button" data-view="quests" title="档案：任务、科技、派系、成就" aria-label="档案：任务、科技、派系、成就" aria-pressed="false">
             <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
             <span>档案</span>
             <span id="archive-nav-badge" class="bottom-nav-badge" hidden></span>
           </button>
-          <button class="bottom-nav-btn" data-view="logs" title="通讯日志">
+          <button class="bottom-nav-btn" type="button" data-view="logs" title="通讯日志" aria-pressed="false">
             <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
             <span>日志</span>
           </button>
@@ -561,17 +782,65 @@
     <!-- ================================================================
      Logs modal (通讯历史终端弹窗)
 ================================================================ -->
-    <div id="logs-modal" class="modal hidden" role="dialog" aria-modal="true">
-      <div class="modal-box stack-modal-box logs-modal-box">
+    <div
+      id="logs-modal"
+      class="modal hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="logs-title"
+      aria-describedby="logs-modal-desc logs-modal-summary logs-modal-feed-status"
+    >
+      <div class="modal-box stack-modal-box logs-modal-box" tabindex="-1">
         <div class="stack-modal-scroll">
           <div class="logs-header">
-            <span class="logs-icon-large">📟</span>
-            <h3 id="logs-title">通讯历史终端</h3>
+            <span class="logs-icon-large" aria-hidden="true">📟</span>
+            <div class="logs-header-copy">
+              <div class="logs-kicker">Signal Archive</div>
+              <h3 id="logs-title">通讯历史终端</h3>
+            </div>
           </div>
-          <div id="logs-modal-list" class="console-message-log-detailed"></div>
+          <p id="logs-modal-desc" class="logs-modal-desc">
+            汇总最近的交易、航行、系统提示和风险事件，用于回溯当前经营状态。
+          </p>
+          <div id="logs-modal-summary" class="logs-modal-summary" role="list" aria-label="通讯日志摘要">
+            <span class="logs-modal-summary-item" role="listitem">
+              <em>记录总数</em>
+              <strong id="logs-summary-total">0</strong>
+            </span>
+            <span class="logs-modal-summary-item" role="listitem">
+              <em>交易信号</em>
+              <strong id="logs-summary-trade">0</strong>
+            </span>
+            <span class="logs-modal-summary-item logs-modal-summary-item--risk" role="listitem">
+              <em>风险事件</em>
+              <strong id="logs-summary-risk">0</strong>
+            </span>
+            <span class="logs-modal-summary-item" role="listitem">
+              <em>最新信号</em>
+              <strong id="logs-summary-latest">暂无</strong>
+            </span>
+          </div>
+          <div class="logs-modal-toolbar" role="toolbar" aria-label="日志类型筛选">
+            <button class="logs-filter-chip is-active" type="button" data-logs-filter="all" aria-controls="logs-modal-list" aria-pressed="true" tabindex="0">全部</button>
+            <button class="logs-filter-chip" type="button" data-logs-filter="trade" aria-controls="logs-modal-list" aria-pressed="false" tabindex="-1">交易</button>
+            <button class="logs-filter-chip" type="button" data-logs-filter="travel" aria-controls="logs-modal-list" aria-pressed="false" tabindex="-1">航行</button>
+            <button class="logs-filter-chip" type="button" data-logs-filter="risk" aria-controls="logs-modal-list" aria-pressed="false" tabindex="-1">风险</button>
+            <button class="logs-filter-chip" type="button" data-logs-filter="system" aria-controls="logs-modal-list" aria-pressed="false" tabindex="-1">系统</button>
+          </div>
+          <div id="logs-modal-feed-status" class="logs-modal-feed-status" role="status" aria-live="polite">
+            显示全部通讯记录
+          </div>
+          <div
+            id="logs-modal-list"
+            class="console-message-log-detailed"
+            role="list"
+            aria-label="通讯历史记录"
+            aria-describedby="logs-modal-feed-status"
+            tabindex="0"
+          ></div>
         </div>
         <div class="modal-actions">
-          <button id="logs-modal-close" class="btn-secondary">关闭</button>
+          <button id="logs-modal-close" class="btn-secondary" type="button">关闭</button>
         </div>
       </div>
     </div>
@@ -579,54 +848,108 @@
     <!-- ================================================================
      Trade modal
 ================================================================ -->
-    <div id="trade-modal" class="modal hidden" role="dialog" aria-modal="true">
-      <div class="modal-box stack-modal-box">
+    <div
+      id="trade-modal"
+      class="modal hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
+      aria-describedby="modal-desc trade-impact-summary modal-total"
+    >
+      <div class="modal-box stack-modal-box trade-confirm-modal-box" tabindex="-1">
         <div class="stack-modal-scroll">
-          <h3 id="modal-title">交易</h3>
-          <p id="modal-desc"></p>
-          <div class="modal-stepper">
-            <button id="modal-decrease" aria-label="减少数量">−</button>
-            <input
-              id="modal-amount"
-              type="number"
-              min="1"
-              value="1"
-              aria-label="交易数量"
-            />
-            <button id="modal-increase" aria-label="增加数量">+</button>
-          </div>
-          <button id="modal-all" class="btn-all">全部</button>
-          <div id="modal-total"></div>
+          <header class="trade-confirm-head">
+            <div id="modal-kicker" class="trade-confirm-kicker">公开市场</div>
+            <h3 id="modal-title">交易</h3>
+            <p id="modal-desc"></p>
+          </header>
+          <section class="trade-confirm-section trade-confirm-section--quantity" aria-labelledby="trade-quantity-title">
+            <div class="trade-confirm-section-head">
+              <div>
+                <div id="trade-quantity-title" class="trade-confirm-section-title">交易数量</div>
+                <div class="trade-confirm-section-subtitle">使用步进器微调，或直接填入数量。</div>
+              </div>
+              <button id="modal-all" class="btn-all" type="button">全部</button>
+            </div>
+            <div class="modal-stepper" role="group" aria-label="交易数量调整">
+              <button id="modal-decrease" type="button" aria-label="减少数量">−</button>
+              <input
+                id="modal-amount"
+                type="number"
+                min="1"
+                step="1"
+                value="1"
+                inputmode="numeric"
+                aria-label="交易数量"
+                aria-describedby="modal-desc modal-total"
+              />
+              <button id="modal-increase" type="button" aria-label="增加数量">+</button>
+            </div>
+          </section>
+          <section class="trade-confirm-section trade-confirm-section--summary" aria-label="交易估算">
+            <div class="trade-confirm-metrics" role="list" aria-label="交易指标">
+              <div class="trade-confirm-metric" role="listitem">
+                <span>单价</span>
+                <strong id="modal-unit-price">0</strong>
+              </div>
+              <div class="trade-confirm-metric" role="listitem">
+                <span>上限</span>
+                <strong id="modal-max-qty">0</strong>
+              </div>
+              <div class="trade-confirm-metric" role="listitem">
+                <span>市场</span>
+                <strong id="modal-market-type">公开</strong>
+              </div>
+            </div>
+            <div id="trade-impact-summary" class="trade-confirm-impact" role="list" aria-label="成交影响摘要" aria-live="polite">
+              <div class="trade-confirm-impact-item" role="listitem">
+                <span>当前货舱</span>
+                <strong id="modal-cargo-before">0 / 0</strong>
+              </div>
+              <div class="trade-confirm-impact-item" role="listitem">
+                <span>成交后</span>
+                <strong id="modal-cargo-after">0 / 0</strong>
+              </div>
+              <div class="trade-confirm-impact-item" role="listitem">
+                <span>资金变化</span>
+                <strong id="modal-credit-delta">待确认</strong>
+              </div>
+            </div>
+            <div id="modal-total" role="status" aria-live="polite"></div>
+          </section>
         </div>
         <div class="modal-actions">
-          <button id="modal-confirm" class="btn-primary">确认</button>
-          <button id="modal-cancel" class="btn-secondary">取消</button>
+          <button id="modal-confirm" class="btn-primary" type="button">确认</button>
+          <button id="modal-cancel" class="btn-secondary" type="button">取消</button>
         </div>
       </div>
     </div>
 
     <!-- ================================================================
-     Event notification bar (非阻塞事件通知)
-================================================================ -->
-    <div id="event-notification" class="event-notification hidden">
-      <span id="event-notif-icon" class="event-notif-icon"></span>
-      <span id="event-notif-text" class="event-notif-text"></span>
-      <button id="event-notif-open" class="event-notif-btn">查看事件</button>
-    </div>
-
-    <!-- ================================================================
      Event modal (群星风格随机事件)
 ================================================================ -->
-    <div id="event-modal" class="modal hidden" role="dialog" aria-modal="true">
-      <div class="modal-box stack-modal-box event-modal-box">
+    <div
+      id="event-modal"
+      class="modal hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="event-title"
+      aria-describedby="event-summary event-desc event-impact"
+    >
+      <div class="modal-box stack-modal-box event-modal-box" tabindex="-1">
         <div class="stack-modal-scroll">
           <div class="event-header">
-            <span id="event-icon" class="event-icon-large"></span>
-            <h3 id="event-title">事件</h3>
+            <span id="event-icon" class="event-icon-large" aria-hidden="true"></span>
+            <div class="event-header-copy">
+              <div class="event-kicker">事件简报</div>
+              <h3 id="event-title">事件</h3>
+            </div>
           </div>
           <div id="event-meta" class="event-meta"></div>
+          <div id="event-summary" class="event-summary" role="list" aria-label="事件状态摘要" aria-live="polite"></div>
           <p id="event-desc" class="event-description"></p>
-          <div id="event-choices" class="event-choices"></div>
+          <div id="event-impact" class="event-impact-panel" role="list" aria-label="事件影响预览"></div>
+          <div id="event-choices" class="event-choices" role="list" aria-label="事件处置选项"></div>
         </div>
       </div>
     </div>
@@ -634,25 +957,67 @@
     <!-- ================================================================
      Dialogue modal (轻量剧情演出)
 ================================================================ -->
-    <div id="dialogue-modal" class="modal hidden" role="dialog" aria-modal="true">
-      <div class="modal-box stack-modal-box dialogue-modal-box">
+    <div
+      id="dialogue-modal"
+      class="modal hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="dialogue-scene-title"
+      aria-describedby="dialogue-summary dialogue-branch-panel dialogue-text dialogue-footer"
+    >
+      <div class="modal-box stack-modal-box dialogue-modal-box" tabindex="-1">
         <div class="stack-modal-scroll">
           <div class="dialogue-scene-label" id="dialogue-scene-label">剧情演出</div>
           <div class="dialogue-header">
-            <span id="dialogue-speaker-icon" class="dialogue-speaker-icon">💬</span>
+            <span id="dialogue-speaker-icon" class="dialogue-speaker-icon" aria-hidden="true">💬</span>
             <div class="dialogue-header-copy">
               <div id="dialogue-speaker-name" class="dialogue-speaker-name">未知发言者</div>
               <h3 id="dialogue-scene-title" class="dialogue-scene-title">通讯接入</h3>
             </div>
           </div>
-          <div id="dialogue-progress" class="dialogue-progress"></div>
-          <p id="dialogue-text" class="dialogue-text"></p>
+          <div
+            id="dialogue-progress"
+            class="dialogue-progress"
+            role="progressbar"
+            aria-label="剧情进度"
+            aria-valuemin="1"
+            aria-valuemax="1"
+            aria-valuenow="1"
+          ></div>
+          <div id="dialogue-summary" class="dialogue-summary" role="list" aria-label="剧情状态摘要" aria-live="polite"></div>
+          <div id="dialogue-branch-panel" class="dialogue-branch-panel" role="list" aria-label="剧情分支态势"></div>
+          <p id="dialogue-text" class="dialogue-text" aria-live="polite"></p>
           <div id="dialogue-footer" class="dialogue-footer hidden"></div>
-          <div id="dialogue-choices" class="dialogue-choices hidden"></div>
+          <div id="dialogue-choices" class="dialogue-choices hidden" role="list" aria-label="剧情分支选项" aria-hidden="true"></div>
         </div>
         <div class="modal-actions dialogue-actions">
-          <button id="dialogue-skip-btn" class="btn-secondary">收起</button>
-          <button id="dialogue-next-btn" class="btn-primary">下一句</button>
+          <button id="dialogue-skip-btn" class="btn-secondary" type="button" aria-label="跳过当前剧情">跳过剧情</button>
+          <button id="dialogue-next-btn" class="btn-primary" type="button">下一句</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================================
+     Shared action confirmation modal
+================================================================ -->
+    <div
+      id="action-confirm-modal"
+      class="modal hidden"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="action-confirm-title"
+      aria-describedby="action-confirm-message action-confirm-impact"
+    >
+      <div class="modal-box stack-modal-box action-confirm-box" tabindex="-1">
+        <div class="stack-modal-scroll">
+          <div id="action-confirm-kicker" class="action-confirm-kicker">危险操作</div>
+          <h2 id="action-confirm-title">确认此操作？</h2>
+          <p id="action-confirm-message" class="action-confirm-message">请核对影响后再继续。</p>
+          <div id="action-confirm-impact" class="action-confirm-impact" role="list" aria-label="操作影响"></div>
+        </div>
+        <div class="modal-actions action-confirm-actions">
+          <button id="action-confirm-cancel" class="btn-secondary" type="button">取消</button>
+          <button id="action-confirm-accept" class="btn-primary action-confirm-accept" type="button">确认执行</button>
         </div>
       </div>
     </div>
@@ -665,15 +1030,23 @@
       class="modal hidden"
       role="dialog"
       aria-modal="true"
+      aria-labelledby="gameover-title"
+      aria-describedby="gameover-message gameover-next-actions gameover-action-status"
     >
-      <div class="modal-box stack-modal-box gameover-box">
+      <div class="modal-box stack-modal-box gameover-box" tabindex="-1">
         <div class="stack-modal-scroll">
           <h2 id="gameover-title">游戏结束</h2>
-          <pre id="gameover-message" class="gameover-message"></pre>
+          <div id="gameover-message" class="gameover-message" aria-live="polite"></div>
         </div>
-        <button id="restart-btn" class="btn-primary" style="margin-top: 12px">
-          重新开始
-        </button>
+        <div id="gameover-action-status" class="gameover-action-status" role="status" aria-live="polite"></div>
+        <div class="modal-actions gameover-actions">
+          <button id="continue-playing-btn" class="btn-primary" type="button" aria-describedby="gameover-continue-note">
+            继续经营
+          </button>
+          <button id="restart-btn" class="btn-secondary gameover-restart-btn" type="button" aria-describedby="gameover-restart-note gameover-action-status" aria-pressed="false">
+            重新开始
+          </button>
+        </div>
       </div>
     </div>
 
@@ -685,60 +1058,92 @@
       class="modal hidden"
       role="dialog"
       aria-modal="true"
+      aria-labelledby="dispatch-title"
+      aria-describedby="dispatch-modal-desc dispatch-route-summary dispatch-primary-hint dispatch-policy-status"
     >
-      <div class="modal-box">
-        <h3 id="dispatch-title">📡 派遣贸易</h3>
-        <div id="dispatch-primary-hint" class="dispatch-primary-hint"></div>
-        <div class="dispatch-form dispatch-form--core">
-          <label class="dispatch-label"
-            >买入星系
-            <select id="dispatch-buy-system" class="dispatch-select"></select>
-          </label>
-          <label class="dispatch-label"
-            >卖出星系
-            <select id="dispatch-sell-system" class="dispatch-select"></select>
-          </label>
-          <label class="dispatch-label dispatch-label--full"
-            >贸易商品
-            <select id="dispatch-good" class="dispatch-select"></select>
-          </label>
+      <div class="modal-box dispatch-modal-box" tabindex="-1">
+        <h3 id="dispatch-title" class="dispatch-modal-title">📡 派遣贸易</h3>
+        <p id="dispatch-modal-desc" class="dispatch-modal-desc">
+          选择买入地、卖出地和商品后，系统会实时估算利润、燃料与执法风险。
+        </p>
+        <div id="dispatch-route-summary" class="dispatch-route-summary" role="list" aria-label="当前派遣路线摘要" aria-live="polite">
+          <span class="dispatch-route-summary-item" role="listitem">
+            <em>买入地</em>
+            <strong id="dispatch-summary-buy">待选择</strong>
+          </span>
+          <span class="dispatch-route-summary-item" role="listitem">
+            <em>卖出地</em>
+            <strong id="dispatch-summary-sell">待选择</strong>
+          </span>
+          <span class="dispatch-route-summary-item" role="listitem">
+            <em>商品</em>
+            <strong id="dispatch-summary-good">待选择</strong>
+          </span>
+          <span class="dispatch-route-summary-item dispatch-route-summary-item--policy" role="listitem">
+            <em>策略</em>
+            <strong id="dispatch-summary-policy">公开市场 · 平衡</strong>
+          </span>
         </div>
-        <details id="dispatch-advanced-panel" class="dispatch-advanced-panel">
-          <summary>高级策略（市场、风险、价格阈值）</summary>
-          <div class="dispatch-form dispatch-form--advanced">
-            <label class="dispatch-label"
-              >交易市场
-              <select id="dispatch-market-mode" class="dispatch-select">
-                <option value="open" selected>公开市场</option>
-                <option value="black">黑市</option>
-              </select>
-            </label>
-            <label class="dispatch-label"
-              >风险偏好
-              <select id="dispatch-risk-mode" class="dispatch-select">
-                <option value="safe">保守</option>
-                <option value="balanced" selected>平衡</option>
-                <option value="aggressive">激进</option>
-              </select>
-            </label>
-            <label class="dispatch-label"
-              >最高买入价
-              <input id="dispatch-max-buy-price" class="dispatch-select" type="number" min="0" step="1" placeholder="留空则不限制" />
-            </label>
-            <label class="dispatch-label"
-              >最低卖出价
-              <input id="dispatch-min-sell-price" class="dispatch-select" type="number" min="0" step="1" placeholder="留空则不限制" />
-            </label>
-            <label class="dispatch-label dispatch-label--full"
-              >最低利润率（%）
-              <input id="dispatch-min-profit-rate" class="dispatch-select" type="number" min="0" step="1" placeholder="留空则不限制" />
-            </label>
-          </div>
-        </details>
-        <div id="dispatch-estimate" class="dispatch-estimate"></div>
+        <div class="dispatch-route-shell">
+          <section class="dispatch-route-section dispatch-route-section--plan" aria-label="派遣路线配置">
+            <div id="dispatch-primary-hint" class="dispatch-primary-hint" role="status"></div>
+            <div class="dispatch-form dispatch-form--core">
+              <label class="dispatch-label"
+                >买入星系
+                <select id="dispatch-buy-system" class="dispatch-select"></select>
+              </label>
+              <label class="dispatch-label"
+                >卖出星系
+                <select id="dispatch-sell-system" class="dispatch-select"></select>
+              </label>
+              <label class="dispatch-label dispatch-label--full"
+                >贸易商品
+                <select id="dispatch-good" class="dispatch-select"></select>
+              </label>
+            </div>
+          </section>
+          <details id="dispatch-advanced-panel" class="dispatch-advanced-panel">
+            <summary>高级策略（市场、风险、价格阈值）</summary>
+            <div class="dispatch-form dispatch-form--advanced">
+              <label class="dispatch-label"
+                >交易市场
+                <select id="dispatch-market-mode" class="dispatch-select">
+                  <option value="open" selected>公开市场</option>
+                  <option value="black">黑市</option>
+                </select>
+              </label>
+              <label class="dispatch-label"
+                >风险偏好
+                <select id="dispatch-risk-mode" class="dispatch-select">
+                  <option value="safe">保守</option>
+                  <option value="balanced" selected>平衡</option>
+                  <option value="aggressive">激进</option>
+                </select>
+              </label>
+              <label class="dispatch-label"
+                >最高买入价
+                <input id="dispatch-max-buy-price" class="dispatch-select" type="number" min="0" step="any" inputmode="decimal" placeholder="留空则不限制" aria-describedby="dispatch-policy-status" />
+              </label>
+              <label class="dispatch-label"
+                >最低卖出价
+                <input id="dispatch-min-sell-price" class="dispatch-select" type="number" min="0" step="any" inputmode="decimal" placeholder="留空则不限制" aria-describedby="dispatch-policy-status" />
+              </label>
+              <label class="dispatch-label dispatch-label--full"
+                >最低利润率（%）
+                <input id="dispatch-min-profit-rate" class="dispatch-select" type="number" min="0" step="any" inputmode="decimal" placeholder="留空则不限制" aria-describedby="dispatch-policy-status" />
+              </label>
+            </div>
+            <div id="dispatch-policy-status" class="dispatch-policy-status" role="status" aria-live="polite">
+              价格与利润阈值均未限制。
+            </div>
+          </details>
+          <section class="dispatch-route-section dispatch-route-section--estimate" aria-label="派遣估算">
+            <div id="dispatch-estimate" class="dispatch-estimate" aria-live="polite"></div>
+          </section>
+        </div>
         <div class="modal-actions">
-          <button id="dispatch-confirm" class="btn-primary">一键派遣</button>
-          <button id="dispatch-cancel" class="btn-secondary">取消</button>
+          <button id="dispatch-confirm" class="btn-primary" type="button">一键派遣</button>
+          <button id="dispatch-cancel" class="btn-secondary" type="button">取消</button>
         </div>
       </div>
     </div>
@@ -746,34 +1151,74 @@
     <!-- ================================================================
      Mod modal (飞船改装弹窗)
 ================================================================ -->
-    <div id="mod-modal" class="modal hidden" role="dialog" aria-modal="true">
-      <div class="modal-box mod-modal-box">
+    <div
+      id="mod-modal"
+      class="modal hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="mod-modal-title"
+      aria-describedby="mod-modal-desc mod-modal-body"
+    >
+      <div class="modal-box mod-modal-box" tabindex="-1">
         <h3 id="mod-modal-title">🔧 飞船改装</h3>
-        <div id="mod-modal-body"></div>
+        <p id="mod-modal-desc" class="mod-modal-desc">
+          管理结构升级、功能组件、维修排程和资产处置。操作会实时更新飞船状态。
+        </p>
+        <div id="mod-modal-body" class="mod-modal-body stack-modal-scroll" aria-live="polite"></div>
         <div class="modal-actions">
-          <button id="mod-modal-close" class="btn-secondary">关闭</button>
+          <button id="mod-modal-close" class="btn-secondary" type="button">返回机库列表</button>
         </div>
       </div>
     </div>
 
-    <div id="crew-modal" class="modal hidden" role="dialog" aria-modal="true">
-      <div class="modal-box crew-modal-box">
+    <div
+      id="crew-modal"
+      class="modal hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="crew-modal-title"
+      aria-describedby="crew-modal-desc crew-modal-summary"
+    >
+      <div class="modal-box crew-modal-box" tabindex="-1">
         <h3 id="crew-modal-title">👥 船员管理</h3>
-        <div id="crew-modal-summary" class="crew-modal-summary"></div>
-        <div class="crew-modal-section">
-          <h4>当前船员</h4>
-          <div id="crew-assigned-list" class="crew-list"></div>
-        </div>
-        <div class="crew-modal-section">
-          <h4>预备队</h4>
-          <div id="crew-reserve-list" class="crew-list"></div>
-        </div>
-        <div class="crew-modal-section">
-          <h4>港口招募</h4>
-          <div id="crew-market-list" class="crew-list"></div>
+        <div class="crew-modal-scroll stack-modal-scroll">
+          <p id="crew-modal-desc" class="crew-modal-desc">
+            分配船员、管理预备队、招募港口人才，并调整当前飞船的舰桥协议。
+          </p>
+          <div id="crew-modal-summary" class="crew-modal-summary" role="list" aria-live="polite"></div>
+          <div class="crew-modal-section" role="region" aria-labelledby="crew-assigned-title" aria-describedby="crew-assigned-status">
+            <div class="crew-modal-section-head">
+              <div class="crew-modal-section-title-block">
+                <span class="crew-modal-section-kicker">ASSIGNED CREW</span>
+                <h4 id="crew-assigned-title">当前船员</h4>
+              </div>
+              <div id="crew-assigned-status" class="crew-modal-section-meta" role="list" aria-label="当前船员状态"></div>
+            </div>
+            <div id="crew-assigned-list" class="crew-list" role="list"></div>
+          </div>
+          <div class="crew-modal-section" role="region" aria-labelledby="crew-reserve-title" aria-describedby="crew-reserve-status">
+            <div class="crew-modal-section-head">
+              <div class="crew-modal-section-title-block">
+                <span class="crew-modal-section-kicker">RESERVE ROSTER</span>
+                <h4 id="crew-reserve-title">预备队</h4>
+              </div>
+              <div id="crew-reserve-status" class="crew-modal-section-meta" role="list" aria-label="预备队状态"></div>
+            </div>
+            <div id="crew-reserve-list" class="crew-list" role="list"></div>
+          </div>
+          <div class="crew-modal-section" role="region" aria-labelledby="crew-market-title" aria-describedby="crew-market-status">
+            <div class="crew-modal-section-head">
+              <div class="crew-modal-section-title-block">
+                <span class="crew-modal-section-kicker">PORT TALENT</span>
+                <h4 id="crew-market-title">港口招募</h4>
+              </div>
+              <div id="crew-market-status" class="crew-modal-section-meta" role="list" aria-label="港口招募状态"></div>
+            </div>
+            <div id="crew-market-list" class="crew-list" role="list"></div>
+          </div>
         </div>
         <div class="modal-actions">
-          <button id="crew-modal-close" class="btn-secondary">关闭</button>
+          <button id="crew-modal-close" class="btn-secondary" type="button">返回机库列表</button>
         </div>
       </div>
     </div>
@@ -783,8 +1228,17 @@
     <!-- ================================================================
      Tutorial: 新手引导遮罩 & 提示框
 ================================================================ -->
-    <div id="tutorial-overlay" class="hidden"></div>
-    <div id="tutorial-tooltip" class="tutorial-tooltip hidden"></div>
+    <div id="tutorial-overlay" class="hidden" aria-hidden="true"></div>
+    <div
+      id="tutorial-tooltip"
+      class="tutorial-tooltip hidden"
+      role="dialog"
+      aria-live="polite"
+      aria-hidden="true"
+      aria-labelledby="tutorial-tooltip-title"
+      aria-describedby="tutorial-tooltip-content"
+      tabindex="-1"
+    ></div>
 
     <!-- ================================================================
      Tutorial: 首次启动弹窗
@@ -797,29 +1251,65 @@
       class="modal hidden"
       role="dialog"
       aria-modal="true"
+      aria-labelledby="company-rename-title"
+      aria-describedby="company-rename-desc company-rename-decision company-name-error"
     >
-      <div class="modal-box company-rename-box">
-        <div class="company-rename-title">◉ 注册企业代号</div>
-        <p class="company-rename-desc">
-          你已接管这家深空贸易实体。为它写入新的识别代号，然后接入整条蓝脉航路。
-        </p>
-        <div class="company-rename-form">
-          <input
-            id="company-name-input"
-            class="company-name-input"
-            type="text"
-            maxlength="24"
-            placeholder="输入企业代号…"
-          />
-          <div id="company-name-error" class="company-name-error hidden">
-            名称不能为空
+      <div class="modal-box company-rename-box" tabindex="-1">
+        <div id="company-rename-title" class="company-rename-title">◉ 注册企业代号</div>
+        <div class="company-rename-body">
+          <section class="company-rename-brief" aria-labelledby="company-rename-title">
+            <p id="company-rename-desc" class="company-rename-desc">
+              你已接管这家深空贸易实体。写入新的识别代号后，日志、任务和公司指令都会沿用这个名称。
+            </p>
+            <div class="company-rename-signal" role="list" aria-label="注册信息">
+              <div class="company-rename-signal-item" role="listitem" data-company-name-tone="neutral">
+                <span>识别码长度</span>
+                <strong id="company-name-length">0/24</strong>
+              </div>
+              <div class="company-rename-signal-item" role="listitem" data-company-name-tone="pending">
+                <span>接入状态</span>
+              <strong id="company-name-status" aria-live="polite">待输入</strong>
+              </div>
+              <div class="company-rename-signal-item" role="listitem" data-company-name-tone="ready">
+                <span>显示预览</span>
+                <strong id="company-name-preview">测试公司</strong>
+              </div>
+            </div>
+          </section>
+          <div class="company-rename-form">
+            <label class="company-name-label" for="company-name-input">企业代号</label>
+            <input
+              id="company-name-input"
+              class="company-name-input"
+              type="text"
+              maxlength="24"
+              placeholder="输入企业代号…"
+              aria-describedby="company-name-hint company-name-error"
+              autocomplete="organization"
+            />
+            <div id="company-name-hint" class="company-name-hint">
+              代号会显示在顶部状态栏、任务记录和公司指令中。
+            </div>
+            <div id="company-name-error" class="company-name-error hidden" role="alert" aria-live="polite">
+              名称不能为空
+            </div>
+          </div>
+          <div id="company-rename-decision" class="company-rename-decision" role="list" aria-label="命名决策说明">
+            <div id="company-rename-write-note" class="company-rename-decision-card company-rename-decision-card--primary" role="listitem">
+              <span>写入代号</span>
+              <strong>立即更新所有公司称谓</strong>
+            </div>
+            <div id="company-rename-default-note" class="company-rename-decision-card" role="listitem">
+              <span>沿用默认</span>
+              <strong>稍后仍可继续经营</strong>
+            </div>
           </div>
         </div>
         <div class="company-rename-actions">
-          <button id="company-rename-confirm" class="tut-btn tut-btn-primary">
+          <button id="company-rename-confirm" class="tut-btn tut-btn-primary" type="button" aria-describedby="company-rename-write-note">
             ✅ 写入代号
           </button>
-          <button id="company-rename-skip" class="tut-btn tut-btn-secondary">
+          <button id="company-rename-skip" class="tut-btn tut-btn-secondary" type="button" aria-describedby="company-rename-default-note">
             沿用默认代号
           </button>
         </div>
@@ -831,22 +1321,54 @@
       class="modal hidden"
       role="dialog"
       aria-modal="true"
+      aria-labelledby="tutorial-start-title"
+      aria-describedby="tutorial-start-desc tutorial-start-decision tutorial-start-hint"
     >
-      <div class="modal-box">
-        <div class="tut-start-title">✦ 欢迎接入蓝脉</div>
-        <p class="tut-start-desc">
-          你刚接管一条濒临停摆的深空贸易航线。<br />
-          要先完成一轮基础接入训练吗？
-        </p>
+      <div class="modal-box tutorial-start-box" tabindex="-1">
+        <div id="tutorial-start-title" class="tut-start-title">✦ 欢迎接入蓝脉</div>
+        <div class="tut-start-body">
+          <p id="tutorial-start-desc" class="tut-start-desc">
+            你刚接管一条濒临停摆的深空贸易航线。先完成一轮基础接入训练，可以快速熟悉交易、航行和任务追踪。
+          </p>
+          <div class="tut-start-modules" role="list" aria-label="教程内容">
+            <div class="tut-start-module" role="listitem">
+              <span>01</span>
+              <strong>买入与出售</strong>
+              <small>完成第一笔稳定交易</small>
+            </div>
+            <div class="tut-start-module" role="listitem">
+              <span>02</span>
+              <strong>航行与燃料</strong>
+              <small>理解路线消耗与补给</small>
+            </div>
+            <div class="tut-start-module" role="listitem">
+              <span>03</span>
+              <strong>任务追踪</strong>
+              <small>接入当前目标引导</small>
+            </div>
+          </div>
+          <div id="tutorial-start-decision" class="tut-start-decision" role="list" aria-label="教程启动选项说明">
+            <div id="tutorial-start-guided-note" class="tut-start-decision-card tut-start-decision-card--primary" role="listitem">
+              <span>推荐</span>
+              <strong>启动接入教程</strong>
+              <small>保留任务引导，按步骤完成第一轮交易。</small>
+            </div>
+            <div id="tutorial-start-free-note" class="tut-start-decision-card" role="listitem">
+              <span>自由</span>
+              <strong>直接上线</strong>
+              <small>跳过教学流程，只保留常规行动指引。</small>
+            </div>
+          </div>
+        </div>
         <div class="tut-start-actions">
-          <button id="tut-start-yes" class="tut-btn tut-btn-primary">
+          <button id="tut-start-yes" class="tut-btn tut-btn-primary" type="button" aria-describedby="tutorial-start-guided-note">
             🚀 启动接入教程
           </button>
-          <button id="tut-start-no" class="tut-btn tut-btn-secondary">
+          <button id="tut-start-no" class="tut-btn tut-btn-secondary" type="button" aria-describedby="tutorial-start-free-note">
             跳过校准，直接上线
           </button>
         </div>
-        <div class="tut-start-hint">教程约 2 分钟，随时可中断</div>
+        <div id="tutorial-start-hint" class="tut-start-hint">教程约 2 分钟，随时可中断</div>
       </div>
     </div>
 
@@ -858,13 +1380,53 @@
       class="modal hidden"
       role="dialog"
       aria-modal="true"
+      aria-labelledby="victory-modal-title"
+      aria-describedby="victory-modal-desc victory-modal-body"
     >
-      <div class="modal-box stack-modal-box victory-modal-box">
-        <h3>▣ 协议进度</h3>
+      <div class="modal-box stack-modal-box victory-modal-box" tabindex="-1">
+        <h3 id="victory-modal-title">▣ 协议进度</h3>
+        <p id="victory-modal-desc" class="victory-modal-desc">
+          追踪各条胜利路径的完成度、关键条件和当前缺口。
+        </p>
         <div id="victory-modal-body" class="victory-modal-body stack-modal-scroll"></div>
         <div class="modal-actions">
-          <button id="victory-modal-close" class="btn-secondary">关闭</button>
+          <button id="victory-modal-close" class="btn-secondary" type="button">关闭</button>
         </div>
+      </div>
+    </div>
+
+    <!-- ================================================================
+     Company Directives modal (公司指令面板)
+================================================================ -->
+    <div
+      id="company-directives-modal"
+      class="modal hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="company-directives-title"
+      aria-describedby="company-directives-desc company-directives-body"
+    >
+      <div class="modal-box stack-modal-box company-directives-modal-box" tabindex="-1">
+        <div class="company-directives-head">
+          <div class="company-directives-title-copy">
+            <h3 id="company-directives-title">▣ 公司指令</h3>
+            <p id="company-directives-desc" class="company-directives-desc">
+              查看总部目标、追踪下一步行动，并集中领取已经完成的公司奖励。
+            </p>
+          </div>
+          <button
+            id="company-directives-modal-close"
+            class="secondary-panel-close"
+            type="button"
+            aria-label="关闭公司指令"
+          >✕</button>
+        </div>
+        <div
+          id="company-directives-body"
+          class="company-directives-body stack-modal-scroll"
+          role="region"
+          aria-label="公司指令列表"
+        ></div>
       </div>
     </div>
 
@@ -873,8 +1435,10 @@
       class="modal hidden"
       role="dialog"
       aria-modal="true"
+      aria-labelledby="settings-page-title"
+      aria-describedby="settings-modal-desc settings-overview-strip settings-change-status"
     >
-      <div class="modal-box settings-modal-box">
+      <div class="modal-box settings-modal-box" tabindex="-1">
         <!-- 装饰角标 -->
         <span class="settings-corner settings-corner--tl"></span>
         <span class="settings-corner settings-corner--tr"></span>
@@ -888,6 +1452,8 @@
             class="settings-tab-radio"
             type="radio"
             name="settings-tab"
+            tabindex="-1"
+            aria-hidden="true"
             checked
           />
           <input
@@ -895,12 +1461,16 @@
             class="settings-tab-radio"
             type="radio"
             name="settings-tab"
+            tabindex="-1"
+            aria-hidden="true"
           />
           <input
             id="settings-tab-data"
             class="settings-tab-radio"
             type="radio"
             name="settings-tab"
+            tabindex="-1"
+            aria-hidden="true"
           />
 
           <!-- 左侧导航栏 -->
@@ -908,37 +1478,59 @@
             <div class="settings-sidebar-title">⚙ 设置</div>
             <div class="settings-nav-list" role="tablist" aria-label="设置分页">
               <label
+                id="settings-tab-label-display"
                 class="settings-nav-item"
                 for="settings-tab-display"
                 role="tab"
+                tabindex="0"
                 aria-selected="true"
+                aria-controls="settings-panel-display"
                 data-settings-panel-target="display"
               >
-                <span class="settings-nav-icon">◈</span>显示
+                <span class="settings-nav-icon">◈</span>
+                <span class="settings-nav-copy">
+                  <span>显示</span>
+                  <small class="settings-nav-subtitle">视觉 / 性能</small>
+                </span>
               </label>
               <label
+                id="settings-tab-label-game"
                 class="settings-nav-item"
                 for="settings-tab-game"
                 role="tab"
+                tabindex="-1"
                 aria-selected="false"
+                aria-controls="settings-panel-game"
                 data-settings-panel-target="game"
               >
-                <span class="settings-nav-icon">◈</span>游戏
+                <span class="settings-nav-icon">◈</span>
+                <span class="settings-nav-copy">
+                  <span>游戏</span>
+                  <small class="settings-nav-subtitle">难度 / 节奏</small>
+                </span>
               </label>
               <label
+                id="settings-tab-label-data"
                 class="settings-nav-item settings-nav-item--danger"
                 for="settings-tab-data"
                 role="tab"
+                tabindex="-1"
                 aria-selected="false"
+                aria-controls="settings-panel-data"
                 data-settings-panel-target="data"
               >
-                <span class="settings-nav-icon">◈</span>数据
+                <span class="settings-nav-icon">◈</span>
+                <span class="settings-nav-copy">
+                  <span>数据</span>
+                  <small class="settings-nav-subtitle">存档 / 重置</small>
+                </span>
               </label>
             </div>
             <div class="settings-sidebar-footer">
               <button
                 id="settings-reset-defaults-btn"
                 class="settings-sidebar-btn"
+                type="button"
               >
                 ↺ 恢复默认
               </button>
@@ -948,22 +1540,51 @@
           <!-- 右侧内容区 -->
           <div class="settings-main">
             <div class="settings-main-header">
-              <div class="settings-main-title" id="settings-page-title">
-                显示设置
+              <div class="settings-main-header-copy">
+                <div class="settings-main-title" id="settings-page-title">
+                  显示设置
+                </div>
+                <p id="settings-modal-desc" class="settings-modal-desc">
+                  管理显示、游戏节奏、音效和本地数据。危险操作会在执行前再次确认。
+                </p>
               </div>
-              <a
+              <button
                 id="settings-close-btn"
-                href="#"
                 class="settings-close-btn"
+                type="button"
                 aria-label="关闭设置"
-                >✕</a
-              >
+              >✕</button>
+            </div>
+            <div id="settings-overview-strip" class="settings-overview-strip" role="list" aria-label="当前设置摘要">
+              <span class="settings-overview-item" role="listitem">
+                <em>动画</em>
+                <strong id="settings-summary-motion">完整</strong>
+              </span>
+              <span class="settings-overview-item" role="listitem">
+                <em>难度</em>
+                <strong id="settings-summary-difficulty">标准模式</strong>
+              </span>
+              <span class="settings-overview-item" role="listitem">
+                <em>时间流速</em>
+                <strong id="settings-summary-time">60 秒 / 天</strong>
+              </span>
+              <span class="settings-overview-item" role="listitem">
+                <em>音效</em>
+                <strong id="settings-summary-audio">开启 · 35%</strong>
+              </span>
+            </div>
+            <div id="settings-change-status" class="settings-change-status" role="status" aria-live="polite" data-status-tone="neutral">
+              更改会自动保存在当前设备。
             </div>
 
             <div class="settings-main-content">
               <section
+                id="settings-panel-display"
                 class="settings-panel-page settings-panel-page--display"
                 data-settings-panel="display"
+                role="tabpanel"
+                tabindex="0"
+                aria-labelledby="settings-tab-label-display"
               >
                 <div class="settings-row">
                   <div class="settings-row-label">
@@ -976,6 +1597,7 @@
                     <select
                       id="settings-motion-level"
                       class="dispatch-select settings-select"
+                      aria-label="动画强度"
                     >
                       <option value="full">完整</option>
                       <option value="reduced">降低</option>
@@ -998,6 +1620,7 @@
                       id="settings-secret-routes-visible"
                       class="settings-toggle"
                       type="checkbox"
+                      aria-label="暗线显示"
                       checked
                     />
                   </div>
@@ -1017,6 +1640,7 @@
                       id="settings-terminal-blur"
                       class="settings-toggle"
                       type="checkbox"
+                      aria-label="终端模糊特效"
                       checked
                     />
                   </div>
@@ -1027,8 +1651,12 @@
               </section>
 
               <section
+                id="settings-panel-game"
                 class="settings-panel-page settings-panel-page--game"
                 data-settings-panel="game"
+                role="tabpanel"
+                tabindex="0"
+                aria-labelledby="settings-tab-label-game"
               >
                 <div class="settings-row">
                   <div class="settings-row-label">
@@ -1041,6 +1669,7 @@
                     <select
                       id="settings-difficulty-level"
                       class="settings-select"
+                      aria-label="游戏难度"
                     >
                       <option value="easy">休闲模式</option>
                       <option value="normal">标准模式</option>
@@ -1062,6 +1691,7 @@
                     <select
                       id="settings-time-scale"
                       class="settings-select"
+                      aria-label="时间流速"
                     >
                       <option value="30000">30 秒 / 天</option>
                       <option value="60000">60 秒 / 天</option>
@@ -1084,6 +1714,7 @@
                       id="settings-sfx-enabled"
                       class="settings-toggle"
                       type="checkbox"
+                      aria-label="音效反馈"
                       checked
                     />
                   </div>
@@ -1100,6 +1731,7 @@
                       id="settings-sfx-volume"
                       class="settings-range"
                       type="range"
+                      aria-label="音效音量"
                       min="0"
                       max="1"
                       step="0.05"
@@ -1123,6 +1755,7 @@
                     <button
                       id="settings-reset-tutorial-btn"
                       class="settings-action-btn settings-action-btn--danger"
+                      type="button"
                     >
                       重新开始
                     </button>
@@ -1134,13 +1767,17 @@
               </section>
 
               <section
+                id="settings-panel-data"
                 class="settings-panel-page settings-panel-page--data"
                 data-settings-panel="data"
+                role="tabpanel"
+                tabindex="0"
+                aria-labelledby="settings-tab-label-data"
               >
-                <div class="settings-row">
+                <div class="settings-row settings-row--danger">
                   <div class="settings-row-label">
                     <span class="settings-label">清除存档</span>
-                    <span class="settings-row-desc"
+                    <span id="settings-clear-saves-desc" class="settings-row-desc"
                       >清理所有本地存档数据（不可恢复）</span
                     >
                   </div>
@@ -1148,6 +1785,8 @@
                     <button
                       id="settings-clear-saves-btn"
                       class="settings-action-btn settings-action-btn--danger"
+                      type="button"
+                      aria-describedby="settings-clear-saves-desc"
                     >
                       清空存档
                     </button>
@@ -1169,6 +1808,6 @@
 
     <!-- Babylon.js library for 3D rendering -->
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
-    <script type="module" src="js/main.js?v=20260525-audio1"></script>
+    <script type="module" src="js/main.js?v=20260621-settingsfallback1"></script>
   </body>
 </html>

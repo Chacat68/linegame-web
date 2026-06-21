@@ -1814,6 +1814,33 @@ body[data-motion="off"] .mod-modal-guidance-focus {
   border-color: rgba(251, 191, 36, 0.3);
   color: #ffd38a;
 }
+.dispatch-route-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 8px 0 0;
+}
+.dispatch-route-summary-item {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 8px 9px;
+  border: 1px solid rgba(79, 195, 247, 0.16);
+  border-radius: 8px;
+  background: rgba(7, 15, 30, 0.62);
+}
+.dispatch-route-summary-item em {
+  color: var(--text-dim);
+  font-size: 10px;
+  font-style: normal;
+}
+.dispatch-route-summary-item strong {
+  min-width: 0;
+  color: var(--text-primary);
+  font-size: 12px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
 .dispatch-advanced-panel {
   margin: 0 0 10px;
   border-radius: 8px;
@@ -1918,7 +1945,8 @@ body[data-motion="off"] .mod-modal-guidance-focus {
     grid-template-columns: 1fr;
   }
   .dispatch-form--core,
-  .dispatch-form--advanced {
+  .dispatch-form--advanced,
+  .dispatch-route-summary {
     grid-template-columns: 1fr;
   }
   .dispatch-risk-grid {
@@ -3274,6 +3302,45 @@ body[data-motion="off"] .mod-modal-guidance-focus {
   font-size: 11px;
   color: #8090b0;
   line-height: 1.45;
+}
+.market-survey-chain-row {
+  align-items: flex-start;
+  border-color: rgba(125, 211, 252, 0.12);
+}
+.market-survey-chain-row--discovered {
+  border-color: rgba(250, 204, 21, 0.18);
+  background: rgba(80, 54, 18, 0.34);
+}
+.market-survey-chain-row--archived {
+  border-color: rgba(74, 222, 128, 0.18);
+  background: rgba(16, 62, 45, 0.36);
+}
+.market-survey-chain-row.is-followup-ready {
+  border-color: rgba(251, 191, 36, 0.32);
+}
+.market-survey-chain-row.is-followup-acknowledged {
+  border-color: rgba(148, 163, 184, 0.18);
+  background: rgba(31, 41, 55, 0.36);
+}
+.market-survey-chain-row--guide-focus {
+  border-color: rgba(125, 211, 252, 0.72);
+  box-shadow: 0 0 0 1px rgba(125, 211, 252, 0.22), 0 14px 36px rgba(14, 165, 233, 0.14);
+}
+.market-survey-chain-note {
+  flex: 0 1 220px;
+  margin-top: 0;
+  text-align: right;
+}
+@media (max-width: 720px) {
+  .market-survey-chain-row {
+    flex-direction: column;
+  }
+
+  .market-survey-chain-note {
+    flex-basis: auto;
+    width: 100%;
+    text-align: left;
+  }
 }
 .market-finance-inline-actions {
   display: inline-flex;
@@ -5726,44 +5793,54 @@ details.market-collapse summary {
 .fleet-inline-container {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
+  min-width: 0;
   width: 100%;
 }
 
 .inline-portal-back-bar {
+  position: sticky;
+  top: 0;
+  z-index: 8;
   display: flex;
   align-items: center;
-  background: rgba(10, 30, 50, 0.4);
+  width: 100%;
+  background: rgba(4, 18, 31, 0.92);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(0, 240, 255, 0.25);
+  border: 1px solid rgba(108, 231, 255, 0.2);
   border-radius: 8px;
-  padding: 10px 16px;
-  margin-bottom: 8px;
-  box-shadow: 0 0 15px rgba(0, 240, 255, 0.08);
+  padding: 6px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.24);
 }
 
 .inline-portal-back-btn {
   background: transparent;
   border: none;
-  color: #00f0ff;
-  font-family: 'Inter', sans-serif;
-  font-size: 0.95rem;
-  font-weight: bold;
+  color: rgba(145, 232, 255, 0.94);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 8px;
-  transition: all 0.2s ease;
-  text-shadow: 0 0 5px rgba(0, 240, 255, 0.5);
-  padding: 4px 10px;
-  border-radius: 4px;
+  justify-content: flex-start;
+  width: 100%;
+  min-height: 40px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  transition: color 0.18s ease, background-color 0.18s ease;
 }
 
 .inline-portal-back-btn:hover {
   color: #ffffff;
-  background: rgba(0, 240, 255, 0.15);
-  text-shadow: 0 0 8px #ffffff, 0 0 15px #00f0ff;
+  background: rgba(108, 231, 255, 0.1);
+}
+
+.inline-portal-back-btn:focus-visible {
+  outline: 2px solid rgba(145, 232, 255, 0.9);
+  outline-offset: 1px;
+  background: rgba(108, 231, 255, 0.12);
 }
 
 /* 覆盖 modal-box 在内嵌容器中的样式，去掉原本弹窗的遮罩和固定宽高 */
@@ -5773,12 +5850,29 @@ details.market-collapse summary {
   -webkit-backdrop-filter: blur(15px) !important;
   border: 1px solid rgba(0, 240, 255, 0.15) !important;
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3) !important;
-  border-radius: 12px !important;
+  border-radius: 8px !important;
   width: 100% !important;
   max-width: 100% !important;
   position: static !important;
   transform: none !important;
   margin: 0 !important;
-  padding: 20px !important;
+  padding: 0 !important;
   overflow: visible !important;
+}
+
+@media (max-width: 760px) {
+  .fleet-inline-container {
+    gap: 8px;
+  }
+
+  .inline-portal-back-bar {
+    margin-inline: -2px;
+    width: calc(100% + 4px);
+    border-radius: 6px;
+  }
+
+  .inline-portal-back-btn {
+    min-height: 44px;
+    font-size: 12px;
+  }
 }

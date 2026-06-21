@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { createTestState } from './helpers.js';
 import * as Economy from '../js/systems/economy/Economy.js';
 import * as Faction from '../js/systems/faction/FactionSystem.js';
@@ -343,6 +344,91 @@ describe('HUD summary cards', function () {
     expect(marketNavClicks).toBe(1);
   });
 
+  it('贸易网络 HUD 会解释航线负载并直达商网工作区', async function () {
+    vi.resetModules();
+
+    var state = createTestState({
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+      viewingGalaxy: 'milky_way',
+      visitedSystems: ['sol_prime', 'nova_station', 'aegis_prime'],
+      fleet: [
+        { name: '航船一号', route: null },
+        { name: '航船二号', route: null },
+      ],
+      credits: 1000,
+      day: 3,
+    });
+    Economy.init();
+    Faction.init(state);
+    Quest.init(state);
+
+    var networkSignalEl = createHtmlElement();
+    var networkOpenBtn = createFakeElement();
+    var marketNavBtn = createFakeElement();
+    var operationsTab = createFakeElement();
+    var marketNavClicks = 0;
+    var operationsClicks = 0;
+    marketNavBtn.click = function () { marketNavClicks += 1; };
+    operationsTab.click = function () { operationsClicks += 1; };
+
+    var elements = {
+      'hud-network-nodes': createFakeElement(),
+      'hud-network-routes': createFakeElement(),
+      'hud-network-volatility': createFakeElement(),
+      'hud-network-signal': networkSignalEl,
+      'hud-network-updated': createFakeElement(),
+      'hud-network-open': networkOpenBtn,
+      'victory-modal': createFakeElement(['hidden']),
+    };
+
+    globalThis.document = {
+      getElementById: function (id) {
+        if (!elements[id]) elements[id] = createFakeElement();
+        return elements[id];
+      },
+      querySelectorAll: function () {
+        return [];
+      },
+      querySelector: function (selector) {
+        if (selector === '.bottom-nav-btn[data-view="market"]') return marketNavBtn;
+        if (selector === '[data-market-workspace-tab="operations"]') return operationsTab;
+        return null;
+      },
+    };
+
+    var HUD = await import('../js/ui/HUD.js');
+    HUD.updateStats(state, 1000);
+    HUD.updateStats(state, 1000);
+
+    expect(elements['hud-network-nodes'].textContent).toContain('3 / ');
+    expect(elements['hud-network-routes'].textContent).toBe('0');
+    expect(networkSignalEl.innerHTML).toContain('航线席位空闲');
+    expect(networkSignalEl.innerHTML).toContain('已连接 3 个节点');
+    expect(networkSignalEl.dataset.tone).toBe('watch');
+    expect(elements['hud-network-updated'].textContent).toBe('DAY 3');
+    expect(networkOpenBtn.listenerCount('click')).toBe(1);
+
+    networkOpenBtn.dispatchEvent('click');
+    expect(marketNavClicks).toBe(1);
+    expect(operationsClicks).toBe(1);
+  });
+
+  it('贸易网络 HUD 保留列表、状态播报和窄屏布局锚点', function () {
+    var html = readFileSync('index.html', 'utf8');
+    var css = readFileSync('css/interstellar-trader.css', 'utf8');
+    var hud = readFileSync('js/ui/HUD.js', 'utf8');
+
+    expect(html).toContain('class="network-stats" role="list" aria-label="贸易网络指标"');
+    expect(html).toContain('id="hud-network-signal" class="hud-network-signal" role="status" aria-live="polite"');
+    expect(html).toContain('id="hud-network-open" class="hud-widget-link-btn"');
+    expect(css).toContain('.hud-network-signal[data-tone="risk"]');
+    expect(css).toContain('.network-widget-foot > span');
+    expect(css).toContain('.hud-network-signal {');
+    expect(hud).toContain("_openMarketWorkspace('operations')");
+    expect(hud).toContain("signalEl.dataset.tone = signalTone");
+  });
+
   it('当前航点 HUD 会显示位置摘要、勘探状态和终端入口', async function () {
     vi.resetModules();
 
@@ -460,5 +546,126 @@ describe('HUD summary cards', function () {
     expect(locationEl.getAttribute('title')).toBe(locationEl.textContent);
     expect(shipNameEl.textContent).toContain('Wayfarer Prototype LX-77');
     expect(shipNameEl.getAttribute('title')).toBe(shipNameEl.textContent);
+  });
+
+  it('顶部资源仪表会同步读屏数值和风险状态', async function () {
+    vi.resetModules();
+
+    var state = createTestState({
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+      viewingGalaxy: 'milky_way',
+      credits: 1000,
+      day: 1,
+      fuel: 22,
+      maxFuel: 100,
+      shipHull: 18,
+      maxHull: 100,
+      cargo: { food: 40, electronics: 50 },
+      maxCargo: 100,
+      reputation: 350,
+    });
+
+    Economy.init();
+    Faction.init(state);
+    Quest.init(state);
+
+    var elements = {
+      'status-fuel-fill': createFakeElement(),
+      'status-fuel-pct': createFakeElement(),
+      'status-fuel-meter': createFakeElement(),
+      'status-shield-fill': createFakeElement(),
+      'status-shield-pct': createFakeElement(),
+      'status-shield-meter': createFakeElement(),
+      'status-cargo-fill': createFakeElement(),
+      'status-cargo-pct': createFakeElement(),
+      'status-cargo-meter': createFakeElement(),
+      'hdr-reputation-fill': createFakeElement(),
+      'hdr-reputation-value': createFakeElement(),
+      'hdr-reputation-meter': createFakeElement(),
+      'victory-modal': createFakeElement(['hidden']),
+    };
+
+    globalThis.document = {
+      getElementById: function (id) {
+        if (!elements[id]) elements[id] = createFakeElement();
+        return elements[id];
+      },
+      querySelectorAll: function () {
+        return [];
+      },
+      querySelector: function () {
+        return null;
+      },
+    };
+
+    var HUD = await import('../js/ui/HUD.js');
+    HUD.updateStats(state, 1000);
+
+    expect(elements['status-fuel-meter'].getAttribute('aria-valuenow')).toBe('22');
+    expect(elements['status-fuel-meter'].getAttribute('aria-valuetext')).toBe('燃料 22/100（22%）');
+    expect(elements['status-fuel-meter'].dataset.meterState).toBe('warning');
+    expect(elements['status-fuel-pct'].getAttribute('title')).toBe('燃料 22/100（22%）');
+
+    expect(elements['status-shield-meter'].getAttribute('aria-valuenow')).toBe('18');
+    expect(elements['status-shield-meter'].getAttribute('aria-valuetext')).toBe('护盾 18/100（18%）');
+    expect(elements['status-shield-meter'].dataset.meterState).toBe('critical');
+
+    expect(elements['status-cargo-meter'].getAttribute('aria-valuenow')).toBe('90');
+    expect(elements['status-cargo-meter'].getAttribute('aria-valuetext')).toBe('货舱 90/100（90%）');
+    expect(elements['status-cargo-meter'].dataset.meterState).toBe('warning');
+
+    expect(elements['hdr-reputation-meter'].getAttribute('aria-valuemin')).toBe('-100');
+    expect(elements['hdr-reputation-meter'].getAttribute('aria-valuemax')).toBe('900');
+    expect(elements['hdr-reputation-meter'].getAttribute('aria-valuenow')).toBe('350');
+    expect(elements['hdr-reputation-meter'].getAttribute('aria-valuetext')).toContain('350');
+    expect(elements['hdr-reputation-meter'].dataset.meterState).toBe('nominal');
+  });
+
+  it('公司侧栏会呈现权限容量、下一开放项和等级进度语义', async function () {
+    vi.resetModules();
+
+    var state = createTestState({
+      companyName: '远航联合体',
+      companyLevel: 2,
+      companyExperience: 280,
+      fleetSlots: 2,
+      tradeStations: {
+        sol_prime: { systemId: 'sol_prime', level: 1 },
+      },
+    });
+    var roadmapEl = createHtmlElement();
+    var levelTrackEl = createFakeElement();
+    var elements = {
+      'company-name-text': createFakeElement(),
+      'company-unlock-roadmap': roadmapEl,
+      'company-level-line': createFakeElement(),
+      'company-level-fill': createFakeElement(),
+      'company-level-track': levelTrackEl,
+    };
+
+    globalThis.document = {
+      getElementById: function (id) {
+        return elements[id] || null;
+      },
+    };
+
+    var HUD = await import('../js/ui/HUD.js');
+    HUD.updateCompanyName(state);
+
+    expect(elements['company-name-text'].textContent).toBe('远航联合体');
+    expect(roadmapEl.innerHTML).toContain('公司权限台');
+    expect(roadmapEl.innerHTML).toContain('aria-label="公司权限容量"');
+    expect(roadmapEl.innerHTML).toContain('舰队席位');
+    expect(roadmapEl.innerHTML).toContain('贸易站');
+    expect(roadmapEl.innerHTML).toContain('站点上限');
+    expect(roadmapEl.innerHTML).toContain('下一开放');
+    expect(roadmapEl.innerHTML).toContain('Lv.3 · 证券交易');
+    expect(roadmapEl.innerHTML).toContain('还需 20 公司经验');
+    expect(roadmapEl.innerHTML).toContain('role="status"');
+    expect(levelTrackEl.getAttribute('aria-valuemax')).toBe('180');
+    expect(levelTrackEl.getAttribute('aria-valuenow')).toBe('160');
+    expect(levelTrackEl.getAttribute('aria-valuetext')).toBe('公司等级 2，160/180');
+    expect(parseFloat(elements['company-level-fill'].style.width)).toBeCloseTo(88.89, 2);
   });
 });

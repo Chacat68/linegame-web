@@ -1636,8 +1636,6 @@ body[data-motion="off"] .save-slot:hover {
 
 /* 居中定位 */
 .tut-pos-center {
-  top: 50% !important;
-  left: 50% !important;
   transform: translate(-50%, -50%);
 }
 
