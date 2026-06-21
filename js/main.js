@@ -2,8 +2,8 @@
 // 依赖：core/GameManager.js
 // 说明：浏览器加载完毕后初始化游戏
 
-import { init } from './core/GameManager.js?v=20260526-completionhelper1';
-import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from './ui/SurfaceManager.js?v=20260505-surface4';
+import { init } from './core/GameManager.js?v=20260621-settingsfallback1';
+import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from './ui/SurfaceManager.js?v=20260621-settingsfallback1';
 
 window.addEventListener('load', function () {
 	init();
@@ -12,6 +12,8 @@ window.addEventListener('load', function () {
 
 function bindSettingsModalFallback() {
 	if (document.body.dataset.settingsFallbackBound === 'true') return;
+	var settingsBtn = document.getElementById('settings-btn');
+	if (settingsBtn && settingsBtn.dataset.settingsBound === 'true') return;
 	document.body.dataset.settingsFallbackBound = 'true';
 	bindBlockingSurfaceDismiss('settings-modal');
 
@@ -37,7 +39,9 @@ function bindSettingsModalFallback() {
 			if (soundEffectsVolume) soundEffectsVolume.value = String(savedSettings.soundEffectsVolume);
 			if (soundEffectsVolumeValue) soundEffectsVolumeValue.textContent = Math.round(savedSettings.soundEffectsVolume * 100) + '%';
 			_activateSettingsPanelFallback(modal, modal.dataset.activePanel || 'display');
-			showBlockingSurface('settings-modal');
+			showBlockingSurface('settings-modal', {
+				focusSelector: '[data-settings-panel-target][aria-selected="true"]',
+			});
 			return;
 		}
 
@@ -110,5 +114,12 @@ function _activateSettingsPanelFallback(modal, panelId) {
 	modal.querySelectorAll('[data-settings-panel-target]').forEach(function (btn) {
 		var isActive = btn.dataset.settingsPanelTarget === targetId;
 		btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+		btn.setAttribute('tabindex', isActive ? '0' : '-1');
+	});
+
+	modal.querySelectorAll('[data-settings-panel]').forEach(function (panel) {
+		var isActive = panel.dataset.settingsPanel === targetId;
+		panel.setAttribute('aria-hidden', isActive ? 'false' : 'true');
+		panel.setAttribute('tabindex', isActive ? '0' : '-1');
 	});
 }

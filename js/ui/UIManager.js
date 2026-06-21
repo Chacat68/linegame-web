@@ -2,7 +2,7 @@
 // 职责：遵循 SOLID 原则，统一管理界面大面板（星图、交易所、机库、个人档案、详细日志）的显示隐藏、互斥和星图背景高斯模糊状态。
 
 import * as EventBus from '../core/EventBus.js';
-import { hasBlockingSurfaceOpen, openSecondarySurface, closeSecondarySurface, closeAllSecondarySurfaces, showBlockingSurface, hideBlockingSurface } from './SurfaceManager.js?v=20260505-surface4';
+import { bindBlockingSurfaceDismiss, hasBlockingSurfaceOpen, openSecondarySurface, closeSecondarySurface, closeAllSecondarySurfaces, showBlockingSurface, hideBlockingSurface } from './SurfaceManager.js?v=20260621-settingsfallback1';
 import { loadSettings } from '../core/SettingsManager.js';
 
 let _stateRef = null;
@@ -47,6 +47,7 @@ export function init(stateRef, handlers) {
       var view = btn.dataset.view;
       switchView(view);
     });
+    newBottomNav.addEventListener('keydown', _handleBottomNavKeydown);
   }
 
   // 绑定详细日志弹窗的关闭按钮
@@ -56,6 +57,11 @@ export function init(stateRef, handlers) {
       switchView('starmap');
     };
   }
+  bindBlockingSurfaceDismiss('logs-modal', {
+    onDismiss: function () {
+      switchView('starmap');
+    },
+  });
 
   // 注册全局事件总线监听，支持以事件形式触发视图切换
   EventBus.on('view:switch', function (view) {
@@ -73,7 +79,11 @@ export function init(stateRef, handlers) {
   // 注册挂载到全局
   globalThis.__linegameUIManager = {
     switchView: switchView,
-    setBottomNavActiveDirectly: _setBottomNavActive,
+    setBottomNavActiveDirectly: function (view) {
+      _currentView = view || 'starmap';
+      _syncViewVisualState(_currentView);
+      _setBottomNavActive(_currentView);
+    },
     getCurrentView: getCurrentView
   };
 }
@@ -105,10 +115,7 @@ export function switchView(view) {
   hideBlockingSurface('logs-modal');
 
   // 3. 驱动 3D 星图 Canvas 容器动态加减模糊样式
-  var canvas = document.getElementById('map-3d-canvas');
-  if (canvas) {
-    _applyBlurStyle(canvas, view);
-  }
+  _syncViewVisualState(view);
 
   // 4. 执行具体 View 的唤起行为
   if (view === 'starmap') {
@@ -145,14 +152,57 @@ export function switchView(view) {
  */
 function _setBottomNavActive(view) {
   document.querySelectorAll('.bottom-nav-btn').forEach(function (btn) {
-    if (btn.dataset.view === view) {
+    var isActive = btn.dataset.view === view;
+    if (isActive) {
       btn.classList.add('active');
     } else {
       btn.classList.remove('active');
     }
+    _syncBottomNavButtonState(btn, isActive);
   });
 
   EventBus.emit('navigation:changed', view);
+}
+
+function _syncBottomNavButtonState(btn, isActive) {
+  if (!btn || typeof btn.setAttribute !== 'function') return;
+  btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+  if (isActive) {
+    btn.setAttribute('aria-current', 'page');
+  } else if (typeof btn.removeAttribute === 'function') {
+    btn.removeAttribute('aria-current');
+  }
+}
+
+function _handleBottomNavKeydown(event) {
+  if (!event || !event.target || typeof event.target.closest !== 'function') return;
+  var btn = event.target.closest('.bottom-nav-btn');
+  if (!btn) return;
+
+  var key = event.key;
+  if (key !== 'ArrowLeft' && key !== 'ArrowRight' && key !== 'Home' && key !== 'End') return;
+
+  var buttons = Array.prototype.slice.call(document.querySelectorAll('.bottom-nav-btn'));
+  var currentIndex = buttons.indexOf(btn);
+  if (currentIndex < 0 || buttons.length === 0) return;
+
+  var nextIndex = currentIndex;
+  if (key === 'Home') nextIndex = 0;
+  else if (key === 'End') nextIndex = buttons.length - 1;
+  else if (key === 'ArrowLeft') nextIndex = (currentIndex + buttons.length - 1) % buttons.length;
+  else if (key === 'ArrowRight') nextIndex = (currentIndex + 1) % buttons.length;
+
+  if (typeof event.preventDefault === 'function') event.preventDefault();
+  if (buttons[nextIndex] && typeof buttons[nextIndex].focus === 'function') {
+    buttons[nextIndex].focus();
+  }
+}
+
+function _syncViewVisualState(view) {
+  var canvas = document.getElementById('map-3d-canvas');
+  if (canvas) {
+    _applyBlurStyle(canvas, view);
+  }
 }
 
 /**
@@ -176,4 +226,3 @@ function _applyBlurStyle(canvas, view) {
     }
   }
 }
-

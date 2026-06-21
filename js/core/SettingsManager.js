@@ -6,7 +6,8 @@
 import * as EventBus from './EventBus.js';
 import * as Audio from './AudioManager.js';
 import { TIME_CONFIG } from '../data/constants.js';
-import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from '../ui/SurfaceManager.js?v=20260505-surface4';
+import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from '../ui/SurfaceManager.js?v=20260621-settingsfallback1';
+import * as ActionConfirmUI from '../ui/ActionConfirmUI.js?v=20260621-settingsfallback1';
 
 const SETTINGS_KEY = 'linegame_settings';
 
@@ -116,6 +117,7 @@ export function applySettings(settings, Renderer) {
     Renderer.setSecretRoutesVisible(_normalizeSecretRoutesVisible(settings.secretRoutesVisible));
   }
   Audio.applySettings(settings);
+  _syncSettingsOverview(settings);
 }
 
 // ---------------------------------------------------------------------------
@@ -161,12 +163,15 @@ export function initSettingsModal(callbacks) {
     showSettingsModal();
   });
   if (closeBtn) closeBtn.addEventListener('click', hideSettingsModal);
+  _bindSettingsPanelKeyboard(modal);
   if (motionSelect) {
     motionSelect.onchange = function () {
       var activeCallbacks = _getSettingsModalCallbacks();
       activeCallbacks.settings.motionLevel = motionSelect.value;
       saveSettings(activeCallbacks.settings);
       applySettings(activeCallbacks.settings, activeCallbacks.Renderer);
+      _syncSettingsOverview(activeCallbacks.settings);
+      _setSettingsChangeStatus('动画强度已更新为' + _formatMotionLevelLabel(motionSelect.value) + '。', 'success');
       EventBus.emit('log:message', {
         text: '⚙ 已更新动画强度：' + (motionSelect.value === 'full' ? '完整' : (motionSelect.value === 'reduced' ? '降低' : '关闭')) + '。',
         type: 'info',
@@ -179,6 +184,8 @@ export function initSettingsModal(callbacks) {
       activeCallbacks.settings.secretRoutesVisible = !!secretRoutesToggle.checked;
       saveSettings(activeCallbacks.settings);
       applySettings(activeCallbacks.settings, activeCallbacks.Renderer);
+      _syncSettingsOverview(activeCallbacks.settings);
+      _setSettingsChangeStatus('暗线显示已' + (secretRoutesToggle.checked ? '开启' : '关闭') + '。', 'success');
       EventBus.emit('log:message', {
         text: '⚙ 已更新暗线显示：' + (secretRoutesToggle.checked ? '显示' : '隐藏') + '。',
         type: 'info',
@@ -191,6 +198,8 @@ export function initSettingsModal(callbacks) {
       activeCallbacks.settings.terminalBlur = !!terminalBlurToggle.checked;
       saveSettings(activeCallbacks.settings);
       EventBus.emit('settings:terminalBlur:changed', activeCallbacks.settings.terminalBlur);
+      _syncSettingsOverview(activeCallbacks.settings);
+      _setSettingsChangeStatus('全息终端模糊已' + (terminalBlurToggle.checked ? '开启' : '关闭') + '。', 'success');
       EventBus.emit('log:message', {
         text: '⚙ 已更新全息终端高斯模糊特效：' + (terminalBlurToggle.checked ? '开启 (高品质)' : '关闭 (低开销)') + '。',
         type: 'info',
@@ -204,6 +213,8 @@ export function initSettingsModal(callbacks) {
       saveSettings(activeCallbacks.settings);
       Audio.applySettings(activeCallbacks.settings);
       if (soundEffectsToggle.checked) Audio.playCue('settings.change');
+      _syncSettingsOverview(activeCallbacks.settings);
+      _setSettingsChangeStatus('音效反馈已' + (soundEffectsToggle.checked ? '开启' : '关闭') + '。', 'success');
       EventBus.emit('log:message', {
         text: '⚙ 已更新音效反馈：' + (soundEffectsToggle.checked ? '开启' : '关闭') + '。',
         type: 'info',
@@ -217,9 +228,12 @@ export function initSettingsModal(callbacks) {
       saveSettings(activeCallbacks.settings);
       Audio.applySettings(activeCallbacks.settings);
       _syncSoundEffectsVolumeLabel(soundEffectsVolumeValue, activeCallbacks.settings.soundEffectsVolume);
+      _syncSettingsOverview(activeCallbacks.settings);
     };
     soundEffectsVolume.onchange = function () {
       Audio.playCue('settings.change');
+      var activeCallbacks = _getSettingsModalCallbacks();
+      _setSettingsChangeStatus('音效音量已更新为' + Math.round(_normalizeSoundEffectsVolume(activeCallbacks.settings.soundEffectsVolume) * 100) + '%。', 'success');
     };
   }
   if (difficultySelect) {
@@ -230,6 +244,8 @@ export function initSettingsModal(callbacks) {
       if (activeCallbacks.onDifficultyChanged) {
         activeCallbacks.onDifficultyChanged(difficultySelect.value);
       }
+      _syncSettingsOverview(activeCallbacks.settings);
+      _setSettingsChangeStatus('游戏难度已更新为' + _formatDifficultyLabel(difficultySelect.value) + '。', 'success');
       var labelMap = {
         easy: '休闲模式',
         normal: '标准模式',
@@ -250,6 +266,8 @@ export function initSettingsModal(callbacks) {
       if (activeCallbacks.onRealtimeDayDurationChanged) {
         activeCallbacks.onRealtimeDayDurationChanged(nextDurationMs);
       }
+      _syncSettingsOverview(activeCallbacks.settings);
+      _setSettingsChangeStatus('时间流速已更新为' + _formatRealtimeDayDurationLabel(nextDurationMs) + '。', 'success');
       EventBus.emit('log:message', {
         text: '⚙ 已更新时间流速：' + _formatRealtimeDayDurationLabel(nextDurationMs) + '。',
         type: 'info',
@@ -280,23 +298,90 @@ export function initSettingsModal(callbacks) {
       if (activeCallbacks.onRealtimeDayDurationChanged) activeCallbacks.onRealtimeDayDurationChanged(TIME_CONFIG.realtimeDayDurationMs);
       EventBus.emit('settings:terminalBlur:changed', true);
       Audio.playCue('settings.change');
+      _syncSettingsOverview(activeCallbacks.settings);
+      _setSettingsChangeStatus('所有设置已恢复为默认值。', 'success');
       EventBus.emit('log:message', { text: '⚙ 设置已恢复为默认值。', type: 'info' });
     };
   }
   if (resetTutorialBtn) {
     resetTutorialBtn.onclick = function () {
-      if (!confirm('这会重新开始当前游戏，并在开局重新进入教程。是否继续？')) return;
-      var activeCallbacks = _getSettingsModalCallbacks();
-      if (activeCallbacks.onResetTutorial) activeCallbacks.onResetTutorial();
+      ActionConfirmUI.open({
+        kicker: '重新初始化',
+        title: '重新开始并进入教程？',
+        message: '当前运行状态会被新公司替换，已有本地存档不会被删除。',
+        confirmLabel: '确认重新开始',
+        details: [
+          { label: '当前运行', value: '重置为新公司', tone: 'danger' },
+          { label: '教程流程', value: '重新启用' },
+          { label: '本地存档', value: '继续保留', tone: 'safe' },
+        ],
+        onConfirm: function () {
+          var activeCallbacks = _getSettingsModalCallbacks();
+          if (activeCallbacks.onResetTutorial) activeCallbacks.onResetTutorial();
+        },
+      });
     };
   }
   if (clearSavesBtn) {
     clearSavesBtn.onclick = function () {
-      if (!confirm('确定清空所有本地存档吗？此操作不可撤销。')) return;
-      var activeCallbacks = _getSettingsModalCallbacks();
-      if (activeCallbacks.onClearSaves) activeCallbacks.onClearSaves();
+      ActionConfirmUI.open({
+        kicker: '本地数据清理',
+        title: '清空全部本地存档？',
+        message: '自动存档和所有手动槽位都会被删除，当前正在运行的公司不会立即重置。',
+        confirmLabel: '确认清空存档',
+        details: [
+          { label: '自动存档', value: '永久删除', tone: 'danger' },
+          { label: '手动槽位', value: '全部删除', tone: 'danger' },
+          { label: '当前运行', value: '暂时保留', tone: 'safe' },
+        ],
+        onConfirm: function () {
+          var activeCallbacks = _getSettingsModalCallbacks();
+          if (activeCallbacks.onClearSaves) activeCallbacks.onClearSaves();
+        },
+      });
     };
   }
+}
+
+function _bindSettingsPanelKeyboard(modal) {
+  if (!modal || typeof modal.querySelectorAll !== 'function') return;
+  var tabs = Array.prototype.slice.call(modal.querySelectorAll('[data-settings-panel-target]') || []);
+  if (!tabs.length) return;
+
+  tabs.forEach(function (tab, index) {
+    if (!tab || tab.dataset.settingsKeyboardBound === 'true') return;
+    tab.dataset.settingsKeyboardBound = 'true';
+    if (typeof tab.setAttribute === 'function') {
+      tab.setAttribute('tabindex', tab.getAttribute('aria-selected') === 'true' || index === 0 ? '0' : '-1');
+    }
+
+    tab.addEventListener('click', function () {
+      _activateSettingsPanel(tab.dataset.settingsPanelTarget || 'display');
+    });
+
+    tab.addEventListener('keydown', function (event) {
+      if (!event) return;
+      var key = event.key;
+      if (key === 'Enter' || key === ' ') {
+        if (typeof event.preventDefault === 'function') event.preventDefault();
+        _activateSettingsPanel(tab.dataset.settingsPanelTarget || 'display');
+        return;
+      }
+
+      var nextIndex = index;
+      if (key === 'ArrowRight' || key === 'ArrowDown') nextIndex = (index + 1) % tabs.length;
+      else if (key === 'ArrowLeft' || key === 'ArrowUp') nextIndex = (index + tabs.length - 1) % tabs.length;
+      else if (key === 'Home') nextIndex = 0;
+      else if (key === 'End') nextIndex = tabs.length - 1;
+      else return;
+
+      if (typeof event.preventDefault === 'function') event.preventDefault();
+      var nextTab = tabs[nextIndex];
+      if (!nextTab) return;
+      _activateSettingsPanel(nextTab.dataset.settingsPanelTarget || 'display');
+      if (typeof nextTab.focus === 'function') nextTab.focus();
+    });
+  });
 }
 
 /**
@@ -328,10 +413,12 @@ function _toggleSettingsModal(isVisible) {
   var difficultySelect = document.getElementById('settings-difficulty-level');
   var timeScaleSelect = document.getElementById('settings-time-scale');
   if (!modal) return;
-  if (motionSelect && isVisible) {
-    // 读取当前 localStorage 设置同步到 select
+  if (isVisible) {
     var current = loadSettings();
-    motionSelect.value = current.motionLevel || 'full';
+    // 读取当前 localStorage 设置同步到 select
+    if (motionSelect) {
+      motionSelect.value = current.motionLevel || 'full';
+    }
     if (secretRoutesToggle) secretRoutesToggle.checked = _normalizeSecretRoutesVisible(current.secretRoutesVisible);
     if (terminalBlurToggle) terminalBlurToggle.checked = current.terminalBlur !== false;
     if (soundEffectsToggle) soundEffectsToggle.checked = current.soundEffectsEnabled !== false;
@@ -339,9 +426,15 @@ function _toggleSettingsModal(isVisible) {
     _syncSoundEffectsVolumeLabel(soundEffectsVolumeValue, current.soundEffectsVolume);
     if (difficultySelect) difficultySelect.value = current.difficulty || 'normal';
     if (timeScaleSelect) timeScaleSelect.value = String(_normalizeRealtimeDayDurationMs(current.realtimeDayDurationMs));
+    _syncSettingsOverview(current);
+    _setSettingsChangeStatus('更改会自动保存在当前设备。', 'neutral');
   }
   if (isVisible) _activateSettingsPanel(modal.dataset.activePanel || 'display');
-  if (isVisible) showBlockingSurface('settings-modal');
+  if (isVisible) {
+    showBlockingSurface('settings-modal', {
+      focusSelector: '[data-settings-panel-target][aria-selected="true"]',
+    });
+  }
   else hideBlockingSurface('settings-modal');
 }
 
@@ -350,8 +443,47 @@ function _syncSoundEffectsVolumeLabel(labelEl, volume) {
   labelEl.textContent = Math.round(_normalizeSoundEffectsVolume(volume) * 100) + '%';
 }
 
+function _setSettingsChangeStatus(message, tone) {
+  var statusEl = document.getElementById('settings-change-status');
+  if (!statusEl) return;
+  statusEl.textContent = message || '';
+  if (statusEl.dataset) statusEl.dataset.statusTone = tone || 'neutral';
+}
+
 function _formatRealtimeDayDurationLabel(durationMs) {
   return Math.round(durationMs / 1000) + ' 秒 / 天';
+}
+
+function _syncSettingsOverview(settings) {
+  var activeSettings = settings || loadSettings();
+  _setSettingsOverviewValue('settings-summary-motion', _formatMotionLevelLabel(activeSettings.motionLevel));
+  _setSettingsOverviewValue('settings-summary-difficulty', _formatDifficultyLabel(activeSettings.difficulty));
+  _setSettingsOverviewValue('settings-summary-time', _formatRealtimeDayDurationLabel(_normalizeRealtimeDayDurationMs(activeSettings.realtimeDayDurationMs)));
+  _setSettingsOverviewValue('settings-summary-audio', _formatSoundEffectsSummary(activeSettings));
+}
+
+function _setSettingsOverviewValue(id, value) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = value;
+}
+
+function _formatMotionLevelLabel(motionLevel) {
+  if (motionLevel === 'reduced') return '降低';
+  if (motionLevel === 'off') return '关闭';
+  return '完整';
+}
+
+function _formatDifficultyLabel(difficulty) {
+  if (difficulty === 'easy') return '休闲模式';
+  if (difficulty === 'hard') return '挑战模式';
+  return '标准模式';
+}
+
+function _formatSoundEffectsSummary(settings) {
+  var enabled = settings && settings.soundEffectsEnabled !== false;
+  var volume = _normalizeSoundEffectsVolume(settings && settings.soundEffectsVolume);
+  return (enabled ? '开启' : '关闭') + ' · ' + Math.round(volume * 100) + '%';
 }
 
 function _activateSettingsPanel(panelId) {
@@ -373,5 +505,12 @@ function _activateSettingsPanel(panelId) {
   modal.querySelectorAll('[data-settings-panel-target]').forEach(function (btn) {
     var isActive = btn.dataset.settingsPanelTarget === targetId;
     btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    btn.setAttribute('tabindex', isActive ? '0' : '-1');
+  });
+
+  modal.querySelectorAll('[data-settings-panel]').forEach(function (panel) {
+    var isActive = panel.dataset.settingsPanel === targetId;
+    panel.setAttribute('aria-hidden', isActive ? 'false' : 'true');
+    panel.setAttribute('tabindex', isActive ? '0' : '-1');
   });
 }
