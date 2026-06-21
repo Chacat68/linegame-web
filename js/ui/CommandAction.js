@@ -7,6 +7,7 @@ const SURFACE_LABELS = {
   exploration: '探索',
   navigation: '航行',
   fleet: '机库',
+  company: '公司',
   system: '系统',
 };
 
@@ -17,6 +18,7 @@ const SURFACE_ICONS = {
   exploration: '🧭',
   navigation: '🧭',
   fleet: '📡',
+  company: '🏢',
   system: 'ℹ️',
 };
 

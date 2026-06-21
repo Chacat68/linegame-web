@@ -4,12 +4,13 @@
 
 import { TECHNOLOGIES, TECH_CATEGORIES } from '../data/technologies.js';
 import { getSystemsByGalaxy } from '../data/systems.js';
-import { buildMarketFocusAction, MARKET_FOCUS_PRESET_IDS } from './MarketFocus.js?v=20260419-marketcta2';
+import { buildMarketFocusAction, MARKET_FOCUS_PRESET_IDS } from './MarketFocus.js?v=20260531-chainfollow1';
 import { getCommandActionAttributes, normalizeCommandAction, renderCommandActionContent } from './CommandAction.js?v=20260510-command1';
 import * as Research from '../systems/research/ResearchSystem.js';
 import * as AutoTrade from '../systems/trade/AutoTradeSystem.js?v=20260420-balance5';
 import * as Quest from '../systems/quest/QuestSystem.js?v=20260412-questroute2';
-import { getQuestBlockerActions, getPreferredAvailableQuest } from './QuestUI.js?v=20260420-balance5';
+import { getQuestBlockerActions, getPreferredAvailableQuest } from './QuestUI.js?v=20260619-confirmflow1';
+import * as ActionConfirmUI from './ActionConfirmUI.js?v=20260621-settingsfallback1';
 
 const RESEARCH_BLOCKER_MARKET_PRESETS = {
   cargo: MARKET_FOCUS_PRESET_IDS.SPOT_TRADE,
@@ -51,6 +52,107 @@ function _getResearchSupplyFocus(state) {
     categoryLabel: category ? category.name : tech.category,
     sourceLabel: state.currentResearch && state.currentResearch.techId ? '当前研究' : '候选方向',
   };
+}
+
+function _getTechnologyById(techId) {
+  return TECHNOLOGIES.find(function (tech) { return tech.id === techId; }) || null;
+}
+
+function _getResearchCategoryStatuses(state) {
+  const completedSet = new Set(state.researchedTechs || []);
+  const optionSet = new Set(state.researchOptions || []);
+  const queueSet = new Set((state.researchQueue || []).map(function (item) { return item.techId; }));
+  const currentTechId = state.currentResearch && state.currentResearch.techId;
+
+  return TECH_CATEGORIES.map(function (category) {
+    const categoryTechs = TECHNOLOGIES.filter(function (tech) { return tech.category === category.id; });
+    const completed = categoryTechs.filter(function (tech) { return completedSet.has(tech.id); }).length;
+    const options = categoryTechs.filter(function (tech) { return optionSet.has(tech.id); }).length;
+    const queued = categoryTechs.filter(function (tech) { return queueSet.has(tech.id); }).length;
+    const active = categoryTechs.some(function (tech) { return tech.id === currentTechId; });
+    return {
+      category: category,
+      total: categoryTechs.length,
+      completed: completed,
+      options: options,
+      queued: queued,
+      active: active,
+      pct: categoryTechs.length ? Math.round(completed / categoryTechs.length * 100) : 0,
+    };
+  });
+}
+
+function _renderResearchCategoryMatrix(statuses) {
+  return '<div class="research-category-matrix" role="list" aria-label="科技分类态势">' +
+    statuses.map(function (status) {
+      return '<div class="research-category-cell' + (status.active ? ' is-active' : '') + '" role="listitem" style="border-color:' + _escapeHtmlAttr(status.category.color) + '44">' +
+        '<span class="research-category-cell-kicker" style="color:' + _escapeHtmlAttr(status.category.color) + '">' + _escapeHtml(status.category.icon + ' ' + status.category.name) + '</span>' +
+        '<strong>' + status.completed + '/' + status.total + '</strong>' +
+        '<em>' + (status.active ? '当前研究' : ('候选 ' + status.options + ' · 队列 ' + status.queued)) + '</em>' +
+        '<i class="research-category-cell-meter" aria-hidden="true"><b style="width:' + status.pct + '%;background:' + _escapeHtmlAttr(status.category.color) + '"></b></i>' +
+      '</div>';
+    }).join('') +
+  '</div>';
+}
+
+function _renderResearchFocusPanel(state, categoryStatuses, currentTech) {
+  const queue = state.researchQueue || [];
+  const options = state.researchOptions || [];
+  const optionTechs = options.map(_getTechnologyById).filter(Boolean);
+  const affordableOptions = optionTechs.filter(function (tech) {
+    return (state.credits || 0) >= tech.cost;
+  });
+  const focusCategory = categoryStatuses.slice().sort(function (a, b) {
+    if (b.active !== a.active) return b.active ? 1 : -1;
+    if (b.options !== a.options) return b.options - a.options;
+    if (a.pct !== b.pct) return a.pct - b.pct;
+    return a.category.name.localeCompare(b.category.name);
+  })[0];
+  const signalTitle = currentTech
+    ? ('正在研究：' + currentTech.name)
+    : (queue.length > 0
+        ? ('队列待启动：' + queue.length + ' 项')
+        : (affordableOptions.length > 0 ? ('可立即启动：' + affordableOptions[0].name) : '等待研究预算'));
+  const signalNote = currentTech && state.currentResearch
+    ? ('剩余 ' + state.currentResearch.daysLeft + ' 天，完成后会自动接力队列中的下一项。')
+    : (queue.length > 0
+        ? '当前没有进行中研究，队列会在下一次启动条件满足后接力。'
+        : (affordableOptions.length > 0
+            ? '候选池中有可负担项目，可先从成本、天数和分类收益判断方向。'
+            : '候选项目暂时超过预算，先通过市场或任务补足研究资金。'));
+  const focusItems = (currentTech ? [currentTech] : []).concat(
+    queue.map(function (item) { return _getTechnologyById(item.techId); }).filter(Boolean),
+    affordableOptions
+  ).filter(function (tech, index, list) {
+    return tech && list.findIndex(function (item) { return item.id === tech.id; }) === index;
+  }).slice(0, 3);
+
+  return '<section class="research-focus-panel" aria-label="研究局部信号">' +
+    '<div class="research-focus-copy">' +
+      '<span class="research-focus-kicker">局部信号</span>' +
+      '<strong class="research-focus-title">' + _escapeHtml(signalTitle) + '</strong>' +
+      '<span class="research-focus-note">' + _escapeHtml(signalNote) + '</span>' +
+    '</div>' +
+    '<div class="research-focus-list" role="list" aria-label="研究焦点项目">' +
+      (focusItems.length > 0
+        ? focusItems.map(function (tech) {
+            const category = TECH_CATEGORIES.find(function (cat) { return cat.id === tech.category; });
+            return '<article class="research-focus-card" role="listitem" style="border-color:' + _escapeHtmlAttr((category ? category.color : '#6ce7ff') + '33') + '">' +
+              '<span class="research-focus-icon" aria-hidden="true">' + _escapeHtml(tech.icon) + '</span>' +
+              '<span class="research-focus-main">' +
+                '<strong>' + _escapeHtml(tech.name) + '</strong>' +
+                '<em>' + _escapeHtml((category ? category.name : tech.category) + ' · ' + tech.cost.toLocaleString() + ' / ' + tech.researchDays + ' 天') + '</em>' +
+              '</span>' +
+            '</article>';
+          }).join('')
+        : '<div class="research-focus-empty" role="listitem">暂无可展示研究焦点。</div>') +
+    '</div>' +
+    '<div class="research-budget-signal" aria-label="候选预算信号">' +
+      '<span>候选预算</span>' +
+      '<strong>' + affordableOptions.length + '/' + optionTechs.length + '</strong>' +
+      '<em>' + (focusCategory ? (focusCategory.category.name + ' 进度 ' + focusCategory.completed + '/' + focusCategory.total) : '分类数据待生成') + '</em>' +
+    '</div>' +
+  '</section>';
 }
 
 function _getResearchDispatchBlockerState(state, researchDispatchContext) {
@@ -240,7 +342,7 @@ function _renderResearchDispatchBlocker(blocker, canResolveResearchBlocker, stat
         ? '<div class="research-route-actions is-blocked">' + actions.map(function (action) {
             var commandAction = normalizeCommandAction(action);
             return '<div class="research-route-action-item' + (action.variant === 'secondary' ? ' is-secondary' : '') + '">' +
-              '<button class="research-route-blocker-btn command-action-btn' + (commandAction.variant === 'secondary' ? ' is-secondary' : '') + '" data-action-id="' + _escapeHtmlAttr(action.actionId || '') + '" data-reason-id="' + _escapeHtmlAttr(action.reasonId || '') + '" data-target-quest-id="' + _escapeHtmlAttr(action.targetQuestId || '') + '" data-target-quest-name="' + _escapeHtmlAttr(action.targetQuestName || '') + '" data-market-workspace-id="' + _escapeHtmlAttr(action.marketWorkspaceId || '') + '" data-market-subworkspace-id="' + _escapeHtmlAttr(action.marketSubworkspaceId || '') + '" data-market-focus-label="' + _escapeHtmlAttr(action.marketFocusLabel || '') + '" data-focus-tech-id="' + _escapeHtmlAttr(blocker.techId || '') + '" data-focus-tech-name="' + _escapeHtmlAttr(blocker.techName || '') + '"' + getCommandActionAttributes(commandAction, _escapeHtmlAttr) + '>' + renderCommandActionContent(commandAction, _escapeHtml) + '</button>' +
+              '<button type="button" class="research-route-blocker-btn command-action-btn' + (commandAction.variant === 'secondary' ? ' is-secondary' : '') + '" data-action-id="' + _escapeHtmlAttr(action.actionId || '') + '" data-reason-id="' + _escapeHtmlAttr(action.reasonId || '') + '" data-target-quest-id="' + _escapeHtmlAttr(action.targetQuestId || '') + '" data-target-quest-name="' + _escapeHtmlAttr(action.targetQuestName || '') + '" data-market-workspace-id="' + _escapeHtmlAttr(action.marketWorkspaceId || '') + '" data-market-subworkspace-id="' + _escapeHtmlAttr(action.marketSubworkspaceId || '') + '" data-market-focus-label="' + _escapeHtmlAttr(action.marketFocusLabel || '') + '" data-focus-tech-id="' + _escapeHtmlAttr(blocker.techId || '') + '" data-focus-tech-name="' + _escapeHtmlAttr(blocker.techName || '') + '"' + getCommandActionAttributes(commandAction, _escapeHtmlAttr) + '>' + renderCommandActionContent(commandAction, _escapeHtml) + '</button>' +
               '<span class="research-route-action-hint">' + _escapeHtml(action.hint || '') + '</span>' +
             '</div>';
           }).join('') + '</div>'
@@ -263,19 +365,64 @@ function _renderResearchDispatchBlocker(blocker, canResolveResearchBlocker, stat
  * @param {Function} onResolveResearchBlocker (action) => void
  */
 export function render(state, onStartResearch, onCancelQueuedResearch, onMoveQueuedResearchUp, onMoveQueuedResearchDown, onClearResearchQueue, researchDispatchContext, onApplyResearchDispatch, onResolveResearchBlocker) {
-  _renderStatus();
+  _renderStatus(state);
   _renderOptions(state, onStartResearch, onCancelQueuedResearch, onMoveQueuedResearchUp, onMoveQueuedResearchDown, onClearResearchQueue, researchDispatchContext, onApplyResearchDispatch, onResolveResearchBlocker);
   _renderCompleted(state);
 }
 
-function _renderStatus() {
+function _renderStatus(state) {
   const container = document.getElementById('research-status');
   if (!container) return;
-  container.innerHTML = '';
+
+  const completed = state.researchedTechs || [];
+  const queue = state.researchQueue || [];
+  const total = TECHNOLOGIES.length;
+  const completePct = total > 0 ? Math.round(completed.length / total * 100) : 0;
+  const currentTech = state.currentResearch
+    ? TECHNOLOGIES.find(function (tech) { return tech.id === state.currentResearch.techId; })
+    : null;
+  const currentCat = currentTech
+    ? TECH_CATEGORIES.find(function (cat) { return cat.id === currentTech.category; })
+    : null;
+  const currentProgress = currentTech && state.currentResearch
+    ? Math.max(0, Math.min(100, Math.round((currentTech.researchDays - state.currentResearch.daysLeft) / currentTech.researchDays * 100)))
+    : 0;
+  const categoryStatuses = _getResearchCategoryStatuses(state);
+
+  container.innerHTML =
+    '<section class="archive-research-console" aria-label="科技研究总览">' +
+      '<div class="research-console-head">' +
+        '<div>' +
+          '<span class="archive-panel-kicker">RESEARCH MATRIX</span>' +
+          '<h3 class="archive-panel-title">科技研究</h3>' +
+        '</div>' +
+        '<div class="research-completion-meter" role="progressbar" aria-label="科技完成度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + completePct + '">' +
+          '<strong>' + completePct + '%</strong><span>' + completed.length + '/' + total + '</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="archive-stat-strip archive-stat-strip--research">' +
+        '<span><strong>' + completed.length + '</strong><em>已完成</em></span>' +
+        '<span><strong>' + (state.researchOptions || []).length + '</strong><em>候选方向</em></span>' +
+        '<span><strong>' + queue.length + '</strong><em>队列项目</em></span>' +
+        '<span><strong>' + (state.currentResearch ? state.currentResearch.daysLeft : 0) + '</strong><em>剩余天数</em></span>' +
+      '</div>' +
+      '<div class="research-current-strip' + (currentTech ? '' : ' is-idle') + '">' +
+        '<div>' +
+          '<span class="research-current-kicker">' + (currentCat ? _escapeHtml(currentCat.name) : '待启动') + '</span>' +
+          '<strong>' + (currentTech ? _escapeHtml(currentTech.name) : '选择一项科技开始研究') + '</strong>' +
+        '</div>' +
+        '<div class="research-current-bar" role="progressbar" aria-label="当前研究进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + currentProgress + '">' +
+          '<i style="width:' + currentProgress + '%"></i>' +
+        '</div>' +
+      '</div>' +
+      _renderResearchCategoryMatrix(categoryStatuses) +
+      _renderResearchFocusPanel(state, categoryStatuses, currentTech) +
+    '</section>';
 }
 
 function _renderOptions(state, onStartResearch, onCancelQueuedResearch, onMoveQueuedResearchUp, onMoveQueuedResearchDown, onClearResearchQueue, researchDispatchContext, onApplyResearchDispatch, onResolveResearchBlocker) {
   const container = document.getElementById('research-options');
+  if (!container) return;
   const researchRecommendation = AutoTrade.findResearchSupplyRoute(state, researchDispatchContext);
   const researchBlocker = !researchRecommendation
     ? getResearchDispatchBlockerState(state, researchDispatchContext)
@@ -288,14 +435,16 @@ function _renderOptions(state, onStartResearch, onCancelQueuedResearch, onMoveQu
   } else {
     const queueMode = !!state.currentResearch;
     const queueLen = (state.researchQueue || []).length;
-    html += '<div class="research-label">' + (queueMode ? '可加入研究队列（当前排队 ' + queueLen + ' 项）' : '选择研究方向（三选一）') + '</div><div class="research-cards">';
+    html += '<section class="research-option-console" aria-label="研究候选">' +
+      '<div class="research-label">' + (queueMode ? '可加入研究队列（当前排队 ' + queueLen + ' 项）' : '选择研究方向（三选一）') + '</div>' +
+      '<div class="research-cards" role="list" aria-label="可研究科技">';
     options.forEach(function (techId) {
       const tech = TECHNOLOGIES.find(function (t) { return t.id === techId; });
       const cat = TECH_CATEGORIES.find(function (c) { return c.id === tech.category; });
       const canAfford = state.credits >= tech.cost;
 
       html +=
-        '<div class="research-card' + (canAfford ? '' : ' unaffordable') + '" data-tech="' + tech.id + '">' +
+        '<article class="research-card' + (canAfford ? '' : ' unaffordable') + '" role="listitem" data-tech="' + _escapeHtmlAttr(tech.id) + '" data-research-affordable="' + (canAfford ? 'true' : 'false') + '" aria-label="' + _escapeHtmlAttr(tech.name + '，' + (canAfford ? '可研究' : '资金不足')) + '">' +
           '<div class="research-card-header" style="border-left: 3px solid ' + cat.color + '">' +
             '<span class="research-cat-badge" style="background:' + cat.color + '22;color:' + cat.color + '">' + cat.icon + ' ' + cat.name + '</span>' +
             '<span class="research-tier">T' + tech.tier + '</span>' +
@@ -308,10 +457,10 @@ function _renderOptions(state, onStartResearch, onCancelQueuedResearch, onMoveQu
             '<span class="research-cost">💰 ' + tech.cost + '</span>' +
             '<span class="research-time">⏱️ ' + tech.researchDays + ' 天</span>' +
           '</div>' +
-          '<button class="btn-research">' + (queueMode ? '加入队列' : '开始研究') + '</button>' +
-        '</div>';
+          '<button type="button" class="btn-research" aria-label="' + _escapeHtmlAttr((queueMode ? '加入研究队列：' : '开始研究：') + tech.name) + '">' + (queueMode ? '加入队列' : '开始研究') + '</button>' +
+        '</article>';
     });
-    html += '</div>';
+    html += '</div></section>';
   }
 
   container.innerHTML = html;
@@ -321,20 +470,22 @@ function _renderOptions(state, onStartResearch, onCancelQueuedResearch, onMoveQu
 
 function _renderCompleted(state) {
   const container = document.getElementById('research-completed');
+  if (!container) return;
   const completed = state.researchedTechs || [];
   if (completed.length === 0) {
     container.innerHTML = '';
     return;
   }
 
-  let html = '<div class="research-label" style="margin-top:12px">已完成研究 (' + completed.length + '/' + TECHNOLOGIES.length + ')</div>';
-  html += '<div class="completed-techs">';
+  let html = '<section class="research-completed-console" aria-label="已完成研究">';
+  html += '<div class="research-label">已完成研究 (' + completed.length + '/' + TECHNOLOGIES.length + ')</div>';
+  html += '<div class="completed-techs" role="list">';
   completed.forEach(function (techId) {
     const tech = TECHNOLOGIES.find(function (t) { return t.id === techId; });
     const cat = TECH_CATEGORIES.find(function (c) { return c.id === tech.category; });
-    html += '<span class="completed-tech-badge" style="border-color:' + cat.color + '" title="' + tech.effectText + '">' + tech.icon + ' ' + tech.name + '</span>';
+    html += '<span class="completed-tech-badge" role="listitem" style="border-color:' + cat.color + '" title="' + _escapeHtmlAttr(tech.effectText) + '">' + _escapeHtml(tech.icon + ' ' + tech.name) + '</span>';
   });
-  html += '</div>';
+  html += '</div></section>';
   container.innerHTML = html;
 }
 
@@ -357,13 +508,13 @@ function _renderResearchOverview(state, researchRecommendation, researchBlocker,
   const progress = ((totalDays - state.currentResearch.daysLeft) / totalDays * 100).toFixed(0);
 
   let html =
-    '<div class="research-active">' +
+    '<div class="research-active" role="region" aria-label="当前研究项目">' +
       '<div class="research-active-header">' +
         '<span class="research-cat-badge" style="background:' + cat.color + '22;color:' + cat.color + '">' + cat.icon + ' ' + cat.name + '</span>' +
         '<span class="research-days">剩余 ' + state.currentResearch.daysLeft + ' 天</span>' +
       '</div>' +
       '<div class="research-active-name">' + tech.icon + ' ' + tech.name + '</div>' +
-      '<div class="mini-bar-track" style="margin-top:6px">' +
+      '<div class="mini-bar-track" role="progressbar" aria-label="当前研究进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + progress + '" style="margin-top:6px">' +
         '<div class="mini-bar-fill research-fill" style="width:' + progress + '%"></div>' +
       '</div>' +
       '<div class="research-effect-text">' + tech.effectText + '</div>' +
@@ -409,7 +560,7 @@ function _renderResearchDispatchRecommendation(recommendation, canApplyResearchD
       surveyIntelNote +
       (canApplyResearchDispatch
         ? '<div class="research-route-actions">' +
-            '<button class="research-route-apply-btn command-action-btn" data-command-surface="fleet" data-command-intent="科研补给" data-command-verb="带入机库派遣">' +
+            '<button type="button" class="research-route-apply-btn command-action-btn" data-command-surface="fleet" data-command-intent="科研补给" data-command-verb="带入机库派遣">' +
               renderCommandActionContent({
                 actionId: 'dispatch',
                 label: '带入机库派遣',
@@ -428,22 +579,23 @@ function _renderQueueHtml(queue, title) {
   let html = '<div class="research-queue">' +
     '<div class="research-queue-head">' +
       '<div class="research-queue-title">' + title + '</div>' +
-      '<button class="btn-queue-action queue-clear-btn">清空队列</button>' +
-    '</div>';
+      '<button type="button" class="btn-queue-action queue-clear-btn">清空队列</button>' +
+    '</div>' +
+    '<div class="research-queue-list" role="list">';
   queue.forEach(function (item, idx) {
     const queueTech = TECHNOLOGIES.find(function (t) { return t.id === item.techId; });
     if (!queueTech) return;
     const isLast = idx === queue.length - 1;
-    html += '<div class="research-queue-item">' +
+    html += '<div class="research-queue-item" role="listitem">' +
       '<span class="queue-index">#' + (idx + 1) + '</span>' +
       '<span class="queue-name">' + queueTech.icon + ' ' + queueTech.name + '</span>' +
       '<span class="queue-days">' + item.daysLeft + ' 天</span>' +
-      '<button class="btn-queue-action queue-up-btn' + (idx === 0 ? ' disabled' : '') + '" data-tech="' + item.techId + '">上移</button>' +
-      '<button class="btn-queue-action queue-down-btn' + (isLast ? ' disabled' : '') + '" data-tech="' + item.techId + '">下移</button>' +
-      '<button class="btn-queue-action queue-cancel-btn" data-tech="' + item.techId + '">取消</button>' +
+      '<button type="button" class="btn-queue-action queue-up-btn' + (idx === 0 ? ' disabled' : '') + '" data-tech="' + item.techId + '">上移</button>' +
+      '<button type="button" class="btn-queue-action queue-down-btn' + (isLast ? ' disabled' : '') + '" data-tech="' + item.techId + '">下移</button>' +
+      '<button type="button" class="btn-queue-action queue-cancel-btn" data-tech="' + item.techId + '">取消</button>' +
       '</div>';
   });
-  html += '</div>';
+  html += '</div></div>';
   return html;
 }
 
@@ -471,9 +623,19 @@ function _bindQueueActions(container, onCancelQueuedResearch, onMoveQueuedResear
   container.querySelectorAll('.queue-clear-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {
       if (!onClearResearchQueue) return;
-      if (confirm('确定要清空整个研究队列吗？未开始项目将返还积分。')) {
-        onClearResearchQueue();
-      }
+      var queuedCount = container.querySelectorAll('.research-queue-item').length;
+      ActionConfirmUI.open({
+        kicker: '研究队列',
+        title: '清空全部待研究项目？',
+        message: '正在进行的首个项目会保留，其余未开始项目将从队列移除。',
+        confirmLabel: '确认清空队列',
+        tone: 'warning',
+        details: [
+          { label: '队列项目', value: queuedCount + ' 项' },
+          { label: '未开始项目', value: '移除并返还积分', tone: 'safe' },
+        ],
+        onConfirm: onClearResearchQueue,
+      });
     });
   });
 }
