@@ -134,12 +134,17 @@ export function getProgress(state) {
 /**
  * 检测是否有任何路径达成胜利
  * @param {object} state
+ * @param {Set<string>|Array<string>} [ignoredPathIds] 本次会话中已确认的路径
  * @returns {{ won: boolean, path: object|null, pathData: object|null }}
  */
-export function checkVictory(state) {
+export function checkVictory(state, ignoredPathIds) {
   var unlockedPaths = getUnlockedPaths(state);
   for (let i = 0; i < unlockedPaths.length; i++) {
     const path = unlockedPaths[i];
+    const ignored = ignoredPathIds && typeof ignoredPathIds.has === 'function'
+      ? ignoredPathIds.has(path.id)
+      : (Array.isArray(ignoredPathIds) && ignoredPathIds.indexOf(path.id) !== -1);
+    if (ignored) continue;
     const progress = getPathProgress(state, path);
     if (progress.completed) {
       return { won: true, path: path, pathData: progress };

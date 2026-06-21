@@ -12,7 +12,7 @@ import { getLevel }            from '../../data/playerLevels.js';
 import { SYSTEMS, GALAXY_JUMP_DAYS, findSystem, findGalaxy, getGalaxyAccessState } from '../../data/systems.js?v=20260420-balance3';
 import * as Economy            from '../economy/Economy.js';
 import * as Faction            from '../faction/FactionSystem.js';
-import * as Exploration        from '../galaxy/ExplorationSystem.js';
+import * as Exploration        from '../galaxy/ExplorationSystem.js?v=20260531-chainfollow1';
 
 const STARTER_RECOMMENDATION_ORDER = [
   'starter_first_trade',

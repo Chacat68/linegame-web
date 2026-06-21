@@ -5,10 +5,11 @@
 import { QUEST_TYPES } from '../data/quests.js';
 import { GOODS } from '../data/goods.js';
 import { findSystem } from '../data/systems.js';
-import { buildMarketFocusAction, MARKET_FOCUS_PRESET_IDS } from './MarketFocus.js?v=20260419-marketcta2';
+import { buildMarketFocusAction, MARKET_FOCUS_PRESET_IDS } from './MarketFocus.js?v=20260531-chainfollow1';
 import { getCommandActionAttributes, normalizeCommandAction, renderCommandActionContent } from './CommandAction.js?v=20260510-command1';
 import * as AutoTrade  from '../systems/trade/AutoTradeSystem.js?v=20260420-balance5';
 import * as Quest      from '../systems/quest/QuestSystem.js?v=20260412-questroute2';
+import * as ActionConfirmUI from './ActionConfirmUI.js?v=20260621-settingsfallback1';
 
 const _goodNameById = GOODS.reduce(function (acc, good) {
   acc[good.id] = good.name;
@@ -305,7 +306,7 @@ function _renderQuestDispatchRecommendation(recommendation, canApplyQuestDispatc
     '<div class="quest-dispatch-note">' + roleLabel + ' · ' + recommendation.strategySummary + (recommendation.tradeThemeSummary ? ' · ' + recommendation.tradeThemeSummary : '') + '</div>' +
     (canApplyQuestDispatch
       ? '<div class="quest-dispatch-actions">' +
-          '<button class="quest-dispatch-apply-btn command-action-btn" data-command-surface="fleet" data-command-intent="任务派遣" data-command-verb="带入机库派遣">' +
+          '<button type="button" class="quest-dispatch-apply-btn command-action-btn" data-command-surface="fleet" data-command-intent="任务派遣" data-command-verb="带入机库派遣">' +
             renderCommandActionContent({
               actionId: 'dispatch',
               label: '带入机库派遣',
@@ -514,7 +515,7 @@ function _renderQuestBlockerActions(actions, quest) {
     var btnClass = 'quest-dispatch-blocker-btn command-action-btn' + (commandAction.variant === 'secondary' ? ' is-secondary' : '');
     var commandAttrs = getCommandActionAttributes(commandAction, _escapeHtmlAttr);
     return '<div class="quest-dispatch-action-item' + (action.variant === 'secondary' ? ' is-secondary' : '') + '">' +
-      '<button class="' + btnClass + '" data-action-id="' + _escapeHtmlAttr(action.actionId || '') + '" data-reason-id="' + _escapeHtmlAttr(action.reasonId || '') + '" data-quest-id="' + _escapeHtmlAttr(quest.id || '') + '" data-quest-name="' + _escapeHtmlAttr(quest.name || '') + '" data-target-quest-id="' + _escapeHtmlAttr(action.targetQuestId || '') + '" data-target-quest-name="' + _escapeHtmlAttr(action.targetQuestName || '') + '" data-market-workspace-id="' + _escapeHtmlAttr(action.marketWorkspaceId || '') + '" data-market-subworkspace-id="' + _escapeHtmlAttr(action.marketSubworkspaceId || '') + '" data-market-focus-label="' + _escapeHtmlAttr(action.marketFocusLabel || '') + '"' + commandAttrs + '>' + renderCommandActionContent(commandAction, _escapeHtml) + '</button>' +
+      '<button type="button" class="' + btnClass + '" data-action-id="' + _escapeHtmlAttr(action.actionId || '') + '" data-reason-id="' + _escapeHtmlAttr(action.reasonId || '') + '" data-quest-id="' + _escapeHtmlAttr(quest.id || '') + '" data-quest-name="' + _escapeHtmlAttr(quest.name || '') + '" data-target-quest-id="' + _escapeHtmlAttr(action.targetQuestId || '') + '" data-target-quest-name="' + _escapeHtmlAttr(action.targetQuestName || '') + '" data-market-workspace-id="' + _escapeHtmlAttr(action.marketWorkspaceId || '') + '" data-market-subworkspace-id="' + _escapeHtmlAttr(action.marketSubworkspaceId || '') + '" data-market-focus-label="' + _escapeHtmlAttr(action.marketFocusLabel || '') + '"' + commandAttrs + '>' + renderCommandActionContent(commandAction, _escapeHtml) + '</button>' +
       '<span class="quest-dispatch-action-hint">' + _escapeHtml(action.hint || '') + '</span>' +
     '</div>';
   }).join('') + '</div>';
@@ -564,7 +565,7 @@ function _renderQuestAcceptHub(state, available, selectedQuest, recommendedIds, 
     storyRoute && rewardSummary.hasDecisionBonus ? '<span class="quest-brief-flag quest-brief-flag-route">🧭 ' + storyRoute.label + '</span>' : '',
   ].filter(Boolean).join('');
 
-  return '<div class="quest-accept-hub" data-quest-accept-hub="true">' +
+  return '<section class="quest-accept-hub" data-quest-accept-hub="true" aria-label="任务接取简报">' +
     '<div class="quest-accept-hub-head">' +
       '<div>' +
         '<div class="quest-accept-kicker">任务简报</div>' +
@@ -572,7 +573,7 @@ function _renderQuestAcceptHub(state, available, selectedQuest, recommendedIds, 
       '</div>' +
       '<div class="quest-accept-count">待选 ' + available.length + ' 项</div>' +
     '</div>' +
-    '<div class="quest-card available-quest quest-accept-featured">' +
+    '<article class="quest-card available-quest quest-accept-featured" role="group" aria-label="' + _escapeHtmlAttr(selectedQuest.name) + '任务简报">' +
       '<div class="quest-card-header">' +
         '<span class="quest-type-badge" style="background:' + (typeInfo.color || '#666') + '">' +
           (typeInfo.icon || '📋') + ' ' + (typeInfo.name || selectedQuest.type) + '</span>' +
@@ -595,24 +596,24 @@ function _renderQuestAcceptHub(state, available, selectedQuest, recommendedIds, 
         '<span>🏅 ' + rewardSummary.reputation + '</span>' +
       '</div>' +
       '<div class="quest-brief-actions">' +
-        '<button class="btn-action quest-accept-btn" data-id="' + selectedQuest.id + '"' +
+        '<button type="button" class="btn-action quest-accept-btn" data-id="' + selectedQuest.id + '"' +
           (limitReached ? ' disabled title="当前最多同时进行 5 个任务"' : '') + '>接取任务</button>' +
       '</div>' +
-    '</div>' +
-  '</div>';
+    '</article>' +
+  '</section>';
 }
 
 function _renderAvailableQuestPicker(state, available, selectedQuest, recommendedIds) {
   if (!selectedQuest || available.length === 0) return '';
 
-  return '<div class="quest-pick-list">' + available.map(function (quest) {
+  return '<div class="quest-pick-list" role="list" aria-label="可接任务列表">' + available.map(function (quest) {
     var typeInfo = QUEST_TYPES[quest.type] || {};
     var rewardSummary = Quest.getQuestRewardSummary(state, quest);
     var actionContext = _getQuestActionContext(quest, state);
     var isSelected = selectedQuest.id === quest.id;
     var primaryObjective = quest.objectives && quest.objectives.length > 0 ? quest.objectives[0] : null;
 
-    return '<button type="button" class="quest-pick-card' + (isSelected ? ' is-selected' : '') + '" data-quest-select-id="' + quest.id + '" aria-pressed="' + (isSelected ? 'true' : 'false') + '">' +
+    return '<button type="button" role="listitem" class="quest-pick-card' + (isSelected ? ' is-selected' : '') + '" data-quest-select-id="' + quest.id + '" aria-pressed="' + (isSelected ? 'true' : 'false') + '">' +
       '<div class="quest-pick-card-head">' +
         '<span class="quest-type-badge" style="background:' + (typeInfo.color || '#666') + '">' +
           (typeInfo.icon || '📋') + ' ' + (typeInfo.name || quest.type) + '</span>' +
@@ -630,6 +631,141 @@ function _renderAvailableQuestPicker(state, available, selectedQuest, recommende
       '</div>' +
     '</button>';
   }).join('') + '</div>';
+}
+
+function _getQuestLocalStatus(quest, state) {
+  if (!quest) {
+    return {
+      label: '待选择',
+      tone: 'idle',
+      detail: '当前没有可展示任务。',
+    };
+  }
+
+  var targets = _questTargetSystems(quest);
+  if (targets.length === 0) {
+    return {
+      label: '本地可推进',
+      tone: 'ready',
+      detail: '不需要指定目的地，可在现有贸易或航行节奏中累计进度。',
+    };
+  }
+
+  if (_questHasCurrentSystemTarget(quest, state)) {
+    return {
+      label: '当前航点命中',
+      tone: 'current',
+      detail: '当前停靠点就是任务目标，可优先查看这条线。',
+    };
+  }
+
+  if (targets.length === 1) {
+    return {
+      label: targets[0].name,
+      tone: 'travel',
+      detail: '目标星球为 ' + targets[0].name + '，适合在航线规划前先确认燃料与距离。',
+    };
+  }
+
+  return {
+    label: '多目标路线',
+    tone: 'travel',
+    detail: '包含多个目标点，适合先看航线预估再决定推进顺序。',
+  };
+}
+
+function _getQuestTriageItems(state, active, sortedAvailable, selectedAvailableQuest) {
+  var seen = Object.create(null);
+  var candidates = [];
+  var pushQuest = function (quest, sourceLabel, stateLabel) {
+    if (!quest || seen[quest.id]) return;
+    seen[quest.id] = true;
+    candidates.push({
+      quest: quest,
+      sourceLabel: sourceLabel,
+      stateLabel: stateLabel,
+      localStatus: _getQuestLocalStatus(quest, state),
+    });
+  };
+
+  active.filter(function (quest) {
+    var status = _getQuestLocalStatus(quest, state);
+    return status.tone === 'current' || status.tone === 'ready';
+  }).forEach(function (quest) {
+    pushQuest(quest, '进行中', '可推进');
+  });
+
+  active.forEach(function (quest) {
+    pushQuest(quest, '进行中', '追踪中');
+  });
+
+  pushQuest(selectedAvailableQuest, '可接取', '待确认');
+  sortedAvailable.slice(0, 3).forEach(function (quest) {
+    pushQuest(quest, '可接取', '待接取');
+  });
+
+  return candidates.slice(0, 3);
+}
+
+function _renderQuestTriagePanel(state, active, sortedAvailable, locked, selectedAvailableQuest, currentPhaseProgress, storyRoute) {
+  var currentLocalActive = active.filter(function (quest) {
+    var status = _getQuestLocalStatus(quest, state);
+    return status.tone === 'current' || status.tone === 'ready';
+  });
+  var availableLocal = sortedAvailable.filter(function (quest) {
+    var status = _getQuestLocalStatus(quest, state);
+    return status.tone === 'current' || status.tone === 'ready';
+  });
+  var timedCount = active.concat(sortedAvailable).filter(function (quest) {
+    return (quest.timeLimit || 0) > 0;
+  }).length;
+  var phaseProgressLabel = currentPhaseProgress.total > 0
+    ? (currentPhaseProgress.completed + '/' + currentPhaseProgress.total)
+    : '0/0';
+  var focusQuest = currentLocalActive[0] || active[0] || selectedAvailableQuest || sortedAvailable[0] || null;
+  var focusStatus = _getQuestLocalStatus(focusQuest, state);
+  var signalTitle = focusQuest
+    ? (focusStatus.label + ' · ' + focusQuest.name)
+    : '等待新委托';
+  var signalNote = focusQuest
+    ? focusStatus.detail
+    : '当前没有可追踪任务，等待章节推进或新委托解锁。';
+  var triageItems = _getQuestTriageItems(state, active, sortedAvailable, selectedAvailableQuest);
+
+  return '<section class="quest-triage-panel" aria-label="任务态势与局部信号">' +
+    '<div class="quest-triage-grid" role="list" aria-label="任务态势矩阵">' +
+      '<div class="quest-triage-cell quest-triage-cell--active" role="listitem"><span>当前航点</span><strong>' + currentLocalActive.length + '</strong><em>进行中可推进</em></div>' +
+      '<div class="quest-triage-cell quest-triage-cell--available" role="listitem"><span>可接取</span><strong>' + availableLocal.length + '/' + sortedAvailable.length + '</strong><em>本地或无目标</em></div>' +
+      '<div class="quest-triage-cell quest-triage-cell--timed" role="listitem"><span>限时线</span><strong>' + timedCount + '</strong><em>需盯时限</em></div>' +
+      '<div class="quest-triage-cell quest-triage-cell--locked" role="listitem"><span>章节</span><strong>' + phaseProgressLabel + '</strong><em>' + locked.length + ' 项未解锁</em></div>' +
+    '</div>' +
+    '<div class="quest-focus-panel" aria-label="任务局部信号">' +
+      '<div class="quest-focus-copy">' +
+        '<span class="quest-focus-kicker">局部信号</span>' +
+        '<strong class="quest-focus-title">' + _escapeHtml(signalTitle) + '</strong>' +
+        '<span class="quest-focus-note">' + _escapeHtml(signalNote) + '</span>' +
+      '</div>' +
+      '<div class="quest-focus-list" role="list" aria-label="重点任务巡检">' +
+        (triageItems.length > 0
+          ? triageItems.map(function (item) {
+              var reward = Quest.getQuestRewardSummary(state, item.quest);
+              return '<article class="quest-focus-card quest-focus-card--' + _escapeHtmlAttr(item.localStatus.tone) + '" role="listitem">' +
+                '<span class="quest-focus-state">' + _escapeHtml(item.stateLabel) + '</span>' +
+                '<span class="quest-focus-main">' +
+                  '<strong>' + _escapeHtml(item.quest.name) + '</strong>' +
+                  '<em>' + _escapeHtml(item.sourceLabel + ' · ' + item.localStatus.label + ' · ' + reward.credits.toLocaleString() + ' 积分') + '</em>' +
+                '</span>' +
+              '</article>';
+            }).join('')
+          : '<div class="quest-focus-empty" role="listitem">暂无重点任务。</div>') +
+      '</div>' +
+      '<div class="quest-route-signal" aria-label="任务路线信号">' +
+        '<span>路线</span>' +
+        '<strong>' + _escapeHtml(storyRoute ? storyRoute.label : '自由贸易路线') + '</strong>' +
+        '<em>' + _escapeHtml(storyRoute && storyRoute.rewardHint ? storyRoute.rewardHint : '按当前任务池自由推进') + '</em>' +
+      '</div>' +
+    '</div>' +
+  '</section>';
 }
 
 /**
@@ -671,7 +807,7 @@ export function render(state, onAccept, onAbandon, questDispatchContext, onApply
     : '等待新委托';
   const commandRouteLabel = storyRoute ? storyRoute.label : '自由贸易路线';
 
-  html += '<section class="quest-command-deck">' +
+  html += '<section class="quest-command-deck" role="region" aria-label="任务控制总览">' +
     '<div class="quest-command-visual" aria-hidden="true">' +
       '<span class="quest-command-orbit quest-command-orbit-a"></span>' +
       '<span class="quest-command-orbit quest-command-orbit-b"></span>' +
@@ -687,19 +823,21 @@ export function render(state, onAccept, onAbandon, questDispatchContext, onApply
         '<span>' + commandFocusLabel + '</span>' +
       '</div>' +
     '</div>' +
-    '<div class="quest-command-metrics">' +
-      '<div><span>ACTIVE</span><strong>' + active.length + '/5</strong></div>' +
-      '<div><span>AVAILABLE</span><strong>' + available.length + '</strong></div>' +
-      '<div><span>LOCKED</span><strong>' + locked.length + '</strong></div>' +
-      '<div><span>PHASE</span><strong>' + currentPhaseProgress.completed + '/' + currentPhaseProgress.total + '</strong></div>' +
+    '<div class="quest-command-metrics" role="list" aria-label="任务统计">' +
+      '<div role="listitem"><span>ACTIVE</span><strong>' + active.length + '/5</strong></div>' +
+      '<div role="listitem"><span>AVAILABLE</span><strong>' + available.length + '</strong></div>' +
+      '<div role="listitem"><span>LOCKED</span><strong>' + locked.length + '</strong></div>' +
+      '<div role="listitem"><span>PHASE</span><strong>' + currentPhaseProgress.completed + '/' + currentPhaseProgress.total + '</strong></div>' +
     '</div>' +
   '</section>';
 
-  html += '<div class="quest-phase-overview">' +
+  html += _renderQuestTriagePanel(state, active, sortedAvailable, locked, selectedAvailableQuest, currentPhaseProgress, storyRoute);
+
+  html += '<div class="quest-phase-overview" aria-label="当前章节进度">' +
     '<div class="quest-phase-chip active" title="' + (currentPhase ? currentPhase.description : '') + '">' +
     '<span class="phase-icon">' + (currentPhase ? currentPhase.icon : '📖') + '</span>' +
     '<span class="phase-name">当前章节：' + phaseName + '</span>' +
-    '<span class="phase-bar"><span class="phase-bar-fill" style="width:' + phaseProgressPct + '%"></span></span>' +
+    '<span class="phase-bar" role="progressbar" aria-label="章节进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + phaseProgressPct + '"><span class="phase-bar-fill" style="width:' + phaseProgressPct + '%"></span></span>' +
     '<span class="phase-progress">' + currentPhaseProgress.completed + '/' + currentPhaseProgress.total + '</span>' +
     '</div>' +
     '</div>';
@@ -716,7 +854,7 @@ export function render(state, onAccept, onAbandon, questDispatchContext, onApply
   if (active.length === 0) {
     html += '<div class="quest-empty">暂无进行中的任务。请从下方任务简报里挑选一项开始推进。</div>';
   } else {
-    html += '<div class="quest-active-grid">';
+    html += '<div class="quest-active-grid" role="list" aria-label="进行中任务">';
     active.forEach(function (quest) {
       const typeInfo = QUEST_TYPES[quest.type] || {};
       const timeleft = quest.timeLimit > 0
@@ -724,7 +862,7 @@ export function render(state, onAccept, onAbandon, questDispatchContext, onApply
         : '';
       const routePreview = Quest.getQuestRoutePreview(state, quest, 2);
 
-      html += '<div class="quest-card active-quest">' +
+      html += '<article class="quest-card active-quest" role="listitem" data-quest-state="active" aria-label="' + _escapeHtmlAttr(quest.name + '，进行中') + '">' +
         '<div class="quest-card-header">' +
           '<span class="quest-type-badge" style="background:' + (typeInfo.color || '#666') + '">' +
             (typeInfo.icon || '📋') + ' ' + (typeInfo.name || quest.type) + '</span>' +
@@ -738,7 +876,7 @@ export function render(state, onAccept, onAbandon, questDispatchContext, onApply
         const pct = Math.min(100, Math.round((obj.current / (obj.amount || 1)) * 100));
         html += '<div class="quest-objective">' +
           '<div class="quest-obj-text">' + _objectiveText(obj) + '</div>' +
-          '<div class="quest-progress-track">' +
+          '<div class="quest-progress-track" role="progressbar" aria-label="' + _escapeHtmlAttr(_objectiveText(obj)) + '" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '">' +
             '<div class="quest-progress-fill" style="width:' + pct + '%"></div>' +
           '</div>' +
           '<span class="quest-obj-count">' + obj.current + '/' + (obj.amount || 1) + '</span>' +
@@ -769,8 +907,8 @@ export function render(state, onAccept, onAbandon, questDispatchContext, onApply
         (activeRewardSummary.hasDecisionBonus ? '<span title="' + activeRewardSummary.bonusText + '">🧭 分支加成</span>' : '') +
         '</div>';
 
-      html += '<button class="btn-action quest-abandon-btn" data-id="' + quest.id + '">放弃</button>';
-      html += '</div>';
+      html += '<button type="button" class="btn-action quest-abandon-btn" data-id="' + quest.id + '" data-name="' + _escapeHtmlAttr(quest.name) + '">放弃</button>';
+      html += '</article>';
     });
     html += '</div>';
   }
@@ -799,11 +937,11 @@ export function render(state, onAccept, onAbandon, questDispatchContext, onApply
   html += '<section class="quest-module quest-module-locked">';
   if (locked.length > 0) {
     html += '<div class="quest-section-title">🔒 未解锁 (' + locked.length + ')</div>';
-    html += '<div class="quest-locked-grid">';
+    html += '<div class="quest-locked-grid" role="list" aria-label="未解锁任务">';
     locked.forEach(function (quest) {
       const typeInfo = QUEST_TYPES[quest.type] || {};
       const rewardSummary = Quest.getQuestRewardSummary(state, quest);
-      html += '<div class="quest-card locked-quest">' +
+      html += '<article class="quest-card locked-quest" role="listitem" data-quest-state="locked" aria-label="' + _escapeHtmlAttr(quest.name + '，未解锁') + '">' +
         '<div class="quest-card-header">' +
           '<span class="quest-type-badge" style="background:' + (typeInfo.color || '#666') + '; opacity:0.6">' +
             (typeInfo.icon || '📋') + ' ' + (typeInfo.name || quest.type) + '</span>' +
@@ -822,7 +960,7 @@ export function render(state, onAccept, onAbandon, questDispatchContext, onApply
           '<span>🏅 ' + rewardSummary.reputation + '</span>' +
           (rewardSummary.hasDecisionBonus ? '<span title="' + rewardSummary.bonusText + '">🧭 分支加成</span>' : '') +
         '</div>' +
-        '</div>';
+        '</article>';
     });
     html += '</div>';
   } else {
@@ -851,7 +989,17 @@ export function render(state, onAccept, onAbandon, questDispatchContext, onApply
   });
   container.querySelectorAll('.quest-abandon-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      if (confirm('确定放弃此任务？')) onAbandon(btn.dataset.id);
+      ActionConfirmUI.open({
+        kicker: '任务终止',
+        title: '放弃「' + (btn.dataset.name || '当前任务') + '」？',
+        message: '当前任务进度会被移除，需要重新接取后才能继续推进。',
+        confirmLabel: '确认放弃任务',
+        details: [
+          { label: '当前进度', value: '全部丢失', tone: 'danger' },
+          { label: '后续处理', value: '可在条件允许时重新接取' },
+        ],
+        onConfirm: function () { onAbandon(btn.dataset.id); },
+      });
     });
   });
   var questDispatchBtn = container.querySelector('.quest-dispatch-apply-btn');

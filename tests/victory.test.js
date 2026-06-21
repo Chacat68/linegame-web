@@ -99,6 +99,23 @@ describe('VictorySystem.checkVictory', () => {
     expect(result).toHaveProperty('won');
     expect(result).toHaveProperty('path');
   });
+
+  it('会跳过本次会话已确认的胜利路径', () => {
+    Economy.init();
+    const state = createTestState({
+      credits: 100000000,
+      tradeCount: 10000,
+      totalProfit: 100000000,
+      questPhase: 10,
+    });
+    Faction.init(state);
+
+    const firstResult = Victory.checkVictory(state);
+    expect(firstResult.won).toBe(true);
+
+    const ignoredResult = Victory.checkVictory(state, new Set([firstResult.path.id]));
+    expect(ignoredResult.won === false || ignoredResult.path.id !== firstResult.path.id).toBe(true);
+  });
 });
 
 describe('VictorySystem.getUnlockedPaths', () => {

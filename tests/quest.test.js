@@ -8,7 +8,7 @@ import * as GalaxyData from '../js/systems/galaxy/GalaxyDataLayer.js';
 import * as Exploration from '../js/systems/galaxy/ExplorationSystem.js';
 import * as Quest from '../js/systems/quest/QuestSystem.js';
 import * as Faction from '../js/systems/faction/FactionSystem.js';
-import { getQuestBlockerActions } from '../js/ui/QuestUI.js?v=20260419-marketfocus4';
+import { getQuestBlockerActions } from '../js/ui/QuestUI.js?v=20260609-questfocus1';
 import { createTestState } from './helpers.js';
 
 describe('Quest.init', () => {
