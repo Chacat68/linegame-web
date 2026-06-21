@@ -40,13 +40,22 @@ export function handleCommerceAction(suggestion, context) {
   var payload = suggestion.payload || {};
   var marketFocusGoodId = payload.goodId || '';
   var marketFocusTradeAction = payload.tradeAction || '';
-
-  _call(context, 'openMarketPanel', state, {
+  var marketFocus = {
     workspaceId: payload.workspaceId || 'spot',
     subworkspaceId: payload.subworkspaceId || 'trade',
     goodId: marketFocusGoodId,
     tradeAction: marketFocusTradeAction,
-  });
+  };
+  if (payload.systemId) marketFocus.systemId = payload.systemId;
+
+  if (payload.chainId && typeof context.acknowledgeSurveyChainFollowup === 'function') {
+    _call(context, 'acknowledgeSurveyChainFollowup', payload.systemId || state.currentSystem, payload.chainId);
+  }
+  if (payload.systemId && typeof context.openMarketSystemPanel === 'function') {
+    _call(context, 'openMarketSystemPanel', state, payload.systemId, marketFocus);
+  } else {
+    _call(context, 'openMarketPanel', state, marketFocus);
+  }
   _call(context, 'emitLog', {
     text: buildCommandFeedback({
       actionId: 'market',
@@ -64,6 +73,8 @@ export function handleCommerceAction(suggestion, context) {
   _call(context, 'updateUI');
   if (marketFocusGoodId) {
     _call(context, 'revealMarketGoodFocus', marketFocusGoodId, { tradeAction: marketFocusTradeAction });
+  } else if (payload.chainId && typeof context.revealSurveyChainFocus === 'function') {
+    _call(context, 'revealSurveyChainFocus', payload.chainId);
   }
   showContextCompletion(context, getMarketNavigationCompletion());
 

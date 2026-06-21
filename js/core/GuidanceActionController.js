@@ -1,9 +1,9 @@
 import { buildCommandFeedback } from '../ui/CommandAction.js?v=20260510-command1';
-import * as CommerceAction from './CommerceActionController.js?v=20260526-completionhelper1';
+import * as CommerceAction from './CommerceActionController.js?v=20260531-chainfollow1';
 import { getNavigationFocusCompletion, showContextCompletion } from './ActionGuideCompletion.js?v=20260526-helper1';
 import * as ExplorationAction from './ExplorationActionController.js?v=20260524-action2';
 
-export { getMarketActionDestination } from './CommerceActionController.js?v=20260526-completionhelper1';
+export { getMarketActionDestination } from './CommerceActionController.js?v=20260531-chainfollow1';
 
 function _getState(context) {
   if (context && typeof context.getState === 'function') return context.getState();
@@ -13,6 +13,22 @@ function _getState(context) {
 function _call(context, name) {
   if (!context || typeof context[name] !== 'function') return undefined;
   return context[name].apply(null, Array.prototype.slice.call(arguments, 2));
+}
+
+function _getCompanyDirectiveClaimCompletionDetail(claimResult) {
+  var count = claimResult && claimResult.claimedCount ? claimResult.claimedCount : 0;
+  var base = '已结算 ' + count + ' 项奖励';
+  var rewardLabel = claimResult && claimResult.rewardLabel ? claimResult.rewardLabel : '';
+  var nextDirective = claimResult && claimResult.nextDirective ? claimResult.nextDirective : null;
+  if (!rewardLabel && !nextDirective) return base + '，下一条行动建议已刷新';
+
+  var detail = rewardLabel ? (base + '：' + rewardLabel) : base;
+  if (nextDirective && nextDirective.label) return detail + '；' + nextDirective.label;
+  if (nextDirective && nextDirective.title) {
+    var percent = typeof nextDirective.percent === 'number' ? (' ' + nextDirective.percent + '%') : '';
+    return detail + '；下一轮目标：' + nextDirective.title + percent;
+  }
+  return detail + '，下一条行动建议已刷新';
 }
 
 export function getProcessingMessage(suggestion) {
@@ -31,6 +47,7 @@ export function getProcessingMessage(suggestion) {
   if (suggestion.actionType === 'fleet.dispatch.prefill') return '已载入派遣草案，确认后执行路线';
   if (suggestion.actionType === 'fleet.mod.open') return '已切到机库，查看推荐改装';
   if (suggestion.actionType === 'fleet.service.open') return '已切到机库，检查维修方案';
+  if (suggestion.actionType === 'company.directive.claimAll') return '已结算公司指令奖励，正在刷新下一步';
   if (ExplorationAction.isExplorationAction(suggestion.actionType)) return ExplorationAction.getProcessingMessage(suggestion);
   return '已执行，正在生成下一条建议';
 }
@@ -81,6 +98,19 @@ export function handleGuidanceAction(suggestion, context) {
     case 'event.open':
       _call(ctx, 'forcePendingEvent');
       _call(ctx, 'refreshActionGuide');
+      return;
+
+    case 'company.directive.claimAll':
+      var claimResult = _call(ctx, 'claimCompanyDirectiveRewards');
+      if (claimResult && claimResult.ok) {
+        _call(ctx, 'showCompletion',
+          '公司指令奖励已领取',
+          _getCompanyDirectiveClaimCompletionDetail(claimResult),
+          { durationMs: 1400 }
+        );
+      } else {
+        _call(ctx, 'refreshActionGuide');
+      }
       return;
 
     case 'fleet.dispatch.prefill':

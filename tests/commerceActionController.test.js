@@ -85,6 +85,56 @@ describe('CommerceActionController', function () {
     expect(context.calls[4]).toEqual(['showCompletion', '已打开市场导航', '下一条行动建议已刷新']);
   });
 
+  it('事件链市场行动会定位系统并确认后续已跟进', function () {
+    var context = createContext({
+      openMarketSystemPanel: function (nextState, systemId, options) {
+        context.calls.push(['openMarketSystemPanel', nextState, systemId, options]);
+      },
+      acknowledgeSurveyChainFollowup: function (systemId, chainId) {
+        context.calls.push(['acknowledgeSurveyChainFollowup', systemId, chainId]);
+      },
+      revealSurveyChainFocus: function (chainId) {
+        context.calls.push(['revealSurveyChainFocus', chainId]);
+      },
+    });
+
+    handleCommerceAction({
+      actionType: 'market.open',
+      title: '跟进「废弃补给站」',
+      actionLabel: '规划商网',
+      commandIntent: '事件链商网',
+      payload: {
+        workspaceId: 'operations',
+        subworkspaceId: 'network',
+        systemId: 'sol_prime',
+        chainId: 'sol_prime_depot_chain',
+      },
+    }, context);
+
+    expect(context.calls[0]).toEqual([
+      'acknowledgeSurveyChainFollowup',
+      'sol_prime',
+      'sol_prime_depot_chain',
+    ]);
+    expect(context.calls[1]).toEqual([
+      'openMarketSystemPanel',
+      context.state,
+      'sol_prime',
+      {
+        workspaceId: 'operations',
+        subworkspaceId: 'network',
+        goodId: '',
+        tradeAction: '',
+        systemId: 'sol_prime',
+      },
+    ]);
+    expect(context.calls[2][0]).toBe('emitLog');
+    expect(context.calls[2][1].text).toContain('经营页 · 商网总览区');
+    expect(context.calls[2][1].text).toContain('跟进「废弃补给站」');
+    expect(context.calls[4]).toEqual(['revealSurveyChainFocus', 'sol_prime_depot_chain']);
+    expect(context.calls[5]).toEqual(['showCompletion', '已打开市场导航', '下一条行动建议已刷新']);
+  });
+
   it('可复用市场目的地文案映射', function () {
     expect(getMarketActionDestination({ workspaceId: 'capital' }, '')).toBe('商业终端 · 资本调度区');
     expect(getMarketActionDestination({ workspaceId: 'capital', subworkspaceId: 'stocks' }, '')).toBe('商业终端 · 股票交易区');

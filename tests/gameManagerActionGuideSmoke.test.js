@@ -7,7 +7,7 @@ import * as Guidance from '../js/systems/guidance/GuidanceSystem.js';
 import * as Quest from '../js/systems/quest/QuestSystem.js';
 import * as Research from '../js/systems/research/ResearchSystem.js';
 import * as Tutorial from '../js/systems/tutorial/TutorialSystem.js';
-import * as FleetUI from '../js/ui/FleetUI.js?v=20260526-complete2';
+import * as FleetUI from '../js/ui/FleetUI.js?v=20260621-settingsfallback1';
 import { createTestState } from './helpers.js';
 
 function createFakeClassList(initialValues) {
@@ -177,12 +177,8 @@ function createActionGuideSmokeDom() {
         if (selector === '.tab-pane[data-tab-group="trade"]') return [fleetPane];
         return [];
       },
-      createElement: function () {
-        var el = createFakeElement();
-        el.querySelector = function (selector) {
-          return selector === '.inline-portal-back-btn' ? backButton : null;
-        };
-        return el;
+      createElement: function (tagName) {
+        return tagName === 'button' ? backButton : createFakeElement();
       },
     },
     elements: elements,

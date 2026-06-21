@@ -42,6 +42,7 @@ describe('GuidanceActionController', function () {
     expect(getProcessingMessage({ actionType: 'fleet.service.open' })).toBe('已切到机库，检查维修方案');
     expect(getProcessingMessage({ actionType: 'fleet.mod.open' })).toBe('已切到机库，查看推荐改装');
     expect(getProcessingMessage({ actionType: 'exploration.scan' })).toBe('已执行探索指令，正在刷新现场建议');
+    expect(getProcessingMessage({ actionType: 'company.directive.claimAll' })).toBe('已结算公司指令奖励，正在刷新下一步');
   });
 
   it('把补给行动分发给直接执行回调', function () {
@@ -145,6 +146,54 @@ describe('GuidanceActionController', function () {
     expect(context.calls).toEqual([
       ['prepareDirectExecution'],
       ['scanSystem', 'alpha_centauri', { suppressReveal: true }],
+    ]);
+  });
+
+  it('公司指令奖励行动会委托给公司指令领奖回调并显示完成态', function () {
+    var context = createCallContext({
+      claimCompanyDirectiveRewards: function () {
+        context.calls.push(['claimCompanyDirectiveRewards']);
+        return { ok: true, claimedCount: 2 };
+      },
+    });
+
+    handleGuidanceAction({
+      actionType: 'company.directive.claimAll',
+      actionLabel: '全部领取',
+      surface: 'company',
+    }, context);
+
+    expect(context.calls[0]).toEqual(['claimCompanyDirectiveRewards']);
+    expect(context.calls[1]).toEqual([
+      'showCompletion',
+      '公司指令奖励已领取',
+      '已结算 2 项奖励，下一条行动建议已刷新',
+    ]);
+  });
+
+  it('公司指令奖励完成态会展示收益和下一轮目标', function () {
+    var context = createCallContext({
+      claimCompanyDirectiveRewards: function () {
+        context.calls.push(['claimCompanyDirectiveRewards']);
+        return {
+          ok: true,
+          claimedCount: 1,
+          rewardLabel: '650 cr · 公司经验 +80 · 声望 +3',
+          nextDirective: { title: '商网扩张', percent: 25 },
+        };
+      },
+    });
+
+    handleGuidanceAction({
+      actionType: 'company.directive.claimAll',
+      actionLabel: '领取奖励',
+      surface: 'company',
+    }, context);
+
+    expect(context.calls[1]).toEqual([
+      'showCompletion',
+      '公司指令奖励已领取',
+      '已结算 1 项奖励：650 cr · 公司经验 +80 · 声望 +3；下一轮目标：商网扩张 25%',
     ]);
   });
 

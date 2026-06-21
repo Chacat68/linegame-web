@@ -1,4 +1,4 @@
-import { getCommandActionAttributes, renderCommandActionContent } from './CommandAction.js?v=20260510-command1';
+import { getCommandActionAttributes, renderCommandActionContent } from './CommandAction.js?v=20260531-directiveaction1';
 
 let _onAction = null;
 let _suggestion = null;
@@ -45,6 +45,8 @@ function _getCommandIntent(suggestion) {
       return '模块改装';
     case 'fleet.service.open':
       return '维修船坞';
+    case 'company.directive.claimAll':
+      return '公司指令奖励';
     case 'exploration.scan':
       return '轨道测绘';
     case 'exploration.land':
@@ -63,6 +65,20 @@ function _getSuggestionCommandAction(suggestion) {
     commandVerb: suggestion.actionLabel || '执行',
     label: suggestion.actionLabel || '执行',
   };
+}
+
+function _getGuidanceTopic(suggestion) {
+  return suggestion && suggestion.guidanceTopic && suggestion.guidanceTopic.id
+    ? suggestion.guidanceTopic
+    : null;
+}
+
+function _renderKicker(suggestion) {
+  var topic = _getGuidanceTopic(suggestion);
+  var label = '当前行动';
+  if (topic && topic.label) label += ' · ' + topic.label;
+  if (topic && topic.stepLabel) label += ' / ' + topic.stepLabel;
+  return _escapeHtml(label);
 }
 
 function _getRoot() {
@@ -91,6 +107,12 @@ function _bind(root) {
       _onAction(_suggestion);
     }
   });
+  root.addEventListener('keydown', function (event) {
+    if (!event || event.key !== 'Escape' || !_suggestion || _collapsed) return;
+    if (typeof event.preventDefault === 'function') event.preventDefault();
+    _collapsed = true;
+    render(_suggestion);
+  });
   _boundRoot = root;
 }
 
@@ -107,10 +129,12 @@ function _clearCompletion(root) {
 
 function _renderExpanded(suggestion) {
   var commandAction = _getSuggestionCommandAction(suggestion);
-  return '<div class="action-guide-shell" data-guide-surface="' + _escapeHtml(suggestion.surface || 'system') + '">' +
+  var topic = _getGuidanceTopic(suggestion);
+  var topicAttr = topic ? (' data-guide-topic="' + _escapeHtml(topic.id) + '"') : '';
+  return '<div class="action-guide-shell" data-guide-surface="' + _escapeHtml(suggestion.surface || 'system') + '"' + topicAttr + '>' +
     '<div class="action-guide-status" aria-hidden="true"></div>' +
     '<div class="action-guide-copy">' +
-      '<div class="action-guide-kicker">当前行动</div>' +
+      '<div class="action-guide-kicker">' + _renderKicker(suggestion) + '</div>' +
       '<div class="action-guide-main">' +
         '<strong class="action-guide-title">' + _escapeHtml(suggestion.title) + '</strong>' +
         '<span class="action-guide-reason">' + _escapeHtml(suggestion.reason) + '</span>' +
@@ -126,8 +150,10 @@ function _renderExpanded(suggestion) {
 }
 
 function _renderCollapsed(suggestion) {
+  var topic = _getGuidanceTopic(suggestion);
+  var kicker = topic && topic.label ? ('当前行动 · ' + topic.label) : '当前行动';
   return '<button class="action-guide-mini" type="button" data-action-guide-toggle aria-label="展开当前行动" aria-expanded="false">' +
-    '<span class="action-guide-mini-kicker">当前行动</span>' +
+    '<span class="action-guide-mini-kicker">' + _escapeHtml(kicker) + '</span>' +
     '<span class="action-guide-mini-title">' + _escapeHtml(suggestion.title) + '</span>' +
   '</button>';
 }
@@ -183,10 +209,12 @@ export function showProcessing(suggestion, message) {
   root.classList.remove('is-collapsed');
   root.classList.add('is-processing');
   root.dataset.guideId = _suggestion.id || '';
-  root.innerHTML = '<div class="action-guide-shell action-guide-shell--processing" data-guide-surface="' + _escapeHtml(_suggestion.surface || 'system') + '">' +
+  var topic = _getGuidanceTopic(_suggestion);
+  var topicAttr = topic ? (' data-guide-topic="' + _escapeHtml(topic.id) + '"') : '';
+  root.innerHTML = '<div class="action-guide-shell action-guide-shell--processing" data-guide-surface="' + _escapeHtml(_suggestion.surface || 'system') + '"' + topicAttr + '>' +
     '<div class="action-guide-status" aria-hidden="true"></div>' +
     '<div class="action-guide-copy">' +
-      '<div class="action-guide-kicker">当前行动</div>' +
+      '<div class="action-guide-kicker">' + _renderKicker(_suggestion) + '</div>' +
       '<div class="action-guide-main">' +
         '<strong class="action-guide-title">' + _escapeHtml(message || '已执行，正在生成下一条建议') + '</strong>' +
         '<span class="action-guide-reason">' + _escapeHtml(_suggestion.title || '') + '</span>' +

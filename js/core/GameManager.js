@@ -6,47 +6,49 @@
 //       每次状态变更后调用 _updateUI 同步视图。
 
 import * as EventBus   from './EventBus.js';
-import * as Economy    from '../systems/economy/Economy.js';
-import * as Trade      from '../systems/trade/TradeSystem.js';
-import * as Commerce   from '../systems/commerce/CommerceFacade.js';
+import * as Economy    from '../systems/economy/Economy.js?v=20260531-chainfollow1';
+import * as Trade      from '../systems/trade/TradeSystem.js?v=20260531-chainfollow1';
+import * as Commerce   from '../systems/commerce/CommerceFacade.js?v=20260531-chainfollow1';
 import * as RandomEvent from '../systems/event/RandomEvent.js';
 import * as Faction    from '../systems/faction/FactionSystem.js';
 import * as Research   from '../systems/research/ResearchSystem.js';
 import * as Renderer3D from '../ui/Renderer3DAdvanced.js?v=20260513-navguide1';
 import * as GalaxyData from '../systems/galaxy/GalaxyDataLayer.js';
-import * as Exploration from '../systems/galaxy/ExplorationSystem.js?v=20260507-scanplay1';
-import * as HUD        from '../ui/HUD.js?v=20260519-ux5';
-import * as MarketUI   from '../ui/MarketUI.js?v=20260520-guide2';
+import * as Exploration from '../systems/galaxy/ExplorationSystem.js?v=20260531-chainfollow1';
+import * as HUD        from '../ui/HUD.js?v=20260621-settingsfallback1';
+import * as MarketUI   from '../ui/MarketUI.js?v=20260619-marketcontrols1';
 import * as ShipUI     from '../ui/ShipUI.js';
-import * as MapUI      from '../ui/MapUI.js?v=20260525-navfix1';
-import * as Modal      from '../ui/Modal.js?v=20260519-ux7';
-import * as EventUI    from '../ui/EventUI.js?v=20260505-surface4';
-import * as DialogueUI from '../ui/DialogueUI.js?v=20260505-surface4';
-import * as ActionGuideUI from '../ui/ActionGuideUI.js?v=20260526-complete1';
-import * as ResearchUI from '../ui/ResearchUI.js?v=20260420-balance5';
-import * as FactionUI  from '../ui/FactionUI.js?v=20260419-marketcta2';
-import * as SaveUI     from '../ui/SaveUI.js';
-import * as UIManager  from '../ui/UIManager.js';
-import * as QuestUI    from '../ui/QuestUI.js?v=20260428-questdeck1';
+import * as MapUI      from '../ui/MapUI.js?v=20260621-settingsfallback1';
+import * as Modal      from '../ui/Modal.js?v=20260621-settingsfallback1';
+import * as VictoryResultUI from '../ui/VictoryResultUI.js?v=20260621-settingsfallback1';
+import * as EventUI    from '../ui/EventUI.js?v=20260621-settingsfallback1';
+import * as DialogueUI from '../ui/DialogueUI.js?v=20260621-settingsfallback1';
+import * as OnboardingUI from '../ui/OnboardingUI.js?v=20260621-settingsfallback1';
+import * as ActionGuideUI from '../ui/ActionGuideUI.js?v=20260531-topicchain1';
+import * as CompanyDirectiveUI from '../ui/CompanyDirectiveUI.js?v=20260621-settingsfallback1';
+import * as ResearchUI from '../ui/ResearchUI.js?v=20260621-settingsfallback1';
+import * as FactionUI  from '../ui/FactionUI.js?v=20260609-factionfocus1';
+import * as SaveUI     from '../ui/SaveUI.js?v=20260621-settingsfallback1';
+import * as UIManager  from '../ui/UIManager.js?v=20260621-settingsfallback1';
+import * as QuestUI    from '../ui/QuestUI.js?v=20260621-settingsfallback1';
 import { buildCommandFeedback } from '../ui/CommandAction.js?v=20260510-command1';
-import * as AchievementUI from '../ui/AchievementUI.js';
+import * as AchievementUI from '../ui/AchievementUI.js?v=20260609-achfocus1';
 import * as Fleet      from '../systems/fleet/FleetSystem.js?v=20260526-modfocus1';
 import * as Crew       from '../systems/fleet/CrewSystem.js';
-import * as AutoTrade  from '../systems/trade/AutoTradeSystem.js?v=20260420-balance5';
-import * as TradeStation from '../systems/trade/TradeStationSystem.js';
+import * as AutoTrade  from '../systems/trade/AutoTradeSystem.js?v=20260531-chainfollow1';
+import * as TradeStation from '../systems/trade/TradeStationSystem.js?v=20260531-chainfollow1';
 import * as Finance from '../systems/finance/FinanceSystem.js';
 import * as Futures from '../systems/finance/FuturesSystem.js';
-import * as FleetUI    from '../ui/FleetUI.js?v=20260526-complete2';
+import * as FleetUI    from '../ui/FleetUI.js?v=20260621-settingsfallback1';
 import * as Save       from '../systems/save/SaveSystem.js';
-import * as Quest      from '../systems/quest/QuestSystem.js?v=20260412-questroute2';
+import * as Quest      from '../systems/quest/QuestSystem.js?v=20260531-chainfollow1';
 import * as Achievement from '../systems/achievement/AchievementSystem.js';
 import * as Tutorial   from '../systems/tutorial/TutorialSystem.js?v=20260518-ux2';
-import * as TutorialUI from '../ui/TutorialUI.js?v=20260412-tutquest1';
+import * as TutorialUI from '../ui/TutorialUI.js?v=20260621-tutorialviewport2';
 import * as Dialogue   from '../systems/story/DialogueSystem.js';
-import * as GameTime from '../systems/time/GameTimeSystem.js';
+import * as GameTime from '../systems/time/GameTimeSystem.js?v=20260531-chainfollow1';
 import { INITIAL_STATE, DIFFICULTY_LEVELS, EVENT_CONFIG, TIME_CONFIG } from '../data/constants.js';
-import * as Victory from '../systems/victory/VictorySystem.js';
-import { VICTORY_PATHS } from '../data/victoryConditions.js';
+import * as Victory from '../systems/victory/VictorySystem.js?v=20260619-endingresult1';
 import { getLevel } from '../data/playerLevels.js';
 import { SYSTEMS } from '../data/systems.js';
 import { GOODS } from '../data/goods.js';
@@ -59,13 +61,14 @@ import {
   getRemoteMarketFocusCompletion,
   getServiceScheduledCompletion,
 } from './ActionGuideCompletion.js?v=20260526-helper1';
-import * as Settings from './SettingsManager.js?v=20260525-audio1';
+import * as Settings from './SettingsManager.js?v=20260621-settingsfallback1';
 import * as Audio from './AudioManager.js';
 import * as Progression from '../systems/progression/ProgressionSystem.js?v=20260518-ux2';
-import * as Guidance from '../systems/guidance/GuidanceSystem.js?v=20260526-complete2';
-import * as GuidanceAction from './GuidanceActionController.js?v=20260526-completionhelper1';
+import * as Guidance from '../systems/guidance/GuidanceSystem.js?v=20260531-chainfollow1';
+import * as CompanyDirective from '../systems/company/CompanyDirectiveSystem.js?v=20260531-rewardloop1';
+import * as GuidanceAction from './GuidanceActionController.js?v=20260531-chainfollow1';
 import * as Dispatch from './DispatchController.js?v=20260505-surface1';
-import { hasBlockingSurfaceOpen, hideBlockingSurface, showBlockingSurface } from '../ui/SurfaceManager.js?v=20260505-surface4';
+import { hasBlockingSurfaceOpen, hideBlockingSurface, showBlockingSurface } from '../ui/SurfaceManager.js?v=20260621-settingsfallback1';
 
 let _state     = null;
 let _startTime = null;
@@ -81,6 +84,7 @@ let _dialoguePlaying = false;
 let _realtimeClock = null;
 let _recentModInstallContext = null;
 let _gameLoopFrameId = null;
+let _acknowledgedVictoryPathIds = new Set();
 
 function _getMarketFinanceActions() {
   return {
@@ -122,6 +126,7 @@ export function init(difficulty) {
   _dialogueQueue = [];
   _dialoguePlaying = false;
   _realtimeClock = null;
+  _acknowledgedVictoryPathIds = new Set();
 
   // 应用难度设定
   var effectiveDifficulty = difficulty || _settings.difficulty || 'normal';
@@ -183,6 +188,14 @@ export function init(difficulty) {
     _refreshActionGuide();
   });
   ActionGuideUI.init(_handleActionGuideAction);
+  CompanyDirectiveUI.init({
+    onAction: _handleCompanyDirectiveAction,
+    onClaim: _handleCompanyDirectiveClaim,
+    onClaimAll: _handleCompanyDirectiveClaimAll,
+    onSelectionChange: function () {
+      _refreshActionGuide();
+    },
+  });
 
   // 3D视角默认启用，确保回调已绑定
   MapUI.init3DCallbacks(_state, _handleTravel, _handleGalaxyJump);
@@ -207,18 +220,20 @@ export function init(difficulty) {
     _bindMarketModeButtons();
   });
   Modal.init(_handleTradeConfirm);
-
-  // 重新绑定重启按钮（用 cloneNode 去掉旧 listener 避免叠加）
-  var oldRestartBtn = document.getElementById('restart-btn');
-  if (oldRestartBtn) {
-    var newRestartBtn = oldRestartBtn.cloneNode(true);
-    oldRestartBtn.parentNode.replaceChild(newRestartBtn, oldRestartBtn);
-    newRestartBtn.addEventListener('click', function () {
-      hideBlockingSurface('gameover-modal');
+  VictoryResultUI.init({
+    onContinue: function (pathId) {
+      if (pathId) _acknowledgedVictoryPathIds.add(pathId);
+      EventBus.emit('log:message', {
+        text: '胜利结算已归档，当前公司继续经营。',
+        type: 'info',
+      });
+      _refreshActionGuide();
+    },
+    onRestart: function () {
       Tutorial.reset();
       init();
-    });
-  }
+    },
+  });
 
   // 新手引导系统
   Tutorial.init(_state);
@@ -425,57 +440,37 @@ function _queueQuestDialogueResult(result, onFinished) {
 // 设置管理已提取到 js/core/SettingsManager.js
 
 function _showTutorialStartModal() {
-  const modal = document.getElementById('tutorial-start-modal');
-  showBlockingSurface('tutorial-start-modal');
+  OnboardingUI.showTutorialStart({
+    onStart: function () {
+      Tutorial.start();
+      _refreshActionGuide();
+    },
+    onSkip: function () {
+      Tutorial.skip();
+      _showWelcomeMessages();
+      _updateUI();
+    },
+  });
   _refreshActionGuide();
-
-  document.getElementById('tut-start-yes').onclick = function () {
-    hideBlockingSurface('tutorial-start-modal');
-    Tutorial.start();
-    _refreshActionGuide();
-  };
-
-  document.getElementById('tut-start-no').onclick = function () {
-    hideBlockingSurface('tutorial-start-modal');
-    Tutorial.skip();
-    _showWelcomeMessages();
-    _updateUI();
-  };
 }
 
 function _showCompanyRenameModal() {
-  const modal = document.getElementById('company-rename-modal');
-  const input = document.getElementById('company-name-input');
-  const errorEl = document.getElementById('company-name-error');
-
-  // 预填当前公司名
-  input.value = _state.companyName || '';
-  errorEl.classList.add('hidden');
-  showBlockingSurface('company-rename-modal');
+  OnboardingUI.showCompanyRename({
+    currentName: _state.companyName || '',
+    fallbackName: _state.companyName || '测试公司',
+    onConfirm: function (name) {
+      _state.companyName = name;
+      _updateUI();
+      EventBus.emit('log:message', {
+        text: '🏢 公司已正式更名为「' + name + '」！愿财富与你同行！',
+        type: 'upgrade',
+      });
+    },
+    onSkip: function () {
+      _refreshActionGuide();
+    },
+  });
   _refreshActionGuide();
-
-  // 聚焦并全选
-  setTimeout(function () { input.focus(); input.select(); }, 50);
-
-  document.getElementById('company-rename-confirm').onclick = function () {
-    const name = input.value.trim();
-    if (!name) {
-      errorEl.classList.remove('hidden');
-      return;
-    }
-    _state.companyName = name;
-    hideBlockingSurface('company-rename-modal');
-    _updateUI();
-    EventBus.emit('log:message', {
-      text: '🏢 公司已正式更名为「' + name + '」！愿财富与你同行！',
-      type: 'upgrade',
-    });
-  };
-
-  document.getElementById('company-rename-skip').onclick = function () {
-    hideBlockingSurface('company-rename-modal');
-    _refreshActionGuide();
-  };
 }
 
 
@@ -633,6 +628,9 @@ function _refreshActionGuide() {
     dispatchModalContext: FleetUI.getActiveDispatchModalContext ? FleetUI.getActiveDispatchModalContext() : null,
     recentModInstallContext: recentModInstallContext,
     surveyIntel: surveyIntel,
+    directiveSuggestion: CompanyDirectiveUI.getActionSuggestion
+      ? CompanyDirectiveUI.getActionSuggestion(_state)
+      : null,
     tutorialActive: tutorialActive,
     blockingModalOpen: blockingModalOpen,
     eventPending: eventPending,
@@ -758,14 +756,35 @@ function _handleActionGuideAction(suggestion) {
       EventBus.emit('log:message', message);
     },
     openMarketPanel: MapUI.openMarketPanel,
+    openMarketSystemPanel: MapUI.openMarketSystemPanel,
     revealMarketGoodFocus: MarketUI.revealMarketGoodFocus,
+    revealSurveyChainFocus: MarketUI.revealSurveyChainFocus,
+    acknowledgeSurveyChainFollowup: function (systemId, chainId) {
+      return Exploration.acknowledgeChainFollowup(_state, systemId, chainId);
+    },
     travel: _handleTravel,
     focusStarmap: MapUI.focusStarmap,
     focusNavigationTarget: MapUI.focusNavigationTarget,
     scanSystem: _handleScanSystem,
     landOnSystem: _handleLandOnSystem,
     explorePoi: _handleExplorePoi,
+    claimCompanyDirectiveRewards: _handleCompanyDirectiveClaimAll,
   });
+}
+
+function _handleCompanyDirectiveAction(suggestion) {
+  _handleActionGuideAction(suggestion);
+}
+
+function _handleCompanyDirectiveClaim(directiveId) {
+  var result = CompanyDirective.claimCompanyDirectiveReward(_state, directiveId);
+  _dispatch(result);
+}
+
+function _handleCompanyDirectiveClaimAll() {
+  var result = CompanyDirective.claimAllCompanyDirectiveRewards(_state);
+  _dispatch(result);
+  return result;
 }
 
 function _getScanStatus(systemId) {
@@ -1564,6 +1583,7 @@ function _handleLoadGame(slotId) {
   if (result.ok) {
     Settings.hideSettingsModal();
     _state = result.state;
+    _acknowledgedVictoryPathIds = new Set();
     _dialogueQueue = [];
     _dialoguePlaying = false;
     Dialogue.init(_state);
@@ -1847,6 +1867,7 @@ function _updateUI() {
   HUD.updateStats(_state, netWorth);
   HUD.updateCompanyName(_state);
   HUD.updateArchiveBadges(_state);
+  CompanyDirectiveUI.render(_state);
   // 市场：根据当前模式刷新
   if (MapUI.isMarketOpen()) {
     var bmMode = _blackMarketMode ? 'black' : 'open';
@@ -1884,39 +1905,30 @@ function _updateUI() {
 // ---------------------------------------------------------------------------
 
 function _checkVictory() {
-  const result = Victory.checkVictory(_state);
+  const result = Victory.checkVictory(_state, _acknowledgedVictoryPathIds);
   if (!result.won) return;
 
   const path = result.path;
   const allProgress = Victory.getProgress(_state);
 
-  // 标题
-  document.getElementById('gameover-title').textContent = path.victoryTitle;
+  const levelTitle = getLevel(_state.experience || 0).title;
+  const stats = [
+    { label: '银河历', value: '第 ' + _state.day + ' 天' },
+    { label: '玩家等级', value: levelTitle },
+    { label: '净资产', value: Math.floor(Trade.getNetWorth(_state)).toLocaleString() + ' 信用积分' },
+    { label: '贸易次数', value: (_state.tradeCount || 0).toLocaleString() + ' 次' },
+    { label: '已研究科技', value: (_state.researchedTechs || []).length + ' / 16 项' },
+    { label: '完成任务', value: (_state.completedQuests || []).length + ' 个' },
+    { label: '解锁成就', value: (_state.achievements || []).length + ' 个' },
+    { label: '探索星球', value: (_state.visitedSystems || []).length + ' 颗' },
+    { label: '探索星系', value: (_state.visitedGalaxies || []).length + ' / 8 个' },
+  ];
 
-  // 构建详细信息
-  let msg = path.victoryMessage + '\n\n';
-  msg += '银河历第 ' + _state.day + ' 天达成 · ';
-  msg += '玩家等级：' + getLevel(_state.experience || 0).title + '\n\n';
-
-  // 统计数据
-  msg += '━━━━━ 游戏统计 ━━━━━\n';
-  msg += '净资产：' + Math.floor(Trade.getNetWorth(_state)).toLocaleString() + ' 信用积分\n';
-  msg += '贸易次数：' + (_state.tradeCount || 0) + ' 次\n';
-  msg += '已研究科技：' + (_state.researchedTechs || []).length + ' / 16 项\n';
-  msg += '完成任务：' + (_state.completedQuests || []).length + ' 个\n';
-  msg += '解锁成就：' + (_state.achievements || []).length + ' 个\n';
-  msg += '已探索星球：' + (_state.visitedSystems || []).length + ' 颗\n';
-  msg += '已探索星系：' + (_state.visitedGalaxies || []).length + ' / 8 个\n\n';
-
-  // 各路径进度
-  msg += '━━━━━ 胜利路径 ━━━━━\n';
-  allProgress.forEach(function (p) {
-    const status = p.completed ? '✅' : (Math.floor(p.progress * 100) + '%');
-    msg += p.icon + ' ' + p.name + '：' + status + '\n';
+  VictoryResultUI.showVictoryReport({
+    path: path,
+    stats: stats,
+    progress: allProgress,
   });
-
-  document.getElementById('gameover-message').textContent = msg;
-  showBlockingSurface('gameover-modal');
 }
 
 function _resetRealtimeClock(nowMs) {
