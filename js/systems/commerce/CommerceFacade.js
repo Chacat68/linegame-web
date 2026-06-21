@@ -13,7 +13,7 @@
 import * as Trade    from '../trade/TradeSystem.js';
 import * as Finance  from '../finance/FinanceSystem.js';
 import * as Futures  from '../finance/FuturesSystem.js';
-import * as Station  from '../trade/TradeStationSystem.js';
+import * as Station  from '../trade/TradeStationSystem.js?v=20260531-chainfollow1';
 import * as Economy  from '../economy/Economy.js';
 import { getCompanyAccessState } from '../../data/companyAccess.js';
 

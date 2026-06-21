@@ -15,7 +15,7 @@ import { SYSTEMS, findSystem, getGalaxyAccessState }  from '../../data/systems.j
 import { UPGRADES } from '../../data/upgrades.js';
 import * as Economy from '../economy/Economy.js';
 import * as Finance from '../finance/FinanceSystem.js';
-import * as Exploration from '../galaxy/ExplorationSystem.js';
+import * as Exploration from '../galaxy/ExplorationSystem.js?v=20260531-chainfollow1';
 
 // ---------------------------------------------------------------------------
 // 辅助工具
