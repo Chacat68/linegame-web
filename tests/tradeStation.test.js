@@ -288,6 +288,117 @@ describe('TradeStationSystem', () => {
     });
   });
 
+  it('废弃补给站事件链会降低本地建站成本', () => {
+    const state = createTestState({
+      credits: 90000,
+      companyLevel: 4,
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+      viewingGalaxy: 'milky_way',
+      fuel: 100,
+      maxFuel: 100,
+      shipHull: 100,
+      maxHull: 100,
+      visitedSystems: ['sol_prime'],
+    });
+
+    GalaxyData.init(state);
+    try {
+      expect(Exploration.scanSystem(state, 'sol_prime').ok).toBe(true);
+      expect(Exploration.landOnSystem(state, 'sol_prime').ok).toBe(true);
+      const resourcePoi = GalaxyData.getPlanetData('sol_prime').exploration.pois.find(function (poi) {
+        return poi.kind === 'resource_cache';
+      });
+      expect(Exploration.explorePoi(state, 'sol_prime', resourcePoi.id).ok).toBe(true);
+
+      const candidate = TradeStation.getBuildCandidates(state).find(function (entry) {
+        return entry.system.id === 'sol_prime';
+      });
+      expect(candidate).toMatchObject({
+        buildCost: 88000,
+        baseBuildCost: 100000,
+        buildCostDiscount: 0.12,
+        canAfford: true,
+      });
+      expect(candidate.explorationEffect.summary).toContain('废弃补给站');
+
+      const creditsBeforeBuild = state.credits;
+      const result = TradeStation.buildStation(state, 'sol_prime');
+
+      expect(result.ok).toBe(true);
+      expect(result.meta).toMatchObject({
+        buildCost: 88000,
+        baseBuildCost: 100000,
+        buildCostDiscount: 0.12,
+      });
+      expect(state.credits).toBe(creditsBeforeBuild - 88000);
+      expect(TradeStation.getStation(state, 'sol_prime').investment).toBe(88000);
+    } finally {
+      GalaxyData.init(createTestState({
+        currentSystem: 'sol_prime',
+        currentGalaxy: 'milky_way',
+        viewingGalaxy: 'milky_way',
+      }));
+    }
+  });
+
+  it('遗迹与航标事件链会强化对应贸易站收益', () => {
+    const state = createTestState({
+      credits: 300000,
+      companyLevel: 5,
+      currentSystem: 'sol_prime',
+      visitedSystems: ['sol_prime'],
+      tradeStations: {
+        sol_prime: {
+          systemId: 'sol_prime',
+          level: 1,
+          strategyId: 'premium',
+          managerId: null,
+          totalIncome: 0,
+          investment: 100000,
+          lastIncome: 0,
+          buildDay: 1,
+          lastProcessedDay: 1,
+        },
+      },
+    });
+    let withChainIntel = false;
+    vi.spyOn(Exploration, 'getSurveyDecisionIntel').mockImplementation(function () {
+      if (!withChainIntel) {
+        return createSurveyIntel({ hasIntel: false });
+      }
+      return createSurveyIntel({
+        researchSignal: true,
+        routeSignal: true,
+        relicSignal: true,
+        beaconSignal: true,
+        primarySignal: 'research',
+        anomalyChains: [
+          { kind: 'ancient_relic', resolved: true },
+          { kind: 'lost_beacon', resolved: true },
+        ],
+      });
+    });
+    vi.spyOn(Economy, 'getBuyPrice').mockImplementation(function (systemId, goodId) {
+      const good = GOODS.find(function (entry) { return entry.id === goodId; });
+      return good ? good.basePrice : DEFAULT_BASE_PRICE;
+    });
+    vi.spyOn(Economy, 'getMarketDepth').mockReturnValue(220);
+    vi.spyOn(Economy, 'getEconomyCycle').mockReturnValue({ priceMod: 1 });
+
+    const baselineIncome = TradeStation.getProjectedDailyIncome(state, 'sol_prime');
+    withChainIntel = true;
+    const boostedIncome = TradeStation.getProjectedDailyIncome(state, 'sol_prime');
+    const entry = TradeStation.getOwnedStations(state).find(function (stationEntry) {
+      return stationEntry.station.systemId === 'sol_prime';
+    });
+
+    expect(boostedIncome).toBeGreaterThan(baselineIncome);
+    expect(entry.explorationMultiplier).toBeCloseTo(1.14, 5);
+    expect(entry.explorationEffect.summary).toContain('古代遗迹');
+    expect(entry.explorationEffect.summary).toContain('失落航标');
+  });
+
   it('下一笔商网动作优先推荐可触发区域协同的建站', () => {
     const state = createTestState({
       credits: 220000,

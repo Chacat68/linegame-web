@@ -45,6 +45,11 @@ const ECONOMY_FACTOR_LIMITS = {
   depthWeight: 0.25,
   cycleWeight: 0.15,
 };
+const EXPLORATION_STATION_EFFECTS = {
+  depotBuildDiscount: 0.12,
+  relicPremiumIncomeBonus: 0.08,
+  beaconThroughputBonus: 0.06,
+};
 
 const _goodsById = GOODS.reduce(function (acc, good) {
   acc[good.id] = good;
@@ -249,19 +254,83 @@ function _getUpgradeCost(level) {
   return Math.max(0, next.investment - current.investment);
 }
 
-function _createStation(systemId, day) {
+function _createStation(systemId, day, investment) {
   const levelConfig = _getLevelConfig(1);
+  const actualInvestment = Number.isFinite(Number(investment)) ? Math.max(0, Number(investment)) : levelConfig.investment;
   return {
     systemId: systemId,
     level: 1,
     strategyId: 'balanced',
     managerId: null,
     totalIncome: 0,
-    investment: levelConfig.investment,
+    investment: actualInvestment,
     lastIncome: 0,
     buildDay: day || 1,
     lastProcessedDay: day || 1,
   };
+}
+
+function _hasResolvedExplorationChain(intel, chainKind) {
+  if (!intel) return false;
+  if (Array.isArray(intel.anomalyChains) && intel.anomalyChains.some(function (chain) {
+    return chain && chain.kind === chainKind && chain.resolved;
+  })) {
+    return true;
+  }
+  if (chainKind === 'derelict_depot') return !!intel.depotSignal;
+  if (chainKind === 'ancient_relic') return !!intel.relicSignal;
+  if (chainKind === 'lost_beacon') return !!intel.beaconSignal;
+  return false;
+}
+
+function _getExplorationStationEffect(state, systemId, options) {
+  const opts = options || {};
+  const strategyId = opts.strategyId || (opts.station && opts.station.strategyId) || 'balanced';
+  const intel = Exploration.getSurveyDecisionIntel(state || {}, systemId);
+  const effect = {
+    buildCostDiscount: 0,
+    incomeBonus: 0,
+    multiplier: 1,
+    labels: [],
+    summary: '',
+  };
+
+  if (_hasResolvedExplorationChain(intel, 'derelict_depot')) {
+    effect.buildCostDiscount = EXPLORATION_STATION_EFFECTS.depotBuildDiscount;
+    effect.labels.push('废弃补给站建站成本 -' + Math.round(effect.buildCostDiscount * 100) + '%');
+  }
+  if (_hasResolvedExplorationChain(intel, 'lost_beacon')) {
+    effect.incomeBonus += EXPLORATION_STATION_EFFECTS.beaconThroughputBonus;
+    effect.labels.push('失落航标转运吞吐 +' + Math.round(EXPLORATION_STATION_EFFECTS.beaconThroughputBonus * 100) + '%');
+  }
+  if (_hasResolvedExplorationChain(intel, 'ancient_relic')) {
+    if (strategyId === 'premium') {
+      effect.incomeBonus += EXPLORATION_STATION_EFFECTS.relicPremiumIncomeBonus;
+      effect.labels.push('古代遗迹精品经营 +' + Math.round(EXPLORATION_STATION_EFFECTS.relicPremiumIncomeBonus * 100) + '%');
+    } else {
+      effect.labels.push('古代遗迹适配精品经营');
+    }
+  }
+
+  effect.multiplier = 1 + effect.incomeBonus;
+  effect.summary = effect.labels.join(' · ');
+  return effect;
+}
+
+function _getStationBuildPlan(state, systemId, options) {
+  const baseBuildCost = _getLevelConfig(1).investment;
+  const explorationEffect = _getExplorationStationEffect(state, systemId, options);
+  const buildCostDiscount = Math.max(0, Math.min(0.5, explorationEffect.buildCostDiscount || 0));
+  return {
+    baseBuildCost: baseBuildCost,
+    buildCost: Math.max(0, Math.round(baseBuildCost * (1 - buildCostDiscount))),
+    buildCostDiscount: buildCostDiscount,
+    explorationEffect: explorationEffect,
+  };
+}
+
+function _formatExplorationEffectSummary(effect) {
+  return effect && effect.summary ? ('勘探加成：' + effect.summary + '。') : '';
 }
 
 function _getStationMeta(state, station) {
@@ -272,8 +341,12 @@ function _getStationMeta(state, station) {
   const role = _getStationRole(system);
   const regionalSynergy = _getRegionalSynergy(state, station.systemId);
   const strategyRecommendation = _getStrategyRecommendation(state, station.systemId, station.strategyId);
+  const explorationEffect = _getExplorationStationEffect(state, station.systemId, {
+    station: station,
+    strategyId: station.strategyId,
+  });
   const snapshot = _getDailySnapshot(station.systemId, station);
-  const projected = _calculateDailyIncome(station, snapshot.factor, manager, strategy, regionalSynergy.multiplier);
+  const projected = _calculateDailyIncome(station, snapshot.factor, manager, strategy, regionalSynergy.multiplier * explorationEffect.multiplier);
   const companyMaxLevel = getMaxTradeStationLevel(state);
   const actualNextLevel = station.level < TRADE_STATION_LEVELS.length ? _getLevelConfig(station.level + 1) : null;
   const nextLevel = actualNextLevel && actualNextLevel.level <= companyMaxLevel ? actualNextLevel : null;
@@ -290,6 +363,8 @@ function _getStationMeta(state, station) {
     role: role,
     regionalSynergy: regionalSynergy,
     networkMultiplier: regionalSynergy.multiplier,
+    explorationEffect: explorationEffect,
+    explorationMultiplier: explorationEffect.multiplier,
     strategyRecommendation: strategyRecommendation,
     projectedIncome: projected.net,
     grossIncome: projected.gross,
@@ -351,17 +426,22 @@ export function getBuildCandidates(state) {
   return SYSTEMS.filter(function (system) {
     return _isSystemEligible(system) && visited.indexOf(system.id) >= 0 && !stations[system.id];
   }).map(function (system) {
-    const levelConfig = _getLevelConfig(1);
     const role = _getStationRole(system);
     const prospectiveRegionalSynergy = _getRegionalSynergy(state, system.id, true);
     const strategyRecommendation = _getStrategyRecommendation(state, system.id, 'balanced');
-    const canAfford = (state.credits || 0) >= levelConfig.investment;
+    const buildPlan = _getStationBuildPlan(state, system.id, {
+      strategyId: strategyRecommendation.strategyId,
+    });
+    const canAfford = (state.credits || 0) >= buildPlan.buildCost;
     return {
       system: system,
       role: role,
       prospectiveRegionalSynergy: prospectiveRegionalSynergy,
       strategyRecommendation: strategyRecommendation,
-      buildCost: levelConfig.investment,
+      buildCost: buildPlan.buildCost,
+      baseBuildCost: buildPlan.baseBuildCost,
+      buildCostDiscount: buildPlan.buildCostDiscount,
+      explorationEffect: buildPlan.explorationEffect,
       isCurrent: system.id === state.currentSystem,
       canAfford: canAfford && access.unlocked && hasStationCapacity,
       companyAccess: access,
@@ -418,11 +498,12 @@ export function getNextNetworkAction(state) {
   })[0];
   if (synergyBuild) {
     const bonus = Math.round((synergyBuild.prospectiveRegionalSynergy.bonusMultiplier || 0) * 100);
+    const explorationNote = _formatExplorationEffectSummary(synergyBuild.explorationEffect);
     actions.push(_createNetworkAction(
       'build',
       82,
       '补齐' + (synergyBuild.prospectiveRegionalSynergy.galaxyName || '本星系') + '商网协同',
-      '在「' + synergyBuild.system.name + '」建站后可触发「' + synergyBuild.prospectiveRegionalSynergy.label + '」，区域日收益 +' + bonus + '%。',
+      '在「' + synergyBuild.system.name + '」建站后可触发「' + synergyBuild.prospectiveRegionalSynergy.label + '」，区域日收益 +' + bonus + '%。' + explorationNote,
       '投资 ' + synergyBuild.buildCost.toLocaleString(),
       synergyBuild.system.id,
       { action: 'market-build-station', systemId: synergyBuild.system.id }
@@ -749,7 +830,7 @@ export function batchSetStrategies(state, strategyId, systemIds) {
 export function canBuildStation(state, systemId) {
   const stations = _ensureStations(state);
   const system = findSystem(systemId);
-  const buildCost = _getLevelConfig(1).investment;
+  const buildPlan = _getStationBuildPlan(state, systemId);
 
   if (!system) {
     return { ok: false, msg: '未知星球，无法建设贸易站。' };
@@ -774,7 +855,7 @@ export function canBuildStation(state, systemId) {
   if ((state.visitedSystems || []).indexOf(systemId) === -1 && state.currentSystem !== systemId) {
     return { ok: false, msg: '需先亲自到访 ' + system.name + '，才能决定建站。' };
   }
-  if ((state.credits || 0) < buildCost) {
+  if ((state.credits || 0) < buildPlan.buildCost) {
     return { ok: false, msg: '信用积分不足，无法完成首期投资。' };
   }
   return { ok: true, msg: '' };
@@ -788,17 +869,28 @@ export function buildStation(state, systemId) {
   }
 
   const system = findSystem(systemId);
-  const buildCost = _getLevelConfig(1).investment;
+  const buildPlan = _getStationBuildPlan(state, systemId);
+  const buildCost = buildPlan.buildCost;
   state.credits -= buildCost;
-  state.tradeStations[systemId] = _createStation(systemId, state.day || 1);
+  state.tradeStations[systemId] = _createStation(systemId, state.day || 1, buildCost);
+  const discountText = buildPlan.buildCostDiscount > 0
+    ? ('（' + Math.round(buildPlan.buildCostDiscount * 100) + '% 勘探折抵）')
+    : '';
+  const effectNote = _formatExplorationEffectSummary(buildPlan.explorationEffect);
 
   return {
     ok: true,
     msgs: [{
-      text: '🏗 已在 ' + system.name + ' 投资 ' + buildCost.toLocaleString() + ' 积分，贸易站开始运营。',
+      text: '🏗 已在 ' + system.name + ' 投资 ' + buildCost.toLocaleString() + ' 积分' + discountText + '，贸易站开始运营。',
       type: 'upgrade',
-    }],
-    meta: { systemId: systemId, buildCost: buildCost },
+    }].concat(effectNote ? [{ text: effectNote, type: 'tip' }] : []),
+    meta: {
+      systemId: systemId,
+      buildCost: buildCost,
+      baseBuildCost: buildPlan.baseBuildCost,
+      buildCostDiscount: buildPlan.buildCostDiscount,
+      explorationEffect: buildPlan.explorationEffect,
+    },
   };
 }
 
