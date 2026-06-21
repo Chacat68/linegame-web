@@ -3,7 +3,7 @@
 // 导出：getShipRouteDescriptor, getFleetRouteDescriptors,
 //       getSecretRouteDescriptors, createFlightRouteDescriptor
 
-import * as Exploration from '../galaxy/ExplorationSystem.js';
+import * as Exploration from '../galaxy/ExplorationSystem.js?v=20260531-chainfollow1';
 
 function _getActiveShipIndex(state) {
   return state && typeof state.activeShipIndex === 'number' ? state.activeShipIndex : 0;

@@ -321,6 +321,7 @@ function _buildDefaultPlanetState(system, gameState) {
 function _createExplorationState(system) {
   const secretRoute = _createSecretRoute(system);
   const profile = _createExplorationProfile(system);
+  const pois = _createExplorationPois(system, secretRoute);
   return {
     scanLevel: 0,
     scanCount: 0,
@@ -338,7 +339,8 @@ function _createExplorationState(system) {
     completionBonusClaimed: false,
     completedDay: 0,
     reports: [],
-    pois: _createExplorationPois(system, secretRoute),
+    pois: pois,
+    chainStates: _createExplorationChainStates(pois),
     secretRoutes: secretRoute ? [secretRoute] : [],
   };
 }
@@ -444,6 +446,60 @@ function _createPoiChain(system, chainKind) {
   };
 }
 
+function _createExplorationChainStates(pois) {
+  const chainStates = {};
+  (Array.isArray(pois) ? pois : []).forEach(function (poi) {
+    if (!poi || !poi.chain || !poi.chain.id) return;
+    chainStates[poi.chain.id] = _createExplorationChainState(poi);
+  });
+  return chainStates;
+}
+
+function _createExplorationChainState(poi) {
+  const chain = poi && poi.chain ? poi.chain : {};
+  const progress = _getExplorationChainProgress(poi);
+  return {
+    id: chain.id || ((poi && poi.id ? poi.id : 'poi') + '_chain'),
+    kind: chain.kind || '',
+    label: chain.label || '探索链',
+    badge: chain.badge || '探索链',
+    signal: chain.signal || '',
+    stage: progress.stage,
+    stageIndex: progress.stageIndex,
+    stageLabel: _getExplorationChainStageLabel(chain, progress.stageIndex),
+    poiId: poi && poi.id ? poi.id : '',
+    poiName: poi && poi.name ? poi.name : '探索点',
+    discovered: !!(poi && poi.discovered),
+    resolved: !!(poi && poi.resolved),
+    discoveredDay: poi && poi.discovered ? (poi.discoveredDay || 0) : 0,
+    resolvedDay: poi && poi.resolved ? (poi.resolvedDay || 0) : 0,
+    followupReady: false,
+    followupLabel: '',
+    reportId: '',
+  };
+}
+
+function _getExplorationChainProgress(poi) {
+  if (poi && poi.resolved) return { stage: 'archived', stageIndex: 2 };
+  if (poi && poi.discovered) return { stage: 'discovered', stageIndex: 1 };
+  return { stage: 'locked', stageIndex: 0 };
+}
+
+function _getExplorationChainStageLabel(chain, stageIndex) {
+  const stageLabels = chain && Array.isArray(chain.stageLabels) ? chain.stageLabels : [];
+  if (stageLabels[stageIndex]) return stageLabels[stageIndex];
+  if (stageIndex === 2) return '已归档';
+  if (stageIndex === 1) return '待调查';
+  return '待扫描';
+}
+
+function _getExplorationChainFollowupLabel(chainKind) {
+  if (chainKind === 'lost_beacon') return '打开市场情报区确认暗线航图与派遣评分。';
+  if (chainKind === 'ancient_relic') return '打开市场情报区确认科研补给与风险剖面。';
+  if (chainKind === 'derelict_depot') return '打开市场情报区确认商网和派遣整备价值。';
+  return '打开市场情报区查看后续经营影响。';
+}
+
 function _createResourcePoi(system) {
   const templates = {
     agricultural: { icon: '🌾', name: '轨道种子库', description: '废弃农业补给舱里仍保存着可兑换的种子资产。', rewards: { credits: 140, fuel: 5, reputation: 1 } },
@@ -536,8 +592,67 @@ function _mergeExplorationState(defaultState, savedState) {
   next.reports = Array.isArray(savedState && savedState.reports)
     ? savedState.reports.map(function (report) { return _clonePlainObject(report); })
     : _clonePlainObject(defaultState.reports || []);
+  next.chainStates = _mergeExplorationChainStates(defaultState.chainStates, savedState && savedState.chainStates, next.pois, next.reports);
 
   return next;
+}
+
+function _mergeExplorationChainStates(defaultChainStates, savedChainStates, pois, reports) {
+  const saved = savedChainStates && typeof savedChainStates === 'object' ? savedChainStates : {};
+  const defaults = defaultChainStates && typeof defaultChainStates === 'object' ? defaultChainStates : {};
+  const reportByChainKind = _getReportIdByChainKind(reports);
+  const next = {};
+
+  (Array.isArray(pois) ? pois : []).forEach(function (poi) {
+    if (!poi || !poi.chain || !poi.chain.id) return;
+    const chainId = poi.chain.id;
+    const progress = _getExplorationChainProgress(poi);
+    const savedChain = saved[chainId] || {};
+    const base = Object.assign(
+      {},
+      defaults[chainId] || _createExplorationChainState(poi),
+      savedChain
+    );
+    const hasSavedFollowupReady = Object.prototype.hasOwnProperty.call(savedChain, 'followupReady');
+
+    base.id = chainId;
+    base.kind = poi.chain.kind || base.kind || '';
+    base.label = poi.chain.label || base.label || '探索链';
+    base.badge = poi.chain.badge || base.badge || '探索链';
+    base.signal = poi.chain.signal || base.signal || '';
+    base.poiId = poi.id || base.poiId || '';
+    base.poiName = poi.name || base.poiName || '探索点';
+    base.stage = progress.stage;
+    base.stageIndex = progress.stageIndex;
+    base.stageLabel = _getExplorationChainStageLabel(poi.chain, progress.stageIndex);
+    base.discovered = !!poi.discovered;
+    base.resolved = !!poi.resolved;
+    base.discoveredDay = poi.discovered ? (poi.discoveredDay || base.discoveredDay || 0) : 0;
+    base.resolvedDay = poi.resolved ? (poi.resolvedDay || base.resolvedDay || 0) : 0;
+
+    if (base.resolved) {
+      if (!base.reportId && reportByChainKind[base.kind]) base.reportId = reportByChainKind[base.kind];
+      if (!hasSavedFollowupReady) base.followupReady = true;
+      if (!base.followupLabel) base.followupLabel = _getExplorationChainFollowupLabel(base.kind);
+    } else {
+      base.followupReady = false;
+      base.followupLabel = '';
+      base.reportId = '';
+    }
+
+    next[chainId] = base;
+  });
+
+  return next;
+}
+
+function _getReportIdByChainKind(reports) {
+  const reportByChainKind = {};
+  (Array.isArray(reports) ? reports : []).forEach(function (report) {
+    if (!report || !report.chainKind || reportByChainKind[report.chainKind]) return;
+    reportByChainKind[report.chainKind] = report.id || '';
+  });
+  return reportByChainKind;
 }
 
 function _clonePlainObject(value) {

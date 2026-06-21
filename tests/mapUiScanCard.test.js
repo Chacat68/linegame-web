@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
 import * as Economy from '../js/systems/economy/Economy.js';
 import * as Exploration from '../js/systems/galaxy/ExplorationSystem.js';
 import * as GalaxyData from '../js/systems/galaxy/GalaxyDataLayer.js';
@@ -76,6 +77,20 @@ describe('MapUI current system scan card', function () {
     globalThis.BABYLON = originalBabylon;
   });
 
+  it('当前航点扫描卡包含局部态势和窄屏适配锚点', function () {
+    const js = readFileSync('js/ui/MapUI.js', 'utf8');
+    const css = readFileSync('css/interstellar-trader.css', 'utf8');
+
+    expect(js).toContain('class="current-system-signal-panel" aria-label="当前航点局部态势"');
+    expect(js).toContain('class="current-system-signal-grid" role="list" aria-label="当前航点探索指标"');
+    expect(js).toContain('class="current-system-signal-focus" aria-label="当前航点局部信号"');
+    expect(js).toContain('扫描数据同步中');
+    expect(css).toContain('.current-system-signal-panel');
+    expect(css).toContain('.current-system-signal-grid');
+    expect(css).toContain('.current-system-signal-focus[data-tone="poi"]');
+    expect(css).toContain('@media (max-width: 560px)');
+  });
+
   it('会显示当前星系扫描入口，并在扫描成功后渲染 reveal 卡', async function () {
     vi.resetModules();
 
@@ -140,9 +155,17 @@ describe('MapUI current system scan card', function () {
     MapUI.showCurrentSystemScanReveal(state, 'sol_prime', scanResult);
 
     expect(scanCard.classList.contains('visible')).toBe(true);
+    expect(scanCard.innerHTML).toContain('current-system-signal-panel');
+    expect(scanCard.innerHTML).toContain('当前航点态势');
+    expect(scanCard.innerHTML).toContain('当前航点探索指标');
+    expect(scanCard.innerHTML).toContain('当前航点局部信号');
+    expect(scanCard.innerHTML).toContain('扫描数据同步中');
     expect(scanCard.innerHTML).toContain('轨道扫描完成');
     expect(scanCard.innerHTML).toContain('current-system-scan-dashboard');
     expect(scanCard.innerHTML).toContain('current-system-scan-metric');
+    expect(scanCard.innerHTML).toContain('planet-detail-chain-card');
+    expect(scanCard.innerHTML).toContain('废弃补给站');
+    expect(scanCard.innerHTML).toContain('复原库存');
     expect(scanCard.innerHTML).toContain('评级');
     expect(scanCard.innerHTML).toContain('优先');
     expect(scanCard.innerHTML).toContain('太阳主星');

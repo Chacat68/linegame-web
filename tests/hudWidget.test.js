@@ -37,6 +37,7 @@ function createFakeElement() {
   return {
     dataset: {},
     textContent: '',
+    focusCount: 0,
     classList: createFakeClassList(),
     addEventListener: function (type, handler) {
       if (!listeners[type]) listeners[type] = [];
@@ -59,6 +60,9 @@ function createFakeElement() {
     },
     querySelector: function () {
       return null;
+    },
+    focus: function () {
+      this.focusCount += 1;
     },
   };
 }
@@ -133,6 +137,9 @@ describe('HUD widget toggles', function () {
         if (selector === '[data-hud-widget="galactic-map"]') return mapPanel.widget;
         if (selector === '[data-hud-widget="target-intel"]') return targetPanel.widget;
         if (selector === '[data-hud-widget="quest-tracker"]') return questPanel.widget;
+        if (selector === '[data-hud-dock-panel="galactic-map"]') return mapButton;
+        if (selector === '[data-hud-dock-panel="target-intel"]') return targetButton;
+        if (selector === '[data-hud-dock-panel="quest-tracker"]') return questButton;
         return null;
       },
     };
@@ -164,8 +171,23 @@ describe('HUD widget toggles', function () {
     expect(questPanel.widget.classList.contains('hud-widget-collapsed')).toBe(true);
     expect(dockToggle.getAttribute('aria-pressed')).toBe('false');
     expect(questButton.classList.contains('is-selected')).toBe(true);
+    expect(questButton.getAttribute('aria-expanded')).toBe('false');
+    expect(questButton.focusCount).toBe(1);
 
     dockToggle.dispatchEvent('click');
+
+    expect(questPanel.widget.classList.contains('hud-widget-collapsed')).toBe(false);
+    expect(dockToggle.getAttribute('aria-pressed')).toBe('true');
+    expect(questButton.classList.contains('is-active')).toBe(true);
+    expect(questButton.getAttribute('aria-expanded')).toBe('true');
+
+    questButton.dispatchEvent('click');
+
+    expect(questPanel.widget.classList.contains('hud-widget-collapsed')).toBe(true);
+    expect(dockToggle.getAttribute('aria-pressed')).toBe('false');
+    expect(questButton.classList.contains('is-active')).toBe(false);
+
+    questButton.dispatchEvent('click');
 
     expect(questPanel.widget.classList.contains('hud-widget-collapsed')).toBe(false);
     expect(dockToggle.getAttribute('aria-pressed')).toBe('true');

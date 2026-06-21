@@ -40,6 +40,10 @@ describe('ExplorationSystem', function () {
     const afterScan = GalaxyData.getPlanetData('sol_prime');
     expect(afterScan.exploration.scanLevel).toBeGreaterThan(0);
     expect(afterScan.exploration.pois.every(function (poi) { return poi.discovered === true; })).toBe(true);
+    expect(Object.values(afterScan.exploration.chainStates)).toHaveLength(3);
+    expect(Object.values(afterScan.exploration.chainStates).every(function (chain) {
+      return chain.stage === 'discovered' && chain.stageLabel;
+    })).toBe(true);
     expect(afterScan.exploration.scanPriorityPoiId).toBeTruthy();
     expect(afterScan.exploration.reports.some(function (report) {
       return report.id === 'sol_prime_report_scan';
@@ -142,8 +146,17 @@ describe('ExplorationSystem', function () {
     const summary = Exploration.getSurveySummary(state, 'sol_prime');
 
     expect(result.ok).toBe(true);
+    expect(result.meta.chainStage).toBe('archived');
     expect(summary.reportCount).toBe(2);
     expect(summary.intelLevel).toBeGreaterThan(0);
+    const depotChain = summary.anomalyChains.find(function (chain) {
+      return chain.kind === 'derelict_depot';
+    });
+    expect(depotChain).toMatchObject({
+      stage: 'archived',
+      followupReady: true,
+      reportId: 'sol_prime_report_manifest',
+    });
     expect(summary.reports.some(function (report) {
       return report.title.indexOf('补给站') !== -1 && report.chainKind === 'derelict_depot';
     })).toBe(true);
@@ -168,9 +181,46 @@ describe('ExplorationSystem', function () {
       depotSignal: true,
       primarySignal: 'market',
     });
+    expect(intel.readyFollowupCount).toBeGreaterThan(0);
+    expect(intel.nextChainFollowup).toMatchObject({
+      chainKind: 'derelict_depot',
+      actionLabel: '规划商网',
+      workspaceId: 'operations',
+      subworkspaceId: 'network',
+    });
     expect(intel.marketHint).toContain('勘探报告');
     expect(intel.dispatchHint).toContain('贸易报告');
     expect(intel.anomalyHint).toContain('废弃补给站');
+  });
+
+  it('确认事件链后续后不再把同一条链标记为待跟进', function () {
+    const basePlanet = GalaxyData.getPlanetData('sol_prime');
+    const resourcePoi = basePlanet.exploration.pois.find(function (poi) {
+      return poi.kind === 'resource_cache';
+    });
+
+    expect(Exploration.scanSystem(state, 'sol_prime').ok).toBe(true);
+    expect(Exploration.landOnSystem(state, 'sol_prime').ok).toBe(true);
+    expect(Exploration.explorePoi(state, 'sol_prime', resourcePoi.id).ok).toBe(true);
+
+    const beforeIntel = Exploration.getSurveyDecisionIntel(state, 'sol_prime');
+    expect(beforeIntel.readyFollowupCount).toBe(1);
+
+    const result = Exploration.acknowledgeChainFollowup(state, 'sol_prime', beforeIntel.nextChainFollowup.chainId);
+
+    expect(result.ok).toBe(true);
+    const afterIntel = Exploration.getSurveyDecisionIntel(state, 'sol_prime');
+    expect(afterIntel.readyFollowupCount).toBe(0);
+    expect(afterIntel.acknowledgedFollowupCount).toBe(1);
+    expect(afterIntel.nextChainFollowup).toBe(null);
+    const depotChain = afterIntel.anomalyChains.find(function (chain) {
+      return chain.kind === 'derelict_depot';
+    });
+    expect(depotChain).toMatchObject({
+      resolved: true,
+      followupReady: false,
+      followupAcknowledged: true,
+    });
   });
 
   it('勘探决策情报会稳定输出物流、贸易、科研和航线信号', function () {
@@ -229,6 +279,9 @@ describe('ExplorationSystem', function () {
       relicSignal: true,
       primarySignal: 'research',
     });
+    expect(researchIntel.nextChainFollowup).toMatchObject({
+      chainKind: 'ancient_relic',
+    });
     expect(researchIntel.researchHint).toContain('科研');
     expect(researchIntel.anomalyHint).toContain('古代遗迹');
 
@@ -244,6 +297,9 @@ describe('ExplorationSystem', function () {
       routeSignal: true,
       beaconSignal: true,
       primarySignal: 'route',
+    });
+    expect(routeIntel.nextChainFollowup).toMatchObject({
+      chainKind: 'lost_beacon',
     });
     expect(routeIntel.dispatchHint).toContain('暗线');
     expect(routeIntel.anomalyHint).toContain('失落航标');
@@ -365,6 +421,53 @@ describe('ExplorationSystem', function () {
     expect(Array.isArray(restoredPlanet.exploration.pois)).toBe(true);
     expect(Array.isArray(restoredPlanet.exploration.secretRoutes)).toBe(true);
     expect(Array.isArray(restoredPlanet.exploration.reports)).toBe(true);
+    expect(Object.values(restoredPlanet.exploration.chainStates)).toHaveLength(3);
+    expect(Object.values(restoredPlanet.exploration.chainStates).every(function (chain) {
+      return chain.stage === 'locked';
+    })).toBe(true);
     expect(restoredPlanet.exploration.completionRewardLabel).toBeTruthy();
+  });
+
+  it('恢复缺少链状态的旧探索存档时应按 POI 进度回填事件链', function () {
+    GalaxyData.restorePlanetStates({
+      sol_prime: {
+        id: 'sol_prime',
+        owner: 'player',
+        status: 'normal',
+        exploration: {
+          scanLevel: 1,
+          landed: true,
+          reports: [{
+            id: 'legacy_manifest',
+            kind: 'market',
+            chainKind: 'derelict_depot',
+            title: '旧版补给站报告',
+            day: 4,
+          }],
+          pois: [
+            { id: 'sol_prime_poi_resource', discovered: true, discoveredDay: 2, resolved: true, resolvedDay: 4 },
+            { id: 'sol_prime_poi_anomaly', discovered: true, discoveredDay: 2, resolved: false },
+            { id: 'sol_prime_poi_route', discovered: false, resolved: false },
+          ],
+        },
+      },
+    });
+
+    const restoredPlanet = GalaxyData.getPlanetData('sol_prime');
+    const chainStates = restoredPlanet.exploration.chainStates;
+
+    expect(chainStates.sol_prime_chain_derelict_depot).toMatchObject({
+      stage: 'archived',
+      followupReady: true,
+      reportId: 'legacy_manifest',
+    });
+    expect(chainStates.sol_prime_chain_ancient_relic).toMatchObject({
+      stage: 'discovered',
+      followupReady: false,
+    });
+    expect(chainStates.sol_prime_chain_lost_beacon).toMatchObject({
+      stage: 'locked',
+      followupReady: false,
+    });
   });
 });

@@ -1,7 +1,8 @@
 // js/systems/galaxy/ExplorationSystem.js — 探索系统（扫描 / 着陆 / POI / 秘密航线 / 探索报告）
 // 依赖：data/systems.js, systems/galaxy/GalaxyDataLayer.js
 // 导出：getScanStatus, getLandingStatus, getPoiStatus, getSurveySummary,
-//       scanSystem, landOnSystem, explorePoi, getTravelRouteInfo, getCurrentSystemSecretRoutes
+//       scanSystem, landOnSystem, explorePoi, acknowledgeChainFollowup,
+//       getTravelRouteInfo, getCurrentSystemSecretRoutes
 
 import { GOODS } from '../../data/goods.js';
 import { findSystem, getSystemsByGalaxy } from '../../data/systems.js';
@@ -130,6 +131,7 @@ export function scanSystem(state, systemId, options) {
     poi.discovered = true;
     poi.discoveredDay = state.day || 1;
   });
+  _syncExplorationChainStates(exploration, { day: state.day || 1 });
   _applyScanYield(state, scanStatus.scanYield);
   const scanReport = _createScanReport(system, exploration, scanStatus, state.day || 1);
   if (scanReport) _appendExplorationReport(exploration, scanReport);
@@ -411,6 +413,7 @@ export function getSurveyDecisionIntel(state, systemId) {
   const hasLogisticsReport = _hasReportSignal(reports, 'logistics') || hasDepotReport ||
     (hasIntel && summary.opportunityFocus === 'logistics') ||
     (summary.completed && summary.completionRewardKind === 'logistics');
+  const nextChainFollowup = _getNextChainFollowup(summary.anomalyChains);
   const primarySignal = _getPrimaryDecisionSignal(summary, {
     market: hasMarketReport,
     research: hasResearchReport,
@@ -428,6 +431,12 @@ export function getSurveyDecisionIntel(state, systemId) {
     opportunityLabel: summary.opportunityLabel,
     completed: summary.completed,
     completionRewardKind: summary.completionRewardKind,
+    anomalyChainCount: summary.anomalyChainCount,
+    resolvedAnomalyChainCount: summary.resolvedAnomalyChainCount,
+    anomalyChains: summary.anomalyChains,
+    readyFollowupCount: summary.anomalyChains.filter(function (chain) { return chain.followupReady; }).length,
+    acknowledgedFollowupCount: summary.anomalyChains.filter(function (chain) { return chain.followupAcknowledged; }).length,
+    nextChainFollowup: nextChainFollowup,
     primarySignal: primarySignal,
     primaryLabel: _getDecisionSignalLabel(primarySignal),
     marketSignal: hasMarketReport,
@@ -445,7 +454,7 @@ export function getSurveyDecisionIntel(state, systemId) {
     marketHint: _getSurveyMarketHint(summary, primarySignal, hasIntel),
     researchHint: _getSurveyResearchHint(summary, primarySignal, hasIntel),
     dispatchHint: _getSurveyDispatchHint(summary, primarySignal, hasIntel),
-    anomalyHint: _getAnomalyChainHint(reports),
+    anomalyHint: nextChainFollowup ? nextChainFollowup.reason : _getAnomalyChainHint(reports),
   };
 }
 
@@ -470,6 +479,12 @@ export function explorePoi(state, systemId, poiId, options) {
   if (result.report) {
     _appendExplorationReport(exploration, result.report);
   }
+  var chainStates = _syncExplorationChainStates(exploration, {
+    day: state.day || 1,
+    poiId: poi.id,
+    report: result.report || null,
+  });
+  var chainState = poi.chain && chainStates ? chainStates[poi.chain.id] : null;
   var completionBonus = _grantSurveyCompletionBonus(state, system, exploration);
   _saveExplorationState(systemId, exploration);
 
@@ -492,6 +507,8 @@ export function explorePoi(state, systemId, poiId, options) {
       systemId: systemId,
       poiId: poiId,
       poiKind: poi.kind,
+      chainStateId: chainState ? chainState.id : null,
+      chainStage: chainState ? chainState.stage : '',
       reportId: result.report ? result.report.id : null,
       completionBonus: !!completionBonus,
     },
@@ -547,6 +564,43 @@ export function getCurrentSystemSecretRoutes(state) {
     });
 }
 
+export function acknowledgeChainFollowup(state, systemId, chainId) {
+  const system = findSystem(systemId);
+  const exploration = system ? _getExplorationState(systemId) : null;
+  if (!system || !exploration) {
+    return { ok: false, msg: '未知星球，无法确认事件链后续。' };
+  }
+
+  const chainStates = _syncExplorationChainStates(exploration, { preserveFollowupState: true });
+  const targetChainId = chainId || (_getNextChainFollowup(_getExplorationChainSummary(exploration)) || {}).chainId || '';
+  if (!targetChainId || !chainStates[targetChainId]) {
+    return { ok: false, msg: '未找到可跟进的事件链。' };
+  }
+
+  const chainState = chainStates[targetChainId];
+  if (!chainState.resolved) {
+    return { ok: false, msg: '事件链尚未归档，无法确认后续。' };
+  }
+
+  chainStates[targetChainId] = Object.assign({}, chainState, {
+    followupReady: false,
+    followupAcknowledged: true,
+    followupAcknowledgedDay: state && state.day ? state.day : 1,
+  });
+  _saveExplorationState(systemId, exploration);
+
+  return {
+    ok: true,
+    msg: '事件链后续已确认。',
+    meta: {
+      systemId: systemId,
+      chainId: targetChainId,
+      chainKind: chainState.kind || '',
+      chainLabel: chainState.label || CHAIN_SIGNAL_LABELS[chainState.kind] || '探索链',
+    },
+  };
+}
+
 function _hasReportSignal(reports, signal) {
   return Array.isArray(reports) && reports.some(function (report) {
     if (!report) return false;
@@ -563,26 +617,165 @@ function _hasReportChainKind(reports, chainKind) {
 
 function _getExplorationChainSummary(exploration) {
   if (!exploration || !Array.isArray(exploration.pois)) return [];
+  var chainStates = _syncExplorationChainStates(exploration);
   return exploration.pois.filter(function (poi) {
     return poi && poi.chain && poi.chain.kind;
   }).map(function (poi) {
     var chain = poi.chain || {};
-    var stageLabels = Array.isArray(chain.stageLabels) ? chain.stageLabels : [];
+    var chainId = chain.id || (poi.id + '_chain');
+    var chainState = chainStates[chainId] || {};
+    var progress = _getChainProgressFromPoi(poi);
     return {
-      id: chain.id || (poi.id + '_chain'),
-      kind: chain.kind || '',
+      id: chainId,
+      kind: chain.kind || chainState.kind || '',
       label: chain.label || CHAIN_SIGNAL_LABELS[chain.kind] || '探索链',
       badge: chain.badge || '探索链',
       signal: chain.signal || '',
       poiId: poi.id,
       poiName: poi.name || '探索点',
-      discovered: !!poi.discovered,
-      resolved: !!poi.resolved,
-      stageLabel: poi.resolved
-        ? (stageLabels[2] || '已归档')
-        : (poi.discovered ? (stageLabels[1] || '待调查') : (stageLabels[0] || '待扫描')),
+      discovered: !!chainState.discovered || !!poi.discovered,
+      resolved: !!chainState.resolved || !!poi.resolved,
+      stage: chainState.stage || progress.stage,
+      stageIndex: Number.isFinite(chainState.stageIndex) ? chainState.stageIndex : progress.stageIndex,
+      stageLabel: chainState.stageLabel || _getChainStageLabel(chain, progress.stageIndex),
+      discoveredDay: chainState.discoveredDay || poi.discoveredDay || 0,
+      resolvedDay: chainState.resolvedDay || poi.resolvedDay || 0,
+      followupReady: !!chainState.followupReady,
+      followupAcknowledged: !!chainState.followupAcknowledged,
+      followupAcknowledgedDay: chainState.followupAcknowledgedDay || 0,
+      followupLabel: chainState.followupLabel || '',
+      reportId: chainState.reportId || '',
     };
   });
+}
+
+function _syncExplorationChainStates(exploration, options) {
+  if (!exploration || !Array.isArray(exploration.pois)) return {};
+  options = options || {};
+  if (!exploration.chainStates || typeof exploration.chainStates !== 'object') exploration.chainStates = {};
+
+  exploration.pois.forEach(function (poi) {
+    if (!poi || !poi.chain || !poi.chain.kind) return;
+    var chain = poi.chain;
+    var chainId = chain.id || (poi.id + '_chain');
+    var existing = exploration.chainStates[chainId] || {};
+    var progress = _getChainProgressFromPoi(poi);
+    var isResolved = progress.stage === 'archived';
+    var report = options.report && options.report.chainKind === chain.kind ? options.report : null;
+    var reportId = isResolved ? (report ? report.id : (existing.reportId || '')) : '';
+    var followupAcknowledged = isResolved && !!existing.followupAcknowledged;
+    var followupReady = isResolved &&
+      !followupAcknowledged &&
+      (existing.followupReady || options.poiId === poi.id || !!reportId);
+
+    exploration.chainStates[chainId] = {
+      id: chainId,
+      kind: chain.kind || existing.kind || '',
+      label: chain.label || existing.label || CHAIN_SIGNAL_LABELS[chain.kind] || '探索链',
+      badge: chain.badge || existing.badge || '探索链',
+      signal: chain.signal || existing.signal || '',
+      stage: progress.stage,
+      stageIndex: progress.stageIndex,
+      stageLabel: _getChainStageLabel(chain, progress.stageIndex),
+      poiId: poi.id || existing.poiId || '',
+      poiName: poi.name || existing.poiName || '探索点',
+      discovered: !!poi.discovered,
+      resolved: !!poi.resolved,
+      discoveredDay: poi.discovered ? (poi.discoveredDay || existing.discoveredDay || options.day || 0) : 0,
+      resolvedDay: poi.resolved ? (poi.resolvedDay || existing.resolvedDay || options.day || 0) : 0,
+      followupReady: !!followupReady,
+      followupAcknowledged: !!followupAcknowledged,
+      followupAcknowledgedDay: followupAcknowledged ? (existing.followupAcknowledgedDay || 0) : 0,
+      followupLabel: isResolved ? (existing.followupLabel || _getChainFollowupLabel(chain.kind)) : '',
+      reportId: reportId,
+    };
+  });
+
+  return exploration.chainStates;
+}
+
+function _getChainProgressFromPoi(poi) {
+  if (poi && poi.resolved) return { stage: 'archived', stageIndex: 2 };
+  if (poi && poi.discovered) return { stage: 'discovered', stageIndex: 1 };
+  return { stage: 'locked', stageIndex: 0 };
+}
+
+function _getChainStageLabel(chain, stageIndex) {
+  var stageLabels = chain && Array.isArray(chain.stageLabels) ? chain.stageLabels : [];
+  if (stageLabels[stageIndex]) return stageLabels[stageIndex];
+  if (stageIndex === 2) return '已归档';
+  if (stageIndex === 1) return '待调查';
+  return '待扫描';
+}
+
+function _getChainFollowupLabel(chainKind) {
+  if (chainKind === 'lost_beacon') return '打开市场情报区确认暗线航图与派遣评分。';
+  if (chainKind === 'ancient_relic') return '打开市场情报区确认科研补给与风险剖面。';
+  if (chainKind === 'derelict_depot') return '打开市场情报区确认商网和派遣整备价值。';
+  return '打开市场情报区查看后续经营影响。';
+}
+
+function _getNextChainFollowup(anomalyChains) {
+  var readyChains = (Array.isArray(anomalyChains) ? anomalyChains : []).filter(function (chain) {
+    return chain && chain.followupReady && !chain.followupAcknowledged;
+  });
+  if (readyChains.length === 0) return null;
+
+  readyChains.sort(function (left, right) {
+    var dayDelta = (right.resolvedDay || 0) - (left.resolvedDay || 0);
+    if (dayDelta !== 0) return dayDelta;
+    return _getChainFollowupPriority(right.kind) - _getChainFollowupPriority(left.kind);
+  });
+
+  var chain = readyChains[0];
+  return {
+    chainId: chain.id || '',
+    chainKind: chain.kind || '',
+    chainLabel: chain.label || CHAIN_SIGNAL_LABELS[chain.kind] || '探索链',
+    poiId: chain.poiId || '',
+    poiName: chain.poiName || '',
+    reportId: chain.reportId || '',
+    signal: chain.signal || '',
+    reason: _getChainFollowupReason(chain),
+    actionLabel: _getChainFollowupActionLabel(chain),
+    workspaceId: _getChainFollowupWorkspace(chain).workspaceId,
+    subworkspaceId: _getChainFollowupWorkspace(chain).subworkspaceId,
+  };
+}
+
+function _getChainFollowupWorkspace(chain) {
+  if (chain && chain.kind === 'derelict_depot') {
+    return { workspaceId: 'operations', subworkspaceId: 'network' };
+  }
+  return { workspaceId: 'spot', subworkspaceId: 'intel' };
+}
+
+function _getChainFollowupActionLabel(chain) {
+  if (chain && chain.kind === 'derelict_depot') return '规划商网';
+  if (chain && chain.kind === 'lost_beacon') return '查看航图';
+  if (chain && chain.kind === 'ancient_relic') return '查看样本';
+  return '查看情报';
+}
+
+function _getChainFollowupPriority(chainKind) {
+  if (chainKind === 'lost_beacon') return 3;
+  if (chainKind === 'ancient_relic') return 2;
+  if (chainKind === 'derelict_depot') return 1;
+  return 0;
+}
+
+function _getChainFollowupReason(chain) {
+  var label = chain && chain.label ? chain.label : (CHAIN_SIGNAL_LABELS[chain && chain.kind] || '探索链');
+  if (chain && chain.kind === 'lost_beacon') {
+    return label + '已归档，打开市场情报区确认暗线航图与派遣评分。';
+  }
+  if (chain && chain.kind === 'ancient_relic') {
+    return label + '样本已归档，打开市场情报区确认科研补给与风险剖面。';
+  }
+  if (chain && chain.kind === 'derelict_depot') {
+    return label + '已复原，打开市场情报区确认商网和派遣整备价值。';
+  }
+  return label + '已归档，打开市场情报区查看后续经营影响。';
 }
 
 function _formatChainScanOverview(exploration) {
