@@ -7,7 +7,7 @@ import { SYSTEMS, getSystemsByGalaxy, getAccessibleGalaxies, findGalaxy } from '
 import { TECHNOLOGIES, TECH_CATEGORIES } from '../../data/technologies.js';
 import * as Economy from '../economy/Economy.js';
 import * as Faction from '../faction/FactionSystem.js';
-import * as Exploration from '../galaxy/ExplorationSystem.js?v=20260417-exploration20';
+import * as Exploration from '../galaxy/ExplorationSystem.js?v=20260531-chainfollow1';
 import { getTotalCargo } from './TradeSystem.js';
 
 export function normalizeTradePolicy(policy) {

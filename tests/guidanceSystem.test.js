@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { createTestState } from './helpers.js';
-import { getCurrentSuggestion } from '../js/systems/guidance/GuidanceSystem.js';
+import {
+  GUIDANCE_PRIORITY_BANDS,
+  GUIDANCE_TOPICS,
+  getCurrentSuggestion,
+} from '../js/systems/guidance/GuidanceSystem.js';
 import * as Commerce from '../js/systems/commerce/CommerceFacade.js';
 import * as Economy from '../js/systems/economy/Economy.js';
 import * as Faction from '../js/systems/faction/FactionSystem.js';
@@ -40,6 +44,12 @@ describe('GuidanceSystem', function () {
     expect(suggestion).toMatchObject({
       id: 'accept-first-trade',
       priority: 100,
+      priorityBand: GUIDANCE_PRIORITY_BANDS.core.id,
+      guidanceTopic: {
+        id: GUIDANCE_TOPICS.starterTrade.id,
+        label: '贸易入门链',
+        stepLabel: '接入委托',
+      },
       actionType: 'quest.accept',
       payload: { questId: 'starter_first_trade' },
     });
@@ -320,6 +330,12 @@ describe('GuidanceSystem', function () {
     expect(suggestion).toMatchObject({
       id: 'refuel-low-tank',
       actionType: 'trade.refuel',
+      priorityBand: GUIDANCE_PRIORITY_BANDS.critical.id,
+      guidanceTopic: {
+        id: GUIDANCE_TOPICS.stability.id,
+        label: '整备保障链',
+        stepLabel: '燃料补给',
+      },
     });
   });
 
@@ -349,6 +365,12 @@ describe('GuidanceSystem', function () {
       id: 'prefill-research-supply-dispatch',
       actionType: 'fleet.dispatch.prefill',
       actionLabel: '带入机库',
+      priorityBand: GUIDANCE_PRIORITY_BANDS.midgame.id,
+      guidanceTopic: {
+        id: GUIDANCE_TOPICS.researchSupply.id,
+        label: '科研补给链',
+        stepLabel: '派遣补给',
+      },
       payload: {
         sourceLabel: '科研补给建议',
         recommendation: researchSupplyRoute,
@@ -751,6 +773,11 @@ describe('GuidanceSystem', function () {
       id: 'build-trade-station',
       actionType: 'market.open',
       actionLabel: '打开经营页',
+      guidanceTopic: {
+        id: GUIDANCE_TOPICS.tradeNetwork.id,
+        label: '商网建设链',
+        stepLabel: '新建节点',
+      },
       payload: {
         workspaceId: 'operations',
         subworkspaceId: 'local',
@@ -896,6 +923,61 @@ describe('GuidanceSystem', function () {
       },
     });
     expect(suggestion.reason).toContain('贸易窗口');
+  });
+
+  it('有待跟进事件链时行动条优先生成事件链建议', function () {
+    var state = createTestState({
+      quests: [],
+      completedQuests: ['starter_first_trade', 'starter_visit_2'],
+      cargo: {},
+      credits: 5000,
+      fuel: 100,
+      maxFuel: 100,
+      currentSystem: 'sol_prime',
+    });
+    var suggestion = getCurrentSuggestion(state, {
+      surveyIntel: {
+        systemId: 'sol_prime',
+        hasIntel: true,
+        marketSignal: true,
+        logisticsSignal: true,
+        depotSignal: true,
+        primarySignal: 'market',
+        readyFollowupCount: 1,
+        recentReportTitle: '废弃补给站复原',
+        nextChainFollowup: {
+          chainId: 'sol_prime_depot_chain',
+          chainKind: 'derelict_depot',
+          chainLabel: '废弃补给站',
+          signal: 'logistics',
+          reason: '废弃补给站已复原，打开商网总览确认建站折抵。',
+          actionLabel: '规划商网',
+          workspaceId: 'operations',
+          subworkspaceId: 'network',
+        },
+      },
+    });
+
+    expect(suggestion).toMatchObject({
+      id: 'review-survey-chain-followup',
+      priority: 37,
+      actionType: 'market.open',
+      actionLabel: '规划商网',
+      payload: {
+        workspaceId: 'operations',
+        subworkspaceId: 'network',
+        systemId: 'sol_prime',
+        intelSignal: 'logistics',
+        chainId: 'sol_prime_depot_chain',
+        chainKind: 'derelict_depot',
+        chainLabel: '废弃补给站',
+      },
+      guidanceTopic: {
+        id: GUIDANCE_TOPICS.surveyIntel.id,
+        stepLabel: '事件链跟进',
+      },
+    });
+    expect(suggestion.title).toContain('废弃补给站');
   });
 
   it('市场情报区已经打开时不会反复推荐查看同一份勘探行情', function () {

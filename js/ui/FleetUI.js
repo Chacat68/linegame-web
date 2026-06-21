@@ -11,8 +11,9 @@ import * as Crew from '../systems/fleet/CrewSystem.js';
 import * as Economy from '../systems/economy/Economy.js';
 import * as AutoTrade from '../systems/trade/AutoTradeSystem.js?v=20260420-balance5';
 import * as Faction from '../systems/faction/FactionSystem.js';
-import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from './SurfaceManager.js?v=20260505-surface4';
+import { hideBlockingSurface, showBlockingSurface } from './SurfaceManager.js?v=20260621-settingsfallback1';
 import * as EventBus from '../core/EventBus.js';
+import * as ActionConfirmUI from './ActionConfirmUI.js?v=20260621-settingsfallback1';
 
 let _activeInlineModalId = null;
 let _currentPortalCleanup = null;
@@ -22,19 +23,47 @@ let _activeDispatchModalContext = null;
 // 全局监听重置事件（用于视图切换时自动归还节点）
 EventBus.on('hangar:reset', function() {
   if (_currentPortalCleanup) {
-    _currentPortalCleanup();
+    _currentPortalCleanup({ restoreFocus: false });
   }
 });
+
+function _focusInlineElement(target) {
+  if (!target || typeof target.focus !== 'function' || target.disabled) return;
+  if (target.isConnected === false) return;
+  try {
+    target.focus({ preventScroll: true });
+  } catch (err) {
+    target.focus();
+  }
+}
+
+function _scheduleInlineFocusRestore(selector, fallbackTarget) {
+  Promise.resolve().then(function () {
+    var target = null;
+    if (selector && globalThis.document && typeof document.querySelector === 'function') {
+      target = document.querySelector(selector);
+    }
+    _focusInlineElement(target || fallbackTarget);
+  });
+}
+
+function _renderHangarAfterInlineClose() {
+  if (globalThis.__linegameGameManager && typeof globalThis.__linegameGameManager.renderUI === 'function') {
+    globalThis.__linegameGameManager.renderUI();
+  }
+}
 
 /**
  * 核心 Portal 函数：将弹窗中的 .modal-box 搬移至内联容器
  * @param {string} modalId 弹窗元素的ID（如 'mod-modal'）
  * @param {Function} onCloseCallback 当点击返回或关闭时调用的额外回调
+ * @param {Object} options 内联区域语义和焦点恢复配置
  */
-function _openInlinePortal(modalId, onCloseCallback) {
+function _openInlinePortal(modalId, onCloseCallback, options) {
+  var portalOptions = options || {};
   // 如果之前已经有活动的 portal，先静默归还
   if (_currentPortalCleanup) {
-    _currentPortalCleanup();
+    _currentPortalCleanup({ restoreFocus: false });
   }
 
   const listContainer = document.getElementById('fleet-list');
@@ -44,34 +73,65 @@ function _openInlinePortal(modalId, onCloseCallback) {
 
   const modalBox = modal.querySelector('.modal-box');
   if (!modalBox) return false;
+  const returnFocusTarget = globalThis.document ? document.activeElement : null;
 
   _activeInlineModalId = modalId;
 
   // 1. 隐藏原主列表，显示内嵌容器
   listContainer.classList.add('hidden');
+  listContainer.setAttribute('aria-hidden', 'true');
+  listContainer.inert = true;
   inlineContainer.classList.remove('hidden');
+  inlineContainer.setAttribute('aria-hidden', 'false');
+  inlineContainer.setAttribute('role', 'region');
+  inlineContainer.setAttribute('tabindex', '-1');
+  inlineContainer.setAttribute('data-inline-surface', modalId);
+  inlineContainer.inert = false;
+  if (portalOptions.labelledBy) inlineContainer.setAttribute('aria-labelledby', portalOptions.labelledBy);
+  if (portalOptions.describedBy) inlineContainer.setAttribute('aria-describedby', portalOptions.describedBy);
   inlineContainer.innerHTML = '';
 
-  // 2. 创建高颜值的 [ ← 返回机库列表 ] 的青色毛玻璃窄条
+  // 2. 创建可被键盘稳定访问的返回栏
   const backBar = document.createElement('div');
   backBar.className = 'inline-portal-back-bar';
-  backBar.innerHTML = `<button class="inline-portal-back-btn" type="button">← 返回机库列表 (BACK TO HANGAR)</button>`;
+  const backButton = document.createElement('button');
+  backButton.className = 'inline-portal-back-btn';
+  backButton.type = 'button';
+  backButton.textContent = '← 返回机库列表';
+  backButton.setAttribute('aria-label', '返回机库列表');
+  backBar.appendChild(backButton);
   
   // 3. 将返回条和搬移过来的 modalBox 插入到内联容器
   inlineContainer.appendChild(backBar);
   inlineContainer.appendChild(modalBox);
+  modalBox.setAttribute('data-surface-mode', 'inline');
 
   // 4. 定义清理（还原）函数
-  const cleanup = function() {
+  const cleanup = function(cleanupOptions) {
     if (_activeInlineModalId !== modalId) return; // 避免重复清理
+    var shouldRestoreFocus = !cleanupOptions || cleanupOptions.restoreFocus !== false;
+
+    if (globalThis.document && typeof document.removeEventListener === 'function') {
+      document.removeEventListener('keydown', handlePortalKeydown);
+    }
 
     // 把 .modal-box 移回原 modal 容器
     modal.appendChild(modalBox);
+    modalBox.removeAttribute('data-surface-mode');
     
     // 隐藏并清空内嵌容器，重新展现列表
     inlineContainer.classList.add('hidden');
+    inlineContainer.setAttribute('aria-hidden', 'true');
+    inlineContainer.removeAttribute('role');
+    inlineContainer.removeAttribute('tabindex');
+    inlineContainer.removeAttribute('aria-labelledby');
+    inlineContainer.removeAttribute('aria-describedby');
+    inlineContainer.removeAttribute('data-inline-surface');
+    inlineContainer.inert = true;
     inlineContainer.innerHTML = '';
     listContainer.classList.remove('hidden');
+    listContainer.setAttribute('aria-hidden', 'false');
+    listContainer.inert = false;
     
     _activeInlineModalId = null;
     _currentPortalCleanup = null;
@@ -84,19 +144,32 @@ function _openInlinePortal(modalId, onCloseCallback) {
     if (onCloseCallback) {
       onCloseCallback();
     }
+    if (shouldRestoreFocus) {
+      _scheduleInlineFocusRestore(portalOptions.returnFocusSelector, returnFocusTarget);
+    }
   };
 
   _currentPortalCleanup = cleanup;
 
   // 5. 绑定返回按钮事件
-  backBar.querySelector('.inline-portal-back-btn').onclick = function(e) {
+  backButton.onclick = function(e) {
     e.preventDefault();
     cleanup();
-    // 触发全局渲染以更新主列表状态
-    if (globalThis.__linegameGameManager && typeof globalThis.__linegameGameManager.renderUI === 'function') {
-      globalThis.__linegameGameManager.renderUI();
-    }
+    _renderHangarAfterInlineClose();
   };
+
+  function handlePortalKeydown(event) {
+    if (!event || event.key !== 'Escape' || _activeInlineModalId !== modalId) return;
+    event.preventDefault();
+    if (typeof event.stopPropagation === 'function') event.stopPropagation();
+    cleanup();
+    _renderHangarAfterInlineClose();
+  }
+
+  if (globalThis.document && typeof document.addEventListener === 'function') {
+    document.addEventListener('keydown', handlePortalKeydown);
+  }
+  _focusInlineElement(backButton);
 
   return true;
 }
@@ -112,6 +185,167 @@ function _formatTradePolicySummary(policy) {
   else if (policy.riskMode === 'aggressive') parts.push('激进');
   else parts.push('平衡');
   return parts.length > 0 ? parts.join(' · ') : '默认：按当前价格循环';
+}
+
+function _getCargoUsed(cargo) {
+  return Object.values(cargo || {}).reduce(function (sum, qty) { return sum + qty; }, 0);
+}
+
+function _buildHangarShipSnapshots(state, fleet) {
+  return (fleet || []).map(function (ship, idx) {
+    var stats = Fleet.getEffectiveShipStats(state, ship);
+    var maintenance = stats.maintenance || Fleet.getShipMaintenanceSummary(state, ship);
+    var faults = stats.faults || Fleet.getShipFaultSummaries(ship);
+    var roleProfile = stats.roleProfile || Fleet.getShipRoleProfile(state, ship);
+    var repairJob = ship.repairJob && ship.repairJob.remainingDays > 0 ? ship.repairJob : null;
+    var hull = Number.isFinite(ship.hull) ? ship.hull : (ship.maxHull || 0);
+    var maxHull = Number.isFinite(ship.maxHull) ? ship.maxHull : hull;
+    var fuel = Number.isFinite(ship.fuel) ? ship.fuel : 0;
+    var maxFuel = Math.max(1, Number.isFinite(ship.maxFuel) ? ship.maxFuel : 1);
+
+    return {
+      ship: ship,
+      index: idx,
+      stats: stats,
+      maintenance: maintenance,
+      faults: faults,
+      roleProfile: roleProfile,
+      repairJob: repairJob,
+      cargoUsed: _getCargoUsed(ship.cargo),
+      hullMissing: Math.max(0, maxHull - hull),
+      fuelPct: Math.max(0, Math.min(100, Math.round((fuel / maxFuel) * 100))),
+    };
+  });
+}
+
+function _isHangarRiskSnapshot(snapshot) {
+  if (!snapshot) return false;
+  return !!snapshot.repairJob
+    || snapshot.faults.length > 0
+    || snapshot.hullMissing > 0
+    || snapshot.maintenance.value < 75;
+}
+
+function _formatHangarRouteSummary(state, snapshot) {
+  if (!snapshot || !snapshot.ship || !snapshot.ship.route) return '';
+
+  var routeDisplay = Fleet.getRouteDisplayInfo(state, snapshot.ship, snapshot.index);
+  var startSys = SYSTEMS.find(function (s) { return s.id === (routeDisplay ? routeDisplay.startSystemId : null); });
+  var targetSys = SYSTEMS.find(function (s) { return s.id === (routeDisplay ? routeDisplay.endSystemId : null); });
+  var good = GOODS.find(function (g) { return g.id === snapshot.ship.route.goodId; });
+  var status = routeDisplay ? routeDisplay.statusLabel : snapshot.ship.route.status;
+  return (startSys ? startSys.name : '?') + ' → ' + (targetSys ? targetSys.name : '?') +
+    (good ? ' · ' + good.name : '') +
+    (status ? ' · ' + status : '');
+}
+
+function _renderHangarFocusCard(label, title, body, meta, tone) {
+  return '<article class="hangar-focus-card hangar-focus-card--' + tone + '" role="listitem">' +
+    '<span class="hangar-focus-label">' + _escapeHtml(label) + '</span>' +
+    '<strong>' + _escapeHtml(title) + '</strong>' +
+    '<p>' + _escapeHtml(body) + '</p>' +
+    '<small>' + _escapeHtml(meta) + '</small>' +
+  '</article>';
+}
+
+function _renderHangarTriagePanel(context) {
+  var fleet = context.fleet || [];
+  var snapshots = context.fleetSnapshots || [];
+  var emptySlots = Math.max(0, context.slotCount - fleet.length);
+  var lockedSlots = Math.max(0, context.maxSlots - context.slotCount);
+  var riskSnapshots = snapshots.filter(_isHangarRiskSnapshot).sort(function (left, right) {
+    if (left.faults.length !== right.faults.length) return right.faults.length - left.faults.length;
+    if (left.hullMissing !== right.hullMissing) return right.hullMissing - left.hullMissing;
+    return left.maintenance.value - right.maintenance.value;
+  });
+  var riskCount = riskSnapshots.length;
+  var avgMaintenance = snapshots.length
+    ? Math.round(snapshots.reduce(function (sum, snapshot) { return sum + snapshot.maintenance.value; }, 0) / snapshots.length)
+    : 100;
+  var activeSnapshot = snapshots.find(function (snapshot) { return snapshot.index === context.activeIdx; }) || snapshots[0] || null;
+  var routeSnapshot = snapshots.find(function (snapshot) { return !!snapshot.ship.route; }) || null;
+  var idleSnapshot = snapshots.find(function (snapshot) { return !snapshot.ship.route && snapshot.index !== context.activeIdx; }) || null;
+  var riskSnapshot = riskSnapshots[0] || null;
+  var routeSignal = context.fleetRouteCount > 0
+    ? ('运行中 ' + context.fleetRouteCount + ' 条 · Lv.' + context.routeLevel)
+    : ('待配置航线 · Lv.' + context.routeLevel);
+  var focusCards = [];
+
+  focusCards.push(_renderHangarFocusCard(
+    activeSnapshot ? '旗舰' : '旗舰',
+    activeSnapshot ? activeSnapshot.ship.name : '未配置旗舰',
+    activeSnapshot
+      ? ((activeSnapshot.roleProfile ? activeSnapshot.roleProfile.label : '综合用途') + ' · 燃料 ' + activeSnapshot.fuelPct + '% · 维护 ' + Math.round(activeSnapshot.maintenance.value) + '%')
+      : '当前没有可操控舰船',
+    activeSnapshot && activeSnapshot.ship.route ? '派遣中' : '本地操控',
+    activeSnapshot && _isHangarRiskSnapshot(activeSnapshot) ? 'warning' : 'ready',
+  ));
+
+  if (riskSnapshot) {
+    focusCards.push(_renderHangarFocusCard(
+      riskSnapshot.repairJob ? '维修队列' : '维护观察',
+      riskSnapshot.ship.name,
+      '维护 ' + Math.round(riskSnapshot.maintenance.value) + '% · 故障 ' + riskSnapshot.faults.length + ' · 船体缺口 ' + Math.round(riskSnapshot.hullMissing),
+      riskSnapshot.repairJob ? ('剩余 ' + riskSnapshot.repairJob.remainingDays + ' 天') : riskSnapshot.maintenance.label,
+      'warning',
+    ));
+  } else {
+    focusCards.push(_renderHangarFocusCard(
+      '维护观察',
+      '全队稳定',
+      '平均维护 ' + avgMaintenance + '% · 暂无故障或船体缺口',
+      '整备状态良好',
+      'ready',
+    ));
+  }
+
+  if (routeSnapshot) {
+    focusCards.push(_renderHangarFocusCard(
+      '航线信号',
+      routeSnapshot.ship.name,
+      _formatHangarRouteSummary(context.state, routeSnapshot),
+      _formatTradePolicySummary(routeSnapshot.ship.route.tradePolicy),
+      'route',
+    ));
+  } else if (idleSnapshot) {
+    focusCards.push(_renderHangarFocusCard(
+      '待命舰船',
+      idleSnapshot.ship.name,
+      (idleSnapshot.roleProfile ? idleSnapshot.roleProfile.label : '综合用途') + ' · 货舱 ' + idleSnapshot.cargoUsed + '/' + (idleSnapshot.stats.maxCargo || idleSnapshot.ship.maxCargo || 0),
+      '未派遣',
+      'idle',
+    ));
+  } else {
+    focusCards.push(_renderHangarFocusCard(
+      emptySlots > 0 ? '席位信号' : '编队状态',
+      emptySlots > 0 ? '有空席位' : '席位已满',
+      emptySlots > 0 ? ('可容纳 ' + emptySlots + ' 艘新船 · 锁定 ' + lockedSlots + ' 席') : ('全部 ' + context.slotCount + ' 个席位已使用'),
+      emptySlots > 0 ? '可扩编' : '满编',
+      emptySlots > 0 ? 'idle' : 'ready',
+    ));
+  }
+
+  var activeCargoCap = context.activeShipStats ? context.activeShipStats.maxCargo : 0;
+  var slotMeta = emptySlots > 0 ? ('空席位 ' + emptySlots + ' · 锁定 ' + lockedSlots) : ('已占满 · 锁定 ' + lockedSlots);
+  var riskMeta = riskCount > 0 ? ('平均维护 ' + avgMaintenance + '% · 待处理') : ('平均维护 ' + avgMaintenance + '% · 稳定');
+  var cargoMeta = context.activeShip ? ('旗舰占用 ' + context.activeCargoUsed + '/' + activeCargoCap) : '未配置旗舰';
+
+  return '<section class="hangar-triage-panel" aria-label="机库态势与局部信号">' +
+    '<div class="hangar-triage-head">' +
+      '<div><span class="hangar-triage-kicker">LOCAL HANGAR SIGNAL</span><strong>机库态势</strong></div>' +
+      '<span class="hangar-route-signal">' + _escapeHtml(routeSignal) + '</span>' +
+    '</div>' +
+    '<div class="hangar-triage-grid" role="list" aria-label="机库态势矩阵">' +
+      '<div class="hangar-triage-cell" role="listitem"><span>编队规模</span><strong>' + fleet.length + '/' + context.slotCount + '</strong><small>' + _escapeHtml(slotMeta) + '</small></div>' +
+      '<div class="hangar-triage-cell" role="listitem"><span>航线运行</span><strong>' + context.fleetRouteCount + '</strong><small>' + _escapeHtml(routeSignal) + '</small></div>' +
+      '<div class="hangar-triage-cell hangar-triage-cell--risk" role="listitem"><span>维护风险</span><strong>' + riskCount + '</strong><small>' + _escapeHtml(riskMeta) + '</small></div>' +
+      '<div class="hangar-triage-cell" role="listitem"><span>总舱容</span><strong>' + context.fleetCargoCap + '</strong><small>' + _escapeHtml(cargoMeta) + '</small></div>' +
+    '</div>' +
+    '<div class="hangar-focus-panel" aria-label="机库局部信号">' +
+      '<div class="hangar-focus-copy"><span>局部信号</span><strong>优先查看</strong><small>旗舰、维护与航线状态</small></div>' +
+      '<div class="hangar-focus-list" role="list" aria-label="机库焦点卡">' + focusCards.join('') + '</div>' +
+    '</div>' +
+  '</section>';
 }
 
 /**
@@ -152,7 +386,7 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
   const routeLevel = Fleet.getDispatchRouteLevel(state);
   const activeShipStats = activeShip ? Fleet.getEffectiveShipStats(state, activeShip) : null;
   const activeCargoUsed = activeShip
-    ? Object.values(activeShip.cargo || {}).reduce(function (sum, qty) { return sum + qty; }, 0)
+    ? _getCargoUsed(activeShip.cargo)
     : 0;
   const activeCrewCount = activeShip ? Crew.getShipCrew(state, activeShip).length : 0;
   const activeMaintenance = activeShipStats
@@ -167,10 +401,10 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
   const activeFuelPct = activeShip
     ? Math.max(0, Math.min(100, Math.round((activeShip.fuel / Math.max(1, activeShip.maxFuel || 1)) * 100)))
     : 0;
+  const fleetSnapshots = _buildHangarShipSnapshots(state, fleet);
   const fleetRouteCount = fleet.filter(function (ship) { return !!ship.route; }).length;
-  const fleetCargoCap = fleet.reduce(function (sum, ship) {
-    var stats = Fleet.getEffectiveShipStats(state, ship);
-    return sum + (stats.maxCargo || ship.maxCargo || 0);
+  const fleetCargoCap = fleetSnapshots.reduce(function (sum, snapshot) {
+    return sum + (snapshot.stats.maxCargo || snapshot.ship.maxCargo || 0);
   }, 0);
 
   let html = '';
@@ -200,6 +434,21 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
   html += '<div><span>船员</span><strong>' + activeCrewCount + '/' + (activeShip ? (activeShip.crewCapacity || 0) : 0) + '</strong></div>';
   html += '</div>';
   html += '</section>';
+
+  html += _renderHangarTriagePanel({
+    state: state,
+    fleet: fleet,
+    fleetSnapshots: fleetSnapshots,
+    activeIdx: activeIdx,
+    activeShip: activeShip,
+    activeShipStats: activeShipStats,
+    activeCargoUsed: activeCargoUsed,
+    slotCount: slotCount,
+    maxSlots: maxSlots,
+    routeLevel: routeLevel,
+    fleetRouteCount: fleetRouteCount,
+    fleetCargoCap: fleetCargoCap,
+  });
 
   // ========== 席位区域 ==========
   html += '<section class="hangar-module hangar-slot-deck">';
@@ -307,7 +556,7 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
   fleet.forEach(function (ship, idx) {
     const isActive = idx === activeIdx;
       const isSwitchFlashing = canFlash && idx === flashIndex;
-    const cargoUsed = Object.values(ship.cargo).reduce(function (s, q) { return s + q; }, 0);
+    const cargoUsed = _getCargoUsed(ship.cargo);
     const shipCrew = Crew.getShipCrew(state, ship);
     const shipStats = Fleet.getEffectiveShipStats(state, ship);
     const specialization = shipStats.specialization || Fleet.getShipSpecializationSummary(state, ship);
@@ -624,9 +873,13 @@ function _focusGuidedMod(container, focusModId) {
   if (target.classList && typeof target.classList.add === 'function') {
     target.classList.add('mod-modal-guidance-focus');
   }
+  if (typeof target.setAttribute === 'function') {
+    target.setAttribute('tabindex', '-1');
+  }
   if (typeof target.scrollIntoView === 'function') {
     target.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }
+  _focusInlineElement(target);
 }
 
 function _formatCrewEffectParts(effect) {
@@ -645,6 +898,36 @@ function _formatCrewProgress(crewMember) {
     return 'Lv.' + (crewMember.level || 1) + ' · 已满级';
   }
   return 'Lv.' + (crewMember.level || 1) + ' · 进度 ' + (crewMember.exp || 0) + '/' + (crewMember.expToNext || 0);
+}
+
+function _getCrewProgressPercent(crewMember) {
+  if (!crewMember) return 0;
+  if ((crewMember.level || 1) >= (crewMember.maxLevel || crewMember.level || 1)) return 100;
+  var next = Math.max(1, Number(crewMember.expToNext) || 1);
+  return Math.max(0, Math.min(100, Math.round(((crewMember.exp || 0) / next) * 100)));
+}
+
+function _renderCrewCard(crewMember, actionHtml, options) {
+  var opts = options || {};
+  var effectParts = _formatCrewEffectParts(Crew.getCrewEffectProfile(crewMember));
+  var progressText = _formatCrewProgress(crewMember);
+  var progressPercent = _getCrewProgressPercent(crewMember);
+  var meta = opts.meta || (crewMember.roleName + ' · ' + (crewMember.branchLabel || crewMember.specialtyName || crewMember.roleName) + ' · 工资 ' + crewMember.wage + '/天');
+  var detailText = progressText + (effectParts.length ? ' · ' + effectParts.join(' · ') : '');
+  var cardLabel = (crewMember.name || '') + '，' + meta + '，' + progressText;
+
+  return '<article class="crew-card' + (opts.kind ? ' crew-card--' + _escapeHtml(opts.kind) : '') + '" role="listitem" aria-label="' + _escapeHtml(cardLabel) + '">' +
+    '<div class="crew-card-main">' +
+      '<strong>' + (crewMember.emoji || '👤') + ' ' + _escapeHtml(crewMember.name) + '</strong>' +
+      '<span>' + _escapeHtml(meta) + '</span>' +
+      '<small>' + _escapeHtml(detailText) + '</small>' +
+      '<div class="crew-progress" role="progressbar" aria-label="' + _escapeHtml((crewMember.name || '船员') + ' 经验进度') + '" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + progressPercent + '">' +
+        '<div class="crew-progress-fill" style="width:' + progressPercent + '%"></div>' +
+      '</div>' +
+      (opts.desc ? '<small class="crew-card-desc">' + _escapeHtml(opts.desc) + '</small>' : '') +
+    '</div>' +
+    '<div class="crew-card-actions">' + actionHtml + '</div>' +
+  '</article>';
 }
 
 function _getShipSellQuote(ship) {
@@ -791,6 +1074,136 @@ function _getComponentModuleGroups(state, ship, installedMods, availableMods, sl
   });
 }
 
+function _renderModModalSignalMetric(label, value, note, tone) {
+  var className = 'mod-modal-signal-item' + (tone ? (' mod-modal-signal-item--' + _escapeHtml(tone)) : '');
+  return '<div class="' + className + '" role="listitem">' +
+    '<span class="mod-modal-signal-label">' + _escapeHtml(label) + '</span>' +
+    '<strong class="mod-modal-signal-value">' + _escapeHtml(value) + '</strong>' +
+    '<span class="mod-modal-signal-note">' + _escapeHtml(note || '') + '</span>' +
+  '</div>';
+}
+
+function _buildModModalSignalPanel(options) {
+  var opts = options || {};
+  var ship = opts.ship || {};
+  var maintenance = opts.maintenance || {};
+  var structureModules = opts.structureModules || [];
+  var componentGroups = opts.componentGroups || [];
+  var faults = opts.faults || [];
+  var modRecommendation = opts.modRecommendation || null;
+  var repairQuote = opts.repairQuote || null;
+  var repairJob = opts.repairJob || null;
+  var roleProfile = opts.roleProfile || {};
+  var sellQuote = opts.sellQuote || null;
+  var hullMissing = Math.max(0, opts.hullMissing || 0);
+  var slotsLeft = Math.max(0, opts.slotsLeft || 0);
+  var installedModCount = Array.isArray(ship.mods) ? ship.mods.length : 0;
+  var modSlots = Math.max(1, ship.modSlots || 1);
+  var repairNeeded = hullMissing > 0 || faults.length > 0 || (maintenance.value || 100) < 99.5;
+  var structureReadyCount = structureModules.filter(function (moduleState) {
+    return !!(moduleState.nextUpgrade && !moduleState.disabledReason && moduleState.canAfford);
+  }).length;
+  var structureBlockedCount = structureModules.filter(function (moduleState) {
+    return !!(moduleState.nextUpgrade && (moduleState.disabledReason || !moduleState.canAfford));
+  }).length;
+  var readyModCount = componentGroups.reduce(function (sum, group) {
+    return sum + ((group.readyMods || []).filter(function (mod) {
+      return group.slotsLeft > 0 && group.credits >= mod.cost;
+    }).length);
+  }, 0);
+  var lockedModCount = componentGroups.reduce(function (sum, group) {
+    return sum + (group.lockedCount || 0);
+  }, 0);
+  var repairValue = '稳定';
+  var repairNote = '当前无需入坞维修';
+  var repairTone = 'complete';
+  var structureValue = structureReadyCount > 0 ? (structureReadyCount + ' 可升级') : '待筹备';
+  var structureNote = structureReadyCount > 0
+    ? '可直接推进下一档结构强化'
+    : (structureBlockedCount > 0 ? (structureBlockedCount + ' 项受预算或上限限制') : '结构模块已整理');
+  var structureTone = structureReadyCount > 0 ? 'ready' : (structureBlockedCount > 0 ? 'blocked' : 'complete');
+  var componentValue = installedModCount + '/' + modSlots;
+  var componentNote = readyModCount > 0
+    ? (readyModCount + ' 项可安装')
+    : (slotsLeft <= 0 ? '槽位已满' : (lockedModCount > 0 ? (lockedModCount + ' 项待解锁') : '无待装组件'));
+  var componentTone = readyModCount > 0 ? 'ready' : (slotsLeft <= 0 ? 'blocked' : 'complete');
+  var assetValue = opts.sellDisabledReason ? '锁定' : '可处置';
+  var assetNote = opts.sellDisabledReason || (sellQuote && sellQuote.maxPrice > 0
+    ? ('回收 ' + sellQuote.minPrice.toLocaleString() + '~' + sellQuote.maxPrice.toLocaleString())
+    : '暂无回收价');
+  var assetTone = opts.sellDisabledReason ? 'blocked' : 'ready';
+  var focusTitle = '改装态势稳定';
+  var focusNote = '维修、结构和组件没有阻塞项，可按当前船型定位继续精细配置。';
+  var focusTone = 'complete';
+
+  if (repairJob) {
+    repairValue = repairJob.remainingDays + ' 天';
+    repairNote = _getRepairCountdownText(repairJob);
+    repairTone = 'work';
+    focusTitle = '维修队列进行中';
+    focusNote = '该船维修完成前不适合派遣，先等待船坞处理完当前工单。';
+    focusTone = 'repair';
+  } else if (repairQuote && !repairQuote.disabledReason && repairNeeded) {
+    repairValue = '可入坞';
+    repairNote = repairQuote.cost.toLocaleString() + ' 积分 · ' + repairQuote.durationDays + ' 天';
+    repairTone = 'work';
+    focusTitle = '维修优先';
+    focusNote = '维护 ' + Math.round(maintenance.value || 0) + '%，船体缺口 ' + hullMissing + '，故障 ' + faults.length + ' 项。';
+    focusTone = 'repair';
+  } else if (repairQuote && repairQuote.disabledReason && repairQuote.disabledReason !== '当前无需维修') {
+    repairValue = '受限';
+    repairNote = repairQuote.disabledReason;
+    repairTone = 'blocked';
+  }
+
+  if (focusTone === 'complete' && modRecommendation && modRecommendation.canInstall) {
+    focusTitle = '推荐组件可安装';
+    focusNote = modRecommendation.mod.name + '：' + modRecommendation.reason;
+    focusTone = 'module';
+  } else if (focusTone === 'complete' && modRecommendation && modRecommendation.disabledReason) {
+    focusTitle = '推荐组件受限';
+    focusNote = modRecommendation.mod.name + '：' + modRecommendation.disabledReason;
+    focusTone = 'blocked';
+  } else if (focusTone === 'complete' && structureReadyCount > 0) {
+    focusTitle = '结构模块可推进';
+    focusNote = structureReadyCount + ' 个结构模块满足预算和上限条件，可先补齐最短板。';
+    focusTone = 'structure';
+  } else if (focusTone === 'complete' && readyModCount > 0) {
+    focusTitle = '组件槽位可利用';
+    focusNote = '当前还有 ' + slotsLeft + ' 个槽位，' + readyModCount + ' 项组件可直接安装。';
+    focusTone = 'module';
+  } else if (focusTone === 'complete' && slotsLeft <= 0 && installedModCount > 0) {
+    focusTitle = '组件槽位已满';
+    focusNote = '安装新组件前需要先拆卸低优先级组件，避免在长列表里反复确认。';
+    focusTone = 'blocked';
+  } else if (focusTone === 'complete' && opts.sellDisabledReason) {
+    focusTitle = '资产处置受限';
+    focusNote = opts.sellDisabledReason;
+    focusTone = 'blocked';
+  }
+
+  return '<section class="mod-modal-signal-panel" aria-label="改装局部态势">' +
+    '<div class="mod-modal-signal-head">' +
+      '<div>' +
+        '<div class="mod-modal-signal-title">改装局部态势</div>' +
+        '<div class="mod-modal-signal-subtitle">把维修、结构、组件和资产限制合并到一屏，先确认当前船的改装优先级。</div>' +
+      '</div>' +
+      '<span class="mod-modal-signal-badge">' + _escapeHtml(roleProfile.label || '综合用途') + '</span>' +
+    '</div>' +
+    '<div class="mod-modal-signal-grid" role="list" aria-label="改装决策指标">' +
+      _renderModModalSignalMetric('维修', repairValue, repairNote, repairTone) +
+      _renderModModalSignalMetric('结构', structureValue, structureNote, structureTone) +
+      _renderModModalSignalMetric('组件', componentValue, componentNote, componentTone) +
+      _renderModModalSignalMetric('资产', assetValue, assetNote, assetTone) +
+    '</div>' +
+    '<div class="mod-modal-signal-focus" role="status" aria-label="改装局部信号" data-tone="' + _escapeHtml(focusTone) + '">' +
+      '<span class="mod-modal-signal-focus-kicker">局部信号</span>' +
+      '<strong class="mod-modal-signal-focus-title">' + _escapeHtml(focusTitle) + '</strong>' +
+      '<span class="mod-modal-signal-focus-note">' + _escapeHtml(focusNote) + '</span>' +
+    '</div>' +
+  '</section>';
+}
+
 function _getRepairCountdownText(repairJob) {
   if (!repairJob || !repairJob.remainingDays) return '';
   return '维修中 · 剩余 ' + repairJob.remainingDays + ' 天';
@@ -812,19 +1225,63 @@ function _getSpecializationMeta(trackId) {
   return { icon: '🧭', name: '探索专精' };
 }
 
+function _renderCrewSummaryStat(label, value) {
+  return '<div class="crew-modal-summary-stat" role="listitem">' +
+    '<span>' + _escapeHtml(label) + '</span>' +
+    '<strong>' + _escapeHtml(value) + '</strong>' +
+  '</div>';
+}
+
+function _renderCrewSectionStatus(label, value, tone) {
+  return '<span class="crew-modal-status-chip" role="listitem" data-tone="' + _escapeHtml(tone || 'neutral') + '">' +
+    '<span>' + _escapeHtml(label) + '</span>' +
+    '<strong>' + _escapeHtml(value) + '</strong>' +
+  '</span>';
+}
+
+function _setCrewSectionStatus(id, items) {
+  var element = document.getElementById(id);
+  if (!element) return;
+
+  element.innerHTML = (items || []).map(function (item) {
+    return _renderCrewSectionStatus(item.label, item.value, item.tone);
+  }).join('');
+}
+
+function _getCrewRosterHint(shipCrew, reserveCrew, marketCrew, seatRemaining) {
+  if (shipCrew.length <= 0 && reserveCrew.length > 0) {
+    return '当前飞船还没有船员，先从预备队分配一名关键岗位。';
+  }
+  if (shipCrew.length <= 0 && marketCrew.length > 0) {
+    return '当前飞船还没有船员，可先从港口招募补足基础岗位。';
+  }
+  if (seatRemaining <= 0 && reserveCrew.length + marketCrew.length > 0) {
+    return '船员席位已满，新人上船前需要先调回预备队或扩充船体。';
+  }
+  if (seatRemaining > 0 && reserveCrew.length > 0) {
+    return '还有 ' + seatRemaining + ' 个空席位，可直接从预备队补强本船。';
+  }
+  if (seatRemaining > 0 && marketCrew.length > 0) {
+    return '还有 ' + seatRemaining + ' 个空席位，港口市场有可签约人选。';
+  }
+  return '船员编制稳定，继续查看协议、工资和成长进度。';
+}
+
 function _openCrewModal(state, shipIndex, onRecruitCrew, onAssignCrew, onUnassignCrew, onDismissCrew, onSwitchShip, onSetShipDoctrine, onActivateShipProtocol) {
   var modal = document.getElementById('crew-modal');
   if (!modal) return;
-
-  _openInlinePortal('crew-modal', function() {
-    hideBlockingSurface('crew-modal');
-  });
-
+  var modalBox = modal.querySelector('.modal-box');
   var ship = state.fleet[shipIndex];
-  if (!ship) {
-    if (_currentPortalCleanup) _currentPortalCleanup();
-    return;
-  }
+  if (!modalBox || !ship) return;
+
+  var portalOpened = _openInlinePortal('crew-modal', function() {
+    hideBlockingSurface('crew-modal');
+  }, {
+    labelledBy: 'crew-modal-title',
+    describedBy: 'crew-modal-desc crew-modal-summary',
+    returnFocusSelector: '.fleet-open-crew-btn[data-ship-index="' + shipIndex + '"]',
+  });
+  if (!portalOpened) showBlockingSurface('crew-modal', { focusSelector: '#crew-modal-close' });
 
   var titleEl = document.getElementById('crew-modal-title');
   var summaryEl = document.getElementById('crew-modal-summary');
@@ -847,18 +1304,36 @@ function _openCrewModal(state, shipIndex, onRecruitCrew, onAssignCrew, onUnassig
     var doctrine = specialization.doctrine;
     var doctrineLevel = specialization.levels[doctrine.id] || 0;
     var doctrineCooldown = specialization.cooldowns[doctrine.id] || 0;
+    var crewCapacity = currentShip.crewCapacity || 0;
+    var seatRemaining = Math.max(0, crewCapacity - shipCrew.length);
+    var seatTone = shipCrew.length <= 0 ? 'empty' : (seatRemaining <= 0 ? 'warning' : 'ready');
+    var marketTone = marketCrew.length > 0 ? 'ready' : 'empty';
+    var reserveTone = reserveCrew.length > 0 ? 'ready' : 'empty';
+    var rosterHint = _getCrewRosterHint(shipCrew, reserveCrew, marketCrew, seatRemaining);
 
+    if (modal.dataset) {
+      modal.dataset.crewShipIndex = String(shipIndex);
+      modal.dataset.crewSeatState = seatTone;
+      modal.dataset.crewReserveState = reserveTone;
+      modal.dataset.crewMarketState = marketTone;
+    }
+    if (modalBox.dataset) {
+      modalBox.dataset.crewShipIndex = String(shipIndex);
+      modalBox.dataset.crewSeatState = seatTone;
+      modalBox.dataset.crewReserveState = reserveTone;
+      modalBox.dataset.crewMarketState = marketTone;
+    }
     titleEl.textContent = '👥 船员管理 · ' + currentShip.emoji + ' ' + currentShip.name;
     summaryEl.innerHTML =
-      '<span>席位 ' + shipCrew.length + '/' + (currentShip.crewCapacity || 0) + '</span>' +
-      '<span>当前港口：' + _escapeHtml(currentSystem ? currentSystem.name : state.currentSystem) + '</span>' +
-      '<span>工资/天 ' + shipCrew.reduce(function (sum, crewMember) { return sum + (crewMember.wage || 0); }, 0) + '</span>' +
-      '<span>货舱 +' + (crewEffects.cargo || 0) + '</span>' +
-      '<span>维修 +' + (crewEffects.autoRepair || 0) + '</span>' +
-      '<span>市场刷新：第 ' + marketState.refreshDay + ' 天 / 下次第 ' + marketState.nextRefreshDay + ' 天</span>' +
-      '<span>人才倾向：' + _escapeHtml(marketState.themeLabel || '综合港') + '</span>' +
-      '<span>当前协议：' + _escapeHtml(doctrine.shortName) + '</span>' +
-      '<div class="crew-modal-command-panel">' +
+      _renderCrewSummaryStat('席位', shipCrew.length + '/' + crewCapacity) +
+      _renderCrewSummaryStat('当前港口', currentSystem ? currentSystem.name : state.currentSystem) +
+      _renderCrewSummaryStat('工资/天', shipCrew.reduce(function (sum, crewMember) { return sum + (crewMember.wage || 0); }, 0)) +
+      _renderCrewSummaryStat('货舱加成', '+' + (crewEffects.cargo || 0)) +
+      _renderCrewSummaryStat('维修加成', '+' + (crewEffects.autoRepair || 0)) +
+      _renderCrewSummaryStat('市场刷新', '第 ' + marketState.refreshDay + ' 天 / 下次第 ' + marketState.nextRefreshDay + ' 天') +
+      _renderCrewSummaryStat('人才倾向', marketState.themeLabel || '综合港') +
+      _renderCrewSummaryStat('当前协议', doctrine.shortName) +
+      '<div class="crew-modal-command-panel" role="listitem" aria-label="舰桥协议">' +
         '<div class="crew-modal-command-head">' +
           '<strong>舰桥协议</strong>' +
           '<div class="crew-modal-command-actions">' +
@@ -876,11 +1351,11 @@ function _openCrewModal(state, shipIndex, onRecruitCrew, onAssignCrew, onUnassig
             var progress = Math.round((specialization.progress[trackId] || 0) * 100);
             var trackHtml = '';
 
-            trackHtml += '<div class="ship-specialization-card' + (isDoctrine ? ' ship-specialization-card-active' : '') + '">';
+            trackHtml += '<div class="ship-specialization-card' + (isDoctrine ? ' ship-specialization-card-active' : '') + '" role="group" aria-label="' + _escapeHtml(meta.name + ' Lv.' + level) + '">';
             trackHtml += '<div class="ship-specialization-card-head"><strong>' + meta.icon + ' ' + meta.name + '</strong><span>Lv.' + level + '</span></div>';
             trackHtml += '<div class="ship-specialization-card-desc">' + _describeSpecializationTrack(trackId, level) + '</div>';
             if (nextThreshold != null) {
-              trackHtml += '<div class="ship-specialization-progress"><div class="ship-specialization-progress-fill" style="width:' + progress + '%"></div></div>';
+              trackHtml += '<div class="ship-specialization-progress" role="progressbar" aria-label="' + _escapeHtml(meta.name + ' 经验进度') + '" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + progress + '"><div class="ship-specialization-progress-fill" style="width:' + progress + '%"></div></div>';
               trackHtml += '<div class="ship-specialization-progress-text">经验 ' + xp + ' / ' + nextThreshold + '</div>';
             } else {
               trackHtml += '<div class="ship-specialization-progress-text">已达当前版本专精上限</div>';
@@ -908,68 +1383,104 @@ function _openCrewModal(state, shipIndex, onRecruitCrew, onAssignCrew, onUnassig
                 ? '<div class="ship-protocol-status">冷却中 · 还需 ' + doctrineCooldown + ' 天</div>'
                 : '<button class="ship-protocol-activate-btn crew-protocol-activate-btn" data-action="activate" type="button">启动协议</button>'))) +
         '</div>' +
+      '</div>' +
+      '<div class="crew-modal-roster-alert" role="listitem" aria-label="船员管理局部信号">' +
+        '<strong>编制信号</strong>' +
+        '<span>' + _escapeHtml(rosterHint) + '</span>' +
       '</div>';
+
+    _setCrewSectionStatus('crew-assigned-status', [
+      { label: '席位', value: shipCrew.length + '/' + crewCapacity, tone: seatTone },
+      { label: '可补', value: seatRemaining + ' 人', tone: seatRemaining > 0 ? 'ready' : 'warning' },
+    ]);
+    _setCrewSectionStatus('crew-reserve-status', [
+      { label: '待命', value: reserveCrew.length + ' 人', tone: reserveTone },
+      { label: '操作', value: reserveCrew.length > 0 ? '可分配' : '空', tone: reserveTone },
+    ]);
+    _setCrewSectionStatus('crew-market-status', [
+      { label: '候选', value: marketCrew.length + ' 人', tone: marketTone },
+      { label: '刷新', value: '第 ' + marketState.nextRefreshDay + ' 天', tone: 'neutral' },
+    ]);
 
     assignedEl.innerHTML = shipCrew.length > 0
       ? shipCrew.map(function (crewMember) {
-          var effectParts = _formatCrewEffectParts(Crew.getCrewEffectProfile(crewMember));
-          return '<div class="crew-card">' +
-            '<div class="crew-card-main"><strong>' + crewMember.emoji + ' ' + _escapeHtml(crewMember.name) + '</strong><span>' + _escapeHtml(crewMember.roleName) + ' · ' + _escapeHtml(crewMember.branchLabel || crewMember.specialtyName || crewMember.roleName) + ' · 工资 ' + crewMember.wage + '/天</span><small>' + _escapeHtml(_formatCrewProgress(crewMember) + (effectParts.length ? ' · ' + effectParts.join(' · ') : '')) + '</small></div>' +
-            '<div class="crew-card-actions"><button class="btn-secondary crew-unassign-btn" data-crew-id="' + crewMember.id + '">调回预备队</button></div>' +
-          '</div>';
+          return _renderCrewCard(
+            crewMember,
+            '<button class="btn-secondary crew-unassign-btn" type="button" data-crew-id="' + _escapeHtml(crewMember.id) + '">调回预备队</button>',
+            { kind: 'assigned' }
+          );
         }).join('')
-      : '<div class="crew-empty">当前飞船暂无船员。</div>';
+      : '<div class="crew-empty" role="listitem">当前飞船暂无船员。</div>';
 
     reserveEl.innerHTML = reserveCrew.length > 0
       ? reserveCrew.map(function (crewMember) {
-          var reserveEffectParts = _formatCrewEffectParts(Crew.getCrewEffectProfile(crewMember));
-          return '<div class="crew-card">' +
-            '<div class="crew-card-main"><strong>' + crewMember.emoji + ' ' + _escapeHtml(crewMember.name) + '</strong><span>' + _escapeHtml(crewMember.roleName) + ' · ' + _escapeHtml(crewMember.branchLabel || crewMember.specialtyName || crewMember.roleName) + ' · 工资 ' + crewMember.wage + '/天</span><small>' + _escapeHtml(_formatCrewProgress(crewMember) + (reserveEffectParts.length ? ' · ' + reserveEffectParts.join(' · ') : '')) + '</small></div>' +
-            '<div class="crew-card-actions"><button class="btn-primary crew-assign-btn" data-crew-id="' + crewMember.id + '">分配到本船</button><button class="btn-secondary crew-dismiss-btn" data-crew-id="' + crewMember.id + '">解雇</button></div>' +
-          '</div>';
+          return _renderCrewCard(
+            crewMember,
+            '<button class="btn-primary crew-assign-btn" type="button" data-crew-id="' + _escapeHtml(crewMember.id) + '">分配到本船</button>' +
+              '<button class="btn-secondary crew-dismiss-btn" type="button" data-crew-id="' + _escapeHtml(crewMember.id) + '">解雇</button>',
+            { kind: 'reserve' }
+          );
         }).join('')
-      : '<div class="crew-empty">预备队为空。</div>';
+      : '<div class="crew-empty" role="listitem">预备队为空。</div>';
 
     marketEl.innerHTML = marketCrew.length > 0
       ? marketCrew.map(function (offer) {
-          var effectParts = _formatCrewEffectParts(Crew.getCrewEffectProfile(offer));
-
-          return '<div class="crew-card">' +
-            '<div class="crew-card-main"><strong>' + offer.emoji + ' ' + _escapeHtml(offer.name) + '</strong><span>' + _escapeHtml(offer.title + ' · ' + offer.roleName + ' · ' + (offer.branchLabel || offer.specialtyName || offer.roleName)) + '</span><small>' + _escapeHtml('Lv.' + (offer.level || 1) + ' · ' + (offer.potentialLabel || '') + (effectParts.length ? ' · ' + effectParts.join(' · ') : '')) + '</small><small>' + _escapeHtml(offer.desc) + '</small></div>' +
-            '<div class="crew-card-actions"><button class="btn-primary crew-recruit-btn" data-offer-id="' + offer.id + '">签约 ' + offer.hireCost + '</button></div>' +
-          '</div>';
+          return _renderCrewCard(
+            offer,
+            '<button class="btn-primary crew-recruit-btn" type="button" data-offer-id="' + _escapeHtml(offer.id) + '">签约 ' + offer.hireCost + '</button>',
+            {
+              kind: 'market',
+              meta: offer.title + ' · ' + offer.roleName + ' · ' + (offer.branchLabel || offer.specialtyName || offer.roleName),
+              desc: offer.desc,
+            }
+          );
         }).join('')
-      : '<div class="crew-empty">当前港口本轮人才市场已无可签约人选。</div>';
+      : '<div class="crew-empty" role="listitem">当前港口本轮人才市场已无可签约人选。</div>';
 
-    modal.querySelectorAll('.crew-unassign-btn').forEach(function (btn) {
+    modalBox.querySelectorAll('.crew-unassign-btn').forEach(function (btn) {
       btn.onclick = function () {
         onUnassignCrew(shipIndex, btn.dataset.crewId);
         renderCrewModal();
       };
     });
 
-    modal.querySelectorAll('.crew-assign-btn').forEach(function (btn) {
+    modalBox.querySelectorAll('.crew-assign-btn').forEach(function (btn) {
       btn.onclick = function () {
         onAssignCrew(shipIndex, btn.dataset.crewId);
         renderCrewModal();
       };
     });
 
-    modal.querySelectorAll('.crew-dismiss-btn').forEach(function (btn) {
+    modalBox.querySelectorAll('.crew-dismiss-btn').forEach(function (btn) {
       btn.onclick = function () {
-        onDismissCrew(btn.dataset.crewId);
-        renderCrewModal();
+        var crewMember = Crew.getReserveCrew(state).find(function (member) {
+          return member.id === btn.dataset.crewId;
+        });
+        ActionConfirmUI.open({
+          kicker: '船员合同',
+          title: '解雇「' + (crewMember ? crewMember.name : '该船员') + '」？',
+          message: '该船员会从预备队永久移除，已积累的等级和经验无法恢复。',
+          confirmLabel: '确认解雇',
+          details: [
+            { label: '当前岗位', value: crewMember ? (crewMember.roleName || crewMember.title || '未指定') : '预备队', tone: 'neutral' },
+            { label: '人员记录', value: '永久移除', tone: 'danger' },
+          ],
+          onConfirm: function () {
+            onDismissCrew(btn.dataset.crewId);
+            renderCrewModal();
+          },
+        });
       };
     });
 
-    modal.querySelectorAll('.crew-recruit-btn').forEach(function (btn) {
+    modalBox.querySelectorAll('.crew-recruit-btn').forEach(function (btn) {
       btn.onclick = function () {
         onRecruitCrew(btn.dataset.offerId);
         renderCrewModal();
       };
     });
 
-    modal.querySelectorAll('.ship-specialization-switch-btn').forEach(function (btn) {
+    modalBox.querySelectorAll('.ship-specialization-switch-btn').forEach(function (btn) {
       btn.onclick = function () {
         if (onSetShipDoctrine) onSetShipDoctrine(shipIndex, btn.dataset.doctrine);
         setTimeout(function () {
@@ -978,7 +1489,7 @@ function _openCrewModal(state, shipIndex, onRecruitCrew, onAssignCrew, onUnassig
       };
     });
 
-    var protocolBtn = modal.querySelector('.crew-protocol-activate-btn');
+    var protocolBtn = modalBox.querySelector('.crew-protocol-activate-btn');
     if (protocolBtn) {
       protocolBtn.onclick = function () {
         if (onActivateShipProtocol) onActivateShipProtocol(shipIndex);
@@ -988,7 +1499,7 @@ function _openCrewModal(state, shipIndex, onRecruitCrew, onAssignCrew, onUnassig
       };
     }
 
-    var switchBtn = modal.querySelector('.crew-switch-ship-btn');
+    var switchBtn = modalBox.querySelector('.crew-switch-ship-btn');
     if (switchBtn) {
       switchBtn.onclick = function () {
         if (onSwitchShip) onSwitchShip(shipIndex);
@@ -1002,15 +1513,145 @@ function _openCrewModal(state, shipIndex, onRecruitCrew, onAssignCrew, onUnassig
   renderCrewModal();
   document.getElementById('crew-modal-close').onclick = function () {
     if (_currentPortalCleanup) _currentPortalCleanup();
-    if (globalThis.__linegameGameManager && typeof globalThis.__linegameGameManager.renderUI === 'function') {
-      globalThis.__linegameGameManager.renderUI();
-    }
+    else hideBlockingSurface('crew-modal');
+    _renderHangarAfterInlineClose();
   };
 }
 
 // ---------------------------------------------------------------------------
 // 船只商店（独立标签页）
 // ---------------------------------------------------------------------------
+
+function _getShipShopRoleLabel(shipType) {
+  if (!shipType) return '综合用途';
+  if (shipType.modSlots >= 3 || shipType.id === 'galleon') return '旗舰骨架';
+  if (shipType.fuelEff <= 0.8 || shipType.id === 'clipper') return '高速航路';
+  if (shipType.maxCargo >= 100 || shipType.id === 'freighter') return '货运主力';
+  return '综合用途';
+}
+
+function _buildShipShopContext(state) {
+  var fleet = Fleet.getFleet(state);
+  var slotCount = Fleet.getSlotCount(state);
+  var maxSlots = Fleet.getMaxSlots();
+  var routeLevel = Fleet.getDispatchRouteLevel(state);
+  var hasAvailableSlot = Fleet.getAvailableSlotCount(state) > 0;
+  var credits = state.credits || 0;
+  var paidTypes = SHIP_TYPES.filter(function (shipType) { return shipType.cost > 0; });
+  var ownedTypeCounts = fleet.reduce(function (map, ship) {
+    map[ship.typeId] = (map[ship.typeId] || 0) + 1;
+    return map;
+  }, {});
+  var fleetCargoCap = fleet.reduce(function (sum, ship) {
+    var stats = Fleet.getEffectiveShipStats(state, ship);
+    return sum + (stats.maxCargo || ship.maxCargo || 0);
+  }, 0);
+  var averageCargoCap = fleet.length ? Math.round(fleetCargoCap / fleet.length) : 0;
+  var hasCargoCore = fleet.some(function (ship) { return ship.typeId === 'freighter' || ship.typeId === 'galleon'; });
+  var hasFastHull = fleet.some(function (ship) { return ship.typeId === 'clipper'; });
+  var hasFlagshipHull = fleet.some(function (ship) { return ship.typeId === 'galleon'; });
+
+  var entries = paidTypes.map(function (shipType) {
+    var roleLabel = _getShipShopRoleLabel(shipType);
+    var canAfford = credits >= shipType.cost;
+    var creditGap = Math.max(0, shipType.cost - credits);
+    var diversityBonus = ownedTypeCounts[shipType.id] ? -35 : 80;
+    var roleFit = 0;
+    if (!hasCargoCore && roleLabel === '货运主力') roleFit += 120;
+    if (!hasFastHull && roleLabel === '高速航路') roleFit += 95;
+    if (!hasFlagshipHull && roleLabel === '旗舰骨架' && fleet.length >= 2) roleFit += 105;
+    var rangeValue = Math.round(shipType.maxFuelCap / Math.max(0.1, shipType.fuelEff));
+    var score = (shipType.maxCargo || 0) + Math.round(rangeValue / 8) + (shipType.modSlots || 1) * 24 + diversityBonus + roleFit;
+
+    return {
+      type: shipType,
+      roleLabel: roleLabel,
+      canAfford: canAfford,
+      creditGap: creditGap,
+      ownedCount: ownedTypeCounts[shipType.id] || 0,
+      rangeValue: rangeValue,
+      cargoLift: Math.max(0, (shipType.maxCargo || 0) - averageCargoCap),
+      score: score,
+    };
+  });
+
+  var affordableEntries = entries.filter(function (entry) { return entry.canAfford; });
+  var focusEntry = hasAvailableSlot && affordableEntries.length > 0
+    ? affordableEntries.slice().sort(function (left, right) {
+        if (left.score !== right.score) return right.score - left.score;
+        return left.type.cost - right.type.cost;
+      })[0]
+    : null;
+  var closestEntry = entries.slice().sort(function (left, right) {
+    if (left.creditGap !== right.creditGap) return left.creditGap - right.creditGap;
+    return left.type.cost - right.type.cost;
+  })[0] || null;
+
+  return {
+    credits: credits,
+    fleet: fleet,
+    fleetLen: fleet.length,
+    slotCount: slotCount,
+    maxSlots: maxSlots,
+    routeLevel: routeLevel,
+    hasAvailableSlot: hasAvailableSlot,
+    entries: entries,
+    affordableEntries: affordableEntries,
+    focusEntry: focusEntry,
+    closestEntry: closestEntry,
+    averageCargoCap: averageCargoCap,
+  };
+}
+
+function _renderShipShopBrief(context) {
+  var slotText = context.fleetLen + '/' + context.slotCount;
+  var slotMeta = context.hasAvailableSlot
+    ? ('空席位 ' + Math.max(0, context.slotCount - context.fleetLen) + ' · 锁定 ' + Math.max(0, context.maxSlots - context.slotCount))
+    : ('席位已满 · 上限 ' + context.maxSlots);
+  var budgetMeta = context.closestEntry && context.closestEntry.creditGap > 0
+    ? ('距 ' + context.closestEntry.type.name + ' 还差 ' + context.closestEntry.creditGap.toLocaleString())
+    : '预算覆盖当前候选';
+  var focusTitle = context.focusEntry
+    ? context.focusEntry.type.emoji + ' ' + context.focusEntry.type.name
+    : (context.hasAvailableSlot ? '预算观察' : '采购暂停');
+  var focusBody = context.focusEntry
+    ? (context.focusEntry.roleLabel + ' · 舱容上限 ' + context.focusEntry.type.maxCargo + ' · 航程指数 ' + context.focusEntry.rangeValue)
+    : (context.hasAvailableSlot
+        ? (context.closestEntry ? budgetMeta : '暂无候选船型')
+        : '当前没有空席位，新船购买按钮会保持锁定');
+  var focusMeta = context.focusEntry
+    ? ('采购信号 · 已拥有同型 ' + context.focusEntry.ownedCount)
+    : (context.hasAvailableSlot ? '现金流信号' : '席位信号');
+
+  return '<section class="hangar-shop-brief" aria-label="购船决策摘要">' +
+    '<div class="hangar-shop-brief-grid" role="list" aria-label="采购态势矩阵">' +
+      '<div class="hangar-shop-brief-cell" role="listitem"><span>可用积分</span><strong>' + context.credits.toLocaleString() + '</strong><small>' + _escapeHtml(budgetMeta) + '</small></div>' +
+      '<div class="hangar-shop-brief-cell" role="listitem"><span>可采购</span><strong>' + context.affordableEntries.length + '/' + context.entries.length + '</strong><small>按当前预算计算</small></div>' +
+      '<div class="hangar-shop-brief-cell" role="listitem"><span>席位</span><strong>' + slotText + '</strong><small>' + _escapeHtml(slotMeta) + '</small></div>' +
+      '<div class="hangar-shop-brief-cell" role="listitem"><span>航线等级</span><strong>Lv.' + context.routeLevel + '</strong><small>采购后沿用当前派遣等级</small></div>' +
+    '</div>' +
+    '<div class="hangar-shop-focus" aria-label="购船局部信号">' +
+      '<div><span>采购焦点</span><strong>' + _escapeHtml(focusTitle) + '</strong><small>' + _escapeHtml(focusBody) + '</small></div>' +
+      '<span class="hangar-shop-focus-badge">' + _escapeHtml(focusMeta) + '</span>' +
+    '</div>' +
+  '</section>';
+}
+
+function _renderShipShopSignalStrip(entry, context) {
+  var statusText = !context.hasAvailableSlot
+    ? '席位锁定'
+    : (entry.canAfford ? '可采购' : ('差额 ' + entry.creditGap.toLocaleString()));
+  var statusClass = !context.hasAvailableSlot
+    ? 'fleet-shop-status-pill--locked'
+    : (entry.canAfford ? 'fleet-shop-status-pill--ready' : 'fleet-shop-status-pill--blocked');
+
+  return '<div class="fleet-shop-signal-strip" role="list" aria-label="' + _escapeHtml(entry.type.name) + '采购信号">' +
+    '<span role="listitem">定位 ' + _escapeHtml(entry.roleLabel) + '</span>' +
+    '<span role="listitem">航程指数 ' + entry.rangeValue + '</span>' +
+    '<span role="listitem">舱容增幅 +' + entry.cargoLift + '</span>' +
+    '<span class="fleet-shop-status-pill ' + statusClass + '" role="listitem">' + _escapeHtml(statusText) + '</span>' +
+  '</div>';
+}
 
 /**
  * 渲染船只商店标签页
@@ -1021,10 +1662,10 @@ export function renderShop(state, onBuyShip) {
   const container = document.getElementById('shop-list');
   if (!container) return;
 
-  var hasAvailableSlot = Fleet.getAvailableSlotCount(state) > 0;
-  var slotCount = Fleet.getSlotCount(state);
-  var maxSlots  = Fleet.getMaxSlots();
-  var fleetLen  = Fleet.getFleet(state).length;
+  var shopContext = _buildShipShopContext(state);
+  var hasAvailableSlot = shopContext.hasAvailableSlot;
+  var slotCount = shopContext.slotCount;
+  var fleetLen  = shopContext.fleetLen;
 
   var html = '';
 
@@ -1035,20 +1676,23 @@ export function renderShop(state, onBuyShip) {
   html += '<div class="shop-slot-hint">🎫 席位：' + fleetLen + '/' + slotCount +
           (hasAvailableSlot ? ' — 可购买新船' : ' — 席位已满，需先购买席位') + '</div>';
   html += '</section>';
+  html += _renderShipShopBrief(shopContext);
   html += '<div class="fleet-section-title">🏪 船只商店</div>';
   html += '<div class="hangar-shop-grid">';
 
-  SHIP_TYPES.forEach(function (st) {
-    const canAfford = state.credits >= st.cost;
-    if (st.cost === 0) return;
+  shopContext.entries.forEach(function (entry) {
+    const st = entry.type;
+    const canAfford = entry.canAfford;
+    const isFocus = shopContext.focusEntry && shopContext.focusEntry.type.id === st.id;
 
-    html += '<div class="fleet-shop-card">';
+    html += '<div class="fleet-shop-card' + (isFocus ? ' fleet-shop-card--focus' : '') + '">';
     html += '<div class="fleet-shop-header">';
     html += '<span class="fleet-ship-icon">' + st.emoji + '</span>';
-    html += '<span class="fleet-ship-name">' + st.name + '</span>';
+    html += '<span class="fleet-ship-name">' + _escapeHtml(st.name) + '</span>';
     html += '<span class="fleet-shop-price">' + st.cost.toLocaleString() + ' 积分</span>';
     html += '</div>';
-    html += '<div class="fleet-shop-desc">' + st.desc + '</div>';
+    html += '<div class="fleet-shop-desc">' + _escapeHtml(st.desc) + '</div>';
+    html += _renderShipShopSignalStrip(entry, shopContext);
     html += '<div class="fleet-shop-specs">';
     html += '📦' + st.cargo + '(→' + st.maxCargo + ') ';
     html += '⚡' + st.fuel + '(→' + st.maxFuelCap + ') ';
@@ -1062,7 +1706,7 @@ export function renderShop(state, onBuyShip) {
     if (st.skills && st.skills.length > 0) {
       html += '<span class="fleet-shop-skills">';
       st.skills.forEach(function (skill) {
-        html += '<span class="fleet-shop-skill-chip" title="' + skill.desc + '">' + skill.emoji + ' ' + skill.name + '</span>';
+        html += '<span class="fleet-shop-skill-chip" title="' + _escapeHtml(skill.desc) + '">' + skill.emoji + ' ' + _escapeHtml(skill.name) + '</span>';
       });
       html += '</span>';
     }
@@ -1091,6 +1735,10 @@ export function renderShop(state, onBuyShip) {
 
 export function openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, preset) {
   _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, preset);
+}
+
+export function openCrewModal(state, shipIndex, onRecruitCrew, onAssignCrew, onUnassignCrew, onDismissCrew, onSwitchShip, onSetShipDoctrine, onActivateShipProtocol) {
+  _openCrewModal(state, shipIndex, onRecruitCrew, onAssignCrew, onUnassignCrew, onDismissCrew, onSwitchShip, onSetShipDoctrine, onActivateShipProtocol);
 }
 
 export function openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgradeShip, onServiceShip, onSellShip, options) {
@@ -1122,9 +1770,14 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
     recommendedModId: '',
   };
 
-  _openInlinePortal('mod-modal', function() {
+  var portalOpened = _openInlinePortal('mod-modal', function() {
     hideBlockingSurface('mod-modal');
+  }, {
+    labelledBy: 'mod-modal-title',
+    describedBy: 'mod-modal-desc mod-modal-body',
+    returnFocusSelector: '.fleet-open-mod-btn[data-ship-index="' + shipIndex + '"]',
   });
+  if (!portalOpened) showBlockingSurface('mod-modal', { focusSelector: '#mod-modal-close' });
 
   function _renderModModal() {
     var ship = state.fleet[shipIndex];
@@ -1174,20 +1827,36 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
     var body = document.getElementById('mod-modal-body');
     var html = '';
 
-    html += '<div class="mod-modal-overview">';
-    html += '<span class="fleet-role-chip" title="' + _escapeHtml(roleProfile.summary || '') + '">🎯 ' + _escapeHtml(roleProfile.label || '综合用途') + '</span>';
-    html += '<span class="fleet-maintenance-chip fleet-maintenance-' + maintenance.band + '">🧰 ' + _escapeHtml(maintenance.label) + ' ' + Math.round(maintenance.value) + '%</span>';
-    html += '<span class="mod-modal-overview-stat">升级 ' + installedUpgrades.length + '</span>';
-    html += '<span class="mod-modal-overview-stat">组件 ' + (ship.mods || []).length + '/' + (ship.modSlots || 1) + '</span>';
-    html += '<span class="mod-modal-overview-stat">船体缺口 ' + hullMissing + '</span>';
-    html += '<span class="mod-modal-overview-stat">日常养护 ' + maintenance.upkeepCost + '/天</span>';
-    html += '<span class="mod-modal-overview-stat">磨损 ' + maintenance.dailyDecay.toFixed(1) + '/天</span>';
-    html += '<span class="mod-modal-overview-stat' + (repairJob ? ' mod-modal-overview-stat--repair' : '') + '">' + _escapeHtml(repairJob ? _getRepairCountdownText(repairJob) : (ship.route ? '派遣中，需召回后维修' : '已停靠，可安排维修')) + '</span>';
+    html += '<div class="mod-modal-overview" role="list" aria-label="飞船改装摘要">';
+    html += '<span class="fleet-role-chip" role="listitem" title="' + _escapeHtml(roleProfile.summary || '') + '">🎯 ' + _escapeHtml(roleProfile.label || '综合用途') + '</span>';
+    html += '<span class="fleet-maintenance-chip fleet-maintenance-' + maintenance.band + '" role="listitem">🧰 ' + _escapeHtml(maintenance.label) + ' ' + Math.round(maintenance.value) + '%</span>';
+    html += '<span class="mod-modal-overview-stat" role="listitem">升级 ' + installedUpgrades.length + '</span>';
+    html += '<span class="mod-modal-overview-stat" role="listitem">组件 ' + (ship.mods || []).length + '/' + (ship.modSlots || 1) + '</span>';
+    html += '<span class="mod-modal-overview-stat" role="listitem">船体缺口 ' + hullMissing + '</span>';
+    html += '<span class="mod-modal-overview-stat" role="listitem">日常养护 ' + maintenance.upkeepCost + '/天</span>';
+    html += '<span class="mod-modal-overview-stat" role="listitem">磨损 ' + maintenance.dailyDecay.toFixed(1) + '/天</span>';
+    html += '<span class="mod-modal-overview-stat' + (repairJob ? ' mod-modal-overview-stat--repair' : '') + '" role="listitem">' + _escapeHtml(repairJob ? _getRepairCountdownText(repairJob) : (ship.route ? '派遣中，需召回后维修' : '已停靠，可安排维修')) + '</span>';
     html += '</div>';
+    html += _buildModModalSignalPanel({
+      ship: ship,
+      maintenance: maintenance,
+      roleProfile: roleProfile,
+      faults: faults,
+      modRecommendation: modRecommendation,
+      repairQuote: repairQuote,
+      repairJob: repairJob,
+      hullMissing: hullMissing,
+      structureModules: structureModules,
+      componentGroups: componentGroups,
+      slotsLeft: slotsLeft,
+      sellQuote: sellQuote,
+      sellDisabledReason: sellDisabledReason,
+    });
 
     if (modRecommendation) {
       var recommendationFocused = !!(focusModId && modRecommendation.modId === focusModId);
       html += '<div class="mod-modal-recommendation' + (recommendationFocused ? ' mod-modal-recommendation--focus' : '') + '"' +
+              ' role="group" aria-label="' + _escapeHtml('推荐组件 ' + modRecommendation.mod.name) + '"' +
               (recommendationFocused ? ' data-focus-mod="recommendation"' : '') + '>';
       html += '<div class="mod-modal-recommendation-copy">';
       html += '<div class="mod-modal-recommendation-title">🧩 推荐组件 · ' + modRecommendation.mod.emoji + ' ' + _escapeHtml(modRecommendation.mod.name) + '</div>';
@@ -1196,7 +1865,7 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
         html += '<div class="mod-modal-recommendation-note">当前限制：' + _escapeHtml(modRecommendation.disabledReason) + '</div>';
       }
       html += '</div>';
-      html += '<button class="mod-modal-buy-btn mod-modal-recommendation-btn"' +
+      html += '<button class="mod-modal-buy-btn mod-modal-recommendation-btn" type="button"' +
               (modRecommendation.canInstall ? '' : ' disabled') +
               ' data-mod="' + modRecommendation.modId + '">' +
               (modRecommendation.canInstall ? ('安装 · ' + modRecommendation.mod.cost.toLocaleString()) : '暂不可装') +
@@ -1204,7 +1873,7 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
       html += '</div>';
     }
 
-    html += '<div class="mod-modal-section-title">结构模块</div>';
+    html += '<h4 class="mod-modal-section-title">结构模块</h4>';
     html += '<div class="mod-modal-structure-grid">';
     structureModules.forEach(function (moduleState) {
       var nextUpgrade = moduleState.nextUpgrade;
@@ -1215,7 +1884,10 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
       else if (disabled) cardClass += ' mod-modal-structure-card--locked';
       else if (!moduleState.canAfford) cardClass += ' mod-modal-structure-card--poor';
 
-      html += '<div class="' + cardClass + '">';
+      var structureProgress = moduleState.totalLevels > 0
+        ? Math.max(0, Math.min(100, Math.round((moduleState.level / moduleState.totalLevels) * 100)))
+        : 100;
+      html += '<article class="' + cardClass + '" role="group" aria-label="' + _escapeHtml(moduleState.name + ' Lv.' + moduleState.level + '/' + moduleState.totalLevels) + '">';
       html += '<div class="mod-modal-structure-head">';
       html += '<div>'; 
       html += '<div class="mod-modal-structure-name">' + moduleState.icon + ' ' + _escapeHtml(moduleState.name) + '</div>';
@@ -1223,6 +1895,7 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
       html += '</div>';
       html += '<span class="mod-modal-structure-level">Lv.' + moduleState.level + '/' + moduleState.totalLevels + '</span>';
       html += '</div>';
+      html += '<div class="mod-modal-structure-progress" role="progressbar" aria-label="' + _escapeHtml(moduleState.name + ' 升级进度') + '" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + structureProgress + '"><div class="mod-modal-structure-progress-fill" style="width:' + structureProgress + '%"></div></div>';
       html += '<div class="mod-modal-structure-current">';
       html += '<span class="mod-modal-structure-current-label">当前状态</span>';
       html += '<strong>' + _escapeHtml(moduleState.currentEffectText) + '</strong>';
@@ -1236,7 +1909,7 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
         if (disabled) {
           html += '<div class="mod-modal-structure-note">🚫 ' + _escapeHtml(moduleState.disabledReason) + '</div>';
         }
-        html += '<button class="upg-modal-buy-btn mod-modal-structure-btn' + (moduleState.canAfford ? '' : ' upg-modal-no-afford') + '"' +
+        html += '<button class="upg-modal-buy-btn mod-modal-structure-btn' + (moduleState.canAfford ? '' : ' upg-modal-no-afford') + '" type="button"' +
                 (canBuy ? '' : ' disabled') +
                 ' data-upgrade="' + nextUpgrade.id + '">' +
                 (disabled ? '已达极限' : (moduleState.canAfford ? '升级 · ' + nextUpgrade.cost.toLocaleString() : '积分不足 · ' + nextUpgrade.cost.toLocaleString())) +
@@ -1245,14 +1918,14 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
       } else {
         html += '<div class="mod-modal-structure-next mod-modal-structure-next--done">当前模块已升到上限</div>';
       }
-      html += '</div>';
+      html += '</article>';
     });
     html += '</div>';
 
-    html += '<div class="mod-modal-section-title">功能组件</div>';
+    html += '<h4 class="mod-modal-section-title">功能组件</h4>';
     html += '<div class="mod-modal-module-grid">';
     componentGroups.forEach(function (group) {
-      html += '<div class="mod-modal-module-card">';
+      html += '<section class="mod-modal-module-card" role="group" aria-label="' + _escapeHtml(group.name) + '">';
       html += '<div class="mod-modal-module-head">';
       html += '<div>';
       html += '<div class="mod-modal-module-name">' + group.icon + ' ' + _escapeHtml(group.name) + '</div>';
@@ -1263,25 +1936,26 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
 
       if (group.installed.length > 0) {
         html += '<div class="mod-modal-subtitle">已装配</div>';
-        html += '<div class="mod-modal-list">';
+        html += '<div class="mod-modal-list" role="list">';
         group.installed.forEach(function (mod) {
           var installedFocused = !!(focusModId && mod.id === focusModId);
-          html += '<div class="mod-modal-item mod-modal-installed-item' + (installedFocused ? ' mod-modal-item--focus' : '') + '"' +
+          html += '<article class="mod-modal-item mod-modal-installed-item' + (installedFocused ? ' mod-modal-item--focus' : '') + '"' +
+                  ' role="listitem" aria-label="' + _escapeHtml('已装配 ' + mod.name) + '"' +
                   ' data-mod-id="' + _escapeHtml(mod.id) + '"' +
                   (installedFocused ? ' data-focus-mod="item"' : '') + '>';
           html += '<div class="mod-modal-item-info">';
           html += '<div class="mod-modal-item-name">' + mod.emoji + ' ' + _escapeHtml(mod.name) + '</div>';
           html += '<div class="mod-modal-item-desc">' + _escapeHtml(mod.desc) + '</div>';
           html += '</div>';
-          html += '<button class="mod-modal-uninstall-btn" data-mod="' + mod.id + '">🗑️ 拆卸</button>';
-          html += '</div>';
+          html += '<button class="mod-modal-uninstall-btn" type="button" data-mod="' + _escapeHtml(mod.id) + '">🗑️ 拆卸</button>';
+          html += '</article>';
         });
         html += '</div>';
       }
 
       if (group.readyMods.length > 0) {
         html += '<div class="mod-modal-subtitle">可安装' + (group.slotsLeft <= 0 ? '（槽位已满）' : '') + '</div>';
-        html += '<div class="mod-modal-list">';
+        html += '<div class="mod-modal-list" role="list">';
         group.readyMods.forEach(function (mod) {
           var canAfford = group.credits >= mod.cost;
           var disabled = group.slotsLeft <= 0 || !canAfford;
@@ -1291,18 +1965,18 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
           else if (!canAfford) cls += ' mod-modal-poor';
           if (itemFocused) cls += ' mod-modal-item--focus';
 
-          html += '<div class="' + cls + '" data-mod-id="' + _escapeHtml(mod.id) + '"' +
+          html += '<article class="' + cls + '" role="listitem" aria-label="' + _escapeHtml('可安装 ' + mod.name) + '" data-mod-id="' + _escapeHtml(mod.id) + '"' +
                   (itemFocused ? ' data-focus-mod="item"' : '') + '>';
           html += '<div class="mod-modal-item-info">';
           html += '<div class="mod-modal-item-name">' + mod.emoji + ' ' + _escapeHtml(mod.name) + '</div>';
           html += '<div class="mod-modal-item-desc">' + _escapeHtml(mod.desc) + '</div>';
           html += '</div>';
-          html += '<button class="mod-modal-buy-btn' + (canAfford ? '' : ' mod-modal-no-afford') + '"' +
+          html += '<button class="mod-modal-buy-btn' + (canAfford ? '' : ' mod-modal-no-afford') + '" type="button"' +
                   (disabled ? ' disabled' : '') +
-                  ' data-mod="' + mod.id + '">' +
+                  ' data-mod="' + _escapeHtml(mod.id) + '">' +
                   (group.slotsLeft <= 0 ? '槽位已满' : (canAfford ? '安装 · ' + mod.cost.toLocaleString() : '积分不足')) +
                   '</button>';
-          html += '</div>';
+          html += '</article>';
         });
         html += '</div>';
       } else if (group.installed.length === 0) {
@@ -1312,11 +1986,11 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
       if (group.lockedCount > 0) {
         html += '<div class="mod-modal-module-note">后续解锁 ' + group.lockedCount + ' 项，满足前置后再显示详细内容。</div>';
       }
-      html += '</div>';
+      html += '</section>';
     });
     html += '</div>';
 
-    html += '<div class="mod-modal-section-title">维修船坞</div>';
+    html += '<h4 class="mod-modal-section-title">维修船坞</h4>';
     html += '<div class="ship-repair-card' + (repairJob ? ' ship-repair-card--active' : '') + '">';
     html += '<div class="ship-repair-card-head">';
     html += '<div>';
@@ -1332,7 +2006,7 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
       var repairProgress = repairJob.totalDays > 0
         ? Math.max(0, Math.min(100, Math.round(((repairJob.totalDays - repairJob.remainingDays) / repairJob.totalDays) * 100)))
         : 0;
-      html += '<div class="ship-repair-progress"><div class="ship-repair-progress-fill" style="width:' + repairProgress + '%"></div></div>';
+      html += '<div class="ship-repair-progress" role="progressbar" aria-label="维修进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + repairProgress + '"><div class="ship-repair-progress-fill" style="width:' + repairProgress + '%"></div></div>';
       html += '<div class="ship-repair-meta">';
       html += '<span>总耗时 ' + repairJob.totalDays + ' 天</span>';
       html += '<span>已支付 ' + repairJob.cost.toLocaleString() + '</span>';
@@ -1364,7 +2038,7 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
     html += '</div>';
 
     if (sellQuote.maxPrice > 0) {
-      html += '<div class="mod-modal-section-title">资产处置</div>';
+      html += '<h4 class="mod-modal-section-title">资产处置</h4>';
       html += '<div class="mod-modal-disposal' + (sellDisabledReason ? ' mod-modal-disposal--disabled' : '') + '">';
       html += '<div class="mod-modal-item-info">';
       html += '<div class="mod-modal-item-name">💸 回收卖出</div>';
@@ -1415,20 +2089,29 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
       sellBtn.addEventListener('click', function () {
         var currentShip = state.fleet[shipIndex];
         if (!currentShip) return;
-        if (!confirm('确定卖出「' + currentShip.emoji + ' ' + currentShip.name + '」？\n回收价约 ' + sellQuote.minPrice.toLocaleString() + ' ~ ' + sellQuote.maxPrice.toLocaleString() + ' 积分\n⚠️ 货舱中的货物将一并清空！')) {
-          return;
-        }
-        if (onSellShip) onSellShip(shipIndex);
-        setTimeout(function () {
-          if (state.fleet.length <= shipIndex || state.fleet[shipIndex] !== currentShip) {
-            if (_currentPortalCleanup) _currentPortalCleanup();
-            if (globalThis.__linegameGameManager && typeof globalThis.__linegameGameManager.renderUI === 'function') {
-              globalThis.__linegameGameManager.renderUI();
-            }
-            return;
-          }
-          _renderModModal();
-        }, 50);
+        ActionConfirmUI.open({
+          kicker: '舰船处置',
+          title: '卖出「' + currentShip.emoji + ' ' + currentShip.name + '」？',
+          message: '舰船会从船队永久移除，货舱中的全部货物也会一并清空。',
+          confirmLabel: '确认卖出舰船',
+          details: [
+            { label: '预计回收', value: sellQuote.minPrice.toLocaleString() + ' ~ ' + sellQuote.maxPrice.toLocaleString() + ' 积分', tone: 'safe' },
+            { label: '舰船货舱', value: '全部清空', tone: 'danger' },
+          ],
+          onConfirm: function () {
+            if (onSellShip) onSellShip(shipIndex);
+            setTimeout(function () {
+              if (state.fleet.length <= shipIndex || state.fleet[shipIndex] !== currentShip) {
+                if (_currentPortalCleanup) _currentPortalCleanup();
+                if (globalThis.__linegameGameManager && typeof globalThis.__linegameGameManager.renderUI === 'function') {
+                  globalThis.__linegameGameManager.renderUI();
+                }
+                return;
+              }
+              _renderModModal();
+            }, 50);
+          },
+        });
       });
     }
   }
@@ -1438,9 +2121,8 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
   // 关闭
   document.getElementById('mod-modal-close').onclick = function () {
     if (_currentPortalCleanup) _currentPortalCleanup();
-    if (globalThis.__linegameGameManager && typeof globalThis.__linegameGameManager.renderUI === 'function') {
-      globalThis.__linegameGameManager.renderUI();
-    }
+    else hideBlockingSurface('mod-modal');
+    _renderHangarAfterInlineClose();
   };
 }
 
@@ -1452,9 +2134,14 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
   const modal = document.getElementById('dispatch-modal');
   if (!modal) return;
 
-  _openInlinePortal('dispatch-modal', function() {
+  var portalOpened = _openInlinePortal('dispatch-modal', function() {
     hideBlockingSurface('dispatch-modal');
+  }, {
+    labelledBy: 'dispatch-title',
+    describedBy: 'dispatch-modal-desc dispatch-route-summary dispatch-primary-hint dispatch-policy-status',
+    returnFocusSelector: '.fleet-dispatch-btn[data-index="' + shipIndex + '"]',
   });
+  if (!portalOpened) showBlockingSurface('dispatch-modal', { focusSelector: '#dispatch-buy-system' });
 
   const ship = state.fleet[shipIndex];
   const effectiveShipStats = Fleet.getEffectiveShipStats(state, ship);
@@ -1490,7 +2177,13 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
   const confirmBtn = document.getElementById('dispatch-confirm');
   const cancelBtn = document.getElementById('dispatch-cancel');
   const primaryHintEl = document.getElementById('dispatch-primary-hint');
+  const policyStatusEl = document.getElementById('dispatch-policy-status');
   const advancedPanel = document.getElementById('dispatch-advanced-panel');
+  const routeSummaryEl = document.getElementById('dispatch-route-summary');
+  const summaryBuyEl = document.getElementById('dispatch-summary-buy');
+  const summarySellEl = document.getElementById('dispatch-summary-sell');
+  const summaryGoodEl = document.getElementById('dispatch-summary-good');
+  const summaryPolicyEl = document.getElementById('dispatch-summary-policy');
   var existingPolicy = dispatchPreset && dispatchPreset.tradePolicy
     ? dispatchPreset.tradePolicy
     : (presetRecommendation && presetRecommendation.recommendedTradePolicy
@@ -1520,10 +2213,51 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
     return '平衡';
   }
 
+  function _formatMarketModeLabel(marketMode) {
+    return marketMode === 'black' ? '黑市' : '公开市场';
+  }
+
   function _formatRouteRiskLabel(level) {
     if (level === 'high') return '高';
     if (level === 'medium') return '中';
     return '低';
+  }
+
+  function _formatSystemSummaryLabel(systemId) {
+    var system = SYSTEMS.find(function (entry) { return entry.id === systemId; });
+    return system ? system.name : (systemId || '待选择');
+  }
+
+  function _formatGoodSummaryLabel(goodId) {
+    var good = GOODS.find(function (entry) { return entry.id === goodId; });
+    return good ? (good.emoji + ' ' + good.name) : (goodId || '待选择');
+  }
+
+  function _syncActiveDispatchContext() {
+    if (!_activeDispatchModalContext) return;
+    _activeDispatchModalContext.buySystemId = buySelect.value || '';
+    _activeDispatchModalContext.sellSystemId = sellSelect.value || '';
+    _activeDispatchModalContext.goodId = goodSelect.value || '';
+    _activeDispatchModalContext.tradePolicy = _readTradePolicy();
+  }
+
+  function _updateRouteSummary(estimate, warnings) {
+    var tradePolicy = estimate && estimate.tradePolicy ? estimate.tradePolicy : _readTradePolicy();
+    var hasWarnings = Array.isArray(warnings) && warnings.length > 0;
+
+    if (summaryBuyEl) summaryBuyEl.textContent = _formatSystemSummaryLabel(buySelect.value);
+    if (summarySellEl) summarySellEl.textContent = _formatSystemSummaryLabel(sellSelect.value);
+    if (summaryGoodEl) summaryGoodEl.textContent = _formatGoodSummaryLabel(goodSelect.value);
+    if (summaryPolicyEl) {
+      summaryPolicyEl.textContent =
+        _formatMarketModeLabel(tradePolicy.marketMode) + ' · ' +
+        _formatRiskModeLabel(tradePolicy.riskMode) +
+        (hasWarnings ? ' · 等待策略' : '');
+    }
+    if (routeSummaryEl) {
+      routeSummaryEl.dataset.routeState = estimate ? (hasWarnings ? 'waiting' : 'ready') : 'blocked';
+    }
+    _syncActiveDispatchContext();
   }
 
   function _getCurrentShip() {
@@ -1537,18 +2271,28 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
       && goodSelect.value === recommendation.goodId;
   }
 
-  function _updatePrimaryHint(estimate, recommendation) {
+  function _updatePrimaryHint(estimate, recommendation, policyValidation) {
     var matchesRecommendation = estimate && _isRecommendationSelected(recommendation);
     var hasCustomPolicy = _hasCustomTradePolicy(_readTradePolicy());
     var currentShip = _getCurrentShip();
     var hasExistingRoute = !!(currentShip && currentShip.route);
+    var policyValid = !policyValidation || policyValidation.valid;
 
     if (!confirmBtn || !primaryHintEl) return;
 
     confirmBtn.textContent = '一键派遣';
-    confirmBtn.disabled = !estimate;
+    confirmBtn.disabled = !estimate || !policyValid;
+    confirmBtn.setAttribute('aria-disabled', confirmBtn.disabled ? 'true' : 'false');
+
+    if (!policyValid) {
+      modal.dataset.dispatchState = 'invalid';
+      primaryHintEl.className = 'dispatch-primary-hint dispatch-primary-hint--danger';
+      primaryHintEl.textContent = '高级策略中有无效阈值，修正后才能派遣。';
+      return;
+    }
 
     if (!estimate) {
+      modal.dataset.dispatchState = 'blocked';
       primaryHintEl.className = 'dispatch-primary-hint dispatch-primary-hint--warning';
       primaryHintEl.textContent = recommendation
         ? '当前推荐路线暂不可直接使用，可展开高级策略调整后再试。'
@@ -1559,6 +2303,7 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
     }
 
     if (matchesRecommendation) {
+      modal.dataset.dispatchState = 'ready';
       primaryHintEl.className = 'dispatch-primary-hint dispatch-primary-hint--ready';
       primaryHintEl.textContent = hasExistingRoute
         ? '已载入当前最优路线，点击“一键派遣”可直接改派。'
@@ -1566,6 +2311,7 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
       return;
     }
 
+    modal.dataset.dispatchState = hasCustomPolicy ? 'custom' : 'manual';
     primaryHintEl.className = 'dispatch-primary-hint';
     primaryHintEl.textContent = hasCustomPolicy
       ? '当前为手动微调后的策略，点击“一键派遣”将按当前配置执行。'
@@ -1710,6 +2456,52 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
     };
   }
 
+  function _validateTradePolicyInputs() {
+    var fields = [
+      { element: maxBuyInput, label: '最高买入价' },
+      { element: minSellInput, label: '最低卖出价' },
+      { element: minProfitInput, label: '最低利润率' },
+    ];
+    var errors = [];
+    var thresholdCount = 0;
+
+    fields.forEach(function (field) {
+      var rawValue = String(field.element.value == null ? '' : field.element.value).trim();
+      var numericValue = rawValue === '' ? null : Number(rawValue);
+      var valid = rawValue === '' || (Number.isFinite(numericValue) && numericValue >= 0);
+
+      if (rawValue !== '') thresholdCount += 1;
+      if (valid) field.element.removeAttribute('aria-invalid');
+      else {
+        field.element.setAttribute('aria-invalid', 'true');
+        errors.push(field.label + '需填写 0 或更大的数字');
+      }
+    });
+
+    var validation = {
+      valid: errors.length === 0,
+      errors: errors,
+      thresholdCount: thresholdCount,
+    };
+
+    modal.dataset.dispatchPolicyState = validation.valid
+      ? (thresholdCount > 0 ? 'active' : 'neutral')
+      : 'invalid';
+    if (policyStatusEl) {
+      policyStatusEl.className = 'dispatch-policy-status' +
+        (validation.valid
+          ? (thresholdCount > 0 ? ' dispatch-policy-status--active' : '')
+          : ' dispatch-policy-status--error');
+      policyStatusEl.textContent = validation.valid
+        ? (thresholdCount > 0
+            ? ('已启用 ' + thresholdCount + ' 项阈值；留空字段不限制。')
+            : '价格与利润阈值均未限制。')
+        : errors.join('；') + '。';
+    }
+
+    return validation;
+  }
+
   function _getEstimateData() {
     var buyId = buySelect.value;
     var sellId = sellSelect.value;
@@ -1852,28 +2644,28 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
       recommendationHtml +
       strategyHtml +
       surveyIntelHtml +
-      '<div class="dispatch-estimate-main">' +
-        '<span class="dispatch-estimate-highlight">' + marketLabel + '买' + estimate.maxQty + '单位</span>' +
-        '<span>单次利润 ≈ ' + Math.floor(estimate.profit) + ' 积分</span>' +
-        '<span>利润率 ' + Math.round(estimate.profitRate * 100) + '%</span>' +
-        '<span>航程燃料 ' + estimate.fuelCost + ' 单位</span>' +
-        '<span>路线风险 ' + _escapeHtml(_formatRouteRiskLabel(riskAssessment.riskLevel)) + '</span>' +
-        '<span>风险偏好 ' + riskModeLabel + '</span>' +
+      '<div class="dispatch-estimate-main" role="list" aria-label="派遣估算指标">' +
+        '<span class="dispatch-estimate-metric dispatch-estimate-highlight" role="listitem"><em>装载计划</em><strong>' + marketLabel + '买 ' + estimate.maxQty + ' 单位</strong></span>' +
+        '<span class="dispatch-estimate-metric" role="listitem"><em>单次利润</em><strong>≈ ' + Math.floor(estimate.profit) + '</strong><small>积分</small></span>' +
+        '<span class="dispatch-estimate-metric" role="listitem"><em>利润率</em><strong>' + Math.round(estimate.profitRate * 100) + '%</strong></span>' +
+        '<span class="dispatch-estimate-metric" role="listitem"><em>航程燃料</em><strong>' + estimate.fuelCost + '</strong><small>单位</small></span>' +
+        '<span class="dispatch-estimate-metric" role="listitem"><em>路线风险</em><strong>' + _escapeHtml(_formatRouteRiskLabel(riskAssessment.riskLevel)) + '</strong></span>' +
+        '<span class="dispatch-estimate-metric" role="listitem"><em>风险偏好</em><strong>' + riskModeLabel + '</strong></span>' +
       '</div>' +
-      '<div class="dispatch-risk-grid">' +
-        '<div class="dispatch-risk-item ' + (riskSummary.isHighEnforcement ? 'dispatch-risk-item--danger' : '') + '">' +
+      '<div class="dispatch-risk-grid" role="list" aria-label="路线风险明细">' +
+        '<div class="dispatch-risk-item ' + (riskSummary.isHighEnforcement ? 'dispatch-risk-item--danger' : '') + '" role="listitem">' +
           '<span class="dispatch-risk-label">高执法区</span>' +
           '<span class="dispatch-risk-value">' + _escapeHtml(riskSummary.highEnforcementParts.length > 0 ? riskSummary.highEnforcementParts.join('、') : '无') + '</span>' +
         '</div>' +
-        '<div class="dispatch-risk-item">' +
+        '<div class="dispatch-risk-item" role="listitem">' +
           '<span class="dispatch-risk-label">执法分布</span>' +
           '<span class="dispatch-risk-value">买入 ' + _escapeHtml(riskSummary.buyEnforcementLabel) + ' / 卖出 ' + _escapeHtml(riskSummary.sellEnforcementLabel) + '</span>' +
         '</div>' +
-        '<div class="dispatch-risk-item ' + (riskSummary.hasContraband ? 'dispatch-risk-item--warning' : '') + '">' +
+        '<div class="dispatch-risk-item ' + (riskSummary.hasContraband ? 'dispatch-risk-item--warning' : '') + '" role="listitem">' +
           '<span class="dispatch-risk-label">违禁品</span>' +
           '<span class="dispatch-risk-value">' + _escapeHtml(riskSummary.contrabandLabel) + '</span>' +
         '</div>' +
-        '<div class="dispatch-risk-item ' + (riskSummary.isHighInspectionRisk ? 'dispatch-risk-item--danger' : '') + '">' +
+        '<div class="dispatch-risk-item ' + (riskSummary.isHighInspectionRisk ? 'dispatch-risk-item--danger' : '') + '" role="listitem">' +
           '<span class="dispatch-risk-label">预计查获风险</span>' +
           '<span class="dispatch-risk-value">' + _escapeHtml(riskSummary.riskLabel) + '</span>' +
         '</div>' +
@@ -1888,6 +2680,7 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
 
     if (!recommendation) {
       estimateEl.textContent = '未找到符合当前策略的最优派遣路线。可展开高级策略调整后再试。';
+      _updateRouteSummary(null, []);
       _updatePrimaryHint(null, null);
       return null;
     }
@@ -1899,13 +2692,26 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
 
   // 预估利润
   function _updateEstimate(recommendation) {
+    var policyValidation = _validateTradePolicyInputs();
+    if (!policyValidation.valid) {
+      estimateEl.textContent = '请先修正高级策略中的无效阈值，再查看路线估算。';
+      _updateRouteSummary(null, []);
+      if (summaryPolicyEl) {
+        summaryPolicyEl.textContent =
+          _formatMarketModeLabel(marketModeSelect.value) + ' · ' +
+          _formatRiskModeLabel(riskModeSelect.value) + ' · 输入有误';
+      }
+      _updatePrimaryHint(null, null, policyValidation);
+      return;
+    }
     var estimate = _getEstimateData();
-    var suggestedRecommendation = recommendation || _getSuggestedRecommendation();
+    var suggestedRecommendation = recommendation || null;
     if (!estimate) {
       estimateEl.textContent = recommendation
         ? '当前推荐路线暂不可直接派遣，可调整策略后再试。'
         : '当前配置无法组成可执行的派遣路线。';
-      _updatePrimaryHint(null, suggestedRecommendation);
+      _updateRouteSummary(null, []);
+      _updatePrimaryHint(null, suggestedRecommendation, policyValidation);
       return;
     }
     var warnings = [];
@@ -1917,19 +2723,20 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
     if (estimate.tradePolicy.riskMode === 'safe' && riskAssessment.riskLevel !== 'low') warnings.push('风险偏好将规避此路线');
     if (estimate.tradePolicy.marketMode === 'black' && !Faction.canAccessBlackMarket(state, estimate.buyId)) warnings.push('黑市买入权限不足');
 
+    _updateRouteSummary(estimate, warnings);
     _renderEstimate(estimate, recommendation, warnings);
-    _updatePrimaryHint(estimate, suggestedRecommendation);
+    _updatePrimaryHint(estimate, suggestedRecommendation, policyValidation);
   }
 
   _buildMarketOptions();
   if (advancedPanel) advancedPanel.open = _hasCustomTradePolicy(existingPolicy);
-  buySelect.onchange  = _updateEstimate;
-  sellSelect.onchange = _updateEstimate;
-  goodSelect.onchange = _updateEstimate;
-  maxBuyInput.oninput = _updateEstimate;
-  minSellInput.oninput = _updateEstimate;
-  minProfitInput.oninput = _updateEstimate;
-  riskModeSelect.onchange = _updateEstimate;
+  buySelect.onchange  = function () { _updateEstimate(); };
+  sellSelect.onchange = function () { _updateEstimate(); };
+  goodSelect.onchange = function () { _updateEstimate(); };
+  maxBuyInput.oninput = function () { _updateEstimate(); };
+  minSellInput.oninput = function () { _updateEstimate(); };
+  minProfitInput.oninput = function () { _updateEstimate(); };
+  riskModeSelect.onchange = function () { _updateEstimate(); };
   marketModeSelect.onchange = function () {
     _buildMarketOptions();
     _updateEstimate();
@@ -1963,17 +2770,20 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
 
   // 确认
   confirmBtn.onclick = function () {
+    var policyValidation = _validateTradePolicyInputs();
+    if (!policyValidation.valid || confirmBtn.disabled) {
+      _updatePrimaryHint(null, null, policyValidation);
+      return;
+    }
     onAssignRoute(shipIndex, buySelect.value, sellSelect.value, goodSelect.value, _readTradePolicy());
     if (_currentPortalCleanup) _currentPortalCleanup();
-    if (globalThis.__linegameGameManager && typeof globalThis.__linegameGameManager.renderUI === 'function') {
-      globalThis.__linegameGameManager.renderUI();
-    }
+    else hideBlockingSurface('dispatch-modal');
+    _renderHangarAfterInlineClose();
   };
 
   cancelBtn.onclick = function () {
     if (_currentPortalCleanup) _currentPortalCleanup();
-    if (globalThis.__linegameGameManager && typeof globalThis.__linegameGameManager.renderUI === 'function') {
-      globalThis.__linegameGameManager.renderUI();
-    }
+    else hideBlockingSurface('dispatch-modal');
+    _renderHangarAfterInlineClose();
   };
 }

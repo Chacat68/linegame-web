@@ -30,6 +30,12 @@ function createFakeRoot() {
         target: target,
       });
     },
+    dispatchKey: function (key) {
+      listeners.keydown({
+        key: key,
+        preventDefault: function () {},
+      });
+    },
   };
 }
 
@@ -83,6 +89,59 @@ describe('ActionGuideUI', function () {
     expect(clicked).toBe(suggestion);
   });
 
+  it('公司指令奖励行动会使用公司指令按钮语义', function () {
+    var root = createFakeRoot();
+    globalThis.document = {
+      getElementById: function (id) {
+        return id === 'action-guide' ? root : null;
+      },
+    };
+
+    ActionGuideUI.init(function () {});
+    ActionGuideUI.render({
+      id: 'company-directive-claim-rewards',
+      title: '领取公司指令奖励',
+      reason: '奖励已准备好结算。',
+      actionLabel: '领取奖励',
+      actionType: 'company.directive.claimAll',
+      surface: 'company',
+    });
+
+    expect(root.innerHTML).toContain('data-guide-surface="company"');
+    expect(root.innerHTML).toContain('data-command-surface="company"');
+    expect(root.innerHTML).toContain('data-command-intent="公司指令奖励"');
+  });
+
+  it('会渲染中期专题链语义', function () {
+    var root = createFakeRoot();
+    globalThis.document = {
+      getElementById: function (id) {
+        return id === 'action-guide' ? root : null;
+      },
+    };
+
+    ActionGuideUI.init(function () {});
+    ActionGuideUI.render({
+      id: 'prefill-research-supply-dispatch',
+      title: '规划科研补给派遣',
+      reason: '当前研究已有可执行补给路线。',
+      actionLabel: '带入机库',
+      actionType: 'fleet.dispatch.prefill',
+      surface: 'fleet',
+      guidanceTopic: {
+        id: 'research-supply',
+        label: '科研补给链',
+        stepLabel: '派遣补给',
+      },
+    });
+
+    expect(root.innerHTML).toContain('data-guide-topic="research-supply"');
+    expect(root.innerHTML).toContain('当前行动 · 科研补给链 / 派遣补给');
+
+    root.dispatchClick(createTarget('[data-action-guide-toggle]'));
+    expect(root.innerHTML).toContain('当前行动 · 科研补给链');
+  });
+
   it('可以折叠成迷你指挥条', function () {
     var root = createFakeRoot();
     globalThis.document = {
@@ -107,6 +166,31 @@ describe('ActionGuideUI', function () {
     expect(root.classList.contains('is-collapsed')).toBe(true);
     expect(root.innerHTML).toContain('action-guide-mini');
     expect(root.innerHTML).toContain('打开当前市场');
+  });
+
+  it('展开状态下按 Esc 会收起行动引导', function () {
+    var root = createFakeRoot();
+    globalThis.document = {
+      getElementById: function (id) {
+        return id === 'action-guide' ? root : null;
+      },
+    };
+
+    ActionGuideUI.init(function () {});
+    ActionGuideUI.render({
+      id: 'scan-current-system',
+      title: '扫描当前星球',
+      reason: '扫描会揭示本地资源。',
+      actionLabel: '执行扫描',
+      actionType: 'exploration.scan',
+      surface: 'exploration',
+    });
+
+    root.dispatchKey('Escape');
+
+    expect(ActionGuideUI.isCollapsed()).toBe(true);
+    expect(root.classList.contains('is-collapsed')).toBe(true);
+    expect(root.innerHTML).toContain('action-guide-mini');
   });
 
   it('出现新的当前行动时会自动展开', function () {

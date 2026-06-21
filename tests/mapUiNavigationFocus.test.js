@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { createTestState } from './helpers.js';
 
 function createFakeClassList(initialValues) {
@@ -24,6 +25,7 @@ function createFakeClassList(initialValues) {
 
 function createFakeElement(id, initialClasses) {
   var attributes = Object.create(null);
+  var listeners = Object.create(null);
   return {
     id: id || '',
     dataset: {},
@@ -45,7 +47,18 @@ function createFakeElement(id, initialClasses) {
     removeAttribute: function (name) {
       delete attributes[name];
     },
-    addEventListener: function () {},
+    addEventListener: function (name, listener) {
+      if (!listeners[name]) listeners[name] = [];
+      listeners[name].push(listener);
+    },
+    dispatchEvent: function (event) {
+      (listeners[event.type] || []).forEach(function (listener) {
+        listener(event);
+      });
+    },
+    contains: function () {
+      return true;
+    },
     querySelectorAll: function () {
       return [];
     },
@@ -127,6 +140,18 @@ describe('MapUI navigation target focus', function () {
     expect(marketBtn.classList.contains('active')).toBe(false);
     expect(panel.classList.contains('visible')).toBe(true);
     expect(panel.classList.contains('planet-detail-panel--guide-target')).toBe(true);
+    expect(panel.getAttribute('role')).toBe('region');
+    expect(panel.getAttribute('aria-hidden')).toBe('false');
+    expect(panel.getAttribute('aria-labelledby')).toContain('planet-detail-title-nova_station');
+    expect(panel.innerHTML).toContain('class="planet-detail-shell"');
+    expect(panel.innerHTML).toContain('class="planet-detail-scroll-body"');
+    expect(panel.innerHTML).toContain('class="planet-detail-title-row"');
+    expect(panel.innerHTML).toContain('class="planet-detail-action-shelf"');
+    expect(panel.innerHTML).toContain('</div><section class="planet-detail-action-shelf"');
+    expect(panel.innerHTML).toContain('type="button" data-planet-detail-action="travel"');
+    expect(panel.innerHTML).toContain('type="button" data-planet-detail-action="close-detail"');
+    expect(panel.getAttribute('tabindex')).toBe('-1');
+    expect(panel.innerHTML).toContain('role="list" aria-label="航点状态"');
     expect(panel.innerHTML).toContain('当前指引');
     expect(panel.innerHTML).toContain('食物');
     expect(panel.innerHTML).toContain('前往卖货点');
@@ -135,5 +160,125 @@ describe('MapUI navigation target focus', function () {
     expect(panel.innerHTML).toContain('预计');
     expect(panel.innerHTML).toContain('风险');
     expect(panel.innerHTML).toContain('确认卖出');
+
+    var prevented = false;
+    var stopped = false;
+    panel.dispatchEvent({
+      type: 'keydown',
+      key: 'Escape',
+      preventDefault: function () { prevented = true; },
+      stopPropagation: function () { stopped = true; },
+    });
+
+    expect(prevented).toBe(true);
+    expect(stopped).toBe(true);
+    expect(panel.classList.contains('planet-detail-panel--pinned')).toBe(false);
+    expect(panel.classList.contains('planet-detail-panel--summary')).toBe(true);
+    expect(panel.getAttribute('tabindex')).toBe(null);
+  });
+
+  it('窄屏详情会固定在控制轨与命令区之间', function () {
+    var css = readFileSync(new URL('../css/interstellar-trader.css', import.meta.url), 'utf8');
+
+    expect(css).toContain('.planet-detail-panel--pinned {');
+    expect(css).toContain('grid-template-rows: minmax(0, 1fr) auto');
+    expect(css).toContain('.planet-detail-panel.visible:not(.planet-detail-panel--galaxy-hub)');
+    expect(css).toContain('bottom: var(--starmap-command-clearance)');
+    expect(css).toContain('body:has(#action-guide:not([hidden])) .planet-detail-panel.visible:not(.planet-detail-panel--galaxy-hub)');
+    expect(css).toContain('.planet-detail-panel--galaxy-hub.visible');
+    expect(css).toContain('body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) .map-btn-group');
+    expect(css).toContain('--starmap-rail-edge-x: max(8px, var(--safe-left));');
+    expect(css).toContain('--starmap-rail-safe-right: max(8px, var(--safe-right));');
+  });
+
+  it('星系总览使用固定返回入口、紧凑目录并保持滚动位置', async function () {
+    vi.resetModules();
+
+    var state = createTestState({
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+      viewingGalaxy: 'milky_way',
+      mapView: 'galaxies',
+      playerLevel: 1,
+      researchedTechs: [],
+    });
+
+    globalThis.window = {};
+    globalThis.BABYLON = {
+      Color3: function () {},
+      Color4: function () {},
+    };
+
+    var panel = createFakeElement('planet-detail-panel', ['planet-detail-panel--galaxy-hub']);
+    panel.scrollTop = 143;
+    var mapContainer = createFakeElement('map-container');
+    mapContainer.clientWidth = 390;
+    mapContainer.clientHeight = 720;
+    var elements = {
+      'planet-detail-panel': panel,
+      'map-canvas': createFakeElement('map-canvas'),
+      'map-container': mapContainer,
+      'galaxy-view-btn': createFakeElement('galaxy-view-btn'),
+      'current-system-exploration-card': createFakeElement('current-system-exploration-card'),
+    };
+
+    globalThis.document = {
+      getElementById: function (id) {
+        return elements[id] || null;
+      },
+      querySelector: function () {
+        return null;
+      },
+      querySelectorAll: function () {
+        return [];
+      },
+    };
+
+    var GalaxyData = await import('../js/systems/galaxy/GalaxyDataLayer.js');
+    GalaxyData.init(state);
+    var MapUI = await import('../js/ui/MapUI.js');
+    MapUI.init(state, function () {}, function () {});
+
+    expect(panel.classList.contains('planet-detail-panel--galaxy-hub')).toBe(true);
+    expect(panel.getAttribute('aria-labelledby')).toBe('galaxy-hub-title');
+    expect(panel.getAttribute('tabindex')).toBe('-1');
+    expect(panel.scrollTop).toBe(143);
+    expect(panel.innerHTML).toContain('class="galaxy-hub-toolbar"');
+    expect(panel.innerHTML).toContain('data-galaxy-action="return-planets"');
+    expect(panel.innerHTML).toContain('class="galaxy-switcher-card-status"');
+    expect(panel.innerHTML).toContain('class="galaxy-switcher-signal"');
+    expect(panel.innerHTML).toContain('type="button" data-galaxy-action="open"');
+    expect(panel.innerHTML).not.toContain('galaxy-switcher-desc');
+    expect(panel.innerHTML).not.toContain('planet-detail-list-row');
+
+    var returnButton = { dataset: { galaxyAction: 'return-planets', galaxyId: '' } };
+    panel.dispatchEvent({
+      type: 'click',
+      target: {
+        closest: function (selector) {
+          return selector === '[data-galaxy-action]' ? returnButton : null;
+        },
+      },
+      preventDefault: function () {},
+      stopPropagation: function () {},
+    });
+
+    expect(state.mapView).toBe('planets');
+    expect(panel.classList.contains('visible')).toBe(false);
+
+    state.mapView = 'galaxies';
+    panel.classList.add('planet-detail-panel--galaxy-hub');
+    MapUI.refreshPlanetDetail(state);
+
+    var prevented = false;
+    panel.dispatchEvent({
+      type: 'keydown',
+      key: 'Escape',
+      preventDefault: function () { prevented = true; },
+      stopPropagation: function () {},
+    });
+
+    expect(prevented).toBe(true);
+    expect(state.mapView).toBe('planets');
   });
 });

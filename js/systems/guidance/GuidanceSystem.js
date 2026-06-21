@@ -2,8 +2,8 @@ import { GOODS } from '../../data/goods.js';
 import { SYSTEMS, findSystem, getAccessibleSystems } from '../../data/systems.js';
 import { getCompanyAccessState } from '../../data/companyAccess.js';
 import { TRADE_STATION_MANAGERS, TRADE_STATION_STRATEGIES } from '../../data/tradeStations.js';
-import * as Quest from '../quest/QuestSystem.js?v=20260412-questroute2';
-import * as TradeStation from '../trade/TradeStationSystem.js';
+import * as Quest from '../quest/QuestSystem.js?v=20260531-chainfollow1';
+import * as TradeStation from '../trade/TradeStationSystem.js?v=20260531-chainfollow1';
 import * as Finance from '../finance/FinanceSystem.js';
 import * as Futures from '../finance/FuturesSystem.js';
 
@@ -11,6 +11,43 @@ const FIRST_TRADE_QUEST_ID = 'starter_first_trade';
 const FIRST_EXPLORE_QUEST_ID = 'starter_visit_2';
 const LOW_PRICE_THRESHOLD = 0.85;
 const LOW_FUEL_RATIO = 0.25;
+
+export const GUIDANCE_PRIORITY_BANDS = {
+  critical: { id: 'critical', label: '阻塞优先', minPriority: 90 },
+  core: { id: 'core', label: '主线闭环', minPriority: 50 },
+  recovery: { id: 'recovery', label: '整备恢复', minPriority: 34 },
+  midgame: { id: 'midgame', label: '中期专题', minPriority: 19 },
+  ambient: { id: 'ambient', label: '机会提示', minPriority: 0 },
+};
+
+export const GUIDANCE_TOPICS = {
+  starterTrade: { id: 'starter-trade', label: '贸易入门链', stageLabel: '基础链路' },
+  starterExplore: { id: 'starter-explore', label: '探索入门链', stageLabel: '基础链路' },
+  stability: { id: 'stability', label: '整备保障链', stageLabel: '阻塞解除' },
+  researchSupply: { id: 'research-supply', label: '科研补给链', stageLabel: '中期专题' },
+  dispatchOps: { id: 'dispatch-ops', label: '派遣经营链', stageLabel: '中期专题' },
+  surveyIntel: { id: 'survey-intel', label: '勘探情报链', stageLabel: '中期专题' },
+  tradeNetwork: { id: 'trade-network', label: '商网建设链', stageLabel: '中期专题' },
+  capitalRisk: { id: 'capital-risk', label: '资本风控链', stageLabel: '中期专题' },
+  companyGrowth: { id: 'company-growth', label: '公司成长链', stageLabel: '长期目标' },
+};
+const BLOCKING_SUGGESTION_IDS = new Set([
+  'handle-pending-event',
+  'refuel-low-tank',
+]);
+const CORE_LOOP_SUGGESTION_IDS = new Set([
+  'accept-first-trade',
+  'buy-low-price-good',
+  'open-market-for-first-trade',
+  'sell-first-cargo',
+  'find-sell-destination',
+  'accept-first-explore',
+]);
+const RECOVERY_SUGGESTION_IDS = new Set([
+  'service-active-ship',
+  'fund-ship-service',
+  'resolve-research-funding',
+]);
 
 function _hasCargo(state) {
   return _getCargoEntries(state).length > 0;
@@ -272,8 +309,19 @@ function _shouldOfferSurveyIntel(surveyIntel) {
   );
 }
 
+function _shouldOfferSurveyChainFollowup(surveyIntel) {
+  return !!(
+    surveyIntel &&
+    surveyIntel.hasIntel &&
+    surveyIntel.nextChainFollowup &&
+    surveyIntel.nextChainFollowup.chainId &&
+    (surveyIntel.readyFollowupCount || 0) > 0
+  );
+}
+
 function _getSurveyIntelReason(surveyIntel) {
   if (!surveyIntel) return '勘探报告已经归档，先查看它对交易和派遣的影响。';
+  if (surveyIntel.nextChainFollowup && surveyIntel.nextChainFollowup.reason) return surveyIntel.nextChainFollowup.reason;
   if (surveyIntel.beaconSignal) return '失落航标已写入暗线航图，可用于后续航线和派遣判断。';
   if (surveyIntel.relicSignal) return '古代遗迹样本已经归档，可用于判断后续研究补给方向。';
   if (surveyIntel.depotSignal) return '废弃补给站已经复原，可用于后续派遣和商网经营。';
@@ -599,8 +647,85 @@ function _getTradeNetworkSuggestion(state) {
   return null;
 }
 
+function _getPriorityBand(suggestion) {
+  var id = suggestion && suggestion.id ? suggestion.id : '';
+  if (BLOCKING_SUGGESTION_IDS.has(id)) return GUIDANCE_PRIORITY_BANDS.critical;
+  if (CORE_LOOP_SUGGESTION_IDS.has(id)) return GUIDANCE_PRIORITY_BANDS.core;
+  if (RECOVERY_SUGGESTION_IDS.has(id)) return GUIDANCE_PRIORITY_BANDS.recovery;
+
+  var value = Number(suggestion && suggestion.priority || 0);
+  if (value >= GUIDANCE_PRIORITY_BANDS.critical.minPriority) return GUIDANCE_PRIORITY_BANDS.critical;
+  if (value >= GUIDANCE_PRIORITY_BANDS.core.minPriority) return GUIDANCE_PRIORITY_BANDS.core;
+  if (value >= GUIDANCE_PRIORITY_BANDS.recovery.minPriority) return GUIDANCE_PRIORITY_BANDS.recovery;
+  if (value >= GUIDANCE_PRIORITY_BANDS.midgame.minPriority) return GUIDANCE_PRIORITY_BANDS.midgame;
+  return GUIDANCE_PRIORITY_BANDS.ambient;
+}
+
+function _getTopic(topicKey, stepLabel) {
+  var topic = GUIDANCE_TOPICS[topicKey] || null;
+  if (!topic) return null;
+  return Object.assign({}, topic, {
+    stepLabel: stepLabel || '',
+  });
+}
+
+function _inferGuidanceTopic(suggestion) {
+  var id = suggestion && suggestion.id ? suggestion.id : '';
+  var actionType = suggestion && suggestion.actionType ? suggestion.actionType : '';
+
+  if (id === 'accept-first-trade') return _getTopic('starterTrade', '接入委托');
+  if (id === 'buy-low-price-good' || id === 'open-market-for-first-trade') return _getTopic('starterTrade', '建立仓位');
+  if (id === 'sell-first-cargo' || id === 'find-sell-destination') return _getTopic('starterTrade', '完成结算');
+  if (id === 'accept-first-explore') return _getTopic('starterExplore', '接入探索');
+  if (id === 'scan-current-system') return _getTopic('starterExplore', '轨道扫描');
+  if (id === 'land-current-system') return _getTopic('starterExplore', '首次着陆');
+  if (id === 'explore-current-poi') return _getTopic('starterExplore', '调查 POI');
+
+  if (id === 'handle-pending-event') return _getTopic('stability', '处理阻塞');
+  if (id === 'refuel-low-tank') return _getTopic('stability', '燃料补给');
+  if (id === 'service-active-ship') return _getTopic('stability', '维修整备');
+  if (id === 'fund-ship-service') return _getTopic('stability', '资金周转');
+
+  if (id === 'prefill-research-supply-dispatch') return _getTopic('researchSupply', '派遣补给');
+  if (id === 'resolve-research-funding') return _getTopic('researchSupply', '筹措垫资');
+
+  if (id === 'prefill-profitable-dispatch') return _getTopic('dispatchOps', '预填商运');
+  if (id === 'install-recommended-ship-mod') return _getTopic('dispatchOps', '强化舰船');
+
+  if (id === 'review-survey-chain-followup') return _getTopic('surveyIntel', '事件链跟进');
+  if (id === 'review-survey-market-intel') return _getTopic('surveyIntel', '查看信号');
+
+  if (id === 'build-trade-station') return _getTopic('tradeNetwork', '新建节点');
+  if (id === 'upgrade-trade-station') return _getTopic('tradeNetwork', '升级节点');
+  if (id === 'batch-upgrade-trade-stations') return _getTopic('tradeNetwork', '批量升级');
+  if (id === 'batch-invest-trade-stations') return _getTopic('tradeNetwork', '资本增配');
+  if (id === 'batch-hire-trade-station-manager') return _getTopic('tradeNetwork', '批量派驻');
+  if (id === 'batch-set-trade-station-strategy') return _getTopic('tradeNetwork', '同步策略');
+
+  if (id === 'review-loan-obligation') return _getTopic('capitalRisk', '贷款复核');
+  if (id === 'review-futures-contract') return _getTopic('capitalRisk', '合约复核');
+  if (id === 'open-stock-position') return _getTopic('capitalRisk', '建立观察位');
+
+  if (id.indexOf('company-directive') === 0 || actionType.indexOf('company.directive') === 0) {
+    return _getTopic('companyGrowth', actionType === 'company.directive.claimAll' ? '领取奖励' : '推进指令');
+  }
+
+  return null;
+}
+
+function _decorateSuggestion(suggestion) {
+  var next = Object.assign({}, suggestion || {});
+  var band = _getPriorityBand(next);
+  next.priorityBand = next.priorityBand || band.id;
+  next.priorityBandLabel = next.priorityBandLabel || band.label;
+  if (!next.guidanceTopic) {
+    next.guidanceTopic = _inferGuidanceTopic(next);
+  }
+  return next;
+}
+
 function _createSuggestion(config) {
-  return Object.assign({
+  return _decorateSuggestion(Object.assign({
     id: '',
     priority: 0,
     title: '',
@@ -610,7 +735,7 @@ function _createSuggestion(config) {
     payload: {},
     surface: 'system',
     target: null,
-  }, config || {});
+  }, config || {}));
 }
 
 function _normalizeTargetValue(value) {
@@ -911,7 +1036,28 @@ export function getCurrentSuggestion(state, options) {
     }));
   }
 
-  if (_shouldOfferSurveyIntel(opts.surveyIntel)) {
+  if (_shouldOfferSurveyChainFollowup(opts.surveyIntel)) {
+    var chainFollowup = opts.surveyIntel.nextChainFollowup || {};
+    suggestions.push(_createSuggestion({
+      id: 'review-survey-chain-followup',
+      priority: 37,
+      title: '跟进「' + (chainFollowup.chainLabel || '探索链') + '」',
+      reason: chainFollowup.reason || _getSurveyIntelReason(opts.surveyIntel),
+      actionLabel: chainFollowup.actionLabel || '查看情报',
+      actionType: 'market.open',
+      payload: {
+        workspaceId: chainFollowup.workspaceId || 'spot',
+        subworkspaceId: chainFollowup.subworkspaceId || 'intel',
+        systemId: opts.surveyIntel.systemId || state.currentSystem,
+        intelSignal: chainFollowup.signal || opts.surveyIntel.primarySignal || '',
+        chainId: chainFollowup.chainId || '',
+        chainKind: chainFollowup.chainKind || '',
+        chainLabel: chainFollowup.chainLabel || '',
+      },
+      surface: 'market',
+      commandIntent: chainFollowup.chainKind === 'derelict_depot' ? '事件链商网' : '事件链情报',
+    }));
+  } else if (_shouldOfferSurveyIntel(opts.surveyIntel)) {
     suggestions.push(_createSuggestion({
       id: 'review-survey-market-intel',
       priority: 32,
@@ -935,6 +1081,10 @@ export function getCurrentSuggestion(state, options) {
 
   var tradeNetworkSuggestion = _getTradeNetworkSuggestion(state);
   if (tradeNetworkSuggestion) suggestions.push(tradeNetworkSuggestion);
+
+  if (opts.directiveSuggestion) {
+    suggestions.push(_createSuggestion(opts.directiveSuggestion));
+  }
 
   if (
     _shouldOfferModRecommendation(opts.modRecommendation) &&
