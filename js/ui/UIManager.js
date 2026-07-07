@@ -1,8 +1,8 @@
 // js/ui/UIManager.js — 全局面板视图管理器
-// 职责：遵循 SOLID 原则，统一管理界面大面板（星图、交易所、机库、个人档案、详细日志）的显示隐藏、互斥和星图背景高斯模糊状态。
+// 职责：遵循 SOLID 原则，统一管理界面大面板（星图、交易所、机库、个人档案）的显示隐藏、互斥和星图背景高斯模糊状态。
 
 import * as EventBus from '../core/EventBus.js';
-import { bindBlockingSurfaceDismiss, hasBlockingSurfaceOpen, openSecondarySurface, closeSecondarySurface, closeAllSecondarySurfaces, showBlockingSurface, hideBlockingSurface } from './SurfaceManager.js?v=20260621-settingsfallback1';
+import { openSecondarySurface, closeAllSecondarySurfaces } from './SurfaceManager.js?v=20260621-settingsfallback1';
 import { loadSettings } from '../core/SettingsManager.js';
 
 let _stateRef = null;
@@ -37,31 +37,11 @@ export function init(stateRef, handlers) {
       var btn = e.target.closest('.bottom-nav-btn');
       if (!btn) return;
 
-      // 允许在 logs-modal 打开时点击底栏切换，其它 modal 打开时拦截
-      if (hasBlockingSurfaceOpen('logs-modal')) {
-        if (typeof e.preventDefault === 'function') e.preventDefault();
-        if (typeof e.stopPropagation === 'function') e.stopPropagation();
-        return;
-      }
-
       var view = btn.dataset.view;
       switchView(view);
     });
     newBottomNav.addEventListener('keydown', _handleBottomNavKeydown);
   }
-
-  // 绑定详细日志弹窗的关闭按钮
-  var logsCloseBtn = document.getElementById('logs-modal-close');
-  if (logsCloseBtn) {
-    logsCloseBtn.onclick = function () {
-      switchView('starmap');
-    };
-  }
-  bindBlockingSurfaceDismiss('logs-modal', {
-    onDismiss: function () {
-      switchView('starmap');
-    },
-  });
 
   // 注册全局事件总线监听，支持以事件形式触发视图切换
   EventBus.on('view:switch', function (view) {
@@ -102,6 +82,12 @@ export function getCurrentView() {
 export function switchView(view) {
   var previousView = _currentView;
 
+  if (view === 'logs') {
+    EventBus.emit('logs:badge:clear');
+    _setBottomNavActive(previousView || 'starmap');
+    return;
+  }
+
   // 1. 如果点击的是当前已激活的非星图视图，则代表“再次点击折叠”，返回星图
   if (view !== 'starmap' && view === previousView) {
     view = 'starmap';
@@ -112,7 +98,6 @@ export function switchView(view) {
     _handlers.onCloseMarket();
   }
   closeAllSecondarySurfaces();
-  hideBlockingSurface('logs-modal');
 
   // 3. 驱动 3D 星图 Canvas 容器动态加减模糊样式
   _syncViewVisualState(view);
@@ -135,11 +120,6 @@ export function switchView(view) {
     } else {
       openSecondarySurface('info-panel');
     }
-  } else if (view === 'logs') {
-    _currentView = 'logs';
-    showBlockingSurface('logs-modal');
-    // 通知日志弹窗加载详细日志列表
-    EventBus.emit('logs:modal:opened');
   }
 
   // 5. 更新底部导航激活态高亮

@@ -80,37 +80,24 @@ describe('Onboarding and log surfaces', function () {
     globalThis.document = originalDocument;
   });
 
-  it('通讯历史弹窗会渲染语义化日志列表', async function () {
-    var logsList = createFakeElement('logs-modal-list');
-    var allFilter = createFakeElement('logs-filter-all');
-    allFilter.dataset.logsFilter = 'all';
-    var riskFilter = createFakeElement('logs-filter-risk');
-    riskFilter.dataset.logsFilter = 'risk';
-    var filters = [allFilter, riskFilter];
+  it('通讯日志只在底部日志入口显示未读数量', async function () {
+    var logsBadge = createFakeElement('logs-nav-badge');
+    var logsButton = createFakeElement('logs-button', ['bottom-nav-btn']);
+    logsButton.dataset.view = 'logs';
     var elements = {
-      'logs-modal-list': logsList,
-      'logs-modal-feed-status': createFakeElement('logs-modal-feed-status'),
-      'logs-summary-total': createFakeElement('logs-summary-total'),
-      'logs-summary-trade': createFakeElement('logs-summary-trade'),
-      'logs-summary-risk': createFakeElement('logs-summary-risk'),
-      'logs-summary-latest': createFakeElement('logs-summary-latest'),
-      'logs-modal': createFakeElement('logs-modal'),
       'victory-modal': createFakeElement('victory-modal', ['hidden']),
-      'mini-console-broadcast': createFakeElement('mini-console-broadcast'),
-      'broadcast-content': createFakeElement('broadcast-content'),
+      'logs-nav-badge': logsBadge,
     };
 
     globalThis.document = {
       getElementById: function (id) {
         return elements[id] || null;
       },
-      querySelector: function () {
+      querySelector: function (selector) {
+        if (selector === '.bottom-nav-btn[data-view="logs"]') return logsButton;
         return null;
       },
-      querySelectorAll: function (selector) {
-        if (selector === '[data-logs-filter]') return filters;
-        return [];
-      },
+      querySelectorAll: function () { return []; },
     };
 
     var HUD = await import('../js/ui/HUD.js?v=20260605-victorysummary1');
@@ -120,50 +107,18 @@ describe('Onboarding and log surfaces', function () {
     HUD.addMessage('完成一笔交易', 'buy');
     HUD.addMessage('燃料补给完成', 'travel');
     HUD.addMessage('护盾受到冲击', 'error');
-    EventBus.emit('logs:modal:opened');
 
-    expect(elements['logs-summary-total'].textContent).toBe('3');
-    expect(elements['logs-summary-trade'].textContent).toBe('1');
-    expect(elements['logs-summary-risk'].textContent).toBe('1');
-    expect(elements['logs-summary-latest'].textContent).toBe('错误');
-    expect(elements['logs-modal-feed-status'].textContent).toBe('显示全部通讯记录：3 条');
-    expect(logsList.innerHTML).toContain('logs-modal-entry');
-    expect(logsList.innerHTML).toContain('role="listitem"');
-    expect(logsList.innerHTML).toContain('log-time');
-    expect(logsList.innerHTML).toContain('log-label');
-    expect(logsList.innerHTML).toContain('完成一笔交易');
-    expect(logsList.innerHTML).toContain('燃料补给完成');
-    expect(logsList.innerHTML).toContain('护盾受到冲击');
-    expect(logsList.innerHTML).not.toContain('style=');
-    expect(allFilter.getAttribute('tabindex')).toBe('0');
-    expect(riskFilter.getAttribute('tabindex')).toBe('-1');
-    expect(elements['mini-console-broadcast'].getAttribute('aria-label')).toBe('打开通讯历史。最新消息：护盾受到冲击');
-    expect(allFilter.focused).toBe(true);
+    expect(logsBadge.hidden).toBe(false);
+    expect(logsBadge.textContent).toBe('3');
+    expect(logsBadge.title).toBe('未读通讯：3');
+    expect(logsButton.getAttribute('aria-label')).toBe('通讯日志，3 条新消息');
 
-    var arrowPrevented = false;
-    allFilter.dispatchEvent('keydown', {
-      key: 'ArrowRight',
-      preventDefault: function () { arrowPrevented = true; },
-    });
-    expect(arrowPrevented).toBe(true);
-    expect(riskFilter.focused).toBe(true);
-    expect(allFilter.getAttribute('aria-pressed')).toBe('false');
-    expect(riskFilter.getAttribute('aria-pressed')).toBe('true');
-    expect(elements['logs-modal-feed-status'].textContent).toBe('显示风险通讯记录：1 条');
+    EventBus.emit('logs:badge:clear');
 
-    logsList.scrollTop = 72;
-    logsList.scrollHeight = 300;
-    HUD.addMessage('自动巡航完成', 'travel');
-    expect(logsList.scrollTop).toBe(72);
-    expect(elements['logs-summary-total'].textContent).toBe('4');
-
-    riskFilter.dispatchEvent('click');
-    expect(elements['logs-modal-feed-status'].textContent).toBe('显示风险通讯记录：1 条');
-    expect(logsList.innerHTML).toContain('护盾受到冲击');
-    expect(logsList.innerHTML).not.toContain('完成一笔交易');
-    expect(logsList.innerHTML).not.toContain('燃料补给完成');
-    expect(allFilter.getAttribute('tabindex')).toBe('-1');
-    expect(riskFilter.getAttribute('tabindex')).toBe('0');
+    expect(logsBadge.hidden).toBe(true);
+    expect(logsBadge.textContent).toBe('0');
+    expect(logsBadge.title).toBe('未读通讯：0');
+    expect(logsButton.getAttribute('aria-label')).toBe('通讯日志');
   });
 
   it('公司命名会即时校验、支持回车并阻止重复提交', async function () {
@@ -282,45 +237,38 @@ describe('Onboarding and log surfaces', function () {
     expect(skip.disabled).toBe(true);
   });
 
-  it('通讯日志支持 Escape 关闭并同步返回星图导航态', async function () {
-    var logsModal = createFakeElement('logs-modal', ['modal', 'hidden']);
+  it('通讯日志入口只清未读数量，不打开弹窗或切换视图', async function () {
     var starmapButton = createFakeElement('starmap-button', ['bottom-nav-btn', 'active']);
     starmapButton.dataset.view = 'starmap';
     var logsButton = createFakeElement('logs-button', ['bottom-nav-btn']);
     logsButton.dataset.view = 'logs';
-    var documentListeners = Object.create(null);
-    var elements = {
-      'logs-modal': logsModal,
-    };
+    var badgeClearCount = 0;
 
     globalThis.document = {
       body: createFakeElement('body'),
       activeElement: null,
-      getElementById: function (id) { return elements[id] || null; },
+      getElementById: function () { return null; },
       querySelectorAll: function (selector) {
-        if (selector === '.modal') return [logsModal];
         if (selector === '.bottom-nav-btn') return [starmapButton, logsButton];
         return [];
       },
-      addEventListener: function (type, handler) {
-        if (!documentListeners[type]) documentListeners[type] = [];
-        documentListeners[type].push(handler);
-      },
+      addEventListener: function () {},
     };
 
     var UIManager = await import('../js/ui/UIManager.js?v=20260619-onboardingflow1');
+    var EventBus = await import('../js/core/EventBus.js');
+    EventBus.on('logs:badge:clear', function () {
+      badgeClearCount += 1;
+    });
+
     UIManager.init({}, {});
     UIManager.switchView('logs');
 
-    expect(logsModal.classList.contains('hidden')).toBe(false);
-    expect(logsButton.getAttribute('aria-current')).toBe('page');
-
-    documentListeners.keydown[0]({ key: 'Escape' });
-
-    expect(logsModal.classList.contains('hidden')).toBe(true);
     expect(UIManager.getCurrentView()).toBe('starmap');
     expect(starmapButton.getAttribute('aria-current')).toBe('page');
+    expect(logsButton.getAttribute('aria-current')).toBe(null);
     expect(logsButton.getAttribute('aria-pressed')).toBe('false');
+    expect(badgeClearCount).toBe(1);
   });
 
   it('公司命名与教程启动弹窗具备说明、列表和移动端覆盖样式', function () {
@@ -346,20 +294,10 @@ describe('Onboarding and log surfaces', function () {
     expect(html).toContain('id="tutorial-start-decision" class="tut-start-decision" role="list"');
     expect(html).toContain('aria-describedby="tutorial-start-guided-note"');
     expect(html).toContain('aria-describedby="company-rename-write-note"');
-    expect(html).toContain('aria-describedby="logs-modal-desc logs-modal-summary logs-modal-feed-status"');
-    expect(html).toContain('id="logs-modal-summary" class="logs-modal-summary" role="list" aria-label="通讯日志摘要"');
-    expect(html).toContain('id="mini-console-broadcast"');
-    expect(html).toContain('class="mini-console-broadcast"');
-    expect(html).toContain('role="toolbar" aria-label="日志类型筛选"');
-    expect(html).toContain('aria-controls="logs-modal-list"');
-    expect(html).toContain('aria-describedby="logs-modal-feed-status"');
-    expect(html).toContain('data-logs-filter="risk"');
-    expect(css).toContain('Logs archive and onboarding setup modals');
-    expect(css).toContain('.logs-modal-summary-item');
-    expect(css).toContain('.logs-filter-chip.is-active');
-    expect(css).toContain('.logs-modal-entry');
-    expect(css).toContain('.mini-console-broadcast:focus-visible');
-    expect(css).toContain('.console-message-log-detailed:focus-visible');
+    expect(html).not.toContain('id="logs-modal"');
+    expect(html).not.toContain('id="mini-console-broadcast"');
+    expect(html).toContain('id="logs-nav-badge" class="bottom-nav-badge" hidden');
+    expect(css).toContain('Onboarding setup modals');
     expect(css).toContain('.company-rename-signal');
     expect(css).toContain('.company-rename-decision-card');
     expect(css).toContain('.company-name-hint');
@@ -373,8 +311,7 @@ describe('Onboarding and log surfaces', function () {
     expect(onboardingUI).toContain('function _updateCompanyRenameFeedback');
     expect(onboardingUI).toContain("event.key !== 'Enter'");
     expect(onboardingUI).toContain("confirmButton.disabled = !hasName");
-    expect(uiManager).toContain("bindBlockingSurfaceDismiss('logs-modal'");
-    expect(css).toContain('grid-template-columns: repeat(5, minmax(0, 1fr))');
+    expect(uiManager).toContain("EventBus.emit('logs:badge:clear')");
     expect(css).toContain('@media (max-width: 420px)');
   });
 });

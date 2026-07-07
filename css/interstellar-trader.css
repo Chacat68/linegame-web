@@ -119,6 +119,18 @@ body::after {
   filter: saturate(1.14) contrast(1.08) brightness(0.92);
 }
 
+body.starmap-galaxy-mode #map-3d-canvas,
+body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #map-3d-canvas {
+  filter: saturate(1.3) contrast(1.16) brightness(1.08);
+}
+
+body.starmap-galaxy-mode #map-container::after,
+body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #map-container::after {
+  background:
+    linear-gradient(90deg, rgba(3, 16, 27, 0.52) 0, transparent 13%, transparent 86%, rgba(3, 16, 27, 0.56) 100%),
+    linear-gradient(180deg, rgba(3, 12, 20, 0.38) 0, transparent 20%, transparent 84%, rgba(3, 12, 20, 0.54) 100%);
+}
+
 #game-header {
   height: 72px;
   padding: 0 clamp(10px, 1vw, 18px);
@@ -9245,19 +9257,15 @@ body,
     body:has(#market-overlay:not(.hidden)) .bottom-nav,
     body:has(#market-overlay:not(.hidden)) #action-guide,
     body:has(#market-overlay:not(.hidden)) #event-notification,
-    body:has(#market-overlay:not(.hidden)) #mini-console-broadcast,
     body:has(#info-panel.panel-open) .bottom-nav,
     body:has(#info-panel.panel-open) #action-guide,
     body:has(#info-panel.panel-open) #event-notification,
-    body:has(#info-panel.panel-open) #mini-console-broadcast,
     body:has(#trade-panel.panel-open) .bottom-nav,
     body:has(#trade-panel.panel-open) #action-guide,
     body:has(#trade-panel.panel-open) #event-notification,
-    body:has(#trade-panel.panel-open) #mini-console-broadcast,
     body:has(.modal:not(.hidden)) .bottom-nav,
     body:has(.modal:not(.hidden)) #action-guide,
-    body:has(.modal:not(.hidden)) #event-notification,
-    body:has(.modal:not(.hidden)) #mini-console-broadcast {
+    body:has(.modal:not(.hidden)) #event-notification {
       opacity: 0 !important;
       visibility: hidden !important;
       pointer-events: none !important;
@@ -9864,6 +9872,18 @@ body,
   scroll-padding-top: 62px;
 }
 
+body.starmap-galaxy-mode .planet-detail-panel--galaxy-hub,
+body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) .planet-detail-panel--galaxy-hub {
+  border-color: rgba(108, 231, 255, 0.24);
+  background:
+    linear-gradient(180deg, rgba(5, 18, 31, 0.78), rgba(2, 10, 18, 0.72)),
+    radial-gradient(circle at 8% 0, rgba(108, 231, 255, 0.14), transparent 42%);
+  box-shadow:
+    0 18px 56px rgba(0, 0, 0, 0.42),
+    inset 1px 0 0 rgba(255, 255, 255, 0.045);
+  backdrop-filter: blur(16px) saturate(1.15);
+}
+
 .galaxy-hub-shell {
   min-width: 0;
   display: grid;
@@ -9910,6 +9930,13 @@ body,
   background:
     linear-gradient(180deg, rgba(10, 36, 52, 0.74), rgba(4, 17, 29, 0.62)),
     radial-gradient(circle at 8% 0, rgba(108, 231, 255, 0.12), transparent 54%);
+}
+
+body.starmap-galaxy-mode .galaxy-hub-focus,
+body.starmap-galaxy-mode .galaxy-switcher-card,
+body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) .galaxy-hub-focus,
+body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) .galaxy-switcher-card {
+  background-color: rgba(4, 18, 31, 0.42);
 }
 
 .galaxy-hub-directory {
@@ -10279,8 +10306,7 @@ body,
 
 .bottom-nav-btn:focus-visible,
 .action-guide-toggle:focus-visible,
-.action-guide-mini:focus-visible,
-.broadcast-history-btn:focus-visible {
+.action-guide-mini:focus-visible {
   outline: 2px solid rgba(108, 231, 255, 0.58);
   outline-offset: 2px;
 }
@@ -10313,6 +10339,32 @@ body,
   width: min(600px, calc(100vw - 24px));
 }
 
+body.starmap-galaxy-mode #action-guide,
+body.starmap-galaxy-mode #event-notification,
+body.starmap-galaxy-mode #mini-console-broadcast,
+body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #action-guide,
+body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #event-notification,
+body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #mini-console-broadcast {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+body.starmap-galaxy-mode .bottom-nav,
+body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) .bottom-nav {
+  opacity: 0.34;
+  transform: translateX(-50%) translateY(16px) scale(0.94);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+body.starmap-galaxy-mode .bottom-nav:hover,
+body.starmap-galaxy-mode .bottom-nav:focus-within,
+body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) .bottom-nav:hover,
+body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) .bottom-nav:focus-within {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0) scale(1);
+}
+
 .action-guide.is-collapsed {
   width: min(380px, calc(100vw - 24px));
 }
@@ -10341,54 +10393,6 @@ body,
 .action-guide-mini {
   min-height: 38px;
   border-radius: 999px;
-}
-
-.mini-console-broadcast {
-  bottom: calc(var(--bottom-nav-offset) + var(--bottom-nav-height) + var(--command-surface-gap));
-  width: min(520px, calc(100vw - 24px));
-  height: 34px;
-  appearance: none;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  border-radius: 999px;
-  border-color: rgba(108, 231, 255, 0.16);
-  background:
-    linear-gradient(180deg, rgba(5, 20, 32, 0.82), rgba(2, 10, 18, 0.88)),
-    radial-gradient(circle at 12% 0, rgba(108, 231, 255, 0.12), transparent 52%);
-  box-shadow:
-    0 16px 42px rgba(0, 0, 0, 0.36),
-    inset 0 1px 0 rgba(255, 255, 255, 0.045);
-}
-
-.broadcast-history-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 26px;
-  padding: 0 9px;
-  border: 1px solid rgba(108, 231, 255, 0.14);
-  background: rgba(2, 10, 18, 0.34);
-}
-
-.mini-console-broadcast:hover .broadcast-history-btn {
-  border-color: rgba(108, 231, 255, 0.34);
-  background: rgba(108, 231, 255, 0.1);
-  color: rgba(242, 250, 255, 0.96);
-}
-
-.mini-console-broadcast:focus-visible {
-  outline: 2px solid rgba(108, 231, 255, 0.62);
-  outline-offset: 3px;
-  border-color: rgba(108, 231, 255, 0.42);
-  box-shadow: 0 0 0 4px rgba(108, 231, 255, 0.1), 0 16px 42px rgba(0, 0, 0, 0.42);
-}
-
-@supports selector(body:has(#action-guide:not([hidden]))) {
-  body:has(#action-guide:not([hidden])) .mini-console-broadcast {
-    bottom: calc(var(--bottom-nav-offset) + var(--bottom-nav-height) + var(--command-surface-gap) + 72px);
-  }
 }
 
 @media (max-width: 700px) {
@@ -10430,15 +10434,6 @@ body,
     border-radius: 14px;
   }
 
-  .mini-console-broadcast {
-    width: calc(100vw - 14px);
-    height: 32px;
-    padding-inline: 11px;
-  }
-
-  .broadcast-content {
-    font-size: 11px;
-  }
 }
 
 @media (max-width: 560px) {
@@ -10463,17 +10458,6 @@ body,
     min-height: 36px;
   }
 
-  .mini-console-broadcast {
-    bottom: calc(var(--bottom-nav-offset) + var(--bottom-nav-height) + 6px);
-  }
-
-  @supports selector(body:has(#action-guide:not([hidden]))) {
-    body:has(#action-guide:not([hidden])) .mini-console-broadcast {
-      opacity: 0;
-      visibility: hidden;
-      pointer-events: none;
-    }
-  }
 }
 
 @media (max-width: 380px) {
@@ -10595,10 +10579,6 @@ body,
   max-width: calc(100vw - (var(--modal-safe-gap) * 2));
   max-height: calc(100dvh - (var(--modal-safe-gap) * 2));
   padding: 0;
-}
-
-.modal > .logs-modal-box {
-  --modal-w: 760px;
 }
 
 .modal > .trade-confirm-modal-box {
@@ -10756,22 +10736,6 @@ body,
   background: rgba(2, 10, 18, 0.5);
   font-size: 22px;
   line-height: 1;
-}
-
-.logs-modal-box .console-message-log-detailed {
-  max-height: none;
-  min-height: min(260px, 38dvh);
-  padding: 10px;
-  border-color: rgba(108, 231, 255, 0.12);
-  background:
-    linear-gradient(180deg, rgba(2, 10, 18, 0.64), rgba(2, 10, 18, 0.42)),
-    repeating-linear-gradient(180deg, rgba(108, 231, 255, 0.035) 0 1px, transparent 1px 28px);
-}
-
-.logs-modal-box .console-message-log-detailed .msg {
-  border-radius: 8px;
-  padding: 7px 9px;
-  background: rgba(7, 23, 36, 0.48);
 }
 
 .trade-confirm-modal-box .stack-modal-scroll {
@@ -14709,12 +14673,6 @@ body,
   overscroll-behavior: contain;
 }
 
-.logs-modal-box .console-message-log-detailed:focus-visible {
-  outline: 2px solid rgba(108, 231, 255, 0.52);
-  outline-offset: 2px;
-  border-color: rgba(108, 231, 255, 0.32);
-}
-
 .dispatch-modal-box > .dispatch-route-shell,
 .dispatch-modal-box > .dispatch-modal-desc,
 .dispatch-modal-box > .dispatch-route-summary {
@@ -15239,14 +15197,6 @@ body[data-motion="reduced"] .dispatch-advanced-panel > summary::after {
 .event-notification:hover .event-notif-btn {
   background: linear-gradient(180deg, rgba(34, 211, 238, 0.25), rgba(6, 182, 212, 0.18));
   border-color: rgba(34, 211, 238, 0.65);
-}
-
-@supports selector(body:has(#action-guide:not([hidden]))) {
-  body:has(#event-notification:not(.hidden)) .mini-console-broadcast {
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-  }
 }
 
 /* Dynamic command stack: event notices always clear the variable-height action guide. */
@@ -16190,171 +16140,12 @@ body[data-motion="reduced"] .dialogue-modal-box {
 }
 
 /* ==========================================================
-   Logs archive and onboarding setup modals
+   Onboarding setup modals
    ========================================================== */
-.modal > .logs-modal-box {
-  --modal-w: 780px;
-}
-
 .modal > .company-rename-box,
 .modal > .tutorial-start-box {
   --modal-w: 560px;
   text-align: left;
-}
-
-.logs-header-copy {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-
-.logs-kicker {
-  width: fit-content;
-  padding: 3px 8px;
-  border: 1px solid rgba(108, 231, 255, 0.18);
-  border-radius: 999px;
-  background: rgba(2, 10, 18, 0.46);
-  color: rgba(177, 205, 222, 0.72);
-  font-family: "Rajdhani", sans-serif;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.logs-modal-desc {
-  margin: -4px 0 0;
-  color: rgba(177, 205, 222, 0.72);
-  font-size: 12px;
-  line-height: 1.55;
-}
-
-.logs-modal-summary {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  min-width: 0;
-}
-
-.logs-modal-summary-item {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-  padding: 9px 10px;
-  border: 1px solid rgba(108, 231, 255, 0.13);
-  border-radius: 11px;
-  background:
-    linear-gradient(180deg, rgba(6, 24, 40, 0.58), rgba(2, 10, 18, 0.68)),
-    rgba(3, 13, 24, 0.54);
-}
-
-.logs-modal-summary-item--risk {
-  border-color: rgba(251, 191, 36, 0.2);
-  background: rgba(251, 191, 36, 0.06);
-}
-
-.logs-modal-summary-item em {
-  color: rgba(177, 205, 222, 0.62);
-  font-size: 10px;
-  font-style: normal;
-}
-
-.logs-modal-summary-item strong {
-  min-width: 0;
-  color: rgba(242, 250, 255, 0.94);
-  font-family: "Rajdhani", sans-serif;
-  font-size: 14px;
-  line-height: 1.25;
-  overflow-wrap: anywhere;
-}
-
-.logs-modal-toolbar {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 7px;
-  min-width: 0;
-}
-
-.logs-filter-chip {
-  min-height: 32px;
-  padding: 6px 11px;
-  border: 1px solid rgba(108, 231, 255, 0.14);
-  border-radius: 999px;
-  background: rgba(2, 10, 18, 0.5);
-  color: rgba(177, 205, 222, 0.76);
-  cursor: pointer;
-}
-
-.logs-filter-chip:hover,
-.logs-filter-chip:focus-visible {
-  border-color: rgba(108, 231, 255, 0.38);
-  color: rgba(242, 250, 255, 0.94);
-  outline: none;
-}
-
-.logs-filter-chip.is-active {
-  border-color: rgba(108, 231, 255, 0.42);
-  background: rgba(108, 231, 255, 0.12);
-  color: rgba(242, 250, 255, 0.96);
-}
-
-.logs-modal-feed-status {
-  min-height: 18px;
-  color: rgba(177, 205, 222, 0.62);
-  font-size: 11px;
-  line-height: 1.45;
-}
-
-.logs-modal-box .console-message-log-detailed {
-  display: grid;
-  gap: 8px;
-  min-height: min(320px, 44dvh);
-  max-height: min(520px, 56dvh);
-  overflow: auto;
-  padding: 12px;
-}
-
-.logs-modal-entry {
-  display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr);
-  align-items: start;
-  gap: 8px;
-  min-width: 0;
-  margin: 0;
-}
-
-.logs-modal-entry .log-time,
-.logs-modal-entry .log-label {
-  color: rgba(177, 205, 222, 0.68);
-  font-family: "JetBrains Mono", "SFMono-Regular", monospace;
-  font-size: 11px;
-  white-space: nowrap;
-}
-
-.logs-modal-entry .log-label {
-  color: rgba(108, 231, 255, 0.74);
-  font-weight: 800;
-}
-
-.logs-modal-entry .log-text {
-  min-width: 0;
-  color: rgba(231, 243, 250, 0.9);
-  overflow-wrap: anywhere;
-}
-
-.logs-modal-empty {
-  display: grid;
-  gap: 6px;
-  min-height: min(240px, 38dvh);
-  place-content: center;
-  text-align: center;
-  color: rgba(177, 205, 222, 0.68);
-}
-
-.logs-modal-empty strong {
-  color: rgba(242, 250, 255, 0.92);
-  font-family: "Rajdhani", sans-serif;
-  font-size: 16px;
 }
 
 .company-rename-body,
@@ -16512,18 +16303,6 @@ body[data-motion="reduced"] .dialogue-modal-box {
 }
 
 @media (max-width: 620px) {
-  .logs-modal-summary {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .logs-modal-entry {
-    grid-template-columns: auto minmax(0, 1fr);
-  }
-
-  .logs-modal-entry .log-text {
-    grid-column: 1 / -1;
-  }
-
   .tut-start-actions,
   .company-rename-actions {
     display: grid;
@@ -16536,14 +16315,6 @@ body[data-motion="reduced"] .dialogue-modal-box {
 }
 
 @media (max-width: 520px) {
-  .logs-modal-summary {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .logs-modal-toolbar {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
   .company-rename-signal {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -16567,7 +16338,6 @@ body[data-motion="reduced"] .dialogue-modal-box {
 }
 
 @media (max-width: 420px) {
-  .logs-modal-toolbar,
   .company-rename-signal,
   .tut-start-modules,
   .company-rename-decision,

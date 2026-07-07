@@ -102,8 +102,8 @@ let _questActions = null;
 let _initialized = false;
 let _activeHudWidgetId = DEFAULT_HUD_WIDGET_ID;
 let _logsHistory = [];
+let _unreadLogCount = 0;
 let _hudDismissControlsBound = false;
-let _activeLogsFilter = 'all';
 
 // ---------------------------------------------------------------------------
 // 初始化：订阅 EventBus 日志事件
@@ -143,21 +143,12 @@ export function init() {
 
   if (vpModal) bindBlockingSurfaceDismiss('victory-modal');
 
-  // 绑定底栏滚动日志和历史按钮的点击事件，跳转至日志大终端
-  const broadcastBar = document.getElementById('mini-console-broadcast');
-  if (broadcastBar) {
-    broadcastBar.addEventListener('click', function () {
-      EventBus.emit('view:switch', 'logs');
-    });
-  }
-
-  // 监听大弹窗打开事件
-  EventBus.on('logs:modal:opened', function () {
-    _renderDetailedLogs({ focusActiveFilter: true });
+  EventBus.on('logs:badge:clear', function () {
+    clearLogUnreadCount();
   });
 
   _bindHudWidgetControls();
-  _bindLogsModalControls();
+  _updateLogsNavBadge();
 }
 
 export function setQuestActions(actions) {
@@ -613,28 +604,10 @@ export function addMessage(text, type) {
   if (_logsHistory.length > 200) {
     _logsHistory.pop();
   }
-  _refreshOpenLogsModal();
+  _unreadLogCount = Math.min(999, _unreadLogCount + 1);
+  _updateLogsNavBadge();
 
-  // 2. 同步更新底栏滚动广播，自动加上 Emoji 前缀
-  const broadcastContent = document.getElementById('broadcast-content');
-  if (broadcastContent) {
-    let prefix = '';
-    if (type === 'error') prefix = '🚨 ';
-    else if (type === 'warning') prefix = '⚠️ ';
-    else if (type === 'success' || type === 'buy') prefix = '✅ ';
-    else if (type === 'sell') prefix = '🪙 ';
-    else if (type === 'travel') prefix = '🚀 ';
-    else if (type === 'upgrade') prefix = '🔧 ';
-    else if (type === 'tip') prefix = '💡 ';
-    else prefix = 'ℹ️ ';
-    broadcastContent.textContent = prefix + text;
-  }
-  const broadcastBar = document.getElementById('mini-console-broadcast');
-  if (broadcastBar && typeof broadcastBar.setAttribute === 'function') {
-    broadcastBar.setAttribute('aria-label', '打开通讯历史。最新消息：' + text);
-  }
-
-  // 3. 向下兼容旧版 message-log (如果有的话)
+  // 2. 向下兼容旧版 message-log (如果有的话)
   const log = document.getElementById('message-log');
   if (log) {
     const div = document.createElement('div');
@@ -645,191 +618,26 @@ export function addMessage(text, type) {
   }
 }
 
-/**
- * 渲染全屏详细历史日志终端列表
- */
-function _renderDetailedLogs(options) {
-  const container = document.getElementById('logs-modal-list');
-  if (!container) return;
+export function clearLogUnreadCount() {
+  _unreadLogCount = 0;
+  _updateLogsNavBadge();
+}
 
-  var opts = options || {};
-  var previousScrollTop = Number(container.scrollTop) || 0;
-  var previousScrollHeight = Number(container.scrollHeight) || 0;
-  var preserveHistoryPosition = !!opts.preserveScroll && previousScrollTop > 8;
+function _updateLogsNavBadge() {
+  _setBadgeValue('logs-nav-badge', _unreadLogCount, '未读通讯');
+  var logsButton = typeof document.querySelector === 'function'
+    ? document.querySelector('.bottom-nav-btn[data-view="logs"]')
+    : null;
+  if (!logsButton || typeof logsButton.setAttribute !== 'function') return;
 
-  _updateLogsModalSummary();
-  _syncLogsFilterControls();
-
-  var filteredLogs = _filterLogsForActiveView(_logsHistory);
-  var filterLabel = _getLogFilterLabel(_activeLogsFilter);
-  var feedStatusEl = document.getElementById('logs-modal-feed-status');
-  if (feedStatusEl) {
-    feedStatusEl.textContent = '显示' + filterLabel + '通讯记录：' + filteredLogs.length + ' 条';
-  }
-  if (container.dataset) {
-    container.dataset.filter = _activeLogsFilter;
-  }
-
-  var contentHtml = '';
-  if (_logsHistory.length === 0) {
-    contentHtml =
-      '<div class="logs-modal-empty" role="listitem">' +
-        '<strong>暂无历史通讯记录</strong>' +
-        '<span>执行交易、航行、任务或系统操作后，这里会显示完整回溯。</span>' +
-      '</div>';
-  } else if (filteredLogs.length === 0) {
-    contentHtml =
-      '<div class="logs-modal-empty" role="listitem">' +
-        '<strong>没有匹配的' + _escapeHtml(filterLabel) + '记录</strong>' +
-        '<span>切换到全部记录，或继续执行相关操作后再查看。</span>' +
-      '</div>';
+  if (_unreadLogCount > 0) {
+    var label = '通讯日志，' + _unreadLogCount + ' 条新消息';
+    logsButton.title = label;
+    logsButton.setAttribute('aria-label', label);
   } else {
-    contentHtml = filteredLogs.map(function (item) {
-      const t = item.time || new Date();
-      const hours = String(t.getHours()).padStart(2, '0');
-      const minutes = String(t.getMinutes()).padStart(2, '0');
-      const seconds = String(t.getSeconds()).padStart(2, '0');
-      const timeStr = hours + ':' + minutes + ':' + seconds;
-
-      let typeLabel = 'INFO';
-      if (item.type) {
-        typeLabel = item.type.toUpperCase();
-      }
-
-      return '<article class="msg msg-' + _escapeHtml(item.type || 'info') + ' logs-modal-entry" role="listitem">' +
-        '<span class="log-time">[' + timeStr + ']</span>' +
-        '<span class="log-label">[' + _escapeHtml(typeLabel) + ']</span>' +
-        '<span class="log-text">' + _escapeHtml(item.text) + '</span>' +
-      '</article>';
-    }).join('');
+    logsButton.title = '通讯日志';
+    logsButton.setAttribute('aria-label', '通讯日志');
   }
-
-  container.innerHTML = contentHtml;
-  if (preserveHistoryPosition) {
-    var nextScrollHeight = Number(container.scrollHeight) || previousScrollHeight;
-    container.scrollTop = Math.max(0, previousScrollTop + (nextScrollHeight - previousScrollHeight));
-  } else {
-    container.scrollTop = 0;
-  }
-  if (opts.focusActiveFilter) _focusActiveLogsFilter();
-}
-
-function _bindLogsModalControls() {
-  var chips = Array.prototype.slice.call(document.querySelectorAll('[data-logs-filter]') || []);
-  chips.forEach(function (chip, index) {
-    chip.addEventListener('click', function () {
-      var nextFilter = chip.dataset && chip.dataset.logsFilter ? chip.dataset.logsFilter : 'all';
-      _activeLogsFilter = _isKnownLogFilter(nextFilter) ? nextFilter : 'all';
-      _renderDetailedLogs();
-    });
-    chip.addEventListener('keydown', function (event) {
-      if (!event) return;
-      var nextIndex = index;
-      if (event.key === 'ArrowRight' || event.key === 'ArrowDown') nextIndex = (index + 1) % chips.length;
-      else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') nextIndex = (index - 1 + chips.length) % chips.length;
-      else if (event.key === 'Home') nextIndex = 0;
-      else if (event.key === 'End') nextIndex = chips.length - 1;
-      else return;
-
-      event.preventDefault();
-      var targetChip = chips[nextIndex];
-      if (!targetChip) return;
-      var nextFilter = targetChip.dataset && targetChip.dataset.logsFilter ? targetChip.dataset.logsFilter : 'all';
-      _activeLogsFilter = _isKnownLogFilter(nextFilter) ? nextFilter : 'all';
-      _renderDetailedLogs();
-      if (typeof targetChip.focus === 'function') targetChip.focus();
-    });
-  });
-  _syncLogsFilterControls();
-}
-
-function _refreshOpenLogsModal() {
-  var modal = document.getElementById('logs-modal');
-  if (modal && !modal.classList.contains('hidden')) {
-    _renderDetailedLogs({ preserveScroll: true });
-  }
-}
-
-function _updateLogsModalSummary() {
-  var totalEl = document.getElementById('logs-summary-total');
-  var tradeEl = document.getElementById('logs-summary-trade');
-  var riskEl = document.getElementById('logs-summary-risk');
-  var latestEl = document.getElementById('logs-summary-latest');
-  var tradeCount = 0;
-  var riskCount = 0;
-
-  _logsHistory.forEach(function (item) {
-    var group = _getLogTypeGroup(item.type);
-    if (group === 'trade') tradeCount += 1;
-    if (group === 'risk') riskCount += 1;
-  });
-
-  if (totalEl) totalEl.textContent = String(_logsHistory.length);
-  if (tradeEl) tradeEl.textContent = String(tradeCount);
-  if (riskEl) riskEl.textContent = String(riskCount);
-  if (latestEl) {
-    latestEl.textContent = _logsHistory.length > 0
-      ? _formatLogTypeLabel(_logsHistory[0].type)
-      : '暂无';
-  }
-}
-
-function _syncLogsFilterControls() {
-  var chips = Array.prototype.slice.call(document.querySelectorAll('[data-logs-filter]') || []);
-  chips.forEach(function (chip) {
-    var isActive = chip.dataset && chip.dataset.logsFilter === _activeLogsFilter;
-    chip.classList.toggle('is-active', isActive);
-    chip.setAttribute('aria-pressed', isActive ? 'true' : 'false');
-    chip.setAttribute('tabindex', isActive ? '0' : '-1');
-  });
-}
-
-function _focusActiveLogsFilter() {
-  var chips = Array.prototype.slice.call(document.querySelectorAll('[data-logs-filter]') || []);
-  var activeChip = chips.find(function (chip) {
-    return chip.dataset && chip.dataset.logsFilter === _activeLogsFilter;
-  });
-  if (activeChip && typeof activeChip.focus === 'function') activeChip.focus();
-}
-
-function _filterLogsForActiveView(logs) {
-  if (_activeLogsFilter === 'all') return logs.slice();
-  return logs.filter(function (item) {
-    return _getLogTypeGroup(item.type) === _activeLogsFilter;
-  });
-}
-
-function _isKnownLogFilter(filter) {
-  return filter === 'all' || filter === 'trade' || filter === 'travel' || filter === 'risk' || filter === 'system';
-}
-
-function _getLogFilterLabel(filter) {
-  if (filter === 'trade') return '交易';
-  if (filter === 'travel') return '航行';
-  if (filter === 'risk') return '风险';
-  if (filter === 'system') return '系统';
-  return '全部';
-}
-
-function _getLogTypeGroup(type) {
-  var normalizedType = String(type || 'info').toLowerCase();
-  if (normalizedType === 'buy' || normalizedType === 'sell' || normalizedType === 'success') return 'trade';
-  if (normalizedType === 'travel') return 'travel';
-  if (normalizedType === 'error' || normalizedType === 'warning') return 'risk';
-  return 'system';
-}
-
-function _formatLogTypeLabel(type) {
-  var normalizedType = String(type || 'info').toLowerCase();
-  if (normalizedType === 'buy') return '买入';
-  if (normalizedType === 'sell') return '卖出';
-  if (normalizedType === 'travel') return '航行';
-  if (normalizedType === 'error') return '错误';
-  if (normalizedType === 'warning') return '警告';
-  if (normalizedType === 'success') return '成功';
-  if (normalizedType === 'upgrade') return '升级';
-  if (normalizedType === 'tip') return '提示';
-  return '系统';
 }
 
 // ---------------------------------------------------------------------------

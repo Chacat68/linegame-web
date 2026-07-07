@@ -21,11 +21,9 @@ import {
   closePrimarySurface,
   closeSecondarySurface,
   hasBlockingSurfaceOpen,
-  hideBlockingSurface,
   isPrimarySurfaceVisible,
   openPrimarySurface,
   openSecondarySurface,
-  showBlockingSurface,
 } from './SurfaceManager.js?v=20260621-settingsfallback1';
 import {
   GALAXIES,
@@ -1064,6 +1062,11 @@ function _updateGalaxyBtn(stateRef) {
   }
 }
 
+function _setGalaxyImmersionMode(active) {
+  if (!document.body || !document.body.classList) return;
+  document.body.classList.toggle('starmap-galaxy-mode', !!active);
+}
+
 function _showArrivalScanPrompt(stateRef) {
   if (!stateRef || !_explorationActions || typeof _explorationActions.onScan !== 'function') return false;
 
@@ -2013,6 +2016,7 @@ export function refreshPlanetDetail(stateRef) {
 
   _updateOrbitScanButton(stateRef);
   _renderCurrentSystemExplorationCard(stateRef);
+  _setGalaxyImmersionMode(stateRef && stateRef.mapView === 'galaxies');
 
   if (stateRef.mapView === 'galaxies') {
     const previousHubScrollTop = panel.classList.contains('planet-detail-panel--galaxy-hub')
@@ -2033,9 +2037,9 @@ export function refreshPlanetDetail(stateRef) {
     panel.classList.add('visible');
 
     const canvasW = mapContainer.clientWidth;
-    const panelW = Math.min(360, Math.max(260, canvasW - 16));
+    const panelW = Math.min(340, Math.max(280, canvasW - 16));
     panel.style.width = panelW + 'px';
-    panel.style.left = Math.max(8, canvasW - panelW - 12) + 'px';
+    panel.style.left = Math.max(8, canvasW - panelW - 14) + 'px';
     panel.style.top = '12px';
     panel.scrollTop = previousHubScrollTop;
     return;
@@ -2336,15 +2340,15 @@ export function initTabs(onTabClick) {
       var btn = e.target.closest('.bottom-nav-btn');
       if (!btn) return;
       if (globalThis.__linegameUIManager) return;
+      var view = btn.dataset.view;
       if (hasBlockingSurfaceOpen()) {
-        var allowLogsSwitch = hasBlockingSurfaceOpen('logs-modal') === false;
-        if (!allowLogsSwitch) {
+        var allowLogsBadgeClear = view === 'logs';
+        if (!allowLogsBadgeClear) {
           if (typeof e.preventDefault === 'function') e.preventDefault();
           if (typeof e.stopPropagation === 'function') e.stopPropagation();
           return;
         }
       }
-      var view = btn.dataset.view;
       _handleBottomNav(view);
     });
     bottomNav.addEventListener('keydown', _handleBottomNavKeydown);
@@ -2404,7 +2408,6 @@ function _handleBottomNav(view) {
   var currentView = currentActive ? currentActive.dataset.view : 'starmap';
 
   if (view === 'starmap') {
-    hideBlockingSurface('logs-modal');
     _closeAllOverlayPanels();
     closeMarket();
     _setBottomNavActive('starmap');
@@ -2412,7 +2415,6 @@ function _handleBottomNav(view) {
   }
 
   if (view === 'market') {
-    hideBlockingSurface('logs-modal');
     // If already open, close it
     if (currentView === 'market' && _marketOpen) {
       closeMarket();
@@ -2429,7 +2431,6 @@ function _handleBottomNav(view) {
   }
 
   if (view === 'hangar') {
-    hideBlockingSurface('logs-modal');
     if (currentView === 'hangar') {
       _closeOverlayPanel('trade-panel');
       _setBottomNavActive('starmap');
@@ -2443,7 +2444,6 @@ function _handleBottomNav(view) {
   }
 
   if (view === 'quests') {
-    hideBlockingSurface('logs-modal');
     if (currentView === 'quests') {
       _closeOverlayPanel('info-panel');
       _setBottomNavActive('starmap');
@@ -2462,16 +2462,8 @@ function _handleBottomNav(view) {
   }
 
   if (view === 'logs') {
-    if (currentView === 'logs') {
-      hideBlockingSurface('logs-modal');
-      _setBottomNavActive('starmap');
-      return;
-    }
-    _closeAllOverlayPanels();
-    closeMarket();
-    showBlockingSurface('logs-modal');
-    EventBus.emit('logs:modal:opened');
-    _setBottomNavActive('logs');
+    EventBus.emit('logs:badge:clear');
+    _setBottomNavActive(currentView || 'starmap');
     return;
   }
 
@@ -2480,7 +2472,6 @@ function _handleBottomNav(view) {
       _handleBottomNav('logs');
       return;
     }
-    hideBlockingSurface('logs-modal');
     if (currentView === 'console') {
       _closeOverlayPanel('console-panel');
       _setBottomNavActive('starmap');

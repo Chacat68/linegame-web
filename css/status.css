@@ -15,75 +15,6 @@
   pointer-events: none;
 }
 
-/* Mini Console Broadcast Bar (单行滚动日志广播) */
-.mini-console-broadcast {
-  position: fixed;
-  bottom: 84px; /* 在底栏上方悬浮 */
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 25;
-  width: clamp(320px, 45vw, 680px);
-  height: 32px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 0 16px;
-  background: rgba(4, 10, 24, 0.72);
-  backdrop-filter: blur(12px) saturate(1.4);
-  -webkit-backdrop-filter: blur(12px) saturate(1.4);
-  border: 1px solid rgba(108, 231, 255, 0.2);
-  border-radius: 999px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  pointer-events: auto;
-  transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
-}
-
-.mini-console-broadcast:hover {
-  border-color: rgba(108, 231, 255, 0.45);
-  box-shadow: 0 0 18px rgba(108, 231, 255, 0.22);
-  background: rgba(8, 18, 38, 0.85);
-}
-
-.broadcast-icon {
-  font-size: 14px;
-  animation: broadcast-pulse 2s infinite ease-in-out;
-}
-
-.broadcast-content {
-  flex: 1;
-  font-size: 12px;
-  color: var(--text-main);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  letter-spacing: 0.03em;
-  font-family: "Rajdhani", sans-serif;
-  font-weight: 500;
-}
-
-.broadcast-history-btn {
-  background: transparent;
-  border: none;
-  color: var(--accent-cyan);
-  font-family: "Orbitron", "Rajdhani", monospace;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 999px;
-  transition: color 0.2s, text-shadow 0.2s;
-}
-
-.broadcast-history-btn:hover {
-  color: #fff;
-  text-shadow: 0 0 8px rgba(108, 231, 255, 0.8);
-}
-
-@keyframes broadcast-pulse {
-  0%, 100% { opacity: 0.7; transform: scale(0.95); }
-  50% { opacity: 1; transform: scale(1.05); }
-}
-
 /* 历史日志列表样式 */
 .console-message-log-detailed {
   max-height: 48vh;
@@ -243,23 +174,7 @@
    窄屏自适应响应式微调 (iPhone SE / max-width: 600px 像素级排版优化)
    ========================================================================== */
 @media (max-width: 600px) {
-  /* 1. 迷你单行日志广播自适应 iPhone SE 窄设备，并隐藏历史按钮 */
-  .mini-console-broadcast {
-    width: calc(100vw - 20px) !important;
-    bottom: 74px !important; /* 与稍矮的底栏高度完美贴合 */
-    padding: 0 12px !important;
-    gap: 8px !important;
-  }
-  
-  #broadcast-history-btn {
-    display: none !important; /* 窄屏下隐藏该按钮，节约空间，点击整行依然可以直接弹出日志 */
-  }
-
-  .broadcast-content {
-    font-size: 11px !important; /* 字体微调，以防文字被过早截断 */
-  }
-
-  /* 2. 底栏导航自适应，扁平紧凑，防止折行 */
+  /* 1. 底栏导航自适应，扁平紧凑，防止折行 */
   #status-bar {
     padding: 0 6px 8px !important;
   }
@@ -294,4 +209,3 @@
     height: 15px !important;
   }
 }
-

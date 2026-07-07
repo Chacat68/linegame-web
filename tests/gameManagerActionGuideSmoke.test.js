@@ -125,6 +125,7 @@ function createActionGuideSmokeDom() {
   dispatchModal.querySelector = function (selector) {
     return selector === '.modal-box' ? dispatchModalBox : null;
   };
+  var tradeModal = createFakeElement('trade-modal', ['modal', 'hidden']);
 
   var backButton = createFakeElement();
   var fleetTab = createFakeElement();
@@ -138,6 +139,21 @@ function createActionGuideSmokeDom() {
     'fleet-list': createFakeElement('fleet-list'),
     'fleet-inline-container': createFakeElement('fleet-inline-container', ['hidden']),
     'dispatch-modal': dispatchModal,
+    'trade-modal': tradeModal,
+    'modal-title': createFakeElement('modal-title'),
+    'modal-desc': createFakeElement('modal-desc'),
+    'modal-kicker': createFakeElement('modal-kicker'),
+    'modal-unit-price': createFakeElement('modal-unit-price'),
+    'modal-max-qty': createFakeElement('modal-max-qty'),
+    'modal-market-type': createFakeElement('modal-market-type'),
+    'modal-amount': createFakeElement('modal-amount'),
+    'modal-cargo-before': createFakeElement('modal-cargo-before'),
+    'modal-cargo-after': createFakeElement('modal-cargo-after'),
+    'modal-credit-delta': createFakeElement('modal-credit-delta'),
+    'modal-total': createFakeElement('modal-total'),
+    'modal-confirm': createFakeElement('modal-confirm'),
+    'modal-all': createFakeElement('modal-all'),
+    'trade-impact-summary': createFakeElement('trade-impact-summary'),
     'dispatch-title': createFakeElement('dispatch-title'),
     'dispatch-primary-hint': createFakeElement('dispatch-primary-hint'),
     'dispatch-buy-system': createFakeSelectElement(),
@@ -172,7 +188,7 @@ function createActionGuideSmokeDom() {
         return null;
       },
       querySelectorAll: function (selector) {
-        if (selector === '.modal') return [dispatchModal];
+        if (selector === '.modal') return [dispatchModal, tradeModal];
         if (selector === '.tab-btn[data-tab-group="trade"]') return [fleetTab];
         if (selector === '.tab-pane[data-tab-group="trade"]') return [fleetPane];
         return [];
@@ -198,6 +214,76 @@ describe('GameManager action guide smoke', function () {
     if (gameManager) gameManager._setStateForTest(null);
     gameManager = null;
     vi.useRealTimers();
+  });
+
+  it('当前行动买入确认不会先打开交易所终端', async function () {
+    var dom = createActionGuideSmokeDom();
+    globalThis.document = dom.document;
+    globalThis.__linegameUIManager = {
+      switchView: function () {},
+      setBottomNavActiveDirectly: function () {},
+    };
+    globalThis.BABYLON = {
+      Color3: function (r, g, b) {
+        this.r = r;
+        this.g = g;
+        this.b = b;
+      },
+      Color4: function (r, g, b, a) {
+        this.r = r;
+        this.g = g;
+        this.b = b;
+        this.a = a;
+      },
+    };
+    gameManager = await import('../js/core/GameManager.js');
+
+    var state = createTestState({
+      credits: 10000,
+      fuel: 100,
+      maxFuel: 100,
+      maxCargo: 20,
+      cargo: {},
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+    });
+    Economy.init();
+    Fleet.init(state);
+    Faction.init(state);
+    Research.init(state);
+    Quest.init(state);
+    GalaxyData.init(state);
+    Tutorial.init(state);
+    Tutorial.skip();
+    gameManager._setStateForTest(state);
+
+    gameManager._handleActionGuideActionForTest({
+      id: 'buy-low-price-good',
+      actionType: 'trade.buy',
+      actionLabel: '确认买入',
+      title: '买入「食物」',
+      reason: '测试直接打开确认单',
+      payload: {
+        goodId: 'food',
+        marketType: 'open',
+        tradeAction: 'buy',
+        questName: '初次交易',
+      },
+      surface: 'market',
+    });
+
+    expect(dom.elements['market-overlay'].classList.contains('hidden')).toBe(true);
+    expect(dom.elements['trade-modal'].classList.contains('hidden')).toBe(false);
+    expect(dom.elements['modal-title'].textContent).toContain('购买');
+    expect(dom.elements['modal-title'].textContent).toContain('食物');
+
+    dom.elements['market-overlay'].classList.remove('hidden');
+    dom.elements['modal-confirm'].onclick();
+    gameManager._handleTradeConfirmForTest('buy', 'food', 1, 'open');
+
+    expect(dom.elements['market-overlay'].classList.contains('hidden')).toBe(true);
+    expect(dom.elements['trade-modal'].classList.contains('hidden')).toBe(true);
+    expect(state.cargo.food).toBeGreaterThan(0);
   });
 
   it('通过管理器行动回调载入派遣草案后会展示完成态并避免重复推荐', async function () {

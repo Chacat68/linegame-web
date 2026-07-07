@@ -13,7 +13,6 @@ function openingTag(id) {
 describe('UI surface inventory', function () {
   it('keeps every blocking surface accessible and keyboard focusable', function () {
     const blockingSurfaceIds = [
-      'logs-modal',
       'trade-modal',
       'event-modal',
       'dialogue-modal',

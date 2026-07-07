@@ -12,13 +12,13 @@ import * as Commerce   from '../systems/commerce/CommerceFacade.js?v=20260531-ch
 import * as RandomEvent from '../systems/event/RandomEvent.js';
 import * as Faction    from '../systems/faction/FactionSystem.js';
 import * as Research   from '../systems/research/ResearchSystem.js';
-import * as Renderer3D from '../ui/Renderer3DAdvanced.js?v=20260513-navguide1';
+import * as Renderer3D from '../ui/Renderer3DAdvanced.js?v=20260707-galaxymap1';
 import * as GalaxyData from '../systems/galaxy/GalaxyDataLayer.js';
 import * as Exploration from '../systems/galaxy/ExplorationSystem.js?v=20260531-chainfollow1';
 import * as HUD        from '../ui/HUD.js?v=20260621-settingsfallback1';
 import * as MarketUI   from '../ui/MarketUI.js?v=20260619-marketcontrols1';
 import * as ShipUI     from '../ui/ShipUI.js';
-import * as MapUI      from '../ui/MapUI.js?v=20260621-settingsfallback1';
+import * as MapUI      from '../ui/MapUI.js?v=20260707-galaxymap1';
 import * as Modal      from '../ui/Modal.js?v=20260621-settingsfallback1';
 import * as VictoryResultUI from '../ui/VictoryResultUI.js?v=20260621-settingsfallback1';
 import * as EventUI    from '../ui/EventUI.js?v=20260621-settingsfallback1';
@@ -306,6 +306,10 @@ export function _setStateForTest(state) {
 
 export function _handleActionGuideActionForTest(suggestion) {
   _handleActionGuideAction(suggestion);
+}
+
+export function _handleTradeConfirmForTest(action, goodId, quantity, marketType) {
+  _handleTradeConfirm(action, goodId, quantity, marketType);
 }
 
 function _showWelcomeMessages() {
@@ -694,16 +698,6 @@ function _openGuidanceTradeConfirmation(action, payload) {
     return;
   }
 
-  MapUI.openMarketPanel(_state, {
-    workspaceId: 'spot',
-    subworkspaceId: marketType === 'black' ? 'black' : 'trade',
-    marketMode: marketType,
-    goodId: goodId,
-    tradeAction: action,
-  });
-  if (MarketUI.revealMarketGoodFocus) {
-    MarketUI.revealMarketGoodFocus(goodId, { tradeAction: action });
-  }
   EventBus.emit('log:message', {
     text: buildCommandFeedback({
       actionId: 'market',
@@ -1061,6 +1055,9 @@ function _handleTradeConfirm(action, goodId, quantity, marketType) {
   const result = action === 'buy'
     ? Commerce.buyGood(_state, goodId, quantity, effectiveMarket)
     : Commerce.sellGood(_state, goodId, quantity, effectiveMarket);
+  if (result && result.ok) {
+    _returnToStarmapAfterTrade();
+  }
   _dispatch(result);
 
   if (result && result.ok) {
@@ -1126,6 +1123,15 @@ function _handleTradeConfirm(action, goodId, quantity, marketType) {
     _state.reputation = (_state.reputation || 0) + repGain;
 
     _updateUI();
+  }
+}
+
+function _returnToStarmapAfterTrade() {
+  if (MapUI.focusStarmap) {
+    MapUI.focusStarmap();
+  }
+  if (MapUI.closeMarket) {
+    MapUI.closeMarket();
   }
 }
 

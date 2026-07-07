@@ -61,6 +61,7 @@ let _dispatchShipMarkers = [];
 let _currentGalaxyId = 'milky_way';
 let _currentSystem = null;
 let _hoveredPlanet = null;
+let _hoveredGalaxyId = null;
 let _selectedPlanet = null;
 let _motionLevel = 'full';
 let _qualityLevel = 'high';
@@ -500,6 +501,7 @@ function _clearGalaxyMeshes() {
     node.dispose();
   });
   _galaxyMeshes = [];
+  _hoveredGalaxyId = null;
 }
 
 // ---------------------------------------------------------------------------
@@ -591,6 +593,7 @@ function _renderGalaxies(state) {
 
     const accessState = getGalaxyAccessState(galaxy.id, state.playerLevel || 1, state.researchedTechs || []);
     const isUnlocked = accessState.unlocked;
+    const isCurrentGalaxy = galaxy.id === (state.currentGalaxy || 'milky_way');
     const baseOpacity = isUnlocked ? 1.0 : 0.3;
 
     // Deterministic seed from galaxy id
@@ -603,7 +606,12 @@ function _renderGalaxies(state) {
 
     const parent = new BABYLON.TransformNode('galaxy_' + galaxy.id, _scene);
     parent.position = new BABYLON.Vector3(x, y, z);
-    parent.metadata = { type: 'galaxy', id: galaxy.id, data: Object.assign({}, galaxy, { accessState: accessState }) };
+    parent.metadata = {
+      type: 'galaxy',
+      id: galaxy.id,
+      isCurrentGalaxy: isCurrentGalaxy,
+      data: Object.assign({}, galaxy, { accessState: accessState }),
+    };
 
     const galaxySize = 18 + rng(0) * 10;
 
@@ -623,7 +631,13 @@ function _renderGalaxies(state) {
     diskMat.useAlphaFromDiffuseTexture = true;
     diskPlane.material = diskMat;
     diskPlane.isPickable = true;
-    diskPlane.metadata = { type: 'galaxy', id: galaxy.id, data: Object.assign({}, galaxy, { accessState: accessState }) };
+    diskPlane.metadata = {
+      type: 'galaxy',
+      id: galaxy.id,
+      role: 'galaxy-disk',
+      baseAlpha: diskMat.alpha,
+      data: Object.assign({}, galaxy, { accessState: accessState }),
+    };
 
     // 2) Second nebula layer
     const disk2Tex = _createNebulaTexture(galaxy.color || '#4FC3F7', seed + 777, 256);
@@ -642,6 +656,30 @@ function _renderGalaxies(state) {
     disk2Mat.useAlphaFromDiffuseTexture = true;
     disk2Plane.material = disk2Mat;
     disk2Plane.isPickable = false;
+    disk2Plane.metadata = {
+      role: 'galaxy-haze',
+      baseAlpha: disk2Mat.alpha,
+    };
+
+    const focusRing = BABYLON.MeshBuilder.CreateTorus('gFocusRing_' + galaxy.id, {
+      diameter: galaxySize * 2.65,
+      thickness: 0.14,
+      tessellation: 96,
+    }, _scene);
+    focusRing.parent = parent;
+    focusRing.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
+    focusRing.isPickable = false;
+    const ringMat = new BABYLON.StandardMaterial('gFocusRingMat_' + galaxy.id, _scene);
+    ringMat.emissiveColor = BABYLON.Color3.FromHexString(galaxy.color || '#4FC3F7').scale(0.95);
+    ringMat.diffuseColor = ringMat.emissiveColor;
+    ringMat.disableLighting = true;
+    ringMat.alpha = isCurrentGalaxy ? 0.46 : (isUnlocked ? 0.18 : 0.08);
+    ringMat.backFaceCulling = false;
+    focusRing.material = ringMat;
+    focusRing.metadata = {
+      role: 'galaxy-focus-ring',
+      baseAlpha: ringMat.alpha,
+    };
 
     // 3) Scattered star particles
     const starCount = 30 + Math.floor(rng(1) * 30);
@@ -673,10 +711,48 @@ function _renderGalaxies(state) {
     _galaxyMeshes.push(parent);
 
     // Text label
-    _addTextLabel(galaxy.name, new BABYLON.Vector3(x, y + galaxySize + 3, z), 10);
+    _addTextLabel(galaxy.name, new BABYLON.Vector3(x, y + galaxySize + 4.5, z), Math.max(14, galaxy.name.length * 2.4 + 6));
     if (!isUnlocked) {
-      _addTextLabel('Lv.' + accessState.requiredLevel + ' 开放', new BABYLON.Vector3(x, y + galaxySize + 0.2, z), 11);
+      _addTextLabel('Lv.' + accessState.requiredLevel + ' 开放', new BABYLON.Vector3(x, y + galaxySize + 1.2, z), 12);
     }
+  });
+  _updateGalaxyVisualFocus();
+}
+
+function _setHoveredGalaxy(galaxyId) {
+  if (_hoveredGalaxyId === galaxyId) return;
+  _hoveredGalaxyId = galaxyId || null;
+  _updateGalaxyVisualFocus();
+}
+
+function _updateGalaxyVisualFocus(time) {
+  if (!_galaxyMeshes.length) return;
+
+  const pulse = time == null ? 0.5 : (0.5 + Math.sin(time * 0.005) * 0.5);
+  _galaxyMeshes.forEach((node) => {
+    const meta = node.metadata || {};
+    const accessState = meta.data && meta.data.accessState;
+    const isUnlocked = !accessState || accessState.unlocked !== false;
+    const isCurrent = !!meta.isCurrentGalaxy;
+    const isHovered = meta.id && meta.id === _hoveredGalaxyId;
+    const targetScale = isHovered ? 1.16 : (isCurrent ? 1.08 : 1);
+    node.scaling.set(targetScale, targetScale, targetScale);
+
+    node.getChildMeshes(false).forEach((mesh) => {
+      if (!mesh.material) return;
+      const role = mesh.metadata && mesh.metadata.role;
+      const baseAlpha = mesh.metadata && typeof mesh.metadata.baseAlpha === 'number'
+        ? mesh.metadata.baseAlpha
+        : mesh.material.alpha;
+
+      if (role === 'galaxy-focus-ring') {
+        mesh.material.alpha = isHovered
+          ? 0.72
+          : (isCurrent ? 0.48 + pulse * 0.12 : (isUnlocked ? 0.18 : 0.08));
+      } else if (role === 'galaxy-disk' || role === 'galaxy-haze') {
+        mesh.material.alpha = Math.min(1, baseAlpha + (isHovered ? 0.18 : (isCurrent ? 0.08 : 0)));
+      }
+    });
   });
 }
 
@@ -2455,6 +2531,7 @@ function _startAnimation() {
       _galaxyMeshes.forEach(node => {
         node.rotation.y += rotSpeed;
       });
+      _updateGalaxyVisualFocus(time);
     }
 
     // Rotate background slowly
@@ -2546,6 +2623,7 @@ function _onPointerMove(event) {
       while (mesh) {
         if (mesh.metadata && mesh.metadata.type === 'galaxy') {
           const accessState = mesh.metadata.data && mesh.metadata.data.accessState;
+          _setHoveredGalaxy(mesh.metadata.id);
           _canvas.style.cursor = accessState && accessState.unlocked === false ? 'not-allowed' : 'pointer';
           if (window._mapHoverCallback) {
             window._mapHoverCallback({ type: 'galaxy', id: mesh.metadata.id, ...mesh.metadata.data });
@@ -2555,6 +2633,7 @@ function _onPointerMove(event) {
         mesh = mesh.parent;
       }
     }
+    _setHoveredGalaxy(null);
     _canvas.style.cursor = 'default';
     if (window._mapHoverCallback) {
       window._mapHoverCallback(null);

@@ -386,19 +386,6 @@ export function hideEventNotificationBar() {
     notifEl.setAttribute('aria-hidden', 'true');
     notifEl.setAttribute('tabindex', '-1');
   }
-  _setEventBroadcastSuppressed(false);
-}
-
-function _setEventBroadcastSuppressed(suppressed) {
-  var broadcast = _getSurfaceById('mini-console-broadcast');
-  if (!broadcast) return;
-
-  broadcast.tabIndex = suppressed ? -1 : 0;
-  if (typeof broadcast.setAttribute === 'function') {
-    broadcast.setAttribute('aria-hidden', suppressed ? 'true' : 'false');
-    broadcast.setAttribute('tabindex', suppressed ? '-1' : '0');
-  }
-  if ('inert' in broadcast) broadcast.inert = suppressed;
 }
 
 export function showEventNotificationBar(notifEl) {
@@ -412,16 +399,6 @@ export function showEventNotificationBar(notifEl) {
     target.setAttribute('tabindex', '0');
   }
 
-  var broadcast = _getSurfaceById('mini-console-broadcast');
-  var shouldTransferFocus = broadcast && globalThis.document && document.activeElement === broadcast;
-  _setEventBroadcastSuppressed(true);
-  if (shouldTransferFocus && typeof target.focus === 'function') {
-    try {
-      target.focus({ preventScroll: true });
-    } catch (err) {
-      target.focus();
-    }
-  }
   return target;
 }
 

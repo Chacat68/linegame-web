@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>蓝脉航路 · 银河历 3045</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%23040814' stroke='%2322d3ee' stroke-width='2'/><circle cx='16' cy='16' r='4' fill='%2322d3ee'/><line x1='16' y1='2' x2='16' y2='8' stroke='%2322d3ee' stroke-width='1.5'/><line x1='16' y1='24' x2='16' y2='30' stroke='%2322d3ee' stroke-width='1.5'/><line x1='2' y1='16' x2='8' y2='16' stroke='%2322d3ee' stroke-width='1.5'/><line x1='24' y1='16' x2='30' y2='16' stroke='%2322d3ee' stroke-width='1.5'/></svg>" />
-    <link rel="stylesheet" href="css/style.css?v=20260621-settingsfallback1" />
+    <link rel="stylesheet" href="css/style.css?v=20260707-galaxymap1" />
   </head>
   <body>
     <div id="game-shell">
@@ -739,18 +739,6 @@
        Status bar (bottom: ship status + navigation tabs)
   ================================================================ -->
       <footer id="status-bar">
-        <!-- Mini Console Broadcast Bar (单行滚动日志广播) -->
-        <button
-          id="mini-console-broadcast"
-          class="mini-console-broadcast"
-          type="button"
-          aria-label="打开通讯历史。最新消息：系统准备就绪，蓝脉星区航路已锁定"
-        >
-          <span class="broadcast-icon">📟</span>
-          <span id="broadcast-content" class="broadcast-content" role="status" aria-live="polite" aria-atomic="true">系统准备就绪。蓝脉星区航路已锁定。</span>
-          <span id="broadcast-history-btn" class="broadcast-history-btn" aria-hidden="true">查看历史</span>
-        </button>
-
         <!-- Bottom navigation tabs -->
         <nav class="bottom-nav" id="bottom-nav" aria-label="主界面导航">
           <button class="bottom-nav-btn active" type="button" data-view="starmap" title="星图" aria-current="page" aria-pressed="true">
@@ -773,77 +761,12 @@
           <button class="bottom-nav-btn" type="button" data-view="logs" title="通讯日志" aria-pressed="false">
             <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
             <span>日志</span>
+            <span id="logs-nav-badge" class="bottom-nav-badge" hidden></span>
           </button>
         </nav>
       </footer>
     </div>
     <!-- /game-shell -->
-
-    <!-- ================================================================
-     Logs modal (通讯历史终端弹窗)
-================================================================ -->
-    <div
-      id="logs-modal"
-      class="modal hidden"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="logs-title"
-      aria-describedby="logs-modal-desc logs-modal-summary logs-modal-feed-status"
-    >
-      <div class="modal-box stack-modal-box logs-modal-box" tabindex="-1">
-        <div class="stack-modal-scroll">
-          <div class="logs-header">
-            <span class="logs-icon-large" aria-hidden="true">📟</span>
-            <div class="logs-header-copy">
-              <div class="logs-kicker">Signal Archive</div>
-              <h3 id="logs-title">通讯历史终端</h3>
-            </div>
-          </div>
-          <p id="logs-modal-desc" class="logs-modal-desc">
-            汇总最近的交易、航行、系统提示和风险事件，用于回溯当前经营状态。
-          </p>
-          <div id="logs-modal-summary" class="logs-modal-summary" role="list" aria-label="通讯日志摘要">
-            <span class="logs-modal-summary-item" role="listitem">
-              <em>记录总数</em>
-              <strong id="logs-summary-total">0</strong>
-            </span>
-            <span class="logs-modal-summary-item" role="listitem">
-              <em>交易信号</em>
-              <strong id="logs-summary-trade">0</strong>
-            </span>
-            <span class="logs-modal-summary-item logs-modal-summary-item--risk" role="listitem">
-              <em>风险事件</em>
-              <strong id="logs-summary-risk">0</strong>
-            </span>
-            <span class="logs-modal-summary-item" role="listitem">
-              <em>最新信号</em>
-              <strong id="logs-summary-latest">暂无</strong>
-            </span>
-          </div>
-          <div class="logs-modal-toolbar" role="toolbar" aria-label="日志类型筛选">
-            <button class="logs-filter-chip is-active" type="button" data-logs-filter="all" aria-controls="logs-modal-list" aria-pressed="true" tabindex="0">全部</button>
-            <button class="logs-filter-chip" type="button" data-logs-filter="trade" aria-controls="logs-modal-list" aria-pressed="false" tabindex="-1">交易</button>
-            <button class="logs-filter-chip" type="button" data-logs-filter="travel" aria-controls="logs-modal-list" aria-pressed="false" tabindex="-1">航行</button>
-            <button class="logs-filter-chip" type="button" data-logs-filter="risk" aria-controls="logs-modal-list" aria-pressed="false" tabindex="-1">风险</button>
-            <button class="logs-filter-chip" type="button" data-logs-filter="system" aria-controls="logs-modal-list" aria-pressed="false" tabindex="-1">系统</button>
-          </div>
-          <div id="logs-modal-feed-status" class="logs-modal-feed-status" role="status" aria-live="polite">
-            显示全部通讯记录
-          </div>
-          <div
-            id="logs-modal-list"
-            class="console-message-log-detailed"
-            role="list"
-            aria-label="通讯历史记录"
-            aria-describedby="logs-modal-feed-status"
-            tabindex="0"
-          ></div>
-        </div>
-        <div class="modal-actions">
-          <button id="logs-modal-close" class="btn-secondary" type="button">关闭</button>
-        </div>
-      </div>
-    </div>
 
     <!-- ================================================================
      Trade modal
@@ -1328,30 +1251,30 @@
         <div id="tutorial-start-title" class="tut-start-title">✦ 欢迎接入蓝脉</div>
         <div class="tut-start-body">
           <p id="tutorial-start-desc" class="tut-start-desc">
-            你刚接管一条濒临停摆的深空贸易航线。先完成一轮基础接入训练，可以快速熟悉交易、航行和任务追踪。
+            你刚接管一条濒临停摆的深空贸易航线。先完成一轮基础接入训练，跑通状态判断、买入、航行、卖出和后续行动接管。
           </p>
           <div class="tut-start-modules" role="list" aria-label="教程内容">
             <div class="tut-start-module" role="listitem">
               <span>01</span>
-              <strong>买入与出售</strong>
-              <small>完成第一笔稳定交易</small>
+              <strong>状态与货舱</strong>
+              <small>先确认资金、位置和燃料</small>
             </div>
             <div class="tut-start-module" role="listitem">
               <span>02</span>
-              <strong>航行与燃料</strong>
-              <small>理解路线消耗与补给</small>
+              <strong>买入与卖出</strong>
+              <small>跑完第一轮低买高卖</small>
             </div>
             <div class="tut-start-module" role="listitem">
               <span>03</span>
-              <strong>任务追踪</strong>
-              <small>接入当前目标引导</small>
+              <strong>当前行动</strong>
+              <small>教程结束后接入统一引导</small>
             </div>
           </div>
           <div id="tutorial-start-decision" class="tut-start-decision" role="list" aria-label="教程启动选项说明">
             <div id="tutorial-start-guided-note" class="tut-start-decision-card tut-start-decision-card--primary" role="listitem">
               <span>推荐</span>
               <strong>启动接入教程</strong>
-              <small>保留任务引导，按步骤完成第一轮交易。</small>
+              <small>按步骤完成第一轮交易，再交给当前行动。</small>
             </div>
             <div id="tutorial-start-free-note" class="tut-start-decision-card" role="listitem">
               <span>自由</span>
@@ -1808,6 +1731,6 @@
 
     <!-- Babylon.js library for 3D rendering -->
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
-    <script type="module" src="js/main.js?v=20260621-settingsfallback1"></script>
+    <script type="module" src="js/main.js?v=20260707-galaxymap1"></script>
   </body>
 </html>

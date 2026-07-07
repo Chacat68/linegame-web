@@ -340,7 +340,7 @@ describe('UI lifecycle idempotency', function () {
     });
   });
 
-  it('MapUI fallback 底部日志入口会打开新版日志弹窗并支持再次点击关闭', function () {
+  it('MapUI fallback 底部日志入口只清角标并保持当前导航态', function () {
     vi.resetModules();
 
     var starmapBtn = createFakeElement(['bottom-nav-btn', 'active']);
@@ -354,8 +354,6 @@ describe('UI lifecycle idempotency', function () {
     var infoPanel = createFakeElement();
     var consolePanel = createFakeElement();
     var marketOverlay = createFakeElement(['hidden']);
-    var logsModal = createFakeElement(['modal', 'hidden']);
-    logsModal.id = 'logs-modal';
 
     function findActiveBottomButton() {
       return bottomButtons.find(function (button) {
@@ -382,7 +380,7 @@ describe('UI lifecycle idempotency', function () {
       querySelectorAll: function (selector) {
         if (selector === '.tab-btn') return [];
         if (selector === '.bottom-nav-btn') return bottomButtons;
-        if (selector === '.modal') return [logsModal];
+        if (selector === '.modal') return [];
         return [];
       },
       querySelector: function (selector) {
@@ -395,7 +393,6 @@ describe('UI lifecycle idempotency', function () {
         if (id === 'info-panel') return infoPanel;
         if (id === 'console-panel') return consolePanel;
         if (id === 'market-overlay') return marketOverlay;
-        if (id === 'logs-modal') return logsModal;
         return null;
       },
     };
@@ -404,19 +401,18 @@ describe('UI lifecycle idempotency', function () {
       MapUI.initTabs(function () {});
 
       clickBottomButton(logsBtn);
-      expect(logsModal.classList.contains('hidden')).toBe(false);
-      expect(logsBtn.classList.contains('active')).toBe(true);
+      expect(starmapBtn.classList.contains('active')).toBe(true);
+      expect(logsBtn.classList.contains('active')).toBe(false);
       expect(tradePanel.classList.contains('panel-open')).toBe(false);
       expect(infoPanel.classList.contains('panel-open')).toBe(false);
 
       clickBottomButton(logsBtn);
-      expect(logsModal.classList.contains('hidden')).toBe(true);
       expect(starmapBtn.classList.contains('active')).toBe(true);
       expect(logsBtn.classList.contains('active')).toBe(false);
     });
   });
 
-  it('MapUI fallback 会把没有 DOM 的旧 console 入口转到日志弹窗', function () {
+  it('MapUI fallback 会把没有 DOM 的旧 console 入口转成日志角标清理', function () {
     vi.resetModules();
 
     var starmapBtn = createFakeElement(['bottom-nav-btn', 'active']);
@@ -429,8 +425,6 @@ describe('UI lifecycle idempotency', function () {
     var tradePanel = createFakeElement();
     var infoPanel = createFakeElement();
     var marketOverlay = createFakeElement(['hidden']);
-    var logsModal = createFakeElement(['modal', 'hidden']);
-    logsModal.id = 'logs-modal';
 
     function findActiveBottomButton() {
       return bottomButtons.find(function (button) {
@@ -447,7 +441,7 @@ describe('UI lifecycle idempotency', function () {
       querySelectorAll: function (selector) {
         if (selector === '.tab-btn') return [];
         if (selector === '.bottom-nav-btn') return bottomButtons;
-        if (selector === '.modal') return [logsModal];
+        if (selector === '.modal') return [];
         return [];
       },
       querySelector: function (selector) {
@@ -459,7 +453,6 @@ describe('UI lifecycle idempotency', function () {
         if (id === 'trade-panel') return tradePanel;
         if (id === 'info-panel') return infoPanel;
         if (id === 'market-overlay') return marketOverlay;
-        if (id === 'logs-modal') return logsModal;
         return null;
       },
     };
@@ -475,9 +468,8 @@ describe('UI lifecycle idempotency', function () {
         },
       });
 
-      expect(logsModal.classList.contains('hidden')).toBe(false);
       expect(consoleBtn.classList.contains('active')).toBe(false);
-      expect(starmapBtn.classList.contains('active')).toBe(false);
+      expect(starmapBtn.classList.contains('active')).toBe(true);
     });
   });
 
@@ -654,15 +646,13 @@ describe('UI lifecycle idempotency', function () {
     var tradePanel = createFakeElement();
     var consolePanel = createFakeElement();
     var marketOverlay = createFakeElement(['hidden']);
-    var logsModal = createFakeElement(['hidden', 'modal']);
     var canvas = createFakeElement();
-    logsModal.id = 'logs-modal';
 
     globalThis.window = {};
     globalThis.document = {
       querySelectorAll: function (selector) {
         if (selector === '.bottom-nav-btn') return bottomButtons;
-        if (selector === '.modal') return [logsModal];
+        if (selector === '.modal') return [];
         return [];
       },
       getElementById: function (id) {
@@ -671,7 +661,6 @@ describe('UI lifecycle idempotency', function () {
         if (id === 'trade-panel') return tradePanel;
         if (id === 'console-panel') return consolePanel;
         if (id === 'market-overlay') return marketOverlay;
-        if (id === 'logs-modal') return logsModal;
         if (id === 'map-3d-canvas') return canvas;
         return null;
       },

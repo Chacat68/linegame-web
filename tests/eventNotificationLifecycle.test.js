@@ -87,7 +87,7 @@ describe('Event notification lifecycle', function () {
     expect(css).toContain('left: max(12px, var(--safe-left));');
     expect(css).toContain('right: max(12px, var(--safe-right));');
     expect(css).not.toContain('body:has(#action-guide:not([hidden])) #event-notification');
-    expect(css).toContain('body:has(#event-notification:not(.hidden)) .mini-console-broadcast');
+    expect(html).not.toContain('id="mini-console-broadcast"');
   });
 
   it('最后一个阻塞层关闭后会恢复待处理事件通知条', async function () {
@@ -97,8 +97,6 @@ describe('Event notification lifecycle', function () {
     settingsModal.id = 'settings-modal';
     var notification = createFakeElement(['hidden']);
     notification.id = 'event-notification';
-    var broadcast = createFakeElement();
-    broadcast.id = 'mini-console-broadcast';
     var notifIcon = createFakeElement();
     notifIcon.id = 'event-notif-icon';
     var notifKicker = createFakeElement();
@@ -111,7 +109,6 @@ describe('Event notification lifecycle', function () {
     var elements = {
       'settings-modal': settingsModal,
       'event-notification': notification,
-      'mini-console-broadcast': broadcast,
       'event-notif-icon': notifIcon,
       'event-notif-kicker': notifKicker,
       'event-notif-text': notifText,
@@ -119,7 +116,7 @@ describe('Event notification lifecycle', function () {
     };
 
     globalThis.document = {
-      activeElement: broadcast,
+      activeElement: null,
       getElementById: function (id) {
         return elements[id] || null;
       },
@@ -151,7 +148,7 @@ describe('Event notification lifecycle', function () {
     expect(notification.getAttribute('aria-hidden')).toBe('false');
     expect(notification.getAttribute('tabindex')).toBe('0');
     expect(notification.tabIndex).toBe(0);
-    expect(notification.focusCalls).toBe(1);
+    expect(notification.focusCalls).toBe(0);
     expect(typeof notification.onclick).toBe('function');
     expect(notification.onkeydown).toBe(null);
     expect(notifIcon.textContent).toBe('📡');
@@ -159,12 +156,7 @@ describe('Event notification lifecycle', function () {
     expect(notifText.textContent).toBe('信号中断');
     expect(notifMeta.textContent).toBe('单次处置 · 打开后选择处置方案');
     expect(notification.getAttribute('aria-label')).toBe('待处理事件：信号中断，中风险，中期事件。查看事件详情');
-    expect(broadcast.getAttribute('aria-hidden')).toBe('true');
-    expect(broadcast.getAttribute('tabindex')).toBe('-1');
 
     EventUI.hidePendingNotification();
-
-    expect(broadcast.getAttribute('aria-hidden')).toBe('false');
-    expect(broadcast.getAttribute('tabindex')).toBe('0');
   });
 });
