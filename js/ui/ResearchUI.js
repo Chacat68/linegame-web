@@ -233,31 +233,31 @@ function _buildResearchPrimaryAction(blocker) {
   if (blocker.reasonId === 'cargo') {
     return _buildResearchMarketAction(
       'cargo',
-      '前往市场清货',
-      '先卖掉一部分货物，腾出舱位后再回来规划科研补给。'
+      '打开市场清货',
+      '会进入交易所终端的现货区，先卖掉一部分货物，腾出舱位后再回来规划科研补给。'
     );
   }
 
   if (blocker.reasonId === 'credits') {
     return _buildResearchMarketAction(
       'credits',
-      '前往市场周转',
-      '先做一笔回款或卖货，补足进货资金后再回来。'
+      '打开资本周转',
+      '会进入交易所终端的资本区，先做一笔回款或卖货，补足进货资金后再回来。'
     );
   }
 
   if (blocker.reasonId === 'level') {
     return _buildResearchMarketAction(
       'level',
-      '去市场跑单升级',
-      '先提升等级，解锁更多科研相关补给点。'
+      '打开市场跑单',
+      '会进入交易所终端，先提升等级，解锁更多科研相关补给点。'
     );
   }
 
   return _buildResearchMarketAction(
     'generic',
-    '前往市场看看',
-    '先看看本地行情和库存，再回来等待更稳的科研补给线。'
+    '打开市场查看',
+    '会进入交易所终端，先看看本地行情和库存，再回来等待更稳的科研补给线。'
   );
 }
 

@@ -128,7 +128,7 @@ describe('QuestUI.getQuestBlockerActions', () => {
     expect(actions[0]).toMatchObject({
       actionId: 'market',
       reasonId: 'level',
-      label: '去市场跑单升级',
+      label: '打开市场跑单',
       marketWorkspaceId: 'spot',
       marketSubworkspaceId: 'trade',
       marketFocusLabel: '现货交易区',
@@ -163,7 +163,7 @@ describe('QuestUI.getQuestBlockerActions', () => {
     expect(actions[0]).toMatchObject({
       actionId: 'market',
       reasonId: 'fuel',
-      label: '前往市场补给',
+      label: '打开市场补燃料',
       marketWorkspaceId: 'spot',
       marketSubworkspaceId: 'trade',
       marketFocusLabel: '现货交易区',
@@ -171,6 +171,7 @@ describe('QuestUI.getQuestBlockerActions', () => {
       commandIntent: '现货交易区',
     });
     expect(actions[1]).toMatchObject({ actionId: 'quest-focus', label: '先跑短线补给', targetQuestId: 'starter_deliver_food' });
+    expect(actions[0].hint).toContain('交易所终端');
     expect(actions[1].hint).toContain('回补燃料');
   });
 
@@ -207,7 +208,7 @@ describe('QuestUI.getQuestBlockerActions', () => {
     expect(actions[0]).toMatchObject({
       actionId: 'market',
       reasonId: 'fuel',
-      label: '前往市场补给',
+      label: '打开市场补燃料',
       marketWorkspaceId: 'spot',
       marketSubworkspaceId: 'trade',
       marketFocusLabel: '现货交易区',

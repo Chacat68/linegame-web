@@ -61,7 +61,7 @@ function _renderStep(step, index, total) {
   _rememberTutorialTrigger();
 
   // 阶段名称
-  const phaseNames = { 1: '星际初航', 2: '第一桶金', 3: '自由探索' };
+  const phaseNames = { 1: '起步校准', 2: '第一轮交易', 3: '行动接管' };
   const phaseName  = phaseNames[step.phase] || '';
 
   // 进度

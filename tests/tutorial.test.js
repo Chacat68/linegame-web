@@ -20,8 +20,8 @@ if (typeof globalThis.localStorage === 'undefined') {
   };
 }
 
-function advanceToQuestAcceptStep() {
-  while (Tutorial.getStep() && Tutorial.getStep().id !== 'accept_first_quest') {
+function advanceToStep(stepId) {
+  while (Tutorial.getStep() && Tutorial.getStep().id !== stepId) {
     const step = Tutorial.getStep();
 
     if (step.trigger === 'manual') {
@@ -54,53 +54,47 @@ describe('TutorialSystem', () => {
     Tutorial.reset();
   });
 
-  it('任务接取后会进入首单完成步骤', () => {
+  it('卖出后进入燃料安全和行动条交接步骤', () => {
     const state = createTestState();
 
     Tutorial.init(state);
     Tutorial.start();
-    advanceToQuestAcceptStep();
+    advanceToStep('buy_goods');
 
-    expect(Tutorial.getStep().id).toBe('accept_first_quest');
-    Tutorial.checkTrigger('accept_quest');
-    expect(Tutorial.getStep().id).toBe('complete_first_quest');
+    expect(Tutorial.getStep().id).toBe('buy_goods');
+    Tutorial.checkTrigger('buy');
+    expect(Tutorial.getStep().id).toBe('travel_hint');
+    Tutorial.checkTrigger('travel');
+    expect(Tutorial.getStep().id).toBe('sell_goods');
+    Tutorial.checkTrigger('sell');
+    expect(Tutorial.getStep().id).toBe('fuel_safety');
+    Tutorial.advance();
+    expect(Tutorial.getStep().id).toBe('action_guide_handoff');
+    Tutorial.advance();
+    expect(Tutorial.getStep().id).toBe('tutorial_complete');
   });
 
-  it('首个任务完成后会推进到任务追踪步骤', () => {
-    const state = createTestState();
-
-    Tutorial.init(state);
-    Tutorial.start();
-    advanceToQuestAcceptStep();
-
-    Tutorial.checkTrigger('accept_quest');
-    expect(Tutorial.getStep().id).toBe('complete_first_quest');
-    Tutorial.checkTrigger('complete_quest');
-    expect(Tutorial.getStep().id).toBe('quest_tracker');
-  });
-
-  it('若任务在接取后立即结算，会自动越过完成步骤', () => {
-    const state = createTestState();
-
-    Tutorial.init(state);
-    Tutorial.start();
-    advanceToQuestAcceptStep();
-
-    Tutorial.checkTrigger('complete_quest');
-    Tutorial.checkTrigger('accept_quest');
-
-    expect(Tutorial.getStep().id).toBe('quest_tracker');
-  });
-
-  it('任务步骤插在燃料提示之前', () => {
+  it('遮罩教程不再强制接取和完成任务', () => {
     const ids = Tutorial.STEPS.map(function (step) { return step.id; });
 
-    expect(ids).toContain('show_quest_board');
-    expect(ids).toContain('accept_first_quest');
-    expect(ids).toContain('complete_first_quest');
-    expect(ids).toContain('quest_tracker');
-    expect(ids.indexOf('accept_first_quest')).toBeLessThan(ids.indexOf('fuel_warning'));
-    expect(ids.indexOf('complete_first_quest')).toBeLessThan(ids.indexOf('quest_tracker'));
+    expect(ids).not.toContain('show_quest_board');
+    expect(ids).not.toContain('accept_first_quest');
+    expect(ids).not.toContain('complete_first_quest');
+    expect(ids).not.toContain('quest_tracker');
+    expect(ids).toEqual([
+      'welcome',
+      'show_stats',
+      'show_ship',
+      'explain_market',
+      'buy_goods',
+      'travel_hint',
+      'sell_goods',
+      'fuel_safety',
+      'action_guide_handoff',
+      'tutorial_complete',
+    ]);
+    expect(ids.indexOf('fuel_safety')).toBeGreaterThan(ids.indexOf('sell_goods'));
+    expect(ids.indexOf('action_guide_handoff')).toBeLessThan(ids.indexOf('tutorial_complete'));
   });
 
   it('教程高亮入口使用当前界面的稳定选择器', () => {

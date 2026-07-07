@@ -486,16 +486,16 @@ export function getQuestBlockerActions(blockers, fallbackQuest, state) {
   else if (primaryReasonId === 'fuel') {
     actions.push(_buildQuestMarketAction(
       'fuel',
-      '前往市场补给',
-      '先补充燃料或调整货舱，再回来恢复派遣建议。'
+      '打开市场补燃料',
+      '会进入交易所终端的现货区，先补充燃料或调整货舱，再回来恢复派遣建议。'
     ));
   }
 
   else if (primaryReasonId === 'level') {
     actions.push(_buildQuestMarketAction(
       'level',
-      '去市场跑单升级',
-      '先做几笔交易和补给，把等级提上来再接这条线。'
+      '打开市场跑单',
+      '会进入交易所终端的现货区，先做几笔交易把等级提上来再接这条线。'
     ));
   }
 

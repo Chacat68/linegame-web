@@ -202,7 +202,7 @@ describe('ResearchUI blocker helpers', () => {
     expect(actions[0]).toMatchObject({
       actionId: 'market',
       reasonId: 'cargo',
-      label: '前往市场清货',
+      label: '打开市场清货',
       marketWorkspaceId: 'spot',
       marketSubworkspaceId: 'trade',
       marketFocusLabel: '现货交易区',
@@ -235,7 +235,7 @@ describe('ResearchUI blocker helpers', () => {
     expect(actions[0]).toMatchObject({
       actionId: 'market',
       reasonId: 'credits',
-      label: '前往市场周转',
+      label: '打开资本周转',
       marketWorkspaceId: 'capital',
       marketSubworkspaceId: 'local',
       marketFocusLabel: '资本调度区',
@@ -277,7 +277,7 @@ describe('ResearchUI blocker helpers', () => {
     expect(actions[0]).toMatchObject({
       actionId: 'market',
       reasonId: 'level',
-      label: '去市场跑单升级',
+      label: '打开市场跑单',
       marketWorkspaceId: 'operations',
       marketSubworkspaceId: 'local',
       marketFocusLabel: '本地节点经营区',
