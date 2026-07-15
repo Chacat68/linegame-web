@@ -11,11 +11,10 @@
 //   marketType = 'black' → 使用黑市价格（含违禁品溢价）
 
 import { GOODS }    from '../../data/goods.js';
-import { SYSTEMS, findSystem, getGalaxyAccessState }  from '../../data/systems.js?v=20260420-balance3';
+import { SYSTEMS, findSystem, getGalaxyAccessState }  from '../../data/systems.js';
 import { UPGRADES } from '../../data/upgrades.js';
 import * as Economy from '../economy/Economy.js';
-import * as Finance from '../finance/FinanceSystem.js';
-import * as Exploration from '../galaxy/ExplorationSystem.js?v=20260531-chainfollow1';
+import * as Exploration from '../galaxy/ExplorationSystem.js';
 
 // ---------------------------------------------------------------------------
 // 辅助工具
@@ -30,8 +29,30 @@ export function getNetWorth(state) {
   Object.entries(state.cargo).forEach(function (entry) {
     worth += Economy.getSellPrice(state.currentSystem, entry[0], state) * entry[1];
   });
-  worth += Finance.getNetWorthAdjustment(state);
+  worth += _getDeferredFinanceNetWorthAdjustment(state);
   return worth;
+}
+
+function _getDeferredFinanceNetWorthAdjustment(state) {
+  var stockMarket = state && state.stockMarket && typeof state.stockMarket === 'object' ? state.stockMarket : {};
+  var stockPortfolio = state && state.stockPortfolio && typeof state.stockPortfolio === 'object' ? state.stockPortfolio : {};
+  var stockValue = Object.keys(stockPortfolio).reduce(function (sum, stockId) {
+    var holding = stockPortfolio[stockId] || {};
+    var quote = stockMarket[stockId] || {};
+    return sum + Math.max(0, Number(holding.shares || 0)) * Math.max(0, Number(quote.price || 0));
+  }, 0);
+  var investmentValue = Object.values(state && state.tradeInvestments && typeof state.tradeInvestments === 'object'
+    ? state.tradeInvestments
+    : {}).reduce(function (sum, investment) {
+    return sum + Math.max(0, Number(investment && investment.amount || 0));
+  }, 0);
+  var loanLiability = (state && Array.isArray(state.loans) ? state.loans : []).reduce(function (sum, loan) {
+    return sum + (loan && loan.status === 'active' ? Math.max(0, Number(loan.balance || 0)) : 0);
+  }, 0);
+  var futuresAdjustment = (state && Array.isArray(state.futuresContracts) ? state.futuresContracts : []).reduce(function (sum, contract) {
+    return sum + (contract && contract.status === 'open' ? Number(contract.unrealizedPnl || 0) : 0);
+  }, 0);
+  return stockValue + investmentValue - loanLiability + futuresAdjustment;
 }
 
 // ---------------------------------------------------------------------------
