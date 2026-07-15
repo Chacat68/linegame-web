@@ -1,5 +1,5 @@
-import { buildCommandFeedback } from '../ui/CommandAction.js?v=20260510-command1';
-import { getMarketNavigationCompletion, showContextCompletion } from './ActionGuideCompletion.js?v=20260526-helper1';
+import { buildCommandFeedback } from '../ui/CommandAction.js';
+import { getMarketNavigationCompletion, showContextCompletion } from './ActionGuideCompletion.js';
 
 function _getState(context) {
   if (context && typeof context.getState === 'function') return context.getState();

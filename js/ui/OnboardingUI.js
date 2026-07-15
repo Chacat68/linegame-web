@@ -1,6 +1,6 @@
 // js/ui/OnboardingUI.js — 首次进入与公司命名弹窗交互
 
-import { hideBlockingSurface, showBlockingSurface } from './SurfaceManager.js?v=20260621-settingsfallback1';
+import { hideBlockingSurface, showBlockingSurface } from './SurfaceManager.js';
 
 export function showTutorialStart(options) {
   var opts = options || {};

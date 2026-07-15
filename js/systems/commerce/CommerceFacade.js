@@ -13,9 +13,26 @@
 import * as Trade    from '../trade/TradeSystem.js';
 import * as Finance  from '../finance/FinanceSystem.js';
 import * as Futures  from '../finance/FuturesSystem.js';
-import * as Station  from '../trade/TradeStationSystem.js?v=20260531-chainfollow1';
+import * as Station  from '../trade/TradeStationSystem.js';
 import * as Economy  from '../economy/Economy.js';
 import { getCompanyAccessState } from '../../data/companyAccess.js';
+
+export function init(state) {
+  Station.init(state);
+  Finance.init(state);
+  return state;
+}
+
+export function advanceDay(state) {
+  const stationResult = Station.advanceDay(state);
+  const financeResult = Finance.advanceDay(state);
+  return {
+    ok: (!stationResult || stationResult.ok !== false) && (!financeResult || financeResult.ok !== false),
+    msgs: []
+      .concat(stationResult && Array.isArray(stationResult.msgs) ? stationResult.msgs : [])
+      .concat(financeResult && Array.isArray(financeResult.msgs) ? financeResult.msgs : []),
+  };
+}
 
 function _requireCompanyAccess(state, featureId, actionLabel) {
   const access = getCompanyAccessState(state, featureId);

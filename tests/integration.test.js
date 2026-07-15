@@ -9,6 +9,7 @@ import * as Futures from '../js/systems/finance/FuturesSystem.js';
 import * as GameTime from '../js/systems/time/GameTimeSystem.js';
 import * as Trade from '../js/systems/trade/TradeSystem.js';
 import * as TradeStation from '../js/systems/trade/TradeStationSystem.js';
+import * as Commerce from '../js/systems/commerce/CommerceFacade.js';
 import * as Save from '../js/systems/save/SaveSystem.js';
 import * as Quest from '../js/systems/quest/QuestSystem.js';
 import * as Faction from '../js/systems/faction/FactionSystem.js';
@@ -206,6 +207,7 @@ describe('端到端：经济→天数推进', () => {
     expect(Fleet.assignRoute(state, 1, 'sol_prime', 'nova_station', 'food').ok).toBe(true);
 
     const creditsBeforeAdvance = state.credits;
+    GameTime.setAdvancedDayProcessor(Commerce.advanceDay);
     const timeResult = GameTime.advanceDays(state, 1);
 
     expect(timeResult.ok).toBe(true);

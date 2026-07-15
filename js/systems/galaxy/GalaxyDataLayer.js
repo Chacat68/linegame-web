@@ -37,7 +37,6 @@ export function init(gameState) {
   // 生成星区划分
   _generateSectors();
 
-  console.log('GalaxyDataLayer initialized with', _planetStates.size, 'planets');
 }
 
 // ---------------------------------------------------------------------------
@@ -193,7 +192,6 @@ export function restorePlanetStates(savedStates) {
     _planetStates.set(planetId, restored);
   });
 
-  console.log('Restored', Object.keys(savedStates).length, 'planet states');
 }
 
 // ---------------------------------------------------------------------------
@@ -833,8 +831,6 @@ export function importGalaxyConfig(configJson) {
         });
       }
     });
-
-    console.log('Imported galaxy config:', config.galaxy.name);
 
     EventBus.emit('galaxy:config_imported', { galaxyId: config.galaxy.id });
 

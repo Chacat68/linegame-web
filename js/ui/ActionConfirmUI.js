@@ -4,7 +4,7 @@ import {
   bindBlockingSurfaceDismiss,
   hideBlockingSurface,
   showBlockingSurface,
-} from './SurfaceManager.js?v=20260621-settingsfallback1';
+} from './SurfaceManager.js';
 
 const SURFACE_ID = 'action-confirm-modal';
 let _initialized = false;

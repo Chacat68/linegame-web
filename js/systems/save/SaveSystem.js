@@ -373,9 +373,10 @@ function _normalizeState(data) {
   const source = data && typeof data === 'object' ? data : {};
   const normalized = _deepClone(SAVE_STATE_DEFAULTS);
 
-  Object.keys(source).forEach(function (key) {
-    if (RUNTIME_ONLY_FIELDS.indexOf(key) >= 0) return;
-    normalized[key] = _deepClone(source[key]);
+  Object.keys(SAVE_STATE_SCHEMA).forEach(function (key) {
+    if (Object.prototype.hasOwnProperty.call(source, key)) {
+      normalized[key] = _deepClone(source[key]);
+    }
   });
 
   STRING_FIELDS.forEach(function (key) {

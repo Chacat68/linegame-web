@@ -4,15 +4,14 @@
    ============================================================ */
 
 @import url("base.css");            /* 变量、重置、字体、body 背景 */
-@import url("layout.css?v=20260505-uibatch1");          /* 全局布局、game-shell */
-@import url("header.css?v=20260530-directiveclaimall1");          /* 顶部 header、状态栏、等级 */
-@import url("map.css?v=20260601-hangararchive2");             /* 星系地图、HUD 角标、扫描线 */
-@import url("panels.css?v=20260519-ux6");          /* 左/右面板、标签、市场、货物 */
-@import url("status.css?v=20260519-ux5");          /* 底部消息日志 */
-@import url("modals.css?v=20260531-rewardloop1");          /* 通用弹窗、船体值、事件弹窗 */
-@import url("systems.css?v=20260621-tutorialviewport2");         /* 科技、派系、存档、任务、成就、教程 */
-@import url("fleet.css?v=20260621-hangarinline1"); /* 舰队管理、船只卡片、改装 */
-@import url("settings.css?v=20260525-audio1");        /* 公司重命名、设置弹窗 */
-@import url("animations.css");      /* 动画偏好、reduced-motion */
-@import url("responsive.css?v=20260519-ux5");      /* 响应式 media queries */
-@import url("interstellar-trader.css?v=20260707-galaxymap1"); /* 参考图风格覆盖层 */
+@import url("layout.css");          /* 全局布局、game-shell */
+@import url("header.css");          /* 顶部 header、状态栏、等级 */
+@import url("map.css");             /* 星系地图、HUD 角标、扫描线 */
+@import url("panels.css");          /* 左/右面板、标签、市场、货物 */
+@import url("status.css");          /* 底部消息日志 */
+@import url("modals.css");          /* 通用弹窗、船体值、事件弹窗 */
+@import url("systems.css");         /* 科技、派系、存档、任务、成就、教程 */
+/* fleet.css 由 GameManager 在首次打开机库时按需加载 */
+@import url("settings.css");        /* 公司重命名、设置弹窗 */
+@import url("responsive.css");      /* 响应式 media queries */
+@import url("interstellar-trader.css"); /* 参考图风格覆盖层 */

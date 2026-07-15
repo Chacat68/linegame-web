@@ -2,8 +2,8 @@
 // 依赖：core/GameManager.js
 // 说明：浏览器加载完毕后初始化游戏
 
-import { init } from './core/GameManager.js?v=20260707-galaxymap1';
-import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from './ui/SurfaceManager.js?v=20260621-settingsfallback1';
+import { init } from './core/GameManager.js';
+import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from './ui/SurfaceManager.js';
 
 window.addEventListener('load', function () {
 	init();
@@ -13,7 +13,10 @@ window.addEventListener('load', function () {
 function bindSettingsModalFallback() {
 	if (document.body.dataset.settingsFallbackBound === 'true') return;
 	var settingsBtn = document.getElementById('settings-btn');
-	if (settingsBtn && settingsBtn.dataset.settingsBound === 'true') return;
+	if (settingsBtn && (
+		settingsBtn.dataset.settingsBound === 'true' ||
+		settingsBtn.dataset.settingsLoaderBound === 'true'
+	)) return;
 	document.body.dataset.settingsFallbackBound = 'true';
 	bindBlockingSurfaceDismiss('settings-modal');
 

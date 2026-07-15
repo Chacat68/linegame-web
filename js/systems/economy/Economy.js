@@ -11,7 +11,7 @@ import { SHIP_TYPES, SHIP_MODS, FLEET_BONUSES } from '../../data/ships.js';
 import { SYSTEMS, FUEL_COST_PER_UNIT, GALAXY_JUMP_FUEL, findSystem } from '../../data/systems.js';
 import * as Faction                       from '../faction/FactionSystem.js';
 import * as Crew                         from '../fleet/CrewSystem.js';
-import * as Exploration                  from '../galaxy/ExplorationSystem.js?v=20260531-chainfollow1';
+import * as Exploration                  from '../galaxy/ExplorationSystem.js';
 import { ensureShipSpecializationState, getShipSpecializationProfile } from '../fleet/ShipSpecialization.js';
 
 // ---------------------------------------------------------------------------

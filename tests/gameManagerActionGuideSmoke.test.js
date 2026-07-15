@@ -7,7 +7,7 @@ import * as Guidance from '../js/systems/guidance/GuidanceSystem.js';
 import * as Quest from '../js/systems/quest/QuestSystem.js';
 import * as Research from '../js/systems/research/ResearchSystem.js';
 import * as Tutorial from '../js/systems/tutorial/TutorialSystem.js';
-import * as FleetUI from '../js/ui/FleetUI.js?v=20260621-settingsfallback1';
+import * as FleetUI from '../js/ui/FleetUI.js';
 import { createTestState } from './helpers.js';
 
 function createFakeClassList(initialValues) {
@@ -257,7 +257,7 @@ describe('GameManager action guide smoke', function () {
     Tutorial.skip();
     gameManager._setStateForTest(state);
 
-    gameManager._handleActionGuideActionForTest({
+    await gameManager._handleActionGuideActionForTest({
       id: 'buy-low-price-good',
       actionType: 'trade.buy',
       actionLabel: '确认买入',
@@ -351,6 +351,10 @@ describe('GameManager action guide smoke', function () {
         recommendation: recommendation,
       },
       surface: 'fleet',
+    });
+
+    await vi.waitFor(function () {
+      expect(FleetUI.getActiveDispatchModalContext()).not.toBe(null);
     });
 
     var dispatchContext = FleetUI.getActiveDispatchModalContext();

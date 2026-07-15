@@ -5,11 +5,11 @@
 import { QUEST_TYPES } from '../data/quests.js';
 import { GOODS } from '../data/goods.js';
 import { findSystem } from '../data/systems.js';
-import { buildMarketFocusAction, MARKET_FOCUS_PRESET_IDS } from './MarketFocus.js?v=20260531-chainfollow1';
-import { getCommandActionAttributes, normalizeCommandAction, renderCommandActionContent } from './CommandAction.js?v=20260510-command1';
-import * as AutoTrade  from '../systems/trade/AutoTradeSystem.js?v=20260420-balance5';
-import * as Quest      from '../systems/quest/QuestSystem.js?v=20260412-questroute2';
-import * as ActionConfirmUI from './ActionConfirmUI.js?v=20260621-settingsfallback1';
+import { buildMarketFocusAction, MARKET_FOCUS_PRESET_IDS } from './MarketFocus.js';
+import { getCommandActionAttributes, normalizeCommandAction, renderCommandActionContent } from './CommandAction.js';
+import * as AutoTrade  from '../systems/trade/AutoTradeSystem.js';
+import * as Quest      from '../systems/quest/QuestSystem.js';
+import * as ActionConfirmUI from './ActionConfirmUI.js';
 
 const _goodNameById = GOODS.reduce(function (acc, good) {
   acc[good.id] = good.name;

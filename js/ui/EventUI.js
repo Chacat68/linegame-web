@@ -3,7 +3,7 @@
 // 导出：showEvent, hideEvent, showEventNotification, hasPendingEvent,
 //       forcePendingEvent, hidePendingNotification
 
-import { bindBlockingSurfaceDismiss, hasBlockingSurfaceOpen, hideBlockingSurface, hideEventNotificationBar, observeBlockingSurfaceState, showBlockingSurface, showEventNotificationBar } from './SurfaceManager.js?v=20260621-settingsfallback1';
+import { bindBlockingSurfaceDismiss, hasBlockingSurfaceOpen, hideBlockingSurface, hideEventNotificationBar, observeBlockingSurfaceState, showBlockingSurface, showEventNotificationBar } from './SurfaceManager.js';
 
 let _pendingEvent = null;
 let _pendingOnChoice = null;

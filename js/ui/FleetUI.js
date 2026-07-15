@@ -6,14 +6,14 @@ import { SHIP_TYPES, SHIP_UPGRADES, FLEET_SLOTS, SHIP_MODS, FLEET_BONUSES } from
 import { GALAXIES, SYSTEMS, getAccessibleGalaxies, getSystemsByGalaxy } from '../data/systems.js';
 import { GOODS } from '../data/goods.js';
 import { getCompanyLevelValue, getFleetSlotCompanyRequirement } from '../data/companyAccess.js';
-import * as Fleet from '../systems/fleet/FleetSystem.js?v=20260526-modfocus1';
+import * as Fleet from '../systems/fleet/FleetSystem.js';
 import * as Crew from '../systems/fleet/CrewSystem.js';
 import * as Economy from '../systems/economy/Economy.js';
-import * as AutoTrade from '../systems/trade/AutoTradeSystem.js?v=20260420-balance5';
+import * as AutoTrade from '../systems/trade/AutoTradeSystem.js';
 import * as Faction from '../systems/faction/FactionSystem.js';
-import { hideBlockingSurface, showBlockingSurface } from './SurfaceManager.js?v=20260621-settingsfallback1';
+import { hideBlockingSurface, showBlockingSurface } from './SurfaceManager.js';
 import * as EventBus from '../core/EventBus.js';
-import * as ActionConfirmUI from './ActionConfirmUI.js?v=20260621-settingsfallback1';
+import * as ActionConfirmUI from './ActionConfirmUI.js';
 
 let _activeInlineModalId = null;
 let _currentPortalCleanup = null;

@@ -1,6 +1,6 @@
 // js/core/DispatchController.js — 激活船只自动派遣控制器
 // 依赖：core/EventBus.js, systems/fleet/FleetSystem.js,
-//       systems/trade/AutoTradeSystem.js, systems/economy/Economy.js
+//       systems/trade/TradePolicy.js, systems/economy/Economy.js
 // 导出：startActiveDispatch, stopActiveDispatch, isRunning,
 //       runActiveDispatchTick, updateActiveDispatchUI
 //
@@ -8,13 +8,18 @@
 // tick 函数返回动作描述，由 GameManager 执行具体的状态变更。
 
 import * as EventBus  from './EventBus.js';
-import * as Fleet     from '../systems/fleet/FleetSystem.js?v=20260421-balance6';
-import * as AutoTrade from '../systems/trade/AutoTradeSystem.js?v=20260420-balance5';
+import * as Fleet     from '../systems/fleet/FleetSystem.js';
+import { canUseMarket, evaluateTradePolicy } from '../systems/trade/TradePolicy.js';
 import * as Economy   from '../systems/economy/Economy.js';
 
 let _activeDispatchInterval = null;
 let _activeDispatchKickoffTimeout = null;
+let _questRouteResolver = null;
 const ACTIVE_DISPATCH_TICK_MS = 5000;
+
+export function setQuestRouteResolver(resolver) {
+  _questRouteResolver = typeof resolver === 'function' ? resolver : null;
+}
 
 function _queuePolicyMessage(route, msgs, text) {
   if (!route || !text || route.lastPolicyMessage === text) return;
@@ -110,9 +115,9 @@ export function runActiveDispatchTick(state, options) {
 
   // 每个 tick 开始时检查任务路线
   var activeShip = Fleet.getActiveShip(state);
-  if (activeShip && activeShip.route) {
+  if (activeShip && activeShip.route && _questRouteResolver) {
     var activeShipStats = Fleet.getEffectiveShipStats(state, activeShip);
-    var qr = AutoTrade.findQuestRoute(state, {
+    var qr = _questRouteResolver(state, {
       currentSystem: state.currentSystem,
       currentGalaxy: state.currentGalaxy || 'milky_way',
       playerLevel: state.playerLevel || 1,
@@ -173,11 +178,11 @@ export function runActiveDispatchTick(state, options) {
     var buyPrice = marketType === 'black'
       ? Economy.getBlackMarketBuyPrice(route.buySystemId, route.goodId, state)
       : Economy.getBuyPrice(route.buySystemId, route.goodId, state);
-    var canBlackSell = marketType === 'black' && AutoTrade.canUseMarket(state, route.sellSystemId, 'black') && Economy.isBlackMarketGood(route.goodId);
+    var canBlackSell = marketType === 'black' && canUseMarket(state, route.sellSystemId, 'black') && Economy.isBlackMarketGood(route.goodId);
     var sellPrice = canBlackSell
       ? Economy.getBlackMarketSellPrice(route.sellSystemId, route.goodId, state)
       : Economy.getSellPrice(route.sellSystemId, route.goodId, state);
-    var buyPolicyCheck = AutoTrade.evaluateTradePolicy(buyPrice, sellPrice, route.tradePolicy);
+    var buyPolicyCheck = evaluateTradePolicy(buyPrice, sellPrice, route.tradePolicy);
     var cargoUsed = Object.values(state.cargo).reduce(function (s, q) { return s + q; }, 0);
     var space = state.maxCargo - cargoUsed;
     var canAfford = Math.floor(state.credits / buyPrice);
@@ -217,14 +222,14 @@ export function runActiveDispatchTick(state, options) {
     var routeS = result.needSell;
     var sellQty = state.cargo[routeS.goodId] || 0;
     var marketTypeS = routeS.marketMode || 'open';
-    var canBlackSellS = marketTypeS === 'black' && AutoTrade.canUseMarket(state, routeS.sellSystemId, 'black') && Economy.isBlackMarketGood(routeS.goodId);
+    var canBlackSellS = marketTypeS === 'black' && canUseMarket(state, routeS.sellSystemId, 'black') && Economy.isBlackMarketGood(routeS.goodId);
     var buyReference = routeS.lastBuyPrice != null ? routeS.lastBuyPrice : (marketTypeS === 'black'
       ? Economy.getBlackMarketBuyPrice(routeS.buySystemId, routeS.goodId, state)
       : Economy.getBuyPrice(routeS.buySystemId, routeS.goodId, state));
     var sellPrice = canBlackSellS
       ? Economy.getBlackMarketSellPrice(routeS.sellSystemId, routeS.goodId, state)
       : Economy.getSellPrice(routeS.sellSystemId, routeS.goodId, state);
-    var sellPolicyCheck = AutoTrade.evaluateTradePolicy(buyReference, sellPrice, routeS.tradePolicy);
+    var sellPolicyCheck = evaluateTradePolicy(buyReference, sellPrice, routeS.tradePolicy);
 
     if (!sellPolicyCheck.ok && sellQty > 0) {
       _queuePolicyMessage(routeS, msgs, '⏸️ 自动派遣等待卖点：' + sellPolicyCheck.reasons.join('、') + '。');

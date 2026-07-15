@@ -344,7 +344,9 @@ describe('FleetUI.openModModal guidance focus', function () {
 
   it('二级弹窗壳层包含描述、滚动容器和摘要指标样式', function () {
     var html = readFileSync('index.html', 'utf8');
-    var css = readFileSync('css/interstellar-trader.css', 'utf8');
+    var sharedCss = readFileSync('css/interstellar-trader.css', 'utf8');
+    var hangarCss = readFileSync('css/hangar-terminal.css', 'utf8');
+    var css = sharedCss + '\n' + hangarCss;
     var fleetCss = readFileSync('css/fleet.css', 'utf8');
     var source = readFileSync('js/ui/FleetUI.js', 'utf8');
 
@@ -373,6 +375,8 @@ describe('FleetUI.openModModal guidance focus', function () {
     expect(css).toContain('.dispatch-modal-box .dispatch-policy-status--error');
     expect(css).toContain('.dispatch-modal-box .dispatch-select[aria-invalid="true"]');
     expect(css).toContain('@media (max-width: 360px)');
+    expect(sharedCss).not.toContain('Hangar detail modal shell refinements');
+    expect(hangarCss).toContain('Hangar detail modal shell refinements');
     expect(fleetCss).toContain('.inline-portal-back-btn:focus-visible');
     expect(fleetCss).toContain('padding: 0 !important;');
     expect(source).toContain("modalBox.querySelectorAll('.crew-dismiss-btn')");

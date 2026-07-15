@@ -1,7 +1,6 @@
 import { findSystem } from '../data/systems.js';
 import * as Faction from '../systems/faction/FactionSystem.js';
-import * as Exploration from '../systems/galaxy/ExplorationSystem.js?v=20260531-chainfollow1';
-import * as TradeStation from '../systems/trade/TradeStationSystem.js?v=20260531-chainfollow1';
+import * as Exploration from '../systems/galaxy/ExplorationSystem.js';
 
 const MARKET_FOCUS_PRESETS = {
   'spot-trade': { workspaceId: 'spot', subworkspaceId: 'trade', label: '现货交易区' },
@@ -79,7 +78,11 @@ function _getContextualMarketDecision(state, systemId) {
     return fallbackDecision;
   }
 
-  var hasStation = !!TradeStation.getStation(state, targetSystemId);
+  var hasStation = !!(
+    state.tradeStations &&
+    typeof state.tradeStations === 'object' &&
+    state.tradeStations[targetSystemId]
+  );
   var hasInvestment = _hasLocalTradeInvestment(state, targetSystemId);
   if (hasStation || hasInvestment) {
     return {

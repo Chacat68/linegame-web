@@ -84,7 +84,9 @@ describe('MarketUI guided focus', function () {
 
   it('市场工作区静态外壳包含 tabpanel 语义和适配样式锚点', function () {
     const html = readFileSync('index.html', 'utf8');
-    const css = readFileSync('css/interstellar-trader.css', 'utf8');
+    const sharedCss = readFileSync('css/interstellar-trader.css', 'utf8');
+    const marketCss = readFileSync('css/market-terminal.css', 'utf8');
+    const css = sharedCss + '\n' + marketCss;
     const js = readFileSync('js/ui/MarketUI.js', 'utf8');
 
     expect(html).toContain('id="market-workspace-tabs"');
@@ -103,6 +105,8 @@ describe('MarketUI guided focus', function () {
     expect(css).toContain('scroll-snap-type: x proximity');
     expect(css).toContain('.market-price-mode-btn[aria-checked="true"]');
     expect(css).toContain('.mkt-ov-planet-action:focus-visible');
+    expect(sharedCss).not.toContain('Market matrix controls');
+    expect(marketCss).toContain('Market matrix controls');
   });
 
   it('市场一级和二级标签支持方向键切换并同步焦点', async function () {

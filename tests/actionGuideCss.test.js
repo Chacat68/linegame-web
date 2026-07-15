@@ -18,7 +18,7 @@ describe('Action guide responsive CSS', function () {
 
   it('样式入口会加载行动条适配版本', function () {
     var css = readFileSync(new URL('../css/style.css', import.meta.url), 'utf8');
-    expect(css).toContain('interstellar-trader.css?v=20260707-galaxymap1');
+    expect(css).toContain('@import url("interstellar-trader.css")');
   });
 
   it('机库和档案覆盖层会使用 panel-open 作为可见状态', function () {

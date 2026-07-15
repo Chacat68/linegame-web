@@ -2,8 +2,8 @@
 // 职责：遵循 SOLID 原则，统一管理界面大面板（星图、交易所、机库、个人档案）的显示隐藏、互斥和星图背景高斯模糊状态。
 
 import * as EventBus from '../core/EventBus.js';
-import { openSecondarySurface, closeAllSecondarySurfaces } from './SurfaceManager.js?v=20260621-settingsfallback1';
-import { loadSettings } from '../core/SettingsManager.js';
+import { openSecondarySurface, closeAllSecondarySurfaces } from './SurfaceManager.js';
+import { loadSettings } from '../core/SettingsCore.js';
 
 let _stateRef = null;
 let _currentView = 'starmap';
@@ -11,6 +11,7 @@ let _handlers = {
   onOpenMarket: null,
   onCloseMarket: null,
   onGetMarketOpen: null,
+  onOpenHangar: null,
   onOpenQuests: null
 };
 
@@ -50,10 +51,9 @@ export function init(stateRef, handlers) {
 
   // 监听全息特效开关的变化，并即时更新模糊样式
   EventBus.on('settings:terminalBlur:changed', function (enabled) {
-    var canvas = document.getElementById('map-3d-canvas');
-    if (canvas) {
+    _getStarmapCanvases().forEach(function (canvas) {
       _applyBlurStyle(canvas, _currentView);
-    }
+    });
   });
 
   // 注册挂载到全局
@@ -113,6 +113,9 @@ export function switchView(view) {
   } else if (view === 'hangar') {
     _currentView = 'hangar';
     openSecondarySurface('trade-panel');
+    if (_handlers.onOpenHangar && _stateRef) {
+      _handlers.onOpenHangar(_stateRef);
+    }
   } else if (view === 'quests') {
     _currentView = 'quests';
     if (_handlers.onOpenQuests && _stateRef) {
@@ -179,10 +182,19 @@ function _handleBottomNavKeydown(event) {
 }
 
 function _syncViewVisualState(view) {
-  var canvas = document.getElementById('map-3d-canvas');
-  if (canvas) {
+  _getStarmapCanvases().forEach(function (canvas) {
     _applyBlurStyle(canvas, view);
+  });
+}
+
+function _getStarmapCanvases() {
+  if (typeof document === 'undefined') return [];
+  if (typeof document.querySelectorAll === 'function') {
+    var canvases = Array.prototype.slice.call(document.querySelectorAll('.starmap-canvas'));
+    if (canvases.length > 0) return canvases;
   }
+  var legacyCanvas = document.getElementById && document.getElementById('map-3d-canvas');
+  return legacyCanvas ? [legacyCanvas] : [];
 }
 
 /**

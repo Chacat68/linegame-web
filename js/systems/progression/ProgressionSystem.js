@@ -7,9 +7,9 @@
 
 import * as PlayerLevels from '../../data/playerLevels.js';
 import { FACTION_CONFIG, PROGRESSION_CONFIG } from '../../data/constants.js';
-import { SYSTEMS, GALAXIES } from '../../data/systems.js?v=20260420-balance3';
+import { SYSTEMS, GALAXIES } from '../../data/systems.js';
 import { getCompanyUnlocksAtLevel } from '../../data/companyAccess.js';
-import * as Fleet from '../fleet/FleetSystem.js?v=20260421-balance6';
+import * as Fleet from '../fleet/FleetSystem.js';
 
 const getLevel = PlayerLevels.getLevel;
 const getCompanyLevel = PlayerLevels.getCompanyLevel || function () {

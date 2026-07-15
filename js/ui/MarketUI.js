@@ -7,15 +7,15 @@ import {
   TRADE_STATION_MANAGERS,
   TRADE_STATION_STRATEGIES,
 } from '../data/tradeStations.js';
-import { getSystemsByGalaxy, findSystem, isSystemAccessible } from '../data/systems.js?v=20260420-balance3';
+import { getSystemsByGalaxy, findSystem, isSystemAccessible } from '../data/systems.js';
 import { getCompanyAccessState, getCompanyLevelValue, getCompanyPrivilegeSummary } from '../data/companyAccess.js';
 import * as Economy from '../systems/economy/Economy.js';
 import * as Faction from '../systems/faction/FactionSystem.js';
 import * as Commerce from '../systems/commerce/CommerceFacade.js';
 import * as Finance from '../systems/finance/FinanceSystem.js';
 import * as Futures from '../systems/finance/FuturesSystem.js';
-import * as TradeStation from '../systems/trade/TradeStationSystem.js?v=20260531-chainfollow1';
-import * as Exploration from '../systems/galaxy/ExplorationSystem.js?v=20260531-chainfollow1';
+import * as TradeStation from '../systems/trade/TradeStationSystem.js';
+import * as Exploration from '../systems/galaxy/ExplorationSystem.js';
 
 const _focusedMarketGood = Object.create(null);
 const _marketChartRange = Object.create(null);

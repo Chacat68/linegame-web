@@ -4,7 +4,10 @@ import { readFileSync } from 'node:fs';
 describe('Secondary terminal UI structure', function () {
   it('档案和机库二级终端包含标题绑定、状态条、tabpanel 关系和移动端适配锚点', function () {
     var html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-    var css = readFileSync(new URL('../css/interstellar-trader.css', import.meta.url), 'utf8');
+    var sharedCss = readFileSync(new URL('../css/interstellar-trader.css', import.meta.url), 'utf8');
+    var archiveCss = readFileSync(new URL('../css/archive-terminal.css', import.meta.url), 'utf8');
+    var hangarCss = readFileSync(new URL('../css/hangar-terminal.css', import.meta.url), 'utf8');
+    var css = sharedCss + '\n' + archiveCss + '\n' + hangarCss;
     var js = readFileSync(new URL('../js/ui/MapUI.js', import.meta.url), 'utf8');
 
     expect(html).toContain('aria-labelledby="archive-terminal-title"');
@@ -66,5 +69,8 @@ describe('Secondary terminal UI structure', function () {
     expect(css).toContain('max(var(--modal-safe-gap), var(--safe-left))');
     expect(css).toContain('height: calc(52px + var(--safe-top))');
     expect(css).toContain('left: max(8px, var(--safe-left))');
+    expect(sharedCss).not.toContain('Archive terminal: factions + achievements');
+    expect(archiveCss).toContain('Archive terminal: factions + achievements');
+    expect(hangarCss).toContain('Hangar detail modals: ship modules + crew roster');
   });
 });

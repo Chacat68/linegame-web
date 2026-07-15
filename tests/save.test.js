@@ -3,7 +3,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as Save from '../js/systems/save/SaveSystem.js';
-import { SAVE_SCHEMA_VERSION, createSaveMeta } from '../js/data/constants.js';
+import { SAVE_SCHEMA_VERSION, SAVE_STATE_SCHEMA, createSaveMeta } from '../js/data/constants.js';
 import { createTestState } from './helpers.js';
 
 // vitest 在 Node 环境中没有 localStorage，需要 polyfill
@@ -300,6 +300,24 @@ describe('Save.importSave', () => {
     expect(loaded.ok).toBe(true);
     expect(loaded.state.credits).toBe(12345);
     expect(loaded.state.currentSystem).toBe(state.currentSystem);
+  });
+
+  it('导入时丢弃 SAVE_STATE_SCHEMA 外的未知状态字段', () => {
+    const payload = '{"meta":{"schemaVersion":' + SAVE_SCHEMA_VERSION + ',"slotId":1},"data":{"credits":2468,"currentSystem":"sol_prime","unknownField":"should_drop","__proto__":{"polluted":true},"constructor":{"prototype":{"polluted":true}}}}';
+
+    const result = Save.importSave(1, payload);
+    expect(result.ok).toBe(true);
+
+    const loaded = Save.loadGame(1);
+    expect(loaded.ok).toBe(true);
+    expect(loaded.state.credits).toBe(2468);
+    expect(loaded.state.unknownField).toBeUndefined();
+    expect(Object.prototype.hasOwnProperty.call(loaded.state, '__proto__')).toBe(false);
+    expect(Object.prototype.hasOwnProperty.call(loaded.state, 'constructor')).toBe(false);
+    expect({}.polluted).toBeUndefined();
+    Object.keys(loaded.state).forEach((key) => {
+      expect(key === 'hoveredSystem' || Object.prototype.hasOwnProperty.call(SAVE_STATE_SCHEMA, key)).toBe(true);
+    });
   });
 
   it('非法导入不会覆盖目标槽位里已有的有效存档', () => {

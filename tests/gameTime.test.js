@@ -5,6 +5,7 @@ import * as Economy from '../js/systems/economy/Economy.js';
 import * as Fleet from '../js/systems/fleet/FleetSystem.js';
 import * as Finance from '../js/systems/finance/FinanceSystem.js';
 import * as TradeStation from '../js/systems/trade/TradeStationSystem.js';
+import * as Commerce from '../js/systems/commerce/CommerceFacade.js';
 import * as Quest from '../js/systems/quest/QuestSystem.js';
 import * as Research from '../js/systems/research/ResearchSystem.js';
 import * as Faction from '../js/systems/faction/FactionSystem.js';
@@ -12,6 +13,7 @@ import { createTestState } from './helpers.js';
 
 beforeEach(() => {
   Economy.init();
+  GameTime.setAdvancedDayProcessor(Commerce.advanceDay);
 });
 
 describe('GameTime.consumeElapsedDays', () => {
@@ -29,6 +31,19 @@ describe('GameTime.consumeElapsedDays', () => {
 });
 
 describe('GameTime.advanceDays', () => {
+  it('延迟注入的高级经营结算会逐日执行', () => {
+    const state = createTestState({ day: 1 });
+    let processedDays = 0;
+    GameTime.setAdvancedDayProcessor(function () {
+      processedDays += 1;
+      return { ok: true, msgs: [] };
+    });
+
+    GameTime.advanceDays(state, 2);
+
+    expect(processedDays).toBe(2);
+  });
+
   it('推进日期时会同步结算研究与 survive_days 任务', () => {
     const tech = TECHNOLOGIES[0];
     const state = createTestState({

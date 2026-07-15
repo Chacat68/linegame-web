@@ -1,6 +1,6 @@
 // js/ui/VictoryResultUI.js - 胜利结算报告与流程出口
 
-import { hideBlockingSurface, showBlockingSurface } from './SurfaceManager.js?v=20260621-settingsfallback1';
+import { hideBlockingSurface, showBlockingSurface } from './SurfaceManager.js';
 
 let _onContinue = null;
 let _onRestart = null;

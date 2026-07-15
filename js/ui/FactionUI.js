@@ -8,8 +8,8 @@ import { findSystem } from '../data/systems.js';
 import {
   buildContextualMarketAction,
   getMarketFocusCtaLabel,
-} from './MarketFocus.js?v=20260531-chainfollow1';
-import { getCommandActionAttributes, renderCommandActionContent } from './CommandAction.js?v=20260510-command1';
+} from './MarketFocus.js';
+import { getCommandActionAttributes, renderCommandActionContent } from './CommandAction.js';
 
 function _escapeHtml(value) {
   return String(value == null ? '' : value)

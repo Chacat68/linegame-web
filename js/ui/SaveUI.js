@@ -3,7 +3,7 @@
 // 导出：render
 
 import * as Save from '../systems/save/SaveSystem.js';
-import * as ActionConfirmUI from './ActionConfirmUI.js?v=20260621-settingsfallback1';
+import * as ActionConfirmUI from './ActionConfirmUI.js';
 
 function _escapeHtml(value) {
   return String(value == null ? '' : value).replace(/[&<>"']/g, function (char) {
@@ -212,6 +212,20 @@ function _getExportableSlots(slots) {
   });
 }
 
+function _cleanupDownloadUrl(url, linkEl) {
+  var cleanup = function () {
+    if (url && globalThis.URL && typeof URL.revokeObjectURL === 'function') {
+      URL.revokeObjectURL(url);
+    }
+    if (linkEl && linkEl.parentNode && typeof linkEl.parentNode.removeChild === 'function') {
+      linkEl.parentNode.removeChild(linkEl);
+    }
+  };
+
+  if (typeof setTimeout === 'function') setTimeout(cleanup, 0);
+  else cleanup();
+}
+
 function _renderExportSourceOptions(slots, preferredSlotId) {
   if (!slots.length) return '<option value="" selected disabled>暂无有效存档</option>';
   return slots.map(function (slot) {
@@ -382,8 +396,11 @@ export function render(onSave, onLoad) {
     const a    = document.createElement('a');
     a.href     = url;
     a.download = 'startrader_save_' + sourceSlotId + '_' + Date.now() + '.json';
+    if (document.body && typeof document.body.appendChild === 'function') {
+      document.body.appendChild(a);
+    }
     a.click();
-    URL.revokeObjectURL(url);
+    _cleanupDownloadUrl(url, a);
     _setTransferStatus(container, '已生成' + _formatSlotLabel(sourceSlot) + ' 的导出文件。', 'success');
   });
 

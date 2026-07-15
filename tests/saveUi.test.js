@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestState } from './helpers.js';
 import * as Save from '../js/systems/save/SaveSystem.js';
 import * as SaveUI from '../js/ui/SaveUI.js';
@@ -222,6 +222,63 @@ describe('SaveUI.render', function () {
     expect(downloadCount).toBe(1);
     expect(container.querySelector('.save-transfer-status').textContent).toBe('已生成槽位 1 的导出文件。');
     expect(container.querySelector('.save-transfer-status').dataset.statusTone).toBe('success');
+  });
+
+  it('导出存档后延迟释放 Blob URL', function () {
+    var container = createFakeContainer();
+    var clicked = false;
+    var appended = false;
+    var removed = false;
+    var revokedUrls = [];
+    var originalURL = globalThis.URL;
+    var linkEl = {
+      href: '',
+      download: '',
+      parentNode: null,
+      click: function () { clicked = true; },
+    };
+    var body = {
+      appendChild: function (element) {
+        appended = element === linkEl;
+        element.parentNode = body;
+      },
+      removeChild: function (element) {
+        if (element === linkEl) removed = true;
+        element.parentNode = null;
+      },
+    };
+
+    vi.useFakeTimers();
+    globalThis.URL = {
+      createObjectURL: function () { return 'blob:linegame-save'; },
+      revokeObjectURL: function (url) { revokedUrls.push(url); },
+    };
+
+    try {
+      globalThis.document = {
+        body: body,
+        getElementById: function (id) {
+          return id === 'save-list' ? container : null;
+        },
+        createElement: function () {
+          return linkEl;
+        },
+      };
+      Save.saveGame(1, createTestState({ credits: 7000, day: 5 }), { timestampMs: 1717200000000 });
+
+      SaveUI.render(function () {}, function () {});
+      container.querySelector('.export-btn').click();
+
+      expect(clicked).toBe(true);
+      expect(appended).toBe(true);
+      expect(revokedUrls).toEqual([]);
+      vi.runOnlyPendingTimers();
+      expect(revokedUrls).toEqual(['blob:linegame-save']);
+      expect(removed).toBe(true);
+    } finally {
+      vi.useRealTimers();
+      globalThis.URL = originalURL;
+    }
   });
 
   it('区分可读取、空槽位和损坏槽位，并保持按钮回调', function () {

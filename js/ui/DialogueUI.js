@@ -2,7 +2,7 @@
 // 依赖：无
 // 导出：init, showScene, hideScene, isOpen
 
-import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from './SurfaceManager.js?v=20260621-settingsfallback1';
+import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from './SurfaceManager.js';
 
 let _activeScene = null;
 let _activeLineIndex = 0;

@@ -7,14 +7,13 @@ import { GOODS } from '../data/goods.js';
 import { SYSTEMS, findSystem, findGalaxy } from '../data/systems.js';
 import * as Faction             from '../systems/faction/FactionSystem.js';
 import * as PlayerLevels        from '../data/playerLevels.js';
-import * as Victory             from '../systems/victory/VictorySystem.js?v=20260619-endingresult1';
+import * as Victory             from '../systems/victory/VictorySystem.js';
 import * as Economy             from '../systems/economy/Economy.js';
-import * as Quest               from '../systems/quest/QuestSystem.js?v=20260412-questroute2';
-import * as Achievement         from '../systems/achievement/AchievementSystem.js';
+import * as Quest               from '../systems/quest/QuestSystem.js';
 import * as GalaxyData          from '../systems/galaxy/GalaxyDataLayer.js';
-import * as Exploration         from '../systems/galaxy/ExplorationSystem.js?v=20260531-chainfollow1';
+import * as Exploration         from '../systems/galaxy/ExplorationSystem.js';
 import { getCompanyLevelValue, getCompanyPrivilegeSummary } from '../data/companyAccess.js';
-import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from './SurfaceManager.js?v=20260621-settingsfallback1';
+import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from './SurfaceManager.js';
 
 const getLevel = PlayerLevels.getLevel;
 const getRepRank = PlayerLevels.getRepRank;
@@ -587,7 +586,7 @@ export function updateArchiveBadges(state) {
   const factionWatchCount = Faction.getAllRelations(safeState).filter(function (entry) {
     return entry && entry.level && entry.level.id !== 'neutral';
   }).length;
-  const achievementUnlockedCount = Achievement.getUnlocked(safeState).length;
+  const achievementUnlockedCount = Array.isArray(safeState.achievements) ? safeState.achievements.length : 0;
   const navCount = activeQuestCount + availableQuestCount + researchOptionCount;
 
   _setBadgeValue('archive-tab-quest-badge', activeQuestCount + availableQuestCount, '任务待处理');

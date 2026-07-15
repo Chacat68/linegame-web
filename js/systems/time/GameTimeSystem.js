@@ -3,12 +3,16 @@
 // 导出：createRealtimeClockState, resetRealtimeClock, consumeElapsedDays, advanceDays
 
 import * as Economy from '../economy/Economy.js';
-import * as TradeStation from '../trade/TradeStationSystem.js?v=20260531-chainfollow1';
-import * as Finance from '../finance/FinanceSystem.js';
 import * as Crew from '../fleet/CrewSystem.js';
 import * as Research from '../research/ResearchSystem.js';
 import * as Quest from '../quest/QuestSystem.js';
 import * as Fleet from '../fleet/FleetSystem.js';
+
+let _advancedDayProcessor = null;
+
+export function setAdvancedDayProcessor(processor) {
+  _advancedDayProcessor = typeof processor === 'function' ? processor : null;
+}
 
 export function createRealtimeClockState(nowMs, hullSnapshot) {
   return {
@@ -72,8 +76,7 @@ export function advanceDays(state, days) {
       });
     }
 
-    _appendMessages(msgs, TradeStation.advanceDay(state));
-    _appendMessages(msgs, Finance.advanceDay(state));
+    if (_advancedDayProcessor) _appendMessages(msgs, _advancedDayProcessor(state));
     _appendMessages(msgs, Crew.payDailyWages(state, 1));
     _appendMessages(msgs, Fleet.advanceFleetDay(state));
     _appendMessages(msgs, Research.advanceResearch(state));

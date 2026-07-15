@@ -4,7 +4,7 @@
 
 import * as Economy     from '../systems/economy/Economy.js';
 import { getTotalCargo } from '../systems/trade/TradeSystem.js';
-import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from './SurfaceManager.js?v=20260621-settingsfallback1';
+import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from './SurfaceManager.js';
 
 let _onConfirm = null; // 注入的确认回调，由 GameManager 提供
 let _initialized = false;
