@@ -7,9 +7,12 @@
     "doc": "docs"
   },
   "scripts": {
-    "dev": "python3 -m http.server 4173 --directory .",
-    "dev:alt": "python3 -m http.server 4174 --directory .",
+    "dev": "vite --host 0.0.0.0 --port 4173 --strictPort",
+    "dev:alt": "vite --host 0.0.0.0 --port 4174 --strictPort",
+    "dev:static": "python3 -m http.server 4173 --directory .",
     "start": "npm run dev",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0 --port 4173 --strictPort",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -25,6 +28,10 @@
   },
   "homepage": "https://github.com/Chacat68/linegame-web#readme",
   "devDependencies": {
-    "vitest": "^3.2.4"
+    "vite": "7.3.6",
+    "vitest": "3.2.6"
+  },
+  "dependencies": {
+    "three": "0.185.1"
   }
 }
