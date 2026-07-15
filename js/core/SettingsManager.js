@@ -6,33 +6,20 @@
 import * as EventBus from './EventBus.js';
 import * as Audio from './AudioManager.js';
 import { TIME_CONFIG } from '../data/constants.js';
-import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from '../ui/SurfaceManager.js?v=20260621-settingsfallback1';
-import * as ActionConfirmUI from '../ui/ActionConfirmUI.js?v=20260621-settingsfallback1';
+import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from '../ui/SurfaceManager.js';
+import * as ActionConfirmUI from '../ui/ActionConfirmUI.js';
+import {
+  DEFAULT_SOUND_EFFECTS_VOLUME,
+  applySettings as applyCoreSettings,
+  loadSettings,
+  normalizeRealtimeDayDurationMs as _normalizeRealtimeDayDurationMs,
+  normalizeSecretRoutesVisible as _normalizeSecretRoutesVisible,
+  normalizeSoundEffectsVolume as _normalizeSoundEffectsVolume,
+  saveSettings,
+} from './SettingsCore.js';
 
-const SETTINGS_KEY = 'linegame_settings';
-
-const VALID_MOTION_LEVELS = ['full', 'reduced', 'off'];
-const VALID_DIFFICULTIES = ['easy', 'normal', 'hard'];
-const VALID_REALTIME_DAY_DURATIONS_MS = TIME_CONFIG.availableRealtimeDayDurationsMs || [TIME_CONFIG.realtimeDayDurationMs];
-const DEFAULT_SOUND_EFFECTS_VOLUME = 0.35;
+export { loadSettings, saveSettings } from './SettingsCore.js';
 let _settingsModalCallbacks = null;
-
-function _normalizeSecretRoutesVisible(value) {
-  return value !== false;
-}
-
-function _normalizeRealtimeDayDurationMs(value) {
-  var numericValue = Number(value);
-  return VALID_REALTIME_DAY_DURATIONS_MS.indexOf(numericValue) >= 0
-    ? numericValue
-    : TIME_CONFIG.realtimeDayDurationMs;
-}
-
-function _normalizeSoundEffectsVolume(value) {
-  var numericValue = Number(value);
-  if (!Number.isFinite(numericValue)) return DEFAULT_SOUND_EFFECTS_VOLUME;
-  return Math.max(0, Math.min(1, numericValue));
-}
 
 function _getSettingsModalCallbacks() {
   return _settingsModalCallbacks || {
@@ -48,75 +35,13 @@ function _getSettingsModalCallbacks() {
   };
 }
 
-// ---------------------------------------------------------------------------
-// 设置加载 / 持久化
-// ---------------------------------------------------------------------------
-
-/**
- * 从 localStorage 加载设置
- * @returns {{ motionLevel: string, difficulty: string, secretRoutesVisible: boolean, realtimeDayDurationMs: number, terminalBlur: boolean, soundEffectsEnabled: boolean, soundEffectsVolume: number }}
- */
-export function loadSettings() {
-  try {
-    var raw = localStorage.getItem(SETTINGS_KEY);
-    if (!raw) {
-      return {
-        motionLevel: 'full',
-        difficulty: 'normal',
-        secretRoutesVisible: true,
-        realtimeDayDurationMs: TIME_CONFIG.realtimeDayDurationMs,
-        terminalBlur: true,
-        soundEffectsEnabled: true,
-        soundEffectsVolume: DEFAULT_SOUND_EFFECTS_VOLUME,
-      };
-    }
-    var parsed = JSON.parse(raw);
-    return {
-      motionLevel: VALID_MOTION_LEVELS.indexOf(parsed.motionLevel) >= 0
-        ? parsed.motionLevel
-        : 'full',
-      difficulty: VALID_DIFFICULTIES.indexOf(parsed.difficulty) >= 0
-        ? parsed.difficulty
-        : 'normal',
-      secretRoutesVisible: _normalizeSecretRoutesVisible(parsed.secretRoutesVisible),
-      realtimeDayDurationMs: _normalizeRealtimeDayDurationMs(parsed.realtimeDayDurationMs),
-      terminalBlur: parsed.terminalBlur !== false,
-      soundEffectsEnabled: parsed.soundEffectsEnabled !== false,
-      soundEffectsVolume: _normalizeSoundEffectsVolume(parsed.soundEffectsVolume),
-    };
-  } catch (_) {
-    return {
-      motionLevel: 'full',
-      difficulty: 'normal',
-      secretRoutesVisible: true,
-      realtimeDayDurationMs: TIME_CONFIG.realtimeDayDurationMs,
-      terminalBlur: true,
-      soundEffectsEnabled: true,
-      soundEffectsVolume: DEFAULT_SOUND_EFFECTS_VOLUME,
-    };
-  }
-}
-
-/**
- * 保存设置到 localStorage
- * @param {{ motionLevel: string, difficulty: string, secretRoutesVisible: boolean, realtimeDayDurationMs: number }} settings
- */
-export function saveSettings(settings) {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-}
-
 /**
  * 将设置应用到 DOM 和渲染器
  * @param {{ motionLevel: string, secretRoutesVisible: boolean }} settings
  * @param {{ setMotionLevel: Function, setSecretRoutesVisible: Function }} Renderer
  */
 export function applySettings(settings, Renderer) {
-  document.body.dataset.motion = settings.motionLevel || 'full';
-  Renderer.setMotionLevel(settings.motionLevel || 'full');
-  if (Renderer.setSecretRoutesVisible) {
-    Renderer.setSecretRoutesVisible(_normalizeSecretRoutesVisible(settings.secretRoutesVisible));
-  }
-  Audio.applySettings(settings);
+  applyCoreSettings(settings, Renderer);
   _syncSettingsOverview(settings);
 }
 
@@ -131,6 +56,7 @@ export function applySettings(settings, Renderer) {
  * @param {Function} callbacks.onSettingsChanged  设置变更后的回调
  * @param {Function} callbacks.onDifficultyChanged 难度变更回调
  * @param {Function} callbacks.onRealtimeDayDurationChanged 实时天数流速变更回调
+ * @param {Function} callbacks.onOpen             设置弹窗打开前回调
  * @param {Function} callbacks.onResetTutorial     重置教程回调
  * @param {Function} callbacks.onClearSaves        清空存档回调
  * @param {{ setMotionLevel: Function, setSecretRoutesVisible: Function }} callbacks.Renderer  渲染器引用
@@ -160,6 +86,8 @@ export function initSettingsModal(callbacks) {
 
   settingsBtn.addEventListener('click', function (e) {
     e.preventDefault();
+    var activeCallbacks = _getSettingsModalCallbacks();
+    if (activeCallbacks.onOpen) activeCallbacks.onOpen();
     showSettingsModal();
   });
   if (closeBtn) closeBtn.addEventListener('click', hideSettingsModal);

@@ -79,6 +79,7 @@ describe('settings modal fallback contract', function () {
     const source = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
 
     expect(source).toContain("settingsBtn.dataset.settingsBound === 'true'");
+    expect(source).toContain("settingsBtn.dataset.settingsLoaderBound === 'true'");
     expect(source).toContain("focusSelector: '[data-settings-panel-target][aria-selected=\"true\"]'");
   });
 });
@@ -185,14 +186,28 @@ describe('Settings.initSettingsModal', function () {
       soundEffectsVolume: 0.35,
     };
 
-    Settings.initSettingsModal({ settings: firstSettings, Renderer: renderer });
-    Settings.initSettingsModal({ settings: secondSettings, Renderer: renderer });
+    var firstOpenCount = 0;
+    var secondOpenCount = 0;
+    Settings.initSettingsModal({
+      settings: firstSettings,
+      Renderer: renderer,
+      onOpen: function () { firstOpenCount += 1; },
+    });
+    Settings.initSettingsModal({
+      settings: secondSettings,
+      Renderer: renderer,
+      onOpen: function () { secondOpenCount += 1; },
+    });
 
     elements['settings-motion-level'].value = 'off';
     elements['settings-motion-level'].onchange();
 
     expect(firstSettings.motionLevel).toBe('full');
     expect(secondSettings.motionLevel).toBe('off');
+
+    elements['settings-btn'].dispatchEvent('click', { preventDefault: function () {} });
+    expect(firstOpenCount).toBe(0);
+    expect(secondOpenCount).toBe(1);
   });
 
   it('音效控件会写入设置并更新音量标签', function () {
