@@ -24,7 +24,7 @@
 import * as GalaxyData from '../systems/galaxy/GalaxyDataLayer.js';
 import * as RouteModel from '../systems/route/RouteSystem.js';
 import { FACTIONS } from '../data/factions.js';
-import { GALAXIES, getSystemsByGalaxy, findSystem, isSystemAccessible, getGalaxyAccessState } from '../data/systems.js?v=20260420-balance3';
+import { GALAXIES, getSystemsByGalaxy, findSystem, isSystemAccessible, getGalaxyAccessState } from '../data/systems.js';
 
 // 渲染上下文
 let _engine, _scene, _camera, _canvas;
@@ -64,7 +64,8 @@ let _hoveredPlanet = null;
 let _hoveredGalaxyId = null;
 let _selectedPlanet = null;
 let _motionLevel = 'full';
-let _qualityLevel = 'high';
+let _qualityLevel = 'auto';
+let _resolvedQualityLevel = null;
 let _cameraTarget = null;
 let _cameraTransitionProgress = 0;
 let _lastRenderedGalaxyId = null;
@@ -72,12 +73,33 @@ let _lastRenderedSystem = null;
 let _lastRenderedMapView = null;
 let _secretRoutesVisible = true;
 let _dirty = true;
+let _planetScaleDirty = true;
+let _lastPlanetScaleFactor = null;
+
+// 纹理/材质缓存。星图在切换星系、暗线显示和当前航点时会重建 mesh，
+// 缓存静态材质可以避免反复 canvas 绘制与 GPU 纹理上传。
+const _PLANET_MATERIAL_CACHE_LIMIT = 128;
+const _LABEL_MATERIAL_CACHE_LIMIT = 192;
+let _planetMaterialCache = new Map();
+let _labelMaterialCache = new Map();
+let _activePlanetMaterialKeys = new Set();
+let _activeLabelMaterialKeys = new Set();
 
 // 质量设置
 const _QUALITY_SETTINGS = {
   high: {
-    planetSegments: 32,
-    starCount: 5000,
+    planetSegments: 24,
+    starCount: 3000,
+    textureSize: 384,
+    planetLabelTexture: { width: 768, height: 144, fontSize: 64 },
+    textLabelTexture: { width: 256, height: 64, fontSize: 24 },
+    nebulaTextureSize: 384,
+    nebulaSegments: 24,
+    diskTextureSize: 512,
+    galaxyDiskTextureSize: 384,
+    galaxyHazeTextureSize: 192,
+    boundaryTessellation: 36,
+    galaxyRingTessellation: 72,
     enableGlow: true,
     enableRings: true,
     enableBoundaries: true,
@@ -85,7 +107,17 @@ const _QUALITY_SETTINGS = {
   },
   medium: {
     planetSegments: 16,
-    starCount: 2000,
+    starCount: 1200,
+    textureSize: 256,
+    planetLabelTexture: { width: 512, height: 96, fontSize: 44 },
+    textLabelTexture: { width: 224, height: 56, fontSize: 22 },
+    nebulaTextureSize: 256,
+    nebulaSegments: 20,
+    diskTextureSize: 384,
+    galaxyDiskTextureSize: 256,
+    galaxyHazeTextureSize: 128,
+    boundaryTessellation: 28,
+    galaxyRingTessellation: 56,
     enableGlow: true,
     enableRings: false,
     enableBoundaries: true,
@@ -93,7 +125,17 @@ const _QUALITY_SETTINGS = {
   },
   low: {
     planetSegments: 8,
-    starCount: 1000,
+    starCount: 600,
+    textureSize: 160,
+    planetLabelTexture: { width: 384, height: 72, fontSize: 32 },
+    textLabelTexture: { width: 192, height: 48, fontSize: 20 },
+    nebulaTextureSize: 192,
+    nebulaSegments: 16,
+    diskTextureSize: 256,
+    galaxyDiskTextureSize: 192,
+    galaxyHazeTextureSize: 96,
+    boundaryTessellation: 20,
+    galaxyRingTessellation: 40,
     enableGlow: false,
     enableRings: false,
     enableBoundaries: false,
@@ -101,34 +143,150 @@ const _QUALITY_SETTINGS = {
   },
 };
 
-// 颜色方案
-const _COLORS = {
-  bgTop: new BABYLON.Color4(0.008, 0.031, 0.09, 1),
-  starGlow: new BABYLON.Color3(0.22, 0.74, 0.97),
-  current: new BABYLON.Color3(0.40, 0.91, 0.98),
-  hover: new BABYLON.Color3(1, 1, 1),
-  selected: new BABYLON.Color3(1, 1, 0),
-  neutral: new BABYLON.Color3(0.376, 0.490, 0.545),
-};
+// 颜色方案。Babylon 由 index.html 提供，必须延迟到运行时读取，避免 CDN 不可用时模块导入失败。
+let _colors = null;
+
+function _getBabylon() {
+  return globalThis && globalThis.BABYLON ? globalThis.BABYLON : null;
+}
+
+function _getColors() {
+  if (_colors) return _colors;
+  var Babylon = _getBabylon();
+  if (!Babylon) return null;
+  _colors = {
+    bgTop: new Babylon.Color4(0.008, 0.031, 0.09, 1),
+    starGlow: new Babylon.Color3(0.22, 0.74, 0.97),
+    current: new Babylon.Color3(0.40, 0.91, 0.98),
+    hover: new Babylon.Color3(1, 1, 1),
+    selected: new Babylon.Color3(1, 1, 0),
+    neutral: new Babylon.Color3(0.376, 0.490, 0.545),
+  };
+  return _colors;
+}
+
+function _normalizeQualityLevel(level) {
+  if (level === 'high' || level === 'medium' || level === 'low' || level === 'auto') {
+    return level;
+  }
+  return 'auto';
+}
+
+function _detectAutoQualityLevel() {
+  var win = typeof window !== 'undefined' ? window : null;
+  var nav = typeof navigator !== 'undefined' ? navigator : null;
+  var width = _canvas && _canvas.clientWidth ? _canvas.clientWidth : (win ? win.innerWidth : 1280);
+  var height = _canvas && _canvas.clientHeight ? _canvas.clientHeight : (win ? win.innerHeight : 720);
+  var dpr = win && Number.isFinite(win.devicePixelRatio) ? Math.max(1, win.devicePixelRatio) : 1;
+  var memory = nav && Number.isFinite(nav.deviceMemory) ? nav.deviceMemory : 8;
+  var coarsePointer = !!(win && typeof win.matchMedia === 'function' && win.matchMedia('(pointer: coarse)').matches);
+  var renderPixels = width * height * dpr * dpr;
+
+  if (memory <= 3 || width <= 680 || renderPixels >= 4200000) return 'low';
+  if (coarsePointer || memory <= 4 || width <= 1024 || dpr >= 2 || renderPixels >= 2600000) return 'medium';
+  return 'high';
+}
+
+function _getEffectiveQualityLevel() {
+  if (_qualityLevel !== 'auto') return _qualityLevel;
+  if (!_resolvedQualityLevel) {
+    _resolvedQualityLevel = _detectAutoQualityLevel();
+  }
+  return _resolvedQualityLevel;
+}
+
+function _getQualitySettings() {
+  return _QUALITY_SETTINGS[_getEffectiveQualityLevel()] || _QUALITY_SETTINGS.medium;
+}
+
+function _touchCacheEntry(cache, key, entry) {
+  if (cache.has(key)) cache.delete(key);
+  cache.set(key, entry);
+  return entry;
+}
+
+function _disposeMaterial(material) {
+  if (!material) return;
+  if (material.metadata && material.metadata.rendererCacheKey) return;
+
+  var disposedTextures = new Set();
+  ['diffuseTexture', 'emissiveTexture', 'opacityTexture'].forEach(function (prop) {
+    var texture = material[prop];
+    if (texture && !disposedTextures.has(texture) && typeof texture.dispose === 'function') {
+      disposedTextures.add(texture);
+      texture.dispose();
+    }
+  });
+
+  if (typeof material.dispose === 'function') {
+    material.dispose();
+  }
+}
+
+function _disposeCachedMaterialEntry(entry) {
+  if (!entry || !entry.material) return;
+
+  if (entry.material.metadata) {
+    delete entry.material.metadata.rendererCacheKey;
+    delete entry.material.metadata.rendererCacheType;
+  }
+  _disposeMaterial(entry.material);
+}
+
+function _pruneCache(cache, limit, activeKeys) {
+  if (cache.size <= limit) return;
+
+  Array.from(cache.keys()).some(function (key) {
+    if (cache.size <= limit) return true;
+    if (activeKeys && activeKeys.has(key)) return false;
+    var entry = cache.get(key);
+    cache.delete(key);
+    _disposeCachedMaterialEntry(entry);
+    return false;
+  });
+}
+
+function _pruneRendererCaches() {
+  _pruneCache(_planetMaterialCache, _PLANET_MATERIAL_CACHE_LIMIT, _activePlanetMaterialKeys);
+  _pruneCache(_labelMaterialCache, _LABEL_MATERIAL_CACHE_LIMIT, _activeLabelMaterialKeys);
+}
+
+function _clearRendererCaches() {
+  _planetMaterialCache.forEach(_disposeCachedMaterialEntry);
+  _labelMaterialCache.forEach(_disposeCachedMaterialEntry);
+  _planetMaterialCache = new Map();
+  _labelMaterialCache = new Map();
+  _activePlanetMaterialKeys = new Set();
+  _activeLabelMaterialKeys = new Set();
+}
 
 // ---------------------------------------------------------------------------
 // 初始化
 // ---------------------------------------------------------------------------
 
 export function init() {
+  var colors = _getColors();
+  if (!colors) {
+    console.warn('[Renderer3DAdvanced] Babylon.js is unavailable; 3D starmap disabled.');
+    _isActive = false;
+    return false;
+  }
+
   _canvas = document.getElementById('map-3d-canvas');
   if (!_canvas) {
     console.error('3D canvas not found');
-    return;
+    return false;
   }
+  _resolvedQualityLevel = _qualityLevel === 'auto' ? null : _qualityLevel;
+  const effectiveQuality = _getEffectiveQualityLevel();
 
   if (_engine && _scene) {
     _dirty = true;
-    return;
+    return true;
   }
 
   // Create engine
-  _engine = new BABYLON.Engine(_canvas, _qualityLevel !== 'low', {
+  _engine = new BABYLON.Engine(_canvas, effectiveQuality !== 'low', {
     preserveDrawingBuffer: true,
     stencil: true,
     powerPreference: 'high-performance',
@@ -142,7 +300,7 @@ export function init() {
 
   // Create scene
   _scene = new BABYLON.Scene(_engine);
-  _scene.clearColor = _COLORS.bgTop;
+  _scene.clearColor = colors.bgTop;
   _scene.fogMode = BABYLON.Scene.FOGMODE_LINEAR;
   _scene.fogColor = new BABYLON.Color3(0.008, 0.031, 0.09);
   _scene.fogStart = 200;
@@ -220,10 +378,23 @@ export function init() {
   _canvas.addEventListener('click', _onClick);
 
   console.log('Renderer3DAdvanced initialized (Babylon.js)');
+  return true;
 }
 
 export function setQuality(level) {
-  _qualityLevel = level;
+  const nextLevel = _normalizeQualityLevel(level);
+  const previousEffectiveLevel = _getEffectiveQualityLevel();
+  _qualityLevel = nextLevel;
+  _resolvedQualityLevel = null;
+  const nextEffectiveLevel = _getEffectiveQualityLevel();
+  if (previousEffectiveLevel !== nextEffectiveLevel) {
+    if (_scene) {
+      _clearPlanetMeshes();
+      _clearGalaxyMeshes();
+    }
+    _clearRendererCaches();
+  }
+  _planetScaleDirty = true;
   _dirty = true;
   _applyQualitySettings();
 }
@@ -269,7 +440,7 @@ function _createBackgroundLayers() {
 }
 
 function _createDistantStars() {
-  const quality = _QUALITY_SETTINGS[_qualityLevel];
+  const quality = _getQualitySettings();
   const pcs = new BABYLON.PointsCloudSystem('distantStars', 2, _scene);
 
   pcs.addPoints(quality.starCount, function (particle) {
@@ -308,18 +479,21 @@ function _createDistantStars() {
 }
 
 function _createNebula() {
-  const dtex = new BABYLON.DynamicTexture('nebulaTex', { width: 512, height: 512 }, _scene);
+  const quality = _getQualitySettings();
+  const size = quality.nebulaTextureSize || 256;
+  const center = size / 2;
+  const dtex = new BABYLON.DynamicTexture('nebulaTex', { width: size, height: size }, _scene);
   dtex.hasAlpha = true;
   const ctx = dtex.getContext();
 
-  const gradient = ctx.createRadialGradient(256, 256, 0, 256, 256, 256);
+  const gradient = ctx.createRadialGradient(center, center, 0, center, center, center);
   gradient.addColorStop(0, 'rgba(56, 189, 248, 0.3)');
   gradient.addColorStop(0.5, 'rgba(147, 51, 234, 0.15)');
   gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
   ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, 512, 512);
+  ctx.fillRect(0, 0, size, size);
 
-  const imageData = ctx.getImageData(0, 0, 512, 512);
+  const imageData = ctx.getImageData(0, 0, size, size);
   const data = imageData.data;
   for (let i = 0; i < data.length; i += 4) {
     const noise = Math.random() * 30;
@@ -331,7 +505,7 @@ function _createNebula() {
   dtex.update();
 
   const nebula = BABYLON.MeshBuilder.CreateSphere('nebula', {
-    diameter: 800, segments: 32, sideOrientation: BABYLON.Mesh.BACKSIDE,
+    diameter: 800, segments: quality.nebulaSegments || 20, sideOrientation: BABYLON.Mesh.BACKSIDE,
   }, _scene);
 
   const mat = new BABYLON.StandardMaterial('nebulaMat', _scene);
@@ -347,21 +521,23 @@ function _createNebula() {
 }
 
 function _createGalaxyDisk() {
-  const dtex = new BABYLON.DynamicTexture('diskTex', { width: 1024, height: 1024 }, _scene);
+  const quality = _getQualitySettings();
+  const size = quality.diskTextureSize || 384;
+  const dtex = new BABYLON.DynamicTexture('diskTex', { width: size, height: size }, _scene);
   dtex.hasAlpha = true;
   const ctx = dtex.getContext();
-  const centerX = 512, centerY = 512;
+  const centerX = size / 2, centerY = size / 2;
 
-  ctx.clearRect(0, 0, 1024, 1024);
+  ctx.clearRect(0, 0, size, size);
 
   for (let arm = 0; arm < 3; arm++) {
     const armAngle = (arm / 3) * Math.PI * 2;
     ctx.strokeStyle = `rgba(103, 232, 249, ${0.1 + Math.random() * 0.1})`;
-    ctx.lineWidth = 40;
+    ctx.lineWidth = Math.max(16, size * 0.04);
 
     ctx.beginPath();
     for (let t = 0; t < Math.PI * 4; t += 0.1) {
-      const r = 50 + t * 80;
+      const r = size * 0.05 + t * size * 0.078;
       const angle = armAngle + t;
       const x = centerX + r * Math.cos(angle);
       const y = centerY + r * Math.sin(angle);
@@ -414,6 +590,9 @@ export function render(state, mapView, galaxyId) {
   _lastRenderedSystem = sys;
   _lastRenderedMapView = mv;
   _dirty = false;
+  _activePlanetMaterialKeys = new Set();
+  _activeLabelMaterialKeys = new Set();
+  _planetScaleDirty = true;
 
   // Clear existing meshes
   _clearPlanetMeshes();
@@ -432,6 +611,7 @@ export function render(state, mapView, galaxyId) {
     _renderFactionBoundaries(hierarchy.allPlanets);
     _renderDispatchRoutes(state);
   }
+  _pruneRendererCaches();
 }
 
 function _syncFlightPathWithState(state) {
@@ -448,33 +628,36 @@ function _syncFlightPathWithState(state) {
 
 function _disposeRouteVisual(mesh) {
   if (!mesh) return;
-  if (mesh.material && typeof mesh.material.dispose === 'function') {
-    mesh.material.dispose();
-  }
+  _disposeMaterial(mesh.material);
   mesh.dispose();
 }
 
 function _clearPlanetMeshes() {
   _planetMeshes.forEach(m => {
-    if (m.material) m.material.dispose();
+    _disposeMaterial(m.material);
     m.dispose();
   });
   _planetMeshes = [];
   _connectionLines.forEach(_disposeRouteVisual);
   _connectionLines = [];
   _secretRouteVisuals = [];
-  _factionBoundaries.forEach(m => m.dispose());
+  _factionBoundaries.forEach(m => {
+    _disposeMaterial(m.material);
+    m.dispose();
+  });
   _factionBoundaries = [];
   _textLabels.forEach(m => {
-    if (m.material && m.material.diffuseTexture) m.material.diffuseTexture.dispose();
-    if (m.material) m.material.dispose();
+    _disposeMaterial(m.material);
     m.dispose();
   });
   _textLabels = [];
   _dispatchRouteLines.forEach(_disposeRouteVisual);
   _dispatchRouteLines = [];
   _dispatchShipMarkers.forEach(m => {
-    m.getChildMeshes().forEach(c => c.dispose());
+    m.getChildMeshes().forEach(c => {
+      _disposeMaterial(c.material);
+      c.dispose();
+    });
     m.dispose();
   });
   _dispatchShipMarkers = [];
@@ -492,10 +675,7 @@ function _clearGalaxyMeshes() {
 
   _galaxyMeshes.forEach(node => {
     node.getChildMeshes(false).forEach(c => {
-      if (c.material) {
-        if (c.material.diffuseTexture) c.material.diffuseTexture.dispose();
-        c.material.dispose();
-      }
+      _disposeMaterial(c.material);
       c.dispose();
     });
     node.dispose();
@@ -586,6 +766,7 @@ function _createNebulaTexture(colorHex, seed, size) {
 }
 
 function _renderGalaxies(state) {
+  const quality = _getQualitySettings();
   GALAXIES.forEach((galaxy) => {
     const x = (galaxy.gx - 0.5) * 200;
     const z = (galaxy.gy - 0.5) * 200;
@@ -616,7 +797,7 @@ function _renderGalaxies(state) {
     const galaxySize = 18 + rng(0) * 10;
 
     // 1) Main galaxy sprite — billboard plane with procedural texture
-    const diskTex = _createNebulaTexture(galaxy.color || '#4FC3F7', seed, 512);
+    const diskTex = _createNebulaTexture(galaxy.color || '#4FC3F7', seed, quality.galaxyDiskTextureSize || 256);
     const diskPlane = BABYLON.MeshBuilder.CreatePlane('gDisk_' + galaxy.id, {
       width: galaxySize * 2, height: galaxySize * 2,
     }, _scene);
@@ -640,7 +821,7 @@ function _renderGalaxies(state) {
     };
 
     // 2) Second nebula layer
-    const disk2Tex = _createNebulaTexture(galaxy.color || '#4FC3F7', seed + 777, 256);
+    const disk2Tex = _createNebulaTexture(galaxy.color || '#4FC3F7', seed + 777, quality.galaxyHazeTextureSize || 128);
     const disk2Plane = BABYLON.MeshBuilder.CreatePlane('gDisk2_' + galaxy.id, {
       width: galaxySize * 2.4, height: galaxySize * 2.4,
     }, _scene);
@@ -664,7 +845,7 @@ function _renderGalaxies(state) {
     const focusRing = BABYLON.MeshBuilder.CreateTorus('gFocusRing_' + galaxy.id, {
       diameter: galaxySize * 2.65,
       thickness: 0.14,
-      tessellation: 96,
+      tessellation: quality.galaxyRingTessellation || 56,
     }, _scene);
     focusRing.parent = parent;
     focusRing.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
@@ -761,7 +942,7 @@ function _updateGalaxyVisualFocus(time) {
 // ---------------------------------------------------------------------------
 
 function _renderPlanetsInstanced(planets, state) {
-  const quality = _QUALITY_SETTINGS[_qualityLevel];
+  const quality = _getQualitySettings();
   _planetMetadata = [];
 
   if (planets.length === 0) return;
@@ -794,6 +975,8 @@ function _renderPlanetsInstanced(planets, state) {
     const hexColor = _getSystemColor(planet.type);
     const color = BABYLON.Color3.FromHexString(hexColor);
     const mat = _createPlanetMaterial(planet.id, planet.type, color);
+    const materialKey = mat.metadata && mat.metadata.rendererCacheKey;
+    if (materialKey) _activePlanetMaterialKeys.add(materialKey);
     sphere.material = mat;
     sphere.metadata = { type: 'planet', id: planet.id };
     _planetMeshes.push(sphere);
@@ -801,12 +984,10 @@ function _renderPlanetsInstanced(planets, state) {
     // Name label below the planet
     const label = _createPlanetLabel(planet.name, position, finalSize);
     const isUnlocked = isSystemAccessible(planet.id, state.playerLevel || 1, state.researchedTechs || []);
-    if (!isUnlocked) {
-      mat.alpha = 0.42;
-      mat.emissiveColor = color.scale(0.55);
-      if (label && label.material) {
-        label.material.alpha = 0.55;
-      }
+    mat.alpha = isUnlocked ? 1 : 0.42;
+    mat.emissiveColor = color.scale(isUnlocked ? 0.3 : 0.55);
+    if (label && label.material) {
+      label.material.alpha = isUnlocked ? 1 : 0.55;
     }
 
     _planetMetadata.push({
@@ -831,7 +1012,7 @@ function _renderPlanetsInstanced(planets, state) {
     }, _scene);
     glow.position = currentMeta.position.clone();
     const glowMat = new BABYLON.StandardMaterial('glowMat', _scene);
-    glowMat.emissiveColor = _COLORS.current;
+    glowMat.emissiveColor = _getColors().current;
     glowMat.disableLighting = true;
     glowMat.alpha = 0.25;
     glow.material = glowMat;
@@ -841,16 +1022,6 @@ function _renderPlanetsInstanced(planets, state) {
 }
 
 function _createPlanetLabel(text, planetPos, planetSize) {
-  const dtex = new BABYLON.DynamicTexture('labelTex_' + text + '_' + Math.random(), { width: 1024, height: 192 }, _scene);
-  dtex.hasAlpha = true;
-  const ctx = dtex.getContext();
-  ctx.clearRect(0, 0, 1024, 192);
-  ctx.fillStyle = '#38bdf8';
-  ctx.font = 'Bold 80px Arial';
-  ctx.textAlign = 'center';
-  ctx.fillText(text, 512, 130);
-  dtex.update();
-
   const w = planetSize * 6;
   const plane = BABYLON.MeshBuilder.CreatePlane('label_' + text + '_' + Math.random(), {
     width: w, height: w * 0.18,
@@ -858,14 +1029,7 @@ function _createPlanetLabel(text, planetPos, planetSize) {
   // Place label above the planet
   plane.position = new BABYLON.Vector3(planetPos.x, planetPos.y + planetSize + 2.0, planetPos.z);
   plane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
-
-  const mat = new BABYLON.StandardMaterial('labelMat_' + Math.random(), _scene);
-  mat.diffuseTexture = dtex;
-  mat.emissiveColor = new BABYLON.Color3(1, 1, 1);
-  mat.disableLighting = true;
-  mat.backFaceCulling = false;
-  mat.useAlphaFromDiffuseTexture = true;
-  plane.material = mat;
+  plane.material = _getTextLabelMaterial('planet', text);
   plane.isPickable = false;
 
   _textLabels.push(plane);
@@ -873,34 +1037,65 @@ function _createPlanetLabel(text, planetPos, planetSize) {
 }
 
 function _addTextLabel(text, position, width) {
-  const dtex = new BABYLON.DynamicTexture('labelTex_' + text + '_' + Math.random(), { width: 256, height: 64 }, _scene);
-  dtex.hasAlpha = true;
-  const ctx = dtex.getContext();
-  ctx.clearRect(0, 0, 256, 64);
-  ctx.fillStyle = '#38bdf8';
-  ctx.font = 'Bold 24px Arial';
-  ctx.textAlign = 'center';
-  ctx.fillText(text, 128, 40);
-  dtex.update();
-
   const w = width || 10;
   const plane = BABYLON.MeshBuilder.CreatePlane('label_' + text + '_' + Math.random(), {
     width: w, height: w * 0.25,
   }, _scene);
   plane.position = position.clone();
   plane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_Y;
+  plane.material = _getTextLabelMaterial('text', text);
+  plane.isPickable = false;
 
-  const mat = new BABYLON.StandardMaterial('labelMat_' + Math.random(), _scene);
+  _textLabels.push(plane);
+  return plane;
+}
+
+function _getTextLabelMaterial(kind, text) {
+  const quality = _getQualitySettings();
+  const textureConfig = kind === 'planet'
+    ? quality.planetLabelTexture
+    : quality.textLabelTexture;
+  const width = textureConfig.width;
+  const height = textureConfig.height;
+  const fontSize = textureConfig.fontSize;
+  const qualityKey = _getEffectiveQualityLevel();
+  const key = qualityKey + ':' + kind + ':' + text;
+  const cached = _labelMaterialCache.get(key);
+  if (cached) {
+    _touchCacheEntry(_labelMaterialCache, key, cached);
+    _activeLabelMaterialKeys.add(key);
+    return cached.material;
+  }
+
+  const dtex = new BABYLON.DynamicTexture(
+    'labelTex_' + kind + '_' + _hashStr(text) + '_' + qualityKey,
+    { width: width, height: height },
+    _scene,
+    false
+  );
+  dtex.hasAlpha = true;
+  const ctx = dtex.getContext();
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = '#38bdf8';
+  ctx.font = 'Bold ' + fontSize + 'px Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, width / 2, height * 0.56);
+  dtex.update();
+
+  const mat = new BABYLON.StandardMaterial('labelMat_' + kind + '_' + _hashStr(text) + '_' + qualityKey, _scene);
   mat.diffuseTexture = dtex;
   mat.emissiveColor = new BABYLON.Color3(1, 1, 1);
   mat.disableLighting = true;
   mat.backFaceCulling = false;
   mat.useAlphaFromDiffuseTexture = true;
-  plane.material = mat;
-  plane.isPickable = false;
-
-  _textLabels.push(plane);
-  return plane;
+  mat.metadata = {
+    rendererCacheKey: key,
+    rendererCacheType: 'label',
+  };
+  _touchCacheEntry(_labelMaterialCache, key, { material: mat });
+  _activeLabelMaterialKeys.add(key);
+  return mat;
 }
 
 function _getSystemColor(type) {
@@ -921,9 +1116,19 @@ function _getSystemColor(type) {
 
 // Procedural planet texture based on type
 function _createPlanetMaterial(id, type, color) {
+  var qualityKey = _getEffectiveQualityLevel();
+  var key = qualityKey + ':' + id + ':' + type;
+  var cached = _planetMaterialCache.get(key);
+  if (cached) {
+    _touchCacheEntry(_planetMaterialCache, key, cached);
+    _activePlanetMaterialKeys.add(key);
+    return cached.material;
+  }
+
+  var quality = _getQualitySettings();
   var mat = new BABYLON.StandardMaterial('pMat_' + id, _scene);
-  var S = 512;
-  var dtex = new BABYLON.DynamicTexture('pTex_' + id + '_' + Math.random(), { width: S, height: S }, _scene);
+  var S = quality.textureSize || 256;
+  var dtex = new BABYLON.DynamicTexture('pTex_' + id + '_' + qualityKey, { width: S, height: S }, _scene);
   var ctx = dtex.getContext();
 
   var R = Math.round(color.r * 255), G = Math.round(color.g * 255), B = Math.round(color.b * 255);
@@ -1358,6 +1563,12 @@ function _createPlanetMaterial(id, type, color) {
   mat.diffuseTexture = dtex;
   mat.diffuseColor = new BABYLON.Color3(1, 1, 1);
   mat.emissiveColor = color.scale(0.3);
+  mat.metadata = {
+    rendererCacheKey: key,
+    rendererCacheType: 'planet',
+  };
+  _touchCacheEntry(_planetMaterialCache, key, { material: mat });
+  _activePlanetMaterialKeys.add(key);
   return mat;
 }
 
@@ -1375,7 +1586,7 @@ function _hashStr(s) {
 // ---------------------------------------------------------------------------
 
 function _renderFactionBoundaries(planets) {
-  const quality = _QUALITY_SETTINGS[_qualityLevel];
+  const quality = _getQualitySettings();
   if (!quality.enableBoundaries) return;
 
   const posMap = new Map();
@@ -1405,7 +1616,9 @@ function _renderFactionBoundaries(planets) {
       const pColor = meta.color || BABYLON.Color3.FromHexString(faction.color || '#4FC3F7');
 
       const disc = BABYLON.MeshBuilder.CreateDisc('aura_' + planet.id, {
-        radius: AURA_RADIUS, tessellation: 48, sideOrientation: BABYLON.Mesh.DOUBLESIDE,
+        radius: AURA_RADIUS,
+        tessellation: quality.boundaryTessellation || 28,
+        sideOrientation: BABYLON.Mesh.DOUBLESIDE,
       }, _scene);
       disc.rotation.x = Math.PI / 2;
       disc.position = new BABYLON.Vector3(meta.position.x, meta.position.y - 0.5, meta.position.z);
@@ -1568,6 +1781,7 @@ function _renderSecretRoutes(state) {
     const labelAnchor = BABYLON.Vector3.Lerp(sourcePos, targetPos, 0.62);
     labelAnchor.y += Math.max(BABYLON.Vector3.Distance(sourcePos, targetPos) * 0.08, 3.2) + index * 1.2;
     const label = _addTextLabel('暗线→' + route.targetSystemName + ' -' + route.discountPercent + '%', labelAnchor, Math.max(13, route.targetSystemName.length * 1.4 + 9));
+    if (label && label.material) label.material.alpha = 0.82;
 
     _secretRouteVisuals.push({
       routeId: route.routeId,
@@ -1635,7 +1849,7 @@ function _updateSecretRouteHighlights(time) {
         : new BABYLON.Color3(1, 1, 1);
       visual.label.material.alpha = active ? 1 : 0.82;
       const labelScale = active ? pulse * 1.06 : 1;
-      visual.label.scaling = new BABYLON.Vector3(
+      visual.label.scaling.set(
         visual.baseLabelScale.x * labelScale,
         visual.baseLabelScale.y * labelScale,
         visual.baseLabelScale.z * labelScale
@@ -1845,9 +2059,7 @@ function _createActiveFlightRouteVisuals(routePoints, routeColor, routeGlowColor
 
 function _disposeTrailMesh(trail) {
   if (!trail) return null;
-  if (trail.material && typeof trail.material.dispose === 'function') {
-    trail.material.dispose();
-  }
+  _disposeMaterial(trail.material);
   trail.dispose();
   return null;
 }
@@ -1926,6 +2138,7 @@ function _renderDispatchRoutes(state) {
 
     if (route.isTraveling && routeSegment && routeSegment.curve && routeSegment.points) {
       shipModel.metadata._dispatchCurve = routeSegment.curve;
+      shipModel.metadata._dispatchCurvePoints = routeSegment.points;
       shipModel.metadata._direction = 1;
       shipModel.position = routeSegment.points[0].clone();
 
@@ -2030,7 +2243,7 @@ function _createSelectionRing() {
   _selectionRing.rotation.x = Math.PI / 2;
 
   const mat = new BABYLON.StandardMaterial('selectionRingMat', _scene);
-  mat.emissiveColor = _COLORS.selected;
+  mat.emissiveColor = _getColors().selected;
   mat.disableLighting = true;
   mat.alpha = 0.8;
   _selectionRing.material = mat;
@@ -2219,6 +2432,10 @@ function _updateShipTrail() {
 }
 
 export function flyShipTo(fromId, toId, onComplete, shipTypeId, flightMeta) {
+  if (!_getBabylon() || !_scene) {
+    if (onComplete) onComplete();
+    return;
+  }
   if (_mapView !== 'planets') return;
   if (fromId === toId) {
     _clearFlightVisuals();
@@ -2278,7 +2495,10 @@ export function flyShipTo(fromId, toId, onComplete, shipTypeId, flightMeta) {
   // --- Create ship mesh (type-specific) ---
   if (_shipMesh && _currentShipType !== typeId) {
     _shipTrail = _disposeTrailMesh(_shipTrail);
-    _shipMesh.getChildMeshes().forEach(c => { if (c.material) c.material.dispose(); c.dispose(); });
+    _shipMesh.getChildMeshes().forEach(c => {
+      _disposeMaterial(c.material);
+      c.dispose();
+    });
     _shipMesh.dispose();
     _shipMesh = null;
   }
@@ -2355,7 +2575,7 @@ function _clearFlightVisuals() {
     _flightRouteLine = null;
   }
   if (_flightTargetGlow) {
-    if (_flightTargetGlow.material) _flightTargetGlow.material.dispose();
+    _disposeMaterial(_flightTargetGlow.material);
     _flightTargetGlow.dispose();
     _flightTargetGlow = null;
   }
@@ -2373,7 +2593,7 @@ function _updateShipFlight(time) {
   const idx = Math.min(Math.floor(eased * (points.length - 1)), points.length - 1);
   const pos = points[idx];
 
-  _shipMesh.position = pos.clone();
+  _shipMesh.position.copyFrom(pos);
 
   // Orient ship along tangent
   const nextIdx = Math.min(idx + 1, points.length - 1);
@@ -2407,7 +2627,7 @@ function _updateShipFlight(time) {
       flickerScale = flicker;
     }
     _shipMesh.metadata._flames.forEach(f => {
-      f.scaling = new BABYLON.Vector3(flickerScale, flickerScale, flickerScale);
+      f.scaling.set(flickerScale, flickerScale, flickerScale);
     });
   }
 
@@ -2445,6 +2665,7 @@ function _updateShipFlight(time) {
 // ---------------------------------------------------------------------------
 
 export function focusPlanet(planetId, smooth = true) {
+  if (!_camera) return;
   const metadata = _planetMetadata.find(m => m.id === planetId);
   if (!metadata) return;
 
@@ -2457,6 +2678,7 @@ export function focusPlanet(planetId, smooth = true) {
 }
 
 export function selectPlanet(planetId, options) {
+  if (!_getBabylon()) return false;
   const metadata = _planetMetadata.find(m => m.id === planetId);
   if (!metadata) return false;
 
@@ -2477,6 +2699,12 @@ export function selectPlanet(planetId, options) {
 }
 
 export function resetCamera() {
+  var Babylon = _getBabylon();
+  if (!Babylon) {
+    _cameraTarget = null;
+    _cameraTransitionProgress = 0;
+    return;
+  }
   _cameraTarget = new BABYLON.Vector3(0, 0, 0);
   _cameraTransitionProgress = 0;
 }
@@ -2511,18 +2739,22 @@ function _startAnimation() {
       const camRadius = _camera.radius;
       // At radius 250 (default) scale=1, zoom in → smaller, zoom out → larger
       const scaleFactor = camRadius / 250;
-      _planetMetadata.forEach(meta => {
-        if (meta.mesh) {
-          const s = meta.baseSize * scaleFactor;
-          meta.mesh.scaling.set(s, s, s);
-        }
-        if (meta.label) {
-          const ls = scaleFactor;
-          meta.label.scaling.set(ls, ls, ls);
-          // Keep label above planet
-          meta.label.position.y = meta.position.y + meta.baseSize * scaleFactor + 2.0 * scaleFactor;
-        }
-      });
+      if (_planetScaleDirty || _lastPlanetScaleFactor == null || Math.abs(scaleFactor - _lastPlanetScaleFactor) > 0.002) {
+        _planetMetadata.forEach(meta => {
+          if (meta.mesh) {
+            const s = meta.baseSize * scaleFactor;
+            meta.mesh.scaling.set(s, s, s);
+          }
+          if (meta.label) {
+            const ls = scaleFactor;
+            meta.label.scaling.set(ls, ls, ls);
+            // Keep label above planet
+            meta.label.position.y = meta.position.y + meta.baseSize * scaleFactor + 2.0 * scaleFactor;
+          }
+        });
+        _lastPlanetScaleFactor = scaleFactor;
+        _planetScaleDirty = false;
+      }
     }
 
     // Slowly rotate galaxy meshes in galaxy view
@@ -2556,10 +2788,10 @@ function _startAnimation() {
       let eased = prog < 0.5 ? 2 * prog * prog : 1 - Math.pow(-2 * prog + 2, 2) / 2;
       if (marker.metadata._direction < 0) eased = 1 - eased;
 
-      const curvePoints = marker.metadata._dispatchCurve.getPoints();
+      const curvePoints = marker.metadata._dispatchCurvePoints || marker.metadata._dispatchCurve.getPoints();
       const idx = Math.min(Math.floor(eased * (curvePoints.length - 1)), curvePoints.length - 1);
       const pos = curvePoints[idx];
-      marker.position = pos.clone();
+      marker.position.copyFrom(pos);
 
       // Orient ship
       const nextIdx = Math.min(idx + 1, curvePoints.length - 1);
@@ -2574,7 +2806,7 @@ function _startAnimation() {
       if (marker.metadata._flames) {
         const flicker = 0.5 + Math.sin(time * 8 + phase) * 0.15 + Math.random() * 0.1;
         marker.metadata._flames.forEach(f => {
-          f.scaling = new BABYLON.Vector3(flicker, flicker, flicker);
+          f.scaling.set(flicker, flicker, flicker);
         });
       }
 
@@ -2586,7 +2818,7 @@ function _startAnimation() {
     if (_selectionRing && _selectionRing.isEnabled()) {
       _selectionRing.rotation.z += 0.01;
       const s = 1 + Math.sin(time * 3) * 0.1;
-      _selectionRing.scaling = new BABYLON.Vector3(s, s, s);
+      _selectionRing.scaling.set(s, s, s);
     }
 
     _updateSecretRouteHighlights(time);
@@ -2719,7 +2951,7 @@ function _applyQualitySettings() {
     _backgroundLayers.stars.dispose();
     _backgroundLayers.stars = _createDistantStars();
   }
-  console.log('Quality set to:', _qualityLevel);
+  console.log('Quality set to:', _getEffectiveQualityLevel());
 }
 
 // ---------------------------------------------------------------------------

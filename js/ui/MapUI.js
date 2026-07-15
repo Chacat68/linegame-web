@@ -2,20 +2,20 @@
 // 导出：init, initTabs, init3DCallbacks, refreshGalaxyBtn, triggerArrivalScanPanel, showCurrentSystemScanReveal, openMarket, closeMarket, isMarketOpen,
 //        setRefreshMarket, setExplorationActions, getMarketViewSystem, refreshMarketLocation,
 //        showMarketOverview, showMarketDetail, refreshPlanetDetail, getMapView, getCurrentGalaxyId
-import * as Renderer3D from './Renderer3DAdvanced.js?v=20260513-navguide1';
+import * as Renderer3D from './StarmapRenderer.js';
 import * as Faction from '../systems/faction/FactionSystem.js';
 import * as Economy from '../systems/economy/Economy.js';
 import * as GalaxyData from '../systems/galaxy/GalaxyDataLayer.js';
-import * as Exploration from '../systems/galaxy/ExplorationSystem.js?v=20260531-chainfollow1';
-import * as Quest from '../systems/quest/QuestSystem.js?v=20260412-questroute2';
+import * as Exploration from '../systems/galaxy/ExplorationSystem.js';
+import * as Quest from '../systems/quest/QuestSystem.js';
 import * as EventBus from '../core/EventBus.js';
-import * as EventUI from './EventUI.js?v=20260619-flowchoice1';
+import * as EventUI from './EventUI.js';
 import { GOODS } from '../data/goods.js';
 import {
   buildContextualMarketAction,
   getContextualMarketFocus,
-} from './MarketFocus.js?v=20260531-chainfollow1';
-import { getCommandActionAttributes, normalizeCommandAction, renderCommandActionContent } from './CommandAction.js?v=20260510-command1';
+} from './MarketFocus.js';
+import { getCommandActionAttributes, normalizeCommandAction, renderCommandActionContent } from './CommandAction.js';
 import {
   closeAllSecondarySurfaces,
   closePrimarySurface,
@@ -24,7 +24,7 @@ import {
   isPrimarySurfaceVisible,
   openPrimarySurface,
   openSecondarySurface,
-} from './SurfaceManager.js?v=20260621-settingsfallback1';
+} from './SurfaceManager.js';
 import {
   GALAXIES,
   findSystem,
@@ -34,7 +34,7 @@ import {
   getAccessibleGalaxies,
   getAccessibleSystems,
   getGalaxyAccessState,
-}  from '../data/systems.js?v=20260420-balance3';
+}  from '../data/systems.js';
 
 const _goodsById = GOODS.reduce(function (lookup, good) {
   lookup[good.id] = good;
@@ -995,10 +995,10 @@ export function init(stateRef, onTravel, onGalaxyJump) {
 }
 
 /**
- * 初始化3D地图回调（由 GameManager 在 init 后调用）
+ * 初始化星图回调（由 GameManager 在 init 后调用）
  */
 export function init3DCallbacks(stateRef, onTravel, onGalaxyJump) {
-  // 确保3D渲染器已激活
+  // 确保星图渲染器已激活
   if (!Renderer3D.isActive()) {
     Renderer3D.toggleView();
   }
