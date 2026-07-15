@@ -1,0 +1,657 @@
+/* Hangar detail modals: ship modules + crew roster */
+.modal > .mod-modal-box,
+.modal > .crew-modal-box {
+  --modal-w: 1000px;
+}
+
+#mod-modal-body,
+#crew-modal-summary,
+.crew-modal-section {
+  min-width: 0;
+}
+
+#mod-modal-body {
+  display: grid;
+  gap: 16px;
+  padding: 16px 20px 18px;
+  scrollbar-gutter: stable;
+}
+
+.mod-modal-overview {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  margin: -16px -20px 0;
+  padding: 12px 20px;
+  border-bottom: 1px solid rgba(108, 231, 255, 0.12);
+  background:
+    linear-gradient(180deg, rgba(4, 17, 28, 0.94), rgba(4, 17, 28, 0.74)),
+    radial-gradient(circle at 12% 0, rgba(108, 231, 255, 0.12), transparent 60%);
+  backdrop-filter: blur(14px) saturate(1.12);
+  -webkit-backdrop-filter: blur(14px) saturate(1.12);
+}
+
+.mod-modal-signal-panel {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid rgba(108, 231, 255, 0.14);
+  border-radius: 10px;
+  background:
+    linear-gradient(180deg, rgba(8, 28, 40, 0.56), rgba(2, 10, 18, 0.5)),
+    radial-gradient(circle at 0 0, rgba(108, 231, 255, 0.1), transparent 56%);
+}
+
+.mod-modal-signal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.mod-modal-signal-title {
+  color: rgba(238, 248, 255, 0.94);
+  font-family: "Orbitron", "Rajdhani", sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.mod-modal-signal-subtitle {
+  max-width: 68ch;
+  margin-top: 4px;
+  color: rgba(176, 213, 228, 0.76);
+  font-size: 11px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.mod-modal-signal-badge {
+  flex: 0 0 auto;
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 9px;
+  border: 1px solid rgba(108, 231, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(2, 10, 18, 0.5);
+  color: rgba(193, 237, 255, 0.9);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.mod-modal-signal-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.mod-modal-signal-item {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid rgba(108, 231, 255, 0.11);
+  border-radius: 8px;
+  background: rgba(2, 10, 18, 0.46);
+}
+
+.mod-modal-signal-item--ready,
+.mod-modal-signal-item--complete {
+  border-color: rgba(52, 211, 153, 0.22);
+}
+
+.mod-modal-signal-item--work {
+  border-color: rgba(245, 158, 11, 0.24);
+}
+
+.mod-modal-signal-item--blocked {
+  border-color: rgba(251, 113, 133, 0.22);
+}
+
+.mod-modal-signal-label,
+.mod-modal-signal-note,
+.mod-modal-signal-focus-kicker,
+.mod-modal-signal-focus-note {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.mod-modal-signal-label,
+.mod-modal-signal-focus-kicker {
+  color: rgba(144, 190, 208, 0.72);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.mod-modal-signal-value {
+  display: block;
+  min-width: 0;
+  color: rgba(239, 250, 255, 0.94);
+  font-size: 15px;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.mod-modal-signal-note {
+  color: rgba(190, 213, 224, 0.68);
+  font-size: 10px;
+  line-height: 1.28;
+}
+
+.mod-modal-signal-focus {
+  display: grid;
+  grid-template-columns: minmax(74px, auto) minmax(148px, 0.34fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px 11px;
+  border: 1px solid rgba(108, 231, 255, 0.11);
+  border-radius: 8px;
+  background: rgba(2, 10, 18, 0.5);
+}
+
+.mod-modal-signal-focus[data-tone="repair"],
+.mod-modal-signal-focus[data-tone="structure"],
+.mod-modal-signal-focus[data-tone="module"] {
+  border-color: rgba(245, 158, 11, 0.24);
+  background:
+    linear-gradient(90deg, rgba(92, 52, 10, 0.24), rgba(2, 10, 18, 0.5)),
+    rgba(2, 10, 18, 0.5);
+}
+
+.mod-modal-signal-focus[data-tone="blocked"] {
+  border-color: rgba(251, 113, 133, 0.24);
+  background:
+    linear-gradient(90deg, rgba(76, 20, 32, 0.26), rgba(2, 10, 18, 0.5)),
+    rgba(2, 10, 18, 0.5);
+}
+
+.mod-modal-signal-focus[data-tone="complete"] {
+  border-color: rgba(52, 211, 153, 0.24);
+  background:
+    linear-gradient(90deg, rgba(20, 83, 45, 0.22), rgba(2, 10, 18, 0.5)),
+    rgba(2, 10, 18, 0.5);
+}
+
+.mod-modal-signal-focus-title {
+  min-width: 0;
+  color: rgba(238, 248, 255, 0.94);
+  font-size: 13px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.mod-modal-recommendation {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  border-color: rgba(108, 231, 255, 0.24);
+  background:
+    linear-gradient(180deg, rgba(11, 38, 54, 0.78), rgba(6, 14, 30, 0.92)),
+    radial-gradient(circle at 0 0, rgba(108, 231, 255, 0.12), transparent 52%);
+}
+
+.mod-modal-recommendation-title,
+.mod-modal-recommendation-reason,
+.mod-modal-recommendation-note {
+  overflow-wrap: anywhere;
+}
+
+.mod-modal-structure-grid,
+.mod-modal-module-grid {
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+.mod-modal-structure-card,
+.mod-modal-module-card,
+.ship-repair-card,
+.mod-modal-disposal {
+  position: relative;
+  overflow: hidden;
+}
+
+.mod-modal-structure-card::before,
+.mod-modal-module-card::before,
+.ship-repair-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: linear-gradient(180deg, rgba(108, 231, 255, 0.76), rgba(108, 231, 255, 0.08));
+}
+
+.mod-modal-structure-card--done::before {
+  background: linear-gradient(180deg, rgba(45, 212, 191, 0.78), rgba(45, 212, 191, 0.08));
+}
+
+.mod-modal-structure-card--locked::before,
+.mod-modal-structure-card--poor::before {
+  background: linear-gradient(180deg, rgba(251, 191, 36, 0.62), rgba(251, 191, 36, 0.08));
+}
+
+.mod-modal-structure-progress,
+.crew-progress {
+  position: relative;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(205, 237, 255, 0.1);
+  box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.42);
+}
+
+.mod-modal-structure-progress-fill,
+.crew-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #22d3ee, #facc15);
+  box-shadow: 0 0 12px rgba(108, 231, 255, 0.25);
+}
+
+.mod-modal-structure-progress {
+  margin-top: 10px;
+}
+
+.mod-modal-list {
+  gap: 8px;
+}
+
+.mod-modal-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  border-radius: 10px;
+}
+
+.mod-modal-item:focus-within,
+.mod-modal-structure-card:focus-within,
+.mod-modal-module-card:focus-within,
+.ship-repair-card:focus-within,
+.crew-card:focus-within {
+  border-color: rgba(108, 231, 255, 0.5);
+  box-shadow:
+    0 0 0 3px rgba(108, 231, 255, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.mod-modal-buy-btn,
+.mod-modal-uninstall-btn,
+.upg-modal-buy-btn,
+.ship-repair-start-btn,
+.mod-modal-sell-btn,
+.crew-card-actions > button,
+.crew-switch-ship-btn,
+.crew-protocol-activate-btn {
+  min-height: 38px;
+}
+
+.crew-modal-box {
+  --modal-w: 980px;
+}
+
+.crew-modal-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: 8px;
+  padding: 16px 20px 0;
+  margin: 0;
+}
+
+.crew-modal-summary-stat,
+.crew-modal-roster-alert {
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid rgba(108, 231, 255, 0.12);
+  border-radius: 10px;
+  background: rgba(2, 10, 18, 0.48);
+}
+
+.crew-modal-roster-alert {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px 12px;
+  border-color: rgba(250, 204, 21, 0.18);
+  background:
+    linear-gradient(135deg, rgba(250, 204, 21, 0.1), rgba(2, 10, 18, 0.58)),
+    rgba(2, 10, 18, 0.48);
+}
+
+.crew-modal-roster-alert strong {
+  color: rgba(254, 240, 138, 0.92);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
+.crew-modal-roster-alert span {
+  color: rgba(232, 248, 255, 0.8);
+  font-size: 12px;
+  line-height: 1.45;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.crew-modal-command-panel {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+}
+
+.crew-modal-section {
+  margin: 14px 20px 0;
+  padding: 12px;
+  border: 1px solid rgba(108, 231, 255, 0.12);
+  border-radius: 14px;
+  background: rgba(2, 10, 18, 0.34);
+}
+
+.crew-modal-section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.crew-modal-section-title-block {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.crew-modal-section-kicker {
+  color: rgba(177, 205, 222, 0.5);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+
+.crew-modal-section h4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.crew-modal-section h4::before {
+  content: "";
+  width: 6px;
+  height: 18px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #67e8f9, rgba(103, 232, 249, 0.16));
+}
+
+.crew-modal-section-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: min(260px, 100%);
+}
+
+.crew-modal-status-chip {
+  display: inline-grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 1px solid rgba(108, 231, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(2, 10, 18, 0.48);
+  color: rgba(232, 248, 255, 0.78);
+  font-size: 11px;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.crew-modal-status-chip span {
+  color: rgba(177, 205, 222, 0.58);
+}
+
+.crew-modal-status-chip strong {
+  color: rgba(242, 250, 255, 0.92);
+}
+
+.crew-modal-status-chip[data-tone="ready"] {
+  border-color: rgba(74, 222, 128, 0.2);
+  background: rgba(22, 101, 52, 0.16);
+}
+
+.crew-modal-status-chip[data-tone="warning"] {
+  border-color: rgba(250, 204, 21, 0.22);
+  background: rgba(120, 80, 10, 0.16);
+}
+
+.crew-modal-status-chip[data-tone="empty"] {
+  border-color: rgba(148, 163, 184, 0.14);
+  background: rgba(15, 23, 42, 0.22);
+}
+
+.crew-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+}
+
+.crew-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  border-radius: 12px;
+}
+
+.crew-card-main strong,
+.crew-card-main span,
+.crew-card-main small,
+.crew-card-desc {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.crew-card-actions {
+  align-content: start;
+}
+
+.crew-card-actions > button {
+  min-width: 112px;
+}
+
+.crew-progress {
+  margin-top: 3px;
+}
+
+@media (max-width: 760px) {
+  #mod-modal-body {
+    padding: 12px;
+  }
+
+  .mod-modal-overview {
+    margin: -12px -12px 0;
+    padding: 10px 12px;
+  }
+
+  .mod-modal-signal-head {
+    flex-direction: column;
+  }
+
+  .mod-modal-signal-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mod-modal-signal-focus {
+    grid-template-columns: 1fr;
+  }
+
+  .mod-modal-recommendation,
+  .mod-modal-item,
+  .crew-card {
+    grid-template-columns: 1fr;
+  }
+
+  .mod-modal-recommendation-btn,
+  .mod-modal-buy-btn,
+  .mod-modal-uninstall-btn,
+  .mod-modal-sell-btn {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .crew-modal-summary {
+    padding: 12px 12px 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .crew-modal-section {
+    margin: 12px 12px 0;
+  }
+
+  .crew-modal-section-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .crew-modal-section-meta {
+    justify-content: flex-start;
+    min-width: 0;
+  }
+
+  .crew-list {
+    grid-template-columns: 1fr;
+  }
+
+  .crew-card-actions {
+    justify-content: stretch;
+  }
+
+  .crew-card-actions > button {
+    flex: 1 1 120px;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .crew-modal-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .crew-modal-roster-alert {
+    grid-template-columns: 1fr;
+  }
+
+  .crew-modal-section-meta {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .crew-modal-command-head,
+  .ship-protocol-panel-head {
+    align-items: stretch;
+  }
+
+  .crew-modal-command-actions,
+  .crew-card-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Hangar detail modal shell refinements */
+.mod-modal-desc,
+.crew-modal-desc {
+  margin: 0;
+  color: rgba(177, 205, 222, 0.72);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.mod-modal-box > .mod-modal-desc {
+  padding: 14px 20px 0;
+}
+
+.crew-modal-scroll {
+  display: grid;
+  gap: 14px;
+  min-height: 0;
+  padding: 14px 20px 18px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.crew-modal-scroll .crew-modal-summary,
+.crew-modal-scroll .crew-modal-section {
+  padding: 0;
+  margin: 0;
+}
+
+.crew-modal-summary-stat {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid rgba(108, 231, 255, 0.12);
+  border-radius: 10px;
+  background: rgba(2, 10, 18, 0.48);
+}
+
+.crew-modal-summary-stat span {
+  color: rgba(177, 205, 222, 0.62);
+  font-size: 10px;
+}
+
+.crew-modal-summary-stat strong {
+  color: rgba(242, 250, 255, 0.94);
+  font-size: 13px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.crew-modal-command-panel {
+  min-width: 0;
+}
+
+.mod-modal-box .modal-actions,
+.crew-modal-box .modal-actions {
+  position: sticky;
+}
+
+@media (max-width: 760px) {
+  .mod-modal-box > .mod-modal-desc {
+    padding: 12px 12px 0;
+  }
+
+  .crew-modal-scroll {
+    padding: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .crew-modal-scroll {
+    gap: 12px;
+  }
+
+  .mod-modal-signal-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .crew-modal-summary-stat strong {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 360px) {
+  .crew-modal-summary,
+  .crew-modal-section-meta {
+    grid-template-columns: 1fr;
+  }
+}
+

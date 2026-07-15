@@ -1,0 +1,424 @@
+/* ==========================================================================
+   Market terminal trade dock
+   Keeps the selected good and primary trade actions close to the viewport.
+   ========================================================================== */
+.market-quick-trade-dock {
+  position: sticky;
+  top: 0;
+  z-index: 12;
+  margin: 0 6px 14px;
+  padding: 0;
+  pointer-events: none;
+}
+
+.market-quick-trade-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.9fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 11px;
+  border: 1px solid rgba(108, 231, 255, 0.24);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(5, 19, 31, 0.94), rgba(2, 10, 18, 0.97)),
+    radial-gradient(circle at 0 0, rgba(108, 231, 255, 0.14), transparent 42%);
+  box-shadow: 0 -14px 34px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(18px) saturate(1.25);
+  -webkit-backdrop-filter: blur(18px) saturate(1.25);
+  pointer-events: auto;
+}
+
+.market-quick-trade-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.market-quick-trade-icon {
+  width: 42px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border: 1px solid rgba(108, 231, 255, 0.2);
+  border-radius: 10px;
+  background: rgba(4, 17, 30, 0.78);
+  font-size: 22px;
+  box-shadow: inset 0 0 18px rgba(108, 231, 255, 0.08);
+}
+
+.market-quick-trade-copy {
+  min-width: 0;
+}
+
+.market-quick-trade-kicker {
+  color: rgba(108, 231, 255, 0.72);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.market-quick-trade-title {
+  margin-top: 2px;
+  color: rgba(244, 252, 255, 0.96);
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.market-quick-trade-note {
+  margin-top: 3px;
+  color: rgba(190, 218, 232, 0.74);
+  font-size: 11px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.market-quick-trade-prices {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  min-width: 0;
+}
+
+.market-quick-trade-prices span {
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid rgba(108, 231, 255, 0.11);
+  border-radius: 9px;
+  background: rgba(2, 10, 18, 0.5);
+}
+
+.market-quick-trade-prices em,
+.market-quick-trade-prices strong {
+  display: block;
+  min-width: 0;
+  font-style: normal;
+}
+
+.market-quick-trade-prices em {
+  color: rgba(167, 196, 212, 0.72);
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.market-quick-trade-prices strong {
+  margin-top: 2px;
+  color: #f2fbff;
+  font-size: 13px;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.market-quick-trade-actions {
+  display: flex;
+  gap: 7px;
+  justify-content: flex-end;
+}
+
+.market-quick-trade-btn {
+  min-height: 40px;
+  padding: 0 13px;
+  border: 1px solid rgba(108, 231, 255, 0.2);
+  border-radius: 9px;
+  background:
+    linear-gradient(180deg, rgba(27, 92, 116, 0.82), rgba(5, 27, 43, 0.92)),
+    radial-gradient(circle at 50% 0, rgba(108, 231, 255, 0.18), transparent 62%);
+  color: #f4fcff;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.market-quick-trade-btn--sell {
+  border-color: rgba(255, 205, 117, 0.24);
+  background:
+    linear-gradient(180deg, rgba(98, 61, 18, 0.84), rgba(38, 24, 12, 0.94)),
+    radial-gradient(circle at 50% 0, rgba(255, 205, 117, 0.14), transparent 62%);
+}
+
+.market-quick-trade-btn:hover:not(:disabled) {
+  border-color: rgba(108, 231, 255, 0.46);
+  transform: translateY(-1px);
+}
+
+.market-quick-trade-btn.disabled,
+.market-quick-trade-btn:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
+@media (max-width: 700px), (max-height: 620px) {
+  .market-quick-trade-dock {
+    margin: 0 0 10px;
+  }
+
+  .market-quick-trade-card {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 9px;
+  }
+
+  .market-quick-trade-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 9px;
+    font-size: 19px;
+  }
+
+  .market-quick-trade-title {
+    font-size: 14px;
+  }
+
+  .market-quick-trade-note {
+    display: none;
+  }
+
+  .market-quick-trade-prices {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .market-quick-trade-prices span {
+    padding: 6px;
+  }
+
+  .market-quick-trade-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .market-quick-trade-btn {
+    width: 100%;
+    min-height: 38px;
+    padding: 0 8px;
+  }
+
+  .market-experience-route {
+    padding: 8px;
+  }
+
+  .market-experience-route-copy {
+    display: none;
+  }
+
+  .market-experience-step {
+    flex: 0 0 min(154px, 46vw);
+    min-height: 46px;
+    padding: 7px;
+  }
+
+  .market-experience-step-index,
+  .market-workspace-tab-stage {
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+  }
+
+  .market-experience-step-path {
+    display: none;
+  }
+
+  .market-workspace-tab,
+  .market-subworkspace-tab {
+    min-height: 38px;
+    padding: 6px 8px;
+  }
+
+  .market-cmd-bar {
+    top: 0;
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .market-workspace-tabs,
+  .market-subworkspace-tabs {
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x proximity;
+  }
+
+  .market-workspace-tab,
+  .market-subworkspace-tab {
+    flex: 0 0 min(172px, 58vw);
+    scroll-snap-align: start;
+  }
+
+  .market-spot-trade-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .market-analysis-panel {
+    order: -1;
+  }
+
+  .market-spot-command-deck {
+    margin: 0 0 10px;
+    padding: 11px;
+    border-radius: 12px;
+  }
+
+  .market-spot-command-hero {
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .market-spot-command-title {
+    font-size: 20px;
+  }
+
+  .market-spot-command-summary {
+    max-height: 42px;
+    overflow: hidden;
+  }
+
+  .market-spot-command-emphasis {
+    align-items: flex-start;
+    min-width: 96px;
+    padding: 9px 10px;
+  }
+
+  .market-spot-command-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .market-spot-command-card {
+    padding: 9px;
+    border-radius: 10px;
+  }
+
+  .market-spot-command-card-note,
+  .market-spot-command-strip {
+    display: none;
+  }
+}
+
+@media (max-width: 360px) {
+  .market-quick-trade-prices strong {
+    font-size: 12px;
+  }
+
+  .market-quick-trade-kicker {
+    font-size: 8px;
+  }
+}
+
+
+/* Market matrix controls */
+.market-price-view {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  justify-content: end;
+  gap: 4px 8px;
+  min-width: 0;
+}
+
+.market-price-view-label {
+  color: rgba(177, 205, 222, 0.66);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.market-price-mode {
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(68px, 1fr));
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid rgba(108, 231, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(2, 10, 18, 0.68);
+}
+
+.market-price-mode-btn {
+  min-height: 30px;
+  padding: 5px 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(177, 205, 222, 0.72);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.market-price-mode-btn:hover {
+  color: rgba(242, 250, 255, 0.94);
+  background: rgba(108, 231, 255, 0.07);
+}
+
+.market-price-mode-btn.is-active,
+.market-price-mode-btn[aria-checked="true"] {
+  border-color: rgba(108, 231, 255, 0.3);
+  background: rgba(23, 116, 142, 0.24);
+  color: #d7f8ff;
+}
+
+.market-price-mode-btn:focus-visible,
+.mkt-ov-planet-action:focus-visible {
+  outline: 2px solid rgba(108, 231, 255, 0.72);
+  outline-offset: 2px;
+}
+
+.market-price-view-status {
+  grid-column: 1 / -1;
+  min-height: 15px;
+  color: rgba(177, 205, 222, 0.56);
+  font-size: 10px;
+  line-height: 1.4;
+  text-align: right;
+}
+
+.mkt-ov-planet-action {
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+  min-height: 30px;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mkt-ov-planet-action:hover {
+  background: rgba(108, 231, 255, 0.07);
+}
+
+.mkt-ov-planet-action .mkt-ov-type {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 640px) {
+  .market-heatmap-toolbar {
+    align-items: stretch;
+  }
+
+  .market-price-view {
+    grid-template-columns: 1fr;
+    justify-content: stretch;
+    width: 100%;
+  }
+
+  .market-price-mode {
+    width: 100%;
+  }
+
+  .market-price-view-status {
+    grid-column: 1;
+    text-align: left;
+  }
+}
+

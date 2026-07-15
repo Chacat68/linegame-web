@@ -98,15 +98,28 @@
 
 #webgl-canvas,
 #map-canvas,
-#map-3d-canvas {
+#map-3d-canvas,
+#starmap-three-canvas {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
 }
 
-#map-3d-canvas {
+#map-3d-canvas,
+#starmap-three-canvas {
   z-index: 2;
+}
+
+#map-3d-canvas.starmap-2d-canvas {
+  background: #03070b;
+  image-rendering: auto;
+  touch-action: none;
+}
+
+#starmap-three-canvas {
+  background: #02060d;
+  touch-action: none;
 }
 
 #map-legend {
