@@ -4,11 +4,15 @@ import {
   GUIDANCE_PRIORITY_BANDS,
   GUIDANCE_TOPICS,
   getCurrentSuggestion,
+  setAdvancedGuidanceProvider,
 } from '../js/systems/guidance/GuidanceSystem.js';
+import { getAdvancedGuidanceSuggestions } from '../js/systems/guidance/AdvancedGuidanceSystem.js';
 import * as Commerce from '../js/systems/commerce/CommerceFacade.js';
 import * as Economy from '../js/systems/economy/Economy.js';
 import * as Faction from '../js/systems/faction/FactionSystem.js';
 import * as Quest from '../js/systems/quest/QuestSystem.js';
+
+setAdvancedGuidanceProvider(getAdvancedGuidanceSuggestions);
 
 function createFirstTradeQuest() {
   return {

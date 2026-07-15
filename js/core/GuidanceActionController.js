@@ -1,9 +1,11 @@
-import { buildCommandFeedback } from '../ui/CommandAction.js?v=20260510-command1';
-import * as CommerceAction from './CommerceActionController.js?v=20260531-chainfollow1';
-import { getNavigationFocusCompletion, showContextCompletion } from './ActionGuideCompletion.js?v=20260526-helper1';
-import * as ExplorationAction from './ExplorationActionController.js?v=20260524-action2';
+import { buildCommandFeedback } from '../ui/CommandAction.js';
+import * as CommerceAction from './CommerceActionController.js';
+import { getNavigationFocusCompletion, showContextCompletion } from './ActionGuideCompletion.js';
+import * as ExplorationAction from './ExplorationActionController.js';
+import { getProcessingMessage } from './GuidanceActionFeedback.js';
 
-export { getMarketActionDestination } from './CommerceActionController.js?v=20260531-chainfollow1';
+export { getMarketActionDestination } from './CommerceActionController.js';
+export { getProcessingMessage } from './GuidanceActionFeedback.js';
 
 function _getState(context) {
   if (context && typeof context.getState === 'function') return context.getState();
@@ -29,27 +31,6 @@ function _getCompanyDirectiveClaimCompletionDetail(claimResult) {
     return detail + '；下一轮目标：' + nextDirective.title + percent;
   }
   return detail + '，下一条行动建议已刷新';
-}
-
-export function getProcessingMessage(suggestion) {
-  if (!suggestion) return '已执行，正在生成下一条建议';
-  if (suggestion.actionType === 'trade.buy' || suggestion.actionType === 'trade.sell') {
-    var questName = suggestion.payload && suggestion.payload.questName ? suggestion.payload.questName : '';
-    return questName
-      ? '已打开交易确认，完成后将推进「' + questName + '」'
-      : '已打开交易确认，完成后会刷新下一步';
-  }
-  if (suggestion.actionType === 'quest.accept') return '已接入任务档案，正在衔接下一步';
-  if (suggestion.actionType === 'map.focus') return '已定位航点，查看详情后可起航';
-  if (suggestion.actionType === 'travel.execute') return '已执行航行指令，抵达后刷新建议';
-  if (suggestion.actionType === 'trade.refuel') return '已执行燃料补给，正在刷新下一步';
-  if (suggestion.actionType === 'event.open') return '已打开待处理事件，完成后继续刷新建议';
-  if (suggestion.actionType === 'fleet.dispatch.prefill') return '已载入派遣草案，确认后执行路线';
-  if (suggestion.actionType === 'fleet.mod.open') return '已切到机库，查看推荐改装';
-  if (suggestion.actionType === 'fleet.service.open') return '已切到机库，检查维修方案';
-  if (suggestion.actionType === 'company.directive.claimAll') return '已结算公司指令奖励，正在刷新下一步';
-  if (ExplorationAction.isExplorationAction(suggestion.actionType)) return ExplorationAction.getProcessingMessage(suggestion);
-  return '已执行，正在生成下一条建议';
 }
 
 export function handleGuidanceAction(suggestion, context) {

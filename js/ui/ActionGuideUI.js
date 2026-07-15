@@ -1,4 +1,4 @@
-import { getCommandActionAttributes, renderCommandActionContent } from './CommandAction.js?v=20260531-directiveaction1';
+import { getCommandActionAttributes, renderCommandActionContent } from './CommandAction.js';
 
 let _onAction = null;
 let _suggestion = null;

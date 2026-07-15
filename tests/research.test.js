@@ -8,7 +8,8 @@ import * as Economy from '../js/systems/economy/Economy.js';
 import * as GalaxyData from '../js/systems/galaxy/GalaxyDataLayer.js';
 import * as Exploration from '../js/systems/galaxy/ExplorationSystem.js';
 import * as AutoTrade from '../js/systems/trade/AutoTradeSystem.js';
-import { getResearchDispatchBlockerState, getResearchDispatchBlockerActions } from '../js/ui/ResearchUI.js?v=20260609-researchfocus1';
+import { getResearchDispatchBlockerState } from '../js/ui/ResearchGuidance.js?v=20260715-archiveperf1';
+import { getResearchDispatchBlockerActions } from '../js/ui/ResearchUI.js?v=20260715-archiveperf1';
 import { createTestState } from './helpers.js';
 
 describe('ResearchSystem.init', () => {
