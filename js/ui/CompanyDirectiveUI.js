@@ -2,11 +2,16 @@ import {
   getCompanyDirectiveActionSuggestion,
   getCompanyDirectiveBoard,
   getDirectiveSuggestion,
-} from '../systems/company/CompanyDirectiveSystem.js?v=20260531-rewardloop1';
-import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from './SurfaceManager.js?v=20260621-settingsfallback1';
+} from '../systems/company/CompanyDirectiveSystem.js';
+import {
+  _resetTrackedDirectiveFocusForTest,
+  getTrackedDirectiveId as getStoredTrackedDirectiveId,
+  setTrackedDirectiveId as setStoredTrackedDirectiveId,
+} from '../core/CompanyDirectiveFocus.js';
+import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from './SurfaceManager.js';
+import { renderCompanyDirectiveSummary } from './CompanyDirectiveSummary.js';
 
 const MODAL_ID = 'company-directives-modal';
-const STORAGE_KEY = 'linegame_company_directive_focus';
 
 let _initialized = false;
 let _onAction = null;
@@ -14,7 +19,6 @@ let _onClaim = null;
 let _onClaimAll = null;
 let _onSelectionChange = null;
 let _lastState = null;
-let _trackedDirectiveId = _readTrackedDirectiveId();
 let _activeDirectiveFilter = 'all';
 
 function _escapeHtml(value) {
@@ -28,26 +32,6 @@ function _escapeHtml(value) {
 
 function _getElement(id) {
   return typeof document !== 'undefined' ? document.getElementById(id) : null;
-}
-
-function _readTrackedDirectiveId() {
-  try {
-    if (!globalThis.localStorage) return '';
-    return localStorage.getItem(STORAGE_KEY) || '';
-  } catch (_) {
-    return '';
-  }
-}
-
-function _writeTrackedDirectiveId(directiveId) {
-  _trackedDirectiveId = directiveId || '';
-  try {
-    if (!globalThis.localStorage) return;
-    if (_trackedDirectiveId) localStorage.setItem(STORAGE_KEY, _trackedDirectiveId);
-    else localStorage.removeItem(STORAGE_KEY);
-  } catch (_) {
-    // localStorage can be unavailable in tests or privacy-restricted contexts.
-  }
 }
 
 function _getDirective(board, directiveId) {
@@ -71,7 +55,7 @@ function _renderRequirement(requirement) {
 }
 
 function _renderDirectiveCard(directive, board) {
-  var tracked = directive.id === _trackedDirectiveId;
+  var tracked = directive.id === getStoredTrackedDirectiveId();
   var recommended = directive.id === board.recommendedDirectiveId;
   var classes = [
     'company-directive-card',
@@ -160,7 +144,7 @@ function _getDirectiveFilterCounts(board) {
   return {
     all: directives.length,
     tracked: directives.filter(function (directive) {
-      return directive && directive.id === _trackedDirectiveId;
+      return directive && directive.id === getStoredTrackedDirectiveId();
     }).length,
     claimable: directives.filter(function (directive) {
       return directive && directive.claimable;
@@ -175,7 +159,7 @@ function _filterDirectives(board) {
   var directives = board.directives || [];
   if (_activeDirectiveFilter === 'tracked') {
     return directives.filter(function (directive) {
-      return directive && directive.id === _trackedDirectiveId;
+      return directive && directive.id === getStoredTrackedDirectiveId();
     });
   }
   if (_activeDirectiveFilter === 'claimable') {
@@ -215,7 +199,7 @@ function _renderModal(board) {
   var milestone = board.nextMilestone
     ? ('下一权限 Lv.' + board.nextMilestone.level + ' · ' + board.nextMilestone.title)
     : '核心权限已全部开放';
-  var trackedDirective = _getDirective(board, _trackedDirectiveId);
+  var trackedDirective = _getDirective(board, getStoredTrackedDirectiveId());
   var trackedLabel = trackedDirective
     ? ('追踪：' + trackedDirective.title)
     : '未追踪指令';
@@ -254,40 +238,18 @@ function _renderModal(board) {
 }
 
 function _renderHeaderSummary(board) {
-  var button = _getElement('company-directives-btn');
-  if (!button) return;
-  var tracked = _getDirective(board, _trackedDirectiveId);
-  var claimableCount = Math.max(0, Number(board.claimableCount) || 0);
-  var trackedActive = !!tracked && !tracked.completed;
-  var trackedProgress = tracked ? Math.floor(Math.max(0, Math.min(1, tracked.progressRatio || 0)) * 100) : 0;
-
-  button.classList.toggle('is-tracking', trackedActive && claimableCount === 0);
-  button.classList.toggle('has-claimable', claimableCount > 0);
-  if (claimableCount > 0) {
-    button.dataset.companyDirectiveBadge = String(claimableCount);
-  } else {
-    delete button.dataset.companyDirectiveBadge;
-  }
-
-  var title = claimableCount > 0
-    ? ('公司指令：' + claimableCount + ' 项奖励可领取')
-    : (tracked ? ('公司指令：追踪 ' + tracked.title + ' · ' + trackedProgress + '%') : '公司指令');
-  var ariaLabel = claimableCount > 0
-    ? ('公司指令，' + claimableCount + ' 项奖励可领取')
-    : (tracked ? ('公司指令，正在追踪' + tracked.title + '，进度 ' + trackedProgress + '%') : '公司指令');
-  button.setAttribute('title', title);
-  button.setAttribute('aria-label', ariaLabel);
+  renderCompanyDirectiveSummary(_lastState || {}, board);
 }
 
 function _setTrackedDirectiveId(directiveId) {
-  _writeTrackedDirectiveId(directiveId);
-  if (typeof _onSelectionChange === 'function') _onSelectionChange(_trackedDirectiveId);
+  setStoredTrackedDirectiveId(directiveId);
+  if (typeof _onSelectionChange === 'function') _onSelectionChange(getStoredTrackedDirectiveId());
   if (_lastState) render(_lastState);
 }
 
 function _closeModal() {
   hideBlockingSurface(MODAL_ID);
-  if (typeof _onSelectionChange === 'function') _onSelectionChange(_trackedDirectiveId);
+  if (typeof _onSelectionChange === 'function') _onSelectionChange(getStoredTrackedDirectiveId());
 }
 
 function _setActiveDirectiveFilter(filter, restoreFocus) {
@@ -315,7 +277,7 @@ function _handleBodyClick(event) {
   var trackButton = target.closest('[data-company-directive-track]');
   if (trackButton) {
     var nextId = trackButton.dataset.companyDirectiveTrack || '';
-    _setTrackedDirectiveId(_trackedDirectiveId === nextId ? '' : nextId);
+    _setTrackedDirectiveId(getStoredTrackedDirectiveId() === nextId ? '' : nextId);
     return;
   }
 
@@ -403,17 +365,25 @@ export function render(state) {
   _renderModal(board);
 }
 
+export function open(state) {
+  if (state) render(state);
+  showBlockingSurface(MODAL_ID, {
+    focusSelector: '[data-company-directive-filter][aria-pressed="true"]',
+  });
+}
+
 export function getTrackedDirectiveId() {
-  return _trackedDirectiveId || '';
+  return getStoredTrackedDirectiveId();
 }
 
 export function getTrackedSuggestion(state) {
-  if (!_trackedDirectiveId) return null;
-  return getDirectiveSuggestion(state || {}, _trackedDirectiveId);
+  var trackedDirectiveId = getStoredTrackedDirectiveId();
+  if (!trackedDirectiveId) return null;
+  return getDirectiveSuggestion(state || {}, trackedDirectiveId);
 }
 
 export function getActionSuggestion(state) {
-  return getCompanyDirectiveActionSuggestion(state || {}, _trackedDirectiveId);
+  return getCompanyDirectiveActionSuggestion(state || {}, getStoredTrackedDirectiveId());
 }
 
 export function _resetForTest() {
@@ -423,6 +393,6 @@ export function _resetForTest() {
   _onClaimAll = null;
   _onSelectionChange = null;
   _lastState = null;
-  _trackedDirectiveId = '';
+  _resetTrackedDirectiveFocusForTest();
   _activeDirectiveFilter = 'all';
 }

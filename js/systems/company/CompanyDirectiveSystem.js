@@ -9,7 +9,7 @@ import {
   getTradeStationCapacityState,
 } from '../../data/companyAccess.js';
 import * as Trade from '../trade/TradeSystem.js';
-import * as Progression from '../progression/ProgressionSystem.js?v=20260518-ux2';
+import * as Progression from '../progression/ProgressionSystem.js';
 
 const TRACKED_SUGGESTION_PRIORITY = 26;
 const DIRECTIVE_REWARDS = {
