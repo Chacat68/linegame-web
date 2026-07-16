@@ -27,14 +27,17 @@ const CATEGORY_META = {
   faction: { label: '外交', code: 'DIP' },
   level: { label: '等级', code: 'LVL' },
   quest: { label: '任务', code: 'QST' },
+  fleet: { label: '舰队', code: 'FLT' },
+  specialist: { label: '专精', code: 'SPC' },
+  special: { label: '特殊', code: 'SPL' },
 };
 
-const CATEGORY_ORDER = ['trade', 'wealth', 'explore', 'tech', 'faction', 'level', 'quest'];
+const CATEGORY_ORDER = ['trade', 'wealth', 'explore', 'tech', 'faction', 'level', 'quest', 'fleet', 'specialist', 'special'];
 
 function _formatReward(reward) {
   reward = reward || {};
   const parts = [];
-  if (reward.credits) parts.push('资金 +' + Number(reward.credits).toLocaleString());
+  if (reward.credits) parts.push('信用积分 +' + Number(reward.credits).toLocaleString());
   if (reward.exp) parts.push('经验 +' + Number(reward.exp).toLocaleString());
   if (reward.reputation) parts.push('声望 +' + Number(reward.reputation).toLocaleString());
   return parts.length ? parts.join(' / ') : '无即时奖励';
@@ -56,7 +59,7 @@ function _getRewardBacklog(achievements) {
 
 function _formatRewardBacklog(backlog) {
   const parts = [];
-  if (backlog.credits) parts.push('资金 ' + Number(backlog.credits).toLocaleString());
+  if (backlog.credits) parts.push('信用积分 ' + Number(backlog.credits).toLocaleString());
   if (backlog.exp) parts.push('经验 ' + Number(backlog.exp).toLocaleString());
   if (backlog.reputation) parts.push('声望 ' + Number(backlog.reputation).toLocaleString());
   return parts.length ? parts.join(' / ') : '奖励池已清空';

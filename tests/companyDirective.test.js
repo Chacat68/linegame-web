@@ -181,7 +181,7 @@ describe('CompanyDirectiveSystem', function () {
       title: '现金流校准',
       code: 'CF-01',
       claimedIndex: 1,
-      rewardLabel: '650 cr · 公司经验 +80 · 声望 +3',
+      rewardLabel: '650 CR · 公司经验 +80 · 声望 +3',
     });
     expect(result.rewardLabel).toContain('公司经验 +80');
     expect(result.recentClaim).toMatchObject({

@@ -76,8 +76,8 @@ function _getGuidanceTopic(suggestion) {
 function _renderKicker(suggestion) {
   var topic = _getGuidanceTopic(suggestion);
   var label = '当前行动';
-  if (topic && topic.label) label += ' · ' + topic.label;
-  if (topic && topic.stepLabel) label += ' / ' + topic.stepLabel;
+  var contextLabel = topic && (topic.stepLabel || topic.label);
+  if (contextLabel) label += ' · ' + contextLabel;
   return _escapeHtml(label);
 }
 
@@ -150,10 +150,8 @@ function _renderExpanded(suggestion) {
 }
 
 function _renderCollapsed(suggestion) {
-  var topic = _getGuidanceTopic(suggestion);
-  var kicker = topic && topic.label ? ('当前行动 · ' + topic.label) : '当前行动';
   return '<button class="action-guide-mini" type="button" data-action-guide-toggle aria-label="展开当前行动" aria-expanded="false">' +
-    '<span class="action-guide-mini-kicker">' + _escapeHtml(kicker) + '</span>' +
+    '<span class="action-guide-mini-kicker">当前行动</span>' +
     '<span class="action-guide-mini-title">' + _escapeHtml(suggestion.title) + '</span>' +
   '</button>';
 }

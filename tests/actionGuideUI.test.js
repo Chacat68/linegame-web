@@ -136,10 +136,12 @@ describe('ActionGuideUI', function () {
     });
 
     expect(root.innerHTML).toContain('data-guide-topic="research-supply"');
-    expect(root.innerHTML).toContain('当前行动 · 科研补给链 / 派遣补给');
+    expect(root.innerHTML).toContain('当前行动 · 派遣补给');
+    expect(root.innerHTML).not.toContain('科研补给链 / 派遣补给');
 
     root.dispatchClick(createTarget('[data-action-guide-toggle]'));
-    expect(root.innerHTML).toContain('当前行动 · 科研补给链');
+    expect(root.innerHTML).toContain('action-guide-mini-kicker">当前行动');
+    expect(root.innerHTML).not.toContain('当前行动 · 科研补给链');
   });
 
   it('可以折叠成迷你指挥条', function () {

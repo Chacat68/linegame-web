@@ -35,7 +35,7 @@ function _formatNumber(value) {
 
 function _formatRewardLabel(reward) {
   var parts = [];
-  if (reward.credits) parts.push(_formatNumber(reward.credits) + ' cr');
+  if (reward.credits) parts.push(_formatNumber(reward.credits) + ' CR');
   if (reward.companyExperience) parts.push('公司经验 +' + _formatNumber(reward.companyExperience));
   if (reward.reputation) parts.push('声望 +' + _formatNumber(reward.reputation));
   return parts.join(' · ');
@@ -253,7 +253,7 @@ function _buildTradeDirective(state, companyLevel) {
         label: '累计利润',
         current: state && state.totalProfit,
         target: profitTarget,
-        suffix: ' cr',
+        suffix: ' CR',
       }),
     ],
     nextAction: _createAction({
@@ -384,7 +384,7 @@ function _buildNetworkDirective(state, companyLevel) {
             label: '净资产准备',
             current: Trade.getNetWorth(state || {}),
             target: 6000,
-            suffix: ' cr',
+            suffix: ' CR',
           }),
         ],
     nextAction: nextAction,

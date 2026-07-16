@@ -21,6 +21,24 @@ describe('Action guide responsive CSS', function () {
     expect(css).toContain('@import url("interstellar-trader.css")');
   });
 
+  it('现行设计体系会移除双层套框并使用独立的上下文、正文和操作区域', function () {
+    var surfaces = readFileSync(new URL('../css/surfaces.css', import.meta.url), 'utf8');
+    var responsive = readFileSync(new URL('../css/bridge-responsive.css', import.meta.url), 'utf8');
+
+    expect(surfaces).toContain('#action-guide.action-guide');
+    expect(surfaces).toContain('background: transparent');
+    expect(surfaces).toContain('#action-guide .action-guide-shell::before');
+    expect(surfaces).toContain('"status kicker primary toggle"');
+    expect(surfaces).toContain('"status main primary toggle"');
+    expect(surfaces).toContain('display: contents');
+    expect(surfaces).toContain('grid-area: primary');
+    expect(surfaces).toContain('grid-template-columns: minmax(0, 1fr) auto');
+    expect(surfaces).toMatch(/\.action-guide-primary \.command-action-kicker\s*\{[^}]*display:\s*none/);
+    expect(surfaces).toMatch(/\.action-guide-reason\s*\{[^}]*text-overflow:\s*ellipsis/);
+    expect(responsive).toContain('@media (max-width: 560px)');
+    expect(responsive).toContain('"status primary primary"');
+  });
+
   it('机库和档案覆盖层会使用 panel-open 作为可见状态', function () {
     var css = readFileSync(new URL('../css/interstellar-trader.css', import.meta.url), 'utf8');
 

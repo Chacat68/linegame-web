@@ -737,7 +737,7 @@ function _renderQuestTriagePanel(state, active, sortedAvailable, locked, selecte
       '<div class="quest-triage-cell quest-triage-cell--active" role="listitem"><span>当前航点</span><strong>' + currentLocalActive.length + '</strong><em>进行中可推进</em></div>' +
       '<div class="quest-triage-cell quest-triage-cell--available" role="listitem"><span>可接取</span><strong>' + availableLocal.length + '/' + sortedAvailable.length + '</strong><em>本地或无目标</em></div>' +
       '<div class="quest-triage-cell quest-triage-cell--timed" role="listitem"><span>限时线</span><strong>' + timedCount + '</strong><em>需盯时限</em></div>' +
-      '<div class="quest-triage-cell quest-triage-cell--locked" role="listitem"><span>章节</span><strong>' + phaseProgressLabel + '</strong><em>' + locked.length + ' 项未解锁</em></div>' +
+      '<div class="quest-triage-cell quest-triage-cell--locked" role="listitem"><span>未解锁</span><strong>' + locked.length + '</strong><em>章节 ' + phaseProgressLabel + '</em></div>' +
     '</div>' +
     '<div class="quest-focus-panel" aria-label="任务局部信号">' +
       '<div class="quest-focus-copy">' +
@@ -822,12 +822,6 @@ export function render(state, onAccept, onAbandon, questDispatchContext, onApply
         '<span>路线 · ' + commandRouteLabel + '</span>' +
         '<span>' + commandFocusLabel + '</span>' +
       '</div>' +
-    '</div>' +
-    '<div class="quest-command-metrics" role="list" aria-label="任务统计">' +
-      '<div role="listitem"><span>ACTIVE</span><strong>' + active.length + '/5</strong></div>' +
-      '<div role="listitem"><span>AVAILABLE</span><strong>' + available.length + '</strong></div>' +
-      '<div role="listitem"><span>LOCKED</span><strong>' + locked.length + '</strong></div>' +
-      '<div role="listitem"><span>PHASE</span><strong>' + currentPhaseProgress.completed + '/' + currentPhaseProgress.total + '</strong></div>' +
     '</div>' +
   '</section>';
 
