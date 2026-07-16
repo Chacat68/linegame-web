@@ -45,8 +45,6 @@ function _getCommandIntent(suggestion) {
       return '模块改装';
     case 'fleet.service.open':
       return '维修船坞';
-    case 'company.directive.claimAll':
-      return '公司指令奖励';
     case 'exploration.scan':
       return '轨道测绘';
     case 'exploration.land':

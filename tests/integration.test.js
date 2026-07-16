@@ -5,7 +5,6 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import * as Economy from '../js/systems/economy/Economy.js';
 import * as Fleet from '../js/systems/fleet/FleetSystem.js';
 import * as Finance from '../js/systems/finance/FinanceSystem.js';
-import * as Futures from '../js/systems/finance/FuturesSystem.js';
 import * as GameTime from '../js/systems/time/GameTimeSystem.js';
 import * as Trade from '../js/systems/trade/TradeSystem.js';
 import * as TradeStation from '../js/systems/trade/TradeStationSystem.js';
@@ -175,7 +174,7 @@ describe('端到端：经济→天数推进', () => {
     expect(Number.isFinite(price)).toBe(true);
   });
 
-  it('实时日推进会串联商网、金融、期货与派遣结算', () => {
+  it('实时日推进会串联商网、金融与派遣结算', () => {
     const state = createTestState({
       credits: 250000,
       companyLevel: 6,
@@ -190,7 +189,6 @@ describe('端到端：经济→天数推进', () => {
     Economy.init();
     Fleet.init(state);
     Finance.init(state);
-    Futures.init(state);
 
     expect(TradeStation.buildStation(state, 'sol_prime').ok).toBe(true);
     expect(Finance.investInTradeStation(state, 'sol_prime', 5000).ok).toBe(true);
@@ -198,9 +196,6 @@ describe('端到端：经济→天数推进', () => {
     const loanOffer = Finance.getLoanOffers(state)[0];
     expect(Finance.takeLoan(state, loanOffer.id).ok).toBe(true);
     const loanBalanceBefore = state.loans[0].balance;
-
-    const futuresListing = Futures.getFuturesListings(state)[0];
-    expect(Futures.openLongContract(state, futuresListing.goodId).ok).toBe(true);
 
     state.fleetSlots = 2;
     expect(Fleet.buyShip(state, 'freighter').ok).toBe(true);
@@ -213,7 +208,6 @@ describe('端到端：经济→天数推进', () => {
     expect(timeResult.ok).toBe(true);
     expect(state.day).toBe(2);
     expect(state.financeLastProcessedDay).toBe(2);
-    expect(state.futuresLastProcessedDay).toBe(2);
     expect(state.loans[0].balance).toBeLessThan(loanBalanceBefore);
     expect(state.tradeStations.sol_prime.lastIncome).toBeGreaterThan(0);
     expect(state.credits).not.toBe(creditsBeforeAdvance);

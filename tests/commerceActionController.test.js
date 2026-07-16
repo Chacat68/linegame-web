@@ -137,8 +137,8 @@ describe('CommerceActionController', function () {
 
   it('可复用市场目的地文案映射', function () {
     expect(getMarketActionDestination({ workspaceId: 'capital' }, '')).toBe('商业终端 · 资本调度区');
-    expect(getMarketActionDestination({ workspaceId: 'capital', subworkspaceId: 'stocks' }, '')).toBe('商业终端 · 股票交易区');
-    expect(getMarketActionDestination({ workspaceId: 'capital', subworkspaceId: 'futures' }, '')).toBe('商业终端 · 期货合约区');
+    expect(getMarketActionDestination({ workspaceId: 'capital', subworkspaceId: 'stocks' }, '')).toBe('商业终端 · 资本调度区');
+    expect(getMarketActionDestination({ workspaceId: 'capital', subworkspaceId: 'futures' }, '')).toBe('商业终端 · 资本调度区');
     expect(getMarketActionDestination({ subworkspaceId: 'black' }, '')).toBe('当前市场 · 黑市分区');
   });
 });

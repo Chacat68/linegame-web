@@ -89,29 +89,6 @@ describe('ActionGuideUI', function () {
     expect(clicked).toBe(suggestion);
   });
 
-  it('公司指令奖励行动会使用公司指令按钮语义', function () {
-    var root = createFakeRoot();
-    globalThis.document = {
-      getElementById: function (id) {
-        return id === 'action-guide' ? root : null;
-      },
-    };
-
-    ActionGuideUI.init(function () {});
-    ActionGuideUI.render({
-      id: 'company-directive-claim-rewards',
-      title: '领取公司指令奖励',
-      reason: '奖励已准备好结算。',
-      actionLabel: '领取奖励',
-      actionType: 'company.directive.claimAll',
-      surface: 'company',
-    });
-
-    expect(root.innerHTML).toContain('data-guide-surface="company"');
-    expect(root.innerHTML).toContain('data-command-surface="company"');
-    expect(root.innerHTML).toContain('data-command-intent="公司指令奖励"');
-  });
-
   it('会渲染中期专题链语义', function () {
     var root = createFakeRoot();
     globalThis.document = {

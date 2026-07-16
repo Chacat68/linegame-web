@@ -24,8 +24,6 @@ export function getMarketActionDestination(payload, fallbackIntent) {
     return '经营页 · 本地节点经营区';
   }
   if (workspaceId === 'capital') {
-    if (subworkspaceId === 'stocks') return '商业终端 · 股票交易区';
-    if (subworkspaceId === 'futures') return '商业终端 · 期货合约区';
     return '商业终端 · 资本调度区';
   }
   if (subworkspaceId === 'intel') return '当前市场 · 市场情报区';

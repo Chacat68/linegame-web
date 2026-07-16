@@ -4,6 +4,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as RandomEvent from '../js/systems/event/RandomEvent.js';
 import { EVENT_CONFIG } from '../js/data/constants.js';
+import { RANDOM_EVENTS } from '../js/data/events.js';
 import { createTestState } from './helpers.js';
 
 beforeEach(() => {
@@ -117,6 +118,28 @@ describe('RandomEvent.getEligibleEvents', () => {
     expect(ids).toContain('wormhole_anomaly');
     expect(ids).toContain('alien_artifact');
     expect(ids).toContain('mysterious_signal');
+  });
+
+  it('只在当前银河暴露对应的地域事件', () => {
+    const milkyState = createTestState({ currentGalaxy: 'milky_way', day: 3, playerLevel: 1 });
+    const milkyIds = RandomEvent.getEligibleEvents(milkyState).map(function (event) { return event.id; });
+    expect(milkyIds).toContain('milky_way_echo');
+    expect(milkyIds).not.toContain('andromeda_memory');
+
+    const andromedaState = createTestState({ currentGalaxy: 'andromeda', day: 20, playerLevel: 4, fuel: 100, shipHull: 100 });
+    const andromedaIds = RandomEvent.getEligibleEvents(andromedaState).map(function (event) { return event.id; });
+    expect(andromedaIds).toContain('andromeda_memory');
+    expect(andromedaIds).not.toContain('milky_way_echo');
+  });
+
+  it('地域事件做出选择后会写入存档标记并不再重复触发', () => {
+    const state = createTestState({ currentGalaxy: 'milky_way', day: 3, playerLevel: 1 });
+    const event = RANDOM_EVENTS.find(function (entry) { return entry.id === 'milky_way_echo'; });
+
+    event.choices[1].effect(state);
+
+    expect(state.storyFlags.galaxy_event_milky_way_echo).toBe(3);
+    expect(RandomEvent.getEligibleEvents(state).map(function (entry) { return entry.id; })).not.toContain('milky_way_echo');
   });
 });
 

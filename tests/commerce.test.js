@@ -136,7 +136,7 @@ describe('Commerce.getCommerceSnapshot', () => {
     expect(typeof snap.ownedStationCount).toBe('number');
     expect(typeof snap.stationDailyIncome).toBe('number');
     expect(typeof snap.totalLoans).toBe('number');
-    expect(typeof snap.stockPortfolioValue).toBe('number');
+    expect(typeof snap.tradeInvestmentValue).toBe('number');
     expect(typeof snap.creditRating).toBe('number');
     expect(typeof snap.activeLoans).toBe('number');
   });
@@ -160,7 +160,7 @@ describe('Commerce.getCommerceSnapshot', () => {
     expect(snap.creditRating).toBeLessThanOrEqual(850);
   });
 
-  it('聚合金融、期货与商网指标到统一快照', () => {
+  it('聚合贷款、站点投资与商网指标到统一快照', () => {
     const state = createTestState({
       credits: 300000,
       companyLevel: 6,
@@ -174,26 +174,14 @@ describe('Commerce.getCommerceSnapshot', () => {
     expect(Commerce.buildTradeStation(state, 'sol_prime').ok).toBe(true);
     expect(Commerce.takeLoan(state, 'starter').ok).toBe(true);
 
-    const stockId = Object.keys(state.stockMarket)[0];
-    expect(Commerce.buyStock(state, stockId).ok).toBe(true);
-    expect(Commerce.openFuturesLong(state, 'food').ok).toBe(true);
-
-    vi.spyOn(Economy, 'getSellPrice').mockImplementation(function (systemId, goodId) {
-      if (goodId === 'food') return 999;
-      return 100;
-    });
+    expect(Commerce.investInTradeStation(state, 'sol_prime').ok).toBe(true);
 
     const snap = Commerce.getCommerceSnapshot(state);
 
     expect(snap.ownedStationCount).toBe(1);
     expect(snap.totalLoans).toBeGreaterThan(0);
-    expect(snap.stockPortfolioValue).toBeGreaterThan(0);
-    expect(snap.futuresUnrealizedPnl).toBeGreaterThan(0);
-    expect(snap.tradeInvestmentValue).toBe(0);
-    expect(snap.finance.stockPortfolioValue).toBe(snap.stockPortfolioValue);
+    expect(snap.tradeInvestmentValue).toBe(5000);
     expect(snap.finance.activeLoanCount).toBe(snap.activeLoans);
-    expect(snap.futures.totalUnrealizedPnl).toBe(snap.futuresUnrealizedPnl);
-    expect(snap.futures.openContractCount).toBe(snap.futuresOpenContracts);
   });
 });
 
@@ -287,33 +275,12 @@ describe('Commerce.takeLoan', () => {
   });
 });
 
-describe('Commerce.buyStock / sellStock', () => {
-  it('公司等级不足时拒绝买入股票', () => {
-    const state = createTestState({ credits: 100000, companyLevel: 2 });
-    Finance.init(state);
-
-    const stockId = Object.keys(state.stockMarket)[0];
-    const result = Commerce.buyStock(state, stockId);
-
-    expect(result.ok).toBe(false);
-    expect(result.msgs[0].text).toContain('公司 Lv.3');
-  });
-
-  it('买卖股票成功', () => {
-    const state = createTestState({ credits: 100000, companyLevel: 3 });
-    Finance.init(state);
-
-    const stockId = Object.keys(state.stockMarket)[0];
-    const buyResult = Commerce.buyStock(state, stockId);
-    expect(buyResult.ok).toBe(true);
-    // stockPortfolio 存储的是 { shares, avgCost, totalDividends } 对象
-    expect(state.stockPortfolio[stockId]).toBeDefined();
-    expect(state.stockPortfolio[stockId].shares).toBe(1);
-
-    const sellResult = Commerce.sellStock(state, stockId);
-    expect(sellResult.ok).toBe(true);
-    // 卖完后持仓应为 0 或条目被删除
-    const remainingShares = state.stockPortfolio[stockId] ? state.stockPortfolio[stockId].shares : 0;
-    expect(remainingShares).toBe(0);
+describe('Commerce legacy capital surface', () => {
+  it('不再暴露股票、期货和手动保险交易入口', () => {
+    expect(Commerce.buyStock).toBeUndefined();
+    expect(Commerce.sellStock).toBeUndefined();
+    expect(Commerce.openFuturesLong).toBeUndefined();
+    expect(Commerce.openFuturesShort).toBeUndefined();
+    expect(Commerce.purchaseInsurance).toBeUndefined();
   });
 });

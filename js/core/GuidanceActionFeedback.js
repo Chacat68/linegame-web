@@ -16,7 +16,6 @@ export function getProcessingMessage(suggestion) {
   if (suggestion.actionType === 'fleet.dispatch.prefill') return '已载入派遣草案，确认后执行路线';
   if (suggestion.actionType === 'fleet.mod.open') return '已切到机库，查看推荐改装';
   if (suggestion.actionType === 'fleet.service.open') return '已切到机库，检查维修方案';
-  if (suggestion.actionType === 'company.directive.claimAll') return '已结算公司指令奖励，正在刷新下一步';
   if (typeof suggestion.actionType === 'string' && suggestion.actionType.indexOf('exploration.') === 0) {
     return '已执行探索指令，正在刷新现场建议';
   }

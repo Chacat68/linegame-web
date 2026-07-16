@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  GALAXIES,
   getAccessibleGalaxies,
   getGalaxyAccessState,
   getAccessibleSystems,
-  getSystemsByGalaxy,
   getSystemsByGalaxy,
   isSystemAccessible,
 } from '../js/data/systems.js';
@@ -20,6 +20,23 @@ describe('Galaxy access rules', function () {
     const access = getGalaxyAccessState('chrono_rift', 1, ['hyperspace_jump']);
     expect(access.unlocked).toBe(true);
     expect(access.unlockedBy).toBe('tech');
+  });
+
+  it('超空间会为每个外域开放入口层，但不会跳过内部高阶星球等级', function () {
+    GALAXIES.filter(function (galaxy) { return !galaxy.unlocked; }).forEach(function (galaxy) {
+      const accessible = getAccessibleSystems(galaxy.id, 1, ['hyperspace_jump']);
+      const higherTier = getSystemsByGalaxy(galaxy.id).filter(function (system) {
+        return (system.minLevel || 1) > (galaxy.minLevel || 1);
+      });
+
+      expect(accessible.length, galaxy.id + ' 应至少开放一个入口星球').toBeGreaterThan(0);
+      expect(accessible.every(function (system) {
+        return (system.minLevel || 1) <= (galaxy.minLevel || 1);
+      })).toBe(true);
+      higherTier.forEach(function (system) {
+        expect(isSystemAccessible(system.id, 1, ['hyperspace_jump'])).toBe(false);
+      });
+    });
   });
 
   it('星球可达性会同时受星系与星球等级影响', function () {

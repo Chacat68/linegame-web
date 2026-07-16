@@ -108,7 +108,7 @@ describe('deferred terminal UI loading', function () {
     expect(gameManager).toContain('requestedRevision !== _runtimeRevision');
   });
 
-  it('设置、公司指令终端与行动执行器不再进入首屏静态依赖图', function () {
+  it('设置与行动执行器不再进入首屏静态依赖图', function () {
     var gameManager = readFileSync('js/core/GameManager.js', 'utf8');
     var settingsCore = readFileSync('js/core/SettingsCore.js', 'utf8');
     var settingsManager = readFileSync('js/core/SettingsManager.js', 'utf8');
@@ -118,10 +118,9 @@ describe('deferred terminal UI loading', function () {
     expect(gameManager).not.toMatch(/import\s+\*\s+as\s+CompanyDirectiveUI\s+from/);
     expect(gameManager).not.toMatch(/import\s+\*\s+as\s+GuidanceAction\s+from/);
     expect(gameManager).toContain("import('./SettingsManager.js')");
-    expect(gameManager).toContain("import('../ui/CompanyDirectiveUI.js')");
+    expect(gameManager).not.toContain('CompanyDirectiveUI');
     expect(gameManager).toContain("import('./GuidanceActionController.js')");
     expect(gameManager).toContain("_setDeferredUiState('settings', 'loading')");
-    expect(gameManager).toContain("_setDeferredUiState('companyDirective', 'loading')");
     expect(gameManager).toContain("_setDeferredUiState('guidanceAction', 'loading')");
     expect(gameManager).toContain('requestedRevision !== _runtimeRevision');
     expect(settingsCore).not.toContain('ActionConfirmUI');

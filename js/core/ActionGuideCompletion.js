@@ -41,7 +41,7 @@ export function getDispatchDraftCompletion() {
 export function getDispatchConfirmedCompletion(goodName) {
   return {
     message: '已确认派遣路线',
-    detail: goodName ? ('自动贸易目标：' + goodName) : '自动贸易路线已生效',
+    detail: goodName ? ('派遣货物：' + goodName) : '舰队派遣路线已生效',
   };
 }
 
@@ -54,8 +54,8 @@ export function getModInstalledCompletion(modName) {
 
 export function getServiceScheduledCompletion() {
   return {
-    message: '已安排维修船坞',
-    detail: '维修完成后继续派遣或航行',
+    message: '已完成港口保养',
+    detail: '船体与维护度已即时恢复',
   };
 }
 

@@ -388,12 +388,6 @@ function _inferGuidanceTopic(suggestion) {
   if (id === 'batch-set-trade-station-strategy') return _getTopic('tradeNetwork', '同步策略');
 
   if (id === 'review-loan-obligation') return _getTopic('capitalRisk', '贷款复核');
-  if (id === 'review-futures-contract') return _getTopic('capitalRisk', '合约复核');
-  if (id === 'open-stock-position') return _getTopic('capitalRisk', '建立观察位');
-
-  if (id.indexOf('company-directive') === 0 || actionType.indexOf('company.directive') === 0) {
-    return _getTopic('companyGrowth', actionType === 'company.directive.claimAll' ? '领取奖励' : '推进指令');
-  }
 
   return null;
 }

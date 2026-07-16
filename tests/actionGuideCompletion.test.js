@@ -39,11 +39,11 @@ describe('ActionGuideCompletion', function () {
     });
     expect(getDispatchConfirmedCompletion('食物')).toEqual({
       message: '已确认派遣路线',
-      detail: '自动贸易目标：食物',
+      detail: '派遣货物：食物',
     });
     expect(getDispatchConfirmedCompletion()).toEqual({
       message: '已确认派遣路线',
-      detail: '自动贸易路线已生效',
+      detail: '舰队派遣路线已生效',
     });
     expect(getModInstalledCompletion('深空测绘阵列')).toEqual({
       message: '已安装「深空测绘阵列」',
@@ -54,8 +54,8 @@ describe('ActionGuideCompletion', function () {
       detail: '下一条派遣或经营建议已刷新',
     });
     expect(getServiceScheduledCompletion()).toEqual({
-      message: '已安排维修船坞',
-      detail: '维修完成后继续派遣或航行',
+      message: '已完成港口保养',
+      detail: '船体与维护度已即时恢复',
     });
   });
 

@@ -17,22 +17,6 @@ function _call(context, name) {
   return context[name].apply(null, Array.prototype.slice.call(arguments, 2));
 }
 
-function _getCompanyDirectiveClaimCompletionDetail(claimResult) {
-  var count = claimResult && claimResult.claimedCount ? claimResult.claimedCount : 0;
-  var base = '已结算 ' + count + ' 项奖励';
-  var rewardLabel = claimResult && claimResult.rewardLabel ? claimResult.rewardLabel : '';
-  var nextDirective = claimResult && claimResult.nextDirective ? claimResult.nextDirective : null;
-  if (!rewardLabel && !nextDirective) return base + '，下一条行动建议已刷新';
-
-  var detail = rewardLabel ? (base + '：' + rewardLabel) : base;
-  if (nextDirective && nextDirective.label) return detail + '；' + nextDirective.label;
-  if (nextDirective && nextDirective.title) {
-    var percent = typeof nextDirective.percent === 'number' ? (' ' + nextDirective.percent + '%') : '';
-    return detail + '；下一轮目标：' + nextDirective.title + percent;
-  }
-  return detail + '，下一条行动建议已刷新';
-}
-
 export function handleGuidanceAction(suggestion, context) {
   if (!suggestion || !suggestion.actionType) return;
 
@@ -79,19 +63,6 @@ export function handleGuidanceAction(suggestion, context) {
     case 'event.open':
       _call(ctx, 'forcePendingEvent');
       _call(ctx, 'refreshActionGuide');
-      return;
-
-    case 'company.directive.claimAll':
-      var claimResult = _call(ctx, 'claimCompanyDirectiveRewards');
-      if (claimResult && claimResult.ok) {
-        _call(ctx, 'showCompletion',
-          '公司指令奖励已领取',
-          _getCompanyDirectiveClaimCompletionDetail(claimResult),
-          { durationMs: 1400 }
-        );
-      } else {
-        _call(ctx, 'refreshActionGuide');
-      }
       return;
 
     case 'fleet.dispatch.prefill':

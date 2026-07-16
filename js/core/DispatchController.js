@@ -252,14 +252,5 @@ export function runActiveDispatchTick(state, options) {
  * 更新派遣 UI 指示器
  */
 export function updateActiveDispatchUI() {
-  if (!globalThis.document || typeof document.getElementById !== 'function') return;
-  var ctrlDiv = document.getElementById('auto-trade-controls');
-  if (!ctrlDiv) return;
-  if (_activeDispatchInterval) {
-    ctrlDiv.classList.remove('hidden');
-    ctrlDiv.innerHTML = '<span class="dispatch-active-indicator">📡 激活船只派遣中…</span>';
-  } else {
-    ctrlDiv.classList.add('hidden');
-    ctrlDiv.innerHTML = '';
-  }
+  // 派遣状态现在由舰队卡片统一呈现，不再维护第二套自动贸易指示器。
 }

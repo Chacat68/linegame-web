@@ -31,21 +31,28 @@ const COMPANY_LEVELS = PlayerLevels.COMPANY_LEVELS || [
  */
 export function gainExperience(state, amount) {
   const msgs = [];
-  const oldLevel = getLevel(state.experience || 0);
-  state.experience = (state.experience || 0) + amount;
+  const experienceLevelBefore = getLevel(state.experience || 0);
+  // playerLevel 记录的是已经实际结算过奖励的等级；旧版本直接加经验时它可能落后。
+  const settledLevelBefore = Math.min(
+    experienceLevelBefore.level,
+    Math.max(1, Number(state.playerLevel) || experienceLevelBefore.level)
+  );
+  state.experience = (state.experience || 0) + Math.max(0, Number(amount) || 0);
   const newLevel = getLevel(state.experience);
+  state.playerLevel = newLevel.level;
 
-  if (newLevel.level > oldLevel.level) {
-    state.playerLevel = newLevel.level;
+  if (newLevel.level > settledLevelBefore) {
     msgs.push({
       text: '🎉 升级！你现在是 ' + newLevel.icon + ' ' + newLevel.title + ' (Lv.' + newLevel.level + ')',
       type: 'upgrade',
     });
-    // 应用升级奖励
-    const perkMsgs = applyLevelPerk(state, newLevel.level);
-    msgs.push(...perkMsgs.msgs);
+    // 一次奖励可能跨越多个等级，沿途奖励必须逐级结算。
+    for (let level = settledLevelBefore + 1; level <= newLevel.level; level += 1) {
+      const perkMsgs = applyLevelPerk(state, level);
+      msgs.push(...perkMsgs.msgs);
+    }
     // 提示新解锁的星球
-    const routeMsgs = announceNewRoutes(state, oldLevel.level, newLevel.level);
+    const routeMsgs = announceNewRoutes(state, settledLevelBefore, newLevel.level);
     msgs.push(...routeMsgs.msgs);
   }
 
@@ -116,11 +123,7 @@ export function applyLevelPerk(state, level) {
       msgs.push({ text: perk.message, type: 'info' });
       break;
     case 4:  // 货舱 +5
-      {
-        const ship4 = Fleet.getActiveShip(state);
-        if (ship4) ship4.maxCargo = Math.min(ship4.maxCargoCap, ship4.maxCargo + perk.value);
-        Fleet.syncStateFromShip(state);
-      }
+      if (_getActiveShipSafely(state)) Fleet.syncStateFromShip(state);
       msgs.push({ text: perk.message, type: 'info' });
       break;
     case 5:  // 买入价格 -3%
@@ -128,11 +131,7 @@ export function applyLevelPerk(state, level) {
       msgs.push({ text: perk.message, type: 'info' });
       break;
     case 6:  // 燃料效率 +10%
-      {
-        const ship6 = Fleet.getActiveShip(state);
-        if (ship6) ship6.fuelEff = Math.max(ship6.minFuelEff, ship6.fuelEff * perk.value);
-        Fleet.syncStateFromShip(state);
-      }
+      if (_getActiveShipSafely(state)) Fleet.syncStateFromShip(state);
       msgs.push({ text: perk.message, type: 'info' });
       break;
     case 7:  // 所有派系好感 +10
@@ -144,11 +143,7 @@ export function applyLevelPerk(state, level) {
       msgs.push({ text: perk.message, type: 'info' });
       break;
     case 8:  // 货舱 +10
-      {
-        const ship8 = Fleet.getActiveShip(state);
-        if (ship8) ship8.maxCargo = Math.min(ship8.maxCargoCap, ship8.maxCargo + perk.value);
-        Fleet.syncStateFromShip(state);
-      }
+      if (_getActiveShipSafely(state)) Fleet.syncStateFromShip(state);
       msgs.push({ text: perk.message, type: 'info' });
       break;
     case 9:  // 卖出价格 +5%
@@ -156,14 +151,7 @@ export function applyLevelPerk(state, level) {
       msgs.push({ text: perk.message, type: 'info' });
       break;
     case 10: // 全属性提升
-      {
-        const ship10 = Fleet.getActiveShip(state);
-        if (ship10) {
-          ship10.maxCargo = Math.min(ship10.maxCargoCap, ship10.maxCargo + perk.cargo);
-          ship10.maxFuel  = Math.min(ship10.maxFuelCap, ship10.maxFuel + perk.maxFuel);
-        }
-        Fleet.syncStateFromShip(state);
-      }
+      if (_getActiveShipSafely(state)) Fleet.syncStateFromShip(state);
       state.techBuyDiscount = (state.techBuyDiscount || 0) + perk.buyDiscount;
       state.techSellBonus = (state.techSellBonus || 0) + perk.sellBonus;
       msgs.push({ text: perk.message, type: 'upgrade' });
@@ -171,6 +159,11 @@ export function applyLevelPerk(state, level) {
   }
 
   return { msgs };
+}
+
+function _getActiveShipSafely(state) {
+  if (!state || !Array.isArray(state.fleet) || state.fleet.length === 0) return null;
+  return Fleet.getActiveShip(state);
 }
 
 /**

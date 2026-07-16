@@ -5,6 +5,38 @@ import * as Fleet from '../js/systems/fleet/FleetSystem.js';
 import { createTestState } from './helpers.js';
 
 describe('Progression level perk configuration', () => {
+  it('一次跨越多个玩家等级时会应用沿途全部等级奖励', () => {
+    const state = createTestState({
+      experience: 90,
+      playerLevel: 1,
+    });
+    Fleet.init(state);
+    const beforeCargo = state.maxCargo;
+
+    const result = Progression.gainExperience(state, 920);
+
+    expect(state.playerLevel).toBe(5);
+    expect(state.techSellBonus).toBe(PROGRESSION_CONFIG.levelPerks[3].value);
+    expect(state.maxCargo).toBe(beforeCargo + PROGRESSION_CONFIG.levelPerks[4].value);
+    expect(state.techBuyDiscount).toBe(PROGRESSION_CONFIG.levelPerks[5].value);
+    expect(result.msgs.filter(function (msg) {
+      return msg.text.indexOf('等级奖励') !== -1;
+    })).toHaveLength(3);
+  });
+
+  it('后续经验结算会修复旧版直加经验造成的等级与奖励断档', () => {
+    const state = createTestState({
+      experience: 310,
+      playerLevel: 2,
+    });
+    Fleet.init(state);
+
+    Progression.gainExperience(state, 0);
+
+    expect(state.playerLevel).toBe(3);
+    expect(state.techSellBonus).toBe(PROGRESSION_CONFIG.levelPerks[3].value);
+  });
+
   it('等级 5 奖励使用配置中的买入折扣值', () => {
     const state = createTestState();
     Fleet.init(state);
@@ -14,8 +46,8 @@ describe('Progression level perk configuration', () => {
     expect(state.techBuyDiscount).toBe(PROGRESSION_CONFIG.levelPerks[5].value);
   });
 
-  it('等级 10 奖励使用配置中的复合属性加成', () => {
-    const state = createTestState();
+  it('等级 10 复合奖励不会重复改写当前船属性', () => {
+    const state = createTestState({ playerLevel: 10 });
     Fleet.init(state);
     const perk = PROGRESSION_CONFIG.levelPerks[10];
     const beforeCargo = state.maxCargo;
@@ -25,8 +57,45 @@ describe('Progression level perk configuration', () => {
 
     expect(state.techBuyDiscount).toBe(perk.buyDiscount);
     expect(state.techSellBonus).toBe(perk.sellBonus);
-    expect(state.maxCargo).toBe(beforeCargo + perk.cargo);
-    expect(state.maxFuel).toBe(beforeFuel + perk.maxFuel);
+    expect(state.maxCargo).toBe(beforeCargo);
+    expect(state.maxFuel).toBe(beforeFuel);
+  });
+
+  it('玩家等级舰船加成不改写船体，切换新船仍然生效', () => {
+    const state = createTestState({ playerLevel: 10 });
+    Fleet.init(state);
+    const firstShip = state.fleet[0];
+    const firstBaseCargo = firstShip.maxCargo;
+    const firstBaseFuel = firstShip.maxFuel;
+    const firstBaseEfficiency = firstShip.fuelEff;
+
+    Fleet.syncStateFromShip(state);
+
+    expect(firstShip.maxCargo).toBe(firstBaseCargo);
+    expect(firstShip.maxFuel).toBe(firstBaseFuel);
+    expect(firstShip.fuelEff).toBe(firstBaseEfficiency);
+    expect(state.maxCargo).toBe(firstBaseCargo + 25);
+    expect(state.maxFuel).toBe(firstBaseFuel + 20);
+
+    const secondShip = {
+      ...firstShip,
+      name: '新舰测试号',
+      cargo: {},
+      maxCargo: 40,
+      maxFuel: 140,
+      fuel: 140,
+      fuelEff: 0.8,
+      crewIds: [],
+      mods: [],
+      upgrades: [],
+      faults: [],
+    };
+    state.fleet.push(secondShip);
+
+    expect(Fleet.switchShip(state, 1).ok).toBe(true);
+    expect(state.maxCargo).toBe(65);
+    expect(state.maxFuel).toBe(160);
+    expect(Fleet.getEffectiveShipStats(state, secondShip).fuelEff).toBeCloseTo(0.72, 4);
   });
 
   it('公司升级时会提示本级具体开放权限', () => {
@@ -42,7 +111,7 @@ describe('Progression level perk configuration', () => {
 
     expect(state.companyLevel).toBe(2);
     expect(unlockMsg.text).toContain('Lv.2 资本工具');
-    expect(unlockMsg.text).toContain('贷款与保险');
+    expect(unlockMsg.text).toContain('经营贷款');
     expect(unlockMsg.text).toContain('舰队席位 II');
   });
 
@@ -59,7 +128,7 @@ describe('Progression level perk configuration', () => {
 
     expect(state.companyLevel).toBe(4);
     expect(unlockMsg.text).toContain('Lv.2 资本工具');
-    expect(unlockMsg.text).toContain('Lv.3 证券交易');
+    expect(unlockMsg.text).toContain('Lv.3 区域扩编');
     expect(unlockMsg.text).toContain('Lv.4 贸易站建设');
   });
 });

@@ -445,8 +445,6 @@ describe('Settings.initSettingsModal', function () {
     expect(html).toMatch(/id="settings-tab-game"[\s\S]{0,180}tabindex="-1"[\s\S]{0,80}aria-hidden="true"/);
     expect(html).toContain('id="settings-summary-audio"');
     expect(html).toContain('class="settings-nav-subtitle">视觉 / 性能</small>');
-    expect(html).toContain('aria-describedby="company-directives-desc company-directives-body"');
-    expect(html).toContain('id="company-directives-desc" class="company-directives-desc"');
     expect(html).toContain('aria-label="音效音量"');
     expect(html).toContain('id="action-confirm-modal"');
     expect(html).toContain('role="alertdialog"');
@@ -457,8 +455,6 @@ describe('Settings.initSettingsModal', function () {
     expect(css).toContain('.modal > .settings-modal-box {\n    height: min(680px, calc(100dvh - 32px));');
     expect(css).toContain('height: calc(100dvh - max(8px, var(--safe-top)) - max(8px, var(--safe-bottom)));');
     expect(css).toContain('max-height: calc(100dvh - max(8px, var(--safe-top)) - max(8px, var(--safe-bottom))) !important;');
-    expect(css).toContain('.company-directives-title-copy');
-    expect(css).toContain('.company-directives-desc');
     expect(css).toContain('.settings-panel-page--data .save-slot:focus-visible');
     expect(css).not.toMatch(/\.settings-panel-page--data\s*\{[^}]*display:\s*flex/);
     expect(css).toContain('.save-safety-panel');

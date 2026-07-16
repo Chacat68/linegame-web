@@ -178,6 +178,7 @@ export function getEligibleEvents(state) {
   const currentDay = state.day || 1;
   return RANDOM_EVENTS.filter(function (ev) {
     if (ev.stage === 'chain') return false;
+    if (Array.isArray(ev.galaxyIds) && ev.galaxyIds.indexOf(state.currentGalaxy) === -1) return false;
     if (ev.condition && !ev.condition(state)) return false;
     if (_isOnCooldown(ev, currentDay)) return false;
     if (!_matchesStage(ev, state)) return false;

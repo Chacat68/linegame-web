@@ -12,7 +12,6 @@
 
 import * as Trade    from '../trade/TradeSystem.js';
 import * as Finance  from '../finance/FinanceSystem.js';
-import * as Futures  from '../finance/FuturesSystem.js';
 import * as Station  from '../trade/TradeStationSystem.js';
 import * as Economy  from '../economy/Economy.js';
 import { getCompanyAccessState } from '../../data/companyAccess.js';
@@ -102,10 +101,6 @@ export function upgradeTradeStation(state, systemId) {
   return Station.upgradeStation(state, systemId);
 }
 
-export function hireTradeStationManager(state, systemId, managerId) {
-  return Station.hireManager(state, systemId, managerId);
-}
-
 export function setTradeStationStrategy(state, systemId, strategyId) {
   return Station.setStrategy(state, systemId, strategyId);
 }
@@ -114,16 +109,12 @@ export function batchUpgradeTradeStations(state, systemIds) {
   return Station.batchUpgradeStations(state, systemIds);
 }
 
-export function batchHireTradeStationManager(state, managerId, systemIds) {
-  return Station.batchHireManagers(state, managerId, systemIds);
-}
-
 export function batchSetTradeStationStrategy(state, strategyId, systemIds) {
   return Station.batchSetStrategies(state, strategyId, systemIds);
 }
 
 // ---------------------------------------------------------------------------
-// 金融操作（贷款、股票、保险、投资）
+// 金融操作（经营贷款、贸易站投资）
 // ---------------------------------------------------------------------------
 
 export function takeLoan(state, offerId) {
@@ -136,16 +127,6 @@ export function repayLoan(state, loanId) {
   return Finance.repayLoan(state, loanId);
 }
 
-export function buyStock(state, stockId) {
-  const gate = _requireCompanyAccess(state, 'stocks', '买入股票');
-  if (gate) return gate;
-  return Finance.buyStock(state, stockId, 1);
-}
-
-export function sellStock(state, stockId) {
-  return Finance.sellStock(state, stockId, 1);
-}
-
 export function investInTradeStation(state, systemId) {
   const gate = _requireCompanyAccess(state, 'tradeInvestment', '追加站点投资');
   if (gate) return gate;
@@ -156,36 +137,6 @@ export function batchInvestInTradeStations(state, systemIds) {
   const gate = _requireCompanyAccess(state, 'tradeInvestment', '批量站点投资');
   if (gate) return gate;
   return Finance.batchInvestInTradeStations(state, systemIds);
-}
-
-export function purchaseInsurance(state, policyType) {
-  const gate = _requireCompanyAccess(state, 'capitalLocal', '购买保险');
-  if (gate) return gate;
-  return Finance.purchaseInsurance(state, policyType);
-}
-
-export function submitInsuranceClaim(state, policyType) {
-  return Finance.submitClaim(state, policyType);
-}
-
-// ---------------------------------------------------------------------------
-// 期货操作
-// ---------------------------------------------------------------------------
-
-export function openFuturesLong(state, goodId) {
-  const gate = _requireCompanyAccess(state, 'futures', '开立期货合约');
-  if (gate) return gate;
-  return Futures.openLongContract(state, goodId);
-}
-
-export function openFuturesShort(state, goodId) {
-  const gate = _requireCompanyAccess(state, 'futures', '开立期货合约');
-  if (gate) return gate;
-  return Futures.openShortContract(state, goodId);
-}
-
-export function closeFutures(state, contractId) {
-  return Futures.closeContract(state, contractId);
 }
 
 // ---------------------------------------------------------------------------
@@ -201,23 +152,18 @@ export function getCommerceSnapshot(state) {
   const ownedStations  = Station.getOwnedStations(state);
   const stationSummary = Station.getSummary(state);
   const financeSnap    = _getFinanceSnapshot(state);
-  const futuresSnap    = _getFuturesSnapshot(state);
   const stationDailyIncome = Math.round(stationSummary.projectedIncome || 0);
 
   return {
     ownedStationCount: ownedStations.length,
     stationDailyIncome: Math.round(stationDailyIncome),
     totalLoans: Math.round(financeSnap.outstandingLoanBalance || 0),
-    stockPortfolioValue: Math.round(financeSnap.stockPortfolioValue || 0),
     tradeInvestmentValue: Math.round(financeSnap.tradeInvestmentValue || 0),
-    futuresUnrealizedPnl: Math.round(futuresSnap.totalUnrealizedPnl || 0),
-    futuresOpenContracts: futuresSnap.openContractCount || 0,
     creditRating: financeSnap.creditRating || state.creditRating || 620,
     stationSummary: stationSummary,
     activeLoans: financeSnap.activeLoanCount || 0,
     blackMarketTrades: (state.smugglingStats && state.smugglingStats.blackMarketTrades) || 0,
     finance: financeSnap,
-    futures: futuresSnap,
   };
 }
 
@@ -251,31 +197,6 @@ function _getFinanceSnapshot(state) {
     tradeInvestmentValue: _calcTradeInvestmentValue(state),
     activePolicies: activePolicies,
     pendingClaims: pendingClaims,
-  };
-}
-
-function _getFuturesSnapshot(state) {
-  if (typeof Futures.getFuturesSnapshot === 'function') {
-    return Futures.getFuturesSnapshot(state);
-  }
-
-  const openContracts = typeof Futures.getOpenContracts === 'function' ? Futures.getOpenContracts(state) : [];
-  const closedContracts = typeof Futures.getClosedContracts === 'function' ? Futures.getClosedContracts(state) : [];
-  const totalUnrealizedPnl = openContracts.reduce(function (sum, contract) {
-    return sum + (contract.unrealizedPnl || 0);
-  }, 0);
-
-  return {
-    openContractCount: openContracts.length,
-    closedContractCount: closedContracts.length,
-    totalMarginLocked: openContracts.reduce(function (sum, contract) {
-      return sum + (contract.margin || 0);
-    }, 0),
-    totalUnrealizedPnl: totalUnrealizedPnl,
-    netWorthAdjustment: totalUnrealizedPnl,
-    expiringSoonCount: openContracts.filter(function (contract) {
-      return (contract.daysLeft || 0) <= 2;
-    }).length,
   };
 }
 

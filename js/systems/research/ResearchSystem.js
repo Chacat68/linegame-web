@@ -7,6 +7,7 @@
 
 import { TECHNOLOGIES, TECH_CATEGORIES } from '../../data/technologies.js';
 import * as EventBus from '../../core/EventBus.js';
+import { getVictoryPolicyEffects } from '../victory/VictoryPolicy.js';
 
 /**
  * 初始化研究系统状态（注入到 state 中）
@@ -83,13 +84,15 @@ export function startResearch(state, techId) {
   }
 
   state.credits -= tech.cost;
-  const researchTask = { techId: techId, daysLeft: tech.researchDays };
+  const researchReduction = getVictoryPolicyEffects(state).researchDayReduction || 0;
+  const researchDays = Math.max(1, tech.researchDays - researchReduction);
+  const researchTask = { techId: techId, daysLeft: researchDays };
 
   let msg = '';
   if (!state.currentResearch) {
     state.currentResearch = researchTask;
     EventBus.emit('research:started', { techId });
-    msg = '🔬 开始研究「' + tech.name + '」！预计 ' + tech.researchDays + ' 天完成。花费 ' + tech.cost + ' 积分。';
+    msg = '🔬 开始研究「' + tech.name + '」！预计 ' + researchDays + ' 天完成。花费 ' + tech.cost + ' 积分。';
   } else {
     if (!state.researchQueue) state.researchQueue = [];
     state.researchQueue.push(researchTask);

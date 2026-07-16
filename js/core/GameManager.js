@@ -20,7 +20,6 @@ import * as MapUI      from '../ui/MapUI.js';
 import * as Modal      from '../ui/Modal.js';
 import * as EventUI    from '../ui/EventUI.js';
 import * as ActionGuideUI from '../ui/ActionGuideUI.js';
-import { renderCompanyDirectiveSummary } from '../ui/CompanyDirectiveSummary.js';
 import * as UIManager  from '../ui/UIManager.js';
 import { buildCommandFeedback } from '../ui/CommandAction.js';
 import * as Fleet      from '../systems/fleet/FleetSystem.js';
@@ -47,8 +46,6 @@ import * as Settings from './SettingsCore.js';
 import * as Audio from './AudioManager.js';
 import * as Progression from '../systems/progression/ProgressionSystem.js';
 import * as Guidance from '../systems/guidance/GuidanceSystem.js';
-import * as CompanyDirective from '../systems/company/CompanyDirectiveSystem.js';
-import { getTrackedDirectiveId } from './CompanyDirectiveFocus.js';
 import { getProcessingMessage as getGuidanceActionProcessingMessage } from './GuidanceActionFeedback.js';
 import * as Dispatch from './DispatchController.js';
 import { hasBlockingSurfaceOpen, hideBlockingSurface, showBlockingSurface } from '../ui/SurfaceManager.js';
@@ -95,10 +92,6 @@ let _settingsUiModule = null;
 let _settingsUiPromise = null;
 let _settingsLauncherButton = null;
 let _settingsLauncherHandler = null;
-let _companyDirectiveUiModule = null;
-let _companyDirectiveUiPromise = null;
-let _companyDirectiveLauncherButton = null;
-let _companyDirectiveLauncherHandler = null;
 let _guidanceActionModule = null;
 let _guidanceActionPromise = null;
 let _commerceRuntimeModule = null;
@@ -135,7 +128,6 @@ function _reportDeferredUiFailure(surface, error) {
     onboarding: '首次进入引导',
     tutorial: '操作教程',
     settings: '设置终端',
-    companyDirective: '公司指令终端',
     guidanceAction: '行动执行器',
     commerceRuntime: '高级经营运行时',
     advancedGuidance: '高级经营建议',
@@ -717,74 +709,6 @@ function _bindSettingsLauncher() {
   button.addEventListener('click', _settingsLauncherHandler);
 }
 
-function _releaseCompanyDirectiveLauncher() {
-  if (_companyDirectiveLauncherButton && _companyDirectiveLauncherHandler && _companyDirectiveLauncherButton.removeEventListener) {
-    _companyDirectiveLauncherButton.removeEventListener('click', _companyDirectiveLauncherHandler);
-  }
-  if (_companyDirectiveLauncherButton && _companyDirectiveLauncherButton.dataset) {
-    delete _companyDirectiveLauncherButton.dataset.companyDirectiveLoaderBound;
-  }
-  _companyDirectiveLauncherButton = null;
-  _companyDirectiveLauncherHandler = null;
-}
-
-function _initializeCompanyDirectiveUI(CompanyDirectiveUI) {
-  if (!CompanyDirectiveUI) return;
-  _releaseCompanyDirectiveLauncher();
-  CompanyDirectiveUI.init({
-    onAction: _handleCompanyDirectiveAction,
-    onClaim: _handleCompanyDirectiveClaim,
-    onClaimAll: _handleCompanyDirectiveClaimAll,
-    onSelectionChange: function () {
-      _refreshActionGuide();
-    },
-  });
-}
-
-function _loadCompanyDirectiveUI() {
-  if (_companyDirectiveUiModule) return Promise.resolve(_companyDirectiveUiModule);
-  if (!_companyDirectiveUiPromise) {
-    _setDeferredUiState('companyDirective', 'loading');
-    _companyDirectiveUiPromise = import('../ui/CompanyDirectiveUI.js')
-      .then(function (module) {
-        _companyDirectiveUiModule = module;
-        _setDeferredUiState('companyDirective', 'ready');
-        return module;
-      })
-      .catch(function (error) {
-        _companyDirectiveUiPromise = null;
-        _setDeferredUiState('companyDirective', 'error');
-        _reportDeferredUiFailure('companyDirective', error);
-        return null;
-      });
-  }
-  return _companyDirectiveUiPromise;
-}
-
-function _bindCompanyDirectiveLauncher() {
-  _setDeferredUiState('companyDirective', _companyDirectiveUiModule ? 'ready' : (_companyDirectiveUiPromise ? 'loading' : 'idle'));
-  if (_companyDirectiveUiModule) {
-    _initializeCompanyDirectiveUI(_companyDirectiveUiModule);
-    _companyDirectiveUiModule.render(_state);
-    return;
-  }
-  var button = document.getElementById('company-directives-btn');
-  if (!button || !button.addEventListener || button.dataset.companyDirectiveLoaderBound === 'true') return;
-
-  _companyDirectiveLauncherButton = button;
-  _companyDirectiveLauncherHandler = function (event) {
-    if (event && event.preventDefault) event.preventDefault();
-    var requestedRevision = _runtimeRevision;
-    _loadCompanyDirectiveUI().then(function (CompanyDirectiveUI) {
-      if (!CompanyDirectiveUI || requestedRevision !== _runtimeRevision) return;
-      _initializeCompanyDirectiveUI(CompanyDirectiveUI);
-      CompanyDirectiveUI.open(_state);
-    });
-  };
-  button.dataset.companyDirectiveLoaderBound = 'true';
-  button.addEventListener('click', _companyDirectiveLauncherHandler);
-}
-
 function _loadGuidanceActionController() {
   if (_guidanceActionModule) return Promise.resolve(_guidanceActionModule);
   if (!_guidanceActionPromise) {
@@ -809,22 +733,13 @@ function _getMarketFinanceActions() {
   return {
     onTakeLoan: _handleTakeLoan,
     onRepayLoan: _handleRepayLoan,
-    onBuyStock: _handleBuyStock,
-    onSellStock: _handleSellStock,
     onInvestTradeStation: _handleInvestTradeStation,
     onBatchInvestTradeStations: _handleBatchInvestTradeStations,
-    onPurchaseInsurance: _handlePurchaseInsurance,
-    onSubmitInsuranceClaim: _handleSubmitInsuranceClaim,
     onBuildTradeStation: _handleBuildTradeStation,
     onUpgradeTradeStation: _handleUpgradeTradeStation,
-    onHireTradeStationManager: _handleHireTradeStationManager,
     onSetTradeStationStrategy: _handleSetTradeStationStrategy,
     onBatchUpgradeTradeStations: _handleBatchUpgradeTradeStations,
-    onBatchHireTradeStationManager: _handleBatchHireTradeStationManager,
     onBatchSetTradeStationStrategy: _handleBatchSetTradeStationStrategy,
-    onFuturesLong: _handleFuturesLong,
-    onFuturesShort: _handleFuturesShort,
-    onFuturesClose: _handleFuturesClose,
     onFocusRemoteSystem: _handleFocusRemoteMarketSystem,
   };
 }
@@ -856,7 +771,7 @@ function _ensureMarketUiRendered() {
 
 function _renderFleetUI(FleetUI) {
   if (!FleetUI || !_state) return;
-  FleetUI.render(_state, _handleBuyShip, _handleSwitchShip, _handleUpgradeShip, _handleAssignRoute, _handleCancelRoute, _handleBuySlot, _handleSellShip, _handleInstallMod, _handleUninstallMod, _handleServiceShip, _handleRecruitCrew, _handleAssignCrew, _handleUnassignCrew, _handleDismissCrew, _handleSetShipDoctrine, _handleActivateShipProtocol);
+  FleetUI.render(_state, _handleBuyShip, _handleSwitchShip, _handleUpgradeShip, _handleAssignRoute, _handleCancelRoute, _handleBuySlot, _handleSellShip, _handleInstallMod, _handleUninstallMod, _handleServiceShip, _handleRecruitCrew, _handleAssignCrew, _handleUnassignCrew, _handleDismissCrew);
   FleetUI.renderShop(_state, _handleBuyShip);
 }
 
@@ -1038,7 +953,6 @@ export function init(difficulty) {
     _refreshActionGuide();
   });
   ActionGuideUI.init(_handleActionGuideAction);
-  _bindCompanyDirectiveLauncher();
   _setDeferredUiState('guidanceAction', _guidanceActionModule ? 'ready' : (_guidanceActionPromise ? 'loading' : 'idle'));
 
   // 星图视角默认启用，确保回调已绑定
@@ -1406,6 +1320,15 @@ function _dispatch(result) {
   if (result && result.ok) _checkVictory();
 }
 
+function _recordQuestProgress(context) {
+  var questResult = Quest.checkProgress(_state, context || { action: 'state_sync' });
+  questResult.msgs.forEach(function (message) {
+    EventBus.emit('log:message', { text: message.text, type: message.type });
+  });
+  _queueQuestDialogueResult(questResult);
+  return questResult;
+}
+
 function _getNextGuidancePoi(systemId) {
   var planetData = systemId ? GalaxyData.getPlanetData(systemId) : null;
   var exploration = planetData && planetData.exploration;
@@ -1540,10 +1463,6 @@ function _refreshActionGuide() {
     dispatchModalContext: _fleetUiModule && _fleetUiModule.getActiveDispatchModalContext ? _fleetUiModule.getActiveDispatchModalContext() : null,
     recentModInstallContext: recentModInstallContext,
     surveyIntel: surveyIntel,
-    directiveSuggestion: CompanyDirective.getCompanyDirectiveActionSuggestion(
-      _state,
-      getTrackedDirectiveId()
-    ),
     tutorialActive: tutorialActive,
     blockingModalOpen: blockingModalOpen,
     eventPending: eventPending,
@@ -1677,24 +1596,8 @@ function _handleActionGuideAction(suggestion) {
       scanSystem: _handleScanSystem,
       landOnSystem: _handleLandOnSystem,
       explorePoi: _handleExplorePoi,
-      claimCompanyDirectiveRewards: _handleCompanyDirectiveClaimAll,
     });
   });
-}
-
-function _handleCompanyDirectiveAction(suggestion) {
-  _handleActionGuideAction(suggestion);
-}
-
-function _handleCompanyDirectiveClaim(directiveId) {
-  var result = CompanyDirective.claimCompanyDirectiveReward(_state, directiveId);
-  _dispatch(result);
-}
-
-function _handleCompanyDirectiveClaimAll() {
-  var result = CompanyDirective.claimAllCompanyDirectiveRewards(_state);
-  _dispatch(result);
-  return result;
 }
 
 function _getScanStatus(systemId) {
@@ -1728,14 +1631,9 @@ function _handleScanSystem(systemId, options) {
     forceDeepScan: shipStats.forceDeepScan,
   });
   if (result && result.ok) {
-    Fleet.recordShipActivity(_state, 'scan', {}, _state.activeShipIndex).msgs.forEach(function (m) {
-      EventBus.emit('log:message', { text: m.text, type: m.type });
-    });
-    Fleet.consumeShipProtocol(_state, _state.activeShipIndex, 'exploration').msgs.forEach(function (m) {
-      EventBus.emit('log:message', { text: m.text, type: m.type });
-    });
     Fleet.commitActiveShipState(_state);
     _state.galaxyStates = GalaxyData.getAllPlanetStates();
+    _recordQuestProgress({ action: 'scan_system', systemId: systemId });
   }
   _dispatch(result);
   if (!opts.suppressReveal && result && result.ok && systemId === _state.currentSystem && MapUI.showCurrentSystemScanReveal) {
@@ -1751,14 +1649,9 @@ function _handleLandOnSystem(systemId) {
     landingFeeDiscount: shipStats.landingFeeDiscount,
   });
   if (result && result.ok) {
-    Fleet.recordShipActivity(_state, 'land', {}, _state.activeShipIndex).msgs.forEach(function (m) {
-      EventBus.emit('log:message', { text: m.text, type: m.type });
-    });
-    Fleet.consumeShipProtocol(_state, _state.activeShipIndex, 'exploration').msgs.forEach(function (m) {
-      EventBus.emit('log:message', { text: m.text, type: m.type });
-    });
     Fleet.commitActiveShipState(_state);
     _state.galaxyStates = GalaxyData.getAllPlanetStates();
+    _recordQuestProgress({ action: 'explore_poi', systemId: systemId, poiId: poiId });
   }
   _dispatch(result);
 }
@@ -1770,12 +1663,6 @@ function _handleExplorePoi(systemId, poiId) {
     poiRewardMultiplier: shipStats.poiRewardMultiplier,
   });
   if (result && result.ok) {
-    Fleet.recordShipActivity(_state, 'poi', {}, _state.activeShipIndex).msgs.forEach(function (m) {
-      EventBus.emit('log:message', { text: m.text, type: m.type });
-    });
-    Fleet.consumeShipProtocol(_state, _state.activeShipIndex, 'exploration').msgs.forEach(function (m) {
-      EventBus.emit('log:message', { text: m.text, type: m.type });
-    });
     Fleet.commitActiveShipState(_state);
     _state.galaxyStates = GalaxyData.getAllPlanetStates();
   }
@@ -1785,14 +1672,6 @@ function _handleExplorePoi(systemId, poiId) {
 function _handleTravel(systemId) {
   Fleet.syncStateFromShip(_state);
   var activeShip = Fleet.getActiveShip(_state);
-
-  if (activeShip && activeShip.repairJob && activeShip.repairJob.remainingDays > 0) {
-    EventBus.emit('log:message', {
-      text: '🔧 当前飞船仍在维修中，剩余 ' + activeShip.repairJob.remainingDays + ' 天，完成前无法出航。',
-      type: 'error',
-    });
-    return;
-  }
 
   // 旅行前：如有待处理事件，强制弹出，阻止本次旅行
   if (EventUI.hasPendingEvent()) {
@@ -1866,18 +1745,8 @@ function _handleTravel(systemId) {
       });
       if (hasContraband) {
         Economy.recordSmugglingEvaded(_state);
-        Fleet.recordShipActivity(_state, 'smuggling_evaded', {}, _state.activeShipIndex).msgs.forEach(function (m) {
-          EventBus.emit('log:message', { text: m.text, type: m.type });
-        });
       }
     }
-
-    Fleet.recordShipActivity(_state, 'travel', {
-      crossGalaxy: !!(result.meta && result.meta.crossGalaxy),
-      secretRoute: !!(result.meta && result.meta.secretRoute),
-    }, _state.activeShipIndex).msgs.forEach(function (m) {
-      EventBus.emit('log:message', { text: m.text, type: m.type });
-    });
 
     // 探索追踪：记录已访问的星球和星系
     if (!_state.visitedSystems) _state.visitedSystems = [];
@@ -1906,6 +1775,7 @@ function _handleTravel(systemId) {
       action: 'travel',
       systemId: _state.currentSystem,
       factionId: travelFaction ? travelFaction.id : null,
+      crossGalaxy: !!(result.meta && result.meta.crossGalaxy),
     });
     questResult.msgs.forEach(function (m) {
       EventBus.emit('log:message', { text: m.text, type: m.type });
@@ -1924,10 +1794,6 @@ function _handleTravel(systemId) {
     if (!Tutorial.isActive()) {
       _scheduleRandomEventRoll(_state, baseEventChance);
     }
-
-    Fleet.consumeShipProtocol(_state, _state.activeShipIndex, 'travel').msgs.forEach(function (m) {
-      EventBus.emit('log:message', { text: m.text, type: m.type });
-    });
 
     // 自动存档
     Fleet.commitActiveShipState(_state);
@@ -1979,15 +1845,6 @@ function _handleTradeConfirm(action, goodId, quantity, marketType) {
 
   if (result && result.ok) {
     EventBus.emit('audio:cue', { cue: action === 'buy' ? 'trade.buy' : 'trade.sell' });
-    Fleet.recordShipActivity(_state, action === 'buy' ? 'trade_buy' : 'trade_sell', {
-      quantity: quantity,
-      profit: result.meta && typeof result.meta.profit === 'number' ? result.meta.profit : 0,
-    }, _state.activeShipIndex).msgs.forEach(function (m) {
-      EventBus.emit('log:message', { text: m.text, type: m.type });
-    });
-    Fleet.consumeShipProtocol(_state, _state.activeShipIndex, 'trade').msgs.forEach(function (m) {
-      EventBus.emit('log:message', { text: m.text, type: m.type });
-    });
     Fleet.commitActiveShipState(_state);
     var activeRoute = Fleet.getActiveShip(_state) ? Fleet.getActiveShip(_state).route : null;
     if (activeRoute && activeRoute.goodId === goodId) {
@@ -2372,16 +2229,12 @@ function _runCommerceAction(methodName, args) {
 
 function _handleBuildTradeStation(systemId) {
   const result = _runCommerceAction('buildTradeStation', [systemId]);
+  if (result && result.ok) _recordQuestProgress({ action: 'build_trade_station', systemId: systemId });
   _dispatch(result);
 }
 
 function _handleUpgradeTradeStation(systemId) {
   const result = _runCommerceAction('upgradeTradeStation', [systemId]);
-  _dispatch(result);
-}
-
-function _handleHireTradeStationManager(systemId, managerId) {
-  const result = _runCommerceAction('hireTradeStationManager', [systemId, managerId]);
   _dispatch(result);
 }
 
@@ -2408,12 +2261,6 @@ function _handleBatchUpgradeTradeStations(systemIds) {
   _dispatch(result);
 }
 
-function _handleBatchHireTradeStationManager(managerId, systemIds) {
-  const normalizedSystemIds = _normalizeBatchSystemIds(systemIds);
-  const result = _runCommerceAction('batchHireTradeStationManager', [managerId, normalizedSystemIds]);
-  _dispatch(result);
-}
-
 function _handleBatchSetTradeStationStrategy(strategyId, systemIds) {
   const normalizedSystemIds = _normalizeBatchSystemIds(systemIds);
   const result = _runCommerceAction('batchSetTradeStationStrategy', [strategyId, normalizedSystemIds]);
@@ -2422,26 +2269,19 @@ function _handleBatchSetTradeStationStrategy(strategyId, systemIds) {
 
 function _handleTakeLoan(offerId) {
   const result = _runCommerceAction('takeLoan', [offerId]);
+  if (result && result.ok) _recordQuestProgress({ action: 'finance_action', financeType: 'loan' });
   _dispatch(result);
 }
 
 function _handleRepayLoan(loanId) {
   const result = _runCommerceAction('repayLoan', [loanId]);
-  _dispatch(result);
-}
-
-function _handleBuyStock(stockId) {
-  const result = _runCommerceAction('buyStock', [stockId]);
-  _dispatch(result);
-}
-
-function _handleSellStock(stockId) {
-  const result = _runCommerceAction('sellStock', [stockId]);
+  if (result && result.ok) _recordQuestProgress({ action: 'finance_action', financeType: 'repay' });
   _dispatch(result);
 }
 
 function _handleInvestTradeStation(systemId) {
   const result = _runCommerceAction('investInTradeStation', [systemId]);
+  if (result && result.ok) _recordQuestProgress({ action: 'finance_action', financeType: 'investment' });
   _dispatch(result);
 }
 
@@ -2451,31 +2291,6 @@ function _handleBatchInvestTradeStations(systemIds, amount) {
     ? normalizedSystemIds
     : Object.keys(_state.tradeStations || {});
   const result = _runCommerceAction('batchInvestInTradeStations', [targetSystemIds, amount]);
-  _dispatch(result);
-}
-
-function _handlePurchaseInsurance(policyType) {
-  const result = _runCommerceAction('purchaseInsurance', [policyType]);
-  _dispatch(result);
-}
-
-function _handleSubmitInsuranceClaim(policyType) {
-  const result = _runCommerceAction('submitInsuranceClaim', [policyType]);
-  _dispatch(result);
-}
-
-function _handleFuturesLong(goodId) {
-  const result = _runCommerceAction('openFuturesLong', [goodId]);
-  _dispatch(result);
-}
-
-function _handleFuturesShort(goodId) {
-  const result = _runCommerceAction('openFuturesShort', [goodId]);
-  _dispatch(result);
-}
-
-function _handleFuturesClose(contractId) {
-  const result = _runCommerceAction('closeFutures', [contractId]);
   _dispatch(result);
 }
 
@@ -2574,6 +2389,7 @@ function _handleLoadGame(slotId) {
 function _handleBuyShip(shipTypeId) {
   Fleet.syncShipFromState(_state);
   const result = Fleet.buyShip(_state, shipTypeId);
+  if (result && result.ok) _recordQuestProgress({ action: 'buy_ship', shipTypeId: shipTypeId });
   _dispatch(result);
 }
 
@@ -2602,24 +2418,6 @@ function _handleUpgradeShip(shipIndex, upgradeId) {
   _dispatch(result);
 }
 
-function _handleSetShipDoctrine(shipIndex, doctrineId) {
-  Fleet.syncShipFromState(_state);
-  const result = Fleet.setShipDoctrine(_state, shipIndex, doctrineId);
-  if (result && result.ok && shipIndex === (_state.activeShipIndex || 0)) {
-    Fleet.syncStateFromShip(_state);
-  }
-  _dispatch(result);
-}
-
-function _handleActivateShipProtocol(shipIndex) {
-  Fleet.syncShipFromState(_state);
-  const result = Fleet.activateShipProtocol(_state, shipIndex);
-  if (result && result.ok && shipIndex === (_state.activeShipIndex || 0)) {
-    Fleet.syncStateFromShip(_state);
-  }
-  _dispatch(result);
-}
-
 function _handleAssignRoute(shipIndex, buySystemId, sellSystemId, goodId, tradePolicy) {
   Fleet.syncShipFromState(_state);
   var isActive = shipIndex === (_state.activeShipIndex || 0);
@@ -2633,6 +2431,7 @@ function _handleAssignRoute(shipIndex, buySystemId, sellSystemId, goodId, tradeP
     Dispatch.startActiveDispatch(_boundDispatchTick);
   }
   if (result && result.ok) {
+    _recordQuestProgress({ action: 'dispatch_route', shipIndex: shipIndex, goodId: goodId });
     var good = GOODS.find(function (item) { return item.id === goodId; });
     _showActionGuideCompletion(getDispatchConfirmedCompletion(good ? good.name : ''));
   }
@@ -2697,6 +2496,7 @@ function _handleServiceShip(shipIndex, tierId) {
 
 function _handleRecruitCrew(offerId) {
   const result = Crew.recruitCrew(_state, offerId, _state.currentSystem);
+  if (result && result.ok) _recordQuestProgress({ action: 'recruit_crew', offerId: offerId });
   _dispatch(result);
 }
 
@@ -2811,8 +2611,6 @@ function _updateUI() {
   HUD.updateStats(_state, netWorth);
   HUD.updateCompanyName(_state);
   HUD.updateArchiveBadges(_state);
-  renderCompanyDirectiveSummary(_state);
-  if (_companyDirectiveUiModule) _companyDirectiveUiModule.render(_state);
   // 市场：根据当前模式刷新
   if (MapUI.isMarketOpen()) {
     _ensureMarketUiRendered();
