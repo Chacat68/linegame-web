@@ -6,7 +6,7 @@
  * 成就定义
  * condition: (state) => boolean — 检查是否满足解锁条件
  */
-export const ACHIEVEMENTS = [
+const ACHIEVEMENT_CATALOG = [
   // ========== 贸易成就 (8) ==========
   {
     id: 'first_trade',
@@ -47,28 +47,28 @@ export const ACHIEVEMENTS = [
   {
     id: 'trade_200',
     name: '贸易之王',
-    description: '累计完成 200 笔交易。',
+    description: '累计完成 150 笔交易。',
     icon: '👑',
     category: 'trade',
-    condition: function (state) { return (state.tradeCount || 0) >= 200; },
+    condition: function (state) { return (state.tradeCount || 0) >= 150; },
     reward: { credits: 5000, exp: 100 },
   },
   {
     id: 'trade_500',
     name: '交易机器',
-    description: '累计完成 500 笔交易，你的交易量已经超越了大多数星系的GDP。',
+    description: '累计完成 300 笔交易，你的交易网已覆盖多个银河。',
     icon: '🤖',
     category: 'trade',
-    condition: function (state) { return (state.tradeCount || 0) >= 500; },
+    condition: function (state) { return (state.tradeCount || 0) >= 300; },
     reward: { credits: 10000, exp: 200 },
   },
   {
     id: 'trade_1000',
     name: '永不停歇',
-    description: '累计完成 1000 笔交易。交易就是呼吸。',
+    description: '累计完成 500 笔交易。交易就是呼吸。',
     icon: '♾️',
     category: 'trade',
-    condition: function (state) { return (state.tradeCount || 0) >= 1000; },
+    condition: function (state) { return (state.tradeCount || 0) >= 500; },
     reward: { credits: 25000, exp: 500 },
   },
   {
@@ -186,10 +186,10 @@ export const ACHIEVEMENTS = [
   {
     id: 'survive_500',
     name: '时间之主',
-    description: '在银河中存活 500 天。时间在你面前不过是数字。',
+    description: '在银河中存活 300 天。时间在你面前不过是数字。',
     icon: '🕰️',
     category: 'explore',
-    condition: function (state) { return (state.day || 1) >= 500; },
+    condition: function (state) { return (state.day || 1) >= 300; },
     reward: { credits: 10000, exp: 500 },
   },
   {
@@ -204,10 +204,10 @@ export const ACHIEVEMENTS = [
   {
     id: 'visit_systems_100',
     name: '宇宙漫游者',
-    description: '访问 100 颗不同的星球。',
+    description: '访问 60 颗不同的星球。',
     icon: '🪐',
     category: 'explore',
-    condition: function (state) { return (state.visitedSystems || []).length >= 100; },
+    condition: function (state) { return (state.visitedSystems || []).length >= 60; },
     reward: { credits: 5000, exp: 150 },
   },
   {
@@ -530,10 +530,10 @@ export const ACHIEVEMENTS = [
   {
     id: 'event_veteran',
     name: '风暴中心',
-    description: '经历 100 次随机事件。银河中的一切风浪你都见过了。',
+    description: '经历 50 次随机事件。银河中的一切风浪你都见过了。',
     icon: '🌊',
     category: 'special',
-    condition: function (state) { return (state.totalEvents || 0) >= 100; },
+    condition: function (state) { return (state.totalEvents || 0) >= 50; },
     reward: { credits: 8000, exp: 250 },
   },
   {
@@ -546,3 +546,50 @@ export const ACHIEVEMENTS = [
     reward: { credits: 5000, exp: 200 },
   },
 ];
+
+// 每个核心玩法支柱只保留少量关键节点，避免连续数值门槛稀释奖励感。
+const CORE_ACHIEVEMENT_IDS = [
+  'first_trade', 'trade_10', 'trade_50', 'trade_100', 'single_trade_profit',
+  'credits_5000', 'credits_30000', 'credits_100000', 'total_profit_100000',
+  'explore_5', 'survive_30', 'survive_100', 'visit_systems_20', 'visit_all_galaxies',
+  'first_research', 'research_5', 'research_10', 'research_all',
+  'faction_ally', 'faction_all_allied',
+  'level_5', 'level_10',
+  'quest_first', 'quest_10',
+  'first_ship', 'all_ship_types',
+  'diversified_trader', 'event_master',
+];
+
+export const ACHIEVEMENT_ALIASES = {
+  trade_200: 'trade_100',
+  trade_500: 'trade_100',
+  trade_1000: 'trade_100',
+  credits_10000: 'credits_5000',
+  credits_50000: 'credits_30000',
+  credits_200000: 'credits_100000',
+  survive_200: 'survive_100',
+  survive_500: 'survive_100',
+  visit_systems_100: 'visit_systems_20',
+  tier3_research: 'research_10',
+  reputation_300: 'faction_ally',
+  reputation_800: 'faction_all_allied',
+  level_3: 'level_5',
+  quest_5: 'quest_first',
+  quest_20: 'quest_10',
+  quest_30: 'quest_10',
+  fleet_3: 'first_ship',
+  fleet_5: 'all_ship_types',
+  own_galleon: 'all_ship_types',
+  arms_dealer: 'diversified_trader',
+  food_magnate: 'diversified_trader',
+  tech_trader: 'diversified_trader',
+  luxury_connoisseur: 'diversified_trader',
+  survivor_no_damage: 'survive_30',
+  event_master: 'survive_30',
+  event_veteran: 'survive_100',
+  speed_runner: 'credits_30000',
+};
+
+export const ACHIEVEMENTS = ACHIEVEMENT_CATALOG.filter(function (achievement) {
+  return CORE_ACHIEVEMENT_IDS.indexOf(achievement.id) !== -1;
+});

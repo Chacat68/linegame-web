@@ -164,8 +164,8 @@ describe('MapUI current system scan card', function () {
     expect(scanCard.innerHTML).toContain('current-system-scan-dashboard');
     expect(scanCard.innerHTML).toContain('current-system-scan-metric');
     expect(scanCard.innerHTML).toContain('planet-detail-chain-card');
-    expect(scanCard.innerHTML).toContain('废弃补给站');
-    expect(scanCard.innerHTML).toContain('复原库存');
+    expect(scanCard.innerHTML).toContain('遗忘补给库');
+    expect(scanCard.innerHTML).toContain('复原物资清单');
     expect(scanCard.innerHTML).toContain('评级');
     expect(scanCard.innerHTML).toContain('优先');
     expect(scanCard.innerHTML).toContain('太阳主星');

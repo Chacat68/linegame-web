@@ -2,7 +2,7 @@
 // 依赖：无
 // 导出：GALAXIES, SYSTEMS, FUEL_COST_PER_UNIT,
 //        GALAXY_JUMP_FUEL, GALAXY_JUMP_DAYS,
-//        findSystem, getSystemsByGalaxy, findGalaxy, isSystemAccessible
+//        findSystem, getSystemsByGalaxy, findGalaxy, getSystemAccessState, isSystemAccessible
 
 /* ── 确定性伪随机 ── */
 function _rng(seed) {
@@ -637,10 +637,49 @@ export function getAccessibleGalaxies(playerLevel, researchedTechs) {
  * @returns {boolean}
  */
 export function isSystemAccessible(systemId, playerLevel, researchedTechs) {
-  const sys = _byId[systemId];
-  if (!sys) return false;
-  if (!isGalaxyAccessible(sys.galaxyId, playerLevel, researchedTechs)) return false;
-  return _normalizePlayerLevel(playerLevel) >= (sys.minLevel || 1);
+  return getSystemAccessState(systemId, playerLevel, researchedTechs).unlocked;
+}
+
+/**
+ * 返回星球访问状态。超空间科技可提前打开外域入口层，
+ * 但入口层之后的高阶星球仍需按等级逐步开放。
+ */
+export function getSystemAccessState(systemId, playerLevel, researchedTechs) {
+  const system = _byId[systemId];
+  if (!system) {
+    return {
+      system: null,
+      galaxyAccess: getGalaxyAccessState('', playerLevel, researchedTechs),
+      unlocked: false,
+      unlockedBy: 'unknown',
+      requiredLevel: 1,
+      levelUnlocked: false,
+      techEntryUnlocked: false,
+    };
+  }
+
+  const normalizedLevel = _normalizePlayerLevel(playerLevel);
+  const requiredLevel = system.minLevel || 1;
+  const galaxyAccess = getGalaxyAccessState(system.galaxyId, normalizedLevel, researchedTechs);
+  const levelUnlocked = normalizedLevel >= requiredLevel;
+  const techEntryUnlocked = galaxyAccess.unlockedBy === 'tech' &&
+    requiredLevel <= galaxyAccess.requiredLevel;
+  const unlocked = galaxyAccess.unlocked && (levelUnlocked || techEntryUnlocked);
+
+  let unlockedBy = 'locked';
+  if (unlocked) {
+    unlockedBy = techEntryUnlocked ? 'tech-entry' : 'level';
+  }
+
+  return {
+    system: system,
+    galaxyAccess: galaxyAccess,
+    unlocked: unlocked,
+    unlockedBy: unlockedBy,
+    requiredLevel: requiredLevel,
+    levelUnlocked: levelUnlocked,
+    techEntryUnlocked: techEntryUnlocked,
+  };
 }
 
 /**

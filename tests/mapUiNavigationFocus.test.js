@@ -103,7 +103,6 @@ describe('MapUI navigation target focus', function () {
       'planet-detail-panel': panel,
       'map-canvas': createFakeElement('map-canvas'),
       'map-container': createFakeElement('map-container'),
-      'galaxy-view-btn': createFakeElement('galaxy-view-btn'),
       'market-overlay': createFakeElement('market-overlay'),
       'market-view-btn': createFakeElement('market-view-btn'),
       'info-panel': createFakeElement('info-panel'),
@@ -218,7 +217,6 @@ describe('MapUI navigation target focus', function () {
       'planet-detail-panel': panel,
       'map-canvas': createFakeElement('map-canvas'),
       'map-container': mapContainer,
-      'galaxy-view-btn': createFakeElement('galaxy-view-btn'),
       'current-system-exploration-card': createFakeElement('current-system-exploration-card'),
     };
 
@@ -279,6 +277,13 @@ describe('MapUI navigation target focus', function () {
     });
 
     expect(prevented).toBe(true);
+    expect(state.mapView).toBe('planets');
+
+    var EventBus = await import('../js/core/EventBus.js');
+    EventBus.emit('starmap:galaxy-view-toggle');
+    expect(state.mapView).toBe('galaxies');
+
+    EventBus.emit('starmap:galaxy-view-toggle');
     expect(state.mapView).toBe('planets');
   });
 });

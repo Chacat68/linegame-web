@@ -9,10 +9,11 @@ import { QUESTS, QUEST_TYPES, QUEST_PHASES } from '../../data/quests.js';
 import { FACTIONS }            from '../../data/factions.js';
 import { ECONOMY_CONFIG }      from '../../data/constants.js';
 import { getLevel }            from '../../data/playerLevels.js';
-import { SYSTEMS, GALAXY_JUMP_DAYS, findSystem, findGalaxy, getGalaxyAccessState } from '../../data/systems.js';
+import { SYSTEMS, GALAXY_JUMP_DAYS, findSystem, findGalaxy, getSystemAccessState } from '../../data/systems.js';
 import * as Economy            from '../economy/Economy.js';
 import * as Faction            from '../faction/FactionSystem.js';
 import * as Exploration        from '../galaxy/ExplorationSystem.js';
+import * as Progression        from '../progression/ProgressionSystem.js';
 
 const STARTER_RECOMMENDATION_ORDER = [
   'starter_first_trade',
@@ -237,18 +238,11 @@ export function init(state) {
 }
 
 function _inferCurrentQuestPhase(state) {
-  var completedIds = state.completedQuests || [];
   var inferred = 1;
 
   for (var i = 1; i <= QUEST_PHASES.length; i++) {
-    var phaseQuests = QUESTS.filter(function (q) { return (q.phase || 1) === i; });
-    if (phaseQuests.length === 0) {
-      if (i < QUEST_PHASES.length) inferred = i + 1;
-      continue;
-    }
-
-    var doneAll = phaseQuests.every(function (q) { return completedIds.includes(q.id); });
-    if (doneAll && i < QUEST_PHASES.length) {
+    var completion = _getPhaseCompletionState(state, i);
+    if (completion.isComplete && i < QUEST_PHASES.length) {
       inferred = i + 1;
       continue;
     }
@@ -266,18 +260,48 @@ function _inferCurrentQuestPhase(state) {
 function _syncQuestPhase(state) {
   var current = state.questPhase || 1;
   while (current < QUEST_PHASES.length) {
-    var phaseQuests = QUESTS.filter(function (q) { return (q.phase || 1) === current; });
-    if (phaseQuests.length === 0) {
-      current += 1;
-      continue;
-    }
-    var doneAll = phaseQuests.every(function (q) {
-      return (state.completedQuests || []).includes(q.id);
-    });
-    if (!doneAll) break;
+    var completion = _getPhaseCompletionState(state, current);
+    if (!completion.isComplete) break;
     current += 1;
   }
   state.questPhase = Math.max(1, Math.min(QUEST_PHASES.length, current));
+}
+
+function _getPhaseCompletionState(state, phaseNumber) {
+  var phase = QUEST_PHASES[phaseNumber - 1] || {};
+  var completedIds = state.completedQuests || [];
+  var phaseQuests = QUESTS.filter(function (quest) {
+    return (quest.phase || 1) === phaseNumber;
+  });
+  var coreQuestIds = Array.isArray(phase.coreQuestIds) ? phase.coreQuestIds : [];
+  var coreCompleted = coreQuestIds.filter(function (questId) {
+    return completedIds.includes(questId);
+  }).length;
+  var optionalQuests = phaseQuests.filter(function (quest) {
+    return !coreQuestIds.includes(quest.id);
+  });
+  var optionalCompleted = optionalQuests.filter(function (quest) {
+    return completedIds.includes(quest.id);
+  }).length;
+  var optionalRequired = Math.min(optionalQuests.length, Math.max(0, phase.optionalRequired || 0));
+  var completedForAdvance = coreCompleted + Math.min(optionalCompleted, optionalRequired);
+  var requiredForAdvance = coreQuestIds.length + optionalRequired;
+
+  return {
+    phase: phase,
+    phaseQuests: phaseQuests,
+    coreQuestIds: coreQuestIds,
+    coreTotal: coreQuestIds.length,
+    coreCompleted: coreCompleted,
+    optionalTotal: optionalQuests.length,
+    optionalRequired: optionalRequired,
+    optionalCompleted: optionalCompleted,
+    completedForAdvance: completedForAdvance,
+    requiredForAdvance: requiredForAdvance,
+    allCompleted: phaseQuests.filter(function (quest) { return completedIds.includes(quest.id); }).length,
+    isComplete: requiredForAdvance === 0 ||
+      (coreCompleted >= coreQuestIds.length && optionalCompleted >= optionalRequired),
+  };
 }
 
 function _isQuestDone(quest) {
@@ -296,16 +320,23 @@ export function getCurrentQuestPhase(state) {
 
 export function getCurrentQuestPhaseProgress(state) {
   var current = getCurrentQuestPhase(state);
-  var phase = QUEST_PHASES[current - 1];
-  var completedIds = state.completedQuests || [];
-  var quests = QUESTS.filter(function (q) { return (q.phase || 1) === current; });
-  var completed = quests.filter(function (q) { return completedIds.includes(q.id); }).length;
+  var completion = _getPhaseCompletionState(state, current);
   return {
     currentPhase: current,
-    phase: phase,
-    total: quests.length,
-    completed: completed,
-    percent: quests.length > 0 ? Math.round(completed / quests.length * 100) : 100,
+    phase: completion.phase,
+    total: completion.requiredForAdvance,
+    completed: completion.completedForAdvance,
+    allTotal: completion.phaseQuests.length,
+    allCompleted: completion.allCompleted,
+    coreTotal: completion.coreTotal,
+    coreCompleted: completion.coreCompleted,
+    optionalTotal: completion.optionalTotal,
+    optionalRequired: completion.optionalRequired,
+    optionalCompleted: completion.optionalCompleted,
+    percent: completion.requiredForAdvance > 0
+      ? Math.round(completion.completedForAdvance / completion.requiredForAdvance * 100)
+      : 100,
+    isComplete: completion.isComplete,
     isFinalPhase: current === QUEST_PHASES.length,
   };
 }
@@ -379,7 +410,7 @@ export function getAvailableQuests(state) {
   var completedIds = state.completedQuests || [];
 
   return QUESTS.filter(function (quest) {
-    if ((quest.phase || 1) !== currentPhase) return false;
+    if ((quest.phase || 1) > currentPhase) return false;
     if (activeIds.includes(quest.id))    return false;
     if (completedIds.includes(quest.id)) return false;
 
@@ -400,7 +431,7 @@ export function getLockedQuests(state) {
   return QUESTS.filter(function (quest) {
     if (activeIds.includes(quest.id))    return false;
     if (completedIds.includes(quest.id)) return false;
-    if ((quest.phase || 1) !== currentPhase) return false;
+    if ((quest.phase || 1) > currentPhase) return false;
 
     var result = _checkUnlockConditions(quest, state);
     return !result.unlocked;
@@ -746,8 +777,9 @@ function _getRouteAvailabilityScore(state, currentSystem, targetSystem) {
   if (currentSystem.id === targetSystem.id) return 0;
 
   var playerLevel = state.playerLevel || 1;
-  if (playerLevel < (targetSystem.minLevel || 1)) return 3;
-  if (currentSystem.galaxyId !== targetSystem.galaxyId && !getGalaxyAccessState(targetSystem.galaxyId, playerLevel, state.researchedTechs).unlocked) return 2;
+  var systemAccess = getSystemAccessState(targetSystem.id, playerLevel, state.researchedTechs);
+  if (!systemAccess.galaxyAccess.unlocked) return 2;
+  if (!systemAccess.unlocked) return 3;
 
   var fuelCost = Economy.getFuelCost(currentSystem.id, targetSystem.id, state.fuelEfficiency || 1, state);
   if ((state.fuel || 0) < fuelCost) return 1;
@@ -817,12 +849,9 @@ function _getRouteBlockedReason(state, currentSystem, targetSystem, fuelCost) {
   if (!state || !currentSystem || !targetSystem || currentSystem.id === targetSystem.id) return '';
 
   var playerLevel = state.playerLevel || 1;
-  if (playerLevel < (targetSystem.minLevel || 1)) {
-    return '需要达到 Lv.' + (targetSystem.minLevel || 1) + ' 才能前往。';
-  }
-
-  if (currentSystem.galaxyId !== targetSystem.galaxyId) {
-    var galaxyAccess = getGalaxyAccessState(targetSystem.galaxyId, playerLevel, state.researchedTechs);
+  var systemAccess = getSystemAccessState(targetSystem.id, playerLevel, state.researchedTechs);
+  if (!systemAccess.unlocked) {
+    var galaxyAccess = systemAccess.galaxyAccess;
     if (!galaxyAccess.unlocked) {
       var galaxyName = galaxyAccess.galaxy ? galaxyAccess.galaxy.name : (targetSystem.galaxyId || '目标星系');
       var blockerMessage = galaxyName + ' 需达到 Lv.' + galaxyAccess.requiredLevel + ' 才会开放。';
@@ -831,6 +860,10 @@ function _getRouteBlockedReason(state, currentSystem, targetSystem, fuelCost) {
       }
       return blockerMessage;
     }
+    if (galaxyAccess.unlockedBy === 'tech') {
+      return '超空间跃迁仅提前开放该星系入口层；' + targetSystem.name + ' 仍需达到 Lv.' + systemAccess.requiredLevel + '。';
+    }
+    return '需要达到 Lv.' + systemAccess.requiredLevel + ' 才能前往。';
   }
 
   if ((state.fuel || 0) < fuelCost) {
@@ -939,16 +972,23 @@ function _formatRouteDistance(distance) {
  * 获取各阶段的完成进度
  */
 export function getQuestPhaseProgress(state) {
-  var completedIds = state.completedQuests || [];
   return QUEST_PHASES.map(function (phase, idx) {
     var phaseNum = idx + 1;
-    var phaseQuests = QUESTS.filter(function (q) { return (q.phase || 1) === phaseNum; });
-    var completed = phaseQuests.filter(function (q) { return completedIds.includes(q.id); });
+    var completion = _getPhaseCompletionState(state, phaseNum);
     return {
       phase: phase,
-      total: phaseQuests.length,
-      completed: completed.length,
-      percent: phaseQuests.length > 0 ? Math.round(completed.length / phaseQuests.length * 100) : 0,
+      total: completion.requiredForAdvance,
+      completed: completion.completedForAdvance,
+      allTotal: completion.phaseQuests.length,
+      allCompleted: completion.allCompleted,
+      coreTotal: completion.coreTotal,
+      coreCompleted: completion.coreCompleted,
+      optionalRequired: completion.optionalRequired,
+      optionalCompleted: completion.optionalCompleted,
+      percent: completion.requiredForAdvance > 0
+        ? Math.round(completion.completedForAdvance / completion.requiredForAdvance * 100)
+        : 100,
+      isComplete: completion.isComplete,
     };
   });
 }
@@ -964,7 +1004,7 @@ export function acceptQuest(state, questId) {
   if (!template) return { ok: false, msgs: [{ text: '任务不存在。', type: 'error' }] };
   var phaseBefore = getCurrentQuestPhase(state);
 
-  if ((template.phase || 1) !== getCurrentQuestPhase(state)) {
+  if ((template.phase || 1) > getCurrentQuestPhase(state)) {
     return { ok: false, msgs: [{ text: '该任务尚未解锁当前章节。', type: 'error' }] };
   }
 
@@ -979,6 +1019,7 @@ export function acceptQuest(state, questId) {
   // 立即同步一次与当前位置相关的目标，避免“已到达目标星球但未结算”
   if (quest.objectives && quest.objectives.length > 0) {
     quest.objectives.forEach(function (obj) {
+      _updateObjective(obj, { action: 'accept_quest' }, state);
       if (obj.type === 'visit_system' && state.currentSystem === obj.targetSystem) {
         obj.current = 1;
       }
@@ -998,7 +1039,8 @@ export function acceptQuest(state, questId) {
 
   // 若接取时目标已满足（例如“前往某星球”且当前已在目标地），立即完成
   if (_isQuestDone(quest)) {
-    var immediateRewards = _applyQuestRewards(state, quest);
+    var immediateRewardResult = _applyQuestRewards(state, quest);
+    var immediateRewards = immediateRewardResult.summary;
     if (!state.completedQuests.includes(quest.id)) {
       state.completedQuests.push(quest.id);
     }
@@ -1018,7 +1060,7 @@ export function acceptQuest(state, questId) {
               immediateRewards.credits + ' 积分, ⭐' + immediateRewards.exp + ' 经验, 🏅' + immediateRewards.reputation + ' 声望' +
               (immediateRewards.hasDecisionBonus ? ' · 🧭 ' + immediateRewards.bonusText : ''),
         type: 'upgrade',
-      }],
+      }].concat(immediateRewardResult.msgs),
     };
   }
 
@@ -1086,7 +1128,8 @@ export function checkProgress(state, context) {
 
     if (!c.failed) {
       // 发放奖励
-      var rewardSummary = _applyQuestRewards(state, quest);
+      var rewardResult = _applyQuestRewards(state, quest);
+      var rewardSummary = rewardResult.summary;
       state.completedQuests.push(quest.id);
       c.rewardSummary = JSON.parse(JSON.stringify(rewardSummary));
 
@@ -1097,6 +1140,7 @@ export function checkProgress(state, context) {
               (rewardSummary.hasDecisionBonus ? ' · 🧭 ' + rewardSummary.bonusText : ''),
         type: 'upgrade',
       });
+      msgs.push(...rewardResult.msgs);
 
       _applyQuestDecisionEffects(state, quest, msgs);
     }
@@ -1199,9 +1243,12 @@ function _getTutorialRouteDecision(state) {
 function _applyQuestRewards(state, quest) {
   var rewardSummary = getQuestRewardSummary(state, quest);
   state.credits = (state.credits || 0) + rewardSummary.credits;
-  state.experience = (state.experience || 0) + rewardSummary.exp;
+  var progressionResult = Progression.gainExperience(state, rewardSummary.exp);
   state.reputation = (state.reputation || 0) + rewardSummary.reputation;
-  return rewardSummary;
+  return {
+    summary: rewardSummary,
+    msgs: progressionResult.msgs || [],
+  };
 }
 
 function _applyQuestDecisionEffects(state, quest, msgs) {
@@ -1396,9 +1443,64 @@ function _updateObjective(obj, ctx, state) {
 
     case 'galaxy_jump':
       // 跨星系跃迁
-      if (ctx.action === 'galaxy_jump') {
+      if (ctx.action === 'galaxy_jump' || (ctx.action === 'travel' && ctx.crossGalaxy)) {
         obj.current = Math.min(obj.amount, (obj.current || 0) + 1);
       }
+      break;
+
+    case 'research_count':
+      obj.current = Math.min(obj.amount, (state.researchedTechs || []).length);
+      break;
+
+    case 'scan_systems':
+      obj.current = Math.min(obj.amount, Object.values(state.galaxyStates || {}).filter(function (planetState) {
+        return planetState && planetState.exploration && (planetState.exploration.scanLevel || 0) > 0;
+      }).length);
+      break;
+
+    case 'explore_pois':
+      obj.current = Math.min(obj.amount, Object.values(state.galaxyStates || {}).reduce(function (count, planetState) {
+        var pois = planetState && planetState.exploration && Array.isArray(planetState.exploration.pois)
+          ? planetState.exploration.pois
+          : [];
+        return count + pois.filter(function (poi) { return poi && poi.resolved; }).length;
+      }, 0));
+      break;
+
+    case 'fleet_size':
+      obj.current = Math.min(obj.amount, (state.fleet || []).length);
+      break;
+
+    case 'crew_count':
+      obj.current = Math.min(obj.amount, (state.crewRoster || []).length);
+      break;
+
+    case 'dispatch_routes':
+      if (ctx.action === 'dispatch_route') {
+        obj.current = Math.min(obj.amount, (obj.current || 0) + 1);
+      } else {
+        obj.current = Math.min(obj.amount, Math.max(obj.current || 0, (state.fleet || []).filter(function (ship) {
+          return !!(ship && ship.route);
+        }).length));
+      }
+      break;
+
+    case 'finance_actions':
+      if (ctx.action === 'finance_action') {
+        obj.current = Math.min(obj.amount, (obj.current || 0) + 1);
+      }
+      break;
+
+    case 'trade_stations':
+      obj.current = Math.min(obj.amount, Object.keys(state.tradeStations || {}).length);
+      break;
+
+    case 'visited_galaxies':
+      obj.current = Math.min(obj.amount, (state.visitedGalaxies || []).length);
+      break;
+
+    case 'victory_policy':
+      obj.current = state.storyDecisions && state.storyDecisions.victory_policy ? 1 : 0;
       break;
   }
 }

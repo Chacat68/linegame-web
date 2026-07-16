@@ -105,7 +105,7 @@ describe('ExplorationSystem', function () {
     expect(preview.canExplore).toBe(true);
     expect(preview.chainKind).toBe('ancient_relic');
     expect(preview.actionLabel).toContain('无成本');
-    expect(preview.detailText).toContain('事件链「古代遗迹」');
+    expect(preview.detailText).toContain('事件链「先驱者轨道阵列」');
     expect(preview.detailText).toContain('舰体');
   });
 
@@ -158,7 +158,7 @@ describe('ExplorationSystem', function () {
       reportId: 'sol_prime_report_manifest',
     });
     expect(summary.reports.some(function (report) {
-      return report.title.indexOf('补给站') !== -1 && report.chainKind === 'derelict_depot';
+      return report.title.indexOf('遗忘补给库') !== -1 && report.chainKind === 'derelict_depot';
     })).toBe(true);
   });
 
@@ -190,7 +190,7 @@ describe('ExplorationSystem', function () {
     });
     expect(intel.marketHint).toContain('勘探报告');
     expect(intel.dispatchHint).toContain('贸易报告');
-    expect(intel.anomalyHint).toContain('废弃补给站');
+    expect(intel.anomalyHint).toContain('遗忘补给库');
   });
 
   it('确认事件链后续后不再把同一条链标记为待跟进', function () {
@@ -283,7 +283,7 @@ describe('ExplorationSystem', function () {
       chainKind: 'ancient_relic',
     });
     expect(researchIntel.researchHint).toContain('科研');
-    expect(researchIntel.anomalyHint).toContain('古代遗迹');
+    expect(researchIntel.anomalyHint).toContain('先驱者轨道阵列');
 
     const routeState = createSurveyState('sol_prime');
     expect(Exploration.scanSystem(routeState, 'sol_prime').ok).toBe(true);
@@ -302,7 +302,7 @@ describe('ExplorationSystem', function () {
       chainKind: 'lost_beacon',
     });
     expect(routeIntel.dispatchHint).toContain('暗线');
-    expect(routeIntel.anomalyHint).toContain('失落航标');
+    expect(routeIntel.anomalyHint).toContain('幽灵航标网');
   });
 
   it('调查秘密航线信标后应降低对应航线燃料消耗', function () {

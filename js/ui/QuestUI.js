@@ -208,6 +208,23 @@ function _objectivePlanText(obj) {
       return base + ' · 关系值 ' + amount;
     case 'survive_days':
       return base + ' · ' + amount + ' 天';
+    case 'research_count':
+      return base + ' · ' + amount + ' 项';
+    case 'scan_systems':
+      return base + ' · ' + amount + ' 颗星球';
+    case 'explore_pois':
+      return base + ' · ' + amount + ' 个探索点';
+    case 'fleet_size':
+      return base + ' · ' + amount + ' 艘';
+    case 'crew_count':
+      return base + ' · ' + amount + ' 名';
+    case 'dispatch_routes':
+    case 'finance_actions':
+      return base + ' · ' + amount + ' 次';
+    case 'trade_stations':
+      return base + ' · ' + amount + ' 座';
+    case 'visited_galaxies':
+      return base + ' · ' + amount + ' 个星系';
     default:
       return amount > 1 ? (base + ' · x' + amount) : base;
   }
@@ -797,7 +814,7 @@ export function render(state, onAccept, onAbandon, questDispatchContext, onApply
   const currentPhaseProgress = Quest.getCurrentQuestPhaseProgress(state);
   const currentPhase = currentPhaseProgress.phase;
   const phaseProgressPct = currentPhaseProgress.total > 0
-    ? Math.min(100, Math.round((currentPhaseProgress.completed / currentPhaseProgress.total) * 100))
+    ? Math.min(100, currentPhaseProgress.percent || 0)
     : 0;
   const phaseName = currentPhase ? currentPhase.name : '未知章节';
   const phaseDesc = currentPhase ? currentPhase.description : '任务协议同步中，等待新的星际委托。';
@@ -832,7 +849,8 @@ export function render(state, onAccept, onAbandon, questDispatchContext, onApply
     '<span class="phase-icon">' + (currentPhase ? currentPhase.icon : '📖') + '</span>' +
     '<span class="phase-name">当前章节：' + phaseName + '</span>' +
     '<span class="phase-bar" role="progressbar" aria-label="章节进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + phaseProgressPct + '"><span class="phase-bar-fill" style="width:' + phaseProgressPct + '%"></span></span>' +
-    '<span class="phase-progress">' + currentPhaseProgress.completed + '/' + currentPhaseProgress.total + '</span>' +
+    '<span class="phase-progress">主线 ' + currentPhaseProgress.coreCompleted + '/' + currentPhaseProgress.coreTotal +
+      ' · 支线 ' + Math.min(currentPhaseProgress.optionalCompleted, currentPhaseProgress.optionalRequired) + '/' + currentPhaseProgress.optionalRequired + '</span>' +
     '</div>' +
     '</div>';
 
@@ -958,10 +976,10 @@ export function render(state, onAccept, onAbandon, questDispatchContext, onApply
     });
     html += '</div>';
   } else {
-    if (currentPhaseProgress.isFinalPhase && currentPhaseProgress.completed === currentPhaseProgress.total && currentPhaseProgress.total > 0) {
-      html += '<div class="quest-empty">🏁 所有章节任务已完成，全部胜利条件已开放。</div>';
-    } else if (currentPhaseProgress.completed === currentPhaseProgress.total && currentPhaseProgress.total > 0) {
-      html += '<div class="quest-empty">✅ 当前章节任务已全部完成，下一次任务结算后将进入新章节。</div>';
+    if (currentPhaseProgress.isFinalPhase && currentPhaseProgress.isComplete) {
+      html += '<div class="quest-empty">🏁 最终章晋升条件已完成，未完成支线仍可继续挑战。</div>';
+    } else if (currentPhaseProgress.isComplete) {
+      html += '<div class="quest-empty">✅ 当前章节的核心任务与支线配额已完成，下一次结算将进入新章节。</div>';
     }
   }
   html += '</section>';
@@ -1061,6 +1079,26 @@ function _objectiveText(obj) {
       return '星际航行天数';
     case 'galaxy_jump':
       return '跨星系跃迁';
+    case 'research_count':
+      return '完成科技研究';
+    case 'scan_systems':
+      return '扫描不同星球';
+    case 'explore_pois':
+      return '完成探索点调查';
+    case 'fleet_size':
+      return '扩充舰队规模';
+    case 'crew_count':
+      return '雇佣专业船员';
+    case 'dispatch_routes':
+      return '确认自动派遣路线';
+    case 'finance_actions':
+      return '使用资本工具';
+    case 'trade_stations':
+      return '建设经营节点';
+    case 'visited_galaxies':
+      return '探索不同星系';
+    case 'victory_policy':
+      return '选择胜利路线政策';
     default:
       return '完成目标';
   }

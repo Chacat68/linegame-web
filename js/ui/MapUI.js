@@ -34,6 +34,8 @@ import {
   getAccessibleGalaxies,
   getAccessibleSystems,
   getGalaxyAccessState,
+  getSystemAccessState,
+  isSystemAccessible,
 }  from '../data/systems.js';
 
 const _goodsById = GOODS.reduce(function (lookup, good) {
@@ -51,6 +53,7 @@ const CURRENT_SYSTEM_SCAN_REVEAL_STEP_2_DELAY = 420;
 const CURRENT_SYSTEM_SCAN_REVEAL_STEP_3_DELAY = 980;
 const STARMAP_RAIL_PANEL_OPEN_EVENT = 'starmap-rail:panel-open';
 const STARMAP_RAIL_SOURCE_ORBIT_SCAN = 'orbit-scan';
+const STARMAP_GALAXY_VIEW_TOGGLE_EVENT = 'starmap:galaxy-view-toggle';
 
 // 市场浏览状态
 let _marketViewGalaxy = null;
@@ -70,6 +73,7 @@ let _hoveredGalaxyId = null;
 let _mainBindingsInitialized = false;
 let _tabBindingsInitialized = false;
 let _railMutualExclusionBound = false;
+let _galaxyViewToggleBound = false;
 
 function _normalizeMarketPanelFocus(focus) {
   if (!focus || typeof focus !== 'object') return null;
@@ -177,15 +181,32 @@ function _buildPlanetTravelAction(stateRef, sys) {
   if (!stateRef || !sys) return null;
 
   var playerLevel = stateRef.playerLevel || 1;
-  var requiredLevel = sys.minLevel || 1;
-  if (playerLevel < requiredLevel) {
+  var systemAccess = getSystemAccessState(sys.id, playerLevel, stateRef.researchedTechs || []);
+  if (!systemAccess.unlocked) {
+    var galaxyAccess = systemAccess.galaxyAccess;
+    if (!galaxyAccess.unlocked) {
+      var galaxyName = galaxyAccess.galaxy ? galaxyAccess.galaxy.name : '目标星系';
+      return {
+        type: 'travel',
+        systemId: sys.id,
+        label: '星系未开放',
+        disabled: true,
+        title: galaxyName + ' 需 Lv.' + galaxyAccess.requiredLevel + ' 解锁',
+        hint: galaxyAccess.techRequired
+          ? ('达到 Lv.' + galaxyAccess.requiredLevel + ' 或研究超空间跃迁后，可提前进入该星系入口层。')
+          : ('达到 Lv.' + galaxyAccess.requiredLevel + ' 后，才可切换到该星系。'),
+      };
+    }
+
     return {
       type: 'travel',
       systemId: sys.id,
       label: '等级不足',
       disabled: true,
-      title: '需 Lv.' + requiredLevel + '（当前 Lv.' + playerLevel + '）',
-      hint: '达到对应等级后才能前往这颗星球。',
+      title: '需 Lv.' + systemAccess.requiredLevel + '（当前 Lv.' + playerLevel + '）',
+      hint: galaxyAccess.unlockedBy === 'tech'
+        ? '超空间跃迁仅提前开放入口层；这颗高阶星球仍需达到对应等级。'
+        : '达到对应等级后才能前往这颗星球。',
     };
   }
 
@@ -215,23 +236,6 @@ function _buildPlanetTravelAction(stateRef, sys) {
   }
 
   var crossGalaxy = sys.galaxyId !== stateRef.currentGalaxy;
-  if (crossGalaxy) {
-    var galaxyAccess = getGalaxyAccessState(sys.galaxyId, playerLevel, stateRef.researchedTechs || []);
-    if (!galaxyAccess.unlocked) {
-      var galaxyName = galaxyAccess.galaxy ? galaxyAccess.galaxy.name : '目标星系';
-      return {
-        type: 'travel',
-        systemId: sys.id,
-        label: '星系未开放',
-        disabled: true,
-        title: galaxyName + ' 需 Lv.' + galaxyAccess.requiredLevel + ' 解锁',
-        hint: galaxyAccess.techRequired
-          ? ('达到 Lv.' + galaxyAccess.requiredLevel + ' 或研究超空间跃迁后，才可切换到该星系。')
-          : ('达到 Lv.' + galaxyAccess.requiredLevel + ' 后，才可切换到该星系。'),
-      };
-    }
-  }
-
   return {
     type: 'travel',
     systemId: sys.id,
@@ -282,7 +286,6 @@ function _switchToGalaxy(galaxyId) {
   _hoveredGalaxyId = null;
   _stateRef.viewingGalaxy = galaxyId;
   _stateRef.mapView = 'planets';
-  _updateGalaxyBtn(_stateRef);
   refreshPlanetDetail(_stateRef);
   return true;
 }
@@ -296,7 +299,6 @@ function _returnToPlanetView() {
   _hoveredGalaxyId = null;
   _stateRef.mapView = 'planets';
   _stateRef.viewingGalaxy = _stateRef.currentGalaxy;
-  _updateGalaxyBtn(_stateRef);
   refreshPlanetDetail(_stateRef);
   return true;
 }
@@ -579,7 +581,7 @@ function _getCurrentSystemScanTarget(stateRef) {
 
   if (!sys || !exploration) return null;
 
-  var isUnlocked = (stateRef.playerLevel || 1) >= (sys.minLevel || 1);
+  var isUnlocked = isSystemAccessible(sys.id, stateRef.playerLevel || 1, stateRef.researchedTechs || []);
   var flow = _getExplorationFlow(stateRef, sys, planetData, true, isUnlocked);
   if (!flow) return null;
 
@@ -897,6 +899,30 @@ export function showMarketDetail(systemId) {
   if (_refreshMarket) _refreshMarket('detail');
 }
 
+export function toggleGalaxyView() {
+  var currentState = _stateRef;
+  if (!currentState) return false;
+
+  closeMarket();
+  _clearSelectedPlanetDetail(false);
+  _closeOrbitScanPanel(currentState);
+  if (currentState.mapView === 'galaxies') {
+    return _returnToPlanetView();
+  }
+
+  currentState.hoveredSystem = null;
+  _hoveredGalaxyId = null;
+  currentState.mapView = 'galaxies';
+  refreshPlanetDetail(currentState);
+  return true;
+}
+
+function _bindGalaxyViewToggleEvent() {
+  if (_galaxyViewToggleBound) return;
+  _galaxyViewToggleBound = true;
+  EventBus.on(STARMAP_GALAXY_VIEW_TOGGLE_EVENT, toggleGalaxyView);
+}
+
 /**
  * 绑定星系地图的鼠标交互
  * @param {object}   stateRef    游戏状态对象（引用）
@@ -910,30 +936,10 @@ export function init(stateRef, onTravel, onGalaxyJump) {
   _bindStarmapRailMutualExclusion();
   _bindExplorationActionEvents();
   _bindOrbitScanPanelControls();
+  _bindGalaxyViewToggleEvent();
 
   if (!_mainBindingsInitialized) {
     _mainBindingsInitialized = true;
-
-    // 星系视图切换按钮
-    const btn = document.getElementById('galaxy-view-btn');
-    if (btn) {
-      btn.addEventListener('click', function () {
-        var currentState = _stateRef || stateRef;
-        if (!currentState) return;
-
-        closeMarket();
-        _clearSelectedPlanetDetail(false);
-        _closeOrbitScanPanel(currentState);
-        if (currentState.mapView === 'galaxies') {
-          _returnToPlanetView();
-          return;
-        } else {
-          currentState.mapView = 'galaxies';
-        }
-        _updateGalaxyBtn(currentState);
-        refreshPlanetDetail(currentState);
-      });
-    }
 
     const secretRoutesBtn = document.getElementById('secret-routes-toggle-btn');
     if (secretRoutesBtn) {
@@ -1042,24 +1048,9 @@ export function init3DCallbacks(stateRef, onTravel, onGalaxyJump) {
     _switchToGalaxy(galaxyId);
   };
   window._switchToGalaxyView = function() {
-    _clearSelectedPlanetDetail(false);
-    _hoveredGalaxyId = null;
-    stateRef.mapView = 'galaxies';
-    _updateGalaxyBtn(stateRef);
-    refreshPlanetDetail(stateRef);
+    var currentState = _stateRef || stateRef;
+    if (currentState && currentState.mapView !== 'galaxies') toggleGalaxyView();
   };
-}
-
-function _updateGalaxyBtn(stateRef) {
-  const btn = document.getElementById('galaxy-view-btn');
-  if (!btn) return;
-  if (stateRef.mapView === 'galaxies') {
-    btn.textContent = '📍 返回星球';
-  } else if (stateRef.viewingGalaxy !== stateRef.currentGalaxy) {
-    btn.textContent = '🏠 返回当前星系';
-  } else {
-    btn.textContent = '🌌 星系总览';
-  }
 }
 
 function _setGalaxyImmersionMode(active) {
@@ -1107,9 +1098,8 @@ function _showArrivalScanPrompt(stateRef) {
   return true;
 }
 
-/** 外部调用刷新按钮状态 */
+/** 外部调用刷新星图控件状态 */
 export function refreshGalaxyBtn(stateRef) {
-  _updateGalaxyBtn(stateRef);
   _updateSecretRoutesToggle();
   _updateOrbitScanButton(stateRef);
 }
@@ -1996,7 +1986,7 @@ function _renderCurrentSystemExplorationCard(stateRef) {
     return;
   }
 
-  var isUnlocked = (resolvedState.playerLevel || 1) >= (sys.minLevel || 1);
+  var isUnlocked = isSystemAccessible(sys.id, resolvedState.playerLevel || 1, resolvedState.researchedTechs || []);
   var flow = _getExplorationFlow(resolvedState, sys, planetData, true, isUnlocked);
   if (!flow) {
     _hideCurrentSystemExplorationCard();
@@ -2088,14 +2078,15 @@ export function refreshPlanetDetail(stateRef) {
   }
 
   const playerLevel = stateRef.playerLevel || 1;
-  const isUnlocked = playerLevel >= (sys.minLevel || 1);
+  const systemAccess = getSystemAccessState(sys.id, playerLevel, stateRef.researchedTechs || []);
+  const isUnlocked = systemAccess.unlocked;
   const isCurrentSystem = displayId === stateRef.currentSystem;
   const isPinned = _selectedPlanetDetailSystem === displayId;
   const guideFocus = _navigationGuideFocus && _navigationGuideFocus.systemId === displayId
     ? _navigationGuideFocus
     : null;
-  const lockText = playerLevel >= (sys.minLevel || 1)
-    ? '已解锁'
+  const lockText = isUnlocked
+    ? (systemAccess.unlockedBy === 'tech-entry' ? '超空间入口已开放' : '已解锁')
     : ('需 Lv.' + (sys.minLevel || 1) + '（当前 Lv.' + playerLevel + '）');
   const safetyChipText = typeof details.safety === 'number'
     ? ('治安 ' + _getSafetyLabel(details.safety))
@@ -2364,7 +2355,7 @@ export function focusNavigationTarget(stateRef, systemId, options) {
   var sys = findSystem(systemId);
   if (!resolvedState || !sys) return false;
 
-  var accessState = getGalaxyAccessState(sys.galaxyId, resolvedState.playerLevel || 1, resolvedState.researchedTechs || []);
+  var accessState = getSystemAccessState(sys.id, resolvedState.playerLevel || 1, resolvedState.researchedTechs || []);
   if (!accessState.unlocked) return false;
 
   _stateRef = resolvedState;
@@ -2381,7 +2372,6 @@ export function focusNavigationTarget(stateRef, systemId, options) {
     title: options && options.title ? options.title : '',
   };
   _setBottomNavActive('starmap');
-  _updateGalaxyBtn(resolvedState);
   _bindPlanetDetailPanelEvents();
   refreshPlanetDetail(resolvedState);
 

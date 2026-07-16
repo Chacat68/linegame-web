@@ -2,6 +2,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import * as GalaxyData from '../js/systems/galaxy/GalaxyDataLayer.js';
 import { INITIAL_STATE } from '../js/data/constants.js';
+import { GALAXIES, SYSTEMS } from '../js/data/systems.js';
 
 describe('GalaxyDataLayer', () => {
   beforeEach(() => {
@@ -63,6 +64,25 @@ describe('GalaxyDataLayer', () => {
     it('应该为不存在的星球返回 null', () => {
       const planet = GalaxyData.getPlanetData('invalid_planet');
       expect(planet).toBeNull();
+    });
+
+    it('8 个银河使用各自的异常点与探索链主题', () => {
+      const sampledPlanets = GALAXIES.map(function (galaxy) {
+        const system = SYSTEMS.find(function (entry) { return entry.galaxyId === galaxy.id; });
+        return GalaxyData.getPlanetData(system.id);
+      });
+      const anomalyNames = new Set();
+      const chainLabels = new Set();
+
+      sampledPlanets.forEach(function (planet) {
+        expect(planet.exploration.pois).toHaveLength(3);
+        const anomaly = planet.exploration.pois.find(function (poi) { return poi.kind === 'anomaly_site'; });
+        anomalyNames.add(anomaly.name);
+        planet.exploration.pois.forEach(function (poi) { chainLabels.add(poi.chain.label); });
+      });
+
+      expect(anomalyNames.size).toBe(GALAXIES.length);
+      expect(chainLabels.size).toBe(GALAXIES.length * 3);
     });
   });
 
@@ -259,6 +279,33 @@ describe('GalaxyDataLayer', () => {
       expect(planet.owner).toBe('restored_faction');
       expect(planet.resources.restored).toBe(1);
       expect(planet.status).toBe('restored_status');
+    });
+
+    it('旧存档保留探索进度但更新为当前版本的主题内容', () => {
+      GalaxyData.restorePlanetStates({
+        sol_prime: {
+          id: 'sol_prime',
+          exploration: {
+            pois: [{
+              id: 'sol_prime_poi_anomaly',
+              name: '古代遗迹阵列',
+              description: '旧版重复文案',
+              discovered: true,
+              resolved: true,
+              resolvedDay: 12,
+            }],
+          },
+        },
+      });
+
+      const anomaly = GalaxyData.getPlanetData('sol_prime').exploration.pois.find(function (poi) {
+        return poi.kind === 'anomaly_site';
+      });
+      expect(anomaly.name).toBe('先驱者轨道阵列');
+      expect(anomaly.description).not.toBe('旧版重复文案');
+      expect(anomaly.discovered).toBe(true);
+      expect(anomaly.resolved).toBe(true);
+      expect(anomaly.resolvedDay).toBe(12);
     });
   });
 

@@ -74,6 +74,12 @@ export const ECONOMY_CONFIG = {
     sellMultiplier: 0.95,
     minimumPrice: 1,
     sellTaxBase: 2.0,
+    starterMarketGuard: {
+      maxPlayerLevel: 1,
+      maxTradeCount: 7,
+      buyFloorMultiplier: 0.85,
+      sellCeilingMultiplier: 1.15,
+    },
     buyAdjustmentOrder: ['factionTax', 'techBuyDiscount', 'fleetTradeBonus'],
     sellAdjustmentOrder: ['factionTax', 'techSellBonus', 'fleetTradeBonus'],
   },
@@ -146,11 +152,11 @@ export const PROGRESSION_CONFIG = {
   routeAnnouncementPreviewLimit: 5,
   levelPerks: {
     3:  { type: 'sellBonus', value: 0.03, message: '✨ 等级奖励：卖出价格 +3%' },
-    4:  { type: 'cargo', value: 5, message: '✨ 等级奖励：当前船只货舱容量 +5' },
+    4:  { type: 'cargo', value: 5, message: '✨ 等级奖励：所有船只有效货舱容量 +5' },
     5:  { type: 'buyDiscount', value: 0.03, message: '✨ 等级奖励：买入价格 -3%' },
-    6:  { type: 'fuelEfficiencyMultiplier', value: 0.9, message: '✨ 等级奖励：当前船只燃料效率 +10%' },
+    6:  { type: 'fuelEfficiencyMultiplier', value: 0.9, message: '✨ 等级奖励：所有船只燃料效率 +10%' },
     7:  { type: 'factionBonus', value: 10, message: '✨ 等级奖励：所有派系好感 +10' },
-    8:  { type: 'cargo', value: 10, message: '✨ 等级奖励：当前船只货舱容量 +10' },
+    8:  { type: 'cargo', value: 10, message: '✨ 等级奖励：所有船只有效货舱容量 +10' },
     9:  { type: 'sellBonus', value: 0.05, message: '✨ 等级奖励：卖出价格 +5%' },
     10: {
       type: 'composite',
@@ -158,7 +164,7 @@ export const PROGRESSION_CONFIG = {
       maxFuel: 20,
       buyDiscount: 0.05,
       sellBonus: 0.05,
-      message: '✨ 银河商业帝皇加冕！当前船只全属性大幅提升！',
+      message: '✨ 银河商业帝皇加冕！所有船只获得永久货舱与燃料上限提升！',
     },
   },
 };

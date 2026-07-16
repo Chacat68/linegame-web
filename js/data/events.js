@@ -4,6 +4,63 @@
 
 import { getSystemsByGalaxy } from './systems.js';
 
+const GALAXY_CONTEXT_EVENT_CONFIGS = [
+  { id: 'milky_way_echo', galaxyId: 'milky_way', stage: 'early', risk: 'safe', icon: '🌍', title: '家园航线的旧回声', description: '一段早期移民舰队的加密航海日志在人类航线间反复广播。', action: '对照地球档案', reward: 240, fuelCost: 4 },
+  { id: 'andromeda_memory', galaxyId: 'andromeda', stage: 'mid', risk: 'risky', icon: '🔮', title: '仙女座记忆审判', description: '晶体记忆网要求你提交一段真实记忆，才愿意交出遗产坐标。', action: '接受记忆校验', reward: 620, fuelCost: 7 },
+  { id: 'orion_ceasefire', galaxyId: 'orion_arm', stage: 'mid', risk: 'risky', icon: '⚔️', title: '猎户座的七分钟停火', description: '两支交战舰队同时要求你在七分钟的停火窗口内运送伤员。', action: '穿越停火回廊', reward: 760, fuelCost: 10 },
+  { id: 'magellanic_auction', galaxyId: 'magellanic_cloud', stage: 'mid', risk: 'safe', icon: '💎', title: '麦哲伦无主拍品', description: '一件无法验证原主的星际航图出现在非公开拍卖频道。', action: '担任临时鉴定人', reward: 680, fuelCost: 5 },
+  { id: 'dark_sector_whisper', galaxyId: 'dark_sector', stage: 'late', risk: 'dangerous', icon: '👁️', title: '暗星域低语', description: '船上所有计时器同时慢了一秒，随后显示一组不存在于航图上的坐标。', action: '追踪无光坐标', reward: 1250, fuelCost: 14 },
+  { id: 'phoenix_rekindling', galaxyId: 'phoenix_nebula', stage: 'mid', risk: 'risky', icon: '🔥', title: '凤凰重燃仪式', description: '一颗濒死恒星周围的采能环请求借用你的反应炉完成最后一次点火。', action: '分流反应炉能量', reward: 880, fuelCost: 12 },
+  { id: 'jade_seed_vault', galaxyId: 'jade_expanse', stage: 'late', risk: 'safe', icon: '🌿', title: '翠玉种子议会', description: '活体种子库正在选择新的保管人，它们用一组生态取舍测试你的判断。', action: '完成共生测试', reward: 940, fuelCost: 6 },
+  { id: 'chrono_duplicate', galaxyId: 'chrono_rift', stage: 'late', risk: 'dangerous', icon: '⌛', title: '时空中的第二艘船', description: '一艘与你完全相同的飞船从裂隙中驶出，舰长声称只有一方能离开。', action: '与未来自己对话', reward: 1500, fuelCost: 16 },
+];
+
+function _createGalaxyContextEvent(config) {
+  const flagId = 'galaxy_event_' + config.id;
+  function markResolved(state) {
+    if (!state.storyFlags || typeof state.storyFlags !== 'object' || Array.isArray(state.storyFlags)) state.storyFlags = {};
+    state.storyFlags[flagId] = state.day || 1;
+  }
+  return {
+    id: config.id,
+    galaxyIds: [config.galaxyId],
+    stage: config.stage,
+    risk: config.risk,
+    protection: config.risk === 'dangerous' ? { avoidWhenLowHull: true, avoidWhenLowFuel: true } : undefined,
+    title: config.title,
+    description: config.description,
+    icon: config.icon,
+    weight: 7,
+    condition: function (state) {
+      return !(state.storyFlags && state.storyFlags[flagId]);
+    },
+    choices: [
+      {
+        text: config.action,
+        tooltip: '消耗 ' + config.fuelCost + ' 燃料，获得独特情报与 ' + config.reward + ' 积分',
+        effect: function (state) {
+          state.fuel = Math.max(0, (state.fuel || 0) - config.fuelCost);
+          state.credits = (state.credits || 0) + config.reward;
+          state.reputation = (state.reputation || 0) + 25;
+          markResolved(state);
+          return { msgs: [{ text: config.icon + ' 已完成「' + config.title + '」：获得 ' + config.reward + ' 积分，声望 +25。', type: 'info' }] };
+        },
+      },
+      {
+        text: '将情报公开给当地势力',
+        tooltip: '放弃直接收益，获得更多声望',
+        effect: function (state) {
+          state.reputation = (state.reputation || 0) + 75;
+          markResolved(state);
+          return { msgs: [{ text: config.icon + ' 你公开了「' + config.title + '」的情报，声望 +75。', type: 'info' }] };
+        },
+      },
+    ],
+  };
+}
+
+const GALAXY_CONTEXT_EVENTS = GALAXY_CONTEXT_EVENT_CONFIGS.map(_createGalaxyContextEvent);
+
 /**
  * 事件结构：
  * {
@@ -753,4 +810,5 @@ export const RANDOM_EVENTS = [
       },
     ],
   },
+  ...GALAXY_CONTEXT_EVENTS,
 ];

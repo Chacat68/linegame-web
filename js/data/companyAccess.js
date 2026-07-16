@@ -10,11 +10,8 @@ import { COMPANY_LEVELS, getCompanyLevel } from './playerLevels.js';
 export const COMPANY_FEATURE_REQUIREMENTS = {
   capitalLocal: 2,
   tradeInvestment: 2,
-  stocks: 3,
   tradeStationBuild: 4,
   tradeStationStrategy: 4,
-  tradeStationManager: 5,
-  futures: 5,
   tradeStationBatchOps: 6,
   operationsNetwork: 6,
 };
@@ -23,12 +20,12 @@ export const COMPANY_UNLOCK_MILESTONES = [
   {
     level: 2,
     title: '资本工具',
-    items: ['贷款与保险', '贸易站财务投资', '舰队席位 II'],
+    items: ['经营贷款', '贸易站财务投资', '舰队席位 II'],
   },
   {
     level: 3,
-    title: '证券交易',
-    items: ['股票交易', '舰队席位 III'],
+    title: '区域扩编',
+    items: ['舰队席位 III', '更高经营额度'],
   },
   {
     level: 4,
@@ -38,12 +35,12 @@ export const COMPANY_UNLOCK_MILESTONES = [
   {
     level: 5,
     title: '专业化运营',
-    items: ['贸易站经理', '期货交易', '贸易站 Lv.2', '舰队席位 IV'],
+    items: ['站点定位', '贸易站 Lv.2', '舰队席位 IV'],
   },
   {
     level: 6,
     title: '商网指挥',
-    items: ['商网总览', '批量投资/升级/人事', '贸易站 Lv.3'],
+    items: ['商网总览', '批量投资/升级/定位', '贸易站 Lv.3'],
   },
   {
     level: 7,
@@ -93,13 +90,10 @@ const TRADE_STATION_CAPACITY_BY_COMPANY_LEVEL = {
 };
 
 const COMPANY_FEATURE_LABELS = {
-  capitalLocal: '贷款与保险',
+  capitalLocal: '经营贷款',
   tradeInvestment: '站点投资',
-  stocks: '股票交易',
   tradeStationBuild: '贸易站建设',
   tradeStationStrategy: '站点策略',
-  tradeStationManager: '经理派驻',
-  futures: '期货交易',
   tradeStationBatchOps: '批量指令',
   operationsNetwork: '商网总览',
 };

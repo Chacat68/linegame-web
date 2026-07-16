@@ -5,7 +5,7 @@
 //       getTravelRouteInfo, getCurrentSystemSecretRoutes
 
 import { GOODS } from '../../data/goods.js';
-import { findSystem, getSystemsByGalaxy } from '../../data/systems.js';
+import { findSystem, getSystemsByGalaxy, isSystemAccessible } from '../../data/systems.js';
 import * as GalaxyData from './GalaxyDataLayer.js';
 
 const BASE_SCAN_FUEL_COST = 6;
@@ -78,7 +78,7 @@ export function getScanStatus(state, systemId, options) {
     result.blockedReason = '当前星球的探索数据尚未就绪。';
     return result;
   }
-  if ((((state && state.playerLevel) || 1)) < (system.minLevel || 1)) {
+  if (!isSystemAccessible(systemId, (state && state.playerLevel) || 1, state && state.researchedTechs)) {
     result.canScan = false;
     result.reason = 'level-locked';
     result.blockedReason = '需要达到 Lv.' + (system.minLevel || 1) + ' 才能执行本地扫描。';
@@ -214,7 +214,7 @@ export function getLandingStatus(state, systemId, options) {
     result.blockedReason = '当前星球的着陆数据尚未就绪。';
     return result;
   }
-  if ((((state && state.playerLevel) || 1)) < (system.minLevel || 1)) {
+  if (!isSystemAccessible(systemId, (state && state.playerLevel) || 1, state && state.researchedTechs)) {
     result.canLand = false;
     result.reason = 'level-locked';
     result.blockedReason = '需要达到 Lv.' + (system.minLevel || 1) + ' 才能执行首次着陆。';
@@ -311,7 +311,7 @@ export function getPoiStatus(state, systemId, poiId, options) {
     result.blockedReason = '当前星球的探索数据尚未就绪。';
     return result;
   }
-  if ((((state && state.playerLevel) || 1)) < (system.minLevel || 1)) {
+  if (!isSystemAccessible(systemId, (state && state.playerLevel) || 1, state && state.researchedTechs)) {
     result.canExplore = false;
     result.reason = 'level-locked';
     result.blockedReason = '需要达到 Lv.' + (system.minLevel || 1) + ' 才能展开本地调查。';
@@ -871,15 +871,22 @@ function _getSurveyDispatchHint(summary, signal, hasIntel) {
 
 function _getAnomalyChainHint(reports) {
   if (_hasReportChainKind(reports, 'lost_beacon')) {
-    return '失落航标已归档，派遣和旅行会优先参考这条低燃耗暗线。';
+    return _getReportChainLabel(reports, 'lost_beacon', '失落航标') + '已归档，派遣和旅行会优先参考这条低燃耗暗线。';
   }
   if (_hasReportChainKind(reports, 'ancient_relic')) {
-    return '古代遗迹样本已归档，可作为科研补给和后续技术路线的依据。';
+    return _getReportChainLabel(reports, 'ancient_relic', '古代遗迹') + '样本已归档，可作为科研补给和后续技术路线的依据。';
   }
   if (_hasReportChainKind(reports, 'derelict_depot')) {
-    return '废弃补给站已复原，适合作为商网站点和后勤扩张判断依据。';
+    return _getReportChainLabel(reports, 'derelict_depot', '废弃补给站') + '已复原，适合作为商网站点和后勤扩张判断依据。';
   }
   return '';
+}
+
+function _getReportChainLabel(reports, chainKind, fallback) {
+  const report = (Array.isArray(reports) ? reports : []).find(function (entry) {
+    return entry && entry.chainKind === chainKind && entry.chainLabel;
+  });
+  return report ? report.chainLabel : fallback;
 }
 
 function _emptyScanYield() {
@@ -1030,6 +1037,7 @@ function _resolvePoi(state, system, exploration, poi, options) {
   var rewardMultiplier = Math.max(1, options && options.poiRewardMultiplier ? options.poiRewardMultiplier : 1);
 
   if (poi.kind === 'resource_cache') {
+    var depotLabel = _getPoiChainLabel(poi, '废弃补给站');
     var rewardCredits = Math.round(((poi.rewards && poi.rewards.credits) || 0) * rewardMultiplier);
     var rewardFuel = Math.round(((poi.rewards && poi.rewards.fuel) || 0) * rewardMultiplier);
     var rewardRep = Math.round(((poi.rewards && poi.rewards.reputation) || 0) * rewardMultiplier);
@@ -1038,7 +1046,7 @@ function _resolvePoi(state, system, exploration, poi, options) {
     state.reputation = (state.reputation || 0) + rewardRep;
     var depotFollowup = [];
     if (rewardRep > 0) depotFollowup.push('📈 此次发现还提升了你的公共声望。');
-    depotFollowup.push('废弃补给站信号会进入商网和派遣的后勤判断。');
+    depotFollowup.push(depotLabel + '信号会进入商网和派遣的后勤判断。');
     return {
       summary: '回收了补给与账本，获得 ' + rewardCredits + ' 积分、' + rewardFuel + ' 单位燃料。',
       followup: depotFollowup.join(' '),
@@ -1048,6 +1056,7 @@ function _resolvePoi(state, system, exploration, poi, options) {
   }
 
   if (poi.kind === 'anomaly_site') {
+    var relicLabel = _getPoiChainLabel(poi, '古代遗迹');
     var anomalyCredits = Math.round(((poi.rewards && poi.rewards.credits) || 0) * rewardMultiplier);
     var hullDamage = (poi.rewards && poi.rewards.hullDamage) || 0;
     var researchDays = _applyPoiResearchProgress(state, poi, rewardMultiplier);
@@ -1059,9 +1068,9 @@ function _resolvePoi(state, system, exploration, poi, options) {
       return {
         summary: '凭借异常分析协议，你稳定提取了样本数据，获得 ' + anomalyCredits + ' 积分并避免了舰体损伤。',
         followup: '🔬 深入分析带来的研究信誉让你额外获得了 2 点声望。' +
-          (researchDays > 0 ? (' 古代遗迹样本让当前科研提速 ' + researchDays + ' 天。') : ''),
+          (researchDays > 0 ? (' ' + relicLabel + '样本让当前科研提速 ' + researchDays + ' 天。') : ''),
         type: 'upgrade',
-        report: _createAnomalyReport(system, exploration, state, researchDays),
+        report: _createAnomalyReport(system, exploration, state, researchDays, poi),
       };
     }
 
@@ -1070,13 +1079,14 @@ function _resolvePoi(state, system, exploration, poi, options) {
     return {
       summary: '异常区带来了 ' + anomalyCredits + ' 积分收益，但飞船在回收过程中受损 ' + hullDamage + ' 点。',
       followup: '⚠️ 研究「异常分析协议」后可以显著降低这类风险。' +
-        (researchDays > 0 ? (' 古代遗迹样本仍让当前科研提速 ' + researchDays + ' 天。') : ''),
+        (researchDays > 0 ? (' ' + relicLabel + '样本仍让当前科研提速 ' + researchDays + ' 天。') : ''),
       type: 'info',
-      report: _createAnomalyReport(system, exploration, state, researchDays),
+      report: _createAnomalyReport(system, exploration, state, researchDays, poi),
     };
   }
 
   if (poi.kind === 'route_beacon') {
+    var routeLabel = _getPoiChainLabel(poi, '失落航标');
     var route = (exploration.secretRoutes || []).find(function (entry) { return entry.id === poi.secretRouteId; });
     if (route && !route.discovered) {
       route.discovered = true;
@@ -1087,10 +1097,10 @@ function _resolvePoi(state, system, exploration, poi, options) {
     var routeInfo = getTravelRouteInfo(state, system.id, route ? route.targetSystemId : null);
     var bonusPercent = Math.round((1 - routeInfo.fuelMultiplier) * 100);
     return {
-      summary: '你重启了失落航标，解锁了通往「' + (route ? route.targetSystemName : '未知航点') + '」的秘密航线。',
-      followup: '🛰️ 该航线现可提供约 ' + bonusPercent + '% 的燃料节省。失落航标信号会进入后续派遣评分。',
+      summary: '你重启了' + routeLabel + '，解锁了通往「' + (route ? route.targetSystemName : '未知航点') + '」的秘密航线。',
+      followup: '🛰️ 该航线现可提供约 ' + bonusPercent + '% 的燃料节省。' + routeLabel + '信号会进入后续派遣评分。',
       type: 'upgrade',
-      report: _createRouteReport(system, route, routeInfo, state.day || 1),
+      report: _createRouteReport(system, route, routeInfo, state.day || 1, poi),
     };
   }
 
@@ -1365,6 +1375,7 @@ function _getPoiChainLabel(poi, fallback) {
 }
 
 function _createManifestReport(system, state, poi) {
+  var chainLabel = _getPoiChainLabel(poi, '废弃补给站');
   var opportunity = _getBestTradeOpportunity(system, { legalOnly: false });
   if (!opportunity) {
     return {
@@ -1375,7 +1386,7 @@ function _createManifestReport(system, state, poi) {
       chainLabel: _getPoiChainLabel(poi, '废弃补给站'),
       badge: '补给链',
       icon: '📦',
-      title: '废弃补给站复原',
+      title: chainLabel + '复原',
       detail: '回收账本显示「' + system.name + '」仍有可重复利用的地面补给链，适合作为中短线整补节点和商网扩张支点。',
       day: state.day || 1,
       intelValue: 1,
@@ -1390,7 +1401,7 @@ function _createManifestReport(system, state, poi) {
     chainLabel: _getPoiChainLabel(poi, '废弃补给站'),
     badge: '补给链',
     icon: '📦',
-    title: '废弃补给站复原',
+    title: chainLabel + '复原',
     detail: '货运清单显示「' + opportunity.goodEmoji + ' ' + opportunity.goodName + '」在「' + system.name + '」长期低于周边均价，优先运往「' + opportunity.targetSystemName + '」存在' + opportunity.marginBand + '强度价差窗口。补给站复原后也可作为商网扩张和派遣整备依据。',
     day: state.day || 1,
     intelValue: 1,
@@ -1423,8 +1434,9 @@ function _createScanReport(system, exploration, scanStatus, day) {
   };
 }
 
-function _createAnomalyReport(system, exploration, state, reducedDays) {
+function _createAnomalyReport(system, exploration, state, reducedDays, poi) {
   var profile = _getSurveyProfile(system, exploration);
+  var chainLabel = _getPoiChainLabel(poi, '古代遗迹');
   var riskHint = profile.threatLevel === 'high'
     ? '局部异常对低维护舰船依然有持续威胁，后续行动应优先保证舰体安全。'
     : (profile.threatLevel === 'medium'
@@ -1436,29 +1448,29 @@ function _createAnomalyReport(system, exploration, state, reducedDays) {
     kind: 'research',
     signalTags: ['research'],
     chainKind: 'ancient_relic',
-    chainLabel: '古代遗迹',
+    chainLabel: chainLabel,
     badge: '遗迹链',
     icon: '🧪',
-    title: '古代遗迹样本',
+    title: chainLabel + '样本',
     detail: '分析确认「' + system.name + '」属于' + profile.threatLabel + '勘探区。' + riskHint + (_hasTech(state, 'anomaly_research') ? ' 现有异常分析协议已足以稳定处理样本。' : ' 若补完「异常分析协议」，可显著提高这类点位的净收益。') +
-      ((reducedDays || 0) > 0 ? (' 本次古代遗迹样本已让当前科研提速 ' + reducedDays + ' 天。') : ''),
+      ((reducedDays || 0) > 0 ? (' 本次' + chainLabel + '样本已让当前科研提速 ' + reducedDays + ' 天。') : ''),
     day: state.day || 1,
     reducedResearchDays: reducedDays || 0,
     intelValue: 1,
   };
 }
 
-function _createRouteReport(system, route, routeInfo, day) {
+function _createRouteReport(system, route, routeInfo, day, poi) {
   var discount = Math.round((1 - (routeInfo && routeInfo.fuelMultiplier ? routeInfo.fuelMultiplier : BASE_SECRET_ROUTE_MULTIPLIER)) * 100);
   return {
     id: system.id + '_report_route',
     kind: 'route',
     signalTags: ['route'],
     chainKind: 'lost_beacon',
-    chainLabel: '失落航标',
+    chainLabel: _getPoiChainLabel(poi, '失落航标'),
     badge: '航标链',
     icon: '🛰️',
-    title: '失落航标重启',
+    title: _getPoiChainLabel(poi, '失落航标') + '重启',
     detail: '已将通往「' + (route ? route.targetSystemName : '未知航点') + '」的暗线写入长期航图。后续从「' + system.name + '」出发可节省约 ' + discount + '% 燃料，并提高相关派遣路线的可解释评分。',
     day: day || 0,
     intelValue: 1,

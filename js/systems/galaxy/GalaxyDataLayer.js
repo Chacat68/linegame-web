@@ -21,6 +21,81 @@ let _planetStates = new Map(); // planetId -> { owner, resources, status, ... }
 let _sectorCache = new Map();  // galaxyId -> sectors[]
 let _listeners = [];
 
+const EXPLORATION_GALAXY_THEMES = {
+  milky_way: {
+    anomalyIcon: '🌀', anomalyName: '先驱者轨道阵列', anomalyDescription: '人类航线边缘的先驱者结构仍在周期性发出能量脉冲。',
+    routeName: '幽灵航标', archiveName: '地球旧航海库',
+    chains: {
+      derelict_depot: ['遗忘补给库', ['校验人类制式', '复原物资清单', '归档旧航线']],
+      ancient_relic: ['先驱者轨道阵列', ['锁定脉冲源', '采集阵列残片', '归档先驱者样本']],
+      lost_beacon: ['幽灵航标网', ['追踪历史回波', '重启幽灵节点', '归档人类暗线']],
+    },
+  },
+  andromeda: {
+    anomalyIcon: '🔮', anomalyName: '晶体记忆晶格', anomalyDescription: '先进文明留下的晶体计算网仍在自行重组记忆。',
+    routeName: '量子折跃标', archiveName: '遗产观测库',
+    chains: {
+      derelict_depot: ['遗产数据库', ['识别量子锁', '复原遗产目录', '归档晶格物资']],
+      ancient_relic: ['晶体记忆晶格', ['测绘晶格', '读取记忆切片', '归档遗产模型']],
+      lost_beacon: ['量子折跃标', ['拟合量子相位', '复位折跃标', '归档瞬时航图']],
+    },
+  },
+  orion_arm: {
+    anomalyIcon: '⚔️', anomalyName: '战痕熔炉', anomalyDescription: '古老会战将轨道工厂熔成了一座自我循环的战痕熔炉。',
+    routeName: '烬火信号塔', archiveName: '前线战损库',
+    chains: {
+      derelict_depot: ['战场回收站', ['排查未爆物', '回收军需舱', '归档前线补给']],
+      ancient_relic: ['战痕熔炉', ['解析战痕', '切取熔炉芯', '归档军工样本']],
+      lost_beacon: ['烬火信号塔', ['过滤战场干扰', '点燃信号塔', '归档前线穿插线']],
+    },
+  },
+  magellanic_cloud: {
+    anomalyIcon: '💎', anomalyName: '镏金拍卖残环', anomalyDescription: '失控的轨道拍卖场仍按消亡文明的协议结算藏品。',
+    routeName: '珍珠商路浮标', archiveName: '星云商会账本',
+    chains: {
+      derelict_depot: ['商会密藏库', ['破解商会印记', '清点密藏货单', '归档星云行情']],
+      ancient_relic: ['镏金拍卖残环', ['重建拍品编码', '鉴定遗珍', '归档失落藏品']],
+      lost_beacon: ['珍珠商路浮标', ['捕捉商队暗语', '复位珍珠浮标', '归档密贸航图']],
+    },
+  },
+  dark_sector: {
+    anomalyIcon: '👁️', anomalyName: '虚空低语碑', anomalyDescription: '无法定位边界的黑色碑体向舰船传回不属于当前时间的讯息。',
+    routeName: '盲区航标', archiveName: '静默观测录',
+    chains: {
+      derelict_depot: ['静默补给所', ['确认生命迹象', '无线回收货舱', '归档静默物资']],
+      ancient_relic: ['虚空低语碑', ['隔离低语频段', '拓印碑面', '归档虚空讯息']],
+      lost_beacon: ['盲区航标', ['探测无光回波', '点亮盲区标', '归档黑域缝隙']],
+    },
+  },
+  phoenix_nebula: {
+    anomalyIcon: '🔥', anomalyName: '重生日冕', anomalyDescription: '一枚人工恒星日冕在毁灭与复燃之间不断循环。',
+    routeName: '耀斑航标', archiveName: '灰烬资源谱',
+    chains: {
+      derelict_depot: ['灰烬补给环', ['冷却外层舱', '提取高温物资', '归档星火补给']],
+      ancient_relic: ['重生日冕', ['测算复燃周期', '捕获日冕样本', '归档恒星循环']],
+      lost_beacon: ['耀斑航标', ['校正耀斑干扰', '重启耀斑标', '归档燃烧航道']],
+    },
+  },
+  jade_expanse: {
+    anomalyIcon: '🌿', anomalyName: '活体档案树冠', anomalyDescription: '跨越数十公里的太空菌林用孢子保存了已灭绝物种的记忆。',
+    routeName: '孢子引航簇', archiveName: '翠玉基因谱',
+    chains: {
+      derelict_depot: ['共生种子库', ['筛查活性孢子', '复苏补给菌群', '归档生态物资']],
+      ancient_relic: ['活体档案树冠', ['解读树冠信号', '分离记忆孢子', '归档物种谱系']],
+      lost_beacon: ['孢子引航簇', ['追踪季风孢子', '唤醒引航簇', '归档生态航路']],
+    },
+  },
+  chrono_rift: {
+    anomalyIcon: '⌛', anomalyName: '破碎沙漏阵', anomalyDescription: '同一座阵列同时呈现新建、废弃与毁灭三种状态。',
+    routeName: '逆行时标', archiveName: '错位航海日志',
+    chains: {
+      derelict_depot: ['错位补给站', ['锁定当前相位', '回收未来物资', '归档错位清单']],
+      ancient_relic: ['破碎沙漏阵', ['测定时间层', '固化时间切片', '归档时空样本']],
+      lost_beacon: ['逆行时标', ['预测迟到回波', '同步逆行标', '归档时序绕路']],
+    },
+  },
+};
+
 // ---------------------------------------------------------------------------
 // 初始化
 // ---------------------------------------------------------------------------
@@ -385,14 +460,15 @@ function _createExplorationProfile(system) {
 }
 
 function _createExplorationPois(system, secretRoute) {
+  const theme = _getExplorationTheme(system);
   const resourcePoi = _createResourcePoi(system);
   const anomalyPoi = _createAnomalyPoi(system);
   const routePoi = secretRoute ? {
     id: system.id + '_poi_route',
     kind: 'route_beacon',
-    icon: '🛰️',
-    name: '失落航标',
-    description: '一次失真的导航回波，似乎指向「' + secretRoute.targetSystemName + '」附近的暗线跳点。',
+    icon: theme.routeIcon || '🛰️',
+    name: theme.routeName,
+    description: theme.routeName + '发出失真回波，似乎指向「' + secretRoute.targetSystemName + '」附近的暗线跳点。',
     discovered: false,
     resolved: false,
     chain: _createPoiChain(system, 'lost_beacon'),
@@ -401,15 +477,19 @@ function _createExplorationPois(system, secretRoute) {
   } : {
     id: system.id + '_poi_archive',
     kind: 'resource_cache',
-    icon: '📚',
-    name: '遗落航海档案',
-    description: '旧时代航海数据库残片，仍可从中提取有价值的航路情报。',
+    icon: theme.archiveIcon || '📚',
+    name: theme.archiveName,
+    description: theme.archiveName + '保存着当地文明的航路残片，仍可提取有价值的商网情报。',
     discovered: false,
     resolved: false,
     chain: _createPoiChain(system, 'derelict_depot'),
     rewards: { credits: 90, fuel: 0, reputation: 1 },
   };
   return [resourcePoi, anomalyPoi, routePoi];
+}
+
+function _getExplorationTheme(system) {
+  return EXPLORATION_GALAXY_THEMES[system && system.galaxyId] || EXPLORATION_GALAXY_THEMES.milky_way;
 }
 
 function _createPoiChain(system, chainKind) {
@@ -434,13 +514,14 @@ function _createPoiChain(system, chainKind) {
     },
   };
   const template = templates[chainKind] || templates.derelict_depot;
+  const themedChain = _getExplorationTheme(system).chains[chainKind];
   return {
     id: system.id + '_chain_' + chainKind,
     kind: chainKind,
-    label: template.label,
+    label: themedChain ? themedChain[0] : template.label,
     badge: template.badge,
     signal: template.signal,
-    stageLabels: template.stageLabels,
+    stageLabels: themedChain ? themedChain[1] : template.stageLabels,
   };
 }
 
@@ -526,12 +607,13 @@ function _createResourcePoi(system) {
 }
 
 function _createAnomalyPoi(system) {
+  const theme = _getExplorationTheme(system);
   return {
     id: system.id + '_poi_anomaly',
     kind: 'anomaly_site',
-    icon: '🌀',
-    name: '古代遗迹阵列',
-    description: '局部时空与能量读数持续异常，遗迹样本价值可观，但存在舰体受损风险。',
+    icon: theme.anomalyIcon,
+    name: theme.anomalyName,
+    description: theme.anomalyDescription + '样本价值可观，但存在舰体受损风险。',
     discovered: false,
     resolved: false,
     chain: _createPoiChain(system, 'ancient_relic'),
@@ -576,7 +658,16 @@ function _mergeExplorationState(defaultState, savedState) {
     savedPoiById[poi.id] = poi;
   });
   next.pois = (defaultState.pois || []).map(function (poi) {
-    return Object.assign({}, poi, savedPoiById[poi.id] || {});
+    const merged = Object.assign({}, poi, savedPoiById[poi.id] || {});
+    // 探索进度来自存档；内容元数据始终跟随当前版本，避免旧存档永久留在重复文案。
+    merged.kind = poi.kind;
+    merged.icon = poi.icon;
+    merged.name = poi.name;
+    merged.description = poi.description;
+    merged.chain = _clonePlainObject(poi.chain);
+    merged.rewards = _clonePlainObject(poi.rewards);
+    if (poi.secretRouteId) merged.secretRouteId = poi.secretRouteId;
+    return merged;
   });
 
   const savedRouteById = Object.create(null);

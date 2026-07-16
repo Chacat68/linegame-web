@@ -24,7 +24,6 @@ describe('UI surface inventory', function () {
       'company-rename-modal',
       'tutorial-start-modal',
       'victory-modal',
-      'company-directives-modal',
       'settings-modal',
     ];
 
@@ -67,5 +66,13 @@ describe('UI surface inventory', function () {
     expect(css).toContain('left: max(12px, var(--safe-left));');
     expect(css).toContain('right: max(12px, var(--safe-right));');
     expect(css).toContain('max-height: calc(100dvh - max(8px, var(--safe-top)) - max(8px, var(--safe-bottom))) !important;');
+  });
+
+  it('uses direct HUD panel controls without a redundant aggregate toggle', function () {
+    expect(html).not.toContain('data-hud-dock-toggle');
+    expect(html).not.toContain('rail-icon-dock');
+    expect(html).not.toContain('id="galaxy-view-btn"');
+    expect(html).toContain('id="hud-galactic-map-toggle"');
+    expect((html.match(/data-hud-dock-panel=/g) || []).length).toBe(5);
   });
 });

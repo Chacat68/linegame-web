@@ -21,6 +21,23 @@ describe('AchievementSystem.init', () => {
 });
 
 describe('AchievementSystem.checkAll', () => {
+  it('成就经验奖励会走统一升级结算', () => {
+    const state = createTestState({
+      credits: 5000,
+      experience: 90,
+      playerLevel: 1,
+    });
+    Achievement.init(state);
+
+    const result = Achievement.checkAll(state);
+
+    expect(state.experience).toBe(110);
+    expect(state.playerLevel).toBe(2);
+    expect(result.msgs.some(function (msg) {
+      return msg.text.indexOf('升级') !== -1;
+    })).toBe(true);
+  });
+
   it('满足条件时解锁成就并发放奖励', () => {
     const state = createTestState({
       credits: 100000,
@@ -119,5 +136,16 @@ describe('AchievementSystem.getAll', () => {
       const first = all.find(a => a.id === ACHIEVEMENTS[0].id);
       expect(first.unlocked).toBe(true);
     }
+  });
+});
+
+describe('长线成就节奏', () => {
+  it('只保留 28 个核心节点，并移除重复的长线门槛', () => {
+    const byId = Object.fromEntries(ACHIEVEMENTS.map(function (entry) { return [entry.id, entry]; }));
+    expect(ACHIEVEMENTS).toHaveLength(28);
+    expect(byId.trade_100.condition({ tradeCount: 100 })).toBe(true);
+    expect(byId.trade_1000).toBeUndefined();
+    expect(byId.survive_500).toBeUndefined();
+    expect(byId.event_master.condition({ totalEvents: 30 })).toBe(true);
   });
 });

@@ -573,6 +573,38 @@ describe('Quest.checkProgress', () => {
     expect(state.reputation).toBe(25);
   });
 
+  it('任务经验奖励会走统一升级结算', () => {
+    const state = createTestState({
+      experience: 90,
+      playerLevel: 1,
+    });
+    Faction.init(state);
+    Quest.init(state);
+    state.quests.push({
+      id: 'test_level_reward_quest',
+      name: '升级结算测试',
+      type: 'trade',
+      phase: 1,
+      objectives: [{ type: 'trade_count', amount: 1, current: 0 }],
+      rewards: { credits: 0, exp: 20, reputation: 0 },
+      timeLimit: 0,
+      startDay: 1,
+    });
+
+    const result = Quest.checkProgress(state, {
+      action: 'buy',
+      goodId: 'food',
+      quantity: 1,
+      systemId: 'sol_prime',
+    });
+
+    expect(state.experience).toBe(110);
+    expect(state.playerLevel).toBe(2);
+    expect(result.msgs.some(function (msg) {
+      return msg.text.indexOf('升级') !== -1;
+    })).toBe(true);
+  });
+
   it('会给当前剧情路线匹配的任务应用奖励倾向', () => {
     const state = createTestState({
       storyDecisions: { tutorial_postlude: 'network' },
@@ -785,5 +817,137 @@ describe('Quest.getCurrentQuestPhase / getCurrentQuestPhaseProgress', () => {
     expect(progress.total).toBeGreaterThanOrEqual(0);
     expect(progress.completed).toBe(0);
     expect(typeof progress.percent).toBe('number');
+  });
+
+  it('完成核心任务与支线配额即可晋级，不再要求清空整章', () => {
+    const state = createTestState({
+      experience: 100,
+      playerLevel: 2,
+      questPhase: 1,
+      completedQuests: [
+        'starter_first_trade',
+        'starter_visit_2',
+        'starter_earn_500',
+        'starter_5_trades',
+      ],
+    });
+    Faction.init(state);
+
+    Quest.init(state);
+
+    expect(state.questPhase).toBe(2);
+    expect(state.completedQuests).not.toContain('starter_deliver_food');
+  });
+
+  it('支线完成再多也不能跳过章节核心任务', () => {
+    const state = createTestState({
+      questPhase: 1,
+      completedQuests: [
+        'starter_earn_500',
+        'starter_deliver_food',
+        'starter_deliver_medicine',
+        'starter_5_trades',
+        'starter_explore_shadow',
+      ],
+    });
+    Faction.init(state);
+
+    Quest.init(state);
+
+    expect(state.questPhase).toBe(1);
+    const progress = Quest.getCurrentQuestPhaseProgress(state);
+    expect(progress.coreCompleted).toBe(0);
+    expect(progress.optionalCompleted).toBeGreaterThanOrEqual(progress.optionalRequired);
+    expect(progress.isComplete).toBe(false);
+  });
+
+  it('晋级后仍可继续接取此前未完成的支线', () => {
+    const state = createTestState({
+      experience: 100,
+      playerLevel: 2,
+      questPhase: 2,
+      completedQuests: [
+        'starter_first_trade',
+        'starter_visit_2',
+        'starter_earn_500',
+        'starter_5_trades',
+      ],
+    });
+    Faction.init(state);
+    Quest.init(state);
+
+    const availableIds = Quest.getAvailableQuests(state).map(function (quest) { return quest.id; });
+
+    expect(availableIds).toContain('starter_deliver_medicine');
+  });
+});
+
+describe('Quest integrated system objectives', () => {
+  it('会从科研、勘探、舰队、船员、商站与星系状态同步目标', () => {
+    const state = createTestState({
+      researchedTechs: ['market_analysis'],
+      fleet: [{ typeId: 'shuttle' }, { typeId: 'freighter', route: { goodId: 'food' } }],
+      crewRoster: [{ id: 'crew_1' }],
+      tradeStations: { sol_prime: { level: 1 } },
+      visitedGalaxies: ['milky_way', 'andromeda'],
+      galaxyStates: {
+        sol_prime: {
+          exploration: {
+            scanLevel: 1,
+            pois: [{ id: 'poi_1', resolved: true }],
+          },
+        },
+      },
+    });
+    Faction.init(state);
+    Quest.init(state);
+    state.quests.push({
+      id: 'test_integrated_objectives',
+      name: '多系统目标测试',
+      type: 'special',
+      phase: 1,
+      objectives: [
+        { type: 'research_count', amount: 1, current: 0 },
+        { type: 'scan_systems', amount: 1, current: 0 },
+        { type: 'explore_pois', amount: 1, current: 0 },
+        { type: 'fleet_size', amount: 2, current: 0 },
+        { type: 'crew_count', amount: 1, current: 0 },
+        { type: 'dispatch_routes', amount: 1, current: 0 },
+        { type: 'trade_stations', amount: 1, current: 0 },
+        { type: 'visited_galaxies', amount: 2, current: 0 },
+      ],
+      rewards: { credits: 0, exp: 0, reputation: 0 },
+      timeLimit: 0,
+      startDay: 1,
+    });
+
+    const result = Quest.checkProgress(state, { action: 'state_sync' });
+
+    expect(result.completedQuests).toHaveLength(1);
+    expect(state.completedQuests).toContain('test_integrated_objectives');
+  });
+
+  it('资本与派遣动作会推进对应行为目标', () => {
+    const state = createTestState();
+    Faction.init(state);
+    Quest.init(state);
+    state.quests.push({
+      id: 'test_action_objectives',
+      name: '行为目标测试',
+      type: 'special',
+      phase: 1,
+      objectives: [
+        { type: 'dispatch_routes', amount: 1, current: 0 },
+        { type: 'finance_actions', amount: 1, current: 0 },
+      ],
+      rewards: { credits: 0, exp: 0, reputation: 0 },
+      timeLimit: 0,
+      startDay: 1,
+    });
+
+    Quest.checkProgress(state, { action: 'dispatch_route' });
+    const result = Quest.checkProgress(state, { action: 'finance_action' });
+
+    expect(result.completedQuests).toHaveLength(1);
   });
 });

@@ -14,18 +14,14 @@ import {
 import { createTestState } from './helpers.js';
 
 describe('company access rules', function () {
-  it('按公司等级判断资本、股票和期货准入', function () {
+  it('按公司等级判断贷款与站点投资准入', function () {
     const state = createTestState({ companyLevel: 1 });
 
     expect(getCompanyAccessState(state, 'capitalLocal')).toMatchObject({ unlocked: false, requiredLevel: 2 });
 
     state.companyLevel = 3;
     expect(getCompanyAccessState(state, 'capitalLocal').unlocked).toBe(true);
-    expect(getCompanyAccessState(state, 'stocks').unlocked).toBe(true);
-    expect(getCompanyAccessState(state, 'futures').unlocked).toBe(false);
-
-    state.companyLevel = 5;
-    expect(getCompanyAccessState(state, 'futures').unlocked).toBe(true);
+    expect(getCompanyAccessState(state, 'tradeInvestment')).toMatchObject({ unlocked: true, requiredLevel: 2 });
   });
 
   it('定义船队席位和贸易站等级的公司等级要求', function () {
@@ -94,7 +90,7 @@ describe('company access rules', function () {
     });
     expect(summary.caps.tradeStationLevel).toMatchObject({ max: 2, label: 'Lv.2' });
     expect(summary.caps.fleetSlots).toEqual({ used: 3, max: 4 });
-    expect(summary.unlockedFeatures.map(function (entry) { return entry.id; })).toContain('tradeStationManager');
+    expect(summary.unlockedFeatures.map(function (entry) { return entry.id; })).toContain('tradeStationStrategy');
   });
 
   it('提供公司等级解锁路线给 UI 展示', function () {
@@ -102,7 +98,7 @@ describe('company access rules', function () {
       level: 2,
       title: '资本工具',
     });
-    expect(getCompanyUnlocksAtLevel(2).items).toContain('贷款与保险');
+    expect(getCompanyUnlocksAtLevel(2).items).toContain('经营贷款');
 
     const roadmap = getCompanyUnlockRoadmap(createTestState({ companyLevel: 4 }), 2);
     expect(roadmap).toHaveLength(2);
@@ -117,5 +113,6 @@ describe('company access rules', function () {
       unlocked: false,
       title: '专业化运营',
     });
+    expect(roadmap[1].items).toContain('站点定位');
   });
 });

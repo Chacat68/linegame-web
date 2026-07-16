@@ -2,14 +2,21 @@
 // 依赖：data/achievements.js, core/EventBus.js
 // 导出：init, checkAll, getUnlocked
 
-import { ACHIEVEMENTS } from '../../data/achievements.js';
+import { ACHIEVEMENTS, ACHIEVEMENT_ALIASES } from '../../data/achievements.js';
 import * as EventBus     from '../../core/EventBus.js';
+import * as Progression  from '../progression/ProgressionSystem.js';
 
 /**
  * 初始化成就系统
  */
 export function init(state) {
   if (!state.achievements) state.achievements = [];
+  const activeIds = new Set(ACHIEVEMENTS.map(function (achievement) { return achievement.id; }));
+  state.achievements = Array.from(new Set(state.achievements.map(function (achievementId) {
+    return ACHIEVEMENT_ALIASES[achievementId] || achievementId;
+  }).filter(function (achievementId) {
+    return activeIds.has(achievementId) || !Object.prototype.hasOwnProperty.call(ACHIEVEMENT_ALIASES, achievementId);
+  })));
 }
 
 /**
@@ -30,7 +37,9 @@ export function checkAll(state) {
 
       // 发放奖励
       if (ach.reward.credits)    state.credits    += ach.reward.credits;
-      if (ach.reward.exp)        state.experience  = (state.experience || 0) + ach.reward.exp;
+      const progressionResult = ach.reward.exp
+        ? Progression.gainExperience(state, ach.reward.exp)
+        : { msgs: [] };
       if (ach.reward.reputation) state.reputation  = (state.reputation || 0) + ach.reward.reputation;
 
       msgs.push({
@@ -39,6 +48,7 @@ export function checkAll(state) {
               (ach.reward.exp ? ' ⭐+' + ach.reward.exp : ''),
         type: 'upgrade',
       });
+      msgs.push(...progressionResult.msgs);
 
       EventBus.emit('achievement:unlocked', { id: ach.id });
     }

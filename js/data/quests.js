@@ -21,6 +21,8 @@ export const QUEST_PHASES = [
     description: '初入星际，学习基本的贸易和航行。',
     icon: '🌱',
     levelRange: [1, 2],
+    coreQuestIds: ['starter_first_trade', 'starter_visit_2'],
+    optionalRequired: 2,
   },
   {
     id: 'phase_2',
@@ -28,6 +30,8 @@ export const QUEST_PHASES = [
     description: '拓展贸易网络，积累资本与经验。',
     icon: '🚢',
     levelRange: [2, 3],
+    coreQuestIds: ['expand_first_research', 'expand_first_survey'],
+    optionalRequired: 2,
   },
   {
     id: 'phase_3',
@@ -35,6 +39,8 @@ export const QUEST_PHASES = [
     description: '接触各大派系，建立声望与影响力。',
     icon: '⭐',
     levelRange: [3, 5],
+    coreQuestIds: ['rise_crew_roster', 'rise_dispatch_network', 'rise_capital_tools'],
+    optionalRequired: 2,
   },
   {
     id: 'phase_4',
@@ -42,6 +48,8 @@ export const QUEST_PHASES = [
     description: '挑战高难度跨星系任务，成为银河巨贾。',
     icon: '💫',
     levelRange: [5, 7],
+    coreQuestIds: ['reign_first_station', 'reign_galaxy_jump'],
+    optionalRequired: 3,
   },
   {
     id: 'phase_5',
@@ -49,6 +57,8 @@ export const QUEST_PHASES = [
     description: '完成传奇级壮举，缔造商业帝国的终极荣耀。',
     icon: '👑',
     levelRange: [7, 10],
+    coreQuestIds: ['legend_integrated_empire', 'legend_policy_commitment'],
+    optionalRequired: 2,
   },
 ];
 
@@ -163,6 +173,33 @@ export const QUESTS = [
   //  扩大贸易规模，接触更远的星球
   // ============================================================
 
+  // --- 2.0 核心成长线：科研与勘探 ---
+  {
+    id: 'expand_first_research', name: '第一项突破',
+    type: 'special', phase: 2,
+    description: '完成至少 1 项科技研究，把利润转化为可持续的技术优势。',
+    objectives: [{ type: 'research_count', amount: 1, current: 0 }],
+    rewards: { credits: 700, exp: 45, reputation: 8 },
+    timeLimit: 0,
+    minLevel: 2,
+    prerequisites: ['starter_first_trade'],
+    unlockConditions: {},
+  },
+  {
+    id: 'expand_first_survey', name: '建立第一份勘探档案',
+    type: 'explore', phase: 2,
+    description: '扫描 1 颗星球并完成 1 个 POI 调查，让星图从地点列表变成可利用的情报网络。',
+    objectives: [
+      { type: 'scan_systems', amount: 1, current: 0 },
+      { type: 'explore_pois', amount: 1, current: 0 },
+    ],
+    rewards: { credits: 900, exp: 50, reputation: 10 },
+    timeLimit: 0,
+    minLevel: 2,
+    prerequisites: ['starter_visit_2'],
+    unlockConditions: {},
+  },
+
   // --- 2.1 贸易扩展线 ---
   {
     id: 'expand_profit_1000', name: '千金利润',
@@ -261,6 +298,44 @@ export const QUESTS = [
   //  第三章：崛起 (phase 3, Lv 3-5)
   //  接触派系，大额贸易，多步骤复杂任务
   // ============================================================
+
+  // --- 3.0 核心成长线：船员、舰队与资本 ---
+  {
+    id: 'rise_crew_roster', name: '组建专业班底',
+    type: 'special', phase: 3,
+    description: '雇佣至少 1 名船员并拥有 2 艘飞船，建立不再依赖单船单人的经营班底。',
+    objectives: [
+      { type: 'crew_count', amount: 1, current: 0 },
+      { type: 'fleet_size', amount: 2, current: 0 },
+    ],
+    rewards: { credits: 1800, exp: 70, reputation: 15 },
+    timeLimit: 0,
+    minLevel: 3,
+    prerequisites: ['expand_first_research'],
+    unlockConditions: {},
+  },
+  {
+    id: 'rise_dispatch_network', name: '第一次自主派遣',
+    type: 'special', phase: 3,
+    description: '为船队确认 1 条派遣路线，让经营能力从亲自跑商扩展为多线调度。',
+    objectives: [{ type: 'dispatch_routes', amount: 1, current: 0 }],
+    rewards: { credits: 1600, exp: 65, reputation: 12 },
+    timeLimit: 0,
+    minLevel: 3,
+    prerequisites: ['expand_first_survey'],
+    unlockConditions: {},
+  },
+  {
+    id: 'rise_capital_tools', name: '资本工具试运行',
+    type: 'trade', phase: 3,
+    description: '完成 1 次贷款或站点投资操作，开始使用资本工具扩张商业网络。',
+    objectives: [{ type: 'finance_actions', amount: 1, current: 0 }],
+    rewards: { credits: 1500, exp: 60, reputation: 10 },
+    timeLimit: 0,
+    minLevel: 3,
+    prerequisites: ['expand_first_research'],
+    unlockConditions: {},
+  },
 
   // --- 3.1 派系入门线 ---
   {
@@ -407,6 +482,19 @@ export const QUESTS = [
   //  高难度、多步骤任务，跨星系挑战
   // ============================================================
 
+  // --- 4.0 核心成长线：跨域经营 ---
+  {
+    id: 'reign_first_station', name: '落成第一座经营节点',
+    type: 'special', phase: 4,
+    description: '建设至少 1 座贸易前哨或贸易站，把流动资本转化为长期经营资产。',
+    objectives: [{ type: 'trade_stations', amount: 1, current: 0 }],
+    rewards: { credits: 5000, exp: 120, reputation: 25 },
+    timeLimit: 0,
+    minLevel: 5,
+    prerequisites: ['rise_capital_tools'],
+    unlockConditions: {},
+  },
+
   // --- 4.1 派系深入线 ---
   {
     id: 'reign_fed_friendship', name: '联邦之友',
@@ -538,7 +626,7 @@ export const QUESTS = [
     rewards: { credits: 3000, exp: 80, reputation: 20 },
     timeLimit: 0,
     minLevel: 5,
-    prerequisites: ['rise_explore_10'],
+    prerequisites: ['rise_dispatch_network'],
     unlockConditions: {},
   },
 
@@ -546,6 +634,36 @@ export const QUESTS = [
   //  第五章：传奇 (phase 5, Lv 7-10)
   //  终极挑战、传奇级壮举
   // ============================================================
+
+  // --- 5.0 核心成长线：整合与路线承诺 ---
+  {
+    id: 'legend_integrated_empire', name: '多系统经营体',
+    type: 'special', phase: 5,
+    description: '将科研、舰队、船员、商站与跨星系探索整合成真正的商业帝国。',
+    objectives: [
+      { type: 'research_count', amount: 5, current: 0 },
+      { type: 'fleet_size', amount: 3, current: 0 },
+      { type: 'crew_count', amount: 3, current: 0 },
+      { type: 'trade_stations', amount: 1, current: 0 },
+      { type: 'visited_galaxies', amount: 4, current: 0 },
+    ],
+    rewards: { credits: 12000, exp: 250, reputation: 60 },
+    timeLimit: 0,
+    minLevel: 7,
+    prerequisites: ['reign_first_station', 'reign_galaxy_jump'],
+    unlockConditions: {},
+  },
+  {
+    id: 'legend_policy_commitment', name: '选择帝国信条',
+    type: 'special', phase: 5,
+    description: '在胜利协议中选择一条不可逆的经营政策，接受它的专属能力与代价。',
+    objectives: [{ type: 'victory_policy', amount: 1, current: 0 }],
+    rewards: { credits: 8000, exp: 180, reputation: 40 },
+    timeLimit: 0,
+    minLevel: 7,
+    prerequisites: ['legend_integrated_empire'],
+    unlockConditions: {},
+  },
 
   // --- 5.1 终极贸易线 ---
   {
