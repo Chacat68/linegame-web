@@ -53,6 +53,8 @@ describe('deferred terminal UI loading', function () {
     expect(gameManager).toContain("_loadDeferredStylesheet('archive-terminal', _archiveTerminalStylesUrl)");
     expect(gameManager).toContain("_loadDeferredStylesheet('market-terminal', _marketTerminalStylesUrl)");
     expect(gameManager).toContain("link.dataset.deferredUiStyle = surface");
+    expect(gameManager).toContain("document.getElementById('app-styles')");
+    expect(gameManager).toContain('document.head.insertBefore(link, appStyles)');
     expect(sharedCss).toMatch(/#market-overlay\.hidden\s*\{[^}]*display:\s*none\s*!important;/);
     expect(sharedCss).not.toContain('Hangar detail modal shell refinements');
     expect(sharedCss).not.toContain('Archive terminal: quests + research');

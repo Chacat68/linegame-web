@@ -42,7 +42,7 @@ describe('UI surface inventory', function () {
   });
 
   it('keeps primary and secondary terminals dismissible and focusable', function () {
-    ['info-panel', 'trade-panel'].forEach(function (id) {
+    ['info-panel', 'trade-panel', 'console-panel'].forEach(function (id) {
       const tag = openingTag(id);
       expect(tag).toContain('role="dialog"');
       expect(tag).toContain('aria-modal="false"');

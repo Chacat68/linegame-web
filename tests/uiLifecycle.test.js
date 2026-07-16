@@ -340,7 +340,7 @@ describe('UI lifecycle idempotency', function () {
     });
   });
 
-  it('MapUI fallback 底部日志入口只清角标并保持当前导航态', function () {
+  it('MapUI fallback 底部日志入口打开终端，再次点击返回星图', function () {
     vi.resetModules();
 
     var starmapBtn = createFakeElement(['bottom-nav-btn', 'active']);
@@ -401,14 +401,16 @@ describe('UI lifecycle idempotency', function () {
       MapUI.initTabs(function () {});
 
       clickBottomButton(logsBtn);
-      expect(starmapBtn.classList.contains('active')).toBe(true);
-      expect(logsBtn.classList.contains('active')).toBe(false);
+      expect(starmapBtn.classList.contains('active')).toBe(false);
+      expect(logsBtn.classList.contains('active')).toBe(true);
       expect(tradePanel.classList.contains('panel-open')).toBe(false);
       expect(infoPanel.classList.contains('panel-open')).toBe(false);
+      expect(consolePanel.classList.contains('panel-open')).toBe(true);
 
       clickBottomButton(logsBtn);
       expect(starmapBtn.classList.contains('active')).toBe(true);
       expect(logsBtn.classList.contains('active')).toBe(false);
+      expect(consolePanel.classList.contains('panel-open')).toBe(false);
     });
   });
 

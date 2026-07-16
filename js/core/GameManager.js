@@ -185,7 +185,12 @@ function _loadDeferredStylesheet(surface, href) {
       link.rel = 'stylesheet';
       link.href = href;
       if (link.dataset) link.dataset.deferredUiStyle = surface;
-      document.head.appendChild(link);
+      var appStyles = document.getElementById ? document.getElementById('app-styles') : null;
+      if (appStyles && document.head.insertBefore) {
+        document.head.insertBefore(link, appStyles);
+      } else {
+        document.head.appendChild(link);
+      }
     }
   });
   return _deferredStylePromises[surface];

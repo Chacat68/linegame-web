@@ -82,11 +82,7 @@ export function getCurrentView() {
 export function switchView(view) {
   var previousView = _currentView;
 
-  if (view === 'logs') {
-    EventBus.emit('logs:badge:clear');
-    _setBottomNavActive(previousView || 'starmap');
-    return;
-  }
+  if (view === 'logs') EventBus.emit('logs:badge:clear');
 
   // 1. 如果点击的是当前已激活的非星图视图，则代表“再次点击折叠”，返回星图
   if (view !== 'starmap' && view === previousView) {
@@ -123,6 +119,9 @@ export function switchView(view) {
     } else {
       openSecondarySurface('info-panel');
     }
+  } else if (view === 'logs') {
+    _currentView = 'logs';
+    openSecondarySurface('console-panel');
   }
 
   // 5. 更新底部导航激活态高亮

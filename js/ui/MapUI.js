@@ -2463,7 +2463,19 @@ function _handleBottomNav(view) {
 
   if (view === 'logs') {
     EventBus.emit('logs:badge:clear');
-    _setBottomNavActive(currentView || 'starmap');
+    if (!document.getElementById('console-panel')) {
+      _setBottomNavActive(currentView || 'starmap');
+      return;
+    }
+    if (currentView === 'logs') {
+      _closeOverlayPanel('console-panel');
+      _setBottomNavActive('starmap');
+    } else {
+      _closeAllOverlayPanels();
+      closeMarket();
+      _openOverlayPanel('console-panel');
+      _setBottomNavActive('logs');
+    }
     return;
   }
 

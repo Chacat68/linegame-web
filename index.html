@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>蓝脉航路 · 银河历 3045</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%23040814' stroke='%2322d3ee' stroke-width='2'/><circle cx='16' cy='16' r='4' fill='%2322d3ee'/><line x1='16' y1='2' x2='16' y2='8' stroke='%2322d3ee' stroke-width='1.5'/><line x1='16' y1='24' x2='16' y2='30' stroke='%2322d3ee' stroke-width='1.5'/><line x1='2' y1='16' x2='8' y2='16' stroke='%2322d3ee' stroke-width='1.5'/><line x1='24' y1='16' x2='30' y2='16' stroke='%2322d3ee' stroke-width='1.5'/></svg>" />
-    <link rel="stylesheet" href="css/style.css?v=20260715-terminalcss1" />
+    <link id="app-styles" rel="stylesheet" href="css/style.css?v=20260716-bridgeos8" />
   </head>
   <body>
     <div id="game-shell">
@@ -730,6 +730,69 @@
                 </div>
               </div>
               <!-- /tab-content -->
+            </div>
+          </div>
+        </aside>
+
+        <!-- Communications Log (overlay: LOGS terminal) ------------------- -->
+        <aside
+          id="console-panel"
+          class="side-panel-overlay side-panel-overlay--bottom"
+          role="dialog"
+          aria-modal="false"
+          aria-labelledby="logs-terminal-title"
+          aria-describedby="logs-terminal-subtitle"
+          aria-hidden="true"
+          tabindex="-1"
+        >
+          <div class="secondary-terminal-shell secondary-terminal-shell--logs">
+            <header class="secondary-terminal-chrome">
+              <div class="secondary-terminal-title-block">
+                <span class="secondary-terminal-kicker">COMMUNICATION ARCHIVE</span>
+                <h2 id="logs-terminal-title" class="secondary-terminal-title">通讯日志</h2>
+              </div>
+              <p id="logs-terminal-subtitle" class="secondary-terminal-subtitle">集中查看航行、交易、系统与风险记录。</p>
+              <div class="secondary-terminal-status" role="list" aria-label="日志信号类型">
+                <span class="secondary-terminal-status-item" role="listitem">系统</span>
+                <span class="secondary-terminal-status-item" role="listitem">交易</span>
+                <span class="secondary-terminal-status-item" role="listitem">风险</span>
+              </div>
+              <button
+                id="console-panel-close"
+                class="secondary-terminal-close"
+                type="button"
+                title="返回星图"
+                aria-label="返回星图"
+              >
+                ✕
+              </button>
+            </header>
+
+            <div class="logs-terminal-body">
+              <aside class="logs-terminal-aside" aria-label="日志说明">
+                <h3>信号分类</h3>
+                <p>日志按接收时间倒序排列。重要行动仍以行动引导为唯一的下一步入口。</p>
+                <div class="logs-signal-legend" role="list">
+                  <span class="logs-signal-item" role="listitem"><span class="logs-signal-dot" aria-hidden="true"></span>常规记录</span>
+                  <span class="logs-signal-item" role="listitem"><span class="logs-signal-dot" aria-hidden="true"></span>机会提示</span>
+                  <span class="logs-signal-item" role="listitem"><span class="logs-signal-dot" aria-hidden="true"></span>风险警报</span>
+                </div>
+              </aside>
+              <section class="logs-terminal-feed" aria-labelledby="logs-feed-title">
+                <div class="logs-terminal-feed-head">
+                  <h3 id="logs-feed-title">接收记录</h3>
+                  <span>LIVE CHANNEL</span>
+                </div>
+                <div
+                  id="message-log"
+                  class="console-message-log console-message-log-detailed"
+                  role="log"
+                  aria-live="polite"
+                  aria-relevant="additions"
+                >
+                  <div class="msg msg-info">系统通信链路已建立，等待新的航行记录。</div>
+                </div>
+              </section>
             </div>
           </div>
         </aside>
@@ -1730,6 +1793,6 @@
 
 
 
-  <script type="module" src="js/main.js?v=20260715-moduleidentity1"></script>
+  <script type="module" src="js/main.js?v=20260716-bridgeos1"></script>
   </body>
 </html>

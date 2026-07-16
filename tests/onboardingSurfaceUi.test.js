@@ -237,17 +237,20 @@ describe('Onboarding and log surfaces', function () {
     expect(skip.disabled).toBe(true);
   });
 
-  it('通讯日志入口只清未读数量，不打开弹窗或切换视图', async function () {
+  it('通讯日志入口清除未读数量并打开可聚焦的二级终端', async function () {
     var starmapButton = createFakeElement('starmap-button', ['bottom-nav-btn', 'active']);
     starmapButton.dataset.view = 'starmap';
     var logsButton = createFakeElement('logs-button', ['bottom-nav-btn']);
     logsButton.dataset.view = 'logs';
+    var consolePanel = createFakeElement('console-panel');
     var badgeClearCount = 0;
 
     globalThis.document = {
       body: createFakeElement('body'),
       activeElement: null,
-      getElementById: function () { return null; },
+      getElementById: function (id) {
+        return id === 'console-panel' ? consolePanel : null;
+      },
       querySelectorAll: function (selector) {
         if (selector === '.bottom-nav-btn') return [starmapButton, logsButton];
         return [];
@@ -264,10 +267,13 @@ describe('Onboarding and log surfaces', function () {
     UIManager.init({}, {});
     UIManager.switchView('logs');
 
-    expect(UIManager.getCurrentView()).toBe('starmap');
-    expect(starmapButton.getAttribute('aria-current')).toBe('page');
-    expect(logsButton.getAttribute('aria-current')).toBe(null);
-    expect(logsButton.getAttribute('aria-pressed')).toBe('false');
+    expect(UIManager.getCurrentView()).toBe('logs');
+    expect(starmapButton.getAttribute('aria-current')).toBe(null);
+    expect(logsButton.getAttribute('aria-current')).toBe('page');
+    expect(logsButton.getAttribute('aria-pressed')).toBe('true');
+    expect(consolePanel.classList.contains('panel-open')).toBe(true);
+    expect(consolePanel.getAttribute('aria-hidden')).toBe('false');
+    expect(consolePanel.focused).toBe(true);
     expect(badgeClearCount).toBe(1);
   });
 
@@ -296,6 +302,8 @@ describe('Onboarding and log surfaces', function () {
     expect(html).toContain('aria-describedby="company-rename-write-note"');
     expect(html).not.toContain('id="logs-modal"');
     expect(html).not.toContain('id="mini-console-broadcast"');
+    expect(html).toContain('id="console-panel"');
+    expect(html).toContain('id="message-log"');
     expect(html).toContain('id="logs-nav-badge" class="bottom-nav-badge" hidden');
     expect(css).toContain('Onboarding setup modals');
     expect(css).toContain('.company-rename-signal');

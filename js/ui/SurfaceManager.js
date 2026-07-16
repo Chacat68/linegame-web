@@ -17,7 +17,7 @@ const PRIMARY_RETURN_FOCUS_SELECTORS = {
 const SECONDARY_RETURN_FOCUS_SELECTORS = {
   'info-panel': '.bottom-nav-btn[data-view="quests"]',
   'trade-panel': '.bottom-nav-btn[data-view="hangar"]',
-  'console-panel': '.bottom-nav-btn[data-view="console"]',
+  'console-panel': '.bottom-nav-btn[data-view="logs"]',
 };
 const BLOCKING_FOCUSABLE_SELECTOR = [
   'a[href]',
