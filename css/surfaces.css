@@ -382,7 +382,7 @@ body::before {
   z-index: var(--ui-z-hud);
   right: max(var(--ui-space-5), var(--ui-safe-right));
   bottom: calc(var(--ui-nav-height) + var(--ui-space-5) + var(--ui-safe-bottom));
-  width: min(430px, calc(100vw - 32px));
+  width: min(520px, calc(100vw - 32px));
   gap: var(--ui-space-3);
 }
 
@@ -398,6 +398,218 @@ body::before {
 
 .action-guide {
   min-height: 68px;
+}
+
+/* Action guide · single-frame mission card ------------------- */
+
+#action-guide.action-guide {
+  min-height: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+#action-guide.action-guide::before {
+  display: none;
+}
+
+#action-guide :where(.action-guide-shell, .action-guide-mini) {
+  border: 1px solid rgba(108, 231, 255, 0.24);
+  background:
+    radial-gradient(circle at 0% 50%, rgba(108, 231, 255, 0.13), transparent 34%),
+    linear-gradient(112deg, rgba(8, 27, 40, 0.98), rgba(2, 10, 17, 0.985) 68%);
+  box-shadow:
+    0 14px 38px rgba(0, 0, 0, 0.46),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(18px) saturate(1.08);
+}
+
+#action-guide .action-guide-shell::before {
+  display: none;
+}
+
+#action-guide .action-guide-shell {
+  display: grid;
+  grid-template-columns: 4px minmax(0, 1fr) 136px 36px;
+  grid-template-rows: auto auto;
+  grid-template-areas:
+    "status kicker primary toggle"
+    "status main primary toggle";
+  min-height: 76px;
+  align-items: center;
+  padding: 10px 12px 10px 0;
+  gap: 4px 12px;
+  border-radius: 12px;
+}
+
+#action-guide .action-guide-shell--processing,
+#action-guide .action-guide-shell--complete {
+  grid-template-columns: 4px minmax(0, 1fr);
+  grid-template-areas:
+    "status kicker"
+    "status main";
+  min-height: 70px;
+}
+
+#action-guide .action-guide-status {
+  grid-area: status;
+  width: 4px;
+  align-self: stretch;
+  border-radius: 0 4px 4px 0;
+}
+
+#action-guide .action-guide-copy,
+#action-guide .action-guide-actions {
+  display: contents;
+}
+
+#action-guide .action-guide-kicker {
+  grid-area: kicker;
+  display: inline-flex;
+  width: fit-content;
+  min-width: 0;
+  max-width: 100%;
+  align-items: center;
+  padding: 3px 7px;
+  gap: 7px;
+  overflow: hidden;
+  border: 1px solid var(--ui-line-subtle);
+  border-radius: 999px;
+  color: var(--ui-accent-strong);
+  background: rgba(108, 231, 255, 0.055);
+  font-size: 8px;
+  line-height: 1.2;
+  letter-spacing: 0.07em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#action-guide .action-guide-kicker::before {
+  content: "";
+  width: 4px;
+  height: 4px;
+  flex: 0 0 4px;
+  border-radius: 999px;
+  background: var(--ui-accent);
+  box-shadow: 0 0 10px rgba(108, 231, 255, 0.5);
+}
+
+#action-guide .action-guide-main {
+  grid-area: main;
+  display: grid;
+  min-width: 0;
+  align-items: start;
+  justify-items: start;
+  gap: 2px;
+  text-align: left;
+}
+
+#action-guide .action-guide-title {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--ui-text-primary);
+  font-size: 17px;
+  font-weight: 740;
+  line-height: 1.22;
+  letter-spacing: 0.01em;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#action-guide .action-guide-reason {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--ui-text-muted);
+  font-size: 10.5px;
+  line-height: 1.35;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#action-guide .action-guide-primary.command-action-btn {
+  grid-area: primary;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto;
+  width: 136px;
+  min-width: 0;
+  min-height: 52px;
+  align-content: center;
+  justify-self: stretch;
+  padding: 7px 10px 7px 12px;
+  border-color: var(--ui-line-strong);
+  border-radius: 9px;
+  background:
+    linear-gradient(180deg, rgba(28, 83, 108, 0.88), rgba(5, 25, 37, 0.96)),
+    radial-gradient(circle at 16% 0%, rgba(108, 231, 255, 0.24), transparent 70%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.075);
+  text-align: left;
+}
+
+#action-guide .action-guide-primary.command-action-btn::after {
+  content: "›";
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+  color: var(--ui-accent-strong);
+  font-size: 21px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+#action-guide .action-guide-primary.command-action-btn:hover {
+  border-color: rgba(154, 240, 255, 0.72);
+  background:
+    linear-gradient(180deg, rgba(43, 117, 147, 0.9), rgba(6, 34, 49, 0.96)),
+    radial-gradient(circle at 50% 0%, rgba(108, 231, 255, 0.34), transparent 68%);
+}
+
+#action-guide .action-guide-primary .command-action-kicker {
+  display: none;
+}
+
+#action-guide .action-guide-primary .command-action-label {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: start;
+  color: var(--ui-text-primary);
+  font-size: 13px;
+  font-weight: 720;
+  text-align: left;
+}
+
+#action-guide .action-guide-toggle {
+  grid-area: toggle;
+  width: 36px;
+  min-width: 36px;
+  height: 52px;
+  align-self: center;
+  justify-self: end;
+  border-color: var(--ui-line-subtle);
+  border-radius: 9px;
+  color: var(--ui-text-muted);
+  background: rgba(2, 10, 18, 0.52);
+  font-size: 17px;
+}
+
+#action-guide .action-guide-toggle:hover {
+  border-color: var(--ui-line-default);
+  color: var(--ui-text-primary);
+  background: rgba(108, 231, 255, 0.08);
+}
+
+#action-guide .action-guide-mini {
+  justify-content: flex-start;
+  min-height: 44px;
+  padding: 8px 14px 8px 18px;
+  border-radius: 10px;
+  text-align: left;
 }
 
 .action-guide::before,
@@ -831,6 +1043,11 @@ body::before {
   min-height: 0;
   overflow: auto;
   padding: var(--ui-space-4);
+}
+
+#fleet-list.hidden,
+#fleet-inline-container.hidden {
+  display: none !important;
 }
 
 .secondary-terminal-nav :where(button, .tab-btn, [role="tab"]),

@@ -1363,7 +1363,7 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #map-cont
   display: grid;
   grid-template-columns: 168px minmax(0, 1fr);
   gap: 18px;
-  min-height: 214px;
+  min-height: 184px;
   padding: 18px;
 }
 
@@ -2178,7 +2178,7 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #map-cont
   display: grid;
   grid-template-columns: 132px minmax(0, 1fr);
   gap: 16px;
-  min-height: 188px;
+  min-height: 160px;
   padding: 16px;
 }
 
@@ -11615,7 +11615,6 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) .bottom-n
    Save data command center
    ========================================================== */
 .settings-panel-page--data {
-  display: flex;
   flex-direction: column;
   gap: 14px;
 }

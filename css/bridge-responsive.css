@@ -3,7 +3,7 @@
    移动端重新编排，不做桌面等比缩放。
    ============================================================ */
 
-@media (max-width: 1180px) {
+@media (max-width: 1360px) {
   #game-header {
     grid-template-columns: auto minmax(280px, 1fr) minmax(250px, 0.8fr) auto;
     gap: var(--ui-space-4);
@@ -14,7 +14,7 @@
   }
 
   .hdr-stats {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(110px, 0.65fr) minmax(0, 1.35fr);
   }
 
   .hdr-meter-block--rep {
@@ -23,6 +23,12 @@
 
   .hdr-meter-group {
     grid-template-columns: repeat(3, minmax(58px, 1fr));
+  }
+
+  .hdr-meter-pct {
+    min-width: 34px;
+    max-width: none;
+    font-size: 10px;
   }
 }
 
@@ -87,9 +93,17 @@
 
   #game-header {
     grid-template-columns: auto minmax(0, 1fr) auto;
+    height: auto;
+    min-height: var(--ui-header-height);
+    padding-top: max(7px, var(--ui-safe-top));
+    padding-bottom: 7px;
     padding-right: max(var(--ui-space-2), var(--ui-safe-right));
     padding-left: max(var(--ui-space-2), var(--ui-safe-left));
     gap: var(--ui-space-2);
+  }
+
+  .hdr-day-chip {
+    display: none;
   }
 
   .hdr-brand-mark {
@@ -139,8 +153,8 @@
   }
 
   .hdr-icon-btn {
-    width: 36px;
-    height: 36px;
+    width: var(--ui-control-lg);
+    height: var(--ui-control-lg);
   }
 
   #company-directives-btn,
@@ -194,6 +208,21 @@
     min-height: 60px;
   }
 
+  #action-guide .action-guide-shell {
+    grid-template-columns: 4px minmax(0, 1fr) 118px 34px;
+    gap: 4px 9px;
+  }
+
+  #action-guide .action-guide-primary.command-action-btn {
+    width: 118px;
+  }
+
+  #action-guide .action-guide-toggle {
+    width: 34px;
+    min-width: 34px;
+    height: 48px;
+  }
+
   #status-bar {
     bottom: max(var(--ui-space-2), var(--ui-safe-bottom));
     padding-right: max(var(--ui-space-2), var(--ui-safe-right));
@@ -241,7 +270,28 @@
   }
 
   .market-header-row {
+    align-items: center;
+    flex-direction: row;
     min-height: 56px;
+  }
+
+  .market-header-right {
+    margin-left: auto;
+  }
+
+  .market-close-btn,
+  .secondary-terminal-close,
+  .settings-close-btn {
+    width: var(--ui-control-lg);
+    min-width: var(--ui-control-lg);
+    height: var(--ui-control-lg);
+  }
+
+  #info-panel .secondary-terminal-close,
+  #trade-panel .trade-panel-toggle.secondary-terminal-close {
+    width: var(--ui-control-lg) !important;
+    min-width: var(--ui-control-lg) !important;
+    height: var(--ui-control-lg) !important;
   }
 
   .market-header-left h3 {
@@ -254,6 +304,124 @@
     flex-direction: column;
     overflow-x: auto;
     gap: var(--ui-space-2);
+  }
+
+  #market-overlay .market-experience-route-copy,
+  #market-overlay .market-spot-command-deck {
+    display: none;
+  }
+
+  #market-overlay .market-experience-route-host {
+    display: none;
+  }
+
+  #market-overlay .market-experience-route-steps,
+  #market-overlay .market-workspace-tabs,
+  #market-overlay .market-subworkspace-tabs {
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 5px;
+    scrollbar-color: rgba(108, 231, 255, 0.46) rgba(108, 231, 255, 0.08);
+    scrollbar-width: thin;
+    scroll-snap-type: x proximity;
+  }
+
+  #market-overlay .market-experience-route-steps::-webkit-scrollbar,
+  #market-overlay .market-workspace-tabs::-webkit-scrollbar,
+  #market-overlay .market-subworkspace-tabs::-webkit-scrollbar {
+    display: block;
+    height: 4px;
+  }
+
+  #market-overlay .market-experience-route-steps::-webkit-scrollbar-thumb,
+  #market-overlay .market-workspace-tabs::-webkit-scrollbar-thumb,
+  #market-overlay .market-subworkspace-tabs::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: rgba(108, 231, 255, 0.46);
+  }
+
+  #market-overlay .market-experience-step {
+    min-height: 48px;
+    flex: 0 0 min(190px, 62vw);
+    scroll-snap-align: start;
+  }
+
+  #market-overlay .market-workspace-tab,
+  #market-overlay .market-subworkspace-tab,
+  #market-overlay .market-quick-trade-btn,
+  #market-overlay .market-price-mode-btn {
+    min-height: var(--ui-control-lg);
+  }
+
+  #market-overlay :where(
+    .market-quick-trade-note,
+    .market-experience-step-note,
+    .market-workspace-tab-hint,
+    .market-workspace-tab-state,
+    .market-subworkspace-tab-hint,
+    .market-subworkspace-tab-state,
+    .market-spot-command-summary,
+    .market-analysis-subtitle,
+    .market-analysis-signal-note
+  ) {
+    font-size: 12px;
+  }
+
+  #market-overlay .market-price-mode-btn,
+  #market-overlay .market-price-view-status {
+    font-size: 12px;
+  }
+
+  #market-overlay .market-good-card {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) 72px;
+  }
+
+  #market-overlay .market-good-card-icon {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  #market-overlay .market-good-card-chart-col {
+    display: none;
+  }
+
+  #market-overlay .market-good-card-info {
+    grid-column: 2 / 4;
+  }
+
+  #market-overlay .market-good-card-price-block {
+    grid-column: 1 / 3;
+    flex-flow: row wrap;
+    align-items: center;
+    gap: 4px 8px;
+  }
+
+  #market-overlay .market-good-card-actions {
+    grid-column: 3;
+    justify-content: flex-end;
+  }
+
+  #market-overlay :where(.market-good-card-secondary, .market-good-card-delta) {
+    white-space: nowrap;
+  }
+
+  #market-overlay .market-card-btn {
+    min-width: 72px;
+    min-height: var(--ui-control-lg);
+    font-size: 12px;
+  }
+
+  #market-overlay :where(
+    .market-good-card-desc,
+    .market-good-card-secondary,
+    .market-good-card-delta,
+    .market-good-card-signal,
+    .market-good-card-stat
+  ) {
+    font-size: 12px;
   }
 
   .market-workspace-tabs {
@@ -325,6 +493,19 @@
     flex-direction: row !important;
   }
 
+  .secondary-terminal-nav .tabs {
+    width: 100%;
+    gap: 4px;
+    overflow-x: visible;
+  }
+
+  .secondary-terminal-nav .tab-btn {
+    min-width: 0;
+    min-height: var(--ui-control-lg);
+    flex: 1 1 0;
+    padding-inline: 8px;
+  }
+
   .secondary-terminal-sidebar {
     height: auto !important;
     max-height: 190px !important;
@@ -336,6 +517,54 @@
   .secondary-terminal-content {
     flex: 1 1 auto;
     padding: var(--ui-space-3);
+  }
+
+  .hangar-command-deck,
+  .quest-command-deck {
+    grid-template-columns: 1fr;
+    min-height: 0;
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .hangar-bay-visual,
+  .quest-command-visual {
+    display: none;
+  }
+
+  #info-panel .secondary-terminal-content :where(p, small, em),
+  #trade-panel .secondary-terminal-content :where(p, small, em) {
+    font-size: 12px;
+  }
+
+  #trade-panel .secondary-terminal-sidebar :where(small, .level-title, .company-level-line),
+  #trade-panel :where(.fleet-section-title, .fleet-detail-copy, .fleet-manage-btn-meta, .fleet-slot-buy-btn) {
+    font-size: 12px;
+  }
+
+  #trade-panel .fleet-manage-btn .fleet-manage-btn-meta {
+    font-size: 12px;
+  }
+
+  #trade-panel .fleet-slot-buy-btn {
+    min-height: var(--ui-control-lg);
+  }
+
+  .settings-nav-item,
+  .settings-action-btn,
+  .settings-sidebar-btn,
+  .settings-select {
+    min-height: var(--ui-control-lg);
+  }
+
+  .settings-select {
+    height: var(--ui-control-lg);
+  }
+
+  .settings-row-desc,
+  .settings-hint-row,
+  .settings-modal-desc {
+    font-size: 12px;
   }
 
   .logs-terminal-body {
@@ -383,6 +612,46 @@
 
   :where(button, input, select, textarea, [role="button"], [role="tab"]) {
     min-height: var(--ui-control-lg);
+  }
+}
+
+@media (max-width: 560px) {
+  #action-guide .action-guide-shell {
+    grid-template-columns: 4px minmax(0, 1fr) 32px;
+    grid-template-rows: auto auto auto;
+    grid-template-areas:
+      "status kicker toggle"
+      "status main main"
+      "status primary primary";
+    min-height: 0;
+    padding: 9px 9px 9px 0;
+    gap: 6px 9px;
+  }
+
+  #action-guide .action-guide-shell--processing,
+  #action-guide .action-guide-shell--complete {
+    grid-template-columns: 4px minmax(0, 1fr);
+    grid-template-areas:
+      "status kicker"
+      "status main";
+  }
+
+  #action-guide .action-guide-primary.command-action-btn {
+    width: 100%;
+    min-height: 42px;
+  }
+
+  #action-guide .action-guide-toggle {
+    width: 30px;
+    min-width: 30px;
+    height: 28px;
+  }
+}
+
+@media (max-height: 760px) {
+  #market-overlay .market-experience-route-host,
+  #market-overlay .market-spot-command-deck {
+    display: none;
   }
 }
 

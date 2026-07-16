@@ -153,6 +153,67 @@
   cursor: not-allowed;
 }
 
+/* The market can open before fleet.css is requested. Keep trade cards
+   structurally complete inside the market's own deferred stylesheet. */
+.market-good-card {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1.45fr) 84px 104px auto;
+  align-items: start;
+  gap: 16px;
+}
+
+.market-good-card-info,
+.market-good-card-chart-col,
+.market-good-card-price-block {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.market-good-card-info {
+  gap: 6px;
+}
+
+.market-good-card-chart-col {
+  align-items: center;
+  gap: 2px;
+}
+
+.market-good-card-price-block {
+  align-items: flex-start;
+  gap: 5px;
+}
+
+.market-good-card-actions {
+  display: flex;
+  align-self: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@media (max-width: 1180px) {
+  .market-experience-route-copy {
+    display: none;
+  }
+
+  .market-experience-route-steps {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    scrollbar-color: rgba(108, 231, 255, 0.48) rgba(108, 231, 255, 0.08);
+    scrollbar-width: thin;
+  }
+
+  .market-experience-step {
+    flex: 0 0 min(190px, 42vw);
+  }
+
+  .market-experience-route-steps::-webkit-scrollbar {
+    display: block;
+    height: 4px;
+  }
+}
+
 @media (max-width: 700px), (max-height: 620px) {
   .market-quick-trade-dock {
     margin: 0 0 10px;
@@ -194,8 +255,35 @@
 
   .market-quick-trade-btn {
     width: 100%;
-    min-height: 38px;
+    min-height: 44px;
     padding: 0 8px;
+  }
+
+  .market-good-card {
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .market-good-card-icon {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .market-good-card-chart-col {
+    display: none;
+  }
+
+  .market-good-card-price-block {
+    grid-column: 1;
+    align-self: center;
+  }
+
+  .market-good-card-actions {
+    grid-column: 2;
+    justify-content: flex-end;
   }
 
   .market-experience-route {
@@ -208,8 +296,24 @@
 
   .market-experience-step {
     flex: 0 0 min(154px, 46vw);
-    min-height: 46px;
+    min-height: 48px;
     padding: 7px;
+  }
+
+  .market-experience-route-steps {
+    padding-bottom: 6px;
+    scrollbar-color: rgba(108, 231, 255, 0.48) rgba(108, 231, 255, 0.08);
+    scrollbar-width: thin;
+  }
+
+  .market-experience-route-steps::-webkit-scrollbar {
+    display: block;
+    height: 4px;
+  }
+
+  .market-experience-route-steps::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: rgba(108, 231, 255, 0.48);
   }
 
   .market-experience-step-index,
@@ -225,7 +329,7 @@
 
   .market-workspace-tab,
   .market-subworkspace-tab {
-    min-height: 38px;
+    min-height: 44px;
     padding: 6px 8px;
   }
 
@@ -239,7 +343,16 @@
   .market-subworkspace-tabs {
     overflow-x: auto;
     overflow-y: hidden;
+    padding-bottom: 5px;
+    scrollbar-color: rgba(108, 231, 255, 0.42) rgba(108, 231, 255, 0.07);
+    scrollbar-width: thin;
     scroll-snap-type: x proximity;
+  }
+
+  .market-workspace-tabs::-webkit-scrollbar,
+  .market-subworkspace-tabs::-webkit-scrollbar {
+    display: block;
+    height: 4px;
   }
 
   .market-workspace-tab,
@@ -296,6 +409,22 @@
   .market-spot-command-card-note,
   .market-spot-command-strip {
     display: none;
+  }
+
+  .market-spot-command-grid {
+    display: none;
+  }
+
+  .market-quick-trade-note,
+  .market-experience-step-note,
+  .market-workspace-tab-hint,
+  .market-workspace-tab-state,
+  .market-subworkspace-tab-hint,
+  .market-subworkspace-tab-state,
+  .market-spot-command-summary,
+  .market-analysis-subtitle,
+  .market-analysis-signal-note {
+    font-size: 12px;
   }
 }
 
@@ -421,4 +550,3 @@
     text-align: left;
   }
 }
-
