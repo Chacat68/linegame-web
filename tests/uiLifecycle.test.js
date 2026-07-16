@@ -668,9 +668,10 @@ describe('UI lifecycle idempotency', function () {
       },
     };
 
+    var closeOptions = null;
     return import('../js/ui/UIManager.js').then(function (UIManager) {
       UIManager.init({}, {
-        onCloseMarket: function () {},
+        onCloseMarket: function (options) { closeOptions = options; },
       });
 
       globalThis.__linegameUIManager.setBottomNavActiveDirectly('quests');
@@ -685,6 +686,7 @@ describe('UI lifecycle idempotency', function () {
       expect(questsBtn.classList.contains('active')).toBe(false);
       expect(infoPanel.classList.contains('panel-open')).toBe(false);
       expect(canvas.classList.contains('starmap-blur-active')).toBe(false);
+      expect(closeOptions).toEqual({ restoreFocus: false });
     });
   });
 

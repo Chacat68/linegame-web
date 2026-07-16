@@ -114,7 +114,7 @@ let _achievementCheckQueued = false;
 const _fleetStylesUrl = new URL('../../css/fleet.css', import.meta.url).href;
 const _hangarTerminalStylesUrl = new URL('../../css/hangar-terminal.css', import.meta.url).href;
 const _archiveTerminalStylesUrl = new URL('../../css/archive-terminal.css', import.meta.url).href;
-const _marketTerminalStylesUrl = new URL('../../css/market-terminal.css', import.meta.url).href;
+const _marketTerminalStylesUrl = new URL('../../css/market-terminal.css?v=20260716-density2', import.meta.url).href;
 const _deferredStylePromises = Object.create(null);
 
 function _setDeferredUiState(surface, state) {
@@ -1005,8 +1005,8 @@ export function init(difficulty) {
     onOpenMarket: function (state) {
       MapUI.openMarket(state);
     },
-    onCloseMarket: function () {
-      MapUI.closeMarket();
+    onCloseMarket: function (options) {
+      MapUI.closeMarket(options);
     },
     onGetMarketOpen: function () {
       return MapUI.isMarketOpen();

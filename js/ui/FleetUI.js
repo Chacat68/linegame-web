@@ -47,6 +47,25 @@ function _scheduleInlineFocusRestore(selector, fallbackTarget) {
   });
 }
 
+function _getInlineScrollViewport(inlineContainer) {
+  if (!inlineContainer || typeof inlineContainer.closest !== 'function') return null;
+  return inlineContainer.closest('.secondary-terminal-content');
+}
+
+function _setInlineScrollPosition(viewport, top) {
+  if (!viewport) return;
+  var nextTop = Number.isFinite(top) ? top : 0;
+  if (typeof viewport.scrollTo === 'function') {
+    try {
+      viewport.scrollTo({ top: nextTop, left: 0, behavior: 'auto' });
+      return;
+    } catch (err) {
+      // Older WebViews may only support direct scrollTop assignment.
+    }
+  }
+  viewport.scrollTop = nextTop;
+}
+
 function _renderHangarAfterInlineClose() {
   if (globalThis.__linegameGameManager && typeof globalThis.__linegameGameManager.renderUI === 'function') {
     globalThis.__linegameGameManager.renderUI();
@@ -74,6 +93,10 @@ function _openInlinePortal(modalId, onCloseCallback, options) {
   const modalBox = modal.querySelector('.modal-box');
   if (!modalBox) return false;
   const returnFocusTarget = globalThis.document ? document.activeElement : null;
+  const scrollViewport = _getInlineScrollViewport(inlineContainer);
+  const returnScrollTop = scrollViewport && Number.isFinite(scrollViewport.scrollTop)
+    ? scrollViewport.scrollTop
+    : 0;
 
   _activeInlineModalId = modalId;
 
@@ -105,6 +128,7 @@ function _openInlinePortal(modalId, onCloseCallback, options) {
   inlineContainer.appendChild(backBar);
   inlineContainer.appendChild(modalBox);
   modalBox.setAttribute('data-surface-mode', 'inline');
+  _setInlineScrollPosition(scrollViewport, 0);
 
   // 4. 定义清理（还原）函数
   const cleanup = function(cleanupOptions) {
@@ -132,6 +156,7 @@ function _openInlinePortal(modalId, onCloseCallback, options) {
     listContainer.classList.remove('hidden');
     listContainer.setAttribute('aria-hidden', 'false');
     listContainer.inert = false;
+    _setInlineScrollPosition(scrollViewport, returnScrollTop);
     
     _activeInlineModalId = null;
     _currentPortalCleanup = null;
@@ -169,7 +194,11 @@ function _openInlinePortal(modalId, onCloseCallback, options) {
   if (globalThis.document && typeof document.addEventListener === 'function') {
     document.addEventListener('keydown', handlePortalKeydown);
   }
-  _focusInlineElement(backButton);
+  Promise.resolve().then(function () {
+    if (_activeInlineModalId !== modalId) return;
+    _setInlineScrollPosition(scrollViewport, 0);
+    _focusInlineElement(backButton);
+  });
 
   return true;
 }
@@ -388,7 +417,6 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
   const activeCargoUsed = activeShip
     ? _getCargoUsed(activeShip.cargo)
     : 0;
-  const activeCrewCount = activeShip ? Crew.getShipCrew(state, activeShip).length : 0;
   const activeMaintenance = activeShipStats
     ? (activeShipStats.maintenance || Fleet.getShipMaintenanceSummary(state, activeShip))
     : null;
@@ -425,13 +453,6 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
   html += '<span>燃料 ' + activeFuelPct + '%</span>';
   html += '<span>维护 ' + (activeMaintenance ? Math.round(activeMaintenance.value) : 0) + '%</span>';
   html += '</div>';
-  html += '</div>';
-  html += '<div class="hangar-command-metrics">';
-  html += '<div><span>舰船</span><strong>' + fleet.length + '/' + slotCount + '</strong></div>';
-  html += '<div><span>派遣</span><strong>' + fleetRouteCount + '</strong></div>';
-  html += '<div><span>旗舰货舱</span><strong>' + activeCargoUsed + '/' + (activeShipStats ? activeShipStats.maxCargo : 0) + '</strong></div>';
-  html += '<div><span>总舱容</span><strong>' + fleetCargoCap + '</strong></div>';
-  html += '<div><span>船员</span><strong>' + activeCrewCount + '/' + (activeShip ? (activeShip.crewCapacity || 0) : 0) + '</strong></div>';
   html += '</div>';
   html += '</section>';
 
@@ -1625,7 +1646,7 @@ function _renderShipShopBrief(context) {
 
   return '<section class="hangar-shop-brief" aria-label="购船决策摘要">' +
     '<div class="hangar-shop-brief-grid" role="list" aria-label="采购态势矩阵">' +
-      '<div class="hangar-shop-brief-cell" role="listitem"><span>可用积分</span><strong>' + context.credits.toLocaleString() + '</strong><small>' + _escapeHtml(budgetMeta) + '</small></div>' +
+      '<div class="hangar-shop-brief-cell" role="listitem"><span>可用信用积分</span><strong>' + context.credits.toLocaleString() + '</strong><small>' + _escapeHtml(budgetMeta) + '</small></div>' +
       '<div class="hangar-shop-brief-cell" role="listitem"><span>可采购</span><strong>' + context.affordableEntries.length + '/' + context.entries.length + '</strong><small>按当前预算计算</small></div>' +
       '<div class="hangar-shop-brief-cell" role="listitem"><span>席位</span><strong>' + slotText + '</strong><small>' + _escapeHtml(slotMeta) + '</small></div>' +
       '<div class="hangar-shop-brief-cell" role="listitem"><span>航线等级</span><strong>Lv.' + context.routeLevel + '</strong><small>采购后沿用当前派遣等级</small></div>' +

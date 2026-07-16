@@ -797,12 +797,12 @@ function _renderMarketExperienceRoute(progression) {
       progression.routeStages.map(function (stage) {
         var locked = stage.unlocked === false;
         var active = _isMarketRouteStageActive(stage);
-        return '<button class="market-experience-step' + (active ? ' active' : '') + (locked ? ' is-locked' : '') + '" type="button" data-market-route-workspace="' + _escapeHtmlAttr(stage.workspaceId) + '" data-market-route-subworkspace="' + _escapeHtmlAttr(stage.subworkspaceId || '') + '" data-market-locked="' + (locked ? 'true' : 'false') + '"' + (locked ? ' disabled aria-disabled="true"' : '') + '>' +
+        var stageTitle = locked ? (stage.lockDetail || stage.unlockLabel || '继续推进贸易路线') : stage.note;
+        return '<button class="market-experience-step' + (active ? ' active' : '') + (locked ? ' is-locked' : '') + '" type="button" title="' + _escapeHtmlAttr(stageTitle || '') + '" data-market-route-workspace="' + _escapeHtmlAttr(stage.workspaceId) + '" data-market-route-subworkspace="' + _escapeHtmlAttr(stage.subworkspaceId || '') + '" data-market-locked="' + (locked ? 'true' : 'false') + '"' + (locked ? ' disabled aria-disabled="true"' : '') + '>' +
           '<span class="market-experience-step-index">' + _escapeHtml(stage.index) + '</span>' +
           '<span class="market-experience-step-copy">' +
             '<span class="market-experience-step-label">' + _escapeHtml(stage.label) + '</span>' +
             '<span class="market-experience-step-note">' + _escapeHtml(locked ? (stage.unlockLabel || '继续推进贸易路线') : stage.note) + '</span>' +
-            (locked && stage.lockDetail ? '<span class="market-experience-step-path">' + _escapeHtml(stage.lockDetail) + '</span>' : '') +
           '</span>' +
         '</button>';
       }).join('') +
@@ -861,6 +861,10 @@ function _renderSpotTradeSection() {
     '<div class="market-spot-trade-layout" role="region" aria-label="现货交易工作台">' +
       '<div class="market-spot-main-col">' +
         '<div class="market-trade-board" role="region" aria-label="价格走势与商品列表">' +
+          '<section class="market-goods-shell" aria-label="商品交易列表">' +
+            '<div id="market-goods-toolbar" class="market-goods-toolbar"></div>' +
+            '<div id="market-goods-list" class="market-goods-list" role="list"></div>' +
+          '</section>' +
           '<div id="market-kline-panel" class="market-kline-panel" role="region" aria-label="价格走势">' +
             '<div class="market-kline-header">' +
               '<div class="market-kline-title" id="market-kline-title"></div>' +
@@ -872,10 +876,6 @@ function _renderSpotTradeSection() {
               '<div class="market-kline-metrics" id="market-kline-metrics"></div>' +
             '</div>' +
           '</div>' +
-          '<section class="market-goods-shell" aria-label="商品交易列表">' +
-            '<div id="market-goods-toolbar" class="market-goods-toolbar"></div>' +
-            '<div id="market-goods-list" class="market-goods-list" role="list"></div>' +
-          '</section>' +
           '<div class="market-intel-drawers" role="region" aria-label="市场辅助情报">' +
             '<details class="market-collapse market-collapse-chart">' +
               '<summary>🗺 星系价格矩阵 <span class="market-collapse-hint">切到热力图看整张星区价差</span></summary>' +
@@ -1004,7 +1004,7 @@ function _renderSpotCommandDeck(state, sysId, snapshots, marketMode, isCurrentSy
     '</div>' +
   '</div>' +
   '<div class="market-spot-command-grid">' +
-    renderMetric('可用积分', Math.floor(state.credits || 0).toLocaleString(), '资金越充足，越能在折价区连续吸筹。') +
+    renderMetric('可用信用积分', Math.floor(state.credits || 0).toLocaleString(), '信用积分越充足，越能在折价区连续吸筹。') +
     renderMetric('折价窗口', discounted.good.emoji + ' ' + discounted.buyPrice.toLocaleString(), '当前最便宜的建仓入口。', 'accent-cool') +
     renderMetric('最大利差', widestSpread.good.emoji + ' ' + widestSpread.spread.toLocaleString(), '需要靠节奏兑现，不适合盲目追价。', 'accent-warm') +
     renderMetric('最强需求', strongestDemand.good.emoji + ' ' + strongestDemand.supplyDemand.ratio.toFixed(2) + 'x', '供需错位最大，值得优先盯盘。', 'accent-hot') +
@@ -1138,7 +1138,7 @@ function _renderAnalysisPanel(container, state, sysId, snapshots, marketMode) {
       '<div class="market-analysis-metrics">' +
         '<div class="market-analysis-metric">' +
           '<span class="market-analysis-metric-label">总买入额</span>' +
-          '<span class="market-analysis-metric-value">' + (totalVolume >= 1000000 ? (totalVolume / 1000000).toFixed(1) + '<small>M</small>' : totalVolume >= 1000 ? (totalVolume / 1000).toFixed(1) + '<small>K</small>' : totalVolume.toLocaleString()) + ' <small>CR/HR</small></span>' +
+          '<span class="market-analysis-metric-value">' + (totalVolume >= 1000000 ? (totalVolume / 1000000).toFixed(1) + '<small>M</small>' : totalVolume >= 1000 ? (totalVolume / 1000).toFixed(1) + '<small>K</small>' : totalVolume.toLocaleString()) + ' <small>CR/小时</small></span>' +
         '</div>' +
         '<div class="market-analysis-metric">' +
           '<span class="market-analysis-metric-label">交易密度</span>' +
@@ -2414,7 +2414,7 @@ function _renderOperationsBatchPlanningPanel(state, ownedStations, networkInvest
       '<span class="market-finance-chip">待命波次 ' + readyWaveCount + '</span>' +
     '</div>' +
     '<div class="market-batch-plan-summary-strip">' +
-      '<span class="market-batch-plan-summary-pill">可用积分<strong>' + Math.floor(state.credits || 0).toLocaleString() + '</strong></span>' +
+      '<span class="market-batch-plan-summary-pill">可用信用积分<strong>' + Math.floor(state.credits || 0).toLocaleString() + '</strong></span>' +
       '<span class="market-batch-plan-summary-pill">可控站点<strong>' + ownedStations.length + '</strong></span>' +
       '<span class="market-batch-plan-summary-pill">资本待命<strong>' + investmentPlan.affordableTargets.length + '</strong></span>' +
       '<span class="market-batch-plan-summary-pill">升级待命<strong>' + upgradePlan.affordableTargets.length + '</strong></span>' +

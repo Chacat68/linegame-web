@@ -2229,12 +2229,12 @@ export function openMarketSystemPanel(stateRef, systemId, marketFocus) {
 }
 
 /** 关闭市场面板 */
-export function closeMarket() {
+export function closeMarket(options) {
   const overlay = document.getElementById('market-overlay');
   const marketBtn = document.getElementById('market-view-btn');
   if (!overlay) return;
   _marketOpen = false;
-  closePrimarySurface('market-overlay');
+  closePrimarySurface('market-overlay', options);
   if (marketBtn) marketBtn.classList.remove('active');
 }
 

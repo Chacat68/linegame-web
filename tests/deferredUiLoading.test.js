@@ -47,7 +47,7 @@ describe('deferred terminal UI loading', function () {
     expect(gameManager).toContain("new URL('../../css/fleet.css', import.meta.url).href");
     expect(gameManager).toContain("new URL('../../css/hangar-terminal.css', import.meta.url).href");
     expect(gameManager).toContain("new URL('../../css/archive-terminal.css', import.meta.url).href");
-    expect(gameManager).toContain("new URL('../../css/market-terminal.css', import.meta.url).href");
+    expect(gameManager).toContain("new URL('../../css/market-terminal.css?v=20260716-density2', import.meta.url).href");
     expect(gameManager).toContain("_loadDeferredStylesheet('fleet-base', _fleetStylesUrl)");
     expect(gameManager).toContain("_loadDeferredStylesheet('hangar-terminal', _hangarTerminalStylesUrl)");
     expect(gameManager).toContain("_loadDeferredStylesheet('archive-terminal', _archiveTerminalStylesUrl)");

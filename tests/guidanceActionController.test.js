@@ -178,7 +178,7 @@ describe('GuidanceActionController', function () {
         return {
           ok: true,
           claimedCount: 1,
-          rewardLabel: '650 cr · 公司经验 +80 · 声望 +3',
+          rewardLabel: '650 CR · 公司经验 +80 · 声望 +3',
           nextDirective: { title: '商网扩张', percent: 25 },
         };
       },
@@ -193,7 +193,7 @@ describe('GuidanceActionController', function () {
     expect(context.calls[1]).toEqual([
       'showCompletion',
       '公司指令奖励已领取',
-      '已结算 1 项奖励：650 cr · 公司经验 +80 · 声望 +3；下一轮目标：商网扩张 25%',
+      '已结算 1 项奖励：650 CR · 公司经验 +80 · 声望 +3；下一轮目标：商网扩张 25%',
     ]);
   });
 

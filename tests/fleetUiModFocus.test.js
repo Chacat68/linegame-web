@@ -253,6 +253,14 @@ describe('FleetUI.openModModal guidance focus', function () {
     var backButton = createFakeElement();
     var opener = createFakeElement();
     var documentListeners = Object.create(null);
+    var inlineViewport = {
+      scrollTop: 318,
+      scrollCalls: [],
+      scrollTo: function (options) {
+        this.scrollTop = options.top;
+        this.scrollCalls.push(options.top);
+      },
+    };
     var elements = {
       'fleet-list': createFakeElement(),
       'fleet-inline-container': createFakeElement(['hidden']),
@@ -260,6 +268,9 @@ describe('FleetUI.openModModal guidance focus', function () {
       'mod-modal-title': createFakeElement(),
       'mod-modal-body': body,
       'mod-modal-close': createFakeElement(),
+    };
+    elements['fleet-inline-container'].closest = function (selector) {
+      return selector === '.secondary-terminal-content' ? inlineViewport : null;
     };
 
     globalThis.document = {
@@ -295,6 +306,7 @@ describe('FleetUI.openModModal guidance focus', function () {
       function () {},
       { focusModId: 'mod_service_bay' },
     );
+    await Promise.resolve();
 
     expect(body.innerHTML).toContain('mod-modal-recommendation--focus');
     expect(body.innerHTML).toContain('mod-modal-item--focus');
@@ -324,6 +336,8 @@ describe('FleetUI.openModModal guidance focus', function () {
     expect(elements['fleet-inline-container'].getAttribute('aria-describedby')).toBe('mod-modal-desc mod-modal-body');
     expect(backButton.textContent).toBe('← 返回机库列表');
     expect(typeof documentListeners.keydown).toBe('function');
+    expect(inlineViewport.scrollTop).toBe(0);
+    expect(inlineViewport.scrollCalls).toContain(0);
 
     var prevented = false;
     documentListeners.keydown({
@@ -339,6 +353,7 @@ describe('FleetUI.openModModal guidance focus', function () {
     expect(elements['fleet-list'].inert).toBe(false);
     expect(elements['fleet-inline-container'].getAttribute('aria-hidden')).toBe('true');
     expect(elements['fleet-inline-container'].inert).toBe(true);
+    expect(inlineViewport.scrollTop).toBe(318);
     expect(opener.focused).toBe(true);
   });
 
@@ -348,9 +363,11 @@ describe('FleetUI.openModModal guidance focus', function () {
     var hangarCss = readFileSync('css/hangar-terminal.css', 'utf8');
     var css = sharedCss + '\n' + hangarCss;
     var fleetCss = readFileSync('css/fleet.css', 'utf8');
+    var surfacesCss = readFileSync('css/surfaces.css', 'utf8');
     var source = readFileSync('js/ui/FleetUI.js', 'utf8');
 
     expect(html).toContain('id="fleet-inline-container" class="fleet-inline-container hidden" aria-hidden="true" inert');
+    expect(surfacesCss).toMatch(/#fleet-list\.hidden,[\s\S]*?#fleet-inline-container\.hidden\s*\{\s*display:\s*none\s*!important/);
     expect(html).toContain('aria-describedby="mod-modal-desc mod-modal-body"');
     expect(html).toContain('id="mod-modal-desc" class="mod-modal-desc"');
     expect(html).toContain('aria-describedby="crew-modal-desc crew-modal-summary"');

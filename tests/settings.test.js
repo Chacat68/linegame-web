@@ -460,6 +460,7 @@ describe('Settings.initSettingsModal', function () {
     expect(css).toContain('.company-directives-title-copy');
     expect(css).toContain('.company-directives-desc');
     expect(css).toContain('.settings-panel-page--data .save-slot:focus-visible');
+    expect(css).not.toMatch(/\.settings-panel-page--data\s*\{[^}]*display:\s*flex/);
     expect(css).toContain('.save-safety-panel');
     expect(css).toContain('.save-safety-grid');
     expect(css).toContain('.save-safety-focus');

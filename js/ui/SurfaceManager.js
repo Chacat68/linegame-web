@@ -316,14 +316,19 @@ export function openPrimarySurface(surfaceId, options) {
   return target;
 }
 
-export function closePrimarySurface(surfaceId) {
+export function closePrimarySurface(surfaceId, options) {
   var target = _getSurfaceById(surfaceId);
   if (!target) return null;
   var wasVisible = !!(target.classList && !target.classList.contains('hidden'));
+  var surfaceOptions = options || {};
 
   _setSurfaceVisible(target, false);
   _notifySurfaceObservers();
-  if (wasVisible) _restorePrimarySurfaceTrigger(surfaceId);
+  if (wasVisible && surfaceOptions.restoreFocus !== false) {
+    _restorePrimarySurfaceTrigger(surfaceId);
+  } else if (wasVisible) {
+    _primaryReturnFocusTargets.delete(surfaceId);
+  }
   return target;
 }
 

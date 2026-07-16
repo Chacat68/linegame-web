@@ -431,6 +431,11 @@ describe('SurfaceManager', function () {
     expect(triggerFocusCount).toBe(1);
     expect(globalThis.document.activeElement).toBe(trigger);
     expect(marketOverlay.getAttribute('aria-hidden')).toBe('true');
+
+    openPrimarySurface('market-overlay');
+    closePrimarySurface('market-overlay', { restoreFocus: false });
+    expect(triggerFocusCount).toBe(1);
+    expect(marketOverlay.getAttribute('aria-hidden')).toBe('true');
   });
 
   it('openSecondarySurface 会保持 secondary 互斥并关闭 primary workspace', function () {

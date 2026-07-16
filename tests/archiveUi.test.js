@@ -66,6 +66,11 @@ describe('Archive terminal UI', function () {
     expect(container.innerHTML).toContain('data-achievement-state="unlocked"');
     expect(container.innerHTML).toContain('data-achievement-state="locked"');
     expect(container.innerHTML).toContain('ach-reward');
+    expect(container.innerHTML).toContain('>舰队</h4>');
+    expect(container.innerHTML).toContain('>专精</h4>');
+    expect(container.innerHTML).toContain('>特殊</h4>');
+    expect(container.innerHTML).not.toContain('>fleet</h4>');
+    expect(container.innerHTML).not.toContain('>specialist</h4>');
   });
 
   it('派系页会渲染外交总览、关系列表和市场行动协议', function () {
@@ -127,7 +132,7 @@ describe('Archive terminal UI', function () {
     QuestUI.render(state, function () {}, function () {});
 
     expect(container.innerHTML).toContain('class="quest-command-deck" role="region" aria-label="任务控制总览"');
-    expect(container.innerHTML).toContain('class="quest-command-metrics" role="list" aria-label="任务统计"');
+    expect(container.innerHTML).not.toContain('class="quest-command-metrics"');
     expect(container.innerHTML).toContain('class="quest-triage-panel" aria-label="任务态势与局部信号"');
     expect(container.innerHTML).toContain('class="quest-triage-grid" role="list" aria-label="任务态势矩阵"');
     expect(container.innerHTML).toContain('class="quest-focus-panel" aria-label="任务局部信号"');

@@ -74,6 +74,24 @@ function createFakeElement(initialClasses) {
 }
 
 describe('MarketUI guided focus', function () {
+  it('现货工作台会先呈现商品交易列表，再提供价格走势复核', function () {
+    var source = readFileSync(new URL('../js/ui/MarketUI.js', import.meta.url), 'utf8');
+    var start = source.indexOf('function _renderSpotTradeSection()');
+    var end = source.indexOf('function _getFocusedMarketSnapshot', start);
+    var sectionSource = source.slice(start, end);
+
+    expect(sectionSource.indexOf('market-goods-shell')).toBeGreaterThan(-1);
+    expect(sectionSource.indexOf('market-goods-shell')).toBeLessThan(sectionSource.indexOf('market-kline-panel'));
+    var responsiveCss = readFileSync(new URL('../css/bridge-responsive.css', import.meta.url), 'utf8');
+    var marketCss = readFileSync(new URL('../css/market-terminal.css', import.meta.url), 'utf8');
+    expect(responsiveCss).toMatch(/@media \(max-height: 760px\)[\s\S]*?#market-overlay \.market-experience-route-host,[\s\S]*?#market-overlay \.market-spot-command-deck/);
+    expect(responsiveCss).toMatch(/#market-overlay \.market-experience-route-host\s*\{\s*display:\s*none;/);
+    expect(responsiveCss).toMatch(/#market-overlay \.market-good-card-price-block\s*\{\s*grid-column:\s*1 \/ 3;/);
+    expect(responsiveCss).toMatch(/#market-overlay \.market-card-btn\s*\{[^}]*min-height:\s*var\(--ui-control-lg\);/);
+    expect(marketCss).toMatch(/\.market-good-card\s*\{[^}]*display:\s*grid;/);
+    expect(marketCss).toMatch(/\.market-good-card-chart-col\s*\{\s*display:\s*none;/);
+  });
+
   var originalDocument = globalThis.document;
   var originalCss = globalThis.CSS;
 

@@ -91,7 +91,7 @@ export function switchView(view) {
 
   // 2. 清理和关闭所有已打开的面板状态
   if (_handlers.onCloseMarket) {
-    _handlers.onCloseMarket();
+    _handlers.onCloseMarket({ restoreFocus: false });
   }
   closeAllSecondarySurfaces();
 
