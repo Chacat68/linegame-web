@@ -109,7 +109,6 @@ describe('HUD widget toggles', function () {
     targetPanel.widget.dataset.hudWidget = 'target-intel';
     var questPanel = createWidget('任务追踪');
     questPanel.widget.dataset.hudWidget = 'quest-tracker';
-    var dockToggle = createFakeElement();
     var mapButton = createFakeElement();
     mapButton.dataset.hudDockPanel = 'galactic-map';
     var targetButton = createFakeElement();
@@ -133,7 +132,6 @@ describe('HUD widget toggles', function () {
         return [];
       },
       querySelector: function (selector) {
-        if (selector === '[data-hud-dock-toggle]') return dockToggle;
         if (selector === '[data-hud-widget="galactic-map"]') return mapPanel.widget;
         if (selector === '[data-hud-widget="target-intel"]') return targetPanel.widget;
         if (selector === '[data-hud-widget="quest-tracker"]') return questPanel.widget;
@@ -149,14 +147,12 @@ describe('HUD widget toggles', function () {
 
     expect(mapPanel.widget.classList.contains('hud-widget-active')).toBe(true);
     expect(mapPanel.widget.classList.contains('hud-widget-collapsed')).toBe(true);
-    expect(dockToggle.getAttribute('aria-pressed')).toBe('false');
     expect(mapButton.classList.contains('is-selected')).toBe(true);
     expect(mapButton.classList.contains('is-active')).toBe(false);
 
-    dockToggle.dispatchEvent('click');
+    mapButton.dispatchEvent('click');
 
     expect(mapPanel.widget.classList.contains('hud-widget-collapsed')).toBe(false);
-    expect(dockToggle.getAttribute('aria-pressed')).toBe('true');
     expect(mapButton.classList.contains('is-active')).toBe(true);
 
     questButton.dispatchEvent('click');
@@ -169,35 +165,30 @@ describe('HUD widget toggles', function () {
     questPanel.button.dispatchEvent('click');
 
     expect(questPanel.widget.classList.contains('hud-widget-collapsed')).toBe(true);
-    expect(dockToggle.getAttribute('aria-pressed')).toBe('false');
     expect(questButton.classList.contains('is-selected')).toBe(true);
     expect(questButton.getAttribute('aria-expanded')).toBe('false');
     expect(questButton.focusCount).toBe(1);
 
-    dockToggle.dispatchEvent('click');
+    questButton.dispatchEvent('click');
 
     expect(questPanel.widget.classList.contains('hud-widget-collapsed')).toBe(false);
-    expect(dockToggle.getAttribute('aria-pressed')).toBe('true');
     expect(questButton.classList.contains('is-active')).toBe(true);
     expect(questButton.getAttribute('aria-expanded')).toBe('true');
 
     questButton.dispatchEvent('click');
 
     expect(questPanel.widget.classList.contains('hud-widget-collapsed')).toBe(true);
-    expect(dockToggle.getAttribute('aria-pressed')).toBe('false');
     expect(questButton.classList.contains('is-active')).toBe(false);
 
     questButton.dispatchEvent('click');
 
     expect(questPanel.widget.classList.contains('hud-widget-collapsed')).toBe(false);
-    expect(dockToggle.getAttribute('aria-pressed')).toBe('true');
     expect(questButton.classList.contains('is-active')).toBe(true);
 
     var EventBus = await import('../js/core/EventBus.js');
     EventBus.emit('starmap-rail:panel-open', { source: 'orbit-scan', panelId: 'orbit-scan' });
 
     expect(questPanel.widget.classList.contains('hud-widget-collapsed')).toBe(true);
-    expect(dockToggle.getAttribute('aria-pressed')).toBe('false');
     expect(questButton.classList.contains('is-selected')).toBe(true);
     expect(questButton.classList.contains('is-active')).toBe(false);
   });

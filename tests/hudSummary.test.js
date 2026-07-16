@@ -179,18 +179,13 @@ describe('HUD summary cards', function () {
     var galaxyFocusEl = createFakeElement();
     var galaxyCaptionEl = createFakeElement();
     var galaxyToggleBtn = createFakeElement();
-    var galaxyViewBtn = createFakeElement();
-    var galaxyViewClicks = 0;
-    galaxyViewBtn.click = function () {
-      galaxyViewClicks += 1;
-    };
+    var galaxyViewRequests = 0;
 
     var elements = {
       'hud-galactic-map-view': galaxyViewEl,
       'hud-galactic-map-focus': galaxyFocusEl,
       'hud-galactic-map-caption': galaxyCaptionEl,
       'hud-galactic-map-toggle': galaxyToggleBtn,
-      'galaxy-view-btn': galaxyViewBtn,
       'victory-modal': createFakeElement(['hidden']),
     };
 
@@ -208,6 +203,11 @@ describe('HUD summary cards', function () {
     };
 
     var HUD = await import('../js/ui/HUD.js');
+    var EventBus = await import('../js/core/EventBus.js');
+    EventBus.on('starmap:galaxy-view-toggle', function () {
+      galaxyViewRequests += 1;
+      state.mapView = state.mapView === 'galaxies' ? 'planets' : 'galaxies';
+    });
     HUD.updateStats(state, 1000);
     HUD.updateStats(state, 1000);
 
@@ -218,13 +218,15 @@ describe('HUD summary cards', function () {
     expect(galaxyToggleBtn.listenerCount('click')).toBe(1);
 
     galaxyToggleBtn.dispatchEvent('click');
-    expect(galaxyViewClicks).toBe(1);
-
-    state.mapView = 'galaxies';
-    HUD.updateStats(state, 1000);
+    expect(galaxyViewRequests).toBe(1);
     expect(galaxyViewEl.textContent).toBe('星系总览');
     expect(galaxyCaptionEl.textContent).toBe('返回当前星系局部视图');
     expect(galaxyToggleBtn.textContent).toBe('回到当前星系');
+
+    galaxyToggleBtn.dispatchEvent('click');
+    expect(galaxyViewRequests).toBe(2);
+    expect(galaxyViewEl.textContent).toBe('星球视图');
+    expect(galaxyToggleBtn.textContent).toBe('星系总览');
   });
 
   it('任务追踪 HUD 只显示首要任务摘要并移除接取按钮', async function () {
@@ -660,7 +662,7 @@ describe('HUD summary cards', function () {
     expect(roadmapEl.innerHTML).toContain('贸易站');
     expect(roadmapEl.innerHTML).toContain('站点上限');
     expect(roadmapEl.innerHTML).toContain('下一开放');
-    expect(roadmapEl.innerHTML).toContain('Lv.3 · 证券交易');
+    expect(roadmapEl.innerHTML).toContain('Lv.3 · 区域扩编');
     expect(roadmapEl.innerHTML).toContain('还需 20 公司经验');
     expect(roadmapEl.innerHTML).toContain('role="status"');
     expect(levelTrackEl.getAttribute('aria-valuemax')).toBe('180');

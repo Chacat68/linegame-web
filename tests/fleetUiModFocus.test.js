@@ -316,7 +316,7 @@ describe('FleetUI.openModModal guidance focus', function () {
     expect(body.innerHTML).toContain('class="mod-modal-signal-grid" role="list" aria-label="改装决策指标"');
     expect(body.innerHTML).toContain('class="mod-modal-signal-focus" role="status" aria-label="改装局部信号"');
     expect(body.innerHTML).toContain('<h4 class="mod-modal-section-title">结构模块</h4>');
-    expect(body.innerHTML).toContain('维修优先');
+    expect(body.innerHTML).toContain('保养优先');
     expect(body.innerHTML).toContain('role="progressbar"');
     expect(body.innerHTML).toContain('role="listitem"');
     expect(body.innerHTML).toContain('type="button"');

@@ -51,6 +51,33 @@ describe('Fleet.init', () => {
     expect(state.fleet[0].faults).toEqual([]);
     expect(state.fleet[0].repairJob).toBe(null);
   });
+
+  it('旧存档已写入船体的等级奖励会迁移为派生属性，玩家可见数值不变', () => {
+    const state = createTestState({
+      playerLevel: 10,
+      day: 42,
+      fleet: [{
+        typeId: 'shuttle', name: '穿梭机', emoji: '🚀', cargo: {},
+        maxCargo: 45, maxCargoCap: 50,
+        fuel: 120, maxFuel: 120, maxFuelCap: 200,
+        hull: 100, maxHull: 100, maxHullCap: 150,
+        fuelEff: 0.9, minFuelEff: 0.6,
+        upgrades: [], mods: [], modSlots: 1, crewIds: [],
+      }],
+      activeShipIndex: 0,
+    });
+
+    Fleet.init(state);
+
+    expect(state.fleet[0].maxCargo).toBe(20);
+    expect(state.fleet[0].maxFuel).toBe(100);
+    expect(state.fleet[0].fuelEff).toBe(1);
+    expect(state.maxCargo).toBe(45);
+    expect(state.maxFuel).toBe(120);
+    expect(state.fuel).toBe(120);
+    expect(state.fuelEfficiency).toBeCloseTo(0.9, 4);
+    expect(state.storyFlags.fleet_level_perks_v2_migrated).toBe(42);
+  });
 });
 
 describe('Fleet.getActiveShip', () => {
@@ -111,37 +138,16 @@ describe('Fleet.syncStateFromShip / syncShipFromState', () => {
     expect(() => Fleet.syncShipFromState(state)).not.toThrow();
   });
 
-  it('commitActiveShipState 会在专精升级后刷新根状态镜像', () => {
+  it('初始化会移除旧协议数据，根状态仍由船型与改装派生', () => {
     const state = createTestState();
     Fleet.init(state);
-    Fleet.syncStateFromShip(state);
-    const ship = Fleet.getActiveShip(state);
-
-    ship.specialization.xp.trade = 24;
-    Fleet.recordShipActivity(state, 'trade_buy', { quantity: 2 }, 0);
-    Fleet.commitActiveShipState(state);
-
-    expect(state.maxCargo).toBe(24);
-  });
-
-  it('commitActiveShipState 会在协议结束后刷新根状态镜像', () => {
-    const state = createTestState();
+    state.fleet[0].specialization = { doctrine: 'trade', xp: { trade: 80 } };
     Fleet.init(state);
-    Fleet.syncStateFromShip(state);
-    const ship = Fleet.getActiveShip(state);
-
-    Fleet.setShipDoctrine(state, 0, 'navigation');
-    ship.specialization.xp.navigation = 25;
-    expect(Fleet.activateShipProtocol(state, 0).ok).toBe(true);
-
-    Fleet.commitActiveShipState(state);
-    expect(state.fuelEfficiency).toBeCloseTo(0.684, 5);
-
-    Fleet.consumeShipProtocol(state, 0, 'travel');
-    Fleet.consumeShipProtocol(state, 0, 'travel');
     Fleet.commitActiveShipState(state);
 
-    expect(state.fuelEfficiency).toBeCloseTo(0.95, 5);
+    expect(state.fleet[0].specialization).toBeUndefined();
+    expect(state.maxCargo).toBe(20);
+    expect(Fleet.getShipSpecializationSummary(state, state.fleet[0])).toBe(null);
   });
 });
 
@@ -734,159 +740,46 @@ describe('Fleet maintenance operations', () => {
     expect(result.msgs.some(function (msg) { return msg.text.indexOf('养护') !== -1; })).toBe(true);
   });
 
-  it('开始维修会立即扣款并创建维修倒计时，不会立刻清除故障', () => {
+  it('港口保养会即时扣款并恢复维护度与船体', () => {
     const state = createTestState({ credits: 5000 });
     Fleet.init(state);
     const ship = Fleet.getActiveShip(state);
     ship.maintenance = 44;
     ship.hull = 92;
-    ship.faults = ['engine_vibration', 'cargo_lock'];
 
     const quote = Fleet.getShipRepairQuote(state, 0);
     const creditsBefore = state.credits;
     const result = Fleet.serviceShip(state, 0);
 
     expect(result.ok).toBe(true);
-    expect(ship.repairJob).toBeTruthy();
-    expect(ship.repairJob.remainingDays).toBe(quote.durationDays);
-    expect(ship.maintenance).toBe(44);
-    expect(ship.hull).toBe(92);
-    expect(ship.faults).toEqual(['engine_vibration', 'cargo_lock']);
-    expect(state.credits).toBe(creditsBefore - quote.cost);
-  });
-
-  it('维修倒计时结束后会恢复维护度和船体并清除全部故障', () => {
-    const state = createTestState({ credits: 5000 });
-    Fleet.init(state);
-    const ship = Fleet.getActiveShip(state);
-    ship.maintenance = 44;
-    ship.hull = 92;
-    ship.faults = ['engine_vibration', 'cargo_lock'];
-
-    expect(Fleet.serviceShip(state, 0).ok).toBe(true);
-
-    let lastResult = null;
-    const remainingDays = ship.repairJob.remainingDays;
-    for (let day = 0; day < remainingDays; day += 1) {
-      lastResult = Fleet.advanceFleetDay(state);
-    }
-
-    expect(lastResult.msgs.some(function (msg) { return msg.text.indexOf('维修完成') !== -1; })).toBe(true);
+    expect(quote.durationDays).toBe(0);
     expect(ship.repairJob).toBe(null);
     expect(ship.maintenance).toBe(100);
     expect(ship.hull).toBe(ship.maxHull);
-    expect(ship.faults).toEqual([]);
+    expect(state.credits).toBe(creditsBefore - quote.cost);
+    expect(result.msgs[0].text).toContain('即时保养');
   });
 
-  it('维修中的船只无法派遣', () => {
-    const state = createTestState({ credits: 5000 });
-    Fleet.init(state);
-    const ship = Fleet.getActiveShip(state);
-    ship.maintenance = 36;
-    ship.faults = ['sensor_blindspot'];
-
-    expect(Fleet.serviceShip(state, 0).ok).toBe(true);
-    const result = Fleet.assignRoute(state, 0, 'sol_prime', 'nova_station', 'food');
-
-    expect(result.ok).toBe(false);
-    expect(result.msgs[0].text).toContain('维修中');
-  });
-
-  it('欠费且重度失养时可能触发故障', () => {
+  it('旧故障和维修队列在载入时清除，重度失养也不再随机生成故障', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0);
-
-    const state = createTestState({ credits: 10000 });
+    const state = createTestState({
+      credits: 0,
+      fleet: [{
+        typeId: 'shuttle',
+        cargo: {},
+        mods: [],
+        upgrades: [],
+        maintenance: 18,
+        faults: ['cargo_lock'],
+        repairJob: { remainingDays: 2 },
+      }],
+      activeShipIndex: 0,
+    });
     Fleet.init(state);
-    state.fleetSlots = 2;
-    Fleet.buyShip(state, 'freighter');
-    state.credits = 0;
-    state.fleet[1].maintenance = 18;
-
     Fleet.advanceFleetDay(state);
 
-    expect(state.fleet[1].faults.length).toBeGreaterThan(0);
-  });
-
-  it('故障会压低有效属性', () => {
-    const state = createTestState();
-    Fleet.init(state);
-    const ship = Fleet.getActiveShip(state);
-    ship.faults = ['cargo_lock'];
-
-    const stats = Fleet.getEffectiveShipStats(state, ship);
-
-    expect(stats.maxCargo).toBe(14);
-    expect(stats.sellBonus).toBeCloseTo(-0.015, 5);
-    expect(stats.faults.map(function (fault) { return fault.id; })).toContain('cargo_lock');
-  });
-
-  it('快航分工可减轻引擎震动的燃耗惩罚', () => {
-    const state = createTestState({ credits: 50000 });
-    Fleet.init(state);
-    state.fleetSlots = 3;
-    Fleet.buyShip(state, 'clipper');
-    Fleet.buyShip(state, 'freighter');
-    expect(Fleet.setShipDoctrine(state, 1, 'trade').ok).toBe(true);
-
-    const courierShip = state.fleet[1];
-    const logisticsShip = state.fleet[2];
-    const courierBaseFuelEff = Fleet.getEffectiveShipStats(state, courierShip).fuelEff;
-    const logisticsBaseFuelEff = Fleet.getEffectiveShipStats(state, logisticsShip).fuelEff;
-
-    courierShip.faults = ['engine_vibration'];
-    logisticsShip.faults = ['engine_vibration'];
-
-    const courierFaultFuelEff = Fleet.getEffectiveShipStats(state, courierShip).fuelEff;
-    const logisticsFaultFuelEff = Fleet.getEffectiveShipStats(state, logisticsShip).fuelEff;
-
-    expect(Fleet.getShipDispatchProfile(state, courierShip).roleId).toBe('courier');
-    expect(courierFaultFuelEff / courierBaseFuelEff).toBeLessThan(logisticsFaultFuelEff / logisticsBaseFuelEff);
-  });
-
-  it('勘探分工可减轻传感盲区对扫描折扣的损失', () => {
-    const state = createTestState({ credits: 80000 });
-    Fleet.init(state);
-    state.fleetSlots = 3;
-    Fleet.buyShip(state, 'clipper');
-    Fleet.buyShip(state, 'freighter');
-
-    expect(Fleet.installMod(state, 'mod_survey_array', 1).ok).toBe(true);
-    expect(Fleet.installMod(state, 'mod_survey_array', 2).ok).toBe(true);
-
-    const surveyShip = state.fleet[1];
-    const logisticsShip = state.fleet[2];
-    const surveyBaseDiscount = Fleet.getEffectiveShipStats(state, surveyShip).scanFuelDiscount;
-    const logisticsBaseDiscount = Fleet.getEffectiveShipStats(state, logisticsShip).scanFuelDiscount;
-
-    surveyShip.faults = ['sensor_blindspot'];
-    logisticsShip.faults = ['sensor_blindspot'];
-
-    const surveyFaultDiscount = Fleet.getEffectiveShipStats(state, surveyShip).scanFuelDiscount;
-    const logisticsFaultDiscount = Fleet.getEffectiveShipStats(state, logisticsShip).scanFuelDiscount;
-
-    expect(Fleet.getShipDispatchProfile(state, surveyShip).roleId).toBe('survey');
-    expect(surveyFaultDiscount / surveyBaseDiscount).toBeGreaterThan(logisticsFaultDiscount / logisticsBaseDiscount);
-  });
-
-  it('后勤分工的维修报价更快且成本更低', () => {
-    const state = createTestState({ credits: 80000 });
-    Fleet.init(state);
-    state.fleetSlots = 3;
-    Fleet.buyShip(state, 'freighter');
-    Fleet.buyShip(state, 'freighter');
-    expect(Fleet.setShipDoctrine(state, 2, 'navigation').ok).toBe(true);
-
-    expect(Fleet.installMod(state, 'mod_service_bay', 2).ok).toBe(true);
-
-    state.fleet[1].maintenance = 40;
-    state.fleet[2].maintenance = 40;
-
-    const logisticsQuote = Fleet.getShipRepairQuote(state, 1);
-    const supportQuote = Fleet.getShipRepairQuote(state, 2);
-
-    expect(Fleet.getShipDispatchProfile(state, state.fleet[2]).roleId).toBe('support');
-    expect(supportQuote.durationDays).toBeLessThan(logisticsQuote.durationDays);
-    expect(supportQuote.cost).toBeLessThan(logisticsQuote.cost);
+    expect(state.fleet[0].faults).toEqual([]);
+    expect(state.fleet[0].repairJob).toBe(null);
   });
 
   it('applyTravelWear 会在航行后增加磨损', () => {
@@ -933,65 +826,15 @@ describe('Fleet.getActiveFleetBonuses', () => {
   });
 });
 
-describe('Fleet ship specialization', () => {
-  it('初始化时为旧船只补齐专精状态', () => {
-    const state = createTestState({
-      fleet: [{ typeId: 'shuttle', cargo: {}, mods: [], upgrades: [] }],
-      activeShipIndex: 0,
-    });
-
-    Fleet.init(state);
-
-    expect(state.fleet[0].specialization).toBeDefined();
-    expect(state.fleet[0].specialization.doctrine).toBe('navigation');
-    expect(state.fleet[0].specialization.xp.trade).toBe(0);
-  });
-
-  it('贸易专精会提升有效货舱和交易议价', () => {
-    const state = createTestState();
-    Fleet.init(state);
-    const ship = Fleet.getActiveShip(state);
-
-    ship.specialization.xp.trade = 75;
-    Fleet.syncStateFromShip(state);
-
-    const stats = Fleet.getEffectiveShipStats(state, ship);
-    expect(stats.maxCargo).toBe(28);
-    expect(stats.buyDiscount).toBeCloseTo(0.02, 5);
-    expect(stats.sellBonus).toBeCloseTo(0.03, 5);
-    expect(state.maxCargo).toBe(28);
-  });
-
-  it('记录航行行为后可以升级并启动航行协议', () => {
+describe('Fleet ship configuration', () => {
+  it('旧协议 API 返回退役状态且不再累计独立经验', () => {
     const state = createTestState();
     Fleet.init(state);
 
-    for (let i = 0; i < 5; i++) {
-      Fleet.recordShipActivity(state, 'travel', { crossGalaxy: false, secretRoute: false }, 0);
-    }
-
-    const ship = Fleet.getActiveShip(state);
-    expect(ship.specialization.xp.navigation).toBeGreaterThanOrEqual(30);
-
-    const activateResult = Fleet.activateShipProtocol(state, 0);
-    expect(activateResult.ok).toBe(true);
-
-    let stats = Fleet.getEffectiveShipStats(state, ship);
-    expect(stats.specialization.activeProtocol).not.toBeNull();
-    expect(stats.fuelEff).toBeLessThan(1);
-    expect(stats.eventChanceMultiplier).toBeLessThan(0.92);
-
-    Fleet.consumeShipProtocol(state, 0, 'travel');
-    let profileAfterFirstUse = Fleet.getShipSpecializationSummary(state, ship);
-    expect(profileAfterFirstUse.activeProtocol).not.toBeNull();
-    expect(profileAfterFirstUse.activeProtocol.remainingCharges).toBe(1);
-
-    Fleet.consumeShipProtocol(state, 0, 'travel');
-    let profileAfterSecondUse = Fleet.getShipSpecializationSummary(state, ship);
-    expect(profileAfterSecondUse.activeProtocol).toBeNull();
-
-    stats = Fleet.getEffectiveShipStats(state, ship);
-    expect(stats.eventChanceMultiplier).toBeCloseTo(0.92, 5);
+    expect(Fleet.setShipDoctrine(state, 0, 'navigation')).toMatchObject({ ok: false, meta: { retired: true } });
+    expect(Fleet.activateShipProtocol(state, 0)).toMatchObject({ ok: false, meta: { retired: true } });
+    expect(Fleet.recordShipActivity(state, 'travel', {}, 0)).toMatchObject({ ok: false, awards: [] });
+    expect(Fleet.getShipSpecializationSummary(state, Fleet.getActiveShip(state))).toBe(null);
   });
 
   it('功能型改装会改变走私与探索系数', () => {
@@ -1022,19 +865,6 @@ describe('Fleet ship specialization', () => {
     expect(profile.label).toBe('勘探支援');
   });
 
-  it('贸易专精会反映到经济系统买价中', () => {
-    const baseState = createTestState();
-    Fleet.init(baseState);
-
-    const boostedState = createTestState();
-    Fleet.init(boostedState);
-    boostedState.fleet[0].specialization.xp.trade = 300;
-
-    const normalPrice = Economy.getBuyPrice('sol_prime', 'technology', baseState);
-    const boostedPrice = Economy.getBuyPrice('sol_prime', 'technology', boostedState);
-
-    expect(boostedPrice).toBeLessThan(normalPrice);
-  });
 });
 
 describe('Fleet.getShipModRecommendation', () => {
@@ -1054,7 +884,7 @@ describe('Fleet.getShipModRecommendation', () => {
     expect(recommendation.reason).toContain('维护');
   });
 
-  it('勘探支援船优先推荐深空测绘阵列', () => {
+  it('快航船会优先推荐离子驱动器', () => {
     const state = createTestState({ credits: 50000 });
     Fleet.init(state);
     state.fleetSlots = 2;
@@ -1063,10 +893,10 @@ describe('Fleet.getShipModRecommendation', () => {
     const recommendation = Fleet.getShipModRecommendation(state, 1);
 
     expect(recommendation).toMatchObject({
-      modId: 'mod_survey_array',
+      modId: 'mod_ion_drive',
       canInstall: true,
     });
-    expect(recommendation.reason).toContain('勘探支援');
+    expect(recommendation.reason).toContain('快航');
   });
 
   it('槽位已满时仍返回最相关推荐并说明阻塞原因', () => {

@@ -394,10 +394,8 @@ function _renderHangarTriagePanel(context) {
  * @param {Function} onAssignCrew   (shipIndex, crewId) => void
  * @param {Function} onUnassignCrew (shipIndex, crewId) => void
  * @param {Function} onDismissCrew  (crewId) => void
- * @param {Function} onSetShipDoctrine (shipIndex, doctrineId) => void
- * @param {Function} onActivateShipProtocol (shipIndex) => void
  */
-export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRoute, onCancelRoute, onBuySlot, onSellShip, onInstallMod, onUninstallMod, onServiceShip, onRecruitCrew, onAssignCrew, onUnassignCrew, onDismissCrew, onSetShipDoctrine, onActivateShipProtocol) {
+export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRoute, onCancelRoute, onBuySlot, onSellShip, onInstallMod, onUninstallMod, onServiceShip, onRecruitCrew, onAssignCrew, onUnassignCrew, onDismissCrew) {
   if (_activeInlineModalId !== null) {
     return;
   }
@@ -580,8 +578,6 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
     const cargoUsed = _getCargoUsed(ship.cargo);
     const shipCrew = Crew.getShipCrew(state, ship);
     const shipStats = Fleet.getEffectiveShipStats(state, ship);
-    const specialization = shipStats.specialization || Fleet.getShipSpecializationSummary(state, ship);
-    const doctrine = specialization ? specialization.doctrine : null;
     const maintenance = shipStats.maintenance || Fleet.getShipMaintenanceSummary(state, ship);
     const roleProfile = shipStats.roleProfile || Fleet.getShipRoleProfile(state, ship);
     const faults = shipStats.faults || Fleet.getShipFaultSummaries(ship);
@@ -609,27 +605,7 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
     var skills = Fleet.getShipSkills(ship);
     var shipMods = (ship.mods || []);
     var crewEffectParts = _formatCrewEffectParts(shipStats.crewEffects || {});
-    var doctrineCooldown = specialization && doctrine ? (specialization.cooldowns[doctrine.id] || 0) : 0;
-    var doctrineLevel = specialization && doctrine ? (specialization.levels[doctrine.id] || 0) : 0;
-    var protocolSummary = '';
-    var protocolTitle = '';
     var detailSummaryParts = [];
-
-    if (specialization && doctrine) {
-      if (specialization.activeProtocol) {
-        protocolSummary = specialization.activeProtocol.icon + ' ' + specialization.activeProtocol.name + ' · ' + specialization.activeProtocol.remainingCharges + '次';
-        protocolTitle = specialization.activeProtocol.name + ' 剩余 ' + specialization.activeProtocol.remainingCharges + ' 次';
-      } else if (doctrineCooldown > 0) {
-        protocolSummary = '⏳ ' + doctrine.shortName + '冷却 ' + doctrineCooldown + '天';
-        protocolTitle = doctrine.shortName + '协议冷却 ' + doctrineCooldown + ' 天';
-      } else if (doctrineLevel > 0) {
-        protocolSummary = doctrine.protocol.icon + ' ' + doctrine.protocol.name + ' 就绪';
-        protocolTitle = doctrine.protocol.name + ' 已就绪';
-      } else {
-        protocolSummary = '🔒 ' + doctrine.shortName + '协议';
-        protocolTitle = doctrine.shortName + '协议待解锁';
-      }
-    }
 
     if (shipCrew.length > 0) detailSummaryParts.push('船员 ' + shipCrew.length);
     if (cargoEntries.length > 0) detailSummaryParts.push('货物 ' + cargoEntries.length);
@@ -649,9 +625,6 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
     html += '<span class="fleet-maintenance-chip fleet-maintenance-' + maintenance.band + '" title="恢复至 100% 预计花费 ' + maintenance.serviceCost.toLocaleString() + ' 积分">🧰 ' + maintenance.label + ' ' + Math.round(maintenance.value) + '%</span>';
     if (repairJob) {
       html += '<span class="fleet-summary-chip fleet-summary-chip--repair" title="已进入维修队列，剩余 ' + repairJob.remainingDays + ' 天">🔧 维修中 ' + repairJob.remainingDays + ' 天</span>';
-    }
-    if (protocolSummary) {
-      html += '<span class="fleet-summary-chip fleet-summary-chip--protocol" title="' + _escapeHtml(protocolTitle) + '">' + _escapeHtml(protocolSummary) + '</span>';
     }
     if (faults.length > 0) {
       html += '<span class="fleet-summary-chip fleet-summary-chip--warning" title="存在 ' + faults.length + ' 项故障">⚠️ 故障 ' + faults.length + '</span>';
@@ -679,7 +652,7 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
       html += '</div>';
     }
 
-    if (roleProfile.summary || crewEffectParts.length > 0 || (roleProfile.tags && roleProfile.tags.length > 0) || faults.length > 0 || (specialization && doctrine) || shipCrew.length > 0 || skills.length > 0 || shipMods.length > 0 || cargoEntries.length > 0) {
+    if (roleProfile.summary || crewEffectParts.length > 0 || (roleProfile.tags && roleProfile.tags.length > 0) || faults.length > 0 || shipCrew.length > 0 || skills.length > 0 || shipMods.length > 0 || cargoEntries.length > 0) {
       html += '<details class="fleet-detail-panel">';
       html += '<summary>展开详情' + (detailSummaryParts.length > 0 ? ' · ' + _escapeHtml(detailSummaryParts.join(' · ')) : '') + '</summary>';
       html += '<div class="fleet-detail-grid">';
@@ -702,27 +675,6 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
           });
           html += '</div>';
         }
-        html += '</div>';
-      }
-
-      if (specialization && doctrine) {
-        html += '<div class="fleet-detail-section">';
-        html += '<div class="fleet-detail-section-title">协议与专精</div>';
-        html += '<div class="fleet-specialization-summary">';
-        html += '<span class="fleet-doctrine-chip">' + doctrine.icon + ' ' + doctrine.shortName + '</span>';
-        html += '<span class="fleet-specialization-chip">💹 Lv.' + (specialization.levels.trade || 0) + '</span>';
-        html += '<span class="fleet-specialization-chip">🛰️ Lv.' + (specialization.levels.navigation || 0) + '</span>';
-        html += '<span class="fleet-specialization-chip">🧭 Lv.' + (specialization.levels.exploration || 0) + '</span>';
-        if (specialization.activeProtocol) {
-          html += '<span class="fleet-protocol-chip fleet-protocol-chip-active">' + specialization.activeProtocol.icon + ' ' + specialization.activeProtocol.name + ' · 剩余 ' + specialization.activeProtocol.remainingCharges + ' 次</span>';
-        } else if (doctrineCooldown > 0) {
-          html += '<span class="fleet-protocol-chip">⏳ ' + doctrine.shortName + '协议冷却 ' + doctrineCooldown + ' 天</span>';
-        } else if (doctrineLevel > 0) {
-          html += '<span class="fleet-protocol-chip">' + doctrine.protocol.icon + ' ' + doctrine.protocol.name + ' 就绪</span>';
-        } else {
-          html += '<span class="fleet-protocol-chip">🔒 ' + doctrine.shortName + '协议待解锁</span>';
-        }
-        html += '</div>';
         html += '</div>';
       }
 
@@ -855,7 +807,7 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
 
   container.querySelectorAll('.fleet-open-crew-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      _openCrewModal(state, parseInt(btn.dataset.shipIndex), onRecruitCrew, onAssignCrew, onUnassignCrew, onDismissCrew, onSwitchShip, onSetShipDoctrine, onActivateShipProtocol);
+      _openCrewModal(state, parseInt(btn.dataset.shipIndex), onRecruitCrew, onAssignCrew, onUnassignCrew, onDismissCrew, onSwitchShip);
     });
   });
 
@@ -1136,7 +1088,7 @@ function _buildModModalSignalPanel(options) {
     return sum + (group.lockedCount || 0);
   }, 0);
   var repairValue = '稳定';
-  var repairNote = '当前无需入坞维修';
+  var repairNote = '当前无需保养';
   var repairTone = 'complete';
   var structureValue = structureReadyCount > 0 ? (structureReadyCount + ' 可升级') : '待筹备';
   var structureNote = structureReadyCount > 0
@@ -1157,19 +1109,12 @@ function _buildModModalSignalPanel(options) {
   var focusNote = '维修、结构和组件没有阻塞项，可按当前船型定位继续精细配置。';
   var focusTone = 'complete';
 
-  if (repairJob) {
-    repairValue = repairJob.remainingDays + ' 天';
-    repairNote = _getRepairCountdownText(repairJob);
+  if (repairQuote && !repairQuote.disabledReason && repairNeeded) {
+    repairValue = '可保养';
+    repairNote = repairQuote.cost.toLocaleString() + ' 积分 · 即时完成';
     repairTone = 'work';
-    focusTitle = '维修队列进行中';
-    focusNote = '该船维修完成前不适合派遣，先等待船坞处理完当前工单。';
-    focusTone = 'repair';
-  } else if (repairQuote && !repairQuote.disabledReason && repairNeeded) {
-    repairValue = '可入坞';
-    repairNote = repairQuote.cost.toLocaleString() + ' 积分 · ' + repairQuote.durationDays + ' 天';
-    repairTone = 'work';
-    focusTitle = '维修优先';
-    focusNote = '维护 ' + Math.round(maintenance.value || 0) + '%，船体缺口 ' + hullMissing + '，故障 ' + faults.length + ' 项。';
+    focusTitle = '保养优先';
+    focusNote = '维护 ' + Math.round(maintenance.value || 0) + '%，船体缺口 ' + hullMissing + '，可在港口即时恢复。';
     focusTone = 'repair';
   } else if (repairQuote && repairQuote.disabledReason && repairQuote.disabledReason !== '当前无需维修') {
     repairValue = '受限';
@@ -1230,22 +1175,6 @@ function _getRepairCountdownText(repairJob) {
   return '维修中 · 剩余 ' + repairJob.remainingDays + ' 天';
 }
 
-function _describeSpecializationTrack(trackId, level) {
-  if (trackId === 'trade') {
-    return '买入 -' + level + '% · 卖出 +' + (level * 1.5).toFixed(1) + '% · 货舱 +' + (level * 4);
-  }
-  if (trackId === 'navigation') {
-    return '燃耗 -' + (level * 5) + '% · 事件降权 -' + (level * 8) + '% · 走私风控下降';
-  }
-  return '扫描折扣 -' + (level * 12) + '% · 着陆折扣 -' + (level * 8) + '% · 勘探收益 +' + (level * 8) + '%';
-}
-
-function _getSpecializationMeta(trackId) {
-  if (trackId === 'trade') return { icon: '💹', name: '贸易专精' };
-  if (trackId === 'navigation') return { icon: '🛰️', name: '航行专精' };
-  return { icon: '🧭', name: '探索专精' };
-}
-
 function _renderCrewSummaryStat(label, value) {
   return '<div class="crew-modal-summary-stat" role="listitem">' +
     '<span>' + _escapeHtml(label) + '</span>' +
@@ -1285,10 +1214,10 @@ function _getCrewRosterHint(shipCrew, reserveCrew, marketCrew, seatRemaining) {
   if (seatRemaining > 0 && marketCrew.length > 0) {
     return '还有 ' + seatRemaining + ' 个空席位，港口市场有可签约人选。';
   }
-  return '船员编制稳定，继续查看协议、工资和成长进度。';
+  return '船员编制稳定，继续查看工资与成长进度。';
 }
 
-function _openCrewModal(state, shipIndex, onRecruitCrew, onAssignCrew, onUnassignCrew, onDismissCrew, onSwitchShip, onSetShipDoctrine, onActivateShipProtocol) {
+function _openCrewModal(state, shipIndex, onRecruitCrew, onAssignCrew, onUnassignCrew, onDismissCrew, onSwitchShip) {
   var modal = document.getElementById('crew-modal');
   if (!modal) return;
   var modalBox = modal.querySelector('.modal-box');
@@ -1321,10 +1250,6 @@ function _openCrewModal(state, shipIndex, onRecruitCrew, onAssignCrew, onUnassig
     var marketCrew = marketState.offers || [];
     var crewEffects = Fleet.getEffectiveShipStats(state, currentShip).crewEffects || {};
     var currentSystem = SYSTEMS.find(function (sys) { return sys.id === state.currentSystem; });
-    var specialization = Fleet.getShipSpecializationSummary(state, currentShip);
-    var doctrine = specialization.doctrine;
-    var doctrineLevel = specialization.levels[doctrine.id] || 0;
-    var doctrineCooldown = specialization.cooldowns[doctrine.id] || 0;
     var crewCapacity = currentShip.crewCapacity || 0;
     var seatRemaining = Math.max(0, crewCapacity - shipCrew.length);
     var seatTone = shipCrew.length <= 0 ? 'empty' : (seatRemaining <= 0 ? 'warning' : 'ready');
@@ -1353,57 +1278,15 @@ function _openCrewModal(state, shipIndex, onRecruitCrew, onAssignCrew, onUnassig
       _renderCrewSummaryStat('维修加成', '+' + (crewEffects.autoRepair || 0)) +
       _renderCrewSummaryStat('市场刷新', '第 ' + marketState.refreshDay + ' 天 / 下次第 ' + marketState.nextRefreshDay + ' 天') +
       _renderCrewSummaryStat('人才倾向', marketState.themeLabel || '综合港') +
-      _renderCrewSummaryStat('当前协议', doctrine.shortName) +
-      '<div class="crew-modal-command-panel" role="listitem" aria-label="舰桥协议">' +
+      '<div class="crew-modal-command-panel" role="listitem" aria-label="舰桥状态">' +
         '<div class="crew-modal-command-head">' +
-          '<strong>舰桥协议</strong>' +
+          '<strong>舰桥状态</strong>' +
           '<div class="crew-modal-command-actions">' +
             '<span class="crew-modal-command-state">' + (isActive ? '当前操控' : '远程管理') + '</span>' +
             (isActive ? '' : '<button class="btn-secondary crew-switch-ship-btn" type="button">设为当前操控</button>') +
           '</div>' +
         '</div>' +
-        '<div class="ship-specialization-grid">' +
-          ['trade', 'navigation', 'exploration'].map(function (trackId) {
-            var meta = _getSpecializationMeta(trackId);
-            var isDoctrine = specialization.doctrineId === trackId;
-            var level = specialization.levels[trackId] || 0;
-            var nextThreshold = specialization.nextThresholds[trackId];
-            var xp = specialization.xp[trackId] || 0;
-            var progress = Math.round((specialization.progress[trackId] || 0) * 100);
-            var trackHtml = '';
-
-            trackHtml += '<div class="ship-specialization-card' + (isDoctrine ? ' ship-specialization-card-active' : '') + '" role="group" aria-label="' + _escapeHtml(meta.name + ' Lv.' + level) + '">';
-            trackHtml += '<div class="ship-specialization-card-head"><strong>' + meta.icon + ' ' + meta.name + '</strong><span>Lv.' + level + '</span></div>';
-            trackHtml += '<div class="ship-specialization-card-desc">' + _describeSpecializationTrack(trackId, level) + '</div>';
-            if (nextThreshold != null) {
-              trackHtml += '<div class="ship-specialization-progress" role="progressbar" aria-label="' + _escapeHtml(meta.name + ' 经验进度') + '" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + progress + '"><div class="ship-specialization-progress-fill" style="width:' + progress + '%"></div></div>';
-              trackHtml += '<div class="ship-specialization-progress-text">经验 ' + xp + ' / ' + nextThreshold + '</div>';
-            } else {
-              trackHtml += '<div class="ship-specialization-progress-text">已达当前版本专精上限</div>';
-            }
-            trackHtml += '<div class="ship-specialization-card-foot">';
-            if (isDoctrine) {
-              trackHtml += '<span class="ship-specialization-badge">当前协议</span>';
-            } else {
-              trackHtml += '<button class="ship-specialization-switch-btn" data-doctrine="' + trackId + '" type="button">设为当前协议</button>';
-            }
-            trackHtml += '</div>';
-            trackHtml += '</div>';
-            return trackHtml;
-          }).join('') +
-        '</div>' +
-        '<div class="ship-protocol-panel">' +
-          '<div class="ship-protocol-panel-head"><strong>' + doctrine.protocol.icon + ' ' + doctrine.protocol.name + '</strong><span>' + doctrine.name + '</span></div>' +
-          '<div class="ship-protocol-panel-desc">' + doctrine.protocol.desc + '</div>' +
-          '<div class="ship-protocol-panel-meta">当前专精 Lv.' + doctrineLevel + ' · 冷却 ' + doctrine.protocol.cooldownDays + ' 天</div>' +
-          (specialization.activeProtocol
-            ? '<div class="ship-protocol-status ship-protocol-status-active">运行中 · 剩余 ' + specialization.activeProtocol.remainingCharges + ' 次触发</div>'
-            : (doctrineLevel <= 0
-              ? '<div class="ship-protocol-status">当前协议达到 Lv.1 后解锁</div>'
-              : (doctrineCooldown > 0
-                ? '<div class="ship-protocol-status">冷却中 · 还需 ' + doctrineCooldown + ' 天</div>'
-                : '<button class="ship-protocol-activate-btn crew-protocol-activate-btn" data-action="activate" type="button">启动协议</button>'))) +
-        '</div>' +
+        '<div class="ship-protocol-panel-desc">船型、改装与船员效果会自动参与派遣计算，无需额外启动协议。</div>' +
       '</div>' +
       '<div class="crew-modal-roster-alert" role="listitem" aria-label="船员管理局部信号">' +
         '<strong>编制信号</strong>' +
@@ -1500,25 +1383,6 @@ function _openCrewModal(state, shipIndex, onRecruitCrew, onAssignCrew, onUnassig
         renderCrewModal();
       };
     });
-
-    modalBox.querySelectorAll('.ship-specialization-switch-btn').forEach(function (btn) {
-      btn.onclick = function () {
-        if (onSetShipDoctrine) onSetShipDoctrine(shipIndex, btn.dataset.doctrine);
-        setTimeout(function () {
-          renderCrewModal();
-        }, 50);
-      };
-    });
-
-    var protocolBtn = modalBox.querySelector('.crew-protocol-activate-btn');
-    if (protocolBtn) {
-      protocolBtn.onclick = function () {
-        if (onActivateShipProtocol) onActivateShipProtocol(shipIndex);
-        setTimeout(function () {
-          renderCrewModal();
-        }, 50);
-      };
-    }
 
     var switchBtn = modalBox.querySelector('.crew-switch-ship-btn');
     if (switchBtn) {
@@ -1758,8 +1622,8 @@ export function openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute
   _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, preset);
 }
 
-export function openCrewModal(state, shipIndex, onRecruitCrew, onAssignCrew, onUnassignCrew, onDismissCrew, onSwitchShip, onSetShipDoctrine, onActivateShipProtocol) {
-  _openCrewModal(state, shipIndex, onRecruitCrew, onAssignCrew, onUnassignCrew, onDismissCrew, onSwitchShip, onSetShipDoctrine, onActivateShipProtocol);
+export function openCrewModal(state, shipIndex, onRecruitCrew, onAssignCrew, onUnassignCrew, onDismissCrew, onSwitchShip) {
+  _openCrewModal(state, shipIndex, onRecruitCrew, onAssignCrew, onUnassignCrew, onDismissCrew, onSwitchShip);
 }
 
 export function openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgradeShip, onServiceShip, onSellShip, options) {
@@ -2011,16 +1875,14 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
     });
     html += '</div>';
 
-    html += '<h4 class="mod-modal-section-title">维修船坞</h4>';
-    html += '<div class="ship-repair-card' + (repairJob ? ' ship-repair-card--active' : '') + '">';
+    html += '<h4 class="mod-modal-section-title">港口保养</h4>';
+    html += '<div class="ship-repair-card">';
     html += '<div class="ship-repair-card-head">';
     html += '<div>';
-    html += '<div class="ship-repair-card-title">🔧 标准维修</div>';
-    html += '<div class="ship-repair-card-desc">' + _escapeHtml(repairJob
-      ? '已扣款进入维修队列，完成时恢复维护度、修复船体并清除故障。'
-      : (repairQuote ? repairQuote.desc : '当前无法生成维修报价。')) + '</div>';
+    html += '<div class="ship-repair-card-title">🔧 即时保养</div>';
+    html += '<div class="ship-repair-card-desc">' + _escapeHtml(repairQuote ? repairQuote.desc : '当前无法生成保养报价。') + '</div>';
     html += '</div>';
-    html += '<span class="ship-repair-card-badge">' + _escapeHtml(repairJob ? ('剩余 ' + repairJob.remainingDays + ' 天') : (repairQuote ? (repairQuote.cost.toLocaleString() + ' 积分') : '')) + '</span>';
+    html += '<span class="ship-repair-card-badge">' + _escapeHtml(repairQuote ? (repairQuote.cost.toLocaleString() + ' 积分') : '') + '</span>';
     html += '</div>';
 
     if (repairJob) {
@@ -2037,16 +1899,15 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
       html += '<div class="ship-repair-note">维修完成前该船无法派遣，当前操控船也无法出航。</div>';
     } else if (repairQuote) {
       html += '<div class="ship-repair-meta">';
-      html += '<span>耗时 ' + repairQuote.durationDays + ' 天</span>';
+      html += '<span>耗时 即时</span>';
       html += '<span>船体缺口 ' + hullMissing + '</span>';
-      html += '<span>故障 ' + faults.length + '</span>';
       html += '<span>日常养护 ' + maintenance.upkeepCost + '/天</span>';
       html += '</div>';
       html += '<div class="ship-repair-effect">' + _escapeHtml(repairQuote.effectSummary) + '</div>';
       if (repairQuote.disabledReason) {
         html += '<div class="ship-repair-note ship-repair-note--warning">' + _escapeHtml(repairQuote.disabledReason) + '</div>';
       }
-      html += '<button class="btn-primary ship-repair-start-btn" type="button"' + (repairQuote.disabledReason ? ' disabled' : '') + '>开始维修</button>';
+      html += '<button class="btn-primary ship-repair-start-btn" type="button"' + (repairQuote.disabledReason ? ' disabled' : '') + '>立即保养</button>';
     }
 
     if (faults.length > 0) {
@@ -2328,7 +2189,7 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
       primaryHintEl.className = 'dispatch-primary-hint dispatch-primary-hint--ready';
       primaryHintEl.textContent = hasExistingRoute
         ? '已载入当前最优路线，点击“一键派遣”可直接改派。'
-        : '已载入当前最优路线，点击“一键派遣”即可开始自动贸易。';
+        : '已载入当前最优路线，点击“一键派遣”即可启动舰队派遣。';
       return;
     }
 

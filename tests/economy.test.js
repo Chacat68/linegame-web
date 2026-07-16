@@ -6,6 +6,8 @@ import * as Economy from '../js/systems/economy/Economy.js';
 import * as Faction from '../js/systems/faction/FactionSystem.js';
 import * as Fleet from '../js/systems/fleet/FleetSystem.js';
 import { ECONOMY_CONFIG } from '../js/data/constants.js';
+import { GOODS } from '../js/data/goods.js';
+import { SYSTEMS } from '../js/data/systems.js';
 import { createTestState } from './helpers.js';
 
 beforeEach(() => {
@@ -39,7 +41,7 @@ describe('Economy configuration', () => {
   });
 
   it('经济周期切换会直接影响同一商品价格', () => {
-    const state = createTestState();
+    const state = createTestState({ tradeCount: 8 });
     Faction.init(state);
 
     Economy.setCycleState({ phaseIndex: 0, dayInPhase: 0, phaseDuration: 40, totalCycles: 0 });
@@ -53,6 +55,20 @@ describe('Economy configuration', () => {
 });
 
 describe('Economy.getBuyPrice', () => {
+  it('前 8 次交易会对全市场买入价设置新手下限', () => {
+    const state = createTestState({ playerLevel: 1, tradeCount: 0 });
+    Faction.init(state);
+    const guard = ECONOMY_CONFIG.pricing.starterMarketGuard;
+
+    SYSTEMS.forEach(function (system) {
+      GOODS.forEach(function (good) {
+        expect(Economy.getBuyPrice(system.id, good.id, state)).toBeGreaterThanOrEqual(
+          Math.ceil(good.basePrice * guard.buyFloorMultiplier)
+        );
+      });
+    });
+  });
+
   it('对有效 systemId 和 goodId 返回正整数', () => {
     const state = createTestState();
     Faction.init(state);
@@ -81,12 +97,12 @@ describe('Economy.getBuyPrice', () => {
   });
 
   it('激活货运飞船时，船只技能会降低买入价格', () => {
-    const baseState = createTestState();
+    const baseState = createTestState({ tradeCount: 8 });
     Faction.init(baseState);
     Fleet.init(baseState);
     const basePrice = Economy.getBuyPrice('sol_prime', 'weapons', baseState);
 
-    const freighterState = createTestState({ credits: 10000 });
+    const freighterState = createTestState({ credits: 10000, tradeCount: 8 });
     Faction.init(freighterState);
     Fleet.init(freighterState);
     freighterState.fleetSlots = 2;
@@ -98,7 +114,7 @@ describe('Economy.getBuyPrice', () => {
   });
 
   it('买入价按 factionTax -> techBuyDiscount -> fleetTradeBonus 顺序叠加', () => {
-    const state = createTestState({ credits: 10000, techBuyDiscount: 0.10 });
+    const state = createTestState({ credits: 10000, techBuyDiscount: 0.10, tradeCount: 8 });
     Faction.init(state);
     Fleet.init(state);
     state.fleetSlots = 2;
@@ -120,6 +136,20 @@ describe('Economy.getBuyPrice', () => {
 });
 
 describe('Economy.getSellPrice', () => {
+  it('前 8 次交易会对全市场卖出价设置新手上限', () => {
+    const state = createTestState({ playerLevel: 1, tradeCount: 0 });
+    Faction.init(state);
+    const guard = ECONOMY_CONFIG.pricing.starterMarketGuard;
+
+    SYSTEMS.forEach(function (system) {
+      GOODS.forEach(function (good) {
+        expect(Economy.getSellPrice(system.id, good.id, state)).toBeLessThanOrEqual(
+          Math.floor(good.basePrice * guard.sellCeilingMultiplier)
+        );
+      });
+    });
+  });
+
   it('对有效参数返回正整数', () => {
     const state = createTestState();
     Faction.init(state);
@@ -136,12 +166,12 @@ describe('Economy.getSellPrice', () => {
   });
 
   it('友好派系卖出价应高于敌对派系 [H5]', () => {
-    const friendly = createTestState();
+    const friendly = createTestState({ tradeCount: 8 });
     Faction.init(friendly);
     // 设置 federation 为盟友
     friendly.factionRelations.federation = 80;
 
-    const hostile = createTestState();
+    const hostile = createTestState({ tradeCount: 8 });
     Faction.init(hostile);
     // 设置 federation 为敌对
     hostile.factionRelations.federation = -80;
@@ -164,12 +194,12 @@ describe('Economy.getSellPrice', () => {
   });
 
   it('完整舰队编队加成会提高卖出价格', () => {
-    const baseState = createTestState({ credits: 50000 });
+    const baseState = createTestState({ credits: 50000, tradeCount: 8 });
     Faction.init(baseState);
     Fleet.init(baseState);
     const basePrice = Economy.getSellPrice('sol_prime', 'luxury', baseState);
 
-    const fleetState = createTestState({ credits: 50000 });
+    const fleetState = createTestState({ credits: 50000, tradeCount: 8 });
     Faction.init(fleetState);
     Fleet.init(fleetState);
     fleetState.fleetSlots = 4;
@@ -182,7 +212,7 @@ describe('Economy.getSellPrice', () => {
   });
 
   it('卖出价按 factionTax -> techSellBonus -> fleetTradeBonus 顺序叠加', () => {
-    const state = createTestState({ credits: 50000, techSellBonus: 0.08 });
+    const state = createTestState({ credits: 50000, techSellBonus: 0.08, tradeCount: 8 });
     Faction.init(state);
     Fleet.init(state);
     state.fleetSlots = 2;

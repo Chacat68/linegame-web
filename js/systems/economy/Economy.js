@@ -12,7 +12,7 @@ import { SYSTEMS, FUEL_COST_PER_UNIT, GALAXY_JUMP_FUEL, findSystem } from '../..
 import * as Faction                       from '../faction/FactionSystem.js';
 import * as Crew                         from '../fleet/CrewSystem.js';
 import * as Exploration                  from '../galaxy/ExplorationSystem.js';
-import { ensureShipSpecializationState, getShipSpecializationProfile } from '../fleet/ShipSpecialization.js';
+import { getVictoryPolicyEffects } from '../victory/VictoryPolicy.js';
 
 // ---------------------------------------------------------------------------
 // 价格历史记录（30 天环形缓冲）
@@ -263,6 +263,7 @@ export function getBuyPrice(systemId, goodId, state) {
 
   if (state) {
     price = _applyBuyAdjustments(price, state, systemId);
+    price = _applyStarterMarketGuard(price, good, state, 'buy');
   }
   return Math.max(ECONOMY_CONFIG.pricing.minimumPrice, price);
 }
@@ -279,6 +280,7 @@ export function getSellPrice(systemId, goodId, state) {
 
   if (state) {
     price = _applySellAdjustments(price, state, systemId);
+    price = _applyStarterMarketGuard(price, good, state, 'sell');
   }
   return Math.max(ECONOMY_CONFIG.pricing.minimumPrice, price);
 }
@@ -368,6 +370,9 @@ function _applyBuyAdjustments(basePrice, state, systemId) {
       price = Math.round(price * (1 - fleetTradeEffects.buyDiscount));
     }
   });
+  var policyEffects = getVictoryPolicyEffects(state);
+  if (policyEffects.buyDiscount) price = Math.round(price * (1 - policyEffects.buyDiscount));
+  if (policyEffects.buyPricePenalty) price = Math.round(price * (1 + policyEffects.buyPricePenalty));
   return price;
 }
 
@@ -389,7 +394,21 @@ function _applySellAdjustments(basePrice, state, systemId) {
       price = Math.round(price * (1 + fleetTradeEffects.sellBonus));
     }
   });
+  var policyEffects = getVictoryPolicyEffects(state);
+  if (policyEffects.sellBonus) price = Math.round(price * (1 + policyEffects.sellBonus));
   return price;
+}
+
+function _applyStarterMarketGuard(price, good, state, side) {
+  var guard = ECONOMY_CONFIG.pricing.starterMarketGuard;
+  if (!guard || !state || !good) return price;
+  var isStarter = (state.playerLevel || 1) <= guard.maxPlayerLevel &&
+    (state.tradeCount || 0) <= guard.maxTradeCount;
+  if (!isStarter) return price;
+  if (side === 'buy') {
+    return Math.max(price, Math.ceil(good.basePrice * guard.buyFloorMultiplier));
+  }
+  return Math.min(price, Math.floor(good.basePrice * guard.sellCeilingMultiplier));
 }
 
 function _getFleetTradeEffects(state) {
@@ -402,16 +421,8 @@ function _getFleetTradeEffects(state) {
   _mergeTradeEffects(effects, _getShipSkillTradeEffects(activeShip));
   _mergeTradeEffects(effects, _getShipModTradeEffects(activeShip));
   _mergeTradeEffects(effects, Crew.getShipEffects(state, activeShip));
-  _mergeTradeEffects(effects, _getShipSpecializationTradeEffects(activeShip, state));
   _mergeTradeEffects(effects, _getFleetBonusTradeEffects(state.fleet));
   return effects;
-}
-
-function _getShipSpecializationTradeEffects(ship, state) {
-  if (!ship) return {};
-  ensureShipSpecializationState(ship);
-  var profile = getShipSpecializationProfile(ship, state ? state.day : 1);
-  return profile && profile.effects ? profile.effects : {};
 }
 
 function _getShipSkillTradeEffects(ship) {
@@ -509,6 +520,8 @@ export function getBlackMarketSellPrice(systemId, goodId, state) {
 
   // 额外波动
   const volatilityNoise = 1 + (Math.random() - 0.5) * (bm.volatility - 1);
+  const policyEffects = getVictoryPolicyEffects(state);
+  premiumMultiplier *= 1 + (policyEffects.blackMarketSellBonus || 0);
   const effectiveMultiplier = Math.max(premiumMultiplier, premiumMultiplier * volatilityNoise);
   const price = Math.round(openPrice * effectiveMultiplier);
 

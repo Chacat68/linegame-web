@@ -170,8 +170,7 @@
 }
 
 .company-dashboard,
-#location-bar,
-#auto-trade-controls {
+#location-bar {
   background: linear-gradient(180deg, rgba(8, 24, 48, 0.8), rgba(4, 16, 32, 0.78));
   border-bottom-color: rgba(56, 189, 248, 0.18);
 }
@@ -491,4 +490,3 @@
   background: linear-gradient(180deg, rgba(56, 189, 248, 0.5), rgba(6, 182, 212, 0.7));
   border-radius: 999px;
 }
-

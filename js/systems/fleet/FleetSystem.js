@@ -16,15 +16,7 @@ import * as Economy from '../economy/Economy.js';
 import * as AutoTrade from '../trade/TradePolicy.js';
 import * as Crew from './CrewSystem.js';
 import * as RouteModel from '../route/RouteSystem.js';
-import {
-  SHIP_DOCTRINES,
-  createDoctrineProtocol,
-  ensureShipSpecializationState,
-  getDoctrine,
-  getMasteryLevel,
-  getMasteryTrack,
-  getShipSpecializationProfile as buildShipSpecializationProfile,
-} from './ShipSpecialization.js';
+import { getVictoryPolicyEffects } from '../victory/VictoryPolicy.js';
 
 const SHIP_CONDITION_FAULTS = [
   {
@@ -94,7 +86,6 @@ function _createShip(shipType) {
     location:     null, // 当前所在星系 ID（非激活船只用），null 表示跟随旗舰
     route:        null, // 派遣路线 { buySystemId, sellSystemId, goodId, status:'buying'|'traveling'|'selling'|'returning' }
   };
-  ensureShipSpecializationState(ship, shipType);
   _ensureShipOperationalState(ship);
   return ship;
 }
@@ -111,24 +102,9 @@ function _ensureShipOperationalState(ship) {
   if (!ship || typeof ship !== 'object') return;
   ship.maintenance = _clampMaintenance(ship.maintenance);
   if (!Number.isFinite(ship.lastServiceDay)) ship.lastServiceDay = 0;
-  if (!Array.isArray(ship.faults)) ship.faults = [];
-  ship.faults = ship.faults.filter(function (faultId) {
-    return !!_getShipConditionFault(faultId);
-  });
-  if (!ship.repairJob || typeof ship.repairJob !== 'object') {
-    ship.repairJob = null;
-  } else {
-    var remainingDays = Math.max(0, Math.ceil(ship.repairJob.remainingDays || 0));
-    var totalDays = Math.max(REPAIR_JOB_MIN_DAYS, Math.ceil(ship.repairJob.totalDays || remainingDays || REPAIR_JOB_MIN_DAYS));
-    ship.repairJob = remainingDays > 0
-      ? {
-          remainingDays: remainingDays,
-          totalDays: totalDays,
-          cost: Math.max(0, Math.round(ship.repairJob.cost || 0)),
-          startedDay: Number.isFinite(ship.repairJob.startedDay) ? ship.repairJob.startedDay : 0,
-        }
-      : null;
-  }
+  // 旧版随机故障与多日维修队列已退役，船况只保留可预期的维护度。
+  ship.faults = [];
+  ship.repairJob = null;
 }
 
 function _getShipServiceConfig(ship) {
@@ -422,6 +398,7 @@ export function init(state) {
   if (!state.fleetSlots || state.fleetSlots < 1) {
     state.fleetSlots = Math.max(1, state.fleet.length);
   }
+  _migrateLegacyLevelPerks(state);
   // 兼容旧存档：补充改装数据
   state.fleet.forEach(function (ship) {
     if (!ship.mods) ship.mods = [];
@@ -430,11 +407,65 @@ export function init(state) {
       ship.modSlots = st ? (st.modSlots || 1) : 1;
     }
     _ensureShipOperationalState(ship);
-    ensureShipSpecializationState(ship, SHIP_TYPES.find(function (type) { return type.id === ship.typeId; }));
+    if (ship.specialization) delete ship.specialization;
     Crew.ensureShip(ship, SHIP_TYPES.find(function (type) { return type.id === ship.typeId; }));
   });
   // 确保当前 state 与激活船只同步
   syncStateFromShip(state);
+}
+
+function _migrateLegacyLevelPerks(state) {
+  if (!state.storyFlags || typeof state.storyFlags !== 'object' || Array.isArray(state.storyFlags)) {
+    state.storyFlags = {};
+  }
+  if (state.storyFlags.fleet_level_perks_v2_migrated) return;
+
+  const levelEffects = _getPlayerLevelShipEffects(state);
+  (state.fleet || []).forEach(function (ship) {
+    const shipType = SHIP_TYPES.find(function (type) { return type.id === ship.typeId; });
+    if (!shipType) return;
+    const structural = _getStructuralShipStats(ship, shipType);
+
+    const cargoExcess = Number(ship.maxCargo) - structural.maxCargo;
+    if (cargoExcess > 0 && cargoExcess <= levelEffects.cargoBonus) ship.maxCargo = structural.maxCargo;
+
+    const fuelExcess = Number(ship.maxFuel) - structural.maxFuel;
+    if (fuelExcess > 0 && fuelExcess <= levelEffects.maxFuelBonus) {
+      ship.maxFuel = structural.maxFuel;
+    }
+
+    const legacyFuelEff = Math.max(shipType.minFuelEff || 0.1, structural.fuelEff * levelEffects.fuelEffMultiplier);
+    if (levelEffects.fuelEffMultiplier < 1 && Number(ship.fuelEff) < structural.fuelEff &&
+        Math.abs(Number(ship.fuelEff) - legacyFuelEff) < 0.0002) {
+      ship.fuelEff = structural.fuelEff;
+    }
+  });
+  state.storyFlags.fleet_level_perks_v2_migrated = state.day || 1;
+}
+
+function _getStructuralShipStats(ship, shipType) {
+  let maxCargo = shipType.cargo;
+  let maxFuel = shipType.fuel;
+  let fuelEff = shipType.fuelEff;
+  const upgrades = Array.isArray(ship.upgrades) ? ship.upgrades : [];
+  const mods = Array.isArray(ship.mods) ? ship.mods : [];
+
+  upgrades.forEach(function (upgradeId) {
+    const upgrade = SHIP_UPGRADES.find(function (entry) { return entry.id === upgradeId; });
+    if (!upgrade || !upgrade.effect) return;
+    if (upgrade.effect.cargo) maxCargo = Math.min(shipType.maxCargo, maxCargo + upgrade.effect.cargo);
+    if (upgrade.effect.maxFuel) maxFuel = Math.min(shipType.maxFuelCap, maxFuel + upgrade.effect.maxFuel);
+    if (upgrade.effect.fuelEff) fuelEff = Math.max(shipType.minFuelEff, fuelEff * upgrade.effect.fuelEff);
+  });
+  mods.forEach(function (modId) {
+    const mod = SHIP_MODS.find(function (entry) { return entry.id === modId; });
+    if (!mod || !mod.effect) return;
+    if (mod.effect.cargo) maxCargo += mod.effect.cargo;
+    if (mod.effect.maxFuel) maxFuel += mod.effect.maxFuel;
+    if (mod.effect.fuelEff) fuelEff = Math.round(fuelEff * mod.effect.fuelEff * 10000) / 10000;
+  });
+
+  return { maxCargo: maxCargo, maxFuel: maxFuel, fuelEff: fuelEff };
 }
 
 /**
@@ -728,7 +759,7 @@ export function syncStateFromShip(state) {
   state.cargo          = ship.cargo;
   state.maxCargo       = effective.maxCargo;
   state.fuel           = ship.fuel;
-  state.maxFuel        = ship.maxFuel;
+  state.maxFuel        = effective.maxFuel;
   state.fuelEfficiency = effective.fuelEff;
   state.shipHull       = ship.hull;
   state.maxHull        = ship.maxHull;
@@ -871,14 +902,6 @@ export function getShipRoleProfile(state, ship) {
     scores.covert += 1;
   }
 
-  var specialization = getShipSpecializationSummary(state, ship);
-  if (specialization && specialization.doctrine) {
-    tags.push(specialization.doctrine.shortName);
-    if (specialization.doctrine.id === 'trade') scores.logistics += 2;
-    else if (specialization.doctrine.id === 'navigation') scores.courier += 2;
-    else scores.survey += 2;
-  }
-
   (ship.mods || []).forEach(function (modId) {
     if (modId === 'mod_service_bay') {
       scores.support += 3;
@@ -1010,7 +1033,6 @@ function _scoreModRecommendation(state, ship, mod, context) {
 
   if (mod.id === 'mod_survey_array') {
     if (roleId === 'survey') add(110, '勘探支援分工适合提升扫描折扣和 POI 收益。');
-    if (context.doctrineId === 'exploration') add(44, '当前探索协议会放大测绘组件收益。');
   }
 
   if (mod.id === 'mod_smuggler_hold') {
@@ -1070,13 +1092,11 @@ export function getShipModRecommendation(state, shipIndex) {
 
   var maintenance = getShipMaintenanceSummary(state, ship);
   var roleProfile = getShipRoleProfile(state, ship);
-  var specialization = getShipSpecializationSummary(state, ship);
   var cargoUsed = _getShipCargoUsed(ship);
   var route = ship.route || {};
   var context = {
     maintenance: maintenance,
     roleProfile: roleProfile,
-    doctrineId: specialization && specialization.doctrineId,
     faultCount: ship.faults.length,
     hullMissing: Math.max(0, (ship.maxHull || ship.hull || 0) - (ship.hull || 0)),
     cargoLoadRatio: cargoUsed / Math.max(1, ship.maxCargo || 1),
@@ -1113,13 +1133,8 @@ export function getShipModRecommendation(state, shipIndex) {
 }
 
 export function getShipFaultSummaries(ship) {
-  if (!ship) return [];
-  _ensureShipOperationalState(ship);
-
-  return ship.faults.map(function (faultId) {
-    var fault = _getShipConditionFault(faultId);
-    return fault ? Object.assign({}, fault) : null;
-  }).filter(Boolean);
+  if (ship) _ensureShipOperationalState(ship);
+  return [];
 }
 
 function _buildShipRepairDuration(profile, hullMissing, faultCount, roleEffects) {
@@ -1178,34 +1193,31 @@ export function getShipRepairQuote(state, shipIndex) {
 
   var profile = getShipMaintenanceSummary(state, ship);
   var roleEffects = _getShipOperationalRoleEffects(state, ship);
-  var faultSummaries = getShipFaultSummaries(ship);
   var hullMissing = Math.max(0, (ship.maxHull || ship.hull || 0) - (ship.hull || 0));
-  var repairNeeded = profile.value < 99.5 || faultSummaries.length > 0 || hullMissing > 0;
-  var durationDays = _buildShipRepairDuration(profile, hullMissing, faultSummaries.length, roleEffects);
+  var repairNeeded = profile.value < 99.5 || hullMissing > 0;
   var cost = Math.max(80, Math.round(
-    (profile.serviceCost + hullMissing * 2.5 + faultSummaries.length * 35)
+    (profile.serviceCost + hullMissing * 2.5)
     * (roleEffects.serviceCostMultiplier || 1)
   ));
   var disabledReason = '';
 
-  if (ship.repairJob) disabledReason = '维修已在进行中';
-  else if (ship.route) disabledReason = '派遣中无法入坞维修';
+  if (ship.route) disabledReason = '派遣中无法入坞维修';
   else if (!repairNeeded) disabledReason = '当前无需维修';
   else if ((state.credits || 0) < cost) disabledReason = '积分不足';
 
   return {
     id: 'repair',
-    name: '标准维修',
+    name: '即时保养',
     icon: '🔧',
-    desc: '扣款后进入维修队列，完成时恢复维护度、修复船体并清除故障。',
+    desc: '在当前港口即时恢复维护度并修复船体。',
     cost: cost,
-    durationDays: durationDays,
+    durationDays: 0,
     targetMaintenance: 100,
     targetHull: ship.maxHull || ship.hull || 0,
     hullMissing: hullMissing,
-    faultCount: faultSummaries.length,
+    faultCount: 0,
     disabledReason: disabledReason,
-    effectSummary: '完成后恢复维护度至 100%，修复 ' + hullMissing + ' 点船体缺口，并清除 ' + faultSummaries.length + ' 项故障。',
+    effectSummary: '即时恢复维护度至 100%，并修复 ' + hullMissing + ' 点船体缺口。',
   };
 }
 
@@ -1230,17 +1242,12 @@ export function serviceShip(state, shipIndex, tierId) {
   }
 
   state.credits -= repairQuote.cost;
-  ship.repairJob = {
-    remainingDays: repairQuote.durationDays,
-    totalDays: repairQuote.durationDays,
-    cost: repairQuote.cost,
-    startedDay: state.day || 1,
-  };
+  _completeShipRepair(state, ship);
 
   return {
     ok: true,
     msgs: [{
-      text: '🔧 「' + ship.name + '」已开始维修：花费 ' + repairQuote.cost.toLocaleString() + ' 积分，预计 ' + repairQuote.durationDays + ' 天后完成。',
+      text: '🔧 「' + ship.name + '」已完成即时保养：花费 ' + repairQuote.cost.toLocaleString() + ' 积分，维护度与船体已恢复。',
       type: 'upgrade',
     }],
   };
@@ -1256,7 +1263,6 @@ export function applyTravelWear(state, shipIndex, travelMeta) {
   var modEffects = getShipModEffects(ship);
   var roleEffects = _getShipOperationalRoleEffects(state, ship);
   var serviceConfig = _getShipServiceConfig(ship);
-  var faultEffects = _getShipFaultEffects(state, ship);
   var cargoLoadRatio = _getShipCargoUsed(ship) / Math.max(1, ship.maxCargo || 1);
   var fuelCost = Number.isFinite(travelMeta && travelMeta.fuelCost) ? travelMeta.fuelCost : 0;
   var baseWear = travelMeta && travelMeta.crossGalaxy ? 6 : (travelMeta && travelMeta.secretRoute ? 2.5 : 3.5);
@@ -1265,7 +1271,6 @@ export function applyTravelWear(state, shipIndex, travelMeta) {
     * serviceConfig.maintenanceDecay
     * (modEffects.maintenanceDecayMultiplier || 1)
     * (roleEffects.travelWearMultiplier || 1)
-    * (faultEffects.travelWearMultiplier || 1)
   );
 
   if (wear <= 0) return { ok: true, msgs: [], meta: { wear: 0, maintenance: ship.maintenance } };
@@ -1274,10 +1279,6 @@ export function applyTravelWear(state, shipIndex, travelMeta) {
   var afterProfile = getShipMaintenanceSummary(state, ship);
   var msgs = [];
   _pushMaintenanceTransitionMsg(ship, beforeProfile, afterProfile, msgs);
-  _maybeTriggerConditionFault(state, ship, {
-    travelWear: wear,
-    maintenanceBand: afterProfile.band,
-  }, msgs);
 
   return {
     ok: true,
@@ -1307,14 +1308,6 @@ export function advanceFleetDay(state) {
       totalUpkeep += paid;
     }
 
-    if (ship.repairJob) {
-      ship.repairJob.remainingDays = Math.max(0, ship.repairJob.remainingDays - 1);
-      if (ship.repairJob.remainingDays <= 0) {
-        msgs.push(_completeShipRepair(state, ship));
-      }
-      return;
-    }
-
     var decay = beforeProfile.dailyDecay || 0;
     if (unpaid > 0) {
       unpaidShips.push(ship.name);
@@ -1336,10 +1329,6 @@ export function advanceFleetDay(state) {
 
     var afterProfile = getShipMaintenanceSummary(state, ship);
     _pushMaintenanceTransitionMsg(ship, beforeProfile, afterProfile, msgs);
-    _maybeTriggerConditionFault(state, ship, {
-      unpaidUpkeep: unpaid,
-      maintenanceBand: afterProfile.band,
-    }, msgs);
   });
 
   if (totalUpkeep > 0) {
@@ -1361,122 +1350,23 @@ export function getShipType(typeId) {
 }
 
 export function getShipSpecializationSummary(state, ship) {
-  if (!ship) return null;
-  ensureShipSpecializationState(ship, getShipType(ship.typeId));
-  return buildShipSpecializationProfile(ship, state ? state.day : 1);
+  return null;
 }
 
 export function setShipDoctrine(state, shipIndex, doctrineId) {
-  var ship = shipIndex != null ? state.fleet[shipIndex] : getActiveShip(state);
-  if (!ship) {
-    return { ok: false, msgs: [{ text: '❌ 无效的船只！', type: 'error' }] };
-  }
-  if (!SHIP_DOCTRINES[doctrineId]) {
-    return { ok: false, msgs: [{ text: '❌ 未知专精协议！', type: 'error' }] };
-  }
-
-  var specialization = ensureShipSpecializationState(ship, getShipType(ship.typeId));
-  if (specialization.activeProtocol && (specialization.activeProtocol.remainingCharges || 0) > 0) {
-    return { ok: false, msgs: [{ text: '⚠️ 当前战术协议仍在运行，请先消耗完协议效果。', type: 'error' }] };
-  }
-  if (specialization.doctrine === doctrineId) {
-    return { ok: false, msgs: [{ text: 'ℹ️ 这艘船已经启用该专精协议。', type: 'info' }] };
-  }
-
-  specialization.doctrine = doctrineId;
-  var doctrine = getDoctrine(doctrineId);
-  return {
-    ok: true,
-    msgs: [{ text: '🧠 「' + ship.name + '」已切换至「' + doctrine.name + '」。', type: 'upgrade' }],
-  };
+  return { ok: false, msgs: [{ text: '🧭 舰船协议已合并到船型、改装与派遣定位中。', type: 'info' }], meta: { retired: true } };
 }
 
 export function activateShipProtocol(state, shipIndex) {
-  var ship = shipIndex != null ? state.fleet[shipIndex] : getActiveShip(state);
-  if (!ship) {
-    return { ok: false, msgs: [{ text: '❌ 无效的船只！', type: 'error' }] };
-  }
-
-  var specialization = ensureShipSpecializationState(ship, getShipType(ship.typeId));
-  var doctrineId = specialization.doctrine;
-  var doctrine = getDoctrine(doctrineId);
-  var level = getMasteryLevel((specialization.xp && specialization.xp[doctrineId]) || 0);
-  var currentDay = state.day || 1;
-  var readyDay = specialization.protocolCooldowns[doctrineId] || 0;
-
-  if (level <= 0) {
-    return { ok: false, msgs: [{ text: '🔒 当前专精达到 Lv.1 后才能启动战术协议。', type: 'error' }] };
-  }
-  if (specialization.activeProtocol && (specialization.activeProtocol.remainingCharges || 0) > 0) {
-    return { ok: false, msgs: [{ text: '⚙️ 已有战术协议运行中，请先完成当前协议。', type: 'error' }] };
-  }
-  if (currentDay < readyDay) {
-    return { ok: false, msgs: [{ text: '⏳ 协议冷却中，还需 ' + (readyDay - currentDay) + ' 天。', type: 'error' }] };
-  }
-
-  specialization.activeProtocol = createDoctrineProtocol(doctrineId, level, currentDay);
-  specialization.protocolCooldowns[doctrineId] = currentDay + (doctrine.protocol.cooldownDays || 4);
-
-  return {
-    ok: true,
-    msgs: [{
-      text: doctrine.protocol.icon + ' 「' + ship.name + '」启动「' + doctrine.protocol.name + '」：' + doctrine.protocol.desc,
-      type: 'upgrade',
-    }],
-  };
+  return { ok: false, msgs: [{ text: '🧭 主动舰船协议已退役，派遣效果现由船型与改装自动生效。', type: 'info' }], meta: { retired: true } };
 }
 
 export function consumeShipProtocol(state, shipIndex, triggerId) {
-  var ship = shipIndex != null ? state.fleet[shipIndex] : getActiveShip(state);
-  if (!ship) return { ok: false, msgs: [] };
-
-  var specialization = ensureShipSpecializationState(ship, getShipType(ship.typeId));
-  var activeProtocol = specialization.activeProtocol;
-  if (!activeProtocol || (activeProtocol.remainingCharges || 0) <= 0) {
-    return { ok: false, msgs: [] };
-  }
-
-  var doctrine = getDoctrine(activeProtocol.doctrineId);
-  if (!doctrine.protocol || doctrine.protocol.trigger !== triggerId) {
-    return { ok: false, msgs: [] };
-  }
-
-  activeProtocol.remainingCharges = Math.max(0, (activeProtocol.remainingCharges || 0) - 1);
-  if (activeProtocol.remainingCharges > 0) {
-    return { ok: true, consumed: true, msgs: [] };
-  }
-
-  specialization.activeProtocol = null;
-  return {
-    ok: true,
-    consumed: true,
-    msgs: [{ text: '✨ 「' + ship.name + '」的「' + doctrine.protocol.name + '」已结束并进入冷却。', type: 'info' }],
-  };
+  return { ok: false, msgs: [] };
 }
 
 export function recordShipActivity(state, activityId, payload, shipIndex) {
-  var ship = shipIndex != null ? state.fleet[shipIndex] : getActiveShip(state);
-  if (!ship) return { ok: false, msgs: [] };
-
-  var specialization = ensureShipSpecializationState(ship, getShipType(ship.typeId));
-  var awards = _getActivityAwards(activityId, payload || {});
-  var msgs = [];
-
-  awards.forEach(function (award) {
-    if (!award || !award.trackId || !Number.isFinite(award.xp) || award.xp <= 0) return;
-    var beforeLevel = getMasteryLevel((specialization.xp[award.trackId] || 0));
-    specialization.xp[award.trackId] = (specialization.xp[award.trackId] || 0) + award.xp;
-    var afterLevel = getMasteryLevel(specialization.xp[award.trackId] || 0);
-    if (afterLevel > beforeLevel) {
-      var track = getMasteryTrack(award.trackId);
-      msgs.push({
-        text: track.icon + ' 「' + ship.name + '」' + track.name + '提升至 Lv.' + afterLevel + '！',
-        type: 'upgrade',
-      });
-    }
-  });
-
-  return { ok: true, msgs: msgs, awards: awards };
+  return { ok: false, msgs: [], awards: [] };
 }
 
 function _getActivityAwards(activityId, payload) {
@@ -1531,6 +1421,7 @@ export function getEffectiveShipStats(state, ship) {
   if (!ship) {
     return {
       maxCargo: 0,
+      maxFuel: 0,
       fuelEff: 1,
       autoRepair: 0,
       buyDiscount: 0,
@@ -1555,29 +1446,35 @@ export function getEffectiveShipStats(state, ship) {
   var crewEffects = Crew.getShipEffects(state, ship);
   var modEffects = getShipModEffects(ship);
   var faultEffects = _getShipFaultEffects(state, ship);
-  var specialization = getShipSpecializationSummary(state, ship);
-  var specEffects = specialization ? specialization.effects : {};
+  var specialization = null;
+  var specEffects = {};
   var maintenance = getShipMaintenanceSummary(state, ship);
   var roleProfile = getShipRoleProfile(state, ship);
   var faultSummaries = getShipFaultSummaries(ship);
   var dispatchProfile = getShipDispatchProfile(state, ship);
+  var playerLevelEffects = _getPlayerLevelShipEffects(state);
+  var policyEffects = getVictoryPolicyEffects(state);
 
   return {
-    maxCargo: Math.max(1, Math.round(ship.maxCargo + (crewEffects.cargo || 0) + (specEffects.cargoBonus || 0) - (faultEffects.cargoPenalty || 0))),
+    maxCargo: Math.max(1, Math.round(
+      ship.maxCargo + playerLevelEffects.cargoBonus + (policyEffects.cargoBonus || 0) - (policyEffects.cargoPenalty || 0) + (crewEffects.cargo || 0) +
+      (specEffects.cargoBonus || 0) - (faultEffects.cargoPenalty || 0)
+    )),
+    maxFuel: Math.max(1, Math.round(ship.maxFuel + playerLevelEffects.maxFuelBonus)),
     fuelEff: Math.max(
       ship.minFuelEff || 0.1,
-      Math.round(ship.fuelEff * (crewEffects.fuelEffMultiplier || 1) * (specEffects.fuelEffMultiplier || 1) * (maintenance.fuelEffMultiplier || 1) * (faultEffects.fuelEffMultiplier || 1) * 10000) / 10000
+      Math.round(ship.fuelEff * playerLevelEffects.fuelEffMultiplier * (policyEffects.fuelEffMultiplier || 1) * (crewEffects.fuelEffMultiplier || 1) * (specEffects.fuelEffMultiplier || 1) * (maintenance.fuelEffMultiplier || 1) * (faultEffects.fuelEffMultiplier || 1) * 10000) / 10000
     ),
     autoRepair: Math.round(((crewEffects.autoRepair || 0) + (modEffects.autoRepair || 0)) * (maintenance.autoRepairMultiplier || 1) * 10) / 10,
     buyDiscount: (crewEffects.buyDiscount || 0) + (modEffects.buyDiscount || 0) + (specEffects.buyDiscount || 0) + (faultEffects.buyDiscount || 0),
     sellBonus: (crewEffects.sellBonus || 0) + (modEffects.sellBonus || 0) + (specEffects.sellBonus || 0) + (faultEffects.sellBonus || 0),
-    eventChanceMultiplier: (specEffects.eventChanceMultiplier || 1) * (maintenance.eventChanceMultiplier || 1) * (faultEffects.eventChanceMultiplier || 1),
-    smugglingCheckMultiplier: (specEffects.smugglingCheckMultiplier || 1) * (modEffects.smugglingCheckMultiplier || 1) * (maintenance.smugglingCheckMultiplier || 1),
+    eventChanceMultiplier: (policyEffects.eventChanceMultiplier || 1) * (specEffects.eventChanceMultiplier || 1) * (maintenance.eventChanceMultiplier || 1) * (faultEffects.eventChanceMultiplier || 1),
+    smugglingCheckMultiplier: (policyEffects.smugglingCheckMultiplier || 1) * (specEffects.smugglingCheckMultiplier || 1) * (modEffects.smugglingCheckMultiplier || 1) * (maintenance.smugglingCheckMultiplier || 1),
     smugglingFineMultiplier: (specEffects.smugglingFineMultiplier || 1) * (modEffects.smugglingFineMultiplier || 1),
     smugglingHullMultiplier: specEffects.smugglingHullMultiplier || 1,
-    scanFuelDiscount: Math.min(0.95, ((specEffects.scanFuelDiscount || 0) + (modEffects.scanFuelDiscount || 0)) * (faultEffects.scanFuelDiscountMultiplier || 1)),
+    scanFuelDiscount: Math.min(0.95, ((policyEffects.scanFuelDiscount || 0) + (specEffects.scanFuelDiscount || 0) + (modEffects.scanFuelDiscount || 0)) * (faultEffects.scanFuelDiscountMultiplier || 1)),
     landingFeeDiscount: specEffects.landingFeeDiscount || 0,
-    poiRewardMultiplier: (specEffects.poiRewardMultiplier || 1) * (modEffects.poiRewardMultiplier || 1),
+    poiRewardMultiplier: (policyEffects.poiRewardMultiplier || 1) * (specEffects.poiRewardMultiplier || 1) * (modEffects.poiRewardMultiplier || 1),
     forceDeepScan: !!specEffects.forceDeepScan,
     specialization: specialization,
     maintenance: maintenance,
@@ -1586,6 +1483,22 @@ export function getEffectiveShipStats(state, ship) {
     dispatchProfile: dispatchProfile,
     upkeepCost: maintenance.upkeepCost || 0,
     crewEffects: crewEffects,
+    playerLevelEffects: playerLevelEffects,
+    victoryPolicyEffects: policyEffects,
+  };
+}
+
+function _getPlayerLevelShipEffects(state) {
+  var level = Math.max(1, Math.floor((state && state.playerLevel) || 1));
+  var cargoBonus = 0;
+  if (level >= 4) cargoBonus += 5;
+  if (level >= 8) cargoBonus += 10;
+  if (level >= 10) cargoBonus += 10;
+
+  return {
+    cargoBonus: cargoBonus,
+    maxFuelBonus: level >= 10 ? 20 : 0,
+    fuelEffMultiplier: level >= 6 ? 0.9 : 1,
   };
 }
 
@@ -1682,9 +1595,6 @@ export function assignRoute(state, shipIndex, buySystemId, sellSystemId, goodId,
     return { ok: false, msgs: [{ text: '❌ 无效的船只！', type: 'error' }] };
   }
   _ensureShipOperationalState(ship);
-  if (ship.repairJob) {
-    return { ok: false, msgs: [{ text: '🔧 该船正在维修中，完成前无法派遣。', type: 'error' }] };
-  }
 
   var busSys  = findSystem(buySystemId);
   var sellSys = findSystem(sellSystemId);
@@ -1788,8 +1698,6 @@ export function tickFleetRoutes(state) {
           applyTravelWear(state, idx, { fuelCost: cost, crossGalaxy: crossGalaxyBuyTravel, secretRoute: false }).msgs.forEach(function (m) { msgs.push(m); });
           msgs.push({ text: '🚀 「' + ship.name + '」抵达买入地。', type: 'travel' });
           if (_handleShipSmugglingCheck(state, ship, route, msgs)) return;
-          recordShipActivity(state, 'travel', { secretRoute: false, crossGalaxy: crossGalaxyBuyTravel }, idx).msgs.forEach(function (m) { msgs.push(m); });
-          consumeShipProtocol(state, idx, 'travel').msgs.forEach(function (m) { msgs.push(m); });
           _doShipBuy(state, ship, route, msgs);
         }
         break;
@@ -1822,8 +1730,6 @@ export function tickFleetRoutes(state) {
           applyTravelWear(state, idx, { fuelCost: cost2, crossGalaxy: crossGalaxySellTravel, secretRoute: false }).msgs.forEach(function (m) { msgs.push(m); });
           msgs.push({ text: '🚀 「' + ship.name + '」抵达卖出地。', type: 'travel' });
           if (_handleShipSmugglingCheck(state, ship, route, msgs)) return;
-          recordShipActivity(state, 'travel', { secretRoute: false, crossGalaxy: crossGalaxySellTravel }, idx).msgs.forEach(function (m) { msgs.push(m); });
-          consumeShipProtocol(state, idx, 'travel').msgs.forEach(function (m) { msgs.push(m); });
           _doShipSell(state, ship, route, msgs);
         }
         break;
@@ -1889,9 +1795,6 @@ function _doShipBuy(state, ship, route, msgs) {
     type: 'buy',
   });
 
-  recordShipActivity(state, 'trade_buy', { quantity: qty }, state.fleet.indexOf(ship)).msgs.forEach(function (m) { msgs.push(m); });
-  consumeShipProtocol(state, state.fleet.indexOf(ship), 'trade').msgs.forEach(function (m) { msgs.push(m); });
-
   route.status = 'traveling_sell';
 }
 
@@ -1939,9 +1842,6 @@ function _doShipSell(state, ship, route, msgs) {
     text: (isBlack ? '🕶 ' : '💰 ') + '「' + ship.name + '」在' + _sysName(route.sellSystemId) + (isBlack ? '黑市' : '') + '卖出 ' + qty + ' 单位' + good.name + '，获得 ' + totalEarned + ' 积分。',
     type: 'sell',
   });
-
-  recordShipActivity(state, 'trade_sell', { quantity: qty, profit: totalEarned - (buyReference * qty) }, state.fleet.indexOf(ship)).msgs.forEach(function (m) { msgs.push(m); });
-  consumeShipProtocol(state, state.fleet.indexOf(ship), 'trade').msgs.forEach(function (m) { msgs.push(m); });
 
   // 循环：重新前往买入地
   route.status = 'traveling_buy';
