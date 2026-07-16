@@ -66,6 +66,7 @@ const PLANET_CONNECTION_DISTANCE = 66;
 const PLANET_LAYOUT_SCALE_X = PLANET_SPAN_X / 292;
 const PLANET_LAYOUT_SCALE_Z = PLANET_SPAN_Z / 204;
 const PLANET_LAYOUT_SCALE = (PLANET_LAYOUT_SCALE_X + PLANET_LAYOUT_SCALE_Z) * 0.5;
+const PLANET_VISUAL_SCALE = 0.5;
 
 const PLANET_COLORS = {
   agricultural: '#5fd47a',
@@ -1345,7 +1346,7 @@ function _getPlanetRadius(system) {
     ? prices.reduce(function (sum, value) { return sum + value; }, 0) / prices.length
     : 1;
   const base = Math.max(2.75, Math.min(4.6, 5.55 - average * 1.7));
-  return base * (system && system.type === 'special' ? 1.34 : 1.12);
+  return base * (system && system.type === 'special' ? 1.34 : 1.12) * PLANET_VISUAL_SCALE;
 }
 
 function _buildBackground() {

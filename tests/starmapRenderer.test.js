@@ -201,6 +201,8 @@ describe('Starmap canvas integration', function () {
     expect(renderer).toContain('const lines = new LineSegments(geometry, material)');
     expect(renderer).toContain('function _getSharedPlanetSphereGeometry');
     expect(renderer).toContain('function _getSharedHaloTexture');
+    expect(renderer).toContain('const PLANET_VISUAL_SCALE = 0.5');
+    expect(renderer).toContain("1.12) * PLANET_VISUAL_SCALE");
     expect(renderer).toContain("detailed ? 'detail' : 'base'");
     expect(renderer).toContain("if (_mapView === 'planets') _planetEntries.forEach");
     expect(renderer).toContain('visual.positionScratch');
