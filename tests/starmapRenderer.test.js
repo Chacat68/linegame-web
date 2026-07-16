@@ -188,13 +188,10 @@ describe('Starmap canvas integration', function () {
     expect(renderer).toContain('cloudShell');
     expect(renderer).toContain('bumpMap');
     expect(renderer).toContain('emissiveMap');
-    expect(renderer).toContain('function _createVolumetricBeacon');
-    expect(renderer).toContain('if (current) {');
-    expect(renderer).toContain("beacon.name = 'currentPlanetBeacon3d';");
-    expect(renderer).not.toContain("'selectedPlanetBeacon3d'");
-    expect(renderer).toContain('selected || focused ? 1.05');
-    expect(renderer).toContain('new ConeGeometry(radius * 0.82');
-    expect(renderer).toContain('beaconData.outerMaterial.opacity');
+    expect(renderer).not.toContain('function _createVolumetricBeacon');
+    expect(renderer).not.toContain('PlanetBeacon3d');
+    expect(renderer).toContain('selected || focused ? 1.03');
+    expect(renderer).toContain('selected || focused ? 0.26');
     expect(renderer).not.toContain('function _createBeaconTexture');
     expect(renderer).toContain('function _buildPlanetAmbientHalos');
     expect(renderer).toContain("halos.name = 'planetAmbientHalos'");

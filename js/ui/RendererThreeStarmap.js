@@ -677,12 +677,12 @@ function _buildPlanetScene(state, galaxyId) {
       map: _getSharedHaloTexture(),
       color: displayColor,
       transparent: true,
-      opacity: current ? 0.72 : (selected || focused ? 0.24 : 0.28),
+      opacity: current ? 0.46 : (selected || focused ? 0.18 : 0.28),
       depthWrite: false,
       blending: AdditiveBlending,
     });
     const halo = new Sprite(haloMaterial);
-    const haloScale = radius * (current ? 8.4 : (selected || focused ? 5.6 : 8.4));
+    const haloScale = radius * (current ? 6.4 : (selected || focused ? 4.8 : 8.4));
     halo.scale.set(haloScale, haloScale, 1);
     halo.renderOrder = 1;
     halo.visible = current || selected || focused;
@@ -757,14 +757,14 @@ function _buildPlanetScene(state, galaxyId) {
       ringMaterial = new MeshBasicMaterial({
         color: current ? 0xffe9a8 : displayColor,
         transparent: true,
-        opacity: current ? 0.82 : (selected || focused ? 0.34 : 0.2),
+        opacity: current ? 0.62 : (selected || focused ? 0.26 : 0.2),
         side: DoubleSide,
         depthWrite: false,
         blending: AdditiveBlending,
       });
       ring = new Mesh(_getSharedGeometry(
         current ? 'planet-marker-ring:current' : 'planet-marker-ring:standard',
-        function () { return new RingGeometry(1.72, current ? 1.84 : 1.78, 48); }
+        function () { return new RingGeometry(current ? 1.5 : 1.44, current ? 1.58 : 1.5, 48); }
       ), ringMaterial);
       ring.scale.setScalar(radius);
       ring.rotation.x = -Math.PI / 2;
@@ -835,12 +835,6 @@ function _buildPlanetScene(state, galaxyId) {
       group.add(moonPivot);
     }
 
-    let beacon = null;
-    if (current) {
-      beacon = _createVolumetricBeacon(radius, new Color(0xffe7a0), true);
-      group.add(beacon);
-    }
-
     const labelPriority = current || unlocked || _hash(system.id) % 4 === 0;
     const shouldCreateLabel = qualityLevel === 'high' || labelPriority || selected || focused;
     const label = shouldCreateLabel
@@ -869,7 +863,6 @@ function _buildPlanetScene(state, galaxyId) {
       ringMaterial,
       debrisRing,
       moonPivot,
-      beacon,
       label,
       labelPriority,
       phase: index * 0.41,
@@ -1258,91 +1251,6 @@ function _createPixelTexture(pixels, width, height, colorManaged) {
     : 1;
   texture.needsUpdate = true;
   return texture;
-}
-
-function _createVolumetricBeacon(radius, color, current) {
-  const beacon = new Group();
-  beacon.name = 'currentPlanetBeacon3d';
-  const beamHeight = radius * (current ? 8.6 : 7.4);
-  const baseY = radius * 1.02;
-  const outerMaterial = new MeshBasicMaterial({
-    color,
-    transparent: true,
-    opacity: current ? 0.15 : 0.12,
-    side: DoubleSide,
-    depthWrite: false,
-    blending: AdditiveBlending,
-  });
-  const outerBeam = new Mesh(
-    new ConeGeometry(radius * 0.82, beamHeight, 32, 1, true),
-    outerMaterial
-  );
-  outerBeam.position.y = baseY + beamHeight * 0.5;
-  outerBeam.renderOrder = 3;
-  beacon.add(outerBeam);
-
-  const coreHeight = beamHeight * 0.78;
-  const coreMaterial = new MeshBasicMaterial({
-    color: color.clone().lerp(new Color(0xffffff), 0.58),
-    transparent: true,
-    opacity: current ? 0.32 : 0.26,
-    side: DoubleSide,
-    depthWrite: false,
-    blending: AdditiveBlending,
-  });
-  const coreBeam = new Mesh(
-    new ConeGeometry(radius * 0.3, coreHeight, 24, 1, true),
-    coreMaterial
-  );
-  coreBeam.position.y = baseY + coreHeight * 0.5;
-  coreBeam.rotation.y = Math.PI / 12;
-  coreBeam.renderOrder = 4;
-  beacon.add(coreBeam);
-
-  const cageMaterial = new MeshBasicMaterial({
-    color: color.clone().lerp(new Color(0xffffff), 0.28),
-    transparent: true,
-    opacity: current ? 0.22 : 0.17,
-    wireframe: true,
-    depthWrite: false,
-    blending: AdditiveBlending,
-  });
-  const cage = new Mesh(
-    new ConeGeometry(radius * 0.94, beamHeight * 0.92, 12, 3, true),
-    cageMaterial
-  );
-  cage.position.y = baseY + beamHeight * 0.46;
-  cage.rotation.y = Math.PI / 12;
-  cage.renderOrder = 5;
-  beacon.add(cage);
-
-  const baseRingMaterial = new MeshBasicMaterial({
-    color,
-    transparent: true,
-    opacity: current ? 0.72 : 0.58,
-    side: DoubleSide,
-    depthWrite: false,
-    blending: AdditiveBlending,
-  });
-  const baseRing = new Mesh(
-    new RingGeometry(radius * 0.98, radius * 1.28, 64),
-    baseRingMaterial
-  );
-  baseRing.position.y = baseY;
-  baseRing.rotation.x = -Math.PI / 2;
-  baseRing.renderOrder = 6;
-  beacon.add(baseRing);
-
-  beacon.userData.outerBeam = outerBeam;
-  beacon.userData.coreBeam = coreBeam;
-  beacon.userData.cage = cage;
-  beacon.userData.baseRing = baseRing;
-  beacon.userData.outerMaterial = outerMaterial;
-  beacon.userData.coreMaterial = coreMaterial;
-  beacon.userData.cageMaterial = cageMaterial;
-  beacon.userData.baseRingMaterial = baseRingMaterial;
-  beacon.userData.current = current;
-  return beacon;
 }
 
 function _createNebulaTexture(colorHex, seed) {
@@ -1936,31 +1844,21 @@ function _animateScene(time) {
     const focused = entry.id === _focusPlanetId;
     const hot = hovered || selected || focused || entry.current;
     const pulse = _motionLevel === 'off' ? 0 : Math.sin(time * 0.0022 + entry.phase) * 0.06;
-    const targetScale = hovered ? 1.16 : (selected || focused ? 1.05 : (entry.current ? 1.08 + pulse : 1));
+    const targetScale = hovered ? 1.1 : (selected || focused ? 1.03 : (entry.current ? 1.04 + pulse * 0.35 : 1));
     const scaleLerp = reducedMotion ? 0.08 : 0.15;
     entry.group.scale.x += (targetScale - entry.group.scale.x) * scaleLerp;
     entry.group.scale.y += (targetScale - entry.group.scale.y) * scaleLerp;
     entry.group.scale.z += (targetScale - entry.group.scale.z) * scaleLerp;
     entry.group.position.y = entry.group.userData.baseY + (_motionLevel === 'off' ? 0 : Math.sin(time * 0.0007 + entry.group.userData.phase) * 0.52);
     entry.halo.visible = hot;
-    entry.haloMaterial.opacity = hovered ? 0.62 : (entry.current ? 0.58 + pulse : (selected || focused ? 0.22 : 0.18));
+    entry.haloMaterial.opacity = hovered ? 0.52 : (entry.current ? 0.4 + pulse * 0.25 : (selected || focused ? 0.18 : 0.18));
     if (entry.ringMaterial) {
-      entry.ringMaterial.opacity = hovered ? 0.78 : (entry.current ? 0.76 + pulse : (selected || focused ? 0.34 : 0.18));
+      entry.ringMaterial.opacity = hovered ? 0.62 : (entry.current ? 0.56 + pulse * 0.25 : (selected || focused ? 0.26 : 0.18));
     }
     if (entry.atmosphereMaterial) {
       entry.atmosphereMaterial.opacity = hovered || entry.current ? 0.22 : (selected || focused ? 0.13 : 0.09);
     }
-    if (entry.beacon) {
-      const beaconPulse = _motionLevel === 'off' ? 0 : Math.sin(time * 0.0024 + entry.phase);
-      const beaconData = entry.beacon.userData;
-      beaconData.outerMaterial.opacity = (beaconData.current ? 0.15 : 0.12) + beaconPulse * 0.035;
-      beaconData.coreMaterial.opacity = (beaconData.current ? 0.32 : 0.26) + beaconPulse * 0.055;
-      beaconData.cageMaterial.opacity = (beaconData.current ? 0.22 : 0.17) + beaconPulse * 0.035;
-      beaconData.baseRingMaterial.opacity = (beaconData.current ? 0.72 : 0.58) + beaconPulse * 0.1;
-      const ringScale = 1 + beaconPulse * 0.065;
-      beaconData.baseRing.scale.setScalar(ringScale);
-    }
-    entry.bodyMaterial.emissiveIntensity = hovered || entry.current ? 2.1 : (selected || focused ? 1.35 : 1.15);
+    entry.bodyMaterial.emissiveIntensity = hovered || entry.current ? 1.7 : (selected || focused ? 1.28 : 1.15);
     if (entry.label) {
       entry.label.visible = hot || (wideLabels && entry.labelPriority);
       entry.label.material.opacity = entry.unlocked ? (hot ? 1 : 0.78) : 0.46;
@@ -1971,12 +1869,6 @@ function _animateScene(time) {
       if (entry.ring) entry.ring.rotation.z += entry.current ? 0.0022 : 0.00075;
       if (entry.debrisRing) entry.debrisRing.rotation.z -= 0.00042 + (index % 3) * 0.00006;
       if (entry.moonPivot) entry.moonPivot.rotation.y += 0.004 + (index % 4) * 0.0005;
-      if (entry.beacon) {
-        entry.beacon.userData.outerBeam.rotation.y += 0.0016;
-        entry.beacon.userData.coreBeam.rotation.y -= 0.0024;
-        entry.beacon.userData.cage.rotation.y += 0.0032;
-        entry.beacon.userData.baseRing.rotation.z -= 0.0022;
-      }
     }
   });
 
