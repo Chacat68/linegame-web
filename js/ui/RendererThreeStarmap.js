@@ -53,15 +53,19 @@ const GALAXY_CAMERA_HOME = new Vector3(0, 112, 192);
 const GALAXY_CAMERA_TARGET = new Vector3(0, 0, 0);
 const GALAXY_CAMERA_HOME_NARROW = new Vector3(0, 104, 205);
 const GALAXY_CAMERA_TARGET_NARROW = new Vector3(0, -48, 0);
-const PLANET_CAMERA_HOME = new Vector3(0, 232, 104);
+const PLANET_CAMERA_HOME = new Vector3(0, 276, 124);
 const PLANET_CAMERA_TARGET = new Vector3(0, -4, 0);
-const PLANET_CAMERA_HOME_NARROW = new Vector3(0, 292, 138);
-const PLANET_CAMERA_TARGET_NARROW = new Vector3(0, -24, 0);
+const PLANET_CAMERA_HOME_NARROW = new Vector3(0, 350, 166);
+const PLANET_CAMERA_TARGET_NARROW = new Vector3(0, -34, 0);
 const GALAXY_SPAN_X = 188;
 const GALAXY_SPAN_Z = 126;
-const PLANET_SPAN_X = 292;
-const PLANET_SPAN_Z = 204;
-const PLANET_MIN_SEPARATION = 21;
+const PLANET_SPAN_X = 420;
+const PLANET_SPAN_Z = 294;
+const PLANET_MIN_SEPARATION = 29;
+const PLANET_CONNECTION_DISTANCE = 66;
+const PLANET_LAYOUT_SCALE_X = PLANET_SPAN_X / 292;
+const PLANET_LAYOUT_SCALE_Z = PLANET_SPAN_Z / 204;
+const PLANET_LAYOUT_SCALE = (PLANET_LAYOUT_SCALE_X + PLANET_LAYOUT_SCALE_Z) * 0.5;
 
 const PLANET_COLORS = {
   agricultural: '#5fd47a',
@@ -83,9 +87,9 @@ const SHIP_ACCENTS = {
 };
 
 const QUALITY = {
-  high: { pixelRatio: 1.75, backgroundStars: 1400, galaxyStars: 120, textureSize: 256, curveSegments: 48, planetSegments: 36 },
-  medium: { pixelRatio: 1.5, backgroundStars: 800, galaxyStars: 72, textureSize: 192, curveSegments: 36, planetSegments: 28 },
-  low: { pixelRatio: 1, backgroundStars: 420, galaxyStars: 38, textureSize: 128, curveSegments: 24, planetSegments: 20 },
+  high: { pixelRatio: 1.5, backgroundStars: 1100, galaxyStars: 96, textureSize: 224, curveSegments: 40, planetSegments: 30 },
+  medium: { pixelRatio: 1.25, backgroundStars: 650, galaxyStars: 56, textureSize: 160, curveSegments: 28, planetSegments: 22 },
+  low: { pixelRatio: 1, backgroundStars: 320, galaxyStars: 28, textureSize: 96, curveSegments: 18, planetSegments: 16 },
 };
 
 let _canvas = null;
@@ -132,6 +136,17 @@ let _framedPlanetSystemId = null;
 let _framedPlanetGalaxyId = null;
 const _planetSurfaceMapCache = new Map();
 const _persistentPlanetTextures = new Set();
+const _sharedGeometryCache = new Map();
+const _persistentGeometries = new Set();
+let _sharedHaloTexture = null;
+let _sharedStarTexture = null;
+const _performanceStats = {
+  samples: 0,
+  lastFrameAt: 0,
+  averageFrameMs: 0,
+  averageCpuMs: 0,
+  maxCpuMs: 0,
+};
 
 export function init() {
   if (_initialized && _renderer && !_contextLost) return true;
@@ -180,9 +195,9 @@ export function init() {
 
   _scene = new Scene();
   _scene.background = new Color(0x02060d);
-  _scene.fog = new FogExp2(0x02060d, 0.00145);
+  _scene.fog = new FogExp2(0x02060d, 0.00105);
 
-  _camera = new PerspectiveCamera(48, 1, 0.1, 900);
+  _camera = new PerspectiveCamera(48, 1, 0.1, 1400);
   _camera.position.copy(PLANET_CAMERA_HOME);
 
   _controls = new OrbitControls(_camera, _canvas);
@@ -192,7 +207,7 @@ export function init() {
   _controls.enablePan = true;
   _controls.screenSpacePanning = false;
   _controls.minDistance = 76;
-  _controls.maxDistance = 520;
+  _controls.maxDistance = 640;
   _controls.minPolarAngle = Math.PI * 0.08;
   _controls.maxPolarAngle = Math.PI * 0.47;
   _controls.panSpeed = 0.55;
@@ -282,11 +297,12 @@ export function render(state, mapView, galaxyId) {
     _dirty = false;
   }
 
-  const now = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
+  const now = _now();
   _animateScene(now);
   _completeFlightIfNeeded(now);
   _controls.update();
   _renderer.render(_scene, _camera);
+  _recordPerformance(now, _now());
 }
 
 export function setQuality(level) {
@@ -441,6 +457,10 @@ export function getRendererInfo() {
     points: _renderer.info.render.points,
     geometries: _renderer.info.memory.geometries,
     textures: _renderer.info.memory.textures,
+    fps: _performanceStats.averageFrameMs > 0 ? 1000 / _performanceStats.averageFrameMs : 0,
+    frameMs: _performanceStats.averageFrameMs,
+    cpuMs: _performanceStats.averageCpuMs,
+    maxCpuMs: _performanceStats.maxCpuMs,
   };
 }
 
@@ -634,9 +654,10 @@ function _buildPlanetScene(state, galaxyId) {
 
   _buildPlanetEnvironment(state);
   _buildPlanetConnections(systems, positions, state);
+  _buildPlanetAmbientHalos(systems, positions, state);
   _buildOperationalRoutes(state, positions);
 
-  const quality = _getQualitySettings();
+  const qualityLevel = _getEffectiveQualityLevel();
   systems.forEach(function (system, index) {
     const unlocked = isSystemAccessible(system.id, state.playerLevel || 1, state.researchedTechs || []);
     const current = system.id === state.currentSystem;
@@ -645,6 +666,7 @@ function _buildPlanetScene(state, galaxyId) {
     const baseColor = new Color(PLANET_COLORS[system.type] || system.color || '#72ddff');
     const displayColor = unlocked ? baseColor : baseColor.clone().lerp(new Color(0x52616c), 0.58);
     const radius = _getPlanetRadius(system);
+    const richVisuals = qualityLevel === 'high' || current || selected || focused;
     const group = new Group();
     group.name = 'system_' + system.id;
     group.position.copy(positions.get(system.id));
@@ -652,19 +674,21 @@ function _buildPlanetScene(state, galaxyId) {
     group.userData.phase = (_hash(system.id) % 628) / 100;
 
     const haloMaterial = new SpriteMaterial({
-      map: _createHaloTexture(unlocked ? ('#' + baseColor.getHexString()) : '#71808c'),
+      map: _getSharedHaloTexture(),
       color: displayColor,
       transparent: true,
-      opacity: current ? 0.72 : (selected || focused ? 0.56 : 0.28),
+      opacity: current ? 0.72 : (selected || focused ? 0.24 : 0.28),
       depthWrite: false,
       blending: AdditiveBlending,
     });
     const halo = new Sprite(haloMaterial);
-    halo.scale.set(radius * 8.4, radius * 8.4, 1);
+    const haloScale = radius * (current ? 8.4 : (selected || focused ? 5.6 : 8.4));
+    halo.scale.set(haloScale, haloScale, 1);
     halo.renderOrder = 1;
+    halo.visible = current || selected || focused;
     group.add(halo);
 
-    const surfaceMaps = _createPlanetSurfaceMaps(system, baseColor);
+    const surfaceMaps = _createPlanetSurfaceMaps(system, baseColor, richVisuals);
     const bodyMaterial = new MeshStandardMaterial({
       color: unlocked ? 0xffffff : 0x71808a,
       map: surfaceMaps.colorMap,
@@ -682,10 +706,8 @@ function _buildPlanetScene(state, galaxyId) {
       transparent: !unlocked,
       opacity: unlocked ? 1 : 0.72,
     });
-    const body = new Mesh(
-      new SphereGeometry(radius, quality.planetSegments, Math.max(8, Math.round(quality.planetSegments * 0.7))),
-      bodyMaterial
-    );
+    const body = new Mesh(_getSharedPlanetSphereGeometry(), bodyMaterial);
+    body.scale.setScalar(radius);
     body.rotation.z = ((_hash(system.id) % 21) - 10) * 0.015;
     body.rotation.y = (_hash(system.id + ':surface-offset') % 628) / 100;
     body.renderOrder = 4;
@@ -695,7 +717,7 @@ function _buildPlanetScene(state, galaxyId) {
 
     let cloudShell = null;
     let cloudMaterial = null;
-    if (surfaceMaps.cloudMap && (unlocked || current)) {
+    if (richVisuals && surfaceMaps.cloudMap && (unlocked || current)) {
       cloudMaterial = new MeshStandardMaterial({
         color: 0xffffff,
         map: surfaceMaps.cloudMap,
@@ -706,14 +728,8 @@ function _buildPlanetScene(state, galaxyId) {
         metalness: 0,
         roughness: 0.86,
       });
-      cloudShell = new Mesh(
-        new SphereGeometry(
-          radius * 1.026,
-          quality.planetSegments,
-          Math.max(10, Math.round(quality.planetSegments * 0.7))
-        ),
-        cloudMaterial
-      );
+      cloudShell = new Mesh(_getSharedPlanetSphereGeometry(), cloudMaterial);
+      cloudShell.scale.setScalar(radius * 1.026);
       cloudShell.rotation.y = (_hash(system.id + ':cloud') % 628) / 100;
       cloudShell.rotation.z = body.rotation.z;
       cloudShell.renderOrder = 5;
@@ -721,7 +737,7 @@ function _buildPlanetScene(state, galaxyId) {
     }
 
     let atmosphereMaterial = null;
-    if (unlocked || current) {
+    if (richVisuals && (unlocked || current)) {
       atmosphereMaterial = new MeshBasicMaterial({
         color: displayColor,
         transparent: true,
@@ -730,35 +746,34 @@ function _buildPlanetScene(state, galaxyId) {
         depthWrite: false,
         blending: AdditiveBlending,
       });
-      const atmosphere = new Mesh(
-        new SphereGeometry(radius * 1.28, Math.max(10, quality.planetSegments - 4), 10),
-        atmosphereMaterial
-      );
+      const atmosphere = new Mesh(_getSharedPlanetSphereGeometry(), atmosphereMaterial);
+      atmosphere.scale.setScalar(radius * 1.28);
       group.add(atmosphere);
     }
 
     let ring = null;
     let ringMaterial = null;
-    if (unlocked || current || selected || focused) {
+    if (current || selected || focused || (qualityLevel === 'high' && unlocked)) {
       ringMaterial = new MeshBasicMaterial({
         color: current ? 0xffe9a8 : displayColor,
         transparent: true,
-        opacity: current ? 0.82 : (selected || focused ? 0.62 : 0.2),
+        opacity: current ? 0.82 : (selected || focused ? 0.34 : 0.2),
         side: DoubleSide,
         depthWrite: false,
         blending: AdditiveBlending,
       });
-      ring = new Mesh(
-        new RingGeometry(radius * 1.72, radius * (current ? 1.84 : 1.78), 48),
-        ringMaterial
-      );
+      ring = new Mesh(_getSharedGeometry(
+        current ? 'planet-marker-ring:current' : 'planet-marker-ring:standard',
+        function () { return new RingGeometry(1.72, current ? 1.84 : 1.78, 48); }
+      ), ringMaterial);
+      ring.scale.setScalar(radius);
       ring.rotation.x = -Math.PI / 2;
       ring.renderOrder = 5;
       group.add(ring);
     }
 
     let debrisRing = null;
-    const hasDebrisRing = unlocked && (
+    const hasDebrisRing = qualityLevel === 'high' && unlocked && (
       system.type === 'mining'
       || system.type === 'special'
       || (system.type === 'energy' && _hash(system.id) % 3 === 0)
@@ -771,16 +786,17 @@ function _buildPlanetScene(state, galaxyId) {
         side: DoubleSide,
         depthWrite: false,
       });
-      debrisRing = new Mesh(
-        new RingGeometry(radius * 1.34, radius * 1.76, 72, 3),
-        debrisMaterial
-      );
+      debrisRing = new Mesh(_getSharedGeometry(
+        'planet-debris-ring',
+        function () { return new RingGeometry(1.34, 1.76, 72, 3); }
+      ), debrisMaterial);
+      debrisRing.scale.setScalar(radius);
       debrisRing.rotation.set(Math.PI * 0.62, 0.16, ((_hash(system.id) % 36) - 18) * 0.018);
       debrisRing.renderOrder = 4;
       group.add(debrisRing);
     }
 
-    if (unlocked && (system.type === 'energy' || system.type === 'commercial' || system.type === 'special')) {
+    if (qualityLevel === 'high' && unlocked && (system.type === 'energy' || system.type === 'commercial' || system.type === 'special')) {
       const orbitalMaterial = new MeshBasicMaterial({
         color: displayColor,
         transparent: true,
@@ -789,13 +805,17 @@ function _buildPlanetScene(state, galaxyId) {
         depthWrite: false,
         blending: AdditiveBlending,
       });
-      const orbital = new Mesh(new RingGeometry(radius * 1.24, radius * 1.34, 44), orbitalMaterial);
+      const orbital = new Mesh(_getSharedGeometry(
+        'planet-orbital-ring',
+        function () { return new RingGeometry(1.24, 1.34, 44); }
+      ), orbitalMaterial);
+      orbital.scale.setScalar(radius);
       orbital.rotation.set(Math.PI * 0.58, 0.18, ((_hash(system.id) % 30) - 15) * 0.02);
       group.add(orbital);
     }
 
     let moonPivot = null;
-    if (current || _hash(system.id) % 7 === 0) {
+    if (current || selected || focused || (qualityLevel === 'high' && _hash(system.id) % 7 === 0)) {
       moonPivot = new Group();
       moonPivot.rotation.x = 0.26 + (_hash(system.id) % 17) * 0.018;
       const moonMaterial = new MeshStandardMaterial({
@@ -805,7 +825,11 @@ function _buildPlanetScene(state, galaxyId) {
         metalness: 0.08,
         roughness: 0.86,
       });
-      const moon = new Mesh(new SphereGeometry(radius * 0.22, 8, 6), moonMaterial);
+      const moon = new Mesh(_getSharedGeometry(
+        'planet-moon',
+        function () { return new SphereGeometry(1, 8, 6); }
+      ), moonMaterial);
+      moon.scale.setScalar(radius * 0.22);
       moon.position.x = radius * (2.15 + (_hash(system.id) % 5) * 0.12);
       moonPivot.add(moon);
       group.add(moonPivot);
@@ -813,25 +837,20 @@ function _buildPlanetScene(state, galaxyId) {
 
     let beacon = null;
     if (current) {
-      const beaconMaterial = new SpriteMaterial({
-        map: _createBeaconTexture('#ffe7a0'),
-        color: 0xffe8a8,
-        transparent: true,
-        opacity: 0.78,
-        depthWrite: false,
-        blending: AdditiveBlending,
-      });
-      beacon = new Sprite(beaconMaterial);
-      beacon.position.set(0, radius * 3.9, 0);
-      beacon.scale.set(radius * 1.9, radius * 8.5, 1);
-      beacon.renderOrder = 2;
+      beacon = _createVolumetricBeacon(radius, new Color(0xffe7a0), true);
       group.add(beacon);
     }
 
-    const label = _createPlanetLabelSprite(system, displayColor, unlocked, current);
-    label.position.set(0, radius * 2.25 + 1.2, 0);
-    label.renderOrder = 10;
-    group.add(label);
+    const labelPriority = current || unlocked || _hash(system.id) % 4 === 0;
+    const shouldCreateLabel = qualityLevel === 'high' || labelPriority || selected || focused;
+    const label = shouldCreateLabel
+      ? _createPlanetLabelSprite(system, displayColor, unlocked, current)
+      : null;
+    if (label) {
+      label.position.set(0, radius * 2.25 + 1.2, 0);
+      label.renderOrder = 10;
+      group.add(label);
+    }
 
     _planetEntries.push({
       id: system.id,
@@ -844,6 +863,7 @@ function _buildPlanetScene(state, galaxyId) {
       cloudShell,
       cloudMaterial,
       atmosphereMaterial,
+      halo,
       haloMaterial,
       ring,
       ringMaterial,
@@ -851,7 +871,7 @@ function _buildPlanetScene(state, galaxyId) {
       moonPivot,
       beacon,
       label,
-      labelPriority: current || unlocked || _hash(system.id) % 4 === 0,
+      labelPriority,
       phase: index * 0.41,
     });
     _planetRoot.add(group);
@@ -889,7 +909,7 @@ function _buildPlanetEnvironment() {
   dustGeometry.setAttribute('position', new BufferAttribute(dustPositions, 3));
   dustGeometry.setAttribute('color', new BufferAttribute(dustColors, 3));
   const dustMaterial = new PointsMaterial({
-    map: _createStarTexture(),
+    map: _getSharedStarTexture(),
     size: qualityLevel === 'low' ? 1.05 : 1.34,
     sizeAttenuation: true,
     transparent: true,
@@ -907,7 +927,13 @@ function _buildPlanetEnvironment() {
     { x: -92, z: -45, radius: 42, color: 0x267ca0 },
     { x: 18, z: 8, radius: 50, color: 0x4b3d9b },
     { x: 105, z: 50, radius: 38, color: 0x8a5936 },
-  ];
+  ].slice(0, qualityLevel === 'high' ? 3 : (qualityLevel === 'medium' ? 2 : 1)).map(function (zone) {
+    return Object.assign({}, zone, {
+      x: zone.x * PLANET_LAYOUT_SCALE_X,
+      z: zone.z * PLANET_LAYOUT_SCALE_Z,
+      radius: zone.radius * PLANET_LAYOUT_SCALE,
+    });
+  });
   zoneSpecs.forEach(function (zone, index) {
     const material = new MeshBasicMaterial({
       color: zone.color,
@@ -923,7 +949,7 @@ function _buildPlanetEnvironment() {
     _planetRoot.add(ring);
   });
 
-  const nebulae = qualityLevel === 'low'
+  const nebulae = (qualityLevel !== 'high'
     ? [
       { x: -58, y: -15, z: 30, color: '#184e77', scale: 76 },
       { x: 86, y: -18, z: -42, color: '#5f285f', scale: 68 },
@@ -933,7 +959,13 @@ function _buildPlanetEnvironment() {
       { x: 15, y: -22, z: -62, color: '#4b286f', scale: 88 },
       { x: 105, y: -17, z: 42, color: '#6f3e26', scale: 78 },
       { x: 22, y: -24, z: 66, color: '#165a54', scale: 72 },
-    ];
+    ]).map(function (spec) {
+      return Object.assign({}, spec, {
+        x: spec.x * PLANET_LAYOUT_SCALE_X,
+        z: spec.z * PLANET_LAYOUT_SCALE_Z,
+        scale: spec.scale * PLANET_LAYOUT_SCALE,
+      });
+    });
   nebulae.forEach(function (spec, index) {
     const material = new SpriteMaterial({
       map: _createNebulaTexture(spec.color, index + 11),
@@ -951,6 +983,43 @@ function _buildPlanetEnvironment() {
   });
 }
 
+function _buildPlanetAmbientHalos(systems, positions, state) {
+  if (!systems.length) return;
+  const qualityLevel = _getEffectiveQualityLevel();
+  const haloPositions = new Float32Array(systems.length * 3);
+  const haloColors = new Float32Array(systems.length * 3);
+  systems.forEach(function (system, index) {
+    const position = positions.get(system.id);
+    const unlocked = isSystemAccessible(system.id, state.playerLevel || 1, state.researchedTechs || []);
+    const baseColor = new Color(PLANET_COLORS[system.type] || system.color || '#72ddff');
+    const color = unlocked ? baseColor : baseColor.clone().lerp(new Color(0x52616c), 0.68);
+    haloPositions[index * 3] = position.x;
+    haloPositions[index * 3 + 1] = position.y;
+    haloPositions[index * 3 + 2] = position.z;
+    haloColors[index * 3] = color.r;
+    haloColors[index * 3 + 1] = color.g;
+    haloColors[index * 3 + 2] = color.b;
+  });
+  const geometry = new BufferGeometry();
+  geometry.setAttribute('position', new BufferAttribute(haloPositions, 3));
+  geometry.setAttribute('color', new BufferAttribute(haloColors, 3));
+  const material = new PointsMaterial({
+    map: _getSharedHaloTexture(),
+    size: qualityLevel === 'high' ? 34 : (qualityLevel === 'medium' ? 28 : 22),
+    sizeAttenuation: true,
+    transparent: true,
+    opacity: qualityLevel === 'low' ? 0.34 : 0.46,
+    alphaTest: 0.02,
+    vertexColors: true,
+    depthWrite: false,
+    blending: AdditiveBlending,
+  });
+  const halos = new Points(geometry, material);
+  halos.name = 'planetAmbientHalos';
+  halos.renderOrder = 1;
+  _planetRoot.add(halos);
+}
+
 function _buildPlanetConnections(systems, positions, state) {
   const edges = new Set();
   const activePoints = [];
@@ -965,7 +1034,7 @@ function _buildPlanetConnections(systems, positions, state) {
         const dz = source.z - target.z;
         return { candidate, distance: Math.sqrt(dx * dx + dz * dz) };
       })
-      .filter(function (entry) { return entry.distance < 46; })
+      .filter(function (entry) { return entry.distance < PLANET_CONNECTION_DISTANCE; })
       .sort(function (a, b) { return a.distance - b.distance; })
       .slice(0, 2);
 
@@ -1069,6 +1138,8 @@ function _createRouteVisual(fromId, toId, positions, colorHex, options) {
     ship,
     phase: options && options.phase ? options.phase : 0,
     activeFlight: !!(options && options.activeFlight),
+    positionScratch: new Vector3(),
+    lookAtScratch: new Vector3(),
   };
   _routeVisuals.push(visual);
   return visual;
@@ -1082,7 +1153,7 @@ function _createShipMarker(shipTypeId, colorHex) {
   body.rotation.x = Math.PI / 2;
   group.add(body);
   const engineMaterial = new SpriteMaterial({
-    map: _createHaloTexture('#' + color.getHexString()),
+    map: _getSharedHaloTexture(),
     color,
     transparent: true,
     opacity: 0.75,
@@ -1129,9 +1200,10 @@ function _createPlanetLabelSprite(system, color, unlocked, current) {
   return sprite;
 }
 
-function _createPlanetSurfaceMaps(system, color) {
+function _createPlanetSurfaceMaps(system, color, includeDetail) {
   const qualityLevel = _getEffectiveQualityLevel();
-  const cacheKey = [qualityLevel, system.type || 'special', color.getHexString()].join(':');
+  const detailed = !!includeDetail && qualityLevel !== 'low';
+  const cacheKey = [qualityLevel, system.type || 'special', color.getHexString(), detailed ? 'detail' : 'base'].join(':');
   if (_planetSurfaceMapCache.has(cacheKey)) return _planetSurfaceMapCache.get(cacheKey);
   const surface = createPlanetSurfaceData(
     { id: 'surface-family:' + (system.type || 'special'), type: system.type || 'special' },
@@ -1141,11 +1213,11 @@ function _createPlanetSurfaceMaps(system, color) {
   );
   const maps = {
     colorMap: _createPixelTexture(surface.albedo, surface.width, surface.height, true),
-    bumpMap: _createPixelTexture(surface.bump, surface.width, surface.height, false),
-    cloudMap: surface.hasClouds
+    bumpMap: detailed ? _createPixelTexture(surface.bump, surface.width, surface.height, false) : null,
+    cloudMap: detailed && surface.hasClouds
       ? _createPixelTexture(surface.clouds, surface.width, surface.height, true)
       : null,
-    emissiveMap: surface.hasLights && surface.emissive
+    emissiveMap: detailed && surface.hasLights && surface.emissive
       ? _createPixelTexture(surface.emissive, surface.width, surface.height, true)
       : null,
     gaseous: surface.gaseous,
@@ -1179,30 +1251,98 @@ function _createPixelTexture(pixels, width, height, colorManaged) {
   const texture = new CanvasTexture(canvas);
   if (colorManaged) texture.colorSpace = SRGBColorSpace;
   texture.wrapS = RepeatWrapping;
+  const qualityLevel = _getEffectiveQualityLevel();
+  const anisotropyLimit = qualityLevel === 'high' ? 8 : (qualityLevel === 'medium' ? 4 : 2);
   texture.anisotropy = _renderer && _renderer.capabilities
-    ? Math.min(8, _renderer.capabilities.getMaxAnisotropy())
+    ? Math.min(anisotropyLimit, _renderer.capabilities.getMaxAnisotropy())
     : 1;
   texture.needsUpdate = true;
   return texture;
 }
 
-function _createBeaconTexture(colorHex) {
-  const canvas = document.createElement('canvas');
-  canvas.width = 32;
-  canvas.height = 256;
-  const ctx = canvas.getContext('2d');
-  const color = new Color(colorHex);
-  const red = Math.round(color.r * 255);
-  const green = Math.round(color.g * 255);
-  const blue = Math.round(color.b * 255);
-  const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-  gradient.addColorStop(0, 'rgba(' + red + ',' + green + ',' + blue + ',0)');
-  gradient.addColorStop(0.24, 'rgba(' + red + ',' + green + ',' + blue + ',0.12)');
-  gradient.addColorStop(0.78, 'rgba(' + red + ',' + green + ',' + blue + ',0.62)');
-  gradient.addColorStop(1, 'rgba(' + red + ',' + green + ',' + blue + ',0)');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  return new CanvasTexture(canvas);
+function _createVolumetricBeacon(radius, color, current) {
+  const beacon = new Group();
+  beacon.name = 'currentPlanetBeacon3d';
+  const beamHeight = radius * (current ? 8.6 : 7.4);
+  const baseY = radius * 1.02;
+  const outerMaterial = new MeshBasicMaterial({
+    color,
+    transparent: true,
+    opacity: current ? 0.15 : 0.12,
+    side: DoubleSide,
+    depthWrite: false,
+    blending: AdditiveBlending,
+  });
+  const outerBeam = new Mesh(
+    new ConeGeometry(radius * 0.82, beamHeight, 32, 1, true),
+    outerMaterial
+  );
+  outerBeam.position.y = baseY + beamHeight * 0.5;
+  outerBeam.renderOrder = 3;
+  beacon.add(outerBeam);
+
+  const coreHeight = beamHeight * 0.78;
+  const coreMaterial = new MeshBasicMaterial({
+    color: color.clone().lerp(new Color(0xffffff), 0.58),
+    transparent: true,
+    opacity: current ? 0.32 : 0.26,
+    side: DoubleSide,
+    depthWrite: false,
+    blending: AdditiveBlending,
+  });
+  const coreBeam = new Mesh(
+    new ConeGeometry(radius * 0.3, coreHeight, 24, 1, true),
+    coreMaterial
+  );
+  coreBeam.position.y = baseY + coreHeight * 0.5;
+  coreBeam.rotation.y = Math.PI / 12;
+  coreBeam.renderOrder = 4;
+  beacon.add(coreBeam);
+
+  const cageMaterial = new MeshBasicMaterial({
+    color: color.clone().lerp(new Color(0xffffff), 0.28),
+    transparent: true,
+    opacity: current ? 0.22 : 0.17,
+    wireframe: true,
+    depthWrite: false,
+    blending: AdditiveBlending,
+  });
+  const cage = new Mesh(
+    new ConeGeometry(radius * 0.94, beamHeight * 0.92, 12, 3, true),
+    cageMaterial
+  );
+  cage.position.y = baseY + beamHeight * 0.46;
+  cage.rotation.y = Math.PI / 12;
+  cage.renderOrder = 5;
+  beacon.add(cage);
+
+  const baseRingMaterial = new MeshBasicMaterial({
+    color,
+    transparent: true,
+    opacity: current ? 0.72 : 0.58,
+    side: DoubleSide,
+    depthWrite: false,
+    blending: AdditiveBlending,
+  });
+  const baseRing = new Mesh(
+    new RingGeometry(radius * 0.98, radius * 1.28, 64),
+    baseRingMaterial
+  );
+  baseRing.position.y = baseY;
+  baseRing.rotation.x = -Math.PI / 2;
+  baseRing.renderOrder = 6;
+  beacon.add(baseRing);
+
+  beacon.userData.outerBeam = outerBeam;
+  beacon.userData.coreBeam = coreBeam;
+  beacon.userData.cage = cage;
+  beacon.userData.baseRing = baseRing;
+  beacon.userData.outerMaterial = outerMaterial;
+  beacon.userData.coreMaterial = coreMaterial;
+  beacon.userData.cageMaterial = cageMaterial;
+  beacon.userData.baseRingMaterial = baseRingMaterial;
+  beacon.userData.current = current;
+  return beacon;
 }
 
 function _createNebulaTexture(colorHex, seed) {
@@ -1259,7 +1399,7 @@ function _createPlanetPositions(systems) {
 
   const limitX = PLANET_SPAN_X * 0.5;
   const limitZ = PLANET_SPAN_Z * 0.5;
-  for (let iteration = 0; iteration < 9; iteration += 1) {
+  for (let iteration = 0; iteration < 12; iteration += 1) {
     for (let leftIndex = 0; leftIndex < systems.length; leftIndex += 1) {
       const left = positions.get(systems[leftIndex].id);
       for (let rightIndex = leftIndex + 1; rightIndex < systems.length; rightIndex += 1) {
@@ -1305,12 +1445,12 @@ function _buildBackground() {
   _clearGroup(_backgroundRoot);
   const settings = _getQualitySettings();
   const rng = _createRng(3045);
-  const starTexture = _createStarTexture();
+  const starTexture = _getSharedStarTexture();
   const positions = new Float32Array(settings.backgroundStars * 3);
   const colors = new Float32Array(settings.backgroundStars * 3);
 
   for (let i = 0; i < settings.backgroundStars; i += 1) {
-    const radius = 170 + rng() * 330;
+    const radius = 230 + rng() * 470;
     const theta = rng() * Math.PI * 2;
     const y = (rng() - 0.5) * 300;
     positions[i * 3] = Math.cos(theta) * radius;
@@ -1374,7 +1514,7 @@ function _buildBackground() {
   nearStars.userData.rotationRate = -0.0000018;
   _backgroundRoot.add(nearStars);
 
-  if (_getEffectiveQualityLevel() !== 'low') {
+  if (_getEffectiveQualityLevel() === 'high') {
     [
       { color: '#163c78', x: -180, y: 42, z: -220, width: 260, height: 160, phase: 0.4 },
       { color: '#542360', x: 210, y: -54, z: -180, width: 230, height: 150, phase: 1.8 },
@@ -1399,7 +1539,9 @@ function _buildBackground() {
     });
   }
 
-  const glintCount = _getEffectiveQualityLevel() === 'high' ? 10 : 6;
+  const glintCount = _getEffectiveQualityLevel() === 'high'
+    ? 10
+    : (_getEffectiveQualityLevel() === 'medium' ? 4 : 2);
   for (let index = 0; index < glintCount; index += 1) {
     const color = index % 4 === 0 ? new Color(0xffd3a0) : new Color(0x9de6ff);
     const glintMaterial = new SpriteMaterial({
@@ -1422,7 +1564,7 @@ function _buildBackground() {
     _backgroundRoot.add(glint);
   }
 
-  const grid = new GridHelper(560, 36, 0x226487, 0x0f2f48);
+  const grid = new GridHelper(PLANET_SPAN_X * 1.74, 48, 0x226487, 0x0f2f48);
   grid.position.y = -18;
   grid.material.transparent = true;
   grid.material.opacity = 0.22;
@@ -1463,6 +1605,7 @@ function _buildGalaxyScene(state) {
   GALAXIES.forEach(function (galaxy) {
     positions.set(galaxy.id, _galaxyPosition(galaxy));
   });
+  _buildGalaxyAmbientHalos(positions, state);
   _buildGalaxyConnections(positions);
 
   GALAXIES.forEach(function (galaxy, index) {
@@ -1491,7 +1634,7 @@ function _buildGalaxyScene(state) {
     group.add(disk);
 
     const haloMaterial = new SpriteMaterial({
-      map: _createHaloTexture(galaxy.color || '#55a8ff'),
+      map: _getSharedHaloTexture(),
       color: access.unlocked ? color : new Color(0x65727e),
       transparent: true,
       opacity: current ? 0.58 : 0.22,
@@ -1501,6 +1644,7 @@ function _buildGalaxyScene(state) {
     const halo = new Sprite(haloMaterial);
     halo.scale.set(size * 1.48, size * 1.48, 1);
     halo.renderOrder = 2;
+    halo.visible = current;
     group.add(halo);
 
     const particles = _createGalaxyParticles(galaxy, color, access.unlocked);
@@ -1514,29 +1658,38 @@ function _buildGalaxyScene(state) {
       depthWrite: false,
       blending: AdditiveBlending,
     });
-    const ring = new Mesh(new RingGeometry(size * 0.56, size * 0.59, 72), ringMaterial);
+    const ring = new Mesh(_getSharedGeometry(
+      'galaxy-marker-ring',
+      function () { return new RingGeometry(0.56, 0.59, 72); }
+    ), ringMaterial);
+    ring.scale.setScalar(size);
     ring.rotation.x = -Math.PI / 2;
     ring.renderOrder = 4;
+    ring.visible = current || _getEffectiveQualityLevel() === 'high';
     group.add(ring);
-
-    const title = _createLabelSprite(galaxy.name, galaxy.color || '#55a8ff', false);
-    title.position.set(0, size * 0.58, 0);
-    title.scale.set(32, 8, 1);
-    title.renderOrder = 8;
-    group.add(title);
 
     const statusText = current
       ? 'CURRENT GALAXY'
       : (access.unlocked ? 'NAVIGATION ONLINE' : 'LV.' + access.requiredLevel + ' ACCESS LOCKED');
-    const status = _createLabelSprite(statusText, access.unlocked ? '#8bdcff' : '#8a98a7', true);
-    status.position.set(0, size * 0.42, 0);
-    status.scale.set(26, 5.2, 1);
-    status.renderOrder = 8;
-    group.add(status);
+    const label = _createGalaxyLabelSprite(
+      galaxy.name,
+      statusText,
+      galaxy.color || '#55a8ff',
+      access.unlocked ? '#8bdcff' : '#8a98a7'
+    );
+    label.position.set(0, size * 0.55, 0);
+    label.scale.set(34, 9.2, 1);
+    label.renderOrder = 8;
+    group.add(label);
 
     const hitMaterial = new MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
     hitMaterial.colorWrite = false;
-    const hitTarget = new Mesh(new SphereGeometry(size * 0.48, 12, 8), hitMaterial);
+    const hitTarget = new Mesh(_getSharedGeometry(
+      'galaxy-hit-sphere',
+      function () { return new SphereGeometry(1, 12, 8); }
+    ), hitMaterial);
+    hitTarget.scale.setScalar(size * 0.48);
+    hitTarget.visible = false;
     hitTarget.userData = {
       galaxyId: galaxy.id,
       unlocked: access.unlocked,
@@ -1558,14 +1711,51 @@ function _buildGalaxyScene(state) {
       ring: ring,
       ringMaterial: ringMaterial,
       particles: particles,
+      alwaysShowRing: _getEffectiveQualityLevel() === 'high',
     });
     _galaxyRoot.add(group);
   });
 }
 
+function _buildGalaxyAmbientHalos(positions, state) {
+  const haloPositions = new Float32Array(GALAXIES.length * 3);
+  const haloColors = new Float32Array(GALAXIES.length * 3);
+  GALAXIES.forEach(function (galaxy, index) {
+    const position = positions.get(galaxy.id);
+    const access = getGalaxyAccessState(galaxy.id, state.playerLevel || 1, state.researchedTechs || []);
+    const baseColor = new Color(galaxy.color || '#55a8ff');
+    const color = access.unlocked ? baseColor : baseColor.clone().lerp(new Color(0x65727e), 0.58);
+    haloPositions[index * 3] = position.x;
+    haloPositions[index * 3 + 1] = position.y;
+    haloPositions[index * 3 + 2] = position.z;
+    haloColors[index * 3] = color.r;
+    haloColors[index * 3 + 1] = color.g;
+    haloColors[index * 3 + 2] = color.b;
+  });
+  const geometry = new BufferGeometry();
+  geometry.setAttribute('position', new BufferAttribute(haloPositions, 3));
+  geometry.setAttribute('color', new BufferAttribute(haloColors, 3));
+  const material = new PointsMaterial({
+    map: _getSharedHaloTexture(),
+    size: _getEffectiveQualityLevel() === 'high' ? 44 : 36,
+    sizeAttenuation: true,
+    transparent: true,
+    opacity: 0.42,
+    alphaTest: 0.02,
+    vertexColors: true,
+    depthWrite: false,
+    blending: AdditiveBlending,
+  });
+  const halos = new Points(geometry, material);
+  halos.name = 'galaxyAmbientHalos';
+  halos.renderOrder = 2;
+  _galaxyRoot.add(halos);
+}
+
 function _buildGalaxyConnections(positions) {
   const settings = _getQualitySettings();
   const edges = new Set();
+  const linePoints = [];
   GALAXIES.forEach(function (galaxy) {
     const from = positions.get(galaxy.id);
     const nearest = GALAXIES
@@ -1584,19 +1774,24 @@ function _buildGalaxyConnections(positions) {
       const mid = from.clone().lerp(to, 0.5);
       mid.y += 7 + Math.sqrt(from.distanceTo(to)) * 0.2;
       const curve = new QuadraticBezierCurve3(from, mid, to);
-      const geometry = new BufferGeometry().setFromPoints(curve.getPoints(settings.curveSegments));
-      const material = new LineBasicMaterial({
-        color: 0x2b86b8,
-        transparent: true,
-        opacity: 0.2,
-        depthWrite: false,
-        blending: AdditiveBlending,
-      });
-      const line = new Line(geometry, material);
-      line.renderOrder = 1;
-      _galaxyRoot.add(line);
+      const curvePoints = curve.getPoints(settings.curveSegments);
+      for (let index = 1; index < curvePoints.length; index += 1) {
+        linePoints.push(curvePoints[index - 1], curvePoints[index]);
+      }
     });
   });
+  if (!linePoints.length) return;
+  const geometry = new BufferGeometry().setFromPoints(linePoints);
+  const material = new LineBasicMaterial({
+    color: 0x2b86b8,
+    transparent: true,
+    opacity: 0.2,
+    depthWrite: false,
+    blending: AdditiveBlending,
+  });
+  const lines = new LineSegments(geometry, material);
+  lines.renderOrder = 1;
+  _galaxyRoot.add(lines);
 }
 
 function _createGalaxyParticles(galaxy, color, unlocked) {
@@ -1701,19 +1896,24 @@ function _createHaloTexture(colorHex) {
   return texture;
 }
 
-function _createLabelSprite(text, color, compact) {
+function _createGalaxyLabelSprite(title, status, titleColor, statusColor) {
   const canvas = document.createElement('canvas');
   canvas.width = 512;
-  canvas.height = compact ? 80 : 112;
+  canvas.height = 128;
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = compact ? '600 22px ui-monospace, monospace' : '700 38px system-ui, sans-serif';
-  ctx.shadowColor = color;
-  ctx.shadowBlur = compact ? 8 : 16;
-  ctx.fillStyle = color;
-  ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+  ctx.font = '700 38px system-ui, sans-serif';
+  ctx.shadowColor = titleColor;
+  ctx.shadowBlur = 16;
+  ctx.fillStyle = titleColor;
+  ctx.fillText(title, canvas.width / 2, 42);
+  ctx.font = '600 20px ui-monospace, monospace';
+  ctx.shadowColor = statusColor;
+  ctx.shadowBlur = 8;
+  ctx.fillStyle = statusColor;
+  ctx.fillText(status, canvas.width / 2, 93);
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
   const material = new SpriteMaterial({
@@ -1730,39 +1930,57 @@ function _animateScene(time) {
   const reducedMotion = _motionLevel === 'reduced';
   const wideLabels = !_canvas || (_canvas.clientWidth || _canvas.getBoundingClientRect().width || 0) >= 720;
 
-  _planetEntries.forEach(function (entry, index) {
+  if (_mapView === 'planets') _planetEntries.forEach(function (entry, index) {
     const hovered = entry.id === _hoveredPlanetId;
     const selected = entry.id === _selectedPlanetId;
     const focused = entry.id === _focusPlanetId;
     const hot = hovered || selected || focused || entry.current;
     const pulse = _motionLevel === 'off' ? 0 : Math.sin(time * 0.0022 + entry.phase) * 0.06;
-    const targetScale = hovered ? 1.24 : (selected || focused ? 1.14 : (entry.current ? 1.08 + pulse : 1));
+    const targetScale = hovered ? 1.16 : (selected || focused ? 1.05 : (entry.current ? 1.08 + pulse : 1));
     const scaleLerp = reducedMotion ? 0.08 : 0.15;
     entry.group.scale.x += (targetScale - entry.group.scale.x) * scaleLerp;
     entry.group.scale.y += (targetScale - entry.group.scale.y) * scaleLerp;
     entry.group.scale.z += (targetScale - entry.group.scale.z) * scaleLerp;
     entry.group.position.y = entry.group.userData.baseY + (_motionLevel === 'off' ? 0 : Math.sin(time * 0.0007 + entry.group.userData.phase) * 0.52);
-    entry.haloMaterial.opacity = hovered ? 0.72 : (entry.current ? 0.58 + pulse : (selected || focused ? 0.48 : 0.18));
+    entry.halo.visible = hot;
+    entry.haloMaterial.opacity = hovered ? 0.62 : (entry.current ? 0.58 + pulse : (selected || focused ? 0.22 : 0.18));
     if (entry.ringMaterial) {
-      entry.ringMaterial.opacity = hovered ? 0.94 : (entry.current ? 0.76 + pulse : (selected || focused ? 0.64 : 0.18));
+      entry.ringMaterial.opacity = hovered ? 0.78 : (entry.current ? 0.76 + pulse : (selected || focused ? 0.34 : 0.18));
     }
     if (entry.atmosphereMaterial) {
-      entry.atmosphereMaterial.opacity = hot ? 0.22 : 0.09;
+      entry.atmosphereMaterial.opacity = hovered || entry.current ? 0.22 : (selected || focused ? 0.13 : 0.09);
     }
-    entry.bodyMaterial.emissiveIntensity = hot ? 2.1 : 1.15;
-    entry.label.visible = hot || (wideLabels && entry.labelPriority);
-    entry.label.material.opacity = entry.unlocked ? (hot ? 1 : 0.78) : 0.46;
+    if (entry.beacon) {
+      const beaconPulse = _motionLevel === 'off' ? 0 : Math.sin(time * 0.0024 + entry.phase);
+      const beaconData = entry.beacon.userData;
+      beaconData.outerMaterial.opacity = (beaconData.current ? 0.15 : 0.12) + beaconPulse * 0.035;
+      beaconData.coreMaterial.opacity = (beaconData.current ? 0.32 : 0.26) + beaconPulse * 0.055;
+      beaconData.cageMaterial.opacity = (beaconData.current ? 0.22 : 0.17) + beaconPulse * 0.035;
+      beaconData.baseRingMaterial.opacity = (beaconData.current ? 0.72 : 0.58) + beaconPulse * 0.1;
+      const ringScale = 1 + beaconPulse * 0.065;
+      beaconData.baseRing.scale.setScalar(ringScale);
+    }
+    entry.bodyMaterial.emissiveIntensity = hovered || entry.current ? 2.1 : (selected || focused ? 1.35 : 1.15);
+    if (entry.label) {
+      entry.label.visible = hot || (wideLabels && entry.labelPriority);
+      entry.label.material.opacity = entry.unlocked ? (hot ? 1 : 0.78) : 0.46;
+    }
     if (fullMotion) {
       entry.body.rotation.y += 0.0018 + (index % 7) * 0.00008;
       if (entry.cloudShell) entry.cloudShell.rotation.y += 0.00235 + (index % 5) * 0.00012;
       if (entry.ring) entry.ring.rotation.z += entry.current ? 0.0022 : 0.00075;
       if (entry.debrisRing) entry.debrisRing.rotation.z -= 0.00042 + (index % 3) * 0.00006;
       if (entry.moonPivot) entry.moonPivot.rotation.y += 0.004 + (index % 4) * 0.0005;
-      if (entry.beacon) entry.beacon.material.opacity = 0.68 + Math.sin(time * 0.0024) * 0.12;
+      if (entry.beacon) {
+        entry.beacon.userData.outerBeam.rotation.y += 0.0016;
+        entry.beacon.userData.coreBeam.rotation.y -= 0.0024;
+        entry.beacon.userData.cage.rotation.y += 0.0032;
+        entry.beacon.userData.baseRing.rotation.z -= 0.0022;
+      }
     }
   });
 
-  _routeVisuals.forEach(function (visual, index) {
+  if (_mapView === 'planets') _routeVisuals.forEach(function (visual, index) {
     if (!visual.ship || !visual.curve) return;
     let progress;
     if (visual.activeFlight && _flightPath) {
@@ -1772,16 +1990,16 @@ function _animateScene(time) {
         ? visual.phase
         : ((time * 0.000045 + visual.phase + index * 0.11) % 1);
     }
-    const point = visual.curve.getPoint(progress);
-    const next = visual.curve.getPoint(Math.min(1, progress + 0.015));
-    visual.ship.position.copy(point);
-    visual.ship.lookAt(next);
+    visual.curve.getPoint(progress, visual.positionScratch);
+    visual.curve.getPoint(Math.min(1, progress + 0.015), visual.lookAtScratch);
+    visual.ship.position.copy(visual.positionScratch);
+    visual.ship.lookAt(visual.lookAtScratch);
     if (_motionLevel !== 'off') {
       visual.material.opacity = Math.max(0.25, visual.material.opacity * 0.998 + (0.62 + Math.sin(time * 0.003 + index) * 0.12) * 0.002);
     }
   });
 
-  _galaxyEntries.forEach(function (entry, index) {
+  if (_mapView === 'galaxies') _galaxyEntries.forEach(function (entry, index) {
     const hovered = entry.id === _hoveredGalaxyId;
     const pulse = _motionLevel === 'off' ? 0 : Math.sin(time * (fullMotion ? 0.0016 : 0.0008) + index) * 0.035;
     const targetScale = hovered ? 1.15 : (entry.current ? 1.04 + pulse : 1);
@@ -1793,7 +2011,9 @@ function _animateScene(time) {
     entry.diskMaterial.opacity = entry.unlocked
       ? (hovered ? 1 : 0.9)
       : (hovered ? 0.46 : 0.3);
+    entry.halo.visible = hovered || entry.current;
     entry.haloMaterial.opacity = hovered ? 0.72 : (entry.current ? 0.52 + pulse : 0.2);
+    entry.ring.visible = entry.alwaysShowRing || hovered || entry.current;
     entry.ringMaterial.opacity = hovered ? 0.9 : (entry.current ? 0.62 + pulse : 0.16);
     if (fullMotion) {
       entry.disk.material.rotation += 0.00045 + index * 0.000015;
@@ -1956,7 +2176,60 @@ function _clearGroup(group) {
     if (!_persistentPlanetTextures.has(texture)) texture.dispose();
   });
   materials.forEach(function (material) { material.dispose(); });
-  geometries.forEach(function (geometry) { geometry.dispose(); });
+  geometries.forEach(function (geometry) {
+    if (!_persistentGeometries.has(geometry)) geometry.dispose();
+  });
+}
+
+function _getSharedGeometry(key, factory) {
+  if (_sharedGeometryCache.has(key)) return _sharedGeometryCache.get(key);
+  const geometry = factory();
+  _sharedGeometryCache.set(key, geometry);
+  _persistentGeometries.add(geometry);
+  return geometry;
+}
+
+function _getSharedPlanetSphereGeometry() {
+  const quality = _getQualitySettings();
+  const heightSegments = Math.max(8, Math.round(quality.planetSegments * 0.7));
+  const key = 'planet-sphere:' + quality.planetSegments + ':' + heightSegments;
+  return _getSharedGeometry(key, function () {
+    return new SphereGeometry(1, quality.planetSegments, heightSegments);
+  });
+}
+
+function _getSharedHaloTexture() {
+  if (_sharedHaloTexture) return _sharedHaloTexture;
+  _sharedHaloTexture = _createHaloTexture('#ffffff');
+  _persistentPlanetTextures.add(_sharedHaloTexture);
+  return _sharedHaloTexture;
+}
+
+function _getSharedStarTexture() {
+  if (_sharedStarTexture) return _sharedStarTexture;
+  _sharedStarTexture = _createStarTexture();
+  _persistentPlanetTextures.add(_sharedStarTexture);
+  return _sharedStarTexture;
+}
+
+function _now() {
+  return typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
+}
+
+function _recordPerformance(frameStartedAt, frameCompletedAt) {
+  const frameMs = _performanceStats.lastFrameAt > 0 ? frameStartedAt - _performanceStats.lastFrameAt : 0;
+  const cpuMs = Math.max(0, frameCompletedAt - frameStartedAt);
+  _performanceStats.lastFrameAt = frameStartedAt;
+  if (frameMs <= 0 || frameMs >= 250) return;
+  _performanceStats.samples += 1;
+  const alpha = _performanceStats.samples < 30 ? 0.15 : 0.05;
+  _performanceStats.averageFrameMs = _performanceStats.averageFrameMs > 0
+    ? _performanceStats.averageFrameMs + (frameMs - _performanceStats.averageFrameMs) * alpha
+    : frameMs;
+  _performanceStats.averageCpuMs = _performanceStats.averageCpuMs > 0
+    ? _performanceStats.averageCpuMs + (cpuMs - _performanceStats.averageCpuMs) * alpha
+    : cpuMs;
+  _performanceStats.maxCpuMs = Math.max(cpuMs, _performanceStats.maxCpuMs * 0.995);
 }
 
 function _hash(text) {

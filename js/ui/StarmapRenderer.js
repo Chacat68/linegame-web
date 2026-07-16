@@ -16,6 +16,8 @@ let _lastGalaxyId = 'milky_way';
 let _qualityLevel = 'auto';
 let _motionLevel = 'full';
 let _secretRoutesVisible = true;
+let _lastInfoWriteAt = 0;
+let _lastInfoSignature = '';
 
 export function init() {
   const twoDimensionalReady = Renderer2D.init();
@@ -187,12 +189,21 @@ function _writeRendererInfo(info) {
   if (!info || typeof document === 'undefined' || !document.getElementById) return;
   const container = document.getElementById('map-container');
   if (!container || !container.dataset) return;
+  const now = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
+  const signature = [info.renderer, info.quality].join(':');
+  if (signature === _lastInfoSignature && now - _lastInfoWriteAt < 500) return;
+  _lastInfoSignature = signature;
+  _lastInfoWriteAt = now;
   container.dataset.starmapCalls = String(info.calls || 0);
   container.dataset.starmapTriangles = String(info.triangles || 0);
   container.dataset.starmapPoints = String(info.points || 0);
   container.dataset.starmapGeometries = String(info.geometries || 0);
   container.dataset.starmapTextures = String(info.textures || 0);
   container.dataset.starmapQuality = info.quality || 'unknown';
+  container.dataset.starmapFps = Number(info.fps || 0).toFixed(1);
+  container.dataset.starmapFrameMs = Number(info.frameMs || 0).toFixed(2);
+  container.dataset.starmapCpuMs = Number(info.cpuMs || 0).toFixed(2);
+  container.dataset.starmapMaxCpuMs = Number(info.maxCpuMs || 0).toFixed(2);
 }
 
 function _loadThreeRenderer() {
