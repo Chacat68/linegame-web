@@ -1,0 +1,118 @@
+/* ============================================================
+   Bridge OS · Design Tokens
+   全局视觉变量与旧变量兼容映射。功能模块不得重复声明品牌 Token。
+   ============================================================ */
+
+:root {
+  color-scheme: dark;
+
+  /* Background */
+  --ui-bg-canvas: #02060b;
+  --ui-bg-shell: rgba(3, 13, 22, 0.94);
+  --ui-bg-panel: rgba(8, 24, 36, 0.86);
+  --ui-bg-card: rgba(8, 28, 42, 0.72);
+  --ui-bg-control: rgba(2, 10, 18, 0.92);
+  --ui-bg-backdrop: rgba(0, 4, 10, 0.72);
+
+  /* Text */
+  --ui-text-primary: #edf8ff;
+  --ui-text-secondary: #9ebaca;
+  --ui-text-muted: #6f8796;
+  --ui-text-disabled: #4f626d;
+  --ui-text-inverse: #021018;
+
+  /* Brand and semantic */
+  --ui-accent: #6ce7ff;
+  --ui-accent-strong: #9af0ff;
+  --ui-commerce: #ffb86b;
+  --ui-info: #3aa5ff;
+  --ui-success: #57e39d;
+  --ui-warning: #ffd166;
+  --ui-danger: #ff7a68;
+
+  /* Borders */
+  --ui-line-subtle: rgba(108, 231, 255, 0.12);
+  --ui-line-default: rgba(108, 231, 255, 0.20);
+  --ui-line-strong: rgba(108, 231, 255, 0.42);
+  --ui-line-warm: rgba(255, 184, 107, 0.36);
+  --ui-line-danger: rgba(255, 122, 104, 0.42);
+
+  /* Spacing */
+  --ui-space-0: 0;
+  --ui-space-1: 4px;
+  --ui-space-2: 8px;
+  --ui-space-3: 12px;
+  --ui-space-4: 16px;
+  --ui-space-5: 24px;
+  --ui-space-6: 32px;
+  --ui-space-7: 40px;
+  --ui-space-8: 48px;
+
+  /* Shape and elevation */
+  --ui-radius-control: 6px;
+  --ui-radius-card: 10px;
+  --ui-radius-panel: 16px;
+  --ui-border-width: 1px;
+  --ui-shadow-card: 0 10px 28px rgba(0, 0, 0, 0.28);
+  --ui-shadow-panel: 0 24px 72px rgba(0, 0, 0, 0.54);
+  --ui-focus-ring: 0 0 0 2px rgba(108, 231, 255, 0.18), 0 0 18px rgba(108, 231, 255, 0.16);
+
+  /* Sizing */
+  --ui-control-sm: 30px;
+  --ui-control-md: 36px;
+  --ui-control-lg: 44px;
+  --ui-icon-sm: 16px;
+  --ui-icon-md: 20px;
+  --ui-icon-lg: 24px;
+  --ui-header-height: 72px;
+  --ui-nav-height: 64px;
+  --ui-shell-max: 1180px;
+
+  /* Motion */
+  --ui-duration-fast: 120ms;
+  --ui-duration-base: 180ms;
+  --ui-duration-slow: 280ms;
+  --ui-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ui-ease-emphasized: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* Surface levels */
+  --ui-z-scene: 1;
+  --ui-z-chrome: 20;
+  --ui-z-hud: 40;
+  --ui-z-workspace: 70;
+  --ui-z-terminal: 100;
+  --ui-z-feedback: 115;
+  --ui-z-modal: 140;
+  --ui-z-guide: 160;
+
+  /* Safe areas */
+  --ui-safe-top: env(safe-area-inset-top, 0px);
+  --ui-safe-right: env(safe-area-inset-right, 0px);
+  --ui-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --ui-safe-left: env(safe-area-inset-left, 0px);
+
+  /* Legacy aliases kept while feature styles migrate. */
+  --bg-dark: var(--ui-bg-canvas);
+  --bg-panel: var(--ui-bg-panel);
+  --bg-card: var(--ui-bg-card);
+  --bg-input: var(--ui-bg-control);
+  --text-primary: var(--ui-text-primary);
+  --text-secondary: var(--ui-text-secondary);
+  --text-muted: var(--ui-text-muted);
+  --accent-cyan: var(--ui-accent);
+  --accent-blue: var(--ui-info);
+  --accent-green: var(--ui-success);
+  --accent-yellow: var(--ui-warning);
+  --accent-red: var(--ui-danger);
+  --accent-orange: var(--ui-commerce);
+  --border-color: var(--ui-line-default);
+  --panel-border: var(--ui-line-default);
+  --hud-cyan: var(--ui-accent);
+  --hud-cyan-bright: var(--ui-accent-strong);
+  --hud-cyan-dim: rgba(108, 231, 255, 0.58);
+  --hud-bg: var(--ui-bg-shell);
+  --hud-panel: var(--ui-bg-panel);
+  --hud-border: var(--ui-line-default);
+  --hud-text: var(--ui-text-primary);
+  --hud-muted: var(--ui-text-muted);
+}

@@ -1,0 +1,272 @@
+/* ============================================================
+   Bridge OS · Primitives
+   通用排版、交互控件与状态组件。
+   ============================================================ */
+
+html {
+  background: var(--ui-bg-canvas);
+  font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+body,
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+body {
+  color: var(--ui-text-primary);
+}
+
+::selection {
+  color: var(--ui-text-inverse);
+  background: var(--ui-accent);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(108, 231, 255, 0.32) rgba(2, 10, 18, 0.55);
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: rgba(2, 10, 18, 0.55);
+}
+
+*::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgba(108, 231, 255, 0.32);
+  background-clip: padding-box;
+}
+
+:where(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 1px solid var(--ui-accent-strong) !important;
+  outline-offset: 2px;
+  box-shadow: var(--ui-focus-ring) !important;
+}
+
+:where(button, [role="button"], a) {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:where(button, input, select, textarea) {
+  border-radius: var(--ui-radius-control);
+}
+
+:where(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea
+) {
+  min-height: var(--ui-control-md);
+  border: var(--ui-border-width) solid var(--ui-line-default);
+  background: var(--ui-bg-control);
+  color: var(--ui-text-primary);
+  transition:
+    border-color var(--ui-duration-fast) var(--ui-ease-standard),
+    background-color var(--ui-duration-fast) var(--ui-ease-standard),
+    box-shadow var(--ui-duration-fast) var(--ui-ease-standard);
+}
+
+:where(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea
+):hover {
+  border-color: var(--ui-line-strong);
+}
+
+:where(input, select, textarea)::placeholder {
+  color: var(--ui-text-muted);
+}
+
+:where(button, input, select, textarea):disabled,
+:where(button, [role="button"])[aria-disabled="true"],
+.is-disabled,
+.locked {
+  border-color: rgba(79, 98, 109, 0.36) !important;
+  color: var(--ui-text-disabled) !important;
+  background: rgba(12, 22, 28, 0.72) !important;
+  box-shadow: none !important;
+  cursor: not-allowed !important;
+  filter: saturate(0.4);
+}
+
+:where(
+  .btn-primary,
+  .primary-btn,
+  .confirm-btn,
+  .btn-action,
+  .command-action-btn,
+  .modal-confirm,
+  .trade-btn,
+  .buy-btn,
+  .sell-btn
+) {
+  min-height: var(--ui-control-md);
+  border: 1px solid rgba(154, 240, 255, 0.65);
+  border-radius: var(--ui-radius-control);
+  color: var(--ui-text-inverse);
+  background: linear-gradient(135deg, var(--ui-accent-strong), var(--ui-accent));
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  box-shadow: 0 8px 24px rgba(41, 190, 216, 0.16);
+  transition:
+    transform var(--ui-duration-fast) var(--ui-ease-standard),
+    filter var(--ui-duration-fast) var(--ui-ease-standard),
+    box-shadow var(--ui-duration-fast) var(--ui-ease-standard);
+}
+
+:where(
+  .btn-primary,
+  .primary-btn,
+  .confirm-btn,
+  .btn-action,
+  .command-action-btn,
+  .modal-confirm,
+  .trade-btn,
+  .buy-btn,
+  .sell-btn
+):not(:disabled):hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 28px rgba(41, 190, 216, 0.24);
+}
+
+:where(
+  .btn-secondary,
+  .secondary-btn,
+  .cancel-btn,
+  .modal-cancel,
+  .terminal-tab-btn,
+  .archive-nav-btn,
+  .hangar-nav-btn,
+  .filter-btn,
+  .map-control-btn
+) {
+  min-height: var(--ui-control-md);
+  border: 1px solid var(--ui-line-default);
+  border-radius: var(--ui-radius-control);
+  color: var(--ui-text-secondary);
+  background: rgba(5, 20, 31, 0.82);
+  transition:
+    color var(--ui-duration-fast) var(--ui-ease-standard),
+    border-color var(--ui-duration-fast) var(--ui-ease-standard),
+    background-color var(--ui-duration-fast) var(--ui-ease-standard),
+    transform var(--ui-duration-fast) var(--ui-ease-standard);
+}
+
+:where(
+  .btn-secondary,
+  .secondary-btn,
+  .cancel-btn,
+  .modal-cancel,
+  .terminal-tab-btn,
+  .archive-nav-btn,
+  .hangar-nav-btn,
+  .filter-btn,
+  .map-control-btn
+):not(:disabled):hover {
+  color: var(--ui-text-primary);
+  border-color: var(--ui-line-strong);
+  background: rgba(10, 34, 49, 0.92);
+}
+
+:where(button, [role="button"]):not(:disabled):active {
+  transform: translateY(0) scale(0.98);
+}
+
+:where(.danger-btn, .btn-danger, .destructive, [data-variant="danger"]) {
+  border-color: var(--ui-line-danger);
+  color: var(--ui-danger);
+  background: rgba(255, 122, 104, 0.1);
+}
+
+:where(
+  .badge,
+  .chip,
+  .status-chip,
+  .terminal-chip,
+  .tag,
+  .rarity-badge,
+  .bottom-nav-badge
+) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 22px;
+  padding: 2px 8px;
+  border: 1px solid var(--ui-line-default);
+  border-radius: 999px;
+  color: var(--ui-text-secondary);
+  background: rgba(5, 20, 31, 0.82);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1;
+  letter-spacing: 0.04em;
+}
+
+:where(.success, .positive, [data-state="success"], [data-status="ready"]) {
+  --state-color: var(--ui-success);
+}
+
+:where(.warning, [data-state="warning"]) {
+  --state-color: var(--ui-warning);
+}
+
+:where(.error, .danger, .negative, [data-state="error"], [data-state="danger"]) {
+  --state-color: var(--ui-danger);
+}
+
+:where(progress, .progress-track, .meter-track) {
+  overflow: hidden;
+  border: 1px solid var(--ui-line-subtle);
+  border-radius: 999px;
+  background: rgba(0, 5, 10, 0.68);
+}
+
+:where(.progress-fill, .meter-fill) {
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(108, 231, 255, 0.62), var(--ui-accent));
+  box-shadow: 0 0 12px rgba(108, 231, 255, 0.16);
+}
+
+:where(
+  .card,
+  .metric-card,
+  .stat-card,
+  .mission-card,
+  .quest-card,
+  .achievement-card,
+  .faction-card,
+  .tech-card,
+  .ship-card,
+  .fleet-card,
+  .market-card
+) {
+  border: 1px solid var(--ui-line-subtle);
+  border-radius: var(--ui-radius-card);
+  background: var(--ui-bg-card);
+  box-shadow: var(--ui-shadow-card);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}

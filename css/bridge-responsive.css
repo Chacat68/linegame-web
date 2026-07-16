@@ -1,0 +1,409 @@
+/* ============================================================
+   Bridge OS · Responsive
+   移动端重新编排，不做桌面等比缩放。
+   ============================================================ */
+
+@media (max-width: 1180px) {
+  #game-header {
+    grid-template-columns: auto minmax(280px, 1fr) minmax(250px, 0.8fr) auto;
+    gap: var(--ui-space-4);
+  }
+
+  .hdr-stat-block--ship {
+    display: none;
+  }
+
+  .hdr-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .hdr-meter-block--rep {
+    display: none;
+  }
+
+  .hdr-meter-group {
+    grid-template-columns: repeat(3, minmax(58px, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  :root {
+    --ui-header-height: 64px;
+  }
+
+  #game-header {
+    grid-template-columns: auto minmax(170px, 1fr) auto auto;
+    padding-top: max(8px, var(--ui-safe-top));
+    padding-bottom: 8px;
+  }
+
+  .hdr-brand {
+    min-width: 0;
+  }
+
+  .hdr-brand-copy {
+    display: none;
+  }
+
+  .hdr-stats {
+    border-left: 0;
+  }
+
+  .hdr-stat-block {
+    padding: 0 var(--ui-space-3);
+  }
+
+  .hdr-stat-block:nth-child(2) {
+    border-right: 0;
+  }
+
+  .hdr-meter-group {
+    display: none;
+  }
+
+  .secondary-terminal-chrome {
+    grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) auto;
+    min-height: 70px;
+    gap: var(--ui-space-4);
+  }
+
+  .secondary-terminal-status {
+    display: none;
+  }
+
+  #map-container > #market-overlay.market-overlay {
+    top: var(--ui-space-2) !important;
+    right: var(--ui-space-3) !important;
+    bottom: calc(var(--ui-nav-height) + var(--ui-space-5) + var(--ui-safe-bottom)) !important;
+    left: var(--ui-space-3) !important;
+  }
+}
+
+@media (max-width: 680px) {
+  :root {
+    --ui-header-height: 58px;
+    --ui-nav-height: 62px;
+  }
+
+  #game-header {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    padding-right: max(var(--ui-space-2), var(--ui-safe-right));
+    padding-left: max(var(--ui-space-2), var(--ui-safe-left));
+    gap: var(--ui-space-2);
+  }
+
+  .hdr-brand-mark {
+    width: 28px;
+    height: 28px;
+  }
+
+  .hdr-stats {
+    display: flex;
+    justify-content: flex-start;
+    min-width: 0;
+  }
+
+  .hdr-stat-block {
+    padding: 0 var(--ui-space-2);
+    border-right: 0;
+  }
+
+  .hdr-stat-block:not(:first-child) {
+    display: none;
+  }
+
+  .hdr-stat-label {
+    font-size: 8px;
+  }
+
+  .hdr-stat-value {
+    font-size: 12px;
+  }
+
+  .hdr-day-chip {
+    min-width: 58px;
+    min-height: 38px;
+    padding: 4px 8px;
+  }
+
+  .hdr-day-chip-label {
+    font-size: 8px;
+  }
+
+  .hdr-day-chip-value {
+    font-size: 10px;
+  }
+
+  .hdr-icon-btns {
+    gap: 4px;
+  }
+
+  .hdr-icon-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  #company-directives-btn,
+  #victory-progress-btn {
+    display: none;
+  }
+
+  .starmap-control-rail {
+    top: var(--ui-space-2);
+    left: max(var(--ui-space-2), var(--ui-safe-left));
+    flex-direction: row;
+    max-width: calc(100vw - var(--ui-space-4) - var(--ui-safe-left) - var(--ui-safe-right));
+    overflow-x: auto;
+    padding: 4px;
+  }
+
+  .starmap-rail-btn {
+    min-width: var(--ui-control-lg);
+    min-height: var(--ui-control-lg);
+    flex: 0 0 var(--ui-control-lg);
+  }
+
+  .starmap-rail-label {
+    display: none;
+  }
+
+  :where(
+    .galactic-map-widget,
+    .market-overview-widget,
+    .target-intel-widget,
+    .network-status-widget,
+    .quest-tracker-widget
+  ) {
+    top: 64px;
+    right: var(--ui-space-2);
+    left: var(--ui-space-2);
+    width: auto;
+    max-width: none;
+    max-height: calc(100dvh - var(--ui-header-height) - var(--ui-nav-height) - 96px);
+  }
+
+  .floating-command-stack {
+    right: max(var(--ui-space-2), var(--ui-safe-right));
+    bottom: calc(var(--ui-nav-height) + var(--ui-space-4) + var(--ui-safe-bottom));
+    left: max(var(--ui-space-2), var(--ui-safe-left));
+    width: auto;
+  }
+
+  .action-guide,
+  .event-notification {
+    min-height: 60px;
+  }
+
+  #status-bar {
+    bottom: max(var(--ui-space-2), var(--ui-safe-bottom));
+    padding-right: max(var(--ui-space-2), var(--ui-safe-right));
+    padding-left: max(var(--ui-space-2), var(--ui-safe-left));
+  }
+
+  .bottom-nav {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    width: 100%;
+    min-height: var(--ui-nav-height);
+    padding: 4px;
+    border-radius: 12px;
+  }
+
+  .bottom-nav-btn {
+    min-height: 52px;
+    padding: 4px 2px;
+    font-size: 10px;
+  }
+
+  .bottom-nav-badge {
+    right: 3px;
+  }
+
+  body:has(#market-overlay:not(.hidden)) .bottom-nav,
+  body:has(#info-panel.panel-open) .bottom-nav,
+  body:has(#trade-panel.panel-open) .bottom-nav,
+  body:has(#console-panel.panel-open) .bottom-nav {
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+  }
+
+  #map-container > #market-overlay.market-overlay {
+    top: var(--ui-space-2) !important;
+    right: var(--ui-space-2) !important;
+    bottom: calc(var(--ui-nav-height) + var(--ui-space-4) + var(--ui-safe-bottom)) !important;
+    left: var(--ui-space-2) !important;
+    border-radius: var(--ui-radius-card);
+  }
+
+  .market-overlay-header {
+    min-height: 56px;
+    padding: 0 var(--ui-space-3);
+  }
+
+  .market-header-row {
+    min-height: 56px;
+  }
+
+  .market-header-left h3 {
+    font-size: 16px;
+  }
+
+  .market-cmd-bar {
+    display: flex !important;
+    align-items: stretch;
+    flex-direction: column;
+    overflow-x: auto;
+    gap: var(--ui-space-2);
+  }
+
+  .market-workspace-tabs {
+    justify-content: flex-start;
+  }
+
+  .market-detail-bar {
+    padding: 0 var(--ui-space-3);
+  }
+
+  #info-panel.side-panel-overlay,
+  #trade-panel.side-panel-overlay,
+  #console-panel.side-panel-overlay {
+    padding:
+      calc(var(--ui-header-height) + var(--ui-space-2))
+      max(var(--ui-space-2), var(--ui-safe-right))
+      calc(var(--ui-nav-height) + var(--ui-space-4) + var(--ui-safe-bottom))
+      max(var(--ui-space-2), var(--ui-safe-left)) !important;
+  }
+
+  .secondary-terminal-shell {
+    width: 100%;
+    height: 100%;
+    border-radius: var(--ui-radius-card);
+  }
+
+  .secondary-terminal-chrome {
+    position: relative;
+    grid-template-columns: minmax(0, 1fr) auto;
+    min-height: 64px;
+    padding: var(--ui-space-2) var(--ui-space-3);
+    gap: var(--ui-space-2);
+  }
+
+  .secondary-terminal-title {
+    font-size: 17px;
+  }
+
+  .secondary-terminal-subtitle,
+  .secondary-terminal-status {
+    display: none;
+  }
+
+  .secondary-terminal-close {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .secondary-terminal-body--archive,
+  .secondary-terminal-body--hangar {
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
+  }
+
+  .secondary-terminal-nav,
+  .secondary-terminal-sidebar {
+    display: flex;
+    width: 100%;
+    min-height: 0;
+    flex: 0 0 auto;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--ui-line-subtle);
+  }
+
+  .secondary-terminal-nav {
+    max-height: 96px !important;
+    flex-direction: row !important;
+  }
+
+  .secondary-terminal-sidebar {
+    height: auto !important;
+    max-height: 190px !important;
+    flex-direction: column !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+  }
+
+  .secondary-terminal-content {
+    flex: 1 1 auto;
+    padding: var(--ui-space-3);
+  }
+
+  .logs-terminal-body {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .logs-terminal-aside {
+    padding: var(--ui-space-3);
+    border-right: 0;
+    border-bottom: 1px solid var(--ui-line-subtle);
+  }
+
+  .logs-terminal-aside p,
+  .logs-terminal-aside h3 {
+    display: none;
+  }
+
+  .logs-signal-legend {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .logs-terminal-feed {
+    flex: 1 1 auto;
+    padding: var(--ui-space-3);
+  }
+
+  .modal {
+    align-items: flex-end;
+    padding: var(--ui-space-2) max(var(--ui-space-2), var(--ui-safe-right)) max(var(--ui-space-2), var(--ui-safe-bottom)) max(var(--ui-space-2), var(--ui-safe-left));
+  }
+
+  .modal-box {
+    width: 100% !important;
+    max-width: none !important;
+    max-height: calc(100dvh - var(--ui-space-4)) !important;
+    border-radius: var(--ui-radius-panel) var(--ui-radius-panel) var(--ui-radius-card) var(--ui-radius-card);
+  }
+
+  #settings-modal .settings-modal-box {
+    width: 100%;
+    max-height: calc(100dvh - var(--ui-space-4));
+  }
+
+  :where(button, input, select, textarea, [role="button"], [role="tab"]) {
+    min-height: var(--ui-control-lg);
+  }
+}
+
+@media (max-height: 660px) {
+  :root {
+    --ui-header-height: 56px;
+    --ui-nav-height: 56px;
+  }
+
+  .hdr-meter-group,
+  .hdr-day-chip-label,
+  .bottom-nav-btn > span:not(.bottom-nav-badge) {
+    display: none;
+  }
+
+  .bottom-nav-btn {
+    grid-template-rows: 1fr;
+    min-height: 44px;
+  }
+
+  .secondary-terminal-chrome {
+    min-height: 58px;
+  }
+}

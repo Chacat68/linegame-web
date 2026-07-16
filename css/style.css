@@ -15,3 +15,9 @@
 @import url("settings.css");        /* 公司重命名、设置弹窗 */
 @import url("responsive.css");      /* 响应式 media queries */
 @import url("interstellar-trader.css"); /* 参考图风格覆盖层 */
+
+/* Bridge OS 现行设计体系：按 Token → Primitive → Surface → Responsive 收口 */
+@import url("tokens.css");
+@import url("primitives.css");
+@import url("surfaces.css");
+@import url("bridge-responsive.css");
