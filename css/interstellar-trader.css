@@ -13545,6 +13545,43 @@ body[data-motion="reduced"] .dialogue-modal-box {
   gap: 5px;
 }
 
+.vp-policy {
+  display: grid;
+  gap: 7px;
+  padding: 10px;
+  border: 1px solid rgba(108, 231, 255, 0.16);
+  border-radius: 11px;
+  background: rgba(2, 10, 18, 0.52);
+}
+
+.vp-policy.is-active {
+  border-color: rgba(255, 184, 107, 0.4);
+  box-shadow: inset 0 0 22px rgba(255, 184, 107, 0.08);
+}
+
+.vp-policy-head,
+.vp-policy-effects {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.vp-policy-head strong { color: rgba(242, 250, 255, 0.96); }
+.vp-policy-head span { color: rgba(108, 231, 255, 0.72); font-size: 10px; }
+.vp-policy p { margin: 0; color: rgba(177, 205, 222, 0.72); font-size: 11px; line-height: 1.45; }
+.vp-policy-effects { flex-direction: column; font-size: 10px; line-height: 1.4; }
+.vp-policy-effects .is-benefit { color: rgba(120, 230, 176, 0.9); }
+.vp-policy-effects .is-tradeoff { color: rgba(255, 184, 107, 0.9); }
+.vp-policy-btn {
+  min-height: 32px;
+  border: 1px solid rgba(108, 231, 255, 0.28);
+  border-radius: 8px;
+  color: rgba(232, 249, 255, 0.94);
+  background: rgba(20, 87, 116, 0.34);
+  cursor: pointer;
+}
+.vp-policy-btn:disabled { cursor: not-allowed; opacity: 0.58; }
+
 .victory-modal-box .vp-card-req {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;

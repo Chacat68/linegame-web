@@ -121,15 +121,6 @@
         <!-- Icon buttons -->
         <div class="hdr-icon-btns">
           <button
-            id="company-directives-btn"
-            class="hdr-icon-btn"
-            type="button"
-            title="公司指令"
-            aria-label="公司指令"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 4h8l1 2h3v14H4V6h3l1-2Z"/><path d="M8 11h8M8 15h5"/><path d="M9 4h6"/></svg>
-          </button>
-          <button
             id="victory-progress-btn"
             class="hdr-icon-btn"
             type="button"
@@ -174,12 +165,6 @@
             <canvas id="map-3d-canvas" class="starmap-canvas"></canvas>
             <canvas id="starmap-three-canvas" class="starmap-canvas starmap-three-canvas" aria-label="Three.js 3D 星图" style="display: none;"></canvas>
             <svg class="starmap-rail-symbols" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
-              <symbol id="rail-icon-dock" viewBox="0 0 24 24">
-                <path d="M5 7.5h14M5 16.5h14"></path>
-                <circle class="rail-icon-dot" cx="7" cy="12" r="1.45" fill="currentColor" stroke="none"></circle>
-                <circle class="rail-icon-dot" cx="12" cy="12" r="1.45" fill="currentColor" stroke="none"></circle>
-                <circle class="rail-icon-dot" cx="17" cy="12" r="1.45" fill="currentColor" stroke="none"></circle>
-              </symbol>
               <symbol id="rail-icon-galactic-map" viewBox="0 0 24 24">
                 <circle cx="12" cy="12" r="7.2"></circle>
                 <path d="M5.2 12c2.35-2.15 4.62-3.2 6.8-3.2s4.45 1.05 6.8 3.2"></path>
@@ -218,7 +203,6 @@
               </symbol>
             </svg>
             <div class="starmap-control-rail" aria-label="星图 HUD 控制台">
-              <button class="starmap-rail-btn starmap-rail-btn--dock" type="button" data-hud-dock-toggle aria-label="展开 HUD 面板" aria-pressed="false" title="展开 HUD 面板"><span class="starmap-rail-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#rail-icon-dock"></use></svg></span><span class="starmap-rail-label">HUD 面板</span></button>
               <button class="starmap-rail-btn is-selected" type="button" data-hud-dock-panel="galactic-map" aria-label="切换到银河地图搜索" aria-pressed="false" title="银河地图搜索"><span class="starmap-rail-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#rail-icon-galactic-map"></use></svg></span><span class="starmap-rail-label">银河地图搜索</span></button>
               <button class="starmap-rail-btn" type="button" data-hud-dock-panel="market-overview" aria-label="切换到市场总览" aria-pressed="false" title="市场总览"><span class="starmap-rail-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#rail-icon-market"></use></svg></span><span class="starmap-rail-label">市场总览</span></button>
               <button class="starmap-rail-btn" type="button" data-hud-dock-panel="target-intel" aria-label="切换到当前航点" aria-pressed="false" title="当前航点"><span class="starmap-rail-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#rail-icon-target"></use></svg></span><span class="starmap-rail-label">当前航点</span></button>
@@ -355,9 +339,6 @@
               <div class="map-primary-entry-group">
                 <button id="map-3d-toggle-btn" class="map-overlay-btn" type="button" style="display:none !important;">
                   🌐 3D视图
-                </button>
-                <button id="galaxy-view-btn" class="map-overlay-btn" type="button">
-                  🌌 星系总览
                 </button>
               </div>
             </div>
@@ -716,10 +697,6 @@
               <div class="tab-content secondary-terminal-content">
                 <!-- Fleet tab (船队系统) -->
                 <div id="tab-fleet" class="tab-pane active" data-tab-group="trade" role="tabpanel" aria-labelledby="hangar-tab-fleet" aria-hidden="false" tabindex="0">
-                  <div
-                    id="auto-trade-controls"
-                    class="auto-trade-controls hidden"
-                  ></div>
                   <div id="fleet-list"></div>
                   <div id="fleet-inline-container" class="fleet-inline-container hidden" aria-hidden="true" inert></div>
                 </div>
@@ -1246,7 +1223,7 @@
         <div class="company-rename-body">
           <section class="company-rename-brief" aria-labelledby="company-rename-title">
             <p id="company-rename-desc" class="company-rename-desc">
-              你已接管这家深空贸易实体。写入新的识别代号后，日志、任务和公司指令都会沿用这个名称。
+              你已接管这家深空贸易实体。写入新的识别代号后，日志、任务和里程碑都会沿用这个名称。
             </p>
             <div class="company-rename-signal" role="list" aria-label="注册信息">
               <div class="company-rename-signal-item" role="listitem" data-company-name-tone="neutral">
@@ -1275,7 +1252,7 @@
               autocomplete="organization"
             />
             <div id="company-name-hint" class="company-name-hint">
-              代号会显示在顶部状态栏、任务记录和公司指令中。
+              代号会显示在顶部状态栏、任务记录和里程碑档案中。
             </div>
             <div id="company-name-error" class="company-name-error hidden" role="alert" aria-live="polite">
               名称不能为空
@@ -1379,41 +1356,6 @@
         <div class="modal-actions">
           <button id="victory-modal-close" class="btn-secondary" type="button">关闭</button>
         </div>
-      </div>
-    </div>
-
-    <!-- ================================================================
-     Company Directives modal (公司指令面板)
-================================================================ -->
-    <div
-      id="company-directives-modal"
-      class="modal hidden"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="company-directives-title"
-      aria-describedby="company-directives-desc company-directives-body"
-    >
-      <div class="modal-box stack-modal-box company-directives-modal-box" tabindex="-1">
-        <div class="company-directives-head">
-          <div class="company-directives-title-copy">
-            <h3 id="company-directives-title">▣ 公司指令</h3>
-            <p id="company-directives-desc" class="company-directives-desc">
-              查看总部目标、追踪下一步行动，并集中领取已经完成的公司奖励。
-            </p>
-          </div>
-          <button
-            id="company-directives-modal-close"
-            class="secondary-panel-close"
-            type="button"
-            aria-label="关闭公司指令"
-          >✕</button>
-        </div>
-        <div
-          id="company-directives-body"
-          class="company-directives-body stack-modal-scroll"
-          role="region"
-          aria-label="公司指令列表"
-        ></div>
       </div>
     </div>
 
@@ -1793,6 +1735,6 @@
 
 
 
-  <script type="module" src="js/main.js?v=20260716-bridgeos2"></script>
+  <script type="module" src="js/main.js?v=20260716-core-cuts"></script>
   </body>
 </html>
