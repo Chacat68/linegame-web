@@ -4,7 +4,10 @@ import { describe, it, expect } from 'vitest';
 import * as Victory from '../js/systems/victory/VictorySystem.js';
 import * as Faction from '../js/systems/faction/FactionSystem.js';
 import * as Economy from '../js/systems/economy/Economy.js';
+import * as Fleet from '../js/systems/fleet/FleetSystem.js';
+import * as Research from '../js/systems/research/ResearchSystem.js';
 import { VICTORY_PATHS } from '../js/data/victoryConditions.js';
+import { TECHNOLOGIES } from '../js/data/technologies.js';
 import { createTestState } from './helpers.js';
 
 describe('VictorySystem.getPathProgress', () => {
@@ -47,6 +50,69 @@ describe('VictorySystem.getProgress', () => {
       expect(p).toHaveProperty('pathId');
       expect(p).toHaveProperty('progress');
     });
+  });
+
+  it('所有胜利路线都声明可执行收益与代价', () => {
+    VICTORY_PATHS.forEach(function (path) {
+      expect(path.policy).toBeTruthy();
+      expect(path.policy.benefit).toBeTruthy();
+      expect(path.policy.tradeoff).toBeTruthy();
+      expect(Object.keys(path.policy.effects).length).toBeGreaterThan(0);
+    });
+  });
+});
+
+describe('VictorySystem.choosePolicy', () => {
+  it('信条可选且只能做出一次不可逆选择', () => {
+    const state = createTestState({ questPhase: 2 });
+
+    const first = Victory.choosePolicy(state, 'galactic_explorer');
+    const second = Victory.choosePolicy(state, 'trade_baron');
+
+    expect(first.ok).toBe(true);
+    expect(state.storyDecisions.victory_policy).toBe('galactic_explorer');
+    expect(second.ok).toBe(false);
+    expect(state.storyDecisions.victory_policy).toBe('galactic_explorer');
+    const progress = Victory.getProgress(state);
+    expect(progress.find(function (entry) { return entry.pathId === 'galactic_explorer'; }).policySelected).toBe(true);
+    expect(progress.find(function (entry) { return entry.pathId === 'trade_baron'; }).policyLocked).toBe(true);
+  });
+
+  it('远征信条会同时改变舰船货舱、燃耗与 POI 收益', () => {
+    const state = createTestState({ questPhase: 2 });
+    Fleet.init(state);
+    const ship = Fleet.getActiveShip(state);
+    const baseline = Fleet.getEffectiveShipStats(state, ship);
+
+    expect(Victory.choosePolicy(state, 'galactic_explorer').ok).toBe(true);
+    const committed = Fleet.getEffectiveShipStats(state, ship);
+
+    expect(committed.maxCargo).toBe(baseline.maxCargo - 5);
+    expect(committed.fuelEff).toBeCloseTo(baseline.fuelEff * 0.9, 4);
+    expect(committed.poiRewardMultiplier).toBeCloseTo(baseline.poiRewardMultiplier * 1.15, 4);
+  });
+
+  it('科研信条会实际缩短新建研究任务', () => {
+    const state = createTestState({ questPhase: 1, credits: 50000 });
+    Research.init(state);
+    expect(Victory.choosePolicy(state, 'tech_supremacy').ok).toBe(true);
+    const techId = state.researchOptions[0];
+    const tech = TECHNOLOGIES.find(function (entry) { return entry.id === techId; });
+
+    expect(Research.startResearch(state, techId).ok).toBe(true);
+    expect(state.currentResearch.daysLeft).toBe(Math.max(1, tech.researchDays - 2));
+  });
+
+  it('贸易信条会降低新手保护期之后的买入价', () => {
+    Economy.init();
+    const state = createTestState({ questPhase: 1, tradeCount: 8 });
+    Faction.init(state);
+    const before = Economy.getBuyPrice('sol_prime', 'technology', state);
+
+    expect(Victory.choosePolicy(state, 'trade_baron').ok).toBe(true);
+    const after = Economy.getBuyPrice('sol_prime', 'technology', state);
+
+    expect(after).toBeLessThan(before);
   });
 });
 

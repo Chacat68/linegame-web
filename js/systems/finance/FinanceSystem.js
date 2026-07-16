@@ -7,6 +7,7 @@ const DEFAULT_CREDIT_RATING = 620;
 const MIN_CREDIT_RATING = 300;
 const MAX_CREDIT_RATING = 850;
 const DEFAULT_INVESTMENT_AMOUNT = 5000;
+const LEGACY_CAPITAL_RETIREMENT_FLAG = 'capital_products_v2_retired';
 
 const LOAN_TIERS = [
   { id: 'starter', name: '星港周转贷', amount: 5000, termDays: 12, dailyInterestRate: 0.012 },
@@ -295,8 +296,79 @@ function _hashCode(text) {
 
 export function init(state) {
   _ensureFinanceState(state);
+  retireLegacyCapitalProducts(state);
   state.financeLastProcessedDay = Math.max(1, state.day || 1);
   Futures.init(state);
+}
+
+/**
+ * 旧版股票、期货和手动保险入口已退役。首次载入旧存档时，将仍可变现的
+ * 仓位按当前价格统一清算，避免隐藏入口后资产被永久锁住。
+ */
+export function retireLegacyCapitalProducts(state) {
+  _ensureFinanceState(state);
+  if (!state.storyFlags || typeof state.storyFlags !== 'object' || Array.isArray(state.storyFlags)) {
+    state.storyFlags = {};
+  }
+  if (state.storyFlags[LEGACY_CAPITAL_RETIREMENT_FLAG]) {
+    return { ok: true, migrated: false, creditReturned: 0, stockPositions: 0, futuresContracts: 0, insurancePolicies: 0 };
+  }
+
+  let creditReturned = 0;
+  let stockPositions = 0;
+  Object.keys(state.stockPortfolio).forEach(function (stockId) {
+    const holding = state.stockPortfolio[stockId];
+    const listing = state.stockMarket[stockId];
+    const shares = Math.max(0, Math.floor(holding && holding.shares || 0));
+    if (!listing || shares <= 0) return;
+    const proceeds = Math.max(0, Math.round(shares * (listing.price || 0)));
+    state.credits = (state.credits || 0) + proceeds;
+    creditReturned += proceeds;
+    stockPositions += 1;
+  });
+  state.stockPortfolio = {};
+
+  let futuresContracts = 0;
+  Futures.getOpenContracts(state).forEach(function (contract) {
+    const before = state.credits || 0;
+    const result = Futures.closeContract(state, contract.id);
+    if (!result || !result.ok) return;
+    creditReturned += Math.max(0, (state.credits || 0) - before);
+    futuresContracts += 1;
+  });
+
+  let insurancePolicies = 0;
+  Object.keys(state.insurancePolicies).forEach(function (policyType) {
+    const policy = state.insurancePolicies[policyType];
+    if (!policy || policy.active === false) return;
+    const totalDays = Math.max(1, (policy.expiryDay || state.day || 1) - (policy.startedDay || state.day || 1));
+    const remainingDays = Math.max(0, (policy.expiryDay || 0) - (state.day || 1));
+    const refund = Math.max(0, Math.round((policy.premium || 0) * (remainingDays / totalDays) * 0.5));
+    state.credits = (state.credits || 0) + refund;
+    creditReturned += refund;
+    policy.active = false;
+    policy.retiredDay = state.day || 1;
+    policy.retirementRefund = refund;
+    insurancePolicies += 1;
+  });
+  state.insuranceClaims.forEach(function (claim) {
+    if (claim && claim.status === 'pending') {
+      claim.status = 'cancelled';
+      claim.decisionDay = state.day || 1;
+      claim.retirementReason = '保险产品已退役';
+    }
+  });
+
+  state.storyFlags[LEGACY_CAPITAL_RETIREMENT_FLAG] = state.day || 1;
+  state.storyFlags.capital_products_v2_retirement_credit = creditReturned;
+  return {
+    ok: true,
+    migrated: stockPositions + futuresContracts + insurancePolicies > 0,
+    creditReturned: creditReturned,
+    stockPositions: stockPositions,
+    futuresContracts: futuresContracts,
+    insurancePolicies: insurancePolicies,
+  };
 }
 
 export function getOverview(state) {
@@ -456,28 +528,7 @@ export function getStockListings(state) {
 
 export function buyStock(state, stockId, shares) {
   _ensureFinanceState(state);
-  const listing = state.stockMarket[stockId];
-  const quantity = Math.max(1, Math.floor(shares || 1));
-  if (!listing) {
-    return { ok: false, msgs: [{ text: '📈 未知股票代码。', type: 'error' }] };
-  }
-  const totalCost = listing.price * quantity;
-  if ((state.credits || 0) < totalCost) {
-    return { ok: false, msgs: [{ text: '💰 积分不足，无法买入股票。', type: 'error' }] };
-  }
-
-  const holding = state.stockPortfolio[stockId] || { shares: 0, avgCost: 0, totalDividends: 0 };
-  const currentCost = (holding.avgCost || 0) * (holding.shares || 0);
-  holding.shares = (holding.shares || 0) + quantity;
-  holding.avgCost = Math.round((currentCost + totalCost) / Math.max(1, holding.shares));
-  state.stockPortfolio[stockId] = holding;
-  state.credits -= totalCost;
-
-  return {
-    ok: true,
-    msgs: [{ text: '📈 买入 ' + listing.name + ' ×' + quantity + '，花费 ' + totalCost.toLocaleString() + ' 积分。', type: 'buy' }],
-    meta: { stockId: stockId, shares: quantity, totalCost: totalCost },
-  };
+  return { ok: false, msgs: [{ text: '📈 股票交易已并入实体商网经营，不再开放新仓位。', type: 'info' }] };
 }
 
 export function sellStock(state, stockId, shares) {
@@ -634,78 +685,12 @@ export function getInsuranceProducts(state) {
 
 export function purchaseInsurance(state, policyType) {
   _ensureFinanceState(state);
-  const product = INSURANCE_PRODUCTS[policyType];
-  if (!product) {
-    return { ok: false, msgs: [{ text: '🛡️ 未知保险方案。', type: 'error' }] };
-  }
-
-  const catalogEntry = getInsuranceProducts(state).find(function (item) { return item.id === policyType; });
-  if (!catalogEntry) {
-    return { ok: false, msgs: [{ text: '🛡️ 当前无法购买该险种。', type: 'error' }] };
-  }
-  if (catalogEntry.active) {
-    return { ok: false, msgs: [{ text: '🛡️ ' + catalogEntry.name + ' 已生效，无需重复投保。', type: 'info' }] };
-  }
-  if ((state.credits || 0) < catalogEntry.premium) {
-    return { ok: false, msgs: [{ text: '💰 积分不足，无法支付保险保费。', type: 'error' }] };
-  }
-
-  state.credits -= catalogEntry.premium;
-  state.insurancePolicies[policyType] = Object.assign({
-    type: policyType,
-    name: catalogEntry.name,
-    premium: catalogEntry.premium,
-    coverage: catalogEntry.coverage,
-    deductibleRate: catalogEntry.deductibleRate,
-    active: true,
-    startedDay: state.day || 1,
-    expiryDay: (state.day || 1) + catalogEntry.durationDays,
-    totalClaimsPaid: 0,
-  }, _getPolicyBaseline(state, policyType));
-
-  return {
-    ok: true,
-    msgs: [{ text: '🛡️ 已购买 ' + catalogEntry.name + '，保费 ' + catalogEntry.premium.toLocaleString() + ' 积分。', type: 'upgrade' }],
-    meta: { policyType: policyType, premium: catalogEntry.premium },
-  };
+  return { ok: false, msgs: [{ text: '🛡️ 手动保险产品已退役，舰船风险统一由维护系统承担。', type: 'info' }] };
 }
 
 export function submitClaim(state, policyType, requestedAmount, details) {
   _ensureFinanceState(state);
-  const policy = state.insurancePolicies[policyType];
-  if (!policy || policy.active === false) {
-    return { ok: false, msgs: [{ text: '🧾 该险种当前未生效，无法发起理赔。', type: 'error' }] };
-  }
-  if (state.insuranceClaims.some(function (claim) { return claim.policyType === policyType && claim.status === 'pending'; })) {
-    return { ok: false, msgs: [{ text: '🧾 该险种已有待处理理赔，请等待审核。', type: 'info' }] };
-  }
-
-  const claimable = _getPolicyClaimableAmount(state, policyType);
-  const requested = Math.min(claimable, Math.max(0, Math.floor(typeof requestedAmount === 'number' ? requestedAmount : claimable)));
-  if (requested <= 0) {
-    return { ok: false, msgs: [{ text: '🧾 当前没有可理赔的损失。', type: 'info' }] };
-  }
-
-  const approved = Math.max(0, Math.round(requested * (1 - (policy.deductibleRate || 0))));
-  const claim = {
-    id: _generateId('claim', state, state.insuranceClaims),
-    policyType: policyType,
-    requestedAmount: requested,
-    approvedAmount: approved,
-    status: 'pending',
-    filedDay: state.day || 1,
-    processDay: (state.day || 1) + 1,
-    details: details || '自动提交理赔申请',
-  };
-  state.insuranceClaims.push(claim);
-  policy.lastClaimDay = state.day || 1;
-  _refreshPolicyBaseline(policy, state);
-
-  return {
-    ok: true,
-    msgs: [{ text: '🧾 已提交 ' + policy.name + ' 理赔申请，预计次日到账 ' + approved.toLocaleString() + ' 积分。', type: 'info' }],
-    meta: { claimId: claim.id, approvedAmount: approved },
-  };
+  return { ok: false, msgs: [{ text: '🧾 手动保险理赔入口已退役。', type: 'info' }] };
 }
 
 export function getNetWorthAdjustment(state) {
@@ -726,9 +711,7 @@ export function advanceDay(state) {
   const processingDay = state.financeLastProcessedDay + 1;
   const msgs = [];
   _processLoanDay(state, processingDay, msgs);
-  _processStockDay(state, processingDay, msgs);
   _processTradeInvestmentDay(state, msgs);
-  _processInsuranceDay(state, processingDay, msgs);
   state.financeLastProcessedDay = processingDay;
 
   // 期货合约每天结算到期合约

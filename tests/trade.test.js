@@ -6,6 +6,7 @@ import * as Trade from '../js/systems/trade/TradeSystem.js';
 import * as Economy from '../js/systems/economy/Economy.js';
 import * as Faction from '../js/systems/faction/FactionSystem.js';
 import * as Fleet from '../js/systems/fleet/FleetSystem.js';
+import { getSystemsByGalaxy } from '../js/data/systems.js';
 import { createTestState } from './helpers.js';
 
 beforeEach(() => {
@@ -204,6 +205,25 @@ describe('Trade.travelTo', () => {
 
     expect(result.ok).toBe(true);
     expect(state.currentSystem).toBe('citadel_prime');
+  });
+
+  it('研究超空间后可提前抵达后期外域的入口星球', () => {
+    const entrySystem = getSystemsByGalaxy('chrono_rift').find(function (system) {
+      return (system.minLevel || 1) === 9;
+    });
+    const state = createTestState({
+      fuel: 1000,
+      maxFuel: 1000,
+      playerLevel: 1,
+      researchedTechs: ['hyperspace_jump'],
+    });
+    Faction.init(state);
+
+    const result = Trade.travelTo(state, entrySystem.id);
+
+    expect(result.ok).toBe(true);
+    expect(state.currentSystem).toBe(entrySystem.id);
+    expect(state.currentGalaxy).toBe('chrono_rift');
   });
 
   it('等级不足时旅行失败', () => {

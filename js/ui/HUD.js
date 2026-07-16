@@ -12,6 +12,7 @@ import * as Economy             from '../systems/economy/Economy.js';
 import * as Quest               from '../systems/quest/QuestSystem.js';
 import * as GalaxyData          from '../systems/galaxy/GalaxyDataLayer.js';
 import * as Exploration         from '../systems/galaxy/ExplorationSystem.js';
+import * as Fleet               from '../systems/fleet/FleetSystem.js';
 import { getCompanyLevelValue, getCompanyPrivilegeSummary } from '../data/companyAccess.js';
 import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from './SurfaceManager.js';
 
@@ -30,6 +31,7 @@ const HUD_WIDGET_ACTIVE_CLASS = 'hud-widget-active';
 const DEFAULT_HUD_WIDGET_ID = 'galactic-map';
 const STARMAP_RAIL_PANEL_OPEN_EVENT = 'starmap-rail:panel-open';
 const STARMAP_RAIL_SOURCE_HUD = 'hud';
+const STARMAP_GALAXY_VIEW_TOGGLE_EVENT = 'starmap:galaxy-view-toggle';
 const getCompanyLevel = PlayerLevels.getCompanyLevel || function (exp) {
   return COMPANY_LEVELS[0];
 };
@@ -103,6 +105,7 @@ let _activeHudWidgetId = DEFAULT_HUD_WIDGET_ID;
 let _logsHistory = [];
 let _unreadLogCount = 0;
 let _hudDismissControlsBound = false;
+let _stateRef = null;
 
 // ---------------------------------------------------------------------------
 // 初始化：订阅 EventBus 日志事件
@@ -141,6 +144,28 @@ export function init() {
   }
 
   if (vpModal) bindBlockingSurfaceDismiss('victory-modal');
+
+  const vpBody = document.getElementById('victory-modal-body');
+  if (vpBody) {
+    vpBody.addEventListener('click', function (event) {
+      const button = event.target && typeof event.target.closest === 'function'
+        ? event.target.closest('[data-victory-policy-id]')
+        : null;
+      if (!button || !_stateRef || button.disabled) return;
+      const pathId = button.dataset.victoryPolicyId;
+      if (typeof window !== 'undefined' && typeof window.confirm === 'function' &&
+          !window.confirm('胜利信条选择会写入存档且不可更改。确认采用？')) return;
+      const result = Victory.choosePolicy(_stateRef, pathId);
+      (result.msgs || []).forEach(function (msg) { addMessage(msg.text, msg.type); });
+      if (result.ok) {
+        if (Array.isArray(_stateRef.fleet) && _stateRef.fleet.length > 0) Fleet.syncStateFromShip(_stateRef);
+        const questResult = Quest.checkProgress(_stateRef, { action: 'victory_policy', pathId: pathId });
+        (questResult.msgs || []).forEach(function (msg) { addMessage(msg.text, msg.type); });
+      }
+      _lastProgressList = Victory.getProgress(_stateRef);
+      _renderVictoryModal(_lastProgressList);
+    });
+  }
 
   EventBus.on('logs:badge:clear', function () {
     clearLogUnreadCount();
@@ -205,16 +230,6 @@ function _syncHudWidgetToggle(widget) {
 }
 
 function _bindHudDockControls() {
-  var dockToggle = document.querySelector('[data-hud-dock-toggle]');
-  if (dockToggle && dockToggle.dataset.hudDockBound !== 'true') {
-    dockToggle.addEventListener('click', function (event) {
-      event.preventDefault();
-      event.stopPropagation();
-      _toggleHudDock();
-    });
-    dockToggle.dataset.hudDockBound = 'true';
-  }
-
   var panelButtons = document.querySelectorAll('[data-hud-dock-panel]');
   if (!panelButtons || typeof panelButtons.forEach !== 'function') return;
 
@@ -299,16 +314,6 @@ function _focusHudDockPanelButton(widgetId) {
   }
 }
 
-function _toggleHudDock() {
-  var activeWidget = _getHudWidget(_activeHudWidgetId);
-  if (activeWidget && _isHudWidgetOpen(activeWidget)) {
-    _setHudWidgetCollapsed(activeWidget, true);
-    return;
-  }
-
-  _selectHudWidget(_activeHudWidgetId || DEFAULT_HUD_WIDGET_ID);
-}
-
 function _selectHudWidget(widgetId, options) {
   var widgets = document.querySelectorAll('[data-hud-widget]');
   if (!widgets || typeof widgets.forEach !== 'function' || widgets.length === 0) return;
@@ -347,14 +352,6 @@ function _selectHudWidget(widgetId, options) {
 function _syncHudDockControls() {
   var activeWidget = _getHudWidget(_activeHudWidgetId);
   var dockOpen = _isHudWidgetOpen(activeWidget);
-  var dockToggle = document.querySelector('[data-hud-dock-toggle]');
-  if (dockToggle) {
-    dockToggle.classList.toggle('is-active', dockOpen);
-    dockToggle.setAttribute('aria-pressed', dockOpen ? 'true' : 'false');
-    dockToggle.setAttribute('aria-label', dockOpen ? '收起 HUD 面板' : '展开 HUD 面板');
-    dockToggle.setAttribute('title', dockOpen ? '收起 HUD 面板' : '展开 HUD 面板');
-  }
-
   var panelButtons = document.querySelectorAll('[data-hud-dock-panel]');
   if (!panelButtons || typeof panelButtons.forEach !== 'function') return;
 
@@ -374,6 +371,7 @@ function _syncHudDockControls() {
 // ---------------------------------------------------------------------------
 
 export function updateStats(state, netWorth) {
+  _stateRef = state;
   var creditsEl = document.getElementById('credits');
   var galacticDayEl = document.getElementById('galactic-day');
   var netWorthEl = document.getElementById('net-worth');
@@ -830,8 +828,14 @@ function _renderHudGalacticMapSummary(state, sys, gal) {
     toggleBtn.setAttribute('title', captionText);
     if (toggleBtn.dataset.bound !== 'true') {
       toggleBtn.addEventListener('click', function () {
-        var galaxyViewBtn = document.getElementById('galaxy-view-btn');
-        if (galaxyViewBtn) galaxyViewBtn.click();
+        EventBus.emit(STARMAP_GALAXY_VIEW_TOGGLE_EVENT);
+        var currentState = _stateRef || state;
+        if (!currentState) return;
+        _renderHudGalacticMapSummary(
+          currentState,
+          findSystem(currentState.currentSystem),
+          findGalaxy(currentState.viewingGalaxy || currentState.currentGalaxy),
+        );
       });
       toggleBtn.dataset.bound = 'true';
     }
@@ -1082,6 +1086,19 @@ function _renderVictoryModal(progressList) {
     if (!reqsHtml) {
       reqsHtml = '<div class="vp-card-req" role="listitem">暂无拆分条件</div>';
     }
+    const policy = p.policy;
+    let policyHtml = '';
+    if (policy) {
+      const policyStatus = p.policySelected ? '当前信条' : (p.policyLocked ? '已被其他信条锁定' : '可采用');
+      const policyButtonLabel = p.policySelected ? '当前信条' : (p.policyLocked ? '选择已锁定' : '采用此信条（不可逆）');
+      policyHtml =
+        '<div class="vp-policy' + (p.policySelected ? ' is-active' : '') + '">' +
+          '<div class="vp-policy-head"><strong>' + _escapeHtml(policy.name) + '</strong><span>' + _escapeHtml(policyStatus) + '</span></div>' +
+          '<p>' + _escapeHtml(policy.summary) + '</p>' +
+          '<div class="vp-policy-effects"><span class="is-benefit">收益：' + _escapeHtml(policy.benefit) + '</span><span class="is-tradeoff">代价：' + _escapeHtml(policy.tradeoff) + '</span></div>' +
+          '<button class="vp-policy-btn" type="button" data-victory-policy-id="' + _escapeHtml(p.pathId) + '"' + (p.policySelected || p.policyLocked ? ' disabled' : '') + '>' + _escapeHtml(policyButtonLabel) + '</button>' +
+        '</div>';
+    }
     html +=
       '<article class="vp-card' + doneClass + '" role="listitem" aria-label="' + _escapeHtml(progressText) + '">' +
         '<div class="vp-card-header">' +
@@ -1093,6 +1110,7 @@ function _renderVictoryModal(progressList) {
           '<div class="vp-card-bar-fill" style="width:' + pctVal + '%;background:' + _escapeHtml(p.color || 'var(--accent-cyan)') + '"></div>' +
         '</div>' +
         '<div class="vp-card-next"><span>下一条件</span><strong>' + _escapeHtml(nextReqText) + '</strong></div>' +
+        policyHtml +
         '<div class="vp-card-reqs" role="list" aria-label="' + _escapeHtml(p.name) + '条件">' + reqsHtml + '</div>' +
       '</article>';
   });

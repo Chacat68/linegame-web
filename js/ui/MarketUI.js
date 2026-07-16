@@ -3,17 +3,13 @@
 // 导出：renderOverview, render (detail), showOverview, showDetail
 
 import { GOODS }    from '../data/goods.js';
-import {
-  TRADE_STATION_MANAGERS,
-  TRADE_STATION_STRATEGIES,
-} from '../data/tradeStations.js';
+import { TRADE_STATION_STRATEGIES } from '../data/tradeStations.js';
 import { getSystemsByGalaxy, findSystem, isSystemAccessible } from '../data/systems.js';
 import { getCompanyAccessState, getCompanyLevelValue, getCompanyPrivilegeSummary } from '../data/companyAccess.js';
 import * as Economy from '../systems/economy/Economy.js';
 import * as Faction from '../systems/faction/FactionSystem.js';
 import * as Commerce from '../systems/commerce/CommerceFacade.js';
 import * as Finance from '../systems/finance/FinanceSystem.js';
-import * as Futures from '../systems/finance/FuturesSystem.js';
 import * as TradeStation from '../systems/trade/TradeStationSystem.js';
 import * as Exploration from '../systems/galaxy/ExplorationSystem.js';
 
@@ -22,7 +18,6 @@ const _marketChartRange = Object.create(null);
 const _marketBatchPlanSortModes = {
   investment: 'yield',
   upgrade: 'income',
-  manager: 'income',
   strategy: 'income',
 };
 const MARKET_BATCH_PLAN_SORT_OPTIONS = {
@@ -36,11 +31,6 @@ const MARKET_BATCH_PLAN_SORT_OPTIONS = {
     { id: 'cost', label: '低成本优先' },
     { id: 'name', label: '节点名' },
   ],
-  manager: [
-    { id: 'income', label: '收益优先' },
-    { id: 'level', label: '等级优先' },
-    { id: 'name', label: '节点名' },
-  ],
   strategy: [
     { id: 'income', label: '收益优先' },
     { id: 'name', label: '节点名' },
@@ -49,8 +39,8 @@ const MARKET_BATCH_PLAN_SORT_OPTIONS = {
 const MARKET_RANGE_OPTIONS = [7, 14, 30];
 const MARKET_WORKSPACE_TABS = [
   { id: 'spot', label: '现货', hint: '买卖与补给', stage: '01' },
-  { id: 'capital', label: '资本', hint: '融资与仓位', stage: '03' },
-  { id: 'operations', label: '商网', hint: '站点与经营', stage: '05' },
+  { id: 'capital', label: '资本', hint: '贷款与投资', stage: '03' },
+  { id: 'operations', label: '商网', hint: '站点与经营', stage: '04' },
 ];
 const MARKET_SUBWORKSPACE_TABS = {
   spot: [
@@ -59,9 +49,7 @@ const MARKET_SUBWORKSPACE_TABS = {
     { id: 'black', label: '黑市', hint: '特殊市场与风险' },
   ],
   capital: [
-    { id: 'local', label: '调度', hint: '贷款、保险、本地投资' },
-    { id: 'stocks', label: '股票', hint: '指数与持仓' },
-    { id: 'futures', label: '期货', hint: '合约与持仓' },
+    { id: 'local', label: '调度', hint: '贷款与本地投资' },
   ],
   operations: [
     { id: 'local', label: '本地', hint: '当前节点经营' },
@@ -89,20 +77,6 @@ function _countObjectKeys(value) {
     : 0;
 }
 
-function _countStockHoldings(state) {
-  if (!state || !state.stockPortfolio || typeof state.stockPortfolio !== 'object') return 0;
-  return Object.keys(state.stockPortfolio).filter(function (stockId) {
-    var holding = state.stockPortfolio[stockId];
-    return holding && (holding.shares || 0) > 0;
-  }).length;
-}
-
-function _countOpenFutures(state) {
-  return (state && Array.isArray(state.futuresContracts) ? state.futuresContracts : []).filter(function (contract) {
-    return contract && contract.status === 'open';
-  }).length;
-}
-
 function _hasTradeInvestment(state) {
   return !!(state && state.tradeInvestments && typeof state.tradeInvestments === 'object' && Object.keys(state.tradeInvestments).some(function (systemId) {
     var investment = state.tradeInvestments[systemId];
@@ -114,10 +88,7 @@ function _hasCapitalFootprint(state) {
   var activeLoans = (state && Array.isArray(state.loans) ? state.loans : []).some(function (loan) {
     return loan && loan.status === 'active' && (loan.balance || 0) > 0;
   });
-  var activePolicies = (state && Array.isArray(state.insurancePolicies) ? state.insurancePolicies : []).some(function (policy) {
-    return policy && policy.active;
-  });
-  return activeLoans || activePolicies || _countStockHoldings(state) > 0 || _countOpenFutures(state) > 0 || _hasTradeInvestment(state);
+  return activeLoans || _hasTradeInvestment(state);
 }
 
 function _getSurveyIntelFlag(state, sysId) {
@@ -138,8 +109,6 @@ function _getMarketExperienceStats(state, sysId, options) {
     : Faction.canAccessBlackMarket(safeState, sysId);
   var visitedSystems = Array.isArray(safeState.visitedSystems) ? safeState.visitedSystems : [];
   var stationCount = _countObjectKeys(safeState.tradeStations);
-  var stockHoldingCount = _countStockHoldings(safeState);
-  var openFuturesCount = _countOpenFutures(safeState);
   var playerLevel = Math.max(1, Number(safeState.playerLevel) || 1);
   var companyLevel = getCompanyLevelValue(safeState);
   var companyPrivileges = getCompanyPrivilegeSummary(safeState);
@@ -157,8 +126,6 @@ function _getMarketExperienceStats(state, sysId, options) {
     visitedCount: Math.max(visitedSystems.length, safeState.currentSystem ? 1 : 0),
     stationCount: stationCount,
     companyPrivileges: companyPrivileges,
-    stockHoldingCount: stockHoldingCount,
-    openFuturesCount: openFuturesCount,
     hasCapitalFootprint: hasCapitalFootprint,
     hasOperationsFootprint: hasOperationsFootprint,
     hasSurveyIntel: hasSurveyIntel,
@@ -177,22 +144,16 @@ function _buildCompanyUnlockPath(access, extraCondition) {
 function _buildMarketProgression(state, sysId, options) {
   var stats = _getMarketExperienceStats(state, sysId, options);
   var capitalAccess = getCompanyAccessState(state, 'capitalLocal');
-  var stocksAccess = getCompanyAccessState(state, 'stocks');
-  var futuresAccess = getCompanyAccessState(state, 'futures');
   var tradeStationBuildAccess = getCompanyAccessState(state, 'tradeStationBuild');
   var operationsNetworkAccess = getCompanyAccessState(state, 'operationsNetwork');
   var capitalLocalUnlocked = capitalAccess.unlocked || stats.hasCapitalFootprint;
-  var stocksUnlocked = stocksAccess.unlocked || stats.stockHoldingCount > 0;
-  var futuresUnlocked = futuresAccess.unlocked || stats.openFuturesCount > 0;
   var operationsLocalUnlocked = capitalAccess.unlocked || stats.hasOperationsFootprint;
   var operationsNetworkUnlocked = stats.stationCount > 0 && operationsNetworkAccess.unlocked;
   var operationsStationsUnlocked = tradeStationBuildAccess.unlocked || stats.stationCount > 0;
-  var capitalUnlocked = capitalLocalUnlocked || stocksUnlocked || futuresUnlocked;
+  var capitalUnlocked = capitalLocalUnlocked;
   var operationsUnlocked = operationsLocalUnlocked || operationsNetworkUnlocked || operationsStationsUnlocked;
   var blackUnlockLabel = stats.hasBlackMarket ? '需辛迪加友好关系' : '需找到黑市辖区';
   var capitalLockDetail = _buildCompanyUnlockPath(capitalAccess);
-  var stocksLockDetail = _buildCompanyUnlockPath(stocksAccess);
-  var futuresLockDetail = _buildCompanyUnlockPath(futuresAccess);
   var tradeStationLockDetail = _buildCompanyUnlockPath(tradeStationBuildAccess);
   var operationsNetworkLockDetail = _buildCompanyUnlockPath(operationsNetworkAccess, '同时需要至少建成 1 座贸易站。');
 
@@ -229,18 +190,6 @@ function _buildMarketProgression(state, sysId, options) {
           stateLabel: capitalLocalUnlocked ? '已开放' : '锁定',
           unlockLabel: capitalAccess.lockLabel,
           lockDetail: capitalLockDetail,
-        },
-        stocks: {
-          unlocked: stocksUnlocked,
-          stateLabel: stocksUnlocked ? '已开放' : '锁定',
-          unlockLabel: stocksAccess.lockLabel,
-          lockDetail: stocksLockDetail,
-        },
-        futures: {
-          unlocked: futuresUnlocked,
-          stateLabel: futuresUnlocked ? '已开放' : '锁定',
-          unlockLabel: futuresAccess.lockLabel,
-          lockDetail: futuresLockDetail,
         },
       },
       operations: {
@@ -287,7 +236,7 @@ function _buildMarketProgression(state, sysId, options) {
         id: 'capital',
         index: '03',
         label: '资本调度',
-        note: '贷款、保险、本地投资',
+        note: '经营贷款与本地投资',
         workspaceId: 'capital',
         subworkspaceId: 'local',
         unlocked: capitalLocalUnlocked,
@@ -295,19 +244,8 @@ function _buildMarketProgression(state, sysId, options) {
         lockDetail: capitalLockDetail,
       },
       {
-        id: 'positions',
-        index: '04',
-        label: '长期仓位',
-        note: '股票与期货分开开放',
-        workspaceId: 'capital',
-        subworkspaceId: stocksUnlocked ? 'stocks' : 'futures',
-        unlocked: stocksUnlocked || futuresUnlocked,
-        unlockLabel: stocksAccess.lockLabel + '，' + futuresAccess.lockLabel + '开放期货',
-        lockDetail: (stocksUnlocked ? futuresLockDetail : stocksLockDetail),
-      },
-      {
         id: 'network',
-        index: '05',
+        index: '04',
         label: '商网经营',
         note: '建站、升级、全网编排',
         workspaceId: 'operations',
@@ -2025,20 +1963,6 @@ function _renderMarketDashboard(state, sysId, marketMode, snapshots) {
   });
 }
 
-function _getStockPriceDelta(listing) {
-  var lastPrice = listing.lastPrice || listing.price || 0;
-  return (listing.price || 0) - lastPrice;
-}
-
-function _sortStockListings(listings, systemId) {
-  return listings.slice().sort(function (a, b) {
-    var aPriority = a.systemId === systemId ? 0 : 1;
-    var bPriority = b.systemId === systemId ? 0 : 1;
-    if (aPriority !== bPriority) return aPriority - bPriority;
-    return (b.price || 0) - (a.price || 0);
-  });
-}
-
 // ---------------------------------------------------------------------------
 // 产业链提示
 // ---------------------------------------------------------------------------
@@ -2099,25 +2023,6 @@ function _getBatchAffordablePlan(targets, budget, getCost) {
     targets: plannedTargets,
     affordableTargets: affordableTargets,
     deferredTargets: deferredTargets,
-  };
-}
-
-function _getManagerBatchPlan(state, ownedStations, manager) {
-  var targets = ownedStations.filter(function (entry) {
-    return entry.station.managerId !== manager.id;
-  });
-  var affordableCount = Math.min(targets.length, Math.floor((state.credits || 0) / Math.max(1, manager.hireCost)));
-  var plannedTargets = targets.map(function (entry) {
-    return Object.assign({}, entry, { planCost: manager.hireCost });
-  });
-  return {
-    targetCount: targets.length,
-    affordableCount: affordableCount,
-    affordableCost: affordableCount * manager.hireCost,
-    totalCost: targets.length * manager.hireCost,
-    targets: plannedTargets,
-    affordableTargets: plannedTargets.slice(0, affordableCount),
-    deferredTargets: plannedTargets.slice(affordableCount),
   };
 }
 
@@ -2213,16 +2118,6 @@ function _sortBatchPlanTargets(scope, targets, mode) {
         diff = (a.planCost || 0) - (b.planCost || 0);
       } else if (activeMode === 'cost') {
         diff = (a.planCost || 0) - (b.planCost || 0);
-        if (diff !== 0) return diff;
-        diff = (b.projectedIncome || 0) - (a.projectedIncome || 0);
-      }
-    } else if (scope === 'manager') {
-      if (activeMode === 'income') {
-        diff = (b.projectedIncome || 0) - (a.projectedIncome || 0);
-        if (diff !== 0) return diff;
-        diff = (b.station && b.station.level || 0) - (a.station && a.station.level || 0);
-      } else if (activeMode === 'level') {
-        diff = (b.station && b.station.level || 0) - (a.station && a.station.level || 0);
         if (diff !== 0) return diff;
         diff = (b.projectedIncome || 0) - (a.projectedIncome || 0);
       }
@@ -2382,13 +2277,6 @@ function _renderOperationsBatchPlanningPanel(state, ownedStations, networkInvest
       note: '升级 +' + Math.floor(target.planCost || 0).toLocaleString() + ' · 日收益 +' + Math.floor(target.projectedIncome || 0).toLocaleString() + ' · 下一档 ' + (target.nextLevel ? target.nextLevel.name : '已满级'),
     };
   };
-  var managerPlans = TRADE_STATION_MANAGERS.map(function (manager) {
-    var basePlan = _getManagerBatchPlan(state, ownedStations, manager);
-    return {
-      manager: manager,
-      plan: _getSortedBatchPlan('manager', basePlan, state.credits || 0),
-    };
-  });
   var strategyPlans = TRADE_STATION_STRATEGIES.map(function (strategy) {
     var basePlan = _getStrategyBatchPlan(ownedStations, strategy);
     return {
@@ -2399,9 +2287,7 @@ function _renderOperationsBatchPlanningPanel(state, ownedStations, networkInvest
   var readyWaveCount = [
     investmentPlan.affordableTargets.length > 0,
     upgradePlan.affordableTargets.length > 0,
-  ].filter(Boolean).length + managerPlans.filter(function (entry) {
-    return entry.plan.affordableTargets.length > 0;
-  }).length + strategyPlans.filter(function (entry) {
+  ].filter(Boolean).length + strategyPlans.filter(function (entry) {
     return entry.plan.affordableTargets.length > 0;
   }).length;
 
@@ -2471,46 +2357,7 @@ function _renderOperationsBatchPlanningPanel(state, ownedStations, networkInvest
       }) +
     '</div>' +
     '<div class="market-batch-plan-lane">' +
-      '<div class="market-batch-plan-lane-title">👤 人事波次</div>' +
-      _renderBatchPlanSortToolbar('manager', '排序视角') +
-      '<div class="market-batch-plan-grid">' +
-        managerPlans.map(function (entry) {
-          var manager = entry.manager;
-          var plan = entry.plan;
-          var renderManagerTargetMeta = function (target) {
-            return {
-              title: target.system.name,
-              note: '当前 ' + (target.manager ? target.manager.name : '未配置') + ' · 日收益 +' + Math.floor(target.projectedIncome || 0).toLocaleString() + ' · 本轮 +' + Math.floor(target.planCost || 0).toLocaleString(),
-            };
-          };
-          return _renderBatchPlanCard({
-            title: manager.name,
-            subtitle: '批量经理指派',
-            badge: plan.affordableTargets.length > 0 ? '可执行' : (plan.targetCount > 0 ? '待预算' : '已同步'),
-            description: '先看当前收益更高的站点，再决定是否让同一位经理接管整轮目标。',
-            metrics: [
-              _renderBatchPlanMetric('覆盖', plan.affordableCount + '/' + plan.targetCount, '需切换 ' + plan.targetCount + ' 站，本轮可派驻 ' + plan.affordableCount + ' 站。'),
-              _renderBatchPlanMetric('单站成本', Math.floor(manager.hireCost || 0).toLocaleString(), '按经理雇佣费逐站扣款。'),
-              _renderBatchPlanMetric('预算', Math.floor(plan.affordableCost || 0).toLocaleString(), '全量需求 ' + Math.floor(plan.totalCost || 0).toLocaleString() + '。'),
-            ],
-            coverageTargets: plan.affordableTargets,
-            renderTargetMeta: renderManagerTargetMeta,
-            deferredMarkup: _renderBatchPlanDeferredNote(plan.deferredTargets, renderManagerTargetMeta, '预算后置'),
-            footerNote: plan.targetCount === 0
-              ? '全网已完成该经理配置。'
-              : (plan.affordableTargets.length > 0 ? '执行后只会指派预览中的站点。' : '当前预算不足，无法启动这轮派驻。'),
-            actionLabel: plan.affordableTargets.length > 0
-              ? ('派驻 ' + manager.name + ' 至 ' + plan.affordableTargets.length + ' 站')
-              : '暂无可执行派驻',
-            action: 'market-batch-hire-manager',
-            actionableSystemIds: plan.affordableTargets.map(function (target) { return target.station.systemId; }),
-            buttonAttrs: ' data-manager-id="' + manager.id + '"',
-          });
-        }).join('') +
-      '</div>' +
-    '</div>' +
-    '<div class="market-batch-plan-lane">' +
-      '<div class="market-batch-plan-lane-title">📈 策略波次</div>' +
+      '<div class="market-batch-plan-lane-title">🧭 站点定位波次</div>' +
       _renderBatchPlanSortToolbar('strategy', '排序视角') +
       '<div class="market-batch-plan-grid">' +
         strategyPlans.map(function (entry) {
@@ -2524,21 +2371,21 @@ function _renderOperationsBatchPlanningPanel(state, ownedStations, networkInvest
           };
           return _renderBatchPlanCard({
             title: strategy.name,
-            subtitle: '全网策略同步',
+            subtitle: '全网定位同步',
             badge: plan.targetCount > 0 ? '可执行' : '已同步',
-            description: '策略切换不消耗积分，但会立即重排整张商网的经营重心。',
+            description: '定位切换不消耗积分，但会立即重排整张商网的经营重心。',
             metrics: [
               _renderBatchPlanMetric('覆盖', String(plan.targetCount), '本轮需要切换的站点数量。'),
               _renderBatchPlanMetric('收益系数', Math.round((strategy.incomeMultiplier || 1) * 100) + '%', '用于判断这轮策略的方向性。'),
-              _renderBatchPlanMetric('预算', '0', '策略同步不占用额外信用积分。'),
+              _renderBatchPlanMetric('预算', '0', '定位同步不占用额外信用积分。'),
             ],
             coverageTargets: plan.affordableTargets,
             renderTargetMeta: renderStrategyTargetMeta,
             footerNote: plan.targetCount > 0
               ? '执行后会只同步预览中的站点。'
-              : '全网已处于这套经营策略。',
+              : '全网已处于这套站点定位。',
             actionLabel: plan.targetCount > 0
-              ? ('同步 ' + plan.targetCount + ' 站策略')
+              ? ('同步 ' + plan.targetCount + ' 站定位')
               : '无需重复同步',
             action: 'market-batch-set-strategy',
             actionableSystemIds: plan.affordableTargets.map(function (target) { return target.station.systemId; }),
@@ -2550,137 +2397,6 @@ function _renderOperationsBatchPlanningPanel(state, ownedStations, networkInvest
   '</section>';
 }
 
-function _renderCapitalCommandDeck(viewingSystem, isCurrentSys, financeOverview, commerceSnapshot, stockListings, openContracts) {
-  var system = findSystem(viewingSystem);
-  var systemLabel = system ? (system.name + ' · ' + system.typeLabel) : viewingSystem;
-  var leadingStock = stockListings[0] || null;
-  var topContract = openContracts.slice().sort(function (a, b) {
-    return Math.abs(b.unrealizedPnl || 0) - Math.abs(a.unrealizedPnl || 0);
-  })[0] || null;
-  var localModeLabel = isCurrentSys ? '本地可调度' : '远程观察';
-  var localModeNote = isCurrentSys
-    ? '贷款、保险和本地投资现在都能立刻落单。'
-    : '当前只适合审阅资产和风险敞口，落地后才能执行本地动作。';
-
-  return '<section class="market-workspace-deck market-capital-deck">' +
-    '<div class="market-workspace-deck-hero">' +
-      '<div class="market-workspace-deck-copy">' +
-        '<div class="market-workspace-deck-kicker">Capital Control</div>' +
-        '<div class="market-workspace-deck-title">资本指挥台 · ' + localModeLabel + '</div>' +
-        '<div class="market-workspace-deck-summary">资本页只处理资金成本、风险保障和证券仓位，不再和现货交易抢同一层注意力。先看债务和保险，再决定是否扩张股票与期货仓位。</div>' +
-      '</div>' +
-      '<div class="market-workspace-deck-emphasis">' +
-        '<span class="market-workspace-deck-emphasis-label">当前状态</span>' +
-        '<strong>' + localModeLabel + '</strong>' +
-        '<span class="market-workspace-deck-emphasis-note">' + localModeNote + '</span>' +
-      '</div>' +
-    '</div>' +
-    '<div class="market-workspace-deck-grid">' +
-      _renderWorkspaceDeckMetric('贷款敞口', Math.floor(financeOverview.outstandingLoanBalance || 0).toLocaleString(), '活跃贷款 ' + (financeOverview.activeLoanCount || 0) + ' 笔，信用评级 ' + (commerceSnapshot.creditRating || financeOverview.creditRating || 0) + '。') +
-      _renderWorkspaceDeckMetric('股票市值', Math.floor(financeOverview.stockValue || 0).toLocaleString(), leadingStock ? ('优先标的 ' + leadingStock.name + ' · 现价 ' + Math.floor(leadingStock.price || 0).toLocaleString()) : '当前没有持仓或可用领涨标的。', 'tone-cool') +
-      _renderWorkspaceDeckMetric('保险覆盖', String(financeOverview.activePolicies || 0), '待处理理赔 ' + (financeOverview.pendingClaims || 0) + ' 单，适合先处理风险缺口。', 'tone-neutral') +
-      _renderWorkspaceDeckMetric('期货仓位', String(openContracts.length), topContract ? ('盯住 ' + topContract.goodName + ' · 浮盈 ' + ((topContract.unrealizedPnl || 0) >= 0 ? '+' : '') + Math.floor(topContract.unrealizedPnl || 0).toLocaleString()) : '当前没有未平仓合约。', 'tone-warm') +
-    '</div>' +
-    '<div class="market-workspace-deck-strip">' +
-      _renderWorkspaceDeckPill('节点', systemLabel) +
-      _renderWorkspaceDeckPill('信用评级', String(commerceSnapshot.creditRating || financeOverview.creditRating || 0), 'tone-cool') +
-      _renderWorkspaceDeckPill('活跃贷款', String(financeOverview.activeLoanCount || 0)) +
-      _renderWorkspaceDeckPill('在保保单', String(financeOverview.activePolicies || 0)) +
-      _renderWorkspaceDeckPill('待处理理赔', String(financeOverview.pendingClaims || 0), (financeOverview.pendingClaims || 0) > 0 ? 'tone-warm' : '') +
-      _renderWorkspaceDeckPill('股票标的', String(stockListings.length)) +
-      _renderWorkspaceDeckPill('期货合约', String(openContracts.length)) +
-    '</div>' +
-  '</section>';
-}
-
-function _renderCapitalSignalMetric(label, value, note, toneClass) {
-  return '<div class="market-capital-signal-item' + (toneClass ? ' ' + toneClass : '') + '" role="listitem">' +
-    '<span class="market-capital-signal-label">' + _escapeHtml(label) + '</span>' +
-    '<strong class="market-capital-signal-value">' + _escapeHtml(value) + '</strong>' +
-    '<span class="market-capital-signal-note">' + _escapeHtml(note) + '</span>' +
-  '</div>';
-}
-
-function _renderCapitalSignalPanel(state, financeOverview, stockListings, openContracts, activeLoans, isCurrentSys) {
-  var credits = Math.floor((state && state.credits) || 0);
-  var heldStocks = (stockListings || []).filter(function (listing) {
-    return (listing.shares || 0) > 0;
-  });
-  var heldShares = heldStocks.reduce(function (sum, listing) {
-    return sum + (listing.shares || 0);
-  }, 0);
-  var totalUnrealizedPnl = (openContracts || []).reduce(function (sum, contract) {
-    return sum + (contract.unrealizedPnl || 0);
-  }, 0);
-  var totalMarginLocked = (openContracts || []).reduce(function (sum, contract) {
-    return sum + (contract.margin || 0);
-  }, 0);
-  var expiringSoonCount = (openContracts || []).filter(function (contract) {
-    return (contract.daysLeft || 0) <= 2;
-  }).length;
-  var debtBalance = Math.floor((financeOverview && financeOverview.outstandingLoanBalance) || 0);
-  var activeLoanCount = activeLoans ? activeLoans.length : ((financeOverview && financeOverview.activeLoanCount) || 0);
-  var pendingClaimCount = (financeOverview && financeOverview.pendingClaims) || 0;
-  var stockValue = Math.floor((financeOverview && financeOverview.stockValue) || 0);
-  var stockNote = heldStocks.length > 0
-    ? (heldStocks.length + ' 个标的 · ' + heldShares + ' 股')
-    : ((stockListings && stockListings.length > 0) ? ('可观察 ' + stockListings.length + ' 个标的') : '暂无可交易股票');
-  var futuresPnlText = (totalUnrealizedPnl >= 0 ? '+' : '') + Math.floor(totalUnrealizedPnl).toLocaleString();
-  var focusTitle = '资本空仓观察';
-  var focusNote = '当前没有明显债务、理赔或衍生品压力，适合先复核本地资本调度区。';
-  var focusTone = 'idle';
-
-  if (!isCurrentSys) {
-    focusTitle = '远程审阅模式';
-    focusNote = '当前节点只能查看资产和风险轮廓，抵达后再开放贷款、保险与本地投资动作。';
-    focusTone = 'watch';
-  } else if (debtBalance > 0 && debtBalance >= Math.max(1, credits) * 0.75) {
-    focusTitle = '贷款现金流承压';
-    focusNote = '未结清贷款接近或超过可用现金，先在本地资本调度区检查还款节奏。';
-    focusTone = 'debt';
-  } else if ((openContracts || []).length > 0 && totalUnrealizedPnl < 0) {
-    focusTitle = '期货浮亏承压';
-    focusNote = '未平仓合约合计浮亏 ' + futuresPnlText + '，适合先复核保证金和临近到期合约。';
-    focusTone = 'risk';
-  } else if (expiringSoonCount > 0) {
-    focusTitle = '合约临近结算';
-    focusNote = expiringSoonCount + ' 份合约将在 2 天内到期，期货列表里可直接查看锁定价与当前价。';
-    focusTone = 'risk';
-  } else if (pendingClaimCount > 0) {
-    focusTitle = '理赔等待入账';
-    focusNote = pendingClaimCount + ' 单理赔处理中，风险保障区可复核预计到账。';
-    focusTone = 'claim';
-  } else if (heldStocks.length > 0) {
-    focusTitle = '股票持仓活跃';
-    focusNote = '当前股票仓位覆盖 ' + heldStocks.length + ' 个标的，优先比较市值和日波动。';
-    focusTone = 'stock';
-  } else if (credits > 0) {
-    focusTitle = '现金等待配置';
-    focusNote = '可用现金 ' + credits.toLocaleString() + '，资本页可按贷款、保险、股票和期货分区复核。';
-    focusTone = 'cash';
-  }
-
-  return '<section class="market-capital-signal-panel" aria-label="资本市场局部态势">' +
-    '<div class="market-capital-signal-head">' +
-      '<div>' +
-        '<div class="market-capital-signal-title">资本态势矩阵</div>' +
-        '<div class="market-capital-signal-subtitle">先把现金、持仓、期货和债务压成一屏，再进入下方分区操作。</div>' +
-      '</div>' +
-      '<span class="market-finance-chip">' + (isCurrentSys ? '本地可执行' : '远程审阅') + '</span>' +
-    '</div>' +
-    '<div class="market-capital-signal-grid" role="list" aria-label="资本市场态势矩阵">' +
-      _renderCapitalSignalMetric('可用现金', credits.toLocaleString(), '执行贷款、保险、证券动作前的即时预算。', credits > 0 ? 'tone-cool' : '') +
-      _renderCapitalSignalMetric('股票持仓', stockValue.toLocaleString(), stockNote, heldStocks.length > 0 ? 'tone-cool' : '') +
-      _renderCapitalSignalMetric('期货敞口', String((openContracts || []).length), '保证金 ' + Math.floor(totalMarginLocked).toLocaleString() + ' · 浮盈亏 ' + futuresPnlText, totalUnrealizedPnl < 0 ? 'tone-hot' : ((openContracts || []).length > 0 ? 'tone-warm' : '')) +
-      _renderCapitalSignalMetric('债务/理赔', activeLoanCount + ' / ' + pendingClaimCount, '贷款余额 ' + debtBalance.toLocaleString() + ' · 待理赔 ' + pendingClaimCount + ' 单', debtBalance > 0 || pendingClaimCount > 0 ? 'tone-warm' : '') +
-    '</div>' +
-    '<div class="market-capital-focus" aria-label="资本局部信号" data-tone="' + _escapeHtmlAttr(focusTone) + '">' +
-      '<span class="market-capital-focus-kicker">局部信号</span>' +
-      '<strong class="market-capital-focus-title">' + _escapeHtml(focusTitle) + '</strong>' +
-      '<span class="market-capital-focus-note">' + _escapeHtml(focusNote) + '</span>' +
-    '</div>' +
-  '</section>';
-}
 
 function _renderCapitalLocalMetric(label, value, note, toneClass) {
   return '<div class="market-capital-local-item' + (toneClass ? ' ' + toneClass : '') + '" role="listitem">' +
@@ -2690,256 +2406,6 @@ function _renderCapitalLocalMetric(label, value, note, toneClass) {
   '</div>';
 }
 
-function _renderCapitalLocalGuardPanel(state, activeLoans, loanOffers, insuranceProducts, pendingClaims, isCurrentSys) {
-  var credits = Math.floor((state && state.credits) || 0);
-  var loans = activeLoans || [];
-  var products = insuranceProducts || [];
-  var claims = pendingClaims || [];
-  var loanBalance = loans.reduce(function (sum, loan) {
-    return sum + Math.max(0, loan.balance || 0);
-  }, 0);
-  var dailyPayment = loans.reduce(function (sum, loan) {
-    return sum + Math.max(0, loan.dailyPayment || 0);
-  }, 0);
-  var activePolicies = products.filter(function (product) {
-    return !!product.active;
-  });
-  var activeCoverage = activePolicies.reduce(function (sum, product) {
-    return sum + Math.max(0, product.coverage || 0);
-  }, 0);
-  var claimableAmount = products.reduce(function (sum, product) {
-    return sum + Math.max(0, product.claimableAmount || 0);
-  }, 0);
-  var pendingClaimAmount = claims.reduce(function (sum, claim) {
-    return sum + Math.max(0, claim.approvedAmount || 0);
-  }, 0);
-  var availableOfferCount = (loanOffers || []).filter(function (offer) {
-    return !!offer.available;
-  }).length;
-  var runwayDays = dailyPayment > 0 ? Math.floor(credits / dailyPayment) : null;
-  var focusTitle = '本地资金防线待配置';
-  var focusNote = '当前没有贷款、有效保单或待处理理赔，可直接比较下方报价与保障范围。';
-  var focusTone = 'idle';
-
-  if (!isCurrentSys) {
-    focusTitle = '远程只读观察';
-    focusNote = '当前可查看债务和保障轮廓，贷款、投保与理赔动作需要抵达节点后执行。';
-    focusTone = 'watch';
-  } else if (claims.length > 0) {
-    focusTitle = '理赔回款待入账';
-    focusNote = claims.length + ' 笔理赔正在处理，预计回款 ' + Math.floor(pendingClaimAmount).toLocaleString() + '。';
-    focusTone = 'claim';
-  } else if (dailyPayment > credits && dailyPayment > 0) {
-    focusTitle = '当日偿付存在缺口';
-    focusNote = '每日扣款 ' + Math.floor(dailyPayment).toLocaleString() + ' 已超过可用现金，债务压力处于高位。';
-    focusTone = 'risk';
-  } else if (loanBalance > 0 && loanBalance >= Math.max(1, credits) * 0.75) {
-    focusTitle = '债务现金流承压';
-    focusNote = '贷款余额 ' + Math.floor(loanBalance).toLocaleString() + ' 接近或超过可用现金，偿付窗口约 ' + runwayDays + ' 天。';
-    focusTone = 'debt';
-  } else if (claimableAmount > 0) {
-    focusTitle = '存在可申报损失';
-    focusNote = '当前保单合计可申报 ' + Math.floor(claimableAmount).toLocaleString() + '，下方险种已开放理赔动作。';
-    focusTone = 'claim';
-  } else if (activePolicies.length === 0) {
-    focusTitle = '保障覆盖为空';
-    focusNote = '当前没有生效保单，可在风险保障列比较保费、保额与可赔范围。';
-    focusTone = 'watch';
-  } else if (loans.length > 0) {
-    focusTitle = '偿付节奏可控';
-    focusNote = '每日扣款 ' + Math.floor(dailyPayment).toLocaleString() + '，现有现金约可覆盖 ' + runwayDays + ' 天。';
-    focusTone = 'active';
-  } else {
-    focusTitle = '保障结构稳定';
-    focusNote = activePolicies.length + ' 份保单生效中，当前没有债务或待处理理赔。';
-    focusTone = 'stable';
-  }
-
-  return '<section class="market-capital-local-panel" aria-label="本地资金防线局部态势">' +
-    '<div class="market-capital-local-head">' +
-      '<div>' +
-        '<div class="market-capital-local-title">本地资金防线</div>' +
-        '<div class="market-capital-local-subtitle">先核对每日偿付、有效保障和理赔回款，再处理下方贷款与保险动作。</div>' +
-      '</div>' +
-      '<span class="market-capital-local-badge">' + (isCurrentSys ? '本地可执行' : '远程只读') + '</span>' +
-    '</div>' +
-    '<div class="market-capital-local-grid" role="list" aria-label="本地资金防线指标">' +
-      _renderCapitalLocalMetric('贷款余额', Math.floor(loanBalance).toLocaleString(), loans.length + ' 笔未结清 · 可用报价 ' + availableOfferCount + ' 个', loanBalance > 0 ? 'tone-warm' : '') +
-      _renderCapitalLocalMetric('每日偿付', Math.floor(dailyPayment).toLocaleString(), runwayDays === null ? '当前没有固定日扣款' : ('现金约覆盖 ' + runwayDays + ' 天'), dailyPayment > credits ? 'tone-hot' : (dailyPayment > 0 ? 'tone-warm' : '')) +
-      _renderCapitalLocalMetric('有效保障', String(activePolicies.length), '合计保额 ' + Math.floor(activeCoverage).toLocaleString(), activePolicies.length > 0 ? 'tone-cool' : '') +
-      _renderCapitalLocalMetric('理赔状态', String(claims.length), claims.length > 0 ? ('预计回款 ' + Math.floor(pendingClaimAmount).toLocaleString()) : ('当前可申报 ' + Math.floor(claimableAmount).toLocaleString()), claims.length > 0 || claimableAmount > 0 ? 'tone-cool' : '') +
-    '</div>' +
-    '<div class="market-capital-local-focus" aria-label="本地资金局部信号" data-tone="' + _escapeHtmlAttr(focusTone) + '">' +
-      '<span class="market-capital-local-focus-kicker">局部信号</span>' +
-      '<strong class="market-capital-local-focus-title">' + _escapeHtml(focusTitle) + '</strong>' +
-      '<span class="market-capital-local-focus-note">' + _escapeHtml(focusNote) + '</span>' +
-    '</div>' +
-  '</section>';
-}
-
-function _renderFuturesRiskMetric(label, value, note, toneClass) {
-  return '<div class="market-futures-risk-item ' + _escapeHtmlAttr(toneClass || 'tone-neutral') + '" role="listitem">' +
-    '<span class="market-futures-risk-label">' + _escapeHtml(label) + '</span>' +
-    '<strong class="market-futures-risk-value">' + _escapeHtml(value) + '</strong>' +
-    '<span class="market-futures-risk-note">' + _escapeHtml(note || '') + '</span>' +
-  '</div>';
-}
-
-function _renderStockPositionMetric(label, value, note, toneClass) {
-  return '<div class="market-stock-position-item ' + _escapeHtmlAttr(toneClass || 'tone-neutral') + '" role="listitem">' +
-    '<span class="market-stock-position-label">' + _escapeHtml(label) + '</span>' +
-    '<strong class="market-stock-position-value">' + _escapeHtml(value) + '</strong>' +
-    '<span class="market-stock-position-note">' + _escapeHtml(note || '') + '</span>' +
-  '</div>';
-}
-
-function _renderStockPositionPanel(state, stockListings, viewingSystem) {
-  var listings = Array.isArray(stockListings) ? stockListings : [];
-  var heldListings = listings.filter(function (listing) { return (listing.shares || 0) > 0; });
-  var totalShares = heldListings.reduce(function (sum, listing) { return sum + (listing.shares || 0); }, 0);
-  var marketValue = heldListings.reduce(function (sum, listing) {
-    return sum + (listing.price || 0) * (listing.shares || 0);
-  }, 0);
-  var costBasis = heldListings.reduce(function (sum, listing) {
-    return sum + (listing.avgCost || 0) * (listing.shares || 0);
-  }, 0);
-  var unrealizedPnl = marketValue - costBasis;
-  var totalDividends = heldListings.reduce(function (sum, listing) {
-    return sum + (listing.totalDividends || 0);
-  }, 0);
-  var dailyMove = heldListings.reduce(function (sum, listing) {
-    return sum + _getStockPriceDelta(listing) * (listing.shares || 0);
-  }, 0);
-  var risingCount = heldListings.filter(function (listing) { return _getStockPriceDelta(listing) > 0; }).length;
-  var fallingCount = heldListings.filter(function (listing) { return _getStockPriceDelta(listing) < 0; }).length;
-  var localListing = listings.find(function (listing) { return listing.systemId === viewingSystem; }) || null;
-  var affordableListing = listings.filter(function (listing) {
-    return (listing.price || 0) <= ((state && state.credits) || 0);
-  }).sort(function (left, right) {
-    return (left.price || 0) - (right.price || 0);
-  })[0] || null;
-  var weakestHolding = heldListings.reduce(function (weakest, listing) {
-    var pnl = ((listing.price || 0) - (listing.avgCost || 0)) * (listing.shares || 0);
-    if (!weakest || pnl < weakest.pnl) return { listing: listing, pnl: pnl };
-    return weakest;
-  }, null);
-  var focusTitle = '股票空仓观察';
-  var focusNote = affordableListing
-    ? ('当前现金可覆盖 ' + affordableListing.name + ' 1 股，先比较本地指数和日波动。')
-    : '当前现金不足以买入最小标的，先观察价格变化。';
-  var focusTone = affordableListing ? 'cash' : 'watch';
-
-  if (unrealizedPnl < 0 && weakestHolding) {
-    focusTitle = '持仓浮亏承压';
-    focusNote = weakestHolding.listing.name + ' 当前浮亏 ' + weakestHolding.pnl.toLocaleString() + '，先复核均价和日波动。';
-    focusTone = 'risk';
-  } else if (dailyMove < 0 && heldListings.length > 0) {
-    focusTitle = '持仓日内回落';
-    focusNote = '当前持仓日变动 ' + dailyMove.toLocaleString() + '，下跌标的 ' + fallingCount + ' 个。';
-    focusTone = 'watch';
-  } else if (unrealizedPnl > 0) {
-    focusTitle = '持仓浮盈可观察';
-    focusNote = '当前持仓浮盈 +' + unrealizedPnl.toLocaleString() + '，可对照上涨标的决定是否减仓。';
-    focusTone = 'gain';
-  } else if (heldListings.length > 0) {
-    focusTitle = '持仓结构稳定';
-    focusNote = '当前持有 ' + heldListings.length + ' 个标的，共 ' + totalShares + ' 股，继续观察日波动。';
-    focusTone = 'active';
-  }
-
-  return '<section class="market-stock-position-panel" aria-label="股票持仓局部态势">' +
-    '<div class="market-stock-position-head">' +
-      '<div>' +
-        '<div class="market-stock-position-title">股票持仓态势</div>' +
-        '<div class="market-stock-position-subtitle">先核对仓位、市值、成本和日变动，再进入单个标的操作。</div>' +
-      '</div>' +
-      '<span class="market-stock-position-badge">' + _escapeHtml(localListing ? '本地指数在线' : '全市场观察') + '</span>' +
-    '</div>' +
-    '<div class="market-stock-position-grid" role="list" aria-label="股票持仓指标">' +
-      _renderStockPositionMetric('持仓', String(heldListings.length), totalShares + ' 股 · ' + listings.length + ' 个可观察标的', heldListings.length > 0 ? 'tone-active' : 'tone-neutral') +
-      _renderStockPositionMetric('市值', Math.floor(marketValue).toLocaleString(), '成本 ' + Math.floor(costBasis).toLocaleString(), marketValue > 0 ? 'tone-active' : 'tone-neutral') +
-      _renderStockPositionMetric('浮动收益', (unrealizedPnl >= 0 ? '+' : '') + Math.floor(unrealizedPnl).toLocaleString(), '累计股息 ' + Math.floor(totalDividends).toLocaleString(), unrealizedPnl < 0 ? 'tone-hot' : (unrealizedPnl > 0 ? 'tone-cool' : 'tone-neutral')) +
-      _renderStockPositionMetric('日变动', (dailyMove >= 0 ? '+' : '') + Math.floor(dailyMove).toLocaleString(), '上涨 ' + risingCount + ' / 下跌 ' + fallingCount, dailyMove < 0 ? 'tone-warm' : (dailyMove > 0 ? 'tone-cool' : 'tone-neutral')) +
-    '</div>' +
-    '<div class="market-stock-position-focus" aria-label="股票局部信号" data-tone="' + _escapeHtmlAttr(focusTone) + '">' +
-      '<span class="market-stock-position-focus-kicker">局部信号</span>' +
-      '<strong class="market-stock-position-focus-title">' + _escapeHtml(focusTitle) + '</strong>' +
-      '<span class="market-stock-position-focus-note">' + _escapeHtml(focusNote) + '</span>' +
-    '</div>' +
-  '</section>';
-}
-
-function _renderFuturesRiskPanel(state, futuresListings, openContracts, recentClosedContracts) {
-  var listings = Array.isArray(futuresListings) ? futuresListings : [];
-  var contracts = Array.isArray(openContracts) ? openContracts : [];
-  var closed = Array.isArray(recentClosedContracts) ? recentClosedContracts : [];
-  var snapshot = Futures.getFuturesSnapshot
-    ? Futures.getFuturesSnapshot(state)
-    : {
-        openContractCount: contracts.length,
-        totalMarginLocked: contracts.reduce(function (sum, contract) { return sum + (contract.margin || 0); }, 0),
-        totalUnrealizedPnl: contracts.reduce(function (sum, contract) { return sum + (contract.unrealizedPnl || 0); }, 0),
-        expiringSoonCount: contracts.filter(function (contract) { return (contract.daysLeft || 0) <= 2; }).length,
-      };
-  var longCount = contracts.filter(function (contract) { return contract.direction === 'long'; }).length;
-  var shortCount = contracts.filter(function (contract) { return contract.direction === 'short'; }).length;
-  var cheapestListing = listings.reduce(function (best, listing) {
-    if (!best || (listing.margin || 0) < (best.margin || 0)) return listing;
-    return best;
-  }, null);
-  var minDaysLeft = contracts.reduce(function (min, contract) {
-    var days = Number.isFinite(contract.daysLeft) ? contract.daysLeft : 0;
-    return min == null ? days : Math.min(min, days);
-  }, null);
-  var recentPnl = closed.reduce(function (sum, contract) {
-    return sum + (contract.pnl || 0);
-  }, 0);
-  var totalPnl = snapshot.totalUnrealizedPnl || 0;
-  var focusTitle = '期货观察中';
-  var focusNote = cheapestListing
-    ? ('最低保证金 ' + cheapestListing.margin.toLocaleString() + '，先从价差更清晰的标的开仓。')
-    : '当前没有可交易标的，等待市场刷新。';
-  var focusTone = 'idle';
-
-  if ((snapshot.expiringSoonCount || 0) > 0) {
-    focusTitle = '到期压力升高';
-    focusNote = snapshot.expiringSoonCount + ' 份合约将在 2 天内到期，先确认平仓或持有到结算。';
-    focusTone = 'risk';
-  } else if (totalPnl < 0) {
-    focusTitle = '浮亏承压';
-    focusNote = '未实现盈亏 ' + totalPnl.toLocaleString() + '，先复核反向持仓和保证金占用。';
-    focusTone = 'risk';
-  } else if (totalPnl > 0) {
-    focusTitle = '浮盈可锁定';
-    focusNote = '未实现盈亏 +' + totalPnl.toLocaleString() + '，可优先检查是否需要平仓落袋。';
-    focusTone = 'gain';
-  } else if (contracts.length > 0) {
-    focusTitle = '仓位运行中';
-    focusNote = '多头 ' + longCount + ' / 空头 ' + shortCount + '，保持观察当前价和剩余天数。';
-    focusTone = 'active';
-  }
-
-  return '<section class="market-futures-risk-panel" aria-label="期货风控局部态势">' +
-    '<div class="market-futures-risk-head">' +
-      '<div>' +
-        '<div class="market-futures-risk-title">期货风控态势</div>' +
-        '<div class="market-futures-risk-subtitle">先看保证金、盈亏和到期压力，再进入开仓或平仓操作。</div>' +
-      '</div>' +
-      '<span class="market-futures-risk-badge">' + Futures.DEFAULT_TERM_DAYS + ' 天合约</span>' +
-    '</div>' +
-    '<div class="market-futures-risk-grid" role="list" aria-label="期货风控指标">' +
-      _renderFuturesRiskMetric('持仓', String(snapshot.openContractCount || 0), '多 ' + longCount + ' / 空 ' + shortCount, contracts.length > 0 ? 'tone-active' : 'tone-neutral') +
-      _renderFuturesRiskMetric('保证金', Math.floor(snapshot.totalMarginLocked || 0).toLocaleString(), cheapestListing ? ('最低开仓 ' + cheapestListing.margin.toLocaleString()) : '暂无标的', (snapshot.totalMarginLocked || 0) > 0 ? 'tone-warm' : 'tone-neutral') +
-      _renderFuturesRiskMetric('浮动盈亏', (totalPnl >= 0 ? '+' : '') + totalPnl.toLocaleString(), closed.length > 0 ? ('近 ' + closed.length + ' 笔 ' + (recentPnl >= 0 ? '+' : '') + recentPnl.toLocaleString()) : '暂无成交回看', totalPnl < 0 ? 'tone-hot' : (totalPnl > 0 ? 'tone-cool' : 'tone-neutral')) +
-      _renderFuturesRiskMetric('到期', minDaysLeft == null ? '无持仓' : (minDaysLeft + ' 天'), (snapshot.expiringSoonCount || 0) > 0 ? (snapshot.expiringSoonCount + ' 份临近结算') : '无临近到期', (snapshot.expiringSoonCount || 0) > 0 ? 'tone-hot' : 'tone-neutral') +
-    '</div>' +
-    '<div class="market-futures-risk-focus" aria-label="期货局部信号" data-tone="' + _escapeHtmlAttr(focusTone) + '">' +
-      '<span class="market-futures-risk-focus-kicker">局部信号</span>' +
-      '<strong class="market-futures-risk-focus-title">' + _escapeHtml(focusTitle) + '</strong>' +
-      '<span class="market-futures-risk-focus-note">' + _escapeHtml(focusNote) + '</span>' +
-    '</div>' +
-  '</section>';
-}
 
 function _renderOperationsCommandDeck(viewingSystem, commerceSnapshot, tradeSummary, ownedStations, buildCandidates, localStation, buildCandidate, networkInvestmentPlan, networkUpgradePlan) {
   var system = findSystem(viewingSystem);
@@ -2948,7 +2414,7 @@ function _renderOperationsCommandDeck(viewingSystem, commerceSnapshot, tradeSumm
     ? '本地站点在线'
     : (buildCandidate ? '可落子节点' : '等待解锁');
   var localStatusNote = localStation
-    ? '当前节点已有贸易站，可直接升级、增投、换经理和切策略。'
+    ? '当前节点已有贸易站，可直接升级、增投或调整站点定位。'
     : (buildCandidate
         ? '当前节点已满足建站条件，决定是否投入长期资本。'
         : '当前节点暂无建站资格，更适合先扩展访问与侦察面。');
@@ -2958,7 +2424,7 @@ function _renderOperationsCommandDeck(viewingSystem, commerceSnapshot, tradeSumm
       '<div class="market-workspace-deck-copy">' +
         '<div class="market-workspace-deck-kicker">Network Command</div>' +
         '<div class="market-workspace-deck-title">商网指挥台 · ' + localStatusLabel + '</div>' +
-        '<div class="market-workspace-deck-summary">经营页负责把本地站点、全网批量指令和候选建站点拆开看。先判断当前节点该不该落子，再决定全网升级、增资和人事编排。</div>' +
+        '<div class="market-workspace-deck-summary">经营页负责把本地站点、全网批量指令和候选建站点拆开看。先判断当前节点该不该落子，再决定全网升级、增资和定位调整。</div>' +
       '</div>' +
       '<div class="market-workspace-deck-emphasis">' +
         '<span class="market-workspace-deck-emphasis-label">本地态势</span>' +
@@ -3000,7 +2466,7 @@ function _renderLocalOperationsPanel(state, viewingSystem, localStation, buildCa
   var outputValue = '--';
   var outputNote = '完成前置探索后可评估本地经营产能';
   var configValue = '--';
-  var configNote = '当前没有管理员或经营策略配置';
+  var configNote = '当前没有站点定位配置';
   var capitalValue = '--';
   var capitalNote = '可用现金 ' + credits.toLocaleString();
   var statusTone = '';
@@ -3019,11 +2485,11 @@ function _renderLocalOperationsPanel(state, viewingSystem, localStation, buildCa
     statusNote = systemName + ' · ' + (localStation.role ? localStation.role.name : '未分工');
     outputValue = '+' + Math.floor(localStation.projectedIncome || 0).toLocaleString() + '/日';
     outputNote = '毛收入 ' + Math.floor(localStation.grossIncome || 0).toLocaleString() + ' · 维护 ' + Math.floor(localStation.upkeep || 0).toLocaleString();
-    configValue = localStation.manager ? localStation.manager.name : '待配置';
-    configNote = '当前策略 ' + (localStation.strategy ? localStation.strategy.name : '未设置');
+    configValue = localStation.strategy ? localStation.strategy.name : '待配置';
+    configNote = '当前站点定位';
     statusTone = 'tone-cool';
     outputTone = 'tone-cool';
-    configTone = localStation.manager ? 'tone-cool' : 'tone-warm';
+    configTone = localStation.strategy ? 'tone-cool' : 'tone-warm';
 
     if (localStation.nextLevel && upgradeCost > 0) {
       capitalValue = '升级 ' + upgradeCost.toLocaleString();
@@ -3041,15 +2507,11 @@ function _renderLocalOperationsPanel(state, viewingSystem, localStation, buildCa
 
     if (!isCurrentSys) {
       focusTitle = '远程经营审阅';
-      focusNote = '可查看收益、管理员和策略配置，抵达后才开放升级、增投与人事动作。';
+      focusNote = '可查看收益与站点定位，抵达后才开放升级、增投与定位调整。';
       focusTone = 'remote';
-    } else if (!localStation.manager) {
-      focusTitle = '管理员席位空缺';
-      focusNote = '站点已经运行，但当前未配置管理员；下方人事席位可比较雇佣成本。';
-      focusTone = 'watch';
     } else if (recommendation && recommendation.shouldSwitch) {
-      focusTitle = '经营策略可校准';
-      focusNote = '当前策略与本地信号存在偏差，可切换为「' + recommendation.strategy.name + '」。';
+      focusTitle = '站点定位可校准';
+      focusNote = '当前定位与本地信号存在偏差，可切换为「' + recommendation.strategy.name + '」。';
       focusTone = 'watch';
     } else if (localStation.nextLevel && upgradeCost > 0 && credits >= upgradeCost) {
       focusTitle = '站点升级窗口已打开';
@@ -3061,7 +2523,7 @@ function _renderLocalOperationsPanel(state, viewingSystem, localStation, buildCa
       focusTone = 'ready';
     } else {
       focusTitle = '本地站点运行稳定';
-      focusNote = '管理员和策略已配置，当前日收益 +' + Math.floor(localStation.projectedIncome || 0).toLocaleString() + '。';
+      focusNote = '站点定位已配置，当前日收益 +' + Math.floor(localStation.projectedIncome || 0).toLocaleString() + '。';
       focusTone = 'stable';
     }
   } else if (buildCandidate) {
@@ -3071,7 +2533,7 @@ function _renderLocalOperationsPanel(state, viewingSystem, localStation, buildCa
     statusNote = systemName + ' · ' + (buildCandidate.role ? buildCandidate.role.name : '待评估角色');
     outputValue = '深度 ' + Math.floor((buildCandidate.system && buildCandidate.system.marketDepth) || 200).toLocaleString();
     outputNote = '建站后进入本地经营与商网收益循环';
-    configValue = strategy ? strategy.name : '均衡经营';
+    configValue = strategy ? strategy.name : '均衡节点';
     configNote = '候选预设策略 · 建成后可调整';
     capitalValue = '建站 ' + buildCost.toLocaleString();
     capitalNote = buildCandidate.canAfford ? '资金与资格均已满足' : (buildCandidate.lockReason || ('尚缺 ' + Math.max(0, buildCost - credits).toLocaleString()));
@@ -3107,14 +2569,14 @@ function _renderLocalOperationsPanel(state, viewingSystem, localStation, buildCa
     '<div class="market-local-operations-head">' +
       '<div>' +
         '<div class="market-local-operations-title">本地经营工位</div>' +
-        '<div class="market-local-operations-subtitle">把节点资格、经营产能、人员配置与资本窗口压成一屏。</div>' +
+        '<div class="market-local-operations-subtitle">把节点资格、经营产能、站点定位与资本窗口压成一屏。</div>' +
       '</div>' +
       '<span class="market-local-operations-badge">' + (isCurrentSys ? '本地可执行' : '远程只读') + '</span>' +
     '</div>' +
     '<div class="market-local-operations-grid" role="list" aria-label="本地经营指标">' +
       _renderLocalOperationsMetric('节点状态', statusValue, statusNote, statusTone) +
       _renderLocalOperationsMetric('经营产能', outputValue, outputNote, outputTone) +
-      _renderLocalOperationsMetric('管理配置', configValue, configNote, configTone) +
+      _renderLocalOperationsMetric('站点定位', configValue, configNote, configTone) +
       _renderLocalOperationsMetric('资本窗口', capitalValue, capitalNote, capitalTone) +
     '</div>' +
     '<div class="market-local-operations-focus" aria-label="本地经营局部信号" data-tone="' + _escapeHtmlAttr(focusTone) + '">' +
@@ -3159,7 +2621,7 @@ function _renderTradeStationListBrief(ownedStations, buildCandidates, localStati
     signalTone = buildCandidate.canAfford ? 'trade-station-list-signal--ready' : 'trade-station-list-signal--watch';
   } else if (localStation) {
     signalTitle = '本地站点可维护';
-    signalNote = localStation.system.name + ' 已建站，适合先检查升级、经理和经营策略。';
+    signalNote = localStation.system.name + ' 已建站，适合先检查升级与站点定位。';
     signalTone = 'trade-station-list-signal--ready';
   } else if (upgradeReady > 0) {
     signalTitle = '升级波次待命';
@@ -3463,6 +2925,62 @@ function _renderOverviewTable(state, galaxyId, onPlanetClick, tableIds) {
   });
 }
 
+function _renderFocusedCapitalOverview(state, viewingSystem, isCurrentSys, financeOverview, commerceSnapshot) {
+  var system = findSystem(viewingSystem);
+  var systemLabel = system ? (system.name + ' · ' + system.typeLabel) : viewingSystem;
+  var credits = Math.floor((state && state.credits) || 0);
+  var investmentValue = Math.floor((financeOverview && financeOverview.tradeInvestmentValue) || 0);
+  var loanBalance = Math.floor((financeOverview && financeOverview.outstandingLoanBalance) || 0);
+  var activeLoanCount = Math.max(0, Number(financeOverview && financeOverview.activeLoanCount) || 0);
+  return '<section class="market-workspace-deck market-capital-deck">' +
+    '<div class="market-workspace-deck-hero">' +
+      '<div class="market-workspace-deck-copy">' +
+        '<div class="market-workspace-deck-kicker">Capital Control</div>' +
+        '<div class="market-workspace-deck-title">资本调度 · ' + (isCurrentSys ? '本地可执行' : '远程观察') + '</div>' +
+        '<div class="market-workspace-deck-summary">资本页只保留经营贷款与贸易站投资，让资金始终回到跑商、舰队和商网扩张。</div>' +
+      '</div>' +
+      '<div class="market-workspace-deck-emphasis">' +
+        '<span class="market-workspace-deck-emphasis-label">当前节点</span>' +
+        '<strong>' + _escapeHtml(systemLabel) + '</strong>' +
+        '<span class="market-workspace-deck-emphasis-note">' + (isCurrentSys ? '可申请贷款并追加本地投资。' : '抵达后开放本地资金动作。') + '</span>' +
+      '</div>' +
+    '</div>' +
+    '<div class="market-workspace-deck-grid">' +
+      _renderWorkspaceDeckMetric('可用现金', credits.toLocaleString(), '用于补给、舰队与商网扩张。', 'tone-cool') +
+      _renderWorkspaceDeckMetric('贷款敞口', loanBalance.toLocaleString(), activeLoanCount + ' 笔未结清贷款。', loanBalance > 0 ? 'tone-warm' : '') +
+      _renderWorkspaceDeckMetric('站点投资', investmentValue.toLocaleString(), '直接产生商网长期收益。', investmentValue > 0 ? 'tone-cool' : '') +
+      _renderWorkspaceDeckMetric('信用评级', String(commerceSnapshot.creditRating || financeOverview.creditRating || 0), '影响经营贷款额度。') +
+    '</div>' +
+  '</section>';
+}
+
+function _renderFocusedLoanGuard(state, activeLoans, loanOffers, isCurrentSys) {
+  var credits = Math.floor((state && state.credits) || 0);
+  var loans = activeLoans || [];
+  var loanBalance = loans.reduce(function (sum, loan) { return sum + Math.max(0, loan.balance || 0); }, 0);
+  var dailyPayment = loans.reduce(function (sum, loan) { return sum + Math.max(0, loan.dailyPayment || 0); }, 0);
+  var availableOfferCount = (loanOffers || []).filter(function (offer) { return !!offer.available; }).length;
+  var runwayDays = dailyPayment > 0 ? Math.floor(credits / dailyPayment) : null;
+  var focusTitle = !isCurrentSys ? '远程只读观察' : (loanBalance > credits && loanBalance > 0 ? '债务现金流承压' : '经营贷款可控');
+  var focusNote = !isCurrentSys
+    ? '抵达节点后才能申请或偿还经营贷款。'
+    : (loanBalance > 0 ? ('贷款余额 ' + Math.floor(loanBalance).toLocaleString() + '，每日偿付 ' + Math.floor(dailyPayment).toLocaleString() + '。') : '当前没有贷款，可按扩张需要选择周转额度。');
+  return '<section class="market-capital-local-panel" aria-label="经营贷款态势">' +
+    '<div class="market-capital-local-head"><div><div class="market-capital-local-title">经营贷款</div>' +
+      '<div class="market-capital-local-subtitle">贷款只负责跨越扩张资金缺口，不再附带证券和手动保险产品。</div></div>' +
+      '<span class="market-capital-local-badge">' + (isCurrentSys ? '本地可执行' : '远程只读') + '</span></div>' +
+    '<div class="market-capital-local-grid" role="list" aria-label="经营贷款指标">' +
+      _renderCapitalLocalMetric('贷款余额', Math.floor(loanBalance).toLocaleString(), loans.length + ' 笔未结清') +
+      _renderCapitalLocalMetric('每日偿付', Math.floor(dailyPayment).toLocaleString(), runwayDays === null ? '没有固定扣款' : ('现金约覆盖 ' + runwayDays + ' 天')) +
+      _renderCapitalLocalMetric('可用现金', credits.toLocaleString(), '扩张前保留偿付余量') +
+      _renderCapitalLocalMetric('可用报价', String(availableOfferCount), '按公司信用评级调整额度') +
+    '</div>' +
+    '<div class="market-capital-local-focus" data-tone="' + (loanBalance > credits && loanBalance > 0 ? 'debt' : 'stable') + '">' +
+      '<span class="market-capital-local-focus-kicker">局部信号</span><strong class="market-capital-local-focus-title">' + focusTitle + '</strong>' +
+      '<span class="market-capital-local-focus-note">' + focusNote + '</span></div>' +
+  '</section>';
+}
+
 function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions, progression) {
   var capitalContainer = document.getElementById('market-capital-pane');
   var operationsContainer = document.getElementById('market-operations-pane');
@@ -3476,15 +2994,6 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
   var activeLoans = (state.loans || []).filter(function (loan) {
     return loan.status === 'active' && loan.balance > 0;
   });
-  var insuranceProducts = Finance.getInsuranceProducts(state).slice(0, 3);
-  var pendingClaims = (state.insuranceClaims || []).filter(function (claim) {
-    return claim.status === 'pending';
-  }).slice(0, 3);
-  var allStockListings = _sortStockListings(Finance.getStockListings(state), viewingSystem);
-  var stockListings = allStockListings.slice(0, 5);
-  var futuresListings = Futures.getFuturesListings(state);
-  var openContracts = Futures.getOpenContracts(state);
-  var recentClosedContracts = Futures.getClosedContracts(state).slice(-4).reverse();
   var tradeInvestments = Finance.getTradeInvestmentOptions(state);
   var localInvestment = tradeInvestments.find(function (entry) {
     return entry.systemId === viewingSystem;
@@ -3510,13 +3019,13 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
     '<div class="market-finance-section-head">' +
       '<div>' +
         '<div class="market-finance-title">🏦 本地资本调度</div>' +
-        '<div class="market-finance-subtitle">贷款、保险和本地站点追加投资与停靠节点绑定。远程查看时只保留情报，不开放交易。</div>' +
+        '<div class="market-finance-subtitle">经营贷款与本地站点投资和停靠节点绑定。远程查看时只保留情报。</div>' +
       '</div>' +
     '</div>' +
-    _renderCapitalLocalGuardPanel(state, activeLoans, loanOffers, insuranceProducts, pendingClaims, isCurrentSys);
+    _renderFocusedLoanGuard(state, activeLoans, loanOffers, isCurrentSys);
 
   if (!isCurrentSys) {
-    capitalLocalSection += '<div class="market-finance-locked">📡 当前是远程查看模式。抵达该节点后，可在这里申请贷款、办理保险并追加本地站点投资。</div>';
+    capitalLocalSection += '<div class="market-finance-locked">📡 当前是远程查看模式。抵达该节点后，可在这里申请经营贷款并追加本地站点投资。</div>';
   } else {
     capitalLocalSection += '<div class="market-finance-layout">' +
       '<div class="market-finance-column">' +
@@ -3544,30 +3053,6 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
             }).join('') + '</div>'
           : '') +
       '</div>' +
-      '<div class="market-finance-column">' +
-        '<div class="market-finance-subsection">🛡 风险保障</div>' +
-        (insuranceProducts.length > 0
-          ? '<div class="market-finance-action-list" role="list" aria-label="保险产品列表">' + insuranceProducts.map(function (product) {
-              var productTitleId = _getMarketFinanceDomId('market-insurance-title', product.id);
-              var productMetaId = _getMarketFinanceDomId('market-insurance-meta', product.id);
-              return '<article class="market-finance-action-row" role="listitem" tabindex="0" aria-labelledby="' + _escapeHtmlAttr(productTitleId) + '" aria-describedby="' + _escapeHtmlAttr(productMetaId) + '">' +
-                '<div class="market-finance-action-main">' +
-                  '<div id="' + _escapeHtmlAttr(productTitleId) + '" class="market-finance-action-title">' + product.name + '</div>' +
-                  '<div id="' + _escapeHtmlAttr(productMetaId) + '" class="market-finance-action-meta">保费 ' + Math.floor(product.premium).toLocaleString() + ' · 保额 ' + Math.floor(product.coverage).toLocaleString() + ' · 可赔 ' + Math.floor(product.claimableAmount).toLocaleString() + '</div>' +
-                '</div>' +
-                '<div class="market-finance-inline-actions" role="group" aria-label="' + _escapeHtmlAttr(product.name + ' 保险操作') + '">' +
-                  '<button class="btn-action market-finance-btn' + (product.active ? ' disabled' : '') + '" data-action="market-purchase-insurance" data-policy-type="' + _escapeHtmlAttr(product.id) + '" aria-describedby="' + _escapeHtmlAttr(productMetaId) + '" aria-label="' + _escapeHtmlAttr('投保 ' + product.name) + '"' + (product.active ? ' disabled aria-disabled="true"' : '') + '>投保</button>' +
-                  '<button class="btn-action market-finance-btn' + (product.claimableAmount > 0 ? '' : ' disabled') + '" data-action="market-submit-claim" data-policy-type="' + _escapeHtmlAttr(product.id) + '" aria-describedby="' + _escapeHtmlAttr(productMetaId) + '" aria-label="' + _escapeHtmlAttr('提交 ' + product.name + ' 理赔') + '"' + (product.claimableAmount > 0 ? '' : ' disabled aria-disabled="true"') + '>理赔</button>' +
-                '</div>' +
-              '</article>';
-            }).join('') + '</div>'
-          : '<div class="market-finance-empty">当前暂无可用保险产品。</div>') +
-        (pendingClaims.length > 0
-          ? '<div class="market-finance-history" role="list" aria-label="待处理理赔记录">' + pendingClaims.map(function (claim) {
-              return '<div class="market-finance-history-row" role="listitem"><span>' + claim.policyType + '</span><span>预计到账 ' + Math.floor(claim.approvedAmount).toLocaleString() + '</span></div>';
-            }).join('') + '</div>'
-          : '') +
-      '</div>' +
     '</div>';
   }
 
@@ -3577,7 +3062,7 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
     '<div class="market-finance-section-head">' +
       '<div>' +
         '<div class="market-finance-title">🏪 节点经营</div>' +
-        '<div class="market-finance-subtitle">围绕当前查看节点决定是否建站、升级、雇佣管理员与切换经营策略。</div>' +
+        '<div class="market-finance-subtitle">围绕当前查看节点决定是否建站、升级与调整站点定位。</div>' +
       '</div>' +
       '<span class="market-finance-chip">商网 ' + tradeSummary.count + ' 站</span>' +
     '</div>' +
@@ -3593,7 +3078,7 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
       _renderMarketFinanceRoleMeta(localStation.role, localStation.regionalSynergy, '站点角色') +
       _renderStrategyRecommendationMeta(localStation.strategyRecommendation, 'market-finance-card-meta') +
       _renderTradeStationExplorationEffectMeta(localStation.explorationEffect, 'market-finance-card-meta') +
-      '<div class="market-finance-card-meta">管理员：' + (localStation.manager ? localStation.manager.name : '未配置') + ' · 策略：' + localStation.strategy.name + '</div>' +
+      '<div class="market-finance-card-meta">站点定位：' + localStation.strategy.name + '</div>' +
       (localInvestment
         ? '<div class="market-finance-card-meta">本地追加投资：已投 ' + Math.floor(localInvestment.investedAmount || 0).toLocaleString() + ' · 建议追加 ' + localInvestment.suggestedAmount.toLocaleString() + ' · 预估日分红 ' + (localInvestment.expectedYieldRate * 100).toFixed(2) + '%</div>'
         : '') +
@@ -3604,20 +3089,14 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
             (localInvestment ? '<button class="btn-action market-finance-btn" data-action="market-invest-trade-station" data-system-id="' + _escapeHtmlAttr(localInvestment.systemId) + '" aria-label="' + _escapeHtmlAttr(localStation.system.name + ' 追加站点投资') + '">追加投资</button>' : '') +
           '</div>' +
           '<div class="market-finance-station-stack">' +
-            '<div class="market-finance-subsection">👤 管理员</div>' +
-            '<div class="trade-station-choice-row" role="group" aria-label="' + _escapeHtmlAttr(localStation.system.name + ' 管理员选择') + '">' + TRADE_STATION_MANAGERS.map(function (manager) {
-              var active = localStation.station.managerId === manager.id;
-              return '<button class="trade-station-choice-btn' + (active ? ' active' : '') + '" data-action="market-hire-manager" data-system-id="' + _escapeHtmlAttr(localStation.station.systemId) + '" data-manager-id="' + _escapeHtmlAttr(manager.id) + '" aria-pressed="' + (active ? 'true' : 'false') + '" aria-label="' + _escapeHtmlAttr(localStation.system.name + ' 管理员选择 ' + manager.name + '，雇佣成本 ' + manager.hireCost.toLocaleString()) + '">' +
-                manager.name + '<span>' + manager.hireCost.toLocaleString() + '</span></button>';
-            }).join('') + '</div>' +
-            '<div class="market-finance-subsection">📈 经营策略</div>' +
-            '<div class="trade-station-choice-row" role="group" aria-label="' + _escapeHtmlAttr(localStation.system.name + ' 经营策略选择') + '">' + TRADE_STATION_STRATEGIES.map(function (strategy) {
+            '<div class="market-finance-subsection">🧭 站点定位</div>' +
+            '<div class="trade-station-choice-row" role="group" aria-label="' + _escapeHtmlAttr(localStation.system.name + ' 站点定位选择') + '">' + TRADE_STATION_STRATEGIES.map(function (strategy) {
               var active = localStation.station.strategyId === strategy.id;
-              return '<button class="trade-station-choice-btn' + (active ? ' active' : '') + '" data-action="market-set-strategy" data-system-id="' + _escapeHtmlAttr(localStation.station.systemId) + '" data-strategy-id="' + _escapeHtmlAttr(strategy.id) + '" aria-pressed="' + (active ? 'true' : 'false') + '" aria-label="' + _escapeHtmlAttr(localStation.system.name + ' 经营策略选择 ' + strategy.name + '，收益系数 ' + Math.round(strategy.incomeMultiplier * 100) + '%') + '">' +
+              return '<button class="trade-station-choice-btn' + (active ? ' active' : '') + '" data-action="market-set-strategy" data-system-id="' + _escapeHtmlAttr(localStation.station.systemId) + '" data-strategy-id="' + _escapeHtmlAttr(strategy.id) + '" aria-pressed="' + (active ? 'true' : 'false') + '" aria-label="' + _escapeHtmlAttr(localStation.system.name + ' 站点定位选择 ' + strategy.name + '，收益系数 ' + Math.round(strategy.incomeMultiplier * 100) + '%') + '">' +
                 strategy.name + '<span>' + Math.round(strategy.incomeMultiplier * 100) + '%</span></button>';
             }).join('') + '</div>' +
           '</div>'
-        : '<div class="market-finance-locked">📡 远程查看模式：可审阅该站点收益与配置，抵达后才能升级、雇佣和切换策略。</div>') +
+        : '<div class="market-finance-locked">📡 远程查看模式：可审阅该站点收益与定位，抵达后才能升级或调整定位。</div>') +
     '</div>';
   } else if (buildCandidate) {
     operationsLocalSection += '<div class="market-finance-card">' +
@@ -3651,7 +3130,7 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
         return '<div class="market-finance-network-row">' +
           '<div class="market-finance-network-main">' +
             '<div class="market-finance-action-title">' + entry.system.name + ' · Lv.' + entry.station.level + '</div>' +
-            '<div class="market-finance-action-meta">日收益 +' + Math.floor(entry.projectedIncome).toLocaleString() + ' · ' + (entry.role ? entry.role.name : '未分工') + ' · 管理员 ' + (entry.manager ? entry.manager.name : '未配置') + ' · 策略 ' + entry.strategy.name + '</div>' +
+            '<div class="market-finance-action-meta">日收益 +' + Math.floor(entry.projectedIncome).toLocaleString() + ' · ' + (entry.role ? entry.role.name : '未分工') + ' · 定位 ' + entry.strategy.name + '</div>' +
           '</div>' +
           '<div class="market-finance-network-note">累计 ' + Math.floor(entry.station.totalIncome || 0).toLocaleString() + '</div>' +
         '</div>';
@@ -3670,7 +3149,6 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
         '<div class="trade-station-metric"><span class="trade-station-metric-label">站点数量</span><span class="trade-station-metric-value">' + commerceSnapshot.ownedStationCount + '</span></div>' +
         '<div class="trade-station-metric"><span class="trade-station-metric-label">预计日收益</span><span class="trade-station-metric-value">+' + Math.floor(commerceSnapshot.stationDailyIncome).toLocaleString() + '</span></div>' +
         '<div class="trade-station-metric"><span class="trade-station-metric-label">累计收益</span><span class="trade-station-metric-value">' + Math.floor(tradeSummary.totalIncome).toLocaleString() + '</span></div>' +
-        '<div class="trade-station-metric"><span class="trade-station-metric-label">股票市值</span><span class="trade-station-metric-value">' + Math.floor(commerceSnapshot.stockPortfolioValue).toLocaleString() + '</span></div>' +
         '<div class="trade-station-metric"><span class="trade-station-metric-label">站点投资</span><span class="trade-station-metric-value">' + Math.floor(commerceSnapshot.tradeInvestmentValue).toLocaleString() + '</span></div>' +
         '<div class="trade-station-metric"><span class="trade-station-metric-label">贷款余额</span><span class="trade-station-metric-value">' + Math.floor(commerceSnapshot.totalLoans).toLocaleString() + '</span></div>' +
       '</div>' +
@@ -3690,7 +3168,7 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
         return '<div class="market-finance-network-row">' +
           '<div class="market-finance-network-main">' +
             '<div class="market-finance-action-title">' + entry.system.name + ' · Lv.' + entry.station.level + '</div>' +
-            '<div class="market-finance-action-meta">日收益 +' + Math.floor(entry.projectedIncome).toLocaleString() + ' · ' + (entry.role ? entry.role.name : '未分工') + ' · 管理员 ' + (entry.manager ? entry.manager.name : '未配置') + ' · 策略 ' + entry.strategy.name + '</div>' +
+            '<div class="market-finance-action-meta">日收益 +' + Math.floor(entry.projectedIncome).toLocaleString() + ' · ' + (entry.role ? entry.role.name : '未分工') + ' · 定位 ' + entry.strategy.name + '</div>' +
           '</div>' +
           '<div class="market-finance-network-note">累计 ' + Math.floor(entry.station.totalIncome || 0).toLocaleString() + '</div>' +
         '</div>';
@@ -3742,7 +3220,6 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
       var cardId = _getTradeStationDomId('trade-station-owned-card', station.systemId);
       var titleId = _getTradeStationDomId('trade-station-owned-title', station.systemId);
       var incomeId = _getTradeStationDomId('trade-station-owned-income', station.systemId);
-      var managerGroupId = _getTradeStationDomId('trade-station-manager-group', station.systemId);
       var strategyGroupId = _getTradeStationDomId('trade-station-strategy-group', station.systemId);
       operationsStationsSection += '<article id="' + _escapeHtmlAttr(cardId) + '" class="trade-station-card" role="listitem" tabindex="0" aria-labelledby="' + _escapeHtmlAttr(titleId) + '" aria-describedby="' + _escapeHtmlAttr(incomeId) + '">' +
         '<div class="trade-station-card-head">' +
@@ -3758,28 +3235,19 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
         _renderStrategyRecommendationMeta(entry.strategyRecommendation, 'trade-station-card-meta') +
         _renderTradeStationExplorationEffectMeta(entry.explorationEffect, 'trade-station-card-meta') +
         '<div class="trade-station-card-meta">经济系数 ×' + entry.economicFactor.toFixed(2) + ' · 累计投资 ' + Math.floor(station.investment || 0).toLocaleString() + ' · 建于第 ' + (station.buildDay || 1) + ' 天</div>' +
-        '<div class="trade-station-card-meta">管理员：' + (entry.manager ? (entry.manager.name + '（日薪 ' + entry.manager.dailySalary + '）') : '未雇佣') + ' · 策略：' + entry.strategy.name + '</div>' +
+        '<div class="trade-station-card-meta">站点定位：' + entry.strategy.name + '</div>' +
         '<div class="trade-station-actions" role="group" aria-label="' + _escapeHtmlAttr(entry.system.name + ' 贸易站操作') + '">' +
           _renderStrategyRecommendationButton(entry, 'trade-station-upgrade-btn') +
           '<button class="btn-action trade-station-upgrade-btn' + (entry.nextLevel ? '' : ' disabled') + '" data-action="market-upgrade-station" data-system-id="' + _escapeHtmlAttr(station.systemId) + '" aria-label="' + _escapeHtmlAttr(entry.system.name + (entry.nextLevel ? (' 升级至 Lv.' + entry.nextLevel.level) : ' 已达满级')) + '"' + (entry.nextLevel ? '' : ' disabled aria-disabled="true"') + '>' +
             (entry.nextLevel ? ('升级至 Lv.' + entry.nextLevel.level + '（+' + entry.nextUpgradeCost.toLocaleString() + '）') : (entry.nextLevelLockLabel || '已达满级')) +
           '</button>' +
         '</div>' +
-        '<div id="' + _escapeHtmlAttr(managerGroupId) + '" class="trade-station-subsection">👤 管理员</div>' +
-        '<div class="trade-station-choice-row" role="group" aria-labelledby="' + _escapeHtmlAttr(managerGroupId) + '">' +
-          TRADE_STATION_MANAGERS.map(function (manager) {
-            var activeClass = station.managerId === manager.id ? ' active' : '';
-            var active = station.managerId === manager.id;
-            return '<button class="trade-station-choice-btn' + activeClass + '" data-action="market-hire-manager" data-system-id="' + _escapeHtmlAttr(station.systemId) + '" data-manager-id="' + _escapeHtmlAttr(manager.id) + '" aria-pressed="' + (active ? 'true' : 'false') + '" aria-label="' + _escapeHtmlAttr(entry.system.name + ' 管理员选择 ' + manager.name + '，雇佣成本 ' + manager.hireCost.toLocaleString()) + '">' +
-              manager.name + '<span>' + manager.hireCost.toLocaleString() + '</span></button>';
-          }).join('') +
-        '</div>' +
-        '<div id="' + _escapeHtmlAttr(strategyGroupId) + '" class="trade-station-subsection">📈 经营策略</div>' +
+        '<div id="' + _escapeHtmlAttr(strategyGroupId) + '" class="trade-station-subsection">🧭 站点定位</div>' +
         '<div class="trade-station-choice-row" role="group" aria-labelledby="' + _escapeHtmlAttr(strategyGroupId) + '">' +
           TRADE_STATION_STRATEGIES.map(function (strategy) {
             var activeClass = station.strategyId === strategy.id ? ' active' : '';
             var active = station.strategyId === strategy.id;
-            return '<button class="trade-station-choice-btn' + activeClass + '" data-action="market-set-strategy" data-system-id="' + _escapeHtmlAttr(station.systemId) + '" data-strategy-id="' + _escapeHtmlAttr(strategy.id) + '" aria-pressed="' + (active ? 'true' : 'false') + '" aria-label="' + _escapeHtmlAttr(entry.system.name + ' 经营策略选择 ' + strategy.name + '，收益系数 ' + Math.round(strategy.incomeMultiplier * 100) + '%') + '">' +
+            return '<button class="trade-station-choice-btn' + activeClass + '" data-action="market-set-strategy" data-system-id="' + _escapeHtmlAttr(station.systemId) + '" data-strategy-id="' + _escapeHtmlAttr(strategy.id) + '" aria-pressed="' + (active ? 'true' : 'false') + '" aria-label="' + _escapeHtmlAttr(entry.system.name + ' 站点定位选择 ' + strategy.name + '，收益系数 ' + Math.round(strategy.incomeMultiplier * 100) + '%') + '">' +
               strategy.name + '<span>' + Math.round(strategy.incomeMultiplier * 100) + '%</span></button>';
           }).join('') +
         '</div>' +
@@ -3790,127 +3258,15 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
 
   operationsStationsSection += '</section>';
 
-  var capitalStocksSection = '<section class="market-finance-section">' +
-    '<div class="market-finance-section-head">' +
-      '<div>' +
-        '<div class="market-finance-title">📈 股票市场</div>' +
-        '<div class="market-finance-subtitle">本地指数优先展示，可直接从市场页建仓或减仓。</div>' +
-      '</div>' +
-    '</div>' +
-    _renderStockPositionPanel(state, allStockListings, viewingSystem);
 
-  if (stockListings.length === 0) {
-    capitalStocksSection += '<div class="market-finance-empty">暂无可交易股票。</div>';
-  } else {
-    capitalStocksSection += '<div class="market-finance-card-grid market-finance-card-grid--stocks" role="list" aria-label="股票标的列表">' + stockListings.map(function (listing) {
-      var delta = _getStockPriceDelta(listing);
-      var deltaClass = delta >= 0 ? 'market-finance-value-up' : 'market-finance-value-down';
-      var deltaText = (delta >= 0 ? '+' : '') + delta.toLocaleString();
-      var listingKey = listing.id || listing.systemId || listing.name;
-      var stockTitleId = _getMarketFinanceDomId('market-stock-title', listingKey);
-      var stockPositionId = _getMarketFinanceDomId('market-stock-position', listingKey);
-      var stockDeltaId = _getMarketFinanceDomId('market-stock-delta', listingKey);
-      return '<article class="market-finance-card' + (listing.systemId === viewingSystem ? ' is-featured' : '') + '" role="listitem" tabindex="0" aria-labelledby="' + _escapeHtmlAttr(stockTitleId) + '" aria-describedby="' + _escapeHtmlAttr(stockPositionId + ' ' + stockDeltaId) + '">' +
-        '<div class="market-finance-card-head">' +
-          '<span id="' + _escapeHtmlAttr(stockTitleId) + '" class="market-finance-card-title">' + listing.name + '</span>' +
-          '<span class="market-finance-chip">' + listing.price.toLocaleString() + '</span>' +
-        '</div>' +
-        '<div id="' + _escapeHtmlAttr(stockPositionId) + '" class="market-finance-card-meta">持仓 ' + (listing.shares || 0) + ' 股 · 均价 ' + Math.floor(listing.avgCost || 0).toLocaleString() + '</div>' +
-        '<div id="' + _escapeHtmlAttr(stockDeltaId) + '" class="market-finance-card-meta">日波动 <span class="' + deltaClass + '">' + deltaText + '</span></div>' +
-        '<div class="market-finance-actions" role="group" aria-label="' + _escapeHtmlAttr(listing.name + ' 股票操作') + '">' +
-          '<button class="btn-action market-finance-btn" data-action="market-buy-stock" data-stock-id="' + _escapeHtmlAttr(listing.id) + '" aria-describedby="' + _escapeHtmlAttr(stockPositionId + ' ' + stockDeltaId) + '" aria-label="' + _escapeHtmlAttr('买入 1 股 ' + listing.name) + '">买入 1 股</button>' +
-          '<button class="btn-action market-finance-btn' + ((listing.shares || 0) > 0 ? '' : ' disabled') + '" data-action="market-sell-stock" data-stock-id="' + _escapeHtmlAttr(listing.id) + '" aria-describedby="' + _escapeHtmlAttr(stockPositionId + ' ' + stockDeltaId) + '" aria-label="' + _escapeHtmlAttr('卖出 1 股 ' + listing.name) + '"' + ((listing.shares || 0) > 0 ? '' : ' disabled aria-disabled="true"') + '>卖出 1 股</button>' +
-        '</div>' +
-      '</article>';
-    }).join('') + '</div>';
-  }
-  capitalStocksSection += '</section>';
-
-  var capitalFuturesSection = '<section class="market-finance-section">' +
-    '<div class="market-finance-section-head">' +
-      '<div>' +
-        '<div class="market-finance-title">📋 期货市场</div>' +
-        '<div class="market-finance-subtitle">以当前现货价锁定合约。做多押涨，做空押跌，保证金为合约价值的 20%。</div>' +
-      '</div>' +
-      '<span class="market-finance-chip">' + Futures.DEFAULT_TERM_DAYS + ' 天标准合约</span>' +
-    '</div>' +
-    _renderFuturesRiskPanel(state, futuresListings, openContracts, recentClosedContracts);
-
-  if (futuresListings.length === 0) {
-    capitalFuturesSection += '<div class="market-finance-empty">暂无可交易期货标的。</div>';
-  } else {
-    capitalFuturesSection += '<div class="market-finance-card-grid market-finance-card-grid--futures" role="list" aria-label="期货标的列表">' + futuresListings.map(function (listing) {
-      var futuresTitleId = _getMarketFinanceDomId('market-futures-title', listing.goodId);
-      var futuresMetaId = _getMarketFinanceDomId('market-futures-meta', listing.goodId);
-      var futuresPositionId = _getMarketFinanceDomId('market-futures-position', listing.goodId);
-      var futuresLabel = (listing.emoji ? listing.emoji + ' ' : '') + listing.name;
-      return '<article class="market-finance-card" role="listitem" tabindex="0" aria-labelledby="' + _escapeHtmlAttr(futuresTitleId) + '" aria-describedby="' + _escapeHtmlAttr(futuresMetaId + ' ' + futuresPositionId) + '">' +
-        '<div class="market-finance-card-head">' +
-          '<span id="' + _escapeHtmlAttr(futuresTitleId) + '" class="market-finance-card-title">' + futuresLabel + '</span>' +
-          '<span class="market-finance-chip">现价 ' + listing.currentPrice.toLocaleString() + '</span>' +
-        '</div>' +
-        '<div id="' + _escapeHtmlAttr(futuresMetaId) + '" class="market-finance-card-meta">合约规模 ' + listing.contractUnit + ' 单位 · 保证金 ' + listing.margin.toLocaleString() + '</div>' +
-        '<div id="' + _escapeHtmlAttr(futuresPositionId) + '" class="market-finance-card-meta">持多 ' + listing.heldLong + ' 份 · 持空 ' + listing.heldShort + ' 份</div>' +
-        '<div class="market-finance-actions" role="group" aria-label="' + _escapeHtmlAttr(listing.name + ' 期货操作') + '">' +
-          '<button class="btn-action market-finance-btn market-finance-btn-long" data-action="market-futures-long" data-good-id="' + _escapeHtmlAttr(listing.goodId) + '" aria-describedby="' + _escapeHtmlAttr(futuresMetaId + ' ' + futuresPositionId) + '" aria-label="' + _escapeHtmlAttr('做多 ' + listing.name) + '">做多</button>' +
-          '<button class="btn-action market-finance-btn market-finance-btn-short" data-action="market-futures-short" data-good-id="' + _escapeHtmlAttr(listing.goodId) + '" aria-describedby="' + _escapeHtmlAttr(futuresMetaId + ' ' + futuresPositionId) + '" aria-label="' + _escapeHtmlAttr('做空 ' + listing.name) + '">做空</button>' +
-        '</div>' +
-      '</article>';
-    }).join('') + '</div>';
-  }
-
-  if (openContracts.length > 0) {
-    capitalFuturesSection += '<div class="market-finance-subsection">📂 当前持仓</div>' +
-      '<div class="market-finance-contract-list" role="list" aria-label="当前期货持仓">' + openContracts.map(function (contract) {
-        var pnlClass = (contract.unrealizedPnl || 0) >= 0 ? 'market-finance-value-up' : 'market-finance-value-down';
-        var pnlText = ((contract.unrealizedPnl || 0) >= 0 ? '+' : '') + (contract.unrealizedPnl || 0).toLocaleString();
-        var contractTitleId = _getMarketFinanceDomId('market-contract-title', contract.id);
-        var contractMetaId = _getMarketFinanceDomId('market-contract-meta', contract.id);
-        var contractPnlId = _getMarketFinanceDomId('market-contract-pnl', contract.id);
-        return '<article class="market-finance-contract-row" role="listitem" tabindex="0" aria-labelledby="' + _escapeHtmlAttr(contractTitleId) + '" aria-describedby="' + _escapeHtmlAttr(contractMetaId + ' ' + contractPnlId) + '">' +
-          '<div>' +
-            '<div id="' + _escapeHtmlAttr(contractTitleId) + '" class="market-finance-contract-title">' + contract.goodName + ' · ' + (contract.direction === 'long' ? '多头' : '空头') + '</div>' +
-            '<div id="' + _escapeHtmlAttr(contractMetaId) + '" class="market-finance-contract-meta">锁定价 ' + contract.lockedPrice.toLocaleString() + ' · 当前价 ' + contract.currentPrice.toLocaleString() + ' · 剩余 ' + contract.daysLeft + ' 天</div>' +
-          '</div>' +
-          '<div class="market-finance-contract-side" role="group" aria-label="' + _escapeHtmlAttr(contract.goodName + ' 合约操作') + '">' +
-            '<span id="' + _escapeHtmlAttr(contractPnlId) + '" class="' + pnlClass + '">' + pnlText + '</span>' +
-            '<button class="btn-action market-finance-btn" data-action="market-futures-close" data-contract-id="' + _escapeHtmlAttr(contract.id) + '" aria-describedby="' + _escapeHtmlAttr(contractMetaId + ' ' + contractPnlId) + '" aria-label="' + _escapeHtmlAttr('平仓 ' + contract.goodName + (contract.direction === 'long' ? ' 多头' : ' 空头')) + '">平仓</button>' +
-          '</div>' +
-        '</article>';
-      }).join('') + '</div>';
-  }
-
-  if (recentClosedContracts.length > 0) {
-    capitalFuturesSection += '<div class="market-finance-subsection">📜 近期成交</div>' +
-      '<div class="market-finance-history" role="list" aria-label="近期合约成交">' + recentClosedContracts.map(function (contract) {
-        var pnl = contract.pnl || 0;
-        return '<div class="market-finance-history-row" role="listitem">' +
-          '<span>' + contract.goodName + ' · ' + (contract.direction === 'long' ? '多头' : '空头') + '</span>' +
-          '<span>' + (pnl >= 0 ? '+' : '') + pnl.toLocaleString() + '</span>' +
-        '</div>';
-      }).join('') + '</div>';
-  }
-
-  capitalFuturesSection += '</section>';
-
-  capitalContainer.innerHTML = _renderCapitalCommandDeck(
+  capitalContainer.innerHTML = _renderFocusedCapitalOverview(
+    state,
     viewingSystem,
     isCurrentSys,
     financeOverview,
-    commerceSnapshot,
-    stockListings,
-    openContracts
-  ) + _renderCapitalSignalPanel(
-    state,
-    financeOverview,
-    allStockListings,
-    openContracts,
-    activeLoans,
-    isCurrentSys
+    commerceSnapshot
   ) + '<div class="market-workspace-board market-capital-board">' + _renderMarketSubworkspace('capital', {
     local: capitalLocalSection,
-    stocks: capitalStocksSection,
-    futures: capitalFuturesSection,
   }, progression) + '</div>';
   operationsContainer.innerHTML = _renderOperationsCommandDeck(
     viewingSystem,
@@ -3940,12 +3296,6 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
       });
     });
 
-    container.querySelectorAll('[data-action="market-buy-stock"]').forEach(function (button) {
-      button.addEventListener('click', function () {
-        if (financeActions.onBuyStock) financeActions.onBuyStock(button.dataset.stockId);
-      });
-    });
-
     container.querySelectorAll('[data-action="market-take-loan"]').forEach(function (button) {
       button.addEventListener('click', function () {
         if (financeActions.onTakeLoan) financeActions.onTakeLoan(button.dataset.loanOfferId);
@@ -3955,12 +3305,6 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
     container.querySelectorAll('[data-action="market-repay-loan"]').forEach(function (button) {
       button.addEventListener('click', function () {
         if (financeActions.onRepayLoan) financeActions.onRepayLoan(button.dataset.loanId);
-      });
-    });
-
-    container.querySelectorAll('[data-action="market-sell-stock"]').forEach(function (button) {
-      button.addEventListener('click', function () {
-        if (financeActions.onSellStock) financeActions.onSellStock(button.dataset.stockId);
       });
     });
 
@@ -3979,18 +3323,6 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
       });
     });
 
-    container.querySelectorAll('[data-action="market-purchase-insurance"]').forEach(function (button) {
-      button.addEventListener('click', function () {
-        if (financeActions.onPurchaseInsurance) financeActions.onPurchaseInsurance(button.dataset.policyType);
-      });
-    });
-
-    container.querySelectorAll('[data-action="market-submit-claim"]').forEach(function (button) {
-      button.addEventListener('click', function () {
-        if (financeActions.onSubmitInsuranceClaim) financeActions.onSubmitInsuranceClaim(button.dataset.policyType);
-      });
-    });
-
     container.querySelectorAll('[data-action="market-build-station"]').forEach(function (button) {
       button.addEventListener('click', function () {
         if (financeActions.onBuildTradeStation) financeActions.onBuildTradeStation(button.dataset.systemId);
@@ -4000,12 +3332,6 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
     container.querySelectorAll('[data-action="market-upgrade-station"]').forEach(function (button) {
       button.addEventListener('click', function () {
         if (financeActions.onUpgradeTradeStation) financeActions.onUpgradeTradeStation(button.dataset.systemId);
-      });
-    });
-
-    container.querySelectorAll('[data-action="market-hire-manager"]').forEach(function (button) {
-      button.addEventListener('click', function () {
-        if (financeActions.onHireTradeStationManager) financeActions.onHireTradeStationManager(button.dataset.systemId, button.dataset.managerId);
       });
     });
 
@@ -4021,35 +3347,12 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
       });
     });
 
-    container.querySelectorAll('[data-action="market-batch-hire-manager"]').forEach(function (button) {
-      button.addEventListener('click', function () {
-        if (financeActions.onBatchHireTradeStationManager) financeActions.onBatchHireTradeStationManager(button.dataset.managerId, _parseBatchSystemIds(button.dataset.systemIds));
-      });
-    });
-
     container.querySelectorAll('[data-action="market-batch-set-strategy"]').forEach(function (button) {
       button.addEventListener('click', function () {
         if (financeActions.onBatchSetTradeStationStrategy) financeActions.onBatchSetTradeStationStrategy(button.dataset.strategyId, _parseBatchSystemIds(button.dataset.systemIds));
       });
     });
 
-    container.querySelectorAll('[data-action="market-futures-long"]').forEach(function (button) {
-      button.addEventListener('click', function () {
-        if (financeActions.onFuturesLong) financeActions.onFuturesLong(button.dataset.goodId);
-      });
-    });
-
-    container.querySelectorAll('[data-action="market-futures-short"]').forEach(function (button) {
-      button.addEventListener('click', function () {
-        if (financeActions.onFuturesShort) financeActions.onFuturesShort(button.dataset.goodId);
-      });
-    });
-
-    container.querySelectorAll('[data-action="market-futures-close"]').forEach(function (button) {
-      button.addEventListener('click', function () {
-        if (financeActions.onFuturesClose) financeActions.onFuturesClose(button.dataset.contractId);
-      });
-    });
   });
 }
 
@@ -4108,7 +3411,7 @@ function _bindMarketOverviewPriceMode(onChange) {
  * @param {string}   [viewingGalaxy] 查看的星系 ID（用于交易图表）
  * @param {Function} [onBlackBuy]    黑市买入回调 (good) => void
  * @param {Function} [onBlackSell]   黑市卖出回调 (good) => void
- * @param {object}   [financeActions] 股票/期货市场动作回调
+ * @param {object}   [financeActions] 贷款、站点投资与商网动作回调
  */
 export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode, viewingGalaxy, onBlackBuy, onBlackSell, financeActions) {
   const sysId         = viewingSystem || state.currentSystem;

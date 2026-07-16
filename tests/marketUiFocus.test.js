@@ -315,46 +315,19 @@ describe('MarketUI guided focus', function () {
     expect(css).toContain('.trade-station-income-row');
   });
 
-  it('资本分区包含金融列表语义、操作标签和窄屏适配锚点', function () {
+  it('资本分区只保留贷款与站点投资语义和适配锚点', function () {
     const css = readFileSync('css/interstellar-trader.css', 'utf8');
     const js = readFileSync('js/ui/MarketUI.js', 'utf8');
 
     expect(js).toContain('role="list" aria-label="未结清贷款列表"');
-    expect(js).toContain('role="list" aria-label="保险产品列表"');
-    expect(js).toContain('market-finance-card-grid market-finance-card-grid--stocks" role="list"');
-    expect(js).toContain('market-finance-card-grid market-finance-card-grid--futures" role="list"');
-    expect(js).toContain('market-finance-contract-list" role="list"');
-    expect(js).toContain('class="market-capital-signal-panel" aria-label="资本市场局部态势"');
-    expect(js).toContain('class="market-capital-signal-grid" role="list" aria-label="资本市场态势矩阵"');
-    expect(js).toContain('class="market-capital-focus" aria-label="资本局部信号"');
-    expect(js).toContain('class="market-capital-local-panel" aria-label="本地资金防线局部态势"');
-    expect(js).toContain('class="market-capital-local-grid" role="list" aria-label="本地资金防线指标"');
-    expect(js).toContain('class="market-capital-local-focus" aria-label="本地资金局部信号"');
-    expect(js).toContain('class="market-stock-position-panel" aria-label="股票持仓局部态势"');
-    expect(js).toContain('class="market-stock-position-grid" role="list" aria-label="股票持仓指标"');
-    expect(js).toContain('class="market-stock-position-focus" aria-label="股票局部信号"');
-    expect(js).toContain('class="market-futures-risk-panel" aria-label="期货风控局部态势"');
-    expect(js).toContain('class="market-futures-risk-grid" role="list" aria-label="期货风控指标"');
-    expect(js).toContain('class="market-futures-risk-focus" aria-label="期货局部信号"');
-    expect(js).toContain('class="market-finance-card');
+    expect(js).toContain('class="market-capital-local-grid" role="list" aria-label="经营贷款指标"');
+    expect(js).toContain('资本页只保留经营贷款与贸易站投资');
+    expect(js).toContain("capital: [\n    { id: 'local', label: '调度', hint: '贷款与本地投资' },\n  ]");
     expect(js).toContain('role="listitem" tabindex="0"');
     expect(js).toContain('aria-describedby="');
-    expect(js).toContain('aria-label="\' + _escapeHtmlAttr(\'买入 1 股 ');
-    expect(js).toContain('aria-label="\' + _escapeHtmlAttr(\'平仓 ');
-    expect(css).toContain('.market-capital-signal-panel');
-    expect(css).toContain('.market-capital-signal-grid');
-    expect(css).toContain('.market-capital-focus[data-tone="debt"]');
     expect(css).toContain('.market-capital-local-panel');
     expect(css).toContain('.market-capital-local-grid');
-    expect(css).toContain('.market-capital-local-focus[data-tone="risk"]');
-    expect(css).toContain('.market-stock-position-panel');
-    expect(css).toContain('.market-stock-position-grid');
-    expect(css).toContain('.market-stock-position-focus[data-tone="risk"]');
-    expect(css).toContain('.market-futures-risk-panel');
-    expect(css).toContain('.market-futures-risk-grid');
-    expect(css).toContain('.market-futures-risk-focus[data-tone="risk"]');
-    expect(css).toContain('.market-finance-card-grid[role="list"]');
-    expect(css).toContain('.market-finance-card[role="listitem"]:focus-visible');
+    expect(css).toContain('.market-capital-local-focus[data-tone="debt"]');
     expect(css).toContain('.market-finance-action-row[role="listitem"]');
     expect(css).toContain('.market-finance-layout');
   });
@@ -638,7 +611,6 @@ describe('MarketUI guided focus', function () {
     var Economy = await import('../js/systems/economy/Economy.js');
     var Faction = await import('../js/systems/faction/FactionSystem.js');
     var Finance = await import('../js/systems/finance/FinanceSystem.js');
-    var Futures = await import('../js/systems/finance/FuturesSystem.js');
 
     var state = helpers.createTestState({
       currentSystem: 'sol_prime',
@@ -652,17 +624,6 @@ describe('MarketUI guided focus', function () {
     Economy.init();
     Faction.init(state);
     Finance.init(state);
-    Futures.init(state);
-    Finance.purchaseInsurance(state, 'hull');
-    state.shipHull = 40;
-    Finance.submitClaim(state, 'hull');
-    var stockListing = Finance.getStockListings(state)[0];
-    Finance.buyStock(state, stockListing.id, 2);
-    state.stockMarket[stockListing.id].lastPrice = state.stockMarket[stockListing.id].price;
-    state.stockMarket[stockListing.id].price += 50;
-    var futuresListing = Futures.getFuturesListings(state)[0];
-    Futures.openLongContract(state, futuresListing.goodId);
-    state.futuresContracts[0].expiryDay = (state.day || 1) + 1;
     state.loans = [{
       id: 'loan-test',
       name: '测试贷款',
@@ -702,26 +663,17 @@ describe('MarketUI guided focus', function () {
     var MarketUI = await import('../js/ui/MarketUI.js');
     MarketUI.render(state, function () {}, function () {}, function () {}, 'sol_prime', 'open', 'milky_way', null, null, {});
 
-    expect(capitalPane.innerHTML).toContain('market-capital-signal-panel');
-    expect(capitalPane.innerHTML).toContain('资本市场态势矩阵');
-    expect(capitalPane.innerHTML).toContain('资本局部信号');
+    expect(capitalPane.innerHTML).toContain('market-capital-deck');
+    expect(capitalPane.innerHTML).toContain('资本页只保留经营贷款与贸易站投资');
     expect(capitalPane.innerHTML).toContain('可用现金');
-    expect(capitalPane.innerHTML).toContain('债务/理赔');
-    expect(capitalPane.innerHTML).toContain('贷款现金流承压');
+    expect(capitalPane.innerHTML).toContain('贷款敞口');
+    expect(capitalPane.innerHTML).toContain('债务现金流承压');
     expect(capitalPane.innerHTML).toContain('data-tone="debt"');
     expect(capitalPane.innerHTML).toContain('market-capital-local-panel');
-    expect(capitalPane.innerHTML).toContain('本地资金防线指标');
-    expect(capitalPane.innerHTML).toContain('本地资金局部信号');
-    expect(capitalPane.innerHTML).toContain('理赔回款待入账');
-    expect(capitalPane.innerHTML).toContain('预计回款');
-    expect(capitalPane.innerHTML).toContain('market-stock-position-panel');
-    expect(capitalPane.innerHTML).toContain('股票持仓指标');
-    expect(capitalPane.innerHTML).toContain('股票局部信号');
-    expect(capitalPane.innerHTML).toContain('持仓浮盈可观察');
-    expect(capitalPane.innerHTML).toContain('market-futures-risk-panel');
-    expect(capitalPane.innerHTML).toContain('期货风控指标');
-    expect(capitalPane.innerHTML).toContain('期货局部信号');
-    expect(capitalPane.innerHTML).toContain('到期压力升高');
+    expect(capitalPane.innerHTML).toContain('经营贷款指标');
+    expect(capitalPane.innerHTML).not.toContain('股票市场');
+    expect(capitalPane.innerHTML).not.toContain('期货市场');
+    expect(capitalPane.innerHTML).not.toContain('风险保障');
   });
 
   it('黑市页展示准入风险态势和保护信号', async function () {
@@ -880,8 +832,8 @@ describe('MarketUI guided focus', function () {
     expect(spotPane.innerHTML).toContain('market-survey-chain-row--archived');
     expect(spotPane.innerHTML).toContain('data-market-survey-chain-id="sol_prime_chain_derelict_depot"');
     expect(spotPane.innerHTML).toContain('is-followup-ready');
-    expect(spotPane.innerHTML).toContain('废弃补给站');
-    expect(spotPane.innerHTML).toContain('归档补给信号');
+    expect(spotPane.innerHTML).toContain('遗忘补给库');
+    expect(spotPane.innerHTML).toContain('归档旧航线');
     expect(spotPane.innerHTML).toContain('商网 / 整备');
     expect(spotPane.innerHTML).toContain('确认商网和派遣整备价值');
 
@@ -951,8 +903,8 @@ describe('MarketUI guided focus', function () {
     var MarketUI = await import('../js/ui/MarketUI.js');
     MarketUI.render(state, function () {}, function () {}, function () {}, 'sol_prime', 'open', 'milky_way', null, null, {});
 
-    expect(operationsPane.innerHTML).toContain('建议策略：扩张经营');
-    expect(operationsPane.innerHTML).toContain('适合扩张经营');
+    expect(operationsPane.innerHTML).toContain('建议策略：吞吐节点');
+    expect(operationsPane.innerHTML).toContain('适合吞吐节点定位');
     expect(operationsPane.innerHTML).toContain('market-local-operations-panel');
     expect(operationsPane.innerHTML).toContain('本地经营指标');
     expect(operationsPane.innerHTML).toContain('本地经营局部信号');
@@ -1029,11 +981,10 @@ describe('MarketUI guided focus', function () {
     var MarketUI = await import('../js/ui/MarketUI.js');
     MarketUI.render(state, function () {}, function () {}, function () {}, 'sol_prime', 'open', 'milky_way', null, null, {});
 
-    expect(operationsPane.innerHTML).toContain('建议策略：扩张经营');
+    expect(operationsPane.innerHTML).toContain('建议策略：吞吐节点');
     expect(operationsPane.innerHTML).toContain('切换为建议策略');
     expect(operationsPane.innerHTML).toContain('data-strategy-id="expansion"');
-    expect(operationsPane.innerHTML).toContain('管理员席位空缺');
-    expect(operationsPane.innerHTML).toContain('管理配置');
+    expect(operationsPane.innerHTML).toContain('站点定位');
   });
 
   it('商网总览会展示下一笔商网动作', async function () {

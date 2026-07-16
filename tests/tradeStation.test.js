@@ -5,6 +5,7 @@ import * as GalaxyData from '../js/systems/galaxy/GalaxyDataLayer.js';
 import * as TradeStation from '../js/systems/trade/TradeStationSystem.js';
 import { GOODS } from '../js/data/goods.js';
 import { SYSTEMS } from '../js/data/systems.js';
+import { TRADE_STATION_LEVELS } from '../js/data/tradeStations.js';
 import { createTestState } from './helpers.js';
 
 const DEFAULT_BASE_PRICE = 10;
@@ -42,13 +43,40 @@ describe('TradeStationSystem', () => {
     const result = TradeStation.buildStation(state, 'sol_prime');
 
     expect(result.ok).toBe(true);
-    expect(state.credits).toBe(50000);
+    expect(state.credits).toBe(120000);
     expect(state.tradeStations.sol_prime).toMatchObject({
       systemId: 'sol_prime',
       level: 1,
       strategyId: 'balanced',
       managerId: null,
     });
+  });
+
+  it('首座贸易前哨接住中期资金档位，基准回本周期不超过 140 天', () => {
+    const level = TRADE_STATION_LEVELS[0];
+    const state = createTestState({
+      credits: level.investment,
+      companyLevel: 4,
+      currentSystem: 'sol_prime',
+      visitedSystems: ['sol_prime'],
+    });
+
+    expect(level.investment).toBe(30000);
+    expect(TradeStation.buildStation(state, 'sol_prime').ok).toBe(true);
+    const projectedIncome = TradeStation.getProjectedDailyIncome(state, 'sol_prime');
+
+    expect(projectedIncome).toBeGreaterThan(0);
+    expect(Math.ceil(level.investment / projectedIncome)).toBeLessThanOrEqual(140);
+  });
+
+  it('贸易霸权信条会实际提高贸易站预期日收益', () => {
+    const state = createTestState({ credits: 30000, companyLevel: 4, visitedSystems: ['sol_prime'] });
+    expect(TradeStation.buildStation(state, 'sol_prime').ok).toBe(true);
+    const baseline = TradeStation.getProjectedDailyIncome(state, 'sol_prime');
+
+    state.storyDecisions.victory_policy = 'trade_baron';
+
+    expect(TradeStation.getProjectedDailyIncome(state, 'sol_prime')).toBeGreaterThan(baseline);
   });
 
   it('公司贸易站容量满时拒绝继续建站', () => {
@@ -84,7 +112,7 @@ describe('TradeStationSystem', () => {
     expect(nextAction.reason).toContain('提升公司等级');
   });
 
-  it('贸易站支持升级、雇佣管理员与切换经营策略', () => {
+  it('贸易站支持升级与切换站点定位，管理员入口已退役', () => {
     const state = createTestState({
       credits: 600000,
       companyLevel: 5,
@@ -94,12 +122,15 @@ describe('TradeStationSystem', () => {
 
     expect(TradeStation.buildStation(state, 'sol_prime').ok).toBe(true);
     expect(TradeStation.upgradeStation(state, 'sol_prime').ok).toBe(true);
-    expect(TradeStation.hireManager(state, 'sol_prime', 'local_broker').ok).toBe(true);
+    expect(TradeStation.hireManager(state, 'sol_prime', 'local_broker')).toMatchObject({
+      ok: false,
+      meta: { retired: true },
+    });
     expect(TradeStation.setStrategy(state, 'sol_prime', 'premium').ok).toBe(true);
 
     const station = TradeStation.getStation(state, 'sol_prime');
     expect(station.level).toBe(2);
-    expect(station.managerId).toBe('local_broker');
+    expect(station.managerId).toBe(null);
     expect(station.strategyId).toBe('premium');
   });
 
@@ -113,7 +144,6 @@ describe('TradeStationSystem', () => {
     });
 
     expect(TradeStation.buildStation(state, 'sol_prime').ok).toBe(true);
-    expect(TradeStation.hireManager(state, 'sol_prime', 'market_analyst').ok).toBe(true);
     expect(TradeStation.setStrategy(state, 'sol_prime', 'expansion').ok).toBe(true);
 
     let priceRatio = 1.45;
@@ -174,8 +204,8 @@ describe('TradeStationSystem', () => {
     expect(solEntry.regionalSynergy.label).toContain('补给商贸环');
     expect(solEntry.regionalSynergy.bonusMultiplier).toBeCloseTo(0.06);
     expect(solEntry.networkMultiplier).toBeCloseTo(1.06);
-    expect(solEntry.grossIncome).toBe(530);
-    expect(solEntry.projectedIncome).toBe(490);
+    expect(solEntry.grossIncome).toBe(339);
+    expect(solEntry.projectedIncome).toBe(313);
   });
 
   it('会根据勘探报告推荐贸易站经营策略', () => {
@@ -210,7 +240,7 @@ describe('TradeStationSystem', () => {
       intelSignal: 'logistics',
       shouldSwitch: true,
     });
-    expect(logisticsRecommendation.reason).toContain('扩张经营');
+    expect(logisticsRecommendation.reason).toContain('吞吐节点');
     expect(researchRecommendation).toMatchObject({
       strategyId: 'premium',
       confidence: 'high',
@@ -315,8 +345,8 @@ describe('TradeStationSystem', () => {
         return entry.system.id === 'sol_prime';
       });
       expect(candidate).toMatchObject({
-        buildCost: 88000,
-        baseBuildCost: 100000,
+        buildCost: 26400,
+        baseBuildCost: 30000,
         buildCostDiscount: 0.12,
         canAfford: true,
       });
@@ -327,12 +357,12 @@ describe('TradeStationSystem', () => {
 
       expect(result.ok).toBe(true);
       expect(result.meta).toMatchObject({
-        buildCost: 88000,
-        baseBuildCost: 100000,
+        buildCost: 26400,
+        baseBuildCost: 30000,
         buildCostDiscount: 0.12,
       });
-      expect(state.credits).toBe(creditsBeforeBuild - 88000);
-      expect(TradeStation.getStation(state, 'sol_prime').investment).toBe(88000);
+      expect(state.credits).toBe(creditsBeforeBuild - 26400);
+      expect(TradeStation.getStation(state, 'sol_prime').investment).toBe(26400);
     } finally {
       GalaxyData.init(createTestState({
         currentSystem: 'sol_prime',
@@ -422,7 +452,7 @@ describe('TradeStationSystem', () => {
     expect(action.reason).toContain('补给商贸环');
   });
 
-  it('下一笔商网动作会在无协同建站时推荐升级或派经理', () => {
+  it('下一笔商网动作会在无协同建站时推荐升级，低预算时不制造管理员任务', () => {
     const upgradeState = createTestState({
       credits: 260000,
       companyLevel: 5,
@@ -469,14 +499,7 @@ describe('TradeStationSystem', () => {
         },
       },
     });
-    expect(TradeStation.getNextNetworkAction(managerState)).toMatchObject({
-      type: 'manager',
-      systemId: 'sol_prime',
-      payload: {
-        action: 'market-hire-manager',
-        managerId: 'local_broker',
-      },
-    });
+    expect(TradeStation.getNextNetworkAction(managerState)).toBe(null);
   });
 
   it('下一笔商网动作会推荐策略切换或提示资金缺口', () => {
@@ -515,7 +538,7 @@ describe('TradeStationSystem', () => {
 
     vi.restoreAllMocks();
     const fundingState = createTestState({
-      credits: 50000,
+      credits: 5000,
       companyLevel: 4,
       currentSystem: 'sol_prime',
       visitedSystems: ['sol_prime'],
@@ -527,15 +550,15 @@ describe('TradeStationSystem', () => {
       type: 'funding',
       systemId: 'sol_prime',
       disabled: true,
-      fundingGap: 50000,
+      fundingGap: 25000,
     });
-    expect(fundingAction.reason).toContain('还差 50,000');
+    expect(fundingAction.reason).toContain('还差 25,000');
   });
 
   it('支持按收益优先批量升级贸易站', () => {
     const visitedSystems = SYSTEMS.map(function (system) { return system.id; });
     const state = createTestState({
-      credits: 560000,
+      credits: 130000,
       companyLevel: 6,
       currentSystem: 'sol_prime',
       visitedSystems: visitedSystems,
@@ -566,10 +589,10 @@ describe('TradeStationSystem', () => {
     expect(TradeStation.getStation(state, priorityOrder[1]).level).toBe(1);
   });
 
-  it('支持批量派驻经理，并在预算不足时部分执行', () => {
+  it('批量派驻经理入口返回已退役提示且不修改站点', () => {
     const visitedSystems = SYSTEMS.map(function (system) { return system.id; });
     const state = createTestState({
-      credits: 350000,
+      credits: 135000,
       companyLevel: 6,
       currentSystem: 'sol_prime',
       visitedSystems: visitedSystems,
@@ -583,21 +606,12 @@ describe('TradeStationSystem', () => {
       expect(TradeStation.buildStation(state, systemId).ok).toBe(true);
     });
 
-    vi.spyOn(Economy, 'getBuyPrice').mockImplementation(function (systemId) {
-      return systemId === stationIds[0] ? 240 : 90;
-    });
-    vi.spyOn(Economy, 'getMarketDepth').mockReturnValue(260);
-    vi.spyOn(Economy, 'getEconomyCycle').mockReturnValue({ priceMod: 1.0 });
-
-    const priorityOrder = TradeStation.getOwnedStations(state).map(function (entry) {
-      return entry.station.systemId;
-    });
     const result = TradeStation.batchHireManagers(state, 'logistics_director');
 
-    expect(result.ok).toBe(true);
-    expect(result.meta.executedCount).toBe(1);
-    expect(TradeStation.getStation(state, priorityOrder[0]).managerId).toBe('logistics_director');
-    expect(TradeStation.getStation(state, priorityOrder[1]).managerId).toBe(null);
+    expect(result).toMatchObject({ ok: false, meta: { retired: true, executedCount: 0 } });
+    stationIds.forEach(function (systemId) {
+      expect(TradeStation.getStation(state, systemId).managerId).toBe(null);
+    });
   });
 
   it('支持全网批量切换经营策略', () => {
@@ -625,7 +639,7 @@ describe('TradeStationSystem', () => {
     });
   });
 
-  it('公司等级不足时拒绝建站和贸易站管理动作', () => {
+  it('公司等级不足时拒绝建站和升级，管理员入口始终退役', () => {
     const state = createTestState({
       credits: 600000,
       companyLevel: 3,
@@ -642,7 +656,10 @@ describe('TradeStationSystem', () => {
 
     state.companyLevel = 5;
     expect(TradeStation.upgradeStation(state, 'sol_prime').ok).toBe(true);
-    expect(TradeStation.hireManager(state, 'sol_prime', 'local_broker').ok).toBe(true);
+    expect(TradeStation.hireManager(state, 'sol_prime', 'local_broker')).toMatchObject({
+      ok: false,
+      meta: { retired: true },
+    });
   });
 
   it('全网批量指令需要公司 Lv.6', () => {

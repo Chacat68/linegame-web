@@ -87,7 +87,8 @@ export function getFuturesListings(state) {
  * @returns {{ ok: boolean, msgs: Array }}
  */
 export function openLongContract(state, goodId) {
-  return _openContract(state, goodId, 'long');
+  _ensureFuturesState(state);
+  return { ok: false, msgs: [{ text: '📋 期货交易已退役，请通过现货与舰队派遣经营商路。', type: 'info' }] };
 }
 
 /**
@@ -97,7 +98,8 @@ export function openLongContract(state, goodId) {
  * @returns {{ ok: boolean, msgs: Array }}
  */
 export function openShortContract(state, goodId) {
-  return _openContract(state, goodId, 'short');
+  _ensureFuturesState(state);
+  return { ok: false, msgs: [{ text: '📋 期货交易已退役，请通过现货与舰队派遣经营商路。', type: 'info' }] };
 }
 
 function _openContract(state, goodId, direction) {

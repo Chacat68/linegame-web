@@ -7,16 +7,18 @@ import * as Trade from '../trade/TradeSystem.js';
 import * as Faction from '../faction/FactionSystem.js';
 import { FACTIONS } from '../../data/factions.js';
 import { getLevel } from '../../data/playerLevels.js';
-import { QUEST_PHASES } from '../../data/quests.js';
+import { getSelectedVictoryPolicy, normalizeVictoryPathId } from './VictoryPolicy.js';
 
 function _getUnlockedPathCount(state) {
   var chapter = state.questPhase || 1;
-  var totalChapters = Math.max(1, QUEST_PHASES.length);
-  var ratio = Math.max(1, chapter) / totalChapters;
-  return Math.max(1, Math.ceil(VICTORY_PATHS.length * ratio));
+  // 路线已精简为 5 条：前两章快速展开方向，避免玩家因数量减少反而更晚看到选择。
+  return Math.min(VICTORY_PATHS.length, Math.max(2, Math.max(1, chapter) * 2));
 }
 
 export function getUnlockedPaths(state) {
+  if (state && state.storyDecisions && state.storyDecisions.victory_policy) {
+    state.storyDecisions.victory_policy = normalizeVictoryPathId(state.storyDecisions.victory_policy);
+  }
   var count = _getUnlockedPathCount(state);
   return VICTORY_PATHS.slice(0, count);
 }
@@ -116,7 +118,39 @@ export function getPathProgress(state, path) {
     color: path.color,
     progress: progress,
     completed: completed,
+    policy: path.policy || null,
+    policySelected: !!(state.storyDecisions && normalizeVictoryPathId(state.storyDecisions.victory_policy) === path.id),
+    policyLocked: !!(state.storyDecisions && state.storyDecisions.victory_policy && normalizeVictoryPathId(state.storyDecisions.victory_policy) !== path.id),
+    activePolicyId: normalizeVictoryPathId(state.storyDecisions && state.storyDecisions.victory_policy),
     requirements: reqs,
+  };
+}
+
+export function getActivePolicy(state) {
+  return getSelectedVictoryPolicy(state);
+}
+
+export function choosePolicy(state, pathId) {
+  const existing = normalizeVictoryPathId(state && state.storyDecisions && state.storyDecisions.victory_policy);
+  if (existing) {
+    const active = getSelectedVictoryPolicy(state);
+    return {
+      ok: false,
+      msgs: [{ text: '🔒 胜利信条不可更改：当前已采用「' + (active ? active.name : existing) + '」。', type: 'info' }],
+    };
+  }
+  const path = getUnlockedPaths(state).find(function (entry) { return entry.id === normalizeVictoryPathId(pathId); });
+  if (!path || !path.policy) {
+    return { ok: false, msgs: [{ text: '🔒 该胜利信条尚未随任务章节解锁。', type: 'error' }] };
+  }
+  if (!state.storyDecisions || typeof state.storyDecisions !== 'object' || Array.isArray(state.storyDecisions)) {
+    state.storyDecisions = {};
+  }
+  state.storyDecisions.victory_policy = path.id;
+  return {
+    ok: true,
+    policy: getSelectedVictoryPolicy(state),
+    msgs: [{ text: '📜 已采用不可逆胜利信条「' + path.policy.name + '」。' + path.policy.benefit + '；代价：' + path.policy.tradeoff + '。', type: 'upgrade' }],
   };
 }
 
@@ -142,8 +176,8 @@ export function checkVictory(state, ignoredPathIds) {
   for (let i = 0; i < unlockedPaths.length; i++) {
     const path = unlockedPaths[i];
     const ignored = ignoredPathIds && typeof ignoredPathIds.has === 'function'
-      ? ignoredPathIds.has(path.id)
-      : (Array.isArray(ignoredPathIds) && ignoredPathIds.indexOf(path.id) !== -1);
+      ? Array.from(ignoredPathIds).some(function (id) { return normalizeVictoryPathId(id) === path.id; })
+      : (Array.isArray(ignoredPathIds) && ignoredPathIds.some(function (id) { return normalizeVictoryPathId(id) === path.id; }));
     if (ignored) continue;
     const progress = getPathProgress(state, path);
     if (progress.completed) {

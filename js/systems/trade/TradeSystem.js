@@ -11,7 +11,7 @@
 //   marketType = 'black' → 使用黑市价格（含违禁品溢价）
 
 import { GOODS }    from '../../data/goods.js';
-import { SYSTEMS, findSystem, getGalaxyAccessState }  from '../../data/systems.js';
+import { SYSTEMS, findSystem, getSystemAccessState }  from '../../data/systems.js';
 import { UPGRADES } from '../../data/upgrades.js';
 import * as Economy from '../economy/Economy.js';
 import * as Exploration from '../galaxy/ExplorationSystem.js';
@@ -298,15 +298,29 @@ export function refuel(state) {
 export function travelTo(state, systemId) {
   const toSys = findSystem(systemId);
 
-  // 等级锁定检查
+  // 统一检查星系、星球等级与超空间入口层权限。
   const playerLevel = state.playerLevel || 1;
-  if (toSys && playerLevel < (toSys.minLevel || 1)) {
+  const systemAccess = toSys
+    ? getSystemAccessState(toSys.id, playerLevel, state.researchedTechs)
+    : null;
+  if (systemAccess && !systemAccess.unlocked) {
+    const galaxyAccess = systemAccess.galaxyAccess;
+    let message;
+    if (!galaxyAccess.unlocked) {
+      const galaxyName = galaxyAccess.galaxy ? galaxyAccess.galaxy.name : '目标星系';
+      message = '🔒 ' + galaxyName + ' 需 Lv.' + galaxyAccess.requiredLevel + ' 才能跃迁前往！当前等级：' + playerLevel + '。';
+      if (galaxyAccess.techRequired) {
+        message += ' 研究「超空间跃迁引擎」也可提前解锁入口层。';
+      }
+    } else {
+      message = '🔒 ' + toSys.name + ' 需要等级 ' + systemAccess.requiredLevel + ' 才能前往！当前等级：' + playerLevel + '。';
+      if (galaxyAccess.unlockedBy === 'tech') {
+        message += ' 超空间跃迁仅提前开放该星系入口层。';
+      }
+    }
     return {
       ok: false,
-      msgs: [{
-        text: '🔒 ' + toSys.name + ' 需要等级 ' + toSys.minLevel + ' 才能前往！当前等级：' + playerLevel,
-        type: 'error',
-      }],
+      msgs: [{ text: message, type: 'error' }],
     };
   }
 
@@ -324,20 +338,8 @@ export function travelTo(state, systemId) {
     };
   }
 
-  // 跨星系检查科技
   const fromSys = findSystem(state.currentSystem);
   const crossGalaxy = fromSys && toSys && fromSys.galaxyId !== toSys.galaxyId;
-  if (crossGalaxy) {
-    const galaxyAccess = getGalaxyAccessState(toSys.galaxyId, playerLevel, state.researchedTechs);
-    if (!galaxyAccess.unlocked) {
-      const galaxyName = galaxyAccess.galaxy ? galaxyAccess.galaxy.name : '目标星系';
-      let message = '🔒 ' + galaxyName + ' 需 Lv.' + galaxyAccess.requiredLevel + ' 才能跃迁前往！当前等级：' + playerLevel + '。';
-      if (galaxyAccess.techRequired) {
-        message += ' 研究「超空间跃迁引擎」也可提前解锁。';
-      }
-      return { ok: false, msgs: [{ text: message, type: 'error' }] };
-    }
-  }
 
   const fromId         = state.currentSystem;
   state.fuel          -= cost;

@@ -12,8 +12,6 @@ describe('Market experience route', function () {
       credits: 1000,
       visitedSystems: ['sol_prime'],
       tradeStations: {},
-      stockPortfolio: {},
-      futuresContracts: [],
     });
 
     const route = getMarketExperienceRoute(state, 'sol_prime');
@@ -50,23 +48,20 @@ describe('Market experience route', function () {
           lastProcessedDay: 1,
         },
       },
-      stockPortfolio: {},
-      futuresContracts: [],
     });
 
     const route = getMarketExperienceRoute(state, 'sol_prime');
 
     expect(route.workspace.capital.unlocked).toBe(true);
     expect(route.subworkspace.capital.local.unlocked).toBe(true);
-    expect(route.subworkspace.capital.stocks.unlocked).toBe(true);
-    expect(route.subworkspace.capital.futures.unlocked).toBe(false);
+    expect(Object.keys(route.subworkspace.capital)).toEqual(['local']);
     expect(route.workspace.operations.unlocked).toBe(true);
     expect(route.subworkspace.operations.network.unlocked).toBe(false);
     expect(route.subworkspace.operations.stations.unlocked).toBe(true);
-    expect(route.stages.find(function (stage) { return stage.id === 'positions'; }).unlocked).toBe(true);
+    expect(route.stages.map(function (stage) { return stage.id; })).toEqual(['trade', 'intel', 'capital', 'network']);
   });
 
-  it('公司 Lv.6 开放期货和商网总览', function () {
+  it('公司 Lv.6 开放商网总览，资本页仍保持单入口', function () {
     const state = createTestState({
       currentSystem: 'sol_prime',
       currentGalaxy: 'milky_way',
@@ -88,13 +83,11 @@ describe('Market experience route', function () {
           lastProcessedDay: 1,
         },
       },
-      stockPortfolio: {},
-      futuresContracts: [],
     });
 
     const route = getMarketExperienceRoute(state, 'sol_prime');
 
-    expect(route.subworkspace.capital.futures.unlocked).toBe(true);
+    expect(Object.keys(route.subworkspace.capital)).toEqual(['local']);
     expect(route.subworkspace.operations.network.unlocked).toBe(true);
   });
 });

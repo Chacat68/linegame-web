@@ -30,29 +30,36 @@ describe('FinanceSystem', () => {
     expect(state.financeLastProcessedDay).toBe(2);
   });
 
-  it('支持股票买卖并按周期发放股息', () => {
-    const state = createTestState({ credits: 20000, day: 1 });
+  it('旧股票持仓会按当前价格清算，且迁移只执行一次', () => {
+    const state = createTestState({
+      credits: 20000,
+      day: 1,
+      storyFlags: {},
+      stockPortfolio: {
+        stock_sol_prime: { shares: 2, avgCost: 80, totalDividends: 0 },
+      },
+      stockMarket: {
+        stock_sol_prime: {
+          id: 'stock_sol_prime',
+          systemId: 'sol_prime',
+          name: '太阳系交易指数',
+          price: 120,
+          basePrice: 100,
+          lastPrice: 120,
+          dividendYield: 0.01,
+          volatility: 0.6,
+        },
+      },
+    });
+
     Finance.init(state);
 
-    const listing = Finance.getStockListings(state)[0];
-    expect(Finance.buyStock(state, listing.id, 2).ok).toBe(true);
-    expect(state.stockPortfolio[listing.id].shares).toBe(2);
+    expect(state.credits).toBe(20240);
+    expect(state.stockPortfolio).toEqual({});
+    expect(state.storyFlags.capital_products_v2_retired).toBe(1);
 
-    const creditsAfterBuy = state.credits;
-    state.day = 2;
-    Finance.advanceDay(state);
-    state.day = 3;
-    Finance.advanceDay(state);
-    state.day = 4;
-    Finance.advanceDay(state);
-    state.day = 5;
-    Finance.advanceDay(state);
-
-    expect(state.credits).toBeGreaterThan(creditsAfterBuy);
-    expect(state.stockPortfolio[listing.id].totalDividends).toBeGreaterThan(0);
-
-    expect(Finance.sellStock(state, listing.id, 1).ok).toBe(true);
-    expect(state.stockPortfolio[listing.id].shares).toBe(1);
+    Finance.retireLegacyCapitalProducts(state);
+    expect(state.credits).toBe(20240);
   });
 
   it('支持贸易站金融投资并产生分红', () => {
@@ -99,26 +106,24 @@ describe('FinanceSystem', () => {
     expect(state.credits).toBe(2000);
   });
 
-  it('支持完整保险购买与次日理赔流程', () => {
-    const state = createTestState({ credits: 10000, day: 8, shipHull: 100, maxHull: 100 });
+  it('旧保险会退还剩余保费并取消未结理赔', () => {
+    const state = createTestState({
+      credits: 10000,
+      day: 8,
+      storyFlags: {},
+      insurancePolicies: {
+        hull: { id: 'hull', type: 'hull', active: true, premium: 1000, startDay: 1, expiryDay: 21 },
+      },
+      insuranceClaims: [
+        { id: 'claim_1', policyType: 'hull', status: 'pending', payout: 5000 },
+      ],
+    });
+
     Finance.init(state);
 
-    const purchase = Finance.purchaseInsurance(state, 'hull');
-    expect(purchase.ok).toBe(true);
-    expect(state.insurancePolicies.hull.active).toBe(true);
-
-    state.shipHull = 45;
-    const claim = Finance.submitClaim(state, 'hull');
-    expect(claim.ok).toBe(true);
-    expect(state.insuranceClaims[0].status).toBe('pending');
-
-    const creditsBeforePayout = state.credits;
-    state.day = 9;
-    const payout = Finance.advanceDay(state);
-
-    expect(payout.ok).toBe(true);
-    expect(state.insuranceClaims[0].status).toBe('paid');
-    expect(state.credits).toBeGreaterThan(creditsBeforePayout);
+    expect(state.insurancePolicies.hull.active).toBe(false);
+    expect(state.insuranceClaims[0].status).toBe('cancelled');
+    expect(state.credits).toBeGreaterThan(10000);
   });
 
   it('净资产会计入金融资产并扣除负债', () => {
@@ -127,13 +132,11 @@ describe('FinanceSystem', () => {
 
     const offer = Finance.getLoanOffers(state)[0];
     Finance.takeLoan(state, offer.id);
-    const listing = Finance.getStockListings(state)[0];
-    Finance.buyStock(state, listing.id, 1);
     Finance.investInTradeStation(state, 'sol_prime', 5000);
 
     const overview = Finance.getOverview(state);
     expect(Finance.getNetWorthAdjustment(state)).toBe(
-      overview.stockValue + overview.tradeInvestmentValue - overview.outstandingLoanBalance
+      overview.tradeInvestmentValue - overview.outstandingLoanBalance
     );
   });
 });

@@ -1,8 +1,8 @@
 // js/systems/trade/TradeStationSystem.js — 贸易站建设与经营
 // 依赖：data/tradeStations.js, data/systems.js, systems/economy/Economy.js
 // 导出：init, getOwnedStations, getBuildCandidates, getSummary, getStation,
-//       buildStation, upgradeStation, hireManager, setStrategy,
-//       batchUpgradeStations, batchHireManagers, batchSetStrategies,
+//       buildStation, upgradeStation, setStrategy,
+//       batchUpgradeStations, batchSetStrategies,
 //       getStrategyRecommendation, getNextNetworkAction,
 //       getProjectedDailyIncome, advanceDay
 
@@ -11,7 +11,6 @@ import { findGalaxy, findSystem, SYSTEMS } from '../../data/systems.js';
 import {
   TRADE_STATION_ALLOWED_TYPES,
   TRADE_STATION_LEVELS,
-  TRADE_STATION_MANAGERS,
   TRADE_STATION_REGION_SYNERGIES,
   TRADE_STATION_ROLES,
   TRADE_STATION_STRATEGIES,
@@ -26,6 +25,7 @@ import {
 } from '../../data/companyAccess.js';
 import * as Economy from '../economy/Economy.js';
 import * as Exploration from '../galaxy/ExplorationSystem.js';
+import { getVictoryPolicyEffects } from '../victory/VictoryPolicy.js';
 
 const ECONOMY_FACTOR_LIMITS = {
   fallbackFactor: 0.75,
@@ -67,10 +67,6 @@ function _getLevelConfig(level) {
   return TRADE_STATION_LEVELS.find(function (entry) { return entry.level === level; }) || TRADE_STATION_LEVELS[0];
 }
 
-function _getManagerConfig(managerId) {
-  return TRADE_STATION_MANAGERS.find(function (entry) { return entry.id === managerId; }) || null;
-}
-
 function _getStrategyConfig(strategyId) {
   return TRADE_STATION_STRATEGIES.find(function (entry) { return entry.id === strategyId; }) || TRADE_STATION_STRATEGIES[0];
 }
@@ -103,32 +99,32 @@ function _getStrategyRecommendation(state, systemId, currentStrategyId) {
   let strategyId = 'balanced';
   let confidence = 'low';
   let intelSignal = 'none';
-  let reason = '暂无可用勘探报告，建议先保持均衡经营。';
+  let reason = '暂无可用勘探报告，建议先保持均衡节点定位。';
 
   if (intel && intel.hasIntel) {
     if (intel.researchSignal) {
       strategyId = 'premium';
       confidence = 'high';
       intelSignal = 'research';
-      reason = '勘探报告包含科研样本，适合精品经营承接高附加值订单。';
+      reason = '勘探报告包含科研样本，适合精品节点承接高附加值订单。';
     } else if (intel.logisticsSignal) {
       strategyId = 'expansion';
       confidence = 'high';
       intelSignal = 'logistics';
-      reason = '勘探报告显示该节点具备补给与走量条件，适合扩张经营。';
+      reason = '勘探报告显示该节点具备补给与走量条件，适合吞吐节点定位。';
     } else if (intel.marketSignal) {
       const premiumTypes = ['technology', 'medical', 'research'];
       strategyId = premiumTypes.indexOf(system.type) >= 0 ? 'premium' : 'expansion';
       confidence = 'high';
       intelSignal = 'market';
       reason = strategyId === 'premium'
-        ? '勘探报告显示本地存在高端行情窗口，适合精品经营提高单笔利润。'
-        : '勘探报告显示本地存在贸易窗口，适合扩张经营放大周转。';
+        ? '勘探报告显示本地存在高端行情窗口，适合精品节点提高单笔利润。'
+        : '勘探报告显示本地存在贸易窗口，适合吞吐节点放大周转。';
     } else if (intel.routeSignal) {
       strategyId = 'balanced';
       confidence = 'medium';
       intelSignal = 'route';
-      reason = '勘探报告包含航线情报，先保持均衡经营承接稳定转运。';
+      reason = '勘探报告包含航线情报，先保持均衡节点承接稳定转运。';
     }
   }
 
@@ -336,7 +332,7 @@ function _formatExplorationEffectSummary(effect) {
 function _getStationMeta(state, station) {
   const system = findSystem(station.systemId);
   const levelConfig = _getLevelConfig(station.level);
-  const manager = _getManagerConfig(station.managerId);
+  const manager = null;
   const strategy = _getStrategyConfig(station.strategyId);
   const role = _getStationRole(system);
   const regionalSynergy = _getRegionalSynergy(state, station.systemId);
@@ -346,7 +342,7 @@ function _getStationMeta(state, station) {
     strategyId: station.strategyId,
   });
   const snapshot = _getDailySnapshot(station.systemId, station);
-  const projected = _calculateDailyIncome(station, snapshot.factor, manager, strategy, regionalSynergy.multiplier * explorationEffect.multiplier);
+  const projected = _calculateDailyIncome(state, station, snapshot.factor, manager, strategy, regionalSynergy.multiplier * explorationEffect.multiplier);
   const companyMaxLevel = getMaxTradeStationLevel(state);
   const actualNextLevel = station.level < TRADE_STATION_LEVELS.length ? _getLevelConfig(station.level + 1) : null;
   const nextLevel = actualNextLevel && actualNextLevel.level <= companyMaxLevel ? actualNextLevel : null;
@@ -377,20 +373,21 @@ function _getStationMeta(state, station) {
   };
 }
 
-function _calculateDailyIncome(station, economicFactor, manager, strategy, networkMultiplier) {
+function _calculateDailyIncome(state, station, economicFactor, manager, strategy, networkMultiplier) {
   const levelConfig = _getLevelConfig(station.level);
   const safeNetworkMultiplier = Math.max(1, Number.isFinite(networkMultiplier) ? networkMultiplier : 1);
+  const policyEffects = getVictoryPolicyEffects(state);
   const gross = Math.max(0, Math.round(
     levelConfig.baseIncome *
     economicFactor *
     (strategy ? strategy.incomeMultiplier : 1) *
     (manager ? manager.incomeMultiplier : 1) *
-    safeNetworkMultiplier
+    safeNetworkMultiplier * (policyEffects.stationIncomeMultiplier || 1)
   ));
   const upkeep = Math.max(0, Math.round(
     levelConfig.baseIncome *
     (strategy ? strategy.upkeepRate : 0.08) *
-    (manager ? manager.upkeepMultiplier : 1)
+    (manager ? manager.upkeepMultiplier : 1) * (policyEffects.stationUpkeepMultiplier || 1)
   )) + (manager ? manager.dailySalary : 0);
   return {
     gross: gross,
@@ -400,7 +397,11 @@ function _calculateDailyIncome(station, economicFactor, manager, strategy, netwo
 }
 
 export function init(state) {
-  _ensureStations(state);
+  const stations = _ensureStations(state);
+  Object.keys(stations).forEach(function (systemId) {
+    // 旧存档中的管理员不再产生额外数值层，定位策略是唯一的站点配置。
+    if (stations[systemId] && stations[systemId].managerId) stations[systemId].managerId = null;
+  });
 }
 
 export function getStation(state, systemId) {
@@ -527,27 +528,6 @@ export function getNextNetworkAction(state) {
       '升级至 Lv.' + upgradeTarget.nextLevel.level,
       upgradeTarget.station.systemId,
       { action: 'market-upgrade-station', systemId: upgradeTarget.station.systemId }
-    ));
-  }
-
-  const managerAccess = getCompanyAccessState(state, 'tradeStationManager');
-  const manager = TRADE_STATION_MANAGERS[0];
-  const managerTarget = managerAccess.unlocked && manager && credits >= manager.hireCost
-    ? ownedStations.filter(function (entry) {
-        return !entry.station.managerId;
-      }).sort(function (a, b) {
-        return (b.projectedIncome || 0) - (a.projectedIncome || 0);
-      })[0]
-    : null;
-  if (managerTarget) {
-    actions.push(_createNetworkAction(
-      'manager',
-      60,
-      '派驻' + manager.name,
-      '「' + managerTarget.system.name + '」还没有管理员，先派驻基础经理能稳定抬高净收益。',
-      '派驻 ' + manager.name,
-      managerTarget.station.systemId,
-      { action: 'market-hire-manager', systemId: managerTarget.station.systemId, managerId: manager.id }
     ));
   }
 
@@ -730,63 +710,10 @@ export function batchUpgradeStations(state, systemIds) {
 }
 
 export function batchHireManagers(state, managerId, systemIds) {
-  init(state);
-  const gate = _getCompanyFeatureGate(state, 'tradeStationBatchOps', '批量派驻经理');
-  if (!gate.ok) {
-    return { ok: false, msgs: [{ text: '🏢 ' + gate.msg, type: 'error' }], meta: { targetCount: 0, executedCount: 0 } };
-  }
-  const manager = _getManagerConfig(managerId);
-  if (!manager) {
-    return { ok: false, msgs: [{ text: '👤 未知管理员方案。', type: 'error' }], meta: { targetCount: 0, executedCount: 0 } };
-  }
-
-  const targets = _getBatchTargets(state, systemIds, function (entry) {
-    return entry.station.managerId !== manager.id;
-  });
-
-  if (targets.length === 0) {
-    return {
-      ok: false,
-      msgs: [{ text: '👤 全网贸易站已由「' + manager.name + '」接管，无需重复指派。', type: 'info' }],
-      meta: { targetCount: 0, executedCount: 0 },
-    };
-  }
-
-  const executedIds = [];
-  let spent = 0;
-  let skippedBudget = 0;
-
-  targets.forEach(function (entry) {
-    if ((state.credits || 0) < manager.hireCost) {
-      skippedBudget += 1;
-      return;
-    }
-
-    const station = state.tradeStations[entry.station.systemId];
-    if (!station) return;
-
-    station.managerId = manager.id;
-    state.credits -= manager.hireCost;
-    spent += manager.hireCost;
-    executedIds.push(station.systemId);
-  });
-
-  if (executedIds.length === 0) {
-    return {
-      ok: false,
-      msgs: [{ text: '💰 信用积分不足，无法批量派驻「' + manager.name + '」。', type: 'error' }],
-      meta: { targetCount: targets.length, executedCount: 0, skippedBudget: skippedBudget },
-    };
-  }
-
   return {
-    ok: true,
-    msgs: [{
-      text: '👤 已向 ' + executedIds.length + ' 座贸易站批量派驻「' + manager.name + '」，耗费 ' + spent.toLocaleString() + ' 积分（' + _summarizeSystems(executedIds) + '）。' +
-        (skippedBudget > 0 ? (' 另有 ' + skippedBudget + ' 站因预算不足暂缓。') : ''),
-      type: 'info',
-    }],
-    meta: { targetCount: targets.length, executedCount: executedIds.length, spent: spent, skippedBudget: skippedBudget, systemIds: executedIds, managerId: manager.id },
+    ok: false,
+    msgs: [{ text: '🧭 管理员配置已并入站点定位，请选择节点定位。', type: 'info' }],
+    meta: { retired: true, targetCount: 0, executedCount: 0 },
   };
 }
 
@@ -936,36 +863,10 @@ export function upgradeStation(state, systemId) {
 }
 
 export function hireManager(state, systemId, managerId) {
-  init(state);
-  const station = state.tradeStations[systemId];
-  const manager = _getManagerConfig(managerId);
-  if (!station) {
-    return { ok: false, msgs: [{ text: '🏪 请先建设贸易站，再雇佣管理员。', type: 'error' }] };
-  }
-  if (!manager) {
-    return { ok: false, msgs: [{ text: '👤 未知管理员方案。', type: 'error' }] };
-  }
-  const managerGate = _getCompanyFeatureGate(state, 'tradeStationManager', '雇佣贸易站管理员');
-  if (!managerGate.ok) {
-    return { ok: false, msgs: [{ text: '🏢 ' + managerGate.msg, type: 'error' }] };
-  }
-  if (station.managerId === managerId) {
-    return { ok: false, msgs: [{ text: '👤 当前贸易站已雇佣这位管理员。', type: 'info' }] };
-  }
-  if ((state.credits || 0) < manager.hireCost) {
-    return { ok: false, msgs: [{ text: '💰 信用积分不足，无法雇佣管理员。', type: 'error' }] };
-  }
-
-  state.credits -= manager.hireCost;
-  station.managerId = managerId;
-
   return {
-    ok: true,
-    msgs: [{
-      text: '👤 ' + manager.name + ' 已入驻 ' + findSystem(systemId).name + '，贸易站管理效率提升。',
-      type: 'info',
-    }],
-    meta: { systemId: systemId, managerId: managerId, cost: manager.hireCost },
+    ok: false,
+    msgs: [{ text: '🧭 管理员配置已并入站点定位，请选择节点定位。', type: 'info' }],
+    meta: { retired: true, systemId: systemId, managerId: managerId },
   };
 }
 
