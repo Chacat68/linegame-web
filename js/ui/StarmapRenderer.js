@@ -18,6 +18,13 @@ let _motionLevel = 'full';
 let _secretRoutesVisible = true;
 let _lastInfoWriteAt = 0;
 let _lastInfoSignature = '';
+let _fallbackFrameDrawn = false;
+let _sceneReady = false;
+let _sceneReadyWatcherAttached = false;
+let _resolveSceneReady = null;
+const _sceneReadyPromise = new Promise(function (resolve) {
+  _resolveSceneReady = resolve;
+});
 
 export function init() {
   const twoDimensionalReady = Renderer2D.init();
@@ -60,16 +67,23 @@ export function render(state, mapView, galaxyId) {
   _lastMapView = mapView || (_lastState && _lastState.mapView) || 'planets';
   _lastGalaxyId = galaxyId || (_lastState && (_lastState.viewingGalaxy || _lastState.currentGalaxy)) || 'milky_way';
 
-  _loadThreeRenderer();
+  const threeReadyPromise = _loadThreeRenderer();
 
   const rendererName = _selectRenderer(_lastMapView);
   _activateRenderer(rendererName);
   if (rendererName === 'three') {
     _rendererThree.render(_lastState, _lastMapView, _lastGalaxyId);
     _writeRendererInfo(_rendererThree.getRendererInfo());
+    _markSceneReady('three');
   } else {
     Renderer2D.render(_lastState, _lastMapView, _lastGalaxyId);
+    _fallbackFrameDrawn = true;
+    _watchPreferredRenderer(threeReadyPromise);
   }
+}
+
+export function whenSceneReady() {
+  return _sceneReadyPromise;
 }
 
 export function focusPlanet(planetId, smooth) {
@@ -230,6 +244,7 @@ function _loadThreeRenderer() {
         _activateRenderer('three');
         _rendererThree.render(_lastState || {}, _lastMapView, _lastGalaxyId);
         _writeRendererInfo(_rendererThree.getRendererInfo());
+        _markSceneReady('three');
       }
       _exposeDebugState();
       return _threeAvailable;
@@ -243,6 +258,33 @@ function _loadThreeRenderer() {
       return false;
     });
   return _threeLoadPromise;
+}
+
+function _watchPreferredRenderer(threeReadyPromise) {
+  if (_sceneReady || _sceneReadyWatcherAttached || !threeReadyPromise) return;
+  _sceneReadyWatcherAttached = true;
+  threeReadyPromise.then(function (threeAvailable) {
+    if (!threeAvailable && _fallbackFrameDrawn) {
+      _markSceneReady('2d');
+    }
+  });
+}
+
+function _markSceneReady(rendererName) {
+  if (_sceneReady) return;
+  _sceneReady = true;
+
+  if (typeof document !== 'undefined' && document.getElementById) {
+    const container = document.getElementById('map-container');
+    if (container && container.dataset) {
+      container.dataset.starmapSceneReady = 'true';
+      container.dataset.starmapReadyRenderer = rendererName;
+    }
+  }
+  if (_resolveSceneReady) {
+    _resolveSceneReady({ renderer: rendererName });
+    _resolveSceneReady = null;
+  }
 }
 
 function _canAttemptWebGL2() {

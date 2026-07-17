@@ -5,9 +5,49 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>蓝脉航路 · 银河历 3045</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%23040814' stroke='%2322d3ee' stroke-width='2'/><circle cx='16' cy='16' r='4' fill='%2322d3ee'/><line x1='16' y1='2' x2='16' y2='8' stroke='%2322d3ee' stroke-width='1.5'/><line x1='16' y1='24' x2='16' y2='30' stroke='%2322d3ee' stroke-width='1.5'/><line x1='2' y1='16' x2='8' y2='16' stroke='%2322d3ee' stroke-width='1.5'/><line x1='24' y1='16' x2='30' y2='16' stroke='%2322d3ee' stroke-width='1.5'/></svg>" />
-    <link id="app-styles" rel="stylesheet" href="css/style.css?v=20260716-bridgeos19" />
+    <link id="app-styles" rel="stylesheet" href="css/style.css?v=20260716-bridgeos20" />
+    <link rel="stylesheet" href="css/startup-loader.css?v=20260717-scene-ready1" />
   </head>
   <body>
+    <div
+      id="startup-loader"
+      class="startup-loader"
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+      aria-label="游戏正在加载"
+    >
+      <div class="startup-loader__stars" aria-hidden="true"></div>
+      <div class="startup-loader__scanline" aria-hidden="true"></div>
+      <div class="startup-loader__panel">
+        <div class="startup-loader__brand" aria-hidden="true">
+          <span class="startup-loader__brand-orbit"></span>
+          <span class="startup-loader__brand-core"></span>
+        </div>
+        <p class="startup-loader__eyebrow">BRIDGE OS · BOOT SEQUENCE</p>
+        <h1 class="startup-loader__title">蓝脉航路</h1>
+        <p id="startup-loader-status" class="startup-loader__status">正在建立航路连接</p>
+        <div
+          id="startup-loader-progress"
+          class="startup-loader__progress"
+          role="progressbar"
+          aria-label="游戏加载进度"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow="8"
+          aria-valuetext="正在建立航路连接"
+        >
+          <span id="startup-loader-progress-fill" class="startup-loader__progress-fill" style="width: 8%"></span>
+        </div>
+        <div class="startup-loader__meta">
+          <span id="startup-loader-stage">SYSTEM LINK</span>
+          <span id="startup-loader-percent">08%</span>
+        </div>
+        <button id="startup-loader-retry" class="startup-loader__retry" type="button" hidden>
+          重新连接
+        </button>
+      </div>
+    </div>
     <div id="game-shell">
       <!-- ================================================================
        Header
@@ -194,13 +234,6 @@
                 <path d="M8.4 10.3l1.1 1.1 2.1-2.4"></path>
                 <path d="M13.2 10.4h3.1M8.4 14.6h7.9M8.4 17.7h5.5"></path>
               </symbol>
-              <symbol id="rail-icon-scan" viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="5.3"></circle>
-                <circle class="rail-icon-dot" cx="12" cy="12" r="1.55" fill="currentColor" stroke="none"></circle>
-                <path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3"></path>
-                <path d="M6.5 17.6c3.3 2.35 7.7 2.35 11 0"></path>
-                <path d="M17.4 6.6l2.55-2.55"></path>
-              </symbol>
             </svg>
             <div class="starmap-control-rail" aria-label="星图 HUD 控制台">
               <button class="starmap-rail-btn is-selected" type="button" data-hud-dock-panel="galactic-map" aria-label="切换到银河地图搜索" aria-pressed="false" title="银河地图搜索"><span class="starmap-rail-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#rail-icon-galactic-map"></use></svg></span><span class="starmap-rail-label">银河地图搜索</span></button>
@@ -209,10 +242,6 @@
               <button class="starmap-rail-btn" type="button" data-hud-dock-panel="network-status" aria-label="切换到贸易网络状态" aria-pressed="false" title="贸易网络状态"><span class="starmap-rail-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#rail-icon-network"></use></svg></span><span class="starmap-rail-label">贸易网络状态</span></button>
               <button class="starmap-rail-btn" type="button" data-hud-dock-panel="quest-tracker" aria-label="切换到任务追踪" aria-pressed="false" title="任务追踪"><span class="starmap-rail-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#rail-icon-quest"></use></svg></span><span class="starmap-rail-label">任务追踪</span></button>
             </div>
-            <button id="orbit-scan-btn" class="starmap-rail-btn orbit-scan-menu-btn" type="button" hidden>
-              <span class="starmap-rail-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#rail-icon-scan"></use></svg></span>
-              <span class="starmap-rail-label" data-starmap-rail-label>轨道扫描</span>
-            </button>
             <aside class="galactic-map-widget" data-hud-widget="galactic-map" aria-label="银河地图搜索面板">
               <div class="hud-widget-head">
                 <span>GALACTIC MAP</span>
@@ -285,16 +314,13 @@
                 </div>
                 <div>
                   <dt>勘探</dt>
-                  <dd id="hud-target-survey">未扫描</dd>
+                  <dd id="hud-target-survey">0/0 POI</dd>
                 </div>
                 <div>
                   <dt>探索状态</dt>
-                  <dd id="hud-target-next">待扫描</dd>
+                  <dd id="hud-target-next">待调查</dd>
                 </div>
               </dl>
-              <div class="target-intel-actions">
-                <button id="hud-target-detail-open" class="hud-widget-link-btn" type="button" hidden>扫描终端</button>
-              </div>
             </aside>
             <aside class="network-status-widget" data-hud-widget="network-status" aria-label="贸易网络状态">
               <div class="hud-widget-head">
@@ -334,7 +360,6 @@
               </div>
             </aside>
             <div id="planet-detail-panel" class="planet-detail-panel"></div>
-            <div id="current-system-exploration-card" class="current-system-exploration-card"></div>
             <div class="map-btn-group">
               <div class="map-primary-entry-group">
                 <button id="map-3d-toggle-btn" class="map-overlay-btn" type="button" style="display:none !important;">
@@ -367,7 +392,7 @@
             <!-- Market overlay panel -->
             <div
               id="market-overlay"
-              class="market-overlay hidden"
+              class="market-overlay market-workspace-v2 hidden"
               role="region"
               aria-labelledby="market-header-title"
               aria-hidden="true"
@@ -376,11 +401,16 @@
               <div class="market-overlay-header">
                 <div class="market-header-row">
                   <div class="market-header-left">
-                    <h3 id="market-header-title">交易所终端</h3>
+                    <span class="market-header-mark" aria-hidden="true"></span>
+                    <div class="market-header-copy">
+                      <span class="market-header-kicker">COMMERCE EXCHANGE</span>
+                      <h3 id="market-header-title">交易所终端</h3>
+                      <span class="market-header-subtitle">行情、现货与商网经营</span>
+                    </div>
                   </div>
                   <div class="market-header-right">
                     <div id="market-mode-toggle" class="market-mode-toggle"></div>
-                    <button id="market-close-btn" class="market-close-btn" type="button" aria-label="返回星图">✕</button>
+                    <button id="market-close-btn" class="market-close-btn" type="button" aria-label="关闭市场并返回星图" title="返回星图">✕</button>
                   </div>
                 </div>
               </div>
@@ -402,7 +432,6 @@
                       <span id="market-detail-location" class="market-detail-location"></span>
                       <span id="market-detail-mode" class="market-detail-mode"></span>
                     </div>
-                    <div id="market-experience-route" class="market-experience-route-host"></div>
                     <div class="market-overlay-body">
                       <div
                         id="market-spot-pane"
@@ -596,12 +625,12 @@
                 <span class="secondary-terminal-kicker">HANGAR COMMAND</span>
                 <h2 id="hangar-terminal-title" class="secondary-terminal-title">机库终端</h2>
               </div>
-              <p id="hangar-terminal-subtitle" class="secondary-terminal-subtitle">管理船队、改装、派遣和采购。</p>
+              <p id="hangar-terminal-subtitle" class="secondary-terminal-subtitle">先选择舰船，再检查状态并执行整备或派遣。</p>
               <div class="secondary-terminal-status" role="list" aria-label="机库终端模块">
-                <span class="secondary-terminal-status-item" role="listitem">船队</span>
-                <span class="secondary-terminal-status-item" role="listitem">商店</span>
-                <span class="secondary-terminal-status-item" role="listitem">改装</span>
-                <span class="secondary-terminal-status-item" role="listitem">派遣</span>
+                <span class="secondary-terminal-status-item" role="listitem">选择舰船</span>
+                <span class="secondary-terminal-status-item" role="listitem">检查状态</span>
+                <span class="secondary-terminal-status-item" role="listitem">执行作业</span>
+                <span class="secondary-terminal-status-item" role="listitem">舰船采购</span>
               </div>
               <button
                 id="trade-panel-toggle"
@@ -670,7 +699,7 @@
                     aria-controls="tab-fleet"
                     aria-selected="true"
                   >
-                    船队
+                    舰船作业
                   </button>
                   <button
                     id="hangar-tab-shop"
@@ -682,7 +711,7 @@
                     aria-controls="tab-shop"
                     aria-selected="false"
                   >
-                    商店
+                    舰船采购
                   </button>
                   <span class="fleet-inline-summary">
                     <span id="ov-ship-count">1</span>船 ·
@@ -1735,6 +1764,6 @@
 
 
 
-  <script type="module" src="js/main.js?v=20260716-core-cuts"></script>
+  <script type="module" src="js/main.js?v=20260717-systemaccess1-startupscene1"></script>
   </body>
 </html>

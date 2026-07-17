@@ -163,6 +163,7 @@ describe('Starmap canvas integration', function () {
     const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
     const css = readFileSync(new URL('../css/interstellar-trader.css', import.meta.url), 'utf8');
     const facade = readFileSync(new URL('../js/ui/StarmapRenderer.js', import.meta.url), 'utf8');
+    const fallbackRenderer = readFileSync(new URL('../js/ui/Renderer2DStarmap.js', import.meta.url), 'utf8');
     const renderer = readFileSync(new URL('../js/ui/RendererThreeStarmap.js', import.meta.url), 'utf8');
 
     expect(html).toContain('id="map-3d-canvas" class="starmap-canvas"');
@@ -211,5 +212,15 @@ describe('Starmap canvas integration', function () {
     expect(renderer).toContain('getSystemsByGalaxy(galaxyId)');
     expect(renderer).toContain('new MeshStandardMaterial');
     expect(renderer).toContain('function _buildOperationalRoutes');
+    expect(renderer).toContain('function _getRouteWorldPoints');
+    expect(renderer).toContain('function _applyShipTravelVisual');
+    expect(renderer).toContain('new BoxGeometry');
+    expect(renderer).toContain('getShipTravelVisualState');
+    expect(fallbackRenderer).toContain('function _getRouteSceneGeometry');
+    expect(fallbackRenderer).toContain('function _drawShipGlyph');
+    expect(fallbackRenderer).toContain('getShipTravelVisualState');
+    expect(renderer).toContain('if (_pendingCameraFocusPlanetId)');
+    expect(renderer).toContain('&& _framedPlanetGalaxyId !== galaxyId');
+    expect(renderer).not.toContain('_framedPlanetSystemId !== state.currentSystem');
   });
 });

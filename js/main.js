@@ -4,11 +4,39 @@
 
 import { init } from './core/GameManager.js';
 import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from './ui/SurfaceManager.js';
+import * as StartupLoader from './ui/StartupLoader.js';
 
-window.addEventListener('load', function () {
-	init();
-	bindSettingsModalFallback();
+const SCENE_READY_TIMEOUT_MS = 20000;
+
+window.addEventListener('load', async function () {
+	StartupLoader.start();
+	try {
+		StartupLoader.update(32, '正在同步贸易与航行数据', 'RUNTIME STATE');
+		const sceneReadyPromise = init();
+		bindSettingsModalFallback();
+		StartupLoader.update(72, '正在生成星图场景', 'STARMAP RENDER');
+		await _withTimeout(sceneReadyPromise, SCENE_READY_TIMEOUT_MS);
+		StartupLoader.update(92, '正在校准舰桥显示', 'DISPLAY SYNC');
+		await StartupLoader.complete();
+	} catch (error) {
+		StartupLoader.fail(error);
+	}
 });
+
+function _withTimeout(promise, timeoutMs) {
+	return new Promise(function (resolve, reject) {
+		const timeoutId = setTimeout(function () {
+			reject(new Error('Starmap scene did not become ready within ' + timeoutMs + 'ms.'));
+		}, timeoutMs);
+		Promise.resolve(promise).then(function (value) {
+			clearTimeout(timeoutId);
+			resolve(value);
+		}, function (error) {
+			clearTimeout(timeoutId);
+			reject(error);
+		});
+	});
+}
 
 function bindSettingsModalFallback() {
 	if (document.body.dataset.settingsFallbackBound === 'true') return;
