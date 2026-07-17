@@ -315,9 +315,9 @@ function _drawScene(state, time) {
 
 function _drawBackground(ctx, width, height, time) {
   const bg = ctx.createLinearGradient(0, 0, width, height);
-  bg.addColorStop(0, '#061015');
-  bg.addColorStop(0.42, '#07131c');
-  bg.addColorStop(1, '#030507');
+  bg.addColorStop(0, '#0b1c29');
+  bg.addColorStop(0.42, '#0a2232');
+  bg.addColorStop(1, '#06111b');
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, width, height);
 

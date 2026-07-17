@@ -155,7 +155,7 @@ function _getColors() {
   var Babylon = _getBabylon();
   if (!Babylon) return null;
   _colors = {
-    bgTop: new Babylon.Color4(0.008, 0.031, 0.09, 1),
+    bgTop: new Babylon.Color4(0.025, 0.075, 0.145, 1),
     starGlow: new Babylon.Color3(0.22, 0.74, 0.97),
     current: new Babylon.Color3(0.40, 0.91, 0.98),
     hover: new Babylon.Color3(1, 1, 1),
@@ -302,7 +302,7 @@ export function init() {
   _scene = new BABYLON.Scene(_engine);
   _scene.clearColor = colors.bgTop;
   _scene.fogMode = BABYLON.Scene.FOGMODE_LINEAR;
-  _scene.fogColor = new BABYLON.Color3(0.008, 0.031, 0.09);
+  _scene.fogColor = new BABYLON.Color3(0.025, 0.075, 0.145);
   _scene.fogStart = 200;
   _scene.fogEnd = 800;
 

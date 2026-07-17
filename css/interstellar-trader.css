@@ -109,15 +109,15 @@ body::after {
 #map-container::after {
   z-index: 4;
   background:
-    linear-gradient(90deg, rgba(3, 16, 27, 0.62) 0, transparent 18%, transparent 82%, rgba(3, 16, 27, 0.62) 100%),
-    linear-gradient(180deg, rgba(3, 12, 20, 0.46) 0, transparent 16%, transparent 78%, rgba(3, 12, 20, 0.66) 100%);
+    linear-gradient(90deg, rgba(3, 16, 27, 0.38) 0, transparent 18%, transparent 82%, rgba(3, 16, 27, 0.38) 100%),
+    linear-gradient(180deg, rgba(3, 12, 20, 0.30) 0, transparent 16%, transparent 78%, rgba(3, 12, 20, 0.46) 100%);
 }
 
 #webgl-canvas,
 #map-canvas,
 #map-3d-canvas,
 #starmap-three-canvas {
-  filter: saturate(1.14) contrast(1.08) brightness(0.92);
+  filter: saturate(1.12) contrast(1.04) brightness(1.06);
 }
 
 body.starmap-galaxy-mode #map-3d-canvas,

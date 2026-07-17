@@ -74,7 +74,7 @@ const PLANET_CONNECTION_DISTANCE = 66;
 const PLANET_LAYOUT_SCALE_X = PLANET_SPAN_X / 292;
 const PLANET_LAYOUT_SCALE_Z = PLANET_SPAN_Z / 204;
 const PLANET_LAYOUT_SCALE = (PLANET_LAYOUT_SCALE_X + PLANET_LAYOUT_SCALE_Z) * 0.5;
-const PLANET_VISUAL_SCALE = 0.5;
+const PLANET_VISUAL_SCALE = 0.68;
 
 const PLANET_COLORS = {
   agricultural: '#5fd47a',
@@ -88,6 +88,67 @@ const PLANET_COLORS = {
   research: '#79e394',
   special: '#a6b8c5',
 };
+const PLANET_VISUAL_PROFILES = {
+  agricultural: {
+    bodyScale: [1, 1.03, 0.98], metalness: 0.04, roughness: 0.82,
+    cloudColor: '#f2fff2', cloudOpacity: 0.68,
+    atmosphereColor: '#6ff2b3', atmosphereOpacity: 0.12, atmosphereScale: 1.24,
+  },
+  technology: {
+    bodyScale: [1.02, 0.98, 1.02], metalness: 0.62, roughness: 0.34,
+    cloudColor: '#b8efff', cloudOpacity: 0.28,
+    atmosphereColor: '#55dfff', atmosphereOpacity: 0.15, atmosphereScale: 1.2,
+    satelliteCount: 2,
+  },
+  mining: {
+    bodyScale: [1.04, 0.92, 1], metalness: 0.2, roughness: 0.94,
+    cloudColor: '#d9b18a', cloudOpacity: 0.16,
+    atmosphereColor: '#d68a52', atmosphereOpacity: 0.06, atmosphereScale: 1.15,
+    debrisCount: 18,
+  },
+  commercial: {
+    bodyScale: [1, 1, 1], metalness: 0.42, roughness: 0.42,
+    cloudColor: '#ffd2ff', cloudOpacity: 0.36,
+    atmosphereColor: '#f078ff', atmosphereOpacity: 0.16, atmosphereScale: 1.22,
+    satelliteCount: 3,
+  },
+  military: {
+    bodyScale: [0.98, 1.03, 1], metalness: 0.34, roughness: 0.76,
+    cloudColor: '#c89aa5', cloudOpacity: 0.16,
+    atmosphereColor: '#ff557c', atmosphereOpacity: 0.1, atmosphereScale: 1.18,
+    satelliteCount: 2,
+  },
+  medical: {
+    bodyScale: [1, 1.01, 1], metalness: 0.02, roughness: 0.54,
+    cloudColor: '#f4ffff', cloudOpacity: 0.76,
+    atmosphereColor: '#91ffe9', atmosphereOpacity: 0.17, atmosphereScale: 1.26,
+  },
+  industrial: {
+    bodyScale: [1.02, 0.96, 1.01], metalness: 0.54, roughness: 0.66,
+    cloudColor: '#d6a07e', cloudOpacity: 0.3,
+    atmosphereColor: '#ff875c', atmosphereOpacity: 0.09, atmosphereScale: 1.18,
+    satelliteCount: 1,
+  },
+  energy: {
+    bodyScale: [1.1, 0.86, 1.1], metalness: 0.08, roughness: 0.28,
+    cloudColor: '#ffe6a4', cloudOpacity: 0.32,
+    atmosphereColor: '#ffd460', atmosphereOpacity: 0.18, atmosphereScale: 1.28,
+    physicalRing: true,
+  },
+  research: {
+    bodyScale: [1, 1.04, 0.98], metalness: 0.16, roughness: 0.5,
+    cloudColor: '#caffdf', cloudOpacity: 0.52,
+    atmosphereColor: '#5dffc3', atmosphereOpacity: 0.18, atmosphereScale: 1.25,
+    satelliteCount: 1,
+  },
+  special: {
+    bodyScale: [1.04, 1.08, 0.94], metalness: 0.28, roughness: 0.58,
+    cloudColor: '#dce3ff', cloudOpacity: 0.26,
+    atmosphereColor: '#aebcff', atmosphereOpacity: 0.2, atmosphereScale: 1.3,
+    naturalMoon: true,
+  },
+};
+const DEFAULT_PLANET_VISUAL_PROFILE = PLANET_VISUAL_PROFILES.special;
 const SHIP_ACCENTS = {
   shuttle: '#72ddff',
   freighter: '#ffb05b',
@@ -199,13 +260,13 @@ export function init() {
   _renderer.outputColorSpace = SRGBColorSpace;
   _renderer.toneMapping = ACESFilmicToneMapping;
   _renderer.toneMappingExposure = 1.08;
-  _renderer.setClearColor(0x02060d, 1);
+  _renderer.setClearColor(0x071624, 1);
   _renderer.shadowMap.enabled = false;
   _renderer.sortObjects = true;
 
   _scene = new Scene();
-  _scene.background = new Color(0x02060d);
-  _scene.fog = new FogExp2(0x02060d, 0.00105);
+  _scene.background = new Color(0x071624);
+  _scene.fog = new FogExp2(0x071624, 0.00105);
 
   _camera = new PerspectiveCamera(48, 1, 0.1, 1400);
   _camera.position.copy(PLANET_CAMERA_HOME);
@@ -674,7 +735,6 @@ function _buildPlanetScene(state, galaxyId) {
 
   _buildPlanetEnvironment(state);
   _buildPlanetConnections(systems, positions, state);
-  _buildPlanetAmbientHalos(systems, positions, state);
   _buildOperationalRoutes(state, positions);
 
   const qualityLevel = _getEffectiveQualityLevel();
@@ -683,6 +743,7 @@ function _buildPlanetScene(state, galaxyId) {
     const current = system.id === state.currentSystem;
     const selected = system.id === _selectedPlanetId;
     const focused = system.id === _focusPlanetId;
+    const visualProfile = PLANET_VISUAL_PROFILES[system.type] || DEFAULT_PLANET_VISUAL_PROFILE;
     const baseColor = new Color(PLANET_COLORS[system.type] || system.color || '#72ddff');
     const displayColor = unlocked ? baseColor : baseColor.clone().lerp(new Color(0x52616c), 0.58);
     const radius = _getPlanetRadius(system);
@@ -721,13 +782,17 @@ function _buildPlanetScene(state, galaxyId) {
       emissiveIntensity: unlocked
         ? (surfaceMaps.emissiveMap ? (current ? 3.1 : 2.25) : (current ? 1.85 : 1.18))
         : 0.22,
-      metalness: system.type === 'technology' || system.type === 'industrial' ? 0.44 : 0.14,
-      roughness: system.type === 'energy' ? 0.32 : 0.68,
+      metalness: visualProfile.metalness,
+      roughness: visualProfile.roughness,
       transparent: !unlocked,
       opacity: unlocked ? 1 : 0.72,
     });
     const body = new Mesh(_getSharedPlanetSphereGeometry(), bodyMaterial);
-    body.scale.setScalar(radius);
+    body.scale.set(
+      radius * visualProfile.bodyScale[0],
+      radius * visualProfile.bodyScale[1],
+      radius * visualProfile.bodyScale[2]
+    );
     body.rotation.z = ((_hash(system.id) % 21) - 10) * 0.015;
     body.rotation.y = (_hash(system.id + ':surface-offset') % 628) / 100;
     body.renderOrder = 4;
@@ -739,17 +804,23 @@ function _buildPlanetScene(state, galaxyId) {
     let cloudMaterial = null;
     if (richVisuals && surfaceMaps.cloudMap && (unlocked || current)) {
       cloudMaterial = new MeshStandardMaterial({
-        color: 0xffffff,
+        color: visualProfile.cloudColor,
         map: surfaceMaps.cloudMap,
         transparent: true,
-        opacity: surfaceMaps.gaseous ? 0.26 : (current ? 0.68 : 0.5),
+        opacity: current
+          ? Math.min(0.82, visualProfile.cloudOpacity + 0.12)
+          : visualProfile.cloudOpacity,
         alphaTest: 0.025,
         depthWrite: false,
         metalness: 0,
         roughness: 0.86,
       });
       cloudShell = new Mesh(_getSharedPlanetSphereGeometry(), cloudMaterial);
-      cloudShell.scale.setScalar(radius * 1.026);
+      cloudShell.scale.set(
+        radius * visualProfile.bodyScale[0] * 1.026,
+        radius * visualProfile.bodyScale[1] * 1.026,
+        radius * visualProfile.bodyScale[2] * 1.026
+      );
       cloudShell.rotation.y = (_hash(system.id + ':cloud') % 628) / 100;
       cloudShell.rotation.z = body.rotation.z;
       cloudShell.renderOrder = 5;
@@ -759,99 +830,56 @@ function _buildPlanetScene(state, galaxyId) {
     let atmosphereMaterial = null;
     if (richVisuals && (unlocked || current)) {
       atmosphereMaterial = new MeshBasicMaterial({
-        color: displayColor,
+        color: visualProfile.atmosphereColor,
         transparent: true,
-        opacity: current ? 0.2 : 0.1,
+        opacity: current
+          ? Math.min(0.28, visualProfile.atmosphereOpacity + 0.06)
+          : visualProfile.atmosphereOpacity,
         side: BackSide,
         depthWrite: false,
         blending: AdditiveBlending,
       });
       const atmosphere = new Mesh(_getSharedPlanetSphereGeometry(), atmosphereMaterial);
-      atmosphere.scale.setScalar(radius * 1.28);
+      atmosphere.scale.setScalar(radius * visualProfile.atmosphereScale);
       group.add(atmosphere);
     }
 
     let ring = null;
     let ringMaterial = null;
-    if (current || selected || focused || (qualityLevel === 'high' && unlocked)) {
+    if (visualProfile.physicalRing && unlocked && qualityLevel !== 'low') {
       ringMaterial = new MeshBasicMaterial({
-        color: current ? 0xffe9a8 : displayColor,
+        color: current ? 0xffedb0 : 0xf3c96f,
         transparent: true,
-        opacity: current ? 0.62 : (selected || focused ? 0.26 : 0.2),
+        opacity: current ? 0.54 : 0.38,
         side: DoubleSide,
         depthWrite: false,
-        blending: AdditiveBlending,
       });
       ring = new Mesh(_getSharedGeometry(
-        current ? 'planet-marker-ring:current' : 'planet-marker-ring:standard',
-        function () { return new RingGeometry(current ? 1.5 : 1.44, current ? 1.58 : 1.5, 48); }
+        'planet-energy-ring',
+        function () { return new RingGeometry(1.32, 1.82, 72); }
       ), ringMaterial);
       ring.scale.setScalar(radius);
-      ring.rotation.x = -Math.PI / 2;
+      ring.rotation.set(Math.PI * 0.6, 0.12, ((_hash(system.id) % 24) - 12) * 0.012);
       ring.renderOrder = 5;
       group.add(ring);
     }
 
     let debrisRing = null;
-    const hasDebrisRing = qualityLevel === 'high' && unlocked && (
-      system.type === 'mining'
-      || system.type === 'special'
-      || (system.type === 'energy' && _hash(system.id) % 3 === 0)
-    );
-    if (hasDebrisRing) {
-      const debrisMaterial = new MeshBasicMaterial({
-        color: displayColor.clone().lerp(new Color(0xffe1ac), 0.35),
-        transparent: true,
-        opacity: system.type === 'special' ? 0.34 : 0.24,
-        side: DoubleSide,
-        depthWrite: false,
-      });
-      debrisRing = new Mesh(_getSharedGeometry(
-        'planet-debris-ring',
-        function () { return new RingGeometry(1.34, 1.76, 72, 3); }
-      ), debrisMaterial);
-      debrisRing.scale.setScalar(radius);
-      debrisRing.rotation.set(Math.PI * 0.62, 0.16, ((_hash(system.id) % 36) - 18) * 0.018);
-      debrisRing.renderOrder = 4;
+    if (visualProfile.debrisCount && unlocked && (qualityLevel === 'high' || current)) {
+      debrisRing = _createPlanetDebrisBelt(system, radius, displayColor, visualProfile.debrisCount);
       group.add(debrisRing);
     }
 
-    if (qualityLevel === 'high' && unlocked && (system.type === 'energy' || system.type === 'commercial' || system.type === 'special')) {
-      const orbitalMaterial = new MeshBasicMaterial({
-        color: displayColor,
-        transparent: true,
-        opacity: unlocked ? 0.3 : 0.1,
-        side: DoubleSide,
-        depthWrite: false,
-        blending: AdditiveBlending,
-      });
-      const orbital = new Mesh(_getSharedGeometry(
-        'planet-orbital-ring',
-        function () { return new RingGeometry(1.24, 1.34, 44); }
-      ), orbitalMaterial);
-      orbital.scale.setScalar(radius);
-      orbital.rotation.set(Math.PI * 0.58, 0.18, ((_hash(system.id) % 30) - 15) * 0.02);
-      group.add(orbital);
-    }
-
-    let moonPivot = null;
-    if (current || selected || focused || (qualityLevel === 'high' && _hash(system.id) % 7 === 0)) {
-      moonPivot = new Group();
-      moonPivot.rotation.x = 0.26 + (_hash(system.id) % 17) * 0.018;
-      const moonMaterial = new MeshStandardMaterial({
-        color: unlocked ? 0xc6dce8 : 0x74838d,
-        emissive: displayColor,
-        emissiveIntensity: unlocked ? 0.42 : 0.16,
-        metalness: 0.08,
-        roughness: 0.86,
-      });
-      const moon = new Mesh(_getSharedGeometry(
-        'planet-moon',
-        function () { return new SphereGeometry(1, 8, 6); }
-      ), moonMaterial);
-      moon.scale.setScalar(radius * 0.22);
-      moon.position.x = radius * (2.15 + (_hash(system.id) % 5) * 0.12);
-      moonPivot.add(moon);
+    const moonPivot = _createPlanetOrbitAccents(
+      system,
+      radius,
+      displayColor,
+      visualProfile,
+      unlocked,
+      qualityLevel,
+      current || selected || focused
+    );
+    if (moonPivot) {
       group.add(moonPivot);
     }
 
@@ -869,6 +897,7 @@ function _buildPlanetScene(state, galaxyId) {
     _planetEntries.push({
       id: system.id,
       system,
+      visualProfile,
       unlocked,
       current,
       group,
@@ -995,43 +1024,6 @@ function _buildPlanetEnvironment() {
     cloud.renderOrder = -2;
     _planetRoot.add(cloud);
   });
-}
-
-function _buildPlanetAmbientHalos(systems, positions, state) {
-  if (!systems.length) return;
-  const qualityLevel = _getEffectiveQualityLevel();
-  const haloPositions = new Float32Array(systems.length * 3);
-  const haloColors = new Float32Array(systems.length * 3);
-  systems.forEach(function (system, index) {
-    const position = positions.get(system.id);
-    const unlocked = isSystemAccessible(system.id, state.playerLevel || 1, state.researchedTechs || []);
-    const baseColor = new Color(PLANET_COLORS[system.type] || system.color || '#72ddff');
-    const color = unlocked ? baseColor : baseColor.clone().lerp(new Color(0x52616c), 0.68);
-    haloPositions[index * 3] = position.x;
-    haloPositions[index * 3 + 1] = position.y;
-    haloPositions[index * 3 + 2] = position.z;
-    haloColors[index * 3] = color.r;
-    haloColors[index * 3 + 1] = color.g;
-    haloColors[index * 3 + 2] = color.b;
-  });
-  const geometry = new BufferGeometry();
-  geometry.setAttribute('position', new BufferAttribute(haloPositions, 3));
-  geometry.setAttribute('color', new BufferAttribute(haloColors, 3));
-  const material = new PointsMaterial({
-    map: _getSharedHaloTexture(),
-    size: qualityLevel === 'high' ? 34 : (qualityLevel === 'medium' ? 28 : 22),
-    sizeAttenuation: true,
-    transparent: true,
-    opacity: qualityLevel === 'low' ? 0.34 : 0.46,
-    alphaTest: 0.02,
-    vertexColors: true,
-    depthWrite: false,
-    blending: AdditiveBlending,
-  });
-  const halos = new Points(geometry, material);
-  halos.name = 'planetAmbientHalos';
-  halos.renderOrder = 1;
-  _planetRoot.add(halos);
 }
 
 function _buildPlanetConnections(systems, positions, state) {
@@ -1302,8 +1294,8 @@ function _createShipMaterial(color, opacity, additive) {
     transparent: true,
     opacity,
     depthWrite: false,
-    blending: additive ? AdditiveBlending : undefined,
   });
+  if (additive) material.blending = AdditiveBlending;
   material.userData.baseOpacity = opacity;
   return material;
 }
@@ -1526,6 +1518,97 @@ function _getPlanetRadius(system) {
     : 1;
   const base = Math.max(2.75, Math.min(4.6, 5.55 - average * 1.7));
   return base * (system && system.type === 'special' ? 1.34 : 1.12) * PLANET_VISUAL_SCALE;
+}
+
+function _createPlanetDebrisBelt(system, radius, color, count) {
+  const rng = _createRng(_hash(system.id + ':debris'));
+  const positions = new Float32Array(count * 3);
+  for (let index = 0; index < count; index += 1) {
+    const angle = index / count * Math.PI * 2 + (rng() - 0.5) * 0.24;
+    const distance = radius * (1.42 + rng() * 0.46);
+    positions[index * 3] = Math.cos(angle) * distance;
+    positions[index * 3 + 1] = (rng() - 0.5) * radius * 0.22;
+    positions[index * 3 + 2] = Math.sin(angle) * distance;
+  }
+  const geometry = new BufferGeometry();
+  geometry.setAttribute('position', new BufferAttribute(positions, 3));
+  const material = new PointsMaterial({
+    map: _getSharedStarTexture(),
+    color: color.clone().lerp(new Color(0xffcf8a), 0.48),
+    size: Math.max(0.48, radius * 0.22),
+    sizeAttenuation: true,
+    transparent: true,
+    opacity: 0.76,
+    alphaTest: 0.04,
+    depthWrite: false,
+  });
+  const belt = new Points(geometry, material);
+  belt.rotation.set(Math.PI * 0.58, 0.12, ((_hash(system.id) % 30) - 15) * 0.018);
+  belt.renderOrder = 4;
+  return belt;
+}
+
+function _createPlanetOrbitAccents(system, radius, color, profile, unlocked, qualityLevel, hot) {
+  const satelliteCount = profile.satelliteCount || 0;
+  if (!unlocked || (!hot && qualityLevel !== 'high') || (!satelliteCount && !profile.naturalMoon)) {
+    return null;
+  }
+
+  const pivot = new Group();
+  pivot.rotation.x = 0.22 + (_hash(system.id) % 17) * 0.016;
+
+  if (profile.naturalMoon) {
+    const moonMaterial = new MeshStandardMaterial({
+      color: 0xc8d2e8,
+      emissive: color,
+      emissiveIntensity: 0.32,
+      metalness: 0.06,
+      roughness: 0.9,
+    });
+    const moon = new Mesh(_getSharedGeometry(
+      'planet-natural-moon',
+      function () { return new SphereGeometry(1, 8, 6); }
+    ), moonMaterial);
+    moon.scale.setScalar(radius * 0.24);
+    moon.position.x = radius * 2.08;
+    pivot.add(moon);
+  }
+
+  if (satelliteCount) {
+    const coreMaterial = new MeshStandardMaterial({
+      color: 0xd9f7ff,
+      emissive: color,
+      emissiveIntensity: 1.4,
+      metalness: 0.66,
+      roughness: 0.3,
+    });
+    const panelMaterial = new MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0.82,
+    });
+    for (let index = 0; index < satelliteCount; index += 1) {
+      const arm = new Group();
+      arm.rotation.y = index / satelliteCount * Math.PI * 2 + (_hash(system.id) % 31) * 0.03;
+      const satellite = new Group();
+      satellite.position.x = radius * (1.78 + index * 0.16);
+      const core = new Mesh(_getSharedGeometry(
+        'planet-satellite-core',
+        function () { return new SphereGeometry(1, 7, 5); }
+      ), coreMaterial);
+      core.scale.setScalar(radius * 0.11);
+      const panels = new Mesh(_getSharedGeometry(
+        'planet-satellite-panels',
+        function () { return new BoxGeometry(1, 1, 1); }
+      ), panelMaterial);
+      panels.scale.set(radius * 0.42, radius * 0.045, radius * 0.13);
+      satellite.add(core, panels);
+      arm.add(satellite);
+      pivot.add(arm);
+    }
+  }
+
+  return pivot;
 }
 
 function _buildBackground() {
@@ -2033,10 +2116,15 @@ function _animateScene(time) {
     entry.halo.visible = hot;
     entry.haloMaterial.opacity = hovered ? 0.52 : (entry.current ? 0.4 + pulse * 0.25 : (selected || focused ? 0.18 : 0.18));
     if (entry.ringMaterial) {
-      entry.ringMaterial.opacity = hovered ? 0.62 : (entry.current ? 0.56 + pulse * 0.25 : (selected || focused ? 0.26 : 0.18));
+      entry.ringMaterial.opacity = hovered
+        ? 0.58
+        : (entry.current ? 0.5 + pulse * 0.2 : 0.38);
     }
     if (entry.atmosphereMaterial) {
-      entry.atmosphereMaterial.opacity = hovered || entry.current ? 0.22 : (selected || focused ? 0.13 : 0.09);
+      const baseAtmosphereOpacity = entry.visualProfile.atmosphereOpacity;
+      entry.atmosphereMaterial.opacity = hovered || entry.current
+        ? Math.min(0.28, baseAtmosphereOpacity + 0.06)
+        : (selected || focused ? Math.min(0.24, baseAtmosphereOpacity + 0.03) : baseAtmosphereOpacity);
     }
     entry.bodyMaterial.emissiveIntensity = hovered || entry.current ? 1.7 : (selected || focused ? 1.28 : 1.15);
     if (entry.label) {
