@@ -30,7 +30,7 @@
 
 - 贸易闭环：买入、航行、卖出、结算、供需变化。
 - 经济与资本：价格历史、黑市、贷款、保险、股票、期货、贸易站投资。
-- 探索 MVP：扫描、首次着陆、POI 调查、秘密航线、勘探报告。
+- 探索 MVP：POI 调查、秘密航线、勘探报告。
 - 行动引导 MVP：当前行动条、统一命令按钮、执行反馈、早期贸易 / 探索链建议。
 - 中期系统骨架：舰队、船员、自动派遣、贸易站、科研、派系、任务、胜利路径。
 - 工程基线：`SAVE_STATE_SCHEMA` 作为存档契约来源，Vitest 覆盖核心系统。
@@ -89,7 +89,7 @@
 `GameManager` 仍保留总编排职责，但不应继续承接所有细节。首批低风险拆分已经完成：
 
 - `GuidanceActionController`：处理行动条 actionType 分发。
-- `ExplorationActionController`：封装扫描、着陆、POI 的执行和反馈。
+- `ExplorationActionController`：封装 POI 的执行和反馈。
 - `CommerceActionController`：封装商业终端导航、市场焦点和资本 / 经营入口跳转。
 
 拆分原则仍是保持外部行为不变，先移动代码和测试，不做同时重构业务规则。后续新增 actionType 应继续进入 controller 边界，而不是回填到 `GameManager`。
@@ -109,7 +109,7 @@
 
 验收：
 
-- 文档不再把扫描 / 着陆 / POI / 秘密航线写成未实现。
+- 文档不再把 POI / 秘密航线写成未实现。
 - 文档不再把旧 schema 版本写成当前版本。
 - 新增中期功能时能直接引用本路线文档拆 issue。
 

@@ -5,7 +5,7 @@
 > 架构：只做行为等价搬迁，先提取探索和商业动作控制器，不同时改业务规则。  
 > 技术栈：Vanilla JS ES Modules、Vitest。
 
-> 2026-05-26 状态：`ExplorationActionController` 与 `CommerceActionController` 已完成首批提取并接入 `GuidanceActionController`；对应测试已覆盖扫描 / 着陆 / POI、市场焦点和商业终端入口。
+> 2026-05-26 状态：`ExplorationActionController` 与 `CommerceActionController` 已完成首批提取并接入 `GuidanceActionController`；对应测试已覆盖 POI、市场焦点和商业终端入口。
 
 ---
 
@@ -19,8 +19,6 @@
 ## 2. 提取范围
 
 - `ExplorationActionController`
-  - 扫描。
-  - 首次着陆。
   - POI 调查。
   - 探索相关反馈和 UI 刷新回调。
 - `CommerceActionController`
@@ -46,7 +44,7 @@
 - `tests/guidanceActionController.test.js`
   - 保持行动条动作执行回归。
 - 新增 `tests/explorationActionController.test.js`
-  - 扫描、着陆、POI 动作调用正确依赖。
+  - POI 动作调用正确依赖。
 - 新增 `tests/commerceActionController.test.js`
   - 市场焦点、商网动作、资本入口调用正确依赖。
 - `tests/integration.test.js`

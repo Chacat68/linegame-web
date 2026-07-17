@@ -416,7 +416,7 @@ body::before {
   display: none;
 }
 
-#action-guide :where(.action-guide-shell, .action-guide-mini) {
+#action-guide .action-guide-shell {
   border: 1px solid rgba(108, 231, 255, 0.24);
   background:
     radial-gradient(circle at 0% 50%, rgba(108, 231, 255, 0.13), transparent 34%),
@@ -433,11 +433,11 @@ body::before {
 
 #action-guide .action-guide-shell {
   display: grid;
-  grid-template-columns: 4px minmax(0, 1fr) 136px 36px;
+  grid-template-columns: 4px minmax(0, 1fr) 136px;
   grid-template-rows: auto auto;
   grid-template-areas:
-    "status kicker primary toggle"
-    "status main primary toggle";
+    "status kicker primary"
+    "status main primary";
   min-height: 76px;
   align-items: center;
   padding: 10px 12px 10px 0;
@@ -581,34 +581,6 @@ body::before {
   color: var(--ui-text-primary);
   font-size: 13px;
   font-weight: 720;
-  text-align: left;
-}
-
-#action-guide .action-guide-toggle {
-  grid-area: toggle;
-  width: 36px;
-  min-width: 36px;
-  height: 52px;
-  align-self: center;
-  justify-self: end;
-  border-color: var(--ui-line-subtle);
-  border-radius: 9px;
-  color: var(--ui-text-muted);
-  background: rgba(2, 10, 18, 0.52);
-  font-size: 17px;
-}
-
-#action-guide .action-guide-toggle:hover {
-  border-color: var(--ui-line-default);
-  color: var(--ui-text-primary);
-  background: rgba(108, 231, 255, 0.08);
-}
-
-#action-guide .action-guide-mini {
-  justify-content: flex-start;
-  min-height: 44px;
-  padding: 8px 14px 8px 18px;
-  border-radius: 10px;
   text-align: left;
 }
 
@@ -894,10 +866,14 @@ body::before {
   overflow: hidden;
 }
 
-.market-overlay-body,
-.market-main-pane {
+.market-overlay-body {
   flex: 1 1 auto;
   overflow: auto;
+}
+
+.market-main-pane {
+  flex: 0 0 auto;
+  overflow: visible;
 }
 
 .market-detail-bar {
@@ -972,6 +948,7 @@ body::before {
 #info-panel.side-panel-overlay.panel-open .secondary-terminal-shell,
 #trade-panel.side-panel-overlay.panel-open .secondary-terminal-shell,
 #console-panel.side-panel-overlay.panel-open .secondary-terminal-shell {
+  opacity: 1;
   transform: translateY(0) scale(1);
 }
 
@@ -1180,6 +1157,44 @@ body::before {
   background: rgba(8, 28, 42, 0.38);
   font-size: 12px;
   line-height: 1.5;
+}
+
+#message-log .msg {
+  display: grid;
+  grid-template-columns: 118px minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--ui-space-3);
+}
+
+#message-log .msg::before {
+  content: none;
+}
+
+.log-message-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ui-space-2);
+  color: var(--ui-text-muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.log-message-kind {
+  min-width: 32px;
+  color: var(--ui-accent);
+  letter-spacing: 0.08em;
+}
+
+.log-message-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+#message-log .log-empty-state {
+  display: block;
+  color: var(--ui-text-muted);
+  border-left-style: dashed;
 }
 
 /* Blocking modal and feedback --------------------------------- */

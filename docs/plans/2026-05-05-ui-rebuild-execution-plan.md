@@ -282,7 +282,7 @@
 
 - 删除 `station-action-list` 中无接线按钮。
 - 重新定义 `target-intel-widget` 的内容边界，只保留当前目标摘要与跳转。
-- 重新定义 `planet-detail-panel` 与 `current-system-exploration-card` 的显示优先级和位置关系。
+- 将探索信息统一收敛到 `planet-detail-panel`，不再保留独立的当前航点探索卡。
 - 评估 `map-hud-nav-data` / `map-hud-sensor-data` 的处理方式：保留为更轻量的装饰层，或删除。
 - 图例、dock、小窗、详情卡统一 safe area，避免压住 header / bottom nav。
 
