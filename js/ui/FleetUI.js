@@ -19,12 +19,14 @@ let _activeInlineModalId = null;
 let _currentPortalCleanup = null;
 let _activeModModalContext = null;
 let _activeDispatchModalContext = null;
+let _inspectedHangarShipIndex = null;
 
 // 全局监听重置事件（用于视图切换时自动归还节点）
 EventBus.on('hangar:reset', function() {
   if (_currentPortalCleanup) {
     _currentPortalCleanup({ restoreFocus: false });
   }
+  _inspectedHangarShipIndex = null;
 });
 
 function _focusInlineElement(target) {
@@ -377,6 +379,101 @@ function _renderHangarTriagePanel(context) {
   '</section>';
 }
 
+function _clampPercent(value) {
+  return Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
+}
+
+function _renderHangarVital(label, value, percent, note, tone) {
+  var safePercent = _clampPercent(percent);
+  return '<div class="hangar-vital hangar-vital--' + tone + '" role="listitem">' +
+    '<div class="hangar-vital-copy"><span>' + _escapeHtml(label) + '</span><strong>' + _escapeHtml(value) + '</strong></div>' +
+    '<div class="hangar-vital-track" role="progressbar" aria-label="' + _escapeHtml(label) + '" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + safePercent + '">' +
+      '<span style="width:' + safePercent + '%"></span>' +
+    '</div>' +
+    '<small>' + _escapeHtml(note) + '</small>' +
+  '</div>';
+}
+
+function _renderHangarOverview(context) {
+  var snapshots = context.fleetSnapshots || [];
+  var riskSnapshots = snapshots.filter(_isHangarRiskSnapshot).sort(function (left, right) {
+    if (!!left.repairJob !== !!right.repairJob) return left.repairJob ? -1 : 1;
+    if (left.faults.length !== right.faults.length) return right.faults.length - left.faults.length;
+    if (left.hullMissing !== right.hullMissing) return right.hullMissing - left.hullMissing;
+    return left.maintenance.value - right.maintenance.value;
+  });
+  var riskCount = riskSnapshots.length;
+  var avgMaintenance = snapshots.length
+    ? Math.round(snapshots.reduce(function (sum, snapshot) { return sum + snapshot.maintenance.value; }, 0) / snapshots.length)
+    : 100;
+  var prioritySnapshot = riskSnapshots[0]
+    || snapshots.find(function (snapshot) { return !!snapshot.ship.route; })
+    || snapshots.find(function (snapshot) { return snapshot.index === context.activeIdx; })
+    || snapshots[0]
+    || null;
+  var priorityTone = riskCount > 0 ? 'warning' : (context.fleetRouteCount > 0 ? 'route' : 'ready');
+  var priorityLabel = riskCount > 0 ? '优先整备' : (context.fleetRouteCount > 0 ? '航线运行' : '等待调度');
+  var priorityTitle = prioritySnapshot ? prioritySnapshot.ship.name : '暂无舰船';
+  var priorityBody = '购买舰船后，可在这里完成整备、人员配置与派遣。';
+
+  if (prioritySnapshot) {
+    if (_isHangarRiskSnapshot(prioritySnapshot)) {
+      priorityBody = '维护 ' + Math.round(prioritySnapshot.maintenance.value) + '% · 故障 ' + prioritySnapshot.faults.length + ' · 船体缺口 ' + Math.round(prioritySnapshot.hullMissing);
+    } else if (prioritySnapshot.ship.route) {
+      priorityBody = _formatHangarRouteSummary(context.state, prioritySnapshot);
+    } else {
+      priorityBody = (prioritySnapshot.roleProfile ? prioritySnapshot.roleProfile.label : '综合用途') + ' · 停靠待命';
+    }
+  }
+
+  return '<section class="hangar-operations-deck" aria-labelledby="hangar-operations-title">' +
+    '<div class="hangar-operations-head">' +
+      '<div><span>HANGAR OPERATIONS</span><h2 id="hangar-operations-title">船队作业台</h2></div>' +
+      '<p>选择一艘船，集中完成整备、人员与派遣。</p>' +
+    '</div>' +
+    '<div class="hangar-operations-grid" role="list" aria-label="机库运行摘要">' +
+      '<div role="listitem"><span>舰船 / 席位</span><strong>' + context.fleet.length + ' / ' + context.slotCount + '</strong><small>锁定 ' + Math.max(0, context.maxSlots - context.slotCount) + ' 席</small></div>' +
+      '<div role="listitem"><span>运行航线</span><strong>' + context.fleetRouteCount + '</strong><small>派遣等级 Lv.' + context.routeLevel + '</small></div>' +
+      '<div role="listitem"><span>待整备</span><strong>' + riskCount + '</strong><small>平均维护 ' + avgMaintenance + '%</small></div>' +
+      '<div role="listitem"><span>总舱容</span><strong>' + context.fleetCargoCap + '</strong><small>全编队有效容量</small></div>' +
+    '</div>' +
+    '<button type="button" class="hangar-priority-signal hangar-priority-signal--' + priorityTone + '" data-inspect-ship-index="' + (prioritySnapshot ? prioritySnapshot.index : '') + '"' + (prioritySnapshot ? '' : ' disabled') + '>' +
+      '<span>' + _escapeHtml(priorityLabel) + '</span>' +
+      '<strong>' + _escapeHtml(priorityTitle) + '</strong>' +
+      '<small>' + _escapeHtml(priorityBody) + '</small>' +
+      '<b aria-hidden="true">查看 →</b>' +
+    '</button>' +
+  '</section>';
+}
+
+function _renderHangarShipSelector(snapshots, activeIdx, inspectedIdx) {
+  var buttons = snapshots.map(function (snapshot) {
+    var isActive = snapshot.index === activeIdx;
+    var isInspected = snapshot.index === inspectedIdx;
+    var hasRisk = _isHangarRiskSnapshot(snapshot);
+    var status = snapshot.repairJob
+      ? ('维修 ' + snapshot.repairJob.remainingDays + ' 天')
+      : (snapshot.ship.route ? '航线中' : (isActive ? '操控中' : '待命'));
+    var meta = (snapshot.roleProfile ? snapshot.roleProfile.label : '综合用途') + ' · 维护 ' + Math.round(snapshot.maintenance.value) + '%';
+    return '<button type="button" role="listitem" class="hangar-ship-select' +
+      (isInspected ? ' is-selected' : '') +
+      (isActive ? ' is-active' : '') +
+      (hasRisk ? ' has-risk' : '') +
+      (snapshot.ship.route ? ' has-route' : '') +
+      '" data-inspect-ship-index="' + snapshot.index + '" aria-pressed="' + (isInspected ? 'true' : 'false') + '">' +
+      '<span class="hangar-ship-select-index">0' + (snapshot.index + 1) + '</span>' +
+      '<span class="hangar-ship-select-icon" aria-hidden="true">' + snapshot.ship.emoji + '</span>' +
+      '<span class="hangar-ship-select-copy"><strong>' + _escapeHtml(snapshot.ship.name) + '</strong><small>' + _escapeHtml(meta) + '</small></span>' +
+      '<span class="hangar-ship-select-status">' + _escapeHtml(status) + '</span>' +
+    '</button>';
+  }).join('');
+
+  return '<section class="hangar-fleet-selector" aria-labelledby="hangar-fleet-selector-title">' +
+    '<div class="hangar-section-heading"><div><span>FLEET ROSTER</span><h3 id="hangar-fleet-selector-title">选择作业舰船</h3></div><small>查看不会改变当前操控舰</small></div>' +
+    '<div class="hangar-ship-select-list" role="list" aria-label="舰船列表">' + buttons + '</div>' +
+  '</section>';
+}
+
 /**
  * 渲染船队标签页
  * @param {object}   state
@@ -404,104 +501,75 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
 
   const fleet      = Fleet.getFleet(state);
   const activeIdx  = state.activeShipIndex || 0;
-  const activeShip = fleet[activeIdx] || null;
+  const hasInspectedShip = Number.isInteger(_inspectedHangarShipIndex) && !!fleet[_inspectedHangarShipIndex];
+  const inspectedIdx = hasInspectedShip ? _inspectedHangarShipIndex : activeIdx;
+  const inspectedShip = fleet[inspectedIdx] || null;
+  _inspectedHangarShipIndex = inspectedShip ? inspectedIdx : null;
   const flashIndex = state.lastSwitchedShipIndex;
   const flashAt = state.lastShipSwitchAt || 0;
   const canFlash = Date.now() - flashAt < 1200;
   const slotCount  = Fleet.getSlotCount(state);
   const maxSlots   = Fleet.getMaxSlots();
   const routeLevel = Fleet.getDispatchRouteLevel(state);
-  const activeShipStats = activeShip ? Fleet.getEffectiveShipStats(state, activeShip) : null;
-  const activeCargoUsed = activeShip
-    ? _getCargoUsed(activeShip.cargo)
-    : 0;
-  const activeMaintenance = activeShipStats
-    ? (activeShipStats.maintenance || Fleet.getShipMaintenanceSummary(state, activeShip))
-    : null;
-  const activeRoleProfile = activeShipStats
-    ? (activeShipStats.roleProfile || Fleet.getShipRoleProfile(state, activeShip))
-    : null;
-  const activeMissionLabel = activeShip
-    ? (activeShip.route ? '派遣航线运行中' : '停靠待命，等待调度')
-    : '未配置旗舰';
-  const activeFuelPct = activeShip
-    ? Math.max(0, Math.min(100, Math.round((activeShip.fuel / Math.max(1, activeShip.maxFuel || 1)) * 100)))
-    : 0;
   const fleetSnapshots = _buildHangarShipSnapshots(state, fleet);
+  const inspectedSnapshot = fleetSnapshots.find(function (snapshot) { return snapshot.index === inspectedIdx; }) || null;
   const fleetRouteCount = fleet.filter(function (ship) { return !!ship.route; }).length;
   const fleetCargoCap = fleetSnapshots.reduce(function (sum, snapshot) {
     return sum + (snapshot.stats.maxCargo || snapshot.ship.maxCargo || 0);
   }, 0);
 
   let html = '';
+  let supportHtml = '';
 
-  html += '<section class="hangar-command-deck">';
-  html += '<div class="hangar-bay-visual" aria-hidden="true">';
-  html += '<span class="hangar-bay-rings"></span>';
-  html += '<span class="hangar-ship-silhouette">' + (activeShip ? activeShip.emoji : '◇') + '</span>';
-  html += '<span class="hangar-dock-light hangar-dock-light--a"></span>';
-  html += '<span class="hangar-dock-light hangar-dock-light--b"></span>';
-  html += '</div>';
-  html += '<div class="hangar-command-copy">';
-  html += '<div class="hangar-command-kicker">ORBITAL DRYDOCK</div>';
-  html += '<h2>' + (activeShip ? _escapeHtml(activeShip.name) : '未配置旗舰') + '</h2>';
-  html += '<p>' + _escapeHtml(activeMissionLabel) + ' · ' + _escapeHtml(activeRoleProfile ? activeRoleProfile.label : '综合用途') + '</p>';
-  html += '<div class="hangar-command-tags">';
-  html += '<span>航线 Lv.' + routeLevel + '</span>';
-  html += '<span>燃料 ' + activeFuelPct + '%</span>';
-  html += '<span>维护 ' + (activeMaintenance ? Math.round(activeMaintenance.value) : 0) + '%</span>';
-  html += '</div>';
-  html += '</div>';
-  html += '</section>';
-
-  html += _renderHangarTriagePanel({
+  html += _renderHangarOverview({
     state: state,
     fleet: fleet,
     fleetSnapshots: fleetSnapshots,
     activeIdx: activeIdx,
-    activeShip: activeShip,
-    activeShipStats: activeShipStats,
-    activeCargoUsed: activeCargoUsed,
     slotCount: slotCount,
     maxSlots: maxSlots,
     routeLevel: routeLevel,
     fleetRouteCount: fleetRouteCount,
     fleetCargoCap: fleetCargoCap,
   });
+  html += _renderHangarShipSelector(fleetSnapshots, activeIdx, inspectedIdx);
 
   // ========== 席位区域 ==========
-  html += '<section class="hangar-module hangar-slot-deck">';
-  html += '<div class="fleet-section-title">🎫 船队席位（' + slotCount + '/' + maxSlots + '）</div>';
-  html += '<div class="fleet-slot-bar">';
+  supportHtml += '<details class="hangar-support-panel">';
+  supportHtml += '<summary><span><b>编队与席位</b><small>扩编、切换操控舰与查看编队加成</small></span><strong>' + fleet.length + '/' + slotCount + ' 艘</strong></summary>';
+  supportHtml += '<div class="hangar-support-body">';
+  supportHtml += '<section class="hangar-slot-deck">';
+  supportHtml += '<div class="fleet-section-title">船队席位（' + slotCount + '/' + maxSlots + '）</div>';
+  supportHtml += '<div class="fleet-slot-bar">';
   for (var si = 0; si < maxSlots; si++) {
     var slotDef = FLEET_SLOTS[si];
     var isOwned = si < slotCount;
     var hasShip = si < fleet.length;
     var isSlotActive = si === activeIdx;
-    html += '<div class="fleet-slot' + (isOwned ? ' slot-owned' : ' slot-locked') +
+    supportHtml += '<div class="fleet-slot' + (isOwned ? ' slot-owned' : ' slot-locked') +
             (hasShip ? ' slot-filled' : '') +
             (isSlotActive ? ' slot-active' : '') + '" title="' + slotDef.name + '">';
     if (hasShip) {
-      html += '<span class="slot-ship-icon">' + fleet[si].emoji + '</span>';
+      supportHtml += '<span class="slot-ship-icon">' + fleet[si].emoji + '</span>';
       if (isSlotActive) {
-        html += '<span class="slot-active-label">操控</span>';
+        supportHtml += '<span class="slot-active-label">操控</span>';
       } else if (!fleet[si].route) {
-        html += '<button class="slot-switch-btn" data-slot-index="' + si + '" title="切换操控至「' + fleet[si].name + '」">切换</button>';
+        supportHtml += '<button class="slot-switch-btn" data-slot-index="' + si + '" title="切换操控至「' + _escapeHtml(fleet[si].name) + '」">切换</button>';
       } else {
-        html += '<span class="slot-dispatch-label">派遣</span>';
+        supportHtml += '<span class="slot-dispatch-label">派遣</span>';
       }
     } else if (isOwned) {
-      html += '<span class="slot-empty-icon">＋</span>';
+      supportHtml += '<span class="slot-empty-icon">＋</span>';
     } else {
-      html += '<span class="slot-lock-icon">🔒</span>';
+      supportHtml += '<span class="slot-lock-icon">🔒</span>';
     }
-    html += '</div>';
+    supportHtml += '</div>';
   }
-  html += '</div>';
+  supportHtml += '</div>';
 
   // 席位信息 & 购买按钮
-  html += '<div class="fleet-slot-info">';
-  html += '<span class="fleet-slot-route-lvl">📡 派遣航线等级：Lv.' + routeLevel + '</span>';
+  supportHtml += '<div class="fleet-slot-info">';
+  supportHtml += '<span class="fleet-slot-route-lvl">派遣航线等级：Lv.' + routeLevel + '</span>';
   if (slotCount < maxSlots) {
     var nextSlot = FLEET_SLOTS[slotCount];
     var canAffordSlot = state.credits >= nextSlot.cost;
@@ -514,43 +582,43 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
       : (!hasCompanyLevel
           ? '公司 Lv.' + requiredCompanyLevel + ' 解锁'
           : '积分不足 (' + nextSlot.cost.toLocaleString() + ')');
-    html += '<div class="fleet-slot-next">';
-    html += '<span>下一席位：<b>' + nextSlot.name + '</b> — ' + nextSlot.desc + ' · 需公司 Lv.' + requiredCompanyLevel + '</span>';
-    html += '<button class="fleet-slot-buy-btn' + (canBuySlot ? ' slot-can-buy' : '') + '"' +
+    supportHtml += '<div class="fleet-slot-next">';
+    supportHtml += '<span>下一席位：<b>' + _escapeHtml(nextSlot.name) + '</b> — ' + _escapeHtml(nextSlot.desc) + ' · 需公司 Lv.' + requiredCompanyLevel + '</span>';
+    supportHtml += '<button class="fleet-slot-buy-btn' + (canBuySlot ? ' slot-can-buy' : '') + '"' +
             (canBuySlot ? '' : ' disabled') + '>' +
             slotButtonLabel +
             '</button>';
-    html += '</div>';
+    supportHtml += '</div>';
   } else {
-    html += '<div class="fleet-slot-next"><span>🏆 已解锁全部席位！</span></div>';
+    supportHtml += '<div class="fleet-slot-next"><span>已解锁全部席位</span></div>';
   }
-  html += '</div>';
-  html += '</section>';
+  supportHtml += '</div>';
+  supportHtml += '</section>';
 
   // ========== 舰队编队加成 ==========
   const activeBonuses = Fleet.getActiveFleetBonuses(state);
   const activeBonusIds = activeBonuses.map(function (b) { return b.id; });
   if (activeBonuses.length > 0) {
-    html += '<div class="fleet-bonus-section">';
-    html += '<div class="fleet-section-title">🎖️ 舰队编队加成</div>';
-    html += '<div class="fleet-bonus-list">';
+    supportHtml += '<div class="fleet-bonus-section">';
+    supportHtml += '<div class="fleet-section-title">已激活编队加成</div>';
+    supportHtml += '<div class="fleet-bonus-list">';
     activeBonuses.forEach(function (bonus) {
-      html += '<div class="fleet-bonus-chip">';
-      html += '<span class="fleet-bonus-emoji">' + bonus.emoji + '</span>';
-      html += '<span class="fleet-bonus-name">' + bonus.name + '</span>';
-      html += '<span class="fleet-bonus-desc">' + bonus.desc + '</span>';
-      html += '</div>';
+      supportHtml += '<div class="fleet-bonus-chip">';
+      supportHtml += '<span class="fleet-bonus-emoji">' + bonus.emoji + '</span>';
+      supportHtml += '<span class="fleet-bonus-name">' + _escapeHtml(bonus.name) + '</span>';
+      supportHtml += '<span class="fleet-bonus-desc">' + _escapeHtml(bonus.desc) + '</span>';
+      supportHtml += '</div>';
     });
-    html += '</div>';
-    html += '</div>';
+    supportHtml += '</div>';
+    supportHtml += '</div>';
   }
   // 提示未激活的编队加成
   const inactiveBonuses = FLEET_BONUSES.filter(function (b) {
     return activeBonusIds.indexOf(b.id) === -1;
   });
   if (inactiveBonuses.length > 0 && fleet.length > 1) {
-    html += '<div class="fleet-bonus-hint">';
-    html += '<details><summary>📋 可解锁的编队加成（' + inactiveBonuses.length + '）</summary>';
+    supportHtml += '<div class="fleet-bonus-hint">';
+    supportHtml += '<details><summary>可解锁的编队加成（' + inactiveBonuses.length + '）</summary>';
     inactiveBonuses.forEach(function (bonus) {
       var missing = bonus.requiredTypes.filter(function (t) {
         return !fleet.some(function (s) { return s.typeId === t; });
@@ -559,45 +627,54 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
         var st = SHIP_TYPES.find(function (s) { return s.id === t; });
         return st ? st.emoji + st.name : t;
       }).join('、');
-      html += '<div class="fleet-bonus-locked">';
-      html += '<span>' + bonus.emoji + ' ' + bonus.name + '：' + bonus.desc + '</span>';
-      html += '<span class="fleet-bonus-missing">需要：' + missingNames + '</span>';
-      html += '</div>';
+      supportHtml += '<div class="fleet-bonus-locked">';
+      supportHtml += '<span>' + bonus.emoji + ' ' + _escapeHtml(bonus.name) + '：' + _escapeHtml(bonus.desc) + '</span>';
+      supportHtml += '<span class="fleet-bonus-missing">需要：' + _escapeHtml(missingNames) + '</span>';
+      supportHtml += '</div>';
     });
-    html += '</details>';
-    html += '</div>';
+    supportHtml += '</details>';
+    supportHtml += '</div>';
   }
+  supportHtml += '</div>';
+  supportHtml += '</details>';
 
   // ========== 已拥有的船只 ==========
-  html += '<section class="hangar-module hangar-fleet-manifest">';
-  html += '<div class="fleet-section-title" style="margin-top:12px">⚓ 我的船队（' + fleet.length + '/' + slotCount + '）</div>';
+  html += '<section class="hangar-ship-workspace" aria-labelledby="hangar-workspace-title">';
+  html += '<div class="hangar-section-heading"><div><span>ACTIVE WORKSPACE</span><h3 id="hangar-workspace-title">舰船作业区</h3></div><small>状态与操作始终对应当前选中的舰船</small></div>';
 
-  fleet.forEach(function (ship, idx) {
+  [inspectedSnapshot].filter(Boolean).forEach(function (snapshot) {
+    const ship = snapshot.ship;
+    const idx = snapshot.index;
     const isActive = idx === activeIdx;
-      const isSwitchFlashing = canFlash && idx === flashIndex;
-    const cargoUsed = _getCargoUsed(ship.cargo);
+    const isSwitchFlashing = canFlash && idx === flashIndex;
+    const cargoUsed = snapshot.cargoUsed;
     const shipCrew = Crew.getShipCrew(state, ship);
-    const shipStats = Fleet.getEffectiveShipStats(state, ship);
-    const maintenance = shipStats.maintenance || Fleet.getShipMaintenanceSummary(state, ship);
-    const roleProfile = shipStats.roleProfile || Fleet.getShipRoleProfile(state, ship);
-    const faults = shipStats.faults || Fleet.getShipFaultSummaries(ship);
+    const shipStats = snapshot.stats;
+    const maintenance = snapshot.maintenance;
+    const roleProfile = snapshot.roleProfile;
+    const faults = snapshot.faults;
     const modRecommendation = Fleet.getShipModRecommendation
       ? Fleet.getShipModRecommendation(state, idx)
       : null;
     const repairJob = ship.repairJob && ship.repairJob.remainingDays > 0 ? ship.repairJob : null;
 
-    html += '<div class="fleet-ship-card' + (isActive ? ' fleet-active' : '') +
+    html += '<article class="fleet-ship-card hangar-focused-ship' + (isActive ? ' fleet-active' : '') +
         (isSwitchFlashing ? ' fleet-switch-flash' : '') +
             (ship.route ? ' fleet-dispatched' : '') + '" data-index="' + idx + '">';
 
     // ======== 头部：图标 + 名称 + 状态 ========
     html += '<div class="fleet-ship-header">';
     html += '<span class="fleet-ship-icon">' + ship.emoji + '</span>';
-    html += '<span class="fleet-ship-name">' + ship.name;
+    html += '<span class="fleet-ship-name">' + _escapeHtml(ship.name);
     if (isActive && !ship.route) html += ' <span class="fleet-active-badge">操控中</span>';
     if (!isActive && !ship.route) html += ' <span class="fleet-idle-badge">待命</span>';
     if (ship.route) html += ' <span class="fleet-dispatch-badge">派遣中</span>';
     html += '</span>';
+    if (!isActive) {
+      html += '<button type="button" class="fleet-switch-btn fleet-switch-primary" data-index="' + idx + '"><span>设为操控舰</span><small>当前仅查看，不影响正在操控的舰船</small></button>';
+    } else {
+      html += '<span class="hangar-control-badge">当前操控舰</span>';
+    }
     html += '</div>';
 
     // ======== 统计（紧凑单行） ========
@@ -612,11 +689,11 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
     if (skills.length + shipMods.length > 0) detailSummaryParts.push('配置 ' + (skills.length + shipMods.length));
     if (faults.length > 0) detailSummaryParts.push('故障 ' + faults.length);
 
-    html += '<div class="fleet-ship-stats">';
-    html += '<span class="fleet-stat" title="货舱 上限' + ship.maxCargoCap + '">📦' + cargoUsed + '/' + shipStats.maxCargo + '</span>';
-    html += '<span class="fleet-stat" title="燃料 上限' + ship.maxFuelCap + '">⚡' + Math.floor(ship.fuel) + '/' + ship.maxFuel + '</span>';
-    html += '<span class="fleet-stat" title="船体 上限' + ship.maxHullCap + '">🛡' + Math.floor(ship.hull) + '/' + ship.maxHull + '</span>';
-    html += '<span class="fleet-stat" title="耗油率 最低' + ship.minFuelEff + '">🔧×' + shipStats.fuelEff.toFixed(2) + '</span>';
+    html += '<div class="fleet-ship-stats hangar-vitals" role="list" aria-label="' + _escapeHtml(ship.name) + ' 核心状态">';
+    html += _renderHangarVital('货舱', cargoUsed + ' / ' + shipStats.maxCargo, shipStats.maxCargo > 0 ? (cargoUsed / shipStats.maxCargo) * 100 : 0, '有效容量', 'cargo');
+    html += _renderHangarVital('燃料', Math.floor(ship.fuel) + ' / ' + ship.maxFuel, (ship.fuel / Math.max(1, ship.maxFuel || 1)) * 100, '当前储备', ship.fuel < ship.maxFuel * 0.25 ? 'warning' : 'fuel');
+    html += _renderHangarVital('船体', Math.floor(ship.hull) + ' / ' + ship.maxHull, (ship.hull / Math.max(1, ship.maxHull || 1)) * 100, faults.length > 0 ? ('故障 ' + faults.length) : '结构完整', faults.length > 0 || ship.hull < ship.maxHull * 0.6 ? 'warning' : 'hull');
+    html += _renderHangarVital('维护', Math.round(maintenance.value) + '%', maintenance.value, maintenance.label + ' · -' + maintenance.dailyDecay.toFixed(1) + '/天', maintenance.value < 75 ? 'warning' : 'maintenance');
     html += '</div>';
 
     html += '<div class="fleet-summary-strip">';
@@ -650,11 +727,16 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
       html += '</div>';
       html += '<button class="fleet-cancel-btn" data-index="' + idx + '">⏹️ 召回</button>';
       html += '</div>';
+    } else {
+      html += '<div class="fleet-route-info hangar-idle-context">';
+      html += '<div><span>当前任务</span><strong>' + (repairJob ? '维修队列中' : '停靠待命') + '</strong></div>';
+      html += '<p>' + (repairJob ? ('剩余 ' + repairJob.remainingDays + ' 天，维修完成前不可派遣。') : '可继续改装、配置人员，或建立一条自动贸易航线。') + '</p>';
+      html += '</div>';
     }
 
     if (roleProfile.summary || crewEffectParts.length > 0 || (roleProfile.tags && roleProfile.tags.length > 0) || faults.length > 0 || shipCrew.length > 0 || skills.length > 0 || shipMods.length > 0 || cargoEntries.length > 0) {
       html += '<details class="fleet-detail-panel">';
-      html += '<summary>展开详情' + (detailSummaryParts.length > 0 ? ' · ' + _escapeHtml(detailSummaryParts.join(' · ')) : '') + '</summary>';
+      html += '<summary>配置详情' + (detailSummaryParts.length > 0 ? ' · ' + _escapeHtml(detailSummaryParts.join(' · ')) : '') + '</summary>';
       html += '<div class="fleet-detail-grid">';
 
       if (roleProfile.summary || crewEffectParts.length > 0 || (roleProfile.tags && roleProfile.tags.length > 0)) {
@@ -769,13 +851,27 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
             '</button>';
     html += '</div>'; // fleet-card-action-row
 
-    html += '</div>'; // fleet-ship-card
+    html += '</article>'; // fleet-ship-card
   });
   html += '</section>';
+  html += supportHtml;
 
   container.innerHTML = html;
 
   // ========== 绑定事件 ==========
+
+  container.querySelectorAll('[data-inspect-ship-index]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var nextIndex = parseInt(btn.dataset.inspectShipIndex);
+      if (!Number.isInteger(nextIndex) || !fleet[nextIndex] || nextIndex === _inspectedHangarShipIndex) return;
+      _inspectedHangarShipIndex = nextIndex;
+      render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRoute, onCancelRoute, onBuySlot, onSellShip, onInstallMod, onUninstallMod, onServiceShip, onRecruitCrew, onAssignCrew, onUnassignCrew, onDismissCrew);
+      Promise.resolve().then(function () {
+        if (!container || typeof container.querySelector !== 'function') return;
+        _focusInlineElement(container.querySelector('.hangar-ship-select[data-inspect-ship-index="' + nextIndex + '"]'));
+      });
+    });
+  });
 
   // 席位购买
   container.querySelectorAll('.fleet-slot-buy-btn.slot-can-buy').forEach(function (btn) {
@@ -921,7 +1017,7 @@ var STRUCTURE_MODULES = [
 
 var MOD_CATEGORY_META = {
   cargo: { icon: '📦', name: '货舱组件', desc: '围绕装载空间与压缩效率的舱段扩展。' },
-  engine: { icon: '🔥', name: '动力组件', desc: '提升推进、续航与扫描链路。' },
+  engine: { icon: '🔥', name: '动力组件', desc: '提升推进、续航与勘探能力。' },
   hull: { icon: '🛡️', name: '防护组件', desc: '强化结构稳定性与自修复能力。' },
   trade: { icon: '💰', name: '贸易组件', desc: '聚焦议价、走私和收益放大。' },
 };
@@ -947,7 +1043,6 @@ function _formatEffectText(effect) {
   if (effect.maintenanceDecayMultiplier && effect.maintenanceDecayMultiplier < 1) {
     parts.push('磨损 -' + Math.round((1 - effect.maintenanceDecayMultiplier) * 100) + '%');
   }
-  if (effect.scanFuelDiscount) parts.push('扫描燃料 -' + Math.round(effect.scanFuelDiscount * 100) + '%');
   if (effect.poiRewardMultiplier && effect.poiRewardMultiplier > 1) {
     parts.push('勘探收益 +' + Math.round((effect.poiRewardMultiplier - 1) * 100) + '%');
   }
@@ -1218,6 +1313,7 @@ function _getCrewRosterHint(shipCrew, reserveCrew, marketCrew, seatRemaining) {
 }
 
 function _openCrewModal(state, shipIndex, onRecruitCrew, onAssignCrew, onUnassignCrew, onDismissCrew, onSwitchShip) {
+  _inspectedHangarShipIndex = shipIndex;
   var modal = document.getElementById('crew-modal');
   if (!modal) return;
   var modalBox = modal.querySelector('.modal-box');
@@ -1645,6 +1741,7 @@ export function getActiveDispatchModalContext() {
 // ---------------------------------------------------------------------------
 
 function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgradeShip, onServiceShip, onSellShip, options) {
+  _inspectedHangarShipIndex = shipIndex;
   var modal = document.getElementById('mod-modal');
   if (!modal) return;
   var opts = options || {};
@@ -2013,6 +2110,7 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
 // ---------------------------------------------------------------------------
 
 function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, preset) {
+  _inspectedHangarShipIndex = shipIndex;
   const modal = document.getElementById('dispatch-modal');
   if (!modal) return;
 

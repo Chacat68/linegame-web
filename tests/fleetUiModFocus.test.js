@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it } from 'vitest';
+import * as EventBus from '../js/core/EventBus.js';
 import * as Crew from '../js/systems/fleet/CrewSystem.js';
 import * as Fleet from '../js/systems/fleet/FleetSystem.js';
 import * as FleetUI from '../js/ui/FleetUI.js';
@@ -165,10 +166,11 @@ describe('FleetUI.openModModal guidance focus', function () {
   var originalDocument = globalThis.document;
 
   afterEach(function () {
+    EventBus.emit('hangar:reset');
     globalThis.document = originalDocument;
   });
 
-  it('机库主视图会渲染局部态势矩阵和焦点卡', function () {
+  it('机库主视图会渲染运行摘要、舰船选择器和单舰作业区', function () {
     var elements = {
       'fleet-list': createFakeElement(),
     };
@@ -204,11 +206,75 @@ describe('FleetUI.openModModal guidance focus', function () {
       noop,
     );
 
-    expect(elements['fleet-list'].innerHTML).toContain('class="hangar-triage-panel" aria-label="机库态势与局部信号"');
-    expect(elements['fleet-list'].innerHTML).toContain('class="hangar-triage-grid" role="list" aria-label="机库态势矩阵"');
-    expect(elements['fleet-list'].innerHTML).toContain('class="hangar-focus-panel" aria-label="机库局部信号"');
-    expect(elements['fleet-list'].innerHTML).toContain('局部信号');
-    expect(elements['fleet-list'].innerHTML).toContain('维护风险');
+    expect(elements['fleet-list'].innerHTML).toContain('class="hangar-operations-deck" aria-labelledby="hangar-operations-title"');
+    expect(elements['fleet-list'].innerHTML).toContain('class="hangar-operations-grid" role="list" aria-label="机库运行摘要"');
+    expect(elements['fleet-list'].innerHTML).toContain('class="hangar-fleet-selector" aria-labelledby="hangar-fleet-selector-title"');
+    expect(elements['fleet-list'].innerHTML).toContain('role="listitem" class="hangar-ship-select is-selected is-active has-risk"');
+    expect(elements['fleet-list'].innerHTML).toContain('class="hangar-ship-workspace" aria-labelledby="hangar-workspace-title"');
+    expect(elements['fleet-list'].innerHTML).toContain('class="hangar-support-panel"');
+    expect(elements['fleet-list'].innerHTML).toContain('查看不会改变当前操控舰');
+    expect(elements['fleet-list'].innerHTML).toContain('优先整备');
+  });
+
+  it('查看其他舰船不会切换操控舰，并会提供单独的切换动作', async function () {
+    var inspectButton = createFakeElement();
+    inspectButton.dataset.inspectShipIndex = '1';
+    var selectedButton = createFakeElement();
+    var container = createFakeElement();
+    container.querySelectorAll = function (selector) {
+      return selector === '[data-inspect-ship-index]' ? [inspectButton] : [];
+    };
+    container.querySelector = function (selector) {
+      return selector === '.hangar-ship-select[data-inspect-ship-index="1"]' ? selectedButton : null;
+    };
+
+    globalThis.document = {
+      getElementById: function (id) {
+        return id === 'fleet-list' ? container : null;
+      },
+    };
+
+    var state = createTestState({ credits: 50000 });
+    Fleet.init(state);
+    var secondShip = JSON.parse(JSON.stringify(state.fleet[0]));
+    secondShip.name = '远航测试舰';
+    secondShip.cargo = {};
+    secondShip.route = null;
+    state.fleet.push(secondShip);
+    state.fleetSlots = 2;
+
+    var switchCount = 0;
+    var noop = function () {};
+    FleetUI.render(
+      state,
+      noop,
+      function () { switchCount += 1; },
+      noop,
+      noop,
+      noop,
+      noop,
+      noop,
+      noop,
+      noop,
+      noop,
+      noop,
+      noop,
+      noop,
+      noop,
+      noop,
+      noop,
+    );
+
+    inspectButton.dispatchEvent({ type: 'click' });
+    await Promise.resolve();
+
+    expect(state.activeShipIndex).toBe(0);
+    expect(switchCount).toBe(0);
+    expect(container.innerHTML).toContain('class="hangar-ship-select is-selected');
+    expect(container.innerHTML).toContain('远航测试舰');
+    expect(container.innerHTML).toContain('data-index="1"');
+    expect(container.innerHTML).toContain('设为操控舰');
+    expect(selectedButton.focused).toBe(true);
   });
 
   it('购船页会渲染采购态势、局部焦点和船卡信号条', function () {
@@ -394,6 +460,8 @@ describe('FleetUI.openModModal guidance focus', function () {
     expect(css).toContain('@media (max-width: 360px)');
     expect(sharedCss).not.toContain('Hangar detail modal shell refinements');
     expect(hangarCss).toContain('Hangar detail modal shell refinements');
+    expect(hangarCss).toContain('#trade-panel #fleet-list .hangar-focused-ship {');
+    expect(hangarCss).toContain('#trade-panel #fleet-list .hangar-focused-ship .hangar-vitals {');
     expect(fleetCss).toContain('.inline-portal-back-btn:focus-visible');
     expect(fleetCss).toContain('padding: 0 !important;');
     expect(source).toContain("modalBox.querySelectorAll('.crew-dismiss-btn')");

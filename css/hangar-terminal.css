@@ -655,3 +655,678 @@
   }
 }
 
+/* Hangar operations workspace: overview -> ship -> action */
+.hangar-operations-deck,
+.hangar-fleet-selector,
+.hangar-ship-workspace,
+.hangar-support-panel {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgba(108, 231, 255, 0.16);
+  border-radius: 12px;
+  background:
+    linear-gradient(145deg, rgba(7, 25, 38, 0.94), rgba(2, 10, 18, 0.96)),
+    radial-gradient(circle at 8% 0, rgba(108, 231, 255, 0.1), transparent 36%);
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+.hangar-operations-deck::before,
+.hangar-fleet-selector::before,
+.hangar-ship-workspace::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(90deg, transparent 0 62px, rgba(108, 231, 255, 0.025) 62px 63px);
+}
+
+.hangar-operations-deck {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(220px, 0.75fr);
+  grid-template-areas:
+    "head priority"
+    "metrics priority";
+  gap: 13px 16px;
+  padding: 16px;
+}
+
+.hangar-operations-head,
+.hangar-operations-grid,
+.hangar-priority-signal,
+.hangar-section-heading,
+.hangar-ship-select-list,
+.hangar-focused-ship,
+.hangar-support-panel > summary,
+.hangar-support-body {
+  position: relative;
+  z-index: 1;
+}
+
+.hangar-operations-head {
+  grid-area: head;
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 0;
+}
+
+.hangar-operations-head span,
+.hangar-section-heading span {
+  display: block;
+  margin-bottom: 4px;
+  color: rgba(108, 231, 255, 0.74);
+  font-family: "Orbitron", "Rajdhani", sans-serif;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+
+.hangar-operations-head h2,
+.hangar-section-heading h3 {
+  margin: 0;
+  color: rgba(244, 251, 255, 0.96);
+  font-family: "Orbitron", "Rajdhani", sans-serif;
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+}
+
+.hangar-operations-head h2 {
+  font-size: 19px;
+}
+
+.hangar-operations-head p {
+  max-width: 36ch;
+  margin: 0;
+  color: rgba(184, 211, 225, 0.7);
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: right;
+}
+
+.hangar-operations-grid {
+  grid-area: metrics;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.hangar-operations-grid > div {
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid rgba(108, 231, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(1, 8, 14, 0.4);
+}
+
+.hangar-operations-grid span,
+.hangar-operations-grid small,
+.hangar-priority-signal span,
+.hangar-priority-signal small {
+  display: block;
+  color: rgba(181, 207, 221, 0.64);
+  font-size: 9px;
+  line-height: 1.25;
+}
+
+.hangar-operations-grid strong {
+  display: block;
+  margin: 4px 0 3px;
+  color: rgba(247, 252, 255, 0.96);
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+}
+
+.hangar-priority-signal {
+  grid-area: priority;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-content: center;
+  gap: 4px 12px;
+  min-width: 0;
+  padding: 13px 14px;
+  border: 1px solid rgba(108, 231, 255, 0.18);
+  border-radius: 10px;
+  background:
+    linear-gradient(140deg, rgba(15, 52, 68, 0.7), rgba(2, 12, 20, 0.82)),
+    radial-gradient(circle at 100% 0, rgba(108, 231, 255, 0.12), transparent 54%);
+  color: rgba(240, 250, 255, 0.94);
+  text-align: left;
+  cursor: pointer;
+}
+
+.hangar-priority-signal--warning {
+  border-color: rgba(255, 184, 107, 0.28);
+  background:
+    linear-gradient(140deg, rgba(76, 52, 20, 0.68), rgba(18, 17, 14, 0.84)),
+    radial-gradient(circle at 100% 0, rgba(255, 184, 107, 0.14), transparent 56%);
+}
+
+.hangar-priority-signal strong,
+.hangar-priority-signal small {
+  grid-column: 1;
+}
+
+.hangar-priority-signal strong {
+  color: rgba(255, 250, 242, 0.97);
+  font-size: 14px;
+}
+
+.hangar-priority-signal b {
+  grid-column: 2;
+  grid-row: 1 / span 3;
+  align-self: center;
+  color: rgba(218, 244, 255, 0.84);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.hangar-priority-signal:hover:not(:disabled),
+.hangar-priority-signal:focus-visible {
+  border-color: rgba(108, 231, 255, 0.46);
+  box-shadow: 0 0 0 2px rgba(108, 231, 255, 0.1), 0 12px 28px rgba(0, 0, 0, 0.26);
+}
+
+.hangar-fleet-selector,
+.hangar-ship-workspace {
+  padding: 14px;
+}
+
+.hangar-section-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+
+.hangar-section-heading h3 {
+  font-size: 14px;
+}
+
+.hangar-section-heading > small {
+  color: rgba(181, 207, 221, 0.62);
+  font-size: 10px;
+  line-height: 1.35;
+  text-align: right;
+}
+
+.hangar-ship-select-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(188px, 1fr));
+  gap: 7px;
+}
+
+.hangar-ship-select {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  grid-template-areas:
+    "index icon copy"
+    "index icon status";
+  align-items: center;
+  gap: 2px 9px;
+  min-width: 0;
+  min-height: 62px;
+  padding: 9px 10px;
+  border: 1px solid rgba(108, 231, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(1, 8, 14, 0.42);
+  color: rgba(231, 246, 253, 0.84);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+}
+
+.hangar-ship-select:hover {
+  transform: translateY(-1px);
+  border-color: rgba(108, 231, 255, 0.3);
+  background: rgba(12, 39, 52, 0.62);
+}
+
+.hangar-ship-select.is-selected {
+  border-color: rgba(108, 231, 255, 0.52);
+  background:
+    linear-gradient(135deg, rgba(19, 70, 88, 0.66), rgba(2, 13, 21, 0.8)),
+    radial-gradient(circle at 0 0, rgba(108, 231, 255, 0.16), transparent 52%);
+  box-shadow: inset 3px 0 0 rgba(108, 231, 255, 0.78);
+}
+
+.hangar-ship-select.is-active .hangar-ship-select-status {
+  color: rgba(255, 215, 145, 0.92);
+}
+
+.hangar-ship-select.has-risk:not(.is-selected) {
+  border-color: rgba(255, 184, 107, 0.24);
+}
+
+.hangar-ship-select:focus-visible,
+.hangar-support-panel > summary:focus-visible,
+#trade-panel .hangar-focused-ship .fleet-switch-btn:focus-visible {
+  outline: 2px solid rgba(108, 231, 255, 0.82);
+  outline-offset: 2px;
+}
+
+.hangar-ship-select-index {
+  grid-area: index;
+  align-self: stretch;
+  display: grid;
+  place-items: center;
+  padding-right: 8px;
+  border-right: 1px solid rgba(108, 231, 255, 0.1);
+  color: rgba(108, 231, 255, 0.56);
+  font-family: "Orbitron", "Rajdhani", sans-serif;
+  font-size: 9px;
+}
+
+.hangar-ship-select-icon {
+  grid-area: icon;
+  font-size: 24px;
+  filter: drop-shadow(0 0 10px rgba(108, 231, 255, 0.2));
+}
+
+.hangar-ship-select-copy {
+  grid-area: copy;
+  min-width: 0;
+}
+
+.hangar-ship-select-copy strong,
+.hangar-ship-select-copy small,
+.hangar-ship-select-status {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hangar-ship-select-copy strong {
+  color: rgba(247, 252, 255, 0.95);
+  font-size: 12px;
+}
+
+.hangar-ship-select-copy small,
+.hangar-ship-select-status {
+  color: rgba(181, 207, 221, 0.62);
+  font-size: 9px;
+}
+
+.hangar-ship-select-status {
+  grid-area: status;
+}
+
+#trade-panel #fleet-list .hangar-focused-ship {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    "head"
+    "stats"
+    "summary"
+    "route"
+    "details"
+    "actions";
+  gap: 10px;
+  margin: 0;
+  padding: 14px;
+  border-radius: 10px;
+  background:
+    linear-gradient(140deg, rgba(7, 27, 40, 0.88), rgba(2, 10, 18, 0.92)),
+    radial-gradient(circle at 4% 0, rgba(108, 231, 255, 0.12), transparent 30%);
+}
+
+#trade-panel .hangar-focused-ship::before {
+  display: none;
+}
+
+#trade-panel .hangar-focused-ship .fleet-ship-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-area: head;
+  align-items: center;
+  gap: 10px;
+  min-height: 0;
+  margin: 0;
+}
+
+#trade-panel .hangar-focused-ship .fleet-ship-icon {
+  font-size: 38px;
+}
+
+#trade-panel .hangar-focused-ship .fleet-ship-name {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 19px;
+}
+
+#trade-panel .hangar-focused-ship .fleet-switch-btn {
+  width: auto;
+  min-width: 152px;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+#trade-panel .hangar-focused-ship .fleet-switch-btn span,
+#trade-panel .hangar-focused-ship .fleet-switch-btn small {
+  display: block;
+}
+
+#trade-panel .hangar-focused-ship .fleet-switch-btn small {
+  margin-top: 2px;
+  color: rgba(181, 207, 221, 0.58);
+  font-size: 9px;
+  font-weight: 400;
+}
+
+.hangar-control-badge {
+  padding: 6px 9px;
+  border: 1px solid rgba(255, 184, 107, 0.26);
+  border-radius: 999px;
+  background: rgba(255, 184, 107, 0.08);
+  color: rgba(255, 219, 157, 0.9);
+  font-size: 9px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+#trade-panel #fleet-list .hangar-focused-ship .hangar-vitals {
+  grid-area: stats;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.hangar-vital {
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid rgba(108, 231, 255, 0.11);
+  border-radius: 8px;
+  background: rgba(1, 8, 14, 0.42);
+}
+
+.hangar-vital--warning {
+  border-color: rgba(255, 184, 107, 0.28);
+  background: rgba(69, 47, 18, 0.2);
+}
+
+.hangar-vital-copy {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.hangar-vital-copy span,
+.hangar-vital small {
+  color: rgba(181, 207, 221, 0.62);
+  font-size: 9px;
+}
+
+.hangar-vital-copy strong {
+  color: rgba(242, 250, 255, 0.94);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.hangar-vital-track {
+  height: 3px;
+  margin: 7px 0 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(145, 183, 201, 0.12);
+}
+
+.hangar-vital-track > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(47, 199, 228, 0.76), rgba(108, 231, 255, 0.96));
+}
+
+.hangar-vital--warning .hangar-vital-track > span {
+  background: linear-gradient(90deg, rgba(230, 143, 65, 0.76), rgba(255, 196, 112, 0.96));
+}
+
+#trade-panel .hangar-focused-ship .fleet-summary-strip {
+  grid-area: summary;
+}
+
+#trade-panel .hangar-focused-ship .fleet-route-info {
+  grid-area: route;
+}
+
+.hangar-idle-context {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  padding: 10px 12px;
+}
+
+.hangar-idle-context div span,
+.hangar-idle-context div strong {
+  display: block;
+}
+
+.hangar-idle-context div span {
+  color: rgba(181, 207, 221, 0.62);
+  font-size: 9px;
+}
+
+.hangar-idle-context div strong {
+  margin-top: 2px;
+  color: rgba(242, 250, 255, 0.94);
+  font-size: 12px;
+}
+
+.hangar-idle-context p {
+  margin: 0;
+  color: rgba(197, 220, 231, 0.7);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+#trade-panel .hangar-focused-ship .fleet-detail-panel {
+  grid-area: details;
+}
+
+#trade-panel .hangar-focused-ship .fleet-card-action-row {
+  grid-area: actions;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.hangar-support-panel {
+  display: block;
+}
+
+.hangar-support-panel > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 56px;
+  padding: 11px 14px;
+  list-style: none;
+  cursor: pointer;
+}
+
+.hangar-support-panel > summary::-webkit-details-marker {
+  display: none;
+}
+
+.hangar-support-panel > summary::after {
+  content: "+";
+  color: rgba(108, 231, 255, 0.72);
+  font-size: 17px;
+}
+
+.hangar-support-panel[open] > summary::after {
+  content: "−";
+}
+
+.hangar-support-panel > summary > span {
+  min-width: 0;
+}
+
+.hangar-support-panel > summary b,
+.hangar-support-panel > summary small {
+  display: block;
+}
+
+.hangar-support-panel > summary b {
+  color: rgba(242, 250, 255, 0.94);
+  font-size: 12px;
+}
+
+.hangar-support-panel > summary small {
+  margin-top: 2px;
+  color: rgba(181, 207, 221, 0.62);
+  font-size: 9px;
+  font-weight: 400;
+}
+
+.hangar-support-panel > summary > strong {
+  margin-left: auto;
+  color: rgba(108, 231, 255, 0.82);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.hangar-support-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(220px, 0.75fr);
+  gap: 12px;
+  padding: 0 14px 14px;
+  border-top: 1px solid rgba(108, 231, 255, 0.08);
+}
+
+.hangar-support-body .hangar-slot-deck,
+.hangar-support-body .fleet-bonus-section,
+.hangar-support-body .fleet-bonus-hint {
+  min-width: 0;
+  margin-top: 12px;
+}
+
+.hangar-support-body .hangar-slot-deck {
+  grid-row: 1 / span 2;
+}
+
+.hangar-support-body .fleet-bonus-section,
+.hangar-support-body .fleet-bonus-hint {
+  padding: 10px;
+  border-radius: 8px;
+}
+
+.hangar-support-body .fleet-section-title {
+  margin-top: 0;
+}
+
+@media (max-width: 980px) {
+  .hangar-operations-deck {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "head"
+      "metrics"
+      "priority";
+  }
+
+  .hangar-priority-signal {
+    min-height: 72px;
+  }
+
+  .hangar-support-body {
+    grid-template-columns: 1fr;
+  }
+
+  .hangar-support-body .hangar-slot-deck {
+    grid-row: auto;
+  }
+}
+
+@media (max-width: 760px) {
+  .hangar-operations-deck,
+  .hangar-fleet-selector,
+  .hangar-ship-workspace {
+    padding: 12px;
+  }
+
+  .hangar-operations-head,
+  .hangar-section-heading {
+    align-items: flex-start;
+  }
+
+  .hangar-operations-head p,
+  .hangar-section-heading > small {
+    max-width: 24ch;
+  }
+
+  .hangar-operations-grid,
+  #trade-panel #fleet-list .hangar-focused-ship .hangar-vitals {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .hangar-ship-select-list {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scroll-snap-type: x proximity;
+  }
+
+  .hangar-ship-select {
+    flex: 0 0 min(250px, 78vw);
+    scroll-snap-align: start;
+  }
+
+  #trade-panel .hangar-focused-ship .fleet-card-action-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .hangar-operations-head,
+  .hangar-section-heading {
+    display: block;
+  }
+
+  .hangar-operations-head p,
+  .hangar-section-heading > small {
+    display: block;
+    max-width: none;
+    margin-top: 5px;
+    text-align: left;
+  }
+
+  .hangar-operations-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #trade-panel .hangar-focused-ship .fleet-ship-header {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  #trade-panel .hangar-focused-ship .fleet-switch-btn,
+  .hangar-control-badge {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .hangar-idle-context {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .hangar-support-panel > summary > strong {
+    display: none;
+  }
+
+  .hangar-support-body {
+    padding-inline: 10px;
+  }
+
+  .hangar-support-body .fleet-slot-next {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

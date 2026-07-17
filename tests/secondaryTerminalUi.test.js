@@ -25,7 +25,7 @@ describe('Secondary terminal UI structure', function () {
     expect(html).toContain('aria-label="公司权限台"');
     expect(html).toContain('id="market-overlay"');
     expect(html).toContain('role="region"\n              aria-labelledby="market-header-title"\n              aria-hidden="true"\n              tabindex="-1"');
-    expect(html).toContain('id="market-close-btn" class="market-close-btn" type="button" aria-label="返回星图"');
+    expect(html).toContain('id="market-close-btn" class="market-close-btn" type="button" aria-label="关闭市场并返回星图"');
     expect(html).toContain('content="width=device-width, initial-scale=1.0, viewport-fit=cover"');
 
     expect(js).toContain('btn.addEventListener(\'keydown\', _handleTerminalTabKeydown)');
@@ -46,10 +46,12 @@ describe('Secondary terminal UI structure', function () {
     expect(css).toContain('.quest-triage-panel');
     expect(css).toContain('.quest-triage-grid');
     expect(css).toContain('.quest-focus-panel');
-    expect(css).toContain('.hangar-triage-panel');
-    expect(css).toContain('.hangar-triage-grid');
-    expect(css).toContain('.hangar-focus-panel');
-    expect(css).toContain('.hangar-focus-list');
+    expect(css).toContain('.hangar-operations-deck');
+    expect(css).toContain('.hangar-operations-grid');
+    expect(css).toContain('.hangar-fleet-selector');
+    expect(css).toContain('.hangar-ship-select-list');
+    expect(css).toContain('.hangar-ship-workspace');
+    expect(css).toContain('.hangar-support-panel');
     expect(css).toContain('.hangar-shop-brief');
     expect(css).toContain('.hangar-shop-brief-grid');
     expect(css).toContain('.hangar-shop-focus');
