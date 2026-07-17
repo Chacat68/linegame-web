@@ -3,6 +3,13 @@
 
 import * as GalaxyData from '../systems/galaxy/GalaxyDataLayer.js';
 import * as RouteModel from '../systems/route/RouteSystem.js';
+import {
+  getRouteMotionProgress,
+  getRouteVisibilityMode,
+  getShipTravelVisualState,
+  pruneRouteMotionStates,
+  resolveRouteMotionState,
+} from './StarmapRouteMotion.js';
 import { FACTIONS } from '../data/factions.js';
 import {
   GALAXIES,
@@ -56,6 +63,7 @@ let _lastViewport = null;
 let _lastCanvasKey = '';
 let _stars = [];
 let _flightPath = null;
+const _routeMotionStates = new Map();
 
 export function init() {
   if (typeof document === 'undefined' || !document.getElementById) {
@@ -193,7 +201,7 @@ export function flyShipTo(fromId, toId, onComplete, shipTypeId, flightMeta) {
     toId,
     shipTypeId: shipTypeId || 'shuttle',
     startTime: performance && performance.now ? performance.now() : Date.now(),
-    duration: Math.min(8200, Math.max(2800, dist * 16500)),
+    duration: _motionLevel === 'off' ? 0 : Math.min(8200, Math.max(2800, dist * 16500)),
     onComplete: onComplete || null,
     routeDescriptor,
     shipIndex: routeDescriptor.shipIndex,
@@ -244,6 +252,7 @@ export function resetRuntimeState(currentSystemId) {
   _hoveredGalaxyId = null;
   _selectedPlanetId = null;
   _focusPlanetId = null;
+  _routeMotionStates.clear();
   cancelShipFlight();
 }
 
@@ -498,21 +507,26 @@ function _drawRouteDescriptors(ctx, state, time) {
   }
 
   const activeIndex = state && typeof state.activeShipIndex === 'number' ? state.activeShipIndex : 0;
+  const routeMotionIds = new Set();
   RouteModel.getFleetRouteDescriptors(state, {
     skipShipIndex: _flightPath ? activeIndex : null,
   }).forEach(function (route) {
-    const active = route.shipIndex === activeIndex;
-    _drawRoute(ctx, route.startSystemId, route.endSystemId, {
+    const motion = resolveRouteMotionState(_routeMotionStates, route, time);
+    const displayRoute = motion.route;
+    const active = displayRoute.shipIndex === activeIndex;
+    routeMotionIds.add(route.id);
+    _drawRoute(ctx, displayRoute.startSystemId, displayRoute.endSystemId, {
       color: active ? '#72ddff' : '#ffbf66',
       alpha: active ? 0.74 : 0.48,
       width: active ? 2.1 : 1.5,
       dash: active ? [] : [8, 5],
-      shipTypeId: route.shipTypeId,
-      movingMarker: route.isTraveling,
-      markerPhase: (route.shipIndex || 0) * 0.17,
+      shipTypeId: displayRoute.shipTypeId,
+      movingMarker: displayRoute.isTraveling,
+      markerStartTime: motion.startTime,
       time,
     });
   });
+  pruneRouteMotionStates(_routeMotionStates, routeMotionIds);
 }
 
 function _drawPlanetNode(ctx, meta, state, time) {
@@ -671,17 +685,16 @@ function _drawGalaxyNode(ctx, meta, time) {
 
 function _drawFlightPath(ctx, time) {
   if (!_flightPath) return;
-  const from = _getVisibleSystemPoint(_flightPath.fromId);
-  const to = _getVisibleSystemPoint(_flightPath.toId);
-  if (!from || !to) return;
+  const routeScene = _getRouteSceneGeometry(_flightPath.fromId, _flightPath.toId, 0.18);
+  if (!routeScene) return;
 
   const elapsed = Math.max(0, time - _flightPath.startTime);
-  const t = Math.min(1, elapsed / _flightPath.duration);
+  const t = _flightPath.duration > 0 ? Math.min(1, elapsed / _flightPath.duration) : 1;
   const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-  const geom = _routeGeometry(from, to, 0.18);
-  const p = _quadPoint(from, geom.mid, to, eased);
-  const ahead = _quadPoint(from, geom.mid, to, Math.min(1, eased + 0.02));
+  const p = _quadPoint(routeScene.from, routeScene.mid, routeScene.to, eased);
+  const ahead = _quadPoint(routeScene.from, routeScene.mid, routeScene.to, Math.min(1, eased + 0.02));
   const color = SHIP_ACCENTS[_flightPath.shipTypeId] || SHIP_ACCENTS.shuttle;
+  const visual = getShipTravelVisualState(t, _motionLevel, routeScene.visibilityMode);
 
   _drawRoute(ctx, _flightPath.fromId, _flightPath.toId, {
     color,
@@ -690,61 +703,177 @@ function _drawFlightPath(ctx, time) {
     dash: [],
     time,
   });
-  _drawShipGlyph(ctx, p.x, p.y, Math.atan2(ahead.y - p.y, ahead.x - p.x), color, 1.25);
+  _drawShipGlyph(
+    ctx,
+    p.x,
+    p.y,
+    Math.atan2(ahead.y - p.y, ahead.x - p.x),
+    color,
+    1.25,
+    _flightPath.shipTypeId,
+    visual,
+    time
+  );
 }
 
 function _drawRoute(ctx, fromId, toId, options) {
   if (!fromId || !toId || fromId === toId) return;
-  const from = _getVisibleSystemPoint(fromId);
-  const to = _getVisibleSystemPoint(toId);
-  if (!from || !to) return;
+  const routeScene = _getRouteSceneGeometry(fromId, toId, 0.14);
+  if (!routeScene) return;
 
-  const geom = _routeGeometry(from, to, 0.14);
   ctx.save();
   ctx.strokeStyle = _alpha(options.color, options.alpha == null ? 0.6 : options.alpha);
   ctx.lineWidth = options.width || 1.5;
   ctx.setLineDash(options.dash || []);
   ctx.beginPath();
-  ctx.moveTo(from.x, from.y);
-  ctx.quadraticCurveTo(geom.mid.x, geom.mid.y, to.x, to.y);
+  ctx.moveTo(routeScene.from.x, routeScene.from.y);
+  ctx.quadraticCurveTo(routeScene.mid.x, routeScene.mid.y, routeScene.to.x, routeScene.to.y);
   ctx.stroke();
   ctx.setLineDash([]);
 
   if (options.label) {
-    const labelPoint = _quadPoint(from, geom.mid, to, 0.56);
+    const labelPoint = _quadPoint(routeScene.from, routeScene.mid, routeScene.to, 0.56);
     ctx.fillStyle = _alpha(options.color, 0.72);
     ctx.font = '600 11px Rajdhani, PingFang SC, sans-serif';
     ctx.fillText(options.label, labelPoint.x + 6, labelPoint.y - 6);
   }
 
   if (options.movingMarker) {
-    const phase = options.markerPhase || 0;
-    const raw = (((options.time || 0) * 0.00012 + phase) % 1);
-    const p = _quadPoint(from, geom.mid, to, raw);
-    const ahead = _quadPoint(from, geom.mid, to, Math.min(1, raw + 0.03));
-    _drawShipGlyph(ctx, p.x, p.y, Math.atan2(ahead.y - p.y, ahead.x - p.x), options.color, 0.78);
+    const raw = getRouteMotionProgress(options.time, options.markerStartTime, _motionLevel);
+    const p = _quadPoint(routeScene.from, routeScene.mid, routeScene.to, raw);
+    const ahead = _quadPoint(routeScene.from, routeScene.mid, routeScene.to, Math.min(1, raw + 0.03));
+    const visual = getShipTravelVisualState(raw, _motionLevel, routeScene.visibilityMode);
+    _drawShipGlyph(
+      ctx,
+      p.x,
+      p.y,
+      Math.atan2(ahead.y - p.y, ahead.x - p.x),
+      options.color,
+      0.78,
+      options.shipTypeId,
+      visual,
+      options.time
+    );
   }
   ctx.restore();
 }
 
-function _drawShipGlyph(ctx, x, y, angle, color, scale) {
+function _drawShipGlyph(ctx, x, y, angle, color, scale, shipTypeId, visualState, time) {
+  const visual = visualState || { opacity: 1, scale: 1, engine: 0.7, flash: 0 };
+  if (visual.opacity <= 0.01) return;
+  const typeId = SHIP_ACCENTS[shipTypeId] ? shipTypeId : 'shuttle';
+  const pulse = _motionLevel === 'off' ? 0 : 0.5 + Math.sin((Number(time) || 0) * 0.012) * 0.5;
+
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(angle);
-  ctx.scale(scale || 1, scale || 1);
-  ctx.fillStyle = _alpha(color, 0.95);
-  ctx.strokeStyle = 'rgba(255,255,255,0.72)';
-  ctx.lineWidth = 1;
+  const visualScale = (scale || 1) * visual.scale;
+  ctx.scale(visualScale, visualScale);
+  ctx.globalAlpha = visual.opacity;
+
+  const trail = ctx.createLinearGradient(-22, 0, -4, 0);
+  trail.addColorStop(0, _alpha(color, 0));
+  trail.addColorStop(0.72, _alpha(color, 0.2 * visual.engine));
+  trail.addColorStop(1, _alpha(color, 0.92 * visual.engine));
+  ctx.fillStyle = trail;
   ctx.beginPath();
-  ctx.moveTo(10, 0);
-  ctx.lineTo(-7, -5);
-  ctx.lineTo(-4, 0);
-  ctx.lineTo(-7, 5);
+  ctx.moveTo(-5, -2.4);
+  ctx.lineTo(-22 - pulse * 3, 0);
+  ctx.lineTo(-5, 2.4);
+  ctx.closePath();
+  ctx.fill();
+
+  if (visual.flash > 0.01) {
+    ctx.strokeStyle = _alpha(color, visual.flash * 0.7);
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.arc(0, 0, 13 + visual.flash * 7, 0, TWO_PI);
+    ctx.stroke();
+  }
+
+  ctx.fillStyle = _alpha(color, typeId === 'galleon' ? 0.62 : 0.52);
+  ctx.beginPath();
+  if (typeId === 'freighter') {
+    ctx.moveTo(4, -7);
+    ctx.lineTo(-9, -7);
+    ctx.lineTo(-12, -3.5);
+    ctx.lineTo(-12, 3.5);
+    ctx.lineTo(-9, 7);
+    ctx.lineTo(4, 7);
+  } else if (typeId === 'clipper') {
+    ctx.moveTo(3, -2.2);
+    ctx.lineTo(-10, -10);
+    ctx.lineTo(-7, -1.2);
+    ctx.lineTo(-7, 1.2);
+    ctx.lineTo(-10, 10);
+    ctx.lineTo(3, 2.2);
+  } else if (typeId === 'galleon') {
+    ctx.moveTo(6, -5);
+    ctx.lineTo(-6, -10);
+    ctx.lineTo(-12, -8);
+    ctx.lineTo(-10, 0);
+    ctx.lineTo(-12, 8);
+    ctx.lineTo(-6, 10);
+    ctx.lineTo(6, 5);
+  } else {
+    ctx.moveTo(3, -3);
+    ctx.lineTo(-8, -7);
+    ctx.lineTo(-5, -1.5);
+    ctx.lineTo(-5, 1.5);
+    ctx.lineTo(-8, 7);
+    ctx.lineTo(3, 3);
+  }
+  ctx.closePath();
+  ctx.fill();
+
+  const hullColor = _mix(color, '#effcff', typeId === 'galleon' ? 0.34 : 0.5);
+  ctx.fillStyle = hullColor;
+  ctx.strokeStyle = 'rgba(255,255,255,0.82)';
+  ctx.lineWidth = typeId === 'galleon' ? 1.25 : 1;
+  ctx.beginPath();
+  if (typeId === 'freighter') {
+    ctx.moveTo(12, 0);
+    ctx.lineTo(5, -4.5);
+    ctx.lineTo(-9, -4.5);
+    ctx.lineTo(-12, -2);
+    ctx.lineTo(-12, 2);
+    ctx.lineTo(-9, 4.5);
+    ctx.lineTo(5, 4.5);
+  } else if (typeId === 'clipper') {
+    ctx.moveTo(16, 0);
+    ctx.lineTo(-6, -2.8);
+    ctx.lineTo(-11, 0);
+    ctx.lineTo(-6, 2.8);
+  } else if (typeId === 'galleon') {
+    ctx.moveTo(14, 0);
+    ctx.lineTo(7, -5.6);
+    ctx.lineTo(-9, -6.2);
+    ctx.lineTo(-13, -3.2);
+    ctx.lineTo(-13, 3.2);
+    ctx.lineTo(-9, 6.2);
+    ctx.lineTo(7, 5.6);
+  } else {
+    ctx.moveTo(12, 0);
+    ctx.lineTo(-7, -4.2);
+    ctx.lineTo(-4, 0);
+    ctx.lineTo(-7, 4.2);
+  }
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
-  ctx.fillStyle = _alpha(color, 0.35);
-  ctx.fillRect(-15, -1.4, 8, 2.8);
+
+  ctx.fillStyle = 'rgba(4,20,30,0.78)';
+  ctx.beginPath();
+  ctx.ellipse(typeId === 'clipper' ? 5 : 4, 0, typeId === 'galleon' ? 3.2 : 2.5, 1.5, 0, 0, TWO_PI);
+  ctx.fill();
+  ctx.strokeStyle = _alpha(color, 0.92);
+  ctx.lineWidth = 0.8;
+  ctx.stroke();
+
+  ctx.fillStyle = _alpha(color, 0.82 * visual.engine);
+  const engineWidth = typeId === 'galleon' || typeId === 'freighter' ? 3.4 : 2.4;
+  ctx.fillRect(typeId === 'clipper' ? -11 : -13, -engineWidth, 3, 1.8);
+  ctx.fillRect(typeId === 'clipper' ? -11 : -13, engineWidth - 1.8, 3, 1.8);
   ctx.restore();
 }
 
@@ -893,6 +1022,53 @@ function _getVisibleSystemPoint(systemId) {
   const sys = findSystem(systemId);
   if (!_lastViewport || !sys || sys.galaxyId !== _currentGalaxyId) return null;
   return _projectNormalized(sys.x || 0.5, sys.y || 0.5, _lastViewport);
+}
+
+function _getRouteSceneGeometry(fromId, toId, bend) {
+  const visibleFrom = _getVisibleSystemPoint(fromId);
+  const visibleTo = _getVisibleSystemPoint(toId);
+  const visibilityMode = getRouteVisibilityMode(!!visibleFrom, !!visibleTo);
+  if (visibilityMode === 'hidden') return null;
+
+  const from = visibleFrom || _getGalaxyBoundaryPoint(fromId);
+  const to = visibleTo || _getGalaxyBoundaryPoint(toId);
+  if (!from || !to) return null;
+  return {
+    from,
+    to,
+    mid: _routeGeometry(from, to, bend).mid,
+    visibilityMode,
+  };
+}
+
+function _getGalaxyBoundaryPoint(systemId) {
+  if (!_lastViewport) return null;
+  const system = findSystem(systemId);
+  const currentGalaxy = GALAXIES.find(function (galaxy) { return galaxy.id === _currentGalaxyId; });
+  const externalGalaxy = system
+    ? GALAXIES.find(function (galaxy) { return galaxy.id === system.galaxyId; })
+    : null;
+  let dx = externalGalaxy && currentGalaxy ? (externalGalaxy.gx || 0.5) - (currentGalaxy.gx || 0.5) : 0;
+  let dy = externalGalaxy && currentGalaxy ? (externalGalaxy.gy || 0.5) - (currentGalaxy.gy || 0.5) : 0;
+
+  if (Math.abs(dx) + Math.abs(dy) < 0.001) {
+    const angle = (_hash(systemId) % 628) / 100;
+    dx = Math.cos(angle);
+    dy = Math.sin(angle);
+  }
+
+  const magnitude = Math.max(0.001, Math.sqrt(dx * dx + dy * dy));
+  dx /= magnitude;
+  dy /= magnitude;
+  const centerX = (_lastViewport.left + _lastViewport.right) * 0.5;
+  const centerY = (_lastViewport.top + _lastViewport.bottom) * 0.5;
+  const halfWidth = Math.max(1, _lastViewport.width * 0.5 - 18);
+  const halfHeight = Math.max(1, _lastViewport.height * 0.5 - 18);
+  const edgeScale = Math.min(
+    Math.abs(dx) > 0.001 ? halfWidth / Math.abs(dx) : Infinity,
+    Math.abs(dy) > 0.001 ? halfHeight / Math.abs(dy) : Infinity
+  );
+  return { x: centerX + dx * edgeScale, y: centerY + dy * edgeScale };
 }
 
 function _routeGeometry(from, to, bend) {

@@ -6,6 +6,7 @@ import {
   AdditiveBlending,
   AmbientLight,
   BackSide,
+  BoxGeometry,
   BufferAttribute,
   BufferGeometry,
   CanvasTexture,
@@ -40,6 +41,13 @@ import {
 import { WebGLRenderer } from 'three/src/renderers/WebGLRenderer.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createPlanetSurfaceData } from './PlanetSurfaceTexture.js';
+import {
+  getRouteMotionProgress,
+  getRouteVisibilityMode,
+  getShipTravelVisualState,
+  pruneRouteMotionStates,
+  resolveRouteMotionState,
+} from './StarmapRouteMotion.js';
 import * as RouteModel from '../systems/route/RouteSystem.js';
 import {
   GALAXIES,
@@ -121,11 +129,13 @@ let _hoveredPlanetId = null;
 let _hoveredGalaxyId = null;
 let _selectedPlanetId = null;
 let _focusPlanetId = null;
+let _pendingCameraFocusPlanetId = null;
 let _planetEntries = [];
 let _planetHitTargets = [];
 let _galaxyEntries = [];
 let _galaxyHitTargets = [];
 let _routeVisuals = [];
+const _routeMotionStates = new Map();
 let _flightPath = null;
 let _flightVisual = null;
 let _availabilityHandler = null;
@@ -133,7 +143,6 @@ let _pointerDown = null;
 let _pointerDragged = false;
 let _lastSizeKey = '';
 let _cameraFrameMode = null;
-let _framedPlanetSystemId = null;
 let _framedPlanetGalaxyId = null;
 const _planetSurfaceMapCache = new Map();
 const _persistentPlanetTextures = new Set();
@@ -327,29 +336,37 @@ export function setMotionLevel(level) {
 export function focusPlanet(planetId) {
   if (!planetId || !findSystem(planetId)) return false;
   _focusPlanetId = planetId;
+  _pendingCameraFocusPlanetId = planetId;
   _dirty = true;
-  _focusCameraOnPlanet(planetId);
+  if (_focusCameraOnPlanet(planetId)) _pendingCameraFocusPlanetId = null;
   return true;
 }
 
 export function selectPlanet(planetId, options) {
   if (!planetId || !findSystem(planetId)) return false;
   _selectedPlanetId = planetId;
-  if (!options || options.focus !== false) _focusPlanetId = planetId;
+  if (!options || options.focus !== false) {
+    _focusPlanetId = planetId;
+    _pendingCameraFocusPlanetId = planetId;
+  }
   _dirty = true;
-  if (!options || options.focus !== false) _focusCameraOnPlanet(planetId);
+  if ((!options || options.focus !== false) && _focusCameraOnPlanet(planetId)) {
+    _pendingCameraFocusPlanetId = null;
+  }
   return true;
 }
 
 export function clearSelection() {
   _selectedPlanetId = null;
   _focusPlanetId = null;
+  _pendingCameraFocusPlanetId = null;
   _dirty = true;
 }
 
 export function resetCamera() {
   if (!_camera || !_controls) return;
   _focusPlanetId = null;
+  _pendingCameraFocusPlanetId = null;
   const current = _planetEntries.find(function (entry) { return entry.current; });
   if (_mapView === 'planets' && current) _framePlanetNeighborhood(current.group.position);
   else _applyResponsiveCameraFrame(true);
@@ -380,7 +397,7 @@ export function flyShipTo(fromId, toId, onComplete, shipTypeId, flightMeta) {
     shipIndex: routeDescriptor.shipIndex,
     routeRevision: routeDescriptor.routeRevision,
     startTime: now,
-    duration: Math.min(8200, Math.max(2800, distance * 16500)),
+    duration: _motionLevel === 'off' ? 0 : Math.min(8200, Math.max(2800, distance * 16500)),
     onComplete: onComplete || null,
   };
   _dirty = true;
@@ -440,7 +457,9 @@ export function resetRuntimeState(currentSystemId) {
   _hoveredGalaxyId = null;
   _selectedPlanetId = null;
   _focusPlanetId = null;
+  _pendingCameraFocusPlanetId = null;
   if (_stateRef && currentSystemId) _stateRef.currentSystem = currentSystemId;
+  _routeMotionStates.clear();
   _flightPath = null;
   _flightVisual = null;
   _renderKey = '';
@@ -871,15 +890,16 @@ function _buildPlanetScene(state, galaxyId) {
     _planetRoot.add(group);
   });
 
-  if (_focusPlanetId) {
-    _focusCameraOnPlanet(_focusPlanetId);
+  if (_pendingCameraFocusPlanetId) {
+    if (_focusCameraOnPlanet(_pendingCameraFocusPlanetId)) {
+      _pendingCameraFocusPlanetId = null;
+    }
   } else if (
     state.currentSystem
-    && (_framedPlanetSystemId !== state.currentSystem || _framedPlanetGalaxyId !== galaxyId)
+    && _framedPlanetGalaxyId !== galaxyId
   ) {
     const currentPosition = positions.get(state.currentSystem);
     if (currentPosition) _framePlanetNeighborhood(currentPosition);
-    _framedPlanetSystemId = state.currentSystem;
     _framedPlanetGalaxyId = galaxyId;
   }
 }
@@ -1076,17 +1096,24 @@ function _buildOperationalRoutes(state, positions) {
   }
 
   const activeIndex = state && typeof state.activeShipIndex === 'number' ? state.activeShipIndex : 0;
+  const routeMotionIds = new Set();
+  const routeMotionNow = _now();
   RouteModel.getFleetRouteDescriptors(state, {
     skipShipIndex: _flightPath ? activeIndex : null,
   }).forEach(function (route) {
-    _createRouteVisual(route.startSystemId, route.endSystemId, positions, route.shipIndex === activeIndex ? '#72ddff' : '#ffbf66', {
-      opacity: route.shipIndex === activeIndex ? 0.76 : 0.48,
+    const motion = resolveRouteMotionState(_routeMotionStates, route, routeMotionNow);
+    const displayRoute = motion.route;
+    routeMotionIds.add(route.id);
+    _createRouteVisual(displayRoute.startSystemId, displayRoute.endSystemId, positions, displayRoute.shipIndex === activeIndex ? '#72ddff' : '#ffbf66', {
+      opacity: displayRoute.shipIndex === activeIndex ? 0.76 : 0.48,
       bend: 8,
-      moving: route.isTraveling,
-      shipTypeId: route.shipTypeId,
-      phase: (route.shipIndex || 0) * 0.19,
+      moving: displayRoute.isTraveling,
+      shipTypeId: displayRoute.shipTypeId,
+      motionStartTime: motion.startTime,
+      hasPendingRoute: motion.hasPendingRoute,
     });
   });
+  pruneRouteMotionStates(_routeMotionStates, routeMotionIds);
 
   if (_flightPath) {
     _flightVisual = _createRouteVisual(_flightPath.fromId, _flightPath.toId, positions, '#9cf4ff', {
@@ -1099,10 +1126,45 @@ function _buildOperationalRoutes(state, positions) {
   }
 }
 
+function _getRouteWorldPoints(fromId, toId, positions) {
+  const visibleFrom = positions.get(fromId);
+  const visibleTo = positions.get(toId);
+  const visibilityMode = getRouteVisibilityMode(!!visibleFrom, !!visibleTo);
+  if (visibilityMode === 'hidden') return null;
+  return {
+    from: visibleFrom ? visibleFrom.clone() : _getGalaxyBoundaryWorldPoint(fromId),
+    to: visibleTo ? visibleTo.clone() : _getGalaxyBoundaryWorldPoint(toId),
+    visibilityMode,
+  };
+}
+
+function _getGalaxyBoundaryWorldPoint(systemId) {
+  const system = findSystem(systemId);
+  const currentGalaxy = GALAXIES.find(function (galaxy) { return galaxy.id === _currentGalaxyId; });
+  const externalGalaxy = system
+    ? GALAXIES.find(function (galaxy) { return galaxy.id === system.galaxyId; })
+    : null;
+  let dx = externalGalaxy && currentGalaxy ? (externalGalaxy.gx || 0.5) - (currentGalaxy.gx || 0.5) : 0;
+  let dz = externalGalaxy && currentGalaxy ? (externalGalaxy.gy || 0.5) - (currentGalaxy.gy || 0.5) : 0;
+  if (Math.abs(dx) + Math.abs(dz) < 0.001) {
+    const angle = (_hash(systemId) % 628) / 100;
+    dx = Math.cos(angle);
+    dz = Math.sin(angle);
+  }
+  const length = Math.max(0.001, Math.sqrt(dx * dx + dz * dz));
+  return new Vector3(
+    (dx / length) * PLANET_SPAN_X * 0.54,
+    1.4,
+    (dz / length) * PLANET_SPAN_Z * 0.54
+  );
+}
+
 function _createRouteVisual(fromId, toId, positions, colorHex, options) {
-  const from = positions.get(fromId);
-  const to = positions.get(toId);
-  if (!from || !to || fromId === toId) return null;
+  if (fromId === toId) return null;
+  const routeScene = _getRouteWorldPoints(fromId, toId, positions);
+  if (!routeScene) return null;
+  const from = routeScene.from;
+  const to = routeScene.to;
   const mid = from.clone().lerp(to, 0.5);
   mid.y += options && options.bend ? options.bend : 7;
   const curve = new QuadraticBezierCurve3(from, mid, to);
@@ -1130,8 +1192,10 @@ function _createRouteVisual(fromId, toId, positions, colorHex, options) {
     line,
     material,
     ship,
-    phase: options && options.phase ? options.phase : 0,
+    motionStartTime: options && Number.isFinite(options.motionStartTime) ? options.motionStartTime : 0,
+    hasPendingRoute: !!(options && options.hasPendingRoute),
     activeFlight: !!(options && options.activeFlight),
+    visibilityMode: routeScene.visibilityMode,
     positionScratch: new Vector3(),
     lookAtScratch: new Vector3(),
   };
@@ -1141,26 +1205,141 @@ function _createRouteVisual(fromId, toId, positions, colorHex, options) {
 
 function _createShipMarker(shipTypeId, colorHex) {
   const group = new Group();
-  const color = new Color(SHIP_ACCENTS[shipTypeId] || colorHex || '#72ddff');
-  const bodyMaterial = new MeshBasicMaterial({ color, transparent: true, opacity: 0.95 });
-  const body = new Mesh(new ConeGeometry(0.82, shipTypeId === 'freighter' ? 3.8 : 3.1, 6), bodyMaterial);
-  body.rotation.x = Math.PI / 2;
-  group.add(body);
-  const engineMaterial = new SpriteMaterial({
+  const typeId = SHIP_ACCENTS[shipTypeId] ? shipTypeId : 'shuttle';
+  const color = new Color(SHIP_ACCENTS[typeId] || colorHex || '#72ddff');
+  const hullColor = color.clone().lerp(new Color(0xe9f8ff), typeId === 'galleon' ? 0.34 : 0.52);
+  const hullMaterial = _createShipMaterial(hullColor, 0.96);
+  const accentMaterial = _createShipMaterial(color, 0.78);
+  const darkMaterial = _createShipMaterial(new Color(0x071924), 0.9);
+  const hullMaterials = [hullMaterial, accentMaterial, darkMaterial];
+
+  if (typeId === 'freighter') {
+    _addShipPart(group, new BoxGeometry(1.8, 0.9, 3.2), hullMaterial, [0, 0, -0.45]);
+    _addShipPart(group, new ConeGeometry(0.9, 1.8, 6), hullMaterial, [0, 0, 1.95], [Math.PI / 2, 0, 0]);
+    _addShipPart(group, new BoxGeometry(3.5, 0.18, 1.45), accentMaterial, [0, -0.05, -0.65]);
+    _addShipPart(group, new BoxGeometry(0.62, 0.62, 2.5), darkMaterial, [-1.25, 0, -0.75]);
+    _addShipPart(group, new BoxGeometry(0.62, 0.62, 2.5), darkMaterial, [1.25, 0, -0.75]);
+  } else if (typeId === 'clipper') {
+    _addShipPart(group, new ConeGeometry(0.56, 4.7, 7), hullMaterial, [0, 0, 0.2], [Math.PI / 2, 0, 0]);
+    _addShipPart(group, new BoxGeometry(4.6, 0.12, 0.82), accentMaterial, [0, -0.05, -0.62], [0, 0.1, 0]);
+    _addShipPart(group, new BoxGeometry(0.18, 1.1, 1.35), darkMaterial, [0, 0.42, -1.3]);
+  } else if (typeId === 'galleon') {
+    _addShipPart(group, new BoxGeometry(2.45, 1.15, 4.15), hullMaterial, [0, 0, -0.45]);
+    _addShipPart(group, new ConeGeometry(1.23, 2.45, 7), hullMaterial, [0, 0, 2.7], [Math.PI / 2, 0, 0]);
+    _addShipPart(group, new BoxGeometry(5.2, 0.22, 2.2), accentMaterial, [0, -0.12, -0.6]);
+    _addShipPart(group, new BoxGeometry(0.72, 0.72, 3.25), darkMaterial, [-1.65, 0, -0.85]);
+    _addShipPart(group, new BoxGeometry(0.72, 0.72, 3.25), darkMaterial, [1.65, 0, -0.85]);
+    _addShipPart(group, new BoxGeometry(0.22, 1.45, 1.6), accentMaterial, [0, 0.72, -1.15]);
+  } else {
+    _addShipPart(group, new ConeGeometry(0.76, 3.45, 7), hullMaterial, [0, 0, 0.18], [Math.PI / 2, 0, 0]);
+    _addShipPart(group, new BoxGeometry(2.9, 0.14, 1.15), accentMaterial, [0, -0.06, -0.65]);
+    _addShipPart(group, new BoxGeometry(0.18, 0.88, 1.15), darkMaterial, [0, 0.36, -1.15]);
+  }
+
+  const cockpit = new Mesh(new SphereGeometry(typeId === 'galleon' ? 0.48 : 0.36, 10, 7), darkMaterial);
+  cockpit.scale.set(1, 0.48, 1.35);
+  cockpit.position.set(0, 0.42, typeId === 'clipper' ? 0.95 : 0.72);
+  group.add(cockpit);
+
+  const enginePositions = typeId === 'galleon'
+    ? [[-1.25, -2.75], [0, -2.9], [1.25, -2.75]]
+    : (typeId === 'freighter'
+      ? [[-0.62, -2.12], [0.62, -2.12]]
+      : [[-0.38, typeId === 'clipper' ? -2.25 : -1.72], [0.38, typeId === 'clipper' ? -2.25 : -1.72]]);
+  const engineMaterial = _createShipMaterial(color, 0.88, true);
+  const engineGlowMaterials = [];
+  const flames = [];
+  enginePositions.forEach(function (position) {
+    const flame = new Mesh(new ConeGeometry(0.22, 1.65, 6, 1, true), engineMaterial);
+    flame.rotation.x = -Math.PI / 2;
+    flame.position.set(position[0], 0, position[1] - 0.75);
+    group.add(flame);
+    flames.push(flame);
+
+    const glowMaterial = new SpriteMaterial({
+      map: _getSharedHaloTexture(),
+      color,
+      transparent: true,
+      opacity: 0.72,
+      depthWrite: false,
+      blending: AdditiveBlending,
+    });
+    glowMaterial.userData.baseOpacity = 0.72;
+    const glow = new Sprite(glowMaterial);
+    glow.scale.set(2.3, 2.3, 1);
+    glow.position.set(position[0], 0, position[1]);
+    group.add(glow);
+    engineGlowMaterials.push(glowMaterial);
+  });
+
+  const warpMaterial = new SpriteMaterial({
     map: _getSharedHaloTexture(),
     color,
     transparent: true,
-    opacity: 0.75,
+    opacity: 0,
     depthWrite: false,
     blending: AdditiveBlending,
   });
-  const engine = new Sprite(engineMaterial);
-  engine.scale.set(4.8, 4.8, 1);
-  engine.position.z = 1.3;
-  group.add(engine);
-  group.scale.setScalar(shipTypeId === 'galleon' ? 1.35 : 1);
+  const warpGlow = new Sprite(warpMaterial);
+  warpGlow.scale.set(6.2, 6.2, 1);
+  warpGlow.position.z = typeId === 'galleon' ? -1 : -0.35;
+  group.add(warpGlow);
+  const baseScale = typeId === 'galleon' ? 1.2 : (typeId === 'freighter' ? 1.08 : 1);
+  group.scale.setScalar(baseScale);
+  group.userData.baseScale = baseScale;
+  group.userData.hullMaterials = hullMaterials;
+  group.userData.engineMaterials = [engineMaterial].concat(engineGlowMaterials);
+  group.userData.flames = flames;
+  group.userData.flashMaterial = warpMaterial;
+  group.userData.flashSprite = warpGlow;
   group.renderOrder = 8;
   return group;
+}
+
+function _createShipMaterial(color, opacity, additive) {
+  const material = new MeshBasicMaterial({
+    color,
+    transparent: true,
+    opacity,
+    depthWrite: false,
+    blending: additive ? AdditiveBlending : undefined,
+  });
+  material.userData.baseOpacity = opacity;
+  return material;
+}
+
+function _addShipPart(group, geometry, material, position, rotation) {
+  const part = new Mesh(geometry, material);
+  part.position.set(position[0], position[1], position[2]);
+  if (rotation) part.rotation.set(rotation[0], rotation[1], rotation[2]);
+  group.add(part);
+  return part;
+}
+
+function _applyShipTravelVisual(ship, visual, time, index) {
+  if (!ship || !visual) return;
+  ship.visible = visual.opacity > 0.01;
+  const pulse = _motionLevel === 'off' ? 0 : Math.sin(time * 0.012 + index) * 0.025;
+  const scale = (ship.userData.baseScale || 1) * visual.scale * (1 + pulse * visual.engine);
+  ship.scale.setScalar(scale);
+
+  (ship.userData.hullMaterials || []).forEach(function (material) {
+    material.opacity = (material.userData.baseOpacity || 1) * visual.opacity;
+  });
+  (ship.userData.engineMaterials || []).forEach(function (material) {
+    material.opacity = (material.userData.baseOpacity || 1) * visual.engine;
+  });
+  (ship.userData.flames || []).forEach(function (flame, flameIndex) {
+    const flare = 0.72 + visual.engine * 0.7 + Math.sin(time * 0.018 + flameIndex) * 0.08;
+    flame.scale.set(0.82 + visual.engine * 0.22, Math.max(0.2, flare), 0.82 + visual.engine * 0.22);
+  });
+  if (ship.userData.flashMaterial) {
+    ship.userData.flashMaterial.opacity = visual.flash * 0.82;
+  }
+  if (ship.userData.flashSprite) {
+    const flashScale = 5.8 + visual.flash * 5.2;
+    ship.userData.flashSprite.scale.set(flashScale, flashScale, 1);
+  }
 }
 
 function _createPlanetLabelSprite(system, color, unlocked, current) {
@@ -1874,19 +2053,30 @@ function _animateScene(time) {
   });
 
   if (_mapView === 'planets') _routeVisuals.forEach(function (visual, index) {
-    if (!visual.ship || !visual.curve) return;
+    if (!visual.curve) return;
     let progress;
     if (visual.activeFlight && _flightPath) {
-      progress = Math.max(0, Math.min(1, (time - _flightPath.startTime) / _flightPath.duration));
+      progress = _flightPath.duration > 0
+        ? Math.max(0, Math.min(1, (time - _flightPath.startTime) / _flightPath.duration))
+        : 1;
     } else {
-      progress = _motionLevel === 'off'
-        ? visual.phase
-        : ((time * 0.000045 + visual.phase + index * 0.11) % 1);
+      progress = getRouteMotionProgress(time, visual.motionStartTime, _motionLevel);
+      if (
+        visual.hasPendingRoute
+        && getRouteMotionProgress(time, visual.motionStartTime, 'full') >= 1
+      ) _dirty = true;
     }
+    if (!visual.ship) return;
     visual.curve.getPoint(progress, visual.positionScratch);
     visual.curve.getPoint(Math.min(1, progress + 0.015), visual.lookAtScratch);
     visual.ship.position.copy(visual.positionScratch);
     visual.ship.lookAt(visual.lookAtScratch);
+    _applyShipTravelVisual(
+      visual.ship,
+      getShipTravelVisualState(progress, _motionLevel, visual.visibilityMode),
+      time,
+      index
+    );
     if (_motionLevel !== 'off') {
       visual.material.opacity = Math.max(0.25, visual.material.opacity * 0.998 + (0.62 + Math.sin(time * 0.003 + index) * 0.12) * 0.002);
     }
