@@ -11,8 +11,9 @@ describe('Action guide responsive CSS', function () {
     expect(css).toContain('grid-template-areas:');
     expect(css).toContain('"status copy"');
     expect(css).toContain('"status actions"');
-    expect(css).toContain('grid-template-columns: minmax(0, 1fr) 34px');
-    expect(css).toContain('.action-guide-mini-kicker');
+    expect(css).toContain('grid-template-columns: minmax(0, 1fr);');
+    expect(css).not.toContain('.action-guide-toggle');
+    expect(css).not.toContain('.action-guide-mini');
     expect(css).toContain('text-overflow: ellipsis');
   });
 
@@ -28,15 +29,15 @@ describe('Action guide responsive CSS', function () {
     expect(surfaces).toContain('#action-guide.action-guide');
     expect(surfaces).toContain('background: transparent');
     expect(surfaces).toContain('#action-guide .action-guide-shell::before');
-    expect(surfaces).toContain('"status kicker primary toggle"');
-    expect(surfaces).toContain('"status main primary toggle"');
+    expect(surfaces).toContain('"status kicker primary"');
+    expect(surfaces).toContain('"status main primary"');
     expect(surfaces).toContain('display: contents');
     expect(surfaces).toContain('grid-area: primary');
     expect(surfaces).toContain('grid-template-columns: minmax(0, 1fr) auto');
     expect(surfaces).toMatch(/\.action-guide-primary \.command-action-kicker\s*\{[^}]*display:\s*none/);
     expect(surfaces).toMatch(/\.action-guide-reason\s*\{[^}]*text-overflow:\s*ellipsis/);
     expect(responsive).toContain('@media (max-width: 560px)');
-    expect(responsive).toContain('"status primary primary"');
+    expect(responsive).toContain('"status primary"');
   });
 
   it('机库和档案覆盖层会使用 panel-open 作为可见状态', function () {

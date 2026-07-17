@@ -499,7 +499,6 @@ export function setMarketWorkspaceFocus(focus) {
       normalized.workspaceId,
       _lastMarketProgression
     );
-    _renderMarketExperienceRoute(_lastMarketProgression);
     if (normalized.goodId) {
       _revealMarketGoodFocus(normalized.goodId, { tradeAction: normalized.tradeAction });
     } else if (normalized.chainId) {
@@ -590,7 +589,6 @@ function _renderMarketWorkspaceTabs(progression) {
     _activeMarketWorkspaceTab = button.dataset.marketWorkspaceTab || 'spot';
     _ensureMarketSubworkspaceState(_activeMarketWorkspaceTab, progression);
     _applyMarketWorkspaceTabState(progression);
-    _renderMarketExperienceRoute(progression);
   }
 
   workspaceButtons.forEach(function (button) {
@@ -685,7 +683,6 @@ function _bindMarketSubworkspaceTabs(container, progression) {
     if (!workspaceId || !tabId) return;
     _activeMarketSubworkspaceTabs[workspaceId] = tabId;
     _applyMarketSubworkspaceTabState(container, workspaceId, progression);
-    _renderMarketExperienceRoute(progression);
   }
 
   subworkspaceButtons.forEach(function (button) {
@@ -698,65 +695,6 @@ function _bindMarketSubworkspaceTabs(container, progression) {
         return entry.dataset.marketSubworkspaceTab === workspaceId;
       });
       _handleRovingControlKeydown(event, button, workspaceButtons, activateSubworkspace);
-    });
-  });
-}
-
-function _isMarketRouteStageActive(stage) {
-  if (!stage) return false;
-  if (stage.workspaceId !== _activeMarketWorkspaceTab) return false;
-  if (!stage.subworkspaceId) return true;
-  return _activeMarketSubworkspaceTabs[stage.workspaceId] === stage.subworkspaceId;
-}
-
-function _renderMarketExperienceRoute(progression) {
-  if (!_hasDocument()) return;
-
-  var routeEl = document.getElementById('market-experience-route');
-  if (!routeEl || !progression || !Array.isArray(progression.routeStages)) return;
-
-  var stats = progression.stats || {};
-  var privileges = stats.companyPrivileges || {};
-  var caps = privileges.caps || {};
-  var stationCapacity = caps.tradeStations || {};
-  var stationLevel = caps.tradeStationLevel || {};
-  var fleetSlots = caps.fleetSlots || {};
-  var privilegeNote = '贸易站 ' + (stationCapacity.label || ((stats.stationCount || 0) + ' 座')) +
-    ' · 站点上限 ' + (stationLevel.label || '未开放') +
-    ' · 舰队席位 ' + (fleetSlots.used || 1) + '/' + (fleetSlots.max || 1);
-  routeEl.innerHTML = '<section class="market-experience-route" aria-label="市场体验线路">' +
-    '<div class="market-experience-route-copy">' +
-      '<div class="market-experience-route-kicker">MARKET FLOW</div>' +
-      '<div class="market-experience-route-title">先成交，再扩张</div>' +
-      '<div class="market-experience-route-note">公司 Lv.' + _escapeHtml(stats.companyLevel || 1) + ' · 玩家 Lv.' + _escapeHtml(stats.playerLevel || 1) + ' · 已访问 ' + _escapeHtml(stats.visitedCount || 1) + ' 站</div>' +
-      '<div class="market-experience-route-note">' + _escapeHtml(privilegeNote) + '</div>' +
-    '</div>' +
-    '<div class="market-experience-route-steps">' +
-      progression.routeStages.map(function (stage) {
-        var locked = stage.unlocked === false;
-        var active = _isMarketRouteStageActive(stage);
-        var stageTitle = locked ? (stage.lockDetail || stage.unlockLabel || '继续推进贸易路线') : stage.note;
-        return '<button class="market-experience-step' + (active ? ' active' : '') + (locked ? ' is-locked' : '') + '" type="button" title="' + _escapeHtmlAttr(stageTitle || '') + '" data-market-route-workspace="' + _escapeHtmlAttr(stage.workspaceId) + '" data-market-route-subworkspace="' + _escapeHtmlAttr(stage.subworkspaceId || '') + '" data-market-locked="' + (locked ? 'true' : 'false') + '"' + (locked ? ' disabled aria-disabled="true"' : '') + '>' +
-          '<span class="market-experience-step-index">' + _escapeHtml(stage.index) + '</span>' +
-          '<span class="market-experience-step-copy">' +
-            '<span class="market-experience-step-label">' + _escapeHtml(stage.label) + '</span>' +
-            '<span class="market-experience-step-note">' + _escapeHtml(locked ? (stage.unlockLabel || '继续推进贸易路线') : stage.note) + '</span>' +
-          '</span>' +
-        '</button>';
-      }).join('') +
-    '</div>' +
-  '</section>';
-
-  routeEl.querySelectorAll('[data-market-route-workspace]').forEach(function (button) {
-    button.addEventListener('click', function () {
-      if (button.disabled || button.dataset.marketLocked === 'true') return;
-      var workspaceId = button.dataset.marketRouteWorkspace || 'spot';
-      var subworkspaceId = button.dataset.marketRouteSubworkspace || '';
-      _activeMarketWorkspaceTab = workspaceId;
-      if (subworkspaceId) _activeMarketSubworkspaceTabs[workspaceId] = subworkspaceId;
-      _applyMarketWorkspaceTabState(progression);
-      _applyMarketSubworkspaceTabState(document.getElementById('market-' + workspaceId + '-pane'), workspaceId, progression);
-      _renderMarketExperienceRoute(progression);
     });
   });
 }
@@ -794,65 +732,66 @@ function _formatMarketHeatDelta(multiplier) {
 }
 
 function _renderSpotTradeSection() {
-  return '<div id="market-quick-trade-dock" class="market-quick-trade-dock" role="status" aria-label="快速交易焦点" aria-live="polite"></div>' +
-    '<div id="market-spot-command-deck" class="market-spot-command-deck" role="region" aria-label="现货交易摘要"></div>' +
+  return '<div id="market-quick-trade-dock" class="market-quick-trade-dock" role="region" aria-label="当前货物与快速交易"></div>' +
     '<div class="market-spot-trade-layout" role="region" aria-label="现货交易工作台">' +
-      '<div class="market-spot-main-col">' +
-        '<div class="market-trade-board" role="region" aria-label="价格走势与商品列表">' +
-          '<section class="market-goods-shell" aria-label="商品交易列表">' +
-            '<div id="market-goods-toolbar" class="market-goods-toolbar"></div>' +
-            '<div id="market-goods-list" class="market-goods-list" role="list"></div>' +
-          '</section>' +
-          '<div id="market-kline-panel" class="market-kline-panel" role="region" aria-label="价格走势">' +
-            '<div class="market-kline-header">' +
-              '<div class="market-kline-title" id="market-kline-title"></div>' +
-              '<div class="market-kline-range-bar" id="market-kline-range-bar"></div>' +
-            '</div>' +
-            '<div class="market-kline-ohlc" id="market-kline-ohlc"></div>' +
-            '<div class="market-kline-body" id="market-kline-body"></div>' +
-            '<div class="market-kline-footer">' +
-              '<div class="market-kline-metrics" id="market-kline-metrics"></div>' +
-            '</div>' +
+      '<section class="market-trend-column" aria-label="当前货物趋势">' +
+        '<div class="market-column-heading">' +
+          '<div><span class="market-column-kicker">PRICE TREND</span><h4>价格趋势</h4></div>' +
+          '<span class="market-column-state">随选中货物更新</span>' +
+        '</div>' +
+        '<div id="market-kline-panel" class="market-kline-panel" role="region" aria-label="价格走势">' +
+          '<div class="market-kline-header">' +
+            '<div class="market-kline-title" id="market-kline-title"></div>' +
+            '<div class="market-kline-range-bar" id="market-kline-range-bar"></div>' +
           '</div>' +
-          '<div class="market-intel-drawers" role="region" aria-label="市场辅助情报">' +
-            '<details class="market-collapse market-collapse-chart">' +
-              '<summary>🗺 星系价格矩阵 <span class="market-collapse-hint">切到热力图看整张星区价差</span></summary>' +
-              '<div class="market-collapse-body">' +
-                '<div class="market-heatmap-toolbar">' +
-                  '<div class="market-heatmap-legend" aria-label="交易热力图图例">' +
-                    '<span class="market-heatmap-legend-item freeze">冰点价</span>' +
-                    '<span class="market-heatmap-legend-item cool">低位区</span>' +
-                    '<span class="market-heatmap-legend-item neutral">均衡区</span>' +
-                    '<span class="market-heatmap-legend-item warm">溢价区</span>' +
-                    '<span class="market-heatmap-legend-item hot">过热区</span>' +
-                  '</div>' +
-                  '<div class="market-price-view" aria-label="价格矩阵口径">' +
-                    '<span id="market-price-view-label" class="market-price-view-label">价格口径</span>' +
-                    '<div class="market-price-mode" role="radiogroup" aria-labelledby="market-price-view-label">' +
-                      '<button id="market-overview-price-buy" class="market-price-mode-btn' + (_marketOverviewPriceMode === 'buy' ? ' is-active' : '') + '" type="button" role="radio" aria-checked="' + (_marketOverviewPriceMode === 'buy' ? 'true' : 'false') + '" aria-controls="market-trade-overview-table" tabindex="' + (_marketOverviewPriceMode === 'buy' ? '0' : '-1') + '" data-market-overview-price-mode="buy">买入价</button>' +
-                      '<button id="market-overview-price-sell" class="market-price-mode-btn' + (_marketOverviewPriceMode === 'sell' ? ' is-active' : '') + '" type="button" role="radio" aria-checked="' + (_marketOverviewPriceMode === 'sell' ? 'true' : 'false') + '" aria-controls="market-trade-overview-table" tabindex="' + (_marketOverviewPriceMode === 'sell' ? '0' : '-1') + '" data-market-overview-price-mode="sell">卖出价</button>' +
-                    '</div>' +
-                    '<span id="market-overview-price-status" class="market-price-view-status" role="status" aria-live="polite">矩阵显示各节点的' + (_marketOverviewPriceMode === 'sell' ? '卖出价' : '买入价') + '</span>' +
-                  '</div>' +
-                '</div>' +
-                '<div class="market-trade-overview-scroll">' +
-                  '<table id="market-trade-overview-table" aria-describedby="market-overview-price-status">' +
-                    '<thead id="market-trade-overview-thead"></thead>' +
-                    '<tbody id="market-trade-overview-tbody"></tbody>' +
-                  '</table>' +
-                '</div>' +
-              '</div>' +
-            '</details>' +
-            '<details class="market-collapse market-collapse-chart">' +
-              '<summary>📈 行情仪表盘 <span class="market-collapse-hint">切到涨跌榜和波动榜复核方向</span></summary>' +
-              '<div class="market-collapse-body">' +
-                '<div id="market-terminal-dashboard" class="market-terminal-dashboard"></div>' +
-              '</div>' +
-            '</details>' +
+          '<div class="market-kline-ohlc" id="market-kline-ohlc"></div>' +
+          '<div class="market-kline-body" id="market-kline-body"></div>' +
+          '<div class="market-kline-footer">' +
+            '<div class="market-kline-metrics" id="market-kline-metrics"></div>' +
           '</div>' +
         '</div>' +
-      '</div>' +
-      '<aside id="market-analysis-panel" class="market-analysis-panel" aria-label="市场行动摘要"></aside>' +
+        '<div class="market-intel-drawers" role="region" aria-label="市场辅助情报">' +
+          '<details class="market-collapse market-collapse-chart">' +
+            '<summary>星系价格矩阵 <span class="market-collapse-hint">比较各节点价差</span></summary>' +
+            '<div class="market-collapse-body">' +
+              '<div class="market-heatmap-toolbar">' +
+                '<div class="market-heatmap-legend" aria-label="交易热力图图例">' +
+                  '<span class="market-heatmap-legend-item freeze">冰点价</span>' +
+                  '<span class="market-heatmap-legend-item cool">低位区</span>' +
+                  '<span class="market-heatmap-legend-item neutral">均衡区</span>' +
+                  '<span class="market-heatmap-legend-item warm">溢价区</span>' +
+                  '<span class="market-heatmap-legend-item hot">过热区</span>' +
+                '</div>' +
+                '<div class="market-price-view" aria-label="价格矩阵口径">' +
+                  '<span id="market-price-view-label" class="market-price-view-label">价格口径</span>' +
+                  '<div class="market-price-mode" role="radiogroup" aria-labelledby="market-price-view-label">' +
+                    '<button id="market-overview-price-buy" class="market-price-mode-btn' + (_marketOverviewPriceMode === 'buy' ? ' is-active' : '') + '" type="button" role="radio" aria-checked="' + (_marketOverviewPriceMode === 'buy' ? 'true' : 'false') + '" aria-controls="market-trade-overview-table" tabindex="' + (_marketOverviewPriceMode === 'buy' ? '0' : '-1') + '" data-market-overview-price-mode="buy">买入价</button>' +
+                    '<button id="market-overview-price-sell" class="market-price-mode-btn' + (_marketOverviewPriceMode === 'sell' ? ' is-active' : '') + '" type="button" role="radio" aria-checked="' + (_marketOverviewPriceMode === 'sell' ? 'true' : 'false') + '" aria-controls="market-trade-overview-table" tabindex="' + (_marketOverviewPriceMode === 'sell' ? '0' : '-1') + '" data-market-overview-price-mode="sell">卖出价</button>' +
+                  '</div>' +
+                  '<span id="market-overview-price-status" class="market-price-view-status" role="status" aria-live="polite">矩阵显示各节点的' + (_marketOverviewPriceMode === 'sell' ? '卖出价' : '买入价') + '</span>' +
+                '</div>' +
+              '</div>' +
+              '<div class="market-trade-overview-scroll">' +
+                '<table id="market-trade-overview-table" aria-describedby="market-overview-price-status">' +
+                  '<thead id="market-trade-overview-thead"></thead>' +
+                  '<tbody id="market-trade-overview-tbody"></tbody>' +
+                '</table>' +
+              '</div>' +
+            '</div>' +
+          '</details>' +
+          '<details class="market-collapse market-collapse-chart">' +
+            '<summary>行情仪表盘 <span class="market-collapse-hint">涨跌与波动排行</span></summary>' +
+            '<div class="market-collapse-body">' +
+              '<div id="market-terminal-dashboard" class="market-terminal-dashboard"></div>' +
+            '</div>' +
+          '</details>' +
+        '</div>' +
+      '</section>' +
+      '<section class="market-goods-shell market-goods-column" aria-label="商品交易列表">' +
+        '<div id="market-goods-toolbar" class="market-goods-toolbar"></div>' +
+        '<div id="market-goods-list" class="market-goods-list" role="list"></div>' +
+      '</section>' +
+      '<aside id="market-analysis-panel" class="market-analysis-panel" aria-label="局部市场信号"></aside>' +
     '</div>';
 }
 
@@ -893,70 +832,6 @@ function _describeTradeOpportunity(sysId, snapshot, heldQuantity) {
   return { label: '均衡看盘', note: '价格和供需暂时平衡，更适合观察而不是重仓出手。', className: 'balance' };
 }
 
-function _renderSpotCommandDeck(state, sysId, snapshots, marketMode, isCurrentSys, systemFaction, blackMarketUnlocked) {
-  if (!snapshots || snapshots.length === 0) return '';
-
-  var focused = _getFocusedMarketSnapshot(sysId, marketMode, snapshots);
-  var system = findSystem(sysId);
-  var cargoUsed = Object.values(state.cargo || {}).reduce(function (sum, quantity) {
-    return sum + quantity;
-  }, 0);
-  var cargoMax = state.maxCargo || 100;
-  var marketDepth = Economy.getMarketDepth(sysId);
-  var discounted = snapshots.slice().sort(function (a, b) {
-    return Economy.getSystemMultiplier(sysId, a.good.id) - Economy.getSystemMultiplier(sysId, b.good.id);
-  })[0] || focused;
-  var widestSpread = snapshots.slice().sort(function (a, b) {
-    return (b.spread || 0) - (a.spread || 0);
-  })[0] || focused;
-  var strongestDemand = snapshots.slice().sort(function (a, b) {
-    return (b.supplyDemand ? b.supplyDemand.ratio : 1) - (a.supplyDemand ? a.supplyDemand.ratio : 1);
-  })[0] || focused;
-  var focusSignal = _describeTradeOpportunity(sysId, focused, state.cargo[focused.good.id] || 0);
-  var rangeKey = sysId + ':' + (marketMode || 'open');
-  var selectedRange = _marketChartRange[rangeKey] || 14;
-
-  function renderMetric(label, value, note, tone) {
-    return '<article class="market-spot-command-card' + (tone ? ' ' + tone : '') + '">' +
-      '<span class="market-spot-command-card-label">' + label + '</span>' +
-      '<strong class="market-spot-command-card-value">' + value + '</strong>' +
-      '<span class="market-spot-command-card-note">' + note + '</span>' +
-    '</article>';
-  }
-
-  function renderPill(label, value, extraClass) {
-    return '<span class="market-spot-command-pill' + (extraClass ? ' ' + extraClass : '') + '">' +
-      label + '<strong>' + value + '</strong>' +
-    '</span>';
-  }
-
-  return '<div class="market-spot-command-hero">' +
-    '<div class="market-spot-command-copy">' +
-      '<div class="market-spot-command-kicker">交易指挥台</div>' +
-      '<div class="market-spot-command-title">' + focused.good.emoji + ' ' + focused.good.name + ' · ' + focusSignal.label + '</div>' +
-      '<div class="market-spot-command-summary">' + focusSignal.note + ' 当前窗口按近 ' + selectedRange + ' 天数据校准，点击下方货物可立刻切换主图和执行按钮。</div>' +
-    '</div>' +
-    '<div class="market-spot-command-emphasis">' +
-      '<span class="market-spot-command-emphasis-label">' + (marketMode === 'black' ? '黑市通道' : '公开市场') + '</span>' +
-      '<strong>' + (isCurrentSys ? '可即时成交' : '远程观察中') + '</strong>' +
-    '</div>' +
-  '</div>' +
-  '<div class="market-spot-command-grid">' +
-    renderMetric('可用信用积分', Math.floor(state.credits || 0).toLocaleString(), '信用积分越充足，越能在折价区连续吸筹。') +
-    renderMetric('折价窗口', discounted.good.emoji + ' ' + discounted.buyPrice.toLocaleString(), '当前最便宜的建仓入口。', 'accent-cool') +
-    renderMetric('最大利差', widestSpread.good.emoji + ' ' + widestSpread.spread.toLocaleString(), '需要靠节奏兑现，不适合盲目追价。', 'accent-warm') +
-    renderMetric('最强需求', strongestDemand.good.emoji + ' ' + strongestDemand.supplyDemand.ratio.toFixed(2) + 'x', '供需错位最大，值得优先盯盘。', 'accent-hot') +
-  '</div>' +
-  '<div class="market-spot-command-strip">' +
-    renderPill('节点', (system ? system.name : sysId) + ' · ' + (system ? system.typeLabel : '未知')) +
-    renderPill('货舱', cargoUsed + '/' + cargoMax) +
-    renderPill('深度', String(marketDepth)) +
-    renderPill('势力', systemFaction ? systemFaction.name : '中立地带') +
-    renderPill('黑市', blackMarketUnlocked ? '已解锁' : '未解锁', blackMarketUnlocked ? 'accumulate' : '') +
-    renderPill('信号', focusSignal.label, focusSignal.className) +
-  '</div>';
-}
-
 function _renderQuickTradeDock(state, sysId, snapshots, marketMode, isCurrentSys) {
   if (!snapshots || snapshots.length === 0) return '';
 
@@ -986,17 +861,18 @@ function _renderQuickTradeDock(state, sysId, snapshots, marketMode, isCurrentSys
         '<div class="market-quick-trade-note">' + _escapeHtml(signal.note) + '</div>' +
       '</div>' +
     '</div>' +
-    '<div class="market-quick-trade-prices" aria-label="当前聚焦货物价格">' +
+    '<div class="market-quick-trade-prices" aria-label="当前货物、资金与货舱状态">' +
       '<span><em>买入</em><strong>' + focused.buyPrice.toLocaleString() + '</strong></span>' +
       '<span><em>卖出</em><strong>' + focused.sellPrice.toLocaleString() + '</strong></span>' +
       '<span><em>货舱</em><strong>' + inCargo + '/' + cargoMax + '</strong></span>' +
+      '<span><em>可用资金</em><strong>' + Math.floor(state.credits || 0).toLocaleString() + '</strong></span>' +
       '<span><em>最多买</em><strong>' + maxBuy + '</strong></span>' +
     '</div>' +
     '<div class="market-quick-trade-actions">' +
       (isCurrentSys
-        ? '<button class="market-quick-trade-btn market-quick-trade-btn--sell' + (inCargo > 0 ? '' : ' disabled') + '" type="button" data-market-quick-action="sell" data-id="' + _escapeHtmlAttr(focused.good.id) + '"' + (inCargo > 0 ? '' : ' disabled') + '>' + (inCargo > 0 ? '出售库存' : '无库存') + '</button>' +
-          '<button class="market-quick-trade-btn market-quick-trade-btn--buy" type="button" data-market-quick-action="buy" data-id="' + _escapeHtmlAttr(focused.good.id) + '">买入 / 补仓</button>'
-        : '<button class="market-quick-trade-btn disabled" type="button" disabled>远程只读</button>') +
+        ? '<button class="market-quick-trade-btn market-quick-trade-btn--sell' + (inCargo > 0 ? '' : ' disabled') + '" type="button" data-market-quick-action="sell" data-id="' + _escapeHtmlAttr(focused.good.id) + '"' + (inCargo > 0 ? '' : ' disabled title="货舱中没有该货物"') + '>' + (inCargo > 0 ? '出售库存' : '无库存') + '</button>' +
+          '<button class="market-quick-trade-btn market-quick-trade-btn--buy" type="button" data-market-quick-action="buy" data-id="' + _escapeHtmlAttr(focused.good.id) + '">买入货物</button>'
+        : '<button class="market-quick-trade-btn disabled" type="button" disabled title="抵达该节点后才可交易">远程只读</button>') +
     '</div>' +
   '</section>';
 }
@@ -1201,36 +1077,44 @@ function _renderSpotIntelSection(state, sysId, snapshots, marketMode, systemFact
     _renderSpotIntelSignalPanel(surveyIntel, watchList, marketMode, blackMarketUnlocked) +
   '</section>' +
   _renderSurveyIntelMarketSection(surveyIntel) +
-  '<section class="market-finance-section">' +
+  '<div class="market-intel-decision-grid" role="group" aria-label="节点与盯盘决策区">' +
+  '<section class="market-finance-section market-intel-node-section">' +
     '<div class="market-finance-section-head">' +
       '<div>' +
         '<div class="market-finance-title">📡 节点速览</div>' +
-        '<div class="market-finance-subtitle">查看该节点的深度、势力和特殊市场准入，判断它更适合买货、出货还是布点。</div>' +
+        '<div class="market-finance-subtitle">深度、势力与特殊市场准入。</div>' +
       '</div>' +
     '</div>' +
     '<div class="market-finance-action-list market-intel-node-list" role="list" aria-label="节点行情与准入速览">' +
       '<article class="market-finance-action-row market-intel-node-row" role="listitem" tabindex="0" aria-labelledby="' + _escapeHtmlAttr(nodeTitleId) + '" aria-describedby="' + _escapeHtmlAttr(nodeMetaId) + '">' +
         '<div class="market-finance-action-main">' +
-          '<div id="' + _escapeHtmlAttr(nodeTitleId) + '" class="market-finance-action-title">' + (system ? system.name : '当前节点') + '</div>' +
-          '<div id="' + _escapeHtmlAttr(nodeMetaId) + '" class="market-finance-action-meta">市场深度 ' + marketDepth + ' · ' + (system ? system.typeLabel : '未知类型') + ' · ' + (system ? system.description : '无节点说明') + '</div>' +
+          '<div id="' + _escapeHtmlAttr(nodeTitleId) + '" class="market-finance-action-title">' + _escapeHtml(system ? system.name : '当前节点') + '</div>' +
+          '<div id="' + _escapeHtmlAttr(nodeMetaId) + '" class="market-finance-action-meta market-intel-node-meta">' +
+            '<span class="market-intel-node-facts"><span>深度 <strong>' + marketDepth + '</strong></span><span>' + _escapeHtml(system ? system.typeLabel : '未知类型') + '</span></span>' +
+            '<span class="market-intel-node-description">' + _escapeHtml(system ? system.description : '无节点说明') + '</span>' +
+          '</div>' +
         '</div>' +
-        '<div class="market-finance-network-note">' + (systemFaction ? systemFaction.name : '中立地带') + '</div>' +
+        '<div class="market-finance-network-note">' + _escapeHtml(systemFaction ? systemFaction.name : '中立地带') + '</div>' +
       '</article>' +
       '<article class="market-finance-action-row market-intel-node-row" role="listitem" tabindex="0" aria-labelledby="' + _escapeHtmlAttr(accessTitleId) + '" aria-describedby="' + _escapeHtmlAttr(accessMetaId) + '">' +
         '<div class="market-finance-action-main">' +
           '<div id="' + _escapeHtmlAttr(accessTitleId) + '" class="market-finance-action-title">特殊市场准入</div>' +
-          '<div id="' + _escapeHtmlAttr(accessMetaId) + '" class="market-finance-action-meta">' + (systemFaction && systemFaction.marketAccess && systemFaction.marketAccess.blackMarket ? '该势力辖区存在黑市通路。' : '该节点无黑市入口，现货交易仅限公开市场。') + '</div>' +
+          '<div id="' + _escapeHtmlAttr(accessMetaId) + '" class="market-finance-action-meta market-intel-node-meta">' +
+            '<span class="market-intel-node-facts"><span>现货 <strong>公开</strong></span><span>特殊通路</span></span>' +
+            '<span class="market-intel-node-description">' + (systemFaction && systemFaction.marketAccess && systemFaction.marketAccess.blackMarket ? '该势力辖区存在黑市通路。' : '当前节点无黑市入口，仅开放公开市场。') + '</span>' +
+          '</div>' +
         '</div>' +
         '<div class="market-finance-network-note">' + (blackMarketUnlocked ? '已解锁' : '未解锁') + '</div>' +
       '</article>' +
     '</div>' +
   '</section>' +
-  '<section class="market-finance-section">' +
+  '<section class="market-finance-section market-watch-section">' +
     '<div class="market-finance-section-head">' +
       '<div>' +
-        '<div class="market-finance-title">🎯 值得盯盘的货物</div>' +
-        '<div class="market-finance-subtitle">优先把波动和需求同时较高的品类拉进观察名单。</div>' +
+        '<div class="market-finance-title">🎯 盯盘优先级</div>' +
+        '<div class="market-finance-subtitle">按需求、波动和价差排序。</div>' +
       '</div>' +
+      '<span class="market-finance-chip">TOP ' + watchList.length + '</span>' +
     '</div>' +
     (watchList.length > 0
       ? '<div class="market-finance-action-list market-watch-list" role="list" aria-label="值得盯盘的货物">' + watchList.map(function (entry) {
@@ -1239,13 +1123,18 @@ function _renderSpotIntelSection(state, sysId, snapshots, marketMode, systemFact
           return '<article class="market-finance-action-row market-watch-row" role="listitem" tabindex="0" aria-labelledby="' + _escapeHtmlAttr(watchTitleId) + '" aria-describedby="' + _escapeHtmlAttr(watchMetaId) + '">' +
             '<div class="market-finance-action-main">' +
               '<div id="' + _escapeHtmlAttr(watchTitleId) + '" class="market-finance-action-title">' + entry.good.emoji + ' ' + entry.good.name + '</div>' +
-              '<div id="' + _escapeHtmlAttr(watchMetaId) + '" class="market-finance-action-meta">买入 ' + entry.buyPrice.toLocaleString() + ' · 卖出 ' + entry.sellPrice.toLocaleString() + ' · 需求/供给 ' + entry.supplyDemand.ratio.toFixed(2) + 'x</div>' +
+              '<div id="' + _escapeHtmlAttr(watchMetaId) + '" class="market-finance-action-meta market-watch-metrics">' +
+                '<span>买 <strong>' + entry.buyPrice.toLocaleString() + '</strong></span>' +
+                '<span>卖 <strong>' + entry.sellPrice.toLocaleString() + '</strong></span>' +
+                '<span>需求 <strong>' + entry.supplyDemand.ratio.toFixed(2) + 'x</strong></span>' +
+              '</div>' +
             '</div>' +
-            '<div class="market-finance-network-note">波动 ' + entry.swing.toLocaleString() + '</div>' +
+            '<div class="market-finance-network-note market-watch-swing"><span>波动</span><strong>' + entry.swing.toLocaleString() + '</strong></div>' +
           '</article>';
         }).join('') + '</div>'
       : '<div class="market-finance-empty">当前没有足够的行情数据生成观察名单。</div>') +
-  '</section>';
+  '</section>' +
+  '</div>';
 }
 
 function _renderSpotSignalMetric(label, value, note, toneClass) {
@@ -1375,7 +1264,7 @@ function _renderSurveyIntelChainRows(surveyIntel) {
     return '<article class="' + rowClasses.map(_escapeHtmlAttr).join(' ') + '" role="listitem" tabindex="0" aria-labelledby="' + _escapeHtmlAttr(titleId) + '" aria-describedby="' + _escapeHtmlAttr(metaId + ' ' + noteId) + '" data-market-survey-chain-id="' + _escapeHtmlAttr(chain.id || '') + '" data-market-survey-chain-kind="' + _escapeHtmlAttr(chain.kind || '') + '">' +
       '<div class="market-finance-action-main">' +
         '<div id="' + _escapeHtmlAttr(titleId) + '" class="market-finance-action-title">' + _escapeHtml((chain.badge ? (chain.badge + ' · ') : '') + (chain.label || '探索链')) + '</div>' +
-        '<div id="' + _escapeHtmlAttr(metaId) + '" class="market-finance-action-meta">' + _escapeHtml((chain.poiName || '探索点') + ' · ' + (chain.stageLabel || '待扫描') + ' · ' + _getSurveyChainImpact(chain)) + '</div>' +
+        '<div id="' + _escapeHtmlAttr(metaId) + '" class="market-finance-action-meta">' + _escapeHtml((chain.poiName || '探索点') + ' · ' + (chain.stageLabel || '待调查') + ' · ' + _getSurveyChainImpact(chain)) + '</div>' +
       '</div>' +
       '<div id="' + _escapeHtmlAttr(noteId) + '" class="market-finance-network-note market-survey-chain-note">' + _escapeHtml(_getSurveyChainNote(chain)) + '</div>' +
     '</article>';
@@ -1405,7 +1294,7 @@ function _getSurveyChainNote(chain) {
   if (chain.followupReady && chain.followupLabel) return chain.followupLabel;
   if (chain.resolved) return '报告已归档';
   if (chain.discovered) return '待调查';
-  return '待扫描';
+  return '待调查';
 }
 
 function _renderBlackMarketSection(state, sysId, marketMode, systemFaction, blackMarketUnlocked) {
@@ -3475,20 +3364,8 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode
   const goodsListEl = document.getElementById('market-goods-list');
   const goodsToolbarEl = document.getElementById('market-goods-toolbar');
   const analysisPanelEl = document.getElementById('market-analysis-panel');
-  const spotCommandDeckEl = document.getElementById('market-spot-command-deck');
   const quickTradeDockEl = document.getElementById('market-quick-trade-dock');
   if (!goodsListEl) return;
-  if (spotCommandDeckEl) {
-    spotCommandDeckEl.innerHTML = _renderSpotCommandDeck(
-      state,
-      sysId,
-      snapshots,
-      effectiveMarketMode,
-      isCurrentSys,
-      systemFaction,
-      blackMarketUnlocked
-    );
-  }
   if (goodsToolbarEl) {
     goodsToolbarEl.innerHTML = _renderSpotGoodsToolbar(state, sysId, snapshots, effectiveMarketMode);
   }
@@ -3653,10 +3530,10 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode
       '</div>' +
       '<div class="market-good-card-actions">' +
         (isCurrentSys && inCargo > 0
-          ? '<button class="market-card-btn sell-card-btn' + (isBlack ? ' bm-card-btn' : '') + '" data-id="' + good.id + '">' + (isBlack ? '🕶 卖' : '出售') + '</button>'
+          ? '<button class="market-card-btn sell-card-btn' + (isBlack ? ' bm-card-btn' : '') + '" type="button" data-id="' + good.id + '">' + (isBlack ? '🕶 卖' : '出售') + '</button>'
           : '') +
         (isCurrentSys
-          ? '<button class="market-card-btn buy-card-btn' + (isBlack ? ' bm-card-btn' : '') + '" data-id="' + good.id + '">' + (isBlack ? '🕶 买' : '买入') + '</button>'
+          ? '<button class="market-card-btn buy-card-btn' + (isBlack ? ' bm-card-btn' : '') + '" type="button" data-id="' + good.id + '">' + (isBlack ? '🕶 买' : '买入') + '</button>'
           : '') +
       '</div>';
 
@@ -3702,7 +3579,6 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode
 
   _renderFinancePanels(state, sysId, isCurrentSys, financeActions, progression);
   _applyMarketWorkspaceTabState(progression);
-  _renderMarketExperienceRoute(progression);
 }
 
 // ---------------------------------------------------------------------------

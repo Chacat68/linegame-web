@@ -74,22 +74,27 @@ function createFakeElement(initialClasses) {
 }
 
 describe('MarketUI guided focus', function () {
-  it('现货工作台会先呈现商品交易列表，再提供价格走势复核', function () {
+  it('现货工作台按当前货物、趋势、商品和局部信号组织决策顺序', function () {
     var source = readFileSync(new URL('../js/ui/MarketUI.js', import.meta.url), 'utf8');
     var start = source.indexOf('function _renderSpotTradeSection()');
     var end = source.indexOf('function _getFocusedMarketSnapshot', start);
     var sectionSource = source.slice(start, end);
 
+    expect(sectionSource.indexOf('market-quick-trade-dock')).toBeGreaterThan(-1);
+    expect(sectionSource.indexOf('market-trend-column')).toBeGreaterThan(sectionSource.indexOf('market-quick-trade-dock'));
     expect(sectionSource.indexOf('market-goods-shell')).toBeGreaterThan(-1);
-    expect(sectionSource.indexOf('market-goods-shell')).toBeLessThan(sectionSource.indexOf('market-kline-panel'));
+    expect(sectionSource.indexOf('market-kline-panel')).toBeLessThan(sectionSource.indexOf('market-goods-shell'));
+    expect(sectionSource.indexOf('market-goods-shell')).toBeLessThan(sectionSource.indexOf('market-analysis-panel'));
+    expect(sectionSource).not.toContain('market-spot-command-deck');
     var responsiveCss = readFileSync(new URL('../css/bridge-responsive.css', import.meta.url), 'utf8');
     var marketCss = readFileSync(new URL('../css/market-terminal.css', import.meta.url), 'utf8');
-    expect(responsiveCss).toMatch(/@media \(max-height: 760px\)[\s\S]*?#market-overlay \.market-experience-route-host,[\s\S]*?#market-overlay \.market-spot-command-deck/);
-    expect(responsiveCss).toMatch(/#market-overlay \.market-experience-route-host\s*\{\s*display:\s*none;/);
+    expect(responsiveCss).not.toContain('market-progress-disclosure');
+    expect(responsiveCss).not.toContain('market-experience-route');
     expect(responsiveCss).toMatch(/#market-overlay \.market-good-card-price-block\s*\{\s*grid-column:\s*1 \/ 3;/);
     expect(responsiveCss).toMatch(/#market-overlay \.market-card-btn\s*\{[^}]*min-height:\s*var\(--ui-control-lg\);/);
     expect(marketCss).toMatch(/\.market-good-card\s*\{[^}]*display:\s*grid;/);
     expect(marketCss).toMatch(/\.market-good-card-chart-col\s*\{\s*display:\s*none;/);
+    expect(marketCss).toContain('grid-template-columns: minmax(260px, 0.9fr) minmax(400px, 1.35fr) minmax(250px, 0.78fr)');
   });
 
   var originalDocument = globalThis.document;
@@ -106,11 +111,19 @@ describe('MarketUI guided focus', function () {
     const marketCss = readFileSync('css/market-terminal.css', 'utf8');
     const css = sharedCss + '\n' + marketCss;
     const js = readFileSync('js/ui/MarketUI.js', 'utf8');
+    const mapJs = readFileSync('js/ui/MapUI.js', 'utf8');
 
     expect(html).toContain('id="market-workspace-tabs"');
     expect(html).toContain('role="tablist"');
     expect(html).toContain('id="market-spot-pane"');
     expect(html).toContain('role="tabpanel"');
+    expect(html).toContain('class="market-overlay market-workspace-v2 hidden"');
+    expect(html).not.toContain('market-progress-disclosure');
+    expect(html).not.toContain('market-experience-route');
+    expect(js).not.toContain('_renderMarketExperienceRoute');
+    expect(mapJs).toContain("icon.className = 'market-galaxy-btn-icon'");
+    expect(mapJs).toContain("label.className = 'market-galaxy-btn-label'");
+    expect(mapJs).toContain("btn.setAttribute('aria-pressed'");
     expect(js).toContain('role="tab" aria-controls="');
     expect(js).toContain("setAttribute('role', 'listitem')");
     expect(js).toContain('aria-label="现货交易工作台"');
@@ -125,6 +138,21 @@ describe('MarketUI guided focus', function () {
     expect(css).toContain('.mkt-ov-planet-action:focus-visible');
     expect(sharedCss).not.toContain('Market matrix controls');
     expect(marketCss).toContain('Market matrix controls');
+    expect(marketCss).toMatch(/\.market-workspace-v2 \.market-galaxy-btn\s*\{[^}]*min-width:\s*90px;[^}]*padding:\s*0 13px;[^}]*gap:\s*8px;/);
+  });
+
+  it('价格图表的 SVG 绘制样式由市场终端独立提供', function () {
+    const marketCss = readFileSync('css/market-terminal.css', 'utf8');
+    const fleetCss = readFileSync('css/fleet.css', 'utf8');
+
+    expect(marketCss).toContain('.market-workspace-v2 .market-chart-frame');
+    expect(marketCss).toContain('.market-workspace-v2 .market-chart-candle.up');
+    expect(marketCss).toContain('.market-workspace-v2 .kline-border');
+    expect(marketCss).toContain('.market-workspace-v2 .kline-candle.up');
+    expect(marketCss).toContain('.market-workspace-v2 .kline-current-tag');
+    expect(fleetCss).not.toContain('.market-chart-frame');
+    expect(fleetCss).not.toContain('.kline-border');
+    expect(fleetCss).not.toContain('.kline-candle.up');
   });
 
   it('市场一级和二级标签支持方向键切换并同步焦点', async function () {
@@ -333,11 +361,15 @@ describe('MarketUI guided focus', function () {
   });
 
   it('黑市和市场情报链路包含列表语义、模式状态和移动端适配锚点', function () {
-    const css = readFileSync('css/interstellar-trader.css', 'utf8');
+    const sharedCss = readFileSync('css/interstellar-trader.css', 'utf8');
+    const marketCss = readFileSync('css/market-terminal.css', 'utf8');
+    const css = sharedCss + '\n' + marketCss;
     const js = readFileSync('js/ui/MarketUI.js', 'utf8');
 
     expect(js).toContain('role="list" aria-label="节点行情与准入速览"');
     expect(js).toContain('role="list" aria-label="值得盯盘的货物"');
+    expect(js).toContain('class="market-intel-decision-grid" role="group" aria-label="节点与盯盘决策区"');
+    expect(js).toContain('class="market-finance-action-meta market-watch-metrics"');
     expect(js).toContain('role="list" aria-label="勘探报告联动链路"');
     expect(js).toContain("'market-survey-chain-row'");
     expect(js).toContain('role="listitem" tabindex="0" aria-labelledby="');
@@ -357,6 +389,10 @@ describe('MarketUI guided focus', function () {
     expect(css).toContain('.market-black-good-card:focus-visible');
     expect(css).toContain('.market-survey-chain-row[role="listitem"]:focus-visible');
     expect(css).toContain('.market-black-goods-grid[role="list"]');
+    expect(marketCss).toContain('.market-workspace-v2 .market-finance-section-head');
+    expect(marketCss).toContain('.market-workspace-v2 .market-intel-decision-grid');
+    expect(marketCss).toContain('grid-template-columns: minmax(320px, 0.82fr) minmax(520px, 1.18fr)');
+    expect(marketCss).toContain('.market-workspace-v2 .market-watch-list');
   });
 
   it('会把行动指引的商品焦点落到目标卡片和买入按钮', async function () {
@@ -549,7 +585,7 @@ describe('MarketUI guided focus', function () {
     expect(buyButton.classList.contains('market-card-btn--guide-focus')).toBe(false);
   });
 
-  it('现货页把局部分析标为信号，不抢占行动建议口径', async function () {
+  it('现货页只保留一组局部信号，不再复制首屏指挥摘要', async function () {
     vi.resetModules();
     var helpers = await import('./helpers.js');
     var Economy = await import('../js/systems/economy/Economy.js');
@@ -568,8 +604,8 @@ describe('MarketUI guided focus', function () {
     Faction.init(state);
     Finance.init(state);
 
-    var spotCommandDeck = createFakeElement();
     var goodsToolbar = createFakeElement();
+    var analysisPanel = createFakeElement();
     var elements = {
       'market-workspace-tabs': createFakeElement(),
       'market-spot-pane': createFakeElement(),
@@ -577,8 +613,7 @@ describe('MarketUI guided focus', function () {
       'market-operations-pane': createFakeElement(),
       'market-goods-list': createFakeElement(),
       'market-goods-toolbar': goodsToolbar,
-      'market-spot-command-deck': spotCommandDeck,
-      'market-analysis-panel': createFakeElement(),
+      'market-analysis-panel': analysisPanel,
     };
 
     globalThis.document = {
@@ -599,8 +634,9 @@ describe('MarketUI guided focus', function () {
     var MarketUI = await import('../js/ui/MarketUI.js');
     MarketUI.render(state, function () {}, function () {}, function () {}, 'sol_prime', 'open', 'milky_way', null, null, {});
 
-    expect(spotCommandDeck.innerHTML).toContain('信号');
-    expect(spotCommandDeck.innerHTML).not.toContain('建议<strong>');
+    expect(analysisPanel.innerHTML).toContain('当前策略');
+    expect(analysisPanel.innerHTML).not.toContain('下一步');
+    expect(analysisPanel.innerHTML).not.toContain('行动建议');
     expect(goodsToolbar.innerHTML).toContain('刷新主图和本地成交按钮');
     expect(goodsToolbar.innerHTML).not.toContain('右侧行动摘要');
   });
@@ -761,8 +797,6 @@ describe('MarketUI guided focus', function () {
     var resourcePoi = basePlanet.exploration.pois.find(function (poi) {
       return poi.kind === 'resource_cache';
     });
-    expect(Exploration.scanSystem(state, 'sol_prime').ok).toBe(true);
-    expect(Exploration.landOnSystem(state, 'sol_prime').ok).toBe(true);
     expect(Exploration.explorePoi(state, 'sol_prime', resourcePoi.id).ok).toBe(true);
 
     var intel = MarketUI.getTradeStationCandidateIntel(state, 'sol_prime');
@@ -797,8 +831,6 @@ describe('MarketUI guided focus', function () {
     var resourcePoi = basePlanet.exploration.pois.find(function (poi) {
       return poi.kind === 'resource_cache';
     });
-    expect(Exploration.scanSystem(state, 'sol_prime').ok).toBe(true);
-    expect(Exploration.landOnSystem(state, 'sol_prime').ok).toBe(true);
     expect(Exploration.explorePoi(state, 'sol_prime', resourcePoi.id).ok).toBe(true);
 
     var spotPane = createFakeElement();

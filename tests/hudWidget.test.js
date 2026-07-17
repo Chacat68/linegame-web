@@ -186,7 +186,7 @@ describe('HUD widget toggles', function () {
     expect(questButton.classList.contains('is-active')).toBe(true);
 
     var EventBus = await import('../js/core/EventBus.js');
-    EventBus.emit('starmap-rail:panel-open', { source: 'orbit-scan', panelId: 'orbit-scan' });
+    EventBus.emit('starmap-rail:panel-open', { source: 'exploration-terminal', panelId: 'exploration-terminal' });
 
     expect(questPanel.widget.classList.contains('hud-widget-collapsed')).toBe(true);
     expect(questButton.classList.contains('is-selected')).toBe(true);

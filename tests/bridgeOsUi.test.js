@@ -58,5 +58,12 @@ describe('Bridge OS global UI contracts', function () {
     expect(html).toContain('id="console-panel-close"');
     expect(surfaces).toContain('#console-panel.side-panel-overlay');
     expect(surfaces).toContain('.logs-terminal-body');
+    expect(surfaces).toMatch(/#console-panel\.side-panel-overlay\.panel-open \.secondary-terminal-shell\s*\{[^}]*opacity:\s*1/);
+  });
+
+  it('keeps all five desktop header groups in one row below the wide breakpoint', function () {
+    var responsive = read('css/bridge-responsive.css');
+
+    expect(responsive).toMatch(/@media \(max-width: 1360px\)[\s\S]*?#game-header\s*\{[^}]*grid-template-columns:\s*auto minmax\(280px, 1fr\) minmax\(250px, 0\.8fr\) auto auto/);
   });
 });

@@ -431,7 +431,7 @@ describe('HUD summary cards', function () {
     expect(hud).toContain("signalEl.dataset.tone = signalTone");
   });
 
-  it('当前航点 HUD 会显示位置摘要、勘探状态和终端入口', async function () {
+  it('当前航点 HUD 只显示位置摘要和勘探状态，不再提供终端入口', async function () {
     vi.resetModules();
 
     var state = createTestState({
@@ -447,17 +447,6 @@ describe('HUD summary cards', function () {
     var GalaxyDataModule = await import('../js/systems/galaxy/GalaxyDataLayer.js');
     GalaxyDataModule.init(state);
 
-    var orbitScanBtn = createFakeElement();
-    var orbitScanClicks = 0;
-    orbitScanBtn.hidden = false;
-    orbitScanBtn.disabled = false;
-    orbitScanBtn.textContent = '📡 扫描终端';
-    orbitScanBtn.click = function () {
-      orbitScanClicks += 1;
-      orbitScanBtn.setAttribute('aria-expanded', 'true');
-    };
-
-    var targetDetailOpenBtn = createFakeElement();
     var elements = {
       'hud-target-name': createFakeElement(),
       'hud-target-type': createFakeElement(),
@@ -465,11 +454,9 @@ describe('HUD summary cards', function () {
       'hud-target-faction': createFakeElement(),
       'hud-target-survey': createFakeElement(),
       'hud-target-next': createFakeElement(),
-      'hud-target-detail-open': targetDetailOpenBtn,
       'hud-market-overview-body': createHtmlElement(),
       'hud-market-updated': createFakeElement(),
       'hud-market-open': createFakeElement(),
-      'orbit-scan-btn': orbitScanBtn,
       'victory-modal': createFakeElement(['hidden']),
     };
 
@@ -492,15 +479,12 @@ describe('HUD summary cards', function () {
 
     expect(elements['hud-target-name'].textContent).toBe('太阳主星');
     expect(elements['hud-target-galaxy'].textContent).toBe('银河系');
-    expect(elements['hud-target-survey'].textContent).toBe('未扫描 · 0/3 POI · 情报 Lv.0');
-    expect(elements['hud-target-next'].textContent).toBe('待扫描 · 轨道数据未建档');
-    expect(targetDetailOpenBtn.textContent).toBe('📡 扫描终端');
-    expect(targetDetailOpenBtn.hidden).toBe(false);
-    expect(targetDetailOpenBtn.listenerCount('click')).toBe(1);
+    expect(elements['hud-target-survey'].textContent).toBe('0/3 POI · 情报 Lv.0');
+    expect(elements['hud-target-next'].textContent).toBe('待调查 · 3 个 POI');
 
-    targetDetailOpenBtn.dispatchEvent('click');
-    expect(orbitScanClicks).toBe(1);
-    expect(targetDetailOpenBtn.hidden).toBe(true);
+    var html = readFileSync('index.html', 'utf8');
+    expect(html).not.toContain('id="exploration-terminal-btn"');
+    expect(html).not.toContain('id="hud-target-detail-open"');
   });
 
   it('顶部被截断的信息会保留完整 title', async function () {

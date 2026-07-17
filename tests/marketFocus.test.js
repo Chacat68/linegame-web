@@ -109,8 +109,6 @@ describe('MarketFocus contextual defaults', function () {
   it('有贸易勘探报告时优先把市场 CTA 导向情报区', function () {
     state.fuel = 100;
     state.credits = 2000;
-    expect(Exploration.scanSystem(state, 'sol_prime').ok).toBe(true);
-    expect(Exploration.landOnSystem(state, 'sol_prime').ok).toBe(true);
 
     const resourcePoi = GalaxyData.getPlanetData('sol_prime').exploration.pois.find(function (poi) {
       return poi.kind === 'resource_cache';

@@ -121,6 +121,89 @@ describe('Onboarding and log surfaces', function () {
     expect(logsButton.getAttribute('aria-label')).toBe('通讯日志');
   });
 
+  it('通讯日志打开时会从历史恢复被清空的记录列表', async function () {
+    function createLogNode(tagName) {
+      var node = createFakeElement('');
+      node.tagName = String(tagName || 'div').toUpperCase();
+      node.appendChild = function (child) {
+        this.children.push(child);
+        child.parentElement = this;
+        return child;
+      };
+      node.replaceChildren = function () {
+        this.children = [];
+      };
+      return node;
+    }
+
+    var messageLog = createLogNode('div');
+    var logsBadge = createFakeElement('logs-nav-badge');
+    var logsButton = createFakeElement('logs-button', ['bottom-nav-btn']);
+    logsButton.dataset.view = 'logs';
+    var elements = {
+      'victory-modal': createFakeElement('victory-modal', ['hidden']),
+      'message-log': messageLog,
+      'logs-nav-badge': logsBadge,
+    };
+
+    globalThis.document = {
+      createElement: createLogNode,
+      getElementById: function (id) { return elements[id] || null; },
+      querySelector: function (selector) {
+        return selector === '.bottom-nav-btn[data-view="logs"]' ? logsButton : null;
+      },
+      querySelectorAll: function () { return []; },
+    };
+
+    var HUD = await import('../js/ui/HUD.js?v=20260717-loghistory1');
+    var EventBus = await import('../js/core/EventBus.js');
+    HUD.init();
+    HUD.addMessage('完成一笔交易', 'buy');
+    HUD.addMessage('抵达太阳主星', 'travel');
+
+    expect(messageLog.children).toHaveLength(2);
+    expect(messageLog.children[0].children[1].textContent).toBe('抵达太阳主星');
+    expect(messageLog.children[0].children[0].children[1].textContent).toBe('航行');
+
+    messageLog.replaceChildren();
+    expect(messageLog.children).toHaveLength(0);
+
+    EventBus.emit('logs:badge:clear');
+
+    expect(messageLog.children).toHaveLength(2);
+    expect(messageLog.children[0].children[1].textContent).toBe('抵达太阳主星');
+    expect(messageLog.children[1].children[1].textContent).toBe('完成一笔交易');
+  });
+
+  it('没有历史记录时显示可理解的空状态', async function () {
+    var messageLog = createFakeElement('message-log');
+    messageLog.appendChild = function (child) {
+      this.children.push(child);
+      return child;
+    };
+    messageLog.replaceChildren = function () {
+      this.children = [];
+    };
+
+    globalThis.document = {
+      createElement: function () { return createFakeElement(''); },
+      getElementById: function (id) {
+        if (id === 'message-log') return messageLog;
+        if (id === 'victory-modal') return createFakeElement('victory-modal', ['hidden']);
+        return null;
+      },
+      querySelector: function () { return null; },
+      querySelectorAll: function () { return []; },
+    };
+
+    var HUD = await import('../js/ui/HUD.js?v=20260717-logempty1');
+    HUD.init();
+
+    expect(messageLog.children).toHaveLength(1);
+    expect(messageLog.children[0].className).toContain('log-empty-state');
+    expect(messageLog.children[0].textContent).toContain('暂无通讯记录');
+  });
+
   it('公司命名会即时校验、支持回车并阻止重复提交', async function () {
     var modal = createFakeElement('company-rename-modal', ['modal', 'hidden']);
     var input = createFakeElement('company-name-input');

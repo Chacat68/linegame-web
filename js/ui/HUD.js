@@ -32,6 +32,19 @@ const DEFAULT_HUD_WIDGET_ID = 'galactic-map';
 const STARMAP_RAIL_PANEL_OPEN_EVENT = 'starmap-rail:panel-open';
 const STARMAP_RAIL_SOURCE_HUD = 'hud';
 const STARMAP_GALAXY_VIEW_TOGGLE_EVENT = 'starmap:galaxy-view-toggle';
+const MAX_LOG_HISTORY = 200;
+const LOG_TYPE_LABELS = {
+  info: '系统',
+  tip: '提示',
+  trade: '交易',
+  travel: '航行',
+  buy: '买入',
+  sell: '卖出',
+  upgrade: '升级',
+  danger: '警报',
+  error: '警报',
+};
+const EMPTY_LOG_MESSAGE = '暂无通讯记录。完成航行、交易或系统行动后，记录会显示在这里。';
 const getCompanyLevel = PlayerLevels.getCompanyLevel || function (exp) {
   return COMPANY_LEVELS[0];
 };
@@ -169,10 +182,12 @@ export function init() {
 
   EventBus.on('logs:badge:clear', function () {
     clearLogUnreadCount();
+    refreshLogView();
   });
 
   _bindHudWidgetControls();
   _updateLogsNavBadge();
+  refreshLogView();
 }
 
 export function setQuestActions(actions) {
@@ -272,7 +287,7 @@ function _bindHudDismissControls() {
 
     var target = event && event.target;
     if (!target || typeof target.closest !== 'function') return;
-    if (target.closest('[data-hud-widget], .starmap-control-rail, #orbit-scan-btn')) return;
+    if (target.closest('[data-hud-widget], .starmap-control-rail')) return;
 
     var mapContainer = document.getElementById('map-container');
     if (mapContainer && typeof mapContainer.contains === 'function' && mapContainer.contains(target)) {
@@ -596,23 +611,43 @@ export function updateArchiveBadges(state) {
 
 
 export function addMessage(text, type) {
-  // 1. 存入历史数组，限制最大 200 条，最新在顶部 (方案 A)
-  _logsHistory.unshift({ text: text, type: type || 'info', time: new Date() });
-  if (_logsHistory.length > 200) {
+  // 存入历史数组，最新记录始终在顶部。
+  var normalizedType = _normalizeLogType(type);
+  _logsHistory.unshift({ text: String(text == null ? '' : text), type: normalizedType, time: new Date() });
+  if (_logsHistory.length > MAX_LOG_HISTORY) {
     _logsHistory.pop();
   }
   _unreadLogCount = Math.min(999, _unreadLogCount + 1);
   _updateLogsNavBadge();
+  refreshLogView();
+}
 
-  // 2. 向下兼容旧版 message-log (如果有的话)
+/**
+ * 从内存历史恢复日志终端。页面结构被重绘后，打开日志仍能看到已接收的记录。
+ */
+export function refreshLogView() {
+  if (typeof document === 'undefined' || typeof document.getElementById !== 'function') return false;
   const log = document.getElementById('message-log');
-  if (log) {
-    const div = document.createElement('div');
-    div.className   = 'msg msg-' + (type || 'info');
-    div.textContent = text;
-    log.insertBefore(div, log.firstChild);
-    while (log.children.length > 10) log.removeChild(log.lastChild);
+  if (!log || typeof document.createElement !== 'function') return false;
+
+  if (typeof log.replaceChildren === 'function') {
+    log.replaceChildren();
+  } else {
+    log.innerHTML = '';
   }
+
+  if (_logsHistory.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'msg msg-info log-empty-state';
+    empty.textContent = EMPTY_LOG_MESSAGE;
+    log.appendChild(empty);
+    return true;
+  }
+
+  _logsHistory.forEach(function (entry) {
+    log.appendChild(_buildLogMessageElement(entry));
+  });
+  return true;
 }
 
 export function clearLogUnreadCount() {
@@ -635,6 +670,46 @@ function _updateLogsNavBadge() {
     logsButton.title = '通讯日志';
     logsButton.setAttribute('aria-label', '通讯日志');
   }
+}
+
+function _normalizeLogType(type) {
+  var normalized = typeof type === 'string' ? type.trim().toLowerCase() : 'info';
+  return Object.prototype.hasOwnProperty.call(LOG_TYPE_LABELS, normalized) ? normalized : 'info';
+}
+
+function _formatLogTime(value) {
+  var date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '--:--:--';
+  return [date.getHours(), date.getMinutes(), date.getSeconds()].map(function (part) {
+    return String(part).padStart(2, '0');
+  }).join(':');
+}
+
+function _buildLogMessageElement(entry) {
+  const div = document.createElement('div');
+  div.className = 'msg msg-' + entry.type;
+
+  const meta = document.createElement('span');
+  meta.className = 'log-message-meta';
+
+  const time = document.createElement('time');
+  time.className = 'log-message-time';
+  time.dateTime = entry.time instanceof Date ? entry.time.toISOString() : '';
+  time.textContent = _formatLogTime(entry.time);
+
+  const kind = document.createElement('span');
+  kind.className = 'log-message-kind';
+  kind.textContent = LOG_TYPE_LABELS[entry.type] || LOG_TYPE_LABELS.info;
+
+  const message = document.createElement('span');
+  message.className = 'log-message-text';
+  message.textContent = entry.text;
+
+  meta.appendChild(time);
+  meta.appendChild(kind);
+  div.appendChild(meta);
+  div.appendChild(message);
+  return div;
 }
 
 // ---------------------------------------------------------------------------
@@ -758,7 +833,6 @@ function _updateInterstellarHud(state, netWorth, sys, gal, faction, repRank, sta
 
   _renderHudGalacticMapSummary(state, sys, gal);
   _renderHudMarketOverview(state, sys);
-  _renderHudTargetAction();
   _renderHudNetworkStatus(state, statusSnapshot, netWorth);
 }
 
@@ -775,29 +849,20 @@ function _renderHudTargetSurvey(state, sys, targetSurveyEl, targetNextEl) {
     return;
   }
 
-  var scanText = (exploration.scanLevel || 0) > 1
-    ? '深度扫描'
-    : ((exploration.scanLevel || 0) > 0 ? '已扫描' : '未扫描');
   var poiText = summary.totalPois > 0
     ? (summary.resolvedCount + '/' + summary.totalPois + ' POI')
     : '无 POI';
 
   _setTextWithTitle(
     targetSurveyEl,
-    scanText + ' · ' + poiText + ' · 情报 Lv.' + (summary.intelLevel || 0)
+    poiText + ' · 情报 Lv.' + (summary.intelLevel || 0)
   );
 
-  var nextText = '待扫描';
-  if ((exploration.scanLevel || 0) <= 0) {
-    nextText = '待扫描 · 轨道数据未建档';
-  } else if (!exploration.landed) {
-    nextText = '待着陆 · 着陆窗口未建立';
-  } else if (summary.pendingCount > 0) {
+  var nextText = '暂无待办 · 可继续贸易';
+  if (summary.pendingCount > 0) {
     nextText = '待调查 · ' + summary.pendingCount + ' 个 POI';
   } else if (summary.completed) {
     nextText = '探索完成 · ' + summary.reportCount + ' 份报告';
-  } else {
-    nextText = '暂无待办 · 可继续贸易';
   }
 
   _setTextWithTitle(targetNextEl, nextText);
@@ -908,43 +973,6 @@ function _renderHudMarketOverview(state, sys) {
   if (openBtn && openBtn.dataset.bound !== 'true') {
     openBtn.addEventListener('click', function () {
       _openMarketWorkspace('spot');
-    });
-    openBtn.dataset.bound = 'true';
-  }
-}
-
-function _renderHudTargetAction() {
-  const openBtn = document.getElementById('hud-target-detail-open');
-  if (!openBtn) return;
-
-  const orbitScanBtn = document.getElementById('orbit-scan-btn');
-  const isPanelOpen = !!(orbitScanBtn && orbitScanBtn.getAttribute('aria-expanded') === 'true');
-  const hasTargetAction = !!(
-    orbitScanBtn &&
-    orbitScanBtn.hidden !== true &&
-    orbitScanBtn.getAttribute('aria-hidden') !== 'true' &&
-    !isPanelOpen
-  );
-  const isDisabled = !hasTargetAction || !!orbitScanBtn.disabled;
-  const buttonLabel = hasTargetAction
-    ? ((orbitScanBtn.textContent || '').trim() || '扫描终端')
-    : '扫描终端';
-  const buttonTitle = hasTargetAction
-    ? (orbitScanBtn.getAttribute('title') || '打开当前航点的扫描终端')
-    : '当前航点暂无可打开的扫描终端';
-
-  openBtn.hidden = !hasTargetAction;
-  openBtn.textContent = buttonLabel;
-  openBtn.disabled = isDisabled;
-  openBtn.setAttribute('title', buttonTitle);
-  openBtn.setAttribute('aria-disabled', isDisabled ? 'true' : 'false');
-
-  if (openBtn.dataset.bound !== 'true') {
-    openBtn.addEventListener('click', function () {
-      var scanBtn = document.getElementById('orbit-scan-btn');
-      if (!scanBtn || scanBtn.hidden || scanBtn.disabled) return;
-      scanBtn.click();
-      _renderHudTargetAction();
     });
     openBtn.dataset.bound = 'true';
   }

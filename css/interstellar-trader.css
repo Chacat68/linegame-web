@@ -490,7 +490,7 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #map-cont
   pointer-events: none;
 }
 
-.orbit-scan-menu-btn {
+.exploration-terminal-menu-btn {
   position: absolute;
   top: 322px;
   left: 18px;
@@ -504,13 +504,13 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #map-cont
   white-space: nowrap;
 }
 
-.orbit-scan-menu-btn::before {
+.exploration-terminal-menu-btn::before {
   content: none;
   display: none;
 }
 
-.orbit-scan-menu-btn::after {
-  content: attr(data-scan-badge);
+.exploration-terminal-menu-btn::after {
+  content: attr(data-terminal-badge);
   position: absolute;
   top: -5px;
   right: -5px;
@@ -530,19 +530,19 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #map-cont
   box-shadow: 0 0 14px rgba(255, 184, 107, 0.2);
 }
 
-.orbit-scan-menu-btn[data-scan-badge=""]::after,
-.orbit-scan-menu-btn:not([data-scan-badge])::after {
+.exploration-terminal-menu-btn[data-terminal-badge=""]::after,
+.exploration-terminal-menu-btn:not([data-terminal-badge])::after {
   display: none;
 }
 
-.orbit-scan-menu-btn.active {
+.exploration-terminal-menu-btn.active {
   color: var(--accent-cyan);
   border-color: var(--hud-border-strong);
   background: rgba(20, 70, 96, 0.74);
   box-shadow: var(--glow-strong);
 }
 
-.orbit-scan-menu-btn:disabled {
+.exploration-terminal-menu-btn:disabled {
   cursor: not-allowed;
   opacity: 0.5;
   transform: none;
@@ -566,7 +566,7 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #map-cont
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 8px 24px rgba(0, 0, 0, 0.28);
 }
 
-.starmap-rail-btn.orbit-scan-menu-btn {
+.starmap-rail-btn.exploration-terminal-menu-btn {
   font-size: 0;
 }
 
@@ -3298,7 +3298,7 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #map-cont
     display: none;
   }
 
-  .orbit-scan-menu-btn {
+  .exploration-terminal-menu-btn {
     top: 68px;
     left: 12px;
     width: 42px;
@@ -3507,7 +3507,7 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #map-cont
     flex: 1;
   }
 
-  .orbit-scan-menu-btn {
+  .exploration-terminal-menu-btn {
     top: 64px;
     left: 8px;
     max-width: none;
@@ -6505,37 +6505,6 @@ textarea:focus,
   color: #f4fcff;
 }
 
-.market-experience-route-host {
-  flex: 0 0 auto;
-  padding: 10px 14px 0;
-  background: rgba(2, 10, 18, 0.34);
-}
-
-.market-experience-route {
-  display: grid;
-  grid-template-columns: minmax(160px, 0.9fr) minmax(0, 2.6fr);
-  gap: 12px;
-  align-items: stretch;
-  min-width: 0;
-  padding: 10px;
-  border: 1px solid rgba(108, 231, 255, 0.14);
-  border-radius: 8px;
-  background:
-    linear-gradient(180deg, rgba(8, 24, 36, 0.72), rgba(3, 13, 22, 0.78)),
-    radial-gradient(circle at 0 0, rgba(108, 231, 255, 0.1), transparent 42%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
-}
-
-.market-experience-route-copy {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 3px;
-  min-width: 0;
-  padding: 0 4px;
-}
-
-.market-experience-route-kicker,
 .market-workspace-tab-stage {
   color: rgba(108, 231, 255, 0.72);
   font-size: 10px;
@@ -6543,105 +6512,11 @@ textarea:focus,
   letter-spacing: 0;
 }
 
-.market-experience-route-title {
-  color: rgba(243, 250, 255, 0.96);
-  font-size: 15px;
-  font-weight: 900;
-  line-height: 1.15;
-}
-
-.market-experience-route-note {
-  color: rgba(190, 218, 232, 0.74);
-  font-size: 11px;
-  line-height: 1.35;
-  overflow-wrap: anywhere;
-}
-
-.market-experience-route-steps {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 8px;
-  min-width: 0;
-}
-
-.market-experience-step {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 8px;
-  align-items: center;
-  min-width: 0;
-  min-height: 56px;
-  padding: 8px;
-  border: 1px solid rgba(108, 231, 255, 0.13);
-  border-radius: 8px;
-  background:
-    linear-gradient(180deg, rgba(17, 50, 70, 0.46), rgba(3, 14, 23, 0.7)),
-    radial-gradient(circle at 50% 0, rgba(108, 231, 255, 0.09), transparent 62%);
-  color: rgba(225, 244, 255, 0.82);
-  text-align: left;
-  cursor: pointer;
-  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease, opacity 0.16s ease;
-}
-
-.market-experience-step:hover:not(:disabled) {
-  transform: translateY(-1px);
-  border-color: rgba(108, 231, 255, 0.34);
-  background:
-    linear-gradient(180deg, rgba(24, 70, 92, 0.64), rgba(3, 14, 23, 0.8)),
-    radial-gradient(circle at 50% 0, rgba(108, 231, 255, 0.15), transparent 62%);
-}
-
-.market-experience-step.active {
-  border-color: rgba(108, 231, 255, 0.42);
-  background:
-    linear-gradient(180deg, rgba(24, 87, 108, 0.7), rgba(4, 20, 32, 0.84)),
-    radial-gradient(circle at 50% 0, rgba(108, 231, 255, 0.2), transparent 62%);
-  color: #fff;
-  box-shadow: inset 3px 0 0 rgba(108, 231, 255, 0.8), 0 0 18px rgba(108, 231, 255, 0.1);
-}
-
-.market-experience-step.is-locked,
 .market-workspace-tab.is-locked,
 .market-subworkspace-tab.is-locked {
   opacity: 0.55;
   cursor: not-allowed;
   filter: saturate(0.65);
-}
-
-.market-experience-step-index {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border: 1px solid rgba(108, 231, 255, 0.18);
-  border-radius: 8px;
-  background: rgba(2, 10, 18, 0.58);
-  color: rgba(134, 232, 255, 0.84);
-  font-size: 10px;
-  font-weight: 900;
-}
-
-.market-experience-step-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.market-experience-step-label {
-  color: inherit;
-  font-size: 12px;
-  font-weight: 900;
-  line-height: 1.15;
-  overflow-wrap: anywhere;
-}
-
-.market-experience-step-note {
-  color: rgba(190, 218, 232, 0.72);
-  font-size: 10px;
-  line-height: 1.3;
-  overflow-wrap: anywhere;
 }
 
 .market-workspace-tab {
@@ -6781,8 +6656,7 @@ textarea:focus,
   overflow-wrap: anywhere;
 }
 
-.market-locked-pane-path,
-.market-experience-step-path {
+.market-locked-pane-path {
   display: block;
   margin-top: 4px;
   color: rgba(203, 213, 225, 0.76);
@@ -6790,35 +6664,7 @@ textarea:focus,
   line-height: 1.45;
 }
 
-@media (max-width: 1180px) {
-  .market-experience-route {
-    grid-template-columns: 1fr;
-  }
-
-  .market-experience-route-steps {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
 @media (max-width: 760px) {
-  .market-experience-route-host {
-    padding: 8px 10px 0;
-  }
-
-  .market-experience-route-steps {
-    display: flex;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-
-  .market-experience-route-steps::-webkit-scrollbar {
-    display: none;
-  }
-
-  .market-experience-step {
-    flex: 0 0 min(220px, 72vw);
-  }
-
   .market-locked-pane {
     align-items: flex-start;
     padding: 16px;
@@ -6864,7 +6710,7 @@ textarea:focus,
     height: 42px;
   }
 
-  .orbit-scan-menu-btn {
+  .exploration-terminal-menu-btn {
     top: 358px;
     left: 12px;
     width: 42px;
@@ -6907,18 +6753,18 @@ textarea:focus,
     height: 21px;
   }
 
-  .orbit-scan-menu-btn {
+  .exploration-terminal-menu-btn {
     top: 312px;
     left: 8px;
     width: 36px;
     height: 36px;
   }
 
-  .orbit-scan-menu-btn::before {
+  .exploration-terminal-menu-btn::before {
     font-size: 15px;
   }
 
-  .orbit-scan-menu-btn::after {
+  .exploration-terminal-menu-btn::after {
     top: -4px;
     right: -4px;
   }
@@ -6931,23 +6777,23 @@ textarea:focus,
   }
 }
 
-/* Orbit scan adopts the same HUD rail and widget interaction language. */
-.orbit-scan-menu-btn {
+/* Waypoint exploration terminal adopts the same HUD rail and widget interaction language. */
+.exploration-terminal-menu-btn {
   border-color: var(--hud-border);
   background: rgba(4, 18, 30, 0.62);
   color: rgba(215, 242, 255, 0.76);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 8px 24px rgba(0, 0, 0, 0.28);
 }
 
-.orbit-scan-menu-btn:hover {
+.exploration-terminal-menu-btn:hover {
   color: rgba(235, 248, 255, 0.92);
   border-color: rgba(108, 231, 255, 0.3);
   background: rgba(12, 38, 56, 0.72);
   transform: translateY(-1px);
 }
 
-.orbit-scan-menu-btn.active,
-.orbit-scan-menu-btn.is-active {
+.exploration-terminal-menu-btn.active,
+.exploration-terminal-menu-btn.is-active {
   color: var(--accent-cyan);
   border-color: var(--hud-border-strong);
   background: rgba(23, 75, 98, 0.62);
@@ -6955,7 +6801,7 @@ textarea:focus,
   box-shadow: var(--glow-soft);
 }
 
-.orbit-scan-menu-btn::after {
+.exploration-terminal-menu-btn::after {
   top: -4px;
   right: -4px;
   border-color: rgba(108, 231, 255, 0.34);
@@ -7139,7 +6985,7 @@ textarea:focus,
 
 .current-system-signal-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   min-width: 0;
 }
@@ -7213,8 +7059,7 @@ textarea:focus,
 }
 
 .current-system-signal-focus[data-tone="sync"],
-.current-system-signal-focus[data-tone="scan"],
-.current-system-signal-focus[data-tone="land"],
+.current-system-signal-focus[data-tone="pending"],
 .current-system-signal-focus[data-tone="poi"] {
   border-color: rgba(245, 158, 11, 0.24);
   background:
@@ -7276,7 +7121,7 @@ textarea:focus,
 
 .current-system-card-body .planet-detail-progress-row {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
 }
 
@@ -7289,139 +7134,6 @@ textarea:focus,
   overflow-wrap: anywhere;
 }
 
-.current-system-scan-dashboard {
-  display: grid;
-  grid-template-columns: minmax(0, 1.18fr) minmax(220px, 0.82fr);
-  gap: 14px;
-  align-items: stretch;
-}
-
-.current-system-scan-primary,
-.current-system-scan-side,
-.current-system-scan-log {
-  min-width: 0;
-  border: 1px solid rgba(108, 231, 255, 0.12);
-  border-radius: 8px;
-  background:
-    linear-gradient(180deg, rgba(8, 28, 40, 0.54), rgba(2, 10, 18, 0.48)),
-    radial-gradient(circle at 0 0, rgba(108, 231, 255, 0.08), transparent 56%);
-}
-
-.current-system-scan-primary {
-  padding: 14px;
-}
-
-.current-system-scan-side {
-  display: grid;
-  align-content: start;
-  gap: 12px;
-  padding: 12px;
-}
-
-.current-system-scan-log {
-  grid-column: 1 / -1;
-  padding: 12px;
-}
-
-.current-system-scan-log-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 9px;
-  color: rgba(234, 248, 255, 0.86);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0;
-}
-
-.current-system-scan-log-head strong {
-  color: rgba(108, 231, 255, 0.88);
-  font-size: 11px;
-}
-
-.current-system-scan-reveal-list {
-  gap: 8px;
-}
-
-.current-system-scan-metric-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
-}
-
-.current-system-scan-metric {
-  display: grid;
-  gap: 4px;
-  min-height: 62px;
-  padding: 9px 10px;
-  border: 1px solid rgba(108, 231, 255, 0.14);
-  border-radius: 8px;
-  background: rgba(2, 10, 18, 0.5);
-}
-
-.current-system-scan-metric-label {
-  color: rgba(158, 202, 218, 0.76);
-  font-size: 10px;
-  font-weight: 800;
-  line-height: 1;
-}
-
-.current-system-scan-metric-value {
-  color: rgba(239, 250, 255, 0.94);
-  font-size: 14px;
-  line-height: 1.15;
-  overflow-wrap: anywhere;
-}
-
-.current-system-scan-metric-note {
-  color: rgba(190, 213, 224, 0.66);
-  font-size: 10px;
-  line-height: 1.2;
-}
-
-.current-system-scan-metric--gain {
-  border-color: rgba(87, 227, 157, 0.24);
-}
-
-.current-system-scan-metric--gain .current-system-scan-metric-value {
-  color: rgba(204, 255, 225, 0.92);
-}
-
-.current-system-scan-metric--priority,
-.current-system-scan-metric--discount {
-  border-color: rgba(255, 184, 107, 0.24);
-}
-
-.current-system-scan-metric--priority .current-system-scan-metric-value,
-.current-system-scan-metric--discount .current-system-scan-metric-value {
-  color: rgba(255, 225, 182, 0.94);
-}
-
-.current-system-scan-progress .planet-detail-progress-row {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.current-system-scan-reveal-line,
-.current-system-scan-reveal-status {
-  border-radius: 8px;
-  font-size: 13px;
-  line-height: 1.55;
-}
-
-.current-system-scan-reveal-status {
-  padding: 9px 10px;
-  border-style: solid;
-}
-
-.current-system-scan-reveal-actions {
-  margin-top: 8px;
-}
-
-.current-system-scan-reveal-action {
-  min-height: 46px;
-}
-
 @media (max-width: 900px) {
   .current-system-exploration-card {
     top: 68px;
@@ -7431,16 +7143,8 @@ textarea:focus,
     max-height: min(520px, max(260px, calc(100dvh - 154px)));
   }
 
-  .current-system-scan-dashboard {
-    grid-template-columns: 1fr;
-  }
-
   .current-system-signal-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .current-system-scan-log {
-    grid-column: auto;
   }
 }
 
@@ -7499,12 +7203,12 @@ textarea:focus,
   --starmap-rail-size: 42px;
   --starmap-rail-gap: 8px;
   --starmap-rail-widget-gap: 14px;
-  --starmap-rail-scan-offset: 300px;
+  --starmap-rail-exploration-offset: 300px;
   --starmap-rail-widget-left: calc(var(--starmap-rail-edge-x) + var(--starmap-rail-size) + var(--starmap-rail-widget-gap));
   --starmap-rail-panel-width: calc(100vw - var(--starmap-rail-widget-left) - var(--starmap-rail-edge-x));
   --starmap-rail-map-bottom-clearance: 12px;
   --starmap-rail-bottom-clearance: 18px;
-  --starmap-rail-scan-top: calc(var(--starmap-rail-edge-y) + var(--starmap-rail-scan-offset));
+  --starmap-rail-exploration-top: calc(var(--starmap-rail-edge-y) + var(--starmap-rail-exploration-offset));
 }
 
 .starmap-control-rail {
@@ -7516,7 +7220,7 @@ textarea:focus,
 }
 
 .starmap-control-rail .starmap-rail-btn,
-.orbit-scan-menu-btn {
+.exploration-terminal-menu-btn {
   flex: 0 0 var(--starmap-rail-size);
   width: var(--starmap-rail-size);
   min-width: var(--starmap-rail-size);
@@ -7527,12 +7231,12 @@ textarea:focus,
   font-size: 16px;
 }
 
-.orbit-scan-menu-btn {
-  top: var(--starmap-rail-scan-top);
+.exploration-terminal-menu-btn {
+  top: var(--starmap-rail-exploration-top);
   left: var(--starmap-rail-edge-x);
 }
 
-.orbit-scan-menu-btn::before {
+.exploration-terminal-menu-btn::before {
   font-size: 17px;
 }
 
@@ -7558,7 +7262,7 @@ textarea:focus,
     --starmap-rail-edge-y: clamp(48px, 7.4dvh, 68px);
     --starmap-rail-gap: 6px;
     --starmap-rail-widget-gap: 8px;
-    --starmap-rail-scan-offset: 288px;
+    --starmap-rail-exploration-offset: 288px;
     --starmap-rail-bottom-clearance: calc(var(--bottom-nav-offset) + var(--bottom-nav-height) + 18px);
   }
 }
@@ -7570,7 +7274,7 @@ textarea:focus,
     --starmap-rail-size: 42px;
     --starmap-rail-gap: 6px;
     --starmap-rail-widget-gap: 8px;
-    --starmap-rail-scan-offset: 288px;
+    --starmap-rail-exploration-offset: 288px;
   }
 
   .current-system-card-body .planet-detail-progress-row {
@@ -7715,8 +7419,7 @@ a[class*="btn"] svg,
   display: none;
 }
 
-.action-guide-shell,
-.action-guide-mini {
+.action-guide-shell {
   position: relative;
   width: 100%;
   overflow: hidden;
@@ -7798,8 +7501,7 @@ a[class*="btn"] svg,
   gap: 2px;
 }
 
-.action-guide-kicker,
-.action-guide-mini-kicker {
+.action-guide-kicker {
   min-width: 0;
   max-width: 100%;
   overflow: hidden;
@@ -7891,69 +7593,6 @@ a[class*="btn"] svg,
   line-height: 1.15;
 }
 
-.action-guide-toggle {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 32px;
-  min-width: 32px;
-  height: 32px;
-  border: 1px solid var(--ui-line);
-  border-radius: var(--ui-radius-control);
-  background:
-    linear-gradient(180deg, rgba(17, 50, 70, 0.58), rgba(3, 14, 23, 0.84));
-  color: rgba(222, 244, 255, 0.86);
-  line-height: 1;
-}
-
-.action-guide-toggle:hover {
-  border-color: var(--ui-line-strong);
-  color: #fff;
-  background:
-    linear-gradient(180deg, rgba(34, 94, 124, 0.66), rgba(5, 22, 34, 0.9));
-}
-
-.action-guide-mini {
-  appearance: none;
-  -webkit-appearance: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: auto;
-  min-height: 32px;
-  padding: 6px 12px 6px 16px;
-  color: rgba(232, 248, 255, 0.9);
-  text-align: center;
-}
-
-.action-guide-mini::before {
-  content: "";
-  position: absolute;
-  top: 7px;
-  bottom: 7px;
-  left: 7px;
-  width: 3px;
-  border-radius: 999px;
-  background: linear-gradient(180deg, #8ef3ff, #32d4ff 46%, rgba(108, 231, 255, 0.22));
-  box-shadow: 0 0 10px rgba(108, 231, 255, 0.44);
-}
-
-.action-guide-mini-title {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  word-break: break-word;
-}
-
-.action-guide-mini:hover {
-  border-color: var(--ui-line-strong);
-  color: #fff;
-  background:
-    linear-gradient(180deg, rgba(14, 44, 60, 0.7), rgba(3, 15, 24, 0.9)),
-    radial-gradient(circle at 50% 0, rgba(108, 231, 255, 0.12), transparent 62%);
-}
-
 .action-guide.is-processing .action-guide-status {
   animation: action-guide-pulse 0.7s ease-in-out infinite alternate;
 }
@@ -7993,7 +7632,7 @@ a[class*="btn"] svg,
   font-weight: 800;
 }
 
-.orbit-scan-menu-btn::before {
+.exploration-terminal-menu-btn::before {
   font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Rajdhani", sans-serif;
   line-height: 1;
 }
@@ -8151,8 +7790,7 @@ a[class*="btn"] svg,
   .action-guide-actions {
     grid-area: actions;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 34px;
-    gap: 8px;
+    grid-template-columns: minmax(0, 1fr);
     width: 100%;
   }
 
@@ -8163,21 +7801,6 @@ a[class*="btn"] svg,
     padding-inline: 10px;
   }
 
-  .action-guide-toggle {
-    width: 34px;
-    min-width: 34px;
-    height: 34px;
-  }
-
-  .action-guide-mini {
-    justify-content: flex-start;
-    min-height: 34px;
-    padding: 7px 12px 7px 16px;
-  }
-
-  .action-guide-mini-title {
-    text-align: left;
-  }
 }
 
 /* ==========================================================================
@@ -9191,7 +8814,6 @@ body,
   .planet-detail-status-grid,
   .planet-detail-survey-grid,
   .planet-detail-chain-grid,
-  .current-system-scan-metric-grid,
   .save-slot-grid {
     grid-template-columns: 1fr !important;
   }
@@ -9741,8 +9363,8 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) .galaxy-s
     white-space: nowrap;
   }
 
-  .orbit-scan-menu-btn {
-    top: min(var(--starmap-rail-scan-top), calc(100dvh - var(--starmap-command-clearance) - var(--starmap-rail-size)));
+  .exploration-terminal-menu-btn {
+    top: min(var(--starmap-rail-exploration-top), calc(100dvh - var(--starmap-command-clearance) - var(--starmap-rail-size)));
   }
 
   [data-hud-widget],
@@ -9782,11 +9404,11 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) .galaxy-s
     --starmap-rail-size: 38px;
     --starmap-rail-frame-pad: 3px;
     --starmap-rail-widget-gap: 6px;
-    --starmap-rail-scan-offset: 270px;
+    --starmap-rail-exploration-offset: 270px;
   }
 
   .starmap-control-rail .starmap-rail-btn,
-  .orbit-scan-menu-btn {
+  .exploration-terminal-menu-btn {
     font-size: 13px;
   }
 
@@ -10001,9 +9623,7 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) .galaxy-s
   border-radius: 12px;
 }
 
-.bottom-nav-btn:focus-visible,
-.action-guide-toggle:focus-visible,
-.action-guide-mini:focus-visible {
+.bottom-nav-btn:focus-visible {
   outline: 2px solid rgba(108, 231, 255, 0.58);
   outline-offset: 2px;
 }
@@ -10062,10 +9682,6 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) .bottom-n
   transform: translateX(-50%) translateY(0) scale(1);
 }
 
-.action-guide.is-collapsed {
-  width: min(380px, calc(100vw - 24px));
-}
-
 .action-guide-shell {
   grid-template-columns: 4px minmax(0, 1fr) auto;
   min-height: 54px;
@@ -10081,15 +9697,6 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) .bottom-n
   min-width: 112px;
   min-height: 38px;
   border-radius: 11px;
-}
-
-.action-guide-toggle {
-  border-radius: 11px;
-}
-
-.action-guide-mini {
-  min-height: 38px;
-  border-radius: 999px;
 }
 
 @media (max-width: 700px) {
@@ -12865,10 +12472,6 @@ body[data-motion="reduced"] .dispatch-advanced-panel > summary::after {
 
 .floating-command-stack > .action-guide {
   width: min(600px, 100%);
-}
-
-.floating-command-stack > .action-guide.is-collapsed {
-  width: min(380px, 100%);
 }
 
 .floating-command-stack > .event-notification {
