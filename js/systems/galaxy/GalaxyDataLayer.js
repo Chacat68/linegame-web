@@ -396,12 +396,6 @@ function _createExplorationState(system) {
   const profile = _createExplorationProfile(system);
   const pois = _createExplorationPois(system, secretRoute);
   return {
-    scanLevel: 0,
-    scanCount: 0,
-    lastScannedDay: 0,
-    landed: false,
-    landingCount: 0,
-    lastLandedDay: 0,
     intelLevel: 0,
     threatLevel: profile.threatLevel,
     threatLabel: profile.threatLabel,
@@ -469,7 +463,7 @@ function _createExplorationPois(system, secretRoute) {
     icon: theme.routeIcon || '🛰️',
     name: theme.routeName,
     description: theme.routeName + '发出失真回波，似乎指向「' + secretRoute.targetSystemName + '」附近的暗线跳点。',
-    discovered: false,
+    discovered: true,
     resolved: false,
     chain: _createPoiChain(system, 'lost_beacon'),
     secretRouteId: secretRoute.id,
@@ -480,7 +474,7 @@ function _createExplorationPois(system, secretRoute) {
     icon: theme.archiveIcon || '📚',
     name: theme.archiveName,
     description: theme.archiveName + '保存着当地文明的航路残片，仍可提取有价值的商网情报。',
-    discovered: false,
+    discovered: true,
     resolved: false,
     chain: _createPoiChain(system, 'derelict_depot'),
     rewards: { credits: 90, fuel: 0, reputation: 1 },
@@ -498,7 +492,7 @@ function _createPoiChain(system, chainKind) {
       label: '废弃补给站',
       badge: '补给链',
       signal: 'logistics',
-      stageLabels: ['扫描残骸', '复原库存', '归档补给信号'],
+      stageLabels: ['定位残骸', '复原库存', '归档补给信号'],
     },
     ancient_relic: {
       label: '古代遗迹',
@@ -566,10 +560,11 @@ function _getExplorationChainProgress(poi) {
 
 function _getExplorationChainStageLabel(chain, stageIndex) {
   const stageLabels = chain && Array.isArray(chain.stageLabels) ? chain.stageLabels : [];
+  if (stageIndex === 0) return '待调查';
   if (stageLabels[stageIndex]) return stageLabels[stageIndex];
   if (stageIndex === 2) return '已归档';
   if (stageIndex === 1) return '待调查';
-  return '待扫描';
+  return '待调查';
 }
 
 function _getExplorationChainFollowupLabel(chainKind) {
@@ -599,7 +594,7 @@ function _createResourcePoi(system) {
     icon: template.icon,
     name: template.name,
     description: template.description,
-    discovered: false,
+    discovered: true,
     resolved: false,
     chain: _createPoiChain(system, 'derelict_depot'),
     rewards: template.rewards,
@@ -614,7 +609,7 @@ function _createAnomalyPoi(system) {
     icon: theme.anomalyIcon,
     name: theme.anomalyName,
     description: theme.anomalyDescription + '样本价值可观，但存在舰体受损风险。',
-    discovered: false,
+    discovered: true,
     resolved: false,
     chain: _createPoiChain(system, 'ancient_relic'),
     rewards: {
@@ -652,6 +647,22 @@ function _createSecretRoute(system) {
 
 function _mergeExplorationState(defaultState, savedState) {
   const next = Object.assign({}, _clonePlainObject(defaultState), savedState || {});
+  [
+    'scanLevel',
+    'scanCount',
+    'lastScannedDay',
+    'scanSignalGrade',
+    'scanLandingFeeDiscount',
+    'scanYield',
+    'scanRecommendation',
+    'scanPriorityPoiId',
+    'scanPriorityPoiName',
+    'landed',
+    'landingCount',
+    'lastLandedDay',
+  ].forEach(function (field) {
+    delete next[field];
+  });
 
   const savedPoiById = Object.create(null);
   (savedState && Array.isArray(savedState.pois) ? savedState.pois : []).forEach(function (poi) {
@@ -666,6 +677,8 @@ function _mergeExplorationState(defaultState, savedState) {
     merged.description = poi.description;
     merged.chain = _clonePlainObject(poi.chain);
     merged.rewards = _clonePlainObject(poi.rewards);
+    merged.discovered = true;
+    if (!merged.discoveredDay) merged.discoveredDay = 0;
     if (poi.secretRouteId) merged.secretRouteId = poi.secretRouteId;
     return merged;
   });
@@ -679,8 +692,13 @@ function _mergeExplorationState(defaultState, savedState) {
   });
 
   next.reports = Array.isArray(savedState && savedState.reports)
-    ? savedState.reports.map(function (report) { return _clonePlainObject(report); })
+    ? savedState.reports.filter(function (report) {
+        return report && report.kind !== 'scan' && !String(report.id || '').endsWith('_report_scan');
+      }).map(function (report) { return _clonePlainObject(report); })
     : _clonePlainObject(defaultState.reports || []);
+  next.intelLevel = next.reports.reduce(function (total, report) {
+    return total + Math.max(0, Number(report && report.intelValue) || 1);
+  }, 0);
   next.chainStates = _mergeExplorationChainStates(defaultState.chainStates, savedState && savedState.chainStates, next.pois, next.reports);
 
   return next;

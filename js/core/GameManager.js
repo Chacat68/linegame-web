@@ -107,7 +107,7 @@ let _achievementCheckQueued = false;
 const _fleetStylesUrl = new URL('../../css/fleet.css', import.meta.url).href;
 const _hangarTerminalStylesUrl = new URL('../../css/hangar-terminal.css', import.meta.url).href;
 const _archiveTerminalStylesUrl = new URL('../../css/archive-terminal.css', import.meta.url).href;
-const _marketTerminalStylesUrl = new URL('../../css/market-terminal.css?v=20260716-density2', import.meta.url).href;
+const _marketTerminalStylesUrl = new URL('../../css/market-terminal.css?v=20260717-marketchart1', import.meta.url).href;
 const _deferredStylePromises = Object.create(null);
 
 function _setDeferredUiState(surface, state) {
@@ -935,11 +935,7 @@ export function init(difficulty) {
     }
   });
   MapUI.setExplorationActions({
-    onScan: _handleScanSystem,
-    onLand: _handleLandOnSystem,
     onExplorePoi: _handleExplorePoi,
-    getScanStatus: _getScanStatus,
-    getLandingStatus: _getLandingStatus,
     getPoiStatus: _getPoiStatus,
   });
   MapUI.initTabs(function (tabId) {
@@ -1015,11 +1011,17 @@ export function init(difficulty) {
   _resetRealtimeClock(performance.now());
   _startGameLoop();
 
+  const sceneReadyPromise = Renderer3D.whenSceneReady
+    ? Renderer3D.whenSceneReady()
+    : Promise.resolve({ renderer: Renderer3D.getActiveRendererName ? Renderer3D.getActiveRendererName() : 'unknown' });
+
   if (!Tutorial.isCompleted()) {
     _showTutorialStartModal();
   } else {
     _showWelcomeMessages();
   }
+
+  return sceneReadyPromise;
 }
 
 export function _setStateForTest(state) {
@@ -1332,17 +1334,10 @@ function _recordQuestProgress(context) {
 function _getNextGuidancePoi(systemId) {
   var planetData = systemId ? GalaxyData.getPlanetData(systemId) : null;
   var exploration = planetData && planetData.exploration;
-  if (!exploration || !exploration.landed || !Array.isArray(exploration.pois)) return null;
+  if (!exploration || !Array.isArray(exploration.pois)) return null;
 
-  var priorityPoiId = exploration.scanPriorityPoiId || '';
   return exploration.pois.filter(function (poi) {
-    return poi && poi.discovered && !poi.resolved;
-  }).sort(function (left, right) {
-    if (priorityPoiId) {
-      if (left.id === priorityPoiId && right.id !== priorityPoiId) return -1;
-      if (right.id === priorityPoiId && left.id !== priorityPoiId) return 1;
-    }
-    return 0;
+    return poi && !poi.resolved;
   }).map(function (poi) {
     return {
       id: poi.id,
@@ -1406,8 +1401,6 @@ function _getActionGuideMarketFocus() {
 
 function _refreshActionGuide() {
   if (!_state) return;
-  var scanStatus = null;
-  var landingStatus = null;
   var nextPoi = null;
   var nextPoiStatus = null;
   var tutorialActive = Tutorial.isActive();
@@ -1421,8 +1414,6 @@ function _refreshActionGuide() {
   var recentModInstallContext = _recentModInstallContext;
   var surveyIntel = null;
   if (_state.currentSystem) {
-    scanStatus = _getScanStatus(_state.currentSystem);
-    landingStatus = _getLandingStatus(_state.currentSystem);
     nextPoi = _getNextGuidancePoi(_state.currentSystem);
     if (nextPoi) {
       nextPoiStatus = _getPoiStatus(_state.currentSystem, nextPoi.poiId);
@@ -1450,8 +1441,6 @@ function _refreshActionGuide() {
   ActionGuideUI.render(Guidance.getCurrentSuggestion(_state, {
     marketOpen: MapUI.isMarketOpen(),
     marketFocus: _getActionGuideMarketFocus(),
-    scanStatus: scanStatus,
-    landingStatus: landingStatus,
     nextPoi: nextPoi,
     nextPoiStatus: nextPoiStatus,
     researchSupplyRoute: researchSupplyRoute,
@@ -1593,25 +1582,8 @@ function _handleActionGuideAction(suggestion) {
       travel: _handleTravel,
       focusStarmap: MapUI.focusStarmap,
       focusNavigationTarget: MapUI.focusNavigationTarget,
-      scanSystem: _handleScanSystem,
-      landOnSystem: _handleLandOnSystem,
       explorePoi: _handleExplorePoi,
     });
-  });
-}
-
-function _getScanStatus(systemId) {
-  var shipStats = Fleet.getEffectiveShipStats(_state, Fleet.getActiveShip(_state));
-  return Exploration.getScanStatus(_state, systemId, {
-    scanFuelDiscount: shipStats.scanFuelDiscount,
-    forceDeepScan: shipStats.forceDeepScan,
-  });
-}
-
-function _getLandingStatus(systemId) {
-  var shipStats = Fleet.getEffectiveShipStats(_state, Fleet.getActiveShip(_state));
-  return Exploration.getLandingStatus(_state, systemId, {
-    landingFeeDiscount: shipStats.landingFeeDiscount,
   });
 }
 
@@ -1620,40 +1592,6 @@ function _getPoiStatus(systemId, poiId) {
   return Exploration.getPoiStatus(_state, systemId, poiId, {
     poiRewardMultiplier: shipStats.poiRewardMultiplier,
   });
-}
-
-function _handleScanSystem(systemId, options) {
-  var opts = options || {};
-  Fleet.syncStateFromShip(_state);
-  var shipStats = Fleet.getEffectiveShipStats(_state, Fleet.getActiveShip(_state));
-  const result = Exploration.scanSystem(_state, systemId, {
-    scanFuelDiscount: shipStats.scanFuelDiscount,
-    forceDeepScan: shipStats.forceDeepScan,
-  });
-  if (result && result.ok) {
-    Fleet.commitActiveShipState(_state);
-    _state.galaxyStates = GalaxyData.getAllPlanetStates();
-    _recordQuestProgress({ action: 'scan_system', systemId: systemId });
-  }
-  _dispatch(result);
-  if (!opts.suppressReveal && result && result.ok && systemId === _state.currentSystem && MapUI.showCurrentSystemScanReveal) {
-    MapUI.showCurrentSystemScanReveal(_state, systemId, result);
-  }
-  return result;
-}
-
-function _handleLandOnSystem(systemId) {
-  Fleet.syncStateFromShip(_state);
-  var shipStats = Fleet.getEffectiveShipStats(_state, Fleet.getActiveShip(_state));
-  const result = Exploration.landOnSystem(_state, systemId, {
-    landingFeeDiscount: shipStats.landingFeeDiscount,
-  });
-  if (result && result.ok) {
-    Fleet.commitActiveShipState(_state);
-    _state.galaxyStates = GalaxyData.getAllPlanetStates();
-    _recordQuestProgress({ action: 'explore_poi', systemId: systemId, poiId: poiId });
-  }
-  _dispatch(result);
 }
 
 function _handleExplorePoi(systemId, poiId) {
@@ -1756,9 +1694,6 @@ function _handleTravel(systemId) {
     }
     if (_state.visitedGalaxies.indexOf(_state.currentGalaxy) === -1) {
       _state.visitedGalaxies.push(_state.currentGalaxy);
-    }
-    if (!Tutorial.isActive()) {
-      MapUI.triggerArrivalScanPanel(_state);
     }
     // 新手引导：旅行触发
     Tutorial.checkTrigger('travel');

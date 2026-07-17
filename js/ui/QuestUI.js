@@ -210,8 +210,6 @@ function _objectivePlanText(obj) {
       return base + ' · ' + amount + ' 天';
     case 'research_count':
       return base + ' · ' + amount + ' 项';
-    case 'scan_systems':
-      return base + ' · ' + amount + ' 颗星球';
     case 'explore_pois':
       return base + ' · ' + amount + ' 个探索点';
     case 'fleet_size':
@@ -1081,8 +1079,6 @@ function _objectiveText(obj) {
       return '跨星系跃迁';
     case 'research_count':
       return '完成科技研究';
-    case 'scan_systems':
-      return '扫描不同星球';
     case 'explore_pois':
       return '完成探索点调查';
     case 'fleet_size':

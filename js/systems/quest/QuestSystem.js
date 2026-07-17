@@ -229,6 +229,12 @@ const STORY_ROUTE_QUEST_EFFECTS = {
 export function init(state) {
   if (!state.quests)          state.quests          = [];
   if (!state.completedQuests) state.completedQuests = [];
+  state.quests.forEach(function (quest) {
+    if (!quest || !Array.isArray(quest.objectives)) return;
+    quest.objectives = quest.objectives.filter(function (objective) {
+      return objective && objective.type !== 'scan_systems' && objective.type !== 'land_systems';
+    });
+  });
   if (!state.questPhase) {
     state.questPhase = _inferCurrentQuestPhase(state);
   } else {
@@ -1450,12 +1456,6 @@ function _updateObjective(obj, ctx, state) {
 
     case 'research_count':
       obj.current = Math.min(obj.amount, (state.researchedTechs || []).length);
-      break;
-
-    case 'scan_systems':
-      obj.current = Math.min(obj.amount, Object.values(state.galaxyStates || {}).filter(function (planetState) {
-        return planetState && planetState.exploration && (planetState.exploration.scanLevel || 0) > 0;
-      }).length);
       break;
 
     case 'explore_pois':

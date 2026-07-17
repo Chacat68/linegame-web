@@ -412,9 +412,9 @@ export const SHIP_MODS = [
     emoji: "📡",
     cost: 2800,
     category: "engine",
-    desc: "扫描燃料 -20%，勘探收益 +12%",
+    desc: "勘探收益 +12%",
     upkeep: 8,
-    effect: { scanFuelDiscount: 0.2, poiRewardMultiplier: 1.12 },
+    effect: { poiRewardMultiplier: 1.12 },
   },
   // --- 高级改装（带前置条件） ---
   {

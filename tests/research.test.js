@@ -327,8 +327,6 @@ describe('Research supply survey intel', function () {
     expect(baselineRecommendation.surveyIntelScore).toBe(0);
     expect(baselineRecommendation.surveyIntelSummary).toBe('');
 
-    expect(Exploration.scanSystem(state, 'medical_hub').ok).toBe(true);
-    expect(Exploration.landOnSystem(state, 'medical_hub').ok).toBe(true);
 
     const anomalyPoi = GalaxyData.getPlanetData('medical_hub').exploration.pois.find(function (poi) {
       return poi.kind === 'anomaly_site';

@@ -29,7 +29,7 @@ function _inferSurface(action) {
   if (action.actionId === 'quest-focus') return 'quest';
   if (action.actionId === 'research') return 'research';
   if (action.actionId === 'dispatch' || action.type === 'dispatch') return 'fleet';
-  if (action.type === 'scan' || action.type === 'land' || action.type === 'poi') return 'exploration';
+  if (action.type === 'land' || action.type === 'poi') return 'exploration';
   if (action.type === 'travel') return 'navigation';
   return 'system';
 }
@@ -43,10 +43,6 @@ function _inferIntent(action) {
   if (action.actionId === 'research') return '科技解锁';
 
   switch (action.type) {
-    case 'scan':
-      return '轨道测绘';
-    case 'land':
-      return '首次着陆';
     case 'poi':
       return 'POI 调查';
     case 'travel':

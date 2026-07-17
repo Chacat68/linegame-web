@@ -24,71 +24,28 @@ describe('ExplorationSystem', function () {
     GalaxyData.init(state);
   });
 
-  it('扫描后应揭示当前星球的 POI 并生成测绘收益', function () {
+  it('当前航点应直接开放全部 POI', function () {
     const startingCredits = state.credits;
-    const beforeScan = GalaxyData.getPlanetData('sol_prime');
-    expect(beforeScan.exploration.scanLevel).toBe(0);
-    expect(beforeScan.exploration.pois.every(function (poi) { return poi.discovered === false; })).toBe(true);
+    const startingFuel = state.fuel;
+    const planet = GalaxyData.getPlanetData('sol_prime');
 
-    const result = Exploration.scanSystem(state, 'sol_prime');
-
-    expect(result.ok).toBe(true);
-    expect(result.meta.scanSignalGrade).toBeTruthy();
-    expect(result.meta.scanLandingFeeDiscount).toBeGreaterThan(0);
-    expect(result.meta.scanYield.credits).toBeGreaterThan(0);
-    expect(result.meta.scanDirective.poiId).toBeTruthy();
-    const afterScan = GalaxyData.getPlanetData('sol_prime');
-    expect(afterScan.exploration.scanLevel).toBeGreaterThan(0);
-    expect(afterScan.exploration.pois.every(function (poi) { return poi.discovered === true; })).toBe(true);
-    expect(Object.values(afterScan.exploration.chainStates)).toHaveLength(3);
-    expect(Object.values(afterScan.exploration.chainStates).every(function (chain) {
+    expect(planet.exploration.landed).toBeUndefined();
+    expect(planet.exploration.pois.every(function (poi) { return poi.discovered === true; })).toBe(true);
+    expect(Object.values(planet.exploration.chainStates)).toHaveLength(3);
+    expect(Object.values(planet.exploration.chainStates).every(function (chain) {
       return chain.stage === 'discovered' && chain.stageLabel;
     })).toBe(true);
-    expect(afterScan.exploration.scanPriorityPoiId).toBeTruthy();
-    expect(afterScan.exploration.reports.some(function (report) {
-      return report.id === 'sol_prime_report_scan';
-    })).toBe(true);
-    expect(state.fuel).toBeLessThan(100);
-    expect(state.credits).toBeGreaterThan(startingCredits);
+    expect(planet.exploration.reports).toHaveLength(0);
+    expect(state.fuel).toBe(startingFuel);
+    expect(state.credits).toBe(startingCredits);
   });
 
-  it('扫描预览应反映深度扫描折扣与可执行性', function () {
-    const planet = GalaxyData.getPlanetData('sol_prime');
-    const preview = Exploration.getScanStatus(state, 'sol_prime', {
-      scanFuelDiscount: 0.5,
-      forceDeepScan: true,
-    });
+  it('不再暴露着陆状态与执行 API', function () {
+    expect(Exploration.getLandingStatus).toBeUndefined();
+    expect(Exploration.landOnSystem).toBeUndefined();
 
-    expect(preview.canScan).toBe(true);
-    expect(preview.scanMode).toBe('deep');
-    expect(preview.scanFuelCost).toBe(2);
-    expect(preview.poiCount).toBe(planet.exploration.pois.length);
-    expect(preview.scanLandingFeeDiscount).toBeGreaterThan(0.2);
-    expect(preview.scanSignalGrade).toBeTruthy();
-    expect(preview.actionLabel).toContain('2 燃料');
-  });
-
-  it('扫描预览应在燃料不足时给出阻塞原因', function () {
-    state.fuel = 1;
-
-    const preview = Exploration.getScanStatus(state, 'sol_prime');
-
-    expect(preview.canScan).toBe(false);
-    expect(preview.reason).toBe('insufficient-fuel');
-    expect(preview.blockedReason).toContain('燃料不足');
-  });
-
-  it('着陆预览应反映折扣费用与可调查 POI 数量', function () {
-    expect(Exploration.scanSystem(state, 'sol_prime').ok).toBe(true);
-
-    const preview = Exploration.getLandingStatus(state, 'sol_prime', {
-      landingFeeDiscount: 0.25,
-    });
-
-    expect(preview.canLand).toBe(true);
-    expect(preview.landingFee).toBeLessThan(45);
-    expect(preview.unresolvedPoiCount).toBe(3);
-    expect(preview.detailText).toContain('扫描校准');
+    const poi = GalaxyData.getPlanetData('sol_prime').exploration.pois[0];
+    expect(Exploration.getPoiStatus(state, 'sol_prime', poi.id).canExplore).toBe(true);
   });
 
   it('POI 预览应说明调查收益或风险', function () {
@@ -96,9 +53,6 @@ describe('ExplorationSystem', function () {
     const anomalyPoi = basePlanet.exploration.pois.find(function (poi) {
       return poi.kind === 'anomaly_site';
     });
-
-    expect(Exploration.scanSystem(state, 'sol_prime').ok).toBe(true);
-    expect(Exploration.landOnSystem(state, 'sol_prime').ok).toBe(true);
 
     const preview = Exploration.getPoiStatus(state, 'sol_prime', anomalyPoi.id);
 
@@ -126,28 +80,18 @@ describe('ExplorationSystem', function () {
     ]);
   });
 
-  it('着陆前必须先完成扫描', function () {
-    const result = Exploration.landOnSystem(state, 'sol_prime');
-
-    expect(result.ok).toBe(false);
-    expect(result.msgs[0].text).toContain('请先完成轨道扫描');
-  });
-
   it('调查资源点后应生成勘探报告并提升情报等级', function () {
     const basePlanet = GalaxyData.getPlanetData('sol_prime');
     const resourcePoi = basePlanet.exploration.pois.find(function (poi) {
       return poi.kind === 'resource_cache';
     });
 
-    expect(Exploration.scanSystem(state, 'sol_prime').ok).toBe(true);
-    expect(Exploration.landOnSystem(state, 'sol_prime').ok).toBe(true);
-
     const result = Exploration.explorePoi(state, 'sol_prime', resourcePoi.id);
     const summary = Exploration.getSurveySummary(state, 'sol_prime');
 
     expect(result.ok).toBe(true);
     expect(result.meta.chainStage).toBe('archived');
-    expect(summary.reportCount).toBe(2);
+    expect(summary.reportCount).toBe(1);
     expect(summary.intelLevel).toBeGreaterThan(0);
     const depotChain = summary.anomalyChains.find(function (chain) {
       return chain.kind === 'derelict_depot';
@@ -168,8 +112,6 @@ describe('ExplorationSystem', function () {
       return poi.kind === 'resource_cache';
     });
 
-    expect(Exploration.scanSystem(state, 'sol_prime').ok).toBe(true);
-    expect(Exploration.landOnSystem(state, 'sol_prime').ok).toBe(true);
     expect(Exploration.explorePoi(state, 'sol_prime', resourcePoi.id).ok).toBe(true);
 
     const intel = Exploration.getSurveyDecisionIntel(state, 'sol_prime');
@@ -199,8 +141,6 @@ describe('ExplorationSystem', function () {
       return poi.kind === 'resource_cache';
     });
 
-    expect(Exploration.scanSystem(state, 'sol_prime').ok).toBe(true);
-    expect(Exploration.landOnSystem(state, 'sol_prime').ok).toBe(true);
     expect(Exploration.explorePoi(state, 'sol_prime', resourcePoi.id).ok).toBe(true);
 
     const beforeIntel = Exploration.getSurveyDecisionIntel(state, 'sol_prime');
@@ -241,11 +181,10 @@ describe('ExplorationSystem', function () {
     }
 
     const logisticsState = createSurveyState('sol_prime');
-    expect(Exploration.scanSystem(logisticsState, 'sol_prime').ok).toBe(true);
     const logisticsIntel = Exploration.getSurveyDecisionIntel(logisticsState, 'sol_prime');
     expect(logisticsIntel).toMatchObject({
-      hasIntel: true,
-      logisticsSignal: true,
+      hasIntel: false,
+      logisticsSignal: false,
       primarySignal: 'logistics',
     });
     expect(logisticsIntel.marketSignal).toBe(false);
@@ -254,7 +193,6 @@ describe('ExplorationSystem', function () {
     const resourcePoi = marketPlanet.exploration.pois.find(function (poi) {
       return poi.kind === 'resource_cache';
     });
-    expect(Exploration.landOnSystem(logisticsState, 'sol_prime').ok).toBe(true);
     expect(Exploration.explorePoi(logisticsState, 'sol_prime', resourcePoi.id).ok).toBe(true);
     const marketIntel = Exploration.getSurveyDecisionIntel(logisticsState, 'sol_prime');
     expect(marketIntel).toMatchObject({
@@ -267,8 +205,6 @@ describe('ExplorationSystem', function () {
       currentResearch: { techId: 'deep_scanner', daysLeft: 4 },
       researchOptions: [],
     });
-    expect(Exploration.scanSystem(researchState, 'nova_station').ok).toBe(true);
-    expect(Exploration.landOnSystem(researchState, 'nova_station').ok).toBe(true);
     const anomalyPoi = GalaxyData.getPlanetData('nova_station').exploration.pois.find(function (poi) {
       return poi.kind === 'anomaly_site';
     });
@@ -286,8 +222,6 @@ describe('ExplorationSystem', function () {
     expect(researchIntel.anomalyHint).toContain('先驱者轨道阵列');
 
     const routeState = createSurveyState('sol_prime');
-    expect(Exploration.scanSystem(routeState, 'sol_prime').ok).toBe(true);
-    expect(Exploration.landOnSystem(routeState, 'sol_prime').ok).toBe(true);
     const routePoi = GalaxyData.getPlanetData('sol_prime').exploration.pois.find(function (poi) {
       return poi.kind === 'route_beacon';
     });
@@ -317,8 +251,6 @@ describe('ExplorationSystem', function () {
 
     const baseCost = Economy.getFuelCost('sol_prime', targetSystemId, 1, state);
 
-    expect(Exploration.scanSystem(state, 'sol_prime').ok).toBe(true);
-    expect(Exploration.landOnSystem(state, 'sol_prime').ok).toBe(true);
     expect(Exploration.explorePoi(state, 'sol_prime', routePoi.id).ok).toBe(true);
 
     const routeInfo = Exploration.getTravelRouteInfo(state, 'sol_prime', targetSystemId);
@@ -336,8 +268,6 @@ describe('ExplorationSystem', function () {
 
     expect(Exploration.getCurrentSystemSecretRoutes(state)).toEqual([]);
 
-    Exploration.scanSystem(state, 'sol_prime');
-    Exploration.landOnSystem(state, 'sol_prime');
     Exploration.explorePoi(state, 'sol_prime', routePoi.id);
 
     const routes = Exploration.getCurrentSystemSecretRoutes(state);
@@ -351,9 +281,6 @@ describe('ExplorationSystem', function () {
   it('完成全部 POI 后应发放完探奖励并归档完成报告', function () {
     const startingCredits = state.credits;
 
-    expect(Exploration.scanSystem(state, 'sol_prime').ok).toBe(true);
-    expect(Exploration.landOnSystem(state, 'sol_prime').ok).toBe(true);
-
     GalaxyData.getPlanetData('sol_prime').exploration.pois.forEach(function (poi) {
       const result = Exploration.explorePoi(state, 'sol_prime', poi.id);
       expect(result.ok).toBe(true);
@@ -363,7 +290,7 @@ describe('ExplorationSystem', function () {
 
     expect(summary.completed).toBe(true);
     expect(summary.completionBonusClaimed).toBe(true);
-    expect(summary.reportCount).toBe(5);
+    expect(summary.reportCount).toBe(4);
     expect(summary.reports.some(function (report) {
       return report.id === 'sol_prime_report_completion';
     })).toBe(true);
@@ -388,9 +315,6 @@ describe('ExplorationSystem', function () {
 
     Economy.init();
     GalaxyData.init(state);
-
-    expect(Exploration.scanSystem(state, 'nova_station').ok).toBe(true);
-    expect(Exploration.landOnSystem(state, 'nova_station').ok).toBe(true);
 
     GalaxyData.getPlanetData('nova_station').exploration.pois.forEach(function (poi) {
       const result = Exploration.explorePoi(state, 'nova_station', poi.id);
@@ -423,7 +347,7 @@ describe('ExplorationSystem', function () {
     expect(Array.isArray(restoredPlanet.exploration.reports)).toBe(true);
     expect(Object.values(restoredPlanet.exploration.chainStates)).toHaveLength(3);
     expect(Object.values(restoredPlanet.exploration.chainStates).every(function (chain) {
-      return chain.stage === 'locked';
+      return chain.stage === 'discovered';
     })).toBe(true);
     expect(restoredPlanet.exploration.completionRewardLabel).toBeTruthy();
   });
@@ -456,6 +380,10 @@ describe('ExplorationSystem', function () {
     const restoredPlanet = GalaxyData.getPlanetData('sol_prime');
     const chainStates = restoredPlanet.exploration.chainStates;
 
+    expect(restoredPlanet.exploration.scanLevel).toBeUndefined();
+    expect(restoredPlanet.exploration.landed).toBeUndefined();
+    expect(restoredPlanet.exploration.pois.every(function (poi) { return poi.discovered; })).toBe(true);
+
     expect(chainStates.sol_prime_chain_derelict_depot).toMatchObject({
       stage: 'archived',
       followupReady: true,
@@ -466,7 +394,7 @@ describe('ExplorationSystem', function () {
       followupReady: false,
     });
     expect(chainStates.sol_prime_chain_lost_beacon).toMatchObject({
-      stage: 'locked',
+      stage: 'discovered',
       followupReady: false,
     });
   });

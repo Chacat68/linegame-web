@@ -48,9 +48,9 @@ export const VICTORY_PATHS = [
     policy: {
       name: '科研优先',
       summary: '将资本与航运能力让位给研究与测绘。',
-      benefit: '研究周期 -2 天，扫描燃料折扣 +15%',
+      benefit: '研究周期 -2 天',
       tradeoff: '买入价格 +3%',
-      effects: { researchDayReduction: 2, scanFuelDiscount: 0.15, buyPricePenalty: 0.03 },
+      effects: { researchDayReduction: 2, buyPricePenalty: 0.03 },
     },
     requirements: [
       { type: 'researchCount', target: 16, label: '研究全部 16 项科技' },
@@ -84,7 +84,7 @@ export const VICTORY_PATHS = [
     name: '银河探索者',
     icon: '🌌',
     color: '#00BCD4',
-    description: '扫描、登陆并建立跨星系远征网络。',
+    description: '调查 POI、归档情报并建立跨星系远征网络。',
     victoryTitle: '🌌 银河传奇探索者！',
     victoryMessage: '未知星域已因您的远征不再神秘。',
     tier: 2,

@@ -382,8 +382,6 @@ describe('AutoTrade.findBestDispatchRoute', () => {
       return poi.kind === 'resource_cache';
     });
 
-    expect(Exploration.scanSystem(state, 'sol_prime').ok).toBe(true);
-    expect(Exploration.landOnSystem(state, 'sol_prime').ok).toBe(true);
     expect(Exploration.explorePoi(state, 'sol_prime', resourcePoi.id).ok).toBe(true);
 
     const result = AutoTrade.findBestDispatchRoute(state, {

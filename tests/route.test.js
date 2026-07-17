@@ -75,8 +75,6 @@ describe('RouteSystem', function () {
       return poi.kind === 'route_beacon';
     });
 
-    Exploration.scanSystem(state, 'sol_prime');
-    Exploration.landOnSystem(state, 'sol_prime');
     Exploration.explorePoi(state, 'sol_prime', routePoi.id);
 
     const descriptors = RouteModel.getSecretRouteDescriptors(state);

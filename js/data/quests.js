@@ -188,11 +188,8 @@ export const QUESTS = [
   {
     id: 'expand_first_survey', name: '建立第一份勘探档案',
     type: 'explore', phase: 2,
-    description: '扫描 1 颗星球并完成 1 个 POI 调查，让星图从地点列表变成可利用的情报网络。',
-    objectives: [
-      { type: 'scan_systems', amount: 1, current: 0 },
-      { type: 'explore_pois', amount: 1, current: 0 },
-    ],
+    description: '完成 1 个 POI 调查，让星图从地点列表变成可利用的情报网络。',
+    objectives: [{ type: 'explore_pois', amount: 1, current: 0 }],
     rewards: { credits: 900, exp: 50, reputation: 10 },
     timeLimit: 0,
     minLevel: 2,

@@ -334,8 +334,6 @@ describe('TradeStationSystem', () => {
 
     GalaxyData.init(state);
     try {
-      expect(Exploration.scanSystem(state, 'sol_prime').ok).toBe(true);
-      expect(Exploration.landOnSystem(state, 'sol_prime').ok).toBe(true);
       const resourcePoi = GalaxyData.getPlanetData('sol_prime').exploration.pois.find(function (poi) {
         return poi.kind === 'resource_cache';
       });
@@ -698,8 +696,6 @@ describe('TradeStationSystem', () => {
     GalaxyData.init(state);
     try {
       expect(TradeStation.buildStation(state, 'sol_prime').ok).toBe(true);
-      expect(Exploration.scanSystem(state, 'nova_station').ok).toBe(true);
-      expect(Exploration.landOnSystem(state, 'nova_station').ok).toBe(true);
 
       const anomalyPoi = GalaxyData.getPlanetData('nova_station').exploration.pois.find(function (poi) {
         return poi.kind === 'anomaly_site';

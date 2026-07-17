@@ -33,10 +33,9 @@ const SHIP_CONDITION_FAULTS = [
     id: 'sensor_blindspot',
     icon: '📡',
     label: '传感盲区',
-    desc: '扫描和预警读数漂移，事件压力上升，勘探折扣利用率下降。',
+    desc: '传感器和预警读数漂移，事件压力上升。',
     effects: {
       eventChanceMultiplier: 1.1,
-      scanFuelDiscountMultiplier: 0.5,
     },
   },
   {
@@ -139,11 +138,6 @@ function _scalePenaltyAboveOne(multiplier, reductionFactor) {
   return 1 + Math.max(0, multiplier - 1) * (Number.isFinite(reductionFactor) ? reductionFactor : 1);
 }
 
-function _scalePenaltyBelowOne(multiplier, reductionFactor) {
-  if (!Number.isFinite(multiplier)) return 1;
-  return 1 - Math.max(0, 1 - multiplier) * (Number.isFinite(reductionFactor) ? reductionFactor : 1);
-}
-
 function _getShipOperationalRoleEffects(state, ship) {
   var roleProfile = getShipRoleProfile(state, ship);
   var effects = {
@@ -155,7 +149,6 @@ function _getShipOperationalRoleEffects(state, ship) {
     engineFuelPenaltyMultiplier: 1,
     engineWearPenaltyMultiplier: 1,
     sensorEventPenaltyMultiplier: 1,
-    sensorDiscountPenaltyMultiplier: 1,
     cargoPenaltyMultiplier: 1,
     cargoSellPenaltyMultiplier: 1,
     serviceCostMultiplier: 1,
@@ -189,7 +182,6 @@ function _getShipOperationalRoleEffects(state, ship) {
     effects.faultPressurePenalty = 16;
   } else if (roleProfile.id === 'survey') {
     effects.sensorEventPenaltyMultiplier = 0.72;
-    effects.sensorDiscountPenaltyMultiplier = 0.45;
     effects.dispatchStrategyLabel = '谨慎测绘';
     effects.dispatchStrategyNote = '偏好低执法、低故障压力的稳定航线。';
     effects.preferredRiskMode = 'safe';
@@ -260,9 +252,6 @@ function _getShipFaultEffects(state, ship) {
       if (fault.effects.eventChanceMultiplier) {
         effects.eventChanceMultiplier *= _scalePenaltyAboveOne(fault.effects.eventChanceMultiplier, roleEffects.sensorEventPenaltyMultiplier);
       }
-      if (fault.effects.scanFuelDiscountMultiplier) {
-        effects.scanFuelDiscountMultiplier *= _scalePenaltyBelowOne(fault.effects.scanFuelDiscountMultiplier, roleEffects.sensorDiscountPenaltyMultiplier);
-      }
       return effects;
     }
 
@@ -278,7 +267,6 @@ function _getShipFaultEffects(state, ship) {
 
     if (fault.effects.fuelEffMultiplier) effects.fuelEffMultiplier *= fault.effects.fuelEffMultiplier;
     if (fault.effects.eventChanceMultiplier) effects.eventChanceMultiplier *= fault.effects.eventChanceMultiplier;
-    if (fault.effects.scanFuelDiscountMultiplier) effects.scanFuelDiscountMultiplier *= fault.effects.scanFuelDiscountMultiplier;
     if (fault.effects.travelWearMultiplier) effects.travelWearMultiplier *= fault.effects.travelWearMultiplier;
     if (fault.effects.cargoPenalty) effects.cargoPenalty += fault.effects.cargoPenalty;
     if (fault.effects.buyDiscount) effects.buyDiscount += fault.effects.buyDiscount;
@@ -287,7 +275,6 @@ function _getShipFaultEffects(state, ship) {
   }, {
     fuelEffMultiplier: 1,
     eventChanceMultiplier: 1,
-    scanFuelDiscountMultiplier: 1,
     travelWearMultiplier: 1,
     cargoPenalty: 0,
     buyDiscount: 0,
@@ -939,7 +926,7 @@ export function getShipRoleProfile(state, ship) {
   var roleDefs = {
     logistics: { label: '主力商运', summary: '承担常规货运、套利与仓位效率。' },
     courier: { label: '快航中继', summary: '适合快线补给、短循环调度与响应。' },
-    survey: { label: '勘探支援', summary: '偏向扫描折扣、探索收益与情报获取。' },
+    survey: { label: '勘探支援', summary: '偏向探索收益与情报获取。' },
     covert: { label: '灰市突破', summary: '适合违禁品运输与黑市风险压制。' },
     support: { label: '后勤维护', summary: '擅长维保、修复与为舰队托底。' },
   };
@@ -1032,7 +1019,7 @@ function _scoreModRecommendation(state, ship, mod, context) {
   }
 
   if (mod.id === 'mod_survey_array') {
-    if (roleId === 'survey') add(110, '勘探支援分工适合提升扫描折扣和 POI 收益。');
+    if (roleId === 'survey') add(110, '勘探支援分工适合提升 POI 收益。');
   }
 
   if (mod.id === 'mod_smuggler_hold') {
@@ -1385,9 +1372,6 @@ function _getActivityAwards(activityId, payload) {
       xp: payload.crossGalaxy ? 14 : (payload.secretRoute ? 10 : 6),
     }];
   }
-  if (activityId === 'scan') {
-    return [{ trackId: 'exploration', xp: 12 }];
-  }
   if (activityId === 'land') {
     return [{ trackId: 'exploration', xp: 8 }];
   }
@@ -1430,10 +1414,7 @@ export function getEffectiveShipStats(state, ship) {
       smugglingCheckMultiplier: 1,
       smugglingFineMultiplier: 1,
       smugglingHullMultiplier: 1,
-      scanFuelDiscount: 0,
-      landingFeeDiscount: 0,
       poiRewardMultiplier: 1,
-      forceDeepScan: false,
       specialization: null,
       maintenance: getShipMaintenanceSummary(state, null),
       roleProfile: getShipRoleProfile(state, null),
@@ -1472,10 +1453,7 @@ export function getEffectiveShipStats(state, ship) {
     smugglingCheckMultiplier: (policyEffects.smugglingCheckMultiplier || 1) * (specEffects.smugglingCheckMultiplier || 1) * (modEffects.smugglingCheckMultiplier || 1) * (maintenance.smugglingCheckMultiplier || 1),
     smugglingFineMultiplier: (specEffects.smugglingFineMultiplier || 1) * (modEffects.smugglingFineMultiplier || 1),
     smugglingHullMultiplier: specEffects.smugglingHullMultiplier || 1,
-    scanFuelDiscount: Math.min(0.95, ((policyEffects.scanFuelDiscount || 0) + (specEffects.scanFuelDiscount || 0) + (modEffects.scanFuelDiscount || 0)) * (faultEffects.scanFuelDiscountMultiplier || 1)),
-    landingFeeDiscount: specEffects.landingFeeDiscount || 0,
     poiRewardMultiplier: (policyEffects.poiRewardMultiplier || 1) * (specEffects.poiRewardMultiplier || 1) * (modEffects.poiRewardMultiplier || 1),
-    forceDeepScan: !!specEffects.forceDeepScan,
     specialization: specialization,
     maintenance: maintenance,
     faults: faultSummaries,
@@ -2124,7 +2102,6 @@ export function getShipModEffects(ship) {
     smugglingCheckMultiplier: 1,
     smugglingFineMultiplier: 1,
     poiRewardMultiplier: 1,
-    scanFuelDiscount: 0,
   };
   ship.mods.forEach(function (modId) {
     var mod = SHIP_MODS.find(function (m) { return m.id === modId; });
@@ -2135,7 +2112,6 @@ export function getShipModEffects(ship) {
       if (mod.effect.maintenanceDecayMultiplier) effects.maintenanceDecayMultiplier = (effects.maintenanceDecayMultiplier || 1) * mod.effect.maintenanceDecayMultiplier;
       if (mod.effect.smugglingCheckMultiplier) effects.smugglingCheckMultiplier = (effects.smugglingCheckMultiplier || 1) * mod.effect.smugglingCheckMultiplier;
       if (mod.effect.smugglingFineMultiplier) effects.smugglingFineMultiplier = (effects.smugglingFineMultiplier || 1) * mod.effect.smugglingFineMultiplier;
-      if (mod.effect.scanFuelDiscount) effects.scanFuelDiscount = (effects.scanFuelDiscount || 0) + mod.effect.scanFuelDiscount;
       if (mod.effect.poiRewardMultiplier) effects.poiRewardMultiplier = (effects.poiRewardMultiplier || 1) * mod.effect.poiRewardMultiplier;
     }
   });

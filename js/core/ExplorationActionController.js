@@ -9,7 +9,7 @@ function _call(context, name) {
 }
 
 export function isExplorationAction(actionType) {
-  return typeof actionType === 'string' && actionType.indexOf('exploration.') === 0;
+  return actionType === 'exploration.poi';
 }
 
 export function getProcessingMessage() {
@@ -24,18 +24,6 @@ export function handleExplorationAction(suggestion, context) {
   var systemId = payload.systemId || state.currentSystem;
 
   switch (suggestion.actionType) {
-    case 'exploration.scan':
-      _call(context, 'prepareDirectExecution');
-      _call(context, 'scanSystem', systemId, {
-        suppressReveal: true,
-      });
-      return true;
-
-    case 'exploration.land':
-      _call(context, 'prepareDirectExecution');
-      _call(context, 'landOnSystem', systemId);
-      return true;
-
     case 'exploration.poi':
       if (payload.poiId) {
         _call(context, 'prepareDirectExecution');

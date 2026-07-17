@@ -347,8 +347,6 @@ describe('Quest.getQuestRoutePreview', () => {
     const targetSystemId = basePlanet.exploration.secretRoutes[0].targetSystemId;
     const baseCost = Economy.getFuelCost('sol_prime', targetSystemId, 1, state);
 
-    expect(Exploration.scanSystem(state, 'sol_prime').ok).toBe(true);
-    expect(Exploration.landOnSystem(state, 'sol_prime').ok).toBe(true);
     expect(Exploration.explorePoi(state, 'sol_prime', routePoi.id).ok).toBe(true);
 
     const preview = Quest.getQuestRoutePreview(state, {
@@ -893,7 +891,6 @@ describe('Quest integrated system objectives', () => {
       galaxyStates: {
         sol_prime: {
           exploration: {
-            scanLevel: 1,
             pois: [{ id: 'poi_1', resolved: true }],
           },
         },
@@ -908,7 +905,6 @@ describe('Quest integrated system objectives', () => {
       phase: 1,
       objectives: [
         { type: 'research_count', amount: 1, current: 0 },
-        { type: 'scan_systems', amount: 1, current: 0 },
         { type: 'explore_pois', amount: 1, current: 0 },
         { type: 'fleet_size', amount: 2, current: 0 },
         { type: 'crew_count', amount: 1, current: 0 },

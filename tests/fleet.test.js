@@ -837,7 +837,7 @@ describe('Fleet ship configuration', () => {
     expect(Fleet.getShipSpecializationSummary(state, Fleet.getActiveShip(state))).toBe(null);
   });
 
-  it('功能型改装会改变走私与探索系数', () => {
+  it('功能型改装会改变走私与 POI 收益系数', () => {
     const state = createTestState({ credits: 50000 });
     Fleet.init(state);
     state.fleetSlots = 2;
@@ -848,7 +848,6 @@ describe('Fleet ship configuration', () => {
 
     const stats = Fleet.getEffectiveShipStats(state, state.fleet[1]);
     expect(stats.smugglingCheckMultiplier).toBeCloseTo(0.78, 5);
-    expect(stats.scanFuelDiscount).toBeCloseTo(0.2, 5);
     expect(stats.poiRewardMultiplier).toBeCloseTo(1.12, 5);
   });
 

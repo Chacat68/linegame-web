@@ -139,21 +139,6 @@ function _findBestSellDestination(state, goodId) {
   })[0] || null;
 }
 
-function _shouldOfferScan(scanStatus) {
-  if (!scanStatus) return false;
-  if (scanStatus.canScan === false) return false;
-  if (scanStatus.reason === 'already-scanned') return false;
-  if (scanStatus.scanLevel && scanStatus.scanLevel > 0) return false;
-  return true;
-}
-
-function _shouldOfferLanding(landingStatus) {
-  if (!landingStatus) return false;
-  if (landingStatus.canLand === false) return false;
-  if (landingStatus.reason === 'already-landed') return false;
-  return true;
-}
-
 function _shouldOfferPoi(nextPoiStatus, nextPoi) {
   if (!nextPoiStatus || !nextPoi) return false;
   return nextPoiStatus.canExplore !== false;
@@ -362,8 +347,6 @@ function _inferGuidanceTopic(suggestion) {
   if (id === 'buy-low-price-good' || id === 'open-market-for-first-trade') return _getTopic('starterTrade', '建立仓位');
   if (id === 'sell-first-cargo' || id === 'find-sell-destination') return _getTopic('starterTrade', '完成结算');
   if (id === 'accept-first-explore') return _getTopic('starterExplore', '接入探索');
-  if (id === 'scan-current-system') return _getTopic('starterExplore', '轨道扫描');
-  if (id === 'land-current-system') return _getTopic('starterExplore', '首次着陆');
   if (id === 'explore-current-poi') return _getTopic('starterExplore', '调查 POI');
 
   if (id === 'handle-pending-event') return _getTopic('stability', '处理阻塞');
@@ -539,7 +522,7 @@ export function getCurrentSuggestion(state, options) {
       id: 'refuel-low-tank',
       priority: 95,
       title: '补足当前燃料',
-      reason: '燃料已低于安全线，先补给可以避免下一段航行或扫描被阻塞。',
+      reason: '燃料已低于安全线，先补给可以避免下一段航行被阻塞。',
       actionLabel: '补充燃料',
       actionType: 'trade.refuel',
       payload: {
@@ -660,7 +643,7 @@ export function getCurrentSuggestion(state, options) {
       id: 'accept-first-explore',
       priority: 50,
       title: '接取「初探宇宙」',
-      reason: '贸易循环已建立，可以开始学习航行与扫描。',
+      reason: '贸易循环已建立，可以开始学习航行与地表探索。',
       actionLabel: '接取任务',
       actionType: 'quest.accept',
       payload: { questId: FIRST_EXPLORE_QUEST_ID },
@@ -786,32 +769,6 @@ export function getCurrentSuggestion(state, options) {
       },
       surface: 'fleet',
       commandIntent: '模块改装',
-    }));
-  }
-
-  if (_shouldOfferScan(opts.scanStatus)) {
-    suggestions.push(_createSuggestion({
-      id: 'scan-current-system',
-      priority: 40,
-      title: '扫描当前星球',
-      reason: '扫描会揭示本地资源、风险和探索机会。',
-      actionLabel: '执行扫描',
-      actionType: 'exploration.scan',
-      payload: { systemId: state.currentSystem },
-      surface: 'exploration',
-    }));
-  }
-
-  if (_shouldOfferLanding(opts.landingStatus)) {
-    suggestions.push(_createSuggestion({
-      id: 'land-current-system',
-      priority: 38,
-      title: '申请首次着陆',
-      reason: '着陆后才能调查已发现的探索点，并把结果沉淀为勘探报告。',
-      actionLabel: opts.landingStatus.actionLabel || '申请首次着陆',
-      actionType: 'exploration.land',
-      payload: { systemId: state.currentSystem },
-      surface: 'exploration',
     }));
   }
 

@@ -31,6 +31,7 @@ function createFakeRoot() {
       });
     },
     dispatchKey: function (key) {
+      if (!listeners.keydown) return;
       listeners.keydown({
         key: key,
         preventDefault: function () {},
@@ -51,7 +52,6 @@ var originalDocument = globalThis.document;
 
 afterEach(function () {
   globalThis.document = originalDocument;
-  ActionGuideUI.setCollapsed(false);
 });
 
 describe('ActionGuideUI', function () {
@@ -115,14 +115,11 @@ describe('ActionGuideUI', function () {
     expect(root.innerHTML).toContain('data-guide-topic="research-supply"');
     expect(root.innerHTML).toContain('当前行动 · 派遣补给');
     expect(root.innerHTML).not.toContain('科研补给链 / 派遣补给');
-
-    root.dispatchClick(createTarget('[data-action-guide-toggle]'));
-    expect(root.innerHTML).toContain('action-guide-mini-kicker">当前行动');
-    expect(root.innerHTML).not.toContain('当前行动 · 科研补给链');
   });
 
-  it('可以折叠成迷你指挥条', function () {
+  it('固定显示完整行动条，不渲染展开或缩小控件', function () {
     var root = createFakeRoot();
+    root.classList.add('is-collapsed');
     globalThis.document = {
       getElementById: function (id) {
         return id === 'action-guide' ? root : null;
@@ -139,15 +136,14 @@ describe('ActionGuideUI', function () {
       surface: 'market',
     });
 
-    root.dispatchClick(createTarget('[data-action-guide-toggle]'));
-
-    expect(ActionGuideUI.isCollapsed()).toBe(true);
-    expect(root.classList.contains('is-collapsed')).toBe(true);
-    expect(root.innerHTML).toContain('action-guide-mini');
+    expect(root.classList.contains('is-collapsed')).toBe(false);
+    expect(root.innerHTML).not.toContain('data-action-guide-toggle');
+    expect(root.innerHTML).not.toContain('action-guide-toggle');
+    expect(root.innerHTML).not.toContain('action-guide-mini');
     expect(root.innerHTML).toContain('打开当前市场');
   });
 
-  it('展开状态下按 Esc 会收起行动引导', function () {
+  it('按 Esc 不会收起当前行动', function () {
     var root = createFakeRoot();
     globalThis.document = {
       getElementById: function (id) {
@@ -157,53 +153,18 @@ describe('ActionGuideUI', function () {
 
     ActionGuideUI.init(function () {});
     ActionGuideUI.render({
-      id: 'scan-current-system',
-      title: '扫描当前星球',
-      reason: '扫描会揭示本地资源。',
-      actionLabel: '执行扫描',
-      actionType: 'exploration.scan',
+      id: 'explore-current-poi',
+      title: '调查补给点',
+      reason: '调查结论会写入勘探报告。',
+      actionLabel: '调查 POI',
+      actionType: 'exploration.poi',
       surface: 'exploration',
     });
 
     root.dispatchKey('Escape');
 
-    expect(ActionGuideUI.isCollapsed()).toBe(true);
-    expect(root.classList.contains('is-collapsed')).toBe(true);
-    expect(root.innerHTML).toContain('action-guide-mini');
-  });
-
-  it('出现新的当前行动时会自动展开', function () {
-    var root = createFakeRoot();
-    globalThis.document = {
-      getElementById: function (id) {
-        return id === 'action-guide' ? root : null;
-      },
-    };
-
-    ActionGuideUI.init(function () {});
-    ActionGuideUI.render({
-      id: 'open-market',
-      title: '打开当前市场',
-      reason: '先买入一批商品。',
-      actionLabel: '打开市场',
-      actionType: 'market.open',
-      surface: 'market',
-    });
-    root.dispatchClick(createTarget('[data-action-guide-toggle]'));
-    expect(ActionGuideUI.isCollapsed()).toBe(true);
-
-    ActionGuideUI.render({
-      id: 'confirm-buy-food',
-      title: '确认买入食物',
-      reason: '这笔交易能推进当前路线。',
-      actionLabel: '确认买入',
-      actionType: 'trade.buy',
-      surface: 'market',
-    });
-
-    expect(ActionGuideUI.isCollapsed()).toBe(false);
     expect(root.classList.contains('is-collapsed')).toBe(false);
-    expect(root.innerHTML).toContain('确认买入食物');
+    expect(root.innerHTML).toContain('调查补给点');
     expect(root.innerHTML).not.toContain('action-guide-mini');
   });
 
@@ -216,11 +177,11 @@ describe('ActionGuideUI', function () {
     };
 
     var suggestion = {
-      id: 'scan-current-system',
-      title: '扫描当前星球',
-      reason: '扫描会揭示本地资源。',
-      actionLabel: '执行扫描',
-      actionType: 'exploration.scan',
+      id: 'explore-current-poi',
+      title: '调查补给点',
+      reason: '调查结论会写入勘探报告。',
+      actionLabel: '调查 POI',
+      actionType: 'exploration.poi',
       surface: 'exploration',
     };
 

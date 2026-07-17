@@ -2,9 +2,7 @@ import { getCommandActionAttributes, renderCommandActionContent } from './Comman
 
 let _onAction = null;
 let _suggestion = null;
-let _collapsed = false;
 let _boundRoot = null;
-let _lastSuggestionKey = '';
 let _completionTimer = null;
 let _completionToken = 0;
 
@@ -45,10 +43,6 @@ function _getCommandIntent(suggestion) {
       return '模块改装';
     case 'fleet.service.open':
       return '维修船坞';
-    case 'exploration.scan':
-      return '轨道测绘';
-    case 'exploration.land':
-      return '首次着陆';
     case 'exploration.poi':
       return 'POI 调查';
     default:
@@ -85,31 +79,13 @@ function _getRoot() {
     : null;
 }
 
-function _getSuggestionKey(suggestion) {
-  if (!suggestion) return '';
-  return suggestion.id || ((suggestion.actionType || 'action') + ':' + (suggestion.title || ''));
-}
-
 function _bind(root) {
   if (!root || _boundRoot === root) return;
   root.addEventListener('click', function (event) {
-    var toggle = event.target.closest('[data-action-guide-toggle]');
-    if (toggle) {
-      _collapsed = !_collapsed;
-      render(_suggestion);
-      return;
-    }
-
     var actionBtn = event.target.closest('[data-action-guide-action]');
     if (actionBtn && _suggestion && typeof _onAction === 'function') {
       _onAction(_suggestion);
     }
-  });
-  root.addEventListener('keydown', function (event) {
-    if (!event || event.key !== 'Escape' || !_suggestion || _collapsed) return;
-    if (typeof event.preventDefault === 'function') event.preventDefault();
-    _collapsed = true;
-    render(_suggestion);
   });
   _boundRoot = root;
 }
@@ -142,16 +118,8 @@ function _renderExpanded(suggestion) {
       '<button class="action-guide-primary command-action-btn" type="button" data-action-guide-action' + getCommandActionAttributes(commandAction, _escapeHtml) + '>' +
         renderCommandActionContent(commandAction, _escapeHtml) +
       '</button>' +
-      '<button class="action-guide-toggle" type="button" data-action-guide-toggle aria-label="折叠当前行动" aria-expanded="true">⌄</button>' +
     '</div>' +
   '</div>';
-}
-
-function _renderCollapsed(suggestion) {
-  return '<button class="action-guide-mini" type="button" data-action-guide-toggle aria-label="展开当前行动" aria-expanded="false">' +
-    '<span class="action-guide-mini-kicker">当前行动</span>' +
-    '<span class="action-guide-mini-title">' + _escapeHtml(suggestion.title) + '</span>' +
-  '</button>';
 }
 
 export function init(onAction) {
@@ -161,10 +129,6 @@ export function init(onAction) {
 }
 
 export function render(suggestion) {
-  var nextKey = _getSuggestionKey(suggestion);
-  if (nextKey && _lastSuggestionKey && nextKey !== _lastSuggestionKey) {
-    _collapsed = false;
-  }
   _suggestion = suggestion || null;
   var root = _getRoot();
   if (!root) return;
@@ -172,7 +136,6 @@ export function render(suggestion) {
   _clearCompletion(root);
 
   if (!_suggestion) {
-    _lastSuggestionKey = '';
     root.hidden = true;
     root.innerHTML = '';
     if (typeof root.removeAttribute === 'function') {
@@ -185,19 +148,14 @@ export function render(suggestion) {
   }
 
   root.hidden = false;
-  _lastSuggestionKey = nextKey;
   root.dataset.guideId = _suggestion.id || '';
-  root.classList.toggle('is-collapsed', _collapsed);
+  root.classList.remove('is-collapsed');
   root.classList.remove('is-processing');
-  root.innerHTML = _collapsed
-    ? _renderCollapsed(_suggestion)
-    : _renderExpanded(_suggestion);
+  root.innerHTML = _renderExpanded(_suggestion);
 }
 
 export function showProcessing(suggestion, message) {
   _suggestion = suggestion || _suggestion;
-  _lastSuggestionKey = _getSuggestionKey(_suggestion);
-  _collapsed = false;
   var root = _getRoot();
   if (!root || !_suggestion) return;
   _clearCompletion(root);
@@ -252,13 +210,4 @@ export function showCompletion(message, detail, options) {
       render(_suggestion);
     }, durationMs);
   }
-}
-
-export function isCollapsed() {
-  return _collapsed;
-}
-
-export function setCollapsed(collapsed) {
-  _collapsed = !!collapsed;
-  render(_suggestion);
 }

@@ -11,8 +11,6 @@ function createContext(extra) {
   var context = Object.assign({
     getState: function () { return state; },
     prepareDirectExecution: function () { calls.push(['prepareDirectExecution']); },
-    scanSystem: function (systemId, options) { calls.push(['scanSystem', systemId, options]); },
-    landOnSystem: function (systemId) { calls.push(['landOnSystem', systemId]); },
     explorePoi: function (systemId, poiId) { calls.push(['explorePoi', systemId, poiId]); },
     refreshActionGuide: function () { calls.push(['refreshActionGuide']); },
   }, extra || {});
@@ -23,34 +21,24 @@ function createContext(extra) {
 
 describe('ExplorationActionController', function () {
   it('识别探索行动并返回稳定处理提示', function () {
-    expect(isExplorationAction('exploration.scan')).toBe(true);
+    expect(isExplorationAction('exploration.poi')).toBe(true);
+    expect(isExplorationAction('exploration.land')).toBe(false);
+    expect(isExplorationAction('exploration.scan')).toBe(false);
     expect(isExplorationAction('market.open')).toBe(false);
     expect(getProcessingMessage()).toBe('已执行探索指令，正在刷新现场建议');
   });
 
-  it('扫描行动会使用当前星系兜底并抑制 reveal 卡片', function () {
-    var context = createContext();
-
-    var handled = handleExplorationAction({ actionType: 'exploration.scan', payload: {} }, context);
-
-    expect(handled).toBe(true);
-    expect(context.calls).toEqual([
-      ['prepareDirectExecution'],
-      ['scanSystem', 'sol_prime', { suppressReveal: true }],
-    ]);
-  });
-
-  it('着陆行动会转发目标星系', function () {
+  it('POI 行动会转发目标星系和探索点', function () {
     var context = createContext();
 
     handleExplorationAction({
-      actionType: 'exploration.land',
-      payload: { systemId: 'alpha_centauri' },
+      actionType: 'exploration.poi',
+      payload: { systemId: 'alpha_centauri', poiId: 'poi_1' },
     }, context);
 
     expect(context.calls).toEqual([
       ['prepareDirectExecution'],
-      ['landOnSystem', 'alpha_centauri'],
+      ['explorePoi', 'alpha_centauri', 'poi_1'],
     ]);
   });
 

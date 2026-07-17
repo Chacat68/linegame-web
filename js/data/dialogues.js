@@ -775,10 +775,10 @@ export const DIALOGUE_SCENES = [
   _createQuestScenePair({
     questId: 'expand_first_survey',
     acceptTitle: '建立第一份勘探档案',
-    acceptFooter: '目标：扫描星球并完成一个 POI',
+    acceptFooter: '目标：完成一个 POI 调查',
     acceptLines: [_line('测绘员 芙蕾', '🛰️', '价格只告诉你当下，勘探档案才能告诉你一个节点未来能做什么。')],
     completeTitle: '第一份勘探档案已归档',
-    completeLines: [_line('测绘员 芙蕾', '🛰️', '扫描与 POI 调查已经接通，这份情报会继续影响商网和远征决策。')],
+    completeLines: [_line('测绘员 芙蕾', '🛰️', 'POI 调查已经归档，这份情报会继续影响商网和远征决策。')],
   }),
   _createQuestScenePair({
     questId: 'rise_crew_roster',

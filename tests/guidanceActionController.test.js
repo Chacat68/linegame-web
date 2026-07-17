@@ -41,7 +41,7 @@ describe('GuidanceActionController', function () {
     })).toBe('已打开交易确认，完成后将推进「补给合约」');
     expect(getProcessingMessage({ actionType: 'fleet.service.open' })).toBe('已切到机库，检查维修方案');
     expect(getProcessingMessage({ actionType: 'fleet.mod.open' })).toBe('已切到机库，查看推荐改装');
-    expect(getProcessingMessage({ actionType: 'exploration.scan' })).toBe('已执行探索指令，正在刷新现场建议');
+    expect(getProcessingMessage({ actionType: 'exploration.poi' })).toBe('已执行探索指令，正在刷新现场建议');
   });
 
   it('把补给行动分发给直接执行回调', function () {
@@ -132,19 +132,19 @@ describe('GuidanceActionController', function () {
 
   it('探索行动会委托到探索控制器并保留直接执行准备', function () {
     var context = createCallContext({
-      scanSystem: function (systemId, options) {
-        context.calls.push(['scanSystem', systemId, options]);
+      explorePoi: function (systemId, poiId) {
+        context.calls.push(['explorePoi', systemId, poiId]);
       },
     });
 
     handleGuidanceAction({
-      actionType: 'exploration.scan',
-      payload: { systemId: 'alpha_centauri' },
+      actionType: 'exploration.poi',
+      payload: { systemId: 'alpha_centauri', poiId: 'poi_1' },
     }, context);
 
     expect(context.calls).toEqual([
       ['prepareDirectExecution'],
-      ['scanSystem', 'alpha_centauri', { suppressReveal: true }],
+      ['explorePoi', 'alpha_centauri', 'poi_1'],
     ]);
   });
 

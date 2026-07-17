@@ -215,24 +215,26 @@ describe('GuidanceSystem', function () {
     });
   });
 
-  it('扫描建议优先级低于新手贸易链', function () {
+  it('POI 调查建议优先级低于新手贸易链', function () {
     var state = createTestState({ quests: [], completedQuests: [] });
     var suggestion = getCurrentSuggestion(state, {
-      scanStatus: { canScan: true, scanLevel: 0 },
+      nextPoi: { id: 'poi_1', name: '补给点' },
+      nextPoiStatus: { canExplore: true, actionLabel: '调查补给点' },
     });
 
     expect(suggestion.id).toBe('accept-first-trade');
 
-    var scanOnly = getCurrentSuggestion(createTestState({
+    var explorationOnly = getCurrentSuggestion(createTestState({
       quests: [{ id: 'starter_visit_2', objectives: [{ type: 'visit_systems', amount: 2, current: 1, visited: ['sol_prime'] }] }],
       completedQuests: ['starter_first_trade'],
     }), {
-      scanStatus: { canScan: true, scanLevel: 0 },
+      nextPoi: { id: 'poi_1', name: '补给点' },
+      nextPoiStatus: { canExplore: true, actionLabel: '调查补给点' },
     });
 
-    expect(scanOnly).toMatchObject({
-      id: 'scan-current-system',
-      actionType: 'exploration.scan',
+    expect(explorationOnly).toMatchObject({
+      id: 'explore-current-poi',
+      actionType: 'exploration.poi',
     });
   });
 
@@ -323,7 +325,6 @@ describe('GuidanceSystem', function () {
       currentSystem: 'sol_prime',
     });
     var suggestion = getCurrentSuggestion(state, {
-      scanStatus: { canScan: true, scanLevel: 0 },
       dispatchRouteRecommendation: {
         buySystemId: 'sol_prime',
         sellSystemId: 'nova_station',
@@ -1241,35 +1242,13 @@ describe('GuidanceSystem', function () {
     });
   });
 
-  it('扫描完成后推荐申请首次着陆', function () {
+  it('当前航点直接推荐调查下一处 POI 并带上目标 id', function () {
     var state = createTestState({
       quests: [createFirstExploreQuest()],
       completedQuests: ['starter_first_trade'],
       currentSystem: 'sol_prime',
     });
     var suggestion = getCurrentSuggestion(state, {
-      scanStatus: { canScan: false, reason: 'already-scanned', scanLevel: 1 },
-      landingStatus: { canLand: true, actionLabel: '申请首次着陆 · 40 积分' },
-    });
-
-    expect(suggestion).toMatchObject({
-      id: 'land-current-system',
-      actionType: 'exploration.land',
-      actionLabel: '申请首次着陆 · 40 积分',
-      payload: { systemId: 'sol_prime' },
-      surface: 'exploration',
-    });
-  });
-
-  it('着陆后推荐调查下一处 POI 并带上目标 id', function () {
-    var state = createTestState({
-      quests: [createFirstExploreQuest()],
-      completedQuests: ['starter_first_trade'],
-      currentSystem: 'sol_prime',
-    });
-    var suggestion = getCurrentSuggestion(state, {
-      scanStatus: { canScan: false, reason: 'already-scanned', scanLevel: 1 },
-      landingStatus: { canLand: false, reason: 'already-landed' },
       nextPoi: {
         id: 'sol_prime_poi_resource',
         icon: '🌾',
