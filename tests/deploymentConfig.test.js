@@ -14,7 +14,9 @@ describe('production deployment configuration', function () {
     expect(workflow).toContain('run: npm run build');
     expect(workflow).toContain('command: pages deploy dist ');
     expect(workflow).not.toContain('command: pages deploy . ');
+    expect(wranglerJson).toContain('"command": "npm run build"');
     expect(wranglerJson).toContain('"directory": "./dist"');
     expect(wranglerToml).toContain('pages_build_output_dir = "dist"');
+    expect(wranglerToml).toContain('command = "npm run build"');
   });
 });
