@@ -742,6 +742,10 @@
   gap: var(--ui-space-4);
 }
 
+.market-workspace-v2 .market-spot-trade-layout--simple {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .market-workspace-v2 .market-trend-column,
 .market-workspace-v2 .market-goods-shell,
 .market-workspace-v2 .market-analysis-panel {

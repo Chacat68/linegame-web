@@ -1397,4 +1397,39 @@
     grid-template-columns: 1fr;
   }
 }
+.quest-secondary-details,
+.quest-locked-details {
+  border: 1px solid var(--ui-line-subtle);
+  border-radius: var(--ui-radius-card);
+  background: rgba(4, 15, 25, 0.58);
+}
+
+.quest-secondary-details {
+  margin: var(--ui-space-3) 0;
+}
+
+.quest-secondary-details > summary,
+.quest-locked-details > summary {
+  padding: var(--ui-space-3) var(--ui-space-4);
+  color: var(--ui-text-secondary);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  list-style-position: inside;
+}
+
+.quest-secondary-details[open] > summary,
+.quest-locked-details[open] > summary {
+  border-bottom: 1px solid var(--ui-line-subtle);
+  color: var(--ui-text-primary);
+}
+
+.quest-secondary-details-body {
+  padding: var(--ui-space-3);
+}
+
+.quest-locked-details .quest-locked-grid,
+.quest-locked-details .quest-empty {
+  margin: var(--ui-space-3);
+}
 

@@ -99,7 +99,7 @@
           </div>
           <div class="hdr-meter-block hdr-meter-block--fuel">
             <div class="hdr-meter-head">
-              <span class="hdr-stat-label">FUEL</span>
+              <span class="hdr-stat-label">燃料</span>
               <span id="status-fuel-pct" class="hdr-meter-pct">100%</span>
             </div>
             <div
@@ -117,7 +117,7 @@
           </div>
           <div class="hdr-meter-block hdr-meter-block--shield">
             <div class="hdr-meter-head">
-              <span class="hdr-stat-label">SHIELD</span>
+              <span class="hdr-stat-label">护盾</span>
               <span id="status-shield-pct" class="hdr-meter-pct">100%</span>
             </div>
             <div
@@ -135,7 +135,7 @@
           </div>
           <div class="hdr-meter-block hdr-meter-block--cargo">
             <div class="hdr-meter-head">
-              <span class="hdr-stat-label">CARGO</span>
+              <span class="hdr-stat-label">货舱</span>
               <span id="status-cargo-pct" class="hdr-meter-pct">0%</span>
             </div>
             <div
@@ -154,7 +154,7 @@
         </div>
 
         <div class="hdr-day-chip" aria-label="当前游戏天数">
-          <span class="hdr-day-chip-label">DAY</span>
+          <span class="hdr-day-chip-label">天数</span>
           <span id="galactic-day" class="hdr-day-chip-value hdr-day-mirror">第 1 天</span>
         </div>
 
@@ -164,8 +164,8 @@
             id="victory-progress-btn"
             class="hdr-icon-btn"
             type="button"
-            title="查看胜利路径进度"
-            aria-label="胜利路径进度"
+            title="查看长期路线进度"
+            aria-label="长期路线进度"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
           </button>
@@ -180,7 +180,7 @@
         </div>
 
         <!-- Hidden elements used by HUD.js (kept for JS compatibility) -->
-        <span id="victory-progress-summary" class="hdr-hidden">协议进度</span>
+        <span id="victory-progress-summary" class="hdr-hidden">长期路线进度</span>
         <div id="player-level" class="hdr-hidden"></div>
         <span id="economy-cycle" class="hdr-hidden"></span>
       </header>
@@ -273,8 +273,8 @@
                 <thead>
                   <tr>
                     <th>商品</th>
-                    <th>信号</th>
-                    <th>波动</th>
+                    <th>价格情况</th>
+                    <th>变化</th>
                   </tr>
                 </thead>
                 <tbody id="hud-market-overview-body">
@@ -313,8 +313,8 @@
                   <dd id="hud-target-faction">中立地带</dd>
                 </div>
                 <div>
-                  <dt>勘探</dt>
-                  <dd id="hud-target-survey">0/0 POI</dd>
+                  <dt>探索</dt>
+                  <dd id="hud-target-survey">0/0 探索点</dd>
                 </div>
                 <div>
                   <dt>探索状态</dt>
@@ -332,27 +332,27 @@
                   <span></span><span></span><span></span><span></span><span></span><span></span>
                 </div>
                 <div class="network-stats" role="list" aria-label="贸易网络指标">
-                  <span role="listitem">连接节点 <strong id="hud-network-nodes">1 / 256</strong></span>
+                  <span role="listitem">已连接地点 <strong id="hud-network-nodes">1 / 256</strong></span>
                   <span role="listitem">活跃航线 <strong id="hud-network-routes">0</strong></span>
-                  <span role="listitem">市场波动率 <strong id="hud-network-volatility">0.0%</strong></span>
+                  <span role="listitem">近期价格变化 <strong id="hud-network-volatility">0.0%</strong></span>
                 </div>
                 <div id="hud-network-signal" class="hud-network-signal" role="status" aria-live="polite">
-                  <span class="hud-network-signal-kicker">局部信号</span>
-                  <strong class="hud-network-signal-title">网络状态同步中</strong>
-                  <span class="hud-network-signal-note">正在读取节点覆盖与航线负载。</span>
+                  <span class="hud-network-signal-kicker">当前建议</span>
+                  <strong class="hud-network-signal-title">正在查看贸易网络</strong>
+                  <span class="hud-network-signal-note">正在查看已连接地点和跑商情况。</span>
                 </div>
               </div>
               <div class="hud-widget-foot network-widget-foot">
-                <span>基于当前节点覆盖与舰队派遣</span>
+                <span>基于已连接地点与自动跑商</span>
                 <div class="hud-widget-foot-actions">
-                  <button id="hud-network-open" class="hud-widget-link-btn" type="button">打开商网</button>
+                  <button id="hud-network-open" class="hud-widget-link-btn" type="button">查看贸易站</button>
                   <span id="hud-network-updated">DAY 1</span>
                 </div>
               </div>
             </aside>
             <aside class="quest-tracker-widget" data-hud-widget="quest-tracker" aria-label="任务追踪">
               <div class="hud-widget-head">
-                <span>TASK TRACKER</span>
+                <span>任务追踪</span>
                 <button class="hud-widget-close" type="button" data-hud-widget-toggle aria-label="关闭任务追踪" aria-expanded="true" title="关闭任务追踪">×</button>
               </div>
               <div class="quest-tracker-widget-body">
@@ -403,9 +403,9 @@
                   <div class="market-header-left">
                     <span class="market-header-mark" aria-hidden="true"></span>
                     <div class="market-header-copy">
-                      <span class="market-header-kicker">COMMERCE EXCHANGE</span>
-                      <h3 id="market-header-title">交易所终端</h3>
-                      <span class="market-header-subtitle">行情、现货与商网经营</span>
+                      <span class="market-header-kicker">买卖与经营</span>
+                      <h3 id="market-header-title">市场中心</h3>
+                      <span class="market-header-subtitle">买卖货物、查看行情、经营贸易站</span>
                     </div>
                   </div>
                   <div class="market-header-right">
@@ -437,20 +437,20 @@
                         id="market-spot-pane"
                         class="market-main-pane"
                         role="tabpanel"
-                        aria-label="现货交易"
+                        aria-label="买卖货物"
                       ></div>
                       <div
                         id="market-capital-pane"
                         class="market-main-pane hidden"
                         role="tabpanel"
-                        aria-label="资本控制"
+                        aria-label="资金管理"
                         aria-hidden="true"
                       ></div>
                       <div
                         id="market-operations-pane"
                         class="market-main-pane hidden"
                         role="tabpanel"
-                        aria-label="商网运营"
+                        aria-label="贸易站经营"
                         aria-hidden="true"
                       ></div>
                     </div>
@@ -506,11 +506,11 @@
           <div class="secondary-terminal-shell secondary-terminal-shell--archive">
             <header class="secondary-terminal-chrome">
               <div class="secondary-terminal-title-block">
-                <span class="secondary-terminal-kicker">ARCHIVE TERMINAL</span>
-                <h2 id="archive-terminal-title" class="secondary-terminal-title">档案终端</h2>
+                <span class="secondary-terminal-kicker">任务 · 科技 · 派系 · 成就</span>
+                <h2 id="archive-terminal-title" class="secondary-terminal-title">档案中心</h2>
               </div>
               <p id="archive-terminal-subtitle" class="secondary-terminal-subtitle">任务、科技、派系与成就集中管理。</p>
-              <div class="secondary-terminal-status" role="list" aria-label="档案终端模块">
+              <div class="secondary-terminal-status" role="list" aria-label="档案中心分类">
                 <span class="secondary-terminal-status-item" role="listitem">任务</span>
                 <span class="secondary-terminal-status-item" role="listitem">科技</span>
                 <span class="secondary-terminal-status-item" role="listitem">派系</span>
@@ -622,14 +622,14 @@
           <div class="secondary-terminal-shell secondary-terminal-shell--hangar">
             <header class="secondary-terminal-chrome">
               <div class="secondary-terminal-title-block">
-                <span class="secondary-terminal-kicker">HANGAR COMMAND</span>
-                <h2 id="hangar-terminal-title" class="secondary-terminal-title">机库终端</h2>
+                <span class="secondary-terminal-kicker">舰船 · 船员 · 自动跑商</span>
+                <h2 id="hangar-terminal-title" class="secondary-terminal-title">机库</h2>
               </div>
-              <p id="hangar-terminal-subtitle" class="secondary-terminal-subtitle">先选择舰船，再检查状态并执行整备或派遣。</p>
-              <div class="secondary-terminal-status" role="list" aria-label="机库终端模块">
+              <p id="hangar-terminal-subtitle" class="secondary-terminal-subtitle">先选择舰船，再检查状态、维护船况或开始自动跑商。</p>
+              <div class="secondary-terminal-status" role="list" aria-label="机库功能">
                 <span class="secondary-terminal-status-item" role="listitem">选择舰船</span>
                 <span class="secondary-terminal-status-item" role="listitem">检查状态</span>
-                <span class="secondary-terminal-status-item" role="listitem">执行作业</span>
+                <span class="secondary-terminal-status-item" role="listitem">管理舰船</span>
                 <span class="secondary-terminal-status-item" role="listitem">舰船采购</span>
               </div>
               <button
@@ -682,7 +682,7 @@
                     id="company-unlock-roadmap"
                     class="company-unlock-roadmap"
                     role="group"
-                    aria-label="公司权限台"
+                    aria-label="公司功能"
                     aria-live="polite"
                   ></div>
                 </div>
@@ -699,7 +699,7 @@
                     aria-controls="tab-fleet"
                     aria-selected="true"
                   >
-                    舰船作业
+                    舰船管理
                   </button>
                   <button
                     id="hangar-tab-shop"
@@ -715,7 +715,7 @@
                   </button>
                   <span class="fleet-inline-summary">
                     <span id="ov-ship-count">1</span>船 ·
-                    <span id="ov-dispatch-count">0</span>派遣 · Σ<span
+                    <span id="ov-dispatch-count">0</span>运行 · Σ<span
                       id="ov-total-profit"
                       >0</span
                     >
@@ -754,11 +754,11 @@
           <div class="secondary-terminal-shell secondary-terminal-shell--logs">
             <header class="secondary-terminal-chrome">
               <div class="secondary-terminal-title-block">
-                <span class="secondary-terminal-kicker">COMMUNICATION ARCHIVE</span>
+                <span class="secondary-terminal-kicker">航行 · 交易 · 系统记录</span>
                 <h2 id="logs-terminal-title" class="secondary-terminal-title">通讯日志</h2>
               </div>
               <p id="logs-terminal-subtitle" class="secondary-terminal-subtitle">集中查看航行、交易、系统与风险记录。</p>
-              <div class="secondary-terminal-status" role="list" aria-label="日志信号类型">
+              <div class="secondary-terminal-status" role="list" aria-label="日志记录类型">
                 <span class="secondary-terminal-status-item" role="listitem">系统</span>
                 <span class="secondary-terminal-status-item" role="listitem">交易</span>
                 <span class="secondary-terminal-status-item" role="listitem">风险</span>
@@ -776,11 +776,11 @@
 
             <div class="logs-terminal-body">
               <aside class="logs-terminal-aside" aria-label="日志说明">
-                <h3>信号分类</h3>
+                <h3>消息分类</h3>
                 <p>日志按接收时间倒序排列。重要行动仍以行动引导为唯一的下一步入口。</p>
                 <div class="logs-signal-legend" role="list">
                   <span class="logs-signal-item" role="listitem"><span class="logs-signal-dot" aria-hidden="true"></span>常规记录</span>
-                  <span class="logs-signal-item" role="listitem"><span class="logs-signal-dot" aria-hidden="true"></span>机会提示</span>
+                  <span class="logs-signal-item" role="listitem"><span class="logs-signal-dot" aria-hidden="true"></span>可选机会</span>
                   <span class="logs-signal-item" role="listitem"><span class="logs-signal-dot" aria-hidden="true"></span>风险警报</span>
                 </div>
               </aside>
@@ -796,7 +796,7 @@
                   aria-live="polite"
                   aria-relevant="additions"
                 >
-                  <div class="msg msg-info">系统通信链路已建立，等待新的航行记录。</div>
+                  <div class="msg msg-info">系统通信已连接，等待新的航行记录。</div>
                 </div>
               </section>
             </div>
@@ -978,7 +978,7 @@
             aria-valuenow="1"
           ></div>
           <div id="dialogue-summary" class="dialogue-summary" role="list" aria-label="剧情状态摘要" aria-live="polite"></div>
-          <div id="dialogue-branch-panel" class="dialogue-branch-panel" role="list" aria-label="剧情分支态势"></div>
+          <div id="dialogue-branch-panel" class="dialogue-branch-panel" role="list" aria-label="剧情分支状态"></div>
           <p id="dialogue-text" class="dialogue-text" aria-live="polite"></p>
           <div id="dialogue-footer" class="dialogue-footer hidden"></div>
           <div id="dialogue-choices" class="dialogue-choices hidden" role="list" aria-label="剧情分支选项" aria-hidden="true"></div>
@@ -1055,11 +1055,11 @@
       aria-describedby="dispatch-modal-desc dispatch-route-summary dispatch-primary-hint dispatch-policy-status"
     >
       <div class="modal-box dispatch-modal-box" tabindex="-1">
-        <h3 id="dispatch-title" class="dispatch-modal-title">📡 派遣贸易</h3>
+        <h3 id="dispatch-title" class="dispatch-modal-title">📡 自动跑商</h3>
         <p id="dispatch-modal-desc" class="dispatch-modal-desc">
           选择买入地、卖出地和商品后，系统会实时估算利润、燃料与执法风险。
         </p>
-        <div id="dispatch-route-summary" class="dispatch-route-summary" role="list" aria-label="当前派遣路线摘要" aria-live="polite">
+        <div id="dispatch-route-summary" class="dispatch-route-summary" role="list" aria-label="当前自动跑商路线摘要" aria-live="polite">
           <span class="dispatch-route-summary-item" role="listitem">
             <em>买入地</em>
             <strong id="dispatch-summary-buy">待选择</strong>
@@ -1078,7 +1078,7 @@
           </span>
         </div>
         <div class="dispatch-route-shell">
-          <section class="dispatch-route-section dispatch-route-section--plan" aria-label="派遣路线配置">
+          <section class="dispatch-route-section dispatch-route-section--plan" aria-label="自动跑商路线设置">
             <div id="dispatch-primary-hint" class="dispatch-primary-hint" role="status"></div>
             <div class="dispatch-form dispatch-form--core">
               <label class="dispatch-label"
@@ -1096,7 +1096,7 @@
             </div>
           </section>
           <details id="dispatch-advanced-panel" class="dispatch-advanced-panel">
-            <summary>高级策略（市场、风险、价格阈值）</summary>
+            <summary>可选设置（市场、风险、价格限制）</summary>
             <div class="dispatch-form dispatch-form--advanced">
               <label class="dispatch-label"
                 >交易市场
@@ -1106,7 +1106,7 @@
                 </select>
               </label>
               <label class="dispatch-label"
-                >风险偏好
+                >避险程度
                 <select id="dispatch-risk-mode" class="dispatch-select">
                   <option value="safe">保守</option>
                   <option value="balanced" selected>平衡</option>
@@ -1127,15 +1127,15 @@
               </label>
             </div>
             <div id="dispatch-policy-status" class="dispatch-policy-status" role="status" aria-live="polite">
-              价格与利润阈值均未限制。
+              价格与利润均未设置额外限制。
             </div>
           </details>
-          <section class="dispatch-route-section dispatch-route-section--estimate" aria-label="派遣估算">
+          <section class="dispatch-route-section dispatch-route-section--estimate" aria-label="自动跑商估算">
             <div id="dispatch-estimate" class="dispatch-estimate" aria-live="polite"></div>
           </section>
         </div>
         <div class="modal-actions">
-          <button id="dispatch-confirm" class="btn-primary" type="button">一键派遣</button>
+          <button id="dispatch-confirm" class="btn-primary" type="button">开始跑商</button>
           <button id="dispatch-cancel" class="btn-secondary" type="button">取消</button>
         </div>
       </div>
@@ -1176,7 +1176,7 @@
         <h3 id="crew-modal-title">👥 船员管理</h3>
         <div class="crew-modal-scroll stack-modal-scroll">
           <p id="crew-modal-desc" class="crew-modal-desc">
-            分配船员、管理预备队、招募港口人才，并调整当前飞船的舰桥协议。
+            分配船员、管理预备队、招募港口人才，并调整当前飞船的船员分工。
           </p>
           <div id="crew-modal-summary" class="crew-modal-summary" role="list" aria-live="polite"></div>
           <div class="crew-modal-section" role="region" aria-labelledby="crew-assigned-title" aria-describedby="crew-assigned-status">
@@ -1377,9 +1377,9 @@
       aria-describedby="victory-modal-desc victory-modal-body"
     >
       <div class="modal-box stack-modal-box victory-modal-box" tabindex="-1">
-        <h3 id="victory-modal-title">▣ 协议进度</h3>
+        <h3 id="victory-modal-title">▣ 长期路线</h3>
         <p id="victory-modal-desc" class="victory-modal-desc">
-          追踪各条胜利路径的完成度、关键条件和当前缺口。
+          查看各条长期路线的完成度、关键条件和还差多少。
         </p>
         <div id="victory-modal-body" class="victory-modal-body stack-modal-scroll"></div>
         <div class="modal-actions">
@@ -1568,7 +1568,7 @@
                 </div>
                 <div class="settings-row">
                   <div class="settings-row-label">
-                    <span class="settings-label">暗线显示</span>
+                    <span class="settings-label">隐藏航线显示</span>
                     <span class="settings-row-desc"
                       >控制地图中已解锁秘密航线的可视化显示，不影响实际折扣效果</span
                     >
@@ -1578,13 +1578,13 @@
                       id="settings-secret-routes-visible"
                       class="settings-toggle"
                       type="checkbox"
-                      aria-label="暗线显示"
+                      aria-label="隐藏航线显示"
                       checked
                     />
                   </div>
                 </div>
                 <div class="settings-hint-row">
-                  关闭后只隐藏地图上的暗线标注，已解锁航线仍然继续生效。
+                  关闭后只隐藏地图上的隐藏航线标注，已解锁航线仍然继续生效。
                 </div>
                 <div class="settings-row">
                   <div class="settings-row-label">

@@ -9089,6 +9089,10 @@ body,
   grid-template-columns: 1fr;
 }
 
+.planet-detail-panel.visible:not(.planet-detail-panel--galaxy-hub) {
+  max-height: min(560px, calc(100dvh - var(--starmap-rail-edge-y) - var(--starmap-command-clearance)));
+}
+
 .planet-detail-shell {
   grid-column: 1 / -1;
   display: grid;
@@ -10318,9 +10322,12 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) .bottom-n
 }
 
 .hdr-meter-head .hdr-stat-label {
+  flex: 0 0 auto;
+  min-width: 2.4em;
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
+  letter-spacing: 0.08em;
 }
 
 .hdr-meter-pct {
