@@ -28,8 +28,10 @@ import * as Save       from '../systems/save/SaveSystem.js';
 import * as Quest      from '../systems/quest/QuestSystem.js';
 import * as Tutorial   from '../systems/tutorial/TutorialSystem.js';
 import * as GameTime from '../systems/time/GameTimeSystem.js';
-import { INITIAL_STATE, DIFFICULTY_LEVELS, EVENT_CONFIG, TIME_CONFIG } from '../data/constants.js';
+import { DIFFICULTY_LEVELS, EVENT_CONFIG, TIME_CONFIG } from '../data/constants.js';
+import { resolveStartupState } from './StartupState.js';
 import * as Victory from '../systems/victory/VictorySystem.js';
+import * as BalanceMetrics from '../systems/metrics/BalanceMetricsSystem.js';
 import { getLevel } from '../data/playerLevels.js';
 import { SYSTEMS } from '../data/systems.js';
 import { GOODS } from '../data/goods.js';
@@ -119,8 +121,8 @@ function _reportDeferredUiFailure(surface, error) {
   console.error('[GameManager] Failed to load deferred ' + surface + ' feature.', error);
   var labels = {
     market: '商业终端',
-    fleet: '机库终端',
-    archive: '档案终端',
+    fleet: '机库',
+    archive: '档案中心',
     save: '存档终端',
     victory: '结算终端',
     dialogue: '剧情演出',
@@ -131,7 +133,7 @@ function _reportDeferredUiFailure(surface, error) {
     guidanceAction: '行动执行器',
     commerceRuntime: '高级经营运行时',
     advancedGuidance: '高级经营建议',
-    routeGuidance: '派遣路线建议',
+    routeGuidance: '自动跑商建议',
     achievement: '成就检查',
   };
   var label = labels[surface] || '功能模块';
@@ -526,6 +528,7 @@ function _resetRandomEventState(state) {
   if (!state || typeof state !== 'object') return;
   state._eventCooldowns = {};
   state._eventHistory = [];
+  state._activeEventId = '';
   state._tripsSinceLastEvent = 999;
 }
 
@@ -562,6 +565,22 @@ function _syncRandomEventRuntime(state) {
   _setDeferredUiState('randomEvent', _randomEventModule ? 'ready' : (_randomEventPromise ? 'loading' : 'idle'));
 }
 
+function _restorePendingEventNotification(state) {
+  if (!state || !state._activeEventId) return Promise.resolve(null);
+  var requestedState = state;
+  var requestedRevision = _runtimeRevision;
+  return _loadRandomEventSystem().then(function (RandomEvent) {
+    if (!RandomEvent || requestedState !== _state || requestedRevision !== _runtimeRevision) return null;
+    RandomEvent.syncRuntimeState(requestedState);
+    var event = RandomEvent.getActiveEvent();
+    if (!event) return null;
+    EventUI.showEventNotification(event, function (choiceIndex) {
+      _handleEventChoice(choiceIndex);
+    });
+    return event;
+  });
+}
+
 function _loadOnboardingUI() {
   if (_onboardingUiModule) return Promise.resolve(_onboardingUiModule);
   if (!_onboardingUiPromise) {
@@ -586,8 +605,71 @@ function _initializeTutorialUI(TutorialUI) {
   if (!TutorialUI) return;
   TutorialUI.init(
     function () { Tutorial.advance(); _updateUI(); },
-    function () { Tutorial.skip(); _updateUI(); }
+    function () { Tutorial.skip(); _updateUI(); },
+    _handleTutorialHelperAction
   );
+}
+
+function _handleTutorialHelperAction(actionId) {
+  if (['recommend_first_trade', 'recommend_sell_route'].indexOf(actionId) === -1 || !Tutorial.isActive()) return;
+
+  var requestedState = _state;
+  var requestedRevision = _runtimeRevision;
+  _loadRouteGuidance().then(function (AutoTrade) {
+    if (!AutoTrade || requestedState !== _state || requestedRevision !== _runtimeRevision) return;
+    var currentStep = Tutorial.getStep();
+    if (!currentStep) return;
+
+    if (actionId === 'recommend_first_trade') {
+      if (currentStep.id !== 'buy_goods') return;
+      var tradeRecommendation = AutoTrade.findBestTrade(_state);
+      var recommendedGood = tradeRecommendation
+        ? GOODS.find(function (good) { return good.id === tradeRecommendation.goodId; })
+        : null;
+      if (recommendedGood) {
+        var cargoFree = Math.max(0, (_state.maxCargo || 0) - Trade.getTotalCargo(_state));
+        var suggestedQuantity = Math.max(1, Math.min(
+          10,
+          cargoFree,
+          Math.floor((_state.credits || 0) / Math.max(1, tradeRecommendation.buyPrice))
+        ));
+        Modal.openTradeModal('buy', recommendedGood, _state, 'open', {
+          initialQuantity: suggestedQuantity,
+        });
+        EventBus.emit('log:message', {
+          text: '🧭 首单建议：买入 ' + recommendedGood.name + '，卖往 ' + tradeRecommendation.sellSystemName + '。确认数量后，下一步会重新核算实际净利。',
+          type: 'tip',
+        });
+        return;
+      }
+      EventBus.emit('log:message', {
+        text: '⚠️ 当前没有满足资金、货舱与风险条件的首单商品。',
+        type: 'error',
+      });
+      return;
+    }
+
+    if (currentStep.id !== 'travel_hint') return;
+
+    var recommendation = AutoTrade.findBestSellSystem(_state);
+    var goodId = Object.keys(_state.cargo || {}).find(function (id) {
+      return (_state.cargo[id] || 0) > 0;
+    }) || '';
+    var focused = recommendation && MapUI.focusNavigationTarget
+      ? MapUI.focusNavigationTarget(_state, recommendation.systemId, {
+          goodId: goodId,
+          title: '教程推荐卖货路线',
+        })
+      : false;
+
+    EventBus.emit('log:message', {
+      text: focused
+        ? ('🧭 已标出 ' + recommendation.systemName + '：请核对卖价、燃料与预计净利，再确认出航。')
+        : '⚠️ 暂时找不到可达的盈利卖货点，请检查燃料与已开放星球。',
+      type: focused ? 'tip' : 'error',
+    });
+    _updateUI();
+  });
 }
 
 function _loadTutorialUI() {
@@ -643,11 +725,13 @@ function _initializeSettingsUI(SettingsUI) {
     onRealtimeDayDurationChanged: function (nextDurationMs) {
       _settings.realtimeDayDurationMs = nextDurationMs;
       _resetRealtimeClock(performance.now());
+      if (Dispatch.isRunning()) _startActiveDispatchClock();
     },
     onResetTutorial: function () {
       Tutorial.reset();
       _hideSettingsModal();
-      init();
+      Save.deleteSlot(0);
+      init(null, { restoreAutosave: false });
     },
     onClearSaves: function () {
       for (var slotId = 0; slotId < 4; slotId++) Save.deleteSlot(slotId);
@@ -734,6 +818,7 @@ function _getMarketFinanceActions() {
     onTakeLoan: _handleTakeLoan,
     onRepayLoan: _handleRepayLoan,
     onInvestTradeStation: _handleInvestTradeStation,
+    onRedeemTradeStationInvestment: _handleRedeemTradeStationInvestment,
     onBatchInvestTradeStations: _handleBatchInvestTradeStations,
     onBuildTradeStation: _handleBuildTradeStation,
     onUpgradeTradeStation: _handleUpgradeTradeStation,
@@ -845,7 +930,8 @@ function _initializeVictoryResultUI(VictoryResultUI) {
     onRestart: function () {
       _pendingVictoryReportPathId = null;
       Tutorial.reset();
-      init();
+      Save.deleteSlot(0);
+      init(null, { restoreAutosave: false });
     },
   });
   _victoryResultUiInitialized = true;
@@ -874,27 +960,30 @@ let _onTutorialComplete = null;
 // 对外 API
 // ---------------------------------------------------------------------------
 
-export function init(difficulty) {
+export function init(difficulty, options) {
   _stopGameLoop();
   Dispatch.stopActiveDispatch();   // 重启时停止派遣
   _runtimeRevision += 1;
-  _state = _deepClone(INITIAL_STATE);
   _settings = Settings.loadSettings();
+  var startup = resolveStartupState(difficulty, _settings, options);
+  var restoredAutosave = startup.restoredAutosave;
+  _state = startup.state;
   Audio.init(_settings);
   _realtimeClock = null;
   _acknowledgedVictoryPathIds = new Set();
   _pendingVictoryReportPathId = null;
   _resetDialogueRuntime(_state);
-  _resetRandomEventRuntime(_state);
+  if (restoredAutosave) _syncRandomEventRuntime(_state);
+  else _resetRandomEventRuntime(_state);
   EventUI.hidePendingNotification();
 
-  // 应用难度设定
-  var effectiveDifficulty = difficulty || _settings.difficulty || 'normal';
-  var diff = DIFFICULTY_LEVELS[effectiveDifficulty] || DIFFICULTY_LEVELS['normal'];
-  _state.difficulty = diff.id;
-  _state.credits = diff.startCredits;
+  if (restoredAutosave) {
+    _settings.difficulty = _state.difficulty;
+    Settings.saveSettings(_settings);
+  }
 
-  Economy.init();
+  Economy.init(restoredAutosave ? _state.economyMarketState : null);
+  if (restoredAutosave && !_state.economyMarketState) Economy.setCycleState(_state.economyCycle);
   Fleet.init(_state);
   Faction.init(_state);
   Research.init(_state);
@@ -903,6 +992,9 @@ export function init(difficulty) {
   if (_achievementModule) _achievementModule.init(_state);
   _setDeferredUiState('achievement', _achievementModule ? 'ready' : (_achievementPromise ? 'loading' : 'idle'));
   GalaxyData.init(_state); // Initialize galaxy data layer
+  if (restoredAutosave && _state.galaxyStates && Object.keys(_state.galaxyStates).length > 0) {
+    GalaxyData.restorePlanetStates(_state.galaxyStates);
+  }
   _syncDeferredBusinessRuntimes();
   Renderer3D.init();
   Renderer3D.resetRuntimeState(_state.currentSystem);
@@ -987,15 +1079,12 @@ export function init(difficulty) {
   // 教程完成后推荐首批任务，并把后续节奏交给底部当前行动条。
   if (_onTutorialComplete) EventBus.off('tutorial:complete', _onTutorialComplete);
   _onTutorialComplete = function () {
-    var recommendations = Quest.getStarterRecommendations(_state, 3);
-    var activeQuest = Quest.getActiveQuests(_state)[0] || null;
-    _playTriggerDialogue('tutorial_complete', {
-      recommendations: recommendations,
-      activeQuest: activeQuest,
-    }, function () {
-      _recommendStarterQuests();
-      _refreshActionGuide();
+    EventBus.emit('log:message', {
+      text: '🧭 操作教程完成。底部当前行动会继续引导你登记首轮交易并进入正式委托。',
+      type: 'tip',
     });
+    _recommendStarterQuests();
+    _refreshActionGuide();
   };
   EventBus.on('tutorial:complete', _onTutorialComplete);
 
@@ -1010,6 +1099,11 @@ export function init(difficulty) {
   _updateUI();
   _resetRealtimeClock(performance.now());
   _startGameLoop();
+
+  if (restoredAutosave) {
+    _restorePendingEventNotification(_state);
+    EventBus.emit('log:message', { text: '📂 已自动恢复最近进度。', type: 'info' });
+  }
 
   const sceneReadyPromise = Renderer3D.whenSceneReady
     ? Renderer3D.whenSceneReady()
@@ -1045,7 +1139,7 @@ export function _handleTradeConfirmForTest(action, goodId, quantity, marketType)
 function _showWelcomeMessages() {
   EventBus.emit('log:message', { text: '🚀 欢迎来到银河历 3045 年！您的星际贸易之旅由此开始……', type: 'info' });
   EventBus.emit('log:message', {
-    text: '💡 提示：点击星图上的星系前往贸易，买低卖高赚取差价。多条胜利路径等你探索——查看顶部进度了解详情！',
+    text: '💡 提示：点击星图上的星系前往贸易，买低卖高赚取差价。多条长期路线等待推进——查看顶部进度了解详情！',
     type: 'tip',
   });
   EventBus.emit('log:message', {
@@ -1241,6 +1335,7 @@ function _scheduleRandomEventRoll(state, baseChance) {
         EventBus.emit('log:message', { text: '📢 遭遇事件：' + event.title + '！查看底部通知处理。', type: 'info' });
       }
 
+      _captureRuntimeStateForSave(requestedState);
       Save.saveGame(0, requestedState, { isAutosave: true });
       _refreshActionGuide();
       return event;
@@ -1672,19 +1767,10 @@ function _handleTravel(systemId) {
       if (activeShipAfterCheck && activeShipAfterCheck.route && activeShipAfterCheck.route.marketMode === 'black') {
         Fleet.cancelActiveDispatch(_state);
         Dispatch.stopActiveDispatch();
-        EventBus.emit('log:message', { text: '⏹️ 黑市自动派遣因走私被查获而中止。', type: 'error' });
+        EventBus.emit('log:message', { text: '⏹️ 黑市自动跑商因走私被查获而中止。', type: 'error' });
       }
     }
-    if (!smuggleResult.caught && smuggleResult.msgs.length === 0) {
-      // 携带违禁品且未被检查 → 记录走私成功
-      var hasContraband = Object.keys(_state.cargo).some(function (gid) {
-        var g = GOODS.find(function (x) { return x.id === gid; });
-        return g && g.legality === 'illegal' && _state.cargo[gid] > 0;
-      });
-      if (hasContraband) {
-        Economy.recordSmugglingEvaded(_state);
-      }
-    }
+    if (smuggleResult.evaded) Economy.recordSmugglingEvaded(_state);
 
     // 探索追踪：记录已访问的星球和星系
     if (!_state.visitedSystems) _state.visitedSystems = [];
@@ -1733,13 +1819,8 @@ function _handleTravel(systemId) {
     // 自动存档
     Fleet.commitActiveShipState(_state);
 
-    // 船队派遣贸易结算（每天一次）
-    const fleetResult = Fleet.tickFleetRoutes(_state);
-    fleetResult.msgs.forEach(function (m) {
-      EventBus.emit('log:message', { text: m.text, type: m.type });
-    });
-
-    _state.galaxyStates = GalaxyData.getAllPlanetStates(); // 保存星系数据层状态
+    // 船队推进统一由游戏日时钟结算，手动旅行不再额外推进远程船只。
+    _captureRuntimeStateForSave(_state);
     Save.saveGame(0, _state, { isAutosave: true });
 
     _updateUI();
@@ -1751,7 +1832,20 @@ function _handleEventChoice(choiceIndex) {
     EventBus.emit('log:message', { text: '⚠️ 事件运行时尚未就绪，请重新打开事件。', type: 'error' });
     return;
   }
+  const previousShipState = {
+    maxCargo: _state.maxCargo,
+    maxFuel: _state.maxFuel,
+    maxHull: _state.maxHull,
+    fuelEfficiency: _state.fuelEfficiency,
+    cargo: Object.assign({}, _state.cargo || {}),
+    cargoCost: Object.assign({}, _state.cargoCost || {}),
+  };
   const result = _randomEventModule.resolveChoice(_state, choiceIndex);
+  if (result && result.resolved) {
+    Fleet.commitActiveShipState(_state, previousShipState);
+    _captureRuntimeStateForSave(_state);
+    Save.saveGame(0, _state, { isAutosave: true });
+  }
   _dispatch(result);
 }
 
@@ -1771,7 +1865,7 @@ function _handleTradeConfirm(action, goodId, quantity, marketType) {
     ? Trade.buyGoodOnMarket(_state, goodId, quantity, effectiveMarket)
     : Trade.sellGoodOnMarket(_state, goodId, quantity, effectiveMarket);
   if (result && result.ok && effectiveMarket === 'black') {
-    Economy.recordBlackMarketTrade(_state);
+    Economy.recordBlackMarketTrade(_state, { action: action, meta: result.meta });
   }
   if (result && result.ok) {
     _returnToStarmapAfterTrade();
@@ -1784,9 +1878,9 @@ function _handleTradeConfirm(action, goodId, quantity, marketType) {
     var activeRoute = Fleet.getActiveShip(_state) ? Fleet.getActiveShip(_state).route : null;
     if (activeRoute && activeRoute.goodId === goodId) {
       if (action === 'buy') {
-        activeRoute.lastBuyPrice = effectiveMarket === 'black'
-          ? Economy.getBlackMarketBuyPrice(_state.currentSystem, goodId, _state)
-          : Economy.getBuyPrice(_state.currentSystem, goodId, _state);
+        activeRoute.lastBuyPrice = result.meta && Number.isFinite(result.meta.unitBuyPrice)
+          ? result.meta.unitBuyPrice
+          : null;
       } else if (action === 'sell') {
         activeRoute.lastBuyPrice = null;
       }
@@ -1794,7 +1888,7 @@ function _handleTradeConfirm(action, goodId, quantity, marketType) {
     }
     Tutorial.checkTrigger(action);
 
-    const factionMsgs = Faction.onTrade(_state, _state.currentSystem, goodId, action, quantity);
+    const factionMsgs = Faction.onTrade(_state, _state.currentSystem, goodId, action, quantity, effectiveMarket);
     factionMsgs.forEach(function (m) {
       EventBus.emit('log:message', { text: m.text, type: m.type });
     });
@@ -1853,11 +1947,15 @@ function _handleRefuel() {
 }
 
 function _handleOpenBuy(good) {
-  Modal.openTradeModal('buy', good, _state);
+  Modal.openTradeModal('buy', good, _state, 'open', Tutorial.isActive()
+    ? { initialQuantity: 10 }
+    : undefined);
 }
 
 function _handleOpenSell(good) {
-  Modal.openTradeModal('sell', good, _state);
+  Modal.openTradeModal('sell', good, _state, 'open', Tutorial.isActive()
+    ? { initialQuantity: Math.max(1, (_state.cargo && _state.cargo[good.id]) || 1) }
+    : undefined);
 }
 
 // ---------------------------------------------------------------------------
@@ -1938,17 +2036,17 @@ function _handleOpenFactionMarket(action) {
 
   var factionName = action.factionName || '该派系';
   var factionNextStep = action.label === '查看黑市条件'
-    ? '查看准入门槛与公开情报'
+    ? '查看开放条件与公开情报'
     : action.marketMode === 'black'
       ? '沿着' + factionName + '的地下通路继续找机会'
-      : '观察' + factionName + '代表节点行情';
+      : '观察' + factionName + '代表地点行情';
 
   EventBus.emit('log:message', {
     text: buildCommandFeedback(action, {
       icon: action.label === '查看黑市条件' ? '🔒' : (action.marketMode === 'black' ? '🕶' : '🏛'),
-      destination: (action.systemName || '代表节点') + ' · ' + (action.marketFocusLabel || '市场页'),
+      destination: (action.systemName || '代表地点') + ' · ' + (action.marketFocusLabel || '市场页'),
       nextStep: factionNextStep,
-      returnTo: '派系页继续调整关系策略',
+      returnTo: '派系页继续调整关系方向',
     }),
     type: 'tip',
   });
@@ -1998,7 +2096,7 @@ function _handleResolveResearchBlocker(action) {
 }
 
 function _handleApplyQuestDispatch(recommendation) {
-  _openRecommendedDispatch(recommendation, '任务派遣建议', '📋');
+  _openRecommendedDispatch(recommendation, '任务路线建议', '📋');
 }
 
 function _handleResolveQuestBlocker(action) {
@@ -2007,7 +2105,7 @@ function _handleResolveQuestBlocker(action) {
   if (action.actionId === 'quest-focus') {
     EventBus.emit('log:message', {
       text: buildCommandFeedback(action, {
-        openedVerb: '已定位到',
+        openedVerb: '已找到',
         destination: '任务页 · 替代任务',
         nextStep: '先推进「' + (action.targetQuestName || '推荐任务') + '」补成长',
         returnTo: '任务页继续处理「' + (action.questName || '当前任务') + '」',
@@ -2042,7 +2140,7 @@ function _handleResolveQuestBlocker(action) {
     EventBus.emit('log:message', {
       text: buildCommandFeedback(action, {
         icon: action.reasonId === 'fuel' ? '⛽' : '💰',
-        destination: '当前市场 · ' + (action.marketFocusLabel || '现货交易区'),
+        destination: '当前市场 · ' + (action.marketFocusLabel || '买卖货物'),
         nextStep: questMarketNextStep,
         returnTo: '任务页继续推进「' + (action.questName || '当前任务') + '」',
       }),
@@ -2084,7 +2182,7 @@ function _openRecommendedDispatch(recommendation, sourceLabel, icon) {
         icon: icon,
         destination: '「' + activeShip.emoji + ' ' + activeShip.name + '」 · ' + sourceLabel,
         nextStep: '检查 ' + (recommendation.buySystemName || recommendation.buySystemId) + ' → ' + (recommendation.sellSystemName || recommendation.sellSystemId) + ' · ' + (recommendation.goodName || recommendation.goodId),
-        returnTo: '确认“一键派遣”后执行路线',
+        returnTo: '确认“开始跑商”后执行路线',
       }),
       type: 'info',
     });
@@ -2220,6 +2318,12 @@ function _handleInvestTradeStation(systemId) {
   _dispatch(result);
 }
 
+function _handleRedeemTradeStationInvestment(systemId) {
+  const result = _runCommerceAction('redeemTradeStationInvestment', [systemId]);
+  if (result && result.ok) _recordQuestProgress({ action: 'finance_action', financeType: 'investment_exit' });
+  _dispatch(result);
+}
+
 function _handleBatchInvestTradeStations(systemIds, amount) {
   const normalizedSystemIds = _normalizeBatchSystemIds(systemIds);
   const targetSystemIds = normalizedSystemIds && normalizedSystemIds.length > 0
@@ -2266,8 +2370,7 @@ function _handleAbandonQuest(questId) {
 
 function _handleSaveGame(slotId) {
   Fleet.syncShipFromState(_state); // 保存前同步船只状态
-  _state.economyCycle = Economy.getCycleState();
-  _state.galaxyStates = GalaxyData.getAllPlanetStates(); // 保存星系数据层状态
+  _captureRuntimeStateForSave(_state);
   const result = Save.saveGame(slotId, _state);
   EventBus.emit('log:message', { text: result.msg, type: result.ok ? 'info' : 'error' });
   _updateUI();
@@ -2298,17 +2401,18 @@ function _handleLoadGame(slotId) {
     if (_state.galaxyStates && Object.keys(_state.galaxyStates).length > 0) {
       GalaxyData.restorePlanetStates(_state.galaxyStates); // 恢复星系状态
     }
-    Economy.init();
-    Economy.setCycleState(_state.economyCycle);
+    Economy.init(_state.economyMarketState);
+    if (!_state.economyMarketState) Economy.setCycleState(_state.economyCycle);
     Renderer3D.resetRuntimeState(_state.currentSystem);
     MapUI.refreshGalaxyBtn(_state);
     // 恢复派遣状态
     Dispatch.stopActiveDispatch();
     if (Fleet.isActiveDispatched(_state)) {
-      Dispatch.startActiveDispatch(_boundDispatchTick);
+      _startActiveDispatchClock();
     }
     _resetRealtimeClock(performance.now());
     _updateUI();
+    _restorePendingEventNotification(_state);
     EventBus.emit('log:message', { text: result.msg, type: 'info' });
   } else {
     EventBus.emit('log:message', { text: result.msg, type: 'error' });
@@ -2340,7 +2444,7 @@ function _handleSwitchShip(shipIndex) {
   _dispatch(result);
   // 如果新激活的船只已有路线，重新启动派遣
   if (result && result.ok && Fleet.isActiveDispatched(_state)) {
-    Dispatch.startActiveDispatch(_boundDispatchTick);
+    _startActiveDispatchClock();
   }
   if (result && result.ok) {
     _resetRealtimeClock(performance.now());
@@ -2363,7 +2467,7 @@ function _handleAssignRoute(shipIndex, buySystemId, sellSystemId, goodId, tradeP
   _dispatch(result);
   // 如果是激活船只被派遣，启动自动派遣定时器
   if (result && result.ok && isActive) {
-    Dispatch.startActiveDispatch(_boundDispatchTick);
+    _startActiveDispatchClock();
   }
   if (result && result.ok) {
     _recordQuestProgress({ action: 'dispatch_route', shipIndex: shipIndex, goodId: goodId });
@@ -2491,7 +2595,7 @@ function _boundDispatchTick() {
       var refuelResult = Trade.refuel(_state);
       _dispatch(refuelResult);
       if (_state.fuel < tickResult.payload.fuelCost) {
-        EventBus.emit('log:message', { text: '📡 派遣船只燃料不足，已召回。', type: 'error' });
+        EventBus.emit('log:message', { text: '📡 自动跑商的船只燃料不足，已召回。', type: 'error' });
         Fleet.cancelActiveDispatch(_state);
         Dispatch.stopActiveDispatch();
         _updateUI();
@@ -2504,7 +2608,7 @@ function _boundDispatchTick() {
       var preBuyRefuelResult = Trade.refuel(_state);
       _dispatch(preBuyRefuelResult);
       if (_state.fuel < tickResult.payload.fuelCost) {
-        EventBus.emit('log:message', { text: '📡 派遣船只补给后仍无法完成下一段航程，已召回。', type: 'error' });
+        EventBus.emit('log:message', { text: '📡 自动跑商的船只补给后仍无法完成下一段航程，已召回。', type: 'error' });
         Fleet.cancelActiveDispatch(_state);
         Dispatch.stopActiveDispatch();
         _updateUI();
@@ -2535,6 +2639,12 @@ function _boundDispatchTick() {
       break;
     // 'noop' — do nothing
   }
+}
+
+function _startActiveDispatchClock() {
+  // 两次自动操作约等于一个游戏日：四步买卖循环约耗时两天，
+  // 与远程船队的日结算速度保持同一量级。
+  Dispatch.startActiveDispatch(_boundDispatchTick, Math.floor(_getRealtimeDayDurationMs() / 2));
 }
 
 // ---------------------------------------------------------------------------
@@ -2574,6 +2684,9 @@ function _checkVictory() {
   const reportPathId = path && path.id ? path.id : 'victory';
   if (_pendingVictoryReportPathId === reportPathId) return;
   _pendingVictoryReportPathId = reportPathId;
+  const routeTimeline = BalanceMetrics.recordRouteCompletion(_state, reportPathId, {
+    netWorth: Trade.getNetWorth(_state),
+  });
   const allProgress = Victory.getProgress(_state);
 
   const levelTitle = getLevel(_state.experience || 0).title;
@@ -2588,6 +2701,12 @@ function _checkVictory() {
     { label: '探索星球', value: (_state.visitedSystems || []).length + ' 颗' },
     { label: '探索星系', value: (_state.visitedGalaxies || []).length + ' / 8 个' },
   ];
+  if (routeTimeline && routeTimeline.selectedDay) {
+    stats.splice(1, 0, {
+      label: '路线用时',
+      value: '第 ' + routeTimeline.selectedDay + ' 天选择 · ' + routeTimeline.daysToComplete + ' 天达成',
+    });
+  }
 
   _loadVictoryResultUI().then(function (VictoryResultUI) {
     if (!VictoryResultUI) return;
@@ -2605,7 +2724,7 @@ function _resetRealtimeClock(nowMs) {
 }
 
 function _isRealtimeClockPaused() {
-  return !!(document.hidden || document.querySelector('.modal:not(.hidden)'));
+  return !!(document.hidden || Tutorial.isActive() || document.querySelector('.modal:not(.hidden)'));
 }
 
 function _applyRealtimeDayProgress(days) {
@@ -2616,6 +2735,8 @@ function _applyRealtimeDayProgress(days) {
     ? _realtimeClock.lastHullSnapshot
     : (_state.shipHull || 100);
   var result = GameTime.advanceDays(_state, elapsedDays);
+  // 科研等全舰队永久加成在日结算中完成后，立即刷新当前飞船投影再存档。
+  Fleet.syncStateFromShip(_state);
 
   result.questResults.forEach(function (questResult) {
     _queueQuestDialogueResult(questResult);
@@ -2631,7 +2752,7 @@ function _applyRealtimeDayProgress(days) {
     _realtimeClock.lastHullSnapshot = _state.shipHull || 100;
   }
 
-  _state.galaxyStates = GalaxyData.getAllPlanetStates();
+  _captureRuntimeStateForSave(_state);
   Save.saveGame(0, _state, { isAutosave: true });
   _dispatch(result);
 }
@@ -2662,6 +2783,13 @@ function _getRealtimeDayDurationMs() {
   return Number.isFinite(_settings && _settings.realtimeDayDurationMs)
     ? _settings.realtimeDayDurationMs
     : TIME_CONFIG.realtimeDayDurationMs;
+}
+
+function _captureRuntimeStateForSave(state) {
+  if (!state) return;
+  state.economyCycle = Economy.getCycleState();
+  state.economyMarketState = Economy.getMarketState();
+  state.galaxyStates = GalaxyData.getAllPlanetStates();
 }
 
 function _stopGameLoop() {
