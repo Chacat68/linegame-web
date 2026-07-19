@@ -48,7 +48,12 @@ describe('Commerce.buyGood (公开市场)', () => {
 
 describe('Commerce.buyGood (黑市)', () => {
   it('黑市买入成功并记录黑市交易统计', () => {
-    const state = createTestState({ credits: 50000, maxCargo: 50 });
+    const state = createTestState({
+      credits: 50000,
+      maxCargo: 50,
+      currentSystem: 'shadow_haven',
+      factionRelations: { syndicate: 30 },
+    });
     Faction.init(state);
     const result = Commerce.buyGood(state, 'weapons', 2, 'black');
     expect(result.ok).toBe(true);
@@ -58,15 +63,14 @@ describe('Commerce.buyGood (黑市)', () => {
   });
 
   it('黑市买入使用更高的黑市价格', () => {
-    // 使用 minerals (basePrice=30) 确保价格差异在整数精度下可见
-    const state = createTestState({ credits: 100000, maxCargo: 100 });
+    const state = createTestState({ credits: 100000, maxCargo: 100, currentSystem: 'shadow_haven', factionRelations: { syndicate: 30 } });
     Faction.init(state);
 
-    const stateCopy = createTestState({ credits: 100000, maxCargo: 100 });
+    const stateCopy = createTestState({ credits: 100000, maxCargo: 100, currentSystem: 'shadow_haven', factionRelations: { syndicate: 30 } });
     Faction.init(stateCopy);
 
-    Commerce.buyGood(state, 'minerals', 10, 'black');
-    Commerce.buyGood(stateCopy, 'minerals', 10, 'open');
+    Commerce.buyGood(state, 'technology', 10, 'black');
+    Commerce.buyGood(stateCopy, 'technology', 10, 'open');
 
     // 黑市应该花费更多（黑市溢价 1.35）
     expect(state.credits).toBeLessThan(stateCopy.credits);
@@ -97,7 +101,13 @@ describe('Commerce.sellGood (公开市场)', () => {
 
 describe('Commerce.sellGood (黑市)', () => {
   it('黑市卖出成功并记录统计', () => {
-    const state = createTestState({ credits: 0, cargo: { weapons: 5 }, cargoCost: { weapons: 600 } });
+    const state = createTestState({
+      credits: 0,
+      cargo: { weapons: 5 },
+      cargoCost: { weapons: 600 },
+      currentSystem: 'shadow_haven',
+      factionRelations: { syndicate: 30 },
+    });
     Faction.init(state);
     const result = Commerce.sellGood(state, 'weapons', 3, 'black');
     expect(result.ok).toBe(true);
@@ -106,14 +116,14 @@ describe('Commerce.sellGood (黑市)', () => {
   });
 
   it('黑市卖出价高于公开市场', () => {
-    const stateBlack = createTestState({ credits: 0, cargo: { weapons: 5 }, cargoCost: { weapons: 0 } });
+    const stateBlack = createTestState({ credits: 0, cargo: { technology: 5 }, cargoCost: { technology: 0 }, currentSystem: 'shadow_haven', factionRelations: { syndicate: 30 } });
     Faction.init(stateBlack);
-    Commerce.sellGood(stateBlack, 'weapons', 5, 'black');
+    Commerce.sellGood(stateBlack, 'technology', 5, 'black');
     const blackEarned = stateBlack.credits;
 
-    const stateOpen = createTestState({ credits: 0, cargo: { weapons: 5 }, cargoCost: { weapons: 0 } });
+    const stateOpen = createTestState({ credits: 0, cargo: { technology: 5 }, cargoCost: { technology: 0 }, currentSystem: 'shadow_haven', factionRelations: { syndicate: 30 } });
     Faction.init(stateOpen);
-    Commerce.sellGood(stateOpen, 'weapons', 5, 'open');
+    Commerce.sellGood(stateOpen, 'technology', 5, 'open');
     const openEarned = stateOpen.credits;
 
     expect(blackEarned).toBeGreaterThan(openEarned);

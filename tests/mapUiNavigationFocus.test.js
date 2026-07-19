@@ -158,7 +158,10 @@ describe('MapUI navigation target focus', function () {
     expect(panel.innerHTML).toContain('燃料');
     expect(panel.innerHTML).toContain('预计');
     expect(panel.innerHTML).toContain('风险');
+    expect(panel.innerHTML).toContain('卖价');
+    expect(panel.innerHTML).toContain('预计净利');
     expect(panel.innerHTML).toContain('确认卖出');
+    expect(panel.innerHTML).toContain('核对结算');
 
     var prevented = false;
     var stopped = false;
@@ -181,6 +184,8 @@ describe('MapUI navigation target focus', function () {
 
     expect(css).toContain('.planet-detail-panel--pinned {');
     expect(css).toContain('grid-template-rows: minmax(0, 1fr) auto');
+    expect(css).toContain('.planet-detail-panel.visible:not(.planet-detail-panel--galaxy-hub) {');
+    expect(css).toContain('max-height: min(560px, calc(100dvh - var(--starmap-rail-edge-y) - var(--starmap-command-clearance)));');
     expect(css).toContain('.planet-detail-panel.visible:not(.planet-detail-panel--galaxy-hub)');
     expect(css).toContain('bottom: var(--starmap-command-clearance)');
     expect(css).toContain('body:has(#action-guide:not([hidden])) .planet-detail-panel.visible:not(.planet-detail-panel--galaxy-hub)');
@@ -188,6 +193,10 @@ describe('MapUI navigation target focus', function () {
     expect(css).toContain('body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) .map-btn-group');
     expect(css).toContain('--starmap-rail-edge-x: max(8px, var(--safe-left));');
     expect(css).toContain('--starmap-rail-safe-right: max(8px, var(--safe-right));');
+
+    var mapUiSource = readFileSync(new URL('../js/ui/MapUI.js', import.meta.url), 'utf8');
+    expect(mapUiSource).toContain("['bottom-nav', 'action-guide'].forEach");
+    expect(mapUiSource).toContain('commandSurfaceTop - panelH - 12');
   });
 
   it('星系总览使用固定返回入口、紧凑目录并保持滚动位置', async function () {

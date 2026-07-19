@@ -24,16 +24,16 @@ describe('MarketFocus contextual defaults', function () {
     GalaxyData.init(state);
   });
 
-  it('默认当前停靠节点优先落到现货交易区', function () {
+  it('默认当前停靠节点优先落到买卖货物', function () {
     expect(getContextualMarketPresetId(state)).toBe(MARKET_FOCUS_PRESET_IDS.SPOT_TRADE);
     expect(getContextualMarketFocus(state)).toEqual({
       workspaceId: 'spot',
       subworkspaceId: 'trade',
-      label: '现货交易区',
+      label: '买卖货物',
     });
   });
 
-  it('研究型节点默认落到市场情报区', function () {
+  it('研究型节点默认落到行情与路线', function () {
     state.currentSystem = 'citadel_prime';
     state.currentGalaxy = 'andromeda';
     state.viewingGalaxy = 'andromeda';
@@ -41,7 +41,7 @@ describe('MarketFocus contextual defaults', function () {
     expect(getContextualMarketPresetId(state)).toBe(MARKET_FOCUS_PRESET_IDS.SPOT_INTEL);
   });
 
-  it('已解锁黑市的特殊节点默认落到黑市分区', function () {
+  it('已解锁黑市的特殊节点默认落到黑市交易', function () {
     state.currentSystem = 'shadow_haven';
     state.factionRelations.syndicate = 90;
 
@@ -49,12 +49,12 @@ describe('MarketFocus contextual defaults', function () {
     expect(getContextualMarketFocus(state)).toEqual({
       workspaceId: 'spot',
       subworkspaceId: 'black',
-      label: '黑市分区',
+      label: '黑市交易',
       marketMode: 'black',
     });
   });
 
-  it('当前节点已有贸易站时默认落到本地节点经营区', function () {
+  it('当前节点已有贸易站时默认落到本地贸易站', function () {
     state.tradeStations = {
       sol_prime: {
         systemId: 'sol_prime',
@@ -72,7 +72,7 @@ describe('MarketFocus contextual defaults', function () {
     expect(getContextualMarketPresetId(state)).toBe(MARKET_FOCUS_PRESET_IDS.OPERATIONS_LOCAL);
   });
 
-  it('当前节点已有本地投资时也默认落到本地节点经营区', function () {
+  it('当前节点已有本地投资时也默认落到本地贸易站', function () {
     state.tradeInvestments = {
       sol_prime: {
         amount: 5000,
@@ -91,22 +91,22 @@ describe('MarketFocus contextual defaults', function () {
 
     expect(action).toMatchObject({
       actionId: 'market',
-      label: '查看现货交易',
+      label: '买卖货物',
       systemId: 'sol_prime',
       systemName: '太阳主星',
       marketWorkspaceId: 'spot',
       marketSubworkspaceId: 'trade',
-      marketFocusLabel: '现货交易区',
+      marketFocusLabel: '买卖货物',
       marketMode: '',
       commandSurface: 'market',
-      commandIntent: '现货交易区',
-      commandVerb: '查看现货交易',
+      commandIntent: '买卖货物',
+      commandVerb: '买卖货物',
     });
-    expect(action.contextHint).toContain('现货交易区');
-    expect(action.contextHint).toContain('补给与现货周转');
+    expect(action.contextHint).toContain('买卖货物');
+    expect(action.contextHint).toContain('补给和普通跑商');
   });
 
-  it('有贸易勘探报告时优先把市场 CTA 导向情报区', function () {
+  it('有贸易探索报告时优先把市场 CTA 导向情报区', function () {
     state.fuel = 100;
     state.credits = 2000;
 
@@ -120,12 +120,12 @@ describe('MarketFocus contextual defaults', function () {
     });
 
     expect(action).toMatchObject({
-      label: '查看市场情报',
+      label: '查看行情',
       marketWorkspaceId: 'spot',
       marketSubworkspaceId: 'intel',
-      marketFocusLabel: '市场情报区',
+      marketFocusLabel: '行情与路线',
     });
-    expect(action.contextHint).toContain('勘探报告');
+    expect(action.contextHint).toContain('探索报告');
   });
 
   it('黑市节点的 CTA payload 会保留 black mode', function () {
@@ -137,17 +137,16 @@ describe('MarketFocus contextual defaults', function () {
     });
 
     expect(action).toMatchObject({
-      label: '查看黑市通路',
+      label: '查看黑市',
       marketWorkspaceId: 'spot',
       marketSubworkspaceId: 'black',
-      marketFocusLabel: '黑市分区',
+      marketFocusLabel: '黑市交易',
       marketMode: 'black',
       commandSurface: 'market',
-      commandIntent: '黑市分区',
-      commandVerb: '查看黑市通路',
+      commandIntent: '黑市交易',
+      commandVerb: '查看黑市',
     });
-    expect(action.contextHint).toContain('黑市通路');
-    expect(action.contextHint).toContain('黑市分区');
+    expect(action.contextHint).toContain('黑市');
   });
 
   it('研究型节点的 CTA payload 会带出情报区原因提示', function () {
@@ -160,16 +159,16 @@ describe('MarketFocus contextual defaults', function () {
     });
 
     expect(action).toMatchObject({
-      label: '查看市场情报',
+      label: '查看行情',
       marketWorkspaceId: 'spot',
       marketSubworkspaceId: 'intel',
-      marketFocusLabel: '市场情报区',
+      marketFocusLabel: '行情与路线',
       marketMode: '',
       commandSurface: 'market',
-      commandIntent: '市场情报区',
-      commandVerb: '查看市场情报',
+      commandIntent: '行情与路线',
+      commandVerb: '查看行情',
     });
     expect(action.contextHint).toContain('科研线索');
-    expect(action.contextHint).toContain('市场情报区');
+    expect(action.contextHint).toContain('行情与探索报告');
   });
 });

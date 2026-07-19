@@ -18,7 +18,7 @@ describe('ActionGuideCompletion', function () {
       detail: '下一条行动建议已刷新',
     });
     expect(getNavigationFocusCompletion(true)).toEqual({
-      message: '已定位航点',
+      message: '已找到航点',
       detail: '检查目标详情后确认航行',
     });
     expect(getNavigationFocusCompletion(false)).toEqual({
@@ -26,7 +26,7 @@ describe('ActionGuideCompletion', function () {
       detail: '下一条行动建议已刷新',
     });
     expect(getRemoteMarketFocusCompletion()).toEqual({
-      message: '已定位市场航点',
+      message: '已找到市场航点',
       detail: '检查目标详情后确认航行',
     });
     expect(getRefuelCompletion()).toEqual({
@@ -34,24 +34,24 @@ describe('ActionGuideCompletion', function () {
       detail: '下一条行动建议已刷新',
     });
     expect(getDispatchDraftCompletion()).toEqual({
-      message: '已载入派遣草案',
-      detail: '确认“一键派遣”后执行路线',
+      message: '已载入跑商路线',
+      detail: '确认“开始跑商”后执行路线',
     });
     expect(getDispatchConfirmedCompletion('食物')).toEqual({
-      message: '已确认派遣路线',
-      detail: '派遣货物：食物',
+      message: '已确认自动跑商路线',
+      detail: '跑商货物：食物',
     });
     expect(getDispatchConfirmedCompletion()).toEqual({
-      message: '已确认派遣路线',
-      detail: '舰队派遣路线已生效',
+      message: '已确认自动跑商路线',
+      detail: '舰队自动跑商路线已生效',
     });
     expect(getModInstalledCompletion('深空测绘阵列')).toEqual({
       message: '已安装「深空测绘阵列」',
-      detail: '下一条派遣或经营建议已刷新',
+      detail: '下一条跑商或经营建议已刷新',
     });
     expect(getModInstalledCompletion()).toEqual({
       message: '已安装推荐组件',
-      detail: '下一条派遣或经营建议已刷新',
+      detail: '下一条跑商或经营建议已刷新',
     });
     expect(getServiceScheduledCompletion()).toEqual({
       message: '已完成港口保养',
@@ -68,7 +68,7 @@ describe('ActionGuideCompletion', function () {
     }, getDispatchDraftCompletion(), { durationMs: 10 });
 
     expect(calls).toEqual([
-      ['已载入派遣草案', '确认“一键派遣”后执行路线', { durationMs: 10 }],
+      ['已载入跑商路线', '确认“开始跑商”后执行路线', { durationMs: 10 }],
     ]);
     expect(showContextCompletion({}, getDispatchDraftCompletion())).toBeUndefined();
   });

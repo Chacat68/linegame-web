@@ -28,7 +28,7 @@ describe('ExplorationActionController', function () {
     expect(getProcessingMessage()).toBe('已执行探索指令，正在刷新现场建议');
   });
 
-  it('POI 行动会转发目标星系和探索点', function () {
+  it('探索点 行动会转发目标星系和探索点', function () {
     var context = createContext();
 
     handleExplorationAction({
@@ -42,7 +42,7 @@ describe('ExplorationActionController', function () {
     ]);
   });
 
-  it('POI 行动缺少 poiId 时只刷新行动条', function () {
+  it('探索点 行动缺少 poiId 时只刷新行动条', function () {
     var context = createContext();
 
     handleExplorationAction({

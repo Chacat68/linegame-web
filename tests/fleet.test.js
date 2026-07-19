@@ -149,6 +149,66 @@ describe('Fleet.syncStateFromShip / syncShipFromState', () => {
     expect(state.maxCargo).toBe(20);
     expect(Fleet.getShipSpecializationSummary(state, state.fleet[0])).toBe(null);
   });
+
+  it('切换飞船时货物成本跟随各自货舱，不会串船', () => {
+    const state = createTestState({ credits: 50000 });
+    Fleet.init(state);
+    state.fleetSlots = 2;
+    expect(Fleet.buyShip(state, 'freighter').ok).toBe(true);
+
+    state.cargo = { food: 2 };
+    state.cargoCost = { food: 20 };
+    Fleet.syncShipFromState(state);
+
+    expect(Fleet.switchShip(state, 1).ok).toBe(true);
+    expect(state.cargo).toEqual({});
+    expect(state.cargoCost).toEqual({});
+
+    state.cargo = { minerals: 1 };
+    state.cargoCost = { minerals: 30 };
+    Fleet.syncShipFromState(state);
+
+    expect(Fleet.switchShip(state, 0).ok).toBe(true);
+    expect(state.cargo).toEqual({ food: 2 });
+    expect(state.cargoCost).toEqual({ food: 20 });
+    expect(state.fleet[1].cargoCost).toEqual({ minerals: 30 });
+  });
+
+  it('事件造成的损失和永久容量变化会提交到活动飞船', () => {
+    const state = createTestState();
+    Fleet.init(state);
+    state.cargo = { food: 10 };
+    state.cargoCost = { food: 100 };
+    Fleet.syncShipFromState(state);
+    Fleet.syncStateFromShip(state);
+    const before = {
+      maxCargo: state.maxCargo,
+      maxFuel: state.maxFuel,
+      maxHull: state.maxHull,
+      fuelEfficiency: state.fuelEfficiency,
+      cargo: Object.assign({}, state.cargo),
+      cargoCost: Object.assign({}, state.cargoCost),
+    };
+
+    state.cargo.food = 5;
+    state.fuel = 80;
+    state.shipHull = 75;
+    state.maxCargo += 5;
+    state.maxFuel += 20;
+    Fleet.commitActiveShipState(state, before);
+
+    const ship = Fleet.getActiveShip(state);
+    expect(ship.cargo.food).toBe(5);
+    expect(ship.cargoCost.food).toBe(50);
+    expect(ship.fuel).toBe(80);
+    expect(ship.hull).toBe(75);
+    expect(state.maxCargo).toBe(25);
+    expect(state.maxFuel).toBe(120);
+
+    Fleet.syncStateFromShip(state);
+    expect(state.maxCargo).toBe(25);
+    expect(state.maxFuel).toBe(120);
+  });
 });
 
 describe('Fleet.getRouteDisplayInfo', () => {
@@ -793,6 +853,46 @@ describe('Fleet maintenance operations', () => {
     expect(ship.maintenance).toBeLessThan(100);
     expect(result.meta.wear).toBeGreaterThan(0);
   });
+
+  it('维护度过低时拒绝新跑商路线，并停止已有路线', () => {
+    const state = createTestState({ credits: 10000 });
+    Fleet.init(state);
+    state.fleetSlots = 2;
+    expect(Fleet.buyShip(state, 'freighter').ok).toBe(true);
+    const ship = state.fleet[1];
+
+    ship.maintenance = 14;
+    expect(Fleet.assignRoute(state, 1, 'sol_prime', 'nova_station', 'food').ok).toBe(false);
+
+    ship.maintenance = 20;
+    expect(Fleet.assignRoute(state, 1, 'sol_prime', 'nova_station', 'food').ok).toBe(true);
+    ship.maintenance = 14;
+    const result = Fleet.tickFleetRoutes(state);
+
+    expect(ship.route).toBeNull();
+    expect(result.msgs.some(function (msg) { return msg.text.indexOf('停止自动跑商') !== -1; })).toBe(true);
+  });
+
+  it('派遣经营账会分别记录收入、货款、燃料与养护', () => {
+    const state = createTestState({ credits: 50000 });
+    Fleet.init(state);
+    state.fleetSlots = 2;
+    expect(Fleet.buyShip(state, 'freighter').ok).toBe(true);
+    const ship = state.fleet[1];
+    expect(Fleet.assignRoute(state, 1, 'sol_prime', 'nova_station', 'food').ok).toBe(true);
+    ship.location = 'sol_prime';
+
+    Fleet.tickFleetRoutes(state);
+    Fleet.advanceFleetDay(state);
+    Fleet.tickFleetRoutes(state);
+    const summary = Fleet.getShipOperatingSummary(state, ship);
+
+    expect(summary.tradeCycles).toBe(1);
+    expect(summary.revenue).toBeGreaterThan(0);
+    expect(summary.cargoCost).toBeGreaterThan(0);
+    expect(summary.upkeepCost).toBeGreaterThan(0);
+    expect(summary.net).toBe(summary.revenue - summary.cargoCost - summary.fuelCost - summary.upkeepCost - summary.serviceCost);
+  });
 });
 
 describe('Fleet.getActiveFleetBonuses', () => {
@@ -837,7 +937,7 @@ describe('Fleet ship configuration', () => {
     expect(Fleet.getShipSpecializationSummary(state, Fleet.getActiveShip(state))).toBe(null);
   });
 
-  it('功能型改装会改变走私与 POI 收益系数', () => {
+  it('功能型改装会改变走私与 探索点 收益系数', () => {
     const state = createTestState({ credits: 50000 });
     Fleet.init(state);
     state.fleetSlots = 2;
@@ -861,7 +961,7 @@ describe('Fleet ship configuration', () => {
 
     const profile = Fleet.getShipRoleProfile(state, state.fleet[1]);
     expect(profile.id).toBe('survey');
-    expect(profile.label).toBe('勘探支援');
+    expect(profile.label).toBe('探索支援');
   });
 
 });
@@ -895,7 +995,7 @@ describe('Fleet.getShipModRecommendation', () => {
       modId: 'mod_ion_drive',
       canInstall: true,
     });
-    expect(recommendation.reason).toContain('快航');
+    expect(recommendation.reason).toContain('短途快运');
   });
 
   it('槽位已满时仍返回最相关推荐并说明阻塞原因', () => {

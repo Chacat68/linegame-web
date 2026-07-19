@@ -110,4 +110,32 @@ describe('TutorialSystem', () => {
     expect(highlights).toContain('#status-fuel-fill');
     expect(highlights).toContain('#map-3d-canvas');
   });
+
+  it('选线步骤提供可核对收益的路线推荐入口', () => {
+    const buyStep = Tutorial.STEPS.find(function (entry) {
+      return entry.id === 'buy_goods';
+    });
+    const step = Tutorial.STEPS.find(function (entry) {
+      return entry.id === 'travel_hint';
+    });
+
+    expect(buyStep.helperAction).toEqual({
+      id: 'recommend_first_trade',
+      label: '推荐首单商品',
+    });
+    expect(step.helperAction).toEqual({
+      id: 'recommend_sell_route',
+      label: '推荐一个卖货点',
+    });
+  });
+
+  it('教程补贴与贸易结算分开披露', () => {
+    const sellStep = Tutorial.STEPS.find(function (entry) { return entry.id === 'sell_goods'; });
+    const completeStep = Tutorial.STEPS.find(function (entry) { return entry.id === 'tutorial_complete'; });
+
+    expect(sellStep.reward).toBeNull();
+    expect(completeStep.reward.credits).toBe(100);
+    expect(completeStep.content).toContain('100 信用积分启动补贴');
+    expect(completeStep.content).toContain('贸易利润仍以卖出结算为准');
+  });
 });

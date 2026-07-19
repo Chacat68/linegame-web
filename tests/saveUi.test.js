@@ -168,9 +168,9 @@ describe('SaveUI.render', function () {
 
     expect(container.getAttribute('role')).toBe('region');
     expect(container.getAttribute('aria-label')).toBe('存档工作区');
-    expect(container.innerHTML).toContain('class="save-safety-panel save-safety-panel--warning" aria-label="存档安全态势"');
+    expect(container.innerHTML).toContain('class="save-safety-panel save-safety-panel--warning" aria-label="存档安全状态"');
     expect(container.innerHTML).toContain('class="save-safety-grid" role="list" aria-label="存档安全指标"');
-    expect(container.innerHTML).toContain('class="save-safety-focus" aria-label="存档局部信号"');
+    expect(container.innerHTML).toContain('class="save-safety-focus" aria-label="存档建议"');
     expect(container.innerHTML).toContain('自动备份缺失');
     expect(container.innerHTML).toContain('class="save-health-strip" role="status" aria-live="polite"');
     expect(container.innerHTML).toContain('class="save-slot-grid" role="list" aria-label="本地存档槽位"');

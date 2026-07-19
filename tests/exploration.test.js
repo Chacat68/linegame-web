@@ -24,7 +24,7 @@ describe('ExplorationSystem', function () {
     GalaxyData.init(state);
   });
 
-  it('当前航点应直接开放全部 POI', function () {
+  it('当前航点应直接开放全部 探索点', function () {
     const startingCredits = state.credits;
     const startingFuel = state.fuel;
     const planet = GalaxyData.getPlanetData('sol_prime');
@@ -48,7 +48,7 @@ describe('ExplorationSystem', function () {
     expect(Exploration.getPoiStatus(state, 'sol_prime', poi.id).canExplore).toBe(true);
   });
 
-  it('POI 预览应说明调查收益或风险', function () {
+  it('探索点 预览应说明调查收益或风险', function () {
     const basePlanet = GalaxyData.getPlanetData('sol_prime');
     const anomalyPoi = basePlanet.exploration.pois.find(function (poi) {
       return poi.kind === 'anomaly_site';
@@ -59,7 +59,7 @@ describe('ExplorationSystem', function () {
     expect(preview.canExplore).toBe(true);
     expect(preview.chainKind).toBe('ancient_relic');
     expect(preview.actionLabel).toContain('无成本');
-    expect(preview.detailText).toContain('事件链「先驱者轨道阵列」');
+    expect(preview.detailText).toContain('连续任务「先驱者轨道阵列」');
     expect(preview.detailText).toContain('舰体');
   });
 
@@ -80,7 +80,7 @@ describe('ExplorationSystem', function () {
     ]);
   });
 
-  it('调查资源点后应生成勘探报告并提升情报等级', function () {
+  it('调查资源点后应生成探索报告并提升情报等级', function () {
     const basePlanet = GalaxyData.getPlanetData('sol_prime');
     const resourcePoi = basePlanet.exploration.pois.find(function (poi) {
       return poi.kind === 'resource_cache';
@@ -130,7 +130,7 @@ describe('ExplorationSystem', function () {
       workspaceId: 'operations',
       subworkspaceId: 'network',
     });
-    expect(intel.marketHint).toContain('勘探报告');
+    expect(intel.marketHint).toContain('探索报告');
     expect(intel.dispatchHint).toContain('贸易报告');
     expect(intel.anomalyHint).toContain('遗忘补给库');
   });
@@ -235,7 +235,7 @@ describe('ExplorationSystem', function () {
     expect(routeIntel.nextChainFollowup).toMatchObject({
       chainKind: 'lost_beacon',
     });
-    expect(routeIntel.dispatchHint).toContain('暗线');
+    expect(routeIntel.dispatchHint).toContain('隐藏航线');
     expect(routeIntel.anomalyHint).toContain('幽灵航标网');
   });
 
@@ -260,7 +260,7 @@ describe('ExplorationSystem', function () {
     expect(discountedCost).toBeLessThan(baseCost);
   });
 
-  it('当前星球应返回可用于地图渲染的已发现暗线摘要', function () {
+  it('当前星球应返回可用于地图渲染的已发现隐藏航线摘要', function () {
     const basePlanet = GalaxyData.getPlanetData('sol_prime');
     const routePoi = basePlanet.exploration.pois.find(function (poi) {
       return poi.kind === 'route_beacon';
@@ -278,7 +278,7 @@ describe('ExplorationSystem', function () {
     expect(routes[0].discountPercent).toBeGreaterThan(0);
   });
 
-  it('完成全部 POI 后应发放完探奖励并归档完成报告', function () {
+  it('完成全部 探索点 后应发放完探奖励并归档完成报告', function () {
     const startingCredits = state.credits;
 
     GalaxyData.getPlanetData('sol_prime').exploration.pois.forEach(function (poi) {
@@ -352,7 +352,7 @@ describe('ExplorationSystem', function () {
     expect(restoredPlanet.exploration.completionRewardLabel).toBeTruthy();
   });
 
-  it('恢复缺少链状态的旧探索存档时应按 POI 进度回填事件链', function () {
+  it('恢复缺少链状态的旧探索存档时应按 探索点 进度回填事件链', function () {
     GalaxyData.restorePlanetStates({
       sol_prime: {
         id: 'sol_prime',

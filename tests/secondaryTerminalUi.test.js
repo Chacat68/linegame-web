@@ -13,16 +13,16 @@ describe('Secondary terminal UI structure', function () {
 
     expect(html).toContain('aria-labelledby="archive-terminal-title"');
     expect(html).toContain('aria-describedby="archive-terminal-subtitle"');
-    expect(html).toContain('class="secondary-terminal-status" role="list" aria-label="档案终端模块"');
+    expect(html).toContain('class="secondary-terminal-status" role="list" aria-label="档案中心分类"');
     expect(html).toContain('id="archive-tab-quest"');
     expect(html).toContain('aria-labelledby="archive-tab-quest" aria-hidden="false"');
     expect(html).toContain('aria-labelledby="hangar-terminal-title"');
-    expect(html).toContain('class="secondary-terminal-status" role="list" aria-label="机库终端模块"');
+    expect(html).toContain('class="secondary-terminal-status" role="list" aria-label="机库功能"');
     expect(html).toContain('id="hangar-tab-fleet"');
     expect(html).toContain('aria-labelledby="hangar-tab-fleet" aria-hidden="false"');
     expect(html).toContain('id="company-level-track" class="company-level-track" role="progressbar"');
     expect(html).toContain('class="company-unlock-roadmap"');
-    expect(html).toContain('aria-label="公司权限台"');
+    expect(html).toContain('aria-label="公司功能"');
     expect(html).toContain('id="market-overlay"');
     expect(html).toContain('role="region"\n              aria-labelledby="market-header-title"\n              aria-hidden="true"\n              tabindex="-1"');
     expect(html).toContain('id="market-close-btn" class="market-close-btn" type="button" aria-label="关闭市场并返回星图"');

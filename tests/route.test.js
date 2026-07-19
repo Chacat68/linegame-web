@@ -56,7 +56,7 @@ describe('RouteSystem', function () {
     expect(descriptors[0].startSystemId).toBe('mineral_belt');
   });
 
-  it('将已发现暗线转成统一航线描述', function () {
+  it('将已发现隐藏航线转成统一航线描述', function () {
     const state = createTestState({
       currentSystem: 'sol_prime',
       currentGalaxy: 'milky_way',

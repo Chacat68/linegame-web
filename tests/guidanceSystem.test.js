@@ -51,12 +51,24 @@ describe('GuidanceSystem', function () {
       priorityBand: GUIDANCE_PRIORITY_BANDS.core.id,
       guidanceTopic: {
         id: GUIDANCE_TOPICS.starterTrade.id,
-        label: '贸易入门链',
-        stepLabel: '接入委托',
+        label: '贸易入门',
+        stepLabel: '领取任务',
       },
       actionType: 'quest.accept',
       payload: { questId: 'starter_first_trade' },
     });
+  });
+
+  it('教程已完成一轮交易时，指引会明示首单可直接登记结算', function () {
+    var state = createTestState({ quests: [], completedQuests: [], tradeCount: 2 });
+    var suggestion = getCurrentSuggestion(state);
+
+    expect(suggestion).toMatchObject({
+      id: 'accept-first-trade',
+      title: '登记首轮交易',
+      actionLabel: '登记并结算',
+    });
+    expect(suggestion.reason).toContain('立即结算');
   });
 
   it('初次交易从接取到成交后会完成任务并生成下一条卖货建议', function () {
@@ -215,7 +227,7 @@ describe('GuidanceSystem', function () {
     });
   });
 
-  it('POI 调查建议优先级低于新手贸易链', function () {
+  it('探索点 调查建议优先级低于新手贸易链', function () {
     var state = createTestState({ quests: [], completedQuests: [] });
     var suggestion = getCurrentSuggestion(state, {
       nextPoi: { id: 'poi_1', name: '补给点' },
@@ -263,7 +275,7 @@ describe('GuidanceSystem', function () {
       actionType: 'event.open',
       actionLabel: '查看事件',
     });
-    expect(suggestion.reason).toContain('阻塞航行');
+    expect(suggestion.reason).toContain('暂停航行');
   });
 
   it('待处理事件优先于低燃料和派遣建议', function () {
@@ -338,13 +350,13 @@ describe('GuidanceSystem', function () {
       priorityBand: GUIDANCE_PRIORITY_BANDS.critical.id,
       guidanceTopic: {
         id: GUIDANCE_TOPICS.stability.id,
-        label: '整备保障链',
+        label: '补给与维修',
         stepLabel: '燃料补给',
       },
     });
   });
 
-  it('早期闭环结束后会推荐科研补给派遣', function () {
+  it('早期闭环结束后会推荐科研自动补给', function () {
     var researchSupplyRoute = {
       buySystemId: 'sol_prime',
       buySystemName: '太阳系-主星',
@@ -373,8 +385,8 @@ describe('GuidanceSystem', function () {
       priorityBand: GUIDANCE_PRIORITY_BANDS.midgame.id,
       guidanceTopic: {
         id: GUIDANCE_TOPICS.researchSupply.id,
-        label: '科研补给链',
-        stepLabel: '派遣补给',
+        label: '科研补给',
+        stepLabel: '自动补给',
       },
       payload: {
         sourceLabel: '科研补给建议',
@@ -432,7 +444,7 @@ describe('GuidanceSystem', function () {
     });
   });
 
-  it('早期闭环结束后会推荐普通派遣策略预填', function () {
+  it('早期闭环结束后会推荐普通跑商路线预填', function () {
     var dispatchRouteRecommendation = {
       buySystemId: 'sol_prime',
       buySystemName: '太阳主星',
@@ -441,7 +453,7 @@ describe('GuidanceSystem', function () {
       goodId: 'food',
       goodName: '食物',
       strategySummary: '稳态商运：匹配公开市场',
-      surveyIntelSummary: '勘探情报：买入地贸易报告',
+      surveyIntelSummary: '探索线索：买入地贸易报告',
       recommendedTradePolicy: { riskMode: 'balanced', marketMode: 'open' },
     };
     var state = createTestState({
@@ -461,13 +473,13 @@ describe('GuidanceSystem', function () {
       actionType: 'fleet.dispatch.prefill',
       actionLabel: '带入机库',
       payload: {
-        sourceLabel: '派遣策略建议',
+        sourceLabel: '跑商路线建议',
         recommendation: dispatchRouteRecommendation,
       },
       surface: 'fleet',
     });
     expect(suggestion.reason).toContain('太阳主星');
-    expect(suggestion.reason).toContain('勘探情报');
+    expect(suggestion.reason).toContain('探索线索');
   });
 
   it('同一路线草案已在派遣弹窗打开时不会重复推荐派遣预填', function () {
@@ -659,7 +671,7 @@ describe('GuidanceSystem', function () {
           cost: 2800,
         },
         canInstall: true,
-        reason: '勘探支援分工适合提升扫描折扣和 POI 收益。',
+        reason: '探索支援分工适合提升扫描折扣和探索点收益。',
       },
     });
 
@@ -675,7 +687,7 @@ describe('GuidanceSystem', function () {
       },
       commandIntent: '模块改装',
     });
-    expect(suggestion.reason).toContain('勘探支援');
+    expect(suggestion.reason).toContain('探索支援');
   });
 
   it('同一推荐组件已在机库改装视图打开时不会重复提示', function () {
@@ -698,7 +710,7 @@ describe('GuidanceSystem', function () {
           cost: 2800,
         },
         canInstall: true,
-        reason: '勘探支援分工适合提升扫描折扣和 POI 收益。',
+        reason: '探索支援分工适合提升扫描折扣和探索点收益。',
       },
       modModalContext: {
         shipIndex: 0,
@@ -710,7 +722,7 @@ describe('GuidanceSystem', function () {
     expect(suggestion).toBe(null);
   });
 
-  it('刚完成改装安装后会跳过同舰船改装推荐并转向派遣建议', function () {
+  it('刚完成改装安装后会跳过同舰船改装推荐并转向跑商建议', function () {
     var state = createTestState({
       quests: [],
       completedQuests: ['starter_first_trade', 'starter_visit_2'],
@@ -730,7 +742,7 @@ describe('GuidanceSystem', function () {
           cost: 2800,
         },
         canInstall: true,
-        reason: '勘探支援分工适合提升扫描折扣和 POI 收益。',
+        reason: '探索支援分工适合提升扫描折扣和探索点收益。',
       },
       recentModInstallContext: {
         shipIndex: 0,
@@ -751,7 +763,7 @@ describe('GuidanceSystem', function () {
       id: 'prefill-profitable-dispatch',
       actionType: 'fleet.dispatch.prefill',
       payload: {
-        sourceLabel: '派遣策略建议',
+        sourceLabel: '跑商路线建议',
         recommendation: {
           goodId: 'food',
         },
@@ -780,8 +792,8 @@ describe('GuidanceSystem', function () {
       actionLabel: '打开经营页',
       guidanceTopic: {
         id: GUIDANCE_TOPICS.tradeNetwork.id,
-        label: '商网建设链',
-        stepLabel: '新建节点',
+        label: '贸易站发展',
+        stepLabel: '新建贸易站',
       },
       payload: {
         workspaceId: 'operations',
@@ -893,7 +905,7 @@ describe('GuidanceSystem', function () {
     expect(suggestion.payload.systemIds.length).toBeGreaterThanOrEqual(2);
   });
 
-  it('有可用勘探经营情报时推荐打开市场情报区', function () {
+  it('有可用勘探经营情报时推荐打开行情与路线', function () {
     var state = createTestState({
       quests: [],
       completedQuests: ['starter_first_trade', 'starter_visit_2'],
@@ -927,7 +939,7 @@ describe('GuidanceSystem', function () {
         intelSignal: 'market',
       },
     });
-    expect(suggestion.reason).toContain('贸易窗口');
+    expect(suggestion.reason).toContain('交易机会');
   });
 
   it('有待跟进事件链时行动条优先生成事件链建议', function () {
@@ -979,13 +991,13 @@ describe('GuidanceSystem', function () {
       },
       guidanceTopic: {
         id: GUIDANCE_TOPICS.surveyIntel.id,
-        stepLabel: '事件链跟进',
+        stepLabel: '跟进连续任务',
       },
     });
     expect(suggestion.title).toContain('废弃补给站');
   });
 
-  it('市场情报区已经打开时不会反复推荐查看同一份勘探行情', function () {
+  it('行情与路线已经打开时不会反复推荐查看同一份勘探行情', function () {
     var state = createTestState({
       quests: [],
       completedQuests: ['starter_first_trade', 'starter_visit_2'],
@@ -1110,7 +1122,7 @@ describe('GuidanceSystem', function () {
     });
   });
 
-  it('贷款临近展期时推荐打开资本调度区', function () {
+  it('贷款临近展期时推荐打开资金管理', function () {
     var state = createTestState({
       quests: [],
       completedQuests: ['starter_first_trade', 'starter_visit_2'],
@@ -1134,7 +1146,7 @@ describe('GuidanceSystem', function () {
     expect(suggestion).toMatchObject({
       id: 'review-loan-obligation',
       actionType: 'market.open',
-      actionLabel: '查看资本',
+      actionLabel: '查看贷款',
       payload: {
         workspaceId: 'capital',
         subworkspaceId: 'local',
@@ -1242,7 +1254,7 @@ describe('GuidanceSystem', function () {
     });
   });
 
-  it('当前航点直接推荐调查下一处 POI 并带上目标 id', function () {
+  it('当前航点直接推荐调查下一处 探索点 并带上目标 id', function () {
     var state = createTestState({
       quests: [createFirstExploreQuest()],
       completedQuests: ['starter_first_trade'],
@@ -1270,6 +1282,6 @@ describe('GuidanceSystem', function () {
       surface: 'exploration',
     });
     expect(suggestion.reason).toContain('废弃补给站');
-    expect(suggestion.reason).toContain('商网');
+    expect(suggestion.reason).toContain('贸易站');
   });
 });

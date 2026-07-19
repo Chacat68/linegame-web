@@ -8,6 +8,7 @@ import * as Economy from '../js/systems/economy/Economy.js';
 import * as GalaxyData from '../js/systems/galaxy/GalaxyDataLayer.js';
 import * as Exploration from '../js/systems/galaxy/ExplorationSystem.js';
 import * as AutoTrade from '../js/systems/trade/AutoTradeSystem.js';
+import * as Fleet from '../js/systems/fleet/FleetSystem.js';
 import { getResearchDispatchBlockerState } from '../js/ui/ResearchGuidance.js?v=20260715-archiveperf1';
 import { getResearchDispatchBlockerActions } from '../js/ui/ResearchUI.js?v=20260715-archiveperf1';
 import { createTestState } from './helpers.js';
@@ -125,6 +126,27 @@ describe('ResearchSystem.advanceResearch', () => {
     const result = Research.advanceResearch(state);
     expect(result.msgs).toBeDefined();
   });
+
+  it('舰船科研加成由已研究科技稳定派生，不会被同步覆盖', () => {
+    const state = createTestState({
+      researchedTechs: ['reinforced_hull', 'advanced_thrusters', 'cargo_compression', 'warp_drive'],
+    });
+    Fleet.init(state);
+
+    expect(state.maxCargo).toBe(35);
+    expect(state.maxFuel).toBe(150);
+    expect(state.maxHull).toBe(130);
+    expect(state.fuelEfficiency).toBeCloseTo(0.6, 4);
+
+    Fleet.syncStateFromShip(state);
+    Fleet.syncStateFromShip(state);
+
+    expect(state.maxCargo).toBe(35);
+    expect(state.maxFuel).toBe(150);
+    expect(state.maxHull).toBe(130);
+    expect(state.fuelEfficiency).toBeCloseTo(0.6, 4);
+    expect(Fleet.getActiveShip(state).maxHull).toBe(100);
+  });
 });
 
 describe('ResearchSystem.isResearched', () => {
@@ -177,7 +199,7 @@ describe('ResearchSystem.getResearchState', () => {
 });
 
 describe('ResearchUI blocker helpers', () => {
-  it('舱位不足时把主动作导向现货交易区清货', () => {
+  it('舱位不足时把主动作导向买卖货物清货', () => {
     const state = createTestState({
       currentSystem: 'sol_prime',
       currentGalaxy: 'milky_way',
@@ -206,9 +228,9 @@ describe('ResearchUI blocker helpers', () => {
       label: '打开市场清货',
       marketWorkspaceId: 'spot',
       marketSubworkspaceId: 'trade',
-      marketFocusLabel: '现货交易区',
+      marketFocusLabel: '买卖货物',
       commandSurface: 'market',
-      commandIntent: '现货交易区',
+      commandIntent: '买卖货物',
     });
   });
 
@@ -236,12 +258,12 @@ describe('ResearchUI blocker helpers', () => {
     expect(actions[0]).toMatchObject({
       actionId: 'market',
       reasonId: 'credits',
-      label: '打开资本周转',
+      label: '打开资金管理',
       marketWorkspaceId: 'capital',
       marketSubworkspaceId: 'local',
-      marketFocusLabel: '资本调度区',
+      marketFocusLabel: '资金管理',
       commandSurface: 'market',
-      commandIntent: '资本调度区',
+      commandIntent: '资金管理',
     });
     expect(actions[1]).toMatchObject({
       actionId: 'quest-focus',
@@ -281,9 +303,9 @@ describe('ResearchUI blocker helpers', () => {
       label: '打开市场跑单',
       marketWorkspaceId: 'operations',
       marketSubworkspaceId: 'local',
-      marketFocusLabel: '本地节点经营区',
+      marketFocusLabel: '本地贸易站',
       commandSurface: 'market',
-      commandIntent: '本地节点经营区',
+      commandIntent: '本地贸易站',
     });
     expect(actions[1]).toMatchObject({
       actionId: 'quest-focus',
@@ -296,7 +318,7 @@ describe('ResearchUI blocker helpers', () => {
 });
 
 describe('Research supply survey intel', function () {
-  it('科研补给路线会吸收已归档的科研勘探报告', function () {
+  it('科研补给路线会吸收已归档的科研探索报告', function () {
     const state = createTestState({
       currentSystem: 'medical_hub',
       currentGalaxy: 'milky_way',
@@ -345,7 +367,7 @@ describe('Research supply survey intel', function () {
 
     expect(recommendation).toBeTruthy();
     expect(recommendation.surveyIntelScore).toBeGreaterThan(0);
-    expect(recommendation.surveyIntelSummary).toContain('勘探情报');
+    expect(recommendation.surveyIntelSummary).toContain('探索线索');
     expect(recommendation.strategySummary).toContain('科研报告');
     expect(recommendation.adjustedProfit).toBeGreaterThan(baselineRecommendation.adjustedProfit);
   });

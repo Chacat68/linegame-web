@@ -60,7 +60,7 @@ describe('CommerceActionController', function () {
       },
     ]);
     expect(context.calls[1][0]).toBe('emitLog');
-    expect(context.calls[1][1].text).toContain('经营页 · 商网总览区');
+    expect(context.calls[1][1].text).toContain('贸易站 · 总览');
     expect(context.calls[2]).toEqual(['updateUI']);
     expect(context.calls[3]).toEqual(['showCompletion', '已打开市场导航', '下一条行动建议已刷新']);
   });
@@ -102,7 +102,7 @@ describe('CommerceActionController', function () {
       actionType: 'market.open',
       title: '跟进「废弃补给站」',
       actionLabel: '规划商网',
-      commandIntent: '事件链商网',
+      commandIntent: '连续任务经营',
       payload: {
         workspaceId: 'operations',
         subworkspaceId: 'network',
@@ -129,16 +129,16 @@ describe('CommerceActionController', function () {
       },
     ]);
     expect(context.calls[2][0]).toBe('emitLog');
-    expect(context.calls[2][1].text).toContain('经营页 · 商网总览区');
+    expect(context.calls[2][1].text).toContain('贸易站 · 总览');
     expect(context.calls[2][1].text).toContain('跟进「废弃补给站」');
     expect(context.calls[4]).toEqual(['revealSurveyChainFocus', 'sol_prime_depot_chain']);
     expect(context.calls[5]).toEqual(['showCompletion', '已打开市场导航', '下一条行动建议已刷新']);
   });
 
   it('可复用市场目的地文案映射', function () {
-    expect(getMarketActionDestination({ workspaceId: 'capital' }, '')).toBe('商业终端 · 资本调度区');
-    expect(getMarketActionDestination({ workspaceId: 'capital', subworkspaceId: 'stocks' }, '')).toBe('商业终端 · 资本调度区');
-    expect(getMarketActionDestination({ workspaceId: 'capital', subworkspaceId: 'futures' }, '')).toBe('商业终端 · 资本调度区');
-    expect(getMarketActionDestination({ subworkspaceId: 'black' }, '')).toBe('当前市场 · 黑市分区');
+    expect(getMarketActionDestination({ workspaceId: 'capital' }, '')).toBe('商业终端 · 资金管理');
+    expect(getMarketActionDestination({ workspaceId: 'capital', subworkspaceId: 'stocks' }, '')).toBe('商业终端 · 资金管理');
+    expect(getMarketActionDestination({ workspaceId: 'capital', subworkspaceId: 'futures' }, '')).toBe('商业终端 · 资金管理');
+    expect(getMarketActionDestination({ subworkspaceId: 'black' }, '')).toBe('当前市场 · 黑市交易');
   });
 });

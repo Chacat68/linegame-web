@@ -80,7 +80,7 @@ describe('GuidanceActionController', function () {
       },
     ]);
     expect(context.calls[1][0]).toBe('emitLog');
-    expect(context.calls[1][1].text).toContain('经营页 · 商网总览区');
+    expect(context.calls[1][1].text).toContain('贸易站 · 总览');
     expect(context.calls[2]).toEqual(['updateUI']);
     expect(context.calls[3]).toEqual(['showCompletion', '已打开市场导航', '下一条行动建议已刷新']);
   });
@@ -127,7 +127,7 @@ describe('GuidanceActionController', function () {
 
     expect(context.calls[0][0]).toBe('focusNavigationTarget');
     expect(context.calls[2]).toEqual(['updateUI']);
-    expect(context.calls[3]).toEqual(['showCompletion', '已定位航点', '检查目标详情后确认航行']);
+    expect(context.calls[3]).toEqual(['showCompletion', '已找到航点', '检查目标详情后确认航行']);
   });
 
   it('探索行动会委托到探索控制器并保留直接执行准备', function () {
@@ -181,9 +181,9 @@ describe('GuidanceActionController', function () {
   });
 
   it('可复用市场目的地文案映射', function () {
-    expect(getMarketActionDestination({ workspaceId: 'capital' }, '')).toBe('商业终端 · 资本调度区');
-    expect(getMarketActionDestination({ workspaceId: 'capital', subworkspaceId: 'stocks' }, '')).toBe('商业终端 · 资本调度区');
-    expect(getMarketActionDestination({ workspaceId: 'capital', subworkspaceId: 'futures' }, '')).toBe('商业终端 · 资本调度区');
-    expect(getMarketActionDestination({ subworkspaceId: 'black' }, '')).toBe('当前市场 · 黑市分区');
+    expect(getMarketActionDestination({ workspaceId: 'capital' }, '')).toBe('商业终端 · 资金管理');
+    expect(getMarketActionDestination({ workspaceId: 'capital', subworkspaceId: 'stocks' }, '')).toBe('商业终端 · 资金管理');
+    expect(getMarketActionDestination({ workspaceId: 'capital', subworkspaceId: 'futures' }, '')).toBe('商业终端 · 资金管理');
+    expect(getMarketActionDestination({ subworkspaceId: 'black' }, '')).toBe('当前市场 · 黑市交易');
   });
 });

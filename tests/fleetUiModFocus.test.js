@@ -213,7 +213,7 @@ describe('FleetUI.openModModal guidance focus', function () {
     expect(elements['fleet-list'].innerHTML).toContain('class="hangar-ship-workspace" aria-labelledby="hangar-workspace-title"');
     expect(elements['fleet-list'].innerHTML).toContain('class="hangar-support-panel"');
     expect(elements['fleet-list'].innerHTML).toContain('查看不会改变当前操控舰');
-    expect(elements['fleet-list'].innerHTML).toContain('优先整备');
+    expect(elements['fleet-list'].innerHTML).toContain('优先维护');
   });
 
   it('查看其他舰船不会切换操控舰，并会提供单独的切换动作', async function () {
@@ -277,7 +277,7 @@ describe('FleetUI.openModModal guidance focus', function () {
     expect(selectedButton.focused).toBe(true);
   });
 
-  it('购船页会渲染采购态势、局部焦点和船卡信号条', function () {
+  it('购船页会渲染采购状态、局部焦点和船卡信号条', function () {
     var elements = {
       'shop-list': createFakeElement(),
     };
@@ -295,9 +295,9 @@ describe('FleetUI.openModModal guidance focus', function () {
     FleetUI.renderShop(state, function () {});
 
     expect(elements['shop-list'].innerHTML).toContain('class="hangar-shop-brief" aria-label="购船决策摘要"');
-    expect(elements['shop-list'].innerHTML).toContain('class="hangar-shop-brief-grid" role="list" aria-label="采购态势矩阵"');
-    expect(elements['shop-list'].innerHTML).toContain('class="hangar-shop-focus" aria-label="购船局部信号"');
-    expect(elements['shop-list'].innerHTML).toContain('采购焦点');
+    expect(elements['shop-list'].innerHTML).toContain('class="hangar-shop-brief-grid" role="list" aria-label="采购状态概览"');
+    expect(elements['shop-list'].innerHTML).toContain('class="hangar-shop-focus" aria-label="购船建议"');
+    expect(elements['shop-list'].innerHTML).toContain('购船建议');
     expect(elements['shop-list'].innerHTML).toContain('fleet-shop-signal-strip');
     expect(elements['shop-list'].innerHTML).toContain('fleet-shop-card--focus');
   });
@@ -378,9 +378,9 @@ describe('FleetUI.openModModal guidance focus', function () {
     expect(body.innerHTML).toContain('mod-modal-item--focus');
     expect(body.innerHTML).toContain('data-mod-id="mod_service_bay"');
     expect(body.innerHTML).toContain('class="mod-modal-overview" role="list" aria-label="飞船改装摘要"');
-    expect(body.innerHTML).toContain('class="mod-modal-signal-panel" aria-label="改装局部态势"');
+    expect(body.innerHTML).toContain('class="mod-modal-signal-panel" aria-label="改装当前状态"');
     expect(body.innerHTML).toContain('class="mod-modal-signal-grid" role="list" aria-label="改装决策指标"');
-    expect(body.innerHTML).toContain('class="mod-modal-signal-focus" role="status" aria-label="改装局部信号"');
+    expect(body.innerHTML).toContain('class="mod-modal-signal-focus" role="status" aria-label="改装建议"');
     expect(body.innerHTML).toContain('<h4 class="mod-modal-section-title">结构模块</h4>');
     expect(body.innerHTML).toContain('保养优先');
     expect(body.innerHTML).toContain('role="progressbar"');
@@ -443,7 +443,7 @@ describe('FleetUI.openModModal guidance focus', function () {
     expect(html).toContain('id="crew-market-status" class="crew-modal-section-meta"');
     expect(html).toContain('aria-describedby="dispatch-modal-desc dispatch-route-summary dispatch-primary-hint dispatch-policy-status"');
     expect(html).toContain('id="dispatch-policy-status" class="dispatch-policy-status" role="status"');
-    expect(html).toContain('id="dispatch-route-summary" class="dispatch-route-summary" role="list" aria-label="当前派遣路线摘要"');
+    expect(html).toContain('id="dispatch-route-summary" class="dispatch-route-summary" role="list" aria-label="当前自动跑商路线摘要"');
     expect(css).toContain('Hangar detail modal shell refinements');
     expect(css).toContain('.crew-modal-summary-stat');
     expect(css).toContain('.crew-modal-roster-alert');
@@ -466,7 +466,7 @@ describe('FleetUI.openModModal guidance focus', function () {
     expect(fleetCss).toContain('padding: 0 !important;');
     expect(source).toContain("modalBox.querySelectorAll('.crew-dismiss-btn')");
     expect(source).toContain("title: '解雇「' + (crewMember ? crewMember.name : '该船员') + '」？'");
-    expect(source).toContain('<strong>编制信号</strong>');
+    expect(source).toContain('<strong>船员建议</strong>');
   });
 
   it('船员内联界面会渲染分区信号并从实际内容根节点绑定操作', async function () {
@@ -598,7 +598,7 @@ describe('FleetUI.openModModal guidance focus', function () {
     expect(modal.dataset.crewMarketState).toBe('ready');
     expect(modalBox.dataset.crewSeatState).toBe('ready');
     expect(elements['crew-modal-summary'].innerHTML).toContain('crew-modal-roster-alert');
-    expect(elements['crew-modal-summary'].innerHTML).toContain('编制信号');
+    expect(elements['crew-modal-summary'].innerHTML).toContain('船员建议');
     expect(elements['crew-modal-summary'].innerHTML).toContain('还有 1 个空席位');
     expect(elements['crew-assigned-status'].innerHTML).toContain('席位');
     expect(elements['crew-assigned-status'].innerHTML).toContain('1/2');
@@ -719,7 +719,7 @@ describe('FleetUI.openModModal guidance focus', function () {
     expect(elements['dispatch-summary-policy'].textContent).toBe('公开市场 · 平衡');
     expect(modal.dataset.dispatchState).toBe('ready');
     expect(modal.dataset.dispatchPolicyState).toBe('neutral');
-    expect(elements['dispatch-estimate'].innerHTML).toContain('role="list" aria-label="派遣估算指标"');
+    expect(elements['dispatch-estimate'].innerHTML).toContain('role="list" aria-label="自动跑商估算"');
     expect(elements['dispatch-estimate'].innerHTML).toContain('dispatch-estimate-metric');
     expect(elements['dispatch-estimate'].innerHTML).toContain('role="list" aria-label="路线风险明细"');
 

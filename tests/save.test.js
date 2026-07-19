@@ -76,6 +76,25 @@ describe('Save.loadGame', () => {
     expect(result.state.day).toBe(42);
   });
 
+  it('待处理事件和每艘船的货物成本可以完整往返', () => {
+    const state = createTestState({
+      _activeEventId: 'space_anomaly',
+      activeShipIndex: 1,
+      fleet: [
+        { cargo: { food: 2 }, cargoCost: { food: 20 } },
+        { cargo: { minerals: 1 }, cargoCost: { minerals: 30 } },
+      ],
+    });
+
+    Save.saveGame(0, state, { isAutosave: true });
+    const result = Save.loadGame(0);
+
+    expect(result.ok).toBe(true);
+    expect(result.state._activeEventId).toBe('space_anomaly');
+    expect(result.state.fleet[0].cargoCost).toEqual({ food: 20 });
+    expect(result.state.fleet[1].cargoCost).toEqual({ minerals: 30 });
+  });
+
   it('空槽位返回失败', () => {
     const result = Save.loadGame(2);
     expect(result.ok).toBe(false);
@@ -126,9 +145,13 @@ describe('Save.loadGame', () => {
     expect(result.state.storyFlags).toEqual({});
     expect(result.state.storyDecisions).toEqual({});
     expect(result.state.companyDirectiveClaims).toEqual({});
+    expect(result.state.economyMarketState).toBeNull();
+    expect(result.state.balanceMetrics.firstTrade).toBeNull();
+    expect(result.state.balanceMetrics.trade.realizedProfitByGood).toEqual({});
+    expect(result.state._activeEventId).toBe('');
   });
 
-  it('上一版存档迁移后会补齐公司指令领取记录', () => {
+  it('上一版存档迁移后会补齐市场快照字段', () => {
     const envelope = {
       meta: { schemaVersion: SAVE_SCHEMA_VERSION - 1, gameVersion: '0.6.0', slotId: 1, timestampMs: Date.now() },
       data: { credits: 900, day: 7, currentSystem: 'sol_prime' },
@@ -141,6 +164,29 @@ describe('Save.loadGame', () => {
     expect(result.state.storyFlags).toEqual({});
     expect(result.state.storyDecisions).toEqual({});
     expect(result.state.companyDirectiveClaims).toEqual({});
+    expect(result.state.economyMarketState).toBeNull();
+    expect(result.state._activeEventId).toBe('');
+  });
+
+  it('v15 存档会把根货物成本迁移给当时的活动飞船', () => {
+    const envelope = {
+      meta: { schemaVersion: 15, gameVersion: '0.6.3', slotId: 1, timestampMs: Date.now() },
+      data: {
+        activeShipIndex: 1,
+        cargoCost: { minerals: 30 },
+        fleet: [
+          { cargo: { food: 2 } },
+          { cargo: { minerals: 1 } },
+        ],
+      },
+    };
+    globalThis.localStorage.setItem('startrader_save_1', JSON.stringify(envelope));
+
+    const result = Save.loadGame(1);
+
+    expect(result.ok).toBe(true);
+    expect(result.state.fleet[0].cargoCost).toEqual({});
+    expect(result.state.fleet[1].cargoCost).toEqual({ minerals: 30 });
   });
 
   it('旧存档缺少等级字段时，会根据经验自动回填 playerLevel 和 companyLevel', () => {

@@ -110,9 +110,9 @@ describe('Progression level perk configuration', () => {
     });
 
     expect(state.companyLevel).toBe(2);
-    expect(unlockMsg.text).toContain('Lv.2 资本工具');
+    expect(unlockMsg.text).toContain('Lv.2 贷款与投资');
     expect(unlockMsg.text).toContain('经营贷款');
-    expect(unlockMsg.text).toContain('舰队席位 II');
+    expect(unlockMsg.text).toContain('第 2 个舰船位置');
   });
 
   it('一次跨越多个公司等级时会合并列出全部新权限', () => {
@@ -127,8 +127,8 @@ describe('Progression level perk configuration', () => {
     });
 
     expect(state.companyLevel).toBe(4);
-    expect(unlockMsg.text).toContain('Lv.2 资本工具');
-    expect(unlockMsg.text).toContain('Lv.3 区域扩编');
+    expect(unlockMsg.text).toContain('Lv.2 贷款与投资');
+    expect(unlockMsg.text).toContain('Lv.3 更多舰船');
     expect(unlockMsg.text).toContain('Lv.4 贸易站建设');
   });
 });

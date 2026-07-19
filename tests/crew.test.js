@@ -242,4 +242,32 @@ describe('CrewSystem wages, growth and trade effects', () => {
     const improvedPrice = Economy.getBuyPrice('imperial_capital', 'luxury', state);
     expect(improvedPrice).toBeLessThan(basePrice);
   });
+
+  it('连续欠薪会累积欠款并暂停船员专长，补发后恢复', () => {
+    const state = createTestState({ credits: 1000, currentSystem: 'imperial_capital' });
+    Fleet.init(state);
+    const offer = createOffer(state, 'imperial_capital', {
+      id: 'offer_broker_arrears',
+      role: 'broker',
+      roleName: '交易掮客',
+      specialtyId: 'market_maker',
+      name: '欠薪测试',
+      hireCost: 100,
+      wage: 100,
+      level: 1,
+    });
+    state.crewMarket.imperial_capital.offers = [offer];
+    expect(Crew.recruitCrew(state, offer.id, 'imperial_capital').ok).toBe(true);
+    expect(Crew.assignCrewToShip(state, state.crewRoster[0].id, 0).ok).toBe(true);
+
+    state.credits = 0;
+    Crew.payDailyWages(state, 2);
+    expect(state.crewRoster[0].wageArrears).toBe(200);
+    expect(Crew.getShipEffects(state, state.fleet[0]).buyDiscount).toBe(0);
+
+    state.credits = 400;
+    Crew.payDailyWages(state, 1);
+    expect(state.crewRoster[0].wageArrears).toBe(0);
+    expect(Crew.getShipEffects(state, state.fleet[0]).buyDiscount).toBeGreaterThan(0);
+  });
 });

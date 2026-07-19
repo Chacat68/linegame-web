@@ -169,6 +169,30 @@ describe('FactionSystem.onTrade', () => {
     }).not.toThrow();
   });
 
+  it('大额订单使用边际递减，不能一单从中立刷到同盟', () => {
+    const state = createTestState();
+    Faction.init(state);
+    const faction = Faction.getFactionForSystem('sol_prime');
+
+    Faction.onTrade(state, 'sol_prime', 'food', 'sell', 100, 'open');
+
+    expect(Faction.getRelation(state, faction.id)).toBeLessThanOrEqual(FACTION_CONFIG.tradeImpact.maxGainPerTrade);
+    expect(Faction.getRelation(state, faction.id)).toBeLessThan(70);
+  });
+
+  it('黑市交易提供的公开派系好感低于同量公开交易', () => {
+    const openState = createTestState();
+    const blackState = createTestState();
+    Faction.init(openState);
+    Faction.init(blackState);
+    const faction = Faction.getFactionForSystem('shadow_haven');
+
+    Faction.onTrade(openState, 'shadow_haven', 'weapons', 'sell', 25, 'open');
+    Faction.onTrade(blackState, 'shadow_haven', 'weapons', 'sell', 25, 'black');
+
+    expect(Faction.getRelation(blackState, faction.id)).toBeLessThan(Faction.getRelation(openState, faction.id));
+  });
+
   it('辛迪加友好后解锁黑市访问', () => {
     const state = createTestState();
     Faction.init(state);

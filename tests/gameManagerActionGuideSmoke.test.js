@@ -347,7 +347,7 @@ describe('GameManager action guide smoke', function () {
       title: '载入派遣草案',
       reason: '测试推荐路线',
       payload: {
-        sourceLabel: '派遣策略建议',
+        sourceLabel: '跑商路线建议',
         recommendation: recommendation,
       },
       surface: 'fleet',
@@ -368,8 +368,8 @@ describe('GameManager action guide smoke', function () {
     expect(dom.elements['dispatch-sell-system'].value).toBe('alpha_centauri');
     expect(dom.elements['dispatch-good'].value).toBe('food');
     expect(dom.actionGuide.classList.contains('is-complete')).toBe(true);
-    expect(dom.actionGuide.innerHTML).toContain('已载入派遣草案');
-    expect(dom.actionGuide.innerHTML).toContain('确认“一键派遣”后执行路线');
+    expect(dom.actionGuide.innerHTML).toContain('已载入跑商路线');
+    expect(dom.actionGuide.innerHTML).toContain('确认“开始跑商”后执行路线');
 
     expect(Guidance.getCurrentSuggestion(state, {
       dispatchRouteRecommendation: recommendation,

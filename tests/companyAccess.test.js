@@ -79,7 +79,7 @@ describe('company access rules', function () {
       title: '星际企业',
       expToNext: 600,
       nextLevel: { level: 6, title: '跨域集团' },
-      nextMilestone: { level: 6, title: '商网指挥' },
+      nextMilestone: { level: 6, title: '贸易站批量管理' },
     });
     expect(summary.caps.tradeStations).toMatchObject({
       used: 2,
@@ -96,7 +96,7 @@ describe('company access rules', function () {
   it('提供公司等级解锁路线给 UI 展示', function () {
     expect(getCompanyUnlocksAtLevel(2)).toMatchObject({
       level: 2,
-      title: '资本工具',
+      title: '贷款与投资',
     });
     expect(getCompanyUnlocksAtLevel(2).items).toContain('经营贷款');
 
@@ -111,8 +111,8 @@ describe('company access rules', function () {
     expect(roadmap[1]).toMatchObject({
       level: 5,
       unlocked: false,
-      title: '专业化运营',
+      title: '升级贸易站',
     });
-    expect(roadmap[1].items).toContain('站点定位');
+    expect(roadmap[1].items).toContain('贸易站经营方向');
   });
 });

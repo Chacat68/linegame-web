@@ -18,9 +18,34 @@ describe('AchievementSystem.init', () => {
     Achievement.init(state);
     expect(state.achievements).toContain('test_ach');
   });
+
+  it('现役 event_master 成就读档时不会被旧别名吞掉', () => {
+    const state = createTestState({ achievements: ['event_master'] });
+
+    Achievement.init(state);
+
+    expect(state.achievements).toContain('event_master');
+    expect(state.achievements).not.toContain('survive_30');
+  });
 });
 
 describe('AchievementSystem.checkAll', () => {
+  it('首笔交易成就只奖励经验，不掩盖真实交易现金流', () => {
+    const firstTrade = ACHIEVEMENTS.find(function (achievement) {
+      return achievement.id === 'first_trade';
+    });
+
+    expect(firstTrade.reward).toEqual({ exp: 10 });
+  });
+
+  it('首个任务成就不与任务现金结算重复叠加', () => {
+    const firstQuest = ACHIEVEMENTS.find(function (achievement) {
+      return achievement.id === 'quest_first';
+    });
+
+    expect(firstQuest.reward).toEqual({ exp: 20, reputation: 2 });
+  });
+
   it('成就经验奖励会走统一升级结算', () => {
     const state = createTestState({
       credits: 5000,

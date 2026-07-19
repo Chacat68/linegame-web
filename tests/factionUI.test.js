@@ -28,17 +28,17 @@ describe('FactionUI market CTA helper', function () {
       factionName: '星际辛迪加',
       systemId: 'shadow_haven',
       systemName: '暗影港湾',
-      label: '查看黑市通路',
+      label: '查看黑市',
       marketWorkspaceId: 'spot',
       marketSubworkspaceId: 'black',
-      marketFocusLabel: '黑市分区',
+      marketFocusLabel: '黑市交易',
       marketMode: 'black',
       commandSurface: 'market',
-      commandIntent: '黑市分区',
-      commandVerb: '查看黑市通路',
+      commandIntent: '黑市交易',
+      commandVerb: '查看黑市',
     });
     expect(action.hint).toContain('暗影港湾');
-    expect(action.hint).toContain('黑市通路');
+    expect(action.hint).toContain('已解锁黑市');
   });
 
   it('辛迪加未解锁时返回黑市条件 CTA', function () {
@@ -50,10 +50,10 @@ describe('FactionUI market CTA helper', function () {
       label: '查看黑市条件',
       marketWorkspaceId: 'spot',
       marketSubworkspaceId: 'intel',
-      marketFocusLabel: '市场情报区',
+      marketFocusLabel: '行情与路线',
       marketMode: '',
       commandSurface: 'market',
-      commandIntent: '市场情报区',
+      commandIntent: '行情与路线',
       commandVerb: '查看黑市条件',
     });
     expect(action.contextHint).toContain('辛迪加黑市尚未开放');
@@ -70,13 +70,13 @@ describe('FactionUI market CTA helper', function () {
       label: '查看代表市场',
       marketWorkspaceId: 'spot',
       marketSubworkspaceId: 'trade',
-      marketFocusLabel: '现货交易区',
+      marketFocusLabel: '买卖货物',
       marketMode: '',
       commandSurface: 'market',
-      commandIntent: '现货交易区',
+      commandIntent: '买卖货物',
       commandVerb: '查看代表市场',
     });
     expect(action.hint).toContain('太阳主星');
-    expect(action.hint).toContain('现货交易区');
+    expect(action.hint).toContain('买卖货物');
   });
 });

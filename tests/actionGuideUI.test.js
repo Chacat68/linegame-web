@@ -89,7 +89,7 @@ describe('ActionGuideUI', function () {
     expect(clicked).toBe(suggestion);
   });
 
-  it('会渲染中期专题链语义', function () {
+  it('会渲染进阶行动语义', function () {
     var root = createFakeRoot();
     globalThis.document = {
       getElementById: function (id) {
@@ -100,21 +100,21 @@ describe('ActionGuideUI', function () {
     ActionGuideUI.init(function () {});
     ActionGuideUI.render({
       id: 'prefill-research-supply-dispatch',
-      title: '规划科研补给派遣',
+      title: '规划科研自动补给',
       reason: '当前研究已有可执行补给路线。',
       actionLabel: '带入机库',
       actionType: 'fleet.dispatch.prefill',
       surface: 'fleet',
       guidanceTopic: {
         id: 'research-supply',
-        label: '科研补给链',
-        stepLabel: '派遣补给',
+        label: '科研补给',
+        stepLabel: '自动补给',
       },
     });
 
     expect(root.innerHTML).toContain('data-guide-topic="research-supply"');
-    expect(root.innerHTML).toContain('当前行动 · 派遣补给');
-    expect(root.innerHTML).not.toContain('科研补给链 / 派遣补给');
+    expect(root.innerHTML).toContain('当前行动 · 自动补给');
+    expect(root.innerHTML).not.toContain('科研补给 / 自动补给');
   });
 
   it('固定显示完整行动条，不渲染展开或缩小控件', function () {
@@ -155,8 +155,8 @@ describe('ActionGuideUI', function () {
     ActionGuideUI.render({
       id: 'explore-current-poi',
       title: '调查补给点',
-      reason: '调查结论会写入勘探报告。',
-      actionLabel: '调查 POI',
+      reason: '调查结论会写入探索报告。',
+      actionLabel: '调查 探索点',
       actionType: 'exploration.poi',
       surface: 'exploration',
     });
@@ -179,8 +179,8 @@ describe('ActionGuideUI', function () {
     var suggestion = {
       id: 'explore-current-poi',
       title: '调查补给点',
-      reason: '调查结论会写入勘探报告。',
-      actionLabel: '调查 POI',
+      reason: '调查结论会写入探索报告。',
+      actionLabel: '调查 探索点',
       actionType: 'exploration.poi',
       surface: 'exploration',
     };
@@ -206,20 +206,20 @@ describe('ActionGuideUI', function () {
     ActionGuideUI.init(function () {});
     ActionGuideUI.render({
       id: 'prefill-profitable-dispatch',
-      title: '规划「食品」派遣',
+      title: '规划「食品」跑商路线',
       reason: '安装完成后可以继续配置路线。',
       actionLabel: '带入机库',
       actionType: 'fleet.dispatch.prefill',
       surface: 'fleet',
     });
 
-    ActionGuideUI.showCompletion('已安装「深空测绘阵列」', '下一条派遣或经营建议已刷新', { durationMs: 0 });
+    ActionGuideUI.showCompletion('已安装「深空测绘阵列」', '下一条跑商或经营建议已刷新', { durationMs: 0 });
 
     expect(root.hidden).toBe(false);
     expect(root.classList.contains('is-complete')).toBe(true);
     expect(root.innerHTML).toContain('行动完成');
     expect(root.innerHTML).toContain('已安装「深空测绘阵列」');
-    expect(root.innerHTML).toContain('下一条派遣或经营建议已刷新');
+    expect(root.innerHTML).toContain('下一条跑商或经营建议已刷新');
 
     ActionGuideUI.render(null);
     expect(root.classList.contains('is-complete')).toBe(false);

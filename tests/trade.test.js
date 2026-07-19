@@ -33,6 +33,26 @@ describe('Trade.getNetWorth', () => {
     expect(nw).toBe(1000);
   });
 
+  it('净资产会统计全部飞船货舱，切换活动飞船不改变结果', () => {
+    const state = createTestState({ credits: 50000 });
+    Fleet.init(state);
+    state.fleetSlots = 2;
+    expect(Fleet.buyShip(state, 'freighter').ok).toBe(true);
+    state.fleet[0].cargo = { food: 2 };
+    state.fleet[0].cargoCost = { food: 20 };
+    state.fleet[1].cargo = { minerals: 3 };
+    state.fleet[1].cargoCost = { minerals: 30 };
+    state.fleet[1].location = 'nova_station';
+    Fleet.syncStateFromShip(state);
+
+    const beforeSwitch = Trade.getNetWorth(state);
+    expect(Fleet.switchShip(state, 1).ok).toBe(true);
+    const afterSwitch = Trade.getNetWorth(state);
+
+    expect(beforeSwitch).toBeGreaterThan(state.credits);
+    expect(afterSwitch).toBe(beforeSwitch);
+  });
+
   it('有货物时净资产大于纯积分', () => {
     const state = createTestState({ credits: 1000, cargo: { food: 5 } });
     Faction.init(state);
@@ -66,6 +86,26 @@ describe('Trade.buyGood', () => {
     Faction.init(state);
     const result = Trade.buyGood(state, 'food', 1);
     expect(result.ok).toBe(false);
+  });
+
+  it('公开市场拒绝只在黑市流通的武器', () => {
+    const state = createTestState({ credits: 50000, maxCargo: 20 });
+    Faction.init(state);
+
+    const result = Trade.buyGood(state, 'weapons', 1);
+
+    expect(result.ok).toBe(false);
+    expect(state.credits).toBe(50000);
+    expect(state.cargo.weapons).toBeUndefined();
+  });
+
+  it('拒绝非正整数交易数量', () => {
+    const state = createTestState({ credits: 5000, maxCargo: 20 });
+    Faction.init(state);
+
+    expect(Trade.buyGood(state, 'food', -2).ok).toBe(false);
+    expect(Trade.buyGood(state, 'food', 1.5).ok).toBe(false);
+    expect(state.credits).toBe(5000);
   });
 });
 
@@ -126,6 +166,44 @@ describe('Trade.sellGood', () => {
     expect(result.ok).toBe(true);
     // avgCost = 0/10 = 0, costBasis = 0, profit = totalEarned
     expect(result.meta.profit).toBe(result.meta.totalEarned);
+  });
+
+  it('公开市场不会变相清算黑市专属货物', () => {
+    const state = createTestState({ credits: 0, cargo: { weapons: 2 }, cargoCost: { weapons: 200 } });
+    Faction.init(state);
+
+    const result = Trade.sellGood(state, 'weapons', 1);
+
+    expect(result.ok).toBe(false);
+    expect(state.cargo.weapons).toBe(2);
+    expect(state.credits).toBe(0);
+  });
+});
+
+describe('Trade black market access', () => {
+  it('未解锁当前节点黑市时不能绕过界面下单', () => {
+    const state = createTestState({ credits: 50000, maxCargo: 20, currentSystem: 'sol_prime' });
+    Faction.init(state);
+
+    const result = Trade.buyGoodOnMarket(state, 'weapons', 1, 'black');
+
+    expect(result.ok).toBe(false);
+    expect(state.cargo.weapons).toBeUndefined();
+  });
+
+  it('达到友好关系并停靠辛迪加节点后可交易黑市货物', () => {
+    const state = createTestState({
+      credits: 50000,
+      maxCargo: 20,
+      currentSystem: 'shadow_haven',
+      factionRelations: { syndicate: 30 },
+    });
+    Faction.init(state);
+
+    const result = Trade.buyGoodOnMarket(state, 'weapons', 1, 'black');
+
+    expect(result.ok).toBe(true);
+    expect(state.cargo.weapons).toBe(1);
   });
 });
 

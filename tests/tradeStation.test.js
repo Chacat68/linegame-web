@@ -19,7 +19,7 @@ function createSurveyIntel(overrides) {
     routeSignal: false,
     logisticsSignal: false,
     primarySignal: 'market',
-    recentReportTitle: '测试勘探报告',
+    recentReportTitle: '测试探索报告',
   }, overrides || {});
 }
 
@@ -170,6 +170,70 @@ describe('TradeStationSystem', () => {
     expect(TradeStation.getStation(state, 'sol_prime').lastIncome).toBe(richMarketIncome);
   });
 
+  it('稳健与吞吐定位会随市场强弱交换优先级', () => {
+    const state = createTestState({
+      credits: 300000,
+      companyLevel: 5,
+      currentSystem: 'sol_prime',
+      visitedSystems: ['sol_prime'],
+    });
+    expect(TradeStation.buildStation(state, 'sol_prime').ok).toBe(true);
+
+    let priceRatio = 0.65;
+    vi.spyOn(Economy, 'getBuyPrice').mockImplementation(function (systemId, goodId) {
+      const good = GOODS.find(function (entry) { return entry.id === goodId; });
+      return Math.round((good ? good.basePrice : DEFAULT_BASE_PRICE) * priceRatio);
+    });
+    vi.spyOn(Economy, 'getMarketDepth').mockReturnValue(220);
+    vi.spyOn(Economy, 'getEconomyCycle').mockReturnValue({ priceMod: 1.0 });
+
+    const weakBalanced = TradeStation.getProjectedDailyIncome(state, 'sol_prime');
+    expect(TradeStation.setStrategy(state, 'sol_prime', 'expansion').ok).toBe(true);
+    const weakExpansion = TradeStation.getProjectedDailyIncome(state, 'sol_prime');
+
+    priceRatio = 1.5;
+    const strongExpansion = TradeStation.getProjectedDailyIncome(state, 'sol_prime');
+    expect(TradeStation.setStrategy(state, 'sol_prime', 'balanced').ok).toBe(true);
+    const strongBalanced = TradeStation.getProjectedDailyIncome(state, 'sol_prime');
+
+    expect(weakBalanced).toBeGreaterThan(weakExpansion);
+    expect(strongExpansion).toBeGreaterThan(strongBalanced);
+  });
+
+  it('各级站点总回本与增量回本保持在长期经营区间', () => {
+    const state = createTestState({
+      credits: 4000000,
+      companyLevel: 10,
+      currentSystem: 'sol_prime',
+      visitedSystems: ['sol_prime'],
+    });
+    vi.spyOn(Economy, 'getBuyPrice').mockImplementation(function (systemId, goodId) {
+      const good = GOODS.find(function (entry) { return entry.id === goodId; });
+      return good ? good.basePrice : DEFAULT_BASE_PRICE;
+    });
+    vi.spyOn(Economy, 'getMarketDepth').mockReturnValue(220);
+    vi.spyOn(Economy, 'getEconomyCycle').mockReturnValue({ priceMod: 1.0 });
+    expect(TradeStation.buildStation(state, 'sol_prime').ok).toBe(true);
+
+    const incomes = TRADE_STATION_LEVELS.map(function (level) {
+      state.tradeStations.sol_prime.level = level.level;
+      state.tradeStations.sol_prime.investment = level.investment;
+      return TradeStation.getProjectedDailyIncome(state, 'sol_prime');
+    });
+
+    TRADE_STATION_LEVELS.forEach(function (level, index) {
+      const totalPayback = level.investment / incomes[index];
+      expect(totalPayback).toBeGreaterThanOrEqual(90);
+      expect(totalPayback).toBeLessThanOrEqual(175);
+      if (index === 0) return;
+      const incrementalCost = level.investment - TRADE_STATION_LEVELS[index - 1].investment;
+      const incrementalIncome = incomes[index] - incomes[index - 1];
+      const incrementalPayback = incrementalCost / incrementalIncome;
+      expect(incrementalPayback).toBeGreaterThanOrEqual(90);
+      expect(incrementalPayback).toBeLessThanOrEqual(220);
+    });
+  });
+
   it('同星系不同角色贸易站会形成区域组合收益', () => {
     const state = createTestState({
       credits: 250000,
@@ -201,14 +265,14 @@ describe('TradeStationSystem', () => {
 
     expect(solEntry.role.id).toBe('supply_node');
     expect(novaEntry.role.id).toBe('market_hub');
-    expect(solEntry.regionalSynergy.label).toContain('补给商贸环');
+    expect(solEntry.regionalSynergy.label).toContain('补给商网');
     expect(solEntry.regionalSynergy.bonusMultiplier).toBeCloseTo(0.06);
     expect(solEntry.networkMultiplier).toBeCloseTo(1.06);
     expect(solEntry.grossIncome).toBe(339);
-    expect(solEntry.projectedIncome).toBe(313);
+    expect(solEntry.projectedIncome).toBe(307);
   });
 
-  it('会根据勘探报告推荐贸易站经营策略', () => {
+  it('会根据探索报告推荐贸易站经营策略', () => {
     const state = createTestState({
       credits: 300000,
       companyLevel: 5,
@@ -240,7 +304,7 @@ describe('TradeStationSystem', () => {
       intelSignal: 'logistics',
       shouldSwitch: true,
     });
-    expect(logisticsRecommendation.reason).toContain('吞吐节点');
+    expect(logisticsRecommendation.reason).toContain('薄利多销');
     expect(researchRecommendation).toMatchObject({
       strategyId: 'premium',
       confidence: 'high',
@@ -262,7 +326,7 @@ describe('TradeStationSystem', () => {
     expect(TradeStation.getStrategyRecommendation(state, 'nova_station').shouldSwitch).toBe(false);
   });
 
-  it('无勘探报告时保持均衡经营，当前策略匹配时不提示切换', () => {
+  it('无探索报告时保持均衡经营，当前策略匹配时不提示切换', () => {
     const state = createTestState({
       credits: 300000,
       companyLevel: 5,
@@ -447,7 +511,7 @@ describe('TradeStationSystem', () => {
         systemId: 'nova_station',
       },
     });
-    expect(action.reason).toContain('补给商贸环');
+    expect(action.reason).toContain('补给商网');
   });
 
   it('下一笔商网动作会在无协同建站时推荐升级，低预算时不制造管理员任务', () => {
@@ -676,7 +740,7 @@ describe('TradeStationSystem', () => {
     expect(result.msgs[0].text).toContain('公司 Lv.6');
   });
 
-  it('勘探报告会串起建站候选、区域协同、策略推荐和下一笔商网动作', () => {
+  it('探索报告会串起建站候选、区域协同、策略推荐和下一笔商网动作', () => {
     const state = createTestState({
       credits: 360000,
       companyLevel: 5,
@@ -709,14 +773,14 @@ describe('TradeStationSystem', () => {
       expect(candidate).toBeTruthy();
       expect(candidate.canAfford).toBe(true);
       expect(candidate.role.id).toBe('market_hub');
-      expect(candidate.prospectiveRegionalSynergy.label).toContain('补给商贸环');
+      expect(candidate.prospectiveRegionalSynergy.label).toContain('补给商网');
       expect(candidate.strategyRecommendation).toMatchObject({
         strategyId: 'premium',
         confidence: 'high',
         intelSignal: 'research',
         shouldSwitch: true,
       });
-      expect(candidate.strategyRecommendation.reason).toContain('科研样本');
+      expect(candidate.strategyRecommendation.reason).toContain('研究样本');
 
       const action = TradeStation.getNextNetworkAction(state);
       expect(action).toMatchObject({
@@ -727,7 +791,7 @@ describe('TradeStationSystem', () => {
           systemId: 'nova_station',
         },
       });
-      expect(action.reason).toContain('补给商贸环');
+      expect(action.reason).toContain('补给商网');
     } finally {
       GalaxyData.init(createTestState({
         currentSystem: 'sol_prime',

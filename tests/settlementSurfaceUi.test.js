@@ -233,7 +233,7 @@ describe('Settlement surface UI', function () {
     expect(victoryBody.innerHTML).toContain('vp-overview');
     expect(victoryBody.innerHTML).toContain('vp-overview-next');
     expect(victoryBody.innerHTML).toContain('下一缺口');
-    expect(victoryBody.innerHTML).toContain('role="list" aria-label="胜利路径列表"');
+    expect(victoryBody.innerHTML).toContain('role="list" aria-label="长期路线列表"');
     expect(victoryBody.innerHTML).toContain('role="progressbar"');
     expect(victoryBody.innerHTML).toContain('aria-valuetext=');
     expect(victoryBody.innerHTML).toContain('达成率');
@@ -242,7 +242,7 @@ describe('Settlement surface UI', function () {
     expect(victoryBody.innerHTML).toContain('vp-card-req');
     expect(victoryBody.getAttribute('role')).toBe('region');
     expect(victoryBody.getAttribute('aria-live')).toBe('polite');
-    expect(victoryBody.getAttribute('aria-label')).toBe('胜利协议进度详情');
+    expect(victoryBody.getAttribute('aria-label')).toBe('长期路线进度详情');
   });
 
   it('胜利结算允许继续经营，并要求二次确认后才重新开始', async function () {
@@ -303,6 +303,8 @@ describe('Settlement surface UI', function () {
     expect(message.innerHTML).toContain('gameover-stat-grid');
     expect(message.innerHTML).toContain('gameover-next-card--danger');
     expect(message.innerHTML).toContain('保留当前公司');
+    expect(message.innerHTML).toContain('已选择的长期路线不会改变');
+    expect(message.innerHTML).not.toContain('继续推进其他长期路线');
     expect(modal.classList.contains('hidden')).toBe(false);
     expect(continueBtn.focusCount).toBe(1);
 
@@ -352,13 +354,13 @@ describe('Settlement surface UI', function () {
     expect(css).toContain('.gameover-next-card--primary');
     expect(css).toContain('.gameover-next-card--danger');
     expect(css).toContain('.gameover-actions');
-    expect(hud).toContain("body.setAttribute('aria-label', '胜利协议进度详情')");
+    expect(hud).toContain("body.setAttribute('aria-label', '长期路线进度详情')");
     expect(hud).toContain('function _getVictoryNextRequirement');
     expect(hud).toContain('aria-valuetext="');
     expect(gameManager).toContain('VictoryResultUI.showVictoryReport');
     expect(gameManager).toContain('_acknowledgedVictoryPathIds');
     expect(resultUi).toContain("messageEl.setAttribute('aria-label', '胜利结算报告')");
-    expect(resultUi).toContain('aria-label="胜利路径完成度"');
+    expect(resultUi).toContain('aria-label="长期路线完成度"');
     expect(resultUi).toContain('aria-valuetext="');
     expect(resultUi).toContain('id="gameover-next-actions"');
     expect(resultUi).toContain('id="gameover-restart-note"');

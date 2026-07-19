@@ -12,7 +12,7 @@ describe('MapUI exploration entry', function () {
     expect(html).not.toContain('id="hud-target-detail-open"');
   });
 
-  it('星球详情仍保留直接调查 POI 的入口', function () {
+  it('星球详情仍保留直接调查 探索点 的入口', function () {
     const js = readFileSync('js/ui/MapUI.js', 'utf8');
 
     expect(js).toContain('function _buildExplorationSection');

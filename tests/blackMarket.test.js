@@ -73,6 +73,44 @@ describe('Economy.getBlackMarketSellPrice', () => {
   });
 });
 
+describe('Economy black market quote integrity', () => {
+  it('同一天重复查看报价保持一致，且本地倒手必然亏损', () => {
+    const state = createTestState({ day: 23 });
+    Faction.init(state);
+
+    const firstBuy = Economy.getBlackMarketBuyPrice('shadow_haven', 'weapons', state);
+    const secondBuy = Economy.getBlackMarketBuyPrice('shadow_haven', 'weapons', state);
+    const firstSell = Economy.getBlackMarketSellPrice('shadow_haven', 'weapons', state);
+    const secondSell = Economy.getBlackMarketSellPrice('shadow_haven', 'weapons', state);
+
+    expect(secondBuy).toBe(firstBuy);
+    expect(secondSell).toBe(firstSell);
+    expect(firstSell).toBeLessThan(firstBuy);
+  });
+
+  it('同一天公开市场供需和派系关系变化后，已显示的黑市报价仍固定', () => {
+    const state = createTestState({ day: 23 });
+    Faction.init(state);
+    const firstBuy = Economy.getBlackMarketBuyPrice('shadow_haven', 'weapons', state);
+    const firstSell = Economy.getBlackMarketSellPrice('shadow_haven', 'weapons', state);
+
+    Economy.onPlayerBuy('shadow_haven', 'weapons', 40);
+    state.factionRelations.syndicate = 100;
+
+    expect(Economy.getBlackMarketBuyPrice('shadow_haven', 'weapons', state)).toBe(firstBuy);
+    expect(Economy.getBlackMarketSellPrice('shadow_haven', 'weapons', state)).toBe(firstSell);
+  });
+
+  it('跨天后报价可以变化，但同一天不重新抽取随机数', () => {
+    const state = createTestState({ day: 23 });
+    const day23 = Economy.getBlackMarketBuyPrice('shadow_haven', 'weapons', state);
+    state.day = 24;
+    const day24 = Economy.getBlackMarketBuyPrice('shadow_haven', 'weapons', state);
+
+    expect(day24).not.toBe(day23);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // 商品分类
 // ---------------------------------------------------------------------------
@@ -174,6 +212,7 @@ describe('Economy.checkSmuggling', () => {
         expect(s.shipHull).toBeLessThan(100);
         expect(result.confiscated.length).toBeGreaterThan(0);
         expect(s.smugglingStats.caught).toBe(1);
+        expect(s.smugglingStats.riskedArrivals).toBe(1);
         break;
       }
     }
@@ -216,8 +255,34 @@ describe('Economy smuggling stats', () => {
 
   it('recordBlackMarketTrade 递增 blackMarketTrades', () => {
     const state = createTestState();
-    Economy.recordBlackMarketTrade(state);
-    expect(state.smugglingStats.blackMarketTrades).toBe(1);
+    Economy.recordBlackMarketTrade(state, { action: 'buy', meta: { totalCost: 900 } });
+    Economy.recordBlackMarketTrade(state, { action: 'sell', meta: { totalEarned: 1400, profit: 500 } });
+    expect(state.smugglingStats.blackMarketTrades).toBe(2);
+    expect(state.smugglingStats.blackMarketBuyCost).toBe(900);
+    expect(state.smugglingStats.blackMarketSellRevenue).toBe(1400);
+    expect(state.smugglingStats.blackMarketRealizedProfit).toBe(500);
+  });
+
+  it('被查时记录罚款、没收成本和船体损伤', () => {
+    const state = createTestState({
+      credits: 10000,
+      cargo: { weapons: 3 },
+      cargoCost: { weapons: 900 },
+      shipHull: 100,
+      reputation: -100,
+    });
+    Faction.init(state);
+    const originalRandom = Math.random;
+    Math.random = function () { return 0; };
+    const result = Economy.checkSmuggling(state, 'sol_prime');
+    Math.random = originalRandom;
+
+    expect(result.caught).toBe(true);
+    expect(result.confiscatedCostBasis).toBe(900);
+    expect(state.smugglingStats.confiscatedCostBasis).toBe(900);
+    expect(state.smugglingStats.finesPaid).toBeGreaterThan(0);
+    expect(state.smugglingStats.hullDamage).toBeGreaterThan(0);
+    expect(state.smugglingStats.riskedArrivals).toBe(1);
   });
 });
 
@@ -229,10 +294,10 @@ describe('ECONOMY_CONFIG.blackMarket', () => {
   it('配置存在且包含必要字段', () => {
     const bm = ECONOMY_CONFIG.blackMarket;
     expect(bm).toBeDefined();
-    expect(bm.pricePremium).toBeGreaterThan(1);
-    expect(bm.sellPremium).toBeGreaterThan(1);
-    expect(bm.volatility).toBeGreaterThan(1);
-    expect(bm.illegalSellBonus).toBeGreaterThan(bm.restrictedSellBonus);
+    expect(bm.buySpread).toBeGreaterThan(1);
+    expect(bm.sellSpread).toBeLessThan(1);
+    expect(bm.dailyVolatility).toBeGreaterThan(0);
+    expect(bm.illegalValuePremium).toBeGreaterThan(bm.restrictedValuePremium);
   });
 });
 

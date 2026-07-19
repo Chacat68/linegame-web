@@ -8,7 +8,7 @@ beforeEach(() => {
 });
 
 describe('FinanceSystem', () => {
-  it('支持贷款申请、计息与自动还款', () => {
+  it('支持贷款申请与自动还款', () => {
     const state = createTestState({ credits: 1000, day: 1 });
     Finance.init(state);
 
@@ -28,6 +28,26 @@ describe('FinanceSystem', () => {
     expect(state.loans[0].balance).toBeLessThan(balanceBefore);
     expect(state.credits).toBeLessThan(creditsBefore);
     expect(state.financeLastProcessedDay).toBe(2);
+  });
+
+  it('按展示的总还款额固定摊还，无逾期不会二次计息', () => {
+    const state = createTestState({ credits: 100000, day: 1 });
+    Finance.init(state);
+    const offer = Finance.getLoanOffers(state)[0];
+
+    expect(Finance.takeLoan(state, offer.id).ok).toBe(true);
+    const loan = state.loans[0];
+    for (let day = 2; day <= offer.termDays + 1; day += 1) {
+      state.day = day;
+      Finance.advanceDay(state);
+    }
+
+    expect(loan.status).toBe('paid');
+    expect(loan.balance).toBe(0);
+    expect(loan.totalPaid).toBe(offer.totalRepayment);
+    expect(loan.accruedInterest).toBe(offer.totalRepayment - offer.principal);
+    expect(loan.missedPayments).toBe(0);
+    expect(state.creditRating).toBeGreaterThan(620);
   });
 
   it('旧股票持仓会按当前价格清算，且迁移只执行一次', () => {
@@ -83,7 +103,47 @@ describe('FinanceSystem', () => {
     expect(state.tradeInvestments.nova_station.totalDividends).toBeGreaterThan(0);
   });
 
-  it('支持按殖利率优先批量追加贸易站投资，并在预算不足时部分执行', () => {
+  it('站点投资锁定 30 天后可付出退出成本收回资金', () => {
+    const state = createTestState({
+      credits: 20000,
+      day: 3,
+      currentSystem: 'nova_station',
+      visitedSystems: ['nova_station'],
+    });
+    Finance.init(state);
+
+    expect(Finance.investInTradeStation(state, 'nova_station', 5000).ok).toBe(true);
+    expect(state.tradeInvestments.nova_station.redeemableDay).toBe(33);
+    expect(Finance.redeemTradeStationInvestment(state, 'nova_station').ok).toBe(false);
+
+    state.day = 33;
+    const creditsBeforeExit = state.credits;
+    const result = Finance.redeemTradeStationInvestment(state, 'nova_station');
+
+    expect(result.ok).toBe(true);
+    expect(result.meta.principal).toBe(5000);
+    expect(result.meta.exitFee).toBe(600);
+    expect(result.meta.proceeds).toBe(4400);
+    expect(state.credits).toBe(creditsBeforeExit + 4400);
+    expect(state.tradeInvestments.nova_station.amount).toBe(0);
+  });
+
+  it('投资选项明确展示日分红、回本天数和可退出日期', () => {
+    const state = createTestState({ credits: 20000, day: 8, visitedSystems: ['sol_prime'] });
+    Finance.init(state);
+    Finance.investInTradeStation(state, 'sol_prime', 5000);
+
+    const option = Finance.getTradeInvestmentOptions(state, ['sol_prime'])[0];
+
+    expect(option.expectedDailyDividend).toBeGreaterThan(0);
+    expect(option.estimatedPaybackDays).toBeGreaterThan(100);
+    expect(option.redeemableDay).toBe(38);
+    expect(option.daysUntilRedeem).toBe(30);
+    expect(option.canRedeem).toBe(false);
+    expect(option.estimatedExitValue).toBe(4400);
+  });
+
+  it('支持按每天预计回报优先批量追加贸易站投资，并在预算不足时部分执行', () => {
     const state = createTestState({
       credits: 12000,
       day: 3,

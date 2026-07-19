@@ -72,4 +72,18 @@ describe('DispatchController.runActiveDispatchTick', function () {
     expect(tickFn).not.toHaveBeenCalled();
     expect(Dispatch.isRunning()).toBe(false);
   });
+
+  it('自动跑商间隔可跟随游戏日长度，而不是固定五秒', function () {
+    vi.useFakeTimers();
+    var tickFn = vi.fn();
+
+    Dispatch.startActiveDispatch(tickFn, 30000);
+    vi.advanceTimersByTime(0);
+    expect(tickFn).toHaveBeenCalledTimes(1);
+
+    vi.advanceTimersByTime(29999);
+    expect(tickFn).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(1);
+    expect(tickFn).toHaveBeenCalledTimes(2);
+  });
 });

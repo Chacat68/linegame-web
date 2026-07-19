@@ -147,7 +147,7 @@ describe('Flow surface UI', function () {
     expect(impact.getAttribute('aria-label')).toBe('事件影响预览');
     expect(impact.children).toHaveLength(4);
     expect(impact.children[0].getAttribute('role')).toBe('listitem');
-    expect(impact.children[0].children[0].textContent).toBe('风险信号');
+    expect(impact.children[0].children[0].textContent).toBe('风险程度');
     expect(impact.children[0].children[1].textContent).toBe('高风险');
     expect(impact.children[2].children[1].textContent).toBe('1 项承压');
     expect(choices.getAttribute('role')).toBe('list');
@@ -249,7 +249,7 @@ describe('Flow surface UI', function () {
     expect(summary.children[0].children[0].textContent).toBe('进度');
     expect(summary.children[0].children[1].textContent).toBe('1 / 1');
     expect(branchPanel.getAttribute('role')).toBe('list');
-    expect(branchPanel.getAttribute('aria-label')).toBe('剧情分支态势');
+    expect(branchPanel.getAttribute('aria-label')).toBe('剧情分支状态');
     expect(branchPanel.children).toHaveLength(4);
     expect(branchPanel.children[0].getAttribute('role')).toBe('listitem');
     expect(branchPanel.children[0].children[0].textContent).toBe('段落');
@@ -309,6 +309,7 @@ describe('Flow surface UI', function () {
     tooltip.offsetHeight = 180;
     var nextBtn = createFakeElement('tut-next-btn');
     var skipBtn = createFakeElement('tut-skip-btn');
+    var helperActionBtn = createFakeElement('tut-helper-action-btn');
     var target = createFakeElement('target');
     target.rect = { top: 360, left: 80, right: 180, bottom: 408, width: 100, height: 48 };
 
@@ -317,6 +318,7 @@ describe('Flow surface UI', function () {
       'tutorial-tooltip': tooltip,
       'tut-next-btn': nextBtn,
       'tut-skip-btn': skipBtn,
+      'tut-helper-action-btn': helperActionBtn,
     };
 
     globalThis.window = { innerWidth: 320, innerHeight: 420 };
@@ -335,7 +337,10 @@ describe('Flow surface UI', function () {
     var TutorialUI = await import('../js/ui/TutorialUI.js?v=20260604-saveflow1');
     var EventBus = await import('../js/core/EventBus.js');
 
-    TutorialUI.init(function () {}, function () {});
+    var helperActionId = '';
+    TutorialUI.init(function () {}, function () {}, function (actionId) {
+      helperActionId = actionId;
+    });
     EventBus.emit('tutorial:step', {
       step: {
         id: 'test_step',
@@ -380,6 +385,7 @@ describe('Flow surface UI', function () {
         content: '完成当前高亮操作',
         highlight: '#target',
         position: 'bottom',
+        helperAction: { id: 'recommend_sell_route', label: '推荐一个卖货点' },
       },
       index: 1,
       total: 4,
@@ -389,16 +395,21 @@ describe('Flow surface UI', function () {
     expect(tooltip.innerHTML).not.toContain('id="tut-next-btn"');
     expect(tooltip.getAttribute('aria-describedby')).toBe('tutorial-tooltip-content tutorial-action-hint');
     expect(tooltip.dataset.trigger).toBe('action');
+    expect(tooltip.innerHTML).toContain('id="tut-helper-action-btn"');
+    expect(tooltip.innerHTML).toContain('推荐一个卖货点');
+    helperActionBtn.dataset.tutorialAction = 'recommend_sell_route';
+    helperActionBtn.dispatch('click');
+    expect(helperActionId).toBe('recommend_sell_route');
   });
 
-  it('事件和剧情弹窗包含影响预览、分支态势与响应式样式锚点', function () {
+  it('事件和剧情弹窗包含影响预览、分支状态与响应式样式锚点', function () {
     var html = readFileSync('index.html', 'utf8');
     var css = readFileSync('css/interstellar-trader.css', 'utf8');
 
     expect(html).toContain('aria-describedby="event-summary event-desc event-impact"');
     expect(html).toContain('id="event-impact" class="event-impact-panel" role="list" aria-label="事件影响预览"');
     expect(html).toContain('aria-describedby="dialogue-summary dialogue-branch-panel dialogue-text dialogue-footer"');
-    expect(html).toContain('id="dialogue-branch-panel" class="dialogue-branch-panel" role="list" aria-label="剧情分支态势"');
+    expect(html).toContain('id="dialogue-branch-panel" class="dialogue-branch-panel" role="list" aria-label="剧情分支状态"');
     expect(css).toContain('.event-impact-panel');
     expect(css).toContain('.dialogue-branch-panel');
     expect(css).toContain('.event-impact-item');

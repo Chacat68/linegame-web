@@ -52,21 +52,81 @@ describe('Economy configuration', () => {
 
     expect(prosperityPrice).toBeGreaterThan(recessionPrice);
   });
+
+  it('新游戏会重置市场阶段，不继承上一局运行时状态', () => {
+    Economy.setCycleState({ phaseIndex: 3, dayInPhase: 12, phaseDuration: 30, totalCycles: 4 });
+
+    Economy.init();
+
+    expect(Economy.getCycleState().phaseIndex).toBe(ECONOMY_CONFIG.cycle.initialPhaseIndex);
+    expect(Economy.getCycleState().dayInPhase).toBe(0);
+  });
+
+  it('完整市场快照会恢复价格、供需、历史和繁荣阶段', () => {
+    const state = createTestState({ tradeCount: 20 });
+    Faction.init(state);
+    Economy.setCycleState({ phaseIndex: 0, dayInPhase: 5, phaseDuration: 40, totalCycles: 2 });
+    Economy.onPlayerBuy('sol_prime', 'technology', 7);
+    Economy.advanceDay();
+
+    const expected = {
+      price: Economy.getBuyPrice('sol_prime', 'technology', state),
+      supplyDemand: Economy.getSupplyDemand('sol_prime', 'technology'),
+      history: Economy.getPriceHistory('sol_prime', 'technology'),
+      cycle: Economy.getCycleState(),
+    };
+    const snapshot = Economy.getMarketState();
+
+    Economy.init(snapshot);
+
+    expect(Economy.getBuyPrice('sol_prime', 'technology', state)).toBe(expected.price);
+    expect(Economy.getSupplyDemand('sol_prime', 'technology')).toEqual(expected.supplyDemand);
+    expect(Economy.getPriceHistory('sol_prime', 'technology')).toEqual(expected.history);
+    expect(Economy.getCycleState()).toEqual(expected.cycle);
+    expect(Economy.getCycleState().phaseIndex).toBe(0);
+  });
 });
 
 describe('Economy.getBuyPrice', () => {
-  it('前 8 次交易会对全市场买入价设置新手下限', () => {
-    const state = createTestState({ playerLevel: 1, tradeCount: 0 });
-    Faction.init(state);
-    const guard = ECONOMY_CONFIG.pricing.starterMarketGuard;
+  it('新手期会压缩跨节点价差，并按交易次数平滑退场', () => {
+    const earlyState = createTestState({ playerLevel: 1, tradeCount: 0 });
+    const finalGuardState = createTestState({ playerLevel: 1, tradeCount: 11 });
+    const matureState = createTestState({ playerLevel: 1, tradeCount: 12 });
+    [earlyState, finalGuardState, matureState].forEach(Faction.init);
 
-    SYSTEMS.forEach(function (system) {
-      GOODS.forEach(function (good) {
-        expect(Economy.getBuyPrice(system.id, good.id, state)).toBeGreaterThanOrEqual(
-          Math.ceil(good.basePrice * guard.buyFloorMultiplier)
-        );
-      });
-    });
+    function totalSpread(state) {
+      return GOODS.filter(function (good) {
+        return good.marketAccess.includes('open');
+      }).reduce(function (sum, good) {
+        const prices = SYSTEMS.map(function (system) {
+          return Economy.getBuyPrice(system.id, good.id, state);
+        });
+        return sum + Math.max.apply(Math, prices) - Math.min.apply(Math, prices);
+      }, 0);
+    }
+
+    const earlySpread = totalSpread(earlyState);
+    const finalGuardSpread = totalSpread(finalGuardState);
+    const matureSpread = totalSpread(matureState);
+    expect(earlySpread).toBeLessThan(finalGuardSpread);
+    expect(Math.abs(matureSpread - finalGuardSpread)).toBeLessThanOrEqual(
+      Math.ceil(finalGuardSpread * 0.08)
+    );
+  });
+
+  it('难度价格波动参数会放大供需紧张时的价格反应', () => {
+    Economy.onPlayerBuy('sol_prime', 'technology', 100);
+    const easy = createTestState({ tradeCount: 12, difficulty: 'easy' });
+    const normal = createTestState({ tradeCount: 12, difficulty: 'normal' });
+    const hard = createTestState({ tradeCount: 12, difficulty: 'hard' });
+    [easy, normal, hard].forEach(Faction.init);
+
+    const easyPrice = Economy.getBuyPrice('sol_prime', 'technology', easy);
+    const normalPrice = Economy.getBuyPrice('sol_prime', 'technology', normal);
+    const hardPrice = Economy.getBuyPrice('sol_prime', 'technology', hard);
+
+    expect(easyPrice).toBeLessThan(normalPrice);
+    expect(normalPrice).toBeLessThan(hardPrice);
   });
 
   it('对有效 systemId 和 goodId 返回正整数', () => {
@@ -113,8 +173,8 @@ describe('Economy.getBuyPrice', () => {
     expect(discountedPrice).toBeLessThan(basePrice);
   });
 
-  it('买入价按 factionTax -> techBuyDiscount -> fleetTradeBonus 顺序叠加', () => {
-    const state = createTestState({ credits: 10000, techBuyDiscount: 0.10, tradeCount: 8 });
+  it('买入议价会合并科技、舰船与派系代价后按统一上限结算', () => {
+    const state = createTestState({ credits: 10000, techBuyDiscount: 0.10, tradeCount: 20 });
     Faction.init(state);
     Fleet.init(state);
     state.fleetSlots = 2;
@@ -125,26 +185,28 @@ describe('Economy.getBuyPrice', () => {
 
     const basePrice = Economy.getBuyPrice('sol_prime', 'food');
     const actual = Economy.getBuyPrice('sol_prime', 'food', state);
-    const expected = Math.round(
-      Math.round(
-        Math.round(basePrice * 1.12) * (1 - state.techBuyDiscount)
-      ) * (1 - 0.03)
-    );
+    const profile = Economy.getTradeNegotiationProfile(state, 'sol_prime');
+    const expected = Math.ceil(basePrice * (1 - profile.buyAdvantage) * (1 + profile.buyPenalty));
 
     expect(actual).toBe(expected);
+    expect(profile.rawBuyAdvantage).toBeCloseTo(0.13);
+    expect(profile.buyPenalty).toBeCloseTo(0.03);
   });
 });
 
 describe('Economy.getSellPrice', () => {
-  it('前 8 次交易会对全市场卖出价设置新手上限', () => {
-    const state = createTestState({ playerLevel: 1, tradeCount: 0 });
-    Faction.init(state);
-    const guard = ECONOMY_CONFIG.pricing.starterMarketGuard;
+  it('新手保护只由交易次数推进，升级不会让报价突变', () => {
+    const lowLevel = createTestState({ playerLevel: 1, tradeCount: 2 });
+    const highLevel = createTestState({ playerLevel: 8, tradeCount: 2 });
+    Faction.init(lowLevel);
+    Faction.init(highLevel);
 
-    SYSTEMS.forEach(function (system) {
-      GOODS.forEach(function (good) {
-        expect(Economy.getSellPrice(system.id, good.id, state)).toBeLessThanOrEqual(
-          Math.floor(good.basePrice * guard.sellCeilingMultiplier)
+    SYSTEMS.slice(0, 12).forEach(function (system) {
+      GOODS.filter(function (good) {
+        return good.marketAccess.includes('open');
+      }).forEach(function (good) {
+        expect(Economy.getSellPrice(system.id, good.id, highLevel)).toBe(
+          Economy.getSellPrice(system.id, good.id, lowLevel)
         );
       });
     });
@@ -166,19 +228,19 @@ describe('Economy.getSellPrice', () => {
   });
 
   it('友好派系卖出价应高于敌对派系 [H5]', () => {
-    const friendly = createTestState({ tradeCount: 8 });
+    const friendly = createTestState({ tradeCount: 20 });
     Faction.init(friendly);
     // 设置 federation 为盟友
     friendly.factionRelations.federation = 80;
 
-    const hostile = createTestState({ tradeCount: 8 });
+    const hostile = createTestState({ tradeCount: 20 });
     Faction.init(hostile);
     // 设置 federation 为敌对
     hostile.factionRelations.federation = -80;
 
     // sol_prime 属于 federation
-    const priceFriendly = Economy.getSellPrice('sol_prime', 'food', friendly);
-    const priceHostile = Economy.getSellPrice('sol_prime', 'food', hostile);
+    const priceFriendly = Economy.getSellPrice('sol_prime', 'luxury', friendly);
+    const priceHostile = Economy.getSellPrice('sol_prime', 'luxury', hostile);
 
     expect(priceFriendly).toBeGreaterThan(priceHostile);
   });
@@ -211,8 +273,8 @@ describe('Economy.getSellPrice', () => {
     expect(boostedPrice).toBeGreaterThan(basePrice);
   });
 
-  it('卖出价按 factionTax -> techSellBonus -> fleetTradeBonus 顺序叠加', () => {
-    const state = createTestState({ credits: 50000, techSellBonus: 0.08, tradeCount: 8 });
+  it('卖出议价与买入议价共享递减预算', () => {
+    const state = createTestState({ credits: 50000, techSellBonus: 0.08, tradeCount: 20 });
     Faction.init(state);
     Fleet.init(state);
     state.fleetSlots = 2;
@@ -223,13 +285,12 @@ describe('Economy.getSellPrice', () => {
 
     const basePrice = Economy.getSellPrice('sol_prime', 'food');
     const actual = Economy.getSellPrice('sol_prime', 'food', state);
-    const expected = Math.round(
-      Math.round(
-        Math.round(basePrice * (ECONOMY_CONFIG.pricing.sellTaxBase - 0.92)) * (1 + state.techSellBonus)
-      ) * (1 + 0.05)
-    );
+    const profile = Economy.getTradeNegotiationProfile(state, 'sol_prime');
+    const expected = Math.floor(basePrice * (1 + profile.sellAdvantage) * (1 - profile.sellPenalty));
 
     expect(actual).toBe(expected);
+    expect(profile.rawCombinedAdvantage).toBeGreaterThan(profile.combinedAdvantage);
+    expect(profile.combinedAdvantage).toBeLessThanOrEqual(ECONOMY_CONFIG.pricing.negotiation.maxCombinedAdvantage);
   });
 });
 

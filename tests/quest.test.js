@@ -131,9 +131,9 @@ describe('QuestUI.getQuestBlockerActions', () => {
       label: '打开市场跑单',
       marketWorkspaceId: 'spot',
       marketSubworkspaceId: 'trade',
-      marketFocusLabel: '现货交易区',
+      marketFocusLabel: '买卖货物',
       commandSurface: 'market',
-      commandIntent: '现货交易区',
+      commandIntent: '买卖货物',
     });
     expect(actions[1]).toMatchObject({
       actionId: 'quest-focus',
@@ -166,12 +166,12 @@ describe('QuestUI.getQuestBlockerActions', () => {
       label: '打开市场补燃料',
       marketWorkspaceId: 'spot',
       marketSubworkspaceId: 'trade',
-      marketFocusLabel: '现货交易区',
+      marketFocusLabel: '买卖货物',
       commandSurface: 'market',
-      commandIntent: '现货交易区',
+      commandIntent: '买卖货物',
     });
     expect(actions[1]).toMatchObject({ actionId: 'quest-focus', label: '先跑短线补给', targetQuestId: 'starter_deliver_food' });
-    expect(actions[0].hint).toContain('交易所终端');
+    expect(actions[0].hint).toContain('市场中心');
     expect(actions[1].hint).toContain('回补燃料');
   });
 
@@ -211,9 +211,9 @@ describe('QuestUI.getQuestBlockerActions', () => {
       label: '打开市场补燃料',
       marketWorkspaceId: 'spot',
       marketSubworkspaceId: 'trade',
-      marketFocusLabel: '现货交易区',
+      marketFocusLabel: '买卖货物',
       commandSurface: 'market',
-      commandIntent: '现货交易区',
+      commandIntent: '买卖货物',
     });
   });
 });
@@ -339,7 +339,8 @@ describe('Quest.getQuestRoutePreview', () => {
     expect(item.blockedReason).toBe('');
   });
 
-  it('会在任务预估中反映已发现暗线的燃料折扣', () => {
+  it('会在任务预估中反映已发现隐藏航线的燃料折扣', () => {
+    state.playerLevel = 10;
     const basePlanet = GalaxyData.getPlanetData('sol_prime');
     const routePoi = basePlanet.exploration.pois.find(function (poi) {
       return poi.kind === 'route_beacon';
@@ -358,7 +359,7 @@ describe('Quest.getQuestRoutePreview', () => {
     expect(item.hasSecretRoute).toBe(true);
     expect(item.discountPercent).toBeGreaterThan(0);
     expect(item.fuelCost).toBeLessThan(baseCost);
-    expect(item.note).toContain('暗线');
+    expect(item.note).toContain('隐藏航线');
   });
 });
 
@@ -381,6 +382,20 @@ describe('Quest.acceptQuest', () => {
     Quest.init(state);
     const result = Quest.acceptQuest(state, 'nonexistent_quest_id');
     expect(result.ok).toBe(false);
+  });
+
+  it('教程已完成交易时，接取首单任务会立即登记结算', () => {
+    const state = createTestState({ tradeCount: 2, credits: 1000 });
+    Faction.init(state);
+    Quest.init(state);
+
+    const result = Quest.acceptQuest(state, 'starter_first_trade');
+
+    expect(result.ok).toBe(true);
+    expect(result.completedImmediately).toBe(true);
+    expect(state.completedQuests).toContain('starter_first_trade');
+    expect(state.quests.some(function (quest) { return quest.id === 'starter_first_trade'; })).toBe(false);
+    expect(state.credits).toBeGreaterThan(1000);
   });
 
   it('最多同时进行 5 个任务', () => {

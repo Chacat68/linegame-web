@@ -34,6 +34,25 @@ describe('RandomEvent.rollEvent', () => {
     }
   });
 
+  it('待处理事件可从持久化 ID 恢复，解决后会清除', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    const state = createTestState();
+    const event = RandomEvent.rollEvent(state, 1);
+
+    expect(event).toBeTruthy();
+    expect(state._activeEventId).toBe(event.id);
+
+    RandomEvent.resetRuntimeState();
+    expect(RandomEvent.getActiveEvent()).toBeNull();
+    RandomEvent.syncRuntimeState(state);
+    expect(RandomEvent.getActiveEvent().id).toBe(event.id);
+
+    const result = RandomEvent.resolveChoice(state, 0);
+    expect(result.resolved).toBe(true);
+    expect(state._activeEventId).toBe('');
+    expect(RandomEvent.getActiveEvent()).toBeNull();
+  });
+
   it('触发事件后 totalEvents 递增', () => {
     const state = createTestState();
     state.totalEvents = 5;
@@ -196,6 +215,46 @@ describe('RandomEvent.resolveChoice', () => {
       // 事件效果可能改变 credits — 只要不崩溃就行
       expect(typeof state.credits).toBe('number');
     }
+  });
+
+  it('休闲与挑战难度会分别修正事件奖励和船体损伤', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+
+    function resolveInjectedEffect(difficulty, effect) {
+      RandomEvent.resetRuntimeState();
+      const state = createTestState({ difficulty: difficulty, credits: 1000, shipHull: 100 });
+      const event = RandomEvent.rollEvent(state, 1);
+      const originalEffect = event.choices[0].effect;
+      event.choices[0].effect = effect;
+      try {
+        RandomEvent.resolveChoice(state, 0);
+      } finally {
+        event.choices[0].effect = originalEffect;
+      }
+      return state;
+    }
+
+    const easyReward = resolveInjectedEffect('easy', function (state) {
+      state.credits += 100;
+      return { msgs: [] };
+    });
+    const hardReward = resolveInjectedEffect('hard', function (state) {
+      state.credits += 100;
+      return { msgs: [] };
+    });
+    const easyDamage = resolveInjectedEffect('easy', function (state) {
+      state.shipHull -= 20;
+      return { msgs: [] };
+    });
+    const hardDamage = resolveInjectedEffect('hard', function (state) {
+      state.shipHull -= 20;
+      return { msgs: [] };
+    });
+
+    expect(easyReward.credits).toBe(1120);
+    expect(hardReward.credits).toBe(1080);
+    expect(easyDamage.shipHull).toBe(88);
+    expect(hardDamage.shipHull).toBe(70);
   });
 
   it('事件链后续不受保护阈值错误拦截', () => {

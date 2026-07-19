@@ -135,6 +135,24 @@ describe('AutoTrade.findBestSellSystem', () => {
     const result = AutoTrade.findBestSellSystem(state);
     expect(result).toBeNull();
   });
+
+  it('卖出推荐使用扣除进货与燃料后的净利润', () => {
+    const state = createTestState({
+      cargo: { food: 10 },
+      cargoCost: { food: 100 },
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+      fuel: 100,
+      fuelEfficiency: 1,
+      playerLevel: 1,
+    });
+
+    const result = AutoTrade.findBestSellSystem(state);
+
+    expect(result).not.toBeNull();
+    expect(result.profit).toBe(result.revenue - result.cargoCost - result.fuelExpense);
+    expect(result.cargoCost).toBe(100);
+  });
 });
 
 describe('AutoTrade.findBestDispatchRoute', () => {
@@ -211,7 +229,7 @@ describe('AutoTrade.findBestDispatchRoute', () => {
 
     expect(result).not.toBeNull();
     if (result) {
-      expect(result.routeModeLabel).toBe('跨星系套利');
+      expect(result.routeModeLabel).toBe('跨星系低买高卖');
       expect(result.buyGalaxyId).not.toBe(result.sellGalaxyId);
       expect(result.tradeThemeSummary).toContain('仙女座星系');
       expect(result.tradeThemeSummary).toContain('麦哲伦星云');
@@ -253,6 +271,15 @@ describe('AutoTrade.findBestDispatchRoute', () => {
     const adjusted = AutoTrade.applyRiskPreference(1000, risk, { riskMode: 'safe' });
 
     expect(adjusted.allowed).toBe(false);
+  });
+
+  it('公开市场合法货物不会因当地执法强度被误判为走私风险', () => {
+    const food = { id: 'food', legality: 'legal', marketAccess: ['open'] };
+    const risk = AutoTrade.assessTradeRisk(food, 'sol_prime', 'imperial_capital', 'open');
+
+    expect(risk.riskScore).toBe(0);
+    expect(risk.tags).not.toContain('high_enforcement_buy');
+    expect(risk.tags).not.toContain('high_enforcement_sell');
   });
 
   it('自动贸易不会推荐黑市专属商品', () => {
@@ -396,7 +423,7 @@ describe('AutoTrade.findBestDispatchRoute', () => {
     expect(result).not.toBeNull();
     if (result) {
       expect(result.surveyIntelScore).toBeGreaterThan(0);
-      expect(result.surveyIntelSummary).toContain('勘探情报');
+      expect(result.surveyIntelSummary).toContain('探索线索');
       expect(result.strategySummary).toContain('贸易报告');
     }
   });
@@ -572,7 +599,7 @@ describe('AutoTrade.findQuestRoute', () => {
       expect(result.questId).toBe('cross_trade_quest');
       expect(result.buySystemId).toBe('quantum_lab');
       expect(result.sellSystemId).toBe('golden_palace');
-      expect(result.routeModeLabel).toBe('跨星系套利');
+      expect(result.routeModeLabel).toBe('跨星系低买高卖');
       expect(result.tradeThemeSummary).toContain('仙女座星系');
       expect(result.tradeThemeSummary).toContain('麦哲伦星云');
       expect(result.themeScore).toBeGreaterThan(0);
@@ -693,7 +720,7 @@ describe('AutoTrade.findResearchSupplyRoute', () => {
 
     expect(result).not.toBeNull();
     if (result) {
-      expect(result.routeModeLabel).toBe('跨星系套利');
+      expect(result.routeModeLabel).toBe('跨星系低买高卖');
       expect(result.buyGalaxyId).not.toBe(result.sellGalaxyId);
       expect(result.tradeThemeSummary).toContain('高价收');
       expect(result.themeScore).toBeGreaterThan(0);

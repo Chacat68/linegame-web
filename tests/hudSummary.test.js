@@ -405,8 +405,8 @@ describe('HUD summary cards', function () {
 
     expect(elements['hud-network-nodes'].textContent).toContain('3 / ');
     expect(elements['hud-network-routes'].textContent).toBe('0');
-    expect(networkSignalEl.innerHTML).toContain('航线席位空闲');
-    expect(networkSignalEl.innerHTML).toContain('已连接 3 个节点');
+    expect(networkSignalEl.innerHTML).toContain('有空闲飞船');
+    expect(networkSignalEl.innerHTML).toContain('已经到过 3 个地点');
     expect(networkSignalEl.dataset.tone).toBe('watch');
     expect(elements['hud-network-updated'].textContent).toBe('DAY 3');
     expect(networkOpenBtn.listenerCount('click')).toBe(1);
@@ -479,8 +479,8 @@ describe('HUD summary cards', function () {
 
     expect(elements['hud-target-name'].textContent).toBe('太阳主星');
     expect(elements['hud-target-galaxy'].textContent).toBe('银河系');
-    expect(elements['hud-target-survey'].textContent).toBe('0/3 POI · 情报 Lv.0');
-    expect(elements['hud-target-next'].textContent).toBe('待调查 · 3 个 POI');
+    expect(elements['hud-target-survey'].textContent).toBe('0/3 探索点 · 情报 Lv.0');
+    expect(elements['hud-target-next'].textContent).toBe('待调查 · 3 个探索点');
 
     var html = readFileSync('index.html', 'utf8');
     expect(html).not.toContain('id="exploration-terminal-btn"');
@@ -640,13 +640,13 @@ describe('HUD summary cards', function () {
     HUD.updateCompanyName(state);
 
     expect(elements['company-name-text'].textContent).toBe('远航联合体');
-    expect(roadmapEl.innerHTML).toContain('公司权限台');
-    expect(roadmapEl.innerHTML).toContain('aria-label="公司权限容量"');
-    expect(roadmapEl.innerHTML).toContain('舰队席位');
+    expect(roadmapEl.innerHTML).toContain('等级开放功能');
+    expect(roadmapEl.innerHTML).toContain('aria-label="公司功能容量"');
+    expect(roadmapEl.innerHTML).toContain('舰船位置');
     expect(roadmapEl.innerHTML).toContain('贸易站');
-    expect(roadmapEl.innerHTML).toContain('站点上限');
-    expect(roadmapEl.innerHTML).toContain('下一开放');
-    expect(roadmapEl.innerHTML).toContain('Lv.3 · 区域扩编');
+    expect(roadmapEl.innerHTML).toContain('贸易站等级');
+    expect(roadmapEl.innerHTML).toContain('下一级开放');
+    expect(roadmapEl.innerHTML).toContain('Lv.3 · 更多舰船');
     expect(roadmapEl.innerHTML).toContain('还需 20 公司经验');
     expect(roadmapEl.innerHTML).toContain('role="status"');
     expect(levelTrackEl.getAttribute('aria-valuemax')).toBe('180');

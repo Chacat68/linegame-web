@@ -7,6 +7,7 @@ import * as Economy from '../js/systems/economy/Economy.js';
 import * as Fleet from '../js/systems/fleet/FleetSystem.js';
 import * as Research from '../js/systems/research/ResearchSystem.js';
 import { VICTORY_PATHS } from '../js/data/victoryConditions.js';
+import { ACHIEVEMENTS } from '../js/data/achievements.js';
 import { TECHNOLOGIES } from '../js/data/technologies.js';
 import { createTestState } from './helpers.js';
 
@@ -35,6 +36,50 @@ describe('VictorySystem.getPathProgress', () => {
       const progress = Victory.getPathProgress(state, path);
       expect(progress.completed).toBe(false);
     });
+  });
+
+  it('舰队路线只统计现役核心成就，未知 ID 不能凑数', () => {
+    const path = VICTORY_PATHS.find(function (entry) { return entry.id === 'fleet_commander'; });
+    const unknownState = createTestState({
+      questPhase: 3,
+      achievements: Array.from({ length: 20 }, function (_, index) { return 'unknown_' + index; }),
+    });
+    const validState = createTestState({
+      questPhase: 3,
+      achievements: ACHIEVEMENTS.slice(0, 16).map(function (achievement) { return achievement.id; }),
+    });
+
+    const unknownRequirement = Victory.getPathProgress(unknownState, path).requirements.find(function (req) {
+      return req.label.indexOf('核心成就') !== -1;
+    });
+    const validRequirement = Victory.getPathProgress(validState, path).requirements.find(function (req) {
+      return req.label.indexOf('核心成就') !== -1;
+    });
+
+    expect(unknownRequirement.current).toBe(0);
+    expect(validRequirement.current).toBe(16);
+  });
+
+  it('探索路线按完成整颗星球调查计数，不再要求挂机天数', () => {
+    const path = VICTORY_PATHS.find(function (entry) { return entry.id === 'galactic_explorer'; });
+    const galaxyStates = {};
+    for (let index = 0; index < 12; index++) {
+      galaxyStates['survey_' + index] = {
+        exploration: { pois: [{ id: 'a', resolved: true }, { id: 'b', resolved: true }] },
+      };
+    }
+    galaxyStates.incomplete = {
+      exploration: { pois: [{ id: 'a', resolved: true }, { id: 'b', resolved: false }] },
+    };
+    const state = createTestState({ questPhase: 2, day: 999, galaxyStates: galaxyStates });
+
+    const surveyRequirement = Victory.getPathProgress(state, path).requirements.find(function (req) {
+      return req.label.indexOf('全部探索点') !== -1;
+    });
+
+    expect(surveyRequirement.current).toBe(12);
+    expect(surveyRequirement.done).toBe(true);
+    expect(path.requirements.some(function (req) { return req.type === 'day'; })).toBe(false);
   });
 });
 
@@ -71,6 +116,8 @@ describe('VictorySystem.choosePolicy', () => {
 
     expect(first.ok).toBe(true);
     expect(state.storyDecisions.victory_policy).toBe('galactic_explorer');
+    expect(state.balanceMetrics.routes.galactic_explorer.selectedDay).toBe(state.day);
+    expect(state.balanceMetrics.routes.galactic_explorer.selectedAssets.netWorth).toBeGreaterThan(0);
     expect(second.ok).toBe(false);
     expect(state.storyDecisions.victory_policy).toBe('galactic_explorer');
     const progress = Victory.getProgress(state);
@@ -78,7 +125,7 @@ describe('VictorySystem.choosePolicy', () => {
     expect(progress.find(function (entry) { return entry.pathId === 'trade_baron'; }).policyLocked).toBe(true);
   });
 
-  it('远征信条会同时改变舰船货舱、燃耗与 POI 收益', () => {
+  it('远征信条会同时改变舰船货舱、燃耗与 探索点 收益', () => {
     const state = createTestState({ questPhase: 2 });
     Fleet.init(state);
     const ship = Fleet.getActiveShip(state);
@@ -181,6 +228,25 @@ describe('VictorySystem.checkVictory', () => {
 
     const ignoredResult = Victory.checkVictory(state, new Set([firstResult.path.id]));
     expect(ignoredResult.won === false || ignoredResult.path.id !== firstResult.path.id).toBe(true);
+  });
+
+  it('选定不可逆信条后只能按对应路线结算胜利', () => {
+    const state = createTestState({
+      questPhase: 10,
+      credits: 100000,
+      tradeCount: 120,
+      totalProfit: 50000,
+      researchedTechs: TECHNOLOGIES.map(function (tech) { return tech.id; }),
+      experience: 4000,
+      playerLevel: 8,
+      storyDecisions: { victory_policy: 'tech_supremacy' },
+    });
+    Faction.init(state);
+
+    const result = Victory.checkVictory(state);
+
+    expect(result.won).toBe(true);
+    expect(result.path.id).toBe('tech_supremacy');
   });
 });
 
