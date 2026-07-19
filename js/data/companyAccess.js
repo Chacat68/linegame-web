@@ -19,33 +19,33 @@ export const COMPANY_FEATURE_REQUIREMENTS = {
 export const COMPANY_UNLOCK_MILESTONES = [
   {
     level: 2,
-    title: '资本工具',
-    items: ['经营贷款', '贸易站财务投资', '舰队席位 II'],
+    title: '贷款与投资',
+    items: ['经营贷款', '贸易站投资', '第 2 个舰船位置'],
   },
   {
     level: 3,
-    title: '区域扩编',
-    items: ['舰队席位 III', '更高经营额度'],
+    title: '更多舰船',
+    items: ['第 3 个舰船位置', '更高贷款额度'],
   },
   {
     level: 4,
     title: '贸易站建设',
-    items: ['本地建站', '站点策略'],
+    items: ['在本地建贸易站', '选择经营方式'],
   },
   {
     level: 5,
-    title: '专业化运营',
-    items: ['站点定位', '贸易站 Lv.2', '舰队席位 IV'],
+    title: '升级贸易站',
+    items: ['贸易站经营方向', '贸易站 Lv.2', '第 4 个舰船位置'],
   },
   {
     level: 6,
-    title: '商网指挥',
-    items: ['商网总览', '批量投资/升级/定位', '贸易站 Lv.3'],
+    title: '贸易站批量管理',
+    items: ['贸易站总览', '批量投资、升级与调整方向', '贸易站 Lv.3'],
   },
   {
     level: 7,
     title: '舰队扩编',
-    items: ['舰队席位 V'],
+    items: ['第 5 个舰船位置'],
   },
   {
     level: 8,
@@ -54,8 +54,8 @@ export const COMPANY_UNLOCK_MILESTONES = [
   },
   {
     level: 9,
-    title: '满编经营',
-    items: ['舰队席位 VI', '贸易站 Lv.5'],
+    title: '最大规模经营',
+    items: ['第 6 个舰船位置', '贸易站 Lv.5'],
   },
 ];
 
@@ -93,9 +93,9 @@ const COMPANY_FEATURE_LABELS = {
   capitalLocal: '经营贷款',
   tradeInvestment: '站点投资',
   tradeStationBuild: '贸易站建设',
-  tradeStationStrategy: '站点策略',
-  tradeStationBatchOps: '批量指令',
-  operationsNetwork: '商网总览',
+  tradeStationStrategy: '贸易站经营方式',
+  tradeStationBatchOps: '贸易站批量管理',
+  operationsNetwork: '贸易站总览',
 };
 
 export function getCompanyLevelValue(state) {

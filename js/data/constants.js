@@ -70,18 +70,31 @@ export const ECONOMY_CONFIG = {
     priceRatioClamp: 2,
   },
   pricing: {
-    buyMultiplier: 1.10,
-    sellMultiplier: 0.95,
+    // 公开市场保留明确的买卖价差。中后期议价加成会吃掉部分价差，
+    // 但不能把同一节点变成无风险的原地倒卖机。
+    buyMultiplier: 1.12,
+    sellMultiplier: 0.92,
     minimumPrice: 1,
     sellTaxBase: 2.0,
+    // 压缩星球产业倍率与短期供需噪声，避免公开市场出现常态化的翻倍套利。
+    // 星球差异仍决定路线方向，但需要叠加情报、风险或事件才能进入 40%+ 回报区。
+    systemPriceExponent: 0.18,
+    dynamicPriceExponent: 0.28,
     starterMarketGuard: {
-      maxPlayerLevel: 1,
-      maxTradeCount: 7,
-      buyFloorMultiplier: 0.85,
-      sellCeilingMultiplier: 1.15,
+      // 保护只跟已完成的交易动作有关，不再因为一笔大单中途升级而突然退出。
+      maxTradeCount: 11,
+      startExponent: 0.45,
+      endExponent: 0.98,
     },
     buyAdjustmentOrder: ['factionTax', 'techBuyDiscount', 'fleetTradeBonus'],
     sellAdjustmentOrder: ['factionTax', 'techSellBonus', 'fleetTradeBonus'],
+    negotiation: {
+      // 科技、舰船、船员、派系和长期路线共享同一份价格优惠空间。
+      // 前 10% 保持线性，之后收益递减并渐近 17%，避免加成叠满后全市场稳赚。
+      linearCombinedAdvantage: 0.10,
+      maxCombinedAdvantage: 0.17,
+      factionTaxSensitivity: 0.25,
+    },
   },
   peaks: {
     modifierBase: 1.8,
@@ -100,11 +113,13 @@ export const ECONOMY_CONFIG = {
     depthScaleFactor: 1.0,    // 交易量/市场深度 的影响缩放
   },
   blackMarket: {
-    pricePremium: 1.35,          // 黑市买入溢价倍率
-    sellPremium: 1.50,           // 黑市卖出溢价（高利润驱动走私）
-    volatility: 1.8,             // 黑市价格波动倍率（相对公开市场）
-    restrictedSellBonus: 1.25,   // 受监管商品在黑市的额外卖出加成
-    illegalSellBonus: 1.60,      // 违禁品在黑市的卖出加成
+    // 同一星球、同一天共享一份报价。买卖价差保证本地倒手必亏，
+    // 真正的利润来自跨星球运输，并与入港检查风险对应。
+    buySpread: 1.12,
+    sellSpread: 0.88,
+    dailyVolatility: 0.22,
+    restrictedValuePremium: 1.25,
+    illegalValuePremium: 1.50,
   },
   smuggling: {
     baseCheckChance: 0.10,       // 基础检查概率 10%/入港
@@ -142,22 +157,26 @@ export const FACTION_CONFIG = {
     max: 100,
   },
   tradeImpact: {
-    basePerUnit: 0.5,
+    basePerSqrtUnit: 0.6,
     likedMultiplier: 1.5,
     sellMultiplier: 1.2,
+    blackMarketMultiplier: 0.5,
+    maxGainPerTrade: 8,
+    friendlyDiminishing: 0.75,
+    alliedDiminishing: 0.5,
   },
 };
 
 export const PROGRESSION_CONFIG = {
   routeAnnouncementPreviewLimit: 5,
   levelPerks: {
-    3:  { type: 'sellBonus', value: 0.03, message: '✨ 等级奖励：卖出价格 +3%' },
+    3:  { type: 'sellBonus', value: 0.03, message: '✨ 等级奖励：卖价加成 +3%' },
     4:  { type: 'cargo', value: 5, message: '✨ 等级奖励：所有船只有效货舱容量 +5' },
-    5:  { type: 'buyDiscount', value: 0.03, message: '✨ 等级奖励：买入价格 -3%' },
+    5:  { type: 'buyDiscount', value: 0.03, message: '✨ 等级奖励：买价优惠 +3%' },
     6:  { type: 'fuelEfficiencyMultiplier', value: 0.9, message: '✨ 等级奖励：所有船只燃料效率 +10%' },
     7:  { type: 'factionBonus', value: 10, message: '✨ 等级奖励：所有派系好感 +10' },
     8:  { type: 'cargo', value: 10, message: '✨ 等级奖励：所有船只有效货舱容量 +10' },
-    9:  { type: 'sellBonus', value: 0.05, message: '✨ 等级奖励：卖出价格 +5%' },
+    9:  { type: 'sellBonus', value: 0.05, message: '✨ 等级奖励：卖价加成 +5%' },
     10: {
       type: 'composite',
       cargo: 10,
@@ -219,8 +238,8 @@ export const TIME_CONFIG = {
   availableRealtimeDayDurationsMs: [30 * 1000, 60 * 1000, 180 * 1000],
 };
 
-export const SAVE_SCHEMA_VERSION = 13;
-export const GAME_VERSION = '0.6.1';
+export const SAVE_SCHEMA_VERSION = 16;
+export const GAME_VERSION = '0.6.4';
 
 /**
  * SaveEnvelope.meta 契约
@@ -296,7 +315,19 @@ export const SAVE_STATE_SCHEMA = {
   _pendingChainEvents:{ type: 'array',   default: [],                 since: 2, desc: '待触发事件链' },
   economyCycle:       { type: 'object',  default: null,               since: 2, desc: '经济周期状态' },
   // ---- v3 新增 ----
-  smugglingStats:     { type: 'object',  default: { caught: 0, evaded: 0, finesPaid: 0, blackMarketTrades: 0 }, since: 3, desc: '走私统计' },
+  smugglingStats:     { type: 'object',  default: {
+    caught: 0,
+    evaded: 0,
+    finesPaid: 0,
+    blackMarketTrades: 0,
+    riskedArrivals: 0,
+    protectedArrivals: 0,
+    confiscatedCostBasis: 0,
+    hullDamage: 0,
+    blackMarketBuyCost: 0,
+    blackMarketSellRevenue: 0,
+    blackMarketRealizedProfit: 0,
+  }, since: 3, desc: '走私风险与黑市实际盈亏统计' },
   // ---- v4 新增 ----
   crewRoster:         { type: 'array',   default: [],                 since: 4, desc: '已雇佣船员列表' },
   crewCounter:        { type: 'number',  default: 1,                  since: 4, desc: '船员实例自增编号' },
@@ -305,6 +336,7 @@ export const SAVE_STATE_SCHEMA = {
   // ---- v6 新增 ----
   _eventCooldowns:    { type: 'object',  default: {},                 since: 6, desc: '随机事件冷却状态' },
   _eventHistory:      { type: 'array',   default: [],                 since: 6, desc: '随机事件历史记录' },
+  _activeEventId:     { type: 'string',  default: '',                 since: 16, desc: '尚未处置的随机事件 ID' },
   // ---- v7 新增 ----
   tradeStations:      { type: 'object',  default: {},                 since: 7, desc: '已建设贸易站 {systemId: stationState}' },
   // ---- v8 新增 ----
@@ -328,6 +360,23 @@ export const SAVE_STATE_SCHEMA = {
   storyDecisions:          { type: 'object',  default: {},                 since: 12, desc: '轻量剧情对话选择记录 {sceneId: choiceId}' },
   // ---- v13 新增 ----
   companyDirectiveClaims:  { type: 'object',  default: {},                 since: 13, desc: '公司指令奖励领取记录 {claimId: claimMeta}' },
+  // ---- v14 新增 ----
+  economyMarketState:      { type: 'object',  default: null,               since: 14, desc: '完整市场快照（周期、供需、波动与价格历史）' },
+  // ---- v15 新增 ----
+  balanceMetrics:          { type: 'object',  default: {
+    firstTrade: null,
+    continuedAfterTenMinutes: false,
+    continuationDay: null,
+    lastActivity: null,
+    trade: {
+      actions: 0,
+      buyActions: 0,
+      sellActions: 0,
+      realizedProfit: 0,
+      realizedProfitByGood: {},
+    },
+    routes: {},
+  }, since: 15, desc: '仅保存在本地的设计验收统计（首单、商品利润与长期路线时长）' },
 };
 
 /**

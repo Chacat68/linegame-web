@@ -91,12 +91,12 @@ const _SPECIALTIES = {
   technology:['量子芯片','导航 AI','计算阵列','网络安全服务'],
   mining:['稀有矿石','晶体冶炼','重金属提纯','深井采掘'],
   commercial:['星际物流','期货交易','奢侈品转运','拍卖市场'],
-  military:['舰船维修','军需补给','武器测试','防御矩阵'],
+  military:['舰船维修','军需补给','武器测试','防御系统'],
   medical:['生物制药','器官再生','疫苗合成','医疗外包'],
   industrial:['舰体制造','自动化产线','机甲装配','工业零件'],
   energy:['聚变燃料','等离子电池','恒星采能','反应堆维护'],
   research:['天体观测','材料科学','时空理论','应用实验'],
-  special:['黑市交易','遗迹勘探','情报中介','异常样本'],
+  special:['黑市交易','遗迹探索','情报中介','异常样本'],
 };
 
 function _hashText(text) {
@@ -287,7 +287,9 @@ function _getGalaxySystemMinLevel(galaxyId, ratio, r) {
   var galaxy = _getGalaxyProfile(galaxyId);
   var baseLevel = galaxy ? (galaxy.minLevel || 1) : 1;
   if (baseLevel <= 1) {
-    return ratio < .30 ? 1 : ratio < .55 ? 2 : ratio < .75 ? 3 : ratio < .90 ? 4 : 5 + (r() * 3 | 0);
+    // 银河系已有 5 个手工配置的 Lv.1 核心节点；程序节点只补 2 个，
+    // 将首屏控制在 5-7 个可理解的选择内，后续随等级逐层展开。
+    return ratio < .05 ? 1 : ratio < .30 ? 2 : ratio < .55 ? 3 : ratio < .78 ? 4 : 5 + (r() * 3 | 0);
   }
 
   if (ratio < .20) return Math.min(10, baseLevel);

@@ -15,7 +15,7 @@ const ACHIEVEMENT_CATALOG = [
     icon: '🤝',
     category: 'trade',
     condition: function (state) { return (state.tradeCount || 0) >= 1; },
-    reward: { credits: 100 },
+    reward: { exp: 10 },
   },
   {
     id: 'trade_10',
@@ -365,7 +365,7 @@ const ACHIEVEMENT_CATALOG = [
     icon: '📋',
     category: 'quest',
     condition: function (state) { return (state.completedQuests || []).length >= 1; },
-    reward: { credits: 200, exp: 15 },
+    reward: { exp: 20, reputation: 2 },
   },
   {
     id: 'quest_5',
@@ -548,7 +548,7 @@ const ACHIEVEMENT_CATALOG = [
 ];
 
 // 每个核心玩法支柱只保留少量关键节点，避免连续数值门槛稀释奖励感。
-const CORE_ACHIEVEMENT_IDS = [
+export const CORE_ACHIEVEMENT_IDS = [
   'first_trade', 'trade_10', 'trade_50', 'trade_100', 'single_trade_profit',
   'credits_5000', 'credits_30000', 'credits_100000', 'total_profit_100000',
   'explore_5', 'survive_30', 'survive_100', 'visit_systems_20', 'visit_all_galaxies',
@@ -585,7 +585,6 @@ export const ACHIEVEMENT_ALIASES = {
   tech_trader: 'diversified_trader',
   luxury_connoisseur: 'diversified_trader',
   survivor_no_damage: 'survive_30',
-  event_master: 'survive_30',
   event_veteran: 'survive_100',
   speed_runner: 'credits_30000',
 };
