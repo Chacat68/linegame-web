@@ -7,6 +7,7 @@ import * as Crew from '../fleet/CrewSystem.js';
 import * as Research from '../research/ResearchSystem.js';
 import * as Quest from '../quest/QuestSystem.js';
 import * as Fleet from '../fleet/FleetSystem.js';
+import * as BalanceMetrics from '../metrics/BalanceMetricsSystem.js';
 
 let _advancedDayProcessor = null;
 
@@ -71,7 +72,7 @@ export function advanceDays(state, days) {
     var cycleResult = Economy.advanceDay();
     if (cycleResult && cycleResult.cycleChanged && cycleResult.cycle) {
       msgs.push({
-        text: cycleResult.cycle.icon + ' 经济周期转入「' + cycleResult.cycle.name + '」——市场价格将受到影响！',
+        text: cycleResult.cycle.icon + ' 市场状态变为「' + cycleResult.cycle.name + '」，各地价格会随之变化。',
         type: 'info',
       });
     }
@@ -80,6 +81,8 @@ export function advanceDays(state, days) {
     _appendMessages(msgs, Crew.payDailyWages(state, 1));
     _appendMessages(msgs, Fleet.advanceFleetDay(state));
     _appendMessages(msgs, Research.advanceResearch(state));
+    // 科研结构加成由舰船有效属性派生，完成研究的当天立即刷新根状态投影。
+    Fleet.syncStateFromShip(state);
 
     var questResult = Quest.checkProgress(state, { action: 'advance_day', days: 1, day: state.day });
     _appendMessages(msgs, questResult);
@@ -88,6 +91,7 @@ export function advanceDays(state, days) {
     }
 
     _appendMessages(msgs, Fleet.tickFleetRoutes(state));
+    BalanceMetrics.advanceDay(state);
   }
 
   msgs.unshift({

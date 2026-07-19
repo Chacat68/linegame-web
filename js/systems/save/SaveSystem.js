@@ -239,6 +239,21 @@ function _migrateSchema(envelope) {
       next.meta.schemaVersion = 13;
       continue;
     }
+    if (next.meta.schemaVersion === 13) {
+      _migrateSchema13To14(next);
+      next.meta.schemaVersion = 14;
+      continue;
+    }
+    if (next.meta.schemaVersion === 14) {
+      _migrateSchema14To15(next);
+      next.meta.schemaVersion = 15;
+      continue;
+    }
+    if (next.meta.schemaVersion === 15) {
+      _migrateSchema15To16(next);
+      next.meta.schemaVersion = 16;
+      continue;
+    }
     throw _createSaveError('SAVE_SCHEMA_UNSUPPORTED', '不支持的存档版本：' + next.meta.schemaVersion + '。');
   }
 
@@ -339,6 +354,76 @@ function _migrateSchema12To13(envelope) {
   if (!envelope.data.companyDirectiveClaims || typeof envelope.data.companyDirectiveClaims !== 'object' || Array.isArray(envelope.data.companyDirectiveClaims)) {
     envelope.data.companyDirectiveClaims = {};
   }
+  _normalizeEnvelopeData(envelope);
+}
+
+/**
+ * v13 → v14：添加可恢复的完整市场快照。旧存档首次载入时会生成新行情，
+ * 之后的保存与读取都保持同一天的报价、供需和历史一致。
+ */
+function _migrateSchema13To14(envelope) {
+  if (!envelope.data) envelope.data = {};
+  envelope.data.economyMarketState = null;
+  _normalizeEnvelopeData(envelope);
+}
+
+/**
+ * v14 → v15：添加只保存在本地的设计验收统计，并补全黑市实际盈亏字段。
+ */
+function _migrateSchema14To15(envelope) {
+  if (!envelope.data) envelope.data = {};
+  envelope.data.balanceMetrics = {
+    firstTrade: null,
+    continuedAfterTenMinutes: false,
+    continuationDay: null,
+    lastActivity: null,
+    trade: {
+      actions: 0,
+      buyActions: 0,
+      sellActions: 0,
+      realizedProfit: 0,
+      realizedProfitByGood: {},
+    },
+    routes: {},
+  };
+  var previousSmuggling = envelope.data.smugglingStats && typeof envelope.data.smugglingStats === 'object'
+    ? envelope.data.smugglingStats
+    : {};
+  envelope.data.smugglingStats = Object.assign({
+    caught: 0,
+    evaded: 0,
+    finesPaid: 0,
+    blackMarketTrades: 0,
+    riskedArrivals: 0,
+    protectedArrivals: 0,
+    confiscatedCostBasis: 0,
+    hullDamage: 0,
+    blackMarketBuyCost: 0,
+    blackMarketSellRevenue: 0,
+    blackMarketRealizedProfit: 0,
+  }, previousSmuggling);
+  _normalizeEnvelopeData(envelope);
+}
+
+/**
+ * v15 → v16：保存待处理事件，并把货物成本从根状态迁移到对应飞船。
+ */
+function _migrateSchema15To16(envelope) {
+  if (!envelope.data) envelope.data = {};
+  envelope.data._activeEventId = typeof envelope.data._activeEventId === 'string'
+    ? envelope.data._activeEventId
+    : '';
+
+  var fleet = Array.isArray(envelope.data.fleet) ? envelope.data.fleet : [];
+  var activeShipIndex = Number.isInteger(envelope.data.activeShipIndex) ? envelope.data.activeShipIndex : 0;
+  fleet.forEach(function (ship, shipIndex) {
+    if (!ship || typeof ship !== 'object') return;
+    if (!ship.cargoCost || typeof ship.cargoCost !== 'object' || Array.isArray(ship.cargoCost)) {
+      ship.cargoCost = shipIndex === activeShipIndex && envelope.data.cargoCost && typeof envelope.data.cargoCost === 'object'
+        ? Object.assign({}, envelope.data.cargoCost)
+        : {};
+    }
+  });
   _normalizeEnvelopeData(envelope);
 }
 

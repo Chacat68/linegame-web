@@ -61,7 +61,7 @@ function _requireCompanyAccess(state, featureId, actionLabel) {
 export function buyGood(state, goodId, quantity, marketType) {
   const result = Trade.buyGoodOnMarket(state, goodId, quantity, marketType);
   if (result.ok && marketType === 'black') {
-    Economy.recordBlackMarketTrade(state);
+    Economy.recordBlackMarketTrade(state, { action: 'buy', meta: result.meta });
   }
   return result;
 }
@@ -77,7 +77,7 @@ export function buyGood(state, goodId, quantity, marketType) {
 export function sellGood(state, goodId, quantity, marketType) {
   const result = Trade.sellGoodOnMarket(state, goodId, quantity, marketType);
   if (result.ok && marketType === 'black') {
-    Economy.recordBlackMarketTrade(state);
+    Economy.recordBlackMarketTrade(state, { action: 'sell', meta: result.meta });
   }
   return result;
 }
@@ -131,6 +131,12 @@ export function investInTradeStation(state, systemId) {
   const gate = _requireCompanyAccess(state, 'tradeInvestment', '追加站点投资');
   if (gate) return gate;
   return Finance.investInTradeStation(state, systemId);
+}
+
+export function redeemTradeStationInvestment(state, systemId) {
+  const gate = _requireCompanyAccess(state, 'tradeInvestment', '退出站点投资');
+  if (gate) return gate;
+  return Finance.redeemTradeStationInvestment(state, systemId);
 }
 
 export function batchInvestInTradeStations(state, systemIds) {

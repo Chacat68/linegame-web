@@ -68,7 +68,7 @@ export function handleGuidanceAction(suggestion, context) {
     case 'fleet.dispatch.prefill':
       if (payload.recommendation) {
         _call(ctx, 'prepareDirectExecution');
-        _call(ctx, 'openRecommendedDispatch', payload.recommendation, payload.sourceLabel || '派遣建议', '🛰️');
+        _call(ctx, 'openRecommendedDispatch', payload.recommendation, payload.sourceLabel || '跑商建议', '🛰️');
       } else {
         _call(ctx, 'refreshActionGuide');
       }
@@ -89,7 +89,7 @@ export function handleGuidanceAction(suggestion, context) {
           nextStep: payload.repairCost
             ? ('确认维修方案，预计花费 ' + Number(payload.repairCost || 0).toLocaleString() + ' 积分')
             : '检查激活飞船状态并安排维修',
-          returnTo: '维修完成后继续派遣或航行',
+          returnTo: '维修完成后继续自动跑商或亲自航行',
         }),
         type: 'tip',
       });
@@ -116,7 +116,7 @@ export function handleGuidanceAction(suggestion, context) {
           nextStep: payload.modName
             ? ('优先查看「' + payload.modName + '」' + (payload.modCost ? ('，安装成本 ' + Number(payload.modCost || 0).toLocaleString() + ' 积分') : ''))
             : '查看推荐组件并确认是否安装',
-          returnTo: '安装后继续派遣、探索或经营调度',
+          returnTo: '安装后继续自动跑商、探索或经营',
         }),
         type: 'tip',
       });

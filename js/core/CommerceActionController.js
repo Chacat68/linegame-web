@@ -19,16 +19,16 @@ export function getMarketActionDestination(payload, fallbackIntent) {
   var workspaceId = payload && payload.workspaceId ? payload.workspaceId : 'spot';
   var subworkspaceId = payload && payload.subworkspaceId ? payload.subworkspaceId : 'trade';
   if (workspaceId === 'operations') {
-    if (subworkspaceId === 'network') return '经营页 · 商网总览区';
-    if (subworkspaceId === 'stations') return '经营页 · 站点编排区';
-    return '经营页 · 本地节点经营区';
+    if (subworkspaceId === 'network') return '贸易站 · 总览';
+    if (subworkspaceId === 'stations') return '贸易站 · 批量管理';
+    return '贸易站 · 本地经营';
   }
   if (workspaceId === 'capital') {
-    return '商业终端 · 资本调度区';
+    return '商业终端 · 资金管理';
   }
-  if (subworkspaceId === 'intel') return '当前市场 · 市场情报区';
-  if (subworkspaceId === 'black') return '当前市场 · 黑市分区';
-  return '当前市场 · ' + (fallbackIntent || '现货交易区');
+  if (subworkspaceId === 'intel') return '当前市场 · 行情与路线';
+  if (subworkspaceId === 'black') return '当前市场 · 黑市交易';
+  return '当前市场 · ' + (fallbackIntent || '买卖货物');
 }
 
 export function handleCommerceAction(suggestion, context) {
@@ -58,11 +58,11 @@ export function handleCommerceAction(suggestion, context) {
     text: buildCommandFeedback({
       actionId: 'market',
       commandSurface: 'market',
-      commandIntent: suggestion.commandIntent || '现货交易区',
+      commandIntent: suggestion.commandIntent || '买卖货物',
       label: suggestion.actionLabel || '打开市场',
     }, {
       icon: '📊',
-      destination: getMarketActionDestination(payload, suggestion.commandIntent || '现货交易区'),
+      destination: getMarketActionDestination(payload, suggestion.commandIntent || '买卖货物'),
       nextStep: suggestion.title,
       returnTo: '底部指挥条会继续提示下一步',
     }),

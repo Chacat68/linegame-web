@@ -113,9 +113,9 @@ export function initSettingsModal(callbacks) {
       saveSettings(activeCallbacks.settings);
       applySettings(activeCallbacks.settings, activeCallbacks.Renderer);
       _syncSettingsOverview(activeCallbacks.settings);
-      _setSettingsChangeStatus('暗线显示已' + (secretRoutesToggle.checked ? '开启' : '关闭') + '。', 'success');
+      _setSettingsChangeStatus('隐藏航线显示已' + (secretRoutesToggle.checked ? '开启' : '关闭') + '。', 'success');
       EventBus.emit('log:message', {
-        text: '⚙ 已更新暗线显示：' + (secretRoutesToggle.checked ? '显示' : '隐藏') + '。',
+        text: '⚙ 已更新隐藏航线显示：' + (secretRoutesToggle.checked ? '显示' : '隐藏') + '。',
         type: 'info',
       });
     };

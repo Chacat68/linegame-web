@@ -8,7 +8,7 @@ export function getMarketNavigationCompletion() {
 export function getNavigationFocusCompletion(focused) {
   return focused
     ? {
-        message: '已定位航点',
+        message: '已找到航点',
         detail: '检查目标详情后确认航行',
       }
     : {
@@ -19,7 +19,7 @@ export function getNavigationFocusCompletion(focused) {
 
 export function getRemoteMarketFocusCompletion() {
   return {
-    message: '已定位市场航点',
+    message: '已找到市场航点',
     detail: '检查目标详情后确认航行',
   };
 }
@@ -33,22 +33,22 @@ export function getRefuelCompletion() {
 
 export function getDispatchDraftCompletion() {
   return {
-    message: '已载入派遣草案',
-    detail: '确认“一键派遣”后执行路线',
+    message: '已载入跑商路线',
+    detail: '确认“开始跑商”后执行路线',
   };
 }
 
 export function getDispatchConfirmedCompletion(goodName) {
   return {
-    message: '已确认派遣路线',
-    detail: goodName ? ('派遣货物：' + goodName) : '舰队派遣路线已生效',
+    message: '已确认自动跑商路线',
+    detail: goodName ? ('跑商货物：' + goodName) : '舰队自动跑商路线已生效',
   };
 }
 
 export function getModInstalledCompletion(modName) {
   return {
     message: '已安装' + (modName ? '「' + modName + '」' : '推荐组件'),
-    detail: '下一条派遣或经营建议已刷新',
+    detail: '下一条跑商或经营建议已刷新',
   };
 }
 

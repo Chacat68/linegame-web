@@ -15,7 +15,7 @@ import * as Economy   from '../systems/economy/Economy.js';
 let _activeDispatchInterval = null;
 let _activeDispatchKickoffTimeout = null;
 let _questRouteResolver = null;
-const ACTIVE_DISPATCH_TICK_MS = 5000;
+const DEFAULT_ACTIVE_DISPATCH_TICK_MS = 5000;
 
 export function setQuestRouteResolver(resolver) {
   _questRouteResolver = typeof resolver === 'function' ? resolver : null;
@@ -39,10 +39,14 @@ function _clearPolicyMessage(route) {
 /**
  * 启动自动派遣定时器
  * @param {Function} tickFn  每 tick 调用的函数
+ * @param {number} tickDurationMs 游戏时间对应的操作间隔
  */
-export function startActiveDispatch(tickFn) {
+export function startActiveDispatch(tickFn, tickDurationMs) {
   stopActiveDispatch();
-  _activeDispatchInterval = setInterval(tickFn, ACTIVE_DISPATCH_TICK_MS);
+  var intervalMs = Number.isFinite(tickDurationMs)
+    ? Math.max(1000, Math.floor(tickDurationMs))
+    : DEFAULT_ACTIVE_DISPATCH_TICK_MS;
+  _activeDispatchInterval = setInterval(tickFn, intervalMs);
   _activeDispatchKickoffTimeout = setTimeout(function () {
     _activeDispatchKickoffTimeout = null;
     if (_activeDispatchInterval && typeof tickFn === 'function') {
@@ -50,7 +54,7 @@ export function startActiveDispatch(tickFn) {
     }
   }, 0);
   updateActiveDispatchUI();
-  EventBus.emit('log:message', { text: '📡 激活船只已派遣！每 5 秒执行一次操作。', type: 'info' });
+  EventBus.emit('log:message', { text: '📡 自动跑商已启动，将按游戏时间自动执行下一步。', type: 'info' });
 }
 
 /**
@@ -190,7 +194,7 @@ export function runActiveDispatchTick(state, options) {
     var nextTravelFuelCost = Economy.getFuelCost(route.buySystemId, route.sellSystemId, state.fuelEfficiency, state);
 
     if (!buyPolicyCheck.ok) {
-      _queuePolicyMessage(route, msgs, '⏸️ 自动派遣等待买点：' + buyPolicyCheck.reasons.join('、') + '。');
+      _queuePolicyMessage(route, msgs, '⏸️ 自动跑商正在等待合适买价：' + buyPolicyCheck.reasons.join('、') + '。');
       return { action: 'noop', msgs };
     }
 
@@ -232,7 +236,7 @@ export function runActiveDispatchTick(state, options) {
     var sellPolicyCheck = evaluateTradePolicy(buyReference, sellPrice, routeS.tradePolicy);
 
     if (!sellPolicyCheck.ok && sellQty > 0) {
-      _queuePolicyMessage(routeS, msgs, '⏸️ 自动派遣等待卖点：' + sellPolicyCheck.reasons.join('、') + '。');
+      _queuePolicyMessage(routeS, msgs, '⏸️ 自动跑商正在等待合适卖价：' + sellPolicyCheck.reasons.join('、') + '。');
       return { action: 'noop', msgs };
     }
 

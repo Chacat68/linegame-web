@@ -130,7 +130,7 @@ export function getSecretRouteDescriptors(state) {
       isTraveling: false,
       hasTravelSegment: !sameSystemRoute,
       sameSystemRoute: sameSystemRoute,
-      statusLabel: route.label || '暗线',
+      statusLabel: route.label || '隐藏航线',
       label: route.label,
       targetSystemName: route.targetSystemName,
       discountPercent: route.discountPercent,
