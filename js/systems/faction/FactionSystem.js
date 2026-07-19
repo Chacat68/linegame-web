@@ -117,22 +117,31 @@ export function canAccessBlackMarket(state, systemId) {
  * @param {string} goodId    交易的商品
  * @param {'buy'|'sell'} action
  * @param {number} quantity
+ * @param {'open'|'black'} marketType
  */
-export function onTrade(state, systemId, goodId, action, quantity) {
+export function onTrade(state, systemId, goodId, action, quantity, marketType) {
   const faction = getFactionForSystem(systemId);
   if (!faction) return [];
 
-  let delta = Math.ceil(quantity * FACTION_CONFIG.tradeImpact.basePerUnit);
+  const config = FACTION_CONFIG.tradeImpact;
+  let delta = Math.ceil(Math.sqrt(Math.max(0, quantity)) * config.basePerSqrtUnit);
 
   // 检查商品偏好
   if (faction.tradePreference.liked.includes(goodId)) {
-    delta = Math.ceil(delta * FACTION_CONFIG.tradeImpact.likedMultiplier);
+    delta = Math.ceil(delta * config.likedMultiplier);
   } else if (faction.tradePreference.disliked.includes(goodId)) {
     delta = -Math.abs(delta);
   }
 
   // 卖出在对方星球 = 他们需要你，好感度增加更多
-  if (action === 'sell') delta = Math.ceil(delta * FACTION_CONFIG.tradeImpact.sellMultiplier);
+  if (action === 'sell') delta = Math.ceil(delta * config.sellMultiplier);
+  if (marketType === 'black') delta = Math.ceil(delta * config.blackMarketMultiplier);
+
+  // 大额订单仍更有影响，但边际收益递减；进入友好/同盟阶段后也会自然放缓。
+  const currentRelation = getRelation(state, faction.id);
+  if (delta > 0 && currentRelation >= 70) delta = Math.ceil(delta * config.alliedDiminishing);
+  else if (delta > 0 && currentRelation >= 30) delta = Math.ceil(delta * config.friendlyDiminishing);
+  delta = Math.max(-config.maxGainPerTrade, Math.min(config.maxGainPerTrade, delta));
 
   const result = changeRelation(state, faction.id, delta);
   return result.msgs;

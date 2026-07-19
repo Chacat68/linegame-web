@@ -34,8 +34,8 @@ export function rollEvent(state, chance) {
   const currentDay = state.day || 1;
   const pacingResult = _evaluatePacing(state, currentDay);
   if (!pacingResult.allow) {
-    _persistRuntimeState(state);
     _activeEvent = null;
+    _persistRuntimeState(state);
     return null;
   }
 
@@ -48,8 +48,8 @@ export function rollEvent(state, chance) {
   }
 
   if (Math.random() > chance) {
-    _persistRuntimeState(state);
     _activeEvent = null;
+    _persistRuntimeState(state);
     return null;
   }
 
@@ -58,7 +58,7 @@ export function rollEvent(state, chance) {
 
   const pool = chainEvent ? [chainEvent] : getEligibleEvents(state);
 
-  if (pool.length === 0) { _persistRuntimeState(state); _activeEvent = null; return null; }
+  if (pool.length === 0) { _activeEvent = null; _persistRuntimeState(state); return null; }
 
   // 加权随机选取
   const totalWeight = pool.reduce(function (sum, ev) { return sum + _getEventWeight(ev, difficulty); }, 0);
@@ -72,9 +72,8 @@ export function rollEvent(state, chance) {
   // 设定冷却 & 重置旅行计数器
   _cooldowns[chosen.id] = currentDay;
   state._tripsSinceLastEvent = 0;
-  _persistRuntimeState(state);
-
   _activeEvent = chosen;
+  _persistRuntimeState(state);
   state.totalEvents = (state.totalEvents || 0) + 1;
   EventBus.emit('event:triggered', { eventId: chosen.id });
   return chosen;
@@ -94,13 +93,19 @@ export function getActiveEvent() {
  * @returns {{ msgs: Array }} 结果消息
  */
 export function resolveChoice(state, choiceIndex) {
-  if (!_activeEvent) return { msgs: [] };
   _hydrateRuntimeState(state);
+  if (!_activeEvent) return { msgs: [], resolved: false };
 
   const choice = _activeEvent.choices[choiceIndex];
-  if (!choice) return { msgs: [] };
+  if (!choice) return { msgs: [], resolved: false };
 
-  const result = choice.effect(state);
+  const difficulty = _getDifficultySettings(state);
+  const creditsBefore = Number(state.credits) || 0;
+  const hullBefore = Number(state.shipHull) || 0;
+  const result = choice.effect(state) || { msgs: [] };
+  const difficultyMsgs = _applyDifficultyOutcome(state, difficulty, creditsBefore, hullBefore);
+  if (!Array.isArray(result.msgs)) result.msgs = [];
+  result.msgs.push.apply(result.msgs, difficultyMsgs);
   const eventId = _activeEvent.id;
 
   // 记录历史
@@ -120,11 +125,41 @@ export function resolveChoice(state, choiceIndex) {
     }
   }
 
-  _persistRuntimeState(state);
   _activeEvent = null;
+  _persistRuntimeState(state);
 
   EventBus.emit('event:resolved', { eventId, choiceIndex });
+  result.resolved = true;
+  result.eventId = eventId;
   return result;
+}
+
+function _applyDifficultyOutcome(state, difficulty, creditsBefore, hullBefore) {
+  var msgs = [];
+  var creditsAfter = Number(state.credits) || 0;
+  var creditGain = Math.max(0, creditsAfter - creditsBefore);
+  var rewardMod = Math.max(0, Number(difficulty && difficulty.rewardMod) || 1);
+  if (creditGain > 0 && rewardMod !== 1) {
+    var adjustedGain = Math.max(0, Math.round(creditGain * rewardMod));
+    state.credits = creditsBefore + adjustedGain;
+    msgs.push({
+      text: '⚖️ 难度修正：事件积分收益由 ' + creditGain + ' 调整为 ' + adjustedGain + '。',
+      type: 'info',
+    });
+  }
+
+  var hullAfter = Number(state.shipHull) || 0;
+  var hullLoss = Math.max(0, hullBefore - hullAfter);
+  var damageMod = Math.max(0, Number(difficulty && difficulty.damageMod) || 1);
+  if (hullLoss > 0 && damageMod !== 1) {
+    var adjustedLoss = Math.max(1, Math.round(hullLoss * damageMod));
+    state.shipHull = Math.max(1, hullBefore - adjustedLoss);
+    msgs.push({
+      text: '⚖️ 难度修正：事件船体损伤由 ' + hullLoss + ' 调整为 ' + adjustedLoss + '。',
+      type: 'info',
+    });
+  }
+  return msgs;
 }
 
 /**
@@ -169,6 +204,7 @@ export function resetRuntimeState(state) {
   if (state && typeof state === 'object') {
     state._eventCooldowns = {};
     state._eventHistory = [];
+    state._activeEventId = '';
     state._tripsSinceLastEvent = 999;
   }
 }
@@ -208,6 +244,12 @@ function _hydrateRuntimeState(state) {
     state._eventHistory = [];
   }
 
+  const activeEventId = typeof state._activeEventId === 'string' ? state._activeEventId : '';
+  _activeEvent = activeEventId
+    ? (RANDOM_EVENTS.find(function (eventDef) { return eventDef.id === activeEventId; }) || null)
+    : null;
+  if (!_activeEvent && activeEventId) state._activeEventId = '';
+
   Object.keys(_cooldowns).forEach(function (key) { delete _cooldowns[key]; });
   Object.keys(state._eventCooldowns).forEach(function (key) {
     if (typeof state._eventCooldowns[key] === 'number') {
@@ -225,6 +267,7 @@ function _persistRuntimeState(state) {
   if (!state || typeof state !== 'object') return;
   state._eventCooldowns = Object.assign({}, _cooldowns);
   state._eventHistory = _eventHistory.slice(-MAX_HISTORY);
+  state._activeEventId = _activeEvent ? _activeEvent.id : '';
 }
 
 function _isOnCooldown(eventDef, currentDay) {

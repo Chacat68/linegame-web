@@ -6,7 +6,7 @@
 // WebAssembly 模块（如 Rust/C++）。此处保留与 WASM 导出面相同的函数签名。
 
 import { GOODS }                          from '../../data/goods.js';
-import { ECONOMY_CONFIG }                from '../../data/constants.js';
+import { DIFFICULTY_LEVELS, ECONOMY_CONFIG } from '../../data/constants.js';
 import { SHIP_TYPES, SHIP_MODS, FLEET_BONUSES } from '../../data/ships.js';
 import { SYSTEMS, FUEL_COST_PER_UNIT, GALAXY_JUMP_FUEL, findSystem } from '../../data/systems.js';
 import * as Faction                       from '../faction/FactionSystem.js';
@@ -30,6 +30,7 @@ const _modifiers = Object.create(null);
 // 供需系统（群星参考）——每个 (星系, 商品) 对的供给/需求值
 const _supply = Object.create(null);
 const _demand = Object.create(null);
+const _blackMarketQuotes = Object.create(null);
 
 // ---------------------------------------------------------------------------
 // 经济周期系统（繁荣 → 稳定 → 衰退 → 萧条）
@@ -43,6 +44,32 @@ let _cycleState = {
   totalCycles: 0,
 };
 
+const SMUGGLING_STATS_DEFAULTS = {
+  caught: 0,
+  evaded: 0,
+  finesPaid: 0,
+  blackMarketTrades: 0,
+  riskedArrivals: 0,
+  protectedArrivals: 0,
+  confiscatedCostBasis: 0,
+  hullDamage: 0,
+  blackMarketBuyCost: 0,
+  blackMarketSellRevenue: 0,
+  blackMarketRealizedProfit: 0,
+};
+
+function _ensureSmugglingStats(state) {
+  if (!state.smugglingStats || typeof state.smugglingStats !== 'object' || Array.isArray(state.smugglingStats)) {
+    state.smugglingStats = {};
+  }
+  Object.keys(SMUGGLING_STATS_DEFAULTS).forEach(function (key) {
+    if (!Number.isFinite(Number(state.smugglingStats[key]))) {
+      state.smugglingStats[key] = SMUGGLING_STATS_DEFAULTS[key];
+    }
+  });
+  return state.smugglingStats;
+}
+
 // ---------------------------------------------------------------------------
 // "WASM polyfill" — 签名与计划中的 WASM 导出保持一致
 // ---------------------------------------------------------------------------
@@ -55,6 +82,38 @@ function euclideanDistance(x1, y1, x2, y2) {
   const dx = x1 - x2;
   const dy = y1 - y2;
   return Math.sqrt(dx * dx + dy * dy);
+}
+
+function _compressPositiveMultiplier(value, exponent) {
+  var safeValue = Math.max(0.05, Number(value) || 1);
+  var safeExponent = Math.max(0.05, Number(exponent) || 1);
+  return Math.pow(safeValue, safeExponent);
+}
+
+function _getDifficultyVolatility(state) {
+  var difficultyId = state && state.difficulty ? state.difficulty : 'normal';
+  var difficulty = DIFFICULTY_LEVELS[difficultyId] || DIFFICULTY_LEVELS.normal;
+  return Math.max(0.25, Number(difficulty.priceVolatility) || 1);
+}
+
+function _getPriceComponents(systemId, goodId, state) {
+  var sys = SYSTEMS.find(function (entry) { return entry.id === systemId; });
+  if (!sys || !_modifiers[systemId]) return null;
+
+  var systemMultiplier = _compressPositiveMultiplier(
+    sys.prices[goodId],
+    ECONOMY_CONFIG.pricing.systemPriceExponent
+  );
+  var dynamicMultiplier = _modifiers[systemId][goodId] *
+    _getSupplyDemandPriceModifier(systemId, goodId) *
+    CYCLE_PHASES[_cycleState.phaseIndex].priceMod *
+    _getSupplyChainModifier(systemId, goodId);
+  var dynamicExponent = ECONOMY_CONFIG.pricing.dynamicPriceExponent * _getDifficultyVolatility(state);
+
+  return {
+    systemMultiplier: systemMultiplier,
+    dynamicMultiplier: _compressPositiveMultiplier(dynamicMultiplier, dynamicExponent),
+  };
 }
 
 function _getBaseSupply(priceMultiplier, cycleSupplyBoost) {
@@ -122,10 +181,18 @@ function _advanceCycle() {
 // 公开 API
 // ---------------------------------------------------------------------------
 
-export function init() {
+export function init(savedMarketState) {
+  _cycleState = {
+    phaseIndex: ECONOMY_CONFIG.cycle.initialPhaseIndex,
+    dayInPhase: 0,
+    phaseDuration: ECONOMY_CONFIG.cycle.fallbackDuration,
+    totalCycles: 0,
+  };
   _randomiseModifiers();
   _initCycle();
   _initPriceHistory();
+  Object.keys(_blackMarketQuotes).forEach(function (key) { delete _blackMarketQuotes[key]; });
+  _restoreMarketState(savedMarketState);
 }
 
 // ---------------------------------------------------------------------------
@@ -160,6 +227,64 @@ export function getPriceHistory(systemId, goodId) {
     return _priceHistory[systemId][goodId].slice();
   }
   return [];
+}
+
+function _copyMarketMatrix(source, target, validator) {
+  if (!source || typeof source !== 'object') return;
+  SYSTEMS.forEach(function (system) {
+    var savedRow = source[system.id];
+    if (!savedRow || typeof savedRow !== 'object') return;
+    GOODS.forEach(function (good) {
+      var value = savedRow[good.id];
+      if (validator(value)) target[system.id][good.id] = value;
+    });
+  });
+}
+
+function _restoreMarketState(saved) {
+  if (!saved || typeof saved !== 'object') return false;
+  _copyMarketMatrix(saved.modifiers, _modifiers, function (value) {
+    return Number.isFinite(value) && value > 0;
+  });
+  _copyMarketMatrix(saved.supply, _supply, function (value) {
+    return Number.isFinite(value);
+  });
+  _copyMarketMatrix(saved.demand, _demand, function (value) {
+    return Number.isFinite(value);
+  });
+  _copyMarketMatrix(saved.priceHistory, _priceHistory, function (value) {
+    return Array.isArray(value);
+  });
+  if (saved.blackMarketQuotes && typeof saved.blackMarketQuotes === 'object') {
+    Object.keys(saved.blackMarketQuotes).forEach(function (key) {
+      var value = saved.blackMarketQuotes[key];
+      if (Number.isFinite(value) && value > 0) _blackMarketQuotes[key] = value;
+    });
+  }
+  SYSTEMS.forEach(function (system) {
+    GOODS.forEach(function (good) {
+      _supply[system.id][good.id] = _clampSupplyDemand(_supply[system.id][good.id]);
+      _demand[system.id][good.id] = _clampSupplyDemand(_demand[system.id][good.id]);
+      _priceHistory[system.id][good.id] = _priceHistory[system.id][good.id]
+        .filter(function (price) { return Number.isFinite(price) && price > 0; })
+        .slice(-ECONOMY_CONFIG.history.maxDays);
+    });
+  });
+  setCycleState(saved.cycle);
+  return true;
+}
+
+/** 返回可直接写入存档的市场快照。 */
+export function getMarketState() {
+  return JSON.parse(JSON.stringify({
+    version: 1,
+    cycle: getCycleState(),
+    modifiers: _modifiers,
+    supply: _supply,
+    demand: _demand,
+    priceHistory: _priceHistory,
+    blackMarketQuotes: _blackMarketQuotes,
+  }));
 }
 
 // ---------------------------------------------------------------------------
@@ -255,15 +380,16 @@ export function getBuyPrice(systemId, goodId, state) {
   const sys  = SYSTEMS.find(function (s) { return s.id === systemId; });
   const good = GOODS.find(function (g) { return g.id === goodId; });
   if (!sys || !good || !_modifiers[systemId]) return ECONOMY_CONFIG.pricing.minimumPrice;
-  const m    = _modifiers[systemId][goodId] * sys.prices[goodId];
-  const sdMod = _getSupplyDemandPriceModifier(systemId, goodId);
-  const cycleMod = CYCLE_PHASES[_cycleState.phaseIndex].priceMod;
-  const chainMod = _getSupplyChainModifier(systemId, goodId);
-  let price  = calculatePrice(good.basePrice, m * sdMod * cycleMod * chainMod, ECONOMY_CONFIG.pricing.buyMultiplier);
+  const components = _getPriceComponents(systemId, goodId, state);
+  let price  = calculatePrice(
+    good.basePrice,
+    components.systemMultiplier * components.dynamicMultiplier,
+    ECONOMY_CONFIG.pricing.buyMultiplier
+  );
 
   if (state) {
     price = _applyBuyAdjustments(price, state, systemId);
-    price = _applyStarterMarketGuard(price, good, state, 'buy');
+    price = _applyStarterMarketGuard(price, good, state);
   }
   return Math.max(ECONOMY_CONFIG.pricing.minimumPrice, price);
 }
@@ -272,15 +398,16 @@ export function getSellPrice(systemId, goodId, state) {
   const sys  = SYSTEMS.find(function (s) { return s.id === systemId; });
   const good = GOODS.find(function (g) { return g.id === goodId; });
   if (!sys || !good || !_modifiers[systemId]) return ECONOMY_CONFIG.pricing.minimumPrice;
-  const m    = _modifiers[systemId][goodId] * sys.prices[goodId];
-  const sdMod = _getSupplyDemandPriceModifier(systemId, goodId);
-  const cycleMod = CYCLE_PHASES[_cycleState.phaseIndex].priceMod;
-  const chainMod = _getSupplyChainModifier(systemId, goodId);
-  let price  = calculatePrice(good.basePrice, m * sdMod * cycleMod * chainMod, ECONOMY_CONFIG.pricing.sellMultiplier);
+  const components = _getPriceComponents(systemId, goodId, state);
+  let price  = calculatePrice(
+    good.basePrice,
+    components.systemMultiplier * components.dynamicMultiplier,
+    ECONOMY_CONFIG.pricing.sellMultiplier
+  );
 
   if (state) {
     price = _applySellAdjustments(price, state, systemId);
-    price = _applyStarterMarketGuard(price, good, state, 'sell');
+    price = _applyStarterMarketGuard(price, good, state);
   }
   return Math.max(ECONOMY_CONFIG.pricing.minimumPrice, price);
 }
@@ -343,10 +470,14 @@ export function getCycleState() {
 
 export function setCycleState(saved) {
   if (saved) {
-    _cycleState.phaseIndex = saved.phaseIndex || ECONOMY_CONFIG.cycle.initialPhaseIndex;
-    _cycleState.dayInPhase = saved.dayInPhase || 0;
-    _cycleState.phaseDuration = saved.phaseDuration || ECONOMY_CONFIG.cycle.fallbackDuration;
-    _cycleState.totalCycles = saved.totalCycles || 0;
+    _cycleState.phaseIndex = Number.isInteger(saved.phaseIndex)
+      ? Math.max(0, Math.min(CYCLE_PHASES.length - 1, saved.phaseIndex))
+      : ECONOMY_CONFIG.cycle.initialPhaseIndex;
+    _cycleState.dayInPhase = Number.isFinite(saved.dayInPhase) ? Math.max(0, saved.dayInPhase) : 0;
+    _cycleState.phaseDuration = Number.isFinite(saved.phaseDuration) && saved.phaseDuration > 0
+      ? saved.phaseDuration
+      : ECONOMY_CONFIG.cycle.fallbackDuration;
+    _cycleState.totalCycles = Number.isFinite(saved.totalCycles) ? Math.max(0, saved.totalCycles) : 0;
   }
 }
 
@@ -354,61 +485,107 @@ export function getEconomyConfig() {
   return JSON.parse(JSON.stringify(ECONOMY_CONFIG));
 }
 
-function _applyBuyAdjustments(basePrice, state, systemId) {
-  var price = basePrice;
+function _asPositiveRate(value) {
+  var numeric = Number(value);
+  return Number.isFinite(numeric) ? Math.max(0, numeric) : 0;
+}
+
+function _getCappedCombinedAdvantage(rawBuyAdvantage, rawSellAdvantage) {
+  var negotiation = ECONOMY_CONFIG.pricing.negotiation || {};
+  var linearLimit = Math.max(0, Number(negotiation.linearCombinedAdvantage) || 0.10);
+  var maximum = Math.max(linearLimit, Number(negotiation.maxCombinedAdvantage) || 0.17);
+  var rawCombined = Math.max(0, rawBuyAdvantage + rawSellAdvantage);
+  var effectiveCombined = rawCombined;
+
+  if (rawCombined > linearLimit && maximum > linearLimit) {
+    var overflow = rawCombined - linearLimit;
+    var softRange = maximum - linearLimit;
+    effectiveCombined = linearLimit + softRange * (1 - Math.exp(-overflow / softRange));
+  }
+  effectiveCombined = Math.min(maximum, effectiveCombined);
+
+  if (rawCombined <= 0) {
+    return { buyAdvantage: 0, sellAdvantage: 0, combinedAdvantage: 0, rawCombinedAdvantage: 0 };
+  }
+
+  return {
+    buyAdvantage: effectiveCombined * rawBuyAdvantage / rawCombined,
+    sellAdvantage: effectiveCombined * rawSellAdvantage / rawCombined,
+    combinedAdvantage: effectiveCombined,
+    rawCombinedAdvantage: rawCombined,
+  };
+}
+
+/**
+ * 汇总玩家在指定节点的实际议价空间。
+ * 所有正向价格加成共享一个软上限；负面关系和路线信条代价单独结算。
+ */
+export function getTradeNegotiationProfile(state, systemId) {
+  if (!state) {
+    return {
+      buyAdvantage: 0,
+      sellAdvantage: 0,
+      buyPenalty: 0,
+      sellPenalty: 0,
+      combinedAdvantage: 0,
+      rawCombinedAdvantage: 0,
+    };
+  }
+
   var fleetTradeEffects = _getFleetTradeEffects(state);
-  ECONOMY_CONFIG.pricing.buyAdjustmentOrder.forEach(function (step) {
-    if (step === 'factionTax') {
-      price = Math.round(price * Faction.getTaxModifier(state, systemId));
-      return;
-    }
-    if (step === 'techBuyDiscount' && state.techBuyDiscount) {
-      price = Math.round(price * (1 - state.techBuyDiscount));
-      return;
-    }
-    if (step === 'fleetTradeBonus' && fleetTradeEffects.buyDiscount) {
-      price = Math.round(price * (1 - fleetTradeEffects.buyDiscount));
-    }
-  });
   var policyEffects = getVictoryPolicyEffects(state);
-  if (policyEffects.buyDiscount) price = Math.round(price * (1 - policyEffects.buyDiscount));
-  if (policyEffects.buyPricePenalty) price = Math.round(price * (1 + policyEffects.buyPricePenalty));
-  return price;
+  var taxModifier = Faction.getTaxModifier(state, systemId);
+  var negotiation = ECONOMY_CONFIG.pricing.negotiation || {};
+  var factionSensitivity = Math.max(0, Number(negotiation.factionTaxSensitivity) || 0.25);
+  var factionDelta = (1 - (Number.isFinite(taxModifier) ? taxModifier : 1)) * factionSensitivity;
+  var factionAdvantage = Math.max(0, factionDelta);
+  var factionPenalty = Math.max(0, -factionDelta);
+
+  var rawBuyAdvantage = _asPositiveRate(state.techBuyDiscount) +
+    _asPositiveRate(fleetTradeEffects.buyDiscount) +
+    _asPositiveRate(policyEffects.buyDiscount) +
+    factionAdvantage;
+  var rawSellAdvantage = _asPositiveRate(state.techSellBonus) +
+    _asPositiveRate(fleetTradeEffects.sellBonus) +
+    _asPositiveRate(policyEffects.sellBonus) +
+    factionAdvantage;
+  var capped = _getCappedCombinedAdvantage(rawBuyAdvantage, rawSellAdvantage);
+
+  return {
+    buyAdvantage: capped.buyAdvantage,
+    sellAdvantage: capped.sellAdvantage,
+    buyPenalty: Math.min(0.5, factionPenalty + _asPositiveRate(policyEffects.buyPricePenalty)),
+    sellPenalty: Math.min(0.5, factionPenalty),
+    combinedAdvantage: capped.combinedAdvantage,
+    rawCombinedAdvantage: capped.rawCombinedAdvantage,
+    rawBuyAdvantage: rawBuyAdvantage,
+    rawSellAdvantage: rawSellAdvantage,
+  };
+}
+
+function _applyBuyAdjustments(basePrice, state, systemId) {
+  var profile = getTradeNegotiationProfile(state, systemId);
+  return Math.ceil(basePrice * (1 - profile.buyAdvantage) * (1 + profile.buyPenalty));
 }
 
 function _applySellAdjustments(basePrice, state, systemId) {
-  var price = basePrice;
-  var fleetTradeEffects = _getFleetTradeEffects(state);
-  ECONOMY_CONFIG.pricing.sellAdjustmentOrder.forEach(function (step) {
-    if (step === 'factionTax') {
-      var taxMod = Faction.getTaxModifier(state, systemId);
-      var sellTax = ECONOMY_CONFIG.pricing.sellTaxBase - taxMod;
-      price = Math.round(price * sellTax);
-      return;
-    }
-    if (step === 'techSellBonus' && state.techSellBonus) {
-      price = Math.round(price * (1 + state.techSellBonus));
-      return;
-    }
-    if (step === 'fleetTradeBonus' && fleetTradeEffects.sellBonus) {
-      price = Math.round(price * (1 + fleetTradeEffects.sellBonus));
-    }
-  });
-  var policyEffects = getVictoryPolicyEffects(state);
-  if (policyEffects.sellBonus) price = Math.round(price * (1 + policyEffects.sellBonus));
-  return price;
+  var profile = getTradeNegotiationProfile(state, systemId);
+  return Math.floor(basePrice * (1 + profile.sellAdvantage) * (1 - profile.sellPenalty));
 }
 
-function _applyStarterMarketGuard(price, good, state, side) {
+function _applyStarterMarketGuard(price, good, state) {
   var guard = ECONOMY_CONFIG.pricing.starterMarketGuard;
   if (!guard || !state || !good) return price;
-  var isStarter = (state.playerLevel || 1) <= guard.maxPlayerLevel &&
-    (state.tradeCount || 0) <= guard.maxTradeCount;
-  if (!isStarter) return price;
-  if (side === 'buy') {
-    return Math.max(price, Math.ceil(good.basePrice * guard.buyFloorMultiplier));
-  }
-  return Math.min(price, Math.floor(good.basePrice * guard.sellCeilingMultiplier));
+  var tradeCount = Math.max(0, Math.floor(state.tradeCount || 0));
+  if (tradeCount > guard.maxTradeCount) return price;
+
+  var progress = guard.maxTradeCount > 0 ? tradeCount / guard.maxTradeCount : 1;
+  var exponent = guard.startExponent +
+    (guard.endExponent - guard.startExponent) * Math.max(0, Math.min(1, progress));
+  var priceRatio = Math.max(0.05, price / Math.max(1, good.basePrice));
+  var moderated = Math.round(good.basePrice * Math.pow(priceRatio, exponent));
+
+  return Math.max(ECONOMY_CONFIG.pricing.minimumPrice, moderated);
 }
 
 function _getFleetTradeEffects(state) {
@@ -480,24 +657,49 @@ function _mergeTradeEffects(target, effect) {
 // 黑市价格系统
 // ---------------------------------------------------------------------------
 
-/**
- * 黑市买入价 —— 高于公开市场，波动更大
- * 违禁品只能在此购买；受监管商品附加限制区溢价
- */
-export function getBlackMarketBuyPrice(systemId, goodId, state) {
+function _stableQuoteNoise(systemId, goodId, day) {
+  var text = String(systemId) + '|' + String(goodId) + '|' + String(day || 1);
+  var hash = 2166136261;
+  for (var i = 0; i < text.length; i++) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0) / 4294967295;
+}
+
+/** 同一星球、同一天的稳定黑市中间价。 */
+function _getBlackMarketMidPrice(systemId, goodId, state) {
   const good = GOODS.find(function (g) { return g.id === goodId; });
   if (!good) return ECONOMY_CONFIG.pricing.minimumPrice;
+  const quoteDay = Math.max(1, Math.floor((state && state.day) || 1));
+  const quoteKey = quoteDay + '|' + systemId + '|' + goodId;
+  if (Number.isFinite(_blackMarketQuotes[quoteKey])) return _blackMarketQuotes[quoteKey];
 
-  // 黑市基础价使用公开价 × 黑市溢价
+  // 只保留最近两天，避免长期运行时缓存无限增长；当前报价会随市场快照存档。
+  Object.keys(_blackMarketQuotes).forEach(function (key) {
+    var savedDay = Number(key.split('|')[0]);
+    if (Number.isFinite(savedDay) && savedDay < quoteDay - 1) delete _blackMarketQuotes[key];
+  });
   const bm = ECONOMY_CONFIG.blackMarket;
-  const openPrice = getBuyPrice(systemId, goodId, state);
+  const openMid = (getBuyPrice(systemId, goodId, state) + getSellPrice(systemId, goodId, state)) / 2;
+  let legalityPremium = 1;
+  if (good.legality === 'illegal') legalityPremium = bm.illegalValuePremium;
+  else if (good.legality === 'restricted') legalityPremium = bm.restrictedValuePremium;
+  const noise = 1 + (_stableQuoteNoise(systemId, goodId, quoteDay) * 2 - 1) * bm.dailyVolatility;
+  const midpoint = Math.max(ECONOMY_CONFIG.pricing.minimumPrice, Math.round(openMid * legalityPremium * noise));
+  _blackMarketQuotes[quoteKey] = midpoint;
+  return midpoint;
+}
 
-  // 额外波动
-  const volatilityNoise = 1 + (Math.random() - 0.5) * (bm.volatility - 1);
-  const premiumMultiplier = Math.max(bm.pricePremium, bm.pricePremium * volatilityNoise);
-  const price = Math.round(openPrice * premiumMultiplier);
-
-  return Math.max(ECONOMY_CONFIG.pricing.minimumPrice, price);
+/** 黑市买入价：报价在当天固定，并包含明确的买卖价差。 */
+export function getBlackMarketBuyPrice(systemId, goodId, state) {
+  if (!GOODS.some(function (good) { return good.id === goodId; })) {
+    return ECONOMY_CONFIG.pricing.minimumPrice;
+  }
+  return Math.max(
+    ECONOMY_CONFIG.pricing.minimumPrice,
+    Math.ceil(_getBlackMarketMidPrice(systemId, goodId, state) * ECONOMY_CONFIG.blackMarket.buySpread)
+  );
 }
 
 /**
@@ -506,26 +708,13 @@ export function getBlackMarketBuyPrice(systemId, goodId, state) {
 export function getBlackMarketSellPrice(systemId, goodId, state) {
   const good = GOODS.find(function (g) { return g.id === goodId; });
   if (!good) return ECONOMY_CONFIG.pricing.minimumPrice;
-
   const bm = ECONOMY_CONFIG.blackMarket;
-  const openPrice = getSellPrice(systemId, goodId, state);
-  let premiumMultiplier = bm.sellPremium;
-
-  // 违禁品额外加成
-  if (good.legality === 'illegal') {
-    premiumMultiplier *= bm.illegalSellBonus;
-  } else if (good.legality === 'restricted') {
-    premiumMultiplier *= bm.restrictedSellBonus;
-  }
-
-  // 额外波动
-  const volatilityNoise = 1 + (Math.random() - 0.5) * (bm.volatility - 1);
   const policyEffects = getVictoryPolicyEffects(state);
-  premiumMultiplier *= 1 + (policyEffects.blackMarketSellBonus || 0);
-  const effectiveMultiplier = Math.max(premiumMultiplier, premiumMultiplier * volatilityNoise);
-  const price = Math.round(openPrice * effectiveMultiplier);
-
-  return Math.max(ECONOMY_CONFIG.pricing.minimumPrice, price);
+  const sellSpread = bm.sellSpread * (1 + (policyEffects.blackMarketSellBonus || 0));
+  return Math.max(
+    ECONOMY_CONFIG.pricing.minimumPrice,
+    Math.floor(_getBlackMarketMidPrice(systemId, goodId, state) * sellSpread)
+  );
 }
 
 /**
@@ -640,24 +829,28 @@ export function checkSmugglingCargo(state, systemId, cargo, options) {
   const riskEstimate = estimateSmugglingCargoRisk(state, systemId, cargo);
   const contraband = _getContrabandFromCargo(cargo || {});
   if (!riskEstimate.hasContraband) {
-    return { caught: false, fine: 0, confiscated: [], msgs: [] };
+    return { caught: false, evaded: false, risked: false, protected: false, fine: 0, confiscated: [], confiscatedCostBasis: 0, hullDamage: 0, msgs: [] };
   }
 
   const cfg = ECONOMY_CONFIG.smuggling;
+  const smugglingStats = _ensureSmugglingStats(state);
 
   if (riskEstimate.protectedByBlackMarket) {
-    return { caught: false, fine: 0, confiscated: [], msgs: [{ text: '🕶 辛迪加势力庇护，安全入港。', type: 'info' }] };
+    smugglingStats.protectedArrivals++;
+    return { caught: false, evaded: false, risked: false, protected: true, fine: 0, confiscated: [], confiscatedCostBasis: 0, hullDamage: 0, msgs: [{ text: '🕶 辛迪加势力庇护，安全入港。', type: 'info' }] };
   }
 
   var adjustedChance = Math.max(0, Math.min(1, riskEstimate.checkChance * (options.checkChanceMultiplier || 1)));
+  smugglingStats.riskedArrivals++;
 
   if (Math.random() >= adjustedChance) {
-    return { caught: false, fine: 0, confiscated: [], msgs: [{ text: '🕶 安全通过入港检查。', type: 'info' }] };
+    return { caught: false, evaded: true, risked: true, protected: false, fine: 0, confiscated: [], confiscatedCostBasis: 0, hullDamage: 0, msgs: [{ text: '🕶 安全通过入港检查。', type: 'info' }] };
   }
 
   const fine = Math.round((contraband.contrabandValue * cfg.fineMultiplier + cfg.baseFine) * (options.fineMultiplier || 1));
   const msgs = [];
   const confiscated = [];
+  let confiscatedCostBasis = 0;
   const cargoCost = options.cargoCost && typeof options.cargoCost === 'object' ? options.cargoCost : null;
 
   msgs.push({ text: '🚨 入港安检发现走私品！', type: 'danger' });
@@ -669,14 +862,16 @@ export function checkSmugglingCargo(state, systemId, cargo, options) {
   if (cfg.confiscate) {
     contraband.items.forEach(function (item) {
       confiscated.push({ goodId: item.goodId, name: item.name, qty: item.qty });
+      if (cargoCost) confiscatedCostBasis += Math.max(0, Number(cargoCost[item.goodId]) || 0);
       delete cargo[item.goodId];
       if (cargoCost) delete cargoCost[item.goodId];
     });
     msgs.push({ text: '📦 违禁品被没收：' + confiscated.map(function (c) { return c.name + '×' + c.qty; }).join('、'), type: 'error' });
   }
 
+  var hullDamage = 0;
   if (cfg.hullDamage) {
-    var hullDamage = Math.max(0, Math.round(cfg.hullDamage * (options.hullDamageMultiplier || 1)));
+    hullDamage = Math.max(0, Math.round(cfg.hullDamage * (options.hullDamageMultiplier || 1)));
     if (typeof options.applyHullDamage === 'function') {
       options.applyHullDamage(hullDamage);
     } else {
@@ -687,11 +882,22 @@ export function checkSmugglingCargo(state, systemId, cargo, options) {
     }
   }
 
-  if (!state.smugglingStats) state.smugglingStats = { caught: 0, evaded: 0, finesPaid: 0, blackMarketTrades: 0 };
-  state.smugglingStats.caught++;
-  state.smugglingStats.finesPaid += actualFine;
+  smugglingStats.caught++;
+  smugglingStats.finesPaid += actualFine;
+  smugglingStats.confiscatedCostBasis += confiscatedCostBasis;
+  smugglingStats.hullDamage += hullDamage;
 
-  return { caught: true, fine: actualFine, confiscated: confiscated, msgs: msgs };
+  return {
+    caught: true,
+    evaded: false,
+    risked: true,
+    protected: false,
+    fine: actualFine,
+    confiscated: confiscated,
+    confiscatedCostBasis: confiscatedCostBasis,
+    hullDamage: hullDamage,
+    msgs: msgs,
+  };
 }
 
 /**
@@ -711,14 +917,22 @@ export function checkSmuggling(state, systemId) {
  * 走私成功时记录统计
  */
 export function recordSmugglingEvaded(state) {
-  if (!state.smugglingStats) state.smugglingStats = { caught: 0, evaded: 0, finesPaid: 0, blackMarketTrades: 0 };
-  state.smugglingStats.evaded++;
+  _ensureSmugglingStats(state).evaded++;
 }
 
 /**
  * 黑市交易成功时记录统计
  */
-export function recordBlackMarketTrade(state) {
-  if (!state.smugglingStats) state.smugglingStats = { caught: 0, evaded: 0, finesPaid: 0, blackMarketTrades: 0 };
-  state.smugglingStats.blackMarketTrades++;
+export function recordBlackMarketTrade(state, details) {
+  const stats = _ensureSmugglingStats(state);
+  const context = details && typeof details === 'object' ? details : {};
+  const meta = context.meta && typeof context.meta === 'object' ? context.meta : {};
+  stats.blackMarketTrades++;
+  if (context.action === 'buy') {
+    stats.blackMarketBuyCost += Math.max(0, Number(meta.totalCost) || 0);
+  } else if (context.action === 'sell') {
+    stats.blackMarketSellRevenue += Math.max(0, Number(meta.totalEarned) || 0);
+    stats.blackMarketRealizedProfit += Number(meta.profit) || 0;
+  }
+  return stats;
 }

@@ -28,7 +28,7 @@ const EXPLORATION_GALAXY_THEMES = {
     chains: {
       derelict_depot: ['遗忘补给库', ['校验人类制式', '复原物资清单', '归档旧航线']],
       ancient_relic: ['先驱者轨道阵列', ['锁定脉冲源', '采集阵列残片', '归档先驱者样本']],
-      lost_beacon: ['幽灵航标网', ['追踪历史回波', '重启幽灵节点', '归档人类暗线']],
+      lost_beacon: ['幽灵航标网', ['追踪历史回波', '重启幽灵航标', '记录隐藏航线']],
     },
   },
   andromeda: {
@@ -50,7 +50,7 @@ const EXPLORATION_GALAXY_THEMES = {
     },
   },
   magellanic_cloud: {
-    anomalyIcon: '💎', anomalyName: '镏金拍卖残环', anomalyDescription: '失控的轨道拍卖场仍按消亡文明的协议结算藏品。',
+    anomalyIcon: '💎', anomalyName: '镏金拍卖残环', anomalyDescription: '失控的轨道拍卖场仍按消亡文明留下的规则结算藏品。',
     routeName: '珍珠商路浮标', archiveName: '星云商会账本',
     chains: {
       derelict_depot: ['商会密藏库', ['破解商会印记', '清点密藏货单', '归档星云行情']],
@@ -462,7 +462,7 @@ function _createExplorationPois(system, secretRoute) {
     kind: 'route_beacon',
     icon: theme.routeIcon || '🛰️',
     name: theme.routeName,
-    description: theme.routeName + '发出失真回波，似乎指向「' + secretRoute.targetSystemName + '」附近的暗线跳点。',
+    description: theme.routeName + '发出失真回波，似乎指向「' + secretRoute.targetSystemName + '」附近的隐藏航线。',
     discovered: true,
     resolved: false,
     chain: _createPoiChain(system, 'lost_beacon'),
@@ -490,21 +490,21 @@ function _createPoiChain(system, chainKind) {
   const templates = {
     derelict_depot: {
       label: '废弃补给站',
-      badge: '补给链',
+      badge: '补给任务',
       signal: 'logistics',
       stageLabels: ['定位残骸', '复原库存', '归档补给信号'],
     },
     ancient_relic: {
       label: '古代遗迹',
-      badge: '遗迹链',
+      badge: '遗迹任务',
       signal: 'research',
       stageLabels: ['定位遗迹', '提取样本', '归档科研线索'],
     },
     lost_beacon: {
       label: '失落航标',
-      badge: '航标链',
+      badge: '航标任务',
       signal: 'route',
-      stageLabels: ['校准回波', '重启航标', '归档暗线航图'],
+      stageLabels: ['校准回波', '重启航标', '记录隐藏航线'],
     },
   };
   const template = templates[chainKind] || templates.derelict_depot;
@@ -568,10 +568,10 @@ function _getExplorationChainStageLabel(chain, stageIndex) {
 }
 
 function _getExplorationChainFollowupLabel(chainKind) {
-  if (chainKind === 'lost_beacon') return '打开市场情报区确认暗线航图与派遣评分。';
-  if (chainKind === 'ancient_relic') return '打开市场情报区确认科研补给与风险剖面。';
-  if (chainKind === 'derelict_depot') return '打开市场情报区确认商网和派遣整备价值。';
-  return '打开市场情报区查看后续经营影响。';
+  if (chainKind === 'lost_beacon') return '打开【行情与路线】，查看隐藏航线和跑商建议。';
+  if (chainKind === 'ancient_relic') return '打开【行情与路线】，查看研究帮助和风险。';
+  if (chainKind === 'derelict_depot') return '打开【行情与路线】，查看贸易站和跑商价值。';
+  return '打开【行情与路线】，查看这份情报有什么用。';
 }
 
 function _createResourcePoi(system) {
@@ -638,7 +638,7 @@ function _createSecretRoute(system) {
     sourceSystemId: system.id,
     targetSystemId: target.id,
     targetSystemName: target.name,
-    label: '暗线 · ' + system.name + ' → ' + target.name,
+    label: '隐藏航线 · ' + system.name + ' → ' + target.name,
     fuelMultiplier: 0.65,
     discovered: false,
     discoveredDay: 0,

@@ -13,7 +13,8 @@ export function init(state) {
   if (!state.achievements) state.achievements = [];
   const activeIds = new Set(ACHIEVEMENTS.map(function (achievement) { return achievement.id; }));
   state.achievements = Array.from(new Set(state.achievements.map(function (achievementId) {
-    return ACHIEVEMENT_ALIASES[achievementId] || achievementId;
+    // 当前仍有效的 ID 优先保留，避免同名旧别名吞掉现役成就。
+    return activeIds.has(achievementId) ? achievementId : (ACHIEVEMENT_ALIASES[achievementId] || achievementId);
   }).filter(function (achievementId) {
     return activeIds.has(achievementId) || !Object.prototype.hasOwnProperty.call(ACHIEVEMENT_ALIASES, achievementId);
   })));

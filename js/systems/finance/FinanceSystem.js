@@ -7,6 +7,8 @@ const DEFAULT_CREDIT_RATING = 620;
 const MIN_CREDIT_RATING = 300;
 const MAX_CREDIT_RATING = 850;
 const DEFAULT_INVESTMENT_AMOUNT = 5000;
+const TRADE_INVESTMENT_LOCK_DAYS = 30;
+const TRADE_INVESTMENT_EXIT_FEE_RATE = 0.12;
 const LEGACY_CAPITAL_RETIREMENT_FLAG = 'capital_products_v2_retired';
 
 const LOAN_TIERS = [
@@ -186,9 +188,6 @@ function _getPolicyClaimableAmount(state, policyType) {
 
 function _processLoanDay(state, day, msgs) {
   _getActiveLoans(state).forEach(function (loan) {
-    const interest = Math.max(0, Math.round(loan.balance * loan.dailyInterestRate));
-    loan.balance += interest;
-    loan.accruedInterest = (loan.accruedInterest || 0) + interest;
     loan.remainingDays = Math.max(0, (loan.remainingDays || 0) - 1);
 
     const scheduledPayment = Math.min(loan.balance, loan.dailyPayment || 0);
@@ -219,8 +218,11 @@ function _processLoanDay(state, day, msgs) {
     if (loan.remainingDays === 0 && loan.balance > 0) {
       loan.remainingDays = 1;
       loan.dailyInterestRate = Number((loan.dailyInterestRate * 1.12).toFixed(4));
+      const extensionInterest = Math.max(1, Math.round(loan.balance * loan.dailyInterestRate));
+      loan.balance += extensionInterest;
+      loan.accruedInterest = (loan.accruedInterest || 0) + extensionInterest;
       _updateCreditRating(state, -10);
-      msgs.push({ text: '📉 ' + loan.name + ' 已进入展期，后续利率上调。', type: 'error' });
+      msgs.push({ text: '📉 ' + loan.name + ' 到期未还，本期追加利息 ' + extensionInterest.toLocaleString() + ' 积分。', type: 'error' });
     }
   });
 }
@@ -528,7 +530,7 @@ export function getStockListings(state) {
 
 export function buyStock(state, stockId, shares) {
   _ensureFinanceState(state);
-  return { ok: false, msgs: [{ text: '📈 股票交易已并入实体商网经营，不再开放新仓位。', type: 'info' }] };
+  return { ok: false, msgs: [{ text: '📈 股票交易已并入实体商网经营，不再开放新的股票投资。', type: 'info' }] };
 }
 
 export function sellStock(state, stockId, shares) {
@@ -537,7 +539,7 @@ export function sellStock(state, stockId, shares) {
   const holding = state.stockPortfolio[stockId];
   const quantity = Math.max(1, Math.floor(shares || 1));
   if (!listing || !holding || (holding.shares || 0) < quantity) {
-    return { ok: false, msgs: [{ text: '📉 持仓不足，无法卖出。', type: 'error' }] };
+    return { ok: false, msgs: [{ text: '📉 持有数量不足，无法卖出。', type: 'error' }] };
   }
 
   const totalEarned = listing.price * quantity;
@@ -558,7 +560,7 @@ export function getTradeInvestmentOptions(state, systemIds) {
   _ensureFinanceState(state);
   const targets = Array.isArray(systemIds) && systemIds.length > 0
     ? systemIds
-    : (state.visitedSystems || [state.currentSystem]).slice(0, 6);
+    : (state.visitedSystems || [state.currentSystem]).slice(0, 6).concat(Object.keys(state.tradeInvestments));
   const uniqueTargets = targets.filter(function (systemId, index) {
     return !!systemId && targets.indexOf(systemId) === index;
   });
@@ -566,12 +568,34 @@ export function getTradeInvestmentOptions(state, systemIds) {
   return uniqueTargets.map(function (systemId) {
     const system = findSystem(systemId);
     if (!system) return null;
+    const investment = state.tradeInvestments[systemId] || null;
+    const investedAmount = investment ? Math.max(0, investment.amount || 0) : 0;
+    const expectedYieldRate = _estimateTradeInvestmentYield(systemId, state);
+    const expectedDailyDividend = investedAmount > 0
+      ? Math.max(1, Math.round(investedAmount * expectedYieldRate))
+      : Math.max(1, Math.round(DEFAULT_INVESTMENT_AMOUNT * expectedYieldRate));
+    const redeemableDay = investment && investedAmount > 0
+      ? Math.max(
+          Math.max(1, investment.startedDay || state.day || 1) + TRADE_INVESTMENT_LOCK_DAYS,
+          investment.redeemableDay || 0
+        )
+      : null;
+    const exitFee = Math.round(investedAmount * TRADE_INVESTMENT_EXIT_FEE_RATE);
     return {
       systemId: systemId,
       name: system.name,
-      expectedYieldRate: _estimateTradeInvestmentYield(systemId, state),
-      investedAmount: state.tradeInvestments[systemId] ? (state.tradeInvestments[systemId].amount || 0) : 0,
+      expectedYieldRate: expectedYieldRate,
+      expectedDailyDividend: expectedDailyDividend,
+      estimatedPaybackDays: Math.max(1, Math.ceil((investedAmount || DEFAULT_INVESTMENT_AMOUNT) / expectedDailyDividend)),
+      investedAmount: investedAmount,
       suggestedAmount: DEFAULT_INVESTMENT_AMOUNT,
+      redeemableDay: redeemableDay,
+      daysUntilRedeem: redeemableDay == null ? 0 : Math.max(0, redeemableDay - (state.day || 1)),
+      canRedeem: investedAmount > 0 && (state.day || 1) >= redeemableDay,
+      exitFeeRate: TRADE_INVESTMENT_EXIT_FEE_RATE,
+      estimatedExitFee: exitFee,
+      estimatedExitValue: Math.max(0, investedAmount - exitFee),
+      totalDividends: investment ? Math.max(0, investment.totalDividends || 0) : 0,
     };
   }).filter(Boolean).sort(function (a, b) {
     return b.expectedYieldRate - a.expectedYieldRate;
@@ -595,15 +619,73 @@ export function investInTradeStation(state, systemId, amount) {
     startedDay: state.day || 1,
     totalDividends: 0,
     lastDividend: 0,
+    withdrawnPrincipal: 0,
+    totalExitFees: 0,
   };
   investment.amount += investmentAmount;
+  investment.lastInvestedDay = state.day || 1;
+  investment.redeemableDay = (state.day || 1) + TRADE_INVESTMENT_LOCK_DAYS;
   state.tradeInvestments[systemId] = investment;
   state.credits -= investmentAmount;
 
   return {
     ok: true,
-    msgs: [{ text: '🏪 已向 ' + system.name + ' 贸易站追加投资 ' + investmentAmount.toLocaleString() + ' 积分。', type: 'upgrade' }],
-    meta: { systemId: systemId, amount: investmentAmount },
+    msgs: [{
+      text: '🏪 已向 ' + system.name + ' 贸易站追加投资 ' + investmentAmount.toLocaleString() +
+        ' 积分。资金从第 ' + investment.redeemableDay + ' 天起可退出，提前规划现金周转。',
+      type: 'upgrade',
+    }],
+    meta: { systemId: systemId, amount: investmentAmount, redeemableDay: investment.redeemableDay },
+  };
+}
+
+export function redeemTradeStationInvestment(state, systemId) {
+  _ensureFinanceState(state);
+  const system = findSystem(systemId);
+  const investment = state.tradeInvestments[systemId];
+  const principal = investment ? Math.max(0, Math.floor(investment.amount || 0)) : 0;
+  if (!system || principal <= 0) {
+    return { ok: false, msgs: [{ text: '🏪 当前地点没有可退出的贸易站投资。', type: 'info' }] };
+  }
+
+  const redeemableDay = Math.max(
+    Math.max(1, investment.startedDay || state.day || 1) + TRADE_INVESTMENT_LOCK_DAYS,
+    investment.redeemableDay || 0
+  );
+  if ((state.day || 1) < redeemableDay) {
+    return {
+      ok: false,
+      msgs: [{
+        text: '🔒 该笔投资仍在经营期，第 ' + redeemableDay + ' 天起可退出（还需 ' +
+          (redeemableDay - (state.day || 1)) + ' 天）。',
+        type: 'info',
+      }],
+      meta: { systemId: systemId, redeemableDay: redeemableDay },
+    };
+  }
+
+  const exitFee = Math.max(1, Math.round(principal * TRADE_INVESTMENT_EXIT_FEE_RATE));
+  const proceeds = Math.max(0, principal - exitFee);
+  state.credits += proceeds;
+  investment.amount = 0;
+  investment.lastWithdrawalDay = state.day || 1;
+  investment.withdrawnPrincipal = (investment.withdrawnPrincipal || 0) + principal;
+  investment.totalExitFees = (investment.totalExitFees || 0) + exitFee;
+
+  return {
+    ok: true,
+    msgs: [{
+      text: '🏪 已退出 ' + system.name + ' 站点投资：收回 ' + proceeds.toLocaleString() +
+        ' 积分，退出成本 ' + exitFee.toLocaleString() + ' 积分。此前分红不会追回。',
+      type: 'sell',
+    }],
+    meta: {
+      systemId: systemId,
+      principal: principal,
+      proceeds: proceeds,
+      exitFee: exitFee,
+      exitFeeRate: TRADE_INVESTMENT_EXIT_FEE_RATE,
+    },
   };
 }
 
@@ -615,7 +697,7 @@ export function batchInvestInTradeStations(state, systemIds, amount) {
   if (targets.length === 0) {
     return {
       ok: false,
-      msgs: [{ text: '🏪 当前没有可批量增配的投资节点。', type: 'info' }],
+      msgs: [{ text: '🏪 当前没有可批量追加投资的贸易站。', type: 'info' }],
       meta: { targetCount: 0, executedCount: 0 },
     };
   }
@@ -640,7 +722,7 @@ export function batchInvestInTradeStations(state, systemIds, amount) {
   if (executedIds.length === 0) {
     return {
       ok: false,
-      msgs: [{ text: '💰 信用积分不足，无法启动资本增配波次。', type: 'error' }],
+      msgs: [{ text: '💰 信用积分不足，无法批量追加投资。', type: 'error' }],
       meta: { targetCount: targets.length, executedCount: 0, skippedBudget: targets.length },
     };
   }
@@ -648,8 +730,8 @@ export function batchInvestInTradeStations(state, systemIds, amount) {
   return {
     ok: true,
     msgs: [{
-      text: '💹 资本增配波次已执行：向 ' + executedIds.length + ' 个节点追加 ' + spent.toLocaleString() + ' 积分（' + _summarizeSystems(executedIds) + '）。' +
-        (skippedBudget > 0 ? (' 另有 ' + skippedBudget + ' 个节点因预算不足暂缓。') : ''),
+      text: '💹 已批量追加投资：向 ' + executedIds.length + ' 个贸易站投入 ' + spent.toLocaleString() + ' 积分（' + _summarizeSystems(executedIds) + '）。' +
+        (skippedBudget > 0 ? (' 另有 ' + skippedBudget + ' 个贸易站因预算不足暂缓。') : ''),
       type: 'upgrade',
     }],
     meta: {

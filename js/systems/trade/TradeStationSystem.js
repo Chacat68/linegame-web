@@ -99,32 +99,32 @@ function _getStrategyRecommendation(state, systemId, currentStrategyId) {
   let strategyId = 'balanced';
   let confidence = 'low';
   let intelSignal = 'none';
-  let reason = '暂无可用勘探报告，建议先保持均衡节点定位。';
+  let reason = '暂无可用探索报告，建议先采用稳健经营。';
 
   if (intel && intel.hasIntel) {
     if (intel.researchSignal) {
       strategyId = 'premium';
       confidence = 'high';
       intelSignal = 'research';
-      reason = '勘探报告包含科研样本，适合精品节点承接高附加值订单。';
+      reason = '探索报告包含研究样本，适合经营高价商品。';
     } else if (intel.logisticsSignal) {
       strategyId = 'expansion';
       confidence = 'high';
       intelSignal = 'logistics';
-      reason = '勘探报告显示该节点具备补给与走量条件，适合吞吐节点定位。';
+      reason = '探索报告显示这里适合补给和走量，可采用薄利多销。';
     } else if (intel.marketSignal) {
       const premiumTypes = ['technology', 'medical', 'research'];
       strategyId = premiumTypes.indexOf(system.type) >= 0 ? 'premium' : 'expansion';
       confidence = 'high';
       intelSignal = 'market';
       reason = strategyId === 'premium'
-        ? '勘探报告显示本地存在高端行情窗口，适合精品节点提高单笔利润。'
-        : '勘探报告显示本地存在贸易窗口，适合吞吐节点放大周转。';
+        ? '探索报告显示本地有高价商品机会，适合提高单笔利润。'
+        : '探索报告显示本地有交易机会，适合薄利多销。';
     } else if (intel.routeSignal) {
       strategyId = 'balanced';
       confidence = 'medium';
       intelSignal = 'route';
-      reason = '勘探报告包含航线情报，先保持均衡节点承接稳定转运。';
+      reason = '探索报告包含航线情报，先采用稳健经营来承接转运。';
     }
   }
 
@@ -326,7 +326,7 @@ function _getStationBuildPlan(state, systemId, options) {
 }
 
 function _formatExplorationEffectSummary(effect) {
-  return effect && effect.summary ? ('勘探加成：' + effect.summary + '。') : '';
+  return effect && effect.summary ? ('探索加成：' + effect.summary + '。') : '';
 }
 
 function _getStationMeta(state, station) {
@@ -366,6 +366,7 @@ function _getStationMeta(state, station) {
     grossIncome: projected.gross,
     upkeep: projected.upkeep,
     economicFactor: snapshot.factor,
+    operatingFactor: projected.operatingFactor,
     nextUpgradeCost: nextLevel ? _getUpgradeCost(station.level) : 0,
     nextLevel: nextLevel,
     companyMaxLevel: companyMaxLevel,
@@ -377,9 +378,12 @@ function _calculateDailyIncome(state, station, economicFactor, manager, strategy
   const levelConfig = _getLevelConfig(station.level);
   const safeNetworkMultiplier = Math.max(1, Number.isFinite(networkMultiplier) ? networkMultiplier : 1);
   const policyEffects = getVictoryPolicyEffects(state);
+  const economicExposure = Math.max(0.5, Number(strategy && strategy.economicExposure) || 1);
+  // 不同定位对经济周期的敏感度不同：吞吐节点在强市更强，弱市也会更快收缩。
+  const operatingFactor = Math.max(0.35, 1 + (economicFactor - 1) * economicExposure);
   const gross = Math.max(0, Math.round(
     levelConfig.baseIncome *
-    economicFactor *
+    operatingFactor *
     (strategy ? strategy.incomeMultiplier : 1) *
     (manager ? manager.incomeMultiplier : 1) *
     safeNetworkMultiplier * (policyEffects.stationIncomeMultiplier || 1)
@@ -393,6 +397,7 @@ function _calculateDailyIncome(state, station, economicFactor, manager, strategy
     gross: gross,
     upkeep: upkeep,
     net: Math.max(0, gross - upkeep),
+    operatingFactor: operatingFactor,
   };
 }
 
@@ -546,7 +551,7 @@ export function getNextNetworkAction(state) {
     actions.push(_createNetworkAction(
       'strategy',
       50,
-      '调整' + strategyTarget.system.name + '经营策略',
+      '调整' + strategyTarget.system.name + '经营方式',
       strategyTarget.strategyRecommendation.reason,
       '切换为' + strategyTarget.strategyRecommendation.strategy.name,
       strategyTarget.station.systemId,
@@ -693,7 +698,7 @@ export function batchUpgradeStations(state, systemIds) {
   if (executedIds.length === 0) {
     return {
       ok: false,
-      msgs: [{ text: '💰 信用积分不足，无法启动商网升级波次。', type: 'error' }],
+      msgs: [{ text: '💰 信用积分不足，无法批量升级贸易站。', type: 'error' }],
       meta: { targetCount: targets.length, executedCount: 0, skippedBudget: skippedBudget },
     };
   }
@@ -701,7 +706,7 @@ export function batchUpgradeStations(state, systemIds) {
   return {
     ok: true,
     msgs: [{
-      text: '📡 商网升级波次已执行：' + executedIds.length + ' 站完成升级，追加投资 ' + spent.toLocaleString() + ' 积分（' + _summarizeSystems(executedIds) + '）。' +
+      text: '📡 已批量升级贸易站：' + executedIds.length + ' 站完成升级，投入 ' + spent.toLocaleString() + ' 积分（' + _summarizeSystems(executedIds) + '）。' +
         (skippedBudget > 0 ? (' 另有 ' + skippedBudget + ' 站因预算不足暂缓。') : ''),
       type: 'upgrade',
     }],
@@ -712,14 +717,14 @@ export function batchUpgradeStations(state, systemIds) {
 export function batchHireManagers(state, managerId, systemIds) {
   return {
     ok: false,
-    msgs: [{ text: '🧭 管理员配置已并入站点定位，请选择节点定位。', type: 'info' }],
+    msgs: [{ text: '🧭 旧版管理员配置已合并，请直接选择站点经营方式。', type: 'info' }],
     meta: { retired: true, targetCount: 0, executedCount: 0 },
   };
 }
 
 export function batchSetStrategies(state, strategyId, systemIds) {
   init(state);
-  const gate = _getCompanyFeatureGate(state, 'tradeStationBatchOps', '批量下达经营策略');
+  const gate = _getCompanyFeatureGate(state, 'tradeStationBatchOps', '批量设置经营方式');
   if (!gate.ok) {
     return { ok: false, msgs: [{ text: '🏢 ' + gate.msg, type: 'error' }], meta: { targetCount: 0, executedCount: 0 } };
   }
@@ -801,7 +806,7 @@ export function buildStation(state, systemId) {
   state.credits -= buildCost;
   state.tradeStations[systemId] = _createStation(systemId, state.day || 1, buildCost);
   const discountText = buildPlan.buildCostDiscount > 0
-    ? ('（' + Math.round(buildPlan.buildCostDiscount * 100) + '% 勘探折抵）')
+    ? ('（探索报告节省 ' + Math.round(buildPlan.buildCostDiscount * 100) + '%）')
     : '';
   const effectNote = _formatExplorationEffectSummary(buildPlan.explorationEffect);
 
@@ -865,7 +870,7 @@ export function upgradeStation(state, systemId) {
 export function hireManager(state, systemId, managerId) {
   return {
     ok: false,
-    msgs: [{ text: '🧭 管理员配置已并入站点定位，请选择节点定位。', type: 'info' }],
+    msgs: [{ text: '🧭 旧版管理员配置已合并，请直接选择站点经营方式。', type: 'info' }],
     meta: { retired: true, systemId: systemId, managerId: managerId },
   };
 }
@@ -875,14 +880,14 @@ export function setStrategy(state, systemId, strategyId) {
   const station = state.tradeStations[systemId];
   const strategy = _getStrategyConfig(strategyId);
   if (!station) {
-    return { ok: false, msgs: [{ text: '🏪 请先建设贸易站，再调整经营策略。', type: 'error' }] };
+    return { ok: false, msgs: [{ text: '🏪 请先建设贸易站，再调整经营方式。', type: 'error' }] };
   }
-  const strategyGate = _getCompanyFeatureGate(state, 'tradeStationStrategy', '调整贸易站经营策略');
+  const strategyGate = _getCompanyFeatureGate(state, 'tradeStationStrategy', '调整贸易站经营方式');
   if (!strategyGate.ok) {
     return { ok: false, msgs: [{ text: '🏢 ' + strategyGate.msg, type: 'error' }] };
   }
   if (station.strategyId === strategy.id) {
-    return { ok: false, msgs: [{ text: '📈 当前已在执行该经营策略。', type: 'info' }] };
+    return { ok: false, msgs: [{ text: '📈 当前已经使用这种经营方式。', type: 'info' }] };
   }
 
   station.strategyId = strategy.id;

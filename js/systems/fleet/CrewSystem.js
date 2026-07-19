@@ -501,6 +501,7 @@ function _normalizeCrew(crew, fallbackIndex) {
       specialtyName: legacySpecialty ? legacySpecialty.name : getCrewRoleLabel(legacy.role),
       branchLabel: legacySpecialty ? legacySpecialty.shortLabel : getCrewRoleLabel(legacy.role),
       wage: crew.wage || legacy.wage,
+      wageArrears: Math.max(0, Math.floor(crew.wageArrears || 0)),
       hireCost: crew.hireCost || legacy.hireCost,
       hiredDay: crew.hiredDay || 1,
       assignedShipIndex: crew.assignedShipIndex != null ? crew.assignedShipIndex : null,
@@ -532,6 +533,7 @@ function _normalizeCrew(crew, fallbackIndex) {
     specialtyName: specialty ? specialty.name : role.roleName,
     branchLabel: specialty ? specialty.shortLabel : role.roleName,
     wage: Math.max(0, Math.floor(crew.wage || role.baseWage || 0)),
+    wageArrears: Math.max(0, Math.floor(crew.wageArrears || 0)),
     hireCost: Math.max(0, Math.floor(crew.hireCost || role.baseHireCost || 0)),
     hiredDay: Math.max(1, Math.floor(crew.hiredDay || 1)),
     assignedShipIndex: crew.assignedShipIndex != null ? crew.assignedShipIndex : null,
@@ -709,6 +711,8 @@ export function getShipEffects(state, ship, options) {
 
   getShipCrew(state, ship).forEach(function (crew) {
     if (!crew || crew.id === excludedCrewId) return;
+    // 允许一天周转缓冲；连续欠薪后船员暂停提供专长，直到欠款结清。
+    if ((crew.wageArrears || 0) >= Math.max(1, (crew.wage || 0) * 2)) return;
     var profile = getCrewEffectProfile(crew);
     effects.cargo += profile.cargo || 0;
     effects.autoRepair += profile.autoRepair || 0;
@@ -743,6 +747,7 @@ function _createCrewInstanceFromOffer(state, offer) {
     specialtyName: offer.specialtyName || (offer.specialtyId ? (getCrewSpecialtyDef(offer.specialtyId) || {}).name : getCrewRoleLabel(offer.role)),
     branchLabel: offer.branchLabel || getCrewRoleLabel(offer.role),
     wage: offer.wage,
+    wageArrears: 0,
     hireCost: offer.hireCost,
     hiredDay: state.day || 1,
     assignedShipIndex: null,
@@ -806,7 +811,7 @@ export function assignCrewToShip(state, crewId, shipIndex) {
     return { ok: false, msgs: [{ text: '❌ 无法分配船员。', type: 'error' }] };
   }
   if (ship.route) {
-    return { ok: false, msgs: [{ text: '📡 派遣中的飞船不能调整船员。', type: 'error' }] };
+    return { ok: false, msgs: [{ text: '📡 正在自动跑商的飞船不能调整船员。', type: 'error' }] };
   }
   if (crew.assignedShipIndex === shipIndex) {
     return { ok: false, msgs: [{ text: '⚓ 该船员已在这艘船上。', type: 'info' }] };
@@ -842,7 +847,7 @@ export function unassignCrewFromShip(state, crewId, shipIndex) {
     return { ok: false, msgs: [{ text: '❌ 无法调整船员。', type: 'error' }] };
   }
   if (ship.route) {
-    return { ok: false, msgs: [{ text: '📡 派遣中的飞船不能调整船员。', type: 'error' }] };
+    return { ok: false, msgs: [{ text: '📡 正在自动跑商的飞船不能调整船员。', type: 'error' }] };
   }
   if (crew.assignedShipIndex !== shipIndex || ship.crewIds.indexOf(crewId) === -1) {
     return { ok: false, msgs: [{ text: '⚠️ 该船员当前不在这艘船上。', type: 'info' }] };
@@ -871,7 +876,7 @@ export function dismissCrew(state, crewId) {
     var ship = _resolveShip(state, crew.assignedShipIndex);
     if (ship) {
       if (ship.route) {
-        return { ok: false, msgs: [{ text: '📡 派遣中的飞船不能解雇船员。', type: 'error' }] };
+        return { ok: false, msgs: [{ text: '📡 正在自动跑商的飞船不能解雇船员。', type: 'error' }] };
       }
       if (!_canRemoveCrew(state, ship, crewId)) {
         return { ok: false, msgs: [{ text: '📦 当前货物超出撤离后容量，无法解雇该船员。', type: 'error' }] };
@@ -922,22 +927,29 @@ export function payDailyWages(state, days) {
     return { ok: true, msgs: [] };
   }
 
-  var totalWage = state.crewRoster.reduce(function (sum, crew) {
-    return sum + (crew.wage || 0);
-  }, 0) * settledDays;
-
   var msgs = _grantCrewExperience(state, settledDays);
 
-  if (totalWage <= 0) {
+  var totalDue = state.crewRoster.reduce(function (sum, crew) {
+    return sum + (crew.wageArrears || 0) + (crew.wage || 0) * settledDays;
+  }, 0);
+  if (totalDue <= 0) {
     return { ok: true, msgs: msgs };
   }
 
-  var paid = Math.min(state.credits || 0, totalWage);
+  var remainingCredits = Math.max(0, state.credits || 0);
+  var paid = 0;
+  state.crewRoster.forEach(function (crew) {
+    var crewDue = (crew.wageArrears || 0) + (crew.wage || 0) * settledDays;
+    var crewPaid = Math.min(remainingCredits, crewDue);
+    remainingCredits -= crewPaid;
+    paid += crewPaid;
+    crew.wageArrears = crewDue - crewPaid;
+  });
   state.credits -= paid;
-  var arrears = totalWage - paid;
+  var arrears = totalDue - paid;
   msgs.unshift({ text: '💼 已结算船员工资 ' + paid + ' 积分（' + settledDays + ' 天）。', type: 'info' });
   if (arrears > 0) {
-    msgs.push({ text: '⚠️ 仍有 ' + arrears + ' 积分工资未结清，当前仅记录提醒。', type: 'error' });
+    msgs.push({ text: '⚠️ 仍有 ' + arrears + ' 积分工资未结清；连续欠薪的船员将暂停提供专长。', type: 'error' });
   }
   return { ok: true, msgs: msgs, meta: { paid: paid, arrears: arrears, days: settledDays } };
 }

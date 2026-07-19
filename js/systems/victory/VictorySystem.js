@@ -8,6 +8,33 @@ import * as Faction from '../faction/FactionSystem.js';
 import { FACTIONS } from '../../data/factions.js';
 import { getLevel } from '../../data/playerLevels.js';
 import { getSelectedVictoryPolicy, normalizeVictoryPathId } from './VictoryPolicy.js';
+import { ACHIEVEMENTS, ACHIEVEMENT_ALIASES } from '../../data/achievements.js';
+import * as BalanceMetrics from '../metrics/BalanceMetricsSystem.js';
+
+const ACTIVE_ACHIEVEMENT_IDS = new Set(ACHIEVEMENTS.map(function (achievement) { return achievement.id; }));
+
+function _getCoreAchievementCount(state) {
+  const validIds = new Set();
+  (state.achievements || []).forEach(function (achievementId) {
+    var normalizedId = ACTIVE_ACHIEVEMENT_IDS.has(achievementId)
+      ? achievementId
+      : (ACHIEVEMENT_ALIASES[achievementId] || achievementId);
+    if (ACTIVE_ACHIEVEMENT_IDS.has(normalizedId)) validIds.add(normalizedId);
+  });
+  return validIds.size;
+}
+
+function _getCompletedSurveyCount(state) {
+  var galaxyStates = state && state.galaxyStates && typeof state.galaxyStates === 'object'
+    ? state.galaxyStates
+    : {};
+  return Object.values(galaxyStates).filter(function (planetState) {
+    var pois = planetState && planetState.exploration && Array.isArray(planetState.exploration.pois)
+      ? planetState.exploration.pois
+      : [];
+    return pois.length > 0 && pois.every(function (poi) { return poi && poi.resolved; });
+  }).length;
+}
 
 function _getUnlockedPathCount(state) {
   var chapter = state.questPhase || 1;
@@ -63,7 +90,10 @@ function _getRequirementValue(state, req) {
       return (state.visitedSystems || []).length;
 
     case 'achievements':
-      return (state.achievements || []).length;
+      return _getCoreAchievementCount(state);
+
+    case 'completedSurveys':
+      return _getCompletedSurveyCount(state);
 
     case 'completedQuests':
       return (state.completedQuests || []).length;
@@ -136,21 +166,22 @@ export function choosePolicy(state, pathId) {
     const active = getSelectedVictoryPolicy(state);
     return {
       ok: false,
-      msgs: [{ text: '🔒 胜利信条不可更改：当前已采用「' + (active ? active.name : existing) + '」。', type: 'info' }],
+      msgs: [{ text: '🔒 长期路线不可更改：当前已选择「' + (active ? active.name : existing) + '」。', type: 'info' }],
     };
   }
   const path = getUnlockedPaths(state).find(function (entry) { return entry.id === normalizeVictoryPathId(pathId); });
   if (!path || !path.policy) {
-    return { ok: false, msgs: [{ text: '🔒 该胜利信条尚未随任务章节解锁。', type: 'error' }] };
+    return { ok: false, msgs: [{ text: '🔒 该长期路线尚未随任务章节解锁。', type: 'error' }] };
   }
   if (!state.storyDecisions || typeof state.storyDecisions !== 'object' || Array.isArray(state.storyDecisions)) {
     state.storyDecisions = {};
   }
   state.storyDecisions.victory_policy = path.id;
+  BalanceMetrics.recordRouteSelection(state, path.id, { netWorth: Trade.getNetWorth(state) });
   return {
     ok: true,
     policy: getSelectedVictoryPolicy(state),
-    msgs: [{ text: '📜 已采用不可逆胜利信条「' + path.policy.name + '」。' + path.policy.benefit + '；代价：' + path.policy.tradeoff + '。', type: 'upgrade' }],
+    msgs: [{ text: '📜 已选择长期路线「' + path.policy.name + '」。收益：' + path.policy.benefit + '；代价：' + path.policy.tradeoff + '。此选择不可更改。', type: 'upgrade' }],
   };
 }
 
@@ -173,6 +204,12 @@ export function getProgress(state) {
  */
 export function checkVictory(state, ignoredPathIds) {
   var unlockedPaths = getUnlockedPaths(state);
+  var selectedPathId = normalizeVictoryPathId(state && state.storyDecisions && state.storyDecisions.victory_policy);
+  // 胜利信条既然不可逆，就必须同时约束最终结算路线；否则玩家可以拿一条路线的
+  // 常驻收益，再从另一条更容易的路线结算，选择本身不会形成长期取舍。
+  if (selectedPathId) {
+    unlockedPaths = unlockedPaths.filter(function (path) { return path.id === selectedPathId; });
+  }
   for (let i = 0; i < unlockedPaths.length; i++) {
     const path = unlockedPaths[i];
     const ignored = ignoredPathIds && typeof ignoredPathIds.has === 'function'

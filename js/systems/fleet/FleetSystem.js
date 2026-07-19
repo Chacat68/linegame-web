@@ -6,7 +6,8 @@
 //       buySlot, getSlotCount, getMaxSlots, getAvailableSlotCount,
 //       getDispatchRouteLevel, dispatchActiveShip, cancelActiveDispatch,
 //       isActiveDispatched, tickActiveShipDispatch,
-//       installMod, uninstallMod, getShipSkills, getActiveFleetBonuses
+//       installMod, uninstallMod, getShipSkills, getActiveFleetBonuses,
+//       getShipOperatingSummary
 
 import { SHIP_TYPES, SHIP_UPGRADES, FLEET_SLOTS, SHIP_MODS, FLEET_BONUSES } from '../../data/ships.js';
 import { findSystem } from '../../data/systems.js';
@@ -15,8 +16,10 @@ import { getCompanyLevelValue, getFleetSlotCompanyRequirement } from '../../data
 import * as Economy from '../economy/Economy.js';
 import * as AutoTrade from '../trade/TradePolicy.js';
 import * as Crew from './CrewSystem.js';
+import * as Research from '../research/ResearchSystem.js';
 import * as RouteModel from '../route/RouteSystem.js';
 import { getVictoryPolicyEffects } from '../victory/VictoryPolicy.js';
+import * as BalanceMetrics from '../metrics/BalanceMetricsSystem.js';
 
 const SHIP_CONDITION_FAULTS = [
   {
@@ -52,6 +55,7 @@ const SHIP_CONDITION_FAULTS = [
 
 const REPAIR_JOB_MIN_DAYS = 1;
 const REPAIR_JOB_MAX_DAYS = 4;
+const MIN_DISPATCH_MAINTENANCE = 15;
 
 /**
  * 创建一艘船只实例
@@ -64,6 +68,7 @@ function _createShip(shipType) {
     name:         shipType.name,
     emoji:        shipType.emoji,
     cargo:        {},
+    cargoCost:    {},
     maxCargo:     shipType.cargo,
     maxCargoCap:  shipType.maxCargo,
     fuel:         shipType.fuel,
@@ -82,6 +87,7 @@ function _createShip(shipType) {
     maintenance:  100,
     lastServiceDay: 0,
     repairJob:    null,
+    operatingStats: null,
     location:     null, // 当前所在星系 ID（非激活船只用），null 表示跟随旗舰
     route:        null, // 派遣路线 { buySystemId, sellSystemId, goodId, status:'buying'|'traveling'|'selling'|'returning' }
   };
@@ -104,6 +110,27 @@ function _ensureShipOperationalState(ship) {
   // 旧版随机故障与多日维修队列已退役，船况只保留可预期的维护度。
   ship.faults = [];
   ship.repairJob = null;
+  if (!ship.operatingStats || typeof ship.operatingStats !== 'object') ship.operatingStats = {};
+  ['revenue', 'cargoCost', 'fuelCost', 'upkeepCost', 'serviceCost', 'tradeCycles'].forEach(function (key) {
+    if (!Number.isFinite(ship.operatingStats[key])) ship.operatingStats[key] = 0;
+  });
+}
+
+export function getShipOperatingSummary(state, ship) {
+  if (!ship) {
+    return { revenue: 0, cargoCost: 0, fuelCost: 0, upkeepCost: 0, serviceCost: 0, tradeCycles: 0, net: 0 };
+  }
+  _ensureShipOperationalState(ship);
+  var stats = ship.operatingStats;
+  return {
+    revenue: stats.revenue,
+    cargoCost: stats.cargoCost,
+    fuelCost: stats.fuelCost,
+    upkeepCost: stats.upkeepCost,
+    serviceCost: stats.serviceCost,
+    tradeCycles: stats.tradeCycles,
+    net: stats.revenue - stats.cargoCost - stats.fuelCost - stats.upkeepCost - stats.serviceCost,
+  };
 }
 
 function _getShipServiceConfig(ship) {
@@ -154,8 +181,8 @@ function _getShipOperationalRoleEffects(state, ship) {
     serviceCostMultiplier: 1,
     serviceMaintenanceBonus: { quick: 0, overhaul: 0, emergency: 0 },
     serviceHullBonus: { quick: 0, overhaul: 0, emergency: 0 },
-    dispatchStrategyLabel: '标准派遣',
-    dispatchStrategyNote: '按当前利润与风险偏好筛选路线。',
+    dispatchStrategyLabel: '默认跑商',
+    dispatchStrategyNote: '按当前利润与避险程度筛选路线。',
     preferredRiskMode: 'balanced',
     preferredMarketMode: 'open',
     inspectionRiskMultiplier: 1,
@@ -191,7 +218,7 @@ function _getShipOperationalRoleEffects(state, ship) {
     effects.faultPressurePenalty = 24;
   } else if (roleProfile.id === 'covert') {
     effects.dispatchStrategyLabel = '灰市穿透';
-    effects.dispatchStrategyNote = '偏好黑市与受限商品套利，能承受更高查缉压力。';
+    effects.dispatchStrategyNote = '更愿意买卖黑市和受限商品，也能承受更高查缉风险。';
     effects.preferredRiskMode = 'aggressive';
     effects.preferredMarketMode = 'black';
     effects.inspectionRiskMultiplier = 0.78;
@@ -387,7 +414,12 @@ export function init(state) {
   }
   _migrateLegacyLevelPerks(state);
   // 兼容旧存档：补充改装数据
-  state.fleet.forEach(function (ship) {
+  state.fleet.forEach(function (ship, shipIndex) {
+    if (!ship.cargoCost || typeof ship.cargoCost !== 'object' || Array.isArray(ship.cargoCost)) {
+      ship.cargoCost = shipIndex === state.activeShipIndex && state.cargoCost && typeof state.cargoCost === 'object'
+        ? Object.assign({}, state.cargoCost)
+        : {};
+    }
     if (!ship.mods) ship.mods = [];
     if (!ship.modSlots) {
       var st = SHIP_TYPES.find(function (t) { return t.id === ship.typeId; });
@@ -535,7 +567,7 @@ export function buySlot(state) {
     ok: true,
     msgs: [{
       text: '🌟 解锁「' + nextSlot.name + '」！船队席位：' + state.fleetSlots + '/' + FLEET_SLOTS.length +
-            '，派遣航线等级提升至 Lv.' + nextSlot.routeLevel + ' ！',
+            '，自动跑商等级提升至 Lv.' + nextSlot.routeLevel + ' ！',
       type: 'upgrade',
     }],
   };
@@ -590,7 +622,7 @@ export function sellShip(state, shipIndex) {
   const ship = state.fleet[shipIndex];
   // 不能卖出正在派遣中的船只
   if (ship.route) {
-    return { ok: false, msgs: [{ text: '🚫 不能卖出正在派遣中的船只！请先召回。', type: 'error' }] };
+    return { ok: false, msgs: [{ text: '🚫 不能卖出正在自动跑商的船只！请先召回。', type: 'error' }] };
   }
   // 不能卖出当前操控中的船只
   if (shipIndex === state.activeShipIndex) {
@@ -744,12 +776,13 @@ export function syncStateFromShip(state) {
   if (!ship) return;
   var effective = getEffectiveShipStats(state, ship);
   state.cargo          = ship.cargo;
+  state.cargoCost      = ship.cargoCost;
   state.maxCargo       = effective.maxCargo;
   state.fuel           = ship.fuel;
   state.maxFuel        = effective.maxFuel;
   state.fuelEfficiency = effective.fuelEff;
   state.shipHull       = ship.hull;
-  state.maxHull        = ship.maxHull;
+  state.maxHull        = effective.maxHull;
 }
 
 /**
@@ -760,6 +793,7 @@ export function syncShipFromState(state) {
   const ship = getActiveShip(state);
   if (!ship) return;
   ship.cargo   = state.cargo;
+  ship.cargoCost = state.cargoCost && typeof state.cargoCost === 'object' ? state.cargoCost : {};
   ship.fuel    = state.fuel;
   ship.hull    = state.shipHull != null ? state.shipHull : ship.hull;
   ship.location = state.currentSystem || ship.location;
@@ -769,9 +803,44 @@ export function syncShipFromState(state) {
  * 将根 state 的可变属性写回当前操控船只，并立即刷新派生属性。
  * 用于交易/航行/探索后既更新船只实体，又保持 HUD、市场和自动派遣读取到最新有效值。
  */
-export function commitActiveShipState(state) {
+export function commitActiveShipState(state, previousDerivedState) {
+  const ship = getActiveShip(state);
+  if (ship && previousDerivedState) {
+    const cargoDelta = (Number(state.maxCargo) || 0) - (Number(previousDerivedState.maxCargo) || 0);
+    const fuelDelta = (Number(state.maxFuel) || 0) - (Number(previousDerivedState.maxFuel) || 0);
+    const hullDelta = (Number(state.maxHull) || 0) - (Number(previousDerivedState.maxHull) || 0);
+    if (cargoDelta) ship.maxCargo = Math.max(1, (Number(ship.maxCargo) || 1) + cargoDelta);
+    if (fuelDelta) ship.maxFuel = Math.max(1, (Number(ship.maxFuel) || 1) + fuelDelta);
+    if (hullDelta) ship.maxHull = Math.max(1, (Number(ship.maxHull) || 1) + hullDelta);
+
+    const previousEfficiency = Number(previousDerivedState.fuelEfficiency) || 0;
+    const currentEfficiency = Number(state.fuelEfficiency) || 0;
+    if (previousEfficiency > 0 && currentEfficiency > 0 && currentEfficiency !== previousEfficiency) {
+      ship.fuelEff = Math.max(ship.minFuelEff || 0.1, ship.fuelEff * (currentEfficiency / previousEfficiency));
+    }
+
+    _reconcileCargoCostAfterExternalChange(state, previousDerivedState);
+  }
   syncShipFromState(state);
   syncStateFromShip(state);
+}
+
+function _reconcileCargoCostAfterExternalChange(state, previousDerivedState) {
+  const previousCargo = previousDerivedState.cargo || {};
+  const previousCargoCost = previousDerivedState.cargoCost || {};
+  if (!state.cargoCost || typeof state.cargoCost !== 'object') state.cargoCost = {};
+
+  Object.keys(previousCargo).forEach(function (goodId) {
+    const beforeQuantity = Math.max(0, Number(previousCargo[goodId]) || 0);
+    const afterQuantity = Math.max(0, Number((state.cargo || {})[goodId]) || 0);
+    if (afterQuantity >= beforeQuantity || beforeQuantity <= 0) return;
+    if (afterQuantity <= 0) {
+      delete state.cargoCost[goodId];
+      return;
+    }
+    const beforeCost = Math.max(0, Number(previousCargoCost[goodId]) || 0);
+    state.cargoCost[goodId] = beforeCost * (afterQuantity / beforeQuantity);
+  });
 }
 
 export function getShipMaintenanceSummary(state, ship) {
@@ -779,7 +848,7 @@ export function getShipMaintenanceSummary(state, ship) {
     return {
       value: 100,
       band: 'pristine',
-      label: '整备',
+      label: '良好',
       faultCount: 0,
       upkeepCost: 0,
       serviceCost: 0,
@@ -798,7 +867,7 @@ export function getShipMaintenanceSummary(state, ship) {
   var serviceConfig = _getShipServiceConfig(ship);
   var value = _clampMaintenance(ship.maintenance);
   var band = 'pristine';
-  var label = '整备';
+  var label = '良好';
   var fuelEffMultiplier = 1;
   var eventChanceMultiplier = 1;
   var autoRepairMultiplier = 1;
@@ -859,7 +928,7 @@ export function getShipRoleProfile(state, ship) {
     return {
       id: 'logistics',
       label: '主力商运',
-      summary: '承担常规货运与套利。',
+      summary: '承担常规货运和低买高卖。',
       tags: [],
     };
   }
@@ -924,10 +993,10 @@ export function getShipRoleProfile(state, ship) {
   });
 
   var roleDefs = {
-    logistics: { label: '主力商运', summary: '承担常规货运、套利与仓位效率。' },
-    courier: { label: '快航中继', summary: '适合快线补给、短循环调度与响应。' },
-    survey: { label: '勘探支援', summary: '偏向探索收益与情报获取。' },
-    covert: { label: '灰市突破', summary: '适合违禁品运输与黑市风险压制。' },
+    logistics: { label: '主力商运', summary: '承担常规货运、赚取价差与提高货舱利用率。' },
+    courier: { label: '短途快运', summary: '适合短途补给和快速往返。' },
+    survey: { label: '探索支援', summary: '偏向探索收益与情报获取。' },
+    covert: { label: '隐蔽运输', summary: '适合违禁品运输，并降低黑市检查风险。' },
     support: { label: '后勤维护', summary: '擅长维保、修复与为舰队托底。' },
   };
 
@@ -1019,16 +1088,16 @@ function _scoreModRecommendation(state, ship, mod, context) {
   }
 
   if (mod.id === 'mod_survey_array') {
-    if (roleId === 'survey') add(110, '勘探支援分工适合提升 POI 收益。');
+    if (roleId === 'survey') add(110, '探索支援分工适合提高探索点奖励。');
   }
 
   if (mod.id === 'mod_smuggler_hold') {
-    if (roleId === 'covert') add(110, '灰市突破分工需要压低走私检查和罚款压力。');
-    if (context.routeMarketMode === 'black') add(52, '当前派遣策略偏黑市，隐匿货柜能降低查缉压力。');
+    if (roleId === 'covert') add(110, '隐蔽运输需要优先降低走私检查和罚款风险。');
+    if (context.routeMarketMode === 'black') add(52, '当前路线使用黑市，隐匿货柜能降低被查压力。');
   }
 
   if (mod.id === 'mod_ion_drive') {
-    if (roleId === 'courier') add(92, '快航中继优先降低燃耗，适合短循环和跨点响应。');
+    if (roleId === 'courier') add(92, '短途快运优先降低燃料消耗，适合短线快速往返。');
     if (context.maintenance.band === 'worn' || context.maintenance.band === 'critical') add(20, '维护压力下先降低燃耗可缓和航行成本。');
   }
 
@@ -1042,7 +1111,7 @@ function _scoreModRecommendation(state, ship, mod, context) {
   }
 
   if (mod.id === 'mod_cargo_compress') {
-    if (roleId === 'logistics') add(90, '主力商运优先扩展有效仓位。');
+    if (roleId === 'logistics') add(90, '主力商运优先扩展可用货舱。');
     if (context.cargoLoadRatio >= 0.65) add(48, '当前装载压力较高，压缩货舱能提升周转空间。');
   }
 
@@ -1188,7 +1257,7 @@ export function getShipRepairQuote(state, shipIndex) {
   ));
   var disabledReason = '';
 
-  if (ship.route) disabledReason = '派遣中无法入坞维修';
+  if (ship.route) disabledReason = '自动跑商中无法入坞维修';
   else if (!repairNeeded) disabledReason = '当前无需维修';
   else if ((state.credits || 0) < cost) disabledReason = '积分不足';
 
@@ -1229,6 +1298,7 @@ export function serviceShip(state, shipIndex, tierId) {
   }
 
   state.credits -= repairQuote.cost;
+  ship.operatingStats.serviceCost += repairQuote.cost;
   _completeShipRepair(state, ship);
 
   return {
@@ -1252,9 +1322,11 @@ export function applyTravelWear(state, shipIndex, travelMeta) {
   var serviceConfig = _getShipServiceConfig(ship);
   var cargoLoadRatio = _getShipCargoUsed(ship) / Math.max(1, ship.maxCargo || 1);
   var fuelCost = Number.isFinite(travelMeta && travelMeta.fuelCost) ? travelMeta.fuelCost : 0;
-  var baseWear = travelMeta && travelMeta.crossGalaxy ? 6 : (travelMeta && travelMeta.secretRoute ? 2.5 : 3.5);
+  // 日常派遣应形成可计划的保养周期，而不是每几个循环就吞掉全部货差。
+  // 跨星系仍显著加速磨损，秘密航线则略低于普通短途。
+  var baseWear = travelMeta && travelMeta.crossGalaxy ? 3.5 : (travelMeta && travelMeta.secretRoute ? 1.2 : 1.5);
   var wear = _roundOpsValue(
-    (baseWear + Math.min(4, fuelCost * 0.08) + cargoLoadRatio * 2)
+    (baseWear + Math.min(2, fuelCost * 0.04) + cargoLoadRatio)
     * serviceConfig.maintenanceDecay
     * (modEffects.maintenanceDecayMultiplier || 1)
     * (roleEffects.travelWearMultiplier || 1)
@@ -1293,6 +1365,7 @@ export function advanceFleetDay(state) {
     if (paid > 0) {
       state.credits -= paid;
       totalUpkeep += paid;
+      ship.operatingStats.upkeepCost += paid;
     }
 
     var decay = beforeProfile.dailyDecay || 0;
@@ -1341,11 +1414,11 @@ export function getShipSpecializationSummary(state, ship) {
 }
 
 export function setShipDoctrine(state, shipIndex, doctrineId) {
-  return { ok: false, msgs: [{ text: '🧭 舰船协议已合并到船型、改装与派遣定位中。', type: 'info' }], meta: { retired: true } };
+  return { ok: false, msgs: [{ text: '🧭 旧版舰船方案已合并到船型、改装与自动跑商设置中。', type: 'info' }], meta: { retired: true } };
 }
 
 export function activateShipProtocol(state, shipIndex) {
-  return { ok: false, msgs: [{ text: '🧭 主动舰船协议已退役，派遣效果现由船型与改装自动生效。', type: 'info' }], meta: { retired: true } };
+  return { ok: false, msgs: [{ text: '🧭 旧版主动方案已退役，跑商效果现由船型与改装自动生效。', type: 'info' }], meta: { retired: true } };
 }
 
 export function consumeShipProtocol(state, shipIndex, triggerId) {
@@ -1406,6 +1479,7 @@ export function getEffectiveShipStats(state, ship) {
     return {
       maxCargo: 0,
       maxFuel: 0,
+      maxHull: 0,
       fuelEff: 1,
       autoRepair: 0,
       buyDiscount: 0,
@@ -1434,17 +1508,19 @@ export function getEffectiveShipStats(state, ship) {
   var faultSummaries = getShipFaultSummaries(ship);
   var dispatchProfile = getShipDispatchProfile(state, ship);
   var playerLevelEffects = _getPlayerLevelShipEffects(state);
+  var researchEffects = Research.getShipEffects(state);
   var policyEffects = getVictoryPolicyEffects(state);
 
   return {
     maxCargo: Math.max(1, Math.round(
-      ship.maxCargo + playerLevelEffects.cargoBonus + (policyEffects.cargoBonus || 0) - (policyEffects.cargoPenalty || 0) + (crewEffects.cargo || 0) +
+      ship.maxCargo + researchEffects.cargoBonus + playerLevelEffects.cargoBonus + (policyEffects.cargoBonus || 0) - (policyEffects.cargoPenalty || 0) + (crewEffects.cargo || 0) +
       (specEffects.cargoBonus || 0) - (faultEffects.cargoPenalty || 0)
     )),
-    maxFuel: Math.max(1, Math.round(ship.maxFuel + playerLevelEffects.maxFuelBonus)),
+    maxFuel: Math.max(1, Math.round(ship.maxFuel + researchEffects.maxFuelBonus + playerLevelEffects.maxFuelBonus)),
+    maxHull: Math.max(1, Math.round(ship.maxHull + researchEffects.hullBonus)),
     fuelEff: Math.max(
       ship.minFuelEff || 0.1,
-      Math.round(ship.fuelEff * playerLevelEffects.fuelEffMultiplier * (policyEffects.fuelEffMultiplier || 1) * (crewEffects.fuelEffMultiplier || 1) * (specEffects.fuelEffMultiplier || 1) * (maintenance.fuelEffMultiplier || 1) * (faultEffects.fuelEffMultiplier || 1) * 10000) / 10000
+      Math.round(ship.fuelEff * researchEffects.fuelEfficiencyMultiplier * playerLevelEffects.fuelEffMultiplier * (policyEffects.fuelEffMultiplier || 1) * (crewEffects.fuelEffMultiplier || 1) * (specEffects.fuelEffMultiplier || 1) * (maintenance.fuelEffMultiplier || 1) * (faultEffects.fuelEffMultiplier || 1) * 10000) / 10000
     ),
     autoRepair: Math.round(((crewEffects.autoRepair || 0) + (modEffects.autoRepair || 0)) * (maintenance.autoRepairMultiplier || 1) * 10) / 10,
     buyDiscount: (crewEffects.buyDiscount || 0) + (modEffects.buyDiscount || 0) + (specEffects.buyDiscount || 0) + (faultEffects.buyDiscount || 0),
@@ -1462,6 +1538,7 @@ export function getEffectiveShipStats(state, ship) {
     upkeepCost: maintenance.upkeepCost || 0,
     crewEffects: crewEffects,
     playerLevelEffects: playerLevelEffects,
+    researchEffects: researchEffects,
     victoryPolicyEffects: policyEffects,
   };
 }
@@ -1523,6 +1600,7 @@ function _handleShipSmugglingCheck(state, ship, route, msgs) {
   var shipStats = getEffectiveShipStats(state, ship);
 
   var result = Economy.checkSmugglingCargo(state, ship.location, ship.cargo, {
+    cargoCost: ship.cargoCost,
     applyHullDamage: function (damage) {
       ship.hull = Math.max(1, (ship.hull || ship.maxHull || 100) - damage);
     },
@@ -1537,9 +1615,11 @@ function _handleShipSmugglingCheck(state, ship, route, msgs) {
 
   if (result.caught) {
     ship.route = null;
-    msgs.push({ text: '⏹️ 「' + ship.name + '」黑市派遣因走私被查获而中止。', type: 'error' });
+    msgs.push({ text: '⏹️ 「' + ship.name + '」黑市自动跑商因走私被查获而中止。', type: 'error' });
     return true;
   }
+
+  if (result.evaded) Economy.recordSmugglingEvaded(state);
 
   return false;
 }
@@ -1573,6 +1653,12 @@ export function assignRoute(state, shipIndex, buySystemId, sellSystemId, goodId,
     return { ok: false, msgs: [{ text: '❌ 无效的船只！', type: 'error' }] };
   }
   _ensureShipOperationalState(ship);
+  if (ship.maintenance < MIN_DISPATCH_MAINTENANCE) {
+    return {
+      ok: false,
+      msgs: [{ text: '🧰 该船维护度低于 ' + MIN_DISPATCH_MAINTENANCE + '%，需先完成港口保养再开始自动跑商。', type: 'error' }],
+    };
+  }
 
   var busSys  = findSystem(buySystemId);
   var sellSys = findSystem(sellSystemId);
@@ -1583,10 +1669,10 @@ export function assignRoute(state, shipIndex, buySystemId, sellSystemId, goodId,
   }
   var normalizedPolicy = AutoTrade.normalizeTradePolicy(tradePolicy);
   if (!AutoTrade.isGoodAllowedInMarket(good, normalizedPolicy.marketMode)) {
-    return { ok: false, msgs: [{ text: normalizedPolicy.marketMode === 'black' ? '⚠️ 该商品无法在黑市派遣中交易。' : '⚠️ 派遣贸易当前仅支持公开市场商品。', type: 'error' }] };
+    return { ok: false, msgs: [{ text: normalizedPolicy.marketMode === 'black' ? '⚠️ 该商品无法用于黑市自动跑商。' : '⚠️ 自动跑商当前仅支持公开市场商品。', type: 'error' }] };
   }
   if (!AutoTrade.canUseMarket(state, buySystemId, normalizedPolicy.marketMode)) {
-    return { ok: false, msgs: [{ text: normalizedPolicy.marketMode === 'black' ? '🔒 黑市派遣的买入地必须具备黑市访问资格。' : '⚠️ 当前路线无法访问所选市场。', type: 'error' }] };
+    return { ok: false, msgs: [{ text: normalizedPolicy.marketMode === 'black' ? '🔒 黑市自动跑商的买入地必须开放黑市。' : '⚠️ 当前路线无法访问所选市场。', type: 'error' }] };
   }
 
   // 设置路线，船只从当前位置开始
@@ -1609,9 +1695,9 @@ export function assignRoute(state, shipIndex, buySystemId, sellSystemId, goodId,
   return {
     ok: true,
     msgs: [{
-      text: '📡 「' + ship.emoji + ' ' + ship.name + '」已派遣！路线：' +
+      text: '📡 「' + ship.emoji + ' ' + ship.name + '」已开始自动跑商！路线：' +
             busSys.name + '(' + good.emoji + good.name + ') → ' + sellSys.name +
-            (policySummary ? ' · 策略：' + policySummary : ''),
+            (policySummary ? ' · 设置：' + policySummary : ''),
       type: 'info',
     }],
   };
@@ -1626,7 +1712,7 @@ export function cancelRoute(state, shipIndex) {
     return { ok: false, msgs: [{ text: '❌ 无效的船只！', type: 'error' }] };
   }
   if (!ship.route) {
-    return { ok: false, msgs: [{ text: '⚠️ 该船只未在派遣中！', type: 'info' }] };
+    return { ok: false, msgs: [{ text: '⚠️ 该船只没有在自动跑商！', type: 'info' }] };
   }
   bumpRouteRevision(ship);
   ship.route = null;
@@ -1648,6 +1734,13 @@ export function tickFleetRoutes(state) {
   state.fleet.forEach(function (ship, idx) {
     if (idx === state.activeShipIndex) return; // 激活船只由玩家直接控制或由自动派遣定时器处理
     if (!ship.route) return;
+    _ensureShipOperationalState(ship);
+    if (ship.maintenance < MIN_DISPATCH_MAINTENANCE) {
+      bumpRouteRevision(ship);
+      ship.route = null;
+      msgs.push({ text: '🧰 「' + ship.name + '」维护度低于 ' + MIN_DISPATCH_MAINTENANCE + '%，已停止自动跑商，请安排港口保养。', type: 'error' });
+      return;
+    }
 
     var route = ship.route;
     var loc   = ship.location || state.currentSystem;
@@ -1666,7 +1759,7 @@ export function tickFleetRoutes(state) {
             // 尝试用积分补燃料
             _autoRefuelShip(state, ship, cost, msgs);
             if (ship.fuel < cost) {
-              msgs.push({ text: '⚠️ 「' + ship.emoji + ship.name + '」燃料不足，派遣已暂停。', type: 'error' });
+              msgs.push({ text: '⚠️ 「' + ship.emoji + ship.name + '」燃料不足，自动跑商已暂停。', type: 'error' });
               ship.route = null;
               return;
             }
@@ -1698,7 +1791,7 @@ export function tickFleetRoutes(state) {
           if (ship.fuel < cost2) {
             _autoRefuelShip(state, ship, cost2, msgs);
             if (ship.fuel < cost2) {
-              msgs.push({ text: '⚠️ 「' + ship.emoji + ship.name + '」燃料不足，派遣已暂停。', type: 'error' });
+              msgs.push({ text: '⚠️ 「' + ship.emoji + ship.name + '」燃料不足，自动跑商已暂停。', type: 'error' });
               ship.route = null;
               return;
             }
@@ -1759,12 +1852,21 @@ function _doShipBuy(state, ship, route, msgs) {
 
   var totalCost = qty * buyPrice;
   state.credits -= totalCost;
+  ship.operatingStats.cargoCost += totalCost;
   ship.cargo[route.goodId] = (ship.cargo[route.goodId] || 0) + qty;
+  ship.cargoCost[route.goodId] = (ship.cargoCost[route.goodId] || 0) + totalCost;
   route.lastBuyPrice = buyPrice;
   _clearPolicyMessage(route);
   if (isBlack) {
-    Economy.recordBlackMarketTrade(state);
+    Economy.recordBlackMarketTrade(state, {
+      action: 'buy',
+      meta: { totalCost: totalCost, unitBuyPrice: buyPrice },
+    });
   }
+  BalanceMetrics.recordTrade(state, 'buy', route.goodId, isBlack ? 'black' : 'open', {
+    totalCost: totalCost,
+    unitBuyPrice: buyPrice,
+  });
   Economy.onPlayerBuy(route.buySystemId, route.goodId, qty);
 
   var good = GOODS.find(function (g) { return g.id === route.goodId; });
@@ -1806,18 +1908,37 @@ function _doShipSell(state, ship, route, msgs) {
   }
 
   var totalEarned = qty * sellPrice;
+  var cargoCost = Math.max(0, Number(ship.cargoCost[route.goodId]) || 0);
+  if (cargoCost <= 0) cargoCost = qty * buyReference;
   state.credits += totalEarned;
+  ship.operatingStats.revenue += totalEarned;
+  ship.operatingStats.tradeCycles += 1;
   delete ship.cargo[route.goodId];
+  delete ship.cargoCost[route.goodId];
   route.lastBuyPrice = null;
   _clearPolicyMessage(route);
   if (isBlack) {
-    Economy.recordBlackMarketTrade(state);
+    Economy.recordBlackMarketTrade(state, {
+      action: 'sell',
+      meta: {
+        totalEarned: totalEarned,
+        costBasis: cargoCost,
+        profit: totalEarned - cargoCost,
+        unitSellPrice: sellPrice,
+      },
+    });
   }
+  BalanceMetrics.recordTrade(state, 'sell', route.goodId, isBlack ? 'black' : 'open', {
+    totalEarned: totalEarned,
+    costBasis: cargoCost,
+    profit: totalEarned - cargoCost,
+    unitSellPrice: sellPrice,
+  });
   Economy.onPlayerSell(route.sellSystemId, route.goodId, qty);
 
   var good = GOODS.find(function (g) { return g.id === route.goodId; });
   msgs.push({
-    text: (isBlack ? '🕶 ' : '💰 ') + '「' + ship.name + '」在' + _sysName(route.sellSystemId) + (isBlack ? '黑市' : '') + '卖出 ' + qty + ' 单位' + good.name + '，获得 ' + totalEarned + ' 积分。',
+    text: (isBlack ? '🕶 ' : '💰 ') + '「' + ship.name + '」在' + _sysName(route.sellSystemId) + (isBlack ? '黑市' : '') + '卖出 ' + qty + ' 单位' + good.name + '，收入 ' + totalEarned + '，货差 ' + (totalEarned - cargoCost >= 0 ? '+' : '') + (totalEarned - cargoCost) + ' 积分。',
     type: 'sell',
   });
 
@@ -1839,6 +1960,7 @@ function _autoRefuelShip(state, ship, needed, msgs) {
   var cost = toBuy * fuelPrice;
   state.credits -= cost;
   ship.fuel     += toBuy;
+  ship.operatingStats.fuelCost += cost;
   msgs.push({ text: '⚡ 「' + ship.name + '」补充了 ' + toBuy + ' 燃料（' + cost + ' 积分）。', type: 'info' });
 }
 
@@ -1885,6 +2007,13 @@ export function tickActiveShipDispatch(state) {
   var msgs = [];
   var ship = getActiveShip(state);
   if (!ship || !ship.route) return { msgs: msgs, needTravel: null, needBuy: null, needSell: null };
+  _ensureShipOperationalState(ship);
+  if (ship.maintenance < MIN_DISPATCH_MAINTENANCE) {
+    bumpRouteRevision(ship);
+    ship.route = null;
+    msgs.push({ text: '🧰 「' + ship.name + '」维护度过低，自动跑商已停止，请先完成港口保养。', type: 'error' });
+    return { msgs: msgs, needTravel: null, needBuy: null, needSell: null };
+  }
 
   ship.location = state.currentSystem || ship.location;
   var route = ship.route;

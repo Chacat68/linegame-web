@@ -88,7 +88,7 @@ export function getFuturesListings(state) {
  */
 export function openLongContract(state, goodId) {
   _ensureFuturesState(state);
-  return { ok: false, msgs: [{ text: '📋 期货交易已退役，请通过现货与舰队派遣经营商路。', type: 'info' }] };
+  return { ok: false, msgs: [{ text: '📋 期货交易已退役，请通过市场买卖与自动跑商经营航线。', type: 'info' }] };
 }
 
 /**
@@ -99,7 +99,7 @@ export function openLongContract(state, goodId) {
  */
 export function openShortContract(state, goodId) {
   _ensureFuturesState(state);
-  return { ok: false, msgs: [{ text: '📋 期货交易已退役，请通过现货与舰队派遣经营商路。', type: 'info' }] };
+  return { ok: false, msgs: [{ text: '📋 期货交易已退役，请通过市场买卖与自动跑商经营航线。', type: 'info' }] };
 }
 
 function _openContract(state, goodId, direction) {

@@ -3,7 +3,7 @@
 // 导出：findBestTrade, findBestSellSystem, findQuestRoute
 
 import { GOODS }   from '../../data/goods.js';
-import { SYSTEMS, getSystemsByGalaxy, getAccessibleGalaxies, findGalaxy } from '../../data/systems.js';
+import { SYSTEMS, getSystemsByGalaxy, getAccessibleGalaxies, findGalaxy, getSystemAccessState } from '../../data/systems.js';
 import { TECHNOLOGIES, TECH_CATEGORIES } from '../../data/technologies.js';
 import * as Economy from '../economy/Economy.js';
 import * as Faction from '../faction/FactionSystem.js';
@@ -33,8 +33,8 @@ function _normalizeDispatchProfile(dispatchProfile) {
   var normalized = {
     roleId: 'logistics',
     roleLabel: '主力商运',
-    strategyLabel: '标准派遣',
-    strategyNote: '按当前利润与风险偏好筛选路线。',
+    strategyLabel: '默认跑商',
+    strategyNote: '按当前利润与避险程度筛选路线。',
     preferredRiskMode: 'balanced',
     inspectionRiskMultiplier: 1,
     openMarketBonus: 0,
@@ -185,14 +185,14 @@ function _scoreTradeThemeRoute(good, buySystem, sellSystem) {
 
   if (isCrossGalaxy && summaryParts.length >= 2) {
     score += 58;
-    reasons.push('形成跨星系套利线');
+    reasons.push('形成跨星系低买高卖路线');
   }
 
   return {
     score: score,
     reasons: Array.from(new Set(reasons)).slice(0, 2),
     summary: summaryParts.length > 0 ? summaryParts.join(' → ') : '',
-    routeModeLabel: isCrossGalaxy ? '跨星系套利' : '星系内中转',
+    routeModeLabel: isCrossGalaxy ? '跨星系低买高卖' : '星系内中转',
     isCrossGalaxy: isCrossGalaxy,
     buyGalaxyName: buyGalaxy ? buyGalaxy.name : buySystem.galaxyId,
     sellGalaxyName: sellGalaxy ? sellGalaxy.name : sellSystem.galaxyId,
@@ -319,7 +319,7 @@ function _scoreSurveyIntelForRoute(state, buySystem, sellSystem, focus) {
 
     if (intel.routeSignal) {
       score += 38;
-      reasons.push(roleLabel + '暗线已归档');
+      reasons.push(roleLabel + '隐藏航线已记录');
       summaries.push(roleLabel + intel.dispatchHint);
     }
     if (intel.marketSignal) {
@@ -348,7 +348,7 @@ function _scoreSurveyIntelForRoute(state, buySystem, sellSystem, focus) {
   return {
     score: score,
     reasons: reasons,
-    summary: summaries.length > 0 ? ('勘探情报：' + summaries[0]) : '',
+    summary: summaries.length > 0 ? ('探索线索：' + summaries[0]) : '',
   };
 }
 
@@ -473,18 +473,21 @@ export function assessTradeRisk(good, buySystemId, sellSystemId, marketMode) {
     tags.push('illegal_good');
   }
 
-  if (buyEnforcement === 'high') {
-    riskScore += 2;
-    tags.push('high_enforcement_buy');
-  } else if (buyEnforcement === 'medium') {
-    riskScore += 1;
-  }
+  const regulatedRoute = marketMode === 'black' || good.legality !== 'legal';
+  if (regulatedRoute) {
+    if (buyEnforcement === 'high') {
+      riskScore += 2;
+      tags.push('high_enforcement_buy');
+    } else if (buyEnforcement === 'medium') {
+      riskScore += 1;
+    }
 
-  if (sellEnforcement === 'high') {
-    riskScore += 2;
-    tags.push('high_enforcement_sell');
-  } else if (sellEnforcement === 'medium') {
-    riskScore += 1;
+    if (sellEnforcement === 'high') {
+      riskScore += 2;
+      tags.push('high_enforcement_sell');
+    } else if (sellEnforcement === 'medium') {
+      riskScore += 1;
+    }
   }
 
   var riskLevel = 'low';
@@ -713,10 +716,12 @@ export function findBestTrade(state, tradePolicy) {
       if (sys.id === state.currentSystem) return;
       // 只搜索同星系内的星球
       if (sys.galaxyId !== (state.currentGalaxy || 'milky_way')) return;
-      // 跳过未解锁星球
-      if ((state.playerLevel || 1) < (sys.minLevel || 1)) return;
+      // 跳过未解锁或当前燃料无法抵达的星球
+      const accessState = getSystemAccessState(sys.id, state.playerLevel || 1, state.researchedTechs || []);
+      if (!accessState.unlocked) return;
       const sellPrice    = _getSellPriceForMarket(state, sys.id, good, normalizedPolicy.marketMode);
       const fuelCost     = Economy.getFuelCost(state.currentSystem, sys.id, state.fuelEfficiency, state);
+      if (Number.isFinite(state.fuel) && fuelCost > state.fuel) return;
       const fuelCredits  = fuelCost * fuelUnitPrice;
       const profit       = (sellPrice - buyPrice) * canBuy - fuelCredits;
       const policyCheck  = evaluateTradePolicy(buyPrice, sellPrice, normalizedPolicy);
@@ -760,14 +765,18 @@ export function findBestSellSystem(state) {
 
   // 燃料单价只与当前星系有关，在循环外计算一次
   const fuelUnitPrice = Economy.getBuyPrice(state.currentSystem, 'fuel', state);
+  const cargoCost = cargoEntries.reduce(function (sum, entry) {
+    return sum + Math.max(0, Number((state.cargoCost || {})[entry[0]]) || 0);
+  }, 0);
   let best = null;
 
   SYSTEMS.forEach(function (sys) {
     if (sys.id === state.currentSystem) return;
     // 只搜索同星系内的星球
     if (sys.galaxyId !== (state.currentGalaxy || 'milky_way')) return;
-    // 跳过未解锁星球
-    if ((state.playerLevel || 1) < (sys.minLevel || 1)) return;
+    // 跳过未解锁或当前燃料无法抵达的星球
+    const accessState = getSystemAccessState(sys.id, state.playerLevel || 1, state.researchedTechs || []);
+    if (!accessState.unlocked) return;
 
     let totalRevenue = 0;
     cargoEntries.forEach(function (entry) {
@@ -775,7 +784,9 @@ export function findBestSellSystem(state) {
     });
 
     const fuelCost = Economy.getFuelCost(state.currentSystem, sys.id, state.fuelEfficiency, state);
-    const profit   = totalRevenue - fuelCost * fuelUnitPrice;
+    if (Number.isFinite(state.fuel) && fuelCost > state.fuel) return;
+    const fuelExpense = fuelCost * fuelUnitPrice;
+    const profit = totalRevenue - cargoCost - fuelExpense;
 
     if (!best || profit > best.profit) {
       best = {
@@ -783,6 +794,9 @@ export function findBestSellSystem(state) {
         systemName: sys.name,
         profit:     profit,
         fuelCost:   fuelCost,
+        fuelExpense: fuelExpense,
+        cargoCost: cargoCost,
+        revenue: totalRevenue,
       };
     }
   });

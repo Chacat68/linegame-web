@@ -50,7 +50,10 @@ export function evaluateTradePolicy(buyPrice, sellPrice, policy) {
   var profitRate = getUnitProfitRate(buyPrice, sellPrice);
   if (normalized.maxBuyPrice != null && buyPrice > normalized.maxBuyPrice) reasons.push('买入价高于上限');
   if (normalized.minSellPrice != null && sellPrice < normalized.minSellPrice) reasons.push('卖出价低于下限');
-  if (normalized.minProfitRate != null && profitRate < normalized.minProfitRate) reasons.push('利润率低于阈值');
+  if (normalized.minProfitRate != null && profitRate < normalized.minProfitRate) reasons.push('利润率低于要求');
+  // 即使玩家没有填写价格限制，自动跑商也不应明知货差为负仍继续买入。
+  // 这只是基本止损；燃料、养护和维修仍会让低毛利路线承担真实风险。
+  if (normalized.minProfitRate == null && profitRate < 0) reasons.push('当前卖价低于买价');
   return {
     ok: reasons.length === 0,
     reasons: reasons,
