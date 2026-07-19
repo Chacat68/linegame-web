@@ -51,9 +51,9 @@ function _getFinanceSuggestion(state) {
         priority: 37,
         title: '处理「' + urgentLoan.name + '」还款',
         reason: (urgentLoan.remainingDays || 0) <= 2
-          ? '贷款即将进入展期，先打开资本调度区确认还款或现金安排。'
+          ? '贷款即将到期，先打开【资金管理】确认还款或现金安排。'
           : '贷款已有扣款异常，先处理负债可避免信用评级继续下滑。',
-        actionLabel: '查看资本',
+        actionLabel: '查看贷款',
         actionType: 'market.open',
         payload: {
           workspaceId: 'capital',
@@ -61,7 +61,7 @@ function _getFinanceSuggestion(state) {
           loanId: urgentLoan.id,
         },
         surface: 'market',
-        commandIntent: '资本调度区',
+        commandIntent: '资金管理',
       });
     }
   }
@@ -101,7 +101,7 @@ function _createNetworkBatchSuggestion(config) {
       subworkspaceId: 'network',
     },
     surface: 'market',
-    commandIntent: '商网总览区',
+    commandIntent: '贸易站总览',
   }, config || {}));
 }
 
@@ -120,7 +120,7 @@ function _getBatchTradeNetworkSuggestion(state, ownedStations) {
     return _createNetworkBatchSuggestion({
       id: 'batch-upgrade-trade-stations',
       priority: 33,
-      title: '执行 ' + affordableUpgrades.length + ' 站商网升级波次',
+      title: '批量升级 ' + affordableUpgrades.length + ' 座贸易站',
       reason: '多个站点已满足升级条件，先进入批量计划面板审阅覆盖清单和预算。',
       payload: {
         workspaceId: 'operations',
@@ -141,8 +141,8 @@ function _getBatchTradeNetworkSuggestion(state, ownedStations) {
     return _createNetworkBatchSuggestion({
       id: 'batch-invest-trade-stations',
       priority: 31,
-      title: '执行 ' + affordableInvestments.length + ' 站资本增配波次',
-      reason: '当前预算可同时覆盖多个贸易站增配，适合先用批量面板按殖利率排序。',
+      title: '向 ' + affordableInvestments.length + ' 座贸易站追加投资',
+      reason: '当前预算可同时追加多个贸易站投资，适合按每天预计回报排序。',
       payload: {
         workspaceId: 'operations',
         subworkspaceId: 'network',
@@ -157,21 +157,23 @@ function _getBatchTradeNetworkSuggestion(state, ownedStations) {
     return {
       strategy: strategy,
       targets: ownedStations.filter(function (entry) {
-        return entry.station.strategyId !== strategy.id;
+        return entry.strategyRecommendation &&
+          entry.strategyRecommendation.shouldSwitch &&
+          entry.strategyRecommendation.strategyId === strategy.id;
       }),
     };
   }).filter(function (entry) {
     return entry.targets.length >= 2;
   }).sort(function (left, right) {
-    return (right.strategy.incomeMultiplier || 1) - (left.strategy.incomeMultiplier || 1);
+    return right.targets.length - left.targets.length;
   })[0] || null;
 
   if (strategyPlan) {
     return _createNetworkBatchSuggestion({
       id: 'batch-set-trade-station-strategy',
       priority: 27,
-      title: '同步「' + strategyPlan.strategy.name + '」站点定位',
-      reason: '多个贸易站可在同一轮调整定位，批量面板会先展示影响范围。',
+      title: '同步「' + strategyPlan.strategy.name + '」经营方式',
+      reason: '多个贸易站的探索线索指向同一经营方式，批量面板会先展示影响范围。',
       payload: {
         workspaceId: 'operations',
         subworkspaceId: 'network',
@@ -200,7 +202,7 @@ function _getTradeNetworkSuggestion(state) {
       id: 'build-trade-station',
       priority: 22,
       title: '建设「' + buildCandidate.system.name + '」贸易站',
-      reason: '当前资金和公司等级已满足建站条件，可以把现金转成长期商网收益。',
+      reason: '当前资金和公司等级已满足建站条件，可以用现金换取长期收入。',
       actionLabel: '打开经营页',
       actionType: 'market.open',
       payload: {
@@ -209,7 +211,7 @@ function _getTradeNetworkSuggestion(state) {
         systemId: buildCandidate.system.id,
       },
       surface: 'market',
-      commandIntent: buildCandidate.isCurrent ? '本地节点经营区' : '站点编排区',
+      commandIntent: buildCandidate.isCurrent ? '本地贸易站' : '批量管理',
     });
   }
 
@@ -221,8 +223,8 @@ function _getTradeNetworkSuggestion(state) {
       id: 'upgrade-trade-station',
       priority: 21,
       title: '升级「' + upgradeTarget.system.name + '」贸易站',
-      reason: '已有站点可升级，提升等级会扩大商网日收益。',
-      actionLabel: '打开商网',
+      reason: '已有贸易站可升级，提升等级会增加每天的收入。',
+      actionLabel: '查看贸易站',
       actionType: 'market.open',
       payload: {
         workspaceId: 'operations',
@@ -230,7 +232,7 @@ function _getTradeNetworkSuggestion(state) {
         systemId: upgradeTarget.station.systemId,
       },
       surface: 'market',
-      commandIntent: '站点编排区',
+      commandIntent: '批量管理',
     });
   }
 

@@ -251,15 +251,15 @@ export const DIALOGUE_SCENES = [
         text: function (state) {
           var decision = state.storyDecisions && state.storyDecisions.tutorial_postlude;
           if (decision === 'steady') {
-            return '你当初说先跑稳妥委托，现在方向很明确了：把零散跑单，变成稳定的航线和资本积累。';
+            return '你当初说先跑稳妥委托，现在方向很明确了：把零散跑单，变成稳定的航线和资金积累。';
           }
           if (decision === 'network') {
             return '你当初想先扩航线和声望，现在正是时候把散点访问，织成真正可复用的商路网络。';
           }
           if (decision === 'shadow') {
-            return '你当初想先摸高风险单子，现在先把资本和航线垫厚。没有底盘，再好的冒险也只是冲动。';
+            return '你当初想先摸高风险单子，现在先把资金和航线基础做稳。没有底盘，再好的冒险也只是冲动。';
           }
-          return '第二章的重点是把零散跑单，变成稳定的航线和资本积累。银河开始把你当成真正的参与者。';
+          return '第二章的重点是把零散跑单，变成稳定的航线和资金积累。银河开始把你当成真正的参与者。';
         },
       },
     ],
@@ -587,13 +587,13 @@ export const DIALOGUE_SCENES = [
     acceptTitle: '财富风暴门槛',
     acceptFooter: '目标：累计利润 20,000 积分',
     acceptLines: [
-      _line('资本市场主持人 艾德', '🏦', '两万利润不是好运能解释的数字，那是规模、纪律和耐心一起工作后的结果。'),
-      _line('资本市场主持人 艾德', '🏦', '做到这一步，市场不会再把你当普通船主，而会当成能影响价格的人。'),
+      _line('资金顾问 艾德', '🏦', '两万利润不是好运能解释的数字，那是规模、纪律和耐心一起工作后的结果。'),
+      _line('资金顾问 艾德', '🏦', '做到这一步，市场不会再把你当普通船主，而会当成能影响价格的人。'),
     ],
     completeTitle: '你的账本开始具备压迫感',
     completeLines: [
-      _line('资本市场主持人 艾德', '🏦', '两万利润到了。恭喜，你的账本已经开始具备压迫感。'),
-      _line('资本市场主持人 艾德', '🏦', '接下来别人研究的不会只是货价，还会研究你的航线和出手时机。'),
+      _line('资金顾问 艾德', '🏦', '两万利润到了。恭喜，你的账本已经很有分量。'),
+      _line('资金顾问 艾德', '🏦', '接下来别人研究的不会只是货价，还会研究你的航线和出手时机。'),
     ],
   }),
   _createQuestScenePair({
@@ -640,8 +640,8 @@ export const DIALOGUE_SCENES = [
   }),
   _createQuestScenePair({
     questId: 'reign_tech_monopoly',
-    acceptTitle: '科技套利窗口',
-    acceptFooter: '目标：完成科研星到军事星的科技套利并累计 5,000 利润',
+    acceptTitle: '科技商品低买高卖',
+    acceptFooter: '目标：从科研星买入科技商品，在军事星卖出并累计赚取 5,000',
     acceptLines: [
       _line('科技经纪人 维克', '⚙️', '科技货最赚钱的时刻，从来不是买入时，而是军事需求刚刚抬头的那几天。'),
       _line('科技经纪人 维克', '⚙️', '去新北京站低价装货，再把利润做到五千。只会搬货不够，你得会踩窗口。'),
@@ -774,11 +774,11 @@ export const DIALOGUE_SCENES = [
   }),
   _createQuestScenePair({
     questId: 'expand_first_survey',
-    acceptTitle: '建立第一份勘探档案',
-    acceptFooter: '目标：完成一个 POI 调查',
-    acceptLines: [_line('测绘员 芙蕾', '🛰️', '价格只告诉你当下，勘探档案才能告诉你一个节点未来能做什么。')],
-    completeTitle: '第一份勘探档案已归档',
-    completeLines: [_line('测绘员 芙蕾', '🛰️', 'POI 调查已经归档，这份情报会继续影响商网和远征决策。')],
+    acceptTitle: '完成第一份探索报告',
+    acceptFooter: '目标：调查一个探索点',
+    acceptLines: [_line('测绘员 芙蕾', '🛰️', '价格只告诉你当下，探索报告能告诉你一个地方以后适合做什么。')],
+    completeTitle: '第一份探索报告已完成',
+    completeLines: [_line('测绘员 芙蕾', '🛰️', '探索点调查已经归档，这份情报会影响贸易站和远征选择。')],
   }),
   _createQuestScenePair({
     questId: 'rise_crew_roster',
@@ -791,25 +791,25 @@ export const DIALOGUE_SCENES = [
   _createQuestScenePair({
     questId: 'rise_dispatch_network',
     acceptTitle: '让航线在你离开后继续运转',
-    acceptFooter: '目标：建立第一条派遣航线',
+    acceptFooter: '目标：建立第一条自动跑商路线',
     acceptLines: [_line('调度员 玛洛', '📡', '真正的规模，是你不在现场时生意仍然能按计划跑下去。')],
-    completeTitle: '第一条派遣网络已上线',
-    completeLines: [_line('调度员 玛洛', '📡', '派遣航线已开始自主运转，你现在管理的不再只是当前驾驶舱。')],
+    completeTitle: '第一条自动跑商路线已上线',
+    completeLines: [_line('调度员 玛洛', '📡', '自动跑商已经开始运转，你现在管理的不再只是当前驾驶舱。')],
   }),
   _createQuestScenePair({
     questId: 'rise_capital_tools',
-    acceptTitle: '学会用资本而不只是用现金',
-    acceptFooter: '目标：完成一次资本工具操作',
-    acceptLines: [_line('资本顾问 艾德', '🏦', '现金是燃料，资本工具是变速箱。先做一次可控的操作，理解它们如何改变节奏。')],
-    completeTitle: '资本工具已进入经营循环',
-    completeLines: [_line('资本顾问 艾德', '🏦', '第一次操作已记账。接下来要记住，放大收益的工具也会放大判断错误。')],
+    acceptTitle: '学会使用贷款和投资',
+    acceptFooter: '目标：完成一次贷款或贸易站投资',
+    acceptLines: [_line('资金顾问 艾德', '🏦', '贷款能提前扩张，投资能带来长期收入。先做一次小额操作，看看它怎样改变经营节奏。')],
+    completeTitle: '贷款与投资已经进入经营循环',
+    completeLines: [_line('资金顾问 艾德', '🏦', '第一次操作已记账。接下来要记住，放大收益的工具也会放大判断错误。')],
   }),
   _createQuestScenePair({
     questId: 'reign_first_station',
     acceptTitle: '把航线钉在星图上',
     acceptFooter: '目标：建成第一座贸易站',
-    acceptLines: [_line('商网规划师 洛琳', '🏪', '船只会移动，站点才会留下。选一个你真正理解的节点，把第一枚钉子敲下去。')],
-    completeTitle: '商网有了第一个锨点',
+    acceptLines: [_line('商网规划师 洛琳', '🏪', '船只会移动，贸易站会留下。选一个你真正了解的地点，建起第一座贸易站。')],
+    completeTitle: '贸易网络有了第一个落脚点',
     completeLines: [_line('商网规划师 洛琳', '🏪', '贸易站已投运，从此你的收益不再只来自亲自完成的单子。')],
   }),
   _createQuestScenePair({
@@ -823,9 +823,9 @@ export const DIALOGUE_SCENES = [
   _createQuestScenePair({
     questId: 'legend_policy_commitment',
     acceptTitle: '为最终路线承担代价',
-    acceptFooter: '目标：采用一项不可逆胜利信条',
-    acceptLines: [_line('协议官 塞文', '📜', '传奇不是把所有优势都拿走，而是明知道代价，仍然选择一条路走到底。')],
-    completeTitle: '你的最终经营信条已经生效',
-    completeLines: [_line('协议官 塞文', '📜', '议定书已写入存档。从现在起，收益和代价都会跟随你的路线。')],
+    acceptFooter: '目标：选择一条不可更改的长期路线',
+    acceptLines: [_line('路线顾问 塞文', '📜', '传奇不是把所有优势都拿走，而是明知道代价，仍然选择一条路走到底。')],
+    completeTitle: '你的长期路线已经生效',
+    completeLines: [_line('路线顾问 塞文', '📜', '选择已写入存档。从现在起，收益和代价都会跟随你的路线。')],
   })
 );

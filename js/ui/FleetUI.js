@@ -308,7 +308,7 @@ function _renderHangarTriagePanel(context) {
     activeSnapshot
       ? ((activeSnapshot.roleProfile ? activeSnapshot.roleProfile.label : '综合用途') + ' · 燃料 ' + activeSnapshot.fuelPct + '% · 维护 ' + Math.round(activeSnapshot.maintenance.value) + '%')
       : '当前没有可操控舰船',
-    activeSnapshot && activeSnapshot.ship.route ? '派遣中' : '本地操控',
+    activeSnapshot && activeSnapshot.ship.route ? '跑商中' : '本地操控',
     activeSnapshot && _isHangarRiskSnapshot(activeSnapshot) ? 'warning' : 'ready',
   ));
 
@@ -325,14 +325,14 @@ function _renderHangarTriagePanel(context) {
       '维护观察',
       '全队稳定',
       '平均维护 ' + avgMaintenance + '% · 暂无故障或船体缺口',
-      '整备状态良好',
+      '船况良好',
       'ready',
     ));
   }
 
   if (routeSnapshot) {
     focusCards.push(_renderHangarFocusCard(
-      '航线信号',
+      '跑商路线',
       routeSnapshot.ship.name,
       _formatHangarRouteSummary(context.state, routeSnapshot),
       _formatTradePolicySummary(routeSnapshot.ship.route.tradePolicy),
@@ -343,12 +343,12 @@ function _renderHangarTriagePanel(context) {
       '待命舰船',
       idleSnapshot.ship.name,
       (idleSnapshot.roleProfile ? idleSnapshot.roleProfile.label : '综合用途') + ' · 货舱 ' + idleSnapshot.cargoUsed + '/' + (idleSnapshot.stats.maxCargo || idleSnapshot.ship.maxCargo || 0),
-      '未派遣',
+      '未跑商',
       'idle',
     ));
   } else {
     focusCards.push(_renderHangarFocusCard(
-      emptySlots > 0 ? '席位信号' : '编队状态',
+      emptySlots > 0 ? '船位状态' : '编队状态',
       emptySlots > 0 ? '有空席位' : '席位已满',
       emptySlots > 0 ? ('可容纳 ' + emptySlots + ' 艘新船 · 锁定 ' + lockedSlots + ' 席') : ('全部 ' + context.slotCount + ' 个席位已使用'),
       emptySlots > 0 ? '可扩编' : '满编',
@@ -361,20 +361,20 @@ function _renderHangarTriagePanel(context) {
   var riskMeta = riskCount > 0 ? ('平均维护 ' + avgMaintenance + '% · 待处理') : ('平均维护 ' + avgMaintenance + '% · 稳定');
   var cargoMeta = context.activeShip ? ('旗舰占用 ' + context.activeCargoUsed + '/' + activeCargoCap) : '未配置旗舰';
 
-  return '<section class="hangar-triage-panel" aria-label="机库态势与局部信号">' +
+  return '<section class="hangar-triage-panel" aria-label="机库状态与当前建议">' +
     '<div class="hangar-triage-head">' +
-      '<div><span class="hangar-triage-kicker">LOCAL HANGAR SIGNAL</span><strong>机库态势</strong></div>' +
+      '<div><span class="hangar-triage-kicker">机库概览</span><strong>舰船状态</strong></div>' +
       '<span class="hangar-route-signal">' + _escapeHtml(routeSignal) + '</span>' +
     '</div>' +
-    '<div class="hangar-triage-grid" role="list" aria-label="机库态势矩阵">' +
+    '<div class="hangar-triage-grid" role="list" aria-label="机库状态概览">' +
       '<div class="hangar-triage-cell" role="listitem"><span>编队规模</span><strong>' + fleet.length + '/' + context.slotCount + '</strong><small>' + _escapeHtml(slotMeta) + '</small></div>' +
       '<div class="hangar-triage-cell" role="listitem"><span>航线运行</span><strong>' + context.fleetRouteCount + '</strong><small>' + _escapeHtml(routeSignal) + '</small></div>' +
       '<div class="hangar-triage-cell hangar-triage-cell--risk" role="listitem"><span>维护风险</span><strong>' + riskCount + '</strong><small>' + _escapeHtml(riskMeta) + '</small></div>' +
       '<div class="hangar-triage-cell" role="listitem"><span>总舱容</span><strong>' + context.fleetCargoCap + '</strong><small>' + _escapeHtml(cargoMeta) + '</small></div>' +
     '</div>' +
-    '<div class="hangar-focus-panel" aria-label="机库局部信号">' +
-      '<div class="hangar-focus-copy"><span>局部信号</span><strong>优先查看</strong><small>旗舰、维护与航线状态</small></div>' +
-      '<div class="hangar-focus-list" role="list" aria-label="机库焦点卡">' + focusCards.join('') + '</div>' +
+    '<div class="hangar-focus-panel" aria-label="机库当前建议">' +
+      '<div class="hangar-focus-copy"><span>当前建议</span><strong>优先查看</strong><small>旗舰、维护与航线状态</small></div>' +
+      '<div class="hangar-focus-list" role="list" aria-label="机库重点项目">' + focusCards.join('') + '</div>' +
     '</div>' +
   '</section>';
 }
@@ -412,9 +412,9 @@ function _renderHangarOverview(context) {
     || snapshots[0]
     || null;
   var priorityTone = riskCount > 0 ? 'warning' : (context.fleetRouteCount > 0 ? 'route' : 'ready');
-  var priorityLabel = riskCount > 0 ? '优先整备' : (context.fleetRouteCount > 0 ? '航线运行' : '等待调度');
+  var priorityLabel = riskCount > 0 ? '优先维护' : (context.fleetRouteCount > 0 ? '航线运行' : '等待任务');
   var priorityTitle = prioritySnapshot ? prioritySnapshot.ship.name : '暂无舰船';
-  var priorityBody = '购买舰船后，可在这里完成整备、人员配置与派遣。';
+  var priorityBody = '购买舰船后，可在这里维护船况、安排人员并开始自动跑商。';
 
   if (prioritySnapshot) {
     if (_isHangarRiskSnapshot(prioritySnapshot)) {
@@ -428,14 +428,14 @@ function _renderHangarOverview(context) {
 
   return '<section class="hangar-operations-deck" aria-labelledby="hangar-operations-title">' +
     '<div class="hangar-operations-head">' +
-      '<div><span>HANGAR OPERATIONS</span><h2 id="hangar-operations-title">船队作业台</h2></div>' +
-      '<p>选择一艘船，集中完成整备、人员与派遣。</p>' +
+      '<div><span>舰船状态与任务</span><h2 id="hangar-operations-title">舰队管理</h2></div>' +
+      '<p>选择一艘船，集中维护船况、安排人员并开始自动跑商。</p>' +
     '</div>' +
     '<div class="hangar-operations-grid" role="list" aria-label="机库运行摘要">' +
-      '<div role="listitem"><span>舰船 / 席位</span><strong>' + context.fleet.length + ' / ' + context.slotCount + '</strong><small>锁定 ' + Math.max(0, context.maxSlots - context.slotCount) + ' 席</small></div>' +
-      '<div role="listitem"><span>运行航线</span><strong>' + context.fleetRouteCount + '</strong><small>派遣等级 Lv.' + context.routeLevel + '</small></div>' +
-      '<div role="listitem"><span>待整备</span><strong>' + riskCount + '</strong><small>平均维护 ' + avgMaintenance + '%</small></div>' +
-      '<div role="listitem"><span>总舱容</span><strong>' + context.fleetCargoCap + '</strong><small>全编队有效容量</small></div>' +
+      '<div role="listitem"><span>舰船 / 位置</span><strong>' + context.fleet.length + ' / ' + context.slotCount + '</strong><small>还有 ' + Math.max(0, context.maxSlots - context.slotCount) + ' 个位置未解锁</small></div>' +
+      '<div role="listitem"><span>运行航线</span><strong>' + context.fleetRouteCount + '</strong><small>跑商等级 Lv.' + context.routeLevel + '</small></div>' +
+      '<div role="listitem"><span>待维护</span><strong>' + riskCount + '</strong><small>平均船况 ' + avgMaintenance + '%</small></div>' +
+      '<div role="listitem"><span>总货舱</span><strong>' + context.fleetCargoCap + '</strong><small>所有舰船合计</small></div>' +
     '</div>' +
     '<button type="button" class="hangar-priority-signal hangar-priority-signal--' + priorityTone + '" data-inspect-ship-index="' + (prioritySnapshot ? prioritySnapshot.index : '') + '"' + (prioritySnapshot ? '' : ' disabled') + '>' +
       '<span>' + _escapeHtml(priorityLabel) + '</span>' +
@@ -469,7 +469,7 @@ function _renderHangarShipSelector(snapshots, activeIdx, inspectedIdx) {
   }).join('');
 
   return '<section class="hangar-fleet-selector" aria-labelledby="hangar-fleet-selector-title">' +
-    '<div class="hangar-section-heading"><div><span>FLEET ROSTER</span><h3 id="hangar-fleet-selector-title">选择作业舰船</h3></div><small>查看不会改变当前操控舰</small></div>' +
+    '<div class="hangar-section-heading"><div><span>你的舰船</span><h3 id="hangar-fleet-selector-title">选择舰船</h3></div><small>查看不会改变当前操控舰</small></div>' +
     '<div class="hangar-ship-select-list" role="list" aria-label="舰船列表">' + buttons + '</div>' +
   '</section>';
 }
@@ -556,7 +556,7 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
       } else if (!fleet[si].route) {
         supportHtml += '<button class="slot-switch-btn" data-slot-index="' + si + '" title="切换操控至「' + _escapeHtml(fleet[si].name) + '」">切换</button>';
       } else {
-        supportHtml += '<span class="slot-dispatch-label">派遣</span>';
+        supportHtml += '<span class="slot-dispatch-label">跑商</span>';
       }
     } else if (isOwned) {
       supportHtml += '<span class="slot-empty-icon">＋</span>';
@@ -569,7 +569,7 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
 
   // 席位信息 & 购买按钮
   supportHtml += '<div class="fleet-slot-info">';
-  supportHtml += '<span class="fleet-slot-route-lvl">派遣航线等级：Lv.' + routeLevel + '</span>';
+  supportHtml += '<span class="fleet-slot-route-lvl">自动跑商等级：Lv.' + routeLevel + '</span>';
   if (slotCount < maxSlots) {
     var nextSlot = FLEET_SLOTS[slotCount];
     var canAffordSlot = state.credits >= nextSlot.cost;
@@ -640,7 +640,7 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
 
   // ========== 已拥有的船只 ==========
   html += '<section class="hangar-ship-workspace" aria-labelledby="hangar-workspace-title">';
-  html += '<div class="hangar-section-heading"><div><span>ACTIVE WORKSPACE</span><h3 id="hangar-workspace-title">舰船作业区</h3></div><small>状态与操作始终对应当前选中的舰船</small></div>';
+  html += '<div class="hangar-section-heading"><div><span>当前舰船</span><h3 id="hangar-workspace-title">舰船详情</h3></div><small>下方状态与操作都对应选中的舰船</small></div>';
 
   [inspectedSnapshot].filter(Boolean).forEach(function (snapshot) {
     const ship = snapshot.ship;
@@ -668,7 +668,7 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
     html += '<span class="fleet-ship-name">' + _escapeHtml(ship.name);
     if (isActive && !ship.route) html += ' <span class="fleet-active-badge">操控中</span>';
     if (!isActive && !ship.route) html += ' <span class="fleet-idle-badge">待命</span>';
-    if (ship.route) html += ' <span class="fleet-dispatch-badge">派遣中</span>';
+    if (ship.route) html += ' <span class="fleet-dispatch-badge">跑商中</span>';
     html += '</span>';
     if (!isActive) {
       html += '<button type="button" class="fleet-switch-btn fleet-switch-primary" data-index="' + idx + '"><span>设为操控舰</span><small>当前仅查看，不影响正在操控的舰船</small></button>';
@@ -730,7 +730,7 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
     } else {
       html += '<div class="fleet-route-info hangar-idle-context">';
       html += '<div><span>当前任务</span><strong>' + (repairJob ? '维修队列中' : '停靠待命') + '</strong></div>';
-      html += '<p>' + (repairJob ? ('剩余 ' + repairJob.remainingDays + ' 天，维修完成前不可派遣。') : '可继续改装、配置人员，或建立一条自动贸易航线。') + '</p>';
+      html += '<p>' + (repairJob ? ('剩余 ' + repairJob.remainingDays + ' 天，维修完成前不能出发。') : '可继续改装、安排人员，或建立一条自动跑商路线。') + '</p>';
       html += '</div>';
     }
 
@@ -833,7 +833,7 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
         else if (needsService) modButtonMeta += ' · 需维修';
         var dispatchButtonMeta = repairJob
           ? ('维修中 · 剩余 ' + repairJob.remainingDays + ' 天')
-          : (ship.route ? '查看路线 · 可召回' : (isActive ? '旗舰自动派遣' : '配置贸易路线'));
+          : (ship.route ? '查看路线 · 可召回' : (isActive ? '当前船自动跑商' : '设置跑商路线'));
 
     html += '<button class="fleet-open-mod-btn fleet-manage-btn fleet-manage-btn--mod" data-ship-index="' + idx + '">' +
             '<span class="fleet-manage-btn-label">🔧 改装</span>' +
@@ -842,11 +842,11 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
 
     html += '<button class="fleet-open-crew-btn fleet-manage-btn fleet-manage-btn--crew" data-ship-index="' + idx + '">' +
             '<span class="fleet-manage-btn-label">👥 人员</span>' +
-            '<span class="fleet-manage-btn-meta">' + shipCrew.length + '/' + (ship.crewCapacity || 0) + ' 在岗' + (isActive ? ' · 当前操控' : ' · 协议配置') + '</span>' +
+            '<span class="fleet-manage-btn-meta">' + shipCrew.length + '/' + (ship.crewCapacity || 0) + ' 在岗' + (isActive ? ' · 当前操控' : ' · 船员分工') + '</span>' +
             '</button>';
 
         html += '<button class="fleet-dispatch-btn fleet-manage-btn fleet-manage-btn--dispatch" data-index="' + idx + '"' + (repairJob ? ' disabled' : '') + '>' +
-            '<span class="fleet-manage-btn-label">📡 派遣</span>' +
+            '<span class="fleet-manage-btn-label">📡 自动跑商</span>' +
           '<span class="fleet-manage-btn-meta">' + dispatchButtonMeta + '</span>' +
             '</button>';
     html += '</div>'; // fleet-card-action-row
@@ -1017,9 +1017,9 @@ var STRUCTURE_MODULES = [
 
 var MOD_CATEGORY_META = {
   cargo: { icon: '📦', name: '货舱组件', desc: '围绕装载空间与压缩效率的舱段扩展。' },
-  engine: { icon: '🔥', name: '动力组件', desc: '提升推进、续航与勘探能力。' },
+  engine: { icon: '🔥', name: '动力组件', desc: '提升推进、续航与探索能力。' },
   hull: { icon: '🛡️', name: '防护组件', desc: '强化结构稳定性与自修复能力。' },
-  trade: { icon: '💰', name: '贸易组件', desc: '聚焦议价、走私和收益放大。' },
+  trade: { icon: '💰', name: '贸易组件', desc: '改善买卖价格、走私安全和贸易收益。' },
 };
 
 function _getStructureModuleId(upgrade) {
@@ -1044,7 +1044,7 @@ function _formatEffectText(effect) {
     parts.push('磨损 -' + Math.round((1 - effect.maintenanceDecayMultiplier) * 100) + '%');
   }
   if (effect.poiRewardMultiplier && effect.poiRewardMultiplier > 1) {
-    parts.push('勘探收益 +' + Math.round((effect.poiRewardMultiplier - 1) * 100) + '%');
+    parts.push('探索收益 +' + Math.round((effect.poiRewardMultiplier - 1) * 100) + '%');
   }
   return parts.join(' · ');
 }
@@ -1200,8 +1200,8 @@ function _buildModModalSignalPanel(options) {
     ? ('回收 ' + sellQuote.minPrice.toLocaleString() + '~' + sellQuote.maxPrice.toLocaleString())
     : '暂无回收价');
   var assetTone = opts.sellDisabledReason ? 'blocked' : 'ready';
-  var focusTitle = '改装态势稳定';
-  var focusNote = '维修、结构和组件没有阻塞项，可按当前船型定位继续精细配置。';
+  var focusTitle = '改装状态稳定';
+  var focusNote = '维修、结构和组件都正常，可按当前船型用途继续调整。';
   var focusTone = 'complete';
 
   if (repairQuote && !repairQuote.disabledReason && repairNeeded) {
@@ -1243,10 +1243,10 @@ function _buildModModalSignalPanel(options) {
     focusTone = 'blocked';
   }
 
-  return '<section class="mod-modal-signal-panel" aria-label="改装局部态势">' +
+  return '<section class="mod-modal-signal-panel" aria-label="改装当前状态">' +
     '<div class="mod-modal-signal-head">' +
       '<div>' +
-        '<div class="mod-modal-signal-title">改装局部态势</div>' +
+        '<div class="mod-modal-signal-title">改装当前状态</div>' +
         '<div class="mod-modal-signal-subtitle">把维修、结构、组件和资产限制合并到一屏，先确认当前船的改装优先级。</div>' +
       '</div>' +
       '<span class="mod-modal-signal-badge">' + _escapeHtml(roleProfile.label || '综合用途') + '</span>' +
@@ -1257,8 +1257,8 @@ function _buildModModalSignalPanel(options) {
       _renderModModalSignalMetric('组件', componentValue, componentNote, componentTone) +
       _renderModModalSignalMetric('资产', assetValue, assetNote, assetTone) +
     '</div>' +
-    '<div class="mod-modal-signal-focus" role="status" aria-label="改装局部信号" data-tone="' + _escapeHtml(focusTone) + '">' +
-      '<span class="mod-modal-signal-focus-kicker">局部信号</span>' +
+    '<div class="mod-modal-signal-focus" role="status" aria-label="改装建议" data-tone="' + _escapeHtml(focusTone) + '">' +
+      '<span class="mod-modal-signal-focus-kicker">当前建议</span>' +
       '<strong class="mod-modal-signal-focus-title">' + _escapeHtml(focusTitle) + '</strong>' +
       '<span class="mod-modal-signal-focus-note">' + _escapeHtml(focusNote) + '</span>' +
     '</div>' +
@@ -1382,10 +1382,10 @@ function _openCrewModal(state, shipIndex, onRecruitCrew, onAssignCrew, onUnassig
             (isActive ? '' : '<button class="btn-secondary crew-switch-ship-btn" type="button">设为当前操控</button>') +
           '</div>' +
         '</div>' +
-        '<div class="ship-protocol-panel-desc">船型、改装与船员效果会自动参与派遣计算，无需额外启动协议。</div>' +
+        '<div class="ship-protocol-panel-desc">船型、改装与船员效果会自动算入跑商结果，不需要额外开启。</div>' +
       '</div>' +
-      '<div class="crew-modal-roster-alert" role="listitem" aria-label="船员管理局部信号">' +
-        '<strong>编制信号</strong>' +
+      '<div class="crew-modal-roster-alert" role="listitem" aria-label="船员管理建议">' +
+        '<strong>船员建议</strong>' +
         '<span>' + _escapeHtml(rosterHint) + '</span>' +
       '</div>';
 
@@ -1596,23 +1596,23 @@ function _renderShipShopBrief(context) {
     ? context.focusEntry.type.emoji + ' ' + context.focusEntry.type.name
     : (context.hasAvailableSlot ? '预算观察' : '采购暂停');
   var focusBody = context.focusEntry
-    ? (context.focusEntry.roleLabel + ' · 舱容上限 ' + context.focusEntry.type.maxCargo + ' · 航程指数 ' + context.focusEntry.rangeValue)
+    ? (context.focusEntry.roleLabel + ' · 货舱上限 ' + context.focusEntry.type.maxCargo + ' · 航程能力 ' + context.focusEntry.rangeValue)
     : (context.hasAvailableSlot
         ? (context.closestEntry ? budgetMeta : '暂无候选船型')
         : '当前没有空席位，新船购买按钮会保持锁定');
   var focusMeta = context.focusEntry
-    ? ('采购信号 · 已拥有同型 ' + context.focusEntry.ownedCount)
-    : (context.hasAvailableSlot ? '现金流信号' : '席位信号');
+    ? ('购船情况 · 已拥有同型 ' + context.focusEntry.ownedCount)
+    : (context.hasAvailableSlot ? '预算状态' : '船位状态');
 
   return '<section class="hangar-shop-brief" aria-label="购船决策摘要">' +
-    '<div class="hangar-shop-brief-grid" role="list" aria-label="采购态势矩阵">' +
+    '<div class="hangar-shop-brief-grid" role="list" aria-label="采购状态概览">' +
       '<div class="hangar-shop-brief-cell" role="listitem"><span>可用信用积分</span><strong>' + context.credits.toLocaleString() + '</strong><small>' + _escapeHtml(budgetMeta) + '</small></div>' +
       '<div class="hangar-shop-brief-cell" role="listitem"><span>可采购</span><strong>' + context.affordableEntries.length + '/' + context.entries.length + '</strong><small>按当前预算计算</small></div>' +
       '<div class="hangar-shop-brief-cell" role="listitem"><span>席位</span><strong>' + slotText + '</strong><small>' + _escapeHtml(slotMeta) + '</small></div>' +
-      '<div class="hangar-shop-brief-cell" role="listitem"><span>航线等级</span><strong>Lv.' + context.routeLevel + '</strong><small>采购后沿用当前派遣等级</small></div>' +
+      '<div class="hangar-shop-brief-cell" role="listitem"><span>航线等级</span><strong>Lv.' + context.routeLevel + '</strong><small>购船后沿用当前跑商等级</small></div>' +
     '</div>' +
-    '<div class="hangar-shop-focus" aria-label="购船局部信号">' +
-      '<div><span>采购焦点</span><strong>' + _escapeHtml(focusTitle) + '</strong><small>' + _escapeHtml(focusBody) + '</small></div>' +
+    '<div class="hangar-shop-focus" aria-label="购船建议">' +
+      '<div><span>购船建议</span><strong>' + _escapeHtml(focusTitle) + '</strong><small>' + _escapeHtml(focusBody) + '</small></div>' +
       '<span class="hangar-shop-focus-badge">' + _escapeHtml(focusMeta) + '</span>' +
     '</div>' +
   '</section>';
@@ -1626,10 +1626,10 @@ function _renderShipShopSignalStrip(entry, context) {
     ? 'fleet-shop-status-pill--locked'
     : (entry.canAfford ? 'fleet-shop-status-pill--ready' : 'fleet-shop-status-pill--blocked');
 
-  return '<div class="fleet-shop-signal-strip" role="list" aria-label="' + _escapeHtml(entry.type.name) + '采购信号">' +
-    '<span role="listitem">定位 ' + _escapeHtml(entry.roleLabel) + '</span>' +
-    '<span role="listitem">航程指数 ' + entry.rangeValue + '</span>' +
-    '<span role="listitem">舱容增幅 +' + entry.cargoLift + '</span>' +
+  return '<div class="fleet-shop-signal-strip" role="list" aria-label="' + _escapeHtml(entry.type.name) + '购船信息">' +
+    '<span role="listitem">用途 ' + _escapeHtml(entry.roleLabel) + '</span>' +
+    '<span role="listitem">航程能力 ' + entry.rangeValue + '</span>' +
+    '<span role="listitem">货舱增加 +' + entry.cargoLift + '</span>' +
     '<span class="fleet-shop-status-pill ' + statusClass + '" role="listitem">' + _escapeHtml(statusText) + '</span>' +
   '</div>';
 }
@@ -1770,6 +1770,7 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
 
     var shipStats = Fleet.getEffectiveShipStats(state, ship);
     var maintenance = shipStats.maintenance || Fleet.getShipMaintenanceSummary(state, ship);
+    var operating = Fleet.getShipOperatingSummary(state, ship);
     var roleProfile = shipStats.roleProfile || Fleet.getShipRoleProfile(state, ship);
     var faults = shipStats.faults || Fleet.getShipFaultSummaries(ship);
     var modRecommendation = Fleet.getShipModRecommendation
@@ -1800,7 +1801,7 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
     var sellDisabledReason = null;
 
     if (state.fleet.length <= 1) sellDisabledReason = '至少保留一艘船。';
-    else if (ship.route) sellDisabledReason = '派遣中的飞船需先召回。';
+    else if (ship.route) sellDisabledReason = '跑商中的飞船需先召回。';
     else if (isActive) sellDisabledReason = '当前操控中的飞船需先切换到其他船只。';
 
     document.getElementById('mod-modal-title').textContent =
@@ -1817,7 +1818,9 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
     html += '<span class="mod-modal-overview-stat" role="listitem">船体缺口 ' + hullMissing + '</span>';
     html += '<span class="mod-modal-overview-stat" role="listitem">日常养护 ' + maintenance.upkeepCost + '/天</span>';
     html += '<span class="mod-modal-overview-stat" role="listitem">磨损 ' + maintenance.dailyDecay.toFixed(1) + '/天</span>';
-    html += '<span class="mod-modal-overview-stat' + (repairJob ? ' mod-modal-overview-stat--repair' : '') + '" role="listitem">' + _escapeHtml(repairJob ? _getRepairCountdownText(repairJob) : (ship.route ? '派遣中，需召回后维修' : '已停靠，可安排维修')) + '</span>';
+    html += '<span class="mod-modal-overview-stat" role="listitem">跑商实际盈亏 ' + (operating.net >= 0 ? '+' : '') + Math.round(operating.net).toLocaleString() + '</span>';
+    html += '<span class="mod-modal-overview-stat" role="listitem">完成循环 ' + operating.tradeCycles + '</span>';
+    html += '<span class="mod-modal-overview-stat' + (repairJob ? ' mod-modal-overview-stat--repair' : '') + '" role="listitem">' + _escapeHtml(repairJob ? _getRepairCountdownText(repairJob) : (ship.route ? '跑商中，需召回后维修' : '已停靠，可安排维修')) + '</span>';
     html += '</div>';
     html += _buildModModalSignalPanel({
       ship: ship,
@@ -1993,7 +1996,7 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
       html += '<span>船体缺口 ' + hullMissing + '</span>';
       html += '<span>故障 ' + faults.length + '</span>';
       html += '</div>';
-      html += '<div class="ship-repair-note">维修完成前该船无法派遣，当前操控船也无法出航。</div>';
+      html += '<div class="ship-repair-note">维修完成前该船无法自动跑商，当前操控船也无法出航。</div>';
     } else if (repairQuote) {
       html += '<div class="ship-repair-meta">';
       html += '<span>耗时 即时</span>';
@@ -2142,7 +2145,7 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
     : ((shipLocationSystem && shipLocationSystem.galaxyId) || state.currentGalaxy || 'milky_way');
 
   document.getElementById('dispatch-title').textContent =
-    '📡 ' + (isActive ? '一键自动派遣' : '一键派遣') + '「' + ship.emoji + ' ' + ship.name + '」';
+    '📡 ' + (isActive ? '自动跑商' : '设置跑商') + '「' + ship.emoji + ' ' + ship.name + '」';
 
   // 填充星系选择
   const buySelect  = document.getElementById('dispatch-buy-system');
@@ -2232,7 +2235,7 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
       summaryPolicyEl.textContent =
         _formatMarketModeLabel(tradePolicy.marketMode) + ' · ' +
         _formatRiskModeLabel(tradePolicy.riskMode) +
-        (hasWarnings ? ' · 等待策略' : '');
+        (hasWarnings ? ' · 等待设置调整' : '');
     }
     if (routeSummaryEl) {
       routeSummaryEl.dataset.routeState = estimate ? (hasWarnings ? 'waiting' : 'ready') : 'blocked';
@@ -2260,14 +2263,14 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
 
     if (!confirmBtn || !primaryHintEl) return;
 
-    confirmBtn.textContent = '一键派遣';
+    confirmBtn.textContent = '开始跑商';
     confirmBtn.disabled = !estimate || !policyValid;
     confirmBtn.setAttribute('aria-disabled', confirmBtn.disabled ? 'true' : 'false');
 
     if (!policyValid) {
       modal.dataset.dispatchState = 'invalid';
       primaryHintEl.className = 'dispatch-primary-hint dispatch-primary-hint--danger';
-      primaryHintEl.textContent = '高级策略中有无效阈值，修正后才能派遣。';
+      primaryHintEl.textContent = '可选设置里有无效数字，修正后才能开始。';
       return;
     }
 
@@ -2275,10 +2278,10 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
       modal.dataset.dispatchState = 'blocked';
       primaryHintEl.className = 'dispatch-primary-hint dispatch-primary-hint--warning';
       primaryHintEl.textContent = recommendation
-        ? '当前推荐路线暂不可直接使用，可展开高级策略调整后再试。'
+        ? '当前推荐路线暂不可用，可展开可选设置调整后再试。'
         : (hasExistingRoute
-            ? '当前路线缺少可用估算；可关闭窗口，或调整配置后重新派遣。'
-            : '当前暂无可直接派遣的推荐路线，可展开高级策略调整后再试。');
+            ? '当前路线缺少可用估算；可关闭窗口，或调整设置后重新计算。'
+            : '当前没有可直接使用的推荐路线，可展开可选设置调整后再试。');
       return;
     }
 
@@ -2286,18 +2289,18 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
       modal.dataset.dispatchState = 'ready';
       primaryHintEl.className = 'dispatch-primary-hint dispatch-primary-hint--ready';
       primaryHintEl.textContent = hasExistingRoute
-        ? '已载入当前最优路线，点击“一键派遣”可直接改派。'
-        : '已载入当前最优路线，点击“一键派遣”即可启动舰队派遣。';
+        ? '已载入当前最优路线，点击“开始跑商”可直接改派。'
+        : '已载入当前最优路线，点击“开始跑商”即可启动。';
       return;
     }
 
     modal.dataset.dispatchState = hasCustomPolicy ? 'custom' : 'manual';
     primaryHintEl.className = 'dispatch-primary-hint';
     primaryHintEl.textContent = hasCustomPolicy
-      ? '当前为手动微调后的策略，点击“一键派遣”将按当前配置执行。'
+      ? '当前使用手动设置，点击“开始跑商”将按这些设置执行。'
       : (hasExistingRoute
-          ? '当前显示的是已生效路线；修改后点击“一键派遣”可直接改派。'
-          : '当前显示的是手动路线；点击“一键派遣”将按当前配置执行。');
+          ? '当前显示正在使用的路线；修改后点击“开始跑商”即可改派。'
+          : '当前显示手动路线；点击“开始跑商”即可执行。');
   }
 
   function _formatSystemOptionLabel(system) {
@@ -2474,8 +2477,8 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
           : ' dispatch-policy-status--error');
       policyStatusEl.textContent = validation.valid
         ? (thresholdCount > 0
-            ? ('已启用 ' + thresholdCount + ' 项阈值；留空字段不限制。')
-            : '价格与利润阈值均未限制。')
+            ? ('已启用 ' + thresholdCount + ' 项价格限制；留空字段不限制。')
+            : '价格与利润均未设置额外限制。')
         : errors.join('；') + '。';
     }
 
@@ -2602,7 +2605,7 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
     var marketLabel = estimate.tradePolicy.marketMode === 'black' ? '黑市' : '公开';
     var riskModeLabel = _formatRiskModeLabel(estimate.tradePolicy.riskMode);
     var warningHtml = warnings.length > 0
-      ? '<div class="dispatch-estimate-note dispatch-estimate-note--warning">策略将等待：' + _escapeHtml(warnings.join('、')) + '</div>'
+      ? '<div class="dispatch-estimate-note dispatch-estimate-note--warning">当前设置会等待：' + _escapeHtml(warnings.join('、')) + '</div>'
       : '';
     var lossHtml = estimate.profit <= 0
       ? '<div class="dispatch-estimate-note dispatch-estimate-note--danger">亏损路线</div>'
@@ -2611,7 +2614,7 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
       ? '<div class="dispatch-estimate-head">推荐：' + _escapeHtml(recommendation.buySystemName) + ' → ' + _escapeHtml(recommendation.sellSystemName) + '（' + _escapeHtml(recommendation.goodName) + '）</div>'
       : '';
     var strategyHtml = dispatchProfile.strategyLabel
-      ? '<div class="dispatch-estimate-note">' + _escapeHtml((dispatchProfile.roleLabel || '标准派遣') + ' · ' + dispatchProfile.strategyLabel + '：' + (recommendation && recommendation.strategySummary ? recommendation.strategySummary.replace(/^.*：/, '') : (dispatchProfile.strategyNote || '按当前利润与风险偏好筛选路线。'))) + '</div>'
+      ? '<div class="dispatch-estimate-note">' + _escapeHtml((dispatchProfile.roleLabel || '默认跑商') + ' · ' + dispatchProfile.strategyLabel + '：' + (recommendation && recommendation.strategySummary ? recommendation.strategySummary.replace(/^.*：/, '') : (dispatchProfile.strategyNote || '按当前利润与避险程度筛选路线。'))) + '</div>'
       : '';
     var surveyIntelHtml = recommendation && recommendation.surveyIntelSummary
       ? '<div class="dispatch-estimate-note">' + _escapeHtml(recommendation.surveyIntelSummary) + '</div>'
@@ -2624,13 +2627,13 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
       recommendationHtml +
       strategyHtml +
       surveyIntelHtml +
-      '<div class="dispatch-estimate-main" role="list" aria-label="派遣估算指标">' +
+      '<div class="dispatch-estimate-main" role="list" aria-label="自动跑商估算">' +
         '<span class="dispatch-estimate-metric dispatch-estimate-highlight" role="listitem"><em>装载计划</em><strong>' + marketLabel + '买 ' + estimate.maxQty + ' 单位</strong></span>' +
         '<span class="dispatch-estimate-metric" role="listitem"><em>单次利润</em><strong>≈ ' + Math.floor(estimate.profit) + '</strong><small>积分</small></span>' +
         '<span class="dispatch-estimate-metric" role="listitem"><em>利润率</em><strong>' + Math.round(estimate.profitRate * 100) + '%</strong></span>' +
         '<span class="dispatch-estimate-metric" role="listitem"><em>航程燃料</em><strong>' + estimate.fuelCost + '</strong><small>单位</small></span>' +
         '<span class="dispatch-estimate-metric" role="listitem"><em>路线风险</em><strong>' + _escapeHtml(_formatRouteRiskLabel(riskAssessment.riskLevel)) + '</strong></span>' +
-        '<span class="dispatch-estimate-metric" role="listitem"><em>风险偏好</em><strong>' + riskModeLabel + '</strong></span>' +
+        '<span class="dispatch-estimate-metric" role="listitem"><em>避险程度</em><strong>' + riskModeLabel + '</strong></span>' +
       '</div>' +
       '<div class="dispatch-risk-grid" role="list" aria-label="路线风险明细">' +
         '<div class="dispatch-risk-item ' + (riskSummary.isHighEnforcement ? 'dispatch-risk-item--danger' : '') + '" role="listitem">' +
@@ -2659,7 +2662,7 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
     var recommendation = _getSuggestedRecommendation();
 
     if (!recommendation) {
-      estimateEl.textContent = '未找到符合当前策略的最优派遣路线。可展开高级策略调整后再试。';
+      estimateEl.textContent = '没有找到符合当前设置的跑商路线。可展开可选设置调整后再试。';
       _updateRouteSummary(null, []);
       _updatePrimaryHint(null, null);
       return null;
@@ -2674,7 +2677,7 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
   function _updateEstimate(recommendation) {
     var policyValidation = _validateTradePolicyInputs();
     if (!policyValidation.valid) {
-      estimateEl.textContent = '请先修正高级策略中的无效阈值，再查看路线估算。';
+      estimateEl.textContent = '请先修正可选设置中的无效数字，再查看路线估算。';
       _updateRouteSummary(null, []);
       if (summaryPolicyEl) {
         summaryPolicyEl.textContent =
@@ -2688,8 +2691,8 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
     var suggestedRecommendation = recommendation || null;
     if (!estimate) {
       estimateEl.textContent = recommendation
-        ? '当前推荐路线暂不可直接派遣，可调整策略后再试。'
-        : '当前配置无法组成可执行的派遣路线。';
+        ? '当前推荐路线暂不能开始，可调整设置后再试。'
+        : '当前设置无法组成可执行的自动跑商路线。';
       _updateRouteSummary(null, []);
       _updatePrimaryHint(null, suggestedRecommendation, policyValidation);
       return;
@@ -2699,8 +2702,8 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
 
     if (Number.isFinite(estimate.tradePolicy.maxBuyPrice) && estimate.buyPrice > estimate.tradePolicy.maxBuyPrice) warnings.push('买入价高于上限');
     if (Number.isFinite(estimate.tradePolicy.minSellPrice) && estimate.sellPrice < estimate.tradePolicy.minSellPrice) warnings.push('卖出价低于下限');
-    if (Number.isFinite(estimate.tradePolicy.minProfitRate) && estimate.profitRate < estimate.tradePolicy.minProfitRate) warnings.push('利润率低于阈值');
-    if (estimate.tradePolicy.riskMode === 'safe' && riskAssessment.riskLevel !== 'low') warnings.push('风险偏好将规避此路线');
+    if (Number.isFinite(estimate.tradePolicy.minProfitRate) && estimate.profitRate < estimate.tradePolicy.minProfitRate) warnings.push('利润率低于要求');
+    if (estimate.tradePolicy.riskMode === 'safe' && riskAssessment.riskLevel !== 'low') warnings.push('谨慎模式会避开这条路线');
     if (estimate.tradePolicy.marketMode === 'black' && !Faction.canAccessBlackMarket(state, estimate.buyId)) warnings.push('黑市买入权限不足');
 
     _updateRouteSummary(estimate, warnings);

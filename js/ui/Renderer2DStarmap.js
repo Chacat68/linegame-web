@@ -500,7 +500,7 @@ function _drawRouteDescriptors(ctx, state, time) {
         alpha: 0.62,
         width: 1.8,
         dash: [7, 7],
-        label: index < 2 ? '暗线' : '',
+        label: index < 2 ? '隐藏航线' : '',
         time,
       });
     });

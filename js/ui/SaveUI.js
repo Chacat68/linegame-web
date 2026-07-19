@@ -55,22 +55,22 @@ function _buildSaveWorkspaceContext(slots) {
     : (!autoSlot || autoSlot.isEmpty || autoSlot.isCorrupted ? 'warning' : 'ready');
   let focusTitle = '本地备份稳定';
   let focusBody = '自动存档与手动槽位可用于快速恢复。';
-  let focusMeta = '局部信号';
+  let focusMeta = '当前建议';
 
   if (corruptedSlots.length > 0) {
     focusTitle = '发现异常槽位';
     focusBody = '异常槽位 ' + corruptedSlots.map(function (slot) { return _formatSlotLabel(slot); }).join('、') + '，读取前需覆盖或删除。';
-    focusMeta = '风险信号';
+    focusMeta = '风险提醒';
   } else if (!autoSlot || autoSlot.isEmpty || autoSlot.isCorrupted) {
     focusTitle = '自动备份缺失';
     focusBody = readySlots.length > 0
       ? '自动槽位不可用，迁移区已改用最近的有效手动槽位。'
       : '当前没有可用于导出的有效存档，请先写入手动槽位。';
-    focusMeta = '迁移信号';
+    focusMeta = '导出状态';
   } else if (emptyManualSlots.length > 0) {
     focusTitle = '手动槽位可写入';
-    focusBody = '空槽位 ' + emptyManualSlots.map(function (slot) { return _formatSlotLabel(slot); }).join('、') + ' 可用于保留关键节点。';
-    focusMeta = '容量信号';
+    focusBody = '空槽位 ' + emptyManualSlots.map(function (slot) { return _formatSlotLabel(slot); }).join('、') + ' 可用于保留重要进度。';
+    focusMeta = '容量状态';
   }
 
   return {
@@ -97,20 +97,20 @@ function _renderSaveSafetyPanel(context) {
     : '等待自动或手动写入';
   const exportState = context.ready > 0 ? (context.ready + ' 个槽位可导出') : '暂无可导出槽位';
 
-  return '<section class="save-safety-panel save-safety-panel--' + _escapeHtml(context.signalTone) + '" aria-label="存档安全态势">' +
+  return '<section class="save-safety-panel save-safety-panel--' + _escapeHtml(context.signalTone) + '" aria-label="存档安全状态">' +
     '<div class="save-safety-copy">' +
-      '<span>LOCAL SAVE SIGNAL</span>' +
-      '<strong>存档安全态势</strong>' +
+      '<span>存档安全</span>' +
+      '<strong>存档安全状态</strong>' +
       '<p>最近备份、异常槽位和迁移可用性集中在这里。</p>' +
     '</div>' +
     '<div class="save-safety-grid" role="list" aria-label="存档安全指标">' +
       '<div class="save-safety-cell" role="listitem"><span>最近备份</span><strong>' + _escapeHtml(latestLabel) + '</strong><small>' + _escapeHtml(latestDetail) + '</small></div>' +
       '<div class="save-safety-cell" role="listitem"><span>可读取</span><strong>' + context.ready + '/' + context.total + '</strong><small>' + _escapeHtml(exportState) + '</small></div>' +
-      '<div class="save-safety-cell" role="listitem"><span>空手动槽</span><strong>' + context.emptyManual + '</strong><small>可保留关键节点</small></div>' +
+      '<div class="save-safety-cell" role="listitem"><span>空手动槽</span><strong>' + context.emptyManual + '</strong><small>可保留重要进度</small></div>' +
       '<div class="save-safety-cell save-safety-cell--risk" role="listitem"><span>异常</span><strong>' + context.corrupted + '</strong><small>损坏槽位需要处理</small></div>' +
     '</div>' +
-    '<div class="save-safety-focus" aria-label="存档局部信号">' +
-      '<div><span>局部信号</span><strong>' + _escapeHtml(context.focusTitle) + '</strong><small>' + _escapeHtml(context.focusBody) + '</small></div>' +
+    '<div class="save-safety-focus" aria-label="存档建议">' +
+      '<div><span>当前建议</span><strong>' + _escapeHtml(context.focusTitle) + '</strong><small>' + _escapeHtml(context.focusBody) + '</small></div>' +
       '<span class="save-safety-focus-badge">' + _escapeHtml(context.focusMeta) + '</span>' +
     '</div>' +
   '</section>';

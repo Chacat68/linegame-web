@@ -603,7 +603,7 @@ export const RANDOM_EVENTS = [
     risk: 'risky',
     protection: { avoidWhenLowFuel: true },
     title: '神秘信号',
-    description: '你的长波接收器捕获到了一段加密信号。经过初步解析，这似乎是一条来自银河系外缘的坐标数据。信号格式与已知文明的通讯协议都不匹配。这究竟是谁发出的？',
+    description: '你的长波接收器捕获到了一段加密信号。经过初步解析，这似乎是一条来自银河系外缘的坐标数据。信号格式与已知文明的通讯方式都不匹配。这究竟是谁发出的？',
     icon: '📡',
     weight: 5,
     choices: [

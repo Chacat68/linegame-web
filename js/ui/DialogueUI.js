@@ -327,7 +327,7 @@ function _renderDialogueBranchPanel(panelEl, totalSteps, activeIndex) {
   panelEl.innerHTML = '';
   if (Array.isArray(panelEl.children)) panelEl.children.length = 0;
   panelEl.setAttribute('role', 'list');
-  panelEl.setAttribute('aria-label', '剧情分支态势');
+  panelEl.setAttribute('aria-label', '剧情分支状态');
 
   [
     { label: '段落', value: String(Math.min(totalSteps, activeIndex + 1)) + ' / ' + String(totalSteps), note: _activeLines === _mainLines ? '主线通讯' : '回应通讯' },

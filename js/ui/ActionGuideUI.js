@@ -25,12 +25,12 @@ function _getCommandIntent(suggestion) {
       return '任务列表';
     case 'market.open':
     case 'market.focus':
-      return '现货交易区';
+      return '买卖货物';
     case 'trade.buy':
     case 'trade.sell':
       return '交易确认';
     case 'map.focus':
-      return '航线定位';
+      return '航线选择';
     case 'travel.execute':
       return '自动航行';
     case 'trade.refuel':
@@ -38,13 +38,13 @@ function _getCommandIntent(suggestion) {
     case 'event.open':
       return '事件处理';
     case 'fleet.dispatch.prefill':
-      return '派遣预填';
+      return '设置跑商路线';
     case 'fleet.mod.open':
       return '模块改装';
     case 'fleet.service.open':
       return '维修船坞';
     case 'exploration.poi':
-      return 'POI 调查';
+      return '调查探索点';
     default:
       return '';
   }

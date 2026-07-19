@@ -86,7 +86,7 @@ export function openTradeModal(action, good, state, marketType, options) {
   document.getElementById('modal-title').textContent =
     (isBlack ? '🕶 ' : '') + (action === 'buy' ? '💰 购买 ' : '💸 出售 ') + good.emoji + ' ' + good.name;
   document.getElementById('modal-desc').textContent =
-    (isBlack ? '黑市成交会按当前节点价格即时结算。' : '成交会按当前节点公开价格即时结算。') +
+    (isBlack ? '黑市成交会按当前地点价格立即完成。' : '成交会按当前地点公开价格立即完成。') +
     ' 请核对数量、货舱和资金变化。';
   _setText('modal-kicker', isBlack ? '黑市交易' : '公开市场');
   _setText('modal-unit-price', price.toLocaleString() + ' 积分');

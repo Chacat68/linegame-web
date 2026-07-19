@@ -13,23 +13,23 @@ export function setAdvancedGuidanceProvider(provider) {
 }
 
 export const GUIDANCE_PRIORITY_BANDS = {
-  critical: { id: 'critical', label: '阻塞优先', minPriority: 90 },
-  core: { id: 'core', label: '主线闭环', minPriority: 50 },
+  critical: { id: 'critical', label: '先处理问题', minPriority: 90 },
+  core: { id: 'core', label: '当前主线', minPriority: 50 },
   recovery: { id: 'recovery', label: '整备恢复', minPriority: 34 },
-  midgame: { id: 'midgame', label: '中期专题', minPriority: 19 },
-  ambient: { id: 'ambient', label: '机会提示', minPriority: 0 },
+  midgame: { id: 'midgame', label: '进阶经营', minPriority: 19 },
+  ambient: { id: 'ambient', label: '可选机会', minPriority: 0 },
 };
 
 export const GUIDANCE_TOPICS = {
-  starterTrade: { id: 'starter-trade', label: '贸易入门链', stageLabel: '基础链路' },
-  starterExplore: { id: 'starter-explore', label: '探索入门链', stageLabel: '基础链路' },
-  stability: { id: 'stability', label: '整备保障链', stageLabel: '阻塞解除' },
-  researchSupply: { id: 'research-supply', label: '科研补给链', stageLabel: '中期专题' },
-  dispatchOps: { id: 'dispatch-ops', label: '派遣经营链', stageLabel: '中期专题' },
-  surveyIntel: { id: 'survey-intel', label: '勘探情报链', stageLabel: '中期专题' },
-  tradeNetwork: { id: 'trade-network', label: '商网建设链', stageLabel: '中期专题' },
-  capitalRisk: { id: 'capital-risk', label: '资本风控链', stageLabel: '中期专题' },
-  companyGrowth: { id: 'company-growth', label: '公司成长链', stageLabel: '长期目标' },
+  starterTrade: { id: 'starter-trade', label: '贸易入门', stageLabel: '入门' },
+  starterExplore: { id: 'starter-explore', label: '探索入门', stageLabel: '入门' },
+  stability: { id: 'stability', label: '补给与维修', stageLabel: '先处理' },
+  researchSupply: { id: 'research-supply', label: '科研补给', stageLabel: '进阶' },
+  dispatchOps: { id: 'dispatch-ops', label: '自动跑商', stageLabel: '进阶' },
+  surveyIntel: { id: 'survey-intel', label: '探索线索', stageLabel: '进阶' },
+  tradeNetwork: { id: 'trade-network', label: '贸易站发展', stageLabel: '进阶' },
+  capitalRisk: { id: 'capital-risk', label: '贷款管理', stageLabel: '进阶' },
+  companyGrowth: { id: 'company-growth', label: '公司成长', stageLabel: '长期目标' },
 };
 const BLOCKING_SUGGESTION_IDS = new Set([
   'handle-pending-event',
@@ -167,18 +167,18 @@ function _getPoiName(nextPoi) {
 
 function _getPoiChainReason(nextPoi) {
   if (!nextPoi || !nextPoi.chainKind) {
-    return '调查结论会写入勘探报告，并可能影响贸易、航线或科研收益。';
+    return '调查结论会写入探索报告，并可能影响交易、航线或研究。';
   }
   if (nextPoi.chainKind === 'ancient_relic') {
-    return '古代遗迹样本可推进科研，并写入后续科研补给与派遣判断。';
+    return '古代遗迹样本可推进科研，并帮助安排后续科研补给与自动跑商。';
   }
   if (nextPoi.chainKind === 'lost_beacon') {
-    return '失落航标可能重启暗线航图，降低后续旅行和派遣燃料压力。';
+    return '失落航标可能重启隐藏航线，降低后续旅行和自动跑商的燃料压力。';
   }
   if (nextPoi.chainKind === 'derelict_depot') {
-    return '废弃补给站可复原后勤信号，影响商网站点策略和派遣整备判断。';
+    return '废弃补给站可恢复补给信息，帮助判断贸易站经营方式和自动跑商维护需求。';
   }
-  return '调查结论会写入勘探报告，并可能影响贸易、航线或科研收益。';
+  return '调查结论会写入探索报告，并可能影响交易、航线或研究。';
 }
 
 function _shouldOfferResearchSupply(researchSupplyRoute) {
@@ -204,7 +204,7 @@ function _shouldOfferDispatchRoute(dispatchRouteRecommendation) {
 }
 
 function _getDispatchRouteReason(dispatchRouteRecommendation) {
-  if (!dispatchRouteRecommendation) return '当前已有可执行商运路线，可先带入机库确认派遣参数。';
+  if (!dispatchRouteRecommendation) return '当前已有可执行商运路线，可先带入机库确认跑商设置。';
   var routeText = (dispatchRouteRecommendation.buySystemName || dispatchRouteRecommendation.buySystemId || '买入地') +
     ' → ' +
     (dispatchRouteRecommendation.sellSystemName || dispatchRouteRecommendation.sellSystemId || '卖出地');
@@ -260,9 +260,9 @@ function _getRepairSuggestionReason(serviceStatus) {
   var quote = serviceStatus && serviceStatus.repairQuote ? serviceStatus.repairQuote : {};
   var hullRatio = Number.isFinite(serviceStatus && serviceStatus.hullRatio) ? serviceStatus.hullRatio : 1;
   if (_hasMaintenancePressure(serviceStatus) && (quote.faultCount || 0) <= 0 && hullRatio > 0.75) {
-    return '激活飞船维护度已降至 ' + Math.round(_getServiceMaintenanceValue(serviceStatus)) + '%，先入坞维修可避免燃耗、事件和派遣稳定性继续恶化。';
+    return '当前飞船维护度已降至 ' + Math.round(_getServiceMaintenanceValue(serviceStatus)) + '%，先入坞维修可避免燃耗、事件和自动跑商稳定性继续恶化。';
   }
-  return '当前船况已影响后续派遣和航行稳定性，先进入机库确认维修方案。';
+  return '当前船况已影响自动跑商和航行稳定性，先进入机库确认维修方案。';
 }
 
 function _shouldOfferModRecommendation(modRecommendation) {
@@ -305,16 +305,16 @@ function _shouldOfferSurveyChainFollowup(surveyIntel) {
 }
 
 function _getSurveyIntelReason(surveyIntel) {
-  if (!surveyIntel) return '勘探报告已经归档，先查看它对交易和派遣的影响。';
+  if (!surveyIntel) return '探索报告已经归档，先查看它对交易和跑商的影响。';
   if (surveyIntel.nextChainFollowup && surveyIntel.nextChainFollowup.reason) return surveyIntel.nextChainFollowup.reason;
-  if (surveyIntel.beaconSignal) return '失落航标已写入暗线航图，可用于后续航线和派遣判断。';
+  if (surveyIntel.beaconSignal) return '失落航标已写入隐藏航线图，可用于后续航线和自动跑商。';
   if (surveyIntel.relicSignal) return '古代遗迹样本已经归档，可用于判断后续研究补给方向。';
-  if (surveyIntel.depotSignal) return '废弃补给站已经复原，可用于后续派遣和商网经营。';
-  if (surveyIntel.marketSignal) return '勘探报告已经形成贸易窗口，先查看行情分区再决定买卖或建站。';
-  if (surveyIntel.routeSignal) return '勘探报告包含暗线航图，可用于后续航线和派遣判断。';
-  if (surveyIntel.researchSignal) return '勘探报告包含科研样本，可用于判断后续研究补给方向。';
-  if (surveyIntel.logisticsSignal) return '勘探报告指出补给节点，可用于后续派遣和商网经营。';
-  return '勘探报告已经归档，先查看它对交易和派遣的影响。';
+  if (surveyIntel.depotSignal) return '废弃补给站已经复原，可用于后续自动跑商和商网经营。';
+  if (surveyIntel.marketSignal) return '探索报告发现了交易机会，先查看行情再决定买卖或建站。';
+  if (surveyIntel.routeSignal) return '探索报告包含隐藏航线，可用于后续航行和跑商。';
+  if (surveyIntel.researchSignal) return '探索报告包含研究样本，可帮助选择后续研究。';
+  if (surveyIntel.logisticsSignal) return '探索报告指出补给点，可用于后续跑商和贸易站经营。';
+  return '探索报告已经归档，先查看它对交易和跑商的影响。';
 }
 
 function _getPriorityBand(suggestion) {
@@ -343,32 +343,32 @@ function _inferGuidanceTopic(suggestion) {
   var id = suggestion && suggestion.id ? suggestion.id : '';
   var actionType = suggestion && suggestion.actionType ? suggestion.actionType : '';
 
-  if (id === 'accept-first-trade') return _getTopic('starterTrade', '接入委托');
-  if (id === 'buy-low-price-good' || id === 'open-market-for-first-trade') return _getTopic('starterTrade', '建立仓位');
+  if (id === 'accept-first-trade') return _getTopic('starterTrade', '领取任务');
+  if (id === 'buy-low-price-good' || id === 'open-market-for-first-trade') return _getTopic('starterTrade', '买入货物');
   if (id === 'sell-first-cargo' || id === 'find-sell-destination') return _getTopic('starterTrade', '完成结算');
   if (id === 'accept-first-explore') return _getTopic('starterExplore', '接入探索');
-  if (id === 'explore-current-poi') return _getTopic('starterExplore', '调查 POI');
+  if (id === 'explore-current-poi') return _getTopic('starterExplore', '调查探索点');
 
-  if (id === 'handle-pending-event') return _getTopic('stability', '处理阻塞');
+  if (id === 'handle-pending-event') return _getTopic('stability', '处理事件');
   if (id === 'refuel-low-tank') return _getTopic('stability', '燃料补给');
   if (id === 'service-active-ship') return _getTopic('stability', '维修整备');
   if (id === 'fund-ship-service') return _getTopic('stability', '资金周转');
 
-  if (id === 'prefill-research-supply-dispatch') return _getTopic('researchSupply', '派遣补给');
+  if (id === 'prefill-research-supply-dispatch') return _getTopic('researchSupply', '自动补给');
   if (id === 'resolve-research-funding') return _getTopic('researchSupply', '筹措垫资');
 
   if (id === 'prefill-profitable-dispatch') return _getTopic('dispatchOps', '预填商运');
   if (id === 'install-recommended-ship-mod') return _getTopic('dispatchOps', '强化舰船');
 
-  if (id === 'review-survey-chain-followup') return _getTopic('surveyIntel', '事件链跟进');
-  if (id === 'review-survey-market-intel') return _getTopic('surveyIntel', '查看信号');
+  if (id === 'review-survey-chain-followup') return _getTopic('surveyIntel', '跟进连续任务');
+  if (id === 'review-survey-market-intel') return _getTopic('surveyIntel', '查看线索');
 
-  if (id === 'build-trade-station') return _getTopic('tradeNetwork', '新建节点');
-  if (id === 'upgrade-trade-station') return _getTopic('tradeNetwork', '升级节点');
+  if (id === 'build-trade-station') return _getTopic('tradeNetwork', '新建贸易站');
+  if (id === 'upgrade-trade-station') return _getTopic('tradeNetwork', '升级贸易站');
   if (id === 'batch-upgrade-trade-stations') return _getTopic('tradeNetwork', '批量升级');
-  if (id === 'batch-invest-trade-stations') return _getTopic('tradeNetwork', '资本增配');
+  if (id === 'batch-invest-trade-stations') return _getTopic('tradeNetwork', '追加投资');
   if (id === 'batch-hire-trade-station-manager') return _getTopic('tradeNetwork', '批量派驻');
-  if (id === 'batch-set-trade-station-strategy') return _getTopic('tradeNetwork', '同步策略');
+  if (id === 'batch-set-trade-station-strategy') return _getTopic('tradeNetwork', '同步经营方式');
 
   if (id === 'review-loan-obligation') return _getTopic('capitalRisk', '贷款复核');
 
@@ -495,7 +495,7 @@ export function getCurrentSuggestion(state, options) {
       id: 'handle-pending-event',
       priority: 110,
       title: '处理待处理事件',
-      reason: '事件会阻塞航行与跨界面操作，先处理完再继续当前路线。',
+      reason: '这个事件会暂停航行和其他操作，先处理完再继续当前路线。',
       actionLabel: '查看事件',
       actionType: 'event.open',
       payload: {},
@@ -504,12 +504,15 @@ export function getCurrentSuggestion(state, options) {
   }
 
   if (activeQuests.length === 0 && firstTradeAvailable && !_isQuestCompleted(state, FIRST_TRADE_QUEST_ID)) {
+    var hasCompletedTutorialTrade = (state.tradeCount || 0) > 0;
     suggestions.push(_createSuggestion({
       id: 'accept-first-trade',
       priority: 100,
-      title: '接取「初次交易」',
-      reason: '完成第一笔买卖，建立基础贸易节奏。',
-      actionLabel: '接取任务',
+      title: hasCompletedTutorialTrade ? '登记首轮交易' : '接取「初次交易」',
+      reason: hasCompletedTutorialTrade
+        ? '刚完成的市场交易已满足委托，登记后会立即结算首单奖励。'
+        : '完成第一笔买卖，建立基础贸易节奏。',
+      actionLabel: hasCompletedTutorialTrade ? '登记并结算' : '接取任务',
       actionType: 'quest.accept',
       payload: { questId: FIRST_TRADE_QUEST_ID },
       surface: 'quest',
@@ -522,7 +525,7 @@ export function getCurrentSuggestion(state, options) {
       id: 'refuel-low-tank',
       priority: 95,
       title: '补足当前燃料',
-      reason: '燃料已低于安全线，先补给可以避免下一段航行被阻塞。',
+      reason: '燃料已低于安全线，先补给可以避免下一段航行无法出发。',
       actionLabel: '补充燃料',
       actionType: 'trade.refuel',
       payload: {
@@ -562,7 +565,7 @@ export function getCurrentSuggestion(state, options) {
         subworkspaceId: 'trade',
       },
       surface: 'market',
-      commandIntent: '现货交易区',
+      commandIntent: '买卖货物',
     }));
   }
 
@@ -571,7 +574,7 @@ export function getCurrentSuggestion(state, options) {
       id: 'buy-low-price-good',
       priority: 90,
       title: '买入「' + lowPriceGood.goodName + '」',
-      reason: '当前价格偏低，适合打开确认单建仓推进交易目标。',
+      reason: '当前价格偏低，适合打开确认单买入并推进交易目标。',
       actionLabel: '确认买入',
       actionType: 'trade.buy',
       payload: {
@@ -624,9 +627,9 @@ export function getCurrentSuggestion(state, options) {
         priority: 60,
         title: destination ? ('前往「' + destination.name + '」卖货') : '寻找卖出目的地',
         reason: opts.eventPending
-          ? '先定位更好的卖货点；当前有待处理事件，处理后再起航。'
+          ? '先找一个更好的卖货点；当前有待处理事件，处理后再起航。'
           : '选择需求更高的星球，获得更好利润。',
-        actionLabel: canDirectTravel ? '直接前往' : (destination ? '定位卖货点' : '查看星图'),
+        actionLabel: canDirectTravel ? '直接前往' : (destination ? '查找卖货点' : '查看星图'),
         actionType: canDirectTravel ? 'travel.execute' : 'map.focus',
         payload: {
           goodId: cargoEntry.goodId,
@@ -655,8 +658,8 @@ export function getCurrentSuggestion(state, options) {
     suggestions.push(_createSuggestion({
       id: 'prefill-research-supply-dispatch',
       priority: 24,
-      title: '规划科研补给派遣',
-      reason: '当前研究已有可执行补给路线，可交给激活飞船派遣推进中期成长。',
+      title: '规划科研自动补给',
+      reason: '当前研究已有可执行补给路线，可交给当前飞船自动完成。',
       actionLabel: '带入机库',
       actionType: 'fleet.dispatch.prefill',
       payload: {
@@ -678,7 +681,7 @@ export function getCurrentSuggestion(state, options) {
         subworkspaceId: 'trade',
       },
       surface: 'market',
-      commandIntent: '现货交易区',
+      commandIntent: '买卖货物',
     }));
   }
 
@@ -686,12 +689,12 @@ export function getCurrentSuggestion(state, options) {
     suggestions.push(_createSuggestion({
       id: 'prefill-profitable-dispatch',
       priority: 23,
-      title: '规划「' + (opts.dispatchRouteRecommendation.goodName || opts.dispatchRouteRecommendation.goodId || '商品') + '」派遣',
+      title: '规划「' + (opts.dispatchRouteRecommendation.goodName || opts.dispatchRouteRecommendation.goodId || '商品') + '」自动跑商',
       reason: _getDispatchRouteReason(opts.dispatchRouteRecommendation),
       actionLabel: '带入机库',
       actionType: 'fleet.dispatch.prefill',
       payload: {
-        sourceLabel: '派遣策略建议',
+        sourceLabel: '跑商路线建议',
         recommendation: opts.dispatchRouteRecommendation,
       },
       surface: 'fleet',
@@ -717,13 +720,13 @@ export function getCurrentSuggestion(state, options) {
         chainLabel: chainFollowup.chainLabel || '',
       },
       surface: 'market',
-      commandIntent: chainFollowup.chainKind === 'derelict_depot' ? '事件链商网' : '事件链情报',
+      commandIntent: chainFollowup.chainKind === 'derelict_depot' ? '连续任务经营' : '连续任务线索',
     }));
   } else if (_shouldOfferSurveyIntel(opts.surveyIntel)) {
     suggestions.push(_createSuggestion({
       id: 'review-survey-market-intel',
       priority: 32,
-      title: '查看「' + (opts.surveyIntel.recentReportTitle || '勘探报告') + '」',
+      title: '查看「' + (opts.surveyIntel.recentReportTitle || '探索报告') + '」',
       reason: _getSurveyIntelReason(opts.surveyIntel),
       actionLabel: '查看行情',
       actionType: 'market.open',
@@ -734,7 +737,7 @@ export function getCurrentSuggestion(state, options) {
         intelSignal: opts.surveyIntel.primarySignal || '',
       },
       surface: 'market',
-      commandIntent: '市场情报区',
+      commandIntent: '行情与路线',
     }));
   }
 

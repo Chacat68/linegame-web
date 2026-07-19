@@ -26,11 +26,14 @@ function _ensureSurfaceObserver() {
  */
 export function showEvent(event, onChoice) {
   _ensureSurfaceObserver();
-  bindBlockingSurfaceDismiss('event-modal');
+  bindBlockingSurfaceDismiss('event-modal', {
+    closeOnBackdrop: false,
+    closeOnEscape: false,
+  });
   // 如果有通知条，先隐藏
   hideEventNotificationBar();
-  _pendingEvent = null;
-  _pendingOnChoice = null;
+  _pendingEvent = event;
+  _pendingOnChoice = onChoice;
 
   const modal = document.getElementById('event-modal');
   if (modal) {
@@ -96,6 +99,8 @@ export function showEvent(event, onChoice) {
     btn.addEventListener('click', function () {
       if (choiceCommitted) return;
       choiceCommitted = true;
+      _pendingEvent = null;
+      _pendingOnChoice = null;
       choicesDiv.setAttribute('aria-busy', 'true');
       if (modal) modal.dataset.eventState = 'resolving';
       choiceButtons.forEach(function (choiceButton) {
@@ -262,7 +267,7 @@ function _renderEventImpact(event, choices) {
   impactEl.setAttribute('aria-label', '事件影响预览');
 
   [
-    { label: '风险信号', value: _getRiskLabel(event && event.risk), note: _getStageLabel(event && event.stage) },
+    { label: '风险程度', value: _getRiskLabel(event && event.risk), note: _getStageLabel(event && event.stage) },
     { label: '后续', value: chainLabel, note: event && event.chainDelay ? String(event.chainDelay) + ' 天窗口' : '即时结算' },
     { label: '资源压力', value: pressureLabel, note: firstHint ? firstHint.tooltip : '无明确资源消耗' },
     { label: '处置数量', value: String(Math.max(1, safeChoices.length)) + ' 项', note: '选择后关闭事件简报' },
@@ -313,7 +318,7 @@ function _renderMeta(event) {
 
   if (event.stage === 'chain' || event.chainFollowUp) {
     tags.push({
-      text: event.stage === 'chain' ? '事件链后续' : '可能引发后续事件',
+      text: event.stage === 'chain' ? '连续任务后续' : '可能引发后续事件',
       className: 'event-tag event-tag-chain',
     });
   }

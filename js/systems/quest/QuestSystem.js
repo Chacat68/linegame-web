@@ -208,7 +208,7 @@ const STORY_ROUTE_QUEST_EFFECTS = {
     },
     reign_tech_monopoly: {
       creditsMultiplier: 1.15,
-      bonusText: '高风险探索：科技套利窗口扩大',
+      bonusText: '高风险探索：科技商品价差扩大',
     },
     legend_profit_50000: {
       creditsMultiplier: 1.15,
@@ -885,7 +885,7 @@ function _buildRoutePreviewNote(baseNote, blockedReason, routeInfo, isCurrentSys
   var details = [];
   if (baseNote) details.push(baseNote);
   if (routeInfo && routeInfo.active && !isCurrentSystem) {
-    details.push('已发现暗线「' + routeInfo.label + '」，本次预计节省约 ' + Math.round((1 - routeInfo.fuelMultiplier) * 100) + '% 燃料。');
+    details.push('已发现隐藏航线「' + routeInfo.label + '」，本次预计节省约 ' + Math.round((1 - routeInfo.fuelMultiplier) * 100) + '% 燃料。');
   }
   return details.join(' ');
 }
@@ -1382,7 +1382,9 @@ function _updateObjective(obj, ctx, state) {
       break;
 
     case 'trade_count':
-      if (ctx.action === 'buy' || ctx.action === 'sell') {
+      if (ctx.action === 'accept_quest') {
+        obj.current = Math.min(obj.amount, Math.max(obj.current || 0, state.tradeCount || 0));
+      } else if (ctx.action === 'buy' || ctx.action === 'sell') {
         obj.current = Math.min(obj.amount, obj.current + 1);
       }
       break;

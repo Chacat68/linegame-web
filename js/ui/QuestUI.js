@@ -81,7 +81,7 @@ function _getQuestActionContext(quest, state) {
   var targets = _questTargetSystems(quest);
   if (targets.length === 0) {
     return {
-      label: '当前航线可推进',
+      label: '现在就能做',
       tone: 'ready',
       detail: '无需指定目的地，接取后在现有贸易或航行中就会开始累计进度。',
     };
@@ -244,8 +244,8 @@ function _renderQuestRoutePreview(routePreview, options) {
 
   options = options || {};
   var compact = !!options.compact;
-  var title = options.title || '航线预估';
-  var caption = options.caption || '基于当前停靠点测算';
+  var title = options.title || '路程与燃料';
+  var caption = options.caption || '从当前位置计算';
   var items = routePreview.items.slice(0, compact ? 2 : routePreview.items.length);
   var containerClass = 'quest-route-preview' + (compact ? ' is-compact' : '');
 
@@ -258,7 +258,7 @@ function _renderQuestRoutePreview(routePreview, options) {
       var tags = [
         item.isPrimary ? '<span class="quest-route-tag quest-route-tag-primary">当前步骤</span>' : '',
         item.isCurrentSystem ? '<span class="quest-route-tag quest-route-tag-current">当前停靠</span>' : '',
-        item.hasSecretRoute ? '<span class="quest-route-tag quest-route-tag-secret">暗线 -' + item.discountPercent + '%</span>' : '',
+        item.hasSecretRoute ? '<span class="quest-route-tag quest-route-tag-secret">隐藏航线 -' + item.discountPercent + '%</span>' : '',
       ].filter(Boolean).join('');
 
       return '<div class="quest-route-stop' +
@@ -304,11 +304,11 @@ function _renderQuestDispatchRecommendation(recommendation, canApplyQuestDispatc
       : '低';
   var roleLabel = recommendation.dispatchProfile && recommendation.dispatchProfile.roleLabel
     ? recommendation.dispatchProfile.roleLabel
-    : '标准派遣';
+    : '默认跑商';
 
   return '<div class="quest-dispatch-card">' +
     '<div class="quest-dispatch-head">' +
-      '<div class="quest-dispatch-title">📡 任务派遣建议</div>' +
+      '<div class="quest-dispatch-title">📡 任务路线建议</div>' +
       '<div class="quest-dispatch-caption">当前优先目标 · ' + recommendation.questName + '</div>' +
     '</div>' +
     '<div class="quest-dispatch-main">' + _systemName(recommendation.buySystemId) + ' → ' + _systemName(recommendation.sellSystemId) + ' · ' + _goodName(recommendation.goodId) + '</div>' +
@@ -321,12 +321,12 @@ function _renderQuestDispatchRecommendation(recommendation, canApplyQuestDispatc
     '<div class="quest-dispatch-note">' + roleLabel + ' · ' + recommendation.strategySummary + (recommendation.tradeThemeSummary ? ' · ' + recommendation.tradeThemeSummary : '') + '</div>' +
     (canApplyQuestDispatch
       ? '<div class="quest-dispatch-actions">' +
-          '<button type="button" class="quest-dispatch-apply-btn command-action-btn" data-command-surface="fleet" data-command-intent="任务派遣" data-command-verb="带入机库派遣">' +
+          '<button type="button" class="quest-dispatch-apply-btn command-action-btn" data-command-surface="fleet" data-command-intent="任务路线" data-command-verb="带入机库">' +
             renderCommandActionContent({
               actionId: 'dispatch',
-              label: '带入机库派遣',
+              label: '带入机库',
               commandSurface: 'fleet',
-              commandIntent: '任务派遣',
+              commandIntent: '任务路线',
             }, _escapeHtml) +
           '</button>' +
           '<span class="quest-dispatch-action-hint">切到机库并预填当前任务路线</span>' +
@@ -400,7 +400,7 @@ function _getQuestFallbackCopy(fallbackQuest, state, primaryReasonId) {
         ? '「' + questName + '」当前就能推进，先补等级和基础收益，再回来冲更高门槛。'
         : (hasSingleTarget && isTradeLine)
           ? '「' + questName + '」门槛更低，先跑这条短线把等级和现金流抬起来。'
-          : '已为你定位到「' + questName + '」，先用这条低门槛任务补等级，再回来继续。',
+          : '已为你找到「' + questName + '」，先用这条简单任务提升等级，再回来继续。',
     };
   }
 
@@ -411,7 +411,7 @@ function _getQuestFallbackCopy(fallbackQuest, state, primaryReasonId) {
         ? '「' + questName + '」不用额外跑图，先做一单回点现金，再回来补燃料。'
         : primaryReasonId === 'hyperspace'
           ? '「' + questName + '」不需要跨星系，先把银河内进度往前推一格。'
-          : '已为你定位到「' + questName + '」，当前就能开始推进。',
+          : '已为你找到「' + questName + '」，当前就能开始推进。',
     };
   }
 
@@ -422,7 +422,7 @@ function _getQuestFallbackCopy(fallbackQuest, state, primaryReasonId) {
         ? '「' + questName + '」航程更短，先跑这条线回补燃料和现金流。'
         : primaryReasonId === 'hyperspace'
           ? '「' + questName + '」仍在当前银河内，先跑这条短线，等跃迁科技完成。'
-          : '已为你定位到「' + questName + '」，先用这条短线把节奏稳住。',
+          : '已为你找到「' + questName + '」，先用这条短线把节奏稳住。',
     };
   }
 
@@ -438,15 +438,15 @@ function _getQuestFallbackCopy(fallbackQuest, state, primaryReasonId) {
       label: '先接近线任务',
       hint: primaryReasonId === 'fuel'
         ? '「' + questName + '」航程更近，先跑这条近线把燃料和节奏稳住。'
-        : '已为你定位到「' + questName + '」，先推进这条近线任务。',
+        : '已为你找到「' + questName + '」，先推进这条附近任务。',
     };
   }
 
   return {
     label: primaryReasonId === 'fuel' ? '先做近程任务' : '先看推荐任务',
     hint: primaryReasonId === 'hyperspace'
-      ? '已为你定位到「' + questName + '」，先推进当前星域内的可接任务。'
-      : '已为你定位到「' + questName + '」，先用这条可接任务补成长节奏。',
+      ? '已为你找到「' + questName + '」，先推进当前星域内的可接任务。'
+      : '已为你找到「' + questName + '」，先用这条可接任务继续成长。',
   };
 }
 
@@ -502,7 +502,7 @@ export function getQuestBlockerActions(blockers, fallbackQuest, state) {
     actions.push(_buildQuestMarketAction(
       'fuel',
       '打开市场补燃料',
-      '会进入交易所终端的现货区，先补充燃料或调整货舱，再回来恢复派遣建议。'
+      '会进入市场中心的交易页，先补充燃料或调整货舱，再回来恢复自动跑商建议。'
     ));
   }
 
@@ -510,7 +510,7 @@ export function getQuestBlockerActions(blockers, fallbackQuest, state) {
     actions.push(_buildQuestMarketAction(
       'level',
       '打开市场跑单',
-      '会进入交易所终端的现货区，先做几笔交易把等级提上来再接这条线。'
+      '会进入市场中心的交易页，先做几笔交易把等级提上来再接这条线。'
     ));
   }
 
@@ -543,10 +543,10 @@ function _renderQuestDispatchBlocker(quest, routePreview, canResolveQuestBlocker
 
   return '<div class="quest-dispatch-card is-blocked">' +
     '<div class="quest-dispatch-head">' +
-      '<div class="quest-dispatch-title">⛔ 暂不生成派遣建议</div>' +
+      '<div class="quest-dispatch-title">⛔ 暂无可用路线建议</div>' +
       '<div class="quest-dispatch-caption">当前目标 · ' + quest.name + '</div>' +
     '</div>' +
-    '<div class="quest-dispatch-main">当前航点仍有阻塞条件，补足后会自动恢复机库派遣建议。</div>' +
+    '<div class="quest-dispatch-main">当前航点还有未满足的条件，补足后会自动恢复机库路线建议。</div>' +
     '<div class="quest-dispatch-blocker-list">' + blockers.map(function (blocker) {
       return '<div class="quest-dispatch-blocker-item">' +
         '<div class="quest-dispatch-blocker-system">' + blocker.systemName + ' · ' + blocker.purposeLabel + '</div>' +
@@ -575,7 +575,7 @@ function _renderQuestAcceptHub(state, available, selectedQuest, recommendedIds, 
 
   var flags = [
     '<span class="quest-brief-flag quest-brief-flag-' + actionContext.tone + '">' + actionContext.label + '</span>',
-    isRecommended ? '<span class="quest-brief-flag quest-brief-flag-recommended">⭐ 推荐路线</span>' : '',
+    isRecommended ? '<span class="quest-brief-flag quest-brief-flag-recommended">⭐ 推荐</span>' : '',
     selectedQuest.timeLimit > 0 ? '<span class="quest-brief-flag quest-brief-flag-timed">⏰ ' + selectedQuest.timeLimit + ' 天限制</span>' : '',
     storyRoute && rewardSummary.hasDecisionBonus ? '<span class="quest-brief-flag quest-brief-flag-route">🧭 ' + storyRoute.label + '</span>' : '',
   ].filter(Boolean).join('');
@@ -599,8 +599,10 @@ function _renderQuestAcceptHub(state, available, selectedQuest, recommendedIds, 
       '<div class="quest-brief-flags">' + flags + '</div>' +
       _renderQuestBriefObjectives(selectedQuest) +
       _renderTargetSystems(targets, state.currentSystem) +
-      _renderQuestRoutePreview(routePreview) +
-      '<div class="quest-brief-note">' + actionContext.detail + '</div>' +
+      (targets.length > 0
+        ? _renderQuestRoutePreview(routePreview)
+        : '<div class="quest-brief-note">无需旅行，接取后在当前玩法中就能推进。</div>') +
+      (targets.length > 0 ? '<div class="quest-brief-note">' + actionContext.detail + '</div>' : '') +
       (rewardSummary.hasDecisionBonus
         ? '<div class="quest-brief-bonus">🧭 分支加成：' + rewardSummary.bonusText + '</div>'
         : '') +
@@ -642,7 +644,7 @@ function _renderAvailableQuestPicker(state, available, selectedQuest, recommende
       '<div class="quest-pick-meta">' +
         '<span>💰 ' + rewardSummary.credits + '</span>' +
         '<span>⭐ ' + rewardSummary.exp + '</span>' +
-        (quest.timeLimit > 0 ? '<span>⏰ ' + quest.timeLimit + ' 天</span>' : '<span>🧭 可长期推进</span>') +
+        (quest.timeLimit > 0 ? '<span>⏰ ' + quest.timeLimit + ' 天</span>' : '<span>不限时</span>') +
       '</div>' +
     '</button>';
   }).join('') + '</div>';
@@ -660,7 +662,7 @@ function _getQuestLocalStatus(quest, state) {
   var targets = _questTargetSystems(quest);
   if (targets.length === 0) {
     return {
-      label: '本地可推进',
+      label: '现在就能做',
       tone: 'ready',
       detail: '不需要指定目的地，可在现有贸易或航行节奏中累计进度。',
     };
@@ -685,7 +687,7 @@ function _getQuestLocalStatus(quest, state) {
   return {
     label: '多目标路线',
     tone: 'travel',
-    detail: '包含多个目标点，适合先看航线预估再决定推进顺序。',
+    detail: '包含多个目的地，适合先看路程和燃料，再决定推进顺序。',
   };
 }
 
@@ -747,20 +749,20 @@ function _renderQuestTriagePanel(state, active, sortedAvailable, locked, selecte
     : '当前没有可追踪任务，等待章节推进或新委托解锁。';
   var triageItems = _getQuestTriageItems(state, active, sortedAvailable, selectedAvailableQuest);
 
-  return '<section class="quest-triage-panel" aria-label="任务态势与局部信号">' +
-    '<div class="quest-triage-grid" role="list" aria-label="任务态势矩阵">' +
+  return '<section class="quest-triage-panel" aria-label="详细任务状态">' +
+    '<div class="quest-triage-grid" role="list" aria-label="任务状态概览">' +
       '<div class="quest-triage-cell quest-triage-cell--active" role="listitem"><span>当前航点</span><strong>' + currentLocalActive.length + '</strong><em>进行中可推进</em></div>' +
       '<div class="quest-triage-cell quest-triage-cell--available" role="listitem"><span>可接取</span><strong>' + availableLocal.length + '/' + sortedAvailable.length + '</strong><em>本地或无目标</em></div>' +
-      '<div class="quest-triage-cell quest-triage-cell--timed" role="listitem"><span>限时线</span><strong>' + timedCount + '</strong><em>需盯时限</em></div>' +
+      '<div class="quest-triage-cell quest-triage-cell--timed" role="listitem"><span>限时任务</span><strong>' + timedCount + '</strong><em>注意剩余天数</em></div>' +
       '<div class="quest-triage-cell quest-triage-cell--locked" role="listitem"><span>未解锁</span><strong>' + locked.length + '</strong><em>章节 ' + phaseProgressLabel + '</em></div>' +
     '</div>' +
-    '<div class="quest-focus-panel" aria-label="任务局部信号">' +
+    '<div class="quest-focus-panel" aria-label="当前任务建议">' +
       '<div class="quest-focus-copy">' +
-        '<span class="quest-focus-kicker">局部信号</span>' +
+        '<span class="quest-focus-kicker">当前建议</span>' +
         '<strong class="quest-focus-title">' + _escapeHtml(signalTitle) + '</strong>' +
         '<span class="quest-focus-note">' + _escapeHtml(signalNote) + '</span>' +
       '</div>' +
-      '<div class="quest-focus-list" role="list" aria-label="重点任务巡检">' +
+      '<div class="quest-focus-list" role="list" aria-label="重点任务">' +
         (triageItems.length > 0
           ? triageItems.map(function (item) {
               var reward = Quest.getQuestRewardSummary(state, item.quest);
@@ -774,8 +776,8 @@ function _renderQuestTriagePanel(state, active, sortedAvailable, locked, selecte
             }).join('')
           : '<div class="quest-focus-empty" role="listitem">暂无重点任务。</div>') +
       '</div>' +
-      '<div class="quest-route-signal" aria-label="任务路线信号">' +
-        '<span>路线</span>' +
+      '<div class="quest-route-signal" aria-label="长期方向">' +
+        '<span>长期方向</span>' +
         '<strong>' + _escapeHtml(storyRoute ? storyRoute.label : '自由贸易路线') + '</strong>' +
         '<em>' + _escapeHtml(storyRoute && storyRoute.rewardHint ? storyRoute.rewardHint : '按当前任务池自由推进') + '</em>' +
       '</div>' +
@@ -815,14 +817,14 @@ export function render(state, onAccept, onAbandon, questDispatchContext, onApply
     ? Math.min(100, currentPhaseProgress.percent || 0)
     : 0;
   const phaseName = currentPhase ? currentPhase.name : '未知章节';
-  const phaseDesc = currentPhase ? currentPhase.description : '任务协议同步中，等待新的星际委托。';
+  const phaseDesc = currentPhase ? currentPhase.description : '正在等待新的星际任务。';
   const commandFocusQuest = selectedAvailableQuest || active[0] || fallbackQuest;
   const commandFocusLabel = commandFocusQuest
     ? (selectedAvailableQuest ? '建议接取：' : '当前目标：') + commandFocusQuest.name
     : '等待新委托';
   const commandRouteLabel = storyRoute ? storyRoute.label : '自由贸易路线';
 
-  html += '<section class="quest-command-deck" role="region" aria-label="任务控制总览">' +
+  html += '<section class="quest-command-deck" role="region" aria-label="任务首页">' +
     '<div class="quest-command-visual" aria-hidden="true">' +
       '<span class="quest-command-orbit quest-command-orbit-a"></span>' +
       '<span class="quest-command-orbit quest-command-orbit-b"></span>' +
@@ -830,19 +832,21 @@ export function render(state, onAccept, onAbandon, questDispatchContext, onApply
       '<span class="quest-command-icon">' + (currentPhase ? currentPhase.icon : '📖') + '</span>' +
     '</div>' +
     '<div class="quest-command-copy">' +
-      '<div class="quest-command-kicker">MISSION CONTROL</div>' +
+      '<div class="quest-command-kicker">当前章节</div>' +
       '<h2>' + phaseName + '</h2>' +
       '<p>' + phaseDesc + '</p>' +
       '<div class="quest-command-tags">' +
-        '<span>路线 · ' + commandRouteLabel + '</span>' +
+        (storyRoute ? '<span>长期方向 · ' + commandRouteLabel + '</span>' : '') +
         '<span>' + commandFocusLabel + '</span>' +
       '</div>' +
     '</div>' +
   '</section>';
 
-  html += _renderQuestTriagePanel(state, active, sortedAvailable, locked, selectedAvailableQuest, currentPhaseProgress, storyRoute);
-
-  html += '<div class="quest-phase-overview" aria-label="当前章节进度">' +
+  html += '<details class="quest-secondary-details">' +
+    '<summary>查看章节进度与全部任务状态</summary>' +
+    '<div class="quest-secondary-details-body">' +
+      _renderQuestTriagePanel(state, active, sortedAvailable, locked, selectedAvailableQuest, currentPhaseProgress, storyRoute) +
+      '<div class="quest-phase-overview" aria-label="当前章节进度">' +
     '<div class="quest-phase-chip active" title="' + (currentPhase ? currentPhase.description : '') + '">' +
     '<span class="phase-icon">' + (currentPhase ? currentPhase.icon : '📖') + '</span>' +
     '<span class="phase-name">当前章节：' + phaseName + '</span>' +
@@ -850,22 +854,20 @@ export function render(state, onAccept, onAbandon, questDispatchContext, onApply
     '<span class="phase-progress">主线 ' + currentPhaseProgress.coreCompleted + '/' + currentPhaseProgress.coreTotal +
       ' · 支线 ' + Math.min(currentPhaseProgress.optionalCompleted, currentPhaseProgress.optionalRequired) + '/' + currentPhaseProgress.optionalRequired + '</span>' +
     '</div>' +
-    '</div>';
+      '</div>' +
+    '</div>' +
+  '</details>';
 
   // ---- 当前任务 ----
-  const activeQuestRecommendation = active.length > 0
-    ? AutoTrade.findQuestRoute(state, Object.assign({
-        cargo: state.cargo || {},
-      }, questDispatchContext || {}))
-    : null;
+  if (active.length > 0) {
+  const activeQuestRecommendation = AutoTrade.findQuestRoute(state, Object.assign({
+    cargo: state.cargo || {},
+  }, questDispatchContext || {}));
   html += '<section class="quest-module quest-module-active">';
   html += '<div class="quest-section-title">📋 进行中 (' + active.length + '/5)</div>';
 
-  if (active.length === 0) {
-    html += '<div class="quest-empty">暂无进行中的任务。请从下方任务简报里挑选一项开始推进。</div>';
-  } else {
-    html += '<div class="quest-active-grid" role="list" aria-label="进行中任务">';
-    active.forEach(function (quest) {
+  html += '<div class="quest-active-grid" role="list" aria-label="进行中任务">';
+  active.forEach(function (quest) {
       const typeInfo = QUEST_TYPES[quest.type] || {};
       const timeleft = quest.timeLimit > 0
         ? '⏰ 剩余 ' + Math.max(0, quest.timeLimit - (state.day - quest.startDay)) + ' 天'
@@ -919,10 +921,10 @@ export function render(state, onAccept, onAbandon, questDispatchContext, onApply
 
       html += '<button type="button" class="btn-action quest-abandon-btn" data-id="' + quest.id + '" data-name="' + _escapeHtmlAttr(quest.name) + '">放弃</button>';
       html += '</article>';
-    });
-    html += '</div>';
-  }
+  });
+  html += '</div>';
   html += '</section>';
+  }
 
   // ---- 可接取任务 ----
   html += '<section class="quest-module quest-module-available">';
@@ -930,7 +932,7 @@ export function render(state, onAccept, onAbandon, questDispatchContext, onApply
 
   if (recommended.length > 0 && (state.quests || []).length === 0) {
     html += '<div class="quest-empty" style="margin-bottom:10px">' +
-      '💡 教程后的推荐路线' + (storyRoute ? '（' + storyRoute.label + '）' : '') + '：' + recommended.map(function (quest) { return '「' + quest.name + '」'; }).join('、') +
+      '💡 推荐先做' + (storyRoute ? '（' + storyRoute.label + '）' : '') + '：' + recommended.map(function (quest) { return '「' + quest.name + '」'; }).join('、') +
       (storyRoute && storyRoute.rewardHint ? '。当前分支效果：' + storyRoute.rewardHint : '。') +
       '</div>';
   }
@@ -944,9 +946,9 @@ export function render(state, onAccept, onAbandon, questDispatchContext, onApply
   html += '</section>';
 
   // ---- 未解锁任务 ----
-  html += '<section class="quest-module quest-module-locked">';
+  html += '<details class="quest-module quest-module-locked quest-locked-details">';
   if (locked.length > 0) {
-    html += '<div class="quest-section-title">🔒 未解锁 (' + locked.length + ')</div>';
+    html += '<summary>查看后续任务（' + locked.length + '）</summary>';
     html += '<div class="quest-locked-grid" role="list" aria-label="未解锁任务">';
     locked.forEach(function (quest) {
       const typeInfo = QUEST_TYPES[quest.type] || {};
@@ -974,13 +976,14 @@ export function render(state, onAccept, onAbandon, questDispatchContext, onApply
     });
     html += '</div>';
   } else {
+    html += '<summary>后续任务</summary>';
     if (currentPhaseProgress.isFinalPhase && currentPhaseProgress.isComplete) {
       html += '<div class="quest-empty">🏁 最终章晋升条件已完成，未完成支线仍可继续挑战。</div>';
     } else if (currentPhaseProgress.isComplete) {
       html += '<div class="quest-empty">✅ 当前章节的核心任务与支线配额已完成，下一次结算将进入新章节。</div>';
     }
   }
-  html += '</section>';
+  html += '</details>';
 
   container.innerHTML = html;
 
@@ -1086,15 +1089,15 @@ function _objectiveText(obj) {
     case 'crew_count':
       return '雇佣专业船员';
     case 'dispatch_routes':
-      return '确认自动派遣路线';
+      return '确认自动跑商路线';
     case 'finance_actions':
-      return '使用资本工具';
+      return '申请贷款或投资';
     case 'trade_stations':
-      return '建设经营节点';
+      return '建设贸易站';
     case 'visited_galaxies':
       return '探索不同星系';
     case 'victory_policy':
-      return '选择胜利路线政策';
+      return '选择长期经营路线';
     default:
       return '完成目标';
   }

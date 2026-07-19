@@ -3,7 +3,7 @@
 // 导出：init, drawOptions, startResearch, advanceResearch,
 //       cancelQueuedResearch, moveQueuedResearchUp, moveQueuedResearchDown,
 //       clearResearchQueue,
-//       getResearchState, isResearched, applyTechEffects
+//       getResearchState, isResearched, getShipEffects
 
 import { TECHNOLOGIES, TECH_CATEGORIES } from '../../data/technologies.js';
 import * as EventBus from '../../core/EventBus.js';
@@ -289,10 +289,8 @@ export function clearResearchQueue(state) {
  */
 function _applyEffect(state, tech) {
   const eff = tech.effect;
-  if (eff.cargo)          state.maxCargo += eff.cargo;
-  if (eff.maxFuel)        state.maxFuel += eff.maxFuel;
-  if (eff.fuelEfficiency) state.fuelEfficiency *= eff.fuelEfficiency;
-  if (eff.shipHull)       state.maxHull = (state.maxHull || 100) + eff.shipHull;
+  // 舰船结构类加成由 getShipEffects 按已研究科技动态派生，避免根状态
+  // 在 Fleet.syncStateFromShip 时被活动飞船的基础数值覆盖，也让后来购买的船受益。
   if (eff.buyDiscount)    state.techBuyDiscount = (state.techBuyDiscount || 0) + eff.buyDiscount;
   if (eff.sellBonus)      state.techSellBonus = (state.techSellBonus || 0) + eff.sellBonus;
   if (eff.autoRepair)     state.autoRepair = (state.autoRepair || 0) + eff.autoRepair;
@@ -304,6 +302,33 @@ function _applyEffect(state, tech) {
       });
     }
   }
+}
+
+/**
+ * 汇总对所有舰船永久生效的科研加成。
+ * 这些值不写入单艘船的基础属性，避免读档、切船或重复初始化时叠加。
+ */
+export function getShipEffects(state) {
+  const effects = {
+    cargoBonus: 0,
+    maxFuelBonus: 0,
+    fuelEfficiencyMultiplier: 1,
+    hullBonus: 0,
+  };
+  const researched = new Set((state && state.researchedTechs) || []);
+
+  TECHNOLOGIES.forEach(function (tech) {
+    if (!researched.has(tech.id)) return;
+    const effect = tech.effect || {};
+    effects.cargoBonus += Number(effect.cargo) || 0;
+    effects.maxFuelBonus += Number(effect.maxFuel) || 0;
+    effects.hullBonus += Number(effect.shipHull) || 0;
+    if (Number.isFinite(effect.fuelEfficiency) && effect.fuelEfficiency > 0) {
+      effects.fuelEfficiencyMultiplier *= effect.fuelEfficiency;
+    }
+  });
+
+  return effects;
 }
 
 /**

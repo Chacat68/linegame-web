@@ -44,7 +44,7 @@ function _inferIntent(action) {
 
   switch (action.type) {
     case 'poi':
-      return 'POI 调查';
+      return '调查探索点';
     case 'travel':
       return '航线移动';
     default:

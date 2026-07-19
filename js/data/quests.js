@@ -27,7 +27,7 @@ export const QUEST_PHASES = [
   {
     id: 'phase_2',
     name: '第二章：立足',
-    description: '拓展贸易网络，积累资本与经验。',
+    description: '拓展贸易网络，积累资金与经验。',
     icon: '🚢',
     levelRange: [2, 3],
     coreQuestIds: ['expand_first_research', 'expand_first_survey'],
@@ -186,9 +186,9 @@ export const QUESTS = [
     unlockConditions: {},
   },
   {
-    id: 'expand_first_survey', name: '建立第一份勘探档案',
+    id: 'expand_first_survey', name: '完成第一份探索报告',
     type: 'explore', phase: 2,
-    description: '完成 1 个 POI 调查，让星图从地点列表变成可利用的情报网络。',
+    description: '调查 1 个探索点，获得能影响交易、航线或研究的情报。',
     objectives: [{ type: 'explore_pois', amount: 1, current: 0 }],
     rewards: { credits: 900, exp: 50, reputation: 10 },
     timeLimit: 0,
@@ -312,9 +312,9 @@ export const QUESTS = [
     unlockConditions: {},
   },
   {
-    id: 'rise_dispatch_network', name: '第一次自主派遣',
+    id: 'rise_dispatch_network', name: '第一次自动跑商',
     type: 'special', phase: 3,
-    description: '为船队确认 1 条派遣路线，让经营能力从亲自跑商扩展为多线调度。',
+    description: '为船队确认 1 条自动跑商路线，让生意从亲自运输扩展为多条路线同时运转。',
     objectives: [{ type: 'dispatch_routes', amount: 1, current: 0 }],
     rewards: { credits: 1600, exp: 65, reputation: 12 },
     timeLimit: 0,
@@ -323,9 +323,9 @@ export const QUESTS = [
     unlockConditions: {},
   },
   {
-    id: 'rise_capital_tools', name: '资本工具试运行',
+    id: 'rise_capital_tools', name: '第一次贷款或投资',
     type: 'trade', phase: 3,
-    description: '完成 1 次贷款或站点投资操作，开始使用资本工具扩张商业网络。',
+    description: '完成 1 次贷款或贸易站投资，学习如何用资金加快扩张。',
     objectives: [{ type: 'finance_actions', amount: 1, current: 0 }],
     rewards: { credits: 1500, exp: 60, reputation: 10 },
     timeLimit: 0,
@@ -481,9 +481,9 @@ export const QUESTS = [
 
   // --- 4.0 核心成长线：跨域经营 ---
   {
-    id: 'reign_first_station', name: '落成第一座经营节点',
+    id: 'reign_first_station', name: '建成第一座贸易站',
     type: 'special', phase: 4,
-    description: '建设至少 1 座贸易前哨或贸易站，把流动资本转化为长期经营资产。',
+    description: '建设至少 1 座贸易前哨或贸易站，让现金开始带来每天的收入。',
     objectives: [{ type: 'trade_stations', amount: 1, current: 0 }],
     rewards: { credits: 5000, exp: 120, reputation: 25 },
     timeLimit: 0,
@@ -651,9 +651,9 @@ export const QUESTS = [
     unlockConditions: {},
   },
   {
-    id: 'legend_policy_commitment', name: '选择帝国信条',
+    id: 'legend_policy_commitment', name: '选择长期路线',
     type: 'special', phase: 5,
-    description: '在胜利协议中选择一条不可逆的经营政策，接受它的专属能力与代价。',
+    description: '选择一条不可逆的长期经营路线，获得专属能力，也接受对应代价。',
     objectives: [{ type: 'victory_policy', amount: 1, current: 0 }],
     rewards: { credits: 8000, exp: 180, reputation: 40 },
     timeLimit: 0,

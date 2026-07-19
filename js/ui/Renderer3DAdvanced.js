@@ -1780,7 +1780,7 @@ function _renderSecretRoutes(state) {
 
     const labelAnchor = BABYLON.Vector3.Lerp(sourcePos, targetPos, 0.62);
     labelAnchor.y += Math.max(BABYLON.Vector3.Distance(sourcePos, targetPos) * 0.08, 3.2) + index * 1.2;
-    const label = _addTextLabel('暗线→' + route.targetSystemName + ' -' + route.discountPercent + '%', labelAnchor, Math.max(13, route.targetSystemName.length * 1.4 + 9));
+    const label = _addTextLabel('隐藏航线→' + route.targetSystemName + ' -' + route.discountPercent + '%', labelAnchor, Math.max(13, route.targetSystemName.length * 1.4 + 9));
     if (label && label.material) label.material.alpha = 0.82;
 
     _secretRouteVisuals.push({

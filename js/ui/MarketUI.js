@@ -24,37 +24,37 @@ const MARKET_BATCH_PLAN_SORT_OPTIONS = {
   investment: [
     { id: 'yield', label: '回报优先' },
     { id: 'stake', label: '低基数优先' },
-    { id: 'name', label: '节点名' },
+    { id: 'name', label: '地点名' },
   ],
   upgrade: [
     { id: 'income', label: '收益优先' },
     { id: 'cost', label: '低成本优先' },
-    { id: 'name', label: '节点名' },
+    { id: 'name', label: '地点名' },
   ],
   strategy: [
     { id: 'income', label: '收益优先' },
-    { id: 'name', label: '节点名' },
+    { id: 'name', label: '地点名' },
   ],
 };
 const MARKET_RANGE_OPTIONS = [7, 14, 30];
 const MARKET_WORKSPACE_TABS = [
-  { id: 'spot', label: '现货', hint: '买卖与补给', stage: '01' },
-  { id: 'capital', label: '资本', hint: '贷款与投资', stage: '03' },
-  { id: 'operations', label: '商网', hint: '站点与经营', stage: '04' },
+  { id: 'spot', label: '交易', hint: '买卖与补给', stage: '01' },
+  { id: 'capital', label: '资金', hint: '贷款与投资', stage: '03' },
+  { id: 'operations', label: '贸易站', hint: '建站与经营', stage: '04' },
 ];
 const MARKET_SUBWORKSPACE_TABS = {
   spot: [
     { id: 'trade', label: '交易', hint: '执行买卖与补给' },
-    { id: 'intel', label: '行情', hint: '价格与勘探线索' },
+    { id: 'intel', label: '行情', hint: '价格与探索线索' },
     { id: 'black', label: '黑市', hint: '特殊市场与风险' },
   ],
   capital: [
-    { id: 'local', label: '调度', hint: '贷款与本地投资' },
+    { id: 'local', label: '贷款与投资', hint: '管理本地资金' },
   ],
   operations: [
-    { id: 'local', label: '本地', hint: '当前节点经营' },
-    { id: 'network', label: '总览', hint: '网络快照与指标' },
-    { id: 'stations', label: '站点', hint: '候选与已建站点' },
+    { id: 'local', label: '本地', hint: '当前地点经营' },
+    { id: 'network', label: '总览', hint: '全部贸易站' },
+    { id: 'stations', label: '批量管理', hint: '候选与已建站点' },
   ],
 };
 
@@ -138,7 +138,7 @@ function _buildCompanyUnlockPath(access, extraCondition) {
   if (!access || access.unlocked) return '';
   var text = '当前公司 Lv.' + access.currentLevel + ' / 需要 Lv.' + access.requiredLevel + '。';
   if (extraCondition) text += extraCondition + ' ';
-  return text + '最近获得公司经验：完成手动交易、任务结算、舰队派遣和贸易站投资。';
+  return text + '最近获得公司经验：完成手动交易、任务结算、自动跑商和贸易站投资。';
 }
 
 function _buildMarketProgression(state, sysId, options) {
@@ -217,7 +217,7 @@ function _buildMarketProgression(state, sysId, options) {
       {
         id: 'trade',
         index: '01',
-        label: '现货成交',
+        label: '买卖货物',
         note: '买卖、补给、看当前货舱',
         workspaceId: 'spot',
         subworkspaceId: 'trade',
@@ -226,8 +226,8 @@ function _buildMarketProgression(state, sysId, options) {
       {
         id: 'intel',
         index: '02',
-        label: '行情判断',
-        note: '价格矩阵、波动榜、勘探报告',
+        label: '查看行情',
+        note: '各地价格、涨跌和探索报告',
         workspaceId: 'spot',
         subworkspaceId: 'intel',
         unlocked: true,
@@ -235,8 +235,8 @@ function _buildMarketProgression(state, sysId, options) {
       {
         id: 'capital',
         index: '03',
-        label: '资本调度',
-        note: '经营贷款与本地投资',
+        label: '管理资金',
+        note: '贷款、本地投资和保险',
         workspaceId: 'capital',
         subworkspaceId: 'local',
         unlocked: capitalLocalUnlocked,
@@ -246,8 +246,8 @@ function _buildMarketProgression(state, sysId, options) {
       {
         id: 'network',
         index: '04',
-        label: '商网经营',
-        note: '建站、升级、全网编排',
+        label: '经营贸易站',
+        note: '建站、升级和批量管理',
         workspaceId: 'operations',
         subworkspaceId: 'local',
         unlocked: operationsUnlocked,
@@ -706,18 +706,18 @@ function _pickSnapshot(snapshots, comparator) {
 
 function _getMarketHeatMeta(multiplier) {
   if (multiplier < 0.65) {
-    return { className: 'mkt-ov-price-freeze', label: '冰点价', note: '强烈低估，适合买入' };
+    return { className: 'mkt-ov-price-freeze', label: '很便宜', note: '明显低于平常，适合买入' };
   }
   if (multiplier < 0.85) {
-    return { className: 'mkt-ov-price-cool', label: '低位区', note: '价格偏低，可考虑建仓' };
+    return { className: 'mkt-ov-price-cool', label: '偏便宜', note: '价格偏低，可考虑买入' };
   }
   if (multiplier <= 1.15) {
-    return { className: 'mkt-ov-price-neutral', label: '均衡区', note: '价格接近常态' };
+    return { className: 'mkt-ov-price-neutral', label: '正常价', note: '价格接近平常' };
   }
   if (multiplier <= 1.45) {
-    return { className: 'mkt-ov-price-warm', label: '溢价区', note: '价格偏高，适合观察卖点' };
+    return { className: 'mkt-ov-price-warm', label: '偏贵', note: '价格偏高，适合卖出' };
   }
-  return { className: 'mkt-ov-price-hot', label: '过热区', note: '价格显著偏高，适合出货' };
+  return { className: 'mkt-ov-price-hot', label: '很贵', note: '明显高于平常，适合卖出' };
 }
 
 function _formatMarketHeatDelta(multiplier) {
@@ -731,67 +731,65 @@ function _formatMarketHeatDelta(multiplier) {
   return { text: '•0%', className: 'flat' };
 }
 
+function _renderMarketIntelTools() {
+  return '<section class="market-trend-column market-trend-column--intel" aria-label="可选价格工具">' +
+    '<div class="market-column-heading">' +
+      '<div><span class="market-column-kicker">可选工具</span><h4>详细价格数据</h4></div>' +
+      '<span class="market-column-state">需要时再展开，不影响直接买卖</span>' +
+    '</div>' +
+    '<div class="market-intel-drawers" role="region" aria-label="详细行情工具">' +
+      '<details class="market-collapse market-collapse-chart">' +
+        '<summary>价格走势 <span class="market-collapse-hint">查看最近 7 / 14 / 30 天</span></summary>' +
+        '<div class="market-collapse-body">' +
+          '<div id="market-kline-panel" class="market-kline-panel" role="region" aria-label="价格走势">' +
+            '<div class="market-kline-header">' +
+              '<div class="market-kline-title" id="market-kline-title"></div>' +
+              '<div class="market-kline-range-bar" id="market-kline-range-bar"></div>' +
+            '</div>' +
+            '<div class="market-kline-ohlc" id="market-kline-ohlc"></div>' +
+            '<div class="market-kline-body" id="market-kline-body"></div>' +
+            '<div class="market-kline-footer"><div class="market-kline-metrics" id="market-kline-metrics"></div></div>' +
+          '</div>' +
+        '</div>' +
+      '</details>' +
+      '<details class="market-collapse market-collapse-chart">' +
+        '<summary>各地价格表 <span class="market-collapse-hint">比较哪里买、哪里卖</span></summary>' +
+        '<div class="market-collapse-body">' +
+          '<div class="market-heatmap-toolbar">' +
+            '<div class="market-heatmap-legend" aria-label="价格高低图例">' +
+              '<span class="market-heatmap-legend-item freeze">很便宜</span>' +
+              '<span class="market-heatmap-legend-item cool">偏便宜</span>' +
+              '<span class="market-heatmap-legend-item neutral">正常价</span>' +
+              '<span class="market-heatmap-legend-item warm">偏贵</span>' +
+              '<span class="market-heatmap-legend-item hot">很贵</span>' +
+            '</div>' +
+            '<div class="market-price-view" aria-label="查看买价或卖价">' +
+              '<span id="market-price-view-label" class="market-price-view-label">显示</span>' +
+              '<div class="market-price-mode" role="radiogroup" aria-labelledby="market-price-view-label">' +
+                '<button id="market-overview-price-buy" class="market-price-mode-btn' + (_marketOverviewPriceMode === 'buy' ? ' is-active' : '') + '" type="button" role="radio" aria-checked="' + (_marketOverviewPriceMode === 'buy' ? 'true' : 'false') + '" aria-controls="market-trade-overview-table" tabindex="' + (_marketOverviewPriceMode === 'buy' ? '0' : '-1') + '" data-market-overview-price-mode="buy">买入价</button>' +
+                '<button id="market-overview-price-sell" class="market-price-mode-btn' + (_marketOverviewPriceMode === 'sell' ? ' is-active' : '') + '" type="button" role="radio" aria-checked="' + (_marketOverviewPriceMode === 'sell' ? 'true' : 'false') + '" aria-controls="market-trade-overview-table" tabindex="' + (_marketOverviewPriceMode === 'sell' ? '0' : '-1') + '" data-market-overview-price-mode="sell">卖出价</button>' +
+              '</div>' +
+              '<span id="market-overview-price-status" class="market-price-view-status" role="status" aria-live="polite">表格显示各地的' + (_marketOverviewPriceMode === 'sell' ? '卖出价' : '买入价') + '</span>' +
+            '</div>' +
+          '</div>' +
+          '<div class="market-trade-overview-scroll"><table id="market-trade-overview-table" aria-describedby="market-overview-price-status"><thead id="market-trade-overview-thead"></thead><tbody id="market-trade-overview-tbody"></tbody></table></div>' +
+        '</div>' +
+      '</details>' +
+      '<details class="market-collapse market-collapse-chart">' +
+        '<summary>最近涨跌 <span class="market-collapse-hint">哪些货物变化较大</span></summary>' +
+        '<div class="market-collapse-body"><div id="market-terminal-dashboard" class="market-terminal-dashboard"></div></div>' +
+      '</details>' +
+    '</div>' +
+  '</section>';
+}
+
 function _renderSpotTradeSection() {
   return '<div id="market-quick-trade-dock" class="market-quick-trade-dock" role="region" aria-label="当前货物与快速交易"></div>' +
-    '<div class="market-spot-trade-layout" role="region" aria-label="现货交易工作台">' +
-      '<section class="market-trend-column" aria-label="当前货物趋势">' +
-        '<div class="market-column-heading">' +
-          '<div><span class="market-column-kicker">PRICE TREND</span><h4>价格趋势</h4></div>' +
-          '<span class="market-column-state">随选中货物更新</span>' +
-        '</div>' +
-        '<div id="market-kline-panel" class="market-kline-panel" role="region" aria-label="价格走势">' +
-          '<div class="market-kline-header">' +
-            '<div class="market-kline-title" id="market-kline-title"></div>' +
-            '<div class="market-kline-range-bar" id="market-kline-range-bar"></div>' +
-          '</div>' +
-          '<div class="market-kline-ohlc" id="market-kline-ohlc"></div>' +
-          '<div class="market-kline-body" id="market-kline-body"></div>' +
-          '<div class="market-kline-footer">' +
-            '<div class="market-kline-metrics" id="market-kline-metrics"></div>' +
-          '</div>' +
-        '</div>' +
-        '<div class="market-intel-drawers" role="region" aria-label="市场辅助情报">' +
-          '<details class="market-collapse market-collapse-chart">' +
-            '<summary>星系价格矩阵 <span class="market-collapse-hint">比较各节点价差</span></summary>' +
-            '<div class="market-collapse-body">' +
-              '<div class="market-heatmap-toolbar">' +
-                '<div class="market-heatmap-legend" aria-label="交易热力图图例">' +
-                  '<span class="market-heatmap-legend-item freeze">冰点价</span>' +
-                  '<span class="market-heatmap-legend-item cool">低位区</span>' +
-                  '<span class="market-heatmap-legend-item neutral">均衡区</span>' +
-                  '<span class="market-heatmap-legend-item warm">溢价区</span>' +
-                  '<span class="market-heatmap-legend-item hot">过热区</span>' +
-                '</div>' +
-                '<div class="market-price-view" aria-label="价格矩阵口径">' +
-                  '<span id="market-price-view-label" class="market-price-view-label">价格口径</span>' +
-                  '<div class="market-price-mode" role="radiogroup" aria-labelledby="market-price-view-label">' +
-                    '<button id="market-overview-price-buy" class="market-price-mode-btn' + (_marketOverviewPriceMode === 'buy' ? ' is-active' : '') + '" type="button" role="radio" aria-checked="' + (_marketOverviewPriceMode === 'buy' ? 'true' : 'false') + '" aria-controls="market-trade-overview-table" tabindex="' + (_marketOverviewPriceMode === 'buy' ? '0' : '-1') + '" data-market-overview-price-mode="buy">买入价</button>' +
-                    '<button id="market-overview-price-sell" class="market-price-mode-btn' + (_marketOverviewPriceMode === 'sell' ? ' is-active' : '') + '" type="button" role="radio" aria-checked="' + (_marketOverviewPriceMode === 'sell' ? 'true' : 'false') + '" aria-controls="market-trade-overview-table" tabindex="' + (_marketOverviewPriceMode === 'sell' ? '0' : '-1') + '" data-market-overview-price-mode="sell">卖出价</button>' +
-                  '</div>' +
-                  '<span id="market-overview-price-status" class="market-price-view-status" role="status" aria-live="polite">矩阵显示各节点的' + (_marketOverviewPriceMode === 'sell' ? '卖出价' : '买入价') + '</span>' +
-                '</div>' +
-              '</div>' +
-              '<div class="market-trade-overview-scroll">' +
-                '<table id="market-trade-overview-table" aria-describedby="market-overview-price-status">' +
-                  '<thead id="market-trade-overview-thead"></thead>' +
-                  '<tbody id="market-trade-overview-tbody"></tbody>' +
-                '</table>' +
-              '</div>' +
-            '</div>' +
-          '</details>' +
-          '<details class="market-collapse market-collapse-chart">' +
-            '<summary>行情仪表盘 <span class="market-collapse-hint">涨跌与波动排行</span></summary>' +
-            '<div class="market-collapse-body">' +
-              '<div id="market-terminal-dashboard" class="market-terminal-dashboard"></div>' +
-            '</div>' +
-          '</details>' +
-        '</div>' +
-      '</section>' +
+    '<div class="market-spot-trade-layout market-spot-trade-layout--simple" role="region" aria-label="买卖货物">' +
       '<section class="market-goods-shell market-goods-column" aria-label="商品交易列表">' +
         '<div id="market-goods-toolbar" class="market-goods-toolbar"></div>' +
         '<div id="market-goods-list" class="market-goods-list" role="list"></div>' +
       '</section>' +
-      '<aside id="market-analysis-panel" class="market-analysis-panel" aria-label="局部市场信号"></aside>' +
     '</div>';
 }
 
@@ -818,18 +816,18 @@ function _describeTradeOpportunity(sysId, snapshot, heldQuantity) {
   var safeHeldQuantity = heldQuantity || 0;
 
   if (multiplier <= 0.82 && demandRatio >= 0.95) {
-    return { label: '低位建仓', note: '价格处在折价区，适合分批吸纳后等待需求回流。', className: 'accumulate' };
+    return { label: '价格偏低', note: '当前价格较低，适合分批买入，并保留一部分现金。', className: 'accumulate' };
   }
   if (multiplier >= 1.18 && safeHeldQuantity > 0) {
-    return { label: '适合出货', note: '已有库存可兑现溢价，优先锁定利润而不是继续加仓。', className: 'distribute' };
+    return { label: '适合卖出', note: '已有库存且价格偏高，可优先卖出锁定利润。', className: 'distribute' };
   }
   if (demandRatio >= 1.35) {
-    return { label: '需求拉升', note: '需求强于供给，短线波动会被放大，适合盯紧价格节奏。', className: 'surge' };
+    return { label: '需求较高', note: '需求高于供给，价格可能变化较快，建议多看一眼走势。', className: 'surge' };
   }
   if (spread >= Math.max(12, Math.round((snapshot.sellPrice || 0) * 0.12))) {
-    return { label: '利差观察', note: '买卖差较大，先看波动和承接，再决定是否介入。', className: 'watch' };
+    return { label: '买卖价差较大', note: '先比较其他星球的价格，再决定是否交易。', className: 'watch' };
   }
-  return { label: '均衡看盘', note: '价格和供需暂时平衡，更适合观察而不是重仓出手。', className: 'balance' };
+  return { label: '暂时观望', note: '价格和供需比较平稳，可以等更清楚的机会。', className: 'balance' };
 }
 
 function _renderQuickTradeDock(state, sysId, snapshots, marketMode, isCurrentSys) {
@@ -850,13 +848,13 @@ function _renderQuickTradeDock(state, sysId, snapshots, marketMode, isCurrentSys
     : 0;
   var maxBuy = Math.max(0, Math.min(cargoSpace, maxAffordable));
   var signal = _describeTradeOpportunity(sysId, focused, inCargo);
-  var modeLabel = marketMode === 'black' ? '黑市盘口' : '公开盘口';
+  var modeLabel = marketMode === 'black' ? '黑市价格' : '公开市场';
 
   return '<section class="market-quick-trade-card" data-market-quick-good="' + _escapeHtmlAttr(focused.good.id) + '">' +
     '<div class="market-quick-trade-main">' +
       '<span class="market-quick-trade-icon">' + focused.good.emoji + '</span>' +
       '<div class="market-quick-trade-copy">' +
-        '<div class="market-quick-trade-kicker">ACTIVE ORDER · ' + _escapeHtml(modeLabel) + '</div>' +
+        '<div class="market-quick-trade-kicker">当前交易 · ' + _escapeHtml(modeLabel) + '</div>' +
         '<div class="market-quick-trade-title">' + _escapeHtml(focused.good.name) + ' · ' + _escapeHtml(signal.label) + '</div>' +
         '<div class="market-quick-trade-note">' + _escapeHtml(signal.note) + '</div>' +
       '</div>' +
@@ -872,7 +870,7 @@ function _renderQuickTradeDock(state, sysId, snapshots, marketMode, isCurrentSys
       (isCurrentSys
         ? '<button class="market-quick-trade-btn market-quick-trade-btn--sell' + (inCargo > 0 ? '' : ' disabled') + '" type="button" data-market-quick-action="sell" data-id="' + _escapeHtmlAttr(focused.good.id) + '"' + (inCargo > 0 ? '' : ' disabled title="货舱中没有该货物"') + '>' + (inCargo > 0 ? '出售库存' : '无库存') + '</button>' +
           '<button class="market-quick-trade-btn market-quick-trade-btn--buy" type="button" data-market-quick-action="buy" data-id="' + _escapeHtmlAttr(focused.good.id) + '">买入货物</button>'
-        : '<button class="market-quick-trade-btn disabled" type="button" disabled title="抵达该节点后才可交易">远程只读</button>') +
+        : '<button class="market-quick-trade-btn disabled" type="button" disabled title="抵达该地点后才可交易">远程只读</button>') +
     '</div>' +
   '</section>';
 }
@@ -894,14 +892,14 @@ function _renderSpotGoodsToolbar(state, sysId, snapshots, marketMode) {
   }
 
   return '<div class="market-goods-toolbar-copy">' +
-    '<div class="market-goods-toolbar-title">执行列表</div>' +
-    '<div class="market-goods-toolbar-note">当前盯盘：' + focused.good.emoji + ' ' + focused.good.name + ' · ' + focusSignal.label + '。点击任意货物可刷新主图和本地成交按钮。</div>' +
+    '<div class="market-goods-toolbar-title">可交易货物</div>' +
+    '<div class="market-goods-toolbar-note">当前查看：' + focused.good.emoji + ' ' + focused.good.name + ' · ' + focusSignal.label + '。点击其他货物即可查看价格并买卖。</div>' +
   '</div>' +
   '<div class="market-goods-toolbar-pills">' +
     renderPill('商品', String(snapshots.length)) +
-    renderPill('在舱品类', String(cargoKinds)) +
-    renderPill('高需求', String(hotGoods)) +
-    renderPill('模式', marketMode === 'black' ? '黑市' : '公开') +
+    renderPill('库存种类', String(cargoKinds)) +
+    renderPill('紧俏商品', String(hotGoods)) +
+    renderPill('渠道', marketMode === 'black' ? '黑市' : '公开') +
   '</div>';
 }
 
@@ -917,6 +915,7 @@ function _renderAnalysisPanel(container, state, sysId, snapshots, marketMode) {
   var totalVolume = snapshots.reduce(function (sum, s) { return sum + s.buyPrice; }, 0);
   var avgSpread = snapshots.reduce(function (sum, s) { return sum + s.spread; }, 0) / snapshots.length;
   var marketDepth = Economy.getMarketDepth(sysId);
+  var negotiationProfile = Economy.getTradeNegotiationProfile(state, sysId);
   var densityLabel = marketDepth >= 350 ? '高' : marketDepth >= 200 ? '中' : '低';
   var systemFaction = Faction.getFactionForSystem(sysId);
   var focused = _getFocusedMarketSnapshot(sysId, marketMode, snapshots);
@@ -945,21 +944,21 @@ function _renderAnalysisPanel(container, state, sysId, snapshots, marketMode) {
       '<div class="market-analysis-header">' +
         '<div>' +
           '<div class="market-analysis-title">📡 行动摘要</div>' +
-          '<div class="market-analysis-subtitle">' + (system ? system.name : '当前节点') + ' · ' + (marketMode === 'black' ? '黑市策略窗' : '公开盘策略窗') + '</div>' +
+          '<div class="market-analysis-subtitle">' + (system ? system.name : '当前地点') + ' · ' + (marketMode === 'black' ? '黑市' : '公开市场') + '</div>' +
         '</div>' +
-        '<span class="market-analysis-chip">流动性 ' + densityLabel + '</span>' +
+        '<span class="market-analysis-chip">市场规模 ' + densityLabel + '</span>' +
       '</div>' +
       '<div class="market-analysis-metrics">' +
         '<div class="market-analysis-metric">' +
-          '<span class="market-analysis-metric-label">总买入额</span>' +
-          '<span class="market-analysis-metric-value">' + (totalVolume >= 1000000 ? (totalVolume / 1000000).toFixed(1) + '<small>M</small>' : totalVolume >= 1000 ? (totalVolume / 1000).toFixed(1) + '<small>K</small>' : totalVolume.toLocaleString()) + ' <small>CR/小时</small></span>' +
+          '<span class="market-analysis-metric-label">市场参考值</span>' +
+          '<span class="market-analysis-metric-value">' + (totalVolume >= 1000000 ? (totalVolume / 1000000).toFixed(1) + '<small>M</small>' : totalVolume >= 1000 ? (totalVolume / 1000).toFixed(1) + '<small>K</small>' : totalVolume.toLocaleString()) + ' <small>CR</small></span>' +
         '</div>' +
         '<div class="market-analysis-metric">' +
-          '<span class="market-analysis-metric-label">交易密度</span>' +
+          '<span class="market-analysis-metric-label">市场规模</span>' +
           '<span class="market-analysis-metric-value">' + densityLabel + '</span>' +
         '</div>' +
         '<div class="market-analysis-metric">' +
-          '<span class="market-analysis-metric-label">平均利差</span>' +
+          '<span class="market-analysis-metric-label">平均买卖差</span>' +
           '<span class="market-analysis-metric-value">' + Math.round(avgSpread).toLocaleString() + ' <small>CR</small></span>' +
         '</div>' +
         '<div class="market-analysis-metric">' +
@@ -968,7 +967,7 @@ function _renderAnalysisPanel(container, state, sysId, snapshots, marketMode) {
         '</div>' +
       '</div>' +
       '<hr class="market-analysis-divider" />' +
-      '<div class="market-analysis-section-title">当前策略</div>' +
+      '<div class="market-analysis-section-title">当前建议</div>' +
       '<div class="market-analysis-signal-card ' + focusSignal.className + '">' +
         '<div class="market-analysis-signal-head">' +
           '<span class="market-analysis-signal-title">' + (focused ? (focused.good.emoji + ' ' + focused.good.name) : '暂无聚焦货物') + '</span>' +
@@ -1030,8 +1029,9 @@ function _renderAnalysisPanel(container, state, sysId, snapshots, marketMode) {
       '<div class="market-analysis-fact-list">' +
         '<div class="market-analysis-fact-row"><span>当前势力</span><strong>' + (systemFaction ? systemFaction.name : '中立地带') + '</strong></div>' +
         '<div class="market-analysis-fact-row"><span>运行模式</span><strong>' + (marketMode === 'black' ? '🕶 黑市' : '🏪 公开') + '</strong></div>' +
-        '<div class="market-analysis-fact-row"><span>节点类型</span><strong>' + (system ? system.typeLabel : '未知') + '</strong></div>' +
-        '<div class="market-analysis-fact-row"><span>市场深度</span><strong>' + marketDepth + '</strong></div>' +
+        '<div class="market-analysis-fact-row"><span>地点类型</span><strong>' + (system ? system.typeLabel : '未知') + '</strong></div>' +
+        '<div class="market-analysis-fact-row"><span>可交易规模</span><strong>' + marketDepth + '</strong></div>' +
+        '<div class="market-analysis-fact-row"><span>势力价格优惠</span><strong>买价 -' + Math.round(negotiationProfile.buyAdvantage * 100) + '% / 卖价 +' + Math.round(negotiationProfile.sellAdvantage * 100) + '%</strong></div>' +
       '</div>' +
     '</div>';
 }
@@ -1055,53 +1055,55 @@ function _renderSpotIntelSection(state, sysId, snapshots, marketMode, systemFact
     return (b.supplyDemand.ratio + b.swing / 100) - (a.supplyDemand.ratio + a.swing / 100);
   }).slice(0, 4);
   var marketDepth = Economy.getMarketDepth(sysId);
+  var negotiationProfile = Economy.getTradeNegotiationProfile(state, sysId);
   var nodeTitleId = _getMarketFinanceDomId('market-intel-node-title', sysId);
   var nodeMetaId = _getMarketFinanceDomId('market-intel-node-meta', sysId);
   var accessTitleId = _getMarketFinanceDomId('market-intel-access-title', sysId);
   var accessMetaId = _getMarketFinanceDomId('market-intel-access-meta', sysId);
 
-  return '<section class="market-finance-section">' +
+  return _renderMarketIntelTools() + '<section class="market-finance-section">' +
     '<div class="market-finance-section-head">' +
       '<div>' +
-        '<div class="market-finance-title">🧭 市场情报台</div>' +
-        '<div class="market-finance-subtitle">把当前节点的价格、波动和准入状态压缩成一张作战看板，方便决定下一笔交易。</div>' +
+        '<div class="market-finance-title">🧭 行情参考</div>' +
+        '<div class="market-finance-subtitle">汇总这里的价格变化和开放条件，帮你决定下一笔交易。</div>' +
       '</div>' +
       '<span class="market-finance-chip">' + (marketMode === 'black' ? '黑市视图' : '公开视图') + '</span>' +
     '</div>' +
     '<div class="market-finance-summary-grid market-spot-intel-grid">' +
       '<div class="market-finance-summary-metric"><span>最低买入</span><strong>' + (lowestBuy ? (lowestBuy.good.emoji + ' ' + lowestBuy.buyPrice.toLocaleString()) : '—') + '</strong></div>' +
       '<div class="market-finance-summary-metric"><span>最高需求</span><strong>' + (bestDemand ? (bestDemand.good.emoji + ' ' + bestDemand.supplyDemand.ratio.toFixed(2) + 'x') : '—') + '</strong></div>' +
-      '<div class="market-finance-summary-metric"><span>最大波动</span><strong>' + (biggestSwing ? (biggestSwing.good.emoji + ' ' + biggestSwing.swing.toLocaleString()) : '—') + '</strong></div>' +
+      '<div class="market-finance-summary-metric"><span>最大价格变化</span><strong>' + (biggestSwing ? (biggestSwing.good.emoji + ' ' + biggestSwing.swing.toLocaleString()) : '—') + '</strong></div>' +
       '<div class="market-finance-summary-metric"><span>买卖价差</span><strong>' + (widestSpread ? (widestSpread.good.emoji + ' ' + widestSpread.spread.toLocaleString()) : '—') + '</strong></div>' +
+      '<div class="market-finance-summary-metric"><span>势力价格优惠</span><strong>买价 -' + Math.round(negotiationProfile.buyAdvantage * 100) + '% · 卖价 +' + Math.round(negotiationProfile.sellAdvantage * 100) + '%</strong></div>' +
     '</div>' +
     _renderSpotIntelSignalPanel(surveyIntel, watchList, marketMode, blackMarketUnlocked) +
   '</section>' +
   _renderSurveyIntelMarketSection(surveyIntel) +
-  '<div class="market-intel-decision-grid" role="group" aria-label="节点与盯盘决策区">' +
+  '<div class="market-intel-decision-grid" role="group" aria-label="地点和关注商品">' +
   '<section class="market-finance-section market-intel-node-section">' +
     '<div class="market-finance-section-head">' +
       '<div>' +
-        '<div class="market-finance-title">📡 节点速览</div>' +
-        '<div class="market-finance-subtitle">深度、势力与特殊市场准入。</div>' +
+        '<div class="market-finance-title">📡 地点速览</div>' +
+        '<div class="market-finance-subtitle">当地市场大小、所属势力和黑市开放条件。</div>' +
       '</div>' +
     '</div>' +
-    '<div class="market-finance-action-list market-intel-node-list" role="list" aria-label="节点行情与准入速览">' +
+    '<div class="market-finance-action-list market-intel-node-list" role="list" aria-label="地点行情和开放条件">' +
       '<article class="market-finance-action-row market-intel-node-row" role="listitem" tabindex="0" aria-labelledby="' + _escapeHtmlAttr(nodeTitleId) + '" aria-describedby="' + _escapeHtmlAttr(nodeMetaId) + '">' +
         '<div class="market-finance-action-main">' +
-          '<div id="' + _escapeHtmlAttr(nodeTitleId) + '" class="market-finance-action-title">' + _escapeHtml(system ? system.name : '当前节点') + '</div>' +
+          '<div id="' + _escapeHtmlAttr(nodeTitleId) + '" class="market-finance-action-title">' + _escapeHtml(system ? system.name : '当前地点') + '</div>' +
           '<div id="' + _escapeHtmlAttr(nodeMetaId) + '" class="market-finance-action-meta market-intel-node-meta">' +
-            '<span class="market-intel-node-facts"><span>深度 <strong>' + marketDepth + '</strong></span><span>' + _escapeHtml(system ? system.typeLabel : '未知类型') + '</span></span>' +
-            '<span class="market-intel-node-description">' + _escapeHtml(system ? system.description : '无节点说明') + '</span>' +
+            '<span class="market-intel-node-facts"><span>市场大小 <strong>' + marketDepth + '</strong></span><span>' + _escapeHtml(system ? system.typeLabel : '未知类型') + '</span></span>' +
+            '<span class="market-intel-node-description">' + _escapeHtml(system ? system.description : '暂无地点说明') + '</span>' +
           '</div>' +
         '</div>' +
         '<div class="market-finance-network-note">' + _escapeHtml(systemFaction ? systemFaction.name : '中立地带') + '</div>' +
       '</article>' +
       '<article class="market-finance-action-row market-intel-node-row" role="listitem" tabindex="0" aria-labelledby="' + _escapeHtmlAttr(accessTitleId) + '" aria-describedby="' + _escapeHtmlAttr(accessMetaId) + '">' +
         '<div class="market-finance-action-main">' +
-          '<div id="' + _escapeHtmlAttr(accessTitleId) + '" class="market-finance-action-title">特殊市场准入</div>' +
+          '<div id="' + _escapeHtmlAttr(accessTitleId) + '" class="market-finance-action-title">特殊市场开放条件</div>' +
           '<div id="' + _escapeHtmlAttr(accessMetaId) + '" class="market-finance-action-meta market-intel-node-meta">' +
-            '<span class="market-intel-node-facts"><span>现货 <strong>公开</strong></span><span>特殊通路</span></span>' +
-            '<span class="market-intel-node-description">' + (systemFaction && systemFaction.marketAccess && systemFaction.marketAccess.blackMarket ? '该势力辖区存在黑市通路。' : '当前节点无黑市入口，仅开放公开市场。') + '</span>' +
+            '<span class="market-intel-node-facts"><span>公开市场 <strong>开放</strong></span><span>黑市</span></span>' +
+            '<span class="market-intel-node-description">' + (systemFaction && systemFaction.marketAccess && systemFaction.marketAccess.blackMarket ? '该势力辖区存在黑市通路。' : '当前地点无黑市入口，仅开放公开市场。') + '</span>' +
           '</div>' +
         '</div>' +
         '<div class="market-finance-network-note">' + (blackMarketUnlocked ? '已解锁' : '未解锁') + '</div>' +
@@ -1111,13 +1113,13 @@ function _renderSpotIntelSection(state, sysId, snapshots, marketMode, systemFact
   '<section class="market-finance-section market-watch-section">' +
     '<div class="market-finance-section-head">' +
       '<div>' +
-        '<div class="market-finance-title">🎯 盯盘优先级</div>' +
-        '<div class="market-finance-subtitle">按需求、波动和价差排序。</div>' +
+        '<div class="market-finance-title">🎯 关注优先级</div>' +
+        '<div class="market-finance-subtitle">按需求、价格变化和买卖价差排序。</div>' +
       '</div>' +
       '<span class="market-finance-chip">TOP ' + watchList.length + '</span>' +
     '</div>' +
     (watchList.length > 0
-      ? '<div class="market-finance-action-list market-watch-list" role="list" aria-label="值得盯盘的货物">' + watchList.map(function (entry) {
+      ? '<div class="market-finance-action-list market-watch-list" role="list" aria-label="值得关注的货物">' + watchList.map(function (entry) {
           var watchTitleId = _getMarketFinanceDomId('market-watch-title', entry.good.id);
           var watchMetaId = _getMarketFinanceDomId('market-watch-meta', entry.good.id);
           return '<article class="market-finance-action-row market-watch-row" role="listitem" tabindex="0" aria-labelledby="' + _escapeHtmlAttr(watchTitleId) + '" aria-describedby="' + _escapeHtmlAttr(watchMetaId) + '">' +
@@ -1129,7 +1131,7 @@ function _renderSpotIntelSection(state, sysId, snapshots, marketMode, systemFact
                 '<span>需求 <strong>' + entry.supplyDemand.ratio.toFixed(2) + 'x</strong></span>' +
               '</div>' +
             '</div>' +
-            '<div class="market-finance-network-note market-watch-swing"><span>波动</span><strong>' + entry.swing.toLocaleString() + '</strong></div>' +
+            '<div class="market-finance-network-note market-watch-swing"><span>变化</span><strong>' + entry.swing.toLocaleString() + '</strong></div>' +
           '</article>';
         }).join('') + '</div>'
       : '<div class="market-finance-empty">当前没有足够的行情数据生成观察名单。</div>') +
@@ -1146,8 +1148,8 @@ function _renderSpotSignalMetric(label, value, note, toneClass) {
 }
 
 function _renderSpotFocus(title, note, tone) {
-  return '<div class="market-spot-focus" aria-label="市场局部信号" data-tone="' + _escapeHtmlAttr(tone || 'idle') + '">' +
-    '<span class="market-spot-focus-kicker">局部信号</span>' +
+  return '<div class="market-spot-focus" aria-label="市场建议" data-tone="' + _escapeHtmlAttr(tone || 'idle') + '">' +
+    '<span class="market-spot-focus-kicker">当前建议</span>' +
     '<strong class="market-spot-focus-title">' + _escapeHtml(title) + '</strong>' +
     '<span class="market-spot-focus-note">' + _escapeHtml(note) + '</span>' +
   '</div>';
@@ -1164,41 +1166,41 @@ function _renderSpotIntelSignalPanel(surveyIntel, watchList, marketMode, blackMa
   var archivedChainCount = chains.filter(function (chain) {
     return chain.resolved || chain.stage === 'archived';
   }).length;
-  var focusTitle = '行情观察窗口';
+  var focusTitle = '看看行情再决定';
   var focusNote = watchList.length > 0
-    ? ('当前有 ' + watchList.length + ' 个货物进入盯盘列表，先比较需求、波动和价差。')
-    : '当前行情数据不足，先使用节点速览判断是否值得停留。';
+    ? ('当前有 ' + watchList.length + ' 个货物值得关注，先比较需求、价格变化和买卖价差。')
+    : '当前行情数据不足，先用地点速览判断是否值得停留。';
   var focusTone = watchList.length > 0 ? 'watch' : 'idle';
 
   if (readyFollowupCount > 0) {
-    focusTitle = '事件链待跟进';
+    focusTitle = '有后续任务';
     focusNote = surveyIntel.nextChainFollowup
-      ? (surveyIntel.nextChainFollowup.followupLabel || surveyIntel.nextChainFollowup.label || '有事件链后续可以确认。')
-      : ('有 ' + readyFollowupCount + ' 条事件链后续等待确认。');
+      ? (surveyIntel.nextChainFollowup.followupLabel || surveyIntel.nextChainFollowup.label || '有探索任务的后续内容可以确认。')
+      : ('有 ' + readyFollowupCount + ' 个探索任务后续等待确认。');
     focusTone = 'risk';
   } else if (hasIntel) {
-    focusTitle = '勘探报告可用';
-    focusNote = (surveyIntel.primaryLabel || '勘探情报') + ' 已纳入市场情报页，可和节点准入、盯盘货物一起判断。';
+    focusTitle = '探索报告可用';
+    focusNote = (surveyIntel.primaryLabel || '探索线索') + ' 已放入市场行情页，可和开放条件、关注货物一起判断。';
     focusTone = 'ready';
   } else if (blackMarketUnlocked) {
-    focusTitle = marketMode === 'black' ? '黑市情报并入盘口' : '特殊市场可切换';
-    focusNote = '当前节点具备黑市准入，可在黑市页复核风险后切换盘口。';
+    focusTitle = marketMode === 'black' ? '黑市信息已显示' : '可以切换特殊市场';
+    focusNote = '当前地点可以进入黑市，可在黑市页看清风险后再切换报价。';
     focusTone = 'ready';
   }
 
-  return '<div class="market-spot-signal-panel market-intel-signal-panel" aria-label="市场情报局部态势">' +
+  return '<div class="market-spot-signal-panel market-intel-signal-panel" aria-label="行情概览">' +
     '<div class="market-spot-signal-head">' +
       '<div>' +
-        '<div class="market-spot-signal-title">情报链摘要</div>' +
-        '<div class="market-spot-signal-subtitle">把勘探报告、事件链、盯盘货物和特殊市场准入压成一组局部态势。</div>' +
+        '<div class="market-spot-signal-title">行情摘要</div>' +
+        '<div class="market-spot-signal-subtitle">集中显示探索报告、事件、关注商品和特殊市场，方便判断下一步。</div>' +
       '</div>' +
       '<span class="market-finance-chip">' + (hasIntel ? '报告可用' : '行情观察') + '</span>' +
     '</div>' +
-    '<div class="market-spot-signal-grid" role="list" aria-label="市场情报指标">' +
-      _renderSpotSignalMetric('报告归档', reportCount + ' 份', hasIntel ? ('情报等级 Lv.' + intelLevel) : '暂无勘探报告', hasIntel ? 'tone-cool' : '') +
-      _renderSpotSignalMetric('事件链', readyFollowupCount + ' 待跟进', archivedChainCount + ' 条已归档链路', readyFollowupCount > 0 ? 'tone-hot' : (archivedChainCount > 0 ? 'tone-cool' : '')) +
-      _renderSpotSignalMetric('盯盘货物', String(watchList.length), watchList.length > 0 ? '按需求、波动与价差排序' : '等待更多价格波动', watchList.length > 0 ? 'tone-warm' : '') +
-      _renderSpotSignalMetric('特殊准入', blackMarketUnlocked ? '黑市开放' : '公开视图', marketMode === 'black' ? '当前查看黑市盘口' : '当前查看公开盘口', blackMarketUnlocked ? 'tone-cool' : '') +
+    '<div class="market-spot-signal-grid" role="list" aria-label="行情信息">' +
+      _renderSpotSignalMetric('探索报告', reportCount + ' 份', hasIntel ? ('报告等级 Lv.' + intelLevel) : '暂无探索报告', hasIntel ? 'tone-cool' : '') +
+      _renderSpotSignalMetric('后续任务', readyFollowupCount + ' 待跟进', archivedChainCount + ' 条已完成记录', readyFollowupCount > 0 ? 'tone-hot' : (archivedChainCount > 0 ? 'tone-cool' : '')) +
+      _renderSpotSignalMetric('关注货物', String(watchList.length), watchList.length > 0 ? '按需求、价格变化和买卖价差排序' : '等待更多价格变化', watchList.length > 0 ? 'tone-warm' : '') +
+      _renderSpotSignalMetric('特殊开放条件', blackMarketUnlocked ? '黑市开放' : '公开视图', marketMode === 'black' ? '当前查看黑市报价' : '当前查看公开报价', blackMarketUnlocked ? 'tone-cool' : '') +
     '</div>' +
     _renderSpotFocus(focusTitle, focusNote, focusTone) +
   '</div>';
@@ -1208,11 +1210,11 @@ function _renderSurveyIntelMarketSection(surveyIntel) {
   if (!surveyIntel || !surveyIntel.hasIntel) return '';
 
   var signalNotes = [];
-  if (surveyIntel.marketSignal) signalNotes.push('贸易窗口');
+  if (surveyIntel.marketSignal) signalNotes.push('交易机会');
   if (surveyIntel.researchSignal) signalNotes.push('科研样本');
-  if (surveyIntel.routeSignal) signalNotes.push('暗线航图');
-  if (surveyIntel.logisticsSignal) signalNotes.push('补给节点');
-  if (signalNotes.length === 0) signalNotes.push(surveyIntel.opportunityLabel || '勘探情报');
+  if (surveyIntel.routeSignal) signalNotes.push('隐藏航线图');
+  if (surveyIntel.logisticsSignal) signalNotes.push('补给点');
+  if (signalNotes.length === 0) signalNotes.push(surveyIntel.opportunityLabel || '探索线索');
   var chainRowsHtml = _renderSurveyIntelChainRows(surveyIntel);
   var reportTitleId = _getMarketFinanceDomId('market-survey-report-title', surveyIntel.systemId || surveyIntel.recentReportTitle || 'current');
   var reportMetaId = _getMarketFinanceDomId('market-survey-report-meta', surveyIntel.systemId || surveyIntel.recentReportTitle || 'current');
@@ -1220,16 +1222,16 @@ function _renderSurveyIntelMarketSection(surveyIntel) {
   return '<section class="market-finance-section">' +
     '<div class="market-finance-section-head">' +
       '<div>' +
-        '<div class="market-finance-title">📘 勘探报告联动</div>' +
+        '<div class="market-finance-title">📘 探索报告带来的机会</div>' +
         '<div class="market-finance-subtitle">' + _escapeHtml(surveyIntel.marketHint) + '</div>' +
       '</div>' +
       '<span class="market-finance-chip">' + _escapeHtml(surveyIntel.primaryLabel) + '</span>' +
     '</div>' +
-    '<div class="market-finance-action-list market-survey-chain-list" role="list" aria-label="勘探报告联动链路">' +
+    '<div class="market-finance-action-list market-survey-chain-list" role="list" aria-label="探索报告带来的机会">' +
       '<article class="market-finance-action-row market-survey-report-row" role="listitem" tabindex="0" aria-labelledby="' + _escapeHtmlAttr(reportTitleId) + '" aria-describedby="' + _escapeHtmlAttr(reportMetaId) + '">' +
         '<div class="market-finance-action-main">' +
-          '<div id="' + _escapeHtmlAttr(reportTitleId) + '" class="market-finance-action-title">' + _escapeHtml(surveyIntel.recentReportTitle || '勘探报告') + '</div>' +
-          '<div id="' + _escapeHtmlAttr(reportMetaId) + '" class="market-finance-action-meta">情报等级 Lv.' + _escapeHtml(surveyIntel.intelLevel) + ' · 已归档 ' + _escapeHtml(surveyIntel.reportCount) + ' 份 · ' + _escapeHtml(signalNotes.join(' / ')) + '</div>' +
+          '<div id="' + _escapeHtmlAttr(reportTitleId) + '" class="market-finance-action-title">' + _escapeHtml(surveyIntel.recentReportTitle || '探索报告') + '</div>' +
+          '<div id="' + _escapeHtmlAttr(reportMetaId) + '" class="market-finance-action-meta">报告等级 Lv.' + _escapeHtml(surveyIntel.intelLevel) + ' · 已保存 ' + _escapeHtml(surveyIntel.reportCount) + ' 份 · ' + _escapeHtml(signalNotes.join(' / ')) + '</div>' +
         '</div>' +
         '<div class="market-finance-network-note">' + _escapeHtml(surveyIntel.anomalyHint || surveyIntel.dispatchHint || '行情参考') + '</div>' +
       '</article>' +
@@ -1279,7 +1281,7 @@ function _getSurveyChainStageClass(chain) {
 
 function _getSurveyChainImpact(chain) {
   if (!chain) return '经营影响';
-  if (chain.kind === 'lost_beacon') return '航线 / 派遣';
+  if (chain.kind === 'lost_beacon') return '航线 / 自动跑商';
   if (chain.kind === 'ancient_relic') return '科研 / 风险';
   if (chain.kind === 'derelict_depot') return '商网 / 整备';
   if (chain.signal === 'market') return '贸易 / 价格';
@@ -1324,12 +1326,12 @@ function _renderBlackMarketSection(state, sysId, marketMode, systemFaction, blac
           '<article class="market-finance-card market-black-status-card' + (marketMode === 'black' ? ' is-featured' : '') + '" tabindex="0" aria-labelledby="' + _escapeHtmlAttr(blackStatusTitleId) + '" aria-describedby="' + _escapeHtmlAttr(blackStatusMetaId + ' ' + blackStatusRiskId) + '">' +
             '<div class="market-finance-card-head"><span id="' + _escapeHtmlAttr(blackStatusTitleId) + '" class="market-finance-card-title">' + (marketMode === 'black' ? '黑市已接管前台视图' : '当前仍停留在公开市场') + '</span><span class="market-finance-chip">' + (blackMarketUnlocked ? '可切换' : '权限不足') + '</span></div>' +
             '<div id="' + _escapeHtmlAttr(blackStatusMetaId) + '" class="market-finance-card-meta">' + (blackMarketUnlocked
-              ? '切换到黑市后，现货交易子页会改用灰市/违禁品报价与对应买卖动作。'
-              : '该节点存在黑市，但当前资格不足，只能提前查看风险说明。') + '</div>' +
+              ? '切换到黑市后，交易页会改用受监管货物和违禁品报价。'
+              : '该地点存在黑市，但当前资格不足，只能提前查看风险说明。') + '</div>' +
             '<div id="' + _escapeHtmlAttr(blackStatusRiskId) + '" class="market-finance-card-meta">⚠ 携带违禁品进入联邦区域会触发执法检查，黑市收益高，但路线风险和名望代价更大。</div>' +
           '</article>' +
         '</div>'
-      : '<div class="market-finance-locked">📡 当前节点不提供黑市入口。若要走特殊货物流通，需要前往允许黑市交易的势力辖区。</div>') +
+      : '<div class="market-finance-locked">📡 当前地点不提供黑市入口。若要买卖特殊货物，需要前往允许黑市交易的势力辖区。</div>') +
   '</section>' +
   '<section class="market-finance-section">' +
     '<div class="market-finance-section-head">' +
@@ -1358,6 +1360,16 @@ function _renderBlackMarketSection(state, sysId, marketMode, systemFaction, blac
 
 function _renderBlackMarketRiskPanel(state, sysId, marketMode, hasBlackMarket, blackMarketUnlocked, blackGoods) {
   var risk = Economy.estimateSmugglingCargoRisk(state || {}, sysId, (state && state.cargo) || {});
+  var smugglingStats = state && state.smugglingStats && typeof state.smugglingStats === 'object'
+    ? state.smugglingStats
+    : {};
+  var riskedArrivals = Math.max(0, Number(smugglingStats.riskedArrivals || 0));
+  var caughtArrivals = Math.max(0, Number(smugglingStats.caught || 0));
+  var safeArrivals = Math.max(0, Number(smugglingStats.evaded || 0));
+  var realizedProfit = Number(smugglingStats.blackMarketRealizedProfit || 0);
+  var enforcementLoss = Math.max(0, Number(smugglingStats.finesPaid || 0)) +
+    Math.max(0, Number(smugglingStats.confiscatedCostBasis || 0));
+  var actualBlackMarketResult = realizedProfit - enforcementLoss;
   var illegalGoodsCount = (blackGoods || []).filter(function (good) {
     return good.legality === 'illegal';
   }).length;
@@ -1366,24 +1378,24 @@ function _renderBlackMarketRiskPanel(state, sysId, marketMode, hasBlackMarket, b
     ? (blackMarketUnlocked ? ('货目录 ' + blackGoods.length + ' 项 · 违禁 ' + illegalGoodsCount + ' 项') : '需要提升辛迪加关系后开放')
     : '当前势力辖区不提供黑市通路';
   var focusTitle = '无本地入口';
-  var focusNote = '该节点不提供黑市接入，特殊货物流通需要转向辛迪加辖区。';
+  var focusNote = '该地点没有黑市，买卖特殊货物需要前往辛迪加辖区。';
   var focusTone = 'idle';
 
   if (hasBlackMarket && !blackMarketUnlocked) {
     focusTitle = '黑市资格未达标';
-    focusNote = '可以先查看风险与货目录，但当前无法切换到黑市盘口。';
+    focusNote = '可以先查看风险与货目录，但当前无法切换到黑市报价。';
     focusTone = 'watch';
   } else if (blackMarketUnlocked && risk.hasContraband && risk.protectedByBlackMarket) {
     focusTitle = '黑市保护已覆盖';
-    focusNote = '当前货舱含违禁品，但该节点黑市资格已开放，入港检查压力降至 ' + risk.checkChancePercent + '%。';
+    focusNote = '当前货舱含违禁品，但该地点已开放黑市，入港被检查的概率为 ' + risk.checkChancePercent + '%。';
     focusTone = 'ready';
   } else if (risk.hasContraband) {
     focusTitle = '走私检查暴露';
     focusNote = '当前货舱含 ' + risk.contrabandGoods.join('、') + '，预计检查概率 ' + risk.checkChancePercent + '%。';
     focusTone = 'risk';
   } else if (blackMarketUnlocked && marketMode === 'black') {
-    focusTitle = '灰市盘口在线';
-    focusNote = '当前现货页已切换到黑市报价，适合先核对违禁品和受监管商品。';
+    focusTitle = '灰市报价在线';
+    focusNote = '当前交易页已切换到黑市报价，适合先核对违禁品和受监管商品。';
     focusTone = 'ready';
   } else if (blackMarketUnlocked) {
     focusTitle = '可切换观察';
@@ -1391,19 +1403,25 @@ function _renderBlackMarketRiskPanel(state, sysId, marketMode, hasBlackMarket, b
     focusTone = 'watch';
   }
 
-  return '<div class="market-spot-signal-panel market-black-risk-panel" aria-label="黑市风险局部态势">' +
+  return '<div class="market-spot-signal-panel market-black-risk-panel" aria-label="黑市风险局部状态">' +
     '<div class="market-spot-signal-head">' +
       '<div>' +
-        '<div class="market-spot-signal-title">黑市风险态势</div>' +
-        '<div class="market-spot-signal-subtitle">先看准入、执法、违禁货值和检查概率，再决定是否切换特殊市场。</div>' +
+        '<div class="market-spot-signal-title">黑市风险状态</div>' +
+        '<div class="market-spot-signal-subtitle">先看开放条件、执法、违禁货值和检查概率，再决定是否切换特殊市场。</div>' +
       '</div>' +
       '<span class="market-finance-chip">' + (risk.protectedByBlackMarket ? '保护覆盖' : risk.enforcementLabel) + '</span>' +
     '</div>' +
     '<div class="market-spot-signal-grid" role="list" aria-label="黑市风险指标">' +
-      _renderSpotSignalMetric('准入状态', accessValue, accessNote, blackMarketUnlocked ? 'tone-cool' : (hasBlackMarket ? 'tone-warm' : '')) +
+      _renderSpotSignalMetric('开放条件状态', accessValue, accessNote, blackMarketUnlocked ? 'tone-cool' : (hasBlackMarket ? 'tone-warm' : '')) +
       _renderSpotSignalMetric('执法等级', risk.enforcementLabel, '声望修正 ×' + risk.reputationModifier.toFixed(2), risk.enforcement === 'high' ? 'tone-hot' : (risk.enforcement === 'medium' ? 'tone-warm' : 'tone-cool')) +
       _renderSpotSignalMetric('违禁货值', Math.floor(risk.contrabandValue || 0).toLocaleString(), risk.hasContraband ? risk.contrabandGoods.join('、') : '货舱暂无违禁品', risk.hasContraband ? 'tone-hot' : '') +
       _renderSpotSignalMetric('检查概率', risk.checkChancePercent + '%', risk.protectedByBlackMarket ? '黑市资格降低入港检查压力' : '由执法等级、货值占比和声望决定', risk.checkChancePercent > 0 ? 'tone-hot' : 'tone-cool') +
+    '</div>' +
+    '<div class="market-spot-signal-grid" role="list" aria-label="黑市实际经营结果">' +
+      _renderSpotSignalMetric('已结算利润', Math.round(realizedProfit).toLocaleString(), '只统计已经卖出的黑市货物', realizedProfit >= 0 ? 'tone-cool' : 'tone-hot') +
+      _renderSpotSignalMetric('执法损失', Math.round(enforcementLoss).toLocaleString(), '罚款与被没收货物的实际成本', enforcementLoss > 0 ? 'tone-hot' : '') +
+      _renderSpotSignalMetric('实际净结果', Math.round(actualBlackMarketResult).toLocaleString(), '已结算利润减去罚款和没收成本', actualBlackMarketResult >= 0 ? 'tone-cool' : 'tone-hot') +
+      _renderSpotSignalMetric('入港结果', safeArrivals + ' 安全 / ' + caughtArrivals + ' 被查', riskedArrivals > 0 ? ('共 ' + riskedArrivals + ' 次有风险入港') : '尚无有风险入港记录', caughtArrivals > 0 ? 'tone-warm' : '') +
     '</div>' +
     _renderSpotFocus(focusTitle, focusNote, focusTone) +
   '</div>';
@@ -1515,7 +1533,7 @@ function _renderMarketChart(history, currentPrice, goodLabel, options) {
     return (index === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1);
   }).join(' ');
 
-  return '<svg class="' + outerClass + '" viewBox="0 0 ' + width + ' ' + height + '" role="img" aria-label="' + goodLabel + ' 市场K线图">' +
+  return '<svg class="' + outerClass + '" viewBox="0 0 ' + width + ' ' + height + '" role="img" aria-label="' + goodLabel + ' 价格走势">' +
     '<rect x="0.5" y="0.5" width="' + (width - 1) + '" height="' + (height - 1) + '" rx="8" class="market-chart-frame" />' +
     '<line x1="4" y1="40.5" x2="128" y2="40.5" class="market-chart-axis" />' +
     '<line x1="4" y1="53.5" x2="128" y2="53.5" class="market-chart-axis market-chart-axis-volume" />' +
@@ -1637,11 +1655,11 @@ function _renderFullKlineChart(history, currentPrice, goodLabel, range) {
   var border = '<rect x="' + chartLeft + '" y="' + chartTop + '" width="' + chartW + '" height="' + (volumeBottom - chartTop) + '" rx="0" class="kline-border" />';
 
   // ── 组装 ──
-  return '<svg class="market-kline-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + goodLabel + ' K线走势图">' +
+  return '<svg class="market-kline-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + goodLabel + ' 价格走势图">' +
     border + gridLines + priceLabels +
     volBars + candleSvg + maPaths + priceLine + xLabels +
-    '<text x="' + (chartLeft + 4) + '" y="' + (chartTop + 12) + '" class="kline-ma-legend kline-ma5">MA5</text>' +
-    '<text x="' + (chartLeft + 36) + '" y="' + (chartTop + 12) + '" class="kline-ma-legend kline-ma10">MA10</text>' +
+    '<text x="' + (chartLeft + 4) + '" y="' + (chartTop + 12) + '" class="kline-ma-legend kline-ma5">5日均价</text>' +
+    '<text x="' + (chartLeft + 62) + '" y="' + (chartTop + 12) + '" class="kline-ma-legend kline-ma10">10日均价</text>' +
   '</svg>';
 }
 
@@ -1690,11 +1708,11 @@ function _updateMainKlineChart(state, sysId, snapshots, marketMode) {
   var ohlcEl = document.getElementById('market-kline-ohlc');
   if (ohlcEl) {
     ohlcEl.innerHTML =
-      '<span class="kline-ohlc-item">O <em>' + last.open + '</em></span>' +
-      '<span class="kline-ohlc-item">H <em>' + last.high + '</em></span>' +
-      '<span class="kline-ohlc-item">L <em>' + last.low + '</em></span>' +
-      '<span class="kline-ohlc-item">C <em>' + last.close + '</em></span>' +
-      '<span class="kline-ohlc-item">Vol <em>' + last.volume + '</em></span>' +
+      '<span class="kline-ohlc-item">开 <em>' + last.open + '</em></span>' +
+      '<span class="kline-ohlc-item">高 <em>' + last.high + '</em></span>' +
+      '<span class="kline-ohlc-item">低 <em>' + last.low + '</em></span>' +
+      '<span class="kline-ohlc-item">收 <em>' + last.close + '</em></span>' +
+      '<span class="kline-ohlc-item">交易量 <em>' + last.volume + '</em></span>' +
       '<span class="kline-ohlc-item">买卖差 <em>' + focused.spread + '</em></span>';
   }
 
@@ -1708,12 +1726,11 @@ function _updateMainKlineChart(state, sysId, snapshots, marketMode) {
   var metricsEl = document.getElementById('market-kline-metrics');
   if (metricsEl) {
     var sd = focused.supplyDemand;
-    var pressureLabel = sd.ratio > 1.3 ? '追涨区' : (sd.ratio < 0.8 ? '承压区' : '盘整区');
+    var supplyLabel = sd.ratio > 1.3 ? '货少需求高' : (sd.ratio < 0.8 ? '货多需求低' : '供需平稳');
     metricsEl.innerHTML =
-      '<span class="kline-metric">供需比 <em>' + sd.ratio.toFixed(2) + 'x</em></span>' +
-      '<span class="kline-metric">压力区 <em>' + pressureLabel + '</em></span>' +
-      '<span class="kline-metric">波动度 <em>' + focused.swing + '</em></span>' +
-      '<span class="kline-metric">' + (isBlack ? '黑市溢价' : '市场模式') + ' <em>' + (isBlack ? '×1.35' : '公开') + '</em></span>';
+      '<span class="kline-metric">供需 <em>' + supplyLabel + '</em></span>' +
+      '<span class="kline-metric">近期变化 <em>' + focused.swing + '</em></span>' +
+      '<span class="kline-metric">' + (isBlack ? '黑市加价' : '交易渠道') + ' <em>' + (isBlack ? '约 35%' : '公开市场') + '</em></span>';
   }
 }
 
@@ -1789,7 +1806,7 @@ function _renderMarketDashboard(state, sysId, marketMode, snapshots) {
       '<div class="market-terminal-head">' +
         '<div>' +
           '<div class="market-terminal-title">' + focused.good.emoji + ' ' + focused.good.name + '</div>' +
-          '<div class="market-terminal-subtitle">' + (marketMode === 'black' ? '黑市盘口' : '公开市场盘口') + ' · ' + pressureLabel + ' · 点选下方商品可切换图表</div>' +
+          '<div class="market-terminal-subtitle">' + (marketMode === 'black' ? '黑市报价' : '公开市场报价') + ' · ' + pressureLabel + ' · 点选下方商品可切换图表</div>' +
         '</div>' +
         '<div class="market-terminal-price-wrap">' +
           '<div class="market-terminal-price">' + focused.sellPrice.toLocaleString() + '</div>' +
@@ -2157,7 +2174,7 @@ function _renderOperationsBatchPlanningPanel(state, ownedStations, networkInvest
   var renderInvestmentTargetMeta = function (target) {
     return {
       title: target.name,
-      note: '殖利率 ' + ((target.expectedYieldRate || 0) * 100).toFixed(2) + '% · 已投 ' + Math.floor(target.investedAmount || 0).toLocaleString() + ' · 本轮 +' + Math.floor(target.planCost || 0).toLocaleString(),
+      note: '每天预计回报 ' + ((target.expectedYieldRate || 0) * 100).toFixed(2) + '% · 已投 ' + Math.floor(target.investedAmount || 0).toLocaleString() + ' · 本轮 +' + Math.floor(target.planCost || 0).toLocaleString(),
     };
   };
   var renderUpgradeTargetMeta = function (target) {
@@ -2184,22 +2201,22 @@ function _renderOperationsBatchPlanningPanel(state, ownedStations, networkInvest
     '<div class="market-finance-section-head market-batch-plan-head">' +
       '<div>' +
         '<div class="market-finance-title">🧭 批量计划面板</div>' +
-        '<div class="market-finance-subtitle">先审阅覆盖站点、单站成本和预算缺口，再决定是否执行波次。所有按钮都会按当前计划中的系统清单下发，而不是对全网盲发广播。</div>' +
+        '<div class="market-finance-subtitle">先审阅覆盖站点、单站成本和预算缺口，再决定是否执行批量操作。所有按钮都会按当前计划中的系统清单下发，而不是对全网盲发广播。</div>' +
       '</div>' +
-      '<span class="market-finance-chip">待命波次 ' + readyWaveCount + '</span>' +
+      '<span class="market-finance-chip">待命批量操作 ' + readyWaveCount + '</span>' +
     '</div>' +
     '<div class="market-batch-plan-summary-strip">' +
       '<span class="market-batch-plan-summary-pill">可用信用积分<strong>' + Math.floor(state.credits || 0).toLocaleString() + '</strong></span>' +
       '<span class="market-batch-plan-summary-pill">可控站点<strong>' + ownedStations.length + '</strong></span>' +
-      '<span class="market-batch-plan-summary-pill">资本待命<strong>' + investmentPlan.affordableTargets.length + '</strong></span>' +
+      '<span class="market-batch-plan-summary-pill">可投资<strong>' + investmentPlan.affordableTargets.length + '</strong></span>' +
       '<span class="market-batch-plan-summary-pill">升级待命<strong>' + upgradePlan.affordableTargets.length + '</strong></span>' +
     '</div>' +
     '<div class="market-batch-plan-grid market-batch-plan-grid-major">' +
       _renderBatchPlanCard({
-        title: '资本增配波次',
-        subtitle: '殖利率优先',
+        title: '批量追加投资',
+        subtitle: '优先投向回报较高的站点',
         badge: investmentPlan.affordableTargets.length > 0 ? '可执行' : '待预算',
-        description: '按站点预估殖利率从高到低排序，先把本轮预算打到回报更高的节点。',
+        description: '按每天预计回报从高到低排序，预算会先投向更划算的站点。',
         sortMarkup: _renderBatchPlanSortToolbar('investment', '排序视角'),
         metrics: [
           _renderBatchPlanMetric('覆盖', investmentPlan.affordableCount + '/' + investmentPlan.targetCount, '候选 ' + investmentPlan.targetCount + ' 站，本轮可覆盖 ' + investmentPlan.affordableCount + ' 站。'),
@@ -2210,8 +2227,8 @@ function _renderOperationsBatchPlanningPanel(state, ownedStations, networkInvest
         renderTargetMeta: renderInvestmentTargetMeta,
         deferredMarkup: _renderBatchPlanDeferredNote(investmentPlan.deferredTargets, renderInvestmentTargetMeta, '预算后置'),
         footerNote: investmentPlan.affordableTargets.length > 0
-          ? '将按预估顺序依次向这些节点追加资金。'
-          : '当前预算不足以覆盖任何增配节点。',
+          ? '将按预计顺序依次向这些贸易站追加资金。'
+          : '当前预算不足以向任何贸易站追加投资。',
         actionLabel: investmentPlan.affordableTargets.length > 0
           ? ('执行 ' + investmentPlan.affordableTargets.length + ' 站增配')
           : '暂无可执行增配',
@@ -2221,7 +2238,7 @@ function _renderOperationsBatchPlanningPanel(state, ownedStations, networkInvest
         toneClass: 'tone-cool',
       }) +
       _renderBatchPlanCard({
-        title: '商网升级波次',
+        title: '商网升级批量操作',
         subtitle: '收益优先',
         badge: upgradePlan.affordableTargets.length > 0 ? '可执行' : '待预算',
         description: '按预计日收益从高到低排序，先给最能放大现金流的站点做等级升级。',
@@ -2229,7 +2246,7 @@ function _renderOperationsBatchPlanningPanel(state, ownedStations, networkInvest
         metrics: [
           _renderBatchPlanMetric('覆盖', upgradePlan.affordableCount + '/' + upgradePlan.targetCount, '待升级 ' + upgradePlan.targetCount + ' 站，本轮可升级 ' + upgradePlan.affordableCount + ' 站。'),
           _renderBatchPlanMetric('已预留', Math.floor(upgradePlan.affordableCost || 0).toLocaleString(), '当前可覆盖升级成本。'),
-          _renderBatchPlanMetric('全量需求', Math.floor(upgradePlan.totalCost || 0).toLocaleString(), '超出预算的站点会留在下轮波次。'),
+          _renderBatchPlanMetric('全量需求', Math.floor(upgradePlan.totalCost || 0).toLocaleString(), '超出预算的站点会留在下轮批量操作。'),
         ],
         coverageTargets: upgradePlan.affordableTargets,
         renderTargetMeta: renderUpgradeTargetMeta,
@@ -2246,7 +2263,7 @@ function _renderOperationsBatchPlanningPanel(state, ownedStations, networkInvest
       }) +
     '</div>' +
     '<div class="market-batch-plan-lane">' +
-      '<div class="market-batch-plan-lane-title">🧭 站点定位波次</div>' +
+      '<div class="market-batch-plan-lane-title">🧭 批量调整经营方式</div>' +
       _renderBatchPlanSortToolbar('strategy', '排序视角') +
       '<div class="market-batch-plan-grid">' +
         strategyPlans.map(function (entry) {
@@ -2260,21 +2277,21 @@ function _renderOperationsBatchPlanningPanel(state, ownedStations, networkInvest
           };
           return _renderBatchPlanCard({
             title: strategy.name,
-            subtitle: '全网定位同步',
+            subtitle: '全网经营方式同步',
             badge: plan.targetCount > 0 ? '可执行' : '已同步',
-            description: '定位切换不消耗积分，但会立即重排整张商网的经营重心。',
+            description: '切换经营方式不消耗积分，但会立即改变整张商网的收益重点。',
             metrics: [
               _renderBatchPlanMetric('覆盖', String(plan.targetCount), '本轮需要切换的站点数量。'),
-              _renderBatchPlanMetric('收益系数', Math.round((strategy.incomeMultiplier || 1) * 100) + '%', '用于判断这轮策略的方向性。'),
-              _renderBatchPlanMetric('预算', '0', '定位同步不占用额外信用积分。'),
+              _renderBatchPlanMetric('收益 / 风险', Math.round((strategy.incomeMultiplier || 1) * 100) + '% · ' + (strategy.riskLabel || '稳健'), strategy.desc || '用于判断这种经营方式是否合适。'),
+              _renderBatchPlanMetric('预算', '0', '同步经营方式不占用额外信用积分。'),
             ],
             coverageTargets: plan.affordableTargets,
             renderTargetMeta: renderStrategyTargetMeta,
             footerNote: plan.targetCount > 0
               ? '执行后会只同步预览中的站点。'
-              : '全网已处于这套站点定位。',
+              : '所有贸易站都已经采用这套经营方式。',
             actionLabel: plan.targetCount > 0
-              ? ('同步 ' + plan.targetCount + ' 站定位')
+              ? ('同步 ' + plan.targetCount + ' 站经营方式')
               : '无需重复同步',
             action: 'market-batch-set-strategy',
             actionableSystemIds: plan.affordableTargets.map(function (target) { return target.station.systemId; }),
@@ -2301,22 +2318,22 @@ function _renderOperationsCommandDeck(viewingSystem, commerceSnapshot, tradeSumm
   var systemLabel = system ? (system.name + ' · ' + system.typeLabel) : viewingSystem;
   var localStatusLabel = localStation
     ? '本地站点在线'
-    : (buildCandidate ? '可落子节点' : '等待解锁');
+    : (buildCandidate ? '可建站地点' : '等待解锁');
   var localStatusNote = localStation
-    ? '当前节点已有贸易站，可直接升级、增投或调整站点定位。'
+    ? '当前地点已有贸易站，可直接升级、投资或调整经营方式。'
     : (buildCandidate
-        ? '当前节点已满足建站条件，决定是否投入长期资本。'
-        : '当前节点暂无建站资格，更适合先扩展访问与侦察面。');
+        ? '当前地点已满足建站条件，可以决定是否投入长期资金。'
+        : '当前地点还不能建站，建议先访问和探索更多地点。');
 
   return '<section class="market-workspace-deck market-operations-deck">' +
     '<div class="market-workspace-deck-hero">' +
       '<div class="market-workspace-deck-copy">' +
         '<div class="market-workspace-deck-kicker">Network Command</div>' +
         '<div class="market-workspace-deck-title">商网指挥台 · ' + localStatusLabel + '</div>' +
-        '<div class="market-workspace-deck-summary">经营页负责把本地站点、全网批量指令和候选建站点拆开看。先判断当前节点该不该落子，再决定全网升级、增资和定位调整。</div>' +
+        '<div class="market-workspace-deck-summary">经营页分为本地贸易站、批量管理和建站候选。先判断这里是否值得建站，再决定是否批量升级、投资或调整经营方向。</div>' +
       '</div>' +
       '<div class="market-workspace-deck-emphasis">' +
-        '<span class="market-workspace-deck-emphasis-label">本地态势</span>' +
+        '<span class="market-workspace-deck-emphasis-label">本地状态</span>' +
         '<strong>' + localStatusLabel + '</strong>' +
         '<span class="market-workspace-deck-emphasis-note">' + localStatusNote + '</span>' +
       '</div>' +
@@ -2324,16 +2341,16 @@ function _renderOperationsCommandDeck(viewingSystem, commerceSnapshot, tradeSumm
     '<div class="market-workspace-deck-grid">' +
       _renderWorkspaceDeckMetric('商网规模', String(tradeSummary.count || 0), '已建站点越多，远程指令台的价值越高。') +
       _renderWorkspaceDeckMetric('日收益', '+' + Math.floor(commerceSnapshot.stationDailyIncome || 0).toLocaleString(), '累计收益 ' + Math.floor(tradeSummary.totalIncome || 0).toLocaleString() + '，适合判断扩张节奏。', 'tone-cool') +
-      _renderWorkspaceDeckMetric('升级波次', networkUpgradePlan.targetCount > 0 ? (networkUpgradePlan.affordableCount + '/' + networkUpgradePlan.targetCount) : '0/0', '当前预算可覆盖 ' + Math.floor(networkUpgradePlan.affordableCost || 0).toLocaleString() + ' 投资额。', 'tone-warm') +
-      _renderWorkspaceDeckMetric('建站候选', String(buildCandidates.length), buildCandidate ? ('当前节点可直接投资 ' + Math.floor(buildCandidate.buildCost || 0).toLocaleString()) : '继续探索可解锁新的建站窗口。', 'tone-hot') +
+      _renderWorkspaceDeckMetric('升级批量操作', networkUpgradePlan.targetCount > 0 ? (networkUpgradePlan.affordableCount + '/' + networkUpgradePlan.targetCount) : '0/0', '当前预算可覆盖 ' + Math.floor(networkUpgradePlan.affordableCost || 0).toLocaleString() + ' 投资额。', 'tone-warm') +
+      _renderWorkspaceDeckMetric('可建站地点', String(buildCandidates.length), buildCandidate ? ('当前地点可直接投资 ' + Math.floor(buildCandidate.buildCost || 0).toLocaleString()) : '继续探索可找到新的建站地点。', 'tone-hot') +
     '</div>' +
     '<div class="market-workspace-deck-strip">' +
-      _renderWorkspaceDeckPill('节点', systemLabel) +
+      _renderWorkspaceDeckPill('地点', systemLabel) +
       _renderWorkspaceDeckPill('本地状态', localStatusLabel, localStation ? 'tone-cool' : (buildCandidate ? 'tone-warm' : '')) +
       _renderWorkspaceDeckPill('已建站', String(ownedStations.length)) +
-      _renderWorkspaceDeckPill('候选节点', String(buildCandidates.length)) +
-      _renderWorkspaceDeckPill('资本波次', networkInvestmentPlan.targetCount > 0 ? (networkInvestmentPlan.affordableCount + '/' + networkInvestmentPlan.targetCount) : '0/0', (networkInvestmentPlan.affordableCount || 0) > 0 ? 'tone-cool' : '') +
-      _renderWorkspaceDeckPill('升级波次', networkUpgradePlan.targetCount > 0 ? (networkUpgradePlan.affordableCount + '/' + networkUpgradePlan.targetCount) : '0/0', (networkUpgradePlan.affordableCount || 0) > 0 ? 'tone-warm' : '') +
+      _renderWorkspaceDeckPill('可建站地点', String(buildCandidates.length)) +
+      _renderWorkspaceDeckPill('可批量投资', networkInvestmentPlan.targetCount > 0 ? (networkInvestmentPlan.affordableCount + '/' + networkInvestmentPlan.targetCount) : '0/0', (networkInvestmentPlan.affordableCount || 0) > 0 ? 'tone-cool' : '') +
+      _renderWorkspaceDeckPill('升级批量操作', networkUpgradePlan.targetCount > 0 ? (networkUpgradePlan.affordableCount + '/' + networkUpgradePlan.targetCount) : '0/0', (networkUpgradePlan.affordableCount || 0) > 0 ? 'tone-warm' : '') +
     '</div>' +
   '</section>';
 }
@@ -2355,15 +2372,15 @@ function _renderLocalOperationsPanel(state, viewingSystem, localStation, buildCa
   var outputValue = '--';
   var outputNote = '完成前置探索后可评估本地经营产能';
   var configValue = '--';
-  var configNote = '当前没有站点定位配置';
+  var configNote = '当前没有设置经营方式';
   var capitalValue = '--';
   var capitalNote = '可用现金 ' + credits.toLocaleString();
   var statusTone = '';
   var outputTone = '';
   var configTone = '';
   var capitalTone = '';
-  var focusTitle = '当前节点暂无经营入口';
-  var focusNote = '该节点尚未形成可维护站点或建站候选，当前仅保留经营状态审阅。';
+  var focusTitle = '当前地点暂无可经营内容';
+  var focusNote = '该地点还没有贸易站，也暂时不能建站。';
   var focusTone = 'idle';
 
   if (localStation) {
@@ -2375,7 +2392,7 @@ function _renderLocalOperationsPanel(state, viewingSystem, localStation, buildCa
     outputValue = '+' + Math.floor(localStation.projectedIncome || 0).toLocaleString() + '/日';
     outputNote = '毛收入 ' + Math.floor(localStation.grossIncome || 0).toLocaleString() + ' · 维护 ' + Math.floor(localStation.upkeep || 0).toLocaleString();
     configValue = localStation.strategy ? localStation.strategy.name : '待配置';
-    configNote = '当前站点定位';
+    configNote = '当前经营方式';
     statusTone = 'tone-cool';
     outputTone = 'tone-cool';
     configTone = localStation.strategy ? 'tone-cool' : 'tone-warm';
@@ -2396,11 +2413,11 @@ function _renderLocalOperationsPanel(state, viewingSystem, localStation, buildCa
 
     if (!isCurrentSys) {
       focusTitle = '远程经营审阅';
-      focusNote = '可查看收益与站点定位，抵达后才开放升级、增投与定位调整。';
+      focusNote = '可查看收益与经营方式，抵达后才能升级、投资或调整经营方式。';
       focusTone = 'remote';
     } else if (recommendation && recommendation.shouldSwitch) {
-      focusTitle = '站点定位可校准';
-      focusNote = '当前定位与本地信号存在偏差，可切换为「' + recommendation.strategy.name + '」。';
+      focusTitle = '经营方式可以调整';
+      focusNote = '当前经营方式与本地线索不太匹配，可切换为「' + recommendation.strategy.name + '」。';
       focusTone = 'watch';
     } else if (localStation.nextLevel && upgradeCost > 0 && credits >= upgradeCost) {
       focusTitle = '站点升级窗口已打开';
@@ -2412,7 +2429,7 @@ function _renderLocalOperationsPanel(state, viewingSystem, localStation, buildCa
       focusTone = 'ready';
     } else {
       focusTitle = '本地站点运行稳定';
-      focusNote = '站点定位已配置，当前日收益 +' + Math.floor(localStation.projectedIncome || 0).toLocaleString() + '。';
+      focusNote = '经营方式已设置，当前每天预计收入 +' + Math.floor(localStation.projectedIncome || 0).toLocaleString() + '。';
       focusTone = 'stable';
     }
   } else if (buildCandidate) {
@@ -2420,10 +2437,10 @@ function _renderLocalOperationsPanel(state, viewingSystem, localStation, buildCa
     var strategy = buildCandidate.strategyRecommendation && buildCandidate.strategyRecommendation.strategy;
     statusValue = '可建站';
     statusNote = systemName + ' · ' + (buildCandidate.role ? buildCandidate.role.name : '待评估角色');
-    outputValue = '深度 ' + Math.floor((buildCandidate.system && buildCandidate.system.marketDepth) || 200).toLocaleString();
+    outputValue = '市场大小 ' + Math.floor((buildCandidate.system && buildCandidate.system.marketDepth) || 200).toLocaleString();
     outputNote = '建站后进入本地经营与商网收益循环';
-    configValue = strategy ? strategy.name : '均衡节点';
-    configNote = '候选预设策略 · 建成后可调整';
+    configValue = strategy ? strategy.name : '稳健经营';
+    configNote = '默认经营方式 · 建成后可调整';
     capitalValue = '建站 ' + buildCost.toLocaleString();
     capitalNote = buildCandidate.canAfford ? '资金与资格均已满足' : (buildCandidate.lockReason || ('尚缺 ' + Math.max(0, buildCost - credits).toLocaleString()));
     statusTone = 'tone-warm';
@@ -2433,7 +2450,7 @@ function _renderLocalOperationsPanel(state, viewingSystem, localStation, buildCa
 
     if (!isCurrentSys) {
       focusTitle = '远程候选审阅';
-      focusNote = '该节点具备建站条件，抵达后才能执行本地建站投资。';
+      focusNote = '该地点可以建站，抵达后即可投资建设。';
       focusTone = 'remote';
     } else if (buildCandidate.canAfford) {
       focusTitle = '建站条件已具备';
@@ -2449,27 +2466,27 @@ function _renderLocalOperationsPanel(state, viewingSystem, localStation, buildCa
       focusTone = 'risk';
     }
   } else if (!isCurrentSys) {
-    focusTitle = '远程节点待解锁';
-    focusNote = '当前节点没有可审阅站点或候选资格，抵达并完成前置探索后再刷新本地经营状态。';
+    focusTitle = '远程地点尚未开放经营';
+    focusNote = '该地点还没有贸易站，也暂时不能建站；抵达并完成探索后再查看。';
     focusTone = 'remote';
   }
 
-  return '<section class="market-local-operations-panel" aria-label="本地经营局部态势">' +
+  return '<section class="market-local-operations-panel" aria-label="本地经营局部状态">' +
     '<div class="market-local-operations-head">' +
       '<div>' +
         '<div class="market-local-operations-title">本地经营工位</div>' +
-        '<div class="market-local-operations-subtitle">把节点资格、经营产能、站点定位与资本窗口压成一屏。</div>' +
+        '<div class="market-local-operations-subtitle">集中查看建站条件、每日收入、经营方向和可用资金。</div>' +
       '</div>' +
       '<span class="market-local-operations-badge">' + (isCurrentSys ? '本地可执行' : '远程只读') + '</span>' +
     '</div>' +
     '<div class="market-local-operations-grid" role="list" aria-label="本地经营指标">' +
-      _renderLocalOperationsMetric('节点状态', statusValue, statusNote, statusTone) +
+      _renderLocalOperationsMetric('地点状态', statusValue, statusNote, statusTone) +
       _renderLocalOperationsMetric('经营产能', outputValue, outputNote, outputTone) +
-      _renderLocalOperationsMetric('站点定位', configValue, configNote, configTone) +
-      _renderLocalOperationsMetric('资本窗口', capitalValue, capitalNote, capitalTone) +
+      _renderLocalOperationsMetric('经营方式', configValue, configNote, configTone) +
+      _renderLocalOperationsMetric('可用资金', capitalValue, capitalNote, capitalTone) +
     '</div>' +
-    '<div class="market-local-operations-focus" aria-label="本地经营局部信号" data-tone="' + _escapeHtmlAttr(focusTone) + '">' +
-      '<span class="market-local-operations-focus-kicker">局部信号</span>' +
+    '<div class="market-local-operations-focus" aria-label="本地经营建议" data-tone="' + _escapeHtmlAttr(focusTone) + '">' +
+      '<span class="market-local-operations-focus-kicker">当前建议</span>' +
       '<strong class="market-local-operations-focus-title">' + _escapeHtml(focusTitle) + '</strong>' +
       '<span class="market-local-operations-focus-note">' + _escapeHtml(focusNote) + '</span>' +
     '</div>' +
@@ -2495,38 +2512,38 @@ function _renderTradeStationListBrief(ownedStations, buildCandidates, localStati
     ? '本地站点'
     : (buildCandidate ? '当前可建' : '待解锁');
   var localNote = localStation
-    ? '当前节点可维护配置'
-    : (buildCandidate ? '当前节点可落子' : '当前节点暂无建站资格');
+    ? '当前地点可维护配置'
+    : (buildCandidate ? '当前地点可建站' : '当前地点暂时不能建站');
   var candidateNote = buildCandidate
-    ? '含当前查看节点'
-    : (candidateCount > 0 ? '已访问候选待巡检' : '继续探索解锁窗口');
-  var signalTitle = '等待首站信号';
-  var signalNote = '候选列表为空时，先把更多已访问节点纳入观察面。';
+    ? '包含当前查看地点'
+    : (candidateCount > 0 ? '已访问地点等待查看' : '继续探索以解锁新地点');
+  var signalTitle = '等待第一个建站地点';
+  var signalNote = '目前没有候选地点，先访问和探索更多地方。';
   var signalTone = 'trade-station-list-signal--idle';
 
   if (buildCandidate) {
-    signalTitle = '当前节点可投建';
+    signalTitle = '当前地点可以建站';
     signalNote = buildCandidate.system.name + ' 已进入建站候选，投资门槛 ' + Math.floor(buildCandidate.buildCost || 0).toLocaleString() + '。';
     signalTone = buildCandidate.canAfford ? 'trade-station-list-signal--ready' : 'trade-station-list-signal--watch';
   } else if (localStation) {
     signalTitle = '本地站点可维护';
-    signalNote = localStation.system.name + ' 已建站，适合先检查升级与站点定位。';
+    signalNote = localStation.system.name + ' 已建站，适合先检查升级与经营方式。';
     signalTone = 'trade-station-list-signal--ready';
   } else if (upgradeReady > 0) {
-    signalTitle = '升级波次待命';
+    signalTitle = '升级批量操作待命';
     signalNote = '当前预算可覆盖 ' + upgradeReady + ' / ' + upgradeTotal + ' 个升级目标。';
     signalTone = 'trade-station-list-signal--ready';
   } else if (investmentReady > 0) {
-    signalTitle = '资本增配待命';
+    signalTitle = '追加投资待命';
     signalNote = '当前预算可覆盖 ' + investmentReady + ' / ' + investmentTotal + ' 个增配目标。';
     signalTone = 'trade-station-list-signal--ready';
   } else if (candidateCount > 0) {
-    signalTitle = '候选节点待巡检';
-    signalNote = '先比较候选节点的市场深度、角色和勘探支持，再决定落子顺序。';
+    signalTitle = '候选地点等待查看';
+    signalNote = '先比较候选地点的市场大小、用途和探索信息，再决定建站顺序。';
     signalTone = 'trade-station-list-signal--watch';
   } else if (ownedCount > 0) {
     signalTitle = '全网保持观察';
-    signalNote = '当前没有候选或可执行波次，已建站列表用于复核收益和配置。';
+    signalNote = '当前没有候选或可执行批量操作，已建站列表用于复核收益和配置。';
     signalTone = 'trade-station-list-signal--watch';
   }
 
@@ -2534,18 +2551,18 @@ function _renderTradeStationListBrief(ownedStations, buildCandidates, localStati
     '<div class="trade-station-list-brief-head">' +
       '<div>' +
         '<div class="trade-station-list-brief-title">商网列表摘要</div>' +
-        '<div class="trade-station-list-brief-subtitle">把候选、已建站点和可执行波次压成局部态势，进入列表前先确定关注点。</div>' +
+        '<div class="trade-station-list-brief-subtitle">把候选、已建站点和可执行批量操作压成局部状态，进入列表前先确定关注点。</div>' +
       '</div>' +
       '<span class="market-finance-chip">站点分区</span>' +
     '</div>' +
     '<div class="trade-station-list-brief-grid" role="list">' +
-      _renderTradeStationListBriefItem('候选节点', String(candidateCount), candidateNote, buildCandidate ? 'tone-hot' : '') +
+      _renderTradeStationListBriefItem('可建站地点', String(candidateCount), candidateNote, buildCandidate ? 'tone-hot' : '') +
       _renderTradeStationListBriefItem('已建站点', String(ownedCount), ownedCount > 0 ? '可维护收益与配置' : '等待第一座贸易站', ownedCount > 0 ? 'tone-cool' : '') +
-      _renderTradeStationListBriefItem('本地态势', localStatus, localNote, localStation ? 'tone-cool' : (buildCandidate ? 'tone-warm' : '')) +
-      _renderTradeStationListBriefItem('可执行波次', upgradeReady + ' 升级 / ' + investmentReady + ' 增配', '目标池 ' + (upgradeTotal + investmentTotal) + ' 项', (upgradeReady + investmentReady) > 0 ? 'tone-warm' : '') +
+      _renderTradeStationListBriefItem('本地状态', localStatus, localNote, localStation ? 'tone-cool' : (buildCandidate ? 'tone-warm' : '')) +
+      _renderTradeStationListBriefItem('可执行批量操作', upgradeReady + ' 升级 / ' + investmentReady + ' 增配', '目标池 ' + (upgradeTotal + investmentTotal) + ' 项', (upgradeReady + investmentReady) > 0 ? 'tone-warm' : '') +
     '</div>' +
     '<div class="trade-station-list-signal ' + signalTone + '">' +
-      '<span class="trade-station-list-signal-kicker">局部信号</span>' +
+      '<span class="trade-station-list-signal-kicker">当前建议</span>' +
       '<strong class="trade-station-list-signal-title">' + _escapeHtml(signalTitle) + '</strong>' +
       '<span class="trade-station-list-signal-note">' + _escapeHtml(signalNote) + '</span>' +
     '</div>' +
@@ -2561,15 +2578,15 @@ export function getTradeStationCandidateIntel(state, systemId) {
       systemId: systemId,
       signal: 'logistics',
       label: '废弃补给站',
-      note: intel.anomalyHint || intel.dispatchHint || intel.marketHint || '勘探报告显示该节点可作为后勤补给支点。',
+      note: intel.anomalyHint || intel.dispatchHint || intel.marketHint || '探索报告显示这里适合作为补给点。',
     };
   }
   if (intel.routeSignal) {
     return {
       systemId: systemId,
       signal: 'route',
-      label: '暗线航图',
-      note: intel.dispatchHint || '勘探报告包含航线情报，适合作为商网路径判断参考。',
+      label: '隐藏航线图',
+      note: intel.dispatchHint || '探索报告包含航线情报，可用于规划贸易站路线。',
     };
   }
   if (intel.researchSignal) {
@@ -2577,7 +2594,7 @@ export function getTradeStationCandidateIntel(state, systemId) {
       systemId: systemId,
       signal: 'research',
       label: intel.relicSignal ? '古代遗迹' : '科研样本',
-      note: intel.researchHint || '勘探报告显示该节点可为科研补给链提供参考。',
+      note: intel.researchHint || '探索报告显示这里能为研究提供帮助。',
     };
   }
   if (intel.marketSignal) {
@@ -2585,23 +2602,23 @@ export function getTradeStationCandidateIntel(state, systemId) {
       systemId: systemId,
       signal: 'market',
       label: '贸易窗口',
-      note: intel.marketHint || '勘探报告显示该节点存在可复核的本地行情窗口。',
+      note: intel.marketHint || '探索报告显示这里可能有交易机会。',
     };
   }
   if (intel.logisticsSignal) {
     return {
       systemId: systemId,
       signal: 'logistics',
-      label: '补给节点',
-      note: intel.dispatchHint || intel.marketHint || '勘探报告显示该节点可作为后勤补给支点。',
+      label: '补给点',
+      note: intel.dispatchHint || intel.marketHint || '探索报告显示这里适合作为补给点。',
     };
   }
 
   return {
     systemId: systemId,
     signal: intel.primarySignal || 'survey',
-    label: intel.primaryLabel || '勘探情报',
-    note: intel.marketHint || intel.dispatchHint || '该节点已有归档勘探情报，可作为建站判断参考。',
+    label: intel.primaryLabel || '探索线索',
+    note: intel.marketHint || intel.dispatchHint || '该地点已有探索报告，可用来判断是否适合建站。',
   };
 }
 
@@ -2610,7 +2627,7 @@ function _renderTradeStationCandidateIntel(state, systemId, className) {
   if (!intel) return '';
   var extraClass = className ? (' ' + className) : '';
   return '<div class="trade-station-intel-note' + extraClass + '">' +
-    '<span class="market-finance-chip">勘探支持 · ' + _escapeHtml(intel.label) + '</span>' +
+    '<span class="market-finance-chip">探索支持 · ' + _escapeHtml(intel.label) + '</span>' +
     '<span>' + _escapeHtml(intel.note) + '</span>' +
   '</div>';
 }
@@ -2619,7 +2636,7 @@ function _renderTradeStationExplorationEffectMeta(effect, className) {
   if (!effect || !effect.summary) return '';
   var metaClass = className || 'trade-station-card-meta';
   return '<div class="' + metaClass + '">' +
-    _escapeHtml('事件链加成：' + effect.summary) +
+    _escapeHtml('连续任务加成：' + effect.summary) +
   '</div>';
 }
 
@@ -2663,7 +2680,7 @@ function _renderStrategyRecommendationMeta(recommendation, className) {
   var metaClass = className || 'trade-station-card-meta';
   var status = recommendation.shouldSwitch ? '建议切换' : '当前匹配';
   return '<div class="' + metaClass + '">' +
-    _escapeHtml('建议策略：' + recommendation.strategy.name + ' · ' + status + ' · ' + _formatStrategyConfidence(recommendation.confidence) + ' · ' + recommendation.reason) +
+    _escapeHtml('建议方式：' + recommendation.strategy.name + ' · ' + status + ' · ' + _formatStrategyConfidence(recommendation.confidence) + ' · ' + recommendation.reason) +
   '</div>';
 }
 
@@ -2672,8 +2689,8 @@ function _renderStrategyRecommendationButton(entry, className) {
   var recommendation = entry.strategyRecommendation;
   var buttonClass = className || 'trade-station-upgrade-btn';
   var stationLabel = entry.system && entry.system.name ? entry.system.name : entry.station.systemId;
-  return '<button class="btn-action ' + buttonClass + '" data-action="market-set-strategy" data-system-id="' + _escapeHtmlAttr(entry.station.systemId) + '" data-strategy-id="' + _escapeHtmlAttr(recommendation.strategyId) + '" aria-label="' + _escapeHtmlAttr(stationLabel + ' 切换为建议策略 ' + recommendation.strategy.name) + '">' +
-    '切换为建议策略' +
+  return '<button class="btn-action ' + buttonClass + '" data-action="market-set-strategy" data-system-id="' + _escapeHtmlAttr(entry.station.systemId) + '" data-strategy-id="' + _escapeHtmlAttr(recommendation.strategyId) + '" aria-label="' + _escapeHtmlAttr(stationLabel + ' 切换为建议方式 ' + recommendation.strategy.name) + '">' +
+    '采用建议方式' +
   '</button>';
 }
 
@@ -2733,14 +2750,19 @@ function _renderOverviewTable(state, galaxyId, onPlanetClick, tableIds) {
   var status = document.getElementById(tableIds.statusId);
   if (table) {
     table.dataset.priceMode = _marketOverviewPriceMode;
-    table.setAttribute('aria-label', isSell ? '各节点商品卖出价矩阵' : '各节点商品买入价矩阵');
+    table.setAttribute('aria-label', isSell ? '各地商品卖出价格表' : '各地商品买入价格表');
   }
-  if (status) status.textContent = '矩阵显示各节点的' + (isSell ? '卖出价。' : '买入价。');
+  if (status) status.textContent = '表格显示各地的' + (isSell ? '卖出价。' : '买入价。');
+
+  var overviewGoods = GOODS.filter(function (good) {
+    return good.marketAccess && good.marketAccess.indexOf('open') !== -1;
+  });
+  var hasRemotePriceIntel = (state.researchedTechs || []).indexOf('trade_network') !== -1;
 
   thead.innerHTML = '';
   var headRow = document.createElement('tr');
   headRow.innerHTML = '<th class="mkt-ov-planet-th" scope="col">星球</th>' +
-    GOODS.map(function (good) {
+    overviewGoods.map(function (good) {
       return '<th class="mkt-ov-good-th" scope="col" title="' + good.name + '">' + good.emoji + '</th>';
     }).join('');
   thead.appendChild(headRow);
@@ -2763,6 +2785,7 @@ function _renderOverviewTable(state, galaxyId, onPlanetClick, tableIds) {
   accessible.forEach(function (system) {
     var isCurrent = system.id === state.currentSystem;
     var isVisited = visited.indexOf(system.id) !== -1;
+    var canViewPrices = isCurrent || isVisited || hasRemotePriceIntel;
     var row = document.createElement('tr');
     row.className = 'mkt-ov-row' +
       (isCurrent ? ' mkt-ov-current' : '') +
@@ -2770,7 +2793,9 @@ function _renderOverviewTable(state, galaxyId, onPlanetClick, tableIds) {
     row.dataset.sysId = system.id;
 
     var planetCell = '<td class="mkt-ov-planet">' +
-      '<button class="mkt-ov-planet-action" type="button" aria-label="查看' + _escapeHtmlAttr(system.name) + '市场详情">' +
+      '<button class="mkt-ov-planet-action" type="button" aria-label="' +
+        (canViewPrices ? '查看' : '尚未掌握') + _escapeHtmlAttr(system.name) + '市场详情"' +
+        (canViewPrices ? '' : ' disabled aria-disabled="true"') + '>' +
         '<span class="mkt-ov-dot" style="background:' + system.color + '"></span>' +
         (isCurrent ? '📍 ' : '') +
         '<span class="mkt-ov-name">' + _escapeHtml(system.name) + '</span>' +
@@ -2779,7 +2804,13 @@ function _renderOverviewTable(state, galaxyId, onPlanetClick, tableIds) {
       '</td>';
 
     var priceCells = '';
-    GOODS.forEach(function (good) {
+    overviewGoods.forEach(function (good) {
+      if (!canViewPrices) {
+        priceCells += '<td class="mkt-ov-price-cell price-unknown" title="访问该地点或研究贸易情报网络后解锁精确报价">' +
+          '<span class="mkt-ov-price-chip"><span class="mkt-ov-price-value">—</span></span>' +
+        '</td>';
+        return;
+      }
       var price = isSell
         ? Economy.getSellPrice(system.id, good.id, state)
         : Economy.getBuyPrice(system.id, good.id, state);
@@ -2800,9 +2831,9 @@ function _renderOverviewTable(state, galaxyId, onPlanetClick, tableIds) {
     function openPlanetMarket() {
       onPlanetClick(system.id);
     }
-    row.addEventListener('click', openPlanetMarket);
+    if (canViewPrices) row.addEventListener('click', openPlanetMarket);
     var planetAction = row.querySelector('.mkt-ov-planet-action');
-    if (planetAction) {
+    if (planetAction && canViewPrices) {
       planetAction.addEventListener('click', function (event) {
         if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
         openPlanetMarket();
@@ -2825,20 +2856,20 @@ function _renderFocusedCapitalOverview(state, viewingSystem, isCurrentSys, finan
     '<div class="market-workspace-deck-hero">' +
       '<div class="market-workspace-deck-copy">' +
         '<div class="market-workspace-deck-kicker">Capital Control</div>' +
-        '<div class="market-workspace-deck-title">资本调度 · ' + (isCurrentSys ? '本地可执行' : '远程观察') + '</div>' +
-        '<div class="market-workspace-deck-summary">资本页只保留经营贷款与贸易站投资，让资金始终回到跑商、舰队和商网扩张。</div>' +
+        '<div class="market-workspace-deck-title">资金管理 · ' + (isCurrentSys ? '本地可操作' : '远程查看') + '</div>' +
+        '<div class="market-workspace-deck-summary">资金页只保留贷款与贸易站投资，借来的钱仍要回到跑商、舰队和贸易站扩张。</div>' +
       '</div>' +
       '<div class="market-workspace-deck-emphasis">' +
-        '<span class="market-workspace-deck-emphasis-label">当前节点</span>' +
+        '<span class="market-workspace-deck-emphasis-label">当前地点</span>' +
         '<strong>' + _escapeHtml(systemLabel) + '</strong>' +
         '<span class="market-workspace-deck-emphasis-note">' + (isCurrentSys ? '可申请贷款并追加本地投资。' : '抵达后开放本地资金动作。') + '</span>' +
       '</div>' +
     '</div>' +
     '<div class="market-workspace-deck-grid">' +
       _renderWorkspaceDeckMetric('可用现金', credits.toLocaleString(), '用于补给、舰队与商网扩张。', 'tone-cool') +
-      _renderWorkspaceDeckMetric('贷款敞口', loanBalance.toLocaleString(), activeLoanCount + ' 笔未结清贷款。', loanBalance > 0 ? 'tone-warm' : '') +
-      _renderWorkspaceDeckMetric('站点投资', investmentValue.toLocaleString(), '直接产生商网长期收益。', investmentValue > 0 ? 'tone-cool' : '') +
-      _renderWorkspaceDeckMetric('信用评级', String(commerceSnapshot.creditRating || financeOverview.creditRating || 0), '影响经营贷款额度。') +
+      _renderWorkspaceDeckMetric('未还贷款', loanBalance.toLocaleString(), activeLoanCount + ' 笔未结清贷款。', loanBalance > 0 ? 'tone-warm' : '') +
+      _renderWorkspaceDeckMetric('站点投资', investmentValue.toLocaleString(), '用于增加贸易站长期收益。', investmentValue > 0 ? 'tone-cool' : '') +
+      _renderWorkspaceDeckMetric('信用分', String(commerceSnapshot.creditRating || financeOverview.creditRating || 0), '分数越高，可申请的贷款越多。') +
     '</div>' +
   '</section>';
 }
@@ -2852,9 +2883,9 @@ function _renderFocusedLoanGuard(state, activeLoans, loanOffers, isCurrentSys) {
   var runwayDays = dailyPayment > 0 ? Math.floor(credits / dailyPayment) : null;
   var focusTitle = !isCurrentSys ? '远程只读观察' : (loanBalance > credits && loanBalance > 0 ? '债务现金流承压' : '经营贷款可控');
   var focusNote = !isCurrentSys
-    ? '抵达节点后才能申请或偿还经营贷款。'
+    ? '抵达该地点后才能申请或偿还经营贷款。'
     : (loanBalance > 0 ? ('贷款余额 ' + Math.floor(loanBalance).toLocaleString() + '，每日偿付 ' + Math.floor(dailyPayment).toLocaleString() + '。') : '当前没有贷款，可按扩张需要选择周转额度。');
-  return '<section class="market-capital-local-panel" aria-label="经营贷款态势">' +
+  return '<section class="market-capital-local-panel" aria-label="经营贷款状态">' +
     '<div class="market-capital-local-head"><div><div class="market-capital-local-title">经营贷款</div>' +
       '<div class="market-capital-local-subtitle">贷款只负责跨越扩张资金缺口，不再附带证券和手动保险产品。</div></div>' +
       '<span class="market-capital-local-badge">' + (isCurrentSys ? '本地可执行' : '远程只读') + '</span></div>' +
@@ -2865,7 +2896,7 @@ function _renderFocusedLoanGuard(state, activeLoans, loanOffers, isCurrentSys) {
       _renderCapitalLocalMetric('可用报价', String(availableOfferCount), '按公司信用评级调整额度') +
     '</div>' +
     '<div class="market-capital-local-focus" data-tone="' + (loanBalance > credits && loanBalance > 0 ? 'debt' : 'stable') + '">' +
-      '<span class="market-capital-local-focus-kicker">局部信号</span><strong class="market-capital-local-focus-title">' + focusTitle + '</strong>' +
+      '<span class="market-capital-local-focus-kicker">当前建议</span><strong class="market-capital-local-focus-title">' + focusTitle + '</strong>' +
       '<span class="market-capital-local-focus-note">' + focusNote + '</span></div>' +
   '</section>';
 }
@@ -2883,10 +2914,23 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
   var activeLoans = (state.loans || []).filter(function (loan) {
     return loan.status === 'active' && loan.balance > 0;
   });
-  var tradeInvestments = Finance.getTradeInvestmentOptions(state);
+  var tradeInvestments = Finance.getTradeInvestmentOptions(
+    state,
+    [viewingSystem].concat(state.visitedSystems || []).concat(Object.keys(state.tradeInvestments || {}))
+  );
   var localInvestment = tradeInvestments.find(function (entry) {
     return entry.systemId === viewingSystem;
   }) || null;
+  var hasLocalInvestment = !!(localInvestment && localInvestment.investedAmount > 0);
+  var localInvestmentPositionMeta = hasLocalInvestment
+    ? ('已投 ' + Math.floor(localInvestment.investedAmount).toLocaleString() +
+      ' · 每天预计 +' + Math.floor(localInvestment.expectedDailyDividend || 0).toLocaleString() +
+      ' · 约 ' + Math.floor(localInvestment.estimatedPaybackDays || 0) + ' 天回本 · 累计分红 ' +
+      Math.floor(localInvestment.totalDividends || 0).toLocaleString() +
+      (localInvestment.canRedeem
+        ? (' · 现在退出预计收回 ' + Math.floor(localInvestment.estimatedExitValue || 0).toLocaleString())
+        : (' · 第 ' + localInvestment.redeemableDay + ' 天可退出')))
+    : '';
   var tradeSummary = TradeStation.getSummary(state);
   var ownedStations = TradeStation.getOwnedStations(state);
   var buildCandidates = TradeStation.getBuildCandidates(state);
@@ -2907,14 +2951,14 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
   var capitalLocalSection = '<section class="market-finance-section">' +
     '<div class="market-finance-section-head">' +
       '<div>' +
-        '<div class="market-finance-title">🏦 本地资本调度</div>' +
-        '<div class="market-finance-subtitle">经营贷款与本地站点投资和停靠节点绑定。远程查看时只保留情报。</div>' +
+        '<div class="market-finance-title">🏦 本地资金管理</div>' +
+        '<div class="market-finance-subtitle">经营贷款和本地贸易站投资只在停靠地点办理。远程查看时只能看信息。</div>' +
       '</div>' +
     '</div>' +
     _renderFocusedLoanGuard(state, activeLoans, loanOffers, isCurrentSys);
 
   if (!isCurrentSys) {
-    capitalLocalSection += '<div class="market-finance-locked">📡 当前是远程查看模式。抵达该节点后，可在这里申请经营贷款并追加本地站点投资。</div>';
+    capitalLocalSection += '<div class="market-finance-locked">📡 当前是远程查看模式。抵达该地点后，可在这里申请经营贷款并追加本地贸易站投资。</div>';
   } else {
     capitalLocalSection += '<div class="market-finance-layout">' +
       '<div class="market-finance-column">' +
@@ -2950,8 +2994,8 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
   var operationsLocalSection = '<section class="market-finance-section">' +
     '<div class="market-finance-section-head">' +
       '<div>' +
-        '<div class="market-finance-title">🏪 节点经营</div>' +
-        '<div class="market-finance-subtitle">围绕当前查看节点决定是否建站、升级与调整站点定位。</div>' +
+        '<div class="market-finance-title">🏪 本地经营</div>' +
+        '<div class="market-finance-subtitle">在当前地点决定是否建站、升级或调整经营方式。</div>' +
       '</div>' +
       '<span class="market-finance-chip">商网 ' + tradeSummary.count + ' 站</span>' +
     '</div>' +
@@ -2967,50 +3011,58 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
       _renderMarketFinanceRoleMeta(localStation.role, localStation.regionalSynergy, '站点角色') +
       _renderStrategyRecommendationMeta(localStation.strategyRecommendation, 'market-finance-card-meta') +
       _renderTradeStationExplorationEffectMeta(localStation.explorationEffect, 'market-finance-card-meta') +
-      '<div class="market-finance-card-meta">站点定位：' + localStation.strategy.name + '</div>' +
+      '<div class="market-finance-card-meta">经营方式：' + localStation.strategy.name + '</div>' +
       (localInvestment
-        ? '<div class="market-finance-card-meta">本地追加投资：已投 ' + Math.floor(localInvestment.investedAmount || 0).toLocaleString() + ' · 建议追加 ' + localInvestment.suggestedAmount.toLocaleString() + ' · 预估日分红 ' + (localInvestment.expectedYieldRate * 100).toFixed(2) + '%</div>'
+        ? '<div class="market-finance-card-meta">站点投资：' + (hasLocalInvestment ? localInvestmentPositionMeta : ('建议投入 ' + localInvestment.suggestedAmount.toLocaleString() + ' · 每天预计回报率 ' + (localInvestment.expectedYieldRate * 100).toFixed(2) + '%')) + '</div>'
         : '') +
       (isCurrentSys
         ? '<div class="market-finance-actions" role="group" aria-label="' + _escapeHtmlAttr(localStation.system.name + ' 贸易站操作') + '">' +
             _renderStrategyRecommendationButton(localStation, 'market-finance-btn') +
             '<button class="btn-action market-finance-btn' + (localStation.nextLevel ? '' : ' disabled') + '" data-action="market-upgrade-station" data-system-id="' + _escapeHtmlAttr(localStation.station.systemId) + '" aria-label="' + _escapeHtmlAttr(localStation.system.name + (localStation.nextLevel ? (' 升级至 Lv.' + localStation.nextLevel.level) : ' 已满级')) + '"' + (localStation.nextLevel ? '' : ' disabled aria-disabled="true"') + '>' + (localStation.nextLevel ? ('升级 +' + localStation.nextUpgradeCost.toLocaleString()) : (localStation.nextLevelLockLabel || '已满级')) + '</button>' +
             (localInvestment ? '<button class="btn-action market-finance-btn" data-action="market-invest-trade-station" data-system-id="' + _escapeHtmlAttr(localInvestment.systemId) + '" aria-label="' + _escapeHtmlAttr(localStation.system.name + ' 追加站点投资') + '">追加投资</button>' : '') +
+            (hasLocalInvestment
+              ? '<button class="btn-action market-finance-btn' + (localInvestment.canRedeem ? '' : ' disabled') + '" data-action="market-redeem-trade-station" data-system-id="' + _escapeHtmlAttr(localInvestment.systemId) + '" aria-label="' + _escapeHtmlAttr(localInvestment.canRedeem ? (localStation.system.name + ' 退出站点投资，预计收回 ' + localInvestment.estimatedExitValue) : (localStation.system.name + ' 站点投资第 ' + localInvestment.redeemableDay + ' 天可退出')) + '"' + (localInvestment.canRedeem ? '' : ' disabled aria-disabled="true"') + '>' +
+                (localInvestment.canRedeem ? ('退出并收回 ' + Math.floor(localInvestment.estimatedExitValue || 0).toLocaleString()) : ('第 ' + localInvestment.redeemableDay + ' 天可退出')) + '</button>'
+              : '') +
           '</div>' +
           '<div class="market-finance-station-stack">' +
-            '<div class="market-finance-subsection">🧭 站点定位</div>' +
-            '<div class="trade-station-choice-row" role="group" aria-label="' + _escapeHtmlAttr(localStation.system.name + ' 站点定位选择') + '">' + TRADE_STATION_STRATEGIES.map(function (strategy) {
+            '<div class="market-finance-subsection">🧭 经营方式</div>' +
+            '<div class="trade-station-choice-row" role="group" aria-label="' + _escapeHtmlAttr(localStation.system.name + ' 经营方式选择') + '">' + TRADE_STATION_STRATEGIES.map(function (strategy) {
               var active = localStation.station.strategyId === strategy.id;
-              return '<button class="trade-station-choice-btn' + (active ? ' active' : '') + '" data-action="market-set-strategy" data-system-id="' + _escapeHtmlAttr(localStation.station.systemId) + '" data-strategy-id="' + _escapeHtmlAttr(strategy.id) + '" aria-pressed="' + (active ? 'true' : 'false') + '" aria-label="' + _escapeHtmlAttr(localStation.system.name + ' 站点定位选择 ' + strategy.name + '，收益系数 ' + Math.round(strategy.incomeMultiplier * 100) + '%') + '">' +
-                strategy.name + '<span>' + Math.round(strategy.incomeMultiplier * 100) + '%</span></button>';
+              return '<button class="trade-station-choice-btn' + (active ? ' active' : '') + '" data-action="market-set-strategy" data-system-id="' + _escapeHtmlAttr(localStation.station.systemId) + '" data-strategy-id="' + _escapeHtmlAttr(strategy.id) + '" aria-pressed="' + (active ? 'true' : 'false') + '" aria-label="' + _escapeHtmlAttr(localStation.system.name + ' 经营方式 ' + strategy.name + '，预计收益 ' + Math.round(strategy.incomeMultiplier * 100) + '%，' + (strategy.riskLabel || '稳健')) + '">' +
+                strategy.name + '<span>' + Math.round(strategy.incomeMultiplier * 100) + '% · ' + (strategy.riskLabel || '稳健') + '</span></button>';
             }).join('') + '</div>' +
           '</div>'
-        : '<div class="market-finance-locked">📡 远程查看模式：可审阅该站点收益与定位，抵达后才能升级或调整定位。</div>') +
+        : '<div class="market-finance-locked">📡 远程查看模式：可查看该站点收益与经营方式，抵达后才能升级或调整。</div>') +
     '</div>';
   } else if (buildCandidate) {
     operationsLocalSection += '<div class="market-finance-card">' +
       '<div class="market-finance-card-head">' +
-        '<span class="market-finance-card-title">在 ' + buildCandidate.system.name + ' 建立商业节点</span>' +
+        '<span class="market-finance-card-title">在 ' + buildCandidate.system.name + ' 建立贸易站</span>' +
         '<span class="market-finance-chip">' + buildCandidate.system.typeLabel + '</span>' +
       '</div>' +
-      '<div class="market-finance-card-meta">市场深度 ' + (buildCandidate.system.marketDepth || 200) + ' · ' + buildCandidate.system.description + '</div>' +
+        '<div class="market-finance-card-meta">市场大小 ' + (buildCandidate.system.marketDepth || 200) + ' · ' + buildCandidate.system.description + '</div>' +
       _renderMarketFinanceRoleMeta(buildCandidate.role, buildCandidate.prospectiveRegionalSynergy, '预期角色') +
       _renderStrategyRecommendationMeta(buildCandidate.strategyRecommendation, 'market-finance-card-meta') +
       _renderTradeStationExplorationEffectMeta(buildCandidate.explorationEffect, 'market-finance-card-meta') +
       _renderTradeStationCandidateIntel(state, buildCandidate.system.id, 'is-local') +
-      '<div class="market-finance-card-meta">' + (buildCandidate.lockReason || '建站后可持续吃到本地行情与经济周期红利。') + '</div>' +
+      '<div class="market-finance-card-meta">' + (buildCandidate.lockReason || '建站后可持续利用本地价格和市场状态赚钱。') + '</div>' +
       (localInvestment
-        ? '<div class="market-finance-card-meta">同步可做站点投资：已投 ' + Math.floor(localInvestment.investedAmount || 0).toLocaleString() + ' · 建议追加 ' + localInvestment.suggestedAmount.toLocaleString() + '</div>'
+        ? '<div class="market-finance-card-meta">站点投资：' + (hasLocalInvestment ? localInvestmentPositionMeta : ('建议投入 ' + localInvestment.suggestedAmount.toLocaleString() + '；投入后锁定 30 天，退出成本 12%')) + '</div>'
         : '') +
       (isCurrentSys
         ? '<div class="market-finance-actions">' +
-            '<button class="btn-action market-finance-btn' + (buildCandidate.canAfford ? '' : ' disabled') + '" data-action="market-build-station" data-system-id="' + _escapeHtmlAttr(buildCandidate.system.id) + '" aria-label="' + _escapeHtmlAttr('在 ' + buildCandidate.system.name + ' 建立商业节点，投资 ' + buildCandidate.buildCost.toLocaleString()) + '"' + (buildCandidate.canAfford ? '' : ' disabled aria-disabled="true"') + '>' + (buildCandidate.canAfford ? ('投资 ' + buildCandidate.buildCost.toLocaleString()) : (buildCandidate.lockReason || ('投资 ' + buildCandidate.buildCost.toLocaleString()))) + '</button>' +
+            '<button class="btn-action market-finance-btn' + (buildCandidate.canAfford ? '' : ' disabled') + '" data-action="market-build-station" data-system-id="' + _escapeHtmlAttr(buildCandidate.system.id) + '" aria-label="' + _escapeHtmlAttr('在 ' + buildCandidate.system.name + ' 建立贸易站，投资 ' + buildCandidate.buildCost.toLocaleString()) + '"' + (buildCandidate.canAfford ? '' : ' disabled aria-disabled="true"') + '>' + (buildCandidate.canAfford ? ('投资 ' + buildCandidate.buildCost.toLocaleString()) : (buildCandidate.lockReason || ('投资 ' + buildCandidate.buildCost.toLocaleString()))) + '</button>' +
             (localInvestment ? '<button class="btn-action market-finance-btn" data-action="market-invest-trade-station" data-system-id="' + _escapeHtmlAttr(localInvestment.systemId) + '" aria-label="' + _escapeHtmlAttr(buildCandidate.system.name + ' 先做财务投资') + '">先做财务投资</button>' : '') +
+            (hasLocalInvestment
+              ? '<button class="btn-action market-finance-btn' + (localInvestment.canRedeem ? '' : ' disabled') + '" data-action="market-redeem-trade-station" data-system-id="' + _escapeHtmlAttr(localInvestment.systemId) + '"' + (localInvestment.canRedeem ? '' : ' disabled aria-disabled="true"') + '>' +
+                (localInvestment.canRedeem ? ('退出并收回 ' + Math.floor(localInvestment.estimatedExitValue || 0).toLocaleString()) : ('第 ' + localInvestment.redeemableDay + ' 天可退出')) + '</button>'
+              : '') +
           '</div>'
-        : '<div class="market-finance-locked">📡 这是可建站候选节点。抵达后可直接在此发起投资。</div>') +
+        : '<div class="market-finance-locked">📡 这里可以建站。抵达后可直接投资建设。</div>') +
     '</div>';
   } else {
-    operationsLocalSection += '<div class="market-finance-empty">该节点暂不提供贸易站建设资格，或尚未完成前置探索。</div>';
+    operationsLocalSection += '<div class="market-finance-empty">该地点暂时不能建设贸易站，或尚未完成前置探索。</div>';
   }
 
   if (ownedStations.length > 0) {
@@ -3019,7 +3071,7 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
         return '<div class="market-finance-network-row">' +
           '<div class="market-finance-network-main">' +
             '<div class="market-finance-action-title">' + entry.system.name + ' · Lv.' + entry.station.level + '</div>' +
-            '<div class="market-finance-action-meta">日收益 +' + Math.floor(entry.projectedIncome).toLocaleString() + ' · ' + (entry.role ? entry.role.name : '未分工') + ' · 定位 ' + entry.strategy.name + '</div>' +
+            '<div class="market-finance-action-meta">日收益 +' + Math.floor(entry.projectedIncome).toLocaleString() + ' · ' + (entry.role ? entry.role.name : '未分工') + ' · 经营方式 ' + entry.strategy.name + '</div>' +
           '</div>' +
           '<div class="market-finance-network-note">累计 ' + Math.floor(entry.station.totalIncome || 0).toLocaleString() + '</div>' +
         '</div>';
@@ -3041,7 +3093,7 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
         '<div class="trade-station-metric"><span class="trade-station-metric-label">站点投资</span><span class="trade-station-metric-value">' + Math.floor(commerceSnapshot.tradeInvestmentValue).toLocaleString() + '</span></div>' +
         '<div class="trade-station-metric"><span class="trade-station-metric-label">贷款余额</span><span class="trade-station-metric-value">' + Math.floor(commerceSnapshot.totalLoans).toLocaleString() + '</span></div>' +
       '</div>' +
-      '<div class="trade-station-summary-tip">这里统一处理远程看盘、建站候选筛选与所有已建节点的经营编排，是当前唯一的商网管理入口。</div>' +
+      '<div class="trade-station-summary-tip">这里统一查看远程价格、建站候选和所有贸易站的经营情况。</div>' +
     '</div>' +
     _renderNextNetworkAction(nextNetworkAction) +
   '</section>';
@@ -3057,7 +3109,7 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
         return '<div class="market-finance-network-row">' +
           '<div class="market-finance-network-main">' +
             '<div class="market-finance-action-title">' + entry.system.name + ' · Lv.' + entry.station.level + '</div>' +
-            '<div class="market-finance-action-meta">日收益 +' + Math.floor(entry.projectedIncome).toLocaleString() + ' · ' + (entry.role ? entry.role.name : '未分工') + ' · 定位 ' + entry.strategy.name + '</div>' +
+            '<div class="market-finance-action-meta">日收益 +' + Math.floor(entry.projectedIncome).toLocaleString() + ' · ' + (entry.role ? entry.role.name : '未分工') + ' · 经营方式 ' + entry.strategy.name + '</div>' +
           '</div>' +
           '<div class="market-finance-network-note">累计 ' + Math.floor(entry.station.totalIncome || 0).toLocaleString() + '</div>' +
         '</div>';
@@ -3081,7 +3133,7 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
           '<span id="' + _escapeHtmlAttr(titleId) + '" class="trade-station-card-name">' + candidate.system.name + '</span>' +
           '<span class="trade-station-card-badge">' + candidate.system.typeLabel + '</span>' +
         '</div>' +
-        '<div id="' + _escapeHtmlAttr(metaId) + '" class="trade-station-card-meta">市场深度 ' + (candidate.system.marketDepth || 200) + ' · ' + (candidate.isCurrent ? '当前停靠中，可立即投资' : '已访问，可先纳入建站计划') + '</div>' +
+        '<div id="' + _escapeHtmlAttr(metaId) + '" class="trade-station-card-meta">市场大小 ' + (candidate.system.marketDepth || 200) + ' · ' + (candidate.isCurrent ? '当前停靠中，可立即投资' : '已访问，可先加入建站计划') + '</div>' +
         _renderTradeStationRoleMeta(candidate.role, candidate.prospectiveRegionalSynergy, '预期角色') +
         _renderStrategyRecommendationMeta(candidate.strategyRecommendation, 'trade-station-card-meta') +
         _renderTradeStationExplorationEffectMeta(candidate.explorationEffect, 'trade-station-card-meta') +
@@ -3101,7 +3153,7 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
     '<div class="trade-station-section-title">📡 已建贸易站</div>';
 
   if (ownedStations.length === 0) {
-    operationsStationsSection += '<div class="trade-station-empty">还没有贸易站。先在当前停靠节点完成第一笔长期投资。</div>';
+    operationsStationsSection += '<div class="trade-station-empty">还没有贸易站。先在当前停靠地点完成第一笔长期投资。</div>';
   } else {
     operationsStationsSection += '<div class="trade-station-card-list trade-station-card-list--owned" role="list" aria-label="已建贸易站列表">';
     ownedStations.forEach(function (entry) {
@@ -3124,20 +3176,20 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
         _renderStrategyRecommendationMeta(entry.strategyRecommendation, 'trade-station-card-meta') +
         _renderTradeStationExplorationEffectMeta(entry.explorationEffect, 'trade-station-card-meta') +
         '<div class="trade-station-card-meta">经济系数 ×' + entry.economicFactor.toFixed(2) + ' · 累计投资 ' + Math.floor(station.investment || 0).toLocaleString() + ' · 建于第 ' + (station.buildDay || 1) + ' 天</div>' +
-        '<div class="trade-station-card-meta">站点定位：' + entry.strategy.name + '</div>' +
+        '<div class="trade-station-card-meta">经营方式：' + entry.strategy.name + '</div>' +
         '<div class="trade-station-actions" role="group" aria-label="' + _escapeHtmlAttr(entry.system.name + ' 贸易站操作') + '">' +
           _renderStrategyRecommendationButton(entry, 'trade-station-upgrade-btn') +
           '<button class="btn-action trade-station-upgrade-btn' + (entry.nextLevel ? '' : ' disabled') + '" data-action="market-upgrade-station" data-system-id="' + _escapeHtmlAttr(station.systemId) + '" aria-label="' + _escapeHtmlAttr(entry.system.name + (entry.nextLevel ? (' 升级至 Lv.' + entry.nextLevel.level) : ' 已达满级')) + '"' + (entry.nextLevel ? '' : ' disabled aria-disabled="true"') + '>' +
             (entry.nextLevel ? ('升级至 Lv.' + entry.nextLevel.level + '（+' + entry.nextUpgradeCost.toLocaleString() + '）') : (entry.nextLevelLockLabel || '已达满级')) +
           '</button>' +
         '</div>' +
-        '<div id="' + _escapeHtmlAttr(strategyGroupId) + '" class="trade-station-subsection">🧭 站点定位</div>' +
+        '<div id="' + _escapeHtmlAttr(strategyGroupId) + '" class="trade-station-subsection">🧭 经营方式</div>' +
         '<div class="trade-station-choice-row" role="group" aria-labelledby="' + _escapeHtmlAttr(strategyGroupId) + '">' +
           TRADE_STATION_STRATEGIES.map(function (strategy) {
             var activeClass = station.strategyId === strategy.id ? ' active' : '';
             var active = station.strategyId === strategy.id;
-            return '<button class="trade-station-choice-btn' + activeClass + '" data-action="market-set-strategy" data-system-id="' + _escapeHtmlAttr(station.systemId) + '" data-strategy-id="' + _escapeHtmlAttr(strategy.id) + '" aria-pressed="' + (active ? 'true' : 'false') + '" aria-label="' + _escapeHtmlAttr(entry.system.name + ' 站点定位选择 ' + strategy.name + '，收益系数 ' + Math.round(strategy.incomeMultiplier * 100) + '%') + '">' +
-              strategy.name + '<span>' + Math.round(strategy.incomeMultiplier * 100) + '%</span></button>';
+            return '<button class="trade-station-choice-btn' + activeClass + '" data-action="market-set-strategy" data-system-id="' + _escapeHtmlAttr(station.systemId) + '" data-strategy-id="' + _escapeHtmlAttr(strategy.id) + '" aria-pressed="' + (active ? 'true' : 'false') + '" aria-label="' + _escapeHtmlAttr(entry.system.name + ' 经营方式 ' + strategy.name + '，预计收益 ' + Math.round(strategy.incomeMultiplier * 100) + '%，' + (strategy.riskLabel || '稳健')) + '">' +
+              strategy.name + '<span>' + Math.round(strategy.incomeMultiplier * 100) + '% · ' + (strategy.riskLabel || '稳健') + '</span></button>';
           }).join('') +
         '</div>' +
       '</article>';
@@ -3200,6 +3252,12 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
     container.querySelectorAll('[data-action="market-invest-trade-station"]').forEach(function (button) {
       button.addEventListener('click', function () {
         if (financeActions.onInvestTradeStation) financeActions.onInvestTradeStation(button.dataset.systemId);
+      });
+    });
+
+    container.querySelectorAll('[data-action="market-redeem-trade-station"]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        if (financeActions.onRedeemTradeStationInvestment) financeActions.onRedeemTradeStationInvestment(button.dataset.systemId);
       });
     });
 
@@ -3332,7 +3390,11 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode
   _updateMarketDetailMode(state, sysId, isCurrentSys, effectiveMarketMode);
 
   // 根据市场模式筛选商品
-  var goodsList = isBlack ? Economy.getBlackMarketGoods() : GOODS;
+  var goodsList = isBlack
+    ? Economy.getBlackMarketGoods()
+    : GOODS.filter(function (good) {
+        return good.marketAccess && good.marketAccess.indexOf('open') !== -1;
+      });
   var focusKey = sysId + ':' + effectiveMarketMode;
   if (!_marketChartRange[focusKey]) _marketChartRange[focusKey] = 14;
   var snapshots = _buildMarketSnapshots(state, sysId, goodsList, isBlack, _marketChartRange[focusKey]);
@@ -3395,7 +3457,7 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode
 
   // 市场深度提示
   var depth = Economy.getMarketDepth(sysId);
-  var depthLabel = depth >= 350 ? '深度市场' : depth >= 200 ? '中等市场' : '浅层市场';
+  var depthLabel = depth >= 350 ? '大型' : depth >= 200 ? '中型' : '小型';
   var depthDiv = document.createElement('div');
   if (isBlack) {
     depthDiv.className = 'market-goods-depth-info black-banner';
@@ -3403,8 +3465,8 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode
       '<span class="bm-warning">⚠ 携带违禁品前往联邦区域将触发执法检查</span>';
   } else {
     depthDiv.className = 'market-goods-depth-info';
-    depthDiv.innerHTML = '📊 市场深度：<strong>' + depth + '</strong>（' + depthLabel + '）——' +
-      (depth >= 350 ? '大宗交易对价格影响较小' : depth >= 200 ? '交易影响适中' : '大宗交易将显著影响价格') +
+    depthDiv.innerHTML = '📊 可交易规模：<strong>' + depthLabel + '</strong> —— ' +
+      (depth >= 350 ? '一次买卖较多货物，价格也不容易被推高或压低' : depth >= 200 ? '普通数量的买卖对价格影响适中' : '一次买卖太多，会明显改变当地价格') +
       (systemFaction && systemFaction.marketAccess && systemFaction.marketAccess.blackMarket
         ? (blackMarketUnlocked
           ? ' · 🕶 黑市资格已解锁'
@@ -3419,7 +3481,7 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode
     var currentSystem = findSystem(state.currentSystem);
     var viewedSystem = findSystem(sysId);
     var currentName = currentSystem ? currentSystem.name : '当前停靠点';
-    var viewedName = viewedSystem ? viewedSystem.name : '该节点';
+    var viewedName = viewedSystem ? viewedSystem.name : '该地点';
     var canFocusRemote = financeActions && typeof financeActions.onFocusRemoteSystem === 'function';
     noteDiv.className = 'market-goods-readonly-note';
     noteDiv.setAttribute('role', 'listitem');
@@ -3478,7 +3540,7 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode
     if (good.legality === 'illegal') {
       tag = '<span class="market-good-tag tag-illegal">违禁</span>';
     } else if (good.legality === 'restricted') {
-      tag = '<span class="market-good-tag tag-restricted">灰市</span>';
+      tag = '<span class="market-good-tag tag-restricted">受监管</span>';
     } else if (sd.ratio > 1.3) {
       tag = '<span class="market-good-tag tag-hot">高需求</span>';
     } else if (sd.ratio < 0.7) {
@@ -3510,12 +3572,12 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode
         '</div>' +
         '<div class="market-good-card-meta-row">' +
           '<span class="market-good-card-signal ' + opportunity.className + '">' + opportunity.label + '</span>' +
-          '<span class="market-good-card-stat">供需 ' + sd.ratio.toFixed(2) + 'x</span>' +
-          '<span class="market-good-card-stat">差价 ' + spread.toLocaleString() + '</span>' +
+          '<span class="market-good-card-stat">' + (sd.ratio > 1.3 ? '供货紧张' : (sd.ratio < 0.7 ? '供货充足' : '供货平稳')) + '</span>' +
+          '<span class="market-good-card-stat">买卖相差 ' + spread.toLocaleString() + '</span>' +
         '</div>' +
       '</div>' +
       '<div class="market-good-card-chart-col">' +
-        '<div class="market-good-card-chart-label">价格纪录</div>' +
+        '<div class="market-good-card-chart-label">最近价格</div>' +
         miniChart +
       '</div>' +
       '<div class="market-good-card-price-block">' +
@@ -3600,9 +3662,9 @@ export function showDetail(systemId, marketMode) {
       '<span class="market-detail-loc-sep"> // </span>' +
       '<span class="market-detail-loc-type">' + sys.typeLabel + '</span>' +
       '<span class="market-detail-loc-sep"> // </span>' +
-      '<span class="market-detail-loc-status">终端状态: ' + (isBlack ? '🕶 黑市模式' : '在线') + '</span>';
+      '<span class="market-detail-loc-status">市场状态: ' + (isBlack ? '🕶 黑市模式' : '可交易') + '</span>';
   }
-  if (title) title.textContent = '交易所终端';
+  if (title) title.textContent = '市场中心';
 }
 
 function _updateMarketDetailMode(state, systemId, isCurrentSys, marketMode) {
@@ -3610,7 +3672,7 @@ function _updateMarketDetailMode(state, systemId, isCurrentSys, marketMode) {
   if (!modeEl) return;
   const target = findSystem(systemId);
   const current = findSystem(state && state.currentSystem);
-  const targetName = target ? target.name : '目标节点';
+  const targetName = target ? target.name : '目标地点';
   const currentName = current ? current.name : '当前停靠点';
   const isBlack = marketMode === 'black';
   modeEl.className = 'market-detail-mode ' + (isCurrentSys ? 'is-local' : 'is-remote') + (isBlack ? ' is-black' : '');
@@ -3622,5 +3684,5 @@ function _updateMarketDetailMode(state, systemId, isCurrentSys, marketMode) {
     return;
   }
   modeEl.textContent = '远程只读 · 需前往';
-  modeEl.title = '你停靠在「' + currentName + '」，正在远程查看「' + targetName + '」行情；交易、补给和本地经营需要抵达该节点。';
+  modeEl.title = '你停靠在「' + currentName + '」，正在远程查看「' + targetName + '」行情；交易、补给和本地经营需要抵达该地点。';
 }

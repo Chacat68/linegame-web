@@ -79,7 +79,7 @@ export function showVictoryReport(payload) {
   }).join('');
 
   if (!pathRows) {
-    pathRows = '<div class="gameover-path-empty" role="listitem">暂无胜利路径数据。</div>';
+    pathRows = '<div class="gameover-path-empty" role="listitem">暂无长期路线数据。</div>';
   }
 
   messageEl.setAttribute('role', 'region');
@@ -87,7 +87,7 @@ export function showVictoryReport(payload) {
   messageEl.innerHTML =
     '<section class="gameover-brief" aria-label="胜利摘要">' +
       '<div class="gameover-brief-kicker">胜利结算</div>' +
-      '<p class="gameover-brief-message">' + _escapeHtml(path.victoryMessage || '当前公司已达成一条胜利路径。') + '</p>' +
+      '<p class="gameover-brief-message">' + _escapeHtml(path.victoryMessage || '当前公司已完成一条长期路线。') + '</p>' +
     '</section>' +
     '<section class="gameover-stat-grid" role="list" aria-label="游戏统计">' +
       stats.map(function (item) {
@@ -95,14 +95,14 @@ export function showVictoryReport(payload) {
       }).join('') +
     '</section>' +
     '<section class="gameover-paths" aria-labelledby="gameover-paths-title">' +
-      '<h3 id="gameover-paths-title">胜利路径</h3>' +
-      '<div class="gameover-path-list" role="list" aria-label="胜利路径完成度">' + pathRows + '</div>' +
+      '<h3 id="gameover-paths-title">长期路线</h3>' +
+      '<div class="gameover-path-list" role="list" aria-label="长期路线完成度">' + pathRows + '</div>' +
     '</section>' +
     '<section id="gameover-next-actions" class="gameover-next-actions" aria-label="结算后续操作">' +
       '<div class="gameover-next-card gameover-next-card--primary" id="gameover-continue-note">' +
         '<span>继续经营</span>' +
-        '<strong>保留当前公司，继续推进其他胜利路径</strong>' +
-        '<small>当前航线、资产与进度都会保留；同一条胜利路径在本次会话中不会重复打断经营。</small>' +
+        '<strong>保留当前公司，继续扩大已选择的经营方向</strong>' +
+        '<small>当前航线、资产与进度都会保留；已选择的长期路线不会改变，也不会重复打断经营。</small>' +
       '</div>' +
       '<div class="gameover-next-card gameover-next-card--danger" id="gameover-restart-note">' +
         '<span>重新开始</span>' +

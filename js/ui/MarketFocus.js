@@ -3,13 +3,13 @@ import * as Faction from '../systems/faction/FactionSystem.js';
 import * as Exploration from '../systems/galaxy/ExplorationSystem.js';
 
 const MARKET_FOCUS_PRESETS = {
-  'spot-trade': { workspaceId: 'spot', subworkspaceId: 'trade', label: '现货交易区' },
-  'spot-intel': { workspaceId: 'spot', subworkspaceId: 'intel', label: '市场情报区' },
-  'spot-black': { workspaceId: 'spot', subworkspaceId: 'black', label: '黑市分区', marketMode: 'black' },
-  'capital-local': { workspaceId: 'capital', subworkspaceId: 'local', label: '资本调度区' },
-  'operations-local': { workspaceId: 'operations', subworkspaceId: 'local', label: '本地节点经营区' },
-  'operations-network': { workspaceId: 'operations', subworkspaceId: 'network', label: '商网总览区' },
-  'operations-stations': { workspaceId: 'operations', subworkspaceId: 'stations', label: '站点编排区' },
+  'spot-trade': { workspaceId: 'spot', subworkspaceId: 'trade', label: '买卖货物' },
+  'spot-intel': { workspaceId: 'spot', subworkspaceId: 'intel', label: '行情与路线' },
+  'spot-black': { workspaceId: 'spot', subworkspaceId: 'black', label: '黑市交易', marketMode: 'black' },
+  'capital-local': { workspaceId: 'capital', subworkspaceId: 'local', label: '资金管理' },
+  'operations-local': { workspaceId: 'operations', subworkspaceId: 'local', label: '本地贸易站' },
+  'operations-network': { workspaceId: 'operations', subworkspaceId: 'network', label: '贸易站总览' },
+  'operations-stations': { workspaceId: 'operations', subworkspaceId: 'stations', label: '批量管理' },
 };
 
 export const MARKET_FOCUS_PRESET_IDS = {
@@ -59,9 +59,9 @@ function _hasLocalTradeInvestment(state, systemId) {
 }
 
 function _getSystemContextLabel(system) {
-  if (!system) return '当前节点';
-  if (system.typeLabel) return system.typeLabel + '节点';
-  return (system.name || '当前节点') + '节点';
+  if (!system) return '当前地点';
+  if (system.typeLabel) return system.typeLabel;
+  return system.name || '当前地点';
 }
 
 function _getContextualMarketDecision(state, systemId) {
@@ -70,7 +70,7 @@ function _getContextualMarketDecision(state, systemId) {
   var fallbackDecision = {
     presetId: MARKET_FOCUS_PRESET_IDS.SPOT_TRADE,
     system: system,
-    contextHint: '当前节点默认回到现货交易区。',
+    contextHint: '先在这里买卖货物。',
     opportunityFocus: 'logistics',
   };
 
@@ -90,10 +90,10 @@ function _getContextualMarketDecision(state, systemId) {
       system: system,
       opportunityFocus: 'operations',
       contextHint: hasStation && hasInvestment
-        ? '当前节点已有贸易站和本地投资，优先回到本地节点经营区处理资产动作。'
+        ? '这里已有贸易站和投资，先查看本地经营情况。'
         : hasStation
-          ? '当前节点已有贸易站，优先回到本地节点经营区处理站点动作。'
-          : '当前节点已有本地投资，优先回到本地节点经营区查看增配与分红。',
+          ? '这里已有贸易站，先查看收入、维护费和升级。'
+          : '这里已有投资，先查看追加资金和分红。',
     };
   }
 
@@ -109,8 +109,8 @@ function _getContextualMarketDecision(state, systemId) {
       system: system,
       opportunityFocus: opportunityFocus,
       contextHint: hasReportIntel
-        ? (marketHint + ' 该节点也已解锁黑市通路，可切到黑市分区验证特殊价格。')
-        : contextLabel + '已解锁黑市通路，优先落到黑市分区。',
+        ? (marketHint + ' 这里也已解锁黑市，可对比特殊商品价格。')
+        : contextLabel + '已解锁黑市，可以查看特殊商品。',
     };
   }
 
@@ -130,7 +130,7 @@ function _getContextualMarketDecision(state, systemId) {
       opportunityFocus: opportunityFocus,
       contextHint: hasReportIntel
         ? marketHint
-        : contextLabel + '更偏科研线索，先看市场情报区再决定补给或交易。',
+        : contextLabel + '更容易发现科研线索，先看行情与探索报告。',
     };
   }
 
@@ -141,7 +141,7 @@ function _getContextualMarketDecision(state, systemId) {
       opportunityFocus: opportunityFocus,
       contextHint: hasReportIntel
         ? marketHint
-        : contextLabel + '更偏机会侦察，先看市场情报区再决定是否进场。',
+        : contextLabel + '可能有交易机会，先看行情再决定是否买卖。',
     };
   }
 
@@ -160,7 +160,7 @@ function _getContextualMarketDecision(state, systemId) {
     opportunityFocus: opportunityFocus,
     contextHint: hasReportIntel
       ? marketHint
-      : contextLabel + '更适合补给与现货周转，先落到现货交易区。',
+      : contextLabel + '适合补给和普通跑商，先买卖货物。',
   };
 }
 
@@ -178,22 +178,22 @@ export function getMarketFocusCtaLabel(marketFocus, context) {
   }
 
   if (marketFocus.marketMode === 'black' || marketFocus.subworkspaceId === 'black') {
-    return '查看黑市通路';
+    return '查看黑市';
   }
 
   if (marketFocus.workspaceId === 'operations') {
-    return '查看本地经营';
+    return '查看贸易站';
   }
 
   if (marketFocus.workspaceId === 'capital') {
-    return '查看资本调度';
+    return '管理资金';
   }
 
   if (marketFocus.subworkspaceId === 'intel') {
-    return '查看市场情报';
+    return '查看行情';
   }
 
-  return context === 'faction' ? '查看代表市场' : '查看现货交易';
+  return context === 'faction' ? '查看代表市场' : '买卖货物';
 }
 
 export function buildContextualMarketAction(state, systemId, options) {

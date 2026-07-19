@@ -65,7 +65,7 @@ function _getResearchCategoryStatuses(state) {
 }
 
 function _renderResearchCategoryMatrix(statuses) {
-  return '<div class="research-category-matrix" role="list" aria-label="科技分类态势">' +
+  return '<div class="research-category-matrix" role="list" aria-label="科技分类状态">' +
     statuses.map(function (status) {
       return '<div class="research-category-cell' + (status.active ? ' is-active' : '') + '" role="listitem" style="border-color:' + _escapeHtmlAttr(status.category.color) + '44">' +
         '<span class="research-category-cell-kicker" style="color:' + _escapeHtmlAttr(status.category.color) + '">' + _escapeHtml(status.category.icon + ' ' + status.category.name) + '</span>' +
@@ -109,13 +109,13 @@ function _renderResearchFocusPanel(state, categoryStatuses, currentTech) {
     return tech && list.findIndex(function (item) { return item.id === tech.id; }) === index;
   }).slice(0, 3);
 
-  return '<section class="research-focus-panel" aria-label="研究局部信号">' +
+  return '<section class="research-focus-panel" aria-label="研究建议">' +
     '<div class="research-focus-copy">' +
-      '<span class="research-focus-kicker">局部信号</span>' +
+      '<span class="research-focus-kicker">当前建议</span>' +
       '<strong class="research-focus-title">' + _escapeHtml(signalTitle) + '</strong>' +
       '<span class="research-focus-note">' + _escapeHtml(signalNote) + '</span>' +
     '</div>' +
-    '<div class="research-focus-list" role="list" aria-label="研究焦点项目">' +
+    '<div class="research-focus-list" role="list" aria-label="优先研究项目">' +
       (focusItems.length > 0
         ? focusItems.map(function (tech) {
             const category = TECH_CATEGORIES.find(function (cat) { return cat.id === tech.category; });
@@ -127,9 +127,9 @@ function _renderResearchFocusPanel(state, categoryStatuses, currentTech) {
               '</span>' +
             '</article>';
           }).join('')
-        : '<div class="research-focus-empty" role="listitem">暂无可展示研究焦点。</div>') +
+        : '<div class="research-focus-empty" role="listitem">暂无推荐研究。</div>') +
     '</div>' +
-    '<div class="research-budget-signal" aria-label="候选预算信号">' +
+    '<div class="research-budget-signal" aria-label="研究预算情况">' +
       '<span>候选预算</span>' +
       '<strong>' + affordableOptions.length + '/' + optionTechs.length + '</strong>' +
       '<em>' + (focusCategory ? (focusCategory.category.name + ' 进度 ' + focusCategory.completed + '/' + focusCategory.total) : '分类数据待生成') + '</em>' +
@@ -164,15 +164,15 @@ function _buildResearchPrimaryAction(blocker) {
     return _buildResearchMarketAction(
       'cargo',
       '打开市场清货',
-      '会进入交易所终端的现货区，先卖掉一部分货物，腾出舱位后再回来规划科研补给。'
+      '会进入市场中心的交易页，先卖掉一部分货物，腾出舱位后再回来规划科研补给。'
     );
   }
 
   if (blocker.reasonId === 'credits') {
     return _buildResearchMarketAction(
       'credits',
-      '打开资本周转',
-      '会进入交易所终端的资本区，先做一笔回款或卖货，补足进货资金后再回来。'
+      '打开资金管理',
+      '会进入市场中心的资金页，先收回一笔投资或卖货，补足进货资金后再回来。'
     );
   }
 
@@ -180,14 +180,14 @@ function _buildResearchPrimaryAction(blocker) {
     return _buildResearchMarketAction(
       'level',
       '打开市场跑单',
-      '会进入交易所终端，先提升等级，解锁更多科研相关补给点。'
+      '会进入市场中心，先提升等级，解锁更多科研相关补给点。'
     );
   }
 
   return _buildResearchMarketAction(
     'generic',
     '打开市场查看',
-    '会进入交易所终端，先看看本地行情和库存，再回来等待更稳的科研补给线。'
+    '会进入市场中心，先看看本地价格和库存，再回来等待更稳的科研补给线。'
   );
 }
 
@@ -464,7 +464,7 @@ function _renderResearchDispatchRecommendation(recommendation, canApplyResearchD
     : ((recommendation.inspectionRisk && recommendation.inspectionRisk.checkChancePercent) || 0) + '%';
   const roleLabel = recommendation.dispatchProfile && recommendation.dispatchProfile.roleLabel
     ? recommendation.dispatchProfile.roleLabel
-    : '标准派遣';
+    : '默认跑商';
   const surveyIntelNote = recommendation.surveyIntelSummary
     ? '<div class="research-route-note">' + _escapeHtml(recommendation.surveyIntelSummary) + '</div>'
     : '';
@@ -486,10 +486,10 @@ function _renderResearchDispatchRecommendation(recommendation, canApplyResearchD
       surveyIntelNote +
       (canApplyResearchDispatch
         ? '<div class="research-route-actions">' +
-            '<button type="button" class="research-route-apply-btn command-action-btn" data-command-surface="fleet" data-command-intent="科研补给" data-command-verb="带入机库派遣">' +
+            '<button type="button" class="research-route-apply-btn command-action-btn" data-command-surface="fleet" data-command-intent="科研补给" data-command-verb="带入机库">' +
               renderCommandActionContent({
                 actionId: 'dispatch',
-                label: '带入机库派遣',
+                label: '带入机库',
                 commandSurface: 'fleet',
                 commandIntent: '科研补给',
               }, _escapeHtml) +

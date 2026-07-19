@@ -111,16 +111,16 @@ function _renderAchievementFocus(statuses, lockedAchievements) {
     ? (focusStatus.label + ' 档案还差 ' + focusStatus.pending + ' 项')
     : '所有成就均已归档';
   const focusNote = focusStatus
-    ? ('这是当前最接近补齐的分类，先扫这些待完成项能最快收拢分类进度。')
+    ? ('这是最接近完成的分类，优先完成这些项目能更快拿到分类进度。')
     : '成就列表已全部点亮，奖励池没有剩余待领取项。';
 
-  return '<section class="archive-achievement-focus" aria-label="成就局部焦点">' +
+  return '<section class="archive-achievement-focus" aria-label="成就建议">' +
     '<div class="achievement-focus-copy">' +
-      '<span class="achievement-focus-kicker">局部信号</span>' +
+      '<span class="achievement-focus-kicker">当前建议</span>' +
       '<strong class="achievement-focus-title">' + _escapeHtml(focusTitle) + '</strong>' +
       '<span class="achievement-focus-note">' + _escapeHtml(focusNote) + '</span>' +
     '</div>' +
-    '<div class="achievement-focus-list" role="list" aria-label="待完成成就焦点">' +
+    '<div class="achievement-focus-list" role="list" aria-label="待完成成就">' +
       (focusAchievements.length > 0
         ? focusAchievements.map(function (ach) {
             return '<article class="achievement-focus-card" role="listitem">' +
@@ -131,7 +131,7 @@ function _renderAchievementFocus(statuses, lockedAchievements) {
               '</span>' +
             '</article>';
           }).join('')
-        : '<div class="achievement-focus-empty" role="listitem">暂无待完成焦点。</div>') +
+        : '<div class="achievement-focus-empty" role="listitem">暂无待完成成就。</div>') +
     '</div>' +
     '<div class="achievement-reward-backlog" aria-label="未解锁奖励池">' +
       '<span>未解锁奖励池</span>' +

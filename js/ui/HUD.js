@@ -167,7 +167,7 @@ export function init() {
       if (!button || !_stateRef || button.disabled) return;
       const pathId = button.dataset.victoryPolicyId;
       if (typeof window !== 'undefined' && typeof window.confirm === 'function' &&
-          !window.confirm('胜利信条选择会写入存档且不可更改。确认采用？')) return;
+          !window.confirm('长期路线会写入存档且不可更改。确认选择？')) return;
       const result = Victory.choosePolicy(_stateRef, pathId);
       (result.msgs || []).forEach(function (msg) { addMessage(msg.text, msg.type); });
       if (result.ok) {
@@ -554,18 +554,18 @@ function _renderCompanyUnlockRoadmap(state) {
   roadmapEl.innerHTML =
     '<div class="company-permission-head">' +
       '<div>' +
-        '<span class="company-permission-kicker">Company Access</span>' +
-        '<strong class="company-permission-title">公司权限台</strong>' +
+        '<span class="company-permission-kicker">公司功能</span>' +
+        '<strong class="company-permission-title">等级开放功能</strong>' +
       '</div>' +
       '<span class="company-permission-level">Lv.' + _escapeHtml(currentLevel) + '</span>' +
     '</div>' +
-    '<div class="company-permission-grid" role="list" aria-label="公司权限容量">' +
-      _renderCompanyPermissionMetric('舰队席位', (fleetSlots.used || 0) + '/' + (fleetSlots.max || 0), '空余 ' + fleetAvailable + ' 席', fleetAvailable > 0 ? 'tone-open' : 'tone-full') +
+    '<div class="company-permission-grid" role="list" aria-label="公司功能容量">' +
+      _renderCompanyPermissionMetric('舰船位置', (fleetSlots.used || 0) + '/' + (fleetSlots.max || 0), '还有 ' + fleetAvailable + ' 个位置', fleetAvailable > 0 ? 'tone-open' : 'tone-full') +
       _renderCompanyPermissionMetric('贸易站', tradeStations.label || '未开放', tradeStations.unlocked ? ('空余 ' + (tradeStations.available || 0) + ' 站') : '等级权限未开放', tradeStations.unlocked && !tradeStations.full ? 'tone-open' : 'tone-full') +
-      _renderCompanyPermissionMetric('站点上限', stationLevel.label || '未开放', '公司当前许可', stationLevel.max > 0 ? 'tone-open' : 'tone-full') +
+      _renderCompanyPermissionMetric('贸易站等级', stationLevel.label || '未开放', '当前等级上限', stationLevel.max > 0 ? 'tone-open' : 'tone-full') +
     '</div>' +
     '<div class="company-permission-focus" data-tone="' + focusTone + '" role="status">' +
-      '<span class="company-permission-focus-kicker">' + (milestone ? '下一开放' : '权限状态') + '</span>' +
+      '<span class="company-permission-focus-kicker">' + (milestone ? '下一级开放' : '当前状态') + '</span>' +
       '<strong>' + _escapeHtml(focusTitle) + '</strong>' +
       '<small>' + _escapeHtml(focusNote) + '</small>' +
     '</div>';
@@ -577,8 +577,8 @@ function _formatCompanyPrivilegeCaps(summary) {
   var stationLevel = summary.caps.tradeStationLevel || {};
   var fleetSlots = summary.caps.fleetSlots || {};
   return '贸易站 ' + (stations.label || '未开放') +
-    ' · 站点上限 ' + (stationLevel.label || '未开放') +
-    ' · 舰队席位 ' + (fleetSlots.used || 1) + '/' + (fleetSlots.max || 1);
+    ' · 贸易站等级 ' + (stationLevel.label || '未开放') +
+    ' · 舰船位置 ' + (fleetSlots.used || 1) + '/' + (fleetSlots.max || 1);
 }
 
 function _setBadgeValue(id, count, labelPrefix) {
@@ -844,14 +844,14 @@ function _renderHudTargetSurvey(state, sys, targetSurveyEl, targetNextEl) {
   var summary = Exploration.getSurveySummary(state, sys.id);
 
   if (!exploration || !summary) {
-    _setTextWithTitle(targetSurveyEl, '勘探档案同步中');
+    _setTextWithTitle(targetSurveyEl, '探索报告同步中');
     _setTextWithTitle(targetNextEl, '档案同步中');
     return;
   }
 
   var poiText = summary.totalPois > 0
-    ? (summary.resolvedCount + '/' + summary.totalPois + ' POI')
-    : '无 POI';
+    ? (summary.resolvedCount + '/' + summary.totalPois + ' 探索点')
+    : '无探索点';
 
   _setTextWithTitle(
     targetSurveyEl,
@@ -860,7 +860,7 @@ function _renderHudTargetSurvey(state, sys, targetSurveyEl, targetNextEl) {
 
   var nextText = '暂无待办 · 可继续贸易';
   if (summary.pendingCount > 0) {
-    nextText = '待调查 · ' + summary.pendingCount + ' 个 POI';
+    nextText = '待调查 · ' + summary.pendingCount + ' 个探索点';
   } else if (summary.completed) {
     nextText = '探索完成 · ' + summary.reportCount + ' 份报告';
   }
@@ -1000,29 +1000,29 @@ function _renderHudNetworkStatus(state, statusSnapshot, netWorth) {
     )
   );
   var routeLoad = fleet.length > 0 ? Math.round((activeRoutes / fleet.length) * 100) : 0;
-  var signalTitle = '贸易网络运行稳定';
-  var signalNote = activeRoutes + ' 条航线运行中，舰队负载 ' + routeLoad + '%，市场波动处于可观察区间。';
+  var signalTitle = '贸易网络正常';
+  var signalNote = activeRoutes + ' 条路线运行中，' + routeLoad + '% 的飞船正在跑商，近期价格变化不大。';
   var signalTone = 'stable';
 
   if (visitedCount <= 1 && activeRoutes === 0) {
-    signalTitle = '网络尚未铺开';
-    signalNote = '当前仅连接起始节点，尚未形成跨节点贸易航线。';
+    signalTitle = '贸易网络尚未铺开';
+    signalNote = '目前只到过起始地点，还没有跨地点的跑商路线。';
     signalTone = 'idle';
   } else if (activeRoutes === 0) {
-    signalTitle = '航线席位空闲';
-    signalNote = '已连接 ' + visitedCount + ' 个节点，但当前没有执行中的舰队航线。';
+    signalTitle = '有空闲飞船';
+    signalNote = '已经到过 ' + visitedCount + ' 个地点，但当前没有飞船在自动跑商。';
     signalTone = 'watch';
   } else if (fleet.length > 0 && activeRoutes >= fleet.length) {
-    signalTitle = '航线负载已满';
-    signalNote = '全部 ' + fleet.length + ' 艘船均在执行路线，当前没有空闲派遣席位。';
+    signalTitle = '所有飞船都在跑商';
+    signalNote = '全部 ' + fleet.length + ' 艘船都在执行路线，当前没有空闲的自动跑商船位。';
     signalTone = 'watch';
   } else if (volatility >= 15) {
-    signalTitle = '市场波动抬升';
-    signalNote = '网络波动率 ' + volatility.toFixed(1) + '%，现有 ' + activeRoutes + ' 条航线需要持续观察。';
+    signalTitle = '价格变化变大';
+    signalNote = '近期价格变化 ' + volatility.toFixed(1) + '%，现有 ' + activeRoutes + ' 条航线需要持续观察。';
     signalTone = 'risk';
   } else if (cargoPct >= 85) {
     signalTitle = '货舱压力偏高';
-    signalNote = '当前货舱占用 ' + Math.round(cargoPct) + '%，网络吞吐空间接近上限。';
+    signalNote = '当前货舱占用 ' + Math.round(cargoPct) + '%，可用运力已经不多。';
     signalTone = 'watch';
   }
 
@@ -1032,7 +1032,7 @@ function _renderHudNetworkStatus(state, statusSnapshot, netWorth) {
   if (signalEl) {
     signalEl.dataset.tone = signalTone;
     signalEl.innerHTML =
-      '<span class="hud-network-signal-kicker">局部信号</span>' +
+      '<span class="hud-network-signal-kicker">当前建议</span>' +
       '<strong class="hud-network-signal-title">' + _escapeHtml(signalTitle) + '</strong>' +
       '<span class="hud-network-signal-note">' + _escapeHtml(signalNote) + '</span>';
   }
@@ -1067,27 +1067,27 @@ function _renderVictoryModal(progressList) {
 
   body.setAttribute('role', 'region');
   body.setAttribute('aria-live', 'polite');
-  body.setAttribute('aria-label', '胜利协议进度详情');
+  body.setAttribute('aria-label', '长期路线进度详情');
 
   let html =
-    '<section class="vp-overview" aria-label="胜利协议总览">' +
+    '<section class="vp-overview" aria-label="长期路线总览">' +
       '<div class="vp-overview-copy">' +
-        '<div class="vp-overview-kicker">协议总览</div>' +
+        '<div class="vp-overview-kicker">长期路线</div>' +
         '<div class="vp-overview-title">' + _escapeHtml(completedCount > 0 ? '已有路径达成' : '持续推进多路径胜利') + '</div>' +
         '<div class="vp-overview-desc">' + _escapeHtml(bestPath ? ('当前最接近：' + bestPath.name) : '暂无可追踪路径') + '</div>' +
         '<div class="vp-overview-next"><span>下一缺口</span><strong>' + _escapeHtml(bestPathNextText) + '</strong></div>' +
       '</div>' +
-      '<div class="vp-overview-grid" role="list" aria-label="协议统计">' +
+      '<div class="vp-overview-grid" role="list" aria-label="路线统计">' +
         '<div class="vp-overview-stat" role="listitem"><span>路径</span><strong>' + paths.length + '</strong></div>' +
         '<div class="vp-overview-stat" role="listitem"><span>已达成</span><strong>' + completedCount + '</strong></div>' +
         '<div class="vp-overview-stat" role="listitem"><span>达成率</span><strong>' + completionPct + '%</strong></div>' +
         '<div class="vp-overview-stat" role="listitem"><span>最高进度</span><strong>' + (bestPath ? Math.min(100, Math.floor((bestPath.progress || 0) * 100)) : 0) + '%</strong></div>' +
       '</div>' +
     '</section>' +
-    '<div class="vp-card-list" role="list" aria-label="胜利路径列表">';
+    '<div class="vp-card-list" role="list" aria-label="长期路线列表">';
 
   if (paths.length === 0) {
-    html += '<div class="vp-empty" role="listitem">暂无胜利协议数据，继续完成贸易、探索、研究或任务后再查看。</div>';
+    html += '<div class="vp-empty" role="listitem">暂无长期路线进度，继续完成贸易、探索、研究或任务后再查看。</div>';
   }
 
   paths.forEach(function (p) {
@@ -1117,8 +1117,8 @@ function _renderVictoryModal(progressList) {
     const policy = p.policy;
     let policyHtml = '';
     if (policy) {
-      const policyStatus = p.policySelected ? '当前信条' : (p.policyLocked ? '已被其他信条锁定' : '可采用');
-      const policyButtonLabel = p.policySelected ? '当前信条' : (p.policyLocked ? '选择已锁定' : '采用此信条（不可逆）');
+      const policyStatus = p.policySelected ? '当前路线' : (p.policyLocked ? '已选择其他路线' : '可选择');
+      const policyButtonLabel = p.policySelected ? '当前路线' : (p.policyLocked ? '选择已锁定' : '选择此路线（不可更改）');
       policyHtml =
         '<div class="vp-policy' + (p.policySelected ? ' is-active' : '') + '">' +
           '<div class="vp-policy-head"><strong>' + _escapeHtml(policy.name) + '</strong><span>' + _escapeHtml(policyStatus) + '</span></div>' +

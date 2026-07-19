@@ -193,7 +193,7 @@ function _buildPlanetTravelAction(stateRef, sys) {
       label: '当前停靠中',
       disabled: true,
       title: '你已经停靠在这颗星球。',
-      hint: '这里的详细探索信息已展开，可以直接执行 POI 调查。',
+      hint: '这里已展开探索详情，可以直接调查探索点。',
     };
   }
 
@@ -477,13 +477,13 @@ function _getCurrentSystemExplorationTarget(stateRef) {
   var flow = _getExplorationFlow(stateRef, sys, planetData, true, isUnlocked);
   if (!flow) return null;
 
-  var label = '航点终端';
-  var title = flow.title || '打开当前航点终端';
+  var label = '当前地点';
+  var title = flow.title || '查看当前地点';
 
   if (!isUnlocked) {
     label = '🔒 航点锁定';
   } else if (flow.unresolvedPois && flow.unresolvedPois.length > 0) {
-    label = '🧭 探索终端 · ' + flow.unresolvedPois.length;
+    label = '🧭 可探索 · ' + flow.unresolvedPois.length;
   } else {
     label = '📘 航点档案';
   }
@@ -502,7 +502,7 @@ function _getExplorationTerminalBadge(label) {
 }
 
 function _setExplorationTerminalButtonPresentation(btn, label, title) {
-  var displayLabel = String(label || '航点终端');
+  var displayLabel = String(label || '当前地点');
   var titleText = title ? (displayLabel + ' · ' + title) : displayLabel;
   var labelEl = typeof btn.querySelector === 'function'
     ? btn.querySelector('[data-starmap-rail-label]')
@@ -560,7 +560,7 @@ function _updateExplorationTerminalButton(stateRef) {
   btn.setAttribute('aria-controls', 'current-system-exploration-card');
   btn.hidden = !shouldShow;
   btn.setAttribute('aria-hidden', shouldShow ? 'false' : 'true');
-  _setExplorationTerminalButtonPresentation(btn, '航点终端', '打开当前航点探索终端');
+  _setExplorationTerminalButtonPresentation(btn, '当前地点', '查看当前地点');
   btn.disabled = false;
   btn.removeAttribute('aria-disabled');
   btn.classList.toggle('active', !!_explorationTerminalPanelOpen);
@@ -572,7 +572,7 @@ function _updateExplorationTerminalButton(stateRef) {
   if (!shouldShow) return;
 
   if (target) {
-    _setExplorationTerminalButtonPresentation(btn, target.label || '航点终端', target.title || '打开当前航点探索终端');
+    _setExplorationTerminalButtonPresentation(btn, target.label || '当前地点', target.title || '查看当前地点');
     btn.dataset.systemId = target.systemId || '';
     if (target.disabled) {
       btn.disabled = true;
@@ -605,11 +605,11 @@ function _buildCurrentSystemExplorationCard(flow, sys) {
   return '<div class="current-system-card-head">' +
     '<div class="current-system-card-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#rail-icon-explore"></use></svg></div>' +
     '<div class="current-system-card-head-main">' +
-      '<div class="current-system-card-kicker">WAYPOINT EXPLORATION</div>' +
+      '<div class="current-system-card-kicker">当前地点</div>' +
       '<div class="current-system-card-name">' + _escapeHtml(sys.name) + '</div>' +
     '</div>' +
     '<div class="current-system-card-state">' + _escapeHtml(terminalState) + '</div>' +
-    '<button class="current-system-card-close hud-widget-close" type="button" data-exploration-terminal-close aria-label="关闭航点探索终端" title="关闭航点探索终端">×</button>' +
+    '<button class="current-system-card-close hud-widget-close" type="button" data-exploration-terminal-close aria-label="关闭当前地点" title="关闭当前地点">×</button>' +
   '</div><div class="current-system-card-body">' + signalHtml + flowHtml + chainHtml + '</div>';
 }
 
@@ -635,10 +635,10 @@ function _buildCurrentSystemSignalPanel(flow, surveySummary) {
 
   if (flow.nextAction && flow.nextAction.type === 'poi') {
     focusTitle = '地表调查待处理';
-    focusNote = flow.secondaryNote || ('还有 ' + unresolvedCount + ' 个 POI 等待调查。');
+    focusNote = flow.secondaryNote || ('还有 ' + unresolvedCount + ' 个探索点等待调查。');
     focusTone = 'poi';
   } else if (routeCount > 0) {
-    focusTitle = '暗线航图已接入';
+    focusTitle = '隐藏航线图已更新';
     focusNote = '本地探索已归档，后续从这里出发会自动使用已发现航线折扣。';
     focusTone = 'route';
   } else if (flow.secondaryNote) {
@@ -647,21 +647,21 @@ function _buildCurrentSystemSignalPanel(flow, surveySummary) {
     focusTone = 'pending';
   }
 
-  return '<section class="current-system-signal-panel" aria-label="当前航点局部态势">' +
+  return '<section class="current-system-signal-panel" aria-label="当前航点当前状态">' +
     '<div class="current-system-signal-head">' +
       '<div>' +
-        '<div class="current-system-signal-title">当前航点态势</div>' +
-        '<div class="current-system-signal-subtitle">把 POI、报告和暗线压成一屏，进入流程卡前先确认本地状态。</div>' +
+        '<div class="current-system-signal-title">当前航点状态</div>' +
+        '<div class="current-system-signal-subtitle">集中显示探索点、报告和隐藏航线，方便判断下一步。</div>' +
       '</div>' +
       '<span class="current-system-signal-badge">' + _escapeHtml(flow.roleTag || '当前停靠') + '</span>' +
     '</div>' +
     '<div class="current-system-signal-grid" role="list" aria-label="当前航点探索指标">' +
-      _buildCurrentSystemSignalMetric('报告', String(reportCount), reportCount > 0 ? '勘探结论已归档' : '暂无调查结论', reportCount > 0 ? 'ready' : '') +
-      _buildCurrentSystemSignalMetric('POI', flow.resolvedCount + '/' + flow.totalPois, unresolvedCount > 0 ? (unresolvedCount + ' 个待调查') : '探索点已清理', unresolvedCount > 0 ? 'work' : 'ready') +
-      _buildCurrentSystemSignalMetric('暗线', String(routeCount), chainCount > 0 ? (chainCount + ' 条事件链') : '暂无已发现航线', routeCount > 0 ? 'route' : '') +
+      _buildCurrentSystemSignalMetric('报告', String(reportCount), reportCount > 0 ? '探索结论已保存' : '暂无调查结论', reportCount > 0 ? 'ready' : '') +
+      _buildCurrentSystemSignalMetric('探索点', flow.resolvedCount + '/' + flow.totalPois, unresolvedCount > 0 ? (unresolvedCount + ' 个待调查') : '已全部调查', unresolvedCount > 0 ? 'work' : 'ready') +
+      _buildCurrentSystemSignalMetric('隐藏航线', String(routeCount), chainCount > 0 ? (chainCount + ' 条探索任务') : '暂无已发现航线', routeCount > 0 ? 'route' : '') +
     '</div>' +
-    '<div class="current-system-signal-focus" aria-label="当前航点局部信号" data-tone="' + _escapeHtmlAttr(focusTone) + '">' +
-      '<span class="current-system-signal-focus-kicker">局部信号</span>' +
+    '<div class="current-system-signal-focus" aria-label="当前航点建议" data-tone="' + _escapeHtmlAttr(focusTone) + '">' +
+      '<span class="current-system-signal-focus-kicker">当前建议</span>' +
       '<strong class="current-system-signal-focus-title">' + _escapeHtml(focusTitle) + '</strong>' +
       '<span class="current-system-signal-focus-note">' + _escapeHtml(focusNote) + '</span>' +
     '</div>' +
@@ -675,8 +675,8 @@ function _updateSecretRoutesToggle() {
   var visible = Renderer3D.isSecretRoutesVisible ? Renderer3D.isSecretRoutesVisible() : true;
   btn.classList.toggle('active', !!visible);
   btn.setAttribute('aria-pressed', visible ? 'true' : 'false');
-  btn.textContent = visible ? '🛰 暗线已显示' : '🛰 显示暗线';
-  btn.title = visible ? '点击隐藏已发现暗线' : '点击显示已发现暗线';
+  btn.textContent = visible ? '🛰 隐藏航线已显示' : '🛰 显示隐藏航线';
+  btn.title = visible ? '点击隐藏已发现的隐藏航线' : '点击显示已发现的隐藏航线';
 }
 
 function _bindExplorationTerminalPanelControls() {
@@ -995,14 +995,14 @@ function _getExplorationFlow(stateRef, sys, planetData, isCurrentSystem, isUnloc
   if (!isUnlocked) {
     flow.phase = '尚未解锁';
     flow.title = '等级不足，暂时无法展开本地探索';
-    flow.detail = '达到 Lv.' + (sys.minLevel || 1) + ' 后才能在这颗星球执行 POI 调查。';
+    flow.detail = '达到 Lv.' + (sys.minLevel || 1) + ' 后才能调查这颗星球的探索点。';
     return flow;
   }
 
   if (!isCurrentSystem) {
     flow.phase = '抵达后可继续';
     if (unresolvedPois.length > 0) {
-      flow.title = '抵达后可继续调查 ' + unresolvedPois.length + ' 个 POI';
+      flow.title = '抵达后可继续调查 ' + unresolvedPois.length + ' 个探索点';
       flow.detail = '这颗星球还有未完成的探索内容，靠近后即可继续推进。';
     } else if (discoveredRoutes.length > 0) {
       flow.title = '本地探索已完成';
@@ -1034,14 +1034,14 @@ function _getExplorationFlow(stateRef, sys, planetData, isCurrentSystem, isUnloc
       _appendFlowNote(flow, nextPoiPreview.blockedReason);
     }
     if (unresolvedPois.length > 1) {
-      _appendFlowNote(flow, '当前还有 ' + unresolvedPois.length + ' 个 POI 待调查，悬停面板中可直接挑选具体目标。');
+      _appendFlowNote(flow, '当前还有 ' + unresolvedPois.length + ' 个探索点待调查，可在详情中选择目标。');
     }
     return flow;
   }
 
   flow.phase = '探索完成';
   if (discoveredRoutes.length > 0) {
-    flow.title = '本地探索完成，暗线已接入航图';
+    flow.title = '本地探索完成，隐藏航线已加入地图';
     flow.detail = '当前已解锁 ' + discoveredRoutes.length + ' 条秘密航线，之后从这里出发会自动应用燃料折扣。';
   } else {
     flow.title = '本地探索完成';
@@ -1112,8 +1112,8 @@ function _buildExplorationFlowCard(flow, options) {
 
 function _buildExplorationProgressRow(flow) {
   return '<div class="planet-detail-progress-row">' +
-    '<span class="planet-detail-progress-pill">POI：' + flow.resolvedCount + '/' + flow.totalPois + '</span>' +
-    '<span class="planet-detail-progress-pill">暗线：' + flow.discoveredRoutes.length + '</span>' +
+    '<span class="planet-detail-progress-pill">探索点：' + flow.resolvedCount + '/' + flow.totalPois + '</span>' +
+    '<span class="planet-detail-progress-pill">隐藏航线：' + flow.discoveredRoutes.length + '</span>' +
   '</div>';
 }
 
@@ -1140,7 +1140,7 @@ function _buildSurveySummaryBlock(summary, systemId, options) {
   var rewardValue = summary.completionBonusClaimed ? '已领取' : summary.completionRewardLabel;
   var rewardNote = summary.completionBonusClaimed
     ? '本地完探奖励已结算'
-    : '完成全部 POI 后自动发放';
+    : '调查全部探索点后自动发放';
   var marketActionHtml = '';
 
   if (_stateRef && systemId) {
@@ -1148,7 +1148,7 @@ function _buildSurveySummaryBlock(summary, systemId, options) {
       context: 'survey',
     });
     marketAction.type = 'market';
-    marketAction.title = '打开 ' + (marketAction.systemName || '当前节点') + ' 的 ' + (marketAction.marketFocusLabel || '市场页');
+    marketAction.title = '打开 ' + (marketAction.systemName || '当前地点') + ' 的 ' + (marketAction.marketFocusLabel || '市场页');
     marketActionHtml = '<div class="planet-detail-actions planet-detail-survey-actions">' +
       _buildExplorationActionButton(marketAction) +
       (marketAction.contextHint ? '<div class="planet-detail-note">' + _escapeHtml(marketAction.contextHint) + '</div>' : '') +
@@ -1159,7 +1159,7 @@ function _buildSurveySummaryBlock(summary, systemId, options) {
     (opts.hideHeading ? '' : '<div class="planet-detail-subtitle">探索简报</div>') +
     '<div class="planet-detail-survey-grid">' +
       _buildSurveyMetricCard('威胁评级', summary.threatLabel, '决定行动节奏', threatClass) +
-      _buildSurveyMetricCard('机会焦点', summary.opportunityLabel, '决定收益侧重') +
+      _buildSurveyMetricCard('主要机会', summary.opportunityLabel, '决定优先获取的收益') +
       _buildSurveyMetricCard('情报等级', 'Lv.' + summary.intelLevel, '已归档 ' + summary.reportCount + ' 份') +
       _buildSurveyMetricCard('完探奖励', rewardValue, rewardNote) +
     '</div>' +
@@ -1179,8 +1179,8 @@ function _buildSurveyReportsBlock(summary, options) {
     if (report.day) metaParts.push('D' + report.day);
     return '<div class="planet-detail-report-card">' +
       '<div class="planet-detail-report-head">' +
-        '<span class="planet-detail-report-title">' + _escapeHtml((report.icon || '📘') + ' ' + (report.title || '勘探报告')) + '</span>' +
-        '<span class="planet-detail-report-badge">' + _escapeHtml(metaParts.join(' · ') || '勘探报告') + '</span>' +
+        '<span class="planet-detail-report-title">' + _escapeHtml((report.icon || '📘') + ' ' + (report.title || '探索报告')) + '</span>' +
+        '<span class="planet-detail-report-badge">' + _escapeHtml(metaParts.join(' · ') || '探索报告') + '</span>' +
       '</div>' +
       '<div class="planet-detail-report-text">' + _escapeHtml(report.detail || '') + '</div>' +
     '</div>';
@@ -1210,9 +1210,9 @@ function _getChainSignalText(chain) {
 function _getChainNote(chain) {
   if (!chain) return '';
   if (chain.followupReady && chain.followupLabel) return chain.followupLabel;
-  if (chain.resolved) return '报告已归档，可在市场情报区查看后续经营影响。';
-  if (chain.discovered) return '待完成 POI 调查，结论会进入勘探报告。';
-  return '待完成 POI 调查，结论会进入勘探报告。';
+  if (chain.resolved) return '报告已归档，可在【行情与路线】查看它有什么用。';
+  if (chain.discovered) return '调查探索点后，结论会写入探索报告。';
+  return '调查探索点后，结论会写入探索报告。';
 }
 
 function _buildSurveyChainCards(summary, options) {
@@ -1247,7 +1247,7 @@ function _buildSurveyChainBlock(summary, options) {
 }
 
 function _getSurveyChainPreview(summary) {
-  if (!summary || !Array.isArray(summary.anomalyChains) || summary.anomalyChains.length === 0) return '暂无链路';
+  if (!summary || !Array.isArray(summary.anomalyChains) || summary.anomalyChains.length === 0) return '暂无后续任务';
   return (summary.resolvedAnomalyChainCount || 0) + '/' + summary.anomalyChains.length + ' 已归档';
 }
 
@@ -1287,7 +1287,7 @@ function _getGuideRouteRiskLabel(stateRef, fuelCost, fuelLeft, crossGalaxy, rout
 
   var maxFuel = Math.max(1, Number(stateRef && stateRef.maxFuel) || 1);
   if (fuelLeft <= Math.max(5, Math.round(maxFuel * 0.15))) return '燃料紧张';
-  if (routeInfo && routeInfo.active) return '暗线低耗';
+  if (routeInfo && routeInfo.active) return '隐藏航线省油';
   if (crossGalaxy) return '跃迁航线';
   if (fuelCost <= 8) return '短程直航';
   return '常规直航';
@@ -1315,8 +1315,24 @@ function _buildNavigationGuideRoutePlan(stateRef, sys, guideFocus, travelAction)
     ? ('秘密航线 · 燃料 -' + Math.round((1 - routeInfo.fuelMultiplier) * 100) + '%')
     : (crossGalaxy ? '跨星系跃迁' : '星图直航');
   var goodName = guideFocus.goodId ? _getGoodName(guideFocus.goodId) : '';
+  var cargoQuantity = guideFocus.goodId && stateRef.cargo
+    ? Math.max(0, stateRef.cargo[guideFocus.goodId] || 0)
+    : 0;
+  var cargoCost = guideFocus.goodId && stateRef.cargoCost
+    ? Math.max(0, stateRef.cargoCost[guideFocus.goodId] || 0)
+    : 0;
+  var averageCost = cargoQuantity > 0 ? cargoCost / cargoQuantity : 0;
+  var expectedSellPrice = guideFocus.goodId
+    ? Economy.getSellPrice(sys.id, guideFocus.goodId, stateRef)
+    : 0;
+  var fuelReplacementCost = isCurrentSystem
+    ? 0
+    : fuelCost * Economy.getBuyPrice(sys.id, 'fuel', stateRef);
+  var expectedNetProfit = cargoQuantity > 0
+    ? Math.round((expectedSellPrice - averageCost) * cargoQuantity - fuelReplacementCost)
+    : 0;
   var nextStep = goodName
-    ? ('抵达后打开市场，确认卖出「' + goodName + '」。')
+    ? ('抵达后打开市场，确认卖出「' + goodName + '」并核对结算。')
     : '抵达后继续当前行动。';
 
   return '<div class="planet-detail-guide-route" data-planet-guide-route>' +
@@ -1324,6 +1340,10 @@ function _buildNavigationGuideRoutePlan(stateRef, sys, guideFocus, travelAction)
       '<div class="planet-detail-guide-route-card"><span>燃料</span><strong>' + _escapeHtml(fuelCost + ' / 余 ' + Math.max(0, fuelLeft)) + '</strong></div>' +
       '<div class="planet-detail-guide-route-card"><span>预计</span><strong>' + _escapeHtml(etaDays + ' 天') + '</strong></div>' +
       '<div class="planet-detail-guide-route-card"><span>风险</span><strong>' + _escapeHtml(riskLabel) + '</strong></div>' +
+      (goodName
+        ? '<div class="planet-detail-guide-route-card"><span>卖价</span><strong>' + _escapeHtml(expectedSellPrice + ' / 单位') + '</strong></div>' +
+          '<div class="planet-detail-guide-route-card"><span>预计净利</span><strong>' + _escapeHtml((expectedNetProfit >= 0 ? '+' : '') + expectedNetProfit) + '</strong></div>'
+        : '') +
     '</div>' +
     '<div class="planet-detail-guide-route-foot">' +
       '<span>' + _escapeHtml(routeMode) + '</span>' +
@@ -1448,7 +1468,7 @@ function _buildExplorationSection(stateRef, sys, planetData, isCurrentSystem, is
     _buildExplorationFlowCard(flow, { includeAction: false }) +
     _buildExplorationProgressRow(flow) +
     actionHtml +
-    _buildPlanetDetailDisclosure('intel', '勘探简报', _buildSurveySummaryBlock(surveySummary, sys.id, {
+    _buildPlanetDetailDisclosure('intel', '探索简报', _buildSurveySummaryBlock(surveySummary, sys.id, {
       hideHeading: true,
     }), {
       preview: surveyPreview,
@@ -1559,8 +1579,8 @@ function _buildGalaxyHubPanel(stateRef) {
       '</div>' +
       '<button class="planet-detail-action planet-detail-action--quiet galaxy-hub-return" type="button" data-galaxy-action="return-planets">返回星球</button>' +
     '</header>' +
-    '<div class="galaxy-hub-focus planet-detail-hero planet-detail-wide" aria-label="星系导航焦点">' +
-      '<div class="planet-detail-kicker">导航焦点</div>' +
+    '<div class="galaxy-hub-focus planet-detail-hero planet-detail-wide" aria-label="星系导航重点">' +
+      '<div class="planet-detail-kicker">当前查看</div>' +
       '<div class="planet-detail-title">' + _escapeHtml(focusGalaxy.icon + ' ' + focusGalaxy.name) + '</div>' +
       '<div class="planet-detail-chip-row">' +
         _buildPlanetDetailChip('Lv.' + playerLevel, 'accent') +
@@ -1571,17 +1591,17 @@ function _buildGalaxyHubPanel(stateRef) {
       '<div class="planet-detail-desc">' + _escapeHtml(focusGalaxy.description || '') + '</div>' +
       '<div class="planet-detail-key-grid">' +
         _buildPlanetDetailKeyCard('当前驻留', currentGalaxy.icon + ' ' + currentGalaxy.name) +
-        _buildPlanetDetailKeyCard('焦点星系', focusGalaxy.icon + ' ' + focusGalaxy.name) +
+        _buildPlanetDetailKeyCard('当前星系', focusGalaxy.icon + ' ' + focusGalaxy.name) +
         _buildPlanetDetailKeyCard('可探索星球', focusAccessibleSystems.length + ' / ' + focusSystems.length) +
         _buildPlanetDetailKeyCard('切换方式', '点击星云或使用目录按钮进入', { wide: true }) +
-        _buildPlanetDetailKeyCard('套利线索', _buildGalaxyTradeProfileSummary(focusGalaxy), { wide: true }) +
+        _buildPlanetDetailKeyCard('低买高卖线索', _buildGalaxyTradeProfileSummary(focusGalaxy), { wide: true }) +
       '</div>' +
       '<div class="planet-detail-note planet-detail-note--hint">点击星系总览里的星云模型，或直接使用下方目录按钮，即可切换到已开放的新星系。</div>' +
     '</div>' +
     '<div class="planet-detail-section galaxy-hub-directory planet-detail-wide">' +
       '<div class="planet-detail-section-head">' +
         '<div class="planet-detail-section-title">星系跃迁目录</div>' +
-        _buildPlanetDetailChip(_hoveredGalaxyId ? '悬停焦点' : '当前导航', 'muted') +
+        _buildPlanetDetailChip(_hoveredGalaxyId ? '鼠标所指' : '当前导航', 'muted') +
       '</div>' +
       '<div class="galaxy-switcher-list">' +
         galaxyList.map(function (galaxy) {
@@ -1803,7 +1823,21 @@ export function refreshPlanetDetail(stateRef) {
   left = Math.max(8, Math.min(maxLeft, left));
 
   const panelH = Math.max(160, panel.offsetHeight || 0);
-  const maxTop = Math.max(8, canvasH - panelH - 8);
+  var commandSurfaceTop = canvasH;
+  if (mapContainer.getBoundingClientRect) {
+    var mapRect = mapContainer.getBoundingClientRect();
+    ['bottom-nav', 'action-guide'].forEach(function (elementId) {
+      var commandSurface = document.getElementById(elementId);
+      if (!commandSurface || commandSurface.hidden || !commandSurface.getBoundingClientRect) return;
+      var commandRect = commandSurface.getBoundingClientRect();
+      if (commandRect.width <= 0 || commandRect.height <= 0) return;
+      commandSurfaceTop = Math.min(commandSurfaceTop, commandRect.top - mapRect.top);
+    });
+  }
+  const maxTop = Math.max(8, Math.min(
+    canvasH - panelH - 8,
+    commandSurfaceTop - panelH - 12
+  ));
   let top = nodeY - panelH * 0.5;
   top = Math.max(8, Math.min(maxTop, top));
 

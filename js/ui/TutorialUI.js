@@ -10,6 +10,7 @@ let _tooltip   = null;  // 引导提示框
 let _spotEl    = null;  // 当前高亮的 DOM 元素
 let _onAdvance      = null;  // 推进回调
 let _onSkip         = null;  // 跳过回调
+let _onHelperAction = null;  // 教程辅助行动回调
 let _stepHandler    = null;  // EventBus 监听器引用
 let _completeHandler = null;
 let _activePosition = 'center';
@@ -24,10 +25,12 @@ let _returnFocusTarget = null;
 /**
  * @param {Function} onAdvanceCb  点击"下一步"的回调
  * @param {Function} onSkipCb     点击"跳过教程"的回调
+ * @param {Function} onHelperActionCb 点击教程辅助行动的回调
  */
-export function init(onAdvanceCb, onSkipCb) {
+export function init(onAdvanceCb, onSkipCb, onHelperActionCb) {
   _onAdvance = onAdvanceCb;
   _onSkip    = onSkipCb;
+  _onHelperAction = onHelperActionCb;
 
   // 创建遮罩与提示框（第一次创建，后续复用）
   _overlay = document.getElementById('tutorial-overlay');
@@ -76,6 +79,9 @@ function _renderStep(step, index, total) {
   const actionHint   = !isManual
     ? '<div class="tut-action-hint" id="tutorial-action-hint" role="status">请执行上述操作以继续</div>'
     : '';
+  const helperAction = step.helperAction && step.helperAction.id && step.helperAction.label
+    ? '<button id="tut-helper-action-btn" class="tut-btn tut-btn-primary" type="button" data-tutorial-action="' + _escapeHtml(step.helperAction.id) + '">' + _escapeHtml(step.helperAction.label) + '</button>'
+    : '';
   const progressText = '第 ' + stepNumber + ' / ' + safeTotal + ' 步';
 
   _tooltip.innerHTML =
@@ -93,6 +99,7 @@ function _renderStep(step, index, total) {
     actionHint +
     '<div class="tut-actions">' +
       (showNext ? '<button id="tut-next-btn" class="tut-btn tut-btn-primary" type="button">下一步 →</button>' : '') +
+      helperAction +
       '<button id="tut-skip-btn" class="tut-btn tut-btn-secondary" type="button">跳过教程</button>' +
     '</div>';
 
@@ -109,6 +116,12 @@ function _renderStep(step, index, total) {
   if (nextBtn) {
     nextBtn.addEventListener('click', function () {
       if (_onAdvance) _onAdvance();
+    });
+  }
+  const helperActionBtn = document.getElementById('tut-helper-action-btn');
+  if (helperActionBtn) {
+    helperActionBtn.addEventListener('click', function () {
+      if (_onHelperAction) _onHelperAction(helperActionBtn.dataset.tutorialAction, step);
     });
   }
   const skipBtn = document.getElementById('tut-skip-btn');
@@ -421,4 +434,5 @@ export function destroy() {
   _completeHandler = null;
   _onAdvance = null;
   _onSkip    = null;
+  _onHelperAction = null;
 }

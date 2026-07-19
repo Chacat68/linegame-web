@@ -109,22 +109,22 @@ function _renderFactionFocusPanel(relations, state) {
     ? ('紧张关系：' + mostTense.faction.name)
     : (lockedBlackMarket
         ? ('通路待解锁：' + lockedBlackMarket.faction.name)
-        : (allied ? ('友好通路：' + allied.faction.name) : '外交盘面稳定'));
+        : (allied ? ('友好通路：' + allied.faction.name) : '外交关系稳定'));
   const signalNote = mostTense && mostTense.relation < -10
     ? ('关系 ' + _formatSigned(mostTense.relation) + '，贸易税 ' + _formatTaxMod(mostTense.level.taxMod) + '，先复核偏好货物和代表市场。')
     : (lockedBlackMarket
         ? ('当前关系 ' + _formatSigned(lockedBlackMarket.relation) + '，到友好后可开放特殊通路。')
         : (allied
             ? ('关系 ' + _formatSigned(allied.relation) + '，可优先利用税率和市场入口。')
-            : '没有明显紧张关系，派系列表可按控制节点和偏好货物巡检。'));
+            : '没有明显紧张关系，可按控制地点和偏好货物查看各派系。'));
 
-  return '<section class="faction-focus-panel" aria-label="外交局部信号">' +
+  return '<section class="faction-focus-panel" aria-label="外交建议">' +
     '<div class="faction-focus-copy">' +
-      '<span class="faction-focus-kicker">局部信号</span>' +
+      '<span class="faction-focus-kicker">当前建议</span>' +
       '<strong class="faction-focus-title">' + _escapeHtml(signalTitle) + '</strong>' +
       '<span class="faction-focus-note">' + _escapeHtml(signalNote) + '</span>' +
     '</div>' +
-    '<div class="faction-focus-list" role="list" aria-label="重点派系巡检">' +
+    '<div class="faction-focus-list" role="list" aria-label="重点派系">' +
       focusRelations.map(function (entry) {
         const faction = entry.faction;
         return '<article class="faction-focus-card faction-focus-card--' + _escapeHtmlAttr(entry.level.id) + '" role="listitem">' +
@@ -197,7 +197,7 @@ export function getFactionMarketAction(state, faction) {
   if (factionData.marketAccess && factionData.marketAccess.blackMarket && !canAccessBlackMarket) {
     action.label = '查看黑市条件';
     action.commandVerb = action.label;
-    action.contextHint = '辛迪加黑市尚未开放，先看公开情报与准入门槛。';
+    action.contextHint = '辛迪加黑市尚未开放，先看公开情报与开放条件。';
     action.hint = action.systemName + ' · ' + action.contextHint;
     return action;
   }
@@ -264,7 +264,7 @@ export function render(state, onOpenFactionMarket) {
         '</div>' +
         '<div class="faction-details">' +
           '<div class="faction-metric-grid">' +
-            '<span><strong>' + controlledCount + '</strong><em>控制节点</em></span>' +
+            '<span><strong>' + controlledCount + '</strong><em>控制地点</em></span>' +
             '<span><strong>' + _escapeHtml(_formatTaxMod(level.taxMod)) + '</strong><em>贸易税</em></span>' +
             '<span><strong>' + _escapeHtml(blackMarketText) + '</strong><em>特殊通路</em></span>' +
           '</div>' +
