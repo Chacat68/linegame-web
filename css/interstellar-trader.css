@@ -5484,8 +5484,6 @@ textarea:focus,
 
 .market-black-status-card:focus-visible,
 .market-black-good-card:focus-visible,
-.market-survey-report-row:focus-visible,
-.market-survey-chain-row[role="listitem"]:focus-visible,
 .market-intel-node-row:focus-visible,
 .market-watch-row:focus-visible {
   outline: 2px solid rgba(108, 231, 255, 0.72);
@@ -5503,7 +5501,6 @@ textarea:focus,
   min-width: 0;
 }
 
-.market-survey-chain-list[role="list"],
 .market-intel-node-list[role="list"],
 .market-watch-list[role="list"] {
   min-width: 0;
@@ -5642,7 +5639,6 @@ textarea:focus,
   .market-finance-action-row[role="listitem"],
   .market-finance-contract-row[role="listitem"],
   .market-finance-history-row[role="listitem"],
-  .market-survey-chain-row[role="listitem"],
   .market-intel-node-row,
   .market-watch-row {
     align-items: stretch;
@@ -5662,7 +5658,6 @@ textarea:focus,
   .market-stock-position-focus,
   .market-futures-risk-head,
   .market-futures-risk-focus,
-  .market-survey-chain-row[role="listitem"],
   .market-intel-node-row,
   .market-watch-row {
     flex-direction: column;

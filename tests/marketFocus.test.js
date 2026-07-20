@@ -106,7 +106,7 @@ describe('MarketFocus contextual defaults', function () {
     expect(action.contextHint).toContain('补给和普通跑商');
   });
 
-  it('有贸易探索报告时优先把市场 CTA 导向情报区', function () {
+  it('探索报告迁入档案后市场 CTA 仍聚焦实际交易', function () {
     state.fuel = 100;
     state.credits = 2000;
 
@@ -120,12 +120,12 @@ describe('MarketFocus contextual defaults', function () {
     });
 
     expect(action).toMatchObject({
-      label: '查看行情',
+      label: '买卖货物',
       marketWorkspaceId: 'spot',
-      marketSubworkspaceId: 'intel',
-      marketFocusLabel: '行情与路线',
+      marketSubworkspaceId: 'trade',
+      marketFocusLabel: '买卖货物',
     });
-    expect(action.contextHint).toContain('探索报告');
+    expect(action.contextHint).toContain('档案');
   });
 
   it('黑市节点的 CTA payload 会保留 black mode', function () {
@@ -169,6 +169,6 @@ describe('MarketFocus contextual defaults', function () {
       commandVerb: '查看行情',
     });
     expect(action.contextHint).toContain('科研线索');
-    expect(action.contextHint).toContain('行情与探索报告');
+    expect(action.contextHint).toContain('行情与地点信息');
   });
 });

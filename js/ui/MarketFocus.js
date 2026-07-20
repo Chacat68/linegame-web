@@ -102,24 +102,14 @@ function _getContextualMarketDecision(state, systemId) {
   var opportunityFocus = _getSystemOpportunityFocus(system, surveySummary);
   var contextLabel = _getSystemContextLabel(system);
   var hasReportIntel = !!(surveyIntel && surveyIntel.hasIntel);
-  var marketHint = hasReportIntel ? surveyIntel.marketHint : '';
   if (opportunityFocus === 'market' && system.type === 'special' && Faction.canAccessBlackMarket(state, targetSystemId)) {
     return {
       presetId: MARKET_FOCUS_PRESET_IDS.SPOT_BLACK,
       system: system,
       opportunityFocus: opportunityFocus,
       contextHint: hasReportIntel
-        ? (marketHint + ' 这里也已解锁黑市，可对比特殊商品价格。')
+        ? '探索报告已存入档案；这里也已解锁黑市，可对比特殊商品价格。'
         : contextLabel + '已解锁黑市，可以查看特殊商品。',
-    };
-  }
-
-  if (hasReportIntel && surveyIntel.primarySignal === 'route') {
-    return {
-      presetId: MARKET_FOCUS_PRESET_IDS.SPOT_INTEL,
-      system: system,
-      opportunityFocus: opportunityFocus,
-      contextHint: marketHint,
     };
   }
 
@@ -129,8 +119,8 @@ function _getContextualMarketDecision(state, systemId) {
       system: system,
       opportunityFocus: opportunityFocus,
       contextHint: hasReportIntel
-        ? marketHint
-        : contextLabel + '更容易发现科研线索，先看行情与探索报告。',
+        ? ('探索报告已存入档案；这里可继续查看' + contextLabel + '的价格与地点信息。')
+        : contextLabel + '更容易发现科研线索，先看行情与地点信息。',
     };
   }
 
@@ -140,17 +130,8 @@ function _getContextualMarketDecision(state, systemId) {
       system: system,
       opportunityFocus: opportunityFocus,
       contextHint: hasReportIntel
-        ? marketHint
+        ? ('探索报告已存入档案；这里可结合行情判断交易机会。')
         : contextLabel + '可能有交易机会，先看行情再决定是否买卖。',
-    };
-  }
-
-  if (hasReportIntel && surveyIntel.marketSignal) {
-    return {
-      presetId: MARKET_FOCUS_PRESET_IDS.SPOT_INTEL,
-      system: system,
-      opportunityFocus: opportunityFocus,
-      contextHint: marketHint,
     };
   }
 
@@ -159,7 +140,7 @@ function _getContextualMarketDecision(state, systemId) {
     system: system,
     opportunityFocus: opportunityFocus,
     contextHint: hasReportIntel
-      ? marketHint
+      ? '探索报告已存入档案；这里适合直接补给和买卖货物。'
       : contextLabel + '适合补给和普通跑商，先买卖货物。',
   };
 }

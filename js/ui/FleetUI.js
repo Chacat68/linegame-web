@@ -951,6 +951,21 @@ function _focusGuidedMod(container, focusModId) {
   _focusInlineElement(target);
 }
 
+function _focusGuidedService(container) {
+  if (!container || typeof container.querySelector !== 'function') return;
+  var target = container.querySelector('.ship-repair-card');
+  if (!target) return;
+  if (target.classList && typeof target.classList.add === 'function') {
+    target.classList.add('mod-modal-guidance-focus');
+  }
+  if (typeof target.setAttribute === 'function') target.setAttribute('tabindex', '-1');
+  if (typeof target.scrollIntoView === 'function') {
+    target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+  var serviceButton = target.querySelector && target.querySelector('.ship-repair-start-btn:not([disabled])');
+  _focusInlineElement(serviceButton || target);
+}
+
 function _formatCrewEffectParts(effect) {
   var parts = [];
   if (effect.fuelEffMultiplier && effect.fuelEffMultiplier < 1) parts.push('航耗 -' + Math.round((1 - effect.fuelEffMultiplier) * 100) + '%');
@@ -1746,9 +1761,11 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
   if (!modal) return;
   var opts = options || {};
   var focusModId = opts.focusModId || '';
+  var focusService = !!opts.focusService;
   _activeModModalContext = {
     shipIndex: shipIndex,
     focusModId: focusModId,
+    focusService: focusService,
     recommendedModId: '',
   };
 
@@ -2034,7 +2051,8 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
     }
 
     body.innerHTML = html;
-    _focusGuidedMod(body, focusModId);
+    if (focusService) _focusGuidedService(body);
+    else _focusGuidedMod(body, focusModId);
 
     body.querySelectorAll('.upg-modal-buy-btn:not([disabled])').forEach(function (btn) {
       btn.addEventListener('click', function () {
@@ -2224,9 +2242,10 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
     _activeDispatchModalContext.tradePolicy = _readTradePolicy();
   }
 
-  function _updateRouteSummary(estimate, warnings) {
+  function _updateRouteSummary(estimate, warnings, readiness) {
     var tradePolicy = estimate && estimate.tradePolicy ? estimate.tradePolicy : _readTradePolicy();
     var hasWarnings = Array.isArray(warnings) && warnings.length > 0;
+    var isBlocked = !!(readiness && !readiness.ok);
 
     if (summaryBuyEl) summaryBuyEl.textContent = _formatSystemSummaryLabel(buySelect.value);
     if (summarySellEl) summarySellEl.textContent = _formatSystemSummaryLabel(sellSelect.value);
@@ -2235,10 +2254,12 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
       summaryPolicyEl.textContent =
         _formatMarketModeLabel(tradePolicy.marketMode) + ' · ' +
         _formatRiskModeLabel(tradePolicy.riskMode) +
-        (hasWarnings ? ' · 等待设置调整' : '');
+        (isBlocked ? ' · 暂不可启动' : (hasWarnings ? ' · 等待设置调整' : ''));
     }
     if (routeSummaryEl) {
-      routeSummaryEl.dataset.routeState = estimate ? (hasWarnings ? 'waiting' : 'ready') : 'blocked';
+      routeSummaryEl.dataset.routeState = estimate
+        ? (isBlocked ? 'blocked' : (hasWarnings ? 'waiting' : 'ready'))
+        : 'blocked';
     }
     _syncActiveDispatchContext();
   }
@@ -2254,7 +2275,7 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
       && goodSelect.value === recommendation.goodId;
   }
 
-  function _updatePrimaryHint(estimate, recommendation, policyValidation) {
+  function _updatePrimaryHint(estimate, recommendation, policyValidation, readiness) {
     var matchesRecommendation = estimate && _isRecommendationSelected(recommendation);
     var hasCustomPolicy = _hasCustomTradePolicy(_readTradePolicy());
     var currentShip = _getCurrentShip();
@@ -2263,8 +2284,8 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
 
     if (!confirmBtn || !primaryHintEl) return;
 
-    confirmBtn.textContent = '开始跑商';
-    confirmBtn.disabled = !estimate || !policyValid;
+    confirmBtn.textContent = readiness && !readiness.ok ? readiness.buttonLabel : '开始跑商';
+    confirmBtn.disabled = !estimate || !policyValid || !!(readiness && !readiness.ok);
     confirmBtn.setAttribute('aria-disabled', confirmBtn.disabled ? 'true' : 'false');
 
     if (!policyValid) {
@@ -2282,6 +2303,13 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
         : (hasExistingRoute
             ? '当前路线缺少可用估算；可关闭窗口，或调整设置后重新计算。'
             : '当前没有可直接使用的推荐路线，可展开可选设置调整后再试。');
+      return;
+    }
+
+    if (readiness && !readiness.ok) {
+      modal.dataset.dispatchState = 'blocked';
+      primaryHintEl.className = 'dispatch-primary-hint dispatch-primary-hint--danger';
+      primaryHintEl.textContent = readiness.reason;
       return;
     }
 
@@ -2500,12 +2528,16 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
     var cargoUsed = Object.values(ship.cargo).reduce(function (s, q) { return s + q; }, 0);
     var space = effectiveShipStats.maxCargo - cargoUsed;
     var maxQty = Math.min(space, Math.floor(state.credits / bp));
+    var selectedCargoQty = Number(ship.cargo && ship.cargo[gId]) || 0;
+    var deliveryOnly = maxQty <= 0 && selectedCargoQty > 0;
     var travelToBuyFuel = currentLocationSystemId === buyId ? 0 : Economy.getFuelCost(currentLocationSystemId, buyId, effectiveShipStats.fuelEff, state);
     var travelToSellFuel = buyId === sellId ? 0 : Economy.getFuelCost(buyId, sellId, effectiveShipStats.fuelEff, state);
     var totalFuelCost = travelToBuyFuel + travelToSellFuel;
     var fuelUnitPrice = Economy.getBuyPrice(currentLocationSystemId, 'fuel', state);
-    var profit = (sp - bp) * maxQty - totalFuelCost * fuelUnitPrice;
-    var profitRate = bp > 0 ? ((sp - bp) / bp) : 0;
+    var profit = deliveryOnly
+      ? sp * selectedCargoQty - totalFuelCost * fuelUnitPrice
+      : (sp - bp) * maxQty - totalFuelCost * fuelUnitPrice;
+    var profitRate = deliveryOnly ? null : (bp > 0 ? ((sp - bp) / bp) : 0);
     var good = GOODS.find(function (g) { return g.id === gId; });
     var routeRisk = AutoTrade.assessTradeRisk(good, buyId, sellId, tradePolicy.marketMode);
     var dispatchProfile = effectiveShipStats.dispatchProfile || null;
@@ -2520,6 +2552,9 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
       buyPrice: bp,
       sellPrice: sp,
       maxQty: maxQty,
+      cargoSpace: space,
+      selectedCargoQty: selectedCargoQty,
+      deliveryOnly: deliveryOnly,
       fuelCost: totalFuelCost,
       profit: profit,
       profitRate: profitRate,
@@ -2528,6 +2563,72 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
       inspectionRisk: inspectionRisk,
       dispatchProfile: dispatchProfile,
     };
+  }
+
+  function _getDispatchReadiness(estimate) {
+    if (!estimate) {
+      return { ok: false, code: 'no_route', buttonLabel: '暂不可启动', reason: '当前设置无法组成可执行路线。' };
+    }
+
+    var currentShip = _getCurrentShip();
+    if (currentShip && Number(currentShip.maintenance) < 15) {
+      return {
+        ok: false,
+        code: 'maintenance',
+        buttonLabel: '需先保养',
+        reason: '当前飞船维护度低于 15%，先在舰船管理中完成保养，再开始自动跑商。',
+      };
+    }
+
+    if (estimate.buyId === estimate.sellId) {
+      return {
+        ok: false,
+        code: 'same_system',
+        buttonLabel: '路线无效',
+        reason: '买入地和卖出地不能相同，请选择一个有明确价差的卖出地。',
+      };
+    }
+
+    if (estimate.maxQty <= 0 && estimate.selectedCargoQty <= 0) {
+      var selectedGood = GOODS.find(function (good) { return good.id === estimate.goodId; });
+      if (estimate.cargoSpace <= 0) {
+        return {
+          ok: false,
+          code: 'cargo_full',
+          buttonLabel: '货舱已满',
+          reason: '当前货舱没有可用空间，先出售或转移库存，再开始新的自动跑商路线。',
+        };
+      }
+      return {
+        ok: false,
+        code: 'insufficient_credits',
+        buttonLabel: '积分不足',
+        reason: '启动资金不足：买入 1 单位' + (selectedGood ? ('「' + selectedGood.name + '」') : '商品') +
+          '至少需要 ' + Math.ceil(estimate.buyPrice).toLocaleString() + ' 积分，当前只有 ' +
+          Math.max(0, Math.floor(Number(state.credits) || 0)).toLocaleString() + '。先完成委托或出售库存筹措资金。',
+      };
+    }
+
+    if (!estimate.deliveryOnly && estimate.profitRate <= 0) {
+      return {
+        ok: false,
+        code: 'no_margin',
+        buttonLabel: '路线无价差',
+        reason: '当前卖价不高于买价，这条路线不会形成贸易收益。请更换买入地、卖出地或商品。',
+      };
+    }
+
+    if (estimate.profit <= 0) {
+      return {
+        ok: false,
+        code: 'no_profit',
+        buttonLabel: '路线会亏损',
+        reason: '扣除航程燃料后，当前路线预计单次亏损 ' +
+          Math.ceil(Math.abs(estimate.profit)).toLocaleString() + ' 积分。请改用净收益为正的路线。',
+      };
+    }
+
+    return { ok: true, code: 'ready', buttonLabel: '开始跑商', reason: '' };
   }
 
   function _formatEnforcementLabel(level) {
@@ -2598,17 +2699,26 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
     goodSelect.value = recommendation.goodId;
   }
 
-  function _renderEstimate(estimate, recommendation, warnings) {
+  function _renderEstimate(estimate, recommendation, warnings, readiness) {
     var riskAssessment = estimate.routeRisk;
     var riskSummary = _buildRiskSummary(estimate);
     var dispatchProfile = estimate.dispatchProfile || (recommendation && recommendation.dispatchProfile) || effectiveShipStats.dispatchProfile || {};
     var marketLabel = estimate.tradePolicy.marketMode === 'black' ? '黑市' : '公开';
     var riskModeLabel = _formatRiskModeLabel(estimate.tradePolicy.riskMode);
+    var loadingPlanLabel = estimate.deliveryOnly
+      ? ('运送现有 ' + estimate.selectedCargoQty + ' 单位')
+      : (marketLabel + '买 ' + estimate.maxQty + ' 单位');
+    var profitRateLabel = estimate.deliveryOnly
+      ? '库存变现'
+      : (Math.round(estimate.profitRate * 100) + '%');
     var warningHtml = warnings.length > 0
       ? '<div class="dispatch-estimate-note dispatch-estimate-note--warning">当前设置会等待：' + _escapeHtml(warnings.join('、')) + '</div>'
       : '';
     var lossHtml = estimate.profit <= 0
       ? '<div class="dispatch-estimate-note dispatch-estimate-note--danger">亏损路线</div>'
+      : '';
+    var blockedHtml = readiness && !readiness.ok
+      ? '<div class="dispatch-estimate-note dispatch-estimate-note--danger">无法启动：' + _escapeHtml(readiness.reason) + '</div>'
       : '';
     var recommendationHtml = recommendation
       ? '<div class="dispatch-estimate-head">推荐：' + _escapeHtml(recommendation.buySystemName) + ' → ' + _escapeHtml(recommendation.sellSystemName) + '（' + _escapeHtml(recommendation.goodName) + '）</div>'
@@ -2628,9 +2738,9 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
       strategyHtml +
       surveyIntelHtml +
       '<div class="dispatch-estimate-main" role="list" aria-label="自动跑商估算">' +
-        '<span class="dispatch-estimate-metric dispatch-estimate-highlight" role="listitem"><em>装载计划</em><strong>' + marketLabel + '买 ' + estimate.maxQty + ' 单位</strong></span>' +
+        '<span class="dispatch-estimate-metric dispatch-estimate-highlight" role="listitem"><em>装载计划</em><strong>' + loadingPlanLabel + '</strong></span>' +
         '<span class="dispatch-estimate-metric" role="listitem"><em>单次利润</em><strong>≈ ' + Math.floor(estimate.profit) + '</strong><small>积分</small></span>' +
-        '<span class="dispatch-estimate-metric" role="listitem"><em>利润率</em><strong>' + Math.round(estimate.profitRate * 100) + '%</strong></span>' +
+        '<span class="dispatch-estimate-metric" role="listitem"><em>收益判断</em><strong>' + profitRateLabel + '</strong></span>' +
         '<span class="dispatch-estimate-metric" role="listitem"><em>航程燃料</em><strong>' + estimate.fuelCost + '</strong><small>单位</small></span>' +
         '<span class="dispatch-estimate-metric" role="listitem"><em>路线风险</em><strong>' + _escapeHtml(_formatRouteRiskLabel(riskAssessment.riskLevel)) + '</strong></span>' +
         '<span class="dispatch-estimate-metric" role="listitem"><em>避险程度</em><strong>' + riskModeLabel + '</strong></span>' +
@@ -2654,6 +2764,7 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
         '</div>' +
       '</div>' +
       lossHtml +
+      blockedHtml +
         pressureHtml +
       warningHtml;
   }
@@ -2699,16 +2810,17 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
     }
     var warnings = [];
     var riskAssessment = estimate.routeRisk;
+    var readiness = _getDispatchReadiness(estimate);
 
     if (Number.isFinite(estimate.tradePolicy.maxBuyPrice) && estimate.buyPrice > estimate.tradePolicy.maxBuyPrice) warnings.push('买入价高于上限');
     if (Number.isFinite(estimate.tradePolicy.minSellPrice) && estimate.sellPrice < estimate.tradePolicy.minSellPrice) warnings.push('卖出价低于下限');
-    if (Number.isFinite(estimate.tradePolicy.minProfitRate) && estimate.profitRate < estimate.tradePolicy.minProfitRate) warnings.push('利润率低于要求');
+    if (!estimate.deliveryOnly && Number.isFinite(estimate.tradePolicy.minProfitRate) && estimate.profitRate < estimate.tradePolicy.minProfitRate) warnings.push('利润率低于要求');
     if (estimate.tradePolicy.riskMode === 'safe' && riskAssessment.riskLevel !== 'low') warnings.push('谨慎模式会避开这条路线');
     if (estimate.tradePolicy.marketMode === 'black' && !Faction.canAccessBlackMarket(state, estimate.buyId)) warnings.push('黑市买入权限不足');
 
-    _updateRouteSummary(estimate, warnings);
-    _renderEstimate(estimate, recommendation, warnings);
-    _updatePrimaryHint(estimate, suggestedRecommendation, policyValidation);
+    _updateRouteSummary(estimate, warnings, readiness);
+    _renderEstimate(estimate, recommendation, warnings, readiness);
+    _updatePrimaryHint(estimate, suggestedRecommendation, policyValidation, readiness);
   }
 
   _buildMarketOptions();
@@ -2754,11 +2866,20 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
   // 确认
   confirmBtn.onclick = function () {
     var policyValidation = _validateTradePolicyInputs();
+    var estimate = _getEstimateData();
+    var readiness = _getDispatchReadiness(estimate);
     if (!policyValidation.valid || confirmBtn.disabled) {
-      _updatePrimaryHint(null, null, policyValidation);
+      _updatePrimaryHint(estimate, initialRecommendation, policyValidation, readiness);
       return;
     }
-    onAssignRoute(shipIndex, buySelect.value, sellSelect.value, goodSelect.value, _readTradePolicy());
+    var result = onAssignRoute(shipIndex, buySelect.value, sellSelect.value, goodSelect.value, _readTradePolicy());
+    if (result && result.ok === false) {
+      var firstMessage = result.msgs && result.msgs[0] ? result.msgs[0].text : '路线启动失败，请检查飞船状态后重试。';
+      modal.dataset.dispatchState = 'blocked';
+      primaryHintEl.className = 'dispatch-primary-hint dispatch-primary-hint--danger';
+      primaryHintEl.textContent = firstMessage;
+      return;
+    }
     if (_currentPortalCleanup) _currentPortalCleanup();
     else hideBlockingSurface('dispatch-modal');
     _renderHangarAfterInlineClose();

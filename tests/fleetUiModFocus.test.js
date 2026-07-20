@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it } from 'vitest';
 import * as EventBus from '../js/core/EventBus.js';
 import * as Crew from '../js/systems/fleet/CrewSystem.js';
+import * as Economy from '../js/systems/economy/Economy.js';
 import * as Fleet from '../js/systems/fleet/FleetSystem.js';
 import * as FleetUI from '../js/ui/FleetUI.js';
 import { createTestState } from './helpers.js';
@@ -678,23 +679,28 @@ describe('FleetUI.openModModal guidance focus', function () {
       currentGalaxy: 'milky_way',
       playerLevel: 5,
     });
+    Economy.init();
     Fleet.init(state);
 
     var assignCount = 0;
+    var assignResult;
     FleetUI.openDispatchModal(
       state,
       0,
-      function () { assignCount += 1; },
+      function () {
+        assignCount += 1;
+        return assignResult;
+      },
       function () {},
       {
         buySystemId: 'sol_prime',
-        sellSystemId: 'alpha_centauri',
+        sellSystemId: 'war_front',
         goodId: 'food',
         recommendation: {
           buySystemId: 'sol_prime',
           buySystemName: '太阳主星',
-          sellSystemId: 'alpha_centauri',
-          sellSystemName: '半人马港',
+          sellSystemId: 'war_front',
+          sellSystemName: '战争前线',
           goodId: 'food',
           goodName: '食物',
           recommendedTradePolicy: { riskMode: 'balanced', marketMode: 'open' },
@@ -705,16 +711,16 @@ describe('FleetUI.openModModal guidance focus', function () {
     expect(FleetUI.getActiveDispatchModalContext()).toMatchObject({
       shipIndex: 0,
       buySystemId: 'sol_prime',
-      sellSystemId: 'alpha_centauri',
+      sellSystemId: 'war_front',
       goodId: 'food',
       tradePolicy: { riskMode: 'balanced', marketMode: 'open' },
     });
     expect(elements['dispatch-buy-system'].value).toBe('sol_prime');
-    expect(elements['dispatch-sell-system'].value).toBe('alpha_centauri');
+    expect(elements['dispatch-sell-system'].value).toBe('war_front');
     expect(elements['dispatch-good'].value).toBe('food');
     expect(elements['dispatch-route-summary'].dataset.routeState).toBe('ready');
     expect(elements['dispatch-summary-buy'].textContent).toBe('太阳主星');
-    expect(elements['dispatch-summary-sell'].textContent).toBe('alpha_centauri');
+    expect(elements['dispatch-summary-sell'].textContent).toBe('战争前线');
     expect(elements['dispatch-summary-good'].textContent).toBe('🌾 食物');
     expect(elements['dispatch-summary-policy'].textContent).toBe('公开市场 · 平衡');
     expect(modal.dataset.dispatchState).toBe('ready');
@@ -739,7 +745,29 @@ describe('FleetUI.openModModal guidance focus', function () {
     expect(elements['dispatch-confirm'].disabled).toBe(false);
     expect(modal.dataset.dispatchPolicyState).toBe('neutral');
 
-    backButton.onclick({ preventDefault: function () {} });
+    state.credits = 0;
+    elements['dispatch-good'].onchange();
+    expect(elements['dispatch-confirm'].disabled).toBe(true);
+    expect(elements['dispatch-confirm'].textContent).toBe('积分不足');
+    expect(elements['dispatch-primary-hint'].textContent).toContain('启动资金不足');
+    expect(elements['dispatch-primary-hint'].textContent).toContain('先完成委托或出售库存');
+    expect(elements['dispatch-route-summary'].dataset.routeState).toBe('blocked');
+    expect(elements['dispatch-summary-policy'].textContent).toContain('暂不可启动');
+
+    state.credits = 50000;
+    elements['dispatch-good'].onchange();
+    expect(elements['dispatch-confirm'].disabled).toBe(false);
+    expect(elements['dispatch-confirm'].textContent).toBe('开始跑商');
+
+    assignResult = { ok: false, msgs: [{ text: '测试启动失败', type: 'error' }] };
+    elements['dispatch-confirm'].onclick();
+    expect(assignCount).toBe(1);
+    expect(elements['dispatch-primary-hint'].textContent).toBe('测试启动失败');
+    expect(modal.dataset.dispatchState).toBe('blocked');
+
+    assignResult = { ok: true, msgs: [] };
+    elements['dispatch-confirm'].onclick();
+    expect(assignCount).toBe(2);
     expect(FleetUI.getActiveDispatchModalContext()).toBe(null);
   });
 });

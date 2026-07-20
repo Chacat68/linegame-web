@@ -384,7 +384,7 @@ describe('MarketUI guided focus', function () {
     expect(css).toContain('.market-finance-layout');
   });
 
-  it('黑市和市场情报链路包含列表语义、模式状态和移动端适配锚点', function () {
+  it('黑市和行情页包含列表语义、模式状态且不再承载探索报告', function () {
     const sharedCss = readFileSync('css/interstellar-trader.css', 'utf8');
     const marketCss = readFileSync('css/market-terminal.css', 'utf8');
     const css = sharedCss + '\n' + marketCss;
@@ -394,8 +394,8 @@ describe('MarketUI guided focus', function () {
     expect(js).toContain('role="list" aria-label="值得关注的货物"');
     expect(js).toContain('class="market-intel-decision-grid" role="group" aria-label="地点和关注商品"');
     expect(js).toContain('class="market-finance-action-meta market-watch-metrics"');
-    expect(js).toContain('role="list" aria-label="探索报告带来的机会"');
-    expect(js).toContain("'market-survey-chain-row'");
+    expect(js).not.toContain('role="list" aria-label="探索报告带来的机会"');
+    expect(js).not.toContain("'market-survey-chain-row'");
     expect(js).toContain('role="listitem" tabindex="0" aria-labelledby="');
     expect(js).toContain('role="group" aria-label="市场模式切换"');
     expect(js).toContain('aria-pressed="');
@@ -411,7 +411,7 @@ describe('MarketUI guided focus', function () {
     expect(css).toContain('.market-spot-focus[data-tone="risk"]');
     expect(css).toContain('.market-mode-btn[aria-pressed="true"]');
     expect(css).toContain('.market-black-good-card:focus-visible');
-    expect(css).toContain('.market-survey-chain-row[role="listitem"]:focus-visible');
+    expect(css).not.toContain('.market-survey-chain-row[role="listitem"]:focus-visible');
     expect(css).toContain('.market-black-goods-grid[role="list"]');
     expect(marketCss).toContain('.market-workspace-v2 .market-finance-section-head');
     expect(marketCss).toContain('.market-workspace-v2 .market-intel-decision-grid');
@@ -502,7 +502,7 @@ describe('MarketUI guided focus', function () {
     });
   });
 
-  it('会把事件链行动焦点落到市场情报链路行', async function () {
+  it('市场焦点不再处理已迁入档案的事件链定位', async function () {
     vi.resetModules();
 
     var spotTab = createFakeElement();
@@ -567,13 +567,9 @@ describe('MarketUI guided focus', function () {
     expect(intelTab.getAttribute('aria-selected')).toBe('true');
     expect(tradePane.getAttribute('aria-hidden')).toBe('true');
     expect(intelPane.getAttribute('aria-hidden')).toBe('false');
-    expect(chainRow.classList.contains('market-survey-chain-row--guide-focus')).toBe(true);
-    expect(chainRow.getAttribute('data-guide-focus')).toBe('true');
-    expect(chainRow.scrollArgs).toMatchObject({
-      block: 'center',
-      inline: 'nearest',
-      behavior: 'smooth',
-    });
+    expect(chainRow.classList.contains('market-survey-chain-row--guide-focus')).toBe(false);
+    expect(chainRow.getAttribute('data-guide-focus')).toBe(null);
+    expect(chainRow.scrollArgs).toBe(null);
   });
 
   it('卖货指引会把焦点落到出售按钮', async function () {
@@ -831,7 +827,7 @@ describe('MarketUI guided focus', function () {
     expect(intel.note).toContain('补给');
   });
 
-  it('行情与路线会展示已归档事件链后续影响', async function () {
+  it('探索报告和事件链只在档案中展示', async function () {
     vi.resetModules();
     var helpers = await import('./helpers.js');
     var Economy = await import('../js/systems/economy/Economy.js');
@@ -856,10 +852,12 @@ describe('MarketUI guided focus', function () {
     expect(Exploration.explorePoi(state, 'sol_prime', resourcePoi.id).ok).toBe(true);
 
     var spotPane = createFakeElement();
+    var archivePane = createFakeElement();
     var elements = {
       'market-spot-pane': spotPane,
       'market-capital-pane': createFakeElement(),
       'market-operations-pane': createFakeElement(),
+      'exploration-archive-list': archivePane,
     };
     globalThis.document = {
       getElementById: function (id) {
@@ -877,26 +875,30 @@ describe('MarketUI guided focus', function () {
     };
 
     var MarketUI = await import('../js/ui/MarketUI.js');
+    var ArchiveExplorationUI = await import('../js/ui/ArchiveExplorationUI.js');
     MarketUI.render(state, function () {}, function () {}, function () {}, 'sol_prime', 'open', 'milky_way', null, null, {});
+    ArchiveExplorationUI.render(state);
 
     expect(spotPane.innerHTML).toContain('market-intel-signal-panel');
     expect(spotPane.innerHTML).toContain('行情摘要');
     expect(spotPane.innerHTML).toContain('行情信息');
-    expect(spotPane.innerHTML).toContain('有后续任务');
-    expect(spotPane.innerHTML).toContain('market-survey-chain-row--archived');
-    expect(spotPane.innerHTML).toContain('data-market-survey-chain-id="sol_prime_chain_derelict_depot"');
-    expect(spotPane.innerHTML).toContain('is-followup-ready');
-    expect(spotPane.innerHTML).toContain('遗忘补给库');
-    expect(spotPane.innerHTML).toContain('归档旧航线');
-    expect(spotPane.innerHTML).toContain('商网 / 整备');
-    expect(spotPane.innerHTML).toContain('查看贸易站和跑商价值');
+    expect(spotPane.innerHTML).not.toContain('archive-exploration-report-card');
+    expect(spotPane.innerHTML).not.toContain('data-archive-survey-chain-id');
+    expect(archivePane.innerHTML).toContain('archive-exploration-report-card');
+    expect(archivePane.innerHTML).toContain('archive-exploration-chain-row--archived');
+    expect(archivePane.innerHTML).toContain('data-archive-survey-chain-id="sol_prime_chain_derelict_depot"');
+    expect(archivePane.innerHTML).toContain('is-followup-ready');
+    expect(archivePane.innerHTML).toContain('遗忘补给库');
+    expect(archivePane.innerHTML).toContain('归档旧航线');
+    expect(archivePane.innerHTML).toContain('商网 / 整备');
+    expect(archivePane.innerHTML).toContain('档案 → 探索');
 
     var intel = Exploration.getSurveyDecisionIntel(state, 'sol_prime');
     expect(Exploration.acknowledgeChainFollowup(state, 'sol_prime', intel.nextChainFollowup.chainId).ok).toBe(true);
-    MarketUI.render(state, function () {}, function () {}, function () {}, 'sol_prime', 'open', 'milky_way', null, null, {});
+    ArchiveExplorationUI.render(state);
 
-    expect(spotPane.innerHTML).toContain('is-followup-acknowledged');
-    expect(spotPane.innerHTML).toContain('已跟进');
+    expect(archivePane.innerHTML).toContain('is-followup-acknowledged');
+    expect(archivePane.innerHTML).toContain('已跟进');
   });
 
   it('商网页会展示候选站点的建议策略', async function () {

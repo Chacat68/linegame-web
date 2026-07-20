@@ -45,7 +45,7 @@ const MARKET_WORKSPACE_TABS = [
 const MARKET_SUBWORKSPACE_TABS = {
   spot: [
     { id: 'trade', label: '交易', hint: '执行买卖与补给' },
-    { id: 'intel', label: '行情', hint: '价格与探索线索' },
+    { id: 'intel', label: '行情', hint: '价格与地点信息' },
     { id: 'black', label: '黑市', hint: '特殊市场与风险' },
   ],
   capital: [
@@ -91,15 +91,6 @@ function _hasCapitalFootprint(state) {
   return activeLoans || _hasTradeInvestment(state);
 }
 
-function _getSurveyIntelFlag(state, sysId) {
-  try {
-    var surveyIntel = Exploration.getSurveyDecisionIntel(state || {}, sysId);
-    return !!(surveyIntel && surveyIntel.hasIntel);
-  } catch (err) {
-    return false;
-  }
-}
-
 function _getMarketExperienceStats(state, sysId, options) {
   var safeState = state || {};
   var opts = options || {};
@@ -116,7 +107,6 @@ function _getMarketExperienceStats(state, sysId, options) {
   var credits = Math.max(0, Number(safeState.credits) || 0);
   var hasCapitalFootprint = _hasCapitalFootprint(safeState);
   var hasOperationsFootprint = stationCount > 0 || _hasTradeInvestment(safeState);
-  var hasSurveyIntel = _getSurveyIntelFlag(safeState, sysId);
 
   return {
     playerLevel: playerLevel,
@@ -128,7 +118,6 @@ function _getMarketExperienceStats(state, sysId, options) {
     companyPrivileges: companyPrivileges,
     hasCapitalFootprint: hasCapitalFootprint,
     hasOperationsFootprint: hasOperationsFootprint,
-    hasSurveyIntel: hasSurveyIntel,
     hasBlackMarket: !!(systemFaction && systemFaction.marketAccess && systemFaction.marketAccess.blackMarket),
     blackMarketUnlocked: !!blackMarketUnlocked,
   };
@@ -177,7 +166,7 @@ function _buildMarketProgression(state, sysId, options) {
     subworkspace: {
       spot: {
         trade: { unlocked: true, stateLabel: '核心', unlockLabel: '默认开放' },
-        intel: { unlocked: true, stateLabel: stats.hasSurveyIntel ? '有报告' : '已开放', unlockLabel: '默认开放' },
+        intel: { unlocked: true, stateLabel: '已开放', unlockLabel: '默认开放' },
         black: {
           unlocked: stats.blackMarketUnlocked,
           stateLabel: stats.blackMarketUnlocked ? '已开放' : '锁定',
@@ -227,7 +216,7 @@ function _buildMarketProgression(state, sysId, options) {
         id: 'intel',
         index: '02',
         label: '查看行情',
-        note: '各地价格、涨跌和探索报告',
+        note: '各地价格、涨跌和开放条件',
         workspaceId: 'spot',
         subworkspaceId: 'intel',
         unlocked: true,
@@ -299,9 +288,6 @@ function _normalizeMarketWorkspaceFocus(focus, progression) {
     subworkspaceId: subworkspaceTabs.length > 0 ? subworkspaceId : '',
     goodId: typeof focus.goodId === 'string' ? focus.goodId.trim() : '',
     tradeAction: typeof focus.tradeAction === 'string' ? focus.tradeAction.trim() : '',
-    chainId: typeof focus.chainId === 'string' ? focus.chainId.trim() : '',
-    chainKind: typeof focus.chainKind === 'string' ? focus.chainKind.trim() : '',
-    chainLabel: typeof focus.chainLabel === 'string' ? focus.chainLabel.trim() : '',
   };
 }
 
@@ -370,10 +356,6 @@ function _clearMarketGuideFocus() {
   document.querySelectorAll('.market-card-btn--guide-focus').forEach(function (button) {
     button.classList.remove('market-card-btn--guide-focus');
   });
-  document.querySelectorAll('.market-survey-chain-row--guide-focus').forEach(function (row) {
-    row.classList.remove('market-survey-chain-row--guide-focus');
-    if (row.removeAttribute) row.removeAttribute('data-guide-focus');
-  });
 }
 
 function _revealMarketGoodFocus(goodId, options) {
@@ -405,26 +387,6 @@ function _revealMarketGoodFocus(goodId, options) {
 
 export function revealMarketGoodFocus(goodId, options) {
   return _revealMarketGoodFocus(goodId, options);
-}
-
-function _revealSurveyChainFocus(chainId) {
-  if (!_hasDocument() || !chainId || !document.querySelector) return false;
-
-  _clearMarketGuideFocus();
-
-  var row = document.querySelector('[data-market-survey-chain-id="' + _escapeSelectorValue(chainId) + '"]');
-  if (!row) return false;
-
-  row.classList.add('market-survey-chain-row--guide-focus');
-  if (row.setAttribute) row.setAttribute('data-guide-focus', 'true');
-  if (typeof row.scrollIntoView === 'function') {
-    row.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
-  }
-  return true;
-}
-
-export function revealSurveyChainFocus(chainId) {
-  return _revealSurveyChainFocus(chainId);
 }
 
 export function setFocusedMarketGood(sysId, marketMode, goodId) {
@@ -501,8 +463,6 @@ export function setMarketWorkspaceFocus(focus) {
     );
     if (normalized.goodId) {
       _revealMarketGoodFocus(normalized.goodId, { tradeAction: normalized.tradeAction });
-    } else if (normalized.chainId) {
-      _revealSurveyChainFocus(normalized.chainId);
     } else {
       _clearMarketGuideFocus();
     }
@@ -1038,7 +998,6 @@ function _renderAnalysisPanel(container, state, sysId, snapshots, marketMode) {
 
 function _renderSpotIntelSection(state, sysId, snapshots, marketMode, systemFaction, blackMarketUnlocked) {
   var system = findSystem(sysId);
-  var surveyIntel = Exploration.getSurveyDecisionIntel(state, sysId);
   var bestDemand = _pickSnapshot(snapshots, function (a, b) {
     return b.supplyDemand.ratio - a.supplyDemand.ratio;
   });
@@ -1076,9 +1035,8 @@ function _renderSpotIntelSection(state, sysId, snapshots, marketMode, systemFact
       '<div class="market-finance-summary-metric"><span>买卖价差</span><strong>' + (widestSpread ? (widestSpread.good.emoji + ' ' + widestSpread.spread.toLocaleString()) : '—') + '</strong></div>' +
       '<div class="market-finance-summary-metric"><span>势力价格优惠</span><strong>买价 -' + Math.round(negotiationProfile.buyAdvantage * 100) + '% · 卖价 +' + Math.round(negotiationProfile.sellAdvantage * 100) + '%</strong></div>' +
     '</div>' +
-    _renderSpotIntelSignalPanel(surveyIntel, watchList, marketMode, blackMarketUnlocked) +
+    _renderSpotIntelSignalPanel(watchList, marketMode, blackMarketUnlocked) +
   '</section>' +
-  _renderSurveyIntelMarketSection(surveyIntel) +
   '<div class="market-intel-decision-grid" role="group" aria-label="地点和关注商品">' +
   '<section class="market-finance-section market-intel-node-section">' +
     '<div class="market-finance-section-head">' +
@@ -1155,34 +1113,14 @@ function _renderSpotFocus(title, note, tone) {
   '</div>';
 }
 
-function _renderSpotIntelSignalPanel(surveyIntel, watchList, marketMode, blackMarketUnlocked) {
-  var chains = surveyIntel && Array.isArray(surveyIntel.anomalyChains) ? surveyIntel.anomalyChains : [];
-  var hasIntel = !!(surveyIntel && surveyIntel.hasIntel);
-  var reportCount = hasIntel ? (surveyIntel.reportCount || 0) : 0;
-  var intelLevel = hasIntel ? (surveyIntel.intelLevel || 0) : 0;
-  var readyFollowupCount = hasIntel && typeof surveyIntel.readyFollowupCount === 'number'
-    ? surveyIntel.readyFollowupCount
-    : chains.filter(function (chain) { return !!chain.followupReady && !chain.followupAcknowledged; }).length;
-  var archivedChainCount = chains.filter(function (chain) {
-    return chain.resolved || chain.stage === 'archived';
-  }).length;
+function _renderSpotIntelSignalPanel(watchList, marketMode, blackMarketUnlocked) {
   var focusTitle = '看看行情再决定';
   var focusNote = watchList.length > 0
     ? ('当前有 ' + watchList.length + ' 个货物值得关注，先比较需求、价格变化和买卖价差。')
     : '当前行情数据不足，先用地点速览判断是否值得停留。';
   var focusTone = watchList.length > 0 ? 'watch' : 'idle';
 
-  if (readyFollowupCount > 0) {
-    focusTitle = '有后续任务';
-    focusNote = surveyIntel.nextChainFollowup
-      ? (surveyIntel.nextChainFollowup.followupLabel || surveyIntel.nextChainFollowup.label || '有探索任务的后续内容可以确认。')
-      : ('有 ' + readyFollowupCount + ' 个探索任务后续等待确认。');
-    focusTone = 'risk';
-  } else if (hasIntel) {
-    focusTitle = '探索报告可用';
-    focusNote = (surveyIntel.primaryLabel || '探索线索') + ' 已放入市场行情页，可和开放条件、关注货物一起判断。';
-    focusTone = 'ready';
-  } else if (blackMarketUnlocked) {
+  if (blackMarketUnlocked) {
     focusTitle = marketMode === 'black' ? '黑市信息已显示' : '可以切换特殊市场';
     focusNote = '当前地点可以进入黑市，可在黑市页看清风险后再切换报价。';
     focusTone = 'ready';
@@ -1192,111 +1130,16 @@ function _renderSpotIntelSignalPanel(surveyIntel, watchList, marketMode, blackMa
     '<div class="market-spot-signal-head">' +
       '<div>' +
         '<div class="market-spot-signal-title">行情摘要</div>' +
-        '<div class="market-spot-signal-subtitle">集中显示探索报告、事件、关注商品和特殊市场，方便判断下一步。</div>' +
+        '<div class="market-spot-signal-subtitle">集中显示关注商品和特殊市场状态，方便判断下一笔交易。</div>' +
       '</div>' +
-      '<span class="market-finance-chip">' + (hasIntel ? '报告可用' : '行情观察') + '</span>' +
+      '<span class="market-finance-chip">行情观察</span>' +
     '</div>' +
     '<div class="market-spot-signal-grid" role="list" aria-label="行情信息">' +
-      _renderSpotSignalMetric('探索报告', reportCount + ' 份', hasIntel ? ('报告等级 Lv.' + intelLevel) : '暂无探索报告', hasIntel ? 'tone-cool' : '') +
-      _renderSpotSignalMetric('后续任务', readyFollowupCount + ' 待跟进', archivedChainCount + ' 条已完成记录', readyFollowupCount > 0 ? 'tone-hot' : (archivedChainCount > 0 ? 'tone-cool' : '')) +
       _renderSpotSignalMetric('关注货物', String(watchList.length), watchList.length > 0 ? '按需求、价格变化和买卖价差排序' : '等待更多价格变化', watchList.length > 0 ? 'tone-warm' : '') +
       _renderSpotSignalMetric('特殊开放条件', blackMarketUnlocked ? '黑市开放' : '公开视图', marketMode === 'black' ? '当前查看黑市报价' : '当前查看公开报价', blackMarketUnlocked ? 'tone-cool' : '') +
     '</div>' +
     _renderSpotFocus(focusTitle, focusNote, focusTone) +
   '</div>';
-}
-
-function _renderSurveyIntelMarketSection(surveyIntel) {
-  if (!surveyIntel || !surveyIntel.hasIntel) return '';
-
-  var signalNotes = [];
-  if (surveyIntel.marketSignal) signalNotes.push('交易机会');
-  if (surveyIntel.researchSignal) signalNotes.push('科研样本');
-  if (surveyIntel.routeSignal) signalNotes.push('隐藏航线图');
-  if (surveyIntel.logisticsSignal) signalNotes.push('补给点');
-  if (signalNotes.length === 0) signalNotes.push(surveyIntel.opportunityLabel || '探索线索');
-  var chainRowsHtml = _renderSurveyIntelChainRows(surveyIntel);
-  var reportTitleId = _getMarketFinanceDomId('market-survey-report-title', surveyIntel.systemId || surveyIntel.recentReportTitle || 'current');
-  var reportMetaId = _getMarketFinanceDomId('market-survey-report-meta', surveyIntel.systemId || surveyIntel.recentReportTitle || 'current');
-
-  return '<section class="market-finance-section">' +
-    '<div class="market-finance-section-head">' +
-      '<div>' +
-        '<div class="market-finance-title">📘 探索报告带来的机会</div>' +
-        '<div class="market-finance-subtitle">' + _escapeHtml(surveyIntel.marketHint) + '</div>' +
-      '</div>' +
-      '<span class="market-finance-chip">' + _escapeHtml(surveyIntel.primaryLabel) + '</span>' +
-    '</div>' +
-    '<div class="market-finance-action-list market-survey-chain-list" role="list" aria-label="探索报告带来的机会">' +
-      '<article class="market-finance-action-row market-survey-report-row" role="listitem" tabindex="0" aria-labelledby="' + _escapeHtmlAttr(reportTitleId) + '" aria-describedby="' + _escapeHtmlAttr(reportMetaId) + '">' +
-        '<div class="market-finance-action-main">' +
-          '<div id="' + _escapeHtmlAttr(reportTitleId) + '" class="market-finance-action-title">' + _escapeHtml(surveyIntel.recentReportTitle || '探索报告') + '</div>' +
-          '<div id="' + _escapeHtmlAttr(reportMetaId) + '" class="market-finance-action-meta">报告等级 Lv.' + _escapeHtml(surveyIntel.intelLevel) + ' · 已保存 ' + _escapeHtml(surveyIntel.reportCount) + ' 份 · ' + _escapeHtml(signalNotes.join(' / ')) + '</div>' +
-        '</div>' +
-        '<div class="market-finance-network-note">' + _escapeHtml(surveyIntel.anomalyHint || surveyIntel.dispatchHint || '行情参考') + '</div>' +
-      '</article>' +
-      chainRowsHtml +
-    '</div>' +
-  '</section>';
-}
-
-function _renderSurveyIntelChainRows(surveyIntel) {
-  var chains = surveyIntel && Array.isArray(surveyIntel.anomalyChains) ? surveyIntel.anomalyChains : [];
-  if (chains.length === 0) return '';
-
-  var visibleChains = chains.slice().sort(function (left, right) {
-    var resolvedDelta = (right.resolved ? 1 : 0) - (left.resolved ? 1 : 0);
-    if (resolvedDelta !== 0) return resolvedDelta;
-    return (right.stageIndex || 0) - (left.stageIndex || 0);
-  });
-
-  return visibleChains.map(function (chain) {
-    var stageClass = _getSurveyChainStageClass(chain);
-    var chainId = chain.id || (chain.kind || 'chain') + '-' + (chain.stageIndex || 0);
-    var titleId = _getMarketFinanceDomId('market-survey-chain-title', chainId);
-    var metaId = _getMarketFinanceDomId('market-survey-chain-meta', chainId);
-    var noteId = _getMarketFinanceDomId('market-survey-chain-note', chainId);
-    var rowClasses = [
-      'market-finance-action-row',
-      'market-survey-chain-row',
-      'market-survey-chain-row--' + stageClass,
-    ];
-    if (chain.followupReady) rowClasses.push('is-followup-ready');
-    if (chain.followupAcknowledged) rowClasses.push('is-followup-acknowledged');
-    return '<article class="' + rowClasses.map(_escapeHtmlAttr).join(' ') + '" role="listitem" tabindex="0" aria-labelledby="' + _escapeHtmlAttr(titleId) + '" aria-describedby="' + _escapeHtmlAttr(metaId + ' ' + noteId) + '" data-market-survey-chain-id="' + _escapeHtmlAttr(chain.id || '') + '" data-market-survey-chain-kind="' + _escapeHtmlAttr(chain.kind || '') + '">' +
-      '<div class="market-finance-action-main">' +
-        '<div id="' + _escapeHtmlAttr(titleId) + '" class="market-finance-action-title">' + _escapeHtml((chain.badge ? (chain.badge + ' · ') : '') + (chain.label || '探索链')) + '</div>' +
-        '<div id="' + _escapeHtmlAttr(metaId) + '" class="market-finance-action-meta">' + _escapeHtml((chain.poiName || '探索点') + ' · ' + (chain.stageLabel || '待调查') + ' · ' + _getSurveyChainImpact(chain)) + '</div>' +
-      '</div>' +
-      '<div id="' + _escapeHtmlAttr(noteId) + '" class="market-finance-network-note market-survey-chain-note">' + _escapeHtml(_getSurveyChainNote(chain)) + '</div>' +
-    '</article>';
-  }).join('');
-}
-
-function _getSurveyChainStageClass(chain) {
-  var stage = chain && chain.stage ? String(chain.stage) : 'locked';
-  if (stage === 'archived' || stage === 'discovered' || stage === 'locked') return stage;
-  return 'locked';
-}
-
-function _getSurveyChainImpact(chain) {
-  if (!chain) return '经营影响';
-  if (chain.kind === 'lost_beacon') return '航线 / 自动跑商';
-  if (chain.kind === 'ancient_relic') return '科研 / 风险';
-  if (chain.kind === 'derelict_depot') return '商网 / 整备';
-  if (chain.signal === 'market') return '贸易 / 价格';
-  return '经营影响';
-}
-
-function _getSurveyChainNote(chain) {
-  if (!chain) return '待归档';
-  if (chain.followupAcknowledged) {
-    return chain.followupAcknowledgedDay ? ('已跟进 · 第 ' + chain.followupAcknowledgedDay + ' 天') : '已跟进';
-  }
-  if (chain.followupReady && chain.followupLabel) return chain.followupLabel;
-  if (chain.resolved) return '报告已归档';
-  if (chain.discovered) return '待调查';
-  return '待调查';
 }
 
 function _renderBlackMarketSection(state, sysId, marketMode, systemFaction, blackMarketUnlocked) {
