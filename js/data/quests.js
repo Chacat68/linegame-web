@@ -135,11 +135,15 @@ export const QUESTS = [
   {
     id: 'starter_deliver_medicine', name: '疫情救援',
     type: 'delivery', phase: 1,
-    description: '医疗中枢的药物库存告急，紧急运送 3 单位药品。',
-    objectives: [{ type: 'deliver', goodId: 'medicine', targetSystem: 'medical_hub', amount: 3, current: 0 }],
+    description: '战争前线暴发疫情。先在医疗中枢采购 6 单位医药，再运往战争前线完成救援交付。',
+    objectives: [
+      { type: 'buy_at', goodId: 'medicine', targetSystem: 'medical_hub', amount: 6, current: 0, requireProfit: true },
+      { type: 'deliver', goodId: 'medicine', targetSystem: 'war_front', amount: 6, current: 0, requireProfit: true },
+    ],
+    sequentialObjectives: true,
     rewards: { credits: 600, exp: 25, reputation: 8 },
     timeLimit: 8,
-    minLevel: 1,
+    minLevel: 2,
     prerequisites: ['starter_first_trade'],
     unlockConditions: {},
   },

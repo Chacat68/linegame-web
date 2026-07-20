@@ -163,19 +163,19 @@ export const DIALOGUE_SCENES = [
   {
     id: 'quest_accept_starter_deliver_medicine',
     label: '任务简报',
-    title: '医疗补给告急',
+    title: '前线疫情告急',
     trigger: { type: 'quest_accept', questId: 'starter_deliver_medicine' },
-    footer: '目标：医疗中枢 · 限时 8 天',
+    footer: '路线：医疗中枢采购 → 战争前线交付 · 6 单位医药 · 限时 8 天',
     lines: [
       {
         speaker: '值班医官 艾琳',
         icon: '🩺',
-        text: '医疗中枢的常备药已经压到警戒线以下了，下一波病患到来前必须补齐库存。',
+        text: '战争前线暴发疫情，医疗中枢已经备好一批平价医药，只差一艘可靠的船完成采购和转运。',
       },
       {
         speaker: '值班医官 艾琳',
         icon: '🩺',
-        text: '只要 3 单位药品，但时间比数量更关键。别让我们的治疗舱空着等药。',
+        text: '在医疗中枢采购 6 单位，再送到战争前线。前线需求价足以覆盖运输成本，合同奖励另行结算。',
       },
     ],
   },
@@ -188,12 +188,12 @@ export const DIALOGUE_SCENES = [
       {
         speaker: '值班医官 艾琳',
         icon: '🩺',
-        text: '药品已入库，治疗舱重新开始运转。你这趟送来的，是一整班人的喘息空间。',
+        text: '药品已经送进前线隔离区，最紧缺的几个治疗舱终于重新开机。',
       },
       {
         speaker: '值班医官 艾琳',
         icon: '🩺',
-        text: '银河里很多商人只看利润，你至少证明了自己也懂得什么叫时机。',
+        text: '救援合同已经结清。把生意做得可持续，下一次警报响起时你才还能准时出现。',
       },
     ],
   },

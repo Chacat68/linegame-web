@@ -314,6 +314,9 @@ function _renderQuestDispatchRecommendation(recommendation, canApplyQuestDispatc
     '<div class="quest-dispatch-main">' + _systemName(recommendation.buySystemId) + ' → ' + _systemName(recommendation.sellSystemId) + ' · ' + _goodName(recommendation.goodId) + '</div>' +
     '<div class="quest-dispatch-meta">' +
       '<span>预计燃料 ' + Math.max(0, recommendation.estimatedFuelCost || 0) + '</span>' +
+      (Number.isFinite(recommendation.estimatedTradeProfit)
+        ? '<span>预计贸易收益 ' + (recommendation.estimatedTradeProfit >= 0 ? '+' : '') + Math.floor(recommendation.estimatedTradeProfit) + '</span>'
+        : '') +
       '<span>' + (recommendation.routeModeLabel || '星系内中转') + '</span>' +
       '<span>风险 ' + riskLevelLabel + '</span>' +
       '<span>查获 ' + riskLabel + '</span>' +
@@ -809,6 +812,11 @@ export function render(state, onAccept, onAbandon, questDispatchContext, onApply
   const fallbackQuest = sortedAvailable[0] || null;
   const active = Quest.getActiveQuests(state);
   const locked = Quest.getLockedQuests(state);
+  const activeQuestRecommendation = active.length > 0
+    ? AutoTrade.findQuestRoute(state, Object.assign({
+        cargo: state.cargo || {},
+      }, questDispatchContext || {}))
+    : null;
 
   // ---- 当前章节 ----
   const currentPhaseProgress = Quest.getCurrentQuestPhaseProgress(state);
@@ -860,9 +868,6 @@ export function render(state, onAccept, onAbandon, questDispatchContext, onApply
 
   // ---- 当前任务 ----
   if (active.length > 0) {
-  const activeQuestRecommendation = AutoTrade.findQuestRoute(state, Object.assign({
-    cargo: state.cargo || {},
-  }, questDispatchContext || {}));
   html += '<section class="quest-module quest-module-active">';
   html += '<div class="quest-section-title">📋 进行中 (' + active.length + '/5)</div>';
 

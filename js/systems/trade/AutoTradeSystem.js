@@ -390,6 +390,9 @@ function _scoreQuestRouteCandidate(state, route, dispatchProfile, options) {
   var themeFit = _scoreTradeThemeRoute(good, buySystem, sellSystem);
   var surveyFit = _scoreSurveyIntelForRoute(state, buySystem, sellSystem, null);
   var quantity = Math.max(1, route.quantity || 1);
+  var estimatedTradeProfit = Number.isFinite(route.unitRevenue)
+    ? ((route.inCargo ? route.unitRevenue : (route.unitRevenue - (route.unitCost || 0))) * quantity - fuelCredits)
+    : null;
   var score = (route.priority || 0) * 1000
     + routeFit.score
     + themeFit.score
@@ -421,6 +424,7 @@ function _scoreQuestRouteCandidate(state, route, dispatchProfile, options) {
       riskLevel: riskAssessment.riskLevel,
       inspectionRisk: inspectionRisk,
       estimatedFuelCost: totalFuelCost,
+      estimatedTradeProfit: estimatedTradeProfit,
       recommendedTradePolicy: {
         maxBuyPrice: null,
         minSellPrice: null,
@@ -613,6 +617,9 @@ export function findBestDispatchRoute(state, options, tradePolicy) {
         var totalFuelCost = travelToBuyFuel + travelToSellFuel;
         var fuelCredits = totalFuelCost * fuelUnitPrice;
         var profit = (sellPrice - buyPrice) * canBuy - fuelCredits;
+        // 普通自动跑商推荐的目的必须是持续盈利。角色画像、贸易主题和
+        // 探索情报只用于给可盈利路线排序，不能把净亏损路线抬成“最优”。
+        if (profit <= 0) return;
         var riskAdjusted = applyRiskPreference(profit, riskAssessment, normalizedPolicy);
         var inspectionRisk = estimateDispatchInspectionRisk(state, good, canBuy, sellSys.id, normalizedPolicy.marketMode, {
           checkChanceMultiplier: dispatchProfile.inspectionRiskMultiplier,
@@ -820,6 +827,12 @@ export function findQuestRoute(state, options) {
   var currentGalaxy = options.currentGalaxy || state.currentGalaxy || 'milky_way';
   var playerLevel   = options.playerLevel || state.playerLevel || 1;
   var cargo         = options.cargo || state.cargo || {};
+  var credits       = Number.isFinite(options.credits) ? options.credits : Number(state.credits || 0);
+  var cargoFree     = Number.isFinite(options.cargoFree)
+    ? options.cargoFree
+    : Math.max(0, Number(state.maxCargo || 0) - Object.values(cargo).reduce(function (sum, qty) {
+        return sum + (Number(qty) || 0);
+      }, 0));
   var dispatchProfile = _normalizeDispatchProfile(options.dispatchProfile);
   var fuelUnitPrice = Economy.getBuyPrice(currentSystem, 'fuel', state);
   var candidateSystems = _getTradeCandidateSystems(state, {
@@ -836,7 +849,19 @@ export function findQuestRoute(state, options) {
   var bestScore = -Infinity;
 
   state.quests.forEach(function (quest) {
-    quest.objectives.forEach(function (obj) {
+    var firstIncompleteObjectiveIndex = quest.objectives.findIndex(function (obj) {
+      return obj.current < (obj.amount || 1);
+    });
+    var objectivesToScan = quest.sequentialObjectives && firstIncompleteObjectiveIndex >= 0
+      ? [quest.objectives[firstIncompleteObjectiveIndex]]
+      : quest.objectives;
+    var sequentialFollowupObjective = quest.sequentialObjectives && firstIncompleteObjectiveIndex >= 0
+      ? quest.objectives.slice(firstIncompleteObjectiveIndex + 1).find(function (obj) {
+          return obj.current < (obj.amount || 1);
+        })
+      : null;
+
+    objectivesToScan.forEach(function (obj) {
       // 跳过已完成的目标
       if (obj.current >= (obj.amount || 1)) return;
 
@@ -862,6 +887,7 @@ export function findQuestRoute(state, options) {
       if (obj.type === 'deliver' || obj.type === 'sell_at') {
         // 需要在 targetSystem 卖出/交付 goodId
         var inCargo = cargo[obj.goodId] || 0;
+        var targetSellPrice = Economy.getSellPrice(obj.targetSystem, obj.goodId, state);
         if (inCargo > 0) {
           // 手中已有货物，直接前往目标星球卖出
           route = {
@@ -873,6 +899,7 @@ export function findQuestRoute(state, options) {
             questName:    quest.name,
             quantity:     Math.min(inCargo, neededQty),
             inCargo:      true,
+            unitRevenue:  targetSellPrice,
             priority:     priority,
           };
         } else {
@@ -881,6 +908,8 @@ export function findQuestRoute(state, options) {
             if (sys.id === obj.targetSystem) return; // 不在目标星球买
             var price = Economy.getBuyPrice(sys.id, obj.goodId, state);
             if (price <= 0) return;
+            var purchasableQty = Math.min(neededQty, cargoFree, Math.floor(credits / price));
+            if (purchasableQty <= 0) return;
 
             var candidate = _scoreQuestRouteCandidate(state, {
               buySystemId: sys.id,
@@ -889,8 +918,9 @@ export function findQuestRoute(state, options) {
               status: currentSystem === sys.id ? 'buying' : 'traveling_buy',
               questId: quest.id,
               questName: quest.name,
-              quantity: neededQty,
+              quantity: purchasableQty,
               unitCost: price,
+              unitRevenue: targetSellPrice,
               priority: priority,
             }, dispatchProfile, {
               currentSystem: currentSystem,
@@ -898,6 +928,7 @@ export function findQuestRoute(state, options) {
               fuelUnitPrice: fuelUnitPrice,
             });
 
+            if (obj.requireProfit && !(candidate.route.estimatedTradeProfit > 0)) return;
             if (!scoredCandidate || candidate.score > scoredCandidate.score) {
               scoredCandidate = candidate;
             }
@@ -909,8 +940,18 @@ export function findQuestRoute(state, options) {
         // 需要在 targetSystem 买入 goodId，买完后寻找最优卖出地
         var buyPriceAtTarget = Economy.getBuyPrice(obj.targetSystem, obj.goodId, state);
         if (buyPriceAtTarget <= 0) return;
+        var targetPurchasableQty = Math.min(neededQty, cargoFree, Math.floor(credits / buyPriceAtTarget));
+        if (targetPurchasableQty <= 0) return;
 
-        candidateSystems.forEach(function (sys) {
+        var sellCandidateSystems = sequentialFollowupObjective
+          && (sequentialFollowupObjective.type === 'deliver' || sequentialFollowupObjective.type === 'sell_at')
+          && sequentialFollowupObjective.goodId === obj.goodId
+          ? candidateSystems.filter(function (sys) {
+              return sys.id === sequentialFollowupObjective.targetSystem;
+            })
+          : candidateSystems;
+
+        sellCandidateSystems.forEach(function (sys) {
           if (sys.id === obj.targetSystem) return;
           var price = Economy.getSellPrice(sys.id, obj.goodId, state);
           if (price <= 0) return;
@@ -922,7 +963,7 @@ export function findQuestRoute(state, options) {
             status: currentSystem === obj.targetSystem ? 'buying' : 'traveling_buy',
             questId: quest.id,
             questName: quest.name,
-            quantity: neededQty,
+            quantity: targetPurchasableQty,
             unitCost: buyPriceAtTarget,
             unitRevenue: price,
             priority: priority,
@@ -932,6 +973,7 @@ export function findQuestRoute(state, options) {
             fuelUnitPrice: fuelUnitPrice,
           });
 
+          if (obj.requireProfit && !(candidate.route.estimatedTradeProfit > 0)) return;
           if (!scoredCandidate || candidate.score > scoredCandidate.score) {
             scoredCandidate = candidate;
           }

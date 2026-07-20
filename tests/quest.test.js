@@ -27,6 +27,67 @@ describe('Quest.init', () => {
     Quest.init(state);
     expect(state.completedQuests).toContain('q1');
   });
+
+  it('会把旧版疫情救援迁移为前线救援合约并保留进度', () => {
+    const state = createTestState({
+      quests: [{
+        id: 'starter_deliver_medicine',
+        name: '疫情救援',
+        description: '医疗中枢的药物库存告急，紧急运送 3 单位药品。',
+        objectives: [{ type: 'deliver', goodId: 'medicine', targetSystem: 'medical_hub', amount: 3, current: 1 }],
+        rewards: { credits: 600, exp: 25, reputation: 8 },
+        timeLimit: 8,
+        startDay: 2,
+      }],
+    });
+
+    Quest.init(state);
+
+    expect(state.quests[0].description).toContain('战争前线暴发疫情');
+    expect(state.quests[0].objectives).toHaveLength(2);
+    expect(state.quests[0].objectives[0]).toMatchObject({
+      type: 'buy_at',
+      goodId: 'medicine',
+      targetSystem: 'medical_hub',
+      amount: 6,
+      current: 1,
+      requireProfit: true,
+    });
+    expect(state.quests[0].objectives[1]).toMatchObject({
+      type: 'deliver',
+      goodId: 'medicine',
+      targetSystem: 'war_front',
+      amount: 6,
+      current: 0,
+      requireProfit: true,
+    });
+    expect(state.quests[0].sequentialObjectives).toBe(true);
+    expect(state.quests[0].startDay).toBe(2);
+  });
+});
+
+describe('任务内容经济契约', () => {
+  it('疫情救援会明确给出低价采购与高需求交付两段路线', () => {
+    const quest = QUESTS.find(function (entry) { return entry.id === 'starter_deliver_medicine'; });
+
+    expect(quest.description).toContain('医疗中枢采购 6 单位医药');
+    expect(quest.minLevel).toBe(2);
+    expect(quest.sequentialObjectives).toBe(true);
+    expect(quest.objectives[0]).toMatchObject({
+      type: 'buy_at',
+      goodId: 'medicine',
+      targetSystem: 'medical_hub',
+      amount: 6,
+      requireProfit: true,
+    });
+    expect(quest.objectives[1]).toMatchObject({
+      type: 'deliver',
+      goodId: 'medicine',
+      targetSystem: 'war_front',
+      amount: 6,
+      requireProfit: true,
+    });
+  });
 });
 
 describe('Quest.getAvailableQuests', () => {
@@ -255,7 +316,7 @@ describe('Quest.getQuestTracker', () => {
     expect(tracker.mode).toBe('active');
     expect(tracker.items.map(item => item.id)).toEqual(['starter_deliver_medicine', 'starter_5_trades']);
     expect(tracker.items[0].statusText).toBe('剩余 5 天');
-    expect(tracker.items[0].progressText).toBe('1/3');
+    expect(tracker.items[0].progressText).toBe('1/6');
   });
 
   it('没有进行中任务时回退到推荐可接任务', () => {

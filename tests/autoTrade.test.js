@@ -179,6 +179,7 @@ describe('AutoTrade.findBestDispatchRoute', () => {
       expect(result).toHaveProperty('sellSystemId');
       expect(result).toHaveProperty('goodId');
       expect(result.buySystemId).not.toBe(result.sellSystemId);
+      expect(result.profit).toBeGreaterThan(0);
     }
   });
 
@@ -368,6 +369,7 @@ describe('AutoTrade.findBestDispatchRoute', () => {
       expect(result.dispatchProfile.roleId).toBe('covert');
       expect(result.routeFitScore).toBeGreaterThan(0);
       expect(result.adjustedProfit).toBeGreaterThan(result.baseAdjustedProfit);
+      expect(result.profit).toBeGreaterThan(0);
       expect(result.recommendedTradePolicy).toMatchObject({
         marketMode: 'black',
         riskMode: 'aggressive',
@@ -395,7 +397,7 @@ describe('AutoTrade.findBestDispatchRoute', () => {
       fuelEfficiency: 1.0,
       cargoFree: 20,
       credits: 6000,
-      systemIds: ['sol_prime', 'nova_station'],
+      systemIds: ['sol_prime', 'war_front'],
     });
 
     expect(baseline).not.toBeNull();
@@ -417,7 +419,7 @@ describe('AutoTrade.findBestDispatchRoute', () => {
       fuelEfficiency: 1.0,
       cargoFree: 20,
       credits: 6000,
-      systemIds: ['sol_prime', 'nova_station'],
+      systemIds: ['sol_prime', 'war_front'],
     });
 
     expect(result).not.toBeNull();
@@ -471,6 +473,78 @@ describe('AutoTrade.findQuestRoute', () => {
       expect(result).toHaveProperty('goodId', 'food');
       expect(result).toHaveProperty('questId', 'test_quest');
     }
+  });
+
+  it('任务需要采购但没有启动资金时不推荐无法执行的路线', () => {
+    const state = createTestState({
+      credits: 0,
+      cargo: {},
+      currentSystem: 'asteroid_belt',
+      currentGalaxy: 'milky_way',
+      playerLevel: 3,
+      quests: [{
+        id: 'unfunded_delivery',
+        name: '无垫资运输',
+        timeLimit: 0,
+        startDay: 1,
+        objectives: [{
+          type: 'deliver',
+          goodId: 'food',
+          targetSystem: 'war_front',
+          amount: 5,
+          current: 0,
+        }],
+      }],
+    });
+
+    expect(AutoTrade.findQuestRoute(state, {
+      currentSystem: state.currentSystem,
+      currentGalaxy: state.currentGalaxy,
+      cargo: state.cargo,
+      cargoFree: 20,
+      credits: 0,
+    })).toBeNull();
+  });
+
+  it('疫情救援只推荐净收益为正的医药采购路线', () => {
+    const state = createTestState({
+      credits: 1000,
+      cargo: {},
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+      playerLevel: 2,
+      quests: [{
+        id: 'starter_deliver_medicine',
+        name: '疫情救援',
+        timeLimit: 8,
+        startDay: 1,
+        sequentialObjectives: true,
+        objectives: [
+          { type: 'buy_at', goodId: 'medicine', targetSystem: 'medical_hub', amount: 6, current: 0, requireProfit: true },
+          { type: 'deliver', goodId: 'medicine', targetSystem: 'war_front', amount: 6, current: 0, requireProfit: true },
+        ],
+      }],
+    });
+
+    const result = AutoTrade.findQuestRoute(state, {
+      currentSystem: state.currentSystem,
+      currentGalaxy: state.currentGalaxy,
+      playerLevel: state.playerLevel,
+      cargo: state.cargo,
+      cargoFree: 20,
+      credits: state.credits,
+      systemIds: ['sol_prime', 'medical_hub', 'war_front'],
+    });
+
+    expect(result).not.toBeNull();
+    expect(result).toMatchObject({
+      questId: 'starter_deliver_medicine',
+      buySystemId: 'medical_hub',
+      sellSystemId: 'war_front',
+      goodId: 'medicine',
+    });
+    expect(result.buySystemId).not.toBe(result.sellSystemId);
+    expect(result.estimatedTradeProfit).toBeGreaterThan(0);
   });
 
   it('已完成的目标不会被选为路线', () => {

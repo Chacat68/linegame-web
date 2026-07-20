@@ -231,6 +231,21 @@ export function init(state) {
   if (!state.completedQuests) state.completedQuests = [];
   state.quests.forEach(function (quest) {
     if (!quest || !Array.isArray(quest.objectives)) return;
+    if (quest.id === 'starter_deliver_medicine') {
+      var redesignedTemplate = QUESTS.find(function (template) {
+        return template.id === 'starter_deliver_medicine';
+      });
+      var previousProgress = quest.objectives[0] ? Number(quest.objectives[0].current || 0) : 0;
+      if (redesignedTemplate) {
+        quest.name = redesignedTemplate.name;
+        quest.description = redesignedTemplate.description;
+        quest.objectives = JSON.parse(JSON.stringify(redesignedTemplate.objectives));
+        quest.objectives[0].current = Math.min(quest.objectives[0].amount || 1, previousProgress);
+        quest.sequentialObjectives = redesignedTemplate.sequentialObjectives === true;
+        quest.rewards = JSON.parse(JSON.stringify(redesignedTemplate.rewards));
+        quest.timeLimit = redesignedTemplate.timeLimit;
+      }
+    }
     quest.objectives = quest.objectives.filter(function (objective) {
       return objective && objective.type !== 'scan_systems' && objective.type !== 'land_systems';
     });
