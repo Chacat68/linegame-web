@@ -1,6 +1,8 @@
 import { GOODS } from '../../data/goods.js';
 import { SYSTEMS, findSystem, getAccessibleSystems } from '../../data/systems.js';
+import * as Economy from '../economy/Economy.js';
 import * as Quest from '../quest/QuestSystem.js';
+import { decorateGuidanceFlow } from './GuidanceFlow.js';
 
 const FIRST_TRADE_QUEST_ID = 'starter_first_trade';
 const FIRST_EXPLORE_QUEST_ID = 'starter_visit_2';
@@ -34,6 +36,7 @@ export const GUIDANCE_TOPICS = {
 const BLOCKING_SUGGESTION_IDS = new Set([
   'handle-pending-event',
   'refuel-low-tank',
+  'refuel-for-cargo-route',
 ]);
 const CORE_LOOP_SUGGESTION_IDS = new Set([
   'accept-first-trade',
@@ -42,6 +45,9 @@ const CORE_LOOP_SUGGESTION_IDS = new Set([
   'sell-first-cargo',
   'find-sell-destination',
   'accept-first-explore',
+  'visit-next-system',
+  'refuel-for-explore-route',
+  'prefill-quest-dispatch',
 ]);
 const RECOVERY_SUGGESTION_IDS = new Set([
   'service-active-ship',
@@ -83,6 +89,12 @@ function _getActiveQuest(state, questId) {
   return _findQuestById(Quest.getActiveQuests(state), questId);
 }
 
+function _isQuestObjectiveIncomplete(quest, objectiveType) {
+  return !!(quest && Array.isArray(quest.objectives) && quest.objectives.some(function (objective) {
+    return objective && objective.type === objectiveType && Number(objective.current || 0) < Number(objective.amount || 1);
+  }));
+}
+
 function _getGoodName(goodId) {
   var good = GOODS.find(function (item) { return item.id === goodId; });
   return good ? good.name : goodId;
@@ -95,11 +107,18 @@ function _getCurrentSystem(state) {
 function _getLowPriceGood(state) {
   var system = _getCurrentSystem(state);
   if (!system || !system.prices) return null;
+  var cargoUsed = _getCargoEntries(state).reduce(function (sum, entry) {
+    return sum + entry.quantity;
+  }, 0);
+  var cargoFree = Math.max(0, Number(state.maxCargo || 0) - cargoUsed);
+  if (cargoFree <= 0 || Number(state.credits || 0) <= 0) return null;
 
   return GOODS.filter(function (good) {
     if (good.id === 'fuel') return false;
+    if (Array.isArray(good.marketAccess) && good.marketAccess.indexOf('open') === -1) return false;
     var multiplier = Number(system.prices[good.id] || 1);
-    return multiplier > 0 && multiplier <= LOW_PRICE_THRESHOLD;
+    var price = Economy.getBuyPrice(system.id, good.id, state);
+    return multiplier > 0 && multiplier <= LOW_PRICE_THRESHOLD && price > 0 && price <= Number(state.credits || 0);
   }).sort(function (left, right) {
     return (system.prices[left.id] || 1) - (system.prices[right.id] || 1);
   }).map(function (good) {
@@ -107,6 +126,7 @@ function _getLowPriceGood(state) {
       goodId: good.id,
       goodName: good.name,
       priceSignal: system.prices[good.id],
+      unitPrice: Economy.getBuyPrice(system.id, good.id, state),
     };
   })[0] || null;
 }
@@ -136,6 +156,45 @@ function _findBestSellDestination(state, goodId) {
     return system && system.id !== state.currentSystem && system.prices && system.prices[goodId];
   }).sort(function (left, right) {
     return (right.prices[goodId] || 1) - (left.prices[goodId] || 1);
+  })[0] || null;
+}
+
+function _getTravelPlan(state, destination) {
+  if (!state || !destination || !state.currentSystem) return null;
+  var fuelCost = Economy.getFuelCost(
+    state.currentSystem,
+    destination.id,
+    state.fuelEfficiency || 1,
+    state
+  );
+  return {
+    destination: destination,
+    fuelCost: Math.max(0, Number(fuelCost) || 0),
+    canTravel: Number(state.fuel || 0) >= Math.max(0, Number(fuelCost) || 0),
+  };
+}
+
+function _getNextUnvisitedSystemPlan(state) {
+  if (!state) return null;
+  var visited = new Set(Array.isArray(state.visitedSystems) ? state.visitedSystems : []);
+  if (state.currentSystem) visited.add(state.currentSystem);
+  var systems = getAccessibleSystems(
+    state.currentGalaxy || 'milky_way',
+    state.playerLevel || 1,
+    state.researchedTechs || []
+  );
+  var candidates = (systems && systems.length > 0 ? systems : SYSTEMS).filter(function (system) {
+    return system && system.id !== state.currentSystem && !visited.has(system.id);
+  });
+  if (candidates.length === 0) {
+    candidates = (systems && systems.length > 0 ? systems : SYSTEMS).filter(function (system) {
+      return system && system.id !== state.currentSystem;
+    });
+  }
+  return candidates.map(function (system) {
+    return _getTravelPlan(state, system);
+  }).filter(Boolean).sort(function (left, right) {
+    return left.fuelCost - right.fuelCost;
   })[0] || null;
 }
 
@@ -290,6 +349,7 @@ function _shouldOfferSurveyIntel(surveyIntel) {
   return !!(
     surveyIntel &&
     surveyIntel.hasIntel &&
+    surveyIntel.hasUnreviewedReport !== false &&
     (surveyIntel.marketSignal || surveyIntel.researchSignal || surveyIntel.routeSignal || surveyIntel.logisticsSignal)
   );
 }
@@ -305,16 +365,14 @@ function _shouldOfferSurveyChainFollowup(surveyIntel) {
 }
 
 function _getSurveyIntelReason(surveyIntel) {
-  if (!surveyIntel) return '探索报告已经归档，先查看它对交易和跑商的影响。';
+  if (!surveyIntel) return '这份情报需要先在【档案 → 探索】确认用途，再纳入后续决策。';
   if (surveyIntel.nextChainFollowup && surveyIntel.nextChainFollowup.reason) return surveyIntel.nextChainFollowup.reason;
-  if (surveyIntel.beaconSignal) return '失落航标已写入隐藏航线图，可用于后续航线和自动跑商。';
-  if (surveyIntel.relicSignal) return '古代遗迹样本已经归档，可用于判断后续研究补给方向。';
-  if (surveyIntel.depotSignal) return '废弃补给站已经复原，可用于后续自动跑商和商网经营。';
-  if (surveyIntel.marketSignal) return '探索报告发现了交易机会，先查看行情再决定买卖或建站。';
-  if (surveyIntel.routeSignal) return '探索报告包含隐藏航线，可用于后续航行和跑商。';
-  if (surveyIntel.researchSignal) return '探索报告包含研究样本，可帮助选择后续研究。';
-  if (surveyIntel.logisticsSignal) return '探索报告指出补给点，可用于后续跑商和贸易站经营。';
-  return '探索报告已经归档，先查看它对交易和跑商的影响。';
+  var signal = surveyIntel.recentReportSignal || surveyIntel.primarySignal || '';
+  if (signal === 'route') return '这份报告确认了可降低燃耗的新航线，需要先归档确认再用于航行或跑商。';
+  if (signal === 'research') return '这份报告包含可影响研究方向的样本，需要先确认价值与风险。';
+  if (signal === 'market') return '这份报告发现了可用于买卖或建站判断的交易机会。';
+  if (signal === 'logistics') return '这份报告记录了可影响跑商与商网经营的补给收益。';
+  return '这份情报需要先在【档案 → 探索】确认用途，再纳入后续决策。';
 }
 
 function _getPriorityBand(suggestion) {
@@ -346,7 +404,10 @@ function _inferGuidanceTopic(suggestion) {
   if (id === 'accept-first-trade') return _getTopic('starterTrade', '领取任务');
   if (id === 'buy-low-price-good' || id === 'open-market-for-first-trade') return _getTopic('starterTrade', '买入货物');
   if (id === 'sell-first-cargo' || id === 'find-sell-destination') return _getTopic('starterTrade', '完成结算');
+  if (id === 'refuel-for-cargo-route') return _getTopic('stability', '卖货航程补给');
   if (id === 'accept-first-explore') return _getTopic('starterExplore', '接入探索');
+  if (id === 'visit-next-system') return _getTopic('starterExplore', '造访新航点');
+  if (id === 'refuel-for-explore-route') return _getTopic('starterExplore', '为航程补给');
   if (id === 'explore-current-poi') return _getTopic('starterExplore', '调查探索点');
 
   if (id === 'handle-pending-event') return _getTopic('stability', '处理事件');
@@ -357,11 +418,12 @@ function _inferGuidanceTopic(suggestion) {
   if (id === 'prefill-research-supply-dispatch') return _getTopic('researchSupply', '自动补给');
   if (id === 'resolve-research-funding') return _getTopic('researchSupply', '筹措垫资');
 
+  if (id === 'prefill-quest-dispatch') return _getTopic('dispatchOps', '任务运输');
   if (id === 'prefill-profitable-dispatch') return _getTopic('dispatchOps', '预填商运');
   if (id === 'install-recommended-ship-mod') return _getTopic('dispatchOps', '强化舰船');
 
   if (id === 'review-survey-chain-followup') return _getTopic('surveyIntel', '跟进连续任务');
-  if (id === 'review-survey-market-intel') return _getTopic('surveyIntel', '查看线索');
+  if (id === 'review-survey-archive') return _getTopic('surveyIntel', '确认情报用途');
 
   if (id === 'build-trade-station') return _getTopic('tradeNetwork', '新建贸易站');
   if (id === 'upgrade-trade-station') return _getTopic('tradeNetwork', '升级贸易站');
@@ -383,7 +445,7 @@ function _decorateSuggestion(suggestion) {
   if (!next.guidanceTopic) {
     next.guidanceTopic = _inferGuidanceTopic(next);
   }
-  return next;
+  return decorateGuidanceFlow(next);
 }
 
 function _createSuggestion(config) {
@@ -421,6 +483,20 @@ function _inferSuggestionTarget(suggestion) {
       target.systemId = _normalizeTargetValue(payload.systemId);
     }
     return target;
+  }
+
+  if (suggestion.actionType === 'archive.open') {
+    return {
+      surface: 'archive',
+      tabId: _normalizeTargetValue(suggestion.payload && suggestion.payload.tabId) || 'tab-exploration',
+    };
+  }
+
+  if (suggestion.actionType === 'quest.open') {
+    return {
+      surface: 'archive',
+      tabId: _normalizeTargetValue(suggestion.payload && suggestion.payload.tabId) || 'tab-quest',
+    };
   }
 
   return null;
@@ -464,10 +540,19 @@ function _isMarketTargetSatisfied(target, state, options) {
     _targetFieldMatches(target.systemId, activeTarget.systemId);
 }
 
+function _isArchiveTargetSatisfied(target, options) {
+  var opts = options || {};
+  if (!opts.archiveOpen) return false;
+  var activeTab = _normalizeTargetValue(opts.archiveTab);
+  if (!activeTab) return true;
+  return _targetFieldMatches(target.tabId, activeTab);
+}
+
 function _isSuggestionTargetSatisfied(suggestion, state, options) {
   var target = _inferSuggestionTarget(suggestion);
   if (!target || !target.surface) return false;
   if (target.surface === 'market') return _isMarketTargetSatisfied(target, state, options);
+  if (target.surface === 'archive') return _isArchiveTargetSatisfied(target, options);
   return false;
 }
 
@@ -485,6 +570,7 @@ export function getCurrentSuggestion(state, options) {
 
   var activeQuests = Quest.getActiveQuests(state);
   var firstTradeActive = _getActiveQuest(state, FIRST_TRADE_QUEST_ID);
+  var firstExploreActive = _getActiveQuest(state, FIRST_EXPLORE_QUEST_ID);
   var firstTradeAvailable = _getAvailableQuest(state, FIRST_TRADE_QUEST_ID);
   var firstExploreAvailable = _getAvailableQuest(state, FIRST_EXPLORE_QUEST_ID);
   var lowPriceGood = _getLowPriceGood(state);
@@ -525,8 +611,8 @@ export function getCurrentSuggestion(state, options) {
       id: 'refuel-low-tank',
       priority: 95,
       title: '补足当前燃料',
-      reason: '燃料已低于安全线，先补给可以避免下一段航行无法出发。',
-      actionLabel: '补充燃料',
+      reason: '当前燃料 ' + Math.floor(Number(state.fuel || 0)) + '/' + Math.floor(Number(state.maxFuel || 0)) + '，低于安全线，先补给可避免下一段航行中断。',
+      actionLabel: '补给至安全水位',
       actionType: 'trade.refuel',
       payload: {
         fuelNeeded: fuelNeeded,
@@ -543,7 +629,7 @@ export function getCurrentSuggestion(state, options) {
       priority: 58,
       title: '安排激活飞船维修',
       reason: _getRepairSuggestionReason(opts.serviceStatus),
-      actionLabel: '打开机库',
+      actionLabel: '打开维修方案',
       actionType: 'fleet.service.open',
       payload: {
         shipIndex: opts.serviceStatus.shipIndex || 0,
@@ -553,19 +639,22 @@ export function getCurrentSuggestion(state, options) {
       surface: 'fleet',
     }));
   } else if (_shouldOfferRepairFunding(opts.serviceStatus)) {
+    var repairNeedsQuestFunding = Number(state.credits || 0) <= 0 && !_hasCargo(state);
+    var repairCost = Number(opts.serviceStatus.repairQuote.cost || 0);
     suggestions.push(_createSuggestion({
       id: 'fund-ship-service',
       priority: 35,
-      title: '筹措维修资金',
-      reason: '激活飞船需要维修但积分不足，先做一笔周转再回机库。',
-      actionLabel: '打开市场',
-      actionType: 'market.open',
-      payload: {
-        workspaceId: 'spot',
-        subworkspaceId: 'trade',
-      },
-      surface: 'market',
-      commandIntent: '买卖货物',
+      title: '筹措' + (repairCost > 0 ? (' ' + repairCost.toLocaleString() + ' 积分') : '') + '维修款',
+      reason: repairNeedsQuestFunding
+        ? '当前没有可卖库存且余额为 0，先完成一项委托获取维修启动资金。'
+        : '维修报价已明确，先通过卖货或盈利交易把余额补到报价以上。',
+      actionLabel: repairNeedsQuestFunding ? '查看可接委托' : '打开市场筹资',
+      actionType: repairNeedsQuestFunding ? 'quest.open' : 'market.open',
+      payload: repairNeedsQuestFunding
+        ? { tabId: 'tab-quest' }
+        : { workspaceId: 'spot', subworkspaceId: 'trade' },
+      surface: repairNeedsQuestFunding ? 'quest' : 'market',
+      commandIntent: repairNeedsQuestFunding ? '可接委托' : '买卖货物',
     }));
   }
 
@@ -621,23 +710,42 @@ export function getCurrentSuggestion(state, options) {
       }));
     } else {
       var destination = _findBestSellDestination(state, cargoEntry.goodId);
-      var canDirectTravel = !!destination && !opts.eventPending;
-      suggestions.push(_createSuggestion({
-        id: 'find-sell-destination',
-        priority: 60,
-        title: destination ? ('前往「' + destination.name + '」卖货') : '寻找卖出目的地',
-        reason: opts.eventPending
-          ? '先找一个更好的卖货点；当前有待处理事件，处理后再起航。'
-          : '选择需求更高的星球，获得更好利润。',
-        actionLabel: canDirectTravel ? '直接前往' : (destination ? '查找卖货点' : '查看星图'),
-        actionType: canDirectTravel ? 'travel.execute' : 'map.focus',
-        payload: {
-          goodId: cargoEntry.goodId,
-          destinationSystemId: destination ? destination.id : '',
-          destinationSystemName: destination ? destination.name : '',
-        },
-        surface: 'navigation',
-      }));
+      var sellTravelPlan = _getTravelPlan(state, destination);
+      if (sellTravelPlan && !sellTravelPlan.canTravel && Number(state.credits || 0) > 0) {
+        suggestions.push(_createSuggestion({
+          id: 'refuel-for-cargo-route',
+          priority: 85,
+          title: '为前往「' + destination.name + '」补足燃料',
+          reason: '卖货航程需要 ' + sellTravelPlan.fuelCost + ' 燃料，当前仅有 ' + Math.floor(Number(state.fuel || 0)) + '，先补给再起航。',
+          actionLabel: '补给并恢复航线',
+          actionType: 'trade.refuel',
+          payload: {
+            fuelNeeded: Math.max(0, sellTravelPlan.fuelCost - Number(state.fuel || 0)),
+            destinationSystemId: destination.id,
+            destinationSystemName: destination.name,
+          },
+          surface: 'market',
+        }));
+      } else {
+        var canDirectTravel = !!(sellTravelPlan && sellTravelPlan.canTravel && !opts.eventPending);
+        suggestions.push(_createSuggestion({
+          id: 'find-sell-destination',
+          priority: 60,
+          title: destination ? ('前往「' + destination.name + '」卖货') : '寻找卖出目的地',
+          reason: sellTravelPlan && !sellTravelPlan.canTravel
+            ? ('目标航程需要 ' + sellTravelPlan.fuelCost + ' 燃料，当前资金不足；先在星图保留目标，筹资后再出发。')
+            : '目标点收购价更高，抵达后可直接卖出当前货物。',
+          actionLabel: canDirectTravel ? ('起航 · ' + (sellTravelPlan ? sellTravelPlan.fuelCost : 0) + ' 燃料') : (destination ? '在星图定位' : '查看星图'),
+          actionType: canDirectTravel ? 'travel.execute' : 'map.focus',
+          payload: {
+            goodId: cargoEntry.goodId,
+            destinationSystemId: destination ? destination.id : '',
+            destinationSystemName: destination ? destination.name : '',
+            fuelCost: sellTravelPlan ? sellTravelPlan.fuelCost : 0,
+          },
+          surface: 'navigation',
+        }));
+      }
     }
   }
 
@@ -654,7 +762,60 @@ export function getCurrentSuggestion(state, options) {
     }));
   }
 
-  if (_shouldOfferResearchSupply(opts.researchSupplyRoute) && !_isRouteRecommendationOpen(opts.researchSupplyRoute, opts.dispatchModalContext)) {
+  if (firstExploreActive && _isQuestObjectiveIncomplete(firstExploreActive, 'visit_systems')) {
+    var exploreTravelPlan = _getNextUnvisitedSystemPlan(state);
+    if (exploreTravelPlan && !exploreTravelPlan.canTravel && Number(state.credits || 0) > 0) {
+      suggestions.push(_createSuggestion({
+        id: 'refuel-for-explore-route',
+        priority: 54,
+        title: '为造访「' + exploreTravelPlan.destination.name + '」补足燃料',
+        reason: '「初探宇宙」还需造访一个新航点，该航程需要 ' + exploreTravelPlan.fuelCost + ' 燃料。',
+        actionLabel: '补给并继续任务',
+        actionType: 'trade.refuel',
+        payload: {
+          fuelNeeded: Math.max(0, exploreTravelPlan.fuelCost - Number(state.fuel || 0)),
+          destinationSystemId: exploreTravelPlan.destination.id,
+          destinationSystemName: exploreTravelPlan.destination.name,
+        },
+        surface: 'market',
+      }));
+    } else if (exploreTravelPlan) {
+      suggestions.push(_createSuggestion({
+        id: 'visit-next-system',
+        priority: 52,
+        title: '前往「' + exploreTravelPlan.destination.name + '」完成第二个航点',
+        reason: '「初探宇宙」目标是造访 2 个不同星球；这是当前燃耗最低的未访问航点。',
+        actionLabel: exploreTravelPlan.canTravel ? ('起航 · ' + exploreTravelPlan.fuelCost + ' 燃料') : '在星图定位',
+        actionType: exploreTravelPlan.canTravel ? 'travel.execute' : 'map.focus',
+        payload: {
+          destinationSystemId: exploreTravelPlan.destination.id,
+          destinationSystemName: exploreTravelPlan.destination.name,
+          fuelCost: exploreTravelPlan.fuelCost,
+          questId: FIRST_EXPLORE_QUEST_ID,
+        },
+        surface: 'navigation',
+      }));
+    }
+  }
+
+  if (_shouldOfferDispatchRoute(opts.questRouteRecommendation) && !_isRouteRecommendationOpen(opts.questRouteRecommendation, opts.dispatchModalContext)) {
+    suggestions.push(_createSuggestion({
+      id: 'prefill-quest-dispatch',
+      priority: 82,
+      title: '执行「' + (opts.questRouteRecommendation.questName || '当前任务') + '」运输路线',
+      reason: _getDispatchRouteReason(opts.questRouteRecommendation),
+      actionLabel: '带入机库核对',
+      actionType: 'fleet.dispatch.prefill',
+      payload: {
+        sourceLabel: '任务运输建议',
+        recommendation: opts.questRouteRecommendation,
+      },
+      surface: 'fleet',
+      commandIntent: '任务路线',
+    }));
+  }
+
+  if (!_shouldOfferDispatchRoute(opts.questRouteRecommendation) && _shouldOfferResearchSupply(opts.researchSupplyRoute) && !_isRouteRecommendationOpen(opts.researchSupplyRoute, opts.dispatchModalContext)) {
     suggestions.push(_createSuggestion({
       id: 'prefill-research-supply-dispatch',
       priority: 24,
@@ -669,23 +830,25 @@ export function getCurrentSuggestion(state, options) {
       surface: 'fleet',
     }));
   } else if (_shouldOfferResearchFunding(opts.researchBlocker)) {
+    var researchNeedsQuestFunding = Number(state.credits || 0) <= 0 && !_hasCargo(state);
     suggestions.push(_createSuggestion({
       id: 'resolve-research-funding',
       priority: 34,
-      title: '补足科研补给资金',
-      reason: '当前研究方向缺少进货垫资，先打开市场做一笔周转。',
-      actionLabel: '打开市场',
-      actionType: 'market.open',
-      payload: {
-        workspaceId: 'spot',
-        subworkspaceId: 'trade',
-      },
-      surface: 'market',
-      commandIntent: '买卖货物',
+      title: researchNeedsQuestFunding ? '先完成委托筹措科研垫资' : '通过交易补足科研垫资',
+      reason: researchNeedsQuestFunding
+        ? '当前余额为 0 且没有可卖库存，市场无法直接周转，先领取可在当前条件下完成的委托。'
+        : '当前研究缺少进货垫资，先卖出库存或完成一笔盈利交易。',
+      actionLabel: researchNeedsQuestFunding ? '查看可接委托' : '打开市场筹资',
+      actionType: researchNeedsQuestFunding ? 'quest.open' : 'market.open',
+      payload: researchNeedsQuestFunding
+        ? { tabId: 'tab-quest' }
+        : { workspaceId: 'spot', subworkspaceId: 'trade' },
+      surface: researchNeedsQuestFunding ? 'quest' : 'market',
+      commandIntent: researchNeedsQuestFunding ? '可接委托' : '买卖货物',
     }));
   }
 
-  if (!_shouldOfferResearchSupply(opts.researchSupplyRoute) && _shouldOfferDispatchRoute(opts.dispatchRouteRecommendation) && !_isRouteRecommendationOpen(opts.dispatchRouteRecommendation, opts.dispatchModalContext)) {
+  if (!_shouldOfferDispatchRoute(opts.questRouteRecommendation) && !_shouldOfferResearchSupply(opts.researchSupplyRoute) && _shouldOfferDispatchRoute(opts.dispatchRouteRecommendation) && !_isRouteRecommendationOpen(opts.dispatchRouteRecommendation, opts.dispatchModalContext)) {
     suggestions.push(_createSuggestion({
       id: 'prefill-profitable-dispatch',
       priority: 23,
@@ -706,38 +869,38 @@ export function getCurrentSuggestion(state, options) {
     suggestions.push(_createSuggestion({
       id: 'review-survey-chain-followup',
       priority: 37,
-      title: '跟进「' + (chainFollowup.chainLabel || '探索链') + '」',
+      title: '确认「' + (chainFollowup.chainLabel || '探索链') + '」的后续用途',
       reason: chainFollowup.reason || _getSurveyIntelReason(opts.surveyIntel),
-      actionLabel: chainFollowup.actionLabel || '查看情报',
-      actionType: 'market.open',
+      actionLabel: '打开档案确认',
+      actionType: 'archive.open',
       payload: {
-        workspaceId: chainFollowup.workspaceId || 'spot',
-        subworkspaceId: chainFollowup.subworkspaceId || 'intel',
+        tabId: 'tab-exploration',
         systemId: opts.surveyIntel.systemId || state.currentSystem,
         intelSignal: chainFollowup.signal || opts.surveyIntel.primarySignal || '',
         chainId: chainFollowup.chainId || '',
+        reportId: opts.surveyIntel.recentReportId || chainFollowup.reportId || '',
         chainKind: chainFollowup.chainKind || '',
         chainLabel: chainFollowup.chainLabel || '',
       },
-      surface: 'market',
-      commandIntent: chainFollowup.chainKind === 'derelict_depot' ? '连续任务经营' : '连续任务线索',
+      surface: 'archive',
+      commandIntent: '探索报告',
     }));
   } else if (_shouldOfferSurveyIntel(opts.surveyIntel)) {
     suggestions.push(_createSuggestion({
-      id: 'review-survey-market-intel',
+      id: 'review-survey-archive',
       priority: 32,
-      title: '查看「' + (opts.surveyIntel.recentReportTitle || '探索报告') + '」',
+      title: '确认「' + (opts.surveyIntel.recentReportTitle || '探索报告') + '」的用途',
       reason: _getSurveyIntelReason(opts.surveyIntel),
-      actionLabel: '查看行情',
-      actionType: 'market.open',
+      actionLabel: '打开档案确认',
+      actionType: 'archive.open',
       payload: {
-        workspaceId: 'spot',
-        subworkspaceId: 'intel',
+        tabId: 'tab-exploration',
         systemId: opts.surveyIntel.systemId || state.currentSystem,
         intelSignal: opts.surveyIntel.primarySignal || '',
+        reportId: opts.surveyIntel.recentReportId || '',
       },
-      surface: 'market',
-      commandIntent: '行情与路线',
+      surface: 'archive',
+      commandIntent: '探索报告',
     }));
   }
 

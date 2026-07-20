@@ -41,8 +41,58 @@ export function handleGuidanceAction(suggestion, context) {
       if (payload.questId) {
         _call(ctx, 'selectAvailableQuest', payload.questId);
       }
-      _call(ctx, 'activateTab', 'tab-quest');
+      _call(ctx, 'activateTab', payload.tabId || 'tab-quest');
       _call(ctx, 'updateUI');
+      _call(ctx, 'emitLog', {
+        text: buildCommandFeedback({
+          actionId: 'quest',
+          commandSurface: 'quest',
+          commandIntent: suggestion.commandIntent || '可接委托',
+          label: suggestion.actionLabel || '查看任务',
+        }, {
+          icon: '📋',
+          destination: '档案 · 任务',
+          nextStep: suggestion.title || '选择当前条件下可完成的委托',
+          returnTo: '接取后当前行动会按目标继续引导',
+        }),
+        type: 'tip',
+      });
+      showContextCompletion(ctx, {
+        message: '已打开任务档案',
+        detail: '选择可完成委托后继续',
+      });
+      return;
+
+    case 'archive.open':
+      if (payload.chainId && typeof ctx.acknowledgeSurveyChainFollowup === 'function') {
+        _call(ctx, 'acknowledgeSurveyChainFollowup', payload.systemId || state.currentSystem, payload.chainId);
+      }
+      if (payload.reportId && typeof ctx.acknowledgeSurveyReport === 'function') {
+        _call(ctx, 'acknowledgeSurveyReport', payload.systemId || state.currentSystem, payload.reportId);
+      }
+      _call(ctx, 'activateTab', payload.tabId || 'tab-exploration');
+      _call(ctx, 'updateUI');
+      if (typeof ctx.revealArchiveReportFocus === 'function') {
+        _call(ctx, 'revealArchiveReportFocus', payload.systemId || state.currentSystem, payload.chainId || '');
+      }
+      _call(ctx, 'emitLog', {
+        text: buildCommandFeedback({
+          actionId: 'archive',
+          commandSurface: 'archive',
+          commandIntent: '探索报告',
+          label: suggestion.actionLabel || '打开档案确认',
+        }, {
+          icon: '📘',
+          destination: '档案 · 探索报告',
+          nextStep: suggestion.title,
+          returnTo: '关闭档案后，当前行动会自动刷新为下一条可执行建议',
+        }),
+        type: 'tip',
+      });
+      showContextCompletion(ctx, {
+        message: '报告用途已确认',
+        detail: '关闭档案后将继续给出下一条行动',
+      });
       return;
 
     case 'trade.buy':
@@ -76,12 +126,17 @@ export function handleGuidanceAction(suggestion, context) {
 
     case 'fleet.service.open':
       _call(ctx, 'activateTab', 'tab-fleet');
+      if (typeof ctx.openRecommendedMod === 'function') {
+        _call(ctx, 'openRecommendedMod', Object.assign({}, payload, { focusService: true }));
+      } else {
+        _call(ctx, 'updateUI');
+      }
       _call(ctx, 'emitLog', {
         text: buildCommandFeedback({
           actionId: 'service',
           commandSurface: 'fleet',
           commandIntent: '维修船坞',
-          label: suggestion.actionLabel || '打开机库',
+          label: suggestion.actionLabel || '打开维修方案',
         }, {
           icon: '🔧',
           openedVerb: '已切到',
@@ -93,7 +148,6 @@ export function handleGuidanceAction(suggestion, context) {
         }),
         type: 'tip',
       });
-      _call(ctx, 'updateUI');
       return;
 
     case 'fleet.mod.open':

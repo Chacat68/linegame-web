@@ -36,6 +36,8 @@ describe('Action guide responsive CSS', function () {
     expect(surfaces).toContain('grid-template-columns: minmax(0, 1fr) auto');
     expect(surfaces).toMatch(/\.action-guide-primary \.command-action-kicker\s*\{[^}]*display:\s*none/);
     expect(surfaces).toMatch(/\.action-guide-reason\s*\{[^}]*text-overflow:\s*ellipsis/);
+    expect(surfaces).toContain('#action-guide .action-guide-outcome');
+    expect(surfaces).toContain('#action-guide .action-guide-flow-label');
     expect(responsive).toContain('@media (max-width: 560px)');
     expect(responsive).toContain('"status primary"');
   });

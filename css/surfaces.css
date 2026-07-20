@@ -438,7 +438,7 @@ body::before {
   grid-template-areas:
     "status kicker primary"
     "status main primary";
-  min-height: 76px;
+  min-height: 92px;
   align-items: center;
   padding: 10px 12px 10px 0;
   gap: 4px 12px;
@@ -503,7 +503,7 @@ body::before {
   min-width: 0;
   align-items: start;
   justify-items: start;
-  gap: 2px;
+  gap: 3px;
   text-align: left;
 }
 
@@ -521,7 +521,9 @@ body::before {
 }
 
 #action-guide .action-guide-reason {
-  display: block;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
   max-width: 100%;
   overflow: hidden;
   color: var(--ui-text-muted);
@@ -532,6 +534,28 @@ body::before {
   white-space: nowrap;
 }
 
+#action-guide .action-guide-outcome {
+  display: flex;
+  max-width: 100%;
+  align-items: baseline;
+  gap: 5px;
+  overflow: hidden;
+  color: rgba(167, 243, 208, 0.78);
+  font-size: 10.5px;
+  line-height: 1.35;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#action-guide .action-guide-flow-label {
+  flex: 0 0 auto;
+  color: var(--ui-accent-strong);
+  font-size: 8px;
+  font-weight: 760;
+  letter-spacing: 0.06em;
+}
+
 #action-guide .action-guide-primary.command-action-btn {
   grid-area: primary;
   display: grid;
@@ -539,7 +563,7 @@ body::before {
   grid-template-rows: auto;
   width: 136px;
   min-width: 0;
-  min-height: 52px;
+  min-height: 62px;
   align-content: center;
   justify-self: stretch;
   padding: 7px 10px 7px 12px;

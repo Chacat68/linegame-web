@@ -68,6 +68,8 @@ describe('ActionGuideUI', function () {
       id: 'accept-first-trade',
       title: '接取「初次交易」',
       reason: '完成第一笔买卖。',
+      purpose: '建立第一个交易闭环。',
+      outcome: '成交后会结算新手任务。',
       actionLabel: '接取任务',
       actionType: 'quest.accept',
       surface: 'quest',
@@ -81,6 +83,8 @@ describe('ActionGuideUI', function () {
     expect(root.hidden).toBe(false);
     expect(root.dataset.guideId).toBe('accept-first-trade');
     expect(root.innerHTML).toContain('当前行动');
+    expect(root.innerHTML).toContain('目的</b>建立第一个交易闭环');
+    expect(root.innerHTML).toContain('完成后</b>成交后会结算新手任务');
     expect(root.innerHTML).toContain('接取任务');
     expect(root.innerHTML).toContain('data-command-surface="quest"');
     expect(root.innerHTML).toContain('data-command-intent="任务接取"');

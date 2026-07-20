@@ -105,13 +105,16 @@ function _renderExpanded(suggestion) {
   var commandAction = _getSuggestionCommandAction(suggestion);
   var topic = _getGuidanceTopic(suggestion);
   var topicAttr = topic ? (' data-guide-topic="' + _escapeHtml(topic.id) + '"') : '';
+  var purpose = suggestion.purpose || suggestion.reason || '完成当前步骤。';
+  var outcome = suggestion.outcome || '完成后会自动刷新下一条建议。';
   return '<div class="action-guide-shell" data-guide-surface="' + _escapeHtml(suggestion.surface || 'system') + '"' + topicAttr + '>' +
     '<div class="action-guide-status" aria-hidden="true"></div>' +
     '<div class="action-guide-copy">' +
       '<div class="action-guide-kicker">' + _renderKicker(suggestion) + '</div>' +
       '<div class="action-guide-main">' +
         '<strong class="action-guide-title">' + _escapeHtml(suggestion.title) + '</strong>' +
-        '<span class="action-guide-reason">' + _escapeHtml(suggestion.reason) + '</span>' +
+        '<span class="action-guide-reason"><b class="action-guide-flow-label">目的</b>' + _escapeHtml(purpose) + '</span>' +
+        '<span class="action-guide-outcome"><b class="action-guide-flow-label">完成后</b>' + _escapeHtml(outcome) + '</span>' +
       '</div>' +
     '</div>' +
     '<div class="action-guide-actions">' +

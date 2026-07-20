@@ -39,8 +39,11 @@ describe('GuidanceActionController', function () {
       actionType: 'trade.buy',
       payload: { questName: '补给合约' },
     })).toBe('已打开交易确认，完成后将推进「补给合约」');
-    expect(getProcessingMessage({ actionType: 'fleet.service.open' })).toBe('已切到机库，检查维修方案');
+    expect(getProcessingMessage({ actionType: 'fleet.service.open' })).toBe('已切到机库，正在定位即时保养');
+    expect(getProcessingMessage({ actionType: 'quest.open' })).toBe('已打开任务档案，请选择可完成委托');
+    expect(getProcessingMessage({ actionType: 'market.open' })).toBe('已打开市场导航，正在定位对应操作');
     expect(getProcessingMessage({ actionType: 'fleet.mod.open' })).toBe('已切到机库，查看推荐改装');
+    expect(getProcessingMessage({ actionType: 'archive.open' })).toBe('已切到探索档案，正在确认报告用途');
     expect(getProcessingMessage({ actionType: 'exploration.poi' })).toBe('已执行探索指令，正在刷新现场建议');
   });
 
@@ -85,6 +88,26 @@ describe('GuidanceActionController', function () {
     expect(context.calls[3]).toEqual(['showCompletion', '已打开市场导航', '下一条行动建议已刷新']);
   });
 
+  it('资金恢复行动会打开任务档案并说明返回条件', function () {
+    var context = createCallContext({
+      activateTab: function (tabId) { context.calls.push(['activateTab', tabId]); },
+    });
+
+    handleGuidanceAction({
+      actionType: 'quest.open',
+      title: '先完成委托筹措科研垫资',
+      actionLabel: '查看可接委托',
+      commandIntent: '可接委托',
+      payload: { tabId: 'tab-quest' },
+    }, context);
+
+    expect(context.calls[0]).toEqual(['activateTab', 'tab-quest']);
+    expect(context.calls[1]).toEqual(['updateUI']);
+    expect(context.calls[2][0]).toBe('emitLog');
+    expect(context.calls[2][1].text).toContain('档案 · 任务');
+    expect(context.calls[3]).toEqual(['showCompletion', '已打开任务档案', '选择可完成委托后继续']);
+  });
+
   it('市场聚焦带商品时会同步高亮商品', function () {
     var context = createCallContext();
 
@@ -103,6 +126,42 @@ describe('GuidanceActionController', function () {
       { tradeAction: 'sell' },
     ]);
     expect(context.calls[4]).toEqual(['showCompletion', '已打开市场导航', '下一条行动建议已刷新']);
+  });
+
+  it('探索报告行动会打开档案、确认后续并定位对应记录', function () {
+    var context = createCallContext({
+      activateTab: function (tabId) { context.calls.push(['activateTab', tabId]); },
+      acknowledgeSurveyChainFollowup: function (systemId, chainId) {
+        context.calls.push(['acknowledgeSurveyChainFollowup', systemId, chainId]);
+      },
+      acknowledgeSurveyReport: function (systemId, reportId) {
+        context.calls.push(['acknowledgeSurveyReport', systemId, reportId]);
+      },
+      revealArchiveReportFocus: function (systemId, chainId) {
+        context.calls.push(['revealArchiveReportFocus', systemId, chainId]);
+      },
+    });
+
+    handleGuidanceAction({
+      actionType: 'archive.open',
+      title: '跟进「废弃补给站」',
+      actionLabel: '打开档案确认',
+      payload: {
+        tabId: 'tab-exploration',
+        systemId: 'sol_prime',
+        chainId: 'sol_prime_depot_chain',
+        reportId: 'sol_prime_report_manifest',
+      },
+    }, context);
+
+    expect(context.calls[0]).toEqual(['acknowledgeSurveyChainFollowup', 'sol_prime', 'sol_prime_depot_chain']);
+    expect(context.calls[1]).toEqual(['acknowledgeSurveyReport', 'sol_prime', 'sol_prime_report_manifest']);
+    expect(context.calls[2]).toEqual(['activateTab', 'tab-exploration']);
+    expect(context.calls[3]).toEqual(['updateUI']);
+    expect(context.calls[4]).toEqual(['revealArchiveReportFocus', 'sol_prime', 'sol_prime_depot_chain']);
+    expect(context.calls[5][0]).toBe('emitLog');
+    expect(context.calls[5][1].text).toContain('档案 · 探索报告');
+    expect(context.calls[6]).toEqual(['showCompletion', '报告用途已确认', '关闭档案后将继续给出下一条行动']);
   });
 
   it('地图聚焦完成后会展示完成态', function () {
@@ -178,6 +237,28 @@ describe('GuidanceActionController', function () {
     expect(context.calls[2][0]).toBe('emitLog');
     expect(context.calls[2][1].text).toContain('模块改装');
     expect(context.calls[2][1].text).toContain('深空测绘阵列');
+  });
+
+  it('维修行动会直接打开并定位即时保养方案', function () {
+    var context = createCallContext({
+      activateTab: function (tabId) { context.calls.push(['activateTab', tabId]); },
+      openRecommendedMod: function (payload) { context.calls.push(['openRecommendedMod', payload]); },
+    });
+
+    handleGuidanceAction({
+      actionType: 'fleet.service.open',
+      actionLabel: '打开维修方案',
+      payload: { shipIndex: 0, repairCost: 360 },
+    }, context);
+
+    expect(context.calls[0]).toEqual(['activateTab', 'tab-fleet']);
+    expect(context.calls[1]).toEqual(['openRecommendedMod', {
+      shipIndex: 0,
+      repairCost: 360,
+      focusService: true,
+    }]);
+    expect(context.calls[2][0]).toBe('emitLog');
+    expect(context.calls[2][1].text).toContain('维修船坞');
   });
 
   it('可复用市场目的地文案映射', function () {

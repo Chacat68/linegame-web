@@ -170,7 +170,7 @@ describe('GuidanceSystem', function () {
     expect(suggestion).toMatchObject({
       id: 'find-sell-destination',
       actionType: 'travel.execute',
-      actionLabel: '直接前往',
+      actionLabel: '起航 · 5 燃料',
       payload: { goodId: 'food' },
     });
     expect(suggestion.payload.destinationSystemId).toBeTruthy();
@@ -190,7 +190,7 @@ describe('GuidanceSystem', function () {
     expect(suggestion).toMatchObject({
       id: 'find-sell-destination',
       actionType: 'travel.execute',
-      actionLabel: '直接前往',
+      actionLabel: '起航 · 5 燃料',
       payload: { goodId: 'food' },
     });
   });
@@ -227,7 +227,7 @@ describe('GuidanceSystem', function () {
     });
   });
 
-  it('探索点 调查建议优先级低于新手贸易链', function () {
+  it('新手主线会优先造访第二个航点，不被当地探索点带偏', function () {
     var state = createTestState({ quests: [], completedQuests: [] });
     var suggestion = getCurrentSuggestion(state, {
       nextPoi: { id: 'poi_1', name: '补给点' },
@@ -245,9 +245,39 @@ describe('GuidanceSystem', function () {
     });
 
     expect(explorationOnly).toMatchObject({
-      id: 'explore-current-poi',
-      actionType: 'exploration.poi',
+      id: 'visit-next-system',
+      actionType: 'travel.execute',
+      payload: {
+        questId: 'starter_visit_2',
+      },
     });
+    expect(explorationOnly.purpose).toContain('造访 2 个不同星球');
+    expect(explorationOnly.nextStep).toContain('起航');
+    expect(explorationOnly.outcome).toContain('结算「初探宇宙」');
+  });
+
+  it('新手探索航程燃料不足时会先给出与目标绑定的补给行动', function () {
+    var state = createTestState({
+      quests: [createFirstExploreQuest()],
+      completedQuests: ['starter_first_trade'],
+      cargo: {},
+      currentSystem: 'sol_prime',
+      fuel: 0.5,
+      maxFuel: 1,
+      credits: 1000,
+    });
+    var suggestion = getCurrentSuggestion(state);
+
+    expect(suggestion).toMatchObject({
+      id: 'refuel-for-explore-route',
+      actionType: 'trade.refuel',
+      guidanceTopic: {
+        id: GUIDANCE_TOPICS.starterExplore.id,
+        stepLabel: '为航程补给',
+      },
+    });
+    expect(suggestion.reason).toContain('初探宇宙');
+    expect(suggestion.outcome).toContain('未访问航点');
   });
 
   it('教程或阻塞弹窗打开时不输出普通行动建议', function () {
@@ -317,7 +347,7 @@ describe('GuidanceSystem', function () {
     expect(suggestion).toMatchObject({
       id: 'refuel-low-tank',
       actionType: 'trade.refuel',
-      actionLabel: '补充燃料',
+      actionLabel: '补给至安全水位',
       payload: {
         fuelNeeded: 90,
         workspaceId: 'spot',
@@ -418,6 +448,46 @@ describe('GuidanceSystem', function () {
     });
   });
 
+  it('任务运输路线会优先于无关的通用卖货点', function () {
+    var questRouteRecommendation = {
+      questId: 'deliver_relief',
+      questName: '紧急援助',
+      buySystemId: 'sol_prime',
+      buySystemName: '太阳主星',
+      sellSystemId: 'medical_hub',
+      sellSystemName: '医疗中枢',
+      goodId: 'medicine',
+      goodName: '药品',
+      recommendedTradePolicy: { riskMode: 'balanced', marketMode: 'open' },
+    };
+    var state = createTestState({
+      quests: [{
+        id: 'deliver_relief',
+        name: '紧急援助',
+        objectives: [{ type: 'deliver', goodId: 'medicine', targetSystem: 'medical_hub', amount: 3, current: 0 }],
+      }],
+      completedQuests: ['starter_first_trade', 'starter_visit_2'],
+      cargo: { medicine: 3 },
+      currentSystem: 'sol_prime',
+      fuel: 100,
+    });
+    var suggestion = getCurrentSuggestion(state, {
+      questRouteRecommendation: questRouteRecommendation,
+    });
+
+    expect(suggestion).toMatchObject({
+      id: 'prefill-quest-dispatch',
+      actionType: 'fleet.dispatch.prefill',
+      actionLabel: '带入机库核对',
+      payload: {
+        sourceLabel: '任务运输建议',
+        recommendation: questRouteRecommendation,
+      },
+    });
+    expect(suggestion.title).toContain('紧急援助');
+    expect(suggestion.outcome).toContain('任务目标');
+  });
+
   it('科研补给资金不足时推荐先打开市场周转', function () {
     var state = createTestState({
       quests: [],
@@ -442,6 +512,54 @@ describe('GuidanceSystem', function () {
         subworkspaceId: 'trade',
       },
     });
+  });
+
+  it('余额和库存都为零时不会误导玩家去无法周转的市场', function () {
+    var state = createTestState({
+      quests: [],
+      completedQuests: ['starter_first_trade', 'starter_visit_2'],
+      cargo: {},
+      credits: 0,
+      fuel: 100,
+      maxFuel: 100,
+      currentSystem: 'sol_prime',
+    });
+    var suggestion = getCurrentSuggestion(state, {
+      researchBlocker: {
+        reasonId: 'credits',
+        blockedReason: '当前资金不足。',
+      },
+    });
+
+    expect(suggestion).toMatchObject({
+      id: 'resolve-research-funding',
+      actionType: 'quest.open',
+      actionLabel: '查看可接委托',
+      payload: { tabId: 'tab-quest' },
+    });
+    expect(suggestion.reason).toContain('市场无法直接周转');
+  });
+
+  it('卖货航程燃料不足时会先补给，不会发出必然失败的起航指令', function () {
+    var state = createTestState({
+      quests: [],
+      completedQuests: ['starter_first_trade', 'starter_visit_2'],
+      cargo: { food: 2 },
+      credits: 1000,
+      fuel: 1,
+      maxFuel: 2,
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+    });
+    var suggestion = getCurrentSuggestion(state);
+
+    expect(suggestion).toMatchObject({
+      id: 'refuel-for-cargo-route',
+      actionType: 'trade.refuel',
+      priorityBand: GUIDANCE_PRIORITY_BANDS.critical.id,
+    });
+    expect(suggestion.reason).toContain('卖货航程需要');
+    expect(suggestion.outcome).toContain('卖货点');
   });
 
   it('早期闭环结束后会推荐普通跑商路线预填', function () {
@@ -539,7 +657,7 @@ describe('GuidanceSystem', function () {
     expect(suggestion).toMatchObject({
       id: 'service-active-ship',
       actionType: 'fleet.service.open',
-      actionLabel: '打开机库',
+      actionLabel: '打开维修方案',
       payload: {
         shipIndex: 0,
         repairCost: 280,
@@ -905,7 +1023,7 @@ describe('GuidanceSystem', function () {
     expect(suggestion.payload.systemIds.length).toBeGreaterThanOrEqual(2);
   });
 
-  it('有可用勘探经营情报时推荐打开行情与路线', function () {
+  it('有可用勘探经营情报时推荐打开探索档案', function () {
     var state = createTestState({
       quests: [],
       completedQuests: ['starter_first_trade', 'starter_visit_2'],
@@ -924,19 +1042,21 @@ describe('GuidanceSystem', function () {
         routeSignal: false,
         logisticsSignal: false,
         primarySignal: 'market',
+        recentReportSignal: 'market',
+        recentReportId: 'sol_prime_report_manifest',
         recentReportTitle: '轨道种子库清单',
       },
     });
 
     expect(suggestion).toMatchObject({
-      id: 'review-survey-market-intel',
-      actionType: 'market.open',
-      actionLabel: '查看行情',
+      id: 'review-survey-archive',
+      actionType: 'archive.open',
+      actionLabel: '打开档案确认',
       payload: {
-        workspaceId: 'spot',
-        subworkspaceId: 'intel',
+        tabId: 'tab-exploration',
         systemId: 'sol_prime',
         intelSignal: 'market',
+        reportId: 'sol_prime_report_manifest',
       },
     });
     expect(suggestion.reason).toContain('交易机会');
@@ -978,11 +1098,10 @@ describe('GuidanceSystem', function () {
     expect(suggestion).toMatchObject({
       id: 'review-survey-chain-followup',
       priority: 37,
-      actionType: 'market.open',
-      actionLabel: '规划商网',
+      actionType: 'archive.open',
+      actionLabel: '打开档案确认',
       payload: {
-        workspaceId: 'operations',
-        subworkspaceId: 'network',
+        tabId: 'tab-exploration',
         systemId: 'sol_prime',
         intelSignal: 'logistics',
         chainId: 'sol_prime_depot_chain',
@@ -997,7 +1116,7 @@ describe('GuidanceSystem', function () {
     expect(suggestion.title).toContain('废弃补给站');
   });
 
-  it('行情与路线已经打开时不会反复推荐查看同一份勘探行情', function () {
+  it('已确认的普通报告不会反复占用当前行动', function () {
     var state = createTestState({
       quests: [],
       completedQuests: ['starter_first_trade', 'starter_visit_2'],
@@ -1008,12 +1127,32 @@ describe('GuidanceSystem', function () {
       currentSystem: 'sol_prime',
     });
     var suggestion = getCurrentSuggestion(state, {
-      marketOpen: true,
-      marketFocus: {
-        workspaceId: 'spot',
-        subworkspaceId: 'intel',
+      surveyIntel: {
         systemId: 'sol_prime',
+        hasIntel: true,
+        hasUnreviewedReport: false,
+        marketSignal: true,
+        primarySignal: 'market',
+        recentReportTitle: '轨道种子库清单',
       },
+    });
+
+    expect(suggestion).toBe(null);
+  });
+
+  it('探索档案已经打开时不会反复推荐查看同一份报告', function () {
+    var state = createTestState({
+      quests: [],
+      completedQuests: ['starter_first_trade', 'starter_visit_2'],
+      cargo: {},
+      credits: 5000,
+      fuel: 100,
+      maxFuel: 100,
+      currentSystem: 'sol_prime',
+    });
+    var suggestion = getCurrentSuggestion(state, {
+      archiveOpen: true,
+      archiveTab: 'tab-exploration',
       surveyIntel: {
         systemId: 'sol_prime',
         hasIntel: true,
@@ -1026,7 +1165,7 @@ describe('GuidanceSystem', function () {
     expect(suggestion).toBe(null);
   });
 
-  it('市场打开但未到目标分区时仍保留市场导航建议', function () {
+  it('档案未打开时仍保留探索报告导航建议', function () {
     var state = createTestState({
       quests: [],
       completedQuests: ['starter_first_trade', 'starter_visit_2'],
@@ -1053,11 +1192,10 @@ describe('GuidanceSystem', function () {
     });
 
     expect(suggestion).toMatchObject({
-      id: 'review-survey-market-intel',
-      actionType: 'market.open',
+      id: 'review-survey-archive',
+      actionType: 'archive.open',
       payload: {
-        workspaceId: 'spot',
-        subworkspaceId: 'intel',
+        tabId: 'tab-exploration',
       },
     });
   });
@@ -1256,8 +1394,8 @@ describe('GuidanceSystem', function () {
 
   it('当前航点直接推荐调查下一处 探索点 并带上目标 id', function () {
     var state = createTestState({
-      quests: [createFirstExploreQuest()],
-      completedQuests: ['starter_first_trade'],
+      quests: [],
+      completedQuests: ['starter_first_trade', 'starter_visit_2'],
       currentSystem: 'sol_prime',
     });
     var suggestion = getCurrentSuggestion(state, {

@@ -54,6 +54,19 @@ describe('CommandAction helpers', function () {
     expect(getCommandKicker(action)).toBe('机库 · 科研补给');
   });
 
+  it('会为探索档案动作生成档案 surface 标签', function () {
+    const action = normalizeCommandAction({
+      commandSurface: 'archive',
+      commandIntent: '探索报告',
+      label: '查看报告',
+    });
+
+    expect(getCommandKicker(action)).toBe('档案 · 探索报告');
+    expect(buildCommandFeedback(action, {
+      destination: '档案 · 探索报告',
+    })).toContain('📘');
+  });
+
   it('会生成统一的动作反馈文本', function () {
     const text = buildCommandFeedback({
       actionId: 'market',
