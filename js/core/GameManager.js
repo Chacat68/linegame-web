@@ -404,6 +404,7 @@ function _loadArchiveUI() {
     _setDeferredUiState('archive', 'loading');
     _archiveUiPromise = Promise.all([
       import('../ui/QuestUI.js'),
+      import('../ui/ArchiveExplorationUI.js'),
       import('../ui/ResearchUI.js'),
       import('../ui/FactionUI.js'),
       import('../ui/AchievementUI.js'),
@@ -413,9 +414,10 @@ function _loadArchiveUI() {
       .then(function (modules) {
         _archiveUiModule = {
           QuestUI: modules[0],
-          ResearchUI: modules[1],
-          FactionUI: modules[2],
-          AchievementUI: modules[3],
+          ArchiveExplorationUI: modules[1],
+          ResearchUI: modules[2],
+          FactionUI: modules[3],
+          AchievementUI: modules[4],
         };
         if (_pendingQuestSelectionId && _archiveUiModule.QuestUI.setSelectedAvailableQuest) {
           _archiveUiModule.QuestUI.setSelectedAvailableQuest(_pendingQuestSelectionId);
@@ -883,6 +885,7 @@ function _renderArchiveUI(ArchiveUI) {
   );
   ArchiveUI.FactionUI.render(_state, _handleOpenFactionMarket);
   ArchiveUI.QuestUI.render(_state, _handleAcceptQuest, _handleAbandonQuest, activeShipDispatchContext, _handleApplyQuestDispatch, _handleResolveQuestBlocker);
+  ArchiveUI.ArchiveExplorationUI.render(_state);
   ArchiveUI.AchievementUI.render(_state);
 }
 
@@ -945,11 +948,12 @@ function _revealMarketGoodFocus(goodId, options) {
   });
 }
 
-function _revealSurveyChainFocus(chainId) {
-  _loadMarketUI().then(function (MarketUI) {
-    if (MarketUI && MarketUI.revealSurveyChainFocus) {
-      MarketUI.revealSurveyChainFocus(chainId);
-    }
+function _revealArchiveReportFocus(systemId, chainId) {
+  _loadArchiveUI().then(function (ArchiveUI) {
+    if (!ArchiveUI || !ArchiveUI.ArchiveExplorationUI) return;
+    ArchiveUI.ArchiveExplorationUI.setFocus(systemId, chainId);
+    ArchiveUI.ArchiveExplorationUI.render(_state);
+    ArchiveUI.ArchiveExplorationUI.revealFocus(systemId, chainId);
   });
 }
 
@@ -1032,7 +1036,7 @@ export function init(difficulty, options) {
   });
   MapUI.initTabs(function (tabId) {
     if (tabId === 'tab-fleet') _ensureFleetUiRendered();
-    if (['tab-quest', 'tab-research', 'tab-faction', 'tab-achievement'].indexOf(tabId) !== -1) {
+    if (['tab-quest', 'tab-exploration', 'tab-research', 'tab-faction', 'tab-achievement'].indexOf(tabId) !== -1) {
       _ensureArchiveUiRendered();
     }
     Tutorial.checkTabClick(tabId);
@@ -1147,7 +1151,7 @@ function _showWelcomeMessages() {
     type: 'tip',
   });
   EventBus.emit('log:message', {
-    text: '📋 新功能：【档案】入口可接取任务、研究科技、查看派系与成就，右上角【设置】可管理存档！',
+    text: '📋 新功能：【档案】入口可接取任务、查看探索报告、研究科技、查看派系与成就，右上角【设置】可管理存档！',
     type: 'tip',
   });
 }
@@ -1502,6 +1506,7 @@ function _refreshActionGuide() {
   var blockingModalOpen = hasBlockingSurfaceOpen();
   var eventPending = EventUI.hasPendingEvent();
   var researchSupplyRoute = null;
+  var questRouteRecommendation = null;
   var researchBlocker = null;
   var dispatchRouteRecommendation = null;
   var serviceStatus = null;
@@ -1520,12 +1525,15 @@ function _refreshActionGuide() {
     if (_shouldLoadAdvancedCommerce(_state) && !_advancedGuidanceModule) _loadAdvancedGuidance();
     if (_shouldLoadRouteGuidance(_state) && !_routeGuidanceModule) _loadRouteGuidance();
     if (_routeGuidanceModule) {
-      researchSupplyRoute = _routeGuidanceModule.findResearchSupplyRoute(_state, dispatchContext);
+      questRouteRecommendation = _routeGuidanceModule.findQuestRoute(_state, dispatchContext);
+      if (!questRouteRecommendation) {
+        researchSupplyRoute = _routeGuidanceModule.findResearchSupplyRoute(_state, dispatchContext);
+      }
     }
-    if (!researchSupplyRoute) {
+    if (!questRouteRecommendation && !researchSupplyRoute) {
       researchBlocker = getResearchDispatchBlockerState(_state, dispatchContext);
     }
-    if (!researchSupplyRoute && _routeGuidanceModule) {
+    if (!questRouteRecommendation && !researchSupplyRoute && _routeGuidanceModule) {
       dispatchRouteRecommendation = _routeGuidanceModule.findBestDispatchRoute(_state, dispatchContext);
     }
     serviceStatus = _getActiveShipServiceStatus();
@@ -1536,9 +1544,12 @@ function _refreshActionGuide() {
   ActionGuideUI.render(Guidance.getCurrentSuggestion(_state, {
     marketOpen: MapUI.isMarketOpen(),
     marketFocus: _getActionGuideMarketFocus(),
+    archiveOpen: UIManager.getCurrentView() === 'quests',
+    archiveTab: MapUI.getActiveArchiveTab(),
     nextPoi: nextPoi,
     nextPoiStatus: nextPoiStatus,
     researchSupplyRoute: researchSupplyRoute,
+    questRouteRecommendation: questRouteRecommendation,
     researchBlocker: researchBlocker,
     dispatchRouteRecommendation: dispatchRouteRecommendation,
     serviceStatus: serviceStatus,
@@ -1670,9 +1681,12 @@ function _handleActionGuideAction(suggestion) {
       openMarketPanel: MapUI.openMarketPanel,
       openMarketSystemPanel: MapUI.openMarketSystemPanel,
       revealMarketGoodFocus: _revealMarketGoodFocus,
-      revealSurveyChainFocus: _revealSurveyChainFocus,
+      revealArchiveReportFocus: _revealArchiveReportFocus,
       acknowledgeSurveyChainFollowup: function (systemId, chainId) {
         return Exploration.acknowledgeChainFollowup(_state, systemId, chainId);
+      },
+      acknowledgeSurveyReport: function (systemId, reportId) {
+        return Exploration.acknowledgeSurveyReport(_state, systemId, reportId);
       },
       travel: _handleTravel,
       focusStarmap: MapUI.focusStarmap,
@@ -2214,7 +2228,7 @@ function _openRecommendedMod(payload) {
       _handleUpgradeShip,
       _handleServiceShip,
       _handleSellShip,
-      { focusModId: data.modId || '' },
+      { focusModId: data.modId || '', focusService: !!data.focusService },
     );
     _refreshActionGuide();
   });

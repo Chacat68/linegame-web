@@ -16,6 +16,9 @@ describe('Secondary terminal UI structure', function () {
     expect(html).toContain('class="secondary-terminal-status" role="list" aria-label="档案中心分类"');
     expect(html).toContain('id="archive-tab-quest"');
     expect(html).toContain('aria-labelledby="archive-tab-quest" aria-hidden="false"');
+    expect(html).toContain('id="archive-tab-exploration"');
+    expect(html).toContain('id="exploration-archive-list"');
+    expect(html).toContain('aria-labelledby="archive-tab-exploration" aria-hidden="true"');
     expect(html).toContain('aria-labelledby="hangar-terminal-title"');
     expect(html).toContain('class="secondary-terminal-status" role="list" aria-label="机库功能"');
     expect(html).toContain('id="hangar-tab-fleet"');
@@ -34,8 +37,12 @@ describe('Secondary terminal UI structure', function () {
 
     expect(css).toContain('.secondary-terminal-status');
     expect(css).toContain('grid-template-columns: repeat(4, minmax(0, 1fr))');
+    expect(archiveCss).toContain('grid-template-columns: repeat(5, minmax(0, 1fr))');
     expect(css).toContain('.achievement-distribution-grid');
     expect(css).toContain('.archive-achievement-focus');
+    expect(css).toContain('.archive-exploration-system-list');
+    expect(css).toContain('.archive-exploration-report-card');
+    expect(css).toContain('.archive-exploration-chain-row.is-guide-focus');
     expect(css).toContain('.achievement-focus-list');
     expect(css).toContain('.faction-relation-distribution');
     expect(css).toContain('.faction-focus-panel');

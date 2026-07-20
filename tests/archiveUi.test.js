@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { ACHIEVEMENTS } from '../js/data/achievements.js';
 import * as AchievementUI from '../js/ui/AchievementUI.js?v=20260609-achfocus1';
+import * as ArchiveExplorationUI from '../js/ui/ArchiveExplorationUI.js?v=20260720-archive-survey1';
 import * as Faction from '../js/systems/faction/FactionSystem.js';
 import * as FactionUI from '../js/ui/FactionUI.js?v=20260609-factionfocus1';
 import * as GalaxyData from '../js/systems/galaxy/GalaxyDataLayer.js';
+import * as Exploration from '../js/systems/galaxy/ExplorationSystem.js';
 import * as Quest from '../js/systems/quest/QuestSystem.js?v=20260531-chainfollow1';
 import * as QuestUI from '../js/ui/QuestUI.js?v=20260609-questfocus1';
 import * as Research from '../js/systems/research/ResearchSystem.js';
@@ -73,6 +75,46 @@ describe('Archive terminal UI', function () {
     expect(container.innerHTML).not.toContain('>specialist</h4>');
   });
 
+  it('探索页会集中渲染报告详情、航点进度和连续任务记录', function () {
+    var container = createHtmlContainer();
+    var state = createTestState({
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+      viewingGalaxy: 'milky_way',
+      visitedSystems: ['sol_prime'],
+      fuel: 100,
+      maxFuel: 100,
+      credits: 2000,
+    });
+
+    GalaxyData.init(state);
+    var resourcePoi = GalaxyData.getPlanetData('sol_prime').exploration.pois.find(function (poi) {
+      return poi.kind === 'resource_cache';
+    });
+    expect(Exploration.explorePoi(state, 'sol_prime', resourcePoi.id).ok).toBe(true);
+
+    globalThis.document = {
+      getElementById: function (id) {
+        return id === 'exploration-archive-list' ? container : null;
+      },
+    };
+
+    ArchiveExplorationUI.setFocus('sol_prime', 'sol_prime_chain_derelict_depot');
+    ArchiveExplorationUI.render(state);
+
+    expect(container.innerHTML).toContain('class="archive-exploration-console" aria-label="探索报告总览"');
+    expect(container.innerHTML).toContain('已归档报告');
+    expect(container.innerHTML).toContain('太阳主星');
+    expect(container.innerHTML).toContain('class="archive-exploration-report-list" role="list"');
+    expect(container.innerHTML).toContain('archive-exploration-report-card');
+    expect(container.innerHTML).toContain('遗忘补给库');
+    expect(container.innerHTML).toContain('data-archive-survey-chain-id="sol_prime_chain_derelict_depot"');
+    expect(container.innerHTML).toContain('archive-exploration-chain-row--archived');
+    expect(container.innerHTML).toContain('is-guide-focus');
+
+    ArchiveExplorationUI.setFocus(null);
+  });
+
   it('派系页会渲染外交总览、关系列表和市场行动协议', function () {
     var container = createHtmlContainer();
     var state = createTestState({
@@ -112,6 +154,13 @@ describe('Archive terminal UI', function () {
 
   it('任务页会渲染控制总览、章节进度和语义任务列表', function () {
     var container = createHtmlContainer();
+    var dispatchListenerCount = 0;
+    container.querySelector = function (selector) {
+      if (selector !== '.quest-dispatch-apply-btn') return null;
+      return {
+        addEventListener: function () { dispatchListenerCount += 1; },
+      };
+    };
     var state = createTestState({
       currentSystem: 'sol_prime',
       currentGalaxy: 'milky_way',
@@ -129,7 +178,10 @@ describe('Archive terminal UI', function () {
       },
     };
 
-    QuestUI.render(state, function () {}, function () {});
+    expect(function () {
+      QuestUI.render(state, function () {}, function () {}, {}, function () {});
+    }).not.toThrow();
+    expect(dispatchListenerCount).toBe(0);
 
     expect(container.innerHTML).toContain('class="quest-command-deck" role="region" aria-label="任务首页"');
     expect(container.innerHTML).not.toContain('class="quest-command-metrics"');

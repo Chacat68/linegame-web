@@ -405,6 +405,8 @@ function _createExplorationState(system) {
     completionRewardLabel: profile.completionRewardLabel,
     completionBonusClaimed: false,
     completedDay: 0,
+    reviewedReportKey: '',
+    reviewedReportDay: 0,
     reports: [],
     pois: pois,
     chainStates: _createExplorationChainStates(pois),

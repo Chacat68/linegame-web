@@ -1,7 +1,8 @@
 // js/ui/MapUI.js — 星系地图交互事件绑定（支持星系/星球双层视图 + 市场面板）
 // 导出：init, initTabs, init3DCallbacks, refreshGalaxyBtn, openMarket, closeMarket, isMarketOpen,
 //        setRefreshMarket, setExplorationActions, getMarketViewSystem, refreshMarketLocation,
-//        showMarketOverview, showMarketDetail, refreshPlanetDetail, getMapView, getCurrentGalaxyId
+//        showMarketOverview, showMarketDetail, refreshPlanetDetail, getMapView, getCurrentGalaxyId,
+//        getActiveArchiveTab
 import * as Renderer3D from './StarmapRenderer.js';
 import * as Faction from '../systems/faction/FactionSystem.js';
 import * as Economy from '../systems/economy/Economy.js';
@@ -139,6 +140,14 @@ function _getDefaultArchiveTab(stateRef) {
     availableQuestCount = 0;
   }
   if (activeQuestCount > 0 || availableQuestCount > 0) return 'tab-quest';
+  try {
+    var surveySummary = safeState.currentSystem
+      ? Exploration.getSurveySummary(safeState, safeState.currentSystem)
+      : null;
+    if (surveySummary && surveySummary.reportCount > 0) return 'tab-exploration';
+  } catch (err) {
+    // 探索数据尚未初始化时继续使用其它档案分类。
+  }
   if ((safeState.currentResearch && safeState.currentResearch.techId) || (safeState.researchOptions || []).length > 0) return 'tab-research';
   return 'tab-quest';
 }
@@ -2353,4 +2362,10 @@ export function activateTab(tabId) {
   }
 
   if (_tabClickCallback) _tabClickCallback(tabId);
+}
+
+export function getActiveArchiveTab() {
+  if (typeof document === 'undefined' || !document.querySelector) return '';
+  var activeTab = document.querySelector('.tab-btn[data-tab-group="info"].active');
+  return activeTab && activeTab.dataset ? (activeTab.dataset.tab || '') : '';
 }

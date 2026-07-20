@@ -1,6 +1,7 @@
 // js/systems/galaxy/ExplorationSystem.js — 探索系统（POI / 秘密航线 / 探索报告）
 // 依赖：data/systems.js, systems/galaxy/GalaxyDataLayer.js
-// 导出：getPoiStatus, getSurveySummary, explorePoi, acknowledgeChainFollowup,
+// 导出：getPoiStatus, getSurveySummary, explorePoi, acknowledgeSurveyReport,
+//       acknowledgeChainFollowup,
 //       getTravelRouteInfo, getCurrentSystemSecretRoutes
 
 import { GOODS } from '../../data/goods.js';
@@ -112,6 +113,8 @@ export function getSurveySummary(state, systemId) {
     completed: _isSurveyComplete(exploration),
     completionBonusClaimed: !!exploration.completionBonusClaimed,
     completedDay: exploration.completedDay || 0,
+    reviewedReportKey: exploration.reviewedReportKey || '',
+    reviewedReportDay: exploration.reviewedReportDay || 0,
   };
 }
 
@@ -121,6 +124,8 @@ export function getSurveyDecisionIntel(state, systemId) {
 
   const reports = Array.isArray(summary.reports) ? summary.reports : [];
   const hasIntel = reports.length > 0;
+  const recentReport = reports[0] || null;
+  const recentReportKey = _getReportReviewKey(recentReport);
   const hasDepotReport = _hasReportChainKind(reports, 'derelict_depot');
   const hasRelicReport = _hasReportChainKind(reports, 'ancient_relic');
   const hasBeaconReport = _hasReportChainKind(reports, 'lost_beacon');
@@ -143,9 +148,13 @@ export function getSurveyDecisionIntel(state, systemId) {
   return {
     systemId: systemId,
     hasIntel: hasIntel,
+    hasUnreviewedReport: !!(hasIntel && recentReportKey && summary.reviewedReportKey !== recentReportKey),
     intelLevel: summary.intelLevel,
     reportCount: summary.reportCount,
-    recentReportTitle: reports[0] ? reports[0].title : '',
+    recentReportId: recentReport ? recentReport.id : '',
+    recentReportKey: recentReportKey,
+    recentReportTitle: recentReport ? recentReport.title : '',
+    recentReportSignal: _getReportDecisionSignal(recentReport, summary.completionRewardKind || primarySignal),
     opportunityFocus: summary.opportunityFocus,
     opportunityLabel: summary.opportunityLabel,
     completed: summary.completed,
@@ -320,6 +329,42 @@ export function acknowledgeChainFollowup(state, systemId, chainId) {
   };
 }
 
+export function acknowledgeSurveyReport(state, systemId, reportId) {
+  const system = findSystem(systemId);
+  const exploration = system ? _getExplorationState(systemId) : null;
+  if (!system || !exploration) {
+    return { ok: false, msg: '未知星球，无法确认探索报告。' };
+  }
+
+  const reports = Array.isArray(exploration.reports)
+    ? exploration.reports.slice().sort(function (left, right) {
+        return (right.day || 0) - (left.day || 0);
+      })
+    : [];
+  const report = reportId
+    ? reports.find(function (entry) { return entry && entry.id === reportId; })
+    : reports[0];
+  const reportKey = _getReportReviewKey(report);
+  if (!report || !reportKey) {
+    return { ok: false, msg: '未找到可确认的探索报告。' };
+  }
+
+  exploration.reviewedReportKey = reportKey;
+  exploration.reviewedReportDay = state && state.day ? state.day : 1;
+  _saveExplorationState(systemId, exploration);
+
+  return {
+    ok: true,
+    msg: '探索报告已确认。',
+    meta: {
+      systemId: systemId,
+      reportId: report.id || '',
+      reportKey: reportKey,
+      reportTitle: report.title || '探索报告',
+    },
+  };
+}
+
 function _hasReportSignal(reports, signal) {
   return Array.isArray(reports) && reports.some(function (report) {
     if (!report) return false;
@@ -429,10 +474,10 @@ function _getChainStageLabel(chain, stageIndex) {
 }
 
 function _getChainFollowupLabel(chainKind) {
-  if (chainKind === 'lost_beacon') return '打开【行情与路线】，查看隐藏航线和跑商建议。';
-  if (chainKind === 'ancient_relic') return '打开【行情与路线】，查看研究帮助和风险。';
-  if (chainKind === 'derelict_depot') return '打开【行情与路线】，查看贸易站和跑商价值。';
-  return '打开【行情与路线】，查看这份情报有什么用。';
+  if (chainKind === 'lost_beacon') return '打开【档案 → 探索】，查看隐藏航线和跑商建议。';
+  if (chainKind === 'ancient_relic') return '打开【档案 → 探索】，查看研究帮助和风险。';
+  if (chainKind === 'derelict_depot') return '打开【档案 → 探索】，查看贸易站和跑商价值。';
+  return '打开【档案 → 探索】，查看这份情报有什么用。';
 }
 
 function _getNextChainFollowup(anomalyChains) {
@@ -464,17 +509,11 @@ function _getNextChainFollowup(anomalyChains) {
 }
 
 function _getChainFollowupWorkspace(chain) {
-  if (chain && chain.kind === 'derelict_depot') {
-    return { workspaceId: 'operations', subworkspaceId: 'network' };
-  }
-  return { workspaceId: 'spot', subworkspaceId: 'intel' };
+  return { workspaceId: 'archive', subworkspaceId: 'exploration' };
 }
 
 function _getChainFollowupActionLabel(chain) {
-  if (chain && chain.kind === 'derelict_depot') return '规划商网';
-  if (chain && chain.kind === 'lost_beacon') return '查看航图';
-  if (chain && chain.kind === 'ancient_relic') return '查看样本';
-  return '查看情报';
+  return '打开档案确认';
 }
 
 function _getChainFollowupPriority(chainKind) {
@@ -487,15 +526,15 @@ function _getChainFollowupPriority(chainKind) {
 function _getChainFollowupReason(chain) {
   var label = chain && chain.label ? chain.label : (CHAIN_SIGNAL_LABELS[chain && chain.kind] || '探索链');
   if (chain && chain.kind === 'lost_beacon') {
-    return label + '已归档，打开【行情与路线】查看隐藏航线和跑商建议。';
+    return '「' + label + '」解锁了低燃耗航线，先在档案中确认后才作为航行与跑商依据。';
   }
   if (chain && chain.kind === 'ancient_relic') {
-    return label + '样本已归档，打开【行情与路线】查看研究帮助和风险。';
+    return '「' + label + '」包含科研样本，需要先确认研究价值与后续风险。';
   }
   if (chain && chain.kind === 'derelict_depot') {
-    return label + '已复原，打开【行情与路线】查看贸易站和跑商价值。';
+    return '「' + label + '」恢复了补给数据，需要先确认它对跑商与商网的实际价值。';
   }
-  return label + '已归档，打开【行情与路线】查看这份情报有什么用。';
+  return '「' + label + '」的情报已归档，需要先确认实际用途再纳入后续决策。';
 }
 
 function _getPrimaryDecisionSignal(summary, signals) {
@@ -504,6 +543,21 @@ function _getPrimaryDecisionSignal(summary, signals) {
   if (signals && signals.market) return 'market';
   if (signals && signals.logistics) return 'logistics';
   return summary && summary.opportunityFocus ? summary.opportunityFocus : 'logistics';
+}
+
+function _getReportReviewKey(report) {
+  if (!report || !report.id) return '';
+  return String(report.id) + '@' + String(Number(report.day) || 0);
+}
+
+function _getReportDecisionSignal(report, fallbackSignal) {
+  if (!report) return fallbackSignal || 'logistics';
+  var tags = Array.isArray(report.signalTags) ? report.signalTags : [];
+  if (report.chainKind === 'lost_beacon' || report.kind === 'route' || tags.indexOf('route') !== -1) return 'route';
+  if (report.chainKind === 'ancient_relic' || report.kind === 'research' || tags.indexOf('research') !== -1) return 'research';
+  if (report.chainKind === 'derelict_depot' || report.kind === 'market' || tags.indexOf('market') !== -1) return 'market';
+  if (tags.indexOf('logistics') !== -1) return 'logistics';
+  return fallbackSignal || 'logistics';
 }
 
 function _getDecisionSignalLabel(signal) {
@@ -530,13 +584,13 @@ function _getSurveyMarketHint(summary, signal, hasIntel) {
 
   switch (signal) {
     case 'route':
-      return '探索报告发现了隐藏航线，可在【行情与路线】中规划省油路线。';
+      return '探索报告发现了隐藏航线；在档案复核记录后，可回到星图规划省油路线。';
     case 'research':
-      return '探索报告包含研究样本，可在【行情与路线】中查看研究帮助。';
+      return '探索报告包含研究样本；可在档案复核记录，并到【科技】查看研究方向。';
     case 'market':
-      return '探索报告发现了交易机会，优先查看【行情与路线】。';
+      return '探索报告发现了交易机会；可在档案复核记录，再到市场查看实时行情。';
     case 'logistics':
-      return '探索报告确认这里适合补给，优先买卖货物或补充燃料。';
+      return '探索报告确认这里适合补给；记录已归档，可继续买卖货物或补充燃料。';
     default:
       return '探索报告已归档，可结合行情决定下一笔交易。';
   }

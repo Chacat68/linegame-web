@@ -124,11 +124,12 @@ describe('HUD summary cards', function () {
     globalThis.document = originalDocument;
   });
 
-  it('档案入口会显示任务、科技、派系和成就角标', async function () {
+  it('档案入口会显示任务、探索、科技、派系和成就角标', async function () {
     vi.resetModules();
 
     var elements = {
       'archive-tab-quest-badge': createFakeElement(),
+      'archive-tab-exploration-badge': createFakeElement(),
       'archive-tab-research-badge': createFakeElement(),
       'archive-tab-faction-badge': createFakeElement(),
       'archive-tab-achievement-badge': createFakeElement(),
@@ -154,6 +155,7 @@ describe('HUD summary cards', function () {
 
     expect(elements['archive-tab-quest-badge'].hidden).toBe(false);
     expect(Number(elements['archive-tab-quest-badge'].textContent)).toBeGreaterThan(0);
+    expect(elements['archive-tab-exploration-badge'].hidden).toBe(true);
     expect(elements['archive-tab-research-badge'].textContent).toBe('1');
     expect(elements['archive-tab-faction-badge'].textContent).toBe('1');
     expect(elements['archive-tab-achievement-badge'].textContent).toBe('1');

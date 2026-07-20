@@ -118,6 +118,7 @@ describe('ExplorationSystem', function () {
 
     expect(intel).toMatchObject({
       hasIntel: true,
+      hasUnreviewedReport: true,
       marketSignal: true,
       logisticsSignal: true,
       depotSignal: true,
@@ -126,13 +127,30 @@ describe('ExplorationSystem', function () {
     expect(intel.readyFollowupCount).toBeGreaterThan(0);
     expect(intel.nextChainFollowup).toMatchObject({
       chainKind: 'derelict_depot',
-      actionLabel: '规划商网',
-      workspaceId: 'operations',
-      subworkspaceId: 'network',
+      actionLabel: '打开档案确认',
+      workspaceId: 'archive',
+      subworkspaceId: 'exploration',
     });
     expect(intel.marketHint).toContain('探索报告');
     expect(intel.dispatchHint).toContain('贸易报告');
     expect(intel.anomalyHint).toContain('遗忘补给库');
+  });
+
+  it('确认最新报告后会记住已查看状态', function () {
+    const basePlanet = GalaxyData.getPlanetData('sol_prime');
+    const resourcePoi = basePlanet.exploration.pois.find(function (poi) {
+      return poi.kind === 'resource_cache';
+    });
+
+    expect(Exploration.explorePoi(state, 'sol_prime', resourcePoi.id).ok).toBe(true);
+    const beforeIntel = Exploration.getSurveyDecisionIntel(state, 'sol_prime');
+    const result = Exploration.acknowledgeSurveyReport(state, 'sol_prime', beforeIntel.recentReportId);
+    const afterIntel = Exploration.getSurveyDecisionIntel(state, 'sol_prime');
+
+    expect(result).toMatchObject({ ok: true });
+    expect(afterIntel.hasUnreviewedReport).toBe(false);
+    expect(afterIntel.recentReportKey).toBe(beforeIntel.recentReportKey);
+    expect(Exploration.getSurveySummary(state, 'sol_prime').reviewedReportKey).toBe(beforeIntel.recentReportKey);
   });
 
   it('确认事件链后续后不再把同一条链标记为待跟进', function () {

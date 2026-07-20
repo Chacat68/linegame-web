@@ -506,12 +506,13 @@
           <div class="secondary-terminal-shell secondary-terminal-shell--archive">
             <header class="secondary-terminal-chrome">
               <div class="secondary-terminal-title-block">
-                <span class="secondary-terminal-kicker">任务 · 科技 · 派系 · 成就</span>
+                <span class="secondary-terminal-kicker">任务 · 探索 · 科技 · 派系 · 成就</span>
                 <h2 id="archive-terminal-title" class="secondary-terminal-title">档案中心</h2>
               </div>
-              <p id="archive-terminal-subtitle" class="secondary-terminal-subtitle">任务、科技、派系与成就集中管理。</p>
+              <p id="archive-terminal-subtitle" class="secondary-terminal-subtitle">任务、探索报告、科技、派系与成就集中管理。</p>
               <div class="secondary-terminal-status" role="list" aria-label="档案中心分类">
                 <span class="secondary-terminal-status-item" role="listitem">任务</span>
+                <span class="secondary-terminal-status-item" role="listitem">探索</span>
                 <span class="secondary-terminal-status-item" role="listitem">科技</span>
                 <span class="secondary-terminal-status-item" role="listitem">派系</span>
                 <span class="secondary-terminal-status-item" role="listitem">成就</span>
@@ -542,6 +543,19 @@
                   >
                     任务
                     <span id="archive-tab-quest-badge" class="archive-tab-badge" hidden></span>
+                  </button>
+                  <button
+                    id="archive-tab-exploration"
+                    class="tab-btn"
+                    type="button"
+                    data-tab="tab-exploration"
+                    data-tab-group="info"
+                    role="tab"
+                    aria-controls="tab-exploration"
+                    aria-selected="false"
+                  >
+                    探索
+                    <span id="archive-tab-exploration-badge" class="archive-tab-badge" hidden></span>
                   </button>
                   <button
                     id="archive-tab-research"
@@ -588,6 +602,10 @@
                 <!-- Quest tab (任务系统) -->
                 <div id="tab-quest" class="tab-pane active" data-tab-group="info" role="tabpanel" aria-labelledby="archive-tab-quest" aria-hidden="false" tabindex="0">
                   <div id="quest-list"></div>
+                </div>
+                <!-- Exploration archive tab (探索报告) -->
+                <div id="tab-exploration" class="tab-pane" data-tab-group="info" role="tabpanel" aria-labelledby="archive-tab-exploration" aria-hidden="true" tabindex="0">
+                  <div id="exploration-archive-list"></div>
                 </div>
                 <!-- Research tab (群星风格科技树) -->
                 <div id="tab-research" class="tab-pane" data-tab-group="info" role="tabpanel" aria-labelledby="archive-tab-research" aria-hidden="true" tabindex="0">
@@ -823,7 +841,7 @@
             <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
             <span>机库</span>
           </button>
-          <button class="bottom-nav-btn" type="button" data-view="quests" title="档案：任务、科技、派系、成就" aria-label="档案：任务、科技、派系、成就" aria-pressed="false">
+          <button class="bottom-nav-btn" type="button" data-view="quests" title="档案：任务、探索报告、科技、派系、成就" aria-label="档案：任务、探索报告、科技、派系、成就" aria-pressed="false">
             <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
             <span>档案</span>
             <span id="archive-nav-badge" class="bottom-nav-badge" hidden></span>

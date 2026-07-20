@@ -7,11 +7,12 @@ describe('deferred terminal UI loading', function () {
 
     expect(source).not.toMatch(/import\s+\*\s+as\s+MarketUI\s+from/);
     expect(source).not.toMatch(/import\s+\*\s+as\s+FleetUI\s+from/);
-    expect(source).not.toMatch(/import\s+\*\s+as\s+(QuestUI|ResearchUI|FactionUI|AchievementUI)\s+from/);
+    expect(source).not.toMatch(/import\s+\*\s+as\s+(QuestUI|ArchiveExplorationUI|ResearchUI|FactionUI|AchievementUI)\s+from/);
     expect(source).not.toMatch(/import\s+\*\s+as\s+(SaveUI|VictoryResultUI)\s+from/);
     expect(source).toContain("import('../ui/MarketUI.js')");
     expect(source).toContain("import('../ui/FleetUI.js')");
     expect(source).toContain("import('../ui/QuestUI.js')");
+    expect(source).toContain("import('../ui/ArchiveExplorationUI.js')");
     expect(source).toContain("import('../ui/ResearchUI.js')");
     expect(source).toContain("import('../ui/FactionUI.js')");
     expect(source).toContain("import('../ui/AchievementUI.js')");
@@ -29,7 +30,7 @@ describe('deferred terminal UI loading', function () {
 
     expect(gameManager).toContain('onOpenHangar: function ()');
     expect(gameManager).toContain("if (tabId === 'tab-fleet') _ensureFleetUiRendered()");
-    expect(gameManager).toContain("['tab-quest', 'tab-research', 'tab-faction', 'tab-achievement']");
+    expect(gameManager).toContain("['tab-quest', 'tab-exploration', 'tab-research', 'tab-faction', 'tab-achievement']");
     expect(gameManager).toContain('if (_fleetUiModule) _renderFleetUI(_fleetUiModule)');
     expect(gameManager).toContain('if (_archiveUiModule) _renderArchiveUI(_archiveUiModule)');
     expect(gameManager).toContain('if (MapUI.isMarketOpen())');

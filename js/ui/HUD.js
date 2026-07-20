@@ -600,9 +600,22 @@ export function updateArchiveBadges(state) {
     return entry && entry.level && entry.level.id !== 'neutral';
   }).length;
   const achievementUnlockedCount = Array.isArray(safeState.achievements) ? safeState.achievements.length : 0;
-  const navCount = activeQuestCount + availableQuestCount + researchOptionCount;
+  const exploredSystemIds = new Set(Array.isArray(safeState.visitedSystems) ? safeState.visitedSystems : []);
+  if (safeState.currentSystem) exploredSystemIds.add(safeState.currentSystem);
+  let explorationReportCount = 0;
+  let explorationFollowupCount = 0;
+  exploredSystemIds.forEach(function (systemId) {
+    const summary = Exploration.getSurveySummary(safeState, systemId);
+    if (!summary) return;
+    explorationReportCount += summary.reportCount || 0;
+    explorationFollowupCount += (summary.anomalyChains || []).filter(function (chain) {
+      return chain && chain.followupReady && !chain.followupAcknowledged;
+    }).length;
+  });
+  const navCount = activeQuestCount + availableQuestCount + researchOptionCount + explorationFollowupCount;
 
   _setBadgeValue('archive-tab-quest-badge', activeQuestCount + availableQuestCount, '任务待处理');
+  _setBadgeValue('archive-tab-exploration-badge', explorationReportCount, '已归档探索报告');
   _setBadgeValue('archive-tab-research-badge', researchCount, '科技待处理');
   _setBadgeValue('archive-tab-faction-badge', factionWatchCount, '派系关系变化');
   _setBadgeValue('archive-tab-achievement-badge', achievementUnlockedCount, '已解锁成就');
