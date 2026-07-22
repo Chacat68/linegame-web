@@ -821,6 +821,23 @@ body::before {
   background: rgba(108, 231, 255, 0.08);
 }
 
+#info-panel .info-panel-toggle.secondary-terminal-close,
+#trade-panel .trade-panel-toggle.secondary-terminal-close,
+#console-panel .secondary-terminal-close {
+  border-color: var(--ui-line-default) !important;
+  color: var(--ui-text-secondary) !important;
+  background: rgba(2, 10, 18, 0.76) !important;
+  box-shadow: none !important;
+}
+
+#info-panel .info-panel-toggle.secondary-terminal-close:hover,
+#trade-panel .trade-panel-toggle.secondary-terminal-close:hover,
+#console-panel .secondary-terminal-close:hover {
+  border-color: var(--ui-line-strong) !important;
+  color: var(--ui-text-primary) !important;
+  background: rgba(108, 231, 255, 0.08) !important;
+}
+
 .market-cmd-bar {
   display: grid !important;
   grid-template-columns: minmax(0, 1fr) auto;

@@ -1392,7 +1392,10 @@ function _updateObjective(obj, ctx, state) {
 
     case 'earn_profit':
       if (ctx.action === 'sell') {
-        obj.current = Math.min(obj.amount, obj.current + (ctx.totalEarned || 0));
+        var realizedProfit = Number.isFinite(ctx.profit)
+          ? ctx.profit
+          : (Number(ctx.totalEarned) || 0);
+        obj.current = Math.min(obj.amount, Math.max(0, obj.current + Math.max(0, realizedProfit)));
       }
       break;
 

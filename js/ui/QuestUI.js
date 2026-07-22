@@ -34,9 +34,7 @@ function _escapeHtml(value) {
 }
 
 function _escapeHtmlAttr(value) {
-  return String(value == null ? '' : value)
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;');
+  return _escapeHtml(value);
 }
 
 // ---------------------------------------------------------------------------
@@ -308,20 +306,20 @@ function _renderQuestDispatchRecommendation(recommendation, canApplyQuestDispatc
 
   return '<div class="quest-dispatch-card">' +
     '<div class="quest-dispatch-head">' +
-      '<div class="quest-dispatch-title">📡 任务路线建议</div>' +
-      '<div class="quest-dispatch-caption">当前优先目标 · ' + recommendation.questName + '</div>' +
+      '<div class="quest-dispatch-title">任务路线建议</div>' +
+      '<div class="quest-dispatch-caption">当前优先目标 · ' + _escapeHtml(recommendation.questName) + '</div>' +
     '</div>' +
-    '<div class="quest-dispatch-main">' + _systemName(recommendation.buySystemId) + ' → ' + _systemName(recommendation.sellSystemId) + ' · ' + _goodName(recommendation.goodId) + '</div>' +
+    '<div class="quest-dispatch-main">' + _escapeHtml(_systemName(recommendation.buySystemId)) + ' → ' + _escapeHtml(_systemName(recommendation.sellSystemId)) + ' · ' + _escapeHtml(_goodName(recommendation.goodId)) + '</div>' +
     '<div class="quest-dispatch-meta">' +
       '<span>预计燃料 ' + Math.max(0, recommendation.estimatedFuelCost || 0) + '</span>' +
       (Number.isFinite(recommendation.estimatedTradeProfit)
         ? '<span>预计贸易收益 ' + (recommendation.estimatedTradeProfit >= 0 ? '+' : '') + Math.floor(recommendation.estimatedTradeProfit) + '</span>'
         : '') +
-      '<span>' + (recommendation.routeModeLabel || '星系内中转') + '</span>' +
+      '<span>' + _escapeHtml(recommendation.routeModeLabel || '星系内中转') + '</span>' +
       '<span>风险 ' + riskLevelLabel + '</span>' +
       '<span>查获 ' + riskLabel + '</span>' +
     '</div>' +
-    '<div class="quest-dispatch-note">' + roleLabel + ' · ' + recommendation.strategySummary + (recommendation.tradeThemeSummary ? ' · ' + recommendation.tradeThemeSummary : '') + '</div>' +
+    '<div class="quest-dispatch-note">' + _escapeHtml(roleLabel) + ' · ' + _escapeHtml(recommendation.strategySummary) + (recommendation.tradeThemeSummary ? ' · ' + _escapeHtml(recommendation.tradeThemeSummary) : '') + '</div>' +
     (canApplyQuestDispatch
       ? '<div class="quest-dispatch-actions">' +
           '<button type="button" class="quest-dispatch-apply-btn command-action-btn" data-command-surface="fleet" data-command-intent="任务路线" data-command-verb="带入机库">' +
@@ -547,7 +545,7 @@ function _renderQuestDispatchBlocker(quest, routePreview, canResolveQuestBlocker
   return '<div class="quest-dispatch-card is-blocked">' +
     '<div class="quest-dispatch-head">' +
       '<div class="quest-dispatch-title">⛔ 暂无可用路线建议</div>' +
-      '<div class="quest-dispatch-caption">当前目标 · ' + quest.name + '</div>' +
+      '<div class="quest-dispatch-caption">当前目标 · ' + _escapeHtml(quest.name) + '</div>' +
     '</div>' +
     '<div class="quest-dispatch-main">当前航点还有未满足的条件，补足后会自动恢复机库路线建议。</div>' +
     '<div class="quest-dispatch-blocker-list">' + blockers.map(function (blocker) {
@@ -817,6 +815,9 @@ export function render(state, onAccept, onAbandon, questDispatchContext, onApply
         cargo: state.cargo || {},
       }, questDispatchContext || {}))
     : null;
+  const recommendedActiveQuest = activeQuestRecommendation
+    ? active.find(function (quest) { return quest.id === activeQuestRecommendation.questId; }) || null
+    : null;
 
   // ---- 当前章节 ----
   const currentPhaseProgress = Quest.getCurrentQuestPhaseProgress(state);
@@ -826,7 +827,7 @@ export function render(state, onAccept, onAbandon, questDispatchContext, onApply
     : 0;
   const phaseName = currentPhase ? currentPhase.name : '未知章节';
   const phaseDesc = currentPhase ? currentPhase.description : '正在等待新的星际任务。';
-  const commandFocusQuest = selectedAvailableQuest || active[0] || fallbackQuest;
+  const commandFocusQuest = selectedAvailableQuest || recommendedActiveQuest || active[0] || fallbackQuest;
   const commandFocusLabel = commandFocusQuest
     ? (selectedAvailableQuest ? '建议接取：' : '当前目标：') + commandFocusQuest.name
     : '等待新委托';
@@ -845,7 +846,7 @@ export function render(state, onAccept, onAbandon, questDispatchContext, onApply
       '<p>' + phaseDesc + '</p>' +
       '<div class="quest-command-tags">' +
         (storyRoute ? '<span>长期方向 · ' + commandRouteLabel + '</span>' : '') +
-        '<span>' + commandFocusLabel + '</span>' +
+        '<span>' + _escapeHtml(commandFocusLabel) + '</span>' +
       '</div>' +
     '</div>' +
   '</section>';
@@ -878,53 +879,62 @@ export function render(state, onAccept, onAbandon, questDispatchContext, onApply
         ? '⏰ 剩余 ' + Math.max(0, quest.timeLimit - (state.day - quest.startDay)) + ' 天'
         : '';
       const routePreview = Quest.getQuestRoutePreview(state, quest, 2);
+      const isFocusedQuest = recommendedActiveQuest
+        ? recommendedActiveQuest.id === quest.id
+        : active[0].id === quest.id;
 
       html += '<article class="quest-card active-quest" role="listitem" data-quest-state="active" aria-label="' + _escapeHtmlAttr(quest.name + '，进行中') + '">' +
         '<div class="quest-card-header">' +
           '<span class="quest-type-badge" style="background:' + (typeInfo.color || '#666') + '">' +
-            (typeInfo.icon || '📋') + ' ' + (typeInfo.name || quest.type) + '</span>' +
+            _escapeHtml(typeInfo.icon || '📋') + ' ' + _escapeHtml(typeInfo.name || quest.type) + '</span>' +
           '<span class="quest-time">' + timeleft + '</span>' +
         '</div>' +
-        '<div class="quest-name">' + quest.name + '</div>' +
-        '<div class="quest-desc">' + quest.description + '</div>';
+        '<div class="quest-name">' + _escapeHtml(quest.name) + '</div>' +
+        '<div class="quest-desc">' + _escapeHtml(quest.description) + '</div>';
 
       // 目标进度
       quest.objectives.forEach(function (obj) {
         const pct = Math.min(100, Math.round((obj.current / (obj.amount || 1)) * 100));
         html += '<div class="quest-objective">' +
-          '<div class="quest-obj-text">' + _objectiveText(obj) + '</div>' +
+          '<div class="quest-obj-text">' + _escapeHtml(_objectiveText(obj)) + '</div>' +
           '<div class="quest-progress-track" role="progressbar" aria-label="' + _escapeHtmlAttr(_objectiveText(obj)) + '" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '">' +
             '<div class="quest-progress-fill" style="width:' + pct + '%"></div>' +
           '</div>' +
-          '<span class="quest-obj-count">' + obj.current + '/' + (obj.amount || 1) + '</span>' +
+          '<span class="quest-obj-count">' + _escapeHtml(obj.current) + '/' + _escapeHtml(obj.amount || 1) + '</span>' +
           '</div>';
       });
 
       // 目标星球
       var targets = _questTargetSystems(quest);
-      html += _renderTargetSystems(targets, state.currentSystem);
-      html += _renderQuestRoutePreview(routePreview, {
+      var questDetailsHtml = _renderTargetSystems(targets, state.currentSystem);
+      questDetailsHtml += _renderQuestRoutePreview(routePreview, {
         compact: true,
         title: '当前航线',
         caption: '按现状继续推进',
       });
       if (activeQuestRecommendation && activeQuestRecommendation.questId === quest.id) {
-        html += _renderQuestDispatchRecommendation(activeQuestRecommendation, !!onApplyQuestDispatch);
+        questDetailsHtml += _renderQuestDispatchRecommendation(activeQuestRecommendation, !!onApplyQuestDispatch);
       } else {
-        html += _renderQuestDispatchBlocker(quest, routePreview, !!onResolveQuestBlocker, fallbackQuest, state);
+        questDetailsHtml += _renderQuestDispatchBlocker(quest, routePreview, !!onResolveQuestBlocker, fallbackQuest, state);
       }
 
       // 奖励
       const activeRewardSummary = Quest.getQuestRewardSummary(state, quest);
-      html += '<div class="quest-rewards">' +
+      questDetailsHtml += '<div class="quest-rewards">' +
         '<span>🎁 奖励:</span>' +
-        '<span>💰 ' + activeRewardSummary.credits + '</span>' +
-        '<span>⭐ ' + activeRewardSummary.exp + ' 经验</span>' +
-        '<span>🏅 ' + activeRewardSummary.reputation + ' 声望</span>' +
-        (activeRewardSummary.hasDecisionBonus ? '<span title="' + activeRewardSummary.bonusText + '">🧭 分支加成</span>' : '') +
+        '<span>💰 ' + _escapeHtml(activeRewardSummary.credits) + '</span>' +
+        '<span>⭐ ' + _escapeHtml(activeRewardSummary.exp) + ' 经验</span>' +
+        '<span>🏅 ' + _escapeHtml(activeRewardSummary.reputation) + ' 声望</span>' +
+        (activeRewardSummary.hasDecisionBonus ? '<span title="' + _escapeHtmlAttr(activeRewardSummary.bonusText) + '">🧭 分支加成</span>' : '') +
         '</div>';
 
-      html += '<button type="button" class="btn-action quest-abandon-btn" data-id="' + quest.id + '" data-name="' + _escapeHtmlAttr(quest.name) + '">放弃</button>';
+      questDetailsHtml += '<button type="button" class="btn-action quest-abandon-btn" data-id="' + _escapeHtmlAttr(quest.id) + '" data-name="' + _escapeHtmlAttr(quest.name) + '">放弃</button>';
+      html += isFocusedQuest
+        ? '<div class="quest-active-focus-details">' + questDetailsHtml + '</div>'
+        : '<details class="quest-active-details">' +
+            '<summary>查看路线、奖励与操作</summary>' +
+            '<div class="quest-active-details-body">' + questDetailsHtml + '</div>' +
+          '</details>';
       html += '</article>';
   });
   html += '</div>';
