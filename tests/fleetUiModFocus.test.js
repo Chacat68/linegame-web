@@ -723,6 +723,7 @@ describe('FleetUI.openModModal guidance focus', function () {
     expect(elements['dispatch-summary-sell'].textContent).toBe('战争前线');
     expect(elements['dispatch-summary-good'].textContent).toBe('🌾 食物');
     expect(elements['dispatch-summary-policy'].textContent).toBe('公开市场 · 平衡');
+    expect(elements['dispatch-title'].textContent).not.toContain('📡');
     expect(modal.dataset.dispatchState).toBe('ready');
     expect(modal.dataset.dispatchPolicyState).toBe('neutral');
     expect(elements['dispatch-estimate'].innerHTML).toContain('role="list" aria-label="自动跑商估算"');
@@ -745,7 +746,23 @@ describe('FleetUI.openModModal guidance focus', function () {
     expect(elements['dispatch-confirm'].disabled).toBe(false);
     expect(modal.dataset.dispatchPolicyState).toBe('neutral');
 
+    elements['dispatch-sell-system'].value = elements['dispatch-buy-system'].value;
+    elements['dispatch-sell-system'].onchange();
+    expect(elements['dispatch-confirm'].disabled).toBe(true);
+    expect(elements['dispatch-confirm'].textContent).toBe('路线无效');
+    expect(elements['dispatch-primary-hint'].textContent).toContain('买入地和卖出地不能相同');
+    expect(elements['dispatch-estimate'].innerHTML).not.toContain('aria-label="自动跑商估算"');
+    expect(elements['dispatch-estimate'].innerHTML).not.toContain('单次利润');
+    expect(elements['dispatch-estimate'].innerHTML).toContain('无法启动');
+
+    elements['dispatch-sell-system'].value = 'war_front';
     state.credits = 0;
+    state.fleet[0].cargo = { food: 1 };
+    elements['dispatch-sell-system'].onchange();
+    expect(elements['dispatch-estimate'].innerHTML).toContain('预计回款');
+    expect(elements['dispatch-estimate'].innerHTML).not.toContain('<em>单次利润</em>');
+
+    state.fleet[0].cargo = {};
     elements['dispatch-good'].onchange();
     expect(elements['dispatch-confirm'].disabled).toBe(true);
     expect(elements['dispatch-confirm'].textContent).toBe('积分不足');

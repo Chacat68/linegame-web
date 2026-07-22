@@ -2163,7 +2163,7 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
     : ((shipLocationSystem && shipLocationSystem.galaxyId) || state.currentGalaxy || 'milky_way');
 
   document.getElementById('dispatch-title').textContent =
-    '📡 ' + (isActive ? '自动跑商' : '设置跑商') + '「' + ship.emoji + ' ' + ship.name + '」';
+    (isActive ? '自动跑商' : '设置跑商') + '「' + ship.emoji + ' ' + ship.name + '」';
 
   // 填充星系选择
   const buySelect  = document.getElementById('dispatch-buy-system');
@@ -2711,10 +2711,12 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
     var profitRateLabel = estimate.deliveryOnly
       ? '库存变现'
       : (Math.round(estimate.profitRate * 100) + '%');
+    var valueLabel = estimate.deliveryOnly ? '预计回款' : '单次利润';
+    var invalidRoute = readiness && !readiness.ok && (readiness.code === 'same_system' || readiness.code === 'no_route');
     var warningHtml = warnings.length > 0
       ? '<div class="dispatch-estimate-note dispatch-estimate-note--warning">当前设置会等待：' + _escapeHtml(warnings.join('、')) + '</div>'
       : '';
-    var lossHtml = estimate.profit <= 0
+    var lossHtml = !invalidRoute && estimate.profit <= 0
       ? '<div class="dispatch-estimate-note dispatch-estimate-note--danger">亏损路线</div>'
       : '';
     var blockedHtml = readiness && !readiness.ok
@@ -2732,37 +2734,40 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
     var pressureHtml = dispatchProfile.faultPressure > 0
       ? '<div class="dispatch-estimate-note dispatch-estimate-note--warning">船况压力 ' + _escapeHtml(String(dispatchProfile.faultPressure)) + '，系统会下调高风险与高执法路线优先级。</div>'
       : '';
+    var estimateDetailsHtml = invalidRoute
+      ? ''
+      : '<div class="dispatch-estimate-main" role="list" aria-label="自动跑商估算">' +
+          '<span class="dispatch-estimate-metric dispatch-estimate-highlight" role="listitem"><em>装载计划</em><strong>' + loadingPlanLabel + '</strong></span>' +
+          '<span class="dispatch-estimate-metric" role="listitem"><em>' + valueLabel + '</em><strong>≈ ' + Math.floor(estimate.profit) + '</strong><small>积分</small></span>' +
+          '<span class="dispatch-estimate-metric" role="listitem"><em>收益判断</em><strong>' + profitRateLabel + '</strong></span>' +
+          '<span class="dispatch-estimate-metric" role="listitem"><em>航程燃料</em><strong>' + estimate.fuelCost + '</strong><small>单位</small></span>' +
+          '<span class="dispatch-estimate-metric" role="listitem"><em>路线风险</em><strong>' + _escapeHtml(_formatRouteRiskLabel(riskAssessment.riskLevel)) + '</strong></span>' +
+          '<span class="dispatch-estimate-metric" role="listitem"><em>避险程度</em><strong>' + riskModeLabel + '</strong></span>' +
+        '</div>' +
+        '<div class="dispatch-risk-grid" role="list" aria-label="路线风险明细">' +
+          '<div class="dispatch-risk-item ' + (riskSummary.isHighEnforcement ? 'dispatch-risk-item--danger' : '') + '" role="listitem">' +
+            '<span class="dispatch-risk-label">高执法区</span>' +
+            '<span class="dispatch-risk-value">' + _escapeHtml(riskSummary.highEnforcementParts.length > 0 ? riskSummary.highEnforcementParts.join('、') : '无') + '</span>' +
+          '</div>' +
+          '<div class="dispatch-risk-item" role="listitem">' +
+            '<span class="dispatch-risk-label">执法分布</span>' +
+            '<span class="dispatch-risk-value">买入 ' + _escapeHtml(riskSummary.buyEnforcementLabel) + ' / 卖出 ' + _escapeHtml(riskSummary.sellEnforcementLabel) + '</span>' +
+          '</div>' +
+          '<div class="dispatch-risk-item ' + (riskSummary.hasContraband ? 'dispatch-risk-item--warning' : '') + '" role="listitem">' +
+            '<span class="dispatch-risk-label">违禁品</span>' +
+            '<span class="dispatch-risk-value">' + _escapeHtml(riskSummary.contrabandLabel) + '</span>' +
+          '</div>' +
+          '<div class="dispatch-risk-item ' + (riskSummary.isHighInspectionRisk ? 'dispatch-risk-item--danger' : '') + '" role="listitem">' +
+            '<span class="dispatch-risk-label">预计查获风险</span>' +
+            '<span class="dispatch-risk-value">' + _escapeHtml(riskSummary.riskLabel) + '</span>' +
+          '</div>' +
+        '</div>';
 
     estimateEl.innerHTML =
       recommendationHtml +
       strategyHtml +
       surveyIntelHtml +
-      '<div class="dispatch-estimate-main" role="list" aria-label="自动跑商估算">' +
-        '<span class="dispatch-estimate-metric dispatch-estimate-highlight" role="listitem"><em>装载计划</em><strong>' + loadingPlanLabel + '</strong></span>' +
-        '<span class="dispatch-estimate-metric" role="listitem"><em>单次利润</em><strong>≈ ' + Math.floor(estimate.profit) + '</strong><small>积分</small></span>' +
-        '<span class="dispatch-estimate-metric" role="listitem"><em>收益判断</em><strong>' + profitRateLabel + '</strong></span>' +
-        '<span class="dispatch-estimate-metric" role="listitem"><em>航程燃料</em><strong>' + estimate.fuelCost + '</strong><small>单位</small></span>' +
-        '<span class="dispatch-estimate-metric" role="listitem"><em>路线风险</em><strong>' + _escapeHtml(_formatRouteRiskLabel(riskAssessment.riskLevel)) + '</strong></span>' +
-        '<span class="dispatch-estimate-metric" role="listitem"><em>避险程度</em><strong>' + riskModeLabel + '</strong></span>' +
-      '</div>' +
-      '<div class="dispatch-risk-grid" role="list" aria-label="路线风险明细">' +
-        '<div class="dispatch-risk-item ' + (riskSummary.isHighEnforcement ? 'dispatch-risk-item--danger' : '') + '" role="listitem">' +
-          '<span class="dispatch-risk-label">高执法区</span>' +
-          '<span class="dispatch-risk-value">' + _escapeHtml(riskSummary.highEnforcementParts.length > 0 ? riskSummary.highEnforcementParts.join('、') : '无') + '</span>' +
-        '</div>' +
-        '<div class="dispatch-risk-item" role="listitem">' +
-          '<span class="dispatch-risk-label">执法分布</span>' +
-          '<span class="dispatch-risk-value">买入 ' + _escapeHtml(riskSummary.buyEnforcementLabel) + ' / 卖出 ' + _escapeHtml(riskSummary.sellEnforcementLabel) + '</span>' +
-        '</div>' +
-        '<div class="dispatch-risk-item ' + (riskSummary.hasContraband ? 'dispatch-risk-item--warning' : '') + '" role="listitem">' +
-          '<span class="dispatch-risk-label">违禁品</span>' +
-          '<span class="dispatch-risk-value">' + _escapeHtml(riskSummary.contrabandLabel) + '</span>' +
-        '</div>' +
-        '<div class="dispatch-risk-item ' + (riskSummary.isHighInspectionRisk ? 'dispatch-risk-item--danger' : '') + '" role="listitem">' +
-          '<span class="dispatch-risk-label">预计查获风险</span>' +
-          '<span class="dispatch-risk-value">' + _escapeHtml(riskSummary.riskLabel) + '</span>' +
-        '</div>' +
-      '</div>' +
+      estimateDetailsHtml +
       lossHtml +
       blockedHtml +
         pressureHtml +

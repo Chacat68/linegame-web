@@ -403,9 +403,16 @@ function _pushMaintenanceTransitionMsg(ship, beforeProfile, afterProfile, msgs) 
  */
 export function init(state) {
   Crew.ensureState(state);
-  if (!state.fleet || state.fleet.length === 0) {
+  if (!Array.isArray(state.fleet)) state.fleet = [];
+  state.fleet = state.fleet.filter(function (ship) {
+    return !!(ship && typeof ship === 'object' && !Array.isArray(ship));
+  });
+  if (state.fleet.length === 0) {
     const starter = _createShip(SHIP_TYPES[0]); // 穿梭机
     state.fleet = [starter];
+    state.activeShipIndex = 0;
+  }
+  if (!Number.isInteger(state.activeShipIndex) || state.activeShipIndex < 0 || state.activeShipIndex >= state.fleet.length) {
     state.activeShipIndex = 0;
   }
   // 兼容旧存档：补充席位数据
@@ -421,6 +428,7 @@ export function init(state) {
         : {};
     }
     if (!ship.mods) ship.mods = [];
+    if (ship.route && !_isValidPersistedRoute(ship.route)) ship.route = null;
     if (!ship.modSlots) {
       var st = SHIP_TYPES.find(function (t) { return t.id === ship.typeId; });
       ship.modSlots = st ? (st.modSlots || 1) : 1;
@@ -431,6 +439,15 @@ export function init(state) {
   });
   // 确保当前 state 与激活船只同步
   syncStateFromShip(state);
+}
+
+function _isValidPersistedRoute(route) {
+  if (!route || typeof route !== 'object' || Array.isArray(route)) return false;
+  var validStatuses = ['traveling_buy', 'buying', 'traveling_sell', 'selling'];
+  return !!findSystem(route.buySystemId) &&
+    !!findSystem(route.sellSystemId) &&
+    GOODS.some(function (good) { return good.id === route.goodId; }) &&
+    validStatuses.indexOf(route.status) !== -1;
 }
 
 function _migrateLegacyLevelPerks(state) {
@@ -1846,7 +1863,12 @@ function _doShipBuy(state, ship, route, msgs) {
 
   if (qty <= 0) {
     msgs.push({ text: '💰 「' + ship.name + '」买入失败（积分或货舱不足）。', type: 'error' });
-    route.status = 'traveling_sell'; // 跳过买入，尝试卖出剩余货物
+    if (Math.max(0, Number(ship.cargo[route.goodId]) || 0) > 0) {
+      route.status = 'traveling_sell'; // 有历史库存时先前往卖出地变现
+    } else {
+      _queuePolicyMessage(route, msgs, '⏸️ 「' + ship.name + '」正在等待可用资金或货舱空间。');
+      route.status = 'buying';
+    }
     return;
   }
 

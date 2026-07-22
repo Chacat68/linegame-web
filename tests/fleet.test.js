@@ -570,7 +570,7 @@ describe('Fleet.tickFleetRoutes', () => {
     expect(result.msgs).toEqual([]);
   });
 
-  it('派遣船只燃料不足时路线被暂停 [C2]', () => {
+  it('派遣船只没有资金和库存时会停在买入地等待 [C2]', () => {
     const state = createTestState({ credits: 10000 });
     Fleet.init(state);
     state.fleetSlots = 2;
@@ -581,15 +581,18 @@ describe('Fleet.tickFleetRoutes', () => {
     state.fleet[1].fuel = 0;
     state.credits = 0; // 也没钱买燃料
 
-    // 第一次 tick：船在 sol_prime，buySystemId 也是 sol_prime，所以直接进入 buying
-    // 买入失败（没钱），路线状态变为 traveling_sell
-    Fleet.tickFleetRoutes(state);
+    // 船在买入地但没有资金与待售库存，不应空载前往卖出地。
+    const first = Fleet.tickFleetRoutes(state);
     expect(state.fleet[1].route).not.toBeNull();
-    expect(state.fleet[1].route.status).toBe('traveling_sell');
+    expect(state.fleet[1].route.status).toBe('buying');
+    expect(state.fleet[1].location).toBe('sol_prime');
+    expect(first.msgs.some(function (msg) { return msg.text.indexOf('等待可用资金') !== -1; })).toBe(true);
 
-    // 第二次 tick：需要旅行到 nova_station 但没有燃料，暂停路线
+    // 后续 tick 继续等待，不会因为空载旅行耗尽燃料并取消路线。
     const result = Fleet.tickFleetRoutes(state);
-    expect(state.fleet[1].route).toBeNull();
+    expect(state.fleet[1].route).not.toBeNull();
+    expect(state.fleet[1].route.status).toBe('buying');
+    expect(state.fleet[1].location).toBe('sol_prime');
     expect(result.msgs.length).toBeGreaterThan(0);
   });
 

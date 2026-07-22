@@ -215,9 +215,14 @@ export function runActiveDispatchTick(state, options) {
       // 先执行买入
       return { action: 'buy', payload: { goodId: route.goodId, quantity: qty, marketType: marketType }, msgs };
     }
-    // 即使买不到也要转入前往卖出地状态
     var ship = Fleet.getActiveShip(state);
-    if (ship && ship.route) ship.route.status = 'traveling_sell';
+    var sellableCargo = Math.max(0, Number(state.cargo[route.goodId]) || 0);
+    if (ship && ship.route && sellableCargo > 0) {
+      ship.route.status = 'traveling_sell';
+    } else {
+      _queuePolicyMessage(route, msgs, '⏸️ 自动跑商正在等待可用资金或货舱空间。');
+      if (ship && ship.route) ship.route.status = 'buying';
+    }
     return { action: 'noop', msgs };
   }
 
