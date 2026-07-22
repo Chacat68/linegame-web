@@ -393,6 +393,8 @@ describe('MarketUI guided focus', function () {
     expect(js).toContain('role="list" aria-label="地点行情和开放条件"');
     expect(js).toContain('role="list" aria-label="值得关注的货物"');
     expect(js).toContain('class="market-intel-decision-grid" role="group" aria-label="地点和关注商品"');
+    expect(js).toContain('class="market-intel-secondary-details"');
+    expect(js).toContain('地点条件与完整关注清单');
     expect(js).toContain('class="market-finance-action-meta market-watch-metrics"');
     expect(js).not.toContain('role="list" aria-label="探索报告带来的机会"');
     expect(js).not.toContain("'market-survey-chain-row'");
@@ -415,6 +417,8 @@ describe('MarketUI guided focus', function () {
     expect(css).toContain('.market-black-goods-grid[role="list"]');
     expect(marketCss).toContain('.market-workspace-v2 .market-finance-section-head');
     expect(marketCss).toContain('.market-workspace-v2 .market-intel-decision-grid');
+    expect(marketCss).toContain('.market-workspace-v2 .market-intel-secondary-details > summary');
+    expect(marketCss).toContain('.market-workspace-v2 .market-spot-intel-grid .market-finance-summary-metric:last-child');
     expect(marketCss).toContain('grid-template-columns: minmax(320px, 0.82fr) minmax(520px, 1.18fr)');
     expect(marketCss).toContain('.market-workspace-v2 .market-watch-list');
   });

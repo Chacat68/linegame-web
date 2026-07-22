@@ -1037,6 +1037,9 @@ function _renderSpotIntelSection(state, sysId, snapshots, marketMode, systemFact
     '</div>' +
     _renderSpotIntelSignalPanel(watchList, marketMode, blackMarketUnlocked) +
   '</section>' +
+  '<details class="market-intel-secondary-details">' +
+  '<summary><span>地点条件与完整关注清单</span><small>TOP ' + watchList.length + '</small></summary>' +
+  '<div class="market-intel-secondary-body">' +
   '<div class="market-intel-decision-grid" role="group" aria-label="地点和关注商品">' +
   '<section class="market-finance-section market-intel-node-section">' +
     '<div class="market-finance-section-head">' +
@@ -1094,7 +1097,9 @@ function _renderSpotIntelSection(state, sysId, snapshots, marketMode, systemFact
         }).join('') + '</div>'
       : '<div class="market-finance-empty">当前没有足够的行情数据生成观察名单。</div>') +
   '</section>' +
-  '</div>';
+  '</div>' +
+  '</div>' +
+  '</details>';
 }
 
 function _renderSpotSignalMetric(label, value, note, toneClass) {

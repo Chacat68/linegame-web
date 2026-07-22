@@ -402,6 +402,12 @@ export function refuel(state) {
 
 export function travelTo(state, systemId) {
   const toSys = findSystem(systemId);
+  if (!toSys) {
+    return {
+      ok: false,
+      msgs: [{ text: '🧭 无效的航行目的地，未执行本次航行。', type: 'error' }],
+    };
+  }
 
   // 统一检查星系、星球等级与超空间入口层权限。
   const playerLevel = state.playerLevel || 1;
@@ -432,11 +438,10 @@ export function travelTo(state, systemId) {
   const routeInfo = Exploration.getTravelRouteInfo(state, state.currentSystem, systemId);
   const cost = Economy.getFuelCost(state.currentSystem, systemId, state.fuelEfficiency, state);
   if (state.fuel < cost) {
-    const dest = findSystem(systemId);
     return {
       ok:   false,
       msgs: [{
-        text: '⛽ 燃料不足！前往 ' + dest.name + ' 需要 ' + cost +
+        text: '⛽ 燃料不足！前往 ' + toSys.name + ' 需要 ' + cost +
               ' 燃料，当前只有 ' + Math.floor(state.fuel) + '。',
         type: 'error',
       }],
@@ -455,7 +460,6 @@ export function travelTo(state, systemId) {
     state.viewingGalaxy = toSys.galaxyId;
   }
 
-  const sys  = findSystem(systemId);
   if (routeInfo.active) {
     msgs.push({
       text: '🛰️ 已启用秘密航线「' + routeInfo.label + '」，本次航行燃料节省约 ' + Math.round((1 - routeInfo.fuelMultiplier) * 100) + '%。',
@@ -463,7 +467,7 @@ export function travelTo(state, systemId) {
     });
   }
   msgs.push({
-    text: (crossGalaxy ? '🌌 超空间跃迁！' : '🚀 ') + '已抵达 ' + sys.name + '！消耗 ' + cost + ' 燃料。银河历第 ' + state.day + ' 天。',
+    text: (crossGalaxy ? '🌌 超空间跃迁！' : '🚀 ') + '已抵达 ' + toSys.name + '！消耗 ' + cost + ' 燃料。银河历第 ' + state.day + ' 天。',
     type: 'travel',
   });
 

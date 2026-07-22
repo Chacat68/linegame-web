@@ -465,6 +465,59 @@
   margin-bottom: 0;
 }
 
+.market-workspace-v2 .market-intel-secondary-details {
+  margin-bottom: var(--ui-space-3);
+  border: 1px solid var(--ui-line-subtle);
+  border-radius: var(--ui-radius-card);
+  background: rgba(4, 15, 25, 0.58);
+}
+
+.market-workspace-v2 .market-intel-secondary-details > summary {
+  display: flex;
+  min-height: var(--ui-control-lg);
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--ui-space-2) var(--ui-space-4);
+  gap: var(--ui-space-3);
+  color: var(--ui-text-secondary);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  list-style: none;
+}
+
+.market-workspace-v2 .market-intel-secondary-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.market-workspace-v2 .market-intel-secondary-details > summary small {
+  color: var(--ui-accent-strong);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+
+.market-workspace-v2 .market-intel-secondary-details > summary small::after {
+  content: "  +";
+}
+
+.market-workspace-v2 .market-intel-secondary-details[open] > summary {
+  border-bottom: 1px solid var(--ui-line-subtle);
+  color: var(--ui-text-primary);
+}
+
+.market-workspace-v2 .market-intel-secondary-details[open] > summary small::after {
+  content: "  −";
+}
+
+.market-workspace-v2 .market-intel-secondary-details > summary:focus-visible {
+  outline: 2px solid var(--ui-accent-strong);
+  outline-offset: 2px;
+}
+
+.market-workspace-v2 .market-intel-secondary-body {
+  padding: var(--ui-space-3);
+}
+
 .market-workspace-v2 .market-intel-node-list {
   grid-template-columns: 1fr;
 }
@@ -1654,6 +1707,18 @@
 }
 
 @media (max-width: 760px), (max-height: 620px) {
+  .market-workspace-v2 .market-close-btn,
+  .market-workspace-v2 .kline-range-btn,
+  .market-workspace-v2 .mkt-ov-planet-action {
+    min-width: var(--ui-control-lg);
+    min-height: var(--ui-control-lg);
+  }
+
+  .market-workspace-v2 .market-close-btn {
+    width: var(--ui-control-lg);
+    height: var(--ui-control-lg);
+  }
+
   .market-workspace-v2 .market-finance-section-head {
     gap: var(--ui-space-2);
   }
@@ -1808,9 +1873,16 @@
 }
 
 @media (max-width: 390px) {
-  .market-workspace-v2 .market-finance-summary-grid,
-  .market-workspace-v2 .market-spot-intel-grid {
+  .market-workspace-v2 .market-finance-summary-grid {
     grid-template-columns: 1fr;
+  }
+
+  .market-workspace-v2 .market-spot-intel-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .market-workspace-v2 .market-spot-intel-grid .market-finance-summary-metric:last-child {
+    grid-column: 1 / -1;
   }
 
   .market-workspace-v2 .market-finance-section-head,

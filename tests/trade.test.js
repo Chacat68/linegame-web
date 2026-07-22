@@ -250,6 +250,18 @@ describe('Trade.travelTo', () => {
     expect(state.currentSystem).toBe('sol_prime');
   });
 
+  it('无效目的地会返回失败且不会修改航行状态', () => {
+    const state = createTestState({ fuel: 1000, currentSystem: 'sol_prime' });
+    Faction.init(state);
+
+    const result = Trade.travelTo(state, 'missing_system');
+
+    expect(result.ok).toBe(false);
+    expect(result.msgs[0].text).toContain('无效');
+    expect(state.currentSystem).toBe('sol_prime');
+    expect(state.fuel).toBe(1000);
+  });
+
   it('等级不足时跨星系旅行失败', () => {
     const state = createTestState({ fuel: 1000, maxFuel: 1000, playerLevel: 1 });
     Faction.init(state);
