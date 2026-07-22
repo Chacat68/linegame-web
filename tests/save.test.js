@@ -320,6 +320,39 @@ describe('Save.importSave', () => {
     expect(loaded.state.day).toBe(1);
   });
 
+  it('拒绝包含非法嵌套成员的存档且不会覆盖有效槽位', () => {
+    Save.saveGame(1, createTestState({ credits: 6789, day: 16 }), { saveName: '原始存档' });
+    const malformed = JSON.stringify({
+      meta: { schemaVersion: SAVE_SCHEMA_VERSION, slotId: 1 },
+      data: { currentSystem: 'sol_prime', fleet: [null] },
+    });
+
+    const result = Save.importSave(1, malformed);
+
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe('SAVE_DATA_SCHEMA_INVALID');
+    const loaded = Save.loadGame(1);
+    expect(loaded.ok).toBe(true);
+    expect(loaded.state.credits).toBe(6789);
+    expect(loaded.state.day).toBe(16);
+  });
+
+  it('导入时会把越界的激活飞船索引恢复为首艘船', () => {
+    const payload = JSON.stringify({
+      meta: { schemaVersion: SAVE_SCHEMA_VERSION, slotId: 2 },
+      data: {
+        currentSystem: 'sol_prime',
+        activeShipIndex: 99,
+        fleet: [{ cargo: {}, cargoCost: {} }],
+      },
+    });
+
+    expect(Save.importSave(2, payload).ok).toBe(true);
+    const loaded = Save.loadGame(2);
+    expect(loaded.ok).toBe(true);
+    expect(loaded.state.activeShipIndex).toBe(0);
+  });
+
   it('导入旧存档时会迁移到当前 schema 并改写目标槽位', () => {
     const legacy = JSON.stringify({
       meta: { schemaVersion: 1, gameVersion: '0.1.0', slotId: 99, timestampMs: Date.now() },

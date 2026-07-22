@@ -142,10 +142,12 @@ function getSaveSlotListItemCount(html) {
 describe('SaveUI.render', function () {
   var originalDocument;
   var originalAlert;
+  var originalFileReader;
 
   beforeEach(function () {
     originalDocument = globalThis.document;
     originalAlert = globalThis.alert;
+    originalFileReader = globalThis.FileReader;
     globalThis.alert = function () {};
     globalThis.localStorage.clear();
   });
@@ -153,6 +155,7 @@ describe('SaveUI.render', function () {
   afterEach(function () {
     globalThis.document = originalDocument;
     globalThis.alert = originalAlert;
+    globalThis.FileReader = originalFileReader;
     globalThis.localStorage.clear();
   });
 
@@ -286,6 +289,27 @@ describe('SaveUI.render', function () {
     var confirmation = createConfirmationHarness();
     var savedSlot = null;
     var loadedSlot = null;
+    var fileChangeHandler = null;
+    Save.saveGame(3, createTestState({ credits: 777777, day: 21 }), { timestampMs: 1717300000000 });
+    var importJson = Save.exportSave(3);
+    Save.deleteSlot(3);
+    var fileInput = {
+      files: [{ name: 'import-backup.json' }],
+      addEventListener: function (type, handler) {
+        if (type === 'change') fileChangeHandler = handler;
+      },
+      click: function () {
+        if (fileChangeHandler) fileChangeHandler();
+      },
+    };
+    globalThis.FileReader = function () {
+      this.result = '';
+      this.onload = null;
+      this.readAsText = function () {
+        this.result = importJson;
+        if (this.onload) this.onload();
+      };
+    };
     globalThis.document = {
       getElementById: function (id) {
         if (id === 'save-list') return container;
@@ -295,6 +319,9 @@ describe('SaveUI.render', function () {
         return selector === '.modal' ? [confirmation.modal] : [];
       },
       addEventListener: function () {},
+      createElement: function (tagName) {
+        return tagName === 'input' ? fileInput : createFakeConfirmElement(tagName);
+      },
     };
 
     Save.saveGame(1, createTestState({ credits: 123456, day: 9 }), { timestampMs: 1717200000000 });
@@ -323,5 +350,11 @@ describe('SaveUI.render', function () {
 
     expect(savedSlot).toBe(1);
     expect(loadedSlot).toBe(1);
+
+    container.querySelector('.import-btn').click();
+    expect(Save.loadGame(1).state.credits).toBe(123456);
+    expect(confirmation.elements['action-confirm-title'].textContent).toContain('导入到槽位 1');
+    confirmation.elements['action-confirm-accept'].click();
+    expect(Save.loadGame(1).state.credits).toBe(777777);
   });
 });

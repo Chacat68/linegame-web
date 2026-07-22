@@ -417,9 +417,28 @@ export function render(onSave, onLoad) {
       if (!file) return;
       const reader = new FileReader();
       reader.onload = function () {
-        const result = Save.importSave(targetSlot, reader.result);
-        if (result.ok) render(onSave, onLoad);
-        _setTransferStatus(container, result.msg, result.ok ? 'success' : 'error');
+        var importIntoTarget = function () {
+          const result = Save.importSave(targetSlot, reader.result);
+          if (result.ok) render(onSave, onLoad);
+          _setTransferStatus(container, result.msg, result.ok ? 'success' : 'error');
+        };
+        var targetSlotState = slots.find(function (slot) { return slot.slotId === targetSlot; });
+        if (targetSlotState && !targetSlotState.isEmpty) {
+          ActionConfirmUI.open({
+            kicker: '覆盖并导入',
+            title: '导入到' + _formatSlotLabel(targetSlotState) + '？',
+            message: '该槽位中的现有进度会被导入文件替换。',
+            confirmLabel: '确认导入',
+            tone: 'warning',
+            details: [
+              { label: '现有数据', value: targetSlotState.isCorrupted ? '损坏存档' : _formatSavedTime(targetSlotState.meta && targetSlotState.meta.timestampMs), tone: 'danger' },
+              { label: '写入内容', value: file.name || '所选存档文件' },
+            ],
+            onConfirm: importIntoTarget,
+          });
+          return;
+        }
+        importIntoTarget();
       };
       reader.readAsText(file);
     });

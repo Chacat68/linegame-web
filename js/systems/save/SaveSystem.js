@@ -493,18 +493,82 @@ function _normalizeState(data) {
     }
   });
 
+  _validateNestedState(normalized);
+
   if (!Number.isFinite(normalized.day) || normalized.day < 1) normalized.day = SAVE_STATE_DEFAULTS.day;
   if (!Number.isFinite(normalized.playerLevel) || normalized.playerLevel < 1) normalized.playerLevel = SAVE_STATE_DEFAULTS.playerLevel;
   if (!Number.isFinite(normalized.companyLevel) || normalized.companyLevel < 1) normalized.companyLevel = SAVE_STATE_DEFAULTS.companyLevel;
   if (!Number.isFinite(normalized.questPhase) || normalized.questPhase < 1) normalized.questPhase = SAVE_STATE_DEFAULTS.questPhase;
   if (!Number.isFinite(normalized.fleetSlots) || normalized.fleetSlots < 1) normalized.fleetSlots = SAVE_STATE_DEFAULTS.fleetSlots;
   if (!Number.isFinite(normalized.activeShipIndex) || normalized.activeShipIndex < 0) normalized.activeShipIndex = SAVE_STATE_DEFAULTS.activeShipIndex;
+  if (normalized.fleet.length > 0 && normalized.activeShipIndex >= normalized.fleet.length) {
+    normalized.activeShipIndex = SAVE_STATE_DEFAULTS.activeShipIndex;
+  }
 
   normalized.playerLevel = getLevel(normalized.experience || 0).level;
   normalized.companyLevel = getCompanyLevel(normalized.companyExperience || 0).level;
   if (!normalized.viewingGalaxy) normalized.viewingGalaxy = normalized.currentGalaxy;
 
   return normalized;
+}
+
+function _isRecord(value) {
+  return !!(value && typeof value === 'object' && !Array.isArray(value));
+}
+
+function _assertRecordArray(value, fieldName) {
+  value.forEach(function (entry, index) {
+    if (!_isRecord(entry)) {
+      throw _createSaveError(
+        'SAVE_DATA_SCHEMA_INVALID',
+        '无效的存档数据：' + fieldName + '[' + index + '] 结构错误。'
+      );
+    }
+  });
+}
+
+function _assertQuantityMap(value, fieldName) {
+  if (!_isRecord(value)) return;
+  Object.keys(value).forEach(function (key) {
+    var quantity = value[key];
+    if (typeof quantity !== 'number' || !Number.isFinite(quantity) || quantity < 0) {
+      throw _createSaveError(
+        'SAVE_DATA_SCHEMA_INVALID',
+        '无效的存档数据：' + fieldName + '.' + key + ' 数值错误。'
+      );
+    }
+  });
+}
+
+function _validateNestedState(state) {
+  _assertRecordArray(state.fleet, 'fleet');
+  _assertRecordArray(state.quests, 'quests');
+
+  state.fleet.forEach(function (ship, shipIndex) {
+    if (ship.route != null && !_isRecord(ship.route)) {
+      throw _createSaveError(
+        'SAVE_DATA_SCHEMA_INVALID',
+        '无效的存档数据：fleet[' + shipIndex + '].route 结构错误。'
+      );
+    }
+    _assertQuantityMap(ship.cargo, 'fleet[' + shipIndex + '].cargo');
+    _assertQuantityMap(ship.cargoCost, 'fleet[' + shipIndex + '].cargoCost');
+  });
+
+  state.quests.forEach(function (quest, questIndex) {
+    if (typeof quest.id !== 'string' || !quest.id ||
+        typeof quest.name !== 'string' || typeof quest.description !== 'string' ||
+        !Array.isArray(quest.objectives)) {
+      throw _createSaveError(
+        'SAVE_DATA_SCHEMA_INVALID',
+        '无效的存档数据：quests[' + questIndex + '] 结构错误。'
+      );
+    }
+    _assertRecordArray(quest.objectives, 'quests[' + questIndex + '].objectives');
+  });
+
+  _assertQuantityMap(state.cargo, 'cargo');
+  _assertQuantityMap(state.cargoCost, 'cargoCost');
 }
 
 function _deepClone(value) {
