@@ -286,6 +286,62 @@ describe('GameManager action guide smoke', function () {
     expect(state.cargo.food).toBeGreaterThan(0);
   });
 
+  it('亏损卖出不会推进累计利润任务', async function () {
+    var dom = createActionGuideSmokeDom();
+    globalThis.document = dom.document;
+    globalThis.__linegameUIManager = {
+      switchView: function () {},
+      setBottomNavActiveDirectly: function () {},
+    };
+    globalThis.BABYLON = {
+      Color3: function (r, g, b) {
+        this.r = r;
+        this.g = g;
+        this.b = b;
+      },
+      Color4: function (r, g, b, a) {
+        this.r = r;
+        this.g = g;
+        this.b = b;
+        this.a = a;
+      },
+    };
+    gameManager = await import('../js/core/GameManager.js');
+
+    var state = createTestState({
+      credits: 0,
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+    });
+    Economy.init();
+    Fleet.init(state);
+    Faction.init(state);
+    Research.init(state);
+    Quest.init(state);
+    GalaxyData.init(state);
+    Tutorial.init(state);
+    Tutorial.skip();
+    state.cargo.food = 1;
+    state.cargoCost.food = 100000;
+    state.quests = [{
+      id: 'profit_regression_test',
+      name: '利润回归测试',
+      description: '只累计真实利润',
+      type: 'trade',
+      phase: 1,
+      timeLimit: 0,
+      startDay: state.day,
+      objectives: [{ type: 'earn_profit', amount: 500, current: 0 }],
+      rewards: { credits: 0, exp: 0, reputation: 0 },
+    }];
+    gameManager._setStateForTest(state);
+
+    gameManager._handleTradeConfirmForTest('sell', 'food', 1, 'open');
+
+    expect(state.quests[0].objectives[0].current).toBe(0);
+    expect(state.totalProfit).toBeLessThan(0);
+  });
+
   it('通过管理器行动回调载入派遣草案后会展示完成态并避免重复推荐', async function () {
     vi.useFakeTimers();
     var dom = createActionGuideSmokeDom();

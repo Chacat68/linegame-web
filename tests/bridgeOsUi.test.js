@@ -66,4 +66,23 @@ describe('Bridge OS global UI contracts', function () {
 
     expect(responsive).toMatch(/@media \(max-width: 1360px\)[\s\S]*?#game-header\s*\{[^}]*grid-template-columns:\s*auto minmax\(280px, 1fr\) minmax\(250px, 0\.8fr\) auto auto/);
   });
+
+  it('keeps mobile controls at 44px and treats terminal close actions as neutral', function () {
+    var legacy = read('css/interstellar-trader.css');
+    var surfaces = read('css/surfaces.css');
+    var responsive = read('css/bridge-responsive.css');
+    var market = read('css/market-terminal.css');
+    var fleet = read('css/fleet.css');
+
+    expect(legacy).toContain('--starmap-rail-size: var(--ui-control-lg, 44px)');
+    expect(legacy).not.toContain('--starmap-rail-size: 38px');
+    expect(legacy).not.toContain('--starmap-rail-size: 36px');
+    expect(legacy).not.toMatch(/\.market-spot-intel-grid,[\s\S]{0,600}grid-template-columns:\s*1fr !important/);
+    expect(responsive).toContain('.starmap-control-rail .starmap-rail-btn');
+    expect(responsive).toMatch(/#action-guide \.action-guide-primary\.command-action-btn\s*\{[^}]*min-height:\s*var\(--ui-control-lg\)/);
+    expect(market).toMatch(/\.market-workspace-v2 \.kline-range-btn,[\s\S]*?min-height:\s*var\(--ui-control-lg\)/);
+    expect(surfaces).toContain('#trade-panel .trade-panel-toggle.secondary-terminal-close');
+    expect(surfaces).toContain('background: rgba(2, 10, 18, 0.76) !important');
+    expect(fleet).not.toContain('.market-close-btn {');
+  });
 });

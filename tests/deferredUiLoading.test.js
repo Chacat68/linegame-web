@@ -56,6 +56,8 @@ describe('deferred terminal UI loading', function () {
     expect(gameManager).toContain("link.dataset.deferredUiStyle = surface");
     expect(gameManager).toContain("document.getElementById('app-styles')");
     expect(gameManager).toContain('document.head.insertBefore(link, appStyles)');
+    expect(gameManager).toContain("link.dataset.loaded = 'false'");
+    expect(gameManager).toContain('link.parentNode.removeChild(link)');
     expect(sharedCss).toMatch(/#market-overlay\.hidden\s*\{[^}]*display:\s*none\s*!important;/);
     expect(sharedCss).not.toContain('Hangar detail modal shell refinements');
     expect(sharedCss).not.toContain('Archive terminal: quests + research');

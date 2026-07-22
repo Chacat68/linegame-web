@@ -89,6 +89,7 @@
   :root {
     --ui-header-height: 58px;
     --ui-nav-height: 62px;
+    --starmap-rail-size: var(--ui-control-lg);
   }
 
   #game-header {
@@ -171,7 +172,7 @@
     padding: 4px;
   }
 
-  .starmap-rail-btn {
+  .starmap-control-rail .starmap-rail-btn {
     min-width: var(--ui-control-lg);
     min-height: var(--ui-control-lg);
     flex: 0 0 var(--ui-control-lg);
@@ -618,7 +619,7 @@
 
   #action-guide .action-guide-primary.command-action-btn {
     width: 100%;
-    min-height: 42px;
+    min-height: var(--ui-control-lg);
   }
 
 }

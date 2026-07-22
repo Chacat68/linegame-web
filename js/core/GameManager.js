@@ -164,6 +164,10 @@ function _loadDeferredStylesheet(surface, href) {
     };
     var onError = function () {
       _deferredStylePromises[surface] = null;
+      if (link.dataset) link.dataset.loaded = 'false';
+      if (link.parentNode && link.parentNode.removeChild) {
+        link.parentNode.removeChild(link);
+      }
       reject(new Error('Failed to load deferred stylesheet: ' + surface));
     };
 
@@ -1930,7 +1934,7 @@ function _handleTradeConfirm(action, goodId, quantity, marketType) {
         quantity: quantity,
         systemId: _state.currentSystem,
         factionId: tradeFaction ? tradeFaction.id : null,
-        totalEarned: action === 'sell' ? (Economy.getSellPrice(_state.currentSystem, goodId, _state) * quantity) : 0,
+        profit: action === 'sell' ? profit : 0,
       });
       tradeQuestResult.msgs.forEach(function (m) {
         EventBus.emit('log:message', { text: m.text, type: m.type });

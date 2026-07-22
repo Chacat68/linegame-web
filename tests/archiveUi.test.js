@@ -197,6 +197,75 @@ describe('Archive terminal UI', function () {
     expect(container.innerHTML).toContain('type="button" class="btn-action quest-accept-btn"');
   });
 
+  it('任务页只展开当前焦点任务，并折叠其余路线和奖励详情', function () {
+    var container = createHtmlContainer();
+    var state = createTestState({
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+      viewingGalaxy: 'milky_way',
+      quests: [],
+      completedQuests: [],
+    });
+
+    Quest.init(state);
+    GalaxyData.init(state);
+    expect(Quest.acceptQuest(state, 'starter_first_trade').ok).toBe(true);
+    expect(Quest.acceptQuest(state, 'starter_visit_2').ok).toBe(true);
+
+    globalThis.document = {
+      getElementById: function (id) {
+        return id === 'quest-list' ? container : null;
+      },
+    };
+
+    QuestUI.render(state, function () {}, function () {}, {}, function () {});
+
+    expect(container.innerHTML.match(/class="quest-active-focus-details"/g)).toHaveLength(1);
+    expect(container.innerHTML.match(/<details class="quest-active-details">/g)).toHaveLength(1);
+    expect(container.innerHTML).toContain('<summary>查看路线、奖励与操作</summary>');
+    expect(container.innerHTML).not.toContain('📡 任务路线建议');
+  });
+
+  it('任务页会转义存档中的任务名称与描述', function () {
+    var container = createHtmlContainer();
+    var state = createTestState({
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+      viewingGalaxy: 'milky_way',
+      quests: [],
+      completedQuests: [],
+    });
+    Quest.init(state);
+    GalaxyData.init(state);
+    expect(Quest.acceptQuest(state, 'starter_first_trade').ok).toBe(true);
+    state.quests[0].name = '<img src=x onerror=alert(1)>';
+    state.quests[0].description = '<script>alert(2)</script>';
+    state.quests[0].objectives = [{
+      type: 'deliver',
+      goodId: 'food',
+      targetSystem: 'nova_station',
+      amount: 1,
+      current: 0,
+    }];
+    state.quests[0].rewards.credits = '<svg onload=alert(3)>';
+    state.cargo.food = 1;
+
+    globalThis.document = {
+      getElementById: function (id) {
+        return id === 'quest-list' ? container : null;
+      },
+    };
+
+    QuestUI.render(state, function () {}, function () {}, {}, function () {});
+
+    expect(container.innerHTML).not.toContain('<img src=x');
+    expect(container.innerHTML).not.toContain('<script>');
+    expect(container.innerHTML).not.toContain('<svg onload');
+    expect(container.innerHTML).toContain('&lt;img src=x onerror=alert(1)&gt;');
+    expect(container.innerHTML).toContain('&lt;script&gt;alert(2)&lt;/script&gt;');
+    expect(container.innerHTML).toContain('&lt;svg onload=alert(3)&gt;');
+  });
+
   it('科技页会渲染研究总览、候选列表和已完成研究列表', function () {
     var status = createHtmlContainer();
     var options = createHtmlContainer();

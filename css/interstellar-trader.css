@@ -6068,11 +6068,6 @@ textarea:focus,
   box-shadow: 0 0 20px rgba(108, 231, 255, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.07);
 }
 
-.hud-widget-close,
-.current-system-card-close,
-.info-panel-toggle,
-.settings-close-btn,
-.market-close-btn,
 .mod-modal-uninstall-btn {
   border-color: rgba(251, 113, 133, 0.26);
   color: #ffc2cd;
@@ -7195,7 +7190,7 @@ textarea:focus,
 :root {
   --starmap-rail-edge-x: clamp(12px, 1.6vw, 18px);
   --starmap-rail-edge-y: clamp(22px, 6.8dvh, 68px);
-  --starmap-rail-size: 42px;
+  --starmap-rail-size: var(--ui-control-lg, 44px);
   --starmap-rail-gap: 8px;
   --starmap-rail-widget-gap: 14px;
   --starmap-rail-exploration-offset: 300px;
@@ -7266,7 +7261,7 @@ textarea:focus,
   :root {
     --starmap-rail-edge-x: clamp(8px, 2vw, 12px);
     --starmap-rail-edge-y: clamp(42px, 7.4dvh, 64px);
-    --starmap-rail-size: 42px;
+    --starmap-rail-size: var(--ui-control-lg, 44px);
     --starmap-rail-gap: 6px;
     --starmap-rail-widget-gap: 8px;
     --starmap-rail-exploration-offset: 288px;
@@ -7866,18 +7861,19 @@ a[class*="btn"] svg,
   top: 10px;
   right: 10px;
   z-index: 3;
-  width: 36px;
-  height: 36px;
-  border: 1px solid rgba(255, 122, 146, 0.32);
+  width: var(--ui-control-lg, 44px);
+  height: var(--ui-control-lg, 44px);
+  border: 1px solid var(--ui-line-default, rgba(108, 231, 255, 0.28));
   border-radius: 8px;
-  background: rgba(72, 16, 28, 0.72);
-  color: #ffd1da;
-  box-shadow: 0 0 18px rgba(255, 88, 120, 0.12);
+  background: rgba(2, 10, 18, 0.76);
+  color: var(--ui-text-secondary, rgba(220, 245, 255, 0.86));
+  box-shadow: none;
 }
 
 #trade-panel .trade-panel-toggle:hover {
-  color: #ffffff;
-  background: rgba(116, 25, 42, 0.88);
+  border-color: var(--ui-line-strong, rgba(108, 231, 255, 0.72));
+  color: var(--ui-text-primary, #ffffff);
+  background: rgba(108, 231, 255, 0.08);
 }
 
 /* 交易所终端（原本是 market-overlay）样式微调 */
@@ -8080,9 +8076,9 @@ a[class*="btn"] svg,
 #info-panel .secondary-terminal-close,
 #trade-panel .trade-panel-toggle.secondary-terminal-close {
   position: static !important;
-  width: 42px !important;
-  height: 42px !important;
-  min-width: 42px !important;
+  width: var(--ui-control-lg, 44px) !important;
+  height: var(--ui-control-lg, 44px) !important;
+  min-width: var(--ui-control-lg, 44px) !important;
   border-radius: 10px !important;
 }
 
@@ -8796,8 +8792,6 @@ body,
   .market-capital-focus,
   .market-local-operations-grid,
   .market-local-operations-focus,
-  .market-finance-summary-grid,
-  .market-spot-intel-grid,
   .market-batch-plan-metrics,
   .company-directives-brief-grid,
   .quest-command-metrics,
@@ -9400,7 +9394,7 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) .galaxy-s
 
 @media (max-width: 560px) {
   :root {
-    --starmap-rail-size: 38px;
+    --starmap-rail-size: var(--ui-control-lg, 44px);
     --starmap-rail-frame-pad: 3px;
     --starmap-rail-widget-gap: 6px;
     --starmap-rail-exploration-offset: 270px;
@@ -9565,7 +9559,7 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) .galaxy-s
 
 @media (max-width: 360px) {
   :root {
-    --starmap-rail-size: 36px;
+    --starmap-rail-size: var(--ui-control-lg, 44px);
     --starmap-rail-widget-gap: 5px;
   }
 

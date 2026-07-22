@@ -1207,7 +1207,7 @@ function _renderQuestTracker(state) {
     var metaParts = [];
 
     if (item.progressText) {
-      metaParts.push('<span class="quest-tracker-progress-text">' + item.progressText + '</span>');
+      metaParts.push('<span class="quest-tracker-progress-text">' + _escapeHtml(item.progressText) + '</span>');
     }
     if (tracker.items.length > 1) {
       metaParts.push('<span class="quest-tracker-more">另 ' + (tracker.items.length - 1) + ' 项</span>');
@@ -1217,10 +1217,10 @@ function _renderQuestTracker(state) {
     }
 
     html +=
-      '<div class="quest-tracker-item quest-tracker-' + tracker.mode + '">' +
+      '<div class="quest-tracker-item quest-tracker-' + _escapeHtml(tracker.mode) + '">' +
         '<div class="quest-tracker-item-head">' +
-          '<span class="quest-tracker-item-name">' + item.name + '</span>' +
-          '<span class="quest-tracker-badge">' + item.statusText + '</span>' +
+          '<span class="quest-tracker-item-name">' + _escapeHtml(item.name) + '</span>' +
+          '<span class="quest-tracker-badge">' + _escapeHtml(item.statusText) + '</span>' +
         '</div>' +
         '<div class="quest-tracker-summary-line">目标、奖励和路线留在任务页。</div>' +
         '<div class="quest-tracker-meta">' + metaParts.join('') + '</div>' +

@@ -946,7 +946,7 @@
 }
 
 #tab-quest .quest-card.active-quest {
-  min-height: 236px;
+  min-height: 0;
 }
 
 #tab-quest .quest-card.locked-quest {
@@ -1425,6 +1425,63 @@
 }
 
 .quest-secondary-details-body {
+  padding: var(--ui-space-3);
+}
+
+#tab-quest .quest-active-focus-details,
+#tab-quest .quest-active-details-body {
+  display: grid;
+  min-width: 0;
+  gap: 9px;
+}
+
+#tab-quest .quest-active-details {
+  margin-top: 2px;
+  border: 1px solid var(--ui-line-subtle);
+  border-radius: var(--ui-radius-control);
+  background: rgba(4, 15, 25, 0.48);
+}
+
+#tab-quest .quest-active-details > summary {
+  display: flex;
+  min-height: var(--ui-control-lg);
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--ui-space-2) var(--ui-space-3);
+  gap: var(--ui-space-2);
+  color: var(--ui-text-secondary);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  list-style: none;
+}
+
+#tab-quest .quest-active-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+#tab-quest .quest-active-details > summary::after {
+  content: "+";
+  color: var(--ui-accent-strong);
+  font-size: 16px;
+  line-height: 1;
+}
+
+#tab-quest .quest-active-details[open] > summary {
+  border-bottom: 1px solid var(--ui-line-subtle);
+  color: var(--ui-text-primary);
+}
+
+#tab-quest .quest-active-details[open] > summary::after {
+  content: "−";
+}
+
+#tab-quest .quest-active-details > summary:focus-visible {
+  outline: 2px solid var(--ui-accent-strong);
+  outline-offset: 2px;
+}
+
+#tab-quest .quest-active-details-body {
   padding: var(--ui-space-3);
 }
 
