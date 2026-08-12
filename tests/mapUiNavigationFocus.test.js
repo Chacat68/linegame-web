@@ -199,6 +199,30 @@ describe('MapUI navigation target focus', function () {
     expect(mapUiSource).toContain('commandSurfaceTop - panelH - 12');
   });
 
+  it('会话替换后旧 3D 回调只更新 provider 返回的新 state', async function () {
+    vi.resetModules();
+    var first = createTestState({ hoveredSystem: null, mapView: 'planets' });
+    var loaded = createTestState({ hoveredSystem: null, mapView: 'planets' });
+    var current = first;
+
+    globalThis.window = {};
+    globalThis.document = {
+      body: { classList: createFakeClassList() },
+      getElementById: function () { return null; },
+      querySelector: function () { return null; },
+      querySelectorAll: function () { return []; },
+    };
+
+    var MapUI = await import('../js/ui/MapUI.js');
+    MapUI.init3DCallbacks(function () { return current; }, function () {}, function () {});
+    current = loaded;
+
+    globalThis.window._mapHoverCallback({ type: 'system', id: 'nova_station' });
+
+    expect(first.hoveredSystem).toBe(null);
+    expect(loaded.hoveredSystem).toBe('nova_station');
+  });
+
   it('星系总览使用固定返回入口、紧凑目录并保持滚动位置', async function () {
     vi.resetModules();
 

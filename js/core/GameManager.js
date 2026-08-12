@@ -52,9 +52,12 @@ import * as MidgameTeachingChain from '../systems/guidance/MidgameTeachingChain.
 import { getProcessingMessage as getGuidanceActionProcessingMessage } from './GuidanceActionFeedback.js';
 import * as Dispatch from './DispatchController.js';
 import { createDeferredFeatureLoader, loadDeferredStylesheet } from './DeferredFeatureLoader.js';
+import { createStateSession } from './StateSession.js';
+import { createGameSystemRuntime } from './GameSystemRuntime.js';
 import { createGameUiCoordinator } from '../ui/GameUiCoordinator.js';
 import { hasBlockingSurfaceOpen, hideBlockingSurface, showBlockingSurface } from '../ui/SurfaceManager.js';
 
+const _session = createStateSession();
 let _state     = null;
 let _startTime = null;
 let _settings  = {
@@ -108,6 +111,31 @@ const _marketTerminalStylesUrl = new URL('../../css/market-terminal.css?v=202607
 const _deferredFeatures = createDeferredFeatureLoader();
 let _deferredFeaturesConfigured = false;
 let _uiCoordinator = null;
+let _systemRuntime = null;
+
+function _replaceState(nextState, reason) {
+  _session.replace(nextState, { reason: reason });
+  _state = _session.getState();
+  _runtimeRevision = _session.getRevision();
+  return _state;
+}
+
+function _resetSessionTransients() {
+  _blackMarketMode = false;
+  _pendingQuestSelectionId = null;
+  _recentModInstallContext = null;
+  _pendingVictoryReportPathId = null;
+  _achievementCheckQueued = false;
+  _realtimeClock = null;
+}
+
+function _getSessionToken() {
+  return _session.getToken();
+}
+
+function _isSessionTokenCurrent(token) {
+  return _session.isCurrent(token);
+}
 
 function _setDeferredUiState(surface, state) {
   if (typeof document === 'undefined' || !document.body || !document.body.dataset) return;
@@ -335,11 +363,12 @@ function _ensureAchievementState(state) {
 function _loadAchievementSystem() {
   if (_achievementModule) return Promise.resolve(_achievementModule);
   if (!_achievementPromise) {
+    var sessionToken = _getSessionToken();
     _setDeferredUiState('achievement', 'loading');
     _achievementPromise = import('../systems/achievement/AchievementSystem.js')
       .then(function (module) {
         _achievementModule = module;
-        if (_state) _achievementModule.init(_state);
+        if (_isSessionTokenCurrent(sessionToken) && _state) _achievementModule.init(_state);
         _setDeferredUiState('achievement', 'ready');
         return module;
       })
@@ -654,10 +683,8 @@ function _initializeSettingsUI(SettingsUI) {
       if (Dispatch.isRunning()) _startActiveDispatchClock();
     },
     onResetTutorial: function () {
-      Tutorial.reset();
       _hideSettingsModal();
-      Save.deleteSlot(0);
-      init(null, { restoreAutosave: false });
+      _restartSession('settings-tutorial-reset');
     },
     onClearSaves: function () {
       for (var slotId = 0; slotId < 4; slotId++) Save.deleteSlot(slotId);
@@ -753,6 +780,34 @@ function _getMarketFinanceActions() {
     onBatchSetTradeStationStrategy: _handleBatchSetTradeStationStrategy,
     onFocusRemoteSystem: _handleFocusRemoteMarketSystem,
   };
+}
+
+function _getSystemRuntime() {
+  if (_systemRuntime) return _systemRuntime;
+  _systemRuntime = createGameSystemRuntime({
+    systems: {
+      Economy: Economy,
+      Fleet: Fleet,
+      Faction: Faction,
+      Research: Research,
+      Quest: Quest,
+      Tutorial: Tutorial,
+      BalanceMetrics: BalanceMetrics,
+      MidgameTeachingChain: MidgameTeachingChain,
+      GalaxyData: GalaxyData,
+    },
+    hooks: {
+      ensureAchievementState: _ensureAchievementState,
+      initializeAchievement: function (state) {
+        if (_achievementModule) _achievementModule.init(state);
+        _setDeferredUiState('achievement', _achievementModule ? 'ready' : (_achievementPromise ? 'loading' : 'idle'));
+      },
+      syncDeferredBusiness: function () {
+        _syncDeferredBusinessRuntimes();
+      },
+    },
+  });
+  return _systemRuntime;
 }
 
 function _getUiCoordinator() {
@@ -865,13 +920,16 @@ function _initializeVictoryResultUI(VictoryResultUI) {
       _refreshActionGuide();
     },
     onRestart: function () {
-      _pendingVictoryReportPathId = null;
-      Tutorial.reset();
-      Save.deleteSlot(0);
-      init(null, { restoreAutosave: false });
+      _restartSession('victory-restart');
     },
   });
   _victoryResultUiInitialized = true;
+}
+
+function _restartSession(reason) {
+  Tutorial.reset();
+  Save.deleteSlot(0);
+  return init(null, { restoreAutosave: false, reason: reason || 'restart' });
 }
 
 function _revealMarketGoodFocus(goodId, options) {
@@ -901,13 +959,12 @@ let _onTutorialComplete = null;
 export function init(difficulty, options) {
   _stopGameLoop();
   Dispatch.stopActiveDispatch();   // 重启时停止派遣
-  _runtimeRevision += 1;
   _settings = Settings.loadSettings();
   var startup = resolveStartupState(difficulty, _settings, options);
   var restoredAutosave = startup.restoredAutosave;
-  _state = startup.state;
+  _resetSessionTransients();
+  _replaceState(startup.state, restoredAutosave ? 'restore-autosave' : 'new-game');
   Audio.init(_settings);
-  _realtimeClock = null;
   _acknowledgedVictoryPathIds = new Set();
   _pendingVictoryReportPathId = null;
   _resetDialogueRuntime(_state);
@@ -920,22 +977,12 @@ export function init(difficulty, options) {
     Settings.saveSettings(_settings);
   }
 
-  Economy.init(restoredAutosave ? _state.economyMarketState : null);
-  if (restoredAutosave && !_state.economyMarketState) Economy.setCycleState(_state.economyCycle);
-  Fleet.init(_state);
-  Faction.init(_state);
-  Research.init(_state);
-  Quest.init(_state);
-  _ensureAchievementState(_state);
-  if (_achievementModule) _achievementModule.init(_state);
-  BalanceMetrics.init(_state);
-  MidgameTeachingChain.init(_state);
-  _setDeferredUiState('achievement', _achievementModule ? 'ready' : (_achievementPromise ? 'loading' : 'idle'));
-  GalaxyData.init(_state); // Initialize galaxy data layer
-  if (restoredAutosave && _state.galaxyStates && Object.keys(_state.galaxyStates).length > 0) {
-    GalaxyData.restorePlanetStates(_state.galaxyStates);
-  }
-  _syncDeferredBusinessRuntimes();
+  _getSystemRuntime().restore(_state, {
+    reason: restoredAutosave ? 'restore-autosave' : 'new-game',
+    sessionToken: _getSessionToken(),
+    restoreEconomy: restoredAutosave,
+    restoreGalaxy: restoredAutosave,
+  });
   Renderer3D.init();
   Renderer3D.resetRuntimeState(_state.currentSystem);
   Settings.applySettings(_settings, Renderer3D);
@@ -945,7 +992,7 @@ export function init(difficulty, options) {
   });
 
   // 注入回调给各 UI 模块
-  MapUI.init(_state, _handleTravel, _handleGalaxyJump);
+  MapUI.init(function () { return _state; }, _handleTravel, _handleGalaxyJump);
 
   // 初始化全局视图管理器 UIManager
   UIManager.init(function () { return _state; }, {
@@ -984,7 +1031,7 @@ export function init(difficulty, options) {
   _setDeferredUiState('guidanceAction', _guidanceActionModule ? 'ready' : (_guidanceActionPromise ? 'loading' : 'idle'));
 
   // 星图视角默认启用，确保回调已绑定
-  MapUI.init3DCallbacks(_state, _handleTravel, _handleGalaxyJump);
+  MapUI.init3DCallbacks(function () { return _state; }, _handleTravel, _handleGalaxyJump);
 
 
   // 注入市场刷新回调（让 MapUI 可以触发市场表格重绘）
@@ -1010,8 +1057,7 @@ export function init(difficulty, options) {
   });
   Modal.init(_handleTradeConfirm);
 
-  // 新手引导系统
-  Tutorial.init(_state);
+  // 新手引导系统已由 GameSystemRuntime 与其他状态系统统一恢复。
   if (_tutorialUiModule) _initializeTutorialUI(_tutorialUiModule);
   _setDeferredUiState('tutorial', _tutorialUiModule ? 'ready' : (_tutorialUiPromise ? 'loading' : 'idle'));
   _setDeferredUiState('onboarding', _onboardingUiModule ? 'ready' : (_onboardingUiPromise ? 'loading' : 'idle'));
@@ -1059,8 +1105,7 @@ export function init(difficulty, options) {
 }
 
 export function _setStateForTest(state) {
-  _runtimeRevision += 1;
-  _state = state || null;
+  _replaceState(state || null, 'test');
   _recentModInstallContext = null;
   if (_state) {
     _resetDialogueRuntime(_state);
@@ -2399,8 +2444,7 @@ function _handleAbandonQuest(questId) {
 }
 
 function _handleSaveGame(slotId) {
-  Fleet.syncShipFromState(_state); // 保存前同步船只状态
-  _captureRuntimeStateForSave(_state);
+  _captureRuntimeStateForSave(_state, { reason: 'manual-save' });
   const result = Save.saveGame(slotId, _state);
   EventBus.emit('log:message', { text: result.msg, type: result.ok ? 'info' : 'error' });
   _updateUI();
@@ -2410,36 +2454,25 @@ function _handleLoadGame(slotId) {
   const result = Save.loadGame(slotId);
   if (result.ok) {
     _hideSettingsModal();
-    _runtimeRevision += 1;
-    _state = result.state;
+    Dispatch.stopActiveDispatch();
+    _resetSessionTransients();
+    _replaceState(result.state, 'manual-load');
     _acknowledgedVictoryPathIds = new Set();
     _resetDialogueRuntime(_state);
     _syncRandomEventRuntime(_state);
     EventUI.hidePendingNotification();
     _settings.difficulty = _state.difficulty;
     Settings.saveSettings(_settings);
-    // 重新初始化依赖状态的子系统
-    Fleet.init(_state);
-    Faction.init(_state);
-    Research.init(_state);
-    Quest.init(_state);
-    Tutorial.init(_state);
-    BalanceMetrics.init(_state);
-    MidgameTeachingChain.init(_state);
-    _ensureAchievementState(_state);
-    if (_achievementModule) _achievementModule.init(_state);
-    _setDeferredUiState('achievement', _achievementModule ? 'ready' : (_achievementPromise ? 'loading' : 'idle'));
-    GalaxyData.init(_state); // 重新初始化星系数据层
-    _syncDeferredBusinessRuntimes();
-    if (_state.galaxyStates && Object.keys(_state.galaxyStates).length > 0) {
-      GalaxyData.restorePlanetStates(_state.galaxyStates); // 恢复星系状态
-    }
-    Economy.init(_state.economyMarketState);
-    if (!_state.economyMarketState) Economy.setCycleState(_state.economyCycle);
+    _getSystemRuntime().restore(_state, {
+      reason: 'manual-load',
+      sessionToken: _getSessionToken(),
+      restoreEconomy: true,
+      restoreGalaxy: true,
+    });
+    MapUI.syncState(function () { return _state; });
     Renderer3D.resetRuntimeState(_state.currentSystem);
     MapUI.refreshGalaxyBtn(_state);
-    // 恢复派遣状态
-    Dispatch.stopActiveDispatch();
+    // 恢复派遣状态（旧时钟已在 state replace 前停止）
     if (Fleet.isActiveDispatched(_state)) {
       _startActiveDispatchClock();
     }
@@ -2819,11 +2852,8 @@ function _getRealtimeDayDurationMs() {
     : TIME_CONFIG.realtimeDayDurationMs;
 }
 
-function _captureRuntimeStateForSave(state) {
-  if (!state) return;
-  state.economyCycle = Economy.getCycleState();
-  state.economyMarketState = Economy.getMarketState();
-  state.galaxyStates = GalaxyData.getAllPlanetStates();
+function _captureRuntimeStateForSave(state, options) {
+  return _getSystemRuntime().capture(state, Object.assign({ sessionToken: _getSessionToken() }, options));
 }
 
 function _stopGameLoop() {
