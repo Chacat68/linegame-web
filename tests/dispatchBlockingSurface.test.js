@@ -31,7 +31,7 @@ describe('DispatchController.runActiveDispatchTick blocking surfaces', function 
     };
 
     var result = Dispatch.runActiveDispatchTick(state, {
-      isModalVisible: function () { return false; },
+      isGameOver: function () { return false; },
       hasBlockingSurfaceOpen: function () { return true; },
     });
 

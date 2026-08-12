@@ -60,9 +60,10 @@ import { createTradeActionController } from './TradeActionController.js';
 import { createTravelActionController } from './TravelActionController.js';
 import { createExplorationOperationsController } from './ExplorationOperationsController.js';
 import { createEventActionController } from './EventActionController.js';
+import { createDispatchActionController } from './DispatchActionController.js';
 import { createGameUiCoordinator } from '../ui/GameUiCoordinator.js';
 import { createWorkspaceContextAdapters } from '../ui/WorkspaceContextAdapters.js';
-import { hasBlockingSurfaceOpen, hideBlockingSurface, showBlockingSurface } from '../ui/SurfaceManager.js';
+import { hasBlockingSurfaceOpen, hideBlockingSurface, isBlockingSurfaceVisible, showBlockingSurface } from '../ui/SurfaceManager.js';
 
 const _session = createStateSession();
 const ACTIVE_DISPATCH_CLOCK_ID = 'active-dispatch';
@@ -127,6 +128,7 @@ let _tradeActions = null;
 let _travelActions = null;
 let _explorationActions = null;
 let _eventActions = null;
+let _dispatchActions = null;
 let _contextAdapters = null;
 
 function _replaceState(nextState, reason) {
@@ -1074,6 +1076,31 @@ function _getEventActions() {
     saveAutosave: function (state) { Save.saveGame(0, state, { isAutosave: true }); },
   });
   return _eventActions;
+}
+
+function _getDispatchActions() {
+  if (_dispatchActions) return _dispatchActions;
+  _dispatchActions = createDispatchActionController({
+    getState: function () { return _state; },
+    systems: { Dispatch: Dispatch, Fleet: Fleet },
+    refuel: function (options) { return _getTradeActions().refuel(options); },
+    travel: function (systemId) { return _getTravelActions().travel(systemId); },
+    confirmTrade: function () { return _getTradeActions().confirm.apply(null, arguments); },
+    isGameOver: function () { return isBlockingSurfaceVisible('gameover-modal'); },
+    hasBlockingSurfaceOpen: function () {
+      if (hasBlockingSurfaceOpen()) return true;
+      var FleetUI = _getDeferredFeature('fleet');
+      return !!(
+        FleetUI &&
+        typeof FleetUI.getActiveDispatchModalContext === 'function' &&
+        FleetUI.getActiveDispatchModalContext()
+      );
+    },
+    emitMessage: function (message) { EventBus.emit('log:message', message); },
+    stopClock: _stopActiveDispatchClock,
+    render: _updateUI,
+  });
+  return _dispatchActions;
 }
 
 function _getUiCoordinator() {
@@ -2369,72 +2396,7 @@ function _handleDismissCrew(crewId) {
 // ---------------------------------------------------------------------------
 
 function _boundDispatchTick() {
-  var tickResult = Dispatch.runActiveDispatchTick(_state, {
-    isModalVisible: function (id) {
-      var el = document.getElementById(id);
-      return el && !el.classList.contains('hidden');
-    },
-    hasBlockingSurfaceOpen: function () {
-      return hasBlockingSurfaceOpen('gameover-modal');
-    },
-  });
-
-  // 处理日志
-  tickResult.msgs.forEach(function (m) {
-    EventBus.emit('log:message', { text: m.text, type: m.type });
-  });
-
-  switch (tickResult.action) {
-    case 'stopped':
-      _stopActiveDispatchClock();
-      _updateUI();
-      break;
-    case 'travel_need_refuel': {
-      _getTradeActions().refuel({ showCompletion: false });
-      if (_state.fuel < tickResult.payload.fuelCost) {
-        EventBus.emit('log:message', { text: '📡 自动跑商的船只燃料不足，已召回。', type: 'error' });
-        Fleet.cancelActiveDispatch(_state);
-        _stopActiveDispatchClock();
-        _updateUI();
-      } else {
-        _handleTravel(tickResult.payload.systemId);
-      }
-      break;
-    }
-    case 'buy_need_refuel': {
-      _getTradeActions().refuel({ showCompletion: false });
-      if (_state.fuel < tickResult.payload.fuelCost) {
-        EventBus.emit('log:message', { text: '📡 自动跑商的船只补给后仍无法完成下一段航程，已召回。', type: 'error' });
-        Fleet.cancelActiveDispatch(_state);
-        _stopActiveDispatchClock();
-        _updateUI();
-      } else {
-        _handleTradeConfirm('buy', tickResult.payload.goodId, tickResult.payload.quantity, tickResult.payload.marketType);
-        var shipRefueled = Fleet.getActiveShip(_state);
-        if (shipRefueled && shipRefueled.route) shipRefueled.route.status = 'traveling_sell';
-        _updateUI();
-      }
-      break;
-    }
-    case 'travel':
-      _handleTravel(tickResult.payload.systemId);
-      break;
-    case 'buy':
-      _handleTradeConfirm('buy', tickResult.payload.goodId, tickResult.payload.quantity, tickResult.payload.marketType);
-      // 转入前往卖出地状态
-      var shipB = Fleet.getActiveShip(_state);
-      if (shipB && shipB.route) shipB.route.status = 'traveling_sell';
-      _updateUI();
-      break;
-    case 'sell':
-      _handleTradeConfirm('sell', tickResult.payload.goodId, tickResult.payload.quantity, tickResult.payload.marketType);
-      // 循环：重新前往买入地
-      var shipS = Fleet.getActiveShip(_state);
-      if (shipS && shipS.route) shipS.route.status = 'traveling_buy';
-      _updateUI();
-      break;
-    // 'noop' — do nothing
-  }
+  return _getDispatchActions().tick();
 }
 
 function _startActiveDispatchClock() {

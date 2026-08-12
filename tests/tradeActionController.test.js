@@ -104,10 +104,21 @@ describe('TradeActionController', function () {
   it('自动派遣买入记录货物成本和成交价', function () {
     var harness = createHarness({ route: { goodId: 'food', status: 'buying' } });
 
-    harness.controller.confirm('buy', 'food', 2, 'open');
+    harness.controller.confirm('buy', 'food', 2, 'open', { nextRouteStatus: 'traveling_sell' });
 
     expect(harness.ship.operatingStats.cargoCost).toBe(40);
     expect(harness.ship.route.lastBuyPrice).toBe(8);
+    expect(harness.ship.route.status).toBe('traveling_sell');
+    expect(harness.trace.indexOf('commit-ship')).toBeLessThan(harness.trace.indexOf('render:1'));
+  });
+
+  it('自动派遣卖出在首次 render 前切回买入航段', function () {
+    var harness = createHarness({ route: { goodId: 'food', status: 'selling' } });
+
+    harness.controller.confirm('sell', 'food', 2, 'open', { nextRouteStatus: 'traveling_buy' });
+
+    expect(harness.ship.route.status).toBe('traveling_buy');
+    expect(harness.trace.indexOf('commit-ship')).toBeLessThan(harness.trace.indexOf('render:1'));
   });
 
   it('黑市交易记录风险数据但不推进公开市场任务和公司经验', function () {

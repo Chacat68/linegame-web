@@ -46,8 +46,9 @@ export function createTradeActionController(dependencies) {
     return state;
   }
 
-  function confirm(action, goodId, quantity, marketType) {
+  function confirm(action, goodId, quantity, marketType, options) {
     var state = _state();
+    var actionOptions = options || {};
     Fleet.syncStateFromShip(state);
 
     var dispatchedShip = Fleet.getActiveShip(state);
@@ -91,6 +92,7 @@ export function createTradeActionController(dependencies) {
             ? result.meta.unitBuyPrice
             : null;
           activeRoute.lastPolicyMessage = null;
+          if (actionOptions.nextRouteStatus) activeRoute.status = actionOptions.nextRouteStatus;
         }
 
         Tutorial.checkTrigger(action);

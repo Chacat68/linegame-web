@@ -34,7 +34,7 @@ function _clearPolicyMessage(route) {
  *
  * @param {object} state  游戏状态
  * @param {object} options
- * @param {Function} options.isModalVisible  (modalId) => boolean 检查弹窗是否可见
+ * @param {Function} [options.isGameOver]  () => boolean 游戏结算层是否打开
  * @param {Function} [options.hasBlockingSurfaceOpen]  () => boolean 检查是否存在任意阻塞层
  * @returns {{ action: string, payload?: *, msgs: Array }}
  *   action 可为：
@@ -48,14 +48,17 @@ function _clearPolicyMessage(route) {
  */
 export function runActiveDispatchTick(state, options) {
   const msgs = [];
-  const isModalVisible = options.isModalVisible;
-  const hasBlockingSurfaceOpen = options.hasBlockingSurfaceOpen;
+  const tickOptions = options || {};
+  const isGameOver = typeof tickOptions.isGameOver === 'function'
+    ? tickOptions.isGameOver
+    : function () { return false; };
+  const hasBlockingSurfaceOpen = tickOptions.hasBlockingSurfaceOpen;
 
-  // 有弹窗时暂停
-  if (isModalVisible('gameover-modal')) {
+  // 游戏结算会终止 recurring；其它阻塞层仅暂停本次 tick。
+  if (isGameOver()) {
     return { action: 'stopped', msgs };
   }
-  if ((typeof hasBlockingSurfaceOpen === 'function' && hasBlockingSurfaceOpen()) || isModalVisible('event-modal') || isModalVisible('dispatch-modal')) {
+  if (typeof hasBlockingSurfaceOpen === 'function' && hasBlockingSurfaceOpen()) {
     return { action: 'noop', msgs };
   }
 
@@ -108,6 +111,12 @@ export function runActiveDispatchTick(state, options) {
 
   var result = Fleet.tickActiveShipDispatch(state);
   msgs.push(...result.msgs);
+
+  // 领域 tick 可能因维护度或风险检查主动取消路线；立即停表，避免保留
+  // 一个注定只会在下一次 tick 才发现失效的 recurring task。
+  if (!Fleet.isActiveDispatched(state)) {
+    return { action: 'stopped', msgs };
+  }
 
   // 需要旅行
   if (result.needTravel) {
