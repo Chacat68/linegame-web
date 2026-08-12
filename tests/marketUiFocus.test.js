@@ -351,7 +351,7 @@ describe('MarketUI guided focus', function () {
     expect(js).toContain('class="trade-station-list-signal ');
     expect(js).toContain('class="market-local-operations-panel" aria-label="本地经营局部状态"');
     expect(js).toContain('class="market-local-operations-grid" role="list" aria-label="本地经营指标"');
-    expect(js).toContain('class="market-local-operations-focus" aria-label="本地经营建议"');
+    expect(js).toContain('class="market-local-operations-focus" aria-label="本地经营状态"');
     expect(js).toContain('class="trade-station-build-card" role="listitem" tabindex="0"');
     expect(js).toContain('class="trade-station-card" role="listitem" tabindex="0"');
     expect(js).toContain('aria-pressed="');
@@ -405,7 +405,7 @@ describe('MarketUI guided focus', function () {
     expect(js).toContain('class="market-spot-signal-grid" role="list" aria-label="行情信息"');
     expect(js).toContain('class="market-spot-signal-panel market-black-risk-panel" aria-label="黑市风险局部状态"');
     expect(js).toContain('class="market-spot-signal-grid" role="list" aria-label="黑市风险指标"');
-    expect(js).toContain('class="market-spot-focus" aria-label="市场建议"');
+    expect(js).toContain('class="market-spot-focus" aria-label="现货市场信号"');
     expect(js).toContain('market-black-goods-grid" role="list" aria-label="灰市货目录"');
     expect(js).toContain('market-black-good-card" role="listitem"');
     expect(css).toContain('.market-spot-signal-panel');
@@ -967,7 +967,7 @@ describe('MarketUI guided focus', function () {
     expect(operationsPane.innerHTML).toContain('适合补给和走量，可采用薄利多销');
     expect(operationsPane.innerHTML).toContain('market-local-operations-panel');
     expect(operationsPane.innerHTML).toContain('本地经营指标');
-    expect(operationsPane.innerHTML).toContain('本地经营建议');
+    expect(operationsPane.innerHTML).toContain('本地经营状态');
     expect(operationsPane.innerHTML).toContain('建站条件已具备');
   });
 
@@ -1108,7 +1108,7 @@ describe('MarketUI guided focus', function () {
 
     expect(operationsPane.innerHTML).toContain('下一笔商网动作');
     expect(operationsPane.innerHTML).toContain('商网列表摘要');
-    expect(operationsPane.innerHTML).toContain('当前建议');
+    expect(operationsPane.innerHTML).toContain('站点状态');
     expect(operationsPane.innerHTML).toContain('可建站地点');
     expect(operationsPane.innerHTML).toContain('补给商网');
     expect(operationsPane.innerHTML).toContain('data-action="market-build-station"');

@@ -70,7 +70,7 @@ describe('workspace navigation controller', function () {
     expect(events.at(-1)[1].state).toBe(state);
   });
 
-  it('按工作区维护独立详情栈，Escape 优先逐层关闭详情', function () {
+  it('按工作区维护独立详情栈，Escape 只逐层关闭详情且不切换 L3', function () {
     var controller = createNavigationController();
 
     controller.navigate('trade');
@@ -90,10 +90,13 @@ describe('workspace navigation controller', function () {
 
     expect(controller.handleEscape()).toBe('detail');
     expect(controller.getSnapshot().activeWorkspace).toBe('trade');
-    expect(controller.handleEscape()).toBe('workspace');
-    expect(controller.getSnapshot().activeWorkspace).toBe('map');
-    expect(controller.getSnapshot().detailStacks.fleet).toEqual(['ship:alpha']);
     expect(controller.handleEscape()).toBe(false);
+    expect(controller.getSnapshot().activeWorkspace).toBe('trade');
+    expect(controller.getSnapshot().detailStacks.fleet).toEqual(['ship:alpha']);
+
+    controller.navigate('fleet');
+    expect(controller.handleEscape()).toBe('detail');
+    expect(controller.getSnapshot().activeWorkspace).toBe('fleet');
   });
 
   it('非法目标是无副作用的 no-op', function () {

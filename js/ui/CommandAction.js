@@ -107,7 +107,7 @@ export function buildCommandFeedback(action, options) {
   var parts = [icon + ' ' + openedVerb + destination + '。'];
 
   if (opts.nextStep) {
-    parts.push('下一步：' + opts.nextStep + '。');
+    parts.push('后续处理：' + opts.nextStep + '。');
   }
   if (opts.returnTo) {
     parts.push('返回：' + opts.returnTo + '。');

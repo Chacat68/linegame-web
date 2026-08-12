@@ -1,23 +1,12 @@
-// js/ui/EventUI.js — 随机事件弹窗界面 + 非阻塞通知
+// js/ui/EventUI.js — 随机事件弹窗界面 + 待处理事件状态
 // 依赖：无
-// 导出：showEvent, hideEvent, showEventNotification, hasPendingEvent,
-//       forcePendingEvent, hidePendingNotification
+// 导出：showEvent, hideEvent, setPendingEvent, getPendingEvent,
+//       hasPendingEvent, forcePendingEvent, clearPendingEvent
 
-import { bindBlockingSurfaceDismiss, hasBlockingSurfaceOpen, hideBlockingSurface, hideEventNotificationBar, observeBlockingSurfaceState, showBlockingSurface, showEventNotificationBar } from './SurfaceManager.js';
+import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from './SurfaceManager.js';
 
 let _pendingEvent = null;
 let _pendingOnChoice = null;
-let _surfaceObserverBound = false;
-
-function _ensureSurfaceObserver() {
-  if (_surfaceObserverBound) return;
-  _surfaceObserverBound = true;
-
-  observeBlockingSurfaceState(function (snapshot) {
-    if (!snapshot || snapshot.hasBlockingSurfaceOpen || !_pendingEvent) return;
-    _renderPendingNotification();
-  });
-}
 
 /**
  * 显示随机事件模态框
@@ -25,13 +14,10 @@ function _ensureSurfaceObserver() {
  * @param {Function} onChoice   (choiceIndex: number) => void
  */
 export function showEvent(event, onChoice) {
-  _ensureSurfaceObserver();
   bindBlockingSurfaceDismiss('event-modal', {
     closeOnBackdrop: false,
     closeOnEscape: false,
   });
-  // 如果有通知条，先隐藏
-  hideEventNotificationBar();
   _pendingEvent = event;
   _pendingOnChoice = onChoice;
 
@@ -127,64 +113,23 @@ export function hideEvent() {
 }
 
 /**
- * 显示非阻塞事件通知条（玩家可延后处理）
+ * 登记待处理事件。视觉投影统一由 Command Slot / ActionGuideUI 负责，
+ * EventUI 只拥有事件数据和弹窗选择流程。
  * @param {object}   event      事件定义对象
  * @param {Function} onChoice   (choiceIndex: number) => void
  */
-export function showEventNotification(event, onChoice) {
-  _ensureSurfaceObserver();
-  _pendingEvent = event;
-  _pendingOnChoice = onChoice;
-
-  if (hasBlockingSurfaceOpen()) {
-    hideEventNotificationBar();
-    return;
-  }
-
-  _renderPendingNotification();
+export function setPendingEvent(event, onChoice) {
+  _pendingEvent = event || null;
+  _pendingOnChoice = typeof onChoice === 'function' ? onChoice : null;
+  return _pendingEvent;
 }
 
-function _renderPendingNotification() {
-  if (!_pendingEvent || hasBlockingSurfaceOpen()) {
-    hideEventNotificationBar();
-    return;
-  }
-
-  var notifEl = document.getElementById('event-notification');
-  if (!notifEl) return;
-  if (notifEl.dataset) notifEl.dataset.eventRisk = _pendingEvent.risk || 'risky';
-  var title = _pendingEvent.title || '待处理事件';
-  var iconEl = document.getElementById('event-notif-icon');
-  var kickerEl = document.getElementById('event-notif-kicker');
-  var textEl = document.getElementById('event-notif-text');
-  var metaEl = document.getElementById('event-notif-meta');
-  var riskLabel = _getRiskLabel(_pendingEvent.risk);
-  var stageLabel = _getStageLabel(_pendingEvent.stage);
-  var followUpLabel = _pendingEvent.stage === 'chain' || _pendingEvent.chainFollowUp
-    ? '可能延续'
-    : '单次处置';
-  if (iconEl) iconEl.textContent = _pendingEvent.icon || '📡';
-  if (kickerEl) kickerEl.textContent = riskLabel + ' · ' + stageLabel;
-  if (textEl) textEl.textContent = title;
-  if (metaEl) metaEl.textContent = followUpLabel + ' · 打开后选择处置方案';
-
-  function _openPending() {
-    if (_pendingEvent) {
-      showEvent(_pendingEvent, _pendingOnChoice);
-    }
-  }
-
-  // 通知条本身是唯一按钮，避免可点击容器内再嵌套按钮。
-  notifEl.onclick = _openPending;
-  notifEl.onkeydown = null;
-  notifEl.tabIndex = 0;
-  if (typeof notifEl.setAttribute === 'function') {
-    notifEl.setAttribute('tabindex', '0');
-    notifEl.setAttribute('aria-hidden', 'false');
-    notifEl.setAttribute('aria-label', '待处理事件：' + title + '，' + riskLabel + '，' + stageLabel + '。查看事件详情');
-  }
-
-  showEventNotificationBar(notifEl);
+/**
+ * 获取当前待处理事件，供统一命令槽生成唯一行动。
+ * @returns {object|null}
+ */
+export function getPendingEvent() {
+  return _pendingEvent;
 }
 
 /**
@@ -206,16 +151,11 @@ export function forcePendingEvent() {
 }
 
 /**
- * 隐藏通知条并清除待处理事件
+ * 清除待处理事件
  */
-export function hidePendingNotification() {
-  hideEventNotificationBar();
+export function clearPendingEvent() {
   _pendingEvent = null;
   _pendingOnChoice = null;
-}
-
-function _hideNotification() {
-  hideEventNotificationBar();
 }
 
 function _renderEventSummary(event, choiceCount) {

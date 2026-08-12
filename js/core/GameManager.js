@@ -54,12 +54,13 @@ import * as Dispatch from './DispatchController.js';
 import { createDeferredFeatureLoader, loadDeferredStylesheet } from './DeferredFeatureLoader.js';
 import { createStateSession } from './StateSession.js';
 import { createGameSystemRuntime } from './GameSystemRuntime.js';
+import { createGameClockController } from './GameClockController.js';
 import { createGameUiCoordinator } from '../ui/GameUiCoordinator.js';
 import { hasBlockingSurfaceOpen, hideBlockingSurface, showBlockingSurface } from '../ui/SurfaceManager.js';
 
 const _session = createStateSession();
+const ACTIVE_DISPATCH_CLOCK_ID = 'active-dispatch';
 let _state     = null;
-let _startTime = null;
 let _settings  = {
   motionLevel: 'full',
   difficulty: 'normal',
@@ -70,9 +71,7 @@ let _blackMarketMode = false; // 当前是否处于黑市交易模式
 let _dialogueQueue = [];
 let _dialoguePlaying = false;
 let _runtimeRevision = 0;
-let _realtimeClock = null;
 let _recentModInstallContext = null;
-let _gameLoopFrameId = null;
 let _acknowledgedVictoryPathIds = new Set();
 let _pendingQuestSelectionId = null;
 let _victoryResultUiModule = null;
@@ -112,6 +111,7 @@ const _deferredFeatures = createDeferredFeatureLoader();
 let _deferredFeaturesConfigured = false;
 let _uiCoordinator = null;
 let _systemRuntime = null;
+let _gameClock = null;
 
 function _replaceState(nextState, reason) {
   _session.replace(nextState, { reason: reason });
@@ -126,7 +126,6 @@ function _resetSessionTransients() {
   _recentModInstallContext = null;
   _pendingVictoryReportPathId = null;
   _achievementCheckQueued = false;
-  _realtimeClock = null;
 }
 
 function _getSessionToken() {
@@ -519,7 +518,7 @@ function _syncRandomEventRuntime(state) {
   _setDeferredUiState('randomEvent', _randomEventModule ? 'ready' : (_randomEventPromise ? 'loading' : 'idle'));
 }
 
-function _restorePendingEventNotification(state) {
+function _restorePendingEvent(state) {
   if (!state || !state._activeEventId) return Promise.resolve(null);
   var requestedState = state;
   var requestedRevision = _runtimeRevision;
@@ -528,9 +527,10 @@ function _restorePendingEventNotification(state) {
     RandomEvent.syncRuntimeState(requestedState);
     var event = RandomEvent.getActiveEvent();
     if (!event) return null;
-    EventUI.showEventNotification(event, function (choiceIndex) {
+    EventUI.setPendingEvent(event, function (choiceIndex) {
       _handleEventChoice(choiceIndex);
     });
+    _refreshActionGuide();
     return event;
   });
 }
@@ -679,8 +679,8 @@ function _initializeSettingsUI(SettingsUI) {
     },
     onRealtimeDayDurationChanged: function (nextDurationMs) {
       _settings.realtimeDayDurationMs = nextDurationMs;
-      _resetRealtimeClock(performance.now());
-      if (Dispatch.isRunning()) _startActiveDispatchClock();
+      _getGameClock().reset(performance.now());
+      if (_gameClock && _gameClock.isRecurring(ACTIVE_DISPATCH_CLOCK_ID)) _startActiveDispatchClock();
     },
     onResetTutorial: function () {
       _hideSettingsModal();
@@ -808,6 +808,33 @@ function _getSystemRuntime() {
     },
   });
   return _systemRuntime;
+}
+
+function _getGameClock() {
+  if (_gameClock) return _gameClock;
+  _gameClock = createGameClockController({
+    getState: function () { return _state; },
+    getDayDurationMs: _getRealtimeDayDurationMs,
+    getHullSnapshot: function (state) {
+      return state && Number.isFinite(state.shipHull) ? state.shipHull : 100;
+    },
+    isPaused: function (state) {
+      if (_shouldLoadAdvancedCommerce(state) && !_commerceRuntimeModule && !_commerceRuntimeError) {
+        _loadAdvancedGuidance();
+        return true;
+      }
+      return _isRealtimeClockPaused();
+    },
+    onElapsedDays: _applyRealtimeDayProgress,
+    renderFrame: function (state) {
+      if (!state) return;
+      var mapView = MapUI.getMapView ? MapUI.getMapView() : 'planets';
+      var galaxyId = MapUI.getCurrentGalaxyId ? MapUI.getCurrentGalaxyId() : 'milky_way';
+      Renderer3D.render(state, mapView, galaxyId);
+    },
+    clockMath: GameTime,
+  });
+  return _gameClock;
 }
 
 function _getUiCoordinator() {
@@ -958,7 +985,6 @@ let _onTutorialComplete = null;
 
 export function init(difficulty, options) {
   _stopGameLoop();
-  Dispatch.stopActiveDispatch();   // 重启时停止派遣
   _settings = Settings.loadSettings();
   var startup = resolveStartupState(difficulty, _settings, options);
   var restoredAutosave = startup.restoredAutosave;
@@ -970,7 +996,7 @@ export function init(difficulty, options) {
   _resetDialogueRuntime(_state);
   if (restoredAutosave) _syncRandomEventRuntime(_state);
   else _resetRandomEventRuntime(_state);
-  EventUI.hidePendingNotification();
+  EventUI.clearPendingEvent();
 
   if (restoredAutosave) {
     _settings.difficulty = _state.difficulty;
@@ -1083,11 +1109,15 @@ export function init(difficulty, options) {
   _bindSettingsLauncher();
 
   _updateUI();
-  _resetRealtimeClock(performance.now());
+  // 自动恢复与手动读档使用同一运行时语义：存档中的激活路线继续运行，
+  // 新会话开始前的旧任务已由 _stopGameLoop() 统一清理。
+  if (Fleet.isActiveDispatched(_state)) {
+    _startActiveDispatchClock();
+  }
   _startGameLoop();
 
   if (restoredAutosave) {
-    _restorePendingEventNotification(_state);
+    _restorePendingEvent(_state);
     EventBus.emit('log:message', { text: '📂 已自动恢复最近进度。', type: 'info' });
   }
 
@@ -1126,7 +1156,11 @@ export function _handleAssignRouteForTest(shipIndex, buySystemId, sellSystemId, 
 }
 
 export function _stopActiveDispatchForTest() {
-  Dispatch.stopActiveDispatch();
+  _stopActiveDispatchClock();
+}
+
+export function _getGameClockSnapshotForTest() {
+  return _gameClock ? _gameClock.getSnapshot() : null;
 }
 
 function _showWelcomeMessages() {
@@ -1182,7 +1216,7 @@ function _recommendStarterQuests() {
   }
 
   EventBus.emit('log:message', {
-    text: '📋 下一步建议：接取 ' + recommendations.map(function (quest) { return '「' + quest.name + '」'; }).join('、') + '。',
+    text: '📋 可接取任务：' + recommendations.map(function (quest) { return '「' + quest.name + '」'; }).join('、') + '。',
     type: 'tip',
   });
   EventBus.emit('log:message', {
@@ -1322,10 +1356,10 @@ function _scheduleRandomEventRoll(state, baseChance) {
       var event = RandomEvent.rollEvent(requestedState, baseChance);
       if (event) {
         EventBus.emit('audio:cue', { cue: 'event.alert' });
-        EventUI.showEventNotification(event, function (choiceIndex) {
+        EventUI.setPendingEvent(event, function (choiceIndex) {
           _handleEventChoice(choiceIndex);
         });
-        EventBus.emit('log:message', { text: '📢 遭遇事件：' + event.title + '！查看底部通知处理。', type: 'info' });
+        EventBus.emit('log:message', { text: '📢 遭遇事件：' + event.title + '！请通过当前行动处理。', type: 'info' });
       }
 
       _captureRuntimeStateForSave(requestedState);
@@ -1494,7 +1528,8 @@ function _refreshActionGuide() {
   var nextPoiStatus = null;
   var tutorialActive = Tutorial.isActive();
   var blockingModalOpen = hasBlockingSurfaceOpen();
-  var eventPending = EventUI.hasPendingEvent();
+  var pendingEvent = EventUI.getPendingEvent();
+  var eventPending = !!pendingEvent;
   var researchSupplyRoute = null;
   var questRouteRecommendation = null;
   var researchBlocker = null;
@@ -1558,6 +1593,7 @@ function _refreshActionGuide() {
     tutorialActive: tutorialActive,
     blockingModalOpen: blockingModalOpen,
     eventPending: eventPending,
+    pendingEvent: pendingEvent,
   }));
 
   // 中期教学链：检查是否有链已自然满足完成条件
@@ -1811,7 +1847,7 @@ function _handleTravel(systemId) {
       var activeShipAfterCheck = Fleet.getActiveShip(_state);
       if (activeShipAfterCheck && activeShipAfterCheck.route && activeShipAfterCheck.route.marketMode === 'black') {
         Fleet.cancelActiveDispatch(_state);
-        Dispatch.stopActiveDispatch();
+        _stopActiveDispatchClock();
         EventBus.emit('log:message', { text: '⏹️ 黑市自动跑商因走私被查获而中止。', type: 'error' });
       }
     }
@@ -1855,7 +1891,7 @@ function _handleTravel(systemId) {
     }
 
     // 随机事件触发（群星风格）——教程期间不触发
-    // 使用非阻塞通知条代替立即弹窗，让玩家可以延后处理
+    // 事件先进入统一 Command Slot，玩家可延后打开处置弹窗。
     const baseEventChance = EVENT_CONFIG.baseChance * (activeShipStats.eventChanceMultiplier || 1);
     if (!Tutorial.isActive()) {
       _scheduleRandomEventRoll(_state, baseEventChance);
@@ -1875,6 +1911,7 @@ function _handleTravel(systemId) {
 function _handleEventChoice(choiceIndex) {
   if (!_randomEventModule) {
     EventBus.emit('log:message', { text: '⚠️ 事件运行时尚未就绪，请重新打开事件。', type: 'error' });
+    _refreshActionGuide();
     return;
   }
   const previousShipState = {
@@ -1892,6 +1929,7 @@ function _handleEventChoice(choiceIndex) {
     Save.saveGame(0, _state, { isAutosave: true });
   }
   _dispatch(result);
+  _refreshActionGuide();
 }
 
 /**
@@ -2454,13 +2492,13 @@ function _handleLoadGame(slotId) {
   const result = Save.loadGame(slotId);
   if (result.ok) {
     _hideSettingsModal();
-    Dispatch.stopActiveDispatch();
+    _stopGameLoop();
     _resetSessionTransients();
     _replaceState(result.state, 'manual-load');
     _acknowledgedVictoryPathIds = new Set();
     _resetDialogueRuntime(_state);
     _syncRandomEventRuntime(_state);
-    EventUI.hidePendingNotification();
+    EventUI.clearPendingEvent();
     _settings.difficulty = _state.difficulty;
     Settings.saveSettings(_settings);
     _getSystemRuntime().restore(_state, {
@@ -2476,9 +2514,9 @@ function _handleLoadGame(slotId) {
     if (Fleet.isActiveDispatched(_state)) {
       _startActiveDispatchClock();
     }
-    _resetRealtimeClock(performance.now());
+    _startGameLoop();
     _updateUI();
-    _restorePendingEventNotification(_state);
+    _restorePendingEvent(_state);
     EventBus.emit('log:message', { text: result.msg, type: 'info' });
   } else {
     EventBus.emit('log:message', { text: result.msg, type: 'error' });
@@ -2500,7 +2538,7 @@ function _handleBuyShip(shipTypeId) {
 
 function _handleSwitchShip(shipIndex) {
   // 切换前停止激活船只的自动派遣
-  Dispatch.stopActiveDispatch();
+  _stopActiveDispatchClock();
   Fleet.syncShipFromState(_state);
   const result = Fleet.switchShip(_state, shipIndex);
   if (result && result.ok) {
@@ -2513,7 +2551,7 @@ function _handleSwitchShip(shipIndex) {
     _startActiveDispatchClock();
   }
   if (result && result.ok) {
-    _resetRealtimeClock(performance.now());
+    _getGameClock().reset(performance.now());
   }
 }
 
@@ -2565,7 +2603,7 @@ function _handleCancelRoute(shipIndex) {
   _dispatch(result);
   // 如果是激活船只被召回，停止定时器
   if (isActive) {
-    Dispatch.stopActiveDispatch();
+    _stopActiveDispatchClock();
   }
   return result;
 }
@@ -2667,7 +2705,7 @@ function _boundDispatchTick() {
 
   switch (tickResult.action) {
     case 'stopped':
-      Dispatch.stopActiveDispatch();
+      _stopActiveDispatchClock();
       _updateUI();
       break;
     case 'travel_need_refuel': {
@@ -2676,7 +2714,7 @@ function _boundDispatchTick() {
       if (_state.fuel < tickResult.payload.fuelCost) {
         EventBus.emit('log:message', { text: '📡 自动跑商的船只燃料不足，已召回。', type: 'error' });
         Fleet.cancelActiveDispatch(_state);
-        Dispatch.stopActiveDispatch();
+        _stopActiveDispatchClock();
         _updateUI();
       } else {
         _handleTravel(tickResult.payload.systemId);
@@ -2689,7 +2727,7 @@ function _boundDispatchTick() {
       if (_state.fuel < tickResult.payload.fuelCost) {
         EventBus.emit('log:message', { text: '📡 自动跑商的船只补给后仍无法完成下一段航程，已召回。', type: 'error' });
         Fleet.cancelActiveDispatch(_state);
-        Dispatch.stopActiveDispatch();
+        _stopActiveDispatchClock();
         _updateUI();
       } else {
         _handleTradeConfirm('buy', tickResult.payload.goodId, tickResult.payload.quantity, tickResult.payload.marketType);
@@ -2723,7 +2761,16 @@ function _boundDispatchTick() {
 function _startActiveDispatchClock() {
   // 两次自动操作约等于一个游戏日：四步买卖循环约耗时两天，
   // 与远程船队的日结算速度保持同一量级。
-  Dispatch.startActiveDispatch(_boundDispatchTick, Math.floor(_getRealtimeDayDurationMs() / 2));
+  _getGameClock().startRecurring(
+    ACTIVE_DISPATCH_CLOCK_ID,
+    _boundDispatchTick,
+    Math.max(1000, Math.floor(_getRealtimeDayDurationMs() / 2))
+  );
+  EventBus.emit('log:message', { text: '📡 自动跑商已启动，将按游戏时间自动执行下一步。', type: 'info' });
+}
+
+function _stopActiveDispatchClock() {
+  if (_gameClock) _gameClock.stopRecurring(ACTIVE_DISPATCH_CLOCK_ID);
 }
 
 // ---------------------------------------------------------------------------
@@ -2782,20 +2829,17 @@ function _checkVictory() {
   });
 }
 
-function _resetRealtimeClock(nowMs) {
-  _realtimeClock = GameTime.resetRealtimeClock(_realtimeClock, nowMs, _state ? _state.shipHull : 100);
-}
-
 function _isRealtimeClockPaused() {
   return !!(document.hidden || Tutorial.isActive() || document.querySelector('.modal:not(.hidden)'));
 }
 
-function _applyRealtimeDayProgress(days) {
+function _applyRealtimeDayProgress(days, clockContext) {
   var elapsedDays = Math.max(0, Number.isFinite(days) ? Math.floor(days) : 0);
   if (elapsedDays <= 0) return;
 
-  var previousHull = _realtimeClock && Number.isFinite(_realtimeClock.lastHullSnapshot)
-    ? _realtimeClock.lastHullSnapshot
+  var realtimeClock = clockContext && clockContext.clock;
+  var previousHull = realtimeClock && Number.isFinite(realtimeClock.lastHullSnapshot)
+    ? realtimeClock.lastHullSnapshot
     : (_state.shipHull || 100);
   var result = GameTime.advanceDays(_state, elapsedDays);
   // 科研等全舰队永久加成在日结算中完成后，立即刷新当前飞船投影再存档。
@@ -2815,35 +2859,13 @@ function _applyRealtimeDayProgress(days) {
     _state.daysWithoutDamage = 0;
   }
 
-  if (_realtimeClock) {
-    _realtimeClock.lastHullSnapshot = _state.shipHull || 100;
+  if (realtimeClock) {
+    realtimeClock.lastHullSnapshot = _state.shipHull || 100;
   }
 
   _captureRuntimeStateForSave(_state);
   Save.saveGame(0, _state, { isAutosave: true });
   _dispatch(result);
-}
-
-function _updateRealtimeClock(ts) {
-  if (!_state) return;
-  if (_shouldLoadAdvancedCommerce(_state) && !_commerceRuntimeModule && !_commerceRuntimeError) {
-    _loadAdvancedGuidance();
-    _resetRealtimeClock(ts);
-    return;
-  }
-  if (_isRealtimeClockPaused()) {
-    _resetRealtimeClock(ts);
-    return;
-  }
-
-  if (!_realtimeClock) {
-    _resetRealtimeClock(ts);
-  }
-
-  var tickResult = GameTime.consumeElapsedDays(_realtimeClock, ts, _getRealtimeDayDurationMs());
-  if (tickResult.elapsedDays > 0) {
-    _applyRealtimeDayProgress(tickResult.elapsedDays);
-  }
 }
 
 function _getRealtimeDayDurationMs() {
@@ -2857,9 +2879,7 @@ function _captureRuntimeStateForSave(state, options) {
 }
 
 function _stopGameLoop() {
-  if (_gameLoopFrameId == null) return;
-  cancelAnimationFrame(_gameLoopFrameId);
-  _gameLoopFrameId = null;
+  if (_gameClock) _gameClock.stop();
 }
 
 // ---------------------------------------------------------------------------
@@ -2867,19 +2887,7 @@ function _stopGameLoop() {
 // ---------------------------------------------------------------------------
 
 function _startGameLoop() {
-  _stopGameLoop();
-  _startTime = performance.now();
-  _resetRealtimeClock(_startTime);
-
-  function loop(ts) {
-    _updateRealtimeClock(ts);
-    const mapView = MapUI.getMapView ? MapUI.getMapView() : 'planets';
-    const galaxyId = MapUI.getCurrentGalaxyId ? MapUI.getCurrentGalaxyId() : 'milky_way';
-    Renderer3D.render(_state, mapView, galaxyId);
-    _gameLoopFrameId = requestAnimationFrame(loop);
-  }
-
-  loop(_startTime);
+  _getGameClock().start();
 }
 
 // ---------------------------------------------------------------------------

@@ -118,9 +118,9 @@ function _renderFactionFocusPanel(relations, state) {
             ? ('关系 ' + _formatSigned(allied.relation) + '，可优先利用税率和市场入口。')
             : '没有明显紧张关系，可按控制地点和偏好货物查看各派系。'));
 
-  return '<section class="faction-focus-panel" aria-label="外交建议">' +
+  return '<section class="faction-focus-panel" aria-label="外交关系信号">' +
     '<div class="faction-focus-copy">' +
-      '<span class="faction-focus-kicker">当前建议</span>' +
+      '<span class="faction-focus-kicker">关系信号</span>' +
       '<strong class="faction-focus-title">' + _escapeHtml(signalTitle) + '</strong>' +
       '<span class="faction-focus-note">' + _escapeHtml(signalNote) + '</span>' +
     '</div>' +

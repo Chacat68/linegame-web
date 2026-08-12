@@ -137,8 +137,8 @@ function _openInlinePortal(modalId, onCloseCallback, options) {
     if (_activeInlineModalId !== modalId) return; // 避免重复清理
     var shouldRestoreFocus = !cleanupOptions || cleanupOptions.restoreFocus !== false;
 
-    if (globalThis.document && typeof document.removeEventListener === 'function') {
-      document.removeEventListener('keydown', handlePortalKeydown);
+    if (typeof inlineContainer.removeEventListener === 'function') {
+      inlineContainer.removeEventListener('keydown', handlePortalKeydown);
     }
 
     // 把 .modal-box 移回原 modal 容器
@@ -193,8 +193,8 @@ function _openInlinePortal(modalId, onCloseCallback, options) {
     _renderHangarAfterInlineClose();
   }
 
-  if (globalThis.document && typeof document.addEventListener === 'function') {
-    document.addEventListener('keydown', handlePortalKeydown);
+  if (typeof inlineContainer.addEventListener === 'function') {
+    inlineContainer.addEventListener('keydown', handlePortalKeydown);
   }
   Promise.resolve().then(function () {
     if (_activeInlineModalId !== modalId) return;
@@ -268,115 +268,6 @@ function _formatHangarRouteSummary(state, snapshot) {
   return (startSys ? startSys.name : '?') + ' → ' + (targetSys ? targetSys.name : '?') +
     (good ? ' · ' + good.name : '') +
     (status ? ' · ' + status : '');
-}
-
-function _renderHangarFocusCard(label, title, body, meta, tone) {
-  return '<article class="hangar-focus-card hangar-focus-card--' + tone + '" role="listitem">' +
-    '<span class="hangar-focus-label">' + _escapeHtml(label) + '</span>' +
-    '<strong>' + _escapeHtml(title) + '</strong>' +
-    '<p>' + _escapeHtml(body) + '</p>' +
-    '<small>' + _escapeHtml(meta) + '</small>' +
-  '</article>';
-}
-
-function _renderHangarTriagePanel(context) {
-  var fleet = context.fleet || [];
-  var snapshots = context.fleetSnapshots || [];
-  var emptySlots = Math.max(0, context.slotCount - fleet.length);
-  var lockedSlots = Math.max(0, context.maxSlots - context.slotCount);
-  var riskSnapshots = snapshots.filter(_isHangarRiskSnapshot).sort(function (left, right) {
-    if (left.faults.length !== right.faults.length) return right.faults.length - left.faults.length;
-    if (left.hullMissing !== right.hullMissing) return right.hullMissing - left.hullMissing;
-    return left.maintenance.value - right.maintenance.value;
-  });
-  var riskCount = riskSnapshots.length;
-  var avgMaintenance = snapshots.length
-    ? Math.round(snapshots.reduce(function (sum, snapshot) { return sum + snapshot.maintenance.value; }, 0) / snapshots.length)
-    : 100;
-  var activeSnapshot = snapshots.find(function (snapshot) { return snapshot.index === context.activeIdx; }) || snapshots[0] || null;
-  var routeSnapshot = snapshots.find(function (snapshot) { return !!snapshot.ship.route; }) || null;
-  var idleSnapshot = snapshots.find(function (snapshot) { return !snapshot.ship.route && snapshot.index !== context.activeIdx; }) || null;
-  var riskSnapshot = riskSnapshots[0] || null;
-  var routeSignal = context.fleetRouteCount > 0
-    ? ('运行中 ' + context.fleetRouteCount + ' 条 · Lv.' + context.routeLevel)
-    : ('待配置航线 · Lv.' + context.routeLevel);
-  var focusCards = [];
-
-  focusCards.push(_renderHangarFocusCard(
-    activeSnapshot ? '旗舰' : '旗舰',
-    activeSnapshot ? activeSnapshot.ship.name : '未配置旗舰',
-    activeSnapshot
-      ? ((activeSnapshot.roleProfile ? activeSnapshot.roleProfile.label : '综合用途') + ' · 燃料 ' + activeSnapshot.fuelPct + '% · 维护 ' + Math.round(activeSnapshot.maintenance.value) + '%')
-      : '当前没有可操控舰船',
-    activeSnapshot && activeSnapshot.ship.route ? '跑商中' : '本地操控',
-    activeSnapshot && _isHangarRiskSnapshot(activeSnapshot) ? 'warning' : 'ready',
-  ));
-
-  if (riskSnapshot) {
-    focusCards.push(_renderHangarFocusCard(
-      riskSnapshot.repairJob ? '维修队列' : '维护观察',
-      riskSnapshot.ship.name,
-      '维护 ' + Math.round(riskSnapshot.maintenance.value) + '% · 故障 ' + riskSnapshot.faults.length + ' · 船体缺口 ' + Math.round(riskSnapshot.hullMissing),
-      riskSnapshot.repairJob ? ('剩余 ' + riskSnapshot.repairJob.remainingDays + ' 天') : riskSnapshot.maintenance.label,
-      'warning',
-    ));
-  } else {
-    focusCards.push(_renderHangarFocusCard(
-      '维护观察',
-      '全队稳定',
-      '平均维护 ' + avgMaintenance + '% · 暂无故障或船体缺口',
-      '船况良好',
-      'ready',
-    ));
-  }
-
-  if (routeSnapshot) {
-    focusCards.push(_renderHangarFocusCard(
-      '跑商路线',
-      routeSnapshot.ship.name,
-      _formatHangarRouteSummary(context.state, routeSnapshot),
-      _formatTradePolicySummary(routeSnapshot.ship.route.tradePolicy),
-      'route',
-    ));
-  } else if (idleSnapshot) {
-    focusCards.push(_renderHangarFocusCard(
-      '待命舰船',
-      idleSnapshot.ship.name,
-      (idleSnapshot.roleProfile ? idleSnapshot.roleProfile.label : '综合用途') + ' · 货舱 ' + idleSnapshot.cargoUsed + '/' + (idleSnapshot.stats.maxCargo || idleSnapshot.ship.maxCargo || 0),
-      '未跑商',
-      'idle',
-    ));
-  } else {
-    focusCards.push(_renderHangarFocusCard(
-      emptySlots > 0 ? '船位状态' : '编队状态',
-      emptySlots > 0 ? '有空席位' : '席位已满',
-      emptySlots > 0 ? ('可容纳 ' + emptySlots + ' 艘新船 · 锁定 ' + lockedSlots + ' 席') : ('全部 ' + context.slotCount + ' 个席位已使用'),
-      emptySlots > 0 ? '可扩编' : '满编',
-      emptySlots > 0 ? 'idle' : 'ready',
-    ));
-  }
-
-  var activeCargoCap = context.activeShipStats ? context.activeShipStats.maxCargo : 0;
-  var slotMeta = emptySlots > 0 ? ('空席位 ' + emptySlots + ' · 锁定 ' + lockedSlots) : ('已占满 · 锁定 ' + lockedSlots);
-  var riskMeta = riskCount > 0 ? ('平均维护 ' + avgMaintenance + '% · 待处理') : ('平均维护 ' + avgMaintenance + '% · 稳定');
-  var cargoMeta = context.activeShip ? ('旗舰占用 ' + context.activeCargoUsed + '/' + activeCargoCap) : '未配置旗舰';
-
-  return '<section class="hangar-triage-panel" aria-label="机库状态与当前建议">' +
-    '<div class="hangar-triage-head">' +
-      '<div><span class="hangar-triage-kicker">机库概览</span><strong>舰船状态</strong></div>' +
-      '<span class="hangar-route-signal">' + _escapeHtml(routeSignal) + '</span>' +
-    '</div>' +
-    '<div class="hangar-triage-grid" role="list" aria-label="机库状态概览">' +
-      '<div class="hangar-triage-cell" role="listitem"><span>编队规模</span><strong>' + fleet.length + '/' + context.slotCount + '</strong><small>' + _escapeHtml(slotMeta) + '</small></div>' +
-      '<div class="hangar-triage-cell" role="listitem"><span>航线运行</span><strong>' + context.fleetRouteCount + '</strong><small>' + _escapeHtml(routeSignal) + '</small></div>' +
-      '<div class="hangar-triage-cell hangar-triage-cell--risk" role="listitem"><span>维护风险</span><strong>' + riskCount + '</strong><small>' + _escapeHtml(riskMeta) + '</small></div>' +
-      '<div class="hangar-triage-cell" role="listitem"><span>总舱容</span><strong>' + context.fleetCargoCap + '</strong><small>' + _escapeHtml(cargoMeta) + '</small></div>' +
-    '</div>' +
-    '<div class="hangar-focus-panel" aria-label="机库当前建议">' +
-      '<div class="hangar-focus-copy"><span>当前建议</span><strong>优先查看</strong><small>旗舰、维护与航线状态</small></div>' +
-      '<div class="hangar-focus-list" role="list" aria-label="机库重点项目">' + focusCards.join('') + '</div>' +
-    '</div>' +
-  '</section>';
 }
 
 function _clampPercent(value) {
@@ -799,7 +690,7 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
 
       if (modRecommendation) {
         html += '<div class="fleet-detail-section">';
-        html += '<div class="fleet-detail-section-title">改装建议</div>';
+        html += '<div class="fleet-detail-section-title">改装方案</div>';
         html += '<div class="fleet-detail-copy">' + modRecommendation.mod.emoji + ' ' + _escapeHtml(modRecommendation.mod.name) + '：' + _escapeHtml(modRecommendation.reason) + '</div>';
         if (modRecommendation.disabledReason) {
           html += '<div class="fleet-detail-copy">当前限制：' + _escapeHtml(modRecommendation.disabledReason) + '</div>';
@@ -1272,8 +1163,8 @@ function _buildModModalSignalPanel(options) {
       _renderModModalSignalMetric('组件', componentValue, componentNote, componentTone) +
       _renderModModalSignalMetric('资产', assetValue, assetNote, assetTone) +
     '</div>' +
-    '<div class="mod-modal-signal-focus" role="status" aria-label="改装建议" data-tone="' + _escapeHtml(focusTone) + '">' +
-      '<span class="mod-modal-signal-focus-kicker">当前建议</span>' +
+    '<div class="mod-modal-signal-focus" role="status" aria-label="改装处理状态" data-tone="' + _escapeHtml(focusTone) + '">' +
+      '<span class="mod-modal-signal-focus-kicker">处理状态</span>' +
       '<strong class="mod-modal-signal-focus-title">' + _escapeHtml(focusTitle) + '</strong>' +
       '<span class="mod-modal-signal-focus-note">' + _escapeHtml(focusNote) + '</span>' +
     '</div>' +

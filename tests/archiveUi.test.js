@@ -60,8 +60,8 @@ describe('Archive terminal UI', function () {
     expect(container.innerHTML).toContain('role="progressbar" aria-label="成就完成度"');
     expect(container.innerHTML).toContain('achievement-distribution-grid');
     expect(container.innerHTML).toContain('role="list" aria-label="成就分类分布"');
-    expect(container.innerHTML).toContain('class="archive-achievement-focus" aria-label="成就建议"');
-    expect(container.innerHTML).toContain('当前建议');
+    expect(container.innerHTML).toContain('class="archive-achievement-focus" aria-label="成就完成状态"');
+    expect(container.innerHTML).toContain('完成进度');
     expect(container.innerHTML).toContain('未解锁奖励池');
     expect(container.innerHTML).toContain('class="ach-card-grid" role="list"');
     expect(container.innerHTML).toContain('role="listitem"');
@@ -141,8 +141,8 @@ describe('Archive terminal UI', function () {
 
     expect(container.innerHTML).toContain('archive-faction-console');
     expect(container.innerHTML).toContain('class="faction-relation-distribution" role="list" aria-label="派系关系分布"');
-    expect(container.innerHTML).toContain('class="faction-focus-panel" aria-label="外交建议"');
-    expect(container.innerHTML).toContain('当前建议');
+    expect(container.innerHTML).toContain('class="faction-focus-panel" aria-label="外交关系信号"');
+    expect(container.innerHTML).toContain('关系信号');
     expect(container.innerHTML).toContain('重点派系');
     expect(container.innerHTML).toContain('class="faction-card-grid" role="list"');
     expect(container.innerHTML).toContain('role="listitem"');
@@ -188,8 +188,8 @@ describe('Archive terminal UI', function () {
     expect(container.innerHTML).toContain('<details class="quest-secondary-details"><summary>查看章节进度与全部任务状态</summary>');
     expect(container.innerHTML).toContain('class="quest-triage-panel" aria-label="详细任务状态"');
     expect(container.innerHTML).toContain('class="quest-triage-grid" role="list" aria-label="任务状态概览"');
-    expect(container.innerHTML).toContain('class="quest-focus-panel" aria-label="当前任务建议"');
-    expect(container.innerHTML).toContain('当前建议');
+    expect(container.innerHTML).toContain('class="quest-focus-panel" aria-label="任务处理状态"');
+    expect(container.innerHTML).toContain('任务状态');
     expect(container.innerHTML).toContain('class="phase-bar" role="progressbar"');
     expect(container.innerHTML).toContain('data-quest-accept-hub="true" aria-label="任务接取简报"');
     expect(container.innerHTML).toContain('class="quest-pick-list" role="list" aria-label="可接任务列表"');
@@ -296,8 +296,8 @@ describe('Archive terminal UI', function () {
     expect(status.innerHTML).toContain('role="progressbar" aria-label="科技完成度"');
     expect(status.innerHTML).toContain('research-current-strip');
     expect(status.innerHTML).toContain('class="research-category-matrix" role="list" aria-label="科技分类状态"');
-    expect(status.innerHTML).toContain('class="research-focus-panel" aria-label="研究建议"');
-    expect(status.innerHTML).toContain('当前建议');
+    expect(status.innerHTML).toContain('class="research-focus-panel" aria-label="研究队列状态"');
+    expect(status.innerHTML).toContain('研究状态');
     expect(status.innerHTML).toContain('候选预算');
     expect(options.innerHTML).toContain('research-option-console');
     expect(options.innerHTML).toContain('class="research-cards" role="list" aria-label="可研究科技"');

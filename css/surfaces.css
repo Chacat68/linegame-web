@@ -386,8 +386,7 @@ body::before {
   gap: var(--ui-space-3);
 }
 
-.action-guide,
-.event-notification {
+.action-guide {
   overflow: hidden;
   border: 1px solid var(--ui-line-default);
   border-radius: var(--ui-radius-card);
@@ -608,8 +607,7 @@ body::before {
   text-align: left;
 }
 
-.action-guide::before,
-.event-notification::before {
+.action-guide::before {
   content: "";
   position: absolute;
   top: 0;
@@ -617,10 +615,6 @@ body::before {
   left: 0;
   width: 3px;
   background: var(--ui-accent);
-}
-
-.event-notification::before {
-  background: var(--ui-warning);
 }
 
 /* Global navigation ------------------------------------------- */

@@ -4,13 +4,12 @@
 
 import * as EventBus            from '../core/EventBus.js';
 import { GOODS } from '../data/goods.js';
-import { SYSTEMS, findSystem, findGalaxy } from '../data/systems.js';
+import { findSystem, findGalaxy } from '../data/systems.js';
 import * as Faction             from '../systems/faction/FactionSystem.js';
 import * as PlayerLevels        from '../data/playerLevels.js';
 import * as Victory             from '../systems/victory/VictorySystem.js';
 import * as Economy             from '../systems/economy/Economy.js';
 import * as Quest               from '../systems/quest/QuestSystem.js';
-import * as GalaxyData          from '../systems/galaxy/GalaxyDataLayer.js';
 import * as Exploration         from '../systems/galaxy/ExplorationSystem.js';
 import * as Fleet               from '../systems/fleet/FleetSystem.js';
 import { getCompanyLevelValue, getCompanyPrivilegeSummary } from '../data/companyAccess.js';
@@ -177,7 +176,10 @@ export function init() {
   var compactInspector = typeof window !== 'undefined' &&
     typeof window.matchMedia === 'function' &&
     window.matchMedia('(max-width: 620px)').matches;
-  ContextInspector.init({ open: !compactInspector });
+  ContextInspector.init({
+    open: !compactInspector,
+    stateSource: function () { return _stateRef; },
+  });
   _updateLogsNavBadge();
   refreshLogView();
 }
@@ -284,7 +286,6 @@ export function updateStats(state, netWorth) {
     });
   }
 
-  _renderQuestTracker(state);
 }
 
 // ---------------------------------------------------------------------------
@@ -635,55 +636,7 @@ function _updateInterstellarHud(state, netWorth, sys, gal, faction, repRank, sta
     state: reputation < 0 ? 'critical' : (reputation < 200 ? 'warning' : 'nominal'),
   });
 
-  const targetNameEl = document.getElementById('hud-target-name');
-  const targetTypeEl = document.getElementById('hud-target-type');
-  const targetGalaxyEl = document.getElementById('hud-target-galaxy');
-  const targetFactionEl = document.getElementById('hud-target-faction');
-  const targetSurveyEl = document.getElementById('hud-target-survey');
-  const targetNextEl = document.getElementById('hud-target-next');
-  if (sys) {
-    if (targetNameEl) targetNameEl.textContent = sys.name;
-    if (targetTypeEl) targetTypeEl.textContent = sys.typeLabel || '星球';
-    if (targetGalaxyEl) targetGalaxyEl.textContent = gal ? gal.name : '未知星系';
-    if (targetFactionEl) targetFactionEl.textContent = faction ? faction.name : '中立地带';
-    _renderHudTargetSurvey(state, sys, targetSurveyEl, targetNextEl);
-  }
-
   _renderHudGalacticMapSummary(state, sys, gal);
-  _renderHudMarketOverview(state, sys);
-  _renderHudNetworkStatus(state, statusSnapshot, netWorth);
-}
-
-function _renderHudTargetSurvey(state, sys, targetSurveyEl, targetNextEl) {
-  if (!sys) return;
-
-  var planetData = GalaxyData.getPlanetData(sys.id);
-  var exploration = planetData && planetData.exploration;
-  var summary = Exploration.getSurveySummary(state, sys.id);
-
-  if (!exploration || !summary) {
-    _setTextWithTitle(targetSurveyEl, '探索报告同步中');
-    _setTextWithTitle(targetNextEl, '档案同步中');
-    return;
-  }
-
-  var poiText = summary.totalPois > 0
-    ? (summary.resolvedCount + '/' + summary.totalPois + ' 探索点')
-    : '无探索点';
-
-  _setTextWithTitle(
-    targetSurveyEl,
-    poiText + ' · 情报 Lv.' + (summary.intelLevel || 0)
-  );
-
-  var nextText = '暂无待办 · 可继续贸易';
-  if (summary.pendingCount > 0) {
-    nextText = '待调查 · ' + summary.pendingCount + ' 个探索点';
-  } else if (summary.completed) {
-    nextText = '探索完成 · ' + summary.reportCount + ' 份报告';
-  }
-
-  _setTextWithTitle(targetNextEl, nextText);
 }
 
 function _renderHudGalacticMapSummary(state, sys, gal) {
@@ -724,145 +677,6 @@ function _renderHudGalacticMapSummary(state, sys, gal) {
     }
   }
 }
-
-function _getOpenMarketGoods() {
-  return GOODS.filter(function (good) {
-    return !good.marketAccess || good.marketAccess.indexOf('open') !== -1;
-  });
-}
-
-function _getMarketSnapshot(state, sys) {
-  if (!sys) return [];
-  return _getOpenMarketGoods().map(function (good) {
-    const sd = Economy.getSupplyDemand(sys.id, good.id);
-    const buy = Economy.getBuyPrice(sys.id, good.id, state);
-    const sell = Economy.getSellPrice(sys.id, good.id, state);
-    const drift = Math.round((sd.ratio - 1) * 100);
-    return { good: good, buy: buy, sell: sell, ratio: sd.ratio, drift: drift };
-  });
-}
-
-function _openMarketWorkspace(workspaceId) {
-  var marketNavBtn = document.querySelector('.bottom-nav-btn[data-view="market"]');
-  if (marketNavBtn) marketNavBtn.click();
-
-  var focusWorkspace = function () {
-    var workspaceTab = document.querySelector('[data-market-workspace-tab="' + workspaceId + '"]');
-    if (!workspaceTab) return false;
-    workspaceTab.click();
-    return true;
-  };
-
-  if (!focusWorkspace() && typeof setTimeout === 'function') {
-    setTimeout(focusWorkspace, 0);
-  }
-}
-
-function _renderHudMarketOverview(state, sys) {
-  const body = document.getElementById('hud-market-overview-body');
-  if (!body || !sys) return;
-
-  const rows = _getMarketSnapshot(state, sys)
-    .sort(function (a, b) { return Math.abs(b.drift) - Math.abs(a.drift); })
-    .slice(0, 3);
-
-  body.innerHTML = rows.map(function (entry) {
-    const trendClass = entry.drift > 0 ? 'is-up' : (entry.drift < 0 ? 'is-down' : 'is-flat');
-    const trendText = entry.drift > 0
-      ? '▲ ' + entry.drift + '%'
-      : (entry.drift < 0 ? '▼ ' + Math.abs(entry.drift) + '%' : '◆ 0%');
-    const signalText = entry.drift > 0
-      ? '供给偏紧'
-      : (entry.drift < 0 ? '供给宽松' : '价格稳定');
-    return '<tr>' +
-      '<td><span class="hud-good-icon">' + _escapeHtml(entry.good.emoji || '') + '</span>' + _escapeHtml(entry.good.name) + '</td>' +
-      '<td><span class="hud-market-signal">' + signalText + '</span></td>' +
-      '<td><span class="hud-trend ' + trendClass + '">' + trendText + '</span></td>' +
-    '</tr>';
-  }).join('');
-
-  const updatedEl = document.getElementById('hud-market-updated');
-  if (updatedEl) {
-    const cycle = Economy.getEconomyCycle();
-    updatedEl.textContent = 'DAY ' + (state.day || 1) + (cycle && cycle.name ? (' · ' + cycle.name) : '');
-  }
-
-  const openBtn = document.getElementById('hud-market-open');
-  if (openBtn && openBtn.dataset.bound !== 'true') {
-    openBtn.addEventListener('click', function () {
-      _openMarketWorkspace('spot');
-    });
-    openBtn.dataset.bound = 'true';
-  }
-}
-
-function _renderHudNetworkStatus(state, statusSnapshot, netWorth) {
-  const nodesEl = document.getElementById('hud-network-nodes');
-  const routesEl = document.getElementById('hud-network-routes');
-  const volatilityEl = document.getElementById('hud-network-volatility');
-  const signalEl = document.getElementById('hud-network-signal');
-  const updatedEl = document.getElementById('hud-network-updated');
-  const openBtn = document.getElementById('hud-network-open');
-
-  const visitedCount = Array.isArray(state.visitedSystems) ? state.visitedSystems.length : 1;
-  const fleet = Array.isArray(state.fleet) ? state.fleet : [];
-  const activeRoutes = fleet.length > 0
-    ? fleet.filter(function (ship) { return !!ship.route; }).length
-    : 0;
-  const cargoPct = statusSnapshot ? statusSnapshot.cargoPct : 0;
-  const volatility = Math.max(
-    0,
-    Math.min(
-      99,
-      Math.round((cargoPct * 0.08) + ((state.day || 1) % 9) + ((netWorth || 0) > 5000 ? 4 : 1))
-    )
-  );
-  var routeLoad = fleet.length > 0 ? Math.round((activeRoutes / fleet.length) * 100) : 0;
-  var signalTitle = '贸易网络正常';
-  var signalNote = activeRoutes + ' 条路线运行中，' + routeLoad + '% 的飞船正在跑商，近期价格变化不大。';
-  var signalTone = 'stable';
-
-  if (visitedCount <= 1 && activeRoutes === 0) {
-    signalTitle = '贸易网络尚未铺开';
-    signalNote = '目前只到过起始地点，还没有跨地点的跑商路线。';
-    signalTone = 'idle';
-  } else if (activeRoutes === 0) {
-    signalTitle = '有空闲飞船';
-    signalNote = '已经到过 ' + visitedCount + ' 个地点，但当前没有飞船在自动跑商。';
-    signalTone = 'watch';
-  } else if (fleet.length > 0 && activeRoutes >= fleet.length) {
-    signalTitle = '所有飞船都在跑商';
-    signalNote = '全部 ' + fleet.length + ' 艘船都在执行路线，当前没有空闲的自动跑商船位。';
-    signalTone = 'watch';
-  } else if (volatility >= 15) {
-    signalTitle = '价格变化变大';
-    signalNote = '近期价格变化 ' + volatility.toFixed(1) + '%，现有 ' + activeRoutes + ' 条航线需要持续观察。';
-    signalTone = 'risk';
-  } else if (cargoPct >= 85) {
-    signalTitle = '货舱压力偏高';
-    signalNote = '当前货舱占用 ' + Math.round(cargoPct) + '%，可用运力已经不多。';
-    signalTone = 'watch';
-  }
-
-  if (nodesEl) nodesEl.textContent = visitedCount + ' / ' + SYSTEMS.length;
-  if (routesEl) routesEl.textContent = String(activeRoutes);
-  if (volatilityEl) volatilityEl.textContent = volatility.toFixed(1) + '%';
-  if (signalEl) {
-    signalEl.dataset.tone = signalTone;
-    signalEl.innerHTML =
-      '<span class="hud-network-signal-kicker">当前建议</span>' +
-      '<strong class="hud-network-signal-title">' + _escapeHtml(signalTitle) + '</strong>' +
-      '<span class="hud-network-signal-note">' + _escapeHtml(signalNote) + '</span>';
-  }
-  if (updatedEl) updatedEl.textContent = 'DAY ' + (state.day || 1);
-  if (openBtn && openBtn.dataset.bound !== 'true') {
-    openBtn.addEventListener('click', function () {
-      _openMarketWorkspace('operations');
-    });
-    openBtn.dataset.bound = 'true';
-  }
-}
-
 
 // 内部：渲染胜利路径弹窗内容
 // ---------------------------------------------------------------------------
@@ -975,78 +789,6 @@ function _getVictoryNextRequirement(pathProgress) {
     var rightRatio = right.target > 0 ? right.current / right.target : 0;
     return rightRatio - leftRatio;
   })[0];
-}
-
-function _renderQuestTracker(state) {
-  var trackerEl = document.getElementById('quest-tracker');
-  if (!trackerEl) return;
-
-  var tracker = Quest.getQuestTracker(state, 2);
-  var title = '当前目标';
-  var hint = '仅显示任务摘要';
-
-  if (tracker.mode === 'recommended') {
-    title = '推荐任务';
-    hint = '接取与路线留在任务页';
-  } else if (tracker.mode === 'available') {
-    title = '可接任务';
-    hint = '任务页处理接取';
-  } else if (tracker.mode === 'empty') {
-    title = '任务状态';
-    hint = '暂无可追踪目标';
-  }
-
-  var html =
-    '<div class="quest-tracker-head">' +
-      '<div>' +
-        '<div class="quest-tracker-title">' + title + '</div>' +
-        '<div class="quest-tracker-hint">' + hint + '</div>' +
-      '</div>' +
-      '<button id="quest-tracker-open" class="quest-tracker-open-btn" type="button">任务页</button>' +
-    '</div>';
-
-  if (tracker.items.length === 0) {
-    html += '<div class="quest-tracker-empty">当前没有任务需要处理。继续贸易、探索或等待章节推进。</div>';
-  } else {
-    var item = tracker.items[0];
-    var metaParts = [];
-
-    if (item.progressText) {
-      metaParts.push('<span class="quest-tracker-progress-text">' + _escapeHtml(item.progressText) + '</span>');
-    }
-    if (tracker.items.length > 1) {
-      metaParts.push('<span class="quest-tracker-more">另 ' + (tracker.items.length - 1) + ' 项</span>');
-    }
-    if (metaParts.length === 0) {
-      metaParts.push('<span class="quest-tracker-progress-text">前往任务页查看详情</span>');
-    }
-
-    html +=
-      '<div class="quest-tracker-item quest-tracker-' + _escapeHtml(tracker.mode) + '">' +
-        '<div class="quest-tracker-item-head">' +
-          '<span class="quest-tracker-item-name">' + _escapeHtml(item.name) + '</span>' +
-          '<span class="quest-tracker-badge">' + _escapeHtml(item.statusText) + '</span>' +
-        '</div>' +
-        '<div class="quest-tracker-summary-line">目标、奖励和路线留在任务页。</div>' +
-        '<div class="quest-tracker-meta">' + metaParts.join('') + '</div>' +
-      '</div>';
-  }
-
-  trackerEl.innerHTML = html;
-
-  var openBtn = document.getElementById('quest-tracker-open');
-  if (openBtn) {
-    openBtn.addEventListener('click', function () {
-      var questNavBtn = document.querySelector('.bottom-nav-btn[data-view="quests"]');
-      if (questNavBtn) {
-        questNavBtn.click();
-        return;
-      }
-
-      var questTabBtn = document.querySelector('.tab-btn[data-tab="tab-quest"]');
-      if (questTabBtn) questTabBtn.click();
-    });
-  }
 }
 
 function _objectiveText(obj) {

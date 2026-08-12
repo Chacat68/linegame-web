@@ -7,7 +7,6 @@ import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } 
 let _activeScene = null;
 let _activeLineIndex = 0;
 let _onComplete = null;
-let _keydownBound = false;
 let _choiceMode = false;
 let _selectedChoice = null;
 let _activeLines = [];
@@ -39,8 +38,8 @@ export function init() {
     },
   });
 
-  if (!_keydownBound) {
-    document.addEventListener('keydown', function (event) {
+  if (modal.dataset.dialogueKeyboardBound !== '1') {
+    modal.addEventListener('keydown', function (event) {
       if (!isOpen()) return;
       if (event.key === 'Enter' || event.key === ' ') {
         if (_choiceMode) return;
@@ -52,7 +51,7 @@ export function init() {
         _advance();
       }
     });
-    _keydownBound = true;
+    modal.dataset.dialogueKeyboardBound = '1';
   }
 }
 

@@ -927,7 +927,7 @@ function _renderAnalysisPanel(container, state, sysId, snapshots, marketMode) {
         '</div>' +
       '</div>' +
       '<hr class="market-analysis-divider" />' +
-      '<div class="market-analysis-section-title">当前建议</div>' +
+      '<div class="market-analysis-section-title">行情研判</div>' +
       '<div class="market-analysis-signal-card ' + focusSignal.className + '">' +
         '<div class="market-analysis-signal-head">' +
           '<span class="market-analysis-signal-title">' + (focused ? (focused.good.emoji + ' ' + focused.good.name) : '暂无聚焦货物') + '</span>' +
@@ -1111,8 +1111,8 @@ function _renderSpotSignalMetric(label, value, note, toneClass) {
 }
 
 function _renderSpotFocus(title, note, tone) {
-  return '<div class="market-spot-focus" aria-label="市场建议" data-tone="' + _escapeHtmlAttr(tone || 'idle') + '">' +
-    '<span class="market-spot-focus-kicker">当前建议</span>' +
+  return '<div class="market-spot-focus" aria-label="现货市场信号" data-tone="' + _escapeHtmlAttr(tone || 'idle') + '">' +
+    '<span class="market-spot-focus-kicker">行情信号</span>' +
     '<strong class="market-spot-focus-title">' + _escapeHtml(title) + '</strong>' +
     '<span class="market-spot-focus-note">' + _escapeHtml(note) + '</span>' +
   '</div>';
@@ -2333,8 +2333,8 @@ function _renderLocalOperationsPanel(state, viewingSystem, localStation, buildCa
       _renderLocalOperationsMetric('经营方式', configValue, configNote, configTone) +
       _renderLocalOperationsMetric('可用资金', capitalValue, capitalNote, capitalTone) +
     '</div>' +
-    '<div class="market-local-operations-focus" aria-label="本地经营建议" data-tone="' + _escapeHtmlAttr(focusTone) + '">' +
-      '<span class="market-local-operations-focus-kicker">当前建议</span>' +
+    '<div class="market-local-operations-focus" aria-label="本地经营状态" data-tone="' + _escapeHtmlAttr(focusTone) + '">' +
+      '<span class="market-local-operations-focus-kicker">经营状态</span>' +
       '<strong class="market-local-operations-focus-title">' + _escapeHtml(focusTitle) + '</strong>' +
       '<span class="market-local-operations-focus-note">' + _escapeHtml(focusNote) + '</span>' +
     '</div>' +
@@ -2410,7 +2410,7 @@ function _renderTradeStationListBrief(ownedStations, buildCandidates, localStati
       _renderTradeStationListBriefItem('可执行批量操作', upgradeReady + ' 升级 / ' + investmentReady + ' 增配', '目标池 ' + (upgradeTotal + investmentTotal) + ' 项', (upgradeReady + investmentReady) > 0 ? 'tone-warm' : '') +
     '</div>' +
     '<div class="trade-station-list-signal ' + signalTone + '">' +
-      '<span class="trade-station-list-signal-kicker">当前建议</span>' +
+      '<span class="trade-station-list-signal-kicker">站点状态</span>' +
       '<strong class="trade-station-list-signal-title">' + _escapeHtml(signalTitle) + '</strong>' +
       '<span class="trade-station-list-signal-note">' + _escapeHtml(signalNote) + '</span>' +
     '</div>' +
@@ -2744,7 +2744,7 @@ function _renderFocusedLoanGuard(state, activeLoans, loanOffers, isCurrentSys) {
       _renderCapitalLocalMetric('可用报价', String(availableOfferCount), '按公司信用评级调整额度') +
     '</div>' +
     '<div class="market-capital-local-focus" data-tone="' + (loanBalance > credits && loanBalance > 0 ? 'debt' : 'stable') + '">' +
-      '<span class="market-capital-local-focus-kicker">当前建议</span><strong class="market-capital-local-focus-title">' + focusTitle + '</strong>' +
+      '<span class="market-capital-local-focus-kicker">资金状态</span><strong class="market-capital-local-focus-title">' + focusTitle + '</strong>' +
       '<span class="market-capital-local-focus-note">' + focusNote + '</span></div>' +
   '</section>';
 }

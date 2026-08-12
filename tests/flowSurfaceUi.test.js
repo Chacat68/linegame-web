@@ -86,7 +86,6 @@ describe('Flow surface UI', function () {
   it('事件弹窗会渲染语义化处置按钮并记录风险状态', async function () {
     var modal = createFakeElement('event-modal', ['modal', 'hidden']);
     modal.modalBox = createFakeElement('event-modal-box');
-    var notification = createFakeElement('event-notification', ['hidden']);
     var icon = createFakeElement('event-icon');
     var title = createFakeElement('event-title');
     var desc = createFakeElement('event-desc');
@@ -97,7 +96,6 @@ describe('Flow surface UI', function () {
 
     var elements = {
       'event-modal': modal,
-      'event-notification': notification,
       'event-icon': icon,
       'event-title': title,
       'event-desc': desc,

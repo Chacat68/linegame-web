@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   bindBlockingSurfaceDismiss,
@@ -9,6 +10,7 @@ import {
   isBlockingSurfaceVisible,
   openPrimarySurface,
   openSecondarySurface,
+  registerEscapeLayer,
   showBlockingSurface,
 } from '../js/ui/SurfaceManager.js';
 
@@ -83,22 +85,31 @@ describe('SurfaceManager', function () {
     globalThis.document = originalDocument;
   });
 
-  it('showBlockingSurface 会关闭其他 modal 并收起事件通知条', function () {
+  it('document 级 Escape 只由 SurfaceManager 命名 dispatcher 拥有', function () {
+    var surfaceSource = readFileSync(new URL('../js/ui/SurfaceManager.js', import.meta.url), 'utf8');
+    var mapSource = readFileSync(new URL('../js/ui/MapUI.js', import.meta.url), 'utf8');
+    var fleetSource = readFileSync(new URL('../js/ui/FleetUI.js', import.meta.url), 'utf8');
+    var dialogueSource = readFileSync(new URL('../js/ui/DialogueUI.js', import.meta.url), 'utf8');
+
+    expect(surfaceSource).toContain("document.addEventListener('keydown', _handleSurfaceDocumentKeydown)");
+    expect(surfaceSource.match(/document\.addEventListener\('keydown'/g)).toHaveLength(1);
+    expect(mapSource).not.toContain('_handleSecondaryPanelKeydown');
+    expect(fleetSource).not.toContain("document.addEventListener('keydown', handlePortalKeydown)");
+    expect(dialogueSource).not.toContain("document.addEventListener('keydown'");
+    expect(dialogueSource).toContain("modal.addEventListener('keydown'");
+  });
+
+  it('showBlockingSurface 会关闭其他 modal 并只显示目标阻塞层', function () {
     var tradeModal = createFakeElement(['modal']);
     tradeModal.id = 'trade-modal';
     var eventModal = createFakeElement(['modal', 'hidden']);
     eventModal.id = 'event-modal';
     var settingsModal = createFakeElement(['modal']);
     settingsModal.id = 'settings-modal';
-    var notification = createFakeElement();
-    notification.id = 'event-notification';
-    notification.onclick = function () {};
-
     var elements = {
       'trade-modal': tradeModal,
       'event-modal': eventModal,
       'settings-modal': settingsModal,
-      'event-notification': notification,
     };
 
     globalThis.document = {
@@ -114,10 +125,10 @@ describe('SurfaceManager', function () {
     expect(eventModal.classList.contains('hidden')).toBe(false);
     expect(tradeModal.classList.contains('hidden')).toBe(true);
     expect(settingsModal.classList.contains('hidden')).toBe(true);
-    expect(notification.classList.contains('hidden')).toBe(true);
-    expect(notification.onclick).toBe(null);
     expect(eventModal.getAttribute('aria-hidden')).toBe('false');
     expect(tradeModal.getAttribute('aria-hidden')).toBe('true');
+    expect(eventModal.inert).toBe(false);
+    expect(tradeModal.inert).toBe(true);
   });
 
   it('showBlockingSurface 会把焦点移到弹窗容器', function () {
@@ -307,6 +318,7 @@ describe('SurfaceManager', function () {
     expect(isBlockingSurfaceVisible('dialogue-modal')).toBe(false);
     expect(hasBlockingSurfaceOpen()).toBe(false);
     expect(dialogueModal.getAttribute('aria-hidden')).toBe('true');
+    expect(dialogueModal.inert).toBe(true);
   });
 
   it('bindBlockingSurfaceDismiss 会支持统一 dismiss 与自定义 onDismiss', function () {
@@ -349,9 +361,138 @@ describe('SurfaceManager', function () {
     expect(dismissCount).toBe(1);
 
     tradeModal.classList.remove('hidden');
-    documentListeners.keydown[0]({ key: 'Escape' });
+    var prevented = false;
+    var stopped = false;
+    documentListeners.keydown[0]({
+      key: 'Escape',
+      preventDefault: function () { prevented = true; },
+      stopPropagation: function () { stopped = true; },
+    });
     expect(tradeModal.classList.contains('hidden')).toBe(true);
     expect(dismissCount).toBe(2);
+    expect(prevented).toBe(true);
+    expect(stopped).toBe(true);
+  });
+
+  it('多个 modal 只注册一个命名 dispatcher，Escape 只关闭最顶层一个', function () {
+    var firstModal = createFakeElement(['modal']);
+    var topModal = createFakeElement(['modal']);
+    var documentListeners = Object.create(null);
+    var dismissed = [];
+    firstModal.id = 'first-modal';
+    topModal.id = 'top-modal';
+    var elements = { 'first-modal': firstModal, 'top-modal': topModal };
+
+    globalThis.document = {
+      getElementById: function (id) { return elements[id] || null; },
+      querySelectorAll: function (selector) {
+        return selector === '.modal' ? [firstModal, topModal] : [];
+      },
+      addEventListener: function (type, handler) {
+        if (!documentListeners[type]) documentListeners[type] = [];
+        documentListeners[type].push(handler);
+      },
+      removeEventListener: function (type, handler) {
+        if (!documentListeners[type]) return;
+        documentListeners[type] = documentListeners[type].filter(function (item) { return item !== handler; });
+      },
+    };
+
+    bindBlockingSurfaceDismiss('first-modal', {
+      onDismiss: function () {
+        dismissed.push('first');
+        firstModal.classList.add('hidden');
+      },
+    });
+    bindBlockingSurfaceDismiss('top-modal', {
+      onDismiss: function () {
+        dismissed.push('top');
+        topModal.classList.add('hidden');
+      },
+    });
+
+    expect(documentListeners.keydown).toHaveLength(1);
+    expect(documentListeners.keydown[0].name).toBe('_handleSurfaceDocumentKeydown');
+    documentListeners.keydown[0]({ key: 'Escape', preventDefault: function () {}, stopPropagation: function () {} });
+
+    expect(dismissed).toEqual(['top']);
+    expect(topModal.classList.contains('hidden')).toBe(true);
+    expect(firstModal.classList.contains('hidden')).toBe(false);
+  });
+
+  it('不可 dismiss 的 blocking modal 消费 Escape 且不下穿到详情层', function () {
+    var modal = createFakeElement(['modal']);
+    var documentListeners = Object.create(null);
+    var detailEscapeCount = 0;
+    var prevented = false;
+    var stopped = false;
+    modal.id = 'event-modal';
+
+    globalThis.document = {
+      getElementById: function (id) { return id === 'event-modal' ? modal : null; },
+      querySelectorAll: function (selector) { return selector === '.modal' ? [modal] : []; },
+      addEventListener: function (type, handler) {
+        if (!documentListeners[type]) documentListeners[type] = [];
+        documentListeners[type].push(handler);
+      },
+      removeEventListener: function () {},
+    };
+
+    bindBlockingSurfaceDismiss('event-modal', {
+      closeOnEscape: false,
+      closeOnBackdrop: false,
+    });
+    var unregister = registerEscapeLayer('test-detail', {
+      priority: 40,
+      isActive: function () { return true; },
+      onEscape: function () { detailEscapeCount += 1; },
+    });
+
+    documentListeners.keydown[0]({
+      key: 'Escape',
+      preventDefault: function () { prevented = true; },
+      stopPropagation: function () { stopped = true; },
+    });
+    unregister();
+
+    expect(modal.classList.contains('hidden')).toBe(false);
+    expect(detailEscapeCount).toBe(0);
+    expect(prevented).toBe(true);
+    expect(stopped).toBe(true);
+  });
+
+  it('非阻塞 Escape layer 按优先级只执行一个并支持注销', function () {
+    var documentListeners = Object.create(null);
+    var actions = [];
+    globalThis.document = {
+      getElementById: function () { return null; },
+      querySelectorAll: function () { return []; },
+      addEventListener: function (type, handler) {
+        if (!documentListeners[type]) documentListeners[type] = [];
+        documentListeners[type].push(handler);
+      },
+      removeEventListener: function () {},
+    };
+
+    var unregisterLow = registerEscapeLayer('low-detail', {
+      priority: 10,
+      isActive: function () { return true; },
+      onEscape: function () { actions.push('low'); },
+    });
+    var unregisterTop = registerEscapeLayer('top-detail', {
+      priority: 50,
+      isActive: function () { return true; },
+      onEscape: function () { actions.push('top'); },
+    });
+
+    expect(documentListeners.keydown).toHaveLength(1);
+    documentListeners.keydown[0]({ key: 'Escape', preventDefault: function () {}, stopPropagation: function () {} });
+    expect(actions).toEqual(['top']);
+
+    unregisterTop();
+    documentListeners.keydown[0]({ key: 'Escape', preventDefault: function () {}, stopPropagation: function () {} });
+    unregisterLow();
+    expect(actions).toEqual(['top', 'low']);
   });
 
   it('openPrimarySurface 会打开唯一 primary workspace 并关闭 secondary overlays', function () {

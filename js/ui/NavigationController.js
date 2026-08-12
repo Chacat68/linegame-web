@@ -178,17 +178,14 @@ export function createNavigationController(options) {
   }
 
   /**
-   * 处理 Escape：先关当前工作区详情，再回地图；地图根层不处理。
-   * @returns {'detail'|'workspace'|false}
+   * 处理 Escape：只关闭当前工作区的顶层详情。L3 工作区是平级目的地，
+   * Escape 不得改变 active workspace，也不得隐式返回地图。
+   * @returns {'detail'|false}
    */
   function handleEscape() {
     if (detailStacks[activeWorkspace].length > 0) {
       closeDetail(activeWorkspace, { reason: 'escape' });
       return 'detail';
-    }
-    if (activeWorkspace !== 'map') {
-      navigate('map', { reason: 'escape' });
-      return 'workspace';
     }
     return false;
   }

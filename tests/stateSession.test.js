@@ -28,4 +28,23 @@ describe('StateSession', function () {
     expect(session.isCurrent(token)).toBe(false);
     expect(session.isCurrent(session.getToken())).toBe(true);
   });
+
+  it('隔离失败订阅者，state 提交和其它投影通知仍会完成', function () {
+    var reported = [];
+    var received = [];
+    var nextState = { id: 'loaded' };
+    var session = createStateSession({ id: 'first' }, {
+      onSubscriberError: function (error, change) {
+        reported.push([error.message, change.state]);
+      },
+    });
+    session.subscribe(function () { throw new Error('broken projection'); });
+    session.subscribe(function (change) { received.push(change); });
+
+    expect(function () { session.replace(nextState, { reason: 'manual-load' }); }).not.toThrow();
+    expect(session.getState()).toBe(nextState);
+    expect(session.getRevision()).toBe(1);
+    expect(received).toHaveLength(1);
+    expect(reported).toEqual([['broken projection', nextState]]);
+  });
 });

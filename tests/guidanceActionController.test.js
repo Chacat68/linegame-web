@@ -58,6 +58,22 @@ describe('GuidanceActionController', function () {
     ]);
   });
 
+  it('待处理事件行动只打开事件弹窗并刷新统一 Command Slot', function () {
+    var context = createCallContext({
+      forcePendingEvent: function () {
+        context.calls.push(['forcePendingEvent']);
+        return true;
+      },
+    });
+
+    handleGuidanceAction({ actionType: 'event.open' }, context);
+
+    expect(context.calls).toEqual([
+      ['forcePendingEvent'],
+      ['refreshActionGuide'],
+    ]);
+  });
+
   it('专题入口只负责启动链，不会把业务步骤视为已完成', function () {
     var context = createCallContext({
       startTeachingChain: function (chainId) {

@@ -28,7 +28,6 @@
   --bottom-nav-height: 112px;
   --floating-stack-gap: 16px;
   --secondary-overlay-offset: calc(var(--bottom-nav-offset) + var(--bottom-nav-height) + var(--floating-stack-gap));
-  --event-notification-offset: calc(var(--bottom-nav-offset) + var(--bottom-nav-height) + var(--floating-stack-gap));
 }
 
 html,
@@ -3583,7 +3582,6 @@ label[role="tab"]:focus-visible {
 [data-hud-widget],
 .planet-detail-panel,
 .current-system-exploration-card,
-.event-notification,
 .tutorial-tooltip {
   border-color: var(--ui-line);
   border-radius: var(--ui-radius-panel);
@@ -3770,7 +3768,6 @@ label[role="tab"]:focus-visible {
 .research-route-apply-btn,
 .research-route-blocker-btn,
 .planet-detail-action,
-.event-notif-btn,
 .event-choice-btn,
 .dialogue-choice-btn,
 .tut-btn,
@@ -3942,7 +3939,6 @@ label[role="tab"]:focus-visible {
 .research-route-apply-btn:hover,
 .research-route-blocker-btn:hover,
 .planet-detail-action:hover,
-.event-notif-btn:hover,
 .event-choice-btn:hover,
 .dialogue-choice-btn:hover,
 .tut-btn:hover,
@@ -5340,7 +5336,6 @@ textarea:focus,
 .save-export-row,
 .settings-row,
 .modal-actions,
-.event-notification,
 .faction-pref,
 .trade-station-actions,
 .trade-station-choice-row {
@@ -5708,16 +5703,6 @@ textarea:focus,
     display: none;
   }
 
-  .event-notification {
-    left: 10px;
-    right: 10px;
-    transform: none;
-    justify-content: space-between;
-  }
-
-  .event-notification:hover {
-    transform: translateY(-2px);
-  }
 }
 
 @media (max-width: 560px) {
@@ -5784,10 +5769,6 @@ textarea:focus,
     padding: 12px;
   }
 
-  .event-notif-text {
-    max-width: none;
-    white-space: normal;
-  }
 }
 
 /* ============================================================
@@ -5805,7 +5786,6 @@ textarea:focus,
   --bottom-nav-height: 66px;
   --floating-stack-gap: 12px;
   --secondary-overlay-offset: calc(var(--bottom-nav-offset) + var(--bottom-nav-height) + var(--floating-stack-gap) - var(--game-main-bottom));
-  --event-notification-offset: calc(var(--bottom-nav-offset) + var(--bottom-nav-height) + var(--floating-stack-gap));
   --ui-control-h: 36px;
   --ui-control-pad-x: 12px;
 }
@@ -5900,11 +5880,11 @@ textarea:focus,
 #console-panel.side-panel-overlay--bottom {
   position: fixed;
   top: auto !important;
-  bottom: var(--event-notification-offset);
+  bottom: var(--secondary-overlay-offset);
   left: 18px;
   right: 18px;
   height: min(240px, 32dvh);
-  max-height: calc(100dvh - var(--event-notification-offset) - 88px);
+  max-height: calc(100dvh - var(--secondary-overlay-offset) - 88px);
 }
 
 .market-overlay-shell,
@@ -6151,10 +6131,6 @@ textarea:focus,
 .crew-card-name,
 .crew-card-desc {
   overflow-wrap: anywhere;
-}
-
-.event-notification {
-  bottom: var(--event-notification-offset);
 }
 
 @media (max-width: 1180px) {
@@ -8875,16 +8851,12 @@ body,
   @media (max-width: 700px), (max-height: 620px) {
     body:has(#market-overlay:not(.hidden)) .bottom-nav,
     body:has(#market-overlay:not(.hidden)) #action-guide,
-    body:has(#market-overlay:not(.hidden)) #event-notification,
     body:has(#info-panel.panel-open) .bottom-nav,
     body:has(#info-panel.panel-open) #action-guide,
-    body:has(#info-panel.panel-open) #event-notification,
     body:has(#trade-panel.panel-open) .bottom-nav,
     body:has(#trade-panel.panel-open) #action-guide,
-    body:has(#trade-panel.panel-open) #event-notification,
     body:has(.modal:not(.hidden)) .bottom-nav,
-    body:has(.modal:not(.hidden)) #action-guide,
-    body:has(.modal:not(.hidden)) #event-notification {
+    body:has(.modal:not(.hidden)) #action-guide {
       opacity: 0 !important;
       visibility: hidden !important;
       pointer-events: none !important;
@@ -9650,10 +9622,8 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) .galaxy-s
 }
 
 body.starmap-galaxy-mode #action-guide,
-body.starmap-galaxy-mode #event-notification,
 body.starmap-galaxy-mode #mini-console-broadcast,
 body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #action-guide,
-body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #event-notification,
 body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #mini-console-broadcast {
   opacity: 0 !important;
   visibility: hidden !important;
@@ -12372,76 +12342,7 @@ body[data-motion="reduced"] .dispatch-advanced-panel > summary::after {
   min-height: var(--modal-action-h);
 }
 
-.event-notification {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  width: min(520px, calc(100vw - 24px));
-  appearance: none;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.event-notif-copy {
-  min-width: 0;
-  display: grid;
-  gap: 2px;
-}
-
-.event-notif-kicker,
-.event-notif-meta {
-  display: block;
-  overflow: hidden;
-  color: rgba(192, 216, 230, 0.68);
-  font-size: 10px;
-  line-height: 1.25;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.event-notif-kicker {
-  color: rgba(255, 194, 124, 0.88);
-  font-weight: 800;
-}
-
-.event-notif-text {
-  display: block;
-  max-width: none;
-  line-height: 1.3;
-}
-
-.event-notification[data-event-risk="dangerous"] {
-  border-color: rgba(255, 107, 107, 0.48);
-  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.52), 0 0 22px rgba(255, 107, 107, 0.16);
-}
-
-.event-notification:focus-visible {
-  outline: 2px solid rgba(255, 184, 107, 0.78);
-  outline-offset: 3px;
-  border-color: rgba(255, 184, 107, 0.48);
-  box-shadow: 0 0 0 4px rgba(255, 184, 107, 0.12), 0 14px 34px rgba(0, 0, 0, 0.44);
-}
-
-.event-notification[aria-hidden="true"] {
-  pointer-events: none;
-}
-
-.event-notif-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 34px;
-  white-space: nowrap;
-}
-
-.event-notification:hover .event-notif-btn {
-  background: linear-gradient(180deg, rgba(34, 211, 238, 0.25), rgba(6, 182, 212, 0.18));
-  border-color: rgba(34, 211, 238, 0.65);
-}
-
-/* Dynamic command stack: event notices always clear the variable-height action guide. */
+/* Primary Command Slot */
 .floating-command-stack {
   position: fixed;
   left: max(12px, var(--safe-left));
@@ -12455,8 +12356,7 @@ body[data-motion="reduced"] .dispatch-advanced-panel > summary::after {
   pointer-events: none;
 }
 
-.floating-command-stack > .action-guide,
-.floating-command-stack > .event-notification {
+.floating-command-stack > .action-guide {
   position: relative;
   inset: auto;
   left: auto;
@@ -12470,20 +12370,10 @@ body[data-motion="reduced"] .dispatch-advanced-panel > summary::after {
   width: min(600px, 100%);
 }
 
-.floating-command-stack > .event-notification {
-  width: min(520px, 100%);
-}
-
 @media (max-width: 620px) {
   .floating-command-stack {
     left: max(7px, var(--safe-left));
     right: max(7px, var(--safe-right));
-  }
-
-  .floating-command-stack > .event-notification {
-    left: auto;
-    right: auto;
-    width: 100%;
   }
 }
 
@@ -12597,18 +12487,6 @@ body[data-motion="reduced"] .dialogue-modal-box {
     grid-template-columns: 1fr;
   }
 
-  .event-notification {
-    left: 10px;
-    right: 10px;
-    width: auto;
-    grid-template-columns: auto minmax(0, 1fr);
-    padding: 9px 10px;
-  }
-
-  .event-notif-btn {
-    grid-column: 1 / -1;
-    width: 100%;
-  }
 }
 
 @media (max-width: 520px) {

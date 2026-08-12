@@ -55,7 +55,7 @@ function _buildSaveWorkspaceContext(slots) {
     : (!autoSlot || autoSlot.isEmpty || autoSlot.isCorrupted ? 'warning' : 'ready');
   let focusTitle = '本地备份稳定';
   let focusBody = '自动存档与手动槽位可用于快速恢复。';
-  let focusMeta = '当前建议';
+  let focusMeta = '备份状态';
 
   if (corruptedSlots.length > 0) {
     focusTitle = '发现异常槽位';
@@ -109,8 +109,8 @@ function _renderSaveSafetyPanel(context) {
       '<div class="save-safety-cell" role="listitem"><span>空手动槽</span><strong>' + context.emptyManual + '</strong><small>可保留重要进度</small></div>' +
       '<div class="save-safety-cell save-safety-cell--risk" role="listitem"><span>异常</span><strong>' + context.corrupted + '</strong><small>损坏槽位需要处理</small></div>' +
     '</div>' +
-    '<div class="save-safety-focus" aria-label="存档建议">' +
-      '<div><span>当前建议</span><strong>' + _escapeHtml(context.focusTitle) + '</strong><small>' + _escapeHtml(context.focusBody) + '</small></div>' +
+    '<div class="save-safety-focus" aria-label="存档处理状态">' +
+      '<div><span>存档状态</span><strong>' + _escapeHtml(context.focusTitle) + '</strong><small>' + _escapeHtml(context.focusBody) + '</small></div>' +
       '<span class="save-safety-focus-badge">' + _escapeHtml(context.focusMeta) + '</span>' +
     '</div>' +
   '</section>';

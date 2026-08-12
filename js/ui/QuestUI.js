@@ -757,9 +757,9 @@ function _renderQuestTriagePanel(state, active, sortedAvailable, locked, selecte
       '<div class="quest-triage-cell quest-triage-cell--timed" role="listitem"><span>限时任务</span><strong>' + timedCount + '</strong><em>注意剩余天数</em></div>' +
       '<div class="quest-triage-cell quest-triage-cell--locked" role="listitem"><span>未解锁</span><strong>' + locked.length + '</strong><em>章节 ' + phaseProgressLabel + '</em></div>' +
     '</div>' +
-    '<div class="quest-focus-panel" aria-label="当前任务建议">' +
+    '<div class="quest-focus-panel" aria-label="任务处理状态">' +
       '<div class="quest-focus-copy">' +
-        '<span class="quest-focus-kicker">当前建议</span>' +
+        '<span class="quest-focus-kicker">任务状态</span>' +
         '<strong class="quest-focus-title">' + _escapeHtml(signalTitle) + '</strong>' +
         '<span class="quest-focus-note">' + _escapeHtml(signalNote) + '</span>' +
       '</div>' +

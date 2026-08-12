@@ -637,18 +637,20 @@ Escape **不得切换 canonical workspace 或默认返回地图**，也不得关
 | 项目 | 当前状态 | 已覆盖 | 下一步 |
 | --- | --- | --- | --- |
 | `DeferredFeatureLoader` | **已落盘并接入首批功能** | 市场、舰队、档案、存档；并发复用、失败重试、初始化失败、延迟 CSS 有测试 | 演进为 manifest `FeatureRegistry`；迁移其它延迟功能；补 dispose/dependency/session sync |
-| 最新 state provider | **已接入 `UIManager`** | `GameManager → UIManager` 使用 `() => _state`；切换工作区读取最新状态有测试 | 统一为 `StateSession`；审计所有长期存活 UI、timer 与异步回调 |
-| Tutorial 读档生命周期 | **已修复入口缺失** | 手动读档后调用 Tutorial、BalanceMetrics、MidgameTeachingChain | 移入 `SystemRuntime.restore`，删除入口复制清单 |
+| `StateSession` | **第一阶段已接入** | state/revision/token/replace；`GameManager` 只经 session 替换状态；UIManager 与 MapUI 使用最新 state provider；订阅者异常隔离 | 将 legacy `_state/_runtimeRevision` 全面改为 session 读取 |
+| `GameSystemRuntime` | **第一阶段已接入** | 冷启动与手动读档共用 restore manifest；保存共用 fleet/economy/galaxy capture；Tutorial 等不再由入口补调用 | 增加 dispose/advance 与失败回滚；补六路径生命周期矩阵 |
+| `GameClockController` | **已接入全部游戏计时器** | RAF、实时日与 active dispatch recurring task 统一所有权；假时钟、暂停不补算、重复 start、会话替换和 dispose 有测试 | 接入页面可见性生命周期与统一 runtime dispose；把 dispatch tick 动作编排迁入 ActionCoordinator |
 | `GameUiCoordinator` | **首批已接入 `GameManager`** | provider、四项 Feature ensure/render、命名 action 分组、`renderAll` 兼容刷新 | 缩短位置参数；引入 dirty regions；逐步淘汰兼容刷新 |
-| `NavigationController` | **已接入 `UIManager`** | 五个 workspace、旧别名、唯一 active、幂等切换、独立 detail stack | 按本方案移除 Escape 回地图；增加 focus/inert/Surface 统一协调 |
-| `ContextInspector` | **已接入全局壳层** | 单实例、四切片互斥、键盘导航、焦点归还；星图目标详情复用成熟 presenter | 接入统一 Surface stack；完成移动默认收起与五视口回归 |
+| `NavigationController` | **已接入 `UIManager`** | 五个 workspace、旧别名、唯一 active、幂等切换、独立 detail stack；Escape 只关闭 L4 详情不改变 L3 | 继续迁移旧 surface 直接开关与 focus 适配器 |
+| `SurfaceManager` | **唯一 Escape dispatcher 已接入** | blocking 层优先且不下穿；非阻塞层按优先级处理；隐藏 surface 同步 inert/aria-hidden | 将五个 L3 workspace 完全收口到同一 surface registry |
+| `ContextInspector` | **workspace + object 协议已接入** | 每 workspace 的不可变 context key、latest-state provider、renderer adapter、统一空态；星图选择/清除/星系总览已接入 | 为 trade/fleet/archive 逐项接入对象 adapter，完成五视口回归 |
 
 当前仍存在的过渡边界：
 
-- `GameManager` 仍为约 2,900 行，首批抽取只是建立新边界，尚未改变根本职责分布。
-- `GameUiCoordinator`、`NavigationController` 和 `ContextInspector` 已进入运行时调用链，但 Surface stack、focus/inert 和增量刷新尚未收口，不能按“已完成 UI 重构”验收。
+- `GameManager` 仍为约 2,900 行；StateSession、SystemRuntime 与 GameClock 虽已成为真实调用路径，但动作编排仍未迁出，尚未达到薄组合根目标。
+- `GameUiCoordinator`、`NavigationController`、`SurfaceManager` 和 `ContextInspector` 已进入运行时调用链，但非地图 workspace 的对象 adapter、完整 focus 转移和增量刷新尚未收口，不能按“已完成 UI 重构”验收。
 - 多个延迟模块仍保留旧三元状态机。
-- `SurfaceManager` 尚未统一五工作区、全局 inert 和唯一 Escape dispatcher。
+- `SurfaceManager` 已统一 blocking 层、inert 与 Escape dispatcher，但五个 L3 workspace 仍需淘汰旧 primary/secondary 适配分歧。
 - 新模块不得长期停留为旁路实现；每个骨架必须有接线阶段和删除旧路径的验收项。
 
 ## 14. 兼容、风险与回滚

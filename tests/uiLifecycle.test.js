@@ -724,6 +724,52 @@ describe('UI lifecycle idempotency', function () {
     });
   });
 
+  it('UIManager 把详情 Escape 接入统一 dispatcher 且不退出当前工作区', async function () {
+    vi.resetModules();
+
+    var starmapBtn = createFakeElement(['bottom-nav-btn', 'active']);
+    starmapBtn.dataset.view = 'starmap';
+    var marketBtn = createFakeElement(['bottom-nav-btn']);
+    marketBtn.dataset.view = 'market';
+    var bottomNav = createFakeElement();
+    var clonedBottomNav = createFakeElement();
+    var documentListeners = Object.create(null);
+    bottomNav.cloneNode = function () { return clonedBottomNav; };
+    bottomNav.parentNode = { replaceChild: function () {} };
+
+    globalThis.document = {
+      getElementById: function (id) { return id === 'bottom-nav' ? bottomNav : null; },
+      querySelectorAll: function (selector) {
+        if (selector === '.bottom-nav-btn') return [starmapBtn, marketBtn];
+        return [];
+      },
+      addEventListener: function (type, handler) {
+        if (!documentListeners[type]) documentListeners[type] = [];
+        documentListeners[type].push(handler);
+      },
+      removeEventListener: function () {},
+    };
+
+    var UIManager = await import('../js/ui/UIManager.js');
+    UIManager.init({}, {});
+    UIManager.switchView('market');
+    UIManager.openDetail('commodity:medicine');
+    expect(UIManager.getCurrentView()).toBe('market');
+    expect(UIManager.getNavigationSnapshot().activeDetail).toBe('commodity:medicine');
+    expect(documentListeners.keydown).toHaveLength(1);
+
+    var prevented = false;
+    documentListeners.keydown[0]({
+      key: 'Escape',
+      preventDefault: function () { prevented = true; },
+      stopPropagation: function () {},
+    });
+
+    expect(prevented).toBe(true);
+    expect(UIManager.getCurrentView()).toBe('market');
+    expect(UIManager.getNavigationSnapshot().activeDetail).toBe(null);
+  });
+
   it('交易确认会先关闭阻塞弹窗再执行成交回调', function () {
     var observedHiddenDuringConfirm = null;
     var elements = {

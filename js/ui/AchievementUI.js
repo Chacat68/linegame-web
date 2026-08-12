@@ -114,9 +114,9 @@ function _renderAchievementFocus(statuses, lockedAchievements) {
     ? ('这是最接近完成的分类，优先完成这些项目能更快拿到分类进度。')
     : '成就列表已全部点亮，奖励池没有剩余待领取项。';
 
-  return '<section class="archive-achievement-focus" aria-label="成就建议">' +
+  return '<section class="archive-achievement-focus" aria-label="成就完成状态">' +
     '<div class="achievement-focus-copy">' +
-      '<span class="achievement-focus-kicker">当前建议</span>' +
+      '<span class="achievement-focus-kicker">完成进度</span>' +
       '<strong class="achievement-focus-title">' + _escapeHtml(focusTitle) + '</strong>' +
       '<span class="achievement-focus-note">' + _escapeHtml(focusNote) + '</span>' +
     '</div>' +

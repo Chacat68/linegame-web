@@ -1,21 +1,16 @@
 // js/core/DispatchController.js — 激活船只自动派遣控制器
-// 依赖：core/EventBus.js, systems/fleet/FleetSystem.js,
+// 依赖：systems/fleet/FleetSystem.js,
 //       systems/trade/TradePolicy.js, systems/economy/Economy.js
-// 导出：startActiveDispatch, stopActiveDispatch, isRunning,
-//       runActiveDispatchTick, updateActiveDispatchUI
+// 导出：runActiveDispatchTick
 //
-// 从 GameManager 中提取的派遣定时器与 tick 逻辑。
-// tick 函数返回动作描述，由 GameManager 执行具体的状态变更。
+// 本模块只计算一次派遣 tick。周期调度归 GameClockController 所有，
+// tick 返回动作描述，由 ActionCoordinator / 迁移期 GameManager 执行。
 
-import * as EventBus  from './EventBus.js';
 import * as Fleet     from '../systems/fleet/FleetSystem.js';
 import { canUseMarket, evaluateTradePolicy } from '../systems/trade/TradePolicy.js';
 import * as Economy   from '../systems/economy/Economy.js';
 
-let _activeDispatchInterval = null;
-let _activeDispatchKickoffTimeout = null;
 let _questRouteResolver = null;
-const DEFAULT_ACTIVE_DISPATCH_TICK_MS = 5000;
 
 export function setQuestRouteResolver(resolver) {
   _questRouteResolver = typeof resolver === 'function' ? resolver : null;
@@ -30,54 +25,6 @@ function _queuePolicyMessage(route, msgs, text) {
 function _clearPolicyMessage(route) {
   if (!route) return;
   route.lastPolicyMessage = null;
-}
-
-// ---------------------------------------------------------------------------
-// 公开 API
-// ---------------------------------------------------------------------------
-
-/**
- * 启动自动派遣定时器
- * @param {Function} tickFn  每 tick 调用的函数
- * @param {number} tickDurationMs 游戏时间对应的操作间隔
- */
-export function startActiveDispatch(tickFn, tickDurationMs) {
-  stopActiveDispatch();
-  var intervalMs = Number.isFinite(tickDurationMs)
-    ? Math.max(1000, Math.floor(tickDurationMs))
-    : DEFAULT_ACTIVE_DISPATCH_TICK_MS;
-  _activeDispatchInterval = setInterval(tickFn, intervalMs);
-  _activeDispatchKickoffTimeout = setTimeout(function () {
-    _activeDispatchKickoffTimeout = null;
-    if (_activeDispatchInterval && typeof tickFn === 'function') {
-      tickFn();
-    }
-  }, 0);
-  updateActiveDispatchUI();
-  EventBus.emit('log:message', { text: '📡 自动跑商已启动，将按游戏时间自动执行下一步。', type: 'info' });
-}
-
-/**
- * 停止自动派遣定时器
- */
-export function stopActiveDispatch() {
-  if (_activeDispatchKickoffTimeout) {
-    clearTimeout(_activeDispatchKickoffTimeout);
-    _activeDispatchKickoffTimeout = null;
-  }
-  if (_activeDispatchInterval) {
-    clearInterval(_activeDispatchInterval);
-    _activeDispatchInterval = null;
-  }
-  updateActiveDispatchUI();
-}
-
-/**
- * 是否正在运行
- * @returns {boolean}
- */
-export function isRunning() {
-  return _activeDispatchInterval !== null;
 }
 
 /**
@@ -255,11 +202,4 @@ export function runActiveDispatchTick(state, options) {
   }
 
   return { action: 'noop', msgs };
-}
-
-/**
- * 更新派遣 UI 指示器
- */
-export function updateActiveDispatchUI() {
-  // 派遣状态现在由舰队卡片统一呈现，不再维护第二套自动贸易指示器。
 }

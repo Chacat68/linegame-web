@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import * as Dispatch from '../js/core/DispatchController.js';
 import * as Economy from '../js/systems/economy/Economy.js';
 import * as Fleet from '../js/systems/fleet/FleetSystem.js';
@@ -7,11 +7,6 @@ import { createTestState } from './helpers.js';
 describe('DispatchController.runActiveDispatchTick', function () {
   beforeEach(function () {
     Economy.init();
-  });
-
-  afterEach(function () {
-    Dispatch.stopActiveDispatch();
-    vi.useRealTimers();
   });
 
   it('买入前会先检查卖出航段燃料预算', function () {
@@ -92,42 +87,4 @@ describe('DispatchController.runActiveDispatchTick', function () {
     expect(second.payload.systemId).toBe('nova_station');
   });
 
-  it('启动自动派遣后会立即执行首个 tick', function () {
-    vi.useFakeTimers();
-    var tickFn = vi.fn();
-
-    Dispatch.startActiveDispatch(tickFn);
-
-    expect(tickFn).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(0);
-
-    expect(tickFn).toHaveBeenCalledTimes(1);
-    expect(Dispatch.isRunning()).toBe(true);
-  });
-
-  it('停止自动派遣会取消尚未执行的启动 tick', function () {
-    vi.useFakeTimers();
-    var tickFn = vi.fn();
-
-    Dispatch.startActiveDispatch(tickFn);
-    Dispatch.stopActiveDispatch();
-    vi.advanceTimersByTime(0);
-
-    expect(tickFn).not.toHaveBeenCalled();
-    expect(Dispatch.isRunning()).toBe(false);
-  });
-
-  it('自动跑商间隔可跟随游戏日长度，而不是固定五秒', function () {
-    vi.useFakeTimers();
-    var tickFn = vi.fn();
-
-    Dispatch.startActiveDispatch(tickFn, 30000);
-    vi.advanceTimersByTime(0);
-    expect(tickFn).toHaveBeenCalledTimes(1);
-
-    vi.advanceTimersByTime(29999);
-    expect(tickFn).toHaveBeenCalledTimes(1);
-    vi.advanceTimersByTime(1);
-    expect(tickFn).toHaveBeenCalledTimes(2);
-  });
 });

@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
+import * as ActionGuideUI from '../js/ui/ActionGuideUI.js';
+import { getCurrentSuggestion } from '../js/systems/guidance/GuidanceSystem.js';
+import { createTestState } from './helpers.js';
 
 function createFakeClassList(initialValues) {
   var values = new Set(initialValues || []);
@@ -34,12 +37,16 @@ function createFakeClassList(initialValues) {
 
 function createFakeElement(initialClasses) {
   var attributes = Object.create(null);
+  var listeners = Object.create(null);
   return {
     id: '',
     textContent: '',
     onclick: null,
     onkeydown: null,
     tabIndex: -1,
+    hidden: false,
+    innerHTML: '',
+    dataset: {},
     focusCalls: 0,
     parentNode: null,
     classList: createFakeClassList(initialClasses),
@@ -49,7 +56,12 @@ function createFakeElement(initialClasses) {
     getAttribute: function (name) {
       return Object.prototype.hasOwnProperty.call(attributes, name) ? attributes[name] : null;
     },
-    addEventListener: function () {},
+    addEventListener: function (type, handler) {
+      listeners[type] = handler;
+    },
+    dispatchClick: function (target) {
+      if (listeners.click) listeners.click({ target: target });
+    },
     focus: function () {
       this.focusCalls += 1;
     },
@@ -57,6 +69,14 @@ function createFakeElement(initialClasses) {
       var clone = createFakeElement(initialClasses);
       clone.id = this.id;
       return clone;
+    },
+  };
+}
+
+function createActionTarget() {
+  return {
+    closest: function (selector) {
+      return selector === '[data-action-guide-action]' ? this : null;
     },
   };
 }
@@ -72,47 +92,30 @@ describe('Event notification lifecycle', function () {
     globalThis.document = originalDocument;
   });
 
-  it('通知条使用单一按钮语义并与行动指引组成动态浮动栈', function () {
+  it('页面只保留一个 Command Slot，不再渲染独立事件通知 CTA', function () {
     var html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-    var css = readFileSync(new URL('../css/interstellar-trader.css', import.meta.url), 'utf8');
-    var notificationMarkup = html.match(/<button\s+id="event-notification"[\s\S]*?<\/button>/);
+    var eventUiSource = readFileSync(new URL('../js/ui/EventUI.js', import.meta.url), 'utf8');
 
-    expect(notificationMarkup).not.toBe(null);
-    expect(notificationMarkup[0]).toContain('id="event-notif-kicker"');
-    expect(notificationMarkup[0]).toContain('id="event-notif-meta"');
-    expect(notificationMarkup[0]).not.toContain('id="event-notif-open"');
     expect(html).toContain('id="floating-command-stack"');
-    expect(css).toContain('.floating-command-stack > .action-guide');
-    expect(css).toContain('.floating-command-stack > .event-notification');
-    expect(css).toContain('left: max(12px, var(--safe-left));');
-    expect(css).toContain('right: max(12px, var(--safe-right));');
-    expect(css).not.toContain('body:has(#action-guide:not([hidden])) #event-notification');
-    expect(html).not.toContain('id="mini-console-broadcast"');
+    expect(html).toContain('data-command-slot="primary"');
+    expect((html.match(/data-command-slot="primary"/g) || [])).toHaveLength(1);
+    expect(html).not.toContain('id="event-notification"');
+    expect(html).not.toContain('id="event-notif-');
+    expect(eventUiSource).not.toContain('event-notification');
+    expect(eventUiSource).not.toContain('showEventNotificationBar');
   });
 
-  it('最后一个阻塞层关闭后会恢复待处理事件通知条', async function () {
+  it('pending event 只投影为 Command Slot 的唯一可聚焦 CTA', async function () {
     vi.resetModules();
 
     var settingsModal = createFakeElement(['modal']);
     settingsModal.id = 'settings-modal';
-    var notification = createFakeElement(['hidden']);
-    notification.id = 'event-notification';
-    var notifIcon = createFakeElement();
-    notifIcon.id = 'event-notif-icon';
-    var notifKicker = createFakeElement();
-    notifKicker.id = 'event-notif-kicker';
-    var notifText = createFakeElement();
-    notifText.id = 'event-notif-text';
-    var notifMeta = createFakeElement();
-    notifMeta.id = 'event-notif-meta';
+    var commandSlot = createFakeElement();
+    commandSlot.id = 'action-guide';
 
     var elements = {
       'settings-modal': settingsModal,
-      'event-notification': notification,
-      'event-notif-icon': notifIcon,
-      'event-notif-kicker': notifKicker,
-      'event-notif-text': notifText,
-      'event-notif-meta': notifMeta,
+      'action-guide': commandSlot,
     };
 
     globalThis.document = {
@@ -130,33 +133,49 @@ describe('Event notification lifecycle', function () {
     };
 
     var EventUI = await import('../js/ui/EventUI.js');
-    var SurfaceManager = await import('../js/ui/SurfaceManager.js');
+    var selectedSuggestion = null;
 
-    EventUI.showEventNotification({
+    var pendingEvent = {
+      id: 'signal_lost',
       icon: '📡',
       title: '信号中断',
       description: '测试事件',
+      risk: 'dangerous',
+      stage: 'chain',
       choices: [{ text: '确认' }],
-    }, function () {});
+    };
+    EventUI.setPendingEvent(pendingEvent, function () {});
+
+    var suggestion = getCurrentSuggestion(createTestState(), {
+      eventPending: EventUI.hasPendingEvent(),
+      pendingEvent: EventUI.getPendingEvent(),
+    });
+    ActionGuideUI.init(function (next) { selectedSuggestion = next; });
+    ActionGuideUI.render(suggestion);
 
     expect(EventUI.hasPendingEvent()).toBe(true);
-    expect(notification.classList.contains('hidden')).toBe(true);
+    expect(EventUI.getPendingEvent()).toBe(pendingEvent);
+    expect(suggestion).toMatchObject({
+      id: 'handle-pending-event',
+      actionType: 'event.open',
+      title: '处理「信号中断」',
+    });
+    expect(commandSlot.hidden).toBe(false);
+    expect(commandSlot.dataset.commandSlotState).toBe('ready');
+    expect(commandSlot.innerHTML).toContain('高风险 · 事件链');
+    expect((commandSlot.innerHTML.match(/<button/g) || [])).toHaveLength(1);
+    expect(globalThis.document.getElementById('event-notification')).toBe(null);
 
-    SurfaceManager.hideBlockingSurface('settings-modal');
+    commandSlot.dispatchClick(createActionTarget());
+    expect(selectedSuggestion).toBe(suggestion);
 
-    expect(notification.classList.contains('hidden')).toBe(false);
-    expect(notification.getAttribute('aria-hidden')).toBe('false');
-    expect(notification.getAttribute('tabindex')).toBe('0');
-    expect(notification.tabIndex).toBe(0);
-    expect(notification.focusCalls).toBe(0);
-    expect(typeof notification.onclick).toBe('function');
-    expect(notification.onkeydown).toBe(null);
-    expect(notifIcon.textContent).toBe('📡');
-    expect(notifKicker.textContent).toBe('中风险 · 中期事件');
-    expect(notifText.textContent).toBe('信号中断');
-    expect(notifMeta.textContent).toBe('单次处置 · 打开后选择处置方案');
-    expect(notification.getAttribute('aria-label')).toBe('待处理事件：信号中断，中风险，中期事件。查看事件详情');
+    ActionGuideUI.showProcessing(suggestion, '正在打开事件');
+    expect(commandSlot.dataset.commandSlotState).toBe('processing');
+    expect((commandSlot.innerHTML.match(/<button/g) || [])).toHaveLength(0);
 
-    EventUI.hidePendingNotification();
+    EventUI.clearPendingEvent();
+    ActionGuideUI.render(null);
+    expect(commandSlot.hidden).toBe(true);
+    expect(commandSlot.dataset.commandSlotState).toBe('empty');
   });
 });

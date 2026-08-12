@@ -82,6 +82,14 @@ function _getRoot() {
     : null;
 }
 
+function _setSlotState(root, state) {
+  if (!root) return;
+  if (root.dataset) root.dataset.commandSlotState = state;
+  if (typeof root.setAttribute === 'function') {
+    root.setAttribute('aria-busy', state === 'processing' ? 'true' : 'false');
+  }
+}
+
 function _bind(root) {
   if (!root || _boundRoot === root) return;
   root.addEventListener('click', function (event) {
@@ -144,6 +152,7 @@ export function render(suggestion) {
   if (!_suggestion) {
     root.hidden = true;
     root.innerHTML = '';
+    _setSlotState(root, 'empty');
     if (typeof root.removeAttribute === 'function') {
       root.removeAttribute('data-guide-id');
     } else if (root.dataset) {
@@ -154,6 +163,7 @@ export function render(suggestion) {
   }
 
   root.hidden = false;
+  _setSlotState(root, 'ready');
   root.dataset.guideId = _suggestion.id || '';
   root.classList.remove('is-collapsed');
   root.classList.remove('is-processing');
@@ -166,6 +176,7 @@ export function showProcessing(suggestion, message) {
   if (!root || !_suggestion) return;
   _clearCompletion(root);
   root.hidden = false;
+  _setSlotState(root, 'processing');
   root.classList.remove('is-collapsed');
   root.classList.add('is-processing');
   root.dataset.guideId = _suggestion.id || '';
@@ -193,6 +204,7 @@ export function showCompletion(message, detail, options) {
   var token = _completionToken;
   var durationMs = Number.isFinite(opts.durationMs) ? opts.durationMs : 1600;
   root.hidden = false;
+  _setSlotState(root, 'complete');
   root.classList.remove('is-collapsed');
   root.classList.remove('is-processing');
   root.classList.add('is-complete');

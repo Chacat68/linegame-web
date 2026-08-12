@@ -381,7 +381,8 @@ describe('FleetUI.openModModal guidance focus', function () {
     expect(body.innerHTML).toContain('class="mod-modal-overview" role="list" aria-label="飞船改装摘要"');
     expect(body.innerHTML).toContain('class="mod-modal-signal-panel" aria-label="改装当前状态"');
     expect(body.innerHTML).toContain('class="mod-modal-signal-grid" role="list" aria-label="改装决策指标"');
-    expect(body.innerHTML).toContain('class="mod-modal-signal-focus" role="status" aria-label="改装建议"');
+    expect(body.innerHTML).toContain('class="mod-modal-signal-focus" role="status" aria-label="改装处理状态"');
+    expect(body.innerHTML).toContain('处理状态');
     expect(body.innerHTML).toContain('<h4 class="mod-modal-section-title">结构模块</h4>');
     expect(body.innerHTML).toContain('保养优先');
     expect(body.innerHTML).toContain('role="progressbar"');
@@ -402,12 +403,13 @@ describe('FleetUI.openModModal guidance focus', function () {
     expect(elements['fleet-inline-container'].getAttribute('aria-labelledby')).toBe('mod-modal-title');
     expect(elements['fleet-inline-container'].getAttribute('aria-describedby')).toBe('mod-modal-desc mod-modal-body');
     expect(backButton.textContent).toBe('← 返回机库列表');
-    expect(typeof documentListeners.keydown).toBe('function');
+    expect(documentListeners.keydown).toBeUndefined();
     expect(inlineViewport.scrollTop).toBe(0);
     expect(inlineViewport.scrollCalls).toContain(0);
 
     var prevented = false;
-    documentListeners.keydown({
+    elements['fleet-inline-container'].dispatchEvent({
+      type: 'keydown',
       key: 'Escape',
       preventDefault: function () { prevented = true; },
       stopPropagation: function () {},

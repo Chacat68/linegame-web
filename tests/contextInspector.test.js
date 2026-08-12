@@ -4,205 +4,124 @@ function createElement(id) {
   var listeners = Object.create(null);
   var attributes = Object.create(null);
   return {
-    id: id || '',
-    dataset: {},
-    hidden: false,
-    tabIndex: 0,
-    focusCount: 0,
-    addEventListener: function (type, handler) {
-      if (!listeners[type]) listeners[type] = [];
-      listeners[type].push(handler);
-    },
+    id: id || '', dataset: {}, hidden: false, focusCount: 0, textContent: '', innerHTML: '',
+    addEventListener: function (type, handler) { (listeners[type] || (listeners[type] = [])).push(handler); },
     dispatch: function (type, event) {
-      var payload = Object.assign({
-        key: '',
-        target: this,
-        currentTarget: this,
-        preventDefault: vi.fn(),
-      }, event || {});
+      var payload = Object.assign({ key: '', target: this, currentTarget: this, preventDefault: vi.fn() }, event || {});
       (listeners[type] || []).forEach(function (handler) { handler(payload); });
       return payload;
     },
-    listenerCount: function (type) {
-      return (listeners[type] || []).length;
-    },
-    setAttribute: function (name, value) {
-      attributes[name] = String(value);
-    },
-    getAttribute: function (name) {
-      return Object.prototype.hasOwnProperty.call(attributes, name) ? attributes[name] : null;
-    },
-    removeAttribute: function (name) {
-      delete attributes[name];
-    },
-    focus: function () {
-      this.focusCount += 1;
-    },
+    listenerCount: function (type) { return (listeners[type] || []).length; },
+    setAttribute: function (name, value) { attributes[name] = String(value); },
+    getAttribute: function (name) { return Object.prototype.hasOwnProperty.call(attributes, name) ? attributes[name] : null; },
+    removeAttribute: function (name) { delete attributes[name]; },
+    focus: function () { this.focusCount += 1; },
+    querySelector: function () { return null; },
   };
 }
 
-function createFixture(defaultTab) {
+function createFixture() {
   var root = createElement('context-inspector');
-  root.dataset.defaultTab = defaultTab || 'target';
   root.setAttribute('aria-hidden', 'false');
   var toggle = createElement('context-toggle');
   var close = createElement('context-close');
-  var ids = ['target', 'market', 'network', 'quest'];
-  var tabs = ids.map(function (id) {
-    var tab = createElement('context-tab-' + id);
-    tab.dataset.contextInspectorTab = id;
-    tab.setAttribute('aria-controls', 'context-pane-' + id);
-    return tab;
-  });
-  var panes = ids.map(function (id) {
-    var pane = createElement('context-pane-' + id);
-    pane.dataset.contextInspectorPane = id;
-    return pane;
-  });
-
-  root.querySelector = function (selector) {
-    return selector === '[data-context-inspector-close]' ? close : null;
+  var content = createElement('context-inspector-content');
+  var empty = createElement('context-inspector-empty');
+  var host = createElement('context-inspector-render-host');
+  var title = createElement('context-inspector-title');
+  root.querySelector = function (selector) { return selector === '[data-context-inspector-close]' ? close : null; };
+  var elements = {
+    'context-inspector': root,
+    'context-inspector-content': content,
+    'context-inspector-empty': empty,
+    'context-inspector-render-host': host,
+    'context-inspector-title': title,
   };
-  root.querySelectorAll = function (selector) {
-    if (selector === '[data-context-inspector-tab]') return tabs;
-    if (selector === '[data-context-inspector-pane]') return panes;
-    return [];
-  };
-
+  var documentListeners = Object.create(null);
   return {
-    root: root,
-    toggle: toggle,
-    close: close,
-    tabs: tabs,
-    panes: panes,
+    root: root, toggle: toggle, close: close, content: content, empty: empty, host: host, title: title,
+    documentListeners: documentListeners,
     document: {
-      getElementById: function (id) { return id === 'context-inspector' ? root : null; },
-      querySelector: function (selector) {
-        return selector === '[data-context-inspector-toggle]' ? toggle : null;
+      getElementById: function (id) { return elements[id] || null; },
+      querySelector: function (selector) { return selector === '[data-context-inspector-toggle]' ? toggle : null; },
+      querySelectorAll: function () { return []; },
+      addEventListener: function (type, handler) {
+        (documentListeners[type] || (documentListeners[type] = [])).push(handler);
+      },
+      removeEventListener: function (type, handler) {
+        documentListeners[type] = (documentListeners[type] || []).filter(function (item) { return item !== handler; });
       },
     },
   };
 }
 
-describe('ContextInspector', function () {
+describe('ContextInspector protocol', function () {
   var originalDocument;
+  beforeEach(function () { originalDocument = globalThis.document; vi.resetModules(); });
+  afterEach(function () { globalThis.document = originalDocument; });
 
-  beforeEach(function () {
-    originalDocument = globalThis.document;
-    vi.resetModules();
-  });
-
-  afterEach(function () {
-    globalThis.document = originalDocument;
-  });
-
-  it('按 data-default-tab 初始化并保持唯一可见切片', async function () {
-    var fixture = createFixture('market');
-    globalThis.document = fixture.document;
-    var Inspector = await import('../js/ui/ContextInspector.js');
-
-    expect(Inspector.init()).toEqual({
-      initialized: true,
-      open: true,
-      activeTab: 'market',
-      tabs: ['target', 'market', 'network', 'quest'],
-    });
-    expect(fixture.toggle.getAttribute('aria-expanded')).toBe('true');
-    expect(fixture.tabs.filter(function (tab) { return tab.getAttribute('aria-selected') === 'true'; })).toEqual([fixture.tabs[1]]);
-    expect(fixture.panes.filter(function (pane) { return !pane.hidden; })).toEqual([fixture.panes[1]]);
-
-    fixture.tabs[3].dispatch('click');
-    expect(Inspector.getSnapshot().activeTab).toBe('quest');
-    expect(fixture.tabs[3].tabIndex).toBe(0);
-    expect(fixture.tabs[1].tabIndex).toBe(-1);
-    expect(fixture.panes.filter(function (pane) { return !pane.hidden; })).toEqual([fixture.panes[3]]);
-  });
-
-  it('支持循环方向键以及 Home/End 导航并移动焦点', async function () {
+  it('每个 workspace 独立保存不可变 context key，切换后恢复', async function () {
     var fixture = createFixture();
     globalThis.document = fixture.document;
     var Inspector = await import('../js/ui/ContextInspector.js');
-    Inspector.init();
-
-    var right = fixture.tabs[0].dispatch('keydown', { key: 'ArrowRight' });
-    expect(right.preventDefault).toHaveBeenCalledOnce();
-    expect(Inspector.getSnapshot().activeTab).toBe('market');
-    expect(fixture.tabs[1].focusCount).toBe(1);
-
-    fixture.tabs[1].dispatch('keydown', { key: 'End' });
-    expect(Inspector.getSnapshot().activeTab).toBe('quest');
-    fixture.tabs[3].dispatch('keydown', { key: 'ArrowRight' });
-    expect(Inspector.getSnapshot().activeTab).toBe('target');
-    fixture.tabs[0].dispatch('keydown', { key: 'Home' });
-    expect(fixture.tabs[0].focusCount).toBeGreaterThan(0);
-  });
-
-  it('关闭时同步可见性，Escape 和关闭按钮都能恢复入口焦点', async function () {
-    var fixture = createFixture();
-    globalThis.document = fixture.document;
-    var Inspector = await import('../js/ui/ContextInspector.js');
-    Inspector.init();
-
-    fixture.tabs[0].dispatch('keydown', { key: 'Escape' });
-    expect(Inspector.getSnapshot().open).toBe(false);
+    Inspector.init({ workspaceId: 'map' });
+    var input = { type: 'planet', id: 'sol_prime', workspaceId: 'map', source: 'click', revision: 7, domain: { bad: true } };
+    Inspector.replaceContext(input);
+    input.id = 'mutated';
+    Inspector.activateWorkspace('trade');
     expect(fixture.root.hidden).toBe(true);
-    expect(fixture.root.getAttribute('aria-hidden')).toBe('true');
-    expect(fixture.toggle.getAttribute('aria-expanded')).toBe('false');
-    expect(fixture.toggle.focusCount).toBe(1);
+    expect(fixture.root.inert).toBe(true);
+    Inspector.replaceContext({ type: 'good', id: 'food', workspaceId: 'trade', source: 'table', revision: 2 });
+    Inspector.activateWorkspace('map');
 
-    fixture.toggle.dispatch('click');
-    expect(Inspector.getSnapshot().open).toBe(true);
-    fixture.close.dispatch('click');
-    expect(Inspector.getSnapshot().open).toBe(false);
-    expect(fixture.toggle.focusCount).toBe(2);
+    expect(fixture.root.hidden).toBe(false);
+    expect(fixture.root.inert).toBe(false);
+    expect(Inspector.getContext()).toEqual({ type: 'planet', id: 'sol_prime', workspaceId: 'map', source: 'click', revision: 7 });
+    expect(Inspector.getContext()).not.toHaveProperty('domain');
+    expect(Object.isFrozen(Inspector.getContext())).toBe(true);
+    expect(Inspector.getSnapshot().contexts.trade.id).toBe('food');
   });
 
-  it('允许窄屏以收起状态初始化并同步入口语义', async function () {
+  it('renderer 每次使用最新 provider state，且无 adapter 时显示空态', async function () {
     var fixture = createFixture();
     globalThis.document = fixture.document;
     var Inspector = await import('../js/ui/ContextInspector.js');
+    var currentState = { session: 1 };
+    var calls = [];
+    Inspector.init({ stateSource: function () { return currentState; }, workspaceId: 'map' });
+    Inspector.registerRenderer('map', function (request) { calls.push(request); return true; });
+    Inspector.replaceContext({ type: 'planet', id: 'sol_prime', workspaceId: 'map', source: 'click', revision: 1 });
+    currentState = { session: 2 };
+    Inspector.render();
+    expect(calls.at(-1).state).toBe(currentState);
+    expect(calls.at(-1).context.id).toBe('sol_prime');
 
-    Inspector.init({ open: false });
-
-    expect(Inspector.getSnapshot().open).toBe(false);
-    expect(fixture.root.hidden).toBe(true);
-    expect(fixture.root.getAttribute('aria-hidden')).toBe('true');
-    expect(fixture.toggle.getAttribute('aria-expanded')).toBe('false');
+    Inspector.activateWorkspace('fleet');
+    expect(fixture.empty.hidden).toBe(false);
+    expect(fixture.host.hidden).toBe(true);
+    expect(Inspector.getSnapshot().rendererRegistered).toBe(false);
   });
 
-  it('重复 init 不叠加监听，空 DOM 调用也安全', async function () {
-    var fixture = createFixture();
-    globalThis.document = fixture.document;
-    var Inspector = await import('../js/ui/ContextInspector.js');
-
-    Inspector.init();
-    Inspector.init();
-    expect(fixture.toggle.listenerCount('click')).toBe(1);
-    expect(fixture.close.listenerCount('click')).toBe(1);
-    expect(fixture.root.listenerCount('keydown')).toBe(1);
-    fixture.tabs.forEach(function (tab) {
-      expect(tab.listenerCount('click')).toBe(1);
-      expect(tab.listenerCount('keydown')).toBe(1);
-    });
-
-    globalThis.document = {
-      getElementById: function () { return null; },
-      querySelector: function () { return null; },
-    };
-    expect(function () { Inspector.init(); }).not.toThrow();
-    expect(Inspector.getSnapshot()).toEqual({ initialized: false, open: false, activeTab: null, tabs: [] });
-    expect(function () { Inspector.open(); Inspector.close(); Inspector.select('target'); }).not.toThrow();
-  });
-
-  it('其它星图 rail surface 打开时会关闭检查器', async function () {
+  it('开合、Escape、rail 互斥与重复 init 保持焦点语义', async function () {
     var fixture = createFixture();
     globalThis.document = fixture.document;
     var Inspector = await import('../js/ui/ContextInspector.js');
     var EventBus = await import('../js/core/EventBus.js');
-    Inspector.init();
-
+    Inspector.init(); Inspector.init();
+    expect(fixture.toggle.listenerCount('click')).toBe(1);
+    expect(fixture.root.listenerCount('keydown')).toBe(0);
+    expect(fixture.documentListeners.keydown).toHaveLength(1);
+    fixture.documentListeners.keydown[0]({
+      key: 'Escape',
+      preventDefault: vi.fn(),
+      stopPropagation: vi.fn(),
+      stopImmediatePropagation: vi.fn(),
+    });
+    expect(Inspector.getSnapshot().open).toBe(false);
+    expect(fixture.toggle.focusCount).toBe(1);
+    fixture.toggle.dispatch('click');
+    expect(Inspector.getSnapshot().open).toBe(true);
     EventBus.emit('starmap-rail:panel-open', { source: 'exploration-terminal' });
     expect(Inspector.getSnapshot().open).toBe(false);
-    expect(fixture.toggle.focusCount).toBe(0);
   });
 });

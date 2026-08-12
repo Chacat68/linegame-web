@@ -241,78 +241,24 @@
                 <span aria-hidden="true">◎</span><span>上下文</span>
               </button>
             </div>
-            <aside id="context-inspector" class="context-inspector" data-default-tab="target" aria-labelledby="context-inspector-title" aria-hidden="true" hidden>
+            <aside id="context-inspector" class="context-inspector" data-workspace-id="map" aria-labelledby="context-inspector-title" aria-hidden="true" hidden>
               <header class="context-inspector-head">
                 <div class="context-inspector-heading">
                   <span class="context-inspector-kicker">CONTEXT INSPECTOR</span>
-                  <strong id="context-inspector-title">当前上下文</strong>
+                  <strong id="context-inspector-title">地图上下文</strong>
                 </div>
                 <button class="context-inspector-close" type="button" data-context-inspector-close aria-label="关闭上下文检查器" title="关闭上下文检查器">×</button>
               </header>
-              <div class="context-inspector-tabs" role="tablist" aria-label="上下文切片">
-                <button id="context-tab-target" class="context-inspector-tab" type="button" role="tab" data-context-inspector-tab="target" aria-controls="context-pane-target" aria-selected="true">目标</button>
-                <button id="context-tab-market" class="context-inspector-tab" type="button" role="tab" data-context-inspector-tab="market" aria-controls="context-pane-market" aria-selected="false" tabindex="-1">市场</button>
-                <button id="context-tab-network" class="context-inspector-tab" type="button" role="tab" data-context-inspector-tab="network" aria-controls="context-pane-network" aria-selected="false" tabindex="-1">网络</button>
-                <button id="context-tab-quest" class="context-inspector-tab" type="button" role="tab" data-context-inspector-tab="quest" aria-controls="context-pane-quest" aria-selected="false" tabindex="-1">任务</button>
-              </div>
-              <section id="context-pane-target" class="context-inspector-pane" role="tabpanel" data-context-inspector-pane="target" aria-labelledby="context-tab-target">
-                <div id="planet-detail-panel" class="planet-detail-panel"></div>
-              </section>
-              <section id="context-pane-market" class="context-inspector-pane" role="tabpanel" data-context-inspector-pane="market" aria-labelledby="context-tab-market" hidden>
-                <div class="context-pane-intro"><strong>本地市场信号</strong><span>只保留三条波动摘要，成交在交易工作区完成。</span></div>
-              <table class="hud-market-table">
-                <thead>
-                  <tr>
-                    <th>商品</th>
-                    <th>价格情况</th>
-                    <th>变化</th>
-                  </tr>
-                </thead>
-                <tbody id="hud-market-overview-body">
-                  <tr>
-                    <td colspan="4">行情同步中...</td>
-                  </tr>
-                </tbody>
-              </table>
-              <div class="hud-widget-foot">
-                <span>只显示本地市场摘要</span>
-                <div class="hud-widget-foot-actions">
-                  <button id="hud-market-open" class="hud-widget-link-btn" type="button">打开市场</button>
-                  <span id="hud-market-updated">DAY 1</span>
+              <div id="context-inspector-content" class="context-inspector-content" role="region" aria-live="polite" aria-label="工作区上下文内容">
+                <div id="context-inspector-empty" class="context-inspector-empty" data-context-inspector-empty>
+                  <span class="context-inspector-empty-mark" aria-hidden="true">◎</span>
+                  <strong data-context-empty-title>尚未选择上下文</strong>
+                  <span data-context-empty-note>在当前工作区选择对象后，这里会显示对应信息。</span>
+                </div>
+                <div id="context-inspector-render-host" class="context-inspector-render-host" hidden>
+                  <div id="planet-detail-panel" class="planet-detail-panel"></div>
                 </div>
               </div>
-              </section>
-              <section id="context-pane-network" class="context-inspector-pane" role="tabpanel" data-context-inspector-pane="network" aria-labelledby="context-tab-network" hidden>
-                <div class="context-pane-intro"><strong>贸易网络状态</strong><span>运力、航线和近期波动的局部摘要。</span></div>
-              <div class="network-widget-body">
-                <div class="network-spark" aria-hidden="true">
-                  <span></span><span></span><span></span><span></span><span></span><span></span>
-                </div>
-                <div class="network-stats" role="list" aria-label="贸易网络指标">
-                  <span role="listitem">已连接地点 <strong id="hud-network-nodes">1 / 256</strong></span>
-                  <span role="listitem">活跃航线 <strong id="hud-network-routes">0</strong></span>
-                  <span role="listitem">近期价格变化 <strong id="hud-network-volatility">0.0%</strong></span>
-                </div>
-                <div id="hud-network-signal" class="hud-network-signal" role="status" aria-live="polite">
-                  <span class="hud-network-signal-kicker">网络状态</span>
-                  <strong class="hud-network-signal-title">正在查看贸易网络</strong>
-                  <span class="hud-network-signal-note">正在查看已连接地点和跑商情况。</span>
-                </div>
-              </div>
-              <div class="hud-widget-foot network-widget-foot">
-                <span>基于已连接地点与自动跑商</span>
-                <div class="hud-widget-foot-actions">
-                  <button id="hud-network-open" class="hud-widget-link-btn" type="button">查看贸易站</button>
-                  <span id="hud-network-updated">DAY 1</span>
-                </div>
-              </div>
-              </section>
-              <section id="context-pane-quest" class="context-inspector-pane" role="tabpanel" data-context-inspector-pane="quest" aria-labelledby="context-tab-quest" hidden>
-                <div class="context-pane-intro"><strong>任务状态</strong><span>这里只显示首要目标，接取和路线留在档案工作区。</span></div>
-              <div class="quest-tracker-widget-body">
-                <div id="quest-tracker" class="quest-tracker-card quest-tracker-card--hud"></div>
-              </div>
-              </section>
             </aside>
             <div class="map-btn-group">
               <div class="map-primary-entry-group">
@@ -322,25 +268,17 @@
               </div>
             </div>
             <div id="floating-command-stack" class="floating-command-stack">
-              <button
-                id="event-notification"
-                class="event-notification hidden"
-                type="button"
+              <div
+                id="action-guide"
+                class="action-guide"
+                data-command-slot="primary"
+                data-command-slot-state="empty"
+                role="region"
+                aria-label="当前行动"
                 aria-live="polite"
-                aria-atomic="true"
-                aria-hidden="true"
-                aria-label="待处理事件"
-                tabindex="-1"
-              >
-                <span id="event-notif-icon" class="event-notif-icon" aria-hidden="true"></span>
-                <span class="event-notif-copy">
-                  <span id="event-notif-kicker" class="event-notif-kicker">待处理事件</span>
-                  <strong id="event-notif-text" class="event-notif-text"></strong>
-                  <small id="event-notif-meta" class="event-notif-meta"></small>
-                </span>
-                <span class="event-notif-btn" aria-hidden="true">查看事件</span>
-              </button>
-              <div id="action-guide" class="action-guide" aria-live="polite" hidden></div>
+                aria-busy="false"
+                hidden
+              ></div>
             </div>
 
             <!-- Market overlay panel -->
@@ -749,7 +687,7 @@
             <div class="logs-terminal-body">
               <aside class="logs-terminal-aside" aria-label="日志说明">
                 <h3>消息分类</h3>
-                <p>日志按接收时间倒序排列。重要行动仍以行动引导为唯一的下一步入口。</p>
+                <p>日志按接收时间倒序排列。重要行动由行动引导统一承载；日志只记录结果。</p>
                 <div class="logs-signal-legend" role="list">
                   <span class="logs-signal-item" role="listitem"><span class="logs-signal-dot" aria-hidden="true"></span>常规记录</span>
                   <span class="logs-signal-item" role="listitem"><span class="logs-signal-dot" aria-hidden="true"></span>可选机会</span>
@@ -1308,7 +1246,7 @@
             </div>
             <div class="tut-start-module" role="listitem">
               <span>03</span>
-              <strong>当前行动</strong>
+              <strong>行动引导</strong>
               <small>教程结束后接入统一引导</small>
             </div>
           </div>
@@ -1316,7 +1254,7 @@
             <div id="tutorial-start-guided-note" class="tut-start-decision-card tut-start-decision-card--primary" role="listitem">
               <span>推荐</span>
               <strong>启动接入教程</strong>
-              <small>按步骤完成第一轮交易，再交给当前行动。</small>
+              <small>按步骤完成第一轮交易，再交给统一行动引导。</small>
             </div>
             <div id="tutorial-start-free-note" class="tut-start-decision-card" role="listitem">
               <span>自由</span>

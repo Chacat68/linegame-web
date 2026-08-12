@@ -586,14 +586,24 @@ export function getCurrentSuggestion(state, options) {
   var suggestions = [];
 
   if (opts.eventPending) {
+    var pendingEvent = opts.pendingEvent || {};
+    var pendingEventTitle = pendingEvent.title || '待处理事件';
+    var pendingEventRisk = pendingEvent.risk === 'dangerous'
+      ? '高风险'
+      : (pendingEvent.risk === 'safe' ? '低风险' : '中风险');
+    var pendingEventStage = pendingEvent.stage === 'early'
+      ? '早期事件'
+      : (pendingEvent.stage === 'late' ? '后期事件' : (pendingEvent.stage === 'chain' ? '事件链' : '中期事件'));
     suggestions.push(_createSuggestion({
       id: 'handle-pending-event',
       priority: 110,
-      title: '处理待处理事件',
-      reason: '这个事件会暂停航行和其他操作，先处理完再继续当前路线。',
+      title: '处理「' + pendingEventTitle + '」',
+      reason: pendingEventRisk + ' · ' + pendingEventStage + '。这个事件会暂停航行和其他操作，先处理完再继续当前路线。',
       actionLabel: '查看事件',
       actionType: 'event.open',
-      payload: {},
+      payload: {
+        eventId: pendingEvent.id || '',
+      },
       surface: 'system',
     }));
   }

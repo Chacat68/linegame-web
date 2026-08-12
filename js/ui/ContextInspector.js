@@ -1,57 +1,72 @@
-// js/ui/ContextInspector.js — 星图上下文检查器控制器
-// 职责：管理检查器的开合、切片互斥、键盘导航与焦点恢复。
+// js/ui/ContextInspector.js — workspace-scoped context protocol and shell
+//
+// The inspector owns context keys, never domain objects. Renderers resolve the
+// latest domain state through the provider on every render.
 
 import * as EventBus from '../core/EventBus.js';
+import { registerEscapeLayer } from './SurfaceManager.js';
 
 const ROOT_ID = 'context-inspector';
+const CONTENT_ID = 'context-inspector-content';
+const EMPTY_ID = 'context-inspector-empty';
+const HOST_ID = 'context-inspector-render-host';
+const TITLE_ID = 'context-inspector-title';
 const TOGGLE_SELECTOR = '[data-context-inspector-toggle]';
 const CLOSE_SELECTOR = '[data-context-inspector-close]';
-const TAB_SELECTOR = '[data-context-inspector-tab]';
-const PANE_SELECTOR = '[data-context-inspector-pane]';
-const DEFAULT_TAB_ID = 'target';
+const DEFAULT_WORKSPACE_ID = 'map';
 const RAIL_EVENT = 'starmap-rail:panel-open';
 const RAIL_SOURCE = 'context-inspector';
+const CONTEXT_FIELDS = ['type', 'id', 'workspaceId', 'source', 'revision'];
 
 let _root = null;
+let _content = null;
+let _empty = null;
+let _host = null;
+let _title = null;
 let _toggle = null;
 let _closeButton = null;
-let _tabs = [];
-let _panes = [];
-let _activeTab = null;
+let _activeWorkspaceId = DEFAULT_WORKSPACE_ID;
+let _contextsByWorkspace = new Map();
+let _renderersByWorkspace = new Map();
+let _openByWorkspace = new Map();
+let _getState = function () { return null; };
 let _isOpen = false;
 let _railListenerBound = false;
+let _releaseEscapeLayer = null;
 
 function _getDocument(options) {
   if (options && options.document) return options.document;
   return typeof document !== 'undefined' ? document : null;
 }
 
-function _toArray(value) {
-  return value ? Array.prototype.slice.call(value) : [];
+function _normalizeString(value) {
+  return typeof value === 'string' ? value.trim() : '';
 }
 
-function _getTabId(tab) {
-  return tab && tab.dataset ? tab.dataset.contextInspectorTab || null : null;
+function _normalizeWorkspaceId(value) {
+  return _normalizeString(value) || DEFAULT_WORKSPACE_ID;
 }
 
-function _getPaneId(pane) {
-  return pane && pane.dataset ? pane.dataset.contextInspectorPane || null : null;
+function _copyContext(context) {
+  if (!context) return null;
+  var copy = {};
+  CONTEXT_FIELDS.forEach(function (field) { copy[field] = context[field]; });
+  return Object.freeze(copy);
 }
 
-function _findTab(tabId) {
-  return _tabs.find(function (tab) { return _getTabId(tab) === tabId; }) || null;
-}
+function _normalizeContext(context, fallbackWorkspaceId) {
+  if (!context || typeof context !== 'object') return null;
+  var type = _normalizeString(context.type);
+  var id = _normalizeString(context.id);
+  if (!type || !id) return null;
 
-function _findPaneForTab(tab, tabId) {
-  if (!tab) return null;
-  var controlledId = typeof tab.getAttribute === 'function'
-    ? tab.getAttribute('aria-controls')
-    : null;
-
-  return _panes.find(function (pane) {
-    if (controlledId && pane.id === controlledId) return true;
-    return _getPaneId(pane) === tabId;
-  }) || null;
+  return Object.freeze({
+    type: type,
+    id: id,
+    workspaceId: _normalizeWorkspaceId(context.workspaceId || fallbackWorkspaceId),
+    source: _normalizeString(context.source) || 'unknown',
+    revision: Number.isFinite(Number(context.revision)) ? Number(context.revision) : 0,
+  });
 }
 
 function _setAttribute(element, name, value) {
@@ -62,15 +77,13 @@ function _setAttribute(element, name, value) {
 
 function _setPanelVisible(visible) {
   if (!_root) return;
-
   _isOpen = !!visible;
+  _openByWorkspace.set(_activeWorkspaceId, _isOpen);
   _root.hidden = !_isOpen;
+  _root.inert = !_isOpen;
   _setAttribute(_root, 'aria-hidden', _isOpen ? 'false' : 'true');
   _setAttribute(_toggle, 'aria-expanded', _isOpen ? 'true' : 'false');
-
-  if (_root.dataset) {
-    _root.dataset.state = _isOpen ? 'open' : 'closed';
-  }
+  if (_root.dataset) _root.dataset.state = _isOpen ? 'open' : 'closed';
 }
 
 function _focusElement(element) {
@@ -82,59 +95,33 @@ function _focusElement(element) {
   }
 }
 
+function _renderEmpty(context) {
+  if (!_empty) return;
+  var hasContext = !!context;
+  var title = hasContext ? '此工作区尚未接入详情' : '尚未选择上下文';
+  var note = hasContext
+    ? '当前选择已记录；详情适配器接入后会显示在这里。'
+    : '在当前工作区选择对象后，这里会显示对应信息。';
+  var titleElement = typeof _empty.querySelector === 'function'
+    ? _empty.querySelector('[data-context-empty-title]')
+    : null;
+  var noteElement = typeof _empty.querySelector === 'function'
+    ? _empty.querySelector('[data-context-empty-note]')
+    : null;
+  if (titleElement) titleElement.textContent = title;
+  if (noteElement) noteElement.textContent = note;
+  _empty.hidden = false;
+  if (_host) _host.hidden = true;
+}
+
 function _handleToggleClick(event) {
   if (event && typeof event.preventDefault === 'function') event.preventDefault();
-  if (_isOpen) {
-    close({ restoreFocus: false });
-  } else {
-    open(_activeTab);
-  }
+  if (_isOpen) close({ restoreFocus: false });
+  else open();
 }
 
 function _handleCloseClick(event) {
   if (event && typeof event.preventDefault === 'function') event.preventDefault();
-  close({ restoreFocus: true });
-}
-
-function _handleTabClick(event) {
-  var tab = event && (event.currentTarget || event.target);
-  var tabId = _getTabId(tab);
-  if (!tabId) return;
-  if (event && typeof event.preventDefault === 'function') event.preventDefault();
-  select(tabId, { focus: false });
-}
-
-function _handleTabKeydown(event) {
-  if (!event) return;
-  var currentTab = event.currentTarget || event.target;
-  var currentIndex = _tabs.indexOf(currentTab);
-
-  if (event.key === 'Escape') {
-    event.__contextInspectorHandled = true;
-    if (typeof event.preventDefault === 'function') event.preventDefault();
-    close({ restoreFocus: true });
-    return;
-  }
-
-  if (currentIndex < 0 || _tabs.length === 0) return;
-  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' &&
-      event.key !== 'Home' && event.key !== 'End') return;
-
-  var nextIndex = currentIndex;
-  if (event.key === 'Home') nextIndex = 0;
-  else if (event.key === 'End') nextIndex = _tabs.length - 1;
-  else if (event.key === 'ArrowLeft') nextIndex = (currentIndex + _tabs.length - 1) % _tabs.length;
-  else nextIndex = (currentIndex + 1) % _tabs.length;
-
-  event.__contextInspectorHandled = true;
-  if (typeof event.preventDefault === 'function') event.preventDefault();
-  var nextTab = _tabs[nextIndex];
-  select(_getTabId(nextTab), { focus: true });
-}
-
-function _handleRootKeydown(event) {
-  if (!event || event.key !== 'Escape' || event.__contextInspectorHandled) return;
-  if (typeof event.preventDefault === 'function') event.preventDefault();
   close({ restoreFocus: true });
 }
 
@@ -154,83 +141,82 @@ function _bindRailListener() {
   _railListenerBound = true;
 }
 
-/**
- * 初始化单例检查器。重复调用只会刷新 DOM 引用和视觉状态，不会叠加监听。
- * @param {{document?: Document, open?: boolean}} options
- * @returns {ReturnType<typeof getSnapshot>}
- */
+/** Initialize the shell. State may be an object or a latest-state provider. */
 export function init(options) {
-  var doc = _getDocument(options);
+  var opts = options || {};
+  var doc = _getDocument(opts);
+  if (Object.prototype.hasOwnProperty.call(opts, 'stateSource')) {
+    _getState = typeof opts.stateSource === 'function'
+      ? opts.stateSource
+      : function () { return opts.stateSource || null; };
+  }
+
   if (!doc || typeof doc.getElementById !== 'function') {
     _root = null;
+    _content = null;
+    _empty = null;
+    _host = null;
+    _title = null;
     _toggle = null;
     _closeButton = null;
-    _tabs = [];
-    _panes = [];
-    _activeTab = null;
     _isOpen = false;
     return getSnapshot();
   }
 
-  var nextRoot = doc.getElementById(ROOT_ID);
-  if (!nextRoot) {
-    _root = null;
+  _root = doc.getElementById(ROOT_ID);
+  if (!_root) {
+    _content = null;
+    _empty = null;
+    _host = null;
+    _title = null;
     _toggle = null;
     _closeButton = null;
-    _tabs = [];
-    _panes = [];
-    _activeTab = null;
     _isOpen = false;
     return getSnapshot();
   }
 
-  var isSameRoot = nextRoot === _root;
-  _root = nextRoot;
+  _content = doc.getElementById(CONTENT_ID);
+  _empty = doc.getElementById(EMPTY_ID);
+  _host = doc.getElementById(HOST_ID);
+  _title = doc.getElementById(TITLE_ID);
   _toggle = typeof doc.querySelector === 'function' ? doc.querySelector(TOGGLE_SELECTOR) : null;
   _closeButton = typeof _root.querySelector === 'function' ? _root.querySelector(CLOSE_SELECTOR) : null;
-  _tabs = typeof _root.querySelectorAll === 'function' ? _toArray(_root.querySelectorAll(TAB_SELECTOR)) : [];
-  _panes = typeof _root.querySelectorAll === 'function' ? _toArray(_root.querySelectorAll(PANE_SELECTOR)) : [];
 
   _bindElement(_toggle, 'contextInspectorToggleBound', 'click', _handleToggleClick);
   _bindElement(_closeButton, 'contextInspectorCloseBound', 'click', _handleCloseClick);
-  _bindElement(_root, 'contextInspectorKeyboardBound', 'keydown', _handleRootKeydown);
-  _tabs.forEach(function (tab) {
-    _bindElement(tab, 'contextInspectorClickBound', 'click', _handleTabClick);
-    _bindElement(tab, 'contextInspectorKeyboardBound', 'keydown', _handleTabKeydown);
+  if (_releaseEscapeLayer) _releaseEscapeLayer();
+  _releaseEscapeLayer = registerEscapeLayer('context-inspector', {
+    priority: 20,
+    isActive: function () { return !!(_root && _isOpen); },
+    onEscape: function () { close({ restoreFocus: true }); },
   });
   _bindRailListener();
 
-  var requestedDefault = _root.dataset && _root.dataset.defaultTab
-    ? _root.dataset.defaultTab
-    : DEFAULT_TAB_ID;
-  var nextTabId = isSameRoot && _findTab(_activeTab)
-    ? _activeTab
-    : requestedDefault;
-  if (!_findTab(nextTabId)) nextTabId = _findTab(DEFAULT_TAB_ID) ? DEFAULT_TAB_ID : _getTabId(_tabs[0]);
-  select(nextTabId, { focus: false });
-
-  var shouldOpen = options && typeof options.open === 'boolean'
-    ? options.open
+  var shouldOpen = typeof opts.open === 'boolean'
+    ? opts.open
     : !(Boolean(_root.hidden) || (
       typeof _root.getAttribute === 'function' && _root.getAttribute('aria-hidden') === 'true'
     ));
+  activateWorkspace(opts.workspaceId || _activeWorkspaceId || DEFAULT_WORKSPACE_ID, {
+    render: false,
+    syncOpen: false,
+  });
+  render();
   _setPanelVisible(shouldOpen);
   return getSnapshot();
 }
 
-/** 打开检查器，可同时选择指定切片。 */
-export function open(tabId, options) {
+export function open(options) {
   if (!_root) return getSnapshot();
-  if (tabId) select(tabId, { focus: !!(options && options.focusTab) });
+  var opts = options || {};
+  if (opts.workspaceId) activateWorkspace(opts.workspaceId);
   _setPanelVisible(true);
-
-  if (!options || options.notifyRail !== false) {
+  if (opts.notifyRail !== false) {
     EventBus.emit(RAIL_EVENT, { source: RAIL_SOURCE, panelId: ROOT_ID });
   }
   return getSnapshot();
 }
 
-/** 关闭检查器；默认把焦点还给入口按钮。 */
 export function close(options) {
   if (!_root) return getSnapshot();
   _setPanelVisible(false);
@@ -238,41 +224,105 @@ export function close(options) {
   return getSnapshot();
 }
 
-/** 选择一个切片，不改变检查器的开合状态。 */
-export function select(tabId, options) {
-  var nextTab = _findTab(tabId);
-  if (!nextTab) return getSnapshot();
-
-  var nextPane = _findPaneForTab(nextTab, tabId);
-  if (!nextPane) return getSnapshot();
-  _activeTab = tabId;
-
-  _tabs.forEach(function (tab) {
-    var isActive = tab === nextTab;
-    _setAttribute(tab, 'aria-selected', isActive ? 'true' : 'false');
-    _setAttribute(tab, 'tabindex', isActive ? '0' : '-1');
-    tab.tabIndex = isActive ? 0 : -1;
-  });
-
-  _panes.forEach(function (pane) {
-    var isActive = pane === nextPane;
-    pane.hidden = !isActive;
-    _setAttribute(pane, 'aria-hidden', isActive ? 'false' : 'true');
-    if (isActive && typeof pane.removeAttribute === 'function') pane.removeAttribute('hidden');
-    else if (!isActive) _setAttribute(pane, 'hidden', '');
-  });
-
-  if (_root && _root.dataset) _root.dataset.activeTab = _activeTab;
-  if (options && options.focus) _focusElement(nextTab);
+/** Switch workspace without discarding that workspace's last context key. */
+export function activateWorkspace(workspaceId, options) {
+  var nextWorkspaceId = _normalizeWorkspaceId(workspaceId);
+  if (_root) _openByWorkspace.set(_activeWorkspaceId, _isOpen);
+  _activeWorkspaceId = nextWorkspaceId;
+  if (_root && _root.dataset) _root.dataset.workspaceId = _activeWorkspaceId;
+  if (!options || options.render !== false) render();
+  if (_root && (!options || options.syncOpen !== false)) {
+    // The shell is workspace-scoped. Unmigrated workspaces start closed instead
+    // of leaving a focusable map inspector underneath their terminal surface.
+    _setPanelVisible(_openByWorkspace.get(_activeWorkspaceId) === true);
+  }
   return getSnapshot();
 }
 
-/** 返回只读状态快照，供 UI 协调器和测试使用。 */
+/** Replace a workspace context with a normalized immutable key. */
+export function replaceContext(context, options) {
+  var opts = options || {};
+  var workspaceId = _normalizeWorkspaceId(
+    (context && context.workspaceId) || opts.workspaceId || _activeWorkspaceId
+  );
+  var normalized = _normalizeContext(context, workspaceId);
+  if (!normalized) return clearContext(workspaceId, opts);
+  _contextsByWorkspace.set(workspaceId, normalized);
+  if (workspaceId === _activeWorkspaceId && opts.render !== false) render();
+  return _copyContext(normalized);
+}
+
+export function clearContext(workspaceId, options) {
+  var targetWorkspaceId = _normalizeWorkspaceId(workspaceId || _activeWorkspaceId);
+  _contextsByWorkspace.delete(targetWorkspaceId);
+  if (targetWorkspaceId === _activeWorkspaceId && (!options || options.render !== false)) render();
+  return null;
+}
+
+export function getContext(workspaceId) {
+  return _copyContext(_contextsByWorkspace.get(_normalizeWorkspaceId(workspaceId || _activeWorkspaceId)) || null);
+}
+
+/** Register a renderer/adapter for a workspace. Returns an unregister callback. */
+export function registerRenderer(workspaceId, renderer) {
+  var normalizedWorkspaceId = _normalizeWorkspaceId(workspaceId);
+  if (typeof renderer !== 'function') {
+    _renderersByWorkspace.delete(normalizedWorkspaceId);
+    if (normalizedWorkspaceId === _activeWorkspaceId) render();
+    return function () {};
+  }
+  _renderersByWorkspace.set(normalizedWorkspaceId, renderer);
+  if (normalizedWorkspaceId === _activeWorkspaceId) render();
+  return function () {
+    if (_renderersByWorkspace.get(normalizedWorkspaceId) === renderer) {
+      _renderersByWorkspace.delete(normalizedWorkspaceId);
+      if (normalizedWorkspaceId === _activeWorkspaceId) render();
+    }
+  };
+}
+
+export const registerAdapter = registerRenderer;
+
+/** Resolve latest state, then delegate the active context key to its renderer. */
+export function render() {
+  var context = getContext(_activeWorkspaceId);
+  var renderer = _renderersByWorkspace.get(_activeWorkspaceId);
+  if (_title) _title.textContent = _activeWorkspaceId === 'map' ? '地图上下文' : '当前上下文';
+  if (_root && _root.dataset) {
+    _root.dataset.contextType = context ? context.type : '';
+    _root.dataset.contextId = context ? context.id : '';
+    _root.dataset.rendererState = renderer ? 'ready' : 'missing';
+  }
+
+  if (typeof renderer !== 'function') {
+    _renderEmpty(context);
+    return getSnapshot();
+  }
+
+  var state = _getState();
+  if (_empty) _empty.hidden = true;
+  if (_host) _host.hidden = false;
+  var result = renderer({
+    workspaceId: _activeWorkspaceId,
+    context: context,
+    state: state,
+    container: _host || _content,
+  });
+  if (result === false) _renderEmpty(context);
+  return getSnapshot();
+}
+
 export function getSnapshot() {
+  var contexts = {};
+  _contextsByWorkspace.forEach(function (context, workspaceId) {
+    contexts[workspaceId] = _copyContext(context);
+  });
   return {
     initialized: !!_root,
     open: !!(_root && _isOpen),
-    activeTab: _activeTab,
-    tabs: _tabs.map(_getTabId).filter(Boolean),
+    activeWorkspaceId: _activeWorkspaceId,
+    context: getContext(_activeWorkspaceId),
+    contexts: contexts,
+    rendererRegistered: _renderersByWorkspace.has(_activeWorkspaceId),
   };
 }

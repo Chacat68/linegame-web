@@ -204,8 +204,7 @@
     width: auto;
   }
 
-  .action-guide,
-  .event-notification {
+  .action-guide {
     min-height: 60px;
   }
 

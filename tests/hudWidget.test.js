@@ -12,11 +12,15 @@ describe('HUD context ownership', function () {
 
     expect(hud).toContain("import * as ContextInspector from './ContextInspector.js'");
     expect(hud).toContain("window.matchMedia('(max-width: 620px)').matches");
-    expect(hud).toContain('ContextInspector.init({ open: !compactInspector })');
+    expect(hud).toContain('stateSource: function () { return _stateRef; }');
     expect(hud).not.toContain('data-hud-widget');
     expect(hud).not.toContain('data-hud-dock-panel');
     expect((html.match(/id="context-inspector"/g) || []).length).toBe(1);
-    expect((html.match(/data-context-inspector-pane=/g) || []).length).toBe(4);
+    expect((html.match(/data-context-inspector-pane=/g) || []).length).toBe(0);
+    expect(html).toContain('id="context-inspector-render-host"');
+    expect(hud).not.toContain('_renderHudMarketOverview');
+    expect(hud).not.toContain('_renderHudNetworkStatus');
+    expect(hud).not.toContain('_renderQuestTracker');
     expect(html).toMatch(/id="context-inspector"[^>]*aria-hidden="true" hidden/);
   });
 });

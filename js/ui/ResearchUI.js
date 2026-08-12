@@ -109,9 +109,9 @@ function _renderResearchFocusPanel(state, categoryStatuses, currentTech) {
     return tech && list.findIndex(function (item) { return item.id === tech.id; }) === index;
   }).slice(0, 3);
 
-  return '<section class="research-focus-panel" aria-label="研究建议">' +
+  return '<section class="research-focus-panel" aria-label="研究队列状态">' +
     '<div class="research-focus-copy">' +
-      '<span class="research-focus-kicker">当前建议</span>' +
+      '<span class="research-focus-kicker">研究状态</span>' +
       '<strong class="research-focus-title">' + _escapeHtml(signalTitle) + '</strong>' +
       '<span class="research-focus-note">' + _escapeHtml(signalNote) + '</span>' +
     '</div>' +

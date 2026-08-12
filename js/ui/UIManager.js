@@ -5,8 +5,9 @@
 
 import * as EventBus from '../core/EventBus.js';
 import { createNavigationController, normalizeWorkspace } from './NavigationController.js';
-import { openSecondarySurface, closeAllSecondarySurfaces } from './SurfaceManager.js';
+import { closeAllSecondarySurfaces, openSecondarySurface, registerEscapeLayer } from './SurfaceManager.js';
 import { loadSettings } from '../core/SettingsCore.js';
+import * as ContextInspector from './ContextInspector.js';
 
 const LEGACY_VIEW_BY_WORKSPACE = Object.freeze({
   map: 'starmap',
@@ -27,6 +28,7 @@ let _handlers = {
 };
 let _viewSwitchListener = null;
 let _terminalBlurListener = null;
+let _releaseNavigationEscape = null;
 
 export function init(stateSource, handlers) {
   _getState = typeof stateSource === 'function'
@@ -41,6 +43,16 @@ export function init(stateSource, handlers) {
     onLeave: _leaveWorkspace,
     onEnter: _enterWorkspace,
     onChange: _handleNavigationChange,
+  });
+  if (_releaseNavigationEscape) _releaseNavigationEscape();
+  _releaseNavigationEscape = registerEscapeLayer('workspace-detail', {
+    priority: 40,
+    isActive: function () {
+      return !!(_navigation && _navigation.getSnapshot().activeDetail);
+    },
+    onEscape: function () {
+      if (_navigation) _navigation.handleEscape();
+    },
   });
 
   _bindBottomNavigation();
@@ -62,14 +74,28 @@ export function init(stateSource, handlers) {
     getNavigationSnapshot: function () {
       return _navigation ? _navigation.getSnapshot() : null;
     },
+    openDetail: openDetail,
+    closeDetail: closeDetail,
   };
 
   _syncWorkspaceVisualState('map');
 }
 
+export function openDetail(detail, workspace) {
+  return _navigation ? _navigation.openDetail(detail, workspace) : false;
+}
+
+export function closeDetail(workspace) {
+  return _navigation ? _navigation.closeDetail(workspace) : null;
+}
+
 export function getCurrentView() {
   var workspace = _navigation ? _navigation.getSnapshot().activeWorkspace : 'map';
   return LEGACY_VIEW_BY_WORKSPACE[workspace] || 'starmap';
+}
+
+export function getNavigationSnapshot() {
+  return _navigation ? _navigation.getSnapshot() : null;
 }
 
 export function switchView(view) {
@@ -132,11 +158,13 @@ function _enterWorkspace(change) {
 
 function _handleNavigationChange(change) {
   _syncWorkspaceVisualState(change.to);
+  ContextInspector.activateWorkspace(change.to);
   EventBus.emit('navigation:changed', LEGACY_VIEW_BY_WORKSPACE[change.to]);
 }
 
 function _syncWorkspaceVisualState(workspace) {
   var legacyView = LEGACY_VIEW_BY_WORKSPACE[workspace] || 'starmap';
+  ContextInspector.activateWorkspace(workspace);
   document.querySelectorAll('.bottom-nav-btn').forEach(function (button) {
     var isActive = normalizeWorkspace(button.dataset.view) === workspace;
     button.classList.toggle('active', isActive);

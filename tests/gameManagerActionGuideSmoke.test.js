@@ -169,7 +169,6 @@ function createActionGuideSmokeDom() {
     'dispatch-confirm': createFakeElement('dispatch-confirm'),
     'dispatch-cancel': createFakeElement('dispatch-cancel'),
     'dispatch-advanced-panel': createFakeElement('dispatch-advanced-panel'),
-    'event-notification': createFakeElement('event-notification', ['hidden']),
     'info-panel': createFakeElement('info-panel'),
     'market-overlay': createFakeElement('market-overlay', ['hidden']),
     'trade-panel': tradePanel,
@@ -490,6 +489,10 @@ describe('GameManager action guide smoke', function () {
     expect(result.ok).toBe(true);
     expect(state.midgameChains['dispatch-ops'].completedSteps).toEqual(['prefill-profitable-dispatch']);
     expect(state.midgameChains['dispatch-ops'].completed).toBe(false);
+    expect(gameManager._getGameClockSnapshotForTest().recurringTasks).toEqual([
+      expect.objectContaining({ id: 'active-dispatch' }),
+    ]);
     gameManager._stopActiveDispatchForTest();
+    expect(gameManager._getGameClockSnapshotForTest().recurringTasks).toEqual([]);
   }, 10000);
 });

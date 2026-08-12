@@ -77,6 +77,6 @@ describe('CommandAction helpers', function () {
       returnTo: '任务页继续推进当前任务',
     });
 
-    expect(text).toBe('📊 已打开当前市场 · 买卖货物。下一步：补足燃料。返回：任务页继续推进当前任务。');
+    expect(text).toBe('📊 已打开当前市场 · 买卖货物。后续处理：补足燃料。返回：任务页继续推进当前任务。');
   });
 });

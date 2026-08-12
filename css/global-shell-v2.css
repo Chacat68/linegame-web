@@ -56,7 +56,7 @@
   display: grid;
   width: min(var(--ui-context-width), calc(100vw - 32px));
   max-height: calc(100dvh - var(--ui-header-height) - var(--ui-nav-height) - 124px);
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
   border: 1px solid var(--ui-line-default);
   border-radius: 14px;
@@ -121,84 +121,55 @@
   background: rgba(108, 231, 255, 0.08);
 }
 
-.context-inspector-tabs {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  padding: 7px;
-  gap: 4px;
-  border-bottom: 1px solid var(--ui-line-subtle);
-  background: rgba(2, 10, 18, 0.44);
-}
-
-.context-inspector-tab {
-  min-height: 34px;
-  border: 1px solid transparent;
-  border-radius: var(--ui-radius-control);
-  color: var(--ui-text-muted);
-  background: transparent;
-  font-size: 10px;
-  font-weight: 700;
-}
-
-.context-inspector-tab:hover {
-  color: var(--ui-text-secondary);
-  background: rgba(108, 231, 255, 0.055);
-}
-
-.context-inspector-tab[aria-selected="true"] {
-  border-color: var(--ui-line-default);
-  color: var(--ui-accent-strong);
-  background: rgba(108, 231, 255, 0.1);
-}
-
-.context-inspector-pane {
+.context-inspector-content {
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
 
-.context-inspector-pane[hidden] {
+.context-inspector-empty {
+  display: grid;
+  min-height: 190px;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  padding: 28px 22px;
+  text-align: center;
+}
+
+.context-inspector-empty[hidden],
+.context-inspector-render-host[hidden] {
   display: none;
 }
 
-.context-pane-intro {
-  display: grid;
-  gap: 3px;
-  padding: 13px 14px 8px;
+.context-inspector-render-host {
+  min-width: 0;
+  min-height: 0;
 }
 
-.context-pane-intro strong {
+.context-inspector-empty-mark {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid var(--ui-line-default);
+  border-radius: 50%;
+  color: var(--ui-accent);
+  background: rgba(108, 231, 255, 0.06);
+  font-size: 20px;
+}
+
+.context-inspector-empty strong {
   color: var(--ui-text-primary);
   font-size: 13px;
 }
 
-.context-pane-intro span {
+.context-inspector-empty > span:last-child {
+  max-width: 250px;
   color: var(--ui-text-muted);
   font-size: 10px;
-  line-height: 1.45;
-}
-
-#context-inspector .hud-market-table {
-  width: calc(100% - 28px);
-  margin: 4px 14px 0;
-}
-
-#context-inspector .network-widget-body {
-  grid-template-columns: 1fr;
-  padding-top: 6px;
-}
-
-#context-inspector .network-spark {
-  height: 48px;
-}
-
-#context-inspector .quest-tracker-widget-body {
-  padding-top: 6px;
-}
-
-#context-inspector .hud-widget-foot {
-  align-items: center;
+  line-height: 1.6;
 }
 
 /* The mature planet-detail presenter now renders inside the single inspector. */

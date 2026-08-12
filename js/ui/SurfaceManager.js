@@ -11,6 +11,8 @@ const _surfaceObservers = _surfaceState.observers;
 const _returnFocusTargets = _surfaceState.returnFocusTargets || (_surfaceState.returnFocusTargets = new Map());
 const _primaryReturnFocusTargets = _surfaceState.primaryReturnFocusTargets || (_surfaceState.primaryReturnFocusTargets = new Map());
 const _secondaryReturnFocusTargets = _surfaceState.secondaryReturnFocusTargets || (_surfaceState.secondaryReturnFocusTargets = new Map());
+const _blockingDismissers = _surfaceState.blockingDismissers || (_surfaceState.blockingDismissers = new Map());
+const _escapeLayers = _surfaceState.escapeLayers || (_surfaceState.escapeLayers = new Map());
 const PRIMARY_RETURN_FOCUS_SELECTORS = {
   'market-overlay': '.bottom-nav-btn[data-view="market"]',
 };
@@ -27,8 +29,6 @@ const BLOCKING_FOCUSABLE_SELECTOR = [
   'textarea:not([disabled])',
   '[tabindex]:not([tabindex="-1"])',
 ].join(', ');
-let _focusTrapDocument = null;
-
 function _getBlockingSurfaces() {
   if (!globalThis.document || typeof document.querySelectorAll !== 'function') return [];
   return Array.from(document.querySelectorAll('.modal'));
@@ -47,6 +47,7 @@ function _getSurfaceList(surfaceIds) {
 function _setSurfaceVisible(surface, visible) {
   if (!surface || !surface.classList) return;
   surface.classList.toggle('hidden', !visible);
+  surface.inert = !visible;
   if (typeof surface.setAttribute === 'function') {
     surface.setAttribute('aria-hidden', visible ? 'false' : 'true');
   }
@@ -129,14 +130,73 @@ function _handleBlockingFocusTrap(event) {
   }
 }
 
-function _ensureBlockingFocusTrap() {
-  if (!globalThis.document || typeof document.addEventListener !== 'function') return;
-  if (_focusTrapDocument === document) return;
-  if (_focusTrapDocument && typeof _focusTrapDocument.removeEventListener === 'function') {
-    _focusTrapDocument.removeEventListener('keydown', _handleBlockingFocusTrap);
+function _consumeEscape(event) {
+  if (typeof event.preventDefault === 'function') event.preventDefault();
+  if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
+  if (typeof event.stopPropagation === 'function') event.stopPropagation();
+  event.__surfaceEscapeHandled = true;
+}
+
+function _dispatchEscape(event) {
+  if (!event || event.key !== 'Escape' || event.defaultPrevented ||
+      event.__surfaceEscapeHandled || event.__contextInspectorHandled) return false;
+
+  // Blocking transactions always own Escape while visible. A non-dismissible
+  // modal consumes the key without allowing it to close a lower layer.
+  var blockingSurface = _getVisibleBlockingSurface();
+  if (blockingSurface) {
+    _consumeEscape(event);
+    var dismissEntry = blockingSurface.id ? _blockingDismissers.get(blockingSurface.id) : null;
+    if (dismissEntry && dismissEntry.target === blockingSurface && dismissEntry.closeOnEscape) {
+      dismissEntry.onDismiss();
+    }
+    return true;
   }
-  document.addEventListener('keydown', _handleBlockingFocusTrap);
-  _focusTrapDocument = document;
+
+  var layers = Array.from(_escapeLayers.values()).sort(function (left, right) {
+    return right.priority - left.priority || right.sequence - left.sequence;
+  });
+  for (var i = 0; i < layers.length; i += 1) {
+    var layer = layers[i];
+    var isActive = false;
+    try {
+      isActive = !!layer.isActive();
+    } catch (err) {
+      isActive = false;
+    }
+    if (!isActive) continue;
+
+    _consumeEscape(event);
+    if (layer.dismissible && layer.onEscape) layer.onEscape(event);
+    return true;
+  }
+  return false;
+}
+
+/**
+ * 唯一的 document 级键盘 dispatcher。Tab 负责阻塞层焦点陷阱；Escape
+ * 严格按 SurfaceManager 注册层级只消费一个动作。
+ */
+function _handleSurfaceDocumentKeydown(event) {
+  if (!event) return;
+  if (event.key === 'Tab') {
+    _handleBlockingFocusTrap(event);
+    return;
+  }
+  if (event.key === 'Escape') _dispatchEscape(event);
+}
+
+function _ensureSurfaceDocumentDispatcher() {
+  if (!globalThis.document || typeof document.addEventListener !== 'function') return;
+  var boundDocument = _surfaceState.dispatcherDocument;
+  var boundHandler = _surfaceState.dispatcherHandler;
+  if (boundDocument === document && boundHandler) return;
+  if (boundDocument && boundHandler && typeof boundDocument.removeEventListener === 'function') {
+    boundDocument.removeEventListener('keydown', boundHandler);
+  }
+  document.addEventListener('keydown', _handleSurfaceDocumentKeydown);
+  _surfaceState.dispatcherDocument = document;
+  _surfaceState.dispatcherHandler = _handleSurfaceDocumentKeydown;
 }
 
 function _rememberBlockingSurfaceTrigger(surfaceId, surface) {
@@ -167,6 +227,7 @@ function _restoreBlockingSurfaceTrigger(surfaceId) {
 function _setOverlayPanelVisible(surface, visible) {
   if (!surface || !surface.classList) return;
   surface.classList.toggle('panel-open', !!visible);
+  surface.inert = !visible;
   if (typeof surface.setAttribute === 'function') {
     surface.setAttribute('aria-hidden', visible ? 'false' : 'true');
   }
@@ -379,34 +440,6 @@ export function closeAllNonBlockingSurfaces() {
   _notifySurfaceObservers();
 }
 
-export function hideEventNotificationBar() {
-  if (!globalThis.document || typeof document.getElementById !== 'function') return;
-  var notifEl = document.getElementById('event-notification');
-  if (!notifEl || !notifEl.classList) return;
-  notifEl.classList.add('hidden');
-  notifEl.onclick = null;
-  notifEl.onkeydown = null;
-  notifEl.tabIndex = -1;
-  if (typeof notifEl.setAttribute === 'function') {
-    notifEl.setAttribute('aria-hidden', 'true');
-    notifEl.setAttribute('tabindex', '-1');
-  }
-}
-
-export function showEventNotificationBar(notifEl) {
-  var target = notifEl || _getSurfaceById('event-notification');
-  if (!target || !target.classList) return null;
-
-  target.classList.remove('hidden');
-  target.tabIndex = 0;
-  if (typeof target.setAttribute === 'function') {
-    target.setAttribute('aria-hidden', 'false');
-    target.setAttribute('tabindex', '0');
-  }
-
-  return target;
-}
-
 export function showBlockingSurface(surfaceId, options) {
   if (!globalThis.document || typeof document.getElementById !== 'function') return null;
   var target = document.getElementById(surfaceId);
@@ -415,13 +448,12 @@ export function showBlockingSurface(surfaceId, options) {
   if (!options || options.rememberTrigger !== false) {
     _rememberBlockingSurfaceTrigger(surfaceId, target);
   }
-  _ensureBlockingFocusTrap();
+  _ensureSurfaceDocumentDispatcher();
 
   _getBlockingSurfaces().forEach(function (surface) {
     if (surface !== target) _setSurfaceVisible(surface, false);
   });
 
-  hideEventNotificationBar();
   _setSurfaceVisible(target, true);
   _focusBlockingSurface(target, options && options.focusSelector);
   _notifySurfaceObservers();
@@ -464,12 +496,42 @@ export function observeBlockingSurfaceState(observer) {
   };
 }
 
+/**
+ * 注册非阻塞层的 Escape 行为。调用方必须用 isActive 精确声明顶层是否
+ * 存在；dispatcher 只处理首个 active 层，避免一次按键穿透多个 surface。
+ *
+ * @param {string} layerId
+ * @param {{priority?: number, dismissible?: boolean, isActive: Function, onEscape?: Function}} options
+ * @returns {Function} unregister
+ */
+export function registerEscapeLayer(layerId, options) {
+  var layerOptions = options || {};
+  if (!layerId || typeof layerOptions.isActive !== 'function') return function () {};
+
+  var entry = {
+    id: layerId,
+    priority: Number.isFinite(layerOptions.priority) ? layerOptions.priority : 0,
+    sequence: (_surfaceState.escapeSequence || 0) + 1,
+    dismissible: layerOptions.dismissible !== false,
+    isActive: layerOptions.isActive,
+    onEscape: typeof layerOptions.onEscape === 'function' ? layerOptions.onEscape : null,
+  };
+  _surfaceState.escapeSequence = entry.sequence;
+  _escapeLayers.set(layerId, entry);
+  _ensureSurfaceDocumentDispatcher();
+
+  return function unregisterEscapeLayer() {
+    if (_escapeLayers.get(layerId) === entry) _escapeLayers.delete(layerId);
+  };
+}
+
 export function bindBlockingSurfaceDismiss(surfaceId, options) {
   if (!globalThis.document || typeof document.getElementById !== 'function') return null;
 
   var target = document.getElementById(surfaceId);
   if (!target || !target.dataset) return target;
-  if (target.dataset.surfaceDismissBound === '1') return target;
+  var existingEntry = _blockingDismissers.get(surfaceId);
+  if (target.dataset.surfaceDismissBound === '1' && existingEntry && existingEntry.target === target) return target;
 
   var closeOnBackdrop = !options || options.closeOnBackdrop !== false;
   var closeOnEscape = !options || options.closeOnEscape !== false;
@@ -479,17 +541,16 @@ export function bindBlockingSurfaceDismiss(surfaceId, options) {
       hideBlockingSurface(surfaceId);
     };
 
+  _blockingDismissers.set(surfaceId, {
+    target: target,
+    closeOnEscape: closeOnEscape,
+    onDismiss: onDismiss,
+  });
+  _ensureSurfaceDocumentDispatcher();
+
   if (closeOnBackdrop && typeof target.addEventListener === 'function') {
     target.addEventListener('click', function (event) {
       if (event.target === target) onDismiss();
-    });
-  }
-
-  if (closeOnEscape && typeof document.addEventListener === 'function') {
-    document.addEventListener('keydown', function (event) {
-      if (!event || event.key !== 'Escape') return;
-      if (!isBlockingSurfaceVisible(surfaceId)) return;
-      onDismiss();
     });
   }
 

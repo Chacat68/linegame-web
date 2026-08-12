@@ -55,20 +55,22 @@ describe('UI surface inventory', function () {
     expect(marketTag).toContain('tabindex="-1"');
   });
 
-  it('keeps guided and floating surfaces in the responsive command layer', function () {
+  it('keeps tutorial guidance and one authoritative Command Slot in the responsive layer', function () {
     const tutorialTag = openingTag('tutorial-tooltip');
     expect(tutorialTag).toContain('role="dialog"');
     expect(tutorialTag).toContain('aria-hidden="true"');
     expect(tutorialTag).toContain('tabindex="-1"');
 
-    expect(html).toMatch(/id="floating-command-stack"[\s\S]*?id="event-notification"[\s\S]*?id="action-guide"/);
+    expect(html).toMatch(/id="floating-command-stack"[\s\S]*?id="action-guide"/);
+    expect((html.match(/data-command-slot="primary"/g) || []).length).toBe(1);
+    expect(html).not.toContain('id="event-notification"');
     expect(css).toContain('.floating-command-stack');
     expect(css).toContain('left: max(12px, var(--safe-left));');
     expect(css).toContain('right: max(12px, var(--safe-right));');
     expect(css).toContain('max-height: calc(100dvh - max(8px, var(--safe-top)) - max(8px, var(--safe-bottom))) !important;');
   });
 
-  it('uses one context inspector instead of parallel HUD mini applications', function () {
+  it('uses one workspace-scoped context inspector instead of parallel HUD mini applications', function () {
     expect(html).not.toContain('data-hud-dock-toggle');
     expect(html).not.toContain('rail-icon-dock');
     expect(html).not.toContain('id="galaxy-view-btn"');
@@ -76,7 +78,12 @@ describe('UI surface inventory', function () {
     expect(html).not.toContain('data-hud-dock-panel=');
     expect((html.match(/id="context-inspector"/g) || []).length).toBe(1);
     expect((html.match(/data-context-inspector-toggle/g) || []).length).toBe(1);
-    expect((html.match(/data-context-inspector-tab=/g) || []).length).toBe(4);
-    expect((html.match(/data-context-inspector-pane=/g) || []).length).toBe(4);
+    expect((html.match(/data-context-inspector-tab=/g) || []).length).toBe(0);
+    expect((html.match(/data-context-inspector-pane=/g) || []).length).toBe(0);
+    expect((html.match(/id="context-inspector-content"/g) || []).length).toBe(1);
+    expect((html.match(/id="planet-detail-panel"/g) || []).length).toBe(1);
+    expect(html).not.toContain('id="hud-market-overview-body"');
+    expect(html).not.toContain('id="hud-network-signal"');
+    expect(html).not.toContain('id="quest-tracker"');
   });
 });
