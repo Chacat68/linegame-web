@@ -102,6 +102,27 @@ describe('ContextInspector protocol', function () {
     expect(Inspector.getSnapshot().rendererRegistered).toBe(false);
   });
 
+  it('会话 revision 变化后丢弃旧选择，未配置 provider 时保持兼容', async function () {
+    var fixture = createFixture();
+    globalThis.document = fixture.document;
+    var Inspector = await import('../js/ui/ContextInspector.js');
+    var revision = 3;
+    Inspector.init({ workspaceId: 'map', revisionSource: function () { return revision; } });
+    Inspector.replaceContext({
+      type: 'planet',
+      id: 'sol_prime',
+      workspaceId: 'map',
+      source: 'click',
+      revision: 3,
+    });
+    expect(Inspector.getContext().id).toBe('sol_prime');
+
+    revision = 4;
+    expect(Inspector.reconcileRevision(revision)).toEqual(['map']);
+    expect(Inspector.getContext()).toBe(null);
+    expect(fixture.root.dataset.contextId).toBe('');
+  });
+
   it('开合、Escape、rail 互斥与重复 init 保持焦点语义', async function () {
     var fixture = createFixture();
     globalThis.document = fixture.document;

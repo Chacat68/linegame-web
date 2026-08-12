@@ -12,7 +12,8 @@ describe('HUD context ownership', function () {
 
     expect(hud).toContain("import * as ContextInspector from './ContextInspector.js'");
     expect(hud).toContain("window.matchMedia('(max-width: 620px)').matches");
-    expect(hud).toContain('stateSource: function () { return _stateRef; }');
+    expect(hud).toContain("stateSource: typeof opts.stateSource === 'function'");
+    expect(hud).toContain("revisionSource: typeof opts.revisionSource === 'function'");
     expect(hud).not.toContain('data-hud-widget');
     expect(hud).not.toContain('data-hud-dock-panel');
     expect((html.match(/id="context-inspector"/g) || []).length).toBe(1);

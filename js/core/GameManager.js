@@ -20,6 +20,7 @@ import * as MapUI      from '../ui/MapUI.js';
 import * as Modal      from '../ui/Modal.js';
 import * as EventUI    from '../ui/EventUI.js';
 import * as ActionGuideUI from '../ui/ActionGuideUI.js';
+import * as ContextInspector from '../ui/ContextInspector.js';
 import * as UIManager  from '../ui/UIManager.js';
 import { buildCommandFeedback } from '../ui/CommandAction.js';
 import * as Fleet      from '../systems/fleet/FleetSystem.js';
@@ -117,6 +118,7 @@ function _replaceState(nextState, reason) {
   _session.replace(nextState, { reason: reason });
   _state = _session.getState();
   _runtimeRevision = _session.getRevision();
+  ContextInspector.reconcileRevision(_runtimeRevision, { render: false });
   return _state;
 }
 
@@ -1012,7 +1014,10 @@ export function init(difficulty, options) {
   Renderer3D.init();
   Renderer3D.resetRuntimeState(_state.currentSystem);
   Settings.applySettings(_settings, Renderer3D);
-  HUD.init();
+  HUD.init({
+    stateSource: function () { return _session.getState(); },
+    revisionSource: function () { return _session.getRevision(); },
+  });
   HUD.setQuestActions({
     onAcceptQuest: _handleAcceptQuest,
   });

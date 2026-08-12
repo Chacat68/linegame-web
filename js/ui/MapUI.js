@@ -160,7 +160,7 @@ function _setSelectedPlanetDetail(systemId) {
       id: _selectedPlanetDetailSystem,
       workspaceId: 'map',
       source: 'map-selection',
-      revision: Date.now(),
+      revision: ContextInspector.getCurrentRevision(),
     }, { render: false });
   } else {
     ContextInspector.clearContext('map', { render: false });
@@ -877,7 +877,7 @@ export function toggleGalaxyView() {
     id: currentState.viewingGalaxy || currentState.currentGalaxy,
     workspaceId: 'map',
     source: 'map-view',
-    revision: Date.now(),
+    revision: ContextInspector.getCurrentRevision(),
   });
   return true;
 }

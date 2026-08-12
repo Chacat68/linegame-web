@@ -14,6 +14,7 @@ import * as Faction from '../systems/faction/FactionSystem.js';
 import { hideBlockingSurface, showBlockingSurface } from './SurfaceManager.js';
 import * as EventBus from '../core/EventBus.js';
 import * as ActionConfirmUI from './ActionConfirmUI.js';
+import * as ContextInspector from './ContextInspector.js';
 
 let _activeInlineModalId = null;
 let _currentPortalCleanup = null;
@@ -756,6 +757,13 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
       var nextIndex = parseInt(btn.dataset.inspectShipIndex);
       if (!Number.isInteger(nextIndex) || !fleet[nextIndex] || nextIndex === _inspectedHangarShipIndex) return;
       _inspectedHangarShipIndex = nextIndex;
+      ContextInspector.replaceContext({
+        type: 'ship',
+        id: String(nextIndex),
+        workspaceId: 'fleet',
+        source: 'hangar-ship-selector',
+        revision: ContextInspector.getCurrentRevision(),
+      });
       render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRoute, onCancelRoute, onBuySlot, onSellShip, onInstallMod, onUninstallMod, onServiceShip, onRecruitCrew, onAssignCrew, onUnassignCrew, onDismissCrew);
       Promise.resolve().then(function () {
         if (!container || typeof container.querySelector !== 'function') return;

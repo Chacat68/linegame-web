@@ -117,7 +117,8 @@ let _stateRef = null;
 // 初始化：订阅 EventBus 日志事件
 // ---------------------------------------------------------------------------
 
-export function init() {
+export function init(options) {
+  var opts = options || {};
   if (_initialized) return;
   _initialized = true;
 
@@ -178,7 +179,12 @@ export function init() {
     window.matchMedia('(max-width: 620px)').matches;
   ContextInspector.init({
     open: !compactInspector,
-    stateSource: function () { return _stateRef; },
+    stateSource: typeof opts.stateSource === 'function'
+      ? opts.stateSource
+      : function () { return _stateRef; },
+    revisionSource: typeof opts.revisionSource === 'function'
+      ? opts.revisionSource
+      : null,
   });
   _updateLogsNavBadge();
   refreshLogView();

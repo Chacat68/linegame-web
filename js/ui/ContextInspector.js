@@ -30,6 +30,7 @@ let _contextsByWorkspace = new Map();
 let _renderersByWorkspace = new Map();
 let _openByWorkspace = new Map();
 let _getState = function () { return null; };
+let _getRevision = function () { return null; };
 let _isOpen = false;
 let _railListenerBound = false;
 let _releaseEscapeLayer = null;
@@ -45,6 +46,13 @@ function _normalizeString(value) {
 
 function _normalizeWorkspaceId(value) {
   return _normalizeString(value) || DEFAULT_WORKSPACE_ID;
+}
+
+function _readCurrentRevision() {
+  var value = _getRevision();
+  if (value === null || typeof value === 'undefined' || value === '') return null;
+  var revision = Number(value);
+  return Number.isFinite(revision) ? revision : null;
 }
 
 function _copyContext(context) {
@@ -149,6 +157,11 @@ export function init(options) {
     _getState = typeof opts.stateSource === 'function'
       ? opts.stateSource
       : function () { return opts.stateSource || null; };
+  }
+  if (Object.prototype.hasOwnProperty.call(opts, 'revisionSource')) {
+    _getRevision = typeof opts.revisionSource === 'function'
+      ? opts.revisionSource
+      : function () { return opts.revisionSource; };
   }
 
   if (!doc || typeof doc.getElementById !== 'function') {
@@ -263,6 +276,29 @@ export function getContext(workspaceId) {
   return _copyContext(_contextsByWorkspace.get(_normalizeWorkspaceId(workspaceId || _activeWorkspaceId)) || null);
 }
 
+export function getCurrentRevision() {
+  var revision = _readCurrentRevision();
+  return revision === null ? 0 : revision;
+}
+
+/**
+ * Context keys belong to one StateSession revision. After a save is loaded,
+ * stale selections are dropped before any renderer can resolve them against
+ * the new state object.
+ */
+export function reconcileRevision(revision, options) {
+  var nextRevision = Number.isFinite(Number(revision)) ? Number(revision) : null;
+  var changed = [];
+  _contextsByWorkspace.forEach(function (context, workspaceId) {
+    if (nextRevision === null || context.revision !== nextRevision) {
+      _contextsByWorkspace.delete(workspaceId);
+      changed.push(workspaceId);
+    }
+  });
+  if (changed.indexOf(_activeWorkspaceId) !== -1 && (!options || options.render !== false)) render();
+  return changed;
+}
+
 /** Register a renderer/adapter for a workspace. Returns an unregister callback. */
 export function registerRenderer(workspaceId, renderer) {
   var normalizedWorkspaceId = _normalizeWorkspaceId(workspaceId);
@@ -286,6 +322,11 @@ export const registerAdapter = registerRenderer;
 /** Resolve latest state, then delegate the active context key to its renderer. */
 export function render() {
   var context = getContext(_activeWorkspaceId);
+  var currentRevision = _readCurrentRevision();
+  if (context && currentRevision !== null && context.revision !== currentRevision) {
+    _contextsByWorkspace.delete(_activeWorkspaceId);
+    context = null;
+  }
   var renderer = _renderersByWorkspace.get(_activeWorkspaceId);
   if (_title) _title.textContent = _activeWorkspaceId === 'map' ? '地图上下文' : '当前上下文';
   if (_root && _root.dataset) {

@@ -12,6 +12,7 @@ import * as Commerce from '../systems/commerce/CommerceFacade.js';
 import * as Finance from '../systems/finance/FinanceSystem.js';
 import * as TradeStation from '../systems/trade/TradeStationSystem.js';
 import * as Exploration from '../systems/galaxy/ExplorationSystem.js';
+import * as ContextInspector from './ContextInspector.js';
 
 const _focusedMarketGood = Object.create(null);
 const _marketChartRange = Object.create(null);
@@ -3458,12 +3459,26 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode
     }
     card.addEventListener('click', function () {
       _focusedMarketGood[focusKey] = good.id;
+      ContextInspector.replaceContext({
+        type: 'commodity',
+        id: good.id,
+        workspaceId: 'trade',
+        source: 'market-good-card',
+        revision: ContextInspector.getCurrentRevision(),
+      });
       render(state, onBuy, onSell, onRefuel, viewingSystem, effectiveMarketMode, tradeGalaxyId, onBlackBuy, onBlackSell, financeActions);
     });
     card.addEventListener('keydown', function (event) {
       if (!event || (event.key !== 'Enter' && event.key !== ' ')) return;
       if (typeof event.preventDefault === 'function') event.preventDefault();
       _focusedMarketGood[focusKey] = good.id;
+      ContextInspector.replaceContext({
+        type: 'commodity',
+        id: good.id,
+        workspaceId: 'trade',
+        source: 'market-good-card',
+        revision: ContextInspector.getCurrentRevision(),
+      });
       render(state, onBuy, onSell, onRefuel, viewingSystem, effectiveMarketMode, tradeGalaxyId, onBlackBuy, onBlackSell, financeActions);
     });
     goodsListEl.appendChild(card);
