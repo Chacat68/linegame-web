@@ -641,6 +641,7 @@ Escape **不得切换 canonical workspace 或默认返回地图**，也不得关
 | `GameSystemRuntime` | **第一阶段已接入** | 冷启动与手动读档共用 restore manifest；保存共用 fleet/economy/galaxy capture；Tutorial 等不再由入口补调用 | 增加 dispose/advance 与失败回滚；补六路径生命周期矩阵 |
 | `GameSessionLifecycle` | **第一阶段已接入** | 冷启动、自动存档恢复、重开与手动读档共用 stop → replace → restore → project → render → resume 编排；支持 UI 壳就绪前的两阶段启动、stale token 丢弃、幂等 present 与失败停表 | 增加 restore 失败回滚和 shutdown；补浏览器级保存/读档矩阵与 timer/listener 计数 |
 | `GameClockController` | **已接入全部游戏计时器** | RAF、实时日与 active dispatch recurring task 统一所有权；假时钟、暂停不补算、重复 start、会话替换和 dispose 有测试 | 接入页面可见性生命周期与统一 runtime dispose；把 dispatch tick 动作编排迁入 ActionCoordinator |
+| `FleetActionController` | **已接入全部舰队 UI 动作** | 购船、切船、升级、派遣/召回、槽位、出售、改装、保养和船员动作统一编排；保持系统 mutation、飞行动画、dispatch、计时器、任务/教学进度与反馈顺序；每次动作读取最新 state provider | 将 active dispatch tick 与舰队日结算纳入同一 action pipeline；移除 GameManager 兼容转发函数 |
 | `GameUiCoordinator` | **首批已接入 `GameManager`** | provider、四项 Feature ensure/render、命名 action 分组、`renderAll` 兼容刷新 | 缩短位置参数；引入 dirty regions；逐步淘汰兼容刷新 |
 | `NavigationController` | **已接入 `UIManager`** | 五个 workspace、旧别名、唯一 active、幂等切换、独立 detail stack；Escape 只关闭 L4 详情不改变 L3 | 继续迁移旧 surface 直接开关与 focus 适配器 |
 | `SurfaceManager` | **唯一 Escape dispatcher 已接入** | blocking 层优先且不下穿；非阻塞层按优先级处理；隐藏 surface 同步 inert/aria-hidden | 将五个 L3 workspace 完全收口到同一 surface registry |

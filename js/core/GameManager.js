@@ -36,14 +36,10 @@ import * as BalanceMetrics from '../systems/metrics/BalanceMetricsSystem.js';
 import { getLevel } from '../data/playerLevels.js';
 import { SYSTEMS } from '../data/systems.js';
 import { GOODS } from '../data/goods.js';
-import { SHIP_MODS } from '../data/ships.js';
 import {
-  getDispatchConfirmedCompletion,
   getDispatchDraftCompletion,
-  getModInstalledCompletion,
   getRefuelCompletion,
   getRemoteMarketFocusCompletion,
-  getServiceScheduledCompletion,
 } from './ActionGuideCompletion.js';
 import * as Settings from './SettingsCore.js';
 import * as Audio from './AudioManager.js';
@@ -57,6 +53,7 @@ import { createStateSession } from './StateSession.js';
 import { createGameSystemRuntime } from './GameSystemRuntime.js';
 import { createGameClockController } from './GameClockController.js';
 import { createGameSessionLifecycle } from './GameSessionLifecycle.js';
+import { createFleetActionController } from './FleetActionController.js';
 import { createGameUiCoordinator } from '../ui/GameUiCoordinator.js';
 import { createWorkspaceContextAdapters } from '../ui/WorkspaceContextAdapters.js';
 import { hasBlockingSurfaceOpen, hideBlockingSurface, showBlockingSurface } from '../ui/SurfaceManager.js';
@@ -116,6 +113,7 @@ let _uiCoordinator = null;
 let _systemRuntime = null;
 let _gameClock = null;
 let _sessionLifecycle = null;
+let _fleetActions = null;
 let _contextAdapters = null;
 
 function _replaceState(nextState, reason) {
@@ -894,6 +892,32 @@ function _getSessionLifecycle() {
   return _sessionLifecycle;
 }
 
+function _getFleetActions() {
+  if (_fleetActions) return _fleetActions;
+  _fleetActions = createFleetActionController({
+    getState: function () { return _state; },
+    systems: {
+      Fleet: Fleet,
+      Crew: Crew,
+      MidgameTeachingChain: MidgameTeachingChain,
+    },
+    dispatch: _dispatch,
+    recordQuestProgress: _recordQuestProgress,
+    completeTeachingStep: _completeMidgameTeachingStep,
+    startDispatchClock: _startActiveDispatchClock,
+    stopDispatchClock: _stopActiveDispatchClock,
+    resetRealtimeClock: function (timestamp) { _getGameClock().reset(timestamp); },
+    cancelShipFlight: function () {
+      if (Renderer3D.cancelShipFlight) Renderer3D.cancelShipFlight();
+    },
+    setRecentModInstallContext: function (context) { _recentModInstallContext = context; },
+    showCompletion: function (completion) { _showActionGuideCompletion(completion); },
+    getRouteGuidance: function () { return _routeGuidanceModule; },
+    getDispatchContext: _getActiveShipDispatchContext,
+  });
+  return _fleetActions;
+}
+
 function _getUiCoordinator() {
   if (_uiCoordinator) return _uiCoordinator;
   _configureDeferredFeatures();
@@ -929,20 +953,20 @@ function _getUiCoordinator() {
         onAfterRender: _bindMarketModeButtons,
       },
       fleet: {
-        onBuyShip: _handleBuyShip,
-        onSwitchShip: _handleSwitchShip,
-        onUpgradeShip: _handleUpgradeShip,
+        onBuyShip: function () { return _getFleetActions().onBuyShip.apply(null, arguments); },
+        onSwitchShip: function () { return _getFleetActions().onSwitchShip.apply(null, arguments); },
+        onUpgradeShip: function () { return _getFleetActions().onUpgradeShip.apply(null, arguments); },
         onAssignRoute: _handleAssignRoute,
         onCancelRoute: _handleCancelRoute,
-        onBuySlot: _handleBuySlot,
-        onSellShip: _handleSellShip,
+        onBuySlot: function () { return _getFleetActions().onBuySlot.apply(null, arguments); },
+        onSellShip: function () { return _getFleetActions().onSellShip.apply(null, arguments); },
         onInstallMod: _handleInstallMod,
         onUninstallMod: _handleUninstallMod,
         onServiceShip: _handleServiceShip,
-        onRecruitCrew: _handleRecruitCrew,
-        onAssignCrew: _handleAssignCrew,
-        onUnassignCrew: _handleUnassignCrew,
-        onDismissCrew: _handleDismissCrew,
+        onRecruitCrew: function () { return _getFleetActions().onRecruitCrew.apply(null, arguments); },
+        onAssignCrew: function () { return _getFleetActions().onAssignCrew.apply(null, arguments); },
+        onUnassignCrew: function () { return _getFleetActions().onUnassignCrew.apply(null, arguments); },
+        onDismissCrew: function () { return _getFleetActions().onDismissCrew.apply(null, arguments); },
       },
       archive: {
         getDispatchContext: _getActiveShipDispatchContext,
@@ -2565,156 +2589,59 @@ function _handleLoadGame(slotId) {
 // ---------------------------------------------------------------------------
 
 function _handleBuyShip(shipTypeId) {
-  Fleet.syncShipFromState(_state);
-  const result = Fleet.buyShip(_state, shipTypeId);
-  if (result && result.ok) _recordQuestProgress({ action: 'buy_ship', shipTypeId: shipTypeId });
-  _dispatch(result);
+  return _getFleetActions().onBuyShip(shipTypeId);
 }
 
 function _handleSwitchShip(shipIndex) {
-  // 切换前停止激活船只的自动派遣
-  _stopActiveDispatchClock();
-  Fleet.syncShipFromState(_state);
-  const result = Fleet.switchShip(_state, shipIndex);
-  if (result && result.ok) {
-    _state.lastSwitchedShipIndex = shipIndex;
-    _state.lastShipSwitchAt = Date.now();
-  }
-  _dispatch(result);
-  // 如果新激活的船只已有路线，重新启动派遣
-  if (result && result.ok && Fleet.isActiveDispatched(_state)) {
-    _startActiveDispatchClock();
-  }
-  if (result && result.ok) {
-    _getGameClock().reset(performance.now());
-  }
+  return _getFleetActions().onSwitchShip(shipIndex);
 }
 
 function _handleUpgradeShip(shipIndex, upgradeId) {
-  Fleet.syncShipFromState(_state);
-  const result = Fleet.upgradeShip(_state, upgradeId, shipIndex);
-  _dispatch(result);
+  return _getFleetActions().onUpgradeShip(shipIndex, upgradeId);
 }
 
 function _handleAssignRoute(shipIndex, buySystemId, sellSystemId, goodId, tradePolicy) {
-  Fleet.syncShipFromState(_state);
-  var isActive = shipIndex === (_state.activeShipIndex || 0);
-  const result = Fleet.assignRoute(_state, shipIndex, buySystemId, sellSystemId, goodId, tradePolicy);
-  if (result && result.ok && isActive && Renderer3D.cancelShipFlight) {
-    Renderer3D.cancelShipFlight();
-  }
-  _dispatch(result);
-  // 如果是激活船只被派遣，启动自动派遣定时器
-  if (result && result.ok && isActive) {
-    _startActiveDispatchClock();
-  }
-  if (result && result.ok) {
-    _recordQuestProgress({ action: 'dispatch_route', shipIndex: shipIndex, goodId: goodId });
-    var activeTeachingChain = MidgameTeachingChain.getActiveChain(_state);
-    if (activeTeachingChain && activeTeachingChain.chain.id === 'research-supply') {
-      var researchRecommendation = _routeGuidanceModule && _routeGuidanceModule.findResearchSupplyRoute
-        ? _routeGuidanceModule.findResearchSupplyRoute(_state, _getActiveShipDispatchContext())
-        : null;
-      if (researchRecommendation && researchRecommendation.goodId === goodId &&
-          researchRecommendation.buySystemId === buySystemId &&
-          researchRecommendation.sellSystemId === sellSystemId) {
-        _completeMidgameTeachingStep('research-supply', 'prefill-research-supply-dispatch');
-      }
-    } else if (activeTeachingChain && activeTeachingChain.chain.id === 'dispatch-ops') {
-      _completeMidgameTeachingStep('dispatch-ops', 'prefill-profitable-dispatch');
-    }
-    var good = GOODS.find(function (item) { return item.id === goodId; });
-    _showActionGuideCompletion(getDispatchConfirmedCompletion(good ? good.name : ''));
-  }
-  return result;
+  return _getFleetActions().onAssignRoute(shipIndex, buySystemId, sellSystemId, goodId, tradePolicy);
 }
 
 function _handleCancelRoute(shipIndex) {
-  var isActive = shipIndex === (_state.activeShipIndex || 0);
-  const result = Fleet.cancelRoute(_state, shipIndex);
-  if (result && result.ok && isActive && Renderer3D.cancelShipFlight) {
-    Renderer3D.cancelShipFlight();
-  }
-  _dispatch(result);
-  // 如果是激活船只被召回，停止定时器
-  if (isActive) {
-    _stopActiveDispatchClock();
-  }
-  return result;
+  return _getFleetActions().onCancelRoute(shipIndex);
 }
 
 function _handleBuySlot() {
-  const result = Fleet.buySlot(_state);
-  _dispatch(result);
+  return _getFleetActions().onBuySlot();
 }
 
 function _handleSellShip(shipIndex) {
-  Fleet.syncShipFromState(_state);
-  const result = Fleet.sellShip(_state, shipIndex);
-  _dispatch(result);
+  return _getFleetActions().onSellShip(shipIndex);
 }
 
 function _handleInstallMod(shipIndex, modId) {
-  Fleet.syncShipFromState(_state);
-  const result = Fleet.installMod(_state, modId, shipIndex);
-  var installedMod = SHIP_MODS.find(function (mod) { return mod.id === modId; });
-  if (result && result.ok) {
-    _recentModInstallContext = {
-      shipIndex: shipIndex != null ? shipIndex : (_state.activeShipIndex || 0),
-      modId: modId,
-    };
-  }
-  _dispatch(result);
-  if (result && result.ok) {
-    _showActionGuideCompletion(getModInstalledCompletion(installedMod ? installedMod.name : ''));
-  }
+  return _getFleetActions().onInstallMod(shipIndex, modId);
 }
 
 function _handleUninstallMod(shipIndex, modId) {
-  Fleet.syncShipFromState(_state);
-  const result = Fleet.uninstallMod(_state, modId, shipIndex);
-  _dispatch(result);
+  return _getFleetActions().onUninstallMod(shipIndex, modId);
 }
 
 function _handleServiceShip(shipIndex, tierId) {
-  Fleet.syncShipFromState(_state);
-  const result = Fleet.serviceShip(_state, shipIndex, tierId);
-  _dispatch(result);
-  if (result && result.ok) {
-    _showActionGuideCompletion(getServiceScheduledCompletion());
-  }
+  return _getFleetActions().onServiceShip(shipIndex, tierId);
 }
 
 function _handleRecruitCrew(offerId) {
-  const result = Crew.recruitCrew(_state, offerId, _state.currentSystem);
-  if (result && result.ok) _recordQuestProgress({ action: 'recruit_crew', offerId: offerId });
-  _dispatch(result);
+  return _getFleetActions().onRecruitCrew(offerId);
 }
 
 function _handleAssignCrew(shipIndex, crewId) {
-  const result = Crew.assignCrewToShip(_state, crewId, shipIndex);
-  if (result && result.ok && shipIndex === (_state.activeShipIndex || 0)) {
-    Fleet.syncStateFromShip(_state);
-  }
-  _dispatch(result);
+  return _getFleetActions().onAssignCrew(shipIndex, crewId);
 }
 
 function _handleUnassignCrew(shipIndex, crewId) {
-  const result = Crew.unassignCrewFromShip(_state, crewId, shipIndex);
-  if (result && result.ok && shipIndex === (_state.activeShipIndex || 0)) {
-    Fleet.syncStateFromShip(_state);
-  }
-  _dispatch(result);
+  return _getFleetActions().onUnassignCrew(shipIndex, crewId);
 }
 
 function _handleDismissCrew(crewId) {
-  var existingCrew = Crew.getCrewById(_state, crewId);
-  var affectedShipIndex = existingCrew ? existingCrew.assignedShipIndex : null;
-  const result = Crew.dismissCrew(_state, crewId);
-  if (result && result.ok && affectedShipIndex === (_state.activeShipIndex || 0)) {
-    Fleet.syncStateFromShip(_state);
-  }
-  _dispatch(result);
+  return _getFleetActions().onDismissCrew(crewId);
 }
 
 // ---------------------------------------------------------------------------
