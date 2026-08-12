@@ -12,9 +12,9 @@ const RESTORE_ORDER = Object.freeze([
   'tutorial',
   'balanceMetrics',
   'midgameTeachingChain',
-  'achievement',
+  'achievementState',
   'galaxyData',
-  'deferredBusiness',
+  'featureRegistry',
 ]);
 
 const CAPTURE_ORDER = Object.freeze(['fleet', 'economy', 'galaxyData']);
@@ -63,9 +63,8 @@ export function createGameSystemRuntime(dependencies) {
     { id: 'tutorial', restore: function (state) { _call(systems.Tutorial, 'init', [state]); } },
     { id: 'balanceMetrics', restore: function (state) { _call(systems.BalanceMetrics, 'init', [state]); } },
     { id: 'midgameTeachingChain', restore: function (state) { _call(systems.MidgameTeachingChain, 'init', [state]); } },
-    { id: 'achievement', restore: function (state) {
+    { id: 'achievementState', restore: function (state) {
       if (typeof hooks.ensureAchievementState === 'function') hooks.ensureAchievementState(state);
-      if (typeof hooks.initializeAchievement === 'function') hooks.initializeAchievement(state);
     } },
     {
       id: 'galaxyData',
@@ -79,8 +78,8 @@ export function createGameSystemRuntime(dependencies) {
         state.galaxyStates = _call(systems.GalaxyData, 'getAllPlanetStates', []);
       },
     },
-    { id: 'deferredBusiness', restore: function (state) {
-      if (typeof hooks.syncDeferredBusiness === 'function') hooks.syncDeferredBusiness(state);
+    { id: 'featureRegistry', restore: function (state) {
+      if (typeof hooks.syncFeatureRegistry === 'function') hooks.syncFeatureRegistry(state);
     } },
     { id: 'gameTime', advance: function (state, options) {
       return _call(systems.GameTime, 'advanceDays', [state, options.days]);

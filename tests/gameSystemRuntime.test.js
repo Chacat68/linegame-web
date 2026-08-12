@@ -31,8 +31,7 @@ describe('GameSystemRuntime', function () {
       },
       hooks: {
         ensureAchievementState: function () { calls.push('achievement.ensure'); },
-        initializeAchievement: function () { calls.push('achievement.init'); },
-        syncDeferredBusiness: function () { calls.push('deferred.sync'); },
+        syncFeatureRegistry: function () { calls.push('features.sync'); },
       },
     });
     var state = { economyCycle: { phaseIndex: 1 }, galaxyStates: { earth: {} } };
@@ -43,7 +42,7 @@ describe('GameSystemRuntime', function () {
     expect(calls).toEqual([
       'economy.init', 'economy.setCycleState', 'fleet.init', 'faction.init',
       'research.init', 'quest.init', 'tutorial.init', 'balance.init', 'midgame.init',
-      'achievement.ensure', 'achievement.init', 'galaxy.init', 'galaxy.restorePlanetStates', 'deferred.sync',
+      'achievement.ensure', 'galaxy.init', 'galaxy.restorePlanetStates', 'features.sync',
     ]);
   });
 

@@ -47,7 +47,7 @@ import * as Guidance from '../systems/guidance/GuidanceSystem.js';
 import * as MidgameTeachingChain from '../systems/guidance/MidgameTeachingChain.js';
 import { getProcessingMessage as getGuidanceActionProcessingMessage } from './GuidanceActionFeedback.js';
 import * as Dispatch from './DispatchController.js';
-import { createDeferredFeatureLoader, loadDeferredStylesheet } from './DeferredFeatureLoader.js';
+import { createFeatureRegistry, loadDeferredStylesheet } from './FeatureRegistry.js';
 import { createStateSession } from './StateSession.js';
 import { createGameSystemRuntime } from './GameSystemRuntime.js';
 import { createGameClockController } from './GameClockController.js';
@@ -82,35 +82,24 @@ let _runtimeRevision = 0;
 let _recentModInstallContext = null;
 let _acknowledgedVictoryPathIds = new Set();
 let _pendingQuestSelectionId = null;
-let _victoryResultUiModule = null;
-let _victoryResultUiPromise = null;
-let _victoryResultUiInitialized = false;
 let _pendingVictoryReportPathId = null;
-let _onboardingUiModule = null;
-let _onboardingUiPromise = null;
-let _tutorialUiModule = null;
-let _tutorialUiPromise = null;
-let _settingsUiModule = null;
-let _settingsUiPromise = null;
 let _settingsLauncherButton = null;
 let _settingsLauncherHandler = null;
-let _guidanceActionModule = null;
-let _guidanceActionPromise = null;
-let _commerceRuntimeModule = null;
-let _commerceRuntimePromise = null;
-let _commerceRuntimeError = false;
-let _advancedGuidanceModule = null;
-let _advancedGuidancePromise = null;
-let _routeGuidanceModule = null;
-let _routeGuidancePromise = null;
-let _achievementModule = null;
-let _achievementPromise = null;
 let _achievementCheckQueued = false;
 const _fleetStylesUrl = new URL('../../css/fleet.css', import.meta.url).href;
 const _hangarTerminalStylesUrl = new URL('../../css/hangar-terminal.css', import.meta.url).href;
 const _archiveTerminalStylesUrl = new URL('../../css/archive-terminal.css', import.meta.url).href;
 const _marketTerminalStylesUrl = new URL('../../css/market-terminal.css?v=20260717-marketchart1', import.meta.url).href;
-const _deferredFeatures = createDeferredFeatureLoader();
+const _deferredFeatures = createFeatureRegistry({
+  getContext: function () {
+    return {
+      state: _state,
+      revision: _runtimeRevision,
+      sessionToken: _getSessionToken(),
+      settings: _settings,
+    };
+  },
+});
 let _deferredFeaturesConfigured = false;
 let _uiCoordinator = null;
 let _systemRuntime = null;
@@ -207,113 +196,95 @@ function _shouldLoadRouteGuidance(state) {
   return !!(state.activeResearch || state.currentResearch);
 }
 
-function _initializeCommerceRuntime(CommerceRuntime) {
-  if (!CommerceRuntime || !_state) return;
-  CommerceRuntime.init(_state);
+function _initializeCommerceRuntime(CommerceRuntime, state) {
+  var targetState = state || _state;
+  if (!CommerceRuntime || !targetState) return;
+  CommerceRuntime.init(targetState);
   GameTime.setAdvancedDayProcessor(CommerceRuntime.advanceDay);
 }
 
 function _loadCommerceRuntime() {
-  if (_commerceRuntimeModule) {
-    _initializeCommerceRuntime(_commerceRuntimeModule);
-    return Promise.resolve(_commerceRuntimeModule);
-  }
-  if (_commerceRuntimeError) return Promise.resolve(null);
-  if (!_commerceRuntimePromise) {
-    _setDeferredUiState('commerceRuntime', 'loading');
-    _commerceRuntimePromise = import('../systems/commerce/CommerceFacade.js')
-      .then(function (module) {
-        _commerceRuntimeModule = module;
-        _commerceRuntimeError = false;
-        _initializeCommerceRuntime(module);
-        _setDeferredUiState('commerceRuntime', 'ready');
-        return module;
-      })
-      .catch(function (error) {
-        _commerceRuntimePromise = null;
-        _commerceRuntimeError = true;
-        _setDeferredUiState('commerceRuntime', 'error');
-        _reportDeferredUiFailure('commerceRuntime', error);
-        return null;
-      });
-  }
-  return _commerceRuntimePromise;
+  _configureDeferredFeatures();
+  return _deferredFeatures.load('commerceRuntime');
 }
 
 function _loadAdvancedGuidance() {
-  if (_advancedGuidanceModule) return Promise.resolve(_advancedGuidanceModule);
-  if (!_advancedGuidancePromise) {
-    _setDeferredUiState('advancedGuidance', 'loading');
-    _advancedGuidancePromise = Promise.all([
-      import('../systems/guidance/AdvancedGuidanceSystem.js'),
-      _loadCommerceRuntime(),
-    ])
-      .then(function (modules) {
-        _advancedGuidanceModule = modules[0];
-        Guidance.setAdvancedGuidanceProvider(_advancedGuidanceModule.getAdvancedGuidanceSuggestions);
-        _setDeferredUiState('advancedGuidance', 'ready');
-        return _advancedGuidanceModule;
-      })
-      .catch(function (error) {
-        _advancedGuidancePromise = null;
-        _setDeferredUiState('advancedGuidance', 'error');
-        _reportDeferredUiFailure('advancedGuidance', error);
-        return null;
-      });
-  }
-  return _advancedGuidancePromise;
+  _configureDeferredFeatures();
+  return _deferredFeatures.load('advancedGuidance');
 }
 
 function _loadRouteGuidance() {
-  if (_routeGuidanceModule) return Promise.resolve(_routeGuidanceModule);
-  if (!_routeGuidancePromise) {
-    _setDeferredUiState('routeGuidance', 'loading');
-    _routeGuidancePromise = import('../systems/trade/AutoTradeSystem.js')
-      .then(function (module) {
-        _routeGuidanceModule = module;
-        Dispatch.setQuestRouteResolver(module.findQuestRoute);
-        _setDeferredUiState('routeGuidance', 'ready');
-        return module;
-      })
-      .catch(function (error) {
-        _routeGuidancePromise = null;
-        _setDeferredUiState('routeGuidance', 'error');
-        _reportDeferredUiFailure('routeGuidance', error);
-        return null;
-      });
-  }
-  return _routeGuidancePromise;
+  _configureDeferredFeatures();
+  return _deferredFeatures.load('routeGuidance');
 }
 
-function _syncDeferredBusinessRuntimes() {
-  _setDeferredUiState('commerceRuntime', _commerceRuntimeModule ? 'ready' : (_commerceRuntimePromise ? 'loading' : (_commerceRuntimeError ? 'error' : 'idle')));
-  _setDeferredUiState('advancedGuidance', _advancedGuidanceModule ? 'ready' : (_advancedGuidancePromise ? 'loading' : 'idle'));
-  _setDeferredUiState('routeGuidance', _routeGuidanceModule ? 'ready' : (_routeGuidancePromise ? 'loading' : 'idle'));
-  if (_commerceRuntimeModule) _initializeCommerceRuntime(_commerceRuntimeModule);
-  if (_advancedGuidanceModule) {
-    Guidance.setAdvancedGuidanceProvider(_advancedGuidanceModule.getAdvancedGuidanceSuggestions);
-  }
-  if (_routeGuidanceModule) Dispatch.setQuestRouteResolver(_routeGuidanceModule.findQuestRoute);
-  if (_shouldLoadAdvancedCommerce(_state) && !_advancedGuidanceModule) _loadAdvancedGuidance();
-  if (_shouldLoadRouteGuidance(_state) && !_routeGuidanceModule) _loadRouteGuidance();
+function _syncDeferredFeatures() {
+  _configureDeferredFeatures();
+  _deferredFeatures.syncAll();
+  if (_shouldLoadAdvancedCommerce(_state) && !_getDeferredFeature('advancedGuidance')) _loadAdvancedGuidance();
+  if (_shouldLoadRouteGuidance(_state) && !_getDeferredFeature('routeGuidance')) _loadRouteGuidance();
 }
 
 function _configureDeferredFeatures() {
   if (_deferredFeaturesConfigured) return;
   _deferredFeaturesConfigured = true;
 
-  _deferredFeatures
-    .define('market', {
+  _deferredFeatures.registerManifest({
+    commerceRuntime: {
+      load: function () { return import('../systems/commerce/CommerceFacade.js'); },
+      sync: function (module, lifecycle) {
+        _initializeCommerceRuntime(module, lifecycle.context && lifecycle.context.state);
+      },
+      onError: function (error) { _reportDeferredUiFailure('commerceRuntime', error); },
+    },
+    advancedGuidance: {
+      dependencies: ['commerceRuntime'],
+      load: function () { return import('../systems/guidance/AdvancedGuidanceSystem.js'); },
+      sync: function (module) {
+        Guidance.setAdvancedGuidanceProvider(module.getAdvancedGuidanceSuggestions);
+      },
+      onError: function (error) { _reportDeferredUiFailure('advancedGuidance', error); },
+    },
+    routeGuidance: {
+      load: function () { return import('../systems/trade/AutoTradeSystem.js'); },
+      sync: function (module) { Dispatch.setQuestRouteResolver(module.findQuestRoute); },
+      onError: function (error) { _reportDeferredUiFailure('routeGuidance', error); },
+    },
+    achievement: {
+      load: function () { return import('../systems/achievement/AchievementSystem.js'); },
+      sync: function (module, lifecycle) {
+        var context = lifecycle.context;
+        if (context && context.state) module.init(context.state);
+      },
+      onError: function (error) {
+        _achievementCheckQueued = false;
+        _reportDeferredUiFailure('achievement', error);
+      },
+    },
+    dialogue: {
+      load: function () {
+        return Promise.all([
+          import('../systems/story/DialogueSystem.js'),
+          import('../ui/DialogueUI.js'),
+        ]).then(function (modules) {
+          return { Dialogue: modules[0], DialogueUI: modules[1] };
+        });
+      },
+    },
+    randomEvent: {
+      load: function () { return import('../systems/event/RandomEvent.js'); },
+    },
+    market: {
+      dependencies: ['commerceRuntime'],
       load: function () {
         return Promise.all([
           import('../ui/MarketUI.js'),
-          _loadCommerceRuntime(),
           loadDeferredStylesheet('market-terminal', _marketTerminalStylesUrl),
         ]).then(function (results) { return results[0]; });
       },
       onError: function (error) { _reportDeferredUiFailure('market', error); },
-    })
-    .define('fleet', {
+    },
+    fleet: {
       load: function () {
         return Promise.all([
           import('../ui/FleetUI.js'),
@@ -322,8 +293,9 @@ function _configureDeferredFeatures() {
         ]).then(function (results) { return results[0]; });
       },
       onError: function (error) { _reportDeferredUiFailure('fleet', error); },
-    })
-    .define('archive', {
+    },
+    archive: {
+      dependencies: ['achievement'],
       load: function () {
         return Promise.all([
           import('../ui/QuestUI.js'),
@@ -331,7 +303,6 @@ function _configureDeferredFeatures() {
           import('../ui/ResearchUI.js'),
           import('../ui/FactionUI.js'),
           import('../ui/AchievementUI.js'),
-          _loadAchievementSystem(),
           loadDeferredStylesheet('archive-terminal', _archiveTerminalStylesUrl),
         ]).then(function (modules) {
           return {
@@ -350,16 +321,52 @@ function _configureDeferredFeatures() {
         }
       },
       onError: function (error) { _reportDeferredUiFailure('archive', error); },
-    })
-    .define('save', {
+    },
+    save: {
       load: function () { return import('../ui/SaveUI.js'); },
       onError: function (error) { _reportDeferredUiFailure('save', error); },
-    });
+    },
+    victory: {
+      load: function () { return import('../ui/VictoryResultUI.js'); },
+      sync: function (module) { _initializeVictoryResultUI(module); },
+      onError: function (error) {
+        _pendingVictoryReportPathId = null;
+        _reportDeferredUiFailure('victory', error);
+      },
+    },
+    onboarding: {
+      load: function () { return import('../ui/OnboardingUI.js'); },
+      onError: function (error) { _reportDeferredUiFailure('onboarding', error); },
+    },
+    tutorial: {
+      load: function () { return import('../ui/TutorialUI.js'); },
+      sync: function (module) { _initializeTutorialUI(module); },
+      dispose: function (module) { if (module.destroy) module.destroy(); },
+      onError: function (error) { _reportDeferredUiFailure('tutorial', error); },
+    },
+    settings: {
+      load: function () { return import('./SettingsManager.js'); },
+      sync: function (module) { _initializeSettingsUI(module); },
+      onError: function (error) { _reportDeferredUiFailure('settings', error); },
+    },
+    guidanceAction: {
+      load: function () { return import('./GuidanceActionController.js'); },
+      onError: function (error) { _reportDeferredUiFailure('guidanceAction', error); },
+    },
+  });
 }
 
 function _getDeferredFeature(feature) {
   _configureDeferredFeatures();
   return _deferredFeatures.get(feature);
+}
+
+function _loadDeferredFeatureOrReject(feature) {
+  _configureDeferredFeatures();
+  return _deferredFeatures.load(feature).then(function (module) {
+    if (module) return module;
+    throw _deferredFeatures.getError(feature) || new Error('Deferred feature unavailable: ' + feature);
+  });
 }
 
 function _loadMarketUI() {
@@ -378,26 +385,8 @@ function _ensureAchievementState(state) {
 }
 
 function _loadAchievementSystem() {
-  if (_achievementModule) return Promise.resolve(_achievementModule);
-  if (!_achievementPromise) {
-    var sessionToken = _getSessionToken();
-    _setDeferredUiState('achievement', 'loading');
-    _achievementPromise = import('../systems/achievement/AchievementSystem.js')
-      .then(function (module) {
-        _achievementModule = module;
-        if (_isSessionTokenCurrent(sessionToken) && _state) _achievementModule.init(_state);
-        _setDeferredUiState('achievement', 'ready');
-        return module;
-      })
-      .catch(function (error) {
-        _achievementPromise = null;
-        _achievementCheckQueued = false;
-        _setDeferredUiState('achievement', 'error');
-        _reportDeferredUiFailure('achievement', error);
-        return null;
-      });
-  }
-  return _achievementPromise;
+  _configureDeferredFeatures();
+  return _deferredFeatures.load('achievement');
 }
 
 function _queueAchievementCheck() {
@@ -426,41 +415,13 @@ function _loadArchiveUI() {
 }
 
 function _loadVictoryResultUI() {
-  if (_victoryResultUiModule) return Promise.resolve(_victoryResultUiModule);
-  if (!_victoryResultUiPromise) {
-    _victoryResultUiPromise = import('../ui/VictoryResultUI.js')
-      .then(function (module) {
-        _victoryResultUiModule = module;
-        return module;
-      })
-      .catch(function (error) {
-        _victoryResultUiPromise = null;
-        _pendingVictoryReportPathId = null;
-        _reportDeferredUiFailure('victory', error);
-        return null;
-      });
-  }
-  return _victoryResultUiPromise;
+  _configureDeferredFeatures();
+  return _deferredFeatures.load('victory');
 }
 
 function _loadOnboardingUI() {
-  if (_onboardingUiModule) return Promise.resolve(_onboardingUiModule);
-  if (!_onboardingUiPromise) {
-    _setDeferredUiState('onboarding', 'loading');
-    _onboardingUiPromise = import('../ui/OnboardingUI.js')
-      .then(function (module) {
-        _onboardingUiModule = module;
-        _setDeferredUiState('onboarding', 'ready');
-        return module;
-      })
-      .catch(function (error) {
-        _onboardingUiPromise = null;
-        _setDeferredUiState('onboarding', 'error');
-        _reportDeferredUiFailure('onboarding', error);
-        return null;
-      });
-  }
-  return _onboardingUiPromise;
+  _configureDeferredFeatures();
+  return _deferredFeatures.load('onboarding');
 }
 
 function _initializeTutorialUI(TutorialUI) {
@@ -535,27 +496,8 @@ function _handleTutorialHelperAction(actionId) {
 }
 
 function _loadTutorialUI() {
-  if (_tutorialUiModule) {
-    _initializeTutorialUI(_tutorialUiModule);
-    return Promise.resolve(_tutorialUiModule);
-  }
-  if (!_tutorialUiPromise) {
-    _setDeferredUiState('tutorial', 'loading');
-    _tutorialUiPromise = import('../ui/TutorialUI.js')
-      .then(function (module) {
-        _tutorialUiModule = module;
-        _initializeTutorialUI(_tutorialUiModule);
-        _setDeferredUiState('tutorial', 'ready');
-        return module;
-      })
-      .catch(function (error) {
-        _tutorialUiPromise = null;
-        _setDeferredUiState('tutorial', 'error');
-        _reportDeferredUiFailure('tutorial', error);
-        return null;
-      });
-  }
-  return _tutorialUiPromise;
+  _configureDeferredFeatures();
+  return _deferredFeatures.load('tutorial');
 }
 
 function _releaseSettingsLauncher() {
@@ -603,37 +545,24 @@ function _initializeSettingsUI(SettingsUI) {
 }
 
 function _loadSettingsUI() {
-  if (_settingsUiModule) return Promise.resolve(_settingsUiModule);
-  if (!_settingsUiPromise) {
-    _setDeferredUiState('settings', 'loading');
-    _settingsUiPromise = import('./SettingsManager.js')
-      .then(function (module) {
-        _settingsUiModule = module;
-        _setDeferredUiState('settings', 'ready');
-        return module;
-      })
-      .catch(function (error) {
-        _settingsUiPromise = null;
-        _setDeferredUiState('settings', 'error');
-        _reportDeferredUiFailure('settings', error);
-        return null;
-      });
-  }
-  return _settingsUiPromise;
+  _configureDeferredFeatures();
+  return _deferredFeatures.load('settings');
 }
 
 function _hideSettingsModal() {
-  if (_settingsUiModule && _settingsUiModule.hideSettingsModal) {
-    _settingsUiModule.hideSettingsModal();
+  var SettingsUI = _getDeferredFeature('settings');
+  if (SettingsUI && SettingsUI.hideSettingsModal) {
+    SettingsUI.hideSettingsModal();
     return;
   }
   hideBlockingSurface('settings-modal');
 }
 
 function _bindSettingsLauncher() {
-  _setDeferredUiState('settings', _settingsUiModule ? 'ready' : (_settingsUiPromise ? 'loading' : 'idle'));
-  if (_settingsUiModule) {
-    _initializeSettingsUI(_settingsUiModule);
+  _configureDeferredFeatures();
+  var SettingsUI = _getDeferredFeature('settings');
+  if (SettingsUI) {
+    _deferredFeatures.sync('settings');
     return;
   }
   var button = document.getElementById('settings-btn');
@@ -655,23 +584,8 @@ function _bindSettingsLauncher() {
 }
 
 function _loadGuidanceActionController() {
-  if (_guidanceActionModule) return Promise.resolve(_guidanceActionModule);
-  if (!_guidanceActionPromise) {
-    _setDeferredUiState('guidanceAction', 'loading');
-    _guidanceActionPromise = import('./GuidanceActionController.js')
-      .then(function (module) {
-        _guidanceActionModule = module;
-        _setDeferredUiState('guidanceAction', 'ready');
-        return module;
-      })
-      .catch(function (error) {
-        _guidanceActionPromise = null;
-        _setDeferredUiState('guidanceAction', 'error');
-        _reportDeferredUiFailure('guidanceAction', error);
-        return null;
-      });
-  }
-  return _guidanceActionPromise;
+  _configureDeferredFeatures();
+  return _deferredFeatures.load('guidanceAction');
 }
 
 function _getMarketFinanceActions() {
@@ -708,12 +622,8 @@ function _getSystemRuntime() {
     },
     hooks: {
       ensureAchievementState: _ensureAchievementState,
-      initializeAchievement: function (state) {
-        if (_achievementModule) _achievementModule.init(state);
-        _setDeferredUiState('achievement', _achievementModule ? 'ready' : (_achievementPromise ? 'loading' : 'idle'));
-      },
-      syncDeferredBusiness: function () {
-        _syncDeferredBusinessRuntimes();
+      syncFeatureRegistry: function () {
+        _syncDeferredFeatures();
       },
     },
   });
@@ -729,7 +639,7 @@ function _getGameClock() {
       return state && Number.isFinite(state.shipHull) ? state.shipHull : 100;
     },
     isPaused: function (state) {
-      if (_shouldLoadAdvancedCommerce(state) && !_commerceRuntimeModule && !_commerceRuntimeError) {
+      if (_shouldLoadAdvancedCommerce(state) && !_getDeferredFeature('commerceRuntime') && _deferredFeatures.getState('commerceRuntime') !== 'error') {
         _loadAdvancedGuidance();
         return true;
       }
@@ -818,7 +728,7 @@ function _getFleetActions() {
     },
     setRecentModInstallContext: function (context) { _recentModInstallContext = context; },
     showCompletion: function (completion) { _showActionGuideCompletion(completion); },
-    getRouteGuidance: function () { return _routeGuidanceModule; },
+    getRouteGuidance: function () { return _getDeferredFeature('routeGuidance'); },
     getDispatchContext: _getActiveShipDispatchContext,
   });
   return _fleetActions;
@@ -828,7 +738,7 @@ function _getCommerceActions() {
   if (_commerceActions) return _commerceActions;
   _commerceActions = createCommerceOperationsController({
     getState: function () { return _state; },
-    getRuntime: function () { return _commerceRuntimeModule; },
+    getRuntime: function () { return _getDeferredFeature('commerceRuntime'); },
     requestRuntime: _loadCommerceRuntime,
     dispatch: _dispatch,
     recordQuestProgress: _recordQuestProgress,
@@ -1018,6 +928,7 @@ function _getDialogueController() {
     getState: function () { return _state; },
     getSessionToken: _getSessionToken,
     isSessionTokenCurrent: _isSessionTokenCurrent,
+    loadRuntime: function () { return _loadDeferredFeatureOrReject('dialogue'); },
     hooks: {
       setTelemetryState: function (state) { _setDeferredUiState('dialogue', state); },
       reportFailure: function (error) { _reportDeferredUiFailure('dialogue', error); },
@@ -1036,6 +947,7 @@ function _getRandomEventController() {
     getState: function () { return _state; },
     getSessionToken: _getSessionToken,
     isSessionTokenCurrent: _isSessionTokenCurrent,
+    loadRuntime: function () { return _loadDeferredFeatureOrReject('randomEvent'); },
     hooks: {
       setTelemetryState: function (state) { _setDeferredUiState('randomEvent', state); },
       reportFailure: function (error) { _reportDeferredUiFailure('randomEvent', error); },
@@ -1156,7 +1068,7 @@ function _ensureSaveUiRendered() {
 }
 
 function _initializeVictoryResultUI(VictoryResultUI) {
-  if (!VictoryResultUI || _victoryResultUiInitialized) return;
+  if (!VictoryResultUI) return;
   VictoryResultUI.init({
     onContinue: function (pathId) {
       if (pathId) _acknowledgedVictoryPathIds.add(pathId);
@@ -1171,7 +1083,6 @@ function _initializeVictoryResultUI(VictoryResultUI) {
       _restartSession('victory-restart');
     },
   });
-  _victoryResultUiInitialized = true;
 }
 
 function _restartSession(reason) {
@@ -1268,7 +1179,8 @@ export function init(difficulty, options) {
     _refreshActionGuide();
   });
   ActionGuideUI.init(_handleActionGuideAction);
-  _setDeferredUiState('guidanceAction', _guidanceActionModule ? 'ready' : (_guidanceActionPromise ? 'loading' : 'idle'));
+  _configureDeferredFeatures();
+  _setDeferredUiState('guidanceAction', _deferredFeatures.getState('guidanceAction'));
 
   // 星图视角默认启用，确保回调已绑定
   MapUI.init3DCallbacks(function () { return _state; }, _handleTravel, _handleGalaxyJump);
@@ -1298,9 +1210,8 @@ export function init(difficulty, options) {
   Modal.init(_handleTradeConfirm);
 
   // 新手引导系统已由 GameSystemRuntime 与其他状态系统统一恢复。
-  if (_tutorialUiModule) _initializeTutorialUI(_tutorialUiModule);
-  _setDeferredUiState('tutorial', _tutorialUiModule ? 'ready' : (_tutorialUiPromise ? 'loading' : 'idle'));
-  _setDeferredUiState('onboarding', _onboardingUiModule ? 'ready' : (_onboardingUiPromise ? 'loading' : 'idle'));
+  _deferredFeatures.sync('tutorial');
+  _setDeferredUiState('onboarding', _deferredFeatures.getState('onboarding'));
 
   // 教程完成后推荐首批任务，并把后续节奏交给底部当前行动条。
   if (_onTutorialComplete) EventBus.off('tutorial:complete', _onTutorialComplete);
@@ -1627,19 +1538,21 @@ function _refreshActionGuide() {
   }
   if (!tutorialActive && !blockingModalOpen) {
     var dispatchContext = _getActiveShipDispatchContext();
-    if (_shouldLoadAdvancedCommerce(_state) && !_advancedGuidanceModule) _loadAdvancedGuidance();
-    if (_shouldLoadRouteGuidance(_state) && !_routeGuidanceModule) _loadRouteGuidance();
-    if (_routeGuidanceModule) {
-      questRouteRecommendation = _routeGuidanceModule.findQuestRoute(_state, dispatchContext);
+    var AdvancedGuidance = _getDeferredFeature('advancedGuidance');
+    var RouteGuidance = _getDeferredFeature('routeGuidance');
+    if (_shouldLoadAdvancedCommerce(_state) && !AdvancedGuidance) _loadAdvancedGuidance();
+    if (_shouldLoadRouteGuidance(_state) && !RouteGuidance) _loadRouteGuidance();
+    if (RouteGuidance) {
+      questRouteRecommendation = RouteGuidance.findQuestRoute(_state, dispatchContext);
       if (!questRouteRecommendation) {
-        researchSupplyRoute = _routeGuidanceModule.findResearchSupplyRoute(_state, dispatchContext);
+        researchSupplyRoute = RouteGuidance.findResearchSupplyRoute(_state, dispatchContext);
       }
     }
     if (!questRouteRecommendation && !researchSupplyRoute) {
       researchBlocker = getResearchDispatchBlockerState(_state, dispatchContext);
     }
-    if (!questRouteRecommendation && (!researchSupplyRoute || dispatchTeachingActive) && _routeGuidanceModule) {
-      dispatchRouteRecommendation = _routeGuidanceModule.findBestDispatchRoute(_state, dispatchContext);
+    if (!questRouteRecommendation && (!researchSupplyRoute || dispatchTeachingActive) && RouteGuidance) {
+      dispatchRouteRecommendation = RouteGuidance.findBestDispatchRoute(_state, dispatchContext);
     }
     serviceStatus = _getActiveShipServiceStatus();
     if (Fleet.getShipModRecommendation) {
