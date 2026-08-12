@@ -55,6 +55,7 @@ import { createGameClockController } from './GameClockController.js';
 import { createGameSessionLifecycle } from './GameSessionLifecycle.js';
 import { createFleetActionController } from './FleetActionController.js';
 import { createCommerceOperationsController } from './CommerceOperationsController.js';
+import { createArchiveActionController } from './ArchiveActionController.js';
 import { createGameUiCoordinator } from '../ui/GameUiCoordinator.js';
 import { createWorkspaceContextAdapters } from '../ui/WorkspaceContextAdapters.js';
 import { hasBlockingSurfaceOpen, hideBlockingSurface, showBlockingSurface } from '../ui/SurfaceManager.js';
@@ -116,6 +117,7 @@ let _gameClock = null;
 let _sessionLifecycle = null;
 let _fleetActions = null;
 let _commerceActions = null;
+let _archiveActions = null;
 let _contextAdapters = null;
 
 function _replaceState(nextState, reason) {
@@ -932,6 +934,27 @@ function _getCommerceActions() {
     completeTeachingStep: _completeMidgameTeachingStep,
   });
   return _commerceActions;
+}
+
+function _getArchiveActions() {
+  if (_archiveActions) return _archiveActions;
+  _archiveActions = createArchiveActionController({
+    getState: function () { return _state; },
+    systems: { Research: Research, Quest: Quest, Tutorial: Tutorial },
+    dispatch: _dispatch,
+    updateUI: _updateUI,
+    emitLog: function (message) { EventBus.emit('log:message', message); },
+    activateArchiveTab: function (tabId) { MapUI.activateTab(tabId); },
+    openMarketPanel: function (state, options) { MapUI.openMarketPanel(state, options); },
+    openMarketSystemPanel: function (state, systemId, options) {
+      MapUI.openMarketSystemPanel(state, systemId, options);
+    },
+    selectAvailableQuest: _selectAvailableQuest,
+    openRecommendedDispatch: _openRecommendedDispatch,
+    queueQuestDialogueResult: _queueQuestDialogueResult,
+    playTriggerDialogue: _playTriggerDialogue,
+  });
+  return _archiveActions;
 }
 
 function _getUiCoordinator() {
@@ -2192,156 +2215,43 @@ function _bindMarketModeButtons() {
 }
 
 function _handleStartResearch(techId) {
-  const result = Research.startResearch(_state, techId);
-  _dispatch(result);
+  return _getArchiveActions().onStartResearch(techId);
 }
 
 function _handleCancelQueuedResearch(techId) {
-  const result = Research.cancelQueuedResearch(_state, techId);
-  _dispatch(result);
+  return _getArchiveActions().onCancelQueuedResearch(techId);
 }
 
 function _handleMoveQueuedResearchUp(techId) {
-  const result = Research.moveQueuedResearchUp(_state, techId);
-  _dispatch(result);
+  return _getArchiveActions().onMoveQueuedResearchUp(techId);
 }
 
 function _handleMoveQueuedResearchDown(techId) {
-  const result = Research.moveQueuedResearchDown(_state, techId);
-  _dispatch(result);
+  return _getArchiveActions().onMoveQueuedResearchDown(techId);
 }
 
 function _handleClearResearchQueue() {
-  const result = Research.clearResearchQueue(_state);
-  _dispatch(result);
+  return _getArchiveActions().onClearResearchQueue();
 }
 
 function _handleApplyResearchDispatch(recommendation) {
-  _openRecommendedDispatch(recommendation, '科研补给建议', '🛰️');
+  return _getArchiveActions().onApplyResearchDispatch(recommendation);
 }
 
 function _handleOpenFactionMarket(action) {
-  if (!action || action.actionId !== 'market') return;
-
-  MapUI.openMarketSystemPanel(_state, action.systemId, {
-    workspaceId: action.marketWorkspaceId,
-    subworkspaceId: action.marketSubworkspaceId,
-    marketMode: action.marketMode || '',
-  });
-
-  var factionName = action.factionName || '该派系';
-  var factionNextStep = action.label === '查看黑市条件'
-    ? '查看开放条件与公开情报'
-    : action.marketMode === 'black'
-      ? '沿着' + factionName + '的地下通路继续找机会'
-      : '观察' + factionName + '代表地点行情';
-
-  EventBus.emit('log:message', {
-    text: buildCommandFeedback(action, {
-      icon: action.label === '查看黑市条件' ? '🔒' : (action.marketMode === 'black' ? '🕶' : '🏛'),
-      destination: (action.systemName || '代表地点') + ' · ' + (action.marketFocusLabel || '市场页'),
-      nextStep: factionNextStep,
-      returnTo: '派系页继续调整关系方向',
-    }),
-    type: 'tip',
-  });
+  return _getArchiveActions().onOpenFactionMarket(action);
 }
 
 function _handleResolveResearchBlocker(action) {
-  if (!action || !action.actionId) return;
-
-  if (action.actionId === 'quest-focus') {
-    _selectAvailableQuest(action.targetQuestId);
-    MapUI.activateTab('tab-quest');
-    _updateUI();
-    EventBus.emit('log:message', {
-      text: buildCommandFeedback(action, {
-        openedVerb: '已切到',
-        destination: '任务页 · 替代任务',
-        nextStep: '先推进「' + (action.targetQuestName || '推荐任务') + '」',
-        returnTo: '科研页继续规划补给',
-      }),
-      type: 'tip',
-    });
-    return;
-  }
-
-  if (action.actionId === 'market') {
-    MapUI.openMarketPanel(_state, {
-      workspaceId: action.marketWorkspaceId,
-      subworkspaceId: action.marketSubworkspaceId,
-    });
-    var researchMarketNextStep = action.reasonId === 'cargo'
-      ? '清理货舱腾出科研补给舱位'
-      : action.reasonId === 'credits'
-        ? '做一笔周转补足科研资金'
-        : action.reasonId === 'level'
-          ? '补一轮升级节奏，扩大可达补给池'
-          : '观察本地行情，等待稳定科研补给线';
-    EventBus.emit('log:message', {
-      text: buildCommandFeedback(action, {
-        icon: action.reasonId === 'cargo' ? '📦' : (action.reasonId === 'credits' ? '💰' : (action.reasonId === 'level' ? '📈' : '📊')),
-        destination: '当前市场 · ' + (action.marketFocusLabel || '市场页'),
-        nextStep: researchMarketNextStep,
-        returnTo: '科研页继续规划补给',
-      }),
-      type: 'tip',
-    });
-  }
+  return _getArchiveActions().onResolveResearchBlocker(action);
 }
 
 function _handleApplyQuestDispatch(recommendation) {
-  _openRecommendedDispatch(recommendation, '任务路线建议', '📋');
+  return _getArchiveActions().onApplyQuestDispatch(recommendation);
 }
 
 function _handleResolveQuestBlocker(action) {
-  if (!action || !action.actionId) return;
-
-  if (action.actionId === 'quest-focus') {
-    EventBus.emit('log:message', {
-      text: buildCommandFeedback(action, {
-        openedVerb: '已找到',
-        destination: '任务页 · 替代任务',
-        nextStep: '先推进「' + (action.targetQuestName || '推荐任务') + '」补成长',
-        returnTo: '任务页继续处理「' + (action.questName || '当前任务') + '」',
-      }),
-      type: 'tip',
-    });
-    return;
-  }
-
-  if (action.actionId === 'research') {
-    MapUI.activateTab('tab-research');
-    EventBus.emit('log:message', {
-      text: buildCommandFeedback(action, {
-        openedVerb: '已切到',
-        destination: '科技页 · 跃迁科技',
-        nextStep: '优先补出关键跃迁科技',
-        returnTo: '任务页继续推进「' + (action.questName || '当前任务') + '」',
-      }),
-      type: 'tip',
-    });
-    return;
-  }
-
-  if (action.actionId === 'market') {
-    MapUI.openMarketPanel(_state, {
-      workspaceId: action.marketWorkspaceId,
-      subworkspaceId: action.marketSubworkspaceId,
-    });
-    var questMarketNextStep = action.reasonId === 'fuel'
-      ? '补足燃料或调整补给'
-      : '跑几笔交易抬升等级';
-    EventBus.emit('log:message', {
-      text: buildCommandFeedback(action, {
-        icon: action.reasonId === 'fuel' ? '⛽' : '💰',
-        destination: '当前市场 · ' + (action.marketFocusLabel || '买卖货物'),
-        nextStep: questMarketNextStep,
-        returnTo: '任务页继续推进「' + (action.questName || '当前任务') + '」',
-      }),
-      type: 'tip',
-    });
-  }
+  return _getArchiveActions().onResolveQuestBlocker(action);
 }
 
 function _openRecommendedDispatch(recommendation, sourceLabel, icon) {
@@ -2485,38 +2395,11 @@ function _handleBatchInvestTradeStations(systemIds, amount) {
 }
 
 function _handleAcceptQuest(questId) {
-  const result = Quest.acceptQuest(_state, questId);
-  _dispatch(result);
-  if (!result || !result.ok) return;
-
-  const advanceTutorialQuestStep = function () {
-    Tutorial.checkTrigger('accept_quest');
-    _updateUI();
-  };
-
-  if (result.completedImmediately && result.completedQuest) {
-    _queueQuestDialogueResult({
-      completedQuests: [{ id: result.completedQuest.id, failed: false, quest: result.completedQuest }],
-      phaseAdvanced: result.phaseAdvanced,
-      newPhase: result.newPhase,
-    }, advanceTutorialQuestStep);
-    return;
-  }
-
-  if (result.quest) {
-    _playTriggerDialogue('quest_accept', {
-      questId: result.quest.id,
-      quest: result.quest,
-    }, advanceTutorialQuestStep);
-    return;
-  }
-
-  advanceTutorialQuestStep();
+  return _getArchiveActions().onAcceptQuest(questId);
 }
 
 function _handleAbandonQuest(questId) {
-  const result = Quest.abandonQuest(_state, questId);
-  _dispatch(result);
+  return _getArchiveActions().onAbandonQuest(questId);
 }
 
 function _handleSaveGame(slotId) {
