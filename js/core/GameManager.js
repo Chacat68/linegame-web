@@ -62,6 +62,7 @@ import { createExplorationOperationsController } from './ExplorationOperationsCo
 import { createEventActionController } from './EventActionController.js';
 import { createDispatchActionController } from './DispatchActionController.js';
 import { createGameDayController } from './GameDayController.js';
+import { createDialogueRuntimeController } from './DialogueRuntimeController.js';
 import { createGameUiCoordinator } from '../ui/GameUiCoordinator.js';
 import { createWorkspaceContextAdapters } from '../ui/WorkspaceContextAdapters.js';
 import { hasBlockingSurfaceOpen, hideBlockingSurface, isBlockingSurfaceVisible, showBlockingSurface } from '../ui/SurfaceManager.js';
@@ -76,8 +77,6 @@ let _settings  = {
   realtimeDayDurationMs: TIME_CONFIG.realtimeDayDurationMs,
 };
 let _blackMarketMode = false; // 当前是否处于黑市交易模式
-let _dialogueQueue = [];
-let _dialoguePlaying = false;
 let _runtimeRevision = 0;
 let _recentModInstallContext = null;
 let _acknowledgedVictoryPathIds = new Set();
@@ -86,8 +85,6 @@ let _victoryResultUiModule = null;
 let _victoryResultUiPromise = null;
 let _victoryResultUiInitialized = false;
 let _pendingVictoryReportPathId = null;
-let _dialogueRuntime = null;
-let _dialogueRuntimePromise = null;
 let _randomEventModule = null;
 let _randomEventPromise = null;
 let _randomEventRollQueue = Promise.resolve();
@@ -131,6 +128,7 @@ let _explorationActions = null;
 let _eventActions = null;
 let _dispatchActions = null;
 let _gameDayActions = null;
+let _dialogueController = null;
 let _contextAdapters = null;
 
 function _replaceState(nextState, reason) {
@@ -444,58 +442,6 @@ function _loadVictoryResultUI() {
       });
   }
   return _victoryResultUiPromise;
-}
-
-function _ensureStoryState(state) {
-  if (!state || typeof state !== 'object') return;
-  if (!state.storyFlags || typeof state.storyFlags !== 'object' || Array.isArray(state.storyFlags)) {
-    state.storyFlags = {};
-  }
-  if (!state.storyDecisions || typeof state.storyDecisions !== 'object' || Array.isArray(state.storyDecisions)) {
-    state.storyDecisions = {};
-  }
-}
-
-function _initializeDialogueRuntime(runtime, state, hideScene) {
-  if (!runtime || !state) return;
-  runtime.Dialogue.init(state);
-  runtime.DialogueUI.init();
-  if (hideScene) runtime.DialogueUI.hideScene();
-}
-
-function _loadDialogueRuntime() {
-  if (_dialogueRuntime) return Promise.resolve(_dialogueRuntime);
-  if (!_dialogueRuntimePromise) {
-    _setDeferredUiState('dialogue', 'loading');
-    _dialogueRuntimePromise = Promise.all([
-      import('../systems/story/DialogueSystem.js'),
-      import('../ui/DialogueUI.js'),
-    ])
-      .then(function (modules) {
-        _dialogueRuntime = {
-          Dialogue: modules[0],
-          DialogueUI: modules[1],
-        };
-        if (_state) _initializeDialogueRuntime(_dialogueRuntime, _state, false);
-        _setDeferredUiState('dialogue', 'ready');
-        return _dialogueRuntime;
-      })
-      .catch(function (error) {
-        _dialogueRuntimePromise = null;
-        _setDeferredUiState('dialogue', 'error');
-        _reportDeferredUiFailure('dialogue', error);
-        return null;
-      });
-  }
-  return _dialogueRuntimePromise;
-}
-
-function _resetDialogueRuntime(state) {
-  _dialogueQueue = [];
-  _dialoguePlaying = false;
-  _ensureStoryState(state);
-  if (_dialogueRuntime) _initializeDialogueRuntime(_dialogueRuntime, state, true);
-  _setDeferredUiState('dialogue', _dialogueRuntime ? 'ready' : (_dialogueRuntimePromise ? 'loading' : 'idle'));
 }
 
 function _resetRandomEventState(state) {
@@ -863,7 +809,7 @@ function _getGameClock() {
 function _prepareSessionState(state, context) {
   _acknowledgedVictoryPathIds = new Set();
   _pendingVictoryReportPathId = null;
-  _resetDialogueRuntime(state);
+  _getDialogueController().reset(state);
   if (context.restoreRandomRuntime) _syncRandomEventRuntime(state);
   else _resetRandomEventRuntime(state);
   EventUI.clearPendingEvent();
@@ -1123,6 +1069,24 @@ function _getGameDayActions() {
     saveAutosave: function (state) { Save.saveGame(0, state, { isAutosave: true }); },
   });
   return _gameDayActions;
+}
+
+function _getDialogueController() {
+  if (_dialogueController) return _dialogueController;
+  _dialogueController = createDialogueRuntimeController({
+    getState: function () { return _state; },
+    getSessionToken: _getSessionToken,
+    isSessionTokenCurrent: _isSessionTokenCurrent,
+    hooks: {
+      setTelemetryState: function (state) { _setDeferredUiState('dialogue', state); },
+      reportFailure: function (error) { _reportDeferredUiFailure('dialogue', error); },
+      onCompletedQuest: function () {
+        Tutorial.checkTrigger('complete_quest');
+        _updateUI();
+      },
+    },
+  });
+  return _dialogueController;
 }
 
 function _getUiCoordinator() {
@@ -1420,7 +1384,7 @@ export function _setStateForTest(state) {
   _replaceState(state || null, 'test');
   _recentModInstallContext = null;
   if (_state) {
-    _resetDialogueRuntime(_state);
+    _getDialogueController().reset(_state);
     _syncRandomEventRuntime(_state);
   }
 }
@@ -1508,118 +1472,11 @@ function _recommendStarterQuests() {
 }
 
 function _playTriggerDialogue(triggerType, context, onFinished) {
-  _queueDialogueTriggers([{
-    triggerType: triggerType,
-    context: context || {},
-  }], onFinished);
-}
-
-function _queueDialogueTriggers(triggers, onFinished) {
-  var requests = Array.isArray(triggers) ? triggers.filter(Boolean) : [];
-  var requestedState = _state;
-  var requestedRevision = _runtimeRevision;
-  if (requests.length === 0) {
-    if (typeof onFinished === 'function') onFinished();
-    return;
-  }
-
-  _loadDialogueRuntime().then(function (runtime) {
-    if (!runtime) {
-      if (requestedState === _state && requestedRevision === _runtimeRevision && typeof onFinished === 'function') {
-        onFinished();
-      }
-      return;
-    }
-    if (requestedState !== _state || requestedRevision !== _runtimeRevision) return;
-
-    _initializeDialogueRuntime(runtime, requestedState, false);
-    var scenes = [];
-    requests.forEach(function (request) {
-      scenes = scenes.concat(runtime.Dialogue.getScenesForTrigger(
-        requestedState,
-        request.triggerType,
-        request.context || {}
-      ));
-    });
-    _queueDialogueScenes(scenes, onFinished, runtime, requestedState, requestedRevision);
-  });
-}
-
-function _queueDialogueScenes(scenes, onFinished, runtime, state, revision) {
-  if (!Array.isArray(scenes) || scenes.length === 0) {
-    if (typeof onFinished === 'function') onFinished();
-    return;
-  }
-
-  scenes.forEach(function (scene, index) {
-    _dialogueQueue.push({
-      scene: scene,
-      onAfter: index === scenes.length - 1 ? onFinished : null,
-      runtime: runtime,
-      state: state,
-      revision: revision,
-    });
-  });
-
-  _drainDialogueQueue();
-}
-
-function _drainDialogueQueue() {
-  if (_dialoguePlaying || _dialogueQueue.length === 0) return;
-
-  var next = _dialogueQueue.shift();
-  if (!next || !next.runtime || next.state !== _state || next.revision !== _runtimeRevision) {
-    _drainDialogueQueue();
-    return;
-  }
-  _dialoguePlaying = true;
-  next.runtime.DialogueUI.showScene(next.scene, function (result) {
-    if (next.state === _state && next.revision === _runtimeRevision) {
-      next.runtime.Dialogue.finalizeScene(next.state, next.scene && next.scene.id, result || {});
-      if (typeof next.onAfter === 'function') next.onAfter();
-    }
-    _dialoguePlaying = false;
-    _drainDialogueQueue();
-  });
+  return _getDialogueController().playTrigger(triggerType, context, onFinished);
 }
 
 function _queueQuestDialogueResult(result, onFinished) {
-  if (!result) return;
-
-  var triggers = [];
-  var hasCompletedQuest = false;
-
-  if (Array.isArray(result.completedQuests)) {
-    result.completedQuests.forEach(function (entry) {
-      if (!entry || entry.failed) return;
-      hasCompletedQuest = true;
-      triggers.push({
-        triggerType: 'quest_complete',
-        context: {
-          questId: entry.id,
-          quest: entry.quest || null,
-        },
-      });
-    });
-  }
-
-  if (result.phaseAdvanced && result.newPhase) {
-    triggers.push({
-      triggerType: 'phase_unlock',
-      context: {
-        phaseId: result.newPhase.id,
-        phase: result.newPhase,
-      },
-    });
-  }
-
-  _queueDialogueTriggers(triggers, function () {
-    if (hasCompletedQuest) {
-      Tutorial.checkTrigger('complete_quest');
-      _updateUI();
-    }
-    if (typeof onFinished === 'function') onFinished();
-  });
+  return _getDialogueController().queueQuestResult(result, onFinished);
 }
 
 function _scheduleRandomEventRoll(state, baseChance) {

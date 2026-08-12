@@ -648,6 +648,7 @@ Escape **不得切换 canonical workspace 或默认返回地图**，也不得关
 | `TravelActionController` | **航行动作已接入 pipeline** | 待处理事件/飞行中前置阻塞；磨损、动画、跨星系 UI、走私、访问记录、任务、经验声望、自动修复、随机事件和自动存档都在最终 render/achievement/victory 前完成；失败/查获/教程分支有测试 | 将随机事件调度改为 token-aware async post-effect；把星图 travel confirmation 纳入同一 command contract |
 | `ExplorationOperationsController` + `EventActionController` | **POI 探索与事件选择已接入 pipeline** | POI 的舰船状态与星图快照、事件效果与自动存档均在结果消息、渲染、成就和胜利检查前提交；无效选择、runtime 未就绪与失败路径有测试；真实 Command Slot/事件弹窗交互已验收 | 将随机事件 runtime 纳入 FeatureRegistry；为事件效果补事务快照/补偿边界 |
 | `GameDayController` | **实时多日结算已接入 pipeline** | GameTime 领域推进后，永久舰船属性、教学链、任务对话、无伤统计、runtime capture 与自动存档均在结果消息、渲染、成就和胜利前提交；旧 session clock context 会被拒绝 | 为领域推进异常增加状态回滚边界；将页面可见性生命周期接入 GameApplication |
+| `DialogueRuntimeController` | **剧情运行时已接入** | DialogueSystem/DialogueUI 保持首次触发动态加载；同请求复用、严格串行场景队列、session token 丢弃、reset 后迟到回调隔离、任务完成后续钩子、失败重试与 dispose 均有测试；真实任务简报播放链已验收 | 将 runtime 作为 FeatureRegistry manifest entry；把任务结果与剧情触发声明合并为统一 story command |
 | `GameUiCoordinator` | **首批已接入 `GameManager`** | provider、四项 Feature ensure/render、命名 action 分组、`renderAll` 兼容刷新 | 缩短位置参数；引入 dirty regions；逐步淘汰兼容刷新 |
 | `NavigationController` | **已接入 `UIManager`** | 五个 workspace、旧别名、唯一 active、幂等切换、独立 detail stack；Escape 只关闭 L4 详情不改变 L3 | 继续迁移旧 surface 直接开关与 focus 适配器 |
 | `SurfaceManager` | **唯一 Escape dispatcher 已接入** | blocking 层优先且不下穿；非阻塞层按优先级处理；隐藏 surface 同步 inert/aria-hidden | 将五个 L3 workspace 完全收口到同一 surface registry |
@@ -655,7 +656,7 @@ Escape **不得切换 canonical workspace 或默认返回地图**，也不得关
 
 当前仍存在的过渡边界：
 
-- `GameManager` 当前约 2,500 行；StateSession、SystemRuntime、SessionLifecycle、GameClock、贸易/航行/探索/事件/active dispatch/日结算等动作控制器已成为真实调用路径，但对话与更多兼容转发仍未迁出，尚未达到薄组合根目标。
+- `GameManager` 当前约 2,400 行；StateSession、SystemRuntime、SessionLifecycle、GameClock、贸易/航行/探索/事件/active dispatch/日结算与剧情运行时等控制器已成为真实调用路径，但随机事件、更多延迟 Feature 状态机和兼容转发仍未迁出，尚未达到薄组合根目标。
 - `GameUiCoordinator`、`NavigationController`、`SurfaceManager` 和 `ContextInspector` 已进入运行时调用链；五个工作区的对象 adapter、Inspector focus 转移及 logs/message 只读检查已接通，但局部 action slot、增量刷新和旧终端 DOM 收口仍未完成，不能按“已完成 UI 重构”验收。
 - 多个延迟模块仍保留旧三元状态机。
 - `SurfaceManager` 已统一 blocking 层、inert 与 Escape dispatcher，但五个 L3 workspace 仍需淘汰旧 primary/secondary 适配分歧。

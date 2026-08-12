@@ -98,13 +98,18 @@ describe('deferred terminal UI loading', function () {
 
   it('剧情与随机事件数据只在首次触发时进入依赖图', function () {
     var gameManager = readFileSync('js/core/GameManager.js', 'utf8');
+    var dialogueRuntime = readFileSync('js/core/DialogueRuntimeController.js', 'utf8');
 
     expect(gameManager).not.toMatch(/import\s+\*\s+as\s+RandomEvent\s+from/);
     expect(gameManager).not.toMatch(/import\s+\*\s+as\s+Dialogue(UI)?\s+from/);
-    expect(gameManager).toContain("import('../systems/story/DialogueSystem.js')");
-    expect(gameManager).toContain("import('../ui/DialogueUI.js')");
+    expect(gameManager).toContain("from './DialogueRuntimeController.js'");
+    expect(gameManager).not.toContain("import('../systems/story/DialogueSystem.js')");
+    expect(gameManager).not.toContain("import('../ui/DialogueUI.js')");
+    expect(dialogueRuntime).toContain("import('../systems/story/DialogueSystem.js')");
+    expect(dialogueRuntime).toContain("import('../ui/DialogueUI.js')");
     expect(gameManager).toContain("import('../systems/event/RandomEvent.js')");
-    expect(gameManager).toContain("_setDeferredUiState('dialogue', 'loading')");
+    expect(gameManager).toContain("_setDeferredUiState('dialogue', state)");
+    expect(dialogueRuntime).toContain("setTelemetryState('loading')");
     expect(gameManager).toContain("_setDeferredUiState('randomEvent', 'loading')");
     expect(gameManager).toContain('requestedRevision !== _runtimeRevision');
     expect(gameManager).toContain('Save.saveGame(0, requestedState, { isAutosave: true })');
