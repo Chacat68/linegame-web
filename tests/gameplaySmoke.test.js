@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { handleGuidanceAction } from '../js/core/GuidanceActionController.js';
 import * as Economy from '../js/systems/economy/Economy.js';
 import * as Faction from '../js/systems/faction/FactionSystem.js';
@@ -71,7 +71,12 @@ function runCurrentGuidance(state, context) {
 }
 
 describe('core gameplay smoke', function () {
+  afterEach(function () { vi.restoreAllMocks(); });
+
   it('runs the action guide through quest, buy, travel, and sell actions', function () {
+    // Economy.init 会随机化全银河价格；固定 seed 让 smoke 验证流程，
+    // 避免极少数随机价格恰好让首轮清仓利润为 0。
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
     var state = initSmokeState();
     var context = createGuidanceContext(state);
 

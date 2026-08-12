@@ -15,6 +15,7 @@ import * as Exploration from '../systems/galaxy/ExplorationSystem.js';
 import * as ContextInspector from './ContextInspector.js';
 
 const _focusedMarketGood = Object.create(null);
+let _activeMarketContext = null;
 const _marketChartRange = Object.create(null);
 const _marketBatchPlanSortModes = {
   investment: 'yield',
@@ -397,6 +398,49 @@ export function setFocusedMarketGood(sysId, marketMode, goodId) {
 
   _focusedMarketGood[focusKey] = normalizedGoodId;
   return true;
+}
+
+export function getFocusedMarketGood(sysId, marketMode) {
+  var focusKey = String(sysId || '') + ':' + (marketMode === 'black' ? 'black' : 'open');
+  return _focusedMarketGood[focusKey] || null;
+}
+
+export function renderContextInspector(request) {
+  var context = request && request.context;
+  var state = request && request.state;
+  var container = request && request.container;
+  if (!context || context.type !== 'commodity' || !state || !container) return false;
+  var good = GOODS.find(function (entry) { return entry.id === context.id; });
+  if (!good) return false;
+
+  var systemId = _activeMarketContext && _activeMarketContext.systemId
+    ? _activeMarketContext.systemId
+    : state.currentSystem;
+  var system = findSystem(systemId) || findSystem(state.currentSystem);
+  if (!system) return false;
+  var isBlack = !!(_activeMarketContext && _activeMarketContext.mode === 'black');
+  var buyPrice = isBlack
+    ? Economy.getBlackMarketBuyPrice(system.id, good.id, state)
+    : Economy.getBuyPrice(system.id, good.id, state);
+  var sellPrice = isBlack
+    ? Economy.getBlackMarketSellPrice(system.id, good.id, state)
+    : Economy.getSellPrice(system.id, good.id, state);
+  var supplyDemand = Economy.getSupplyDemand(system.id, good.id);
+  var held = Number((state.cargo || {})[good.id]) || 0;
+
+  container.innerHTML =
+    '<article class="workspace-context-card workspace-context-card--commodity">' +
+      '<div class="workspace-context-hero"><span aria-hidden="true">' + _escapeHtml(good.emoji) + '</span><div><small>' + _escapeHtml(system.name) + ' · ' + (isBlack ? '黑市' : '公开市场') + '</small><h3>' + _escapeHtml(good.name) + '</h3></div></div>' +
+      '<p>' + _escapeHtml(good.desc) + '</p>' +
+      '<div class="workspace-context-metrics" role="list">' +
+        '<span role="listitem"><small>买入</small><strong>' + buyPrice.toLocaleString() + '</strong></span>' +
+        '<span role="listitem"><small>卖出</small><strong>' + sellPrice.toLocaleString() + '</strong></span>' +
+        '<span role="listitem"><small>货舱</small><strong>' + held.toLocaleString() + '</strong></span>' +
+        '<span role="listitem"><small>供需</small><strong>' + supplyDemand.ratio.toFixed(2) + '×</strong></span>' +
+      '</div>' +
+      '<div class="workspace-context-tags"><span>' + (good.legality === 'illegal' ? '违禁品' : good.legality === 'restricted' ? '受监管' : '合法商品') + '</span><span>价差 ' + Math.max(0, buyPrice - sellPrice).toLocaleString() + '</span></div>' +
+    '</article>';
+  return { title: '商品检查' };
 }
 
 function _isMarketWorkspaceUnlocked(workspaceId, progression) {
@@ -3221,6 +3265,7 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode
   var systemFaction = Faction.getFactionForSystem(sysId);
   var requestedMarketMode = marketMode === 'black' ? 'black' : 'open';
   var effectiveMarketMode = requestedMarketMode === 'black' && blackMarketUnlocked ? 'black' : 'open';
+  _activeMarketContext = { systemId: sysId, mode: effectiveMarketMode };
   const isBlack = effectiveMarketMode === 'black';
   var progression = _buildMarketProgression(state, sysId, {
     systemFaction: systemFaction,
@@ -3352,6 +3397,16 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode
   }
 
   var activeGoodId = _focusedMarketGood[focusKey] || (snapshots[0] && snapshots[0].good.id);
+  if (activeGoodId) {
+    _focusedMarketGood[focusKey] = activeGoodId;
+    ContextInspector.replaceContext({
+      type: 'commodity',
+      id: activeGoodId,
+      workspaceId: 'trade',
+      source: 'market-workspace',
+      revision: ContextInspector.getCurrentRevision(),
+    }, { render: false });
+  }
 
   goodsList.forEach(function (good) {
     var buyPrice, sellPrice;

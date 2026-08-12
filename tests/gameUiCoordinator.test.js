@@ -63,6 +63,11 @@ describe('GameUiCoordinator', function () {
     var fleetRender = vi.fn();
     var researchRender = vi.fn();
     var saveRender = vi.fn();
+    var contextAdapters = {
+      connectMarket: vi.fn(),
+      connectFleet: vi.fn(),
+      connectArchive: vi.fn(),
+    };
     var features = createFeatureHarness({
       market: { render: marketRender },
       fleet: { render: fleetRender, renderShop: vi.fn() },
@@ -77,6 +82,7 @@ describe('GameUiCoordinator', function () {
           getMarketViewSystem: function () { return 'nova_station'; },
           getMarketViewGalaxy: function () { return 'milky_way'; },
         },
+        ContextAdapters: contextAdapters,
       },
       actions: {
         market: { onOpenBuy: callbacks.buy, getMode: function () { return 'black'; } },
@@ -101,6 +107,9 @@ describe('GameUiCoordinator', function () {
     expect(researchRender.mock.calls[0][0]).toBe(state);
     expect(researchRender.mock.calls[0][1]).toBe(callbacks.startResearch);
     expect(saveRender).toHaveBeenCalledWith(callbacks.save, callbacks.load);
+    expect(contextAdapters.connectMarket).toHaveBeenCalledWith(features.modules.market);
+    expect(contextAdapters.connectFleet).toHaveBeenCalledWith(features.modules.fleet);
+    expect(contextAdapters.connectArchive).toHaveBeenCalledWith(features.modules.archive);
   });
 
   it('异步加载期间切换状态后渲染最新状态', async function () {

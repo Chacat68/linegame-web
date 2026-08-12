@@ -158,7 +158,6 @@ function _enterWorkspace(change) {
 
 function _handleNavigationChange(change) {
   _syncWorkspaceVisualState(change.to);
-  ContextInspector.activateWorkspace(change.to);
   EventBus.emit('navigation:changed', LEGACY_VIEW_BY_WORKSPACE[change.to]);
 }
 

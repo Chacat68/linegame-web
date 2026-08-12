@@ -23,7 +23,8 @@ let _content = null;
 let _empty = null;
 let _host = null;
 let _title = null;
-let _toggle = null;
+let _toggles = [];
+let _lastToggle = null;
 let _closeButton = null;
 let _activeWorkspaceId = DEFAULT_WORKSPACE_ID;
 let _contextsByWorkspace = new Map();
@@ -34,6 +35,8 @@ let _getRevision = function () { return null; };
 let _isOpen = false;
 let _railListenerBound = false;
 let _releaseEscapeLayer = null;
+let _document = null;
+let _compactMode = false;
 
 function _getDocument(options) {
   if (options && options.document) return options.document;
@@ -83,14 +86,18 @@ function _setAttribute(element, name, value) {
   }
 }
 
-function _setPanelVisible(visible) {
+function _setPanelVisible(visible, options) {
   if (!_root) return;
   _isOpen = !!visible;
-  _openByWorkspace.set(_activeWorkspaceId, _isOpen);
+  if (!options || options.remember !== false) {
+    _openByWorkspace.set(_activeWorkspaceId, _isOpen);
+  }
   _root.hidden = !_isOpen;
   _root.inert = !_isOpen;
   _setAttribute(_root, 'aria-hidden', _isOpen ? 'false' : 'true');
-  _setAttribute(_toggle, 'aria-expanded', _isOpen ? 'true' : 'false');
+  _toggles.forEach(function (toggle) {
+    _setAttribute(toggle, 'aria-expanded', _isOpen ? 'true' : 'false');
+  });
   if (_root.dataset) _root.dataset.state = _isOpen ? 'open' : 'closed';
 }
 
@@ -122,8 +129,39 @@ function _renderEmpty(context) {
   if (_host) _host.hidden = true;
 }
 
+function _getRendererContainer(workspaceId) {
+  if (!_host) return _content;
+  var workspaceViews = typeof _host.querySelectorAll === 'function'
+    ? Array.from(_host.querySelectorAll('[data-context-workspace-view]'))
+    : [];
+  var planetPanel = typeof _host.querySelector === 'function'
+    ? _host.querySelector('#planet-detail-panel')
+    : null;
+
+  if (workspaceId === 'map') {
+    workspaceViews.forEach(function (view) { view.hidden = true; });
+    if (planetPanel) planetPanel.hidden = false;
+    return planetPanel || _host;
+  }
+
+  if (planetPanel) planetPanel.hidden = true;
+  var view = workspaceViews.find(function (candidate) {
+    return candidate && candidate.dataset && candidate.dataset.contextWorkspaceView === workspaceId;
+  });
+  if (!view && _document && typeof _document.createElement === 'function' && typeof _host.appendChild === 'function') {
+    view = _document.createElement('div');
+    view.className = 'context-workspace-view context-workspace-view--' + workspaceId;
+    view.dataset.contextWorkspaceView = workspaceId;
+    _host.appendChild(view);
+  }
+  workspaceViews.forEach(function (candidate) { candidate.hidden = candidate !== view; });
+  if (view) view.hidden = false;
+  return view || _host;
+}
+
 function _handleToggleClick(event) {
   if (event && typeof event.preventDefault === 'function') event.preventDefault();
+  _lastToggle = event && event.currentTarget ? event.currentTarget : null;
   if (_isOpen) close({ restoreFocus: false });
   else open();
 }
@@ -153,6 +191,8 @@ function _bindRailListener() {
 export function init(options) {
   var opts = options || {};
   var doc = _getDocument(opts);
+  _document = doc;
+  _compactMode = !!opts.compact;
   if (Object.prototype.hasOwnProperty.call(opts, 'stateSource')) {
     _getState = typeof opts.stateSource === 'function'
       ? opts.stateSource
@@ -170,9 +210,11 @@ export function init(options) {
     _empty = null;
     _host = null;
     _title = null;
-    _toggle = null;
+    _toggles = [];
+    _lastToggle = null;
     _closeButton = null;
     _isOpen = false;
+    _document = null;
     return getSnapshot();
   }
 
@@ -182,7 +224,8 @@ export function init(options) {
     _empty = null;
     _host = null;
     _title = null;
-    _toggle = null;
+    _toggles = [];
+    _lastToggle = null;
     _closeButton = null;
     _isOpen = false;
     return getSnapshot();
@@ -192,10 +235,16 @@ export function init(options) {
   _empty = doc.getElementById(EMPTY_ID);
   _host = doc.getElementById(HOST_ID);
   _title = doc.getElementById(TITLE_ID);
-  _toggle = typeof doc.querySelector === 'function' ? doc.querySelector(TOGGLE_SELECTOR) : null;
+  _toggles = typeof doc.querySelectorAll === 'function'
+    ? Array.from(doc.querySelectorAll(TOGGLE_SELECTOR))
+    : (typeof doc.querySelector === 'function' && doc.querySelector(TOGGLE_SELECTOR)
+        ? [doc.querySelector(TOGGLE_SELECTOR)]
+        : []);
   _closeButton = typeof _root.querySelector === 'function' ? _root.querySelector(CLOSE_SELECTOR) : null;
 
-  _bindElement(_toggle, 'contextInspectorToggleBound', 'click', _handleToggleClick);
+  _toggles.forEach(function (toggle) {
+    _bindElement(toggle, 'contextInspectorToggleBound', 'click', _handleToggleClick);
+  });
   _bindElement(_closeButton, 'contextInspectorCloseBound', 'click', _handleCloseClick);
   if (_releaseEscapeLayer) _releaseEscapeLayer();
   _releaseEscapeLayer = registerEscapeLayer('context-inspector', {
@@ -227,27 +276,32 @@ export function open(options) {
   if (opts.notifyRail !== false) {
     EventBus.emit(RAIL_EVENT, { source: RAIL_SOURCE, panelId: ROOT_ID });
   }
+  if (opts.focus !== false) _focusElement(_closeButton);
   return getSnapshot();
 }
 
 export function close(options) {
   if (!_root) return getSnapshot();
   _setPanelVisible(false);
-  if (!options || options.restoreFocus !== false) _focusElement(_toggle);
+  if (!options || options.restoreFocus !== false) _focusElement(_lastToggle || _toggles[0]);
   return getSnapshot();
 }
 
 /** Switch workspace without discarding that workspace's last context key. */
 export function activateWorkspace(workspaceId, options) {
   var nextWorkspaceId = _normalizeWorkspaceId(workspaceId);
-  if (_root) _openByWorkspace.set(_activeWorkspaceId, _isOpen);
+  var isWorkspaceChange = nextWorkspaceId !== _activeWorkspaceId;
+  if (_root && isWorkspaceChange) _openByWorkspace.set(_activeWorkspaceId, _isOpen);
   _activeWorkspaceId = nextWorkspaceId;
   if (_root && _root.dataset) _root.dataset.workspaceId = _activeWorkspaceId;
   if (!options || options.render !== false) render();
   if (_root && (!options || options.syncOpen !== false)) {
-    // The shell is workspace-scoped. Unmigrated workspaces start closed instead
-    // of leaving a focusable map inspector underneath their terminal surface.
-    _setPanelVisible(_openByWorkspace.get(_activeWorkspaceId) === true);
+    var hasPreference = _openByWorkspace.has(_activeWorkspaceId);
+    var hasRenderer = _renderersByWorkspace.has(_activeWorkspaceId);
+    var defaultOpen = !_compactMode && hasRenderer && _activeWorkspaceId !== 'logs';
+    _setPanelVisible(hasPreference ? _openByWorkspace.get(_activeWorkspaceId) === true : defaultOpen, {
+      remember: hasPreference,
+    });
   }
   return getSnapshot();
 }
@@ -308,7 +362,12 @@ export function registerRenderer(workspaceId, renderer) {
     return function () {};
   }
   _renderersByWorkspace.set(normalizedWorkspaceId, renderer);
-  if (normalizedWorkspaceId === _activeWorkspaceId) render();
+  if (normalizedWorkspaceId === _activeWorkspaceId) {
+    render();
+    if (!_openByWorkspace.has(normalizedWorkspaceId) && !_compactMode && normalizedWorkspaceId !== 'logs') {
+      _setPanelVisible(true, { remember: false });
+    }
+  }
   return function () {
     if (_renderersByWorkspace.get(normalizedWorkspaceId) === renderer) {
       _renderersByWorkspace.delete(normalizedWorkspaceId);
@@ -343,13 +402,19 @@ export function render() {
   var state = _getState();
   if (_empty) _empty.hidden = true;
   if (_host) _host.hidden = false;
+  var rendererContainer = _getRendererContainer(_activeWorkspaceId);
   var result = renderer({
     workspaceId: _activeWorkspaceId,
     context: context,
     state: state,
-    container: _host || _content,
+    container: rendererContainer,
   });
-  if (result === false) _renderEmpty(context);
+  if (result === false) {
+    if (context) _contextsByWorkspace.delete(_activeWorkspaceId);
+    _renderEmpty(null);
+  } else if (result && result.title && _title) {
+    _title.textContent = String(result.title);
+  }
   return getSnapshot();
 }
 

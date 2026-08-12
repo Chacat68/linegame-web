@@ -643,12 +643,12 @@ Escape **不得切换 canonical workspace 或默认返回地图**，也不得关
 | `GameUiCoordinator` | **首批已接入 `GameManager`** | provider、四项 Feature ensure/render、命名 action 分组、`renderAll` 兼容刷新 | 缩短位置参数；引入 dirty regions；逐步淘汰兼容刷新 |
 | `NavigationController` | **已接入 `UIManager`** | 五个 workspace、旧别名、唯一 active、幂等切换、独立 detail stack；Escape 只关闭 L4 详情不改变 L3 | 继续迁移旧 surface 直接开关与 focus 适配器 |
 | `SurfaceManager` | **唯一 Escape dispatcher 已接入** | blocking 层优先且不下穿；非阻塞层按优先级处理；隐藏 surface 同步 inert/aria-hidden | 将五个 L3 workspace 完全收口到同一 surface registry |
-| `ContextInspector` | **workspace + object 协议已接入** | 每 workspace 的不可变 context key、latest-state provider、renderer adapter、统一空态；星图选择/清除/星系总览已接入 | 为 trade/fleet/archive 逐项接入对象 adapter，完成五视口回归 |
+| `ContextInspector` | **四个对象型 workspace 已接入** | 每 workspace 的不可变 context key、latest-state provider、renderer adapter、统一空态；地图、商品、舰船、任务、科技、派系、成就与探索报告已接入；桌面 dock 与窄屏 bottom sheet 已完成多视口回归 | 补 logs/message 只读 adapter；把局部动作进一步移入 inspector action slot |
 
 当前仍存在的过渡边界：
 
 - `GameManager` 仍为约 2,900 行；StateSession、SystemRuntime 与 GameClock 虽已成为真实调用路径，但动作编排仍未迁出，尚未达到薄组合根目标。
-- `GameUiCoordinator`、`NavigationController`、`SurfaceManager` 和 `ContextInspector` 已进入运行时调用链，但非地图 workspace 的对象 adapter、完整 focus 转移和增量刷新尚未收口，不能按“已完成 UI 重构”验收。
+- `GameUiCoordinator`、`NavigationController`、`SurfaceManager` 和 `ContextInspector` 已进入运行时调用链；非地图对象 adapter 和 Inspector focus 转移已接通，但 logs/message adapter 与增量刷新尚未收口，不能按“已完成 UI 重构”验收。
 - 多个延迟模块仍保留旧三元状态机。
 - `SurfaceManager` 已统一 blocking 层、inert 与 Escape dispatcher，但五个 L3 workspace 仍需淘汰旧 primary/secondary 适配分歧。
 - 新模块不得长期停留为旁路实现；每个骨架必须有接线阶段和删除旧路径的验收项。

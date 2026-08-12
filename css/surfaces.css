@@ -989,7 +989,7 @@ body::before {
 
 .secondary-terminal-chrome {
   display: grid;
-  grid-template-columns: minmax(200px, 1fr) minmax(220px, 1.4fr) auto auto;
+  grid-template-columns: minmax(200px, 1fr) minmax(220px, 1.4fr) auto auto auto;
   align-items: center;
   min-height: 76px;
   padding: var(--ui-space-3) var(--ui-space-5);

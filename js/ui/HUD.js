@@ -176,9 +176,10 @@ export function init(options) {
 
   var compactInspector = typeof window !== 'undefined' &&
     typeof window.matchMedia === 'function' &&
-    window.matchMedia('(max-width: 620px)').matches;
+    window.matchMedia('(max-width: 900px)').matches;
   ContextInspector.init({
     open: !compactInspector,
+    compact: compactInspector,
     stateSource: typeof opts.stateSource === 'function'
       ? opts.stateSource
       : function () { return _stateRef; },

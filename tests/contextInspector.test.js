@@ -44,7 +44,7 @@ function createFixture() {
     document: {
       getElementById: function (id) { return elements[id] || null; },
       querySelector: function (selector) { return selector === '[data-context-inspector-toggle]' ? toggle : null; },
-      querySelectorAll: function () { return []; },
+      querySelectorAll: function (selector) { return selector === '[data-context-inspector-toggle]' ? [toggle] : []; },
       addEventListener: function (type, handler) {
         (documentListeners[type] || (documentListeners[type] = [])).push(handler);
       },
@@ -144,5 +144,25 @@ describe('ContextInspector protocol', function () {
     expect(Inspector.getSnapshot().open).toBe(true);
     EventBus.emit('starmap-rail:panel-open', { source: 'exploration-terminal' });
     expect(Inspector.getSnapshot().open).toBe(false);
+  });
+
+  it('桌面 adapter 首次注册时默认 dock，紧凑视口保持收起', async function () {
+    var desktopFixture = createFixture();
+    globalThis.document = desktopFixture.document;
+    var Inspector = await import('../js/ui/ContextInspector.js');
+    Inspector.init({ workspaceId: 'map', open: false });
+    Inspector.activateWorkspace('trade');
+    Inspector.activateWorkspace('trade');
+    Inspector.registerRenderer('trade', function () { return true; });
+    expect(Inspector.getSnapshot().open).toBe(true);
+
+    vi.resetModules();
+    var compactFixture = createFixture();
+    globalThis.document = compactFixture.document;
+    var CompactInspector = await import('../js/ui/ContextInspector.js');
+    CompactInspector.init({ workspaceId: 'map', open: false, compact: true });
+    CompactInspector.activateWorkspace('trade');
+    CompactInspector.registerRenderer('trade', function () { return true; });
+    expect(CompactInspector.getSnapshot().open).toBe(false);
   });
 });

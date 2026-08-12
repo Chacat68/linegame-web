@@ -56,6 +56,7 @@ export function createGameUiCoordinator(options) {
   var ShipUI = _dependency(ui, 'ShipUI', 'ship');
   var MapUI = _dependency(ui, 'MapUI', 'map');
   var Renderer = _dependency(ui, 'Renderer3D', 'renderer');
+  var ContextAdapters = _dependency(ui, 'ContextAdapters', 'contextAdapters');
   var Trade = _dependency(systems, 'Trade', 'trade');
   var Dispatch = _dependency(systems, 'Dispatch', 'dispatch');
 
@@ -116,6 +117,7 @@ export function createGameUiCoordinator(options) {
       _action(actions, 'market', 'onBlackMarketSell'),
       financeActions
     );
+    _call(ContextAdapters, 'connectMarket', [module]);
     _callAction(actions, 'market', 'onAfterRender', [module, state, mode]);
     return true;
   }
@@ -150,6 +152,7 @@ export function createGameUiCoordinator(options) {
       module.renderShop(state, _action(actions, 'fleet', 'onBuyShip'));
       rendered = true;
     }
+    _call(ContextAdapters, 'connectFleet', [module]);
     return rendered;
   }
 
@@ -203,6 +206,7 @@ export function createGameUiCoordinator(options) {
       AchievementUI.render(state);
       rendered = true;
     }
+    _call(ContextAdapters, 'connectArchive', [module]);
     return rendered;
   }
 

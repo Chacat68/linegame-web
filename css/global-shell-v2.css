@@ -69,6 +69,35 @@
   backdrop-filter: blur(18px) saturate(1.08);
 }
 
+#context-inspector.context-inspector:not([data-workspace-id="map"]) {
+  position: fixed;
+  z-index: calc(var(--ui-z-terminal) + 2);
+  /* #map-container is a transformed scene and therefore the fixed containing
+     block already starts below Header. Do not add header height twice. */
+  top: var(--ui-space-5);
+  bottom: calc(var(--ui-nav-height) + var(--ui-space-5) + var(--ui-safe-bottom));
+  max-height: none;
+}
+
+.workspace-context-toggle {
+  min-height: var(--ui-control-md);
+  padding: 0 var(--ui-space-3);
+  border: 1px solid var(--ui-line-default);
+  border-radius: var(--ui-radius-control);
+  color: var(--ui-accent);
+  background: rgba(108, 231, 255, 0.06);
+  font: inherit;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.workspace-context-toggle:hover,
+.workspace-context-toggle[aria-expanded="true"] {
+  border-color: var(--ui-accent);
+  color: var(--ui-text-primary);
+  background: rgba(108, 231, 255, 0.12);
+}
+
 #context-inspector[hidden] {
   display: none;
 }
@@ -143,9 +172,117 @@
   display: none;
 }
 
+.context-inspector-render-host > [hidden] {
+  display: none !important;
+}
+
 .context-inspector-render-host {
   min-width: 0;
   min-height: 0;
+}
+
+.context-workspace-view {
+  padding: var(--ui-space-4);
+}
+
+.workspace-context-card {
+  display: grid;
+  gap: var(--ui-space-4);
+}
+
+.workspace-context-hero {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--ui-space-3);
+}
+
+.workspace-context-hero > span {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border: 1px solid var(--ui-line-default);
+  border-radius: var(--ui-radius-card);
+  background: rgba(108, 231, 255, 0.07);
+  font-size: 24px;
+}
+
+.workspace-context-hero small,
+.workspace-context-metrics small {
+  display: block;
+  color: var(--ui-text-muted);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+}
+
+.workspace-context-hero h3 {
+  margin: 3px 0 0;
+  color: var(--ui-text-primary);
+  font-size: 17px;
+}
+
+.workspace-context-card > p {
+  margin: 0;
+  color: var(--ui-text-secondary);
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.workspace-context-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--ui-space-2);
+}
+
+.workspace-context-metrics > span {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--ui-line-subtle);
+  border-radius: var(--ui-radius-control);
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.workspace-context-metrics strong {
+  display: block;
+  margin-top: 4px;
+  overflow: hidden;
+  color: var(--ui-text-primary);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-context-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.workspace-context-tags span,
+.workspace-context-callout {
+  padding: 6px 8px;
+  border: 1px solid var(--ui-line-subtle);
+  border-radius: 999px;
+  color: var(--ui-text-secondary);
+  background: rgba(108, 231, 255, 0.05);
+  font-size: 9px;
+}
+
+.workspace-context-callout {
+  border-radius: var(--ui-radius-control);
+  line-height: 1.55;
+}
+
+@media (min-width: 901px) {
+  #map-container:has(> #context-inspector[data-workspace-id="trade"]:not([hidden])) > #market-overlay:not(.hidden) {
+    right: calc(var(--ui-context-width) + var(--ui-space-7)) !important;
+  }
+
+  body:has(#context-inspector[data-workspace-id="archive"]:not([hidden])) #info-panel,
+  body:has(#context-inspector[data-workspace-id="fleet"]:not([hidden])) #trade-panel {
+    padding-right: calc(var(--ui-context-width) + var(--ui-space-7)) !important;
+  }
 }
 
 .context-inspector-empty-mark {
@@ -278,6 +415,15 @@
     max-height: calc(100dvh - var(--ui-header-height) - var(--ui-nav-height) - 108px);
   }
 
+  #context-inspector.context-inspector:not([data-workspace-id="map"]) {
+    top: auto;
+    right: max(var(--ui-space-3), var(--ui-safe-right));
+    bottom: calc(var(--ui-nav-height) + var(--ui-space-5) + var(--ui-safe-bottom));
+    left: max(var(--ui-space-3), var(--ui-safe-left));
+    width: auto;
+    max-height: min(52dvh, 500px);
+  }
+
   #action-guide .action-guide-outcome {
     display: none;
   }
@@ -305,6 +451,10 @@
     width: auto;
     max-height: min(56dvh, calc(100dvh - var(--ui-header-height) - var(--ui-nav-height) - 190px));
     border-radius: 14px;
+  }
+
+  #context-inspector.context-inspector:not([data-workspace-id="map"]) {
+    max-height: min(54dvh, 460px);
   }
 
   #action-guide .action-guide-shell {

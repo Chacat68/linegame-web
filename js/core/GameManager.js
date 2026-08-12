@@ -57,6 +57,7 @@ import { createStateSession } from './StateSession.js';
 import { createGameSystemRuntime } from './GameSystemRuntime.js';
 import { createGameClockController } from './GameClockController.js';
 import { createGameUiCoordinator } from '../ui/GameUiCoordinator.js';
+import { createWorkspaceContextAdapters } from '../ui/WorkspaceContextAdapters.js';
 import { hasBlockingSurfaceOpen, hideBlockingSurface, showBlockingSurface } from '../ui/SurfaceManager.js';
 
 const _session = createStateSession();
@@ -113,6 +114,7 @@ let _deferredFeaturesConfigured = false;
 let _uiCoordinator = null;
 let _systemRuntime = null;
 let _gameClock = null;
+let _contextAdapters = null;
 
 function _replaceState(nextState, reason) {
   _session.replace(nextState, { reason: reason });
@@ -842,6 +844,12 @@ function _getGameClock() {
 function _getUiCoordinator() {
   if (_uiCoordinator) return _uiCoordinator;
   _configureDeferredFeatures();
+  if (!_contextAdapters) {
+    _contextAdapters = createWorkspaceContextAdapters({
+      inspector: ContextInspector,
+      getRevision: function () { return _session.getRevision(); },
+    });
+  }
   _uiCoordinator = createGameUiCoordinator({
     getState: function () { return _state; },
     features: _deferredFeatures,
@@ -850,6 +858,7 @@ function _getUiCoordinator() {
       ShipUI: ShipUI,
       MapUI: MapUI,
       Renderer3D: Renderer3D,
+      ContextAdapters: _contextAdapters,
     },
     systems: {
       Trade: Trade,
@@ -1079,7 +1088,7 @@ export function init(difficulty, options) {
         MarketUI.setFocusedMarketGood(sysId, bmMode, pendingMarketFocus.goodId);
       }
       MarketUI.showDetail(sysId, bmMode);
-      MarketUI.render(_state, _handleOpenBuy, _handleOpenSell, _handleRefuel, sysId, bmMode, MapUI.getMarketViewGalaxy(_state), _handleBlackMarketBuy, _handleBlackMarketSell, _getMarketFinanceActions());
+      _getUiCoordinator().renderMarket(MarketUI, _state);
       if (pendingMarketFocus) {
         MarketUI.setMarketWorkspaceFocus(pendingMarketFocus);
       }

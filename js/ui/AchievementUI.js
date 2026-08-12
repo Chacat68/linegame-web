@@ -3,6 +3,7 @@
 // 导出：render
 
 import * as Achievement from '../systems/achievement/AchievementSystem.js';
+import * as ContextInspector from './ContextInspector.js';
 
 function _escapeHtml(value) {
   return String(value == null ? '' : value)
@@ -31,6 +32,26 @@ const CATEGORY_META = {
   specialist: { label: '专精', code: 'SPC' },
   special: { label: '特殊', code: 'SPL' },
 };
+
+export function renderContextInspector(request) {
+  var context = request && request.context;
+  var state = request && request.state;
+  var container = request && request.container;
+  if (!context || context.type !== 'achievement' || !state || !container) return false;
+  var achievement = Achievement.getAll(state).find(function (entry) { return entry.id === context.id; });
+  if (!achievement) return false;
+  var category = _getCategoryMeta(achievement.category);
+  container.innerHTML =
+    '<article class="workspace-context-card workspace-context-card--achievement">' +
+      '<div class="workspace-context-hero"><span aria-hidden="true">' + _escapeHtml(achievement.icon) + '</span><div><small>' + _escapeHtml(category.label) + '</small><h3>' + _escapeHtml(achievement.name) + '</h3></div></div>' +
+      '<p>' + _escapeHtml(achievement.description) + '</p>' +
+      '<div class="workspace-context-metrics" role="list">' +
+        '<span role="listitem"><small>状态</small><strong>' + (achievement.unlocked ? '已解锁' : '待完成') + '</strong></span>' +
+        '<span role="listitem"><small>奖励</small><strong>' + _escapeHtml(_formatReward(achievement.reward)) + '</strong></span>' +
+      '</div>' +
+    '</article>';
+  return { title: '成就检查' };
+}
 
 const CATEGORY_ORDER = ['trade', 'wealth', 'explore', 'tech', 'faction', 'level', 'quest', 'fleet', 'specialist', 'special'];
 
@@ -211,7 +232,7 @@ export function render(state) {
 
     achs.forEach(function (ach) {
       const stateLabel = ach.unlocked ? '已解锁' : '待完成';
-      html += '<article class="ach-card ' + (ach.unlocked ? 'ach-unlocked' : 'ach-locked') + '" role="listitem" data-achievement-state="' + (ach.unlocked ? 'unlocked' : 'locked') + '" aria-label="' + _escapeHtmlAttr(ach.name + '，' + stateLabel) + '">' +
+      html += '<article class="ach-card ' + (ach.unlocked ? 'ach-unlocked' : 'ach-locked') + '" role="listitem" tabindex="0" data-achievement-id="' + _escapeHtmlAttr(ach.id) + '" data-achievement-state="' + (ach.unlocked ? 'unlocked' : 'locked') + '" aria-label="' + _escapeHtmlAttr(ach.name + '，' + stateLabel) + '">' +
           '<span class="ach-icon" aria-hidden="true">' + _escapeHtml(ach.icon) + '</span>' +
           '<div class="ach-info">' +
             '<div class="ach-name">' + _escapeHtml(ach.name) + '</div>' +
@@ -226,4 +247,19 @@ export function render(state) {
   });
 
   container.innerHTML = html;
+  container.querySelectorAll('.ach-card[data-achievement-id]').forEach(function (card) {
+    function inspect(event) {
+      if (event && event.type === 'keydown' && event.key !== 'Enter' && event.key !== ' ') return;
+      if (event && event.type === 'keydown') event.preventDefault();
+      ContextInspector.replaceContext({
+        type: 'achievement',
+        id: card.dataset.achievementId,
+        workspaceId: 'archive',
+        source: 'archive-achievement-card',
+        revision: ContextInspector.getCurrentRevision(),
+      });
+    }
+    card.addEventListener('click', inspect);
+    card.addEventListener('keydown', inspect);
+  });
 }

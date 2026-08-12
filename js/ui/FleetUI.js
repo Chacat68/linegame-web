@@ -22,6 +22,43 @@ let _activeModModalContext = null;
 let _activeDispatchModalContext = null;
 let _inspectedHangarShipIndex = null;
 
+export function getInspectedShipIndex() {
+  return Number.isInteger(_inspectedHangarShipIndex) ? _inspectedHangarShipIndex : null;
+}
+
+export function renderContextInspector(request) {
+  var context = request && request.context;
+  var state = request && request.state;
+  var container = request && request.container;
+  var shipIndex = context ? Number(context.id) : NaN;
+  var ship = state && Number.isInteger(shipIndex) ? (state.fleet || [])[shipIndex] : null;
+  if (!context || context.type !== 'ship' || !ship || !container) return false;
+
+  var shipType = Fleet.getShipType(ship.typeId) || {};
+  var stats = Fleet.getEffectiveShipStats(state, ship);
+  var maintenance = stats.maintenance || Fleet.getShipMaintenanceSummary(state, ship);
+  var role = stats.roleProfile || Fleet.getShipRoleProfile(state, ship);
+  var operating = Fleet.getShipOperatingSummary(state, ship);
+  var cargoUsed = _getCargoUsed(ship.cargo);
+  var maxCargo = Math.max(1, stats.maxCargo || ship.maxCargo || 1);
+  var maxFuel = Math.max(1, stats.maxFuel || ship.maxFuel || 1);
+  var maxHull = Math.max(1, stats.maxHull || ship.maxHull || 1);
+
+  container.innerHTML =
+    '<article class="workspace-context-card workspace-context-card--ship">' +
+      '<div class="workspace-context-hero"><span aria-hidden="true">' + _escapeHtml(shipType.icon || '🚀') + '</span><div><small>' + _escapeHtml(role.label || '舰队成员') + '</small><h3>' + _escapeHtml(ship.name || shipType.name || ('舰船 ' + (shipIndex + 1))) + '</h3></div></div>' +
+      '<p>' + _escapeHtml(role.summary || shipType.description || '公司舰队成员。') + '</p>' +
+      '<div class="workspace-context-metrics" role="list">' +
+        '<span role="listitem"><small>船体</small><strong>' + Math.round(Number(ship.hull) || 0) + '/' + maxHull + '</strong></span>' +
+        '<span role="listitem"><small>燃料</small><strong>' + Math.round(Number(ship.fuel) || 0) + '/' + maxFuel + '</strong></span>' +
+        '<span role="listitem"><small>货舱</small><strong>' + cargoUsed + '/' + maxCargo + '</strong></span>' +
+        '<span role="listitem"><small>维护</small><strong>' + Math.round(maintenance.value || 0) + '%</strong></span>' +
+      '</div>' +
+      '<div class="workspace-context-tags"><span>' + (shipIndex === (state.activeShipIndex || 0) ? '当前操控舰' : '舰队成员') + '</span><span>' + (ship.route ? '自动跑商中' : '停靠') + '</span><span>累计净额 ' + Math.round(operating.net || 0).toLocaleString() + '</span></div>' +
+    '</article>';
+  return { title: '舰船检查' };
+}
+
 // 全局监听重置事件（用于视图切换时自动归还节点）
 EventBus.on('hangar:reset', function() {
   if (_currentPortalCleanup) {
@@ -397,6 +434,15 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
   const inspectedIdx = hasInspectedShip ? _inspectedHangarShipIndex : activeIdx;
   const inspectedShip = fleet[inspectedIdx] || null;
   _inspectedHangarShipIndex = inspectedShip ? inspectedIdx : null;
+  if (inspectedShip) {
+    ContextInspector.replaceContext({
+      type: 'ship',
+      id: String(inspectedIdx),
+      workspaceId: 'fleet',
+      source: 'hangar-selection',
+      revision: ContextInspector.getCurrentRevision(),
+    }, { render: false });
+  }
   const flashIndex = state.lastSwitchedShipIndex;
   const flashAt = state.lastShipSwitchAt || 0;
   const canFlash = Date.now() - flashAt < 1200;

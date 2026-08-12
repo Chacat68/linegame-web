@@ -301,9 +301,47 @@ describe('Archive terminal UI', function () {
     expect(status.innerHTML).toContain('候选预算');
     expect(options.innerHTML).toContain('research-option-console');
     expect(options.innerHTML).toContain('class="research-cards" role="list" aria-label="可研究科技"');
-    expect(options.innerHTML).toContain('role="listitem" data-tech=');
+    expect(options.innerHTML).toContain('role="listitem" tabindex="0" data-tech=');
     expect(options.innerHTML).toContain('type="button" class="btn-research"');
     expect(completed.innerHTML).toContain('research-completed-console');
     expect(completed.innerHTML).toContain('class="completed-techs" role="list"');
+  });
+
+  it('五类档案对象都能向 Inspector presenter 投影最新状态', function () {
+    var state = createTestState({
+      credits: 50000,
+      achievements: ACHIEVEMENTS[0] ? [ACHIEVEMENTS[0].id] : [],
+      factionRelations: { federation: 42, syndicate: 0, technocracy: 0 },
+      researchedTechs: ['reinforced_hull'],
+      visitedSystems: ['sol_prime'],
+    });
+    Quest.init(state);
+    Research.init(state);
+    Faction.init(state);
+    GalaxyData.init(state);
+    expect(Quest.acceptQuest(state, 'starter_first_trade').ok).toBe(true);
+    var resourcePoi = GalaxyData.getPlanetData('sol_prime').exploration.pois.find(function (poi) {
+      return poi.kind === 'resource_cache';
+    });
+    expect(Exploration.explorePoi(state, 'sol_prime', resourcePoi.id).ok).toBe(true);
+    var report = Exploration.getSurveySummary(state, 'sol_prime').reports[0];
+
+    var questHost = createHtmlContainer();
+    var researchHost = createHtmlContainer();
+    var factionHost = createHtmlContainer();
+    var achievementHost = createHtmlContainer();
+    var reportHost = createHtmlContainer();
+
+    expect(QuestUI.renderContextInspector({ context: { type: 'quest', id: 'starter_first_trade' }, state: state, container: questHost })).toEqual({ title: '任务检查' });
+    expect(ResearchUI.renderContextInspector({ context: { type: 'technology', id: 'reinforced_hull' }, state: state, container: researchHost })).toEqual({ title: '科技检查' });
+    expect(FactionUI.renderContextInspector({ context: { type: 'faction', id: 'federation' }, state: state, container: factionHost })).toEqual({ title: '派系检查' });
+    expect(AchievementUI.renderContextInspector({ context: { type: 'achievement', id: ACHIEVEMENTS[0].id }, state: state, container: achievementHost })).toEqual({ title: '成就检查' });
+    expect(ArchiveExplorationUI.renderContextInspector({ context: { type: 'report', id: report.id }, state: state, container: reportHost })).toEqual({ title: '报告检查' });
+
+    expect(questHost.innerHTML).toContain('进行中');
+    expect(researchHost.innerHTML).toContain('已完成');
+    expect(factionHost.innerHTML).toContain('友好');
+    expect(achievementHost.innerHTML).toContain('已解锁');
+    expect(reportHost.innerHTML).toContain(report.title);
   });
 });

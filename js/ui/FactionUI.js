@@ -10,6 +10,7 @@ import {
   getMarketFocusCtaLabel,
 } from './MarketFocus.js';
 import { getCommandActionAttributes, renderCommandActionContent } from './CommandAction.js';
+import * as ContextInspector from './ContextInspector.js';
 
 function _escapeHtml(value) {
   return String(value == null ? '' : value)
@@ -24,6 +25,30 @@ function _escapeHtmlAttr(value) {
   return String(value == null ? '' : value)
     .replace(/&/g, '&amp;')
     .replace(/"/g, '&quot;');
+}
+
+export function renderContextInspector(request) {
+  var context = request && request.context;
+  var state = request && request.state;
+  var container = request && request.container;
+  if (!context || context.type !== 'faction' || !state || !container) return false;
+  var faction = FACTIONS.find(function (entry) { return entry.id === context.id; });
+  if (!faction) return false;
+  var relation = Faction.getRelation(state, faction.id);
+  var level = Faction.getLevel(state, faction.id);
+  container.innerHTML =
+    '<article class="workspace-context-card workspace-context-card--faction">' +
+      '<div class="workspace-context-hero"><span aria-hidden="true">' + _escapeHtml(faction.icon) + '</span><div><small>' + _escapeHtml(faction.ideology) + '</small><h3>' + _escapeHtml(faction.name) + '</h3></div></div>' +
+      '<p>' + _escapeHtml(faction.description) + '</p>' +
+      '<div class="workspace-context-metrics" role="list">' +
+        '<span role="listitem"><small>关系</small><strong>' + _formatSigned(relation) + '</strong></span>' +
+        '<span role="listitem"><small>等级</small><strong>' + _escapeHtml(level.name) + '</strong></span>' +
+        '<span role="listitem"><small>税率</small><strong>' + _escapeHtml(_formatTaxMod(level.taxMod)) + '</strong></span>' +
+        '<span role="listitem"><small>控制</small><strong>' + (faction.controlledSystems || []).length + ' 地点</strong></span>' +
+      '</div>' +
+      '<div class="workspace-context-callout">' + _escapeHtml(faction.bonuses[level.id] || '提升关系以解锁派系奖励。') + '</div>' +
+    '</article>';
+  return { title: '派系检查' };
 }
 
 function _getRelationTone(rel) {
@@ -244,7 +269,7 @@ export function render(state, onOpenFactionMarket) {
     const marketAction = getFactionMarketAction(state, f);
 
     html +=
-      '<article class="faction-card faction-card--' + relationTone + '" role="listitem" data-faction-id="' + _escapeHtmlAttr(f.id) + '" data-faction-level="' + _escapeHtmlAttr(level.id) + '" style="border-left: 3px solid ' + _escapeHtmlAttr(f.color) + '" aria-label="' + _escapeHtmlAttr(f.name + '，关系 ' + _formatSigned(rel) + '，' + level.name) + '">' +
+      '<article class="faction-card faction-card--' + relationTone + '" role="listitem" tabindex="0" data-faction-id="' + _escapeHtmlAttr(f.id) + '" data-faction-level="' + _escapeHtmlAttr(level.id) + '" style="border-left: 3px solid ' + _escapeHtmlAttr(f.color) + '" aria-label="' + _escapeHtmlAttr(f.name + '，关系 ' + _formatSigned(rel) + '，' + level.name) + '">' +
         '<div class="faction-header">' +
           '<span class="faction-icon" style="color:' + _escapeHtmlAttr(f.color) + '" aria-hidden="true">' + _escapeHtml(f.icon) + '</span>' +
           '<div class="faction-info">' +
@@ -303,6 +328,22 @@ export function render(state, onOpenFactionMarket) {
   html += '</div>';
 
   container.innerHTML = html;
+
+  container.querySelectorAll('.faction-card[data-faction-id]').forEach(function (card) {
+    function inspect(event) {
+      if (event && event.type === 'keydown' && event.key !== 'Enter' && event.key !== ' ') return;
+      if (event && event.type === 'keydown') event.preventDefault();
+      ContextInspector.replaceContext({
+        type: 'faction',
+        id: card.dataset.factionId,
+        workspaceId: 'archive',
+        source: 'archive-faction-card',
+        revision: ContextInspector.getCurrentRevision(),
+      });
+    }
+    card.addEventListener('click', inspect);
+    card.addEventListener('keydown', inspect);
+  });
 
   if (typeof onOpenFactionMarket === 'function') {
     container.querySelectorAll('[data-faction-market="true"]').forEach(function (button) {

@@ -10,6 +10,7 @@ import { getCommandActionAttributes, normalizeCommandAction, renderCommandAction
 import * as AutoTrade  from '../systems/trade/AutoTradeSystem.js';
 import * as Quest      from '../systems/quest/QuestSystem.js';
 import * as ActionConfirmUI from './ActionConfirmUI.js';
+import * as ContextInspector from './ContextInspector.js';
 
 const _goodNameById = GOODS.reduce(function (acc, good) {
   acc[good.id] = good.name;
@@ -35,6 +36,51 @@ function _escapeHtml(value) {
 
 function _escapeHtmlAttr(value) {
   return _escapeHtml(value);
+}
+
+function _inspectQuest(questId, source) {
+  if (!questId) return;
+  ContextInspector.replaceContext({
+    type: 'quest',
+    id: String(questId),
+    workspaceId: 'archive',
+    source: source || 'archive-quest',
+    revision: ContextInspector.getCurrentRevision(),
+  });
+}
+
+export function renderContextInspector(request) {
+  var context = request && request.context;
+  var state = request && request.state;
+  var container = request && request.container;
+  if (!context || context.type !== 'quest' || !state || !container) return false;
+  var active = Quest.getActiveQuests(state);
+  var available = Quest.getAvailableQuests(state);
+  var locked = Quest.getLockedQuests(state);
+  var quest = active.concat(available, locked).find(function (entry) { return entry.id === context.id; });
+  if (!quest) return false;
+  var isActive = active.some(function (entry) { return entry.id === quest.id; });
+  var isAvailable = available.some(function (entry) { return entry.id === quest.id; });
+  var type = QUEST_TYPES[quest.type] || { icon: '📋', name: '任务' };
+  var reward = Quest.getQuestRewardSummary(state, quest);
+  var objectives = Array.isArray(quest.objectives) ? quest.objectives : [];
+  var completedObjectives = objectives.filter(function (objective) {
+    return Number(objective.current) >= Number(objective.amount || 1);
+  }).length;
+
+  container.innerHTML =
+    '<article class="workspace-context-card workspace-context-card--quest">' +
+      '<div class="workspace-context-hero"><span aria-hidden="true">' + _escapeHtml(type.icon) + '</span><div><small>' + _escapeHtml(type.name) + '</small><h3>' + _escapeHtml(quest.name) + '</h3></div></div>' +
+      '<p>' + _escapeHtml(quest.description || '暂无任务说明。') + '</p>' +
+      '<div class="workspace-context-metrics" role="list">' +
+        '<span role="listitem"><small>状态</small><strong>' + (isActive ? '进行中' : isAvailable ? '可接取' : '未解锁') + '</strong></span>' +
+        '<span role="listitem"><small>目标</small><strong>' + completedObjectives + '/' + objectives.length + '</strong></span>' +
+        '<span role="listitem"><small>积分</small><strong>' + Number(reward.credits || 0).toLocaleString() + '</strong></span>' +
+        '<span role="listitem"><small>经验</small><strong>' + Number(reward.exp || 0).toLocaleString() + '</strong></span>' +
+      '</div>' +
+      '<div class="workspace-context-tags"><span>声望 +' + Number(reward.reputation || 0).toLocaleString() + '</span><span>' + (quest.timeLimit > 0 ? ('限时 ' + quest.timeLimit + ' 天') : '不限时') + '</span></div>' +
+    '</article>';
+  return { title: '任务检查' };
 }
 
 // ---------------------------------------------------------------------------
@@ -883,7 +929,7 @@ export function render(state, onAccept, onAbandon, questDispatchContext, onApply
         ? recommendedActiveQuest.id === quest.id
         : active[0].id === quest.id;
 
-      html += '<article class="quest-card active-quest" role="listitem" data-quest-state="active" aria-label="' + _escapeHtmlAttr(quest.name + '，进行中') + '">' +
+      html += '<article class="quest-card active-quest" role="listitem" tabindex="0" data-quest-id="' + _escapeHtmlAttr(quest.id) + '" data-quest-state="active" aria-label="' + _escapeHtmlAttr(quest.name + '，进行中') + '">' +
         '<div class="quest-card-header">' +
           '<span class="quest-type-badge" style="background:' + (typeInfo.color || '#666') + '">' +
             _escapeHtml(typeInfo.icon || '📋') + ' ' + _escapeHtml(typeInfo.name || quest.type) + '</span>' +
@@ -968,7 +1014,7 @@ export function render(state, onAccept, onAbandon, questDispatchContext, onApply
     locked.forEach(function (quest) {
       const typeInfo = QUEST_TYPES[quest.type] || {};
       const rewardSummary = Quest.getQuestRewardSummary(state, quest);
-      html += '<article class="quest-card locked-quest" role="listitem" data-quest-state="locked" aria-label="' + _escapeHtmlAttr(quest.name + '，未解锁') + '">' +
+      html += '<article class="quest-card locked-quest" role="listitem" tabindex="0" data-quest-id="' + _escapeHtmlAttr(quest.id) + '" data-quest-state="locked" aria-label="' + _escapeHtmlAttr(quest.name + '，未解锁') + '">' +
         '<div class="quest-card-header">' +
           '<span class="quest-type-badge" style="background:' + (typeInfo.color || '#666') + '; opacity:0.6">' +
             (typeInfo.icon || '📋') + ' ' + (typeInfo.name || quest.type) + '</span>' +
@@ -1006,8 +1052,18 @@ export function render(state, onAccept, onAbandon, questDispatchContext, onApply
   container.querySelectorAll('[data-quest-select-id]').forEach(function (btn) {
     btn.addEventListener('click', function () {
       _selectedAvailableQuestId = btn.dataset.questSelectId;
+      _inspectQuest(_selectedAvailableQuestId, 'archive-quest-picker');
       render(state, onAccept, onAbandon, questDispatchContext, onApplyQuestDispatch, onResolveQuestBlocker);
     });
+  });
+  container.querySelectorAll('.quest-card[data-quest-id]').forEach(function (card) {
+    function inspect(event) {
+      if (event && event.type === 'keydown' && event.key !== 'Enter' && event.key !== ' ') return;
+      if (event && event.type === 'keydown') event.preventDefault();
+      _inspectQuest(card.dataset.questId, 'archive-quest-card');
+    }
+    card.addEventListener('click', inspect);
+    card.addEventListener('keydown', inspect);
   });
   container.querySelectorAll('.quest-accept-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {

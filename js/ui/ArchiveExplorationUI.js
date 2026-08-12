@@ -4,6 +4,7 @@
 
 import { SYSTEMS, findGalaxy } from '../data/systems.js';
 import * as Exploration from '../systems/galaxy/ExplorationSystem.js';
+import * as ContextInspector from './ContextInspector.js';
 
 let _pendingFocus = null;
 
@@ -102,7 +103,7 @@ function _buildArchiveEntries(state) {
 function _renderReportCard(report, systemId) {
   var reportId = report && report.id ? report.id : (systemId + '-report');
   var labels = _getReportSignalLabels(report);
-  return '<article class="archive-exploration-report-card" role="listitem" tabindex="0" data-archive-report-id="' + _escapeHtmlAttr(reportId) + '">' +
+  return '<article class="archive-exploration-report-card" role="listitem" tabindex="0" data-archive-report-id="' + _escapeHtmlAttr(reportId) + '" data-archive-report-system-id="' + _escapeHtmlAttr(systemId) + '">' +
     '<div class="archive-exploration-report-head">' +
       '<span class="archive-exploration-report-icon" aria-hidden="true">' + _escapeHtml(report.icon || '📘') + '</span>' +
       '<div>' +
@@ -116,6 +117,36 @@ function _renderReportCard(report, systemId) {
       labels.map(function (label) { return '<span>' + _escapeHtml(label) + '</span>'; }).join('') +
     '</div>' +
   '</article>';
+}
+
+function _findReport(state, reportId) {
+  for (var index = 0; index < SYSTEMS.length; index += 1) {
+    var system = SYSTEMS[index];
+    var summary = Exploration.getSurveySummary(state, system.id);
+    var report = summary && Array.isArray(summary.reports)
+      ? summary.reports.find(function (entry) { return entry.id === reportId; })
+      : null;
+    if (report) return { report: report, system: system, summary: summary };
+  }
+  return null;
+}
+
+export function renderContextInspector(request) {
+  var context = request && request.context;
+  var state = request && request.state;
+  var container = request && request.container;
+  if (!context || context.type !== 'report' || !state || !container) return false;
+  var match = _findReport(state, context.id);
+  if (!match) return false;
+  var report = match.report;
+  var labels = _getReportSignalLabels(report);
+  container.innerHTML =
+    '<article class="workspace-context-card workspace-context-card--report">' +
+      '<div class="workspace-context-hero"><span aria-hidden="true">' + _escapeHtml(report.icon || '📘') + '</span><div><small>' + _escapeHtml(match.system.name) + ' · 第 ' + Math.max(1, Number(report.day) || 1) + ' 天</small><h3>' + _escapeHtml(report.title || '探索报告') + '</h3></div></div>' +
+      '<p>' + _escapeHtml(report.detail || '暂无报告详情。') + '</p>' +
+      '<div class="workspace-context-tags">' + labels.map(function (label) { return '<span>' + _escapeHtml(label) + '</span>'; }).join('') + '</div>' +
+    '</article>';
+  return { title: '报告检查' };
 }
 
 function _renderChainRow(chain, systemId) {
@@ -246,4 +277,19 @@ export function render(state) {
           '<h4>还没有探索报告</h4>' +
           '<p>在星图选择当前航点并调查探索点，结论会自动写入档案。</p>' +
         '</section>');
+  container.querySelectorAll('[data-archive-report-id]').forEach(function (card) {
+    function inspect(event) {
+      if (event && event.type === 'keydown' && event.key !== 'Enter' && event.key !== ' ') return;
+      if (event && event.type === 'keydown') event.preventDefault();
+      ContextInspector.replaceContext({
+        type: 'report',
+        id: card.dataset.archiveReportId,
+        workspaceId: 'archive',
+        source: 'archive-report-card',
+        revision: ContextInspector.getCurrentRevision(),
+      });
+    }
+    card.addEventListener('click', inspect);
+    card.addEventListener('keydown', inspect);
+  });
 }
