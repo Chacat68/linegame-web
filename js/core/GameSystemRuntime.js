@@ -18,6 +18,7 @@ const RESTORE_ORDER = Object.freeze([
 ]);
 
 const CAPTURE_ORDER = Object.freeze(['fleet', 'economy', 'galaxyData']);
+const ADVANCE_ORDER = Object.freeze(['gameTime']);
 
 function _call(target, methodName, args) {
   if (!target || typeof target[methodName] !== 'function') return undefined;
@@ -35,6 +36,7 @@ export function createGameSystemRuntime(dependencies) {
   var hooks = deps.hooks || {};
   var lastRestore = null;
   var lastCapture = null;
+  var lastAdvance = null;
   var restoredRevision = null;
   var restoredState = null;
 
@@ -79,6 +81,9 @@ export function createGameSystemRuntime(dependencies) {
     },
     { id: 'deferredBusiness', restore: function (state) {
       if (typeof hooks.syncDeferredBusiness === 'function') hooks.syncDeferredBusiness(state);
+    } },
+    { id: 'gameTime', advance: function (state, options) {
+      return _call(systems.GameTime, 'advanceDays', [state, options.days]);
     } },
   ];
 
@@ -127,6 +132,31 @@ export function createGameSystemRuntime(dependencies) {
     return lastCapture;
   }
 
+  function advanceDays(state, days, options) {
+    if (!state || typeof state !== 'object') return null;
+    var totalDays = Math.max(0, Number.isFinite(days) ? Math.floor(days) : 0);
+    var advanceOptions = Object.assign({}, options || {}, { days: totalDays });
+    var trace = [];
+    var result = null;
+
+    ADVANCE_ORDER.forEach(function (id) {
+      var entry = manifest.find(function (item) { return item.id === id; });
+      if (!entry || typeof entry.advance !== 'function') return;
+      trace.push(id);
+      result = entry.advance(state, advanceOptions);
+    });
+
+    lastAdvance = Object.freeze({
+      state: state,
+      revision: _getRevision(advanceOptions),
+      days: totalDays,
+      reason: advanceOptions.reason || 'advance-days',
+      order: Object.freeze(trace),
+      result: result,
+    });
+    return result;
+  }
+
   function getDiagnostics() {
     return Object.freeze({
       restoreOrder: RESTORE_ORDER.slice(),
@@ -134,10 +164,17 @@ export function createGameSystemRuntime(dependencies) {
       restoredRevision: restoredRevision,
       lastRestore: lastRestore,
       lastCapture: lastCapture,
+      advanceOrder: ADVANCE_ORDER.slice(),
+      lastAdvance: lastAdvance,
     });
   }
 
-  return Object.freeze({ restore: restore, capture: capture, getDiagnostics: getDiagnostics });
+  return Object.freeze({
+    restore: restore,
+    capture: capture,
+    advanceDays: advanceDays,
+    getDiagnostics: getDiagnostics,
+  });
 }
 
-export { RESTORE_ORDER, CAPTURE_ORDER };
+export { RESTORE_ORDER, CAPTURE_ORDER, ADVANCE_ORDER };

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createGameSystemRuntime, RESTORE_ORDER } from '../js/core/GameSystemRuntime.js';
+import { ADVANCE_ORDER, createGameSystemRuntime, RESTORE_ORDER } from '../js/core/GameSystemRuntime.js';
 
 function system(name, order, methods) {
   var target = {};
@@ -87,5 +87,34 @@ describe('GameSystemRuntime', function () {
 
     runtime.restore(state, { sessionToken: { state: state, revision: 5 } });
     expect(calls.filter(function (call) { return call === 'fleet.init'; })).toHaveLength(2);
+  });
+
+  it('通过 runtime 唯一入口推进游戏日并记录 session 诊断', function () {
+    var calls = [];
+    var runtime = createGameSystemRuntime({
+      systems: {
+        GameTime: {
+          advanceDays: vi.fn(function (state, days) {
+            calls.push('time.advance:' + days);
+            state.day += days;
+            return { ok: true, msgs: [], questResults: [], meta: { days: days } };
+          }),
+        },
+      },
+    });
+    var state = { day: 3 };
+    var token = { state: state, revision: 7 };
+
+    var result = runtime.advanceDays(state, 2.8, { sessionToken: token, reason: 'clock' });
+
+    expect(result.meta.days).toBe(2);
+    expect(state.day).toBe(5);
+    expect(calls).toEqual(['time.advance:2']);
+    expect(runtime.getDiagnostics().lastAdvance).toMatchObject({
+      revision: 7,
+      days: 2,
+      reason: 'clock',
+      order: ADVANCE_ORDER,
+    });
   });
 });

@@ -61,6 +61,7 @@ import { createTravelActionController } from './TravelActionController.js';
 import { createExplorationOperationsController } from './ExplorationOperationsController.js';
 import { createEventActionController } from './EventActionController.js';
 import { createDispatchActionController } from './DispatchActionController.js';
+import { createGameDayController } from './GameDayController.js';
 import { createGameUiCoordinator } from '../ui/GameUiCoordinator.js';
 import { createWorkspaceContextAdapters } from '../ui/WorkspaceContextAdapters.js';
 import { hasBlockingSurfaceOpen, hideBlockingSurface, isBlockingSurfaceVisible, showBlockingSurface } from '../ui/SurfaceManager.js';
@@ -129,6 +130,7 @@ let _travelActions = null;
 let _explorationActions = null;
 let _eventActions = null;
 let _dispatchActions = null;
+let _gameDayActions = null;
 let _contextAdapters = null;
 
 function _replaceState(nextState, reason) {
@@ -815,6 +817,7 @@ function _getSystemRuntime() {
       BalanceMetrics: BalanceMetrics,
       MidgameTeachingChain: MidgameTeachingChain,
       GalaxyData: GalaxyData,
+      GameTime: GameTime,
     },
     hooks: {
       ensureAchievementState: _ensureAchievementState,
@@ -1101,6 +1104,25 @@ function _getDispatchActions() {
     render: _updateUI,
   });
   return _dispatchActions;
+}
+
+function _getGameDayActions() {
+  if (_gameDayActions) return _gameDayActions;
+  _gameDayActions = createGameDayController({
+    getState: function () { return _state; },
+    getSessionToken: _getSessionToken,
+    systems: {
+      Fleet: Fleet,
+      MidgameTeachingChain: MidgameTeachingChain,
+    },
+    runtime: { advanceDays: function () { return _getSystemRuntime().advanceDays.apply(null, arguments); } },
+    pipeline: _getActionPipeline(),
+    emitMessage: function (message) { EventBus.emit('log:message', message); },
+    queueQuestDialogueResult: _queueQuestDialogueResult,
+    captureState: _captureRuntimeStateForSave,
+    saveAutosave: function (state) { Save.saveGame(0, state, { isAutosave: true }); },
+  });
+  return _gameDayActions;
 }
 
 function _getUiCoordinator() {
@@ -2475,38 +2497,7 @@ function _isRealtimeClockPaused() {
 }
 
 function _applyRealtimeDayProgress(days, clockContext) {
-  var elapsedDays = Math.max(0, Number.isFinite(days) ? Math.floor(days) : 0);
-  if (elapsedDays <= 0) return;
-
-  var realtimeClock = clockContext && clockContext.clock;
-  var previousHull = realtimeClock && Number.isFinite(realtimeClock.lastHullSnapshot)
-    ? realtimeClock.lastHullSnapshot
-    : (_state.shipHull || 100);
-  var result = GameTime.advanceDays(_state, elapsedDays);
-  // 科研等全舰队永久加成在日结算中完成后，立即刷新当前飞船投影再存档。
-  Fleet.syncStateFromShip(_state);
-  var completedTeachingChains = MidgameTeachingChain.checkChainCompletion(_state);
-  completedTeachingChains.forEach(function (chainResult) {
-    EventBus.emit('log:message', { text: chainResult.message, type: 'upgrade' });
-  });
-
-  result.questResults.forEach(function (questResult) {
-    _queueQuestDialogueResult(questResult);
-  });
-
-  if ((_state.shipHull || 100) >= previousHull) {
-    _state.daysWithoutDamage = (_state.daysWithoutDamage || 0) + elapsedDays;
-  } else {
-    _state.daysWithoutDamage = 0;
-  }
-
-  if (realtimeClock) {
-    realtimeClock.lastHullSnapshot = _state.shipHull || 100;
-  }
-
-  _captureRuntimeStateForSave(_state);
-  Save.saveGame(0, _state, { isAutosave: true });
-  _dispatch(result);
+  return _getGameDayActions().advance(days, clockContext);
 }
 
 function _getRealtimeDayDurationMs() {
