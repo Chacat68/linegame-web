@@ -20,7 +20,7 @@
 
 ## 1. 执行结论
 
-目标不是把现有约 2,900 行的文件机械切成多个同样耦合的文件，而是建立七个有明确所有权的运行时对象：
+目标不是把重构前约 2,900 行的文件机械切成多个同样耦合的文件，而是建立七个有明确所有权的运行时对象：
 
 - `GameApplication`：组合根和应用生命周期。
 - `StateSession`：当前状态、替换、快照和 revision。
@@ -38,7 +38,7 @@
 
 | 对象 | 现状 | 风险含义 |
 | --- | ---: | --- |
-| `js/core/GameManager.js` | 约 2,900 行 | 已超出单文件可安全推理范围 |
+| `js/core/GameManager.js` | 重构前约 2,900 行；当前约 2,600 行 | 仍超出单文件可安全推理范围，但高风险动作已开始迁出 |
 | `GameManager` 静态 import | 41 个 | 组合、业务和 UI 依赖同时进入主模块 |
 | `GameManager` 顶层函数 | 152 个 | 大量私有用例和适配逻辑集中 |
 | `_handle*` / `_load*` / `_render*` / `_ensure*` 函数 | 76 个 | 动作、加载与视图边界混杂 |
@@ -644,8 +644,9 @@ Escape **不得切换 canonical workspace 或默认返回地图**，也不得关
 | `FleetActionController` | **已接入全部舰队 UI 动作** | 购船、切船、升级、派遣/召回、槽位、出售、改装、保养和船员动作统一编排；保持系统 mutation、飞行动画、dispatch、计时器、任务/教学进度与反馈顺序；每次动作读取最新 state provider | 将 active dispatch tick 与舰队日结算纳入同一 action pipeline；移除 GameManager 兼容转发函数 |
 | `CommerceOperationsController` | **已接入全部经营/金融 UI 动作** | 建站、升级、策略、批量商网、贷款、还款、投资和赎回统一编排；延迟 runtime 未就绪返回可重试结果；批量输入、任务/教学副作用和 latest-state provider 有测试 | 将经营模块并入 FeatureRegistry dependency graph；把 stock/futures/insurance 动作从 facade 回调继续收口 |
 | `ArchiveActionController` | **已接入科研/任务/派系档案动作** | 科研队列、推荐派遣、任务接取/放弃、科研/任务阻塞导航和派系市场跳转统一编排；任务对话完成后再推进教程的时序保持不变；latest-state provider 有测试 | 把任务进度结果与 dialogue runtime 迁入 QuestActionRuntime；补探索报告复核动作 |
-| `ActionExecutionPipeline` + `TradeActionController` | **贸易动作已接入** | 明确 mutation → post-effects → result messages → achievement/render/victory 顺序；公开/黑市、任务、经验声望、自动派遣成本/收入/循环统计与失败路径有测试；胜利与成就不再读取半更新交易 state | 将航行、事件选择、探索与日结算逐步迁入 pipeline；为异步 post-effects 增加 session token 提交门 |
+| `ActionExecutionPipeline` + `TradeActionController` | **贸易与补给动作已接入** | 明确 mutation → post-effects → result messages → achievement/render/victory 顺序；公开/黑市、补给、任务、经验声望、自动派遣成本/收入/循环统计与失败路径有测试；补给会同步回激活舰船 | 将日结算逐步迁入 pipeline；为异步 post-effects 增加 session token 提交门 |
 | `TravelActionController` | **航行动作已接入 pipeline** | 待处理事件/飞行中前置阻塞；磨损、动画、跨星系 UI、走私、访问记录、任务、经验声望、自动修复、随机事件和自动存档都在最终 render/achievement/victory 前完成；失败/查获/教程分支有测试 | 将随机事件调度改为 token-aware async post-effect；把星图 travel confirmation 纳入同一 command contract |
+| `ExplorationOperationsController` + `EventActionController` | **POI 探索与事件选择已接入 pipeline** | POI 的舰船状态与星图快照、事件效果与自动存档均在结果消息、渲染、成就和胜利检查前提交；无效选择、runtime 未就绪与失败路径有测试；真实 Command Slot/事件弹窗交互已验收 | 将随机事件 runtime 纳入 FeatureRegistry；为事件效果补事务快照/补偿边界 |
 | `GameUiCoordinator` | **首批已接入 `GameManager`** | provider、四项 Feature ensure/render、命名 action 分组、`renderAll` 兼容刷新 | 缩短位置参数；引入 dirty regions；逐步淘汰兼容刷新 |
 | `NavigationController` | **已接入 `UIManager`** | 五个 workspace、旧别名、唯一 active、幂等切换、独立 detail stack；Escape 只关闭 L4 详情不改变 L3 | 继续迁移旧 surface 直接开关与 focus 适配器 |
 | `SurfaceManager` | **唯一 Escape dispatcher 已接入** | blocking 层优先且不下穿；非阻塞层按优先级处理；隐藏 surface 同步 inert/aria-hidden | 将五个 L3 workspace 完全收口到同一 surface registry |
@@ -653,7 +654,7 @@ Escape **不得切换 canonical workspace 或默认返回地图**，也不得关
 
 当前仍存在的过渡边界：
 
-- `GameManager` 仍为约 2,900 行；StateSession、SystemRuntime、SessionLifecycle 与 GameClock 已成为真实调用路径，但动作编排仍未迁出，尚未达到薄组合根目标。
+- `GameManager` 当前约 2,600 行；StateSession、SystemRuntime、SessionLifecycle、GameClock、贸易/航行/探索/事件等动作控制器已成为真实调用路径，但 dispatch tick、日结算、对话与更多兼容转发仍未迁出，尚未达到薄组合根目标。
 - `GameUiCoordinator`、`NavigationController`、`SurfaceManager` 和 `ContextInspector` 已进入运行时调用链；非地图对象 adapter 和 Inspector focus 转移已接通，但 logs/message adapter 与增量刷新尚未收口，不能按“已完成 UI 重构”验收。
 - 多个延迟模块仍保留旧三元状态机。
 - `SurfaceManager` 已统一 blocking 层、inert 与 Escape dispatcher，但五个 L3 workspace 仍需淘汰旧 primary/secondary 适配分歧。

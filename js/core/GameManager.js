@@ -38,7 +38,6 @@ import { SYSTEMS } from '../data/systems.js';
 import { GOODS } from '../data/goods.js';
 import {
   getDispatchDraftCompletion,
-  getRefuelCompletion,
   getRemoteMarketFocusCompletion,
 } from './ActionGuideCompletion.js';
 import * as Settings from './SettingsCore.js';
@@ -59,6 +58,8 @@ import { createArchiveActionController } from './ArchiveActionController.js';
 import { createActionExecutionPipeline } from './ActionExecutionPipeline.js';
 import { createTradeActionController } from './TradeActionController.js';
 import { createTravelActionController } from './TravelActionController.js';
+import { createExplorationOperationsController } from './ExplorationOperationsController.js';
+import { createEventActionController } from './EventActionController.js';
 import { createGameUiCoordinator } from '../ui/GameUiCoordinator.js';
 import { createWorkspaceContextAdapters } from '../ui/WorkspaceContextAdapters.js';
 import { hasBlockingSurfaceOpen, hideBlockingSurface, showBlockingSurface } from '../ui/SurfaceManager.js';
@@ -124,6 +125,8 @@ let _archiveActions = null;
 let _actionPipeline = null;
 let _tradeActions = null;
 let _travelActions = null;
+let _explorationActions = null;
+let _eventActions = null;
 let _contextAdapters = null;
 
 function _replaceState(nextState, reason) {
@@ -997,6 +1000,7 @@ function _getTradeActions() {
       EventBus.emit('log:message', { text: message.text, type: message.type });
     },
     queueQuestDialogueResult: _queueQuestDialogueResult,
+    showCompletion: function (completion) { _showActionGuideCompletion(completion); },
   });
   return _tradeActions;
 }
@@ -1041,6 +1045,35 @@ function _getTravelActions() {
     eventBaseChance: EVENT_CONFIG.baseChance,
   });
   return _travelActions;
+}
+
+function _getExplorationActions() {
+  if (_explorationActions) return _explorationActions;
+  _explorationActions = createExplorationOperationsController({
+    getState: function () { return _state; },
+    systems: {
+      Exploration: Exploration,
+      Fleet: Fleet,
+      GalaxyData: GalaxyData,
+    },
+    pipeline: _getActionPipeline(),
+  });
+  return _explorationActions;
+}
+
+function _getEventActions() {
+  if (_eventActions) return _eventActions;
+  _eventActions = createEventActionController({
+    getState: function () { return _state; },
+    systems: { Fleet: Fleet },
+    pipeline: _getActionPipeline(),
+    getRuntime: function () { return _randomEventModule; },
+    emitMessage: function (message) { EventBus.emit('log:message', message); },
+    refreshActionGuide: _refreshActionGuide,
+    captureState: _captureRuntimeStateForSave,
+    saveAutosave: function (state) { Save.saveGame(0, state, { isAutosave: true }); },
+  });
+  return _eventActions;
 }
 
 function _getUiCoordinator() {
@@ -1964,23 +1997,11 @@ function _completeMidgameTeachingStep(chainId, stepId) {
 }
 
 function _getPoiStatus(systemId, poiId) {
-  var shipStats = Fleet.getEffectiveShipStats(_state, Fleet.getActiveShip(_state));
-  return Exploration.getPoiStatus(_state, systemId, poiId, {
-    poiRewardMultiplier: shipStats.poiRewardMultiplier,
-  });
+  return _getExplorationActions().getPoiStatus(systemId, poiId);
 }
 
 function _handleExplorePoi(systemId, poiId) {
-  Fleet.syncStateFromShip(_state);
-  var shipStats = Fleet.getEffectiveShipStats(_state, Fleet.getActiveShip(_state));
-  const result = Exploration.explorePoi(_state, systemId, poiId, {
-    poiRewardMultiplier: shipStats.poiRewardMultiplier,
-  });
-  if (result && result.ok) {
-    Fleet.commitActiveShipState(_state);
-    _state.galaxyStates = GalaxyData.getAllPlanetStates();
-  }
-  _dispatch(result);
+  return _getExplorationActions().explorePoi(systemId, poiId);
 }
 
 function _handleTravel(systemId) {
@@ -1988,27 +2009,7 @@ function _handleTravel(systemId) {
 }
 
 function _handleEventChoice(choiceIndex) {
-  if (!_randomEventModule) {
-    EventBus.emit('log:message', { text: '⚠️ 事件运行时尚未就绪，请重新打开事件。', type: 'error' });
-    _refreshActionGuide();
-    return;
-  }
-  const previousShipState = {
-    maxCargo: _state.maxCargo,
-    maxFuel: _state.maxFuel,
-    maxHull: _state.maxHull,
-    fuelEfficiency: _state.fuelEfficiency,
-    cargo: Object.assign({}, _state.cargo || {}),
-    cargoCost: Object.assign({}, _state.cargoCost || {}),
-  };
-  const result = _randomEventModule.resolveChoice(_state, choiceIndex);
-  if (result && result.resolved) {
-    Fleet.commitActiveShipState(_state, previousShipState);
-    _captureRuntimeStateForSave(_state);
-    Save.saveGame(0, _state, { isAutosave: true });
-  }
-  _dispatch(result);
-  _refreshActionGuide();
+  return _getEventActions().resolveChoice(choiceIndex);
 }
 
 /**
@@ -2033,11 +2034,7 @@ function _returnToStarmapAfterTrade() {
 }
 
 function _handleRefuel() {
-  var result = Trade.refuel(_state);
-  _dispatch(result);
-  if (result && result.ok) {
-    _showActionGuideCompletion(getRefuelCompletion());
-  }
+  return _getTradeActions().refuel();
 }
 
 function _handleOpenBuy(good) {
@@ -2393,8 +2390,7 @@ function _boundDispatchTick() {
       _updateUI();
       break;
     case 'travel_need_refuel': {
-      var refuelResult = Trade.refuel(_state);
-      _dispatch(refuelResult);
+      _getTradeActions().refuel({ showCompletion: false });
       if (_state.fuel < tickResult.payload.fuelCost) {
         EventBus.emit('log:message', { text: '📡 自动跑商的船只燃料不足，已召回。', type: 'error' });
         Fleet.cancelActiveDispatch(_state);
@@ -2406,8 +2402,7 @@ function _boundDispatchTick() {
       break;
     }
     case 'buy_need_refuel': {
-      var preBuyRefuelResult = Trade.refuel(_state);
-      _dispatch(preBuyRefuelResult);
+      _getTradeActions().refuel({ showCompletion: false });
       if (_state.fuel < tickResult.payload.fuelCost) {
         EventBus.emit('log:message', { text: '📡 自动跑商的船只补给后仍无法完成下一段航程，已召回。', type: 'error' });
         Fleet.cancelActiveDispatch(_state);

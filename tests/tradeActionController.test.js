@@ -32,6 +32,11 @@ function createHarness(options) {
       Trade: {
         buyGoodOnMarket: function () { trace.push('buy'); return result; },
         sellGoodOnMarket: function () { trace.push('sell'); return result; },
+        refuel: function (nextState) {
+          trace.push('refuel');
+          nextState.fuel = 100;
+          return result;
+        },
       },
       Economy: {
         recordBlackMarketTrade: function () { trace.push('black-record'); },
@@ -64,6 +69,7 @@ function createHarness(options) {
     emitAudio: function (cue) { trace.push('audio:' + cue); },
     emitMessage: function (message) { trace.push('side-message:' + message.text); },
     queueQuestDialogueResult: function () { trace.push('quest-dialogue'); },
+    showCompletion: function (completion) { trace.push('completion:' + completion.message); },
   });
   return { controller: controller, trace: trace, state: state, ship: ship, result: result };
 }
@@ -124,5 +130,26 @@ describe('TradeActionController', function () {
       'get-state', 'sync-state', 'buy', 'result-message:no', 'error-cue', 'achievement:0', 'render:0',
     ]);
     expect(harness.state.tradeCount).toBe(0);
+  });
+
+  it('燃料补给同步当前舰船，并在 pipeline 提交后显示完成态', function () {
+    var harness = createHarness();
+
+    harness.controller.refuel();
+
+    expect(harness.state.fuel).toBe(100);
+    expect(harness.trace).toEqual([
+      'get-state', 'sync-state', 'refuel', 'commit-ship',
+      'result-message:trade result', 'achievement:0', 'render:0', 'victory:0',
+      'completion:已完成燃料补给',
+    ]);
+  });
+
+  it('自动派遣补给可关闭 Command Slot 完成反馈', function () {
+    var harness = createHarness();
+
+    harness.controller.refuel({ showCompletion: false });
+
+    expect(harness.trace).not.toContain('completion:已完成燃料补给');
   });
 });

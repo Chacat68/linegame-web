@@ -1,4 +1,6 @@
-// js/core/TradeActionController.js — 公开市场与黑市交易动作编排
+// js/core/TradeActionController.js — 公开市场、黑市与燃料补给动作编排
+
+import { getRefuelCompletion } from './ActionGuideCompletion.js';
 
 function _noop() {}
 
@@ -36,6 +38,7 @@ export function createTradeActionController(dependencies) {
   var queueQuestDialogueResult = typeof deps.queueQuestDialogueResult === 'function'
     ? deps.queueQuestDialogueResult
     : _noop;
+  var showCompletion = typeof deps.showCompletion === 'function' ? deps.showCompletion : _noop;
 
   function _state() {
     var state = getState();
@@ -121,5 +124,20 @@ export function createTradeActionController(dependencies) {
     });
   }
 
-  return Object.freeze({ confirm: confirm });
+  function refuel(options) {
+    var state = _state();
+    var refuelOptions = options || {};
+    Fleet.syncStateFromShip(state);
+    var result = execute({
+      label: 'trade.refuel',
+      mutate: function () { return Trade.refuel(state); },
+      postEffects: function () { Fleet.commitActiveShipState(state); },
+    });
+    if (result && result.ok && refuelOptions.showCompletion !== false) {
+      showCompletion(getRefuelCompletion());
+    }
+    return result;
+  }
+
+  return Object.freeze({ confirm: confirm, refuel: refuel });
 }
