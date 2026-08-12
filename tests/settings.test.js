@@ -26,6 +26,7 @@ describe('Settings.loadSettings', function () {
     expect(settings.realtimeDayDurationMs).toBe(TIME_CONFIG.realtimeDayDurationMs);
     expect(settings.soundEffectsEnabled).toBe(true);
     expect(settings.soundEffectsVolume).toBe(0.35);
+    expect(settings).not.toHaveProperty('usageDataConsent');
   });
 
   it('保留合法的时间流速设置', function () {
@@ -38,6 +39,17 @@ describe('Settings.loadSettings', function () {
 
     const settings = Settings.loadSettings();
     expect(settings.realtimeDayDurationMs).toBe(30000);
+  });
+
+  it('保存设置时清理旧版无效的数据同意字段', function () {
+    Settings.saveSettings({
+      motionLevel: 'full',
+      usageDataConsent: true,
+    });
+
+    var stored = JSON.parse(globalThis.localStorage.getItem('linegame_settings'));
+    expect(stored).not.toHaveProperty('usageDataConsent');
+    expect(Settings.loadSettings()).not.toHaveProperty('usageDataConsent');
   });
 
   it('将非法的时间流速回退到默认值', function () {
@@ -81,6 +93,20 @@ describe('settings modal fallback contract', function () {
     expect(source).toContain("settingsBtn.dataset.settingsBound === 'true'");
     expect(source).toContain("settingsBtn.dataset.settingsLoaderBound === 'true'");
     expect(source).toContain("focusSelector: '[data-settings-panel-target][aria-selected=\"true\"]'");
+    expect(source).toContain("buildUsageDataExport(null)");
+    expect(source).not.toContain('usageDataConsent');
+  });
+
+  it('正式与降级入口共用导出契约，数据面板不再展示同意开关', function () {
+    const settingsSource = readFileSync(new URL('../js/core/SettingsManager.js', import.meta.url), 'utf8');
+    const mainSource = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+    const htmlSource = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+
+    expect(settingsSource).toContain('buildUsageDataExport(state)');
+    expect(mainSource).toContain('buildUsageDataExport(null)');
+    expect(htmlSource).toContain('随存档仅保存在本设备，不会自动上传');
+    expect(htmlSource).toContain('是否分享由你决定');
+    expect(htmlSource).not.toContain('settings-usage-data-consent');
   });
 });
 

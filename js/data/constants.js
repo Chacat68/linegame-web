@@ -2,6 +2,7 @@
 // 依赖：无
 // 导出：INITIAL_STATE, DIFFICULTY_LEVELS, SAVE_STATE_SCHEMA,
 //       SAVE_SCHEMA_VERSION, GAME_VERSION, SAVE_META_SCHEMA,
+//       MIDGAME_CHAIN_STATE_DEFAULTS,
 //       PERSISTED_STATE_DEFAULTS, RUNTIME_ONLY_FIELDS,
 //       createInitialState, createPersistedState, createSaveMeta
 //
@@ -238,8 +239,43 @@ export const TIME_CONFIG = {
   availableRealtimeDayDurationsMs: [30 * 1000, 60 * 1000, 180 * 1000],
 };
 
-export const SAVE_SCHEMA_VERSION = 16;
+export const SAVE_SCHEMA_VERSION = 17;
 export const GAME_VERSION = '0.6.4';
+
+/**
+ * 中期专题教学链的持久化默认态。
+ * 链 ID 属于存档契约；重命名或删除时必须递增 SAVE_SCHEMA_VERSION 并迁移旧值。
+ */
+export const MIDGAME_CHAIN_STATE_DEFAULTS = {
+  'research-supply': {
+    active: false,
+    completed: false,
+    completedSteps: [],
+    startedDay: null,
+    baselineValue: null,
+  },
+  'dispatch-ops': {
+    active: false,
+    completed: false,
+    completedSteps: [],
+    startedDay: null,
+    baselineValue: null,
+  },
+  'trade-station-basics': {
+    active: false,
+    completed: false,
+    completedSteps: [],
+    startedDay: null,
+    baselineValue: null,
+  },
+  'capital-risk': {
+    active: false,
+    completed: false,
+    completedSteps: [],
+    startedDay: null,
+    baselineValue: null,
+  },
+};
 
 /**
  * SaveEnvelope.meta 契约
@@ -336,7 +372,6 @@ export const SAVE_STATE_SCHEMA = {
   // ---- v6 新增 ----
   _eventCooldowns:    { type: 'object',  default: {},                 since: 6, desc: '随机事件冷却状态' },
   _eventHistory:      { type: 'array',   default: [],                 since: 6, desc: '随机事件历史记录' },
-  _activeEventId:     { type: 'string',  default: '',                 since: 16, desc: '尚未处置的随机事件 ID' },
   // ---- v7 新增 ----
   tradeStations:      { type: 'object',  default: {},                 since: 7, desc: '已建设贸易站 {systemId: stationState}' },
   // ---- v8 新增 ----
@@ -377,6 +412,10 @@ export const SAVE_STATE_SCHEMA = {
     },
     routes: {},
   }, since: 15, desc: '仅保存在本地的设计验收统计（首单、商品利润与长期路线时长）' },
+  // ---- v16 新增 ----
+  _activeEventId:          { type: 'string',  default: '',                 since: 16, desc: '尚未处置的随机事件 ID' },
+  // ---- v17 新增 ----
+  midgameChains:           { type: 'object',  default: MIDGAME_CHAIN_STATE_DEFAULTS, since: 17, desc: '中期专题教学链进度' },
 };
 
 /**

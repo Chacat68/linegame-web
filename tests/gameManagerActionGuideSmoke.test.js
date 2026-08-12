@@ -4,6 +4,7 @@ import * as Faction from '../js/systems/faction/FactionSystem.js';
 import * as Fleet from '../js/systems/fleet/FleetSystem.js';
 import * as GalaxyData from '../js/systems/galaxy/GalaxyDataLayer.js';
 import * as Guidance from '../js/systems/guidance/GuidanceSystem.js';
+import * as MidgameTeachingChain from '../js/systems/guidance/MidgameTeachingChain.js';
 import * as Quest from '../js/systems/quest/QuestSystem.js';
 import * as Research from '../js/systems/research/ResearchSystem.js';
 import * as Tutorial from '../js/systems/tutorial/TutorialSystem.js';
@@ -435,4 +436,60 @@ describe('GameManager action guide smoke', function () {
     dom.backButton.onclick({ preventDefault: function () {} });
     expect(FleetUI.getActiveDispatchModalContext()).toBe(null);
   });
+
+  it('点击专题步骤不会完成，只有真实派遣确认才推进教学链', async function () {
+    var dom = createActionGuideSmokeDom();
+    globalThis.document = dom.document;
+    globalThis.__linegameUIManager = {
+      switchView: function () {},
+      setBottomNavActiveDirectly: function () {},
+    };
+    gameManager = await import('../js/core/GameManager.js');
+
+    var state = createTestState({
+      completedQuests: ['starter_first_trade', 'starter_visit_2'],
+      credits: 50000,
+      playerLevel: 5,
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+    });
+    Economy.init();
+    Fleet.init(state);
+    Faction.init(state);
+    Research.init(state);
+    Quest.init(state);
+    MidgameTeachingChain.init(state);
+    expect(MidgameTeachingChain.startChain(state, 'dispatch-ops')).toBe(true);
+    gameManager._setStateForTest(state);
+
+    var recommendation = {
+      buySystemId: 'sol_prime',
+      buySystemName: '太阳主星',
+      sellSystemId: 'alpha_centauri',
+      sellSystemName: '半人马港',
+      goodId: 'food',
+      goodName: '食物',
+      recommendedTradePolicy: { riskMode: 'balanced', marketMode: 'open' },
+    };
+    await gameManager._handleActionGuideActionForTest({
+      id: 'prefill-profitable-dispatch',
+      actionType: 'fleet.dispatch.prefill',
+      payload: { recommendation: recommendation },
+    });
+
+    expect(state.midgameChains['dispatch-ops'].completedSteps).toEqual([]);
+
+    var result = gameManager._handleAssignRouteForTest(
+      0,
+      recommendation.buySystemId,
+      'nova_station',
+      recommendation.goodId,
+      { riskMode: 'balanced', marketMode: 'open' }
+    );
+
+    expect(result.ok).toBe(true);
+    expect(state.midgameChains['dispatch-ops'].completedSteps).toEqual(['prefill-profitable-dispatch']);
+    expect(state.midgameChains['dispatch-ops'].completed).toBe(false);
+    gameManager._stopActiveDispatchForTest();
+  }, 10000);
 });

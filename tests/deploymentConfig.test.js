@@ -11,7 +11,10 @@ describe('production deployment configuration', function () {
     const wranglerToml = readFileSync(new URL('../wrangler.toml', import.meta.url), 'utf8');
 
     expect(workflow).toContain('run: npm ci');
+    expect(workflow).toContain('run: npm test');
     expect(workflow).toContain('run: npm run build');
+    expect(workflow.indexOf('run: npm test')).toBeLessThan(workflow.indexOf('run: npm run build'));
+    expect(workflow).toContain("if: ${{ steps.deploy_credentials.outputs.enabled == 'true' }}");
     expect(workflow).toContain('command: pages deploy dist ');
     expect(workflow).not.toContain('command: pages deploy . ');
     expect(wranglerJson).toContain('"command": "npm run build"');

@@ -1,5 +1,7 @@
 # 3D Galaxy Visualization System - Implementation Summary
 
+> Archived implementation note: this document describes the retired Babylon.js / `Renderer3DAdvanced.js` approach. The current runtime goes through `js/ui/StarmapRenderer.js` to `RendererThreeStarmap.js`, with `Renderer2DStarmap.js` as the fallback.
+
 ## Overview
 
 This implementation delivers a comprehensive 3D galaxy visualization system based on the technical specifications provided. The system uses Babylon.js for WebGL rendering and implements advanced techniques for high-performance visualization of hundreds of planets.

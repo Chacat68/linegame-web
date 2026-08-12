@@ -18,6 +18,7 @@ export function getProcessingMessage(suggestion) {
   if (suggestion.actionType === 'travel.execute') return '已执行航行指令，抵达后刷新建议';
   if (suggestion.actionType === 'trade.refuel') return '已执行燃料补给，正在刷新下一步';
   if (suggestion.actionType === 'event.open') return '已打开待处理事件，完成后继续刷新建议';
+  if (suggestion.actionType === 'guidance.chain.start') return '正在启动专题教学并生成第一步';
   if (suggestion.actionType === 'fleet.dispatch.prefill') return '已载入跑商路线，确认后开始';
   if (suggestion.actionType === 'fleet.mod.open') return '已切到机库，查看推荐改装';
   if (suggestion.actionType === 'fleet.service.open') return '已切到机库，正在定位即时保养';

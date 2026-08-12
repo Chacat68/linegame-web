@@ -69,7 +69,10 @@ export function loadSettings() {
 }
 
 export function saveSettings(settings) {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  var normalizedSettings = Object.assign({}, settings || {});
+  // 旧版曾写入一个不控制本地统计的同意开关；保存时移除该遗留字段。
+  delete normalizedSettings.usageDataConsent;
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(normalizedSettings));
 }
 
 export function applySettings(settings, Renderer) {

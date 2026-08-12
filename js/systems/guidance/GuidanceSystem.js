@@ -3,6 +3,7 @@ import { SYSTEMS, findSystem, getAccessibleSystems } from '../../data/systems.js
 import * as Economy from '../economy/Economy.js';
 import * as Quest from '../quest/QuestSystem.js';
 import { decorateGuidanceFlow } from './GuidanceFlow.js';
+import * as MidgameTeachingChain from './MidgameTeachingChain.js';
 
 const FIRST_TRADE_QUEST_ID = 'starter_first_trade';
 const FIRST_EXPLORE_QUEST_ID = 'starter_visit_2';
@@ -32,6 +33,7 @@ export const GUIDANCE_TOPICS = {
   tradeNetwork: { id: 'trade-network', label: '贸易站发展', stageLabel: '进阶' },
   capitalRisk: { id: 'capital-risk', label: '贷款管理', stageLabel: '进阶' },
   companyGrowth: { id: 'company-growth', label: '公司成长', stageLabel: '长期目标' },
+  midgameChain: { id: 'midgame-chain', label: '专题教学', stageLabel: '进阶' },
 };
 const BLOCKING_SUGGESTION_IDS = new Set([
   'handle-pending-event',
@@ -434,6 +436,8 @@ function _inferGuidanceTopic(suggestion) {
 
   if (id === 'review-loan-obligation') return _getTopic('capitalRisk', '贷款复核');
 
+  if (id.indexOf('start-midgame-chain:') === 0) return _getTopic('midgameChain', '选择专题');
+
   return null;
 }
 
@@ -574,6 +578,11 @@ export function getCurrentSuggestion(state, options) {
   var firstTradeAvailable = _getAvailableQuest(state, FIRST_TRADE_QUEST_ID);
   var firstExploreAvailable = _getAvailableQuest(state, FIRST_EXPLORE_QUEST_ID);
   var lowPriceGood = _getLowPriceGood(state);
+  var activeTeachingChain = MidgameTeachingChain.getActiveChain(state);
+  var activeTeachingChainId = activeTeachingChain && activeTeachingChain.chain
+    ? activeTeachingChain.chain.id
+    : '';
+  var dispatchTeachingActive = activeTeachingChainId === 'dispatch-ops';
   var suggestions = [];
 
   if (opts.eventPending) {
@@ -815,7 +824,7 @@ export function getCurrentSuggestion(state, options) {
     }));
   }
 
-  if (!_shouldOfferDispatchRoute(opts.questRouteRecommendation) && _shouldOfferResearchSupply(opts.researchSupplyRoute) && !_isRouteRecommendationOpen(opts.researchSupplyRoute, opts.dispatchModalContext)) {
+  if (!dispatchTeachingActive && !_shouldOfferDispatchRoute(opts.questRouteRecommendation) && _shouldOfferResearchSupply(opts.researchSupplyRoute) && !_isRouteRecommendationOpen(opts.researchSupplyRoute, opts.dispatchModalContext)) {
     suggestions.push(_createSuggestion({
       id: 'prefill-research-supply-dispatch',
       priority: 24,
@@ -829,7 +838,7 @@ export function getCurrentSuggestion(state, options) {
       },
       surface: 'fleet',
     }));
-  } else if (_shouldOfferResearchFunding(opts.researchBlocker)) {
+  } else if (!dispatchTeachingActive && _shouldOfferResearchFunding(opts.researchBlocker)) {
     var researchNeedsQuestFunding = Number(state.credits || 0) <= 0 && !_hasCargo(state);
     suggestions.push(_createSuggestion({
       id: 'resolve-research-funding',
@@ -848,7 +857,7 @@ export function getCurrentSuggestion(state, options) {
     }));
   }
 
-  if (!_shouldOfferDispatchRoute(opts.questRouteRecommendation) && !_shouldOfferResearchSupply(opts.researchSupplyRoute) && _shouldOfferDispatchRoute(opts.dispatchRouteRecommendation) && !_isRouteRecommendationOpen(opts.dispatchRouteRecommendation, opts.dispatchModalContext)) {
+  if (!_shouldOfferDispatchRoute(opts.questRouteRecommendation) && (dispatchTeachingActive || !_shouldOfferResearchSupply(opts.researchSupplyRoute)) && _shouldOfferDispatchRoute(opts.dispatchRouteRecommendation) && !_isRouteRecommendationOpen(opts.dispatchRouteRecommendation, opts.dispatchModalContext)) {
     suggestions.push(_createSuggestion({
       id: 'prefill-profitable-dispatch',
       priority: 23,
@@ -955,7 +964,57 @@ export function getCurrentSuggestion(state, options) {
     }));
   }
 
+  var hadSuggestionsBeforeTargetFilter = suggestions.length > 0;
   suggestions = _filterSatisfiedTargets(suggestions, state, opts);
+
+  // 没有更直接的经营动作时，才展示可由玩家主动启动的专题入口。
+  // 这样不会用“开始专题”替代一个已经打开且目标已满足的导航建议。
+  var contextualActionAlreadyOpen = !!(
+    opts.dispatchModalContext ||
+    opts.modModalContext ||
+    opts.marketOpen ||
+    opts.archiveOpen
+  );
+  var allEarlierCandidatesAlreadySatisfied = hadSuggestionsBeforeTargetFilter && suggestions.length === 0;
+  if (!allEarlierCandidatesAlreadySatisfied && !contextualActionAlreadyOpen) {
+    var availableTeachingChain = MidgameTeachingChain.getAvailableChains(state)[0] || null;
+    if (availableTeachingChain) {
+      suggestions.push(_createSuggestion({
+        id: 'start-midgame-chain:' + availableTeachingChain.id,
+        priority: 19,
+        title: '开始专题「' + availableTeachingChain.title + '」',
+        reason: availableTeachingChain.description,
+        actionLabel: '开始专题',
+        actionType: 'guidance.chain.start',
+        payload: { chainId: availableTeachingChain.id },
+        surface: 'system',
+        commandIntent: '专题教学',
+      }));
+    }
+  }
+
+  // 中期教学链提权：活跃链中的步骤获得优先级加成
+  var chainPriorityIds = MidgameTeachingChain.getChainPrioritySuggestions(state);
+  if (chainPriorityIds.length > 0) {
+    var chainBoostMap = {};
+    chainPriorityIds.forEach(function (stepId, index) {
+      // 越靠前的步骤加成越高（+30 / +20 / +10 ...）
+      chainBoostMap[stepId] = Math.max(10, 30 - index * 10);
+    });
+    suggestions.forEach(function (suggestion) {
+      if (suggestion && chainBoostMap[suggestion.id]) {
+        suggestion.priority = (suggestion.priority || 0) + chainBoostMap[suggestion.id];
+        if (MidgameTeachingChain.isChainNextStep(state, suggestion.id)) {
+          suggestion.guidanceTopic = suggestion.guidanceTopic || {};
+          var chainSummary = MidgameTeachingChain.getChainSummary(state);
+          if (chainSummary && chainSummary.active && chainSummary.active.chain) {
+            suggestion.guidanceTopic.chainLabel = chainSummary.active.chain.label;
+          }
+        }
+      }
+    });
+  }
+
   if (suggestions.length === 0) return null;
   suggestions.sort(function (left, right) {
     return right.priority - left.priority;

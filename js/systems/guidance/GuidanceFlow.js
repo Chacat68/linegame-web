@@ -46,6 +46,7 @@ const ACTION_TYPE_OUTCOMES = Object.freeze({
   'archive.open': '确认情报后会刷新为可执行的下一条建议。',
   'exploration.poi': '调查完成后会写入探索档案并刷新现场目标。',
   'event.open': '事件结算后会恢复航行与其他操作。',
+  'guidance.chain.start': '专题启动后，当前行动会优先提示第一项真实经营步骤。',
 });
 
 function _fallbackPurpose(suggestion) {

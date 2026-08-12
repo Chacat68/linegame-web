@@ -45,6 +45,8 @@ function _getCommandIntent(suggestion) {
       return '维修船坞';
     case 'exploration.poi':
       return '调查探索点';
+    case 'guidance.chain.start':
+      return '专题教学';
     default:
       return '';
   }
@@ -68,8 +70,9 @@ function _getGuidanceTopic(suggestion) {
 function _renderKicker(suggestion) {
   var topic = _getGuidanceTopic(suggestion);
   var label = '当前行动';
+  if (topic && topic.chainLabel) label += ' · ' + topic.chainLabel;
   var contextLabel = topic && (topic.stepLabel || topic.label);
-  if (contextLabel) label += ' · ' + contextLabel;
+  if (contextLabel && (!topic.chainLabel || contextLabel !== topic.chainLabel)) label += ' · ' + contextLabel;
   return _escapeHtml(label);
 }
 

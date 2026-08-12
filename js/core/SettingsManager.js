@@ -6,6 +6,7 @@
 import * as EventBus from './EventBus.js';
 import * as Audio from './AudioManager.js';
 import { TIME_CONFIG } from '../data/constants.js';
+import { buildUsageDataExport } from '../systems/metrics/UsageDataExport.js';
 import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from '../ui/SurfaceManager.js';
 import * as ActionConfirmUI from '../ui/ActionConfirmUI.js';
 import {
@@ -78,6 +79,7 @@ export function initSettingsModal(callbacks) {
   var resetDefaultsBtn = document.getElementById('settings-reset-defaults-btn');
   var resetTutorialBtn = document.getElementById('settings-reset-tutorial-btn');
   var clearSavesBtn    = document.getElementById('settings-clear-saves-btn');
+  var exportUsageDataBtn = document.getElementById('settings-export-usage-data-btn');
   if (!settingsBtn || !modal) return;
 
   if (settingsBtn.dataset.settingsBound === 'true') return;
@@ -162,6 +164,11 @@ export function initSettingsModal(callbacks) {
       Audio.playCue('settings.change');
       var activeCallbacks = _getSettingsModalCallbacks();
       _setSettingsChangeStatus('音效音量已更新为' + Math.round(_normalizeSoundEffectsVolume(activeCallbacks.settings.soundEffectsVolume) * 100) + '%。', 'success');
+    };
+  }
+  if (exportUsageDataBtn) {
+    exportUsageDataBtn.onclick = function () {
+      _exportUsageData();
     };
   }
   if (difficultySelect) {
@@ -412,6 +419,28 @@ function _formatSoundEffectsSummary(settings) {
   var enabled = settings && settings.soundEffectsEnabled !== false;
   var volume = _normalizeSoundEffectsVolume(settings && settings.soundEffectsVolume);
   return (enabled ? '开启' : '关闭') + ' · ' + Math.round(volume * 100) + '%';
+}
+
+function _exportUsageData() {
+  var activeCallbacks = _getSettingsModalCallbacks();
+  var state = activeCallbacks.getState ? activeCallbacks.getState() : null;
+  var exportData = buildUsageDataExport(state);
+
+  var blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+  var url = URL.createObjectURL(blob);
+  var anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = 'linegame-usage-data-' + new Date().toISOString().slice(0, 10) + '.json';
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  URL.revokeObjectURL(url);
+
+  _setSettingsChangeStatus('使用数据已导出为 JSON 文件，请检查内容后决定是否分享。', 'success');
+  EventBus.emit('log:message', {
+    text: '📊 本地平衡统计已导出。',
+    type: 'info',
+  });
 }
 
 function _activateSettingsPanel(panelId) {

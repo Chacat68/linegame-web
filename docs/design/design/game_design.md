@@ -1,12 +1,12 @@
 # 游戏设计文档
 
 > 文档状态：总设计稿。  
-> 当前仓库已实现的是浏览器单机版，技术栈为 Vanilla JavaScript + ES Modules，主视图为 Babylon.js 3D 星图。  
+> 当前仓库已实现的是浏览器单机版，技术栈为 Vanilla JavaScript + ES Modules，主视图为 Three.js 3D 星图，并提供 Canvas 2D 降级路径。
 > 本文保留了大量世界观、长期系统与扩展规划，阅读时请优先以 `docs/design/设计实现对照表.md`、`docs/design/实现方案.md` 和当前 `js/` 代码结构为准。
 
 ## 1. 游戏概述
 ### 1.1 游戏简介
-《星际贸易商》是一款以浏览器单机运行为主的星际经营游戏，玩家扮演一名星际贸易商，在浩瀚的银河系中穿梭，通过买卖各种商品积累财富，最终建立自己的商业帝国。当前实现使用 Babylon.js 3D 星图，但本文仍保留较多远期设计描述。
+《星际贸易商》是一款以浏览器单机运行为主的星际经营游戏，玩家扮演一名星际贸易商，在浩瀚的银河系中穿梭，通过买卖各种商品积累财富，最终建立自己的商业帝国。当前实现使用 Three.js 3D 星图，但本文仍保留较多远期设计描述。
 
 ### 1.2 游戏背景
 #### 1.2.1 世界观设定
@@ -30,7 +30,7 @@
 
 ### 1.5 目标平台
 - PC (Windows/Mac/Linux)
-- Web（浏览器）当前实现：Vanilla JavaScript + ES Modules + Babylon.js 3D 星图
+- Web（浏览器）当前实现：Vanilla JavaScript + ES Modules + Three.js 3D 星图 + Canvas 2D 降级
 
 ### 1.6 核心游戏循环
 

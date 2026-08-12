@@ -121,6 +121,31 @@ describe('ActionGuideUI', function () {
     expect(root.innerHTML).not.toContain('科研补给 / 自动补给');
   });
 
+  it('活跃专题同时展示专题名和当前步骤', function () {
+    var root = createFakeRoot();
+    globalThis.document = {
+      getElementById: function (id) {
+        return id === 'action-guide' ? root : null;
+      },
+    };
+
+    ActionGuideUI.init(function () {});
+    ActionGuideUI.render({
+      id: 'prefill-profitable-dispatch',
+      title: '规划自动跑商',
+      actionLabel: '带入机库',
+      actionType: 'fleet.dispatch.prefill',
+      guidanceTopic: {
+        id: 'dispatch-ops',
+        label: '自动跑商',
+        chainLabel: '自动跑商入门',
+        stepLabel: '预填商运',
+      },
+    });
+
+    expect(root.innerHTML).toContain('当前行动 · 自动跑商入门 · 预填商运');
+  });
+
   it('固定显示完整行动条，不渲染展开或缩小控件', function () {
     var root = createFakeRoot();
     root.classList.add('is-collapsed');

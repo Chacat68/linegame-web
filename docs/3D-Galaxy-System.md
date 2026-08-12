@@ -1,5 +1,7 @@
 # 3D Galaxy Visualization System
 
+> 历史方案：本文描述已退役的 Babylon.js / `Renderer3DAdvanced.js` 架构，不再作为现行实现指南。当前运行时使用 `StarmapRenderer.js → RendererThreeStarmap.js`，并保留 `Renderer2DStarmap.js` 降级路径。
+
 ## 概述
 
 基于 Babylon.js 实现的高性能星系可视化系统，支持数百个星球的策略级交互。采用分层数据架构和先进的渲染技术，在保持流畅性能的同时提供丰富的视觉效果。

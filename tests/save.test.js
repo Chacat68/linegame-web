@@ -3,7 +3,12 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as Save from '../js/systems/save/SaveSystem.js';
-import { SAVE_SCHEMA_VERSION, SAVE_STATE_SCHEMA, createSaveMeta } from '../js/data/constants.js';
+import {
+  MIDGAME_CHAIN_STATE_DEFAULTS,
+  SAVE_SCHEMA_VERSION,
+  SAVE_STATE_SCHEMA,
+  createSaveMeta,
+} from '../js/data/constants.js';
 import { createTestState } from './helpers.js';
 
 // vitest 在 Node 环境中没有 localStorage，需要 polyfill
@@ -95,6 +100,31 @@ describe('Save.loadGame', () => {
     expect(result.state.fleet[1].cargoCost).toEqual({ minerals: 30 });
   });
 
+  it('中期专题教学链进度可以完整往返', () => {
+    const state = createTestState();
+    state.midgameChains['research-supply'] = {
+      active: true,
+      completed: false,
+      completedSteps: ['prefill-research-supply-dispatch'],
+      startedDay: 5,
+      baselineValue: 1,
+    };
+
+    expect(Save.saveGame(1, state).ok).toBe(true);
+    const stored = JSON.parse(globalThis.localStorage.getItem('startrader_save_1'));
+    const result = Save.loadGame(1);
+
+    expect(stored.data.midgameChains['research-supply']).toEqual({
+      active: true,
+      completed: false,
+      completedSteps: ['prefill-research-supply-dispatch'],
+      startedDay: 5,
+      baselineValue: 1,
+    });
+    expect(result.ok).toBe(true);
+    expect(result.state.midgameChains).toEqual(stored.data.midgameChains);
+  });
+
   it('空槽位返回失败', () => {
     const result = Save.loadGame(2);
     expect(result.ok).toBe(false);
@@ -149,11 +179,12 @@ describe('Save.loadGame', () => {
     expect(result.state.balanceMetrics.firstTrade).toBeNull();
     expect(result.state.balanceMetrics.trade.realizedProfitByGood).toEqual({});
     expect(result.state._activeEventId).toBe('');
+    expect(result.state.midgameChains).toEqual(MIDGAME_CHAIN_STATE_DEFAULTS);
   });
 
-  it('上一版存档迁移后会补齐市场快照字段', () => {
+  it('v13 存档迁移后会补齐市场快照字段', () => {
     const envelope = {
-      meta: { schemaVersion: SAVE_SCHEMA_VERSION - 1, gameVersion: '0.6.0', slotId: 1, timestampMs: Date.now() },
+      meta: { schemaVersion: 13, gameVersion: '0.6.0', slotId: 1, timestampMs: Date.now() },
       data: { credits: 900, day: 7, currentSystem: 'sol_prime' },
     };
     globalThis.localStorage.setItem('startrader_save_1', JSON.stringify(envelope));
@@ -166,6 +197,138 @@ describe('Save.loadGame', () => {
     expect(result.state.companyDirectiveClaims).toEqual({});
     expect(result.state.economyMarketState).toBeNull();
     expect(result.state._activeEventId).toBe('');
+  });
+
+  it('literal v16 存档缺少教学链时会补全并回写为 v17', () => {
+    const envelope = {
+      meta: { schemaVersion: 16, gameVersion: '0.6.4', slotId: 1, timestampMs: Date.now() },
+      data: { credits: 900, day: 7, currentSystem: 'sol_prime' },
+    };
+    globalThis.localStorage.setItem('startrader_save_1', JSON.stringify(envelope));
+
+    const result = Save.loadGame(1);
+    const stored = JSON.parse(globalThis.localStorage.getItem('startrader_save_1'));
+
+    expect(result.ok).toBe(true);
+    expect(result.state.midgameChains).toEqual(MIDGAME_CHAIN_STATE_DEFAULTS);
+    expect(stored.meta.schemaVersion).toBe(17);
+    expect(stored.data.midgameChains).toEqual(MIDGAME_CHAIN_STATE_DEFAULTS);
+  });
+
+  it('literal v16 存档会保留已有的部分教学链进度并补全其余链', () => {
+    const envelope = {
+      meta: { schemaVersion: 16, gameVersion: '0.6.4', slotId: 1, timestampMs: Date.now() },
+      data: {
+        credits: 900,
+        day: 7,
+        currentSystem: 'sol_prime',
+        midgameChains: {
+          'research-supply': {
+            active: true,
+            completed: false,
+            completedSteps: ['prefill-research-supply-dispatch'],
+            startedDay: 5,
+            baselineValue: 1,
+          },
+        },
+      },
+    };
+    globalThis.localStorage.setItem('startrader_save_1', JSON.stringify(envelope));
+
+    const result = Save.loadGame(1);
+
+    expect(result.ok).toBe(true);
+    expect(result.state.midgameChains['research-supply']).toEqual(envelope.data.midgameChains['research-supply']);
+    expect(result.state.midgameChains['dispatch-ops']).toEqual(MIDGAME_CHAIN_STATE_DEFAULTS['dispatch-ops']);
+    expect(result.state.midgameChains['trade-station-basics']).toEqual(MIDGAME_CHAIN_STATE_DEFAULTS['trade-station-basics']);
+    expect(result.state.midgameChains['capital-risk']).toEqual(MIDGAME_CHAIN_STATE_DEFAULTS['capital-risk']);
+  });
+
+  it('畸形教学链数据会宽容规范化为已知链、合法字段和单一活跃链', () => {
+    const envelope = {
+      meta: { schemaVersion: 17, gameVersion: '0.6.4', slotId: 1, timestampMs: Date.now() },
+      data: {
+        currentSystem: 'sol_prime',
+        midgameChains: {
+          'research-supply': {
+            active: true,
+            completed: false,
+            completedSteps: [
+              ' prefill-research-supply-dispatch ',
+              'prefill-research-supply-dispatch',
+              '',
+              42,
+              'unknown-step',
+            ],
+            startedDay: 0,
+            baselineValue: 'invalid',
+          },
+          'dispatch-ops': {
+            active: true,
+            completed: false,
+            completedSteps: [],
+            startedDay: 8,
+            baselineValue: 3,
+          },
+          'trade-station-basics': {
+            active: true,
+            completed: true,
+            completedSteps: 'not-an-array',
+            startedDay: null,
+            baselineValue: null,
+          },
+          'capital-risk': 'not-a-record',
+          'unknown-chain': {
+            active: true,
+            completed: false,
+            completedSteps: ['unknown-step'],
+            startedDay: 2,
+            baselineValue: 0,
+          },
+        },
+      },
+    };
+    globalThis.localStorage.setItem('startrader_save_1', JSON.stringify(envelope));
+
+    const result = Save.loadGame(1);
+
+    expect(result.ok).toBe(true);
+    expect(Object.keys(result.state.midgameChains)).toEqual(Object.keys(MIDGAME_CHAIN_STATE_DEFAULTS));
+    expect(result.state.midgameChains['research-supply']).toEqual({
+      active: true,
+      completed: false,
+      completedSteps: ['prefill-research-supply-dispatch'],
+      startedDay: null,
+      baselineValue: null,
+    });
+    expect(result.state.midgameChains['dispatch-ops']).toEqual({
+      active: false,
+      completed: false,
+      completedSteps: [],
+      startedDay: 8,
+      baselineValue: 3,
+    });
+    expect(result.state.midgameChains['trade-station-basics']).toEqual({
+      active: false,
+      completed: true,
+      completedSteps: [],
+      startedDay: null,
+      baselineValue: null,
+    });
+    expect(result.state.midgameChains['capital-risk']).toEqual(MIDGAME_CHAIN_STATE_DEFAULTS['capital-risk']);
+  });
+
+  it.each([null, [], 'not-an-object'])('非法教学链顶层值 %j 会恢复完整默认态', (midgameChains) => {
+    const envelope = {
+      meta: { schemaVersion: 17, gameVersion: '0.6.4', slotId: 1, timestampMs: Date.now() },
+      data: { currentSystem: 'sol_prime', midgameChains },
+    };
+    globalThis.localStorage.setItem('startrader_save_1', JSON.stringify(envelope));
+
+    const result = Save.loadGame(1);
+
+    expect(result.ok).toBe(true);
+    expect(result.state.midgameChains).toEqual(MIDGAME_CHAIN_STATE_DEFAULTS);
   });
 
   it('v15 存档会把根货物成本迁移给当时的活动飞船', () => {
@@ -506,6 +669,27 @@ describe('Save schema v2→v3 migration', () => {
 });
 
 describe('Save contract helpers', () => {
+  it('新档教学链默认值来自 v17 契约且状态实例彼此隔离', () => {
+    const first = createTestState();
+    const second = createTestState();
+
+    expect(SAVE_STATE_SCHEMA.midgameChains.since).toBe(17);
+    expect(first.midgameChains).toEqual(MIDGAME_CHAIN_STATE_DEFAULTS);
+    expect(second.midgameChains).toEqual(MIDGAME_CHAIN_STATE_DEFAULTS);
+
+    first.midgameChains['research-supply'].active = true;
+    first.midgameChains['research-supply'].completedSteps.push('first-step');
+
+    expect(second.midgameChains['research-supply']).toEqual(MIDGAME_CHAIN_STATE_DEFAULTS['research-supply']);
+    expect(MIDGAME_CHAIN_STATE_DEFAULTS['research-supply']).toEqual({
+      active: false,
+      completed: false,
+      completedSteps: [],
+      startedDay: null,
+      baselineValue: null,
+    });
+  });
+
   it('createTestState 与运行时初始状态契约保持一致', () => {
     const state = createTestState();
 

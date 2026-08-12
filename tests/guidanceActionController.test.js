@@ -58,6 +58,21 @@ describe('GuidanceActionController', function () {
     ]);
   });
 
+  it('专题入口只负责启动链，不会把业务步骤视为已完成', function () {
+    var context = createCallContext({
+      startTeachingChain: function (chainId) {
+        context.calls.push(['startTeachingChain', chainId]);
+      },
+    });
+
+    handleGuidanceAction({
+      actionType: 'guidance.chain.start',
+      payload: { chainId: 'dispatch-ops' },
+    }, context);
+
+    expect(context.calls).toEqual([['startTeachingChain', 'dispatch-ops']]);
+  });
+
   it('打开经营页时会聚焦指定工作区并写入反馈', function () {
     var context = createCallContext();
 

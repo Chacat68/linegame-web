@@ -254,6 +254,11 @@ function _migrateSchema(envelope) {
       next.meta.schemaVersion = 16;
       continue;
     }
+    if (next.meta.schemaVersion === 16) {
+      _migrateSchema16To17(next);
+      next.meta.schemaVersion = 17;
+      continue;
+    }
     throw _createSaveError('SAVE_SCHEMA_UNSUPPORTED', '不支持的存档版本：' + next.meta.schemaVersion + '。');
   }
 
@@ -427,6 +432,16 @@ function _migrateSchema15To16(envelope) {
   _normalizeEnvelopeData(envelope);
 }
 
+/**
+ * v16 → v17：将中期专题教学链纳入稳定存档契约。
+ * 对工作树预发布版本可能已经写入的部分进度做宽容合并，避免覆盖合法记录。
+ */
+function _migrateSchema16To17(envelope) {
+  if (!envelope.data) envelope.data = {};
+  envelope.data.midgameChains = _normalizeMidgameChains(envelope.data.midgameChains);
+  _normalizeEnvelopeData(envelope);
+}
+
 function _normalizeEnvelopeData(envelope) {
   if (!envelope.data) envelope.data = {};
   envelope.data = _normalizeState(envelope.data);
@@ -493,6 +508,8 @@ function _normalizeState(data) {
     }
   });
 
+  normalized.midgameChains = _normalizeMidgameChains(normalized.midgameChains);
+
   _validateNestedState(normalized);
 
   if (!Number.isFinite(normalized.day) || normalized.day < 1) normalized.day = SAVE_STATE_DEFAULTS.day;
@@ -514,6 +531,68 @@ function _normalizeState(data) {
 
 function _isRecord(value) {
   return !!(value && typeof value === 'object' && !Array.isArray(value));
+}
+
+function _normalizeMidgameChains(value) {
+  var source = _isRecord(value) ? value : {};
+  var defaults = SAVE_STATE_DEFAULTS.midgameChains;
+  var normalized = {};
+  var hasActiveChain = false;
+
+  Object.keys(defaults).forEach(function (chainId) {
+    var defaultRecord = defaults[chainId];
+    var sourceRecord = _isRecord(source[chainId]) ? source[chainId] : {};
+    var completed = typeof sourceRecord.completed === 'boolean'
+      ? sourceRecord.completed
+      : defaultRecord.completed;
+    var requestedActive = typeof sourceRecord.active === 'boolean'
+      ? sourceRecord.active
+      : defaultRecord.active;
+    var completedSteps = [];
+    var seenSteps = new Set();
+
+    var knownSteps = _getKnownMidgameChainSteps(chainId);
+    if (Array.isArray(sourceRecord.completedSteps)) {
+      sourceRecord.completedSteps.forEach(function (stepId) {
+        if (typeof stepId !== 'string') return;
+        var normalizedStepId = stepId.trim();
+        if (!normalizedStepId || knownSteps.indexOf(normalizedStepId) === -1 || seenSteps.has(normalizedStepId)) return;
+        seenSteps.add(normalizedStepId);
+        completedSteps.push(normalizedStepId);
+      });
+    }
+
+    var active = requestedActive && !completed && !hasActiveChain;
+    if (active) hasActiveChain = true;
+
+    normalized[chainId] = {
+      active: active,
+      completed: completed,
+      completedSteps: completedSteps,
+      startedDay: sourceRecord.startedDay === null ||
+        (Number.isInteger(sourceRecord.startedDay) && sourceRecord.startedDay >= 1)
+        ? sourceRecord.startedDay
+        : defaultRecord.startedDay,
+      baselineValue: sourceRecord.baselineValue === null ||
+        (typeof sourceRecord.baselineValue === 'number' &&
+          Number.isFinite(sourceRecord.baselineValue) &&
+          sourceRecord.baselineValue >= 0)
+        ? sourceRecord.baselineValue
+        : defaultRecord.baselineValue,
+    };
+  });
+
+  return normalized;
+}
+
+function _getKnownMidgameChainSteps(chainId) {
+  var stepsByChain = {
+    'research-supply': ['prefill-research-supply-dispatch'],
+    'dispatch-ops': ['prefill-profitable-dispatch'],
+    'trade-station-basics': ['build-trade-station', 'upgrade-trade-station'],
+    'capital-risk': ['review-loan-obligation'],
+  };
+  return stepsByChain[chainId] || [];
 }
 
 function _assertRecordArray(value, fieldName) {

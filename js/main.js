@@ -4,6 +4,7 @@
 
 import { init } from './core/GameManager.js';
 import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from './ui/SurfaceManager.js';
+import { buildUsageDataExport } from './systems/metrics/UsageDataExport.js';
 import * as StartupLoader from './ui/StartupLoader.js';
 
 const SCENE_READY_TIMEOUT_MS = 20000;
@@ -82,6 +83,12 @@ function bindSettingsModalFallback() {
 			return;
 		}
 
+		var exportUsageDataBtn = event.target.closest('#settings-export-usage-data-btn');
+		if (exportUsageDataBtn) {
+			_exportUsageDataFallback();
+			return;
+		}
+
 		var closeBtn = event.target.closest('#settings-close-btn');
 		if (closeBtn) {
 			hideBlockingSurface('settings-modal');
@@ -153,4 +160,17 @@ function _activateSettingsPanelFallback(modal, panelId) {
 		panel.setAttribute('aria-hidden', isActive ? 'false' : 'true');
 		panel.setAttribute('tabindex', isActive ? '0' : '-1');
 	});
+}
+
+function _exportUsageDataFallback() {
+	var exportData = buildUsageDataExport(null);
+	var blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+	var url = URL.createObjectURL(blob);
+	var anchor = document.createElement('a');
+	anchor.href = url;
+	anchor.download = 'linegame-usage-data-' + new Date().toISOString().slice(0, 10) + '.json';
+	document.body.appendChild(anchor);
+	anchor.click();
+	document.body.removeChild(anchor);
+	URL.revokeObjectURL(url);
 }

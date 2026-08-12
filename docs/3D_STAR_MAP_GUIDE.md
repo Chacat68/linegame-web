@@ -1,5 +1,7 @@
 # 3D星空图使用指南 / 3D Star Map Guide
 
+> 历史方案：本文记录已退役的 Babylon.js / `Renderer3DAdvanced.js` 实现，仅用于追溯。当前入口是 `js/ui/StarmapRenderer.js`，主渲染器为 `RendererThreeStarmap.js`，并由 `Renderer2DStarmap.js` 提供降级路径。
+
 ## 功能概述 / Overview
 
 蓝脉航路现在支持3D星空图功能，用户可以在传统的2D地图和新的3D星空视图之间切换。3D视图提供了更加沉浸式的星系探索体验，支持拖拽旋转、缩放等交互操作。

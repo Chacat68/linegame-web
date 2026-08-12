@@ -1,6 +1,6 @@
 # 星际贸易商（Interstellar Trader）
 
-> 一款运行在浏览器中的单机星际贸易经营游戏，当前版本以 Babylon.js 3D 星图为主视图
+> 一款运行在浏览器中的单机星际贸易经营游戏，当前版本以 Three.js 3D 星图为主视图，并提供 Canvas 2D 降级渲染
 
 ---
 
@@ -29,9 +29,11 @@
 
 ## 当前实现状态
 
+> 状态核对日期：2026-08-13。当前游戏版本 `0.6.4`，存档 schema `v17`。
+
 ### 当前版本已接入主流程的能力
 
-- ✅ Babylon.js 3D 星图、跨星系视图与飞船飞行动画
+- ✅ Three.js 3D 星图、跨星系视图与飞船飞行动画；WebGL2 不可用时降级为 Canvas 2D
 - ✅ 核心贸易循环（买入 → 航行 → 卖出 → 结算）
 - ✅ 探索 MVP：POI 调查、秘密航线解锁
 - ✅ 动态经济：供需、价格历史、经济周期、市场深度、峰值事件
@@ -42,8 +44,15 @@
 - ✅ 舰队与船员：多船、改装、船员招募、派遣航线
 - ✅ 派系、科技、任务、成就、胜利条件、教程
 - ✅ 本地存档：4 槽位、导入导出、版本迁移、自动存档
+- ✅ 中期专题教学：科研经济、自动跑商、贸易站经营、资金管理 4 条可主动启动的专题链，由真实经营结果推进并随存档保存
+- ✅ 本地平衡统计导出：指标只随存档留在本设备，不自动上传；导出 JSON 可先审查再自行决定是否分享
 - ✅ 基础音效 MVP：UI 点击、交易成交、航行与事件提示音，含开关和音量设置
-- ✅ Vitest 测试基线，覆盖经济、贸易、金融、舰队、任务、存档等核心系统
+- ✅ Vitest 测试基线：80 个测试文件、839 项测试，覆盖经济、贸易、金融、舰队、任务、存档、探索与行动引导等核心系统
+
+### 当前开发中的能力
+
+- 🔶 探索深化：复杂遗迹链、异常区域和专属事件分支
+- 🔶 飞船与剧情深化：高阶船型定位、章节推进与关键事件演出
 
 ### 当前尚未实现的远期能力
 
@@ -52,18 +61,19 @@
 - ❌ 云存档 / 账号同步
 - ❌ 多人联网 / 排行榜 / 社交系统
 
-> 说明：`docs/design/` 下保留了大量远期设计稿。阅读设计文档时，请优先以 `设计实现对照表.md`、`实现方案.md` 和当前代码结构为准，不要把所有设计项都理解为已落地功能。
+> 说明：`docs/design/` 下保留了大量远期设计稿。阅读设计文档时，请优先以 `MVP路线图.md`、`设计实现对照表.md`、`09_技术架构设计.md`、`存档系统设计.md` 和当前代码结构为准，不要把所有设计项都理解为已落地功能。
 
 ---
 
 ## 快速开始
 
-本项目为纯前端应用，无需构建工具，使用任意静态服务器即可运行。
+本项目为纯前端应用，无服务端依赖。推荐使用 Node.js 与 Vite 启动开发环境；也可以使用任意静态服务器直接运行源码。
 
 ```bash
 # 克隆仓库
 git clone https://github.com/Chacat68/linegame-web.git
 cd linegame-web
+npm ci
 
 # 默认本地启动方式
 npm run dev
@@ -82,6 +92,13 @@ npm run dev:alt
 > VS Code 工作区内置的 `Run local web server` 任务也使用 4173 端口，因此 README、任务和命令行入口现在保持一致。
 
 > 也可以直接双击 `index.html` 打开，但 ES Module 在部分浏览器中需要通过 HTTP(S) 协议访问。
+
+提交前的本地验证：
+
+```bash
+npm test
+npm run build
+```
 
 ---
 
@@ -105,6 +122,8 @@ npm run dev:alt
 - 推送到 `main` 分支：部署到生产环境
 - 提交 Pull Request：部署到预览环境
 
+> 当前 workflow 会先执行 `npm test`，通过后再构建并按凭据是否可用决定是否部署。
+
 ---
 
 ## 项目结构
@@ -113,7 +132,8 @@ npm run dev:alt
 /
 ├── index.html              # 主入口
 ├── css/
-│   └── style.css           # 全局样式
+│   ├── style.css           # 样式聚合入口
+│   └── *.css               # 终端、舰桥、地图、面板与响应式样式模块
 ├── js/
 │   ├── main.js             # 应用入口：初始化与模块编排
 │   ├── core/
@@ -139,7 +159,9 @@ npm run dev:alt
 │   │   ├── victory/        # 胜利条件
 │   │   └── save/           # 存档系统
 │   └── ui/                 # 界面组件
-│       ├── Renderer3DAdvanced.js # 当前 3D 星图渲染主模块
+│       ├── StarmapRenderer.js    # 星图渲染门面与降级切换
+│       ├── RendererThreeStarmap.js # Three.js 3D 星图
+│       ├── Renderer2DStarmap.js  # Canvas 2D 降级渲染
 │       ├── HUD.js          # 顶部状态栏
 │       ├── MarketUI.js     # 商业终端（现货/资本/经营）
 │       ├── MapUI.js        # 星图交互
@@ -155,8 +177,9 @@ npm run dev:alt
 ## 技术架构
 
 - **运行环境**：纯浏览器，无服务端依赖
-- **渲染**：Babylon.js 3D 星图 + DOM/CSS 业务界面
-- **语言**：Vanilla JavaScript + ES Modules（无构建工具）
+- **渲染**：Three.js 3D 星图 + Canvas 2D 降级 + DOM/CSS 业务界面
+- **语言**：Vanilla JavaScript + ES Modules
+- **开发与构建**：Vite；测试使用 Vitest
 - **状态管理**：`GameManager.js` 持有单一运行态 `_state`
 - **存档**：localStorage 多槽位本地存储（4 槽位，含自动存档）
 - **通信方式**：业务系统由 `GameManager` 编排，辅以 `EventBus` 做轻量广播
@@ -175,6 +198,8 @@ npm run dev:alt
 - [任务与剧情系统](docs/design/06_任务与剧情系统.md)
 - [技术架构设计](docs/design/09_技术架构设计.md)
 - [MVP 路线图](docs/design/MVP路线图.md)
+- [设计实现对照表](docs/design/设计实现对照表.md)
+- [存档系统设计](docs/design/存档系统设计.md)
 - [代码实现方案](docs/design/实现方案.md)
 
 ---

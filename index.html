@@ -1750,6 +1750,25 @@
                 tabindex="0"
                 aria-labelledby="settings-tab-label-data"
               >
+                <div class="settings-row">
+                  <div class="settings-row-label">
+                    <span class="settings-label">本地平衡统计</span>
+                    <span id="settings-usage-data-desc" class="settings-row-desc"
+                      >首单、路线选择、完成用时等平衡统计会随存档仅保存在本设备，不会自动上传。你可以导出 JSON 审查内容，是否分享由你决定。</span
+                    >
+                  </div>
+                  <div class="settings-row-control">
+                    <button
+                      id="settings-export-usage-data-btn"
+                      class="settings-action-btn"
+                      type="button"
+                      aria-describedby="settings-usage-data-desc"
+                    >
+                      导出 JSON
+                    </button>
+                  </div>
+                </div>
+                <div class="settings-divider"></div>
                 <div class="settings-row settings-row--danger">
                   <div class="settings-row-label">
                     <span class="settings-label">清除存档</span>

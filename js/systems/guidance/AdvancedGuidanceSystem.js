@@ -42,23 +42,31 @@ function _getFinanceSuggestion(state) {
   var capitalAccess = getCompanyAccessState(state, 'capitalLocal');
   var capitalAvailable = capitalAccess.unlocked || _hasCapitalFootprint(state);
   if (capitalAvailable && activeLoans.length > 0) {
+    var capitalTeachingActive = !!(
+      state.midgameChains &&
+      state.midgameChains['capital-risk'] &&
+      state.midgameChains['capital-risk'].active
+    );
     var urgentLoan = activeLoans.find(function (loan) {
       return (loan.remainingDays || 0) <= 2 || (loan.missedPayments || 0) > 0;
     });
-    if (urgentLoan) {
+    var guidedLoan = urgentLoan || (capitalTeachingActive ? activeLoans[0] : null);
+    if (guidedLoan) {
       return _createSuggestion({
         id: 'review-loan-obligation',
         priority: 37,
-        title: '处理「' + urgentLoan.name + '」还款',
-        reason: (urgentLoan.remainingDays || 0) <= 2
+        title: '处理「' + guidedLoan.name + '」还款',
+        reason: urgentLoan && (urgentLoan.remainingDays || 0) <= 2
           ? '贷款即将到期，先打开【资金管理】确认还款或现金安排。'
-          : '贷款已有扣款异常，先处理负债可避免信用评级继续下滑。',
+          : (urgentLoan
+            ? '贷款已有扣款异常，先处理负债可避免信用评级继续下滑。'
+            : '专题正在引导资金管理，打开贷款明细并完成一次真实还款。'),
         actionLabel: '查看贷款',
         actionType: 'market.open',
         payload: {
           workspaceId: 'capital',
           subworkspaceId: 'local',
-          loanId: urgentLoan.id,
+          loanId: guidedLoan.id,
         },
         surface: 'market',
         commandIntent: '资金管理',

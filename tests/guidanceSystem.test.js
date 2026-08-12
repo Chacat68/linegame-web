@@ -41,6 +41,30 @@ function createFirstExploreQuest() {
 }
 
 describe('GuidanceSystem', function () {
+  it('中期空档会提供可由玩家主动启动的专题入口', function () {
+    setAdvancedGuidanceProvider(function () { return []; });
+    var state = createTestState({
+      completedQuests: ['starter_first_trade', 'starter_visit_2'],
+      quests: [],
+      cargo: {},
+      fuel: 100,
+      maxFuel: 100,
+      credits: 0,
+      companyLevel: 1,
+    });
+    state.fleet = [{ operatingStats: { tradeCycles: 0 } }];
+
+    var suggestion = getCurrentSuggestion(state, {});
+
+    expect(suggestion).toMatchObject({
+      id: 'start-midgame-chain:dispatch-ops',
+      actionType: 'guidance.chain.start',
+      actionLabel: '开始专题',
+      payload: { chainId: 'dispatch-ops' },
+    });
+    setAdvancedGuidanceProvider(getAdvancedGuidanceSuggestions);
+  });
+
   it('没有任务时优先推荐接取初次交易', function () {
     var state = createTestState({ quests: [], completedQuests: [] });
     var suggestion = getCurrentSuggestion(state);
@@ -598,6 +622,40 @@ describe('GuidanceSystem', function () {
     });
     expect(suggestion.reason).toContain('太阳主星');
     expect(suggestion.reason).toContain('探索线索');
+  });
+
+  it('派遣专题激活时会优先展示跑商路线，不被科研补给遮挡', function () {
+    var state = createTestState({
+      quests: [],
+      completedQuests: ['starter_first_trade', 'starter_visit_2'],
+      cargo: {},
+      fuel: 100,
+      maxFuel: 100,
+      currentSystem: 'sol_prime',
+    });
+    state.midgameChains['dispatch-ops'].active = true;
+    var dispatchRouteRecommendation = {
+      buySystemId: 'sol_prime',
+      sellSystemId: 'nova_station',
+      goodId: 'food',
+      goodName: '食品',
+    };
+
+    var suggestion = getCurrentSuggestion(state, {
+      researchSupplyRoute: {
+        buySystemId: 'sol_prime',
+        sellSystemId: 'research_hub',
+        goodId: 'technology',
+      },
+      dispatchRouteRecommendation: dispatchRouteRecommendation,
+    });
+
+    expect(suggestion).toMatchObject({
+      id: 'prefill-profitable-dispatch',
+      actionType: 'fleet.dispatch.prefill',
+      payload: { recommendation: dispatchRouteRecommendation },
+    });
+    expect(suggestion.guidanceTopic.chainLabel).toBe('派遣 → 复核 → 优化');
   });
 
   it('同一路线草案已在派遣弹窗打开时不会重复推荐派遣预填', function () {

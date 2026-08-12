@@ -1,6 +1,6 @@
 // tests/autoTrade.test.js — 自动贸易路线测试
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as AutoTrade from '../js/systems/trade/AutoTradeSystem.js';
 import * as Economy from '../js/systems/economy/Economy.js';
 import * as Exploration from '../js/systems/galaxy/ExplorationSystem.js';
@@ -9,6 +9,10 @@ import { createTestState } from './helpers.js';
 
 beforeEach(() => {
   Economy.init();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe('AutoTrade.findBestTrade', () => {
@@ -507,6 +511,19 @@ describe('AutoTrade.findQuestRoute', () => {
   });
 
   it('疫情救援只推荐净收益为正的医药采购路线', () => {
+    const getBuyPrice = Economy.getBuyPrice;
+    const getSellPrice = Economy.getSellPrice;
+    vi.spyOn(Economy, 'getBuyPrice').mockImplementation((systemId, goodId, state) => {
+      if (goodId === 'fuel') return 1;
+      if (systemId === 'medical_hub' && goodId === 'medicine') return 10;
+      return getBuyPrice(systemId, goodId, state);
+    });
+    vi.spyOn(Economy, 'getSellPrice').mockImplementation((systemId, goodId, state) => {
+      if (systemId === 'war_front' && goodId === 'medicine') return 100;
+      return getSellPrice(systemId, goodId, state);
+    });
+    vi.spyOn(Economy, 'getFuelCost').mockReturnValue(1);
+
     const state = createTestState({
       credits: 1000,
       cargo: {},

@@ -48,6 +48,7 @@ import * as Settings from './SettingsCore.js';
 import * as Audio from './AudioManager.js';
 import * as Progression from '../systems/progression/ProgressionSystem.js';
 import * as Guidance from '../systems/guidance/GuidanceSystem.js';
+import * as MidgameTeachingChain from '../systems/guidance/MidgameTeachingChain.js';
 import { getProcessingMessage as getGuidanceActionProcessingMessage } from './GuidanceActionFeedback.js';
 import * as Dispatch from './DispatchController.js';
 import { hasBlockingSurfaceOpen, hideBlockingSurface, showBlockingSurface } from '../ui/SurfaceManager.js';
@@ -719,6 +720,7 @@ function _initializeSettingsUI(SettingsUI) {
   SettingsUI.initSettingsModal({
     settings: _settings,
     Renderer: Renderer3D,
+    getState: function () { return _state; },
     onOpen: function () {
       _ensureSaveUiRendered();
     },
@@ -998,6 +1000,8 @@ export function init(difficulty, options) {
   Quest.init(_state);
   _ensureAchievementState(_state);
   if (_achievementModule) _achievementModule.init(_state);
+  BalanceMetrics.init(_state);
+  MidgameTeachingChain.init(_state);
   _setDeferredUiState('achievement', _achievementModule ? 'ready' : (_achievementPromise ? 'loading' : 'idle'));
   GalaxyData.init(_state); // Initialize galaxy data layer
   if (restoredAutosave && _state.galaxyStates && Object.keys(_state.galaxyStates).length > 0) {
@@ -1142,6 +1146,14 @@ export function _handleActionGuideActionForTest(suggestion) {
 
 export function _handleTradeConfirmForTest(action, goodId, quantity, marketType) {
   _handleTradeConfirm(action, goodId, quantity, marketType);
+}
+
+export function _handleAssignRouteForTest(shipIndex, buySystemId, sellSystemId, goodId, tradePolicy) {
+  return _handleAssignRoute(shipIndex, buySystemId, sellSystemId, goodId, tradePolicy);
+}
+
+export function _stopActiveDispatchForTest() {
+  Dispatch.stopActiveDispatch();
 }
 
 function _showWelcomeMessages() {
@@ -1513,6 +1525,12 @@ function _refreshActionGuide() {
   var questRouteRecommendation = null;
   var researchBlocker = null;
   var dispatchRouteRecommendation = null;
+  var activeTeachingChain = MidgameTeachingChain.getActiveChain(_state);
+  var dispatchTeachingActive = !!(
+    activeTeachingChain &&
+    activeTeachingChain.chain &&
+    activeTeachingChain.chain.id === 'dispatch-ops'
+  );
   var serviceStatus = null;
   var modRecommendation = null;
   var recentModInstallContext = _recentModInstallContext;
@@ -1537,7 +1555,7 @@ function _refreshActionGuide() {
     if (!questRouteRecommendation && !researchSupplyRoute) {
       researchBlocker = getResearchDispatchBlockerState(_state, dispatchContext);
     }
-    if (!questRouteRecommendation && !researchSupplyRoute && _routeGuidanceModule) {
+    if (!questRouteRecommendation && (!researchSupplyRoute || dispatchTeachingActive) && _routeGuidanceModule) {
       dispatchRouteRecommendation = _routeGuidanceModule.findBestDispatchRoute(_state, dispatchContext);
     }
     serviceStatus = _getActiveShipServiceStatus();
@@ -1566,6 +1584,13 @@ function _refreshActionGuide() {
     blockingModalOpen: blockingModalOpen,
     eventPending: eventPending,
   }));
+
+  // 中期教学链：检查是否有链已自然满足完成条件
+  var completedChains = MidgameTeachingChain.checkChainCompletion(_state);
+  completedChains.forEach(function (chainResult) {
+    EventBus.emit('log:message', { text: chainResult.message, type: 'upgrade' });
+  });
+
   if (recentModInstallContext && _recentModInstallContext === recentModInstallContext) {
     _recentModInstallContext = null;
   }
@@ -1674,6 +1699,7 @@ function _handleActionGuideAction(suggestion) {
       refuel: _handleRefuel,
       forcePendingEvent: EventUI.forcePendingEvent,
       refreshActionGuide: _refreshActionGuide,
+      startTeachingChain: _startMidgameTeachingChain,
       openRecommendedDispatch: _openRecommendedDispatch,
       openRecommendedMod: _openRecommendedMod,
       showCompletion: function (message, detail, options) {
@@ -1697,7 +1723,33 @@ function _handleActionGuideAction(suggestion) {
       focusNavigationTarget: MapUI.focusNavigationTarget,
       explorePoi: _handleExplorePoi,
     });
+
   });
+}
+
+function _startMidgameTeachingChain(chainId) {
+  var chain = Object.values(MidgameTeachingChain.TEACHING_CHAINS).find(function (candidate) {
+    return candidate.id === chainId;
+  });
+  if (!chain || !MidgameTeachingChain.startChain(_state, chainId)) {
+    EventBus.emit('log:message', { text: '⚠️ 当前无法启动该专题，请先完成已有专题或解锁对应系统。', type: 'error' });
+    _refreshActionGuide();
+    return false;
+  }
+  EventBus.emit('log:message', {
+    text: '🧭 已开始专题「' + chain.title + '」：' + chain.description,
+    type: 'tip',
+  });
+  _updateUI();
+  return true;
+}
+
+function _completeMidgameTeachingStep(chainId, stepId) {
+  var result = MidgameTeachingChain.completeChainStep(_state, chainId, stepId);
+  if (result && result.completed) {
+    EventBus.emit('log:message', { text: result.message, type: 'upgrade' });
+  }
+  return result;
 }
 
 function _getPoiStatus(systemId, poiId) {
@@ -1878,6 +1930,13 @@ function _handleGalaxyJump(systemId) {
 function _handleTradeConfirm(action, goodId, quantity, marketType) {
   Fleet.syncStateFromShip(_state);
 
+  var dispatchedShip = Fleet.getActiveShip(_state);
+  var dispatchedRoute = dispatchedShip && dispatchedShip.route ? dispatchedShip.route : null;
+  var completesDispatchCycle = action === 'sell' && dispatchedRoute &&
+    dispatchedRoute.goodId === goodId && dispatchedRoute.status === 'selling';
+  var recordsDispatchPurchase = action === 'buy' && dispatchedRoute &&
+    dispatchedRoute.goodId === goodId && dispatchedRoute.status === 'buying';
+
   const effectiveMarket = marketType === 'black' ? 'black' : 'open';
   const result = action === 'buy'
     ? Trade.buyGoodOnMarket(_state, goodId, quantity, effectiveMarket)
@@ -1893,6 +1952,20 @@ function _handleTradeConfirm(action, goodId, quantity, marketType) {
   if (result && result.ok) {
     EventBus.emit('audio:cue', { cue: action === 'buy' ? 'trade.buy' : 'trade.sell' });
     Fleet.commitActiveShipState(_state);
+    if (completesDispatchCycle && dispatchedShip) {
+      if (!dispatchedShip.operatingStats || typeof dispatchedShip.operatingStats !== 'object') {
+        dispatchedShip.operatingStats = {};
+      }
+      dispatchedShip.operatingStats.revenue = Math.max(0, Number(dispatchedShip.operatingStats.revenue) || 0) +
+        Math.max(0, Number(result.meta && result.meta.totalEarned) || 0);
+      dispatchedShip.operatingStats.tradeCycles = Math.max(0, Number(dispatchedShip.operatingStats.tradeCycles) || 0) + 1;
+    } else if (recordsDispatchPurchase) {
+      if (!dispatchedShip.operatingStats || typeof dispatchedShip.operatingStats !== 'object') {
+        dispatchedShip.operatingStats = {};
+      }
+      dispatchedShip.operatingStats.cargoCost = Math.max(0, Number(dispatchedShip.operatingStats.cargoCost) || 0) +
+        Math.max(0, Number(result.meta && result.meta.totalCost) || 0);
+    }
     var activeRoute = Fleet.getActiveShip(_state) ? Fleet.getActiveShip(_state).route : null;
     if (activeRoute && activeRoute.goodId === goodId) {
       if (action === 'buy') {
@@ -2280,12 +2353,18 @@ function _runCommerceAction(methodName, args) {
 
 function _handleBuildTradeStation(systemId) {
   const result = _runCommerceAction('buildTradeStation', [systemId]);
-  if (result && result.ok) _recordQuestProgress({ action: 'build_trade_station', systemId: systemId });
+  if (result && result.ok) {
+    _recordQuestProgress({ action: 'build_trade_station', systemId: systemId });
+    _completeMidgameTeachingStep('trade-station-basics', 'build-trade-station');
+  }
   _dispatch(result);
 }
 
 function _handleUpgradeTradeStation(systemId) {
   const result = _runCommerceAction('upgradeTradeStation', [systemId]);
+  if (result && result.ok) {
+    _completeMidgameTeachingStep('trade-station-basics', 'upgrade-trade-station');
+  }
   _dispatch(result);
 }
 
@@ -2326,7 +2405,10 @@ function _handleTakeLoan(offerId) {
 
 function _handleRepayLoan(loanId) {
   const result = _runCommerceAction('repayLoan', [loanId]);
-  if (result && result.ok) _recordQuestProgress({ action: 'finance_action', financeType: 'repay' });
+  if (result && result.ok) {
+    _recordQuestProgress({ action: 'finance_action', financeType: 'repay' });
+    _completeMidgameTeachingStep('capital-risk', 'review-loan-obligation');
+  }
   _dispatch(result);
 }
 
@@ -2411,6 +2493,8 @@ function _handleLoadGame(slotId) {
     Faction.init(_state);
     Research.init(_state);
     Quest.init(_state);
+    BalanceMetrics.init(_state);
+    MidgameTeachingChain.init(_state);
     _ensureAchievementState(_state);
     if (_achievementModule) _achievementModule.init(_state);
     _setDeferredUiState('achievement', _achievementModule ? 'ready' : (_achievementPromise ? 'loading' : 'idle'));
@@ -2489,6 +2573,19 @@ function _handleAssignRoute(shipIndex, buySystemId, sellSystemId, goodId, tradeP
   }
   if (result && result.ok) {
     _recordQuestProgress({ action: 'dispatch_route', shipIndex: shipIndex, goodId: goodId });
+    var activeTeachingChain = MidgameTeachingChain.getActiveChain(_state);
+    if (activeTeachingChain && activeTeachingChain.chain.id === 'research-supply') {
+      var researchRecommendation = _routeGuidanceModule && _routeGuidanceModule.findResearchSupplyRoute
+        ? _routeGuidanceModule.findResearchSupplyRoute(_state, _getActiveShipDispatchContext())
+        : null;
+      if (researchRecommendation && researchRecommendation.goodId === goodId &&
+          researchRecommendation.buySystemId === buySystemId &&
+          researchRecommendation.sellSystemId === sellSystemId) {
+        _completeMidgameTeachingStep('research-supply', 'prefill-research-supply-dispatch');
+      }
+    } else if (activeTeachingChain && activeTeachingChain.chain.id === 'dispatch-ops') {
+      _completeMidgameTeachingStep('dispatch-ops', 'prefill-profitable-dispatch');
+    }
     var good = GOODS.find(function (item) { return item.id === goodId; });
     _showActionGuideCompletion(getDispatchConfirmedCompletion(good ? good.name : ''));
   }
@@ -2755,6 +2852,10 @@ function _applyRealtimeDayProgress(days) {
   var result = GameTime.advanceDays(_state, elapsedDays);
   // 科研等全舰队永久加成在日结算中完成后，立即刷新当前飞船投影再存档。
   Fleet.syncStateFromShip(_state);
+  var completedTeachingChains = MidgameTeachingChain.checkChainCompletion(_state);
+  completedTeachingChains.forEach(function (chainResult) {
+    EventBus.emit('log:message', { text: chainResult.message, type: 'upgrade' });
+  });
 
   result.questResults.forEach(function (questResult) {
     _queueQuestDialogueResult(questResult);

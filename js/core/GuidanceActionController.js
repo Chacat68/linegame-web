@@ -28,6 +28,14 @@ export function handleGuidanceAction(suggestion, context) {
   if (ExplorationAction.handleExplorationAction(suggestion, ctx)) return;
 
   switch (suggestion.actionType) {
+    case 'guidance.chain.start':
+      if (payload.chainId) {
+        _call(ctx, 'startTeachingChain', payload.chainId);
+      } else {
+        _call(ctx, 'refreshActionGuide');
+      }
+      return;
+
     case 'quest.accept':
       if (payload.questId) {
         _call(ctx, 'prepareDirectExecution');

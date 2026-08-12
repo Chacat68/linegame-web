@@ -1,7 +1,7 @@
 {
   "name": "linegame-web",
-  "version": "1.0.0",
-  "description": "> 一款运行在浏览器中的 2D 星际经营类游戏",
+  "version": "0.6.4",
+  "description": "一款运行在浏览器中的单机星际贸易经营游戏",
   "main": "index.js",
   "directories": {
     "doc": "docs"
