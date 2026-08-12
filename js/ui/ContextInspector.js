@@ -96,7 +96,11 @@ function _setPanelVisible(visible, options) {
   _root.inert = !_isOpen;
   _setAttribute(_root, 'aria-hidden', _isOpen ? 'false' : 'true');
   _toggles.forEach(function (toggle) {
-    _setAttribute(toggle, 'aria-expanded', _isOpen ? 'true' : 'false');
+    var toggleWorkspaceId = toggle && toggle.dataset
+      ? _normalizeString(toggle.dataset.contextWorkspace)
+      : '';
+    var ownsActiveWorkspace = !toggleWorkspaceId || toggleWorkspaceId === _activeWorkspaceId;
+    _setAttribute(toggle, 'aria-expanded', _isOpen && ownsActiveWorkspace ? 'true' : 'false');
   });
   if (_root.dataset) _root.dataset.state = _isOpen ? 'open' : 'closed';
 }
@@ -272,6 +276,7 @@ export function open(options) {
   if (!_root) return getSnapshot();
   var opts = options || {};
   if (opts.workspaceId) activateWorkspace(opts.workspaceId);
+  if (opts.restoreFocusTo) _lastToggle = opts.restoreFocusTo;
   _setPanelVisible(true);
   if (opts.notifyRail !== false) {
     EventBus.emit(RAIL_EVENT, { source: RAIL_SOURCE, panelId: ROOT_ID });

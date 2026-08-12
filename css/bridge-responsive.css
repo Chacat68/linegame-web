@@ -77,6 +77,10 @@
     display: none;
   }
 
+  .secondary-terminal-shell--logs .secondary-terminal-chrome {
+    grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) auto auto;
+  }
+
   #map-container > #market-overlay.market-overlay {
     top: var(--ui-space-2) !important;
     right: var(--ui-space-3) !important;
@@ -101,6 +105,10 @@
     padding-right: max(var(--ui-space-2), var(--ui-safe-right));
     padding-left: max(var(--ui-space-2), var(--ui-safe-left));
     gap: var(--ui-space-2);
+  }
+
+  .secondary-terminal-shell--logs .secondary-terminal-chrome {
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
   .hdr-day-chip {
@@ -443,6 +451,12 @@
   .secondary-terminal-close {
     grid-column: 2;
     grid-row: 1;
+  }
+
+  .secondary-terminal-shell--logs .logs-context-toggle {
+    grid-column: 1;
+    grid-row: 2;
+    justify-self: start;
   }
 
   .secondary-terminal-body--archive,

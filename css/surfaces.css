@@ -1185,7 +1185,7 @@ body::before {
   background: transparent;
 }
 
-#message-log > :where(.log-message, .message, p, div) {
+#message-log > :where(.log-message, .message, p, div, button) {
   padding: 9px var(--ui-space-3);
   border-left: 2px solid var(--ui-line-default);
   color: var(--ui-text-secondary);
@@ -1199,6 +1199,33 @@ body::before {
   grid-template-columns: 118px minmax(0, 1fr);
   align-items: baseline;
   gap: var(--ui-space-3);
+}
+
+#message-log button.msg {
+  width: 100%;
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 0;
+  border-left-width: 2px;
+  border-radius: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+#message-log button.msg:hover,
+#message-log button.msg:focus-visible {
+  color: var(--ui-text-primary);
+  background: rgba(108, 231, 255, 0.08);
+  outline: 1px solid var(--ui-line-default);
+  outline-offset: -1px;
+}
+
+#message-log button.msg.is-selected,
+#message-log button.msg[aria-pressed="true"] {
+  color: var(--ui-text-primary);
+  background: rgba(108, 231, 255, 0.12);
+  box-shadow: inset 3px 0 0 var(--ui-accent);
 }
 
 #message-log .msg::before {

@@ -92,6 +92,7 @@ describe('Bridge OS global UI contracts', function () {
     var shell = read('css/global-shell-v2.css');
 
     expect(shell).toMatch(/@media \(max-width: 620px\)[\s\S]*?#context-inspector\.context-inspector\s*\{[^}]*top:\s*calc\(var\(--ui-control-lg\)[^}]*bottom:\s*auto/);
+    expect(shell).toMatch(/@media \(max-width: 620px\)[\s\S]*?#context-inspector\.context-inspector:not\(\[data-workspace-id="map"\]\)\s*\{[^}]*top:\s*calc\(var\(--ui-control-lg\)[^}]*bottom:\s*auto/);
     expect(shell).toMatch(/@media \(max-width: 700px\), \(max-height: 620px\)[\s\S]*?#context-inspector #planet-detail-panel\.visible,[\s\S]*?left:\s*auto !important;[\s\S]*?bottom:\s*auto !important;[\s\S]*?width:\s*100% !important;/);
   });
 });

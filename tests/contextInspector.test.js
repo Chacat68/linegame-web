@@ -24,6 +24,9 @@ function createFixture() {
   var root = createElement('context-inspector');
   root.setAttribute('aria-hidden', 'false');
   var toggle = createElement('context-toggle');
+  toggle.dataset.contextWorkspace = 'map';
+  var logsToggle = createElement('logs-context-toggle');
+  logsToggle.dataset.contextWorkspace = 'logs';
   var close = createElement('context-close');
   var content = createElement('context-inspector-content');
   var empty = createElement('context-inspector-empty');
@@ -39,12 +42,12 @@ function createFixture() {
   };
   var documentListeners = Object.create(null);
   return {
-    root: root, toggle: toggle, close: close, content: content, empty: empty, host: host, title: title,
+    root: root, toggle: toggle, logsToggle: logsToggle, close: close, content: content, empty: empty, host: host, title: title,
     documentListeners: documentListeners,
     document: {
       getElementById: function (id) { return elements[id] || null; },
       querySelector: function (selector) { return selector === '[data-context-inspector-toggle]' ? toggle : null; },
-      querySelectorAll: function (selector) { return selector === '[data-context-inspector-toggle]' ? [toggle] : []; },
+      querySelectorAll: function (selector) { return selector === '[data-context-inspector-toggle]' ? [toggle, logsToggle] : []; },
       addEventListener: function (type, handler) {
         (documentListeners[type] || (documentListeners[type] = [])).push(handler);
       },
@@ -164,5 +167,29 @@ describe('ContextInspector protocol', function () {
     CompactInspector.activateWorkspace('trade');
     CompactInspector.registerRenderer('trade', function () { return true; });
     expect(CompactInspector.getSnapshot().open).toBe(false);
+  });
+
+  it('可把选择源登记为焦点返回点，Escape 后不跳到其他工作区 toggle', async function () {
+    var fixture = createFixture();
+    globalThis.document = fixture.document;
+    var Inspector = await import('../js/ui/ContextInspector.js');
+    var messageButton = createElement('message-1');
+    Inspector.init({ workspaceId: 'logs', open: false });
+    Inspector.registerRenderer('logs', function () { return true; });
+
+    Inspector.open({ workspaceId: 'logs', focus: false, restoreFocusTo: messageButton });
+    expect(Inspector.getSnapshot().open).toBe(true);
+    expect(fixture.logsToggle.getAttribute('aria-expanded')).toBe('true');
+    expect(fixture.toggle.getAttribute('aria-expanded')).toBe('false');
+    fixture.documentListeners.keydown[0]({
+      key: 'Escape',
+      preventDefault: vi.fn(),
+      stopPropagation: vi.fn(),
+      stopImmediatePropagation: vi.fn(),
+    });
+
+    expect(Inspector.getSnapshot().open).toBe(false);
+    expect(messageButton.focusCount).toBe(1);
+    expect(fixture.toggle.focusCount).toBe(0);
   });
 });

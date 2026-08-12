@@ -21,20 +21,25 @@ function createInspector() {
 }
 
 describe('WorkspaceContextAdapters', function () {
-  it('连接延迟市场和舰队 presenter，并复用同一模块注册', function () {
+  it('连接市场、舰队和日志 presenter，并复用同一模块注册', function () {
     var inspector = createInspector();
     var registry = createWorkspaceContextAdapters({ inspector: inspector });
     var market = { renderContextInspector: vi.fn(function () { return true; }) };
     var fleet = { renderContextInspector: vi.fn(function () { return true; }) };
+    var logs = { renderContextInspector: vi.fn(function () { return true; }) };
 
     expect(registry.connectMarket(market)).toBe(true);
     expect(registry.connectMarket(market)).toBe(true);
     expect(registry.connectFleet(fleet)).toBe(true);
-    expect(inspector.registerRenderer).toHaveBeenCalledTimes(2);
+    expect(registry.connectLogs(logs)).toBe(true);
+    expect(registry.connectLogs(logs)).toBe(true);
+    expect(inspector.registerRenderer).toHaveBeenCalledTimes(3);
     inspector.renderers.get('trade')({ context: { type: 'commodity', id: 'food' } });
     inspector.renderers.get('fleet')({ context: { type: 'ship', id: '0' } });
+    inspector.renderers.get('logs')({ context: { type: 'message', id: 'message-1' } });
     expect(market.renderContextInspector).toHaveBeenCalledOnce();
     expect(fleet.renderContextInspector).toHaveBeenCalledOnce();
+    expect(logs.renderContextInspector).toHaveBeenCalledOnce();
   });
 
   it('按 archive context type 路由，不把未知对象交给错误 presenter', function () {

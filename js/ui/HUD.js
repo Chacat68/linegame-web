@@ -15,6 +15,7 @@ import * as Fleet               from '../systems/fleet/FleetSystem.js';
 import { getCompanyLevelValue, getCompanyPrivilegeSummary } from '../data/companyAccess.js';
 import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from './SurfaceManager.js';
 import * as ContextInspector from './ContextInspector.js';
+import { renderLogContext } from './LogsContextPresenter.js';
 
 const getLevel = PlayerLevels.getLevel;
 const getRepRank = PlayerLevels.getRepRank;
@@ -110,6 +111,7 @@ let _lastProgressList = [];
 let _questActions = null;
 let _initialized = false;
 let _logsHistory = [];
+let _nextLogId = 1;
 let _unreadLogCount = 0;
 let _stateRef = null;
 
@@ -439,10 +441,16 @@ export function updateArchiveBadges(state) {
 export function addMessage(text, type) {
   // 存入历史数组，最新记录始终在顶部。
   var normalizedType = _normalizeLogType(type);
-  _logsHistory.unshift({ text: String(text == null ? '' : text), type: normalizedType, time: new Date() });
+  _logsHistory.unshift({
+    id: 'message-' + _nextLogId++,
+    text: String(text == null ? '' : text),
+    type: normalizedType,
+    time: new Date(),
+  });
   if (_logsHistory.length > MAX_LOG_HISTORY) {
     _logsHistory.pop();
   }
+  _reconcileLogContext();
   _unreadLogCount = Math.min(999, _unreadLogCount + 1);
   _updateLogsNavBadge();
   refreshLogView();
@@ -455,6 +463,7 @@ export function refreshLogView() {
   if (typeof document === 'undefined' || typeof document.getElementById !== 'function') return false;
   const log = document.getElementById('message-log');
   if (!log || typeof document.createElement !== 'function') return false;
+  _bindLogSelection(log);
 
   if (typeof log.replaceChildren === 'function') {
     log.replaceChildren();
@@ -470,10 +479,16 @@ export function refreshLogView() {
     return true;
   }
 
+  var selectedContext = ContextInspector.getContext('logs');
   _logsHistory.forEach(function (entry) {
-    log.appendChild(_buildLogMessageElement(entry));
+    log.appendChild(_buildLogMessageElement(entry, selectedContext));
   });
   return true;
+}
+
+/** Context adapter entry point. The latest in-memory history is resolved per render. */
+export function renderContextInspector(request) {
+  return renderLogContext(request, _logsHistory, LOG_TYPE_LABELS);
 }
 
 export function clearLogUnreadCount() {
@@ -511,9 +526,17 @@ function _formatLogTime(value) {
   }).join(':');
 }
 
-function _buildLogMessageElement(entry) {
-  const div = document.createElement('div');
-  div.className = 'msg msg-' + entry.type;
+function _buildLogMessageElement(entry, selectedContext) {
+  const button = document.createElement('button');
+  var isSelected = !!(
+    selectedContext && selectedContext.type === 'message' &&
+    String(selectedContext.id) === String(entry.id)
+  );
+  button.type = 'button';
+  button.className = 'msg msg-' + entry.type + (isSelected ? ' is-selected' : '');
+  button.dataset.logEntryId = entry.id;
+  button.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+  button.setAttribute('aria-label', '检查' + (LOG_TYPE_LABELS[entry.type] || LOG_TYPE_LABELS.info) + '记录：' + entry.text);
 
   const meta = document.createElement('span');
   meta.className = 'log-message-meta';
@@ -533,9 +556,64 @@ function _buildLogMessageElement(entry) {
 
   meta.appendChild(time);
   meta.appendChild(kind);
-  div.appendChild(meta);
-  div.appendChild(message);
-  return div;
+  button.appendChild(meta);
+  button.appendChild(message);
+  return button;
+}
+
+function _bindLogSelection(log) {
+  if (!log || !log.dataset || log.dataset.logSelectionBound === 'true' ||
+      typeof log.addEventListener !== 'function') return;
+  log.addEventListener('click', function (event) {
+    var target = event && event.target;
+    var entryButton = target && typeof target.closest === 'function'
+      ? target.closest('[data-log-entry-id]')
+      : null;
+    if (!entryButton || (typeof log.contains === 'function' && !log.contains(entryButton))) return;
+    _selectLogEntry(entryButton.dataset.logEntryId, entryButton);
+  });
+  log.dataset.logSelectionBound = 'true';
+}
+
+function _selectLogEntry(entryId, focusOrigin) {
+  var entry = _logsHistory.find(function (candidate) {
+    return candidate && String(candidate.id) === String(entryId);
+  });
+  if (!entry) return false;
+  ContextInspector.replaceContext({
+    workspaceId: 'logs',
+    type: 'message',
+    id: entry.id,
+    source: 'logs-feed',
+    revision: ContextInspector.getCurrentRevision(),
+  });
+  ContextInspector.open({
+    workspaceId: 'logs',
+    focus: false,
+    restoreFocusTo: focusOrigin || null,
+  });
+  _syncLogSelectionUi(entry.id);
+  return true;
+}
+
+function _syncLogSelectionUi(selectedId) {
+  if (typeof document === 'undefined' || typeof document.querySelectorAll !== 'function') return;
+  Array.from(document.querySelectorAll('#message-log [data-log-entry-id]')).forEach(function (button) {
+    var selected = button && button.dataset && String(button.dataset.logEntryId) === String(selectedId);
+    if (button && button.classList) button.classList.toggle('is-selected', selected);
+    if (button && typeof button.setAttribute === 'function') {
+      button.setAttribute('aria-pressed', selected ? 'true' : 'false');
+    }
+  });
+}
+
+function _reconcileLogContext() {
+  var context = ContextInspector.getContext('logs');
+  if (!context) return;
+  var exists = _logsHistory.some(function (entry) {
+    return entry && String(entry.id) === String(context.id);
+  });
+  if (!exists) ContextInspector.clearContext('logs');
 }
 
 // ---------------------------------------------------------------------------

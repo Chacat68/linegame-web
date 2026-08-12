@@ -62,6 +62,30 @@ function createFakeElement(id, initialClasses) {
     querySelector: function () {
       return null;
     },
+    querySelectorAll: function () {
+      return [];
+    },
+    appendChild: function (child) {
+      this.children.push(child);
+      child.parentElement = this;
+      return child;
+    },
+    replaceChildren: function () {
+      this.children = [];
+    },
+    contains: function (candidate) {
+      while (candidate) {
+        if (candidate === this) return true;
+        candidate = candidate.parentElement;
+      }
+      return false;
+    },
+    closest: function (selector) {
+      if (selector === '[data-log-entry-id]' && this.dataset && this.dataset.logEntryId) return this;
+      return this.parentElement && typeof this.parentElement.closest === 'function'
+        ? this.parentElement.closest(selector)
+        : null;
+    },
     insertBefore: function () {},
     removeChild: function () {},
   };
@@ -202,6 +226,85 @@ describe('Onboarding and log surfaces', function () {
     expect(messageLog.children).toHaveLength(1);
     expect(messageLog.children[0].className).toContain('log-empty-state');
     expect(messageLog.children[0].textContent).toContain('暂无通讯记录');
+  });
+
+  it('选择日志消息会打开只读 Inspector，并把 Escape 焦点返回所选记录', async function () {
+    var messageLog = createFakeElement('message-log');
+    var inspectorRoot = createFakeElement('context-inspector');
+    inspectorRoot.hidden = true;
+    inspectorRoot.setAttribute('aria-hidden', 'true');
+    var inspectorContent = createFakeElement('context-inspector-content');
+    var inspectorEmpty = createFakeElement('context-inspector-empty');
+    var inspectorHost = createFakeElement('context-inspector-render-host');
+    var inspectorTitle = createFakeElement('context-inspector-title');
+    var inspectorClose = createFakeElement('context-inspector-close');
+    inspectorRoot.querySelector = function (selector) {
+      return selector === '[data-context-inspector-close]' ? inspectorClose : null;
+    };
+    inspectorHost.querySelector = function () { return null; };
+    inspectorHost.querySelectorAll = function (selector) {
+      return selector === '[data-context-workspace-view]'
+        ? this.children.filter(function (child) { return child.dataset.contextWorkspaceView; })
+        : [];
+    };
+    var documentListeners = Object.create(null);
+    var elements = {
+      'victory-modal': createFakeElement('victory-modal', ['hidden']),
+      'message-log': messageLog,
+      'context-inspector': inspectorRoot,
+      'context-inspector-content': inspectorContent,
+      'context-inspector-empty': inspectorEmpty,
+      'context-inspector-render-host': inspectorHost,
+      'context-inspector-title': inspectorTitle,
+    };
+    globalThis.document = {
+      createElement: function (tagName) {
+        var element = createFakeElement('');
+        element.tagName = String(tagName).toUpperCase();
+        return element;
+      },
+      getElementById: function (id) { return elements[id] || null; },
+      querySelector: function () { return null; },
+      querySelectorAll: function (selector) {
+        if (selector === '#message-log [data-log-entry-id]') return messageLog.children;
+        return [];
+      },
+      addEventListener: function (type, handler) {
+        (documentListeners[type] || (documentListeners[type] = [])).push(handler);
+      },
+      removeEventListener: function () {},
+    };
+
+    var HUD = await import('../js/ui/HUD.js?v=20260813-logs-context');
+    var Inspector = await import('../js/ui/ContextInspector.js');
+    HUD.init({ revisionSource: function () { return 4; } });
+    Inspector.registerRenderer('logs', HUD.renderContextInspector);
+    Inspector.activateWorkspace('logs');
+    HUD.addMessage('跃迁航线已归档', 'travel');
+    var messageButton = messageLog.children[0];
+
+    messageLog.dispatchEvent('click', { target: messageButton.children[1] });
+
+    expect(Inspector.getContext('logs')).toEqual({
+      workspaceId: 'logs',
+      type: 'message',
+      id: messageButton.dataset.logEntryId,
+      source: 'logs-feed',
+      revision: 4,
+    });
+    expect(Inspector.getSnapshot().open).toBe(true);
+    expect(inspectorTitle.textContent).toBe('消息检查');
+    expect(inspectorHost.children[0].innerHTML).toContain('跃迁航线已归档');
+    expect(messageButton.getAttribute('aria-pressed')).toBe('true');
+
+    documentListeners.keydown[0]({
+      key: 'Escape',
+      preventDefault: function () {},
+      stopPropagation: function () {},
+      stopImmediatePropagation: function () {},
+    });
+    expect(Inspector.getSnapshot().open).toBe(false);
+    expect(messageButton.focused).toBe(true);
   });
 
   it('公司命名会即时校验、支持回车并阻止重复提交', async function () {

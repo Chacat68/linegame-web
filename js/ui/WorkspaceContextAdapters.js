@@ -64,6 +64,14 @@ export function createWorkspaceContextAdapters(options) {
     });
   }
 
+  function connectLogs(module) {
+    var renderer = _contextRenderer(module);
+    if (!renderer) return false;
+    return _register('logs', module, function (request) {
+      return renderer(request);
+    });
+  }
+
   function connectArchive(module) {
     if (!module || typeof module !== 'object') return false;
     return _register('archive', module, function (request) {
@@ -108,6 +116,7 @@ export function createWorkspaceContextAdapters(options) {
     clearSelection: clearSelection,
     connectArchive: connectArchive,
     connectFleet: connectFleet,
+    connectLogs: connectLogs,
     connectMarket: connectMarket,
     dispose: dispose,
     syncSelection: syncSelection,

@@ -77,7 +77,11 @@ describe('UI surface inventory', function () {
     expect(html).toContain('id="hud-galactic-map-toggle"');
     expect(html).not.toContain('data-hud-dock-panel=');
     expect((html.match(/id="context-inspector"/g) || []).length).toBe(1);
-    expect((html.match(/data-context-inspector-toggle/g) || []).length).toBe(4);
+    expect((html.match(/data-context-inspector-toggle/g) || []).length).toBe(5);
+    ['map', 'trade', 'fleet', 'archive', 'logs'].forEach(function (workspaceId) {
+      expect(html).toContain('data-context-workspace="' + workspaceId + '"');
+    });
+    expect(html).toMatch(/secondary-terminal-shell--logs[\s\S]*?data-context-inspector-toggle[\s\S]*?检查消息/);
     expect((html.match(/data-context-inspector-tab=/g) || []).length).toBe(0);
     expect((html.match(/data-context-inspector-pane=/g) || []).length).toBe(0);
     expect((html.match(/id="context-inspector-content"/g) || []).length).toBe(1);

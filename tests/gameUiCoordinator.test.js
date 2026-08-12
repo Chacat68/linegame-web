@@ -67,7 +67,9 @@ describe('GameUiCoordinator', function () {
       connectMarket: vi.fn(),
       connectFleet: vi.fn(),
       connectArchive: vi.fn(),
+      connectLogs: vi.fn(),
     };
+    var hud = { renderContextInspector: vi.fn() };
     var features = createFeatureHarness({
       market: { render: marketRender },
       fleet: { render: fleetRender, renderShop: vi.fn() },
@@ -83,6 +85,7 @@ describe('GameUiCoordinator', function () {
           getMarketViewGalaxy: function () { return 'milky_way'; },
         },
         ContextAdapters: contextAdapters,
+        HUD: hud,
       },
       actions: {
         market: { onOpenBuy: callbacks.buy, getMode: function () { return 'black'; } },
@@ -110,6 +113,8 @@ describe('GameUiCoordinator', function () {
     expect(contextAdapters.connectMarket).toHaveBeenCalledWith(features.modules.market);
     expect(contextAdapters.connectFleet).toHaveBeenCalledWith(features.modules.fleet);
     expect(contextAdapters.connectArchive).toHaveBeenCalledWith(features.modules.archive);
+    expect(contextAdapters.connectLogs).toHaveBeenCalledOnce();
+    expect(contextAdapters.connectLogs).toHaveBeenCalledWith(hud);
   });
 
   it('异步加载期间切换状态后渲染最新状态', async function () {

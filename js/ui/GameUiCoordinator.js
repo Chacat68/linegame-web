@@ -60,6 +60,10 @@ export function createGameUiCoordinator(options) {
   var Trade = _dependency(systems, 'Trade', 'trade');
   var Dispatch = _dependency(systems, 'Dispatch', 'dispatch');
 
+  // HUD is eager and owns the in-memory message history; register its read-only
+  // logs adapter once while delayed domain presenters continue to connect on load.
+  _call(ContextAdapters, 'connectLogs', [HUD]);
+
   function _getLoadedFeature(featureName) {
     if (!featureName) return null;
     if (typeof features.get === 'function') return features.get(featureName) || null;

@@ -280,7 +280,8 @@
   }
 
   body:has(#context-inspector[data-workspace-id="archive"]:not([hidden])) #info-panel,
-  body:has(#context-inspector[data-workspace-id="fleet"]:not([hidden])) #trade-panel {
+  body:has(#context-inspector[data-workspace-id="fleet"]:not([hidden])) #trade-panel,
+  body:has(#context-inspector[data-workspace-id="logs"]:not([hidden])) #console-panel {
     padding-right: calc(var(--ui-context-width) + var(--ui-space-7)) !important;
   }
 }
@@ -454,6 +455,11 @@
   }
 
   #context-inspector.context-inspector:not([data-workspace-id="map"]) {
+    top: calc(var(--ui-control-lg) + var(--ui-space-4) + var(--ui-safe-top));
+    right: max(7px, var(--ui-safe-right));
+    bottom: auto;
+    left: max(7px, var(--ui-safe-left));
+    width: auto;
     max-height: min(54dvh, 460px);
   }
 
