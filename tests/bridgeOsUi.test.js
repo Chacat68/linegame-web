@@ -12,12 +12,14 @@ describe('Bridge OS global UI contracts', function () {
     var primitives = entry.indexOf('@import url("primitives.css")');
     var surfaces = entry.indexOf('@import url("surfaces.css")');
     var responsive = entry.indexOf('@import url("bridge-responsive.css")');
+    var globalShell = entry.indexOf('@import url("global-shell-v2.css")');
 
     expect(tokens).toBeGreaterThan(-1);
     expect(primitives).toBeGreaterThan(tokens);
     expect(surfaces).toBeGreaterThan(primitives);
     expect(responsive).toBeGreaterThan(surfaces);
-    expect(entry.trim().endsWith('@import url("bridge-responsive.css");')).toBe(true);
+    expect(globalShell).toBeGreaterThan(responsive);
+    expect(entry.trim().endsWith('@import url("global-shell-v2.css");')).toBe(true);
   });
 
   it('defines one semantic token source and accessibility primitives', function () {
@@ -84,5 +86,12 @@ describe('Bridge OS global UI contracts', function () {
     expect(surfaces).toContain('#trade-panel .trade-panel-toggle.secondary-terminal-close');
     expect(surfaces).toContain('background: rgba(2, 10, 18, 0.76) !important');
     expect(fleet).not.toContain('.market-close-btn {');
+  });
+
+  it('keeps the mobile Context Inspector above the command slot and resets legacy detail positioning', function () {
+    var shell = read('css/global-shell-v2.css');
+
+    expect(shell).toMatch(/@media \(max-width: 620px\)[\s\S]*?#context-inspector\.context-inspector\s*\{[^}]*top:\s*calc\(var\(--ui-control-lg\)[^}]*bottom:\s*auto/);
+    expect(shell).toMatch(/@media \(max-width: 700px\), \(max-height: 620px\)[\s\S]*?#context-inspector #planet-detail-panel\.visible,[\s\S]*?left:\s*auto !important;[\s\S]*?bottom:\s*auto !important;[\s\S]*?width:\s*100% !important;/);
   });
 });

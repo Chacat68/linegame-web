@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 describe('deferred terminal UI loading', function () {
   it('市场、舰队和档案界面不再进入首屏静态依赖图', function () {
     var source = readFileSync('js/core/GameManager.js', 'utf8');
+    var featureLoader = readFileSync('js/core/DeferredFeatureLoader.js', 'utf8');
 
     expect(source).not.toMatch(/import\s+\*\s+as\s+MarketUI\s+from/);
     expect(source).not.toMatch(/import\s+\*\s+as\s+FleetUI\s+from/);
@@ -18,29 +19,37 @@ describe('deferred terminal UI loading', function () {
     expect(source).toContain("import('../ui/AchievementUI.js')");
     expect(source).toContain("import('../ui/SaveUI.js')");
     expect(source).toContain("import('../ui/VictoryResultUI.js')");
-    expect(source).toContain("_setDeferredUiState('market', 'loading')");
-    expect(source).toContain("_setDeferredUiState('fleet', 'loading')");
-    expect(source).toContain("_setDeferredUiState('archive', 'loading')");
-    expect(source).toContain("_setDeferredUiState('save', 'loading')");
+    expect(source).toContain(".define('market'");
+    expect(source).toContain(".define('fleet'");
+    expect(source).toContain(".define('archive'");
+    expect(source).toContain(".define('save'");
+    expect(featureLoader).toContain("_setTelemetryState(feature, 'loading')");
   });
 
   it('首次打开终端会触发加载，后续全量刷新只更新已加载模块', function () {
     var gameManager = readFileSync('js/core/GameManager.js', 'utf8');
     var uiManager = readFileSync('js/ui/UIManager.js', 'utf8');
+    var uiCoordinator = readFileSync('js/ui/GameUiCoordinator.js', 'utf8');
 
     expect(gameManager).toContain('onOpenHangar: function ()');
     expect(gameManager).toContain("if (tabId === 'tab-fleet') _ensureFleetUiRendered()");
     expect(gameManager).toContain("['tab-quest', 'tab-exploration', 'tab-research', 'tab-faction', 'tab-achievement']");
-    expect(gameManager).toContain('if (_fleetUiModule) _renderFleetUI(_fleetUiModule)');
-    expect(gameManager).toContain('if (_archiveUiModule) _renderArchiveUI(_archiveUiModule)');
-    expect(gameManager).toContain('if (MapUI.isMarketOpen())');
+    expect(gameManager).toContain("var FleetUI = _getDeferredFeature('fleet')");
+    expect(gameManager).toContain("var ArchiveUI = _getDeferredFeature('archive')");
+    expect(gameManager).toContain("if (MapUI.isMarketOpen() && !_getDeferredFeature('market'))");
     expect(gameManager).toContain('_ensureMarketUiRendered()');
+    expect(gameManager).toContain('_getUiCoordinator().renderAll()');
+    expect(uiCoordinator).toContain("if (_call(MapUI, 'isMarketOpen', []))");
+    expect(uiCoordinator).toContain("var ArchiveUI = _getLoadedFeature('archive')");
+    expect(uiCoordinator).toContain("var FleetUI = _getLoadedFeature('fleet')");
+    expect(uiCoordinator).toContain("var SaveUI = _getLoadedFeature('save')");
     expect(uiManager).toContain('onOpenHangar: null');
-    expect(uiManager).toContain('_handlers.onOpenHangar(_stateRef)');
+    expect(uiManager).toContain('_handlers.onOpenHangar(state)');
   });
 
   it('终端样式与对应模块一起按需加载', function () {
     var gameManager = readFileSync('js/core/GameManager.js', 'utf8');
+    var featureLoader = readFileSync('js/core/DeferredFeatureLoader.js', 'utf8');
     var styleEntry = readFileSync('css/style.css', 'utf8');
     var sharedCss = readFileSync('css/interstellar-trader.css', 'utf8');
 
@@ -49,15 +58,15 @@ describe('deferred terminal UI loading', function () {
     expect(gameManager).toContain("new URL('../../css/hangar-terminal.css', import.meta.url).href");
     expect(gameManager).toContain("new URL('../../css/archive-terminal.css', import.meta.url).href");
     expect(gameManager).toContain("new URL('../../css/market-terminal.css?v=20260717-marketchart1', import.meta.url).href");
-    expect(gameManager).toContain("_loadDeferredStylesheet('fleet-base', _fleetStylesUrl)");
-    expect(gameManager).toContain("_loadDeferredStylesheet('hangar-terminal', _hangarTerminalStylesUrl)");
-    expect(gameManager).toContain("_loadDeferredStylesheet('archive-terminal', _archiveTerminalStylesUrl)");
-    expect(gameManager).toContain("_loadDeferredStylesheet('market-terminal', _marketTerminalStylesUrl)");
-    expect(gameManager).toContain("link.dataset.deferredUiStyle = surface");
-    expect(gameManager).toContain("document.getElementById('app-styles')");
-    expect(gameManager).toContain('document.head.insertBefore(link, appStyles)');
-    expect(gameManager).toContain("link.dataset.loaded = 'false'");
-    expect(gameManager).toContain('link.parentNode.removeChild(link)');
+    expect(gameManager).toContain("loadDeferredStylesheet('fleet-base', _fleetStylesUrl)");
+    expect(gameManager).toContain("loadDeferredStylesheet('hangar-terminal', _hangarTerminalStylesUrl)");
+    expect(gameManager).toContain("loadDeferredStylesheet('archive-terminal', _archiveTerminalStylesUrl)");
+    expect(gameManager).toContain("loadDeferredStylesheet('market-terminal', _marketTerminalStylesUrl)");
+    expect(featureLoader).toContain('link.dataset.deferredUiStyle = feature');
+    expect(featureLoader).toContain("document.getElementById('app-styles')");
+    expect(featureLoader).toContain('document.head.insertBefore(link, appStyles)');
+    expect(featureLoader).toContain("link.dataset.loaded = 'false'");
+    expect(featureLoader).toContain('link.parentNode.removeChild(link)');
     expect(sharedCss).toMatch(/#market-overlay\.hidden\s*\{[^}]*display:\s*none\s*!important;/);
     expect(sharedCss).not.toContain('Hangar detail modal shell refinements');
     expect(sharedCss).not.toContain('Archive terminal: quests + research');
@@ -76,10 +85,12 @@ describe('deferred terminal UI loading', function () {
   it('存档和胜利结果只在对应入口触发加载', function () {
     var gameManager = readFileSync('js/core/GameManager.js', 'utf8');
     var settingsManager = readFileSync('js/core/SettingsManager.js', 'utf8');
+    var uiCoordinator = readFileSync('js/ui/GameUiCoordinator.js', 'utf8');
 
     expect(gameManager).toContain('onOpen: function ()');
     expect(gameManager).toContain('_ensureSaveUiRendered()');
-    expect(gameManager).toContain('if (_saveUiModule) _renderSaveUI(_saveUiModule)');
+    expect(gameManager).toContain('return _getUiCoordinator().ensureSave()');
+    expect(uiCoordinator).toContain("return _ensure('save', function (module) { renderSave(module); })");
     expect(gameManager).toContain('_loadVictoryResultUI().then(function (VictoryResultUI)');
     expect(gameManager).toContain('_pendingVictoryReportPathId === reportPathId');
     expect(settingsManager).toContain('if (activeCallbacks.onOpen) activeCallbacks.onOpen()');

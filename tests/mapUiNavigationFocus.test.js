@@ -271,7 +271,8 @@ describe('MapUI navigation target focus', function () {
     });
 
     expect(state.mapView).toBe('planets');
-    expect(panel.classList.contains('visible')).toBe(false);
+    expect(panel.classList.contains('visible')).toBe(true);
+    expect(panel.classList.contains('planet-detail-panel--galaxy-hub')).toBe(false);
 
     state.mapView = 'galaxies';
     panel.classList.add('planet-detail-panel--galaxy-hub');

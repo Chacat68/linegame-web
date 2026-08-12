@@ -159,7 +159,7 @@ function _getGoodName(goodId) {
 
 function _getPlanetDetailDisplayId(stateRef) {
   if (_selectedPlanetDetailSystem) return _selectedPlanetDetailSystem;
-  return stateRef ? stateRef.hoveredSystem : null;
+  return stateRef ? (stateRef.hoveredSystem || stateRef.currentSystem) : null;
 }
 
 function _buildPlanetTravelAction(stateRef, sys) {
@@ -1685,6 +1685,15 @@ export function refreshPlanetDetail(stateRef) {
     panel.innerHTML = _buildGalaxyHubPanel(stateRef);
     panel.classList.add('visible');
 
+    const inspectorOwned = !!(panel.closest && panel.closest('#context-inspector'));
+    if (inspectorOwned) {
+      panel.style.width = '';
+      panel.style.left = '';
+      panel.style.top = '';
+      panel.scrollTop = previousHubScrollTop;
+      return;
+    }
+
     const canvasW = mapContainer.clientWidth;
     const panelW = Math.min(340, Math.max(280, canvasW - 16));
     panel.style.width = panelW + 'px';
@@ -1808,6 +1817,14 @@ export function refreshPlanetDetail(stateRef) {
   const container = mapContainer;
   const canvasW = container.clientWidth;
   const canvasH = container.clientHeight;
+  const inspectorOwned = !!(panel.closest && panel.closest('#context-inspector'));
+
+  if (inspectorOwned) {
+    panel.style.width = '';
+    panel.style.left = '';
+    panel.style.top = '';
+    return;
+  }
 
   // 优先使用3D投影坐标
   let nodeX, nodeY;

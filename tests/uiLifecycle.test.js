@@ -681,12 +681,46 @@ describe('UI lifecycle idempotency', function () {
 
       UIManager.switchView('quests');
 
-      expect(UIManager.getCurrentView()).toBe('starmap');
-      expect(starmapBtn.classList.contains('active')).toBe(true);
-      expect(questsBtn.classList.contains('active')).toBe(false);
-      expect(infoPanel.classList.contains('panel-open')).toBe(false);
-      expect(canvas.classList.contains('starmap-blur-active')).toBe(false);
-      expect(closeOptions).toEqual({ restoreFocus: false });
+      expect(UIManager.getCurrentView()).toBe('quests');
+      expect(starmapBtn.classList.contains('active')).toBe(false);
+      expect(questsBtn.classList.contains('active')).toBe(true);
+      expect(infoPanel.classList.contains('panel-open')).toBe(true);
+      expect(canvas.classList.contains('starmap-blur-active')).toBe(true);
+      expect(closeOptions).toBe(null);
+    });
+  });
+
+  it('UIManager 切换工作区时从 provider 读取最新状态', function () {
+    vi.resetModules();
+
+    var bottomNav = createFakeElement();
+    var clonedBottomNav = createFakeElement();
+    bottomNav.cloneNode = function () { return clonedBottomNav; };
+    bottomNav.parentNode = { replaceChild: function () {} };
+    var marketOverlay = createFakeElement(['hidden']);
+    var firstState = { id: 'before-load' };
+    var loadedState = { id: 'after-load' };
+    var currentState = firstState;
+    var observedState = null;
+
+    globalThis.document = {
+      querySelectorAll: function () { return []; },
+      getElementById: function (id) {
+        if (id === 'bottom-nav') return bottomNav;
+        if (id === 'market-overlay') return marketOverlay;
+        return null;
+      },
+    };
+
+    return import('../js/ui/UIManager.js').then(function (UIManager) {
+      UIManager.init(function () { return currentState; }, {
+        onOpenMarket: function (state) { observedState = state; },
+      });
+
+      currentState = loadedState;
+      UIManager.switchView('market');
+
+      expect(observedState).toBe(loadedState);
     });
   });
 

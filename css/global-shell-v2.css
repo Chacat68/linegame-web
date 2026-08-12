@@ -1,0 +1,395 @@
+/* ============================================================
+   Bridge OS · Global Shell v2
+   新壳层仅在此文件演进；旧 HUD 覆盖保持冻结，逐阶段删除。
+   ============================================================ */
+
+:root {
+  --ui-context-width: 348px;
+  --ui-command-width: 720px;
+}
+
+/* Map tools --------------------------------------------------- */
+
+.starmap-map-tools {
+  position: absolute;
+  z-index: var(--ui-z-hud);
+  top: max(var(--ui-space-4), var(--ui-safe-top));
+  left: max(var(--ui-space-4), var(--ui-safe-left));
+  display: flex;
+  align-items: center;
+  gap: var(--ui-space-2);
+  pointer-events: auto;
+}
+
+.starmap-map-tool {
+  display: inline-flex;
+  min-height: var(--ui-control-lg);
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 var(--ui-space-4);
+  border: 1px solid var(--ui-line-default);
+  border-radius: 999px;
+  color: var(--ui-text-secondary);
+  background: rgba(3, 13, 22, 0.84);
+  box-shadow: var(--ui-shadow-card);
+  font-size: 11px;
+  font-weight: 720;
+  letter-spacing: 0.035em;
+  backdrop-filter: blur(16px);
+}
+
+.starmap-map-tool:hover,
+.starmap-map-tool[aria-expanded="true"] {
+  border-color: var(--ui-line-strong);
+  color: var(--ui-accent-strong);
+  background: rgba(10, 36, 52, 0.92);
+}
+
+/* Context Inspector ------------------------------------------ */
+
+#context-inspector.context-inspector {
+  position: absolute;
+  z-index: var(--ui-z-hud);
+  top: max(var(--ui-space-4), var(--ui-safe-top));
+  right: max(var(--ui-space-4), var(--ui-safe-right));
+  display: grid;
+  width: min(var(--ui-context-width), calc(100vw - 32px));
+  max-height: calc(100dvh - var(--ui-header-height) - var(--ui-nav-height) - 124px);
+  grid-template-rows: auto auto minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid var(--ui-line-default);
+  border-radius: 14px;
+  color: var(--ui-text-secondary);
+  background:
+    radial-gradient(circle at 100% 0, rgba(108, 231, 255, 0.1), transparent 38%),
+    linear-gradient(155deg, rgba(7, 24, 36, 0.96), rgba(3, 13, 22, 0.94));
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  pointer-events: auto;
+  backdrop-filter: blur(18px) saturate(1.08);
+}
+
+#context-inspector[hidden] {
+  display: none;
+}
+
+.context-inspector-head {
+  display: flex;
+  min-height: 56px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ui-space-3);
+  padding: 9px 10px 8px 14px;
+  border-bottom: 1px solid var(--ui-line-subtle);
+}
+
+.context-inspector-heading {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.context-inspector-kicker {
+  color: var(--ui-accent);
+  font-size: 8px;
+  font-weight: 760;
+  letter-spacing: 0.15em;
+}
+
+.context-inspector-heading strong {
+  overflow: hidden;
+  color: var(--ui-text-primary);
+  font-size: 14px;
+  font-weight: 720;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.context-inspector-close {
+  display: grid;
+  width: var(--ui-control-sm);
+  height: var(--ui-control-sm);
+  place-items: center;
+  border: 1px solid transparent;
+  color: var(--ui-text-muted);
+  background: transparent;
+}
+
+.context-inspector-close:hover {
+  border-color: var(--ui-line-default);
+  color: var(--ui-text-primary);
+  background: rgba(108, 231, 255, 0.08);
+}
+
+.context-inspector-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 7px;
+  gap: 4px;
+  border-bottom: 1px solid var(--ui-line-subtle);
+  background: rgba(2, 10, 18, 0.44);
+}
+
+.context-inspector-tab {
+  min-height: 34px;
+  border: 1px solid transparent;
+  border-radius: var(--ui-radius-control);
+  color: var(--ui-text-muted);
+  background: transparent;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.context-inspector-tab:hover {
+  color: var(--ui-text-secondary);
+  background: rgba(108, 231, 255, 0.055);
+}
+
+.context-inspector-tab[aria-selected="true"] {
+  border-color: var(--ui-line-default);
+  color: var(--ui-accent-strong);
+  background: rgba(108, 231, 255, 0.1);
+}
+
+.context-inspector-pane {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.context-inspector-pane[hidden] {
+  display: none;
+}
+
+.context-pane-intro {
+  display: grid;
+  gap: 3px;
+  padding: 13px 14px 8px;
+}
+
+.context-pane-intro strong {
+  color: var(--ui-text-primary);
+  font-size: 13px;
+}
+
+.context-pane-intro span {
+  color: var(--ui-text-muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+#context-inspector .hud-market-table {
+  width: calc(100% - 28px);
+  margin: 4px 14px 0;
+}
+
+#context-inspector .network-widget-body {
+  grid-template-columns: 1fr;
+  padding-top: 6px;
+}
+
+#context-inspector .network-spark {
+  height: 48px;
+}
+
+#context-inspector .quest-tracker-widget-body {
+  padding-top: 6px;
+}
+
+#context-inspector .hud-widget-foot {
+  align-items: center;
+}
+
+/* The mature planet-detail presenter now renders inside the single inspector. */
+
+#context-inspector #planet-detail-panel {
+  position: relative;
+  inset: auto;
+  display: none;
+  width: 100%;
+  max-width: none;
+  max-height: none;
+  padding: 12px 14px 14px;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  animation: none;
+}
+
+#context-inspector #planet-detail-panel.visible {
+  display: grid;
+}
+
+#context-inspector #planet-detail-panel.planet-detail-panel--pinned {
+  grid-template-rows: minmax(0, 1fr) auto;
+  overflow: hidden;
+}
+
+#context-inspector .planet-detail-scroll-body {
+  max-height: calc(100dvh - var(--ui-header-height) - var(--ui-nav-height) - 250px);
+}
+
+#context-inspector .planet-detail-panel--galaxy-hub {
+  max-height: none;
+  padding-top: 0;
+}
+
+/* Command Slot ----------------------------------------------- */
+
+.floating-command-stack > .action-guide {
+  width: min(var(--ui-command-width), 100%);
+}
+
+#action-guide .action-guide-shell {
+  grid-template-columns: 4px minmax(0, 1fr) 148px;
+  grid-template-rows: 1fr;
+  grid-template-areas: "status main primary";
+  min-height: 68px;
+  padding: 8px 9px 8px 0;
+  gap: 8px 12px;
+}
+
+#action-guide .action-guide-copy {
+  grid-area: main;
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 4px 10px;
+}
+
+#action-guide .action-guide-kicker {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
+}
+
+#action-guide .action-guide-main {
+  grid-column: 2;
+  grid-row: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+}
+
+#action-guide .action-guide-title {
+  font-size: 15px;
+}
+
+#action-guide .action-guide-reason,
+#action-guide .action-guide-outcome {
+  font-size: 9.5px;
+}
+
+#action-guide .action-guide-primary.command-action-btn {
+  display: grid;
+  width: 148px;
+  min-height: 48px;
+}
+
+#action-guide .action-guide-shell--processing,
+#action-guide .action-guide-shell--complete {
+  grid-template-columns: 4px minmax(0, 1fr);
+  grid-template-areas: "status main";
+  min-height: 58px;
+}
+
+@media (max-width: 900px) {
+  :root {
+    --ui-context-width: 320px;
+  }
+
+  #context-inspector.context-inspector {
+    max-height: calc(100dvh - var(--ui-header-height) - var(--ui-nav-height) - 108px);
+  }
+
+  #action-guide .action-guide-outcome {
+    display: none;
+  }
+}
+
+@media (max-width: 620px) {
+  .starmap-map-tools {
+    top: max(var(--ui-space-2), var(--ui-safe-top));
+    right: max(var(--ui-space-2), var(--ui-safe-right));
+    left: max(var(--ui-space-2), var(--ui-safe-left));
+    justify-content: space-between;
+  }
+
+  .starmap-map-tool {
+    min-height: 38px;
+    padding: 0 12px;
+  }
+
+  #context-inspector.context-inspector {
+    /* Mobile keeps the inspector in the upper map stage; Command Slot owns the bottom. */
+    top: calc(var(--ui-control-lg) + var(--ui-space-4) + var(--ui-safe-top));
+    right: max(7px, var(--ui-safe-right));
+    bottom: auto;
+    left: max(7px, var(--ui-safe-left));
+    width: auto;
+    max-height: min(56dvh, calc(100dvh - var(--ui-header-height) - var(--ui-nav-height) - 190px));
+    border-radius: 14px;
+  }
+
+  #action-guide .action-guide-shell {
+    grid-template-columns: 4px minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    grid-template-areas:
+      "status main"
+      "status primary";
+    min-height: 0;
+    gap: 7px 9px;
+  }
+
+  #action-guide .action-guide-copy {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  #action-guide .action-guide-kicker,
+  #action-guide .action-guide-main {
+    grid-column: 1;
+  }
+
+  #action-guide .action-guide-kicker {
+    grid-row: 1;
+  }
+
+  #action-guide .action-guide-main {
+    grid-row: 2;
+  }
+
+  #action-guide .action-guide-primary.command-action-btn {
+    width: 100%;
+    min-height: var(--ui-control-lg);
+  }
+}
+
+/* Legacy planet-detail mobile rules use !important positioning. Inside the
+   Inspector the presenter stays in normal flow at every narrow/short viewport. */
+@media (max-width: 700px), (max-height: 620px) {
+  #context-inspector #planet-detail-panel.visible,
+  #context-inspector #planet-detail-panel.planet-detail-panel--galaxy-hub.visible {
+    left: auto !important;
+    right: auto !important;
+    top: auto !important;
+    bottom: auto !important;
+    width: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #context-inspector,
+  #context-inspector *,
+  .starmap-map-tool {
+    transition: none !important;
+    animation: none !important;
+  }
+}

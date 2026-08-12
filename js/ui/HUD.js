@@ -15,6 +15,7 @@ import * as Exploration         from '../systems/galaxy/ExplorationSystem.js';
 import * as Fleet               from '../systems/fleet/FleetSystem.js';
 import { getCompanyLevelValue, getCompanyPrivilegeSummary } from '../data/companyAccess.js';
 import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from './SurfaceManager.js';
+import * as ContextInspector from './ContextInspector.js';
 
 const getLevel = PlayerLevels.getLevel;
 const getRepRank = PlayerLevels.getRepRank;
@@ -26,11 +27,6 @@ const _goodNameById = GOODS.reduce(function (acc, good) {
   acc[good.id] = good.name;
   return acc;
 }, Object.create(null));
-const HUD_WIDGET_COLLAPSED_CLASS = 'hud-widget-collapsed';
-const HUD_WIDGET_ACTIVE_CLASS = 'hud-widget-active';
-const DEFAULT_HUD_WIDGET_ID = 'galactic-map';
-const STARMAP_RAIL_PANEL_OPEN_EVENT = 'starmap-rail:panel-open';
-const STARMAP_RAIL_SOURCE_HUD = 'hud';
 const STARMAP_GALAXY_VIEW_TOGGLE_EVENT = 'starmap:galaxy-view-toggle';
 const MAX_LOG_HISTORY = 200;
 const LOG_TYPE_LABELS = {
@@ -114,10 +110,8 @@ function _getResourceMeterState(percent, dangerWhenHigh) {
 let _lastProgressList = [];
 let _questActions = null;
 let _initialized = false;
-let _activeHudWidgetId = DEFAULT_HUD_WIDGET_ID;
 let _logsHistory = [];
 let _unreadLogCount = 0;
-let _hudDismissControlsBound = false;
 let _stateRef = null;
 
 // ---------------------------------------------------------------------------
@@ -130,11 +124,6 @@ export function init() {
 
   EventBus.on('log:message', function (data) {
     addMessage(data.text, data.type);
-  });
-
-  EventBus.on(STARMAP_RAIL_PANEL_OPEN_EVENT, function (data) {
-    if (data && data.source === STARMAP_RAIL_SOURCE_HUD) return;
-    _collapseActiveHudWidget();
   });
 
   const vpModal = document.getElementById('victory-modal');
@@ -185,200 +174,16 @@ export function init() {
     refreshLogView();
   });
 
-  _bindHudWidgetControls();
+  var compactInspector = typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(max-width: 620px)').matches;
+  ContextInspector.init({ open: !compactInspector });
   _updateLogsNavBadge();
   refreshLogView();
 }
 
 export function setQuestActions(actions) {
   _questActions = actions || null;
-}
-
-function _bindHudWidgetControls() {
-  _bindHudDockControls();
-  _bindHudDismissControls();
-
-  var widgets = document.querySelectorAll('[data-hud-widget]');
-  if (!widgets || typeof widgets.forEach !== 'function') return;
-
-  widgets.forEach(function (widget) {
-    var toggleBtn = widget.querySelector('[data-hud-widget-toggle]');
-    if (!toggleBtn || toggleBtn.dataset.hudWidgetBound === 'true') return;
-
-    _syncHudWidgetToggle(widget);
-    toggleBtn.addEventListener('click', function (event) {
-      event.preventDefault();
-      event.stopPropagation();
-      _setHudWidgetCollapsed(widget, true);
-      _focusHudDockPanelButton(widget.dataset.hudWidget);
-    });
-    toggleBtn.dataset.hudWidgetBound = 'true';
-  });
-
-  _selectHudWidget(_activeHudWidgetId, { notifyRail: false });
-  _setHudWidgetCollapsed(_getHudWidget(_activeHudWidgetId), true);
-}
-
-function _setHudWidgetCollapsed(widget, collapsed) {
-  if (!widget) return;
-
-  widget.classList.toggle(HUD_WIDGET_COLLAPSED_CLASS, !!collapsed);
-  widget.setAttribute('data-hud-widget-state', collapsed ? 'collapsed' : 'open');
-  _syncHudWidgetToggle(widget);
-  _syncHudDockControls();
-}
-
-function _syncHudWidgetToggle(widget) {
-  if (!widget) return;
-
-  var toggleBtn = widget.querySelector('[data-hud-widget-toggle]');
-  if (!toggleBtn) return;
-
-  var label = widget.getAttribute('aria-label') || '窗口';
-  var collapsed = widget.classList.contains(HUD_WIDGET_COLLAPSED_CLASS);
-  var actionLabel = collapsed ? '通过左侧控制台重新打开' + label : '关闭' + label;
-
-  toggleBtn.textContent = '×';
-  toggleBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-  toggleBtn.setAttribute('aria-label', actionLabel);
-  toggleBtn.setAttribute('title', actionLabel);
-}
-
-function _bindHudDockControls() {
-  var panelButtons = document.querySelectorAll('[data-hud-dock-panel]');
-  if (!panelButtons || typeof panelButtons.forEach !== 'function') return;
-
-  panelButtons.forEach(function (button) {
-    if (button.dataset.hudDockBound === 'true') return;
-
-    button.addEventListener('click', function (event) {
-      event.preventDefault();
-      event.stopPropagation();
-      var targetWidget = _getHudWidget(button.dataset.hudDockPanel);
-      if (targetWidget && _isHudWidgetOpen(targetWidget)) {
-        _setHudWidgetCollapsed(targetWidget, true);
-        return;
-      }
-      _selectHudWidget(button.dataset.hudDockPanel);
-    });
-    button.dataset.hudDockBound = 'true';
-  });
-}
-
-function _bindHudDismissControls() {
-  if (_hudDismissControlsBound || typeof document.addEventListener !== 'function') return;
-  _hudDismissControlsBound = true;
-
-  document.addEventListener('keydown', function (event) {
-    if (!event || event.key !== 'Escape') return;
-    var activeWidget = _getHudWidget(_activeHudWidgetId);
-    var restoreFocus = !!(
-      activeWidget &&
-      globalThis.document &&
-      typeof activeWidget.contains === 'function' &&
-      activeWidget.contains(document.activeElement)
-    );
-    _collapseActiveHudWidget({ restoreFocus: restoreFocus });
-  });
-
-  document.addEventListener('pointerdown', function (event) {
-    var activeWidget = _getHudWidget(_activeHudWidgetId);
-    if (!_isHudWidgetOpen(activeWidget)) return;
-
-    var target = event && event.target;
-    if (!target || typeof target.closest !== 'function') return;
-    if (target.closest('[data-hud-widget], .starmap-control-rail')) return;
-
-    var mapContainer = document.getElementById('map-container');
-    if (mapContainer && typeof mapContainer.contains === 'function' && mapContainer.contains(target)) {
-      _collapseActiveHudWidget();
-    }
-  });
-}
-
-function _getHudWidget(widgetId) {
-  if (!widgetId) return null;
-  return document.querySelector('[data-hud-widget="' + widgetId + '"]');
-}
-
-function _isHudWidgetOpen(widget) {
-  return !!(widget && widget.classList.contains(HUD_WIDGET_ACTIVE_CLASS) && !widget.classList.contains(HUD_WIDGET_COLLAPSED_CLASS));
-}
-
-function _collapseActiveHudWidget(options) {
-  var activeWidget = _getHudWidget(_activeHudWidgetId);
-  if (!activeWidget) {
-    _syncHudDockControls();
-    return;
-  }
-
-  _setHudWidgetCollapsed(activeWidget, true);
-  if (options && options.restoreFocus) {
-    _focusHudDockPanelButton(_activeHudWidgetId);
-  }
-}
-
-function _focusHudDockPanelButton(widgetId) {
-  if (!widgetId || typeof document.querySelector !== 'function') return;
-  var button = document.querySelector('[data-hud-dock-panel="' + widgetId + '"]');
-  if (!button || typeof button.focus !== 'function') return;
-  try {
-    button.focus({ preventScroll: true });
-  } catch (err) {
-    button.focus();
-  }
-}
-
-function _selectHudWidget(widgetId, options) {
-  var widgets = document.querySelectorAll('[data-hud-widget]');
-  if (!widgets || typeof widgets.forEach !== 'function' || widgets.length === 0) return;
-  var shouldNotifyRail = !options || options.notifyRail !== false;
-
-  var nextActiveId = widgetId;
-  if (!_getHudWidget(nextActiveId)) {
-    nextActiveId = widgets[0].dataset.hudWidget || DEFAULT_HUD_WIDGET_ID;
-  }
-  _activeHudWidgetId = nextActiveId;
-
-  widgets.forEach(function (widget) {
-    var isActive = widget.dataset.hudWidget === _activeHudWidgetId;
-    widget.classList.toggle(HUD_WIDGET_ACTIVE_CLASS, isActive);
-    if (isActive) {
-      _setHudWidgetCollapsed(widget, false);
-      return;
-    }
-
-    widget.classList.remove(HUD_WIDGET_ACTIVE_CLASS);
-    widget.classList.add(HUD_WIDGET_COLLAPSED_CLASS);
-    widget.setAttribute('data-hud-widget-state', 'collapsed');
-    _syncHudWidgetToggle(widget);
-  });
-
-  _syncHudDockControls();
-
-  if (shouldNotifyRail && _isHudWidgetOpen(_getHudWidget(_activeHudWidgetId))) {
-    EventBus.emit(STARMAP_RAIL_PANEL_OPEN_EVENT, {
-      source: STARMAP_RAIL_SOURCE_HUD,
-      panelId: _activeHudWidgetId,
-    });
-  }
-}
-
-function _syncHudDockControls() {
-  var activeWidget = _getHudWidget(_activeHudWidgetId);
-  var dockOpen = _isHudWidgetOpen(activeWidget);
-  var panelButtons = document.querySelectorAll('[data-hud-dock-panel]');
-  if (!panelButtons || typeof panelButtons.forEach !== 'function') return;
-
-  panelButtons.forEach(function (button) {
-    var panelId = button.dataset.hudDockPanel;
-    var isSelected = panelId === _activeHudWidgetId;
-    var isOpen = isSelected && dockOpen;
-    button.classList.toggle('is-selected', isSelected);
-    button.classList.toggle('is-active', isOpen);
-    button.setAttribute('aria-pressed', isOpen ? 'true' : 'false');
-    button.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-  });
 }
 
 // ---------------------------------------------------------------------------

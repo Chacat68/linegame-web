@@ -51,6 +51,8 @@ import * as Guidance from '../systems/guidance/GuidanceSystem.js';
 import * as MidgameTeachingChain from '../systems/guidance/MidgameTeachingChain.js';
 import { getProcessingMessage as getGuidanceActionProcessingMessage } from './GuidanceActionFeedback.js';
 import * as Dispatch from './DispatchController.js';
+import { createDeferredFeatureLoader, loadDeferredStylesheet } from './DeferredFeatureLoader.js';
+import { createGameUiCoordinator } from '../ui/GameUiCoordinator.js';
 import { hasBlockingSurfaceOpen, hideBlockingSurface, showBlockingSurface } from '../ui/SurfaceManager.js';
 
 let _state     = null;
@@ -69,15 +71,7 @@ let _realtimeClock = null;
 let _recentModInstallContext = null;
 let _gameLoopFrameId = null;
 let _acknowledgedVictoryPathIds = new Set();
-let _marketUiModule = null;
-let _marketUiPromise = null;
-let _fleetUiModule = null;
-let _fleetUiPromise = null;
-let _archiveUiModule = null;
-let _archiveUiPromise = null;
 let _pendingQuestSelectionId = null;
-let _saveUiModule = null;
-let _saveUiPromise = null;
 let _victoryResultUiModule = null;
 let _victoryResultUiPromise = null;
 let _victoryResultUiInitialized = false;
@@ -111,7 +105,9 @@ const _fleetStylesUrl = new URL('../../css/fleet.css', import.meta.url).href;
 const _hangarTerminalStylesUrl = new URL('../../css/hangar-terminal.css', import.meta.url).href;
 const _archiveTerminalStylesUrl = new URL('../../css/archive-terminal.css', import.meta.url).href;
 const _marketTerminalStylesUrl = new URL('../../css/market-terminal.css?v=20260717-marketchart1', import.meta.url).href;
-const _deferredStylePromises = Object.create(null);
+const _deferredFeatures = createDeferredFeatureLoader();
+let _deferredFeaturesConfigured = false;
+let _uiCoordinator = null;
 
 function _setDeferredUiState(surface, state) {
   if (typeof document === 'undefined' || !document.body || !document.body.dataset) return;
@@ -142,57 +138,6 @@ function _reportDeferredUiFailure(surface, error) {
     text: '⚠️ ' + label + '加载失败，请稍后重试。',
     type: 'error',
   });
-}
-
-function _loadDeferredStylesheet(surface, href) {
-  if (_deferredStylePromises[surface]) return _deferredStylePromises[surface];
-  if (typeof document === 'undefined' || !document.createElement || !document.head || !document.head.appendChild) {
-    return Promise.resolve(href);
-  }
-
-  var existing = document.querySelector
-    ? document.querySelector('link[data-deferred-ui-style="' + surface + '"]')
-    : null;
-  if (existing && existing.dataset && existing.dataset.loaded === 'true') {
-    return Promise.resolve(existing.href || href);
-  }
-
-  _deferredStylePromises[surface] = new Promise(function (resolve, reject) {
-    var link = existing || document.createElement('link');
-    var onLoad = function () {
-      if (link.dataset) link.dataset.loaded = 'true';
-      resolve(link.href || href);
-    };
-    var onError = function () {
-      _deferredStylePromises[surface] = null;
-      if (link.dataset) link.dataset.loaded = 'false';
-      if (link.parentNode && link.parentNode.removeChild) {
-        link.parentNode.removeChild(link);
-      }
-      reject(new Error('Failed to load deferred stylesheet: ' + surface));
-    };
-
-    if (link.addEventListener) {
-      link.addEventListener('load', onLoad, { once: true });
-      link.addEventListener('error', onError, { once: true });
-    } else {
-      link.onload = onLoad;
-      link.onerror = onError;
-    }
-
-    if (!existing) {
-      link.rel = 'stylesheet';
-      link.href = href;
-      if (link.dataset) link.dataset.deferredUiStyle = surface;
-      var appStyles = document.getElementById ? document.getElementById('app-styles') : null;
-      if (appStyles && document.head.insertBefore) {
-        document.head.insertBefore(link, appStyles);
-      } else {
-        document.head.appendChild(link);
-      }
-    }
-  });
-  return _deferredStylePromises[surface];
 }
 
 function _hasOwnEntries(value) {
@@ -308,52 +253,78 @@ function _syncDeferredBusinessRuntimes() {
   if (_shouldLoadRouteGuidance(_state) && !_routeGuidanceModule) _loadRouteGuidance();
 }
 
+function _configureDeferredFeatures() {
+  if (_deferredFeaturesConfigured) return;
+  _deferredFeaturesConfigured = true;
+
+  _deferredFeatures
+    .define('market', {
+      load: function () {
+        return Promise.all([
+          import('../ui/MarketUI.js'),
+          _loadCommerceRuntime(),
+          loadDeferredStylesheet('market-terminal', _marketTerminalStylesUrl),
+        ]).then(function (results) { return results[0]; });
+      },
+      onError: function (error) { _reportDeferredUiFailure('market', error); },
+    })
+    .define('fleet', {
+      load: function () {
+        return Promise.all([
+          import('../ui/FleetUI.js'),
+          loadDeferredStylesheet('fleet-base', _fleetStylesUrl),
+          loadDeferredStylesheet('hangar-terminal', _hangarTerminalStylesUrl),
+        ]).then(function (results) { return results[0]; });
+      },
+      onError: function (error) { _reportDeferredUiFailure('fleet', error); },
+    })
+    .define('archive', {
+      load: function () {
+        return Promise.all([
+          import('../ui/QuestUI.js'),
+          import('../ui/ArchiveExplorationUI.js'),
+          import('../ui/ResearchUI.js'),
+          import('../ui/FactionUI.js'),
+          import('../ui/AchievementUI.js'),
+          _loadAchievementSystem(),
+          loadDeferredStylesheet('archive-terminal', _archiveTerminalStylesUrl),
+        ]).then(function (modules) {
+          return {
+            QuestUI: modules[0],
+            ArchiveExplorationUI: modules[1],
+            ResearchUI: modules[2],
+            FactionUI: modules[3],
+            AchievementUI: modules[4],
+          };
+        });
+      },
+      initialize: function (ArchiveUI) {
+        if (_pendingQuestSelectionId && ArchiveUI.QuestUI.setSelectedAvailableQuest) {
+          ArchiveUI.QuestUI.setSelectedAvailableQuest(_pendingQuestSelectionId);
+          _pendingQuestSelectionId = null;
+        }
+      },
+      onError: function (error) { _reportDeferredUiFailure('archive', error); },
+    })
+    .define('save', {
+      load: function () { return import('../ui/SaveUI.js'); },
+      onError: function (error) { _reportDeferredUiFailure('save', error); },
+    });
+}
+
+function _getDeferredFeature(feature) {
+  _configureDeferredFeatures();
+  return _deferredFeatures.get(feature);
+}
+
 function _loadMarketUI() {
-  if (_marketUiModule) return Promise.resolve(_marketUiModule);
-  if (!_marketUiPromise) {
-    _setDeferredUiState('market', 'loading');
-    _marketUiPromise = Promise.all([
-      import('../ui/MarketUI.js'),
-      _loadCommerceRuntime(),
-      _loadDeferredStylesheet('market-terminal', _marketTerminalStylesUrl),
-    ])
-      .then(function (results) {
-        _marketUiModule = results[0];
-        _setDeferredUiState('market', 'ready');
-        return _marketUiModule;
-      })
-      .catch(function (error) {
-        _marketUiPromise = null;
-        _setDeferredUiState('market', 'error');
-        _reportDeferredUiFailure('market', error);
-        return null;
-      });
-  }
-  return _marketUiPromise;
+  _configureDeferredFeatures();
+  return _deferredFeatures.load('market');
 }
 
 function _loadFleetUI() {
-  if (_fleetUiModule) return Promise.resolve(_fleetUiModule);
-  if (!_fleetUiPromise) {
-    _setDeferredUiState('fleet', 'loading');
-    _fleetUiPromise = Promise.all([
-      import('../ui/FleetUI.js'),
-      _loadDeferredStylesheet('fleet-base', _fleetStylesUrl),
-      _loadDeferredStylesheet('hangar-terminal', _hangarTerminalStylesUrl),
-    ])
-      .then(function (results) {
-        _fleetUiModule = results[0];
-        _setDeferredUiState('fleet', 'ready');
-        return _fleetUiModule;
-      })
-      .catch(function (error) {
-        _fleetUiPromise = null;
-        _setDeferredUiState('fleet', 'error');
-        _reportDeferredUiFailure('fleet', error);
-        return null;
-      });
-  }
-  return _fleetUiPromise;
+  _configureDeferredFeatures();
+  return _deferredFeatures.load('fleet');
 }
 
 function _ensureAchievementState(state) {
@@ -404,61 +375,8 @@ function _queueAchievementCheck() {
 }
 
 function _loadArchiveUI() {
-  if (_archiveUiModule) return Promise.resolve(_archiveUiModule);
-  if (!_archiveUiPromise) {
-    _setDeferredUiState('archive', 'loading');
-    _archiveUiPromise = Promise.all([
-      import('../ui/QuestUI.js'),
-      import('../ui/ArchiveExplorationUI.js'),
-      import('../ui/ResearchUI.js'),
-      import('../ui/FactionUI.js'),
-      import('../ui/AchievementUI.js'),
-      _loadAchievementSystem(),
-      _loadDeferredStylesheet('archive-terminal', _archiveTerminalStylesUrl),
-    ])
-      .then(function (modules) {
-        _archiveUiModule = {
-          QuestUI: modules[0],
-          ArchiveExplorationUI: modules[1],
-          ResearchUI: modules[2],
-          FactionUI: modules[3],
-          AchievementUI: modules[4],
-        };
-        if (_pendingQuestSelectionId && _archiveUiModule.QuestUI.setSelectedAvailableQuest) {
-          _archiveUiModule.QuestUI.setSelectedAvailableQuest(_pendingQuestSelectionId);
-          _pendingQuestSelectionId = null;
-        }
-        _setDeferredUiState('archive', 'ready');
-        return _archiveUiModule;
-      })
-      .catch(function (error) {
-        _archiveUiPromise = null;
-        _setDeferredUiState('archive', 'error');
-        _reportDeferredUiFailure('archive', error);
-        return null;
-      });
-  }
-  return _archiveUiPromise;
-}
-
-function _loadSaveUI() {
-  if (_saveUiModule) return Promise.resolve(_saveUiModule);
-  if (!_saveUiPromise) {
-    _setDeferredUiState('save', 'loading');
-    _saveUiPromise = import('../ui/SaveUI.js')
-      .then(function (module) {
-        _saveUiModule = module;
-        _setDeferredUiState('save', 'ready');
-        return module;
-      })
-      .catch(function (error) {
-        _saveUiPromise = null;
-        _setDeferredUiState('save', 'error');
-        _reportDeferredUiFailure('save', error);
-        return null;
-      });
-  }
-  return _saveUiPromise;
+  _configureDeferredFeatures();
+  return _deferredFeatures.load('archive');
 }
 
 function _loadVictoryResultUI() {
@@ -837,91 +755,101 @@ function _getMarketFinanceActions() {
   };
 }
 
-function _renderMarketUI(MarketUI) {
-  if (!MarketUI || !_state || !MapUI.isMarketOpen()) return;
-  var bmMode = _blackMarketMode ? 'black' : 'open';
-  MarketUI.render(
-    _state,
-    _handleOpenBuy,
-    _handleOpenSell,
-    _handleRefuel,
-    MapUI.getMarketViewSystem(_state),
-    bmMode,
-    MapUI.getMarketViewGalaxy(_state),
-    _handleBlackMarketBuy,
-    _handleBlackMarketSell,
-    _getMarketFinanceActions()
-  );
-  _bindMarketModeButtons();
+function _getUiCoordinator() {
+  if (_uiCoordinator) return _uiCoordinator;
+  _configureDeferredFeatures();
+  _uiCoordinator = createGameUiCoordinator({
+    getState: function () { return _state; },
+    features: _deferredFeatures,
+    ui: {
+      HUD: HUD,
+      ShipUI: ShipUI,
+      MapUI: MapUI,
+      Renderer3D: Renderer3D,
+    },
+    systems: {
+      Trade: Trade,
+      Dispatch: Dispatch,
+    },
+    actions: {
+      market: {
+        getMode: function () { return _blackMarketMode ? 'black' : 'open'; },
+        onOpenBuy: _handleOpenBuy,
+        onOpenSell: _handleOpenSell,
+        onRefuel: _handleRefuel,
+        onBlackMarketBuy: _handleBlackMarketBuy,
+        onBlackMarketSell: _handleBlackMarketSell,
+        getFinanceActions: _getMarketFinanceActions,
+        onAfterRender: _bindMarketModeButtons,
+      },
+      fleet: {
+        onBuyShip: _handleBuyShip,
+        onSwitchShip: _handleSwitchShip,
+        onUpgradeShip: _handleUpgradeShip,
+        onAssignRoute: _handleAssignRoute,
+        onCancelRoute: _handleCancelRoute,
+        onBuySlot: _handleBuySlot,
+        onSellShip: _handleSellShip,
+        onInstallMod: _handleInstallMod,
+        onUninstallMod: _handleUninstallMod,
+        onServiceShip: _handleServiceShip,
+        onRecruitCrew: _handleRecruitCrew,
+        onAssignCrew: _handleAssignCrew,
+        onUnassignCrew: _handleUnassignCrew,
+        onDismissCrew: _handleDismissCrew,
+      },
+      archive: {
+        getDispatchContext: _getActiveShipDispatchContext,
+        onStartResearch: _handleStartResearch,
+        onCancelQueuedResearch: _handleCancelQueuedResearch,
+        onMoveQueuedResearchUp: _handleMoveQueuedResearchUp,
+        onMoveQueuedResearchDown: _handleMoveQueuedResearchDown,
+        onClearResearchQueue: _handleClearResearchQueue,
+        onApplyResearchDispatch: _handleApplyResearchDispatch,
+        onResolveResearchBlocker: _handleResolveResearchBlocker,
+        onOpenFactionMarket: _handleOpenFactionMarket,
+        onAcceptQuest: _handleAcceptQuest,
+        onAbandonQuest: _handleAbandonQuest,
+        onApplyQuestDispatch: _handleApplyQuestDispatch,
+        onResolveQuestBlocker: _handleResolveQuestBlocker,
+      },
+      save: {
+        onSaveGame: _handleSaveGame,
+        onLoadGame: _handleLoadGame,
+      },
+      global: {
+        refreshActionGuide: _refreshActionGuide,
+      },
+    },
+  });
+  return _uiCoordinator;
 }
 
 function _ensureMarketUiRendered() {
-  return _loadMarketUI().then(function (MarketUI) {
-    if (MarketUI) _renderMarketUI(MarketUI);
-    return MarketUI;
-  });
-}
-
-function _renderFleetUI(FleetUI) {
-  if (!FleetUI || !_state) return;
-  FleetUI.render(_state, _handleBuyShip, _handleSwitchShip, _handleUpgradeShip, _handleAssignRoute, _handleCancelRoute, _handleBuySlot, _handleSellShip, _handleInstallMod, _handleUninstallMod, _handleServiceShip, _handleRecruitCrew, _handleAssignCrew, _handleUnassignCrew, _handleDismissCrew);
-  FleetUI.renderShop(_state, _handleBuyShip);
+  return _getUiCoordinator().ensureMarket();
 }
 
 function _ensureFleetUiRendered() {
-  return _loadFleetUI().then(function (FleetUI) {
-    if (FleetUI) _renderFleetUI(FleetUI);
-    return FleetUI;
-  });
-}
-
-function _renderArchiveUI(ArchiveUI) {
-  if (!ArchiveUI || !_state) return;
-  var activeShipDispatchContext = _getActiveShipDispatchContext();
-  ArchiveUI.ResearchUI.render(
-    _state,
-    _handleStartResearch,
-    _handleCancelQueuedResearch,
-    _handleMoveQueuedResearchUp,
-    _handleMoveQueuedResearchDown,
-    _handleClearResearchQueue,
-    activeShipDispatchContext,
-    _handleApplyResearchDispatch,
-    _handleResolveResearchBlocker
-  );
-  ArchiveUI.FactionUI.render(_state, _handleOpenFactionMarket);
-  ArchiveUI.QuestUI.render(_state, _handleAcceptQuest, _handleAbandonQuest, activeShipDispatchContext, _handleApplyQuestDispatch, _handleResolveQuestBlocker);
-  ArchiveUI.ArchiveExplorationUI.render(_state);
-  ArchiveUI.AchievementUI.render(_state);
+  return _getUiCoordinator().ensureFleet();
 }
 
 function _ensureArchiveUiRendered() {
-  return _loadArchiveUI().then(function (ArchiveUI) {
-    if (ArchiveUI) _renderArchiveUI(ArchiveUI);
-    return ArchiveUI;
-  });
+  return _getUiCoordinator().ensureArchive();
 }
 
 function _selectAvailableQuest(questId) {
   _pendingQuestSelectionId = questId || null;
-  if (_archiveUiModule && _archiveUiModule.QuestUI.setSelectedAvailableQuest) {
-    _archiveUiModule.QuestUI.setSelectedAvailableQuest(_pendingQuestSelectionId);
+  var ArchiveUI = _getDeferredFeature('archive');
+  if (ArchiveUI && ArchiveUI.QuestUI.setSelectedAvailableQuest) {
+    ArchiveUI.QuestUI.setSelectedAvailableQuest(_pendingQuestSelectionId);
     _pendingQuestSelectionId = null;
     return;
   }
   _loadArchiveUI();
 }
 
-function _renderSaveUI(SaveUI) {
-  if (!SaveUI) return;
-  SaveUI.render(_handleSaveGame, _handleLoadGame);
-}
-
 function _ensureSaveUiRendered() {
-  return _loadSaveUI().then(function (SaveUI) {
-    if (SaveUI) _renderSaveUI(SaveUI);
-    return SaveUI;
-  });
+  return _getUiCoordinator().ensureSave();
 }
 
 function _initializeVictoryResultUI(VictoryResultUI) {
@@ -1020,7 +948,7 @@ export function init(difficulty, options) {
   MapUI.init(_state, _handleTravel, _handleGalaxyJump);
 
   // 初始化全局视图管理器 UIManager
-  UIManager.init(_state, {
+  UIManager.init(function () { return _state; }, {
     onOpenMarket: function (state) {
       MapUI.openMarket(state);
     },
@@ -1506,8 +1434,9 @@ function _getActiveShipServiceStatus() {
 
 function _getActionGuideMarketFocus() {
   if (!MapUI.isMarketOpen()) return null;
-  var focus = _marketUiModule && _marketUiModule.getActiveMarketWorkspaceFocus
-    ? _marketUiModule.getActiveMarketWorkspaceFocus()
+  var MarketUI = _getDeferredFeature('market');
+  var focus = MarketUI && MarketUI.getActiveMarketWorkspaceFocus
+    ? MarketUI.getActiveMarketWorkspaceFocus()
     : {};
   return Object.assign({}, focus || {}, {
     systemId: MapUI.getMarketViewSystem(_state) || (_state && _state.currentSystem) || '',
@@ -1563,6 +1492,7 @@ function _refreshActionGuide() {
       modRecommendation = Fleet.getShipModRecommendation(_state, _state.activeShipIndex || 0);
     }
   }
+  var FleetUI = _getDeferredFeature('fleet');
   ActionGuideUI.render(Guidance.getCurrentSuggestion(_state, {
     marketOpen: MapUI.isMarketOpen(),
     marketFocus: _getActionGuideMarketFocus(),
@@ -1576,8 +1506,8 @@ function _refreshActionGuide() {
     dispatchRouteRecommendation: dispatchRouteRecommendation,
     serviceStatus: serviceStatus,
     modRecommendation: modRecommendation,
-    modModalContext: _fleetUiModule && _fleetUiModule.getActiveModModalContext ? _fleetUiModule.getActiveModModalContext() : null,
-    dispatchModalContext: _fleetUiModule && _fleetUiModule.getActiveDispatchModalContext ? _fleetUiModule.getActiveDispatchModalContext() : null,
+    modModalContext: FleetUI && FleetUI.getActiveModModalContext ? FleetUI.getActiveModModalContext() : null,
+    dispatchModalContext: FleetUI && FleetUI.getActiveDispatchModalContext ? FleetUI.getActiveDispatchModalContext() : null,
     recentModInstallContext: recentModInstallContext,
     surveyIntel: surveyIntel,
     tutorialActive: tutorialActive,
@@ -2248,7 +2178,7 @@ function _openRecommendedDispatch(recommendation, sourceLabel, icon) {
   MapUI.activateTab('tab-fleet');
   _loadFleetUI().then(function (FleetUI) {
     if (!FleetUI) return;
-    _renderFleetUI(FleetUI);
+    _getUiCoordinator().renderFleet(FleetUI);
     FleetUI.openDispatchModal(_state, activeShipIndex, _handleAssignRoute, _handleCancelRoute, {
       buySystemId: recommendation.buySystemId,
       sellSystemId: recommendation.sellSystemId,
@@ -2296,7 +2226,7 @@ function _openRecommendedMod(payload) {
   _updateUI();
   _loadFleetUI().then(function (FleetUI) {
     if (!FleetUI) return;
-    _renderFleetUI(FleetUI);
+    _getUiCoordinator().renderFleet(FleetUI);
     FleetUI.openModModal(
       _state,
       shipIndex,
@@ -2493,6 +2423,7 @@ function _handleLoadGame(slotId) {
     Faction.init(_state);
     Research.init(_state);
     Quest.init(_state);
+    Tutorial.init(_state);
     BalanceMetrics.init(_state);
     MidgameTeachingChain.init(_state);
     _ensureAchievementState(_state);
@@ -2767,24 +2698,8 @@ function _startActiveDispatchClock() {
 // ---------------------------------------------------------------------------
 
 function _updateUI() {
-  const netWorth = Trade.getNetWorth(_state);
-  HUD.updateStats(_state, netWorth);
-  HUD.updateCompanyName(_state);
-  HUD.updateArchiveBadges(_state);
-  // 市场：根据当前模式刷新
-  if (MapUI.isMarketOpen()) {
-    _ensureMarketUiRendered();
-  }
-  ShipUI.renderShipStats(_state);
-  if (_archiveUiModule) _renderArchiveUI(_archiveUiModule);
-  if (_fleetUiModule) _renderFleetUI(_fleetUiModule);
-  if (_saveUiModule) _renderSaveUI(_saveUiModule);
-  Renderer3D.invalidateScene();
-  MapUI.refreshPlanetDetail(_state);
-  Dispatch.updateActiveDispatchUI();
-  _refreshActionGuide();
-
-
+  if (MapUI.isMarketOpen() && !_getDeferredFeature('market')) _ensureMarketUiRendered();
+  _getUiCoordinator().renderAll();
 }
 
 // ---------------------------------------------------------------------------

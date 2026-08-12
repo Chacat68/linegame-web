@@ -1,189 +1,176 @@
-// js/ui/UIManager.js — 全局面板视图管理器
-// 职责：遵循 SOLID 原则，统一管理界面大面板（星图、交易所、机库、个人档案）的显示隐藏、互斥和星图背景高斯模糊状态。
+// js/ui/UIManager.js — 旧 surface 到统一工作区导航的 DOM 适配器
+//
+// NavigationController 是唯一导航状态源；本模块只负责把 canonical workspace
+// 映射到渐进迁移中的 Market/SurfaceManager DOM，并保留旧 view 名称 facade。
 
 import * as EventBus from '../core/EventBus.js';
+import { createNavigationController, normalizeWorkspace } from './NavigationController.js';
 import { openSecondarySurface, closeAllSecondarySurfaces } from './SurfaceManager.js';
 import { loadSettings } from '../core/SettingsCore.js';
 
-let _stateRef = null;
-let _currentView = 'starmap';
+const LEGACY_VIEW_BY_WORKSPACE = Object.freeze({
+  map: 'starmap',
+  trade: 'market',
+  fleet: 'hangar',
+  archive: 'quests',
+  logs: 'logs',
+});
+
+let _getState = function () { return null; };
+let _navigation = null;
 let _handlers = {
   onOpenMarket: null,
   onCloseMarket: null,
   onGetMarketOpen: null,
   onOpenHangar: null,
-  onOpenQuests: null
+  onOpenQuests: null,
 };
+let _viewSwitchListener = null;
+let _terminalBlurListener = null;
 
-/**
- * 初始化全局视图管理器
- * @param {Object} stateRef 游戏全局状态的引用
- * @param {Object} handlers 用于和其它UI解耦的动作回调
- */
-export function init(stateRef, handlers) {
-  _stateRef = stateRef;
-  _currentView = 'starmap';
-  
-  if (handlers) {
-    _handlers = Object.assign(_handlers, handlers);
-  }
+export function init(stateSource, handlers) {
+  _getState = typeof stateSource === 'function'
+    ? stateSource
+    : function () { return stateSource || null; };
+  if (handlers) _handlers = Object.assign({}, _handlers, handlers);
 
-  // 绑定底栏点击事件
-  var bottomNav = document.getElementById('bottom-nav');
-  if (bottomNav) {
-    // 移除旧事件监听器（克隆节点）防止重复绑定
-    var newBottomNav = bottomNav.cloneNode(true);
-    bottomNav.parentNode.replaceChild(newBottomNav, bottomNav);
-    newBottomNav.addEventListener('click', function (e) {
-      var btn = e.target.closest('.bottom-nav-btn');
-      if (!btn) return;
-
-      var view = btn.dataset.view;
-      switchView(view);
-    });
-    newBottomNav.addEventListener('keydown', _handleBottomNavKeydown);
-  }
-
-  // 注册全局事件总线监听，支持以事件形式触发视图切换
-  EventBus.on('view:switch', function (view) {
-    switchView(view);
+  _releaseEventBusListeners();
+  _navigation = createNavigationController({
+    initialWorkspace: 'map',
+    getState: _getState,
+    onLeave: _leaveWorkspace,
+    onEnter: _enterWorkspace,
+    onChange: _handleNavigationChange,
   });
 
-  // 监听全息特效开关的变化，并即时更新模糊样式
-  EventBus.on('settings:terminalBlur:changed', function (enabled) {
+  _bindBottomNavigation();
+  _viewSwitchListener = function (view) { switchView(view); };
+  _terminalBlurListener = function () {
     _getStarmapCanvases().forEach(function (canvas) {
-      _applyBlurStyle(canvas, _currentView);
+      _applyBlurStyle(canvas, getCurrentView());
     });
-  });
+  };
+  EventBus.on('view:switch', _viewSwitchListener);
+  EventBus.on('settings:terminalBlur:changed', _terminalBlurListener);
 
-  // 注册挂载到全局
   globalThis.__linegameUIManager = {
     switchView: switchView,
     setBottomNavActiveDirectly: function (view) {
-      _currentView = view || 'starmap';
-      _syncViewVisualState(_currentView);
-      _setBottomNavActive(_currentView);
+      syncView(view);
     },
-    getCurrentView: getCurrentView
+    getCurrentView: getCurrentView,
+    getNavigationSnapshot: function () {
+      return _navigation ? _navigation.getSnapshot() : null;
+    },
   };
+
+  _syncWorkspaceVisualState('map');
 }
 
-/**
- * 获取当前处于活动状态的视图名称
- */
 export function getCurrentView() {
-  return _currentView;
+  var workspace = _navigation ? _navigation.getSnapshot().activeWorkspace : 'map';
+  return LEGACY_VIEW_BY_WORKSPACE[workspace] || 'starmap';
 }
 
-/**
- * 切换大终端视图（核心互斥和背景高斯模糊逻辑）
- * @param {string} view 目标视图名称
- */
 export function switchView(view) {
-  var previousView = _currentView;
+  var workspace = normalizeWorkspace(view);
+  if (!_navigation || !workspace) return false;
+  return _navigation.navigate(workspace, { reason: 'workspace-navigation' });
+}
 
-  if (view === 'logs') EventBus.emit('logs:badge:clear');
+export function syncView(view) {
+  var workspace = normalizeWorkspace(view);
+  if (!_navigation || !workspace) return false;
+  var changed = _navigation.sync(workspace, { reason: 'legacy-surface-sync' });
+  if (!changed) _syncWorkspaceVisualState(workspace);
+  return changed;
+}
 
-  // 1. 如果点击的是当前已激活的非星图视图，则代表“再次点击折叠”，返回星图
-  if (view !== 'starmap' && view === previousView) {
-    view = 'starmap';
-  }
+function _bindBottomNavigation() {
+  var bottomNav = document.getElementById('bottom-nav');
+  if (!bottomNav) return;
 
-  // 2. 清理和关闭所有已打开的面板状态
-  if (_handlers.onCloseMarket) {
+  var newBottomNav = bottomNav.cloneNode(true);
+  bottomNav.parentNode.replaceChild(newBottomNav, bottomNav);
+  newBottomNav.addEventListener('click', function (event) {
+    var button = event.target && typeof event.target.closest === 'function'
+      ? event.target.closest('.bottom-nav-btn')
+      : null;
+    if (button) switchView(button.dataset.view);
+  });
+  newBottomNav.addEventListener('keydown', _handleBottomNavKeydown);
+}
+
+function _leaveWorkspace(change) {
+  if (change.from === 'trade' && _handlers.onCloseMarket) {
     _handlers.onCloseMarket({ restoreFocus: false });
   }
   closeAllSecondarySurfaces();
+}
 
-  // 3. 驱动 3D 星图 Canvas 容器动态加减模糊样式
-  _syncViewVisualState(view);
-
-  // 4. 执行具体 View 的唤起行为
-  if (view === 'starmap') {
-    _currentView = 'starmap';
-  } else if (view === 'market') {
-    _currentView = 'market';
-    if (_handlers.onOpenMarket && _stateRef) {
-      _handlers.onOpenMarket(_stateRef);
-    }
-  } else if (view === 'hangar') {
-    _currentView = 'hangar';
+function _enterWorkspace(change) {
+  var state = change.state;
+  if (change.to === 'trade') {
+    if (_handlers.onOpenMarket && state) _handlers.onOpenMarket(state);
+    return;
+  }
+  if (change.to === 'fleet') {
     openSecondarySurface('trade-panel');
-    if (_handlers.onOpenHangar && _stateRef) {
-      _handlers.onOpenHangar(_stateRef);
-    }
-  } else if (view === 'quests') {
-    _currentView = 'quests';
-    if (_handlers.onOpenQuests && _stateRef) {
-      _handlers.onOpenQuests(_stateRef);
-    } else {
-      openSecondarySurface('info-panel');
-    }
-  } else if (view === 'logs') {
-    _currentView = 'logs';
+    if (_handlers.onOpenHangar && state) _handlers.onOpenHangar(state);
+    return;
+  }
+  if (change.to === 'archive') {
+    if (_handlers.onOpenQuests && state) _handlers.onOpenQuests(state);
+    else openSecondarySurface('info-panel');
+    return;
+  }
+  if (change.to === 'logs') {
+    EventBus.emit('logs:badge:clear');
     openSecondarySurface('console-panel');
   }
-
-  // 5. 更新底部导航激活态高亮
-  _setBottomNavActive(view);
 }
 
-/**
- * 更新底部导航栏高亮，并向 EventBus 广播变化
- * @param {string} view 激活的视图
- */
-function _setBottomNavActive(view) {
-  document.querySelectorAll('.bottom-nav-btn').forEach(function (btn) {
-    var isActive = btn.dataset.view === view;
-    if (isActive) {
-      btn.classList.add('active');
-    } else {
-      btn.classList.remove('active');
-    }
-    _syncBottomNavButtonState(btn, isActive);
+function _handleNavigationChange(change) {
+  _syncWorkspaceVisualState(change.to);
+  EventBus.emit('navigation:changed', LEGACY_VIEW_BY_WORKSPACE[change.to]);
+}
+
+function _syncWorkspaceVisualState(workspace) {
+  var legacyView = LEGACY_VIEW_BY_WORKSPACE[workspace] || 'starmap';
+  document.querySelectorAll('.bottom-nav-btn').forEach(function (button) {
+    var isActive = normalizeWorkspace(button.dataset.view) === workspace;
+    button.classList.toggle('active', isActive);
+    _syncBottomNavButtonState(button, isActive);
   });
-
-  EventBus.emit('navigation:changed', view);
+  _getStarmapCanvases().forEach(function (canvas) {
+    _applyBlurStyle(canvas, legacyView);
+  });
 }
 
-function _syncBottomNavButtonState(btn, isActive) {
-  if (!btn || typeof btn.setAttribute !== 'function') return;
-  btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
-  if (isActive) {
-    btn.setAttribute('aria-current', 'page');
-  } else if (typeof btn.removeAttribute === 'function') {
-    btn.removeAttribute('aria-current');
-  }
+function _syncBottomNavButtonState(button, isActive) {
+  if (!button || typeof button.setAttribute !== 'function') return;
+  button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+  if (isActive) button.setAttribute('aria-current', 'page');
+  else if (typeof button.removeAttribute === 'function') button.removeAttribute('aria-current');
 }
 
 function _handleBottomNavKeydown(event) {
   if (!event || !event.target || typeof event.target.closest !== 'function') return;
-  var btn = event.target.closest('.bottom-nav-btn');
-  if (!btn) return;
-
-  var key = event.key;
-  if (key !== 'ArrowLeft' && key !== 'ArrowRight' && key !== 'Home' && key !== 'End') return;
+  var button = event.target.closest('.bottom-nav-btn');
+  if (!button) return;
+  if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].indexOf(event.key) === -1) return;
 
   var buttons = Array.prototype.slice.call(document.querySelectorAll('.bottom-nav-btn'));
-  var currentIndex = buttons.indexOf(btn);
+  var currentIndex = buttons.indexOf(button);
   if (currentIndex < 0 || buttons.length === 0) return;
-
   var nextIndex = currentIndex;
-  if (key === 'Home') nextIndex = 0;
-  else if (key === 'End') nextIndex = buttons.length - 1;
-  else if (key === 'ArrowLeft') nextIndex = (currentIndex + buttons.length - 1) % buttons.length;
-  else if (key === 'ArrowRight') nextIndex = (currentIndex + 1) % buttons.length;
+  if (event.key === 'Home') nextIndex = 0;
+  else if (event.key === 'End') nextIndex = buttons.length - 1;
+  else if (event.key === 'ArrowLeft') nextIndex = (currentIndex + buttons.length - 1) % buttons.length;
+  else nextIndex = (currentIndex + 1) % buttons.length;
 
   if (typeof event.preventDefault === 'function') event.preventDefault();
-  if (buttons[nextIndex] && typeof buttons[nextIndex].focus === 'function') {
-    buttons[nextIndex].focus();
-  }
-}
-
-function _syncViewVisualState(view) {
-  _getStarmapCanvases().forEach(function (canvas) {
-    _applyBlurStyle(canvas, view);
-  });
+  if (buttons[nextIndex] && typeof buttons[nextIndex].focus === 'function') buttons[nextIndex].focus();
 }
 
 function _getStarmapCanvases() {
@@ -196,24 +183,18 @@ function _getStarmapCanvases() {
   return legacyCanvas ? [legacyCanvas] : [];
 }
 
-/**
- * 驱动星图 3D Canvas 应用特效模糊或低性能降级遮罩
- * @param {HTMLElement} canvas 
- * @param {string} view 
- */
 function _applyBlurStyle(canvas, view) {
   if (!canvas) return;
-  var settings = loadSettings();
-  var useBlur = settings.terminalBlur !== false;
-
+  var useBlur = loadSettings().terminalBlur !== false;
   canvas.classList.remove('starmap-blur-active');
   canvas.classList.remove('starmap-blur-active-lowperf');
+  if (view === 'starmap') return;
+  canvas.classList.add(useBlur ? 'starmap-blur-active' : 'starmap-blur-active-lowperf');
+}
 
-  if (view !== 'starmap') {
-    if (useBlur) {
-      canvas.classList.add('starmap-blur-active');
-    } else {
-      canvas.classList.add('starmap-blur-active-lowperf');
-    }
-  }
+function _releaseEventBusListeners() {
+  if (_viewSwitchListener) EventBus.off('view:switch', _viewSwitchListener);
+  if (_terminalBlurListener) EventBus.off('settings:terminalBlur:changed', _terminalBlurListener);
+  _viewSwitchListener = null;
+  _terminalBlurListener = null;
 }
