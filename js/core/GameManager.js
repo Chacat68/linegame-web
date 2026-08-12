@@ -56,6 +56,7 @@ import { createDeferredFeatureLoader, loadDeferredStylesheet } from './DeferredF
 import { createStateSession } from './StateSession.js';
 import { createGameSystemRuntime } from './GameSystemRuntime.js';
 import { createGameClockController } from './GameClockController.js';
+import { createGameSessionLifecycle } from './GameSessionLifecycle.js';
 import { createGameUiCoordinator } from '../ui/GameUiCoordinator.js';
 import { createWorkspaceContextAdapters } from '../ui/WorkspaceContextAdapters.js';
 import { hasBlockingSurfaceOpen, hideBlockingSurface, showBlockingSurface } from '../ui/SurfaceManager.js';
@@ -114,6 +115,7 @@ let _deferredFeaturesConfigured = false;
 let _uiCoordinator = null;
 let _systemRuntime = null;
 let _gameClock = null;
+let _sessionLifecycle = null;
 let _contextAdapters = null;
 
 function _replaceState(nextState, reason) {
@@ -841,6 +843,57 @@ function _getGameClock() {
   return _gameClock;
 }
 
+function _prepareSessionState(state, context) {
+  _acknowledgedVictoryPathIds = new Set();
+  _pendingVictoryReportPathId = null;
+  _resetDialogueRuntime(state);
+  if (context.restoreRandomRuntime) _syncRandomEventRuntime(state);
+  else _resetRandomEventRuntime(state);
+  EventUI.clearPendingEvent();
+
+  if (context.syncDifficulty) {
+    _settings.difficulty = state.difficulty;
+    Settings.saveSettings(_settings);
+  }
+}
+
+function _syncSessionProjections(state) {
+  MapUI.syncState(function () { return _state; });
+  Renderer3D.resetRuntimeState(state.currentSystem);
+  MapUI.refreshGalaxyBtn(state);
+}
+
+function _resumeSessionRecurring(state) {
+  if (Fleet.isActiveDispatched(state)) _startActiveDispatchClock();
+}
+
+function _getSessionLifecycle() {
+  if (_sessionLifecycle) return _sessionLifecycle;
+  _sessionLifecycle = createGameSessionLifecycle({
+    replaceState: _replaceState,
+    getSessionToken: _getSessionToken,
+    isSessionTokenCurrent: _isSessionTokenCurrent,
+    runtime: {
+      restore: function (state, options) {
+        return _getSystemRuntime().restore(state, options);
+      },
+    },
+    clock: {
+      stop: _stopGameLoop,
+      start: _startGameLoop,
+    },
+    hooks: {
+      resetTransients: _resetSessionTransients,
+      prepareState: _prepareSessionState,
+      syncProjections: _syncSessionProjections,
+      render: function () { _updateUI(); },
+      resumeRecurring: _resumeSessionRecurring,
+      restorePendingEvent: _restorePendingEvent,
+    },
+  });
+  return _sessionLifecycle;
+}
+
 function _getUiCoordinator() {
   if (_uiCoordinator) return _uiCoordinator;
   _configureDeferredFeatures();
@@ -995,33 +1048,23 @@ let _onTutorialComplete = null;
 // ---------------------------------------------------------------------------
 
 export function init(difficulty, options) {
-  _stopGameLoop();
   _settings = Settings.loadSettings();
   var startup = resolveStartupState(difficulty, _settings, options);
   var restoredAutosave = startup.restoredAutosave;
-  _resetSessionTransients();
-  _replaceState(startup.state, restoredAutosave ? 'restore-autosave' : 'new-game');
+  var sessionReason = options && options.reason
+    ? options.reason
+    : (restoredAutosave ? 'restore-autosave' : 'new-game');
   Audio.init(_settings);
-  _acknowledgedVictoryPathIds = new Set();
-  _pendingVictoryReportPathId = null;
-  _resetDialogueRuntime(_state);
-  if (restoredAutosave) _syncRandomEventRuntime(_state);
-  else _resetRandomEventRuntime(_state);
-  EventUI.clearPendingEvent();
-
-  if (restoredAutosave) {
-    _settings.difficulty = _state.difficulty;
-    Settings.saveSettings(_settings);
-  }
-
-  _getSystemRuntime().restore(_state, {
-    reason: restoredAutosave ? 'restore-autosave' : 'new-game',
-    sessionToken: _getSessionToken(),
+  var sessionTransition = _getSessionLifecycle().begin(startup.state, {
+    reason: sessionReason,
+    mode: restoredAutosave ? 'restore-autosave' : 'new-game',
     restoreEconomy: restoredAutosave,
     restoreGalaxy: restoredAutosave,
+    restoreRandomRuntime: restoredAutosave,
+    syncDifficulty: restoredAutosave,
+    restorePendingEvent: restoredAutosave,
   });
   Renderer3D.init();
-  Renderer3D.resetRuntimeState(_state.currentSystem);
   Settings.applySettings(_settings, Renderer3D);
   HUD.init({
     stateSource: function () { return _session.getState(); },
@@ -1122,16 +1165,10 @@ export function init(difficulty, options) {
 
   _bindSettingsLauncher();
 
-  _updateUI();
-  // 自动恢复与手动读档使用同一运行时语义：存档中的激活路线继续运行，
-  // 新会话开始前的旧任务已由 _stopGameLoop() 统一清理。
-  if (Fleet.isActiveDispatched(_state)) {
-    _startActiveDispatchClock();
-  }
-  _startGameLoop();
+  // UI 壳完成绑定后，再由生命周期统一同步投影、渲染并恢复计时。
+  _getSessionLifecycle().present(sessionTransition);
 
   if (restoredAutosave) {
-    _restorePendingEvent(_state);
     EventBus.emit('log:message', { text: '📂 已自动恢复最近进度。', type: 'info' });
   }
 
@@ -2506,31 +2543,15 @@ function _handleLoadGame(slotId) {
   const result = Save.loadGame(slotId);
   if (result.ok) {
     _hideSettingsModal();
-    _stopGameLoop();
-    _resetSessionTransients();
-    _replaceState(result.state, 'manual-load');
-    _acknowledgedVictoryPathIds = new Set();
-    _resetDialogueRuntime(_state);
-    _syncRandomEventRuntime(_state);
-    EventUI.clearPendingEvent();
-    _settings.difficulty = _state.difficulty;
-    Settings.saveSettings(_settings);
-    _getSystemRuntime().restore(_state, {
+    _getSessionLifecycle().transition(result.state, {
       reason: 'manual-load',
-      sessionToken: _getSessionToken(),
+      mode: 'manual-load',
       restoreEconomy: true,
       restoreGalaxy: true,
+      restoreRandomRuntime: true,
+      syncDifficulty: true,
+      restorePendingEvent: true,
     });
-    MapUI.syncState(function () { return _state; });
-    Renderer3D.resetRuntimeState(_state.currentSystem);
-    MapUI.refreshGalaxyBtn(_state);
-    // 恢复派遣状态（旧时钟已在 state replace 前停止）
-    if (Fleet.isActiveDispatched(_state)) {
-      _startActiveDispatchClock();
-    }
-    _startGameLoop();
-    _updateUI();
-    _restorePendingEvent(_state);
     EventBus.emit('log:message', { text: result.msg, type: 'info' });
   } else {
     EventBus.emit('log:message', { text: result.msg, type: 'error' });
