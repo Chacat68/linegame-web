@@ -56,6 +56,8 @@ import { createGameSessionLifecycle } from './GameSessionLifecycle.js';
 import { createFleetActionController } from './FleetActionController.js';
 import { createCommerceOperationsController } from './CommerceOperationsController.js';
 import { createArchiveActionController } from './ArchiveActionController.js';
+import { createActionExecutionPipeline } from './ActionExecutionPipeline.js';
+import { createTradeActionController } from './TradeActionController.js';
 import { createGameUiCoordinator } from '../ui/GameUiCoordinator.js';
 import { createWorkspaceContextAdapters } from '../ui/WorkspaceContextAdapters.js';
 import { hasBlockingSurfaceOpen, hideBlockingSurface, showBlockingSurface } from '../ui/SurfaceManager.js';
@@ -118,6 +120,8 @@ let _sessionLifecycle = null;
 let _fleetActions = null;
 let _commerceActions = null;
 let _archiveActions = null;
+let _actionPipeline = null;
+let _tradeActions = null;
 let _contextAdapters = null;
 
 function _replaceState(nextState, reason) {
@@ -955,6 +959,44 @@ function _getArchiveActions() {
     playTriggerDialogue: _playTriggerDialogue,
   });
   return _archiveActions;
+}
+
+function _getActionPipeline() {
+  if (_actionPipeline) return _actionPipeline;
+  _actionPipeline = createActionExecutionPipeline({
+    emitMessage: function (message) {
+      EventBus.emit('log:message', { text: message.text, type: message.type });
+    },
+    emitErrorCue: function () { EventBus.emit('audio:cue', { cue: 'error' }); },
+    queueAchievementCheck: _queueAchievementCheck,
+    render: _updateUI,
+    checkVictory: _checkVictory,
+  });
+  return _actionPipeline;
+}
+
+function _getTradeActions() {
+  if (_tradeActions) return _tradeActions;
+  _tradeActions = createTradeActionController({
+    getState: function () { return _state; },
+    systems: {
+      Trade: Trade,
+      Economy: Economy,
+      Fleet: Fleet,
+      Faction: Faction,
+      Quest: Quest,
+      Tutorial: Tutorial,
+      Progression: Progression,
+    },
+    pipeline: _getActionPipeline(),
+    returnToStarmap: _returnToStarmapAfterTrade,
+    emitAudio: function (cue) { EventBus.emit('audio:cue', { cue: cue }); },
+    emitMessage: function (message) {
+      EventBus.emit('log:message', { text: message.text, type: message.type });
+    },
+    queueQuestDialogueResult: _queueQuestDialogueResult,
+  });
+  return _tradeActions;
 }
 
 function _getUiCoordinator() {
@@ -2055,96 +2097,7 @@ function _handleGalaxyJump(systemId) {
 }
 
 function _handleTradeConfirm(action, goodId, quantity, marketType) {
-  Fleet.syncStateFromShip(_state);
-
-  var dispatchedShip = Fleet.getActiveShip(_state);
-  var dispatchedRoute = dispatchedShip && dispatchedShip.route ? dispatchedShip.route : null;
-  var completesDispatchCycle = action === 'sell' && dispatchedRoute &&
-    dispatchedRoute.goodId === goodId && dispatchedRoute.status === 'selling';
-  var recordsDispatchPurchase = action === 'buy' && dispatchedRoute &&
-    dispatchedRoute.goodId === goodId && dispatchedRoute.status === 'buying';
-
-  const effectiveMarket = marketType === 'black' ? 'black' : 'open';
-  const result = action === 'buy'
-    ? Trade.buyGoodOnMarket(_state, goodId, quantity, effectiveMarket)
-    : Trade.sellGoodOnMarket(_state, goodId, quantity, effectiveMarket);
-  if (result && result.ok && effectiveMarket === 'black') {
-    Economy.recordBlackMarketTrade(_state, { action: action, meta: result.meta });
-  }
-  if (result && result.ok) {
-    _returnToStarmapAfterTrade();
-  }
-  _dispatch(result);
-
-  if (result && result.ok) {
-    EventBus.emit('audio:cue', { cue: action === 'buy' ? 'trade.buy' : 'trade.sell' });
-    Fleet.commitActiveShipState(_state);
-    if (completesDispatchCycle && dispatchedShip) {
-      if (!dispatchedShip.operatingStats || typeof dispatchedShip.operatingStats !== 'object') {
-        dispatchedShip.operatingStats = {};
-      }
-      dispatchedShip.operatingStats.revenue = Math.max(0, Number(dispatchedShip.operatingStats.revenue) || 0) +
-        Math.max(0, Number(result.meta && result.meta.totalEarned) || 0);
-      dispatchedShip.operatingStats.tradeCycles = Math.max(0, Number(dispatchedShip.operatingStats.tradeCycles) || 0) + 1;
-    } else if (recordsDispatchPurchase) {
-      if (!dispatchedShip.operatingStats || typeof dispatchedShip.operatingStats !== 'object') {
-        dispatchedShip.operatingStats = {};
-      }
-      dispatchedShip.operatingStats.cargoCost = Math.max(0, Number(dispatchedShip.operatingStats.cargoCost) || 0) +
-        Math.max(0, Number(result.meta && result.meta.totalCost) || 0);
-    }
-    var activeRoute = Fleet.getActiveShip(_state) ? Fleet.getActiveShip(_state).route : null;
-    if (activeRoute && activeRoute.goodId === goodId) {
-      if (action === 'buy') {
-        activeRoute.lastBuyPrice = result.meta && Number.isFinite(result.meta.unitBuyPrice)
-          ? result.meta.unitBuyPrice
-          : null;
-      } else if (action === 'sell') {
-        activeRoute.lastBuyPrice = null;
-      }
-      activeRoute.lastPolicyMessage = null;
-    }
-    Tutorial.checkTrigger(action);
-
-    const factionMsgs = Faction.onTrade(_state, _state.currentSystem, goodId, action, quantity, effectiveMarket);
-    factionMsgs.forEach(function (m) {
-      EventBus.emit('log:message', { text: m.text, type: m.type });
-    });
-    _state.tradeCount = (_state.tradeCount || 0) + 1;
-
-    // 经验值 & 声望（黑市交易经验更高）
-    const isBlack = effectiveMarket === 'black';
-    const expGain = Math.max(1, Math.ceil(quantity * (isBlack ? 3 : 2)));
-    const repGain = Math.max(1, Math.ceil(quantity * 0.5));
-    var tradeExpResult = Progression.gainExperience(_state, expGain);
-    tradeExpResult.msgs.forEach(function (m) { EventBus.emit('log:message', { text: m.text, type: m.type }); });
-    if (!isBlack) {
-      const profit = (result.meta && typeof result.meta.profit === 'number') ? result.meta.profit : 0;
-      const companyExpGain = action === 'sell'
-        ? Math.max(2, Math.ceil(quantity * 0.8) + Math.ceil(Math.max(0, profit) / 120))
-        : Math.max(1, Math.ceil(quantity * 0.8));
-      var tradeCompExpResult = Progression.gainCompanyExperience(_state, companyExpGain);
-      tradeCompExpResult.msgs.forEach(function (m) { EventBus.emit('log:message', { text: m.text, type: m.type }); });
-
-      // 任务进度：仅公开市场交易触发任务检查
-      const tradeFaction = Faction.getFactionForSystem(_state.currentSystem);
-      const tradeQuestResult = Quest.checkProgress(_state, {
-        action: action,
-        goodId: goodId,
-        quantity: quantity,
-        systemId: _state.currentSystem,
-        factionId: tradeFaction ? tradeFaction.id : null,
-        profit: action === 'sell' ? profit : 0,
-      });
-      tradeQuestResult.msgs.forEach(function (m) {
-        EventBus.emit('log:message', { text: m.text, type: m.type });
-      });
-      _queueQuestDialogueResult(tradeQuestResult);
-    }
-    _state.reputation = (_state.reputation || 0) + repGain;
-
-    _updateUI();
-  }
+  return _getTradeActions().confirm(action, goodId, quantity, marketType);
 }
 
 function _returnToStarmapAfterTrade() {
