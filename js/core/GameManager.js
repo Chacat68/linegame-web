@@ -63,6 +63,7 @@ import { createEventActionController } from './EventActionController.js';
 import { createDispatchActionController } from './DispatchActionController.js';
 import { createGameDayController } from './GameDayController.js';
 import { createDialogueRuntimeController } from './DialogueRuntimeController.js';
+import { createRandomEventRuntimeController } from './RandomEventRuntimeController.js';
 import { createGameUiCoordinator } from '../ui/GameUiCoordinator.js';
 import { createWorkspaceContextAdapters } from '../ui/WorkspaceContextAdapters.js';
 import { hasBlockingSurfaceOpen, hideBlockingSurface, isBlockingSurfaceVisible, showBlockingSurface } from '../ui/SurfaceManager.js';
@@ -85,9 +86,6 @@ let _victoryResultUiModule = null;
 let _victoryResultUiPromise = null;
 let _victoryResultUiInitialized = false;
 let _pendingVictoryReportPathId = null;
-let _randomEventModule = null;
-let _randomEventPromise = null;
-let _randomEventRollQueue = Promise.resolve();
 let _onboardingUiModule = null;
 let _onboardingUiPromise = null;
 let _tutorialUiModule = null;
@@ -129,6 +127,7 @@ let _eventActions = null;
 let _dispatchActions = null;
 let _gameDayActions = null;
 let _dialogueController = null;
+let _randomEventController = null;
 let _contextAdapters = null;
 
 function _replaceState(nextState, reason) {
@@ -444,64 +443,6 @@ function _loadVictoryResultUI() {
   return _victoryResultUiPromise;
 }
 
-function _resetRandomEventState(state) {
-  if (!state || typeof state !== 'object') return;
-  state._eventCooldowns = {};
-  state._eventHistory = [];
-  state._activeEventId = '';
-  state._tripsSinceLastEvent = 999;
-}
-
-function _loadRandomEventSystem() {
-  if (_randomEventModule) return Promise.resolve(_randomEventModule);
-  if (!_randomEventPromise) {
-    _setDeferredUiState('randomEvent', 'loading');
-    _randomEventPromise = import('../systems/event/RandomEvent.js')
-      .then(function (module) {
-        _randomEventModule = module;
-        if (_state) _randomEventModule.syncRuntimeState(_state);
-        _setDeferredUiState('randomEvent', 'ready');
-        return _randomEventModule;
-      })
-      .catch(function (error) {
-        _randomEventPromise = null;
-        _setDeferredUiState('randomEvent', 'error');
-        _reportDeferredUiFailure('randomEvent', error);
-        return null;
-      });
-  }
-  return _randomEventPromise;
-}
-
-function _resetRandomEventRuntime(state) {
-  if (_randomEventModule) _randomEventModule.resetRuntimeState(state);
-  else _resetRandomEventState(state);
-  _randomEventRollQueue = Promise.resolve();
-  _setDeferredUiState('randomEvent', _randomEventModule ? 'ready' : (_randomEventPromise ? 'loading' : 'idle'));
-}
-
-function _syncRandomEventRuntime(state) {
-  if (_randomEventModule) _randomEventModule.syncRuntimeState(state);
-  _setDeferredUiState('randomEvent', _randomEventModule ? 'ready' : (_randomEventPromise ? 'loading' : 'idle'));
-}
-
-function _restorePendingEvent(state) {
-  if (!state || !state._activeEventId) return Promise.resolve(null);
-  var requestedState = state;
-  var requestedRevision = _runtimeRevision;
-  return _loadRandomEventSystem().then(function (RandomEvent) {
-    if (!RandomEvent || requestedState !== _state || requestedRevision !== _runtimeRevision) return null;
-    RandomEvent.syncRuntimeState(requestedState);
-    var event = RandomEvent.getActiveEvent();
-    if (!event) return null;
-    EventUI.setPendingEvent(event, function (choiceIndex) {
-      _handleEventChoice(choiceIndex);
-    });
-    _refreshActionGuide();
-    return event;
-  });
-}
-
 function _loadOnboardingUI() {
   if (_onboardingUiModule) return Promise.resolve(_onboardingUiModule);
   if (!_onboardingUiPromise) {
@@ -810,8 +751,8 @@ function _prepareSessionState(state, context) {
   _acknowledgedVictoryPathIds = new Set();
   _pendingVictoryReportPathId = null;
   _getDialogueController().reset(state);
-  if (context.restoreRandomRuntime) _syncRandomEventRuntime(state);
-  else _resetRandomEventRuntime(state);
+  if (context.restoreRandomRuntime) _getRandomEventController().sync(state);
+  else _getRandomEventController().reset(state);
   EventUI.clearPendingEvent();
 
   if (context.syncDifficulty) {
@@ -851,7 +792,7 @@ function _getSessionLifecycle() {
       syncProjections: _syncSessionProjections,
       render: function () { _updateUI(); },
       resumeRecurring: _resumeSessionRecurring,
-      restorePendingEvent: _restorePendingEvent,
+      restorePendingEvent: function (state) { return _getRandomEventController().restorePending(state); },
     },
   });
   return _sessionLifecycle;
@@ -1018,7 +959,7 @@ function _getEventActions() {
     getState: function () { return _state; },
     systems: { Fleet: Fleet },
     pipeline: _getActionPipeline(),
-    getRuntime: function () { return _randomEventModule; },
+    getRuntime: function () { return _getRandomEventController().getRuntime(); },
     emitMessage: function (message) { EventBus.emit('log:message', message); },
     refreshActionGuide: _refreshActionGuide,
     captureState: _captureRuntimeStateForSave,
@@ -1087,6 +1028,27 @@ function _getDialogueController() {
     },
   });
   return _dialogueController;
+}
+
+function _getRandomEventController() {
+  if (_randomEventController) return _randomEventController;
+  _randomEventController = createRandomEventRuntimeController({
+    getState: function () { return _state; },
+    getSessionToken: _getSessionToken,
+    isSessionTokenCurrent: _isSessionTokenCurrent,
+    hooks: {
+      setTelemetryState: function (state) { _setDeferredUiState('randomEvent', state); },
+      reportFailure: function (error) { _reportDeferredUiFailure('randomEvent', error); },
+      presentEvent: function (event, onChoice) { EventUI.setPendingEvent(event, onChoice); },
+      onChoice: function (choiceIndex) { _handleEventChoice(choiceIndex); },
+      emitAudio: function (cue) { EventBus.emit('audio:cue', { cue: cue }); },
+      emitMessage: function (message) { EventBus.emit('log:message', message); },
+      captureState: _captureRuntimeStateForSave,
+      saveAutosave: function (state) { Save.saveGame(0, state, { isAutosave: true }); },
+      refreshActionGuide: _refreshActionGuide,
+    },
+  });
+  return _randomEventController;
 }
 
 function _getUiCoordinator() {
@@ -1385,7 +1347,7 @@ export function _setStateForTest(state) {
   _recentModInstallContext = null;
   if (_state) {
     _getDialogueController().reset(_state);
-    _syncRandomEventRuntime(_state);
+    _getRandomEventController().sync(_state);
   }
 }
 
@@ -1480,34 +1442,7 @@ function _queueQuestDialogueResult(result, onFinished) {
 }
 
 function _scheduleRandomEventRoll(state, baseChance) {
-  var requestedState = state;
-  var requestedRevision = _runtimeRevision;
-
-  _randomEventRollQueue = _randomEventRollQueue
-    .catch(function () { return null; })
-    .then(function () {
-      return _loadRandomEventSystem();
-    })
-    .then(function (RandomEvent) {
-      if (!RandomEvent || requestedState !== _state || requestedRevision !== _runtimeRevision) return null;
-
-      RandomEvent.syncRuntimeState(requestedState);
-      var event = RandomEvent.rollEvent(requestedState, baseChance);
-      if (event) {
-        EventBus.emit('audio:cue', { cue: 'event.alert' });
-        EventUI.setPendingEvent(event, function (choiceIndex) {
-          _handleEventChoice(choiceIndex);
-        });
-        EventBus.emit('log:message', { text: '📢 遭遇事件：' + event.title + '！请通过当前行动处理。', type: 'info' });
-      }
-
-      _captureRuntimeStateForSave(requestedState);
-      Save.saveGame(0, requestedState, { isAutosave: true });
-      _refreshActionGuide();
-      return event;
-    });
-
-  return _randomEventRollQueue;
+  return _getRandomEventController().scheduleRoll(state, baseChance);
 }
 
 // 设置管理已提取到 js/core/SettingsManager.js

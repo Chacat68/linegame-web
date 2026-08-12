@@ -99,6 +99,7 @@ describe('deferred terminal UI loading', function () {
   it('剧情与随机事件数据只在首次触发时进入依赖图', function () {
     var gameManager = readFileSync('js/core/GameManager.js', 'utf8');
     var dialogueRuntime = readFileSync('js/core/DialogueRuntimeController.js', 'utf8');
+    var randomEventRuntime = readFileSync('js/core/RandomEventRuntimeController.js', 'utf8');
 
     expect(gameManager).not.toMatch(/import\s+\*\s+as\s+RandomEvent\s+from/);
     expect(gameManager).not.toMatch(/import\s+\*\s+as\s+Dialogue(UI)?\s+from/);
@@ -107,12 +108,18 @@ describe('deferred terminal UI loading', function () {
     expect(gameManager).not.toContain("import('../ui/DialogueUI.js')");
     expect(dialogueRuntime).toContain("import('../systems/story/DialogueSystem.js')");
     expect(dialogueRuntime).toContain("import('../ui/DialogueUI.js')");
-    expect(gameManager).toContain("import('../systems/event/RandomEvent.js')");
+    expect(gameManager).toContain("from './RandomEventRuntimeController.js'");
+    expect(gameManager).not.toContain("import('../systems/event/RandomEvent.js')");
+    expect(randomEventRuntime).toContain("import('../systems/event/RandomEvent.js')");
     expect(gameManager).toContain("_setDeferredUiState('dialogue', state)");
     expect(dialogueRuntime).toContain("setTelemetryState('loading')");
-    expect(gameManager).toContain("_setDeferredUiState('randomEvent', 'loading')");
+    expect(gameManager).toContain("_setDeferredUiState('randomEvent', state)");
+    expect(randomEventRuntime).toContain("setTelemetryState('loading')");
     expect(gameManager).toContain('requestedRevision !== _runtimeRevision');
-    expect(gameManager).toContain('Save.saveGame(0, requestedState, { isAutosave: true })');
+    expect(randomEventRuntime).toContain('isSessionTokenCurrent(token)');
+    expect(randomEventRuntime).toContain('captureState(requestedState)');
+    expect(randomEventRuntime).toContain('saveAutosave(requestedState)');
+    expect(gameManager).toContain('Save.saveGame(0, state, { isAutosave: true })');
   });
 
   it('首次进入和教程界面只在对应流程触发时加载', function () {
