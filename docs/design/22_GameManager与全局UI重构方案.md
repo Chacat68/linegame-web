@@ -645,6 +645,7 @@ Escape **不得切换 canonical workspace 或默认返回地图**，也不得关
 | `CommerceOperationsController` | **已接入全部经营/金融 UI 动作** | 建站、升级、策略、批量商网、贷款、还款、投资和赎回统一编排；延迟 runtime 未就绪返回可重试结果；批量输入、任务/教学副作用和 latest-state provider 有测试 | 将经营模块并入 FeatureRegistry dependency graph；把 stock/futures/insurance 动作从 facade 回调继续收口 |
 | `ArchiveActionController` | **已接入科研/任务/派系档案动作** | 科研队列、推荐派遣、任务接取/放弃、科研/任务阻塞导航和派系市场跳转统一编排；任务对话完成后再推进教程的时序保持不变；latest-state provider 有测试 | 把任务进度结果与 dialogue runtime 迁入 QuestActionRuntime；补探索报告复核动作 |
 | `ActionExecutionPipeline` + `TradeActionController` | **贸易动作已接入** | 明确 mutation → post-effects → result messages → achievement/render/victory 顺序；公开/黑市、任务、经验声望、自动派遣成本/收入/循环统计与失败路径有测试；胜利与成就不再读取半更新交易 state | 将航行、事件选择、探索与日结算逐步迁入 pipeline；为异步 post-effects 增加 session token 提交门 |
+| `TravelActionController` | **航行动作已接入 pipeline** | 待处理事件/飞行中前置阻塞；磨损、动画、跨星系 UI、走私、访问记录、任务、经验声望、自动修复、随机事件和自动存档都在最终 render/achievement/victory 前完成；失败/查获/教程分支有测试 | 将随机事件调度改为 token-aware async post-effect；把星图 travel confirmation 纳入同一 command contract |
 | `GameUiCoordinator` | **首批已接入 `GameManager`** | provider、四项 Feature ensure/render、命名 action 分组、`renderAll` 兼容刷新 | 缩短位置参数；引入 dirty regions；逐步淘汰兼容刷新 |
 | `NavigationController` | **已接入 `UIManager`** | 五个 workspace、旧别名、唯一 active、幂等切换、独立 detail stack；Escape 只关闭 L4 详情不改变 L3 | 继续迁移旧 surface 直接开关与 focus 适配器 |
 | `SurfaceManager` | **唯一 Escape dispatcher 已接入** | blocking 层优先且不下穿；非阻塞层按优先级处理；隐藏 surface 同步 inert/aria-hidden | 将五个 L3 workspace 完全收口到同一 surface registry |

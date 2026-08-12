@@ -58,6 +58,7 @@ import { createCommerceOperationsController } from './CommerceOperationsControll
 import { createArchiveActionController } from './ArchiveActionController.js';
 import { createActionExecutionPipeline } from './ActionExecutionPipeline.js';
 import { createTradeActionController } from './TradeActionController.js';
+import { createTravelActionController } from './TravelActionController.js';
 import { createGameUiCoordinator } from '../ui/GameUiCoordinator.js';
 import { createWorkspaceContextAdapters } from '../ui/WorkspaceContextAdapters.js';
 import { hasBlockingSurfaceOpen, hideBlockingSurface, showBlockingSurface } from '../ui/SurfaceManager.js';
@@ -122,6 +123,7 @@ let _commerceActions = null;
 let _archiveActions = null;
 let _actionPipeline = null;
 let _tradeActions = null;
+let _travelActions = null;
 let _contextAdapters = null;
 
 function _replaceState(nextState, reason) {
@@ -997,6 +999,48 @@ function _getTradeActions() {
     queueQuestDialogueResult: _queueQuestDialogueResult,
   });
   return _tradeActions;
+}
+
+function _getTravelActions() {
+  if (_travelActions) return _travelActions;
+  _travelActions = createTravelActionController({
+    getState: function () { return _state; },
+    systems: {
+      Trade: Trade,
+      Economy: Economy,
+      Fleet: Fleet,
+      Faction: Faction,
+      Quest: Quest,
+      Tutorial: Tutorial,
+      Progression: Progression,
+    },
+    pipeline: _getActionPipeline(),
+    hasPendingEvent: EventUI.hasPendingEvent,
+    forcePendingEvent: EventUI.forcePendingEvent,
+    isShipFlying: function () {
+      return !!(Renderer3D.isActive() && Renderer3D.isShipFlying && Renderer3D.isShipFlying());
+    },
+    emitMessage: function (message) {
+      EventBus.emit('log:message', { text: message.text, type: message.type });
+    },
+    emitAudio: function (cue) { EventBus.emit('audio:cue', { cue: cue }); },
+    flyShip: function (previousSystem, systemId, flight) {
+      if (!Renderer3D.isActive() || !previousSystem) return;
+      Renderer3D.flyShipTo(previousSystem, systemId, null, flight.shipTypeId, {
+        shipIndex: flight.shipIndex,
+        routeRevision: flight.routeRevision,
+      });
+    },
+    refreshGalaxy: MapUI.refreshGalaxyBtn,
+    refreshMarketLocation: MapUI.refreshMarketLocation,
+    stopDispatchClock: _stopActiveDispatchClock,
+    queueQuestDialogueResult: _queueQuestDialogueResult,
+    scheduleRandomEvent: _scheduleRandomEventRoll,
+    captureState: _captureRuntimeStateForSave,
+    saveAutosave: function (state) { Save.saveGame(0, state, { isAutosave: true }); },
+    eventBaseChance: EVENT_CONFIG.baseChance,
+  });
+  return _travelActions;
 }
 
 function _getUiCoordinator() {
@@ -1940,128 +1984,7 @@ function _handleExplorePoi(systemId, poiId) {
 }
 
 function _handleTravel(systemId) {
-  Fleet.syncStateFromShip(_state);
-  var activeShip = Fleet.getActiveShip(_state);
-
-  // 旅行前：如有待处理事件，强制弹出，阻止本次旅行
-  if (EventUI.hasPendingEvent()) {
-    EventUI.forcePendingEvent();
-    EventBus.emit('log:message', { text: '⚠️ 请先处理当前事件再继续航行。', type: 'error' });
-    return;
-  }
-
-  // 飞船飞行中不允许再次发起旅行，避免出现跳星球起飞
-  if (Renderer3D.isActive() && Renderer3D.isShipFlying && Renderer3D.isShipFlying()) {
-    EventBus.emit('log:message', { text: '🛰️ 飞船正在飞行中，请等待抵达后再发起下一次航行。', type: 'info' });
-    return;
-  }
-
-  const previousSystem = _state.currentSystem;
-  const result = Trade.travelTo(_state, systemId);
-  _dispatch(result);
-
-  if (result && result.ok) {
-    EventBus.emit('audio:cue', { cue: 'travel' });
-    Fleet.applyTravelWear(_state, _state.activeShipIndex, result.meta).msgs.forEach(function (m) {
-      EventBus.emit('log:message', { text: m.text, type: m.type });
-    });
-
-    // 3D 飞船飞行动画（传入当前飞船类型）
-    if (Renderer3D.isActive() && previousSystem) {
-      var activeShipForFlight = Fleet.getActiveShip(_state);
-      var shipTypeId = activeShipForFlight ? activeShipForFlight.typeId : 'shuttle';
-      Renderer3D.flyShipTo(previousSystem, systemId, null, shipTypeId, {
-        shipIndex: _state.activeShipIndex || 0,
-        routeRevision: activeShipForFlight && activeShipForFlight.route
-          ? (activeShipForFlight.routeRevision || 0)
-          : null,
-      });
-    }
-
-    // 跨星系旅行后刷新地图按钮
-    if (result.meta && result.meta.crossGalaxy) {
-      MapUI.refreshGalaxyBtn(_state);
-    }
-    // 刷新市场位置信息
-    MapUI.refreshMarketLocation(_state);
-
-    // 走私检查（入港时）
-    var activeShipStats = Fleet.getEffectiveShipStats(_state, Fleet.getActiveShip(_state));
-    var smuggleResult = Economy.checkSmugglingCargo(_state, _state.currentSystem, _state.cargo, {
-      cargoCost: _state.cargoCost,
-      applyHullDamage: function (damage) {
-        _state.shipHull = Math.max(1, (_state.shipHull || 100) - damage);
-      },
-      checkChanceMultiplier: activeShipStats.smugglingCheckMultiplier || 1,
-      fineMultiplier: activeShipStats.smugglingFineMultiplier || 1,
-      hullDamageMultiplier: activeShipStats.smugglingHullMultiplier || 1,
-    });
-    smuggleResult.msgs.forEach(function (m) {
-      EventBus.emit('log:message', { text: m.text, type: m.type });
-    });
-    if (smuggleResult.caught) {
-      var activeShipAfterCheck = Fleet.getActiveShip(_state);
-      if (activeShipAfterCheck && activeShipAfterCheck.route && activeShipAfterCheck.route.marketMode === 'black') {
-        Fleet.cancelActiveDispatch(_state);
-        _stopActiveDispatchClock();
-        EventBus.emit('log:message', { text: '⏹️ 黑市自动跑商因走私被查获而中止。', type: 'error' });
-      }
-    }
-    if (smuggleResult.evaded) Economy.recordSmugglingEvaded(_state);
-
-    // 探索追踪：记录已访问的星球和星系
-    if (!_state.visitedSystems) _state.visitedSystems = [];
-    if (!_state.visitedGalaxies) _state.visitedGalaxies = [];
-    if (_state.visitedSystems.indexOf(_state.currentSystem) === -1) {
-      _state.visitedSystems.push(_state.currentSystem);
-    }
-    if (_state.visitedGalaxies.indexOf(_state.currentGalaxy) === -1) {
-      _state.visitedGalaxies.push(_state.currentGalaxy);
-    }
-    // 新手引导：旅行触发
-    Tutorial.checkTrigger('travel');
-    // 旅行经验 + 声望
-    var expResult = Progression.gainExperience(_state, 5);
-    expResult.msgs.forEach(function (m) { EventBus.emit('log:message', { text: m.text, type: m.type }); });
-    var compExpResult = Progression.gainCompanyExperience(_state, 2);
-    compExpResult.msgs.forEach(function (m) { EventBus.emit('log:message', { text: m.text, type: m.type }); });
-    _state.reputation = (_state.reputation || 0) + 1;
-
-    // 任务进度：旅行
-    const travelFaction = Faction.getFactionForSystem(_state.currentSystem);
-    const questResult = Quest.checkProgress(_state, {
-      action: 'travel',
-      systemId: _state.currentSystem,
-      factionId: travelFaction ? travelFaction.id : null,
-      crossGalaxy: !!(result.meta && result.meta.crossGalaxy),
-    });
-    questResult.msgs.forEach(function (m) {
-      EventBus.emit('log:message', { text: m.text, type: m.type });
-    });
-    _queueQuestDialogueResult(questResult);
-
-    // 自动修复（如果有科技）
-    var totalAutoRepair = (_state.autoRepair || 0) + (activeShipStats.autoRepair || 0);
-    if (totalAutoRepair > 0) {
-      _state.shipHull = Math.min(_state.maxHull || 100, (_state.shipHull || 100) + totalAutoRepair);
-    }
-
-    // 随机事件触发（群星风格）——教程期间不触发
-    // 事件先进入统一 Command Slot，玩家可延后打开处置弹窗。
-    const baseEventChance = EVENT_CONFIG.baseChance * (activeShipStats.eventChanceMultiplier || 1);
-    if (!Tutorial.isActive()) {
-      _scheduleRandomEventRoll(_state, baseEventChance);
-    }
-
-    // 自动存档
-    Fleet.commitActiveShipState(_state);
-
-    // 船队推进统一由游戏日时钟结算，手动旅行不再额外推进远程船只。
-    _captureRuntimeStateForSave(_state);
-    Save.saveGame(0, _state, { isAutosave: true });
-
-    _updateUI();
-  }
+  return _getTravelActions().travel(systemId);
 }
 
 function _handleEventChoice(choiceIndex) {
