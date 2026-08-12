@@ -54,6 +54,7 @@ import { createGameSystemRuntime } from './GameSystemRuntime.js';
 import { createGameClockController } from './GameClockController.js';
 import { createGameSessionLifecycle } from './GameSessionLifecycle.js';
 import { createFleetActionController } from './FleetActionController.js';
+import { createCommerceOperationsController } from './CommerceOperationsController.js';
 import { createGameUiCoordinator } from '../ui/GameUiCoordinator.js';
 import { createWorkspaceContextAdapters } from '../ui/WorkspaceContextAdapters.js';
 import { hasBlockingSurfaceOpen, hideBlockingSurface, showBlockingSurface } from '../ui/SurfaceManager.js';
@@ -114,6 +115,7 @@ let _systemRuntime = null;
 let _gameClock = null;
 let _sessionLifecycle = null;
 let _fleetActions = null;
+let _commerceActions = null;
 let _contextAdapters = null;
 
 function _replaceState(nextState, reason) {
@@ -771,17 +773,18 @@ function _loadGuidanceActionController() {
 }
 
 function _getMarketFinanceActions() {
+  var actions = _getCommerceActions();
   return {
-    onTakeLoan: _handleTakeLoan,
-    onRepayLoan: _handleRepayLoan,
-    onInvestTradeStation: _handleInvestTradeStation,
-    onRedeemTradeStationInvestment: _handleRedeemTradeStationInvestment,
-    onBatchInvestTradeStations: _handleBatchInvestTradeStations,
-    onBuildTradeStation: _handleBuildTradeStation,
-    onUpgradeTradeStation: _handleUpgradeTradeStation,
-    onSetTradeStationStrategy: _handleSetTradeStationStrategy,
-    onBatchUpgradeTradeStations: _handleBatchUpgradeTradeStations,
-    onBatchSetTradeStationStrategy: _handleBatchSetTradeStationStrategy,
+    onTakeLoan: actions.onTakeLoan,
+    onRepayLoan: actions.onRepayLoan,
+    onInvestTradeStation: actions.onInvestTradeStation,
+    onRedeemTradeStationInvestment: actions.onRedeemTradeStationInvestment,
+    onBatchInvestTradeStations: actions.onBatchInvestTradeStations,
+    onBuildTradeStation: actions.onBuildTradeStation,
+    onUpgradeTradeStation: actions.onUpgradeTradeStation,
+    onSetTradeStationStrategy: actions.onSetTradeStationStrategy,
+    onBatchUpgradeTradeStations: actions.onBatchUpgradeTradeStations,
+    onBatchSetTradeStationStrategy: actions.onBatchSetTradeStationStrategy,
     onFocusRemoteSystem: _handleFocusRemoteMarketSystem,
   };
 }
@@ -916,6 +919,19 @@ function _getFleetActions() {
     getDispatchContext: _getActiveShipDispatchContext,
   });
   return _fleetActions;
+}
+
+function _getCommerceActions() {
+  if (_commerceActions) return _commerceActions;
+  _commerceActions = createCommerceOperationsController({
+    getState: function () { return _state; },
+    getRuntime: function () { return _commerceRuntimeModule; },
+    requestRuntime: _loadCommerceRuntime,
+    dispatch: _dispatch,
+    recordQuestProgress: _recordQuestProgress,
+    completeTeachingStep: _completeMidgameTeachingStep,
+  });
+  return _commerceActions;
 }
 
 function _getUiCoordinator() {
@@ -2428,97 +2444,44 @@ function _handleFocusRemoteMarketSystem(systemId) {
   }
 }
 
-function _runCommerceAction(methodName, args) {
-  if (_commerceRuntimeModule && typeof _commerceRuntimeModule[methodName] === 'function') {
-    return _commerceRuntimeModule[methodName].apply(null, [_state].concat(args || []));
-  }
-  _loadCommerceRuntime();
-  return {
-    ok: false,
-    msgs: [{ text: '⚠️ 高级经营运行时正在加载，请稍后重试。', type: 'error' }],
-  };
-}
-
 function _handleBuildTradeStation(systemId) {
-  const result = _runCommerceAction('buildTradeStation', [systemId]);
-  if (result && result.ok) {
-    _recordQuestProgress({ action: 'build_trade_station', systemId: systemId });
-    _completeMidgameTeachingStep('trade-station-basics', 'build-trade-station');
-  }
-  _dispatch(result);
+  return _getCommerceActions().onBuildTradeStation(systemId);
 }
 
 function _handleUpgradeTradeStation(systemId) {
-  const result = _runCommerceAction('upgradeTradeStation', [systemId]);
-  if (result && result.ok) {
-    _completeMidgameTeachingStep('trade-station-basics', 'upgrade-trade-station');
-  }
-  _dispatch(result);
+  return _getCommerceActions().onUpgradeTradeStation(systemId);
 }
 
 function _handleSetTradeStationStrategy(systemId, strategyId) {
-  const result = _runCommerceAction('setTradeStationStrategy', [systemId, strategyId]);
-  _dispatch(result);
-}
-
-function _normalizeBatchSystemIds(systemIds) {
-  if (Array.isArray(systemIds)) {
-    return systemIds.filter(Boolean);
-  }
-  if (typeof systemIds === 'string') {
-    return systemIds.split(',').map(function (entry) {
-      return entry.trim();
-    }).filter(Boolean);
-  }
-  return null;
+  return _getCommerceActions().onSetTradeStationStrategy(systemId, strategyId);
 }
 
 function _handleBatchUpgradeTradeStations(systemIds) {
-  const normalizedSystemIds = _normalizeBatchSystemIds(systemIds);
-  const result = _runCommerceAction('batchUpgradeTradeStations', [normalizedSystemIds]);
-  _dispatch(result);
+  return _getCommerceActions().onBatchUpgradeTradeStations(systemIds);
 }
 
 function _handleBatchSetTradeStationStrategy(strategyId, systemIds) {
-  const normalizedSystemIds = _normalizeBatchSystemIds(systemIds);
-  const result = _runCommerceAction('batchSetTradeStationStrategy', [strategyId, normalizedSystemIds]);
-  _dispatch(result);
+  return _getCommerceActions().onBatchSetTradeStationStrategy(strategyId, systemIds);
 }
 
 function _handleTakeLoan(offerId) {
-  const result = _runCommerceAction('takeLoan', [offerId]);
-  if (result && result.ok) _recordQuestProgress({ action: 'finance_action', financeType: 'loan' });
-  _dispatch(result);
+  return _getCommerceActions().onTakeLoan(offerId);
 }
 
 function _handleRepayLoan(loanId) {
-  const result = _runCommerceAction('repayLoan', [loanId]);
-  if (result && result.ok) {
-    _recordQuestProgress({ action: 'finance_action', financeType: 'repay' });
-    _completeMidgameTeachingStep('capital-risk', 'review-loan-obligation');
-  }
-  _dispatch(result);
+  return _getCommerceActions().onRepayLoan(loanId);
 }
 
 function _handleInvestTradeStation(systemId) {
-  const result = _runCommerceAction('investInTradeStation', [systemId]);
-  if (result && result.ok) _recordQuestProgress({ action: 'finance_action', financeType: 'investment' });
-  _dispatch(result);
+  return _getCommerceActions().onInvestTradeStation(systemId);
 }
 
 function _handleRedeemTradeStationInvestment(systemId) {
-  const result = _runCommerceAction('redeemTradeStationInvestment', [systemId]);
-  if (result && result.ok) _recordQuestProgress({ action: 'finance_action', financeType: 'investment_exit' });
-  _dispatch(result);
+  return _getCommerceActions().onRedeemTradeStationInvestment(systemId);
 }
 
 function _handleBatchInvestTradeStations(systemIds, amount) {
-  const normalizedSystemIds = _normalizeBatchSystemIds(systemIds);
-  const targetSystemIds = normalizedSystemIds && normalizedSystemIds.length > 0
-    ? normalizedSystemIds
-    : Object.keys(_state.tradeStations || {});
-  const result = _runCommerceAction('batchInvestInTradeStations', [targetSystemIds, amount]);
-  _dispatch(result);
+  return _getCommerceActions().onBatchInvestTradeStations(systemIds, amount);
 }
 
 function _handleAcceptQuest(questId) {
