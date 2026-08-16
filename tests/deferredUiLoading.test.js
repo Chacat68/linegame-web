@@ -56,7 +56,8 @@ describe('deferred terminal UI loading', function () {
     expect(gameManager).not.toContain('function _handleFocusRemoteMarketSystem');
     expect(marketController).toContain("root.addEventListener('click', eventHandler)");
     expect(marketController).not.toContain('cloneNode');
-    expect(marketController).toContain('function createFinanceActions(commerceActions)');
+    expect(marketController).toContain('function handleCommand(input)');
+    expect(marketController).toContain("from './MarketCommand.js'");
     expect(marketController).toContain('function focusRemoteSystem(systemId)');
     expect(marketController).toContain('function openBuy(good)');
     expect(uiCoordinator).toContain("if (_call(MapUI, 'isMarketOpen', []))");

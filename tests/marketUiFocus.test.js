@@ -230,7 +230,7 @@ describe('MarketUI guided focus', function () {
     };
 
     var MarketUI = await import('../js/ui/MarketUI.js');
-    MarketUI.render(state, function () {}, function () {}, function () {}, 'sol_prime', 'open', 'milky_way', null, null, {});
+    MarketUI.render({ state: state, systemId: 'sol_prime', marketMode: 'open', galaxyId: 'milky_way', onCommand: function () {} });
 
     var subPrevented = false;
     tradeTab.dispatchEvent('keydown', {
@@ -305,7 +305,7 @@ describe('MarketUI guided focus', function () {
     };
 
     var MarketUI = await import('../js/ui/MarketUI.js');
-    MarketUI.render(state, function () {}, function () {}, function () {}, 'sol_prime', 'open', 'milky_way', null, null, {});
+    MarketUI.render({ state: state, systemId: 'sol_prime', marketMode: 'open', galaxyId: 'milky_way', onCommand: function () {} });
     expect(spotPane.innerHTML).toContain('data-market-overview-price-mode="buy">买入价');
     expect(overviewTable.dataset.priceMode).toBe('buy');
 
@@ -331,7 +331,7 @@ describe('MarketUI guided focus', function () {
 
     state.researchedTechs = ['trade_network'];
     var previousRowCount = overviewBody.children.length;
-    MarketUI.render(state, function () {}, function () {}, function () {}, 'sol_prime', 'open', 'milky_way', null, null, {});
+    MarketUI.render({ state: state, systemId: 'sol_prime', marketMode: 'open', galaxyId: 'milky_way', onCommand: function () {} });
     expect(spotPane.innerHTML).toContain('market-price-mode-btn is-active" type="button" role="radio" aria-checked="true" aria-controls="market-trade-overview-table" tabindex="0" data-market-overview-price-mode="sell"');
     var unlockedRows = overviewBody.children.slice(previousRowCount);
     var unlockedRemoteRow = unlockedRows.find(function (row) {
@@ -660,7 +660,7 @@ describe('MarketUI guided focus', function () {
     };
 
     var MarketUI = await import('../js/ui/MarketUI.js');
-    MarketUI.render(state, function () {}, function () {}, function () {}, 'sol_prime', 'open', 'milky_way', null, null, {});
+    MarketUI.render({ state: state, systemId: 'sol_prime', marketMode: 'open', galaxyId: 'milky_way', onCommand: function () {} });
 
     expect(goodsToolbar.innerHTML).toContain('点击其他货物即可查看价格并买卖');
     expect(goodsToolbar.innerHTML).not.toContain('价格走势');
@@ -687,6 +687,7 @@ describe('MarketUI guided focus', function () {
     Finance.init(state);
 
     var goodsList = createFakeElement();
+    var quickTradeDock = createFakeElement();
     var elements = {
       'market-workspace-tabs': createFakeElement(),
       'market-spot-pane': createFakeElement(),
@@ -694,6 +695,7 @@ describe('MarketUI guided focus', function () {
       'market-operations-pane': createFakeElement(),
       'market-goods-list': goodsList,
       'market-goods-toolbar': createFakeElement(),
+      'market-quick-trade-dock': quickTradeDock,
     };
     globalThis.document = {
       getElementById: function (id) { return elements[id] || null; },
@@ -702,24 +704,54 @@ describe('MarketUI guided focus', function () {
       createElement: function () { return createFakeElement(); },
     };
 
-    var onBuy = vi.fn();
-    var onSell = vi.fn();
-    var onRefuel = vi.fn();
+    var MarketCommand = await import('../js/core/MarketCommand.js');
+    var onCommand = vi.fn();
     var MarketUI = await import('../js/ui/MarketUI.js');
-    MarketUI.render(state, onBuy, onSell, onRefuel, 'sol_prime', 'open', 'milky_way', null, null, {});
+    MarketUI.render({
+      state: state,
+      systemId: 'sol_prime',
+      marketMode: 'open',
+      galaxyId: 'milky_way',
+      onCommand: onCommand,
+    });
 
     expect(typeof goodsList.onclick).toBe('function');
     expect(typeof goodsList.onkeydown).toBe('function');
+    expect(typeof quickTradeDock.onclick).toBe('function');
     function commandTarget(type, goodId) {
       return { dataset: { marketCommand: type, goodId: goodId || '' }, parentElement: goodsList };
     }
     goodsList.onclick({ target: commandTarget('buy-good', 'food'), stopPropagation: function () {} });
     goodsList.onclick({ target: commandTarget('sell-good', 'food'), stopPropagation: function () {} });
     goodsList.onclick({ target: commandTarget('refuel'), stopPropagation: function () {} });
+    var quickButton = {
+      dataset: { marketQuickAction: 'buy', id: 'water' },
+      parentElement: quickTradeDock,
+      disabled: false,
+    };
+    quickTradeDock.onclick({ target: { dataset: {}, parentElement: quickButton }, stopPropagation: function () {} });
 
-    expect(onBuy).toHaveBeenCalledWith(expect.objectContaining({ id: 'food' }));
-    expect(onSell).toHaveBeenCalledWith(expect.objectContaining({ id: 'food' }));
-    expect(onRefuel).toHaveBeenCalledOnce();
+    expect(onCommand.mock.calls.map(function (call) { return call[0]; })).toEqual([
+      expect.objectContaining({
+        type: MarketCommand.MARKET_COMMAND.OPEN_TRADE,
+        action: 'buy',
+        marketMode: 'open',
+        good: expect.objectContaining({ id: 'food' }),
+      }),
+      expect.objectContaining({
+        type: MarketCommand.MARKET_COMMAND.OPEN_TRADE,
+        action: 'sell',
+        marketMode: 'open',
+        good: expect.objectContaining({ id: 'food' }),
+      }),
+      { type: MarketCommand.MARKET_COMMAND.REFUEL },
+      expect.objectContaining({
+        type: MarketCommand.MARKET_COMMAND.OPEN_TRADE,
+        action: 'buy',
+        marketMode: 'open',
+        good: expect.objectContaining({ id: 'water' }),
+      }),
+    ]);
 
     var prevented = false;
     goodsList.onkeydown({
@@ -729,6 +761,78 @@ describe('MarketUI guided focus', function () {
     });
     expect(prevented).toBe(true);
     expect(MarketUI.getFocusedMarketGood('sol_prime', 'open')).toBe('water');
+  });
+
+  it('资本与商网页用稳定容器委托发布 typed command', async function () {
+    vi.resetModules();
+    var helpers = await import('./helpers.js');
+    var Economy = await import('../js/systems/economy/Economy.js');
+    var Faction = await import('../js/systems/faction/FactionSystem.js');
+    var Finance = await import('../js/systems/finance/FinanceSystem.js');
+    var MarketCommand = await import('../js/core/MarketCommand.js');
+    var state = helpers.createTestState({
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+      viewingGalaxy: 'milky_way',
+      companyLevel: 6,
+      credits: 200000,
+      fuel: 100,
+      maxFuel: 100,
+    });
+    Economy.init();
+    Faction.init(state);
+    Finance.init(state);
+
+    var capitalPane = createFakeElement();
+    var operationsPane = createFakeElement();
+    var elements = {
+      'market-workspace-tabs': createFakeElement(),
+      'market-spot-pane': createFakeElement(),
+      'market-capital-pane': capitalPane,
+      'market-operations-pane': operationsPane,
+      'market-goods-list': createFakeElement(),
+      'market-goods-toolbar': createFakeElement(),
+    };
+    globalThis.document = {
+      getElementById: function (id) { return elements[id] || null; },
+      querySelectorAll: function () { return []; },
+      querySelector: function () { return null; },
+      createElement: function () { return createFakeElement(); },
+    };
+
+    var onCommand = vi.fn();
+    var MarketUI = await import('../js/ui/MarketUI.js');
+    MarketUI.render({
+      state: state,
+      systemId: 'sol_prime',
+      marketMode: 'open',
+      galaxyId: 'milky_way',
+      onCommand: onCommand,
+    });
+
+    expect(typeof capitalPane.onclick).toBe('function');
+    expect(typeof operationsPane.onclick).toBe('function');
+    function clickCommand(container, dataset) {
+      var button = { dataset: dataset, parentElement: container, disabled: false };
+      container.onclick({ target: { dataset: {}, parentElement: button }, preventDefault: function () {}, stopPropagation: function () {} });
+    }
+    clickCommand(capitalPane, { action: 'market-take-loan', loanOfferId: 'growth' });
+    clickCommand(operationsPane, { action: 'market-build-station', systemId: 'sol_prime' });
+    clickCommand(operationsPane, {
+      action: 'market-batch-set-strategy',
+      strategyId: 'growth',
+      systemIds: 'sol_prime,nova_station',
+    });
+
+    expect(onCommand.mock.calls.map(function (call) { return call[0]; })).toEqual([
+      { type: MarketCommand.MARKET_COMMAND.TAKE_LOAN, loanOfferId: 'growth' },
+      { type: MarketCommand.MARKET_COMMAND.BUILD_STATION, systemId: 'sol_prime' },
+      {
+        type: MarketCommand.MARKET_COMMAND.BATCH_SET_STATION_STRATEGY,
+        strategyId: 'growth',
+        systemIds: ['sol_prime', 'nova_station'],
+      },
+    ]);
   });
 
   it('资本页展示状态概览和局部风险信号', async function () {
@@ -787,7 +891,7 @@ describe('MarketUI guided focus', function () {
     };
 
     var MarketUI = await import('../js/ui/MarketUI.js');
-    MarketUI.render(state, function () {}, function () {}, function () {}, 'sol_prime', 'open', 'milky_way', null, null, {});
+    MarketUI.render({ state: state, systemId: 'sol_prime', marketMode: 'open', galaxyId: 'milky_way', onCommand: function () {} });
 
     expect(capitalPane.innerHTML).toContain('market-capital-deck');
     expect(capitalPane.innerHTML).toContain('资金页集中查看现金、贷款与站点投资总额');
@@ -852,7 +956,7 @@ describe('MarketUI guided focus', function () {
     };
 
     var MarketUI = await import('../js/ui/MarketUI.js');
-    MarketUI.render(state, function () {}, function () {}, function () {}, 'shadow_haven', 'black', 'milky_way', null, null, {});
+    MarketUI.render({ state: state, systemId: 'shadow_haven', marketMode: 'black', galaxyId: 'milky_way', onCommand: function () {} });
 
     expect(spotPane.innerHTML).toContain('market-black-risk-panel');
     expect(spotPane.innerHTML).toContain('黑市风险状态');
@@ -951,7 +1055,7 @@ describe('MarketUI guided focus', function () {
 
     var MarketUI = await import('../js/ui/MarketUI.js');
     var ArchiveExplorationUI = await import('../js/ui/ArchiveExplorationUI.js');
-    MarketUI.render(state, function () {}, function () {}, function () {}, 'sol_prime', 'open', 'milky_way', null, null, {});
+    MarketUI.render({ state: state, systemId: 'sol_prime', marketMode: 'open', galaxyId: 'milky_way', onCommand: function () {} });
     ArchiveExplorationUI.render(state);
 
     expect(spotPane.innerHTML).toContain('market-intel-signal-panel');
@@ -1032,7 +1136,7 @@ describe('MarketUI guided focus', function () {
     };
 
     var MarketUI = await import('../js/ui/MarketUI.js');
-    MarketUI.render(state, function () {}, function () {}, function () {}, 'sol_prime', 'open', 'milky_way', null, null, {});
+    MarketUI.render({ state: state, systemId: 'sol_prime', marketMode: 'open', galaxyId: 'milky_way', onCommand: function () {} });
 
     expect(operationsPane.innerHTML).toContain('匹配方式：薄利多销');
     expect(operationsPane.innerHTML).toContain('适合补给和走量，可采用薄利多销');
@@ -1110,7 +1214,7 @@ describe('MarketUI guided focus', function () {
     };
 
     var MarketUI = await import('../js/ui/MarketUI.js');
-    MarketUI.render(state, function () {}, function () {}, function () {}, 'sol_prime', 'open', 'milky_way', null, null, {});
+    MarketUI.render({ state: state, systemId: 'sol_prime', marketMode: 'open', galaxyId: 'milky_way', onCommand: function () {} });
 
     expect(operationsPane.innerHTML).toContain('匹配方式：薄利多销');
     expect(operationsPane.innerHTML).toContain('采用匹配方式');
@@ -1175,7 +1279,7 @@ describe('MarketUI guided focus', function () {
     };
 
     var MarketUI = await import('../js/ui/MarketUI.js');
-    MarketUI.render(state, function () {}, function () {}, function () {}, 'sol_prime', 'open', 'milky_way', null, null, {});
+    MarketUI.render({ state: state, systemId: 'sol_prime', marketMode: 'open', galaxyId: 'milky_way', onCommand: function () {} });
 
     expect(operationsPane.innerHTML).toContain('商网待处理项');
     expect(operationsPane.innerHTML).toContain('商网列表摘要');

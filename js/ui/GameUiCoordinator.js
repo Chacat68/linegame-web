@@ -109,24 +109,13 @@ export function createGameUiCoordinator(options) {
     var galaxyId = _call(MapUI, 'getMarketViewGalaxy', [state]);
     var requestedMode = _callAction(actions, 'market', 'getMode', [state]);
     var mode = _normalizeMarketMode(requestedMode);
-    var financeActions = _action(actions, 'market', 'financeActions') || {};
-    var getFinanceActions = _action(actions, 'market', 'getFinanceActions');
-    if (typeof getFinanceActions === 'function') {
-      financeActions = getFinanceActions(state) || {};
-    }
-
-    module.render(
-      state,
-      _action(actions, 'market', 'onOpenBuy'),
-      _action(actions, 'market', 'onOpenSell'),
-      _action(actions, 'market', 'onRefuel'),
-      systemId || state.currentSystem,
-      mode,
-      galaxyId || state.currentGalaxy,
-      _action(actions, 'market', 'onBlackMarketBuy'),
-      _action(actions, 'market', 'onBlackMarketSell'),
-      financeActions
-    );
+    module.render({
+      state: state,
+      systemId: systemId || state.currentSystem,
+      marketMode: mode,
+      galaxyId: galaxyId || state.currentGalaxy,
+      onCommand: _action(actions, 'market', 'onCommand'),
+    });
     _call(ContextAdapters, 'connectMarket', [module]);
     _callAction(actions, 'market', 'onAfterRender', [module, state, mode]);
     return true;

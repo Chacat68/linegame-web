@@ -54,7 +54,7 @@ describe('GameUiCoordinator', function () {
   it('四类终端均可按需加载并由命名 actions 接线', async function () {
     var state = { id: 'state', currentSystem: 'sol_prime', currentGalaxy: 'milky_way' };
     var callbacks = {
-      buy: function () {},
+      marketCommand: function () {},
       buyShip: function () {},
       startResearch: function () {},
       save: function () {},
@@ -89,7 +89,7 @@ describe('GameUiCoordinator', function () {
         HUD: hud,
       },
       actions: {
-        market: { onOpenBuy: callbacks.buy, getMode: function () { return 'black'; } },
+        market: { onCommand: callbacks.marketCommand, getMode: function () { return 'black'; } },
         fleet: { onBuyShip: callbacks.buyShip },
         archive: { onStartResearch: callbacks.startResearch },
         save: { onSaveGame: callbacks.save, onLoadGame: callbacks.load },
@@ -102,10 +102,13 @@ describe('GameUiCoordinator', function () {
     await coordinator.ensureSave();
 
     expect(features.loadCalls).toEqual(['market', 'fleet', 'archive', 'save']);
-    expect(marketRender.mock.calls[0][0]).toBe(state);
-    expect(marketRender.mock.calls[0][1]).toBe(callbacks.buy);
-    expect(marketRender.mock.calls[0][4]).toBe('nova_station');
-    expect(marketRender.mock.calls[0][5]).toBe('black');
+    expect(marketRender).toHaveBeenCalledWith({
+      state: state,
+      systemId: 'nova_station',
+      marketMode: 'black',
+      galaxyId: 'milky_way',
+      onCommand: callbacks.marketCommand,
+    });
     expect(fleetRender.mock.calls[0][0]).toBe(state);
     expect(fleetRender.mock.calls[0][1]).toBe(callbacks.buyShip);
     expect(researchRender.mock.calls[0][0]).toBe(state);

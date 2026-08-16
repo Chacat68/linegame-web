@@ -5,6 +5,7 @@
 
 import { buildCommandFeedback } from '../ui/CommandAction.js';
 import { getRemoteMarketFocusCompletion } from './ActionGuideCompletion.js';
+import { MARKET_COMMAND, normalizeMarketCommand } from './MarketCommand.js';
 
 function _requiredFunction(value, label) {
   if (typeof value !== 'function') throw new TypeError('MarketWorkspaceController requires ' + label + '.');
@@ -36,12 +37,19 @@ export function createMarketWorkspaceController(dependencies) {
   var emitLog = typeof deps.emitLog === 'function' ? deps.emitLog : function () {};
   var invalidate = typeof deps.invalidate === 'function' ? deps.invalidate : function () {};
   var showCompletion = typeof deps.showCompletion === 'function' ? deps.showCompletion : function () {};
+  var getCommerceActions = typeof deps.getCommerceActions === 'function'
+    ? deps.getCommerceActions
+    : function () { return {}; };
+  var refuel = typeof deps.refuel === 'function' ? deps.refuel : function () { return false; };
 
   var mode = 'open';
   var eventRoot = null;
   var eventHandler = null;
   var refreshCount = 0;
   var modeChangeCount = 0;
+  var commandCount = 0;
+  var rejectedCommandCount = 0;
+  var lastCommandType = null;
 
   function getMode() {
     return mode;
@@ -186,21 +194,61 @@ export function createMarketWorkspaceController(dependencies) {
     return focused;
   }
 
-  function createFinanceActions(commerceActions) {
-    var actions = commerceActions || {};
-    return {
-      onTakeLoan: actions.onTakeLoan,
-      onRepayLoan: actions.onRepayLoan,
-      onInvestTradeStation: actions.onInvestTradeStation,
-      onRedeemTradeStationInvestment: actions.onRedeemTradeStationInvestment,
-      onBatchInvestTradeStations: actions.onBatchInvestTradeStations,
-      onBuildTradeStation: actions.onBuildTradeStation,
-      onUpgradeTradeStation: actions.onUpgradeTradeStation,
-      onSetTradeStationStrategy: actions.onSetTradeStationStrategy,
-      onBatchUpgradeTradeStations: actions.onBatchUpgradeTradeStations,
-      onBatchSetTradeStationStrategy: actions.onBatchSetTradeStationStrategy,
-      onFocusRemoteSystem: focusRemoteSystem,
-    };
+  function handleCommand(input) {
+    var command = normalizeMarketCommand(input);
+    if (!command) {
+      rejectedCommandCount += 1;
+      return false;
+    }
+    commandCount += 1;
+    lastCommandType = command.type;
+
+    if (command.type === MARKET_COMMAND.OPEN_TRADE) {
+      if (command.marketMode === 'black') {
+        return command.action === 'sell'
+          ? openBlackMarketSell(command.good)
+          : openBlackMarketBuy(command.good);
+      }
+      return command.action === 'sell' ? openSell(command.good) : openBuy(command.good);
+    }
+    if (command.type === MARKET_COMMAND.REFUEL) return refuel();
+    if (command.type === MARKET_COMMAND.FOCUS_REMOTE_SYSTEM) return focusRemoteSystem(command.systemId);
+
+    var actions = getCommerceActions() || {};
+    var handler = null;
+    var args = [];
+    if (command.type === MARKET_COMMAND.TAKE_LOAN) {
+      handler = actions.onTakeLoan;
+      args = [command.loanOfferId];
+    } else if (command.type === MARKET_COMMAND.REPAY_LOAN) {
+      handler = actions.onRepayLoan;
+      args = [command.loanId];
+    } else if (command.type === MARKET_COMMAND.INVEST_STATION) {
+      handler = actions.onInvestTradeStation;
+      args = [command.systemId];
+    } else if (command.type === MARKET_COMMAND.REDEEM_STATION_INVESTMENT) {
+      handler = actions.onRedeemTradeStationInvestment;
+      args = [command.systemId];
+    } else if (command.type === MARKET_COMMAND.BATCH_INVEST_STATIONS) {
+      handler = actions.onBatchInvestTradeStations;
+      args = [command.systemIds, command.amount];
+    } else if (command.type === MARKET_COMMAND.BUILD_STATION) {
+      handler = actions.onBuildTradeStation;
+      args = [command.systemId];
+    } else if (command.type === MARKET_COMMAND.UPGRADE_STATION) {
+      handler = actions.onUpgradeTradeStation;
+      args = [command.systemId];
+    } else if (command.type === MARKET_COMMAND.SET_STATION_STRATEGY) {
+      handler = actions.onSetTradeStationStrategy;
+      args = [command.systemId, command.strategyId];
+    } else if (command.type === MARKET_COMMAND.BATCH_UPGRADE_STATIONS) {
+      handler = actions.onBatchUpgradeTradeStations;
+      args = [command.systemIds];
+    } else if (command.type === MARKET_COMMAND.BATCH_SET_STATION_STRATEGY) {
+      handler = actions.onBatchSetTradeStationStrategy;
+      args = [command.strategyId, command.systemIds];
+    }
+    return typeof handler === 'function' ? handler.apply(null, args) : false;
   }
 
   function reset() {
@@ -218,20 +266,18 @@ export function createMarketWorkspaceController(dependencies) {
       mode: mode,
       modeChangeCount: modeChangeCount,
       refreshCount: refreshCount,
+      commandCount: commandCount,
+      rejectedCommandCount: rejectedCommandCount,
+      lastCommandType: lastCommandType,
     });
   }
 
   return Object.freeze({
     bindModeEvents: bindModeEvents,
-    createFinanceActions: createFinanceActions,
     dispose: dispose,
-    focusRemoteSystem: focusRemoteSystem,
     getDiagnostics: getDiagnostics,
     getMode: getMode,
-    openBlackMarketBuy: openBlackMarketBuy,
-    openBlackMarketSell: openBlackMarketSell,
-    openBuy: openBuy,
-    openSell: openSell,
+    handleCommand: handleCommand,
     refresh: refresh,
     reset: reset,
     syncAfterRender: syncAfterRender,

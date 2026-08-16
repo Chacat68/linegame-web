@@ -9,6 +9,7 @@ import * as Economy from '../systems/economy/Economy.js';
 import * as Faction from '../systems/faction/FactionSystem.js';
 import * as Commerce from '../systems/commerce/CommerceFacade.js';
 import * as ContextInspector from './ContextInspector.js';
+import { MARKET_COMMAND, normalizeMarketCommand } from '../core/MarketCommand.js';
 import {
   buildMarketSnapshots as _buildMarketSnapshots,
   renderMarketChartDashboard,
@@ -353,6 +354,27 @@ function _escapeHtml(value) {
 
 function _escapeHtmlAttr(value) {
   return _escapeHtml(value);
+}
+
+function _publishMarketCommand(onCommand, type, payload) {
+  if (typeof onCommand !== 'function') return false;
+  var command = normalizeMarketCommand(Object.assign({}, payload || {}, { type: type }));
+  return command ? onCommand(command) : false;
+}
+
+function _resolveMarketDatasetNode(target, root, datasetKey) {
+  var node = target || null;
+  var matchedNode = null;
+  while (node) {
+    if (!matchedNode && node.dataset && node.dataset[datasetKey]) matchedNode = node;
+    if (node === root) return matchedNode;
+    node = node.parentElement || node.parentNode || null;
+  }
+  return null;
+}
+
+function _resolveMarketActionNode(target, root) {
+  return _resolveMarketDatasetNode(target, root, 'action');
 }
 
 function _clearMarketGuideFocus() {
@@ -891,12 +913,10 @@ function _renderOverviewTable(state, galaxyId, onPlanetClick, tableIds) {
   });
 }
 
-function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions, progression) {
+function _renderFinancePanels(state, viewingSystem, isCurrentSys, onCommand, progression) {
   var capitalContainer = document.getElementById('market-capital-pane');
   var operationsContainer = document.getElementById('market-operations-pane');
   if (!capitalContainer || !operationsContainer) return;
-
-  financeActions = financeActions || {};
 
   var commerceSnapshot = Commerce.getCommerceSnapshot(state);
   var capitalWorkspace = _renderMarketCapitalWorkspace({
@@ -927,80 +947,56 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
 
     _bindMarketSubworkspaceTabs(container, progression);
 
-    container.querySelectorAll('[data-action="market-batch-set-sort"]').forEach(function (button) {
-      button.addEventListener('click', function () {
+    container.onclick = function (event) {
+      var button = _resolveMarketActionNode(event && event.target, container);
+      if (!button || button.disabled || (button.getAttribute && button.getAttribute('aria-disabled') === 'true')) return;
+      if (event && typeof event.preventDefault === 'function') event.preventDefault();
+      if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
+      var action = button.dataset.action;
+
+      if (action === 'market-batch-set-sort') {
         _marketBatchPlanSortModes = _updateMarketOperationsSortModes(
           _marketBatchPlanSortModes,
           button.dataset.batchSortScope,
           button.dataset.batchSortMode
         );
-        _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions, progression);
-      });
-    });
+        _renderFinancePanels(state, viewingSystem, isCurrentSys, onCommand, progression);
+        return;
+      }
 
-    container.querySelectorAll('[data-action="market-take-loan"]').forEach(function (button) {
-      button.addEventListener('click', function () {
-        if (financeActions.onTakeLoan) financeActions.onTakeLoan(button.dataset.loanOfferId);
-      });
-    });
-
-    container.querySelectorAll('[data-action="market-repay-loan"]').forEach(function (button) {
-      button.addEventListener('click', function () {
-        if (financeActions.onRepayLoan) financeActions.onRepayLoan(button.dataset.loanId);
-      });
-    });
-
-    container.querySelectorAll('[data-action="market-invest-trade-station"]').forEach(function (button) {
-      button.addEventListener('click', function () {
-        if (financeActions.onInvestTradeStation) financeActions.onInvestTradeStation(button.dataset.systemId);
-      });
-    });
-
-    container.querySelectorAll('[data-action="market-redeem-trade-station"]').forEach(function (button) {
-      button.addEventListener('click', function () {
-        if (financeActions.onRedeemTradeStationInvestment) financeActions.onRedeemTradeStationInvestment(button.dataset.systemId);
-      });
-    });
-
-    container.querySelectorAll('[data-action="market-batch-invest-trade-stations"]').forEach(function (button) {
-      button.addEventListener('click', function () {
-        if (financeActions.onBatchInvestTradeStations) financeActions.onBatchInvestTradeStations(
-          _parseBatchSystemIds(button.dataset.systemIds),
-          Number(button.dataset.batchAmount || 0) || undefined
-        );
-      });
-    });
-
-    container.querySelectorAll('[data-action="market-build-station"]').forEach(function (button) {
-      button.addEventListener('click', function () {
-        if (financeActions.onBuildTradeStation) financeActions.onBuildTradeStation(button.dataset.systemId);
-      });
-    });
-
-    container.querySelectorAll('[data-action="market-upgrade-station"]').forEach(function (button) {
-      button.addEventListener('click', function () {
-        if (financeActions.onUpgradeTradeStation) financeActions.onUpgradeTradeStation(button.dataset.systemId);
-      });
-    });
-
-    container.querySelectorAll('[data-action="market-set-strategy"]').forEach(function (button) {
-      button.addEventListener('click', function () {
-        if (financeActions.onSetTradeStationStrategy) financeActions.onSetTradeStationStrategy(button.dataset.systemId, button.dataset.strategyId);
-      });
-    });
-
-    container.querySelectorAll('[data-action="market-batch-upgrade-stations"]').forEach(function (button) {
-      button.addEventListener('click', function () {
-        if (financeActions.onBatchUpgradeTradeStations) financeActions.onBatchUpgradeTradeStations(_parseBatchSystemIds(button.dataset.systemIds));
-      });
-    });
-
-    container.querySelectorAll('[data-action="market-batch-set-strategy"]').forEach(function (button) {
-      button.addEventListener('click', function () {
-        if (financeActions.onBatchSetTradeStationStrategy) financeActions.onBatchSetTradeStationStrategy(button.dataset.strategyId, _parseBatchSystemIds(button.dataset.systemIds));
-      });
-    });
-
+      if (action === 'market-take-loan') {
+        _publishMarketCommand(onCommand, MARKET_COMMAND.TAKE_LOAN, { loanOfferId: button.dataset.loanOfferId });
+      } else if (action === 'market-repay-loan') {
+        _publishMarketCommand(onCommand, MARKET_COMMAND.REPAY_LOAN, { loanId: button.dataset.loanId });
+      } else if (action === 'market-invest-trade-station') {
+        _publishMarketCommand(onCommand, MARKET_COMMAND.INVEST_STATION, { systemId: button.dataset.systemId });
+      } else if (action === 'market-redeem-trade-station') {
+        _publishMarketCommand(onCommand, MARKET_COMMAND.REDEEM_STATION_INVESTMENT, { systemId: button.dataset.systemId });
+      } else if (action === 'market-batch-invest-trade-stations') {
+        _publishMarketCommand(onCommand, MARKET_COMMAND.BATCH_INVEST_STATIONS, {
+          systemIds: _parseBatchSystemIds(button.dataset.systemIds),
+          amount: Number(button.dataset.batchAmount || 0) || undefined,
+        });
+      } else if (action === 'market-build-station') {
+        _publishMarketCommand(onCommand, MARKET_COMMAND.BUILD_STATION, { systemId: button.dataset.systemId });
+      } else if (action === 'market-upgrade-station') {
+        _publishMarketCommand(onCommand, MARKET_COMMAND.UPGRADE_STATION, { systemId: button.dataset.systemId });
+      } else if (action === 'market-set-strategy') {
+        _publishMarketCommand(onCommand, MARKET_COMMAND.SET_STATION_STRATEGY, {
+          systemId: button.dataset.systemId,
+          strategyId: button.dataset.strategyId,
+        });
+      } else if (action === 'market-batch-upgrade-stations') {
+        _publishMarketCommand(onCommand, MARKET_COMMAND.BATCH_UPGRADE_STATIONS, {
+          systemIds: _parseBatchSystemIds(button.dataset.systemIds),
+        });
+      } else if (action === 'market-batch-set-strategy') {
+        _publishMarketCommand(onCommand, MARKET_COMMAND.BATCH_SET_STATION_STRATEGY, {
+          strategyId: button.dataset.strategyId,
+          systemIds: _parseBatchSystemIds(button.dataset.systemIds),
+        });
+      }
+    };
   });
 }
 
@@ -1049,29 +1045,25 @@ function _bindMarketOverviewPriceMode(onChange) {
 // ---------------------------------------------------------------------------
 
 /**
- * 渲染单个星球的商品详情表格（含买入/卖出按钮）
- * @param {object}   state
- * @param {Function} onBuy          (good) => void
- * @param {Function} onSell         (good) => void
- * @param {Function} onRefuel       () => void
- * @param {string}   [viewingSystem] 查看的星球 ID（默认为当前星球）
- * @param {string}   [marketMode]   'open' | 'black'（默认 'open'）
- * @param {string}   [viewingGalaxy] 查看的星系 ID（用于交易图表）
- * @param {Function} [onBlackBuy]    黑市买入回调 (good) => void
- * @param {Function} [onBlackSell]   黑市卖出回调 (good) => void
- * @param {object}   [financeActions] 贷款、站点投资与商网动作回调
+ * 渲染单个星球的商业终端。
+ * UI 只发布 typed market command，不直接持有领域 action 回调。
+ * @param {{state:object, systemId?:string, marketMode?:string, galaxyId?:string, onCommand?:Function}} request
  */
-export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode, viewingGalaxy, onBlackBuy, onBlackSell, financeActions) {
-  const sysId         = viewingSystem || state.currentSystem;
+export function render(request) {
+  var input = request || {};
+  var state = input.state;
+  if (!state) return false;
+  var onCommand = input.onCommand;
+  const sysId         = input.systemId || state.currentSystem;
   const isCurrentSys  = sysId === state.currentSystem;
   const spotContainer = document.getElementById('market-spot-pane');
-  const tradeGalaxyId = viewingGalaxy || state.currentGalaxy;
+  const tradeGalaxyId = input.galaxyId || state.currentGalaxy;
 
   // 非当前星球时显示只读提示
   // 黑市模式横幅
   var blackMarketUnlocked = Faction.canAccessBlackMarket(state, sysId);
   var systemFaction = Faction.getFactionForSystem(sysId);
-  var requestedMarketMode = marketMode === 'black' ? 'black' : 'open';
+  var requestedMarketMode = input.marketMode === 'black' ? 'black' : 'open';
   var effectiveMarketMode = requestedMarketMode === 'black' && blackMarketUnlocked ? 'black' : 'open';
   _activeMarketContext = { systemId: sysId, mode: effectiveMarketMode };
   const isBlack = effectiveMarketMode === 'black';
@@ -1128,7 +1120,12 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode
   function renderTradeOverview() {
     _renderOverviewTable(state, tradeGalaxyId, function (systemId) {
       showDetail(systemId, effectiveMarketMode);
-      render(state, onBuy, onSell, onRefuel, systemId, effectiveMarketMode, tradeGalaxyId, onBlackBuy, onBlackSell, financeActions);
+      render(Object.assign({}, input, {
+        state: state,
+        systemId: systemId,
+        marketMode: effectiveMarketMode,
+        galaxyId: tradeGalaxyId,
+      }));
     }, {
       tableId: 'market-trade-overview-table',
       theadId: 'market-trade-overview-thead',
@@ -1163,23 +1160,20 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode
       isCurrentSystem: isCurrentSys,
       focusedGoodId: focusedGoodId,
     });
-    quickTradeDockEl.querySelectorAll('[data-market-quick-action]').forEach(function (button) {
-      button.addEventListener('click', function (event) {
-        event.stopPropagation();
-        if (button.disabled) return;
-        var quickGood = goodsList.find(function (good) {
-          return good.id === button.dataset.id;
-        });
-        if (!quickGood) return;
-        if (button.dataset.marketQuickAction === 'sell') {
-          var sellCallback = isBlack && onBlackSell ? onBlackSell : onSell;
-          sellCallback(quickGood);
-          return;
-        }
-        var buyCallback = isBlack && onBlackBuy ? onBlackBuy : onBuy;
-        buyCallback(quickGood);
+    quickTradeDockEl.onclick = function (event) {
+      var button = _resolveMarketDatasetNode(event && event.target, quickTradeDockEl, 'marketQuickAction');
+      if (!button || button.disabled) return;
+      if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
+      var quickGood = goodsList.find(function (good) {
+        return good.id === button.dataset.id;
       });
-    });
+      if (!quickGood) return;
+      _publishMarketCommand(onCommand, MARKET_COMMAND.OPEN_TRADE, {
+        action: button.dataset.marketQuickAction === 'sell' ? 'sell' : 'buy',
+        marketMode: effectiveMarketMode,
+        good: quickGood,
+      });
+    };
   }
   _renderMarketDashboard(state, sysId, effectiveMarketMode, snapshots);
   _updateMainKlineChart(state, sysId, snapshots, effectiveMarketMode);
@@ -1205,7 +1199,7 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode
     focusedGoodId: activeGoodId,
     systemFaction: systemFaction,
     blackMarketUnlocked: blackMarketUnlocked,
-    canFocusRemote: financeActions && typeof financeActions.onFocusRemoteSystem === 'function',
+    canFocusRemote: typeof onCommand === 'function',
   });
   goodsListEl.innerHTML = goodsWorkspace.html;
 
@@ -1224,7 +1218,12 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode
       source: 'market-good-card',
       revision: ContextInspector.getCurrentRevision(),
     });
-    render(state, onBuy, onSell, onRefuel, sysId, effectiveMarketMode, tradeGalaxyId, onBlackBuy, onBlackSell, financeActions);
+    render(Object.assign({}, input, {
+      state: state,
+      systemId: sysId,
+      marketMode: effectiveMarketMode,
+      galaxyId: tradeGalaxyId,
+    }));
   }
 
   goodsListEl.onclick = function (event) {
@@ -1237,27 +1236,22 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode
       return;
     }
     if (command.type === 'focus-remote-system') {
-      if (financeActions && typeof financeActions.onFocusRemoteSystem === 'function') {
-        financeActions.onFocusRemoteSystem(command.systemId);
-      }
+      _publishMarketCommand(onCommand, MARKET_COMMAND.FOCUS_REMOTE_SYSTEM, { systemId: command.systemId });
       return;
     }
     if (command.type === 'refuel') {
-      if (typeof onRefuel === 'function') onRefuel();
+      _publishMarketCommand(onCommand, MARKET_COMMAND.REFUEL);
       return;
     }
 
     var good = findRenderedGood(command.goodId);
     if (!good) return;
-    if (command.type === 'sell-good') {
-      var sellCallback = isBlack && onBlackSell ? onBlackSell : onSell;
-      if (typeof sellCallback === 'function') sellCallback(good);
-      return;
-    }
-    if (command.type === 'buy-good') {
-      var buyCallback = isBlack && onBlackBuy ? onBlackBuy : onBuy;
-      if (typeof buyCallback === 'function') buyCallback(good);
-    }
+    if (command.type !== 'sell-good' && command.type !== 'buy-good') return;
+    _publishMarketCommand(onCommand, MARKET_COMMAND.OPEN_TRADE, {
+      action: command.type === 'sell-good' ? 'sell' : 'buy',
+      marketMode: effectiveMarketMode,
+      good: good,
+    });
   };
 
   goodsListEl.onkeydown = function (event) {
@@ -1280,8 +1274,9 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode
     });
   }
 
-  _renderFinancePanels(state, sysId, isCurrentSys, financeActions, progression);
+  _renderFinancePanels(state, sysId, isCurrentSys, onCommand, progression);
   _applyMarketWorkspaceTabState(progression);
+  return true;
 }
 
 // ---------------------------------------------------------------------------

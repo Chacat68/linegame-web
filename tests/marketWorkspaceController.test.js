@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createMarketWorkspaceController } from '../js/core/MarketWorkspaceController.js';
+import { MARKET_COMMAND, createMarketCommand } from '../js/core/MarketCommand.js';
 
 function createRoot() {
   var listeners = new Map();
@@ -41,11 +42,34 @@ function createHarness(options) {
   };
   var renderMarket = vi.fn();
   var calls = {
+    batchInvestTradeStations: vi.fn(),
+    batchSetTradeStationStrategy: vi.fn(),
+    batchUpgradeTradeStations: vi.fn(),
+    buildTradeStation: vi.fn(),
     emitLog: vi.fn(),
     focusNavigationTarget: vi.fn(function () { return true; }),
+    investTradeStation: vi.fn(),
     invalidate: vi.fn(),
     openTradeModal: vi.fn(),
+    redeemTradeStationInvestment: vi.fn(),
+    refuel: vi.fn(function () { return true; }),
+    repayLoan: vi.fn(),
+    setTradeStationStrategy: vi.fn(),
     showCompletion: vi.fn(),
+    takeLoan: vi.fn(),
+    upgradeTradeStation: vi.fn(),
+  };
+  var commerceActions = config.commerceActions || {
+    onTakeLoan: calls.takeLoan,
+    onRepayLoan: calls.repayLoan,
+    onInvestTradeStation: calls.investTradeStation,
+    onRedeemTradeStationInvestment: calls.redeemTradeStationInvestment,
+    onBatchInvestTradeStations: calls.batchInvestTradeStations,
+    onBuildTradeStation: calls.buildTradeStation,
+    onUpgradeTradeStation: calls.upgradeTradeStation,
+    onSetTradeStationStrategy: calls.setTradeStationStrategy,
+    onBatchUpgradeTradeStations: calls.batchUpgradeTradeStations,
+    onBatchSetTradeStationStrategy: calls.batchSetTradeStationStrategy,
   };
   var controller = createMarketWorkspaceController({
     getState: function () { return state; },
@@ -64,6 +88,8 @@ function createHarness(options) {
     emitLog: calls.emitLog,
     invalidate: calls.invalidate,
     showCompletion: calls.showCompletion,
+    getCommerceActions: function () { return commerceActions; },
+    refuel: calls.refuel,
     MapUI: {
       focusNavigationTarget: calls.focusNavigationTarget,
       getMarketViewSystem: function () { return 'nova_station'; },
@@ -157,10 +183,18 @@ describe('MarketWorkspaceController', function () {
     var harness = createHarness({ tutorialActive: true });
     var good = { id: 'food', name: '食品' };
 
-    expect(harness.controller.openBuy(good)).toBe(true);
-    expect(harness.controller.openSell(good)).toBe(true);
-    expect(harness.controller.openBlackMarketBuy(good)).toBe(true);
-    expect(harness.controller.openBlackMarketSell(good)).toBe(true);
+    expect(harness.controller.handleCommand(createMarketCommand(MARKET_COMMAND.OPEN_TRADE, {
+      action: 'buy', marketMode: 'open', good: good,
+    }))).toBe(true);
+    expect(harness.controller.handleCommand(createMarketCommand(MARKET_COMMAND.OPEN_TRADE, {
+      action: 'sell', marketMode: 'open', good: good,
+    }))).toBe(true);
+    expect(harness.controller.handleCommand(createMarketCommand(MARKET_COMMAND.OPEN_TRADE, {
+      action: 'buy', marketMode: 'black', good: good,
+    }))).toBe(true);
+    expect(harness.controller.handleCommand(createMarketCommand(MARKET_COMMAND.OPEN_TRADE, {
+      action: 'sell', marketMode: 'black', good: good,
+    }))).toBe(true);
 
     expect(harness.calls.openTradeModal.mock.calls).toEqual([
       ['buy', good, expect.any(Object), 'open', { initialQuantity: 10 }],
@@ -170,25 +204,56 @@ describe('MarketWorkspaceController', function () {
     ]);
   });
 
-  it('金融 action 适配保留领域回调，并由工作区处理远程市场航点', function () {
+  it('单一 command 端口解释补给、金融、商网与远程航点', function () {
     var harness = createHarness();
-    var commerceActions = {
-      onTakeLoan: vi.fn(),
-      onRepayLoan: vi.fn(),
-      onInvestTradeStation: vi.fn(),
-      onRedeemTradeStationInvestment: vi.fn(),
-      onBatchInvestTradeStations: vi.fn(),
-      onBuildTradeStation: vi.fn(),
-      onUpgradeTradeStation: vi.fn(),
-      onSetTradeStationStrategy: vi.fn(),
-      onBatchUpgradeTradeStations: vi.fn(),
-      onBatchSetTradeStationStrategy: vi.fn(),
-    };
+    expect(harness.controller.handleCommand({ type: MARKET_COMMAND.REFUEL })).toBe(true);
+    harness.controller.handleCommand({ type: MARKET_COMMAND.TAKE_LOAN, loanOfferId: 'growth' });
+    harness.controller.handleCommand({ type: MARKET_COMMAND.REPAY_LOAN, loanId: 'loan-1' });
+    harness.controller.handleCommand({ type: MARKET_COMMAND.INVEST_STATION, systemId: 'sol_prime' });
+    harness.controller.handleCommand({ type: MARKET_COMMAND.REDEEM_STATION_INVESTMENT, systemId: 'nova_station' });
+    harness.controller.handleCommand({
+      type: MARKET_COMMAND.BATCH_INVEST_STATIONS,
+      systemIds: ['sol_prime', 'nova_station'],
+      amount: 5000,
+    });
+    harness.controller.handleCommand({ type: MARKET_COMMAND.BUILD_STATION, systemId: 'sol_prime' });
+    harness.controller.handleCommand({ type: MARKET_COMMAND.UPGRADE_STATION, systemId: 'sol_prime' });
+    harness.controller.handleCommand({
+      type: MARKET_COMMAND.SET_STATION_STRATEGY,
+      systemId: 'sol_prime',
+      strategyId: 'balanced',
+    });
+    harness.controller.handleCommand({
+      type: MARKET_COMMAND.BATCH_UPGRADE_STATIONS,
+      systemIds: ['sol_prime', 'nova_station'],
+    });
+    harness.controller.handleCommand({
+      type: MARKET_COMMAND.BATCH_SET_STATION_STRATEGY,
+      strategyId: 'growth',
+      systemIds: ['sol_prime', 'nova_station'],
+    });
+    expect(harness.controller.handleCommand({
+      type: MARKET_COMMAND.FOCUS_REMOTE_SYSTEM,
+      systemId: 'nova_station',
+    })).toBe(true);
 
-    var financeActions = harness.controller.createFinanceActions(commerceActions);
-    expect(financeActions.onTakeLoan).toBe(commerceActions.onTakeLoan);
-    expect(financeActions.onBatchSetTradeStationStrategy).toBe(commerceActions.onBatchSetTradeStationStrategy);
-    expect(financeActions.onFocusRemoteSystem('nova_station')).toBe(true);
+    expect(harness.calls.refuel).toHaveBeenCalledOnce();
+    expect(harness.calls.takeLoan).toHaveBeenCalledWith('growth');
+    expect(harness.calls.repayLoan).toHaveBeenCalledWith('loan-1');
+    expect(harness.calls.investTradeStation).toHaveBeenCalledWith('sol_prime');
+    expect(harness.calls.redeemTradeStationInvestment).toHaveBeenCalledWith('nova_station');
+    expect(harness.calls.batchInvestTradeStations).toHaveBeenCalledWith(
+      ['sol_prime', 'nova_station'],
+      5000,
+    );
+    expect(harness.calls.buildTradeStation).toHaveBeenCalledWith('sol_prime');
+    expect(harness.calls.upgradeTradeStation).toHaveBeenCalledWith('sol_prime');
+    expect(harness.calls.setTradeStationStrategy).toHaveBeenCalledWith('sol_prime', 'balanced');
+    expect(harness.calls.batchUpgradeTradeStations).toHaveBeenCalledWith(['sol_prime', 'nova_station']);
+    expect(harness.calls.batchSetTradeStationStrategy).toHaveBeenCalledWith(
+      'growth',
+      ['sol_prime', 'nova_station'],
+    );
     expect(harness.calls.focusNavigationTarget).toHaveBeenCalledWith(
       expect.any(Object),
       'nova_station',
@@ -200,6 +265,26 @@ describe('MarketWorkspaceController', function () {
     expect(harness.calls.showCompletion).toHaveBeenCalledWith({
       message: '已找到市场航点',
       detail: '检查目标详情后确认航行',
+    });
+    expect(harness.controller.getDiagnostics()).toMatchObject({
+      commandCount: 12,
+      rejectedCommandCount: 0,
+      lastCommandType: MARKET_COMMAND.FOCUS_REMOTE_SYSTEM,
+    });
+  });
+
+  it('拒绝未知或结构不完整的 command，不误触发领域动作', function () {
+    var harness = createHarness();
+
+    expect(harness.controller.handleCommand({ type: 'market.unknown' })).toBe(false);
+    expect(harness.controller.handleCommand({ type: MARKET_COMMAND.TAKE_LOAN })).toBe(false);
+    expect(harness.calls.openTradeModal).not.toHaveBeenCalled();
+    expect(harness.calls.takeLoan).not.toHaveBeenCalled();
+    expect(harness.calls.invalidate).not.toHaveBeenCalled();
+    expect(harness.controller.getDiagnostics()).toMatchObject({
+      commandCount: 0,
+      rejectedCommandCount: 2,
+      lastCommandType: null,
     });
   });
 });

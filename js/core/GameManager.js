@@ -582,6 +582,8 @@ function _getMarketWorkspaceController() {
     emitLog: function (message) { EventBus.emit('log:message', message); },
     invalidate: function () { _updateUI(DEFAULT_ACTION_DIRTY_REGIONS); },
     showCompletion: function (completion) { _getGuidanceRuntime().showCompletion(completion); },
+    getCommerceActions: function () { return _getActionRuntime().commerce; },
+    refuel: _handleRefuel,
   });
   return _marketWorkspaceController;
 }
@@ -616,12 +618,7 @@ function _getUiCoordinator() {
     actions: {
       market: {
         getMode: marketWorkspace.getMode,
-        onOpenBuy: marketWorkspace.openBuy,
-        onOpenSell: marketWorkspace.openSell,
-        onRefuel: _handleRefuel,
-        onBlackMarketBuy: marketWorkspace.openBlackMarketBuy,
-        onBlackMarketSell: marketWorkspace.openBlackMarketSell,
-        getFinanceActions: function () { return marketWorkspace.createFinanceActions(_getActionRuntime().commerce); },
+        onCommand: marketWorkspace.handleCommand,
         onAfterRender: marketWorkspace.syncAfterRender,
       },
       fleet: fleetActions,
