@@ -207,12 +207,11 @@ export function createCommandDestinationController(dependencies) {
       if (!_isCurrent(snapshot) || !FleetUI) return false;
       var fleetActions = getFleetActions();
       renderFleet(FleetUI);
-      _call(FleetUI, 'openDispatchModal', [
-        snapshot.state,
-        activeShipIndex,
-        fleetActions.onAssignRoute,
-        fleetActions.onCancelRoute,
-        {
+      _call(FleetUI, 'openDispatchModal', [{
+        state: snapshot.state,
+        shipIndex: activeShipIndex,
+        onCommand: fleetActions.handleCommand,
+        preset: {
           buySystemId: recommendation.buySystemId,
           sellSystemId: recommendation.sellSystemId,
           goodId: recommendation.goodId,
@@ -225,7 +224,7 @@ export function createCommandDestinationController(dependencies) {
           },
           recommendation: recommendation,
         },
-      ]);
+      }]);
 
       emitLog({
         text: buildCommandFeedback({
@@ -266,16 +265,12 @@ export function createCommandDestinationController(dependencies) {
       if (!_isCurrent(snapshot) || !FleetUI) return false;
       var fleetActions = getFleetActions();
       renderFleet(FleetUI);
-      _call(FleetUI, 'openModModal', [
-        state,
-        shipIndex,
-        fleetActions.onInstallMod,
-        fleetActions.onUninstallMod,
-        fleetActions.onUpgradeShip,
-        fleetActions.onServiceShip,
-        fleetActions.onSellShip,
-        { focusModId: data.modId || '', focusService: !!data.focusService },
-      ]);
+      _call(FleetUI, 'openModModal', [{
+        state: state,
+        shipIndex: shipIndex,
+        onCommand: fleetActions.handleCommand,
+        options: { focusModId: data.modId || '', focusService: !!data.focusService },
+      }]);
       refreshActionGuide();
       return true;
     });

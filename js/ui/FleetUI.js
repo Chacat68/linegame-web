@@ -15,6 +15,7 @@ import { hideBlockingSurface, showBlockingSurface } from './SurfaceManager.js';
 import * as EventBus from '../core/EventBus.js';
 import * as ActionConfirmUI from './ActionConfirmUI.js';
 import * as ContextInspector from './ContextInspector.js';
+import { FLEET_COMMAND, normalizeFleetCommand } from '../core/FleetCommand.js';
 
 let _activeInlineModalId = null;
 let _currentPortalCleanup = null;
@@ -22,6 +23,65 @@ let _activeModModalContext = null;
 let _activeDispatchModalContext = null;
 let _inspectedHangarShipIndex = null;
 let _lifecycleActions = null;
+
+function _publishFleetCommand(onCommand, type, payload) {
+  if (typeof onCommand !== 'function') return false;
+  var command = normalizeFleetCommand(Object.assign({}, payload || {}, { type: type }));
+  return command ? onCommand(command) : false;
+}
+
+function _createFleetActionPorts(onCommand) {
+  return Object.freeze({
+    onBuyShip: function (shipTypeId) {
+      return _publishFleetCommand(onCommand, FLEET_COMMAND.BUY_SHIP, { shipTypeId: shipTypeId });
+    },
+    onSwitchShip: function (shipIndex) {
+      return _publishFleetCommand(onCommand, FLEET_COMMAND.SWITCH_SHIP, { shipIndex: shipIndex });
+    },
+    onUpgradeShip: function (shipIndex, upgradeId) {
+      return _publishFleetCommand(onCommand, FLEET_COMMAND.UPGRADE_SHIP, { shipIndex: shipIndex, upgradeId: upgradeId });
+    },
+    onAssignRoute: function (shipIndex, buySystemId, sellSystemId, goodId, tradePolicy) {
+      return _publishFleetCommand(onCommand, FLEET_COMMAND.ASSIGN_ROUTE, {
+        shipIndex: shipIndex,
+        buySystemId: buySystemId,
+        sellSystemId: sellSystemId,
+        goodId: goodId,
+        tradePolicy: tradePolicy,
+      });
+    },
+    onCancelRoute: function (shipIndex) {
+      return _publishFleetCommand(onCommand, FLEET_COMMAND.CANCEL_ROUTE, { shipIndex: shipIndex });
+    },
+    onBuySlot: function () {
+      return _publishFleetCommand(onCommand, FLEET_COMMAND.BUY_SLOT);
+    },
+    onSellShip: function (shipIndex) {
+      return _publishFleetCommand(onCommand, FLEET_COMMAND.SELL_SHIP, { shipIndex: shipIndex });
+    },
+    onInstallMod: function (shipIndex, modId) {
+      return _publishFleetCommand(onCommand, FLEET_COMMAND.INSTALL_MOD, { shipIndex: shipIndex, modId: modId });
+    },
+    onUninstallMod: function (shipIndex, modId) {
+      return _publishFleetCommand(onCommand, FLEET_COMMAND.UNINSTALL_MOD, { shipIndex: shipIndex, modId: modId });
+    },
+    onServiceShip: function (shipIndex, tierId) {
+      return _publishFleetCommand(onCommand, FLEET_COMMAND.SERVICE_SHIP, { shipIndex: shipIndex, tierId: tierId });
+    },
+    onRecruitCrew: function (offerId) {
+      return _publishFleetCommand(onCommand, FLEET_COMMAND.RECRUIT_CREW, { offerId: offerId });
+    },
+    onAssignCrew: function (shipIndex, crewId) {
+      return _publishFleetCommand(onCommand, FLEET_COMMAND.ASSIGN_CREW, { shipIndex: shipIndex, crewId: crewId });
+    },
+    onUnassignCrew: function (shipIndex, crewId) {
+      return _publishFleetCommand(onCommand, FLEET_COMMAND.UNASSIGN_CREW, { shipIndex: shipIndex, crewId: crewId });
+    },
+    onDismissCrew: function (crewId) {
+      return _publishFleetCommand(onCommand, FLEET_COMMAND.DISMISS_CREW, { crewId: crewId });
+    },
+  });
+}
 
 export function setLifecycleActions(actions) {
   _lifecycleActions = actions || null;
@@ -410,29 +470,19 @@ function _renderHangarShipSelector(snapshots, activeIdx, inspectedIdx) {
 }
 
 /**
- * 渲染船队标签页
- * @param {object}   state
- * @param {Function} onBuyShip      (shipTypeId) => void
- * @param {Function} onSwitchShip   (shipIndex)  => void
- * @param {Function} onUpgradeShip  (shipIndex, upgradeId)  => void
- * @param {Function} onAssignRoute  (shipIndex, buySystemId, sellSystemId, goodId, tradePolicy) => void
- * @param {Function} onCancelRoute  (shipIndex) => void
- * @param {Function} onBuySlot      () => void
- * @param {Function} onSellShip     (shipIndex) => void
- * @param {Function} onInstallMod   (shipIndex, modId) => void
- * @param {Function} onUninstallMod (shipIndex, modId) => void
- * @param {Function} onServiceShip  (shipIndex, tierId) => void
- * @param {Function} onRecruitCrew  (offerId) => void
- * @param {Function} onAssignCrew   (shipIndex, crewId) => void
- * @param {Function} onUnassignCrew (shipIndex, crewId) => void
- * @param {Function} onDismissCrew  (crewId) => void
+ * 渲染船队标签页。UI 只发布 typed fleet command。
+ * @param {{state:object, onCommand?:Function}} request
  */
-export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRoute, onCancelRoute, onBuySlot, onSellShip, onInstallMod, onUninstallMod, onServiceShip, onRecruitCrew, onAssignCrew, onUnassignCrew, onDismissCrew) {
+export function render(request) {
+  var input = request || {};
+  var state = input.state;
+  if (!state) return false;
+  var actions = _createFleetActionPorts(input.onCommand);
   if (_activeInlineModalId !== null) {
-    return;
+    return false;
   }
   const container = document.getElementById('fleet-list');
-  if (!container) return;
+  if (!container) return false;
 
   const fleet      = Fleet.getFleet(state);
   const activeIdx  = state.activeShipIndex || 0;
@@ -816,7 +866,7 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
         source: 'hangar-ship-selector',
         revision: ContextInspector.getCurrentRevision(),
       });
-      render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRoute, onCancelRoute, onBuySlot, onSellShip, onInstallMod, onUninstallMod, onServiceShip, onRecruitCrew, onAssignCrew, onUnassignCrew, onDismissCrew);
+      render(input);
       Promise.resolve().then(function () {
         if (!container || typeof container.querySelector !== 'function') return;
         _focusInlineElement(container.querySelector('.hangar-ship-select[data-inspect-ship-index="' + nextIndex + '"]'));
@@ -827,13 +877,13 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
   // 席位购买
   container.querySelectorAll('.fleet-slot-buy-btn.slot-can-buy').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      if (onBuySlot) onBuySlot();
+      actions.onBuySlot();
     });
   });
 
   container.querySelectorAll('.fleet-switch-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      onSwitchShip(parseInt(btn.dataset.index));
+      actions.onSwitchShip(parseInt(btn.dataset.index));
     });
   });
 
@@ -841,37 +891,38 @@ export function render(state, onBuyShip, onSwitchShip, onUpgradeShip, onAssignRo
   container.querySelectorAll('.slot-switch-btn').forEach(function (btn) {
     btn.addEventListener('click', function (e) {
       e.stopPropagation();
-      onSwitchShip(parseInt(btn.dataset.slotIndex));
+      actions.onSwitchShip(parseInt(btn.dataset.slotIndex));
     });
   });
 
   // 改装弹窗按钮
   container.querySelectorAll('.fleet-open-mod-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      _openModModal(state, parseInt(btn.dataset.shipIndex), onInstallMod, onUninstallMod, onUpgradeShip, onServiceShip, onSellShip);
+      _openModModal(state, parseInt(btn.dataset.shipIndex), actions.onInstallMod, actions.onUninstallMod, actions.onUpgradeShip, actions.onServiceShip, actions.onSellShip);
     });
   });
 
   container.querySelectorAll('.fleet-open-crew-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      _openCrewModal(state, parseInt(btn.dataset.shipIndex), onRecruitCrew, onAssignCrew, onUnassignCrew, onDismissCrew, onSwitchShip);
+      _openCrewModal(state, parseInt(btn.dataset.shipIndex), actions.onRecruitCrew, actions.onAssignCrew, actions.onUnassignCrew, actions.onDismissCrew, actions.onSwitchShip);
     });
   });
 
   // 派遣按钮 → 打开派遣配置弹窗（所有船只，包括激活船只）
   container.querySelectorAll('.fleet-dispatch-btn:not([disabled])').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      openDispatchModal(state, parseInt(btn.dataset.index), onAssignRoute, onCancelRoute);
+      _openDispatchModal(state, parseInt(btn.dataset.index), actions.onAssignRoute, actions.onCancelRoute);
     });
   });
 
   // 召回按钮
   container.querySelectorAll('.fleet-cancel-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      onCancelRoute(parseInt(btn.dataset.index));
+      actions.onCancelRoute(parseInt(btn.dataset.index));
     });
   });
 
+  return true;
 }
 
 function _escapeHtml(text) {
@@ -1602,12 +1653,15 @@ function _renderShipShopSignalStrip(entry, context) {
 
 /**
  * 渲染船只商店标签页
- * @param {object}   state
- * @param {Function} onBuyShip (shipTypeId) => void
+ * @param {{state:object, onCommand?:Function}} request
  */
-export function renderShop(state, onBuyShip) {
+export function renderShop(request) {
+  var input = request || {};
+  var state = input.state;
+  if (!state) return false;
+  var actions = _createFleetActionPorts(input.onCommand);
   const container = document.getElementById('shop-list');
-  if (!container) return;
+  if (!container) return false;
 
   var shopContext = _buildShipShopContext(state);
   var hasAvailableSlot = shopContext.hasAvailableSlot;
@@ -1675,21 +1729,34 @@ export function renderShop(state, onBuyShip) {
   // 绑定购买事件
   container.querySelectorAll('.fleet-can-buy').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      onBuyShip(btn.dataset.type);
+      actions.onBuyShip(btn.dataset.type);
     });
   });
+  return true;
 }
 
-export function openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, preset) {
-  _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, preset);
+export function openDispatchModal(request) {
+  var input = request || {};
+  if (!input.state || !Number.isInteger(input.shipIndex)) return false;
+  var actions = _createFleetActionPorts(input.onCommand);
+  _openDispatchModal(input.state, input.shipIndex, actions.onAssignRoute, actions.onCancelRoute, input.preset);
+  return true;
 }
 
-export function openCrewModal(state, shipIndex, onRecruitCrew, onAssignCrew, onUnassignCrew, onDismissCrew, onSwitchShip) {
-  _openCrewModal(state, shipIndex, onRecruitCrew, onAssignCrew, onUnassignCrew, onDismissCrew, onSwitchShip);
+export function openCrewModal(request) {
+  var input = request || {};
+  if (!input.state || !Number.isInteger(input.shipIndex)) return false;
+  var actions = _createFleetActionPorts(input.onCommand);
+  _openCrewModal(input.state, input.shipIndex, actions.onRecruitCrew, actions.onAssignCrew, actions.onUnassignCrew, actions.onDismissCrew, actions.onSwitchShip);
+  return true;
 }
 
-export function openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgradeShip, onServiceShip, onSellShip, options) {
-  _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgradeShip, onServiceShip, onSellShip, options);
+export function openModModal(request) {
+  var input = request || {};
+  if (!input.state || !Number.isInteger(input.shipIndex)) return false;
+  var actions = _createFleetActionPorts(input.onCommand);
+  _openModModal(input.state, input.shipIndex, actions.onInstallMod, actions.onUninstallMod, actions.onUpgradeShip, actions.onServiceShip, actions.onSellShip, input.options);
+  return true;
 }
 
 export function getActiveModModalContext() {

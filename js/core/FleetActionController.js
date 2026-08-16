@@ -6,6 +6,7 @@
 import { GOODS } from '../data/goods.js';
 import { SHIP_MODS } from '../data/ships.js';
 import { DEFAULT_ACTION_PRESENTATION } from './ActionPresentation.js';
+import { FLEET_COMMAND, normalizeFleetCommand } from './FleetCommand.js';
 import {
   getDispatchConfirmedCompletion,
   getModInstalledCompletion,
@@ -219,7 +220,36 @@ export function createFleetActionController(dependencies) {
     return result;
   }
 
+  function handleCommand(input) {
+    var command = normalizeFleetCommand(input);
+    if (!command) return false;
+    if (command.type === FLEET_COMMAND.BUY_SHIP) return onBuyShip(command.shipTypeId);
+    if (command.type === FLEET_COMMAND.SWITCH_SHIP) return onSwitchShip(command.shipIndex);
+    if (command.type === FLEET_COMMAND.UPGRADE_SHIP) return onUpgradeShip(command.shipIndex, command.upgradeId);
+    if (command.type === FLEET_COMMAND.ASSIGN_ROUTE) {
+      return onAssignRoute(
+        command.shipIndex,
+        command.buySystemId,
+        command.sellSystemId,
+        command.goodId,
+        command.tradePolicy
+      );
+    }
+    if (command.type === FLEET_COMMAND.CANCEL_ROUTE) return onCancelRoute(command.shipIndex);
+    if (command.type === FLEET_COMMAND.BUY_SLOT) return onBuySlot();
+    if (command.type === FLEET_COMMAND.SELL_SHIP) return onSellShip(command.shipIndex);
+    if (command.type === FLEET_COMMAND.INSTALL_MOD) return onInstallMod(command.shipIndex, command.modId);
+    if (command.type === FLEET_COMMAND.UNINSTALL_MOD) return onUninstallMod(command.shipIndex, command.modId);
+    if (command.type === FLEET_COMMAND.SERVICE_SHIP) return onServiceShip(command.shipIndex, command.tierId);
+    if (command.type === FLEET_COMMAND.RECRUIT_CREW) return onRecruitCrew(command.offerId);
+    if (command.type === FLEET_COMMAND.ASSIGN_CREW) return onAssignCrew(command.shipIndex, command.crewId);
+    if (command.type === FLEET_COMMAND.UNASSIGN_CREW) return onUnassignCrew(command.shipIndex, command.crewId);
+    if (command.type === FLEET_COMMAND.DISMISS_CREW) return onDismissCrew(command.crewId);
+    return false;
+  }
+
   return Object.freeze({
+    handleCommand: handleCommand,
     onBuyShip: onBuyShip,
     onSwitchShip: onSwitchShip,
     onUpgradeShip: onUpgradeShip,

@@ -28,6 +28,18 @@ describe('CrewSystem market', () => {
     expect(refreshedMarket.offers[0].id).not.toBe(firstMarket.offers[0].id);
   });
 
+  it('高位哈希种子仍生成合法姓名而不是 NaN', () => {
+    const state = createTestState({ currentSystem: 'sol_prime', day: 43 });
+    Fleet.init(state);
+
+    const market = Crew.getCrewMarket(state, 'sol_prime');
+
+    expect(market.offers.length).toBeGreaterThan(0);
+    expect(market.offers.every(function (offer) {
+      return typeof offer.name === 'string' && offer.name.length > 0 && offer.name !== 'NaN';
+    })).toBe(true);
+  });
+
   it('不同港口会生成明显不同的人才画像', () => {
     const state = createTestState({ currentSystem: 'imperial_capital', day: 1 });
     Fleet.init(state);

@@ -35,12 +35,7 @@ describe('GameUiCoordinator', function () {
 
     await coordinator.renderAll();
 
-    expect(fleetRender).toHaveBeenCalledWith(
-      state,
-      undefined, undefined, undefined, undefined, undefined,
-      undefined, undefined, undefined, undefined, undefined,
-      undefined, undefined, undefined, undefined
-    );
+    expect(fleetRender).toHaveBeenCalledWith({ state: state, onCommand: undefined });
     expect(features.loadCalls).toEqual([]);
     expect(coordinator.getLoaded('fleet')).toBe(features.modules.fleet);
     expect(coordinator.getLoaded()).toEqual({
@@ -90,7 +85,7 @@ describe('GameUiCoordinator', function () {
       },
       actions: {
         market: { onCommand: callbacks.marketCommand, getMode: function () { return 'black'; } },
-        fleet: { onBuyShip: callbacks.buyShip },
+        fleet: { handleCommand: callbacks.buyShip },
         archive: { onStartResearch: callbacks.startResearch },
         save: { onSaveGame: callbacks.save, onLoadGame: callbacks.load },
       },
@@ -109,8 +104,7 @@ describe('GameUiCoordinator', function () {
       galaxyId: 'milky_way',
       onCommand: callbacks.marketCommand,
     });
-    expect(fleetRender.mock.calls[0][0]).toBe(state);
-    expect(fleetRender.mock.calls[0][1]).toBe(callbacks.buyShip);
+    expect(fleetRender).toHaveBeenCalledWith({ state: state, onCommand: callbacks.buyShip });
     expect(researchRender.mock.calls[0][0]).toBe(state);
     expect(researchRender.mock.calls[0][1]).toBe(callbacks.startResearch);
     expect(saveRender).toHaveBeenCalledWith(callbacks.save, callbacks.load);
@@ -145,8 +139,8 @@ describe('GameUiCoordinator', function () {
     resolveFleet(fleetModule);
     await pending;
 
-    expect(render.mock.calls[0][0]).toBe(stateB);
-    expect(render.mock.calls[0][0]).not.toBe(stateA);
+    expect(render.mock.calls[0][0].state).toBe(stateB);
+    expect(render.mock.calls[0][0].state).not.toBe(stateA);
   });
 
   it('向 FleetUI 注入 latest-state 重绘命令，不允许 UI 反向访问全局主控', function () {
@@ -167,7 +161,7 @@ describe('GameUiCoordinator', function () {
     state = { id: 'fleet-b' };
     expect(lifecycleActions.requestRender()).toBe(true);
 
-    expect(render.mock.calls.map(function (call) { return call[0].id; })).toEqual([
+    expect(render.mock.calls.map(function (call) { return call[0].state.id; })).toEqual([
       'fleet-a',
       'fleet-b',
     ]);
@@ -283,7 +277,7 @@ describe('GameUiCoordinator', function () {
     var coordinator = createGameUiCoordinator({
       getState: function () { return state; },
       features: createFeatureHarness({
-        fleet: { render: function (currentState) { seen.push('fleet:' + currentState.id); } },
+        fleet: { render: function (request) { seen.push('fleet:' + request.state.id); } },
         archive: {
           ResearchUI: { render: function (currentState) { seen.push('archive:' + currentState.id); } },
         },

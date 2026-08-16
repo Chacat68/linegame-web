@@ -133,28 +133,13 @@ export function createGameUiCoordinator(options) {
     }
 
     var rendered = false;
+    var onCommand = _action(actions, 'fleet', 'handleCommand');
     if (typeof module.render === 'function') {
-      module.render(
-        state,
-        _action(actions, 'fleet', 'onBuyShip'),
-        _action(actions, 'fleet', 'onSwitchShip'),
-        _action(actions, 'fleet', 'onUpgradeShip'),
-        _action(actions, 'fleet', 'onAssignRoute'),
-        _action(actions, 'fleet', 'onCancelRoute'),
-        _action(actions, 'fleet', 'onBuySlot'),
-        _action(actions, 'fleet', 'onSellShip'),
-        _action(actions, 'fleet', 'onInstallMod'),
-        _action(actions, 'fleet', 'onUninstallMod'),
-        _action(actions, 'fleet', 'onServiceShip'),
-        _action(actions, 'fleet', 'onRecruitCrew'),
-        _action(actions, 'fleet', 'onAssignCrew'),
-        _action(actions, 'fleet', 'onUnassignCrew'),
-        _action(actions, 'fleet', 'onDismissCrew')
-      );
+      module.render({ state: state, onCommand: onCommand });
       rendered = true;
     }
     if (typeof module.renderShop === 'function') {
-      module.renderShop(state, _action(actions, 'fleet', 'onBuyShip'));
+      module.renderShop({ state: state, onCommand: onCommand });
       rendered = true;
     }
     _call(ContextAdapters, 'connectFleet', [module]);

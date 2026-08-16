@@ -5,6 +5,7 @@ import * as Crew from '../js/systems/fleet/CrewSystem.js';
 import * as Economy from '../js/systems/economy/Economy.js';
 import * as Fleet from '../js/systems/fleet/FleetSystem.js';
 import * as FleetUI from '../js/ui/FleetUI.js';
+import { FLEET_COMMAND } from '../js/core/FleetCommand.js';
 import { createTestState } from './helpers.js';
 
 function createFakeClassList(initialValues) {
@@ -186,26 +187,7 @@ describe('FleetUI.openModModal guidance focus', function () {
     Fleet.init(state);
     state.fleet[0].maintenance = 62;
 
-    var noop = function () {};
-    FleetUI.render(
-      state,
-      noop,
-      noop,
-      noop,
-      noop,
-      noop,
-      noop,
-      noop,
-      noop,
-      noop,
-      noop,
-      noop,
-      noop,
-      noop,
-      noop,
-      noop,
-      noop,
-    );
+    FleetUI.render({ state: state, onCommand: function () {} });
 
     expect(elements['fleet-list'].innerHTML).toContain('class="hangar-operations-deck" aria-labelledby="hangar-operations-title"');
     expect(elements['fleet-list'].innerHTML).toContain('class="hangar-operations-grid" role="list" aria-label="机库运行摘要"');
@@ -245,26 +227,12 @@ describe('FleetUI.openModModal guidance focus', function () {
     state.fleetSlots = 2;
 
     var switchCount = 0;
-    var noop = function () {};
-    FleetUI.render(
-      state,
-      noop,
-      function () { switchCount += 1; },
-      noop,
-      noop,
-      noop,
-      noop,
-      noop,
-      noop,
-      noop,
-      noop,
-      noop,
-      noop,
-      noop,
-      noop,
-      noop,
-      noop,
-    );
+    FleetUI.render({
+      state: state,
+      onCommand: function (command) {
+        if (command.type === FLEET_COMMAND.SWITCH_SHIP) switchCount += 1;
+      },
+    });
 
     inspectButton.dispatchEvent({ type: 'click' });
     await Promise.resolve();
@@ -293,7 +261,7 @@ describe('FleetUI.openModModal guidance focus', function () {
     Fleet.init(state);
     state.fleetSlots = 2;
 
-    FleetUI.renderShop(state, function () {});
+    FleetUI.renderShop({ state: state, onCommand: function () {} });
 
     expect(elements['shop-list'].innerHTML).toContain('class="hangar-shop-brief" aria-label="购船决策摘要"');
     expect(elements['shop-list'].innerHTML).toContain('class="hangar-shop-brief-grid" role="list" aria-label="采购状态概览"');
@@ -363,16 +331,12 @@ describe('FleetUI.openModModal guidance focus', function () {
     Fleet.init(state);
     Fleet.getActiveShip(state).maintenance = 42;
 
-    FleetUI.openModModal(
-      state,
-      0,
-      function () {},
-      function () {},
-      function () {},
-      function () {},
-      function () {},
-      { focusModId: 'mod_service_bay' },
-    );
+    FleetUI.openModModal({
+      state: state,
+      shipIndex: 0,
+      onCommand: function () {},
+      options: { focusModId: 'mod_service_bay' },
+    });
     await Promise.resolve();
 
     expect(body.innerHTML).toContain('mod-modal-recommendation--focus');
@@ -586,17 +550,13 @@ describe('FleetUI.openModModal guidance focus', function () {
     dismissButton.dataset.crewId = state.crewRoster[1].id;
 
     var dismissCount = 0;
-    FleetUI.openCrewModal(
-      state,
-      0,
-      function () {},
-      function () {},
-      function () {},
-      function () { dismissCount += 1; },
-      function () {},
-      function () {},
-      function () {},
-    );
+    FleetUI.openCrewModal({
+      state: state,
+      shipIndex: 0,
+      onCommand: function (command) {
+        if (command.type === FLEET_COMMAND.DISMISS_CREW) dismissCount += 1;
+      },
+    });
 
     expect(modal.dataset.crewSeatState).toBe('ready');
     expect(modal.dataset.crewReserveState).toBe('ready');
@@ -688,15 +648,15 @@ describe('FleetUI.openModModal guidance focus', function () {
 
     var assignCount = 0;
     var assignResult;
-    FleetUI.openDispatchModal(
-      state,
-      0,
-      function () {
+    FleetUI.openDispatchModal({
+      state: state,
+      shipIndex: 0,
+      onCommand: function (command) {
+        if (command.type !== FLEET_COMMAND.ASSIGN_ROUTE) return undefined;
         assignCount += 1;
         return assignResult;
       },
-      function () {},
-      {
+      preset: {
         buySystemId: 'sol_prime',
         sellSystemId: 'war_front',
         goodId: 'food',
@@ -710,7 +670,7 @@ describe('FleetUI.openModModal guidance focus', function () {
           recommendedTradePolicy: { riskMode: 'balanced', marketMode: 'open' },
         },
       },
-    );
+    });
 
     expect(FleetUI.getActiveDispatchModalContext()).toMatchObject({
       shipIndex: 0,

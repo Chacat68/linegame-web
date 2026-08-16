@@ -28,6 +28,7 @@ function createHarness(options) {
   };
   var marketUi = config.marketUi || { revealMarketGoodFocus: vi.fn(function () { return true; }) };
   var fleetActions = {
+    handleCommand: vi.fn(),
     onAssignRoute: vi.fn(),
     onCancelRoute: vi.fn(),
     onInstallMod: vi.fn(),
@@ -215,18 +216,17 @@ describe('CommandDestinationController', function () {
 
     expect(harness.calls.activateTab).toHaveBeenCalledWith('tab-fleet');
     expect(harness.calls.renderFleet).toHaveBeenCalledWith(harness.fleetUi);
-    expect(harness.fleetUi.openDispatchModal).toHaveBeenCalledWith(
-      expect.any(Object),
-      0,
-      harness.fleetActions.onAssignRoute,
-      harness.fleetActions.onCancelRoute,
-      expect.objectContaining({
+    expect(harness.fleetUi.openDispatchModal).toHaveBeenCalledWith({
+      state: expect.any(Object),
+      shipIndex: 0,
+      onCommand: harness.fleetActions.handleCommand,
+      preset: expect.objectContaining({
         buySystemId: 'sol_prime',
         sellSystemId: 'nova_station',
         goodId: 'food',
         tradePolicy: expect.objectContaining({ marketMode: 'open', riskMode: 'balanced' }),
       }),
-    );
+    });
     expect(harness.calls.showCompletion).toHaveBeenCalledWith({
       message: '已载入跑商路线',
       detail: '确认“开始跑商”后执行路线',
@@ -240,16 +240,12 @@ describe('CommandDestinationController', function () {
 
     expect(harness.calls.invalidate).toHaveBeenCalledOnce();
     expect(harness.calls.renderFleet).toHaveBeenCalledWith(harness.fleetUi);
-    expect(harness.fleetUi.openModModal).toHaveBeenCalledWith(
-      expect.any(Object),
-      0,
-      harness.fleetActions.onInstallMod,
-      harness.fleetActions.onUninstallMod,
-      harness.fleetActions.onUpgradeShip,
-      harness.fleetActions.onServiceShip,
-      harness.fleetActions.onSellShip,
-      { focusModId: 'cargo-pod', focusService: true },
-    );
+    expect(harness.fleetUi.openModModal).toHaveBeenCalledWith({
+      state: expect.any(Object),
+      shipIndex: 0,
+      onCommand: harness.fleetActions.handleCommand,
+      options: { focusModId: 'cargo-pod', focusService: true },
+    });
 
     var resolveFleet;
     var stale = createHarness({

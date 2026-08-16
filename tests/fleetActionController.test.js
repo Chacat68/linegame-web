@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createFleetActionController } from '../js/core/FleetActionController.js';
 import { DEFAULT_ACTION_DIRTY_REGIONS } from '../js/core/ActionPresentation.js';
+import { FLEET_COMMAND } from '../js/core/FleetCommand.js';
 
 function createHarness(options) {
   var config = options || {};
@@ -183,5 +184,31 @@ describe('FleetActionController', function () {
     controller.onBuyShip('clipper');
 
     expect(seen.map(function (state) { return state.currentSystem; })).toEqual(['one', 'two']);
+  });
+
+  it('单一 command 端口复用既有领域动作时序并拒绝非法 payload', function () {
+    var harness = createHarness();
+
+    expect(harness.controller.handleCommand({
+      type: FLEET_COMMAND.BUY_SHIP,
+      shipTypeId: 'freighter',
+    })).toEqual({ ok: true });
+    expect(harness.controller.handleCommand({
+      type: FLEET_COMMAND.SERVICE_SHIP,
+      shipIndex: 0,
+      tierId: 'standard',
+    })).toEqual({ ok: true });
+    expect(harness.controller.handleCommand({
+      type: FLEET_COMMAND.DISMISS_CREW,
+      crewId: 'crew-a',
+    })).toEqual({ ok: true });
+    expect(harness.controller.handleCommand({
+      type: FLEET_COMMAND.SWITCH_SHIP,
+      shipIndex: -1,
+    })).toBe(false);
+
+    expect(harness.trace).toContain('buy-ship');
+    expect(harness.trace).toContain('service-ship');
+    expect(harness.trace).toContain('dismiss-crew');
   });
 });

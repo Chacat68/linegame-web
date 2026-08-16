@@ -242,8 +242,9 @@ const SPECIAL_SYSTEM_MARKET_OVERRIDES = {
 };
 
 function _rng(seed) {
-  var value = seed | 0;
-  if (!value) value = 1;
+  var value = Number(seed) % 2147483647;
+  if (!Number.isFinite(value)) value = 1;
+  if (value <= 0) value += 2147483646;
   return function () {
     value = (value * 16807) % 2147483647;
     return (value - 1) / 2147483646;
