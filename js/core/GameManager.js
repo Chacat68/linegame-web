@@ -65,6 +65,7 @@ import { createDispatchActionController } from './DispatchActionController.js';
 import { createGameDayController } from './GameDayController.js';
 import { createDialogueRuntimeController } from './DialogueRuntimeController.js';
 import { createRandomEventRuntimeController } from './RandomEventRuntimeController.js';
+import { createOnboardingUiController } from './OnboardingUiController.js';
 import { createSettingsUiController } from './SettingsUiController.js';
 import { createVictoryRuntimeController } from './VictoryRuntimeController.js';
 import { createGameUiCoordinator } from '../ui/GameUiCoordinator.js';
@@ -119,6 +120,7 @@ let _dispatchActions = null;
 let _gameDayActions = null;
 let _dialogueController = null;
 let _randomEventController = null;
+let _onboardingUiController = null;
 let _settingsUiController = null;
 let _victoryController = null;
 let _contextAdapters = null;
@@ -317,7 +319,7 @@ function _configureDeferredFeatures() {
     },
     tutorial: {
       load: function () { return import('../ui/TutorialUI.js'); },
-      sync: function (module) { _initializeTutorialUI(module); },
+      sync: function (module) { _getOnboardingUiController().syncTutorialView(module); },
       dispose: function (module) { if (module.destroy) module.destroy(); },
       onError: function (error) { _reportDeferredUiFailure('tutorial', error); },
     },
@@ -380,7 +382,7 @@ function _queueAchievementCheck() {
       EventBus.emit('log:message', { text: message.text, type: message.type });
     });
     if (achievementResult.newlyUnlocked.length > 0) {
-      _updateUI();
+      _updateUI(DEFAULT_ACTION_DIRTY_REGIONS);
       _getVictoryController().check();
     }
   });
@@ -389,20 +391,6 @@ function _queueAchievementCheck() {
 function _loadArchiveUI() {
   _configureDeferredFeatures();
   return _deferredFeatures.load('archive');
-}
-
-function _loadOnboardingUI() {
-  _configureDeferredFeatures();
-  return _deferredFeatures.load('onboarding');
-}
-
-function _initializeTutorialUI(TutorialUI) {
-  if (!TutorialUI) return;
-  TutorialUI.init(
-    function () { Tutorial.advance(); _updateUI(); },
-    function () { Tutorial.skip(); _updateUI(); },
-    _handleTutorialHelperAction
-  );
 }
 
 function _handleTutorialHelperAction(actionId) {
@@ -463,13 +451,8 @@ function _handleTutorialHelperAction(actionId) {
         : '⚠️ 暂时找不到可达的盈利卖货点，请检查燃料与已开放星球。',
       type: focused ? 'tip' : 'error',
     });
-    _updateUI();
+    _updateUI(DEFAULT_ACTION_DIRTY_REGIONS);
   });
-}
-
-function _loadTutorialUI() {
-  _configureDeferredFeatures();
-  return _deferredFeatures.load('tutorial');
 }
 
 function _loadGuidanceActionController() {
@@ -827,7 +810,7 @@ function _getDialogueController() {
       reportFailure: function (error) { _reportDeferredUiFailure('dialogue', error); },
       onCompletedQuest: function () {
         Tutorial.checkTrigger('complete_quest');
-        _updateUI();
+        _updateUI(DEFAULT_ACTION_DIRTY_REGIONS);
       },
     },
   });
@@ -854,6 +837,27 @@ function _getRandomEventController() {
     },
   });
   return _randomEventController;
+}
+
+function _getOnboardingUiController() {
+  if (_onboardingUiController) return _onboardingUiController;
+  _configureDeferredFeatures();
+  _onboardingUiController = createOnboardingUiController({
+    features: _deferredFeatures,
+    Tutorial: Tutorial,
+    getState: function () { return _state; },
+    getSessionToken: _getSessionToken,
+    isSessionTokenCurrent: _isSessionTokenCurrent,
+    callbacks: {
+      emitMessage: function (message) { EventBus.emit('log:message', message); },
+      invalidate: function () { _updateUI(DEFAULT_ACTION_DIRTY_REGIONS); },
+      onHelperAction: _handleTutorialHelperAction,
+      refreshActionGuide: _refreshActionGuide,
+      renameCompany: function (state, name) { state.companyName = name; },
+      showWelcomeMessages: _showWelcomeMessages,
+    },
+  });
+  return _onboardingUiController;
 }
 
 function _getSettingsUiController() {
@@ -1169,11 +1173,8 @@ export function init(difficulty, options) {
   };
   EventBus.on('tutorial:complete', _onTutorialComplete);
 
-  // 点击 header 公司名按鈕随时重命名
-  var companyBtn = document.getElementById('company-name-display');
-  if (companyBtn) {
-    companyBtn.onclick = _showCompanyRenameModal;
-  }
+  // 点击公司身份入口随时重命名。
+  _getOnboardingUiController().bindCompanyLauncher();
 
   _getSettingsUiController().bindLauncher();
 
@@ -1189,7 +1190,7 @@ export function init(difficulty, options) {
     : Promise.resolve({ renderer: Renderer3D.getActiveRendererName ? Renderer3D.getActiveRendererName() : 'unknown' });
 
   if (!Tutorial.isCompleted()) {
-    _showTutorialStartModal();
+    _getOnboardingUiController().showTutorialStart();
   } else {
     _showWelcomeMessages();
   }
@@ -1255,7 +1256,7 @@ function _recommendStarterQuests() {
   var activeQuests = Quest.getActiveQuests(_state);
   var activeQuest = activeQuests.length > 0 ? activeQuests[0] : null;
 
-  _updateUI();
+  _updateUI(DEFAULT_ACTION_DIRTY_REGIONS);
 
   if (activeQuest) {
     EventBus.emit('log:message', {
@@ -1301,60 +1302,6 @@ function _queueQuestDialogueResult(result, onFinished) {
 function _scheduleRandomEventRoll(state, baseChance) {
   return _getRandomEventController().scheduleRoll(state, baseChance);
 }
-
-// 设置管理已提取到 js/core/SettingsManager.js
-
-function _showTutorialStartModal() {
-  var requestedState = _state;
-  var requestedRevision = _runtimeRevision;
-  _loadOnboardingUI().then(function (OnboardingUI) {
-    if (!OnboardingUI || requestedState !== _state || requestedRevision !== _runtimeRevision) return;
-    OnboardingUI.showTutorialStart({
-      onStart: function () {
-        _loadTutorialUI().then(function (TutorialUI) {
-          if (!TutorialUI || requestedState !== _state || requestedRevision !== _runtimeRevision) return;
-          Tutorial.start();
-          _refreshActionGuide();
-        });
-      },
-      onSkip: function () {
-        Tutorial.skip();
-        _showWelcomeMessages();
-        _updateUI();
-      },
-    });
-    _refreshActionGuide();
-  });
-  _refreshActionGuide();
-}
-
-function _showCompanyRenameModal() {
-  var requestedState = _state;
-  var requestedRevision = _runtimeRevision;
-  _loadOnboardingUI().then(function (OnboardingUI) {
-    if (!OnboardingUI || requestedState !== _state || requestedRevision !== _runtimeRevision) return;
-    OnboardingUI.showCompanyRename({
-      currentName: requestedState.companyName || '',
-      fallbackName: requestedState.companyName || '测试公司',
-      onConfirm: function (name) {
-        if (requestedState !== _state || requestedRevision !== _runtimeRevision) return;
-        requestedState.companyName = name;
-        _updateUI();
-        EventBus.emit('log:message', {
-          text: '🏢 公司已正式更名为「' + name + '」！愿财富与你同行！',
-          type: 'upgrade',
-        });
-      },
-      onSkip: function () {
-        _refreshActionGuide();
-      },
-    });
-    _refreshActionGuide();
-  });
-  _refreshActionGuide();
-}
-
-
 
 // ---------------------------------------------------------------------------
 // 动作处理（所有状态变更入口）
@@ -1499,7 +1446,7 @@ function _handleActionGuideAction(suggestion) {
       acceptQuest: _getArchiveActions().onAcceptQuest,
       selectAvailableQuest: _selectAvailableQuest,
       activateTab: MapUI.activateTab,
-      updateUI: _updateUI,
+      updateUI: function () { _updateUI(DEFAULT_ACTION_DIRTY_REGIONS); },
       openTradeConfirmation: _openGuidanceTradeConfirmation,
       refuel: _handleRefuel,
       forcePendingEvent: EventUI.forcePendingEvent,
@@ -1545,7 +1492,7 @@ function _startMidgameTeachingChain(chainId) {
     text: '🧭 已开始专题「' + chain.title + '」：' + chain.description,
     type: 'tip',
   });
-  _updateUI();
+  _updateUI(DEFAULT_ACTION_DIRTY_REGIONS);
   return true;
 }
 
@@ -1702,7 +1649,7 @@ function _openRecommendedMod(payload) {
   }
   if (!_state.fleet || !_state.fleet[shipIndex]) return;
 
-  _updateUI();
+  _updateUI(DEFAULT_ACTION_DIRTY_REGIONS);
   _loadFleetUI().then(function (FleetUI) {
     if (!FleetUI) return;
     var fleetActions = _getFleetActions();
@@ -1744,7 +1691,7 @@ function _handleFocusRemoteMarketSystem(systemId) {
     type: focused ? 'tip' : 'error',
   });
 
-  _updateUI();
+  _updateUI(DEFAULT_ACTION_DIRTY_REGIONS);
   if (focused) {
     _showActionGuideCompletion(getRemoteMarketFocusCompletion());
   }

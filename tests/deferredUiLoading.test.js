@@ -133,6 +133,7 @@ describe('deferred terminal UI loading', function () {
   it('首次进入和教程界面只在对应流程触发时加载', function () {
     var gameManager = readFileSync('js/core/GameManager.js', 'utf8');
     var featureRegistry = readFileSync('js/core/FeatureRegistry.js', 'utf8');
+    var onboardingController = readFileSync('js/core/OnboardingUiController.js', 'utf8');
 
     expect(gameManager).not.toMatch(/import\s+\*\s+as\s+(OnboardingUI|TutorialUI)\s+from/);
     expect(gameManager).toContain("import('../ui/OnboardingUI.js')");
@@ -140,8 +141,11 @@ describe('deferred terminal UI loading', function () {
     expect(gameManager).toMatch(/\bonboarding:\s*\{/);
     expect(gameManager).toMatch(/\btutorial:\s*\{/);
     expect(featureRegistry).toContain("_notify(feature, 'loading')");
-    expect(gameManager).toContain('_loadTutorialUI().then(function (TutorialUI)');
-    expect(gameManager).toContain('requestedRevision !== _runtimeRevision');
+    expect(gameManager).toContain("from './OnboardingUiController.js'");
+    expect(gameManager).not.toContain("document.getElementById('company-name-display')");
+    expect(onboardingController).toContain("_loadFeature('tutorial').then(function (TutorialUI)");
+    expect(onboardingController).toContain("_loadFeature('onboarding').then(function (OnboardingUI)");
+    expect(onboardingController).toContain('isSessionTokenCurrent(token)');
   });
 
   it('设置与行动执行器不再进入首屏静态依赖图', function () {
