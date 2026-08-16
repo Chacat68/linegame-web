@@ -45,9 +45,10 @@
 | 延迟模块状态变量 | 0 个旧三元状态；15 个 manifest entry | 通用延迟生命周期已统一，领域 controller 只保留自身队列/上下文 |
 | `MapUI.js` | 2,467 行 | 地图、导航和上下文 UI 仍有渗透 |
 | `MarketUI.js` | 重构前 3,606 行；当前 1,324 行 | 图表、现货、商品、资金和贸易站投影边界已迁出；现在主要持有工作区/成长状态、增量重绘、价格总览、局部选择和 typed command 发布 |
-| `FleetUI.js` | 2,192 行 | 已移除反向全局主控依赖；公开入口使用请求对象 + 单一 typed command，机库主视图与船员详情已迁出 presenter 并改为容器委托；改装、派遣详情仍待拆分 |
+| `FleetUI.js` | 1,661 行 | 已移除反向全局主控依赖；公开入口使用请求对象 + 单一 typed command，机库主视图、船员与改装/保养详情已迁出 presenter 并改为容器委托；派遣详情仍待拆分 |
 | `FleetHangarPresenter.js` | 411 行 | 独占机库主视图只读模型、HTML 与 UI intent，不持有工作区选择状态、不绑定 DOM、不提交领域动作 |
 | `FleetCrewPresenter.js` | 217 行 | 独占船员详情只读模型、分区 HTML 与 roster intent，不持有弹层生命周期、不绑定 DOM、不提交领域动作 |
+| `FleetModPresenter.js` | 367 行 | 独占结构升级、组件、保养与资产处置只读模型、HTML 和 UI intent；不持有 portal、焦点或危险确认生命周期 |
 | `HUD.js` | 925 行 | 已移除固定 dashboard 与胜利/舰队/任务 mutation，但全局状态投影仍需继续收束 |
 | `SurfaceManager.js` | 559 行 | 已统一 Escape/inert，仍需完成 L3 workspace registry |
 | 全部 CSS | 34,037 行 | 级联、重复响应式规则和所有权难以追踪 |
@@ -668,9 +669,10 @@ Escape **不得切换 canonical workspace 或默认返回地图**，也不得关
 | `GameUiLifecycleController` | **eager UI 壳 bind / present / dispose 已接入** | HUD、MapUI、UIManager、Modal、Action Guide、设置/公司 launcher、Feature telemetry、场景就绪和首次进入呈现统一接线；重复初始化只保留一个教程完成 listener；dispose 不会反向初始化未绑定模块 | 由 `GameApplication.shutdown` 调用 dispose，并为 UIManager / MapUI 补完整 listener 释放契约 |
 | `CommandDestinationController` | **命令 UI 落点已接入** | 交易确认、任务选择、市场商品、探索报告、推荐派遣和推荐改装拥有单一 owner；Fleet/Archive/Market 延迟完成均校验 generation、state 与 session token | 把更多 workspace 内局部 CTA 接入统一 command destination，并为加载失败提供局部恢复呈现 |
 | `MarketCommand` + `MarketWorkspaceController` | **typed 市场命令与重入生命周期已接入** | `MarketUI` 只接收请求对象并发布单一 command；控制器统一解释公开/黑市买卖、补给、贷款、投资、建站、升级、批量策略与远程航点，非法 payload 会被拒绝；diagnostics 记录成功数、拒绝数与最后命令；延迟加载、待恢复商品焦点和 session stale guard 保持在 controller | 接入 `GameApplication.shutdown` dispose，并把 presenter 选择状态汇入同一 diagnostics |
-| `FleetCommand` + `FleetActionController` | **typed 舰队命令已接入 UI 边界** | `FleetUI` 主机库、商店、改装、船员与派遣入口统一接收请求对象并发布单一 command；控制器复用既有领域时序解释买船、切船、席位、升级、改装、保养、船员和路线动作，非法 payload 会被拒绝 | 拆出改装与派遣 presenter，再删除控制器面向兼容调用者保留的直接动作门面 |
-| `FleetHangarPresenter` | **机库主视图 presenter 已接入** | 舰队概览、查看舰选择、核心状态、路线、配置详情、编队与席位投影已从 `FleetUI` 迁出；输出稳定 intent 标记，由 `FleetUI` 单一容器委托协调 Context、弹层与 typed command；玩家可编辑舰名统一转义 | 继续拆出改装、派遣详情 presenter，并为机库局部选择加入 diagnostics |
+| `FleetCommand` + `FleetActionController` | **typed 舰队命令已接入 UI 边界** | `FleetUI` 主机库、商店、改装、船员与派遣入口统一接收请求对象并发布单一 command；控制器复用既有领域时序解释买船、切船、席位、升级、改装、保养、船员和路线动作，非法 payload 会被拒绝 | 拆出派遣 presenter，再删除控制器面向兼容调用者保留的直接动作门面 |
+| `FleetHangarPresenter` | **机库主视图 presenter 已接入** | 舰队概览、查看舰选择、核心状态、路线、配置详情、编队与席位投影已从 `FleetUI` 迁出；输出稳定 intent 标记，由 `FleetUI` 单一容器委托协调 Context、弹层与 typed command；玩家可编辑舰名统一转义 | 继续拆出派遣详情 presenter，并为机库局部选择加入 diagnostics |
 | `FleetCrewPresenter` | **船员详情 presenter 已接入** | 舰桥状态、席位/预备队/市场信号、船员卡片与招募/分配/解雇 intent 已从 `FleetUI` 迁出；`FleetUI` 以单一弹层根节点委托发布 typed command，解雇确认仍由协调层持有 | 将船员局部选择与确认状态纳入 workspace diagnostics |
+| `FleetModPresenter` | **改装/保养详情 presenter 已接入** | 结构模块、功能组件、维护信号、港口保养、推荐焦点与资产处置投影已从 `FleetUI` 迁出；升级/安装/拆卸/保养/售船使用单一内容根委托，危险售船确认仍由协调层持有 | 将改装局部焦点和售船确认状态纳入 workspace diagnostics |
 | `MarketChartPresenter` | **行情图表边界已接入** | 价格历史归一化、蜡烛/均线计算、公开/黑市快照、迷你图与主 K 线、统计窗口与行情排行 command 已迁出 `MarketUI`；排行选择会同步主图与 Context Inspector；宽图坐标轴和当前价标签越界已修正 | 将五个市场 presenter 的选择状态统一纳入 workspace diagnostics 与失效协议 |
 | `MarketSpotPresenter` | **现货、行情摘要与黑市投影边界已接入** | 价格热度与交易信号、快速交易摘要、商品工具栏、分析面板、行情地点事实、黑市风险和灰市目录已迁出 `MarketUI`；快速交易通过单一容器委托发布 typed command，presenter 不绑定事件、不持有 workspace 状态 | 将行情排行的局部选择状态纳入 workspace diagnostics |
 | `MarketGoodsPresenter` | **商品模型、卡片与 command 协议已接入** | 商品价格/库存/供需/热度模型、公开/黑市卡片、远程只读与补给投影已迁出 `MarketUI`；买入、卖出、补给和远程航点通过列表委托发布 typed command，焦点仍是 UI 局部状态，卡片不再逐项绑定 listener | 将商品选择状态纳入 workspace diagnostics 与失效协议 |

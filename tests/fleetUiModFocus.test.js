@@ -5,6 +5,7 @@ import * as Crew from '../js/systems/fleet/CrewSystem.js';
 import * as Economy from '../js/systems/economy/Economy.js';
 import * as Fleet from '../js/systems/fleet/FleetSystem.js';
 import * as FleetUI from '../js/ui/FleetUI.js';
+import * as ActionConfirmUI from '../js/ui/ActionConfirmUI.js';
 import { FLEET_COMMAND } from '../js/core/FleetCommand.js';
 import { FLEET_CREW_INTENT } from '../js/ui/FleetCrewPresenter.js';
 import { FLEET_HANGAR_INTENT } from '../js/ui/FleetHangarPresenter.js';
@@ -633,6 +634,84 @@ describe('FleetUI.openModModal guidance focus', function () {
 
     elements['crew-modal-close'].onclick();
     await Promise.resolve();
+  });
+
+  it('售船 intent 会先打开危险确认，取消时不发布 typed command', function () {
+    var modalBox = createFakeElement();
+    var body = createFakeElement();
+    var modal = createFakeElement(['modal']);
+    modal.id = 'mod-modal';
+    modal.querySelector = function (selector) {
+      return selector === '.modal-box' ? modalBox : null;
+    };
+    var confirmBox = createFakeElement();
+    var confirmModal = createFakeElement(['modal', 'hidden']);
+    confirmModal.id = 'action-confirm-modal';
+    confirmModal.querySelector = function (selector) {
+      return selector === '.modal-box, [tabindex="-1"]' ? confirmBox : null;
+    };
+    var elements = {
+      'fleet-list': createFakeElement(),
+      'fleet-inline-container': createFakeElement(['hidden']),
+      'mod-modal': modal,
+      'mod-modal-title': createFakeElement(),
+      'mod-modal-body': body,
+      'mod-modal-close': createFakeElement(),
+      'action-confirm-modal': confirmModal,
+      'action-confirm-title': createFakeElement(),
+      'action-confirm-message': createFakeElement(),
+      'action-confirm-impact': createFakeElement(),
+      'action-confirm-kicker': createFakeElement(),
+      'action-confirm-accept': createFakeElement(),
+      'action-confirm-cancel': createFakeElement(),
+    };
+    var backButton = createFakeElement();
+    var sellButton = createFakeElement();
+    sellButton.dataset.fleetModIntent = 'mod.ship.sell';
+    sellButton.dataset.shipIndex = '1';
+    sellButton.closest = function (selector) {
+      return selector === '[data-fleet-mod-intent]' ? sellButton : null;
+    };
+
+    globalThis.document = {
+      activeElement: sellButton,
+      getElementById: function (id) { return elements[id] || null; },
+      querySelectorAll: function (selector) {
+        return selector === '.modal' ? [modal, confirmModal] : [];
+      },
+      createElement: function (tagName) {
+        return tagName === 'button' ? backButton : createFakeElement();
+      },
+      addEventListener: function () {},
+    };
+
+    var state = createTestState({ credits: 50000 });
+    Fleet.init(state);
+    var secondShip = JSON.parse(JSON.stringify(state.fleet[0]));
+    secondShip.typeId = 'freighter';
+    secondShip.name = '待售货船';
+    secondShip.route = null;
+    state.fleet.push(secondShip);
+    state.fleetSlots = 2;
+    state.activeShipIndex = 0;
+    var commands = [];
+
+    FleetUI.openModModal({
+      state: state,
+      shipIndex: 1,
+      onCommand: function (command) { commands.push(command); },
+    });
+
+    expect(body.innerHTML).toContain('data-fleet-mod-intent="mod.ship.sell"');
+    body.onclick({ target: sellButton, preventDefault: function () {} });
+    expect(commands).toEqual([]);
+    expect(confirmModal.classList.contains('hidden')).toBe(false);
+    expect(elements['action-confirm-title'].textContent).toContain('待售货船');
+    expect(elements['action-confirm-message'].textContent).toContain('永久移除');
+
+    ActionConfirmUI.cancel();
+    expect(commands).toEqual([]);
+    expect(confirmModal.classList.contains('hidden')).toBe(true);
   });
 
   it('派遣弹窗会暴露草案路线并在关闭后清理上下文', function () {

@@ -37,7 +37,7 @@ describe('UI information ownership', function () {
       'QuestUI.js': '任务状态',
       'ResearchUI.js': '研究状态',
       'SaveUI.js': '存档状态',
-      'FleetUI.js': '处理状态',
+      'FleetModPresenter.js': '处理状态',
       'MarketSpotPresenter.js': '行情信号',
     };
 
