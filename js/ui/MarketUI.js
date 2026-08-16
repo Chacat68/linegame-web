@@ -13,6 +13,14 @@ import * as Finance from '../systems/finance/FinanceSystem.js';
 import * as TradeStation from '../systems/trade/TradeStationSystem.js';
 import * as Exploration from '../systems/galaxy/ExplorationSystem.js';
 import * as ContextInspector from './ContextInspector.js';
+import {
+  buildMarketSnapshots as _buildMarketSnapshots,
+  formatMarketChartDelta as _formatChartDelta,
+  normalizeMarketChartHistory as _normalizeChartHistory,
+  renderMarketChart as _renderMarketChart,
+  renderMarketChartDashboard,
+  updateMainMarketKlineChart,
+} from './MarketChartPresenter.js';
 
 const _focusedMarketGood = Object.create(null);
 let _activeMarketContext = null;
@@ -38,7 +46,6 @@ const MARKET_BATCH_PLAN_SORT_OPTIONS = {
     { id: 'name', label: '地点名' },
   ],
 };
-const MARKET_RANGE_OPTIONS = [7, 14, 30];
 const MARKET_WORKSPACE_TABS = [
   { id: 'spot', label: '交易', hint: '买卖与补给', stage: '01' },
   { id: 'capital', label: '资金', hint: '贷款与投资', stage: '03' },
@@ -1320,445 +1327,78 @@ function _renderBlackMarketRiskPanel(state, sysId, marketMode, hasBlackMarket, b
   '</div>';
 }
 
-// ---------------------------------------------------------------------------
-// 股市风格图表辅助（迷你 K 线 + 均线）
-// ---------------------------------------------------------------------------
-
-function _normalizeChartHistory(data, fallbackPrice, range) {
-  var limit = Math.max(2, Math.floor(range || 12));
-  var series = Array.isArray(data) ? data.slice(-limit) : [];
-  var safeFallback = Math.max(1, Math.round(fallbackPrice || 1));
-  if (series.length === 0) series = [safeFallback, safeFallback];
-  if (series.length === 1) series.unshift(series[0]);
-  while (series.length < Math.min(8, limit)) {
-    series.unshift(series[0]);
-  }
-  return series.map(function (value) {
-    return Math.max(1, Math.round(value || safeFallback));
-  });
-}
-
-function _buildPseudoCandles(history) {
-  return history.map(function (close, index) {
-    var open = index === 0 ? history[0] : history[index - 1];
-    var spread = Math.max(1, Math.round(Math.abs(close - open) * 0.35) + 1);
-    return {
-      open: open,
-      close: close,
-      high: Math.max(open, close) + spread,
-      low: Math.max(1, Math.min(open, close) - spread),
-      volume: Math.max(1, Math.abs(close - open) + spread),
-    };
-  });
-}
-
-function _movingAverage(values, period) {
-  return values.map(function (_, index) {
-    var start = Math.max(0, index - period + 1);
-    var slice = values.slice(start, index + 1);
-    var sum = slice.reduce(function (acc, value) { return acc + value; }, 0);
-    return sum / slice.length;
-  });
-}
-
-function _formatChartDelta(history) {
-  if (!history || history.length < 2) return { text: '0.0%', className: 'market-chart-flat' };
-  var start = history[0] || 1;
-  var end = history[history.length - 1] || start;
-  var delta = ((end - start) / Math.max(1, start)) * 100;
-  var sign = delta > 0 ? '+' : '';
-  var className = delta > 0.5 ? 'market-chart-up' : (delta < -0.5 ? 'market-chart-down' : 'market-chart-flat');
-  return {
-    text: sign + delta.toFixed(1) + '%',
-    className: className,
-  };
-}
-
-function _renderMarketChart(history, currentPrice, goodLabel, options) {
-  var normalized = _normalizeChartHistory(history, currentPrice);
-  var candles = _buildPseudoCandles(normalized);
-  var movingAvg = _movingAverage(normalized, 4);
-  var minPrice = Math.min.apply(null, candles.map(function (item) { return item.low; }).concat(movingAvg));
-  var maxPrice = Math.max.apply(null, candles.map(function (item) { return item.high; }).concat(movingAvg));
-  var priceRange = Math.max(1, maxPrice - minPrice);
-  var maxVolume = Math.max.apply(null, candles.map(function (item) { return item.volume; }));
-  options = options || {};
-  var width = options.width || 132;
-  var height = options.height || 58;
-  var topPad = options.topPad || 5;
-  var chartBottom = options.chartBottom || 40;
-  var volumeBase = options.volumeBase || 53;
-  var outerClass = options.className || 'market-mini-chart';
-  var slot = (width - 10) / candles.length;
-  var bodyWidth = Math.max(4, Math.min(8, slot - 3));
-
-  function scaleY(value) {
-    return topPad + ((maxPrice - value) / priceRange) * (chartBottom - topPad);
-  }
-
-  function scaleVolume(value) {
-    return Math.max(2, (value / Math.max(1, maxVolume)) * 8);
-  }
-
-  var volumeBars = candles.map(function (item, index) {
-    var x = 5 + index * slot + Math.max(1, (slot - bodyWidth) / 2);
-    var barHeight = scaleVolume(item.volume);
-    return '<rect x="' + x.toFixed(1) + '" y="' + (volumeBase - barHeight).toFixed(1) + '" width="' + bodyWidth.toFixed(1) + '" height="' + barHeight.toFixed(1) + '" class="market-chart-volume" />';
-  }).join('');
-
-  var candleShapes = candles.map(function (item, index) {
-    var centerX = 5 + index * slot + (slot / 2);
-    var wickTop = scaleY(item.high);
-    var wickBottom = scaleY(item.low);
-    var openY = scaleY(item.open);
-    var closeY = scaleY(item.close);
-    var bodyY = Math.min(openY, closeY);
-    var bodyHeight = Math.max(2, Math.abs(closeY - openY));
-    var bodyX = centerX - (bodyWidth / 2);
-    var cls = item.close >= item.open ? 'market-chart-candle up' : 'market-chart-candle down';
-    return '<line x1="' + centerX.toFixed(1) + '" y1="' + wickTop.toFixed(1) + '" x2="' + centerX.toFixed(1) + '" y2="' + wickBottom.toFixed(1) + '" class="market-chart-wick ' + (item.close >= item.open ? 'up' : 'down') + '" />' +
-      '<rect x="' + bodyX.toFixed(1) + '" y="' + bodyY.toFixed(1) + '" width="' + bodyWidth.toFixed(1) + '" height="' + bodyHeight.toFixed(1) + '" rx="1" class="' + cls + '" />';
-  }).join('');
-
-  var maPath = movingAvg.map(function (value, index) {
-    var x = 5 + index * slot + (slot / 2);
-    var y = scaleY(value);
-    return (index === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1);
-  }).join(' ');
-
-  return '<svg class="' + outerClass + '" viewBox="0 0 ' + width + ' ' + height + '" role="img" aria-label="' + goodLabel + ' 价格走势">' +
-    '<rect x="0.5" y="0.5" width="' + (width - 1) + '" height="' + (height - 1) + '" rx="8" class="market-chart-frame" />' +
-    '<line x1="4" y1="40.5" x2="128" y2="40.5" class="market-chart-axis" />' +
-    '<line x1="4" y1="53.5" x2="128" y2="53.5" class="market-chart-axis market-chart-axis-volume" />' +
-    '<path d="' + maPath + '" class="market-chart-ma" />' +
-    volumeBars +
-    candleShapes +
-  '</svg>';
-}
-
-function _renderMiniMarketChart(history, currentPrice, goodLabel) {
-  return _renderMarketChart(history, currentPrice, goodLabel, {
-    width: 132,
-    height: 58,
-    topPad: 5,
-    chartBottom: 40,
-    volumeBase: 53,
-    className: 'market-mini-chart',
-  });
-}
-
-// ---------------------------------------------------------------------------
-// 主 K 线图（股市风格，含 Y 轴刻度、X 轴日期、网格、当前价线、OHLC）
-// ---------------------------------------------------------------------------
-
-function _renderFullKlineChart(history, currentPrice, goodLabel, range) {
-  var normalized = _normalizeChartHistory(history, currentPrice, range);
-  var candles = _buildPseudoCandles(normalized);
-  var ma5 = _movingAverage(normalized, 5);
-  var ma10 = _movingAverage(normalized, Math.min(10, normalized.length));
-
-  // 尺寸设定
-  var W = 560, H = 260;
-  var marginLeft = 52, marginRight = 10, marginTop = 8, marginBottom = 32;
-  var chartLeft = marginLeft, chartRight = W - marginRight;
-  var chartTop = marginTop, chartBottom = H - marginBottom - 40;
-  var volumeTop = chartBottom + 6, volumeBottom = H - marginBottom;
-
-  var allPrices = candles.reduce(function (arr, c) { return arr.concat([c.high, c.low]); }, []).concat(ma5).concat(ma10);
-  var minP = Math.min.apply(null, allPrices);
-  var maxP = Math.max.apply(null, allPrices);
-  var priceRange = Math.max(1, maxP - minP);
-  var maxVol = Math.max.apply(null, candles.map(function (c) { return c.volume; }));
-
-  var chartW = chartRight - chartLeft;
-  var slot = chartW / candles.length;
-  var bodyW = Math.max(4, Math.min(12, slot - 4));
-
-  function yPrice(v) {
-    return chartTop + ((maxP - v) / priceRange) * (chartBottom - chartTop);
-  }
-  function yVol(v) {
-    var h = Math.max(2, (v / Math.max(1, maxVol)) * (volumeBottom - volumeTop - 2));
-    return volumeBottom - h;
-  }
-
-  // ── 网格线（4 条水平线） ──
-  var gridCount = 4;
-  var gridLines = '';
-  var priceLabels = '';
-  for (var gi = 0; gi <= gridCount; gi++) {
-    var gv = minP + (priceRange * gi / gridCount);
-    var gy = yPrice(gv);
-    gridLines += '<line x1="' + chartLeft + '" y1="' + gy.toFixed(1) + '" x2="' + chartRight + '" y2="' + gy.toFixed(1) + '" class="kline-grid" />';
-    priceLabels += '<text x="' + (chartLeft - 6) + '" y="' + (gy + 3).toFixed(1) + '" class="kline-price-label">' + Math.round(gv) + '</text>';
-  }
-
-  // ── 成交量分隔线 ──
-  gridLines += '<line x1="' + chartLeft + '" y1="' + volumeTop + '" x2="' + chartRight + '" y2="' + volumeTop + '" class="kline-grid kline-grid-vol" />';
-
-  // ── 成交量柱 ──
-  var volBars = candles.map(function (c, i) {
-    var cx = chartLeft + i * slot + slot / 2;
-    var bx = cx - bodyW / 2;
-    var vy = yVol(c.volume);
-    var cls = c.close >= c.open ? 'up' : 'down';
-    return '<rect x="' + bx.toFixed(1) + '" y="' + vy.toFixed(1) + '" width="' + bodyW.toFixed(1) + '" height="' + (volumeBottom - vy).toFixed(1) + '" class="kline-vol ' + cls + '" />';
-  }).join('');
-
-  // ── K 线蜡烛 ──
-  var candleSvg = candles.map(function (c, i) {
-    var cx = chartLeft + i * slot + slot / 2;
-    var bx = cx - bodyW / 2;
-    var oY = yPrice(c.open), cY = yPrice(c.close);
-    var hY = yPrice(c.high), lY = yPrice(c.low);
-    var topBody = Math.min(oY, cY);
-    var bH = Math.max(2, Math.abs(cY - oY));
-    var cls = c.close >= c.open ? 'up' : 'down';
-    return '<line x1="' + cx.toFixed(1) + '" y1="' + hY.toFixed(1) + '" x2="' + cx.toFixed(1) + '" y2="' + lY.toFixed(1) + '" class="kline-wick ' + cls + '" />' +
-      '<rect x="' + bx.toFixed(1) + '" y="' + topBody.toFixed(1) + '" width="' + bodyW.toFixed(1) + '" height="' + bH.toFixed(1) + '" rx="1" class="kline-candle ' + cls + '" />';
-  }).join('');
-
-  // ── 均线 ──
-  function maPath(values, cls) {
-    var d = values.map(function (v, i) {
-      var x = chartLeft + i * slot + slot / 2;
-      var y = yPrice(v);
-      return (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1);
-    }).join(' ');
-    return '<path d="' + d + '" class="kline-ma ' + cls + '" />';
-  }
-  var maPaths = maPath(ma5, 'kline-ma5') + maPath(ma10, 'kline-ma10');
-
-  // ── 当前价线 ──
-  var lastClose = candles[candles.length - 1].close;
-  var lastY = yPrice(lastClose);
-  var priceLine = '<line x1="' + chartLeft + '" y1="' + lastY.toFixed(1) + '" x2="' + chartRight + '" y2="' + lastY.toFixed(1) + '" class="kline-current-line" />' +
-    '<rect x="' + (chartRight - 1) + '" y="' + (lastY - 9).toFixed(1) + '" width="48" height="18" rx="3" class="kline-current-tag-bg" />' +
-    '<text x="' + (chartRight + 23) + '" y="' + (lastY + 4).toFixed(1) + '" class="kline-current-tag">' + lastClose + '</text>';
-
-  // ── X 轴日期标签 ──
-  var xLabels = '';
-  var labelInterval = Math.max(1, Math.floor(candles.length / 6));
-  for (var xi = 0; xi < candles.length; xi += labelInterval) {
-    var lx = chartLeft + xi * slot + slot / 2;
-    xLabels += '<text x="' + lx.toFixed(1) + '" y="' + (H - 6) + '" class="kline-date-label">D' + (xi + 1) + '</text>';
-  }
-
-  // ── 边框 ──
-  var border = '<rect x="' + chartLeft + '" y="' + chartTop + '" width="' + chartW + '" height="' + (volumeBottom - chartTop) + '" rx="0" class="kline-border" />';
-
-  // ── 组装 ──
-  return '<svg class="market-kline-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + goodLabel + ' 价格走势图">' +
-    border + gridLines + priceLabels +
-    volBars + candleSvg + maPaths + priceLine + xLabels +
-    '<text x="' + (chartLeft + 4) + '" y="' + (chartTop + 12) + '" class="kline-ma-legend kline-ma5">5日均价</text>' +
-    '<text x="' + (chartLeft + 62) + '" y="' + (chartTop + 12) + '" class="kline-ma-legend kline-ma10">10日均价</text>' +
-  '</svg>';
+function _getMarketChartGoodsList(marketMode) {
+  return marketMode === 'black'
+    ? Economy.getBlackMarketGoods()
+    : GOODS.filter(function (good) {
+        return good.marketAccess && good.marketAccess.indexOf('open') !== -1;
+      });
 }
 
 function _updateMainKlineChart(state, sysId, snapshots, marketMode) {
-  var panel = document.getElementById('market-kline-panel');
-  if (!panel) return;
-
   var focusKey = sysId + ':' + (marketMode || 'open');
   var range = _marketChartRange[focusKey] || 14;
-  var focusedId = _focusedMarketGood[focusKey];
-  var focused = snapshots.find(function (s) { return s.good.id === focusedId; }) || snapshots[0];
-  if (!focused) return;
-
-  var isBlack = marketMode === 'black';
-  var history = _normalizeChartHistory(
-    Economy.getPriceHistory(sysId, focused.good.id), focused.sellPrice, range
-  );
-  var candles = _buildPseudoCandles(history);
-  var last = candles[candles.length - 1];
-  var delta = _formatChartDelta(history);
-
-  // 标题
-  var titleEl = document.getElementById('market-kline-title');
-  if (titleEl) {
-    titleEl.innerHTML = '<span class="kline-title-emoji">' + focused.good.emoji + '</span>' +
-      '<span class="kline-title-name">' + focused.good.name + '</span>' +
-      '<span class="kline-title-price">' + focused.sellPrice.toLocaleString() + ' CR</span>' +
-      '<span class="kline-title-delta ' + delta.className + '">' + delta.text + '</span>';
-  }
-
-  // 档期选择
-  var rangeBar = document.getElementById('market-kline-range-bar');
-  if (rangeBar) {
-    rangeBar.innerHTML = MARKET_RANGE_OPTIONS.map(function (d) {
-      return '<button class="kline-range-btn' + (d === range ? ' active' : '') + '" data-kline-range="' + d + '">' + d + 'D</button>';
-    }).join('');
-    rangeBar.querySelectorAll('[data-kline-range]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        _marketChartRange[focusKey] = Number(btn.dataset.klineRange);
-        _updateMainKlineChart(state, sysId, snapshots, marketMode);
-      });
-    });
-  }
-
-  // OHLC 数据条
-  var ohlcEl = document.getElementById('market-kline-ohlc');
-  if (ohlcEl) {
-    ohlcEl.innerHTML =
-      '<span class="kline-ohlc-item">开 <em>' + last.open + '</em></span>' +
-      '<span class="kline-ohlc-item">高 <em>' + last.high + '</em></span>' +
-      '<span class="kline-ohlc-item">低 <em>' + last.low + '</em></span>' +
-      '<span class="kline-ohlc-item">收 <em>' + last.close + '</em></span>' +
-      '<span class="kline-ohlc-item">交易量 <em>' + last.volume + '</em></span>' +
-      '<span class="kline-ohlc-item">买卖差 <em>' + focused.spread + '</em></span>';
-  }
-
-  // K 线图主体
-  var bodyEl = document.getElementById('market-kline-body');
-  if (bodyEl) {
-    bodyEl.innerHTML = _renderFullKlineChart(history, focused.sellPrice, focused.good.name, range);
-  }
-
-  // 底部指标
-  var metricsEl = document.getElementById('market-kline-metrics');
-  if (metricsEl) {
-    var sd = focused.supplyDemand;
-    var supplyLabel = sd.ratio > 1.3 ? '货少需求高' : (sd.ratio < 0.8 ? '货多需求低' : '供需平稳');
-    metricsEl.innerHTML =
-      '<span class="kline-metric">供需 <em>' + supplyLabel + '</em></span>' +
-      '<span class="kline-metric">近期变化 <em>' + focused.swing + '</em></span>' +
-      '<span class="kline-metric">' + (isBlack ? '黑市加价' : '交易渠道') + ' <em>' + (isBlack ? '约 35%' : '公开市场') + '</em></span>';
-  }
-}
-
-function _buildMarketSnapshots(state, sysId, goodsList, isBlack, range) {
-  return goodsList.map(function (good) {
-    var buyPrice = isBlack
-      ? Economy.getBlackMarketBuyPrice(sysId, good.id, state)
-      : Economy.getBuyPrice(sysId, good.id, state);
-    var sellPrice = isBlack
-      ? Economy.getBlackMarketSellPrice(sysId, good.id, state)
-      : Economy.getSellPrice(sysId, good.id, state);
-    var history = _normalizeChartHistory(Economy.getPriceHistory(sysId, good.id), sellPrice, range);
-    var delta = _formatChartDelta(history);
-    var swing = history.reduce(function (acc, value, index) {
-      if (index === 0) return 0;
-      return acc + Math.abs(value - history[index - 1]);
-    }, 0);
-    return {
-      good: good,
-      buyPrice: buyPrice,
-      sellPrice: sellPrice,
-      history: history,
-      delta: delta,
-      swing: swing,
-      spread: Math.max(0, buyPrice - sellPrice),
-      supplyDemand: Economy.getSupplyDemand(sysId, good.id),
-    };
+  return updateMainMarketKlineChart({
+    state: state,
+    systemId: sysId,
+    snapshots: snapshots,
+    marketMode: marketMode,
+    focusedGoodId: _focusedMarketGood[focusKey],
+    range: range,
+    onRangeChange: function (nextRange) {
+      _marketChartRange[focusKey] = nextRange;
+      var updatedSnapshots = _buildMarketSnapshots(
+        state,
+        sysId,
+        _getMarketChartGoodsList(marketMode),
+        marketMode === 'black',
+        nextRange
+      );
+      _renderMarketDashboard(state, sysId, marketMode, updatedSnapshots);
+      _updateMainKlineChart(state, sysId, updatedSnapshots, marketMode);
+    },
   });
 }
 
 function _renderMarketDashboard(state, sysId, marketMode, snapshots) {
-  var container = document.getElementById('market-terminal-dashboard');
-  if (!container) return;
-  if (!snapshots || snapshots.length === 0) {
-    container.innerHTML = '';
-    return;
-  }
-
-  var focusKey = sysId + ':' + marketMode;
-  var selectedRange = _marketChartRange[focusKey] || 14;
-  var focusedGoodId = _focusedMarketGood[focusKey];
-  if (!focusedGoodId || !snapshots.some(function (entry) { return entry.good.id === focusedGoodId; })) {
-    focusedGoodId = snapshots[0].good.id;
-    _focusedMarketGood[focusKey] = focusedGoodId;
-  }
-
-  var focused = snapshots.find(function (entry) { return entry.good.id === focusedGoodId; }) || snapshots[0];
-  var gainers = snapshots.slice().sort(function (a, b) {
-    return parseFloat(b.delta.text) - parseFloat(a.delta.text);
-  }).slice(0, 3);
-  var losers = snapshots.slice().sort(function (a, b) {
-    return parseFloat(a.delta.text) - parseFloat(b.delta.text);
-  }).slice(0, 3);
-  var hotList = snapshots.slice().sort(function (a, b) {
-    return b.swing - a.swing;
-  }).slice(0, 3);
-  var pressureLabel = focused.supplyDemand.ratio > 1.3 ? '追涨区' : (focused.supplyDemand.ratio < 0.8 ? '承压区' : '盘整区');
-
-  function renderList(title, items, className) {
-    return '<div class="market-terminal-side-card">' +
-      '<div class="market-terminal-side-title">' + title + '</div>' +
-      items.map(function (entry) {
-        return '<button class="market-terminal-rank-row" data-focus-good="' + entry.good.id + '">' +
-          '<span class="market-terminal-rank-name">' + entry.good.emoji + ' ' + entry.good.name + '</span>' +
-          '<span class="market-terminal-rank-value ' + className + '">' + entry.delta.text + '</span>' +
-        '</button>';
-      }).join('') +
-    '</div>';
-  }
-
-  container.innerHTML = '<section class="market-terminal-hero">' +
-    '<div class="market-terminal-main">' +
-      '<div class="market-terminal-head">' +
-        '<div>' +
-          '<div class="market-terminal-title">' + focused.good.emoji + ' ' + focused.good.name + '</div>' +
-          '<div class="market-terminal-subtitle">' + (marketMode === 'black' ? '黑市报价' : '公开市场报价') + ' · ' + pressureLabel + ' · 点选下方商品可切换图表</div>' +
-        '</div>' +
-        '<div class="market-terminal-price-wrap">' +
-          '<div class="market-terminal-price">' + focused.sellPrice.toLocaleString() + '</div>' +
-          '<div class="market-terminal-price-delta ' + focused.delta.className + '">' + focused.delta.text + '</div>' +
-        '</div>' +
-      '</div>' +
-      '<div class="market-terminal-toolbar">' +
-        '<div class="market-terminal-range-group">' + MARKET_RANGE_OPTIONS.map(function (days) {
-          return '<button class="market-terminal-range-btn' + (days === selectedRange ? ' active' : '') + '" data-range="' + days + '">' + days + '天</button>';
-        }).join('') + '</div>' +
-        '<div class="market-terminal-toolbar-note">统计窗口：近 ' + selectedRange + ' 天</div>' +
-      '</div>' +
-      '<div class="market-terminal-chart-wrap">' +
-        _renderMarketChart(focused.history, focused.sellPrice, focused.good.name, {
-          width: 340,
-          height: 164,
-          topPad: 12,
-          chartBottom: 122,
-          volumeBase: 154,
-          className: 'market-hero-chart',
-        }) +
-      '</div>' +
-      '<div class="market-terminal-metrics">' +
-        '<div class="market-terminal-metric"><span>买卖价差</span><strong>' + focused.spread.toLocaleString() + '</strong></div>' +
-        '<div class="market-terminal-metric"><span>需求/供给</span><strong>' + focused.supplyDemand.ratio.toFixed(2) + 'x</strong></div>' +
-        '<div class="market-terminal-metric"><span>波动热度</span><strong>' + focused.swing.toLocaleString() + '</strong></div>' +
-      '</div>' +
-    '</div>' +
-    '<div class="market-terminal-side">' +
-      renderList('📈 涨幅榜', gainers, 'market-chart-up') +
-      renderList('📉 跌幅榜', losers, 'market-chart-down') +
-      renderList('⚡ 热门波动', hotList, 'market-chart-flat') +
-    '</div>' +
-  '</section>';
-
-  container.querySelectorAll('[data-focus-good]').forEach(function (button) {
-    button.addEventListener('click', function () {
-      _focusedMarketGood[focusKey] = button.dataset.focusGood;
-      _renderMarketDashboard(state, sysId, marketMode, snapshots);
-      var activeRow = document.querySelector('[data-market-good="' + button.dataset.focusGood + '"]');
-      if (activeRow && typeof activeRow.scrollIntoView === 'function') {
-        activeRow.scrollIntoView({ block: 'nearest' });
-      }
-    });
+  var focusKey = sysId + ':' + (marketMode || 'open');
+  var hasFocusedSnapshot = snapshots && snapshots.some(function (entry) {
+    return entry.good.id === _focusedMarketGood[focusKey];
   });
-
-  container.querySelectorAll('[data-range]').forEach(function (button) {
-    button.addEventListener('click', function () {
-      _marketChartRange[focusKey] = Math.max(7, Math.min(30, Math.floor(Number(button.dataset.range) || 14)));
+  if (!hasFocusedSnapshot && snapshots && snapshots[0]) {
+    _focusedMarketGood[focusKey] = snapshots[0].good.id;
+  }
+  return renderMarketChartDashboard({
+    state: state,
+    systemId: sysId,
+    snapshots: snapshots,
+    marketMode: marketMode,
+    focusedGoodId: _focusedMarketGood[focusKey],
+    range: _marketChartRange[focusKey] || 14,
+    onFocusChange: function (goodId) {
+      _focusedMarketGood[focusKey] = goodId;
+      ContextInspector.replaceContext({
+        type: 'commodity',
+        id: goodId,
+        workspaceId: 'trade',
+        source: 'market-chart-rank',
+        revision: ContextInspector.getCurrentRevision(),
+      });
+      _renderMarketDashboard(state, sysId, marketMode, snapshots);
+      _updateMainKlineChart(state, sysId, snapshots, marketMode);
+    },
+    onRangeChange: function (nextRange) {
+      _marketChartRange[focusKey] = nextRange;
       var updatedSnapshots = _buildMarketSnapshots(
         state,
         sysId,
-        marketMode === 'black' ? Economy.getBlackMarketGoods() : GOODS,
+        _getMarketChartGoodsList(marketMode),
         marketMode === 'black',
-        _marketChartRange[focusKey]
+        nextRange
       );
       _renderMarketDashboard(state, sysId, marketMode, updatedSnapshots);
       _updateMainKlineChart(state, sysId, updatedSnapshots, marketMode);
-    });
+    },
   });
 }
 
