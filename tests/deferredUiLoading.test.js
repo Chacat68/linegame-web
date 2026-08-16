@@ -4,26 +4,25 @@ import { describe, expect, it } from 'vitest';
 describe('deferred terminal UI loading', function () {
   it('市场、舰队和档案界面不再进入首屏静态依赖图', function () {
     var source = readFileSync('js/core/GameManager.js', 'utf8');
+    var featureManifest = readFileSync('js/core/GameFeatureManifest.js', 'utf8');
     var featureRegistry = readFileSync('js/core/FeatureRegistry.js', 'utf8');
 
     expect(source).not.toMatch(/import\s+\*\s+as\s+MarketUI\s+from/);
     expect(source).not.toMatch(/import\s+\*\s+as\s+FleetUI\s+from/);
     expect(source).not.toMatch(/import\s+\*\s+as\s+(QuestUI|ArchiveExplorationUI|ResearchUI|FactionUI|AchievementUI)\s+from/);
     expect(source).not.toMatch(/import\s+\*\s+as\s+(SaveUI|VictoryResultUI)\s+from/);
-    expect(source).toContain("import('../ui/MarketUI.js')");
-    expect(source).toContain("import('../ui/FleetUI.js')");
-    expect(source).toContain("import('../ui/QuestUI.js')");
-    expect(source).toContain("import('../ui/ArchiveExplorationUI.js')");
-    expect(source).toContain("import('../ui/ResearchUI.js')");
-    expect(source).toContain("import('../ui/FactionUI.js')");
-    expect(source).toContain("import('../ui/AchievementUI.js')");
-    expect(source).toContain("import('../ui/SaveUI.js')");
-    expect(source).toContain("import('../ui/VictoryResultUI.js')");
-    expect(source).toContain('_deferredFeatures.registerManifest({');
-    expect(source).toMatch(/\bmarket:\s*\{/);
-    expect(source).toMatch(/\bfleet:\s*\{/);
-    expect(source).toMatch(/\barchive:\s*\{/);
-    expect(source).toMatch(/\bsave:\s*\{/);
+    expect(source).toContain("from './GameFeatureManifest.js'");
+    expect(source).toContain('_deferredFeatures.registerManifest(createGameFeatureManifest({');
+    expect(source).not.toContain("import('../ui/MarketUI.js')");
+    expect(featureManifest).toContain("import('../ui/MarketUI.js')");
+    expect(featureManifest).toContain("import('../ui/FleetUI.js')");
+    expect(featureManifest).toContain("import('../ui/QuestUI.js')");
+    expect(featureManifest).toContain("import('../ui/ArchiveExplorationUI.js')");
+    expect(featureManifest).toContain("import('../ui/ResearchUI.js')");
+    expect(featureManifest).toContain("import('../ui/FactionUI.js')");
+    expect(featureManifest).toContain("import('../ui/AchievementUI.js')");
+    expect(featureManifest).toContain("import('../ui/SaveUI.js')");
+    expect(featureManifest).toContain("import('../ui/VictoryResultUI.js')");
     expect(featureRegistry).toContain("_notify(feature, 'loading')");
   });
 
@@ -66,19 +65,21 @@ describe('deferred terminal UI loading', function () {
 
   it('终端样式与对应模块一起按需加载', function () {
     var gameManager = readFileSync('js/core/GameManager.js', 'utf8');
+    var featureManifest = readFileSync('js/core/GameFeatureManifest.js', 'utf8');
     var featureRegistry = readFileSync('js/core/FeatureRegistry.js', 'utf8');
     var styleEntry = readFileSync('css/style.css', 'utf8');
     var sharedCss = readFileSync('css/interstellar-trader.css', 'utf8');
 
     expect(styleEntry).not.toContain('@import url("fleet.css")');
-    expect(gameManager).toContain("new URL('../../css/fleet.css', import.meta.url).href");
-    expect(gameManager).toContain("new URL('../../css/hangar-terminal.css', import.meta.url).href");
-    expect(gameManager).toContain("new URL('../../css/archive-terminal.css', import.meta.url).href");
-    expect(gameManager).toContain("new URL('../../css/market-terminal.css?v=20260717-marketchart1', import.meta.url).href");
-    expect(gameManager).toContain("loadDeferredStylesheet('fleet-base', _fleetStylesUrl)");
-    expect(gameManager).toContain("loadDeferredStylesheet('hangar-terminal', _hangarTerminalStylesUrl)");
-    expect(gameManager).toContain("loadDeferredStylesheet('archive-terminal', _archiveTerminalStylesUrl)");
-    expect(gameManager).toContain("loadDeferredStylesheet('market-terminal', _marketTerminalStylesUrl)");
+    expect(gameManager).not.toContain('loadDeferredStylesheet');
+    expect(featureManifest).toContain("new URL('../../css/fleet.css', import.meta.url).href");
+    expect(featureManifest).toContain("new URL('../../css/hangar-terminal.css', import.meta.url).href");
+    expect(featureManifest).toContain("new URL('../../css/archive-terminal.css', import.meta.url).href");
+    expect(featureManifest).toContain("new URL('../../css/market-terminal.css?v=20260717-marketchart1', import.meta.url).href");
+    expect(featureManifest).toContain("loadStylesheet('fleet-base', FLEET_STYLES_URL)");
+    expect(featureManifest).toContain("loadStylesheet('hangar-terminal', HANGAR_TERMINAL_STYLES_URL)");
+    expect(featureManifest).toContain("loadStylesheet('archive-terminal', ARCHIVE_TERMINAL_STYLES_URL)");
+    expect(featureManifest).toContain("loadStylesheet('market-terminal', MARKET_TERMINAL_STYLES_URL)");
     expect(featureRegistry).toContain('link.dataset.deferredUiStyle = feature');
     expect(featureRegistry).toContain("document.getElementById('app-styles')");
     expect(featureRegistry).toContain('document.head.insertBefore(link, appStyles)');
@@ -101,6 +102,7 @@ describe('deferred terminal UI loading', function () {
 
   it('存档和胜利结果只在对应入口触发加载', function () {
     var gameManager = readFileSync('js/core/GameManager.js', 'utf8');
+    var featureManifest = readFileSync('js/core/GameFeatureManifest.js', 'utf8');
     var settingsController = readFileSync('js/core/SettingsUiController.js', 'utf8');
     var victoryController = readFileSync('js/core/VictoryRuntimeController.js', 'utf8');
     var settingsManager = readFileSync('js/core/SettingsManager.js', 'utf8');
@@ -109,7 +111,7 @@ describe('deferred terminal UI loading', function () {
     expect(gameManager).toContain('_ensureSaveUiRendered()');
     expect(gameManager).toContain('return _getUiCoordinator().ensureSave()');
     expect(uiCoordinator).toContain("return _ensure('save', function (module) { renderSave(module); })");
-    expect(gameManager).toContain("import('../ui/VictoryResultUI.js')");
+    expect(featureManifest).toContain("import('../ui/VictoryResultUI.js')");
     expect(gameManager).toContain("from './VictoryRuntimeController.js'");
     expect(victoryController).toContain('Promise.resolve(loadView()).then(function (VictoryResultUI)');
     expect(victoryController).toContain('pendingReportPathId === reportPathId');
@@ -120,18 +122,19 @@ describe('deferred terminal UI loading', function () {
 
   it('剧情与随机事件数据只在首次触发时进入依赖图', function () {
     var gameManager = readFileSync('js/core/GameManager.js', 'utf8');
+    var featureManifest = readFileSync('js/core/GameFeatureManifest.js', 'utf8');
     var dialogueRuntime = readFileSync('js/core/DialogueRuntimeController.js', 'utf8');
     var randomEventRuntime = readFileSync('js/core/RandomEventRuntimeController.js', 'utf8');
 
     expect(gameManager).not.toMatch(/import\s+\*\s+as\s+RandomEvent\s+from/);
     expect(gameManager).not.toMatch(/import\s+\*\s+as\s+Dialogue(UI)?\s+from/);
     expect(gameManager).toContain("from './DialogueRuntimeController.js'");
-    expect(gameManager).toContain("import('../systems/story/DialogueSystem.js')");
-    expect(gameManager).toContain("import('../ui/DialogueUI.js')");
+    expect(featureManifest).toContain("import('../systems/story/DialogueSystem.js')");
+    expect(featureManifest).toContain("import('../ui/DialogueUI.js')");
     expect(dialogueRuntime).toContain("import('../systems/story/DialogueSystem.js')");
     expect(dialogueRuntime).toContain("import('../ui/DialogueUI.js')");
     expect(gameManager).toContain("from './RandomEventRuntimeController.js'");
-    expect(gameManager).toContain("import('../systems/event/RandomEvent.js')");
+    expect(featureManifest).toContain("import('../systems/event/RandomEvent.js')");
     expect(randomEventRuntime).toContain("import('../systems/event/RandomEvent.js')");
     expect(gameManager).toContain("loadRuntime: function () { return _loadDeferredFeatureOrReject('dialogue'); }");
     expect(gameManager).toContain("loadRuntime: function () { return _loadDeferredFeatureOrReject('randomEvent'); }");
@@ -148,14 +151,15 @@ describe('deferred terminal UI loading', function () {
 
   it('首次进入和教程界面只在对应流程触发时加载', function () {
     var gameManager = readFileSync('js/core/GameManager.js', 'utf8');
+    var featureManifest = readFileSync('js/core/GameFeatureManifest.js', 'utf8');
     var featureRegistry = readFileSync('js/core/FeatureRegistry.js', 'utf8');
     var onboardingController = readFileSync('js/core/OnboardingUiController.js', 'utf8');
 
     expect(gameManager).not.toMatch(/import\s+\*\s+as\s+(OnboardingUI|TutorialUI)\s+from/);
-    expect(gameManager).toContain("import('../ui/OnboardingUI.js')");
-    expect(gameManager).toContain("import('../ui/TutorialUI.js')");
-    expect(gameManager).toMatch(/\bonboarding:\s*\{/);
-    expect(gameManager).toMatch(/\btutorial:\s*\{/);
+    expect(featureManifest).toContain("import('../ui/OnboardingUI.js')");
+    expect(featureManifest).toContain("import('../ui/TutorialUI.js')");
+    expect(featureManifest).toMatch(/\bonboarding:\s*\{/);
+    expect(featureManifest).toMatch(/\btutorial:\s*\{/);
     expect(featureRegistry).toContain("_notify(feature, 'loading')");
     expect(gameManager).toContain("from './OnboardingUiController.js'");
     expect(gameManager).not.toContain("document.getElementById('company-name-display')");
@@ -166,6 +170,7 @@ describe('deferred terminal UI loading', function () {
 
   it('设置、行动执行器与命令落点不再由 GameManager 持有 UI 生命周期', function () {
     var gameManager = readFileSync('js/core/GameManager.js', 'utf8');
+    var featureManifest = readFileSync('js/core/GameFeatureManifest.js', 'utf8');
     var commandDestinations = readFileSync('js/core/CommandDestinationController.js', 'utf8');
     var guidanceAdapter = readFileSync('js/core/GuidanceExecutionAdapter.js', 'utf8');
     var settingsController = readFileSync('js/core/SettingsUiController.js', 'utf8');
@@ -176,11 +181,11 @@ describe('deferred terminal UI loading', function () {
     expect(gameManager).not.toMatch(/import\s+\*\s+as\s+Settings\s+from\s+'\.\/SettingsManager\.js'/);
     expect(gameManager).not.toMatch(/import\s+\*\s+as\s+CompanyDirectiveUI\s+from/);
     expect(gameManager).not.toMatch(/import\s+\*\s+as\s+GuidanceAction\s+from/);
-    expect(gameManager).toContain("import('./SettingsManager.js')");
+    expect(featureManifest).toContain("import('./SettingsManager.js')");
     expect(gameManager).toContain("from './SettingsUiController.js'");
     expect(gameManager).not.toContain("document.getElementById('settings-btn')");
     expect(gameManager).not.toContain('CompanyDirectiveUI');
-    expect(gameManager).toContain("import('./GuidanceActionController.js')");
+    expect(featureManifest).toContain("import('./GuidanceActionController.js')");
     expect(gameManager).toContain("from './GuidanceExecutionAdapter.js'");
     expect(gameManager).toContain("from './CommandDestinationController.js'");
     expect(gameManager).not.toContain('GuidanceAction.handleGuidanceAction(suggestion, {');
@@ -188,8 +193,8 @@ describe('deferred terminal UI loading', function () {
     expect(gameManager).not.toContain('function _openGuidanceTradeConfirmation');
     expect(gameManager).not.toContain('function _openRecommendedDispatch');
     expect(gameManager).not.toContain('function _openRecommendedMod');
-    expect(gameManager).toMatch(/\bsettings:\s*\{/);
-    expect(gameManager).toMatch(/\bguidanceAction:\s*\{/);
+    expect(featureManifest).toMatch(/\bsettings:\s*\{/);
+    expect(featureManifest).toMatch(/\bguidanceAction:\s*\{/);
     expect(settingsController).toContain('isSessionTokenCurrent(requestedToken)');
     expect(settingsController).toContain('settingsLoaderBound');
     expect(guidanceAdapter).toContain('isSessionTokenCurrent(token)');
@@ -208,6 +213,7 @@ describe('deferred terminal UI loading', function () {
 
   it('高级经营、路线搜索和成就定义只在实际需要时加载', function () {
     var gameManager = readFileSync('js/core/GameManager.js', 'utf8');
+    var featureManifest = readFileSync('js/core/GameFeatureManifest.js', 'utf8');
     var gameTime = readFileSync('js/systems/time/GameTimeSystem.js', 'utf8');
     var tradeSystem = readFileSync('js/systems/trade/TradeSystem.js', 'utf8');
     var fleetSystem = readFileSync('js/systems/fleet/FleetSystem.js', 'utf8');
@@ -216,10 +222,10 @@ describe('deferred terminal UI loading', function () {
     var hud = readFileSync('js/ui/HUD.js', 'utf8');
 
     expect(gameManager).not.toMatch(/import\s+\*\s+as\s+(Commerce|AutoTrade|Achievement|Finance|TradeStation)\s+from/);
-    expect(gameManager).toContain("import('../systems/commerce/CommerceFacade.js')");
-    expect(gameManager).toContain("import('../systems/guidance/AdvancedGuidanceSystem.js')");
-    expect(gameManager).toContain("import('../systems/trade/AutoTradeSystem.js')");
-    expect(gameManager).toContain("import('../systems/achievement/AchievementSystem.js')");
+    expect(featureManifest).toContain("import('../systems/commerce/CommerceFacade.js')");
+    expect(featureManifest).toContain("import('../systems/guidance/AdvancedGuidanceSystem.js')");
+    expect(featureManifest).toContain("import('../systems/trade/AutoTradeSystem.js')");
+    expect(featureManifest).toContain("import('../systems/achievement/AchievementSystem.js')");
     expect(gameTime).not.toMatch(/from\s+'\.\.\/(finance\/FinanceSystem|trade\/TradeStationSystem)\.js'/);
     expect(gameTime).toContain('setAdvancedDayProcessor');
     expect(tradeSystem).not.toContain("from '../finance/FinanceSystem.js'");
@@ -234,6 +240,7 @@ describe('deferred terminal UI loading', function () {
 
   it('所有通用延迟功能由 manifest 持有，不再复制 module/promise/error 三元状态', function () {
     var gameManager = readFileSync('js/core/GameManager.js', 'utf8');
+    var featureManifest = readFileSync('js/core/GameFeatureManifest.js', 'utf8');
     var manifestFeatures = [
       'market', 'fleet', 'archive', 'save', 'victory', 'onboarding', 'tutorial',
       'settings', 'guidanceAction', 'commerceRuntime', 'advancedGuidance',
@@ -241,12 +248,14 @@ describe('deferred terminal UI loading', function () {
     ];
 
     expect(gameManager).toContain('createFeatureRegistry({');
-    expect(gameManager).toContain('_deferredFeatures.registerManifest({');
+    expect(gameManager).toContain('_deferredFeatures.registerManifest(createGameFeatureManifest({');
     manifestFeatures.forEach(function (feature) {
-      expect(gameManager).toMatch(new RegExp('\\b' + feature + ':\\s*\\{'));
+      expect(featureManifest).toMatch(new RegExp('\\b' + feature + ':\\s*\\{'));
     });
     expect(gameManager).not.toMatch(/let\s+_[A-Za-z0-9]+(?:Module|Promise|Error|Initialized)\s*=/);
-    expect(gameManager).toContain("dependencies: ['commerceRuntime']");
-    expect(gameManager).toContain("dependencies: ['achievement']");
+    expect(featureManifest).toContain("dependencies: ['commerceRuntime']");
+    expect(featureManifest).toContain("dependencies: ['achievement']");
+    expect(gameManager).not.toContain("import('../ui/MarketUI.js')");
+    expect(gameManager).not.toContain('new URL(\'../../css/fleet.css\'');
   });
 });

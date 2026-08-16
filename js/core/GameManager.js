@@ -41,7 +41,8 @@ import * as Progression from '../systems/progression/ProgressionSystem.js';
 import * as Guidance from '../systems/guidance/GuidanceSystem.js';
 import * as MidgameTeachingChain from '../systems/guidance/MidgameTeachingChain.js';
 import * as Dispatch from './DispatchController.js';
-import { createFeatureRegistry, loadDeferredStylesheet } from './FeatureRegistry.js';
+import { createFeatureRegistry } from './FeatureRegistry.js';
+import { createGameFeatureFailureReporter, createGameFeatureManifest } from './GameFeatureManifest.js';
 import { createStateSession } from './StateSession.js';
 import { createGameSystemRuntime } from './GameSystemRuntime.js';
 import { createGameClockController } from './GameClockController.js';
@@ -75,6 +76,12 @@ import { hasBlockingSurfaceOpen, hideBlockingSurface, isBlockingSurfaceVisible, 
 
 const _session = createStateSession();
 const ACTIVE_DISPATCH_CLOCK_ID = 'active-dispatch';
+const _reportDeferredUiFailure = createGameFeatureFailureReporter({
+  emitLog: function (message) { EventBus.emit('log:message', message); },
+  reportError: function (feature, error) {
+    console.error('[GameManager] Failed to load deferred ' + feature + ' feature.', error);
+  },
+});
 let _state     = null;
 let _settings  = {
   motionLevel: 'full',
@@ -84,10 +91,6 @@ let _settings  = {
 };
 let _runtimeRevision = 0;
 let _achievementCheckQueued = false;
-const _fleetStylesUrl = new URL('../../css/fleet.css', import.meta.url).href;
-const _hangarTerminalStylesUrl = new URL('../../css/hangar-terminal.css', import.meta.url).href;
-const _archiveTerminalStylesUrl = new URL('../../css/archive-terminal.css', import.meta.url).href;
-const _marketTerminalStylesUrl = new URL('../../css/market-terminal.css?v=20260717-marketchart1', import.meta.url).href;
 const _deferredFeatures = createFeatureRegistry({
   getContext: function () {
     return {
@@ -153,32 +156,6 @@ function _setDeferredUiState(surface, state) {
   document.body.dataset[surface + 'UiState'] = state;
 }
 
-function _reportDeferredUiFailure(surface, error) {
-  console.error('[GameManager] Failed to load deferred ' + surface + ' feature.', error);
-  var labels = {
-    market: '商业终端',
-    fleet: '机库',
-    archive: '档案中心',
-    save: '存档终端',
-    victory: '结算终端',
-    dialogue: '剧情演出',
-    randomEvent: '随机事件',
-    onboarding: '首次进入引导',
-    tutorial: '操作教程',
-    settings: '设置终端',
-    guidanceAction: '行动执行器',
-    commerceRuntime: '高级经营运行时',
-    advancedGuidance: '高级经营建议',
-    routeGuidance: '自动跑商建议',
-    achievement: '成就检查',
-  };
-  var label = labels[surface] || '功能模块';
-  EventBus.emit('log:message', {
-    text: '⚠️ ' + label + '加载失败，请稍后重试。',
-    type: 'error',
-  });
-}
-
 function _initializeCommerceRuntime(CommerceRuntime, state) {
   var targetState = state || _state;
   if (!CommerceRuntime || !targetState) return;
@@ -206,128 +183,22 @@ function _configureDeferredFeatures() {
   if (_deferredFeaturesConfigured) return;
   _deferredFeaturesConfigured = true;
 
-  _deferredFeatures.registerManifest({
-    commerceRuntime: {
-      load: function () { return import('../systems/commerce/CommerceFacade.js'); },
-      sync: function (module, lifecycle) {
-        _initializeCommerceRuntime(module, lifecycle.context && lifecycle.context.state);
-      },
-      onError: function (error) { _reportDeferredUiFailure('commerceRuntime', error); },
-    },
-    advancedGuidance: {
-      dependencies: ['commerceRuntime'],
-      load: function () { return import('../systems/guidance/AdvancedGuidanceSystem.js'); },
-      sync: function (module) {
-        Guidance.setAdvancedGuidanceProvider(module.getAdvancedGuidanceSuggestions);
-      },
-      onError: function (error) { _reportDeferredUiFailure('advancedGuidance', error); },
-    },
-    routeGuidance: {
-      load: function () { return import('../systems/trade/AutoTradeSystem.js'); },
-      sync: function (module) { Dispatch.setQuestRouteResolver(module.findQuestRoute); },
-      onError: function (error) { _reportDeferredUiFailure('routeGuidance', error); },
-    },
-    achievement: {
-      load: function () { return import('../systems/achievement/AchievementSystem.js'); },
-      sync: function (module, lifecycle) {
-        var context = lifecycle.context;
-        if (context && context.state) module.init(context.state);
-      },
-      onError: function (error) {
-        _achievementCheckQueued = false;
-        _reportDeferredUiFailure('achievement', error);
-      },
-    },
-    dialogue: {
-      load: function () {
-        return Promise.all([
-          import('../systems/story/DialogueSystem.js'),
-          import('../ui/DialogueUI.js'),
-        ]).then(function (modules) {
-          return { Dialogue: modules[0], DialogueUI: modules[1] };
-        });
-      },
-    },
-    randomEvent: {
-      load: function () { return import('../systems/event/RandomEvent.js'); },
-    },
-    market: {
-      dependencies: ['commerceRuntime'],
-      load: function () {
-        return Promise.all([
-          import('../ui/MarketUI.js'),
-          loadDeferredStylesheet('market-terminal', _marketTerminalStylesUrl),
-        ]).then(function (results) { return results[0]; });
-      },
-      onError: function (error) { _reportDeferredUiFailure('market', error); },
-    },
-    fleet: {
-      load: function () {
-        return Promise.all([
-          import('../ui/FleetUI.js'),
-          loadDeferredStylesheet('fleet-base', _fleetStylesUrl),
-          loadDeferredStylesheet('hangar-terminal', _hangarTerminalStylesUrl),
-        ]).then(function (results) { return results[0]; });
-      },
-      onError: function (error) { _reportDeferredUiFailure('fleet', error); },
-    },
-    archive: {
-      dependencies: ['achievement'],
-      load: function () {
-        return Promise.all([
-          import('../ui/QuestUI.js'),
-          import('../ui/ArchiveExplorationUI.js'),
-          import('../ui/ResearchUI.js'),
-          import('../ui/FactionUI.js'),
-          import('../ui/AchievementUI.js'),
-          loadDeferredStylesheet('archive-terminal', _archiveTerminalStylesUrl),
-        ]).then(function (modules) {
-          return {
-            QuestUI: modules[0],
-            ArchiveExplorationUI: modules[1],
-            ResearchUI: modules[2],
-            FactionUI: modules[3],
-            AchievementUI: modules[4],
-          };
-        });
-      },
-      initialize: function (ArchiveUI) {
+  _deferredFeatures.registerManifest(createGameFeatureManifest({
+    reportFailure: _reportDeferredUiFailure,
+    hooks: {
+      initializeCommerceRuntime: _initializeCommerceRuntime,
+      setAdvancedGuidanceProvider: Guidance.setAdvancedGuidanceProvider,
+      setQuestRouteResolver: Dispatch.setQuestRouteResolver,
+      clearAchievementQueued: function () { _achievementCheckQueued = false; },
+      syncArchiveView: function (ArchiveUI) {
         _getCommandDestinationController().syncArchiveView(ArchiveUI);
       },
-      onError: function (error) { _reportDeferredUiFailure('archive', error); },
+      syncVictoryView: function (module) { _getVictoryController().syncView(module); },
+      handleVictoryLoadFailure: function () { _getVictoryController().handleLoadFailure(); },
+      syncTutorialView: function (module) { _getOnboardingUiController().syncTutorialView(module); },
+      syncSettingsView: function (module) { _getSettingsUiController().sync(module); },
     },
-    save: {
-      load: function () { return import('../ui/SaveUI.js'); },
-      onError: function (error) { _reportDeferredUiFailure('save', error); },
-    },
-    victory: {
-      load: function () { return import('../ui/VictoryResultUI.js'); },
-      sync: function (module) { _getVictoryController().syncView(module); },
-      onError: function (error) {
-        _getVictoryController().handleLoadFailure();
-        _reportDeferredUiFailure('victory', error);
-      },
-    },
-    onboarding: {
-      load: function () { return import('../ui/OnboardingUI.js'); },
-      onError: function (error) { _reportDeferredUiFailure('onboarding', error); },
-    },
-    tutorial: {
-      load: function () { return import('../ui/TutorialUI.js'); },
-      sync: function (module) { _getOnboardingUiController().syncTutorialView(module); },
-      dispose: function (module) { if (module.destroy) module.destroy(); },
-      onError: function (error) { _reportDeferredUiFailure('tutorial', error); },
-    },
-    settings: {
-      load: function () { return import('./SettingsManager.js'); },
-      sync: function (module) { _getSettingsUiController().sync(module); },
-      onError: function (error) { _reportDeferredUiFailure('settings', error); },
-    },
-    guidanceAction: {
-      load: function () { return import('./GuidanceActionController.js'); },
-      onError: function (error) { _reportDeferredUiFailure('guidanceAction', error); },
-    },
-  });
+  }));
 }
 
 function _getDeferredFeature(feature) {
