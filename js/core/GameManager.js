@@ -45,7 +45,6 @@ import * as Audio from './AudioManager.js';
 import * as Progression from '../systems/progression/ProgressionSystem.js';
 import * as Guidance from '../systems/guidance/GuidanceSystem.js';
 import * as MidgameTeachingChain from '../systems/guidance/MidgameTeachingChain.js';
-import { getProcessingMessage as getGuidanceActionProcessingMessage } from './GuidanceActionFeedback.js';
 import * as Dispatch from './DispatchController.js';
 import { createFeatureRegistry, loadDeferredStylesheet } from './FeatureRegistry.js';
 import { createStateSession } from './StateSession.js';
@@ -65,6 +64,8 @@ import { createDispatchActionController } from './DispatchActionController.js';
 import { createGameDayController } from './GameDayController.js';
 import { createDialogueRuntimeController } from './DialogueRuntimeController.js';
 import { createRandomEventRuntimeController } from './RandomEventRuntimeController.js';
+import { createGuidanceExecutionAdapter } from './GuidanceExecutionAdapter.js';
+import { createMarketWorkspaceController } from './MarketWorkspaceController.js';
 import { createOnboardingUiController } from './OnboardingUiController.js';
 import { createSettingsUiController } from './SettingsUiController.js';
 import { createVictoryRuntimeController } from './VictoryRuntimeController.js';
@@ -85,7 +86,6 @@ let _settings  = {
   secretRoutesVisible: true,
   realtimeDayDurationMs: TIME_CONFIG.realtimeDayDurationMs,
 };
-let _blackMarketMode = false; // 当前是否处于黑市交易模式
 let _runtimeRevision = 0;
 let _pendingQuestSelectionId = null;
 let _achievementCheckQueued = false;
@@ -120,6 +120,8 @@ let _dispatchActions = null;
 let _gameDayActions = null;
 let _dialogueController = null;
 let _randomEventController = null;
+let _guidanceExecutionAdapter = null;
+let _marketWorkspaceController = null;
 let _onboardingUiController = null;
 let _settingsUiController = null;
 let _victoryController = null;
@@ -135,10 +137,10 @@ function _replaceState(nextState, reason) {
 }
 
 function _resetSessionTransients() {
-  _blackMarketMode = false;
   _pendingQuestSelectionId = null;
   _achievementCheckQueued = false;
   if (_actionGuideCoordinator) _actionGuideCoordinator.reset();
+  if (_marketWorkspaceController) _marketWorkspaceController.reset();
   if (_victoryController) _victoryController.reset();
 }
 
@@ -953,6 +955,72 @@ function _getActionGuideCoordinator() {
   return _actionGuideCoordinator;
 }
 
+function _getGuidanceExecutionAdapter() {
+  if (_guidanceExecutionAdapter) return _guidanceExecutionAdapter;
+  _guidanceExecutionAdapter = createGuidanceExecutionAdapter({
+    getState: function () { return _state; },
+    getSessionToken: _getSessionToken,
+    isSessionTokenCurrent: _isSessionTokenCurrent,
+    loadController: _loadGuidanceActionController,
+    ports: {
+      ui: {
+        showProcessing: function (suggestion, message) {
+          _getActionGuideCoordinator().showProcessing(suggestion, message);
+        },
+        refreshActionGuide: _refreshActionGuide,
+        invalidate: function () { _updateUI(DEFAULT_ACTION_DIRTY_REGIONS); },
+        showCompletion: function (message, detail, options) {
+          _getActionGuideCoordinator().showCompletion(message, detail, options);
+        },
+        emitLog: function (message) { EventBus.emit('log:message', message); },
+        reportFailure: function (error) {
+          console.error('[GameManager] Failed to execute guidance action.', error);
+          EventBus.emit('log:message', { text: '⚠️ 当前行动执行失败，请重试。', type: 'error' });
+        },
+      },
+      navigation: {
+        prepareDirectExecution: function () { if (MapUI.focusStarmap) MapUI.focusStarmap(); },
+        activateTab: MapUI.activateTab,
+        focusStarmap: MapUI.focusStarmap,
+        focusNavigationTarget: MapUI.focusNavigationTarget,
+        openMarketPanel: MapUI.openMarketPanel,
+        openMarketSystemPanel: MapUI.openMarketSystemPanel,
+        revealMarketGoodFocus: _revealMarketGoodFocus,
+      },
+      trade: { openConfirmation: _openGuidanceTradeConfirmation, refuel: _handleRefuel },
+      quest: { accept: _getArchiveActions().onAcceptQuest, selectAvailable: _selectAvailableQuest },
+      fleet: { openRecommendedDispatch: _openRecommendedDispatch, openRecommendedMod: _openRecommendedMod },
+      events: { forcePending: EventUI.forcePendingEvent },
+      teaching: { startChain: _startMidgameTeachingChain },
+      exploration: {
+        revealArchiveReportFocus: _revealArchiveReportFocus,
+        acknowledgeSurveyChainFollowup: function (systemId, chainId) {
+          return Exploration.acknowledgeChainFollowup(_state, systemId, chainId);
+        },
+        acknowledgeSurveyReport: function (systemId, reportId) {
+          return Exploration.acknowledgeSurveyReport(_state, systemId, reportId);
+        },
+        explorePoi: _handleExplorePoi,
+      },
+      travel: { execute: _handleTravel },
+    },
+  });
+  return _guidanceExecutionAdapter;
+}
+
+function _getMarketWorkspaceController() {
+  if (_marketWorkspaceController) return _marketWorkspaceController;
+  _marketWorkspaceController = createMarketWorkspaceController({
+    getState: function () { return _state; },
+    getSessionToken: _getSessionToken,
+    isSessionTokenCurrent: _isSessionTokenCurrent,
+    loadMarket: _loadMarketUI,
+    renderMarket: function (MarketUI, state) { return _getUiCoordinator().renderMarket(MarketUI, state); },
+    MapUI: MapUI,
+  });
+  return _marketWorkspaceController;
+}
+
 function _getUiCoordinator() {
   if (_uiCoordinator) return _uiCoordinator;
   _configureDeferredFeatures();
@@ -981,14 +1049,14 @@ function _getUiCoordinator() {
     },
     actions: {
       market: {
-        getMode: function () { return _blackMarketMode ? 'black' : 'open'; },
+        getMode: function () { return _getMarketWorkspaceController().getMode(); },
         onOpenBuy: _handleOpenBuy,
         onOpenSell: _handleOpenSell,
         onRefuel: _handleRefuel,
         onBlackMarketBuy: _handleBlackMarketBuy,
         onBlackMarketSell: _handleBlackMarketSell,
         getFinanceActions: _getMarketFinanceActions,
-        onAfterRender: _bindMarketModeButtons,
+        onAfterRender: function () { _getMarketWorkspaceController().syncAfterRender(); },
       },
       fleet: fleetActions,
       archive: Object.assign({
@@ -1135,26 +1203,7 @@ export function init(difficulty, options) {
 
 
   // 注入市场刷新回调（让 MapUI 可以触发市场表格重绘）
-  MapUI.setRefreshMarket(function (mode) {
-    return _loadMarketUI().then(function (MarketUI) {
-      if (!MarketUI) return;
-      const sysId = MapUI.getMarketViewSystem(_state);
-      var pendingMarketFocus = MapUI.consumePendingMarketPanelFocus();
-      var bmMode = pendingMarketFocus
-        ? ((pendingMarketFocus.marketMode || 'open') === 'black' ? 'black' : 'open')
-        : (_blackMarketMode ? 'black' : 'open');
-      _blackMarketMode = bmMode === 'black';
-      if (pendingMarketFocus && pendingMarketFocus.goodId) {
-        MarketUI.setFocusedMarketGood(sysId, bmMode, pendingMarketFocus.goodId);
-      }
-      MarketUI.showDetail(sysId, bmMode);
-      _getUiCoordinator().renderMarket(MarketUI, _state);
-      if (pendingMarketFocus) {
-        MarketUI.setMarketWorkspaceFocus(pendingMarketFocus);
-      }
-      _bindMarketModeButtons();
-    });
-  });
+  MapUI.setRefreshMarket(function () { return _getMarketWorkspaceController().refresh(); });
   Modal.init(_handleTradeConfirm);
 
   // 新手引导系统已由 GameSystemRuntime 与其他状态系统统一恢复。
@@ -1424,59 +1473,8 @@ function _openGuidanceTradeConfirmation(action, payload) {
   _refreshActionGuide();
 }
 
-function _prepareDirectGuidanceExecution() {
-  if (MapUI.focusStarmap) {
-    MapUI.focusStarmap();
-  }
-}
-
 function _handleActionGuideAction(suggestion) {
-  if (!suggestion || !suggestion.actionType) return;
-
-  var requestedRevision = _runtimeRevision;
-  _getActionGuideCoordinator().showProcessing(suggestion, getGuidanceActionProcessingMessage(suggestion));
-  return _loadGuidanceActionController().then(function (GuidanceAction) {
-    if (!GuidanceAction || requestedRevision !== _runtimeRevision) {
-      _refreshActionGuide();
-      return;
-    }
-    GuidanceAction.handleGuidanceAction(suggestion, {
-      getState: function () { return _state; },
-      prepareDirectExecution: _prepareDirectGuidanceExecution,
-      acceptQuest: _getArchiveActions().onAcceptQuest,
-      selectAvailableQuest: _selectAvailableQuest,
-      activateTab: MapUI.activateTab,
-      updateUI: function () { _updateUI(DEFAULT_ACTION_DIRTY_REGIONS); },
-      openTradeConfirmation: _openGuidanceTradeConfirmation,
-      refuel: _handleRefuel,
-      forcePendingEvent: EventUI.forcePendingEvent,
-      refreshActionGuide: _refreshActionGuide,
-      startTeachingChain: _startMidgameTeachingChain,
-      openRecommendedDispatch: _openRecommendedDispatch,
-      openRecommendedMod: _openRecommendedMod,
-      showCompletion: function (message, detail, options) {
-        _getActionGuideCoordinator().showCompletion(message, detail, options);
-      },
-      emitLog: function (message) {
-        EventBus.emit('log:message', message);
-      },
-      openMarketPanel: MapUI.openMarketPanel,
-      openMarketSystemPanel: MapUI.openMarketSystemPanel,
-      revealMarketGoodFocus: _revealMarketGoodFocus,
-      revealArchiveReportFocus: _revealArchiveReportFocus,
-      acknowledgeSurveyChainFollowup: function (systemId, chainId) {
-        return Exploration.acknowledgeChainFollowup(_state, systemId, chainId);
-      },
-      acknowledgeSurveyReport: function (systemId, reportId) {
-        return Exploration.acknowledgeSurveyReport(_state, systemId, reportId);
-      },
-      travel: _handleTravel,
-      focusStarmap: MapUI.focusStarmap,
-      focusNavigationTarget: MapUI.focusNavigationTarget,
-      explorePoi: _handleExplorePoi,
-    });
-
-  });
+  return _getGuidanceExecutionAdapter().execute(suggestion);
 }
 
 function _startMidgameTeachingChain(chainId) {
@@ -1567,32 +1565,6 @@ function _handleBlackMarketBuy(good) {
 
 function _handleBlackMarketSell(good) {
   Modal.openTradeModal('sell', good, _state, 'black');
-}
-
-/**
- * 绑定市场模式切换按钮（公开市场 ↔ 黑市）
- * 在每次渲染 market detail 后调用
- */
-function _bindMarketModeButtons() {
-  var btns = document.querySelectorAll('.market-mode-btn:not(.disabled)');
-  btns.forEach(function (btn) {
-    // 用 cloneNode 替换旧节点，避免重复绑定 listener
-    var fresh = btn.cloneNode(true);
-    btn.parentNode.replaceChild(fresh, btn);
-    fresh.addEventListener('click', function () {
-      var mode = fresh.dataset.mode;
-      _blackMarketMode = mode === 'black';
-      // 重新渲染详情
-      var sysId = MapUI.getMarketViewSystem(_state);
-      var bmMode = _blackMarketMode ? 'black' : 'open';
-      _loadMarketUI().then(function (MarketUI) {
-        if (!MarketUI) return;
-        MarketUI.showDetail(sysId, bmMode);
-        MarketUI.render(_state, _handleOpenBuy, _handleOpenSell, _handleRefuel, sysId, bmMode, MapUI.getMarketViewGalaxy(_state), _handleBlackMarketBuy, _handleBlackMarketSell, _getMarketFinanceActions());
-        _bindMarketModeButtons();
-      });
-    });
-  });
 }
 
 function _openRecommendedDispatch(recommendation, sourceLabel, icon) {
