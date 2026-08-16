@@ -32,6 +32,7 @@ import {
   renderSpotIntelSection as _renderSpotIntelSection,
   renderSpotTradeSection as _renderSpotTradeSection,
 } from './MarketSpotPresenter.js';
+import { renderMarketCapitalWorkspace as _renderMarketCapitalWorkspace } from './MarketCapitalPresenter.js';
 
 const _focusedMarketGood = Object.create(null);
 let _activeMarketContext = null;
@@ -1208,15 +1209,6 @@ function _renderOperationsBatchPlanningPanel(state, ownedStations, networkInvest
 }
 
 
-function _renderCapitalLocalMetric(label, value, note, toneClass) {
-  return '<div class="market-capital-local-item' + (toneClass ? ' ' + toneClass : '') + '" role="listitem">' +
-    '<span class="market-capital-local-label">' + _escapeHtml(label) + '</span>' +
-    '<strong class="market-capital-local-value">' + _escapeHtml(value) + '</strong>' +
-    '<span class="market-capital-local-note">' + _escapeHtml(note) + '</span>' +
-  '</div>';
-}
-
-
 function _renderOperationsCommandDeck(viewingSystem, commerceSnapshot, tradeSummary, ownedStations, buildCandidates, localStation, buildCandidate, networkInvestmentPlan, networkUpgradePlan) {
   var system = findSystem(viewingSystem);
   var systemLabel = system ? (system.name + ' · ' + system.typeLabel) : viewingSystem;
@@ -1603,11 +1595,6 @@ function _getTradeStationDomId(prefix, systemId) {
   return prefix + '-' + safeId;
 }
 
-function _getMarketFinanceDomId(prefix, value) {
-  var safeId = String(value || 'unknown').replace(/[^a-zA-Z0-9_-]/g, '-');
-  return prefix + '-' + safeId;
-}
-
 function _renderNextNetworkAction(action) {
   if (!action) {
     return '<div class="market-finance-card">' +
@@ -1749,62 +1736,6 @@ function _renderOverviewTable(state, galaxyId, onPlanetClick, tableIds) {
   });
 }
 
-function _renderFocusedCapitalOverview(state, viewingSystem, isCurrentSys, financeOverview, commerceSnapshot) {
-  var system = findSystem(viewingSystem);
-  var systemLabel = system ? (system.name + ' · ' + system.typeLabel) : viewingSystem;
-  var credits = Math.floor((state && state.credits) || 0);
-  var investmentValue = Math.floor((financeOverview && financeOverview.tradeInvestmentValue) || 0);
-  var loanBalance = Math.floor((financeOverview && financeOverview.outstandingLoanBalance) || 0);
-  var activeLoanCount = Math.max(0, Number(financeOverview && financeOverview.activeLoanCount) || 0);
-  return '<section class="market-workspace-deck market-capital-deck">' +
-    '<div class="market-workspace-deck-hero">' +
-      '<div class="market-workspace-deck-copy">' +
-        '<div class="market-workspace-deck-kicker">Capital Control</div>' +
-        '<div class="market-workspace-deck-title">资金管理 · ' + (isCurrentSys ? '本地可操作' : '远程查看') + '</div>' +
-        '<div class="market-workspace-deck-summary">资金页只保留贷款与贸易站投资，借来的钱仍要回到跑商、舰队和贸易站扩张。</div>' +
-      '</div>' +
-      '<div class="market-workspace-deck-emphasis">' +
-        '<span class="market-workspace-deck-emphasis-label">当前地点</span>' +
-        '<strong>' + _escapeHtml(systemLabel) + '</strong>' +
-        '<span class="market-workspace-deck-emphasis-note">' + (isCurrentSys ? '可申请贷款并追加本地投资。' : '抵达后开放本地资金动作。') + '</span>' +
-      '</div>' +
-    '</div>' +
-    '<div class="market-workspace-deck-grid">' +
-      _renderWorkspaceDeckMetric('可用现金', credits.toLocaleString(), '用于补给、舰队与商网扩张。', 'tone-cool') +
-      _renderWorkspaceDeckMetric('未还贷款', loanBalance.toLocaleString(), activeLoanCount + ' 笔未结清贷款。', loanBalance > 0 ? 'tone-warm' : '') +
-      _renderWorkspaceDeckMetric('站点投资', investmentValue.toLocaleString(), '用于增加贸易站长期收益。', investmentValue > 0 ? 'tone-cool' : '') +
-      _renderWorkspaceDeckMetric('信用分', String(commerceSnapshot.creditRating || financeOverview.creditRating || 0), '分数越高，可申请的贷款越多。') +
-    '</div>' +
-  '</section>';
-}
-
-function _renderFocusedLoanGuard(state, activeLoans, loanOffers, isCurrentSys) {
-  var credits = Math.floor((state && state.credits) || 0);
-  var loans = activeLoans || [];
-  var loanBalance = loans.reduce(function (sum, loan) { return sum + Math.max(0, loan.balance || 0); }, 0);
-  var dailyPayment = loans.reduce(function (sum, loan) { return sum + Math.max(0, loan.dailyPayment || 0); }, 0);
-  var availableOfferCount = (loanOffers || []).filter(function (offer) { return !!offer.available; }).length;
-  var runwayDays = dailyPayment > 0 ? Math.floor(credits / dailyPayment) : null;
-  var focusTitle = !isCurrentSys ? '远程只读观察' : (loanBalance > credits && loanBalance > 0 ? '债务现金流承压' : '经营贷款可控');
-  var focusNote = !isCurrentSys
-    ? '抵达该地点后才能申请或偿还经营贷款。'
-    : (loanBalance > 0 ? ('贷款余额 ' + Math.floor(loanBalance).toLocaleString() + '，每日偿付 ' + Math.floor(dailyPayment).toLocaleString() + '。') : '当前没有贷款，可按扩张需要选择周转额度。');
-  return '<section class="market-capital-local-panel" aria-label="经营贷款状态">' +
-    '<div class="market-capital-local-head"><div><div class="market-capital-local-title">经营贷款</div>' +
-      '<div class="market-capital-local-subtitle">贷款只负责跨越扩张资金缺口，不再附带证券和手动保险产品。</div></div>' +
-      '<span class="market-capital-local-badge">' + (isCurrentSys ? '本地可执行' : '远程只读') + '</span></div>' +
-    '<div class="market-capital-local-grid" role="list" aria-label="经营贷款指标">' +
-      _renderCapitalLocalMetric('贷款余额', Math.floor(loanBalance).toLocaleString(), loans.length + ' 笔未结清') +
-      _renderCapitalLocalMetric('每日偿付', Math.floor(dailyPayment).toLocaleString(), runwayDays === null ? '没有固定扣款' : ('现金约覆盖 ' + runwayDays + ' 天')) +
-      _renderCapitalLocalMetric('可用现金', credits.toLocaleString(), '扩张前保留偿付余量') +
-      _renderCapitalLocalMetric('可用报价', String(availableOfferCount), '按公司信用评级调整额度') +
-    '</div>' +
-    '<div class="market-capital-local-focus" data-tone="' + (loanBalance > credits && loanBalance > 0 ? 'debt' : 'stable') + '">' +
-      '<span class="market-capital-local-focus-kicker">资金状态</span><strong class="market-capital-local-focus-title">' + focusTitle + '</strong>' +
-      '<span class="market-capital-local-focus-note">' + focusNote + '</span></div>' +
-  '</section>';
-}
-
 function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions, progression) {
   var capitalContainer = document.getElementById('market-capital-pane');
   var operationsContainer = document.getElementById('market-operations-pane');
@@ -1813,10 +1744,11 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
   financeActions = financeActions || {};
 
   var commerceSnapshot = Commerce.getCommerceSnapshot(state);
-  var financeOverview = Finance.getOverview(state);
-  var loanOffers = Finance.getLoanOffers(state).slice(0, 3);
-  var activeLoans = (state.loans || []).filter(function (loan) {
-    return loan.status === 'active' && loan.balance > 0;
+  var capitalWorkspace = _renderMarketCapitalWorkspace({
+    state: state,
+    systemId: viewingSystem,
+    isCurrentSystem: isCurrentSys,
+    commerceSnapshot: commerceSnapshot,
   });
   var tradeInvestments = Finance.getTradeInvestmentOptions(
     state,
@@ -1852,48 +1784,6 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
     return entry.system.id === viewingSystem;
   }) || null;
 
-  var capitalLocalSection = '<section class="market-finance-section">' +
-    '<div class="market-finance-section-head">' +
-      '<div>' +
-        '<div class="market-finance-title">🏦 本地资金管理</div>' +
-        '<div class="market-finance-subtitle">经营贷款和本地贸易站投资只在停靠地点办理。远程查看时只能看信息。</div>' +
-      '</div>' +
-    '</div>' +
-    _renderFocusedLoanGuard(state, activeLoans, loanOffers, isCurrentSys);
-
-  if (!isCurrentSys) {
-    capitalLocalSection += '<div class="market-finance-locked">📡 当前是远程查看模式。抵达该地点后，可在这里申请经营贷款并追加本地贸易站投资。</div>';
-  } else {
-    capitalLocalSection += '<div class="market-finance-layout">' +
-      '<div class="market-finance-column">' +
-        '<div class="market-finance-subsection">🏦 贷款席位</div>' +
-        (activeLoans.length > 0
-          ? '<div class="market-finance-action-list" role="list" aria-label="未结清贷款列表">' + activeLoans.map(function (loan) {
-              var loanKey = loan.id || loan.name;
-              var loanTitleId = _getMarketFinanceDomId('market-loan-title', loanKey);
-              var loanMetaId = _getMarketFinanceDomId('market-loan-meta', loanKey);
-              return '<article class="market-finance-action-row" role="listitem" tabindex="0" aria-labelledby="' + _escapeHtmlAttr(loanTitleId) + '" aria-describedby="' + _escapeHtmlAttr(loanMetaId) + '">' +
-                '<div class="market-finance-action-main">' +
-                  '<div id="' + _escapeHtmlAttr(loanTitleId) + '" class="market-finance-action-title">' + loan.name + '</div>' +
-                  '<div id="' + _escapeHtmlAttr(loanMetaId) + '" class="market-finance-action-meta">余额 ' + Math.floor(loan.balance).toLocaleString() + ' · 日扣款 ' + Math.floor(loan.dailyPayment).toLocaleString() + ' · 剩余 ' + loan.remainingDays + ' 天</div>' +
-                '</div>' +
-                '<div class="market-finance-inline-actions" role="group" aria-label="' + _escapeHtmlAttr(loan.name + ' 贷款操作') + '">' +
-                  '<button class="btn-action market-finance-btn" data-action="market-repay-loan" data-loan-id="' + _escapeHtmlAttr(loan.id) + '" aria-describedby="' + _escapeHtmlAttr(loanMetaId) + '" aria-label="' + _escapeHtmlAttr('偿还 ' + loan.name) + '">还款</button>' +
-                '</div>' +
-              '</article>';
-            }).join('') + '</div>'
-          : '<div class="market-finance-empty">暂无未结清贷款。</div>') +
-        (loanOffers.length > 0
-          ? '<div class="trade-station-choice-row market-finance-offer-row" role="group" aria-label="贷款报价选择">' + loanOffers.map(function (offer) {
-              return '<button class="trade-station-choice-btn' + (offer.available ? '' : ' disabled') + '" data-action="market-take-loan" data-loan-offer-id="' + _escapeHtmlAttr(offer.id) + '" aria-label="' + _escapeHtmlAttr('申请 ' + offer.name + '，到账 ' + offer.principal.toLocaleString() + '，期限 ' + offer.termDays + ' 天') + '"' + (offer.available ? '' : ' disabled aria-disabled="true"') + '>' +
-                offer.name + '<span>+' + offer.principal.toLocaleString() + ' / ' + offer.termDays + '天</span></button>';
-            }).join('') + '</div>'
-          : '') +
-      '</div>' +
-    '</div>';
-  }
-
-  capitalLocalSection += '</section>';
 
   var operationsLocalSection = '<section class="market-finance-section">' +
     '<div class="market-finance-section-head">' +
@@ -2104,15 +1994,10 @@ function _renderFinancePanels(state, viewingSystem, isCurrentSys, financeActions
   operationsStationsSection += '</section>';
 
 
-  capitalContainer.innerHTML = _renderFocusedCapitalOverview(
-    state,
-    viewingSystem,
-    isCurrentSys,
-    financeOverview,
-    commerceSnapshot
-  ) + '<div class="market-workspace-board market-capital-board">' + _renderMarketSubworkspace('capital', {
-    local: capitalLocalSection,
-  }, progression) + '</div>';
+  capitalContainer.innerHTML = capitalWorkspace.overviewHtml +
+    '<div class="market-workspace-board market-capital-board">' + _renderMarketSubworkspace('capital', {
+      local: capitalWorkspace.localHtml,
+    }, progression) + '</div>';
   operationsContainer.innerHTML = _renderOperationsCommandDeck(
     viewingSystem,
     commerceSnapshot,

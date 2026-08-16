@@ -371,13 +371,16 @@ describe('MarketUI guided focus', function () {
   it('资本分区只保留贷款与站点投资语义和适配锚点', function () {
     const css = readFileSync('css/interstellar-trader.css', 'utf8');
     const js = readFileSync('js/ui/MarketUI.js', 'utf8');
+    const capitalJs = readFileSync('js/ui/MarketCapitalPresenter.js', 'utf8');
 
-    expect(js).toContain('role="list" aria-label="未结清贷款列表"');
-    expect(js).toContain('class="market-capital-local-grid" role="list" aria-label="经营贷款指标"');
-    expect(js).toContain('资金页只保留贷款与贸易站投资');
+    expect(capitalJs).toContain('role="list" aria-label="未结清贷款列表"');
+    expect(capitalJs).toContain('class="market-capital-local-grid" role="list" aria-label="经营贷款指标"');
+    expect(capitalJs).toContain('资金页集中查看现金、贷款与站点投资总额');
+    expect(capitalJs).toContain('具体建站和追加投资统一在贸易站页处理');
+    expect(capitalJs).not.toContain('data-action="market-invest-trade-station"');
     expect(js).toContain("capital: [\n    { id: 'local', label: '贷款与投资', hint: '管理本地资金' },\n  ]");
-    expect(js).toContain('role="listitem" tabindex="0"');
-    expect(js).toContain('aria-describedby="');
+    expect(capitalJs).toContain('role="listitem" tabindex="0"');
+    expect(capitalJs).toContain('aria-describedby="');
     expect(css).toContain('.market-capital-local-panel');
     expect(css).toContain('.market-capital-local-grid');
     expect(css).toContain('.market-capital-local-focus[data-tone="debt"]');
@@ -722,7 +725,8 @@ describe('MarketUI guided focus', function () {
     MarketUI.render(state, function () {}, function () {}, function () {}, 'sol_prime', 'open', 'milky_way', null, null, {});
 
     expect(capitalPane.innerHTML).toContain('market-capital-deck');
-    expect(capitalPane.innerHTML).toContain('资金页只保留贷款与贸易站投资');
+    expect(capitalPane.innerHTML).toContain('资金页集中查看现金、贷款与站点投资总额');
+    expect(capitalPane.innerHTML).toContain('具体建站和追加投资统一在贸易站页处理');
     expect(capitalPane.innerHTML).toContain('可用现金');
     expect(capitalPane.innerHTML).toContain('未还贷款');
     expect(capitalPane.innerHTML).toContain('债务现金流承压');
