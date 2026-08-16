@@ -40,8 +40,8 @@ import * as Progression from '../systems/progression/ProgressionSystem.js';
 import * as Guidance from '../systems/guidance/GuidanceSystem.js';
 import * as MidgameTeachingChain from '../systems/guidance/MidgameTeachingChain.js';
 import * as Dispatch from './DispatchController.js';
-import { createFeatureRegistry } from './FeatureRegistry.js';
-import { createGameFeatureFailureReporter, createGameFeatureManifest } from './GameFeatureManifest.js';
+import { createGameFeatureFailureReporter } from './GameFeatureManifest.js';
+import { createGameFeatureRuntime } from './GameFeatureRuntime.js';
 import { createStateSession } from './StateSession.js';
 import { createGameSystemRuntime } from './GameSystemRuntime.js';
 import { createGameClockController } from './GameClockController.js';
@@ -85,17 +85,7 @@ let _settings  = {
   realtimeDayDurationMs: TIME_CONFIG.realtimeDayDurationMs,
 };
 let _runtimeRevision = 0;
-const _deferredFeatures = createFeatureRegistry({
-  getContext: function () {
-    return {
-      state: _state,
-      revision: _runtimeRevision,
-      sessionToken: _getSessionToken(),
-      settings: _settings,
-    };
-  },
-});
-let _deferredFeaturesConfigured = false;
+let _featureRuntime = null;
 let _uiCoordinator = null;
 let _uiLifecycleController = null;
 let _systemRuntime = null;
@@ -153,27 +143,17 @@ function _initializeCommerceRuntime(CommerceRuntime, state) {
   GameTime.setAdvancedDayProcessor(CommerceRuntime.advanceDay);
 }
 
-function _loadCommerceRuntime() {
-  _configureDeferredFeatures();
-  return _deferredFeatures.load('commerceRuntime');
-}
-
-function _loadRouteGuidance() {
-  _configureDeferredFeatures();
-  return _deferredFeatures.load('routeGuidance');
-}
-
-function _syncDeferredFeatures() {
-  _configureDeferredFeatures();
-  _deferredFeatures.syncAll();
-  _getActionGuideCoordinator().prefetchForState(_state);
-}
-
-function _configureDeferredFeatures() {
-  if (_deferredFeaturesConfigured) return;
-  _deferredFeaturesConfigured = true;
-
-  _deferredFeatures.registerManifest(createGameFeatureManifest({
+function _getFeatureRuntime() {
+  if (_featureRuntime) return _featureRuntime;
+  _featureRuntime = createGameFeatureRuntime({
+    getContext: function () {
+      return {
+        state: _state,
+        revision: _runtimeRevision,
+        sessionToken: _getSessionToken(),
+        settings: _settings,
+      };
+    },
     reportFailure: _reportDeferredUiFailure,
     hooks: {
       initializeCommerceRuntime: _initializeCommerceRuntime,
@@ -188,35 +168,13 @@ function _configureDeferredFeatures() {
       syncTutorialView: function (module) { _getOnboardingUiController().syncTutorialView(module); },
       syncSettingsView: function (module) { _getSettingsUiController().sync(module); },
     },
-  }));
-}
-
-function _getDeferredFeature(feature) {
-  _configureDeferredFeatures();
-  return _deferredFeatures.get(feature);
-}
-
-function _loadDeferredFeatureOrReject(feature) {
-  _configureDeferredFeatures();
-  return _deferredFeatures.load(feature).then(function (module) {
-    if (module) return module;
-    throw _deferredFeatures.getError(feature) || new Error('Deferred feature unavailable: ' + feature);
   });
+  return _featureRuntime;
 }
 
-function _loadMarketUI() {
-  _configureDeferredFeatures();
-  return _deferredFeatures.load('market');
-}
-
-function _loadFleetUI() {
-  _configureDeferredFeatures();
-  return _deferredFeatures.load('fleet');
-}
-
-function _loadAchievementSystem() {
-  _configureDeferredFeatures();
-  return _deferredFeatures.load('achievement');
+function _syncDeferredFeatures() {
+  _getFeatureRuntime().syncAll();
+  _getActionGuideCoordinator().prefetchForState(_state);
 }
 
 function _getAchievementController() {
@@ -225,7 +183,7 @@ function _getAchievementController() {
     getState: function () { return _state; },
     getSessionToken: _getSessionToken,
     isSessionTokenCurrent: _isSessionTokenCurrent,
-    loadRuntime: _loadAchievementSystem,
+    loadRuntime: function () { return _getFeatureRuntime().load('achievement'); },
     emitMessage: function (message) { EventBus.emit('log:message', message); },
     invalidate: function () { _updateUI(DEFAULT_ACTION_DIRTY_REGIONS); },
     checkVictory: function () { _getVictoryController().check(); },
@@ -251,16 +209,6 @@ function _getPersistenceController() {
     invalidateSaveUi: function () { _updateUI([UI_REGION.SAVE, UI_REGION.GUIDE]); },
   });
   return _persistenceController;
-}
-
-function _loadArchiveUI() {
-  _configureDeferredFeatures();
-  return _deferredFeatures.load('archive');
-}
-
-function _loadGuidanceActionController() {
-  _configureDeferredFeatures();
-  return _deferredFeatures.load('guidanceAction');
 }
 
 function _getSystemRuntime() {
@@ -297,7 +245,8 @@ function _getGameClock() {
       return state && Number.isFinite(state.shipHull) ? state.shipHull : 100;
     },
     isPaused: function (state) {
-      if (shouldLoadAdvancedCommerce(state) && !_getDeferredFeature('commerceRuntime') && _deferredFeatures.getState('commerceRuntime') !== 'error') {
+      var features = _getFeatureRuntime();
+      if (shouldLoadAdvancedCommerce(state) && !features.get('commerceRuntime') && features.getState('commerceRuntime') !== 'error') {
         _getActionGuideCoordinator().prefetchForState(state);
         return true;
       }
@@ -409,11 +358,8 @@ function _getActionRuntime() {
         resetRealtime: function (timestamp) { _getGameClock().reset(timestamp); },
       },
       features: {
-        get: _getDeferredFeature,
-        load: function (feature) {
-          _configureDeferredFeatures();
-          return _deferredFeatures.load(feature);
-        },
+        get: function (feature) { return _getFeatureRuntime().get(feature); },
+        load: function (feature) { return _getFeatureRuntime().load(feature); },
       },
       teaching: {
         checkCompletion: function () { return _getTeachingGuidanceController().checkCompletion(); },
@@ -463,7 +409,7 @@ function _getActionRuntime() {
         isGameOver: function () { return isBlockingSurfaceVisible('gameover-modal'); },
         hasBlockingSurfaceOpen: function () {
           if (hasBlockingSurfaceOpen()) return true;
-          var FleetUI = _getDeferredFeature('fleet');
+          var FleetUI = _getFeatureRuntime().get('fleet');
           return !!(
             FleetUI &&
             typeof FleetUI.getActiveDispatchModalContext === 'function' &&
@@ -497,7 +443,7 @@ function _getDialogueController() {
     getState: function () { return _state; },
     getSessionToken: _getSessionToken,
     isSessionTokenCurrent: _isSessionTokenCurrent,
-    loadRuntime: function () { return _loadDeferredFeatureOrReject('dialogue'); },
+    loadRuntime: function () { return _getFeatureRuntime().loadOrReject('dialogue'); },
     hooks: {
       setTelemetryState: function (state) { _setDeferredUiState('dialogue', state); },
       reportFailure: function (error) { _reportDeferredUiFailure('dialogue', error); },
@@ -516,7 +462,7 @@ function _getRandomEventController() {
     getState: function () { return _state; },
     getSessionToken: _getSessionToken,
     isSessionTokenCurrent: _isSessionTokenCurrent,
-    loadRuntime: function () { return _loadDeferredFeatureOrReject('randomEvent'); },
+    loadRuntime: function () { return _getFeatureRuntime().loadOrReject('randomEvent'); },
     hooks: {
       setTelemetryState: function (state) { _setDeferredUiState('randomEvent', state); },
       reportFailure: function (error) { _reportDeferredUiFailure('randomEvent', error); },
@@ -534,9 +480,8 @@ function _getRandomEventController() {
 
 function _getOnboardingUiController() {
   if (_onboardingUiController) return _onboardingUiController;
-  _configureDeferredFeatures();
   _onboardingUiController = createOnboardingUiController({
-    features: _deferredFeatures,
+    features: _getFeatureRuntime(),
     Tutorial: Tutorial,
     getState: function () { return _state; },
     getSessionToken: _getSessionToken,
@@ -573,7 +518,7 @@ function _getTeachingGuidanceController() {
     getState: function () { return _state; },
     getSessionToken: _getSessionToken,
     isSessionTokenCurrent: _isSessionTokenCurrent,
-    loadRouteGuidance: _loadRouteGuidance,
+    loadRouteGuidance: function () { return _getFeatureRuntime().load('routeGuidance'); },
     systems: {
       Tutorial: Tutorial,
       Trade: Trade,
@@ -594,9 +539,8 @@ function _getTeachingGuidanceController() {
 
 function _getSettingsUiController() {
   if (_settingsUiController) return _settingsUiController;
-  _configureDeferredFeatures();
   _settingsUiController = createSettingsUiController({
-    features: _deferredFeatures,
+    features: _getFeatureRuntime(),
     getSettings: function () { return _settings; },
     getState: function () { return _state; },
     getSessionToken: _getSessionToken,
@@ -638,10 +582,7 @@ function _getVictoryController() {
       Trade: Trade,
     },
     getLevelTitle: function (experience) { return getLevel(experience).title; },
-    loadView: function () {
-      _configureDeferredFeatures();
-      return _deferredFeatures.load('victory');
-    },
+    loadView: function () { return _getFeatureRuntime().load('victory'); },
     emitMessage: function (message) { EventBus.emit('log:message', message); },
     refreshActionGuide: _refreshActionGuide,
     restartSession: _getPersistenceController().restart,
@@ -651,10 +592,9 @@ function _getVictoryController() {
 
 function _getActionGuideCoordinator() {
   if (_actionGuideCoordinator) return _actionGuideCoordinator;
-  _configureDeferredFeatures();
   _actionGuideCoordinator = createActionGuideCoordinator({
     getState: function () { return _state; },
-    features: _deferredFeatures,
+    features: _getFeatureRuntime(),
     ui: {
       ActionGuideUI: ActionGuideUI,
       MapUI: MapUI,
@@ -687,10 +627,10 @@ function _getCommandDestinationController() {
     getState: function () { return _state; },
     getSessionToken: _getSessionToken,
     isSessionTokenCurrent: _isSessionTokenCurrent,
-    getLoadedArchive: function () { return _getDeferredFeature('archive'); },
-    loadArchive: _loadArchiveUI,
-    loadFleet: _loadFleetUI,
-    loadMarket: _loadMarketUI,
+    getLoadedArchive: function () { return _getFeatureRuntime().get('archive'); },
+    loadArchive: function () { return _getFeatureRuntime().load('archive'); },
+    loadFleet: function () { return _getFeatureRuntime().load('fleet'); },
+    loadMarket: function () { return _getFeatureRuntime().load('market'); },
     getFleetActions: function () { return _getActionRuntime().fleet; },
     renderFleet: function (FleetUI) { return _getUiCoordinator().renderFleet(FleetUI); },
     systems: { Economy: Economy, Fleet: Fleet },
@@ -710,7 +650,7 @@ function _getGuidanceExecutionAdapter() {
     getState: function () { return _state; },
     getSessionToken: _getSessionToken,
     isSessionTokenCurrent: _isSessionTokenCurrent,
-    loadController: _loadGuidanceActionController,
+    loadController: function () { return _getFeatureRuntime().load('guidanceAction'); },
     ports: {
       ui: {
         showProcessing: function (suggestion, message) {
@@ -771,7 +711,7 @@ function _getMarketWorkspaceController() {
     getState: function () { return _state; },
     getSessionToken: _getSessionToken,
     isSessionTokenCurrent: _isSessionTokenCurrent,
-    loadMarket: _loadMarketUI,
+    loadMarket: function () { return _getFeatureRuntime().load('market'); },
     renderMarket: function (MarketUI, state) { return _getUiCoordinator().renderMarket(MarketUI, state); },
     MapUI: MapUI,
     Modal: Modal,
@@ -786,7 +726,6 @@ function _getMarketWorkspaceController() {
 
 function _getUiCoordinator() {
   if (_uiCoordinator) return _uiCoordinator;
-  _configureDeferredFeatures();
   var actionRuntime = _getActionRuntime();
   var fleetActions = actionRuntime.fleet;
   var archiveActions = actionRuntime.archive;
@@ -799,7 +738,7 @@ function _getUiCoordinator() {
   }
   _uiCoordinator = createGameUiCoordinator({
     getState: function () { return _state; },
-    features: _deferredFeatures,
+    features: _getFeatureRuntime(),
     ui: {
       HUD: HUD,
       ShipUI: ShipUI,
@@ -841,11 +780,10 @@ function _getUiCoordinator() {
 
 function _getUiLifecycleController() {
   if (_uiLifecycleController) return _uiLifecycleController;
-  _configureDeferredFeatures();
   _uiLifecycleController = createGameUiLifecycleController({
     getState: function () { return _state; },
     getRevision: function () { return _session.getRevision(); },
-    features: _deferredFeatures,
+    features: _getFeatureRuntime(),
     events: EventBus,
     ui: {
       HUD: HUD,
@@ -1067,7 +1005,7 @@ function _stopActiveDispatchClock() {
 // ---------------------------------------------------------------------------
 
 function _updateUI(regions) {
-  if (MapUI.isMarketOpen() && !_getDeferredFeature('market')) _ensureMarketUiRendered();
+  if (MapUI.isMarketOpen() && !_getFeatureRuntime().get('market')) _ensureMarketUiRendered();
   if (typeof regions === 'undefined') return _getUiCoordinator().renderAll();
   return _getUiCoordinator().invalidate(regions);
 }

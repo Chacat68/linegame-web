@@ -5,14 +5,16 @@ describe('deferred terminal UI loading', function () {
   it('市场、舰队和档案界面不再进入首屏静态依赖图', function () {
     var source = readFileSync('js/core/GameManager.js', 'utf8');
     var featureManifest = readFileSync('js/core/GameFeatureManifest.js', 'utf8');
+    var featureRuntime = readFileSync('js/core/GameFeatureRuntime.js', 'utf8');
     var featureRegistry = readFileSync('js/core/FeatureRegistry.js', 'utf8');
 
     expect(source).not.toMatch(/import\s+\*\s+as\s+MarketUI\s+from/);
     expect(source).not.toMatch(/import\s+\*\s+as\s+FleetUI\s+from/);
     expect(source).not.toMatch(/import\s+\*\s+as\s+(QuestUI|ArchiveExplorationUI|ResearchUI|FactionUI|AchievementUI)\s+from/);
     expect(source).not.toMatch(/import\s+\*\s+as\s+(SaveUI|VictoryResultUI)\s+from/);
-    expect(source).toContain("from './GameFeatureManifest.js'");
-    expect(source).toContain('_deferredFeatures.registerManifest(createGameFeatureManifest({');
+    expect(source).toContain("from './GameFeatureRuntime.js'");
+    expect(featureRuntime).toContain("from './GameFeatureManifest.js'");
+    expect(featureRuntime).toContain('registry.registerManifest(manifest)');
     expect(source).not.toContain("import('../ui/MarketUI.js')");
     expect(featureManifest).toContain("import('../ui/MarketUI.js')");
     expect(featureManifest).toContain("import('../ui/FleetUI.js')");
@@ -37,11 +39,11 @@ describe('deferred terminal UI loading', function () {
     expect(uiLifecycle).toContain('onOpenHangar: function ()');
     expect(uiLifecycle).toContain("if (tabId === 'tab-fleet') _call(ports, 'ensureFleet'");
     expect(uiLifecycle).toContain('ARCHIVE_TAB_IDS.indexOf(tabId)');
-    expect(gameManager).toContain("var FleetUI = _getDeferredFeature('fleet')");
-    expect(gameManager).toContain("getLoadedArchive: function () { return _getDeferredFeature('archive'); }");
+    expect(gameManager).toContain("var FleetUI = _getFeatureRuntime().get('fleet')");
+    expect(gameManager).toContain("getLoadedArchive: function () { return _getFeatureRuntime().get('archive'); }");
     expect(commandDestinations).toContain('var loaded = getLoadedArchive()');
     expect(commandDestinations).toContain('Promise.resolve().then(loadArchive)');
-    expect(gameManager).toContain("if (MapUI.isMarketOpen() && !_getDeferredFeature('market'))");
+    expect(gameManager).toContain("if (MapUI.isMarketOpen() && !_getFeatureRuntime().get('market'))");
     expect(gameManager).toContain('_ensureMarketUiRendered()');
     expect(gameManager).toContain('_getUiCoordinator().renderAll()');
     expect(gameManager).toContain("from './MarketWorkspaceController.js'");
@@ -139,8 +141,8 @@ describe('deferred terminal UI loading', function () {
     expect(gameManager).toContain("from './RandomEventRuntimeController.js'");
     expect(featureManifest).toContain("import('../systems/event/RandomEvent.js')");
     expect(randomEventRuntime).toContain("import('../systems/event/RandomEvent.js')");
-    expect(gameManager).toContain("loadRuntime: function () { return _loadDeferredFeatureOrReject('dialogue'); }");
-    expect(gameManager).toContain("loadRuntime: function () { return _loadDeferredFeatureOrReject('randomEvent'); }");
+    expect(gameManager).toContain("loadRuntime: function () { return _getFeatureRuntime().loadOrReject('dialogue'); }");
+    expect(gameManager).toContain("loadRuntime: function () { return _getFeatureRuntime().loadOrReject('randomEvent'); }");
     expect(gameManager).toContain("_setDeferredUiState('dialogue', state)");
     expect(dialogueRuntime).toContain("setTelemetryState('loading')");
     expect(gameManager).toContain("_setDeferredUiState('randomEvent', state)");
@@ -285,14 +287,18 @@ describe('deferred terminal UI loading', function () {
   it('所有通用延迟功能由 manifest 持有，不再复制 module/promise/error 三元状态', function () {
     var gameManager = readFileSync('js/core/GameManager.js', 'utf8');
     var featureManifest = readFileSync('js/core/GameFeatureManifest.js', 'utf8');
+    var featureRuntime = readFileSync('js/core/GameFeatureRuntime.js', 'utf8');
     var manifestFeatures = [
       'market', 'fleet', 'archive', 'save', 'victory', 'onboarding', 'tutorial',
       'settings', 'guidanceAction', 'commerceRuntime', 'advancedGuidance',
       'routeGuidance', 'achievement', 'dialogue', 'randomEvent',
     ];
 
-    expect(gameManager).toContain('createFeatureRegistry({');
-    expect(gameManager).toContain('_deferredFeatures.registerManifest(createGameFeatureManifest({');
+    expect(gameManager).toContain('createGameFeatureRuntime({');
+    expect(featureRuntime).toContain("import { createFeatureRegistry } from './FeatureRegistry.js'");
+    expect(featureRuntime).toContain('var registry = createRegistry({');
+    expect(featureRuntime).toContain('createGameFeatureManifest({');
+    expect(featureRuntime).toContain('registry.registerManifest(manifest)');
     manifestFeatures.forEach(function (feature) {
       expect(featureManifest).toMatch(new RegExp('\\b' + feature + ':\\s*\\{'));
     });
