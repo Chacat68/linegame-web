@@ -75,9 +75,9 @@ function createFakeElement(initialClasses) {
 
 describe('MarketUI guided focus', function () {
   it('交易页只保留快速交易和商品列表，详细行情移到可选工具', function () {
-    var source = readFileSync(new URL('../js/ui/MarketUI.js', import.meta.url), 'utf8');
-    var start = source.indexOf('function _renderSpotTradeSection()');
-    var end = source.indexOf('function _getFocusedMarketSnapshot', start);
+    var source = readFileSync(new URL('../js/ui/MarketSpotPresenter.js', import.meta.url), 'utf8');
+    var start = source.indexOf('export function renderSpotTradeSection()');
+    var end = source.indexOf('export function renderQuickTradeDock', start);
     var sectionSource = source.slice(start, end);
 
     expect(sectionSource.indexOf('market-quick-trade-dock')).toBeGreaterThan(-1);
@@ -86,8 +86,8 @@ describe('MarketUI guided focus', function () {
     expect(sectionSource).not.toContain('market-kline-panel');
     expect(sectionSource).not.toContain('market-analysis-panel');
     expect(sectionSource).not.toContain('market-spot-command-deck');
-    var toolsStart = source.indexOf('function _renderMarketIntelTools()');
-    var toolsEnd = source.indexOf('function _renderSpotTradeSection()', toolsStart);
+    var toolsStart = source.indexOf('export function renderMarketIntelTools');
+    var toolsEnd = source.indexOf('export function renderSpotTradeSection()', toolsStart);
     var toolsSource = source.slice(toolsStart, toolsEnd);
     expect(toolsSource).toContain('详细价格数据');
     expect(toolsSource).toContain('market-kline-panel');
@@ -118,6 +118,7 @@ describe('MarketUI guided focus', function () {
     const marketCss = readFileSync('css/market-terminal.css', 'utf8');
     const css = sharedCss + '\n' + marketCss;
     const js = readFileSync('js/ui/MarketUI.js', 'utf8');
+    const spotJs = readFileSync('js/ui/MarketSpotPresenter.js', 'utf8');
     const mapJs = readFileSync('js/ui/MapUI.js', 'utf8');
 
     expect(html).toContain('id="market-workspace-tabs"');
@@ -133,9 +134,9 @@ describe('MarketUI guided focus', function () {
     expect(mapJs).toContain("btn.setAttribute('aria-pressed'");
     expect(js).toContain('role="tab" aria-controls="');
     expect(js).toContain("setAttribute('role', 'listitem')");
-    expect(js).toContain('aria-label="买卖货物"');
-    expect(js).toContain('role="radiogroup" aria-labelledby="market-price-view-label"');
-    expect(js).toContain('data-market-overview-price-mode="sell"');
+    expect(spotJs).toContain('aria-label="买卖货物"');
+    expect(spotJs).toContain('role="radiogroup" aria-labelledby="market-price-view-label"');
+    expect(spotJs).toContain('data-market-overview-price-mode="sell"');
     expect(js).toContain('class="mkt-ov-planet-action" type="button"');
     expect(js).not.toContain('id="market-trade-show-sell"');
     expect(css).toContain('.market-cmd-bar');
@@ -389,25 +390,26 @@ describe('MarketUI guided focus', function () {
     const marketCss = readFileSync('css/market-terminal.css', 'utf8');
     const css = sharedCss + '\n' + marketCss;
     const js = readFileSync('js/ui/MarketUI.js', 'utf8');
+    const spotJs = readFileSync('js/ui/MarketSpotPresenter.js', 'utf8');
 
-    expect(js).toContain('role="list" aria-label="地点行情和开放条件"');
-    expect(js).toContain('role="list" aria-label="值得关注的货物"');
-    expect(js).toContain('class="market-intel-decision-grid" role="group" aria-label="地点和关注商品"');
-    expect(js).toContain('class="market-intel-secondary-details"');
-    expect(js).toContain('地点条件与完整关注清单');
-    expect(js).toContain('class="market-finance-action-meta market-watch-metrics"');
-    expect(js).not.toContain('role="list" aria-label="探索报告带来的机会"');
-    expect(js).not.toContain("'market-survey-chain-row'");
-    expect(js).toContain('role="listitem" tabindex="0" aria-labelledby="');
-    expect(js).toContain('role="group" aria-label="市场模式切换"');
-    expect(js).toContain('aria-pressed="');
-    expect(js).toContain('class="market-spot-signal-panel market-intel-signal-panel" aria-label="行情概览"');
-    expect(js).toContain('class="market-spot-signal-grid" role="list" aria-label="行情信息"');
-    expect(js).toContain('class="market-spot-signal-panel market-black-risk-panel" aria-label="黑市风险局部状态"');
-    expect(js).toContain('class="market-spot-signal-grid" role="list" aria-label="黑市风险指标"');
-    expect(js).toContain('class="market-spot-focus" aria-label="现货市场信号"');
-    expect(js).toContain('market-black-goods-grid" role="list" aria-label="灰市货目录"');
-    expect(js).toContain('market-black-good-card" role="listitem"');
+    expect(spotJs).toContain('role="list" aria-label="地点行情和开放条件"');
+    expect(spotJs).toContain('role="list" aria-label="值得关注的货物"');
+    expect(spotJs).toContain('class="market-intel-decision-grid" role="group" aria-label="地点和关注商品"');
+    expect(spotJs).toContain('class="market-intel-secondary-details"');
+    expect(spotJs).toContain('地点条件与完整关注清单');
+    expect(spotJs).toContain('class="market-finance-action-meta market-watch-metrics"');
+    expect(spotJs).not.toContain('role="list" aria-label="探索报告带来的机会"');
+    expect(spotJs).not.toContain("'market-survey-chain-row'");
+    expect(spotJs).toContain('role="listitem" tabindex="0" aria-labelledby="');
+    expect(spotJs).toContain('role="group" aria-label="市场模式切换"');
+    expect(spotJs).toContain('aria-pressed="');
+    expect(spotJs).toContain('class="market-spot-signal-panel market-intel-signal-panel" aria-label="行情概览"');
+    expect(spotJs).toContain('class="market-spot-signal-grid" role="list" aria-label="行情信息"');
+    expect(spotJs).toContain('class="market-spot-signal-panel market-black-risk-panel" aria-label="黑市风险局部状态"');
+    expect(spotJs).toContain('class="market-spot-signal-grid" role="list" aria-label="黑市风险指标"');
+    expect(spotJs).toContain('class="market-spot-focus" aria-label="现货市场信号"');
+    expect(spotJs).toContain('market-black-goods-grid" role="list" aria-label="灰市货目录"');
+    expect(spotJs).toContain('market-black-good-card" role="listitem"');
     expect(css).toContain('.market-spot-signal-panel');
     expect(css).toContain('.market-spot-signal-grid');
     expect(css).toContain('.market-spot-focus[data-tone="risk"]');

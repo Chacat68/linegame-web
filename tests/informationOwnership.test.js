@@ -38,7 +38,7 @@ describe('UI information ownership', function () {
       'ResearchUI.js': '研究状态',
       'SaveUI.js': '存档状态',
       'FleetUI.js': '处理状态',
-      'MarketUI.js': '行情信号',
+      'MarketSpotPresenter.js': '行情信号',
     };
 
     Object.entries(expectedTerms).forEach(function (entry) {
