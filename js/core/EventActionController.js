@@ -1,5 +1,7 @@
 // js/core/EventActionController.js — 随机事件选择、舰船同步与存档编排
 
+import { DEFAULT_ACTION_DIRTY_REGIONS } from './ActionPresentation.js';
+
 function _noop() {}
 
 function _requiredFunction(value, label) {
@@ -47,6 +49,7 @@ export function createEventActionController(dependencies) {
     var previousShipState = _derivedShipSnapshot(state);
     return execute({
       label: 'event.resolve',
+      dirtyRegions: DEFAULT_ACTION_DIRTY_REGIONS,
       mutate: function () {
         var result = runtime.resolveChoice(state, choiceIndex) || { msgs: [], resolved: false };
         // RandomEvent 的领域结果使用 resolved；在动作边界映射到统一 ok 契约。

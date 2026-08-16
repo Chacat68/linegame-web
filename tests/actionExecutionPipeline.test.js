@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { createActionExecutionPipeline } from '../js/core/ActionExecutionPipeline.js';
 
-function createPipeline(trace) {
+function createPipeline(trace, renderedSpecs) {
   return createActionExecutionPipeline({
     emitMessage: function () { trace.push('message'); },
     emitErrorCue: function () { trace.push('error-cue'); },
     finalizeState: function () { trace.push('finalize-state'); },
     queueAchievementCheck: function () { trace.push('achievement'); },
-    render: function () { trace.push('render'); },
+    render: function (result, specification) {
+      trace.push('render');
+      if (renderedSpecs) renderedSpecs.push({ result: result, specification: specification });
+    },
     checkVictory: function () { trace.push('victory'); },
   });
 }
@@ -56,6 +59,23 @@ describe('ActionExecutionPipeline', function () {
 
     expect(trace.indexOf('finalize-state')).toBeGreaterThan(trace.indexOf('post-effects'));
     expect(trace.indexOf('finalize-state')).toBeLessThan(trace.indexOf('render'));
+  });
+
+  it('把动作声明的 dirtyRegions 原样交给最终渲染提交边界', function () {
+    var trace = [];
+    var rendered = [];
+    var pipeline = createPipeline(trace, rendered);
+    var dirtyRegions = ['hud', 'active-workspace', 'guide'];
+
+    pipeline.execute({
+      label: 'fleet.buy',
+      dirtyRegions: dirtyRegions,
+      mutate: function () { return { ok: true }; },
+    });
+
+    expect(rendered).toHaveLength(1);
+    expect(rendered[0].specification.dirtyRegions).toBe(dirtyRegions);
+    expect(rendered[0].result).toEqual({ ok: true });
   });
 
   it('post-effects 抛错时不提交 UI、成就或胜利', function () {

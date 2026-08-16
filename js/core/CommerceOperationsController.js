@@ -3,6 +3,8 @@
 // 高级经营模块仍可延迟加载；controller 对 UI 暴露稳定同步动作契约，
 // runtime 未就绪时返回统一可展示结果，避免 GameManager 重复加载判断。
 
+import { DEFAULT_ACTION_PRESENTATION } from './ActionPresentation.js';
+
 function _noop() {}
 
 function _requiredFunction(value, label) {
@@ -46,7 +48,7 @@ export function createCommerceOperationsController(dependencies) {
   }
 
   function _commit(result) {
-    dispatch(result);
+    dispatch(result, DEFAULT_ACTION_PRESENTATION);
     return result;
   }
 

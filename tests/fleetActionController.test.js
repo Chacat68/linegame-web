@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createFleetActionController } from '../js/core/FleetActionController.js';
+import { DEFAULT_ACTION_DIRTY_REGIONS } from '../js/core/ActionPresentation.js';
 
 function createHarness(options) {
   var config = options || {};
   var trace = [];
+  var presentations = [];
   var state = Object.assign({
     activeShipIndex: 0,
     currentSystem: 'sol_prime',
@@ -40,7 +42,10 @@ function createHarness(options) {
         getActiveChain: function () { return config.activeTeachingChain || null; },
       },
     },
-    dispatch: function () { trace.push('dispatch'); },
+    dispatch: function (dispatchedResult, presentation) {
+      trace.push('dispatch');
+      presentations.push({ result: dispatchedResult, presentation: presentation });
+    },
     recordQuestProgress: function (payload) { trace.push('quest:' + payload.action); },
     completeTeachingStep: function (chainId, stepId) { trace.push('teach:' + chainId + ':' + stepId); },
     startDispatchClock: function () { trace.push('start-clock'); },
@@ -53,7 +58,14 @@ function createHarness(options) {
     getDispatchContext: function () { return { shipIndex: 0 }; },
     now: function () { return 123; },
   });
-  return { controller: controller, trace: trace, state: state, Fleet: Fleet, Crew: Crew };
+  return {
+    controller: controller,
+    trace: trace,
+    presentations: presentations,
+    state: state,
+    Fleet: Fleet,
+    Crew: Crew,
+  };
 }
 
 describe('FleetActionController', function () {
@@ -76,6 +88,7 @@ describe('FleetActionController', function () {
       'start-clock',
       'completion:已确认自动跑商路线',
     ]);
+    expect(harness.presentations[0].presentation.dirtyRegions).toEqual(DEFAULT_ACTION_DIRTY_REGIONS);
   });
 
   it('科研补给只在推荐路线完全匹配时推进教学步骤', function () {

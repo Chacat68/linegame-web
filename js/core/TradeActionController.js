@@ -1,6 +1,7 @@
 // js/core/TradeActionController.js — 公开市场、黑市与燃料补给动作编排
 
 import { getRefuelCompletion } from './ActionGuideCompletion.js';
+import { DEFAULT_ACTION_DIRTY_REGIONS } from './ActionPresentation.js';
 
 function _noop() {}
 
@@ -61,6 +62,7 @@ export function createTradeActionController(dependencies) {
 
     return execute({
       label: 'trade.' + action,
+      dirtyRegions: DEFAULT_ACTION_DIRTY_REGIONS,
       mutate: function () {
         return action === 'buy'
           ? Trade.buyGoodOnMarket(state, goodId, quantity, effectiveMarket)
@@ -132,6 +134,7 @@ export function createTradeActionController(dependencies) {
     Fleet.syncStateFromShip(state);
     var result = execute({
       label: 'trade.refuel',
+      dirtyRegions: DEFAULT_ACTION_DIRTY_REGIONS,
       mutate: function () { return Trade.refuel(state); },
       postEffects: function () { Fleet.commitActiveShipState(state); },
     });

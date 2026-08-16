@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createGameUiCoordinator } from '../js/ui/GameUiCoordinator.js';
+import { DEFAULT_ACTION_DIRTY_REGIONS, UI_REGION } from '../js/core/ActionPresentation.js';
 
 function createFeatureHarness(initialModules) {
   var modules = Object.assign({}, initialModules || {});
@@ -197,10 +198,105 @@ describe('GameUiCoordinator', function () {
     ]);
   });
 
+  it('动作失效只重绘当前工作区和声明的全局投影', async function () {
+    var calls = [];
+    var state = { id: 'fleet-active' };
+    var features = createFeatureHarness({
+      market: { render: function () { calls.push('market'); } },
+      fleet: { render: function () { calls.push('fleet'); } },
+      archive: { ResearchUI: { render: function () { calls.push('archive'); } } },
+      save: { render: function () { calls.push('save'); } },
+    });
+    var coordinator = createGameUiCoordinator({
+      getState: function () { return state; },
+      features: features,
+      ui: {
+        UIManager: {
+          getNavigationSnapshot: function () { return { activeWorkspace: 'fleet' }; },
+        },
+        HUD: {
+          updateStats: function () { calls.push('hud.stats'); },
+          updateCompanyName: function () { calls.push('hud.company'); },
+          updateArchiveBadges: function () { calls.push('hud.badges'); },
+        },
+        ShipUI: { renderShipStats: function () { calls.push('ship'); } },
+        MapUI: { refreshPlanetDetail: function () { calls.push('context'); } },
+        Renderer3D: { invalidateScene: function () { calls.push('scene'); } },
+      },
+      systems: {
+        Trade: { getNetWorth: function () { return 900; } },
+        Dispatch: { updateActiveDispatchUI: function () { calls.push('dispatch'); } },
+      },
+      actions: {
+        global: { refreshActionGuide: function () { calls.push('guide'); } },
+      },
+    });
+
+    await coordinator.invalidate(DEFAULT_ACTION_DIRTY_REGIONS);
+
+    expect(calls).toEqual([
+      'hud.stats', 'hud.company', 'hud.badges', 'ship', 'fleet',
+      'scene', 'context', 'dispatch', 'guide',
+    ]);
+    expect(calls).not.toContain('market');
+    expect(calls).not.toContain('archive');
+    expect(calls).not.toContain('save');
+    expect(features.loadCalls).toEqual([]);
+    expect(coordinator.getDiagnostics()).toEqual({
+      renderAllCount: 0,
+      invalidationCount: 1,
+      lastInvalidationRegions: DEFAULT_ACTION_DIRTY_REGIONS,
+    });
+  });
+
+  it('连续失效会重新读取最新 session state 与 active workspace', async function () {
+    var state = { id: 'A' };
+    var activeWorkspace = 'fleet';
+    var seen = [];
+    var coordinator = createGameUiCoordinator({
+      getState: function () { return state; },
+      features: createFeatureHarness({
+        fleet: { render: function (currentState) { seen.push('fleet:' + currentState.id); } },
+        archive: {
+          ResearchUI: { render: function (currentState) { seen.push('archive:' + currentState.id); } },
+        },
+      }),
+      ui: {
+        UIManager: {
+          getNavigationSnapshot: function () { return { activeWorkspace: activeWorkspace }; },
+        },
+      },
+    });
+
+    await coordinator.invalidate(UI_REGION.ACTIVE_WORKSPACE);
+    state = { id: 'B' };
+    activeWorkspace = 'archive';
+    await coordinator.invalidate(UI_REGION.ACTIVE_WORKSPACE);
+
+    expect(seen).toEqual(['fleet:A', 'archive:B']);
+  });
+
+  it('显式终端失效会去重且不会刷新未声明区域', async function () {
+    var calls = [];
+    var coordinator = createGameUiCoordinator({
+      getState: function () { return { id: 'targeted' }; },
+      features: createFeatureHarness({
+        archive: { ResearchUI: { render: function () { calls.push('archive'); } } },
+        fleet: { render: function () { calls.push('fleet'); } },
+        save: { render: function () { calls.push('save'); } },
+      }),
+    });
+
+    await coordinator.invalidate([UI_REGION.ARCHIVE, UI_REGION.ARCHIVE, UI_REGION.SAVE]);
+
+    expect(calls).toEqual(['archive', 'save']);
+  });
+
   it('空依赖与空状态不会抛出异常', async function () {
     var coordinator = createGameUiCoordinator({});
 
     await expect(coordinator.renderAll()).resolves.toBe(null);
+    await expect(coordinator.invalidate(DEFAULT_ACTION_DIRTY_REGIONS)).resolves.toBe(null);
     await expect(coordinator.ensureMarket()).resolves.toBe(null);
     expect(coordinator.renderFleet()).toBe(false);
     expect(coordinator.renderArchive()).toBe(false);

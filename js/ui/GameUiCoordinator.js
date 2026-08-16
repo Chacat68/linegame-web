@@ -3,6 +3,8 @@
 // 该模块不持有游戏状态快照，也不直接 import 任何延迟功能。
 // GameManager 通过命名依赖注入状态 provider、feature loader、UI 模块和动作回调。
 
+import { UI_REGION, normalizeDirtyRegions } from '../core/ActionPresentation.js';
+
 const FEATURE_NAMES = ['market', 'fleet', 'archive', 'save'];
 
 function _dependency(container, primaryName, fallbackName) {
@@ -51,10 +53,14 @@ export function createGameUiCoordinator(options) {
   var ui = config.ui || {};
   var systems = config.systems || {};
   var actions = config.actions || {};
+  var renderAllCount = 0;
+  var invalidationCount = 0;
+  var lastInvalidationRegions = Object.freeze([]);
 
   var HUD = _dependency(ui, 'HUD', 'hud');
   var ShipUI = _dependency(ui, 'ShipUI', 'ship');
   var MapUI = _dependency(ui, 'MapUI', 'map');
+  var UIManager = _dependency(ui, 'UIManager', 'uiManager');
   var Renderer = _dependency(ui, 'Renderer3D', 'renderer');
   var ContextAdapters = _dependency(ui, 'ContextAdapters', 'contextAdapters');
   var Trade = _dependency(systems, 'Trade', 'trade');
@@ -251,6 +257,7 @@ export function createGameUiCoordinator(options) {
   function renderAll() {
     var state = getState();
     if (!state) return Promise.resolve(null);
+    renderAllCount += 1;
 
     var netWorth = _call(Trade, 'getNetWorth', [state]);
     if (!Number.isFinite(netWorth)) netWorth = 0;
@@ -280,12 +287,82 @@ export function createGameUiCoordinator(options) {
     return Promise.resolve(state);
   }
 
+  function _activeWorkspace() {
+    var snapshot = _call(UIManager, 'getNavigationSnapshot', []);
+    if (snapshot && typeof snapshot.activeWorkspace === 'string') return snapshot.activeWorkspace;
+    if (_call(MapUI, 'isMarketOpen', [])) return 'trade';
+    return 'map';
+  }
+
+  function invalidate(regions) {
+    var state = getState();
+    if (!state) return Promise.resolve(null);
+    var dirtyRegions = normalizeDirtyRegions(regions, UI_REGION.ALL);
+    invalidationCount += 1;
+    lastInvalidationRegions = dirtyRegions;
+    if (dirtyRegions.indexOf(UI_REGION.ALL) !== -1) return renderAll();
+
+    var dirty = new Set(dirtyRegions);
+    var renderedFeatures = new Set();
+
+    function renderFeature(featureName) {
+      if (renderedFeatures.has(featureName)) return false;
+      renderedFeatures.add(featureName);
+      var module = _getLoadedFeature(featureName);
+      if (!module) return false;
+      if (featureName === 'market') return renderMarket(module, state);
+      if (featureName === 'fleet') return renderFleet(module, state);
+      if (featureName === 'archive') return renderArchive(module, state);
+      if (featureName === 'save') return renderSave(module, state);
+      return false;
+    }
+
+    if (dirty.has(UI_REGION.HUD)) {
+      var netWorth = _call(Trade, 'getNetWorth', [state]);
+      if (!Number.isFinite(netWorth)) netWorth = 0;
+      _call(HUD, 'updateStats', [state, netWorth]);
+      _call(HUD, 'updateCompanyName', [state]);
+      _call(HUD, 'updateArchiveBadges', [state]);
+    }
+    if (dirty.has(UI_REGION.SHIP)) _call(ShipUI, 'renderShipStats', [state]);
+
+    if (dirty.has(UI_REGION.ACTIVE_WORKSPACE)) {
+      var activeWorkspace = _activeWorkspace();
+      if (activeWorkspace === 'trade') renderFeature('market');
+      else if (activeWorkspace === 'fleet') renderFeature('fleet');
+      else if (activeWorkspace === 'archive') renderFeature('archive');
+    }
+    if (dirty.has(UI_REGION.MARKET)) renderFeature('market');
+    if (dirty.has(UI_REGION.FLEET)) renderFeature('fleet');
+    if (dirty.has(UI_REGION.ARCHIVE)) renderFeature('archive');
+    if (dirty.has(UI_REGION.SAVE)) renderFeature('save');
+
+    if (dirty.has(UI_REGION.SCENE)) _call(Renderer, 'invalidateScene', []);
+    if (dirty.has(UI_REGION.CONTEXT)) _call(MapUI, 'refreshPlanetDetail', [state]);
+    if (dirty.has(UI_REGION.DISPATCH)) _call(Dispatch, 'updateActiveDispatchUI', []);
+    if (dirty.has(UI_REGION.GUIDE)) {
+      _callAction(actions, 'global', 'refreshActionGuide', [state]);
+    }
+
+    return Promise.resolve(state);
+  }
+
+  function getDiagnostics() {
+    return Object.freeze({
+      renderAllCount: renderAllCount,
+      invalidationCount: invalidationCount,
+      lastInvalidationRegions: lastInvalidationRegions,
+    });
+  }
+
   return {
     ensureArchive: ensureArchive,
     ensureFleet: ensureFleet,
     ensureMarket: ensureMarket,
     ensureSave: ensureSave,
+    getDiagnostics: getDiagnostics,
     getLoaded: getLoaded,
+    invalidate: invalidate,
     renderAll: renderAll,
     renderArchive: renderArchive,
     renderFleet: renderFleet,

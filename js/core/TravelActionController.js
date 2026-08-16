@@ -1,5 +1,7 @@
 // js/core/TravelActionController.js — 航行、走私检查、任务与存档编排
 
+import { DEFAULT_ACTION_DIRTY_REGIONS } from './ActionPresentation.js';
+
 function _noop() {}
 
 function _requiredFunction(value, label) {
@@ -62,6 +64,7 @@ export function createTravelActionController(dependencies) {
     var previousSystem = state.currentSystem;
     return execute({
       label: 'travel',
+      dirtyRegions: DEFAULT_ACTION_DIRTY_REGIONS,
       mutate: function () { return Trade.travelTo(state, systemId); },
       postEffects: function (result) {
         emitAudio('travel');

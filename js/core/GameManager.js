@@ -2,8 +2,8 @@
 // 依赖：所有 systems/、ui/ 模块
 // 导出：init
 //
-// 职责：持有唯一 _state，编排各子系统，处理所有玩家动作，
-//       每次状态变更后调用 _updateUI 同步视图。
+// 职责：迁移期组合根与兼容门面。StateSession、各 ActionController、
+//       Runtime 与 UI Coordinator 分别持有会话、动作和视图职责。
 
 import * as EventBus   from './EventBus.js';
 import * as Economy    from '../systems/economy/Economy.js';
@@ -56,6 +56,7 @@ import { createFleetActionController } from './FleetActionController.js';
 import { createCommerceOperationsController } from './CommerceOperationsController.js';
 import { createArchiveActionController } from './ArchiveActionController.js';
 import { createActionExecutionPipeline } from './ActionExecutionPipeline.js';
+import { DEFAULT_ACTION_DIRTY_REGIONS, UI_REGION, normalizeDirtyRegions } from './ActionPresentation.js';
 import { createTradeActionController } from './TradeActionController.js';
 import { createTravelActionController } from './TravelActionController.js';
 import { createExplorationOperationsController } from './ExplorationOperationsController.js';
@@ -731,7 +732,7 @@ function _getArchiveActions() {
     getState: function () { return _state; },
     systems: { Research: Research, Quest: Quest, Tutorial: Tutorial },
     dispatch: _dispatch,
-    updateUI: _updateUI,
+    updateUI: function () { _updateUI(DEFAULT_ACTION_DIRTY_REGIONS); },
     emitLog: function (message) { EventBus.emit('log:message', message); },
     activateArchiveTab: function (tabId) { MapUI.activateTab(tabId); },
     openMarketPanel: function (state, options) { MapUI.openMarketPanel(state, options); },
@@ -755,7 +756,11 @@ function _getActionPipeline() {
     emitErrorCue: function () { EventBus.emit('audio:cue', { cue: 'error' }); },
     finalizeState: _checkMidgameTeachingCompletion,
     queueAchievementCheck: _queueAchievementCheck,
-    render: _updateUI,
+    render: function (result, specification) {
+      var dirtyRegions = specification && specification.dirtyRegions;
+      if (dirtyRegions) _updateUI(dirtyRegions);
+      else _updateUI();
+    },
     checkVictory: _checkVictory,
   });
   return _actionPipeline;
@@ -975,6 +980,8 @@ function _getActionGuideCoordinator() {
 function _getUiCoordinator() {
   if (_uiCoordinator) return _uiCoordinator;
   _configureDeferredFeatures();
+  var fleetActions = _getFleetActions();
+  var archiveActions = _getArchiveActions();
   if (!_contextAdapters) {
     _contextAdapters = createWorkspaceContextAdapters({
       inspector: ContextInspector,
@@ -988,6 +995,7 @@ function _getUiCoordinator() {
       HUD: HUD,
       ShipUI: ShipUI,
       MapUI: MapUI,
+      UIManager: UIManager,
       Renderer3D: Renderer3D,
       ContextAdapters: _contextAdapters,
     },
@@ -1006,37 +1014,10 @@ function _getUiCoordinator() {
         getFinanceActions: _getMarketFinanceActions,
         onAfterRender: _bindMarketModeButtons,
       },
-      fleet: {
-        onBuyShip: function () { return _getFleetActions().onBuyShip.apply(null, arguments); },
-        onSwitchShip: function () { return _getFleetActions().onSwitchShip.apply(null, arguments); },
-        onUpgradeShip: function () { return _getFleetActions().onUpgradeShip.apply(null, arguments); },
-        onAssignRoute: _handleAssignRoute,
-        onCancelRoute: _handleCancelRoute,
-        onBuySlot: function () { return _getFleetActions().onBuySlot.apply(null, arguments); },
-        onSellShip: function () { return _getFleetActions().onSellShip.apply(null, arguments); },
-        onInstallMod: _handleInstallMod,
-        onUninstallMod: _handleUninstallMod,
-        onServiceShip: _handleServiceShip,
-        onRecruitCrew: function () { return _getFleetActions().onRecruitCrew.apply(null, arguments); },
-        onAssignCrew: function () { return _getFleetActions().onAssignCrew.apply(null, arguments); },
-        onUnassignCrew: function () { return _getFleetActions().onUnassignCrew.apply(null, arguments); },
-        onDismissCrew: function () { return _getFleetActions().onDismissCrew.apply(null, arguments); },
-      },
-      archive: {
+      fleet: fleetActions,
+      archive: Object.assign({
         getDispatchContext: function (state) { return _getActionGuideCoordinator().getDispatchContext(state); },
-        onStartResearch: _handleStartResearch,
-        onCancelQueuedResearch: _handleCancelQueuedResearch,
-        onMoveQueuedResearchUp: _handleMoveQueuedResearchUp,
-        onMoveQueuedResearchDown: _handleMoveQueuedResearchDown,
-        onClearResearchQueue: _handleClearResearchQueue,
-        onApplyResearchDispatch: _handleApplyResearchDispatch,
-        onResolveResearchBlocker: _handleResolveResearchBlocker,
-        onOpenFactionMarket: _handleOpenFactionMarket,
-        onAcceptQuest: _handleAcceptQuest,
-        onAbandonQuest: _handleAbandonQuest,
-        onApplyQuestDispatch: _handleApplyQuestDispatch,
-        onResolveQuestBlocker: _handleResolveQuestBlocker,
-      },
+      }, archiveActions),
       save: {
         onSaveGame: _handleSaveGame,
         onLoadGame: _handleLoadGame,
@@ -1148,7 +1129,7 @@ export function init(difficulty, options) {
     revisionSource: function () { return _session.getRevision(); },
   });
   HUD.setQuestActions({
-    onAcceptQuest: _handleAcceptQuest,
+    onAcceptQuest: _getArchiveActions().onAcceptQuest,
   });
 
   // 注入回调给各 UI 模块
@@ -1280,7 +1261,7 @@ export function _handleTradeConfirmForTest(action, goodId, quantity, marketType)
 }
 
 export function _handleAssignRouteForTest(shipIndex, buySystemId, sellSystemId, goodId, tradePolicy) {
-  return _handleAssignRoute(shipIndex, buySystemId, sellSystemId, goodId, tradePolicy);
+  return _getFleetActions().onAssignRoute(shipIndex, buySystemId, sellSystemId, goodId, tradePolicy);
 }
 
 export function _stopActiveDispatchForTest() {
@@ -1289,6 +1270,10 @@ export function _stopActiveDispatchForTest() {
 
 export function _getGameClockSnapshotForTest() {
   return _gameClock ? _gameClock.getSnapshot() : null;
+}
+
+export function _getUiDiagnosticsForTest() {
+  return _getUiCoordinator().getDiagnostics();
 }
 
 function _showWelcomeMessages() {
@@ -1421,7 +1406,7 @@ function _showCompanyRenameModal() {
 // 动作处理（所有状态变更入口）
 // ---------------------------------------------------------------------------
 
-function _dispatch(result) {
+function _dispatch(result, presentation) {
   // result = { ok, msgs, meta? }（TradeSystem 各函数的返回值）
   if (result && result.ok) _checkMidgameTeachingCompletion();
   if (result && result.msgs) {
@@ -1433,7 +1418,9 @@ function _dispatch(result) {
     EventBus.emit('audio:cue', { cue: 'error' });
   }
   _queueAchievementCheck();
-  _updateUI();
+  var dirtyRegions = normalizeDirtyRegions(presentation);
+  if (dirtyRegions.length > 0) _updateUI(dirtyRegions);
+  else _updateUI();
   if (result && result.ok) _checkVictory();
 }
 
@@ -1555,7 +1542,7 @@ function _handleActionGuideAction(suggestion) {
     GuidanceAction.handleGuidanceAction(suggestion, {
       getState: function () { return _state; },
       prepareDirectExecution: _prepareDirectGuidanceExecution,
-      acceptQuest: _handleAcceptQuest,
+      acceptQuest: _getArchiveActions().onAcceptQuest,
       selectAvailableQuest: _selectAvailableQuest,
       activateTab: MapUI.activateTab,
       updateUI: _updateUI,
@@ -1707,46 +1694,6 @@ function _bindMarketModeButtons() {
   });
 }
 
-function _handleStartResearch(techId) {
-  return _getArchiveActions().onStartResearch(techId);
-}
-
-function _handleCancelQueuedResearch(techId) {
-  return _getArchiveActions().onCancelQueuedResearch(techId);
-}
-
-function _handleMoveQueuedResearchUp(techId) {
-  return _getArchiveActions().onMoveQueuedResearchUp(techId);
-}
-
-function _handleMoveQueuedResearchDown(techId) {
-  return _getArchiveActions().onMoveQueuedResearchDown(techId);
-}
-
-function _handleClearResearchQueue() {
-  return _getArchiveActions().onClearResearchQueue();
-}
-
-function _handleApplyResearchDispatch(recommendation) {
-  return _getArchiveActions().onApplyResearchDispatch(recommendation);
-}
-
-function _handleOpenFactionMarket(action) {
-  return _getArchiveActions().onOpenFactionMarket(action);
-}
-
-function _handleResolveResearchBlocker(action) {
-  return _getArchiveActions().onResolveResearchBlocker(action);
-}
-
-function _handleApplyQuestDispatch(recommendation) {
-  return _getArchiveActions().onApplyQuestDispatch(recommendation);
-}
-
-function _handleResolveQuestBlocker(action) {
-  return _getArchiveActions().onResolveQuestBlocker(action);
-}
-
 function _openRecommendedDispatch(recommendation, sourceLabel, icon) {
   var activeShip = Fleet.getActiveShip(_state);
   var activeShipIndex = _state.activeShipIndex || 0;
@@ -1755,8 +1702,9 @@ function _openRecommendedDispatch(recommendation, sourceLabel, icon) {
   MapUI.activateTab('tab-fleet');
   _loadFleetUI().then(function (FleetUI) {
     if (!FleetUI) return;
+    var fleetActions = _getFleetActions();
     _getUiCoordinator().renderFleet(FleetUI);
-    FleetUI.openDispatchModal(_state, activeShipIndex, _handleAssignRoute, _handleCancelRoute, {
+    FleetUI.openDispatchModal(_state, activeShipIndex, fleetActions.onAssignRoute, fleetActions.onCancelRoute, {
       buySystemId: recommendation.buySystemId,
       sellSystemId: recommendation.sellSystemId,
       goodId: recommendation.goodId,
@@ -1803,15 +1751,16 @@ function _openRecommendedMod(payload) {
   _updateUI();
   _loadFleetUI().then(function (FleetUI) {
     if (!FleetUI) return;
+    var fleetActions = _getFleetActions();
     _getUiCoordinator().renderFleet(FleetUI);
     FleetUI.openModModal(
       _state,
       shipIndex,
-      _handleInstallMod,
-      _handleUninstallMod,
-      _handleUpgradeShip,
-      _handleServiceShip,
-      _handleSellShip,
+      fleetActions.onInstallMod,
+      fleetActions.onUninstallMod,
+      fleetActions.onUpgradeShip,
+      fleetActions.onServiceShip,
+      fleetActions.onSellShip,
       { focusModId: data.modId || '', focusService: !!data.focusService },
     );
     _refreshActionGuide();
@@ -1847,59 +1796,11 @@ function _handleFocusRemoteMarketSystem(systemId) {
   }
 }
 
-function _handleBuildTradeStation(systemId) {
-  return _getCommerceActions().onBuildTradeStation(systemId);
-}
-
-function _handleUpgradeTradeStation(systemId) {
-  return _getCommerceActions().onUpgradeTradeStation(systemId);
-}
-
-function _handleSetTradeStationStrategy(systemId, strategyId) {
-  return _getCommerceActions().onSetTradeStationStrategy(systemId, strategyId);
-}
-
-function _handleBatchUpgradeTradeStations(systemIds) {
-  return _getCommerceActions().onBatchUpgradeTradeStations(systemIds);
-}
-
-function _handleBatchSetTradeStationStrategy(strategyId, systemIds) {
-  return _getCommerceActions().onBatchSetTradeStationStrategy(strategyId, systemIds);
-}
-
-function _handleTakeLoan(offerId) {
-  return _getCommerceActions().onTakeLoan(offerId);
-}
-
-function _handleRepayLoan(loanId) {
-  return _getCommerceActions().onRepayLoan(loanId);
-}
-
-function _handleInvestTradeStation(systemId) {
-  return _getCommerceActions().onInvestTradeStation(systemId);
-}
-
-function _handleRedeemTradeStationInvestment(systemId) {
-  return _getCommerceActions().onRedeemTradeStationInvestment(systemId);
-}
-
-function _handleBatchInvestTradeStations(systemIds, amount) {
-  return _getCommerceActions().onBatchInvestTradeStations(systemIds, amount);
-}
-
-function _handleAcceptQuest(questId) {
-  return _getArchiveActions().onAcceptQuest(questId);
-}
-
-function _handleAbandonQuest(questId) {
-  return _getArchiveActions().onAbandonQuest(questId);
-}
-
 function _handleSaveGame(slotId) {
   _captureRuntimeStateForSave(_state, { reason: 'manual-save' });
   const result = Save.saveGame(slotId, _state);
   EventBus.emit('log:message', { text: result.msg, type: result.ok ? 'info' : 'error' });
-  _updateUI();
+  _updateUI([UI_REGION.SAVE, UI_REGION.GUIDE]);
 }
 
 function _handleLoadGame(slotId) {
@@ -1922,66 +1823,6 @@ function _handleLoadGame(slotId) {
 }
 
 // 等级进阶逻辑已提取到 js/systems/progression/ProgressionSystem.js
-
-// ---------------------------------------------------------------------------
-// 船队管理
-// ---------------------------------------------------------------------------
-
-function _handleBuyShip(shipTypeId) {
-  return _getFleetActions().onBuyShip(shipTypeId);
-}
-
-function _handleSwitchShip(shipIndex) {
-  return _getFleetActions().onSwitchShip(shipIndex);
-}
-
-function _handleUpgradeShip(shipIndex, upgradeId) {
-  return _getFleetActions().onUpgradeShip(shipIndex, upgradeId);
-}
-
-function _handleAssignRoute(shipIndex, buySystemId, sellSystemId, goodId, tradePolicy) {
-  return _getFleetActions().onAssignRoute(shipIndex, buySystemId, sellSystemId, goodId, tradePolicy);
-}
-
-function _handleCancelRoute(shipIndex) {
-  return _getFleetActions().onCancelRoute(shipIndex);
-}
-
-function _handleBuySlot() {
-  return _getFleetActions().onBuySlot();
-}
-
-function _handleSellShip(shipIndex) {
-  return _getFleetActions().onSellShip(shipIndex);
-}
-
-function _handleInstallMod(shipIndex, modId) {
-  return _getFleetActions().onInstallMod(shipIndex, modId);
-}
-
-function _handleUninstallMod(shipIndex, modId) {
-  return _getFleetActions().onUninstallMod(shipIndex, modId);
-}
-
-function _handleServiceShip(shipIndex, tierId) {
-  return _getFleetActions().onServiceShip(shipIndex, tierId);
-}
-
-function _handleRecruitCrew(offerId) {
-  return _getFleetActions().onRecruitCrew(offerId);
-}
-
-function _handleAssignCrew(shipIndex, crewId) {
-  return _getFleetActions().onAssignCrew(shipIndex, crewId);
-}
-
-function _handleUnassignCrew(shipIndex, crewId) {
-  return _getFleetActions().onUnassignCrew(shipIndex, crewId);
-}
-
-function _handleDismissCrew(crewId) {
-  return _getFleetActions().onDismissCrew(crewId);
-}
 
 // ---------------------------------------------------------------------------
 // 激活船只自动派遣 — 逻辑已提取到 js/core/DispatchController.js
@@ -2008,12 +1849,13 @@ function _stopActiveDispatchClock() {
 }
 
 // ---------------------------------------------------------------------------
-// UI 全量刷新
+// UI 刷新兼容入口；新动作必须传 dirty regions，省略时才全量兜底。
 // ---------------------------------------------------------------------------
 
-function _updateUI() {
+function _updateUI(regions) {
   if (MapUI.isMarketOpen() && !_getDeferredFeature('market')) _ensureMarketUiRendered();
-  _getUiCoordinator().renderAll();
+  if (typeof regions === 'undefined') return _getUiCoordinator().renderAll();
+  return _getUiCoordinator().invalidate(regions);
 }
 
 // ---------------------------------------------------------------------------

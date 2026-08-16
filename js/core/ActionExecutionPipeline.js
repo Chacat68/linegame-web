@@ -54,7 +54,7 @@ export function createActionExecutionPipeline(dependencies) {
 
       phase = 'committing';
       queueAchievementCheck(result);
-      render(result);
+      render(result, spec);
       if (result && result.ok) checkVictory(result);
 
       phase = 'complete';

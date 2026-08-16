@@ -1,6 +1,7 @@
 // js/core/ArchiveActionController.js — 科研、任务与派系档案动作编排
 
 import { buildCommandFeedback } from '../ui/CommandAction.js';
+import { DEFAULT_ACTION_PRESENTATION } from './ActionPresentation.js';
 
 function _noop() {}
 
@@ -40,7 +41,7 @@ export function createArchiveActionController(dependencies) {
 
   function _researchAction(methodName, techId) {
     var result = _call(Research, methodName, [_state()].concat(typeof techId === 'undefined' ? [] : [techId]));
-    dispatch(result);
+    dispatch(result, DEFAULT_ACTION_PRESENTATION);
     return result;
   }
 
@@ -186,7 +187,7 @@ export function createArchiveActionController(dependencies) {
   function onAcceptQuest(questId) {
     var state = _state();
     var result = _call(Quest, 'acceptQuest', [state, questId]);
-    dispatch(result);
+    dispatch(result, DEFAULT_ACTION_PRESENTATION);
     if (!result || !result.ok) return result;
 
     var finish = function () {
@@ -209,7 +210,7 @@ export function createArchiveActionController(dependencies) {
 
   function onAbandonQuest(questId) {
     var result = _call(Quest, 'abandonQuest', [_state(), questId]);
-    dispatch(result);
+    dispatch(result, DEFAULT_ACTION_PRESENTATION);
     return result;
   }
 

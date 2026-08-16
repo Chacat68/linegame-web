@@ -1,5 +1,7 @@
 // js/core/GameDayController.js — 多日领域推进与最终提交编排
 
+import { DEFAULT_ACTION_DIRTY_REGIONS } from './ActionPresentation.js';
+
 function _noop() {}
 
 function _requiredFunction(value, label) {
@@ -43,6 +45,7 @@ export function createGameDayController(dependencies) {
 
     return execute({
       label: 'time.advance-days',
+      dirtyRegions: DEFAULT_ACTION_DIRTY_REGIONS,
       mutate: function () {
         return advanceDays(state, totalDays, {
           reason: 'realtime-clock',

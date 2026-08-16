@@ -9,6 +9,7 @@ import * as Quest from '../js/systems/quest/QuestSystem.js';
 import * as Research from '../js/systems/research/ResearchSystem.js';
 import * as Tutorial from '../js/systems/tutorial/TutorialSystem.js';
 import * as FleetUI from '../js/ui/FleetUI.js';
+import { DEFAULT_ACTION_DIRTY_REGIONS } from '../js/core/ActionPresentation.js';
 import { createTestState } from './helpers.js';
 
 function createFakeClassList(initialValues) {
@@ -487,6 +488,11 @@ describe('GameManager action guide smoke', function () {
     );
 
     expect(result.ok).toBe(true);
+    expect(gameManager._getUiDiagnosticsForTest().lastInvalidationRegions).toEqual(
+      DEFAULT_ACTION_DIRTY_REGIONS
+    );
+    expect(gameManager._getUiDiagnosticsForTest().lastInvalidationRegions).not.toContain('all');
+    expect(gameManager._getUiDiagnosticsForTest().lastInvalidationRegions).not.toContain('save');
     expect(state.midgameChains['dispatch-ops'].completedSteps).toEqual(['prefill-profitable-dispatch']);
     expect(state.midgameChains['dispatch-ops'].completed).toBe(false);
     expect(gameManager._getGameClockSnapshotForTest().recurringTasks).toEqual([
