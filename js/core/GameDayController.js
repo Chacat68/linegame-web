@@ -11,12 +11,10 @@ export function createGameDayController(dependencies) {
   var deps = dependencies || {};
   var systems = deps.systems || {};
   var Fleet = systems.Fleet || {};
-  var MidgameTeachingChain = systems.MidgameTeachingChain || {};
   var getState = _requiredFunction(deps.getState, 'getState');
   var advanceDays = _requiredFunction(deps.runtime && deps.runtime.advanceDays, 'runtime.advanceDays');
   var execute = _requiredFunction(deps.pipeline && deps.pipeline.execute, 'pipeline.execute');
   var getSessionToken = typeof deps.getSessionToken === 'function' ? deps.getSessionToken : function () { return null; };
-  var emitMessage = typeof deps.emitMessage === 'function' ? deps.emitMessage : _noop;
   var queueQuestDialogueResult = typeof deps.queueQuestDialogueResult === 'function'
     ? deps.queueQuestDialogueResult
     : _noop;
@@ -54,12 +52,6 @@ export function createGameDayController(dependencies) {
       postEffects: function (result) {
         // 科研等永久加成在领域推进中完成后，刷新当前飞船投影再提交。
         Fleet.syncStateFromShip(state);
-
-        var completedChains = MidgameTeachingChain.checkChainCompletion(state) || [];
-        completedChains.forEach(function (chainResult) {
-          if (!chainResult || !chainResult.message) return;
-          emitMessage({ text: chainResult.message, type: 'upgrade' });
-        });
 
         var questResults = result && Array.isArray(result.questResults) ? result.questResults : [];
         questResults.forEach(queueQuestDialogueResult);

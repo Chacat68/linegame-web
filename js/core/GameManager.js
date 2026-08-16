@@ -65,6 +65,10 @@ import { createGameDayController } from './GameDayController.js';
 import { createDialogueRuntimeController } from './DialogueRuntimeController.js';
 import { createRandomEventRuntimeController } from './RandomEventRuntimeController.js';
 import { createGameUiCoordinator } from '../ui/GameUiCoordinator.js';
+import {
+  createActionGuideCoordinator,
+  shouldLoadAdvancedCommerce,
+} from '../ui/ActionGuideCoordinator.js';
 import { createWorkspaceContextAdapters } from '../ui/WorkspaceContextAdapters.js';
 import { hasBlockingSurfaceOpen, hideBlockingSurface, isBlockingSurfaceVisible, showBlockingSurface } from '../ui/SurfaceManager.js';
 
@@ -79,7 +83,6 @@ let _settings  = {
 };
 let _blackMarketMode = false; // 当前是否处于黑市交易模式
 let _runtimeRevision = 0;
-let _recentModInstallContext = null;
 let _acknowledgedVictoryPathIds = new Set();
 let _pendingQuestSelectionId = null;
 let _pendingVictoryReportPathId = null;
@@ -118,6 +121,7 @@ let _gameDayActions = null;
 let _dialogueController = null;
 let _randomEventController = null;
 let _contextAdapters = null;
+let _actionGuideCoordinator = null;
 
 function _replaceState(nextState, reason) {
   _session.replace(nextState, { reason: reason });
@@ -130,9 +134,9 @@ function _replaceState(nextState, reason) {
 function _resetSessionTransients() {
   _blackMarketMode = false;
   _pendingQuestSelectionId = null;
-  _recentModInstallContext = null;
   _pendingVictoryReportPathId = null;
   _achievementCheckQueued = false;
+  if (_actionGuideCoordinator) _actionGuideCoordinator.reset();
 }
 
 function _getSessionToken() {
@@ -174,28 +178,6 @@ function _reportDeferredUiFailure(surface, error) {
   });
 }
 
-function _hasOwnEntries(value) {
-  return !!(value && typeof value === 'object' && Object.keys(value).length > 0);
-}
-
-function _shouldLoadAdvancedCommerce(state) {
-  if (!state) return false;
-  if (Number(state.companyLevel || 1) >= 2) return true;
-  if (_hasOwnEntries(state.tradeStations) || _hasOwnEntries(state.stockPortfolio) || _hasOwnEntries(state.tradeInvestments)) return true;
-  if (Array.isArray(state.loans) && state.loans.length > 0) return true;
-  if (Array.isArray(state.futuresContracts) && state.futuresContracts.length > 0) return true;
-  if (_hasOwnEntries(state.insurancePolicies)) return true;
-  return Array.isArray(state.insuranceClaims) && state.insuranceClaims.length > 0;
-}
-
-function _shouldLoadRouteGuidance(state) {
-  if (!state) return false;
-  if (Number(state.companyLevel || 1) >= 2 || Number(state.playerLevel || 1) >= 2) return true;
-  if (Array.isArray(state.completedQuests) && state.completedQuests.indexOf('starter_first_trade') !== -1) return true;
-  if (Array.isArray(state.researchQueue) && state.researchQueue.length > 0) return true;
-  return !!(state.activeResearch || state.currentResearch);
-}
-
 function _initializeCommerceRuntime(CommerceRuntime, state) {
   var targetState = state || _state;
   if (!CommerceRuntime || !targetState) return;
@@ -208,11 +190,6 @@ function _loadCommerceRuntime() {
   return _deferredFeatures.load('commerceRuntime');
 }
 
-function _loadAdvancedGuidance() {
-  _configureDeferredFeatures();
-  return _deferredFeatures.load('advancedGuidance');
-}
-
 function _loadRouteGuidance() {
   _configureDeferredFeatures();
   return _deferredFeatures.load('routeGuidance');
@@ -221,8 +198,7 @@ function _loadRouteGuidance() {
 function _syncDeferredFeatures() {
   _configureDeferredFeatures();
   _deferredFeatures.syncAll();
-  if (_shouldLoadAdvancedCommerce(_state) && !_getDeferredFeature('advancedGuidance')) _loadAdvancedGuidance();
-  if (_shouldLoadRouteGuidance(_state) && !_getDeferredFeature('routeGuidance')) _loadRouteGuidance();
+  _getActionGuideCoordinator().prefetchForState(_state);
 }
 
 function _configureDeferredFeatures() {
@@ -639,8 +615,8 @@ function _getGameClock() {
       return state && Number.isFinite(state.shipHull) ? state.shipHull : 100;
     },
     isPaused: function (state) {
-      if (_shouldLoadAdvancedCommerce(state) && !_getDeferredFeature('commerceRuntime') && _deferredFeatures.getState('commerceRuntime') !== 'error') {
-        _loadAdvancedGuidance();
+      if (shouldLoadAdvancedCommerce(state) && !_getDeferredFeature('commerceRuntime') && _deferredFeatures.getState('commerceRuntime') !== 'error') {
+        _getActionGuideCoordinator().prefetchForState(state);
         return true;
       }
       return _isRealtimeClockPaused();
@@ -726,10 +702,12 @@ function _getFleetActions() {
     cancelShipFlight: function () {
       if (Renderer3D.cancelShipFlight) Renderer3D.cancelShipFlight();
     },
-    setRecentModInstallContext: function (context) { _recentModInstallContext = context; },
+    setRecentModInstallContext: function (context) {
+      _getActionGuideCoordinator().setRecentModInstallContext(context);
+    },
     showCompletion: function (completion) { _showActionGuideCompletion(completion); },
     getRouteGuidance: function () { return _getDeferredFeature('routeGuidance'); },
-    getDispatchContext: _getActiveShipDispatchContext,
+    getDispatchContext: function (state) { return _getActionGuideCoordinator().getDispatchContext(state); },
   });
   return _fleetActions;
 }
@@ -775,6 +753,7 @@ function _getActionPipeline() {
       EventBus.emit('log:message', { text: message.text, type: message.type });
     },
     emitErrorCue: function () { EventBus.emit('audio:cue', { cue: 'error' }); },
+    finalizeState: _checkMidgameTeachingCompletion,
     queueAchievementCheck: _queueAchievementCheck,
     render: _updateUI,
     checkVictory: _checkVictory,
@@ -910,11 +889,9 @@ function _getGameDayActions() {
     getSessionToken: _getSessionToken,
     systems: {
       Fleet: Fleet,
-      MidgameTeachingChain: MidgameTeachingChain,
     },
     runtime: { advanceDays: function () { return _getSystemRuntime().advanceDays.apply(null, arguments); } },
     pipeline: _getActionPipeline(),
-    emitMessage: function (message) { EventBus.emit('log:message', message); },
     queueQuestDialogueResult: _queueQuestDialogueResult,
     captureState: _captureRuntimeStateForSave,
     saveAutosave: function (state) { Save.saveGame(0, state, { isAutosave: true }); },
@@ -961,6 +938,38 @@ function _getRandomEventController() {
     },
   });
   return _randomEventController;
+}
+
+function _getActionGuideCoordinator() {
+  if (_actionGuideCoordinator) return _actionGuideCoordinator;
+  _configureDeferredFeatures();
+  _actionGuideCoordinator = createActionGuideCoordinator({
+    getState: function () { return _state; },
+    features: _deferredFeatures,
+    ui: {
+      ActionGuideUI: ActionGuideUI,
+      MapUI: MapUI,
+      UIManager: UIManager,
+      EventUI: EventUI,
+    },
+    systems: {
+      Guidance: Guidance,
+      Tutorial: Tutorial,
+      Fleet: Fleet,
+      GalaxyData: GalaxyData,
+      Exploration: Exploration,
+      MidgameTeachingChain: MidgameTeachingChain,
+    },
+    selectors: {
+      getResearchDispatchBlockerState: getResearchDispatchBlockerState,
+      getPoiStatus: _getPoiStatus,
+      hasBlockingSurfaceOpen: hasBlockingSurfaceOpen,
+    },
+    hooks: {
+      onAction: _handleActionGuideAction,
+    },
+  });
+  return _actionGuideCoordinator;
 }
 
 function _getUiCoordinator() {
@@ -1014,7 +1023,7 @@ function _getUiCoordinator() {
         onDismissCrew: function () { return _getFleetActions().onDismissCrew.apply(null, arguments); },
       },
       archive: {
-        getDispatchContext: _getActiveShipDispatchContext,
+        getDispatchContext: function (state) { return _getActionGuideCoordinator().getDispatchContext(state); },
         onStartResearch: _handleStartResearch,
         onCancelQueuedResearch: _handleCancelQueuedResearch,
         onMoveQueuedResearchUp: _handleMoveQueuedResearchUp,
@@ -1178,7 +1187,7 @@ export function init(difficulty, options) {
   MapUI.setNavigationChangeCallback(function () {
     _refreshActionGuide();
   });
-  ActionGuideUI.init(_handleActionGuideAction);
+  _getActionGuideCoordinator().init();
   _configureDeferredFeatures();
   _setDeferredUiState('guidanceAction', _deferredFeatures.getState('guidanceAction'));
 
@@ -1255,7 +1264,7 @@ export function init(difficulty, options) {
 
 export function _setStateForTest(state) {
   _replaceState(state || null, 'test');
-  _recentModInstallContext = null;
+  if (_actionGuideCoordinator) _actionGuideCoordinator.reset();
   if (_state) {
     _getDialogueController().reset(_state);
     _getRandomEventController().sync(_state);
@@ -1299,9 +1308,7 @@ function _showWelcomeMessages() {
 }
 
 function _showActionGuideCompletion(completion, options) {
-  if (completion && ActionGuideUI.showCompletion) {
-    ActionGuideUI.showCompletion(completion.message, completion.detail, options);
-  }
+  if (completion) _getActionGuideCoordinator().showCompletion(completion.message, completion.detail, options);
 }
 
 function _recommendStarterQuests() {
@@ -1416,6 +1423,7 @@ function _showCompanyRenameModal() {
 
 function _dispatch(result) {
   // result = { ok, msgs, meta? }（TradeSystem 各函数的返回值）
+  if (result && result.ok) _checkMidgameTeachingCompletion();
   if (result && result.msgs) {
     result.msgs.forEach(function (m) {
       EventBus.emit('log:message', { text: m.text, type: m.type });
@@ -1429,6 +1437,16 @@ function _dispatch(result) {
   if (result && result.ok) _checkVictory();
 }
 
+function _checkMidgameTeachingCompletion() {
+  if (!_state) return [];
+  var completedChains = MidgameTeachingChain.checkChainCompletion(_state) || [];
+  completedChains.forEach(function (chainResult) {
+    if (!chainResult || !chainResult.message) return;
+    EventBus.emit('log:message', { text: chainResult.message, type: 'upgrade' });
+  });
+  return completedChains;
+}
+
 function _recordQuestProgress(context) {
   var questResult = Quest.checkProgress(_state, context || { action: 'state_sync' });
   questResult.msgs.forEach(function (message) {
@@ -1438,160 +1456,8 @@ function _recordQuestProgress(context) {
   return questResult;
 }
 
-function _getNextGuidancePoi(systemId) {
-  var planetData = systemId ? GalaxyData.getPlanetData(systemId) : null;
-  var exploration = planetData && planetData.exploration;
-  if (!exploration || !Array.isArray(exploration.pois)) return null;
-
-  return exploration.pois.filter(function (poi) {
-    return poi && !poi.resolved;
-  }).map(function (poi) {
-    return {
-      id: poi.id,
-      poiId: poi.id,
-      icon: poi.icon || '',
-      name: poi.name || '探索点',
-      chainKind: poi.chain && poi.chain.kind ? poi.chain.kind : '',
-      chainLabel: poi.chain && poi.chain.label ? poi.chain.label : '',
-    };
-  })[0] || null;
-}
-
-function _getActiveShipDispatchContext() {
-  var activeShip = Fleet.getActiveShip(_state);
-  var activeShipStats = Fleet.getEffectiveShipStats(_state, activeShip);
-  return {
-    currentSystem: _state.currentSystem,
-    currentGalaxy: _state.currentGalaxy || 'milky_way',
-    fuelEfficiency: activeShipStats.fuelEff,
-    cargoFree: Math.max(0, activeShipStats.maxCargo - Object.values((activeShip && activeShip.cargo) || {}).reduce(function (sum, qty) {
-      return sum + qty;
-    }, 0)),
-    credits: _state.credits,
-    playerLevel: _state.playerLevel || 1,
-    dispatchProfile: activeShipStats.dispatchProfile || null,
-  };
-}
-
-function _getActiveShipServiceStatus() {
-  var activeShipIndex = _state && Number.isInteger(_state.activeShipIndex) ? _state.activeShipIndex : 0;
-  var activeShip = Fleet.getActiveShip(_state);
-  if (!activeShip) return null;
-  var repairQuote = typeof Fleet.getShipRepairQuote === 'function'
-    ? Fleet.getShipRepairQuote(_state, activeShipIndex)
-    : null;
-  var maintenance = typeof Fleet.getShipMaintenanceSummary === 'function'
-    ? Fleet.getShipMaintenanceSummary(_state, activeShip)
-    : null;
-  var maxHull = Number(activeShip.maxHull || activeShip.hull || 0);
-  var hull = Number(activeShip.hull || maxHull || 0);
-
-  return {
-    shipIndex: activeShipIndex,
-    repairQuote: repairQuote,
-    hullRatio: maxHull > 0 ? Math.max(0, Math.min(1, hull / maxHull)) : 1,
-    maintenance: maintenance,
-    maintenanceValue: maintenance ? maintenance.value : 100,
-    maintenanceBand: maintenance ? maintenance.band : 'pristine',
-  };
-}
-
-function _getActionGuideMarketFocus() {
-  if (!MapUI.isMarketOpen()) return null;
-  var MarketUI = _getDeferredFeature('market');
-  var focus = MarketUI && MarketUI.getActiveMarketWorkspaceFocus
-    ? MarketUI.getActiveMarketWorkspaceFocus()
-    : {};
-  return Object.assign({}, focus || {}, {
-    systemId: MapUI.getMarketViewSystem(_state) || (_state && _state.currentSystem) || '',
-  });
-}
-
 function _refreshActionGuide() {
-  if (!_state) return;
-  var nextPoi = null;
-  var nextPoiStatus = null;
-  var tutorialActive = Tutorial.isActive();
-  var blockingModalOpen = hasBlockingSurfaceOpen();
-  var pendingEvent = EventUI.getPendingEvent();
-  var eventPending = !!pendingEvent;
-  var researchSupplyRoute = null;
-  var questRouteRecommendation = null;
-  var researchBlocker = null;
-  var dispatchRouteRecommendation = null;
-  var activeTeachingChain = MidgameTeachingChain.getActiveChain(_state);
-  var dispatchTeachingActive = !!(
-    activeTeachingChain &&
-    activeTeachingChain.chain &&
-    activeTeachingChain.chain.id === 'dispatch-ops'
-  );
-  var serviceStatus = null;
-  var modRecommendation = null;
-  var recentModInstallContext = _recentModInstallContext;
-  var surveyIntel = null;
-  if (_state.currentSystem) {
-    nextPoi = _getNextGuidancePoi(_state.currentSystem);
-    if (nextPoi) {
-      nextPoiStatus = _getPoiStatus(_state.currentSystem, nextPoi.poiId);
-    }
-    surveyIntel = Exploration.getSurveyDecisionIntel(_state, _state.currentSystem);
-  }
-  if (!tutorialActive && !blockingModalOpen) {
-    var dispatchContext = _getActiveShipDispatchContext();
-    var AdvancedGuidance = _getDeferredFeature('advancedGuidance');
-    var RouteGuidance = _getDeferredFeature('routeGuidance');
-    if (_shouldLoadAdvancedCommerce(_state) && !AdvancedGuidance) _loadAdvancedGuidance();
-    if (_shouldLoadRouteGuidance(_state) && !RouteGuidance) _loadRouteGuidance();
-    if (RouteGuidance) {
-      questRouteRecommendation = RouteGuidance.findQuestRoute(_state, dispatchContext);
-      if (!questRouteRecommendation) {
-        researchSupplyRoute = RouteGuidance.findResearchSupplyRoute(_state, dispatchContext);
-      }
-    }
-    if (!questRouteRecommendation && !researchSupplyRoute) {
-      researchBlocker = getResearchDispatchBlockerState(_state, dispatchContext);
-    }
-    if (!questRouteRecommendation && (!researchSupplyRoute || dispatchTeachingActive) && RouteGuidance) {
-      dispatchRouteRecommendation = RouteGuidance.findBestDispatchRoute(_state, dispatchContext);
-    }
-    serviceStatus = _getActiveShipServiceStatus();
-    if (Fleet.getShipModRecommendation) {
-      modRecommendation = Fleet.getShipModRecommendation(_state, _state.activeShipIndex || 0);
-    }
-  }
-  var FleetUI = _getDeferredFeature('fleet');
-  ActionGuideUI.render(Guidance.getCurrentSuggestion(_state, {
-    marketOpen: MapUI.isMarketOpen(),
-    marketFocus: _getActionGuideMarketFocus(),
-    archiveOpen: UIManager.getCurrentView() === 'quests',
-    archiveTab: MapUI.getActiveArchiveTab(),
-    nextPoi: nextPoi,
-    nextPoiStatus: nextPoiStatus,
-    researchSupplyRoute: researchSupplyRoute,
-    questRouteRecommendation: questRouteRecommendation,
-    researchBlocker: researchBlocker,
-    dispatchRouteRecommendation: dispatchRouteRecommendation,
-    serviceStatus: serviceStatus,
-    modRecommendation: modRecommendation,
-    modModalContext: FleetUI && FleetUI.getActiveModModalContext ? FleetUI.getActiveModModalContext() : null,
-    dispatchModalContext: FleetUI && FleetUI.getActiveDispatchModalContext ? FleetUI.getActiveDispatchModalContext() : null,
-    recentModInstallContext: recentModInstallContext,
-    surveyIntel: surveyIntel,
-    tutorialActive: tutorialActive,
-    blockingModalOpen: blockingModalOpen,
-    eventPending: eventPending,
-    pendingEvent: pendingEvent,
-  }));
-
-  // 中期教学链：检查是否有链已自然满足完成条件
-  var completedChains = MidgameTeachingChain.checkChainCompletion(_state);
-  completedChains.forEach(function (chainResult) {
-    EventBus.emit('log:message', { text: chainResult.message, type: 'upgrade' });
-  });
-
-  if (recentModInstallContext && _recentModInstallContext === recentModInstallContext) {
-    _recentModInstallContext = null;
-  }
+  return _getActionGuideCoordinator().refresh();
 }
 
 function _getGoodDisplayName(goodId) {
@@ -1680,7 +1546,7 @@ function _handleActionGuideAction(suggestion) {
   if (!suggestion || !suggestion.actionType) return;
 
   var requestedRevision = _runtimeRevision;
-  ActionGuideUI.showProcessing(suggestion, getGuidanceActionProcessingMessage(suggestion));
+  _getActionGuideCoordinator().showProcessing(suggestion, getGuidanceActionProcessingMessage(suggestion));
   return _loadGuidanceActionController().then(function (GuidanceAction) {
     if (!GuidanceAction || requestedRevision !== _runtimeRevision) {
       _refreshActionGuide();
@@ -1701,7 +1567,7 @@ function _handleActionGuideAction(suggestion) {
       openRecommendedDispatch: _openRecommendedDispatch,
       openRecommendedMod: _openRecommendedMod,
       showCompletion: function (message, detail, options) {
-        if (ActionGuideUI.showCompletion) ActionGuideUI.showCompletion(message, detail, options);
+        _getActionGuideCoordinator().showCompletion(message, detail, options);
       },
       emitLog: function (message) {
         EventBus.emit('log:message', message);

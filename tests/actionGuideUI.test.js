@@ -25,7 +25,11 @@ function createFakeRoot() {
     addEventListener: function (type, handler) {
       listeners[type] = handler;
     },
+    removeEventListener: function (type, handler) {
+      if (listeners[type] === handler) delete listeners[type];
+    },
     dispatchClick: function (target) {
+      if (!listeners.click) return;
       listeners.click({
         target: target,
       });
@@ -55,6 +59,28 @@ afterEach(function () {
 });
 
 describe('ActionGuideUI', function () {
+  it('重新 init 与 dispose 不会遗留旧的 Command Slot 点击监听', function () {
+    var root = createFakeRoot();
+    var firstCalls = 0;
+    var secondCalls = 0;
+    globalThis.document = {
+      getElementById: function () { return root; },
+    };
+    var first = function () { firstCalls += 1; };
+    var second = function () { secondCalls += 1; };
+    ActionGuideUI.init(first);
+    ActionGuideUI.render({ id: 'first', title: '第一条', actionLabel: '执行', actionType: 'map.focus' });
+
+    ActionGuideUI.init(second);
+    root.dispatchClick(createTarget('[data-action-guide-action]'));
+    expect(firstCalls).toBe(0);
+    expect(secondCalls).toBe(1);
+
+    ActionGuideUI.dispose();
+    root.dispatchClick(createTarget('[data-action-guide-action]'));
+    expect(secondCalls).toBe(1);
+  });
+
   it('会渲染当前行动并把点击回传给调用方', function () {
     var root = createFakeRoot();
     var clicked = null;

@@ -5,6 +5,7 @@ function createPipeline(trace) {
   return createActionExecutionPipeline({
     emitMessage: function () { trace.push('message'); },
     emitErrorCue: function () { trace.push('error-cue'); },
+    finalizeState: function () { trace.push('finalize-state'); },
     queueAchievementCheck: function () { trace.push('achievement'); },
     render: function () { trace.push('render'); },
     checkVictory: function () { trace.push('victory'); },
@@ -24,7 +25,7 @@ describe('ActionExecutionPipeline', function () {
     })).toBe(result);
 
     expect(trace).toEqual([
-      'mutate', 'post-effects', 'message', 'achievement', 'render', 'victory',
+      'mutate', 'post-effects', 'finalize-state', 'message', 'achievement', 'render', 'victory',
     ]);
     expect(pipeline.getDiagnostics().lastExecution).toMatchObject({ label: 'trade.buy', ok: true, phase: 'complete' });
   });
@@ -42,6 +43,19 @@ describe('ActionExecutionPipeline', function () {
     expect(trace).toEqual([
       'mutate', 'failure-effects', 'message', 'error-cue', 'achievement', 'render',
     ]);
+  });
+
+  it('成功动作在领域后置效果后统一完成派生状态', function () {
+    var trace = [];
+    var pipeline = createPipeline(trace);
+
+    pipeline.execute({
+      mutate: function () { trace.push('mutate'); return { ok: true }; },
+      postEffects: function () { trace.push('post-effects'); },
+    });
+
+    expect(trace.indexOf('finalize-state')).toBeGreaterThan(trace.indexOf('post-effects'));
+    expect(trace.indexOf('finalize-state')).toBeLessThan(trace.indexOf('render'));
   });
 
   it('post-effects 抛错时不提交 UI、成就或胜利', function () {

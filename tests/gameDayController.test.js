@@ -32,12 +32,6 @@ function createHarness(options) {
       Fleet: {
         syncStateFromShip: function () { trace.push('sync-ship'); },
       },
-      MidgameTeachingChain: {
-        checkChainCompletion: function () {
-          trace.push('check-chain');
-          return config.completedChains || [{ message: 'chain complete' }];
-        },
-      },
     },
     runtime: {
       advanceDays: function (nextState, days, runtimeOptions) {
@@ -47,7 +41,6 @@ function createHarness(options) {
       },
     },
     pipeline: pipeline,
-    emitMessage: function (message) { trace.push('side-message:' + message.type + ':' + message.text); },
     queueQuestDialogueResult: function () { trace.push('quest-dialogue'); },
     captureState: function (nextState, captureOptions) {
       trace.push('capture:' + captureOptions.reason + ':' + nextState.day);
@@ -70,7 +63,7 @@ describe('GameDayController', function () {
     expect(clock.lastHullSnapshot).toBe(90);
     expect(harness.trace).toEqual([
       'get-state', 'get-token', 'advance:2:realtime-clock:8',
-      'sync-ship', 'check-chain', 'side-message:upgrade:chain complete',
+      'sync-ship',
       'quest-dialogue', 'capture:realtime-day:6', 'save',
       'result-message:advanced', 'achievement:5', 'render:5', 'victory:5',
     ]);

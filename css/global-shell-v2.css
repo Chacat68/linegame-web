@@ -275,7 +275,7 @@
 }
 
 @media (min-width: 901px) {
-  #map-container:has(> #context-inspector[data-workspace-id="trade"]:not([hidden])) > #market-overlay:not(.hidden) {
+  body:has(#context-inspector[data-workspace-id="trade"]:not([hidden])) #map-container > #market-overlay:not(.hidden) {
     right: calc(var(--ui-context-width) + var(--ui-space-7)) !important;
   }
 
@@ -283,6 +283,14 @@
   body:has(#context-inspector[data-workspace-id="fleet"]:not([hidden])) #trade-panel,
   body:has(#context-inspector[data-workspace-id="logs"]:not([hidden])) #console-panel {
     padding-right: calc(var(--ui-context-width) + var(--ui-space-7)) !important;
+  }
+
+  body:has(#context-inspector:not([hidden])) .floating-command-stack {
+    left: calc((100vw - var(--ui-context-width) - var(--ui-space-7)) / 2);
+    width: min(
+      var(--ui-command-width),
+      calc(100vw - var(--ui-context-width) - var(--ui-space-7) - (var(--ui-space-5) * 2))
+    );
   }
 }
 
@@ -348,6 +356,16 @@
 }
 
 /* Command Slot ----------------------------------------------- */
+
+.floating-command-stack {
+  /* Command Slot 属于 Global Shell L2，必须稳定高于任一 L3 workspace。
+     旧 secondary-terminal 仍有 z-index:100，迁移期间也不得遮住全局行动。 */
+  z-index: var(--ui-z-guide);
+  right: auto;
+  left: 50%;
+  width: min(var(--ui-command-width), calc(100vw - (var(--ui-space-5) * 2)));
+  transform: translateX(-50%);
+}
 
 .floating-command-stack > .action-guide {
   width: min(var(--ui-command-width), 100%);
@@ -431,6 +449,13 @@
 }
 
 @media (max-width: 620px) {
+  .floating-command-stack {
+    right: max(7px, var(--ui-safe-right));
+    left: max(7px, var(--ui-safe-left));
+    width: auto;
+    transform: none;
+  }
+
   .starmap-map-tools {
     top: max(var(--ui-space-2), var(--ui-safe-top));
     right: max(var(--ui-space-2), var(--ui-safe-right));

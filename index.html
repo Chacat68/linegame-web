@@ -241,25 +241,6 @@
                 <span aria-hidden="true">◎</span><span>上下文</span>
               </button>
             </div>
-            <aside id="context-inspector" class="context-inspector" data-workspace-id="map" aria-labelledby="context-inspector-title" aria-hidden="true" hidden>
-              <header class="context-inspector-head">
-                <div class="context-inspector-heading">
-                  <span class="context-inspector-kicker">CONTEXT INSPECTOR</span>
-                  <strong id="context-inspector-title">地图上下文</strong>
-                </div>
-                <button class="context-inspector-close" type="button" data-context-inspector-close aria-label="关闭上下文检查器" title="关闭上下文检查器">×</button>
-              </header>
-              <div id="context-inspector-content" class="context-inspector-content" role="region" aria-live="polite" aria-label="工作区上下文内容">
-                <div id="context-inspector-empty" class="context-inspector-empty" data-context-inspector-empty>
-                  <span class="context-inspector-empty-mark" aria-hidden="true">◎</span>
-                  <strong data-context-empty-title>尚未选择上下文</strong>
-                  <span data-context-empty-note>在当前工作区选择对象后，这里会显示对应信息。</span>
-                </div>
-                <div id="context-inspector-render-host" class="context-inspector-render-host" hidden>
-                  <div id="planet-detail-panel" class="planet-detail-panel"></div>
-                </div>
-              </div>
-            </aside>
             <div class="map-btn-group">
               <div class="map-primary-entry-group">
                 <button id="map-3d-toggle-btn" class="map-overlay-btn" type="button" style="display:none !important;">
@@ -267,20 +248,6 @@
                 </button>
               </div>
             </div>
-            <div id="floating-command-stack" class="floating-command-stack">
-              <div
-                id="action-guide"
-                class="action-guide"
-                data-command-slot="primary"
-                data-command-slot-state="empty"
-                role="region"
-                aria-label="当前行动"
-                aria-live="polite"
-                aria-busy="false"
-                hidden
-              ></div>
-            </div>
-
             <!-- Market overlay panel -->
             <div
               id="market-overlay"
@@ -716,6 +683,41 @@
             </div>
           </div>
         </aside>
+
+        <!-- Global L2: workspace-scoped object context + one authoritative command slot. -->
+        <aside id="context-inspector" class="context-inspector" data-workspace-id="map" aria-labelledby="context-inspector-title" aria-hidden="true" hidden>
+          <header class="context-inspector-head">
+            <div class="context-inspector-heading">
+              <span class="context-inspector-kicker">CONTEXT INSPECTOR</span>
+              <strong id="context-inspector-title">地图上下文</strong>
+            </div>
+            <button class="context-inspector-close" type="button" data-context-inspector-close aria-label="关闭上下文检查器" title="关闭上下文检查器">×</button>
+          </header>
+          <div id="context-inspector-content" class="context-inspector-content" role="region" aria-live="polite" aria-label="工作区上下文内容">
+            <div id="context-inspector-empty" class="context-inspector-empty" data-context-inspector-empty>
+              <span class="context-inspector-empty-mark" aria-hidden="true">◎</span>
+              <strong data-context-empty-title>尚未选择上下文</strong>
+              <span data-context-empty-note>在当前工作区选择对象后，这里会显示对应信息。</span>
+            </div>
+            <div id="context-inspector-render-host" class="context-inspector-render-host" hidden>
+              <div id="planet-detail-panel" class="planet-detail-panel"></div>
+            </div>
+          </div>
+        </aside>
+
+        <div id="floating-command-stack" class="floating-command-stack">
+          <div
+            id="action-guide"
+            class="action-guide"
+            data-command-slot="primary"
+            data-command-slot-state="empty"
+            role="region"
+            aria-label="当前行动"
+            aria-live="polite"
+            aria-busy="false"
+            hidden
+          ></div>
+        </div>
 
       </main>
 

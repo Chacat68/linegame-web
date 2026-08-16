@@ -57,7 +57,7 @@ function createHarness(options) {
 }
 
 describe('FleetActionController', function () {
-  it('激活船派遣保持 cancel flight → dispatch → start clock → progress 顺序', function () {
+  it('激活船派遣在发布 UI 刷新前完成任务与教学进度', function () {
     var harness = createHarness({
       activeTeachingChain: { chain: { id: 'dispatch-ops' } },
     });
@@ -70,10 +70,10 @@ describe('FleetActionController', function () {
       'sync-ship',
       'assign-route',
       'cancel-flight',
-      'dispatch',
-      'start-clock',
       'quest:dispatch_route',
       'teach:dispatch-ops:prefill-profitable-dispatch',
+      'dispatch',
+      'start-clock',
       'completion:已确认自动跑商路线',
     ]);
   });

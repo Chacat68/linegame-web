@@ -70,6 +70,23 @@ describe('UI surface inventory', function () {
     expect(css).toContain('max-height: calc(100dvh - max(8px, var(--safe-top)) - max(8px, var(--safe-bottom))) !important;');
   });
 
+  it('mounts the global Context Inspector and Command Slot outside the map workspace stacking context', function () {
+    const mapStart = html.indexOf('<section id="map-section">');
+    const mapEnd = html.indexOf('<!-- Info Panel', mapStart);
+    const mainStart = html.indexOf('<main id="game-main">');
+    const mainEnd = html.indexOf('</main>', mainStart);
+    const mapMarkup = html.slice(mapStart, mapEnd);
+    const mainMarkup = html.slice(mainStart, mainEnd);
+
+    expect(mapStart).toBeGreaterThan(-1);
+    expect(mapEnd).toBeGreaterThan(mapStart);
+    expect(mainEnd).toBeGreaterThan(mainStart);
+    expect(mapMarkup).not.toContain('id="context-inspector"');
+    expect(mapMarkup).not.toContain('id="floating-command-stack"');
+    expect(mainMarkup).toContain('id="context-inspector"');
+    expect(mainMarkup).toContain('id="floating-command-stack"');
+  });
+
   it('uses one workspace-scoped context inspector instead of parallel HUD mini applications', function () {
     expect(html).not.toContain('data-hud-dock-toggle');
     expect(html).not.toContain('rail-icon-dock');

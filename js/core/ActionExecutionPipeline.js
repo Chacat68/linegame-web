@@ -14,6 +14,7 @@ export function createActionExecutionPipeline(dependencies) {
   var deps = dependencies || {};
   var emitMessage = typeof deps.emitMessage === 'function' ? deps.emitMessage : _noop;
   var emitErrorCue = typeof deps.emitErrorCue === 'function' ? deps.emitErrorCue : _noop;
+  var finalizeState = typeof deps.finalizeState === 'function' ? deps.finalizeState : _noop;
   var queueAchievementCheck = typeof deps.queueAchievementCheck === 'function' ? deps.queueAchievementCheck : _noop;
   var render = typeof deps.render === 'function' ? deps.render : _noop;
   var checkVictory = typeof deps.checkVictory === 'function' ? deps.checkVictory : _noop;
@@ -38,6 +39,11 @@ export function createActionExecutionPipeline(dependencies) {
       } else if ((!result || result.ok === false) && typeof spec.onFailure === 'function') {
         phase = 'failure-effects';
         spec.onFailure(result);
+      }
+
+      if (result && result.ok) {
+        phase = 'finalizing-state';
+        finalizeState(result);
       }
 
       phase = 'messages';

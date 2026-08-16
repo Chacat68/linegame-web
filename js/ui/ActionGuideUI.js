@@ -3,6 +3,7 @@ import { getCommandActionAttributes, renderCommandActionContent } from './Comman
 let _onAction = null;
 let _suggestion = null;
 let _boundRoot = null;
+let _boundClickHandler = null;
 let _completionTimer = null;
 let _completionToken = 0;
 
@@ -92,12 +93,16 @@ function _setSlotState(root, state) {
 
 function _bind(root) {
   if (!root || _boundRoot === root) return;
-  root.addEventListener('click', function (event) {
+  if (_boundRoot && _boundClickHandler && typeof _boundRoot.removeEventListener === 'function') {
+    _boundRoot.removeEventListener('click', _boundClickHandler);
+  }
+  _boundClickHandler = function (event) {
     var actionBtn = event.target.closest('[data-action-guide-action]');
     if (actionBtn && _suggestion && typeof _onAction === 'function') {
       _onAction(_suggestion);
     }
-  });
+  };
+  root.addEventListener('click', _boundClickHandler);
   _boundRoot = root;
 }
 
@@ -140,6 +145,17 @@ export function init(onAction) {
   _onAction = typeof onAction === 'function' ? onAction : null;
   var root = _getRoot();
   _bind(root);
+}
+
+export function dispose() {
+  _clearCompletion(_boundRoot);
+  if (_boundRoot && _boundClickHandler && typeof _boundRoot.removeEventListener === 'function') {
+    _boundRoot.removeEventListener('click', _boundClickHandler);
+  }
+  _onAction = null;
+  _suggestion = null;
+  _boundRoot = null;
+  _boundClickHandler = null;
 }
 
 export function render(suggestion) {

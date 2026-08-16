@@ -94,8 +94,6 @@ export function createFleetActionController(dependencies) {
     var isActive = shipIndex === _activeShipIndex(state);
     var result = Fleet.assignRoute(state, shipIndex, buySystemId, sellSystemId, goodId, tradePolicy);
     if (_isOk(result) && isActive) cancelShipFlight();
-    dispatch(result);
-    if (_isOk(result) && isActive) startDispatchClock();
 
     if (_isOk(result)) {
       recordQuestProgress({ action: 'dispatch_route', shipIndex: shipIndex, goodId: goodId });
@@ -115,6 +113,14 @@ export function createFleetActionController(dependencies) {
       } else if (activeTeachingChain && activeTeachingChain.chain.id === 'dispatch-ops') {
         completeTeachingStep('dispatch-ops', 'prefill-profitable-dispatch');
       }
+    }
+
+    // 任务/教学进度是这次派遣的领域后置效果；必须在 dispatch
+    // 发布消息和刷新 UI 前提交，避免 Action Guide 读到半更新 state。
+    dispatch(result);
+    if (_isOk(result) && isActive) startDispatchClock();
+
+    if (_isOk(result)) {
       var good = GOODS.find(function (item) { return item.id === goodId; });
       showCompletion(getDispatchConfirmedCompletion(good ? good.name : ''));
     }

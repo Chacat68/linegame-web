@@ -745,11 +745,6 @@ body::before {
   display: none !important;
 }
 
-#map-container:has(> #market-overlay:not(.hidden)) > .floating-command-stack {
-  opacity: 0;
-  pointer-events: none;
-}
-
 .market-overlay-header {
   flex: 0 0 auto;
   min-height: 64px;

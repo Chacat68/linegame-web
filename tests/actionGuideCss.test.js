@@ -48,4 +48,19 @@ describe('Action guide responsive CSS', function () {
     expect(css).toContain('#info-panel.side-panel-overlay.panel-open');
     expect(css).toContain('#trade-panel.side-panel-overlay.panel-open');
   });
+
+  it('唯一 Command Slot 使用全局 guide 层级，不会被 L3 档案或机库遮住', function () {
+    var tokens = readFileSync(new URL('../css/tokens.css', import.meta.url), 'utf8');
+    var shell = readFileSync(new URL('../css/global-shell-v2.css', import.meta.url), 'utf8');
+    var surfaces = readFileSync(new URL('../css/surfaces.css', import.meta.url), 'utf8');
+
+    expect(tokens).toContain('--ui-z-workspace: 70');
+    expect(tokens).toContain('--ui-z-terminal: 100');
+    expect(tokens).toContain('--ui-z-guide: 160');
+    expect(shell).toMatch(/\.floating-command-stack\s*\{[^}]*z-index:\s*var\(--ui-z-guide\)/);
+    expect(shell).toMatch(/\.floating-command-stack\s*\{[^}]*left:\s*50%[^}]*transform:\s*translateX\(-50%\)/);
+    expect(shell).toMatch(/body:has\(#context-inspector:not\(\[hidden\]\)\) \.floating-command-stack\s*\{[^}]*left:\s*calc\(\(100vw - var\(--ui-context-width\)/);
+    expect(shell).toMatch(/@media \(max-width: 620px\)[\s\S]*?\.floating-command-stack\s*\{[^}]*left:\s*max\(7px, var\(--ui-safe-left\)\)[^}]*transform:\s*none/);
+    expect(surfaces).not.toContain('#map-container:has(> #market-overlay:not(.hidden)) > .floating-command-stack');
+  });
 });
