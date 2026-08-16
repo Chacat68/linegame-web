@@ -131,8 +131,8 @@ export function createRandomEventRuntimeController(dependencies) {
         var event = activeRuntime.rollEvent(requestedState, baseChance);
         rollCount += 1;
         _showEvent(event);
-        captureState(requestedState);
-        saveAutosave(requestedState);
+        captureState(requestedState, { reason: 'random-event-roll', sessionToken: token });
+        saveAutosave(requestedState, { reason: 'random-event-roll', sessionToken: token });
         refreshActionGuide();
         return event;
       });

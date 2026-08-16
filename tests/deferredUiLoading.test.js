@@ -127,6 +127,7 @@ describe('deferred terminal UI loading', function () {
     var dialogueRuntime = readFileSync('js/core/DialogueRuntimeController.js', 'utf8');
     var randomEventRuntime = readFileSync('js/core/RandomEventRuntimeController.js', 'utf8');
     var achievementRuntime = readFileSync('js/core/AchievementRuntimeController.js', 'utf8');
+    var persistenceRuntime = readFileSync('js/core/GamePersistenceController.js', 'utf8');
 
     expect(gameManager).not.toMatch(/import\s+\*\s+as\s+RandomEvent\s+from/);
     expect(gameManager).not.toMatch(/import\s+\*\s+as\s+Dialogue(UI)?\s+from/);
@@ -148,9 +149,10 @@ describe('deferred terminal UI loading', function () {
     expect(gameManager).not.toContain('_achievementCheckQueued');
     expect(achievementRuntime).toContain('isSessionTokenCurrent(token)');
     expect(randomEventRuntime).toContain('isSessionTokenCurrent(token)');
-    expect(randomEventRuntime).toContain('captureState(requestedState)');
-    expect(randomEventRuntime).toContain('saveAutosave(requestedState)');
-    expect(gameManager).toContain('Save.saveGame(0, state, { isAutosave: true })');
+    expect(randomEventRuntime).toContain("reason: 'random-event-roll', sessionToken: token");
+    expect(gameManager).toContain("from './GamePersistenceController.js'");
+    expect(gameManager).not.toContain("from '../systems/save/SaveSystem.js'");
+    expect(persistenceRuntime).toContain('store.saveGame(0, request.state, saveOptions)');
   });
 
   it('首次进入和教程界面只在对应流程触发时加载', function () {

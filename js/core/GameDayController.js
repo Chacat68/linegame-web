@@ -66,8 +66,8 @@ export function createGameDayController(dependencies) {
         }
         if (realtimeClock) realtimeClock.lastHullSnapshot = state.shipHull || 100;
 
-        captureState(state, { reason: 'realtime-day' });
-        saveAutosave(state);
+        captureState(state, { reason: 'realtime-day', sessionToken: sessionToken });
+        saveAutosave(state, { reason: 'realtime-day', sessionToken: sessionToken });
       },
     });
   }

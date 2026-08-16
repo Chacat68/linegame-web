@@ -24,7 +24,6 @@ import * as ContextInspector from '../ui/ContextInspector.js';
 import * as UIManager  from '../ui/UIManager.js';
 import * as Fleet      from '../systems/fleet/FleetSystem.js';
 import * as Crew       from '../systems/fleet/CrewSystem.js';
-import * as Save       from '../systems/save/SaveSystem.js';
 import * as Quest      from '../systems/quest/QuestSystem.js';
 import * as Tutorial   from '../systems/tutorial/TutorialSystem.js';
 import * as GameTime from '../systems/time/GameTimeSystem.js';
@@ -70,6 +69,7 @@ import { createGameUiLifecycleController } from './GameUiLifecycleController.js'
 import { createSettingsUiController } from './SettingsUiController.js';
 import { createVictoryRuntimeController } from './VictoryRuntimeController.js';
 import { createAchievementRuntimeController } from './AchievementRuntimeController.js';
+import { createGamePersistenceController } from './GamePersistenceController.js';
 import { createGameUiCoordinator } from '../ui/GameUiCoordinator.js';
 import {
   createActionGuideCoordinator,
@@ -131,6 +131,7 @@ let _teachingGuidanceController = null;
 let _settingsUiController = null;
 let _victoryController = null;
 let _achievementController = null;
+let _persistenceController = null;
 let _contextAdapters = null;
 let _actionGuideCoordinator = null;
 
@@ -249,6 +250,25 @@ function _getAchievementController() {
     reportFailure: function (error) { _reportDeferredUiFailure('achievement', error); },
   });
   return _achievementController;
+}
+
+function _getPersistenceController() {
+  if (_persistenceController) return _persistenceController;
+  _persistenceController = createGamePersistenceController({
+    getState: function () { return _state; },
+    getSessionToken: _getSessionToken,
+    isSessionTokenCurrent: _isSessionTokenCurrent,
+    captureRuntime: function (state, options) { return _getSystemRuntime().capture(state, options); },
+    transitionState: function (state, options) { return _getSessionLifecycle().transition(state, options); },
+    startFreshSession: function (reason) {
+      return init(null, { restoreAutosave: false, reason: reason });
+    },
+    resetTutorial: Tutorial.reset,
+    hideSettings: function () { _getSettingsUiController().hide(); },
+    emitMessage: function (message) { EventBus.emit('log:message', message); },
+    invalidateSaveUi: function () { _updateUI([UI_REGION.SAVE, UI_REGION.GUIDE]); },
+  });
+  return _persistenceController;
 }
 
 function _loadArchiveUI() {
@@ -508,8 +528,8 @@ function _getTravelActions() {
     stopDispatchClock: _stopActiveDispatchClock,
     queueQuestDialogueResult: _queueQuestDialogueResult,
     scheduleRandomEvent: _scheduleRandomEventRoll,
-    captureState: _captureRuntimeStateForSave,
-    saveAutosave: function (state) { Save.saveGame(0, state, { isAutosave: true }); },
+    captureState: _getPersistenceController().captureState,
+    saveAutosave: _getPersistenceController().saveAutosave,
     eventBaseChance: EVENT_CONFIG.baseChance,
   });
   return _travelActions;
@@ -538,8 +558,8 @@ function _getEventActions() {
     getRuntime: function () { return _getRandomEventController().getRuntime(); },
     emitMessage: function (message) { EventBus.emit('log:message', message); },
     refreshActionGuide: _refreshActionGuide,
-    captureState: _captureRuntimeStateForSave,
-    saveAutosave: function (state) { Save.saveGame(0, state, { isAutosave: true }); },
+    captureState: _getPersistenceController().captureState,
+    saveAutosave: _getPersistenceController().saveAutosave,
   });
   return _eventActions;
 }
@@ -580,8 +600,8 @@ function _getGameDayActions() {
     runtime: { advanceDays: function () { return _getSystemRuntime().advanceDays.apply(null, arguments); } },
     pipeline: _getActionPipeline(),
     queueQuestDialogueResult: _queueQuestDialogueResult,
-    captureState: _captureRuntimeStateForSave,
-    saveAutosave: function (state) { Save.saveGame(0, state, { isAutosave: true }); },
+    captureState: _getPersistenceController().captureState,
+    saveAutosave: _getPersistenceController().saveAutosave,
   });
   return _gameDayActions;
 }
@@ -619,8 +639,8 @@ function _getRandomEventController() {
       onChoice: function (choiceIndex) { _handleEventChoice(choiceIndex); },
       emitAudio: function (cue) { EventBus.emit('audio:cue', { cue: cue }); },
       emitMessage: function (message) { EventBus.emit('log:message', message); },
-      captureState: _captureRuntimeStateForSave,
-      saveAutosave: function (state) { Save.saveGame(0, state, { isAutosave: true }); },
+      captureState: _getPersistenceController().captureState,
+      saveAutosave: _getPersistenceController().saveAutosave,
       refreshActionGuide: _refreshActionGuide,
     },
   });
@@ -713,13 +733,9 @@ function _getSettingsUiController() {
       },
       onResetTutorial: function () {
         _getSettingsUiController().hide();
-        _restartSession('settings-tutorial-reset');
+        _getPersistenceController().restart('settings-tutorial-reset');
       },
-      onClearSaves: function () {
-        for (var slotId = 0; slotId < 4; slotId++) Save.deleteSlot(slotId);
-        EventBus.emit('log:message', { text: '🗑 本地存档已全部清空。', type: 'info' });
-        _updateUI([UI_REGION.SAVE, UI_REGION.GUIDE]);
-      },
+      onClearSaves: _getPersistenceController().clearAllSlots,
     },
   });
   return _settingsUiController;
@@ -743,7 +759,7 @@ function _getVictoryController() {
     },
     emitMessage: function (message) { EventBus.emit('log:message', message); },
     refreshActionGuide: _refreshActionGuide,
-    restartSession: _restartSession,
+    restartSession: _getPersistenceController().restart,
   });
   return _victoryController;
 }
@@ -926,8 +942,8 @@ function _getUiCoordinator() {
         getDispatchContext: function (state) { return _getActionGuideCoordinator().getDispatchContext(state); },
       }, archiveActions),
       save: {
-        onSaveGame: _handleSaveGame,
-        onLoadGame: _handleLoadGame,
+        onSaveGame: _getPersistenceController().saveSlot,
+        onLoadGame: _getPersistenceController().loadSlot,
       },
       global: {
         refreshActionGuide: _refreshActionGuide,
@@ -995,12 +1011,6 @@ function _ensureArchiveUiRendered() {
 
 function _ensureSaveUiRendered() {
   return _getUiCoordinator().ensureSave();
-}
-
-function _restartSession(reason) {
-  Tutorial.reset();
-  Save.deleteSlot(0);
-  return init(null, { restoreAutosave: false, reason: reason || 'restart' });
 }
 
 // ---------------------------------------------------------------------------
@@ -1167,32 +1177,6 @@ function _handleRefuel() {
   return _getTradeActions().refuel();
 }
 
-function _handleSaveGame(slotId) {
-  _captureRuntimeStateForSave(_state, { reason: 'manual-save' });
-  const result = Save.saveGame(slotId, _state);
-  EventBus.emit('log:message', { text: result.msg, type: result.ok ? 'info' : 'error' });
-  _updateUI([UI_REGION.SAVE, UI_REGION.GUIDE]);
-}
-
-function _handleLoadGame(slotId) {
-  const result = Save.loadGame(slotId);
-  if (result.ok) {
-    _getSettingsUiController().hide();
-    _getSessionLifecycle().transition(result.state, {
-      reason: 'manual-load',
-      mode: 'manual-load',
-      restoreEconomy: true,
-      restoreGalaxy: true,
-      restoreRandomRuntime: true,
-      syncDifficulty: true,
-      restorePendingEvent: true,
-    });
-    EventBus.emit('log:message', { text: result.msg, type: 'info' });
-  } else {
-    EventBus.emit('log:message', { text: result.msg, type: 'error' });
-  }
-}
-
 // 等级进阶逻辑已提取到 js/systems/progression/ProgressionSystem.js
 
 // ---------------------------------------------------------------------------
@@ -1241,10 +1225,6 @@ function _getRealtimeDayDurationMs() {
   return Number.isFinite(_settings && _settings.realtimeDayDurationMs)
     ? _settings.realtimeDayDurationMs
     : TIME_CONFIG.realtimeDayDurationMs;
-}
-
-function _captureRuntimeStateForSave(state, options) {
-  return _getSystemRuntime().capture(state, Object.assign({ sessionToken: _getSessionToken() }, options));
 }
 
 function _stopGameLoop() {

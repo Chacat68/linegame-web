@@ -43,9 +43,11 @@ function createHarness(options) {
     pipeline: pipeline,
     queueQuestDialogueResult: function () { trace.push('quest-dialogue'); },
     captureState: function (nextState, captureOptions) {
-      trace.push('capture:' + captureOptions.reason + ':' + nextState.day);
+      trace.push('capture:' + captureOptions.reason + ':' + captureOptions.sessionToken.revision + ':' + nextState.day);
     },
-    saveAutosave: function () { trace.push('save'); },
+    saveAutosave: function (nextState, saveOptions) {
+      trace.push('save:' + saveOptions.reason + ':' + saveOptions.sessionToken.revision + ':' + nextState.day);
+    },
   });
   return { controller: controller, state: state, token: token, trace: trace, result: result };
 }
@@ -64,7 +66,7 @@ describe('GameDayController', function () {
     expect(harness.trace).toEqual([
       'get-state', 'get-token', 'advance:2:realtime-clock:8',
       'sync-ship',
-      'quest-dialogue', 'capture:realtime-day:6', 'save',
+      'quest-dialogue', 'capture:realtime-day:8:6', 'save:realtime-day:8:6',
       'result-message:advanced', 'achievement:5', 'render:5', 'victory:5',
     ]);
   });

@@ -37,8 +37,12 @@ function createHarness(options) {
       onChoice: choiceHandler,
       emitAudio: function (cue) { trace.push(['audio', cue]); },
       emitMessage: function (message) { trace.push(['message', message.text]); },
-      captureState: function (target) { trace.push(['capture', target.id]); },
-      saveAutosave: function (target) { trace.push(['save', target.id]); },
+      captureState: function (target, persistenceOptions) {
+        trace.push(['capture', target.id, persistenceOptions.reason, persistenceOptions.sessionToken.revision]);
+      },
+      saveAutosave: function (target, persistenceOptions) {
+        trace.push(['save', target.id, persistenceOptions.reason, persistenceOptions.sessionToken.revision]);
+      },
       refreshActionGuide: function () { trace.push(['guide']); },
     },
   });
@@ -78,6 +82,12 @@ describe('RandomEventRuntimeController', function () {
       'sync',
       'sync', 'roll', 'audio', 'present', 'message', 'capture', 'save', 'guide',
       'sync', 'roll', 'audio', 'present', 'message', 'capture', 'save', 'guide',
+    ]);
+    expect(harness.trace.filter(function (entry) { return entry[0] === 'capture' || entry[0] === 'save'; })).toEqual([
+      ['capture', 'A', 'random-event-roll', 1],
+      ['save', 'A', 'random-event-roll', 1],
+      ['capture', 'A', 'random-event-roll', 1],
+      ['save', 'A', 'random-event-roll', 1],
     ]);
     harness.presented[0].onChoice(2);
     expect(harness.choiceHandler).toHaveBeenCalledWith(2);
