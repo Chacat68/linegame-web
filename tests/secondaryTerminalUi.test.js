@@ -31,7 +31,7 @@ describe('Secondary terminal UI structure', function () {
     expect(html).toContain('id="market-close-btn" class="market-close-btn" type="button" aria-label="关闭市场并返回星图"');
     expect(html).toContain('content="width=device-width, initial-scale=1.0, viewport-fit=cover"');
 
-    expect(js).toContain('btn.addEventListener(\'keydown\', _handleTerminalTabKeydown)');
+    expect(js).toContain('_bindDomListener(btn, \'keydown\', _handleTerminalTabKeydown)');
     expect(js).toContain('key !== \'ArrowLeft\'');
     expect(js).toContain('activateTab(nextButton.dataset.tab)');
 

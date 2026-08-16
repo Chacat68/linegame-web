@@ -42,7 +42,7 @@ import { createGameFeatureFailureReporter } from './GameFeatureManifest.js';
 import { createGameFeatureRuntime } from './GameFeatureRuntime.js';
 import { createStateSession } from './StateSession.js';
 import { createGameSystemRuntime } from './GameSystemRuntime.js';
-import { createGameClockController } from './GameClockController.js';
+import { createGameLoopRuntime } from './GameLoopRuntime.js';
 import { createGameSessionLifecycle } from './GameSessionLifecycle.js';
 import { DEFAULT_ACTION_DIRTY_REGIONS, UI_REGION } from './ActionPresentation.js';
 import { createGameActionRuntime } from './GameActionRuntime.js';
@@ -53,11 +53,9 @@ import { createVictoryRuntimeController } from './VictoryRuntimeController.js';
 import { createAchievementRuntimeController } from './AchievementRuntimeController.js';
 import { createGamePersistenceController } from './GamePersistenceController.js';
 import { createGameUiApplicationRuntime } from './GameUiApplicationRuntime.js';
-import { shouldLoadAdvancedCommerce } from '../ui/ActionGuideCoordinator.js';
 import { hasBlockingSurfaceOpen, hideBlockingSurface, isBlockingSurfaceVisible, showBlockingSurface } from '../ui/SurfaceManager.js';
 
 const _session = createStateSession();
-const ACTIVE_DISPATCH_CLOCK_ID = 'active-dispatch';
 const _reportDeferredUiFailure = createGameFeatureFailureReporter({
   emitLog: function (message) { EventBus.emit('log:message', message); },
   reportError: function (feature, error) {
@@ -75,7 +73,7 @@ let _runtimeRevision = 0;
 let _featureRuntime = null;
 let _uiRuntime = null;
 let _systemRuntime = null;
-let _gameClock = null;
+let _gameLoopRuntime = null;
 let _sessionLifecycle = null;
 let _actionRuntime = null;
 let _dialogueController = null;
@@ -261,32 +259,32 @@ function _getSystemRuntime() {
   return _systemRuntime;
 }
 
-function _getGameClock() {
-  if (_gameClock) return _gameClock;
-  _gameClock = createGameClockController({
+function _getGameLoopRuntime() {
+  if (_gameLoopRuntime) return _gameLoopRuntime;
+  _gameLoopRuntime = createGameLoopRuntime({
     getState: function () { return _state; },
-    getDayDurationMs: _getRealtimeDayDurationMs,
-    getHullSnapshot: function (state) {
-      return state && Number.isFinite(state.shipHull) ? state.shipHull : 100;
+    getSettings: function () { return _settings; },
+    getFeatureRuntime: _getFeatureRuntime,
+    getGuidanceRuntime: _getGuidanceRuntime,
+    getActionRuntime: _getActionRuntime,
+    systems: {
+      Fleet: Fleet,
+      Tutorial: Tutorial,
+      GameTime: GameTime,
     },
-    isPaused: function (state) {
-      var features = _getFeatureRuntime();
-      if (shouldLoadAdvancedCommerce(state) && !features.get('commerceRuntime') && features.getState('commerceRuntime') !== 'error') {
-        _getGuidanceRuntime().prefetchForState(state);
-        return true;
-      }
-      return _isRealtimeClockPaused();
+    ui: {
+      MapUI: MapUI,
+      Renderer: Renderer3D,
     },
-    onElapsedDays: _applyRealtimeDayProgress,
-    renderFrame: function (state) {
-      if (!state) return;
-      var mapView = MapUI.getMapView ? MapUI.getMapView() : 'planets';
-      var galaxyId = MapUI.getCurrentGalaxyId ? MapUI.getCurrentGalaxyId() : 'milky_way';
-      Renderer3D.render(state, mapView, galaxyId);
+    callbacks: {
+      setDayDuration: function (nextDurationMs) {
+        _settings.realtimeDayDurationMs = nextDurationMs;
+      },
+      emitLog: function (message) { EventBus.emit('log:message', message); },
     },
-    clockMath: GameTime,
+    config: { defaultDayDurationMs: TIME_CONFIG.realtimeDayDurationMs },
   });
-  return _gameClock;
+  return _gameLoopRuntime;
 }
 
 function _prepareSessionState(state, context) {
@@ -308,10 +306,6 @@ function _syncSessionProjections(state) {
   MapUI.refreshGalaxyBtn(state);
 }
 
-function _resumeSessionRecurring(state) {
-  if (Fleet.isActiveDispatched(state)) _startActiveDispatchClock();
-}
-
 function _getSessionLifecycle() {
   if (_sessionLifecycle) return _sessionLifecycle;
   _sessionLifecycle = createGameSessionLifecycle({
@@ -324,15 +318,15 @@ function _getSessionLifecycle() {
       },
     },
     clock: {
-      stop: _stopGameLoop,
-      start: _startGameLoop,
+      stop: function () { return _getGameLoopRuntime().stop(); },
+      start: function () { return _getGameLoopRuntime().start(); },
     },
     hooks: {
       resetTransients: _resetSessionTransients,
       prepareState: _prepareSessionState,
       syncProjections: _syncSessionProjections,
       render: function () { _updateUI(); },
-      resumeRecurring: _resumeSessionRecurring,
+      resumeRecurring: function (state) { return _getGameLoopRuntime().resumeRecurring(state); },
       restorePendingEvent: function (state) { return _getRandomEventController().restorePending(state); },
     },
   });
@@ -378,9 +372,9 @@ function _getActionRuntime() {
         refreshMarketLocation: MapUI.refreshMarketLocation,
       },
       clock: {
-        startDispatch: _startActiveDispatchClock,
-        stopDispatch: _stopActiveDispatchClock,
-        resetRealtime: function (timestamp) { _getGameClock().reset(timestamp); },
+        startDispatch: function () { return _getGameLoopRuntime().startDispatch(); },
+        stopDispatch: function () { return _getGameLoopRuntime().stopDispatch(); },
+        resetRealtime: function (timestamp) { return _getGameLoopRuntime().reset(timestamp); },
       },
       features: {
         get: function (feature) { return _getFeatureRuntime().get(feature); },
@@ -400,8 +394,12 @@ function _getActionRuntime() {
         refresh: function () { return _getGuidanceRuntime().refresh(); },
       },
       story: {
-        queueQuestResult: _queueQuestDialogueResult,
-        playTrigger: _playTriggerDialogue,
+        queueQuestResult: function () {
+          return _getDialogueController().queueQuestResult.apply(null, arguments);
+        },
+        playTrigger: function () {
+          return _getDialogueController().playTrigger.apply(null, arguments);
+        },
       },
       persistence: {
         captureState: _getPersistenceController().captureState,
@@ -422,7 +420,9 @@ function _getActionRuntime() {
         returnToStarmap: _returnToStarmapAfterTrade,
       },
       randomEvents: {
-        schedule: _scheduleRandomEventRoll,
+        schedule: function () {
+          return _getRandomEventController().scheduleRoll.apply(null, arguments);
+        },
         getRuntime: function () { return _getRandomEventController().getRuntime(); },
       },
       surfaces: {
@@ -492,7 +492,7 @@ function _getRandomEventController() {
       setTelemetryState: function (state) { _setDeferredUiState('randomEvent', state); },
       reportFailure: function (error) { _reportDeferredUiFailure('randomEvent', error); },
       presentEvent: function (event, onChoice) { EventUI.setPendingEvent(event, onChoice); },
-      onChoice: function (choiceIndex) { _handleEventChoice(choiceIndex); },
+      onChoice: function (choiceIndex) { return _getActionRuntime().event.resolveChoice(choiceIndex); },
       emitAudio: function (cue) { EventBus.emit('audio:cue', { cue: cue }); },
       emitMessage: function (message) { EventBus.emit('log:message', message); },
       captureState: _getPersistenceController().captureState,
@@ -566,9 +566,7 @@ function _getUiRuntime() {
         _updateUI(DEFAULT_ACTION_DIRTY_REGIONS);
       },
       onRealtimeDayDurationChanged: function (nextDurationMs) {
-        _settings.realtimeDayDurationMs = nextDurationMs;
-        _getGameClock().reset(performance.now());
-        if (_gameClock && _gameClock.isRecurring(ACTIVE_DISPATCH_CLOCK_ID)) _startActiveDispatchClock();
+        _getGameLoopRuntime().handleDayDurationChange(nextDurationMs);
       },
       onResetTutorial: function () {
         _getPersistenceController().restart('settings-tutorial-reset');
@@ -577,31 +575,19 @@ function _getUiRuntime() {
       emitLog: function (message) { EventBus.emit('log:message', message); },
       invalidate: function () { _updateUI(DEFAULT_ACTION_DIRTY_REGIONS); },
       setTelemetryState: _setDeferredUiState,
-      refuel: _handleRefuel,
-      travel: _handleTravel,
-      galaxyJump: _handleGalaxyJump,
-      explorePoi: _handleExplorePoi,
-      getPoiStatus: _getPoiStatus,
-      confirmTrade: _handleTradeConfirm,
+      refuel: function () { return _getActionRuntime().trade.refuel(); },
+      travel: function (systemId) { return _getActionRuntime().travel.travel(systemId); },
+      galaxyJump: function (systemId) { return _getActionRuntime().travel.travel(systemId); },
+      explorePoi: function (systemId, poiId) {
+        return _getActionRuntime().exploration.explorePoi(systemId, poiId);
+      },
+      getPoiStatus: function (systemId, poiId) {
+        return _getActionRuntime().exploration.getPoiStatus(systemId, poiId);
+      },
+      confirmTrade: function () { return _getActionRuntime().trade.confirm.apply(null, arguments); },
     },
   });
   return _uiRuntime;
-}
-
-function _ensureMarketUiRendered() {
-  return _getUiRuntime().ensureMarket();
-}
-
-function _ensureFleetUiRendered() {
-  return _getUiRuntime().ensureFleet();
-}
-
-function _ensureArchiveUiRendered() {
-  return _getUiRuntime().ensureArchive();
-}
-
-function _ensureSaveUiRendered() {
-  return _getUiRuntime().ensureSave();
 }
 
 // ---------------------------------------------------------------------------
@@ -652,7 +638,7 @@ export function _handleActionGuideActionForTest(suggestion) {
 }
 
 export function _handleTradeConfirmForTest(action, goodId, quantity, marketType) {
-  _handleTradeConfirm(action, goodId, quantity, marketType);
+  return _getActionRuntime().trade.confirm(action, goodId, quantity, marketType);
 }
 
 export function _handleAssignRouteForTest(shipIndex, buySystemId, sellSystemId, goodId, tradePolicy) {
@@ -660,59 +646,15 @@ export function _handleAssignRouteForTest(shipIndex, buySystemId, sellSystemId, 
 }
 
 export function _stopActiveDispatchForTest() {
-  _stopActiveDispatchClock();
+  return _getGameLoopRuntime().stopDispatch();
 }
 
 export function _getGameClockSnapshotForTest() {
-  return _gameClock ? _gameClock.getSnapshot() : null;
+  return _gameLoopRuntime ? _gameLoopRuntime.getSnapshot() : null;
 }
 
 export function _getUiDiagnosticsForTest() {
   return _getUiRuntime().getDiagnostics();
-}
-
-function _playTriggerDialogue(triggerType, context, onFinished) {
-  return _getDialogueController().playTrigger(triggerType, context, onFinished);
-}
-
-function _queueQuestDialogueResult(result, onFinished) {
-  return _getDialogueController().queueQuestResult(result, onFinished);
-}
-
-function _scheduleRandomEventRoll(state, baseChance) {
-  return _getRandomEventController().scheduleRoll(state, baseChance);
-}
-
-// ---------------------------------------------------------------------------
-// 动作处理（所有状态变更入口）
-// ---------------------------------------------------------------------------
-
-function _getPoiStatus(systemId, poiId) {
-  return _getActionRuntime().exploration.getPoiStatus(systemId, poiId);
-}
-
-function _handleExplorePoi(systemId, poiId) {
-  return _getActionRuntime().exploration.explorePoi(systemId, poiId);
-}
-
-function _handleTravel(systemId) {
-  return _getActionRuntime().travel.travel(systemId);
-}
-
-function _handleEventChoice(choiceIndex) {
-  return _getActionRuntime().event.resolveChoice(choiceIndex);
-}
-
-/**
- * 跨星系跳转（点击其他星系星球时触发）
- */
-function _handleGalaxyJump(systemId) {
-  // 直接调用 travelTo，它会自动处理跨星系逻辑
-  _handleTravel(systemId);
-}
-
-function _handleTradeConfirm(action, goodId, quantity, marketType) {
-  return _getActionRuntime().trade.confirm(action, goodId, quantity, marketType);
 }
 
 function _returnToStarmapAfterTrade() {
@@ -724,68 +666,12 @@ function _returnToStarmapAfterTrade() {
   }
 }
 
-function _handleRefuel() {
-  return _getActionRuntime().trade.refuel();
-}
-
-// 等级进阶逻辑已提取到 js/systems/progression/ProgressionSystem.js
-
-// ---------------------------------------------------------------------------
-// 激活船只自动派遣 — 逻辑已提取到 js/core/DispatchController.js
-// GameManager 仅保留 tick 回调的胶水逻辑
-// ---------------------------------------------------------------------------
-
-function _boundDispatchTick() {
-  return _getActionRuntime().dispatch.tick();
-}
-
-function _startActiveDispatchClock() {
-  // 两次自动操作约等于一个游戏日：四步买卖循环约耗时两天，
-  // 与远程船队的日结算速度保持同一量级。
-  _getGameClock().startRecurring(
-    ACTIVE_DISPATCH_CLOCK_ID,
-    _boundDispatchTick,
-    Math.max(1000, Math.floor(_getRealtimeDayDurationMs() / 2))
-  );
-  EventBus.emit('log:message', { text: '📡 自动跑商已启动，将按游戏时间自动执行下一步。', type: 'info' });
-}
-
-function _stopActiveDispatchClock() {
-  if (_gameClock) _gameClock.stopRecurring(ACTIVE_DISPATCH_CLOCK_ID);
-}
-
 // ---------------------------------------------------------------------------
 // UI 刷新兼容入口；新动作必须传 dirty regions，省略时才全量兜底。
 // ---------------------------------------------------------------------------
 
 function _updateUI(regions) {
-  if (MapUI.isMarketOpen() && !_getFeatureRuntime().get('market')) _ensureMarketUiRendered();
+  if (MapUI.isMarketOpen() && !_getFeatureRuntime().get('market')) _getUiRuntime().ensureMarket();
   if (typeof regions === 'undefined') return _getUiRuntime().renderAll();
   return _getUiRuntime().invalidate(regions);
-}
-
-function _isRealtimeClockPaused() {
-  return !!(document.hidden || Tutorial.isActive() || document.querySelector('.modal:not(.hidden)'));
-}
-
-function _applyRealtimeDayProgress(days, clockContext) {
-  return _getActionRuntime().day.advance(days, clockContext);
-}
-
-function _getRealtimeDayDurationMs() {
-  return Number.isFinite(_settings && _settings.realtimeDayDurationMs)
-    ? _settings.realtimeDayDurationMs
-    : TIME_CONFIG.realtimeDayDurationMs;
-}
-
-function _stopGameLoop() {
-  if (_gameClock) _gameClock.stop();
-}
-
-// ---------------------------------------------------------------------------
-// 游戏主循环
-// ---------------------------------------------------------------------------
-
-function _startGameLoop() {
-  _getGameClock().start();
 }

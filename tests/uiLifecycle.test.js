@@ -49,6 +49,12 @@ function createFakeElement(initialClasses) {
       if (!listeners[type]) listeners[type] = [];
       listeners[type].push(handler);
     },
+    removeEventListener: function (type, handler) {
+      if (!listeners[type]) return;
+      listeners[type] = listeners[type].filter(function (candidate) {
+        return candidate !== handler;
+      });
+    },
     dispatchEvent: function (type, event) {
       (listeners[type] || []).forEach(function (handler) {
         handler(event || { target: this, preventDefault: function () {} });
@@ -162,6 +168,53 @@ describe('UI lifecycle idempotency', function () {
       expect(tradePanelToggle.listenerCount('click')).toBe(1);
       expect(consolePanelClose.listenerCount('click')).toBe(1);
     });
+  });
+
+  it('MapUI.dispose 释放监听与全局回调，并允许重新初始化', async function () {
+    vi.resetModules();
+
+    var tab = createFakeElement();
+    tab.dataset.tab = 'market';
+    var bottomNav = createFakeElement();
+    var infoPanel = createFakeElement();
+    var tradePanel = createFakeElement();
+    var body = createFakeElement();
+
+    globalThis.window = {};
+    globalThis.document = {
+      body: body,
+      querySelectorAll: function (selector) {
+        if (selector === '.tab-btn') return [tab];
+        return [];
+      },
+      getElementById: function (id) {
+        if (id === 'bottom-nav') return bottomNav;
+        if (id === 'info-panel') return infoPanel;
+        if (id === 'trade-panel') return tradePanel;
+        return null;
+      },
+      querySelector: function () { return null; },
+    };
+
+    var MapUI = await import('../js/ui/MapUI.js');
+    MapUI.initTabs(function () {});
+    MapUI.init3DCallbacks(function () { return null; }, function () {}, function () {});
+
+    expect(tab.listenerCount('click')).toBe(1);
+    expect(bottomNav.listenerCount('click')).toBe(1);
+    expect(typeof globalThis.window._mapClickCallback).toBe('function');
+
+    expect(MapUI.dispose()).toBe(true);
+    expect(MapUI.dispose()).toBe(false);
+    expect(tab.listenerCount('click')).toBe(0);
+    expect(bottomNav.listenerCount('click')).toBe(0);
+    expect(globalThis.window._mapClickCallback).toBe(null);
+    expect(globalThis.window._galaxyClickCallback).toBe(null);
+
+    MapUI.initTabs(function () {});
+    expect(tab.listenerCount('click')).toBe(1);
+    expect(bottomNav.listenerCount('click')).toBe(1);
+    MapUI.dispose();
   });
 
   it('MapUI 二级终端 tab 支持方向键切换并同步面板状态', function () {
@@ -722,6 +775,34 @@ describe('UI lifecycle idempotency', function () {
 
       expect(observedState).toBe(loadedState);
     });
+  });
+
+  it('UIManager.dispose 释放底栏绑定和导航 facade', async function () {
+    vi.resetModules();
+
+    var bottomNav = createFakeElement();
+    var clonedBottomNav = createFakeElement();
+    bottomNav.cloneNode = function () { return clonedBottomNav; };
+    bottomNav.parentNode = { replaceChild: function () {} };
+
+    globalThis.document = {
+      querySelectorAll: function () { return []; },
+      getElementById: function (id) { return id === 'bottom-nav' ? bottomNav : null; },
+    };
+
+    var UIManager = await import('../js/ui/UIManager.js');
+    UIManager.init({}, {});
+    expect(clonedBottomNav.listenerCount('click')).toBe(1);
+    expect(clonedBottomNav.listenerCount('keydown')).toBe(1);
+    expect(globalThis.__linegameUIManager).toBeTruthy();
+
+    expect(UIManager.dispose()).toBe(true);
+    expect(UIManager.dispose()).toBe(false);
+    expect(clonedBottomNav.listenerCount('click')).toBe(0);
+    expect(clonedBottomNav.listenerCount('keydown')).toBe(0);
+    expect(globalThis.__linegameUIManager).toBeUndefined();
+    expect(UIManager.getNavigationSnapshot()).toBe(null);
+    expect(UIManager.switchView('market')).toBe(false);
   });
 
   it('UIManager 把详情 Escape 接入统一 dispatcher 且不退出当前工作区', async function () {

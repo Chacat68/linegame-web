@@ -29,8 +29,12 @@ let _handlers = {
 let _viewSwitchListener = null;
 let _terminalBlurListener = null;
 let _releaseNavigationEscape = null;
+let _bottomNavElement = null;
+let _bottomNavClickListener = null;
+let _initialized = false;
 
 export function init(stateSource, handlers) {
+  if (_initialized) dispose();
   _getState = typeof stateSource === 'function'
     ? stateSource
     : function () { return stateSource || null; };
@@ -79,6 +83,7 @@ export function init(stateSource, handlers) {
   };
 
   _syncWorkspaceVisualState('map');
+  _initialized = true;
 }
 
 export function openDetail(detail, workspace) {
@@ -118,12 +123,14 @@ function _bindBottomNavigation() {
 
   var newBottomNav = bottomNav.cloneNode(true);
   bottomNav.parentNode.replaceChild(newBottomNav, bottomNav);
-  newBottomNav.addEventListener('click', function (event) {
+  _bottomNavElement = newBottomNav;
+  _bottomNavClickListener = function (event) {
     var button = event.target && typeof event.target.closest === 'function'
       ? event.target.closest('.bottom-nav-btn')
       : null;
     if (button) switchView(button.dataset.view);
-  });
+  };
+  newBottomNav.addEventListener('click', _bottomNavClickListener);
   newBottomNav.addEventListener('keydown', _handleBottomNavKeydown);
 }
 
@@ -224,4 +231,29 @@ function _releaseEventBusListeners() {
   if (_terminalBlurListener) EventBus.off('settings:terminalBlur:changed', _terminalBlurListener);
   _viewSwitchListener = null;
   _terminalBlurListener = null;
+}
+
+export function dispose() {
+  if (!_initialized && !_navigation && !_viewSwitchListener && !_terminalBlurListener) return false;
+  _releaseEventBusListeners();
+  if (_releaseNavigationEscape) _releaseNavigationEscape();
+  _releaseNavigationEscape = null;
+  if (_bottomNavElement && typeof _bottomNavElement.removeEventListener === 'function') {
+    if (_bottomNavClickListener) _bottomNavElement.removeEventListener('click', _bottomNavClickListener);
+    _bottomNavElement.removeEventListener('keydown', _handleBottomNavKeydown);
+  }
+  _bottomNavElement = null;
+  _bottomNavClickListener = null;
+  _navigation = null;
+  _getState = function () { return null; };
+  _handlers = {
+    onOpenMarket: null,
+    onCloseMarket: null,
+    onGetMarketOpen: null,
+    onOpenHangar: null,
+    onOpenQuests: null,
+  };
+  if (globalThis.__linegameUIManager) delete globalThis.__linegameUIManager;
+  _initialized = false;
+  return true;
 }

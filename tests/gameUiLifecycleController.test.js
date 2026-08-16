@@ -29,6 +29,7 @@ function createHarness(options) {
   var events = createEventBus();
   var HUD = { init: vi.fn(), setQuestActions: vi.fn(), setVictoryActions: vi.fn() };
   var MapUI = {
+    dispose: vi.fn(),
     init: vi.fn(),
     init3DCallbacks: vi.fn(),
     initTabs: vi.fn(function (callback) { tabCallback = callback; }),
@@ -37,6 +38,7 @@ function createHarness(options) {
     setRefreshMarket: vi.fn(),
   };
   var UIManager = {
+    dispose: vi.fn(),
     init: vi.fn(function (provider, handlers) { navigationHandlers = handlers; }),
   };
   var Modal = { init: vi.fn() };
@@ -206,6 +208,8 @@ describe('GameUiLifecycleController', function () {
     expect(harness.MapUI.setNavigationChangeCallback).toHaveBeenLastCalledWith(null);
     expect(harness.MapUI.setRefreshMarket).toHaveBeenLastCalledWith(null);
     expect(harness.MapUI.setExplorationActions).toHaveBeenLastCalledWith(null);
+    expect(harness.MapUI.dispose).toHaveBeenCalledOnce();
+    expect(harness.UIManager.dispose).toHaveBeenCalledOnce();
     expect(harness.controller.getDiagnostics()).toEqual({
       disposed: true,
       entryPresentationCount: 0,
@@ -245,6 +249,8 @@ describe('GameUiLifecycleController', function () {
 
     harness.controller.dispose();
 
+    expect(harness.MapUI.dispose).toHaveBeenCalledOnce();
+    expect(harness.UIManager.dispose).toHaveBeenCalledOnce();
     expect(harness.MapUI.initTabs).not.toHaveBeenCalled();
     expect(harness.MapUI.setExplorationActions).not.toHaveBeenCalled();
     expect(harness.Modal.init).not.toHaveBeenCalled();

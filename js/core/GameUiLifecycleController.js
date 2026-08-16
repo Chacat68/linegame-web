@@ -161,12 +161,13 @@ export function createGameUiLifecycleController(dependencies) {
       _call(MapUI, 'setNavigationChangeCallback', [null]);
       _call(MapUI, 'setRefreshMarket', [null]);
       _call(MapUI, 'setExplorationActions', [null]);
-      _call(MapUI, 'initTabs', [null]);
       _call(Modal, 'init', [null]);
     }
     _call(onboardingUi, 'dispose', []);
     _call(settingsUi, 'dispose', []);
     _call(actionGuide, 'dispose', []);
+    _call(MapUI, 'dispose', []);
+    _call(UIManager, 'dispose', []);
     initialized = false;
     disposed = true;
     return true;

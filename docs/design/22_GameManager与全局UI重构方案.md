@@ -38,12 +38,14 @@
 
 | 对象 | 现状 | 风险含义 |
 | --- | ---: | --- |
-| `js/core/GameManager.js` | 重构前约 2,900 行；当前 791 行 | 动作/引导/Feature/UI controller 图与持久化、会话、时钟边界均已迁出；仍需把启动投影、游戏循环适配和兼容 facade 收束到 400–600 行目标 |
-| `GameManager` 静态 import | 50 条 import 声明 | 市场工作区、设置、UI Coordinator/Lifecycle 与 Context adapter 的构造依赖已由 `GameUiApplicationRuntime` 独占；领域 system/UI 顶层依赖仍待 `GameApplication` 收束 |
-| `GameManager` 顶层函数 | 54 个 | 大部分是 runtime provider、typed port 和测试 facade；下一步应删除兼容转发，而非继续增加命名包装 |
-| `_handle*` / `_load*` / `_render*` / `_ensure*` 函数 | 10 个私有入口 + 3 个测试 facade | 动作与加载入口已收束，但仍有可删除的兼容门面 |
+| `js/core/GameManager.js` | 重构前约 2,900 行；当前 677 行 | 动作/引导/Feature/UI controller 图与持久化、会话、游戏循环边界均已迁出；仍需把 Renderer/Settings 启动投影和测试 facade 收束到 400–600 行目标 |
+| `GameManager` 静态 import | 49 条 import 声明 | UI controller 图由 `GameUiApplicationRuntime` 独占，时钟/派遣调度由 `GameLoopRuntime` 独占；领域 system/UI 顶层依赖仍待 `GameApplication` 收束 |
+| `GameManager` 顶层函数 | 31 个 | 主要是 runtime provider、两个调度 hook 和测试 facade；新功能不得再增加一次性转发函数 |
+| `_handle*` / `_load*` / `_render*` / `_ensure*` 函数 | 0 个私有入口 + 3 个测试 facade | 私有兼容门面已删除；真实 UI/剧情/随机事件端口直连 typed runtime |
 | 延迟模块状态变量 | 0 个旧三元状态；15 个 manifest entry | 通用延迟生命周期已统一，领域 controller 只保留自身队列/上下文 |
-| `MapUI.js` | 2,467 行 | 地图、导航和上下文 UI 仍有渗透 |
+| `MapUI.js` | 2,407 行 | 星系总览和视图状态已迁出；现有 DOM/EventBus/Context listener 已有可重复 init/dispose，星球详情、探索与导航交互仍有渗透 |
+| `MapGalaxyHubPresenter.js` | 211 行 | 独占星系总览解锁/访问/贸易线索模型、HTML 和跃迁 intent；不绑定 DOM、不修改 state |
+| `MapViewStateController.js` | 157 行 | 独占星系/星球视图、当前查看星系和悬停目标；所有写入经单一 controller，并始终读取最新 session state |
 | `MarketUI.js` | 重构前 3,606 行；当前 1,324 行 | 图表、现货、商品、资金和贸易站投影边界已迁出；现在主要持有工作区/成长状态、增量重绘、价格总览、局部选择和 typed command 发布 |
 | `FleetUI.js` | 1,113 行 | 已移除反向全局主控依赖；公开入口使用请求对象 + 单一 typed command，机库、采购、船员、改装/保养和派遣投影均已迁出；协调层保留工作区选择、弹层、焦点、确认与 command 发布 |
 | `FleetHangarPresenter.js` | 411 行 | 独占机库主视图只读模型、HTML 与 UI intent，不持有工作区选择状态、不绑定 DOM、不提交领域动作 |
@@ -650,7 +652,8 @@ Escape **不得切换 canonical workspace 或默认返回地图**，也不得关
 | `GameSystemRuntime` | **restore / capture / advance 已接入** | 冷启动与手动读档共用 restore manifest；保存共用 fleet/economy/galaxy capture；日推进通过 GameTime 唯一 manifest 入口并记录 revision/天数诊断；Tutorial 等不再由入口补调用 | 增加 dispose 与失败回滚；补六路径生命周期矩阵 |
 | `GameSessionLifecycle` | **第一阶段已接入** | 冷启动、自动存档恢复、重开与手动读档共用 stop → replace → restore → project → render → resume 编排；支持 UI 壳就绪前的两阶段启动、stale token 丢弃、幂等 present 与失败停表 | 增加 restore 失败回滚和 shutdown；补浏览器级保存/读档矩阵与 timer/listener 计数 |
 | `GamePersistenceController` | **存档事务与恢复用例已接入** | controller 统一运行时 capture、手动保存/读档、四条自动存档、清空槽位和重开策略；GameManager 不再 import `SaveSystem`；异步随机事件/实时日结算透传原 session token，迟到回调不能写入新会话；真实手动保存→确认读档→UI 恢复已浏览器验收 | 把启动时自动存档解析也纳入应用持久化端口，并为 capture/transition 异常增加事务补偿 |
-| `GameClockController` | **已接入全部游戏计时器** | RAF、实时日与 active dispatch recurring task 统一所有权；假时钟、暂停不补算、重复 start、会话替换和 dispose 有测试 | 接入页面可见性生命周期与统一 runtime dispose |
+| `GameClockController` | **已接入全部游戏计时器** | RAF、实时日与命名 recurring task 统一调度；假时钟、暂停不补算、stale callback、重复 start、会话替换和 dispose 有测试 | 保持为无领域知识的底层调度器 |
+| `GameLoopRuntime` | **游戏循环应用边界已接入** | 统一 latest-state、实时流速、高级商业预取暂停、DOM/教程暂停、场景帧、领域日推进与 active-dispatch 恢复/重启；`GameManager` 不再持有 RAF、DOM 选择器或 recurring id | 接入 `GameApplication.shutdown`，并评估 `visibilitychange` 时是否停止 RAF 以降低后台功耗 |
 | `GameActionRuntime` | **九个动作控制器与共享提交边界已接入** | 单一 latest-state provider 组装 Fleet/Commerce/Archive/Trade/Travel/Exploration/Event/Dispatch/GameDay 与 pipeline；通用结果发布和任务进度提交已迁出，GameManager 不再逐项 import/缓存控制器；真实任务接取→买入确认→成交→行动引导切换已浏览器验收 | 把剩余 UI handler 转发收敛为 typed command，并为跨控制器异步 post-effect 增加统一事务 token |
 | `GameGuidanceRuntime` | **行动引导组合边界已接入** | 单一 latest-state/session 端口组装 Action Guide、命令目的地、语义执行、教学路线、首次进入 UI 与 onboarding policy；GameManager 已删除 6 份 controller 缓存/getter 及互调胶水；真实“接取任务→买入确认”已浏览器验收 | 把领域完成事件升级为 typed guidance command，并由 `GameApplication.shutdown` 统一 dispose |
 | `FleetActionController` + `DispatchActionController` | **舰队 UI 动作与 active dispatch tick 已接入** | 购船、切船、升级、派遣/召回、槽位、出售、改装、保养和船员动作统一编排；tick 通过动作描述调用补给/航行/交易控制器，不读 DOM；买卖后的路线阶段在首次 render 前提交；维护失效立即停表 | 移除 GameManager 兼容转发函数 |
@@ -668,7 +671,7 @@ Escape **不得切换 canonical workspace 或默认返回地图**，也不得关
 | `OnboardingUiController` + `OnboardingPolicyController` | **首次进入 UI 生命周期与内容策略已接入** | UI controller 持有教程视图同步、开始/跳过决策、公司身份入口 DOM listener 与 latest-session 校验；policy 持有欢迎消息、教程完成反馈和首批任务推荐，两者均由 `GameGuidanceRuntime` 组装 | 接入统一 shutdown dispose，并把可配置文案迁入内容资源层 |
 | `GuidanceExecutionAdapter` | **行动引导执行端口已接入** | actionType 执行上下文由 `GameGuidanceRuntime` 以分组端口组装；异步 Feature 加载使用 latest-session 校验，迟到结果被丢弃；不可用与执行异常统一可见反馈 | 将剩余 direct-execution policy 收敛为 typed command |
 | `TeachingGuidanceController` | **教程路线辅助与专题教学策略已接入** | 首单/卖货路线使用 state + session token 丢弃迟到结果；专题启动、真实步骤提交和自然完成反馈由单一边界发布；舰队、经营、pipeline 与 Action Guide 均已改用该端口 | 将领域完成事件改为 typed teaching command，并让路线辅助返回统一语义结果 |
-| `GameUiLifecycleController` | **eager UI 壳 bind / present / dispose 已接入** | HUD、MapUI、UIManager、Modal、Action Guide、设置/公司 launcher、Feature telemetry、场景就绪和首次进入呈现统一接线；重复初始化只保留一个教程完成 listener；dispose 不会反向初始化未绑定模块 | 由 `GameApplication.shutdown` 调用 dispose，并为 UIManager / MapUI 补完整 listener 释放契约 |
+| `GameUiLifecycleController` | **eager UI 壳 bind / present / dispose 已接入** | HUD、MapUI、UIManager、Modal、Action Guide、设置/公司 launcher、Feature telemetry、场景就绪和首次进入呈现统一接线；重复初始化只保留一个教程完成 listener；MapUI/UIManager dispose 会释放 DOM、EventBus、Context、Escape 和全局 facade/callback | 由 `GameApplication.shutdown` 统一调用，并补 Renderer 资源释放与浏览器级 listener 计数 |
 | `GameUiApplicationRuntime` | **UI 应用组合边界已接入** | 独占 MarketWorkspace、Settings、GameUiCoordinator、GameUiLifecycle 与 Context adapters 的延迟组装；统一 latest-state/session providers、ensure/render/invalidate、入口呈现、复合 diagnostics、reset 与 dispose；GameManager 不再 import 这五个构造器 | 接入 `GameApplication.shutdown`，并把设置变更改为 typed command，继续删除 GameManager 的 ensure/handler 兼容门面 |
 | `CommandDestinationController` | **命令 UI 落点已接入** | 交易确认、任务选择、市场商品、探索报告、推荐派遣和推荐改装拥有单一 owner；Fleet/Archive/Market 延迟完成均校验 generation、state 与 session token | 把更多 workspace 内局部 CTA 接入统一 command destination，并为加载失败提供局部恢复呈现 |
 | `MarketCommand` + `MarketWorkspaceController` | **typed 市场命令与重入生命周期已接入** | `MarketUI` 只接收请求对象并发布单一 command；控制器统一解释公开/黑市买卖、补给、贷款、投资、建站、升级、批量策略与远程航点，非法 payload 会被拒绝；diagnostics 记录成功数、拒绝数与最后命令；延迟加载、待恢复商品焦点和 session stale guard 保持在 controller | 接入 `GameApplication.shutdown` dispose，并把 presenter 选择状态汇入同一 diagnostics |
@@ -691,7 +694,7 @@ Escape **不得切换 canonical workspace 或默认返回地图**，也不得关
 
 当前仍存在的过渡边界：
 
-- `GameManager` 当前 791 行；StateSession、SystemRuntime、SessionLifecycle、GameClock、GamePersistenceController、GameActionRuntime、GameFeatureRuntime、GameGuidanceRuntime、GameUiApplicationRuntime、FeatureRegistry、GameFeatureManifest、贸易/航行/探索/事件/active dispatch/日结算、剧情、随机事件、成就、胜利、设置、eager UI 壳、首次进入/onboarding、教学路线/专题策略、命令目的地、行动引导执行、市场工作区与舰队 typed command 等已成为真实调用路径；旧动态 import/CSS/错误标签资源表、Feature 配置标志与命名加载包装、内联教学策略、成就队列状态、HUD 领域 mutation、FleetUI 全局主控回调、直接 SaveSystem 依赖、九份 action controller 缓存、六份 guidance controller 缓存/getter、四套 UI controller 构造细节，以及市场/舰队的长位置参数 UI 接口也已删除，但 Renderer/Settings 顶层启动、游戏循环适配与少量兼容门面仍在组合根，尚未达到薄组合根目标。
+- `GameManager` 当前 677 行；StateSession、SystemRuntime、SessionLifecycle、GameClock/GameLoop、GamePersistenceController、GameActionRuntime、GameFeatureRuntime、GameGuidanceRuntime、GameUiApplicationRuntime、FeatureRegistry、GameFeatureManifest、贸易/航行/探索/事件/active dispatch/日结算、剧情、随机事件、成就、胜利、设置、eager UI 壳、首次进入/onboarding、教学路线/专题策略、命令目的地、行动引导执行、市场工作区与舰队 typed command 等已成为真实调用路径；旧动态 import/CSS/错误标签资源表、Feature 配置标志与命名加载包装、内联教学策略、成就队列状态、HUD 领域 mutation、FleetUI 全局主控回调、直接 SaveSystem 依赖、九份 action controller 缓存、六份 guidance controller 缓存/getter、四套 UI controller 构造细节、RAF/DOM 暂停/recurring 时钟胶水、十个一次性动作/加载转发函数，以及市场/舰队的长位置参数 UI 接口也已删除，但 Renderer/Settings 顶层启动与 3 个测试门面仍在组合根，尚未达到薄组合根目标。
 - `GameUiCoordinator`、`ActionGuideCoordinator`、`NavigationController`、`SurfaceManager` 和 `ContextInspector` 已进入运行时调用链；Context Inspector 与唯一 Command Slot 已从 Map workspace 提升为 `game-main` 的 Global L2 直属层；真实动作已改走 dirty-region 增量刷新，但 workspace 内部 presenter 仍是整块刷新，局部 action slot 和旧终端 DOM 收口也未完成，不能按“已完成 UI 重构”验收。
 - 通用延迟模块已由单一 manifest 持有；Dialogue/RandomEvent/Achievement controller 仅保留领域队列或检查事务，不再重复拥有 import 状态。
 - `SurfaceManager` 已统一 blocking 层、inert 与 Escape dispatcher，但五个 L3 workspace 仍需淘汰旧 primary/secondary 适配分歧。

@@ -46,7 +46,7 @@ describe('deferred terminal UI loading', function () {
     expect(commandDestinations).toContain('var loaded = getLoadedArchive()');
     expect(commandDestinations).toContain('Promise.resolve().then(loadArchive)');
     expect(gameManager).toContain("if (MapUI.isMarketOpen() && !_getFeatureRuntime().get('market'))");
-    expect(gameManager).toContain('_ensureMarketUiRendered()');
+    expect(gameManager).toContain('_getUiRuntime().ensureMarket()');
     expect(gameManager).toContain('_getUiRuntime().renderAll()');
     expect(gameManager).toContain("from './GameUiApplicationRuntime.js'");
     expect(uiApplication).toContain("from './MarketWorkspaceController.js'");
@@ -119,8 +119,10 @@ describe('deferred terminal UI loading', function () {
     var uiCoordinator = readFileSync('js/ui/GameUiCoordinator.js', 'utf8');
     var uiApplication = readFileSync('js/core/GameUiApplicationRuntime.js', 'utf8');
 
-    expect(gameManager).toContain('_ensureSaveUiRendered()');
-    expect(gameManager).toContain('return _getUiRuntime().ensureSave()');
+    expect(gameManager).not.toContain('_ensureMarketUiRendered');
+    expect(gameManager).not.toContain('_ensureFleetUiRendered');
+    expect(gameManager).not.toContain('_ensureArchiveUiRendered');
+    expect(gameManager).not.toContain('_ensureSaveUiRendered');
     expect(uiApplication).toContain('function ensureSave() { return getCoordinator().ensureSave(); }');
     expect(uiCoordinator).toContain("return _ensure('save', function (module) { renderSave(module); })");
     expect(featureManifest).toContain("import('../ui/VictoryResultUI.js')");

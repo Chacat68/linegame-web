@@ -11,6 +11,8 @@ import * as Exploration from '../systems/galaxy/ExplorationSystem.js';
 import * as Quest from '../systems/quest/QuestSystem.js';
 import * as EventBus from '../core/EventBus.js';
 import * as ContextInspector from './ContextInspector.js';
+import { buildGalaxyHubPanel } from './MapGalaxyHubPresenter.js';
+import { createMapViewStateController } from './MapViewStateController.js';
 import { GOODS } from '../data/goods.js';
 import {
   buildContextualMarketAction,
@@ -32,9 +34,6 @@ import {
   findSystem,
   findGalaxy,
   GALAXY_JUMP_DAYS,
-  getSystemsByGalaxy,
-  getAccessibleGalaxies,
-  getAccessibleSystems,
   getGalaxyAccessState,
   getSystemAccessState,
   isSystemAccessible,
@@ -69,17 +68,40 @@ let _planetDetailDisclosureState = Object.create(null);
 let _selectedPlanetDetailSystem = null;
 let _travelActionHandler = null;
 let _galaxyJumpActionHandler = null;
-let _hoveredGalaxyId = null;
 let _mainBindingsInitialized = false;
 let _tabBindingsInitialized = false;
 let _railMutualExclusionBound = false;
 let _galaxyViewToggleBound = false;
 let _mapContextRendererRegistered = false;
+let _releaseMapContextRenderer = null;
 let _releaseMapDetailEscape = null;
+let _railPanelOpenListener = null;
+let _domListeners = [];
+let _disposed = true;
 
 function _currentState(fallback) {
   var state = typeof _getState === 'function' ? _getState() : null;
   return state || _stateRef || fallback || null;
+}
+
+const _mapViewState = createMapViewStateController({
+  getState: _currentState,
+  getGalaxyAccessState: getGalaxyAccessState,
+});
+
+function _bindDomListener(target, eventName, handler, options) {
+  if (!target || typeof target.addEventListener !== 'function' || typeof handler !== 'function') return false;
+  target.addEventListener(eventName, handler, options);
+  _domListeners.push({ target: target, eventName: eventName, handler: handler, options: options });
+  return true;
+}
+
+function _releaseDomListeners() {
+  _domListeners.splice(0).reverse().forEach(function (binding) {
+    if (binding.target && typeof binding.target.removeEventListener === 'function') {
+      binding.target.removeEventListener(binding.eventName, binding.handler, binding.options);
+    }
+  });
 }
 
 /**
@@ -90,6 +112,7 @@ export function syncState(stateSource) {
     ? stateSource
     : function () { return stateSource || null; };
   _stateRef = _currentState(null);
+  _mapViewState.reset();
   return _stateRef;
 }
 
@@ -170,23 +193,23 @@ function _setSelectedPlanetDetail(systemId) {
 function _registerMapContextRenderer() {
   if (_mapContextRendererRegistered) return;
   _mapContextRendererRegistered = true;
-  ContextInspector.registerRenderer('map', function (request) {
+  _releaseMapContextRenderer = ContextInspector.registerRenderer('map', function (request) {
     var context = request && request.context;
     var state = request && request.state ? request.state : _currentState();
     if (!state) return false;
 
     if (!context) {
       _selectedPlanetDetailSystem = null;
-      state.hoveredSystem = null;
+      _mapViewState.clearHover();
       var panel = document.getElementById('planet-detail-panel');
       if (panel && panel.classList) panel.classList.remove('visible');
       if (panel && typeof panel.setAttribute === 'function') panel.setAttribute('aria-hidden', 'true');
       return false;
     } else if (context.type === 'planet') {
       _selectedPlanetDetailSystem = context.id;
-      state.hoveredSystem = context.id;
+      _mapViewState.setHover({ type: 'system', id: context.id });
     } else if (context.type === 'galaxy') {
-      state.mapView = 'galaxies';
+      _mapViewState.showGalaxies();
     } else {
       return false;
     }
@@ -325,8 +348,7 @@ function _travelToPlanet(systemId) {
   if (!sys || !travelAction || travelAction.disabled) return false;
 
   _clearSelectedPlanetDetail(false);
-  state.hoveredSystem = null;
-  _hoveredGalaxyId = null;
+  _mapViewState.clearHover();
 
   if (sys.galaxyId !== state.currentGalaxy) {
     if (_galaxyJumpActionHandler) {
@@ -347,15 +369,11 @@ function _switchToGalaxy(galaxyId) {
   var state = _currentState();
   if (!state || !galaxyId) return false;
 
-  var accessState = getGalaxyAccessState(galaxyId, state.playerLevel || 1, state.researchedTechs || []);
-  if (!accessState.unlocked) return false;
+  if (!_mapViewState.canViewGalaxy(galaxyId)) return false;
 
   _clearSelectedPlanetDetail(false);
   _closeExplorationTerminalPanel(state);
-  state.hoveredSystem = null;
-  _hoveredGalaxyId = null;
-  state.viewingGalaxy = galaxyId;
-  state.mapView = 'planets';
+  _mapViewState.showGalaxyPlanets(galaxyId);
   ContextInspector.render();
   if (!ContextInspector.getSnapshot().initialized) refreshPlanetDetail(state);
   return true;
@@ -367,10 +385,7 @@ function _returnToPlanetView() {
 
   _clearSelectedPlanetDetail(false);
   _closeExplorationTerminalPanel(state);
-  state.hoveredSystem = null;
-  _hoveredGalaxyId = null;
-  state.mapView = 'planets';
-  state.viewingGalaxy = state.currentGalaxy;
+  _mapViewState.showCurrentGalaxyPlanets();
   ContextInspector.render();
   if (!ContextInspector.getSnapshot().initialized) refreshPlanetDetail(state);
   return true;
@@ -380,7 +395,7 @@ function _bindPlanetDetailPanelEvents() {
   var panel = document.getElementById('planet-detail-panel');
   if (!panel || panel.dataset.detailUiBound === 'true') return;
 
-  panel.addEventListener('click', function (event) {
+  _bindDomListener(panel, 'click', function (event) {
     var galaxyButton = event.target.closest('[data-galaxy-action]');
     if (galaxyButton && panel.contains(galaxyButton)) {
       var galaxyAction = galaxyButton.dataset.galaxyAction;
@@ -416,7 +431,7 @@ function _bindPlanetDetailPanelEvents() {
     }
   });
 
-  panel.addEventListener('click', function (event) {
+  _bindDomListener(panel, 'click', function (event) {
     var summary = event.target.closest('summary');
     if (!summary || !panel.contains(summary)) return;
 
@@ -428,7 +443,7 @@ function _bindPlanetDetailPanelEvents() {
     _planetDetailDisclosureState[sectionId] = !detail.open;
   }, true);
 
-  panel.addEventListener('toggle', function (event) {
+  _bindDomListener(panel, 'toggle', function (event) {
     var target = event.target;
     if (!target || target.tagName !== 'DETAILS') return;
 
@@ -437,7 +452,7 @@ function _bindPlanetDetailPanelEvents() {
     _planetDetailDisclosureState[sectionId] = target.open;
   }, true);
 
-  panel.addEventListener('keydown', function (event) {
+  _bindDomListener(panel, 'keydown', function (event) {
     if (!event || event.key !== 'Escape') return;
     var handled = false;
     if (_selectedPlanetDetailSystem) {
@@ -524,21 +539,6 @@ function _buildPlanetDetailField(label, value) {
   '</div>';
 }
 
-function _formatTradeGoods(goodIds) {
-  if (!Array.isArray(goodIds) || goodIds.length === 0) return '综合供需';
-  return goodIds.map(function (goodId) {
-    var good = _goodsById[goodId];
-    if (!good) return goodId;
-    return good.emoji + ' ' + good.name;
-  }).join(' · ');
-}
-
-function _buildGalaxyTradeProfileSummary(galaxy) {
-  var tradeProfile = galaxy && galaxy.tradeProfile;
-  if (!tradeProfile) return '综合供需，适合作为中转市场';
-  return '主供 ' + _formatTradeGoods(tradeProfile.exports) + '；高价收 ' + _formatTradeGoods(tradeProfile.imports);
-}
-
 function _buildPlanetDetailDisclosure(sectionId, title, bodyHtml, options) {
   if (!bodyHtml) return '';
 
@@ -620,11 +620,12 @@ function _bindStarmapRailMutualExclusion() {
   if (_railMutualExclusionBound) return;
   _railMutualExclusionBound = true;
 
-  EventBus.on(STARMAP_RAIL_PANEL_OPEN_EVENT, function (data) {
+  _railPanelOpenListener = function (data) {
     if (data && data.source === STARMAP_RAIL_SOURCE_EXPLORATION_TERMINAL) return;
     if (!_explorationTerminalPanelOpen) return;
     _closeExplorationTerminalPanel(_currentState());
-  });
+  };
+  EventBus.on(STARMAP_RAIL_PANEL_OPEN_EVENT, _railPanelOpenListener);
 }
 
 function _notifyExplorationTerminalPanelOpened() {
@@ -633,8 +634,6 @@ function _notifyExplorationTerminalPanelOpened() {
     panelId: 'exploration-terminal',
   });
 }
-
-_bindStarmapRailMutualExclusion();
 
 function _setExplorationTerminalPanelOpen(nextOpen, stateRef) {
   var resolvedState = stateRef || _currentState();
@@ -782,7 +781,7 @@ function _bindExplorationTerminalPanelControls() {
   var card = document.getElementById('current-system-exploration-card');
   if (!card || card.dataset.closeBound === 'true') return;
 
-  card.addEventListener('click', function (event) {
+  _bindDomListener(card, 'click', function (event) {
     var closeBtn = event.target.closest('[data-exploration-terminal-close]');
     if (!closeBtn || !card.contains(closeBtn)) return;
 
@@ -834,14 +833,12 @@ export function consumePendingMarketPanelFocus() {
 
 /** 获取当前地图视图模式 */
 export function getMapView() {
-  var state = _currentState();
-  return state ? state.mapView : 'planets';
+  return _mapViewState.getMapView();
 }
 
 /** 获取当前查看的星系ID */
 export function getCurrentGalaxyId() {
-  var state = _currentState();
-  return state ? (state.viewingGalaxy || state.currentGalaxy) : 'milky_way';
+  return _mapViewState.getCurrentGalaxyId();
 }
 
 /** 切换到总览模式 */
@@ -869,9 +866,7 @@ export function toggleGalaxyView() {
     return _returnToPlanetView();
   }
 
-  currentState.hoveredSystem = null;
-  _hoveredGalaxyId = null;
-  currentState.mapView = 'galaxies';
+  _mapViewState.showGalaxies();
   ContextInspector.replaceContext({
     type: 'galaxy',
     id: currentState.viewingGalaxy || currentState.currentGalaxy,
@@ -895,6 +890,7 @@ function _bindGalaxyViewToggleEvent() {
  * @param {Function} onGalaxyJump (galaxyId: string) => void  跨星系跳转回调
  */
 export function init(stateSource, onTravel, onGalaxyJump) {
+  _disposed = false;
   // 保存状态引用供底部导航使用
   syncState(stateSource);
   _clearSelectedPlanetDetail(false);
@@ -909,7 +905,7 @@ export function init(stateSource, onTravel, onGalaxyJump) {
 
     const secretRoutesBtn = document.getElementById('secret-routes-toggle-btn');
     if (secretRoutesBtn) {
-      secretRoutesBtn.addEventListener('click', function () {
+      _bindDomListener(secretRoutesBtn, 'click', function () {
         const visible = Renderer3D.isSecretRoutesVisible ? Renderer3D.isSecretRoutesVisible() : true;
         if (Renderer3D.setSecretRoutesVisible) {
           Renderer3D.setSecretRoutesVisible(!visible);
@@ -920,7 +916,7 @@ export function init(stateSource, onTravel, onGalaxyJump) {
 
     const explorationTerminalBtn = document.getElementById('exploration-terminal-btn');
     if (explorationTerminalBtn) {
-      explorationTerminalBtn.addEventListener('click', function () {
+      _bindDomListener(explorationTerminalBtn, 'click', function () {
         var currentState = _currentState();
         var target = _getCurrentSystemExplorationTarget(currentState);
         if (!target) {
@@ -935,7 +931,7 @@ export function init(stateSource, onTravel, onGalaxyJump) {
     const marketBtn = document.getElementById('market-view-btn');
     const marketCloseBtn = document.getElementById('market-close-btn');
     if (marketBtn) {
-      marketBtn.addEventListener('click', function () {
+      _bindDomListener(marketBtn, 'click', function () {
         var currentState = _currentState();
         if (_marketOpen) {
           closeMarket();
@@ -948,7 +944,7 @@ export function init(stateSource, onTravel, onGalaxyJump) {
       });
     }
     if (marketCloseBtn) {
-      marketCloseBtn.addEventListener('click', function () {
+      _bindDomListener(marketCloseBtn, 'click', function () {
         closeMarket();
         _setBottomNavActive('starmap');
       });
@@ -972,6 +968,7 @@ export function init(stateSource, onTravel, onGalaxyJump) {
  * 初始化星图回调（由 GameManager 在 init 后调用）
  */
 export function init3DCallbacks(stateSource, onTravel, onGalaxyJump) {
+  _disposed = false;
   if (stateSource) syncState(stateSource);
   // 确保星图渲染器已激活
   if (!Renderer3D.isActive()) {
@@ -982,18 +979,7 @@ export function init3DCallbacks(stateSource, onTravel, onGalaxyJump) {
   window._mapHoverCallback = function(data) {
     var currentState = _currentState();
     if (!currentState) return;
-    var nextHoveredSystem = null;
-    var nextHoveredGalaxy = null;
-    if (data) {
-      if (data.type === 'system') nextHoveredSystem = data.id;
-      if (data.type === 'galaxy') nextHoveredGalaxy = data.id;
-    }
-
-    var changed = currentState.hoveredSystem !== nextHoveredSystem || _hoveredGalaxyId !== nextHoveredGalaxy;
-    currentState.hoveredSystem = nextHoveredSystem;
-    _hoveredGalaxyId = nextHoveredGalaxy;
-
-    if (changed) {
+    if (_mapViewState.setHover(data)) {
       refreshPlanetDetail(currentState);
     }
   };
@@ -1002,11 +988,11 @@ export function init3DCallbacks(stateSource, onTravel, onGalaxyJump) {
     if (!currentState) return;
     const sys = findSystem(systemId);
     if (!sys) return;
-    _hoveredGalaxyId = null;
+    _mapViewState.clearHoveredGalaxy();
 
     if (_selectedPlanetDetailSystem !== systemId) {
       _setSelectedPlanetDetail(systemId);
-      currentState.hoveredSystem = systemId;
+      _mapViewState.setHover({ type: 'system', id: systemId });
       ContextInspector.render();
       return;
     }
@@ -1027,7 +1013,7 @@ export function init3DCallbacks(stateSource, onTravel, onGalaxyJump) {
 }
 
 function _setGalaxyImmersionMode(active) {
-  if (!document.body || !document.body.classList) return;
+  if (typeof document === 'undefined' || !document.body || !document.body.classList) return;
   document.body.classList.toggle('starmap-galaxy-mode', !!active);
 }
 
@@ -1048,7 +1034,7 @@ function _bindExplorationActionContainer(containerId) {
   var container = document.getElementById(containerId);
   if (!container || container.dataset.bound === 'true') return;
 
-  container.addEventListener('click', function (event) {
+  _bindDomListener(container, 'click', function (event) {
     var button = event.target.closest('[data-exploration-action]');
     if (!button || button.disabled || !_explorationActions || !container.contains(button)) return;
 
@@ -1614,120 +1600,6 @@ function _buildExplorationSection(stateRef, sys, planetData, isCurrentSystem, is
   '</div>';
 }
 
-function _buildGalaxyHubCard(stateRef, galaxy, focusGalaxyId) {
-  var playerLevel = stateRef.playerLevel || 1;
-  var accessState = getGalaxyAccessState(galaxy.id, playerLevel, stateRef.researchedTechs || []);
-  var allSystems = getSystemsByGalaxy(galaxy.id);
-  var accessibleSystems = getAccessibleSystems(galaxy.id, playerLevel, stateRef.researchedTechs || []);
-  var visitedGalaxies = stateRef.visitedGalaxies && stateRef.visitedGalaxies.length > 0
-    ? stateRef.visitedGalaxies
-    : [stateRef.currentGalaxy];
-  var isVisited = visitedGalaxies.indexOf(galaxy.id) !== -1;
-  var isCurrentGalaxy = galaxy.id === stateRef.currentGalaxy;
-  var isFocusGalaxy = focusGalaxyId === galaxy.id;
-  var cardClass = 'galaxy-switcher-card';
-  if (!accessState.unlocked) cardClass += ' galaxy-switcher-card--locked';
-  if (isCurrentGalaxy) cardClass += ' galaxy-switcher-card--current';
-  if (isFocusGalaxy) cardClass += ' galaxy-switcher-card--focus';
-
-  var chipRow = [
-    accessState.unlocked
-      ? _buildPlanetDetailChip(isCurrentGalaxy ? '当前星系' : '已开放', isCurrentGalaxy ? 'accent' : 'stable')
-      : _buildPlanetDetailChip('Lv.' + accessState.requiredLevel + ' 开放', 'warning'),
-    _buildPlanetDetailChip(isVisited ? '已访问' : '未访问', 'muted'),
-  ].join('');
-
-  var note = accessState.unlocked
-    ? (accessState.unlockedBy === 'tech' && playerLevel < accessState.requiredLevel
-      ? '跃迁科技已提前开放'
-      : (isCurrentGalaxy ? '当前驻留，可返回本地星图' : '航线已开放，可进入查看'))
-    : (accessState.techRequired
-      ? ('需 Lv.' + accessState.requiredLevel + ' 或超空间跃迁')
-      : ('需达到 Lv.' + accessState.requiredLevel));
-
-  var disabledAttr = accessState.unlocked ? '' : ' disabled aria-disabled="true"';
-  var buttonLabel = accessState.unlocked
-    ? (isCurrentGalaxy ? '查看当前星系' : '进入该星系')
-    : ('Lv.' + accessState.requiredLevel + ' 开放');
-
-  return '<article class="' + cardClass + '"' + (isCurrentGalaxy ? ' aria-current="location"' : '') + '>' +
-    '<div class="galaxy-switcher-card-head">' +
-      '<div class="galaxy-switcher-card-title">' + _escapeHtml(galaxy.icon + ' ' + galaxy.name) + '</div>' +
-      '<div class="galaxy-switcher-card-meta">可探索 ' + accessibleSystems.length + ' / ' + allSystems.length + '</div>' +
-    '</div>' +
-    '<div class="galaxy-switcher-card-status">' +
-      '<div class="planet-detail-chip-row">' + chipRow + '</div>' +
-      '<span class="planet-detail-note galaxy-switcher-note">' + _escapeHtml(note) + '</span>' +
-    '</div>' +
-    '<div class="galaxy-switcher-signal">' + _escapeHtml(_buildGalaxyTradeProfileSummary(galaxy)) + '</div>' +
-    '<div class="planet-detail-actions galaxy-switcher-actions">' +
-      '<button class="planet-detail-action" type="button" data-galaxy-action="open" data-galaxy-id="' + _escapeHtmlAttr(galaxy.id) + '"' + disabledAttr + '>' + _escapeHtml(buttonLabel) + '</button>' +
-    '</div>' +
-  '</article>';
-}
-
-function _buildGalaxyHubPanel(stateRef) {
-  var playerLevel = stateRef.playerLevel || 1;
-  var currentGalaxy = findGalaxy(stateRef.currentGalaxy || 'milky_way') || GALAXIES[0];
-  var focusGalaxy = findGalaxy(_hoveredGalaxyId || stateRef.currentGalaxy || 'milky_way') || currentGalaxy;
-  var focusAccess = getGalaxyAccessState(focusGalaxy.id, playerLevel, stateRef.researchedTechs || []);
-  var accessibleGalaxies = getAccessibleGalaxies(playerLevel, stateRef.researchedTechs || []);
-  var galaxyList = GALAXIES.slice().sort(function (left, right) {
-    var leftLevel = left.minLevel || 1;
-    var rightLevel = right.minLevel || 1;
-    if (leftLevel !== rightLevel) return leftLevel - rightLevel;
-    return left.name.localeCompare(right.name, 'zh-CN');
-  });
-  var visitedGalaxies = stateRef.visitedGalaxies && stateRef.visitedGalaxies.length > 0
-    ? stateRef.visitedGalaxies
-    : [stateRef.currentGalaxy];
-  var focusSystems = getSystemsByGalaxy(focusGalaxy.id);
-  var focusAccessibleSystems = getAccessibleSystems(focusGalaxy.id, playerLevel, stateRef.researchedTechs || []);
-  var focusUnlockText = focusAccess.unlocked
-    ? (focusAccess.unlockedBy === 'tech' && playerLevel < focusAccess.requiredLevel ? '科技提前开放' : '已开放')
-    : ('Lv.' + focusAccess.requiredLevel + ' 开放');
-
-  return '<section class="galaxy-hub-shell" aria-labelledby="galaxy-hub-title">' +
-    '<header class="galaxy-hub-toolbar">' +
-      '<div class="galaxy-hub-toolbar-copy">' +
-        '<span class="planet-detail-kicker">GALAXY NAVIGATION</span>' +
-        '<h3 id="galaxy-hub-title" class="planet-detail-title">星系总览</h3>' +
-      '</div>' +
-      '<button class="planet-detail-action planet-detail-action--quiet galaxy-hub-return" type="button" data-galaxy-action="return-planets">返回星球</button>' +
-    '</header>' +
-    '<div class="galaxy-hub-focus planet-detail-hero planet-detail-wide" aria-label="星系导航重点">' +
-      '<div class="planet-detail-kicker">当前查看</div>' +
-      '<div class="planet-detail-title">' + _escapeHtml(focusGalaxy.icon + ' ' + focusGalaxy.name) + '</div>' +
-      '<div class="planet-detail-chip-row">' +
-        _buildPlanetDetailChip('Lv.' + playerLevel, 'accent') +
-        _buildPlanetDetailChip('已开放 ' + accessibleGalaxies.length + ' / ' + GALAXIES.length, 'stable') +
-        _buildPlanetDetailChip('已访问 ' + visitedGalaxies.length + ' 个', 'muted') +
-        _buildPlanetDetailChip(focusUnlockText, focusAccess.unlocked ? 'stable' : 'warning') +
-      '</div>' +
-      '<div class="planet-detail-desc">' + _escapeHtml(focusGalaxy.description || '') + '</div>' +
-      '<div class="planet-detail-key-grid">' +
-        _buildPlanetDetailKeyCard('当前驻留', currentGalaxy.icon + ' ' + currentGalaxy.name) +
-        _buildPlanetDetailKeyCard('当前星系', focusGalaxy.icon + ' ' + focusGalaxy.name) +
-        _buildPlanetDetailKeyCard('可探索星球', focusAccessibleSystems.length + ' / ' + focusSystems.length) +
-        _buildPlanetDetailKeyCard('切换方式', '点击星云或使用目录按钮进入', { wide: true }) +
-        _buildPlanetDetailKeyCard('低买高卖线索', _buildGalaxyTradeProfileSummary(focusGalaxy), { wide: true }) +
-      '</div>' +
-      '<div class="planet-detail-note planet-detail-note--hint">点击星系总览里的星云模型，或直接使用下方目录按钮，即可切换到已开放的新星系。</div>' +
-    '</div>' +
-    '<div class="planet-detail-section galaxy-hub-directory planet-detail-wide">' +
-      '<div class="planet-detail-section-head">' +
-        '<div class="planet-detail-section-title">星系跃迁目录</div>' +
-        _buildPlanetDetailChip(_hoveredGalaxyId ? '鼠标所指' : '当前导航', 'muted') +
-      '</div>' +
-      '<div class="galaxy-switcher-list">' +
-        galaxyList.map(function (galaxy) {
-          return _buildGalaxyHubCard(stateRef, galaxy, focusGalaxy.id);
-        }).join('') +
-      '</div>' +
-    '</div>' +
-  '</section>';
-}
-
 function _renderCurrentSystemExplorationCard(stateRef) {
   var card = document.getElementById('current-system-exploration-card');
   if (!card) return;
@@ -1789,7 +1661,7 @@ export function refreshPlanetDetail(stateRef) {
     panel.setAttribute('aria-labelledby', 'galaxy-hub-title');
     panel.setAttribute('aria-hidden', 'false');
     panel.setAttribute('tabindex', '-1');
-    panel.innerHTML = _buildGalaxyHubPanel(stateRef);
+    panel.innerHTML = buildGalaxyHubPanel(stateRef, { focusGalaxyId: _mapViewState.getHoveredGalaxyId() });
     panel.classList.add('visible');
 
     const inspectorOwned = !!(panel.closest && panel.closest('#context-inspector'));
@@ -2076,7 +1948,7 @@ function _buildMarketGalaxyNav(state) {
     label.textContent = g.name;
     btn.appendChild(icon);
     btn.appendChild(label);
-    btn.addEventListener('click', function () {
+    _bindDomListener(btn, 'click', function () {
       _marketViewGalaxy = g.id;
       _buildMarketGalaxyNav(state);
       if (_refreshMarket) _refreshMarket(_marketMode || 'detail');
@@ -2090,21 +1962,22 @@ function _buildMarketGalaxyNav(state) {
  * @param {Function} [onTabClick]  可选回调 (tabId:string) => void
  */
 export function initTabs(onTabClick) {
+  _disposed = false;
   _tabClickCallback = onTabClick || null;
   if (_tabBindingsInitialized) return;
   _tabBindingsInitialized = true;
 
   document.querySelectorAll('.tab-btn').forEach(function (btn) {
-    btn.addEventListener('click', function () {
+    _bindDomListener(btn, 'click', function () {
       activateTab(btn.dataset.tab);
     });
-    btn.addEventListener('keydown', _handleTerminalTabKeydown);
+    _bindDomListener(btn, 'keydown', _handleTerminalTabKeydown);
   });
 
   // 面板关闭按钮（新设计：覆盖层关闭按钮）
   var infoPanelToggle = document.getElementById('info-panel-toggle');
   if (infoPanelToggle) {
-    infoPanelToggle.addEventListener('click', function () {
+    _bindDomListener(infoPanelToggle, 'click', function () {
       _closeOverlayPanel('info-panel');
       _setBottomNavActive('starmap');
     });
@@ -2113,7 +1986,7 @@ export function initTabs(onTabClick) {
 
   var tradePanelToggle = document.getElementById('trade-panel-toggle');
   if (tradePanelToggle) {
-    tradePanelToggle.addEventListener('click', function () {
+    _bindDomListener(tradePanelToggle, 'click', function () {
       _closeOverlayPanel('trade-panel');
       _setBottomNavActive('starmap');
     });
@@ -2122,7 +1995,7 @@ export function initTabs(onTabClick) {
 
   var consolePanelClose = document.getElementById('console-panel-close');
   if (consolePanelClose) {
-    consolePanelClose.addEventListener('click', function () {
+    _bindDomListener(consolePanelClose, 'click', function () {
       _closeOverlayPanel('console-panel');
       _setBottomNavActive('starmap');
     });
@@ -2131,7 +2004,7 @@ export function initTabs(onTabClick) {
   // 底部导航按钮
   var bottomNav = document.getElementById('bottom-nav');
   if (bottomNav) {
-    bottomNav.addEventListener('click', function (e) {
+    _bindDomListener(bottomNav, 'click', function (e) {
       var btn = e.target.closest('.bottom-nav-btn');
       if (!btn) return;
       if (globalThis.__linegameUIManager) return;
@@ -2146,7 +2019,7 @@ export function initTabs(onTabClick) {
       }
       _handleBottomNav(view);
     });
-    bottomNav.addEventListener('keydown', _handleBottomNavKeydown);
+    _bindDomListener(bottomNav, 'keydown', _handleBottomNavKeydown);
   }
 }
 
@@ -2165,10 +2038,7 @@ export function focusNavigationTarget(stateRef, systemId, options) {
   _stateRef = resolvedState;
   _closeAllOverlayPanels();
   closeMarket();
-  _hoveredGalaxyId = null;
-  resolvedState.mapView = 'planets';
-  resolvedState.viewingGalaxy = sys.galaxyId;
-  resolvedState.hoveredSystem = sys.id;
+  _mapViewState.focusSystem(sys.id, sys.galaxyId);
   _setSelectedPlanetDetail(sys.id);
   _navigationGuideFocus = {
     systemId: sys.id,
@@ -2318,7 +2188,7 @@ function _bindSecondaryPanelDismiss(id) {
   if (!panel || !panel.dataset || typeof panel.addEventListener !== 'function') return;
   if (panel.dataset.secondaryDismissBound === '1') return;
 
-  panel.addEventListener('click', function (event) {
+  _bindDomListener(panel, 'click', function (event) {
     if (!event || event.target !== panel) return;
     _closeOverlayPanel(id);
     _setBottomNavActive('starmap');
@@ -2464,4 +2334,74 @@ export function getActiveArchiveTab() {
   if (typeof document === 'undefined' || !document.querySelector) return '';
   var activeTab = document.querySelector('.tab-btn[data-tab-group="info"].active');
   return activeTab && activeTab.dataset ? (activeTab.dataset.tab || '') : '';
+}
+
+function _clearBindingDataset(id, key) {
+  if (typeof document === 'undefined' || !document.getElementById) return;
+  var element = document.getElementById(id);
+  if (element && element.dataset) delete element.dataset[key];
+}
+
+/**
+ * 释放 MapUI 拥有的 DOM/EventBus/Context/global callback 绑定。
+ * 领域 state 不会被清空；后续 init 可使用新的 StateSession provider 重建投影。
+ */
+export function dispose() {
+  if (_disposed) return false;
+  _disposed = true;
+
+  _releaseDomListeners();
+  if (_railPanelOpenListener) {
+    EventBus.off(STARMAP_RAIL_PANEL_OPEN_EVENT, _railPanelOpenListener);
+    _railPanelOpenListener = null;
+  }
+  if (_galaxyViewToggleBound) {
+    EventBus.off(STARMAP_GALAXY_VIEW_TOGGLE_EVENT, toggleGalaxyView);
+  }
+  if (_releaseMapContextRenderer) _releaseMapContextRenderer();
+  if (_releaseMapDetailEscape) _releaseMapDetailEscape();
+  _releaseMapContextRenderer = null;
+  _releaseMapDetailEscape = null;
+
+  if (typeof window !== 'undefined') {
+    window._mapHoverCallback = null;
+    window._mapClickCallback = null;
+    window._mapBackgroundClickCallback = null;
+    window._galaxyClickCallback = null;
+    window._switchToGalaxyView = null;
+  }
+
+  _clearBindingDataset('planet-detail-panel', 'detailUiBound');
+  _clearBindingDataset('planet-detail-panel', 'bound');
+  _clearBindingDataset('current-system-exploration-card', 'closeBound');
+  _clearBindingDataset('current-system-exploration-card', 'bound');
+  _clearBindingDataset('info-panel', 'secondaryDismissBound');
+  _clearBindingDataset('trade-panel', 'secondaryDismissBound');
+
+  _tabClickCallback = null;
+  _navigationChangeCallback = null;
+  _refreshMarket = null;
+  _explorationActions = null;
+  _travelActionHandler = null;
+  _galaxyJumpActionHandler = null;
+  _stateRef = null;
+  _getState = function () { return null; };
+  _selectedPlanetDetailSystem = null;
+  _navigationGuideFocus = null;
+  _planetDetailDisclosureState = Object.create(null);
+  _marketViewGalaxy = null;
+  _marketViewSystem = null;
+  _marketMode = 'detail';
+  _pendingMarketPanelFocus = null;
+  _marketOpen = false;
+  _explorationTerminalPanelOpen = false;
+  _smallScreenMql = null;
+  _mainBindingsInitialized = false;
+  _tabBindingsInitialized = false;
+  _railMutualExclusionBound = false;
+  _galaxyViewToggleBound = false;
+  _mapContextRendererRegistered = false;
+  _mapViewState.reset();
+  _setGalaxyImmersionMode(false);
+  return true;
 }

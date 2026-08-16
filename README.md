@@ -47,7 +47,7 @@
 - ✅ 中期专题教学：科研经济、自动跑商、贸易站经营、资金管理 4 条可主动启动的专题链，由真实经营结果推进并随存档保存
 - ✅ 本地平衡统计导出：指标只随存档留在本设备，不自动上传；导出 JSON 可先审查再自行决定是否分享
 - ✅ 基础音效 MVP：UI 点击、交易成交、航行与事件提示音，含开关和音量设置
-- ✅ Vitest 测试基线：134 个测试文件、1165 项测试，覆盖经济、贸易、航行、探索、事件与随机事件运行时、统一动作控制器图、成就检查队列、持久化事务、Game Feature/UI/Guidance Runtime 组合边界、manifest/registry 生命周期、Market Chart/Spot/Goods/Capital/Operations 与 Fleet Hangar/Shop/Crew/Mod/Dispatch Presenter 图表、typed market/fleet command、资金与贸易站投影、焦点同步、HUD/FleetUI 命令所有权、自动派遣与日结算提交顺序、经营金融、舰队、科研任务档案动作、剧情与胜利运行时、eager UI 壳/设置/首次进入生命周期、教学引导与 onboarding policy、存档、会话生命周期、时钟、命令目的地、行动引导执行适配、市场工作区、增量 UI 失效、日志上下文与 UI 所有权等核心系统
+- ✅ Vitest 测试基线：137 个测试文件、1179 项测试，覆盖经济、贸易、航行、探索、事件与随机事件运行时、统一动作控制器图、成就检查队列、持久化事务、Game Feature/UI/Guidance/Loop Runtime 组合边界、manifest/registry 生命周期、Map Galaxy Hub/View State、Market Chart/Spot/Goods/Capital/Operations 与 Fleet Hangar/Shop/Crew/Mod/Dispatch Presenter 图表、typed market/fleet command、资金与贸易站投影、焦点同步、HUD/FleetUI 命令所有权、自动派遣与日结算提交顺序、经营金融、舰队、科研任务档案动作、剧情与胜利运行时、eager UI 壳/设置/首次进入/释放生命周期、教学引导与 onboarding policy、存档、会话生命周期、时钟、命令目的地、行动引导执行适配、市场工作区、增量 UI 失效、日志上下文与 UI 所有权等核心系统
 
 ### 当前开发中的能力
 
@@ -142,6 +142,7 @@ npm run build
 │   │   ├── FleetCommand.js # 舰队 UI / controller typed command 契约
 │   │   ├── MarketWorkspaceController.js # 市场命令与工作区生命周期
 │   │   ├── GameUiApplicationRuntime.js # UI controller 图、工作区与呈现生命周期组合边界
+│   │   ├── GameLoopRuntime.js # 实时日、场景帧与命名周期任务组合边界
 │   │   └── GameManager.js  # 主状态机与主循环调度
 │   ├── data/               # 静态数据定义
 │   │   ├── goods.js        # 商品定义
@@ -178,6 +179,8 @@ npm run build
 │       ├── FleetCrewPresenter.js # 船员详情模型、HTML 与 roster intent
 │       ├── FleetModPresenter.js # 改装/保养详情模型、HTML 与 UI intent
 │       ├── FleetDispatchPresenter.js # 自动跑商策略、估算、风险与 CTA 投影
+│       ├── MapGalaxyHubPresenter.js # 星系总览模型、HTML 与跃迁 intent
+│       ├── MapViewStateController.js # 星系/星球视图与悬停状态所有权
 │       ├── MapUI.js        # 星图交互
 │       ├── ShipUI.js       # 飞船与货舱界面
 │       ├── Modal.js        # 通用模态框
