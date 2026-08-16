@@ -10,7 +10,6 @@ import * as Economy    from '../systems/economy/Economy.js';
 import * as Trade      from '../systems/trade/TradeSystem.js';
 import * as Faction    from '../systems/faction/FactionSystem.js';
 import * as Research   from '../systems/research/ResearchSystem.js';
-import { getResearchDispatchBlockerState } from '../ui/ResearchGuidance.js';
 import * as Renderer3D from '../ui/StarmapRenderer.js';
 import * as GalaxyData from '../systems/galaxy/GalaxyDataLayer.js';
 import * as Exploration from '../systems/galaxy/ExplorationSystem.js';
@@ -33,7 +32,6 @@ import * as Victory from '../systems/victory/VictorySystem.js';
 import * as BalanceMetrics from '../systems/metrics/BalanceMetricsSystem.js';
 import { getLevel } from '../data/playerLevels.js';
 import { SYSTEMS } from '../data/systems.js';
-import { GOODS } from '../data/goods.js';
 import * as Settings from './SettingsCore.js';
 import * as Audio from './AudioManager.js';
 import * as Progression from '../systems/progression/ProgressionSystem.js';
@@ -50,22 +48,15 @@ import { DEFAULT_ACTION_DIRTY_REGIONS, UI_REGION } from './ActionPresentation.js
 import { createGameActionRuntime } from './GameActionRuntime.js';
 import { createDialogueRuntimeController } from './DialogueRuntimeController.js';
 import { createRandomEventRuntimeController } from './RandomEventRuntimeController.js';
-import { createCommandDestinationController } from './CommandDestinationController.js';
-import { createGuidanceExecutionAdapter } from './GuidanceExecutionAdapter.js';
 import { createMarketWorkspaceController } from './MarketWorkspaceController.js';
-import { createOnboardingUiController } from './OnboardingUiController.js';
-import { createOnboardingPolicyController } from './OnboardingPolicyController.js';
-import { createTeachingGuidanceController } from './TeachingGuidanceController.js';
+import { createGameGuidanceRuntime } from './GameGuidanceRuntime.js';
 import { createGameUiLifecycleController } from './GameUiLifecycleController.js';
 import { createSettingsUiController } from './SettingsUiController.js';
 import { createVictoryRuntimeController } from './VictoryRuntimeController.js';
 import { createAchievementRuntimeController } from './AchievementRuntimeController.js';
 import { createGamePersistenceController } from './GamePersistenceController.js';
 import { createGameUiCoordinator } from '../ui/GameUiCoordinator.js';
-import {
-  createActionGuideCoordinator,
-  shouldLoadAdvancedCommerce,
-} from '../ui/ActionGuideCoordinator.js';
+import { shouldLoadAdvancedCommerce } from '../ui/ActionGuideCoordinator.js';
 import { createWorkspaceContextAdapters } from '../ui/WorkspaceContextAdapters.js';
 import { hasBlockingSurfaceOpen, hideBlockingSurface, isBlockingSurfaceVisible, showBlockingSurface } from '../ui/SurfaceManager.js';
 
@@ -94,18 +85,13 @@ let _sessionLifecycle = null;
 let _actionRuntime = null;
 let _dialogueController = null;
 let _randomEventController = null;
-let _commandDestinationController = null;
-let _guidanceExecutionAdapter = null;
+let _guidanceRuntime = null;
 let _marketWorkspaceController = null;
-let _onboardingUiController = null;
-let _onboardingPolicyController = null;
-let _teachingGuidanceController = null;
 let _settingsUiController = null;
 let _victoryController = null;
 let _achievementController = null;
 let _persistenceController = null;
 let _contextAdapters = null;
-let _actionGuideCoordinator = null;
 
 function _replaceState(nextState, reason) {
   _session.replace(nextState, { reason: reason });
@@ -117,8 +103,7 @@ function _replaceState(nextState, reason) {
 
 function _resetSessionTransients() {
   if (_achievementController) _achievementController.reset();
-  if (_actionGuideCoordinator) _actionGuideCoordinator.reset();
-  if (_commandDestinationController) _commandDestinationController.reset();
+  if (_guidanceRuntime) _guidanceRuntime.reset();
   if (_marketWorkspaceController) _marketWorkspaceController.reset();
   if (_victoryController) _victoryController.reset();
 }
@@ -161,11 +146,11 @@ function _getFeatureRuntime() {
       setQuestRouteResolver: Dispatch.setQuestRouteResolver,
       resetAchievementRuntime: function () { _getAchievementController().reset(); },
       syncArchiveView: function (ArchiveUI) {
-        _getCommandDestinationController().syncArchiveView(ArchiveUI);
+        _getGuidanceRuntime().syncArchiveView(ArchiveUI);
       },
       syncVictoryView: function (module) { _getVictoryController().syncView(module); },
       handleVictoryLoadFailure: function () { _getVictoryController().handleLoadFailure(); },
-      syncTutorialView: function (module) { _getOnboardingUiController().syncTutorialView(module); },
+      syncTutorialView: function (module) { _getGuidanceRuntime().syncTutorialView(module); },
       syncSettingsView: function (module) { _getSettingsUiController().sync(module); },
     },
   });
@@ -174,7 +159,55 @@ function _getFeatureRuntime() {
 
 function _syncDeferredFeatures() {
   _getFeatureRuntime().syncAll();
-  _getActionGuideCoordinator().prefetchForState(_state);
+  _getGuidanceRuntime().prefetchForState(_state);
+}
+
+function _getGuidanceRuntime() {
+  if (_guidanceRuntime) return _guidanceRuntime;
+  _guidanceRuntime = createGameGuidanceRuntime({
+    getState: function () { return _state; },
+    getSessionToken: _getSessionToken,
+    isSessionTokenCurrent: _isSessionTokenCurrent,
+    features: _getFeatureRuntime(),
+    systems: {
+      Economy: Economy,
+      Exploration: Exploration,
+      Fleet: Fleet,
+      GalaxyData: GalaxyData,
+      Guidance: Guidance,
+      MidgameTeachingChain: MidgameTeachingChain,
+      Quest: Quest,
+      Trade: Trade,
+      Tutorial: Tutorial,
+    },
+    ui: {
+      ActionGuideUI: ActionGuideUI,
+      EventUI: EventUI,
+      MapUI: MapUI,
+      Modal: Modal,
+      UIManager: UIManager,
+    },
+    actions: {
+      acceptQuest: function () { return _getActionRuntime().archive.onAcceptQuest.apply(null, arguments); },
+      explorePoi: function () { return _getActionRuntime().exploration.explorePoi.apply(null, arguments); },
+      getFleetActions: function () { return _getActionRuntime().fleet; },
+      getPoiStatus: function () { return _getActionRuntime().exploration.getPoiStatus.apply(null, arguments); },
+      refuel: function () { return _getActionRuntime().trade.refuel.apply(null, arguments); },
+      travel: function () { return _getActionRuntime().travel.travel.apply(null, arguments); },
+    },
+    selectors: {
+      hasBlockingSurfaceOpen: hasBlockingSurfaceOpen,
+    },
+    callbacks: {
+      emitLog: function (message) { EventBus.emit('log:message', message); },
+      invalidate: function () { _updateUI(DEFAULT_ACTION_DIRTY_REGIONS); },
+      renderFleet: function (FleetUI) { return _getUiCoordinator().renderFleet(FleetUI); },
+      reportError: function (scope, error) {
+        console.error('[GameGuidanceRuntime] Failed in ' + scope + '.', error);
+      },
+    },
+  });
+  return _guidanceRuntime;
 }
 
 function _getAchievementController() {
@@ -247,7 +280,7 @@ function _getGameClock() {
     isPaused: function (state) {
       var features = _getFeatureRuntime();
       if (shouldLoadAdvancedCommerce(state) && !features.get('commerceRuntime') && features.getState('commerceRuntime') !== 'error') {
-        _getActionGuideCoordinator().prefetchForState(state);
+        _getGuidanceRuntime().prefetchForState(state);
         return true;
       }
       return _isRealtimeClockPaused();
@@ -338,7 +371,7 @@ function _getActionRuntime() {
     ports: {
       ui: {
         invalidate: _updateUI,
-        showCompletion: function (completion) { _showActionGuideCompletion(completion); },
+        showCompletion: function (completion) { _getGuidanceRuntime().showCompletion(completion); },
         cancelShipFlight: function () {
           if (Renderer3D.cancelShipFlight) Renderer3D.cancelShipFlight();
         },
@@ -362,17 +395,17 @@ function _getActionRuntime() {
         load: function (feature) { return _getFeatureRuntime().load(feature); },
       },
       teaching: {
-        checkCompletion: function () { return _getTeachingGuidanceController().checkCompletion(); },
+        checkCompletion: function () { return _getGuidanceRuntime().checkTeachingCompletion(); },
         completeStep: function (chainId, stepId) {
-          return _getTeachingGuidanceController().completeStep(chainId, stepId);
+          return _getGuidanceRuntime().completeTeachingStep(chainId, stepId);
         },
       },
       guidance: {
         setRecentModInstallContext: function (context) {
-          _getActionGuideCoordinator().setRecentModInstallContext(context);
+          _getGuidanceRuntime().setRecentModInstallContext(context);
         },
-        getDispatchContext: function (state) { return _getActionGuideCoordinator().getDispatchContext(state); },
-        refresh: _refreshActionGuide,
+        getDispatchContext: function (state) { return _getGuidanceRuntime().getDispatchContext(state); },
+        refresh: function () { return _getGuidanceRuntime().refresh(); },
       },
       story: {
         queueQuestResult: _queueQuestDialogueResult,
@@ -384,10 +417,10 @@ function _getActionRuntime() {
       },
       commands: {
         selectAvailableQuest: function () {
-          return _getCommandDestinationController().selectAvailableQuest.apply(null, arguments);
+          return _getGuidanceRuntime().selectAvailableQuest.apply(null, arguments);
         },
         openRecommendedDispatch: function () {
-          return _getCommandDestinationController().openRecommendedDispatch.apply(null, arguments);
+          return _getGuidanceRuntime().openRecommendedDispatch.apply(null, arguments);
         },
       },
       navigation: {
@@ -472,69 +505,10 @@ function _getRandomEventController() {
       emitMessage: function (message) { EventBus.emit('log:message', message); },
       captureState: _getPersistenceController().captureState,
       saveAutosave: _getPersistenceController().saveAutosave,
-      refreshActionGuide: _refreshActionGuide,
+      refreshActionGuide: function () { return _getGuidanceRuntime().refresh(); },
     },
   });
   return _randomEventController;
-}
-
-function _getOnboardingUiController() {
-  if (_onboardingUiController) return _onboardingUiController;
-  _onboardingUiController = createOnboardingUiController({
-    features: _getFeatureRuntime(),
-    Tutorial: Tutorial,
-    getState: function () { return _state; },
-    getSessionToken: _getSessionToken,
-    isSessionTokenCurrent: _isSessionTokenCurrent,
-    callbacks: {
-      emitMessage: function (message) { EventBus.emit('log:message', message); },
-      invalidate: function () { _updateUI(DEFAULT_ACTION_DIRTY_REGIONS); },
-      onHelperAction: function (actionId) {
-        return _getTeachingGuidanceController().handleTutorialHelperAction(actionId);
-      },
-      refreshActionGuide: _refreshActionGuide,
-      renameCompany: function (state, name) { state.companyName = name; },
-      showWelcomeMessages: function () { _getOnboardingPolicyController().showWelcomeMessages(); },
-    },
-  });
-  return _onboardingUiController;
-}
-
-function _getOnboardingPolicyController() {
-  if (_onboardingPolicyController) return _onboardingPolicyController;
-  _onboardingPolicyController = createOnboardingPolicyController({
-    Quest: Quest,
-    getState: function () { return _state; },
-    emitLog: function (message) { EventBus.emit('log:message', message); },
-    invalidate: function () { _updateUI(DEFAULT_ACTION_DIRTY_REGIONS); },
-    refreshActionGuide: _refreshActionGuide,
-  });
-  return _onboardingPolicyController;
-}
-
-function _getTeachingGuidanceController() {
-  if (_teachingGuidanceController) return _teachingGuidanceController;
-  _teachingGuidanceController = createTeachingGuidanceController({
-    getState: function () { return _state; },
-    getSessionToken: _getSessionToken,
-    isSessionTokenCurrent: _isSessionTokenCurrent,
-    loadRouteGuidance: function () { return _getFeatureRuntime().load('routeGuidance'); },
-    systems: {
-      Tutorial: Tutorial,
-      Trade: Trade,
-      MidgameTeachingChain: MidgameTeachingChain,
-    },
-    ui: { Modal: Modal, MapUI: MapUI },
-    data: { goods: GOODS },
-    emitLog: function (message) { EventBus.emit('log:message', message); },
-    invalidate: function () { _updateUI(DEFAULT_ACTION_DIRTY_REGIONS); },
-    refreshActionGuide: _refreshActionGuide,
-    reportFailure: function (error) {
-      console.error('[GameManager] Failed to execute tutorial route helper.', error);
-      EventBus.emit('log:message', { text: '⚠️ 教程路线辅助暂时不可用，请稍后重试。', type: 'error' });
-    },
-  });
-  return _teachingGuidanceController;
 }
 
 function _getSettingsUiController() {
@@ -587,125 +561,10 @@ function _getVictoryController() {
     loadView: function () { return _getFeatureRuntime().load('victory'); },
     emitMessage: function (message) { EventBus.emit('log:message', message); },
     invalidate: function () { _updateUI(DEFAULT_ACTION_DIRTY_REGIONS); },
-    refreshActionGuide: _refreshActionGuide,
+    refreshActionGuide: function () { return _getGuidanceRuntime().refresh(); },
     restartSession: _getPersistenceController().restart,
   });
   return _victoryController;
-}
-
-function _getActionGuideCoordinator() {
-  if (_actionGuideCoordinator) return _actionGuideCoordinator;
-  _actionGuideCoordinator = createActionGuideCoordinator({
-    getState: function () { return _state; },
-    features: _getFeatureRuntime(),
-    ui: {
-      ActionGuideUI: ActionGuideUI,
-      MapUI: MapUI,
-      UIManager: UIManager,
-      EventUI: EventUI,
-    },
-    systems: {
-      Guidance: Guidance,
-      Tutorial: Tutorial,
-      Fleet: Fleet,
-      GalaxyData: GalaxyData,
-      Exploration: Exploration,
-      MidgameTeachingChain: MidgameTeachingChain,
-    },
-    selectors: {
-      getResearchDispatchBlockerState: getResearchDispatchBlockerState,
-      getPoiStatus: _getPoiStatus,
-      hasBlockingSurfaceOpen: hasBlockingSurfaceOpen,
-    },
-    hooks: {
-      onAction: _handleActionGuideAction,
-    },
-  });
-  return _actionGuideCoordinator;
-}
-
-function _getCommandDestinationController() {
-  if (_commandDestinationController) return _commandDestinationController;
-  _commandDestinationController = createCommandDestinationController({
-    getState: function () { return _state; },
-    getSessionToken: _getSessionToken,
-    isSessionTokenCurrent: _isSessionTokenCurrent,
-    getLoadedArchive: function () { return _getFeatureRuntime().get('archive'); },
-    loadArchive: function () { return _getFeatureRuntime().load('archive'); },
-    loadFleet: function () { return _getFeatureRuntime().load('fleet'); },
-    loadMarket: function () { return _getFeatureRuntime().load('market'); },
-    getFleetActions: function () { return _getActionRuntime().fleet; },
-    renderFleet: function (FleetUI) { return _getUiCoordinator().renderFleet(FleetUI); },
-    systems: { Economy: Economy, Fleet: Fleet },
-    ui: { MapUI: MapUI, Modal: Modal },
-    data: { goods: GOODS },
-    emitLog: function (message) { EventBus.emit('log:message', message); },
-    invalidate: function () { _updateUI(DEFAULT_ACTION_DIRTY_REGIONS); },
-    refreshActionGuide: _refreshActionGuide,
-    showCompletion: function (completion) { _showActionGuideCompletion(completion); },
-  });
-  return _commandDestinationController;
-}
-
-function _getGuidanceExecutionAdapter() {
-  if (_guidanceExecutionAdapter) return _guidanceExecutionAdapter;
-  _guidanceExecutionAdapter = createGuidanceExecutionAdapter({
-    getState: function () { return _state; },
-    getSessionToken: _getSessionToken,
-    isSessionTokenCurrent: _isSessionTokenCurrent,
-    loadController: function () { return _getFeatureRuntime().load('guidanceAction'); },
-    ports: {
-      ui: {
-        showProcessing: function (suggestion, message) {
-          _getActionGuideCoordinator().showProcessing(suggestion, message);
-        },
-        refreshActionGuide: _refreshActionGuide,
-        invalidate: function () { _updateUI(DEFAULT_ACTION_DIRTY_REGIONS); },
-        showCompletion: function (message, detail, options) {
-          _getActionGuideCoordinator().showCompletion(message, detail, options);
-        },
-        emitLog: function (message) { EventBus.emit('log:message', message); },
-        reportFailure: function (error) {
-          console.error('[GameManager] Failed to execute guidance action.', error);
-          EventBus.emit('log:message', { text: '⚠️ 当前行动执行失败，请重试。', type: 'error' });
-        },
-      },
-      navigation: {
-        prepareDirectExecution: function () { if (MapUI.focusStarmap) MapUI.focusStarmap(); },
-        activateTab: MapUI.activateTab,
-        focusStarmap: MapUI.focusStarmap,
-        focusNavigationTarget: MapUI.focusNavigationTarget,
-        openMarketPanel: MapUI.openMarketPanel,
-        openMarketSystemPanel: MapUI.openMarketSystemPanel,
-        revealMarketGoodFocus: _getCommandDestinationController().revealMarketGoodFocus,
-      },
-      trade: { openConfirmation: _getCommandDestinationController().openTradeConfirmation, refuel: _handleRefuel },
-      quest: {
-        accept: _getActionRuntime().archive.onAcceptQuest,
-        selectAvailable: _getCommandDestinationController().selectAvailableQuest,
-      },
-      fleet: {
-        openRecommendedDispatch: _getCommandDestinationController().openRecommendedDispatch,
-        openRecommendedMod: _getCommandDestinationController().openRecommendedMod,
-      },
-      events: { forcePending: EventUI.forcePendingEvent },
-      teaching: {
-        startChain: function (chainId) { return _getTeachingGuidanceController().startChain(chainId); },
-      },
-      exploration: {
-        revealArchiveReportFocus: _getCommandDestinationController().revealArchiveReportFocus,
-        acknowledgeSurveyChainFollowup: function (systemId, chainId) {
-          return Exploration.acknowledgeChainFollowup(_state, systemId, chainId);
-        },
-        acknowledgeSurveyReport: function (systemId, reportId) {
-          return Exploration.acknowledgeSurveyReport(_state, systemId, reportId);
-        },
-        explorePoi: _handleExplorePoi,
-      },
-      travel: { execute: _handleTravel },
-    },
-  });
-  return _guidanceExecutionAdapter;
 }
 
 function _getMarketWorkspaceController() {
@@ -722,7 +581,7 @@ function _getMarketWorkspaceController() {
     systems: SYSTEMS,
     emitLog: function (message) { EventBus.emit('log:message', message); },
     invalidate: function () { _updateUI(DEFAULT_ACTION_DIRTY_REGIONS); },
-    showCompletion: function (completion) { _showActionGuideCompletion(completion); },
+    showCompletion: function (completion) { _getGuidanceRuntime().showCompletion(completion); },
   });
   return _marketWorkspaceController;
 }
@@ -767,14 +626,14 @@ function _getUiCoordinator() {
       },
       fleet: fleetActions,
       archive: Object.assign({
-        getDispatchContext: function (state) { return _getActionGuideCoordinator().getDispatchContext(state); },
+        getDispatchContext: function (state) { return _getGuidanceRuntime().getDispatchContext(state); },
       }, archiveActions),
       save: {
         onSaveGame: _getPersistenceController().saveSlot,
         onLoadGame: _getPersistenceController().loadSlot,
       },
       global: {
-        refreshActionGuide: _refreshActionGuide,
+        refreshActionGuide: function () { return _getGuidanceRuntime().refresh(); },
       },
     },
   });
@@ -783,6 +642,7 @@ function _getUiCoordinator() {
 
 function _getUiLifecycleController() {
   if (_uiLifecycleController) return _uiLifecycleController;
+  var guidanceRuntime = _getGuidanceRuntime();
   _uiLifecycleController = createGameUiLifecycleController({
     getState: function () { return _state; },
     getRevision: function () { return _session.getRevision(); },
@@ -797,9 +657,9 @@ function _getUiLifecycleController() {
     },
     systems: { Tutorial: Tutorial },
     controllers: {
-      actionGuide: _getActionGuideCoordinator(),
-      onboardingUi: _getOnboardingUiController(),
-      onboardingPolicy: _getOnboardingPolicyController(),
+      actionGuide: guidanceRuntime.actionGuide,
+      onboardingUi: guidanceRuntime.onboardingUi,
+      onboardingPolicy: guidanceRuntime.onboardingPolicy,
       settingsUi: _getSettingsUiController(),
     },
     ports: {
@@ -815,7 +675,7 @@ function _getUiLifecycleController() {
       ensureArchive: _ensureArchiveUiRendered,
       explorePoi: _handleExplorePoi,
       getPoiStatus: _getPoiStatus,
-      refreshActionGuide: _refreshActionGuide,
+      refreshActionGuide: guidanceRuntime.refresh,
       refreshMarket: function () { return _getMarketWorkspaceController().refresh(); },
       confirmTrade: _handleTradeConfirm,
     },
@@ -877,8 +737,7 @@ export function init(difficulty, options) {
 
 export function _setStateForTest(state) {
   _replaceState(state || null, 'test');
-  if (_actionGuideCoordinator) _actionGuideCoordinator.reset();
-  if (_commandDestinationController) _commandDestinationController.reset();
+  if (_guidanceRuntime) _guidanceRuntime.reset();
   if (_state) {
     _getDialogueController().reset(_state);
     _getRandomEventController().sync(_state);
@@ -886,7 +745,7 @@ export function _setStateForTest(state) {
 }
 
 export function _handleActionGuideActionForTest(suggestion) {
-  return _handleActionGuideAction(suggestion);
+  return _getGuidanceRuntime().execute(suggestion);
 }
 
 export function _handleTradeConfirmForTest(action, goodId, quantity, marketType) {
@@ -909,10 +768,6 @@ export function _getUiDiagnosticsForTest() {
   return _getUiCoordinator().getDiagnostics();
 }
 
-function _showActionGuideCompletion(completion, options) {
-  if (completion) _getActionGuideCoordinator().showCompletion(completion.message, completion.detail, options);
-}
-
 function _playTriggerDialogue(triggerType, context, onFinished) {
   return _getDialogueController().playTrigger(triggerType, context, onFinished);
 }
@@ -928,14 +783,6 @@ function _scheduleRandomEventRoll(state, baseChance) {
 // ---------------------------------------------------------------------------
 // 动作处理（所有状态变更入口）
 // ---------------------------------------------------------------------------
-
-function _refreshActionGuide() {
-  return _getActionGuideCoordinator().refresh();
-}
-
-function _handleActionGuideAction(suggestion) {
-  return _getGuidanceExecutionAdapter().execute(suggestion);
-}
 
 function _getPoiStatus(systemId, poiId) {
   return _getActionRuntime().exploration.getPoiStatus(systemId, poiId);

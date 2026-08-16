@@ -467,6 +467,7 @@ describe('Onboarding and log surfaces', function () {
     var html = readFileSync('index.html', 'utf8');
     var css = readFileSync('css/interstellar-trader.css', 'utf8');
     var gameManager = readFileSync('js/core/GameManager.js', 'utf8');
+    var guidanceRuntime = readFileSync('js/core/GameGuidanceRuntime.js', 'utf8');
     var onboardingController = readFileSync('js/core/OnboardingUiController.js', 'utf8');
     var onboardingUI = readFileSync('js/ui/OnboardingUI.js', 'utf8');
     var uiManager = readFileSync('js/ui/UIManager.js', 'utf8');
@@ -501,7 +502,9 @@ describe('Onboarding and log surfaces', function () {
     expect(css).toContain('.tut-start-decision-card');
     expect(css).toContain('.tutorial-tooltip:focus-visible');
     expect(css).toContain('.tutorial-tooltip[data-trigger="action"]');
-    expect(gameManager).toContain("from './OnboardingUiController.js'");
+    expect(gameManager).toContain("from './GameGuidanceRuntime.js'");
+    expect(gameManager).not.toContain("from './OnboardingUiController.js'");
+    expect(guidanceRuntime).toContain("from './OnboardingUiController.js'");
     expect(gameManager).not.toContain("document.getElementById('company-name-display')");
     expect(onboardingController).toContain('OnboardingUI.showCompanyRename');
     expect(onboardingController).toContain('OnboardingUI.showTutorialStart');

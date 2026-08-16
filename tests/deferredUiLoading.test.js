@@ -30,6 +30,7 @@ describe('deferred terminal UI loading', function () {
 
   it('首次打开终端会触发加载，后续全量刷新只更新已加载模块', function () {
     var gameManager = readFileSync('js/core/GameManager.js', 'utf8');
+    var guidanceRuntime = readFileSync('js/core/GameGuidanceRuntime.js', 'utf8');
     var commandDestinations = readFileSync('js/core/CommandDestinationController.js', 'utf8');
     var marketController = readFileSync('js/core/MarketWorkspaceController.js', 'utf8');
     var uiLifecycle = readFileSync('js/core/GameUiLifecycleController.js', 'utf8');
@@ -40,7 +41,7 @@ describe('deferred terminal UI loading', function () {
     expect(uiLifecycle).toContain("if (tabId === 'tab-fleet') _call(ports, 'ensureFleet'");
     expect(uiLifecycle).toContain('ARCHIVE_TAB_IDS.indexOf(tabId)');
     expect(gameManager).toContain("var FleetUI = _getFeatureRuntime().get('fleet')");
-    expect(gameManager).toContain("getLoadedArchive: function () { return _getFeatureRuntime().get('archive'); }");
+    expect(guidanceRuntime).toContain("getLoadedArchive: function () { return _featurePort(features, 'get', 'archive'); }");
     expect(commandDestinations).toContain('var loaded = getLoadedArchive()');
     expect(commandDestinations).toContain('Promise.resolve().then(loadArchive)');
     expect(gameManager).toContain("if (MapUI.isMarketOpen() && !_getFeatureRuntime().get('market'))");
@@ -96,9 +97,12 @@ describe('deferred terminal UI loading', function () {
 
   it('科研阻塞状态使用无 DOM 的轻量引导模块', function () {
     var gameManager = readFileSync('js/core/GameManager.js', 'utf8');
+    var guidanceRuntime = readFileSync('js/core/GameGuidanceRuntime.js', 'utf8');
     var guidance = readFileSync('js/ui/ResearchGuidance.js', 'utf8');
 
-    expect(gameManager).toContain("from '../ui/ResearchGuidance.js'");
+    expect(gameManager).toContain("from './GameGuidanceRuntime.js'");
+    expect(gameManager).not.toContain("from '../ui/ResearchGuidance.js'");
+    expect(guidanceRuntime).toContain("from '../ui/ResearchGuidance.js'");
     expect(guidance).not.toContain('document.');
     expect(guidance).toContain('export function getResearchDispatchBlockerState');
   });
@@ -159,6 +163,7 @@ describe('deferred terminal UI loading', function () {
 
   it('首次进入和教程界面只在对应流程触发时加载', function () {
     var gameManager = readFileSync('js/core/GameManager.js', 'utf8');
+    var guidanceRuntime = readFileSync('js/core/GameGuidanceRuntime.js', 'utf8');
     var featureManifest = readFileSync('js/core/GameFeatureManifest.js', 'utf8');
     var featureRegistry = readFileSync('js/core/FeatureRegistry.js', 'utf8');
     var onboardingController = readFileSync('js/core/OnboardingUiController.js', 'utf8');
@@ -169,7 +174,9 @@ describe('deferred terminal UI loading', function () {
     expect(featureManifest).toMatch(/\bonboarding:\s*\{/);
     expect(featureManifest).toMatch(/\btutorial:\s*\{/);
     expect(featureRegistry).toContain("_notify(feature, 'loading')");
-    expect(gameManager).toContain("from './OnboardingUiController.js'");
+    expect(gameManager).toContain("from './GameGuidanceRuntime.js'");
+    expect(gameManager).not.toContain("from './OnboardingUiController.js'");
+    expect(guidanceRuntime).toContain("from './OnboardingUiController.js'");
     expect(gameManager).not.toContain("document.getElementById('company-name-display')");
     expect(onboardingController).toContain("_loadFeature('tutorial').then(function (TutorialUI)");
     expect(onboardingController).toContain("_loadFeature('onboarding').then(function (OnboardingUI)");
@@ -178,11 +185,14 @@ describe('deferred terminal UI loading', function () {
 
   it('教程辅助与首次进入内容策略不再由 GameManager 直接实现', function () {
     var gameManager = readFileSync('js/core/GameManager.js', 'utf8');
+    var guidanceRuntime = readFileSync('js/core/GameGuidanceRuntime.js', 'utf8');
     var teachingController = readFileSync('js/core/TeachingGuidanceController.js', 'utf8');
     var onboardingPolicy = readFileSync('js/core/OnboardingPolicyController.js', 'utf8');
 
-    expect(gameManager).toContain("from './TeachingGuidanceController.js'");
-    expect(gameManager).toContain("from './OnboardingPolicyController.js'");
+    expect(gameManager).not.toContain("from './TeachingGuidanceController.js'");
+    expect(gameManager).not.toContain("from './OnboardingPolicyController.js'");
+    expect(guidanceRuntime).toContain("from './TeachingGuidanceController.js'");
+    expect(guidanceRuntime).toContain("from './OnboardingPolicyController.js'");
     expect(gameManager).not.toContain('function _handleTutorialHelperAction');
     expect(gameManager).not.toContain('function _startMidgameTeachingChain');
     expect(gameManager).not.toContain('function _completeMidgameTeachingStep');
@@ -216,6 +226,7 @@ describe('deferred terminal UI loading', function () {
 
   it('设置、行动执行器与命令落点不再由 GameManager 持有 UI 生命周期', function () {
     var gameManager = readFileSync('js/core/GameManager.js', 'utf8');
+    var guidanceRuntime = readFileSync('js/core/GameGuidanceRuntime.js', 'utf8');
     var featureManifest = readFileSync('js/core/GameFeatureManifest.js', 'utf8');
     var commandDestinations = readFileSync('js/core/CommandDestinationController.js', 'utf8');
     var guidanceAdapter = readFileSync('js/core/GuidanceExecutionAdapter.js', 'utf8');
@@ -232,8 +243,10 @@ describe('deferred terminal UI loading', function () {
     expect(gameManager).not.toContain("document.getElementById('settings-btn')");
     expect(gameManager).not.toContain('CompanyDirectiveUI');
     expect(featureManifest).toContain("import('./GuidanceActionController.js')");
-    expect(gameManager).toContain("from './GuidanceExecutionAdapter.js'");
-    expect(gameManager).toContain("from './CommandDestinationController.js'");
+    expect(gameManager).not.toContain("from './GuidanceExecutionAdapter.js'");
+    expect(gameManager).not.toContain("from './CommandDestinationController.js'");
+    expect(guidanceRuntime).toContain("from './GuidanceExecutionAdapter.js'");
+    expect(guidanceRuntime).toContain("from './CommandDestinationController.js'");
     expect(gameManager).not.toContain('GuidanceAction.handleGuidanceAction(suggestion, {');
     expect(gameManager).not.toContain('let _pendingQuestSelectionId');
     expect(gameManager).not.toContain('function _openGuidanceTradeConfirmation');
