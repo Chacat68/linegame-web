@@ -6,6 +6,7 @@ import * as Economy from '../js/systems/economy/Economy.js';
 import * as Fleet from '../js/systems/fleet/FleetSystem.js';
 import * as FleetUI from '../js/ui/FleetUI.js';
 import { FLEET_COMMAND } from '../js/core/FleetCommand.js';
+import { FLEET_HANGAR_INTENT } from '../js/ui/FleetHangarPresenter.js';
 import { createTestState } from './helpers.js';
 
 function createFakeClassList(initialValues) {
@@ -201,14 +202,15 @@ describe('FleetUI.openModModal guidance focus', function () {
 
   it('查看其他舰船不会切换操控舰，并会提供单独的切换动作', async function () {
     var inspectButton = createFakeElement();
-    inspectButton.dataset.inspectShipIndex = '1';
+    inspectButton.dataset.hangarIntent = FLEET_HANGAR_INTENT.INSPECT_SHIP;
+    inspectButton.dataset.shipIndex = '1';
+    inspectButton.closest = function (selector) {
+      return selector === '[data-hangar-intent]' ? inspectButton : null;
+    };
     var selectedButton = createFakeElement();
     var container = createFakeElement();
-    container.querySelectorAll = function (selector) {
-      return selector === '[data-inspect-ship-index]' ? [inspectButton] : [];
-    };
     container.querySelector = function (selector) {
-      return selector === '.hangar-ship-select[data-inspect-ship-index="1"]' ? selectedButton : null;
+      return selector === '.hangar-ship-select[data-ship-index="1"]' ? selectedButton : null;
     };
 
     globalThis.document = {
@@ -234,7 +236,7 @@ describe('FleetUI.openModModal guidance focus', function () {
       },
     });
 
-    inspectButton.dispatchEvent({ type: 'click' });
+    container.onclick({ target: inspectButton, preventDefault: function () {} });
     await Promise.resolve();
 
     expect(state.activeShipIndex).toBe(0);
@@ -244,6 +246,43 @@ describe('FleetUI.openModModal guidance focus', function () {
     expect(container.innerHTML).toContain('data-index="1"');
     expect(container.innerHTML).toContain('设为操控舰');
     expect(selectedButton.focused).toBe(true);
+  });
+
+  it('主机库以单一容器委托发布席位、切船与召回 command', function () {
+    var container = createFakeElement();
+    globalThis.document = {
+      getElementById: function (id) {
+        return id === 'fleet-list' ? container : null;
+      },
+    };
+
+    var state = createTestState({ credits: 50000 });
+    Fleet.init(state);
+    var commands = [];
+    FleetUI.render({
+      state: state,
+      onCommand: function (command) { commands.push(command); },
+    });
+
+    function clickIntent(type, shipIndex) {
+      var button = createFakeElement();
+      button.dataset.hangarIntent = type;
+      if (shipIndex !== undefined) button.dataset.shipIndex = String(shipIndex);
+      button.closest = function (selector) {
+        return selector === '[data-hangar-intent]' ? button : null;
+      };
+      container.onclick({ target: button, preventDefault: function () {} });
+    }
+
+    clickIntent(FLEET_HANGAR_INTENT.BUY_SLOT);
+    clickIntent(FLEET_HANGAR_INTENT.SWITCH_SHIP, 0);
+    clickIntent(FLEET_HANGAR_INTENT.CANCEL_ROUTE, 0);
+
+    expect(commands).toEqual([
+      { type: FLEET_COMMAND.BUY_SLOT },
+      { type: FLEET_COMMAND.SWITCH_SHIP, shipIndex: 0 },
+      { type: FLEET_COMMAND.CANCEL_ROUTE, shipIndex: 0 },
+    ]);
   });
 
   it('购船页会渲染采购状态、局部焦点和船卡信号条', function () {

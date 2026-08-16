@@ -29,7 +29,7 @@
 
 ## 当前实现状态
 
-> 状态核对日期：2026-08-13。当前游戏版本 `0.6.4`，存档 schema `v17`。
+> 状态核对日期：2026-08-17。当前游戏版本 `0.6.4`，存档 schema `v17`。
 
 ### 当前版本已接入主流程的能力
 
@@ -47,7 +47,7 @@
 - ✅ 中期专题教学：科研经济、自动跑商、贸易站经营、资金管理 4 条可主动启动的专题链，由真实经营结果推进并随存档保存
 - ✅ 本地平衡统计导出：指标只随存档留在本设备，不自动上传；导出 JSON 可先审查再自行决定是否分享
 - ✅ 基础音效 MVP：UI 点击、交易成交、航行与事件提示音，含开关和音量设置
-- ✅ Vitest 测试基线：128 个测试文件、1139 项测试，覆盖经济、贸易、航行、探索、事件与随机事件运行时、统一动作控制器图、成就检查队列、持久化事务、Game Feature Runtime/manifest/registry 生命周期、Game Guidance Runtime 组合边界、Market Chart/Spot/Goods/Capital/Operations Presenter 图表、typed market/fleet command、资金与贸易站投影、焦点同步、HUD/FleetUI 命令所有权、自动派遣与日结算提交顺序、经营金融、舰队、科研任务档案动作、剧情与胜利运行时、eager UI 壳/设置/首次进入生命周期、教学引导与 onboarding policy、存档、会话生命周期、时钟、命令目的地、行动引导执行适配、市场工作区、增量 UI 失效、日志上下文与 UI 所有权等核心系统
+- ✅ Vitest 测试基线：129 个测试文件、1144 项测试，覆盖经济、贸易、航行、探索、事件与随机事件运行时、统一动作控制器图、成就检查队列、持久化事务、Game Feature Runtime/manifest/registry 生命周期、Game Guidance Runtime 组合边界、Market Chart/Spot/Goods/Capital/Operations 与 Fleet Hangar Presenter 图表、typed market/fleet command、资金与贸易站投影、焦点同步、HUD/FleetUI 命令所有权、自动派遣与日结算提交顺序、经营金融、舰队、科研任务档案动作、剧情与胜利运行时、eager UI 壳/设置/首次进入生命周期、教学引导与 onboarding policy、存档、会话生命周期、时钟、命令目的地、行动引导执行适配、市场工作区、增量 UI 失效、日志上下文与 UI 所有权等核心系统
 
 ### 当前开发中的能力
 
@@ -172,6 +172,7 @@ npm run build
 │       ├── MarketGoodsPresenter.js # 商品模型、卡片 HTML 与 command 协议
 │       ├── MarketCapitalPresenter.js # 资金结构与经营贷款投影
 │       ├── MarketOperationsPresenter.js # 贸易站经营与批量计划投影
+│       ├── FleetHangarPresenter.js # 机库主视图模型、HTML 与 UI intent
 │       ├── MapUI.js        # 星图交互
 │       ├── ShipUI.js       # 飞船与货舱界面
 │       ├── Modal.js        # 通用模态框
