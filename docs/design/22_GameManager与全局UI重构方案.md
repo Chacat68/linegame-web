@@ -38,7 +38,7 @@
 
 | 对象 | 现状 | 风险含义 |
 | --- | ---: | --- |
-| `js/core/GameManager.js` | 重构前约 2,900 行；当前约 1,950 行 | 仍超出单文件可安全推理范围，但高风险动作、行动引导协调与一行 controller 转发已开始迁出 |
+| `js/core/GameManager.js` | 重构前约 2,900 行；当前约 1,850 行 | 仍超出单文件可安全推理范围，但高风险动作、行动引导协调、设置/胜利生命周期与一行 controller 转发已开始迁出 |
 | `GameManager` 静态 import | 41 个 | 组合、业务和 UI 依赖同时进入主模块 |
 | `GameManager` 顶层函数 | 152 个 | 大量私有用例和适配逻辑集中 |
 | `_handle*` / `_load*` / `_render*` / `_ensure*` 函数 | 76 个 | 动作、加载与视图边界混杂 |
@@ -650,7 +650,9 @@ Escape **不得切换 canonical workspace 或默认返回地图**，也不得关
 | `GameDayController` | **实时多日结算已接入 pipeline** | GameTime 领域推进后，永久舰船属性、教学链、任务对话、无伤统计、runtime capture 与自动存档均在结果消息、渲染、成就和胜利前提交；旧 session clock context 会被拒绝 | 为领域推进异常增加状态回滚边界；将页面可见性生命周期接入 GameApplication |
 | `DialogueRuntimeController` | **剧情运行时已接入** | DialogueSystem/DialogueUI 作为 FeatureRegistry entry 保持首次触发动态加载；controller 只拥有严格串行场景队列、session token 丢弃、reset 后迟到回调隔离、任务完成钩子；真实任务简报播放链已验收 | 把任务结果与剧情触发声明合并为统一 story command |
 | `RandomEventRuntimeController` | **随机事件运行时已接入** | RandomEvent 作为 FeatureRegistry entry 保持首次 roll / pending 恢复时动态加载；controller 只拥有 roll 队列、session token/generation、恢复/存档规则 | 为事件效果增加事务快照与补偿边界 |
-| `GameUiCoordinator` + `ActionPresentation` | **dirty-region 增量刷新已接入真实动作** | provider、四项 Feature ensure/render、命名 action 分组；动作提交声明 HUD、舰船、active workspace、场景、Context、派遣和 Guide 失效；隐藏终端与 Save 不再随每次动作重绘；latest session、未加载 Feature、诊断与 GameManager 真实派遣路径均有测试 | 迁移 Guidance/设置等剩余兼容 `renderAll` 来源，并继续细分当前 workspace 内部 dirty region |
+| `VictoryRuntimeController` | **胜利检测与结算呈现已接入** | controller 持有本会话已确认路线、待呈现报告、统计构造与延迟 UI session-token 校验；`GameManager` 只注入系统、消息、重开和 Feature 端口 | 把路线完成后的长期经营策略迁入独立 post-victory command |
+| `SettingsUiController` | **设置入口生命周期已接入** | controller 持有首次点击 loader、最新 settings/state provider、会话失效保护、模块同步与 Surface fallback；`GameManager` 不再直接查询设置按钮或管理 listener | 将设置领域变更与持久化收束为 typed command，并接入 shutdown dispose |
+| `GameUiCoordinator` + `ActionPresentation` | **dirty-region 增量刷新已接入真实动作** | provider、四项 Feature ensure/render、命名 action 分组；动作提交声明 HUD、舰船、active workspace、场景、Context、派遣和 Guide 失效；隐藏终端与 Save 不再随每次动作重绘；latest session、未加载 Feature、诊断与 GameManager 真实派遣路径均有测试 | 迁移 Guidance/教程等剩余兼容 `renderAll` 来源，并继续细分当前 workspace 内部 dirty region |
 | `ActionGuideCoordinator` | **已接入唯一 Command Slot** | 使用 latest-state provider 汇总市场、档案、探索、维修、改装、路线、科研、事件、教程与阻塞上下文；延迟 Feature 去重、会话失效、一次性改装上下文和只读 refresh 均有测试；教学链完成检查已迁入业务提交边界 | 将更多 command action 的执行与完成反馈从 `GameManager` 兼容门面迁出 |
 | `NavigationController` | **已接入 `UIManager`** | 五个 workspace、旧别名、唯一 active、幂等切换、独立 detail stack；Escape 只关闭 L4 详情不改变 L3 | 继续迁移旧 surface 直接开关与 focus 适配器 |
 | `SurfaceManager` | **唯一 Escape dispatcher 已接入** | blocking 层优先且不下穿；非阻塞层按优先级处理；隐藏 surface 同步 inert/aria-hidden | 将五个 L3 workspace 完全收口到同一 surface registry |
@@ -658,7 +660,7 @@ Escape **不得切换 canonical workspace 或默认返回地图**，也不得关
 
 当前仍存在的过渡边界：
 
-- `GameManager` 当前约 1,950 行；StateSession、SystemRuntime、SessionLifecycle、GameClock、FeatureRegistry、贸易/航行/探索/事件/active dispatch/日结算、剧情、随机事件与行动引导协调等已成为真实调用路径；Fleet、Archive、Commerce 共 36 个一行 controller 转发已删除，但 Guidance/设置/胜利等兼容编排仍未清完，尚未达到薄组合根目标。
+- `GameManager` 当前约 1,850 行；StateSession、SystemRuntime、SessionLifecycle、GameClock、FeatureRegistry、贸易/航行/探索/事件/active dispatch/日结算、剧情、随机事件、胜利、设置入口与行动引导协调等已成为真实调用路径；Fleet、Archive、Commerce 共 36 个一行 controller 转发已删除，但 Guidance 与教程等兼容编排仍未清完，尚未达到薄组合根目标。
 - `GameUiCoordinator`、`ActionGuideCoordinator`、`NavigationController`、`SurfaceManager` 和 `ContextInspector` 已进入运行时调用链；Context Inspector 与唯一 Command Slot 已从 Map workspace 提升为 `game-main` 的 Global L2 直属层；真实动作已改走 dirty-region 增量刷新，但 workspace 内部 presenter 仍是整块刷新，局部 action slot 和旧终端 DOM 收口也未完成，不能按“已完成 UI 重构”验收。
 - 通用延迟模块已由单一 manifest 持有；Dialogue/RandomEvent controller 仅保留领域队列，不再重复拥有 import 状态。
 - `SurfaceManager` 已统一 blocking 层、inert 与 Escape dispatcher，但五个 L3 workspace 仍需淘汰旧 primary/secondary 适配分歧。

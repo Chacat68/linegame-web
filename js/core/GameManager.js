@@ -65,6 +65,8 @@ import { createDispatchActionController } from './DispatchActionController.js';
 import { createGameDayController } from './GameDayController.js';
 import { createDialogueRuntimeController } from './DialogueRuntimeController.js';
 import { createRandomEventRuntimeController } from './RandomEventRuntimeController.js';
+import { createSettingsUiController } from './SettingsUiController.js';
+import { createVictoryRuntimeController } from './VictoryRuntimeController.js';
 import { createGameUiCoordinator } from '../ui/GameUiCoordinator.js';
 import {
   createActionGuideCoordinator,
@@ -84,11 +86,7 @@ let _settings  = {
 };
 let _blackMarketMode = false; // 当前是否处于黑市交易模式
 let _runtimeRevision = 0;
-let _acknowledgedVictoryPathIds = new Set();
 let _pendingQuestSelectionId = null;
-let _pendingVictoryReportPathId = null;
-let _settingsLauncherButton = null;
-let _settingsLauncherHandler = null;
 let _achievementCheckQueued = false;
 const _fleetStylesUrl = new URL('../../css/fleet.css', import.meta.url).href;
 const _hangarTerminalStylesUrl = new URL('../../css/hangar-terminal.css', import.meta.url).href;
@@ -121,6 +119,8 @@ let _dispatchActions = null;
 let _gameDayActions = null;
 let _dialogueController = null;
 let _randomEventController = null;
+let _settingsUiController = null;
+let _victoryController = null;
 let _contextAdapters = null;
 let _actionGuideCoordinator = null;
 
@@ -135,9 +135,9 @@ function _replaceState(nextState, reason) {
 function _resetSessionTransients() {
   _blackMarketMode = false;
   _pendingQuestSelectionId = null;
-  _pendingVictoryReportPathId = null;
   _achievementCheckQueued = false;
   if (_actionGuideCoordinator) _actionGuideCoordinator.reset();
+  if (_victoryController) _victoryController.reset();
 }
 
 function _getSessionToken() {
@@ -305,9 +305,9 @@ function _configureDeferredFeatures() {
     },
     victory: {
       load: function () { return import('../ui/VictoryResultUI.js'); },
-      sync: function (module) { _initializeVictoryResultUI(module); },
+      sync: function (module) { _getVictoryController().syncView(module); },
       onError: function (error) {
-        _pendingVictoryReportPathId = null;
+        _getVictoryController().handleLoadFailure();
         _reportDeferredUiFailure('victory', error);
       },
     },
@@ -323,7 +323,7 @@ function _configureDeferredFeatures() {
     },
     settings: {
       load: function () { return import('./SettingsManager.js'); },
-      sync: function (module) { _initializeSettingsUI(module); },
+      sync: function (module) { _getSettingsUiController().sync(module); },
       onError: function (error) { _reportDeferredUiFailure('settings', error); },
     },
     guidanceAction: {
@@ -381,7 +381,7 @@ function _queueAchievementCheck() {
     });
     if (achievementResult.newlyUnlocked.length > 0) {
       _updateUI();
-      _checkVictory();
+      _getVictoryController().check();
     }
   });
 }
@@ -389,11 +389,6 @@ function _queueAchievementCheck() {
 function _loadArchiveUI() {
   _configureDeferredFeatures();
   return _deferredFeatures.load('archive');
-}
-
-function _loadVictoryResultUI() {
-  _configureDeferredFeatures();
-  return _deferredFeatures.load('victory');
 }
 
 function _loadOnboardingUI() {
@@ -477,89 +472,6 @@ function _loadTutorialUI() {
   return _deferredFeatures.load('tutorial');
 }
 
-function _releaseSettingsLauncher() {
-  if (_settingsLauncherButton && _settingsLauncherHandler && _settingsLauncherButton.removeEventListener) {
-    _settingsLauncherButton.removeEventListener('click', _settingsLauncherHandler);
-  }
-  if (_settingsLauncherButton && _settingsLauncherButton.dataset) {
-    delete _settingsLauncherButton.dataset.settingsLoaderBound;
-  }
-  _settingsLauncherButton = null;
-  _settingsLauncherHandler = null;
-}
-
-function _initializeSettingsUI(SettingsUI) {
-  if (!SettingsUI) return;
-  _releaseSettingsLauncher();
-  SettingsUI.initSettingsModal({
-    settings: _settings,
-    Renderer: Renderer3D,
-    getState: function () { return _state; },
-    onOpen: function () {
-      _ensureSaveUiRendered();
-    },
-    onDifficultyChanged: function (nextDifficulty) {
-      if (!DIFFICULTY_LEVELS[nextDifficulty]) return;
-      _state.difficulty = nextDifficulty;
-      _settings.difficulty = nextDifficulty;
-      _updateUI();
-    },
-    onRealtimeDayDurationChanged: function (nextDurationMs) {
-      _settings.realtimeDayDurationMs = nextDurationMs;
-      _getGameClock().reset(performance.now());
-      if (_gameClock && _gameClock.isRecurring(ACTIVE_DISPATCH_CLOCK_ID)) _startActiveDispatchClock();
-    },
-    onResetTutorial: function () {
-      _hideSettingsModal();
-      _restartSession('settings-tutorial-reset');
-    },
-    onClearSaves: function () {
-      for (var slotId = 0; slotId < 4; slotId++) Save.deleteSlot(slotId);
-      EventBus.emit('log:message', { text: '🗑 本地存档已全部清空。', type: 'info' });
-      _updateUI();
-    },
-  });
-}
-
-function _loadSettingsUI() {
-  _configureDeferredFeatures();
-  return _deferredFeatures.load('settings');
-}
-
-function _hideSettingsModal() {
-  var SettingsUI = _getDeferredFeature('settings');
-  if (SettingsUI && SettingsUI.hideSettingsModal) {
-    SettingsUI.hideSettingsModal();
-    return;
-  }
-  hideBlockingSurface('settings-modal');
-}
-
-function _bindSettingsLauncher() {
-  _configureDeferredFeatures();
-  var SettingsUI = _getDeferredFeature('settings');
-  if (SettingsUI) {
-    _deferredFeatures.sync('settings');
-    return;
-  }
-  var button = document.getElementById('settings-btn');
-  if (!button || !button.addEventListener || button.dataset.settingsLoaderBound === 'true') return;
-
-  _settingsLauncherButton = button;
-  _settingsLauncherHandler = function (event) {
-    if (event && event.preventDefault) event.preventDefault();
-    var requestedRevision = _runtimeRevision;
-    _loadSettingsUI().then(function (SettingsUI) {
-      if (!SettingsUI || requestedRevision !== _runtimeRevision) return;
-      _initializeSettingsUI(SettingsUI);
-      _ensureSaveUiRendered();
-      SettingsUI.showSettingsModal();
-    });
-  };
-  button.dataset.settingsLoaderBound = 'true';
-  button.addEventListener('click', _settingsLauncherHandler);
-}
-
 function _loadGuidanceActionController() {
   _configureDeferredFeatures();
   return _deferredFeatures.load('guidanceAction');
@@ -635,8 +547,7 @@ function _getGameClock() {
 }
 
 function _prepareSessionState(state, context) {
-  _acknowledgedVictoryPathIds = new Set();
-  _pendingVictoryReportPathId = null;
+  _getVictoryController().reset();
   _getDialogueController().reset(state);
   if (context.restoreRandomRuntime) _getRandomEventController().sync(state);
   else _getRandomEventController().reset(state);
@@ -761,7 +672,7 @@ function _getActionPipeline() {
       if (dirtyRegions) _updateUI(dirtyRegions);
       else _updateUI();
     },
-    checkVictory: _checkVictory,
+    checkVictory: function () { _getVictoryController().check(); },
   });
   return _actionPipeline;
 }
@@ -945,6 +856,67 @@ function _getRandomEventController() {
   return _randomEventController;
 }
 
+function _getSettingsUiController() {
+  if (_settingsUiController) return _settingsUiController;
+  _configureDeferredFeatures();
+  _settingsUiController = createSettingsUiController({
+    features: _deferredFeatures,
+    getSettings: function () { return _settings; },
+    getState: function () { return _state; },
+    getSessionToken: _getSessionToken,
+    isSessionTokenCurrent: _isSessionTokenCurrent,
+    Renderer: Renderer3D,
+    hideFallback: hideBlockingSurface,
+    callbacks: {
+      onOpen: _ensureSaveUiRendered,
+      onDifficultyChanged: function (nextDifficulty) {
+        if (!DIFFICULTY_LEVELS[nextDifficulty]) return;
+        _state.difficulty = nextDifficulty;
+        _settings.difficulty = nextDifficulty;
+        _updateUI(DEFAULT_ACTION_DIRTY_REGIONS);
+      },
+      onRealtimeDayDurationChanged: function (nextDurationMs) {
+        _settings.realtimeDayDurationMs = nextDurationMs;
+        _getGameClock().reset(performance.now());
+        if (_gameClock && _gameClock.isRecurring(ACTIVE_DISPATCH_CLOCK_ID)) _startActiveDispatchClock();
+      },
+      onResetTutorial: function () {
+        _getSettingsUiController().hide();
+        _restartSession('settings-tutorial-reset');
+      },
+      onClearSaves: function () {
+        for (var slotId = 0; slotId < 4; slotId++) Save.deleteSlot(slotId);
+        EventBus.emit('log:message', { text: '🗑 本地存档已全部清空。', type: 'info' });
+        _updateUI([UI_REGION.SAVE, UI_REGION.GUIDE]);
+      },
+    },
+  });
+  return _settingsUiController;
+}
+
+function _getVictoryController() {
+  if (_victoryController) return _victoryController;
+  _victoryController = createVictoryRuntimeController({
+    getState: function () { return _state; },
+    getSessionToken: _getSessionToken,
+    isSessionTokenCurrent: _isSessionTokenCurrent,
+    systems: {
+      Victory: Victory,
+      BalanceMetrics: BalanceMetrics,
+      Trade: Trade,
+    },
+    getLevelTitle: function (experience) { return getLevel(experience).title; },
+    loadView: function () {
+      _configureDeferredFeatures();
+      return _deferredFeatures.load('victory');
+    },
+    emitMessage: function (message) { EventBus.emit('log:message', message); },
+    refreshActionGuide: _refreshActionGuide,
+    restartSession: _restartSession,
+  });
+  return _victoryController;
+}
+
 function _getActionGuideCoordinator() {
   if (_actionGuideCoordinator) return _actionGuideCoordinator;
   _configureDeferredFeatures();
@@ -1055,24 +1027,6 @@ function _selectAvailableQuest(questId) {
 
 function _ensureSaveUiRendered() {
   return _getUiCoordinator().ensureSave();
-}
-
-function _initializeVictoryResultUI(VictoryResultUI) {
-  if (!VictoryResultUI) return;
-  VictoryResultUI.init({
-    onContinue: function (pathId) {
-      if (pathId) _acknowledgedVictoryPathIds.add(pathId);
-      _pendingVictoryReportPathId = null;
-      EventBus.emit('log:message', {
-        text: '胜利结算已归档，当前公司继续经营。',
-        type: 'info',
-      });
-      _refreshActionGuide();
-    },
-    onRestart: function () {
-      _restartSession('victory-restart');
-    },
-  });
 }
 
 function _restartSession(reason) {
@@ -1221,7 +1175,7 @@ export function init(difficulty, options) {
     companyBtn.onclick = _showCompanyRenameModal;
   }
 
-  _bindSettingsLauncher();
+  _getSettingsUiController().bindLauncher();
 
   // UI 壳完成绑定后，再由生命周期统一同步投影、渲染并恢复计时。
   _getSessionLifecycle().present(sessionTransition);
@@ -1421,7 +1375,7 @@ function _dispatch(result, presentation) {
   var dirtyRegions = normalizeDirtyRegions(presentation);
   if (dirtyRegions.length > 0) _updateUI(dirtyRegions);
   else _updateUI();
-  if (result && result.ok) _checkVictory();
+  if (result && result.ok) _getVictoryController().check();
 }
 
 function _checkMidgameTeachingCompletion() {
@@ -1806,7 +1760,7 @@ function _handleSaveGame(slotId) {
 function _handleLoadGame(slotId) {
   const result = Save.loadGame(slotId);
   if (result.ok) {
-    _hideSettingsModal();
+    _getSettingsUiController().hide();
     _getSessionLifecycle().transition(result.state, {
       reason: 'manual-load',
       mode: 'manual-load',
@@ -1856,53 +1810,6 @@ function _updateUI(regions) {
   if (MapUI.isMarketOpen() && !_getDeferredFeature('market')) _ensureMarketUiRendered();
   if (typeof regions === 'undefined') return _getUiCoordinator().renderAll();
   return _getUiCoordinator().invalidate(regions);
-}
-
-// ---------------------------------------------------------------------------
-// 胜利检测
-// ---------------------------------------------------------------------------
-
-function _checkVictory() {
-  const result = Victory.checkVictory(_state, _acknowledgedVictoryPathIds);
-  if (!result.won) return;
-
-  const path = result.path;
-  const reportPathId = path && path.id ? path.id : 'victory';
-  if (_pendingVictoryReportPathId === reportPathId) return;
-  _pendingVictoryReportPathId = reportPathId;
-  const routeTimeline = BalanceMetrics.recordRouteCompletion(_state, reportPathId, {
-    netWorth: Trade.getNetWorth(_state),
-  });
-  const allProgress = Victory.getProgress(_state);
-
-  const levelTitle = getLevel(_state.experience || 0).title;
-  const stats = [
-    { label: '银河历', value: '第 ' + _state.day + ' 天' },
-    { label: '玩家等级', value: levelTitle },
-    { label: '净资产', value: Math.floor(Trade.getNetWorth(_state)).toLocaleString() + ' 信用积分' },
-    { label: '贸易次数', value: (_state.tradeCount || 0).toLocaleString() + ' 次' },
-    { label: '已研究科技', value: (_state.researchedTechs || []).length + ' / 16 项' },
-    { label: '完成任务', value: (_state.completedQuests || []).length + ' 个' },
-    { label: '解锁成就', value: (_state.achievements || []).length + ' 个' },
-    { label: '探索星球', value: (_state.visitedSystems || []).length + ' 颗' },
-    { label: '探索星系', value: (_state.visitedGalaxies || []).length + ' / 8 个' },
-  ];
-  if (routeTimeline && routeTimeline.selectedDay) {
-    stats.splice(1, 0, {
-      label: '路线用时',
-      value: '第 ' + routeTimeline.selectedDay + ' 天选择 · ' + routeTimeline.daysToComplete + ' 天达成',
-    });
-  }
-
-  _loadVictoryResultUI().then(function (VictoryResultUI) {
-    if (!VictoryResultUI) return;
-    _initializeVictoryResultUI(VictoryResultUI);
-    VictoryResultUI.showVictoryReport({
-      path: path,
-      stats: stats,
-      progress: allProgress,
-    });
-  });
 }
 
 function _isRealtimeClockPaused() {

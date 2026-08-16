@@ -339,6 +339,7 @@ describe('Settlement surface UI', function () {
     var css = readFileSync('css/interstellar-trader.css', 'utf8');
     var hud = readFileSync('js/ui/HUD.js', 'utf8');
     var gameManager = readFileSync('js/core/GameManager.js', 'utf8');
+    var victoryController = readFileSync('js/core/VictoryRuntimeController.js', 'utf8');
 
     expect(html).toContain('aria-describedby="victory-modal-desc victory-modal-body"');
     var resultUi = readFileSync('js/ui/VictoryResultUI.js', 'utf8');
@@ -357,8 +358,10 @@ describe('Settlement surface UI', function () {
     expect(hud).toContain("body.setAttribute('aria-label', '长期路线进度详情')");
     expect(hud).toContain('function _getVictoryNextRequirement');
     expect(hud).toContain('aria-valuetext="');
-    expect(gameManager).toContain('VictoryResultUI.showVictoryReport');
-    expect(gameManager).toContain('_acknowledgedVictoryPathIds');
+    expect(gameManager).toContain("from './VictoryRuntimeController.js'");
+    expect(victoryController).toContain('VictoryResultUI.showVictoryReport(payload)');
+    expect(victoryController).toContain('acknowledgedPathIds = new Set()');
+    expect(victoryController).toContain('isSessionTokenCurrent(requestedToken)');
     expect(resultUi).toContain("messageEl.setAttribute('aria-label', '胜利结算报告')");
     expect(resultUi).toContain('aria-label="长期路线完成度"');
     expect(resultUi).toContain('aria-valuetext="');

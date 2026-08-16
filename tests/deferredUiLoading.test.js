@@ -85,15 +85,20 @@ describe('deferred terminal UI loading', function () {
 
   it('存档和胜利结果只在对应入口触发加载', function () {
     var gameManager = readFileSync('js/core/GameManager.js', 'utf8');
+    var settingsController = readFileSync('js/core/SettingsUiController.js', 'utf8');
+    var victoryController = readFileSync('js/core/VictoryRuntimeController.js', 'utf8');
     var settingsManager = readFileSync('js/core/SettingsManager.js', 'utf8');
     var uiCoordinator = readFileSync('js/ui/GameUiCoordinator.js', 'utf8');
 
-    expect(gameManager).toContain('onOpen: function ()');
     expect(gameManager).toContain('_ensureSaveUiRendered()');
     expect(gameManager).toContain('return _getUiCoordinator().ensureSave()');
     expect(uiCoordinator).toContain("return _ensure('save', function (module) { renderSave(module); })");
-    expect(gameManager).toContain('_loadVictoryResultUI().then(function (VictoryResultUI)');
-    expect(gameManager).toContain('_pendingVictoryReportPathId === reportPathId');
+    expect(gameManager).toContain("import('../ui/VictoryResultUI.js')");
+    expect(gameManager).toContain("from './VictoryRuntimeController.js'");
+    expect(victoryController).toContain('Promise.resolve(loadView()).then(function (VictoryResultUI)');
+    expect(victoryController).toContain('pendingReportPathId === reportPathId');
+    expect(settingsController).toContain('onOpen: callbacks.onOpen');
+    expect(settingsController).toContain("features.load('settings')");
     expect(settingsManager).toContain('if (activeCallbacks.onOpen) activeCallbacks.onOpen()');
   });
 
@@ -141,6 +146,7 @@ describe('deferred terminal UI loading', function () {
 
   it('设置与行动执行器不再进入首屏静态依赖图', function () {
     var gameManager = readFileSync('js/core/GameManager.js', 'utf8');
+    var settingsController = readFileSync('js/core/SettingsUiController.js', 'utf8');
     var settingsCore = readFileSync('js/core/SettingsCore.js', 'utf8');
     var settingsManager = readFileSync('js/core/SettingsManager.js', 'utf8');
     var main = readFileSync('js/main.js', 'utf8');
@@ -149,11 +155,14 @@ describe('deferred terminal UI loading', function () {
     expect(gameManager).not.toMatch(/import\s+\*\s+as\s+CompanyDirectiveUI\s+from/);
     expect(gameManager).not.toMatch(/import\s+\*\s+as\s+GuidanceAction\s+from/);
     expect(gameManager).toContain("import('./SettingsManager.js')");
+    expect(gameManager).toContain("from './SettingsUiController.js'");
+    expect(gameManager).not.toContain("document.getElementById('settings-btn')");
     expect(gameManager).not.toContain('CompanyDirectiveUI');
     expect(gameManager).toContain("import('./GuidanceActionController.js')");
     expect(gameManager).toMatch(/\bsettings:\s*\{/);
     expect(gameManager).toMatch(/\bguidanceAction:\s*\{/);
-    expect(gameManager).toContain('requestedRevision !== _runtimeRevision');
+    expect(settingsController).toContain('isSessionTokenCurrent(requestedToken)');
+    expect(settingsController).toContain('settingsLoaderBound');
     expect(settingsCore).not.toContain('ActionConfirmUI');
     expect(settingsCore).not.toContain('settings-modal');
     expect(settingsManager).toContain("from './SettingsCore.js'");
