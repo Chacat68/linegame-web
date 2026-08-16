@@ -38,7 +38,7 @@
 - ✅ 探索 MVP：POI 调查、秘密航线解锁
 - ✅ 动态经济：供需、价格历史、经济周期、市场深度、峰值事件
 - ✅ 黑市与走私：黑市定价、权限判定、走私检查、查获罚款统计
-- ✅ 统一商业终端：`MarketUI.js` 编排现货、资金与贸易站工作区；Chart / Spot / Capital / Operations Presenter 分别拥有各自投影
+- ✅ 统一商业终端：`MarketUI.js` 编排现货、资金与贸易站工作区；Chart / Spot / Goods / Capital / Operations Presenter 分别拥有各自投影
 - ✅ 金融系统：贷款、保险、股票、期货、贸易站投资
 - ✅ 贸易站经营：建站、升级、经理、策略、被动收益
 - ✅ 舰队与船员：多船、改装、船员招募、派遣航线
@@ -47,7 +47,7 @@
 - ✅ 中期专题教学：科研经济、自动跑商、贸易站经营、资金管理 4 条可主动启动的专题链，由真实经营结果推进并随存档保存
 - ✅ 本地平衡统计导出：指标只随存档留在本设备，不自动上传；导出 JSON 可先审查再自行决定是否分享
 - ✅ 基础音效 MVP：UI 点击、交易成交、航行与事件提示音，含开关和音量设置
-- ✅ Vitest 测试基线：125 个测试文件、1117 项测试，覆盖经济、贸易、航行、探索、事件与随机事件运行时、统一动作控制器图、成就检查队列、持久化事务、Game Feature Runtime/manifest/registry 生命周期、Game Guidance Runtime 组合边界、Market Chart/Spot/Capital/Operations Presenter 图表、现货、资金与贸易站投影、焦点同步、HUD/FleetUI 命令所有权、自动派遣与日结算提交顺序、经营金融、舰队、科研任务档案动作、剧情与胜利运行时、eager UI 壳/设置/首次进入生命周期、教学引导与 onboarding policy、存档、会话生命周期、时钟、命令目的地、行动引导执行适配、市场工作区、增量 UI 失效、日志上下文与 UI 所有权等核心系统
+- ✅ Vitest 测试基线：126 个测试文件、1126 项测试，覆盖经济、贸易、航行、探索、事件与随机事件运行时、统一动作控制器图、成就检查队列、持久化事务、Game Feature Runtime/manifest/registry 生命周期、Game Guidance Runtime 组合边界、Market Chart/Spot/Goods/Capital/Operations Presenter 图表、现货商品 command、资金与贸易站投影、焦点同步、HUD/FleetUI 命令所有权、自动派遣与日结算提交顺序、经营金融、舰队、科研任务档案动作、剧情与胜利运行时、eager UI 壳/设置/首次进入生命周期、教学引导与 onboarding policy、存档、会话生命周期、时钟、命令目的地、行动引导执行适配、市场工作区、增量 UI 失效、日志上下文与 UI 所有权等核心系统
 
 ### 当前开发中的能力
 
@@ -166,6 +166,7 @@ npm run build
 │       ├── MarketUI.js     # 商业终端（现货/资本/经营）
 │       ├── MarketChartPresenter.js # 行情快照、K 线与图表交互
 │       ├── MarketSpotPresenter.js # 现货、行情与黑市投影
+│       ├── MarketGoodsPresenter.js # 商品模型、卡片 HTML 与 command 协议
 │       ├── MarketCapitalPresenter.js # 资金结构与经营贷款投影
 │       ├── MarketOperationsPresenter.js # 贸易站经营与批量计划投影
 │       ├── MapUI.js        # 星图交互

@@ -119,6 +119,7 @@ describe('MarketUI guided focus', function () {
     const css = sharedCss + '\n' + marketCss;
     const js = readFileSync('js/ui/MarketUI.js', 'utf8');
     const spotJs = readFileSync('js/ui/MarketSpotPresenter.js', 'utf8');
+    const goodsJs = readFileSync('js/ui/MarketGoodsPresenter.js', 'utf8');
     const mapJs = readFileSync('js/ui/MapUI.js', 'utf8');
 
     expect(html).toContain('id="market-workspace-tabs"');
@@ -133,7 +134,7 @@ describe('MarketUI guided focus', function () {
     expect(mapJs).toContain("label.className = 'market-galaxy-btn-label'");
     expect(mapJs).toContain("btn.setAttribute('aria-pressed'");
     expect(js).toContain('role="tab" aria-controls="');
-    expect(js).toContain("setAttribute('role', 'listitem')");
+    expect(goodsJs).toContain('role="listitem"');
     expect(spotJs).toContain('aria-label="买卖货物"');
     expect(spotJs).toContain('role="radiogroup" aria-labelledby="market-price-view-label"');
     expect(spotJs).toContain('data-market-overview-price-mode="sell"');
@@ -664,6 +665,70 @@ describe('MarketUI guided focus', function () {
     expect(goodsToolbar.innerHTML).toContain('点击其他货物即可查看价格并买卖');
     expect(goodsToolbar.innerHTML).not.toContain('价格走势');
     expect(goodsToolbar.innerHTML).not.toContain('右侧行动摘要');
+  });
+
+  it('商品列表用单一委托发布买卖、补给和键盘焦点 command', async function () {
+    vi.resetModules();
+    var helpers = await import('./helpers.js');
+    var Economy = await import('../js/systems/economy/Economy.js');
+    var Faction = await import('../js/systems/faction/FactionSystem.js');
+    var Finance = await import('../js/systems/finance/FinanceSystem.js');
+    var state = helpers.createTestState({
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+      viewingGalaxy: 'milky_way',
+      fuel: 80,
+      maxFuel: 100,
+      cargo: { food: 2 },
+      credits: 5000,
+    });
+    Economy.init();
+    Faction.init(state);
+    Finance.init(state);
+
+    var goodsList = createFakeElement();
+    var elements = {
+      'market-workspace-tabs': createFakeElement(),
+      'market-spot-pane': createFakeElement(),
+      'market-capital-pane': createFakeElement(),
+      'market-operations-pane': createFakeElement(),
+      'market-goods-list': goodsList,
+      'market-goods-toolbar': createFakeElement(),
+    };
+    globalThis.document = {
+      getElementById: function (id) { return elements[id] || null; },
+      querySelectorAll: function () { return []; },
+      querySelector: function () { return null; },
+      createElement: function () { return createFakeElement(); },
+    };
+
+    var onBuy = vi.fn();
+    var onSell = vi.fn();
+    var onRefuel = vi.fn();
+    var MarketUI = await import('../js/ui/MarketUI.js');
+    MarketUI.render(state, onBuy, onSell, onRefuel, 'sol_prime', 'open', 'milky_way', null, null, {});
+
+    expect(typeof goodsList.onclick).toBe('function');
+    expect(typeof goodsList.onkeydown).toBe('function');
+    function commandTarget(type, goodId) {
+      return { dataset: { marketCommand: type, goodId: goodId || '' }, parentElement: goodsList };
+    }
+    goodsList.onclick({ target: commandTarget('buy-good', 'food'), stopPropagation: function () {} });
+    goodsList.onclick({ target: commandTarget('sell-good', 'food'), stopPropagation: function () {} });
+    goodsList.onclick({ target: commandTarget('refuel'), stopPropagation: function () {} });
+
+    expect(onBuy).toHaveBeenCalledWith(expect.objectContaining({ id: 'food' }));
+    expect(onSell).toHaveBeenCalledWith(expect.objectContaining({ id: 'food' }));
+    expect(onRefuel).toHaveBeenCalledOnce();
+
+    var prevented = false;
+    goodsList.onkeydown({
+      key: 'Enter',
+      target: commandTarget('focus-good', 'water'),
+      preventDefault: function () { prevented = true; },
+    });
+    expect(prevented).toBe(true);
+    expect(MarketUI.getFocusedMarketGood('sol_prime', 'open')).toBe('water');
   });
 
   it('资本页展示状态概览和局部风险信号', async function () {

@@ -11,14 +11,10 @@ import * as Commerce from '../systems/commerce/CommerceFacade.js';
 import * as ContextInspector from './ContextInspector.js';
 import {
   buildMarketSnapshots as _buildMarketSnapshots,
-  formatMarketChartDelta as _formatChartDelta,
-  normalizeMarketChartHistory as _normalizeChartHistory,
-  renderMarketChart as _renderMarketChart,
   renderMarketChartDashboard,
   updateMainMarketKlineChart,
 } from './MarketChartPresenter.js';
 import {
-  describeTradeOpportunity as _describeTradeOpportunity,
   formatMarketHeatDelta as _formatMarketHeatDelta,
   getMarketHeatMeta as _getMarketHeatMeta,
   renderAnalysisPanel as _renderAnalysisPanel,
@@ -28,6 +24,10 @@ import {
   renderSpotIntelSection as _renderSpotIntelSection,
   renderSpotTradeSection as _renderSpotTradeSection,
 } from './MarketSpotPresenter.js';
+import {
+  renderMarketGoodsWorkspace as _renderMarketGoodsWorkspace,
+  resolveMarketGoodsCommand as _resolveMarketGoodsCommand,
+} from './MarketGoodsPresenter.js';
 import { renderMarketCapitalWorkspace as _renderMarketCapitalWorkspace } from './MarketCapitalPresenter.js';
 import {
   getTradeStationCandidateIntel,
@@ -1181,56 +1181,8 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode
       });
     });
   }
-  goodsListEl.innerHTML = '';
   _renderMarketDashboard(state, sysId, effectiveMarketMode, snapshots);
   _updateMainKlineChart(state, sysId, snapshots, effectiveMarketMode);
-
-  // 市场深度提示
-  var depth = Economy.getMarketDepth(sysId);
-  var depthLabel = depth >= 350 ? '大型' : depth >= 200 ? '中型' : '小型';
-  var depthDiv = document.createElement('div');
-  if (isBlack) {
-    depthDiv.className = 'market-goods-depth-info black-banner';
-    depthDiv.innerHTML = '🕶 黑市交易 —— 高风险高回报，违禁品不受监管' +
-      '<span class="bm-warning">⚠ 携带违禁品前往联邦区域将触发执法检查</span>';
-  } else {
-    depthDiv.className = 'market-goods-depth-info';
-    depthDiv.innerHTML = '📊 可交易规模：<strong>' + depthLabel + '</strong> —— ' +
-      (depth >= 350 ? '一次买卖较多货物，价格也不容易被推高或压低' : depth >= 200 ? '普通数量的买卖对价格影响适中' : '一次买卖太多，会明显改变当地价格') +
-      (systemFaction && systemFaction.marketAccess && systemFaction.marketAccess.blackMarket
-        ? (blackMarketUnlocked
-          ? ' · 🕶 黑市资格已解锁'
-          : ' · 🔒 黑市需与辛迪加达到友好关系')
-        : '');
-  }
-  depthDiv.setAttribute('role', 'listitem');
-  goodsListEl.appendChild(depthDiv);
-
-  if (!isCurrentSys) {
-    var noteDiv = document.createElement('div');
-    var currentSystem = findSystem(state.currentSystem);
-    var viewedSystem = findSystem(sysId);
-    var currentName = currentSystem ? currentSystem.name : '当前停靠点';
-    var viewedName = viewedSystem ? viewedSystem.name : '该地点';
-    var canFocusRemote = financeActions && typeof financeActions.onFocusRemoteSystem === 'function';
-    noteDiv.className = 'market-goods-readonly-note';
-    noteDiv.setAttribute('role', 'listitem');
-    noteDiv.innerHTML = '<span class="readonly-icon">📡</span>' +
-      '<span class="market-goods-readonly-copy"><strong>远程只读</strong> · 当前停靠「' + _escapeHtml(currentName) + '」，前往「' + _escapeHtml(viewedName) + '」后可交易、补给和本地经营。</span>' +
-      (canFocusRemote
-        ? '<button class="market-goods-readonly-action command-action-btn" type="button" data-action="market-focus-remote-system" data-system-id="' + _escapeHtmlAttr(sysId) + '">设为航点</button>'
-        : '');
-    if (canFocusRemote) {
-      var focusRemoteBtn = noteDiv.querySelector('[data-action="market-focus-remote-system"]');
-      if (focusRemoteBtn) {
-        focusRemoteBtn.addEventListener('click', function (event) {
-          event.stopPropagation();
-          financeActions.onFocusRemoteSystem(focusRemoteBtn.dataset.systemId);
-        });
-      }
-    }
-    goodsListEl.appendChild(noteDiv);
-  }
 
   var activeGoodId = focusedGoodId;
   if (activeGoodId) {
@@ -1244,149 +1196,77 @@ export function render(state, onBuy, onSell, onRefuel, viewingSystem, marketMode
     }, { render: false });
   }
 
-  goodsList.forEach(function (good) {
-    var buyPrice, sellPrice;
-    if (isBlack) {
-      buyPrice  = Economy.getBlackMarketBuyPrice(sysId, good.id, state);
-      sellPrice = Economy.getBlackMarketSellPrice(sysId, good.id, state);
-    } else {
-      buyPrice  = Economy.getBuyPrice(sysId, good.id, state);
-      sellPrice = Economy.getSellPrice(sysId, good.id, state);
-    }
-    var inCargo     = state.cargo[good.id] || 0;
-    var mult        = Economy.getSystemMultiplier(sysId, good.id);
-    var sd          = Economy.getSupplyDemand(sysId, good.id);
-    var isCheap     = mult < 0.7;
-    var isExpensive = mult > 1.4;
-
-    // Sparkline
-    var history = Economy.getPriceHistory(sysId, good.id);
-    var chartHistory = _normalizeChartHistory(history, sellPrice, 8);
-    var chartDelta = _formatChartDelta(chartHistory);
-    var spread = Math.max(0, buyPrice - sellPrice);
-    var opportunity = _describeTradeOpportunity(sysId, {
-      good: good,
-      buyPrice: buyPrice,
-      sellPrice: sellPrice,
-      spread: spread,
-      supplyDemand: sd,
-    }, inCargo);
-    var miniChart = _renderMarketChart(chartHistory, sellPrice, good.name, {
-      width: 72, height: 40, topPad: 4, chartBottom: 28, volumeBase: 36, className: 'market-good-card-chart',
-    });
-
-    // Tags
-    var tag = '';
-    if (good.legality === 'illegal') {
-      tag = '<span class="market-good-tag tag-illegal">违禁</span>';
-    } else if (good.legality === 'restricted') {
-      tag = '<span class="market-good-tag tag-restricted">受监管</span>';
-    } else if (sd.ratio > 1.3) {
-      tag = '<span class="market-good-tag tag-hot">高需求</span>';
-    } else if (sd.ratio < 0.7) {
-      tag = '<span class="market-good-tag tag-cold">充足</span>';
-    }
-
-    // Heat color for icon bg
-    var heatMeta = _getMarketHeatMeta(mult);
-    var iconColorClass = heatMeta.className.replace('mkt-ov-', 'icon-');
-
-    var card = document.createElement('div');
-    card.className = 'market-good-card' +
-      (activeGoodId === good.id ? ' is-active' : '') +
-      (isCheap ? ' price-low-card' : '') +
-      (isExpensive ? ' price-high-card' : '');
-    card.dataset.marketGood = good.id;
-    card.dataset.legality = good.legality || 'legal';
-    card.dataset.signal = opportunity.className;
-    card.setAttribute('role', 'listitem');
-    card.setAttribute('tabindex', '0');
-    card.setAttribute('aria-label', good.name + '，买入 ' + buyPrice + '，卖出 ' + sellPrice + '，' + opportunity.label);
-
-    card.innerHTML =
-      '<div class="market-good-card-icon ' + iconColorClass + '">' + good.emoji + '</div>' +
-      '<div class="market-good-card-info">' +
-        '<div class="market-good-card-name">' + good.name + tag + '</div>' +
-        '<div class="market-good-card-desc">' + good.desc +
-          (inCargo > 0 ? ' · <span class="market-good-card-held">×' + inCargo + '</span>' : '') +
-        '</div>' +
-        '<div class="market-good-card-meta-row">' +
-          '<span class="market-good-card-signal ' + opportunity.className + '">' + opportunity.label + '</span>' +
-          '<span class="market-good-card-stat">' + (sd.ratio > 1.3 ? '供货紧张' : (sd.ratio < 0.7 ? '供货充足' : '供货平稳')) + '</span>' +
-          '<span class="market-good-card-stat">买卖相差 ' + spread.toLocaleString() + '</span>' +
-        '</div>' +
-      '</div>' +
-      '<div class="market-good-card-chart-col">' +
-        '<div class="market-good-card-chart-label">最近价格</div>' +
-        miniChart +
-      '</div>' +
-      '<div class="market-good-card-price-block">' +
-        '<div class="market-good-card-price-row">' +
-          '<span class="market-good-card-price">' + buyPrice.toLocaleString() + '</span>' +
-          '<span class="market-good-card-unit">CR</span>' +
-        '</div>' +
-        '<div class="market-good-card-secondary">卖出 ' + sellPrice.toLocaleString() + ' · ' + heatMeta.label + '</div>' +
-        '<div class="market-good-card-delta ' + chartDelta.className.replace('market-chart-', '') + '">' +
-          chartDelta.text + ' △' +
-        '</div>' +
-      '</div>' +
-      '<div class="market-good-card-actions">' +
-        (isCurrentSys && inCargo > 0
-          ? '<button class="market-card-btn sell-card-btn' + (isBlack ? ' bm-card-btn' : '') + '" type="button" data-id="' + good.id + '">' + (isBlack ? '🕶 卖' : '出售') + '</button>'
-          : '') +
-        (isCurrentSys
-          ? '<button class="market-card-btn buy-card-btn' + (isBlack ? ' bm-card-btn' : '') + '" type="button" data-id="' + good.id + '">' + (isBlack ? '🕶 买' : '买入') + '</button>'
-          : '') +
-      '</div>';
-
-    // Bind events
-    if (isCurrentSys) {
-      var buyCallback = isBlack && onBlackBuy ? onBlackBuy : onBuy;
-      var sellCallback = isBlack && onBlackSell ? onBlackSell : onSell;
-      var buyBtn = card.querySelector('.buy-card-btn');
-      if (buyBtn) buyBtn.addEventListener('click', function (e) { e.stopPropagation(); buyCallback(good); });
-      var sellBtn = card.querySelector('.sell-card-btn');
-      if (sellBtn) sellBtn.addEventListener('click', function (e) { e.stopPropagation(); sellCallback(good); });
-    }
-    card.addEventListener('click', function () {
-      _focusedMarketGood[focusKey] = good.id;
-      ContextInspector.replaceContext({
-        type: 'commodity',
-        id: good.id,
-        workspaceId: 'trade',
-        source: 'market-good-card',
-        revision: ContextInspector.getCurrentRevision(),
-      });
-      render(state, onBuy, onSell, onRefuel, viewingSystem, effectiveMarketMode, tradeGalaxyId, onBlackBuy, onBlackSell, financeActions);
-    });
-    card.addEventListener('keydown', function (event) {
-      if (!event || (event.key !== 'Enter' && event.key !== ' ')) return;
-      if (typeof event.preventDefault === 'function') event.preventDefault();
-      _focusedMarketGood[focusKey] = good.id;
-      ContextInspector.replaceContext({
-        type: 'commodity',
-        id: good.id,
-        workspaceId: 'trade',
-        source: 'market-good-card',
-        revision: ContextInspector.getCurrentRevision(),
-      });
-      render(state, onBuy, onSell, onRefuel, viewingSystem, effectiveMarketMode, tradeGalaxyId, onBlackBuy, onBlackSell, financeActions);
-    });
-    goodsListEl.appendChild(card);
+  var goodsWorkspace = _renderMarketGoodsWorkspace({
+    state: state,
+    systemId: sysId,
+    marketMode: effectiveMarketMode,
+    isCurrentSystem: isCurrentSys,
+    snapshots: snapshots,
+    focusedGoodId: activeGoodId,
+    systemFaction: systemFaction,
+    blackMarketUnlocked: blackMarketUnlocked,
+    canFocusRemote: financeActions && typeof financeActions.onFocusRemoteSystem === 'function',
   });
+  goodsListEl.innerHTML = goodsWorkspace.html;
 
-  // 补燃料（仅当前星球）
-  if (isCurrentSys) {
-    var fuelNeeded = Math.ceil(state.maxFuel - state.fuel);
-    if (fuelNeeded > 0) {
-      var refuelDiv = document.createElement('div');
-      refuelDiv.className = 'market-goods-refuel';
-      refuelDiv.setAttribute('role', 'listitem');
-      refuelDiv.innerHTML = '<button id="refuel-btn" class="btn-refuel">⚡ 补充燃料（' + fuelNeeded + ' 单位）</button>';
-      refuelDiv.querySelector('#refuel-btn').addEventListener('click', onRefuel);
-      goodsListEl.appendChild(refuelDiv);
-    }
+  function findRenderedGood(goodId) {
+    return goodsList.find(function (good) { return good.id === goodId; }) || null;
   }
+
+  function focusRenderedGood(goodId) {
+    var good = findRenderedGood(goodId);
+    if (!good) return;
+    _focusedMarketGood[focusKey] = good.id;
+    ContextInspector.replaceContext({
+      type: 'commodity',
+      id: good.id,
+      workspaceId: 'trade',
+      source: 'market-good-card',
+      revision: ContextInspector.getCurrentRevision(),
+    });
+    render(state, onBuy, onSell, onRefuel, sysId, effectiveMarketMode, tradeGalaxyId, onBlackBuy, onBlackSell, financeActions);
+  }
+
+  goodsListEl.onclick = function (event) {
+    var command = _resolveMarketGoodsCommand(event && event.target, goodsListEl);
+    if (!command) return;
+    if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
+
+    if (command.type === 'focus-good') {
+      focusRenderedGood(command.goodId);
+      return;
+    }
+    if (command.type === 'focus-remote-system') {
+      if (financeActions && typeof financeActions.onFocusRemoteSystem === 'function') {
+        financeActions.onFocusRemoteSystem(command.systemId);
+      }
+      return;
+    }
+    if (command.type === 'refuel') {
+      if (typeof onRefuel === 'function') onRefuel();
+      return;
+    }
+
+    var good = findRenderedGood(command.goodId);
+    if (!good) return;
+    if (command.type === 'sell-good') {
+      var sellCallback = isBlack && onBlackSell ? onBlackSell : onSell;
+      if (typeof sellCallback === 'function') sellCallback(good);
+      return;
+    }
+    if (command.type === 'buy-good') {
+      var buyCallback = isBlack && onBlackBuy ? onBlackBuy : onBuy;
+      if (typeof buyCallback === 'function') buyCallback(good);
+    }
+  };
+
+  goodsListEl.onkeydown = function (event) {
+    if (!event || (event.key !== 'Enter' && event.key !== ' ')) return;
+    var command = _resolveMarketGoodsCommand(event.target, goodsListEl);
+    if (!command || command.type !== 'focus-good') return;
+    if (typeof event.preventDefault === 'function') event.preventDefault();
+    focusRenderedGood(command.goodId);
+  };
 
   // 右侧分析面板
   if (analysisPanelEl) {

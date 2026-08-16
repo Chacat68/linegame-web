@@ -44,7 +44,7 @@
 | `_handle*` / `_load*` / `_render*` / `_ensure*` 函数 | 10 个私有入口 + 3 个测试 facade | 动作与加载入口已收束，但仍有可删除的兼容门面 |
 | 延迟模块状态变量 | 0 个旧三元状态；15 个 manifest entry | 通用延迟生命周期已统一，领域 controller 只保留自身队列/上下文 |
 | `MapUI.js` | 2,467 行 | 地图、导航和上下文 UI 仍有渗透 |
-| `MarketUI.js` | 重构前 3,606 行；当前 1,449 行 | 图表、现货、资金和贸易站投影边界已迁出；现在主要持有工作区状态、增量重绘、商品卡 DOM 与 command 事件委托 |
+| `MarketUI.js` | 重构前 3,606 行；当前 1,329 行 | 图表、现货、商品、资金和贸易站投影边界已迁出；现在主要持有工作区/成长状态、增量重绘、价格总览和 command 解释 |
 | `FleetUI.js` | 2,847 行 | 已移除反向全局主控依赖，但渲染和动作接口数量仍较多 |
 | `HUD.js` | 925 行 | 已移除固定 dashboard 与胜利/舰队/任务 mutation，但全局状态投影仍需继续收束 |
 | `SurfaceManager.js` | 559 行 | 已统一 Escape/inert，仍需完成 L3 workspace registry |
@@ -666,8 +666,9 @@ Escape **不得切换 canonical workspace 或默认返回地图**，也不得关
 | `GameUiLifecycleController` | **eager UI 壳 bind / present / dispose 已接入** | HUD、MapUI、UIManager、Modal、Action Guide、设置/公司 launcher、Feature telemetry、场景就绪和首次进入呈现统一接线；重复初始化只保留一个教程完成 listener；dispose 不会反向初始化未绑定模块 | 由 `GameApplication.shutdown` 调用 dispose，并为 UIManager / MapUI 补完整 listener 释放契约 |
 | `CommandDestinationController` | **命令 UI 落点已接入** | 交易确认、任务选择、市场商品、探索报告、推荐派遣和推荐改装拥有单一 owner；Fleet/Archive/Market 延迟完成均校验 generation、state 与 session token | 把更多 workspace 内局部 CTA 接入统一 command destination，并为加载失败提供局部恢复呈现 |
 | `MarketWorkspaceController` | **市场交互与重入生命周期已接入** | 公开/黑市模式、交易弹窗、金融 action 适配、远程市场航点、延迟加载、待恢复商品焦点和 session stale guard 均由 controller 持有；市场根节点使用稳定事件委托 | 接入 shutdown dispose，并让 controller 直接消费 typed market command |
-| `MarketChartPresenter` | **行情图表边界已接入** | 价格历史归一化、蜡烛/均线计算、公开/黑市快照、迷你图与主 K 线、统计窗口与行情排行 command 已迁出 `MarketUI`；排行选择会同步主图与 Context Inspector；宽图坐标轴和当前价标签越界已修正 | 将四个市场 presenter 的选择状态统一纳入 workspace diagnostics 与失效协议 |
-| `MarketSpotPresenter` | **现货、行情摘要与黑市投影边界已接入** | 价格热度与交易信号、快速交易摘要、商品工具栏、分析面板、行情地点事实、黑市风险和灰市目录已迁出 `MarketUI`；presenter 不绑定事件、不持有 workspace 状态，所有交易与模式切换 command 仍由上层发布 | 把商品卡的 DOM 创建与 command 描述分离 |
+| `MarketChartPresenter` | **行情图表边界已接入** | 价格历史归一化、蜡烛/均线计算、公开/黑市快照、迷你图与主 K 线、统计窗口与行情排行 command 已迁出 `MarketUI`；排行选择会同步主图与 Context Inspector；宽图坐标轴和当前价标签越界已修正 | 将五个市场 presenter 的选择状态统一纳入 workspace diagnostics 与失效协议 |
+| `MarketSpotPresenter` | **现货、行情摘要与黑市投影边界已接入** | 价格热度与交易信号、快速交易摘要、商品工具栏、分析面板、行情地点事实、黑市风险和灰市目录已迁出 `MarketUI`；presenter 不绑定事件、不持有 workspace 状态，所有交易与模式切换 command 仍由上层发布 | 将快速交易与行情排行也收束为同一 typed market command |
+| `MarketGoodsPresenter` | **商品模型、卡片与 command 协议已接入** | 商品价格/库存/供需/热度模型、公开/黑市卡片、远程只读与补给投影已迁出 `MarketUI`；买入、卖出、补给、远程航点和键盘焦点通过单一列表事件委托解释，卡片不再逐项绑定 listener | 把 command 解释迁入 `MarketWorkspaceController`，并纳入 workspace diagnostics |
 | `MarketCapitalPresenter` | **资金结构与经营贷款投影边界已接入** | 可用现金、贷款余额、站点投资只读汇总、信用分、现金 runway、贷款报价和偿还 command 标记已迁出 `MarketUI`；资金页不再冒充站点投资操作入口，建站与追加投资明确归贸易站页 | 将资金模型纳入 workspace diagnostics，并让 controller 直接消费 typed loan command |
 | `MarketOperationsPresenter` | **贸易站经营与批量计划投影边界已接入** | 本地经营状态、商网总览、候选情报、已建站列表、投资/升级/策略批量排序和 command 标记已迁出 `MarketUI`；排序状态通过纯函数更新，presenter 不绑定事件 | 将经营模型纳入 workspace diagnostics，并把批量操作收束为 typed operations command |
 | `GameUiCoordinator` + `ActionPresentation` | **dirty-region 增量刷新已接入真实动作** | provider、四项 Feature ensure/render、命名 action 分组；动作、Guidance、教程、成就与剧情完成提交均声明 HUD、舰船、active workspace、场景、Context、派遣和 Guide 失效；FleetUI 的内联关闭/售船重绘使用注入 command 和 latest-state provider，不再反向访问全局主控；隐藏终端与 Save 不再随普通动作重绘 | 消除 action pipeline 的两个兼容全量 fallback，并继续细分当前 workspace 内部 dirty region |
