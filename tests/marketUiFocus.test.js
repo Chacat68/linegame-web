@@ -343,7 +343,7 @@ describe('MarketUI guided focus', function () {
 
   it('商网站点分区包含列表语义、选择态和移动端适配锚点', function () {
     const css = readFileSync('css/interstellar-trader.css', 'utf8');
-    const js = readFileSync('js/ui/MarketUI.js', 'utf8');
+    const js = readFileSync('js/ui/MarketOperationsPresenter.js', 'utf8');
 
     expect(js).toContain('class="trade-station-card-list trade-station-card-list--candidates" role="list"');
     expect(js).toContain('class="trade-station-card-list trade-station-card-list--owned" role="list"');
@@ -969,7 +969,7 @@ describe('MarketUI guided focus', function () {
     var MarketUI = await import('../js/ui/MarketUI.js');
     MarketUI.render(state, function () {}, function () {}, function () {}, 'sol_prime', 'open', 'milky_way', null, null, {});
 
-    expect(operationsPane.innerHTML).toContain('建议方式：薄利多销');
+    expect(operationsPane.innerHTML).toContain('匹配方式：薄利多销');
     expect(operationsPane.innerHTML).toContain('适合补给和走量，可采用薄利多销');
     expect(operationsPane.innerHTML).toContain('market-local-operations-panel');
     expect(operationsPane.innerHTML).toContain('本地经营指标');
@@ -1047,13 +1047,13 @@ describe('MarketUI guided focus', function () {
     var MarketUI = await import('../js/ui/MarketUI.js');
     MarketUI.render(state, function () {}, function () {}, function () {}, 'sol_prime', 'open', 'milky_way', null, null, {});
 
-    expect(operationsPane.innerHTML).toContain('建议方式：薄利多销');
-    expect(operationsPane.innerHTML).toContain('采用建议方式');
+    expect(operationsPane.innerHTML).toContain('匹配方式：薄利多销');
+    expect(operationsPane.innerHTML).toContain('采用匹配方式');
     expect(operationsPane.innerHTML).toContain('data-strategy-id="expansion"');
     expect(operationsPane.innerHTML).toContain('经营方式');
   });
 
-  it('商网总览会展示下一笔商网动作', async function () {
+  it('商网总览会展示局部待处理项', async function () {
     vi.resetModules();
     var helpers = await import('./helpers.js');
     var Economy = await import('../js/systems/economy/Economy.js');
@@ -1112,7 +1112,7 @@ describe('MarketUI guided focus', function () {
     var MarketUI = await import('../js/ui/MarketUI.js');
     MarketUI.render(state, function () {}, function () {}, function () {}, 'sol_prime', 'open', 'milky_way', null, null, {});
 
-    expect(operationsPane.innerHTML).toContain('下一笔商网动作');
+    expect(operationsPane.innerHTML).toContain('商网待处理项');
     expect(operationsPane.innerHTML).toContain('商网列表摘要');
     expect(operationsPane.innerHTML).toContain('站点状态');
     expect(operationsPane.innerHTML).toContain('可建站地点');
