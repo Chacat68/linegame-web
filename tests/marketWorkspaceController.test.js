@@ -25,7 +25,11 @@ function createRoot() {
 
 function createHarness(options) {
   var config = options || {};
-  var state = config.state || { currentSystem: 'sol_prime', currentGalaxy: 'milky_way' };
+  var state = config.state || {
+    cargo: { food: 4 },
+    currentSystem: 'sol_prime',
+    currentGalaxy: 'milky_way',
+  };
   var token = { id: 'session-a' };
   var activeToken = token;
   var pendingFocus = config.pendingFocus || null;
@@ -36,6 +40,13 @@ function createHarness(options) {
     showDetail: vi.fn(),
   };
   var renderMarket = vi.fn();
+  var calls = {
+    emitLog: vi.fn(),
+    focusNavigationTarget: vi.fn(function () { return true; }),
+    invalidate: vi.fn(),
+    openTradeModal: vi.fn(),
+    showCompletion: vi.fn(),
+  };
   var controller = createMarketWorkspaceController({
     getState: function () { return state; },
     getSessionToken: function () { return token; },
@@ -45,7 +56,16 @@ function createHarness(options) {
     },
     loadMarket: config.loadMarket || function () { return Promise.resolve(marketUi); },
     renderMarket: renderMarket,
+    Modal: { openTradeModal: calls.openTradeModal },
+    Tutorial: { isActive: function () { return config.tutorialActive === true; } },
+    systems: [
+      { id: 'nova_station', name: '新星站' },
+    ],
+    emitLog: calls.emitLog,
+    invalidate: calls.invalidate,
+    showCompletion: calls.showCompletion,
     MapUI: {
+      focusNavigationTarget: calls.focusNavigationTarget,
       getMarketViewSystem: function () { return 'nova_station'; },
       consumePendingMarketPanelFocus: function () {
         var result = pendingFocus;
@@ -55,6 +75,7 @@ function createHarness(options) {
     },
   });
   return {
+    calls: calls,
     controller: controller,
     marketUi: marketUi,
     renderMarket: renderMarket,
@@ -130,5 +151,55 @@ describe('MarketWorkspaceController', function () {
     expect(harness.root.removeEventListener).toHaveBeenCalledOnce();
     expect(harness.root.dataset.marketModeEventsBound).toBeUndefined();
     expect(harness.controller.getDiagnostics().eventsBound).toBe(false);
+  });
+
+  it('公开与黑市交易弹窗由市场工作区统一打开并保留教程数量', function () {
+    var harness = createHarness({ tutorialActive: true });
+    var good = { id: 'food', name: '食品' };
+
+    expect(harness.controller.openBuy(good)).toBe(true);
+    expect(harness.controller.openSell(good)).toBe(true);
+    expect(harness.controller.openBlackMarketBuy(good)).toBe(true);
+    expect(harness.controller.openBlackMarketSell(good)).toBe(true);
+
+    expect(harness.calls.openTradeModal.mock.calls).toEqual([
+      ['buy', good, expect.any(Object), 'open', { initialQuantity: 10 }],
+      ['sell', good, expect.any(Object), 'open', { initialQuantity: 4 }],
+      ['buy', good, expect.any(Object), 'black', undefined],
+      ['sell', good, expect.any(Object), 'black', undefined],
+    ]);
+  });
+
+  it('金融 action 适配保留领域回调，并由工作区处理远程市场航点', function () {
+    var harness = createHarness();
+    var commerceActions = {
+      onTakeLoan: vi.fn(),
+      onRepayLoan: vi.fn(),
+      onInvestTradeStation: vi.fn(),
+      onRedeemTradeStationInvestment: vi.fn(),
+      onBatchInvestTradeStations: vi.fn(),
+      onBuildTradeStation: vi.fn(),
+      onUpgradeTradeStation: vi.fn(),
+      onSetTradeStationStrategy: vi.fn(),
+      onBatchUpgradeTradeStations: vi.fn(),
+      onBatchSetTradeStationStrategy: vi.fn(),
+    };
+
+    var financeActions = harness.controller.createFinanceActions(commerceActions);
+    expect(financeActions.onTakeLoan).toBe(commerceActions.onTakeLoan);
+    expect(financeActions.onBatchSetTradeStationStrategy).toBe(commerceActions.onBatchSetTradeStationStrategy);
+    expect(financeActions.onFocusRemoteSystem('nova_station')).toBe(true);
+    expect(harness.calls.focusNavigationTarget).toHaveBeenCalledWith(
+      expect.any(Object),
+      'nova_station',
+      { title: '前往「新星站」处理市场操作' },
+    );
+    expect(harness.calls.emitLog.mock.calls[0][0]).toMatchObject({ type: 'tip' });
+    expect(harness.calls.emitLog.mock.calls[0][0].text).toContain('星图 · 新星站');
+    expect(harness.calls.invalidate).toHaveBeenCalledOnce();
+    expect(harness.calls.showCompletion).toHaveBeenCalledWith({
+      message: '已找到市场航点',
+      detail: '检查目标详情后确认航行',
+    });
   });
 });

@@ -29,6 +29,7 @@ describe('deferred terminal UI loading', function () {
 
   it('首次打开终端会触发加载，后续全量刷新只更新已加载模块', function () {
     var gameManager = readFileSync('js/core/GameManager.js', 'utf8');
+    var commandDestinations = readFileSync('js/core/CommandDestinationController.js', 'utf8');
     var marketController = readFileSync('js/core/MarketWorkspaceController.js', 'utf8');
     var uiManager = readFileSync('js/ui/UIManager.js', 'utf8');
     var uiCoordinator = readFileSync('js/ui/GameUiCoordinator.js', 'utf8');
@@ -37,15 +38,24 @@ describe('deferred terminal UI loading', function () {
     expect(gameManager).toContain("if (tabId === 'tab-fleet') _ensureFleetUiRendered()");
     expect(gameManager).toContain("['tab-quest', 'tab-exploration', 'tab-research', 'tab-faction', 'tab-achievement']");
     expect(gameManager).toContain("var FleetUI = _getDeferredFeature('fleet')");
-    expect(gameManager).toContain("var ArchiveUI = _getDeferredFeature('archive')");
+    expect(gameManager).toContain("getLoadedArchive: function () { return _getDeferredFeature('archive'); }");
+    expect(commandDestinations).toContain('var loaded = getLoadedArchive()');
+    expect(commandDestinations).toContain('Promise.resolve().then(loadArchive)');
     expect(gameManager).toContain("if (MapUI.isMarketOpen() && !_getDeferredFeature('market'))");
     expect(gameManager).toContain('_ensureMarketUiRendered()');
     expect(gameManager).toContain('_getUiCoordinator().renderAll()');
     expect(gameManager).toContain("from './MarketWorkspaceController.js'");
     expect(gameManager).not.toContain('_blackMarketMode');
     expect(gameManager).not.toContain('_bindMarketModeButtons');
+    expect(gameManager).not.toContain('function _getMarketFinanceActions');
+    expect(gameManager).not.toContain('function _handleOpenBuy');
+    expect(gameManager).not.toContain('function _handleBlackMarketBuy');
+    expect(gameManager).not.toContain('function _handleFocusRemoteMarketSystem');
     expect(marketController).toContain("root.addEventListener('click', eventHandler)");
     expect(marketController).not.toContain('cloneNode');
+    expect(marketController).toContain('function createFinanceActions(commerceActions)');
+    expect(marketController).toContain('function focusRemoteSystem(systemId)');
+    expect(marketController).toContain('function openBuy(good)');
     expect(uiCoordinator).toContain("if (_call(MapUI, 'isMarketOpen', []))");
     expect(uiCoordinator).toContain("var ArchiveUI = _getLoadedFeature('archive')");
     expect(uiCoordinator).toContain("var FleetUI = _getLoadedFeature('fleet')");
@@ -154,8 +164,9 @@ describe('deferred terminal UI loading', function () {
     expect(onboardingController).toContain('isSessionTokenCurrent(token)');
   });
 
-  it('设置与行动执行器不再进入首屏静态依赖图', function () {
+  it('设置、行动执行器与命令落点不再由 GameManager 持有 UI 生命周期', function () {
     var gameManager = readFileSync('js/core/GameManager.js', 'utf8');
+    var commandDestinations = readFileSync('js/core/CommandDestinationController.js', 'utf8');
     var guidanceAdapter = readFileSync('js/core/GuidanceExecutionAdapter.js', 'utf8');
     var settingsController = readFileSync('js/core/SettingsUiController.js', 'utf8');
     var settingsCore = readFileSync('js/core/SettingsCore.js', 'utf8');
@@ -171,7 +182,12 @@ describe('deferred terminal UI loading', function () {
     expect(gameManager).not.toContain('CompanyDirectiveUI');
     expect(gameManager).toContain("import('./GuidanceActionController.js')");
     expect(gameManager).toContain("from './GuidanceExecutionAdapter.js'");
+    expect(gameManager).toContain("from './CommandDestinationController.js'");
     expect(gameManager).not.toContain('GuidanceAction.handleGuidanceAction(suggestion, {');
+    expect(gameManager).not.toContain('let _pendingQuestSelectionId');
+    expect(gameManager).not.toContain('function _openGuidanceTradeConfirmation');
+    expect(gameManager).not.toContain('function _openRecommendedDispatch');
+    expect(gameManager).not.toContain('function _openRecommendedMod');
     expect(gameManager).toMatch(/\bsettings:\s*\{/);
     expect(gameManager).toMatch(/\bguidanceAction:\s*\{/);
     expect(settingsController).toContain('isSessionTokenCurrent(requestedToken)');
@@ -180,6 +196,10 @@ describe('deferred terminal UI loading', function () {
     expect(guidanceAdapter).toContain('GuidanceAction.handleGuidanceAction(suggestion, _createContext())');
     expect(guidanceAdapter).toContain('var navigation = ports.navigation || {}');
     expect(guidanceAdapter).toContain('var exploration = ports.exploration || {}');
+    expect(commandDestinations).toContain('function openTradeConfirmation(action, payload)');
+    expect(commandDestinations).toContain('function openRecommendedDispatch(recommendation, sourceLabel, icon)');
+    expect(commandDestinations).toContain('function openRecommendedMod(payload)');
+    expect(commandDestinations).toContain('isSessionTokenCurrent(snapshot.token)');
     expect(settingsCore).not.toContain('ActionConfirmUI');
     expect(settingsCore).not.toContain('settings-modal');
     expect(settingsManager).toContain("from './SettingsCore.js'");
