@@ -3,13 +3,11 @@
 // 导出：render
 
 import { SHIP_TYPES } from '../data/ships.js';
-import { GALAXIES, SYSTEMS, getAccessibleGalaxies, getSystemsByGalaxy } from '../data/systems.js';
+import { SYSTEMS, getAccessibleGalaxies, getSystemsByGalaxy } from '../data/systems.js';
 import { GOODS } from '../data/goods.js';
 import * as Fleet from '../systems/fleet/FleetSystem.js';
 import * as Crew from '../systems/fleet/CrewSystem.js';
-import * as Economy from '../systems/economy/Economy.js';
 import * as AutoTrade from '../systems/trade/AutoTradeSystem.js';
-import * as Faction from '../systems/faction/FactionSystem.js';
 import { hideBlockingSurface, showBlockingSurface } from './SurfaceManager.js';
 import * as EventBus from '../core/EventBus.js';
 import * as ActionConfirmUI from './ActionConfirmUI.js';
@@ -34,6 +32,23 @@ import {
   readFleetModIntent,
   renderFleetMod,
 } from './FleetModPresenter.js';
+import {
+  buildFleetDispatchEstimate,
+  buildFleetDispatchGoodOptions,
+  buildFleetDispatchPolicyStatus,
+  buildFleetDispatchPrimaryView,
+  buildFleetDispatchRouteSummary,
+  buildFleetDispatchSystemOptions,
+  buildFleetDispatchWarnings,
+  findFleetDispatchRecommendation,
+  formatFleetDispatchMarketMode,
+  formatFleetDispatchRiskMode,
+  getFleetDispatchReadiness,
+  hasCustomFleetDispatchPolicy,
+  parseFleetDispatchPolicy,
+  renderFleetDispatchEstimate,
+  validateFleetDispatchPolicy,
+} from './FleetDispatchPresenter.js';
 
 let _activeInlineModalId = null;
 let _currentPortalCleanup = null;
@@ -953,50 +968,6 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
     : (presetRecommendation && presetRecommendation.recommendedTradePolicy
         ? presetRecommendation.recommendedTradePolicy
         : (ship.route && ship.route.tradePolicy ? ship.route.tradePolicy : {}));
-  var galaxyNames = Object.create(null);
-  GALAXIES.forEach(function (galaxy) {
-    galaxyNames[galaxy.id] = galaxy.name;
-  });
-
-  function _getGalaxyName(galaxyId) {
-    return galaxyNames[galaxyId] || galaxyId;
-  }
-
-  function _hasCustomTradePolicy(policy) {
-    if (!policy || typeof policy !== 'object') return false;
-    return Number.isFinite(policy.maxBuyPrice)
-      || Number.isFinite(policy.minSellPrice)
-      || Number.isFinite(policy.minProfitRate)
-      || (policy.riskMode && policy.riskMode !== 'balanced')
-      || (policy.marketMode && policy.marketMode !== 'open');
-  }
-
-  function _formatRiskModeLabel(riskMode) {
-    if (riskMode === 'safe') return '保守';
-    if (riskMode === 'aggressive') return '激进';
-    return '平衡';
-  }
-
-  function _formatMarketModeLabel(marketMode) {
-    return marketMode === 'black' ? '黑市' : '公开市场';
-  }
-
-  function _formatRouteRiskLabel(level) {
-    if (level === 'high') return '高';
-    if (level === 'medium') return '中';
-    return '低';
-  }
-
-  function _formatSystemSummaryLabel(systemId) {
-    var system = SYSTEMS.find(function (entry) { return entry.id === systemId; });
-    return system ? system.name : (systemId || '待选择');
-  }
-
-  function _formatGoodSummaryLabel(goodId) {
-    var good = GOODS.find(function (entry) { return entry.id === goodId; });
-    return good ? (good.emoji + ' ' + good.name) : (goodId || '待选择');
-  }
-
   function _syncActiveDispatchContext() {
     if (!_activeDispatchModalContext) return;
     _activeDispatchModalContext.buySystemId = buySelect.value || '';
@@ -1006,121 +977,43 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
   }
 
   function _updateRouteSummary(estimate, warnings, readiness) {
-    var tradePolicy = estimate && estimate.tradePolicy ? estimate.tradePolicy : _readTradePolicy();
-    var hasWarnings = Array.isArray(warnings) && warnings.length > 0;
-    var isBlocked = !!(readiness && !readiness.ok);
-
-    if (summaryBuyEl) summaryBuyEl.textContent = _formatSystemSummaryLabel(buySelect.value);
-    if (summarySellEl) summarySellEl.textContent = _formatSystemSummaryLabel(sellSelect.value);
-    if (summaryGoodEl) summaryGoodEl.textContent = _formatGoodSummaryLabel(goodSelect.value);
-    if (summaryPolicyEl) {
-      summaryPolicyEl.textContent =
-        _formatMarketModeLabel(tradePolicy.marketMode) + ' · ' +
-        _formatRiskModeLabel(tradePolicy.riskMode) +
-        (isBlocked ? ' · 暂不可启动' : (hasWarnings ? ' · 等待设置调整' : ''));
-    }
-    if (routeSummaryEl) {
-      routeSummaryEl.dataset.routeState = estimate
-        ? (isBlocked ? 'blocked' : (hasWarnings ? 'waiting' : 'ready'))
-        : 'blocked';
-    }
+    var summary = buildFleetDispatchRouteSummary(_readSelection(), estimate, warnings, readiness);
+    if (summaryBuyEl) summaryBuyEl.textContent = summary.buyLabel;
+    if (summarySellEl) summarySellEl.textContent = summary.sellLabel;
+    if (summaryGoodEl) summaryGoodEl.textContent = summary.goodLabel;
+    if (summaryPolicyEl) summaryPolicyEl.textContent = summary.policyLabel;
+    if (routeSummaryEl) routeSummaryEl.dataset.routeState = summary.state;
     _syncActiveDispatchContext();
   }
 
-  function _getCurrentShip() {
-    return state.fleet[shipIndex] || ship;
-  }
-
-  function _isRecommendationSelected(recommendation) {
-    return !!recommendation
-      && buySelect.value === recommendation.buySystemId
-      && sellSelect.value === recommendation.sellSystemId
-      && goodSelect.value === recommendation.goodId;
-  }
-
   function _updatePrimaryHint(estimate, recommendation, policyValidation, readiness) {
-    var matchesRecommendation = estimate && _isRecommendationSelected(recommendation);
-    var hasCustomPolicy = _hasCustomTradePolicy(_readTradePolicy());
-    var currentShip = _getCurrentShip();
-    var hasExistingRoute = !!(currentShip && currentShip.route);
-    var policyValid = !policyValidation || policyValidation.valid;
-
     if (!confirmBtn || !primaryHintEl) return;
-
-    confirmBtn.textContent = readiness && !readiness.ok ? readiness.buttonLabel : '开始跑商';
-    confirmBtn.disabled = !estimate || !policyValid || !!(readiness && !readiness.ok);
-    confirmBtn.setAttribute('aria-disabled', confirmBtn.disabled ? 'true' : 'false');
-
-    if (!policyValid) {
-      modal.dataset.dispatchState = 'invalid';
-      primaryHintEl.className = 'dispatch-primary-hint dispatch-primary-hint--danger';
-      primaryHintEl.textContent = '可选设置里有无效数字，修正后才能开始。';
-      return;
-    }
-
-    if (!estimate) {
-      modal.dataset.dispatchState = 'blocked';
-      primaryHintEl.className = 'dispatch-primary-hint dispatch-primary-hint--warning';
-      primaryHintEl.textContent = recommendation
-        ? '当前推荐路线暂不可用，可展开可选设置调整后再试。'
-        : (hasExistingRoute
-            ? '当前路线缺少可用估算；可关闭窗口，或调整设置后重新计算。'
-            : '当前没有可直接使用的推荐路线，可展开可选设置调整后再试。');
-      return;
-    }
-
-    if (readiness && !readiness.ok) {
-      modal.dataset.dispatchState = 'blocked';
-      primaryHintEl.className = 'dispatch-primary-hint dispatch-primary-hint--danger';
-      primaryHintEl.textContent = readiness.reason;
-      return;
-    }
-
-    if (matchesRecommendation) {
-      modal.dataset.dispatchState = 'ready';
-      primaryHintEl.className = 'dispatch-primary-hint dispatch-primary-hint--ready';
-      primaryHintEl.textContent = hasExistingRoute
-        ? '已载入当前最优路线，点击“开始跑商”可直接改派。'
-        : '已载入当前最优路线，点击“开始跑商”即可启动。';
-      return;
-    }
-
-    modal.dataset.dispatchState = hasCustomPolicy ? 'custom' : 'manual';
-    primaryHintEl.className = 'dispatch-primary-hint';
-    primaryHintEl.textContent = hasCustomPolicy
-      ? '当前使用手动设置，点击“开始跑商”将按这些设置执行。'
-      : (hasExistingRoute
-          ? '当前显示正在使用的路线；修改后点击“开始跑商”即可改派。'
-          : '当前显示手动路线；点击“开始跑商”即可执行。');
-  }
-
-  function _formatSystemOptionLabel(system) {
-    return system.name + ' [' + system.typeLabel + ']';
-  }
-
-  function _buildGroupedSystemOptions(systems) {
-    var groupedSystems = Object.create(null);
-    var galaxyOrder = [];
-
-    systems.forEach(function (system) {
-      var galaxyId = system.galaxyId || 'unknown';
-      if (!groupedSystems[galaxyId]) {
-        groupedSystems[galaxyId] = [];
-        galaxyOrder.push(galaxyId);
-      }
-      groupedSystems[galaxyId].push(system);
+    var view = buildFleetDispatchPrimaryView({
+      estimate: estimate,
+      recommendation: recommendation,
+      validation: policyValidation,
+      readiness: readiness,
+      selection: _readSelection(),
+      hasExistingRoute: !!(state.fleet[shipIndex] && state.fleet[shipIndex].route),
     });
-
-    return galaxyOrder.map(function (galaxyId) {
-      var groupLabel = _getGalaxyName(galaxyId);
-      if (galaxyId === dispatchGalaxyId) groupLabel += ' · 当前星系';
-      return '<optgroup label="' + _escapeHtml(groupLabel) + '">' + groupedSystems[galaxyId].map(function (system) {
-        return '<option value="' + system.id + '">' + _escapeHtml(_formatSystemOptionLabel(system)) + '</option>';
-      }).join('') + '</optgroup>';
-    }).join('');
+    confirmBtn.textContent = view.buttonLabel;
+    confirmBtn.disabled = view.disabled;
+    confirmBtn.setAttribute('aria-disabled', confirmBtn.disabled ? 'true' : 'false');
+    modal.dataset.dispatchState = view.state;
+    primaryHintEl.className = view.className;
+    primaryHintEl.textContent = view.text;
   }
 
   var playerLevel = state.playerLevel || 1;
+  var dispatchContext = {
+    state: state,
+    ship: ship,
+    shipIndex: shipIndex,
+    effectiveShipStats: effectiveShipStats,
+    currentLocationSystemId: currentLocationSystemId,
+    dispatchGalaxyId: dispatchGalaxyId,
+    playerLevel: playerLevel,
+  };
   var dispatchAccessLevel = isActive ? playerLevel : routeLevel;
   var recommendationPlanets = [];
   var recommendationPlanetLookup = Object.create(null);
@@ -1184,14 +1077,11 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
       buySelect.innerHTML = '<option value="">' + emptyText + '</option>';
       sellSelect.innerHTML = '<option value="">' + emptyText + '</option>';
     } else {
-      buySelect.innerHTML = _buildGroupedSystemOptions(buyPlanets);
-      sellSelect.innerHTML = _buildGroupedSystemOptions(sellPlanets);
+      buySelect.innerHTML = buildFleetDispatchSystemOptions(buyPlanets, dispatchGalaxyId);
+      sellSelect.innerHTML = buildFleetDispatchSystemOptions(sellPlanets, dispatchGalaxyId);
     }
 
-    GOODS.forEach(function (g) {
-      if (g.id === 'fuel' || !AutoTrade.isGoodAllowedInMarket(g, marketMode)) return;
-      goodSelect.innerHTML += '<option value="' + g.id + '">' + g.emoji + ' ' + g.name + '</option>';
-    });
+    goodSelect.innerHTML = buildFleetDispatchGoodOptions(marketMode);
 
     if (ship.route) {
       if (buySelect.querySelector('option[value="' + ship.route.buySystemId + '"]')) buySelect.value = ship.route.buySystemId;
@@ -1218,234 +1108,61 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
   }
 
   function _readTradePolicy() {
-    var maxBuyPrice = parseFloat(maxBuyInput.value);
-    var minSellPrice = parseFloat(minSellInput.value);
-    var minProfitRatePercent = parseFloat(minProfitInput.value);
-    return {
-      maxBuyPrice: Number.isFinite(maxBuyPrice) ? maxBuyPrice : null,
-      minSellPrice: Number.isFinite(minSellPrice) ? minSellPrice : null,
-      minProfitRate: Number.isFinite(minProfitRatePercent) ? minProfitRatePercent / 100 : null,
+    return parseFleetDispatchPolicy({
+      maxBuyPrice: maxBuyInput.value,
+      minSellPrice: minSellInput.value,
+      minProfitRatePercent: minProfitInput.value,
       riskMode: riskModeSelect.value || 'balanced',
       marketMode: marketModeSelect.value || 'open',
+    });
+  }
+
+  function _readSelection() {
+    return {
+      buySystemId: buySelect.value,
+      sellSystemId: sellSelect.value,
+      goodId: goodSelect.value,
+      tradePolicy: _readTradePolicy(),
     };
   }
 
   function _validateTradePolicyInputs() {
-    var fields = [
-      { element: maxBuyInput, label: '最高买入价' },
-      { element: minSellInput, label: '最低卖出价' },
-      { element: minProfitInput, label: '最低利润率' },
-    ];
-    var errors = [];
-    var thresholdCount = 0;
-
-    fields.forEach(function (field) {
-      var rawValue = String(field.element.value == null ? '' : field.element.value).trim();
-      var numericValue = rawValue === '' ? null : Number(rawValue);
-      var valid = rawValue === '' || (Number.isFinite(numericValue) && numericValue >= 0);
-
-      if (rawValue !== '') thresholdCount += 1;
-      if (valid) field.element.removeAttribute('aria-invalid');
-      else {
-        field.element.setAttribute('aria-invalid', 'true');
-        errors.push(field.label + '需填写 0 或更大的数字');
-      }
+    var validation = validateFleetDispatchPolicy({
+      maxBuyPrice: maxBuyInput.value,
+      minSellPrice: minSellInput.value,
+      minProfitRatePercent: minProfitInput.value,
     });
-
-    var validation = {
-      valid: errors.length === 0,
-      errors: errors,
-      thresholdCount: thresholdCount,
-    };
-
-    modal.dataset.dispatchPolicyState = validation.valid
-      ? (thresholdCount > 0 ? 'active' : 'neutral')
-      : 'invalid';
+    [
+      { element: maxBuyInput, key: 'maxBuyPrice' },
+      { element: minSellInput, key: 'minSellPrice' },
+      { element: minProfitInput, key: 'minProfitRatePercent' },
+    ].forEach(function (field) {
+      if (validation.fieldValidity[field.key]) field.element.removeAttribute('aria-invalid');
+      else field.element.setAttribute('aria-invalid', 'true');
+    });
+    var status = buildFleetDispatchPolicyStatus(validation);
+    modal.dataset.dispatchPolicyState = status.state;
     if (policyStatusEl) {
-      policyStatusEl.className = 'dispatch-policy-status' +
-        (validation.valid
-          ? (thresholdCount > 0 ? ' dispatch-policy-status--active' : '')
-          : ' dispatch-policy-status--error');
-      policyStatusEl.textContent = validation.valid
-        ? (thresholdCount > 0
-            ? ('已启用 ' + thresholdCount + ' 项价格限制；留空字段不限制。')
-            : '价格与利润均未设置额外限制。')
-        : errors.join('；') + '。';
+      policyStatusEl.className = status.className;
+      policyStatusEl.textContent = status.text;
     }
-
     return validation;
   }
 
   function _getEstimateData() {
-    var buyId = buySelect.value;
-    var sellId = sellSelect.value;
-    var gId = goodSelect.value;
-    if (!buyId || !sellId || !gId) return null;
-
-    var tradePolicy = _readTradePolicy();
-    var isBlack = tradePolicy.marketMode === 'black';
-    var bp = isBlack ? Economy.getBlackMarketBuyPrice(buyId, gId, state) : Economy.getBuyPrice(buyId, gId, state);
-    var sp = isBlack && Faction.canAccessBlackMarket(state, sellId) && AutoTrade.isGoodAllowedInMarket(GOODS.find(function (g) { return g.id === gId; }), 'black')
-      ? Economy.getBlackMarketSellPrice(sellId, gId, state)
-      : Economy.getSellPrice(sellId, gId, state);
-    var cargoUsed = Object.values(ship.cargo).reduce(function (s, q) { return s + q; }, 0);
-    var space = effectiveShipStats.maxCargo - cargoUsed;
-    var maxQty = Math.min(space, Math.floor(state.credits / bp));
-    var selectedCargoQty = Number(ship.cargo && ship.cargo[gId]) || 0;
-    var deliveryOnly = maxQty <= 0 && selectedCargoQty > 0;
-    var travelToBuyFuel = currentLocationSystemId === buyId ? 0 : Economy.getFuelCost(currentLocationSystemId, buyId, effectiveShipStats.fuelEff, state);
-    var travelToSellFuel = buyId === sellId ? 0 : Economy.getFuelCost(buyId, sellId, effectiveShipStats.fuelEff, state);
-    var totalFuelCost = travelToBuyFuel + travelToSellFuel;
-    var fuelUnitPrice = Economy.getBuyPrice(currentLocationSystemId, 'fuel', state);
-    var profit = deliveryOnly
-      ? sp * selectedCargoQty - totalFuelCost * fuelUnitPrice
-      : (sp - bp) * maxQty - totalFuelCost * fuelUnitPrice;
-    var profitRate = deliveryOnly ? null : (bp > 0 ? ((sp - bp) / bp) : 0);
-    var good = GOODS.find(function (g) { return g.id === gId; });
-    var routeRisk = AutoTrade.assessTradeRisk(good, buyId, sellId, tradePolicy.marketMode);
-    var dispatchProfile = effectiveShipStats.dispatchProfile || null;
-    var inspectionRisk = AutoTrade.estimateDispatchInspectionRisk(state, good, maxQty, sellId, tradePolicy.marketMode, {
-      checkChanceMultiplier: dispatchProfile && dispatchProfile.inspectionRiskMultiplier,
-    });
-
-    return {
-      buyId: buyId,
-      sellId: sellId,
-      goodId: gId,
-      buyPrice: bp,
-      sellPrice: sp,
-      maxQty: maxQty,
-      cargoSpace: space,
-      selectedCargoQty: selectedCargoQty,
-      deliveryOnly: deliveryOnly,
-      fuelCost: totalFuelCost,
-      profit: profit,
-      profitRate: profitRate,
-      tradePolicy: tradePolicy,
-      routeRisk: routeRisk,
-      inspectionRisk: inspectionRisk,
-      dispatchProfile: dispatchProfile,
-    };
+    return buildFleetDispatchEstimate(dispatchContext, _readSelection());
   }
 
   function _getDispatchReadiness(estimate) {
-    if (!estimate) {
-      return { ok: false, code: 'no_route', buttonLabel: '暂不可启动', reason: '当前设置无法组成可执行路线。' };
-    }
-
-    var currentShip = _getCurrentShip();
-    if (currentShip && Number(currentShip.maintenance) < 15) {
-      return {
-        ok: false,
-        code: 'maintenance',
-        buttonLabel: '需先保养',
-        reason: '当前飞船维护度低于 15%，先在舰船管理中完成保养，再开始自动跑商。',
-      };
-    }
-
-    if (estimate.buyId === estimate.sellId) {
-      return {
-        ok: false,
-        code: 'same_system',
-        buttonLabel: '路线无效',
-        reason: '买入地和卖出地不能相同，请选择一个有明确价差的卖出地。',
-      };
-    }
-
-    if (estimate.maxQty <= 0 && estimate.selectedCargoQty <= 0) {
-      var selectedGood = GOODS.find(function (good) { return good.id === estimate.goodId; });
-      if (estimate.cargoSpace <= 0) {
-        return {
-          ok: false,
-          code: 'cargo_full',
-          buttonLabel: '货舱已满',
-          reason: '当前货舱没有可用空间，先出售或转移库存，再开始新的自动跑商路线。',
-        };
-      }
-      return {
-        ok: false,
-        code: 'insufficient_credits',
-        buttonLabel: '积分不足',
-        reason: '启动资金不足：买入 1 单位' + (selectedGood ? ('「' + selectedGood.name + '」') : '商品') +
-          '至少需要 ' + Math.ceil(estimate.buyPrice).toLocaleString() + ' 积分，当前只有 ' +
-          Math.max(0, Math.floor(Number(state.credits) || 0)).toLocaleString() + '。先完成委托或出售库存筹措资金。',
-      };
-    }
-
-    if (!estimate.deliveryOnly && estimate.profitRate <= 0) {
-      return {
-        ok: false,
-        code: 'no_margin',
-        buttonLabel: '路线无价差',
-        reason: '当前卖价不高于买价，这条路线不会形成贸易收益。请更换买入地、卖出地或商品。',
-      };
-    }
-
-    if (estimate.profit <= 0) {
-      return {
-        ok: false,
-        code: 'no_profit',
-        buttonLabel: '路线会亏损',
-        reason: '扣除航程燃料后，当前路线预计单次亏损 ' +
-          Math.ceil(Math.abs(estimate.profit)).toLocaleString() + ' 积分。请改用净收益为正的路线。',
-      };
-    }
-
-    return { ok: true, code: 'ready', buttonLabel: '开始跑商', reason: '' };
-  }
-
-  function _formatEnforcementLabel(level) {
-    if (level === 'high') return '高执法区';
-    if (level === 'medium') return '中执法区';
-    return '低执法区';
-  }
-
-  function _escapeHtml(text) {
-    return String(text)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  }
-
-  function _buildRiskSummary(estimate) {
-    var routeRisk = estimate.routeRisk || { riskLevel: 'low', buyEnforcement: 'low', sellEnforcement: 'low' };
-    var inspectionRisk = estimate.inspectionRisk || {
-      hasContraband: false,
-      protectedByBlackMarket: false,
-      checkChancePercent: 0,
-      contrabandGoods: [],
-    };
-    var highEnforcementParts = [];
-
-    if (routeRisk.buyEnforcement === 'high') highEnforcementParts.push('买入地');
-    if (routeRisk.sellEnforcement === 'high') highEnforcementParts.push('卖出地');
-
-    return {
-      highEnforcementParts: highEnforcementParts,
-      buyEnforcementLabel: _formatEnforcementLabel(routeRisk.buyEnforcement),
-      sellEnforcementLabel: _formatEnforcementLabel(routeRisk.sellEnforcement),
-      contrabandLabel: inspectionRisk.hasContraband ? inspectionRisk.contrabandGoods.join('、') : '无',
-      riskLabel: inspectionRisk.protectedByBlackMarket ? '0%（辛迪加庇护）' : inspectionRisk.checkChancePercent + '%',
-      isHighEnforcement: highEnforcementParts.length > 0,
-      isHighInspectionRisk: !inspectionRisk.protectedByBlackMarket && inspectionRisk.checkChancePercent >= 10,
-      hasContraband: inspectionRisk.hasContraband,
-    };
+    return getFleetDispatchReadiness(dispatchContext, estimate);
   }
 
   function _getSuggestedRecommendation() {
-    return AutoTrade.findBestDispatchRoute(state, {
-      currentSystem: currentLocationSystemId,
-      currentGalaxy: dispatchGalaxyId,
-      fuelEfficiency: effectiveShipStats.fuelEff,
-      cargoFree: effectiveShipStats.maxCargo - Object.values(ship.cargo).reduce(function (s, q) { return s + q; }, 0),
-      credits: state.credits,
-      playerLevel: playerLevel,
-      systemIds: recommendationPlanets.map(function (sys) { return sys.id; }),
-      allowCrossGalaxy: true,
-      dispatchProfile: effectiveShipStats.dispatchProfile || null,
-    }, _readTradePolicy());
+    return findFleetDispatchRecommendation(
+      dispatchContext,
+      _readTradePolicy(),
+      recommendationPlanets.map(function (system) { return system.id; })
+    );
   }
 
   function _applyRecommendationSelection(recommendation) {
@@ -1463,78 +1180,12 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
   }
 
   function _renderEstimate(estimate, recommendation, warnings, readiness) {
-    var riskAssessment = estimate.routeRisk;
-    var riskSummary = _buildRiskSummary(estimate);
-    var dispatchProfile = estimate.dispatchProfile || (recommendation && recommendation.dispatchProfile) || effectiveShipStats.dispatchProfile || {};
-    var marketLabel = estimate.tradePolicy.marketMode === 'black' ? '黑市' : '公开';
-    var riskModeLabel = _formatRiskModeLabel(estimate.tradePolicy.riskMode);
-    var loadingPlanLabel = estimate.deliveryOnly
-      ? ('运送现有 ' + estimate.selectedCargoQty + ' 单位')
-      : (marketLabel + '买 ' + estimate.maxQty + ' 单位');
-    var profitRateLabel = estimate.deliveryOnly
-      ? '库存变现'
-      : (Math.round(estimate.profitRate * 100) + '%');
-    var valueLabel = estimate.deliveryOnly ? '预计回款' : '单次利润';
-    var invalidRoute = readiness && !readiness.ok && (readiness.code === 'same_system' || readiness.code === 'no_route');
-    var warningHtml = warnings.length > 0
-      ? '<div class="dispatch-estimate-note dispatch-estimate-note--warning">当前设置会等待：' + _escapeHtml(warnings.join('、')) + '</div>'
-      : '';
-    var lossHtml = !invalidRoute && estimate.profit <= 0
-      ? '<div class="dispatch-estimate-note dispatch-estimate-note--danger">亏损路线</div>'
-      : '';
-    var blockedHtml = readiness && !readiness.ok
-      ? '<div class="dispatch-estimate-note dispatch-estimate-note--danger">无法启动：' + _escapeHtml(readiness.reason) + '</div>'
-      : '';
-    var recommendationHtml = recommendation
-      ? '<div class="dispatch-estimate-head">推荐：' + _escapeHtml(recommendation.buySystemName) + ' → ' + _escapeHtml(recommendation.sellSystemName) + '（' + _escapeHtml(recommendation.goodName) + '）</div>'
-      : '';
-    var strategyHtml = dispatchProfile.strategyLabel
-      ? '<div class="dispatch-estimate-note">' + _escapeHtml((dispatchProfile.roleLabel || '默认跑商') + ' · ' + dispatchProfile.strategyLabel + '：' + (recommendation && recommendation.strategySummary ? recommendation.strategySummary.replace(/^.*：/, '') : (dispatchProfile.strategyNote || '按当前利润与避险程度筛选路线。'))) + '</div>'
-      : '';
-    var surveyIntelHtml = recommendation && recommendation.surveyIntelSummary
-      ? '<div class="dispatch-estimate-note">' + _escapeHtml(recommendation.surveyIntelSummary) + '</div>'
-      : '';
-    var pressureHtml = dispatchProfile.faultPressure > 0
-      ? '<div class="dispatch-estimate-note dispatch-estimate-note--warning">船况压力 ' + _escapeHtml(String(dispatchProfile.faultPressure)) + '，系统会下调高风险与高执法路线优先级。</div>'
-      : '';
-    var estimateDetailsHtml = invalidRoute
-      ? ''
-      : '<div class="dispatch-estimate-main" role="list" aria-label="自动跑商估算">' +
-          '<span class="dispatch-estimate-metric dispatch-estimate-highlight" role="listitem"><em>装载计划</em><strong>' + loadingPlanLabel + '</strong></span>' +
-          '<span class="dispatch-estimate-metric" role="listitem"><em>' + valueLabel + '</em><strong>≈ ' + Math.floor(estimate.profit) + '</strong><small>积分</small></span>' +
-          '<span class="dispatch-estimate-metric" role="listitem"><em>收益判断</em><strong>' + profitRateLabel + '</strong></span>' +
-          '<span class="dispatch-estimate-metric" role="listitem"><em>航程燃料</em><strong>' + estimate.fuelCost + '</strong><small>单位</small></span>' +
-          '<span class="dispatch-estimate-metric" role="listitem"><em>路线风险</em><strong>' + _escapeHtml(_formatRouteRiskLabel(riskAssessment.riskLevel)) + '</strong></span>' +
-          '<span class="dispatch-estimate-metric" role="listitem"><em>避险程度</em><strong>' + riskModeLabel + '</strong></span>' +
-        '</div>' +
-        '<div class="dispatch-risk-grid" role="list" aria-label="路线风险明细">' +
-          '<div class="dispatch-risk-item ' + (riskSummary.isHighEnforcement ? 'dispatch-risk-item--danger' : '') + '" role="listitem">' +
-            '<span class="dispatch-risk-label">高执法区</span>' +
-            '<span class="dispatch-risk-value">' + _escapeHtml(riskSummary.highEnforcementParts.length > 0 ? riskSummary.highEnforcementParts.join('、') : '无') + '</span>' +
-          '</div>' +
-          '<div class="dispatch-risk-item" role="listitem">' +
-            '<span class="dispatch-risk-label">执法分布</span>' +
-            '<span class="dispatch-risk-value">买入 ' + _escapeHtml(riskSummary.buyEnforcementLabel) + ' / 卖出 ' + _escapeHtml(riskSummary.sellEnforcementLabel) + '</span>' +
-          '</div>' +
-          '<div class="dispatch-risk-item ' + (riskSummary.hasContraband ? 'dispatch-risk-item--warning' : '') + '" role="listitem">' +
-            '<span class="dispatch-risk-label">违禁品</span>' +
-            '<span class="dispatch-risk-value">' + _escapeHtml(riskSummary.contrabandLabel) + '</span>' +
-          '</div>' +
-          '<div class="dispatch-risk-item ' + (riskSummary.isHighInspectionRisk ? 'dispatch-risk-item--danger' : '') + '" role="listitem">' +
-            '<span class="dispatch-risk-label">预计查获风险</span>' +
-            '<span class="dispatch-risk-value">' + _escapeHtml(riskSummary.riskLabel) + '</span>' +
-          '</div>' +
-        '</div>';
-
-    estimateEl.innerHTML =
-      recommendationHtml +
-      strategyHtml +
-      surveyIntelHtml +
-      estimateDetailsHtml +
-      lossHtml +
-      blockedHtml +
-        pressureHtml +
-      warningHtml;
+    estimateEl.innerHTML = renderFleetDispatchEstimate(dispatchContext, {
+      estimate: estimate,
+      recommendation: recommendation,
+      warnings: warnings,
+      readiness: readiness,
+    });
   }
 
   function _applySuggestedRoute() {
@@ -1560,8 +1211,8 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
       _updateRouteSummary(null, []);
       if (summaryPolicyEl) {
         summaryPolicyEl.textContent =
-          _formatMarketModeLabel(marketModeSelect.value) + ' · ' +
-          _formatRiskModeLabel(riskModeSelect.value) + ' · 输入有误';
+          formatFleetDispatchMarketMode(marketModeSelect.value) + ' · ' +
+          formatFleetDispatchRiskMode(riskModeSelect.value) + ' · 输入有误';
       }
       _updatePrimaryHint(null, null, policyValidation);
       return;
@@ -1576,15 +1227,8 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
       _updatePrimaryHint(null, suggestedRecommendation, policyValidation);
       return;
     }
-    var warnings = [];
-    var riskAssessment = estimate.routeRisk;
     var readiness = _getDispatchReadiness(estimate);
-
-    if (Number.isFinite(estimate.tradePolicy.maxBuyPrice) && estimate.buyPrice > estimate.tradePolicy.maxBuyPrice) warnings.push('买入价高于上限');
-    if (Number.isFinite(estimate.tradePolicy.minSellPrice) && estimate.sellPrice < estimate.tradePolicy.minSellPrice) warnings.push('卖出价低于下限');
-    if (!estimate.deliveryOnly && Number.isFinite(estimate.tradePolicy.minProfitRate) && estimate.profitRate < estimate.tradePolicy.minProfitRate) warnings.push('利润率低于要求');
-    if (estimate.tradePolicy.riskMode === 'safe' && riskAssessment.riskLevel !== 'low') warnings.push('谨慎模式会避开这条路线');
-    if (estimate.tradePolicy.marketMode === 'black' && !Faction.canAccessBlackMarket(state, estimate.buyId)) warnings.push('黑市买入权限不足');
+    var warnings = buildFleetDispatchWarnings(state, estimate);
 
     _updateRouteSummary(estimate, warnings, readiness);
     _renderEstimate(estimate, recommendation, warnings, readiness);
@@ -1592,7 +1236,7 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
   }
 
   _buildMarketOptions();
-  if (advancedPanel) advancedPanel.open = _hasCustomTradePolicy(existingPolicy);
+  if (advancedPanel) advancedPanel.open = hasCustomFleetDispatchPolicy(existingPolicy);
   buySelect.onchange  = function () { _updateEstimate(); };
   sellSelect.onchange = function () { _updateEstimate(); };
   goodSelect.onchange = function () { _updateEstimate(); };
