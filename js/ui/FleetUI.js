@@ -22,6 +22,12 @@ import {
   readFleetHangarIntent,
   renderFleetHangar,
 } from './FleetHangarPresenter.js';
+import {
+  FLEET_CREW_INTENT,
+  buildFleetCrewModel,
+  readFleetCrewIntent,
+  renderFleetCrew,
+} from './FleetCrewPresenter.js';
 
 let _activeInlineModalId = null;
 let _currentPortalCleanup = null;
@@ -424,54 +430,6 @@ function _focusGuidedService(container) {
   _focusInlineElement(serviceButton || target);
 }
 
-function _formatCrewEffectParts(effect) {
-  var parts = [];
-  if (effect.fuelEffMultiplier && effect.fuelEffMultiplier < 1) parts.push('航耗 -' + Math.round((1 - effect.fuelEffMultiplier) * 100) + '%');
-  if (effect.autoRepair) parts.push('维修 +' + effect.autoRepair);
-  if (effect.cargo) parts.push('货舱 +' + effect.cargo);
-  if (effect.buyDiscount) parts.push('买入 -' + Math.round(effect.buyDiscount * 100) + '%');
-  if (effect.sellBonus) parts.push('卖出 +' + Math.round(effect.sellBonus * 100) + '%');
-  return parts;
-}
-
-function _formatCrewProgress(crewMember) {
-  if (!crewMember) return '';
-  if ((crewMember.level || 1) >= (crewMember.maxLevel || crewMember.level || 1)) {
-    return 'Lv.' + (crewMember.level || 1) + ' · 已满级';
-  }
-  return 'Lv.' + (crewMember.level || 1) + ' · 进度 ' + (crewMember.exp || 0) + '/' + (crewMember.expToNext || 0);
-}
-
-function _getCrewProgressPercent(crewMember) {
-  if (!crewMember) return 0;
-  if ((crewMember.level || 1) >= (crewMember.maxLevel || crewMember.level || 1)) return 100;
-  var next = Math.max(1, Number(crewMember.expToNext) || 1);
-  return Math.max(0, Math.min(100, Math.round(((crewMember.exp || 0) / next) * 100)));
-}
-
-function _renderCrewCard(crewMember, actionHtml, options) {
-  var opts = options || {};
-  var effectParts = _formatCrewEffectParts(Crew.getCrewEffectProfile(crewMember));
-  var progressText = _formatCrewProgress(crewMember);
-  var progressPercent = _getCrewProgressPercent(crewMember);
-  var meta = opts.meta || (crewMember.roleName + ' · ' + (crewMember.branchLabel || crewMember.specialtyName || crewMember.roleName) + ' · 工资 ' + crewMember.wage + '/天');
-  var detailText = progressText + (effectParts.length ? ' · ' + effectParts.join(' · ') : '');
-  var cardLabel = (crewMember.name || '') + '，' + meta + '，' + progressText;
-
-  return '<article class="crew-card' + (opts.kind ? ' crew-card--' + _escapeHtml(opts.kind) : '') + '" role="listitem" aria-label="' + _escapeHtml(cardLabel) + '">' +
-    '<div class="crew-card-main">' +
-      '<strong>' + (crewMember.emoji || '👤') + ' ' + _escapeHtml(crewMember.name) + '</strong>' +
-      '<span>' + _escapeHtml(meta) + '</span>' +
-      '<small>' + _escapeHtml(detailText) + '</small>' +
-      '<div class="crew-progress" role="progressbar" aria-label="' + _escapeHtml((crewMember.name || '船员') + ' 经验进度') + '" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + progressPercent + '">' +
-        '<div class="crew-progress-fill" style="width:' + progressPercent + '%"></div>' +
-      '</div>' +
-      (opts.desc ? '<small class="crew-card-desc">' + _escapeHtml(opts.desc) + '</small>' : '') +
-    '</div>' +
-    '<div class="crew-card-actions">' + actionHtml + '</div>' +
-  '</article>';
-}
-
 function _getShipSellQuote(ship) {
   var shipTypeDef = SHIP_TYPES.find(function (type) { return type.id === (ship && ship.typeId); });
   var sellBase = shipTypeDef ? (shipTypeDef.sellValue || shipTypeDef.cost || 0) : 0;
@@ -743,57 +701,14 @@ function _getRepairCountdownText(repairJob) {
   return '维修中 · 剩余 ' + repairJob.remainingDays + ' 天';
 }
 
-function _renderCrewSummaryStat(label, value) {
-  return '<div class="crew-modal-summary-stat" role="listitem">' +
-    '<span>' + _escapeHtml(label) + '</span>' +
-    '<strong>' + _escapeHtml(value) + '</strong>' +
-  '</div>';
-}
-
-function _renderCrewSectionStatus(label, value, tone) {
-  return '<span class="crew-modal-status-chip" role="listitem" data-tone="' + _escapeHtml(tone || 'neutral') + '">' +
-    '<span>' + _escapeHtml(label) + '</span>' +
-    '<strong>' + _escapeHtml(value) + '</strong>' +
-  '</span>';
-}
-
-function _setCrewSectionStatus(id, items) {
-  var element = document.getElementById(id);
-  if (!element) return;
-
-  element.innerHTML = (items || []).map(function (item) {
-    return _renderCrewSectionStatus(item.label, item.value, item.tone);
-  }).join('');
-}
-
-function _getCrewRosterHint(shipCrew, reserveCrew, marketCrew, seatRemaining) {
-  if (shipCrew.length <= 0 && reserveCrew.length > 0) {
-    return '当前飞船还没有船员，先从预备队分配一名关键岗位。';
-  }
-  if (shipCrew.length <= 0 && marketCrew.length > 0) {
-    return '当前飞船还没有船员，可先从港口招募补足基础岗位。';
-  }
-  if (seatRemaining <= 0 && reserveCrew.length + marketCrew.length > 0) {
-    return '船员席位已满，新人上船前需要先调回预备队或扩充船体。';
-  }
-  if (seatRemaining > 0 && reserveCrew.length > 0) {
-    return '还有 ' + seatRemaining + ' 个空席位，可直接从预备队补强本船。';
-  }
-  if (seatRemaining > 0 && marketCrew.length > 0) {
-    return '还有 ' + seatRemaining + ' 个空席位，港口市场有可签约人选。';
-  }
-  return '船员编制稳定，继续查看工资与成长进度。';
-}
-
 function _openCrewModal(state, shipIndex, onRecruitCrew, onAssignCrew, onUnassignCrew, onDismissCrew, onSwitchShip) {
   _inspectedHangarShipIndex = shipIndex;
   var modal = document.getElementById('crew-modal');
-  if (!modal) return;
+  if (!modal) return false;
   var modalBox = modal.querySelector('.modal-box');
-  var ship = state.fleet[shipIndex];
-  if (!modalBox || !ship) return;
+  if (!modalBox || !state.fleet || !state.fleet[shipIndex]) return false;
 
-  var portalOpened = _openInlinePortal('crew-modal', function() {
+  var portalOpened = _openInlinePortal('crew-modal', function () {
     hideBlockingSurface('crew-modal');
   }, {
     labelledBy: 'crew-modal-title',
@@ -804,131 +719,53 @@ function _openCrewModal(state, shipIndex, onRecruitCrew, onAssignCrew, onUnassig
 
   var titleEl = document.getElementById('crew-modal-title');
   var summaryEl = document.getElementById('crew-modal-summary');
+  var assignedStatusEl = document.getElementById('crew-assigned-status');
+  var reserveStatusEl = document.getElementById('crew-reserve-status');
+  var marketStatusEl = document.getElementById('crew-market-status');
   var assignedEl = document.getElementById('crew-assigned-list');
   var reserveEl = document.getElementById('crew-reserve-list');
   var marketEl = document.getElementById('crew-market-list');
 
   function renderCrewModal() {
-    var currentShip = state.fleet[shipIndex];
-    if (!currentShip) return;
-
-    var isActive = shipIndex === (state.activeShipIndex || 0);
-    var shipCrew = Crew.getShipCrew(state, currentShip);
-    var reserveCrew = Crew.getReserveCrew(state);
-    var marketState = Crew.getCrewMarket(state, state.currentSystem);
-    var marketCrew = marketState.offers || [];
-    var crewEffects = Fleet.getEffectiveShipStats(state, currentShip).crewEffects || {};
-    var currentSystem = SYSTEMS.find(function (sys) { return sys.id === state.currentSystem; });
-    var crewCapacity = currentShip.crewCapacity || 0;
-    var seatRemaining = Math.max(0, crewCapacity - shipCrew.length);
-    var seatTone = shipCrew.length <= 0 ? 'empty' : (seatRemaining <= 0 ? 'warning' : 'ready');
-    var marketTone = marketCrew.length > 0 ? 'ready' : 'empty';
-    var reserveTone = reserveCrew.length > 0 ? 'ready' : 'empty';
-    var rosterHint = _getCrewRosterHint(shipCrew, reserveCrew, marketCrew, seatRemaining);
-
-    if (modal.dataset) {
-      modal.dataset.crewShipIndex = String(shipIndex);
-      modal.dataset.crewSeatState = seatTone;
-      modal.dataset.crewReserveState = reserveTone;
-      modal.dataset.crewMarketState = marketTone;
-    }
-    if (modalBox.dataset) {
-      modalBox.dataset.crewShipIndex = String(shipIndex);
-      modalBox.dataset.crewSeatState = seatTone;
-      modalBox.dataset.crewReserveState = reserveTone;
-      modalBox.dataset.crewMarketState = marketTone;
-    }
-    titleEl.textContent = '👥 船员管理 · ' + currentShip.emoji + ' ' + currentShip.name;
-    summaryEl.innerHTML =
-      _renderCrewSummaryStat('席位', shipCrew.length + '/' + crewCapacity) +
-      _renderCrewSummaryStat('当前港口', currentSystem ? currentSystem.name : state.currentSystem) +
-      _renderCrewSummaryStat('工资/天', shipCrew.reduce(function (sum, crewMember) { return sum + (crewMember.wage || 0); }, 0)) +
-      _renderCrewSummaryStat('货舱加成', '+' + (crewEffects.cargo || 0)) +
-      _renderCrewSummaryStat('维修加成', '+' + (crewEffects.autoRepair || 0)) +
-      _renderCrewSummaryStat('市场刷新', '第 ' + marketState.refreshDay + ' 天 / 下次第 ' + marketState.nextRefreshDay + ' 天') +
-      _renderCrewSummaryStat('人才倾向', marketState.themeLabel || '综合港') +
-      '<div class="crew-modal-command-panel" role="listitem" aria-label="舰桥状态">' +
-        '<div class="crew-modal-command-head">' +
-          '<strong>舰桥状态</strong>' +
-          '<div class="crew-modal-command-actions">' +
-            '<span class="crew-modal-command-state">' + (isActive ? '当前操控' : '远程管理') + '</span>' +
-            (isActive ? '' : '<button class="btn-secondary crew-switch-ship-btn" type="button">设为当前操控</button>') +
-          '</div>' +
-        '</div>' +
-        '<div class="ship-protocol-panel-desc">船型、改装与船员效果会自动算入跑商结果，不需要额外开启。</div>' +
-      '</div>' +
-      '<div class="crew-modal-roster-alert" role="listitem" aria-label="船员管理建议">' +
-        '<strong>船员建议</strong>' +
-        '<span>' + _escapeHtml(rosterHint) + '</span>' +
-      '</div>';
-
-    _setCrewSectionStatus('crew-assigned-status', [
-      { label: '席位', value: shipCrew.length + '/' + crewCapacity, tone: seatTone },
-      { label: '可补', value: seatRemaining + ' 人', tone: seatRemaining > 0 ? 'ready' : 'warning' },
-    ]);
-    _setCrewSectionStatus('crew-reserve-status', [
-      { label: '待命', value: reserveCrew.length + ' 人', tone: reserveTone },
-      { label: '操作', value: reserveCrew.length > 0 ? '可分配' : '空', tone: reserveTone },
-    ]);
-    _setCrewSectionStatus('crew-market-status', [
-      { label: '候选', value: marketCrew.length + ' 人', tone: marketTone },
-      { label: '刷新', value: '第 ' + marketState.nextRefreshDay + ' 天', tone: 'neutral' },
-    ]);
-
-    assignedEl.innerHTML = shipCrew.length > 0
-      ? shipCrew.map(function (crewMember) {
-          return _renderCrewCard(
-            crewMember,
-            '<button class="btn-secondary crew-unassign-btn" type="button" data-crew-id="' + _escapeHtml(crewMember.id) + '">调回预备队</button>',
-            { kind: 'assigned' }
-          );
-        }).join('')
-      : '<div class="crew-empty" role="listitem">当前飞船暂无船员。</div>';
-
-    reserveEl.innerHTML = reserveCrew.length > 0
-      ? reserveCrew.map(function (crewMember) {
-          return _renderCrewCard(
-            crewMember,
-            '<button class="btn-primary crew-assign-btn" type="button" data-crew-id="' + _escapeHtml(crewMember.id) + '">分配到本船</button>' +
-              '<button class="btn-secondary crew-dismiss-btn" type="button" data-crew-id="' + _escapeHtml(crewMember.id) + '">解雇</button>',
-            { kind: 'reserve' }
-          );
-        }).join('')
-      : '<div class="crew-empty" role="listitem">预备队为空。</div>';
-
-    marketEl.innerHTML = marketCrew.length > 0
-      ? marketCrew.map(function (offer) {
-          return _renderCrewCard(
-            offer,
-            '<button class="btn-primary crew-recruit-btn" type="button" data-offer-id="' + _escapeHtml(offer.id) + '">签约 ' + offer.hireCost + '</button>',
-            {
-              kind: 'market',
-              meta: offer.title + ' · ' + offer.roleName + ' · ' + (offer.branchLabel || offer.specialtyName || offer.roleName),
-              desc: offer.desc,
-            }
-          );
-        }).join('')
-      : '<div class="crew-empty" role="listitem">当前港口本轮人才市场已无可签约人选。</div>';
-
-    modalBox.querySelectorAll('.crew-unassign-btn').forEach(function (btn) {
-      btn.onclick = function () {
-        onUnassignCrew(shipIndex, btn.dataset.crewId);
-        renderCrewModal();
-      };
+    var model = buildFleetCrewModel(state, shipIndex);
+    var view = renderFleetCrew(model);
+    if (!model || !view) return false;
+    Object.keys(view.dataset).forEach(function (key) {
+      if (modal.dataset) modal.dataset[key] = view.dataset[key];
+      if (modalBox.dataset) modalBox.dataset[key] = view.dataset[key];
     });
+    titleEl.textContent = view.title;
+    summaryEl.innerHTML = view.summary;
+    assignedStatusEl.innerHTML = view.assignedStatus;
+    reserveStatusEl.innerHTML = view.reserveStatus;
+    marketStatusEl.innerHTML = view.marketStatus;
+    assignedEl.innerHTML = view.assigned;
+    reserveEl.innerHTML = view.reserve;
+    marketEl.innerHTML = view.market;
 
-    modalBox.querySelectorAll('.crew-assign-btn').forEach(function (btn) {
-      btn.onclick = function () {
-        onAssignCrew(shipIndex, btn.dataset.crewId);
-        renderCrewModal();
-      };
-    });
-
-    modalBox.querySelectorAll('.crew-dismiss-btn').forEach(function (btn) {
-      btn.onclick = function () {
-        var crewMember = Crew.getReserveCrew(state).find(function (member) {
-          return member.id === btn.dataset.crewId;
-        });
+    modalBox.onclick = function (event) {
+      var intent = readFleetCrewIntent(event && event.target);
+      if (!intent) return;
+      if (event && typeof event.preventDefault === 'function') event.preventDefault();
+      if (intent.type === FLEET_CREW_INTENT.UNASSIGN) {
+        onUnassignCrew(intent.shipIndex, intent.crewId);
+        return renderCrewModal();
+      }
+      if (intent.type === FLEET_CREW_INTENT.ASSIGN) {
+        onAssignCrew(intent.shipIndex, intent.crewId);
+        return renderCrewModal();
+      }
+      if (intent.type === FLEET_CREW_INTENT.RECRUIT) {
+        onRecruitCrew(intent.offerId);
+        return renderCrewModal();
+      }
+      if (intent.type === FLEET_CREW_INTENT.SWITCH_SHIP) {
+        onSwitchShip(intent.shipIndex);
+        setTimeout(renderCrewModal, 50);
+        return;
+      }
+      if (intent.type === FLEET_CREW_INTENT.DISMISS) {
+        var crewMember = model.reserveCrew.find(function (member) { return member.id === intent.crewId; });
         ActionConfirmUI.open({
           kicker: '船员合同',
           title: '解雇「' + (crewMember ? crewMember.name : '该船员') + '」？',
@@ -939,29 +776,13 @@ function _openCrewModal(state, shipIndex, onRecruitCrew, onAssignCrew, onUnassig
             { label: '人员记录', value: '永久移除', tone: 'danger' },
           ],
           onConfirm: function () {
-            onDismissCrew(btn.dataset.crewId);
+            onDismissCrew(intent.crewId);
             renderCrewModal();
           },
         });
-      };
-    });
-
-    modalBox.querySelectorAll('.crew-recruit-btn').forEach(function (btn) {
-      btn.onclick = function () {
-        onRecruitCrew(btn.dataset.offerId);
-        renderCrewModal();
-      };
-    });
-
-    var switchBtn = modalBox.querySelector('.crew-switch-ship-btn');
-    if (switchBtn) {
-      switchBtn.onclick = function () {
-        if (onSwitchShip) onSwitchShip(shipIndex);
-        setTimeout(function () {
-          renderCrewModal();
-        }, 50);
-      };
-    }
+      }
+    };
+    return true;
   }
 
   renderCrewModal();
@@ -970,6 +791,7 @@ function _openCrewModal(state, shipIndex, onRecruitCrew, onAssignCrew, onUnassig
     else hideBlockingSurface('crew-modal');
     _renderHangarAfterInlineClose();
   };
+  return true;
 }
 
 // ---------------------------------------------------------------------------

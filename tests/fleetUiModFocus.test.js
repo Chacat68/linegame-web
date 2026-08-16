@@ -6,6 +6,7 @@ import * as Economy from '../js/systems/economy/Economy.js';
 import * as Fleet from '../js/systems/fleet/FleetSystem.js';
 import * as FleetUI from '../js/ui/FleetUI.js';
 import { FLEET_COMMAND } from '../js/core/FleetCommand.js';
+import { FLEET_CREW_INTENT } from '../js/ui/FleetCrewPresenter.js';
 import { FLEET_HANGAR_INTENT } from '../js/ui/FleetHangarPresenter.js';
 import { createTestState } from './helpers.js';
 
@@ -437,6 +438,7 @@ describe('FleetUI.openModModal guidance focus', function () {
     var fleetCss = readFileSync('css/fleet.css', 'utf8');
     var surfacesCss = readFileSync('css/surfaces.css', 'utf8');
     var source = readFileSync('js/ui/FleetUI.js', 'utf8');
+    var crewPresenterSource = readFileSync('js/ui/FleetCrewPresenter.js', 'utf8');
 
     expect(html).toContain('id="fleet-inline-container" class="fleet-inline-container hidden" aria-hidden="true" inert');
     expect(surfacesCss).toMatch(/#fleet-list\.hidden,[\s\S]*?#fleet-inline-container\.hidden\s*\{\s*display:\s*none\s*!important/);
@@ -470,9 +472,11 @@ describe('FleetUI.openModModal guidance focus', function () {
     expect(hangarCss).toContain('#trade-panel #fleet-list .hangar-focused-ship .hangar-vitals {');
     expect(fleetCss).toContain('.inline-portal-back-btn:focus-visible');
     expect(fleetCss).toContain('padding: 0 !important;');
-    expect(source).toContain("modalBox.querySelectorAll('.crew-dismiss-btn')");
+    expect(source).toContain('modalBox.onclick = function (event)');
+    expect(source).toContain('readFleetCrewIntent(event && event.target)');
+    expect(source).not.toContain("modalBox.querySelectorAll('.crew-dismiss-btn')");
     expect(source).toContain("title: '解雇「' + (crewMember ? crewMember.name : '该船员') + '」？'");
-    expect(source).toContain('<strong>船员建议</strong>');
+    expect(crewPresenterSource).toContain('<strong>船员建议</strong>');
     expect(source).toContain('export function setLifecycleActions(actions)');
     expect(source).not.toContain('__linegameGameManager');
   });
@@ -487,9 +491,10 @@ describe('FleetUI.openModModal guidance focus', function () {
 
     var backButton = createFakeElement();
     var dismissButton = createFakeElement();
+    dismissButton.dataset.fleetCrewIntent = FLEET_CREW_INTENT.DISMISS;
     dismissButton.dataset.crewId = 'crew_reserve';
-    modalBox.querySelectorAll = function (selector) {
-      return selector === '.crew-dismiss-btn' ? [dismissButton] : [];
+    dismissButton.closest = function (selector) {
+      return selector === '[data-fleet-crew-intent]' ? dismissButton : null;
     };
     modalBox.querySelector = function () { return null; };
     modal.querySelectorAll = function () {
@@ -612,9 +617,12 @@ describe('FleetUI.openModModal guidance focus', function () {
     expect(elements['crew-assigned-list'].innerHTML).toContain('测试领航');
     expect(elements['crew-reserve-list'].innerHTML).toContain('测试货运');
     expect(elements['crew-market-list'].innerHTML).toContain('测试市场');
-    expect(typeof dismissButton.onclick).toBe('function');
+    expect(typeof modalBox.onclick).toBe('function');
 
-    dismissButton.onclick();
+    modalBox.onclick({
+      target: dismissButton,
+      preventDefault: function () {},
+    });
     expect(dismissCount).toBe(0);
     expect(confirmModal.classList.contains('hidden')).toBe(false);
     expect(elements['action-confirm-title'].textContent).toContain('测试货运');
