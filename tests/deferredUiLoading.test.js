@@ -36,6 +36,7 @@ describe('deferred terminal UI loading', function () {
     var uiLifecycle = readFileSync('js/core/GameUiLifecycleController.js', 'utf8');
     var uiManager = readFileSync('js/ui/UIManager.js', 'utf8');
     var uiCoordinator = readFileSync('js/ui/GameUiCoordinator.js', 'utf8');
+    var uiApplication = readFileSync('js/core/GameUiApplicationRuntime.js', 'utf8');
 
     expect(uiLifecycle).toContain('onOpenHangar: function ()');
     expect(uiLifecycle).toContain("if (tabId === 'tab-fleet') _call(ports, 'ensureFleet'");
@@ -46,8 +47,9 @@ describe('deferred terminal UI loading', function () {
     expect(commandDestinations).toContain('Promise.resolve().then(loadArchive)');
     expect(gameManager).toContain("if (MapUI.isMarketOpen() && !_getFeatureRuntime().get('market'))");
     expect(gameManager).toContain('_ensureMarketUiRendered()');
-    expect(gameManager).toContain('_getUiCoordinator().renderAll()');
-    expect(gameManager).toContain("from './MarketWorkspaceController.js'");
+    expect(gameManager).toContain('_getUiRuntime().renderAll()');
+    expect(gameManager).toContain("from './GameUiApplicationRuntime.js'");
+    expect(uiApplication).toContain("from './MarketWorkspaceController.js'");
     expect(gameManager).not.toContain('_blackMarketMode');
     expect(gameManager).not.toContain('_bindMarketModeButtons');
     expect(gameManager).not.toContain('function _getMarketFinanceActions');
@@ -115,9 +117,11 @@ describe('deferred terminal UI loading', function () {
     var victoryController = readFileSync('js/core/VictoryRuntimeController.js', 'utf8');
     var settingsManager = readFileSync('js/core/SettingsManager.js', 'utf8');
     var uiCoordinator = readFileSync('js/ui/GameUiCoordinator.js', 'utf8');
+    var uiApplication = readFileSync('js/core/GameUiApplicationRuntime.js', 'utf8');
 
     expect(gameManager).toContain('_ensureSaveUiRendered()');
-    expect(gameManager).toContain('return _getUiCoordinator().ensureSave()');
+    expect(gameManager).toContain('return _getUiRuntime().ensureSave()');
+    expect(uiApplication).toContain('function ensureSave() { return getCoordinator().ensureSave(); }');
     expect(uiCoordinator).toContain("return _ensure('save', function (module) { renderSave(module); })");
     expect(featureManifest).toContain("import('../ui/VictoryResultUI.js')");
     expect(gameManager).toContain("from './VictoryRuntimeController.js'");
@@ -210,9 +214,11 @@ describe('deferred terminal UI loading', function () {
   it('eager UI 壳绑定与教程完成订阅由统一生命周期控制器持有', function () {
     var gameManager = readFileSync('js/core/GameManager.js', 'utf8');
     var uiLifecycle = readFileSync('js/core/GameUiLifecycleController.js', 'utf8');
+    var uiApplication = readFileSync('js/core/GameUiApplicationRuntime.js', 'utf8');
 
-    expect(gameManager).toContain("from './GameUiLifecycleController.js'");
-    expect(gameManager).toContain('uiLifecycle.initialize()');
+    expect(gameManager).toContain("from './GameUiApplicationRuntime.js'");
+    expect(gameManager).toContain('uiRuntime.initialize()');
+    expect(uiApplication).toContain("from './GameUiLifecycleController.js'");
     expect(gameManager).not.toContain('HUD.init({');
     expect(gameManager).not.toContain('UIManager.init(function');
     expect(gameManager).not.toContain("EventBus.on('tutorial:complete'");
@@ -235,12 +241,14 @@ describe('deferred terminal UI loading', function () {
     var settingsCore = readFileSync('js/core/SettingsCore.js', 'utf8');
     var settingsManager = readFileSync('js/core/SettingsManager.js', 'utf8');
     var main = readFileSync('js/main.js', 'utf8');
+    var uiApplication = readFileSync('js/core/GameUiApplicationRuntime.js', 'utf8');
 
     expect(gameManager).not.toMatch(/import\s+\*\s+as\s+Settings\s+from\s+'\.\/SettingsManager\.js'/);
     expect(gameManager).not.toMatch(/import\s+\*\s+as\s+CompanyDirectiveUI\s+from/);
     expect(gameManager).not.toMatch(/import\s+\*\s+as\s+GuidanceAction\s+from/);
     expect(featureManifest).toContain("import('./SettingsManager.js')");
-    expect(gameManager).toContain("from './SettingsUiController.js'");
+    expect(gameManager).toContain("from './GameUiApplicationRuntime.js'");
+    expect(uiApplication).toContain("from './SettingsUiController.js'");
     expect(gameManager).not.toContain("document.getElementById('settings-btn')");
     expect(gameManager).not.toContain('CompanyDirectiveUI');
     expect(featureManifest).toContain("import('./GuidanceActionController.js')");

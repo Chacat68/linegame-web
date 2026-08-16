@@ -287,7 +287,7 @@ describe('FleetUI.openModModal guidance focus', function () {
     ]);
   });
 
-  it('购船页会渲染采购状态、局部焦点和船卡信号条', function () {
+  it('购船页会渲染采购状态、局部焦点和船卡信号条，并委托发布购买命令', function () {
     var elements = {
       'shop-list': createFakeElement(),
     };
@@ -302,14 +302,24 @@ describe('FleetUI.openModModal guidance focus', function () {
     Fleet.init(state);
     state.fleetSlots = 2;
 
-    FleetUI.renderShop({ state: state, onCommand: function () {} });
+    var commands = [];
+    FleetUI.renderShop({ state: state, onCommand: function (command) { commands.push(command); } });
 
     expect(elements['shop-list'].innerHTML).toContain('class="hangar-shop-brief" aria-label="购船决策摘要"');
     expect(elements['shop-list'].innerHTML).toContain('class="hangar-shop-brief-grid" role="list" aria-label="采购状态概览"');
-    expect(elements['shop-list'].innerHTML).toContain('class="hangar-shop-focus" aria-label="购船建议"');
-    expect(elements['shop-list'].innerHTML).toContain('购船建议');
+    expect(elements['shop-list'].innerHTML).toContain('class="hangar-shop-focus" aria-label="采购焦点"');
+    expect(elements['shop-list'].innerHTML).toContain('采购焦点');
     expect(elements['shop-list'].innerHTML).toContain('fleet-shop-signal-strip');
     expect(elements['shop-list'].innerHTML).toContain('fleet-shop-card--focus');
+
+    var buyButton = createFakeElement();
+    buyButton.dataset.fleetShopIntent = 'shop.ship.buy';
+    buyButton.dataset.shipTypeId = 'freighter';
+    buyButton.closest = function (selector) {
+      return selector === '[data-fleet-shop-intent]' ? buyButton : null;
+    };
+    elements['shop-list'].onclick({ target: buyButton, preventDefault: function () {} });
+    expect(commands).toEqual([{ type: FLEET_COMMAND.BUY_SHIP, shipTypeId: 'freighter' }]);
   });
 
   it('会高亮推荐组件，并通过 Escape 恢复机库入口焦点', async function () {

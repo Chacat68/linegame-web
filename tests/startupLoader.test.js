@@ -19,13 +19,15 @@ describe('startup scene loader', function () {
     const main = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
     const gameManager = readFileSync(new URL('../js/core/GameManager.js', import.meta.url), 'utf8');
     const uiLifecycle = readFileSync(new URL('../js/core/GameUiLifecycleController.js', import.meta.url), 'utf8');
+    const uiApplication = readFileSync(new URL('../js/core/GameUiApplicationRuntime.js', import.meta.url), 'utf8');
 
     expect(main).toContain('const sceneReadyPromise = init();');
     expect(main).toContain('await _withTimeout(sceneReadyPromise, SCENE_READY_TIMEOUT_MS);');
     expect(main).toContain('await StartupLoader.complete();');
     expect(main.indexOf('await _withTimeout(sceneReadyPromise, SCENE_READY_TIMEOUT_MS);'))
       .toBeLessThan(main.indexOf('await StartupLoader.complete();'));
-    expect(gameManager).toContain('uiLifecycle.whenSceneReady()');
+    expect(gameManager).toContain('uiRuntime.whenSceneReady()');
+    expect(uiApplication).toContain('return getLifecycle().whenSceneReady();');
     expect(uiLifecycle).toContain('Renderer.whenSceneReady()');
     expect(gameManager).toContain('return sceneReadyPromise;');
   });

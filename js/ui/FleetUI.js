@@ -2,7 +2,6 @@
 // 依赖：data/ships.js, data/systems.js, data/goods.js, systems/fleet/FleetSystem.js
 // 导出：render
 
-import { SHIP_TYPES } from '../data/ships.js';
 import { SYSTEMS, getAccessibleGalaxies, getSystemsByGalaxy } from '../data/systems.js';
 import { GOODS } from '../data/goods.js';
 import * as Fleet from '../systems/fleet/FleetSystem.js';
@@ -49,6 +48,11 @@ import {
   renderFleetDispatchEstimate,
   validateFleetDispatchPolicy,
 } from './FleetDispatchPresenter.js';
+import {
+  buildFleetShopModel,
+  readFleetShopIntent,
+  renderFleetShop,
+} from './FleetShopPresenter.js';
 
 let _activeInlineModalId = null;
 let _currentPortalCleanup = null;
@@ -548,221 +552,25 @@ function _openCrewModal(state, shipIndex, onRecruitCrew, onAssignCrew, onUnassig
 // 船只商店（独立标签页）
 // ---------------------------------------------------------------------------
 
-function _getShipShopRoleLabel(shipType) {
-  if (!shipType) return '综合用途';
-  if (shipType.modSlots >= 3 || shipType.id === 'galleon') return '旗舰骨架';
-  if (shipType.fuelEff <= 0.8 || shipType.id === 'clipper') return '高速航路';
-  if (shipType.maxCargo >= 100 || shipType.id === 'freighter') return '货运主力';
-  return '综合用途';
-}
-
-function _buildShipShopContext(state) {
-  var fleet = Fleet.getFleet(state);
-  var slotCount = Fleet.getSlotCount(state);
-  var maxSlots = Fleet.getMaxSlots();
-  var routeLevel = Fleet.getDispatchRouteLevel(state);
-  var hasAvailableSlot = Fleet.getAvailableSlotCount(state) > 0;
-  var credits = state.credits || 0;
-  var paidTypes = SHIP_TYPES.filter(function (shipType) { return shipType.cost > 0; });
-  var ownedTypeCounts = fleet.reduce(function (map, ship) {
-    map[ship.typeId] = (map[ship.typeId] || 0) + 1;
-    return map;
-  }, {});
-  var fleetCargoCap = fleet.reduce(function (sum, ship) {
-    var stats = Fleet.getEffectiveShipStats(state, ship);
-    return sum + (stats.maxCargo || ship.maxCargo || 0);
-  }, 0);
-  var averageCargoCap = fleet.length ? Math.round(fleetCargoCap / fleet.length) : 0;
-  var hasCargoCore = fleet.some(function (ship) { return ship.typeId === 'freighter' || ship.typeId === 'galleon'; });
-  var hasFastHull = fleet.some(function (ship) { return ship.typeId === 'clipper'; });
-  var hasFlagshipHull = fleet.some(function (ship) { return ship.typeId === 'galleon'; });
-
-  var entries = paidTypes.map(function (shipType) {
-    var roleLabel = _getShipShopRoleLabel(shipType);
-    var canAfford = credits >= shipType.cost;
-    var creditGap = Math.max(0, shipType.cost - credits);
-    var diversityBonus = ownedTypeCounts[shipType.id] ? -35 : 80;
-    var roleFit = 0;
-    if (!hasCargoCore && roleLabel === '货运主力') roleFit += 120;
-    if (!hasFastHull && roleLabel === '高速航路') roleFit += 95;
-    if (!hasFlagshipHull && roleLabel === '旗舰骨架' && fleet.length >= 2) roleFit += 105;
-    var rangeValue = Math.round(shipType.maxFuelCap / Math.max(0.1, shipType.fuelEff));
-    var score = (shipType.maxCargo || 0) + Math.round(rangeValue / 8) + (shipType.modSlots || 1) * 24 + diversityBonus + roleFit;
-
-    return {
-      type: shipType,
-      roleLabel: roleLabel,
-      canAfford: canAfford,
-      creditGap: creditGap,
-      ownedCount: ownedTypeCounts[shipType.id] || 0,
-      rangeValue: rangeValue,
-      cargoLift: Math.max(0, (shipType.maxCargo || 0) - averageCargoCap),
-      score: score,
-    };
-  });
-
-  var affordableEntries = entries.filter(function (entry) { return entry.canAfford; });
-  var focusEntry = hasAvailableSlot && affordableEntries.length > 0
-    ? affordableEntries.slice().sort(function (left, right) {
-        if (left.score !== right.score) return right.score - left.score;
-        return left.type.cost - right.type.cost;
-      })[0]
-    : null;
-  var closestEntry = entries.slice().sort(function (left, right) {
-    if (left.creditGap !== right.creditGap) return left.creditGap - right.creditGap;
-    return left.type.cost - right.type.cost;
-  })[0] || null;
-
-  return {
-    credits: credits,
-    fleet: fleet,
-    fleetLen: fleet.length,
-    slotCount: slotCount,
-    maxSlots: maxSlots,
-    routeLevel: routeLevel,
-    hasAvailableSlot: hasAvailableSlot,
-    entries: entries,
-    affordableEntries: affordableEntries,
-    focusEntry: focusEntry,
-    closestEntry: closestEntry,
-    averageCargoCap: averageCargoCap,
-  };
-}
-
-function _renderShipShopBrief(context) {
-  var slotText = context.fleetLen + '/' + context.slotCount;
-  var slotMeta = context.hasAvailableSlot
-    ? ('空席位 ' + Math.max(0, context.slotCount - context.fleetLen) + ' · 锁定 ' + Math.max(0, context.maxSlots - context.slotCount))
-    : ('席位已满 · 上限 ' + context.maxSlots);
-  var budgetMeta = context.closestEntry && context.closestEntry.creditGap > 0
-    ? ('距 ' + context.closestEntry.type.name + ' 还差 ' + context.closestEntry.creditGap.toLocaleString())
-    : '预算覆盖当前候选';
-  var focusTitle = context.focusEntry
-    ? context.focusEntry.type.emoji + ' ' + context.focusEntry.type.name
-    : (context.hasAvailableSlot ? '预算观察' : '采购暂停');
-  var focusBody = context.focusEntry
-    ? (context.focusEntry.roleLabel + ' · 货舱上限 ' + context.focusEntry.type.maxCargo + ' · 航程能力 ' + context.focusEntry.rangeValue)
-    : (context.hasAvailableSlot
-        ? (context.closestEntry ? budgetMeta : '暂无候选船型')
-        : '当前没有空席位，新船购买按钮会保持锁定');
-  var focusMeta = context.focusEntry
-    ? ('购船情况 · 已拥有同型 ' + context.focusEntry.ownedCount)
-    : (context.hasAvailableSlot ? '预算状态' : '船位状态');
-
-  return '<section class="hangar-shop-brief" aria-label="购船决策摘要">' +
-    '<div class="hangar-shop-brief-grid" role="list" aria-label="采购状态概览">' +
-      '<div class="hangar-shop-brief-cell" role="listitem"><span>可用信用积分</span><strong>' + context.credits.toLocaleString() + '</strong><small>' + _escapeHtml(budgetMeta) + '</small></div>' +
-      '<div class="hangar-shop-brief-cell" role="listitem"><span>可采购</span><strong>' + context.affordableEntries.length + '/' + context.entries.length + '</strong><small>按当前预算计算</small></div>' +
-      '<div class="hangar-shop-brief-cell" role="listitem"><span>席位</span><strong>' + slotText + '</strong><small>' + _escapeHtml(slotMeta) + '</small></div>' +
-      '<div class="hangar-shop-brief-cell" role="listitem"><span>航线等级</span><strong>Lv.' + context.routeLevel + '</strong><small>购船后沿用当前跑商等级</small></div>' +
-    '</div>' +
-    '<div class="hangar-shop-focus" aria-label="购船建议">' +
-      '<div><span>购船建议</span><strong>' + _escapeHtml(focusTitle) + '</strong><small>' + _escapeHtml(focusBody) + '</small></div>' +
-      '<span class="hangar-shop-focus-badge">' + _escapeHtml(focusMeta) + '</span>' +
-    '</div>' +
-  '</section>';
-}
-
-function _renderShipShopSignalStrip(entry, context) {
-  var statusText = !context.hasAvailableSlot
-    ? '席位锁定'
-    : (entry.canAfford ? '可采购' : ('差额 ' + entry.creditGap.toLocaleString()));
-  var statusClass = !context.hasAvailableSlot
-    ? 'fleet-shop-status-pill--locked'
-    : (entry.canAfford ? 'fleet-shop-status-pill--ready' : 'fleet-shop-status-pill--blocked');
-
-  return '<div class="fleet-shop-signal-strip" role="list" aria-label="' + _escapeHtml(entry.type.name) + '购船信息">' +
-    '<span role="listitem">用途 ' + _escapeHtml(entry.roleLabel) + '</span>' +
-    '<span role="listitem">航程能力 ' + entry.rangeValue + '</span>' +
-    '<span role="listitem">货舱增加 +' + entry.cargoLift + '</span>' +
-    '<span class="fleet-shop-status-pill ' + statusClass + '" role="listitem">' + _escapeHtml(statusText) + '</span>' +
-  '</div>';
-}
-
 /**
  * 渲染船只商店标签页
  * @param {{state:object, onCommand?:Function}} request
  */
 export function renderShop(request) {
   var input = request || {};
-  var state = input.state;
-  if (!state) return false;
-  var actions = _createFleetActionPorts(input.onCommand);
-  const container = document.getElementById('shop-list');
+  if (!input.state) return false;
+  var container = document.getElementById('shop-list');
   if (!container) return false;
-
-  var shopContext = _buildShipShopContext(state);
-  var hasAvailableSlot = shopContext.hasAvailableSlot;
-  var slotCount = shopContext.slotCount;
-  var fleetLen  = shopContext.fleetLen;
-
-  var html = '';
-
-  html += '<section class="hangar-shop-hero">';
-  html += '<div class="hangar-shop-kicker">SHIP ACQUISITION</div>';
-  html += '<h2>船坞采购甲板</h2>';
-  html += '<p>按机库席位、现金流和航线等级选择下一艘船。购买后可进入改装与人员配置流程。</p>';
-  html += '<div class="shop-slot-hint">🎫 席位：' + fleetLen + '/' + slotCount +
-          (hasAvailableSlot ? ' — 可购买新船' : ' — 席位已满，需先购买席位') + '</div>';
-  html += '</section>';
-  html += _renderShipShopBrief(shopContext);
-  html += '<div class="fleet-section-title">🏪 船只商店</div>';
-  html += '<div class="hangar-shop-grid">';
-
-  shopContext.entries.forEach(function (entry) {
-    const st = entry.type;
-    const canAfford = entry.canAfford;
-    const isFocus = shopContext.focusEntry && shopContext.focusEntry.type.id === st.id;
-
-    html += '<div class="fleet-shop-card' + (isFocus ? ' fleet-shop-card--focus' : '') + '">';
-    html += '<div class="fleet-shop-header">';
-    html += '<span class="fleet-ship-icon">' + st.emoji + '</span>';
-    html += '<span class="fleet-ship-name">' + _escapeHtml(st.name) + '</span>';
-    html += '<span class="fleet-shop-price">' + st.cost.toLocaleString() + ' 积分</span>';
-    html += '</div>';
-    html += '<div class="fleet-shop-desc">' + _escapeHtml(st.desc) + '</div>';
-    html += _renderShipShopSignalStrip(entry, shopContext);
-    html += '<div class="fleet-shop-specs">';
-    html += '📦' + st.cargo + '(→' + st.maxCargo + ') ';
-    html += '⚡' + st.fuel + '(→' + st.maxFuelCap + ') ';
-    html += '🛡️' + st.hull + '(→' + st.maxHullCap + ') ';
-    html += '🔧×' + st.fuelEff + '(→' + st.minFuelEff + ')';
-    html += '</div>';
-
-    // 改装槽位和技能预览
-    html += '<div class="fleet-shop-extras">';
-    html += '<span class="fleet-shop-mod-slots">🔧 改装槽：' + (st.modSlots || 1) + '</span>';
-    if (st.skills && st.skills.length > 0) {
-      html += '<span class="fleet-shop-skills">';
-      st.skills.forEach(function (skill) {
-        html += '<span class="fleet-shop-skill-chip" title="' + _escapeHtml(skill.desc) + '">' + skill.emoji + ' ' + _escapeHtml(skill.name) + '</span>';
-      });
-      html += '</span>';
-    }
-    html += '</div>';
-
-    if (!hasAvailableSlot) {
-      html += '<button class="fleet-buy-btn" disabled>需要先购买席位</button>';
-    } else if (!canAfford) {
-      html += '<button class="fleet-buy-btn" disabled>积分不足</button>';
-    } else {
-      html += '<button class="fleet-buy-btn fleet-can-buy" data-type="' + st.id + '">购买</button>';
-    }
-    html += '</div>';
-  });
-  html += '</div>';
-
-  container.innerHTML = html;
-
-  // 绑定购买事件
-  container.querySelectorAll('.fleet-can-buy').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      actions.onBuyShip(btn.dataset.type);
-    });
-  });
+  var actions = _createFleetActionPorts(input.onCommand);
+  container.innerHTML = renderFleetShop(buildFleetShopModel(input.state));
+  container.onclick = function (event) {
+    var intent = readFleetShopIntent(event && event.target);
+    if (!intent) return;
+    if (event && typeof event.preventDefault === 'function') event.preventDefault();
+    actions.onBuyShip(intent.shipTypeId);
+  };
   return true;
 }
-
 export function openDispatchModal(request) {
   var input = request || {};
   if (!input.state || !Number.isInteger(input.shipIndex)) return false;

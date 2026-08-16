@@ -48,16 +48,12 @@ import { DEFAULT_ACTION_DIRTY_REGIONS, UI_REGION } from './ActionPresentation.js
 import { createGameActionRuntime } from './GameActionRuntime.js';
 import { createDialogueRuntimeController } from './DialogueRuntimeController.js';
 import { createRandomEventRuntimeController } from './RandomEventRuntimeController.js';
-import { createMarketWorkspaceController } from './MarketWorkspaceController.js';
 import { createGameGuidanceRuntime } from './GameGuidanceRuntime.js';
-import { createGameUiLifecycleController } from './GameUiLifecycleController.js';
-import { createSettingsUiController } from './SettingsUiController.js';
 import { createVictoryRuntimeController } from './VictoryRuntimeController.js';
 import { createAchievementRuntimeController } from './AchievementRuntimeController.js';
 import { createGamePersistenceController } from './GamePersistenceController.js';
-import { createGameUiCoordinator } from '../ui/GameUiCoordinator.js';
+import { createGameUiApplicationRuntime } from './GameUiApplicationRuntime.js';
 import { shouldLoadAdvancedCommerce } from '../ui/ActionGuideCoordinator.js';
-import { createWorkspaceContextAdapters } from '../ui/WorkspaceContextAdapters.js';
 import { hasBlockingSurfaceOpen, hideBlockingSurface, isBlockingSurfaceVisible, showBlockingSurface } from '../ui/SurfaceManager.js';
 
 const _session = createStateSession();
@@ -77,8 +73,7 @@ let _settings  = {
 };
 let _runtimeRevision = 0;
 let _featureRuntime = null;
-let _uiCoordinator = null;
-let _uiLifecycleController = null;
+let _uiRuntime = null;
 let _systemRuntime = null;
 let _gameClock = null;
 let _sessionLifecycle = null;
@@ -86,12 +81,9 @@ let _actionRuntime = null;
 let _dialogueController = null;
 let _randomEventController = null;
 let _guidanceRuntime = null;
-let _marketWorkspaceController = null;
-let _settingsUiController = null;
 let _victoryController = null;
 let _achievementController = null;
 let _persistenceController = null;
-let _contextAdapters = null;
 
 function _replaceState(nextState, reason) {
   _session.replace(nextState, { reason: reason });
@@ -104,7 +96,7 @@ function _replaceState(nextState, reason) {
 function _resetSessionTransients() {
   if (_achievementController) _achievementController.reset();
   if (_guidanceRuntime) _guidanceRuntime.reset();
-  if (_marketWorkspaceController) _marketWorkspaceController.reset();
+  if (_uiRuntime) _uiRuntime.reset();
   if (_victoryController) _victoryController.reset();
 }
 
@@ -151,7 +143,7 @@ function _getFeatureRuntime() {
       syncVictoryView: function (module) { _getVictoryController().syncView(module); },
       handleVictoryLoadFailure: function () { _getVictoryController().handleLoadFailure(); },
       syncTutorialView: function (module) { _getGuidanceRuntime().syncTutorialView(module); },
-      syncSettingsView: function (module) { _getSettingsUiController().sync(module); },
+      syncSettingsView: function (module) { _getUiRuntime().syncSettings(module); },
     },
   });
   return _featureRuntime;
@@ -201,7 +193,7 @@ function _getGuidanceRuntime() {
     callbacks: {
       emitLog: function (message) { EventBus.emit('log:message', message); },
       invalidate: function () { _updateUI(DEFAULT_ACTION_DIRTY_REGIONS); },
-      renderFleet: function (FleetUI) { return _getUiCoordinator().renderFleet(FleetUI); },
+      renderFleet: function (FleetUI) { return _getUiRuntime().renderFleet(FleetUI); },
       reportError: function (scope, error) {
         console.error('[GameGuidanceRuntime] Failed in ' + scope + '.', error);
       },
@@ -237,7 +229,7 @@ function _getPersistenceController() {
       return init(null, { restoreAutosave: false, reason: reason });
     },
     resetTutorial: Tutorial.reset,
-    hideSettings: function () { _getSettingsUiController().hide(); },
+    hideSettings: function () { _getUiRuntime().hideSettings(); },
     emitMessage: function (message) { EventBus.emit('log:message', message); },
     invalidateSaveUi: function () { _updateUI([UI_REGION.SAVE, UI_REGION.GUIDE]); },
   });
@@ -511,39 +503,6 @@ function _getRandomEventController() {
   return _randomEventController;
 }
 
-function _getSettingsUiController() {
-  if (_settingsUiController) return _settingsUiController;
-  _settingsUiController = createSettingsUiController({
-    features: _getFeatureRuntime(),
-    getSettings: function () { return _settings; },
-    getState: function () { return _state; },
-    getSessionToken: _getSessionToken,
-    isSessionTokenCurrent: _isSessionTokenCurrent,
-    Renderer: Renderer3D,
-    hideFallback: hideBlockingSurface,
-    callbacks: {
-      onOpen: _ensureSaveUiRendered,
-      onDifficultyChanged: function (nextDifficulty) {
-        if (!DIFFICULTY_LEVELS[nextDifficulty]) return;
-        _state.difficulty = nextDifficulty;
-        _settings.difficulty = nextDifficulty;
-        _updateUI(DEFAULT_ACTION_DIRTY_REGIONS);
-      },
-      onRealtimeDayDurationChanged: function (nextDurationMs) {
-        _settings.realtimeDayDurationMs = nextDurationMs;
-        _getGameClock().reset(performance.now());
-        if (_gameClock && _gameClock.isRecurring(ACTIVE_DISPATCH_CLOCK_ID)) _startActiveDispatchClock();
-      },
-      onResetTutorial: function () {
-        _getSettingsUiController().hide();
-        _getPersistenceController().restart('settings-tutorial-reset');
-      },
-      onClearSaves: _getPersistenceController().clearAllSlots,
-    },
-  });
-  return _settingsUiController;
-}
-
 function _getVictoryController() {
   if (_victoryController) return _victoryController;
   _victoryController = createVictoryRuntimeController({
@@ -562,140 +521,87 @@ function _getVictoryController() {
     emitMessage: function (message) { EventBus.emit('log:message', message); },
     invalidate: function () { _updateUI(DEFAULT_ACTION_DIRTY_REGIONS); },
     refreshActionGuide: function () { return _getGuidanceRuntime().refresh(); },
-    restartSession: _getPersistenceController().restart,
+    restartSession: function () { return _getPersistenceController().restart.apply(null, arguments); },
   });
   return _victoryController;
 }
 
-function _getMarketWorkspaceController() {
-  if (_marketWorkspaceController) return _marketWorkspaceController;
-  _marketWorkspaceController = createMarketWorkspaceController({
+function _getUiRuntime() {
+  if (_uiRuntime) return _uiRuntime;
+  _uiRuntime = createGameUiApplicationRuntime({
     getState: function () { return _state; },
+    getRevision: function () { return _session.getRevision(); },
     getSessionToken: _getSessionToken,
     isSessionTokenCurrent: _isSessionTokenCurrent,
-    loadMarket: function () { return _getFeatureRuntime().load('market'); },
-    renderMarket: function (MarketUI, state) { return _getUiCoordinator().renderMarket(MarketUI, state); },
-    MapUI: MapUI,
-    Modal: Modal,
-    Tutorial: Tutorial,
-    systems: SYSTEMS,
-    emitLog: function (message) { EventBus.emit('log:message', message); },
-    invalidate: function () { _updateUI(DEFAULT_ACTION_DIRTY_REGIONS); },
-    showCompletion: function (completion) { _getGuidanceRuntime().showCompletion(completion); },
-    getCommerceActions: function () { return _getActionRuntime().commerce; },
-    refuel: _handleRefuel,
-  });
-  return _marketWorkspaceController;
-}
-
-function _getUiCoordinator() {
-  if (_uiCoordinator) return _uiCoordinator;
-  var actionRuntime = _getActionRuntime();
-  var fleetActions = actionRuntime.fleet;
-  var archiveActions = actionRuntime.archive;
-  var marketWorkspace = _getMarketWorkspaceController();
-  if (!_contextAdapters) {
-    _contextAdapters = createWorkspaceContextAdapters({
-      inspector: ContextInspector,
-      getRevision: function () { return _session.getRevision(); },
-    });
-  }
-  _uiCoordinator = createGameUiCoordinator({
-    getState: function () { return _state; },
     features: _getFeatureRuntime(),
+    events: EventBus,
     ui: {
       HUD: HUD,
       ShipUI: ShipUI,
       MapUI: MapUI,
       UIManager: UIManager,
-      Renderer3D: Renderer3D,
-      ContextAdapters: _contextAdapters,
+      Modal: Modal,
+      Renderer: Renderer3D,
+      ContextInspector: ContextInspector,
     },
     systems: {
       Trade: Trade,
       Dispatch: Dispatch,
+      Tutorial: Tutorial,
+      systems: SYSTEMS,
     },
-    actions: {
-      market: {
-        getMode: marketWorkspace.getMode,
-        onCommand: marketWorkspace.handleCommand,
-        onAfterRender: marketWorkspace.syncAfterRender,
+    services: {
+      getActionRuntime: _getActionRuntime,
+      getGuidanceRuntime: _getGuidanceRuntime,
+      getPersistenceController: _getPersistenceController,
+      getVictoryController: _getVictoryController,
+    },
+    callbacks: {
+      getSettings: function () { return _settings; },
+      hideSettingsFallback: hideBlockingSurface,
+      onDifficultyChanged: function (nextDifficulty) {
+        if (!DIFFICULTY_LEVELS[nextDifficulty]) return;
+        _state.difficulty = nextDifficulty;
+        _settings.difficulty = nextDifficulty;
+        _updateUI(DEFAULT_ACTION_DIRTY_REGIONS);
       },
-      fleet: fleetActions,
-      archive: Object.assign({
-        getDispatchContext: function (state) { return _getGuidanceRuntime().getDispatchContext(state); },
-      }, archiveActions),
-      save: {
-        onSaveGame: _getPersistenceController().saveSlot,
-        onLoadGame: _getPersistenceController().loadSlot,
+      onRealtimeDayDurationChanged: function (nextDurationMs) {
+        _settings.realtimeDayDurationMs = nextDurationMs;
+        _getGameClock().reset(performance.now());
+        if (_gameClock && _gameClock.isRecurring(ACTIVE_DISPATCH_CLOCK_ID)) _startActiveDispatchClock();
       },
-      global: {
-        refreshActionGuide: function () { return _getGuidanceRuntime().refresh(); },
+      onResetTutorial: function () {
+        _getPersistenceController().restart('settings-tutorial-reset');
       },
-    },
-  });
-  return _uiCoordinator;
-}
-
-function _getUiLifecycleController() {
-  if (_uiLifecycleController) return _uiLifecycleController;
-  var guidanceRuntime = _getGuidanceRuntime();
-  _uiLifecycleController = createGameUiLifecycleController({
-    getState: function () { return _state; },
-    getRevision: function () { return _session.getRevision(); },
-    features: _getFeatureRuntime(),
-    events: EventBus,
-    ui: {
-      HUD: HUD,
-      MapUI: MapUI,
-      UIManager: UIManager,
-      Modal: Modal,
-      Renderer: Renderer3D,
-    },
-    systems: { Tutorial: Tutorial },
-    controllers: {
-      actionGuide: guidanceRuntime.actionGuide,
-      onboardingUi: guidanceRuntime.onboardingUi,
-      onboardingPolicy: guidanceRuntime.onboardingPolicy,
-      settingsUi: _getSettingsUiController(),
-    },
-    ports: {
-      acceptQuest: _getActionRuntime().archive.onAcceptQuest,
-      chooseVictoryPolicy: function (pathId) { return _getVictoryController().choosePolicy(pathId); },
+      onClearSaves: function () { return _getPersistenceController().clearAllSlots(); },
+      emitLog: function (message) { EventBus.emit('log:message', message); },
+      invalidate: function () { _updateUI(DEFAULT_ACTION_DIRTY_REGIONS); },
+      setTelemetryState: _setDeferredUiState,
+      refuel: _handleRefuel,
       travel: _handleTravel,
       galaxyJump: _handleGalaxyJump,
-      openMarket: MapUI.openMarket,
-      closeMarket: MapUI.closeMarket,
-      isMarketOpen: MapUI.isMarketOpen,
-      ensureFleet: _ensureFleetUiRendered,
-      openQuests: MapUI.openQuestsPanel,
-      ensureArchive: _ensureArchiveUiRendered,
       explorePoi: _handleExplorePoi,
       getPoiStatus: _getPoiStatus,
-      refreshActionGuide: guidanceRuntime.refresh,
-      refreshMarket: function () { return _getMarketWorkspaceController().refresh(); },
       confirmTrade: _handleTradeConfirm,
     },
-    setTelemetryState: _setDeferredUiState,
-    emitLog: function (message) { EventBus.emit('log:message', message); },
   });
-  return _uiLifecycleController;
+  return _uiRuntime;
 }
 
 function _ensureMarketUiRendered() {
-  return _getUiCoordinator().ensureMarket();
+  return _getUiRuntime().ensureMarket();
 }
 
 function _ensureFleetUiRendered() {
-  return _getUiCoordinator().ensureFleet();
+  return _getUiRuntime().ensureFleet();
 }
 
 function _ensureArchiveUiRendered() {
-  return _getUiCoordinator().ensureArchive();
+  return _getUiRuntime().ensureArchive();
 }
 
 function _ensureSaveUiRendered() {
-  return _getUiCoordinator().ensureSave();
+  return _getUiRuntime().ensureSave();
 }
 
 // ---------------------------------------------------------------------------
@@ -721,13 +627,13 @@ export function init(difficulty, options) {
   });
   Renderer3D.init();
   Settings.applySettings(_settings, Renderer3D);
-  var uiLifecycle = _getUiLifecycleController();
-  uiLifecycle.initialize();
+  var uiRuntime = _getUiRuntime();
+  uiRuntime.initialize();
 
   // UI 壳完成绑定后，再由生命周期统一同步投影、渲染并恢复计时。
   _getSessionLifecycle().present(sessionTransition);
-  const sceneReadyPromise = uiLifecycle.whenSceneReady();
-  uiLifecycle.presentEntry({ restoredAutosave: restoredAutosave });
+  const sceneReadyPromise = uiRuntime.whenSceneReady();
+  uiRuntime.presentEntry({ restoredAutosave: restoredAutosave });
 
   return sceneReadyPromise;
 }
@@ -762,7 +668,7 @@ export function _getGameClockSnapshotForTest() {
 }
 
 export function _getUiDiagnosticsForTest() {
-  return _getUiCoordinator().getDiagnostics();
+  return _getUiRuntime().getDiagnostics();
 }
 
 function _playTriggerDialogue(triggerType, context, onFinished) {
@@ -854,8 +760,8 @@ function _stopActiveDispatchClock() {
 
 function _updateUI(regions) {
   if (MapUI.isMarketOpen() && !_getFeatureRuntime().get('market')) _ensureMarketUiRendered();
-  if (typeof regions === 'undefined') return _getUiCoordinator().renderAll();
-  return _getUiCoordinator().invalidate(regions);
+  if (typeof regions === 'undefined') return _getUiRuntime().renderAll();
+  return _getUiRuntime().invalidate(regions);
 }
 
 function _isRealtimeClockPaused() {
