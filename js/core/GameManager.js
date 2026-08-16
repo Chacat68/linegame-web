@@ -66,6 +66,7 @@ import { createMarketWorkspaceController } from './MarketWorkspaceController.js'
 import { createOnboardingUiController } from './OnboardingUiController.js';
 import { createOnboardingPolicyController } from './OnboardingPolicyController.js';
 import { createTeachingGuidanceController } from './TeachingGuidanceController.js';
+import { createGameUiLifecycleController } from './GameUiLifecycleController.js';
 import { createSettingsUiController } from './SettingsUiController.js';
 import { createVictoryRuntimeController } from './VictoryRuntimeController.js';
 import { createGameUiCoordinator } from '../ui/GameUiCoordinator.js';
@@ -105,6 +106,7 @@ const _deferredFeatures = createFeatureRegistry({
 });
 let _deferredFeaturesConfigured = false;
 let _uiCoordinator = null;
+let _uiLifecycleController = null;
 let _systemRuntime = null;
 let _gameClock = null;
 let _sessionLifecycle = null;
@@ -944,6 +946,50 @@ function _getUiCoordinator() {
   return _uiCoordinator;
 }
 
+function _getUiLifecycleController() {
+  if (_uiLifecycleController) return _uiLifecycleController;
+  _configureDeferredFeatures();
+  _uiLifecycleController = createGameUiLifecycleController({
+    getState: function () { return _state; },
+    getRevision: function () { return _session.getRevision(); },
+    features: _deferredFeatures,
+    events: EventBus,
+    ui: {
+      HUD: HUD,
+      MapUI: MapUI,
+      UIManager: UIManager,
+      Modal: Modal,
+      Renderer: Renderer3D,
+    },
+    systems: { Tutorial: Tutorial },
+    controllers: {
+      actionGuide: _getActionGuideCoordinator(),
+      onboardingUi: _getOnboardingUiController(),
+      onboardingPolicy: _getOnboardingPolicyController(),
+      settingsUi: _getSettingsUiController(),
+    },
+    ports: {
+      acceptQuest: _getArchiveActions().onAcceptQuest,
+      travel: _handleTravel,
+      galaxyJump: _handleGalaxyJump,
+      openMarket: MapUI.openMarket,
+      closeMarket: MapUI.closeMarket,
+      isMarketOpen: MapUI.isMarketOpen,
+      ensureFleet: _ensureFleetUiRendered,
+      openQuests: MapUI.openQuestsPanel,
+      ensureArchive: _ensureArchiveUiRendered,
+      explorePoi: _handleExplorePoi,
+      getPoiStatus: _getPoiStatus,
+      refreshActionGuide: _refreshActionGuide,
+      refreshMarket: function () { return _getMarketWorkspaceController().refresh(); },
+      confirmTrade: _handleTradeConfirm,
+    },
+    setTelemetryState: _setDeferredUiState,
+    emitLog: function (message) { EventBus.emit('log:message', message); },
+  });
+  return _uiLifecycleController;
+}
+
 function _ensureMarketUiRendered() {
   return _getUiCoordinator().ensureMarket();
 }
@@ -965,9 +1011,6 @@ function _restartSession(reason) {
   Save.deleteSlot(0);
   return init(null, { restoreAutosave: false, reason: reason || 'restart' });
 }
-
-// 教程完成回调引用（用于防止重复注册）
-let _onTutorialComplete = null;
 
 // ---------------------------------------------------------------------------
 // 对外 API
@@ -992,94 +1035,13 @@ export function init(difficulty, options) {
   });
   Renderer3D.init();
   Settings.applySettings(_settings, Renderer3D);
-  HUD.init({
-    stateSource: function () { return _session.getState(); },
-    revisionSource: function () { return _session.getRevision(); },
-  });
-  HUD.setQuestActions({
-    onAcceptQuest: _getArchiveActions().onAcceptQuest,
-  });
-
-  // 注入回调给各 UI 模块
-  MapUI.init(function () { return _state; }, _handleTravel, _handleGalaxyJump);
-
-  // 初始化全局视图管理器 UIManager
-  UIManager.init(function () { return _state; }, {
-    onOpenMarket: function (state) {
-      MapUI.openMarket(state);
-    },
-    onCloseMarket: function (options) {
-      MapUI.closeMarket(options);
-    },
-    onGetMarketOpen: function () {
-      return MapUI.isMarketOpen();
-    },
-    onOpenHangar: function () {
-      _ensureFleetUiRendered();
-    },
-    onOpenQuests: function (state) {
-      MapUI.openQuestsPanel(state);
-      _ensureArchiveUiRendered();
-    }
-  });
-  MapUI.setExplorationActions({
-    onExplorePoi: _handleExplorePoi,
-    getPoiStatus: _getPoiStatus,
-  });
-  MapUI.initTabs(function (tabId) {
-    if (tabId === 'tab-fleet') _ensureFleetUiRendered();
-    if (['tab-quest', 'tab-exploration', 'tab-research', 'tab-faction', 'tab-achievement'].indexOf(tabId) !== -1) {
-      _ensureArchiveUiRendered();
-    }
-    Tutorial.checkTabClick(tabId);
-  });
-  MapUI.setNavigationChangeCallback(function () {
-    _refreshActionGuide();
-  });
-  _getActionGuideCoordinator().init();
-  _configureDeferredFeatures();
-  _setDeferredUiState('guidanceAction', _deferredFeatures.getState('guidanceAction'));
-
-  // 星图视角默认启用，确保回调已绑定
-  MapUI.init3DCallbacks(function () { return _state; }, _handleTravel, _handleGalaxyJump);
-
-
-  // 注入市场刷新回调（让 MapUI 可以触发市场表格重绘）
-  MapUI.setRefreshMarket(function () { return _getMarketWorkspaceController().refresh(); });
-  Modal.init(_handleTradeConfirm);
-
-  // 新手引导系统已由 GameSystemRuntime 与其他状态系统统一恢复。
-  _deferredFeatures.sync('tutorial');
-  _setDeferredUiState('onboarding', _deferredFeatures.getState('onboarding'));
-
-  // 教程完成后推荐首批任务，并把后续节奏交给底部当前行动条。
-  if (_onTutorialComplete) EventBus.off('tutorial:complete', _onTutorialComplete);
-  _onTutorialComplete = function () {
-    _getOnboardingPolicyController().handleTutorialComplete();
-  };
-  EventBus.on('tutorial:complete', _onTutorialComplete);
-
-  // 点击公司身份入口随时重命名。
-  _getOnboardingUiController().bindCompanyLauncher();
-
-  _getSettingsUiController().bindLauncher();
+  var uiLifecycle = _getUiLifecycleController();
+  uiLifecycle.initialize();
 
   // UI 壳完成绑定后，再由生命周期统一同步投影、渲染并恢复计时。
   _getSessionLifecycle().present(sessionTransition);
-
-  if (restoredAutosave) {
-    EventBus.emit('log:message', { text: '📂 已自动恢复最近进度。', type: 'info' });
-  }
-
-  const sceneReadyPromise = Renderer3D.whenSceneReady
-    ? Renderer3D.whenSceneReady()
-    : Promise.resolve({ renderer: Renderer3D.getActiveRendererName ? Renderer3D.getActiveRendererName() : 'unknown' });
-
-  if (!Tutorial.isCompleted()) {
-    _getOnboardingUiController().showTutorialStart();
-  } else {
-    _getOnboardingPolicyController().showWelcomeMessages();
-  }
+  const sceneReadyPromise = uiLifecycle.whenSceneReady();
+  uiLifecycle.presentEntry({ restoredAutosave: restoredAutosave });
 
   return sceneReadyPromise;
 }
@@ -1304,12 +1266,4 @@ function _stopGameLoop() {
 
 function _startGameLoop() {
   _getGameClock().start();
-}
-
-// ---------------------------------------------------------------------------
-// 工具函数
-// ---------------------------------------------------------------------------
-
-function _deepClone(obj) {
-  return JSON.parse(JSON.stringify(obj));
 }

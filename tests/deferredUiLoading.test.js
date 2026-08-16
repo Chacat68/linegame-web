@@ -30,12 +30,13 @@ describe('deferred terminal UI loading', function () {
     var gameManager = readFileSync('js/core/GameManager.js', 'utf8');
     var commandDestinations = readFileSync('js/core/CommandDestinationController.js', 'utf8');
     var marketController = readFileSync('js/core/MarketWorkspaceController.js', 'utf8');
+    var uiLifecycle = readFileSync('js/core/GameUiLifecycleController.js', 'utf8');
     var uiManager = readFileSync('js/ui/UIManager.js', 'utf8');
     var uiCoordinator = readFileSync('js/ui/GameUiCoordinator.js', 'utf8');
 
-    expect(gameManager).toContain('onOpenHangar: function ()');
-    expect(gameManager).toContain("if (tabId === 'tab-fleet') _ensureFleetUiRendered()");
-    expect(gameManager).toContain("['tab-quest', 'tab-exploration', 'tab-research', 'tab-faction', 'tab-achievement']");
+    expect(uiLifecycle).toContain('onOpenHangar: function ()');
+    expect(uiLifecycle).toContain("if (tabId === 'tab-fleet') _call(ports, 'ensureFleet'");
+    expect(uiLifecycle).toContain('ARCHIVE_TAB_IDS.indexOf(tabId)');
     expect(gameManager).toContain("var FleetUI = _getDeferredFeature('fleet')");
     expect(gameManager).toContain("getLoadedArchive: function () { return _getDeferredFeature('archive'); }");
     expect(commandDestinations).toContain('var loaded = getLoadedArchive()');
@@ -186,6 +187,24 @@ describe('deferred terminal UI loading', function () {
     expect(teachingController).toContain('function startChain(chainId)');
     expect(onboardingPolicy).toContain('function handleTutorialComplete()');
     expect(onboardingPolicy).toContain('function recommendStarterQuests()');
+  });
+
+  it('eager UI 壳绑定与教程完成订阅由统一生命周期控制器持有', function () {
+    var gameManager = readFileSync('js/core/GameManager.js', 'utf8');
+    var uiLifecycle = readFileSync('js/core/GameUiLifecycleController.js', 'utf8');
+
+    expect(gameManager).toContain("from './GameUiLifecycleController.js'");
+    expect(gameManager).toContain('uiLifecycle.initialize()');
+    expect(gameManager).not.toContain('HUD.init({');
+    expect(gameManager).not.toContain('UIManager.init(function');
+    expect(gameManager).not.toContain("EventBus.on('tutorial:complete'");
+    expect(gameManager).not.toContain('MapUI.init3DCallbacks(function');
+    expect(uiLifecycle).toContain("events.on('tutorial:complete', tutorialCompleteListener)");
+    expect(uiLifecycle).toContain("events.off('tutorial:complete', tutorialCompleteListener)");
+    expect(uiLifecycle).toContain("_call(MapUI, 'init3DCallbacks'");
+    expect(uiLifecycle).toContain("_call(onboardingUi, 'dispose'");
+    expect(uiLifecycle).toContain("_call(settingsUi, 'dispose'");
+    expect(uiLifecycle).toContain("_call(actionGuide, 'dispose'");
   });
 
   it('设置、行动执行器与命令落点不再由 GameManager 持有 UI 生命周期', function () {
