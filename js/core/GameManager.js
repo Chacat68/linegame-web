@@ -64,6 +64,8 @@ import { createCommandDestinationController } from './CommandDestinationControll
 import { createGuidanceExecutionAdapter } from './GuidanceExecutionAdapter.js';
 import { createMarketWorkspaceController } from './MarketWorkspaceController.js';
 import { createOnboardingUiController } from './OnboardingUiController.js';
+import { createOnboardingPolicyController } from './OnboardingPolicyController.js';
+import { createTeachingGuidanceController } from './TeachingGuidanceController.js';
 import { createSettingsUiController } from './SettingsUiController.js';
 import { createVictoryRuntimeController } from './VictoryRuntimeController.js';
 import { createGameUiCoordinator } from '../ui/GameUiCoordinator.js';
@@ -122,6 +124,8 @@ let _commandDestinationController = null;
 let _guidanceExecutionAdapter = null;
 let _marketWorkspaceController = null;
 let _onboardingUiController = null;
+let _onboardingPolicyController = null;
+let _teachingGuidanceController = null;
 let _settingsUiController = null;
 let _victoryController = null;
 let _contextAdapters = null;
@@ -259,68 +263,6 @@ function _loadArchiveUI() {
   return _deferredFeatures.load('archive');
 }
 
-function _handleTutorialHelperAction(actionId) {
-  if (['recommend_first_trade', 'recommend_sell_route'].indexOf(actionId) === -1 || !Tutorial.isActive()) return;
-
-  var requestedState = _state;
-  var requestedRevision = _runtimeRevision;
-  _loadRouteGuidance().then(function (AutoTrade) {
-    if (!AutoTrade || requestedState !== _state || requestedRevision !== _runtimeRevision) return;
-    var currentStep = Tutorial.getStep();
-    if (!currentStep) return;
-
-    if (actionId === 'recommend_first_trade') {
-      if (currentStep.id !== 'buy_goods') return;
-      var tradeRecommendation = AutoTrade.findBestTrade(_state);
-      var recommendedGood = tradeRecommendation
-        ? GOODS.find(function (good) { return good.id === tradeRecommendation.goodId; })
-        : null;
-      if (recommendedGood) {
-        var cargoFree = Math.max(0, (_state.maxCargo || 0) - Trade.getTotalCargo(_state));
-        var suggestedQuantity = Math.max(1, Math.min(
-          10,
-          cargoFree,
-          Math.floor((_state.credits || 0) / Math.max(1, tradeRecommendation.buyPrice))
-        ));
-        Modal.openTradeModal('buy', recommendedGood, _state, 'open', {
-          initialQuantity: suggestedQuantity,
-        });
-        EventBus.emit('log:message', {
-          text: '🧭 首单建议：买入 ' + recommendedGood.name + '，卖往 ' + tradeRecommendation.sellSystemName + '。确认数量后，下一步会重新核算实际净利。',
-          type: 'tip',
-        });
-        return;
-      }
-      EventBus.emit('log:message', {
-        text: '⚠️ 当前没有满足资金、货舱与风险条件的首单商品。',
-        type: 'error',
-      });
-      return;
-    }
-
-    if (currentStep.id !== 'travel_hint') return;
-
-    var recommendation = AutoTrade.findBestSellSystem(_state);
-    var goodId = Object.keys(_state.cargo || {}).find(function (id) {
-      return (_state.cargo[id] || 0) > 0;
-    }) || '';
-    var focused = recommendation && MapUI.focusNavigationTarget
-      ? MapUI.focusNavigationTarget(_state, recommendation.systemId, {
-          goodId: goodId,
-          title: '教程推荐卖货路线',
-        })
-      : false;
-
-    EventBus.emit('log:message', {
-      text: focused
-        ? ('🧭 已标出 ' + recommendation.systemName + '：请核对卖价、燃料与预计净利，再确认出航。')
-        : '⚠️ 暂时找不到可达的盈利卖货点，请检查燃料与已开放星球。',
-      type: focused ? 'tip' : 'error',
-    });
-    _updateUI(DEFAULT_ACTION_DIRTY_REGIONS);
-  });
-}
-
 function _loadGuidanceActionController() {
   _configureDeferredFeatures();
   return _deferredFeatures.load('guidanceAction');
@@ -439,7 +381,9 @@ function _getFleetActions() {
     },
     dispatch: _dispatch,
     recordQuestProgress: _recordQuestProgress,
-    completeTeachingStep: _completeMidgameTeachingStep,
+    completeTeachingStep: function (chainId, stepId) {
+      return _getTeachingGuidanceController().completeStep(chainId, stepId);
+    },
     startDispatchClock: _startActiveDispatchClock,
     stopDispatchClock: _stopActiveDispatchClock,
     resetRealtimeClock: function (timestamp) { _getGameClock().reset(timestamp); },
@@ -464,7 +408,9 @@ function _getCommerceActions() {
     requestRuntime: _loadCommerceRuntime,
     dispatch: _dispatch,
     recordQuestProgress: _recordQuestProgress,
-    completeTeachingStep: _completeMidgameTeachingStep,
+    completeTeachingStep: function (chainId, stepId) {
+      return _getTeachingGuidanceController().completeStep(chainId, stepId);
+    },
   });
   return _commerceActions;
 }
@@ -497,7 +443,7 @@ function _getActionPipeline() {
       EventBus.emit('log:message', { text: message.text, type: message.type });
     },
     emitErrorCue: function () { EventBus.emit('audio:cue', { cue: 'error' }); },
-    finalizeState: _checkMidgameTeachingCompletion,
+    finalizeState: function () { return _getTeachingGuidanceController().checkCompletion(); },
     queueAchievementCheck: _queueAchievementCheck,
     render: function (result, specification) {
       var dirtyRegions = specification && specification.dirtyRegions;
@@ -700,13 +646,52 @@ function _getOnboardingUiController() {
     callbacks: {
       emitMessage: function (message) { EventBus.emit('log:message', message); },
       invalidate: function () { _updateUI(DEFAULT_ACTION_DIRTY_REGIONS); },
-      onHelperAction: _handleTutorialHelperAction,
+      onHelperAction: function (actionId) {
+        return _getTeachingGuidanceController().handleTutorialHelperAction(actionId);
+      },
       refreshActionGuide: _refreshActionGuide,
       renameCompany: function (state, name) { state.companyName = name; },
-      showWelcomeMessages: _showWelcomeMessages,
+      showWelcomeMessages: function () { _getOnboardingPolicyController().showWelcomeMessages(); },
     },
   });
   return _onboardingUiController;
+}
+
+function _getOnboardingPolicyController() {
+  if (_onboardingPolicyController) return _onboardingPolicyController;
+  _onboardingPolicyController = createOnboardingPolicyController({
+    Quest: Quest,
+    getState: function () { return _state; },
+    emitLog: function (message) { EventBus.emit('log:message', message); },
+    invalidate: function () { _updateUI(DEFAULT_ACTION_DIRTY_REGIONS); },
+    refreshActionGuide: _refreshActionGuide,
+  });
+  return _onboardingPolicyController;
+}
+
+function _getTeachingGuidanceController() {
+  if (_teachingGuidanceController) return _teachingGuidanceController;
+  _teachingGuidanceController = createTeachingGuidanceController({
+    getState: function () { return _state; },
+    getSessionToken: _getSessionToken,
+    isSessionTokenCurrent: _isSessionTokenCurrent,
+    loadRouteGuidance: _loadRouteGuidance,
+    systems: {
+      Tutorial: Tutorial,
+      Trade: Trade,
+      MidgameTeachingChain: MidgameTeachingChain,
+    },
+    ui: { Modal: Modal, MapUI: MapUI },
+    data: { goods: GOODS },
+    emitLog: function (message) { EventBus.emit('log:message', message); },
+    invalidate: function () { _updateUI(DEFAULT_ACTION_DIRTY_REGIONS); },
+    refreshActionGuide: _refreshActionGuide,
+    reportFailure: function (error) {
+      console.error('[GameManager] Failed to execute tutorial route helper.', error);
+      EventBus.emit('log:message', { text: '⚠️ 教程路线辅助暂时不可用，请稍后重试。', type: 'error' });
+    },
+  });
+  return _teachingGuidanceController;
 }
 
 function _getSettingsUiController() {
@@ -867,7 +852,9 @@ function _getGuidanceExecutionAdapter() {
         openRecommendedMod: _getCommandDestinationController().openRecommendedMod,
       },
       events: { forcePending: EventUI.forcePendingEvent },
-      teaching: { startChain: _startMidgameTeachingChain },
+      teaching: {
+        startChain: function (chainId) { return _getTeachingGuidanceController().startChain(chainId); },
+      },
       exploration: {
         revealArchiveReportFocus: _getCommandDestinationController().revealArchiveReportFocus,
         acknowledgeSurveyChainFollowup: function (systemId, chainId) {
@@ -1068,12 +1055,7 @@ export function init(difficulty, options) {
   // 教程完成后推荐首批任务，并把后续节奏交给底部当前行动条。
   if (_onTutorialComplete) EventBus.off('tutorial:complete', _onTutorialComplete);
   _onTutorialComplete = function () {
-    EventBus.emit('log:message', {
-      text: '🧭 操作教程完成。底部当前行动会继续引导你登记首轮交易并进入正式委托。',
-      type: 'tip',
-    });
-    _recommendStarterQuests();
-    _refreshActionGuide();
+    _getOnboardingPolicyController().handleTutorialComplete();
   };
   EventBus.on('tutorial:complete', _onTutorialComplete);
 
@@ -1096,7 +1078,7 @@ export function init(difficulty, options) {
   if (!Tutorial.isCompleted()) {
     _getOnboardingUiController().showTutorialStart();
   } else {
-    _showWelcomeMessages();
+    _getOnboardingPolicyController().showWelcomeMessages();
   }
 
   return sceneReadyPromise;
@@ -1136,64 +1118,8 @@ export function _getUiDiagnosticsForTest() {
   return _getUiCoordinator().getDiagnostics();
 }
 
-function _showWelcomeMessages() {
-  EventBus.emit('log:message', { text: '🚀 欢迎来到银河历 3045 年！您的星际贸易之旅由此开始……', type: 'info' });
-  EventBus.emit('log:message', {
-    text: '💡 提示：点击星图上的星系前往贸易，买低卖高赚取差价。多条长期路线等待推进——查看顶部进度了解详情！',
-    type: 'tip',
-  });
-  EventBus.emit('log:message', {
-    text: '🔬 新功能：查看【科技】标签研究群星科技，【派系】标签管理外交关系！',
-    type: 'tip',
-  });
-  EventBus.emit('log:message', {
-    text: '📋 新功能：【档案】入口可接取任务、查看探索报告、研究科技、查看派系与成就，右上角【设置】可管理存档！',
-    type: 'tip',
-  });
-}
-
 function _showActionGuideCompletion(completion, options) {
   if (completion) _getActionGuideCoordinator().showCompletion(completion.message, completion.detail, options);
-}
-
-function _recommendStarterQuests() {
-  var recommendations = Quest.getStarterRecommendations(_state, 3);
-  var activeQuests = Quest.getActiveQuests(_state);
-  var activeQuest = activeQuests.length > 0 ? activeQuests[0] : null;
-
-  _updateUI(DEFAULT_ACTION_DIRTY_REGIONS);
-
-  if (activeQuest) {
-    EventBus.emit('log:message', {
-      text: '📋 当前正在推进「' + activeQuest.name + '」，底部当前行动会继续给出可直接执行的下一步。',
-      type: 'info',
-    });
-
-    if (recommendations.length > 0) {
-      EventBus.emit('log:message', {
-        text: '🧭 跑完手头这单后，还可以继续接 ' + recommendations.map(function (quest) { return '「' + quest.name + '」'; }).join('、') + '。',
-        type: 'tip',
-      });
-    }
-    return;
-  }
-
-  if (recommendations.length === 0) {
-    EventBus.emit('log:message', {
-      text: '📋 教程结束后可前往任务页查看当前章节任务，继续推进你的贸易生涯。',
-      type: 'tip',
-    });
-    return;
-  }
-
-  EventBus.emit('log:message', {
-    text: '📋 可接取任务：' + recommendations.map(function (quest) { return '「' + quest.name + '」'; }).join('、') + '。',
-    type: 'tip',
-  });
-  EventBus.emit('log:message', {
-    text: '🧭 底部当前行动会直接接取并推进适合作为教程后第一阶段目标的任务。',
-    type: 'info',
-  });
 }
 
 function _playTriggerDialogue(triggerType, context, onFinished) {
@@ -1214,7 +1140,7 @@ function _scheduleRandomEventRoll(state, baseChance) {
 
 function _dispatch(result, presentation) {
   // result = { ok, msgs, meta? }（TradeSystem 各函数的返回值）
-  if (result && result.ok) _checkMidgameTeachingCompletion();
+  if (result && result.ok) _getTeachingGuidanceController().checkCompletion();
   if (result && result.msgs) {
     result.msgs.forEach(function (m) {
       EventBus.emit('log:message', { text: m.text, type: m.type });
@@ -1228,16 +1154,6 @@ function _dispatch(result, presentation) {
   if (dirtyRegions.length > 0) _updateUI(dirtyRegions);
   else _updateUI();
   if (result && result.ok) _getVictoryController().check();
-}
-
-function _checkMidgameTeachingCompletion() {
-  if (!_state) return [];
-  var completedChains = MidgameTeachingChain.checkChainCompletion(_state) || [];
-  completedChains.forEach(function (chainResult) {
-    if (!chainResult || !chainResult.message) return;
-    EventBus.emit('log:message', { text: chainResult.message, type: 'upgrade' });
-  });
-  return completedChains;
 }
 
 function _recordQuestProgress(context) {
@@ -1255,31 +1171,6 @@ function _refreshActionGuide() {
 
 function _handleActionGuideAction(suggestion) {
   return _getGuidanceExecutionAdapter().execute(suggestion);
-}
-
-function _startMidgameTeachingChain(chainId) {
-  var chain = Object.values(MidgameTeachingChain.TEACHING_CHAINS).find(function (candidate) {
-    return candidate.id === chainId;
-  });
-  if (!chain || !MidgameTeachingChain.startChain(_state, chainId)) {
-    EventBus.emit('log:message', { text: '⚠️ 当前无法启动该专题，请先完成已有专题或解锁对应系统。', type: 'error' });
-    _refreshActionGuide();
-    return false;
-  }
-  EventBus.emit('log:message', {
-    text: '🧭 已开始专题「' + chain.title + '」：' + chain.description,
-    type: 'tip',
-  });
-  _updateUI(DEFAULT_ACTION_DIRTY_REGIONS);
-  return true;
-}
-
-function _completeMidgameTeachingStep(chainId, stepId) {
-  var result = MidgameTeachingChain.completeChainStep(_state, chainId, stepId);
-  if (result && result.completed) {
-    EventBus.emit('log:message', { text: result.message, type: 'upgrade' });
-  }
-  return result;
 }
 
 function _getPoiStatus(systemId, poiId) {

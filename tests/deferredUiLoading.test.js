@@ -168,6 +168,26 @@ describe('deferred terminal UI loading', function () {
     expect(onboardingController).toContain('isSessionTokenCurrent(token)');
   });
 
+  it('教程辅助与首次进入内容策略不再由 GameManager 直接实现', function () {
+    var gameManager = readFileSync('js/core/GameManager.js', 'utf8');
+    var teachingController = readFileSync('js/core/TeachingGuidanceController.js', 'utf8');
+    var onboardingPolicy = readFileSync('js/core/OnboardingPolicyController.js', 'utf8');
+
+    expect(gameManager).toContain("from './TeachingGuidanceController.js'");
+    expect(gameManager).toContain("from './OnboardingPolicyController.js'");
+    expect(gameManager).not.toContain('function _handleTutorialHelperAction');
+    expect(gameManager).not.toContain('function _startMidgameTeachingChain');
+    expect(gameManager).not.toContain('function _completeMidgameTeachingStep');
+    expect(gameManager).not.toContain('function _checkMidgameTeachingCompletion');
+    expect(gameManager).not.toContain('function _showWelcomeMessages');
+    expect(gameManager).not.toContain('function _recommendStarterQuests');
+    expect(teachingController).toContain('isSessionTokenCurrent(token)');
+    expect(teachingController).toContain('function handleTutorialHelperAction(actionId)');
+    expect(teachingController).toContain('function startChain(chainId)');
+    expect(onboardingPolicy).toContain('function handleTutorialComplete()');
+    expect(onboardingPolicy).toContain('function recommendStarterQuests()');
+  });
+
   it('设置、行动执行器与命令落点不再由 GameManager 持有 UI 生命周期', function () {
     var gameManager = readFileSync('js/core/GameManager.js', 'utf8');
     var featureManifest = readFileSync('js/core/GameFeatureManifest.js', 'utf8');
