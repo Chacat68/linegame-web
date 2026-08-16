@@ -11,7 +11,8 @@ import {
 describe('ActionPresentation', function () {
   it('默认动作只失效可见投影，不要求重绘隐藏终端或存档面板', function () {
     var gameManager = readFileSync('js/core/GameManager.js', 'utf8');
-    var fullRefreshFallbacks = gameManager.match(/_updateUI\(\);/g) || [];
+    var actionRuntime = readFileSync('js/core/GameActionRuntime.js', 'utf8');
+    var fullRefreshFallbacks = actionRuntime.match(/invalidate\(\);/g) || [];
 
     expect(DEFAULT_ACTION_DIRTY_REGIONS).toEqual([
       UI_REGION.HUD,
@@ -24,8 +25,10 @@ describe('ActionPresentation', function () {
     ]);
     expect(DEFAULT_ACTION_PRESENTATION.dirtyRegions).toEqual(DEFAULT_ACTION_DIRTY_REGIONS);
     expect(DEFAULT_ACTION_PRESENTATION.dirtyRegions).not.toContain(UI_REGION.SAVE);
-    expect(gameManager).not.toContain('updateUI: _updateUI');
-    expect(gameManager).toContain('updateUI: function () { _updateUI(DEFAULT_ACTION_DIRTY_REGIONS); }');
+    expect(gameManager).toContain("from './GameActionRuntime.js'");
+    expect(gameManager).not.toContain("from './ActionExecutionPipeline.js'");
+    expect(actionRuntime).toContain('invalidate(DEFAULT_ACTION_DIRTY_REGIONS)');
+    expect(actionRuntime).toContain('normalizeDirtyRegions(presentation)');
     expect(fullRefreshFallbacks.length).toBeLessThanOrEqual(3);
   });
 
