@@ -34,6 +34,7 @@ let _getState = function () { return null; };
 let _getRevision = function () { return null; };
 let _isOpen = false;
 let _railListenerBound = false;
+let _railListener = null;
 let _releaseEscapeLayer = null;
 let _document = null;
 let _compactMode = false;
@@ -184,10 +185,11 @@ function _bindElement(element, datasetKey, eventName, handler) {
 
 function _bindRailListener() {
   if (_railListenerBound) return;
-  EventBus.on(RAIL_EVENT, function (data) {
+  _railListener = function (data) {
     if (data && data.source === RAIL_SOURCE) return;
     close({ restoreFocus: false });
-  });
+  };
+  EventBus.on(RAIL_EVENT, _railListener);
   _railListenerBound = true;
 }
 
@@ -436,4 +438,47 @@ export function getSnapshot() {
     contexts: contexts,
     rendererRegistered: _renderersByWorkspace.has(_activeWorkspaceId),
   };
+}
+
+/** 释放 Inspector shell 的 DOM/EventBus/Escape/adapter 所有权。 */
+export function dispose() {
+  var hadRuntime = !!(
+    _root || _document || _railListenerBound || _releaseEscapeLayer ||
+    _renderersByWorkspace.size || _contextsByWorkspace.size
+  );
+
+  _toggles.forEach(function (toggle) {
+    if (toggle && typeof toggle.removeEventListener === 'function') {
+      toggle.removeEventListener('click', _handleToggleClick);
+    }
+    if (toggle && toggle.dataset) delete toggle.dataset.contextInspectorToggleBound;
+  });
+  if (_closeButton && typeof _closeButton.removeEventListener === 'function') {
+    _closeButton.removeEventListener('click', _handleCloseClick);
+  }
+  if (_closeButton && _closeButton.dataset) delete _closeButton.dataset.contextInspectorCloseBound;
+  if (_railListenerBound && _railListener) EventBus.off(RAIL_EVENT, _railListener);
+  if (_releaseEscapeLayer) _releaseEscapeLayer();
+
+  _root = null;
+  _content = null;
+  _empty = null;
+  _host = null;
+  _title = null;
+  _toggles = [];
+  _lastToggle = null;
+  _closeButton = null;
+  _activeWorkspaceId = DEFAULT_WORKSPACE_ID;
+  _contextsByWorkspace = new Map();
+  _renderersByWorkspace = new Map();
+  _openByWorkspace = new Map();
+  _getState = function () { return null; };
+  _getRevision = function () { return null; };
+  _isOpen = false;
+  _railListenerBound = false;
+  _railListener = null;
+  _releaseEscapeLayer = null;
+  _document = null;
+  _compactMode = false;
+  return hadRuntime;
 }

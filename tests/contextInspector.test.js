@@ -6,6 +6,9 @@ function createElement(id) {
   return {
     id: id || '', dataset: {}, hidden: false, focusCount: 0, textContent: '', innerHTML: '',
     addEventListener: function (type, handler) { (listeners[type] || (listeners[type] = [])).push(handler); },
+    removeEventListener: function (type, handler) {
+      listeners[type] = (listeners[type] || []).filter(function (item) { return item !== handler; });
+    },
     dispatch: function (type, event) {
       var payload = Object.assign({ key: '', target: this, currentTarget: this, preventDefault: vi.fn() }, event || {});
       (listeners[type] || []).forEach(function (handler) { handler(payload); });
@@ -191,5 +194,46 @@ describe('ContextInspector protocol', function () {
     expect(Inspector.getSnapshot().open).toBe(false);
     expect(messageButton.focusCount).toBe(1);
     expect(fixture.toggle.focusCount).toBe(0);
+  });
+
+  it('dispose 释放按钮、rail、Escape 与 renderer，并允许重新初始化', async function () {
+    var fixture = createFixture();
+    globalThis.document = fixture.document;
+    var Inspector = await import('../js/ui/ContextInspector.js');
+    Inspector.init({ workspaceId: 'map' });
+    Inspector.registerRenderer('map', function () { return true; });
+    Inspector.replaceContext({
+      type: 'planet', id: 'sol_prime', workspaceId: 'map', source: 'click', revision: 1,
+    });
+
+    expect(fixture.toggle.listenerCount('click')).toBe(1);
+    expect(fixture.documentListeners.keydown).toHaveLength(1);
+    expect(Inspector.dispose()).toBe(true);
+    expect(Inspector.dispose()).toBe(false);
+    expect(fixture.toggle.listenerCount('click')).toBe(0);
+    expect(fixture.close.listenerCount('click')).toBe(0);
+    // SurfaceManager 的 document dispatcher 属于应用壳；dispose 只注销本层。
+    expect(fixture.documentListeners.keydown).toHaveLength(1);
+    var preventedAfterDispose = vi.fn();
+    fixture.documentListeners.keydown[0]({
+      key: 'Escape',
+      preventDefault: preventedAfterDispose,
+      stopPropagation: vi.fn(),
+      stopImmediatePropagation: vi.fn(),
+    });
+    expect(preventedAfterDispose).not.toHaveBeenCalled();
+    expect(Inspector.getSnapshot()).toEqual({
+      initialized: false,
+      open: false,
+      activeWorkspaceId: 'map',
+      context: null,
+      contexts: {},
+      rendererRegistered: false,
+    });
+
+    Inspector.init({ workspaceId: 'map' });
+    expect(fixture.toggle.listenerCount('click')).toBe(1);
+    expect(fixture.documentListeners.keydown).toHaveLength(1);
+    Inspector.dispose();
   });
 });

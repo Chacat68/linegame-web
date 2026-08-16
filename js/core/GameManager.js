@@ -43,6 +43,7 @@ import { createGameFeatureRuntime } from './GameFeatureRuntime.js';
 import { createStateSession } from './StateSession.js';
 import { createGameSystemRuntime } from './GameSystemRuntime.js';
 import { createGameLoopRuntime } from './GameLoopRuntime.js';
+import { createGameApplicationLifecycle } from './GameApplicationLifecycle.js';
 import { createGameSessionLifecycle } from './GameSessionLifecycle.js';
 import { DEFAULT_ACTION_DIRTY_REGIONS, UI_REGION } from './ActionPresentation.js';
 import { createGameActionRuntime } from './GameActionRuntime.js';
@@ -82,6 +83,7 @@ let _guidanceRuntime = null;
 let _victoryController = null;
 let _achievementController = null;
 let _persistenceController = null;
+let _applicationLifecycle = null;
 
 function _replaceState(nextState, reason) {
   _session.replace(nextState, { reason: reason });
@@ -96,6 +98,53 @@ function _resetSessionTransients() {
   if (_guidanceRuntime) _guidanceRuntime.reset();
   if (_uiRuntime) _uiRuntime.reset();
   if (_victoryController) _victoryController.reset();
+}
+
+function _getApplicationLifecycle() {
+  if (_applicationLifecycle) return _applicationLifecycle;
+  _applicationLifecycle = createGameApplicationLifecycle({
+    getRuntime: function (id) {
+      if (id === 'sessionLifecycle') return _sessionLifecycle;
+      if (id === 'gameLoop') return _gameLoopRuntime;
+      if (id === 'dialogue') return _dialogueController;
+      if (id === 'randomEvent') return _randomEventController;
+      if (id === 'achievement') return _achievementController;
+      if (id === 'victory') return _victoryController;
+      if (id === 'guidance') return _guidanceRuntime;
+      if (id === 'ui') return _uiRuntime;
+      if (id === 'features') return _featureRuntime;
+      if (id === 'renderer') return Renderer3D;
+      if (id === 'eventUi') return EventUI;
+      return null;
+    },
+    release: function (context) {
+      GameTime.setAdvancedDayProcessor(null);
+      _replaceState(null, context.reason);
+      _featureRuntime = null;
+      _uiRuntime = null;
+      _systemRuntime = null;
+      _gameLoopRuntime = null;
+      _sessionLifecycle = null;
+      _actionRuntime = null;
+      _dialogueController = null;
+      _randomEventController = null;
+      _guidanceRuntime = null;
+      _victoryController = null;
+      _achievementController = null;
+      _persistenceController = null;
+    },
+    reportError: function (stage, error) {
+      console.error('[GameApplicationLifecycle] Failed to shut down ' + stage + '.', error);
+    },
+  });
+  return _applicationLifecycle;
+}
+
+function _beginApplicationLifecycle() {
+  if (_applicationLifecycle && _applicationLifecycle.getDiagnostics().disposed) {
+    _applicationLifecycle = null;
+  }
+  return _getApplicationLifecycle();
 }
 
 function _getSessionToken() {
@@ -595,6 +644,7 @@ function _getUiRuntime() {
 // ---------------------------------------------------------------------------
 
 export function init(difficulty, options) {
+  _beginApplicationLifecycle();
   _settings = Settings.loadSettings();
   var startup = resolveStartupState(difficulty, _settings, options);
   var restoredAutosave = startup.restoredAutosave;
@@ -622,6 +672,11 @@ export function init(difficulty, options) {
   uiRuntime.presentEntry({ restoredAutosave: restoredAutosave });
 
   return sceneReadyPromise;
+}
+
+/** 释放整个应用实例；与读档/重开所用的 session transition 不同。 */
+export function shutdown(reason) {
+  return _getApplicationLifecycle().shutdown({ reason: reason || 'application-shutdown' });
 }
 
 export function _setStateForTest(state) {

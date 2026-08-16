@@ -528,6 +528,100 @@ export function resetRuntimeState(currentSystemId) {
   resetCamera();
 }
 
+/**
+ * 释放 WebGL、Controls、场景资源与所有长期 DOM listener。
+ * quality / motion / secret-route 设置保留，后续 init 可在同一 canvas 上重建。
+ */
+export function dispose() {
+  const hadRuntime = !!(
+    _canvas || _renderer || _scene || _controls || _listenersBound ||
+    _stateRef || _planetSurfaceMapCache.size || _sharedGeometryCache.size
+  );
+
+  if (_canvas && typeof _canvas.removeEventListener === 'function') {
+    _canvas.removeEventListener('pointerdown', _onPointerDown);
+    _canvas.removeEventListener('pointermove', _onPointerMove);
+    _canvas.removeEventListener('pointerup', _onPointerUp);
+    _canvas.removeEventListener('pointerleave', _onPointerLeave);
+    _canvas.removeEventListener('click', _onClick);
+    _canvas.removeEventListener('webglcontextlost', _onContextLost, false);
+    _canvas.removeEventListener('webglcontextrestored', _onContextRestored, false);
+  }
+  if (typeof window !== 'undefined' && typeof window.removeEventListener === 'function') {
+    window.removeEventListener('resize', _onResize);
+  }
+
+  if (_controls && typeof _controls.dispose === 'function') _controls.dispose();
+  [_backgroundRoot, _planetRoot, _galaxyRoot].forEach(function (root) {
+    if (root) _clearGroup(root);
+  });
+  _clearPlanetSurfaceMapCache();
+  _persistentPlanetTextures.forEach(function (texture) {
+    if (texture && typeof texture.dispose === 'function') texture.dispose();
+  });
+  _persistentPlanetTextures.clear();
+  _sharedGeometryCache.forEach(function (geometry) {
+    if (geometry && typeof geometry.dispose === 'function') geometry.dispose();
+  });
+  _sharedGeometryCache.clear();
+  _persistentGeometries.clear();
+  if (_renderer && typeof _renderer.dispose === 'function') _renderer.dispose();
+
+  if (_canvas) {
+    if (_canvas.style) _canvas.style.display = 'none';
+    if (_canvas.dataset) delete _canvas.dataset.renderer;
+  }
+
+  _canvas = null;
+  _renderer = null;
+  _scene = null;
+  _camera = null;
+  _controls = null;
+  _backgroundRoot = null;
+  _planetRoot = null;
+  _galaxyRoot = null;
+  _raycaster = null;
+  _pointer = null;
+  _initialized = false;
+  _available = false;
+  _visible = false;
+  _contextLost = false;
+  _listenersBound = false;
+  _dirty = true;
+  _resolvedQualityLevel = null;
+  _stateRef = null;
+  _renderKey = '';
+  _mapView = 'planets';
+  _currentGalaxyId = 'milky_way';
+  _hoveredPlanetId = null;
+  _hoveredGalaxyId = null;
+  _selectedPlanetId = null;
+  _focusPlanetId = null;
+  _pendingCameraFocusPlanetId = null;
+  _planetEntries = [];
+  _planetHitTargets = [];
+  _galaxyEntries = [];
+  _galaxyHitTargets = [];
+  _routeVisuals = [];
+  _routeMotionStates.clear();
+  _flightPath = null;
+  _flightVisual = null;
+  _availabilityHandler = null;
+  _pointerDown = null;
+  _pointerDragged = false;
+  _lastSizeKey = '';
+  _cameraFrameMode = null;
+  _framedPlanetGalaxyId = null;
+  _sharedHaloTexture = null;
+  _sharedStarTexture = null;
+  _performanceStats.samples = 0;
+  _performanceStats.lastFrameAt = 0;
+  _performanceStats.averageFrameMs = 0;
+  _performanceStats.averageCpuMs = 0;
+  _performanceStats.maxCpuMs = 0;
+  return hadRuntime;
+}
+
 export function getRendererInfo() {
   if (!_renderer) return null;
   return {

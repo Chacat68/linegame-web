@@ -44,7 +44,7 @@ function createHarness(overrides) {
     UIManager: { init: vi.fn(), getNavigationSnapshot: vi.fn(function () { return { activeWorkspace: 'map' }; }) },
     Modal: { init: vi.fn() },
     Renderer: { initMapControls: vi.fn(), invalidateScene: vi.fn(), whenSceneReady: vi.fn(function () { return Promise.resolve({ renderer: 'test' }); }) },
-    ContextInspector: { registerRenderer: vi.fn() },
+    ContextInspector: { registerRenderer: vi.fn(), dispose: vi.fn() },
   };
   var callbacks = {
     getSettings: function () { return {}; },
@@ -127,6 +127,7 @@ describe('GameUiApplicationRuntime', function () {
 
     harness.runtime.reset();
     harness.runtime.dispose();
+    expect(harness.ui.ContextInspector.dispose).toHaveBeenCalledOnce();
     expect(harness.runtime.getDiagnostics()).toEqual({ coordinator: null, lifecycle: null, market: null, settings: null });
   });
 });

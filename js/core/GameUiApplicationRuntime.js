@@ -218,9 +218,13 @@ export function createGameUiApplicationRuntime(options) {
   }
 
   function dispose() {
+    if (contextAdapters) contextAdapters.dispose();
     if (lifecycle) lifecycle.dispose();
     else if (settingsController) settingsController.dispose();
     if (marketWorkspace) marketWorkspace.dispose();
+    if (ui.ContextInspector && typeof ui.ContextInspector.dispose === 'function') {
+      ui.ContextInspector.dispose();
+    }
     lifecycle = null;
     settingsController = null;
     marketWorkspace = null;

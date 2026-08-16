@@ -2,7 +2,7 @@
 // 依赖：core/GameManager.js
 // 说明：浏览器加载完毕后初始化游戏
 
-import { init } from './core/GameManager.js';
+import { init, shutdown } from './core/GameManager.js';
 import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from './ui/SurfaceManager.js';
 import { buildUsageDataExport } from './systems/metrics/UsageDataExport.js';
 import * as StartupLoader from './ui/StartupLoader.js';
@@ -23,6 +23,15 @@ window.addEventListener('load', async function () {
 		StartupLoader.fail(error);
 	}
 });
+
+window.addEventListener('pagehide', function (event) {
+	// bfcache 页面会在 pageshow 恢复同一 JS 实例，不能提前释放运行时。
+	if (!event || event.persisted !== true) shutdown('pagehide');
+});
+
+if (import.meta.hot) {
+	import.meta.hot.dispose(function () { shutdown('hot-module-reload'); });
+}
 
 function _withTimeout(promise, timeoutMs) {
 	return new Promise(function (resolve, reject) {

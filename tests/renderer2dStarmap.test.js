@@ -52,6 +52,12 @@ function createFakeCanvas(ctx) {
     addEventListener: function (event, handler) {
       listeners[event] = handler;
     },
+    removeEventListener: function (event, handler) {
+      if (listeners[event] === handler) delete listeners[event];
+    },
+    listenerCount: function (event) {
+      return listeners[event] ? 1 : 0;
+    },
     dispatchPointer: function (event, payload) {
       if (listeners[event]) listeners[event](payload);
     },
@@ -110,5 +116,37 @@ describe('Renderer2DStarmap', function () {
     expect(Number.isFinite(pos.y)).toBe(true);
     expect(Renderer.getSystemAtPoint(pos.x, pos.y)).toBe('sol_prime');
     expect(Renderer.selectPlanet('sol_prime')).toBe(true);
+  });
+
+  it('dispose 释放 canvas/window listener 并允许同一实例重新初始化', async function () {
+    var ctx = createFakeContext();
+    var canvas = createFakeCanvas(ctx);
+    var windowListeners = {};
+    globalThis.window = {
+      devicePixelRatio: 1,
+      addEventListener: function (event, handler) { windowListeners[event] = handler; },
+      removeEventListener: function (event, handler) {
+        if (windowListeners[event] === handler) delete windowListeners[event];
+      },
+    };
+    globalThis.document = {
+      getElementById: function (id) { return id === 'map-3d-canvas' ? canvas : null; },
+    };
+
+    var Renderer = await import('../js/ui/Renderer2DStarmap.js?dispose=' + Date.now());
+    expect(Renderer.init()).toBe(true);
+    expect(canvas.listenerCount('pointermove')).toBe(1);
+    expect(typeof windowListeners.resize).toBe('function');
+
+    expect(Renderer.dispose()).toBe(true);
+    expect(Renderer.dispose()).toBe(false);
+    expect(canvas.listenerCount('pointermove')).toBe(0);
+    expect(windowListeners.resize).toBeUndefined();
+    expect(canvas.style.display).toBe('none');
+
+    expect(Renderer.init()).toBe(true);
+    expect(canvas.listenerCount('pointermove')).toBe(1);
+    expect(typeof windowListeners.resize).toBe('function');
+    Renderer.dispose();
   });
 });

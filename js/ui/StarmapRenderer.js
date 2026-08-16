@@ -22,9 +22,19 @@ let _fallbackFrameDrawn = false;
 let _sceneReady = false;
 let _sceneReadyWatcherAttached = false;
 let _resolveSceneReady = null;
-const _sceneReadyPromise = new Promise(function (resolve) {
-  _resolveSceneReady = resolve;
-});
+let _sceneReadyPromise = null;
+let _lifecycleGeneration = 0;
+
+function _resetSceneReadyPromise() {
+  _sceneReady = false;
+  _sceneReadyWatcherAttached = false;
+  _fallbackFrameDrawn = false;
+  _sceneReadyPromise = new Promise(function (resolve) {
+    _resolveSceneReady = resolve;
+  });
+}
+
+_resetSceneReadyPromise();
 
 export function init() {
   const twoDimensionalReady = Renderer2D.init();
@@ -159,6 +169,58 @@ export function resetRuntimeState(currentSystemId) {
   if (_rendererThree) _rendererThree.resetRuntimeState(currentSystemId);
 }
 
+/** 释放渲染器资源，并为下一次 init 建立新的场景就绪周期。 */
+export function dispose() {
+  const hadRuntime = !!(
+    _initialized || _rendererThree || _threeLoadPromise || _lastState ||
+    Renderer2D.isActive()
+  );
+  _lifecycleGeneration += 1;
+
+  if (_resolveSceneReady) {
+    _resolveSceneReady({ renderer: 'disposed', disposed: true });
+    _resolveSceneReady = null;
+  }
+  Renderer2D.dispose();
+  if (_rendererThree) {
+    if (typeof _rendererThree.setAvailabilityHandler === 'function') {
+      _rendererThree.setAvailabilityHandler(null);
+    }
+    if (typeof _rendererThree.dispose === 'function') _rendererThree.dispose();
+  }
+
+  if (typeof document !== 'undefined' && document.getElementById) {
+    const container = document.getElementById('map-container');
+    if (container && container.dataset) {
+      [
+        'starmapRenderer', 'starmapThreeAvailable', 'starmapSceneReady',
+        'starmapReadyRenderer', 'starmapCalls', 'starmapTriangles',
+        'starmapPoints', 'starmapGeometries', 'starmapTextures',
+        'starmapQuality', 'starmapFps', 'starmapFrameMs',
+        'starmapCpuMs', 'starmapMaxCpuMs',
+      ].forEach(function (key) { delete container.dataset[key]; });
+    }
+  }
+
+  _initialized = false;
+  _isActive = false;
+  _rendererThree = null;
+  _threeLoadPromise = null;
+  _threeLoading = false;
+  _threeAvailable = false;
+  _activeRenderer = '2d';
+  _lastState = null;
+  _lastMapView = 'planets';
+  _lastGalaxyId = 'milky_way';
+  _lastInfoWriteAt = 0;
+  _lastInfoSignature = '';
+  if (typeof globalThis !== 'undefined' && globalThis.__linegameStarmapRenderer) {
+    delete globalThis.__linegameStarmapRenderer;
+  }
+  _resetSceneReadyPromise();
+  return hadRuntime;
+}
+
 export function getActiveRendererName() {
   return _activeRenderer;
 }
@@ -231,8 +293,10 @@ function _loadThreeRenderer() {
 
   _threeLoading = true;
   _exposeDebugState();
+  const loadGeneration = _lifecycleGeneration;
   _threeLoadPromise = import('./RendererThreeStarmap.js')
     .then(function (module) {
+      if (loadGeneration !== _lifecycleGeneration || !_initialized) return false;
       _rendererThree = module;
       _rendererThree.setAvailabilityHandler(_handleThreeAvailability);
       _rendererThree.setQuality(_qualityLevel);
@@ -250,6 +314,7 @@ function _loadThreeRenderer() {
       return _threeAvailable;
     })
     .catch(function (error) {
+      if (loadGeneration !== _lifecycleGeneration) return false;
       _rendererThree = null;
       _threeAvailable = false;
       _threeLoading = false;

@@ -256,18 +256,61 @@ export function resetRuntimeState(currentSystemId) {
   cancelShipFlight();
 }
 
+/**
+ * 释放 Canvas 与窗口监听，并清空所有会话级投影。
+ * quality / motion / secret-route 设置保留，便于同一应用实例重新初始化。
+ */
+export function dispose() {
+  const hadRuntime = !!(_canvas || _ctx || _listenersBound || _stateRef || _flightPath);
+
+  if (_canvas && typeof _canvas.removeEventListener === 'function') {
+    _canvas.removeEventListener('pointermove', _onPointerMove);
+    _canvas.removeEventListener('pointerleave', _onPointerLeave);
+    _canvas.removeEventListener('click', _onClick);
+  }
+  if (typeof window !== 'undefined' && typeof window.removeEventListener === 'function') {
+    window.removeEventListener('resize', _onResize);
+  }
+  if (_canvas && _canvas.style) _canvas.style.display = 'none';
+
+  _listenersBound = false;
+  _isActive = false;
+  _canvas = null;
+  _ctx = null;
+  _stateRef = null;
+  _planetMetadata = [];
+  _galaxyMetadata = [];
+  _hoveredPlanet = null;
+  _hoveredGalaxyId = null;
+  _selectedPlanetId = null;
+  _focusPlanetId = null;
+  _lastViewport = null;
+  _lastCanvasKey = '';
+  _stars = [];
+  _flightPath = null;
+  _routeMotionStates.clear();
+  _resolvedQualityLevel = null;
+  _mapView = 'planets';
+  _currentGalaxyId = 'milky_way';
+  _currentSystem = null;
+  _dirty = true;
+  return hadRuntime;
+}
+
 function _bindEvents() {
   if (_listenersBound || !_canvas) return;
   _canvas.addEventListener('pointermove', _onPointerMove);
   _canvas.addEventListener('pointerleave', _onPointerLeave);
   _canvas.addEventListener('click', _onClick);
   if (typeof window !== 'undefined' && window.addEventListener) {
-    window.addEventListener('resize', function () {
-      _lastCanvasKey = '';
-      _dirty = true;
-    });
+    window.addEventListener('resize', _onResize);
   }
   _listenersBound = true;
+}
+
+function _onResize() {
+  _lastCanvasKey = '';
+  _dirty = true;
 }
 
 function _resizeCanvas() {

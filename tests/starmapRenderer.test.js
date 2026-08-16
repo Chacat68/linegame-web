@@ -45,6 +45,10 @@ function createCanvas(contextFactory) {
     style: {},
     classList: { add: function () {}, remove: function () {} },
     addEventListener: function (event, handler) { listeners[event] = handler; },
+    removeEventListener: function (event, handler) {
+      if (listeners[event] === handler) delete listeners[event];
+    },
+    listenerCount: function (event) { return listeners[event] ? 1 : 0; },
     getBoundingClientRect: function () { return { left: 0, top: 0, width: 960, height: 620 }; },
     getContext: contextFactory,
     setAttribute: function () {},
@@ -128,10 +132,52 @@ describe('StarmapRenderer facade', function () {
       'isActive', 'toggleView', 'getSystemAtPoint', 'getPlanetScreenPosition',
       'invalidateScene', 'resetRuntimeState', 'setSecretRoutesVisible',
       'isSecretRoutesVisible', 'resetCamera', 'flyShipTo', 'isShipFlying',
-      'cancelShipFlight', 'clearSelection',
+      'cancelShipFlight', 'clearSelection', 'dispose',
     ].forEach(function (method) {
       expect(typeof Renderer[method]).toBe('function');
     });
+  });
+
+  it('dispose 结束当前 ready 周期并可在同一 facade 上重建场景', async function () {
+    const context2d = create2DContext();
+    const canvas2d = createCanvas(function (type) { return type === '2d' ? context2d : null; });
+    const canvasThree = createCanvas(function () { return null; });
+    const container = { dataset: {} };
+    const windowListeners = {};
+    globalThis.window = {
+      devicePixelRatio: 1,
+      addEventListener: function (event, handler) { windowListeners[event] = handler; },
+      removeEventListener: function (event, handler) {
+        if (windowListeners[event] === handler) delete windowListeners[event];
+      },
+    };
+    globalThis.document = {
+      getElementById: function (id) {
+        if (id === 'map-3d-canvas') return canvas2d;
+        if (id === 'starmap-three-canvas') return canvasThree;
+        if (id === 'map-container') return container;
+        return null;
+      },
+    };
+
+    const Renderer = await import('../js/ui/StarmapRenderer.js?dispose=' + Date.now());
+    const state = createTestState({ mapView: 'planets', currentGalaxy: 'milky_way' });
+    expect(Renderer.init()).toBe(true);
+    Renderer.render(state, 'planets', 'milky_way');
+    await expect(Renderer.whenSceneReady()).resolves.toEqual({ renderer: '2d' });
+    expect(canvas2d.listenerCount('pointermove')).toBe(1);
+
+    expect(Renderer.dispose()).toBe(true);
+    expect(Renderer.dispose()).toBe(false);
+    expect(canvas2d.listenerCount('pointermove')).toBe(0);
+    expect(globalThis.__linegameStarmapRenderer).toBeUndefined();
+    expect(container.dataset.starmapSceneReady).toBeUndefined();
+
+    expect(Renderer.init()).toBe(true);
+    Renderer.render(state, 'planets', 'milky_way');
+    await expect(Renderer.whenSceneReady()).resolves.toEqual({ renderer: '2d' });
+    expect(canvas2d.listenerCount('pointermove')).toBe(1);
+    Renderer.dispose();
   });
 });
 
@@ -155,6 +201,8 @@ describe('RendererThreeStarmap dependency handling', function () {
     expect(Renderer.setVisible(true)).toBe(false);
     expect(function () { Renderer.resetCamera(); }).not.toThrow();
     expect(canvas.style.display).toBe('none');
+    expect(Renderer.dispose()).toBe(true);
+    expect(Renderer.dispose()).toBe(false);
   });
 });
 
