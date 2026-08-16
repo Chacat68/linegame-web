@@ -580,10 +580,13 @@ function _getVictoryController() {
       Victory: Victory,
       BalanceMetrics: BalanceMetrics,
       Trade: Trade,
+      Fleet: Fleet,
+      Quest: Quest,
     },
     getLevelTitle: function (experience) { return getLevel(experience).title; },
     loadView: function () { return _getFeatureRuntime().load('victory'); },
     emitMessage: function (message) { EventBus.emit('log:message', message); },
+    invalidate: function () { _updateUI(DEFAULT_ACTION_DIRTY_REGIONS); },
     refreshActionGuide: _refreshActionGuide,
     restartSession: _getPersistenceController().restart,
   });
@@ -801,6 +804,7 @@ function _getUiLifecycleController() {
     },
     ports: {
       acceptQuest: _getActionRuntime().archive.onAcceptQuest,
+      chooseVictoryPolicy: function (pathId) { return _getVictoryController().choosePolicy(pathId); },
       travel: _handleTravel,
       galaxyJump: _handleGalaxyJump,
       openMarket: MapUI.openMarket,

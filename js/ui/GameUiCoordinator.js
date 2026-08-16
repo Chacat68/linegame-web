@@ -137,6 +137,12 @@ export function createGameUiCoordinator(options) {
     var state = arguments.length > 1 ? stateOverride : getState();
     if (!module || !state) return false;
 
+    if (typeof module.setLifecycleActions === 'function') {
+      module.setLifecycleActions({
+        requestRender: function () { return renderFleet(module); },
+      });
+    }
+
     var rendered = false;
     if (typeof module.render === 'function') {
       module.render(

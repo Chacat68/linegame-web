@@ -47,6 +47,8 @@ export function createVictoryRuntimeController(dependencies) {
   var Victory = systems.Victory || {};
   var BalanceMetrics = systems.BalanceMetrics || {};
   var Trade = systems.Trade || {};
+  var Fleet = systems.Fleet || {};
+  var Quest = systems.Quest || {};
   var getState = _requiredFunction(deps.getState, 'getState');
   var getSessionToken = typeof deps.getSessionToken === 'function'
     ? deps.getSessionToken
@@ -59,6 +61,7 @@ export function createVictoryRuntimeController(dependencies) {
     : function () { return '未知等级'; };
   var loadView = _requiredFunction(deps.loadView, 'loadView');
   var emitMessage = typeof deps.emitMessage === 'function' ? deps.emitMessage : _noop;
+  var invalidate = typeof deps.invalidate === 'function' ? deps.invalidate : _noop;
   var refreshActionGuide = typeof deps.refreshActionGuide === 'function' ? deps.refreshActionGuide : _noop;
   var restartSession = typeof deps.restartSession === 'function' ? deps.restartSession : _noop;
 
@@ -135,6 +138,34 @@ export function createVictoryRuntimeController(dependencies) {
     });
   }
 
+  function choosePolicy(pathId) {
+    var state = getState();
+    if (!state || typeof Victory.choosePolicy !== 'function') {
+      return { ok: false, progress: [] };
+    }
+
+    var result = Victory.choosePolicy(state, pathId) || { ok: false, msgs: [] };
+    (result.msgs || []).forEach(emitMessage);
+
+    var questResult = null;
+    if (result.ok) {
+      if (Array.isArray(state.fleet) && state.fleet.length > 0 && typeof Fleet.syncStateFromShip === 'function') {
+        Fleet.syncStateFromShip(state);
+      }
+      if (typeof Quest.checkProgress === 'function') {
+        questResult = Quest.checkProgress(state, { action: 'victory_policy', pathId: pathId });
+        ((questResult && questResult.msgs) || []).forEach(emitMessage);
+      }
+      invalidate();
+      refreshActionGuide();
+    }
+
+    return Object.assign({}, result, {
+      progress: typeof Victory.getProgress === 'function' ? Victory.getProgress(state) : [],
+      questResult: questResult,
+    });
+  }
+
   function getDiagnostics() {
     return Object.freeze({
       acknowledgedPathIds: Object.freeze(Array.from(acknowledgedPathIds)),
@@ -146,6 +177,7 @@ export function createVictoryRuntimeController(dependencies) {
 
   return Object.freeze({
     check: check,
+    choosePolicy: choosePolicy,
     getDiagnostics: getDiagnostics,
     handleLoadFailure: handleLoadFailure,
     reset: reset,

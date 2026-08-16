@@ -38,15 +38,15 @@
 
 | 对象 | 现状 | 风险含义 |
 | --- | ---: | --- |
-| `js/core/GameManager.js` | 重构前约 2,900 行；当前 1,037 行 | 仍超出单文件可安全推理范围，但动作控制器图、持久化事务、eager UI 壳、教学/onboarding 策略、命令目的地、Feature runtime/manifest 与主要工作区生命周期已迁出 |
+| `js/core/GameManager.js` | 重构前约 2,900 行；当前 1,041 行 | 仍超出单文件可安全推理范围，但动作控制器图、持久化事务、eager UI 壳、教学/onboarding 策略、命令目的地、Feature runtime/manifest 与主要工作区生命周期已迁出 |
 | `GameManager` 静态 import | 60 条 import 声明 | 组合根仍直接接触较多 system/UI；九个 action controller 已通过单一运行时组合，后续由 `GameApplication` 继续收束依赖图 |
 | `GameManager` 顶层函数 | 57 个 | 私有用例已明显减少，仍需继续迁出启动投影与少量兼容胶水 |
 | `_handle*` / `_load*` / `_render*` / `_ensure*` 函数 | 11 个 | 动作与加载入口已收束，但仍有可删除的兼容门面 |
 | 延迟模块状态变量 | 0 个旧三元状态；15 个 manifest entry | 通用延迟生命周期已统一，领域 controller 只保留自身队列/上下文 |
 | `MapUI.js` | 2,467 行 | 地图、导航和上下文 UI 仍有渗透 |
 | `MarketUI.js` | 3,606 行 | 单一功能工作区过大 |
-| `FleetUI.js` | 2,843 行 | 渲染和动作接口数量仍较多 |
-| `HUD.js` | 924 行 | 已移除固定 dashboard，但全局状态投影仍需继续收束 |
+| `FleetUI.js` | 2,847 行 | 已移除反向全局主控依赖，但渲染和动作接口数量仍较多 |
+| `HUD.js` | 925 行 | 已移除固定 dashboard 与胜利/舰队/任务 mutation，但全局状态投影仍需继续收束 |
 | `SurfaceManager.js` | 559 行 | 已统一 Escape/inert，仍需完成 L3 workspace registry |
 | 全部 CSS | 34,037 行 | 级联、重复响应式规则和所有权难以追踪 |
 | `interstellar-trader.css` | 13,564 行 | 大量遗留全局选择器仍是主要级联源 |
@@ -657,7 +657,7 @@ Escape **不得切换 canonical workspace 或默认返回地图**，也不得关
 | `DialogueRuntimeController` | **剧情运行时已接入** | DialogueSystem/DialogueUI 作为 FeatureRegistry entry 保持首次触发动态加载；controller 只拥有严格串行场景队列、session token 丢弃、reset 后迟到回调隔离、任务完成钩子；真实任务简报播放链已验收 | 把任务结果与剧情触发声明合并为统一 story command |
 | `RandomEventRuntimeController` | **随机事件运行时已接入** | RandomEvent 作为 FeatureRegistry entry 保持首次 roll / pending 恢复时动态加载；controller 只拥有 roll 队列、session token/generation、恢复/存档规则 | 为事件效果增加事务快照与补偿边界 |
 | `AchievementRuntimeController` | **成就检查运行时已接入** | FeatureRegistry 继续按需加载模块；controller 独占请求合并、generation/session-token 双重校验、结果发布、失败重试与 dispose；会话替换或 reset 后的迟到请求不能初始化旧 state，也不能清除新请求 | 将成就结果改为 typed post-effect，并由 `GameApplication.shutdown` 统一 dispose |
-| `VictoryRuntimeController` | **胜利检测与结算呈现已接入** | controller 持有本会话已确认路线、待呈现报告、统计构造与延迟 UI session-token 校验；`GameManager` 只注入系统、消息、重开和 Feature 端口 | 把路线完成后的长期经营策略迁入独立 post-victory command |
+| `VictoryRuntimeController` | **胜利检测、路线选择与结算呈现已接入** | controller 持有不可逆路线选择的 mutation → 消息 → 舰队同步 → 任务进度 → UI/Guide 刷新顺序、本会话已确认路线、待呈现报告、统计构造与延迟 UI session-token 校验；HUD 只发布 command | 把路线完成后的继续经营策略迁入独立 post-victory command，并纳入统一 action pipeline |
 | `SettingsUiController` | **设置入口生命周期已接入** | controller 持有首次点击 loader、最新 settings/state provider、会话失效保护、模块同步与 Surface fallback；`GameManager` 不再直接查询设置按钮或管理 listener | 将设置领域变更与持久化收束为 typed command，并接入 shutdown dispose |
 | `OnboardingUiController` + `OnboardingPolicyController` | **首次进入 UI 生命周期与内容策略已接入** | UI controller 持有教程视图同步、开始/跳过决策、公司身份入口 DOM listener 与 latest-session 校验；policy 单独持有欢迎消息、教程完成反馈和首批任务推荐，均使用 latest-state provider | 接入统一 shutdown dispose，并把可配置文案迁入内容资源层 |
 | `GuidanceExecutionAdapter` | **行动引导执行端口已接入** | actionType 执行上下文改由分组端口组装；异步 Feature 加载使用 latest-session 校验，迟到结果被丢弃；不可用与执行异常统一反馈并恢复 Guide | 将剩余 direct-execution policy 与兼容转发迁出组合根 |
@@ -665,7 +665,7 @@ Escape **不得切换 canonical workspace 或默认返回地图**，也不得关
 | `GameUiLifecycleController` | **eager UI 壳 bind / present / dispose 已接入** | HUD、MapUI、UIManager、Modal、Action Guide、设置/公司 launcher、Feature telemetry、场景就绪和首次进入呈现统一接线；重复初始化只保留一个教程完成 listener；dispose 不会反向初始化未绑定模块 | 由 `GameApplication.shutdown` 调用 dispose，并为 UIManager / MapUI 补完整 listener 释放契约 |
 | `CommandDestinationController` | **命令 UI 落点已接入** | 交易确认、任务选择、市场商品、探索报告、推荐派遣和推荐改装拥有单一 owner；Fleet/Archive/Market 延迟完成均校验 generation、state 与 session token | 把更多 workspace 内局部 CTA 接入统一 command destination，并为加载失败提供局部恢复呈现 |
 | `MarketWorkspaceController` | **市场交互与重入生命周期已接入** | 公开/黑市模式、交易弹窗、金融 action 适配、远程市场航点、延迟加载、待恢复商品焦点和 session stale guard 均由 controller 持有；市场根节点使用稳定事件委托 | 将工作区内部 spot/finance/station presenter 拆分，并接入 shutdown dispose |
-| `GameUiCoordinator` + `ActionPresentation` | **dirty-region 增量刷新已接入真实动作** | provider、四项 Feature ensure/render、命名 action 分组；动作、Guidance、教程、成就与剧情完成提交均声明 HUD、舰船、active workspace、场景、Context、派遣和 Guide 失效；隐藏终端与 Save 不再随普通动作重绘 | 消除 action pipeline 的两个兼容全量 fallback，并继续细分当前 workspace 内部 dirty region |
+| `GameUiCoordinator` + `ActionPresentation` | **dirty-region 增量刷新已接入真实动作** | provider、四项 Feature ensure/render、命名 action 分组；动作、Guidance、教程、成就与剧情完成提交均声明 HUD、舰船、active workspace、场景、Context、派遣和 Guide 失效；FleetUI 的内联关闭/售船重绘使用注入 command 和 latest-state provider，不再反向访问全局主控；隐藏终端与 Save 不再随普通动作重绘 | 消除 action pipeline 的两个兼容全量 fallback，并继续细分当前 workspace 内部 dirty region |
 | `ActionGuideCoordinator` | **已接入唯一 Command Slot** | 使用 latest-state provider 汇总市场、档案、探索、维修、改装、路线、科研、事件、教程与阻塞上下文；延迟 Feature 去重、会话失效、一次性改装上下文和只读 refresh 均有测试；教学链完成检查已迁入业务提交边界 | 将更多 command action 的执行与完成反馈从 `GameManager` 兼容门面迁出 |
 | `NavigationController` | **已接入 `UIManager`** | 五个 workspace、旧别名、唯一 active、幂等切换、独立 detail stack；Escape 只关闭 L4 详情不改变 L3 | 继续迁移旧 surface 直接开关与 focus 适配器 |
 | `SurfaceManager` | **唯一 Escape dispatcher 已接入** | blocking 层优先且不下穿；非阻塞层按优先级处理；隐藏 surface 同步 inert/aria-hidden | 将五个 L3 workspace 完全收口到同一 surface registry |
@@ -673,7 +673,7 @@ Escape **不得切换 canonical workspace 或默认返回地图**，也不得关
 
 当前仍存在的过渡边界：
 
-- `GameManager` 当前 1,037 行；StateSession、SystemRuntime、SessionLifecycle、GameClock、GamePersistenceController、GameActionRuntime、GameFeatureRuntime、FeatureRegistry、GameFeatureManifest、贸易/航行/探索/事件/active dispatch/日结算、剧情、随机事件、成就、胜利、设置、eager UI 壳、首次进入/onboarding、教学路线/专题策略、命令目的地、行动引导执行与市场工作区等已成为真实调用路径；旧动态 import/CSS/错误标签资源表、Feature 配置标志与命名加载包装、内联教学策略、成就队列状态、直接 SaveSystem 依赖、九份 action controller 缓存和 UI 启动绑定也已删除，但 Renderer/Settings 顶层启动、剩余 controller 装配与少量兼容门面仍在组合根，尚未达到薄组合根目标。
+- `GameManager` 当前 1,041 行；StateSession、SystemRuntime、SessionLifecycle、GameClock、GamePersistenceController、GameActionRuntime、GameFeatureRuntime、FeatureRegistry、GameFeatureManifest、贸易/航行/探索/事件/active dispatch/日结算、剧情、随机事件、成就、胜利、设置、eager UI 壳、首次进入/onboarding、教学路线/专题策略、命令目的地、行动引导执行与市场工作区等已成为真实调用路径；旧动态 import/CSS/错误标签资源表、Feature 配置标志与命名加载包装、内联教学策略、成就队列状态、HUD 领域 mutation、FleetUI 全局主控回调、直接 SaveSystem 依赖、九份 action controller 缓存和 UI 启动绑定也已删除，但 Renderer/Settings 顶层启动、剩余 controller 装配与少量兼容门面仍在组合根，尚未达到薄组合根目标。
 - `GameUiCoordinator`、`ActionGuideCoordinator`、`NavigationController`、`SurfaceManager` 和 `ContextInspector` 已进入运行时调用链；Context Inspector 与唯一 Command Slot 已从 Map workspace 提升为 `game-main` 的 Global L2 直属层；真实动作已改走 dirty-region 增量刷新，但 workspace 内部 presenter 仍是整块刷新，局部 action slot 和旧终端 DOM 收口也未完成，不能按“已完成 UI 重构”验收。
 - 通用延迟模块已由单一 manifest 持有；Dialogue/RandomEvent/Achievement controller 仅保留领域队列或检查事务，不再重复拥有 import 状态。
 - `SurfaceManager` 已统一 blocking 层、inert 与 Escape dispatcher，但五个 L3 workspace 仍需淘汰旧 primary/secondary 适配分歧。

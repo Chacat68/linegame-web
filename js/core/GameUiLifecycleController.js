@@ -101,6 +101,7 @@ export function createGameUiLifecycleController(dependencies) {
       revisionSource: getRevision,
     }]);
     _call(HUD, 'setQuestActions', [{ onAcceptQuest: ports.acceptQuest }]);
+    _call(HUD, 'setVictoryActions', [{ onChoosePolicy: ports.chooseVictoryPolicy }]);
 
     _call(MapUI, 'init', [getState, ports.travel, ports.galaxyJump]);
     _bindWorkspaceNavigation();

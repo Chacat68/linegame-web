@@ -146,6 +146,30 @@ describe('GameUiCoordinator', function () {
     expect(render.mock.calls[0][0]).not.toBe(stateA);
   });
 
+  it('向 FleetUI 注入 latest-state 重绘命令，不允许 UI 反向访问全局主控', function () {
+    var state = { id: 'fleet-a' };
+    var render = vi.fn();
+    var setLifecycleActions = vi.fn();
+    var fleetModule = {
+      render: render,
+      setLifecycleActions: setLifecycleActions,
+    };
+    var coordinator = createGameUiCoordinator({
+      getState: function () { return state; },
+      features: createFeatureHarness({ fleet: fleetModule }),
+    });
+
+    expect(coordinator.renderFleet()).toBe(true);
+    var lifecycleActions = setLifecycleActions.mock.calls[0][0];
+    state = { id: 'fleet-b' };
+    expect(lifecycleActions.requestRender()).toBe(true);
+
+    expect(render.mock.calls.map(function (call) { return call[0].id; })).toEqual([
+      'fleet-a',
+      'fleet-b',
+    ]);
+  });
+
   it('renderAll 保持主刷新顺序', async function () {
     var calls = [];
     var state = { id: 'ordered' };

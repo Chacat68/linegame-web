@@ -28,6 +28,19 @@ function createHarness(options) {
     won: true,
     path: { id: 'trade_baron', victoryTitle: '贸易霸权' },
   };
+  var choosePolicy = config.choosePolicy || vi.fn(function (currentState, pathId) {
+    currentState.storyDecisions = { victory_policy: pathId };
+    return {
+      ok: true,
+      msgs: [{ text: 'policy selected', type: 'upgrade' }],
+    };
+  });
+  var syncStateFromShip = config.syncStateFromShip || vi.fn();
+  var checkQuestProgress = config.checkQuestProgress || vi.fn(function () {
+    return { msgs: [{ text: 'quest progressed', type: 'info' }] };
+  });
+  var invalidate = config.invalidate || vi.fn();
+  var refreshActionGuide = config.refreshActionGuide || vi.fn();
   var seenAcknowledged = [];
   var controller = createVictoryRuntimeController({
     getState: function () { return state; },
@@ -39,7 +52,13 @@ function createHarness(options) {
           seenAcknowledged.push(Array.from(acknowledged));
           return victoryResult;
         },
-        getProgress: function () { return [{ pathId: 'trade_baron', progress: 1 }]; },
+        choosePolicy: choosePolicy,
+        getProgress: function (currentState) {
+          return [{
+            pathId: currentState.storyDecisions && currentState.storyDecisions.victory_policy || 'trade_baron',
+            progress: 1,
+          }];
+        },
       },
       BalanceMetrics: {
         recordRouteCompletion: vi.fn(function () {
@@ -47,11 +66,14 @@ function createHarness(options) {
         }),
       },
       Trade: { getNetWorth: function () { return 123456; } },
+      Fleet: { syncStateFromShip: syncStateFromShip },
+      Quest: { checkProgress: checkQuestProgress },
     },
     getLevelTitle: function () { return '星际商人'; },
     loadView: config.loadView || function () { return Promise.resolve(view); },
     emitMessage: config.emitMessage,
-    refreshActionGuide: config.refreshActionGuide,
+    invalidate: invalidate,
+    refreshActionGuide: refreshActionGuide,
     restartSession: config.restartSession,
   });
   return {
@@ -59,6 +81,11 @@ function createHarness(options) {
     view: view,
     shownPayloads: shownPayloads,
     seenAcknowledged: seenAcknowledged,
+    choosePolicy: choosePolicy,
+    checkQuestProgress: checkQuestProgress,
+    invalidate: invalidate,
+    refreshActionGuide: refreshActionGuide,
+    syncStateFromShip: syncStateFromShip,
     getCallbacks: function () { return callbacks; },
     replaceState: function (nextState) { state = nextState; },
     invalidateToken: function () { activeToken = { id: 'session-b' }; },
@@ -67,6 +94,82 @@ function createHarness(options) {
 }
 
 describe('VictoryRuntimeController', function () {
+  it('长期路线选择在 controller 内提交舰队、任务、消息与 UI 刷新', function () {
+    var emitted = [];
+    var trace = [];
+    var state = {
+      fleet: [{ typeId: 'shuttle' }],
+      storyDecisions: {},
+    };
+    var harness = createHarness({
+      state: state,
+      choosePolicy: vi.fn(function (currentState, pathId) {
+        trace.push('choose-policy');
+        currentState.storyDecisions.victory_policy = pathId;
+        return { ok: true, msgs: [{ text: 'policy selected', type: 'upgrade' }] };
+      }),
+      syncStateFromShip: vi.fn(function () { trace.push('sync-fleet'); }),
+      checkQuestProgress: vi.fn(function () {
+        trace.push('quest-progress');
+        return { msgs: [{ text: 'quest progressed', type: 'info' }] };
+      }),
+      emitMessage: function (message) {
+        trace.push('message:' + message.text);
+        emitted.push(message);
+      },
+      invalidate: vi.fn(function () { trace.push('invalidate'); }),
+      refreshActionGuide: vi.fn(function () { trace.push('refresh-guide'); }),
+    });
+
+    var result = harness.controller.choosePolicy('galactic_explorer');
+
+    expect(result).toMatchObject({
+      ok: true,
+      progress: [{ pathId: 'galactic_explorer', progress: 1 }],
+      questResult: { msgs: [{ text: 'quest progressed', type: 'info' }] },
+    });
+    expect(harness.choosePolicy).toHaveBeenCalledWith(state, 'galactic_explorer');
+    expect(harness.syncStateFromShip).toHaveBeenCalledWith(state);
+    expect(harness.checkQuestProgress).toHaveBeenCalledWith(state, {
+      action: 'victory_policy',
+      pathId: 'galactic_explorer',
+    });
+    expect(emitted).toEqual([
+      { text: 'policy selected', type: 'upgrade' },
+      { text: 'quest progressed', type: 'info' },
+    ]);
+    expect(trace).toEqual([
+      'choose-policy',
+      'message:policy selected',
+      'sync-fleet',
+      'quest-progress',
+      'message:quest progressed',
+      'invalidate',
+      'refresh-guide',
+    ]);
+    expect(harness.invalidate).toHaveBeenCalledOnce();
+    expect(harness.refreshActionGuide).toHaveBeenCalledOnce();
+  });
+
+  it('被领域拒绝的路线不会提交后续副作用', function () {
+    var emitted = [];
+    var harness = createHarness({
+      choosePolicy: vi.fn(function () {
+        return { ok: false, msgs: [{ text: 'locked', type: 'info' }] };
+      }),
+      emitMessage: function (message) { emitted.push(message); },
+    });
+
+    var result = harness.controller.choosePolicy('locked-route');
+
+    expect(result.ok).toBe(false);
+    expect(emitted).toEqual([{ text: 'locked', type: 'info' }]);
+    expect(harness.syncStateFromShip).not.toHaveBeenCalled();
+    expect(harness.checkQuestProgress).not.toHaveBeenCalled();
+    expect(harness.invalidate).not.toHaveBeenCalled();
+    expect(harness.refreshActionGuide).not.toHaveBeenCalled();
+  });
+
   it('构造结算数据、绑定视图并只呈现一次待处理路线', async function () {
     var resolveView;
     var loadCalls = 0;

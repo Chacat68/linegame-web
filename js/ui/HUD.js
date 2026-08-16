@@ -11,7 +11,6 @@ import * as Victory             from '../systems/victory/VictorySystem.js';
 import * as Economy             from '../systems/economy/Economy.js';
 import * as Quest               from '../systems/quest/QuestSystem.js';
 import * as Exploration         from '../systems/galaxy/ExplorationSystem.js';
-import * as Fleet               from '../systems/fleet/FleetSystem.js';
 import { getCompanyLevelValue, getCompanyPrivilegeSummary } from '../data/companyAccess.js';
 import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from './SurfaceManager.js';
 import * as ContextInspector from './ContextInspector.js';
@@ -109,6 +108,7 @@ function _getResourceMeterState(percent, dangerWhenHigh) {
 // 缓存最近一次胜利路径进度，避免点击弹窗时重复计算
 let _lastProgressList = [];
 let _questActions = null;
+let _victoryActions = null;
 let _initialized = false;
 let _logsHistory = [];
 let _nextLogId = 1;
@@ -159,14 +159,11 @@ export function init(options) {
       const pathId = button.dataset.victoryPolicyId;
       if (typeof window !== 'undefined' && typeof window.confirm === 'function' &&
           !window.confirm('长期路线会写入存档且不可更改。确认选择？')) return;
-      const result = Victory.choosePolicy(_stateRef, pathId);
-      (result.msgs || []).forEach(function (msg) { addMessage(msg.text, msg.type); });
-      if (result.ok) {
-        if (Array.isArray(_stateRef.fleet) && _stateRef.fleet.length > 0) Fleet.syncStateFromShip(_stateRef);
-        const questResult = Quest.checkProgress(_stateRef, { action: 'victory_policy', pathId: pathId });
-        (questResult.msgs || []).forEach(function (msg) { addMessage(msg.text, msg.type); });
-      }
-      _lastProgressList = Victory.getProgress(_stateRef);
+      if (!_victoryActions || typeof _victoryActions.onChoosePolicy !== 'function') return;
+      const result = _victoryActions.onChoosePolicy(pathId) || {};
+      _lastProgressList = Array.isArray(result.progress)
+        ? result.progress
+        : Victory.getProgress(_stateRef);
       _renderVictoryModal(_lastProgressList);
     });
   }
@@ -195,6 +192,10 @@ export function init(options) {
 
 export function setQuestActions(actions) {
   _questActions = actions || null;
+}
+
+export function setVictoryActions(actions) {
+  _victoryActions = actions || null;
 }
 
 // ---------------------------------------------------------------------------

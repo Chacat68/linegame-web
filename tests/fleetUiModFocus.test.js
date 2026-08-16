@@ -470,6 +470,8 @@ describe('FleetUI.openModModal guidance focus', function () {
     expect(source).toContain("modalBox.querySelectorAll('.crew-dismiss-btn')");
     expect(source).toContain("title: '解雇「' + (crewMember ? crewMember.name : '该船员') + '」？'");
     expect(source).toContain('<strong>船员建议</strong>');
+    expect(source).toContain('export function setLifecycleActions(actions)');
+    expect(source).not.toContain('__linegameGameManager');
   });
 
   it('船员内联界面会渲染分区信号并从实际内容根节点绑定操作', async function () {

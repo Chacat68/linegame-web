@@ -21,6 +21,11 @@ let _currentPortalCleanup = null;
 let _activeModModalContext = null;
 let _activeDispatchModalContext = null;
 let _inspectedHangarShipIndex = null;
+let _lifecycleActions = null;
+
+export function setLifecycleActions(actions) {
+  _lifecycleActions = actions || null;
+}
 
 export function getInspectedShipIndex() {
   return Number.isInteger(_inspectedHangarShipIndex) ? _inspectedHangarShipIndex : null;
@@ -107,9 +112,10 @@ function _setInlineScrollPosition(viewport, top) {
 }
 
 function _renderHangarAfterInlineClose() {
-  if (globalThis.__linegameGameManager && typeof globalThis.__linegameGameManager.renderUI === 'function') {
-    globalThis.__linegameGameManager.renderUI();
+  if (_lifecycleActions && typeof _lifecycleActions.requestRender === 'function') {
+    return _lifecycleActions.requestRender();
   }
+  return false;
 }
 
 /**
@@ -2048,9 +2054,7 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
             setTimeout(function () {
               if (state.fleet.length <= shipIndex || state.fleet[shipIndex] !== currentShip) {
                 if (_currentPortalCleanup) _currentPortalCleanup();
-                if (globalThis.__linegameGameManager && typeof globalThis.__linegameGameManager.renderUI === 'function') {
-                  globalThis.__linegameGameManager.renderUI();
-                }
+                _renderHangarAfterInlineClose();
                 return;
               }
               _renderModModal();

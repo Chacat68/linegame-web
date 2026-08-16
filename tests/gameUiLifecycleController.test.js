@@ -27,7 +27,7 @@ function createHarness(options) {
   var telemetry = [];
   var logs = [];
   var events = createEventBus();
-  var HUD = { init: vi.fn(), setQuestActions: vi.fn() };
+  var HUD = { init: vi.fn(), setQuestActions: vi.fn(), setVictoryActions: vi.fn() };
   var MapUI = {
     init: vi.fn(),
     init3DCallbacks: vi.fn(),
@@ -67,6 +67,7 @@ function createHarness(options) {
   };
   var ports = {
     acceptQuest: vi.fn(),
+    chooseVictoryPolicy: vi.fn(),
     closeMarket: vi.fn(),
     confirmTrade: vi.fn(),
     ensureArchive: vi.fn(),
@@ -137,6 +138,9 @@ describe('GameUiLifecycleController', function () {
     expect(mapProvider()).toEqual({ id: 'state-b' });
     expect(managerProvider()).toEqual({ id: 'state-b' });
     expect(harness.HUD.setQuestActions).toHaveBeenCalledWith({ onAcceptQuest: harness.ports.acceptQuest });
+    expect(harness.HUD.setVictoryActions).toHaveBeenCalledWith({
+      onChoosePolicy: harness.ports.chooseVictoryPolicy,
+    });
     expect(harness.MapUI.init3DCallbacks).toHaveBeenCalledWith(
       expect.any(Function),
       harness.ports.travel,

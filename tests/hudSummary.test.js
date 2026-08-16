@@ -124,6 +124,69 @@ describe('HUD summary cards', function () {
     globalThis.document = originalDocument;
   });
 
+  it('HUD 只发布长期路线 command，不直接修改胜利、舰队或任务状态', function () {
+    var hud = readFileSync('js/ui/HUD.js', 'utf8');
+
+    expect(hud).toContain('export function setVictoryActions(actions)');
+    expect(hud).toContain('_victoryActions.onChoosePolicy(pathId)');
+    expect(hud).not.toContain('Victory.choosePolicy(');
+    expect(hud).not.toContain('Fleet.syncStateFromShip(');
+    expect(hud).not.toContain('Quest.checkProgress(');
+    expect(hud).not.toMatch(/import\s+\*\s+as\s+Fleet\s+from/);
+  });
+
+  it('长期路线按钮经注入 command 提交，并使用返回进度刷新弹窗', async function () {
+    vi.resetModules();
+    var victoryBody = createHtmlElement();
+    var command = vi.fn(function (pathId) {
+      return {
+        ok: true,
+        progress: [{
+          pathId: pathId,
+          name: '银河远征',
+          icon: '🧭',
+          color: '#00ffff',
+          progress: 0.25,
+          completed: false,
+          requirements: [],
+          policy: {
+            name: '远征信条',
+            summary: '探索未知边界。',
+            benefit: '探索收益提升',
+            tradeoff: '货舱减少',
+          },
+          policySelected: true,
+          policyLocked: false,
+        }],
+      };
+    });
+    globalThis.document = {
+      body: { dataset: {} },
+      getElementById: function (id) {
+        return id === 'victory-modal-body' ? victoryBody : null;
+      },
+      querySelectorAll: function () { return []; },
+      querySelector: function () { return null; },
+    };
+    var state = createTestState({ questPhase: 1 });
+    Economy.init();
+    Faction.init(state);
+    Quest.init(state);
+    var HUD = await import('../js/ui/HUD.js');
+    HUD.setVictoryActions({ onChoosePolicy: command });
+    HUD.init();
+    HUD.updateStats(state, 1000);
+
+    var button = createFakeElement();
+    button.dataset.victoryPolicyId = 'galactic_explorer';
+    button.closest = function () { return button; };
+    victoryBody.dispatchEvent('click', { target: button });
+
+    expect(command).toHaveBeenCalledWith('galactic_explorer');
+    expect(victoryBody.innerHTML).toContain('银河远征');
+    expect(victoryBody.innerHTML).toContain('当前路线');
+  });
+
   it('档案入口会显示任务、探索、科技、派系和成就角标', async function () {
     vi.resetModules();
 
