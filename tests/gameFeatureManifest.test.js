@@ -73,7 +73,7 @@ describe('GameFeatureManifest', function () {
         trace.push(['report', feature, reportedError]);
       },
       hooks: {
-        clearAchievementQueued: function () { trace.push(['clear-achievement']); },
+        resetAchievementRuntime: function () { trace.push(['reset-achievement']); },
         handleVictoryLoadFailure: function () { trace.push(['hide-victory']); },
       },
     });
@@ -83,7 +83,7 @@ describe('GameFeatureManifest', function () {
     manifest.market.onError(error);
 
     expect(trace).toEqual([
-      ['clear-achievement'],
+      ['reset-achievement'],
       ['report', 'achievement', error],
       ['hide-victory'],
       ['report', 'victory', error],

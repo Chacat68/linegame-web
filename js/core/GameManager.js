@@ -69,6 +69,7 @@ import { createTeachingGuidanceController } from './TeachingGuidanceController.j
 import { createGameUiLifecycleController } from './GameUiLifecycleController.js';
 import { createSettingsUiController } from './SettingsUiController.js';
 import { createVictoryRuntimeController } from './VictoryRuntimeController.js';
+import { createAchievementRuntimeController } from './AchievementRuntimeController.js';
 import { createGameUiCoordinator } from '../ui/GameUiCoordinator.js';
 import {
   createActionGuideCoordinator,
@@ -93,7 +94,6 @@ let _settings  = {
   realtimeDayDurationMs: TIME_CONFIG.realtimeDayDurationMs,
 };
 let _runtimeRevision = 0;
-let _achievementCheckQueued = false;
 const _deferredFeatures = createFeatureRegistry({
   getContext: function () {
     return {
@@ -130,6 +130,7 @@ let _onboardingPolicyController = null;
 let _teachingGuidanceController = null;
 let _settingsUiController = null;
 let _victoryController = null;
+let _achievementController = null;
 let _contextAdapters = null;
 let _actionGuideCoordinator = null;
 
@@ -142,7 +143,7 @@ function _replaceState(nextState, reason) {
 }
 
 function _resetSessionTransients() {
-  _achievementCheckQueued = false;
+  if (_achievementController) _achievementController.reset();
   if (_actionGuideCoordinator) _actionGuideCoordinator.reset();
   if (_commandDestinationController) _commandDestinationController.reset();
   if (_marketWorkspaceController) _marketWorkspaceController.reset();
@@ -195,7 +196,7 @@ function _configureDeferredFeatures() {
       initializeCommerceRuntime: _initializeCommerceRuntime,
       setAdvancedGuidanceProvider: Guidance.setAdvancedGuidanceProvider,
       setQuestRouteResolver: Dispatch.setQuestRouteResolver,
-      clearAchievementQueued: function () { _achievementCheckQueued = false; },
+      resetAchievementRuntime: function () { _getAchievementController().reset(); },
       syncArchiveView: function (ArchiveUI) {
         _getCommandDestinationController().syncArchiveView(ArchiveUI);
       },
@@ -230,34 +231,24 @@ function _loadFleetUI() {
   return _deferredFeatures.load('fleet');
 }
 
-function _ensureAchievementState(state) {
-  if (!state || typeof state !== 'object') return;
-  if (!Array.isArray(state.achievements)) state.achievements = [];
-}
-
 function _loadAchievementSystem() {
   _configureDeferredFeatures();
   return _deferredFeatures.load('achievement');
 }
 
-function _queueAchievementCheck() {
-  if (!_state || _achievementCheckQueued) return;
-  _achievementCheckQueued = true;
-  var requestedState = _state;
-  var requestedRevision = _runtimeRevision;
-  _loadAchievementSystem().then(function (Achievement) {
-    _achievementCheckQueued = false;
-    if (!Achievement || requestedState !== _state || requestedRevision !== _runtimeRevision) return;
-    Achievement.init(requestedState);
-    var achievementResult = Achievement.checkAll(requestedState);
-    achievementResult.msgs.forEach(function (message) {
-      EventBus.emit('log:message', { text: message.text, type: message.type });
-    });
-    if (achievementResult.newlyUnlocked.length > 0) {
-      _updateUI(DEFAULT_ACTION_DIRTY_REGIONS);
-      _getVictoryController().check();
-    }
+function _getAchievementController() {
+  if (_achievementController) return _achievementController;
+  _achievementController = createAchievementRuntimeController({
+    getState: function () { return _state; },
+    getSessionToken: _getSessionToken,
+    isSessionTokenCurrent: _isSessionTokenCurrent,
+    loadRuntime: _loadAchievementSystem,
+    emitMessage: function (message) { EventBus.emit('log:message', message); },
+    invalidate: function () { _updateUI(DEFAULT_ACTION_DIRTY_REGIONS); },
+    checkVictory: function () { _getVictoryController().check(); },
+    reportFailure: function (error) { _reportDeferredUiFailure('achievement', error); },
   });
+  return _achievementController;
 }
 
 function _loadArchiveUI() {
@@ -286,7 +277,7 @@ function _getSystemRuntime() {
       GameTime: GameTime,
     },
     hooks: {
-      ensureAchievementState: _ensureAchievementState,
+      ensureAchievementState: function (state) { _getAchievementController().ensureState(state); },
       syncFeatureRegistry: function () {
         _syncDeferredFeatures();
       },
@@ -446,7 +437,7 @@ function _getActionPipeline() {
     },
     emitErrorCue: function () { EventBus.emit('audio:cue', { cue: 'error' }); },
     finalizeState: function () { return _getTeachingGuidanceController().checkCompletion(); },
-    queueAchievementCheck: _queueAchievementCheck,
+    queueAchievementCheck: function () { return _getAchievementController().queueCheck(); },
     render: function (result, specification) {
       var dirtyRegions = specification && specification.dirtyRegions;
       if (dirtyRegions) _updateUI(dirtyRegions);
@@ -1111,7 +1102,7 @@ function _dispatch(result, presentation) {
   if (result && result.ok === false) {
     EventBus.emit('audio:cue', { cue: 'error' });
   }
-  _queueAchievementCheck();
+  _getAchievementController().queueCheck();
   var dirtyRegions = normalizeDirtyRegions(presentation);
   if (dirtyRegions.length > 0) _updateUI(dirtyRegions);
   else _updateUI();

@@ -109,7 +109,7 @@ export function createGameFeatureManifest(options) {
         var context = lifecycle.context;
         if (context && context.state) module.init(context.state);
       },
-      onError: onError('achievement', function () { _call(hooks, 'clearAchievementQueued'); }),
+      onError: onError('achievement', function () { _call(hooks, 'resetAchievementRuntime'); }),
     },
     dialogue: {
       load: function () {

@@ -126,6 +126,7 @@ describe('deferred terminal UI loading', function () {
     var featureManifest = readFileSync('js/core/GameFeatureManifest.js', 'utf8');
     var dialogueRuntime = readFileSync('js/core/DialogueRuntimeController.js', 'utf8');
     var randomEventRuntime = readFileSync('js/core/RandomEventRuntimeController.js', 'utf8');
+    var achievementRuntime = readFileSync('js/core/AchievementRuntimeController.js', 'utf8');
 
     expect(gameManager).not.toMatch(/import\s+\*\s+as\s+RandomEvent\s+from/);
     expect(gameManager).not.toMatch(/import\s+\*\s+as\s+Dialogue(UI)?\s+from/);
@@ -143,7 +144,9 @@ describe('deferred terminal UI loading', function () {
     expect(dialogueRuntime).toContain("setTelemetryState('loading')");
     expect(gameManager).toContain("_setDeferredUiState('randomEvent', state)");
     expect(randomEventRuntime).toContain("setTelemetryState('loading')");
-    expect(gameManager).toContain('requestedRevision !== _runtimeRevision');
+    expect(gameManager).toContain("from './AchievementRuntimeController.js'");
+    expect(gameManager).not.toContain('_achievementCheckQueued');
+    expect(achievementRuntime).toContain('isSessionTokenCurrent(token)');
     expect(randomEventRuntime).toContain('isSessionTokenCurrent(token)');
     expect(randomEventRuntime).toContain('captureState(requestedState)');
     expect(randomEventRuntime).toContain('saveAutosave(requestedState)');
