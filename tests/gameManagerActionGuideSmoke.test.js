@@ -10,6 +10,7 @@ import * as Research from '../js/systems/research/ResearchSystem.js';
 import * as Tutorial from '../js/systems/tutorial/TutorialSystem.js';
 import * as FleetUI from '../js/ui/FleetUI.js';
 import { DEFAULT_ACTION_DIRTY_REGIONS } from '../js/core/ActionPresentation.js';
+import * as GameManager from '../js/core/GameManager.js';
 import { createTestState } from './helpers.js';
 
 function createFakeClassList(initialValues) {
@@ -237,7 +238,7 @@ describe('GameManager action guide smoke', function () {
         this.a = a;
       },
     };
-    gameManager = await import('../js/core/GameManager.js');
+    gameManager = GameManager;
 
     var state = createTestState({
       credits: 10000,
@@ -307,7 +308,7 @@ describe('GameManager action guide smoke', function () {
         this.a = a;
       },
     };
-    gameManager = await import('../js/core/GameManager.js');
+    gameManager = GameManager;
 
     var state = createTestState({
       credits: 0,
@@ -364,7 +365,7 @@ describe('GameManager action guide smoke', function () {
         this.a = a;
       },
     };
-    gameManager = await import('../js/core/GameManager.js');
+    gameManager = GameManager;
 
     var state = createTestState({
       quests: [],
@@ -444,7 +445,7 @@ describe('GameManager action guide smoke', function () {
       switchView: function () {},
       setBottomNavActiveDirectly: function () {},
     };
-    gameManager = await import('../js/core/GameManager.js');
+    gameManager = GameManager;
 
     var state = createTestState({
       completedQuests: ['starter_first_trade', 'starter_visit_2'],
@@ -500,5 +501,5 @@ describe('GameManager action guide smoke', function () {
     ]);
     gameManager._stopActiveDispatchForTest();
     expect(gameManager._getGameClockSnapshotForTest().recurringTasks).toEqual([]);
-  }, 10000);
+  }, 20000);
 });

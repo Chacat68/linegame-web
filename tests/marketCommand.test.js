@@ -73,7 +73,7 @@ describe('MarketCommand', function () {
   });
 
   it('市场 UI 与组合根之间只保留一个 command 端口', function () {
-    var gameManager = readFileSync('js/core/GameManager.js', 'utf8');
+    var gameManager = readFileSync('js/core/GameApplication.js', 'utf8');
     var uiApplication = readFileSync('js/core/GameUiApplicationRuntime.js', 'utf8');
     var coordinator = readFileSync('js/ui/GameUiCoordinator.js', 'utf8');
     var marketUi = readFileSync('js/ui/MarketUI.js', 'utf8');

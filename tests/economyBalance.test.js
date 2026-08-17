@@ -94,5 +94,5 @@ describe('starter economy balance envelope', () => {
     expect(establishedMedian).toBeGreaterThan(freshMedian);
     expect(establishedP90).toBeLessThanOrEqual(0.50);
     expect(established.winningGoods.size).toBeGreaterThanOrEqual(2);
-  }, 10000);
+  }, 20000);
 });

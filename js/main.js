@@ -1,8 +1,8 @@
 // js/main.js — 应用入口
-// 依赖：core/GameManager.js
+// 依赖：core/GameApplication.js
 // 说明：浏览器加载完毕后初始化游戏
 
-import { init, shutdown } from './core/GameManager.js';
+import { init, shutdown } from './core/GameApplication.js';
 import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from './ui/SurfaceManager.js';
 import { buildUsageDataExport } from './systems/metrics/UsageDataExport.js';
 import * as StartupLoader from './ui/StartupLoader.js';

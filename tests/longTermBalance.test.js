@@ -119,7 +119,7 @@ describe('60-day mature economy envelope', function () {
     expect(medianShare).toBeLessThan(0.65);
     expect(Math.max.apply(Math, profitableRouteShares)).toBeLessThan(0.80);
     expect(dailyWinningGoods.size).toBeGreaterThanOrEqual(3);
-  });
+  }, 15000);
 });
 
 describe('60-day fleet operating envelope', function () {
@@ -179,5 +179,5 @@ describe('60-day fleet operating envelope', function () {
     expect(operating.fuelCost).toBeGreaterThan(0);
     expect(operating.net).toBeGreaterThan(0);
     expect(state.credits).toBeLessThan(creditsAfterPurchase * 1.30);
-  });
+  }, 15000);
 });

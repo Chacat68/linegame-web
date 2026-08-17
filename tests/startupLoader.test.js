@@ -17,7 +17,7 @@ describe('startup scene loader', function () {
 
   it('主入口等待场景就绪后才完成加载层', function () {
     const main = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
-    const gameManager = readFileSync(new URL('../js/core/GameManager.js', import.meta.url), 'utf8');
+    const gameManager = readFileSync(new URL('../js/core/GameApplication.js', import.meta.url), 'utf8');
     const uiLifecycle = readFileSync(new URL('../js/core/GameUiLifecycleController.js', import.meta.url), 'utf8');
     const uiApplication = readFileSync(new URL('../js/core/GameUiApplicationRuntime.js', import.meta.url), 'utf8');
 

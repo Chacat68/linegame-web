@@ -10,7 +10,7 @@ import {
 
 describe('ActionPresentation', function () {
   it('默认动作只失效可见投影，不要求重绘隐藏终端或存档面板', function () {
-    var gameManager = readFileSync('js/core/GameManager.js', 'utf8');
+    var gameManager = readFileSync('js/core/GameApplication.js', 'utf8');
     var actionRuntime = readFileSync('js/core/GameActionRuntime.js', 'utf8');
     var fullRefreshFallbacks = actionRuntime.match(/invalidate\(\);/g) || [];
 

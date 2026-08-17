@@ -227,8 +227,8 @@ describe('GameGuidanceRuntime', function () {
     ]);
   });
 
-  it('GameManager 只持有 GameGuidanceRuntime，不再逐个组合引导 controller', function () {
-    var gameManager = readFileSync('js/core/GameManager.js', 'utf8');
+  it('GameApplication 只持有 GameGuidanceRuntime，不再逐个组合引导 controller', function () {
+    var gameManager = readFileSync('js/core/GameApplication.js', 'utf8');
     var runtime = readFileSync('js/core/GameGuidanceRuntime.js', 'utf8');
     var migratedFactories = [
       'createActionGuideCoordinator',

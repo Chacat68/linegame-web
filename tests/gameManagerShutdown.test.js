@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { createTestState } from './helpers.js';
+import * as GameManager from '../js/core/GameManager.js';
 
 describe('GameManager application shutdown', function () {
   var originalDocument = globalThis.document;
@@ -12,7 +13,6 @@ describe('GameManager application shutdown', function () {
 
   it('释放已经创建的异步 controller、Renderer 和组合根，且重复调用幂等', async function () {
     globalThis.document = undefined;
-    var GameManager = await import('../js/core/GameManager.js?shutdown=' + Date.now());
     GameManager._setStateForTest(createTestState());
 
     var result = GameManager.shutdown('test-shutdown');
@@ -28,7 +28,7 @@ describe('GameManager application shutdown', function () {
 
   it('浏览器退出与 HMR 都调用同一 shutdown facade，bfcache 页面不提前释放', function () {
     var source = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
-    expect(source).toContain("import { init, shutdown } from './core/GameManager.js'");
+    expect(source).toContain("import { init, shutdown } from './core/GameApplication.js'");
     expect(source).toContain("window.addEventListener('pagehide'");
     expect(source).toContain("event.persisted !== true");
     expect(source).toContain("shutdown('pagehide')");

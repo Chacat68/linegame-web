@@ -112,8 +112,8 @@ function createHarness(overrides) {
 }
 
 describe('GameLoopRuntime', function () {
-  it('GameManager 只组合运行时端口，不再持有 RAF、DOM 暂停或 recurring 细节', function () {
-    var gameManager = readFileSync(new URL('../js/core/GameManager.js', import.meta.url), 'utf8');
+  it('GameApplication 只组合运行时端口，不再持有 RAF、DOM 暂停或 recurring 细节', function () {
+    var gameManager = readFileSync(new URL('../js/core/GameApplication.js', import.meta.url), 'utf8');
     var runtimeSource = readFileSync(new URL('../js/core/GameLoopRuntime.js', import.meta.url), 'utf8');
 
     expect(gameManager).toContain("from './GameLoopRuntime.js'");

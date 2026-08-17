@@ -81,8 +81,8 @@ describe('GameFeatureRuntime', function () {
     );
   });
 
-  it('GameManager 只组合已配置运行时，不再拥有注册与配置标志', function () {
-    var gameManager = readFileSync('js/core/GameManager.js', 'utf8');
+  it('GameApplication 只组合已配置运行时，不再拥有注册与配置标志', function () {
+    var gameManager = readFileSync('js/core/GameApplication.js', 'utf8');
     var runtime = readFileSync('js/core/GameFeatureRuntime.js', 'utf8');
 
     expect(gameManager).toContain("from './GameFeatureRuntime.js'");

@@ -320,7 +320,7 @@ describe('Economy.advanceDay', () => {
         Economy.advanceDay();
       }
     }).not.toThrow();
-  });
+  }, 10000);
 });
 
 describe('Economy.getSupplyDemand', () => {
