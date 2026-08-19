@@ -4,18 +4,14 @@
 // 具体节点装配由 GameRuntimeNodeFactories 持有。
 
 import * as EventBus from './EventBus.js';
-import * as Renderer3D from '../ui/StarmapRenderer.js';
 import * as MapUI from '../ui/MapUI.js';
 import * as EventUI from '../ui/EventUI.js';
 import * as ContextInspector from '../ui/ContextInspector.js';
-import { TIME_CONFIG } from '../data/constants.js';
-import { resolveStartupState } from './StartupState.js';
-import * as Settings from './SettingsCore.js';
-import * as Audio from './AudioManager.js';
 import { createGameFeatureFailureReporter } from './GameFeatureManifest.js';
 import { createStateSession } from './StateSession.js';
 import { createGameApplicationLifecycle } from './GameApplicationLifecycle.js';
 import { createGameRuntimeGraph } from './GameRuntimeGraph.js';
+import { createGameStartupProjection } from './GameStartupProjection.js';
 import { DEFAULT_ACTION_DIRTY_REGIONS } from './ActionPresentation.js';
 import {
   GAME_RUNTIME_NODE_IDS,
@@ -24,6 +20,7 @@ import {
 } from './GameRuntimeNodeFactories.js';
 
 const _session = createStateSession();
+const _startupProjection = createGameStartupProjection();
 const _runtimeNodeSet = new Set(GAME_RUNTIME_NODE_IDS);
 const _runtimeGraph = createGameRuntimeGraph(GAME_RUNTIME_NODE_IDS);
 const _reportDeferredUiFailure = createGameFeatureFailureReporter({
@@ -34,21 +31,13 @@ const _reportDeferredUiFailure = createGameFeatureFailureReporter({
 });
 
 let _state = null;
-let _settings = {
-  motionLevel: 'full',
-  difficulty: 'normal',
-  secretRoutesVisible: true,
-  realtimeDayDurationMs: TIME_CONFIG.realtimeDayDurationMs,
-};
-let _runtimeRevision = 0;
 let _runtimeFactories = null;
 let _applicationLifecycle = null;
 
 function _replaceState(nextState, reason) {
   _session.replace(nextState, { reason: reason });
   _state = _session.getState();
-  _runtimeRevision = _session.getRevision();
-  ContextInspector.reconcileRevision(_runtimeRevision, { render: false });
+  ContextInspector.reconcileRevision(_session.getRevision(), { render: false });
   return _state;
 }
 
@@ -65,7 +54,7 @@ function _getRuntimeFactories() {
   _runtimeFactories = createGameRuntimeNodeFactories({
     resolve: _resolveRuntime,
     getState: function () { return _state; },
-    getSettings: function () { return _settings; },
+    getSettings: _startupProjection.getSettings,
     getRevision: function () { return _session.getRevision(); },
     getSessionToken: _getSessionToken,
     isSessionTokenCurrent: _isSessionTokenCurrent,
@@ -111,7 +100,7 @@ function _getApplicationLifecycle() {
   _applicationLifecycle = createGameApplicationLifecycle({
     getRuntime: function (id) {
       if (_runtimeNodeSet.has(id)) return _runtimeGraph.peek(id);
-      if (id === 'renderer') return Renderer3D;
+      if (id === 'renderer') return _startupProjection.getRenderer();
       if (id === 'eventUi') return EventUI;
       return null;
     },
@@ -120,6 +109,7 @@ function _getApplicationLifecycle() {
       _replaceState(null, context.reason);
       _runtimeGraph.clear();
       _runtimeFactories = null;
+      _startupProjection.release();
     },
     reportError: function (stage, error) {
       console.error('[GameApplicationLifecycle] Failed to shut down ' + stage + '.', error);
@@ -141,14 +131,12 @@ function _beginApplicationLifecycle() {
 
 export function init(difficulty, options) {
   _beginApplicationLifecycle();
-  _settings = Settings.loadSettings();
-  var startup = resolveStartupState(difficulty, _settings, options);
+  var startup = _startupProjection.prepareSession(difficulty, options);
   var restoredAutosave = startup.restoredAutosave;
   var sessionReason = options && options.reason
     ? options.reason
     : (restoredAutosave ? 'restore-autosave' : 'new-game');
 
-  Audio.init(_settings);
   var sessionTransition = _getSessionLifecycle().begin(startup.state, {
     reason: sessionReason,
     mode: restoredAutosave ? 'restore-autosave' : 'new-game',
@@ -159,8 +147,7 @@ export function init(difficulty, options) {
     restorePendingEvent: restoredAutosave,
   });
 
-  Renderer3D.init();
-  Settings.applySettings(_settings, Renderer3D);
+  _startupProjection.initializeScene();
   var uiRuntime = _getUiRuntime();
   uiRuntime.initialize();
 

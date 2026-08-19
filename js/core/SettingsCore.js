@@ -10,6 +10,18 @@ const VALID_REALTIME_DAY_DURATIONS_MS = TIME_CONFIG.availableRealtimeDayDuration
 
 export const DEFAULT_SOUND_EFFECTS_VOLUME = 0.35;
 
+export function createDefaultSettings() {
+  return {
+    motionLevel: 'full',
+    difficulty: 'normal',
+    secretRoutesVisible: true,
+    realtimeDayDurationMs: TIME_CONFIG.realtimeDayDurationMs,
+    terminalBlur: true,
+    soundEffectsEnabled: true,
+    soundEffectsVolume: DEFAULT_SOUND_EFFECTS_VOLUME,
+  };
+}
+
 export function normalizeSecretRoutesVisible(value) {
   return value !== false;
 }
@@ -30,17 +42,7 @@ export function normalizeSoundEffectsVolume(value) {
 export function loadSettings() {
   try {
     var raw = localStorage.getItem(SETTINGS_KEY);
-    if (!raw) {
-      return {
-        motionLevel: 'full',
-        difficulty: 'normal',
-        secretRoutesVisible: true,
-        realtimeDayDurationMs: TIME_CONFIG.realtimeDayDurationMs,
-        terminalBlur: true,
-        soundEffectsEnabled: true,
-        soundEffectsVolume: DEFAULT_SOUND_EFFECTS_VOLUME,
-      };
-    }
+    if (!raw) return createDefaultSettings();
     var parsed = JSON.parse(raw);
     return {
       motionLevel: VALID_MOTION_LEVELS.indexOf(parsed.motionLevel) >= 0
@@ -56,15 +58,7 @@ export function loadSettings() {
       soundEffectsVolume: normalizeSoundEffectsVolume(parsed.soundEffectsVolume),
     };
   } catch (_) {
-    return {
-      motionLevel: 'full',
-      difficulty: 'normal',
-      secretRoutesVisible: true,
-      realtimeDayDurationMs: TIME_CONFIG.realtimeDayDurationMs,
-      terminalBlur: true,
-      soundEffectsEnabled: true,
-      soundEffectsVolume: DEFAULT_SOUND_EFFECTS_VOLUME,
-    };
+    return createDefaultSettings();
   }
 }
 

@@ -353,12 +353,23 @@ function _markSceneReady(rendererName) {
 }
 
 function _canAttemptWebGL2() {
+  // 仅供本地开发/浏览器 QA 验证完整 2D 降级路径；生产构建中 DEV 为 false。
+  if (_hasDevelopment2DOverride()) return false;
   if (typeof document === 'undefined' || !document.getElementById) return false;
   const canvas = document.getElementById('starmap-three-canvas');
   if (!canvas || typeof canvas.getContext !== 'function') return false;
   try {
     return !!canvas.getContext('webgl2');
   } catch (error) {
+    return false;
+  }
+}
+
+function _hasDevelopment2DOverride() {
+  if (!import.meta.env.DEV || typeof globalThis === 'undefined' || !globalThis.location) return false;
+  try {
+    return new URLSearchParams(globalThis.location.search || '').get('starmap') === '2d';
+  } catch (_) {
     return false;
   }
 }

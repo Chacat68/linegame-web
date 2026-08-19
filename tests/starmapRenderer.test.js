@@ -58,10 +58,12 @@ function createCanvas(contextFactory) {
 describe('StarmapRenderer facade', function () {
   const originalDocument = globalThis.document;
   const originalWindow = globalThis.window;
+  const originalLocation = globalThis.location;
 
   afterEach(function () {
     globalThis.document = originalDocument;
     globalThis.window = originalWindow;
+    globalThis.location = originalLocation;
     delete globalThis.__linegameStarmapRenderer;
     vi.resetModules();
   });
@@ -123,6 +125,37 @@ describe('StarmapRenderer facade', function () {
     expect(Renderer.getActiveRendererName()).toBe('2d');
     expect(webglProbeCount).toBe(1);
     expect(globalThis.__linegameStarmapRenderer.threeLoading).toBe(false);
+  });
+
+  it('开发查询参数可以稳定验收 2D 降级且不探测 WebGL2', async function () {
+    const context2d = create2DContext();
+    const canvas2d = createCanvas(function (type) { return type === '2d' ? context2d : null; });
+    let webglProbeCount = 0;
+    const canvasThree = createCanvas(function (type) {
+      if (type === 'webgl2') webglProbeCount += 1;
+      return {};
+    });
+    const container = { dataset: {} };
+    globalThis.location = { search: '?starmap=2d' };
+    globalThis.window = { devicePixelRatio: 1, addEventListener: function () {} };
+    globalThis.document = {
+      getElementById: function (id) {
+        if (id === 'map-3d-canvas') return canvas2d;
+        if (id === 'starmap-three-canvas') return canvasThree;
+        if (id === 'map-container') return container;
+        return null;
+      },
+    };
+
+    const Renderer = await import('../js/ui/StarmapRenderer.js?forced-2d=' + Date.now());
+    const state = createTestState({ mapView: 'planets', currentGalaxy: 'milky_way' });
+    expect(Renderer.init()).toBe(true);
+    Renderer.render(state, 'planets', 'milky_way');
+
+    expect(await Renderer.whenThreeReady()).toBe(false);
+    expect(Renderer.getActiveRendererName()).toBe('2d');
+    expect(webglProbeCount).toBe(0);
+    expect(container.dataset.starmapRenderer).toBe('2d');
   });
 
   it('对外保留现有星图渲染器契约', async function () {
