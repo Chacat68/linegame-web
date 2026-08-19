@@ -143,6 +143,45 @@ describe('GameUiCoordinator', function () {
     expect(render.mock.calls[0][0].state).not.toBe(stateA);
   });
 
+  it('加载失败保留工作区并通过局部重试使用最新会话状态', async function () {
+    var currentState = { id: 'A' };
+    var attempts = 0;
+    var render = vi.fn();
+    var fleetModule = { render: render };
+    var featureStatus = {
+      showLoading: vi.fn(),
+      showError: vi.fn(),
+      clear: vi.fn(),
+      getDiagnostics: function () { return { activeFeatures: ['fleet'] }; },
+    };
+    var coordinator = createGameUiCoordinator({
+      getState: function () { return currentState; },
+      features: {
+        get: function () { return null; },
+        load: function () {
+          attempts += 1;
+          return Promise.resolve(attempts === 1 ? null : fleetModule);
+        },
+      },
+      ui: { DeferredFeatureStatusUI: featureStatus },
+    });
+
+    await expect(coordinator.ensureFleet()).resolves.toBe(null);
+    expect(render).not.toHaveBeenCalled();
+    expect(featureStatus.showLoading).toHaveBeenCalledWith('fleet');
+    expect(featureStatus.showError).toHaveBeenCalledWith('fleet', expect.any(Function));
+
+    currentState = { id: 'B' };
+    var retry = featureStatus.showError.mock.calls[0][1];
+    await expect(retry()).resolves.toBe(fleetModule);
+
+    expect(attempts).toBe(2);
+    expect(featureStatus.showLoading).toHaveBeenCalledTimes(2);
+    expect(featureStatus.clear).toHaveBeenCalledWith('fleet');
+    expect(render.mock.calls[0][0].state).toBe(currentState);
+    expect(coordinator.getDiagnostics().featureStatus).toEqual({ activeFeatures: ['fleet'] });
+  });
+
   it('向 FleetUI 注入 latest-state 重绘命令，不允许 UI 反向访问全局主控', function () {
     var state = { id: 'fleet-a' };
     var render = vi.fn();
@@ -264,6 +303,7 @@ describe('GameUiCoordinator', function () {
     expect(calls).not.toContain('save');
     expect(features.loadCalls).toEqual([]);
     expect(coordinator.getDiagnostics()).toEqual({
+      featureStatus: null,
       renderAllCount: 0,
       invalidationCount: 1,
       lastInvalidationRegions: DEFAULT_ACTION_DIRTY_REGIONS,

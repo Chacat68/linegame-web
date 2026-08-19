@@ -51,6 +51,40 @@ function _call(hooks, name, args) {
   return hooks[name].apply(null, args || []);
 }
 
+function _developmentFailOnceFeatures() {
+  if (typeof globalThis === 'undefined' || !globalThis.location) {
+    return new Set();
+  }
+  var params = new URLSearchParams(globalThis.location.search || '');
+  var requested = [];
+  params.getAll('featureFailOnce').forEach(function (value) {
+    String(value || '').split(',').forEach(function (feature) {
+      var normalized = feature.trim();
+      if (normalized) requested.push(normalized);
+    });
+  });
+  return new Set(requested.filter(function (feature) {
+    return GAME_FEATURE_NAMES.indexOf(feature) !== -1;
+  }));
+}
+
+function _withDevelopmentFailures(manifest) {
+  var pending = _developmentFailOnceFeatures();
+  if (!pending.size) return manifest;
+  pending.forEach(function (feature) {
+    var definition = manifest[feature];
+    if (!definition || typeof definition.load !== 'function') return;
+    var load = definition.load;
+    definition.load = function () {
+      if (pending.delete(feature)) {
+        return Promise.reject(new Error('[dev] Injected one-time feature failure: ' + feature));
+      }
+      return load.apply(null, arguments);
+    };
+  });
+  return manifest;
+}
+
 export function createGameFeatureFailureReporter(options) {
   var opts = options || {};
   var emitLog = typeof opts.emitLog === 'function' ? opts.emitLog : function () {};
@@ -82,7 +116,7 @@ export function createGameFeatureManifest(options) {
     };
   }
 
-  return {
+  var manifest = {
     commerceRuntime: {
       load: function () { return import('../systems/commerce/CommerceFacade.js'); },
       sync: function (module, lifecycle) {
@@ -196,4 +230,6 @@ export function createGameFeatureManifest(options) {
       onError: onError('guidanceAction'),
     },
   };
+  if (import.meta.env.DEV) return _withDevelopmentFailures(manifest);
+  return manifest;
 }

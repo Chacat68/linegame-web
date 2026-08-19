@@ -979,6 +979,125 @@ body::before {
   transition: transform var(--ui-duration-base) var(--ui-ease-emphasized);
 }
 
+/* Deferred workspace recovery ---------------------------------- */
+
+.market-overlay-shell,
+.secondary-terminal-body,
+.settings-save-shell {
+  position: relative;
+}
+
+.deferred-feature-status {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  display: grid;
+  min-width: 0;
+  min-height: 180px;
+  place-items: center;
+  padding: var(--ui-space-5);
+  color: var(--ui-text-primary);
+  background:
+    radial-gradient(circle at 50% 35%, rgba(108, 231, 255, 0.08), transparent 42%),
+    rgba(2, 10, 18, 0.94);
+  backdrop-filter: blur(12px);
+}
+
+.deferred-feature-status[hidden] {
+  display: none !important;
+}
+
+.settings-save-shell > .deferred-feature-status {
+  position: relative;
+  inset: auto;
+}
+
+.deferred-feature-status-card {
+  display: grid;
+  width: min(440px, 100%);
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  padding: var(--ui-space-5);
+  gap: var(--ui-space-4);
+  border: 1px solid var(--ui-line-default);
+  border-radius: var(--ui-radius-card);
+  background: var(--ui-bg-panel);
+  box-shadow: var(--ui-shadow-card);
+}
+
+.deferred-feature-status-signal {
+  display: grid;
+  width: var(--ui-control-lg);
+  height: var(--ui-control-lg);
+  place-items: center;
+  border: 1px solid var(--ui-line-strong);
+  border-radius: 50%;
+  color: var(--ui-accent);
+  font-size: 22px;
+  line-height: 1;
+}
+
+.deferred-feature-status[data-status-tone="loading"] .deferred-feature-status-signal {
+  animation: deferred-feature-spin 1.1s linear infinite;
+}
+
+.deferred-feature-status[data-status-tone="error"] .deferred-feature-status-card {
+  border-color: var(--ui-line-danger);
+}
+
+.deferred-feature-status[data-status-tone="error"] .deferred-feature-status-signal {
+  border-color: var(--ui-line-danger);
+  color: var(--ui-danger);
+}
+
+.deferred-feature-status-copy {
+  min-width: 0;
+}
+
+.deferred-feature-status-title {
+  display: block;
+  color: var(--ui-text-primary);
+  font-size: 16px;
+  letter-spacing: 0.02em;
+}
+
+.deferred-feature-status-detail {
+  margin: var(--ui-space-1) 0 0;
+  color: var(--ui-text-secondary);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.deferred-feature-retry {
+  min-height: var(--ui-control-lg);
+  grid-column: 2;
+  justify-self: start;
+  padding: 0 var(--ui-space-4);
+  border: 1px solid var(--ui-line-strong);
+  border-radius: var(--ui-radius-control);
+  color: var(--ui-text-inverse);
+  background: var(--ui-accent);
+  font-weight: 720;
+}
+
+.deferred-feature-retry:hover:not(:disabled) {
+  background: var(--ui-accent-strong);
+}
+
+.deferred-feature-retry:focus-visible {
+  outline: none;
+  box-shadow: var(--ui-focus-ring);
+}
+
+@keyframes deferred-feature-spin {
+  to { transform: rotate(360deg); }
+}
+
+body[data-motion="reduced"] .deferred-feature-status-signal,
+body[data-motion="off"] .deferred-feature-status-signal {
+  animation: none !important;
+}
+
 #info-panel.side-panel-overlay.panel-open .secondary-terminal-shell,
 #trade-panel.side-panel-overlay.panel-open .secondary-terminal-shell,
 #console-panel.side-panel-overlay.panel-open .secondary-terminal-shell {

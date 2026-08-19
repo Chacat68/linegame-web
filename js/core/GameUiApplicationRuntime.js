@@ -70,7 +70,11 @@ export function createGameUiApplicationRuntime(options) {
       getState: getState,
       getSessionToken: getSessionToken,
       isSessionTokenCurrent: isSessionTokenCurrent,
-      loadMarket: function () { return features.load('market'); },
+      loadMarket: function () {
+        return getCoordinator().loadFeature('market', function () {
+          return getMarketWorkspace().refresh({ consumePendingFocus: false });
+        });
+      },
       renderMarket: function (MarketUI, state) { return getCoordinator().renderMarket(MarketUI, state); },
       MapUI: ui.MapUI,
       Modal: ui.Modal,
@@ -110,6 +114,7 @@ export function createGameUiApplicationRuntime(options) {
         UIManager: ui.UIManager,
         Renderer3D: ui.Renderer,
         ContextAdapters: contextAdapters,
+        DeferredFeatureStatusUI: ui.DeferredFeatureStatusUI,
       },
       systems: {
         Trade: systems.Trade,
@@ -218,6 +223,10 @@ export function createGameUiApplicationRuntime(options) {
   }
 
   function dispose() {
+    if (coordinator) coordinator.dispose();
+    else if (ui.DeferredFeatureStatusUI && typeof ui.DeferredFeatureStatusUI.dispose === 'function') {
+      ui.DeferredFeatureStatusUI.dispose();
+    }
     if (contextAdapters) contextAdapters.dispose();
     if (lifecycle) lifecycle.dispose();
     else if (settingsController) settingsController.dispose();

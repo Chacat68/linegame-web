@@ -18,6 +18,27 @@ describe('GameFeatureManifest', function () {
     });
   });
 
+  it('开发查询参数只让指定功能失败一次，随后沿原加载器恢复', async function () {
+    var originalLocation = globalThis.location;
+    globalThis.location = { search: '?featureFailOnce=market,unknown' };
+    try {
+      var styles = [];
+      var manifest = createGameFeatureManifest({
+        loadStylesheet: function (feature) {
+          styles.push(feature);
+          return Promise.resolve(feature);
+        },
+      });
+
+      await expect(manifest.market.load()).rejects.toThrow('Injected one-time feature failure: market');
+      await expect(manifest.market.load()).resolves.toBeTruthy();
+      expect(styles).toEqual(['market-terminal']);
+    } finally {
+      if (typeof originalLocation === 'undefined') delete globalThis.location;
+      else globalThis.location = originalLocation;
+    }
+  });
+
   it('把 Feature 生命周期同步到注入端口，不在 manifest 缓存 state', function () {
     var trace = [];
     var state = { id: 'current-state' };

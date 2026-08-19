@@ -45,6 +45,13 @@ function createHarness(overrides) {
     Modal: { init: vi.fn() },
     Renderer: { initMapControls: vi.fn(), invalidateScene: vi.fn(), whenSceneReady: vi.fn(function () { return Promise.resolve({ renderer: 'test' }); }) },
     ContextInspector: { registerRenderer: vi.fn(), dispose: vi.fn() },
+    DeferredFeatureStatusUI: {
+      showLoading: vi.fn(),
+      showError: vi.fn(),
+      clear: vi.fn(),
+      dispose: vi.fn(),
+      getDiagnostics: vi.fn(function () { return { activeFeatures: [] }; }),
+    },
   };
   var callbacks = {
     getSettings: function () { return {}; },
@@ -84,7 +91,7 @@ function createHarness(overrides) {
     },
     callbacks: callbacks,
   }, overrides || {}));
-  return { runtime: runtime, state: state, loaded: loaded, ui: ui, callbacks: callbacks, guidance: guidance };
+  return { runtime: runtime, state: state, loaded: loaded, features: features, ui: ui, callbacks: callbacks, guidance: guidance };
 }
 
 describe('GameUiApplicationRuntime', function () {
@@ -114,6 +121,34 @@ describe('GameUiApplicationRuntime', function () {
     expect(harness.runtime.getDiagnostics().lastInvalidationRegions).toEqual(['hud']);
   });
 
+  it('市场专用刷新也走统一局部错误面，并可从同一工作区重试', async function () {
+    var attempts = 0;
+    var MarketUI = {
+      render: vi.fn(),
+      showDetail: vi.fn(),
+    };
+    var features = {
+      get: function () { return null; },
+      getState: function () { return attempts > 0 ? 'error' : 'idle'; },
+      load: function () {
+        attempts += 1;
+        return Promise.resolve(attempts === 1 ? null : MarketUI);
+      },
+      sync: vi.fn(),
+    };
+    var harness = createHarness({ features: features });
+
+    await expect(harness.runtime.refreshMarket()).resolves.toBe(false);
+    expect(harness.ui.DeferredFeatureStatusUI.showError).toHaveBeenCalledWith('market', expect.any(Function));
+
+    var retry = harness.ui.DeferredFeatureStatusUI.showError.mock.calls[0][1];
+    await expect(retry()).resolves.toBe(true);
+    expect(attempts).toBe(2);
+    expect(harness.ui.DeferredFeatureStatusUI.clear).toHaveBeenCalledWith('market');
+    expect(MarketUI.showDetail).toHaveBeenCalled();
+    expect(MarketUI.render).toHaveBeenCalled();
+  });
+
   it('统一初始化、场景就绪、入口呈现、重置与释放 UI 生命周期', async function () {
     var harness = createHarness();
     expect(harness.runtime.initialize()).toBe(true);
@@ -128,6 +163,7 @@ describe('GameUiApplicationRuntime', function () {
     harness.runtime.reset();
     harness.runtime.dispose();
     expect(harness.ui.ContextInspector.dispose).toHaveBeenCalledOnce();
+    expect(harness.ui.DeferredFeatureStatusUI.dispose).toHaveBeenCalledOnce();
     expect(harness.runtime.getDiagnostics()).toEqual({ coordinator: null, lifecycle: null, market: null, settings: null });
   });
 });

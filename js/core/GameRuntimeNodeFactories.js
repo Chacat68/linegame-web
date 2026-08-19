@@ -27,6 +27,7 @@ import * as Modal from '../ui/Modal.js';
 import * as EventUI from '../ui/EventUI.js';
 import * as ActionGuideUI from '../ui/ActionGuideUI.js';
 import * as ContextInspector from '../ui/ContextInspector.js';
+import * as DeferredFeatureStatusUI from '../ui/DeferredFeatureStatusUI.js';
 import * as UIManager from '../ui/UIManager.js';
 import * as Dispatch from './DispatchController.js';
 import * as Settings from './SettingsCore.js';
@@ -495,6 +496,7 @@ export function createGameRuntimeNodeFactories(context) {
           Modal: Modal,
           Renderer: Renderer3D,
           ContextInspector: ContextInspector,
+          DeferredFeatureStatusUI: DeferredFeatureStatusUI,
         },
         systems: {
           Trade: Trade,

@@ -63,6 +63,7 @@ export function createGameUiCoordinator(options) {
   var UIManager = _dependency(ui, 'UIManager', 'uiManager');
   var Renderer = _dependency(ui, 'Renderer3D', 'renderer');
   var ContextAdapters = _dependency(ui, 'ContextAdapters', 'contextAdapters');
+  var FeatureStatus = _dependency(ui, 'DeferredFeatureStatusUI', 'featureStatus');
   var Trade = _dependency(systems, 'Trade', 'trade');
   var Dispatch = _dependency(systems, 'Dispatch', 'dispatch');
 
@@ -85,17 +86,23 @@ export function createGameUiCoordinator(options) {
     }, {});
   }
 
-  function _loadFeature(featureName) {
+  function loadFeature(featureName, retry) {
+    var loaded = _getLoadedFeature(featureName);
+    if (loaded) _call(FeatureStatus, 'clear', [featureName]);
+    else _call(FeatureStatus, 'showLoading', [featureName]);
     return Promise.resolve()
       .then(function () {
         if (typeof features.load === 'function') return features.load(featureName);
         return _getLoadedFeature(featureName);
       })
       .then(function (module) {
-        return module || _getLoadedFeature(featureName);
+        var resolved = module || _getLoadedFeature(featureName);
+        if (resolved) _call(FeatureStatus, 'clear', [featureName]);
+        else _call(FeatureStatus, 'showError', [featureName, retry]);
+        return resolved;
       })
       .catch(function () {
-        // 错误呈现属于 feature loader 的责任；协调器保持空依赖安全。
+        _call(FeatureStatus, 'showError', [featureName, retry]);
         return null;
       });
   }
@@ -212,10 +219,13 @@ export function createGameUiCoordinator(options) {
   }
 
   function _ensure(featureName, render) {
-    return _loadFeature(featureName).then(function (module) {
-      if (module) render(module);
-      return module;
-    });
+    function attempt() {
+      return loadFeature(featureName, attempt).then(function (module) {
+        if (module) render(module);
+        return module;
+      });
+    }
+    return attempt();
   }
 
   function ensureMarket() {
@@ -327,8 +337,13 @@ export function createGameUiCoordinator(options) {
     return Promise.resolve(state);
   }
 
+  function dispose() {
+    _call(FeatureStatus, 'dispose', []);
+  }
+
   function getDiagnostics() {
     return Object.freeze({
+      featureStatus: _call(FeatureStatus, 'getDiagnostics', []) || null,
       renderAllCount: renderAllCount,
       invalidationCount: invalidationCount,
       lastInvalidationRegions: lastInvalidationRegions,
@@ -336,6 +351,7 @@ export function createGameUiCoordinator(options) {
   }
 
   return {
+    dispose: dispose,
     ensureArchive: ensureArchive,
     ensureFleet: ensureFleet,
     ensureMarket: ensureMarket,
@@ -343,6 +359,7 @@ export function createGameUiCoordinator(options) {
     getDiagnostics: getDiagnostics,
     getLoaded: getLoaded,
     invalidate: invalidate,
+    loadFeature: loadFeature,
     renderAll: renderAll,
     renderArchive: renderArchive,
     renderFleet: renderFleet,
