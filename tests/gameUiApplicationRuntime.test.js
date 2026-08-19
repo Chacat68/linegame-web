@@ -52,6 +52,7 @@ function createHarness(overrides) {
       dispose: vi.fn(),
       getDiagnostics: vi.fn(function () { return { activeFeatures: [] }; }),
     },
+    WorkspaceDetailSurface: { init: vi.fn(), dispose: vi.fn() },
   };
   var callbacks = {
     getSettings: function () { return {}; },
@@ -154,6 +155,7 @@ describe('GameUiApplicationRuntime', function () {
     expect(harness.runtime.initialize()).toBe(true);
     expect(harness.ui.MapUI.init).toHaveBeenCalled();
     expect(harness.ui.Modal.init).toHaveBeenCalledWith(harness.callbacks.confirmTrade);
+    expect(harness.ui.WorkspaceDetailSurface.init).toHaveBeenCalled();
     await expect(harness.runtime.whenSceneReady()).resolves.toEqual({ renderer: 'test' });
 
     harness.runtime.presentEntry({ restoredAutosave: true });
@@ -164,6 +166,7 @@ describe('GameUiApplicationRuntime', function () {
     harness.runtime.dispose();
     expect(harness.ui.ContextInspector.dispose).toHaveBeenCalledOnce();
     expect(harness.ui.DeferredFeatureStatusUI.dispose).toHaveBeenCalledOnce();
+    expect(harness.ui.WorkspaceDetailSurface.dispose).toHaveBeenCalledOnce();
     expect(harness.runtime.getDiagnostics()).toEqual({ coordinator: null, lifecycle: null, market: null, settings: null });
   });
 });

@@ -82,6 +82,7 @@
   --ui-z-hud: 40;
   --ui-z-workspace: 70;
   --ui-z-terminal: 100;
+  --ui-z-detail: 108;
   --ui-z-feedback: 115;
   --ui-z-modal: 140;
   --ui-z-guide: 160;

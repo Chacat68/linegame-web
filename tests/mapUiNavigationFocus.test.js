@@ -162,6 +162,8 @@ describe('MapUI navigation target focus', function () {
     expect(panel.innerHTML).toContain('预计净利');
     expect(panel.innerHTML).toContain('确认卖出');
     expect(panel.innerHTML).toContain('核对结算');
+    expect(panel.innerHTML).toContain('data-planet-detail-action="open-survey"');
+    expect(panel.innerHTML).toContain('打开探索档案');
 
     var prevented = false;
     var stopped = false;

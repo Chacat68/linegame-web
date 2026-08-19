@@ -43,6 +43,7 @@ export function createGameUiLifecycleController(dependencies) {
   var HUD = ui.HUD || {};
   var MapUI = ui.MapUI || {};
   var UIManager = ui.UIManager || {};
+  var WorkspaceDetailSurface = ui.WorkspaceDetailSurface || {};
   var Modal = ui.Modal || {};
   var Renderer = ui.Renderer || {};
   var Tutorial = systems.Tutorial || {};
@@ -105,6 +106,11 @@ export function createGameUiLifecycleController(dependencies) {
 
     _call(MapUI, 'init', [getState, ports.travel, ports.galaxyJump]);
     _bindWorkspaceNavigation();
+    _call(WorkspaceDetailSurface, 'init', [{
+      navigation: UIManager,
+      stateSource: getState,
+      revisionSource: getRevision,
+    }]);
     _call(MapUI, 'setExplorationActions', [{
       onExplorePoi: ports.explorePoi,
       getPoiStatus: ports.getPoiStatus,
@@ -167,6 +173,7 @@ export function createGameUiLifecycleController(dependencies) {
     _call(settingsUi, 'dispose', []);
     _call(actionGuide, 'dispose', []);
     _call(MapUI, 'dispose', []);
+    _call(WorkspaceDetailSurface, 'dispose', []);
     _call(UIManager, 'dispose', []);
     initialized = false;
     disposed = true;

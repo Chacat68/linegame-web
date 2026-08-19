@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   WORKSPACES,
   createNavigationController,
+  normalizeDetailKey,
   normalizeWorkspace,
 } from '../js/ui/NavigationController.js';
 
@@ -14,6 +15,34 @@ describe('workspace navigation controller', function () {
     expect(normalizeWorkspace('quests')).toBe('archive');
     expect(normalizeWorkspace('LOGS')).toBe('logs');
     expect(normalizeWorkspace('unknown')).toBeNull();
+  });
+
+  it('把生产详情收束为不可变 ContextKey，并拒绝重复压入同一对象', function () {
+    var source = {
+      type: ' map-report ',
+      id: ' report-7 ',
+      workspaceId: 'starmap',
+      source: ' survey ',
+      revision: '4',
+      domainObject: { shouldNotLeak: true },
+    };
+    var normalized = normalizeDetailKey(source);
+    expect(normalized).toEqual({
+      type: 'map-report',
+      id: 'report-7',
+      workspaceId: 'map',
+      source: 'survey',
+      revision: 4,
+    });
+    expect(Object.isFrozen(normalized)).toBe(true);
+    expect(normalized).not.toHaveProperty('domainObject');
+
+    var controller = createNavigationController();
+    expect(controller.openDetail(source)).toBe(true);
+    expect(controller.openDetail(source)).toBe(false);
+    expect(controller.getSnapshot().detailStacks.map).toEqual([normalized]);
+    source.id = 'mutated';
+    expect(controller.getSnapshot().activeDetail.id).toBe('report-7');
   });
 
   it('始终只有一个 active workspace，重复导航不会折叠或发布变化', function () {

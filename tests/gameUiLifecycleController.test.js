@@ -41,6 +41,7 @@ function createHarness(options) {
     dispose: vi.fn(),
     init: vi.fn(function (provider, handlers) { navigationHandlers = handlers; }),
   };
+  var WorkspaceDetailSurface = { init: vi.fn(), dispose: vi.fn() };
   var Modal = { init: vi.fn() };
   var Renderer = config.Renderer || {
     whenSceneReady: vi.fn(function () { return Promise.resolve({ renderer: 'three' }); }),
@@ -95,6 +96,7 @@ function createHarness(options) {
       UIManager: UIManager,
       Modal: Modal,
       Renderer: Renderer,
+      WorkspaceDetailSurface: WorkspaceDetailSurface,
     },
     systems: { Tutorial: Tutorial },
     controllers: controllers,
@@ -119,6 +121,7 @@ function createHarness(options) {
     telemetry: telemetry,
     Tutorial: Tutorial,
     UIManager: UIManager,
+    WorkspaceDetailSurface: WorkspaceDetailSurface,
     replaceState: function (next) { state = next; },
     setRevision: function (next) { revision = next; },
   };
@@ -139,6 +142,14 @@ describe('GameUiLifecycleController', function () {
     expect(hudOptions.revisionSource()).toBe(5);
     expect(mapProvider()).toEqual({ id: 'state-b' });
     expect(managerProvider()).toEqual({ id: 'state-b' });
+    expect(harness.WorkspaceDetailSurface.init).toHaveBeenCalledWith({
+      navigation: harness.UIManager,
+      stateSource: expect.any(Function),
+      revisionSource: expect.any(Function),
+    });
+    var detailOptions = harness.WorkspaceDetailSurface.init.mock.calls[0][0];
+    expect(detailOptions.stateSource()).toEqual({ id: 'state-b' });
+    expect(detailOptions.revisionSource()).toBe(5);
     expect(harness.HUD.setQuestActions).toHaveBeenCalledWith({ onAcceptQuest: harness.ports.acceptQuest });
     expect(harness.HUD.setVictoryActions).toHaveBeenCalledWith({
       onChoosePolicy: harness.ports.chooseVictoryPolicy,
@@ -209,6 +220,7 @@ describe('GameUiLifecycleController', function () {
     expect(harness.MapUI.setRefreshMarket).toHaveBeenLastCalledWith(null);
     expect(harness.MapUI.setExplorationActions).toHaveBeenLastCalledWith(null);
     expect(harness.MapUI.dispose).toHaveBeenCalledOnce();
+    expect(harness.WorkspaceDetailSurface.dispose).toHaveBeenCalledOnce();
     expect(harness.UIManager.dispose).toHaveBeenCalledOnce();
     expect(harness.controller.getDiagnostics()).toEqual({
       disposed: true,
@@ -250,6 +262,7 @@ describe('GameUiLifecycleController', function () {
     harness.controller.dispose();
 
     expect(harness.MapUI.dispose).toHaveBeenCalledOnce();
+    expect(harness.WorkspaceDetailSurface.dispose).toHaveBeenCalledOnce();
     expect(harness.UIManager.dispose).toHaveBeenCalledOnce();
     expect(harness.MapUI.initTabs).not.toHaveBeenCalled();
     expect(harness.MapUI.setExplorationActions).not.toHaveBeenCalled();

@@ -161,6 +161,7 @@ export function createGameUiApplicationRuntime(options) {
         UIManager: ui.UIManager,
         Modal: ui.Modal,
         Renderer: ui.Renderer,
+        WorkspaceDetailSurface: ui.WorkspaceDetailSurface,
       },
       systems: { Tutorial: systems.Tutorial },
       controllers: {

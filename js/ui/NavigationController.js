@@ -17,6 +17,8 @@ export const WORKSPACE_ALIASES = Object.freeze({
   logs: 'logs',
 });
 
+const DETAIL_KEY_FIELDS = Object.freeze(['type', 'id', 'workspaceId', 'source', 'revision']);
+
 /**
  * 将旧视图名称或工作区名称归一化为 canonical workspace。
  * @param {unknown} workspace
@@ -26,6 +28,34 @@ export function normalizeWorkspace(workspace) {
   if (typeof workspace !== 'string') return null;
   var key = workspace.trim().toLowerCase();
   return WORKSPACE_ALIASES[key] || null;
+}
+
+/** 把生产详情记录收束为不可变 ContextKey；字符串仅保留给迁移期 facade。 */
+export function normalizeDetailKey(detail, workspace) {
+  if (typeof detail === 'string') {
+    var legacy = detail.trim();
+    return legacy || null;
+  }
+  if (!detail || typeof detail !== 'object') return null;
+  var type = typeof detail.type === 'string' ? detail.type.trim() : '';
+  var id = typeof detail.id === 'string' ? detail.id.trim() : '';
+  var workspaceId = normalizeWorkspace(detail.workspaceId || workspace);
+  if (!type || !id || !workspaceId) return null;
+  var normalized = {};
+  DETAIL_KEY_FIELDS.forEach(function (field) {
+    if (field === 'type') normalized[field] = type;
+    else if (field === 'id') normalized[field] = id;
+    else if (field === 'workspaceId') normalized[field] = workspaceId;
+    else if (field === 'source') normalized[field] = typeof detail.source === 'string' ? detail.source.trim() : '';
+    else if (field === 'revision') normalized[field] = Number.isFinite(Number(detail.revision)) ? Number(detail.revision) : 0;
+  });
+  return Object.freeze(normalized);
+}
+
+function _sameDetail(left, right) {
+  if (left === right) return true;
+  if (!left || !right || typeof left !== 'object' || typeof right !== 'object') return false;
+  return DETAIL_KEY_FIELDS.every(function (field) { return left[field] === right[field]; });
 }
 
 /**
@@ -136,19 +166,25 @@ export function createNavigationController(options) {
    * @returns {boolean} 是否成功压入
    */
   function openDetail(detail, workspace) {
-    var targetWorkspace = typeof workspace === 'undefined'
+    var requestedWorkspace = typeof workspace === 'undefined' && detail && typeof detail === 'object'
+      ? detail.workspaceId
+      : workspace;
+    var targetWorkspace = typeof requestedWorkspace === 'undefined'
       ? activeWorkspace
-      : normalizeWorkspace(workspace);
-    if (!targetWorkspace || detail === null || typeof detail === 'undefined') return false;
+      : normalizeWorkspace(requestedWorkspace);
+    var normalizedDetail = normalizeDetailKey(detail, targetWorkspace);
+    if (!targetWorkspace || !normalizedDetail) return false;
+    var activeStack = detailStacks[targetWorkspace];
+    if (_sameDetail(activeStack[activeStack.length - 1], normalizedDetail)) return false;
 
-    detailStacks[targetWorkspace].push(detail);
+    detailStacks[targetWorkspace].push(normalizedDetail);
     _publish({
       type: 'detail:open',
       reason: 'open-detail',
       from: activeWorkspace,
       to: activeWorkspace,
       workspace: targetWorkspace,
-      detail: detail,
+      detail: normalizedDetail,
       state: getState(),
     });
     return true;

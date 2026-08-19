@@ -705,6 +705,28 @@
           </div>
         </aside>
 
+        <!-- Global L4: workspace object detail. NavigationController owns its stack. -->
+        <aside
+          id="workspace-detail-surface"
+          class="workspace-detail-surface"
+          role="region"
+          aria-modal="false"
+          aria-labelledby="workspace-detail-title"
+          aria-hidden="true"
+          hidden
+          inert
+        >
+          <header class="workspace-detail-head">
+            <button class="workspace-detail-back" type="button" data-workspace-detail-back>← 返回上下文</button>
+            <div class="workspace-detail-heading">
+              <span id="workspace-detail-depth" class="workspace-detail-depth">第 1 层</span>
+              <h2 id="workspace-detail-title" tabindex="-1">对象详情</h2>
+            </div>
+            <button class="workspace-detail-close" type="button" data-workspace-detail-close aria-label="关闭当前详情层" title="关闭当前详情层">×</button>
+          </header>
+          <div id="workspace-detail-content" class="workspace-detail-content"></div>
+        </aside>
+
         <div id="floating-command-stack" class="floating-command-stack">
           <div
             id="action-guide"

@@ -42,12 +42,13 @@
 | `js/core/GameManager.js` | 重构前约 2,900 行；当前 16 行 | 已成为只重导出历史公共 API 的兼容门面，浏览器入口不再依赖它 |
 | `js/core/GameApplication.js` | 当前 206 行、11 条静态 import | 已成为精简组合根，12 个 runtime 节点经独立 `GameRuntimeGraph` 与工厂表解析，Settings/Audio/Renderer 启动职责不再由组合根实现 |
 | `GameApplication` 顶层函数 | 27 个 | 主要是应用/会话接线和 7 个测试 facade；新功能不得再增加一次性转发函数，测试 facade 应迁入正式 harness |
-| `js/core/GameRuntimeNodeFactories.js` | 当前 554 行、45 条静态 import | 独占 12 个 runtime 节点的依赖装配；下一步按 feature/UI/action/guidance 等 runtime cluster 拆分，避免形成新的组合巨石 |
+| `js/core/GameRuntimeNodeFactories.js` | 当前 556 行、46 条静态 import | 独占 12 个 runtime 节点的依赖装配；下一步按 feature/UI/action/guidance 等 runtime cluster 拆分，避免形成新的组合巨石 |
 | `js/core/GameStartupProjection.js` | 当前 117 行、4 条静态 import | 独占 Settings 读取、启动状态解析、Audio 初始化、Renderer 初始化/设置投影与 release；两阶段 API 保持 session restore 前后顺序 |
 | `js/core/GameRuntimeGraph.js` | 121 行 | 已统一同步惰性构造、实例复用、循环依赖链、失败重试、generation 诊断和引用清理；不负责各 runtime 的 dispose 顺序 |
 | `_handle*` / `_load*` / `_render*` / `_ensure*` 函数 | 0 个私有入口 + 7 个测试 facade | 私有兼容门面已删除；真实 UI/剧情/随机事件端口直连 typed runtime，测试 facade 仍需替换为正式 harness |
 | 延迟模块状态变量 | 0 个旧三元状态；15 个 manifest entry | 通用延迟生命周期已统一，领域 controller 只保留自身队列/上下文 |
-| `MapUI.js` | 2,407 行 | 星系总览和视图状态已迁出；现有 DOM/EventBus/Context listener 已有可重复 init/dispose，星球详情、探索与导航交互仍有渗透 |
+| `MapUI.js` | 2,518 行 | 星系总览和视图状态已迁出；地图 Context 只保留当前航点摘要，探索档案与单份报告已迁入统一 L4 详情层；探索 renderer 与导航 intent 仍需继续提取 |
+| `WorkspaceDetailSurface.js` | 380 行 | 已成为五工作区共享的 L4 非阻塞详情层，拥有不可变 detail key、renderer registry、逐层 Escape、焦点恢复和被覆盖 Context 的 inert 处理；地图探索档案是首个真实两层 adapter |
 | `MapGalaxyHubPresenter.js` | 211 行 | 独占星系总览解锁/访问/贸易线索模型、HTML 和跃迁 intent；不绑定 DOM、不修改 state |
 | `MapViewStateController.js` | 157 行 | 独占星系/星球视图、当前查看星系和悬停目标；所有写入经单一 controller，并始终读取最新 session state |
 | `MarketUI.js` | 重构前 3,606 行；当前 1,324 行 | 图表、现货、商品、资金和贸易站投影边界已迁出；现在主要持有工作区/成长状态、增量重绘、价格总览、局部选择和 typed command 发布 |
@@ -591,11 +592,12 @@ Escape **不得切换 canonical workspace 或默认返回地图**，也不得关
 | 延迟 Feature 失败重试 | 通过 | 开发态 `?featureFailOnce=market` 只让市场首次加载失败；market 仍保持唯一选中，终端显示局部 `alert` 与“重试市场中心”，点击后在同一工作区恢复 3 个市场页签，错误面清除且不回退星图；生产 bundle 不含故障注入标记 |
 | 高倍缩放等效视口 | 部分通过 | `640 × 450` 有效 CSS 视口（对应 `1280 × 900` 的 200% 布局压力）下五工作区保持唯一选中、0 横向溢出、nav 高 56px；浏览器控制层不传递系统级缩放快捷键，真实浏览器 200% 仍需人工发布验收 |
 | 键盘路径 | 部分通过 | 设置 tabs 的 ArrowRight 会同步选择与焦点；Escape 关闭设置并返回 `#settings-btn`；层级 Escape 先关闭更高优先级详情、再关闭 Inspector。Tab/Shift+Tab 循环已有 `SurfaceManager` 行为测试，真实浏览器循环仍待发布验收 |
+| 对象两层详情 | 通过 | 在 `1280 × 720` 真实星图选择航点后，由 Context 摘要打开探索档案，再进入单份报告；第一次 Escape 返回档案并恢复到原报告按钮，第二次 Escape 返回 Context 入口，第三次才清除地图对象上下文，工作区始终保持 map，详情未覆盖 Header、Command Slot 或底栏 |
 | 浏览器错误 | 通过 | 常规交互 error console 为空；故障注入场景只出现一条预期的 market 开发态错误，重试恢复后没有新增错误 |
 
 本轮修复了两条由旧 CSS 留下的真实回归：窄屏 L3 工作区曾隐藏全局 Command Slot；恢复显示后，行动槽又会覆盖市场与终端底部内容。旧规则现在只对 Blocking Modal 生效，工作区改为通过 Shell Token 预留空间。
 
-尚未覆盖：对象两层详情、真实浏览器 200% 缩放和完整 Tab/Shift+Tab 路径。因此总体 UI 重构仍处于实施中。
+尚未覆盖：真实浏览器 200% 缩放和完整 Tab/Shift+Tab 路径。因此总体 UI 重构仍处于实施中。
 
 ## 11. 测试策略
 
@@ -604,6 +606,7 @@ Escape **不得切换 canonical workspace 或默认返回地图**，也不得关
 - `StateSession`：replace、revision、订阅顺序、陈旧异步结果丢弃。
 - `FeatureRegistry`：并发合并、依赖顺序、初始化失败、重试、sync、dispose。
 - `NavigationController`：唯一 active、别名归一化、幂等、独立 detail stack。
+- `WorkspaceDetailSurface`：不可变 detail key、两层 renderer、陈旧 revision 清理、逐层 Escape、Context inert 与精确焦点恢复。
 - `ContextInspectorController`：key 解析、跨工作区恢复、读档失效清理。
 - `GameClock`：假时间、暂停、恢复、重复启动和销毁。
 - `ActionCoordinator`：成功/失败原子性、领域事件和 dirty region。
@@ -735,11 +738,12 @@ Escape **不得切换 canonical workspace 或默认返回地图**，也不得关
 | `NavigationController` | **已接入 `UIManager`** | 五个 workspace、旧别名、唯一 active、幂等切换、独立 detail stack；Escape 只关闭 L4 详情不改变 L3 | 继续迁移旧 surface 直接开关与 focus 适配器 |
 | `SurfaceManager` | **唯一 Escape dispatcher 已接入** | blocking 层优先且不下穿；非阻塞层按优先级处理；隐藏 surface 同步 inert/aria-hidden | 将五个 L3 workspace 完全收口到同一 surface registry |
 | `ContextInspector` | **五个对象型 workspace 已接入** | 每 workspace 的不可变 context key、latest-state provider、renderer adapter、统一空态；地图、商品、舰船、任务、科技、派系、成就、探索报告与只读日志消息已接入；日志选择会保留焦点返回点，桌面 dock 与窄屏上部浮层已完成多视口回归 | 把更多领域局部动作移入 inspector action slot，并继续减少完整终端内的重复详情 |
+| `WorkspaceDetailSurface` | **统一 L4 已接入** | 从 Navigation detail stack 投影单一非阻塞详情面；按 type 注册 renderer，使用 latest-state/revision；陈旧详情自动退出；Escape 只退一层并精确恢复焦点；地图探索已形成 Context 摘要 → 档案 → 单份报告的两层真实链路 | 为 trade/fleet/archive 增加对象 adapter，并把 renderer 从大型 UI 文件继续拆出 |
 
 当前仍存在的过渡边界：
 
-- `GameManager` 已收束为 16 行兼容门面，`main.js` 直接启动 `GameApplication`；StateSession、SystemRuntime、SessionLifecycle、GameClock/GameLoop、GameApplicationLifecycle、GameRuntimeGraph、GameStartupProjection、GamePersistenceController、GameActionRuntime、GameFeatureRuntime、GameGuidanceRuntime、GameUiApplicationRuntime、FeatureRegistry、GameFeatureManifest 以及各领域 controller 均已成为真实调用路径。当前 `GameApplication` 已降至 206 行，12 个节点工厂迁入 554 行的独立装配表，Settings/Audio/Renderer 启动职责也已独立；7 个测试门面和工厂表的 runtime cluster 仍需继续拆分，不能把“门面已变薄”等同于“组合根已完成”。
-- `GameUiCoordinator`、`ActionGuideCoordinator`、`NavigationController`、`SurfaceManager` 和 `ContextInspector` 已进入运行时调用链；Context Inspector 与唯一 Command Slot 已从 Map workspace 提升为 `game-main` 的 Global L2 直属层；真实动作已改走 dirty-region 增量刷新，但 workspace 内部 presenter 仍是整块刷新，局部 action slot 和旧终端 DOM 收口也未完成，不能按“已完成 UI 重构”验收。
+- `GameManager` 已收束为 16 行兼容门面，`main.js` 直接启动 `GameApplication`；StateSession、SystemRuntime、SessionLifecycle、GameClock/GameLoop、GameApplicationLifecycle、GameRuntimeGraph、GameStartupProjection、GamePersistenceController、GameActionRuntime、GameFeatureRuntime、GameGuidanceRuntime、GameUiApplicationRuntime、FeatureRegistry、GameFeatureManifest 以及各领域 controller 均已成为真实调用路径。当前 `GameApplication` 已降至 206 行，12 个节点工厂迁入 556 行的独立装配表，Settings/Audio/Renderer 启动职责也已独立；7 个测试门面和工厂表的 runtime cluster 仍需继续拆分，不能把“门面已变薄”等同于“组合根已完成”。
+- `GameUiCoordinator`、`ActionGuideCoordinator`、`NavigationController`、`SurfaceManager`、`ContextInspector` 和 `WorkspaceDetailSurface` 已进入运行时调用链；Context Inspector 与唯一 Command Slot 已从 Map workspace 提升为 `game-main` 的 Global L2 直属层，地图 Context 只保留对象摘要，探索档案与报告由 L4 承载；真实动作已改走 dirty-region 增量刷新，但其他工作区的对象详情 adapter、workspace 内部整块刷新和局部 action slot 仍需收口，不能按“已完成 UI 重构”验收。
 - 通用延迟模块已由单一 manifest 持有；Dialogue/RandomEvent/Achievement controller 仅保留领域队列或检查事务，不再重复拥有 import 状态。
 - `SurfaceManager` 已统一 blocking 层、inert 与 Escape dispatcher，但五个 L3 workspace 仍需淘汰旧 primary/secondary 适配分歧。
 - 新模块不得长期停留为旁路实现；每个骨架必须有接线阶段和删除旧路径的验收项。

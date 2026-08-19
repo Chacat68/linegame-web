@@ -80,6 +80,7 @@ export function init(stateSource, handlers) {
     },
     openDetail: openDetail,
     closeDetail: closeDetail,
+    subscribeNavigation: subscribeNavigation,
   };
 
   _syncWorkspaceVisualState('map');
@@ -92,6 +93,10 @@ export function openDetail(detail, workspace) {
 
 export function closeDetail(workspace) {
   return _navigation ? _navigation.closeDetail(workspace) : null;
+}
+
+export function subscribeNavigation(listener) {
+  return _navigation ? _navigation.subscribe(listener) : function () {};
 }
 
 export function getCurrentView() {
