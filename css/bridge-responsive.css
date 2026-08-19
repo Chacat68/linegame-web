@@ -84,7 +84,9 @@
   #map-container > #market-overlay.market-overlay {
     top: var(--ui-space-2) !important;
     right: var(--ui-space-3) !important;
-    bottom: calc(var(--ui-nav-height) + var(--ui-space-5) + var(--ui-safe-bottom)) !important;
+    bottom: calc(
+      var(--ui-nav-height) + var(--ui-space-5) + var(--ui-command-reserve) + var(--ui-safe-bottom)
+    ) !important;
     left: var(--ui-space-3) !important;
   }
 }
@@ -93,6 +95,7 @@
   :root {
     --ui-header-height: 58px;
     --ui-nav-height: 62px;
+    --ui-command-reserve: 132px;
     --starmap-rail-size: var(--ui-control-lg);
   }
 
@@ -261,7 +264,9 @@
   #map-container > #market-overlay.market-overlay {
     top: var(--ui-space-2) !important;
     right: var(--ui-space-2) !important;
-    bottom: calc(var(--ui-nav-height) + var(--ui-space-4) + var(--ui-safe-bottom)) !important;
+    bottom: calc(
+      var(--ui-nav-height) + var(--ui-space-4) + var(--ui-command-reserve) + var(--ui-safe-bottom)
+    ) !important;
     left: var(--ui-space-2) !important;
     border-radius: var(--ui-radius-card);
   }
@@ -421,7 +426,9 @@
     padding:
       calc(var(--ui-header-height) + var(--ui-space-2))
       max(var(--ui-space-2), var(--ui-safe-right))
-      calc(var(--ui-nav-height) + var(--ui-space-4) + var(--ui-safe-bottom))
+      calc(
+        var(--ui-nav-height) + var(--ui-space-4) + var(--ui-command-reserve) + var(--ui-safe-bottom)
+      )
       max(var(--ui-space-2), var(--ui-safe-left)) !important;
   }
 

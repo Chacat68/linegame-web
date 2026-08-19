@@ -1,9 +1,14 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
+function readApplicationComposition() {
+  return readFileSync('js/core/GameApplication.js', 'utf8') + '\n' +
+    readFileSync('js/core/GameRuntimeNodeFactories.js', 'utf8');
+}
+
 describe('deferred terminal UI loading', function () {
   it('市场、舰队和档案界面不再进入首屏静态依赖图', function () {
-    var source = readFileSync('js/core/GameApplication.js', 'utf8');
+    var source = readApplicationComposition();
     var featureManifest = readFileSync('js/core/GameFeatureManifest.js', 'utf8');
     var featureRuntime = readFileSync('js/core/GameFeatureRuntime.js', 'utf8');
     var featureRegistry = readFileSync('js/core/FeatureRegistry.js', 'utf8');
@@ -29,7 +34,7 @@ describe('deferred terminal UI loading', function () {
   });
 
   it('首次打开终端会触发加载，后续全量刷新只更新已加载模块', function () {
-    var gameManager = readFileSync('js/core/GameApplication.js', 'utf8');
+    var gameManager = readApplicationComposition();
     var guidanceRuntime = readFileSync('js/core/GameGuidanceRuntime.js', 'utf8');
     var commandDestinations = readFileSync('js/core/CommandDestinationController.js', 'utf8');
     var marketController = readFileSync('js/core/MarketWorkspaceController.js', 'utf8');
@@ -71,7 +76,7 @@ describe('deferred terminal UI loading', function () {
   });
 
   it('终端样式与对应模块一起按需加载', function () {
-    var gameManager = readFileSync('js/core/GameApplication.js', 'utf8');
+    var gameManager = readApplicationComposition();
     var featureManifest = readFileSync('js/core/GameFeatureManifest.js', 'utf8');
     var featureRegistry = readFileSync('js/core/FeatureRegistry.js', 'utf8');
     var styleEntry = readFileSync('css/style.css', 'utf8');
@@ -99,7 +104,7 @@ describe('deferred terminal UI loading', function () {
   });
 
   it('科研阻塞状态使用无 DOM 的轻量引导模块', function () {
-    var gameManager = readFileSync('js/core/GameApplication.js', 'utf8');
+    var gameManager = readApplicationComposition();
     var guidanceRuntime = readFileSync('js/core/GameGuidanceRuntime.js', 'utf8');
     var guidance = readFileSync('js/ui/ResearchGuidance.js', 'utf8');
 
@@ -111,7 +116,7 @@ describe('deferred terminal UI loading', function () {
   });
 
   it('存档和胜利结果只在对应入口触发加载', function () {
-    var gameManager = readFileSync('js/core/GameApplication.js', 'utf8');
+    var gameManager = readApplicationComposition();
     var featureManifest = readFileSync('js/core/GameFeatureManifest.js', 'utf8');
     var settingsController = readFileSync('js/core/SettingsUiController.js', 'utf8');
     var victoryController = readFileSync('js/core/VictoryRuntimeController.js', 'utf8');
@@ -135,7 +140,7 @@ describe('deferred terminal UI loading', function () {
   });
 
   it('剧情与随机事件数据只在首次触发时进入依赖图', function () {
-    var gameManager = readFileSync('js/core/GameApplication.js', 'utf8');
+    var gameManager = readApplicationComposition();
     var featureManifest = readFileSync('js/core/GameFeatureManifest.js', 'utf8');
     var dialogueRuntime = readFileSync('js/core/DialogueRuntimeController.js', 'utf8');
     var randomEventRuntime = readFileSync('js/core/RandomEventRuntimeController.js', 'utf8');
@@ -169,7 +174,7 @@ describe('deferred terminal UI loading', function () {
   });
 
   it('首次进入和教程界面只在对应流程触发时加载', function () {
-    var gameManager = readFileSync('js/core/GameApplication.js', 'utf8');
+    var gameManager = readApplicationComposition();
     var guidanceRuntime = readFileSync('js/core/GameGuidanceRuntime.js', 'utf8');
     var featureManifest = readFileSync('js/core/GameFeatureManifest.js', 'utf8');
     var featureRegistry = readFileSync('js/core/FeatureRegistry.js', 'utf8');
@@ -191,7 +196,7 @@ describe('deferred terminal UI loading', function () {
   });
 
   it('教程辅助与首次进入内容策略不再由 GameManager 直接实现', function () {
-    var gameManager = readFileSync('js/core/GameApplication.js', 'utf8');
+    var gameManager = readApplicationComposition();
     var guidanceRuntime = readFileSync('js/core/GameGuidanceRuntime.js', 'utf8');
     var teachingController = readFileSync('js/core/TeachingGuidanceController.js', 'utf8');
     var onboardingPolicy = readFileSync('js/core/OnboardingPolicyController.js', 'utf8');
@@ -214,7 +219,7 @@ describe('deferred terminal UI loading', function () {
   });
 
   it('eager UI 壳绑定与教程完成订阅由统一生命周期控制器持有', function () {
-    var gameManager = readFileSync('js/core/GameApplication.js', 'utf8');
+    var gameManager = readApplicationComposition();
     var uiLifecycle = readFileSync('js/core/GameUiLifecycleController.js', 'utf8');
     var uiApplication = readFileSync('js/core/GameUiApplicationRuntime.js', 'utf8');
 
@@ -234,7 +239,7 @@ describe('deferred terminal UI loading', function () {
   });
 
   it('设置、行动执行器与命令落点不再由 GameManager 持有 UI 生命周期', function () {
-    var gameManager = readFileSync('js/core/GameApplication.js', 'utf8');
+    var gameManager = readApplicationComposition();
     var guidanceRuntime = readFileSync('js/core/GameGuidanceRuntime.js', 'utf8');
     var featureManifest = readFileSync('js/core/GameFeatureManifest.js', 'utf8');
     var commandDestinations = readFileSync('js/core/CommandDestinationController.js', 'utf8');
@@ -282,7 +287,7 @@ describe('deferred terminal UI loading', function () {
   });
 
   it('高级经营、路线搜索和成就定义只在实际需要时加载', function () {
-    var gameManager = readFileSync('js/core/GameApplication.js', 'utf8');
+    var gameManager = readApplicationComposition();
     var featureManifest = readFileSync('js/core/GameFeatureManifest.js', 'utf8');
     var gameTime = readFileSync('js/systems/time/GameTimeSystem.js', 'utf8');
     var tradeSystem = readFileSync('js/systems/trade/TradeSystem.js', 'utf8');
@@ -309,7 +314,7 @@ describe('deferred terminal UI loading', function () {
   });
 
   it('所有通用延迟功能由 manifest 持有，不再复制 module/promise/error 三元状态', function () {
-    var gameManager = readFileSync('js/core/GameApplication.js', 'utf8');
+    var gameManager = readApplicationComposition();
     var featureManifest = readFileSync('js/core/GameFeatureManifest.js', 'utf8');
     var featureRuntime = readFileSync('js/core/GameFeatureRuntime.js', 'utf8');
     var manifestFeatures = [

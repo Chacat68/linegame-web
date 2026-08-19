@@ -1,7 +1,7 @@
 # 《星际贸易商》GameManager 与全局 UI 重构方案
 
 > 文档状态：实施中
-> 更新日期：2026-08-17
+> 更新日期：2026-08-20
 > 适用范围：`linegame-web` 浏览器单机版运行时架构、全局 UI 壳层与迁移测试
 > 关联基线：[`09_技术架构设计.md`](./09_技术架构设计.md)、[`21_全局UI设计规范.md`](./21_全局UI设计规范.md)
 
@@ -31,17 +31,18 @@
 - `FeatureRegistry`：延迟功能、依赖、样式、重试和释放。
 - `GameUiCoordinator`：UI 导航、投影刷新、Context Inspector、Command Slot 和 Surface 协调。
 
-迁移结束后，`GameManager.js` 只保留 **不超过 50 行的兼容门面**；正式启动器直接依赖 `GameApplication.js`。`GameApplication` 只负责组合与顶层生命周期，Runtime Graph 状态机已独立，节点工厂定义仍要继续收束，不能靠把旧巨型闭包改名来完成验收。
+迁移结束后，`GameManager.js` 只保留 **不超过 50 行的兼容门面**；正式启动器直接依赖 `GameApplication.js`。`GameApplication` 只负责组合与顶层生命周期，Runtime Graph 状态机与节点工厂表均已独立；后续还要继续拆分工厂表中的 runtime cluster，不能靠把旧巨型闭包改名来完成验收。
 
 ## 2. 现状量化
 
-以下数据为 2026-08-17 对当前工作树的静态盘点：
+以下数据为 2026-08-20 对当前工作树的静态盘点：
 
 | 对象 | 现状 | 风险含义 |
 | --- | ---: | --- |
 | `js/core/GameManager.js` | 重构前约 2,900 行；当前 16 行 | 已成为只重导出历史公共 API 的兼容门面，浏览器入口不再依赖它 |
-| `js/core/GameApplication.js` | 当前 724 行、51 条静态 import | 已成为真实组合根，12 个 runtime 节点全部经独立 `GameRuntimeGraph` 解析；下一步需把节点定义表与 Renderer/Settings 启动投影拆出，降低组合文件变更半径 |
-| `GameApplication` 顶层函数 | 34 个 | 主要是 runtime provider、应用/会话接线和 7 个测试 facade；新功能不得再增加一次性转发函数，测试 facade 应迁入正式 harness |
+| `js/core/GameApplication.js` | 当前 219 行、15 条静态 import | 已成为精简组合根，12 个 runtime 节点经独立 `GameRuntimeGraph` 与工厂表解析；下一步需把 Renderer/Settings 启动投影拆出，降低组合文件变更半径 |
+| `GameApplication` 顶层函数 | 27 个 | 主要是应用/会话接线和 7 个测试 facade；新功能不得再增加一次性转发函数，测试 facade 应迁入正式 harness |
+| `js/core/GameRuntimeNodeFactories.js` | 当前 552 行、44 条静态 import | 独占 12 个 runtime 节点的依赖装配；下一步按 feature/UI/action/guidance 等 runtime cluster 拆分，避免形成新的组合巨石 |
 | `js/core/GameRuntimeGraph.js` | 121 行 | 已统一同步惰性构造、实例复用、循环依赖链、失败重试、generation 诊断和引用清理；不负责各 runtime 的 dispose 顺序 |
 | `_handle*` / `_load*` / `_render*` / `_ensure*` 函数 | 0 个私有入口 + 7 个测试 facade | 私有兼容门面已删除；真实 UI/剧情/随机事件端口直连 typed runtime，测试 facade 仍需替换为正式 harness |
 | 延迟模块状态变量 | 0 个旧三元状态；15 个 manifest entry | 通用延迟生命周期已统一，领域 controller 只保留自身队列/上下文 |
@@ -573,6 +574,23 @@ Escape **不得切换 canonical workspace 或默认返回地图**，也不得关
 
 浏览器 QA 记录必须包含浏览器版本、视口、WebGL/2D 模式、失败截图和复现步骤；“肉眼看过首页”不算通过。
 
+### 10.3 2026-08-20 浏览器基线（第一轮）
+
+本轮使用 Codex In-app Browser（运行时未暴露具体 Chromium 版本）与可见的 Three.js 3D 画布执行真实交互。它是阶段性基线，不替代 10.2 的完整发布验收。
+
+| 范围 | 结果 | 证据 |
+| --- | --- | --- |
+| `1440 × 900`、`1280 × 720`、`1024 × 768`、`768 × 1024`、`390 × 844` | 通过 | 每个视口依次点击 map/trade/fleet/archive/logs；始终只有一个 `aria-pressed` 工作区，只有对应 L3 可见，面板均在视口内且无页面横向溢出 |
+| Command Slot 与 nav | 通过 | 五个视口均无重叠；390px 下五工作区都保持唯一行动槽可见，触控导航最小高度 54px |
+| Workspace 与 Command Slot | 通过 | 新增 `--ui-command-reserve`：桌面/平板 76px、窄屏 132px；市场和三个终端与行动槽保持 8px 间距，不再覆盖底部 CTA/滚动内容 |
+| Context Inspector | 通过 | 390px 默认收起；打开后边界为 `376 × 254` 且完整位于视口内；Escape 仅关闭 Inspector，工作区仍为 map |
+| Blocking Modal | 部分通过 | 设置弹窗打开后隐藏 nav/Command Slot；Escape 关闭并把焦点返回 `#settings-btn`。Tab/Shift+Tab 完整循环仍待发布验收 |
+| 浏览器错误 | 通过 | 本轮交互结束后 error console 为空 |
+
+本轮修复了两条由旧 CSS 留下的真实回归：窄屏 L3 工作区曾隐藏全局 Command Slot；恢复显示后，行动槽又会覆盖市场与终端底部内容。旧规则现在只对 Blocking Modal 生效，工作区改为通过 Shell Token 预留空间。
+
+尚未覆盖：对象两层详情、延迟 Feature 失败重试、手动读档后的全局投影、2D fallback、200% 缩放和完整键盘路径。因此总体 UI 重构仍处于实施中。
+
 ## 11. 测试策略
 
 ### 11.1 纯契约测试
@@ -657,7 +675,7 @@ Escape **不得切换 canonical workspace 或默认返回地图**，也不得关
 
 ## 13. 首批修复与新模块接线状态
 
-本节记录 2026-08-17 工作树中的真实状态。“已落盘”不等于全部迁移完成或已经发布。
+本节记录 2026-08-20 工作树中的真实状态。“已落盘”不等于全部迁移完成或已经发布。
 
 | 项目 | 当前状态 | 已覆盖 | 下一步 |
 | --- | --- | --- | --- |
@@ -671,7 +689,7 @@ Escape **不得切换 canonical workspace 或默认返回地图**，也不得关
 | `GameClockController` | **已接入全部游戏计时器** | RAF、实时日与命名 recurring task 统一调度；假时钟、暂停不补算、stale callback、重复 start、会话替换和 dispose 有测试 | 保持为无领域知识的底层调度器 |
 | `GameLoopRuntime` | **游戏循环应用边界已接入** | 统一 latest-state、实时流速、高级商业预取暂停、DOM/教程暂停、场景帧、领域日推进与 active-dispatch 恢复/重启；`GameManager` 不再持有 RAF、DOM 选择器或 recurring id；dispose 已进入统一 shutdown | 评估 `visibilitychange` 时是否停止 RAF 以降低后台功耗 |
 | `GameApplicationLifecycle` | **应用级 shutdown 已接入** | 严格按 Session → Loop → async controllers → UI/Context → Feature → Renderer → release 顺序释放；单阶段异常隔离、惰性 runtime 跳过和重复 shutdown 幂等有测试；`pagehide` 排除 bfcache，HMR 共用同一入口；最终引用清理由 `GameRuntimeGraph.clear()` 统一完成 | 将 Renderer/Settings 启动投影拆成可注入应用端口 |
-| `GameRuntimeGraph` | **运行时节点状态机已接入** | 12 个节点全部走 resolve/peek/clear；同步循环依赖给出完整链路，失败节点可重试，清理后 generation 单调递增且保留创建计数 | 把 `GameApplication` 内节点工厂声明迁成独立依赖表，并公开只读应用诊断 |
+| `GameRuntimeGraph` | **运行时节点状态机已接入** | 12 个节点全部走 resolve/peek/clear；同步循环依赖给出完整链路，失败节点可重试，清理后 generation 单调递增且保留创建计数；节点工厂已迁入独立依赖表 | 公开只读应用诊断，并按 runtime cluster 拆分工厂表 |
 | `GameActionRuntime` | **九个动作控制器与共享提交边界已接入** | 单一 latest-state provider 组装 Fleet/Commerce/Archive/Trade/Travel/Exploration/Event/Dispatch/GameDay 与 pipeline；通用结果发布和任务进度提交已迁出，GameManager 不再逐项 import/缓存控制器；真实任务接取→买入确认→成交→行动引导切换已浏览器验收 | 把剩余 UI handler 转发收敛为 typed command，并为跨控制器异步 post-effect 增加统一事务 token |
 | `GameGuidanceRuntime` | **行动引导组合边界已接入** | 单一 latest-state/session 端口组装 Action Guide、命令目的地、语义执行、教学路线、首次进入 UI 与 onboarding policy；GameManager 已删除 6 份 controller 缓存/getter 及互调胶水；UI 子控制器与 runtime 引用已纳入统一 shutdown | 把领域完成事件升级为 typed guidance command，并增加显式 dispose 诊断 |
 | `FleetActionController` + `DispatchActionController` | **舰队 UI 动作与 active dispatch tick 已接入** | 购船、切船、升级、派遣/召回、槽位、出售、改装、保养和船员动作统一编排；tick 通过动作描述调用补给/航行/交易控制器，不读 DOM；买卖后的路线阶段在首次 render 前提交；维护失效立即停表 | 移除 GameManager 兼容转发函数 |
@@ -712,7 +730,7 @@ Escape **不得切换 canonical workspace 或默认返回地图**，也不得关
 
 当前仍存在的过渡边界：
 
-- `GameManager` 已收束为 16 行兼容门面，`main.js` 直接启动 `GameApplication`；StateSession、SystemRuntime、SessionLifecycle、GameClock/GameLoop、GameApplicationLifecycle、GameRuntimeGraph、GamePersistenceController、GameActionRuntime、GameFeatureRuntime、GameGuidanceRuntime、GameUiApplicationRuntime、FeatureRegistry、GameFeatureManifest 以及各领域 controller 均已成为真实调用路径。当前 `GameApplication` 仍有 724 行，12 个节点工厂声明、Renderer/Settings 顶层启动与 7 个测试门面尚未进一步拆分，不能把“门面已变薄”等同于“组合根已完成”。
+- `GameManager` 已收束为 16 行兼容门面，`main.js` 直接启动 `GameApplication`；StateSession、SystemRuntime、SessionLifecycle、GameClock/GameLoop、GameApplicationLifecycle、GameRuntimeGraph、GamePersistenceController、GameActionRuntime、GameFeatureRuntime、GameGuidanceRuntime、GameUiApplicationRuntime、FeatureRegistry、GameFeatureManifest 以及各领域 controller 均已成为真实调用路径。当前 `GameApplication` 已降至 219 行，12 个节点工厂迁入 552 行的独立装配表；Renderer/Settings 顶层启动、7 个测试门面和工厂表的 runtime cluster 仍需继续拆分，不能把“门面已变薄”等同于“组合根已完成”。
 - `GameUiCoordinator`、`ActionGuideCoordinator`、`NavigationController`、`SurfaceManager` 和 `ContextInspector` 已进入运行时调用链；Context Inspector 与唯一 Command Slot 已从 Map workspace 提升为 `game-main` 的 Global L2 直属层；真实动作已改走 dirty-region 增量刷新，但 workspace 内部 presenter 仍是整块刷新，局部 action slot 和旧终端 DOM 收口也未完成，不能按“已完成 UI 重构”验收。
 - 通用延迟模块已由单一 manifest 持有；Dialogue/RandomEvent/Achievement controller 仅保留领域队列或检查事务，不再重复拥有 import 状态。
 - `SurfaceManager` 已统一 blocking 层、inert 与 Escape dispatcher，但五个 L3 workspace 仍需淘汰旧 primary/secondary 适配分歧。

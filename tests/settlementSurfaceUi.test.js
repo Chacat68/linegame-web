@@ -338,7 +338,8 @@ describe('Settlement surface UI', function () {
     var html = readFileSync('index.html', 'utf8');
     var css = readFileSync('css/interstellar-trader.css', 'utf8');
     var hud = readFileSync('js/ui/HUD.js', 'utf8');
-    var gameManager = readFileSync('js/core/GameApplication.js', 'utf8');
+    var gameManager = readFileSync('js/core/GameApplication.js', 'utf8') + '\n' +
+      readFileSync('js/core/GameRuntimeNodeFactories.js', 'utf8');
     var victoryController = readFileSync('js/core/VictoryRuntimeController.js', 'utf8');
 
     expect(html).toContain('aria-describedby="victory-modal-desc victory-modal-body"');

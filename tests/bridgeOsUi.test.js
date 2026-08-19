@@ -37,8 +37,10 @@ describe('Bridge OS global UI contracts', function () {
   });
 
   it('keeps global navigation reachable around responsive workspaces', function () {
+    var tokens = read('css/tokens.css');
     var surfaces = read('css/surfaces.css');
     var responsive = read('css/bridge-responsive.css');
+    var shell = read('css/global-shell-v2.css');
 
     expect(surfaces).toContain('#map-container > #market-overlay.market-overlay');
     expect(surfaces).toContain('top: var(--ui-space-4) !important');
@@ -48,6 +50,12 @@ describe('Bridge OS global UI contracts', function () {
     expect(responsive).toContain('body:has(#console-panel.panel-open) .bottom-nav');
     expect(responsive).toContain('visibility: visible !important');
     expect(responsive).toContain('max-height: 190px !important');
+    expect(tokens).toContain('--ui-command-reserve: 76px');
+    expect(responsive).toContain('--ui-command-reserve: 132px');
+    expect(surfaces).toMatch(/#map-container > #market-overlay\.market-overlay\s*\{[\s\S]*?bottom:\s*calc\([\s\S]*?var\(--ui-command-reserve\)/);
+    expect(surfaces).toMatch(/#info-panel\.side-panel-overlay,[\s\S]*?padding:[\s\S]*?var\(--ui-command-reserve\)/);
+    expect(responsive).toMatch(/#map-container > #market-overlay\.market-overlay\s*\{[\s\S]*?bottom:\s*calc\([\s\S]*?var\(--ui-command-reserve\)/);
+    expect(shell).toMatch(/#context-inspector\.context-inspector:not\(\[data-workspace-id="map"\]\)\s*\{[\s\S]*?bottom:\s*calc\([\s\S]*?var\(--ui-command-reserve\)/);
   });
 
   it('ships communications as the same terminal surface as archive and hangar', function () {

@@ -53,6 +53,7 @@ describe('Action guide responsive CSS', function () {
     var tokens = readFileSync(new URL('../css/tokens.css', import.meta.url), 'utf8');
     var shell = readFileSync(new URL('../css/global-shell-v2.css', import.meta.url), 'utf8');
     var surfaces = readFileSync(new URL('../css/surfaces.css', import.meta.url), 'utf8');
+    var legacy = readFileSync(new URL('../css/interstellar-trader.css', import.meta.url), 'utf8');
 
     expect(tokens).toContain('--ui-z-workspace: 70');
     expect(tokens).toContain('--ui-z-terminal: 100');
@@ -62,5 +63,9 @@ describe('Action guide responsive CSS', function () {
     expect(shell).toMatch(/body:has\(#context-inspector:not\(\[hidden\]\)\) \.floating-command-stack\s*\{[^}]*left:\s*calc\(\(100vw - var\(--ui-context-width\)/);
     expect(shell).toMatch(/@media \(max-width: 620px\)[\s\S]*?\.floating-command-stack\s*\{[^}]*left:\s*max\(7px, var\(--ui-safe-left\)\)[^}]*transform:\s*none/);
     expect(surfaces).not.toContain('#map-container:has(> #market-overlay:not(.hidden)) > .floating-command-stack');
+    expect(legacy).not.toContain('body:has(#market-overlay:not(.hidden)) #action-guide');
+    expect(legacy).not.toContain('body:has(#info-panel.panel-open) #action-guide');
+    expect(legacy).not.toContain('body:has(#trade-panel.panel-open) #action-guide');
+    expect(legacy).toContain('body:has(.modal:not(.hidden)) #action-guide');
   });
 });

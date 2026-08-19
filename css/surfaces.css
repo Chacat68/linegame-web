@@ -723,7 +723,9 @@ body::before {
      for fixed descendants. Offset from the scene instead of the header. */
   top: var(--ui-space-4) !important;
   right: max(var(--ui-space-5), calc((100vw - 1320px) / 2)) !important;
-  bottom: calc(var(--ui-nav-height) + var(--ui-space-5) + var(--ui-safe-bottom)) !important;
+  bottom: calc(
+    var(--ui-nav-height) + var(--ui-space-5) + var(--ui-command-reserve) + var(--ui-safe-bottom)
+  ) !important;
   left: max(var(--ui-space-5), calc((100vw - 1320px) / 2)) !important;
   display: flex;
   width: auto !important;
@@ -940,7 +942,9 @@ body::before {
   padding:
     calc(var(--ui-header-height) + var(--ui-space-4))
     max(var(--ui-space-4), var(--ui-safe-right))
-    calc(var(--ui-nav-height) + var(--ui-space-5) + var(--ui-safe-bottom))
+    calc(
+      var(--ui-nav-height) + var(--ui-space-5) + var(--ui-command-reserve) + var(--ui-safe-bottom)
+    )
     max(var(--ui-space-4), var(--ui-safe-left)) !important;
   background: var(--ui-bg-backdrop) !important;
   border: 0 !important;

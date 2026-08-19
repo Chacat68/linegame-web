@@ -8849,12 +8849,6 @@ body,
 
 @supports selector(body:has(#market-overlay:not(.hidden))) {
   @media (max-width: 700px), (max-height: 620px) {
-    body:has(#market-overlay:not(.hidden)) .bottom-nav,
-    body:has(#market-overlay:not(.hidden)) #action-guide,
-    body:has(#info-panel.panel-open) .bottom-nav,
-    body:has(#info-panel.panel-open) #action-guide,
-    body:has(#trade-panel.panel-open) .bottom-nav,
-    body:has(#trade-panel.panel-open) #action-guide,
     body:has(.modal:not(.hidden)) .bottom-nav,
     body:has(.modal:not(.hidden)) #action-guide {
       opacity: 0 !important;

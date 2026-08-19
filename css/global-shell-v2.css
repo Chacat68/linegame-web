@@ -437,7 +437,9 @@
   #context-inspector.context-inspector:not([data-workspace-id="map"]) {
     top: auto;
     right: max(var(--ui-space-3), var(--ui-safe-right));
-    bottom: calc(var(--ui-nav-height) + var(--ui-space-5) + var(--ui-safe-bottom));
+    bottom: calc(
+      var(--ui-nav-height) + var(--ui-space-5) + var(--ui-command-reserve) + var(--ui-safe-bottom)
+    );
     left: max(var(--ui-space-3), var(--ui-safe-left));
     width: auto;
     max-height: min(52dvh, 500px);

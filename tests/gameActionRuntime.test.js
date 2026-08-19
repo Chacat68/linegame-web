@@ -132,7 +132,9 @@ describe('GameActionRuntime', function () {
   });
 
   it('GameApplication 只持有单一动作运行时，不再逐项 import 或缓存控制器', function () {
-    var gameManager = readFileSync('js/core/GameApplication.js', 'utf8');
+    var gameApplication = readFileSync('js/core/GameApplication.js', 'utf8');
+    var gameManager = gameApplication + '\n' +
+      readFileSync('js/core/GameRuntimeNodeFactories.js', 'utf8');
     var actionRuntime = readFileSync('js/core/GameActionRuntime.js', 'utf8');
     var factories = [
       'FleetActionController',
@@ -148,7 +150,8 @@ describe('GameActionRuntime', function () {
     ];
 
     expect(gameManager).toContain("from './GameActionRuntime.js'");
-    expect(gameManager).toContain("_runtimeGraph.resolve('actions'");
+    expect(gameApplication).toContain("from './GameRuntimeNodeFactories.js'");
+    expect(gameApplication).toContain("_resolveRuntime('actions')");
     expect(gameManager).not.toContain('let _actionRuntime = null;');
     expect(gameManager).not.toMatch(/let _(?:fleet|commerce|archive|trade|travel|exploration|event|dispatch|gameDay)Actions\s*=/);
     factories.forEach(function (factory) {
