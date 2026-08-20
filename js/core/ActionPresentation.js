@@ -10,7 +10,14 @@ export const UI_REGION = Object.freeze({
   ACTIVE_WORKSPACE: 'active-workspace',
   MARKET: 'market',
   FLEET: 'fleet',
+  FLEET_HANGAR: 'fleet-hangar',
+  FLEET_SHOP: 'fleet-shop',
   ARCHIVE: 'archive',
+  ARCHIVE_QUEST: 'archive-quest',
+  ARCHIVE_EXPLORATION: 'archive-exploration',
+  ARCHIVE_RESEARCH: 'archive-research',
+  ARCHIVE_FACTION: 'archive-faction',
+  ARCHIVE_ACHIEVEMENT: 'archive-achievement',
   SAVE: 'save',
   SCENE: 'scene',
   CONTEXT: 'context',
@@ -66,3 +73,29 @@ export function createActionPresentation(dirtyRegions) {
 }
 
 export const DEFAULT_ACTION_PRESENTATION = createActionPresentation(DEFAULT_ACTION_DIRTY_REGIONS);
+
+function _withWorkspaceRegions(regions) {
+  var dirtyRegions = DEFAULT_ACTION_DIRTY_REGIONS.slice();
+  var insertAt = dirtyRegions.indexOf(UI_REGION.ACTIVE_WORKSPACE) + 1;
+  dirtyRegions.splice.apply(dirtyRegions, [insertAt, 0].concat(regions));
+  return dirtyRegions;
+}
+
+// Fleet 的主机库与采购页已经拥有独立 presenter/render 入口。动作仍保留
+// ACTIVE_WORKSPACE，让从其他入口触发的动作可以刷新当前工作区；当 Fleet
+// 自身处于活动态时，GameUiCoordinator 会优先使用这里声明的内部区域。
+export const FLEET_HANGAR_ACTION_PRESENTATION = createActionPresentation(
+  _withWorkspaceRegions([UI_REGION.FLEET_HANGAR])
+);
+
+export const FLEET_HANGAR_SHOP_ACTION_PRESENTATION = createActionPresentation(
+  _withWorkspaceRegions([UI_REGION.FLEET_HANGAR, UI_REGION.FLEET_SHOP])
+);
+
+export const ARCHIVE_RESEARCH_ACTION_PRESENTATION = createActionPresentation(
+  _withWorkspaceRegions([UI_REGION.ARCHIVE_RESEARCH])
+);
+
+export const ARCHIVE_QUEST_ACTION_PRESENTATION = createActionPresentation(
+  _withWorkspaceRegions([UI_REGION.ARCHIVE_QUEST])
+);

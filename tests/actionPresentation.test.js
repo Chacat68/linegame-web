@@ -3,6 +3,10 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_ACTION_DIRTY_REGIONS,
   DEFAULT_ACTION_PRESENTATION,
+  ARCHIVE_QUEST_ACTION_PRESENTATION,
+  ARCHIVE_RESEARCH_ACTION_PRESENTATION,
+  FLEET_HANGAR_ACTION_PRESENTATION,
+  FLEET_HANGAR_SHOP_ACTION_PRESENTATION,
   UI_REGION,
   createActionPresentation,
   normalizeDirtyRegions,
@@ -28,8 +32,8 @@ describe('ActionPresentation', function () {
     expect(DEFAULT_ACTION_PRESENTATION.dirtyRegions).not.toContain(UI_REGION.SAVE);
     expect(gameManager).toContain("from './GameActionRuntime.js'");
     expect(gameManager).not.toContain("from './ActionExecutionPipeline.js'");
-    expect(actionRuntime).toContain('invalidate(DEFAULT_ACTION_DIRTY_REGIONS)');
     expect(actionRuntime).toContain('normalizeDirtyRegions(presentation)');
+    expect(actionRuntime).toContain('normalizeDirtyRegions(presentation, DEFAULT_ACTION_DIRTY_REGIONS)');
     expect(fullRefreshFallbacks.length).toBeLessThanOrEqual(3);
   });
 
@@ -45,5 +49,54 @@ describe('ActionPresentation', function () {
     expect(Object.isFrozen(presentation)).toBe(true);
     expect(Object.isFrozen(presentation.dirtyRegions)).toBe(true);
     expect(presentation.dirtyRegions).toEqual(['market', 'guide']);
+  });
+
+  it('Fleet 动作在保留当前工作区刷新语义时声明真实内部区域', function () {
+    expect(FLEET_HANGAR_ACTION_PRESENTATION.dirtyRegions).toEqual([
+      UI_REGION.HUD,
+      UI_REGION.SHIP,
+      UI_REGION.ACTIVE_WORKSPACE,
+      UI_REGION.FLEET_HANGAR,
+      UI_REGION.SCENE,
+      UI_REGION.CONTEXT,
+      UI_REGION.DISPATCH,
+      UI_REGION.GUIDE,
+    ]);
+    expect(FLEET_HANGAR_SHOP_ACTION_PRESENTATION.dirtyRegions).toEqual([
+      UI_REGION.HUD,
+      UI_REGION.SHIP,
+      UI_REGION.ACTIVE_WORKSPACE,
+      UI_REGION.FLEET_HANGAR,
+      UI_REGION.FLEET_SHOP,
+      UI_REGION.SCENE,
+      UI_REGION.CONTEXT,
+      UI_REGION.DISPATCH,
+      UI_REGION.GUIDE,
+    ]);
+    expect(Object.isFrozen(FLEET_HANGAR_ACTION_PRESENTATION.dirtyRegions)).toBe(true);
+    expect(Object.isFrozen(FLEET_HANGAR_SHOP_ACTION_PRESENTATION.dirtyRegions)).toBe(true);
+  });
+
+  it('Archive 任务与科研动作声明各自 presenter 区域', function () {
+    expect(ARCHIVE_QUEST_ACTION_PRESENTATION.dirtyRegions).toEqual([
+      UI_REGION.HUD,
+      UI_REGION.SHIP,
+      UI_REGION.ACTIVE_WORKSPACE,
+      UI_REGION.ARCHIVE_QUEST,
+      UI_REGION.SCENE,
+      UI_REGION.CONTEXT,
+      UI_REGION.DISPATCH,
+      UI_REGION.GUIDE,
+    ]);
+    expect(ARCHIVE_RESEARCH_ACTION_PRESENTATION.dirtyRegions).toEqual([
+      UI_REGION.HUD,
+      UI_REGION.SHIP,
+      UI_REGION.ACTIVE_WORKSPACE,
+      UI_REGION.ARCHIVE_RESEARCH,
+      UI_REGION.SCENE,
+      UI_REGION.CONTEXT,
+      UI_REGION.DISPATCH,
+      UI_REGION.GUIDE,
+    ]);
   });
 });

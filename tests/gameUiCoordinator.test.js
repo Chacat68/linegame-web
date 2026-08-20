@@ -1,6 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createGameUiCoordinator } from '../js/ui/GameUiCoordinator.js';
-import { DEFAULT_ACTION_DIRTY_REGIONS, UI_REGION } from '../js/core/ActionPresentation.js';
+import {
+  DEFAULT_ACTION_DIRTY_REGIONS,
+  ARCHIVE_QUEST_ACTION_PRESENTATION,
+  ARCHIVE_RESEARCH_ACTION_PRESENTATION,
+  FLEET_HANGAR_ACTION_PRESENTATION,
+  FLEET_HANGAR_SHOP_ACTION_PRESENTATION,
+  UI_REGION,
+} from '../js/core/ActionPresentation.js';
 
 function createFeatureHarness(initialModules) {
   var modules = Object.assign({}, initialModules || {});
@@ -185,9 +192,11 @@ describe('GameUiCoordinator', function () {
   it('向 FleetUI 注入 latest-state 重绘命令，不允许 UI 反向访问全局主控', function () {
     var state = { id: 'fleet-a' };
     var render = vi.fn();
+    var renderShop = vi.fn();
     var setLifecycleActions = vi.fn();
     var fleetModule = {
       render: render,
+      renderShop: renderShop,
       setLifecycleActions: setLifecycleActions,
     };
     var coordinator = createGameUiCoordinator({
@@ -204,6 +213,7 @@ describe('GameUiCoordinator', function () {
       'fleet-a',
       'fleet-b',
     ]);
+    expect(renderShop.mock.calls.map(function (call) { return call[0].state.id; })).toEqual(['fleet-a']);
   });
 
   it('renderAll 保持主刷新顺序', async function () {
@@ -335,6 +345,165 @@ describe('GameUiCoordinator', function () {
     await coordinator.invalidate(UI_REGION.ACTIVE_WORKSPACE);
 
     expect(seen).toEqual(['fleet:A', 'archive:B']);
+  });
+
+  it('Fleet 内部失效只重绘声明区域，并使用每次失效时的最新 state', async function () {
+    var state = { id: 'A' };
+    var hangarRender = vi.fn();
+    var shopRender = vi.fn();
+    var connectFleet = vi.fn();
+    var coordinator = createGameUiCoordinator({
+      getState: function () { return state; },
+      features: createFeatureHarness({
+        fleet: { render: hangarRender, renderShop: shopRender },
+      }),
+      ui: {
+        UIManager: {
+          getNavigationSnapshot: function () { return { activeWorkspace: 'fleet' }; },
+        },
+        ContextAdapters: { connectFleet: connectFleet },
+      },
+    });
+
+    await coordinator.invalidate(FLEET_HANGAR_ACTION_PRESENTATION);
+    state = { id: 'B' };
+    await coordinator.invalidate(UI_REGION.FLEET_SHOP);
+
+    expect(hangarRender.mock.calls.map(function (call) { return call[0].state.id; })).toEqual(['A']);
+    expect(shopRender.mock.calls.map(function (call) { return call[0].state.id; })).toEqual(['B']);
+    expect(connectFleet).toHaveBeenCalledTimes(2);
+  });
+
+  it('Fleet 内部失效不后台重绘隐藏工作区，但仍刷新实际活动工作区', async function () {
+    var calls = [];
+    var coordinator = createGameUiCoordinator({
+      getState: function () { return { id: 'archive-active' }; },
+      features: createFeatureHarness({
+        fleet: {
+          render: function () { calls.push('hangar'); },
+          renderShop: function () { calls.push('shop'); },
+        },
+        archive: {
+          ResearchUI: { render: function () { calls.push('archive'); } },
+        },
+      }),
+      ui: {
+        UIManager: {
+          getNavigationSnapshot: function () { return { activeWorkspace: 'archive' }; },
+        },
+      },
+    });
+
+    await coordinator.invalidate(FLEET_HANGAR_SHOP_ACTION_PRESENTATION);
+
+    expect(calls).toEqual(['archive']);
+  });
+
+  it('显式 Fleet 整体失效覆盖内部区域且不会重复渲染', async function () {
+    var hangarRender = vi.fn();
+    var shopRender = vi.fn();
+    var coordinator = createGameUiCoordinator({
+      getState: function () { return { id: 'fleet-full' }; },
+      features: createFeatureHarness({
+        fleet: { render: hangarRender, renderShop: shopRender },
+      }),
+      ui: {
+        UIManager: {
+          getNavigationSnapshot: function () { return { activeWorkspace: 'fleet' }; },
+        },
+      },
+    });
+
+    await coordinator.invalidate([
+      UI_REGION.FLEET,
+      UI_REGION.FLEET_HANGAR,
+      UI_REGION.FLEET_SHOP,
+    ]);
+
+    expect(hangarRender).toHaveBeenCalledOnce();
+    expect(shopRender).toHaveBeenCalledOnce();
+  });
+
+  it('Archive 内部失效只渲染声明模块，并使用每次失效时的最新 state', async function () {
+    var state = { id: 'A' };
+    var seen = [];
+    var coordinator = createGameUiCoordinator({
+      getState: function () { return state; },
+      features: createFeatureHarness({
+        archive: {
+          ResearchUI: { render: function (nextState) { seen.push('research:' + nextState.id); } },
+          FactionUI: { render: function (nextState) { seen.push('faction:' + nextState.id); } },
+          QuestUI: { render: function (nextState) { seen.push('quest:' + nextState.id); } },
+          ArchiveExplorationUI: { render: function (nextState) { seen.push('exploration:' + nextState.id); } },
+          AchievementUI: { render: function (nextState) { seen.push('achievement:' + nextState.id); } },
+        },
+      }),
+      ui: {
+        UIManager: {
+          getNavigationSnapshot: function () { return { activeWorkspace: 'archive' }; },
+        },
+      },
+    });
+
+    await coordinator.invalidate(ARCHIVE_RESEARCH_ACTION_PRESENTATION);
+    state = { id: 'B' };
+    await coordinator.invalidate(ARCHIVE_QUEST_ACTION_PRESENTATION);
+
+    expect(seen).toEqual(['research:A', 'quest:B']);
+  });
+
+  it('Archive 内部失效不后台重绘隐藏档案，但保留当前 Fleet 工作区刷新', async function () {
+    var calls = [];
+    var coordinator = createGameUiCoordinator({
+      getState: function () { return { id: 'fleet-active' }; },
+      features: createFeatureHarness({
+        archive: {
+          QuestUI: { render: function () { calls.push('quest'); } },
+        },
+        fleet: {
+          render: function () { calls.push('hangar'); },
+          renderShop: function () { calls.push('shop'); },
+        },
+      }),
+      ui: {
+        UIManager: {
+          getNavigationSnapshot: function () { return { activeWorkspace: 'fleet' }; },
+        },
+      },
+    });
+
+    await coordinator.invalidate(ARCHIVE_QUEST_ACTION_PRESENTATION);
+
+    expect(calls).toEqual(['hangar', 'shop']);
+  });
+
+  it('显式 Archive 整体失效覆盖内部区域且五个模块各渲染一次', async function () {
+    var calls = [];
+    var coordinator = createGameUiCoordinator({
+      getState: function () { return { id: 'archive-full' }; },
+      features: createFeatureHarness({
+        archive: {
+          ResearchUI: { render: function () { calls.push('research'); } },
+          FactionUI: { render: function () { calls.push('faction'); } },
+          QuestUI: { render: function () { calls.push('quest'); } },
+          ArchiveExplorationUI: { render: function () { calls.push('exploration'); } },
+          AchievementUI: { render: function () { calls.push('achievement'); } },
+        },
+      }),
+      ui: {
+        UIManager: {
+          getNavigationSnapshot: function () { return { activeWorkspace: 'archive' }; },
+        },
+      },
+    });
+
+    await coordinator.invalidate([
+      UI_REGION.ARCHIVE,
+      UI_REGION.ARCHIVE_QUEST,
+      UI_REGION.ARCHIVE_RESEARCH,
+    ]);
+
+    expect(calls).toEqual(['research', 'faction', 'quest', 'exploration', 'achievement']);
   });
 
   it('显式终端失效会去重且不会刷新未声明区域', async function () {

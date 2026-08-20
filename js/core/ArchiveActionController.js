@@ -1,7 +1,10 @@
 // js/core/ArchiveActionController.js — 科研、任务与派系档案动作编排
 
 import { buildCommandFeedback } from '../ui/CommandAction.js';
-import { DEFAULT_ACTION_PRESENTATION } from './ActionPresentation.js';
+import {
+  ARCHIVE_QUEST_ACTION_PRESENTATION,
+  ARCHIVE_RESEARCH_ACTION_PRESENTATION,
+} from './ActionPresentation.js';
 
 function _noop() {}
 
@@ -41,7 +44,7 @@ export function createArchiveActionController(dependencies) {
 
   function _researchAction(methodName, techId) {
     var result = _call(Research, methodName, [_state()].concat(typeof techId === 'undefined' ? [] : [techId]));
-    dispatch(result, DEFAULT_ACTION_PRESENTATION);
+    dispatch(result, ARCHIVE_RESEARCH_ACTION_PRESENTATION);
     return result;
   }
 
@@ -104,7 +107,7 @@ export function createArchiveActionController(dependencies) {
     if (action.actionId === 'quest-focus') {
       selectAvailableQuest(action.targetQuestId);
       activateArchiveTab('tab-quest');
-      updateUI();
+      updateUI(ARCHIVE_QUEST_ACTION_PRESENTATION);
       emitLog({
         text: buildCommandFeedback(action, {
           openedVerb: '已切到',
@@ -187,12 +190,12 @@ export function createArchiveActionController(dependencies) {
   function onAcceptQuest(questId) {
     var state = _state();
     var result = _call(Quest, 'acceptQuest', [state, questId]);
-    dispatch(result, DEFAULT_ACTION_PRESENTATION);
+    dispatch(result, ARCHIVE_QUEST_ACTION_PRESENTATION);
     if (!result || !result.ok) return result;
 
     var finish = function () {
       _call(Tutorial, 'checkTrigger', ['accept_quest']);
-      updateUI();
+      updateUI(ARCHIVE_QUEST_ACTION_PRESENTATION);
     };
     if (result.completedImmediately && result.completedQuest) {
       queueQuestDialogueResult({
@@ -210,7 +213,7 @@ export function createArchiveActionController(dependencies) {
 
   function onAbandonQuest(questId) {
     var result = _call(Quest, 'abandonQuest', [_state(), questId]);
-    dispatch(result, DEFAULT_ACTION_PRESENTATION);
+    dispatch(result, ARCHIVE_QUEST_ACTION_PRESENTATION);
     return result;
   }
 

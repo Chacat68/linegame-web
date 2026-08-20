@@ -1,6 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { createGameActionRuntime } from '../js/core/GameActionRuntime.js';
+import {
+  ARCHIVE_RESEARCH_ACTION_PRESENTATION,
+  FLEET_HANGAR_SHOP_ACTION_PRESENTATION,
+} from '../js/core/ActionPresentation.js';
 import { readApplicationComposition } from './runtimeCompositionSource.js';
 
 function createHarness() {
@@ -20,6 +24,13 @@ function createHarness() {
           trace.push(['quest', targetState.id, context]);
           return questResult;
         },
+      },
+      Fleet: {
+        syncShipFromState: function () {},
+        buyShip: function () { return { ok: true, msgs: [] }; },
+      },
+      Research: {
+        startResearch: function () { return { ok: true, msgs: [] }; },
       },
       Dispatch: {
         runActiveDispatchTick: function () { return { action: 'noop', msgs: [] }; },
@@ -129,6 +140,34 @@ describe('GameActionRuntime', function () {
       ['quest', 'B', { action: 'buy_ship' }],
       ['message', { text: '任务推进', type: 'success' }],
       ['story', harness.questResult],
+    ]);
+  });
+
+  it('Fleet 真实动作把内部 dirty region 传到 UI 失效端口', function () {
+    var harness = createHarness();
+
+    harness.runtime.fleet.onBuyShip('freighter');
+
+    var invalidation = harness.trace.find(function (entry) {
+      return Array.isArray(entry) && entry[0] === 'invalidate';
+    });
+    expect(invalidation).toEqual([
+      'invalidate',
+      FLEET_HANGAR_SHOP_ACTION_PRESENTATION.dirtyRegions,
+    ]);
+  });
+
+  it('Archive 科研动作把内部 dirty region 传到 UI 失效端口', function () {
+    var harness = createHarness();
+
+    harness.runtime.archive.onStartResearch('warp-tech');
+
+    var invalidation = harness.trace.find(function (entry) {
+      return Array.isArray(entry) && entry[0] === 'invalidate';
+    });
+    expect(invalidation).toEqual([
+      'invalidate',
+      ARCHIVE_RESEARCH_ACTION_PRESENTATION.dirtyRegions,
     ]);
   });
 

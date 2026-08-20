@@ -1,9 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createArchiveActionController } from '../js/core/ArchiveActionController.js';
+import {
+  ARCHIVE_QUEST_ACTION_PRESENTATION,
+  ARCHIVE_RESEARCH_ACTION_PRESENTATION,
+} from '../js/core/ActionPresentation.js';
 
 function createHarness(options) {
   var config = options || {};
   var trace = [];
+  var presentations = [];
+  var updatePresentations = [];
   var state = config.state || { id: 'state-1' };
   var researchResult = config.researchResult || { ok: true };
   var questResult = typeof config.questResult === 'undefined' ? { ok: true } : config.questResult;
@@ -25,8 +31,14 @@ function createHarness(options) {
   var controller = createArchiveActionController({
     getState: function () { trace.push(['getState']); return state; },
     systems: { Research: Research, Quest: Quest, Tutorial: Tutorial },
-    dispatch: function (result) { trace.push(['dispatch', result]); },
-    updateUI: function () { trace.push(['updateUI']); },
+    dispatch: function (result, presentation) {
+      trace.push(['dispatch', result]);
+      presentations.push(presentation);
+    },
+    updateUI: function (presentation) {
+      trace.push(['updateUI']);
+      updatePresentations.push(presentation);
+    },
     emitLog: function (message) { trace.push(['log', message]); },
     activateArchiveTab: function (tabId) { trace.push(['tab', tabId]); },
     openMarketPanel: function (nextState, opts) { trace.push(['market', nextState, opts]); },
@@ -36,7 +48,15 @@ function createHarness(options) {
     queueQuestDialogueResult: function (result, done) { trace.push(['questDialogue', result]); if (config.autoFinishDialogue !== false) done(); },
     playTriggerDialogue: function (trigger, payload, done) { trace.push(['triggerDialogue', trigger, payload]); if (config.autoFinishDialogue !== false) done(); },
   });
-  return { controller: controller, trace: trace, state: state, researchResult: researchResult, questResult: questResult };
+  return {
+    controller: controller,
+    presentations: presentations,
+    questResult: questResult,
+    researchResult: researchResult,
+    state: state,
+    trace: trace,
+    updatePresentations: updatePresentations,
+  };
 }
 
 describe('ArchiveActionController', function () {
@@ -57,6 +77,11 @@ describe('ArchiveActionController', function () {
       ['getState'],
       ['clearResearchQueue', harness.state],
       ['dispatch', harness.researchResult],
+    ]);
+    expect(harness.presentations).toEqual([
+      ARCHIVE_RESEARCH_ACTION_PRESENTATION,
+      ARCHIVE_RESEARCH_ACTION_PRESENTATION,
+      ARCHIVE_RESEARCH_ACTION_PRESENTATION,
     ]);
   });
 
@@ -146,6 +171,8 @@ describe('ArchiveActionController', function () {
       'getState', 'acceptQuest', 'dispatch', 'triggerDialogue', 'tutorial', 'updateUI',
     ]);
     expect(harness.trace[3]).toEqual(['triggerDialogue', 'quest_accept', { questId: 'starter', quest: quest }]);
+    expect(harness.presentations).toEqual([ARCHIVE_QUEST_ACTION_PRESENTATION]);
+    expect(harness.updatePresentations).toEqual([ARCHIVE_QUEST_ACTION_PRESENTATION]);
   });
 
   it('立即完成的任务走完成对话队列并保留 phase 元数据', function () {
@@ -188,5 +215,6 @@ describe('ArchiveActionController', function () {
       ['abandonQuest', harness.state, 'quest-a'],
       ['dispatch', harness.questResult],
     ]);
+    expect(harness.presentations).toEqual([ARCHIVE_QUEST_ACTION_PRESENTATION]);
   });
 });

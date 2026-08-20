@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createFleetActionController } from '../js/core/FleetActionController.js';
-import { DEFAULT_ACTION_DIRTY_REGIONS } from '../js/core/ActionPresentation.js';
+import {
+  FLEET_HANGAR_ACTION_PRESENTATION,
+  FLEET_HANGAR_SHOP_ACTION_PRESENTATION,
+} from '../js/core/ActionPresentation.js';
 import { FLEET_COMMAND } from '../js/core/FleetCommand.js';
 
 function createHarness(options) {
@@ -89,7 +92,7 @@ describe('FleetActionController', function () {
       'start-clock',
       'completion:已确认自动跑商路线',
     ]);
-    expect(harness.presentations[0].presentation.dirtyRegions).toEqual(DEFAULT_ACTION_DIRTY_REGIONS);
+    expect(harness.presentations[0].presentation).toBe(FLEET_HANGAR_ACTION_PRESENTATION);
   });
 
   it('科研补给只在推荐路线完全匹配时推进教学步骤', function () {
@@ -184,6 +187,32 @@ describe('FleetActionController', function () {
     controller.onBuyShip('clipper');
 
     expect(seen.map(function (state) { return state.currentSystem; })).toEqual(['one', 'two']);
+  });
+
+  it('动作按真实 Fleet 投影边界选择 Hangar 或 Hangar + Shop', function () {
+    var cases = [
+      { run: function (controller) { controller.onBuyShip('freighter'); }, expected: FLEET_HANGAR_SHOP_ACTION_PRESENTATION },
+      { run: function (controller) { controller.onSwitchShip(1); }, expected: FLEET_HANGAR_ACTION_PRESENTATION },
+      { run: function (controller) { controller.onUpgradeShip(0, 'cargo'); }, expected: FLEET_HANGAR_SHOP_ACTION_PRESENTATION },
+      { run: function (controller) { controller.onAssignRoute(0, 'sol_prime', 'vega_port', 'ore', {}); }, expected: FLEET_HANGAR_ACTION_PRESENTATION },
+      { run: function (controller) { controller.onCancelRoute(0); }, expected: FLEET_HANGAR_ACTION_PRESENTATION },
+      { run: function (controller) { controller.onBuySlot(); }, expected: FLEET_HANGAR_SHOP_ACTION_PRESENTATION },
+      { run: function (controller) { controller.onSellShip(0); }, expected: FLEET_HANGAR_SHOP_ACTION_PRESENTATION },
+      { run: function (controller) { controller.onInstallMod(0, 'mod_cargo_rack'); }, expected: FLEET_HANGAR_SHOP_ACTION_PRESENTATION },
+      { run: function (controller) { controller.onUninstallMod(0, 'mod_cargo_rack'); }, expected: FLEET_HANGAR_SHOP_ACTION_PRESENTATION },
+      { run: function (controller) { controller.onServiceShip(0, 'standard'); }, expected: FLEET_HANGAR_SHOP_ACTION_PRESENTATION },
+      { run: function (controller) { controller.onRecruitCrew('crew-offer'); }, expected: FLEET_HANGAR_SHOP_ACTION_PRESENTATION },
+      { run: function (controller) { controller.onAssignCrew(0, 'crew-a'); }, expected: FLEET_HANGAR_ACTION_PRESENTATION },
+      { run: function (controller) { controller.onUnassignCrew(0, 'crew-a'); }, expected: FLEET_HANGAR_ACTION_PRESENTATION },
+      { run: function (controller) { controller.onDismissCrew('crew-a'); }, expected: FLEET_HANGAR_ACTION_PRESENTATION },
+    ];
+
+    cases.forEach(function (entry) {
+      var harness = createHarness();
+      entry.run(harness.controller);
+      expect(harness.presentations).toHaveLength(1);
+      expect(harness.presentations[0].presentation).toBe(entry.expected);
+    });
   });
 
   it('单一 command 端口复用既有领域动作时序并拒绝非法 payload', function () {

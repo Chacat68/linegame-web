@@ -138,7 +138,10 @@ export function createGameActionRuntime(dependencies) {
       Tutorial: systems.Tutorial,
     },
     dispatch: presentResult,
-    updateUI: function () { invalidate(DEFAULT_ACTION_DIRTY_REGIONS); },
+    updateUI: function (presentation) {
+      var dirtyRegions = normalizeDirtyRegions(presentation, DEFAULT_ACTION_DIRTY_REGIONS);
+      invalidate(dirtyRegions.length > 0 ? dirtyRegions : DEFAULT_ACTION_DIRTY_REGIONS);
+    },
     emitLog: emitMessage,
     activateArchiveTab: _method(navigation, 'activateArchiveTab'),
     openMarketPanel: _method(navigation, 'openMarketPanel'),

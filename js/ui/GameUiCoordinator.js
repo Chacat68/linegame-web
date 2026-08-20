@@ -6,6 +6,17 @@
 import { UI_REGION, normalizeDirtyRegions } from '../core/ActionPresentation.js';
 
 const FEATURE_NAMES = ['market', 'fleet', 'archive', 'save'];
+const FLEET_REGION_NAMES = Object.freeze([
+  UI_REGION.FLEET_HANGAR,
+  UI_REGION.FLEET_SHOP,
+]);
+const ARCHIVE_REGION_NAMES = Object.freeze([
+  UI_REGION.ARCHIVE_QUEST,
+  UI_REGION.ARCHIVE_EXPLORATION,
+  UI_REGION.ARCHIVE_RESEARCH,
+  UI_REGION.ARCHIVE_FACTION,
+  UI_REGION.ARCHIVE_ACHIEVEMENT,
+]);
 
 function _dependency(container, primaryName, fallbackName) {
   if (!container || typeof container !== 'object') return null;
@@ -128,24 +139,22 @@ export function createGameUiCoordinator(options) {
     return true;
   }
 
-  function renderFleet(FleetUI, stateOverride) {
-    var module = FleetUI || _getLoadedFeature('fleet');
-    var state = arguments.length > 1 ? stateOverride : getState();
+  function _renderFleetRegions(module, state, regions) {
     if (!module || !state) return false;
-
     if (typeof module.setLifecycleActions === 'function') {
       module.setLifecycleActions({
-        requestRender: function () { return renderFleet(module); },
+        requestRender: function () { return renderFleetHangar(module); },
       });
     }
 
     var rendered = false;
     var onCommand = _action(actions, 'fleet', 'handleCommand');
-    if (typeof module.render === 'function') {
+    var requested = new Set(regions || []);
+    if (requested.has(UI_REGION.FLEET_HANGAR) && typeof module.render === 'function') {
       module.render({ state: state, onCommand: onCommand });
       rendered = true;
     }
-    if (typeof module.renderShop === 'function') {
+    if (requested.has(UI_REGION.FLEET_SHOP) && typeof module.renderShop === 'function') {
       module.renderShop({ state: state, onCommand: onCommand });
       rendered = true;
     }
@@ -153,9 +162,25 @@ export function createGameUiCoordinator(options) {
     return rendered;
   }
 
-  function renderArchive(ArchiveUI, stateOverride) {
-    var module = ArchiveUI || _getLoadedFeature('archive');
+  function renderFleetHangar(FleetUI, stateOverride) {
+    var module = FleetUI || _getLoadedFeature('fleet');
     var state = arguments.length > 1 ? stateOverride : getState();
+    return _renderFleetRegions(module, state, [UI_REGION.FLEET_HANGAR]);
+  }
+
+  function renderFleetShop(FleetUI, stateOverride) {
+    var module = FleetUI || _getLoadedFeature('fleet');
+    var state = arguments.length > 1 ? stateOverride : getState();
+    return _renderFleetRegions(module, state, [UI_REGION.FLEET_SHOP]);
+  }
+
+  function renderFleet(FleetUI, stateOverride) {
+    var module = FleetUI || _getLoadedFeature('fleet');
+    var state = arguments.length > 1 ? stateOverride : getState();
+    return _renderFleetRegions(module, state, FLEET_REGION_NAMES);
+  }
+
+  function _renderArchiveRegions(module, state, regions) {
     if (!module || !state) return false;
 
     var ResearchUI = module.ResearchUI || module.research;
@@ -163,10 +188,15 @@ export function createGameUiCoordinator(options) {
     var QuestUI = module.QuestUI || module.quest;
     var ExplorationUI = module.ArchiveExplorationUI || module.exploration;
     var AchievementUI = module.AchievementUI || module.achievement;
-    var dispatchContext = _callAction(actions, 'archive', 'getDispatchContext', [state]) || null;
+    var requested = new Set(regions || []);
+    var needsDispatchContext = requested.has(UI_REGION.ARCHIVE_RESEARCH)
+      || requested.has(UI_REGION.ARCHIVE_QUEST);
+    var dispatchContext = needsDispatchContext
+      ? (_callAction(actions, 'archive', 'getDispatchContext', [state]) || null)
+      : null;
     var rendered = false;
 
-    if (ResearchUI && typeof ResearchUI.render === 'function') {
+    if (requested.has(UI_REGION.ARCHIVE_RESEARCH) && ResearchUI && typeof ResearchUI.render === 'function') {
       ResearchUI.render(
         state,
         _action(actions, 'archive', 'onStartResearch'),
@@ -180,11 +210,11 @@ export function createGameUiCoordinator(options) {
       );
       rendered = true;
     }
-    if (FactionUI && typeof FactionUI.render === 'function') {
+    if (requested.has(UI_REGION.ARCHIVE_FACTION) && FactionUI && typeof FactionUI.render === 'function') {
       FactionUI.render(state, _action(actions, 'archive', 'onOpenFactionMarket'));
       rendered = true;
     }
-    if (QuestUI && typeof QuestUI.render === 'function') {
+    if (requested.has(UI_REGION.ARCHIVE_QUEST) && QuestUI && typeof QuestUI.render === 'function') {
       QuestUI.render(
         state,
         _action(actions, 'archive', 'onAcceptQuest'),
@@ -195,16 +225,52 @@ export function createGameUiCoordinator(options) {
       );
       rendered = true;
     }
-    if (ExplorationUI && typeof ExplorationUI.render === 'function') {
+    if (requested.has(UI_REGION.ARCHIVE_EXPLORATION) && ExplorationUI && typeof ExplorationUI.render === 'function') {
       ExplorationUI.render(state);
       rendered = true;
     }
-    if (AchievementUI && typeof AchievementUI.render === 'function') {
+    if (requested.has(UI_REGION.ARCHIVE_ACHIEVEMENT) && AchievementUI && typeof AchievementUI.render === 'function') {
       AchievementUI.render(state);
       rendered = true;
     }
     _call(ContextAdapters, 'connectArchive', [module]);
     return rendered;
+  }
+
+  function renderArchiveQuest(ArchiveUI, stateOverride) {
+    var module = ArchiveUI || _getLoadedFeature('archive');
+    var state = arguments.length > 1 ? stateOverride : getState();
+    return _renderArchiveRegions(module, state, [UI_REGION.ARCHIVE_QUEST]);
+  }
+
+  function renderArchiveExploration(ArchiveUI, stateOverride) {
+    var module = ArchiveUI || _getLoadedFeature('archive');
+    var state = arguments.length > 1 ? stateOverride : getState();
+    return _renderArchiveRegions(module, state, [UI_REGION.ARCHIVE_EXPLORATION]);
+  }
+
+  function renderArchiveResearch(ArchiveUI, stateOverride) {
+    var module = ArchiveUI || _getLoadedFeature('archive');
+    var state = arguments.length > 1 ? stateOverride : getState();
+    return _renderArchiveRegions(module, state, [UI_REGION.ARCHIVE_RESEARCH]);
+  }
+
+  function renderArchiveFaction(ArchiveUI, stateOverride) {
+    var module = ArchiveUI || _getLoadedFeature('archive');
+    var state = arguments.length > 1 ? stateOverride : getState();
+    return _renderArchiveRegions(module, state, [UI_REGION.ARCHIVE_FACTION]);
+  }
+
+  function renderArchiveAchievement(ArchiveUI, stateOverride) {
+    var module = ArchiveUI || _getLoadedFeature('archive');
+    var state = arguments.length > 1 ? stateOverride : getState();
+    return _renderArchiveRegions(module, state, [UI_REGION.ARCHIVE_ACHIEVEMENT]);
+  }
+
+  function renderArchive(ArchiveUI, stateOverride) {
+    var module = ArchiveUI || _getLoadedFeature('archive');
+    var state = arguments.length > 1 ? stateOverride : getState();
+    return _renderArchiveRegions(module, state, ARCHIVE_REGION_NAMES);
   }
 
   function renderSave(SaveUI, stateOverride) {
@@ -294,6 +360,11 @@ export function createGameUiCoordinator(options) {
 
     var dirty = new Set(dirtyRegions);
     var renderedFeatures = new Set();
+    var hasFleetRegions = FLEET_REGION_NAMES.some(function (region) { return dirty.has(region); });
+    var hasArchiveRegions = ARCHIVE_REGION_NAMES.some(function (region) { return dirty.has(region); });
+    var activeWorkspace = dirty.has(UI_REGION.ACTIVE_WORKSPACE) || hasFleetRegions || hasArchiveRegions
+      ? _activeWorkspace()
+      : null;
 
     function renderFeature(featureName) {
       if (renderedFeatures.has(featureName)) return false;
@@ -317,15 +388,30 @@ export function createGameUiCoordinator(options) {
     if (dirty.has(UI_REGION.SHIP)) _call(ShipUI, 'renderShipStats', [state]);
 
     if (dirty.has(UI_REGION.ACTIVE_WORKSPACE)) {
-      var activeWorkspace = _activeWorkspace();
       if (activeWorkspace === 'trade') renderFeature('market');
-      else if (activeWorkspace === 'fleet') renderFeature('fleet');
-      else if (activeWorkspace === 'archive') renderFeature('archive');
+      else if (activeWorkspace === 'fleet' && !hasFleetRegions) renderFeature('fleet');
+      else if (activeWorkspace === 'archive' && !hasArchiveRegions) renderFeature('archive');
     }
     if (dirty.has(UI_REGION.MARKET)) renderFeature('market');
     if (dirty.has(UI_REGION.FLEET)) renderFeature('fleet');
     if (dirty.has(UI_REGION.ARCHIVE)) renderFeature('archive');
     if (dirty.has(UI_REGION.SAVE)) renderFeature('save');
+
+    if (hasFleetRegions && activeWorkspace === 'fleet' && !renderedFeatures.has('fleet')) {
+      var FleetUI = _getLoadedFeature('fleet');
+      if (FleetUI) {
+        var fleetRegions = FLEET_REGION_NAMES.filter(function (region) { return dirty.has(region); });
+        _renderFleetRegions(FleetUI, state, fleetRegions);
+      }
+    }
+
+    if (hasArchiveRegions && activeWorkspace === 'archive' && !renderedFeatures.has('archive')) {
+      var ArchiveUI = _getLoadedFeature('archive');
+      if (ArchiveUI) {
+        var archiveRegions = ARCHIVE_REGION_NAMES.filter(function (region) { return dirty.has(region); });
+        _renderArchiveRegions(ArchiveUI, state, archiveRegions);
+      }
+    }
 
     if (dirty.has(UI_REGION.SCENE)) _call(Renderer, 'invalidateScene', []);
     if (dirty.has(UI_REGION.CONTEXT)) _call(MapUI, 'refreshPlanetDetail', [state]);
@@ -362,7 +448,14 @@ export function createGameUiCoordinator(options) {
     loadFeature: loadFeature,
     renderAll: renderAll,
     renderArchive: renderArchive,
+    renderArchiveAchievement: renderArchiveAchievement,
+    renderArchiveExploration: renderArchiveExploration,
+    renderArchiveFaction: renderArchiveFaction,
+    renderArchiveQuest: renderArchiveQuest,
+    renderArchiveResearch: renderArchiveResearch,
     renderFleet: renderFleet,
+    renderFleetHangar: renderFleetHangar,
+    renderFleetShop: renderFleetShop,
     renderMarket: renderMarket,
     renderSave: renderSave,
   };

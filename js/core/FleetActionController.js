@@ -5,7 +5,10 @@
 
 import { GOODS } from '../data/goods.js';
 import { SHIP_MODS } from '../data/ships.js';
-import { DEFAULT_ACTION_PRESENTATION } from './ActionPresentation.js';
+import {
+  FLEET_HANGAR_ACTION_PRESENTATION,
+  FLEET_HANGAR_SHOP_ACTION_PRESENTATION,
+} from './ActionPresentation.js';
 import { FLEET_COMMAND, normalizeFleetCommand } from './FleetCommand.js';
 import {
   getDispatchConfirmedCompletion,
@@ -63,7 +66,7 @@ export function createFleetActionController(dependencies) {
     Fleet.syncShipFromState(state);
     var result = Fleet.buyShip(state, shipTypeId);
     if (_isOk(result)) recordQuestProgress({ action: 'buy_ship', shipTypeId: shipTypeId });
-    dispatch(result, DEFAULT_ACTION_PRESENTATION);
+    dispatch(result, FLEET_HANGAR_SHOP_ACTION_PRESENTATION);
     return result;
   }
 
@@ -76,7 +79,7 @@ export function createFleetActionController(dependencies) {
       state.lastSwitchedShipIndex = shipIndex;
       state.lastShipSwitchAt = Date.now();
     }
-    dispatch(result, DEFAULT_ACTION_PRESENTATION);
+    dispatch(result, FLEET_HANGAR_ACTION_PRESENTATION);
     if (_isOk(result) && Fleet.isActiveDispatched(state)) startDispatchClock();
     if (_isOk(result)) resetRealtimeClock(now());
     return result;
@@ -86,7 +89,7 @@ export function createFleetActionController(dependencies) {
     var state = _state();
     Fleet.syncShipFromState(state);
     var result = Fleet.upgradeShip(state, upgradeId, shipIndex);
-    dispatch(result, DEFAULT_ACTION_PRESENTATION);
+    dispatch(result, FLEET_HANGAR_SHOP_ACTION_PRESENTATION);
     return result;
   }
 
@@ -119,7 +122,7 @@ export function createFleetActionController(dependencies) {
 
     // 任务/教学进度是这次派遣的领域后置效果；必须在 dispatch
     // 发布消息和刷新 UI 前提交，避免 Action Guide 读到半更新 state。
-    dispatch(result, DEFAULT_ACTION_PRESENTATION);
+    dispatch(result, FLEET_HANGAR_ACTION_PRESENTATION);
     if (_isOk(result) && isActive) startDispatchClock();
 
     if (_isOk(result)) {
@@ -134,14 +137,14 @@ export function createFleetActionController(dependencies) {
     var isActive = shipIndex === _activeShipIndex(state);
     var result = Fleet.cancelRoute(state, shipIndex);
     if (_isOk(result) && isActive) cancelShipFlight();
-    dispatch(result, DEFAULT_ACTION_PRESENTATION);
+    dispatch(result, FLEET_HANGAR_ACTION_PRESENTATION);
     if (isActive) stopDispatchClock();
     return result;
   }
 
   function onBuySlot() {
     var result = Fleet.buySlot(_state());
-    dispatch(result, DEFAULT_ACTION_PRESENTATION);
+    dispatch(result, FLEET_HANGAR_SHOP_ACTION_PRESENTATION);
     return result;
   }
 
@@ -149,7 +152,7 @@ export function createFleetActionController(dependencies) {
     var state = _state();
     Fleet.syncShipFromState(state);
     var result = Fleet.sellShip(state, shipIndex);
-    dispatch(result, DEFAULT_ACTION_PRESENTATION);
+    dispatch(result, FLEET_HANGAR_SHOP_ACTION_PRESENTATION);
     return result;
   }
 
@@ -164,7 +167,7 @@ export function createFleetActionController(dependencies) {
         modId: modId,
       });
     }
-    dispatch(result, DEFAULT_ACTION_PRESENTATION);
+    dispatch(result, FLEET_HANGAR_SHOP_ACTION_PRESENTATION);
     if (_isOk(result)) showCompletion(getModInstalledCompletion(installedMod ? installedMod.name : ''));
     return result;
   }
@@ -173,7 +176,7 @@ export function createFleetActionController(dependencies) {
     var state = _state();
     Fleet.syncShipFromState(state);
     var result = Fleet.uninstallMod(state, modId, shipIndex);
-    dispatch(result, DEFAULT_ACTION_PRESENTATION);
+    dispatch(result, FLEET_HANGAR_SHOP_ACTION_PRESENTATION);
     return result;
   }
 
@@ -181,7 +184,7 @@ export function createFleetActionController(dependencies) {
     var state = _state();
     Fleet.syncShipFromState(state);
     var result = Fleet.serviceShip(state, shipIndex, tierId);
-    dispatch(result, DEFAULT_ACTION_PRESENTATION);
+    dispatch(result, FLEET_HANGAR_SHOP_ACTION_PRESENTATION);
     if (_isOk(result)) showCompletion(getServiceScheduledCompletion());
     return result;
   }
@@ -190,7 +193,7 @@ export function createFleetActionController(dependencies) {
     var state = _state();
     var result = Crew.recruitCrew(state, offerId, state.currentSystem);
     if (_isOk(result)) recordQuestProgress({ action: 'recruit_crew', offerId: offerId });
-    dispatch(result, DEFAULT_ACTION_PRESENTATION);
+    dispatch(result, FLEET_HANGAR_SHOP_ACTION_PRESENTATION);
     return result;
   }
 
@@ -198,7 +201,7 @@ export function createFleetActionController(dependencies) {
     var state = _state();
     var result = Crew.assignCrewToShip(state, crewId, shipIndex);
     if (_isOk(result) && shipIndex === _activeShipIndex(state)) Fleet.syncStateFromShip(state);
-    dispatch(result, DEFAULT_ACTION_PRESENTATION);
+    dispatch(result, FLEET_HANGAR_ACTION_PRESENTATION);
     return result;
   }
 
@@ -206,7 +209,7 @@ export function createFleetActionController(dependencies) {
     var state = _state();
     var result = Crew.unassignCrewFromShip(state, crewId, shipIndex);
     if (_isOk(result) && shipIndex === _activeShipIndex(state)) Fleet.syncStateFromShip(state);
-    dispatch(result, DEFAULT_ACTION_PRESENTATION);
+    dispatch(result, FLEET_HANGAR_ACTION_PRESENTATION);
     return result;
   }
 
@@ -216,7 +219,7 @@ export function createFleetActionController(dependencies) {
     var affectedShipIndex = existingCrew ? existingCrew.assignedShipIndex : null;
     var result = Crew.dismissCrew(state, crewId);
     if (_isOk(result) && affectedShipIndex === _activeShipIndex(state)) Fleet.syncStateFromShip(state);
-    dispatch(result, DEFAULT_ACTION_PRESENTATION);
+    dispatch(result, FLEET_HANGAR_ACTION_PRESENTATION);
     return result;
   }
 
