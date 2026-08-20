@@ -5,7 +5,7 @@
 
 import * as EventBus from '../core/EventBus.js';
 import { createNavigationController, normalizeWorkspace } from './NavigationController.js';
-import { registerEscapeLayer } from './SurfaceManager.js';
+import { hasBlockingSurfaceOpen, registerEscapeLayer } from './SurfaceManager.js';
 import { loadSettings } from '../core/SettingsCore.js';
 import * as ContextInspector from './ContextInspector.js';
 import { createWorkspaceSurfaceController } from './WorkspaceSurfaceController.js';
@@ -74,21 +74,6 @@ export function init(stateSource, handlers) {
   EventBus.on('view:switch', _viewSwitchListener);
   EventBus.on('settings:terminalBlur:changed', _terminalBlurListener);
 
-  globalThis.__linegameUIManager = {
-    switchView: switchView,
-    setBottomNavActiveDirectly: function (view) {
-      syncView(view);
-    },
-    getCurrentView: getCurrentView,
-    getNavigationSnapshot: function () {
-      return _navigation ? _navigation.getSnapshot() : null;
-    },
-    getWorkspaceSurfaceSnapshot: getWorkspaceSurfaceSnapshot,
-    openDetail: openDetail,
-    closeDetail: closeDetail,
-    subscribeNavigation: subscribeNavigation,
-  };
-
   _workspaceSurfaces.activate('map', { focus: false });
   _syncWorkspaceVisualState('map');
   _initialized = true;
@@ -119,21 +104,14 @@ export function getWorkspaceSurfaceSnapshot() {
   return _workspaceSurfaces ? _workspaceSurfaces.getSnapshot() : null;
 }
 
-export function switchView(view) {
+export function switchView(view, options) {
   var workspace = normalizeWorkspace(view);
   if (!_navigation || !workspace) return false;
-  return _navigation.navigate(workspace, { reason: 'workspace-navigation' });
-}
-
-export function syncView(view) {
-  var workspace = normalizeWorkspace(view);
-  if (!_navigation || !workspace) return false;
-  var changed = _navigation.sync(workspace, { reason: 'legacy-surface-sync' });
-  if (!changed) {
-    if (_workspaceSurfaces) _workspaceSurfaces.activate(workspace, { focus: false });
-    _syncWorkspaceVisualState(workspace);
-  }
-  return changed;
+  var navigationOptions = options || {};
+  return _navigation.navigate(workspace, {
+    reason: navigationOptions.reason || 'workspace-navigation',
+    focusEntry: navigationOptions.focusEntry !== false,
+  });
 }
 
 function _bindBottomNavigation() {
@@ -147,7 +125,16 @@ function _bindBottomNavigation() {
     var button = event.target && typeof event.target.closest === 'function'
       ? event.target.closest('.bottom-nav-btn')
       : null;
-    if (button) switchView(button.dataset.view);
+    if (!button) return;
+    if (hasBlockingSurfaceOpen()) {
+      if (typeof event.preventDefault === 'function') event.preventDefault();
+      if (typeof event.stopPropagation === 'function') event.stopPropagation();
+      return;
+    }
+    switchView(button.dataset.view, {
+      reason: 'bottom-navigation',
+      focusEntry: false,
+    });
   };
   newBottomNav.addEventListener('click', _bottomNavClickListener);
   newBottomNav.addEventListener('keydown', _handleBottomNavKeydown);
@@ -171,7 +158,7 @@ function _enterWorkspace(change) {
   } else if (change.to === 'logs') {
     EventBus.emit('logs:badge:clear');
   }
-  _scheduleWorkspaceEntryFocus(change.to, entryResult);
+  if (change.focusEntry !== false) _scheduleWorkspaceEntryFocus(change.to, entryResult);
 }
 
 function _scheduleWorkspaceEntryFocus(workspace, entryResult) {
@@ -189,7 +176,6 @@ function _handleNavigationChange(change) {
   if (_workspaceSurfaces) {
     _workspaceSurfaces.activate(change.to, { focus: false });
   }
-  if (change.type === 'workspace:sync') _scheduleWorkspaceEntryFocus(change.to, null);
   _syncWorkspaceVisualState(change.to);
   EventBus.emit('navigation:changed', LEGACY_VIEW_BY_WORKSPACE[change.to]);
 }
@@ -282,7 +268,6 @@ export function dispose() {
     onOpenHangar: null,
     onOpenQuests: null,
   };
-  if (globalThis.__linegameUIManager) delete globalThis.__linegameUIManager;
   _initialized = false;
   return true;
 }

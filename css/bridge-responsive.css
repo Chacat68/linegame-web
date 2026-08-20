@@ -67,21 +67,21 @@
     display: none;
   }
 
-  .secondary-terminal-chrome {
+  .workspace-terminal-chrome {
     grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) auto;
     min-height: 70px;
     gap: var(--ui-space-4);
   }
 
-  .secondary-terminal-status {
+  .workspace-terminal-status {
     display: none;
   }
 
-  .secondary-terminal-shell--logs .secondary-terminal-chrome {
+  .workspace-terminal-shell--logs .workspace-terminal-chrome {
     grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) auto auto;
   }
 
-  #map-container > #market-overlay.market-overlay {
+  #market-overlay.workspace-surface--trade {
     top: var(--ui-space-2) !important;
     right: var(--ui-space-3) !important;
     bottom: calc(
@@ -110,7 +110,7 @@
     gap: var(--ui-space-2);
   }
 
-  .secondary-terminal-shell--logs .secondary-terminal-chrome {
+  .workspace-terminal-shell--logs .workspace-terminal-chrome {
     grid-template-columns: minmax(0, 1fr) auto;
   }
 
@@ -252,16 +252,13 @@
     right: 3px;
   }
 
-  body:has(#market-overlay:not(.hidden)) .bottom-nav,
-  body:has(#info-panel.panel-open) .bottom-nav,
-  body:has(#trade-panel.panel-open) .bottom-nav,
-  body:has(#console-panel.panel-open) .bottom-nav {
+  body:has(.workspace-surface:not(.workspace-surface--map).is-active) .bottom-nav {
     opacity: 1 !important;
     visibility: visible !important;
     pointer-events: auto !important;
   }
 
-  #map-container > #market-overlay.market-overlay {
+  #market-overlay.workspace-surface--trade {
     top: var(--ui-space-2) !important;
     right: var(--ui-space-2) !important;
     bottom: calc(
@@ -287,15 +284,15 @@
   }
 
   .market-close-btn,
-  .secondary-terminal-close,
+  .workspace-terminal-close,
   .settings-close-btn {
     width: var(--ui-control-lg);
     min-width: var(--ui-control-lg);
     height: var(--ui-control-lg);
   }
 
-  #info-panel .secondary-terminal-close,
-  #trade-panel .trade-panel-toggle.secondary-terminal-close {
+  #info-panel .workspace-terminal-close,
+  #trade-panel .trade-panel-toggle.workspace-terminal-close {
     width: var(--ui-control-lg) !important;
     min-width: var(--ui-control-lg) !important;
     height: var(--ui-control-lg) !important;
@@ -420,9 +417,9 @@
     padding: 0 var(--ui-space-3);
   }
 
-  #info-panel.side-panel-overlay,
-  #trade-panel.side-panel-overlay,
-  #console-panel.side-panel-overlay {
+  .workspace-surface.workspace-surface--archive,
+  .workspace-surface.workspace-surface--fleet,
+  .workspace-surface.workspace-surface--logs {
     padding:
       calc(var(--ui-header-height) + var(--ui-space-2))
       max(var(--ui-space-2), var(--ui-safe-right))
@@ -432,13 +429,13 @@
       max(var(--ui-space-2), var(--ui-safe-left)) !important;
   }
 
-  .secondary-terminal-shell {
+  .workspace-terminal-shell {
     width: 100%;
     height: 100%;
     border-radius: var(--ui-radius-card);
   }
 
-  .secondary-terminal-chrome {
+  .workspace-terminal-chrome {
     position: relative;
     grid-template-columns: minmax(0, 1fr) auto;
     min-height: 64px;
@@ -446,35 +443,35 @@
     gap: var(--ui-space-2);
   }
 
-  .secondary-terminal-title {
+  .workspace-terminal-title {
     font-size: 17px;
   }
 
-  .secondary-terminal-subtitle,
-  .secondary-terminal-status {
+  .workspace-terminal-subtitle,
+  .workspace-terminal-status {
     display: none;
   }
 
-  .secondary-terminal-close {
+  .workspace-terminal-close {
     grid-column: 2;
     grid-row: 1;
   }
 
-  .secondary-terminal-shell--logs .logs-context-toggle {
+  .workspace-terminal-shell--logs .logs-context-toggle {
     grid-column: 1;
     grid-row: 2;
     justify-self: start;
   }
 
-  .secondary-terminal-body--archive,
-  .secondary-terminal-body--hangar {
+  .workspace-terminal-body--archive,
+  .workspace-terminal-body--fleet {
     display: flex;
     min-height: 0;
     flex-direction: column;
   }
 
-  .secondary-terminal-nav,
-  .secondary-terminal-sidebar {
+  .workspace-terminal-nav,
+  .workspace-terminal-sidebar {
     display: flex;
     width: 100%;
     min-height: 0;
@@ -484,25 +481,25 @@
     border-bottom: 1px solid var(--ui-line-subtle);
   }
 
-  .secondary-terminal-nav {
+  .workspace-terminal-nav {
     max-height: 96px !important;
     flex-direction: row !important;
   }
 
-  .secondary-terminal-nav .tabs {
+  .workspace-terminal-nav .tabs {
     width: 100%;
     gap: 4px;
     overflow-x: visible;
   }
 
-  .secondary-terminal-nav .tab-btn {
+  .workspace-terminal-nav .tab-btn {
     min-width: 0;
     min-height: var(--ui-control-lg);
     flex: 1 1 0;
     padding-inline: 8px;
   }
 
-  .secondary-terminal-sidebar {
+  .workspace-terminal-sidebar {
     height: auto !important;
     max-height: 190px !important;
     flex-direction: column !important;
@@ -510,7 +507,7 @@
     overflow-y: auto !important;
   }
 
-  .secondary-terminal-content {
+  .workspace-terminal-content {
     flex: 1 1 auto;
     padding: var(--ui-space-3);
   }
@@ -528,12 +525,12 @@
     display: none;
   }
 
-  #info-panel .secondary-terminal-content :where(p, small, em),
-  #trade-panel .secondary-terminal-content :where(p, small, em) {
+  #info-panel .workspace-terminal-content :where(p, small, em),
+  #trade-panel .workspace-terminal-content :where(p, small, em) {
     font-size: 12px;
   }
 
-  #trade-panel .secondary-terminal-sidebar :where(small, .level-title, .company-level-line),
+  #trade-panel .workspace-terminal-sidebar :where(small, .level-title, .company-level-line),
   #trade-panel :where(.fleet-section-title, .fleet-detail-copy, .fleet-manage-btn-meta, .fleet-slot-buy-btn) {
     font-size: 12px;
   }
@@ -661,7 +658,7 @@
     min-height: 44px;
   }
 
-  .secondary-terminal-chrome {
+  .workspace-terminal-chrome {
     min-height: 58px;
   }
 }

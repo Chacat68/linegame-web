@@ -42,11 +42,12 @@ describe('Action guide responsive CSS', function () {
     expect(responsive).toContain('"status primary"');
   });
 
-  it('机库和档案覆盖层会使用 panel-open 作为可见状态', function () {
-    var css = readFileSync(new URL('../css/interstellar-trader.css', import.meta.url), 'utf8');
+  it('五个同级工作区只使用 is-active 作为可见状态', function () {
+    var css = readFileSync(new URL('../css/surfaces.css', import.meta.url), 'utf8');
 
-    expect(css).toContain('#info-panel.side-panel-overlay.panel-open');
-    expect(css).toContain('#trade-panel.side-panel-overlay.panel-open');
+    expect(css).toContain('.workspace-surface:not(.is-active)');
+    expect(css).toContain('.workspace-surface.is-active');
+    expect(css).not.toContain('panel-open');
   });
 
   it('唯一 Command Slot 使用全局 guide 层级，不会被 L3 档案或机库遮住', function () {

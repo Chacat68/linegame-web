@@ -714,14 +714,28 @@ body::before {
   font-size: 9px;
 }
 
-/* Primary Workspace · Market ---------------------------------- */
+/* Canonical L3 workspace surfaces ------------------------------ */
 
-#map-container > #market-overlay.market-overlay {
+.workspace-surface:not(.is-active) {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.workspace-surface.is-active {
+  visibility: visible;
+  pointer-events: auto;
+}
+
+#map-section.workspace-surface:not(.is-active) {
+  display: none;
+}
+
+/* Trade workspace --------------------------------------------- */
+
+#market-overlay.workspace-surface--trade {
   position: fixed !important;
   z-index: var(--ui-z-workspace) !important;
-  /* The scene transition owns a transform and becomes the containing block
-     for fixed descendants. Offset from the scene instead of the header. */
-  top: var(--ui-space-4) !important;
+  top: calc(var(--ui-header-height) + var(--ui-space-4)) !important;
   right: max(var(--ui-space-5), calc((100vw - 1320px) / 2)) !important;
   bottom: calc(
     var(--ui-nav-height) + var(--ui-space-5) + var(--ui-command-reserve) + var(--ui-safe-bottom)
@@ -741,10 +755,6 @@ body::before {
   box-shadow: var(--ui-shadow-panel);
   transform: none !important;
   backdrop-filter: blur(22px) saturate(1.05);
-}
-
-#map-container > #market-overlay.hidden {
-  display: none !important;
 }
 
 .market-overlay-header {
@@ -790,7 +800,7 @@ body::before {
 }
 
 .market-close-btn,
-.secondary-terminal-close,
+.workspace-terminal-close,
 .settings-close-btn,
 .modal-close {
   display: grid;
@@ -804,7 +814,7 @@ body::before {
 }
 
 .market-close-btn:hover,
-.secondary-terminal-close:hover,
+.workspace-terminal-close:hover,
 .settings-close-btn:hover,
 .modal-close:hover {
   border-color: var(--ui-line-strong);
@@ -812,18 +822,18 @@ body::before {
   background: rgba(108, 231, 255, 0.08);
 }
 
-#info-panel .info-panel-toggle.secondary-terminal-close,
-#trade-panel .trade-panel-toggle.secondary-terminal-close,
-#console-panel .secondary-terminal-close {
+#info-panel .info-panel-toggle.workspace-terminal-close,
+#trade-panel .trade-panel-toggle.workspace-terminal-close,
+#console-panel .workspace-terminal-close {
   border-color: var(--ui-line-default) !important;
   color: var(--ui-text-secondary) !important;
   background: rgba(2, 10, 18, 0.76) !important;
   box-shadow: none !important;
 }
 
-#info-panel .info-panel-toggle.secondary-terminal-close:hover,
-#trade-panel .trade-panel-toggle.secondary-terminal-close:hover,
-#console-panel .secondary-terminal-close:hover {
+#info-panel .info-panel-toggle.workspace-terminal-close:hover,
+#trade-panel .trade-panel-toggle.workspace-terminal-close:hover,
+#console-panel .workspace-terminal-close:hover {
   border-color: var(--ui-line-strong) !important;
   color: var(--ui-text-primary) !important;
   background: rgba(108, 231, 255, 0.08) !important;
@@ -925,11 +935,11 @@ body::before {
   font-variant-numeric: tabular-nums;
 }
 
-/* Secondary Terminal ------------------------------------------ */
+/* Archive / Fleet / Logs workspaces --------------------------- */
 
-#info-panel.side-panel-overlay,
-#trade-panel.side-panel-overlay,
-#console-panel.side-panel-overlay {
+.workspace-surface.workspace-surface--archive,
+.workspace-surface.workspace-surface--fleet,
+.workspace-surface.workspace-surface--logs {
   position: fixed !important;
   z-index: var(--ui-z-terminal) !important;
   inset: 0 !important;
@@ -950,39 +960,54 @@ body::before {
   border: 0 !important;
   border-radius: 0 !important;
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
   transform: none !important;
   transition: opacity var(--ui-duration-base) var(--ui-ease-standard);
   backdrop-filter: blur(10px);
 }
 
-#info-panel.side-panel-overlay.panel-open,
-#trade-panel.side-panel-overlay.panel-open,
-#console-panel.side-panel-overlay.panel-open {
+.workspace-surface.workspace-surface--archive.is-active,
+.workspace-surface.workspace-surface--fleet.is-active,
+.workspace-surface.workspace-surface--logs.is-active {
   opacity: 1;
+  visibility: visible;
   pointer-events: auto;
 }
 
-.secondary-terminal-shell {
-  display: flex;
+.workspace-terminal-shell {
+  position: relative;
+  display: grid;
   width: min(var(--ui-shell-max), 100%);
   height: min(720px, 100%);
+  grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
   min-height: 0;
-  flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--ui-line-default);
   border-radius: var(--ui-radius-panel);
   color: var(--ui-text-primary);
   background: var(--ui-bg-shell);
   box-shadow: var(--ui-shadow-panel);
+  opacity: 0;
   transform: translateY(10px) scale(0.99);
-  transition: transform var(--ui-duration-base) var(--ui-ease-emphasized);
+  transition:
+    opacity var(--ui-duration-base) var(--ui-ease-standard),
+    transform var(--ui-duration-base) var(--ui-ease-emphasized);
+}
+
+.workspace-terminal-shell--archive {
+  width: min(1040px, 100%);
+}
+
+.workspace-terminal-shell--fleet {
+  width: min(1180px, 100%);
 }
 
 /* Deferred workspace recovery ---------------------------------- */
 
 .market-overlay-shell,
-.secondary-terminal-body,
+.workspace-terminal-body,
 .settings-save-shell {
   position: relative;
 }
@@ -1098,14 +1123,14 @@ body[data-motion="off"] .deferred-feature-status-signal {
   animation: none !important;
 }
 
-#info-panel.side-panel-overlay.panel-open .secondary-terminal-shell,
-#trade-panel.side-panel-overlay.panel-open .secondary-terminal-shell,
-#console-panel.side-panel-overlay.panel-open .secondary-terminal-shell {
+.workspace-surface--archive.is-active .workspace-terminal-shell,
+.workspace-surface--fleet.is-active .workspace-terminal-shell,
+.workspace-surface--logs.is-active .workspace-terminal-shell {
   opacity: 1;
   transform: translateY(0) scale(1);
 }
 
-.secondary-terminal-chrome {
+.workspace-terminal-chrome {
   display: grid;
   grid-template-columns: minmax(200px, 1fr) minmax(220px, 1.4fr) auto auto auto;
   align-items: center;
@@ -1116,7 +1141,11 @@ body[data-motion="off"] .deferred-feature-status-signal {
   background: linear-gradient(180deg, rgba(12, 37, 52, 0.88), rgba(5, 20, 31, 0.82));
 }
 
-.secondary-terminal-kicker {
+.workspace-terminal-title-block {
+  min-width: 0;
+}
+
+.workspace-terminal-kicker {
   display: block;
   margin-bottom: 4px;
   color: var(--ui-accent);
@@ -1125,7 +1154,7 @@ body[data-motion="off"] .deferred-feature-status-signal {
   letter-spacing: 0.17em;
 }
 
-.secondary-terminal-title {
+.workspace-terminal-title {
   margin: 0;
   color: var(--ui-text-primary);
   font-size: 20px;
@@ -1133,21 +1162,20 @@ body[data-motion="off"] .deferred-feature-status-signal {
   letter-spacing: 0.025em;
 }
 
-.secondary-terminal-subtitle {
+.workspace-terminal-subtitle {
   margin: 0;
   color: var(--ui-text-secondary);
   font-size: 12px;
   line-height: 1.55;
 }
 
-.secondary-terminal-status {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+.workspace-terminal-status {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
 }
 
-.secondary-terminal-status-item {
+.workspace-terminal-status-item {
   padding: 4px 8px;
   border: 1px solid var(--ui-line-subtle);
   border-radius: 999px;
@@ -1156,23 +1184,73 @@ body[data-motion="off"] .deferred-feature-status-signal {
   font-size: 10px;
 }
 
-.secondary-terminal-body {
-  flex: 1 1 auto;
+.workspace-terminal-body {
+  display: grid;
+  min-width: 0;
   min-height: 0;
   background: linear-gradient(135deg, rgba(8, 28, 42, 0.36), rgba(2, 10, 18, 0.28));
 }
 
-.secondary-terminal-sidebar,
-.secondary-terminal-nav {
+.workspace-terminal-body--archive {
+  grid-template-columns: 184px minmax(0, 1fr);
+}
+
+.workspace-terminal-body--fleet {
+  grid-template-columns: 300px minmax(0, 1fr);
+}
+
+.workspace-terminal-sidebar,
+.workspace-terminal-nav {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  border-right: 1px solid var(--ui-line-subtle);
   border-color: var(--ui-line-subtle);
   background: rgba(2, 10, 18, 0.48);
 }
 
-.secondary-terminal-content {
+.workspace-terminal-nav {
+  padding: var(--ui-space-4);
+}
+
+.workspace-terminal-nav .tabs,
+.workspace-terminal-sidebar .tabs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ui-space-2);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  overflow: visible;
+}
+
+.workspace-terminal-content {
   min-width: 0;
   min-height: 0;
   overflow: auto;
   padding: var(--ui-space-4);
+}
+
+#info-panel .workspace-terminal-content > .tab-pane,
+#trade-panel .workspace-terminal-content > .tab-pane {
+  display: none;
+  min-height: 100%;
+}
+
+#info-panel .workspace-terminal-content > .tab-pane.active,
+#trade-panel .workspace-terminal-content > .tab-pane.active {
+  display: block;
+}
+
+#info-panel .workspace-terminal-content > .tab-pane:focus-visible,
+#trade-panel .workspace-terminal-content > .tab-pane:focus-visible {
+  outline: 2px solid var(--ui-line-strong);
+  outline-offset: -6px;
+}
+
+#trade-panel .workspace-terminal-sidebar {
+  display: flex;
+  flex-direction: column;
 }
 
 #fleet-list.hidden,
@@ -1180,23 +1258,23 @@ body[data-motion="off"] .deferred-feature-status-signal {
   display: none !important;
 }
 
-.secondary-terminal-nav :where(button, .tab-btn, [role="tab"]),
-.secondary-terminal-sidebar :where(button, .tab-btn, [role="tab"]) {
+.workspace-terminal-nav :where(button, .tab-btn, [role="tab"]),
+.workspace-terminal-sidebar :where(button, .tab-btn, [role="tab"]) {
   border: 1px solid transparent;
   border-radius: var(--ui-radius-control);
   color: var(--ui-text-muted);
   background: transparent;
 }
 
-.secondary-terminal-nav :where(button, .tab-btn, [role="tab"]):hover,
-.secondary-terminal-sidebar :where(button, .tab-btn, [role="tab"]):hover {
+.workspace-terminal-nav :where(button, .tab-btn, [role="tab"]):hover,
+.workspace-terminal-sidebar :where(button, .tab-btn, [role="tab"]):hover {
   border-color: var(--ui-line-subtle);
   color: var(--ui-text-secondary);
   background: rgba(108, 231, 255, 0.05);
 }
 
-.secondary-terminal-nav :where(button.active, .tab-btn.active, [role="tab"][aria-selected="true"]),
-.secondary-terminal-sidebar :where(button.active, .tab-btn.active, [role="tab"][aria-selected="true"]) {
+.workspace-terminal-nav :where(button.active, .tab-btn.active, [role="tab"][aria-selected="true"]),
+.workspace-terminal-sidebar :where(button.active, .tab-btn.active, [role="tab"][aria-selected="true"]) {
   border-color: var(--ui-line-default);
   color: var(--ui-accent-strong);
   background: rgba(108, 231, 255, 0.09);
@@ -1204,8 +1282,12 @@ body[data-motion="off"] .deferred-feature-status-signal {
 
 /* Logs terminal */
 
-.secondary-terminal-shell--logs {
+.workspace-terminal-shell--logs {
   max-width: 960px;
+}
+
+.workspace-terminal-shell--logs .workspace-terminal-status {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .logs-terminal-body {

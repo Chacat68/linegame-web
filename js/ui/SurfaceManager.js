@@ -1,26 +1,14 @@
-// js/ui/SurfaceManager.js — 界面 surface 显示规则
-// 职责：收拢 primary workspace、secondary overlay、blocking modal 与 toast 的互斥行为。
-
-const PRIMARY_SURFACE_IDS = ['market-overlay'];
-const SECONDARY_SURFACE_IDS = ['info-panel', 'trade-panel', 'console-panel'];
+// js/ui/SurfaceManager.js — blocking surface 与全局 Escape 生命周期
+// Canonical L3 workspace 由 NavigationController + WorkspaceSurfaceController 持有；
+// 本模块只管理 blocking modal、焦点陷阱和非阻塞 Escape layer 仲裁。
 
 const _surfaceState = globalThis.__linegameSurfaceManagerState || (globalThis.__linegameSurfaceManagerState = {
   observers: new Set(),
 });
 const _surfaceObservers = _surfaceState.observers;
 const _returnFocusTargets = _surfaceState.returnFocusTargets || (_surfaceState.returnFocusTargets = new Map());
-const _primaryReturnFocusTargets = _surfaceState.primaryReturnFocusTargets || (_surfaceState.primaryReturnFocusTargets = new Map());
-const _secondaryReturnFocusTargets = _surfaceState.secondaryReturnFocusTargets || (_surfaceState.secondaryReturnFocusTargets = new Map());
 const _blockingDismissers = _surfaceState.blockingDismissers || (_surfaceState.blockingDismissers = new Map());
 const _escapeLayers = _surfaceState.escapeLayers || (_surfaceState.escapeLayers = new Map());
-const PRIMARY_RETURN_FOCUS_SELECTORS = {
-  'market-overlay': '.bottom-nav-btn[data-view="market"]',
-};
-const SECONDARY_RETURN_FOCUS_SELECTORS = {
-  'info-panel': '.bottom-nav-btn[data-view="quests"]',
-  'trade-panel': '.bottom-nav-btn[data-view="hangar"]',
-  'console-panel': '.bottom-nav-btn[data-view="logs"]',
-};
 const BLOCKING_FOCUSABLE_SELECTOR = [
   'a[href]',
   'button:not([disabled])',
@@ -32,16 +20,6 @@ const BLOCKING_FOCUSABLE_SELECTOR = [
 function _getBlockingSurfaces() {
   if (!globalThis.document || typeof document.querySelectorAll !== 'function') return [];
   return Array.from(document.querySelectorAll('.modal'));
-}
-
-function _getSurfaceById(surfaceId) {
-  if (!surfaceId || !globalThis.document || typeof document.getElementById !== 'function') return null;
-  return document.getElementById(surfaceId);
-}
-
-function _getSurfaceList(surfaceIds) {
-  if (!Array.isArray(surfaceIds)) return [];
-  return surfaceIds.map(_getSurfaceById).filter(Boolean);
 }
 
 function _setSurfaceVisible(surface, visible) {
@@ -224,127 +202,9 @@ function _restoreBlockingSurfaceTrigger(surfaceId) {
   }
 }
 
-function _setOverlayPanelVisible(surface, visible) {
-  if (!surface || !surface.classList) return;
-  surface.classList.toggle('panel-open', !!visible);
-  surface.inert = !visible;
-  if (typeof surface.setAttribute === 'function') {
-    surface.setAttribute('aria-hidden', visible ? 'false' : 'true');
-  }
-}
-
-function _focusElement(target) {
-  if (!_isFocusTargetAvailable(target)) return;
-  try {
-    target.focus({ preventScroll: true });
-  } catch (err) {
-    target.focus();
-  }
-}
-
-function _rememberPrimarySurfaceTrigger(surfaceId, surface, selector) {
-  if (!surfaceId || !globalThis.document) return;
-  var activeElement = document.activeElement;
-  if (activeElement === document.body || activeElement === surface) activeElement = null;
-  if (activeElement && surface && typeof surface.contains === 'function' && surface.contains(activeElement)) return;
-  _primaryReturnFocusTargets.set(surfaceId, {
-    target: activeElement && typeof activeElement.focus === 'function' ? activeElement : null,
-    selector: selector || PRIMARY_RETURN_FOCUS_SELECTORS[surfaceId] || '',
-  });
-}
-
-function _restorePrimarySurfaceTrigger(surfaceId) {
-  var entry = _primaryReturnFocusTargets.get(surfaceId);
-  _primaryReturnFocusTargets.delete(surfaceId);
-  if (!entry) return;
-
-  var target = entry.target;
-  if (!_isFocusTargetAvailable(target) && entry.selector && typeof document.querySelector === 'function') {
-    target = document.querySelector(entry.selector);
-  }
-  _focusElement(target);
-}
-
-function _focusPrimarySurface(surface, selector) {
-  if (!surface) return;
-  var target = null;
-  if (typeof surface.querySelector === 'function') {
-    try {
-      target = selector ? surface.querySelector(selector) : null;
-      if (!target) target = surface.querySelector('[data-primary-initial-focus], [role="tab"][aria-selected="true"], [role="tab"][tabindex="0"]');
-    } catch (err) {
-      target = null;
-    }
-  }
-  _focusElement(target || surface);
-}
-
-function _rememberSecondarySurfaceTrigger(surfaceId, surface, selector) {
-  if (!surfaceId || !globalThis.document) return;
-  var activeElement = document.activeElement;
-  if (activeElement === document.body || activeElement === surface) activeElement = null;
-  if (activeElement && surface && typeof surface.contains === 'function' && surface.contains(activeElement)) return;
-  _secondaryReturnFocusTargets.set(surfaceId, {
-    target: activeElement && typeof activeElement.focus === 'function' ? activeElement : null,
-    selector: selector || SECONDARY_RETURN_FOCUS_SELECTORS[surfaceId] || '',
-  });
-}
-
-function _restoreSecondarySurfaceTrigger(surfaceId) {
-  var entry = _secondaryReturnFocusTargets.get(surfaceId);
-  _secondaryReturnFocusTargets.delete(surfaceId);
-  if (!entry) return;
-
-  var target = entry.target;
-  if (!_isFocusTargetAvailable(target) && entry.selector && typeof document.querySelector === 'function') {
-    target = document.querySelector(entry.selector);
-  }
-  _focusElement(target);
-}
-
-function _focusSecondarySurface(surface, selector) {
-  if (!surface) return;
-  var target = null;
-  if (typeof surface.querySelector === 'function') {
-    try {
-      target = selector ? surface.querySelector(selector) : null;
-      if (!target) target = surface.querySelector('[data-secondary-initial-focus], [role="tab"][aria-selected="true"]');
-    } catch (err) {
-      target = null;
-    }
-  }
-  _focusElement(target || surface);
-}
-
-function _closePrimarySurfaces(exceptId) {
-  _getSurfaceList(PRIMARY_SURFACE_IDS).forEach(function (surface) {
-    if (exceptId && surface.id === exceptId) return;
-    _setSurfaceVisible(surface, false);
-    if (surface.id) _primaryReturnFocusTargets.delete(surface.id);
-  });
-}
-
-function _closeSecondarySurfaces(exceptId) {
-  _getSurfaceList(SECONDARY_SURFACE_IDS).forEach(function (surface) {
-    if (exceptId && surface.id === exceptId) return;
-    _setOverlayPanelVisible(surface, false);
-    if (surface.id) _secondaryReturnFocusTargets.delete(surface.id);
-  });
-}
-
 function _notifySurfaceObservers() {
   var snapshot = {
     hasBlockingSurfaceOpen: hasBlockingSurfaceOpen(),
-    visiblePrimarySurfaceIds: _getSurfaceList(PRIMARY_SURFACE_IDS).filter(function (surface) {
-      return !!(surface && surface.id && surface.classList && !surface.classList.contains('hidden'));
-    }).map(function (surface) {
-      return surface.id;
-    }),
-    visibleSecondarySurfaceIds: _getSurfaceList(SECONDARY_SURFACE_IDS).filter(function (surface) {
-      return !!(surface && surface.id && surface.classList && surface.classList.contains('panel-open'));
-    }).map(function (surface) {
-      return surface.id;
-    }),
     visibleSurfaceIds: _getBlockingSurfaces().filter(function (surface) {
       return !!(surface && surface.id && surface.classList && !surface.classList.contains('hidden'));
     }).map(function (surface) {
@@ -355,89 +215,6 @@ function _notifySurfaceObservers() {
   _surfaceObservers.forEach(function (observer) {
     observer(snapshot);
   });
-}
-
-export function openPrimarySurface(surfaceId, options) {
-  var target = _getSurfaceById(surfaceId);
-  if (!target) return null;
-  var wasVisible = !!(target.classList && !target.classList.contains('hidden'));
-  var surfaceOptions = options || {};
-
-  if (!wasVisible) {
-    _rememberPrimarySurfaceTrigger(surfaceId, target, surfaceOptions.returnFocusSelector);
-  }
-
-  _closeSecondarySurfaces();
-  _closePrimarySurfaces(surfaceId);
-  _setSurfaceVisible(target, true);
-  _notifySurfaceObservers();
-  if (!wasVisible && surfaceOptions.focus !== false) {
-    _focusPrimarySurface(target, surfaceOptions.focusSelector);
-  }
-  return target;
-}
-
-export function closePrimarySurface(surfaceId, options) {
-  var target = _getSurfaceById(surfaceId);
-  if (!target) return null;
-  var wasVisible = !!(target.classList && !target.classList.contains('hidden'));
-  var surfaceOptions = options || {};
-
-  _setSurfaceVisible(target, false);
-  _notifySurfaceObservers();
-  if (wasVisible && surfaceOptions.restoreFocus !== false) {
-    _restorePrimarySurfaceTrigger(surfaceId);
-  } else if (wasVisible) {
-    _primaryReturnFocusTargets.delete(surfaceId);
-  }
-  return target;
-}
-
-export function isPrimarySurfaceVisible(surfaceId) {
-  var target = _getSurfaceById(surfaceId);
-  return !!(target && target.classList && !target.classList.contains('hidden'));
-}
-
-export function openSecondarySurface(surfaceId, options) {
-  var target = _getSurfaceById(surfaceId);
-  if (!target) return null;
-  var wasVisible = !!(target.classList && target.classList.contains('panel-open'));
-  var surfaceOptions = options || {};
-
-  if (!wasVisible) {
-    _rememberSecondarySurfaceTrigger(surfaceId, target, surfaceOptions.returnFocusSelector);
-  }
-
-  _closePrimarySurfaces();
-  _closeSecondarySurfaces(surfaceId);
-  _setOverlayPanelVisible(target, true);
-  _notifySurfaceObservers();
-  if (!wasVisible && surfaceOptions.focus !== false) {
-    _focusSecondarySurface(target, surfaceOptions.focusSelector);
-  }
-  return target;
-}
-
-export function closeSecondarySurface(surfaceId) {
-  var target = _getSurfaceById(surfaceId);
-  if (!target) return null;
-  var wasVisible = !!(target.classList && target.classList.contains('panel-open'));
-
-  _setOverlayPanelVisible(target, false);
-  _notifySurfaceObservers();
-  if (wasVisible) _restoreSecondarySurfaceTrigger(surfaceId);
-  return target;
-}
-
-export function closeAllSecondarySurfaces() {
-  _closeSecondarySurfaces();
-  _notifySurfaceObservers();
-}
-
-export function closeAllNonBlockingSurfaces() {
-  _closePrimarySurfaces();
-  _closeSecondarySurfaces();
-  _notifySurfaceObservers();
 }
 
 export function showBlockingSurface(surfaceId, options) {

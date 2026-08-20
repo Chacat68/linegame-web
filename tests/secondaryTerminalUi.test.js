@@ -1,33 +1,34 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 
-describe('Secondary terminal UI structure', function () {
-  it('档案和机库二级终端包含标题绑定、状态条、tabpanel 关系和移动端适配锚点', function () {
+describe('Workspace terminal UI structure', function () {
+  it('档案和机库工作区包含统一壳层、标题绑定、状态条、tabpanel 关系和移动端适配锚点', function () {
     var html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
     var sharedCss = readFileSync(new URL('../css/interstellar-trader.css', import.meta.url), 'utf8');
     var archiveCss = readFileSync(new URL('../css/archive-terminal.css', import.meta.url), 'utf8');
     var hangarCss = readFileSync(new URL('../css/hangar-terminal.css', import.meta.url), 'utf8');
+    var surfacesCss = readFileSync(new URL('../css/surfaces.css', import.meta.url), 'utf8');
     var responsiveCss = readFileSync(new URL('../css/bridge-responsive.css', import.meta.url), 'utf8');
-    var css = sharedCss + '\n' + archiveCss + '\n' + hangarCss;
+    var css = sharedCss + '\n' + surfacesCss + '\n' + archiveCss + '\n' + hangarCss;
     var js = readFileSync(new URL('../js/ui/MapUI.js', import.meta.url), 'utf8');
 
     expect(html).toContain('aria-labelledby="archive-terminal-title"');
     expect(html).toContain('aria-describedby="archive-terminal-subtitle"');
-    expect(html).toContain('class="secondary-terminal-status" role="list" aria-label="档案中心分类"');
+    expect(html).toContain('class="workspace-terminal-status" role="list" aria-label="档案中心分类"');
     expect(html).toContain('id="archive-tab-quest"');
     expect(html).toContain('aria-labelledby="archive-tab-quest" aria-hidden="false"');
     expect(html).toContain('id="archive-tab-exploration"');
     expect(html).toContain('id="exploration-archive-list"');
     expect(html).toContain('aria-labelledby="archive-tab-exploration" aria-hidden="true"');
     expect(html).toContain('aria-labelledby="hangar-terminal-title"');
-    expect(html).toContain('class="secondary-terminal-status" role="list" aria-label="机库功能"');
+    expect(html).toContain('class="workspace-terminal-status" role="list" aria-label="机库功能"');
     expect(html).toContain('id="hangar-tab-fleet"');
     expect(html).toContain('aria-labelledby="hangar-tab-fleet" aria-hidden="false"');
     expect(html).toContain('id="company-level-track" class="company-level-track" role="progressbar"');
     expect(html).toContain('class="company-unlock-roadmap"');
     expect(html).toContain('aria-label="公司功能"');
     expect(html).toContain('id="market-overlay"');
-    expect(html).toContain('role="region"\n              aria-labelledby="market-header-title"\n              aria-hidden="true"\n              tabindex="-1"');
+    expect(html).toMatch(/id="market-overlay"[\s\S]*?role="region"[\s\S]*?aria-labelledby="market-header-title"[\s\S]*?aria-hidden="true"[\s\S]*?tabindex="-1"/);
     expect(html).toContain('id="market-close-btn" class="market-close-btn" type="button" aria-label="关闭市场并返回星图"');
     expect(html).toContain('content="width=device-width, initial-scale=1.0, viewport-fit=cover"');
 
@@ -35,7 +36,7 @@ describe('Secondary terminal UI structure', function () {
     expect(js).toContain('key !== \'ArrowLeft\'');
     expect(js).toContain('activateTab(nextButton.dataset.tab)');
 
-    expect(css).toContain('.secondary-terminal-status');
+    expect(css).toContain('.workspace-terminal-status');
     expect(css).toContain('grid-template-columns: repeat(4, minmax(0, 1fr))');
     expect(archiveCss).toContain('grid-template-columns: repeat(5, minmax(0, 1fr))');
     expect(css).toContain('.achievement-distribution-grid');
@@ -68,8 +69,8 @@ describe('Secondary terminal UI structure', function () {
     expect(css).toContain('.company-permission-focus[data-tone="near"]');
     expect(css).toContain('#trade-panel .company-unlock-roadmap {\n    grid-column: 1 / -1;');
     expect(css).not.toContain('#trade-panel .company-unlock-roadmap {\n    display: none;');
-    expect(css).toContain('.secondary-terminal-nav .tab-btn:focus-visible');
-    expect(css).toContain('#info-panel .secondary-terminal-content > .tab-pane:focus-visible');
+    expect(css).toContain('.workspace-terminal-nav');
+    expect(css).toContain('#info-panel .workspace-terminal-content > .tab-pane:focus-visible');
     expect(css).toContain('@media (max-width: 760px)');
     expect(css).toContain('grid-template-columns: repeat(2, minmax(0, 1fr))');
     expect(css).toContain('--safe-top: env(safe-area-inset-top, 0px)');
@@ -84,7 +85,7 @@ describe('Secondary terminal UI structure', function () {
     expect(hangarCss).toContain('Hangar detail modals: ship modules + crew roster');
     expect(responsiveCss).toContain('@media (max-width: 1360px)');
     expect(responsiveCss).toMatch(/@media \(max-width: 680px\)[\s\S]*?\.hdr-day-chip\s*\{\s*display:\s*none/);
-    expect(responsiveCss).toMatch(/\.secondary-terminal-nav \.tab-btn\s*\{[^}]*flex:\s*1 1 0/);
+    expect(responsiveCss).toMatch(/\.workspace-terminal-nav \.tab-btn\s*\{[^}]*flex:\s*1 1 0/);
     expect(responsiveCss).toMatch(/\.settings-select\s*\{[^}]*height:\s*var\(--ui-control-lg\)/);
   });
 });

@@ -1,20 +1,19 @@
 // js/ui/WorkspaceSurfaceController.js — 五个 canonical L3 workspace 的 DOM 生命周期
 //
 // NavigationController 持有唯一 active workspace；本模块只把该状态投影为
-// 可见性、inert、aria-hidden、焦点和可诊断的 DOM 契约。Market 仍嵌在
-// map-section 内，因此 trade 激活时会单独冻结星图子节点，而不冻结宿主。
+// 统一的 is-active、inert、aria-hidden、焦点和可诊断 DOM 契约。
 
 import { normalizeWorkspace } from './NavigationController.js';
 
 export const WORKSPACE_SURFACE_DESCRIPTORS = Object.freeze({
-  map: Object.freeze({ surfaceId: 'map-section', visibilityClass: null }),
-  trade: Object.freeze({ surfaceId: 'market-overlay', visibilityClass: 'hidden' }),
-  fleet: Object.freeze({ surfaceId: 'trade-panel', visibilityClass: 'panel-open' }),
-  archive: Object.freeze({ surfaceId: 'info-panel', visibilityClass: 'panel-open' }),
-  logs: Object.freeze({ surfaceId: 'console-panel', visibilityClass: 'panel-open' }),
+  map: Object.freeze({ surfaceId: 'map-section' }),
+  trade: Object.freeze({ surfaceId: 'market-overlay' }),
+  fleet: Object.freeze({ surfaceId: 'trade-panel' }),
+  archive: Object.freeze({ surfaceId: 'info-panel' }),
+  logs: Object.freeze({ surfaceId: 'console-panel' }),
 });
 
-const OVERLAY_WORKSPACES = Object.freeze(['trade', 'fleet', 'archive', 'logs']);
+const WORKSPACE_IDS = Object.freeze(Object.keys(WORKSPACE_SURFACE_DESCRIPTORS));
 const DEFAULT_FOCUS_SELECTOR = [
   '[data-workspace-initial-focus]',
   '[role="tab"][aria-selected="true"]',
@@ -37,39 +36,16 @@ function _setAttribute(element, name, value) {
   if (element && typeof element.setAttribute === 'function') element.setAttribute(name, String(value));
 }
 
-function _setOverlayVisible(element, descriptor, visible) {
-  if (!element || !descriptor || !element.classList) return;
-  if (descriptor.visibilityClass === 'hidden') {
-    element.classList.toggle('hidden', !visible);
-  } else if (descriptor.visibilityClass) {
-    element.classList.toggle(descriptor.visibilityClass, !!visible);
-  }
+function _setWorkspaceActive(element, visible) {
+  if (!element || !element.classList) return;
+  element.classList.toggle('is-active', !!visible);
   element.inert = !visible;
   _setAttribute(element, 'aria-hidden', visible ? 'false' : 'true');
   if (element.dataset) element.dataset.workspaceActive = visible ? 'true' : 'false';
 }
 
-function _isOverlayVisible(element, descriptor) {
-  if (!element || !descriptor || !element.classList) return false;
-  if (descriptor.visibilityClass === 'hidden') return !element.classList.contains('hidden');
-  return !!(descriptor.visibilityClass && element.classList.contains(descriptor.visibilityClass));
-}
-
-function _setMapSceneInert(doc, inert) {
-  if (!doc || typeof doc.getElementById !== 'function') return;
-  var market = doc.getElementById('market-overlay');
-  var mapContainer = doc.getElementById('map-container');
-  var sceneNodes = [];
-  if (mapContainer && mapContainer.children) {
-    sceneNodes = Array.prototype.slice.call(mapContainer.children).filter(function (node) {
-      return node && node !== market;
-    });
-  }
-  var legend = doc.getElementById('map-legend');
-  if (legend) sceneNodes.push(legend);
-  sceneNodes.forEach(function (node) {
-    node.inert = !!inert;
-  });
+function _isWorkspaceActive(element) {
+  return !!(element && element.classList && element.classList.contains('is-active'));
 }
 
 function _focusSurface(surface) {
@@ -100,6 +76,8 @@ export function createWorkspaceSurfaceController(options) {
   var opts = options || {};
   var activeWorkspace = 'map';
   var activationCount = 0;
+  var focusCommitCount = 0;
+  var lastFocusedWorkspace = null;
   var disposed = false;
   var focusGeneration = 0;
 
@@ -107,7 +85,14 @@ export function createWorkspaceSurfaceController(options) {
     var doc = _document(opts.document);
     var view = doc && doc.defaultView;
     if (view && typeof view.requestAnimationFrame === 'function') {
-      view.requestAnimationFrame(callback);
+      // 两帧后再确认一次焦点：浏览器/自动化点击可能在首帧末尾把焦点
+      // 归还给触发按钮，热加载工作区不能因此覆盖 canonical entry focus。
+      view.requestAnimationFrame(function () {
+        view.requestAnimationFrame(function () {
+          if (typeof view.setTimeout === 'function') view.setTimeout(callback, 0);
+          else callback();
+        });
+      });
       return;
     }
     if (typeof queueMicrotask === 'function') {
@@ -120,24 +105,35 @@ export function createWorkspaceSurfaceController(options) {
   function getSnapshot() {
     var doc = _document(opts.document);
     var visibleSurfaceIds = [];
-    OVERLAY_WORKSPACES.forEach(function (workspaceId) {
+    WORKSPACE_IDS.forEach(function (workspaceId) {
       var descriptor = WORKSPACE_SURFACE_DESCRIPTORS[workspaceId];
       var element = _surface(doc, workspaceId);
-      if (_isOverlayVisible(element, descriptor)) visibleSurfaceIds.push(descriptor.surfaceId);
+      if (_isWorkspaceActive(element)) visibleSurfaceIds.push(descriptor.surfaceId);
     });
-    var expectedSurfaceId = activeWorkspace === 'map'
-      ? null
-      : WORKSPACE_SURFACE_DESCRIPTORS[activeWorkspace].surfaceId;
-    var consistent = expectedSurfaceId === null
-      ? visibleSurfaceIds.length === 0
-      : visibleSurfaceIds.length === 1 && visibleSurfaceIds[0] === expectedSurfaceId;
+    var expectedSurfaceId = WORKSPACE_SURFACE_DESCRIPTORS[activeWorkspace].surfaceId;
+    var consistent = visibleSurfaceIds.length === 1 && visibleSurfaceIds[0] === expectedSurfaceId;
     return Object.freeze({
       activationCount: activationCount,
       activeWorkspace: activeWorkspace,
       consistent: consistent,
       disposed: disposed,
+      focusCommitCount: focusCommitCount,
+      lastFocusedWorkspace: lastFocusedWorkspace,
       visibleSurfaceIds: Object.freeze(visibleSurfaceIds),
     });
+  }
+
+  function _commitWorkspaceFocus(surface, workspace) {
+    if (!_focusSurface(surface)) return false;
+    focusCommitCount += 1;
+    lastFocusedWorkspace = workspace;
+    var doc = _document(opts.document);
+    var main = doc && typeof doc.getElementById === 'function' ? doc.getElementById('game-main') : null;
+    if (main && main.dataset) {
+      main.dataset.workspaceFocusOwner = workspace;
+      main.dataset.workspaceFocusCommitCount = String(focusCommitCount);
+    }
+    return true;
   }
 
   function activate(workspace, options) {
@@ -148,22 +144,9 @@ export function createWorkspaceSurfaceController(options) {
     if (!targetSurface) return false;
 
     var before = getSnapshot();
-    OVERLAY_WORKSPACES.forEach(function (workspaceId) {
-      _setOverlayVisible(
-        _surface(doc, workspaceId),
-        WORKSPACE_SURFACE_DESCRIPTORS[workspaceId],
-        workspaceId === targetWorkspace
-      );
+    WORKSPACE_IDS.forEach(function (workspaceId) {
+      _setWorkspaceActive(_surface(doc, workspaceId), workspaceId === targetWorkspace);
     });
-
-    var mapSurface = _surface(doc, 'map');
-    var mapHostsActiveWorkspace = targetWorkspace === 'map' || targetWorkspace === 'trade';
-    if (mapSurface) {
-      mapSurface.inert = !mapHostsActiveWorkspace;
-      _setAttribute(mapSurface, 'aria-hidden', mapHostsActiveWorkspace ? 'false' : 'true');
-      if (mapSurface.dataset) mapSurface.dataset.workspaceActive = targetWorkspace === 'map' ? 'true' : 'false';
-    }
-    _setMapSceneInert(doc, targetWorkspace !== 'map');
 
     var main = typeof doc.getElementById === 'function' ? doc.getElementById('game-main') : null;
     if (main && main.dataset) main.dataset.activeWorkspace = targetWorkspace;
@@ -176,11 +159,11 @@ export function createWorkspaceSurfaceController(options) {
     var activationOptions = options || {};
     var changed = before.activeWorkspace !== targetWorkspace || !before.consistent;
     if (activationOptions.focus !== false && (changed || activationOptions.forceFocus === true)) {
-      _focusSurface(targetSurface);
+      _commitWorkspaceFocus(targetSurface, targetWorkspace);
       var scheduledGeneration = focusGeneration;
       _scheduleFocus(function () {
         if (disposed || scheduledGeneration !== focusGeneration || activeWorkspace !== targetWorkspace) return;
-        _focusSurface(targetSurface);
+        _commitWorkspaceFocus(targetSurface, targetWorkspace);
       });
     }
     return true;
@@ -189,19 +172,17 @@ export function createWorkspaceSurfaceController(options) {
   function dispose() {
     var doc = _document(opts.document);
     if (disposed) return false;
-    OVERLAY_WORKSPACES.forEach(function (workspaceId) {
-      _setOverlayVisible(_surface(doc, workspaceId), WORKSPACE_SURFACE_DESCRIPTORS[workspaceId], false);
+    WORKSPACE_IDS.forEach(function (workspaceId) {
+      _setWorkspaceActive(_surface(doc, workspaceId), workspaceId === 'map');
     });
-    var mapSurface = _surface(doc, 'map');
-    if (mapSurface) {
-      mapSurface.inert = false;
-      _setAttribute(mapSurface, 'aria-hidden', 'false');
-      if (mapSurface.dataset) delete mapSurface.dataset.workspaceActive;
-    }
-    _setMapSceneInert(doc, false);
     var main = doc && typeof doc.getElementById === 'function' ? doc.getElementById('game-main') : null;
-    if (main && main.dataset) delete main.dataset.activeWorkspace;
+    if (main && main.dataset) {
+      delete main.dataset.activeWorkspace;
+      delete main.dataset.workspaceFocusOwner;
+      delete main.dataset.workspaceFocusCommitCount;
+    }
     activeWorkspace = 'map';
+    lastFocusedWorkspace = null;
     focusGeneration += 1;
     disposed = true;
     return true;

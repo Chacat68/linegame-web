@@ -60,8 +60,8 @@ function createHarness() {
   var hosts = Object.create(null);
   [
     ['market-overlay', '.market-overlay-shell'],
-    ['trade-panel', '.secondary-terminal-body'],
-    ['info-panel', '.secondary-terminal-body'],
+    ['trade-panel', '.workspace-terminal-body'],
+    ['info-panel', '.workspace-terminal-body'],
     ['settings-panel-data', '.settings-save-shell'],
   ].forEach(function (entry) {
     var root = createFakeElement('section');

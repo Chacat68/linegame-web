@@ -1493,7 +1493,7 @@
 /* ==========================================================
    Archive terminal: exploration reports
    ========================================================== */
-.secondary-terminal-shell--archive .secondary-terminal-status {
+.workspace-terminal-shell--archive .workspace-terminal-status {
   grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 

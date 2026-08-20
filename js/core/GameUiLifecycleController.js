@@ -115,6 +115,9 @@ export function createGameUiLifecycleController(dependencies) {
         return _call(ports, 'ensureArchive', []);
       },
     }]);
+    _call(MapUI, 'setWorkspaceNavigationActions', [{
+      navigate: UIManager.switchView,
+    }]);
   }
 
   function initialize() {
@@ -192,6 +195,7 @@ export function createGameUiLifecycleController(dependencies) {
     _releaseLogsHistoryChangedListener();
     if (initialized) {
       _call(MapUI, 'setNavigationChangeCallback', [null]);
+      _call(MapUI, 'setWorkspaceNavigationActions', [null]);
       _call(MapUI, 'setRefreshMarket', [null]);
       _call(MapUI, 'setExplorationActions', [null]);
       _call(Modal, 'init', [null]);

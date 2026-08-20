@@ -458,7 +458,7 @@ describe('Onboarding and log surfaces', function () {
     expect(starmapButton.getAttribute('aria-current')).toBe(null);
     expect(logsButton.getAttribute('aria-current')).toBe('page');
     expect(logsButton.getAttribute('aria-pressed')).toBe('true');
-    expect(consolePanel.classList.contains('panel-open')).toBe(true);
+    expect(consolePanel.classList.contains('is-active')).toBe(true);
     expect(consolePanel.getAttribute('aria-hidden')).toBe('false');
     await Promise.resolve();
     await Promise.resolve();

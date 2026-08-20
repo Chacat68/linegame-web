@@ -2,18 +2,6 @@
    Responsive — adapt layout for different screen resolutions
    ============================================================ */
 
-/* --- Medium screens (≤1200px): Narrower panels --- */
-@media (max-width: 1200px) {
-  .side-panel-overlay--left  { width: 280px; }
-  .side-panel-overlay--right { width: 320px; }
-}
-
-/* --- Small-medium screens (≤1024px): Narrower panels --- */
-@media (max-width: 1024px) {
-  .side-panel-overlay--left  { width: 260px; }
-  .side-panel-overlay--right { width: 300px; }
-}
-
 /* --- Tablet / small screens (≤768px): Compact header & dock --- */
 @media (max-width: 768px) {
   #game-header {
@@ -35,9 +23,6 @@
   .hdr-day-chip-label { font-size: 7px; }
   .hdr-day-chip-value { font-size: 11px; }
   .hdr-icon-btn { width: 28px; height: 28px; }
-
-  .side-panel-overlay--left  { width: calc(100vw - 32px); top: 44px; }
-  .side-panel-overlay--right { width: calc(100vw - 32px); top: 44px; }
 
   .status-ship-stats {
     position: fixed;
@@ -261,9 +246,6 @@
   .hdr-day-chip-label { font-size: 6px; }
   .hdr-day-chip-value { font-size: 10px; }
   .hdr-icon-btns { gap: 2px; padding-left: 4px; }
-
-  .side-panel-overlay--left,
-  .side-panel-overlay--right { width: 100vw; top: 38px; }
 
   .status-ship-stats {
     bottom: calc(var(--bottom-nav-offset, 52px) + 12px);

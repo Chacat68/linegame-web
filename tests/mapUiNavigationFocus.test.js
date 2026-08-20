@@ -99,6 +99,15 @@ describe('MapUI navigation target focus', function () {
     var marketBtn = createFakeElement('nav-market', ['bottom-nav-btn', 'active']);
     marketBtn.dataset.view = 'market';
     var panel = createFakeElement('planet-detail-panel');
+    var navigationRequests = [];
+    var navigationActions = {
+      navigate: function (workspace) {
+        navigationRequests.push(workspace);
+        starmapBtn.classList.toggle('active', workspace === 'map');
+        marketBtn.classList.toggle('active', workspace === 'trade');
+        return true;
+      },
+    };
     var elements = {
       'planet-detail-panel': panel,
       'map-canvas': createFakeElement('map-canvas'),
@@ -128,6 +137,7 @@ describe('MapUI navigation target focus', function () {
     var GalaxyData = await import('../js/systems/galaxy/GalaxyDataLayer.js');
     GalaxyData.init(state);
     var MapUI = await import('../js/ui/MapUI.js');
+    MapUI.setWorkspaceNavigationActions(navigationActions);
 
     expect(MapUI.focusNavigationTarget(state, 'nova_station', {
       goodId: 'food',
@@ -135,6 +145,7 @@ describe('MapUI navigation target focus', function () {
     })).toBe(true);
 
     expect(state.hoveredSystem).toBe('nova_station');
+    expect(navigationRequests).toEqual(['map']);
     expect(starmapBtn.classList.contains('active')).toBe(true);
     expect(marketBtn.classList.contains('active')).toBe(false);
     expect(panel.classList.contains('visible')).toBe(true);

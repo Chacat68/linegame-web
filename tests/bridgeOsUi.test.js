@@ -42,19 +42,18 @@ describe('Bridge OS global UI contracts', function () {
     var responsive = read('css/bridge-responsive.css');
     var shell = read('css/global-shell-v2.css');
 
-    expect(surfaces).toContain('#map-container > #market-overlay.market-overlay');
-    expect(surfaces).toContain('top: var(--ui-space-4) !important');
+    expect(surfaces).toContain('#market-overlay.workspace-surface--trade');
+    expect(surfaces).toContain('top: calc(var(--ui-header-height) + var(--ui-space-4)) !important');
     expect(surfaces).toContain('max-width: none !important');
     expect(surfaces).toContain('max-height: none !important');
-    expect(responsive).toContain('body:has(#market-overlay:not(.hidden)) .bottom-nav');
-    expect(responsive).toContain('body:has(#console-panel.panel-open) .bottom-nav');
+    expect(responsive).toContain('body:has(.workspace-surface:not(.workspace-surface--map).is-active) .bottom-nav');
     expect(responsive).toContain('visibility: visible !important');
     expect(responsive).toContain('max-height: 190px !important');
     expect(tokens).toContain('--ui-command-reserve: 76px');
     expect(responsive).toContain('--ui-command-reserve: 132px');
-    expect(surfaces).toMatch(/#map-container > #market-overlay\.market-overlay\s*\{[\s\S]*?bottom:\s*calc\([\s\S]*?var\(--ui-command-reserve\)/);
-    expect(surfaces).toMatch(/#info-panel\.side-panel-overlay,[\s\S]*?padding:[\s\S]*?var\(--ui-command-reserve\)/);
-    expect(responsive).toMatch(/#map-container > #market-overlay\.market-overlay\s*\{[\s\S]*?bottom:\s*calc\([\s\S]*?var\(--ui-command-reserve\)/);
+    expect(surfaces).toMatch(/#market-overlay\.workspace-surface--trade\s*\{[\s\S]*?bottom:\s*calc\([\s\S]*?var\(--ui-command-reserve\)/);
+    expect(surfaces).toMatch(/\.workspace-surface\.workspace-surface--archive,[\s\S]*?padding:[\s\S]*?var\(--ui-command-reserve\)/);
+    expect(responsive).toMatch(/#market-overlay\.workspace-surface--trade\s*\{[\s\S]*?bottom:\s*calc\([\s\S]*?var\(--ui-command-reserve\)/);
     expect(shell).toMatch(/#context-inspector\.context-inspector:not\(\[data-workspace-id="map"\]\)\s*\{[\s\S]*?bottom:\s*calc\([\s\S]*?var\(--ui-command-reserve\)/);
   });
 
@@ -63,12 +62,12 @@ describe('Bridge OS global UI contracts', function () {
     var surfaces = read('css/surfaces.css');
 
     expect(html).toContain('id="console-panel"');
-    expect(html).toContain('class="secondary-terminal-shell secondary-terminal-shell--logs"');
+    expect(html).toContain('class="workspace-terminal-shell workspace-terminal-shell--logs"');
     expect(html).toContain('role="log"');
     expect(html).toContain('id="console-panel-close"');
-    expect(surfaces).toContain('#console-panel.side-panel-overlay');
+    expect(surfaces).toContain('.workspace-surface.workspace-surface--logs');
     expect(surfaces).toContain('.logs-terminal-body');
-    expect(surfaces).toMatch(/#console-panel\.side-panel-overlay\.panel-open \.secondary-terminal-shell\s*\{[^}]*opacity:\s*1/);
+    expect(surfaces).toMatch(/\.workspace-surface--logs\.is-active \.workspace-terminal-shell\s*\{[^}]*opacity:\s*1/);
   });
 
   it('keeps all five desktop header groups in one row below the wide breakpoint', function () {
@@ -91,7 +90,7 @@ describe('Bridge OS global UI contracts', function () {
     expect(responsive).toContain('.starmap-control-rail .starmap-rail-btn');
     expect(responsive).toMatch(/#action-guide \.action-guide-primary\.command-action-btn\s*\{[^}]*min-height:\s*var\(--ui-control-lg\)/);
     expect(market).toMatch(/\.market-workspace-v2 \.kline-range-btn,[\s\S]*?min-height:\s*var\(--ui-control-lg\)/);
-    expect(surfaces).toContain('#trade-panel .trade-panel-toggle.secondary-terminal-close');
+    expect(surfaces).toContain('#trade-panel .trade-panel-toggle.workspace-terminal-close');
     expect(surfaces).toContain('background: rgba(2, 10, 18, 0.76) !important');
     expect(fleet).not.toContain('.market-close-btn {');
   });

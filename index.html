@@ -190,7 +190,7 @@
   ================================================================ -->
       <main id="game-main">
         <!-- Star Map (full-width) ---------------------------------------- -->
-        <section id="map-section" role="region" aria-label="星图工作区" aria-hidden="false" tabindex="-1" data-workspace-surface="map">
+        <section id="map-section" class="workspace-surface workspace-surface--map is-active" role="region" aria-label="星图工作区" aria-hidden="false" tabindex="-1" data-workspace-surface="map" data-workspace-active="true">
           <div id="map-container">
             <div class="map-hud-overlay" aria-hidden="true">
               <div class="hud-corner hud-corner-tl"></div>
@@ -248,77 +248,6 @@
                 </button>
               </div>
             </div>
-            <!-- Market overlay panel -->
-            <div
-              id="market-overlay"
-              class="market-overlay market-workspace-v2 hidden"
-              role="region"
-              aria-labelledby="market-header-title"
-              aria-hidden="true"
-              tabindex="-1"
-              data-workspace-surface="trade"
-            >
-              <div class="market-overlay-header">
-                <div class="market-header-row">
-                  <div class="market-header-left">
-                    <span class="market-header-mark" aria-hidden="true"></span>
-                    <div class="market-header-copy">
-                      <span class="market-header-kicker">买卖与经营</span>
-                      <h3 id="market-header-title" data-workspace-initial-focus tabindex="-1">市场中心</h3>
-                      <span class="market-header-subtitle">买卖货物、查看行情、经营贸易站</span>
-                    </div>
-                  </div>
-                  <div class="market-header-right">
-                    <div id="market-mode-toggle" class="market-mode-toggle"></div>
-                    <button class="workspace-context-toggle" type="button" data-context-inspector-toggle data-context-workspace="trade" aria-controls="context-inspector" aria-expanded="false">◎ 检查对象</button>
-                    <button id="market-close-btn" class="market-close-btn" type="button" aria-label="关闭市场并返回星图" title="返回星图">✕</button>
-                  </div>
-                </div>
-              </div>
-              <div class="market-cmd-bar">
-                <div id="market-galaxy-nav" class="market-galaxy-nav" aria-label="星系市场导航"></div>
-                <div
-                  id="market-workspace-tabs"
-                  class="market-workspace-tabs"
-                  role="tablist"
-                  aria-label="市场工作区"
-                ></div>
-              </div>
-
-              <div class="market-overlay-shell">
-                <div class="market-overlay-panels">
-                  <div id="market-detail" class="market-detail">
-                    <div class="market-detail-bar">
-                      <span class="market-detail-bar-prefix">星区:</span>
-                      <span id="market-detail-location" class="market-detail-location"></span>
-                      <span id="market-detail-mode" class="market-detail-mode"></span>
-                    </div>
-                    <div class="market-overlay-body">
-                      <div
-                        id="market-spot-pane"
-                        class="market-main-pane"
-                        role="tabpanel"
-                        aria-label="买卖货物"
-                      ></div>
-                      <div
-                        id="market-capital-pane"
-                        class="market-main-pane hidden"
-                        role="tabpanel"
-                        aria-label="资金管理"
-                        aria-hidden="true"
-                      ></div>
-                      <div
-                        id="market-operations-pane"
-                        class="market-main-pane hidden"
-                        role="tabpanel"
-                        aria-label="贸易站经营"
-                        aria-hidden="true"
-                      ></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
 
           <div id="map-legend">
@@ -353,35 +282,111 @@
           </div>
         </section>
 
-        <!-- Info Panel (overlay: QUESTS tab) -------------------------------- -->
+        <!-- Trade workspace ------------------------------------------------ -->
+        <section
+          id="market-overlay"
+          class="workspace-surface workspace-surface--trade market-overlay market-workspace-v2"
+          role="region"
+          aria-labelledby="market-header-title"
+          aria-hidden="true"
+          tabindex="-1"
+          inert
+          data-workspace-surface="trade"
+          data-workspace-active="false"
+        >
+          <div class="market-overlay-header">
+            <div class="market-header-row">
+              <div class="market-header-left">
+                <span class="market-header-mark" aria-hidden="true"></span>
+                <div class="market-header-copy">
+                  <span class="market-header-kicker">买卖与经营</span>
+                  <h3 id="market-header-title" data-workspace-initial-focus tabindex="-1">市场中心</h3>
+                  <span class="market-header-subtitle">买卖货物、查看行情、经营贸易站</span>
+                </div>
+              </div>
+              <div class="market-header-right">
+                <div id="market-mode-toggle" class="market-mode-toggle"></div>
+                <button class="workspace-context-toggle" type="button" data-context-inspector-toggle data-context-workspace="trade" aria-controls="context-inspector" aria-expanded="false">◎ 检查对象</button>
+                <button id="market-close-btn" class="market-close-btn" type="button" aria-label="关闭市场并返回星图" title="返回星图">✕</button>
+              </div>
+            </div>
+          </div>
+          <div class="market-cmd-bar">
+            <div id="market-galaxy-nav" class="market-galaxy-nav" aria-label="星系市场导航"></div>
+            <div
+              id="market-workspace-tabs"
+              class="market-workspace-tabs"
+              role="tablist"
+              aria-label="市场工作区"
+            ></div>
+          </div>
+
+          <div class="market-overlay-shell">
+            <div class="market-overlay-panels">
+              <div id="market-detail" class="market-detail">
+                <div class="market-detail-bar">
+                  <span class="market-detail-bar-prefix">星区:</span>
+                  <span id="market-detail-location" class="market-detail-location"></span>
+                  <span id="market-detail-mode" class="market-detail-mode"></span>
+                </div>
+                <div class="market-overlay-body">
+                  <div
+                    id="market-spot-pane"
+                    class="market-main-pane"
+                    role="tabpanel"
+                    aria-label="买卖货物"
+                  ></div>
+                  <div
+                    id="market-capital-pane"
+                    class="market-main-pane hidden"
+                    role="tabpanel"
+                    aria-label="资金管理"
+                    aria-hidden="true"
+                  ></div>
+                  <div
+                    id="market-operations-pane"
+                    class="market-main-pane hidden"
+                    role="tabpanel"
+                    aria-label="贸易站经营"
+                    aria-hidden="true"
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Archive workspace ---------------------------------------------- -->
         <aside
           id="info-panel"
-          class="side-panel-overlay side-panel-overlay--left"
+          class="workspace-surface workspace-surface--archive"
           role="region"
           aria-labelledby="archive-terminal-title"
           aria-describedby="archive-terminal-subtitle"
           aria-hidden="true"
           tabindex="-1"
+          inert
           data-workspace-surface="archive"
+          data-workspace-active="false"
         >
-          <div class="secondary-terminal-shell secondary-terminal-shell--archive">
-            <header class="secondary-terminal-chrome">
-              <div class="secondary-terminal-title-block">
-                <span class="secondary-terminal-kicker">任务 · 探索 · 科技 · 派系 · 成就</span>
-                <h2 id="archive-terminal-title" class="secondary-terminal-title" data-workspace-initial-focus tabindex="-1">档案中心</h2>
+          <div class="workspace-terminal-shell workspace-terminal-shell--archive">
+            <header class="workspace-terminal-chrome">
+              <div class="workspace-terminal-title-block">
+                <span class="workspace-terminal-kicker">任务 · 探索 · 科技 · 派系 · 成就</span>
+                <h2 id="archive-terminal-title" class="workspace-terminal-title" data-workspace-initial-focus tabindex="-1">档案中心</h2>
               </div>
-              <p id="archive-terminal-subtitle" class="secondary-terminal-subtitle">任务、探索报告、科技、派系与成就集中管理。</p>
-              <div class="secondary-terminal-status" role="list" aria-label="档案中心分类">
-                <span class="secondary-terminal-status-item" role="listitem">任务</span>
-                <span class="secondary-terminal-status-item" role="listitem">探索</span>
-                <span class="secondary-terminal-status-item" role="listitem">科技</span>
-                <span class="secondary-terminal-status-item" role="listitem">派系</span>
-                <span class="secondary-terminal-status-item" role="listitem">成就</span>
+              <p id="archive-terminal-subtitle" class="workspace-terminal-subtitle">任务、探索报告、科技、派系与成就集中管理。</p>
+              <div class="workspace-terminal-status" role="list" aria-label="档案中心分类">
+                <span class="workspace-terminal-status-item" role="listitem">任务</span>
+                <span class="workspace-terminal-status-item" role="listitem">探索</span>
+                <span class="workspace-terminal-status-item" role="listitem">科技</span>
+                <span class="workspace-terminal-status-item" role="listitem">派系</span>
+                <span class="workspace-terminal-status-item" role="listitem">成就</span>
               </div>
               <button class="workspace-context-toggle" type="button" data-context-inspector-toggle data-context-workspace="archive" aria-controls="context-inspector" aria-expanded="false">◎ 检查对象</button>
               <button
                 id="info-panel-toggle"
-                class="info-panel-toggle secondary-terminal-close"
+                class="info-panel-toggle workspace-terminal-close"
                 type="button"
                 title="返回星图"
                 aria-label="返回星图"
@@ -390,8 +395,8 @@
               </button>
             </header>
 
-            <div class="secondary-terminal-body secondary-terminal-body--archive">
-              <div class="info-panel-header secondary-terminal-nav">
+            <div class="workspace-terminal-body workspace-terminal-body--archive">
+              <div class="info-panel-header workspace-terminal-nav">
                 <nav class="tabs" data-tab-group="info" role="tablist" aria-label="档案分类">
                   <button
                     id="archive-tab-quest"
@@ -460,7 +465,7 @@
                   </button>
                 </nav>
               </div>
-              <div class="tab-content secondary-terminal-content">
+              <div class="tab-content workspace-terminal-content">
                 <!-- Quest tab (任务系统) -->
                 <div id="tab-quest" class="tab-pane active" data-tab-group="info" role="tabpanel" aria-labelledby="archive-tab-quest" aria-hidden="false" tabindex="0">
                   <div id="quest-list"></div>
@@ -488,34 +493,36 @@
           </div>
         </aside>
 
-        <!-- Trade Panel (overlay: HANGAR tab) ------------------------------- -->
+        <!-- Fleet workspace ------------------------------------------------ -->
         <aside
           id="trade-panel"
-          class="side-panel-overlay side-panel-overlay--right"
+          class="workspace-surface workspace-surface--fleet"
           role="region"
           aria-labelledby="hangar-terminal-title"
           aria-describedby="hangar-terminal-subtitle"
           aria-hidden="true"
           tabindex="-1"
+          inert
           data-workspace-surface="fleet"
+          data-workspace-active="false"
         >
-          <div class="secondary-terminal-shell secondary-terminal-shell--hangar">
-            <header class="secondary-terminal-chrome">
-              <div class="secondary-terminal-title-block">
-                <span class="secondary-terminal-kicker">舰船 · 船员 · 自动跑商</span>
-                <h2 id="hangar-terminal-title" class="secondary-terminal-title" data-workspace-initial-focus tabindex="-1">机库</h2>
+          <div class="workspace-terminal-shell workspace-terminal-shell--fleet">
+            <header class="workspace-terminal-chrome">
+              <div class="workspace-terminal-title-block">
+                <span class="workspace-terminal-kicker">舰船 · 船员 · 自动跑商</span>
+                <h2 id="hangar-terminal-title" class="workspace-terminal-title" data-workspace-initial-focus tabindex="-1">机库</h2>
               </div>
-              <p id="hangar-terminal-subtitle" class="secondary-terminal-subtitle">先选择舰船，再检查状态、维护船况或开始自动跑商。</p>
-              <div class="secondary-terminal-status" role="list" aria-label="机库功能">
-                <span class="secondary-terminal-status-item" role="listitem">选择舰船</span>
-                <span class="secondary-terminal-status-item" role="listitem">检查状态</span>
-                <span class="secondary-terminal-status-item" role="listitem">管理舰船</span>
-                <span class="secondary-terminal-status-item" role="listitem">舰船采购</span>
+              <p id="hangar-terminal-subtitle" class="workspace-terminal-subtitle">先选择舰船，再检查状态、维护船况或开始自动跑商。</p>
+              <div class="workspace-terminal-status" role="list" aria-label="机库功能">
+                <span class="workspace-terminal-status-item" role="listitem">选择舰船</span>
+                <span class="workspace-terminal-status-item" role="listitem">检查状态</span>
+                <span class="workspace-terminal-status-item" role="listitem">管理舰船</span>
+                <span class="workspace-terminal-status-item" role="listitem">舰船采购</span>
               </div>
               <button class="workspace-context-toggle" type="button" data-context-inspector-toggle data-context-workspace="fleet" aria-controls="context-inspector" aria-expanded="false">◎ 检查舰船</button>
               <button
                 id="trade-panel-toggle"
-                class="info-panel-toggle trade-panel-toggle secondary-terminal-close"
+                class="info-panel-toggle trade-panel-toggle workspace-terminal-close"
                 type="button"
                 title="返回星图"
                 aria-label="返回星图"
@@ -524,8 +531,8 @@
               </button>
             </header>
 
-            <div class="secondary-terminal-body secondary-terminal-body--hangar">
-              <aside class="secondary-terminal-sidebar" aria-label="公司与机库导航">
+            <div class="workspace-terminal-body workspace-terminal-body--fleet">
+              <aside class="workspace-terminal-sidebar" aria-label="公司与机库导航">
                 <!-- Company Dashboard (紧凑仪表盘) -->
                 <div class="company-dashboard">
                   <div class="company-dashboard-primary">
@@ -604,7 +611,7 @@
                 </nav>
               </aside>
 
-              <div class="tab-content secondary-terminal-content">
+              <div class="tab-content workspace-terminal-content">
                 <!-- Fleet tab (船队系统) -->
                 <div id="tab-fleet" class="tab-pane active" data-tab-group="trade" role="tabpanel" aria-labelledby="hangar-tab-fleet" aria-hidden="false" tabindex="0">
                   <div id="fleet-list"></div>
@@ -621,33 +628,35 @@
           </div>
         </aside>
 
-        <!-- Communications Log (overlay: LOGS terminal) ------------------- -->
+        <!-- Logs workspace ------------------------------------------------- -->
         <aside
           id="console-panel"
-          class="side-panel-overlay side-panel-overlay--bottom"
+          class="workspace-surface workspace-surface--logs"
           role="region"
           aria-labelledby="logs-terminal-title"
           aria-describedby="logs-terminal-subtitle"
           aria-hidden="true"
           tabindex="-1"
+          inert
           data-workspace-surface="logs"
+          data-workspace-active="false"
         >
-          <div class="secondary-terminal-shell secondary-terminal-shell--logs">
-            <header class="secondary-terminal-chrome">
-              <div class="secondary-terminal-title-block">
-                <span class="secondary-terminal-kicker">航行 · 交易 · 系统记录</span>
-                <h2 id="logs-terminal-title" class="secondary-terminal-title" data-workspace-initial-focus tabindex="-1">通讯日志</h2>
+          <div class="workspace-terminal-shell workspace-terminal-shell--logs">
+            <header class="workspace-terminal-chrome">
+              <div class="workspace-terminal-title-block">
+                <span class="workspace-terminal-kicker">航行 · 交易 · 系统记录</span>
+                <h2 id="logs-terminal-title" class="workspace-terminal-title" data-workspace-initial-focus tabindex="-1">通讯日志</h2>
               </div>
-              <p id="logs-terminal-subtitle" class="secondary-terminal-subtitle">集中查看航行、交易、系统与风险记录。</p>
-              <div class="secondary-terminal-status" role="list" aria-label="日志记录类型">
-                <span class="secondary-terminal-status-item" role="listitem">系统</span>
-                <span class="secondary-terminal-status-item" role="listitem">交易</span>
-                <span class="secondary-terminal-status-item" role="listitem">风险</span>
+              <p id="logs-terminal-subtitle" class="workspace-terminal-subtitle">集中查看航行、交易、系统与风险记录。</p>
+              <div class="workspace-terminal-status" role="list" aria-label="日志记录类型">
+                <span class="workspace-terminal-status-item" role="listitem">系统</span>
+                <span class="workspace-terminal-status-item" role="listitem">交易</span>
+                <span class="workspace-terminal-status-item" role="listitem">风险</span>
               </div>
               <button class="workspace-context-toggle logs-context-toggle" type="button" data-context-inspector-toggle data-context-workspace="logs" aria-controls="context-inspector" aria-expanded="false">◎ 检查消息</button>
               <button
                 id="console-panel-close"
-                class="secondary-terminal-close"
+                class="workspace-terminal-close"
                 type="button"
                 title="返回星图"
                 aria-label="返回星图"

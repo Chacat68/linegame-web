@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const css = readFileSync(new URL('../css/interstellar-trader.css', import.meta.url), 'utf8');
+const cssDirectory = new URL('../css/', import.meta.url);
+const workspaceCss = readdirSync(cssDirectory)
+  .filter(function (fileName) { return fileName.endsWith('.css'); })
+  .map(function (fileName) { return readFileSync(new URL(fileName, cssDirectory), 'utf8'); })
+  .join('\n');
 
 function openingTag(id) {
   const markerIndex = html.indexOf(`id="${id}"`);
@@ -41,17 +46,21 @@ describe('UI surface inventory', function () {
   });
 
   it('declares five canonical workspaces as focusable regions rather than parallel dialog models', function () {
-    ['info-panel', 'trade-panel', 'console-panel'].forEach(function (id) {
+    ['market-overlay', 'info-panel', 'trade-panel', 'console-panel'].forEach(function (id) {
       const tag = openingTag(id);
+      expect(tag).toContain('class="workspace-surface ');
       expect(tag).toContain('role="region"');
       expect(tag).not.toContain('aria-modal=');
       expect(tag).toContain('aria-hidden="true"');
       expect(tag).toContain('tabindex="-1"');
+      expect(tag).toContain('data-workspace-active="false"');
     });
 
     const mapTag = openingTag('map-section');
+    expect(mapTag).toContain('class="workspace-surface workspace-surface--map is-active"');
     expect(mapTag).toContain('role="region"');
     expect(mapTag).toContain('data-workspace-surface="map"');
+    expect(mapTag).toContain('data-workspace-active="true"');
 
     const marketTag = openingTag('market-overlay');
     expect(marketTag).toContain('role="region"');
@@ -60,6 +69,18 @@ describe('UI surface inventory', function () {
     ['trade', 'fleet', 'archive', 'logs'].forEach(function (workspaceId) {
       expect(html).toContain('data-workspace-surface="' + workspaceId + '"');
     });
+    expect((html.match(/data-workspace-surface=/g) || []).length).toBe(5);
+    expect((html.match(/data-workspace-active=/g) || []).length).toBe(5);
+    expect(html).not.toContain('side-panel-overlay');
+    expect(html).not.toContain('secondary-terminal');
+    expect(html).not.toContain('panel-open');
+    expect(workspaceCss).not.toMatch(
+      /side-panel-overlay|secondary-terminal|panel-open|#market-overlay\.hidden|#market-overlay:not\(\.hidden\)|\.market-overlay\.hidden/i,
+    );
+    const mapStart = html.lastIndexOf('<section', html.indexOf('id="map-section"'));
+    const mapEnd = html.indexOf('</section>', mapStart);
+    const tradeStart = html.lastIndexOf('<section', html.indexOf('id="market-overlay"'));
+    expect(tradeStart).toBeGreaterThan(mapEnd);
     expect((html.match(/data-workspace-initial-focus/g) || []).length).toBe(4);
   });
 
@@ -81,7 +102,7 @@ describe('UI surface inventory', function () {
   it('mounts the global Context Inspector and Command Slot outside the map workspace stacking context', function () {
     const mapIdIndex = html.indexOf('id="map-section"');
     const mapStart = html.lastIndexOf('<section', mapIdIndex);
-    const mapEnd = html.indexOf('<!-- Info Panel', mapStart);
+    const mapEnd = html.indexOf('<!-- Trade workspace', mapStart);
     const mainStart = html.indexOf('<main id="game-main">');
     const mainEnd = html.indexOf('</main>', mainStart);
     const mapMarkup = html.slice(mapStart, mapEnd);
@@ -107,7 +128,7 @@ describe('UI surface inventory', function () {
     ['map', 'trade', 'fleet', 'archive', 'logs'].forEach(function (workspaceId) {
       expect(html).toContain('data-context-workspace="' + workspaceId + '"');
     });
-    expect(html).toMatch(/secondary-terminal-shell--logs[\s\S]*?data-context-inspector-toggle[\s\S]*?检查消息/);
+    expect(html).toMatch(/workspace-terminal-shell--logs[\s\S]*?data-context-inspector-toggle[\s\S]*?检查消息/);
     expect((html.match(/data-context-inspector-tab=/g) || []).length).toBe(0);
     expect((html.match(/data-context-inspector-pane=/g) || []).length).toBe(0);
     expect((html.match(/id="context-inspector-content"/g) || []).length).toBe(1);

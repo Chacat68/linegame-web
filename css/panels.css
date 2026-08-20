@@ -1,6 +1,6 @@
-/* ---- Info panel (left overlay) ----------------------------------------- */
+/* ---- Archive workspace content ----------------------------------------- */
 #info-panel {
-  /* width & border set by .side-panel-overlay--left in layout.css */
+  /* L3 shell geometry is owned by surfaces.css. */
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -40,9 +40,9 @@
   flex-shrink: 0;
 }
 
-/* ---- Trade panel (right overlay) --------------------------------------- */
+/* ---- Fleet workspace content ------------------------------------------- */
 #trade-panel {
-  /* width & border set by .side-panel-overlay--right in layout.css */
+  /* L3 shell geometry is owned by surfaces.css. */
   display: flex;
   flex-direction: column;
   overflow: hidden;

@@ -35,18 +35,19 @@ function createElement(id, classes) {
   };
 }
 
-function createHarness() {
+function createHarness(options) {
+  var config = options || {};
   var main = createElement('game-main');
-  var map = createElement('map-section');
+  var map = createElement('map-section', ['is-active']);
   var mapContainer = createElement('map-container');
   var canvas = createElement('map-3d-canvas');
   var tools = createElement('map-tools');
   var legend = createElement('map-legend');
-  var market = createElement('market-overlay', ['hidden']);
+  var market = createElement('market-overlay');
   var fleet = createElement('trade-panel');
   var archive = createElement('info-panel');
   var logs = createElement('console-panel');
-  mapContainer.children = [canvas, tools, market];
+  mapContainer.children = [canvas, tools];
   var elements = {
     'game-main': main,
     'map-section': map,
@@ -59,6 +60,7 @@ function createHarness() {
     'console-panel': logs,
   };
   var doc = {
+    defaultView: config.defaultView,
     getElementById: function (id) { return elements[id] || null; },
   };
   return {
@@ -78,22 +80,33 @@ function createHarness() {
 }
 
 describe('WorkspaceSurfaceController', function () {
-  it('UIManager 生产导航不再直接区分 primary 与 secondary surface', function () {
-    var source = readFileSync(new URL('../js/ui/UIManager.js', import.meta.url), 'utf8');
-    expect(source).toContain('createWorkspaceSurfaceController');
-    expect(source).not.toContain('openSecondarySurface');
-    expect(source).not.toContain('closeAllSecondarySurfaces');
+  it('五个 L3 的生产代码不再保留 primary/secondary 双轨入口', function () {
+    var managerSource = readFileSync(new URL('../js/ui/UIManager.js', import.meta.url), 'utf8');
+    var mapSource = readFileSync(new URL('../js/ui/MapUI.js', import.meta.url), 'utf8');
+    var surfaceSource = readFileSync(new URL('../js/ui/SurfaceManager.js', import.meta.url), 'utf8');
+    var workspaceSource = readFileSync(new URL('../js/ui/WorkspaceSurfaceController.js', import.meta.url), 'utf8');
+    expect(managerSource).toContain('createWorkspaceSurfaceController');
+    expect(managerSource).not.toContain('setBottomNavActiveDirectly');
+    [managerSource, mapSource, surfaceSource].forEach(function (source) {
+      expect(source).not.toContain('openPrimarySurface');
+      expect(source).not.toContain('openSecondarySurface');
+      expect(source).not.toContain('closeAllSecondarySurfaces');
+    });
+    expect(workspaceSource).toContain("classList.toggle('is-active'");
+    expect(workspaceSource).not.toContain('visibilityClass');
+    expect(workspaceSource).not.toContain('_setMapSceneInert');
   });
 
-  it('用同一协议激活 secondary 时代替 primary/secondary 两套生命周期', function () {
+  it('用同一 is-active 协议激活五个同级 workspace surface', function () {
     var harness = createHarness();
 
     expect(harness.controller.activate('hangar')).toBe(true);
 
-    expect(harness.fleet.classList.contains('panel-open')).toBe(true);
-    expect(harness.archive.classList.contains('panel-open')).toBe(false);
-    expect(harness.logs.classList.contains('panel-open')).toBe(false);
-    expect(harness.market.classList.contains('hidden')).toBe(true);
+    expect(harness.fleet.classList.contains('is-active')).toBe(true);
+    expect(harness.archive.classList.contains('is-active')).toBe(false);
+    expect(harness.logs.classList.contains('is-active')).toBe(false);
+    expect(harness.market.classList.contains('is-active')).toBe(false);
+    expect(harness.map.classList.contains('is-active')).toBe(false);
     expect(harness.fleet.inert).toBe(false);
     expect(harness.archive.inert).toBe(true);
     expect(harness.map.inert).toBe(true);
@@ -108,29 +121,26 @@ describe('WorkspaceSurfaceController', function () {
     });
   });
 
-  it('trade 保持嵌套宿主可用但冻结底层星图，返回 map 后完整恢复', function () {
+  it('trade 与 map 作为同级 surface 互斥激活，返回 map 后完整恢复', function () {
     var harness = createHarness();
 
     harness.controller.activate('market');
-    expect(harness.market.classList.contains('hidden')).toBe(false);
+    expect(harness.market.classList.contains('is-active')).toBe(true);
     expect(harness.market.inert).toBe(false);
-    expect(harness.map.inert).toBe(false);
+    expect(harness.map.inert).toBe(true);
+    expect(harness.map.classList.contains('is-active')).toBe(false);
     expect(harness.map.dataset.workspaceActive).toBe('false');
-    expect(harness.canvas.inert).toBe(true);
-    expect(harness.tools.inert).toBe(true);
-    expect(harness.legend.inert).toBe(true);
     expect(harness.market.focusCount).toBe(1);
+    expect(harness.controller.getSnapshot().visibleSurfaceIds).toEqual(['market-overlay']);
 
     harness.controller.activate('starmap');
-    expect(harness.market.classList.contains('hidden')).toBe(true);
+    expect(harness.market.classList.contains('is-active')).toBe(false);
+    expect(harness.map.classList.contains('is-active')).toBe(true);
     expect(harness.map.dataset.workspaceActive).toBe('true');
-    expect(harness.canvas.inert).toBe(false);
-    expect(harness.tools.inert).toBe(false);
-    expect(harness.legend.inert).toBe(false);
     expect(harness.controller.getSnapshot()).toMatchObject({
       activeWorkspace: 'map',
       consistent: true,
-      visibleSurfaceIds: [],
+      visibleSurfaceIds: ['map-section'],
     });
   });
 
@@ -144,6 +154,31 @@ describe('WorkspaceSurfaceController', function () {
     expect(harness.fleet.focusCount).toBe(1);
     expect(harness.archive.focusCount).toBe(2);
     expect(harness.controller.getSnapshot().activeWorkspace).toBe('archive');
+  });
+
+  it('程序化进入在异步渲染后的双帧提交 canonical entry focus', function () {
+    var frames = [];
+    var harness = createHarness({
+      defaultView: {
+        requestAnimationFrame: function (callback) { frames.push(callback); },
+      },
+    });
+
+    harness.controller.activate('fleet');
+    expect(harness.fleet.focusCount).toBe(1);
+    expect(frames).toHaveLength(1);
+
+    frames.shift()();
+    expect(harness.fleet.focusCount).toBe(1);
+    expect(frames).toHaveLength(1);
+
+    frames.shift()();
+    expect(harness.fleet.focusCount).toBe(2);
+    expect(harness.controller.getSnapshot()).toMatchObject({
+      focusCommitCount: 2,
+      lastFocusedWorkspace: 'fleet',
+    });
+    expect(harness.main.dataset.workspaceFocusOwner).toBe('fleet');
   });
 
   it('跳过隐藏或 inert 的选中页签，只聚焦当前工作区里的可见候选', async function () {
@@ -169,11 +204,12 @@ describe('WorkspaceSurfaceController', function () {
 
     expect(harness.controller.activate('logs')).toBe(false);
     expect(harness.controller.getSnapshot().activeWorkspace).toBe('archive');
-    expect(harness.archive.classList.contains('panel-open')).toBe(true);
+    expect(harness.archive.classList.contains('is-active')).toBe(true);
 
     expect(harness.controller.dispose()).toBe(true);
     expect(harness.controller.dispose()).toBe(false);
-    expect(harness.archive.classList.contains('panel-open')).toBe(false);
+    expect(harness.archive.classList.contains('is-active')).toBe(false);
+    expect(harness.map.classList.contains('is-active')).toBe(true);
     expect(harness.map.inert).toBe(false);
     expect(harness.main.dataset.activeWorkspace).toBeUndefined();
     expect(harness.controller.getSnapshot().disposed).toBe(true);

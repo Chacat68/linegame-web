@@ -2123,7 +2123,6 @@ body[data-motion="off"] .mod-modal-guidance-focus {
   backdrop-filter: blur(8px);
   overflow: hidden;
 }
-.market-overlay.hidden { display: none; }
 .market-overlay-header {
   display: flex;
   align-items: center;

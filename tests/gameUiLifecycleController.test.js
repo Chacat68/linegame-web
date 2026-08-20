@@ -35,11 +35,13 @@ function createHarness(options) {
     initTabs: vi.fn(function (callback) { tabCallback = callback; }),
     setExplorationActions: vi.fn(),
     setNavigationChangeCallback: vi.fn(),
+    setWorkspaceNavigationActions: vi.fn(),
     setRefreshMarket: vi.fn(),
   };
   var UIManager = {
     dispose: vi.fn(),
     init: vi.fn(function (provider, handlers) { navigationHandlers = handlers; }),
+    switchView: vi.fn(),
   };
   var WorkspaceDetailSurface = { init: vi.fn(), refresh: vi.fn(), dispose: vi.fn() };
   var Modal = { init: vi.fn() };
@@ -151,6 +153,9 @@ describe('GameUiLifecycleController', function () {
     expect(harness.UIManager.init.mock.invocationCallOrder[0]).toBeLessThan(
       harness.WorkspaceDetailSurface.init.mock.invocationCallOrder[0]
     );
+    expect(harness.MapUI.setWorkspaceNavigationActions).toHaveBeenCalledWith({
+      navigate: harness.UIManager.switchView,
+    });
     expect(harness.WorkspaceDetailSurface.init.mock.invocationCallOrder[0]).toBeLessThan(
       harness.MapUI.init.mock.invocationCallOrder[0]
     );
@@ -228,6 +233,7 @@ describe('GameUiLifecycleController', function () {
     harness.events.emit('tutorial:complete');
     expect(harness.controllers.onboardingPolicy.handleTutorialComplete).toHaveBeenCalledOnce();
     expect(harness.controllers.onboardingUi.dispose).toHaveBeenCalledOnce();
+    expect(harness.MapUI.setWorkspaceNavigationActions).toHaveBeenLastCalledWith(null);
     expect(harness.controllers.settingsUi.dispose).toHaveBeenCalledOnce();
     expect(harness.controllers.actionGuide.dispose).toHaveBeenCalledOnce();
     expect(harness.MapUI.setNavigationChangeCallback).toHaveBeenLastCalledWith(null);

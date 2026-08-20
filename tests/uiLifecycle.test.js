@@ -127,7 +127,7 @@ describe('UI lifecycle idempotency', function () {
     expect(elements['modal-amount'].value).toBe(2);
   });
 
-  it('MapUI.initTabs 重复调用不会叠加 tab 与底部导航监听', function () {
+  it('MapUI.initTabs 重复调用只绑定工作区内部 tab，不再接管底部导航', function () {
     var tabA = createFakeElement();
     tabA.dataset.tab = 'market';
     var tabB = createFakeElement();
@@ -163,7 +163,7 @@ describe('UI lifecycle idempotency', function () {
 
       expect(tabA.listenerCount('click')).toBe(1);
       expect(tabB.listenerCount('click')).toBe(1);
-      expect(bottomNav.listenerCount('click')).toBe(1);
+      expect(bottomNav.listenerCount('click')).toBe(0);
       expect(infoPanelToggle.listenerCount('click')).toBe(1);
       expect(tradePanelToggle.listenerCount('click')).toBe(1);
       expect(consolePanelClose.listenerCount('click')).toBe(1);
@@ -201,7 +201,7 @@ describe('UI lifecycle idempotency', function () {
     MapUI.init3DCallbacks(function () { return null; }, function () {}, function () {});
 
     expect(tab.listenerCount('click')).toBe(1);
-    expect(bottomNav.listenerCount('click')).toBe(1);
+    expect(bottomNav.listenerCount('click')).toBe(0);
     expect(typeof globalThis.window._mapClickCallback).toBe('function');
 
     expect(MapUI.dispose()).toBe(true);
@@ -213,11 +213,11 @@ describe('UI lifecycle idempotency', function () {
 
     MapUI.initTabs(function () {});
     expect(tab.listenerCount('click')).toBe(1);
-    expect(bottomNav.listenerCount('click')).toBe(1);
+    expect(bottomNav.listenerCount('click')).toBe(0);
     MapUI.dispose();
   });
 
-  it('MapUI 二级终端 tab 支持方向键切换并同步面板状态', function () {
+  it('MapUI 工作区 tab 支持方向键切换并只请求 canonical workspace', function () {
     vi.resetModules();
 
     var tabQuest = createFakeElement(['tab-btn', 'active']);
@@ -238,9 +238,16 @@ describe('UI lifecycle idempotency', function () {
     var infoPanel = createFakeElement();
     var tradePanel = createFakeElement();
     var consolePanel = createFakeElement();
-    var marketOverlay = createFakeElement(['hidden']);
+    var marketOverlay = createFakeElement();
     var prevented = false;
     var tabChanges = [];
+    var navigationRequests = [];
+    var navigationActions = {
+      navigate: function (workspace) {
+        navigationRequests.push(workspace);
+        return true;
+      },
+    };
 
     globalThis.window = {};
     globalThis.BABYLON = {
@@ -277,6 +284,7 @@ describe('UI lifecycle idempotency', function () {
     };
 
     return import('../js/ui/MapUI.js').then(function (MapUI) {
+      MapUI.setWorkspaceNavigationActions(navigationActions);
       MapUI.initTabs(function (tabId, metadata) { tabChanges.push([tabId, metadata]); });
 
       tabQuest.dispatchEvent('keydown', {
@@ -297,8 +305,9 @@ describe('UI lifecycle idempotency', function () {
       expect(paneResearch.classList.contains('active')).toBe(true);
       expect(paneQuest.getAttribute('aria-hidden')).toBe('true');
       expect(paneResearch.getAttribute('aria-hidden')).toBe('false');
-      expect(infoPanel.classList.contains('panel-open')).toBe(true);
-      expect(tradePanel.classList.contains('panel-open')).toBe(false);
+      expect(infoPanel.classList.contains('is-active')).toBe(false);
+      expect(tradePanel.classList.contains('is-active')).toBe(false);
+      expect(navigationRequests).toEqual(['archive']);
       expect(tabChanges).toEqual([['tab-research', {
         changed: true,
         group: 'info',
@@ -307,7 +316,7 @@ describe('UI lifecycle idempotency', function () {
     });
   });
 
-  it('MapUI 底部导航切换时会保持 overlay 互斥并允许回到星图', function () {
+  it('MapUI 不再监听底部导航或直接改变任何 L3 workspace surface', function () {
     vi.resetModules();
 
     var starmapBtn = createFakeElement(['bottom-nav-btn', 'active']);
@@ -326,7 +335,7 @@ describe('UI lifecycle idempotency', function () {
     var tradePanel = createFakeElement();
     var infoPanel = createFakeElement();
     var consolePanel = createFakeElement();
-    var marketOverlay = createFakeElement(['hidden']);
+    var marketOverlay = createFakeElement();
     var marketViewBtn = createFakeElement();
 
     function findActiveBottomButton() {
@@ -373,36 +382,37 @@ describe('UI lifecycle idempotency', function () {
 
     return import('../js/ui/MapUI.js').then(function (MapUI) {
       MapUI.initTabs(function () {});
+      expect(bottomNav.listenerCount('click')).toBe(0);
 
       clickBottomButton(hangarBtn);
-      expect(tradePanel.classList.contains('panel-open')).toBe(true);
-      expect(infoPanel.classList.contains('panel-open')).toBe(false);
-      expect(consolePanel.classList.contains('panel-open')).toBe(false);
-      expect(hangarBtn.classList.contains('active')).toBe(true);
-      expect(starmapBtn.classList.contains('active')).toBe(false);
+      expect(tradePanel.classList.contains('is-active')).toBe(false);
+      expect(infoPanel.classList.contains('is-active')).toBe(false);
+      expect(consolePanel.classList.contains('is-active')).toBe(false);
+      expect(hangarBtn.classList.contains('active')).toBe(false);
+      expect(starmapBtn.classList.contains('active')).toBe(true);
 
       clickBottomButton(questsBtn);
-      expect(tradePanel.classList.contains('panel-open')).toBe(false);
-      expect(infoPanel.classList.contains('panel-open')).toBe(true);
-      expect(consolePanel.classList.contains('panel-open')).toBe(false);
-      expect(questsBtn.classList.contains('active')).toBe(true);
+      expect(tradePanel.classList.contains('is-active')).toBe(false);
+      expect(infoPanel.classList.contains('is-active')).toBe(false);
+      expect(consolePanel.classList.contains('is-active')).toBe(false);
+      expect(questsBtn.classList.contains('active')).toBe(false);
 
       clickBottomButton(consoleBtn);
-      expect(tradePanel.classList.contains('panel-open')).toBe(false);
-      expect(infoPanel.classList.contains('panel-open')).toBe(false);
-      expect(consolePanel.classList.contains('panel-open')).toBe(true);
-      expect(consoleBtn.classList.contains('active')).toBe(true);
+      expect(tradePanel.classList.contains('is-active')).toBe(false);
+      expect(infoPanel.classList.contains('is-active')).toBe(false);
+      expect(consolePanel.classList.contains('is-active')).toBe(false);
+      expect(consoleBtn.classList.contains('active')).toBe(false);
 
       clickBottomButton(starmapBtn);
-      expect(tradePanel.classList.contains('panel-open')).toBe(false);
-      expect(infoPanel.classList.contains('panel-open')).toBe(false);
-      expect(consolePanel.classList.contains('panel-open')).toBe(false);
+      expect(tradePanel.classList.contains('is-active')).toBe(false);
+      expect(infoPanel.classList.contains('is-active')).toBe(false);
+      expect(consolePanel.classList.contains('is-active')).toBe(false);
       expect(starmapBtn.classList.contains('active')).toBe(true);
-      expect(marketOverlay.classList.contains('hidden')).toBe(true);
+      expect(marketOverlay.classList.contains('is-active')).toBe(false);
     });
   });
 
-  it('MapUI fallback 底部日志入口打开终端，再次点击返回星图', function () {
+  it('MapUI 不提供日志 workspace 的 fallback 导航状态机', function () {
     vi.resetModules();
 
     var starmapBtn = createFakeElement(['bottom-nav-btn', 'active']);
@@ -415,7 +425,7 @@ describe('UI lifecycle idempotency', function () {
     var tradePanel = createFakeElement();
     var infoPanel = createFakeElement();
     var consolePanel = createFakeElement();
-    var marketOverlay = createFakeElement(['hidden']);
+    var marketOverlay = createFakeElement();
 
     function findActiveBottomButton() {
       return bottomButtons.find(function (button) {
@@ -461,22 +471,23 @@ describe('UI lifecycle idempotency', function () {
 
     return import('../js/ui/MapUI.js').then(function (MapUI) {
       MapUI.initTabs(function () {});
-
-      clickBottomButton(logsBtn);
-      expect(starmapBtn.classList.contains('active')).toBe(false);
-      expect(logsBtn.classList.contains('active')).toBe(true);
-      expect(tradePanel.classList.contains('panel-open')).toBe(false);
-      expect(infoPanel.classList.contains('panel-open')).toBe(false);
-      expect(consolePanel.classList.contains('panel-open')).toBe(true);
+      expect(bottomNav.listenerCount('click')).toBe(0);
 
       clickBottomButton(logsBtn);
       expect(starmapBtn.classList.contains('active')).toBe(true);
       expect(logsBtn.classList.contains('active')).toBe(false);
-      expect(consolePanel.classList.contains('panel-open')).toBe(false);
+      expect(tradePanel.classList.contains('is-active')).toBe(false);
+      expect(infoPanel.classList.contains('is-active')).toBe(false);
+      expect(consolePanel.classList.contains('is-active')).toBe(false);
+
+      clickBottomButton(logsBtn);
+      expect(starmapBtn.classList.contains('active')).toBe(true);
+      expect(logsBtn.classList.contains('active')).toBe(false);
+      expect(consolePanel.classList.contains('is-active')).toBe(false);
     });
   });
 
-  it('MapUI fallback 会把没有 DOM 的旧 console 入口转成日志角标清理', function () {
+  it('MapUI 不再解释旧 console 底栏别名', function () {
     vi.resetModules();
 
     var starmapBtn = createFakeElement(['bottom-nav-btn', 'active']);
@@ -488,7 +499,7 @@ describe('UI lifecycle idempotency', function () {
     var bottomNav = createFakeElement();
     var tradePanel = createFakeElement();
     var infoPanel = createFakeElement();
-    var marketOverlay = createFakeElement(['hidden']);
+    var marketOverlay = createFakeElement();
 
     function findActiveBottomButton() {
       return bottomButtons.find(function (button) {
@@ -537,7 +548,7 @@ describe('UI lifecycle idempotency', function () {
     });
   });
 
-  it('阻塞弹窗打开时底部导航不会切换底层面板', function () {
+  it('MapUI 不拦截 blocking modal 下的底栏事件，统一交由 UIManager', function () {
     vi.resetModules();
 
     var starmapBtn = createFakeElement(['bottom-nav-btn', 'active']);
@@ -550,7 +561,7 @@ describe('UI lifecycle idempotency', function () {
     var infoPanel = createFakeElement();
     var tradePanel = createFakeElement();
     var consolePanel = createFakeElement();
-    var marketOverlay = createFakeElement(['hidden']);
+    var marketOverlay = createFakeElement();
     var tutorialModal = createFakeElement(['modal']);
     tutorialModal.id = 'tutorial-start-modal';
 
@@ -591,6 +602,7 @@ describe('UI lifecycle idempotency', function () {
 
     return import('../js/ui/MapUI.js').then(function (MapUI) {
       MapUI.initTabs(function () {});
+      expect(bottomNav.listenerCount('click')).toBe(0);
 
       bottomNav.dispatchEvent('click', {
         target: {
@@ -602,9 +614,9 @@ describe('UI lifecycle idempotency', function () {
         stopPropagation: function () { stopped = true; },
       });
 
-      expect(prevented).toBe(true);
-      expect(stopped).toBe(true);
-      expect(infoPanel.classList.contains('panel-open')).toBe(false);
+      expect(prevented).toBe(false);
+      expect(stopped).toBe(false);
+      expect(infoPanel.classList.contains('is-active')).toBe(false);
       expect(questsBtn.classList.contains('active')).toBe(false);
       expect(starmapBtn.classList.contains('active')).toBe(true);
     });
@@ -627,7 +639,7 @@ describe('UI lifecycle idempotency', function () {
       });
     }
 
-    globalThis.__linegameUIManager = {
+    var navigationManager = {
       currentView: 'starmap',
       switchView: function (view) {
         var nextView = view;
@@ -638,13 +650,12 @@ describe('UI lifecycle idempotency', function () {
         setActive(nextView);
         calls.push(nextView);
       },
-      setBottomNavActiveDirectly: setActive,
       getCurrentView: function () { return this.currentView; },
     };
 
     bottomNav.addEventListener('click', function (event) {
       var btn = event.target.closest('.bottom-nav-btn');
-      if (btn) globalThis.__linegameUIManager.switchView(btn.dataset.view);
+      if (btn) navigationManager.switchView(btn.dataset.view);
     });
 
     globalThis.window = {};
@@ -690,7 +701,7 @@ describe('UI lifecycle idempotency', function () {
     });
   });
 
-  it('UIManager 会同步由 MapUI 直接切开的底栏视图状态', function () {
+  it('UIManager 独占底栏导航，并在直接底栏切换时保留触发按钮焦点', function () {
     vi.resetModules();
 
     var starmapBtn = createFakeElement(['bottom-nav-btn', 'active']);
@@ -706,10 +717,10 @@ describe('UI lifecycle idempotency', function () {
       replaceChild: function () {},
     };
 
-    var infoPanel = createFakeElement(['panel-open']);
+    var infoPanel = createFakeElement(['is-active']);
     var tradePanel = createFakeElement();
     var consolePanel = createFakeElement();
-    var marketOverlay = createFakeElement(['hidden']);
+    var marketOverlay = createFakeElement();
     var canvas = createFakeElement();
 
     globalThis.window = {};
@@ -736,20 +747,59 @@ describe('UI lifecycle idempotency', function () {
         onCloseMarket: function (options) { closeOptions = options; },
       });
 
-      globalThis.__linegameUIManager.setBottomNavActiveDirectly('quests');
-      expect(UIManager.getCurrentView()).toBe('quests');
-      expect(questsBtn.classList.contains('active')).toBe(true);
-      expect(canvas.classList.contains('starmap-blur-active')).toBe(true);
-
-      UIManager.switchView('quests');
+      questsBtn.focus();
+      clonedBottomNav.dispatchEvent('click', {
+        target: { closest: function () { return questsBtn; } },
+      });
 
       expect(UIManager.getCurrentView()).toBe('quests');
       expect(starmapBtn.classList.contains('active')).toBe(false);
       expect(questsBtn.classList.contains('active')).toBe(true);
-      expect(infoPanel.classList.contains('panel-open')).toBe(true);
+      expect(infoPanel.classList.contains('is-active')).toBe(true);
+      expect(infoPanel.focused).toBe(false);
+      expect(questsBtn.focused).toBe(true);
       expect(canvas.classList.contains('starmap-blur-active')).toBe(true);
       expect(closeOptions).toBe(null);
+      expect(globalThis.__linegameUIManager).toBeUndefined();
     });
+  });
+
+  it('UIManager 在 blocking surface 打开时消费底栏请求且不切换 L3', async function () {
+    vi.resetModules();
+
+    var bottomNav = createFakeElement();
+    var clonedBottomNav = createFakeElement();
+    bottomNav.cloneNode = function () { return clonedBottomNav; };
+    bottomNav.parentNode = { replaceChild: function () {} };
+    var marketButton = createFakeElement(['bottom-nav-btn']);
+    marketButton.dataset.view = 'market';
+    var blockingModal = createFakeElement(['modal']);
+    blockingModal.id = 'event-modal';
+
+    globalThis.document = {
+      addEventListener: function () {},
+      removeEventListener: function () {},
+      querySelectorAll: function (selector) {
+        if (selector === '.modal') return [blockingModal];
+        if (selector === '.bottom-nav-btn') return [marketButton];
+        return [];
+      },
+      getElementById: function (id) { return id === 'bottom-nav' ? bottomNav : null; },
+    };
+
+    var UIManager = await import('../js/ui/UIManager.js');
+    UIManager.init({}, {});
+    var prevented = false;
+    var stopped = false;
+    clonedBottomNav.dispatchEvent('click', {
+      target: { closest: function () { return marketButton; } },
+      preventDefault: function () { prevented = true; },
+      stopPropagation: function () { stopped = true; },
+    });
+
+    expect(prevented).toBe(true);
+    expect(stopped).toBe(true);
+    expect(UIManager.getCurrentView()).toBe('starmap');
   });
 
   it('UIManager 切换工作区时从 provider 读取最新状态', function () {
@@ -759,7 +809,7 @@ describe('UI lifecycle idempotency', function () {
     var clonedBottomNav = createFakeElement();
     bottomNav.cloneNode = function () { return clonedBottomNav; };
     bottomNav.parentNode = { replaceChild: function () {} };
-    var marketOverlay = createFakeElement(['hidden']);
+    var marketOverlay = createFakeElement();
     var firstState = { id: 'before-load' };
     var loadedState = { id: 'after-load' };
     var currentState = firstState;
@@ -804,7 +854,7 @@ describe('UI lifecycle idempotency', function () {
     var map = createFakeElement();
     var mapContainer = createFakeElement();
     mapContainer.children = [];
-    var market = createFakeElement(['hidden']);
+    var market = createFakeElement();
     var fleet = createFakeElement();
     var archive = createFakeElement();
     var logs = createFakeElement();
@@ -838,7 +888,7 @@ describe('UI lifecycle idempotency', function () {
     });
 
     UIManager.switchView('fleet');
-    expect(fleet.classList.contains('panel-open')).toBe(true);
+    expect(fleet.classList.contains('is-active')).toBe(true);
     expect(fleet.focused).toBe(false);
 
     UIManager.switchView('archive');
@@ -858,7 +908,7 @@ describe('UI lifecycle idempotency', function () {
     });
   });
 
-  it('UIManager.dispose 释放底栏绑定和导航 facade', async function () {
+  it('UIManager.dispose 释放底栏绑定且不会发布全局导航 facade', async function () {
     vi.resetModules();
 
     var bottomNav = createFakeElement();
@@ -875,7 +925,7 @@ describe('UI lifecycle idempotency', function () {
     UIManager.init({}, {});
     expect(clonedBottomNav.listenerCount('click')).toBe(1);
     expect(clonedBottomNav.listenerCount('keydown')).toBe(1);
-    expect(globalThis.__linegameUIManager).toBeTruthy();
+    expect(globalThis.__linegameUIManager).toBeUndefined();
 
     expect(UIManager.dispose()).toBe(true);
     expect(UIManager.dispose()).toBe(false);

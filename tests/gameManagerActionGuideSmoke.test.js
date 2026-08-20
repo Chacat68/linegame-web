@@ -172,7 +172,7 @@ function createActionGuideSmokeDom() {
     'dispatch-cancel': createFakeElement('dispatch-cancel'),
     'dispatch-advanced-panel': createFakeElement('dispatch-advanced-panel'),
     'info-panel': createFakeElement('info-panel'),
-    'market-overlay': createFakeElement('market-overlay', ['hidden']),
+    'market-overlay': createFakeElement('market-overlay'),
     'trade-panel': tradePanel,
     'console-panel': createFakeElement('console-panel'),
     'tab-fleet': fleetPane,
@@ -205,13 +205,11 @@ function createActionGuideSmokeDom() {
 
 describe('GameManager action guide smoke', function () {
   var originalDocument = globalThis.document;
-  var originalUIManager = globalThis.__linegameUIManager;
   var originalBabylon = globalThis.BABYLON;
   var gameManager = null;
 
   afterEach(function () {
     globalThis.document = originalDocument;
-    globalThis.__linegameUIManager = originalUIManager;
     globalThis.BABYLON = originalBabylon;
     if (gameManager) gameManager._setStateForTest(null);
     gameManager = null;
@@ -221,10 +219,6 @@ describe('GameManager action guide smoke', function () {
   it('当前行动买入确认不会先打开交易所终端', async function () {
     var dom = createActionGuideSmokeDom();
     globalThis.document = dom.document;
-    globalThis.__linegameUIManager = {
-      switchView: function () {},
-      setBottomNavActiveDirectly: function () {},
-    };
     globalThis.BABYLON = {
       Color3: function (r, g, b) {
         this.r = r;
@@ -274,16 +268,15 @@ describe('GameManager action guide smoke', function () {
       surface: 'market',
     });
 
-    expect(dom.elements['market-overlay'].classList.contains('hidden')).toBe(true);
+    expect(dom.elements['market-overlay'].classList.contains('is-active')).toBe(false);
     expect(dom.elements['trade-modal'].classList.contains('hidden')).toBe(false);
     expect(dom.elements['modal-title'].textContent).toContain('购买');
     expect(dom.elements['modal-title'].textContent).toContain('食物');
 
-    dom.elements['market-overlay'].classList.remove('hidden');
     dom.elements['modal-confirm'].onclick();
     gameManager._handleTradeConfirmForTest('buy', 'food', 1, 'open');
 
-    expect(dom.elements['market-overlay'].classList.contains('hidden')).toBe(true);
+    expect(dom.elements['market-overlay'].classList.contains('is-active')).toBe(false);
     expect(dom.elements['trade-modal'].classList.contains('hidden')).toBe(true);
     expect(state.cargo.food).toBeGreaterThan(0);
   });
@@ -291,10 +284,6 @@ describe('GameManager action guide smoke', function () {
   it('亏损卖出不会推进累计利润任务', async function () {
     var dom = createActionGuideSmokeDom();
     globalThis.document = dom.document;
-    globalThis.__linegameUIManager = {
-      switchView: function () {},
-      setBottomNavActiveDirectly: function () {},
-    };
     globalThis.BABYLON = {
       Color3: function (r, g, b) {
         this.r = r;
@@ -348,10 +337,6 @@ describe('GameManager action guide smoke', function () {
     vi.useFakeTimers();
     var dom = createActionGuideSmokeDom();
     globalThis.document = dom.document;
-    globalThis.__linegameUIManager = {
-      switchView: function () {},
-      setBottomNavActiveDirectly: function () {},
-    };
     globalThis.BABYLON = {
       Color3: function (r, g, b) {
         this.r = r;
@@ -441,10 +426,6 @@ describe('GameManager action guide smoke', function () {
   it('点击专题步骤不会完成，只有真实派遣确认才推进教学链', async function () {
     var dom = createActionGuideSmokeDom();
     globalThis.document = dom.document;
-    globalThis.__linegameUIManager = {
-      switchView: function () {},
-      setBottomNavActiveDirectly: function () {},
-    };
     gameManager = GameManager;
 
     var state = createTestState({

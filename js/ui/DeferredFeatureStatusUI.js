@@ -11,12 +11,12 @@ const FEATURE_SURFACES = Object.freeze({
   }),
   fleet: Object.freeze({
     rootId: 'trade-panel',
-    hostSelector: '.secondary-terminal-body',
+    hostSelector: '.workspace-terminal-body',
     label: '机库',
   }),
   archive: Object.freeze({
     rootId: 'info-panel',
-    hostSelector: '.secondary-terminal-body',
+    hostSelector: '.workspace-terminal-body',
     label: '档案中心',
   }),
   save: Object.freeze({

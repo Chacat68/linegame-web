@@ -77,6 +77,7 @@ describe('deferred terminal UI loading', function () {
     var featureRegistry = readFileSync('js/core/FeatureRegistry.js', 'utf8');
     var styleEntry = readFileSync('css/style.css', 'utf8');
     var sharedCss = readFileSync('css/interstellar-trader.css', 'utf8');
+    var surfacesCss = readFileSync('css/surfaces.css', 'utf8');
 
     expect(styleEntry).not.toContain('@import url("fleet.css")');
     expect(gameManager).not.toContain('loadDeferredStylesheet');
@@ -93,7 +94,8 @@ describe('deferred terminal UI loading', function () {
     expect(featureRegistry).toContain('document.head.insertBefore(link, appStyles)');
     expect(featureRegistry).toContain("link.dataset.loaded = 'false'");
     expect(featureRegistry).toContain('link.parentNode.removeChild(link)');
-    expect(sharedCss).toMatch(/#market-overlay\.hidden\s*\{[^}]*display:\s*none\s*!important;/);
+    expect(surfacesCss).toContain('.workspace-surface:not(.is-active)');
+    expect(surfacesCss).toContain('#market-overlay.workspace-surface--trade');
     expect(sharedCss).not.toContain('Hangar detail modal shell refinements');
     expect(sharedCss).not.toContain('Archive terminal: quests + research');
     expect(sharedCss).not.toContain('Market matrix controls');

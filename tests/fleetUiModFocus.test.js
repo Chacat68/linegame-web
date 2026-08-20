@@ -356,7 +356,7 @@ describe('FleetUI.openModModal guidance focus', function () {
       'mod-modal-close': createFakeElement(),
     };
     elements['fleet-inline-container'].closest = function (selector) {
-      return selector === '.secondary-terminal-content' ? inlineViewport : null;
+      return selector === '.workspace-terminal-content' ? inlineViewport : null;
     };
 
     globalThis.document = {

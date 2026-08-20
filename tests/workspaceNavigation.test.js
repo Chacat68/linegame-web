@@ -146,7 +146,7 @@ describe('workspace navigation controller', function () {
     expect(onChange).not.toHaveBeenCalled();
   });
 
-  it('外部 surface 可只同步 active workspace 而不重复执行进入退出副作用', function () {
+  it('把导航来源与进入焦点意图传给同一 leave/enter/change 生命周期', function () {
     var onLeave = vi.fn();
     var onEnter = vi.fn();
     var changes = [];
@@ -156,13 +156,19 @@ describe('workspace navigation controller', function () {
       onChange: function (change) { changes.push(change); },
     });
 
-    expect(controller.sync('market', { reason: 'legacy-surface-open' })).toBe(true);
+    expect(controller.navigate('market', {
+      reason: 'bottom-navigation',
+      focusEntry: false,
+    })).toBe(true);
     expect(controller.getSnapshot().activeWorkspace).toBe('trade');
-    expect(onLeave).not.toHaveBeenCalled();
-    expect(onEnter).not.toHaveBeenCalled();
-    expect(changes[0].type).toBe('workspace:sync');
-    expect(changes[0].reason).toBe('legacy-surface-open');
-    expect(controller.sync('trade')).toBe(false);
+    expect(onLeave).toHaveBeenCalledOnce();
+    expect(onEnter).toHaveBeenCalledOnce();
+    expect(changes[0]).toMatchObject({
+      type: 'workspace:change',
+      reason: 'bottom-navigation',
+      focusEntry: false,
+    });
+    expect(controller.navigate('trade')).toBe(false);
   });
 
   it('subscribe 只接收有效变化，且可以取消订阅', function () {

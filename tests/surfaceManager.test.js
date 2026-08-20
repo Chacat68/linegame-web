@@ -2,14 +2,9 @@ import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   bindBlockingSurfaceDismiss,
-  closeAllNonBlockingSurfaces,
-  closePrimarySurface,
-  closeSecondarySurface,
   hasBlockingSurfaceOpen,
   hideBlockingSurface,
   isBlockingSurfaceVisible,
-  openPrimarySurface,
-  openSecondarySurface,
   registerEscapeLayer,
   showBlockingSurface,
 } from '../js/ui/SurfaceManager.js';
@@ -495,174 +490,12 @@ describe('SurfaceManager', function () {
     expect(actions).toEqual(['top', 'low']);
   });
 
-  it('openPrimarySurface 会打开唯一 primary workspace 并关闭 secondary overlays', function () {
-    var marketOverlay = createFakeElement(['hidden']);
-    marketOverlay.id = 'market-overlay';
-    var infoPanel = createFakeElement(['panel-open']);
-    infoPanel.id = 'info-panel';
-    var tradePanel = createFakeElement(['panel-open']);
-    tradePanel.id = 'trade-panel';
-    var consolePanel = createFakeElement(['panel-open']);
-    consolePanel.id = 'console-panel';
-
-    var elements = {
-      'market-overlay': marketOverlay,
-      'info-panel': infoPanel,
-      'trade-panel': tradePanel,
-      'console-panel': consolePanel,
-    };
-
-    globalThis.document = {
-      getElementById: function (id) { return elements[id] || null; },
-      querySelectorAll: function (selector) {
-        if (selector === '.modal') return [];
-        return [];
-      },
-    };
-
-    openPrimarySurface('market-overlay');
-
-    expect(marketOverlay.classList.contains('hidden')).toBe(false);
-    expect(infoPanel.classList.contains('panel-open')).toBe(false);
-    expect(tradePanel.classList.contains('panel-open')).toBe(false);
-    expect(consolePanel.classList.contains('panel-open')).toBe(false);
-    expect(marketOverlay.getAttribute('aria-hidden')).toBe('false');
-    expect(infoPanel.getAttribute('aria-hidden')).toBe('true');
-  });
-
-  it('primary workspace 会聚焦选中页签并在关闭后恢复入口', function () {
-    var marketOverlay = createFakeElement(['hidden']);
-    var activeTab = createFakeElement();
-    var trigger = createFakeElement();
-    var activeTabFocusCount = 0;
-    var triggerFocusCount = 0;
-    marketOverlay.id = 'market-overlay';
-    marketOverlay.contains = function (target) { return target === activeTab; };
-    marketOverlay.querySelector = function (selector) {
-      return selector === '[data-primary-initial-focus], [role="tab"][aria-selected="true"], [role="tab"][tabindex="0"]' ? activeTab : null;
-    };
-    activeTab.focus = function () {
-      activeTabFocusCount += 1;
-      globalThis.document.activeElement = activeTab;
-    };
-    activeTab.closest = function () { return null; };
-    trigger.focus = function () {
-      triggerFocusCount += 1;
-      globalThis.document.activeElement = trigger;
-    };
-    trigger.closest = function () { return null; };
-
-    globalThis.document = {
-      body: createFakeElement(),
-      activeElement: trigger,
-      getElementById: function (id) {
-        return id === 'market-overlay' ? marketOverlay : null;
-      },
-      querySelector: function () { return trigger; },
-      querySelectorAll: function (selector) {
-        return selector === '.modal' ? [] : [];
-      },
-    };
-
-    openPrimarySurface('market-overlay');
-    expect(activeTabFocusCount).toBe(1);
-    expect(globalThis.document.activeElement).toBe(activeTab);
-
-    closePrimarySurface('market-overlay');
-    expect(triggerFocusCount).toBe(1);
-    expect(globalThis.document.activeElement).toBe(trigger);
-    expect(marketOverlay.getAttribute('aria-hidden')).toBe('true');
-
-    openPrimarySurface('market-overlay');
-    closePrimarySurface('market-overlay', { restoreFocus: false });
-    expect(triggerFocusCount).toBe(1);
-    expect(marketOverlay.getAttribute('aria-hidden')).toBe('true');
-  });
-
-  it('openSecondarySurface 会保持 secondary 互斥并关闭 primary workspace', function () {
-    var marketOverlay = createFakeElement();
-    marketOverlay.id = 'market-overlay';
-    var infoPanel = createFakeElement(['panel-open']);
-    infoPanel.id = 'info-panel';
-    var tradePanel = createFakeElement();
-    tradePanel.id = 'trade-panel';
-    var consolePanel = createFakeElement(['panel-open']);
-    consolePanel.id = 'console-panel';
-
-    var elements = {
-      'market-overlay': marketOverlay,
-      'info-panel': infoPanel,
-      'trade-panel': tradePanel,
-      'console-panel': consolePanel,
-    };
-
-    globalThis.document = {
-      getElementById: function (id) { return elements[id] || null; },
-      querySelectorAll: function (selector) {
-        if (selector === '.modal') return [];
-        return [];
-      },
-    };
-
-    openSecondarySurface('trade-panel');
-
-    expect(marketOverlay.classList.contains('hidden')).toBe(true);
-    expect(infoPanel.classList.contains('panel-open')).toBe(false);
-    expect(tradePanel.classList.contains('panel-open')).toBe(true);
-    expect(consolePanel.classList.contains('panel-open')).toBe(false);
-    expect(tradePanel.getAttribute('aria-hidden')).toBe('false');
-
-    closeAllNonBlockingSurfaces();
-
-    expect(marketOverlay.classList.contains('hidden')).toBe(true);
-    expect(tradePanel.classList.contains('panel-open')).toBe(false);
-    expect(tradePanel.getAttribute('aria-hidden')).toBe('true');
-  });
-
-  it('secondary surface 首次打开会聚焦当前页签，关闭后恢复原入口', function () {
-    var infoPanel = createFakeElement();
-    var activeTab = createFakeElement();
-    var trigger = createFakeElement();
-    var activeTabFocusCount = 0;
-    var triggerFocusCount = 0;
-    infoPanel.id = 'info-panel';
-    infoPanel.contains = function (target) { return target === activeTab; };
-    infoPanel.querySelector = function (selector) {
-      return selector === '[data-secondary-initial-focus], [role="tab"][aria-selected="true"]' ? activeTab : null;
-    };
-    activeTab.focus = function () {
-      activeTabFocusCount += 1;
-      globalThis.document.activeElement = activeTab;
-    };
-    activeTab.closest = function () { return null; };
-    trigger.focus = function () {
-      triggerFocusCount += 1;
-      globalThis.document.activeElement = trigger;
-    };
-    trigger.closest = function () { return null; };
-
-    globalThis.document = {
-      body: createFakeElement(),
-      activeElement: trigger,
-      getElementById: function (id) {
-        return id === 'info-panel' ? infoPanel : null;
-      },
-      querySelector: function () { return trigger; },
-      querySelectorAll: function (selector) {
-        return selector === '.modal' ? [] : [];
-      },
-    };
-
-    openSecondarySurface('info-panel');
-    expect(activeTabFocusCount).toBe(1);
-    expect(globalThis.document.activeElement).toBe(activeTab);
-
-    openSecondarySurface('info-panel');
-    expect(activeTabFocusCount).toBe(1);
-
-    closeSecondarySurface('info-panel');
-    expect(triggerFocusCount).toBe(1);
-    expect(globalThis.document.activeElement).toBe(trigger);
-    expect(infoPanel.getAttribute('aria-hidden')).toBe('true');
+  it('不再持有 canonical workspace 的 primary/secondary 兼容协议', function () {
+    var source = readFileSync(new URL('../js/ui/SurfaceManager.js', import.meta.url), 'utf8');
+    expect(source).not.toContain('PRIMARY_SURFACE_IDS');
+    expect(source).not.toContain('SECONDARY_SURFACE_IDS');
+    expect(source).not.toContain('openPrimarySurface');
+    expect(source).not.toContain('openSecondarySurface');
+    expect(source).not.toContain('market-overlay');
   });
 });

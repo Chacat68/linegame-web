@@ -26,13 +26,6 @@ import {
 } from './MarketFocus.js';
 import { getCommandActionAttributes, normalizeCommandAction, renderCommandActionContent } from './CommandAction.js';
 import {
-  closeAllSecondarySurfaces,
-  closePrimarySurface,
-  closeSecondarySurface,
-  hasBlockingSurfaceOpen,
-  isPrimarySurfaceVisible,
-  openPrimarySurface,
-  openSecondarySurface,
   registerEscapeLayer,
 } from './SurfaceManager.js';
 import {
@@ -52,6 +45,7 @@ const _goodsById = GOODS.reduce(function (lookup, good) {
 
 let _tabClickCallback = null;
 let _navigationChangeCallback = null;
+let _workspaceNavigationActions = null;
 let _navigationGuideFocus = null;
 let _marketOpen = false;
 let _smallScreenMql = null;
@@ -961,26 +955,22 @@ export function init(stateSource, onTravel, onGalaxyJump) {
       });
     }
 
-    // 市场按钮
+    // 市场按钮只发布 canonical workspace 导航，不直接切换 DOM surface。
     const marketBtn = document.getElementById('market-view-btn');
     const marketCloseBtn = document.getElementById('market-close-btn');
     if (marketBtn) {
       _bindDomListener(marketBtn, 'click', function () {
         var currentState = _currentState();
         if (_marketOpen) {
-          closeMarket();
-          _setBottomNavActive('starmap');
+          _requestWorkspace('map');
         } else if (currentState) {
-          _closeAllOverlayPanels();
-          openMarket(currentState);
-          _setBottomNavActive('market');
+          openMarketPanel(currentState);
         }
       });
     }
     if (marketCloseBtn) {
       _bindDomListener(marketCloseBtn, 'click', function () {
-        closeMarket();
-        _setBottomNavActive('starmap');
+        _requestWorkspace('map');
       });
     }
 
@@ -1727,12 +1717,13 @@ export function refreshPlanetDetail(stateRef) {
 
 /** 打开市场面板（默认当前节点功能页） */
 export function openMarket(stateRef, marketFocus) {
-  const overlay = document.getElementById('market-overlay');
   const marketBtn = document.getElementById('market-view-btn');
-  if (!overlay) return;
+  if (!stateRef) return false;
   _closeExplorationTerminalPanel(stateRef);
   _stateRef = stateRef;
-  _pendingMarketPanelFocus = _normalizeMarketPanelFocus(marketFocus || getContextualMarketFocus(stateRef));
+  _pendingMarketPanelFocus = _normalizeMarketPanelFocus(
+    marketFocus || _pendingMarketPanelFocus || getContextualMarketFocus(stateRef)
+  );
   _marketViewGalaxy = stateRef.currentGalaxy;
   _marketViewSystem = stateRef.currentSystem;
   _marketMode = 'detail';
@@ -1741,17 +1732,20 @@ export function openMarket(stateRef, marketFocus) {
   _buildMarketGalaxyNav(stateRef);
   _bindMarketDetailEvents(stateRef);
   if (_refreshMarket) _refreshMarket('detail');
-  openPrimarySurface('market-overlay');
+  return true;
 }
 
 /** 以正式导航状态打开市场面板 */
 export function openMarketPanel(stateRef, marketFocus) {
   _stateRef = stateRef || _stateRef;
-  if (!_stateRef) return;
-  _closeAllOverlayPanels();
-  closeMarket();
-  _setBottomNavActive('market');
-  openMarket(_stateRef, marketFocus);
+  if (!_stateRef) return false;
+  _pendingMarketPanelFocus = _normalizeMarketPanelFocus(
+    marketFocus || getContextualMarketFocus(_stateRef)
+  );
+  var changed = _requestWorkspace('trade');
+  // navigate 对当前 workspace 是幂等 no-op，此时仍需刷新局部市场上下文。
+  if (!changed) openMarket(_stateRef, _pendingMarketPanelFocus);
+  return changed || _marketOpen;
 }
 
 export function openMarketSystemPanel(stateRef, systemId, marketFocus) {
@@ -1764,18 +1758,16 @@ export function openMarketSystemPanel(stateRef, systemId, marketFocus) {
 }
 
 /** 关闭市场面板 */
-export function closeMarket(options) {
-  const overlay = document.getElementById('market-overlay');
+export function closeMarket() {
   const marketBtn = document.getElementById('market-view-btn');
-  if (!overlay) return;
   _marketOpen = false;
-  closePrimarySurface('market-overlay', options);
   if (marketBtn) marketBtn.classList.remove('active');
+  return true;
 }
 
 /** 市场是否打开 */
 export function isMarketOpen() {
-  return _marketOpen && isPrimarySurfaceVisible('market-overlay');
+  return _marketOpen;
 }
 
 /** 旅行后刷新市场（保持当前节点功能页） */
@@ -1853,53 +1845,35 @@ export function initTabs(onTabClick) {
   var infoPanelToggle = document.getElementById('info-panel-toggle');
   if (infoPanelToggle) {
     _bindDomListener(infoPanelToggle, 'click', function () {
-      _closeOverlayPanel('info-panel');
-      _setBottomNavActive('starmap');
+      _requestWorkspace('map');
     });
   }
-  _bindSecondaryPanelDismiss('info-panel');
+  _bindWorkspacePanelDismiss('info-panel');
 
   var tradePanelToggle = document.getElementById('trade-panel-toggle');
   if (tradePanelToggle) {
     _bindDomListener(tradePanelToggle, 'click', function () {
-      _closeOverlayPanel('trade-panel');
-      _setBottomNavActive('starmap');
+      _requestWorkspace('map');
     });
   }
-  _bindSecondaryPanelDismiss('trade-panel');
+  _bindWorkspacePanelDismiss('trade-panel');
 
   var consolePanelClose = document.getElementById('console-panel-close');
   if (consolePanelClose) {
     _bindDomListener(consolePanelClose, 'click', function () {
-      _closeOverlayPanel('console-panel');
-      _setBottomNavActive('starmap');
+      _requestWorkspace('map');
     });
-  }
-
-  // 底部导航按钮
-  var bottomNav = document.getElementById('bottom-nav');
-  if (bottomNav) {
-    _bindDomListener(bottomNav, 'click', function (e) {
-      var btn = e.target.closest('.bottom-nav-btn');
-      if (!btn) return;
-      if (globalThis.__linegameUIManager) return;
-      var view = btn.dataset.view;
-      if (hasBlockingSurfaceOpen()) {
-        var allowLogsBadgeClear = view === 'logs';
-        if (!allowLogsBadgeClear) {
-          if (typeof e.preventDefault === 'function') e.preventDefault();
-          if (typeof e.stopPropagation === 'function') e.stopPropagation();
-          return;
-        }
-      }
-      _handleBottomNav(view);
-    });
-    _bindDomListener(bottomNav, 'keydown', _handleBottomNavKeydown);
   }
 }
 
 export function setNavigationChangeCallback(callback) {
   _navigationChangeCallback = typeof callback === 'function' ? callback : null;
+}
+
+export function setWorkspaceNavigationActions(actions) {
+  _workspaceNavigationActions = actions && typeof actions.navigate === 'function'
+    ? { navigate: actions.navigate }
+    : null;
 }
 
 export function focusNavigationTarget(stateRef, systemId, options) {
@@ -1911,8 +1885,8 @@ export function focusNavigationTarget(stateRef, systemId, options) {
   if (!accessState.unlocked) return false;
 
   _stateRef = resolvedState;
-  _closeAllOverlayPanels();
-  closeMarket();
+  _closeExplorationTerminalPanel(resolvedState);
+  _requestWorkspace('map');
   _mapViewState.focusSystem(sys.id, sys.galaxyId);
   _setSelectedPlanetDetail(sys.id);
   _navigationGuideFocus = {
@@ -1920,7 +1894,6 @@ export function focusNavigationTarget(stateRef, systemId, options) {
     goodId: options && options.goodId ? options.goodId : '',
     title: options && options.title ? options.title : '',
   };
-  _setBottomNavActive('starmap');
   _bindPlanetDetailPanelEvents();
   ContextInspector.activateWorkspace('map');
   ContextInspector.render();
@@ -1936,161 +1909,36 @@ export function focusNavigationTarget(stateRef, systemId, options) {
   return true;
 }
 
-/**
- * 底部导航按钮处理
- * @param {string} view  按钮对应的视图名
- */
-function _handleBottomNav(view) {
-  if (globalThis.__linegameUIManager) {
-    globalThis.__linegameUIManager.switchView(view);
-    return;
-  }
-
-  var currentActive = document.querySelector('.bottom-nav-btn.active');
-  var currentView = currentActive ? currentActive.dataset.view : 'starmap';
-
-  if (view === 'starmap') {
-    _closeAllOverlayPanels();
-    closeMarket();
-    _setBottomNavActive('starmap');
-    return;
-  }
-
-  if (view === 'market') {
-    // If already open, close it
-    if (currentView === 'market' && _marketOpen) {
-      closeMarket();
-      _setBottomNavActive('starmap');
-    } else {
-      _closeAllOverlayPanels();
-      _setBottomNavActive('market');
-      if (_stateRef) {
-        openMarket(_stateRef);
-      }
-      // If _stateRef is not set yet, skip opening market (will be set on init)
-    }
-    return;
-  }
-
-  if (view === 'hangar') {
-    if (currentView === 'hangar') {
-      _closeOverlayPanel('trade-panel');
-      _setBottomNavActive('starmap');
-    } else {
-      _closeAllOverlayPanels();
-      closeMarket();
-      _openOverlayPanel('trade-panel');
-      _setBottomNavActive('hangar');
-    }
-    return;
-  }
-
-  if (view === 'quests') {
-    if (currentView === 'quests') {
-      _closeOverlayPanel('info-panel');
-      _setBottomNavActive('starmap');
-    } else {
-      _closeAllOverlayPanels();
-      closeMarket();
-      var archiveTabId = _getDefaultArchiveTab(_stateRef);
-      if (document.querySelector('.tab-btn[data-tab="' + archiveTabId + '"]')) {
-        activateTab(archiveTabId);
-      } else {
-        _openOverlayPanel('info-panel');
-        _setBottomNavActive('quests');
-      }
-    }
-    return;
-  }
-
-  if (view === 'logs') {
-    EventBus.emit('logs:badge:clear');
-    if (!document.getElementById('console-panel')) {
-      _setBottomNavActive(currentView || 'starmap');
-      return;
-    }
-    if (currentView === 'logs') {
-      _closeOverlayPanel('console-panel');
-      _setBottomNavActive('starmap');
-    } else {
-      _closeAllOverlayPanels();
-      closeMarket();
-      _openOverlayPanel('console-panel');
-      _setBottomNavActive('logs');
-    }
-    return;
-  }
-
-  if (view === 'console') {
-    if (!document.getElementById('console-panel')) {
-      _handleBottomNav('logs');
-      return;
-    }
-    if (currentView === 'console') {
-      _closeOverlayPanel('console-panel');
-      _setBottomNavActive('starmap');
-    } else {
-      _closeAllOverlayPanels();
-      closeMarket();
-      _openOverlayPanel('console-panel');
-      _setBottomNavActive('console');
-    }
-    return;
-  }
-}
-
 export function openQuestsPanel(stateRef) {
   _stateRef = stateRef || _stateRef;
   var archiveTabId = _getDefaultArchiveTab(_stateRef);
   if (document.querySelector('.tab-btn[data-tab="' + archiveTabId + '"]')) {
     activateTab(archiveTabId);
   } else {
-    _openOverlayPanel('info-panel');
+    _requestWorkspace('archive');
   }
 }
 
-function _openOverlayPanel(id) {
-  if (_marketOpen) closeMarket();
-  openSecondarySurface(id);
-}
-
-function _closeOverlayPanel(id) {
-  closeSecondarySurface(id);
-}
-
-function _bindSecondaryPanelDismiss(id) {
+function _bindWorkspacePanelDismiss(id) {
   var panel = document.getElementById(id);
   if (!panel || !panel.dataset || typeof panel.addEventListener !== 'function') return;
-  if (panel.dataset.secondaryDismissBound === '1') return;
+  if (panel.dataset.workspaceDismissBound === '1') return;
 
   _bindDomListener(panel, 'click', function (event) {
     if (!event || event.target !== panel) return;
-    _closeOverlayPanel(id);
-    _setBottomNavActive('starmap');
+    _requestWorkspace('map');
   });
-  panel.dataset.secondaryDismissBound = '1';
+  panel.dataset.workspaceDismissBound = '1';
 }
 
-function _closeAllOverlayPanels() {
-  _closeExplorationTerminalPanel();
-  closeAllSecondarySurfaces();
-}
-
-function _setBottomNavActive(view) {
-  if (globalThis.__linegameUIManager) {
-    globalThis.__linegameUIManager.setBottomNavActiveDirectly(view);
-  } else {
-    document.querySelectorAll('.bottom-nav-btn').forEach(function (btn) {
-      var isActive = btn.dataset.view === view;
-      if (isActive) {
-        btn.classList.add('active');
-      } else {
-        btn.classList.remove('active');
-      }
-      _syncBottomNavButtonState(btn, isActive);
-    });
-  }
-  if (_navigationChangeCallback) _navigationChangeCallback(view);
+function _requestWorkspace(workspace) {
+  var changed = !!(
+    _workspaceNavigationActions
+    && typeof _workspaceNavigationActions.navigate === 'function'
+    && _workspaceNavigationActions.navigate(workspace)
+  );
+  if (_navigationChangeCallback) _navigationChangeCallback(workspace);
+  return changed;
 }
 
 function _handleTerminalTabKeydown(event) {
@@ -2129,43 +1977,8 @@ function _handleTerminalTabKeydown(event) {
   }
 }
 
-function _syncBottomNavButtonState(btn, isActive) {
-  if (!btn || typeof btn.setAttribute !== 'function') return;
-  btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
-  if (isActive) {
-    btn.setAttribute('aria-current', 'page');
-  } else if (typeof btn.removeAttribute === 'function') {
-    btn.removeAttribute('aria-current');
-  }
-}
-
-function _handleBottomNavKeydown(event) {
-  if (globalThis.__linegameUIManager) return;
-  if (!event || !event.target || typeof event.target.closest !== 'function') return;
-  var btn = event.target.closest('.bottom-nav-btn');
-  if (!btn) return;
-
-  var key = event.key;
-  if (key !== 'ArrowLeft' && key !== 'ArrowRight' && key !== 'Home' && key !== 'End') return;
-
-  var buttons = Array.prototype.slice.call(document.querySelectorAll('.bottom-nav-btn'));
-  var currentIndex = buttons.indexOf(btn);
-  if (currentIndex < 0 || buttons.length === 0) return;
-
-  var nextIndex = currentIndex;
-  if (key === 'Home') nextIndex = 0;
-  else if (key === 'End') nextIndex = buttons.length - 1;
-  else if (key === 'ArrowLeft') nextIndex = (currentIndex + buttons.length - 1) % buttons.length;
-  else if (key === 'ArrowRight') nextIndex = (currentIndex + 1) % buttons.length;
-
-  if (typeof event.preventDefault === 'function') event.preventDefault();
-  if (buttons[nextIndex] && typeof buttons[nextIndex].focus === 'function') {
-    buttons[nextIndex].focus();
-  }
-}
-
 export function focusStarmap() {
-  _handleBottomNav('starmap');
+  return _requestWorkspace('map');
 }
 
 export function activateTab(tabId) {
@@ -2196,13 +2009,11 @@ export function activateTab(tabId) {
     if (typeof pane.setAttribute === 'function') pane.setAttribute('aria-hidden', 'false');
   }
 
-  // 如果所属面板是隐藏的覆盖层，则自动打开它并更新底部导航
+  // 标签只声明所属 canonical workspace；DOM 可见性由 WorkspaceSurfaceController 投影。
   if (group === 'info') {
-    _openOverlayPanel('info-panel');
-    _setBottomNavActive('quests');
+    _requestWorkspace('archive');
   } else if (group === 'trade') {
-    _openOverlayPanel('trade-panel');
-    _setBottomNavActive('hangar');
+    _requestWorkspace('fleet');
   }
 
   if (_tabClickCallback) {
@@ -2260,11 +2071,12 @@ export function dispose() {
   _clearBindingDataset('planet-detail-panel', 'bound');
   _clearBindingDataset('current-system-exploration-card', 'closeBound');
   _clearBindingDataset('current-system-exploration-card', 'bound');
-  _clearBindingDataset('info-panel', 'secondaryDismissBound');
-  _clearBindingDataset('trade-panel', 'secondaryDismissBound');
+  _clearBindingDataset('info-panel', 'workspaceDismissBound');
+  _clearBindingDataset('trade-panel', 'workspaceDismissBound');
 
   _tabClickCallback = null;
   _navigationChangeCallback = null;
+  _workspaceNavigationActions = null;
   _refreshMarket = null;
   _explorationActions = null;
   _travelActionHandler = null;

@@ -129,6 +129,7 @@ export function createNavigationController(options) {
     var baseChange = {
       type: 'workspace:change',
       reason: reason,
+      focusEntry: !metadata || metadata.focusEntry !== false,
       from: previousWorkspace,
       to: nextWorkspace,
       state: state,
@@ -138,26 +139,6 @@ export function createNavigationController(options) {
     activeWorkspace = nextWorkspace;
     onEnter(Object.freeze(Object.assign({}, baseChange, { snapshot: getSnapshot() })));
     _publish(baseChange);
-    return true;
-  }
-
-  /**
-   * 仅同步外部 surface 已经完成的工作区变化，不重复执行 leave/enter hooks。
-   * 兼容层用它接收 MapUI 等旧入口的状态回报。
-   */
-  function sync(target, metadata) {
-    var nextWorkspace = normalizeWorkspace(target);
-    if (!nextWorkspace || nextWorkspace === activeWorkspace) return false;
-
-    var previousWorkspace = activeWorkspace;
-    activeWorkspace = nextWorkspace;
-    _publish({
-      type: 'workspace:sync',
-      reason: metadata && metadata.reason ? metadata.reason : 'external-sync',
-      from: previousWorkspace,
-      to: nextWorkspace,
-      state: getState(),
-    });
     return true;
   }
 
@@ -239,7 +220,6 @@ export function createNavigationController(options) {
 
   return Object.freeze({
     navigate: navigate,
-    sync: sync,
     openDetail: openDetail,
     closeDetail: closeDetail,
     handleEscape: handleEscape,

@@ -217,7 +217,7 @@ function _scheduleInlineFocusRestore(selector, fallbackTarget) {
 
 function _getInlineScrollViewport(inlineContainer) {
   if (!inlineContainer || typeof inlineContainer.closest !== 'function') return null;
-  return inlineContainer.closest('.secondary-terminal-content');
+  return inlineContainer.closest('.workspace-terminal-content');
 }
 
 function _setInlineScrollPosition(viewport, top) {

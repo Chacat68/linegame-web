@@ -126,7 +126,7 @@ describe('MarketUI guided focus', function () {
     expect(html).toContain('role="tablist"');
     expect(html).toContain('id="market-spot-pane"');
     expect(html).toContain('role="tabpanel"');
-    expect(html).toContain('class="market-overlay market-workspace-v2 hidden"');
+    expect(html).toContain('class="workspace-surface workspace-surface--trade market-overlay market-workspace-v2"');
     expect(html).not.toContain('market-progress-disclosure');
     expect(html).not.toContain('market-experience-route');
     expect(js).not.toContain('_renderMarketExperienceRoute');

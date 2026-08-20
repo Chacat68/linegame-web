@@ -312,7 +312,7 @@
 }
 
 @media (min-width: 901px) {
-  body:has(#context-inspector[data-workspace-id="trade"]:not([hidden])) #map-container > #market-overlay:not(.hidden) {
+  body:has(#context-inspector[data-workspace-id="trade"]:not([hidden])) #market-overlay.workspace-surface--trade.is-active {
     right: calc(var(--ui-context-width) + var(--ui-space-7)) !important;
   }
 
@@ -684,8 +684,7 @@
 /* Command Slot ----------------------------------------------- */
 
 .floating-command-stack {
-  /* Command Slot 属于 Global Shell L2，必须稳定高于任一 L3 workspace。
-     旧 secondary-terminal 仍有 z-index:100，迁移期间也不得遮住全局行动。 */
+  /* Command Slot 属于 Global Shell L2，必须稳定高于任一 L3 workspace。 */
   z-index: var(--ui-z-guide);
   right: auto;
   left: 50%;
