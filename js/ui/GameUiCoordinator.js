@@ -98,6 +98,10 @@ export function createGameUiCoordinator(options) {
   var HUD = _dependency(ui, 'HUD', 'hud');
   var ShipUI = _dependency(ui, 'ShipUI', 'ship');
   var MapUI = _dependency(ui, 'MapUI', 'map');
+  var MarketWorkspaceEntry = _dependency(ui, 'MarketWorkspaceEntry', 'marketEntry');
+  var MarketWorkspacePort = MarketWorkspaceEntry || MapUI;
+  var WorkspaceTabs = _dependency(ui, 'WorkspaceTabs', 'workspaceTabs');
+  var WorkspaceTabPort = WorkspaceTabs || MapUI;
   var UIManager = _dependency(ui, 'UIManager', 'uiManager');
   var Renderer = _dependency(ui, 'Renderer3D', 'renderer');
   var ContextAdapters = _dependency(ui, 'ContextAdapters', 'contextAdapters');
@@ -173,8 +177,10 @@ export function createGameUiCoordinator(options) {
   }
 
   function _createMarketRenderRequest(state) {
-    var systemId = _call(MapUI, 'getMarketViewSystem', [state]);
-    var galaxyId = _call(MapUI, 'getMarketViewGalaxy', [state]);
+    var systemId = _call(MarketWorkspacePort, 'getViewSystem', [state])
+      || _call(MarketWorkspacePort, 'getMarketViewSystem', [state]);
+    var galaxyId = _call(MarketWorkspacePort, 'getViewGalaxy', [state])
+      || _call(MarketWorkspacePort, 'getMarketViewGalaxy', [state]);
     var requestedMode = _callAction(actions, 'market', 'getMode', [state]);
     var mode = _normalizeMarketMode(requestedMode);
     return {
@@ -461,7 +467,7 @@ export function createGameUiCoordinator(options) {
       _call(HUD, 'updateCompanyName', [state]);
       _call(HUD, 'updateArchiveBadges', [state]);
 
-      if (_call(MapUI, 'isMarketOpen', [])) {
+      if (_call(MarketWorkspacePort, 'isOpen', []) || _call(MarketWorkspacePort, 'isMarketOpen', [])) {
         var MarketUI = _getLoadedFeature('market');
         if (MarketUI) renderMarket(MarketUI, state);
       }
@@ -487,7 +493,7 @@ export function createGameUiCoordinator(options) {
   function _activeWorkspace() {
     var snapshot = _call(UIManager, 'getNavigationSnapshot', []);
     if (snapshot && typeof snapshot.activeWorkspace === 'string') return snapshot.activeWorkspace;
-    if (_call(MapUI, 'isMarketOpen', [])) return 'trade';
+    if (_call(MarketWorkspacePort, 'isOpen', []) || _call(MarketWorkspacePort, 'isMarketOpen', [])) return 'trade';
     return 'map';
   }
 
@@ -584,6 +590,7 @@ export function createGameUiCoordinator(options) {
     var FleetUI = _getLoadedFeature('fleet');
     var ArchiveUI = _getLoadedFeature('archive');
     _call(UIManager, 'resetRuntimeState', []);
+    _call(MarketWorkspaceEntry, 'reset', []);
     _call(MapUI, 'resetRuntimeState', []);
     _call(HUD, 'resetRuntimeState', []);
     _call(MarketUI, 'resetRuntimeState', []);
@@ -600,11 +607,14 @@ export function createGameUiCoordinator(options) {
     var FleetUI = _getLoadedFeature('fleet');
     var ArchiveUI = _getLoadedFeature('archive');
     var marketUiDiagnostics = _call(MarketUI, 'getDiagnostics', []) || null;
+    var marketEntryDiagnostics = _call(MarketWorkspaceEntry, 'getDiagnostics', []) || null;
     var fleetUiDiagnostics = _call(FleetUI, 'getDiagnostics', []) || null;
     var archiveModuleDiagnostics = _call(ArchiveUI, 'getDiagnostics', []) || null;
     var archiveUiDiagnostics = archiveModuleDiagnostics
       ? Object.freeze(Object.assign({
-          activeTab: _call(MapUI, 'getActiveArchiveTab', []) || null,
+          activeTab: _call(WorkspaceTabPort, 'getActive', ['info'])
+            || _call(WorkspaceTabPort, 'getActiveArchiveTab', [])
+            || null,
         }, archiveModuleDiagnostics))
       : null;
     var mapUiDiagnostics = _call(MapUI, 'getDiagnostics', []) || null;
@@ -612,6 +622,7 @@ export function createGameUiCoordinator(options) {
     return Object.freeze({
       featureStatus: _call(FeatureStatus, 'getDiagnostics', []) || null,
       marketUi: marketUiDiagnostics,
+      marketEntry: marketEntryDiagnostics,
       fleetUi: fleetUiDiagnostics,
       archiveUi: archiveUiDiagnostics,
       mapUi: mapUiDiagnostics,
@@ -621,7 +632,10 @@ export function createGameUiCoordinator(options) {
       lastInvalidationRegions: lastInvalidationRegions,
       workspaceSessions: Object.freeze({
         map: mapUiDiagnostics,
-        trade: marketUiDiagnostics,
+        trade: Object.freeze({
+          entry: marketEntryDiagnostics,
+          content: marketUiDiagnostics,
+        }),
         fleet: fleetUiDiagnostics,
         archive: archiveUiDiagnostics,
         logs: logsUiDiagnostics,

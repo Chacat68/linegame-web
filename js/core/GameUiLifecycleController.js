@@ -42,6 +42,8 @@ export function createGameUiLifecycleController(dependencies) {
 
   var HUD = ui.HUD || {};
   var MapUI = ui.MapUI || {};
+  var MarketWorkspaceEntry = ui.MarketWorkspaceEntry || {};
+  var WorkspaceTabs = ui.WorkspaceTabs || {};
   var UIManager = ui.UIManager || {};
   var WorkspaceDetailSurface = ui.WorkspaceDetailSurface || {};
   var Modal = ui.Modal || {};
@@ -111,7 +113,7 @@ export function createGameUiLifecycleController(dependencies) {
       onGetMarketOpen: function () { return !!_call(ports, 'isMarketOpen', []); },
       onOpenHangar: function () { return _call(ports, 'ensureFleet', []); },
       onOpenQuests: function (state) {
-        _call(ports, 'openQuests', [state]);
+        _call(WorkspaceTabs, 'openArchive', [state]);
         return _call(ports, 'ensureArchive', []);
       },
     }]);
@@ -133,6 +135,11 @@ export function createGameUiLifecycleController(dependencies) {
     // L4 renderer 会在 MapUI.init 中注册；先建立唯一导航源并初始化详情
     // Surface，避免 renderer 注册发生在一个尚未接线（或刚被重置）的容器上。
     _bindWorkspaceNavigation();
+    _call(MarketWorkspaceEntry, 'init', []);
+    _call(MapUI, 'setMarketWorkspaceActions', [MarketWorkspaceEntry]);
+    _call(WorkspaceTabs, 'setOnChange', [_handleTabClick]);
+    _call(WorkspaceTabs, 'init', []);
+    _call(MapUI, 'setWorkspaceTabActions', [WorkspaceTabs]);
     _call(WorkspaceDetailSurface, 'init', [{
       navigation: UIManager,
       stateSource: getState,
@@ -144,14 +151,12 @@ export function createGameUiLifecycleController(dependencies) {
       onExplorePoi: ports.explorePoi,
       getPoiStatus: ports.getPoiStatus,
     }]);
-    _call(MapUI, 'initTabs', [_handleTabClick]);
     _call(MapUI, 'setNavigationChangeCallback', [ports.refreshActionGuide]);
 
     _call(actionGuide, 'init', []);
     setTelemetryState('guidanceAction', _call(features, 'getState', ['guidanceAction']));
 
     _call(MapUI, 'init3DCallbacks', [getState, ports.travel, ports.galaxyJump]);
-    _call(MapUI, 'setRefreshMarket', [function () { return _call(ports, 'refreshMarket', []); }]);
     _call(Modal, 'init', [ports.confirmTrade]);
 
     _call(features, 'sync', ['tutorial']);
@@ -196,7 +201,8 @@ export function createGameUiLifecycleController(dependencies) {
     if (initialized) {
       _call(MapUI, 'setNavigationChangeCallback', [null]);
       _call(MapUI, 'setWorkspaceNavigationActions', [null]);
-      _call(MapUI, 'setRefreshMarket', [null]);
+      _call(MapUI, 'setMarketWorkspaceActions', [null]);
+      _call(MapUI, 'setWorkspaceTabActions', [null]);
       _call(MapUI, 'setExplorationActions', [null]);
       _call(Modal, 'init', [null]);
     }
@@ -204,6 +210,8 @@ export function createGameUiLifecycleController(dependencies) {
     _call(settingsUi, 'dispose', []);
     _call(actionGuide, 'dispose', []);
     _call(MapUI, 'dispose', []);
+    _call(MarketWorkspaceEntry, 'dispose', []);
+    _call(WorkspaceTabs, 'dispose', []);
     _call(WorkspaceDetailSurface, 'dispose', []);
     _call(UIManager, 'dispose', []);
     initialized = false;
@@ -218,6 +226,7 @@ export function createGameUiLifecycleController(dependencies) {
       initializeCount: initializeCount,
       initialized: initialized,
       logsHistoryChangedListenerBound: !!logsHistoryChangedListener,
+      workspaceTabs: _call(WorkspaceTabs, 'getDiagnostics', []) || null,
       tutorialCompleteListenerBound: !!tutorialCompleteListener,
     });
   }

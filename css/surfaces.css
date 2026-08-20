@@ -1263,6 +1263,35 @@ body[data-motion="off"] .deferred-feature-status-signal {
   padding: var(--ui-space-4);
 }
 
+/* L3/L4 local action slot. The global next action remains exclusive to ActionGuideUI. */
+.workspace-action-slot {
+  display: grid;
+  gap: var(--ui-space-2, 8px);
+  min-width: 0;
+}
+
+.workspace-action-slot__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ui-space-2, 8px);
+  min-width: 0;
+}
+
+.workspace-action-slot__action {
+  min-width: 0;
+}
+
+.workspace-action-slot__action--quiet {
+  order: 10;
+}
+
+.workspace-action-slot__note {
+  margin: 0;
+  color: var(--ui-text-muted, #8fa1b8);
+  font-size: var(--ui-font-xs, 0.75rem);
+  line-height: 1.45;
+}
+
 #info-panel .workspace-terminal-content > .tab-pane,
 #trade-panel .workspace-terminal-content > .tab-pane {
   display: none;

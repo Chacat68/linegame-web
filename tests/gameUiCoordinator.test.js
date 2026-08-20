@@ -315,6 +315,7 @@ describe('GameUiCoordinator', function () {
     expect(coordinator.getDiagnostics()).toEqual({
       featureStatus: null,
       marketUi: null,
+      marketEntry: null,
       fleetUi: null,
       archiveUi: null,
       mapUi: null,
@@ -324,7 +325,7 @@ describe('GameUiCoordinator', function () {
       lastInvalidationRegions: DEFAULT_ACTION_DIRTY_REGIONS,
       workspaceSessions: {
         map: null,
-        trade: null,
+        trade: { entry: null, content: null },
         fleet: null,
         archive: null,
         logs: null,
@@ -466,7 +467,7 @@ describe('GameUiCoordinator', function () {
     expect(coordinator.getDiagnostics().logsUi).toEqual(logsDiagnostics);
     expect(coordinator.getDiagnostics().workspaceSessions).toEqual({
       map: mapDiagnostics,
-      trade: marketDiagnostics,
+      trade: { entry: null, content: marketDiagnostics },
       fleet: fleetDiagnostics,
       archive: Object.assign({ activeTab: 'tab-exploration' }, archiveDiagnostics),
       logs: logsDiagnostics,

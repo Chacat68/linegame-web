@@ -12,6 +12,7 @@ import {
   getSystemAccessState,
 } from '../data/systems.js';
 import { buildMapExplorationSection } from './MapExplorationPresenter.js';
+import { buildWorkspaceActionSlot } from './WorkspaceActionSlot.js';
 
 const _goodsById = GOODS.reduce(function (lookup, good) {
   lookup[good.id] = good;
@@ -201,20 +202,42 @@ function _buildNavigationGuideRoutePlan(state, sys, guideFocus, travelAction) {
 }
 
 function _buildPinnedActions(travelAction, guideFocus) {
-  var buttons = [];
+  var actions = [];
   if (travelAction) {
-    var disabledAttr = travelAction.disabled ? ' disabled aria-disabled="true"' : '';
-    var titleAttr = travelAction.title ? ' title="' + _escapeHtmlAttr(travelAction.title) + '"' : '';
     var actionClass = 'planet-detail-action' + (guideFocus ? ' planet-detail-action--guide-target' : '');
     var actionLabel = guideFocus && !travelAction.disabled ? '前往卖货点' : travelAction.label;
-    buttons.push('<button class="' + actionClass + '" type="button" data-planet-detail-action="travel" data-system-id="' +
-      _escapeHtmlAttr(travelAction.systemId) + '"' + disabledAttr + titleAttr + '>' + _escapeHtml(actionLabel) + '</button>');
+    actions.push({
+      id: 'travel',
+      label: actionLabel,
+      disabled: travelAction.disabled,
+      title: travelAction.title,
+      className: actionClass,
+      attributes: {
+        'data-planet-detail-action': 'travel',
+        'data-system-id': travelAction.systemId,
+      },
+    });
   }
-  buttons.push('<button class="planet-detail-action planet-detail-action--quiet" type="button" data-planet-detail-action="close-detail">收起详情</button>');
-  return '<div class="planet-detail-actions planet-detail-actions--panel">' + buttons.join('') + '</div>' +
-    (guideFocus
-      ? '<div class="planet-detail-note planet-detail-note--hint">点击“前往卖货点”出航；抵达后在市场处理卖出。</div>'
-      : (travelAction && travelAction.hint ? '<div class="planet-detail-note planet-detail-note--hint">' + _escapeHtml(travelAction.hint) + '</div>' : ''));
+  actions.push({
+    id: 'close-detail',
+    label: '收起详情',
+    variant: 'quiet',
+    className: 'planet-detail-action planet-detail-action--quiet',
+    attributes: { 'data-planet-detail-action': 'close-detail' },
+  });
+  return buildWorkspaceActionSlot({
+    workspaceId: 'map',
+    contextType: 'planet',
+    contextId: travelAction && travelAction.systemId,
+    label: guideFocus ? '航线焦点局部操作' : '航点局部操作',
+    className: 'planet-detail-action-shelf planet-detail-local-action-slot',
+    actionsClassName: 'planet-detail-actions planet-detail-actions--panel',
+    noteClassName: 'planet-detail-note planet-detail-note--hint',
+    actions: actions,
+    note: guideFocus
+      ? '点击“前往卖货点”出航；抵达后在市场处理卖出。'
+      : (travelAction && travelAction.hint ? travelAction.hint : ''),
+  });
 }
 
 function _buildHoverSummaryNote(travelAction, isCurrentSystem) {
@@ -350,7 +373,7 @@ export function buildMapPlanetDetailView(state, systemId, options) {
     : '');
   var html = isPinned
     ? ('<div class="planet-detail-scroll-body">' + detailBodyHtml + '</div>' +
-      _buildActionShelf(_buildPinnedActions(travelAction, guideFocus), guideFocus))
+      _buildPinnedActions(travelAction, guideFocus))
     : detailBodyHtml;
 
   return Object.freeze({

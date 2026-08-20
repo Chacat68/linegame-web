@@ -1,5 +1,6 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import * as Modal from '../js/ui/Modal.js';
+import { createWorkspaceTabController } from '../js/ui/WorkspaceTabController.js';
 import { createTestState } from './helpers.js';
 
 function createFakeClassList(initialValues) {
@@ -127,7 +128,7 @@ describe('UI lifecycle idempotency', function () {
     expect(elements['modal-amount'].value).toBe(2);
   });
 
-  it('MapUI.initTabs 重复调用只绑定工作区内部 tab，不再接管底部导航', function () {
+  it('WorkspaceTabController 重复初始化只绑定工作区内部 tab，不接管底部导航', function () {
     var tabA = createFakeElement();
     tabA.dataset.tab = 'market';
     var tabB = createFakeElement();
@@ -157,17 +158,20 @@ describe('UI lifecycle idempotency', function () {
       querySelector: function () { return null; },
     };
 
-    return import('../js/ui/MapUI.js').then(function (MapUI) {
-      MapUI.initTabs(function () {});
-      MapUI.initTabs(function () {});
-
-      expect(tabA.listenerCount('click')).toBe(1);
-      expect(tabB.listenerCount('click')).toBe(1);
-      expect(bottomNav.listenerCount('click')).toBe(0);
-      expect(infoPanelToggle.listenerCount('click')).toBe(1);
-      expect(tradePanelToggle.listenerCount('click')).toBe(1);
-      expect(consolePanelClose.listenerCount('click')).toBe(1);
+    var controller = createWorkspaceTabController({
+      getState: function () { return {}; },
+      getDocument: function () { return globalThis.document; },
     });
+    controller.init();
+    controller.init();
+
+    expect(tabA.listenerCount('click')).toBe(1);
+    expect(tabB.listenerCount('click')).toBe(1);
+    expect(bottomNav.listenerCount('click')).toBe(0);
+    expect(infoPanelToggle.listenerCount('click')).toBe(1);
+    expect(tradePanelToggle.listenerCount('click')).toBe(1);
+    expect(consolePanelClose.listenerCount('click')).toBe(1);
+    controller.dispose();
   });
 
   it('MapUI.dispose 释放监听与全局回调，并允许重新初始化', async function () {
@@ -197,27 +201,24 @@ describe('UI lifecycle idempotency', function () {
     };
 
     var MapUI = await import('../js/ui/MapUI.js');
-    MapUI.initTabs(function () {});
     MapUI.init3DCallbacks(function () { return null; }, function () {}, function () {});
 
-    expect(tab.listenerCount('click')).toBe(1);
     expect(bottomNav.listenerCount('click')).toBe(0);
     expect(typeof globalThis.window._mapClickCallback).toBe('function');
 
     expect(MapUI.dispose()).toBe(true);
     expect(MapUI.dispose()).toBe(false);
-    expect(tab.listenerCount('click')).toBe(0);
     expect(bottomNav.listenerCount('click')).toBe(0);
     expect(globalThis.window._mapClickCallback).toBe(null);
     expect(globalThis.window._galaxyClickCallback).toBe(null);
 
-    MapUI.initTabs(function () {});
-    expect(tab.listenerCount('click')).toBe(1);
+    MapUI.init3DCallbacks(function () { return null; }, function () {}, function () {});
+    expect(typeof globalThis.window._mapClickCallback).toBe('function');
     expect(bottomNav.listenerCount('click')).toBe(0);
     MapUI.dispose();
   });
 
-  it('MapUI 工作区 tab 支持方向键切换并只请求 canonical workspace', function () {
+  it('WorkspaceTabController 支持方向键切换并只请求 canonical workspace', function () {
     vi.resetModules();
 
     var tabQuest = createFakeElement(['tab-btn', 'active']);
@@ -229,8 +230,10 @@ describe('UI lifecycle idempotency', function () {
     var tabs = [tabQuest, tabResearch];
 
     var paneQuest = createFakeElement(['tab-pane', 'active']);
+    paneQuest.id = 'tab-quest';
     paneQuest.dataset.tabGroup = 'info';
     var paneResearch = createFakeElement(['tab-pane']);
+    paneResearch.id = 'tab-research';
     paneResearch.dataset.tabGroup = 'info';
     var panes = [paneQuest, paneResearch];
 
@@ -283,37 +286,42 @@ describe('UI lifecycle idempotency', function () {
       },
     };
 
-    return import('../js/ui/MapUI.js').then(function (MapUI) {
-      MapUI.setWorkspaceNavigationActions(navigationActions);
-      MapUI.initTabs(function (tabId, metadata) { tabChanges.push([tabId, metadata]); });
-
-      tabQuest.dispatchEvent('keydown', {
-        key: 'ArrowRight',
-        currentTarget: tabQuest,
-        preventDefault: function () {
-          prevented = true;
-        },
-      });
-
-      expect(prevented).toBe(true);
-      expect(tabResearch.focused).toBe(true);
-      expect(tabQuest.classList.contains('active')).toBe(false);
-      expect(tabResearch.classList.contains('active')).toBe(true);
-      expect(tabQuest.getAttribute('aria-selected')).toBe('false');
-      expect(tabResearch.getAttribute('aria-selected')).toBe('true');
-      expect(paneQuest.classList.contains('active')).toBe(false);
-      expect(paneResearch.classList.contains('active')).toBe(true);
-      expect(paneQuest.getAttribute('aria-hidden')).toBe('true');
-      expect(paneResearch.getAttribute('aria-hidden')).toBe('false');
-      expect(infoPanel.classList.contains('is-active')).toBe(false);
-      expect(tradePanel.classList.contains('is-active')).toBe(false);
-      expect(navigationRequests).toEqual(['archive']);
-      expect(tabChanges).toEqual([['tab-research', {
-        changed: true,
-        group: 'info',
-        previousTabId: 'tab-quest',
-      }]]);
+    var controller = createWorkspaceTabController({
+      getState: function () { return {}; },
+      getDocument: function () { return globalThis.document; },
+      navigate: navigationActions.navigate,
+      onChange: function (tabId, metadata) { tabChanges.push([tabId, metadata]); },
     });
+    controller.init();
+
+    tabQuest.dispatchEvent('keydown', {
+      key: 'ArrowRight',
+      currentTarget: tabQuest,
+      preventDefault: function () {
+        prevented = true;
+      },
+    });
+
+    expect(prevented).toBe(true);
+    expect(tabResearch.focused).toBe(true);
+    expect(tabQuest.classList.contains('active')).toBe(false);
+    expect(tabResearch.classList.contains('active')).toBe(true);
+    expect(tabQuest.getAttribute('aria-selected')).toBe('false');
+    expect(tabResearch.getAttribute('aria-selected')).toBe('true');
+    expect(paneQuest.classList.contains('active')).toBe(false);
+    expect(paneResearch.classList.contains('active')).toBe(true);
+    expect(paneQuest.getAttribute('aria-hidden')).toBe('true');
+    expect(paneResearch.getAttribute('aria-hidden')).toBe('false');
+    expect(infoPanel.classList.contains('is-active')).toBe(false);
+    expect(tradePanel.classList.contains('is-active')).toBe(false);
+    expect(navigationRequests).toEqual(['archive']);
+    expect(tabChanges).toEqual([['tab-research', {
+      changed: true,
+      group: 'info',
+      previousTabId: 'tab-quest',
+      source: 'keyboard',
+    }]]);
+    controller.dispose();
   });
 
   it('MapUI 不再监听底部导航或直接改变任何 L3 workspace surface', function () {

@@ -1,6 +1,7 @@
 // js/core/MarketWorkspaceController.js — 市场 open/black 模式与渲染入口生命周期
 //
-// MapUI 只决定当前查看的星球/星系；本 controller 持有市场类型、延迟加载、
+// MarketWorkspaceEntry 只决定商业入口与浏览地点；MapUI 只处理远程星图聚焦；
+// 本 controller 持有市场类型、延迟加载、
 // pending focus 恢复和稳定容器事件委托，避免 GameManager clone DOM listener。
 
 import { buildCommandFeedback } from '../ui/CommandAction.js';
@@ -20,6 +21,7 @@ function _normalizeMode(mode) {
 export function createMarketWorkspaceController(dependencies) {
   var deps = dependencies || {};
   var MapUI = deps.MapUI || {};
+  var MarketWorkspaceEntry = deps.MarketWorkspaceEntry || MapUI;
   var Modal = deps.Modal || {};
   var Tutorial = deps.Tutorial || {};
   var systems = Array.isArray(deps.systems) ? deps.systems : [];
@@ -61,15 +63,19 @@ export function createMarketWorkspaceController(dependencies) {
   }
 
   function _getViewSystem(state) {
-    return typeof MapUI.getMarketViewSystem === 'function'
-      ? MapUI.getMarketViewSystem(state)
-      : state.currentSystem;
+    return typeof MarketWorkspaceEntry.getViewSystem === 'function'
+      ? MarketWorkspaceEntry.getViewSystem(state)
+      : (typeof MarketWorkspaceEntry.getMarketViewSystem === 'function'
+        ? MarketWorkspaceEntry.getMarketViewSystem(state)
+        : state.currentSystem);
   }
 
   function _consumePendingFocus() {
-    return typeof MapUI.consumePendingMarketPanelFocus === 'function'
-      ? MapUI.consumePendingMarketPanelFocus()
-      : null;
+    return typeof MarketWorkspaceEntry.consumePendingFocus === 'function'
+      ? MarketWorkspaceEntry.consumePendingFocus()
+      : (typeof MarketWorkspaceEntry.consumePendingMarketPanelFocus === 'function'
+        ? MarketWorkspaceEntry.consumePendingMarketPanelFocus()
+        : null);
   }
 
   function refresh(options) {

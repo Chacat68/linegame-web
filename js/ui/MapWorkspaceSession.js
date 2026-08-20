@@ -18,34 +18,17 @@ export function createMapWorkspaceSession() {
   var selectedSystemId;
   var navigationGuideFocus;
   var disclosureBySection;
-  var marketOpen;
-  var marketViewGalaxyId;
-  var marketViewSystemId;
-  var marketMode;
-  var pendingMarketFocus;
   var resetCount = 0;
 
   function _restoreDefaults() {
     selectedSystemId = null;
     navigationGuideFocus = null;
     disclosureBySection = Object.create(null);
-    marketOpen = false;
-    marketViewGalaxyId = null;
-    marketViewSystemId = null;
-    marketMode = 'detail';
-    pendingMarketFocus = null;
   }
 
   function getDiagnostics() {
     return Object.freeze({
       disclosureBySection: Object.freeze(_copyRecord(disclosureBySection)),
-      market: Object.freeze({
-        mode: marketMode,
-        open: marketOpen,
-        pendingFocus: pendingMarketFocus,
-        viewingGalaxyId: marketViewGalaxyId,
-        viewingSystemId: marketViewSystemId,
-      }),
       navigationGuideFocus: navigationGuideFocus,
       resetCount: resetCount,
       selectedSystemId: selectedSystemId,
@@ -76,13 +59,8 @@ export function createMapWorkspaceSession() {
         ? disclosureBySection[id]
         : undefined;
     },
-    getMarketMode: function () { return marketMode; },
-    getMarketViewGalaxy: function () { return marketViewGalaxyId; },
-    getMarketViewSystem: function () { return marketViewSystemId; },
     getNavigationGuideFocus: function () { return navigationGuideFocus; },
-    getPendingMarketFocus: function () { return pendingMarketFocus; },
     getSelectedSystem: function () { return selectedSystemId; },
-    isMarketOpen: function () { return marketOpen; },
     reset: reset,
     setDisclosure: function (sectionId, open) {
       var id = _string(sectionId);
@@ -90,38 +68,13 @@ export function createMapWorkspaceSession() {
       disclosureBySection[id] = !!open;
       return disclosureBySection[id];
     },
-    setMarketMode: function (mode) {
-      marketMode = mode === 'overview' ? 'overview' : 'detail';
-      return marketMode;
-    },
-    setMarketOpen: function (open) {
-      marketOpen = !!open;
-      return marketOpen;
-    },
-    setMarketViewGalaxy: function (galaxyId) {
-      marketViewGalaxyId = _string(galaxyId) || null;
-      return marketViewGalaxyId;
-    },
-    setMarketViewSystem: function (systemId) {
-      marketViewSystemId = _string(systemId) || null;
-      return marketViewSystemId;
-    },
     setNavigationGuideFocus: function (focus) {
       navigationGuideFocus = _copyObject(focus);
       return navigationGuideFocus;
     },
-    setPendingMarketFocus: function (focus) {
-      pendingMarketFocus = _copyObject(focus);
-      return pendingMarketFocus;
-    },
     setSelectedSystem: function (systemId) {
       selectedSystemId = _string(systemId) || null;
       return selectedSystemId;
-    },
-    takePendingMarketFocus: function () {
-      var focus = pendingMarketFocus;
-      pendingMarketFocus = null;
-      return focus;
     },
     toggleDisclosure: function (sectionId, fallback) {
       var id = _string(sectionId);

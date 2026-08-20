@@ -5,6 +5,8 @@ import { createGameUiLifecycleController } from './GameUiLifecycleController.js'
 import { createSettingsUiController } from './SettingsUiController.js';
 import { createGameUiCoordinator } from '../ui/GameUiCoordinator.js';
 import { createWorkspaceContextAdapters } from '../ui/WorkspaceContextAdapters.js';
+import { createMarketWorkspaceEntryController } from '../ui/MarketWorkspaceEntryController.js';
+import { createWorkspaceTabController } from '../ui/WorkspaceTabController.js';
 
 export function createGameUiApplicationRuntime(options) {
   var opts = options || {};
@@ -20,6 +22,8 @@ export function createGameUiApplicationRuntime(options) {
   var callbacks = opts.callbacks || {};
   var settingsController = null;
   var marketWorkspace = null;
+  var marketWorkspaceEntry = null;
+  var workspaceTabs = null;
   var coordinator = null;
   var lifecycle = null;
   var contextAdapters = null;
@@ -77,6 +81,7 @@ export function createGameUiApplicationRuntime(options) {
       },
       renderMarket: function (MarketUI, state) { return getCoordinator().renderMarket(MarketUI, state); },
       MapUI: ui.MapUI,
+      MarketWorkspaceEntry: getMarketWorkspaceEntry(),
       Modal: ui.Modal,
       Tutorial: systems.Tutorial,
       systems: systems.systems,
@@ -90,6 +95,41 @@ export function createGameUiApplicationRuntime(options) {
       refuel: callbacks.refuel,
     });
     return marketWorkspace;
+  }
+
+  function getMarketWorkspaceEntry() {
+    if (marketWorkspaceEntry) return marketWorkspaceEntry;
+    if (ui.MarketWorkspaceEntry) {
+      marketWorkspaceEntry = ui.MarketWorkspaceEntry;
+      return marketWorkspaceEntry;
+    }
+    marketWorkspaceEntry = createMarketWorkspaceEntryController({
+      getState: getState,
+      navigate: function (workspace) {
+        return ui.UIManager && typeof ui.UIManager.switchView === 'function'
+          ? ui.UIManager.switchView(workspace)
+          : false;
+      },
+      refresh: function () { return getMarketWorkspace().refresh(); },
+    });
+    return marketWorkspaceEntry;
+  }
+
+  function getWorkspaceTabs() {
+    if (workspaceTabs) return workspaceTabs;
+    if (ui.WorkspaceTabs) {
+      workspaceTabs = ui.WorkspaceTabs;
+      return workspaceTabs;
+    }
+    workspaceTabs = createWorkspaceTabController({
+      getState: getState,
+      navigate: function (workspace) {
+        return ui.UIManager && typeof ui.UIManager.switchView === 'function'
+          ? ui.UIManager.switchView(workspace)
+          : false;
+      },
+    });
+    return workspaceTabs;
   }
 
   function getCoordinator() {
@@ -112,6 +152,8 @@ export function createGameUiApplicationRuntime(options) {
         HUD: ui.HUD,
         ShipUI: ui.ShipUI,
         MapUI: ui.MapUI,
+        MarketWorkspaceEntry: getMarketWorkspaceEntry(),
+        WorkspaceTabs: getWorkspaceTabs(),
         UIManager: ui.UIManager,
         Renderer3D: ui.Renderer,
         ContextAdapters: contextAdapters,
@@ -163,6 +205,8 @@ export function createGameUiApplicationRuntime(options) {
         Modal: ui.Modal,
         Renderer: ui.Renderer,
         WorkspaceDetailSurface: ui.WorkspaceDetailSurface,
+        MarketWorkspaceEntry: getMarketWorkspaceEntry(),
+        WorkspaceTabs: getWorkspaceTabs(),
       },
       systems: { Tutorial: systems.Tutorial },
       controllers: {
@@ -179,11 +223,10 @@ export function createGameUiApplicationRuntime(options) {
         },
         travel: callbacks.travel,
         galaxyJump: callbacks.galaxyJump,
-        openMarket: ui.MapUI.openMarket,
-        closeMarket: ui.MapUI.closeMarket,
-        isMarketOpen: ui.MapUI.isMarketOpen,
+        openMarket: getMarketWorkspaceEntry().open,
+        closeMarket: getMarketWorkspaceEntry().close,
+        isMarketOpen: getMarketWorkspaceEntry().isOpen,
         ensureFleet: ensureFleet,
-        openQuests: ui.MapUI.openQuestsPanel,
         ensureArchive: ensureArchive,
         onArchiveTabChanged: function () {
           if (ui.WorkspaceDetailSurface && typeof ui.WorkspaceDetailSurface.close === 'function') {
@@ -196,7 +239,6 @@ export function createGameUiApplicationRuntime(options) {
         explorePoi: callbacks.explorePoi,
         getPoiStatus: callbacks.getPoiStatus,
         refreshActionGuide: guidance.refresh,
-        refreshMarket: refreshMarket,
         confirmTrade: callbacks.confirmTrade,
       },
       setTelemetryState: callbacks.setTelemetryState,
@@ -220,6 +262,7 @@ export function createGameUiApplicationRuntime(options) {
     if (marketWorkspace) marketWorkspace.reset();
     if (coordinator) coordinator.reset();
     else {
+      if (marketWorkspaceEntry) marketWorkspaceEntry.reset();
       if (ui.UIManager && typeof ui.UIManager.resetRuntimeState === 'function') ui.UIManager.resetRuntimeState();
       if (ui.MapUI && typeof ui.MapUI.resetRuntimeState === 'function') ui.MapUI.resetRuntimeState();
       if (ui.HUD && typeof ui.HUD.resetRuntimeState === 'function') ui.HUD.resetRuntimeState();
@@ -245,6 +288,7 @@ export function createGameUiApplicationRuntime(options) {
   }
 
   function dispose() {
+    var lifecycleOwnedUi = !!lifecycle;
     if (coordinator) coordinator.dispose();
     else if (ui.DeferredFeatureStatusUI && typeof ui.DeferredFeatureStatusUI.dispose === 'function') {
       ui.DeferredFeatureStatusUI.dispose();
@@ -253,12 +297,16 @@ export function createGameUiApplicationRuntime(options) {
     if (lifecycle) lifecycle.dispose();
     else if (settingsController) settingsController.dispose();
     if (marketWorkspace) marketWorkspace.dispose();
+    if (!lifecycleOwnedUi && marketWorkspaceEntry) marketWorkspaceEntry.dispose();
+    if (!lifecycleOwnedUi && workspaceTabs) workspaceTabs.dispose();
     if (ui.ContextInspector && typeof ui.ContextInspector.dispose === 'function') {
       ui.ContextInspector.dispose();
     }
     lifecycle = null;
     settingsController = null;
     marketWorkspace = null;
+    marketWorkspaceEntry = null;
+    workspaceTabs = null;
     coordinator = null;
     contextAdapters = null;
   }
@@ -269,6 +317,8 @@ export function createGameUiApplicationRuntime(options) {
       coordinator: coordinatorDiagnostics,
       lifecycle: lifecycle ? lifecycle.getDiagnostics() : null,
       market: marketWorkspace ? marketWorkspace.getDiagnostics() : null,
+      marketEntry: marketWorkspaceEntry ? marketWorkspaceEntry.getDiagnostics() : null,
+      workspaceTabs: workspaceTabs ? workspaceTabs.getDiagnostics() : null,
       settings: settingsController ? settingsController.getDiagnostics() : null,
     }));
   }

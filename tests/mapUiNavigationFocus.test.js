@@ -156,10 +156,13 @@ describe('MapUI navigation target focus', function () {
     expect(panel.innerHTML).toContain('class="planet-detail-shell"');
     expect(panel.innerHTML).toContain('class="planet-detail-scroll-body"');
     expect(panel.innerHTML).toContain('class="planet-detail-title-row"');
-    expect(panel.innerHTML).toContain('class="planet-detail-action-shelf"');
-    expect(panel.innerHTML).toContain('</div><section class="planet-detail-action-shelf"');
-    expect(panel.innerHTML).toContain('type="button" data-planet-detail-action="travel"');
-    expect(panel.innerHTML).toContain('type="button" data-planet-detail-action="close-detail"');
+    expect(panel.innerHTML).toContain('planet-detail-action-shelf');
+    expect(panel.innerHTML).toContain('</div><section class="workspace-action-slot');
+    expect(panel.innerHTML).toContain('data-workspace-action-id="travel"');
+    expect(panel.innerHTML).toContain('data-planet-detail-action="travel"');
+    expect(panel.innerHTML).toContain('data-workspace-action-id="close-detail"');
+    expect(panel.innerHTML).toContain('data-planet-detail-action="close-detail"');
+    expect(panel.innerHTML).toContain('data-action-scope="local"');
     expect(panel.getAttribute('tabindex')).toBe('-1');
     expect(panel.innerHTML).toContain('role="list" aria-label="航点状态"');
     expect(panel.innerHTML).toContain('航线焦点');

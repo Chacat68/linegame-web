@@ -49,7 +49,8 @@
 - ✅ 基础音效 MVP：UI 点击、交易成交、航行与事件提示音，含开关和音量设置
 - ✅ 延迟工作区失败恢复：市场、机库、档案与存档加载失败时保留当前工作区和上下文，显示局部错误面并可原位重试
 - ✅ 五个同级 L3 工作区：map / trade / fleet / archive / logs 共用 `workspace-surface + is-active + inert/ARIA` 契约；市场已脱离星图 DOM，终端不再依赖 drawer/overlay 可见状态
-- ✅ Vitest 测试基线：158 个测试文件、1307 项测试，覆盖经济、贸易、航行、探索、事件与随机事件运行时、统一动作控制器图、成就检查队列、持久化事务、Game Application shell/Runtime Graph/五个职责节点工厂簇/启动投影/兼容门面/Feature/UI/Guidance/Loop Runtime 组合边界、manifest/registry 生命周期与延迟工作区错误恢复、Map Galaxy Hub/View State/Survey Detail/Panel Layout + Controller、Workspace Surface/Detail 生命周期与 L3 CSS 所有权、Renderer dispose/re-init/开发态 2D 强制降级、Market Chart/Spot/Goods/Capital/Operations/Commodity Detail、Fleet Hangar/Shop/Crew/Mod/Dispatch/Ship Detail 与 Workspace Object Detail Presenter、typed market/fleet command、资金与贸易站投影、Context 局部 intent、焦点同步、HUD/FleetUI 命令所有权、自动派遣与日结算提交顺序、经营金融、舰队、科研任务档案动作、剧情与胜利运行时、eager UI 壳/设置/首次进入/释放生命周期、教学引导与 onboarding policy、存档、会话生命周期、时钟、命令目的地、行动引导执行适配、市场工作区、Market/Fleet/Archive 内部增量失效、日志 Context/筛选/聚合与 UI 所有权等核心系统
+- ✅ 工作区内部交互 owner：商业入口/浏览位置由 `MarketWorkspaceEntryController + Session` 持有，Archive/Fleet Tab 由 `WorkspaceTabController` 统一键盘、ARIA、深链与释放；地图锁定目标已使用显式 local-scope `WorkspaceActionSlot`，不会竞争全局 Action Guide
+- ✅ Vitest 测试基线：161 个测试文件、1314 项测试，覆盖经济、贸易、航行、探索、事件与随机事件运行时、统一动作控制器图、成就检查队列、持久化事务、Game Application shell/Runtime Graph/五个职责节点工厂簇/启动投影/兼容门面/Feature/UI/Guidance/Loop Runtime 组合边界、manifest/registry 生命周期与延迟工作区错误恢复、Map Galaxy Hub/View State/Survey Detail/Panel Layout + Controller、Workspace Surface/Detail 生命周期与 L3 CSS 所有权、Renderer dispose/re-init/开发态 2D 强制降级、Market Chart/Spot/Goods/Capital/Operations/Commodity Detail、Fleet Hangar/Shop/Crew/Mod/Dispatch/Ship Detail 与 Workspace Object Detail Presenter、typed market/fleet command、资金与贸易站投影、Context 局部 intent、焦点同步、HUD/FleetUI 命令所有权、自动派遣与日结算提交顺序、经营金融、舰队、科研任务档案动作、剧情与胜利运行时、eager UI 壳/设置/首次进入/释放生命周期、教学引导与 onboarding policy、存档、会话生命周期、时钟、命令目的地、行动引导执行适配、市场工作区入口、工作区 Tab 与局部操作槽、Market/Fleet/Archive 内部增量失效、日志 Context/筛选/聚合与 UI 所有权等核心系统
 
 ### 当前开发中的能力
 
@@ -184,6 +185,8 @@ npm run build
 │       ├── MarketOperationsPresenter.js # 贸易站经营与批量计划投影
 │       ├── MarketCommodityDetailPresenter.js # 商品 Context 与 L4 详情纯投影
 │       ├── MarketWorkspaceSession.js # 商业工作区选择、图表与排序会话状态
+│       ├── MarketWorkspaceEntrySession.js # 商业入口、浏览地点与待聚焦请求会话
+│       ├── MarketWorkspaceEntryController.js # 商业入口按钮、星系导航与刷新协调
 │       ├── FleetHangarPresenter.js # 机库主视图模型、HTML 与 UI intent
 │       ├── FleetShopPresenter.js # 船坞采购模型、HTML 与 UI intent
 │       ├── FleetCrewPresenter.js # 船员详情模型、HTML 与 roster intent
@@ -193,16 +196,18 @@ npm run build
 │       ├── ArchiveUI.js    # 档案 Feature 组合、会话诊断与释放
 │       ├── WorkspaceObjectDetailPresenter.js # 工作区对象共享 L4 纯投影
 │       ├── WorkspaceSurfaceController.js # 五个 L3 工作区可见性、inert 与焦点
+│       ├── WorkspaceTabController.js # Archive/Fleet Tab 键盘、ARIA 与深链 owner
+│       ├── WorkspaceActionSlot.js # L3/L4 局部操作槽纯 HTML 契约
 │       ├── MapGalaxyHubPresenter.js # 星系总览模型、HTML 与跃迁 intent
 │       ├── MapViewStateController.js # 星系/星球视图与悬停状态所有权
-│       ├── MapWorkspaceSession.js # 星图选择、披露区与市场入口会话状态
+│       ├── MapWorkspaceSession.js # 星图选择、披露区与局部航线焦点会话
 │       ├── MapExplorationPresenter.js # POI 流程模型、HTML 与探索 intent
 │       ├── MapPlanetDetailPresenter.js # 星球摘要、航线焦点与 travel intent
 │       ├── MapPanelLayout.js # 星图详情面板纯几何布局
 │       ├── MapPanelController.js # 星球/星系/POI 委派动作协议
 │       ├── MapSurveyDetailPresenter.js # 探索档案/报告纯 HTML 与 intent
 │       ├── MapSurveyDetailController.js # 两层探索详情 renderer 与导航适配
-│       ├── MapUI.js        # 星图 Context、Renderer、DOM 与导航协调
+│       ├── MapUI.js        # 星图 Context、Renderer、DOM 测量与视图协调
 │       ├── LogsWorkspaceSession.js # 通讯历史、筛选、聚合与未读会话状态
 │       ├── LogsWorkspaceController.js # 日志列表 DOM、筛选控件与 Context 协调
 │       ├── ShipUI.js       # 飞船与货舱界面

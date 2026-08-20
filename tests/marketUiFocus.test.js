@@ -120,7 +120,7 @@ describe('MarketUI guided focus', function () {
     const js = readFileSync('js/ui/MarketUI.js', 'utf8');
     const spotJs = readFileSync('js/ui/MarketSpotPresenter.js', 'utf8');
     const goodsJs = readFileSync('js/ui/MarketGoodsPresenter.js', 'utf8');
-    const mapJs = readFileSync('js/ui/MapUI.js', 'utf8');
+    const marketEntryJs = readFileSync('js/ui/MarketWorkspaceEntryController.js', 'utf8');
 
     expect(html).toContain('id="market-workspace-tabs"');
     expect(html).toContain('role="tablist"');
@@ -130,9 +130,9 @@ describe('MarketUI guided focus', function () {
     expect(html).not.toContain('market-progress-disclosure');
     expect(html).not.toContain('market-experience-route');
     expect(js).not.toContain('_renderMarketExperienceRoute');
-    expect(mapJs).toContain("icon.className = 'market-galaxy-btn-icon'");
-    expect(mapJs).toContain("label.className = 'market-galaxy-btn-label'");
-    expect(mapJs).toContain("btn.setAttribute('aria-pressed'");
+    expect(marketEntryJs).toContain("icon.className = 'market-galaxy-btn-icon'");
+    expect(marketEntryJs).toContain("label.className = 'market-galaxy-btn-label'");
+    expect(marketEntryJs).toContain("button.setAttribute('aria-pressed'");
     expect(js).toContain('role="tab" aria-controls="');
     expect(goodsJs).toContain('role="listitem"');
     expect(spotJs).toContain('aria-label="买卖货物"');

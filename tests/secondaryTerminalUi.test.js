@@ -10,7 +10,7 @@ describe('Workspace terminal UI structure', function () {
     var surfacesCss = readFileSync(new URL('../css/surfaces.css', import.meta.url), 'utf8');
     var responsiveCss = readFileSync(new URL('../css/bridge-responsive.css', import.meta.url), 'utf8');
     var css = sharedCss + '\n' + surfacesCss + '\n' + archiveCss + '\n' + hangarCss;
-    var js = readFileSync(new URL('../js/ui/MapUI.js', import.meta.url), 'utf8');
+    var js = readFileSync(new URL('../js/ui/WorkspaceTabController.js', import.meta.url), 'utf8');
 
     expect(html).toContain('aria-labelledby="archive-terminal-title"');
     expect(html).toContain('aria-describedby="archive-terminal-subtitle"');
@@ -32,9 +32,9 @@ describe('Workspace terminal UI structure', function () {
     expect(html).toContain('id="market-close-btn" class="market-close-btn" type="button" aria-label="关闭市场并返回星图"');
     expect(html).toContain('content="width=device-width, initial-scale=1.0, viewport-fit=cover"');
 
-    expect(js).toContain('_bindDomListener(btn, \'keydown\', _handleTerminalTabKeydown)');
-    expect(js).toContain('key !== \'ArrowLeft\'');
-    expect(js).toContain('activateTab(nextButton.dataset.tab)');
+    expect(js).toContain("_bind(button, 'keydown', _handleKeydown)");
+    expect(js).toContain("NAVIGATION_KEYS.indexOf(event.key) === -1");
+    expect(js).toContain("activate(nextButton.dataset.tab, { source: 'keyboard' })");
 
     expect(css).toContain('.workspace-terminal-status');
     expect(css).toContain('grid-template-columns: repeat(4, minmax(0, 1fr))');

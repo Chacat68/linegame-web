@@ -7,6 +7,7 @@ function createHarness(overrides) {
   var loaded = Object.create(null);
   var featureStates = Object.create(null);
   var listeners = Object.create(null);
+  var tabCallback = null;
   var guidance = {
     actionGuide: { init: vi.fn(), dispose: vi.fn() },
     onboardingUi: { bindCompanyLauncher: vi.fn(), dispose: vi.fn(), showTutorialStart: vi.fn() },
@@ -40,24 +41,42 @@ function createHarness(overrides) {
     ShipUI: { init: vi.fn(), renderShipStats: vi.fn() },
     MapUI: {
       init: vi.fn(),
-      initTabs: vi.fn(),
       init3DCallbacks: vi.fn(),
       setExplorationActions: vi.fn(),
+      setMarketWorkspaceActions: vi.fn(),
       setNavigationChangeCallback: vi.fn(),
-      setRefreshMarket: vi.fn(),
+      setWorkspaceNavigationActions: vi.fn(),
+      setWorkspaceTabActions: vi.fn(),
       refreshPlanetDetail: vi.fn(),
-      openMarket: vi.fn(),
-      closeMarket: vi.fn(),
-      isMarketOpen: vi.fn(function () { return false; }),
-      openQuestsPanel: vi.fn(),
-      getActiveArchiveTab: vi.fn(function () { return 'tab-quest'; }),
       getDiagnostics: vi.fn(function () { return { selectedSystemId: null }; }),
       resetRuntimeState: vi.fn(),
     },
+    MarketWorkspaceEntry: {
+      close: vi.fn(),
+      consumePendingFocus: vi.fn(function () { return null; }),
+      dispose: vi.fn(),
+      getDiagnostics: vi.fn(function () { return { open: false, viewingSystemId: null }; }),
+      getViewGalaxy: vi.fn(function (nextState) { return nextState.currentGalaxy; }),
+      getViewSystem: vi.fn(function (nextState) { return nextState.currentSystem; }),
+      init: vi.fn(),
+      isOpen: vi.fn(function () { return false; }),
+      open: vi.fn(),
+      reset: vi.fn(),
+    },
+    WorkspaceTabs: {
+      dispose: vi.fn(),
+      getActive: vi.fn(function (group) { return group === 'info' ? 'tab-quest' : 'tab-fleet'; }),
+      getDiagnostics: vi.fn(function () { return { activeArchiveTab: 'tab-quest' }; }),
+      init: vi.fn(),
+      openArchive: vi.fn(),
+      setOnChange: vi.fn(function (callback) { tabCallback = callback; }),
+    },
     UIManager: {
+      dispose: vi.fn(),
       init: vi.fn(),
       getNavigationSnapshot: vi.fn(function () { return { activeWorkspace: 'map' }; }),
       resetRuntimeState: vi.fn(),
+      switchView: vi.fn(),
     },
     Modal: { init: vi.fn() },
     Renderer: { initMapControls: vi.fn(), invalidateScene: vi.fn(), whenSceneReady: vi.fn(function () { return Promise.resolve({ renderer: 'test' }); }) },
@@ -109,13 +128,29 @@ function createHarness(overrides) {
     },
     callbacks: callbacks,
   }, overrides || {}));
-  return { runtime: runtime, state: state, loaded: loaded, features: features, ui: ui, callbacks: callbacks, guidance: guidance };
+  return {
+    runtime: runtime,
+    state: state,
+    loaded: loaded,
+    features: features,
+    ui: ui,
+    callbacks: callbacks,
+    guidance: guidance,
+    getTabCallback: function () { return tabCallback; },
+  };
 }
 
 describe('GameUiApplicationRuntime', function () {
   it('延迟组装 UI controller 图，并保持最新 state provider 和兼容诊断', async function () {
     var harness = createHarness();
-    expect(harness.runtime.getDiagnostics()).toEqual({ coordinator: null, lifecycle: null, market: null, settings: null });
+    expect(harness.runtime.getDiagnostics()).toEqual({
+      coordinator: null,
+      lifecycle: null,
+      market: null,
+      marketEntry: null,
+      settings: null,
+      workspaceTabs: null,
+    });
 
     await harness.runtime.renderAll();
     var diagnostics = harness.runtime.getDiagnostics();
@@ -191,7 +226,14 @@ describe('GameUiApplicationRuntime', function () {
     expect(harness.ui.MapUI.resetRuntimeState).toHaveBeenCalledOnce();
     expect(harness.ui.HUD.resetRuntimeState).toHaveBeenCalledOnce();
     expect(harness.ui.UIManager.resetRuntimeState).toHaveBeenCalledOnce();
-    expect(harness.runtime.getDiagnostics()).toEqual({ coordinator: null, lifecycle: null, market: null, settings: null });
+    expect(harness.runtime.getDiagnostics()).toEqual({
+      coordinator: null,
+      lifecycle: null,
+      market: null,
+      marketEntry: null,
+      settings: null,
+      workspaceTabs: null,
+    });
   });
 
   it('统一初始化、场景就绪、入口呈现、重置与释放 UI 生命周期', async function () {
@@ -218,7 +260,7 @@ describe('GameUiApplicationRuntime', function () {
     expect(harness.ui.MapUI.init).toHaveBeenCalled();
     expect(harness.ui.Modal.init).toHaveBeenCalledWith(harness.callbacks.confirmTrade);
     expect(harness.ui.WorkspaceDetailSurface.init).toHaveBeenCalled();
-    var onTab = harness.ui.MapUI.initTabs.mock.calls[0][0];
+    var onTab = harness.getTabCallback();
     onTab('tab-research', { changed: true, previousTabId: 'tab-quest' });
     expect(harness.ui.WorkspaceDetailSurface.close).toHaveBeenCalledOnce();
     expect(harness.ui.ContextInspector.clearContext).toHaveBeenCalledWith('archive');
@@ -248,6 +290,13 @@ describe('GameUiApplicationRuntime', function () {
     expect(harness.ui.ContextInspector.dispose).toHaveBeenCalledOnce();
     expect(harness.ui.DeferredFeatureStatusUI.dispose).toHaveBeenCalledOnce();
     expect(harness.ui.WorkspaceDetailSurface.dispose).toHaveBeenCalledOnce();
-    expect(harness.runtime.getDiagnostics()).toEqual({ coordinator: null, lifecycle: null, market: null, settings: null });
+    expect(harness.runtime.getDiagnostics()).toEqual({
+      coordinator: null,
+      lifecycle: null,
+      market: null,
+      marketEntry: null,
+      settings: null,
+      workspaceTabs: null,
+    });
   });
 });

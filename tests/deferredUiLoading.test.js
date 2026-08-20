@@ -61,7 +61,7 @@ describe('deferred terminal UI loading', function () {
     expect(marketController).toContain("from './MarketCommand.js'");
     expect(marketController).toContain('function focusRemoteSystem(systemId)');
     expect(marketController).toContain('function openBuy(good)');
-    expect(uiCoordinator).toContain("if (_call(MapUI, 'isMarketOpen', []))");
+    expect(uiCoordinator).toContain("_call(MarketWorkspacePort, 'isOpen', [])");
     expect(uiCoordinator).toContain("var ArchiveUI = _getLoadedFeature('archive')");
     expect(uiCoordinator).toContain("var FleetUI = _getLoadedFeature('fleet')");
     expect(uiCoordinator).toContain("var SaveUI = _getLoadedFeature('save')");

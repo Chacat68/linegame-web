@@ -32,11 +32,22 @@ function createHarness(options) {
     dispose: vi.fn(),
     init: vi.fn(),
     init3DCallbacks: vi.fn(),
-    initTabs: vi.fn(function (callback) { tabCallback = callback; }),
     setExplorationActions: vi.fn(),
+    setMarketWorkspaceActions: vi.fn(),
     setNavigationChangeCallback: vi.fn(),
     setWorkspaceNavigationActions: vi.fn(),
-    setRefreshMarket: vi.fn(),
+    setWorkspaceTabActions: vi.fn(),
+  };
+  var MarketWorkspaceEntry = {
+    dispose: vi.fn(),
+    init: vi.fn(),
+  };
+  var WorkspaceTabs = {
+    dispose: vi.fn(),
+    getDiagnostics: vi.fn(function () { return { activeArchiveTab: 'tab-quest' }; }),
+    init: vi.fn(),
+    openArchive: vi.fn(),
+    setOnChange: vi.fn(function (callback) { tabCallback = callback; }),
   };
   var UIManager = {
     dispose: vi.fn(),
@@ -100,6 +111,8 @@ function createHarness(options) {
       Modal: Modal,
       Renderer: Renderer,
       WorkspaceDetailSurface: WorkspaceDetailSurface,
+      MarketWorkspaceEntry: MarketWorkspaceEntry,
+      WorkspaceTabs: WorkspaceTabs,
     },
     systems: { Tutorial: Tutorial },
     controllers: controllers,
@@ -118,6 +131,7 @@ function createHarness(options) {
     HUD: HUD,
     logs: logs,
     MapUI: MapUI,
+    MarketWorkspaceEntry: MarketWorkspaceEntry,
     Modal: Modal,
     ports: ports,
     Renderer: Renderer,
@@ -125,6 +139,7 @@ function createHarness(options) {
     Tutorial: Tutorial,
     UIManager: UIManager,
     WorkspaceDetailSurface: WorkspaceDetailSurface,
+    WorkspaceTabs: WorkspaceTabs,
     replaceState: function (next) { state = next; },
     setRevision: function (next) { revision = next; },
   };
@@ -197,7 +212,7 @@ describe('GameUiLifecycleController', function () {
     expect(harness.ports.openMarket).toHaveBeenCalledWith(state);
     expect(harness.ports.closeMarket).toHaveBeenCalledWith({ restoreFocus: false });
     expect(harness.ports.ensureFleet).toHaveBeenCalledOnce();
-    expect(harness.ports.openQuests).toHaveBeenCalledWith(state);
+    expect(harness.WorkspaceTabs.openArchive).toHaveBeenCalledWith(state);
     expect(harness.ports.ensureArchive).toHaveBeenCalledOnce();
 
     var onTab = harness.getTabCallback();
@@ -237,7 +252,8 @@ describe('GameUiLifecycleController', function () {
     expect(harness.controllers.settingsUi.dispose).toHaveBeenCalledOnce();
     expect(harness.controllers.actionGuide.dispose).toHaveBeenCalledOnce();
     expect(harness.MapUI.setNavigationChangeCallback).toHaveBeenLastCalledWith(null);
-    expect(harness.MapUI.setRefreshMarket).toHaveBeenLastCalledWith(null);
+    expect(harness.MapUI.setMarketWorkspaceActions).toHaveBeenLastCalledWith(null);
+    expect(harness.MapUI.setWorkspaceTabActions).toHaveBeenLastCalledWith(null);
     expect(harness.MapUI.setExplorationActions).toHaveBeenLastCalledWith(null);
     expect(harness.MapUI.dispose).toHaveBeenCalledOnce();
     expect(harness.WorkspaceDetailSurface.dispose).toHaveBeenCalledOnce();
@@ -249,6 +265,7 @@ describe('GameUiLifecycleController', function () {
       initialized: false,
       logsHistoryChangedListenerBound: false,
       tutorialCompleteListenerBound: false,
+      workspaceTabs: { activeArchiveTab: 'tab-quest' },
     });
   });
 
@@ -285,7 +302,7 @@ describe('GameUiLifecycleController', function () {
     expect(harness.MapUI.dispose).toHaveBeenCalledOnce();
     expect(harness.WorkspaceDetailSurface.dispose).toHaveBeenCalledOnce();
     expect(harness.UIManager.dispose).toHaveBeenCalledOnce();
-    expect(harness.MapUI.initTabs).not.toHaveBeenCalled();
+    expect(harness.WorkspaceTabs.init).not.toHaveBeenCalled();
     expect(harness.MapUI.setExplorationActions).not.toHaveBeenCalled();
     expect(harness.Modal.init).not.toHaveBeenCalled();
     expect(harness.events.listenerCount('tutorial:complete')).toBe(0);

@@ -1,11 +1,10 @@
-// js/ui/MapUI.js — 星系地图交互事件绑定（支持星系/星球双层视图 + 市场面板）
+// js/ui/MapUI.js — 星系地图交互事件绑定（支持星系/星球双层视图）
 // 导出：init, initTabs, init3DCallbacks, refreshGalaxyBtn, openMarket, closeMarket, isMarketOpen,
-//        setRefreshMarket, setExplorationActions, getMarketViewSystem, refreshMarketLocation,
+//        setMarketWorkspaceActions, setExplorationActions, getMarketViewSystem, refreshMarketLocation,
 //        showMarketOverview, showMarketDetail, refreshPlanetDetail, getMapView, getCurrentGalaxyId,
 //        getActiveArchiveTab
 import * as Renderer3D from './StarmapRenderer.js';
 import * as Exploration from '../systems/galaxy/ExplorationSystem.js';
-import * as Quest from '../systems/quest/QuestSystem.js';
 import * as EventBus from '../core/EventBus.js';
 import * as ContextInspector from './ContextInspector.js';
 import * as WorkspaceDetailSurface from './WorkspaceDetailSurface.js';
@@ -21,33 +20,29 @@ import {
 } from './MapPlanetDetailPresenter.js';
 import {
   buildContextualMarketAction,
-  getContextualMarketFocus,
 } from './MarketFocus.js';
 import {
   registerEscapeLayer,
 } from './SurfaceManager.js';
 import {
-  GALAXIES,
   findSystem,
   getGalaxyAccessState,
   getSystemAccessState,
 }  from '../data/systems.js';
 
-let _tabClickCallback = null;
 let _navigationChangeCallback = null;
 let _workspaceNavigationActions = null;
+let _workspaceTabActions = null;
 let _smallScreenMql = null;
 const STARMAP_GALAXY_VIEW_TOGGLE_EVENT = 'starmap:galaxy-view-toggle';
 
-// 市场刷新回调（由 GameManager 注入）
-let _refreshMarket = null;          // (mode) => void
 let _stateRef = null;               // 用于内部事件引用
 let _getState = function () { return _stateRef; };
+let _marketWorkspaceActions = null;
 let _explorationActions = null;
 let _travelActionHandler = null;
 let _galaxyJumpActionHandler = null;
 let _mainBindingsInitialized = false;
-let _tabBindingsInitialized = false;
 let _galaxyViewToggleBound = false;
 let _mapContextRendererRegistered = false;
 let _releaseMapContextRenderer = null;
@@ -135,23 +130,11 @@ export function syncState(stateSource) {
   return _stateRef;
 }
 
-function _normalizeMarketPanelFocus(focus) {
-  if (!focus || typeof focus !== 'object') return null;
-
-  var workspaceId = typeof focus.workspaceId === 'string' ? focus.workspaceId.trim() : '';
-  if (!workspaceId) return null;
-
-  var subworkspaceId = typeof focus.subworkspaceId === 'string' ? focus.subworkspaceId.trim() : '';
-  var marketMode = typeof focus.marketMode === 'string' ? focus.marketMode.trim() : '';
-  var goodId = typeof focus.goodId === 'string' ? focus.goodId.trim() : '';
-  var tradeAction = typeof focus.tradeAction === 'string' ? focus.tradeAction.trim() : '';
-  return {
-    workspaceId: workspaceId,
-    subworkspaceId: subworkspaceId,
-    marketMode: marketMode,
-    goodId: goodId,
-    tradeAction: tradeAction,
-  };
+function _marketAction(methodName, args, fallback) {
+  if (_marketWorkspaceActions && typeof _marketWorkspaceActions[methodName] === 'function') {
+    return _marketWorkspaceActions[methodName].apply(_marketWorkspaceActions, args || []);
+  }
+  return fallback;
 }
 
 function _getPoiStatus(stateRef, systemId, poiId) {
@@ -246,28 +229,6 @@ function _buildSurveyMarketAction(state, systemId) {
   });
 }
 
-function _getDefaultArchiveTab(stateRef) {
-  var safeState = stateRef || {};
-  var activeQuestCount = Array.isArray(safeState.quests) ? safeState.quests.length : 0;
-  var availableQuestCount = 0;
-  try {
-    availableQuestCount = Quest.getAvailableQuests(safeState).length;
-  } catch (err) {
-    availableQuestCount = 0;
-  }
-  if (activeQuestCount > 0 || availableQuestCount > 0) return 'tab-quest';
-  try {
-    var surveySummary = safeState.currentSystem
-      ? Exploration.getSurveySummary(safeState, safeState.currentSystem)
-      : null;
-    if (surveySummary && surveySummary.reportCount > 0) return 'tab-exploration';
-  } catch (err) {
-    // 探索数据尚未初始化时继续使用其它档案分类。
-  }
-  if ((safeState.currentResearch && safeState.currentResearch.techId) || (safeState.researchOptions || []).length > 0) return 'tab-research';
-  return 'tab-quest';
-}
-
 function _getPlanetDetailDisplayId(stateRef) {
   var selectedSystemId = _mapSession.getSelectedSystem();
   if (selectedSystemId) return selectedSystemId;
@@ -338,8 +299,14 @@ function _isPlanetDetailSectionOpen(sectionId, defaultOpen) {
  * 注入市场刷新回调（在 GameManager.init 中调用）
  * @param {Function} fn  (mode:'detail') => void  — 刷新市场
  */
+export function setMarketWorkspaceActions(actions) {
+  _marketWorkspaceActions = actions && typeof actions === 'object' ? actions : null;
+  return !!_marketWorkspaceActions;
+}
+
+/** @deprecated 市场刷新由 MarketWorkspaceEntryController 持有。 */
 export function setRefreshMarket(fn) {
-  _refreshMarket = fn;
+  return !!_marketAction('setRefresh', [fn], false);
 }
 
 export function setExplorationActions(actions) {
@@ -353,21 +320,21 @@ export function setExplorationActions(actions) {
  * @returns {string}
  */
 export function getMarketViewSystem(state) {
-  return _mapSession.getMarketViewSystem() || state.currentSystem;
+  return _marketAction('getViewSystem', [state], state && state.currentSystem);
 }
 
 /** 获取市场当前查看的星系 ID */
 export function getMarketViewGalaxy(state) {
-  return _mapSession.getMarketViewGalaxy() || state.currentGalaxy;
+  return _marketAction('getViewGalaxy', [state], state && state.currentGalaxy);
 }
 
 /** 获取当前市场模式 */
 export function getMarketMode() {
-  return _mapSession.getMarketMode();
+  return _marketAction('getMode', [], 'detail');
 }
 
 export function consumePendingMarketPanelFocus() {
-  return _mapSession.takePendingMarketFocus();
+  return _marketAction('consumePendingFocus', [], null);
 }
 
 /** 获取当前地图视图模式 */
@@ -382,16 +349,12 @@ export function getCurrentGalaxyId() {
 
 /** 切换到总览模式 */
 export function showMarketOverview() {
-  _mapSession.setMarketMode('overview');
-  _mapSession.setMarketViewSystem(null);
-  if (_refreshMarket) _refreshMarket('overview');
+  return _marketAction('showOverview', [], false);
 }
 
 /** 切换到详情模式 */
 export function showMarketDetail(systemId) {
-  _mapSession.setMarketMode('detail');
-  _mapSession.setMarketViewSystem(systemId);
-  if (_refreshMarket) _refreshMarket('detail');
+  return _marketAction('showDetail', [systemId], false);
 }
 
 export function toggleGalaxyView() {
@@ -438,25 +401,6 @@ export function init(stateSource, onTravel, onGalaxyJump) {
 
   if (!_mainBindingsInitialized) {
     _mainBindingsInitialized = true;
-
-    // 市场按钮只发布 canonical workspace 导航，不直接切换 DOM surface。
-    const marketBtn = document.getElementById('market-view-btn');
-    const marketCloseBtn = document.getElementById('market-close-btn');
-    if (marketBtn) {
-      _bindDomListener(marketBtn, 'click', function () {
-        var currentState = _currentState();
-        if (_mapSession.isMarketOpen()) {
-          _requestWorkspace('map');
-        } else if (currentState) {
-          openMarketPanel(currentState);
-        }
-      });
-    }
-    if (marketCloseBtn) {
-      _bindDomListener(marketCloseBtn, 'click', function () {
-        _requestWorkspace('map');
-      });
-    }
 
     // 3D视图默认启用，按钮隐藏
     const toggle3DBtn = document.getElementById('map-3d-toggle-btn');
@@ -638,153 +582,49 @@ export function refreshPlanetDetail(stateRef) {
 
 /** 打开市场面板（默认当前节点功能页） */
 export function openMarket(stateRef, marketFocus) {
-  const marketBtn = document.getElementById('market-view-btn');
-  if (!stateRef) return false;
-  _stateRef = stateRef;
-  _mapSession.setPendingMarketFocus(_normalizeMarketPanelFocus(
-    marketFocus || _mapSession.getPendingMarketFocus() || getContextualMarketFocus(stateRef)
-  ));
-  _mapSession.setMarketViewGalaxy(stateRef.currentGalaxy);
-  _mapSession.setMarketViewSystem(stateRef.currentSystem);
-  _mapSession.setMarketMode('detail');
-  _mapSession.setMarketOpen(true);
-  if (marketBtn) marketBtn.classList.add('active');
-  _buildMarketGalaxyNav(stateRef);
-  _bindMarketDetailEvents(stateRef);
-  if (_refreshMarket) _refreshMarket('detail');
-  return true;
+  return _marketAction('open', [stateRef, marketFocus], false);
 }
 
 /** 以正式导航状态打开市场面板 */
 export function openMarketPanel(stateRef, marketFocus) {
-  _stateRef = stateRef || _stateRef;
-  if (!_stateRef) return false;
-  _mapSession.setPendingMarketFocus(_normalizeMarketPanelFocus(
-    marketFocus || getContextualMarketFocus(_stateRef)
-  ));
-  var changed = _requestWorkspace('trade');
-  // navigate 对当前 workspace 是幂等 no-op，此时仍需刷新局部市场上下文。
-  if (!changed) openMarket(_stateRef, _mapSession.getPendingMarketFocus());
-  return changed || _mapSession.isMarketOpen();
+  return _marketAction('openPanel', [stateRef, marketFocus], false);
 }
 
 export function openMarketSystemPanel(stateRef, systemId, marketFocus) {
-  if (!stateRef) return;
-
-  openMarketPanel(stateRef, marketFocus);
-  if (systemId && systemId !== stateRef.currentSystem) {
-    showMarketDetail(systemId);
-  }
+  return _marketAction('openSystemPanel', [stateRef, systemId, marketFocus], false);
 }
 
 /** 关闭市场面板 */
 export function closeMarket() {
-  const marketBtn = document.getElementById('market-view-btn');
-  _mapSession.setMarketOpen(false);
-  if (marketBtn) marketBtn.classList.remove('active');
-  return true;
+  return _marketAction('close', [], false);
 }
 
 /** 市场是否打开 */
 export function isMarketOpen() {
-  return _mapSession.isMarketOpen();
+  return !!_marketAction('isOpen', [], false);
 }
 
 /** 旅行后刷新市场（保持当前节点功能页） */
 export function refreshMarketLocation(stateRef) {
-  if (!_mapSession.isMarketOpen()) return;
-  _stateRef = stateRef;
-  _mapSession.setMarketViewGalaxy(stateRef.currentGalaxy);
-  _mapSession.setMarketViewSystem(stateRef.currentSystem);
-  _mapSession.setMarketMode('detail');
-  _buildMarketGalaxyNav(stateRef);
-  if (_refreshMarket) _refreshMarket('detail');
+  return _marketAction('refreshLocation', [stateRef], false);
 }
 
-/** 绑定详情模式中的表格开关 */
-function _bindMarketDetailEvents(state) {
-  const sellToggle = document.getElementById('market-show-sell');
-  if (sellToggle) {
-    sellToggle.onchange = function () {
-      if (_refreshMarket) _refreshMarket('detail');
-    };
+function _workspaceTabAction(methodName, args, fallback) {
+  if (_workspaceTabActions && typeof _workspaceTabActions[methodName] === 'function') {
+    return _workspaceTabActions[methodName].apply(_workspaceTabActions, args || []);
   }
+  return fallback;
 }
 
-/**
- * 构建星系选择导航栏（仅显示已访问星系）
- */
-function _buildMarketGalaxyNav(state) {
-  const nav = document.getElementById('market-galaxy-nav');
-  if (!nav) return;
-  nav.innerHTML = '';
-  const visited = state.visitedGalaxies || [state.currentGalaxy];
-  GALAXIES.forEach(function (g) {
-    if (visited.indexOf(g.id) === -1) return;
-    const btn = document.createElement('button');
-    var selectedGalaxyId = _mapSession.getMarketViewGalaxy();
-    btn.className = 'market-galaxy-btn' + (g.id === selectedGalaxyId ? ' active' : '');
-    btn.type = 'button';
-    btn.setAttribute('aria-label', '查看' + g.name + '市场');
-    btn.setAttribute('aria-pressed', g.id === selectedGalaxyId ? 'true' : 'false');
-    const icon = document.createElement('span');
-    icon.className = 'market-galaxy-btn-icon';
-    icon.setAttribute('aria-hidden', 'true');
-    icon.textContent = g.icon;
-    const label = document.createElement('span');
-    label.className = 'market-galaxy-btn-label';
-    label.textContent = g.name;
-    btn.appendChild(icon);
-    btn.appendChild(label);
-    _bindDomListener(btn, 'click', function () {
-      _mapSession.setMarketViewGalaxy(g.id);
-      _buildMarketGalaxyNav(state);
-      if (_refreshMarket) _refreshMarket(_mapSession.getMarketMode());
-    });
-    nav.appendChild(btn);
-  });
+export function setWorkspaceTabActions(actions) {
+  _workspaceTabActions = actions && typeof actions === 'object' ? actions : null;
+  return !!_workspaceTabActions;
 }
 
-/**
- * 绑定标签页按钮切换
- * @param {Function} [onTabClick]  可选回调 (tabId:string) => void
- */
+/** @deprecated Tab DOM 由 WorkspaceTabController 初始化。 */
 export function initTabs(onTabClick) {
-  _disposed = false;
-  _tabClickCallback = onTabClick || null;
-  if (_tabBindingsInitialized) return;
-  _tabBindingsInitialized = true;
-
-  document.querySelectorAll('.tab-btn').forEach(function (btn) {
-    _bindDomListener(btn, 'click', function () {
-      activateTab(btn.dataset.tab);
-    });
-    _bindDomListener(btn, 'keydown', _handleTerminalTabKeydown);
-  });
-
-  // 面板关闭按钮（新设计：覆盖层关闭按钮）
-  var infoPanelToggle = document.getElementById('info-panel-toggle');
-  if (infoPanelToggle) {
-    _bindDomListener(infoPanelToggle, 'click', function () {
-      _requestWorkspace('map');
-    });
-  }
-  _bindWorkspacePanelDismiss('info-panel');
-
-  var tradePanelToggle = document.getElementById('trade-panel-toggle');
-  if (tradePanelToggle) {
-    _bindDomListener(tradePanelToggle, 'click', function () {
-      _requestWorkspace('map');
-    });
-  }
-  _bindWorkspacePanelDismiss('trade-panel');
-
-  var consolePanelClose = document.getElementById('console-panel-close');
-  if (consolePanelClose) {
-    _bindDomListener(consolePanelClose, 'click', function () {
-      _requestWorkspace('map');
-    });
-  }
+  _workspaceTabAction('setOnChange', [onTabClick], false);
+  return _workspaceTabAction('init', [], false);
 }
 
 export function setNavigationChangeCallback(callback) {
@@ -830,25 +670,7 @@ export function focusNavigationTarget(stateRef, systemId, options) {
 }
 
 export function openQuestsPanel(stateRef) {
-  _stateRef = stateRef || _stateRef;
-  var archiveTabId = _getDefaultArchiveTab(_stateRef);
-  if (document.querySelector('.tab-btn[data-tab="' + archiveTabId + '"]')) {
-    activateTab(archiveTabId);
-  } else {
-    _requestWorkspace('archive');
-  }
-}
-
-function _bindWorkspacePanelDismiss(id) {
-  var panel = document.getElementById(id);
-  if (!panel || !panel.dataset || typeof panel.addEventListener !== 'function') return;
-  if (panel.dataset.workspaceDismissBound === '1') return;
-
-  _bindDomListener(panel, 'click', function (event) {
-    if (!event || event.target !== panel) return;
-    _requestWorkspace('map');
-  });
-  panel.dataset.workspaceDismissBound = '1';
+  return _workspaceTabAction('openArchive', [stateRef || _stateRef], false);
 }
 
 function _requestWorkspace(workspace) {
@@ -861,94 +683,16 @@ function _requestWorkspace(workspace) {
   return changed;
 }
 
-function _handleTerminalTabKeydown(event) {
-  if (!event) return;
-  var key = event.key;
-  if (key !== 'ArrowLeft' && key !== 'ArrowRight' && key !== 'ArrowUp' && key !== 'ArrowDown' && key !== 'Home' && key !== 'End') return;
-
-  var btn = event.currentTarget || event.target;
-  if (!btn || !btn.dataset) return;
-  var group = btn.dataset.tabGroup || '';
-  var buttons = Array.prototype.slice.call(document.querySelectorAll('.tab-btn[data-tab-group="' + group + '"]'));
-  buttons = buttons.filter(function (button) {
-    return button && !button.disabled && !(button.getAttribute && button.getAttribute('aria-disabled') === 'true');
-  });
-  var currentIndex = buttons.indexOf(btn);
-  if (currentIndex < 0 || buttons.length === 0) return;
-
-  var nextIndex = currentIndex;
-  if (key === 'Home') {
-    nextIndex = 0;
-  } else if (key === 'End') {
-    nextIndex = buttons.length - 1;
-  } else if (key === 'ArrowLeft' || key === 'ArrowUp') {
-    nextIndex = (currentIndex + buttons.length - 1) % buttons.length;
-  } else if (key === 'ArrowRight' || key === 'ArrowDown') {
-    nextIndex = (currentIndex + 1) % buttons.length;
-  }
-
-  if (typeof event.preventDefault === 'function') event.preventDefault();
-  var nextButton = buttons[nextIndex];
-  if (nextButton && typeof nextButton.focus === 'function') {
-    nextButton.focus();
-  }
-  if (nextButton && nextButton.dataset && nextButton.dataset.tab) {
-    activateTab(nextButton.dataset.tab);
-  }
-}
-
 export function focusStarmap() {
   return _requestWorkspace('map');
 }
 
 export function activateTab(tabId) {
-  var btn = document.querySelector('.tab-btn[data-tab="' + tabId + '"]');
-  if (!btn) return;
-
-  var group = btn.dataset.tabGroup || '';
-  var previousButton = document.querySelector('.tab-btn[data-tab-group="' + group + '"].active');
-  var previousTabId = previousButton && previousButton.dataset ? (previousButton.dataset.tab || '') : '';
-  var changed = previousTabId !== tabId;
-  document.querySelectorAll('.tab-btn[data-tab-group="' + group + '"]').forEach(function (b) {
-    var isActiveButton = b === btn;
-    b.classList.toggle('active', isActiveButton);
-    if (typeof b.setAttribute === 'function') {
-      b.setAttribute('aria-selected', isActiveButton ? 'true' : 'false');
-    }
-    b.tabIndex = isActiveButton ? 0 : -1;
-  });
-  document.querySelectorAll('.tab-pane[data-tab-group="' + group + '"]').forEach(function (p) {
-    p.classList.remove('active');
-    if (typeof p.setAttribute === 'function') p.setAttribute('aria-hidden', 'true');
-  });
-  btn.classList.add('active');
-
-  var pane = document.getElementById(tabId);
-  if (pane) {
-    pane.classList.add('active');
-    if (typeof pane.setAttribute === 'function') pane.setAttribute('aria-hidden', 'false');
-  }
-
-  // 标签只声明所属 canonical workspace；DOM 可见性由 WorkspaceSurfaceController 投影。
-  if (group === 'info') {
-    _requestWorkspace('archive');
-  } else if (group === 'trade') {
-    _requestWorkspace('fleet');
-  }
-
-  if (_tabClickCallback) {
-    _tabClickCallback(tabId, {
-      changed: changed,
-      group: group,
-      previousTabId: previousTabId,
-    });
-  }
+  return _workspaceTabAction('activate', [tabId], false);
 }
 
 export function getActiveArchiveTab() {
-  if (typeof document === 'undefined' || !document.querySelector) return '';
-  var activeTab = document.querySelector('.tab-btn[data-tab-group="info"].active');
-  return activeTab && activeTab.dataset ? (activeTab.dataset.tab || '') : '';
+  return _workspaceTabAction('getActive', ['info'], '');
 }
 
 function _clearBindingDataset(id, key) {
@@ -997,10 +741,6 @@ export function resetRuntimeState() {
   ContextInspector.clearContext('map', { render: false });
   _closeActiveMapDetails();
   if (Renderer3D.clearSelection) Renderer3D.clearSelection();
-  var marketButton = typeof document !== 'undefined' && document.getElementById
-    ? document.getElementById('market-view-btn')
-    : null;
-  if (marketButton && marketButton.classList) marketButton.classList.remove('active');
   return getDiagnostics();
 }
 
@@ -1031,13 +771,10 @@ export function dispose() {
   }
 
   _clearBindingDataset('planet-detail-panel', 'mapPanelControllerBound');
-  _clearBindingDataset('info-panel', 'workspaceDismissBound');
-  _clearBindingDataset('trade-panel', 'workspaceDismissBound');
-
-  _tabClickCallback = null;
   _navigationChangeCallback = null;
   _workspaceNavigationActions = null;
-  _refreshMarket = null;
+  _marketWorkspaceActions = null;
+  _workspaceTabActions = null;
   _explorationActions = null;
   _travelActionHandler = null;
   _galaxyJumpActionHandler = null;
@@ -1046,7 +783,6 @@ export function dispose() {
   _mapSession.reset();
   _smallScreenMql = null;
   _mainBindingsInitialized = false;
-  _tabBindingsInitialized = false;
   _galaxyViewToggleBound = false;
   _mapContextRendererRegistered = false;
   _mapViewState.reset();
