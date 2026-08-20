@@ -1,13 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
+import postcss from 'postcss';
 
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const css = readFileSync(new URL('../css/interstellar-trader.css', import.meta.url), 'utf8');
 const cssDirectory = new URL('../css/', import.meta.url);
-const workspaceCss = readdirSync(cssDirectory)
-  .filter(function (fileName) { return fileName.endsWith('.css'); })
-  .map(function (fileName) { return readFileSync(new URL(fileName, cssDirectory), 'utf8'); })
-  .join('\n');
+const cssFileNames = readdirSync(cssDirectory)
+  .filter(function (fileName) { return fileName.endsWith('.css'); });
+const cssSources = new Map(cssFileNames.map(function (fileName) {
+  return [fileName, readFileSync(new URL(fileName, cssDirectory), 'utf8')];
+}));
+const workspaceCss = Array.from(cssSources.values()).join('\n');
+const WORKSPACE_SHELL_OWNERS = new Set(['surfaces.css', 'bridge-responsive.css']);
+const WORKSPACE_SHELL_COMPOUND = /^(?:#market-overlay|\.market-overlay|#info-panel|#trade-panel|#console-panel|#map-section)(?=$|[.:[#])/;
+
+function targetsWorkspaceShell(selector) {
+  const compounds = selector.trim().split(/\s+|>|\+|~/).filter(Boolean);
+  return WORKSPACE_SHELL_COMPOUND.test(compounds[compounds.length - 1] || '');
+}
 
 function openingTag(id) {
   const markerIndex = html.indexOf(`id="${id}"`);
@@ -82,6 +92,27 @@ describe('UI surface inventory', function () {
     const tradeStart = html.lastIndexOf('<section', html.indexOf('id="market-overlay"'));
     expect(tradeStart).toBeGreaterThan(mapEnd);
     expect((html.match(/data-workspace-initial-focus/g) || []).length).toBe(4);
+  });
+
+  it('keeps L3 shell geometry in the canonical surface owners', function () {
+    const violations = [];
+
+    cssSources.forEach(function (source, fileName) {
+      // animations.css is an unreferenced historical scratch file and is not
+      // part of style.css or the deferred feature manifest.
+      if (fileName === 'animations.css' || WORKSPACE_SHELL_OWNERS.has(fileName)) return;
+
+      const root = postcss.parse(source, { from: fileName });
+      root.walkRules(function (rule) {
+        (rule.selectors || []).forEach(function (selector) {
+          if (targetsWorkspaceShell(selector)) {
+            violations.push(fileName + ':' + rule.source.start.line + ' ' + selector);
+          }
+        });
+      });
+    });
+
+    expect(violations).toEqual([]);
   });
 
   it('keeps tutorial guidance and one authoritative Command Slot in the responsive layer', function () {

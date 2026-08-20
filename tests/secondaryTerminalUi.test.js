@@ -76,7 +76,8 @@ describe('Workspace terminal UI structure', function () {
     expect(css).toContain('--safe-top: env(safe-area-inset-top, 0px)');
     expect(css).toContain('--safe-right: env(safe-area-inset-right, 0px)');
     expect(css).toContain('--safe-left: env(safe-area-inset-left, 0px)');
-    expect(css).toContain('top: max(8px, var(--safe-top)) !important');
+    expect(responsiveCss).toContain('top: max(var(--ui-space-2), var(--ui-safe-top)) !important');
+    expect(responsiveCss).toContain('left: max(var(--ui-space-2), var(--ui-safe-left)) !important');
     expect(css).toContain('max(var(--modal-safe-gap), var(--safe-left))');
     expect(css).toContain('height: calc(52px + var(--safe-top))');
     expect(css).toContain('left: max(8px, var(--safe-left))');

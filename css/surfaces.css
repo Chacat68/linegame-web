@@ -253,6 +253,14 @@ body::before {
   background: var(--ui-bg-canvas);
 }
 
+#map-section.workspace-surface--map {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex: 1 1 0;
+  flex-direction: column;
+}
+
 .starmap-canvas {
   width: 100% !important;
   height: 100% !important;
@@ -757,6 +765,15 @@ body::before {
   backdrop-filter: blur(22px) saturate(1.05);
 }
 
+#market-overlay.workspace-surface--trade.is-active {
+  animation: overlay-enter 0.24s ease-out;
+  transform-origin: center;
+}
+
+body[data-motion="reduced"] #market-overlay.workspace-surface--trade.is-active {
+  animation-duration: 0.12s !important;
+}
+
 .market-overlay-header {
   flex: 0 0 auto;
   min-height: 64px;
@@ -973,6 +990,22 @@ body::before {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
+}
+
+@media (min-width: 901px) {
+  body:has(#context-inspector[data-workspace-id="trade"]:not([hidden]))
+    #market-overlay.workspace-surface--trade.is-active {
+    right: calc(var(--ui-context-width) + var(--ui-space-7)) !important;
+  }
+
+  body:has(#context-inspector[data-workspace-id="archive"]:not([hidden]))
+    .workspace-surface.workspace-surface--archive.is-active,
+  body:has(#context-inspector[data-workspace-id="fleet"]:not([hidden]))
+    .workspace-surface.workspace-surface--fleet.is-active,
+  body:has(#context-inspector[data-workspace-id="logs"]:not([hidden]))
+    .workspace-surface.workspace-surface--logs.is-active {
+    padding-right: calc(var(--ui-context-width) + var(--ui-space-7)) !important;
+  }
 }
 
 .workspace-terminal-shell {

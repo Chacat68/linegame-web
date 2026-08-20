@@ -7,12 +7,9 @@
 }
 
 #game-header,
-#map-section,
 #status-bar {
   animation: panel-rise 0.5s ease-out both;
 }
-
-#map-section { animation-delay: 0.08s; }
 #status-bar  { animation-delay: 0.16s; }
 
 /* Main fills entire viewport — map is the hero */

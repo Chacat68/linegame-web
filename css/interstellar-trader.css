@@ -82,7 +82,6 @@ body::after {
   inset: 72px 0 42px;
 }
 
-#map-section,
 #map-container {
   background: transparent;
 }
@@ -1237,14 +1236,6 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #map-cont
 
 .company-dashboard {
   box-shadow: none;
-}
-
-#trade-panel {
-  width: min(640px, calc(100vw - 36px));
-}
-
-#info-panel {
-  width: min(560px, calc(100vw - 36px));
 }
 
 #info-panel .tab-content {
@@ -2949,21 +2940,6 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #map-cont
   border-radius: 8px;
 }
 
-.market-overlay {
-  top: 16px;
-  right: 18px;
-  bottom: var(--secondary-overlay-offset);
-  left: 18px;
-  z-index: 28;
-  border: 1px solid rgba(108, 231, 255, 0.24);
-  border-radius: 14px;
-  background:
-    linear-gradient(180deg, rgba(4, 16, 27, 0.95), rgba(2, 9, 16, 0.96)),
-    radial-gradient(circle at 30% 0, rgba(108, 231, 255, 0.12), transparent 36%);
-  box-shadow: 0 32px 92px rgba(0, 0, 0, 0.72), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(24px) saturate(1.2);
-}
-
 .market-overlay-header,
 .market-detail-bar {
   background: rgba(3, 13, 22, 0.8);
@@ -3271,14 +3247,6 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #map-cont
     width: min(340px, calc(100vw - 24px));
     max-width: calc(100vw - 24px);
     max-height: min(240px, calc(100dvh - 206px));
-  }
-
-  #trade-panel {
-    width: calc(100vw - 24px);
-  }
-
-  #info-panel {
-    width: calc(100vw - 24px);
   }
 
   .quest-command-deck {
@@ -4104,17 +4072,6 @@ textarea:focus,
 .console-message-log,
 .stack-modal-scroll {
   scrollbar-color: rgba(108, 231, 255, 0.32) transparent;
-}
-
-#trade-panel,
-#info-panel {
-  width: min(640px, calc(100vw - 36px));
-}
-
-.market-overlay {
-  max-width: calc(100vw - 36px);
-  max-height: calc(100dvh - var(--secondary-overlay-offset) - 16px);
-  overflow: hidden;
 }
 
 .modal {
@@ -5444,14 +5401,6 @@ textarea:focus,
 }
 
 @media (max-width: 1024px) {
-  .market-overlay {
-    left: 12px;
-    right: 12px;
-    top: 12px;
-    bottom: var(--secondary-overlay-offset);
-    max-width: calc(100vw - 24px);
-    max-height: calc(100dvh - var(--secondary-overlay-offset) - 12px);
-  }
 
   .market-overlay-shell,
   .market-overlay-panels,
@@ -5484,13 +5433,6 @@ textarea:focus,
     width: calc(100vw - 20px);
     max-width: calc(100vw - 20px);
     max-height: calc(100dvh - 20px);
-  }
-
-  #trade-panel,
-  #info-panel {
-    left: 10px;
-    right: 10px;
-    width: calc(100vw - 20px);
   }
 
   .settings-layout {
@@ -5628,16 +5570,6 @@ textarea:focus,
     line-height: 1.05;
   }
 
-  .market-overlay {
-    left: 6px;
-    right: 6px;
-    top: 6px;
-    bottom: var(--secondary-overlay-offset);
-    max-width: calc(100vw - 12px);
-    max-height: calc(100dvh - var(--secondary-overlay-offset) - 6px);
-    border-radius: var(--ui-radius-panel);
-  }
-
   .modal-actions,
   .company-rename-actions,
   #tutorial-start-modal .tut-start-actions,
@@ -5724,26 +5656,6 @@ textarea:focus,
 .bottom-nav-btn.active::after {
   top: 5px;
   width: 24px;
-}
-
-.market-overlay {
-  bottom: var(--secondary-overlay-offset);
-}
-
-.market-overlay {
-  top: 14px;
-  right: 18px;
-  left: 18px;
-  max-width: calc(100vw - 36px);
-  max-height: none;
-}
-
-#info-panel {
-  width: min(420px, calc(100vw - 36px));
-}
-
-#trade-panel {
-  width: min(460px, calc(100vw - 36px));
 }
 
 .market-overlay-shell,
@@ -6032,30 +5944,9 @@ textarea:focus,
   .bottom-nav-btn span {
     font-size: 10px;
   }
-
-  .market-overlay {
-    left: 12px;
-    right: 12px;
-    max-width: calc(100vw - 24px);
-  }
-
-  #info-panel,
-  #trade-panel {
-    width: min(460px, calc(100vw - 24px));
-  }
 }
 
 @media (max-width: 760px) {
-  .market-overlay {
-    top: 10px;
-  }
-
-  #info-panel,
-  #trade-panel {
-    left: 10px;
-    right: 10px;
-    width: calc(100vw - 20px);
-  }
 
   .settings-modal-box {
     width: calc(100vw - 20px);
@@ -6154,13 +6045,6 @@ textarea:focus,
 
   .bottom-nav-btn span {
     font-size: 9px;
-  }
-
-  .market-overlay {
-    top: 8px;
-    right: 8px;
-    left: 8px;
-    max-width: calc(100vw - 16px);
   }
 
   .modal {
@@ -7636,21 +7520,6 @@ a[class*="btn"] svg,
 
 /* 交易所终端（原本是 market-overlay）样式微调 */
 
-#market-overlay {
-  top: 50% !important;
-  left: 50% !important;
-  transform: translate(-50%, -50%) scale(0.95) !important;
-  width: min(1000px, 92vw) !important;
-  height: min(680px, 78vh) !important;
-  border-radius: 16px !important;
-  border: 1px solid rgba(108, 231, 255, 0.28) !important;
-  box-shadow: 0 24px 72px rgba(0, 0, 0, 0.6) !important;
-  background: rgba(3, 11, 22, 0.85) !important;
-  backdrop-filter: blur(20px) saturate(1.3) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(1.3) !important;
-  transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.3s !important;
-}
-
 /* 改装内页与子面板的完美融合样式 */
 .fleet-inline-mod-container {
   display: grid;
@@ -7914,15 +7783,10 @@ body,
   max-width: 100vw;
 }
 
-#market-overlay {
-  z-index: 100 !important;
-}
-
 .modal {
   z-index: 120;
 }
 
-.market-overlay,
 .modal-box,
 .settings-modal-box,
 .secondary-panel-modal-box,
@@ -8001,19 +7865,6 @@ body,
 }
 
 @media (max-width: 700px), (max-height: 620px) {
-  #market-overlay {
-    position: fixed !important;
-    top: max(8px, var(--safe-top)) !important;
-    right: max(8px, var(--safe-right)) !important;
-    bottom: max(8px, var(--safe-bottom)) !important;
-    left: max(8px, var(--safe-left)) !important;
-    width: auto !important;
-    height: auto !important;
-    max-width: none !important;
-    max-height: none !important;
-    transform: none !important;
-    border-radius: 14px !important;
-  }
 
   .market-overlay-shell,
   .market-overlay-panels,

@@ -1,11 +1,4 @@
 /* ---- Map section (full viewport hero) ---------------------------------- */
-#map-section {
-  flex: 1 1 0;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  position: relative;
-}
 
 #map-container {
   flex: 1;

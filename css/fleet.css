@@ -2110,19 +2110,6 @@ body[data-motion="off"] .mod-modal-guidance-focus {
 }
 
 /* Market overlay */
-.market-overlay {
-  position: absolute;
-  top: 48px;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  z-index: 20;
-  background: rgba(8, 12, 30, 0.96);
-  display: flex;
-  flex-direction: column;
-  backdrop-filter: blur(8px);
-  overflow: hidden;
-}
 .market-overlay-header {
   display: flex;
   align-items: center;

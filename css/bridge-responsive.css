@@ -82,12 +82,12 @@
   }
 
   #market-overlay.workspace-surface--trade {
-    top: var(--ui-space-2) !important;
-    right: var(--ui-space-3) !important;
+    top: max(var(--ui-space-2), var(--ui-safe-top)) !important;
+    right: max(var(--ui-space-3), var(--ui-safe-right)) !important;
     bottom: calc(
       var(--ui-nav-height) + var(--ui-space-5) + var(--ui-command-reserve) + var(--ui-safe-bottom)
     ) !important;
-    left: var(--ui-space-3) !important;
+    left: max(var(--ui-space-3), var(--ui-safe-left)) !important;
   }
 }
 
@@ -259,12 +259,12 @@
   }
 
   #market-overlay.workspace-surface--trade {
-    top: var(--ui-space-2) !important;
-    right: var(--ui-space-2) !important;
+    top: max(var(--ui-space-2), var(--ui-safe-top)) !important;
+    right: max(var(--ui-space-2), var(--ui-safe-right)) !important;
     bottom: calc(
       var(--ui-nav-height) + var(--ui-space-4) + var(--ui-command-reserve) + var(--ui-safe-bottom)
     ) !important;
-    left: var(--ui-space-2) !important;
+    left: max(var(--ui-space-2), var(--ui-safe-left)) !important;
     border-radius: var(--ui-radius-card);
   }
 

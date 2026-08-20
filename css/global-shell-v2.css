@@ -312,15 +312,6 @@
 }
 
 @media (min-width: 901px) {
-  body:has(#context-inspector[data-workspace-id="trade"]:not([hidden])) #market-overlay.workspace-surface--trade.is-active {
-    right: calc(var(--ui-context-width) + var(--ui-space-7)) !important;
-  }
-
-  body:has(#context-inspector[data-workspace-id="archive"]:not([hidden])) #info-panel,
-  body:has(#context-inspector[data-workspace-id="fleet"]:not([hidden])) #trade-panel,
-  body:has(#context-inspector[data-workspace-id="logs"]:not([hidden])) #console-panel {
-    padding-right: calc(var(--ui-context-width) + var(--ui-space-7)) !important;
-  }
 
   body:has(#context-inspector:not([hidden])) .floating-command-stack {
     left: calc((100vw - var(--ui-context-width) - var(--ui-space-7)) / 2);

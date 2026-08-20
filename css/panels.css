@@ -1,10 +1,4 @@
 /* ---- Archive workspace content ----------------------------------------- */
-#info-panel {
-  /* L3 shell geometry is owned by surfaces.css. */
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
 .info-panel-header {
   display: flex;
   align-items: stretch;
@@ -41,12 +35,6 @@
 }
 
 /* ---- Fleet workspace content ------------------------------------------- */
-#trade-panel {
-  /* L3 shell geometry is owned by surfaces.css. */
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
 
 /* Company dashboard — glassmorphism header card */
 .company-dashboard {

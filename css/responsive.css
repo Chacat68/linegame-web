@@ -607,8 +607,7 @@ body[data-motion="reduced"] .tut-highlight {
 }
 
 body[data-motion="reduced"] .tab-pane.active,
-body[data-motion="reduced"] .market-detail:not(.hidden),
-body[data-motion="reduced"] .market-overlay {
+body[data-motion="reduced"] .market-detail:not(.hidden) {
   animation-duration: 0.12s !important;
 }
 
@@ -662,11 +661,6 @@ body[data-motion="off"] *::after {
 
 .tab-pane.active {
   animation: pane-enter 0.22s ease-out;
-}
-
-.market-overlay {
-  animation: overlay-enter 0.24s ease-out;
-  transform-origin: center;
 }
 
 .market-detail:not(.hidden) {
