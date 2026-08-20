@@ -44,7 +44,7 @@ describe('GameFeatureManifest', function () {
     var state = { id: 'current-state' };
     var provider = vi.fn();
     var resolver = vi.fn();
-    var archiveUi = { id: 'archive-ui' };
+    var archiveUi = { id: 'archive-ui', resetRuntimeState: vi.fn() };
     var victoryUi = { id: 'victory-ui' };
     var tutorialUi = { destroy: vi.fn() };
     var marketUi = { resetRuntimeState: vi.fn() };
@@ -75,6 +75,7 @@ describe('GameFeatureManifest', function () {
     manifest.settings.sync(settingsUi);
     manifest.market.dispose(marketUi);
     manifest.fleet.dispose(fleetUi);
+    manifest.archive.dispose(archiveUi);
     manifest.tutorial.dispose(tutorialUi);
 
     expect(trace).toEqual([
@@ -89,6 +90,7 @@ describe('GameFeatureManifest', function () {
     expect(achievement.init).toHaveBeenCalledWith(state);
     expect(marketUi.resetRuntimeState).toHaveBeenCalledOnce();
     expect(fleetUi.resetRuntimeState).toHaveBeenCalledOnce();
+    expect(archiveUi.resetRuntimeState).toHaveBeenCalledOnce();
     expect(tutorialUi.destroy).toHaveBeenCalledOnce();
   });
 

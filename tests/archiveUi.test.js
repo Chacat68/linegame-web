@@ -1,15 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { ACHIEVEMENTS } from '../js/data/achievements.js';
-import * as AchievementUI from '../js/ui/AchievementUI.js?v=20260609-achfocus1';
-import * as ArchiveExplorationUI from '../js/ui/ArchiveExplorationUI.js?v=20260720-archive-survey1';
+import {
+  AchievementUI,
+  ArchiveExplorationUI,
+  FactionUI,
+  QuestUI,
+  ResearchUI,
+  getDiagnostics as getArchiveDiagnostics,
+  resetRuntimeState as resetArchiveRuntimeState,
+} from '../js/ui/ArchiveUI.js';
 import * as Faction from '../js/systems/faction/FactionSystem.js';
-import * as FactionUI from '../js/ui/FactionUI.js?v=20260609-factionfocus1';
 import * as GalaxyData from '../js/systems/galaxy/GalaxyDataLayer.js';
 import * as Exploration from '../js/systems/galaxy/ExplorationSystem.js';
 import * as Quest from '../js/systems/quest/QuestSystem.js?v=20260531-chainfollow1';
-import * as QuestUI from '../js/ui/QuestUI.js?v=20260609-questfocus1';
 import * as Research from '../js/systems/research/ResearchSystem.js';
-import * as ResearchUI from '../js/ui/ResearchUI.js?v=20260609-researchfocus1';
 import { createTestState } from './helpers.js';
 
 function createHtmlContainer() {
@@ -38,7 +42,33 @@ describe('Archive terminal UI', function () {
   });
 
   afterEach(function () {
+    resetArchiveRuntimeState();
     globalThis.document = originalDocument;
+  });
+
+  it('组合边界公开冻结会话快照，并在 reset 时清理任务与探索焦点', function () {
+    QuestUI.setSelectedAvailableQuest('starter_first_trade');
+    ArchiveExplorationUI.setFocus('sol_prime', 'sol_prime_chain_derelict_depot');
+
+    var diagnostics = getArchiveDiagnostics();
+    expect(diagnostics).toEqual({
+      quest: { selectedAvailableQuestId: 'starter_first_trade' },
+      exploration: {
+        focus: { systemId: 'sol_prime', chainId: 'sol_prime_chain_derelict_depot' },
+      },
+      resetCount: expect.any(Number),
+    });
+    expect(Object.isFrozen(diagnostics)).toBe(true);
+    expect(Object.isFrozen(diagnostics.quest)).toBe(true);
+    expect(Object.isFrozen(diagnostics.exploration.focus)).toBe(true);
+
+    var beforeResetCount = diagnostics.resetCount;
+    var reset = resetArchiveRuntimeState();
+    expect(reset).toEqual({
+      quest: { selectedAvailableQuestId: null },
+      exploration: { focus: null },
+      resetCount: beforeResetCount + 1,
+    });
   });
 
   it('成就页会渲染完成度总览、分组进度和语义卡片', function () {

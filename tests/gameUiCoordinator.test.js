@@ -316,6 +316,7 @@ describe('GameUiCoordinator', function () {
       featureStatus: null,
       marketUi: null,
       fleetUi: null,
+      archiveUi: null,
       renderAllCount: 0,
       invalidationCount: 1,
       lastInvalidationRegions: DEFAULT_ACTION_DIRTY_REGIONS,
@@ -387,6 +388,11 @@ describe('GameUiCoordinator', function () {
   it('公开已加载工作区的会话诊断，并在会话重置时清理 UI 运行态', async function () {
     var marketDiagnostics = { activeWorkspace: 'capital', focusedGoodId: 'water' };
     var fleetDiagnostics = { activeSurface: 'dispatch', surfaceMode: 'inline' };
+    var archiveDiagnostics = {
+      quest: { selectedAvailableQuestId: 'starter_first_trade' },
+      exploration: { focus: { systemId: 'sol_prime', chainId: '' } },
+      resetCount: 0,
+    };
     var resetMarketRuntimeState = vi.fn(function () {
       marketDiagnostics = { activeWorkspace: 'spot', focusedGoodId: null };
       return marketDiagnostics;
@@ -394,6 +400,14 @@ describe('GameUiCoordinator', function () {
     var resetFleetRuntimeState = vi.fn(function () {
       fleetDiagnostics = { activeSurface: null, surfaceMode: null };
       return fleetDiagnostics;
+    });
+    var resetArchiveRuntimeState = vi.fn(function () {
+      archiveDiagnostics = {
+        quest: { selectedAvailableQuestId: null },
+        exploration: { focus: null },
+        resetCount: 1,
+      };
+      return archiveDiagnostics;
     });
     var features = createFeatureHarness({
       market: {
@@ -404,10 +418,17 @@ describe('GameUiCoordinator', function () {
         getDiagnostics: function () { return fleetDiagnostics; },
         resetRuntimeState: resetFleetRuntimeState,
       },
+      archive: {
+        getDiagnostics: function () { return archiveDiagnostics; },
+        resetRuntimeState: resetArchiveRuntimeState,
+      },
     });
     var coordinator = createGameUiCoordinator({
       getState: function () { return { currentSystem: 'sol_prime' }; },
       features: features,
+      ui: {
+        MapUI: { getActiveArchiveTab: function () { return 'tab-exploration'; } },
+      },
     });
 
     await coordinator.invalidate(['hud']);
@@ -416,11 +437,14 @@ describe('GameUiCoordinator', function () {
       focusedGoodId: 'water',
     });
     expect(coordinator.getDiagnostics().fleetUi).toEqual({ activeSurface: 'dispatch', surfaceMode: 'inline' });
+    expect(coordinator.getDiagnostics().archiveUi).toEqual(Object.assign({
+      activeTab: 'tab-exploration',
+    }, archiveDiagnostics));
     expect(coordinator.getDiagnostics().workspaceSessions).toEqual({
       map: null,
       trade: marketDiagnostics,
       fleet: fleetDiagnostics,
-      archive: null,
+      archive: Object.assign({ activeTab: 'tab-exploration' }, archiveDiagnostics),
       logs: null,
     });
 
@@ -428,8 +452,10 @@ describe('GameUiCoordinator', function () {
 
     expect(resetMarketRuntimeState).toHaveBeenCalledOnce();
     expect(resetFleetRuntimeState).toHaveBeenCalledOnce();
+    expect(resetArchiveRuntimeState).toHaveBeenCalledOnce();
     expect(diagnostics.marketUi).toEqual({ activeWorkspace: 'spot', focusedGoodId: null });
     expect(diagnostics.fleetUi).toEqual({ activeSurface: null, surfaceMode: null });
+    expect(diagnostics.archiveUi).toEqual(Object.assign({ activeTab: 'tab-exploration' }, archiveDiagnostics));
     expect(Object.isFrozen(diagnostics.workspaceSessions)).toBe(true);
     expect(diagnostics.lastInvalidationRegions).toEqual([]);
     expect(diagnostics.workspaceRenders.lastRenderedRegions).toEqual([]);

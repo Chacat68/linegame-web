@@ -276,6 +276,17 @@ export function setSelectedAvailableQuest(questId) {
   _selectedAvailableQuestId = questId || null;
 }
 
+export function getDiagnostics() {
+  return Object.freeze({
+    selectedAvailableQuestId: _selectedAvailableQuestId,
+  });
+}
+
+export function resetRuntimeState() {
+  _selectedAvailableQuestId = null;
+  return getDiagnostics();
+}
+
 function _focusQuestFallbackAction(action, state, onAccept, onAbandon, questDispatchContext, onApplyQuestDispatch, onResolveQuestBlocker) {
   if (!action || !action.targetQuestId) return;
 

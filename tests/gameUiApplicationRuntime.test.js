@@ -41,6 +41,7 @@ function createHarness(overrides) {
       closeMarket: vi.fn(),
       isMarketOpen: vi.fn(function () { return false; }),
       openQuestsPanel: vi.fn(),
+      getActiveArchiveTab: vi.fn(function () { return 'tab-quest'; }),
     },
     UIManager: { init: vi.fn(), getNavigationSnapshot: vi.fn(function () { return { activeWorkspace: 'map' }; }) },
     Modal: { init: vi.fn() },
@@ -158,10 +159,28 @@ describe('GameUiApplicationRuntime', function () {
     expect(MarketUI.render).toHaveBeenCalled();
   });
 
+  it('协调器尚未创建时也会重置所有已加载工作区会话', function () {
+    var harness = createHarness();
+    var resetMarketRuntime = vi.fn();
+    var resetFleetRuntime = vi.fn();
+    var resetArchiveRuntime = vi.fn();
+    harness.loaded.market = { resetRuntimeState: resetMarketRuntime };
+    harness.loaded.fleet = { resetRuntimeState: resetFleetRuntime };
+    harness.loaded.archive = { resetRuntimeState: resetArchiveRuntime };
+
+    harness.runtime.reset();
+
+    expect(resetMarketRuntime).toHaveBeenCalledOnce();
+    expect(resetFleetRuntime).toHaveBeenCalledOnce();
+    expect(resetArchiveRuntime).toHaveBeenCalledOnce();
+    expect(harness.runtime.getDiagnostics()).toEqual({ coordinator: null, lifecycle: null, market: null, settings: null });
+  });
+
   it('统一初始化、场景就绪、入口呈现、重置与释放 UI 生命周期', async function () {
     var harness = createHarness();
     var resetMarketRuntime = vi.fn();
     var resetFleetRuntime = vi.fn();
+    var resetArchiveRuntime = vi.fn();
     harness.loaded.market = {
       getDiagnostics: function () { return { activeWorkspace: 'spot' }; },
       render: vi.fn(),
@@ -170,6 +189,12 @@ describe('GameUiApplicationRuntime', function () {
     harness.loaded.fleet = {
       getDiagnostics: function () { return { activeSurface: null, surfaceMode: null }; },
       resetRuntimeState: resetFleetRuntime,
+    };
+    harness.loaded.archive = {
+      getDiagnostics: function () {
+        return { quest: { selectedAvailableQuestId: null }, exploration: { focus: null }, resetCount: 1 };
+      },
+      resetRuntimeState: resetArchiveRuntime,
     };
     expect(harness.runtime.initialize()).toBe(true);
     expect(harness.ui.MapUI.init).toHaveBeenCalled();
@@ -188,8 +213,14 @@ describe('GameUiApplicationRuntime', function () {
     harness.runtime.reset();
     expect(resetMarketRuntime).toHaveBeenCalledOnce();
     expect(resetFleetRuntime).toHaveBeenCalledOnce();
+    expect(resetArchiveRuntime).toHaveBeenCalledOnce();
     expect(harness.runtime.getDiagnostics().marketUi).toEqual({ activeWorkspace: 'spot' });
     expect(harness.runtime.getDiagnostics().fleetUi).toEqual({ activeSurface: null, surfaceMode: null });
+    expect(harness.runtime.getDiagnostics().archiveUi).toEqual(expect.objectContaining({
+      activeTab: 'tab-quest',
+      quest: { selectedAvailableQuestId: null },
+      exploration: { focus: null },
+    }));
     harness.runtime.dispose();
     expect(harness.ui.ContextInspector.dispose).toHaveBeenCalledOnce();
     expect(harness.ui.DeferredFeatureStatusUI.dispose).toHaveBeenCalledOnce();

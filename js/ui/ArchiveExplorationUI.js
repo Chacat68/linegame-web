@@ -270,6 +270,19 @@ export function setFocus(systemId, chainId) {
     : null;
 }
 
+export function getDiagnostics() {
+  return Object.freeze({
+    focus: _pendingFocus
+      ? Object.freeze({ systemId: _pendingFocus.systemId, chainId: _pendingFocus.chainId })
+      : null,
+  });
+}
+
+export function resetRuntimeState() {
+  _pendingFocus = null;
+  return getDiagnostics();
+}
+
 export function revealFocus(systemId, chainId) {
   setFocus(systemId, chainId);
   if (typeof document === 'undefined' || !document.querySelector) return false;

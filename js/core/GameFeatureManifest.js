@@ -188,23 +188,14 @@ export function createGameFeatureManifest(options) {
       dependencies: ['achievement'],
       load: function () {
         return Promise.all([
-          import('../ui/QuestUI.js'),
-          import('../ui/ArchiveExplorationUI.js'),
-          import('../ui/ResearchUI.js'),
-          import('../ui/FactionUI.js'),
-          import('../ui/AchievementUI.js'),
+          import('../ui/ArchiveUI.js'),
           loadStylesheet('archive-terminal', ARCHIVE_TERMINAL_STYLES_URL),
-        ]).then(function (modules) {
-          return {
-            QuestUI: modules[0],
-            ArchiveExplorationUI: modules[1],
-            ResearchUI: modules[2],
-            FactionUI: modules[3],
-            AchievementUI: modules[4],
-          };
-        });
+        ]).then(function (modules) { return modules[0]; });
       },
       initialize: function (ArchiveUI) { _call(hooks, 'syncArchiveView', [ArchiveUI]); },
+      dispose: function (module) {
+        if (module && typeof module.resetRuntimeState === 'function') module.resetRuntimeState();
+      },
       onError: onError('archive'),
     },
     save: {

@@ -19,11 +19,7 @@ describe('deferred terminal UI loading', function () {
     expect(source).not.toContain("import('../ui/MarketUI.js')");
     expect(featureManifest).toContain("import('../ui/MarketUI.js')");
     expect(featureManifest).toContain("import('../ui/FleetUI.js')");
-    expect(featureManifest).toContain("import('../ui/QuestUI.js')");
-    expect(featureManifest).toContain("import('../ui/ArchiveExplorationUI.js')");
-    expect(featureManifest).toContain("import('../ui/ResearchUI.js')");
-    expect(featureManifest).toContain("import('../ui/FactionUI.js')");
-    expect(featureManifest).toContain("import('../ui/AchievementUI.js')");
+    expect(featureManifest).toContain("import('../ui/ArchiveUI.js')");
     expect(featureManifest).toContain("import('../ui/SaveUI.js')");
     expect(featureManifest).toContain("import('../ui/VictoryResultUI.js')");
     expect(featureRegistry).toContain("_notify(feature, 'loading')");
@@ -90,6 +86,8 @@ describe('deferred terminal UI loading', function () {
     expect(featureManifest).toContain("loadStylesheet('fleet-base', FLEET_STYLES_URL)");
     expect(featureManifest).toContain("loadStylesheet('hangar-terminal', HANGAR_TERMINAL_STYLES_URL)");
     expect(featureManifest).toContain("loadStylesheet('archive-terminal', ARCHIVE_TERMINAL_STYLES_URL)");
+    expect(featureManifest).toContain("import('../ui/ArchiveUI.js')");
+    expect(featureManifest).not.toContain("import('../ui/QuestUI.js')");
     expect(featureManifest).toContain("loadStylesheet('market-terminal', MARKET_TERMINAL_STYLES_URL)");
     expect(featureRegistry).toContain('link.dataset.deferredUiStyle = feature');
     expect(featureRegistry).toContain("document.getElementById('app-styles')");

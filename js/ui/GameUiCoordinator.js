@@ -582,8 +582,10 @@ export function createGameUiCoordinator(options) {
   function reset() {
     var MarketUI = _getLoadedFeature('market');
     var FleetUI = _getLoadedFeature('fleet');
+    var ArchiveUI = _getLoadedFeature('archive');
     _call(MarketUI, 'resetRuntimeState', []);
     _call(FleetUI, 'resetRuntimeState', []);
+    _call(ArchiveUI, 'resetRuntimeState', []);
     lastInvalidationRegions = Object.freeze([]);
     workspaceRenderCounts = _createWorkspaceRenderCounts();
     lastRenderedWorkspaceRegions = Object.freeze([]);
@@ -593,12 +595,20 @@ export function createGameUiCoordinator(options) {
   function getDiagnostics() {
     var MarketUI = _getLoadedFeature('market');
     var FleetUI = _getLoadedFeature('fleet');
+    var ArchiveUI = _getLoadedFeature('archive');
     var marketUiDiagnostics = _call(MarketUI, 'getDiagnostics', []) || null;
     var fleetUiDiagnostics = _call(FleetUI, 'getDiagnostics', []) || null;
+    var archiveModuleDiagnostics = _call(ArchiveUI, 'getDiagnostics', []) || null;
+    var archiveUiDiagnostics = archiveModuleDiagnostics
+      ? Object.freeze(Object.assign({
+          activeTab: _call(MapUI, 'getActiveArchiveTab', []) || null,
+        }, archiveModuleDiagnostics))
+      : null;
     return Object.freeze({
       featureStatus: _call(FeatureStatus, 'getDiagnostics', []) || null,
       marketUi: marketUiDiagnostics,
       fleetUi: fleetUiDiagnostics,
+      archiveUi: archiveUiDiagnostics,
       renderAllCount: renderAllCount,
       invalidationCount: invalidationCount,
       lastInvalidationRegions: lastInvalidationRegions,
@@ -606,7 +616,7 @@ export function createGameUiCoordinator(options) {
         map: null,
         trade: marketUiDiagnostics,
         fleet: fleetUiDiagnostics,
-        archive: null,
+        archive: archiveUiDiagnostics,
         logs: null,
       }),
       workspaceRenders: Object.freeze({

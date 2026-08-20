@@ -40,18 +40,13 @@ import {
   buildMarketCommodityContextView,
   buildMarketCommodityDetailView,
 } from './MarketCommodityDetailPresenter.js';
+import {
+  createMarketWorkspaceSession,
+} from './MarketWorkspaceSession.js';
 
 export { getTradeStationCandidateIntel };
 
-const _focusedMarketGood = Object.create(null);
-let _activeMarketContext = null;
-const _marketChartRange = Object.create(null);
-const DEFAULT_MARKET_BATCH_SORT_MODES = Object.freeze({
-  investment: 'yield',
-  upgrade: 'income',
-  strategy: 'income',
-});
-let _marketBatchPlanSortModes = Object.assign({}, DEFAULT_MARKET_BATCH_SORT_MODES);
+const _marketSession = createMarketWorkspaceSession();
 const MARKET_WORKSPACE_TABS = [
   { id: 'spot', label: '交易', hint: '买卖与补给', stage: '01' },
   { id: 'capital', label: '资金', hint: '贷款与投资', stage: '03' },
@@ -80,15 +75,6 @@ export const MARKET_RENDER_REGION = Object.freeze({
 });
 const MARKET_RENDER_REGION_NAMES = Object.freeze(Object.values(MARKET_RENDER_REGION));
 
-const DEFAULT_MARKET_SUBWORKSPACE_TABS = Object.freeze({
-  spot: 'trade',
-  capital: 'local',
-  operations: 'local',
-});
-let _activeMarketWorkspaceTab = 'spot';
-let _activeMarketSubworkspaceTabs = Object.assign({}, DEFAULT_MARKET_SUBWORKSPACE_TABS);
-let _lastMarketProgression = null;
-let _marketOverviewPriceMode = 'buy';
 let _marketRenderCounts = {
   [MARKET_RENDER_REGION.CHROME]: 0,
   [MARKET_RENDER_REGION.SPOT]: 0,
@@ -96,7 +82,6 @@ let _marketRenderCounts = {
   [MARKET_RENDER_REGION.OPERATIONS]: 0,
 };
 let _lastRenderedRegions = Object.freeze([]);
-let _marketRuntimeResetCount = 0;
 
 function _hasDocument() {
   return typeof document !== 'undefined';
@@ -446,13 +431,12 @@ export function setFocusedMarketGood(sysId, marketMode, goodId) {
   var focusKey = _getMarketFocusKey(sysId, marketMode);
   if (!focusKey || !normalizedGoodId) return false;
 
-  _focusedMarketGood[focusKey] = normalizedGoodId;
-  return true;
+  return _marketSession.setFocusedGood(focusKey, normalizedGoodId);
 }
 
 export function getFocusedMarketGood(sysId, marketMode) {
   var focusKey = String(sysId || '') + ':' + (marketMode === 'black' ? 'black' : 'open');
-  return _focusedMarketGood[focusKey] || null;
+  return _marketSession.getFocusedGood(focusKey);
 }
 
 export function renderContextInspector(request) {
@@ -463,12 +447,13 @@ export function renderContextInspector(request) {
   var good = GOODS.find(function (entry) { return entry.id === context.id; });
   if (!good) return false;
 
-  var systemId = _activeMarketContext && _activeMarketContext.systemId
-    ? _activeMarketContext.systemId
+  var activeContext = _marketSession.getActiveContext();
+  var systemId = activeContext && activeContext.systemId
+    ? activeContext.systemId
     : state.currentSystem;
   var system = findSystem(systemId) || findSystem(state.currentSystem);
   if (!system) return false;
-  var isBlack = !!(_activeMarketContext && _activeMarketContext.mode === 'black');
+  var isBlack = !!(activeContext && activeContext.mode === 'black');
   var buyPrice = isBlack
     ? Economy.getBlackMarketBuyPrice(system.id, good.id, state)
     : Economy.getBuyPrice(system.id, good.id, state);
@@ -498,12 +483,13 @@ export function renderWorkspaceDetail(request) {
   var good = GOODS.find(function (entry) { return entry.id === detail.id; });
   if (!good) return false;
 
-  var systemId = _activeMarketContext && _activeMarketContext.systemId
-    ? _activeMarketContext.systemId
+  var activeContext = _marketSession.getActiveContext();
+  var systemId = activeContext && activeContext.systemId
+    ? activeContext.systemId
     : state.currentSystem;
   var system = findSystem(systemId) || findSystem(state.currentSystem);
   if (!system) return false;
-  var isBlack = !!(_activeMarketContext && _activeMarketContext.mode === 'black');
+  var isBlack = !!(activeContext && activeContext.mode === 'black');
   var view = buildMarketCommodityDetailView({
     good: good,
     system: system,
@@ -542,14 +528,15 @@ function _getFirstUnlockedWorkspace(progression) {
 }
 
 function _ensureMarketWorkspaceState(progression) {
-  if (!MARKET_WORKSPACE_TABS.some(function (entry) { return entry.id === _activeMarketWorkspaceTab; })) {
-    _activeMarketWorkspaceTab = 'spot';
+  var activeWorkspace = _marketSession.getWorkspace();
+  if (!MARKET_WORKSPACE_TABS.some(function (entry) { return entry.id === activeWorkspace; })) {
+    activeWorkspace = _marketSession.setWorkspace('spot');
   }
-  if (!_isMarketWorkspaceUnlocked(_activeMarketWorkspaceTab, progression)) {
-    _activeMarketWorkspaceTab = _getFirstUnlockedWorkspace(progression);
+  if (!_isMarketWorkspaceUnlocked(activeWorkspace, progression)) {
+    activeWorkspace = _marketSession.setWorkspace(_getFirstUnlockedWorkspace(progression));
   }
-  _ensureMarketSubworkspaceState(_activeMarketWorkspaceTab, progression);
-  return _activeMarketWorkspaceTab;
+  _ensureMarketSubworkspaceState(activeWorkspace, progression);
+  return activeWorkspace;
 }
 
 function _applyMarketSubworkspaceTabState(container, workspaceId, progression) {
@@ -571,20 +558,21 @@ function _applyMarketSubworkspaceTabState(container, workspaceId, progression) {
 }
 
 export function setMarketWorkspaceFocus(focus) {
-  var normalized = _normalizeMarketWorkspaceFocus(focus, _lastMarketProgression);
+  var progression = _marketSession.getProgression();
+  var normalized = _normalizeMarketWorkspaceFocus(focus, progression);
   if (!normalized) return false;
 
-  _activeMarketWorkspaceTab = normalized.workspaceId;
+  _marketSession.setWorkspace(normalized.workspaceId);
   if (normalized.subworkspaceId) {
-    _activeMarketSubworkspaceTabs[normalized.workspaceId] = normalized.subworkspaceId;
+    _marketSession.setSubworkspace(normalized.workspaceId, normalized.subworkspaceId);
   }
 
   if (_hasDocument()) {
-    _applyMarketWorkspaceTabState(_lastMarketProgression);
+    _applyMarketWorkspaceTabState(progression);
     _applyMarketSubworkspaceTabState(
       document.getElementById('market-' + normalized.workspaceId + '-pane'),
       normalized.workspaceId,
-      _lastMarketProgression
+      progression
     );
     if (normalized.goodId) {
       _revealMarketGoodFocus(normalized.goodId, { tradeAction: normalized.tradeAction });
@@ -597,8 +585,8 @@ export function setMarketWorkspaceFocus(focus) {
 }
 
 export function getActiveMarketWorkspaceFocus() {
-  var workspaceId = _activeMarketWorkspaceTab || 'spot';
-  var subworkspaceId = _activeMarketSubworkspaceTabs[workspaceId] || '';
+  var workspaceId = _marketSession.getWorkspace() || 'spot';
+  var subworkspaceId = _marketSession.getSubworkspace(workspaceId);
   return {
     workspaceId: workspaceId,
     subworkspaceId: subworkspaceId,
@@ -610,6 +598,7 @@ function _applyMarketWorkspaceTabState(progression) {
   if (!_hasDocument()) return;
 
   if (progression) _ensureMarketWorkspaceState(progression);
+  var activeWorkspace = _marketSession.getWorkspace();
   var tabs = document.getElementById('market-workspace-tabs');
   var paneMap = {
     spot: document.getElementById('market-spot-pane'),
@@ -619,7 +608,7 @@ function _applyMarketWorkspaceTabState(progression) {
 
   if (tabs) {
     tabs.querySelectorAll('[data-market-workspace-tab]').forEach(function (button) {
-      var isActive = button.dataset.marketWorkspaceTab === _activeMarketWorkspaceTab;
+      var isActive = button.dataset.marketWorkspaceTab === activeWorkspace;
       button.classList.toggle('active', isActive);
       button.setAttribute('aria-selected', isActive ? 'true' : 'false');
       button.setAttribute('tabindex', isActive ? '0' : '-1');
@@ -628,7 +617,7 @@ function _applyMarketWorkspaceTabState(progression) {
 
   Object.keys(paneMap).forEach(function (key) {
     if (!paneMap[key]) return;
-    var isActive = key === _activeMarketWorkspaceTab;
+    var isActive = key === activeWorkspace;
     paneMap[key].classList.toggle('hidden', !isActive);
     paneMap[key].setAttribute('aria-labelledby', 'market-workspace-tab-' + key);
     paneMap[key].setAttribute('aria-hidden', isActive ? 'false' : 'true');
@@ -653,9 +642,10 @@ function _renderMarketWorkspaceTabs(progression) {
   if (!tabs) return;
 
   _ensureMarketWorkspaceState(progression);
+  var activeWorkspace = _marketSession.getWorkspace();
   tabs.innerHTML = _getMarketWorkspaceTabs(progression).map(function (entry) {
     var locked = entry.unlocked === false;
-    var active = entry.id === _activeMarketWorkspaceTab;
+    var active = entry.id === activeWorkspace;
     var tabId = 'market-workspace-tab-' + entry.id;
     var paneId = 'market-' + entry.id + '-pane';
     return '<button id="' + tabId + '" class="market-workspace-tab' + (active ? ' active' : '') + (locked ? ' is-locked' : '') + '" type="button" role="tab" aria-controls="' + paneId + '" aria-selected="' + (active ? 'true' : 'false') + '" tabindex="' + (active ? '0' : '-1') + '" data-market-workspace-tab="' + entry.id + '" data-market-locked="' + (locked ? 'true' : 'false') + '"' + (locked ? ' disabled aria-disabled="true"' : '') + '>' +
@@ -671,8 +661,8 @@ function _renderMarketWorkspaceTabs(progression) {
   var workspaceButtons = tabs.querySelectorAll('[data-market-workspace-tab]');
   function activateWorkspace(button) {
     if (button.disabled || button.dataset.marketLocked === 'true') return;
-    _activeMarketWorkspaceTab = button.dataset.marketWorkspaceTab || 'spot';
-    _ensureMarketSubworkspaceState(_activeMarketWorkspaceTab, progression);
+    var workspaceId = _marketSession.setWorkspace(button.dataset.marketWorkspaceTab || 'spot');
+    _ensureMarketSubworkspaceState(workspaceId, progression);
     _applyMarketWorkspaceTabState(progression);
   }
 
@@ -705,11 +695,11 @@ function _getMarketSubworkspaceTabs(workspaceId, progression) {
 function _ensureMarketSubworkspaceState(workspaceId, progression) {
   var tabs = _getMarketSubworkspaceTabs(workspaceId, progression);
   if (tabs.length === 0) return '';
-  var activeTab = _activeMarketSubworkspaceTabs[workspaceId];
+  var activeTab = _marketSession.getSubworkspace(workspaceId);
   if (!tabs.some(function (entry) { return entry.id === activeTab && entry.unlocked !== false; })) {
     var firstUnlocked = tabs.find(function (entry) { return entry.unlocked !== false; });
     activeTab = (firstUnlocked || tabs[0]).id;
-    _activeMarketSubworkspaceTabs[workspaceId] = activeTab;
+    _marketSession.setSubworkspace(workspaceId, activeTab);
   }
   return activeTab;
 }
@@ -766,7 +756,7 @@ function _bindMarketSubworkspaceTabs(container, progression) {
     var workspaceId = button.dataset.marketSubworkspaceTab;
     var tabId = button.dataset.marketSubworkspaceId;
     if (!workspaceId || !tabId) return;
-    _activeMarketSubworkspaceTabs[workspaceId] = tabId;
+    _marketSession.setSubworkspace(workspaceId, tabId);
     _applyMarketSubworkspaceTabState(container, workspaceId, progression);
   }
 
@@ -794,16 +784,16 @@ function _getMarketChartGoodsList(marketMode) {
 
 function _updateMainKlineChart(state, sysId, snapshots, marketMode) {
   var focusKey = sysId + ':' + (marketMode || 'open');
-  var range = _marketChartRange[focusKey] || 14;
+  var range = _marketSession.getChartRange(focusKey);
   return updateMainMarketKlineChart({
     state: state,
     systemId: sysId,
     snapshots: snapshots,
     marketMode: marketMode,
-    focusedGoodId: _focusedMarketGood[focusKey],
+    focusedGoodId: _marketSession.getFocusedGood(focusKey),
     range: range,
     onRangeChange: function (nextRange) {
-      _marketChartRange[focusKey] = nextRange;
+      _marketSession.setChartRange(focusKey, nextRange);
       var updatedSnapshots = _buildMarketSnapshots(
         state,
         sysId,
@@ -819,21 +809,23 @@ function _updateMainKlineChart(state, sysId, snapshots, marketMode) {
 
 function _renderMarketDashboard(state, sysId, marketMode, snapshots) {
   var focusKey = sysId + ':' + (marketMode || 'open');
+  var focusedGoodId = _marketSession.getFocusedGood(focusKey);
   var hasFocusedSnapshot = snapshots && snapshots.some(function (entry) {
-    return entry.good.id === _focusedMarketGood[focusKey];
+    return entry.good.id === focusedGoodId;
   });
   if (!hasFocusedSnapshot && snapshots && snapshots[0]) {
-    _focusedMarketGood[focusKey] = snapshots[0].good.id;
+    focusedGoodId = snapshots[0].good.id;
+    _marketSession.setFocusedGood(focusKey, focusedGoodId);
   }
   return renderMarketChartDashboard({
     state: state,
     systemId: sysId,
     snapshots: snapshots,
     marketMode: marketMode,
-    focusedGoodId: _focusedMarketGood[focusKey],
-    range: _marketChartRange[focusKey] || 14,
+    focusedGoodId: focusedGoodId,
+    range: _marketSession.getChartRange(focusKey),
     onFocusChange: function (goodId) {
-      _focusedMarketGood[focusKey] = goodId;
+      _marketSession.setFocusedGood(focusKey, goodId);
       ContextInspector.replaceContext({
         type: 'commodity',
         id: goodId,
@@ -845,7 +837,7 @@ function _renderMarketDashboard(state, sysId, marketMode, snapshots) {
       _updateMainKlineChart(state, sysId, snapshots, marketMode);
     },
     onRangeChange: function (nextRange) {
-      _marketChartRange[focusKey] = nextRange;
+      _marketSession.setChartRange(focusKey, nextRange);
       var updatedSnapshots = _buildMarketSnapshots(
         state,
         sysId,
@@ -864,11 +856,12 @@ function _renderOverviewTable(state, galaxyId, onPlanetClick, tableIds) {
   var tbody = document.getElementById(tableIds.tbodyId);
   if (!thead || !tbody) return;
 
-  var isSell = _marketOverviewPriceMode === 'sell';
+  var overviewPriceMode = _marketSession.getOverviewPriceMode();
+  var isSell = overviewPriceMode === 'sell';
   var table = document.getElementById(tableIds.tableId);
   var status = document.getElementById(tableIds.statusId);
   if (table) {
-    table.dataset.priceMode = _marketOverviewPriceMode;
+    table.dataset.priceMode = overviewPriceMode;
     table.setAttribute('aria-label', isSell ? '各地商品卖出价格表' : '各地商品买入价格表');
   }
   if (status) status.textContent = '表格显示各地的' + (isSell ? '卖出价。' : '买入价。');
@@ -986,11 +979,11 @@ function _bindMarketFinanceCommands(container, context, options) {
 
     if (action === 'market-batch-set-sort') {
       if (!opts.allowOperationsSort) return;
-      _marketBatchPlanSortModes = _updateMarketOperationsSortModes(
-        _marketBatchPlanSortModes,
+      _marketSession.setOperationsSortModes(_updateMarketOperationsSortModes(
+        _marketSession.getOperationsSortModes(),
         button.dataset.batchSortScope,
         button.dataset.batchSortMode
-      );
+      ));
       renderOperations(context.renderRequest);
       return;
     }
@@ -1055,7 +1048,7 @@ function _renderMarketOperations(context) {
     systemId: context.systemId,
     isCurrentSystem: context.isCurrentSystem,
     commerceSnapshot: _getCommerceSnapshot(context),
-    sortModes: _marketBatchPlanSortModes,
+    sortModes: _marketSession.getOperationsSortModes(),
   });
   container.innerHTML = workspace.overviewHtml +
     '<div class="market-workspace-board market-operations-board">' +
@@ -1070,14 +1063,14 @@ function _renderMarketOperations(context) {
 // ---------------------------------------------------------------------------
 
 function _setMarketOverviewPriceMode(mode) {
-  _marketOverviewPriceMode = mode === 'sell' ? 'sell' : 'buy';
+  _marketSession.setOverviewPriceMode(mode);
 }
 
 function _syncMarketOverviewPriceModeControls() {
   ['buy', 'sell'].forEach(function (mode) {
     var button = document.getElementById('market-overview-price-' + mode);
     if (!button) return;
-    var active = mode === _marketOverviewPriceMode;
+    var active = mode === _marketSession.getOverviewPriceMode();
     button.classList.toggle('is-active', active);
     button.setAttribute('aria-checked', active ? 'true' : 'false');
     button.setAttribute('tabindex', active ? '0' : '-1');
@@ -1127,12 +1120,12 @@ function _createMarketRenderContext(request) {
     blackMarketUnlocked: blackMarketUnlocked,
   });
 
-  _activeMarketContext = { systemId: systemId, mode: effectiveMarketMode };
-  _lastMarketProgression = progression;
-  if (isBlack && _activeMarketSubworkspaceTabs.spot === 'trade') {
-    _activeMarketSubworkspaceTabs.spot = 'black';
-  } else if (!isBlack && _activeMarketSubworkspaceTabs.spot === 'black') {
-    _activeMarketSubworkspaceTabs.spot = 'trade';
+  _marketSession.setActiveContext({ systemId: systemId, mode: effectiveMarketMode });
+  _marketSession.setProgression(progression);
+  if (isBlack && _marketSession.getSubworkspace('spot') === 'trade') {
+    _marketSession.setSubworkspace('spot', 'black');
+  } else if (!isBlack && _marketSession.getSubworkspace('spot') === 'black') {
+    _marketSession.setSubworkspace('spot', 'trade');
   }
   _ensureMarketWorkspaceState(progression);
   return {
@@ -1172,15 +1165,16 @@ function _resolveMarketSpotData(context) {
         return good.marketAccess && good.marketAccess.indexOf('open') !== -1;
       });
   context.focusKey = context.systemId + ':' + context.marketMode;
-  if (!_marketChartRange[context.focusKey]) _marketChartRange[context.focusKey] = 14;
+  var chartRange = _marketSession.getChartRange(context.focusKey);
+  _marketSession.setChartRange(context.focusKey, chartRange);
   context.snapshots = _buildMarketSnapshots(
     context.state,
     context.systemId,
     context.goodsList,
     context.isBlack,
-    _marketChartRange[context.focusKey]
+    chartRange
   );
-  context.focusedGoodId = _focusedMarketGood[context.focusKey] ||
+  context.focusedGoodId = _marketSession.getFocusedGood(context.focusKey) ||
     (context.snapshots[0] && context.snapshots[0].good.id);
   context.spotDataResolved = true;
   return context;
@@ -1220,7 +1214,7 @@ function _renderMarketSpot(context) {
         marketMode: effectiveMarketMode,
         systemFaction: context.systemFaction,
         blackMarketUnlocked: context.blackMarketUnlocked,
-        priceMode: _marketOverviewPriceMode,
+        priceMode: _marketSession.getOverviewPriceMode(),
       }),
       black: _renderBlackMarketSection({
         state: state,
@@ -1296,7 +1290,7 @@ function _renderMarketSpot(context) {
 
   var activeGoodId = focusedGoodId;
   if (activeGoodId) {
-    _focusedMarketGood[focusKey] = activeGoodId;
+    _marketSession.setFocusedGood(focusKey, activeGoodId);
     ContextInspector.replaceContext({
       type: 'commodity',
       id: activeGoodId,
@@ -1326,7 +1320,7 @@ function _renderMarketSpot(context) {
   function focusRenderedGood(goodId) {
     var good = findRenderedGood(goodId);
     if (!good) return;
-    _focusedMarketGood[focusKey] = good.id;
+    _marketSession.setFocusedGood(focusKey, good.id);
     ContextInspector.replaceContext({
       type: 'commodity',
       id: good.id,
@@ -1461,39 +1455,15 @@ export function render(request) {
 }
 
 export function getDiagnostics() {
-  var activeContext = _activeMarketContext
-    ? Object.freeze({
-        systemId: _activeMarketContext.systemId,
-        mode: _activeMarketContext.mode,
-      })
-    : null;
-  var focusKey = activeContext ? activeContext.systemId + ':' + activeContext.mode : '';
-  return Object.freeze({
-    activeContext: activeContext,
-    activeWorkspace: _activeMarketWorkspaceTab,
-    activeSubworkspace: _activeMarketSubworkspaceTabs[_activeMarketWorkspaceTab] || '',
-    subworkspaces: Object.freeze(Object.assign({}, _activeMarketSubworkspaceTabs)),
-    focusedGoodId: focusKey ? (_focusedMarketGood[focusKey] || null) : null,
-    chartRange: focusKey ? (_marketChartRange[focusKey] || 14) : null,
-    overviewPriceMode: _marketOverviewPriceMode,
-    operationsSortModes: Object.freeze(Object.assign({}, _marketBatchPlanSortModes)),
+  return Object.freeze(Object.assign({}, _marketSession.getDiagnostics(), {
     renderCounts: Object.freeze(Object.assign({}, _marketRenderCounts)),
     lastRenderedRegions: _lastRenderedRegions,
-    resetCount: _marketRuntimeResetCount,
-  });
+  }));
 }
 
 export function resetRuntimeState() {
-  Object.keys(_focusedMarketGood).forEach(function (key) { delete _focusedMarketGood[key]; });
-  Object.keys(_marketChartRange).forEach(function (key) { delete _marketChartRange[key]; });
-  _activeMarketContext = null;
-  _activeMarketWorkspaceTab = 'spot';
-  _activeMarketSubworkspaceTabs = Object.assign({}, DEFAULT_MARKET_SUBWORKSPACE_TABS);
-  _lastMarketProgression = null;
-  _marketOverviewPriceMode = 'buy';
-  _marketBatchPlanSortModes = Object.assign({}, DEFAULT_MARKET_BATCH_SORT_MODES);
+  _marketSession.reset();
   _lastRenderedRegions = Object.freeze([]);
-  _marketRuntimeResetCount += 1;
   return getDiagnostics();
 }
 
