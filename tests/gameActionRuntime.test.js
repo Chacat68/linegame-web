@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { createGameActionRuntime } from '../js/core/GameActionRuntime.js';
+import { readApplicationComposition } from './runtimeCompositionSource.js';
 
 function createHarness() {
   var state = { id: 'A' };
@@ -133,8 +134,7 @@ describe('GameActionRuntime', function () {
 
   it('GameApplication 只持有单一动作运行时，不再逐项 import 或缓存控制器', function () {
     var gameApplication = readFileSync('js/core/GameApplication.js', 'utf8');
-    var gameManager = gameApplication + '\n' +
-      readFileSync('js/core/GameRuntimeNodeFactories.js', 'utf8');
+    var gameManager = readApplicationComposition();
     var actionRuntime = readFileSync('js/core/GameActionRuntime.js', 'utf8');
     var factories = [
       'FleetActionController',

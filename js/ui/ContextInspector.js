@@ -13,6 +13,7 @@ const HOST_ID = 'context-inspector-render-host';
 const TITLE_ID = 'context-inspector-title';
 const TOGGLE_SELECTOR = '[data-context-inspector-toggle]';
 const CLOSE_SELECTOR = '[data-context-inspector-close]';
+const ACTION_SELECTOR = '[data-context-action]';
 const DEFAULT_WORKSPACE_ID = 'map';
 const RAIL_EVENT = 'starmap-rail:panel-open';
 const RAIL_SOURCE = 'context-inspector';
@@ -38,6 +39,7 @@ let _railListener = null;
 let _releaseEscapeLayer = null;
 let _document = null;
 let _compactMode = false;
+let _currentActionHandler = null;
 
 function _getDocument(options) {
   if (options && options.document) return options.document;
@@ -176,6 +178,23 @@ function _handleCloseClick(event) {
   close({ restoreFocus: true });
 }
 
+function _handleContextAction(event) {
+  var target = event && event.target && typeof event.target.closest === 'function'
+    ? event.target.closest(ACTION_SELECTOR)
+    : null;
+  if (!target || !_host || (typeof _host.contains === 'function' && !_host.contains(target))) return;
+  if (event && typeof event.preventDefault === 'function') event.preventDefault();
+  if (typeof _currentActionHandler !== 'function') return;
+  _currentActionHandler({
+    action: target.dataset ? target.dataset.contextAction || '' : '',
+    context: getContext(_activeWorkspaceId),
+    dataset: target.dataset || {},
+    state: _getState(),
+    target: target,
+    workspaceId: _activeWorkspaceId,
+  });
+}
+
 function _bindElement(element, datasetKey, eventName, handler) {
   if (!element || typeof element.addEventListener !== 'function') return;
   if (element.dataset && element.dataset[datasetKey] === 'true') return;
@@ -252,6 +271,7 @@ export function init(options) {
     _bindElement(toggle, 'contextInspectorToggleBound', 'click', _handleToggleClick);
   });
   _bindElement(_closeButton, 'contextInspectorCloseBound', 'click', _handleCloseClick);
+  _bindElement(_host, 'contextInspectorActionBound', 'click', _handleContextAction);
   if (_releaseEscapeLayer) _releaseEscapeLayer();
   _releaseEscapeLayer = registerEscapeLayer('context-inspector', {
     priority: 20,
@@ -387,6 +407,7 @@ export const registerAdapter = registerRenderer;
 
 /** Resolve latest state, then delegate the active context key to its renderer. */
 export function render() {
+  _currentActionHandler = null;
   var context = getContext(_activeWorkspaceId);
   var currentRevision = _readCurrentRevision();
   if (context && currentRevision !== null && context.revision !== currentRevision) {
@@ -421,6 +442,9 @@ export function render() {
     _renderEmpty(null);
   } else if (result && result.title && _title) {
     _title.textContent = String(result.title);
+  }
+  if (result && typeof result.onAction === 'function') {
+    _currentActionHandler = result.onAction;
   }
   return getSnapshot();
 }
@@ -457,6 +481,10 @@ export function dispose() {
     _closeButton.removeEventListener('click', _handleCloseClick);
   }
   if (_closeButton && _closeButton.dataset) delete _closeButton.dataset.contextInspectorCloseBound;
+  if (_host && typeof _host.removeEventListener === 'function') {
+    _host.removeEventListener('click', _handleContextAction);
+  }
+  if (_host && _host.dataset) delete _host.dataset.contextInspectorActionBound;
   if (_railListenerBound && _railListener) EventBus.off(RAIL_EVENT, _railListener);
   if (_releaseEscapeLayer) _releaseEscapeLayer();
 
@@ -480,5 +508,6 @@ export function dispose() {
   _releaseEscapeLayer = null;
   _document = null;
   _compactMode = false;
+  _currentActionHandler = null;
   return hadRuntime;
 }

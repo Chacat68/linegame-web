@@ -25,8 +25,20 @@ describe('workspace Context Inspector presenters', function () {
     expect(host.innerHTML).toContain('食物');
     expect(host.innerHTML).toContain('太阳主星');
     expect(host.innerHTML).toContain('<small>货舱</small><strong>3</strong>');
+    expect(host.innerHTML).toContain('data-context-action="open-detail"');
+    var detailHost = createHost();
+    expect(MarketUI.renderWorkspaceDetail({
+      detail: { type: 'trade-commodity', id: 'food' },
+      state: state,
+      container: detailHost,
+    })).toEqual({ title: '食物 · 商品详情' });
+    expect(detailHost.innerHTML).toContain('workspace-detail-section--commodity');
+    expect(detailHost.innerHTML).toContain('买卖仍在商业工作区内确认');
     expect(MarketUI.renderContextInspector({
       context: { type: 'commodity', id: 'missing' }, state: state, container: host,
+    })).toBe(false);
+    expect(MarketUI.renderWorkspaceDetail({
+      detail: { type: 'trade-commodity', id: 'missing' }, state: state, container: detailHost,
     })).toBe(false);
   });
 
@@ -44,8 +56,18 @@ describe('workspace Context Inspector presenters', function () {
     expect(host.innerHTML).toContain('workspace-context-card--ship');
     expect(host.innerHTML).toContain('当前操控舰');
     expect(host.innerHTML).toContain('<small>货舱</small><strong>2/');
+    expect(host.innerHTML).toContain('data-context-action="open-detail"');
+    var detailHost = createHost();
+    expect(FleetUI.renderWorkspaceDetail({
+      detail: { type: 'fleet-ship', id: '0' }, state: state, container: detailHost,
+    })).toEqual({ title: state.fleet[0].name + ' · 舰船详情' });
+    expect(detailHost.innerHTML).toContain('workspace-detail-section--ship');
+    expect(detailHost.innerHTML).toContain('舰队工作区内确认');
     expect(FleetUI.renderContextInspector({
       context: { type: 'ship', id: '999' }, state: state, container: host,
+    })).toBe(false);
+    expect(FleetUI.renderWorkspaceDetail({
+      detail: { type: 'fleet-ship', id: '999' }, state: state, container: detailHost,
     })).toBe(false);
   });
 });

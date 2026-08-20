@@ -5,6 +5,7 @@ import {
   createMarketCommand,
   normalizeMarketCommand,
 } from '../js/core/MarketCommand.js';
+import { readApplicationComposition } from './runtimeCompositionSource.js';
 
 describe('MarketCommand', function () {
   it('规范化公开与黑市交易并保留领域商品引用', function () {
@@ -73,8 +74,7 @@ describe('MarketCommand', function () {
   });
 
   it('市场 UI 与组合根之间只保留一个 command 端口', function () {
-    var gameManager = readFileSync('js/core/GameApplication.js', 'utf8') + '\n' +
-      readFileSync('js/core/GameRuntimeNodeFactories.js', 'utf8');
+    var gameManager = readApplicationComposition();
     var uiApplication = readFileSync('js/core/GameUiApplicationRuntime.js', 'utf8');
     var coordinator = readFileSync('js/ui/GameUiCoordinator.js', 'utf8');
     var marketUi = readFileSync('js/ui/MarketUI.js', 'utf8');

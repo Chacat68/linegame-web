@@ -12,6 +12,11 @@ import * as Quest from '../systems/quest/QuestSystem.js';
 import * as EventBus from '../core/EventBus.js';
 import * as ContextInspector from './ContextInspector.js';
 import * as WorkspaceDetailSurface from './WorkspaceDetailSurface.js';
+import {
+  buildMapSurveyChainCards,
+  buildMapSurveyLauncher,
+} from './MapSurveyDetailPresenter.js';
+import { createMapSurveyDetailController } from './MapSurveyDetailController.js';
 import { buildGalaxyHubPanel } from './MapGalaxyHubPresenter.js';
 import { createMapViewStateController } from './MapViewStateController.js';
 import { GOODS } from '../data/goods.js';
@@ -76,8 +81,6 @@ let _galaxyViewToggleBound = false;
 let _mapContextRendererRegistered = false;
 let _releaseMapContextRenderer = null;
 let _releaseMapDetailEscape = null;
-let _releaseMapSurveyRenderer = null;
-let _releaseMapReportRenderer = null;
 let _railPanelOpenListener = null;
 let _domListeners = [];
 let _disposed = true;
@@ -90,6 +93,18 @@ function _currentState(fallback) {
 const _mapViewState = createMapViewStateController({
   getState: _currentState,
   getGalaxyAccessState: getGalaxyAccessState,
+});
+
+const _mapSurveyDetails = createMapSurveyDetailController({
+  surface: WorkspaceDetailSurface,
+  getState: _currentState,
+  getRevision: ContextInspector.getCurrentRevision,
+  findSystem: findSystem,
+  getSurveySummary: Exploration.getSurveySummary,
+  getMarketAction: _buildSurveyMarketAction,
+  openMarket: function (state, systemId, options) {
+    return openMarketSystemPanel(state, systemId, options);
+  },
 });
 
 function _bindDomListener(target, eventName, handler, options) {
@@ -237,141 +252,16 @@ function _registerMapContextRenderer() {
       }
     },
   });
-  _releaseMapSurveyRenderer = WorkspaceDetailSurface.registerRenderer('map-survey', _renderSurveyDetail);
-  _releaseMapReportRenderer = WorkspaceDetailSurface.registerRenderer('map-report', _renderSurveyReportDetail);
+  _mapSurveyDetails.register();
 }
 
-function _buildReportMeta(report) {
-  var parts = [];
-  if (report && report.chainLabel) parts.push(report.chainLabel);
-  if (report && report.badge) parts.push(report.badge);
-  if (report && report.day) parts.push('D' + report.day);
-  return parts.join(' · ') || '探索报告';
-}
-
-function _buildReportDetailId(systemId, reportId) {
-  return encodeURIComponent(systemId || '') + '::' + encodeURIComponent(reportId || '');
-}
-
-function _parseReportDetailId(detailId) {
-  var separatorIndex = typeof detailId === 'string' ? detailId.indexOf('::') : -1;
-  if (separatorIndex === -1) return null;
-  try {
-    return {
-      systemId: decodeURIComponent(detailId.slice(0, separatorIndex)),
-      reportId: decodeURIComponent(detailId.slice(separatorIndex + 2)),
-    };
-  } catch (error) {
-    return null;
-  }
-}
-
-function _escapeSelectorAttributeValue(value) {
-  return String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-}
-
-function _buildSurveyReportButtons(summary) {
-  if (!summary || !Array.isArray(summary.reports) || summary.reports.length === 0) {
-    return '<div class="workspace-detail-intro"><p>尚未生成探索报告。完成本地探索点后，调查结论会归档到这里。</p></div>';
-  }
-  return '<div class="workspace-detail-report-list" aria-label="探索报告列表">' + summary.reports.map(function (report) {
-    var reportId = String(report.id || '');
-    return '<button class="workspace-detail-report-button" type="button"' +
-      ' data-workspace-detail-action="open-report"' +
-      ' data-workspace-detail-report-id="' + _escapeHtmlAttr(reportId) + '">' +
-      '<span><strong>' + _escapeHtml((report.icon || '📘') + ' ' + (report.title || '探索报告')) + '</strong>' +
-      '<small>' + _escapeHtml(_buildReportMeta(report)) + '</small></span>' +
-      '<span class="workspace-detail-report-arrow" aria-hidden="true">›</span>' +
-    '</button>';
-  }).join('') + '</div>';
-}
-
-function _renderSurveyDetail(request) {
-  var detail = request && request.detail;
-  var state = request && request.state ? request.state : _currentState();
-  var container = request && request.container;
-  var systemId = detail && detail.id;
-  var sys = findSystem(systemId);
-  var summary = state && systemId ? Exploration.getSurveySummary(state, systemId) : null;
-  if (!container || !sys || !summary) return false;
-
-  container.innerHTML = '<section class="workspace-detail-section" data-map-survey-detail="' + _escapeHtmlAttr(systemId) + '">' +
-    '<div class="workspace-detail-intro"><p>这里集中保存该航点的风险、机会、异常链与调查结论。Context Inspector 只保留当前选择的行动摘要。</p></div>' +
-    _buildSurveySummaryBlock(summary, systemId) +
-    _buildSurveyChainBlock(summary) +
-    '<div class="planet-detail-subsection"><div class="planet-detail-subtitle">调查结论</div>' +
-      _buildSurveyReportButtons(summary) +
-    '</div>' +
-  '</section>';
-
-  return {
-    title: sys.name + ' · 探索档案',
-    onAction: function (action) {
-      if (!action) return false;
-      if (action.action === 'market') {
-        WorkspaceDetailSurface.close();
-        openMarketSystemPanel(action.state || _currentState(), action.dataset.systemId || systemId, {
-          workspaceId: action.dataset.marketWorkspaceId,
-          subworkspaceId: action.dataset.marketSubworkspaceId,
-          marketMode: action.dataset.marketMode || '',
-        });
-        return true;
-      }
-      if (action.action !== 'open-report') return false;
-      var reportId = action.dataset.workspaceDetailReportId;
-      if (!reportId) return false;
-      return WorkspaceDetailSurface.open({
-        type: 'map-report',
-        id: _buildReportDetailId(systemId, reportId),
-        workspaceId: 'map',
-        source: 'survey-archive',
-        revision: ContextInspector.getCurrentRevision(),
-      }, {
-        triggerElement: action.target,
-        returnFocusSelector: '[data-workspace-detail-report-id="' + _escapeSelectorAttributeValue(reportId) + '"]',
-      });
-    },
-  };
-}
-
-function _renderSurveyReportDetail(request) {
-  var detail = request && request.detail;
-  var state = request && request.state ? request.state : _currentState();
-  var container = request && request.container;
-  var parsed = detail ? _parseReportDetailId(detail.id) : null;
-  var sys = parsed ? findSystem(parsed.systemId) : null;
-  var summary = state && parsed ? Exploration.getSurveySummary(state, parsed.systemId) : null;
-  var report = summary && Array.isArray(summary.reports)
-    ? summary.reports.find(function (entry) { return String(entry.id) === parsed.reportId; })
-    : null;
-  if (!container || !sys || !report) return false;
-
-  var tags = Array.isArray(report.signalTags) && report.signalTags.length > 0
-    ? report.signalTags.join(' · ')
-    : '本地情报';
-  container.innerHTML = '<article class="workspace-detail-section" data-map-report-detail="' + _escapeHtmlAttr(report.id) + '">' +
-    '<div class="workspace-detail-intro"><div>' +
-      '<strong class="workspace-detail-report-title">' + _escapeHtml((report.icon || '📘') + ' ' + (report.title || '探索报告')) + '</strong>' +
-      '<span class="workspace-detail-report-meta">' + _escapeHtml(_buildReportMeta(report)) + '</span>' +
-    '</div><span class="planet-detail-chip">情报 +' + _escapeHtml(report.intelValue || 1) + '</span></div>' +
-    '<div class="workspace-detail-report-body">' + _escapeHtml(report.detail || '该报告没有附加说明。') + '</div>' +
-    '<div class="workspace-context-tags" aria-label="报告信号"><span>' + _escapeHtml(tags) + '</span></div>' +
-  '</article>';
-  return { title: sys.name + ' · 单份报告' };
-}
-
-function _openSurveyDetail(systemId, triggerElement) {
-  if (!systemId) return false;
-  return WorkspaceDetailSurface.open({
-    type: 'map-survey',
-    id: systemId,
-    workspaceId: 'map',
-    source: 'map-context',
-    revision: ContextInspector.getCurrentRevision(),
-  }, {
-    triggerElement: triggerElement,
-    returnFocusSelector: '[data-planet-detail-action="open-survey"][data-system-id="' +
-      _escapeSelectorAttributeValue(systemId) + '"]',
+function _buildSurveyMarketAction(state, systemId) {
+  if (!state || !systemId) return null;
+  var marketAction = buildContextualMarketAction(state, systemId, { context: 'survey' });
+  return Object.assign({}, marketAction, {
+    type: 'market',
+    title: '打开 ' + (marketAction.systemName || '当前地点') + ' 的 ' +
+      (marketAction.marketFocusLabel || '市场页'),
   });
 }
 
@@ -566,7 +456,7 @@ function _bindPlanetDetailPanelEvents() {
     }
 
     if (action === 'open-survey') {
-      _openSurveyDetail(systemId, actionButton);
+      _mapSurveyDetails.open(systemId, actionButton);
       return;
     }
 
@@ -836,7 +726,7 @@ function _buildCurrentSystemExplorationCard(flow, sys) {
   var terminalState = flow.phase;
   var state = _currentState();
   var surveySummary = state && sys ? Exploration.getSurveySummary(state, sys.id) : null;
-  var chainHtml = _buildSurveyChainCards(surveySummary, { compact: true });
+  var chainHtml = buildMapSurveyChainCards(surveySummary, { compact: true });
   var signalHtml = _buildCurrentSystemSignalPanel(flow, surveySummary);
 
   var flowHtml = _buildExplorationFlowCard(flow, {
@@ -1362,128 +1252,6 @@ function _buildExplorationProgressRow(flow) {
   '</div>';
 }
 
-function _buildSurveyMetricCard(label, value, note, extraClass) {
-  var className = 'planet-detail-survey-card' + (extraClass ? (' ' + extraClass) : '');
-  var noteHtml = note
-    ? '<div class="planet-detail-survey-note">' + _escapeHtml(note) + '</div>'
-    : '';
-  return '<div class="' + className + '">' +
-    '<div class="planet-detail-survey-label">' + _escapeHtml(label) + '</div>' +
-    '<div class="planet-detail-survey-value">' + _escapeHtml(value) + '</div>' +
-    noteHtml +
-  '</div>';
-}
-
-function _buildSurveySummaryBlock(summary, systemId, options) {
-  if (!summary) return '';
-
-  var opts = options || {};
-
-  var threatClass = summary.threatLevel === 'high'
-    ? 'planet-detail-survey-card--danger'
-    : (summary.threatLevel === 'medium' ? 'planet-detail-survey-card--warning' : 'planet-detail-survey-card--stable');
-  var rewardValue = summary.completionBonusClaimed ? '已领取' : summary.completionRewardLabel;
-  var rewardNote = summary.completionBonusClaimed
-    ? '本地完探奖励已结算'
-    : '调查全部探索点后自动发放';
-  var marketActionHtml = '';
-
-  var state = _currentState();
-  if (state && systemId) {
-    var marketAction = buildContextualMarketAction(state, systemId, {
-      context: 'survey',
-    });
-    marketAction.type = 'market';
-    marketAction.title = '打开 ' + (marketAction.systemName || '当前地点') + ' 的 ' + (marketAction.marketFocusLabel || '市场页');
-    marketActionHtml = '<div class="planet-detail-actions planet-detail-survey-actions">' +
-      _buildExplorationActionButton(marketAction) +
-      (marketAction.contextHint ? '<div class="planet-detail-note">' + _escapeHtml(marketAction.contextHint) + '</div>' : '') +
-    '</div>';
-  }
-
-  return '<div class="planet-detail-subsection">' +
-    (opts.hideHeading ? '' : '<div class="planet-detail-subtitle">探索简报</div>') +
-    '<div class="planet-detail-survey-grid">' +
-      _buildSurveyMetricCard('威胁评级', summary.threatLabel, '决定行动节奏', threatClass) +
-      _buildSurveyMetricCard('主要机会', summary.opportunityLabel, '决定优先获取的收益') +
-      _buildSurveyMetricCard('情报等级', 'Lv.' + summary.intelLevel, '已归档 ' + summary.reportCount + ' 份') +
-      _buildSurveyMetricCard('完探奖励', rewardValue, rewardNote) +
-    '</div>' +
-    marketActionHtml +
-  '</div>';
-}
-
-function _getChainStageClass(chain) {
-  var stage = chain && chain.stage ? String(chain.stage) : 'locked';
-  if (stage === 'archived' || stage === 'discovered' || stage === 'locked') return stage;
-  return 'locked';
-}
-
-function _getChainSignalText(chain) {
-  var signal = chain && chain.signal ? chain.signal : '';
-  if (signal === 'route') return '航线';
-  if (signal === 'research') return '科研';
-  if (signal === 'logistics') return '补给';
-  if (signal === 'market') return '贸易';
-  return chain && chain.badge ? chain.badge : '探索';
-}
-
-function _getChainNote(chain) {
-  if (!chain) return '';
-  if (chain.followupReady && chain.followupLabel) return chain.followupLabel;
-  if (chain.resolved) return '报告已归档，可在【行情与路线】查看它有什么用。';
-  if (chain.discovered) return '调查探索点后，结论会写入探索报告。';
-  return '调查探索点后，结论会写入探索报告。';
-}
-
-function _buildSurveyChainCards(summary, options) {
-  if (!summary || !Array.isArray(summary.anomalyChains) || summary.anomalyChains.length === 0) return '';
-
-  var opts = options || {};
-  var compactClass = opts.compact ? ' planet-detail-chain-grid--compact' : '';
-  var chainHtml = summary.anomalyChains.map(function (chain) {
-    var stageClass = _getChainStageClass(chain);
-    return '<div class="planet-detail-chain-card planet-detail-chain-card--' + _escapeHtmlAttr(stageClass) + '">' +
-      '<div class="planet-detail-chain-head">' +
-        '<span class="planet-detail-chain-title">' + _escapeHtml((chain.badge ? (chain.badge + ' · ') : '') + (chain.label || '探索链')) + '</span>' +
-        '<span class="planet-detail-chain-stage">' + _escapeHtml(chain.stageLabel || '待调查') + '</span>' +
-      '</div>' +
-      '<div class="planet-detail-chain-meta">' + _escapeHtml((chain.poiName || '探索点') + ' · ' + _getChainSignalText(chain)) + '</div>' +
-      '<div class="planet-detail-chain-track" aria-hidden="true"><span></span></div>' +
-      '<div class="planet-detail-chain-note">' + _escapeHtml(_getChainNote(chain)) + '</div>' +
-    '</div>';
-  }).join('');
-
-  return '<div class="planet-detail-chain-grid' + compactClass + '">' + chainHtml + '</div>';
-}
-
-function _buildSurveyChainBlock(summary, options) {
-  var opts = options || {};
-  var cards = _buildSurveyChainCards(summary, opts);
-  if (!cards) return '';
-  return '<div class="planet-detail-subsection">' +
-    (opts.hideHeading ? '' : '<div class="planet-detail-subtitle">遗迹 / 异常链</div>') +
-    cards +
-  '</div>';
-}
-
-function _buildSurveyDetailLauncher(summary, sys) {
-  if (!summary || !sys) return '';
-  var reportText = summary.reportCount > 0 ? (summary.reportCount + ' 份报告') : '暂无报告';
-  var chainText = summary.anomalyChainCount > 0
-    ? ((summary.resolvedAnomalyChainCount || 0) + '/' + summary.anomalyChainCount + ' 条异常链')
-    : '暂无异常链';
-  return '<div class="planet-detail-archive-launcher">' +
-    '<div class="planet-detail-archive-launcher-meta"><span>' + _escapeHtml(summary.threatLabel) + '</span>' +
-      '<span>' + _escapeHtml(summary.opportunityLabel) + '</span><span>' + _escapeHtml(reportText) + '</span>' +
-      '<span>' + _escapeHtml(chainText) + '</span></div>' +
-    '<button class="planet-detail-action planet-detail-action--quiet" type="button"' +
-      ' data-planet-detail-action="open-survey" data-system-id="' + _escapeHtmlAttr(sys.id) + '">' +
-      '打开探索档案' +
-    '</button>' +
-  '</div>';
-}
-
 function _buildPlanetArchiveDisclosure(info) {
   if (!info) return '';
 
@@ -1695,7 +1463,7 @@ function _buildExplorationSection(stateRef, sys, planetData, isCurrentSystem, is
     _buildExplorationFlowCard(flow, { includeAction: false }) +
     _buildExplorationProgressRow(flow) +
     actionHtml +
-    _buildSurveyDetailLauncher(surveySummary, sys) +
+    buildMapSurveyLauncher(surveySummary, sys) +
     _buildPlanetDetailDisclosure('poi', '探索点清单', poiHtml ? '<div class="planet-detail-list">' + poiHtml + '</div>' : '', {
       preview: poiPreview,
       defaultOpen: false,
@@ -2467,12 +2235,9 @@ export function dispose() {
   }
   if (_releaseMapContextRenderer) _releaseMapContextRenderer();
   if (_releaseMapDetailEscape) _releaseMapDetailEscape();
-  if (_releaseMapSurveyRenderer) _releaseMapSurveyRenderer();
-  if (_releaseMapReportRenderer) _releaseMapReportRenderer();
+  _mapSurveyDetails.dispose();
   _releaseMapContextRenderer = null;
   _releaseMapDetailEscape = null;
-  _releaseMapSurveyRenderer = null;
-  _releaseMapReportRenderer = null;
 
   if (typeof window !== 'undefined') {
     window._mapHoverCallback = null;

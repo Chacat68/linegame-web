@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { createGameFeatureRuntime } from '../js/core/GameFeatureRuntime.js';
+import { readApplicationComposition } from './runtimeCompositionSource.js';
 
 describe('GameFeatureRuntime', function () {
   it('注册 manifest，并在每次同步时读取最新会话上下文', async function () {
@@ -82,8 +83,7 @@ describe('GameFeatureRuntime', function () {
   });
 
   it('GameApplication 只组合已配置运行时，不再拥有注册与配置标志', function () {
-    var gameManager = readFileSync('js/core/GameApplication.js', 'utf8') + '\n' +
-      readFileSync('js/core/GameRuntimeNodeFactories.js', 'utf8');
+    var gameManager = readApplicationComposition();
     var runtime = readFileSync('js/core/GameFeatureRuntime.js', 'utf8');
 
     expect(gameManager).toContain("from './GameFeatureRuntime.js'");

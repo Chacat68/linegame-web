@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { createGameLoopRuntime } from '../js/core/GameLoopRuntime.js';
+import { readApplicationComposition } from './runtimeCompositionSource.js';
 
 function createFakeClock() {
   var recurring = new Map();
@@ -113,8 +114,7 @@ function createHarness(overrides) {
 
 describe('GameLoopRuntime', function () {
   it('GameApplication 只组合运行时端口，不再持有 RAF、DOM 暂停或 recurring 细节', function () {
-    var gameManager = readFileSync(new URL('../js/core/GameApplication.js', import.meta.url), 'utf8') + '\n' +
-      readFileSync(new URL('../js/core/GameRuntimeNodeFactories.js', import.meta.url), 'utf8');
+    var gameManager = readApplicationComposition();
     var runtimeSource = readFileSync(new URL('../js/core/GameLoopRuntime.js', import.meta.url), 'utf8');
 
     expect(gameManager).toContain("from './GameLoopRuntime.js'");

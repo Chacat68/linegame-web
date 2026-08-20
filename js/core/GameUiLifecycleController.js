@@ -104,13 +104,15 @@ export function createGameUiLifecycleController(dependencies) {
     _call(HUD, 'setQuestActions', [{ onAcceptQuest: ports.acceptQuest }]);
     _call(HUD, 'setVictoryActions', [{ onChoosePolicy: ports.chooseVictoryPolicy }]);
 
-    _call(MapUI, 'init', [getState, ports.travel, ports.galaxyJump]);
+    // L4 renderer 会在 MapUI.init 中注册；先建立唯一导航源并初始化详情
+    // Surface，避免 renderer 注册发生在一个尚未接线（或刚被重置）的容器上。
     _bindWorkspaceNavigation();
     _call(WorkspaceDetailSurface, 'init', [{
       navigation: UIManager,
       stateSource: getState,
       revisionSource: getRevision,
     }]);
+    _call(MapUI, 'init', [getState, ports.travel, ports.galaxyJump]);
     _call(MapUI, 'setExplorationActions', [{
       onExplorePoi: ports.explorePoi,
       getPoiStatus: ports.getPoiStatus,

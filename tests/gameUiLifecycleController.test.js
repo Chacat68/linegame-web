@@ -147,6 +147,12 @@ describe('GameUiLifecycleController', function () {
       stateSource: expect.any(Function),
       revisionSource: expect.any(Function),
     });
+    expect(harness.UIManager.init.mock.invocationCallOrder[0]).toBeLessThan(
+      harness.WorkspaceDetailSurface.init.mock.invocationCallOrder[0]
+    );
+    expect(harness.WorkspaceDetailSurface.init.mock.invocationCallOrder[0]).toBeLessThan(
+      harness.MapUI.init.mock.invocationCallOrder[0]
+    );
     var detailOptions = harness.WorkspaceDetailSurface.init.mock.calls[0][0];
     expect(detailOptions.stateSource()).toEqual({ id: 'state-b' });
     expect(detailOptions.revisionSource()).toBe(5);

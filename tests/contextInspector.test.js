@@ -19,6 +19,7 @@ function createElement(id) {
     getAttribute: function (name) { return Object.prototype.hasOwnProperty.call(attributes, name) ? attributes[name] : null; },
     removeAttribute: function (name) { delete attributes[name]; },
     focus: function () { this.focusCount += 1; },
+    contains: function () { return true; },
     querySelector: function () { return null; },
   };
 }
@@ -106,6 +107,39 @@ describe('ContextInspector protocol', function () {
     expect(fixture.empty.hidden).toBe(false);
     expect(fixture.host.hidden).toBe(true);
     expect(Inspector.getSnapshot().rendererRegistered).toBe(false);
+  });
+
+  it('把 Context 内局部 intent 委托给当前 renderer，且每次读取最新 state', async function () {
+    var fixture = createFixture();
+    globalThis.document = fixture.document;
+    var Inspector = await import('../js/ui/ContextInspector.js');
+    var currentState = { session: 1 };
+    var onAction = vi.fn();
+    Inspector.init({ stateSource: function () { return currentState; }, workspaceId: 'trade' });
+    Inspector.registerRenderer('trade', function () {
+      return { title: '商品检查', onAction: onAction };
+    });
+    Inspector.replaceContext({
+      type: 'commodity', id: 'food', workspaceId: 'trade', source: 'card', revision: 1,
+    });
+    currentState = { session: 2 };
+    var target = {
+      dataset: { contextAction: 'open-detail', goodId: 'food' },
+      closest: function (selector) { return selector === '[data-context-action]' ? this : null; },
+    };
+    var event = fixture.host.dispatch('click', { target: target });
+
+    expect(event.preventDefault).toHaveBeenCalledOnce();
+    expect(onAction).toHaveBeenCalledWith({
+      action: 'open-detail',
+      context: {
+        type: 'commodity', id: 'food', workspaceId: 'trade', source: 'card', revision: 1,
+      },
+      dataset: target.dataset,
+      state: currentState,
+      target: target,
+      workspaceId: 'trade',
+    });
   });
 
   it('会话 revision 变化后丢弃旧选择，未配置 provider 时保持兼容', async function () {
@@ -212,6 +246,7 @@ describe('ContextInspector protocol', function () {
     expect(Inspector.dispose()).toBe(false);
     expect(fixture.toggle.listenerCount('click')).toBe(0);
     expect(fixture.close.listenerCount('click')).toBe(0);
+    expect(fixture.host.listenerCount('click')).toBe(0);
     // SurfaceManager 的 document dispatcher 属于应用壳；dispose 只注销本层。
     expect(fixture.documentListeners.keydown).toHaveLength(1);
     var preventedAfterDispose = vi.fn();

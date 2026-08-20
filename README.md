@@ -38,7 +38,7 @@
 - ✅ 探索 MVP：POI 调查、秘密航线解锁
 - ✅ 动态经济：供需、价格历史、经济周期、市场深度、峰值事件
 - ✅ 黑市与走私：黑市定价、权限判定、走私检查、查获罚款统计
-- ✅ 统一商业终端：`MarketUI.js` 编排现货、资金与贸易站工作区；Chart / Spot / Goods / Capital / Operations Presenter 分别拥有各自投影，领域动作统一发布为 typed market command
+- ✅ 统一商业终端：`MarketUI.js` 编排现货、资金与贸易站工作区；Chart / Spot / Goods / Capital / Operations Presenter 分别拥有各自投影，商品 Context 可进入共享 L4 详情，领域动作统一发布为 typed market command
 - ✅ 金融系统：贷款、保险、股票、期货、贸易站投资
 - ✅ 贸易站经营：建站、升级、经理、策略、被动收益
 - ✅ 舰队与船员：多船、改装、船员招募、派遣航线
@@ -48,7 +48,7 @@
 - ✅ 本地平衡统计导出：指标只随存档留在本设备，不自动上传；导出 JSON 可先审查再自行决定是否分享
 - ✅ 基础音效 MVP：UI 点击、交易成交、航行与事件提示音，含开关和音量设置
 - ✅ 延迟工作区失败恢复：市场、机库、档案与存档加载失败时保留当前工作区和上下文，显示局部错误面并可原位重试
-- ✅ Vitest 测试基线：144 个测试文件、1212 项测试，覆盖经济、贸易、航行、探索、事件与随机事件运行时、统一动作控制器图、成就检查队列、持久化事务、Game Application shell/Runtime Graph/节点工厂/启动投影/兼容门面/Feature/UI/Guidance/Loop Runtime 组合边界、manifest/registry 生命周期与延迟工作区错误恢复、Map Galaxy Hub/View State、Workspace Detail Surface 与 Renderer dispose/re-init/开发态 2D 强制降级、Market Chart/Spot/Goods/Capital/Operations 与 Fleet Hangar/Shop/Crew/Mod/Dispatch Presenter 图表、typed market/fleet command、资金与贸易站投影、焦点同步、HUD/FleetUI 命令所有权、自动派遣与日结算提交顺序、经营金融、舰队、科研任务档案动作、剧情与胜利运行时、eager UI 壳/设置/首次进入/释放生命周期、教学引导与 onboarding policy、存档、会话生命周期、时钟、命令目的地、行动引导执行适配、市场工作区、增量 UI 失效、日志上下文与 UI 所有权等核心系统
+- ✅ Vitest 测试基线：148 个测试文件、1229 项测试，覆盖经济、贸易、航行、探索、事件与随机事件运行时、统一动作控制器图、成就检查队列、持久化事务、Game Application shell/Runtime Graph/五个职责节点工厂簇/启动投影/兼容门面/Feature/UI/Guidance/Loop Runtime 组合边界、manifest/registry 生命周期与延迟工作区错误恢复、Map Galaxy Hub/View State/Survey Detail Presenter + Controller、Workspace Detail Surface 与 Renderer dispose/re-init/开发态 2D 强制降级、Market Chart/Spot/Goods/Capital/Operations/Commodity Detail 与 Fleet Hangar/Shop/Crew/Mod/Dispatch/Ship Detail Presenter、typed market/fleet command、资金与贸易站投影、Context 局部 intent、焦点同步、HUD/FleetUI 命令所有权、自动派遣与日结算提交顺序、经营金融、舰队、科研任务档案动作、剧情与胜利运行时、eager UI 壳/设置/首次进入/释放生命周期、教学引导与 onboarding policy、存档、会话生命周期、时钟、命令目的地、行动引导执行适配、市场工作区、增量 UI 失效、日志上下文与 UI 所有权等核心系统
 
 ### 当前开发中的能力
 
@@ -145,7 +145,8 @@ npm run build
 │   │   ├── GameUiApplicationRuntime.js # UI controller 图、工作区与呈现生命周期组合边界
 │   │   ├── GameLoopRuntime.js # 实时日、场景帧与命名周期任务组合边界
 │   │   ├── GameApplication.js # 正式应用组合根、Runtime Graph 与启动/关闭入口
-│   │   ├── GameRuntimeNodeFactories.js # 12 个 runtime 节点的依赖装配表
+│   │   ├── GameRuntimeNodeFactories.js # 12 个 runtime 节点的薄注册表与唯一归属校验
+│   │   ├── Game*RuntimeFactor*.js # session/feature/action/guidance/UI 五个职责装配簇
 │   │   ├── GameStartupProjection.js # Settings/Audio/Renderer 两阶段启动投影
 │   │   ├── GameRuntimeGraph.js # runtime 节点惰性构造、循环保护、诊断与清理
 │   │   ├── GameApplicationLifecycle.js # 应用级 shutdown 与资源释放顺序
@@ -180,13 +181,17 @@ npm run build
 │       ├── MarketGoodsPresenter.js # 商品模型、卡片 HTML 与 command 协议
 │       ├── MarketCapitalPresenter.js # 资金结构与经营贷款投影
 │       ├── MarketOperationsPresenter.js # 贸易站经营与批量计划投影
+│       ├── MarketCommodityDetailPresenter.js # 商品 Context 与 L4 详情纯投影
 │       ├── FleetHangarPresenter.js # 机库主视图模型、HTML 与 UI intent
 │       ├── FleetShopPresenter.js # 船坞采购模型、HTML 与 UI intent
 │       ├── FleetCrewPresenter.js # 船员详情模型、HTML 与 roster intent
 │       ├── FleetModPresenter.js # 改装/保养详情模型、HTML 与 UI intent
 │       ├── FleetDispatchPresenter.js # 自动跑商策略、估算、风险与 CTA 投影
+│       ├── FleetShipDetailPresenter.js # 舰船 Context 与 L4 详情纯投影
 │       ├── MapGalaxyHubPresenter.js # 星系总览模型、HTML 与跃迁 intent
 │       ├── MapViewStateController.js # 星系/星球视图与悬停状态所有权
+│       ├── MapSurveyDetailPresenter.js # 探索档案/报告纯 HTML 与 intent
+│       ├── MapSurveyDetailController.js # 两层探索详情 renderer 与导航适配
 │       ├── MapUI.js        # 星图交互
 │       ├── ShipUI.js       # 飞船与货舱界面
 │       ├── Modal.js        # 通用模态框

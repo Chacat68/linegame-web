@@ -101,6 +101,7 @@ export function createGameUiApplicationRuntime(options) {
     if (!contextAdapters) {
       contextAdapters = createWorkspaceContextAdapters({
         inspector: ui.ContextInspector,
+        detailSurface: ui.WorkspaceDetailSurface,
         getRevision: getRevision,
       });
     }

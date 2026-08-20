@@ -36,6 +36,10 @@ import {
   renderMarketOperationsWorkspace as _renderMarketOperationsWorkspace,
   updateMarketOperationsSortModes as _updateMarketOperationsSortModes,
 } from './MarketOperationsPresenter.js';
+import {
+  buildMarketCommodityContextView,
+  buildMarketCommodityDetailView,
+} from './MarketCommodityDetailPresenter.js';
 
 export { getTradeStationCandidateIntel };
 
@@ -454,22 +458,52 @@ export function renderContextInspector(request) {
   var sellPrice = isBlack
     ? Economy.getBlackMarketSellPrice(system.id, good.id, state)
     : Economy.getSellPrice(system.id, good.id, state);
-  var supplyDemand = Economy.getSupplyDemand(system.id, good.id);
-  var held = Number((state.cargo || {})[good.id]) || 0;
+  var view = buildMarketCommodityContextView({
+    good: good,
+    system: system,
+    marketMode: isBlack ? 'black' : 'open',
+    buyPrice: buyPrice,
+    sellPrice: sellPrice,
+    supplyDemand: Economy.getSupplyDemand(system.id, good.id),
+    held: Number((state.cargo || {})[good.id]) || 0,
+    credits: state.credits,
+  });
+  if (!view) return false;
+  container.innerHTML = view.html;
+  return { title: view.title };
+}
 
-  container.innerHTML =
-    '<article class="workspace-context-card workspace-context-card--commodity">' +
-      '<div class="workspace-context-hero"><span aria-hidden="true">' + _escapeHtml(good.emoji) + '</span><div><small>' + _escapeHtml(system.name) + ' · ' + (isBlack ? '黑市' : '公开市场') + '</small><h3>' + _escapeHtml(good.name) + '</h3></div></div>' +
-      '<p>' + _escapeHtml(good.desc) + '</p>' +
-      '<div class="workspace-context-metrics" role="list">' +
-        '<span role="listitem"><small>买入</small><strong>' + buyPrice.toLocaleString() + '</strong></span>' +
-        '<span role="listitem"><small>卖出</small><strong>' + sellPrice.toLocaleString() + '</strong></span>' +
-        '<span role="listitem"><small>货舱</small><strong>' + held.toLocaleString() + '</strong></span>' +
-        '<span role="listitem"><small>供需</small><strong>' + supplyDemand.ratio.toFixed(2) + '×</strong></span>' +
-      '</div>' +
-      '<div class="workspace-context-tags"><span>' + (good.legality === 'illegal' ? '违禁品' : good.legality === 'restricted' ? '受监管' : '合法商品') + '</span><span>价差 ' + Math.max(0, buyPrice - sellPrice).toLocaleString() + '</span></div>' +
-    '</article>';
-  return { title: '商品检查' };
+export function renderWorkspaceDetail(request) {
+  var detail = request && request.detail;
+  var state = request && request.state;
+  var container = request && request.container;
+  if (!detail || detail.type !== 'trade-commodity' || !state || !container) return false;
+  var good = GOODS.find(function (entry) { return entry.id === detail.id; });
+  if (!good) return false;
+
+  var systemId = _activeMarketContext && _activeMarketContext.systemId
+    ? _activeMarketContext.systemId
+    : state.currentSystem;
+  var system = findSystem(systemId) || findSystem(state.currentSystem);
+  if (!system) return false;
+  var isBlack = !!(_activeMarketContext && _activeMarketContext.mode === 'black');
+  var view = buildMarketCommodityDetailView({
+    good: good,
+    system: system,
+    marketMode: isBlack ? 'black' : 'open',
+    buyPrice: isBlack
+      ? Economy.getBlackMarketBuyPrice(system.id, good.id, state)
+      : Economy.getBuyPrice(system.id, good.id, state),
+    sellPrice: isBlack
+      ? Economy.getBlackMarketSellPrice(system.id, good.id, state)
+      : Economy.getSellPrice(system.id, good.id, state),
+    supplyDemand: Economy.getSupplyDemand(system.id, good.id),
+    held: Number((state.cargo || {})[good.id]) || 0,
+    credits: state.credits,
+  });
+  if (!view) return false;
+  container.innerHTML = view.html;
+  return { title: view.title };
 }
 
 function _isMarketWorkspaceUnlocked(workspaceId, progression) {

@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { readApplicationComposition } from './runtimeCompositionSource.js';
 
 function createClassList(initialValues) {
   var values = new Set(initialValues || []);
@@ -466,8 +467,7 @@ describe('Onboarding and log surfaces', function () {
   it('公司命名与教程启动弹窗具备说明、列表和移动端覆盖样式', function () {
     var html = readFileSync('index.html', 'utf8');
     var css = readFileSync('css/interstellar-trader.css', 'utf8');
-    var gameManager = readFileSync('js/core/GameApplication.js', 'utf8') + '\n' +
-      readFileSync('js/core/GameRuntimeNodeFactories.js', 'utf8');
+    var gameManager = readApplicationComposition();
     var guidanceRuntime = readFileSync('js/core/GameGuidanceRuntime.js', 'utf8');
     var onboardingController = readFileSync('js/core/OnboardingUiController.js', 'utf8');
     var onboardingUI = readFileSync('js/ui/OnboardingUI.js', 'utf8');

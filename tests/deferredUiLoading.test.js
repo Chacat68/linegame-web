@@ -1,10 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-
-function readApplicationComposition() {
-  return readFileSync('js/core/GameApplication.js', 'utf8') + '\n' +
-    readFileSync('js/core/GameRuntimeNodeFactories.js', 'utf8');
-}
+import { readApplicationComposition } from './runtimeCompositionSource.js';
 
 describe('deferred terminal UI loading', function () {
   it('市场、舰队和档案界面不再进入首屏静态依赖图', function () {

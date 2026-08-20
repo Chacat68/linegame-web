@@ -25,9 +25,20 @@ function _contextRenderer(module) {
     : null;
 }
 
+function _detailRenderer(module) {
+  return module && typeof module.renderWorkspaceDetail === 'function'
+    ? module.renderWorkspaceDetail
+    : null;
+}
+
+function _escapeSelectorValue(value) {
+  return String(value == null ? '' : value).replace(/(["\\])/g, '\\$1');
+}
+
 export function createWorkspaceContextAdapters(options) {
   var config = options || {};
   var inspector = config.inspector || null;
+  var detailSurface = config.detailSurface || null;
   var getRevision = typeof config.getRevision === 'function'
     ? config.getRevision
     : function () {
@@ -37,6 +48,8 @@ export function createWorkspaceContextAdapters(options) {
       };
   var featureRefs = new Map();
   var releases = new Map();
+  var detailRefs = new Map();
+  var detailReleases = new Map();
 
   function _register(workspaceId, featureRef, renderer) {
     if (!inspector || typeof inspector.registerRenderer !== 'function') return false;
@@ -48,20 +61,84 @@ export function createWorkspaceContextAdapters(options) {
     return true;
   }
 
+  function _registerDetail(type, featureRef, renderer) {
+    if (!detailSurface || typeof detailSurface.registerRenderer !== 'function') return false;
+    if (detailRefs.get(type) === featureRef) return true;
+    var previousRelease = detailReleases.get(type);
+    if (typeof previousRelease === 'function') previousRelease();
+    detailRefs.set(type, featureRef);
+    detailReleases.set(type, detailSurface.registerRenderer(type, renderer));
+    return true;
+  }
+
   function connectMarket(module) {
     var renderer = _contextRenderer(module);
     if (!renderer) return false;
-    return _register('trade', module, function (request) {
-      return renderer(request);
+    var connected = _register('trade', module, function (request) {
+      var result = renderer(request);
+      if (result === false || !result) return result;
+      var resultObject = typeof result === 'object' ? result : {};
+      return Object.assign({}, resultObject, {
+        onAction: function (action) {
+          if (!action || action.action !== 'open-detail' || !action.context ||
+              action.context.type !== 'commodity' || !detailSurface ||
+              typeof detailSurface.open !== 'function') return false;
+          return detailSurface.open({
+            type: 'trade-commodity',
+            id: action.context.id,
+            workspaceId: 'trade',
+            source: 'context-inspector',
+            revision: Number(getRevision()) || 0,
+          }, {
+            triggerElement: action.target,
+            returnFocusSelector: '[data-context-action="open-detail"][data-good-id="' +
+              _escapeSelectorValue(action.context.id) + '"]',
+          });
+        },
+      });
     });
+    var detailRenderer = _detailRenderer(module);
+    if (detailRenderer) {
+      _registerDetail('trade-commodity', module, function (request) {
+        return detailRenderer(request);
+      });
+    }
+    return connected;
   }
 
   function connectFleet(module) {
     var renderer = _contextRenderer(module);
     if (!renderer) return false;
-    return _register('fleet', module, function (request) {
-      return renderer(request);
+    var connected = _register('fleet', module, function (request) {
+      var result = renderer(request);
+      if (result === false || !result) return result;
+      var resultObject = typeof result === 'object' ? result : {};
+      return Object.assign({}, resultObject, {
+        onAction: function (action) {
+          if (!action || action.action !== 'open-detail' || !action.context ||
+              action.context.type !== 'ship' || !detailSurface ||
+              typeof detailSurface.open !== 'function') return false;
+          return detailSurface.open({
+            type: 'fleet-ship',
+            id: action.context.id,
+            workspaceId: 'fleet',
+            source: 'context-inspector',
+            revision: Number(getRevision()) || 0,
+          }, {
+            triggerElement: action.target,
+            returnFocusSelector: '[data-context-action="open-detail"][data-ship-index="' +
+              _escapeSelectorValue(action.context.id) + '"]',
+          });
+        },
+      });
     });
+    var detailRenderer = _detailRenderer(module);
+    if (detailRenderer) {
+      _registerDetail('fleet-ship', module, function (request) {
+        return detailRenderer(request);
+      });
+    }
+    return connected;
   }
 
   function connectLogs(module) {
@@ -110,6 +187,11 @@ export function createWorkspaceContextAdapters(options) {
     });
     releases.clear();
     featureRefs.clear();
+    detailReleases.forEach(function (release) {
+      if (typeof release === 'function') release();
+    });
+    detailReleases.clear();
+    detailRefs.clear();
   }
 
   return Object.freeze({

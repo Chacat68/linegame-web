@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { createGameGuidanceRuntime } from '../js/core/GameGuidanceRuntime.js';
+import { readApplicationComposition } from './runtimeCompositionSource.js';
 
 function createHarness() {
   var state = { id: 'state-a' };
@@ -228,8 +229,7 @@ describe('GameGuidanceRuntime', function () {
   });
 
   it('GameApplication 只持有 GameGuidanceRuntime，不再逐个组合引导 controller', function () {
-    var gameManager = readFileSync('js/core/GameApplication.js', 'utf8') + '\n' +
-      readFileSync('js/core/GameRuntimeNodeFactories.js', 'utf8');
+    var gameManager = readApplicationComposition();
     var runtime = readFileSync('js/core/GameGuidanceRuntime.js', 'utf8');
     var migratedFactories = [
       'createActionGuideCoordinator',
