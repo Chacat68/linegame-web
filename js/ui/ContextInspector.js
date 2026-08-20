@@ -3,7 +3,6 @@
 // The inspector owns context keys, never domain objects. Renderers resolve the
 // latest domain state through the provider on every render.
 
-import * as EventBus from '../core/EventBus.js';
 import { registerEscapeLayer } from './SurfaceManager.js';
 
 const ROOT_ID = 'context-inspector';
@@ -15,8 +14,6 @@ const TOGGLE_SELECTOR = '[data-context-inspector-toggle]';
 const CLOSE_SELECTOR = '[data-context-inspector-close]';
 const ACTION_SELECTOR = '[data-context-action]';
 const DEFAULT_WORKSPACE_ID = 'map';
-const RAIL_EVENT = 'starmap-rail:panel-open';
-const RAIL_SOURCE = 'context-inspector';
 const CONTEXT_FIELDS = ['type', 'id', 'workspaceId', 'source', 'revision'];
 
 let _root = null;
@@ -34,8 +31,6 @@ let _openByWorkspace = new Map();
 let _getState = function () { return null; };
 let _getRevision = function () { return null; };
 let _isOpen = false;
-let _railListenerBound = false;
-let _railListener = null;
 let _releaseEscapeLayer = null;
 let _document = null;
 let _compactMode = false;
@@ -202,16 +197,6 @@ function _bindElement(element, datasetKey, eventName, handler) {
   if (element.dataset) element.dataset[datasetKey] = 'true';
 }
 
-function _bindRailListener() {
-  if (_railListenerBound) return;
-  _railListener = function (data) {
-    if (data && data.source === RAIL_SOURCE) return;
-    close({ restoreFocus: false });
-  };
-  EventBus.on(RAIL_EVENT, _railListener);
-  _railListenerBound = true;
-}
-
 /** Initialize the shell. State may be an object or a latest-state provider. */
 export function init(options) {
   var opts = options || {};
@@ -278,8 +263,6 @@ export function init(options) {
     isActive: function () { return !!(_root && _isOpen); },
     onEscape: function () { close({ restoreFocus: true }); },
   });
-  _bindRailListener();
-
   var shouldOpen = typeof opts.open === 'boolean'
     ? opts.open
     : !(Boolean(_root.hidden) || (
@@ -300,9 +283,6 @@ export function open(options) {
   if (opts.workspaceId) activateWorkspace(opts.workspaceId);
   if (opts.restoreFocusTo) _lastToggle = opts.restoreFocusTo;
   _setPanelVisible(true);
-  if (opts.notifyRail !== false) {
-    EventBus.emit(RAIL_EVENT, { source: RAIL_SOURCE, panelId: ROOT_ID });
-  }
   if (opts.focus !== false) _focusElement(_closeButton);
   return getSnapshot();
 }
@@ -464,10 +444,10 @@ export function getSnapshot() {
   };
 }
 
-/** 释放 Inspector shell 的 DOM/EventBus/Escape/adapter 所有权。 */
+/** 释放 Inspector shell 的 DOM/Escape/adapter 所有权。 */
 export function dispose() {
   var hadRuntime = !!(
-    _root || _document || _railListenerBound || _releaseEscapeLayer ||
+    _root || _document || _releaseEscapeLayer ||
     _renderersByWorkspace.size || _contextsByWorkspace.size
   );
 
@@ -485,7 +465,6 @@ export function dispose() {
     _host.removeEventListener('click', _handleContextAction);
   }
   if (_host && _host.dataset) delete _host.dataset.contextInspectorActionBound;
-  if (_railListenerBound && _railListener) EventBus.off(RAIL_EVENT, _railListener);
   if (_releaseEscapeLayer) _releaseEscapeLayer();
 
   _root = null;
@@ -503,8 +482,6 @@ export function dispose() {
   _getState = function () { return null; };
   _getRevision = function () { return null; };
   _isOpen = false;
-  _railListenerBound = false;
-  _railListener = null;
   _releaseEscapeLayer = null;
   _document = null;
   _compactMode = false;

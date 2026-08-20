@@ -104,6 +104,11 @@ export function getWorkspaceSurfaceSnapshot() {
   return _workspaceSurfaces ? _workspaceSurfaces.getSnapshot() : null;
 }
 
+export function resetRuntimeState() {
+  _workspaceEntryGeneration += 1;
+  return _navigation ? _navigation.reset({ reason: 'session-reset' }) : 0;
+}
+
 export function switchView(view, options) {
   var workspace = normalizeWorkspace(view);
   if (!_navigation || !workspace) return false;

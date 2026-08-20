@@ -317,6 +317,8 @@ describe('GameUiCoordinator', function () {
       marketUi: null,
       fleetUi: null,
       archiveUi: null,
+      mapUi: null,
+      logsUi: null,
       renderAllCount: 0,
       invalidationCount: 1,
       lastInvalidationRegions: DEFAULT_ACTION_DIRTY_REGIONS,
@@ -386,6 +388,8 @@ describe('GameUiCoordinator', function () {
   });
 
   it('公开已加载工作区的会话诊断，并在会话重置时清理 UI 运行态', async function () {
+    var mapDiagnostics = { selectedSystemId: 'nova_station', resetCount: 0 };
+    var logsDiagnostics = { entryCount: 2, selectedMessageId: 'message-2', resetCount: 0 };
     var marketDiagnostics = { activeWorkspace: 'capital', focusedGoodId: 'water' };
     var fleetDiagnostics = { activeSurface: 'dispatch', surfaceMode: 'inline' };
     var archiveDiagnostics = {
@@ -409,6 +413,15 @@ describe('GameUiCoordinator', function () {
       };
       return archiveDiagnostics;
     });
+    var resetMapRuntimeState = vi.fn(function () {
+      mapDiagnostics = { selectedSystemId: null, resetCount: 1 };
+      return mapDiagnostics;
+    });
+    var resetLogsRuntimeState = vi.fn(function () {
+      logsDiagnostics = { entryCount: 0, selectedMessageId: null, resetCount: 1 };
+      return logsDiagnostics;
+    });
+    var resetNavigationRuntimeState = vi.fn(function () { return 2; });
     var features = createFeatureHarness({
       market: {
         getDiagnostics: function () { return marketDiagnostics; },
@@ -427,7 +440,16 @@ describe('GameUiCoordinator', function () {
       getState: function () { return { currentSystem: 'sol_prime' }; },
       features: features,
       ui: {
-        MapUI: { getActiveArchiveTab: function () { return 'tab-exploration'; } },
+        MapUI: {
+          getActiveArchiveTab: function () { return 'tab-exploration'; },
+          getDiagnostics: function () { return mapDiagnostics; },
+          resetRuntimeState: resetMapRuntimeState,
+        },
+        HUD: {
+          getDiagnostics: function () { return logsDiagnostics; },
+          resetRuntimeState: resetLogsRuntimeState,
+        },
+        UIManager: { resetRuntimeState: resetNavigationRuntimeState },
       },
     });
 
@@ -440,12 +462,14 @@ describe('GameUiCoordinator', function () {
     expect(coordinator.getDiagnostics().archiveUi).toEqual(Object.assign({
       activeTab: 'tab-exploration',
     }, archiveDiagnostics));
+    expect(coordinator.getDiagnostics().mapUi).toEqual(mapDiagnostics);
+    expect(coordinator.getDiagnostics().logsUi).toEqual(logsDiagnostics);
     expect(coordinator.getDiagnostics().workspaceSessions).toEqual({
-      map: null,
+      map: mapDiagnostics,
       trade: marketDiagnostics,
       fleet: fleetDiagnostics,
       archive: Object.assign({ activeTab: 'tab-exploration' }, archiveDiagnostics),
-      logs: null,
+      logs: logsDiagnostics,
     });
 
     var diagnostics = coordinator.reset();
@@ -453,6 +477,11 @@ describe('GameUiCoordinator', function () {
     expect(resetMarketRuntimeState).toHaveBeenCalledOnce();
     expect(resetFleetRuntimeState).toHaveBeenCalledOnce();
     expect(resetArchiveRuntimeState).toHaveBeenCalledOnce();
+    expect(resetMapRuntimeState).toHaveBeenCalledOnce();
+    expect(resetLogsRuntimeState).toHaveBeenCalledOnce();
+    expect(resetNavigationRuntimeState).toHaveBeenCalledOnce();
+    expect(diagnostics.mapUi).toEqual({ selectedSystemId: null, resetCount: 1 });
+    expect(diagnostics.logsUi).toEqual({ entryCount: 0, selectedMessageId: null, resetCount: 1 });
     expect(diagnostics.marketUi).toEqual({ activeWorkspace: 'spot', focusedGoodId: null });
     expect(diagnostics.fleetUi).toEqual({ activeSurface: null, surfaceMode: null });
     expect(diagnostics.archiveUi).toEqual(Object.assign({ activeTab: 'tab-exploration' }, archiveDiagnostics));

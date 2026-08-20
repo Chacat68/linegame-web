@@ -220,6 +220,9 @@ export function createGameUiApplicationRuntime(options) {
     if (marketWorkspace) marketWorkspace.reset();
     if (coordinator) coordinator.reset();
     else {
+      if (ui.UIManager && typeof ui.UIManager.resetRuntimeState === 'function') ui.UIManager.resetRuntimeState();
+      if (ui.MapUI && typeof ui.MapUI.resetRuntimeState === 'function') ui.MapUI.resetRuntimeState();
+      if (ui.HUD && typeof ui.HUD.resetRuntimeState === 'function') ui.HUD.resetRuntimeState();
       var MarketUI = typeof features.get === 'function' ? features.get('market') : null;
       var FleetUI = typeof features.get === 'function' ? features.get('fleet') : null;
       var ArchiveUI = typeof features.get === 'function' ? features.get('archive') : null;

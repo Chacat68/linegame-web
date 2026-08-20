@@ -162,7 +162,7 @@ describe('MapUI navigation target focus', function () {
     expect(panel.innerHTML).toContain('type="button" data-planet-detail-action="close-detail"');
     expect(panel.getAttribute('tabindex')).toBe('-1');
     expect(panel.innerHTML).toContain('role="list" aria-label="航点状态"');
-    expect(panel.innerHTML).toContain('当前指引');
+    expect(panel.innerHTML).toContain('航线焦点');
     expect(panel.innerHTML).toContain('食物');
     expect(panel.innerHTML).toContain('前往卖货点');
     expect(panel.innerHTML).toContain('data-planet-guide-route');
@@ -263,7 +263,6 @@ describe('MapUI navigation target focus', function () {
       'planet-detail-panel': panel,
       'map-canvas': createFakeElement('map-canvas'),
       'map-container': mapContainer,
-      'current-system-exploration-card': createFakeElement('current-system-exploration-card'),
     };
 
     globalThis.document = {

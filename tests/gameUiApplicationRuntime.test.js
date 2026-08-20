@@ -27,7 +27,16 @@ function createHarness(overrides) {
     sync: vi.fn(),
   };
   var ui = {
-    HUD: { init: vi.fn(), setQuestActions: vi.fn(), setVictoryActions: vi.fn(), updateStats: vi.fn(), updateCompanyName: vi.fn(), updateArchiveBadges: vi.fn() },
+    HUD: {
+      init: vi.fn(),
+      setQuestActions: vi.fn(),
+      setVictoryActions: vi.fn(),
+      updateStats: vi.fn(),
+      updateCompanyName: vi.fn(),
+      updateArchiveBadges: vi.fn(),
+      getDiagnostics: vi.fn(function () { return { entryCount: 0, selectedMessageId: null }; }),
+      resetRuntimeState: vi.fn(),
+    },
     ShipUI: { init: vi.fn(), renderShipStats: vi.fn() },
     MapUI: {
       init: vi.fn(),
@@ -42,8 +51,14 @@ function createHarness(overrides) {
       isMarketOpen: vi.fn(function () { return false; }),
       openQuestsPanel: vi.fn(),
       getActiveArchiveTab: vi.fn(function () { return 'tab-quest'; }),
+      getDiagnostics: vi.fn(function () { return { selectedSystemId: null }; }),
+      resetRuntimeState: vi.fn(),
     },
-    UIManager: { init: vi.fn(), getNavigationSnapshot: vi.fn(function () { return { activeWorkspace: 'map' }; }) },
+    UIManager: {
+      init: vi.fn(),
+      getNavigationSnapshot: vi.fn(function () { return { activeWorkspace: 'map' }; }),
+      resetRuntimeState: vi.fn(),
+    },
     Modal: { init: vi.fn() },
     Renderer: { initMapControls: vi.fn(), invalidateScene: vi.fn(), whenSceneReady: vi.fn(function () { return Promise.resolve({ renderer: 'test' }); }) },
     ContextInspector: { registerRenderer: vi.fn(), clearContext: vi.fn(), dispose: vi.fn() },
@@ -173,6 +188,9 @@ describe('GameUiApplicationRuntime', function () {
     expect(resetMarketRuntime).toHaveBeenCalledOnce();
     expect(resetFleetRuntime).toHaveBeenCalledOnce();
     expect(resetArchiveRuntime).toHaveBeenCalledOnce();
+    expect(harness.ui.MapUI.resetRuntimeState).toHaveBeenCalledOnce();
+    expect(harness.ui.HUD.resetRuntimeState).toHaveBeenCalledOnce();
+    expect(harness.ui.UIManager.resetRuntimeState).toHaveBeenCalledOnce();
     expect(harness.runtime.getDiagnostics()).toEqual({ coordinator: null, lifecycle: null, market: null, settings: null });
   });
 
@@ -214,6 +232,11 @@ describe('GameUiApplicationRuntime', function () {
     expect(resetMarketRuntime).toHaveBeenCalledOnce();
     expect(resetFleetRuntime).toHaveBeenCalledOnce();
     expect(resetArchiveRuntime).toHaveBeenCalledOnce();
+    expect(harness.ui.MapUI.resetRuntimeState).toHaveBeenCalledOnce();
+    expect(harness.ui.HUD.resetRuntimeState).toHaveBeenCalledOnce();
+    expect(harness.ui.UIManager.resetRuntimeState).toHaveBeenCalledOnce();
+    expect(harness.runtime.getDiagnostics().mapUi).toEqual({ selectedSystemId: null });
+    expect(harness.runtime.getDiagnostics().logsUi).toEqual({ entryCount: 0, selectedMessageId: null });
     expect(harness.runtime.getDiagnostics().marketUi).toEqual({ activeWorkspace: 'spot' });
     expect(harness.runtime.getDiagnostics().fleetUi).toEqual({ activeSurface: null, surfaceMode: null });
     expect(harness.runtime.getDiagnostics().archiveUi).toEqual(expect.objectContaining({

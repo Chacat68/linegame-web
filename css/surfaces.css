@@ -329,8 +329,7 @@ body::before {
   .target-intel-widget,
   .network-status-widget,
   .quest-tracker-widget,
-  .planet-detail-panel,
-  .current-system-exploration-card
+  .planet-detail-panel
 ) {
   z-index: var(--ui-z-hud);
   overflow: hidden;

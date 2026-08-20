@@ -128,6 +128,35 @@ describe('workspace navigation controller', function () {
     expect(controller.getSnapshot().activeWorkspace).toBe('fleet');
   });
 
+  it('会话 reset 一次清空当前与隐藏 workspace 的全部 L4，但保留 L3 目的地', function () {
+    var listener = vi.fn();
+    var controller = createNavigationController({ initialWorkspace: 'map' });
+    controller.subscribe(listener);
+    controller.openDetail({ type: 'map-survey', id: 'sol_prime', workspaceId: 'map' });
+    controller.openDetail({ type: 'fleet-ship', id: '2', workspaceId: 'fleet' }, 'fleet');
+    controller.navigate('logs');
+    controller.openDetail({ type: 'logs-message', id: 'message-7', workspaceId: 'logs' });
+    listener.mockClear();
+
+    expect(controller.reset()).toBe(3);
+
+    var snapshot = controller.getSnapshot();
+    expect(snapshot.activeWorkspace).toBe('logs');
+    WORKSPACES.forEach(function (workspace) {
+      expect(snapshot.detailStacks[workspace]).toEqual([]);
+      expect(snapshot.workspaces[workspace].detailDepth).toBe(0);
+    });
+    expect(listener).toHaveBeenCalledOnce();
+    expect(listener.mock.calls[0][1]).toMatchObject({
+      type: 'session:reset',
+      from: 'logs',
+      to: 'logs',
+      removedDetailCount: 3,
+    });
+    expect(controller.reset()).toBe(0);
+    expect(listener).toHaveBeenCalledOnce();
+  });
+
   it('非法目标是无副作用的 no-op', function () {
     var onLeave = vi.fn();
     var onEnter = vi.fn();

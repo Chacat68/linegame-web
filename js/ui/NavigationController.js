@@ -208,6 +208,30 @@ export function createNavigationController(options) {
   }
 
   /**
+   * 清空所有 workspace 的 L4 detail stack，但保留当前 L3 目的地。
+   * 会话替换时必须同时清理隐藏 workspace，不能只关闭 active detail。
+   * @returns {number} 被清理的 detail 数量
+   */
+  function reset(options) {
+    var removed = WORKSPACES.reduce(function (count, workspace) {
+      return count + detailStacks[workspace].length;
+    }, 0);
+    if (removed === 0) return 0;
+
+    detailStacks = _createDetailStacks();
+    _publish({
+      type: 'session:reset',
+      reason: options && options.reason ? options.reason : 'session-reset',
+      from: activeWorkspace,
+      to: activeWorkspace,
+      workspace: activeWorkspace,
+      removedDetailCount: removed,
+      state: getState(),
+    });
+    return removed;
+  }
+
+  /**
    * 订阅后续有效状态变化。返回取消订阅函数。
    */
   function subscribe(listener) {
@@ -224,6 +248,7 @@ export function createNavigationController(options) {
     closeDetail: closeDetail,
     handleEscape: handleEscape,
     getSnapshot: getSnapshot,
+    reset: reset,
     subscribe: subscribe,
   });
 }

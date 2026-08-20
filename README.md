@@ -49,7 +49,7 @@
 - ✅ 基础音效 MVP：UI 点击、交易成交、航行与事件提示音，含开关和音量设置
 - ✅ 延迟工作区失败恢复：市场、机库、档案与存档加载失败时保留当前工作区和上下文，显示局部错误面并可原位重试
 - ✅ 五个同级 L3 工作区：map / trade / fleet / archive / logs 共用 `workspace-surface + is-active + inert/ARIA` 契约；市场已脱离星图 DOM，终端不再依赖 drawer/overlay 可见状态
-- ✅ Vitest 测试基线：151 个测试文件、1278 项测试，覆盖经济、贸易、航行、探索、事件与随机事件运行时、统一动作控制器图、成就检查队列、持久化事务、Game Application shell/Runtime Graph/五个职责节点工厂簇/启动投影/兼容门面/Feature/UI/Guidance/Loop Runtime 组合边界、manifest/registry 生命周期与延迟工作区错误恢复、Map Galaxy Hub/View State/Survey Detail Presenter + Controller、Workspace Surface/Detail 生命周期与 L3 CSS 所有权、Renderer dispose/re-init/开发态 2D 强制降级、Market Chart/Spot/Goods/Capital/Operations/Commodity Detail、Fleet Hangar/Shop/Crew/Mod/Dispatch/Ship Detail 与 Workspace Object Detail Presenter、typed market/fleet command、资金与贸易站投影、Context 局部 intent、焦点同步、HUD/FleetUI 命令所有权、自动派遣与日结算提交顺序、经营金融、舰队、科研任务档案动作、剧情与胜利运行时、eager UI 壳/设置/首次进入/释放生命周期、教学引导与 onboarding policy、存档、会话生命周期、时钟、命令目的地、行动引导执行适配、市场工作区、Market/Fleet/Archive 内部增量失效、日志上下文与 UI 所有权等核心系统
+- ✅ Vitest 测试基线：155 个测试文件、1295 项测试，覆盖经济、贸易、航行、探索、事件与随机事件运行时、统一动作控制器图、成就检查队列、持久化事务、Game Application shell/Runtime Graph/五个职责节点工厂簇/启动投影/兼容门面/Feature/UI/Guidance/Loop Runtime 组合边界、manifest/registry 生命周期与延迟工作区错误恢复、Map Galaxy Hub/View State/Survey Detail Presenter + Controller、Workspace Surface/Detail 生命周期与 L3 CSS 所有权、Renderer dispose/re-init/开发态 2D 强制降级、Market Chart/Spot/Goods/Capital/Operations/Commodity Detail、Fleet Hangar/Shop/Crew/Mod/Dispatch/Ship Detail 与 Workspace Object Detail Presenter、typed market/fleet command、资金与贸易站投影、Context 局部 intent、焦点同步、HUD/FleetUI 命令所有权、自动派遣与日结算提交顺序、经营金融、舰队、科研任务档案动作、剧情与胜利运行时、eager UI 壳/设置/首次进入/释放生命周期、教学引导与 onboarding policy、存档、会话生命周期、时钟、命令目的地、行动引导执行适配、市场工作区、Market/Fleet/Archive 内部增量失效、日志上下文与 UI 所有权等核心系统
 
 ### 当前开发中的能力
 
@@ -195,9 +195,13 @@ npm run build
 │       ├── WorkspaceSurfaceController.js # 五个 L3 工作区可见性、inert 与焦点
 │       ├── MapGalaxyHubPresenter.js # 星系总览模型、HTML 与跃迁 intent
 │       ├── MapViewStateController.js # 星系/星球视图与悬停状态所有权
+│       ├── MapWorkspaceSession.js # 星图选择、披露区与市场入口会话状态
+│       ├── MapExplorationPresenter.js # POI 流程模型、HTML 与探索 intent
+│       ├── MapPlanetDetailPresenter.js # 星球摘要、航线焦点与 travel intent
 │       ├── MapSurveyDetailPresenter.js # 探索档案/报告纯 HTML 与 intent
 │       ├── MapSurveyDetailController.js # 两层探索详情 renderer 与导航适配
-│       ├── MapUI.js        # 星图交互
+│       ├── MapUI.js        # 星图 Context、Renderer、DOM 与导航协调
+│       ├── LogsWorkspaceSession.js # 通讯历史、未读与消息序号会话状态
 │       ├── ShipUI.js       # 飞船与货舱界面
 │       ├── Modal.js        # 通用模态框
 │       └── ...             # 其他 UI 模块

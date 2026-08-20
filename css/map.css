@@ -763,102 +763,6 @@
   background: #4ade80;
 }
 
-.current-system-exploration-card {
-  position: absolute;
-  left: 14px;
-  bottom: 118px;
-  z-index: 7;
-  width: 320px;
-  max-width: min(360px, calc(100% - 28px));
-  padding: 12px;
-  border: 1px solid rgba(125, 211, 252, 0.16);
-  border-radius: 12px;
-  background: rgba(10, 14, 28, 0.94);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.34);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  display: none;
-  flex-direction: column;
-  gap: 10px;
-  max-height: min(248px, calc(100dvh - 220px));
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  pointer-events: auto;
-}
-
-.current-system-exploration-card.visible {
-  display: flex;
-  animation: panel-rise 160ms ease;
-}
-
-.current-system-card-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.current-system-card-head-main {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-}
-
-.current-system-card-kicker {
-  color: rgba(125, 211, 252, 0.78);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.current-system-card-name {
-  color: var(--accent-gold);
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.current-system-card-close {
-  flex: 0 0 auto;
-  width: 28px;
-  height: 28px;
-  border: 1px solid rgba(125, 211, 252, 0.18);
-  border-radius: 999px;
-  background: rgba(8, 18, 38, 0.86);
-  color: var(--text-secondary);
-  font: inherit;
-  cursor: pointer;
-  transition: border-color 120ms ease, color 120ms ease, background 120ms ease, transform 120ms ease;
-}
-
-.current-system-card-close:hover {
-  transform: translateY(-1px);
-  color: var(--text-primary);
-  border-color: rgba(125, 211, 252, 0.34);
-  background: rgba(14, 165, 233, 0.14);
-}
-
-.current-system-card-close:focus-visible {
-  outline: 2px solid rgba(125, 211, 252, 0.48);
-  outline-offset: 2px;
-}
-
-.current-system-flow-card {
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-}
-
-.current-system-action {
-  width: 100%;
-  justify-content: center;
-}
-
-#exploration-terminal-btn[hidden] {
-  display: none !important;
-}
-
 .map-overlay-btn:disabled,
 .map-overlay-btn:disabled:hover {
   cursor: not-allowed;
@@ -883,36 +787,15 @@
   .planet-detail-status-grid {
     grid-template-columns: 1fr;
   }
-  .current-system-exploration-card {
-    left: 8px;
-    right: auto;
-    bottom: 112px;
-    width: min(340px, calc(100% - 16px));
-    max-width: calc(100% - 16px);
-    max-height: min(224px, calc(100dvh - 206px));
-  }
 }
 
 @media (max-width: 720px), (max-height: 740px) {
-  .current-system-exploration-card {
-    left: 50%;
-    right: auto;
-    bottom: 108px;
-    transform: translateX(-50%);
-    width: calc(100% - 16px);
-    max-width: 430px;
-    max-height: min(196px, calc(100dvh - 182px));
-    padding: 10px 11px;
-    gap: 8px;
-  }
 
-  .current-system-card-kicker,
   .planet-detail-flow-kicker,
   .planet-detail-progress-pill {
     font-size: 9px;
   }
 
-  .current-system-card-name,
   .planet-detail-flow-title {
     font-size: 12px;
   }

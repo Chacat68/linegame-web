@@ -15,6 +15,7 @@ import { getCompanyLevelValue, getCompanyPrivilegeSummary } from '../data/compan
 import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from './SurfaceManager.js';
 import * as ContextInspector from './ContextInspector.js';
 import { renderLogContext, renderLogDetail } from './LogsContextPresenter.js';
+import { createLogsWorkspaceSession } from './LogsWorkspaceSession.js';
 
 const getLevel = PlayerLevels.getLevel;
 const getRepRank = PlayerLevels.getRepRank;
@@ -27,7 +28,6 @@ const _goodNameById = GOODS.reduce(function (acc, good) {
   return acc;
 }, Object.create(null));
 const STARMAP_GALAXY_VIEW_TOGGLE_EVENT = 'starmap:galaxy-view-toggle';
-const MAX_LOG_HISTORY = 200;
 const LOG_TYPE_LABELS = {
   info: '系统',
   tip: '提示',
@@ -110,9 +110,7 @@ let _lastProgressList = [];
 let _questActions = null;
 let _victoryActions = null;
 let _initialized = false;
-let _logsHistory = [];
-let _nextLogId = 1;
-let _unreadLogCount = 0;
+const _logsSession = createLogsWorkspaceSession({ maxEntries: 200 });
 let _stateRef = null;
 
 // ---------------------------------------------------------------------------
@@ -440,22 +438,15 @@ export function updateArchiveBadges(state) {
 
 
 export function addMessage(text, type) {
-  // 存入历史数组，最新记录始终在顶部。
   var normalizedType = _normalizeLogType(type);
-  _logsHistory.unshift({
-    id: 'message-' + _nextLogId++,
+  _logsSession.addEntry({
     text: String(text == null ? '' : text),
     type: normalizedType,
-    time: new Date(),
   });
-  if (_logsHistory.length > MAX_LOG_HISTORY) {
-    _logsHistory.pop();
-  }
   _reconcileLogContext();
-  _unreadLogCount = Math.min(999, _unreadLogCount + 1);
   _updateLogsNavBadge();
   refreshLogView();
-  EventBus.emit('logs:history:changed', { count: _logsHistory.length });
+  EventBus.emit('logs:history:changed', { count: _logsSession.getDiagnostics().entryCount });
 }
 
 /**
@@ -473,7 +464,8 @@ export function refreshLogView() {
     log.innerHTML = '';
   }
 
-  if (_logsHistory.length === 0) {
+  var entries = _logsSession.getEntries();
+  if (entries.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'msg msg-info log-empty-state';
     empty.textContent = EMPTY_LOG_MESSAGE;
@@ -482,7 +474,7 @@ export function refreshLogView() {
   }
 
   var selectedContext = ContextInspector.getContext('logs');
-  _logsHistory.forEach(function (entry) {
+  entries.forEach(function (entry) {
     log.appendChild(_buildLogMessageElement(entry, selectedContext));
   });
   return true;
@@ -490,28 +482,30 @@ export function refreshLogView() {
 
 /** Context adapter entry point. The latest in-memory history is resolved per render. */
 export function renderContextInspector(request) {
-  return renderLogContext(request, _logsHistory, LOG_TYPE_LABELS);
+  return renderLogContext(request, _logsSession.getEntries(), LOG_TYPE_LABELS);
 }
 
 /** L4 adapter entry point. Message id is resolved against the latest history. */
 export function renderWorkspaceDetail(request) {
-  return renderLogDetail(request, _logsHistory, LOG_TYPE_LABELS);
+  return renderLogDetail(request, _logsSession.getEntries(), LOG_TYPE_LABELS);
 }
 
 export function clearLogUnreadCount() {
-  _unreadLogCount = 0;
+  _logsSession.clearUnread();
   _updateLogsNavBadge();
 }
 
 function _updateLogsNavBadge() {
-  _setBadgeValue('logs-nav-badge', _unreadLogCount, '未读通讯');
+  if (typeof document === 'undefined') return;
+  var unreadCount = _logsSession.getDiagnostics().unreadCount;
+  _setBadgeValue('logs-nav-badge', unreadCount, '未读通讯');
   var logsButton = typeof document.querySelector === 'function'
     ? document.querySelector('.bottom-nav-btn[data-view="logs"]')
     : null;
   if (!logsButton || typeof logsButton.setAttribute !== 'function') return;
 
-  if (_unreadLogCount > 0) {
-    var label = '通讯日志，' + _unreadLogCount + ' 条新消息';
+  if (unreadCount > 0) {
+    var label = '通讯日志，' + unreadCount + ' 条新消息';
     logsButton.title = label;
     logsButton.setAttribute('aria-label', label);
   } else {
@@ -583,9 +577,7 @@ function _bindLogSelection(log) {
 }
 
 function _selectLogEntry(entryId, focusOrigin) {
-  var entry = _logsHistory.find(function (candidate) {
-    return candidate && String(candidate.id) === String(entryId);
-  });
+  var entry = _logsSession.getEntry(entryId);
   if (!entry) return false;
   ContextInspector.replaceContext({
     workspaceId: 'logs',
@@ -617,10 +609,25 @@ function _syncLogSelectionUi(selectedId) {
 function _reconcileLogContext() {
   var context = ContextInspector.getContext('logs');
   if (!context) return;
-  var exists = _logsHistory.some(function (entry) {
-    return entry && String(entry.id) === String(context.id);
-  });
-  if (!exists) ContextInspector.clearContext('logs');
+  if (!_logsSession.getEntry(context.id)) ContextInspector.clearContext('logs');
+}
+
+export function getDiagnostics() {
+  var context = ContextInspector.getContext('logs');
+  return Object.freeze(Object.assign({}, _logsSession.getDiagnostics(), {
+    initialized: _initialized,
+    selectedMessageId: context && context.type === 'message' ? context.id : null,
+  }));
+}
+
+/** 清空当前运行会话的通讯记录，但保留 HUD 壳与 listener 绑定。 */
+export function resetRuntimeState() {
+  _logsSession.reset();
+  ContextInspector.clearContext('logs', { render: false });
+  _updateLogsNavBadge();
+  refreshLogView();
+  EventBus.emit('logs:history:changed', { count: 0, reason: 'session-reset' });
+  return getDiagnostics();
 }
 
 // ---------------------------------------------------------------------------

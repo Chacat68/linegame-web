@@ -13,10 +13,17 @@ describe('MapUI exploration entry', function () {
   });
 
   it('星球详情仍保留直接调查 探索点 的入口', function () {
-    const js = readFileSync('js/ui/MapUI.js', 'utf8');
+    const mapUiSource = readFileSync('js/ui/MapUI.js', 'utf8');
+    const planetPresenterSource = readFileSync('js/ui/MapPlanetDetailPresenter.js', 'utf8');
+    const presenterSource = readFileSync('js/ui/MapExplorationPresenter.js', 'utf8');
 
-    expect(js).toContain('function _buildExplorationSection');
-    expect(js).toContain("type: 'poi'");
-    expect(js).toContain('调查当前航点探索点');
+    expect(mapUiSource).toContain("from './MapPlanetDetailPresenter.js'");
+    expect(mapUiSource).toContain('buildMapPlanetDetailView(stateRef, displayId');
+    expect(planetPresenterSource).toContain("from './MapExplorationPresenter.js'");
+    expect(planetPresenterSource).toContain('buildMapExplorationSection(state, sys, planetData');
+    expect(mapUiSource).not.toContain('function _buildExplorationSection');
+    expect(presenterSource).toContain('export function buildMapExplorationSection');
+    expect(presenterSource).toContain("type: 'poi'");
+    expect(presenterSource).toContain('调查当前航点探索点');
   });
 });

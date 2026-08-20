@@ -583,6 +583,9 @@ export function createGameUiCoordinator(options) {
     var MarketUI = _getLoadedFeature('market');
     var FleetUI = _getLoadedFeature('fleet');
     var ArchiveUI = _getLoadedFeature('archive');
+    _call(UIManager, 'resetRuntimeState', []);
+    _call(MapUI, 'resetRuntimeState', []);
+    _call(HUD, 'resetRuntimeState', []);
     _call(MarketUI, 'resetRuntimeState', []);
     _call(FleetUI, 'resetRuntimeState', []);
     _call(ArchiveUI, 'resetRuntimeState', []);
@@ -604,20 +607,24 @@ export function createGameUiCoordinator(options) {
           activeTab: _call(MapUI, 'getActiveArchiveTab', []) || null,
         }, archiveModuleDiagnostics))
       : null;
+    var mapUiDiagnostics = _call(MapUI, 'getDiagnostics', []) || null;
+    var logsUiDiagnostics = _call(HUD, 'getDiagnostics', []) || null;
     return Object.freeze({
       featureStatus: _call(FeatureStatus, 'getDiagnostics', []) || null,
       marketUi: marketUiDiagnostics,
       fleetUi: fleetUiDiagnostics,
       archiveUi: archiveUiDiagnostics,
+      mapUi: mapUiDiagnostics,
+      logsUi: logsUiDiagnostics,
       renderAllCount: renderAllCount,
       invalidationCount: invalidationCount,
       lastInvalidationRegions: lastInvalidationRegions,
       workspaceSessions: Object.freeze({
-        map: null,
+        map: mapUiDiagnostics,
         trade: marketUiDiagnostics,
         fleet: fleetUiDiagnostics,
         archive: archiveUiDiagnostics,
-        logs: null,
+        logs: logsUiDiagnostics,
       }),
       workspaceRenders: Object.freeze({
         activeWorkspace: _activeWorkspace(),

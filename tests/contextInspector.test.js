@@ -163,11 +163,10 @@ describe('ContextInspector protocol', function () {
     expect(fixture.root.dataset.contextId).toBe('');
   });
 
-  it('开合、Escape、rail 互斥与重复 init 保持焦点语义', async function () {
+  it('开合、Escape 与重复 init 保持焦点语义', async function () {
     var fixture = createFixture();
     globalThis.document = fixture.document;
     var Inspector = await import('../js/ui/ContextInspector.js');
-    var EventBus = await import('../js/core/EventBus.js');
     Inspector.init(); Inspector.init();
     expect(fixture.toggle.listenerCount('click')).toBe(1);
     expect(fixture.root.listenerCount('keydown')).toBe(0);
@@ -182,7 +181,7 @@ describe('ContextInspector protocol', function () {
     expect(fixture.toggle.focusCount).toBe(1);
     fixture.toggle.dispatch('click');
     expect(Inspector.getSnapshot().open).toBe(true);
-    EventBus.emit('starmap-rail:panel-open', { source: 'exploration-terminal' });
+    fixture.toggle.dispatch('click');
     expect(Inspector.getSnapshot().open).toBe(false);
   });
 

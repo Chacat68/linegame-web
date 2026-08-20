@@ -488,64 +488,6 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #map-cont
   pointer-events: none;
 }
 
-.exploration-terminal-menu-btn {
-  position: absolute;
-  top: 322px;
-  left: 18px;
-  z-index: 13;
-  width: 42px;
-  height: 42px;
-  padding: 0;
-  font-size: 0;
-  line-height: 1;
-  text-align: center;
-  white-space: nowrap;
-}
-
-.exploration-terminal-menu-btn::before {
-  content: none;
-  display: none;
-}
-
-.exploration-terminal-menu-btn::after {
-  content: attr(data-terminal-badge);
-  position: absolute;
-  top: -5px;
-  right: -5px;
-  min-width: 16px;
-  height: 16px;
-  display: grid;
-  place-items: center;
-  padding: 0 4px;
-  border: 1px solid rgba(255, 184, 107, 0.42);
-  border-radius: 999px;
-  background: rgba(12, 24, 36, 0.92);
-  color: rgba(255, 213, 142, 0.96);
-  font-family: "Rajdhani", sans-serif;
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 1;
-  box-shadow: 0 0 14px rgba(255, 184, 107, 0.2);
-}
-
-.exploration-terminal-menu-btn[data-terminal-badge=""]::after,
-.exploration-terminal-menu-btn:not([data-terminal-badge])::after {
-  display: none;
-}
-
-.exploration-terminal-menu-btn.active {
-  color: var(--accent-cyan);
-  border-color: var(--hud-border-strong);
-  background: rgba(20, 70, 96, 0.74);
-  box-shadow: var(--glow-strong);
-}
-
-.exploration-terminal-menu-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-  transform: none;
-}
-
 .starmap-rail-btn {
   width: 42px;
   height: 42px;
@@ -562,10 +504,6 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #map-cont
   pointer-events: auto;
   transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 8px 24px rgba(0, 0, 0, 0.28);
-}
-
-.starmap-rail-btn.exploration-terminal-menu-btn {
-  font-size: 0;
 }
 
 .starmap-rail-icon {
@@ -1186,22 +1124,11 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #map-cont
   background: rgba(22, 72, 98, 0.74);
 }
 
-.planet-detail-panel,
-.current-system-exploration-card {
+.planet-detail-panel {
   border-color: var(--hud-border);
   background: rgba(5, 18, 30, 0.9);
   box-shadow: var(--hud-shadow);
   backdrop-filter: blur(18px);
-}
-
-.current-system-exploration-card {
-  top: 322px;
-  left: 74px;
-  bottom: auto;
-  z-index: 13;
-  width: 344px;
-  max-width: min(360px, calc(100% - 92px));
-  max-height: min(300px, calc(100dvh - 344px));
 }
 
 .info-panel-header,
@@ -3229,26 +3156,6 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #map-cont
     display: none;
   }
 
-  .exploration-terminal-menu-btn {
-    top: 68px;
-    left: 12px;
-    width: 42px;
-    height: 42px;
-    max-width: none;
-    z-index: 14;
-  }
-
-  .current-system-exploration-card {
-    top: 114px;
-    left: 12px;
-    right: auto;
-    bottom: auto;
-    transform: none;
-    width: min(340px, calc(100vw - 24px));
-    max-width: calc(100vw - 24px);
-    max-height: min(240px, calc(100dvh - 206px));
-  }
-
   .quest-command-deck {
     grid-template-columns: 1fr;
     min-height: 0;
@@ -3414,20 +3321,6 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #map-cont
     flex: 1;
   }
 
-  .exploration-terminal-menu-btn {
-    top: 64px;
-    left: 8px;
-    max-width: none;
-  }
-
-  .current-system-exploration-card {
-    top: 108px;
-    left: 8px;
-    width: calc(100vw - 16px);
-    max-width: calc(100vw - 16px);
-    max-height: min(220px, calc(100dvh - 188px));
-  }
-
   .quest-command-metrics,
   .quest-triage-grid,
   .quest-focus-list,
@@ -3488,7 +3381,6 @@ label[role="tab"]:focus-visible {
 .secondary-panel-modal-box,
 [data-hud-widget],
 .planet-detail-panel,
-.current-system-exploration-card,
 .tutorial-tooltip {
   border-color: var(--ui-line);
   border-radius: var(--ui-radius-panel);
@@ -5737,7 +5629,6 @@ textarea:focus,
 .starmap-rail-btn,
 .map-overlay-btn,
 .hud-widget-close,
-.current-system-card-close,
 .info-panel-toggle,
 .settings-close-btn,
 #modal-all,
@@ -5779,7 +5670,6 @@ textarea:focus,
 
 .hdr-icon-btn,
 .hud-widget-close,
-.current-system-card-close,
 .info-panel-toggle,
 .settings-close-btn,
 .market-close-btn,
@@ -5795,7 +5685,6 @@ textarea:focus,
 .starmap-rail-btn:hover,
 .map-overlay-btn:hover,
 .hud-widget-close:hover,
-.current-system-card-close:hover,
 .info-panel-toggle:hover,
 .settings-close-btn:hover,
 #modal-all:hover,
@@ -6375,14 +6264,6 @@ textarea:focus,
     height: 42px;
   }
 
-  .exploration-terminal-menu-btn {
-    top: 358px;
-    left: 12px;
-    width: 42px;
-    height: 42px;
-    max-width: none;
-  }
-
   [data-hud-widget] {
     top: 68px;
     left: 62px;
@@ -6418,22 +6299,6 @@ textarea:focus,
     height: 21px;
   }
 
-  .exploration-terminal-menu-btn {
-    top: 312px;
-    left: 8px;
-    width: 36px;
-    height: 36px;
-  }
-
-  .exploration-terminal-menu-btn::before {
-    font-size: 15px;
-  }
-
-  .exploration-terminal-menu-btn::after {
-    top: -4px;
-    right: -4px;
-  }
-
   [data-hud-widget] {
     top: 64px;
     left: 52px;
@@ -6443,422 +6308,11 @@ textarea:focus,
 }
 
 /* Waypoint exploration terminal adopts the same HUD rail and widget interaction language. */
-.exploration-terminal-menu-btn {
-  border-color: var(--hud-border);
-  background: rgba(4, 18, 30, 0.62);
-  color: rgba(215, 242, 255, 0.76);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 8px 24px rgba(0, 0, 0, 0.28);
-}
-
-.exploration-terminal-menu-btn:hover {
-  color: rgba(235, 248, 255, 0.92);
-  border-color: rgba(108, 231, 255, 0.3);
-  background: rgba(12, 38, 56, 0.72);
-  transform: translateY(-1px);
-}
-
-.exploration-terminal-menu-btn.active,
-.exploration-terminal-menu-btn.is-active {
-  color: var(--accent-cyan);
-  border-color: var(--hud-border-strong);
-  background: rgba(23, 75, 98, 0.62);
-  text-shadow: 0 0 12px rgba(108, 231, 255, 0.7);
-  box-shadow: var(--glow-soft);
-}
-
-.exploration-terminal-menu-btn::after {
-  top: -4px;
-  right: -4px;
-  border-color: rgba(108, 231, 255, 0.34);
-  background: rgba(3, 14, 23, 0.96);
-  color: rgba(229, 246, 255, 0.94);
-}
-
-.current-system-exploration-card {
-  top: 322px;
-  left: 74px;
-  width: min(640px, calc(100vw - 96px));
-  max-width: calc(100vw - 96px);
-  max-height: min(560px, max(280px, calc(100dvh - 120px)));
-  padding: 0;
-  gap: 0;
-  border-color: var(--hud-border);
-  border-radius: 8px;
-  background:
-    linear-gradient(180deg, rgba(15, 44, 62, 0.9), rgba(3, 14, 23, 0.9)),
-    radial-gradient(circle at 12% 0, rgba(108, 231, 255, 0.16), transparent 44%),
-    radial-gradient(circle at 100% 0, rgba(255, 184, 107, 0.08), transparent 40%);
-  box-shadow:
-    var(--hud-shadow),
-    0 0 0 1px rgba(108, 231, 255, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(18px) saturate(1.18);
-  -webkit-backdrop-filter: blur(18px) saturate(1.18);
-  overflow: hidden;
-}
-
-.current-system-exploration-card::before {
-  content: "";
-  position: absolute;
-  inset: 10px auto 10px 0;
-  width: 3px;
-  border-radius: 0 999px 999px 0;
-  background: linear-gradient(180deg, transparent, rgba(108, 231, 255, 0.9), transparent);
-  box-shadow: 0 0 18px rgba(108, 231, 255, 0.42);
-  pointer-events: none;
-}
-
-.current-system-exploration-card.visible {
-  display: flex;
-}
-
-.current-system-card-head {
-  min-height: 58px;
-  padding: 10px 12px 10px 14px;
-  align-items: center;
-  gap: 10px;
-  border-bottom: 1px solid rgba(108, 231, 255, 0.11);
-  background:
-    linear-gradient(180deg, rgba(18, 57, 77, 0.46), rgba(3, 14, 23, 0.22)),
-    radial-gradient(circle at 12% 0, rgba(108, 231, 255, 0.14), transparent 56%);
-}
-
-.current-system-card-mark {
-  display: grid;
-  place-items: center;
-  flex: 0 0 42px;
-  width: 42px;
-  height: 42px;
-  border: 1px solid var(--hud-border);
-  border-radius: 7px;
-  background:
-    linear-gradient(180deg, rgba(17, 50, 70, 0.7), rgba(3, 14, 23, 0.86)),
-    radial-gradient(circle at 50% 0, rgba(108, 231, 255, 0.16), transparent 62%);
-  color: rgba(223, 249, 255, 0.92);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 8px 24px rgba(0, 0, 0, 0.22);
-}
-
-.current-system-card-mark svg {
-  width: 24px;
-  height: 24px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.7;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  filter: drop-shadow(0 0 7px rgba(108, 231, 255, 0.22));
-}
-
-.current-system-card-kicker {
-  color: rgba(238, 248, 255, 0.94);
-  font-family: "Orbitron", "Rajdhani", sans-serif;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-}
-
-.current-system-card-name {
-  color: rgba(255, 184, 107, 0.96);
-  font-size: 17px;
-  line-height: 1.2;
-}
-
-.current-system-card-state {
-  flex: 0 0 auto;
-  min-height: 28px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 10px;
-  border: 1px solid rgba(108, 231, 255, 0.2);
-  border-radius: 999px;
-  background: rgba(2, 10, 18, 0.46);
-  color: rgba(193, 237, 255, 0.92);
-  font-size: 11px;
-  font-weight: 800;
-  line-height: 1;
-}
-
-.current-system-card-close {
-  width: 34px;
-  min-width: 34px;
-  height: 34px;
-  border-radius: var(--ui-radius-control);
-}
-
-.current-system-card-body {
-  display: grid;
-  gap: 14px;
-  min-height: 0;
-  padding: 16px 18px 18px;
-  overflow-y: auto;
-  scrollbar-color: rgba(108, 231, 255, 0.32) transparent;
-}
-
-.current-system-signal-panel {
-  display: grid;
-  gap: 12px;
-  min-width: 0;
-  padding: 12px;
-  border: 1px solid rgba(108, 231, 255, 0.13);
-  border-radius: 8px;
-  background:
-    linear-gradient(180deg, rgba(8, 28, 40, 0.58), rgba(2, 10, 18, 0.5)),
-    radial-gradient(circle at 0 0, rgba(108, 231, 255, 0.1), transparent 56%);
-}
-
-.current-system-signal-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  min-width: 0;
-}
-
-.current-system-signal-title {
-  color: rgba(238, 248, 255, 0.94);
-  font-family: "Orbitron", "Rajdhani", sans-serif;
-  font-size: 13px;
-  font-weight: 800;
-  letter-spacing: 0;
-  text-transform: uppercase;
-}
-
-.current-system-signal-subtitle {
-  max-width: 64ch;
-  margin-top: 4px;
-  color: rgba(176, 213, 228, 0.78);
-  font-size: 11px;
-  line-height: 1.45;
-  overflow-wrap: anywhere;
-}
-
-.current-system-signal-badge {
-  flex: 0 0 auto;
-  min-height: 24px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 9px;
-  border: 1px solid rgba(108, 231, 255, 0.18);
-  border-radius: 999px;
-  background: rgba(2, 10, 18, 0.48);
-  color: rgba(193, 237, 255, 0.9);
-  font-size: 10px;
-  font-weight: 800;
-}
-
-.current-system-signal-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  min-width: 0;
-}
-
-.current-system-signal-item {
-  display: grid;
-  gap: 5px;
-  min-width: 0;
-  padding: 9px 10px;
-  border: 1px solid rgba(108, 231, 255, 0.11);
-  border-radius: 8px;
-  background: rgba(2, 10, 18, 0.46);
-}
-
-.current-system-signal-item--ready {
-  border-color: rgba(52, 211, 153, 0.22);
-}
-
-.current-system-signal-item--pending,
-.current-system-signal-item--work {
-  border-color: rgba(245, 158, 11, 0.24);
-}
-
-.current-system-signal-item--route {
-  border-color: rgba(108, 231, 255, 0.24);
-}
-
-.current-system-signal-label,
-.current-system-signal-note,
-.current-system-signal-focus-kicker,
-.current-system-signal-focus-note {
-  display: block;
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.current-system-signal-label,
-.current-system-signal-focus-kicker {
-  color: rgba(144, 190, 208, 0.72);
-  font-size: 10px;
-  font-weight: 800;
-  line-height: 1;
-  text-transform: uppercase;
-}
-
-.current-system-signal-value {
-  display: block;
-  min-width: 0;
-  color: rgba(239, 250, 255, 0.94);
-  font-size: 15px;
-  line-height: 1.15;
-  overflow-wrap: anywhere;
-}
-
-.current-system-signal-note {
-  color: rgba(190, 213, 224, 0.68);
-  font-size: 10px;
-  line-height: 1.28;
-}
-
-.current-system-signal-focus {
-  display: grid;
-  grid-template-columns: minmax(74px, auto) minmax(136px, 0.34fr) minmax(0, 1fr);
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  padding: 10px 11px;
-  border: 1px solid rgba(108, 231, 255, 0.11);
-  border-radius: 8px;
-  background: rgba(2, 10, 18, 0.5);
-}
-
-.current-system-signal-focus[data-tone="sync"],
-.current-system-signal-focus[data-tone="pending"],
-.current-system-signal-focus[data-tone="poi"] {
-  border-color: rgba(245, 158, 11, 0.24);
-  background:
-    linear-gradient(90deg, rgba(92, 52, 10, 0.24), rgba(2, 10, 18, 0.5)),
-    rgba(2, 10, 18, 0.5);
-}
-
-.current-system-signal-focus[data-tone="complete"],
-.current-system-signal-focus[data-tone="route"] {
-  border-color: rgba(52, 211, 153, 0.24);
-  background:
-    linear-gradient(90deg, rgba(20, 83, 45, 0.22), rgba(2, 10, 18, 0.5)),
-    rgba(2, 10, 18, 0.5);
-}
-
-.current-system-signal-focus-title {
-  min-width: 0;
-  color: rgba(238, 248, 255, 0.94);
-  font-size: 13px;
-  line-height: 1.25;
-  overflow-wrap: anywhere;
-}
-
-.current-system-flow-card {
-  gap: 10px;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-}
-
-.current-system-flow-card .planet-detail-flow-kicker {
-  color: rgba(108, 231, 255, 0.72);
-  font-size: 11px;
-  letter-spacing: 0.08em;
-}
-
-.current-system-flow-card .planet-detail-flow-title {
-  color: #f1fbff;
-  font-size: 21px;
-  line-height: 1.18;
-}
-
-.current-system-flow-card .planet-detail-flow-text {
-  color: rgba(202, 224, 236, 0.82);
-  font-size: 14px;
-  line-height: 1.65;
-}
-
-.current-system-card-body .planet-detail-actions {
-  margin-top: 2px;
-}
-
-.current-system-action {
-  min-height: 34px;
-  width: 100%;
-  border-radius: var(--ui-radius-control);
-}
-
-.current-system-card-body .planet-detail-progress-row {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.current-system-card-body .planet-detail-progress-pill {
-  min-width: 0;
-  justify-content: center;
-  padding: 5px 8px;
-  border-radius: var(--ui-radius-control);
-  background: rgba(2, 10, 18, 0.5);
-  overflow-wrap: anywhere;
-}
 
 @media (max-width: 900px) {
-  .current-system-exploration-card {
-    top: 68px;
-    left: 62px;
-    width: min(620px, calc(100vw - 74px));
-    max-width: calc(100vw - 74px);
-    max-height: min(520px, max(260px, calc(100dvh - 154px)));
-  }
-
-  .current-system-signal-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 560px) {
-  .current-system-exploration-card {
-    top: 64px;
-    left: 52px;
-    width: calc(100vw - 60px);
-    max-width: calc(100vw - 60px);
-    max-height: min(500px, max(260px, calc(100dvh - 154px)));
-  }
-
-  .current-system-card-head {
-    min-height: 52px;
-    padding: 8px 9px 8px 11px;
-  }
-
-  .current-system-card-mark,
-  .current-system-card-state {
-    display: none;
-  }
-
-  .current-system-card-name {
-    font-size: 15px;
-  }
-
-  .current-system-card-body {
-    padding: 12px;
-  }
-
-  .current-system-flow-card .planet-detail-flow-title {
-    font-size: 18px;
-  }
-
-  .current-system-card-body .planet-detail-progress-row {
-    grid-template-columns: 1fr;
-  }
-
-  .current-system-signal-focus {
-    grid-template-columns: 1fr;
-  }
-
-  .current-system-signal-head {
-    flex-direction: column;
-  }
-
-  .current-system-signal-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 /* Stable starmap rail metrics across nearby viewport widths. */
@@ -6884,8 +6338,7 @@ textarea:focus,
   max-height: max(0px, calc(100% - var(--starmap-rail-edge-y) - var(--starmap-rail-map-bottom-clearance)));
 }
 
-.starmap-control-rail .starmap-rail-btn,
-.exploration-terminal-menu-btn {
+.starmap-control-rail .starmap-rail-btn {
   flex: 0 0 var(--starmap-rail-size);
   width: var(--starmap-rail-size);
   min-width: var(--starmap-rail-size);
@@ -6896,29 +6349,12 @@ textarea:focus,
   font-size: 16px;
 }
 
-.exploration-terminal-menu-btn {
-  top: var(--starmap-rail-exploration-top);
-  left: var(--starmap-rail-edge-x);
-}
-
-.exploration-terminal-menu-btn::before {
-  font-size: 17px;
-}
-
 [data-hud-widget] {
   top: var(--starmap-rail-edge-y);
   left: var(--starmap-rail-widget-left);
   width: min(448px, var(--starmap-rail-panel-width));
   max-width: var(--starmap-rail-panel-width);
   max-height: min(320px, calc(100dvh - var(--starmap-rail-edge-y) - var(--starmap-rail-bottom-clearance)));
-}
-
-.current-system-exploration-card {
-  top: var(--starmap-rail-edge-y);
-  left: var(--starmap-rail-widget-left);
-  width: min(640px, var(--starmap-rail-panel-width));
-  max-width: var(--starmap-rail-panel-width);
-  max-height: min(560px, max(280px, calc(100dvh - var(--starmap-rail-edge-y) - var(--starmap-rail-bottom-clearance))));
 }
 
 @media (max-width: 900px) {
@@ -6940,10 +6376,6 @@ textarea:focus,
     --starmap-rail-gap: 6px;
     --starmap-rail-widget-gap: 8px;
     --starmap-rail-exploration-offset: 288px;
-  }
-
-  .current-system-card-body .planet-detail-progress-row {
-    grid-template-columns: 1fr;
   }
 }
 
@@ -7295,11 +6727,6 @@ a[class*="btn"] svg,
   line-height: 1;
   font-family: "Rajdhani", "PingFang SC", sans-serif;
   font-weight: 800;
-}
-
-.exploration-terminal-menu-btn::before {
-  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Rajdhani", sans-serif;
-  line-height: 1;
 }
 
 .command-action-btn,
@@ -7802,7 +7229,6 @@ body,
 .dispatch-panel,
 [data-hud-widget],
 .planet-detail-panel,
-.current-system-exploration-card,
 .action-guide,
 .bottom-nav {
   max-width: calc(100vw - 16px);
@@ -8265,8 +7691,7 @@ body,
   white-space: nowrap;
 }
 
-.planet-detail-panel,
-.current-system-exploration-card {
+.planet-detail-panel {
   border-radius: 14px;
   overscroll-behavior: contain;
   scrollbar-color: rgba(108, 231, 255, 0.32) transparent;
@@ -8516,10 +7941,6 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) .galaxy-s
   outline-offset: 2px;
 }
 
-.current-system-exploration-card {
-  max-height: min(560px, max(280px, calc(100dvh - var(--starmap-rail-edge-y) - var(--starmap-command-clearance))));
-}
-
 @keyframes starmap-hud-panel-in {
   from {
     opacity: 0;
@@ -8558,12 +7979,7 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) .galaxy-s
     white-space: nowrap;
   }
 
-  .exploration-terminal-menu-btn {
-    top: min(var(--starmap-rail-exploration-top), calc(100dvh - var(--starmap-command-clearance) - var(--starmap-rail-size)));
-  }
-
-  [data-hud-widget],
-  .current-system-exploration-card {
+  [data-hud-widget] {
     left: var(--starmap-rail-widget-left);
     width: min(520px, calc(100vw - var(--starmap-rail-widget-left) - 10px));
     max-width: calc(100vw - var(--starmap-rail-widget-left) - 10px);
@@ -8602,8 +8018,7 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) .galaxy-s
     --starmap-rail-exploration-offset: 270px;
   }
 
-  .starmap-control-rail .starmap-rail-btn,
-  .exploration-terminal-menu-btn {
+  .starmap-control-rail .starmap-rail-btn {
     font-size: 13px;
   }
 
@@ -8612,8 +8027,7 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) .galaxy-s
     height: 20px;
   }
 
-  [data-hud-widget],
-  .current-system-exploration-card {
+  [data-hud-widget] {
     width: calc(100vw - var(--starmap-rail-widget-left) - 8px);
     max-width: calc(100vw - var(--starmap-rail-widget-left) - 8px);
     max-height: min(440px, calc(100dvh - var(--starmap-rail-edge-y) - var(--starmap-command-clearance)));
@@ -8689,10 +8103,6 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) .galaxy-s
     min-height: 32px;
     padding: 0 8px;
     font-size: 10px;
-  }
-
-  .current-system-card-head {
-    align-items: center;
   }
 
   .planet-detail-panel--pinned .planet-detail-actions--panel {
