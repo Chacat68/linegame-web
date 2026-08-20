@@ -343,5 +343,35 @@ describe('Archive terminal UI', function () {
     expect(factionHost.innerHTML).toContain('友好');
     expect(achievementHost.innerHTML).toContain('已解锁');
     expect(reportHost.innerHTML).toContain(report.title);
+    [questHost, researchHost, factionHost, achievementHost, reportHost].forEach(function (host) {
+      expect(host.innerHTML).toContain('data-context-action="open-detail"');
+      expect(host.innerHTML).toContain('data-context-id=');
+    });
+
+    var questDetailHost = createHtmlContainer();
+    var technologyDetailHost = createHtmlContainer();
+    var factionDetailHost = createHtmlContainer();
+    var achievementDetailHost = createHtmlContainer();
+    var reportDetailHost = createHtmlContainer();
+    expect(QuestUI.renderWorkspaceDetail({ detail: { type: 'archive-quest', id: 'starter_first_trade' }, state: state, container: questDetailHost })).toEqual({ title: expect.stringContaining('任务详情') });
+    expect(ResearchUI.renderWorkspaceDetail({ detail: { type: 'archive-technology', id: 'reinforced_hull' }, state: state, container: technologyDetailHost })).toEqual({ title: expect.stringContaining('科技详情') });
+    expect(FactionUI.renderWorkspaceDetail({ detail: { type: 'archive-faction', id: 'federation' }, state: state, container: factionDetailHost })).toEqual({ title: expect.stringContaining('派系详情') });
+    expect(AchievementUI.renderWorkspaceDetail({ detail: { type: 'archive-achievement', id: ACHIEVEMENTS[0].id }, state: state, container: achievementDetailHost })).toEqual({ title: expect.stringContaining('成就详情') });
+    expect(ArchiveExplorationUI.renderWorkspaceDetail({ detail: { type: 'archive-report', id: report.id }, state: state, container: reportDetailHost })).toEqual({ title: expect.stringContaining('报告详情') });
+
+    expect(questDetailHost.innerHTML).toContain('目标 01');
+    expect(technologyDetailHost.innerHTML).toContain('研究效果');
+    expect(factionDetailHost.innerHTML).toContain('控制地点');
+    expect(achievementDetailHost.innerHTML).toContain('奖励总览');
+    expect(reportDetailHost.innerHTML).toContain('所属区域');
+    [questDetailHost, technologyDetailHost, factionDetailHost, achievementDetailHost, reportDetailHost].forEach(function (host) {
+      expect(host.innerHTML).toContain('workspace-detail-section--object');
+      expect(host.innerHTML).toContain('workspace-detail-object-grid');
+    });
+    expect(QuestUI.renderWorkspaceDetail({ detail: { type: 'archive-quest', id: 'missing' }, state: state, container: createHtmlContainer() })).toBe(false);
+    expect(ResearchUI.renderWorkspaceDetail({ detail: { type: 'archive-technology', id: 'missing' }, state: state, container: createHtmlContainer() })).toBe(false);
+    expect(FactionUI.renderWorkspaceDetail({ detail: { type: 'archive-faction', id: 'missing' }, state: state, container: createHtmlContainer() })).toBe(false);
+    expect(AchievementUI.renderWorkspaceDetail({ detail: { type: 'archive-achievement', id: 'missing' }, state: state, container: createHtmlContainer() })).toBe(false);
+    expect(ArchiveExplorationUI.renderWorkspaceDetail({ detail: { type: 'archive-report', id: 'missing' }, state: state, container: createHtmlContainer() })).toBe(false);
   });
 });

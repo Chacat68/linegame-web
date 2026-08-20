@@ -240,6 +240,7 @@ describe('UI lifecycle idempotency', function () {
     var consolePanel = createFakeElement();
     var marketOverlay = createFakeElement(['hidden']);
     var prevented = false;
+    var tabChanges = [];
 
     globalThis.window = {};
     globalThis.BABYLON = {
@@ -258,6 +259,9 @@ describe('UI lifecycle idempotency', function () {
       querySelector: function (selector) {
         if (selector === '.tab-btn[data-tab="tab-quest"]') return tabQuest;
         if (selector === '.tab-btn[data-tab="tab-research"]') return tabResearch;
+        if (selector === '.tab-btn[data-tab-group="info"].active') {
+          return tabs.find(function (tab) { return tab.classList.contains('active'); }) || null;
+        }
         return null;
       },
       getElementById: function (id) {
@@ -273,7 +277,7 @@ describe('UI lifecycle idempotency', function () {
     };
 
     return import('../js/ui/MapUI.js').then(function (MapUI) {
-      MapUI.initTabs(function () {});
+      MapUI.initTabs(function (tabId, metadata) { tabChanges.push([tabId, metadata]); });
 
       tabQuest.dispatchEvent('keydown', {
         key: 'ArrowRight',
@@ -295,6 +299,11 @@ describe('UI lifecycle idempotency', function () {
       expect(paneResearch.getAttribute('aria-hidden')).toBe('false');
       expect(infoPanel.classList.contains('panel-open')).toBe(true);
       expect(tradePanel.classList.contains('panel-open')).toBe(false);
+      expect(tabChanges).toEqual([['tab-research', {
+        changed: true,
+        group: 'info',
+        previousTabId: 'tab-quest',
+      }]]);
     });
   });
 

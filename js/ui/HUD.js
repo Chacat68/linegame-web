@@ -14,7 +14,7 @@ import * as Exploration         from '../systems/galaxy/ExplorationSystem.js';
 import { getCompanyLevelValue, getCompanyPrivilegeSummary } from '../data/companyAccess.js';
 import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from './SurfaceManager.js';
 import * as ContextInspector from './ContextInspector.js';
-import { renderLogContext } from './LogsContextPresenter.js';
+import { renderLogContext, renderLogDetail } from './LogsContextPresenter.js';
 
 const getLevel = PlayerLevels.getLevel;
 const getRepRank = PlayerLevels.getRepRank;
@@ -455,6 +455,7 @@ export function addMessage(text, type) {
   _unreadLogCount = Math.min(999, _unreadLogCount + 1);
   _updateLogsNavBadge();
   refreshLogView();
+  EventBus.emit('logs:history:changed', { count: _logsHistory.length });
 }
 
 /**
@@ -490,6 +491,11 @@ export function refreshLogView() {
 /** Context adapter entry point. The latest in-memory history is resolved per render. */
 export function renderContextInspector(request) {
   return renderLogContext(request, _logsHistory, LOG_TYPE_LABELS);
+}
+
+/** L4 adapter entry point. Message id is resolved against the latest history. */
+export function renderWorkspaceDetail(request) {
+  return renderLogDetail(request, _logsHistory, LOG_TYPE_LABELS);
 }
 
 export function clearLogUnreadCount() {

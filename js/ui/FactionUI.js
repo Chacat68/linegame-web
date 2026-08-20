@@ -4,6 +4,7 @@
 
 import * as Faction from '../systems/faction/FactionSystem.js';
 import { FACTIONS, FACTION_LEVELS } from '../data/factions.js';
+import { GOODS } from '../data/goods.js';
 import { findSystem } from '../data/systems.js';
 import {
   buildContextualMarketAction,
@@ -11,6 +12,7 @@ import {
 } from './MarketFocus.js';
 import { getCommandActionAttributes, renderCommandActionContent } from './CommandAction.js';
 import * as ContextInspector from './ContextInspector.js';
+import { buildWorkspaceObjectDetailView } from './WorkspaceObjectDetailPresenter.js';
 
 function _escapeHtml(value) {
   return String(value == null ? '' : value)
@@ -47,8 +49,66 @@ export function renderContextInspector(request) {
         '<span role="listitem"><small>控制</small><strong>' + (faction.controlledSystems || []).length + ' 地点</strong></span>' +
       '</div>' +
       '<div class="workspace-context-callout">' + _escapeHtml(faction.bonuses[level.id] || '提升关系以解锁派系奖励。') + '</div>' +
+      '<button class="workspace-context-action" type="button" data-context-action="open-detail" data-context-id="' +
+        _escapeHtmlAttr(faction.id) + '">查看完整派系详情</button>' +
     '</article>';
   return { title: '派系检查' };
+}
+
+function _formatGoodNames(goodIds) {
+  return (Array.isArray(goodIds) ? goodIds : []).map(function (goodId) {
+    var good = GOODS.find(function (entry) { return entry.id === goodId; });
+    return _goodEmoji(goodId) + ' ' + (good ? good.name : goodId);
+  }).join(' / ');
+}
+
+export function renderWorkspaceDetail(request) {
+  var detail = request && request.detail;
+  var state = request && request.state;
+  var container = request && request.container;
+  if (!detail || detail.type !== 'archive-faction' || !state || !container) return false;
+  var faction = FACTIONS.find(function (entry) { return entry.id === detail.id; });
+  if (!faction) return false;
+  var relation = Faction.getRelation(state, faction.id);
+  var level = Faction.getLevel(state, faction.id);
+  var controlledSystems = (faction.controlledSystems || []).map(function (systemId) {
+    var system = findSystem(systemId);
+    return system ? system.name : systemId;
+  });
+  var levelIndex = FACTION_LEVELS.findIndex(function (entry) { return entry.id === level.id; });
+  var nextLevel = levelIndex >= 0 && levelIndex < FACTION_LEVELS.length - 1
+    ? FACTION_LEVELS[levelIndex + 1]
+    : null;
+  var marketLabel = faction.marketAccess && faction.marketAccess.blackMarket
+    ? (Faction.canAccessBlackMarket(state, faction.controlledSystems[0]) ? '黑市已开放' : '黑市待解锁')
+    : '公开市场';
+  var view = buildWorkspaceObjectDetailView({
+    id: faction.id,
+    kind: 'faction',
+    kindLabel: '派系',
+    detailLabel: '派系详情',
+    icon: faction.icon || '🏛️',
+    eyebrow: faction.ideology || '派系档案',
+    title: faction.name,
+    description: faction.description || '暂无派系说明。',
+    metrics: [
+      { label: '关系', value: _formatSigned(relation) },
+      { label: '等级', value: level.name },
+      { label: '税率', value: _formatTaxMod(level.taxMod) },
+      { label: '控制', value: controlledSystems.length + ' 地点' },
+    ],
+    facts: [
+      { label: '当前关系效果', value: faction.bonuses[level.id] || '尚未解锁关系奖励', detail: nextLevel ? ('下一等级：' + nextLevel.name) : '已达到最高关系等级' },
+      { label: '控制地点', value: controlledSystems.length ? controlledSystems.join(' / ') : '无登记地点', detail: '派系税率与市场规则在这些地点生效' },
+      { label: '偏好商品', value: _formatGoodNames(faction.tradePreference && faction.tradePreference.liked) || '无登记偏好', detail: '交易这些商品通常有利于关系' },
+      { label: '敏感商品', value: _formatGoodNames(faction.tradePreference && faction.tradePreference.disliked) || '无登记敏感品', detail: '交易这些商品可能影响关系' },
+    ],
+    tags: [level.name, marketLabel, faction.ideology || ''],
+    note: '该详情汇总关系、控制区与贸易偏好；市场跳转和其它外交动作仍在派系页确认。',
+  });
+  if (!view) return false;
+  container.innerHTML = view.html;
+  return { title: view.title };
 }
 
 function _getRelationTone(rel) {

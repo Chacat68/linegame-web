@@ -44,7 +44,7 @@ function createHarness(overrides) {
     UIManager: { init: vi.fn(), getNavigationSnapshot: vi.fn(function () { return { activeWorkspace: 'map' }; }) },
     Modal: { init: vi.fn() },
     Renderer: { initMapControls: vi.fn(), invalidateScene: vi.fn(), whenSceneReady: vi.fn(function () { return Promise.resolve({ renderer: 'test' }); }) },
-    ContextInspector: { registerRenderer: vi.fn(), dispose: vi.fn() },
+    ContextInspector: { registerRenderer: vi.fn(), clearContext: vi.fn(), dispose: vi.fn() },
     DeferredFeatureStatusUI: {
       showLoading: vi.fn(),
       showError: vi.fn(),
@@ -52,7 +52,7 @@ function createHarness(overrides) {
       dispose: vi.fn(),
       getDiagnostics: vi.fn(function () { return { activeFeatures: [] }; }),
     },
-    WorkspaceDetailSurface: { init: vi.fn(), dispose: vi.fn() },
+    WorkspaceDetailSurface: { init: vi.fn(), close: vi.fn(), refresh: vi.fn(), dispose: vi.fn() },
   };
   var callbacks = {
     getSettings: function () { return {}; },
@@ -156,6 +156,10 @@ describe('GameUiApplicationRuntime', function () {
     expect(harness.ui.MapUI.init).toHaveBeenCalled();
     expect(harness.ui.Modal.init).toHaveBeenCalledWith(harness.callbacks.confirmTrade);
     expect(harness.ui.WorkspaceDetailSurface.init).toHaveBeenCalled();
+    var onTab = harness.ui.MapUI.initTabs.mock.calls[0][0];
+    onTab('tab-research', { changed: true, previousTabId: 'tab-quest' });
+    expect(harness.ui.WorkspaceDetailSurface.close).toHaveBeenCalledOnce();
+    expect(harness.ui.ContextInspector.clearContext).toHaveBeenCalledWith('archive');
     await expect(harness.runtime.whenSceneReady()).resolves.toEqual({ renderer: 'test' });
 
     harness.runtime.presentEntry({ restoredAutosave: true });

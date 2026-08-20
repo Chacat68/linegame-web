@@ -235,6 +235,42 @@ describe('WorkspaceDetailSurface', function () {
     expect(surface.getSnapshot().open).toBe(false);
   });
 
+  it('刷新当前详情时使用最新数据，并在对象淘汰后关闭失效详情', function () {
+    var dom = createDocument();
+    globalThis.document = dom.doc;
+    var entries = new Map([['message-1', '初始消息']]);
+    var navigation = createNavigationController();
+    var surface = createWorkspaceDetailSurface({ document: dom.doc });
+    activeSurfaces.push(surface);
+    surface.registerRenderer('logs-message', function (request) {
+      var message = entries.get(request.detail.id);
+      if (!message) return false;
+      request.container.innerHTML = '<article>' + message + '</article>';
+      return { title: '通讯记录 · 消息详情' };
+    });
+    surface.init({
+      navigation: createNavigationAdapter(navigation),
+      stateSource: function () { return {}; },
+      revisionSource: function () { return 0; },
+      document: dom.doc,
+    });
+
+    navigation.navigate('logs');
+    surface.open({ type: 'logs-message', id: 'message-1', workspaceId: 'logs', revision: 0 });
+    expect(dom.content.innerHTML).toContain('初始消息');
+    var renderCount = surface.getSnapshot().renderCount;
+
+    entries.set('message-1', '更新后的消息');
+    expect(surface.refresh()).toBe(true);
+    expect(dom.content.innerHTML).toContain('更新后的消息');
+    expect(surface.getSnapshot().renderCount).toBe(renderCount + 1);
+
+    entries.delete('message-1');
+    expect(surface.refresh()).toBe(true);
+    expect(navigation.getSnapshot().workspaces.logs.detailDepth).toBe(0);
+    expect(surface.getSnapshot().open).toBe(false);
+  });
+
   it('静态壳层声明真实 L4 surface、层级 token 与窄屏安全区', function () {
     var html = readFileSync('index.html', 'utf8');
     var tokens = readFileSync('css/tokens.css', 'utf8');

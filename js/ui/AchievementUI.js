@@ -4,6 +4,7 @@
 
 import * as Achievement from '../systems/achievement/AchievementSystem.js';
 import * as ContextInspector from './ContextInspector.js';
+import { buildWorkspaceObjectDetailView } from './WorkspaceObjectDetailPresenter.js';
 
 function _escapeHtml(value) {
   return String(value == null ? '' : value)
@@ -49,8 +50,54 @@ export function renderContextInspector(request) {
         '<span role="listitem"><small>状态</small><strong>' + (achievement.unlocked ? '已解锁' : '待完成') + '</strong></span>' +
         '<span role="listitem"><small>奖励</small><strong>' + _escapeHtml(_formatReward(achievement.reward)) + '</strong></span>' +
       '</div>' +
+      '<button class="workspace-context-action" type="button" data-context-action="open-detail" data-context-id="' +
+        _escapeHtmlAttr(achievement.id) + '">查看完整成就详情</button>' +
     '</article>';
   return { title: '成就检查' };
+}
+
+export function renderWorkspaceDetail(request) {
+  var detail = request && request.detail;
+  var state = request && request.state;
+  var container = request && request.container;
+  if (!detail || detail.type !== 'archive-achievement' || !state || !container) return false;
+  var achievements = Achievement.getAll(state);
+  var achievement = achievements.find(function (entry) { return entry.id === detail.id; });
+  if (!achievement) return false;
+  var category = _getCategoryMeta(achievement.category);
+  var categoryAchievements = achievements.filter(function (entry) {
+    return entry.category === achievement.category;
+  });
+  var categoryUnlocked = categoryAchievements.filter(function (entry) { return entry.unlocked; }).length;
+  var totalUnlocked = achievements.filter(function (entry) { return entry.unlocked; }).length;
+  var reward = achievement.reward || {};
+  var view = buildWorkspaceObjectDetailView({
+    id: achievement.id,
+    kind: 'achievement',
+    kindLabel: '成就',
+    detailLabel: '成就详情',
+    icon: achievement.icon || '🏆',
+    eyebrow: category.label + ' · ' + category.code,
+    title: achievement.name,
+    description: achievement.description || '暂无成就说明。',
+    metrics: [
+      { label: '状态', value: achievement.unlocked ? '已解锁' : '待完成' },
+      { label: '分类', value: category.label },
+      { label: '分类进度', value: categoryUnlocked + '/' + categoryAchievements.length },
+      { label: '总进度', value: totalUnlocked + '/' + achievements.length },
+    ],
+    facts: [
+      { label: '解锁目标', value: achievement.description || '完成登记条件', detail: achievement.unlocked ? '当前存档已完成' : '尚未满足条件' },
+      { label: '奖励总览', value: _formatReward(reward), detail: achievement.unlocked ? '奖励已在解锁时结算' : '达成后自动结算' },
+      { label: '积分奖励', value: Number(reward.credits || 0).toLocaleString(), detail: '信用积分' },
+      { label: '成长奖励', value: Number(reward.exp || 0).toLocaleString() + ' 经验 · ' + Number(reward.reputation || 0).toLocaleString() + ' 声望', detail: '未登记的奖励项按 0 计' },
+    ],
+    tags: [achievement.unlocked ? '已解锁' : '待完成', category.label, category.code],
+    note: '该详情只陈述成就条件、分类与奖励；成就由真实游戏行为自动检查和结算。',
+  });
+  if (!view) return false;
+  container.innerHTML = view.html;
+  return { title: view.title };
 }
 
 const CATEGORY_ORDER = ['trade', 'wealth', 'explore', 'tech', 'faction', 'level', 'quest', 'fleet', 'specialist', 'special'];

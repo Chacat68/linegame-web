@@ -41,7 +41,7 @@ function createHarness(options) {
     dispose: vi.fn(),
     init: vi.fn(function (provider, handlers) { navigationHandlers = handlers; }),
   };
-  var WorkspaceDetailSurface = { init: vi.fn(), dispose: vi.fn() };
+  var WorkspaceDetailSurface = { init: vi.fn(), refresh: vi.fn(), dispose: vi.fn() };
   var Modal = { init: vi.fn() };
   var Renderer = config.Renderer || {
     whenSceneReady: vi.fn(function () { return Promise.resolve({ renderer: 'three' }); }),
@@ -79,6 +79,7 @@ function createHarness(options) {
     galaxyJump: vi.fn(),
     getPoiStatus: vi.fn(),
     isMarketOpen: vi.fn(function () { return true; }),
+    onArchiveTabChanged: vi.fn(),
     openMarket: vi.fn(),
     openQuests: vi.fn(),
     refreshActionGuide: vi.fn(),
@@ -196,12 +197,15 @@ describe('GameUiLifecycleController', function () {
 
     var onTab = harness.getTabCallback();
     onTab('tab-fleet');
-    onTab('tab-research');
+    onTab('tab-research', { changed: true, previousTabId: 'tab-quest' });
+    onTab('tab-research', { changed: false, previousTabId: 'tab-research' });
     onTab('tab-market');
     expect(harness.ports.ensureFleet).toHaveBeenCalledTimes(2);
-    expect(harness.ports.ensureArchive).toHaveBeenCalledTimes(2);
+    expect(harness.ports.ensureArchive).toHaveBeenCalledTimes(3);
+    expect(harness.ports.onArchiveTabChanged).toHaveBeenCalledOnce();
+    expect(harness.ports.onArchiveTabChanged).toHaveBeenCalledWith('tab-research', 'tab-quest');
     expect(harness.Tutorial.checkTabClick.mock.calls.map(function (call) { return call[0]; })).toEqual([
-      'tab-fleet', 'tab-research', 'tab-market',
+      'tab-fleet', 'tab-research', 'tab-research', 'tab-market',
     ]);
   });
 
@@ -211,12 +215,16 @@ describe('GameUiLifecycleController', function () {
     harness.controller.initialize();
     harness.controller.initialize();
     expect(harness.events.listenerCount('tutorial:complete')).toBe(1);
+    expect(harness.events.listenerCount('logs:history:changed')).toBe(1);
+    harness.events.emit('logs:history:changed', { count: 3 });
+    expect(harness.WorkspaceDetailSurface.refresh).toHaveBeenCalledOnce();
     harness.events.emit('tutorial:complete');
     expect(harness.controllers.onboardingPolicy.handleTutorialComplete).toHaveBeenCalledOnce();
 
     expect(harness.controller.dispose()).toBe(true);
     expect(harness.controller.dispose()).toBe(false);
     expect(harness.events.listenerCount('tutorial:complete')).toBe(0);
+    expect(harness.events.listenerCount('logs:history:changed')).toBe(0);
     harness.events.emit('tutorial:complete');
     expect(harness.controllers.onboardingPolicy.handleTutorialComplete).toHaveBeenCalledOnce();
     expect(harness.controllers.onboardingUi.dispose).toHaveBeenCalledOnce();
@@ -233,6 +241,7 @@ describe('GameUiLifecycleController', function () {
       entryPresentationCount: 0,
       initializeCount: 2,
       initialized: false,
+      logsHistoryChangedListenerBound: false,
       tutorialCompleteListenerBound: false,
     });
   });
@@ -274,5 +283,6 @@ describe('GameUiLifecycleController', function () {
     expect(harness.MapUI.setExplorationActions).not.toHaveBeenCalled();
     expect(harness.Modal.init).not.toHaveBeenCalled();
     expect(harness.events.listenerCount('tutorial:complete')).toBe(0);
+    expect(harness.events.listenerCount('logs:history:changed')).toBe(0);
   });
 });

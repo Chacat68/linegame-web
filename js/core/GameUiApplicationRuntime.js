@@ -185,6 +185,14 @@ export function createGameUiApplicationRuntime(options) {
         ensureFleet: ensureFleet,
         openQuests: ui.MapUI.openQuestsPanel,
         ensureArchive: ensureArchive,
+        onArchiveTabChanged: function () {
+          if (ui.WorkspaceDetailSurface && typeof ui.WorkspaceDetailSurface.close === 'function') {
+            ui.WorkspaceDetailSurface.close();
+          }
+          if (ui.ContextInspector && typeof ui.ContextInspector.clearContext === 'function') {
+            ui.ContextInspector.clearContext('archive');
+          }
+        },
         explorePoi: callbacks.explorePoi,
         getPoiStatus: callbacks.getPoiStatus,
         refreshActionGuide: guidance.refresh,

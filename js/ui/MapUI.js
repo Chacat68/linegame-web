@@ -2173,6 +2173,9 @@ export function activateTab(tabId) {
   if (!btn) return;
 
   var group = btn.dataset.tabGroup || '';
+  var previousButton = document.querySelector('.tab-btn[data-tab-group="' + group + '"].active');
+  var previousTabId = previousButton && previousButton.dataset ? (previousButton.dataset.tab || '') : '';
+  var changed = previousTabId !== tabId;
   document.querySelectorAll('.tab-btn[data-tab-group="' + group + '"]').forEach(function (b) {
     var isActiveButton = b === btn;
     b.classList.toggle('active', isActiveButton);
@@ -2202,7 +2205,13 @@ export function activateTab(tabId) {
     _setBottomNavActive('hangar');
   }
 
-  if (_tabClickCallback) _tabClickCallback(tabId);
+  if (_tabClickCallback) {
+    _tabClickCallback(tabId, {
+      changed: changed,
+      group: group,
+      previousTabId: previousTabId,
+    });
+  }
 }
 
 export function getActiveArchiveTab() {

@@ -45,7 +45,10 @@ describe('WorkspaceContextAdapters', function () {
       renderContextInspector: vi.fn(function () { return { title: '舰船检查' }; }),
       renderWorkspaceDetail: vi.fn(function () { return { title: '舰船详情' }; }),
     };
-    var logs = { renderContextInspector: vi.fn(function () { return true; }) };
+    var logs = {
+      renderContextInspector: vi.fn(function () { return { title: '消息检查' }; }),
+      renderWorkspaceDetail: vi.fn(function () { return { title: '消息详情' }; }),
+    };
 
     expect(registry.connectMarket(market)).toBe(true);
     expect(registry.connectMarket(market)).toBe(true);
@@ -55,12 +58,12 @@ describe('WorkspaceContextAdapters', function () {
     expect(inspector.registerRenderer).toHaveBeenCalledTimes(3);
     var marketResult = inspector.renderers.get('trade')({ context: { type: 'commodity', id: 'food' } });
     var fleetResult = inspector.renderers.get('fleet')({ context: { type: 'ship', id: '0' } });
-    inspector.renderers.get('logs')({ context: { type: 'message', id: 'message-1' } });
+    var logsResult = inspector.renderers.get('logs')({ context: { type: 'message', id: 'message-1' } });
     expect(market.renderContextInspector).toHaveBeenCalledOnce();
     expect(fleet.renderContextInspector).toHaveBeenCalledOnce();
     expect(logs.renderContextInspector).toHaveBeenCalledOnce();
-    expect(detailSurface.registerRenderer).toHaveBeenCalledTimes(2);
-    expect(Array.from(detailSurface.renderers.keys())).toEqual(['trade-commodity', 'fleet-ship']);
+    expect(detailSurface.registerRenderer).toHaveBeenCalledTimes(3);
+    expect(Array.from(detailSurface.renderers.keys())).toEqual(['trade-commodity', 'fleet-ship', 'logs-message']);
     var trigger = { focus: vi.fn() };
     expect(marketResult.onAction({
       action: 'open-detail',
@@ -98,22 +101,101 @@ describe('WorkspaceContextAdapters', function () {
     var fleetRequest = { detail: { type: 'fleet-ship', id: '0' }, state: {}, container: {} };
     expect(detailSurface.renderers.get('fleet-ship')(fleetRequest)).toEqual({ title: '舰船详情' });
     expect(fleet.renderWorkspaceDetail).toHaveBeenCalledWith(fleetRequest);
+    expect(logsResult.onAction({
+      action: 'open-detail',
+      context: { type: 'message', id: 'message-1' },
+      target: trigger,
+    })).toBe(true);
+    expect(detailSurface.open).toHaveBeenLastCalledWith({
+      type: 'logs-message',
+      id: 'message-1',
+      workspaceId: 'logs',
+      source: 'context-inspector',
+      revision: 8,
+    }, {
+      triggerElement: trigger,
+      returnFocusSelector: '[data-context-action="open-detail"][data-context-id="message-1"]',
+    });
+    var logsRequest = { detail: { type: 'logs-message', id: 'message-1' }, state: {}, container: {} };
+    expect(detailSurface.renderers.get('logs-message')(logsRequest)).toEqual({ title: '消息详情' });
+    expect(logs.renderWorkspaceDetail).toHaveBeenCalledWith(logsRequest);
   });
 
-  it('按 archive context type 路由，不把未知对象交给错误 presenter', function () {
+  it('按五类 archive context 路由，并统一打开对应 L4 详情', function () {
     var inspector = createInspector();
-    var registry = createWorkspaceContextAdapters({ inspector: inspector });
+    var detailSurface = createDetailSurface();
+    var registry = createWorkspaceContextAdapters({ inspector: inspector, detailSurface: detailSurface });
+    var fallbackAction = vi.fn(function () { return 'fallback'; });
     var archive = {
-      QuestUI: { renderContextInspector: vi.fn(function () { return true; }) },
-      ResearchUI: { renderContextInspector: vi.fn(function () { return true; }) },
+      QuestUI: {
+        renderContextInspector: vi.fn(function () { return { title: '任务', onAction: fallbackAction }; }),
+        renderWorkspaceDetail: vi.fn(function () { return { title: '任务详情' }; }),
+      },
+      ResearchUI: {
+        renderContextInspector: vi.fn(function () { return { title: '科技' }; }),
+        renderWorkspaceDetail: vi.fn(function () { return { title: '科技详情' }; }),
+      },
+      FactionUI: {
+        renderContextInspector: vi.fn(function () { return { title: '派系' }; }),
+        renderWorkspaceDetail: vi.fn(function () { return { title: '派系详情' }; }),
+      },
+      AchievementUI: {
+        renderContextInspector: vi.fn(function () { return { title: '成就' }; }),
+        renderWorkspaceDetail: vi.fn(function () { return { title: '成就详情' }; }),
+      },
+      ArchiveExplorationUI: {
+        renderContextInspector: vi.fn(function () { return { title: '报告' }; }),
+        renderWorkspaceDetail: vi.fn(function () { return { title: '报告详情' }; }),
+      },
     };
     registry.connectArchive(archive);
     var render = inspector.renderers.get('archive');
 
-    expect(render({ context: { type: 'technology', id: 'warp_drive' } })).toBe(true);
+    expect(Array.from(detailSurface.renderers.keys())).toEqual([
+      'archive-quest',
+      'archive-technology',
+      'archive-faction',
+      'archive-achievement',
+      'archive-report',
+    ]);
+    var result = render({ context: { type: 'technology', id: 'warp_drive' } });
+    expect(result.title).toBe('科技');
     expect(archive.ResearchUI.renderContextInspector).toHaveBeenCalledOnce();
     expect(archive.QuestUI.renderContextInspector).not.toHaveBeenCalled();
     expect(render({ context: { type: 'unknown', id: 'x' } })).toBe(false);
+
+    var trigger = { focus: vi.fn() };
+    expect(result.onAction({
+      action: 'open-detail',
+      context: { type: 'technology', id: 'warp_drive' },
+      target: trigger,
+    })).toBe(true);
+    expect(detailSurface.open).toHaveBeenCalledWith({
+      type: 'archive-technology',
+      id: 'warp_drive',
+      workspaceId: 'archive',
+      source: 'context-inspector',
+      revision: 8,
+    }, {
+      triggerElement: trigger,
+      returnFocusSelector: '[data-context-action="open-detail"][data-context-id="warp_drive"]',
+    });
+
+    var questResult = render({ context: { type: 'quest', id: 'starter_first_trade' } });
+    expect(questResult.onAction({ action: 'local-action' })).toBe('fallback');
+    expect(fallbackAction).toHaveBeenCalledOnce();
+
+    Object.entries({
+      'archive-quest': archive.QuestUI,
+      'archive-technology': archive.ResearchUI,
+      'archive-faction': archive.FactionUI,
+      'archive-achievement': archive.AchievementUI,
+      'archive-report': archive.ArchiveExplorationUI,
+    }).forEach(function (entry) {
+      var request = { detail: { type: entry[0], id: 'object-id' }, state: {}, container: {} };
+      expect(detailSurface.renderers.get(entry[0])(request).title).toContain('详情');
+      expect(entry[1].renderWorkspaceDetail).toHaveBeenCalledWith(request);
+    });
   });
 
   it('同步不可变 key 时注入 revision，并避免重复替换', function () {
@@ -141,11 +223,21 @@ describe('WorkspaceContextAdapters', function () {
       renderContextInspector: function () { return true; },
       renderWorkspaceDetail: function () { return true; },
     });
+    registry.connectArchive({
+      QuestUI: {
+        renderContextInspector: function () { return true; },
+        renderWorkspaceDetail: function () { return true; },
+      },
+    });
 
     expect(inspector.renderers.has('trade')).toBe(true);
+    expect(inspector.renderers.has('archive')).toBe(true);
     expect(detailSurface.renderers.has('trade-commodity')).toBe(true);
+    expect(detailSurface.renderers.has('archive-quest')).toBe(true);
     registry.dispose();
     expect(inspector.renderers.has('trade')).toBe(false);
+    expect(inspector.renderers.has('archive')).toBe(false);
     expect(detailSurface.renderers.has('trade-commodity')).toBe(false);
+    expect(detailSurface.renderers.has('archive-quest')).toBe(false);
   });
 });

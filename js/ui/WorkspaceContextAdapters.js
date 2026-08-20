@@ -3,12 +3,12 @@
 // 领域 UI 仍随各自 feature 延迟加载；本模块只维护 workspace → renderer
 // 的轻量路由，不持有游戏 state 或领域对象。
 
-const ARCHIVE_RENDERER_BY_TYPE = {
-  quest: 'QuestUI',
-  technology: 'ResearchUI',
-  faction: 'FactionUI',
-  achievement: 'AchievementUI',
-  report: 'ArchiveExplorationUI',
+const ARCHIVE_ROUTE_BY_TYPE = {
+  quest: { moduleName: 'QuestUI', detailType: 'archive-quest' },
+  technology: { moduleName: 'ResearchUI', detailType: 'archive-technology' },
+  faction: { moduleName: 'FactionUI', detailType: 'archive-faction' },
+  achievement: { moduleName: 'AchievementUI', detailType: 'archive-achievement' },
+  report: { moduleName: 'ArchiveExplorationUI', detailType: 'archive-report' },
 };
 
 function _sameContext(left, right) {
@@ -144,20 +144,83 @@ export function createWorkspaceContextAdapters(options) {
   function connectLogs(module) {
     var renderer = _contextRenderer(module);
     if (!renderer) return false;
-    return _register('logs', module, function (request) {
-      return renderer(request);
+    var connected = _register('logs', module, function (request) {
+      var result = renderer(request);
+      if (result === false || !result) return result;
+      var resultObject = typeof result === 'object' ? result : {};
+      var previousAction = typeof resultObject.onAction === 'function' ? resultObject.onAction : null;
+      return Object.assign({}, resultObject, {
+        onAction: function (action) {
+          if (!action || action.action !== 'open-detail' || !action.context ||
+              action.context.type !== 'message' || !detailSurface ||
+              typeof detailSurface.open !== 'function') {
+            return previousAction ? previousAction(action) : false;
+          }
+          return detailSurface.open({
+            type: 'logs-message',
+            id: action.context.id,
+            workspaceId: 'logs',
+            source: 'context-inspector',
+            revision: Number(getRevision()) || 0,
+          }, {
+            triggerElement: action.target,
+            returnFocusSelector: '[data-context-action="open-detail"][data-context-id="' +
+              _escapeSelectorValue(action.context.id) + '"]',
+          });
+        },
+      });
     });
+    var detailRenderer = _detailRenderer(module);
+    if (detailRenderer) {
+      _registerDetail('logs-message', module, function (request) {
+        return detailRenderer(request);
+      });
+    }
+    return connected;
   }
 
   function connectArchive(module) {
     if (!module || typeof module !== 'object') return false;
-    return _register('archive', module, function (request) {
+    var connected = _register('archive', module, function (request) {
       var context = request && request.context;
-      var moduleName = context ? ARCHIVE_RENDERER_BY_TYPE[context.type] : null;
-      var renderer = moduleName ? _contextRenderer(module[moduleName]) : null;
+      var route = context ? ARCHIVE_ROUTE_BY_TYPE[context.type] : null;
+      var renderer = route ? _contextRenderer(module[route.moduleName]) : null;
       if (!renderer) return false;
-      return renderer(request);
+      var result = renderer(request);
+      if (result === false || !result) return result;
+      var resultObject = typeof result === 'object' ? result : {};
+      var previousAction = typeof resultObject.onAction === 'function' ? resultObject.onAction : null;
+      return Object.assign({}, resultObject, {
+        onAction: function (action) {
+          if (!action || action.action !== 'open-detail' || !action.context ||
+              action.context.type !== context.type || !detailSurface ||
+              typeof detailSurface.open !== 'function') {
+            return previousAction ? previousAction(action) : false;
+          }
+          return detailSurface.open({
+            type: route.detailType,
+            id: action.context.id,
+            workspaceId: 'archive',
+            source: 'context-inspector',
+            revision: Number(getRevision()) || 0,
+          }, {
+            triggerElement: action.target,
+            returnFocusSelector: '[data-context-action="open-detail"][data-context-id="' +
+              _escapeSelectorValue(action.context.id) + '"]',
+          });
+        },
+      });
     });
+    Object.keys(ARCHIVE_ROUTE_BY_TYPE).forEach(function (contextType) {
+      var route = ARCHIVE_ROUTE_BY_TYPE[contextType];
+      var featureModule = module[route.moduleName];
+      var renderer = _detailRenderer(featureModule);
+      if (!renderer) return;
+      _registerDetail(route.detailType, featureModule, function (request) {
+        return renderer(request);
+      });
+    });
+    return connected;
   }
 
   function syncSelection(workspaceId, selection, options) {

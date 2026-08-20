@@ -562,7 +562,8 @@
   line-height: 1.85;
 }
 
-.workspace-detail-section--commodity .workspace-detail-intro {
+.workspace-detail-section--commodity .workspace-detail-intro,
+.workspace-detail-section--object .workspace-detail-intro {
   display: grid;
   justify-content: stretch;
 }

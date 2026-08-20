@@ -57,12 +57,20 @@ export function createGameUiLifecycleController(dependencies) {
   var initializeCount = 0;
   var entryPresentationCount = 0;
   var tutorialCompleteListener = null;
+  var logsHistoryChangedListener = null;
 
   function _releaseTutorialCompleteListener() {
     if (tutorialCompleteListener && typeof events.off === 'function') {
       events.off('tutorial:complete', tutorialCompleteListener);
     }
     tutorialCompleteListener = null;
+  }
+
+  function _releaseLogsHistoryChangedListener() {
+    if (logsHistoryChangedListener && typeof events.off === 'function') {
+      events.off('logs:history:changed', logsHistoryChangedListener);
+    }
+    logsHistoryChangedListener = null;
   }
 
   function _bindTutorialCompleteListener() {
@@ -75,9 +83,24 @@ export function createGameUiLifecycleController(dependencies) {
     return true;
   }
 
-  function _handleTabClick(tabId) {
+  function _bindLogsHistoryChangedListener() {
+    _releaseLogsHistoryChangedListener();
+    if (typeof events.on !== 'function') return false;
+    logsHistoryChangedListener = function () {
+      _call(WorkspaceDetailSurface, 'refresh', []);
+    };
+    events.on('logs:history:changed', logsHistoryChangedListener);
+    return true;
+  }
+
+  function _handleTabClick(tabId, metadata) {
     if (tabId === 'tab-fleet') _call(ports, 'ensureFleet', []);
-    if (ARCHIVE_TAB_IDS.indexOf(tabId) !== -1) _call(ports, 'ensureArchive', []);
+    if (ARCHIVE_TAB_IDS.indexOf(tabId) !== -1) {
+      _call(ports, 'ensureArchive', []);
+      if (!metadata || metadata.changed !== false) {
+        _call(ports, 'onArchiveTabChanged', [tabId, metadata && metadata.previousTabId]);
+      }
+    }
     _call(Tutorial, 'checkTabClick', [tabId]);
   }
 
@@ -112,6 +135,7 @@ export function createGameUiLifecycleController(dependencies) {
       stateSource: getState,
       revisionSource: getRevision,
     }]);
+    _bindLogsHistoryChangedListener();
     _call(MapUI, 'init', [getState, ports.travel, ports.galaxyJump]);
     _call(MapUI, 'setExplorationActions', [{
       onExplorePoi: ports.explorePoi,
@@ -165,6 +189,7 @@ export function createGameUiLifecycleController(dependencies) {
   function dispose() {
     if (disposed && !initialized) return false;
     _releaseTutorialCompleteListener();
+    _releaseLogsHistoryChangedListener();
     if (initialized) {
       _call(MapUI, 'setNavigationChangeCallback', [null]);
       _call(MapUI, 'setRefreshMarket', [null]);
@@ -188,6 +213,7 @@ export function createGameUiLifecycleController(dependencies) {
       entryPresentationCount: entryPresentationCount,
       initializeCount: initializeCount,
       initialized: initialized,
+      logsHistoryChangedListenerBound: !!logsHistoryChangedListener,
       tutorialCompleteListenerBound: !!tutorialCompleteListener,
     });
   }

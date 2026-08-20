@@ -313,6 +313,11 @@ export function createWorkspaceDetailSurface(options) {
     return closed;
   }
 
+  function refresh() {
+    if (!initialized || !navigation) return false;
+    return _render(_getSnapshot(), null);
+  }
+
   function getSnapshot() {
     var snapshot = currentSnapshot || _getSnapshot();
     return Object.freeze({
@@ -366,6 +371,7 @@ export function createWorkspaceDetailSurface(options) {
     getSnapshot: getSnapshot,
     init: init,
     open: open,
+    refresh: refresh,
     registerRenderer: registerRenderer,
   });
 }
@@ -376,5 +382,6 @@ export function init(options) { return _defaultSurface.init(options); }
 export function registerRenderer(type, renderer) { return _defaultSurface.registerRenderer(type, renderer); }
 export function open(detail, options) { return _defaultSurface.open(detail, options); }
 export function close() { return _defaultSurface.close(); }
+export function refresh() { return _defaultSurface.refresh(); }
 export function getSnapshot() { return _defaultSurface.getSnapshot(); }
 export function dispose() { return _defaultSurface.dispose(); }
