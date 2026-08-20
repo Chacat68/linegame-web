@@ -4,6 +4,7 @@ import { createGameActionRuntime } from '../js/core/GameActionRuntime.js';
 import {
   ARCHIVE_RESEARCH_ACTION_PRESENTATION,
   FLEET_HANGAR_SHOP_ACTION_PRESENTATION,
+  MARKET_OPERATIONS_ACTION_PRESENTATION,
 } from '../js/core/ActionPresentation.js';
 import { readApplicationComposition } from './runtimeCompositionSource.js';
 
@@ -168,6 +169,20 @@ describe('GameActionRuntime', function () {
     expect(invalidation).toEqual([
       'invalidate',
       ARCHIVE_RESEARCH_ACTION_PRESENTATION.dirtyRegions,
+    ]);
+  });
+
+  it('Market 经营策略动作把单一经营 dirty region 传到 UI 失效端口', function () {
+    var harness = createHarness();
+
+    harness.runtime.commerce.onSetTradeStationStrategy('sol_prime', 'growth');
+
+    var invalidation = harness.trace.find(function (entry) {
+      return Array.isArray(entry) && entry[0] === 'invalidate';
+    });
+    expect(invalidation).toEqual([
+      'invalidate',
+      MARKET_OPERATIONS_ACTION_PRESENTATION.dirtyRegions,
     ]);
   });
 

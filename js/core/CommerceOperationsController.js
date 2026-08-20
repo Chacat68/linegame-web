@@ -3,7 +3,10 @@
 // 高级经营模块仍可延迟加载；controller 对 UI 暴露稳定同步动作契约，
 // runtime 未就绪时返回统一可展示结果，避免 GameManager 重复加载判断。
 
-import { DEFAULT_ACTION_PRESENTATION } from './ActionPresentation.js';
+import {
+  MARKET_ECONOMY_ACTION_PRESENTATION,
+  MARKET_OPERATIONS_ACTION_PRESENTATION,
+} from './ActionPresentation.js';
 
 function _noop() {}
 
@@ -47,8 +50,8 @@ export function createCommerceOperationsController(dependencies) {
     };
   }
 
-  function _commit(result) {
-    dispatch(result, DEFAULT_ACTION_PRESENTATION);
+  function _commit(result, presentation) {
+    dispatch(result, presentation || MARKET_ECONOMY_ACTION_PRESENTATION);
     return result;
   }
 
@@ -68,7 +71,10 @@ export function createCommerceOperationsController(dependencies) {
   }
 
   function onSetTradeStationStrategy(systemId, strategyId) {
-    return _commit(_run('setTradeStationStrategy', [systemId, strategyId]));
+    return _commit(
+      _run('setTradeStationStrategy', [systemId, strategyId]),
+      MARKET_OPERATIONS_ACTION_PRESENTATION
+    );
   }
 
   function onBatchUpgradeTradeStations(systemIds) {
@@ -76,7 +82,10 @@ export function createCommerceOperationsController(dependencies) {
   }
 
   function onBatchSetTradeStationStrategy(strategyId, systemIds) {
-    return _commit(_run('batchSetTradeStationStrategy', [strategyId, normalizeBatchSystemIds(systemIds)]));
+    return _commit(
+      _run('batchSetTradeStationStrategy', [strategyId, normalizeBatchSystemIds(systemIds)]),
+      MARKET_OPERATIONS_ACTION_PRESENTATION
+    );
   }
 
   function onTakeLoan(offerId) {

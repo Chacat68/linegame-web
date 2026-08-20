@@ -7,6 +7,8 @@ import {
   ARCHIVE_RESEARCH_ACTION_PRESENTATION,
   FLEET_HANGAR_ACTION_PRESENTATION,
   FLEET_HANGAR_SHOP_ACTION_PRESENTATION,
+  MARKET_ECONOMY_ACTION_PRESENTATION,
+  MARKET_OPERATIONS_ACTION_PRESENTATION,
   UI_REGION,
   createActionPresentation,
   normalizeDirtyRegions,
@@ -75,6 +77,32 @@ describe('ActionPresentation', function () {
     ]);
     expect(Object.isFrozen(FLEET_HANGAR_ACTION_PRESENTATION.dirtyRegions)).toBe(true);
     expect(Object.isFrozen(FLEET_HANGAR_SHOP_ACTION_PRESENTATION.dirtyRegions)).toBe(true);
+  });
+
+  it('Market 动作按现金联动与纯经营策略声明影响矩阵', function () {
+    expect(MARKET_ECONOMY_ACTION_PRESENTATION.dirtyRegions).toEqual([
+      UI_REGION.HUD,
+      UI_REGION.SHIP,
+      UI_REGION.ACTIVE_WORKSPACE,
+      UI_REGION.MARKET_CHROME,
+      UI_REGION.MARKET_SPOT,
+      UI_REGION.MARKET_CAPITAL,
+      UI_REGION.MARKET_OPERATIONS,
+      UI_REGION.SCENE,
+      UI_REGION.CONTEXT,
+      UI_REGION.DISPATCH,
+      UI_REGION.GUIDE,
+    ]);
+    expect(MARKET_OPERATIONS_ACTION_PRESENTATION.dirtyRegions).toEqual([
+      UI_REGION.HUD,
+      UI_REGION.SHIP,
+      UI_REGION.ACTIVE_WORKSPACE,
+      UI_REGION.MARKET_OPERATIONS,
+      UI_REGION.SCENE,
+      UI_REGION.CONTEXT,
+      UI_REGION.DISPATCH,
+      UI_REGION.GUIDE,
+    ]);
   });
 
   it('Archive 任务与科研动作声明各自 presenter 区域', function () {

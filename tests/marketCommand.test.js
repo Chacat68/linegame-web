@@ -85,8 +85,13 @@ describe('MarketCommand', function () {
     expect(coordinator).toContain("onCommand: _action(actions, 'market', 'onCommand')");
     expect(coordinator).not.toContain("_action(actions, 'market', 'onOpenBuy')");
     expect(marketUi).toContain('export function render(request)');
+    expect(marketUi).toContain('export function renderRegions(request, regions)');
+    expect(marketUi).toContain('export function renderSpot(request)');
+    expect(marketUi).toContain('export function renderCapital(request)');
+    expect(marketUi).toContain('export function renderOperations(request)');
     expect(marketUi).not.toContain('financeActions');
-    expect(marketUi).toContain('capitalContainer, operationsContainer');
+    expect(marketUi).not.toContain('capitalContainer, operationsContainer');
+    expect(marketUi).toContain('function _bindMarketFinanceCommands(container, context, options)');
     expect(marketUi).toContain('container.onclick = function');
     expect(marketUi).toContain('quickTradeDockEl.onclick = function');
   });

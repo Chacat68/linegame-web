@@ -46,11 +46,12 @@ export { getTradeStationCandidateIntel };
 const _focusedMarketGood = Object.create(null);
 let _activeMarketContext = null;
 const _marketChartRange = Object.create(null);
-let _marketBatchPlanSortModes = {
+const DEFAULT_MARKET_BATCH_SORT_MODES = Object.freeze({
   investment: 'yield',
   upgrade: 'income',
   strategy: 'income',
-};
+});
+let _marketBatchPlanSortModes = Object.assign({}, DEFAULT_MARKET_BATCH_SORT_MODES);
 const MARKET_WORKSPACE_TABS = [
   { id: 'spot', label: '交易', hint: '买卖与补给', stage: '01' },
   { id: 'capital', label: '资金', hint: '贷款与投资', stage: '03' },
@@ -71,15 +72,31 @@ const MARKET_SUBWORKSPACE_TABS = {
     { id: 'stations', label: '批量管理', hint: '候选与已建站点' },
   ],
 };
+export const MARKET_RENDER_REGION = Object.freeze({
+  CHROME: 'market-chrome',
+  SPOT: 'market-spot',
+  CAPITAL: 'market-capital',
+  OPERATIONS: 'market-operations',
+});
+const MARKET_RENDER_REGION_NAMES = Object.freeze(Object.values(MARKET_RENDER_REGION));
 
-let _activeMarketWorkspaceTab = 'spot';
-let _activeMarketSubworkspaceTabs = {
+const DEFAULT_MARKET_SUBWORKSPACE_TABS = Object.freeze({
   spot: 'trade',
   capital: 'local',
   operations: 'local',
-};
+});
+let _activeMarketWorkspaceTab = 'spot';
+let _activeMarketSubworkspaceTabs = Object.assign({}, DEFAULT_MARKET_SUBWORKSPACE_TABS);
 let _lastMarketProgression = null;
 let _marketOverviewPriceMode = 'buy';
+let _marketRenderCounts = {
+  [MARKET_RENDER_REGION.CHROME]: 0,
+  [MARKET_RENDER_REGION.SPOT]: 0,
+  [MARKET_RENDER_REGION.CAPITAL]: 0,
+  [MARKET_RENDER_REGION.OPERATIONS]: 0,
+};
+let _lastRenderedRegions = Object.freeze([]);
+let _marketRuntimeResetCount = 0;
 
 function _hasDocument() {
   return typeof document !== 'undefined';
@@ -947,91 +964,105 @@ function _renderOverviewTable(state, galaxyId, onPlanetClick, tableIds) {
   });
 }
 
-function _renderFinancePanels(state, viewingSystem, isCurrentSys, onCommand, progression) {
-  var capitalContainer = document.getElementById('market-capital-pane');
-  var operationsContainer = document.getElementById('market-operations-pane');
-  if (!capitalContainer || !operationsContainer) return;
+function _getCommerceSnapshot(context) {
+  if (!context.commerceSnapshotResolved) {
+    context.commerceSnapshot = Commerce.getCommerceSnapshot(context.state);
+    context.commerceSnapshotResolved = true;
+  }
+  return context.commerceSnapshot;
+}
 
-  var commerceSnapshot = Commerce.getCommerceSnapshot(state);
-  var capitalWorkspace = _renderMarketCapitalWorkspace({
-    state: state,
-    systemId: viewingSystem,
-    isCurrentSystem: isCurrentSys,
-    commerceSnapshot: commerceSnapshot,
+function _bindMarketFinanceCommands(container, context, options) {
+  if (!container) return;
+  var opts = options || {};
+  _bindMarketSubworkspaceTabs(container, context.progression);
+
+  container.onclick = function (event) {
+    var button = _resolveMarketActionNode(event && event.target, container);
+    if (!button || button.disabled || (button.getAttribute && button.getAttribute('aria-disabled') === 'true')) return;
+    if (event && typeof event.preventDefault === 'function') event.preventDefault();
+    if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
+    var action = button.dataset.action;
+
+    if (action === 'market-batch-set-sort') {
+      if (!opts.allowOperationsSort) return;
+      _marketBatchPlanSortModes = _updateMarketOperationsSortModes(
+        _marketBatchPlanSortModes,
+        button.dataset.batchSortScope,
+        button.dataset.batchSortMode
+      );
+      renderOperations(context.renderRequest);
+      return;
+    }
+
+    if (action === 'market-take-loan') {
+      _publishMarketCommand(context.onCommand, MARKET_COMMAND.TAKE_LOAN, { loanOfferId: button.dataset.loanOfferId });
+    } else if (action === 'market-repay-loan') {
+      _publishMarketCommand(context.onCommand, MARKET_COMMAND.REPAY_LOAN, { loanId: button.dataset.loanId });
+    } else if (action === 'market-invest-trade-station') {
+      _publishMarketCommand(context.onCommand, MARKET_COMMAND.INVEST_STATION, { systemId: button.dataset.systemId });
+    } else if (action === 'market-redeem-trade-station') {
+      _publishMarketCommand(context.onCommand, MARKET_COMMAND.REDEEM_STATION_INVESTMENT, { systemId: button.dataset.systemId });
+    } else if (action === 'market-batch-invest-trade-stations') {
+      _publishMarketCommand(context.onCommand, MARKET_COMMAND.BATCH_INVEST_STATIONS, {
+        systemIds: _parseBatchSystemIds(button.dataset.systemIds),
+        amount: Number(button.dataset.batchAmount || 0) || undefined,
+      });
+    } else if (action === 'market-build-station') {
+      _publishMarketCommand(context.onCommand, MARKET_COMMAND.BUILD_STATION, { systemId: button.dataset.systemId });
+    } else if (action === 'market-upgrade-station') {
+      _publishMarketCommand(context.onCommand, MARKET_COMMAND.UPGRADE_STATION, { systemId: button.dataset.systemId });
+    } else if (action === 'market-set-strategy') {
+      _publishMarketCommand(context.onCommand, MARKET_COMMAND.SET_STATION_STRATEGY, {
+        systemId: button.dataset.systemId,
+        strategyId: button.dataset.strategyId,
+      });
+    } else if (action === 'market-batch-upgrade-stations') {
+      _publishMarketCommand(context.onCommand, MARKET_COMMAND.BATCH_UPGRADE_STATIONS, {
+        systemIds: _parseBatchSystemIds(button.dataset.systemIds),
+      });
+    } else if (action === 'market-batch-set-strategy') {
+      _publishMarketCommand(context.onCommand, MARKET_COMMAND.BATCH_SET_STATION_STRATEGY, {
+        strategyId: button.dataset.strategyId,
+        systemIds: _parseBatchSystemIds(button.dataset.systemIds),
+      });
+    }
+  };
+}
+
+function _renderMarketCapital(context) {
+  var container = document.getElementById('market-capital-pane');
+  if (!container) return false;
+  var workspace = _renderMarketCapitalWorkspace({
+    state: context.state,
+    systemId: context.systemId,
+    isCurrentSystem: context.isCurrentSystem,
+    commerceSnapshot: _getCommerceSnapshot(context),
   });
-  var operationsWorkspace = _renderMarketOperationsWorkspace({
-    state: state,
-    systemId: viewingSystem,
-    isCurrentSystem: isCurrentSys,
-    commerceSnapshot: commerceSnapshot,
+  container.innerHTML = workspace.overviewHtml +
+    '<div class="market-workspace-board market-capital-board">' + _renderMarketSubworkspace('capital', {
+      local: workspace.localHtml,
+    }, context.progression) + '</div>';
+  _bindMarketFinanceCommands(container, context);
+  return true;
+}
+
+function _renderMarketOperations(context) {
+  var container = document.getElementById('market-operations-pane');
+  if (!container) return false;
+  var workspace = _renderMarketOperationsWorkspace({
+    state: context.state,
+    systemId: context.systemId,
+    isCurrentSystem: context.isCurrentSystem,
+    commerceSnapshot: _getCommerceSnapshot(context),
     sortModes: _marketBatchPlanSortModes,
   });
-
-  capitalContainer.innerHTML = capitalWorkspace.overviewHtml +
-    '<div class="market-workspace-board market-capital-board">' + _renderMarketSubworkspace('capital', {
-      local: capitalWorkspace.localHtml,
-    }, progression) + '</div>';
-  operationsContainer.innerHTML = operationsWorkspace.overviewHtml +
+  container.innerHTML = workspace.overviewHtml +
     '<div class="market-workspace-board market-operations-board">' +
-      _renderMarketSubworkspace('operations', operationsWorkspace.sections, progression) +
+      _renderMarketSubworkspace('operations', workspace.sections, context.progression) +
     '</div>';
-
-  [capitalContainer, operationsContainer].forEach(function (container) {
-    if (!container) return;
-
-    _bindMarketSubworkspaceTabs(container, progression);
-
-    container.onclick = function (event) {
-      var button = _resolveMarketActionNode(event && event.target, container);
-      if (!button || button.disabled || (button.getAttribute && button.getAttribute('aria-disabled') === 'true')) return;
-      if (event && typeof event.preventDefault === 'function') event.preventDefault();
-      if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
-      var action = button.dataset.action;
-
-      if (action === 'market-batch-set-sort') {
-        _marketBatchPlanSortModes = _updateMarketOperationsSortModes(
-          _marketBatchPlanSortModes,
-          button.dataset.batchSortScope,
-          button.dataset.batchSortMode
-        );
-        _renderFinancePanels(state, viewingSystem, isCurrentSys, onCommand, progression);
-        return;
-      }
-
-      if (action === 'market-take-loan') {
-        _publishMarketCommand(onCommand, MARKET_COMMAND.TAKE_LOAN, { loanOfferId: button.dataset.loanOfferId });
-      } else if (action === 'market-repay-loan') {
-        _publishMarketCommand(onCommand, MARKET_COMMAND.REPAY_LOAN, { loanId: button.dataset.loanId });
-      } else if (action === 'market-invest-trade-station') {
-        _publishMarketCommand(onCommand, MARKET_COMMAND.INVEST_STATION, { systemId: button.dataset.systemId });
-      } else if (action === 'market-redeem-trade-station') {
-        _publishMarketCommand(onCommand, MARKET_COMMAND.REDEEM_STATION_INVESTMENT, { systemId: button.dataset.systemId });
-      } else if (action === 'market-batch-invest-trade-stations') {
-        _publishMarketCommand(onCommand, MARKET_COMMAND.BATCH_INVEST_STATIONS, {
-          systemIds: _parseBatchSystemIds(button.dataset.systemIds),
-          amount: Number(button.dataset.batchAmount || 0) || undefined,
-        });
-      } else if (action === 'market-build-station') {
-        _publishMarketCommand(onCommand, MARKET_COMMAND.BUILD_STATION, { systemId: button.dataset.systemId });
-      } else if (action === 'market-upgrade-station') {
-        _publishMarketCommand(onCommand, MARKET_COMMAND.UPGRADE_STATION, { systemId: button.dataset.systemId });
-      } else if (action === 'market-set-strategy') {
-        _publishMarketCommand(onCommand, MARKET_COMMAND.SET_STATION_STRATEGY, {
-          systemId: button.dataset.systemId,
-          strategyId: button.dataset.strategyId,
-        });
-      } else if (action === 'market-batch-upgrade-stations') {
-        _publishMarketCommand(onCommand, MARKET_COMMAND.BATCH_UPGRADE_STATIONS, {
-          systemIds: _parseBatchSystemIds(button.dataset.systemIds),
-        });
-      } else if (action === 'market-batch-set-strategy') {
-        _publishMarketCommand(onCommand, MARKET_COMMAND.BATCH_SET_STATION_STRATEGY, {
-          strategyId: button.dataset.strategyId,
-          systemIds: _parseBatchSystemIds(button.dataset.systemIds),
-        });
-      }
-    };
-  });
+  _bindMarketFinanceCommands(container, context, { allowOperationsSort: true });
+  return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -1078,55 +1109,106 @@ function _bindMarketOverviewPriceMode(onChange) {
 // 星球详情（交易视图）
 // ---------------------------------------------------------------------------
 
-/**
- * 渲染单个星球的商业终端。
- * UI 只发布 typed market command，不直接持有领域 action 回调。
- * @param {{state:object, systemId?:string, marketMode?:string, galaxyId?:string, onCommand?:Function}} request
- */
-export function render(request) {
+function _createMarketRenderContext(request) {
   var input = request || {};
   var state = input.state;
-  if (!state) return false;
+  if (!state || !_hasDocument()) return null;
   var onCommand = input.onCommand;
-  const sysId         = input.systemId || state.currentSystem;
-  const isCurrentSys  = sysId === state.currentSystem;
-  const spotContainer = document.getElementById('market-spot-pane');
-  const tradeGalaxyId = input.galaxyId || state.currentGalaxy;
-
-  // 非当前星球时显示只读提示
-  // 黑市模式横幅
-  var blackMarketUnlocked = Faction.canAccessBlackMarket(state, sysId);
-  var systemFaction = Faction.getFactionForSystem(sysId);
+  var systemId = input.systemId || state.currentSystem;
+  var isCurrentSystem = systemId === state.currentSystem;
+  var galaxyId = input.galaxyId || state.currentGalaxy;
+  var blackMarketUnlocked = Faction.canAccessBlackMarket(state, systemId);
+  var systemFaction = Faction.getFactionForSystem(systemId);
   var requestedMarketMode = input.marketMode === 'black' ? 'black' : 'open';
   var effectiveMarketMode = requestedMarketMode === 'black' && blackMarketUnlocked ? 'black' : 'open';
-  _activeMarketContext = { systemId: sysId, mode: effectiveMarketMode };
-  const isBlack = effectiveMarketMode === 'black';
-  var progression = _buildMarketProgression(state, sysId, {
+  var isBlack = effectiveMarketMode === 'black';
+  var progression = _buildMarketProgression(state, systemId, {
     systemFaction: systemFaction,
     blackMarketUnlocked: blackMarketUnlocked,
   });
-  _lastMarketProgression = progression;
 
+  _activeMarketContext = { systemId: systemId, mode: effectiveMarketMode };
+  _lastMarketProgression = progression;
   if (isBlack && _activeMarketSubworkspaceTabs.spot === 'trade') {
     _activeMarketSubworkspaceTabs.spot = 'black';
   } else if (!isBlack && _activeMarketSubworkspaceTabs.spot === 'black') {
     _activeMarketSubworkspaceTabs.spot = 'trade';
   }
-
   _ensureMarketWorkspaceState(progression);
-  _renderMarketWorkspaceTabs(progression);
-  _updateMarketDetailMode(state, sysId, isCurrentSys, effectiveMarketMode);
+  return {
+    input: input,
+    state: state,
+    onCommand: onCommand,
+    systemId: systemId,
+    isCurrentSystem: isCurrentSystem,
+    galaxyId: galaxyId,
+    marketMode: effectiveMarketMode,
+    isBlack: isBlack,
+    blackMarketUnlocked: blackMarketUnlocked,
+    systemFaction: systemFaction,
+    progression: progression,
+    spotDataResolved: false,
+    goodsList: null,
+    focusKey: '',
+    snapshots: null,
+    focusedGoodId: null,
+    commerceSnapshotResolved: false,
+    commerceSnapshot: null,
+    renderRequest: Object.assign({}, input, {
+      state: state,
+      systemId: systemId,
+      marketMode: effectiveMarketMode,
+      galaxyId: galaxyId,
+      onCommand: onCommand,
+    }),
+  };
+}
 
-  // 根据市场模式筛选商品
-  var goodsList = isBlack
+function _resolveMarketSpotData(context) {
+  if (context.spotDataResolved) return context;
+  context.goodsList = context.isBlack
     ? Economy.getBlackMarketGoods()
     : GOODS.filter(function (good) {
         return good.marketAccess && good.marketAccess.indexOf('open') !== -1;
       });
-  var focusKey = sysId + ':' + effectiveMarketMode;
-  if (!_marketChartRange[focusKey]) _marketChartRange[focusKey] = 14;
-  var snapshots = _buildMarketSnapshots(state, sysId, goodsList, isBlack, _marketChartRange[focusKey]);
-  var focusedGoodId = _focusedMarketGood[focusKey] || (snapshots[0] && snapshots[0].good.id);
+  context.focusKey = context.systemId + ':' + context.marketMode;
+  if (!_marketChartRange[context.focusKey]) _marketChartRange[context.focusKey] = 14;
+  context.snapshots = _buildMarketSnapshots(
+    context.state,
+    context.systemId,
+    context.goodsList,
+    context.isBlack,
+    _marketChartRange[context.focusKey]
+  );
+  context.focusedGoodId = _focusedMarketGood[context.focusKey] ||
+    (context.snapshots[0] && context.snapshots[0].good.id);
+  context.spotDataResolved = true;
+  return context;
+}
+
+function _renderMarketChrome(context) {
+  _renderMarketWorkspaceTabs(context.progression);
+  _updateMarketDetailMode(
+    context.state,
+    context.systemId,
+    context.isCurrentSystem,
+    context.marketMode
+  );
+  return true;
+}
+
+function _renderMarketSpot(context) {
+  _resolveMarketSpotData(context);
+  var state = context.state;
+  var sysId = context.systemId;
+  var isCurrentSys = context.isCurrentSystem;
+  var effectiveMarketMode = context.marketMode;
+  var progression = context.progression;
+  var goodsList = context.goodsList;
+  var snapshots = context.snapshots;
+  var focusedGoodId = context.focusedGoodId;
+  var focusKey = context.focusKey;
+  var spotContainer = document.getElementById('market-spot-pane');
 
   if (spotContainer) {
     spotContainer.innerHTML = _renderMarketSubworkspace('spot', {
@@ -1136,29 +1218,29 @@ export function render(request) {
         systemId: sysId,
         snapshots: snapshots,
         marketMode: effectiveMarketMode,
-        systemFaction: systemFaction,
-        blackMarketUnlocked: blackMarketUnlocked,
+        systemFaction: context.systemFaction,
+        blackMarketUnlocked: context.blackMarketUnlocked,
         priceMode: _marketOverviewPriceMode,
       }),
       black: _renderBlackMarketSection({
         state: state,
         systemId: sysId,
         marketMode: effectiveMarketMode,
-        systemFaction: systemFaction,
-        blackMarketUnlocked: blackMarketUnlocked,
+        systemFaction: context.systemFaction,
+        blackMarketUnlocked: context.blackMarketUnlocked,
       }),
     }, progression);
     _bindMarketSubworkspaceTabs(spotContainer, progression);
   }
 
   function renderTradeOverview() {
-    _renderOverviewTable(state, tradeGalaxyId, function (systemId) {
+    _renderOverviewTable(state, context.galaxyId, function (systemId) {
       showDetail(systemId, effectiveMarketMode);
-      render(Object.assign({}, input, {
+      render(Object.assign({}, context.renderRequest, {
         state: state,
         systemId: systemId,
         marketMode: effectiveMarketMode,
-        galaxyId: tradeGalaxyId,
+        galaxyId: context.galaxyId,
       }));
     }, {
       tableId: 'market-trade-overview-table',
@@ -1175,7 +1257,7 @@ export function render(request) {
   const goodsToolbarEl = document.getElementById('market-goods-toolbar');
   const analysisPanelEl = document.getElementById('market-analysis-panel');
   const quickTradeDockEl = document.getElementById('market-quick-trade-dock');
-  if (!goodsListEl) return;
+  if (!goodsListEl) return !!spotContainer;
   if (goodsToolbarEl) {
     goodsToolbarEl.innerHTML = _renderSpotGoodsToolbar({
       state: state,
@@ -1202,7 +1284,7 @@ export function render(request) {
         return good.id === button.dataset.id;
       });
       if (!quickGood) return;
-      _publishMarketCommand(onCommand, MARKET_COMMAND.OPEN_TRADE, {
+      _publishMarketCommand(context.onCommand, MARKET_COMMAND.OPEN_TRADE, {
         action: button.dataset.marketQuickAction === 'sell' ? 'sell' : 'buy',
         marketMode: effectiveMarketMode,
         good: quickGood,
@@ -1221,7 +1303,7 @@ export function render(request) {
       workspaceId: 'trade',
       source: 'market-workspace',
       revision: ContextInspector.getCurrentRevision(),
-    }, { render: false });
+    });
   }
 
   var goodsWorkspace = _renderMarketGoodsWorkspace({
@@ -1231,9 +1313,9 @@ export function render(request) {
     isCurrentSystem: isCurrentSys,
     snapshots: snapshots,
     focusedGoodId: activeGoodId,
-    systemFaction: systemFaction,
-    blackMarketUnlocked: blackMarketUnlocked,
-    canFocusRemote: typeof onCommand === 'function',
+    systemFaction: context.systemFaction,
+    blackMarketUnlocked: context.blackMarketUnlocked,
+    canFocusRemote: typeof context.onCommand === 'function',
   });
   goodsListEl.innerHTML = goodsWorkspace.html;
 
@@ -1252,12 +1334,7 @@ export function render(request) {
       source: 'market-good-card',
       revision: ContextInspector.getCurrentRevision(),
     });
-    render(Object.assign({}, input, {
-      state: state,
-      systemId: sysId,
-      marketMode: effectiveMarketMode,
-      galaxyId: tradeGalaxyId,
-    }));
+    renderSpot(context.renderRequest);
   }
 
   goodsListEl.onclick = function (event) {
@@ -1270,18 +1347,18 @@ export function render(request) {
       return;
     }
     if (command.type === 'focus-remote-system') {
-      _publishMarketCommand(onCommand, MARKET_COMMAND.FOCUS_REMOTE_SYSTEM, { systemId: command.systemId });
+      _publishMarketCommand(context.onCommand, MARKET_COMMAND.FOCUS_REMOTE_SYSTEM, { systemId: command.systemId });
       return;
     }
     if (command.type === 'refuel') {
-      _publishMarketCommand(onCommand, MARKET_COMMAND.REFUEL);
+      _publishMarketCommand(context.onCommand, MARKET_COMMAND.REFUEL);
       return;
     }
 
     var good = findRenderedGood(command.goodId);
     if (!good) return;
     if (command.type !== 'sell-good' && command.type !== 'buy-good') return;
-    _publishMarketCommand(onCommand, MARKET_COMMAND.OPEN_TRADE, {
+    _publishMarketCommand(context.onCommand, MARKET_COMMAND.OPEN_TRADE, {
       action: command.type === 'sell-good' ? 'sell' : 'buy',
       marketMode: effectiveMarketMode,
       good: good,
@@ -1307,10 +1384,117 @@ export function render(request) {
       focusedGoodId: activeGoodId,
     });
   }
-
-  _renderFinancePanels(state, sysId, isCurrentSys, onCommand, progression);
-  _applyMarketWorkspaceTabState(progression);
   return true;
+}
+
+function _normalizeMarketRenderRegions(regions) {
+  var source = Array.isArray(regions) ? regions : [regions];
+  var aliases = {
+    chrome: MARKET_RENDER_REGION.CHROME,
+    spot: MARKET_RENDER_REGION.SPOT,
+    capital: MARKET_RENDER_REGION.CAPITAL,
+    operations: MARKET_RENDER_REGION.OPERATIONS,
+  };
+  return source.reduce(function (result, region) {
+    var normalized = aliases[region] || region;
+    if (MARKET_RENDER_REGION_NAMES.indexOf(normalized) !== -1 && result.indexOf(normalized) === -1) {
+      result.push(normalized);
+    }
+    return result;
+  }, []);
+}
+
+/**
+ * 只重绘声明的市场内部区域。区域端口共享一次状态解析，但不会触碰未声明面板。
+ * @param {{state:object, systemId?:string, marketMode?:string, galaxyId?:string, onCommand?:Function}} request
+ * @param {string|string[]} regions
+ */
+export function renderRegions(request, regions) {
+  var context = _createMarketRenderContext(request);
+  if (!context) return false;
+  var requested = new Set(_normalizeMarketRenderRegions(regions));
+  if (requested.size === 0) return false;
+  var rendered = false;
+  var completedRegions = [];
+
+  function renderRegion(region, renderer) {
+    if (!requested.has(region)) return;
+    var completed = renderer(context) !== false;
+    if (!completed) return;
+    _marketRenderCounts[region] += 1;
+    completedRegions.push(region);
+    rendered = true;
+  }
+
+  renderRegion(MARKET_RENDER_REGION.CHROME, _renderMarketChrome);
+  renderRegion(MARKET_RENDER_REGION.SPOT, _renderMarketSpot);
+  renderRegion(MARKET_RENDER_REGION.CAPITAL, _renderMarketCapital);
+  renderRegion(MARKET_RENDER_REGION.OPERATIONS, _renderMarketOperations);
+  _lastRenderedRegions = Object.freeze(completedRegions);
+  if (rendered) _applyMarketWorkspaceTabState(context.progression);
+  return rendered;
+}
+
+export function renderChrome(request) {
+  return renderRegions(request, MARKET_RENDER_REGION.CHROME);
+}
+
+export function renderSpot(request) {
+  return renderRegions(request, MARKET_RENDER_REGION.SPOT);
+}
+
+export function renderCapital(request) {
+  return renderRegions(request, MARKET_RENDER_REGION.CAPITAL);
+}
+
+export function renderOperations(request) {
+  return renderRegions(request, MARKET_RENDER_REGION.OPERATIONS);
+}
+
+/**
+ * 渲染单个星球的完整商业终端。
+ * UI 只发布 typed market command，不直接持有领域 action 回调。
+ * @param {{state:object, systemId?:string, marketMode?:string, galaxyId?:string, onCommand?:Function}} request
+ */
+export function render(request) {
+  return renderRegions(request, MARKET_RENDER_REGION_NAMES);
+}
+
+export function getDiagnostics() {
+  var activeContext = _activeMarketContext
+    ? Object.freeze({
+        systemId: _activeMarketContext.systemId,
+        mode: _activeMarketContext.mode,
+      })
+    : null;
+  var focusKey = activeContext ? activeContext.systemId + ':' + activeContext.mode : '';
+  return Object.freeze({
+    activeContext: activeContext,
+    activeWorkspace: _activeMarketWorkspaceTab,
+    activeSubworkspace: _activeMarketSubworkspaceTabs[_activeMarketWorkspaceTab] || '',
+    subworkspaces: Object.freeze(Object.assign({}, _activeMarketSubworkspaceTabs)),
+    focusedGoodId: focusKey ? (_focusedMarketGood[focusKey] || null) : null,
+    chartRange: focusKey ? (_marketChartRange[focusKey] || 14) : null,
+    overviewPriceMode: _marketOverviewPriceMode,
+    operationsSortModes: Object.freeze(Object.assign({}, _marketBatchPlanSortModes)),
+    renderCounts: Object.freeze(Object.assign({}, _marketRenderCounts)),
+    lastRenderedRegions: _lastRenderedRegions,
+    resetCount: _marketRuntimeResetCount,
+  });
+}
+
+export function resetRuntimeState() {
+  Object.keys(_focusedMarketGood).forEach(function (key) { delete _focusedMarketGood[key]; });
+  Object.keys(_marketChartRange).forEach(function (key) { delete _marketChartRange[key]; });
+  _activeMarketContext = null;
+  _activeMarketWorkspaceTab = 'spot';
+  _activeMarketSubworkspaceTabs = Object.assign({}, DEFAULT_MARKET_SUBWORKSPACE_TABS);
+  _lastMarketProgression = null;
+  _marketOverviewPriceMode = 'buy';
+  _marketBatchPlanSortModes = Object.assign({}, DEFAULT_MARKET_BATCH_SORT_MODES);
+  _lastRenderedRegions = Object.freeze([]);
+  _marketRuntimeResetCount += 1;
+  return getDiagnostics();
 }
 
 // ---------------------------------------------------------------------------

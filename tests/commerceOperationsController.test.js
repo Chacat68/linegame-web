@@ -3,10 +3,15 @@ import {
   createCommerceOperationsController,
   normalizeBatchSystemIds,
 } from '../js/core/CommerceOperationsController.js';
+import {
+  MARKET_ECONOMY_ACTION_PRESENTATION,
+  MARKET_OPERATIONS_ACTION_PRESENTATION,
+} from '../js/core/ActionPresentation.js';
 
 function createHarness(options) {
   var config = options || {};
   var trace = [];
+  var presentations = [];
   var state = config.state || { tradeStations: { sol_prime: {}, vega_port: {} } };
   var result = typeof config.result === 'undefined' ? { ok: true } : config.result;
   var runtime = config.runtime === null ? null : {};
@@ -32,11 +37,21 @@ function createHarness(options) {
     getState: function () { trace.push(['getState']); return state; },
     getRuntime: function () { trace.push(['getRuntime']); return runtime; },
     requestRuntime: function () { trace.push(['requestRuntime']); },
-    dispatch: function (nextResult) { trace.push(['dispatch', nextResult]); },
+    dispatch: function (nextResult, presentation) {
+      trace.push(['dispatch', nextResult]);
+      presentations.push(presentation);
+    },
     recordQuestProgress: function (payload) { trace.push(['quest', payload]); },
     completeTeachingStep: function (chainId, stepId) { trace.push(['teach', chainId, stepId]); },
   });
-  return { controller: controller, trace: trace, state: state, result: result, runtime: runtime };
+  return {
+    controller: controller,
+    trace: trace,
+    state: state,
+    result: result,
+    runtime: runtime,
+    presentations: presentations,
+  };
 }
 
 describe('CommerceOperationsController', function () {
@@ -122,6 +137,17 @@ describe('CommerceOperationsController', function () {
       500,
     ]);
     expect(harness.trace.filter(function (entry) { return entry[0] === 'getState'; })).toHaveLength(1);
+  });
+
+  it('资金与有成本经营动作刷新全部市场端口，纯策略动作只刷新经营端口', function () {
+    var economyHarness = createHarness();
+    var strategyHarness = createHarness();
+
+    economyHarness.controller.onTakeLoan('growth');
+    strategyHarness.controller.onSetTradeStationStrategy('sol_prime', 'growth');
+
+    expect(economyHarness.presentations).toEqual([MARKET_ECONOMY_ACTION_PRESENTATION]);
+    expect(strategyHarness.presentations).toEqual([MARKET_OPERATIONS_ACTION_PRESENTATION]);
   });
 
   it('每次动作重新读取最新 state provider', function () {

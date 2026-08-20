@@ -835,6 +835,175 @@ describe('MarketUI guided focus', function () {
     ]);
   });
 
+  it('商品焦点变化只重绘交易区，不触碰资金与贸易站 DOM', async function () {
+    vi.resetModules();
+    var helpers = await import('./helpers.js');
+    var Economy = await import('../js/systems/economy/Economy.js');
+    var Faction = await import('../js/systems/faction/FactionSystem.js');
+    var Finance = await import('../js/systems/finance/FinanceSystem.js');
+    var state = helpers.createTestState({
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+      viewingGalaxy: 'milky_way',
+      companyLevel: 6,
+      credits: 200000,
+    });
+    Economy.init();
+    Faction.init(state);
+    Finance.init(state);
+
+    var spotPane = createFakeElement();
+    var capitalPane = createFakeElement();
+    var operationsPane = createFakeElement();
+    var goodsList = createFakeElement();
+    var elements = {
+      'market-workspace-tabs': createFakeElement(),
+      'market-spot-pane': spotPane,
+      'market-capital-pane': capitalPane,
+      'market-operations-pane': operationsPane,
+      'market-goods-list': goodsList,
+      'market-goods-toolbar': createFakeElement(),
+      'market-analysis-panel': createFakeElement(),
+    };
+    globalThis.document = {
+      getElementById: function (id) { return elements[id] || null; },
+      querySelectorAll: function () { return []; },
+      querySelector: function () { return null; },
+      createElement: function () { return createFakeElement(); },
+    };
+
+    var MarketUI = await import('../js/ui/MarketUI.js');
+    MarketUI.render({ state: state, systemId: 'sol_prime', marketMode: 'open', galaxyId: 'milky_way' });
+    capitalPane.innerHTML = 'CAPITAL_SENTINEL';
+    operationsPane.innerHTML = 'OPERATIONS_SENTINEL';
+
+    var focusTarget = {
+      dataset: { marketCommand: 'focus-good', goodId: 'water' },
+      parentElement: goodsList,
+    };
+    goodsList.onclick({ target: focusTarget, stopPropagation: function () {} });
+
+    expect(MarketUI.getFocusedMarketGood('sol_prime', 'open')).toBe('water');
+    expect(goodsList.innerHTML).toContain('data-market-good="water"');
+    expect(capitalPane.innerHTML).toBe('CAPITAL_SENTINEL');
+    expect(operationsPane.innerHTML).toBe('OPERATIONS_SENTINEL');
+  });
+
+  it('切换查看地点时立即发布可重渲染的商品 Context', async function () {
+    vi.resetModules();
+    var helpers = await import('./helpers.js');
+    var Economy = await import('../js/systems/economy/Economy.js');
+    var Faction = await import('../js/systems/faction/FactionSystem.js');
+    var Finance = await import('../js/systems/finance/FinanceSystem.js');
+    var ContextInspector = await import('../js/ui/ContextInspector.js');
+    var replaceContext = vi.spyOn(ContextInspector, 'replaceContext');
+    var state = helpers.createTestState({
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+      viewingGalaxy: 'milky_way',
+      visitedSystems: ['sol_prime', 'nova_station'],
+      credits: 5000,
+    });
+    Economy.init();
+    Faction.init(state);
+    Finance.init(state);
+
+    var elements = {
+      'market-workspace-tabs': createFakeElement(),
+      'market-spot-pane': createFakeElement(),
+      'market-capital-pane': createFakeElement(),
+      'market-operations-pane': createFakeElement(),
+      'market-goods-list': createFakeElement(),
+      'market-goods-toolbar': createFakeElement(),
+      'market-analysis-panel': createFakeElement(),
+    };
+    globalThis.document = {
+      getElementById: function (id) { return elements[id] || null; },
+      querySelectorAll: function () { return []; },
+      querySelector: function () { return null; },
+      createElement: function () { return createFakeElement(); },
+    };
+
+    var MarketUI = await import('../js/ui/MarketUI.js');
+    MarketUI.render({
+      state: state,
+      systemId: 'nova_station',
+      marketMode: 'open',
+      galaxyId: 'milky_way',
+    });
+
+    var publication = replaceContext.mock.calls.at(-1);
+    expect(publication).toHaveLength(1);
+    expect(publication[0]).toEqual(expect.objectContaining({
+      type: 'commodity',
+      workspaceId: 'trade',
+      source: 'market-workspace',
+    }));
+  });
+
+  it('贸易站排序只重绘经营区，不触碰交易与资金 DOM', async function () {
+    vi.resetModules();
+    var helpers = await import('./helpers.js');
+    var Economy = await import('../js/systems/economy/Economy.js');
+    var Faction = await import('../js/systems/faction/FactionSystem.js');
+    var Finance = await import('../js/systems/finance/FinanceSystem.js');
+    var state = helpers.createTestState({
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+      viewingGalaxy: 'milky_way',
+      companyLevel: 6,
+      credits: 200000,
+      visitedSystems: ['sol_prime', 'nova_station'],
+    });
+    Economy.init();
+    Faction.init(state);
+    Finance.init(state);
+
+    var spotPane = createFakeElement();
+    var capitalPane = createFakeElement();
+    var operationsPane = createFakeElement();
+    var elements = {
+      'market-workspace-tabs': createFakeElement(),
+      'market-spot-pane': spotPane,
+      'market-capital-pane': capitalPane,
+      'market-operations-pane': operationsPane,
+      'market-goods-list': createFakeElement(),
+      'market-goods-toolbar': createFakeElement(),
+    };
+    globalThis.document = {
+      getElementById: function (id) { return elements[id] || null; },
+      querySelectorAll: function () { return []; },
+      querySelector: function () { return null; },
+      createElement: function () { return createFakeElement(); },
+    };
+
+    var MarketUI = await import('../js/ui/MarketUI.js');
+    MarketUI.render({ state: state, systemId: 'sol_prime', marketMode: 'open', galaxyId: 'milky_way' });
+    spotPane.innerHTML = 'SPOT_SENTINEL';
+    capitalPane.innerHTML = 'CAPITAL_SENTINEL';
+    operationsPane.innerHTML = 'OPERATIONS_SENTINEL';
+
+    var sortButton = {
+      dataset: {
+        action: 'market-batch-set-sort',
+        batchSortScope: 'investment',
+        batchSortMode: 'system',
+      },
+      parentElement: operationsPane,
+      disabled: false,
+    };
+    operationsPane.onclick({
+      target: { dataset: {}, parentElement: sortButton },
+      preventDefault: function () {},
+      stopPropagation: function () {},
+    });
+
+    expect(operationsPane.innerHTML).not.toBe('OPERATIONS_SENTINEL');
+    expect(operationsPane.innerHTML).toContain('market-operations-board');
+    expect(spotPane.innerHTML).toBe('SPOT_SENTINEL');
+    expect(capitalPane.innerHTML).toBe('CAPITAL_SENTINEL');
+  });
+
   it('资本页展示状态概览和局部风险信号', async function () {
     vi.resetModules();
     var helpers = await import('./helpers.js');
@@ -1288,5 +1457,93 @@ describe('MarketUI guided focus', function () {
     expect(operationsPane.innerHTML).toContain('补给商网');
     expect(operationsPane.innerHTML).toContain('data-action="market-build-station"');
     expect(operationsPane.innerHTML).toContain('data-system-id="nova_station"');
+  });
+
+  it('诊断快照记录独立 render port，并在会话重置时清理市场选择状态', async function () {
+    vi.resetModules();
+    var helpers = await import('./helpers.js');
+    var Economy = await import('../js/systems/economy/Economy.js');
+    var Faction = await import('../js/systems/faction/FactionSystem.js');
+    var Finance = await import('../js/systems/finance/FinanceSystem.js');
+    var MarketUI = await import('../js/ui/MarketUI.js');
+    var state = helpers.createTestState({
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+      viewingGalaxy: 'milky_way',
+      companyLevel: 6,
+      credits: 50000,
+    });
+    Economy.init();
+    Faction.init(state);
+    Finance.init(state);
+
+    var elements = {
+      'market-workspace-tabs': createFakeElement(),
+      'market-spot-pane': createFakeElement(),
+      'market-capital-pane': createFakeElement(),
+      'market-operations-pane': createFakeElement(),
+      'market-goods-list': createFakeElement(),
+      'market-goods-toolbar': createFakeElement(),
+      'market-spot-command-deck': createFakeElement(),
+      'market-analysis-panel': createFakeElement(),
+    };
+    globalThis.document = {
+      getElementById: function (id) { return elements[id] || null; },
+      querySelectorAll: function () { return []; },
+      querySelector: function () { return null; },
+      createElement: function () { return createFakeElement(); },
+    };
+
+    var before = MarketUI.resetRuntimeState();
+    MarketUI.render({
+      state: state,
+      systemId: 'sol_prime',
+      marketMode: 'open',
+      galaxyId: 'milky_way',
+      onCommand: function () {},
+    });
+    var afterFullRender = MarketUI.getDiagnostics();
+    ['market-chrome', 'market-spot', 'market-capital', 'market-operations'].forEach(function (region) {
+      expect(afterFullRender.renderCounts[region]).toBe(before.renderCounts[region] + 1);
+    });
+    expect(afterFullRender.lastRenderedRegions).toEqual([
+      'market-chrome',
+      'market-spot',
+      'market-capital',
+      'market-operations',
+    ]);
+
+    MarketUI.renderOperations({
+      state: state,
+      systemId: 'sol_prime',
+      marketMode: 'open',
+      galaxyId: 'milky_way',
+      onCommand: function () {},
+    });
+    var afterOperations = MarketUI.getDiagnostics();
+    expect(afterOperations.renderCounts['market-operations']).toBe(afterFullRender.renderCounts['market-operations'] + 1);
+    expect(afterOperations.renderCounts['market-spot']).toBe(afterFullRender.renderCounts['market-spot']);
+    expect(afterOperations.lastRenderedRegions).toEqual(['market-operations']);
+
+    MarketUI.setFocusedMarketGood('sol_prime', 'open', 'water');
+    MarketUI.setMarketWorkspaceFocus({ workspaceId: 'capital', subworkspaceId: 'local' });
+    expect(MarketUI.getDiagnostics()).toEqual(expect.objectContaining({
+      activeContext: { systemId: 'sol_prime', mode: 'open' },
+      activeWorkspace: 'capital',
+      focusedGoodId: 'water',
+      chartRange: 14,
+    }));
+
+    var reset = MarketUI.resetRuntimeState();
+    expect(reset.activeContext).toBeNull();
+    expect(reset.activeWorkspace).toBe('spot');
+    expect(reset.activeSubworkspace).toBe('trade');
+    expect(reset.focusedGoodId).toBeNull();
+    expect(reset.chartRange).toBeNull();
+    expect(reset.overviewPriceMode).toBe('buy');
+    expect(reset.operationsSortModes).toEqual({ investment: 'yield', upgrade: 'income', strategy: 'income' });
+    expect(reset.lastRenderedRegions).toEqual([]);
+    expect(reset.resetCount).toBe(before.resetCount + 1);
+    expect(MarketUI.getFocusedMarketGood('sol_prime', 'open')).toBeNull();
   });
 });

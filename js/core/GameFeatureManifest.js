@@ -166,6 +166,9 @@ export function createGameFeatureManifest(options) {
           loadStylesheet('market-terminal', MARKET_TERMINAL_STYLES_URL),
         ]).then(function (results) { return results[0]; });
       },
+      dispose: function (module) {
+        if (module && typeof module.resetRuntimeState === 'function') module.resetRuntimeState();
+      },
       onError: onError('market'),
     },
     fleet: {

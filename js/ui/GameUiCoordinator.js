@@ -6,6 +6,12 @@
 import { UI_REGION, normalizeDirtyRegions } from '../core/ActionPresentation.js';
 
 const FEATURE_NAMES = ['market', 'fleet', 'archive', 'save'];
+const MARKET_REGION_NAMES = Object.freeze([
+  UI_REGION.MARKET_CHROME,
+  UI_REGION.MARKET_SPOT,
+  UI_REGION.MARKET_CAPITAL,
+  UI_REGION.MARKET_OPERATIONS,
+]);
 const FLEET_REGION_NAMES = Object.freeze([
   UI_REGION.FLEET_HANGAR,
   UI_REGION.FLEET_SHOP,
@@ -118,25 +124,90 @@ export function createGameUiCoordinator(options) {
       });
   }
 
-  function renderMarket(MarketUI, stateOverride) {
-    var module = MarketUI || _getLoadedFeature('market');
-    var state = arguments.length > 1 ? stateOverride : getState();
-    if (!module || !state || typeof module.render !== 'function') return false;
-
+  function _createMarketRenderRequest(state) {
     var systemId = _call(MapUI, 'getMarketViewSystem', [state]);
     var galaxyId = _call(MapUI, 'getMarketViewGalaxy', [state]);
     var requestedMode = _callAction(actions, 'market', 'getMode', [state]);
     var mode = _normalizeMarketMode(requestedMode);
-    module.render({
+    return {
       state: state,
       systemId: systemId || state.currentSystem,
       marketMode: mode,
       galaxyId: galaxyId || state.currentGalaxy,
       onCommand: _action(actions, 'market', 'onCommand'),
-    });
+    };
+  }
+
+  function _afterMarketRender(module, state, mode) {
     _call(ContextAdapters, 'connectMarket', [module]);
     _callAction(actions, 'market', 'onAfterRender', [module, state, mode]);
+  }
+
+  function renderMarket(MarketUI, stateOverride) {
+    var module = MarketUI || _getLoadedFeature('market');
+    var state = arguments.length > 1 ? stateOverride : getState();
+    if (!module || !state || typeof module.render !== 'function') return false;
+    var request = _createMarketRenderRequest(state);
+    module.render(request);
+    _afterMarketRender(module, state, request.marketMode);
     return true;
+  }
+
+  function _renderMarketRegions(module, state, regions) {
+    if (!module || !state) return false;
+    var requested = Array.from(new Set(regions || [])).filter(function (region) {
+      return MARKET_REGION_NAMES.indexOf(region) !== -1;
+    });
+    if (requested.length === 0) return false;
+    var request = _createMarketRenderRequest(state);
+    var rendered = false;
+
+    if (typeof module.renderRegions === 'function') {
+      rendered = module.renderRegions(request, requested) !== false;
+    } else {
+      var methodByRegion = {};
+      methodByRegion[UI_REGION.MARKET_CHROME] = 'renderChrome';
+      methodByRegion[UI_REGION.MARKET_SPOT] = 'renderSpot';
+      methodByRegion[UI_REGION.MARKET_CAPITAL] = 'renderCapital';
+      methodByRegion[UI_REGION.MARKET_OPERATIONS] = 'renderOperations';
+      requested.forEach(function (region) {
+        var methodName = methodByRegion[region];
+        if (typeof module[methodName] !== 'function') return;
+        module[methodName](request);
+        rendered = true;
+      });
+      if (!rendered && typeof module.render === 'function') {
+        module.render(request);
+        rendered = true;
+      }
+    }
+
+    if (rendered) _afterMarketRender(module, state, request.marketMode);
+    return rendered;
+  }
+
+  function renderMarketChrome(MarketUI, stateOverride) {
+    var module = MarketUI || _getLoadedFeature('market');
+    var state = arguments.length > 1 ? stateOverride : getState();
+    return _renderMarketRegions(module, state, [UI_REGION.MARKET_CHROME]);
+  }
+
+  function renderMarketSpot(MarketUI, stateOverride) {
+    var module = MarketUI || _getLoadedFeature('market');
+    var state = arguments.length > 1 ? stateOverride : getState();
+    return _renderMarketRegions(module, state, [UI_REGION.MARKET_SPOT]);
+  }
+
+  function renderMarketCapital(MarketUI, stateOverride) {
+    var module = MarketUI || _getLoadedFeature('market');
+    var state = arguments.length > 1 ? stateOverride : getState();
+    return _renderMarketRegions(module, state, [UI_REGION.MARKET_CAPITAL]);
+  }
+
+  function renderMarketOperations(MarketUI, stateOverride) {
+    var module = MarketUI || _getLoadedFeature('market');
+    var state = arguments.length > 1 ? stateOverride : getState();
+    return _renderMarketRegions(module, state, [UI_REGION.MARKET_OPERATIONS]);
   }
 
   function _renderFleetRegions(module, state, regions) {
@@ -360,9 +431,10 @@ export function createGameUiCoordinator(options) {
 
     var dirty = new Set(dirtyRegions);
     var renderedFeatures = new Set();
+    var hasMarketRegions = MARKET_REGION_NAMES.some(function (region) { return dirty.has(region); });
     var hasFleetRegions = FLEET_REGION_NAMES.some(function (region) { return dirty.has(region); });
     var hasArchiveRegions = ARCHIVE_REGION_NAMES.some(function (region) { return dirty.has(region); });
-    var activeWorkspace = dirty.has(UI_REGION.ACTIVE_WORKSPACE) || hasFleetRegions || hasArchiveRegions
+    var activeWorkspace = dirty.has(UI_REGION.ACTIVE_WORKSPACE) || hasMarketRegions || hasFleetRegions || hasArchiveRegions
       ? _activeWorkspace()
       : null;
 
@@ -388,7 +460,7 @@ export function createGameUiCoordinator(options) {
     if (dirty.has(UI_REGION.SHIP)) _call(ShipUI, 'renderShipStats', [state]);
 
     if (dirty.has(UI_REGION.ACTIVE_WORKSPACE)) {
-      if (activeWorkspace === 'trade') renderFeature('market');
+      if (activeWorkspace === 'trade' && !hasMarketRegions) renderFeature('market');
       else if (activeWorkspace === 'fleet' && !hasFleetRegions) renderFeature('fleet');
       else if (activeWorkspace === 'archive' && !hasArchiveRegions) renderFeature('archive');
     }
@@ -396,6 +468,14 @@ export function createGameUiCoordinator(options) {
     if (dirty.has(UI_REGION.FLEET)) renderFeature('fleet');
     if (dirty.has(UI_REGION.ARCHIVE)) renderFeature('archive');
     if (dirty.has(UI_REGION.SAVE)) renderFeature('save');
+
+    if (hasMarketRegions && activeWorkspace === 'trade' && !renderedFeatures.has('market')) {
+      var MarketUI = _getLoadedFeature('market');
+      if (MarketUI) {
+        var marketRegions = MARKET_REGION_NAMES.filter(function (region) { return dirty.has(region); });
+        _renderMarketRegions(MarketUI, state, marketRegions);
+      }
+    }
 
     if (hasFleetRegions && activeWorkspace === 'fleet' && !renderedFeatures.has('fleet')) {
       var FleetUI = _getLoadedFeature('fleet');
@@ -427,9 +507,18 @@ export function createGameUiCoordinator(options) {
     _call(FeatureStatus, 'dispose', []);
   }
 
+  function reset() {
+    var MarketUI = _getLoadedFeature('market');
+    _call(MarketUI, 'resetRuntimeState', []);
+    lastInvalidationRegions = Object.freeze([]);
+    return getDiagnostics();
+  }
+
   function getDiagnostics() {
+    var MarketUI = _getLoadedFeature('market');
     return Object.freeze({
       featureStatus: _call(FeatureStatus, 'getDiagnostics', []) || null,
+      marketUi: _call(MarketUI, 'getDiagnostics', []) || null,
       renderAllCount: renderAllCount,
       invalidationCount: invalidationCount,
       lastInvalidationRegions: lastInvalidationRegions,
@@ -446,6 +535,7 @@ export function createGameUiCoordinator(options) {
     getLoaded: getLoaded,
     invalidate: invalidate,
     loadFeature: loadFeature,
+    reset: reset,
     renderAll: renderAll,
     renderArchive: renderArchive,
     renderArchiveAchievement: renderArchiveAchievement,
@@ -457,6 +547,10 @@ export function createGameUiCoordinator(options) {
     renderFleetHangar: renderFleetHangar,
     renderFleetShop: renderFleetShop,
     renderMarket: renderMarket,
+    renderMarketCapital: renderMarketCapital,
+    renderMarketChrome: renderMarketChrome,
+    renderMarketOperations: renderMarketOperations,
+    renderMarketSpot: renderMarketSpot,
     renderSave: renderSave,
   };
 }

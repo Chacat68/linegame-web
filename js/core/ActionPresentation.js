@@ -9,6 +9,10 @@ export const UI_REGION = Object.freeze({
   SHIP: 'ship',
   ACTIVE_WORKSPACE: 'active-workspace',
   MARKET: 'market',
+  MARKET_CHROME: 'market-chrome',
+  MARKET_SPOT: 'market-spot',
+  MARKET_CAPITAL: 'market-capital',
+  MARKET_OPERATIONS: 'market-operations',
   FLEET: 'fleet',
   FLEET_HANGAR: 'fleet-hangar',
   FLEET_SHOP: 'fleet-shop',
@@ -80,6 +84,21 @@ function _withWorkspaceRegions(regions) {
   dirtyRegions.splice.apply(dirtyRegions, [insertAt, 0].concat(regions));
   return dirtyRegions;
 }
+
+// 市场中现金、货舱、公司成长与经营资格互相影响。交易、融资与有成本的
+// 站点动作必须同步四个真实端口；纯经营策略切换只使贸易站投影失效。
+export const MARKET_ECONOMY_ACTION_PRESENTATION = createActionPresentation(
+  _withWorkspaceRegions([
+    UI_REGION.MARKET_CHROME,
+    UI_REGION.MARKET_SPOT,
+    UI_REGION.MARKET_CAPITAL,
+    UI_REGION.MARKET_OPERATIONS,
+  ])
+);
+
+export const MARKET_OPERATIONS_ACTION_PRESENTATION = createActionPresentation(
+  _withWorkspaceRegions([UI_REGION.MARKET_OPERATIONS])
+);
 
 // Fleet 的主机库与采购页已经拥有独立 presenter/render 入口。动作仍保留
 // ACTIVE_WORKSPACE，让从其他入口触发的动作可以刷新当前工作区；当 Fleet

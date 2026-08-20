@@ -218,6 +218,11 @@ export function createGameUiApplicationRuntime(options) {
 
   function reset() {
     if (marketWorkspace) marketWorkspace.reset();
+    if (coordinator) coordinator.reset();
+    else {
+      var MarketUI = typeof features.get === 'function' ? features.get('market') : null;
+      if (MarketUI && typeof MarketUI.resetRuntimeState === 'function') MarketUI.resetRuntimeState();
+    }
   }
 
   function initialize() {

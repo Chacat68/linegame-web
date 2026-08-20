@@ -152,6 +152,12 @@ describe('GameUiApplicationRuntime', function () {
 
   it('统一初始化、场景就绪、入口呈现、重置与释放 UI 生命周期', async function () {
     var harness = createHarness();
+    var resetMarketRuntime = vi.fn();
+    harness.loaded.market = {
+      getDiagnostics: function () { return { activeWorkspace: 'spot' }; },
+      render: vi.fn(),
+      resetRuntimeState: resetMarketRuntime,
+    };
     expect(harness.runtime.initialize()).toBe(true);
     expect(harness.ui.MapUI.init).toHaveBeenCalled();
     expect(harness.ui.Modal.init).toHaveBeenCalledWith(harness.callbacks.confirmTrade);
@@ -167,6 +173,8 @@ describe('GameUiApplicationRuntime', function () {
     expect(harness.guidance.onboardingPolicy.showWelcomeMessages).toHaveBeenCalled();
 
     harness.runtime.reset();
+    expect(resetMarketRuntime).toHaveBeenCalledOnce();
+    expect(harness.runtime.getDiagnostics().marketUi).toEqual({ activeWorkspace: 'spot' });
     harness.runtime.dispose();
     expect(harness.ui.ContextInspector.dispose).toHaveBeenCalledOnce();
     expect(harness.ui.DeferredFeatureStatusUI.dispose).toHaveBeenCalledOnce();

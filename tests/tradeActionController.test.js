@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { createActionExecutionPipeline } from '../js/core/ActionExecutionPipeline.js';
 import { createTradeActionController } from '../js/core/TradeActionController.js';
+import { MARKET_ECONOMY_ACTION_PRESENTATION } from '../js/core/ActionPresentation.js';
 
 function createHarness(options) {
   var config = options || {};
   var trace = [];
+  var renderSpecifications = [];
   var ship = {
     route: config.route || null,
     operatingStats: {},
@@ -23,7 +25,10 @@ function createHarness(options) {
     emitMessage: function (message) { trace.push('result-message:' + message.text); },
     emitErrorCue: function () { trace.push('error-cue'); },
     queueAchievementCheck: function () { trace.push('achievement:' + state.tradeCount); },
-    render: function () { trace.push('render:' + state.tradeCount); },
+    render: function (nextResult, specification) {
+      renderSpecifications.push(specification);
+      trace.push('render:' + state.tradeCount);
+    },
     checkVictory: function () { trace.push('victory:' + state.tradeCount); },
   });
   var controller = createTradeActionController({
@@ -71,7 +76,14 @@ function createHarness(options) {
     queueQuestDialogueResult: function () { trace.push('quest-dialogue'); },
     showCompletion: function (completion) { trace.push('completion:' + completion.message); },
   });
-  return { controller: controller, trace: trace, state: state, ship: ship, result: result };
+  return {
+    controller: controller,
+    trace: trace,
+    state: state,
+    ship: ship,
+    result: result,
+    renderSpecifications: renderSpecifications,
+  };
 }
 
 describe('TradeActionController', function () {
@@ -162,5 +174,20 @@ describe('TradeActionController', function () {
     harness.controller.refuel({ showCompletion: false });
 
     expect(harness.trace).not.toContain('completion:已完成燃料补给');
+  });
+
+  it('交易与补给通过市场现金联动矩阵提交内部失效区域', function () {
+    var tradeHarness = createHarness();
+    var refuelHarness = createHarness();
+
+    tradeHarness.controller.confirm('buy', 'food', 1, 'open');
+    refuelHarness.controller.refuel({ showCompletion: false });
+
+    expect(tradeHarness.renderSpecifications[0].dirtyRegions).toEqual(
+      MARKET_ECONOMY_ACTION_PRESENTATION.dirtyRegions
+    );
+    expect(refuelHarness.renderSpecifications[0].dirtyRegions).toEqual(
+      MARKET_ECONOMY_ACTION_PRESENTATION.dirtyRegions
+    );
   });
 });

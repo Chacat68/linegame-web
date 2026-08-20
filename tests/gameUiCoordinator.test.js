@@ -314,10 +314,41 @@ describe('GameUiCoordinator', function () {
     expect(features.loadCalls).toEqual([]);
     expect(coordinator.getDiagnostics()).toEqual({
       featureStatus: null,
+      marketUi: null,
       renderAllCount: 0,
       invalidationCount: 1,
       lastInvalidationRegions: DEFAULT_ACTION_DIRTY_REGIONS,
     });
+  });
+
+  it('公开已加载 Market 的选择诊断，并在会话重置时清理 UI 运行态', async function () {
+    var marketDiagnostics = { activeWorkspace: 'capital', focusedGoodId: 'water' };
+    var resetRuntimeState = vi.fn(function () {
+      marketDiagnostics = { activeWorkspace: 'spot', focusedGoodId: null };
+      return marketDiagnostics;
+    });
+    var features = createFeatureHarness({
+      market: {
+        getDiagnostics: function () { return marketDiagnostics; },
+        resetRuntimeState: resetRuntimeState,
+      },
+    });
+    var coordinator = createGameUiCoordinator({
+      getState: function () { return { currentSystem: 'sol_prime' }; },
+      features: features,
+    });
+
+    await coordinator.invalidate(['hud']);
+    expect(coordinator.getDiagnostics().marketUi).toEqual({
+      activeWorkspace: 'capital',
+      focusedGoodId: 'water',
+    });
+
+    var diagnostics = coordinator.reset();
+
+    expect(resetRuntimeState).toHaveBeenCalledOnce();
+    expect(diagnostics.marketUi).toEqual({ activeWorkspace: 'spot', focusedGoodId: null });
+    expect(diagnostics.lastInvalidationRegions).toEqual([]);
   });
 
   it('连续失效会重新读取最新 session state 与 active workspace', async function () {
@@ -345,6 +376,96 @@ describe('GameUiCoordinator', function () {
     await coordinator.invalidate(UI_REGION.ACTIVE_WORKSPACE);
 
     expect(seen).toEqual(['fleet:A', 'archive:B']);
+  });
+
+  it('Market 内部失效只重绘声明区域，并使用最新查看上下文', async function () {
+    var state = { id: 'A', currentSystem: 'sol_prime', currentGalaxy: 'milky_way' };
+    var render = vi.fn();
+    var renderRegions = vi.fn();
+    var connectMarket = vi.fn();
+    var module = { render: render, renderRegions: renderRegions };
+    var coordinator = createGameUiCoordinator({
+      getState: function () { return state; },
+      features: createFeatureHarness({ market: module }),
+      ui: {
+        UIManager: {
+          getNavigationSnapshot: function () { return { activeWorkspace: 'trade' }; },
+        },
+        MapUI: {
+          getMarketViewSystem: function (nextState) { return nextState.id === 'A' ? 'sol_prime' : 'nova_station'; },
+          getMarketViewGalaxy: function () { return 'milky_way'; },
+        },
+        ContextAdapters: { connectMarket: connectMarket },
+      },
+      actions: {
+        market: { getMode: function () { return 'black'; } },
+      },
+    });
+
+    await coordinator.invalidate(UI_REGION.MARKET_SPOT);
+    state = { id: 'B', currentSystem: 'sol_prime', currentGalaxy: 'milky_way' };
+    await coordinator.invalidate(UI_REGION.MARKET_OPERATIONS);
+
+    expect(render).not.toHaveBeenCalled();
+    expect(renderRegions.mock.calls[0]).toEqual([
+      expect.objectContaining({ state: expect.objectContaining({ id: 'A' }), systemId: 'sol_prime', marketMode: 'black' }),
+      [UI_REGION.MARKET_SPOT],
+    ]);
+    expect(renderRegions.mock.calls[1]).toEqual([
+      expect.objectContaining({ state: state, systemId: 'nova_station', marketMode: 'black' }),
+      [UI_REGION.MARKET_OPERATIONS],
+    ]);
+    expect(connectMarket).toHaveBeenCalledTimes(2);
+  });
+
+  it('Market 内部失效不后台重绘隐藏市场，但仍刷新实际活动工作区', async function () {
+    var marketRegions = vi.fn();
+    var calls = [];
+    var coordinator = createGameUiCoordinator({
+      getState: function () { return { id: 'fleet-active' }; },
+      features: createFeatureHarness({
+        market: { render: vi.fn(), renderRegions: marketRegions },
+        fleet: {
+          render: function () { calls.push('hangar'); },
+          renderShop: function () { calls.push('shop'); },
+        },
+      }),
+      ui: {
+        UIManager: {
+          getNavigationSnapshot: function () { return { activeWorkspace: 'fleet' }; },
+        },
+      },
+    });
+
+    await coordinator.invalidate([UI_REGION.ACTIVE_WORKSPACE, UI_REGION.MARKET_SPOT]);
+
+    expect(marketRegions).not.toHaveBeenCalled();
+    expect(calls).toEqual(['hangar', 'shop']);
+  });
+
+  it('显式 Market 整体失效覆盖内部区域且不会重复渲染', async function () {
+    var render = vi.fn();
+    var renderRegions = vi.fn();
+    var coordinator = createGameUiCoordinator({
+      getState: function () { return { id: 'market-full', currentSystem: 'sol_prime' }; },
+      features: createFeatureHarness({
+        market: { render: render, renderRegions: renderRegions },
+      }),
+      ui: {
+        UIManager: {
+          getNavigationSnapshot: function () { return { activeWorkspace: 'trade' }; },
+        },
+      },
+    });
+
+    await coordinator.invalidate([
+      UI_REGION.MARKET,
+      UI_REGION.MARKET_SPOT,
+      UI_REGION.MARKET_CAPITAL,
+    ]);
+
+    expect(render).toHaveBeenCalledOnce();
+    expect(renderRegions).not.toHaveBeenCalled();
   });
 
   it('Fleet 内部失效只重绘声明区域，并使用每次失效时的最新 state', async function () {
