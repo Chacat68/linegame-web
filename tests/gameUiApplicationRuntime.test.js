@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { UI_REGION } from '../js/core/ActionPresentation.js';
 import { createGameUiApplicationRuntime } from '../js/core/GameUiApplicationRuntime.js';
+import { SETTINGS_COMMAND } from '../js/core/SettingsCommandController.js';
 
 function createHarness(overrides) {
   var state = { fleet: [], activeShipIndex: 0, currentSystem: 'sol_prime' };
@@ -95,6 +96,7 @@ function createHarness(overrides) {
   var callbacks = {
     getSettings: function () { return {}; },
     hideSettingsFallback: vi.fn(),
+    onResetTutorial: vi.fn(),
     emitLog: vi.fn(),
     invalidate: vi.fn(),
     setTelemetryState: vi.fn(),
@@ -151,6 +153,7 @@ describe('GameUiApplicationRuntime', function () {
       market: null,
       marketEntry: null,
       settings: null,
+      settingsCommands: null,
       workspaceTabs: null,
     });
 
@@ -234,6 +237,21 @@ describe('GameUiApplicationRuntime', function () {
     expect(harness.ui.UIManager.switchView).toHaveBeenCalledWith('map');
   });
 
+  it('以正式 runtime 设置端口发布 typed command，而不是向 UI 注入 mutation 回调', function () {
+    var harness = createHarness();
+
+    var result = harness.runtime.settingsCommands.execute({
+      type: SETTINGS_COMMAND.RESET_TUTORIAL,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(harness.callbacks.onResetTutorial).toHaveBeenCalledOnce();
+    expect(harness.runtime.getDiagnostics().settingsCommands).toEqual({
+      commandCount: 1,
+      lastCommandType: SETTINGS_COMMAND.RESET_TUTORIAL,
+    });
+  });
+
   it('协调器尚未创建时也会重置所有已加载工作区会话', function () {
     var harness = createHarness();
     var resetMarketRuntime = vi.fn();
@@ -257,6 +275,7 @@ describe('GameUiApplicationRuntime', function () {
       market: null,
       marketEntry: null,
       settings: null,
+      settingsCommands: null,
       workspaceTabs: null,
     });
   });
@@ -321,6 +340,7 @@ describe('GameUiApplicationRuntime', function () {
       market: null,
       marketEntry: null,
       settings: null,
+      settingsCommands: null,
       workspaceTabs: null,
     });
   });

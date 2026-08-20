@@ -21,7 +21,6 @@ function createHarness(options) {
   var config = options || {};
   var button = createButton();
   var settings = { difficulty: 'normal' };
-  var state = { day: 1 };
   var token = { id: 'session-a' };
   var activeToken = token;
   var loadedModule = config.loadedModule || null;
@@ -46,22 +45,17 @@ function createHarness(options) {
   };
   var callbacks = {
     onOpen: vi.fn(),
-    onDifficultyChanged: vi.fn(),
-    onRealtimeDayDurationChanged: vi.fn(),
-    onResetTutorial: vi.fn(),
-    onClearSaves: vi.fn(),
+    onCommand: vi.fn(),
   };
   var fallback = vi.fn();
   controller = createSettingsUiController({
     features: features,
     getSettings: function () { return settings; },
-    getState: function () { return state; },
     getSessionToken: function () { return token; },
     isSessionTokenCurrent: function (requested) { return requested === activeToken; },
     getDocument: function () {
       return { getElementById: function (id) { return id === 'settings-btn' ? button : null; } };
     },
-    Renderer: { id: 'renderer' },
     hideFallback: fallback,
     callbacks: callbacks,
   });
@@ -74,7 +68,6 @@ function createHarness(options) {
     module: module,
     invalidateToken: function () { activeToken = { id: 'session-b' }; },
     replaceSettings: function (next) { settings = next; },
-    replaceState: function (next) { state = next; },
     setLoadedModule: function (next) { loadedModule = next; },
   };
 }
@@ -115,19 +108,19 @@ describe('SettingsUiController', function () {
     expect(harness.module.showSettingsModal).not.toHaveBeenCalled();
   });
 
-  it('同步时总是向模块注入最新 settings、state provider 与动作端口', function () {
+  it('同步时总是向模块注入最新 settings provider 与单一命令端口', function () {
     var harness = createHarness();
     var nextSettings = { difficulty: 'hard' };
-    var nextState = { day: 99 };
     harness.replaceSettings(nextSettings);
-    harness.replaceState(nextState);
 
     expect(harness.controller.sync(harness.module)).toBe(true);
     var options = harness.module.initSettingsModal.mock.calls[0][0];
-    expect(options.settings).toBe(nextSettings);
-    expect(options.getState()).toBe(nextState);
-    expect(options.onDifficultyChanged).toBe(harness.callbacks.onDifficultyChanged);
-    expect(options.onClearSaves).toBe(harness.callbacks.onClearSaves);
+    expect(options.getSettings()).toBe(nextSettings);
+    expect(options.onCommand).toBe(harness.callbacks.onCommand);
+    expect(options).not.toHaveProperty('getState');
+    expect(options).not.toHaveProperty('Renderer');
+    expect(options).not.toHaveProperty('onDifficultyChanged');
+    expect(options).not.toHaveProperty('onClearSaves');
   });
 
   it('模块已加载时只执行 registry sync，不再绑定临时 listener', function () {

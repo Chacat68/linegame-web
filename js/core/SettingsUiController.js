@@ -15,7 +15,6 @@ export function createSettingsUiController(dependencies) {
   var features = deps.features || {};
   var callbacks = deps.callbacks || {};
   var getSettings = _requiredFunction(deps.getSettings, 'getSettings');
-  var getState = _requiredFunction(deps.getState, 'getState');
   var getSessionToken = typeof deps.getSessionToken === 'function'
     ? deps.getSessionToken
     : function () { return null; };
@@ -25,7 +24,6 @@ export function createSettingsUiController(dependencies) {
   var getDocument = typeof deps.getDocument === 'function'
     ? deps.getDocument
     : function () { return typeof document === 'undefined' ? null : document; };
-  var Renderer = deps.Renderer || {};
   var hideFallback = typeof deps.hideFallback === 'function' ? deps.hideFallback : _noop;
 
   var launcherButton = null;
@@ -60,14 +58,9 @@ export function createSettingsUiController(dependencies) {
     releaseLauncher();
     boundModule = SettingsUI;
     SettingsUI.initSettingsModal({
-      settings: getSettings(),
-      Renderer: Renderer,
-      getState: getState,
+      getSettings: getSettings,
       onOpen: callbacks.onOpen,
-      onDifficultyChanged: callbacks.onDifficultyChanged,
-      onRealtimeDayDurationChanged: callbacks.onRealtimeDayDurationChanged,
-      onResetTutorial: callbacks.onResetTutorial,
-      onClearSaves: callbacks.onClearSaves,
+      onCommand: callbacks.onCommand,
     });
     syncCount += 1;
     return true;

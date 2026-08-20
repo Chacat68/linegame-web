@@ -4,7 +4,7 @@
 
 import { init, shutdown } from './core/GameApplication.js';
 import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from './ui/SurfaceManager.js';
-import { buildUsageDataExport } from './systems/metrics/UsageDataExport.js';
+import { exportUsageDataFile } from './core/UsageDataExportEffect.js';
 import * as StartupLoader from './ui/StartupLoader.js';
 
 const SCENE_READY_TIMEOUT_MS = 20000;
@@ -172,14 +172,5 @@ function _activateSettingsPanelFallback(modal, panelId) {
 }
 
 function _exportUsageDataFallback() {
-	var exportData = buildUsageDataExport(null);
-	var blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-	var url = URL.createObjectURL(blob);
-	var anchor = document.createElement('a');
-	anchor.href = url;
-	anchor.download = 'linegame-usage-data-' + new Date().toISOString().slice(0, 10) + '.json';
-	document.body.appendChild(anchor);
-	anchor.click();
-	document.body.removeChild(anchor);
-	URL.revokeObjectURL(url);
+	exportUsageDataFile(null);
 }

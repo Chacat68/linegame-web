@@ -2,6 +2,7 @@
 
 import { createMarketWorkspaceController } from './MarketWorkspaceController.js';
 import { createGameUiLifecycleController } from './GameUiLifecycleController.js';
+import { createSettingsCommandController } from './SettingsCommandController.js';
 import { createSettingsUiController } from './SettingsUiController.js';
 import { createGameUiCoordinator } from '../ui/GameUiCoordinator.js';
 import { createWorkspaceContextAdapters } from '../ui/WorkspaceContextAdapters.js';
@@ -20,6 +21,7 @@ export function createGameUiApplicationRuntime(options) {
   var systems = opts.systems || {};
   var services = opts.services || {};
   var callbacks = opts.callbacks || {};
+  var settingsCommands = null;
   var settingsController = null;
   var marketWorkspace = null;
   var marketWorkspaceEntry = null;
@@ -44,25 +46,38 @@ export function createGameUiApplicationRuntime(options) {
     return typeof services.getVictoryController === 'function' ? services.getVictoryController() : {};
   }
 
+  function getSettingsCommands() {
+    if (settingsCommands) return settingsCommands;
+    settingsCommands = createSettingsCommandController({
+      getSettings: callbacks.getSettings,
+      getState: getState,
+      Renderer: ui.Renderer,
+      events: events,
+      emitLog: callbacks.emitLog,
+      callbacks: {
+        onDifficultyChanged: callbacks.onDifficultyChanged,
+        onRealtimeDayDurationChanged: callbacks.onRealtimeDayDurationChanged,
+        onResetTutorial: function () {
+          if (settingsController) settingsController.hide();
+          if (typeof callbacks.onResetTutorial === 'function') return callbacks.onResetTutorial();
+        },
+        onClearSaves: callbacks.onClearSaves,
+      },
+    });
+    return settingsCommands;
+  }
+
   function getSettingsController() {
     if (settingsController) return settingsController;
     settingsController = createSettingsUiController({
       features: features,
       getSettings: callbacks.getSettings,
-      getState: getState,
       getSessionToken: getSessionToken,
       isSessionTokenCurrent: isSessionTokenCurrent,
-      Renderer: ui.Renderer,
       hideFallback: callbacks.hideSettingsFallback,
       callbacks: {
         onOpen: ensureSave,
-        onDifficultyChanged: callbacks.onDifficultyChanged,
-        onRealtimeDayDurationChanged: callbacks.onRealtimeDayDurationChanged,
-        onResetTutorial: function () {
-          settingsController.hide();
-          if (typeof callbacks.onResetTutorial === 'function') callbacks.onResetTutorial();
-        },
-        onClearSaves: callbacks.onClearSaves,
+        onCommand: getSettingsCommands().execute,
       },
     });
     return settingsController;
@@ -330,6 +345,7 @@ export function createGameUiApplicationRuntime(options) {
       ui.ContextInspector.dispose();
     }
     lifecycle = null;
+    settingsCommands = null;
     settingsController = null;
     marketWorkspace = null;
     marketWorkspaceEntry = null;
@@ -347,6 +363,7 @@ export function createGameUiApplicationRuntime(options) {
       marketEntry: marketWorkspaceEntry ? marketWorkspaceEntry.getDiagnostics() : null,
       workspaceTabs: workspaceTabs ? workspaceTabs.getDiagnostics() : null,
       settings: settingsController ? settingsController.getDiagnostics() : null,
+      settingsCommands: settingsCommands ? settingsCommands.getDiagnostics() : null,
     }));
   }
 
@@ -367,6 +384,9 @@ export function createGameUiApplicationRuntime(options) {
     renderAll: renderAll,
     renderFleet: renderFleet,
     reset: reset,
+    settingsCommands: Object.freeze({
+      execute: function (command) { return getSettingsCommands().execute(command); },
+    }),
     syncSettings: syncSettings,
     whenSceneReady: whenSceneReady,
   });

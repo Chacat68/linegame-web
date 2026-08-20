@@ -77,8 +77,8 @@ export function createGameUiRuntimeFactory(context) {
           hideSettingsFallback: hideBlockingSurface,
           onDifficultyChanged: function (nextDifficulty) {
             if (!DIFFICULTY_LEVELS[nextDifficulty]) return;
-            getState().difficulty = nextDifficulty;
-            getSettings().difficulty = nextDifficulty;
+            var state = getState();
+            if (state) state.difficulty = nextDifficulty;
             updateUI(DEFAULT_ACTION_DIRTY_REGIONS);
           },
           onRealtimeDayDurationChanged: function (nextDurationMs) {

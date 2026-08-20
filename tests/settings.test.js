@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { TIME_CONFIG } from '../js/data/constants.js';
 import * as Settings from '../js/core/SettingsManager.js';
+import { SETTINGS_COMMAND } from '../js/core/SettingsCommandController.js';
 
 if (typeof globalThis.localStorage === 'undefined') {
   const store = {};
@@ -93,17 +94,23 @@ describe('settings modal fallback contract', function () {
     expect(source).toContain("settingsBtn.dataset.settingsBound === 'true'");
     expect(source).toContain("settingsBtn.dataset.settingsLoaderBound === 'true'");
     expect(source).toContain("focusSelector: '[data-settings-panel-target][aria-selected=\"true\"]'");
-    expect(source).toContain("buildUsageDataExport(null)");
+    expect(source).toContain('exportUsageDataFile(null)');
     expect(source).not.toContain('usageDataConsent');
   });
 
   it('正式与降级入口共用导出契约，数据面板不再展示同意开关', function () {
     const settingsSource = readFileSync(new URL('../js/core/SettingsManager.js', import.meta.url), 'utf8');
     const mainSource = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+    const exportEffectSource = readFileSync(new URL('../js/core/UsageDataExportEffect.js', import.meta.url), 'utf8');
     const htmlSource = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 
-    expect(settingsSource).toContain('buildUsageDataExport(state)');
-    expect(mainSource).toContain('buildUsageDataExport(null)');
+    expect(settingsSource).toContain('SETTINGS_COMMAND.EXPORT_USAGE_DATA');
+    expect(settingsSource).not.toContain('buildUsageDataExport');
+    expect(settingsSource).not.toContain('new Blob');
+    expect(mainSource).toContain('exportUsageDataFile(null)');
+    expect(mainSource).not.toContain('new Blob');
+    expect(exportEffectSource).toContain('buildUsageDataExport');
+    expect(exportEffectSource).toContain("createElement('a')");
     expect(htmlSource).toContain('随存档仅保存在本设备，不会自动上传');
     expect(htmlSource).toContain('是否分享由你决定');
     expect(htmlSource).not.toContain('settings-usage-data-consent');
@@ -149,6 +156,47 @@ function createFakeElement() {
   };
 }
 
+function createSettingsCommandStub(settings) {
+  return vi.fn(function (command) {
+    var message = '';
+    switch (command.type) {
+      case SETTINGS_COMMAND.SET_MOTION_LEVEL:
+        settings.motionLevel = command.value;
+        message = '动画强度已更新为' + (command.value === 'off' ? '关闭' : (command.value === 'reduced' ? '降低' : '完整')) + '。';
+        break;
+      case SETTINGS_COMMAND.SET_SECRET_ROUTES_VISIBLE:
+        settings.secretRoutesVisible = !!command.value;
+        break;
+      case SETTINGS_COMMAND.SET_TERMINAL_BLUR:
+        settings.terminalBlur = !!command.value;
+        break;
+      case SETTINGS_COMMAND.SET_SOUND_EFFECTS_ENABLED:
+        settings.soundEffectsEnabled = !!command.value;
+        message = '音效反馈已' + (command.value ? '开启' : '关闭') + '。';
+        break;
+      case SETTINGS_COMMAND.SET_SOUND_EFFECTS_VOLUME:
+        settings.soundEffectsVolume = Number(command.value);
+        if (command.preview !== true) message = '音效音量已更新为' + Math.round(settings.soundEffectsVolume * 100) + '%。';
+        break;
+      case SETTINGS_COMMAND.SET_DIFFICULTY:
+        settings.difficulty = command.value;
+        break;
+      case SETTINGS_COMMAND.SET_REALTIME_DAY_DURATION:
+        settings.realtimeDayDurationMs = Number(command.value);
+        break;
+      default:
+        break;
+    }
+    return {
+      ok: true,
+      type: command.type,
+      message: message,
+      tone: command.preview === true ? 'neutral' : 'success',
+      settings: Object.assign({}, settings),
+    };
+  });
+}
+
 describe('Settings.initSettingsModal', function () {
   var originalDocument;
   var originalConfirm;
@@ -164,7 +212,7 @@ describe('Settings.initSettingsModal', function () {
     globalThis.confirm = originalConfirm;
   });
 
-  it('重复初始化后，控件会写入最新 settings 引用', function () {
+  it('重复初始化后，控件只向最新 settings command port 发布', function () {
     var elements = {
       'settings-btn': createFakeElement(),
       'settings-modal': createFakeElement(),
@@ -188,11 +236,6 @@ describe('Settings.initSettingsModal', function () {
       addEventListener: function () {},
     };
 
-    var renderer = {
-      setMotionLevel: function () {},
-      setSecretRoutesVisible: function () {},
-    };
-
     var firstSettings = {
       motionLevel: 'full',
       difficulty: 'normal',
@@ -214,14 +257,16 @@ describe('Settings.initSettingsModal', function () {
 
     var firstOpenCount = 0;
     var secondOpenCount = 0;
+    var firstCommand = createSettingsCommandStub(firstSettings);
+    var secondCommand = createSettingsCommandStub(secondSettings);
     Settings.initSettingsModal({
-      settings: firstSettings,
-      Renderer: renderer,
+      getSettings: function () { return firstSettings; },
+      onCommand: firstCommand,
       onOpen: function () { firstOpenCount += 1; },
     });
     Settings.initSettingsModal({
-      settings: secondSettings,
-      Renderer: renderer,
+      getSettings: function () { return secondSettings; },
+      onCommand: secondCommand,
       onOpen: function () { secondOpenCount += 1; },
     });
 
@@ -230,6 +275,11 @@ describe('Settings.initSettingsModal', function () {
 
     expect(firstSettings.motionLevel).toBe('full');
     expect(secondSettings.motionLevel).toBe('off');
+    expect(firstCommand).not.toHaveBeenCalled();
+    expect(secondCommand).toHaveBeenCalledWith({
+      type: SETTINGS_COMMAND.SET_MOTION_LEVEL,
+      value: 'off',
+    });
 
     elements['settings-btn'].dispatchEvent('click', { preventDefault: function () {} });
     expect(firstOpenCount).toBe(0);
@@ -269,13 +319,11 @@ describe('Settings.initSettingsModal', function () {
       soundEffectsEnabled: true,
       soundEffectsVolume: 0.35,
     };
+    var onCommand = createSettingsCommandStub(settings);
 
     Settings.initSettingsModal({
-      settings: settings,
-      Renderer: {
-        setMotionLevel: function () {},
-        setSecretRoutesVisible: function () {},
-      },
+      getSettings: function () { return settings; },
+      onCommand: onCommand,
     });
 
     elements['settings-sfx-enabled'].checked = false;
@@ -286,6 +334,11 @@ describe('Settings.initSettingsModal', function () {
     elements['settings-sfx-volume'].oninput();
     expect(settings.soundEffectsVolume).toBe(0.6);
     expect(elements['settings-sfx-volume-value'].textContent).toBe('60%');
+    expect(onCommand).toHaveBeenLastCalledWith({
+      type: SETTINGS_COMMAND.SET_SOUND_EFFECTS_VOLUME,
+      value: '0.6',
+      preview: true,
+    });
   });
 
   it('设置摘要会在打开和变更后同步当前配置', function () {
@@ -329,12 +382,10 @@ describe('Settings.initSettingsModal', function () {
     };
 
     var settings = Settings.loadSettings();
+    var onCommand = createSettingsCommandStub(settings);
     Settings.initSettingsModal({
-      settings: settings,
-      Renderer: {
-        setMotionLevel: function () {},
-        setSecretRoutesVisible: function () {},
-      },
+      getSettings: function () { return settings; },
+      onCommand: onCommand,
     });
 
     Settings.showSettingsModal();
@@ -408,7 +459,7 @@ describe('Settings.initSettingsModal', function () {
     };
 
     Settings.initSettingsModal({
-      settings: {
+      getSettings: function () { return {
         motionLevel: 'full',
         difficulty: 'normal',
         secretRoutesVisible: true,
@@ -416,11 +467,8 @@ describe('Settings.initSettingsModal', function () {
         terminalBlur: true,
         soundEffectsEnabled: true,
         soundEffectsVolume: 0.35,
-      },
-      Renderer: {
-        setMotionLevel: function () {},
-        setSecretRoutesVisible: function () {},
-      },
+      }; },
+      onCommand: vi.fn(),
     });
 
     expect(displayTab.getAttribute('tabindex')).toBe('0');
