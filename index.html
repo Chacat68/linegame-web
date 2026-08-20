@@ -190,7 +190,7 @@
   ================================================================ -->
       <main id="game-main">
         <!-- Star Map (full-width) ---------------------------------------- -->
-        <section id="map-section">
+        <section id="map-section" role="region" aria-label="星图工作区" aria-hidden="false" tabindex="-1" data-workspace-surface="map">
           <div id="map-container">
             <div class="map-hud-overlay" aria-hidden="true">
               <div class="hud-corner hud-corner-tl"></div>
@@ -256,6 +256,7 @@
               aria-labelledby="market-header-title"
               aria-hidden="true"
               tabindex="-1"
+              data-workspace-surface="trade"
             >
               <div class="market-overlay-header">
                 <div class="market-header-row">
@@ -263,7 +264,7 @@
                     <span class="market-header-mark" aria-hidden="true"></span>
                     <div class="market-header-copy">
                       <span class="market-header-kicker">买卖与经营</span>
-                      <h3 id="market-header-title">市场中心</h3>
+                      <h3 id="market-header-title" data-workspace-initial-focus tabindex="-1">市场中心</h3>
                       <span class="market-header-subtitle">买卖货物、查看行情、经营贸易站</span>
                     </div>
                   </div>
@@ -356,18 +357,18 @@
         <aside
           id="info-panel"
           class="side-panel-overlay side-panel-overlay--left"
-          role="dialog"
-          aria-modal="false"
+          role="region"
           aria-labelledby="archive-terminal-title"
           aria-describedby="archive-terminal-subtitle"
           aria-hidden="true"
           tabindex="-1"
+          data-workspace-surface="archive"
         >
           <div class="secondary-terminal-shell secondary-terminal-shell--archive">
             <header class="secondary-terminal-chrome">
               <div class="secondary-terminal-title-block">
                 <span class="secondary-terminal-kicker">任务 · 探索 · 科技 · 派系 · 成就</span>
-                <h2 id="archive-terminal-title" class="secondary-terminal-title">档案中心</h2>
+                <h2 id="archive-terminal-title" class="secondary-terminal-title" data-workspace-initial-focus tabindex="-1">档案中心</h2>
               </div>
               <p id="archive-terminal-subtitle" class="secondary-terminal-subtitle">任务、探索报告、科技、派系与成就集中管理。</p>
               <div class="secondary-terminal-status" role="list" aria-label="档案中心分类">
@@ -491,18 +492,18 @@
         <aside
           id="trade-panel"
           class="side-panel-overlay side-panel-overlay--right"
-          role="dialog"
-          aria-modal="false"
+          role="region"
           aria-labelledby="hangar-terminal-title"
           aria-describedby="hangar-terminal-subtitle"
           aria-hidden="true"
           tabindex="-1"
+          data-workspace-surface="fleet"
         >
           <div class="secondary-terminal-shell secondary-terminal-shell--hangar">
             <header class="secondary-terminal-chrome">
               <div class="secondary-terminal-title-block">
                 <span class="secondary-terminal-kicker">舰船 · 船员 · 自动跑商</span>
-                <h2 id="hangar-terminal-title" class="secondary-terminal-title">机库</h2>
+                <h2 id="hangar-terminal-title" class="secondary-terminal-title" data-workspace-initial-focus tabindex="-1">机库</h2>
               </div>
               <p id="hangar-terminal-subtitle" class="secondary-terminal-subtitle">先选择舰船，再检查状态、维护船况或开始自动跑商。</p>
               <div class="secondary-terminal-status" role="list" aria-label="机库功能">
@@ -624,18 +625,18 @@
         <aside
           id="console-panel"
           class="side-panel-overlay side-panel-overlay--bottom"
-          role="dialog"
-          aria-modal="false"
+          role="region"
           aria-labelledby="logs-terminal-title"
           aria-describedby="logs-terminal-subtitle"
           aria-hidden="true"
           tabindex="-1"
+          data-workspace-surface="logs"
         >
           <div class="secondary-terminal-shell secondary-terminal-shell--logs">
             <header class="secondary-terminal-chrome">
               <div class="secondary-terminal-title-block">
                 <span class="secondary-terminal-kicker">航行 · 交易 · 系统记录</span>
-                <h2 id="logs-terminal-title" class="secondary-terminal-title">通讯日志</h2>
+                <h2 id="logs-terminal-title" class="secondary-terminal-title" data-workspace-initial-focus tabindex="-1">通讯日志</h2>
               </div>
               <p id="logs-terminal-subtitle" class="secondary-terminal-subtitle">集中查看航行、交易、系统与风险记录。</p>
               <div class="secondary-terminal-status" role="list" aria-label="日志记录类型">

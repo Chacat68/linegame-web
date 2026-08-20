@@ -40,19 +40,27 @@ describe('UI surface inventory', function () {
     });
   });
 
-  it('keeps primary and secondary terminals dismissible and focusable', function () {
+  it('declares five canonical workspaces as focusable regions rather than parallel dialog models', function () {
     ['info-panel', 'trade-panel', 'console-panel'].forEach(function (id) {
       const tag = openingTag(id);
-      expect(tag).toContain('role="dialog"');
-      expect(tag).toContain('aria-modal="false"');
+      expect(tag).toContain('role="region"');
+      expect(tag).not.toContain('aria-modal=');
       expect(tag).toContain('aria-hidden="true"');
       expect(tag).toContain('tabindex="-1"');
     });
+
+    const mapTag = openingTag('map-section');
+    expect(mapTag).toContain('role="region"');
+    expect(mapTag).toContain('data-workspace-surface="map"');
 
     const marketTag = openingTag('market-overlay');
     expect(marketTag).toContain('role="region"');
     expect(marketTag).toContain('aria-hidden="true"');
     expect(marketTag).toContain('tabindex="-1"');
+    ['trade', 'fleet', 'archive', 'logs'].forEach(function (workspaceId) {
+      expect(html).toContain('data-workspace-surface="' + workspaceId + '"');
+    });
+    expect((html.match(/data-workspace-initial-focus/g) || []).length).toBe(4);
   });
 
   it('keeps tutorial guidance and one authoritative Command Slot in the responsive layer', function () {
@@ -71,7 +79,8 @@ describe('UI surface inventory', function () {
   });
 
   it('mounts the global Context Inspector and Command Slot outside the map workspace stacking context', function () {
-    const mapStart = html.indexOf('<section id="map-section">');
+    const mapIdIndex = html.indexOf('id="map-section"');
+    const mapStart = html.lastIndexOf('<section', mapIdIndex);
     const mapEnd = html.indexOf('<!-- Info Panel', mapStart);
     const mainStart = html.indexOf('<main id="game-main">');
     const mainEnd = html.indexOf('</main>', mainStart);

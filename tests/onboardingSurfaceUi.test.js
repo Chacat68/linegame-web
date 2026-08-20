@@ -424,7 +424,7 @@ describe('Onboarding and log surfaces', function () {
     expect(skip.disabled).toBe(true);
   });
 
-  it('通讯日志入口清除未读数量并打开可聚焦的二级终端', async function () {
+  it('通讯日志入口清除未读数量并在工作区进入完成后提交焦点', async function () {
     var starmapButton = createFakeElement('starmap-button', ['bottom-nav-btn', 'active']);
     starmapButton.dataset.view = 'starmap';
     var logsButton = createFakeElement('logs-button', ['bottom-nav-btn']);
@@ -460,6 +460,8 @@ describe('Onboarding and log surfaces', function () {
     expect(logsButton.getAttribute('aria-pressed')).toBe('true');
     expect(consolePanel.classList.contains('panel-open')).toBe(true);
     expect(consolePanel.getAttribute('aria-hidden')).toBe('false');
+    await Promise.resolve();
+    await Promise.resolve();
     expect(consolePanel.focused).toBe(true);
     expect(badgeClearCount).toBe(1);
   });

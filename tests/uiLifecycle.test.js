@@ -786,6 +786,78 @@ describe('UI lifecycle idempotency', function () {
     });
   });
 
+  it('UIManager 等待延迟工作区进入完成后提交焦点，并丢弃旧工作区迟到结果', async function () {
+    vi.resetModules();
+
+    var starmapBtn = createFakeElement(['bottom-nav-btn', 'active']);
+    starmapBtn.dataset.view = 'starmap';
+    var fleetBtn = createFakeElement(['bottom-nav-btn']);
+    fleetBtn.dataset.view = 'hangar';
+    var archiveBtn = createFakeElement(['bottom-nav-btn']);
+    archiveBtn.dataset.view = 'quests';
+    var bottomButtons = [starmapBtn, fleetBtn, archiveBtn];
+    var bottomNav = createFakeElement();
+    var clonedBottomNav = createFakeElement();
+    bottomNav.cloneNode = function () { return clonedBottomNav; };
+    bottomNav.parentNode = { replaceChild: function () {} };
+    var main = createFakeElement();
+    var map = createFakeElement();
+    var mapContainer = createFakeElement();
+    mapContainer.children = [];
+    var market = createFakeElement(['hidden']);
+    var fleet = createFakeElement();
+    var archive = createFakeElement();
+    var logs = createFakeElement();
+    var resolveFleet;
+    var fleetReady = new Promise(function (resolve) { resolveFleet = resolve; });
+
+    globalThis.document = {
+      addEventListener: function () {},
+      removeEventListener: function () {},
+      querySelectorAll: function (selector) {
+        if (selector === '.bottom-nav-btn') return bottomButtons;
+        return [];
+      },
+      getElementById: function (id) {
+        if (id === 'bottom-nav') return bottomNav;
+        if (id === 'game-main') return main;
+        if (id === 'map-section') return map;
+        if (id === 'map-container') return mapContainer;
+        if (id === 'market-overlay') return market;
+        if (id === 'trade-panel') return fleet;
+        if (id === 'info-panel') return archive;
+        if (id === 'console-panel') return logs;
+        return null;
+      },
+    };
+
+    var UIManager = await import('../js/ui/UIManager.js');
+    UIManager.init({}, {
+      onOpenHangar: function () { return fleetReady; },
+      onOpenQuests: function () { return Promise.resolve(true); },
+    });
+
+    UIManager.switchView('fleet');
+    expect(fleet.classList.contains('panel-open')).toBe(true);
+    expect(fleet.focused).toBe(false);
+
+    UIManager.switchView('archive');
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(archive.focused).toBe(true);
+    expect(fleet.focused).toBe(false);
+
+    resolveFleet(true);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(fleet.focused).toBe(false);
+    expect(UIManager.getWorkspaceSurfaceSnapshot()).toMatchObject({
+      activeWorkspace: 'archive',
+      consistent: true,
+    });
+  });
+
   it('UIManager.dispose 释放底栏绑定和导航 facade', async function () {
     vi.resetModules();
 

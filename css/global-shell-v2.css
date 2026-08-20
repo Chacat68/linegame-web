@@ -248,7 +248,7 @@
 }
 
 .workspace-context-action:focus-visible {
-  outline: 2px solid var(--ui-focus-ring);
+  outline: 2px solid var(--ui-accent);
   outline-offset: 2px;
 }
 
@@ -290,6 +290,20 @@
   color: var(--ui-text-secondary);
   background: rgba(108, 231, 255, 0.05);
   font-size: 9px;
+}
+
+/* Canonical L3 workspace 状态由 WorkspaceSurfaceController 投影。 */
+#game-main[data-active-workspace] [data-workspace-surface] {
+  outline-offset: -2px;
+}
+
+#game-main[data-active-workspace] [data-workspace-surface]:focus-visible {
+  outline: 2px solid var(--ui-accent);
+}
+
+[data-workspace-initial-focus]:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 4px;
 }
 
 .workspace-context-callout {

@@ -1,13 +1,14 @@
-// js/ui/UIManager.js — 旧 surface 到统一工作区导航的 DOM 适配器
+// js/ui/UIManager.js — canonical workspace 导航与 DOM Surface 协调器
 //
 // NavigationController 是唯一导航状态源；本模块只负责把 canonical workspace
-// 映射到渐进迁移中的 Market/SurfaceManager DOM，并保留旧 view 名称 facade。
+// 映射到统一 WorkspaceSurfaceController，并保留旧 view 名称 facade。
 
 import * as EventBus from '../core/EventBus.js';
 import { createNavigationController, normalizeWorkspace } from './NavigationController.js';
-import { closeAllSecondarySurfaces, openSecondarySurface, registerEscapeLayer } from './SurfaceManager.js';
+import { registerEscapeLayer } from './SurfaceManager.js';
 import { loadSettings } from '../core/SettingsCore.js';
 import * as ContextInspector from './ContextInspector.js';
+import { createWorkspaceSurfaceController } from './WorkspaceSurfaceController.js';
 
 const LEGACY_VIEW_BY_WORKSPACE = Object.freeze({
   map: 'starmap',
@@ -19,6 +20,7 @@ const LEGACY_VIEW_BY_WORKSPACE = Object.freeze({
 
 let _getState = function () { return null; };
 let _navigation = null;
+let _workspaceSurfaces = null;
 let _handlers = {
   onOpenMarket: null,
   onCloseMarket: null,
@@ -31,6 +33,7 @@ let _terminalBlurListener = null;
 let _releaseNavigationEscape = null;
 let _bottomNavElement = null;
 let _bottomNavClickListener = null;
+let _workspaceEntryGeneration = 0;
 let _initialized = false;
 
 export function init(stateSource, handlers) {
@@ -39,6 +42,8 @@ export function init(stateSource, handlers) {
     ? stateSource
     : function () { return stateSource || null; };
   if (handlers) _handlers = Object.assign({}, _handlers, handlers);
+
+  _workspaceSurfaces = createWorkspaceSurfaceController();
 
   _releaseEventBusListeners();
   _navigation = createNavigationController({
@@ -78,11 +83,13 @@ export function init(stateSource, handlers) {
     getNavigationSnapshot: function () {
       return _navigation ? _navigation.getSnapshot() : null;
     },
+    getWorkspaceSurfaceSnapshot: getWorkspaceSurfaceSnapshot,
     openDetail: openDetail,
     closeDetail: closeDetail,
     subscribeNavigation: subscribeNavigation,
   };
 
+  _workspaceSurfaces.activate('map', { focus: false });
   _syncWorkspaceVisualState('map');
   _initialized = true;
 }
@@ -108,6 +115,10 @@ export function getNavigationSnapshot() {
   return _navigation ? _navigation.getSnapshot() : null;
 }
 
+export function getWorkspaceSurfaceSnapshot() {
+  return _workspaceSurfaces ? _workspaceSurfaces.getSnapshot() : null;
+}
+
 export function switchView(view) {
   var workspace = normalizeWorkspace(view);
   if (!_navigation || !workspace) return false;
@@ -118,7 +129,10 @@ export function syncView(view) {
   var workspace = normalizeWorkspace(view);
   if (!_navigation || !workspace) return false;
   var changed = _navigation.sync(workspace, { reason: 'legacy-surface-sync' });
-  if (!changed) _syncWorkspaceVisualState(workspace);
+  if (!changed) {
+    if (_workspaceSurfaces) _workspaceSurfaces.activate(workspace, { focus: false });
+    _syncWorkspaceVisualState(workspace);
+  }
   return changed;
 }
 
@@ -143,32 +157,39 @@ function _leaveWorkspace(change) {
   if (change.from === 'trade' && _handlers.onCloseMarket) {
     _handlers.onCloseMarket({ restoreFocus: false });
   }
-  closeAllSecondarySurfaces();
 }
 
 function _enterWorkspace(change) {
   var state = change.state;
+  var entryResult = null;
   if (change.to === 'trade') {
-    if (_handlers.onOpenMarket && state) _handlers.onOpenMarket(state);
-    return;
-  }
-  if (change.to === 'fleet') {
-    openSecondarySurface('trade-panel');
-    if (_handlers.onOpenHangar && state) _handlers.onOpenHangar(state);
-    return;
-  }
-  if (change.to === 'archive') {
-    if (_handlers.onOpenQuests && state) _handlers.onOpenQuests(state);
-    else openSecondarySurface('info-panel');
-    return;
-  }
-  if (change.to === 'logs') {
+    if (_handlers.onOpenMarket && state) entryResult = _handlers.onOpenMarket(state);
+  } else if (change.to === 'fleet') {
+    if (_handlers.onOpenHangar && state) entryResult = _handlers.onOpenHangar(state);
+  } else if (change.to === 'archive') {
+    if (_handlers.onOpenQuests && state) entryResult = _handlers.onOpenQuests(state);
+  } else if (change.to === 'logs') {
     EventBus.emit('logs:badge:clear');
-    openSecondarySurface('console-panel');
   }
+  _scheduleWorkspaceEntryFocus(change.to, entryResult);
+}
+
+function _scheduleWorkspaceEntryFocus(workspace, entryResult) {
+  var generation = ++_workspaceEntryGeneration;
+  Promise.resolve(entryResult).catch(function () {
+    return false;
+  }).then(function () {
+    if (generation !== _workspaceEntryGeneration || !_navigation || !_workspaceSurfaces) return;
+    if (_navigation.getSnapshot().activeWorkspace !== workspace) return;
+    _workspaceSurfaces.activate(workspace, { focus: true, forceFocus: true });
+  });
 }
 
 function _handleNavigationChange(change) {
+  if (_workspaceSurfaces) {
+    _workspaceSurfaces.activate(change.to, { focus: false });
+  }
+  if (change.type === 'workspace:sync') _scheduleWorkspaceEntryFocus(change.to, null);
   _syncWorkspaceVisualState(change.to);
   EventBus.emit('navigation:changed', LEGACY_VIEW_BY_WORKSPACE[change.to]);
 }
@@ -249,6 +270,9 @@ export function dispose() {
   }
   _bottomNavElement = null;
   _bottomNavClickListener = null;
+  _workspaceEntryGeneration += 1;
+  if (_workspaceSurfaces) _workspaceSurfaces.dispose();
+  _workspaceSurfaces = null;
   _navigation = null;
   _getState = function () { return null; };
   _handlers = {

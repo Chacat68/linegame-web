@@ -65,7 +65,8 @@
 | `FleetModPresenter.js` | 367 行 | 独占结构升级、组件、保养与资产处置只读模型、HTML 和 UI intent；不持有 portal、焦点或危险确认生命周期 |
 | `FleetDispatchPresenter.js` | 342 行 | 独占自动跑商策略验证、路线估算、风险/阻塞信号、推荐匹配与 CTA 投影；不持有 DOM、portal 或提交生命周期 |
 | `HUD.js` | 925 行 | 已移除固定 dashboard 与胜利/舰队/任务 mutation，但全局状态投影仍需继续收束 |
-| `SurfaceManager.js` | 559 行 | 已统一 Escape/inert，仍需完成 L3 workspace registry |
+| `SurfaceManager.js` | 559 行 | 独占 Blocking Surface、焦点陷阱与唯一 Escape dispatcher；primary/secondary API 仅供 MapUI 迁移期兼容 |
+| `WorkspaceSurfaceController.js` | 215 行 | 五个 canonical L3 共用同一可见性、`inert`、ARIA、地图冻结、初始焦点与诊断协议；延迟 Feature 焦点由 generation 丢弃迟到结果 |
 | 全部 CSS | 34,037 行 | 级联、重复响应式规则和所有权难以追踪 |
 | `interstellar-trader.css` | 13,564 行 | 大量遗留全局选择器仍是主要级联源 |
 
@@ -589,6 +590,7 @@ Escape **不得切换 canonical workspace 或默认返回地图**，也不得关
 | 范围 | 结果 | 证据 |
 | --- | --- | --- |
 | `1440 × 900`、`1280 × 720`、`1024 × 768`、`768 × 1024`、`390 × 844` | 通过 | 每个视口依次点击 map/trade/fleet/archive/logs；始终只有一个 `aria-pressed` 工作区，只有对应 L3 可见，面板均在视口内且无页面横向溢出 |
+| Canonical L3 生命周期 | 通过 | 真实页面逐一切换 map/trade/fleet/archive/logs；`#game-main[data-active-workspace]` 与唯一可见 region 始终一致，非活动 adapter 同步 `inert/aria-hidden`；焦点分别进入星图根、市场/机库/档案/日志标题，Fleet/Archive 延迟加载完成后才提交焦点，控制台无运行时错误 |
 | Command Slot 与 nav | 通过 | 五个视口均无重叠；390px 下五工作区都保持唯一行动槽可见，触控导航最小高度 54px |
 | Workspace 与 Command Slot | 通过 | 新增 `--ui-command-reserve`：桌面/平板 76px、窄屏 132px；市场和三个终端与行动槽保持 8px 间距，不再覆盖底部 CTA/滚动内容 |
 | Context Inspector | 通过 | 390px 默认收起；打开后边界为 `376 × 254` 且完整位于视口内；Escape 仅关闭 Inspector，工作区仍为 map |
@@ -743,16 +745,17 @@ Escape **不得切换 canonical workspace 或默认返回地图**，也不得关
 | `GameUiCoordinator` + `ActionPresentation` | **dirty-region 增量刷新与 Feature 恢复已接入真实动作** | provider、四项 Feature ensure/render、命名 action 分组；市场专用刷新与通用 ensure 共用 `loadFeature`，失败发布局部重试，成功清理状态并按 latest-state 渲染；动作、Guidance、教程、成就与剧情完成提交均声明 HUD、舰船、active workspace、场景、Context、派遣和 Guide 失效；隐藏终端与 Save 不再随普通动作重绘 | 消除 action pipeline 的两个兼容全量 fallback，并继续细分当前 workspace 内部 dirty region |
 | `ActionGuideCoordinator` | **已接入唯一 Command Slot** | 使用 latest-state provider 汇总市场、档案、探索、维修、改装、路线、科研、事件、教程与阻塞上下文；延迟 Feature 去重、会话失效、一次性改装上下文和只读 refresh 均有测试；现由 `GameGuidanceRuntime` 持有并连接语义执行与命令落点 | 将更多 workspace 内局部 CTA 收敛到同一 command contract |
 | `NavigationController` | **已接入 `UIManager`** | 五个 workspace、旧别名、唯一 active、幂等切换、独立 detail stack；Escape 只关闭 L4 详情不改变 L3 | 继续迁移旧 surface 直接开关与 focus 适配器 |
-| `SurfaceManager` | **唯一 Escape dispatcher 已接入** | blocking 层优先且不下穿；非阻塞层按优先级处理；隐藏 surface 同步 inert/aria-hidden | 将五个 L3 workspace 完全收口到同一 surface registry |
+| `WorkspaceSurfaceController` | **五个 L3 已接入 `UIManager`** | map/trade/fleet/archive/logs 共用 region、唯一可见 adapter、`data-active-workspace`、`inert/aria-hidden` 与进入焦点；trade 嵌套期间只冻结底层星图；延迟 Fleet/Archive 完成后提交焦点并丢弃迟到结果 | 把 MapUI 的直接 primary/secondary fallback 改成只请求 canonical navigation |
+| `SurfaceManager` | **Blocking / Escape owner 已接入** | blocking 层优先且不下穿；非阻塞层按优先级处理；L3 生产路径不再由它区分 primary/secondary | 删除 MapUI 迁移完成后遗留的 primary/secondary 兼容 API |
 | `ContextInspector` | **五个对象型 workspace 已接入** | 每 workspace 的不可变 context key、latest-state provider、renderer adapter、统一空态与局部 intent 委托；地图、商品、舰船、任务、科技、派系、成就、探索报告与只读日志消息已接入；trade/fleet/archive/logs 均能从摘要进入 L4 并恢复焦点，archive 分类切换会清理旧 Context | 继续减少完整终端内的重复详情 |
 | `WorkspaceDetailSurface` | **统一 L4 已接入 map + trade + fleet + archive + logs** | 从 Navigation detail stack 投影单一非阻塞详情面；按 type 注册 renderer，使用 latest-state/revision；陈旧详情自动退出；Escape 只退一层并精确恢复焦点；地图探索已有两层真实链路，商品、舰船、五类档案对象与只读日志消息均可进入独立 L4；日志淘汰会刷新并关闭失效详情 | 继续迁移剩余 legacy drawer 并细分工作区局部刷新 |
 
 当前仍存在的过渡边界：
 
 - `GameManager` 已收束为 16 行兼容门面，`main.js` 直接启动 `GameApplication`；StateSession、SystemRuntime、SessionLifecycle、GameClock/GameLoop、GameApplicationLifecycle、GameRuntimeGraph、GameStartupProjection、GamePersistenceController、GameActionRuntime、GameFeatureRuntime、GameGuidanceRuntime、GameUiApplicationRuntime、FeatureRegistry、GameFeatureManifest 以及各领域 controller 均已成为真实调用路径。当前 `GameApplication` 已降至 206 行，12 个节点由 101 行薄注册表与五个 78–163 行职责簇装配，Settings/Audio/Renderer 启动职责也已独立；7 个测试门面仍需迁入正式 harness，不能把“门面已变薄”等同于“组合根已完成”。
-- `GameUiCoordinator`、`ActionGuideCoordinator`、`NavigationController`、`SurfaceManager`、`ContextInspector` 和 `WorkspaceDetailSurface` 已进入运行时调用链；Context Inspector 与唯一 Command Slot 已从 Map workspace 提升为 `game-main` 的 Global L2 直属层，地图探索、trade 商品、fleet 舰船、archive 五类对象与 logs 只读消息均已接入共享 L4；真实动作已改走 dirty-region 增量刷新，但 legacy drawer、workspace 内部整块刷新和更多局部 action slot 仍需收口，不能按“已完成 UI 重构”验收。
+- `GameUiCoordinator`、`ActionGuideCoordinator`、`NavigationController`、`WorkspaceSurfaceController`、`SurfaceManager`、`ContextInspector` 和 `WorkspaceDetailSurface` 已进入运行时调用链；五个 L3 的生产导航不再区分 primary/secondary，Context Inspector 与唯一 Command Slot 是 `game-main` 的 Global L2 直属层，地图探索、trade 商品、fleet 舰船、archive 五类对象与 logs 只读消息均已接入共享 L4；真实动作已改走 dirty-region 增量刷新，但 MapUI fallback、legacy drawer、workspace 内部整块刷新和更多局部 action slot 仍需收口，不能按“已完成 UI 重构”验收。
 - 通用延迟模块已由单一 manifest 持有；Dialogue/RandomEvent/Achievement controller 仅保留领域队列或检查事务，不再重复拥有 import 状态。
-- `SurfaceManager` 已统一 blocking 层、inert 与 Escape dispatcher，但五个 L3 workspace 仍需淘汰旧 primary/secondary 适配分歧。
+- `WorkspaceSurfaceController` 已统一五个 L3 的 production path；`SurfaceManager` 仍保留 MapUI fallback 使用的 primary/secondary 兼容 API，待迁移调用点后删除。
 - 新模块不得长期停留为旁路实现；每个骨架必须有接线阶段和删除旧路径的验收项。
 
 ## 14. 兼容、风险与回滚
