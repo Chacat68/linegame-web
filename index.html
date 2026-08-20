@@ -668,7 +668,7 @@
             <div class="logs-terminal-body">
               <aside class="logs-terminal-aside" aria-label="日志说明">
                 <h3>消息分类</h3>
-                <p>日志按接收时间倒序排列。重要行动由行动引导统一承载；日志只记录结果。</p>
+                <p>日志按接收时间倒序排列，可按类型和最近五分钟筛选；短时重复记录默认折叠。重要行动由行动引导统一承载。</p>
                 <div class="logs-signal-legend" role="list">
                   <span class="logs-signal-item" role="listitem"><span class="logs-signal-dot" aria-hidden="true"></span>常规记录</span>
                   <span class="logs-signal-item" role="listitem"><span class="logs-signal-dot" aria-hidden="true"></span>可选机会</span>
@@ -677,8 +677,34 @@
               </aside>
               <section class="logs-terminal-feed" aria-labelledby="logs-feed-title">
                 <div class="logs-terminal-feed-head">
-                  <h3 id="logs-feed-title">接收记录</h3>
-                  <span>LIVE CHANNEL</span>
+                  <div class="logs-terminal-feed-heading">
+                    <h3 id="logs-feed-title">接收记录</h3>
+                    <span id="logs-feed-summary" aria-live="polite">0 条记录</span>
+                  </div>
+                  <div class="logs-filter-controls" role="group" aria-label="通讯日志筛选">
+                    <label class="logs-filter-field" for="logs-type-filter">
+                      <span>类型</span>
+                      <select id="logs-type-filter">
+                        <option value="all">全部</option>
+                        <option value="system">系统</option>
+                        <option value="trade">交易</option>
+                        <option value="travel">航行</option>
+                        <option value="opportunity">机会</option>
+                        <option value="risk">风险</option>
+                      </select>
+                    </label>
+                    <label class="logs-filter-field" for="logs-time-filter">
+                      <span>时间</span>
+                      <select id="logs-time-filter">
+                        <option value="all">本会话</option>
+                        <option value="recent">近 5 分钟</option>
+                      </select>
+                    </label>
+                    <label class="logs-aggregation-toggle" for="logs-aggregate-toggle">
+                      <input id="logs-aggregate-toggle" type="checkbox" checked>
+                      <span>合并重复</span>
+                    </label>
+                  </div>
                 </div>
                 <div
                   id="message-log"

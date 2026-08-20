@@ -208,8 +208,11 @@ describe('MapUI navigation target focus', function () {
     expect(css).toContain('--starmap-rail-safe-right: max(8px, var(--safe-right));');
 
     var mapUiSource = readFileSync(new URL('../js/ui/MapUI.js', import.meta.url), 'utf8');
+    var layoutSource = readFileSync(new URL('../js/ui/MapPanelLayout.js', import.meta.url), 'utf8');
+    expect(mapUiSource).toContain("from './MapPanelLayout.js'");
     expect(mapUiSource).toContain("['bottom-nav', 'action-guide'].forEach");
-    expect(mapUiSource).toContain('commandSurfaceTop - panelH - 12');
+    expect(mapUiSource).not.toContain('commandSurfaceTop - panelH - 12');
+    expect(layoutSource).toContain('commandSurfaceTop - panelHeight - 12');
   });
 
   it('会话替换后旧 3D 回调只更新 provider 返回的新 state', async function () {

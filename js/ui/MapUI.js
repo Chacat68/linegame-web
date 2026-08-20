@@ -13,6 +13,8 @@ import { createMapSurveyDetailController } from './MapSurveyDetailController.js'
 import { buildGalaxyHubPanel } from './MapGalaxyHubPresenter.js';
 import { createMapViewStateController } from './MapViewStateController.js';
 import { createMapWorkspaceSession } from './MapWorkspaceSession.js';
+import { createMapPanelController } from './MapPanelController.js';
+import { buildMapPanelLayout } from './MapPanelLayout.js';
 import {
   buildMapPlanetDetailView,
   buildMapPlanetTravelAction,
@@ -74,6 +76,36 @@ const _mapSurveyDetails = createMapSurveyDetailController({
   openMarket: function (state, systemId, options) {
     return openMarketSystemPanel(state, systemId, options);
   },
+});
+
+const _mapPanelController = createMapPanelController({
+  closeDetail: function () {
+    _clearSelectedPlanetDetail(true);
+  },
+  explorePoi: function (systemId, poiId) {
+    if (!_explorationActions || typeof _explorationActions.onExplorePoi !== 'function') return false;
+    _explorationActions.onExplorePoi(systemId, poiId);
+    return true;
+  },
+  hasSelectedSystem: function () {
+    return !!_mapSession.getSelectedSystem();
+  },
+  isGalaxyView: function () {
+    var state = _currentState();
+    return !!(state && state.mapView === 'galaxies');
+  },
+  openGalaxy: _switchToGalaxy,
+  openMarket: function (systemId, focus) {
+    return openMarketSystemPanel(_currentState(), systemId, focus);
+  },
+  openSurvey: function (systemId, origin) {
+    return _mapSurveyDetails.open(systemId, origin);
+  },
+  returnToPlanets: _returnToPlanetView,
+  setDisclosure: function (sectionId, open) {
+    return _mapSession.setDisclosure(sectionId, open);
+  },
+  travel: _travelToPlanet,
 });
 
 function _bindDomListener(target, eventName, handler, options) {
@@ -292,88 +324,9 @@ function _returnToPlanetView() {
   return true;
 }
 
-function _bindPlanetDetailPanelEvents() {
+function _bindMapPanelEvents() {
   var panel = document.getElementById('planet-detail-panel');
-  if (!panel || panel.dataset.detailUiBound === 'true') return;
-
-  _bindDomListener(panel, 'click', function (event) {
-    var galaxyButton = event.target.closest('[data-galaxy-action]');
-    if (galaxyButton && panel.contains(galaxyButton)) {
-      var galaxyAction = galaxyButton.dataset.galaxyAction;
-      var galaxyId = galaxyButton.dataset.galaxyId;
-
-      event.preventDefault();
-      event.stopPropagation();
-
-      if (galaxyAction === 'open') {
-        _switchToGalaxy(galaxyId);
-      } else if (galaxyAction === 'return-planets') {
-        _returnToPlanetView();
-      }
-      return;
-    }
-
-    var actionButton = event.target.closest('[data-planet-detail-action]');
-    if (!actionButton || !panel.contains(actionButton)) return;
-
-    var action = actionButton.dataset.planetDetailAction;
-    var systemId = actionButton.dataset.systemId;
-
-    event.preventDefault();
-    event.stopPropagation();
-
-    if (action === 'close-detail') {
-      _clearSelectedPlanetDetail(true);
-      return;
-    }
-
-    if (action === 'open-survey') {
-      _mapSurveyDetails.open(systemId, actionButton);
-      return;
-    }
-
-    if (action === 'travel') {
-      _travelToPlanet(systemId);
-    }
-  });
-
-  _bindDomListener(panel, 'click', function (event) {
-    var summary = event.target.closest('summary');
-    if (!summary || !panel.contains(summary)) return;
-
-    var detail = summary.parentElement;
-    if (!detail || detail.tagName !== 'DETAILS') return;
-
-    var sectionId = detail.dataset.detailSection;
-    if (!sectionId) return;
-    _mapSession.setDisclosure(sectionId, !detail.open);
-  }, true);
-
-  _bindDomListener(panel, 'toggle', function (event) {
-    var target = event.target;
-    if (!target || target.tagName !== 'DETAILS') return;
-
-    var sectionId = target.dataset.detailSection;
-    if (!sectionId) return;
-    _mapSession.setDisclosure(sectionId, target.open);
-  }, true);
-
-  _bindDomListener(panel, 'keydown', function (event) {
-    if (!event || event.key !== 'Escape') return;
-    var handled = false;
-    if (_mapSession.getSelectedSystem()) {
-      _clearSelectedPlanetDetail(true);
-      handled = true;
-    } else {
-      var currentState = _currentState();
-      if (currentState && currentState.mapView === 'galaxies') handled = _returnToPlanetView();
-    }
-    if (!handled) return;
-    event.preventDefault();
-    event.stopPropagation();
-  });
-
-  panel.dataset.detailUiBound = 'true';
+  return _mapPanelController.bind(panel, _bindDomListener);
 }
 
 function _isPlanetDetailSectionOpen(sectionId, defaultOpen) {
@@ -391,7 +344,7 @@ export function setRefreshMarket(fn) {
 
 export function setExplorationActions(actions) {
   _explorationActions = actions || null;
-  _bindExplorationActionEvents();
+  _bindMapPanelEvents();
 }
 
 /**
@@ -480,7 +433,7 @@ export function init(stateSource, onTravel, onGalaxyJump) {
   syncState(stateSource);
   _clearSelectedPlanetDetail(false);
   _registerMapContextRenderer();
-  _bindExplorationActionEvents();
+  _bindMapPanelEvents();
   _bindGalaxyViewToggleEvent();
 
   if (!_mainBindingsInitialized) {
@@ -570,52 +523,37 @@ function _setGalaxyImmersionMode(active) {
   document.body.classList.toggle('starmap-galaxy-mode', !!active);
 }
 
+function _applyPanelLayout(panel, layout) {
+  if (!panel || !layout) return;
+  panel.style.width = layout.width == null ? '' : layout.width + 'px';
+  panel.style.left = layout.left == null ? '' : layout.left + 'px';
+  panel.style.top = layout.top == null ? '' : layout.top + 'px';
+}
+
+function _measureCommandSurfaceTops(mapContainer) {
+  if (!mapContainer || typeof mapContainer.getBoundingClientRect !== 'function') return [];
+  var mapRect = mapContainer.getBoundingClientRect();
+  var tops = [];
+  ['bottom-nav', 'action-guide'].forEach(function (elementId) {
+    var commandSurface = document.getElementById(elementId);
+    if (!commandSurface || commandSurface.hidden || typeof commandSurface.getBoundingClientRect !== 'function') return;
+    var commandRect = commandSurface.getBoundingClientRect();
+    if (commandRect.width <= 0 || commandRect.height <= 0) return;
+    tops.push(commandRect.top - mapRect.top);
+  });
+  return tops;
+}
+
 /** 外部调用刷新星图控件状态 */
 export function refreshGalaxyBtn(stateRef) {
   _setGalaxyImmersionMode(stateRef && stateRef.mapView === 'galaxies');
 }
 
-function _bindExplorationActionContainer(containerId) {
-  var container = document.getElementById(containerId);
-  if (!container || container.dataset.bound === 'true') return;
-
-  _bindDomListener(container, 'click', function (event) {
-    var button = event.target.closest('[data-exploration-action]');
-    if (!button || button.disabled || !_explorationActions || !container.contains(button)) return;
-
-    var action = button.dataset.explorationAction;
-    var systemId = button.dataset.systemId;
-    var poiId = button.dataset.poiId;
-
-    event.preventDefault();
-    event.stopPropagation();
-
-    if (action === 'market') {
-      openMarketSystemPanel(_currentState(), systemId, {
-        workspaceId: button.dataset.marketWorkspaceId,
-        subworkspaceId: button.dataset.marketSubworkspaceId,
-        marketMode: button.dataset.marketMode || '',
-      });
-      return;
-    }
-    if (action === 'poi' && _explorationActions.onExplorePoi) {
-      _explorationActions.onExplorePoi(systemId, poiId);
-    }
-  });
-
-  container.dataset.bound = 'true';
-}
-
-function _bindExplorationActionEvents() {
-  _bindExplorationActionContainer('planet-detail-panel');
-  _bindPlanetDetailPanelEvents();
-}
 export function refreshPlanetDetail(stateRef) {
   const panel = document.getElementById('planet-detail-panel');
-  const mapCanvas = document.getElementById('map-canvas');
   const mapContainer = document.getElementById('map-container');
   if (!panel) return;
-  if (!mapCanvas || !mapContainer) return;
+  if (!mapContainer) return;
 
   _setGalaxyImmersionMode(stateRef && stateRef.mapView === 'galaxies');
 
@@ -638,19 +576,12 @@ export function refreshPlanetDetail(stateRef) {
     panel.classList.add('visible');
 
     const inspectorOwned = !!(panel.closest && panel.closest('#context-inspector'));
-    if (inspectorOwned) {
-      panel.style.width = '';
-      panel.style.left = '';
-      panel.style.top = '';
-      panel.scrollTop = previousHubScrollTop;
-      return;
-    }
-
-    const canvasW = mapContainer.clientWidth;
-    const panelW = Math.min(340, Math.max(280, canvasW - 16));
-    panel.style.width = panelW + 'px';
-    panel.style.left = Math.max(8, canvasW - panelW - 14) + 'px';
-    panel.style.top = '12px';
+    _applyPanelLayout(panel, buildMapPanelLayout({
+      containerHeight: mapContainer.clientHeight,
+      containerWidth: mapContainer.clientWidth,
+      embedded: inspectorOwned,
+      mode: 'galaxy',
+    }));
     panel.scrollTop = previousHubScrollTop;
     return;
   }
@@ -690,61 +621,19 @@ export function refreshPlanetDetail(stateRef) {
   panel.innerHTML = view.html;
   panel.classList.add('visible');
 
-  const container = mapContainer;
-  const canvasW = container.clientWidth;
-  const canvasH = container.clientHeight;
   const inspectorOwned = !!(panel.closest && panel.closest('#context-inspector'));
-
-  if (inspectorOwned) {
-    panel.style.width = '';
-    panel.style.left = '';
-    panel.style.top = '';
-    return;
-  }
-
-  // 优先使用3D投影坐标
-  let nodeX, nodeY;
   const screenPos = Renderer3D.getPlanetScreenPosition(displayId);
-  if (screenPos) {
-    nodeX = screenPos.x;
-    nodeY = screenPos.y;
-  } else {
-    nodeX = view.anchor.x * canvasW;
-    nodeY = view.anchor.y * canvasH;
-  }
-  const offset = 14;
-
-  const preferredWidth = view.isPinned ? 360 : 300;
-  const minimumWidth = view.isPinned ? 240 : 220;
-  const panelW = Math.min(preferredWidth, Math.max(minimumWidth, canvasW - 16));
-  panel.style.width = panelW + 'px';
-
-  const maxLeft = Math.max(8, canvasW - panelW - 8);
-  const placeRight = nodeX < (canvasW * 0.58);
-  let left = placeRight ? (nodeX + offset) : (nodeX - panelW - offset);
-  left = Math.max(8, Math.min(maxLeft, left));
-
-  const panelH = Math.max(160, panel.offsetHeight || 0);
-  var commandSurfaceTop = canvasH;
-  if (mapContainer.getBoundingClientRect) {
-    var mapRect = mapContainer.getBoundingClientRect();
-    ['bottom-nav', 'action-guide'].forEach(function (elementId) {
-      var commandSurface = document.getElementById(elementId);
-      if (!commandSurface || commandSurface.hidden || !commandSurface.getBoundingClientRect) return;
-      var commandRect = commandSurface.getBoundingClientRect();
-      if (commandRect.width <= 0 || commandRect.height <= 0) return;
-      commandSurfaceTop = Math.min(commandSurfaceTop, commandRect.top - mapRect.top);
-    });
-  }
-  const maxTop = Math.max(8, Math.min(
-    canvasH - panelH - 8,
-    commandSurfaceTop - panelH - 12
-  ));
-  let top = nodeY - panelH * 0.5;
-  top = Math.max(8, Math.min(maxTop, top));
-
-  panel.style.left = left + 'px';
-  panel.style.top = top + 'px';
+  _applyPanelLayout(panel, buildMapPanelLayout({
+    anchor: view.anchor,
+    commandSurfaceTops: _measureCommandSurfaceTops(mapContainer),
+    containerHeight: mapContainer.clientHeight,
+    containerWidth: mapContainer.clientWidth,
+    embedded: inspectorOwned,
+    mode: 'planet',
+    panelHeight: panel.offsetHeight,
+    pinned: view.isPinned,
+    screenPosition: screenPos,
+  }));
 }
 
 /** 打开市场面板（默认当前节点功能页） */
@@ -925,7 +814,7 @@ export function focusNavigationTarget(stateRef, systemId, options) {
     goodId: options && options.goodId ? options.goodId : '',
     title: options && options.title ? options.title : '',
   });
-  _bindPlanetDetailPanelEvents();
+  _bindMapPanelEvents();
   ContextInspector.activateWorkspace('map');
   ContextInspector.render();
   // Compatibility for isolated presenter usage before the inspector shell is initialized.
@@ -1141,8 +1030,7 @@ export function dispose() {
     window._switchToGalaxyView = null;
   }
 
-  _clearBindingDataset('planet-detail-panel', 'detailUiBound');
-  _clearBindingDataset('planet-detail-panel', 'bound');
+  _clearBindingDataset('planet-detail-panel', 'mapPanelControllerBound');
   _clearBindingDataset('info-panel', 'workspaceDismissBound');
   _clearBindingDataset('trade-panel', 'workspaceDismissBound');
 

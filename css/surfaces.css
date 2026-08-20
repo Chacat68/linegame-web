@@ -1387,10 +1387,17 @@ body[data-motion="off"] .deferred-feature-status-signal {
 
 .logs-terminal-feed-head {
   display: flex;
-  align-items: baseline;
+  align-items: flex-end;
   justify-content: space-between;
+  gap: var(--ui-space-3);
   padding-bottom: var(--ui-space-3);
   border-bottom: 1px solid var(--ui-line-subtle);
+}
+
+.logs-terminal-feed-heading {
+  display: grid;
+  gap: 4px;
+  flex: 0 0 auto;
 }
 
 .logs-terminal-feed-head h3 {
@@ -1403,6 +1410,57 @@ body[data-motion="off"] .deferred-feature-status-signal {
   color: var(--ui-text-muted);
   font-size: 10px;
   letter-spacing: 0.1em;
+}
+
+.logs-filter-controls {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: var(--ui-space-2);
+  min-width: 0;
+}
+
+.logs-filter-field {
+  display: grid;
+  gap: 4px;
+  color: var(--ui-text-muted);
+  font-size: 10px;
+}
+
+.logs-filter-field > span,
+.logs-aggregation-toggle > span {
+  letter-spacing: 0.04em;
+}
+
+.logs-filter-field select {
+  min-width: 88px;
+  height: 30px;
+  padding: 0 28px 0 9px;
+  border: 1px solid var(--ui-line-default);
+  border-radius: var(--ui-radius-control);
+  color: var(--ui-text-primary);
+  background: rgba(4, 18, 29, 0.86);
+  font: inherit;
+}
+
+.logs-aggregation-toggle {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 9px;
+  border: 1px solid var(--ui-line-subtle);
+  border-radius: var(--ui-radius-control);
+  color: var(--ui-text-secondary);
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.logs-aggregation-toggle input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--ui-accent);
 }
 
 #message-log.console-message-log {
@@ -1418,6 +1476,7 @@ body[data-motion="off"] .deferred-feature-status-signal {
 }
 
 #message-log > :where(.log-message, .message, p, div, button) {
+  flex: 0 0 auto;
   padding: 9px var(--ui-space-3);
   border-left: 2px solid var(--ui-line-default);
   color: var(--ui-text-secondary);
@@ -1483,6 +1542,16 @@ body[data-motion="off"] .deferred-feature-status-signal {
 .log-message-text {
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+.log-message-repeat {
+  padding: 1px 6px;
+  border: 1px solid var(--ui-line-default);
+  border-radius: 999px;
+  color: var(--ui-accent-strong);
+  background: rgba(108, 231, 255, 0.08);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
 }
 
 #message-log .log-empty-state {

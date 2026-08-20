@@ -586,6 +586,32 @@
     padding: var(--ui-space-3);
   }
 
+  .logs-terminal-feed-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .logs-terminal-feed-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+
+  .logs-filter-controls {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .logs-filter-field select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .logs-aggregation-toggle {
+    grid-column: 1 / -1;
+    justify-content: center;
+  }
+
   #message-log .msg {
     grid-template-columns: 1fr;
     gap: 3px;
