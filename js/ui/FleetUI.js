@@ -61,9 +61,69 @@ import {
 let _activeInlineModalId = null;
 let _currentPortalCleanup = null;
 let _activeModModalContext = null;
+let _activeCrewModalContext = null;
 let _activeDispatchModalContext = null;
+let _activeFleetConfirmation = null;
 let _inspectedHangarShipIndex = null;
 let _lifecycleActions = null;
+let _fleetRuntimeResetCount = 0;
+
+function _copyFleetSessionContext(context) {
+  if (!context) return null;
+  var copy = Object.assign({}, context);
+  if (copy.tradePolicy && typeof copy.tradePolicy === 'object') {
+    copy.tradePolicy = Object.freeze(Object.assign({}, copy.tradePolicy));
+  }
+  return Object.freeze(copy);
+}
+
+function _activeFleetSurfaceId() {
+  if (_activeInlineModalId) return _activeInlineModalId;
+  if (_activeModModalContext) return 'mod-modal';
+  if (_activeCrewModalContext) return 'crew-modal';
+  if (_activeDispatchModalContext) return 'dispatch-modal';
+  return null;
+}
+
+function _clearFleetSurfaceContext(modalId) {
+  if (modalId === 'mod-modal') _activeModModalContext = null;
+  else if (modalId === 'crew-modal') _activeCrewModalContext = null;
+  else if (modalId === 'dispatch-modal') _activeDispatchModalContext = null;
+}
+
+function _closeFleetSurface(modalId, options) {
+  if (_activeInlineModalId === modalId && _currentPortalCleanup) {
+    _currentPortalCleanup(options);
+    return true;
+  }
+  hideBlockingSurface(modalId);
+  _clearFleetSurfaceContext(modalId);
+  return true;
+}
+
+function _closeActiveFleetSurface(options) {
+  var modalId = _activeFleetSurfaceId();
+  return modalId ? _closeFleetSurface(modalId, options) : false;
+}
+
+function _openFleetConfirmation(context, options) {
+  var request = options || {};
+  var onConfirm = request.onConfirm;
+  var onCancel = request.onCancel;
+  _activeFleetConfirmation = Object.assign({}, context || {});
+  var opened = ActionConfirmUI.open(Object.assign({}, request, {
+    onConfirm: function () {
+      _activeFleetConfirmation = null;
+      if (typeof onConfirm === 'function') onConfirm();
+    },
+    onCancel: function () {
+      _activeFleetConfirmation = null;
+      if (typeof onCancel === 'function') onCancel();
+    },
+  }));
+  if (!opened) _activeFleetConfirmation = null;
+  return opened;
+}
 
 function _publishFleetCommand(onCommand, type, payload) {
   if (typeof onCommand !== 'function') return false;
@@ -132,6 +192,37 @@ export function getInspectedShipIndex() {
   return Number.isInteger(_inspectedHangarShipIndex) ? _inspectedHangarShipIndex : null;
 }
 
+export function getDiagnostics() {
+  var activeSurfaceId = _activeFleetSurfaceId();
+  return Object.freeze({
+    activeSurface: activeSurfaceId ? activeSurfaceId.replace('-modal', '') : null,
+    surfaceMode: activeSurfaceId ? (_activeInlineModalId === activeSurfaceId ? 'inline' : 'blocking') : null,
+    inspectedShipIndex: getInspectedShipIndex(),
+    mod: _copyFleetSessionContext(_activeModModalContext),
+    crew: _copyFleetSessionContext(_activeCrewModalContext),
+    dispatch: _copyFleetSessionContext(_activeDispatchModalContext),
+    confirmation: _copyFleetSessionContext(_activeFleetConfirmation),
+    resetCount: _fleetRuntimeResetCount,
+  });
+}
+
+export function resetRuntimeState() {
+  if (_activeFleetConfirmation) ActionConfirmUI.cancel();
+  _closeActiveFleetSurface({ restoreFocus: false });
+  ['mod-modal', 'crew-modal', 'dispatch-modal'].forEach(function (modalId) {
+    hideBlockingSurface(modalId);
+  });
+  _activeInlineModalId = null;
+  _currentPortalCleanup = null;
+  _activeModModalContext = null;
+  _activeCrewModalContext = null;
+  _activeDispatchModalContext = null;
+  _activeFleetConfirmation = null;
+  _inspectedHangarShipIndex = null;
+  _fleetRuntimeResetCount += 1;
+  return getDiagnostics();
+}
+
 function _buildFleetShipDetailModel(state, shipIndex) {
   var ship = state && Number.isInteger(shipIndex) ? (state.fleet || [])[shipIndex] : null;
   if (!ship) return null;
@@ -189,10 +280,7 @@ export function renderWorkspaceDetail(request) {
 
 // 全局监听重置事件（用于视图切换时自动归还节点）
 EventBus.on('hangar:reset', function() {
-  if (_currentPortalCleanup) {
-    _currentPortalCleanup({ restoreFocus: false });
-  }
-  _inspectedHangarShipIndex = null;
+  resetRuntimeState();
 });
 
 function _focusInlineElement(target) {
@@ -329,11 +417,7 @@ function _openInlinePortal(modalId, onCloseCallback, options) {
     
     _activeInlineModalId = null;
     _currentPortalCleanup = null;
-    if (modalId === 'mod-modal') {
-      _activeModModalContext = null;
-    } else if (modalId === 'dispatch-modal') {
-      _activeDispatchModalContext = null;
-    }
+    _clearFleetSurfaceContext(modalId);
 
     if (onCloseCallback) {
       onCloseCallback();
@@ -487,6 +571,7 @@ function _openCrewModal(state, shipIndex, onRecruitCrew, onAssignCrew, onUnassig
   if (!modal) return false;
   var modalBox = modal.querySelector('.modal-box');
   if (!modalBox || !state.fleet || !state.fleet[shipIndex]) return false;
+  _closeActiveFleetSurface({ restoreFocus: false });
 
   var portalOpened = _openInlinePortal('crew-modal', function () {
     hideBlockingSurface('crew-modal');
@@ -496,6 +581,7 @@ function _openCrewModal(state, shipIndex, onRecruitCrew, onAssignCrew, onUnassig
     returnFocusSelector: '.fleet-open-crew-btn[data-ship-index="' + shipIndex + '"]',
   });
   if (!portalOpened) showBlockingSurface('crew-modal', { focusSelector: '#crew-modal-close' });
+  _activeCrewModalContext = { shipIndex: shipIndex };
 
   var titleEl = document.getElementById('crew-modal-title');
   var summaryEl = document.getElementById('crew-modal-summary');
@@ -510,6 +596,12 @@ function _openCrewModal(state, shipIndex, onRecruitCrew, onAssignCrew, onUnassig
     var model = buildFleetCrewModel(state, shipIndex);
     var view = renderFleetCrew(model);
     if (!model || !view) return false;
+    _activeCrewModalContext = {
+      shipIndex: shipIndex,
+      seatState: view.dataset.crewSeatState || '',
+      reserveState: view.dataset.crewReserveState || '',
+      marketState: view.dataset.crewMarketState || '',
+    };
     Object.keys(view.dataset).forEach(function (key) {
       if (modal.dataset) modal.dataset[key] = view.dataset[key];
       if (modalBox.dataset) modalBox.dataset[key] = view.dataset[key];
@@ -546,7 +638,11 @@ function _openCrewModal(state, shipIndex, onRecruitCrew, onAssignCrew, onUnassig
       }
       if (intent.type === FLEET_CREW_INTENT.DISMISS) {
         var crewMember = model.reserveCrew.find(function (member) { return member.id === intent.crewId; });
-        ActionConfirmUI.open({
+        _openFleetConfirmation({
+          type: 'crew-dismiss',
+          shipIndex: shipIndex,
+          crewId: intent.crewId,
+        }, {
           kicker: '船员合同',
           title: '解雇「' + (crewMember ? crewMember.name : '该船员') + '」？',
           message: '该船员会从预备队永久移除，已积累的等级和经验无法恢复。',
@@ -567,8 +663,7 @@ function _openCrewModal(state, shipIndex, onRecruitCrew, onAssignCrew, onUnassig
 
   renderCrewModal();
   document.getElementById('crew-modal-close').onclick = function () {
-    if (_currentPortalCleanup) _currentPortalCleanup();
-    else hideBlockingSurface('crew-modal');
+    _closeFleetSurface('crew-modal');
     _renderHangarAfterInlineClose();
   };
   return true;
@@ -601,33 +696,30 @@ export function openDispatchModal(request) {
   var input = request || {};
   if (!input.state || !Number.isInteger(input.shipIndex)) return false;
   var actions = _createFleetActionPorts(input.onCommand);
-  _openDispatchModal(input.state, input.shipIndex, actions.onAssignRoute, actions.onCancelRoute, input.preset);
-  return true;
+  return _openDispatchModal(input.state, input.shipIndex, actions.onAssignRoute, actions.onCancelRoute, input.preset) !== false;
 }
 
 export function openCrewModal(request) {
   var input = request || {};
   if (!input.state || !Number.isInteger(input.shipIndex)) return false;
   var actions = _createFleetActionPorts(input.onCommand);
-  _openCrewModal(input.state, input.shipIndex, actions.onRecruitCrew, actions.onAssignCrew, actions.onUnassignCrew, actions.onDismissCrew, actions.onSwitchShip);
-  return true;
+  return _openCrewModal(input.state, input.shipIndex, actions.onRecruitCrew, actions.onAssignCrew, actions.onUnassignCrew, actions.onDismissCrew, actions.onSwitchShip) !== false;
 }
 
 export function openModModal(request) {
   var input = request || {};
   if (!input.state || !Number.isInteger(input.shipIndex)) return false;
   var actions = _createFleetActionPorts(input.onCommand);
-  _openModModal(input.state, input.shipIndex, actions.onInstallMod, actions.onUninstallMod, actions.onUpgradeShip, actions.onServiceShip, actions.onSellShip, input.options);
-  return true;
+  return _openModModal(input.state, input.shipIndex, actions.onInstallMod, actions.onUninstallMod, actions.onUpgradeShip, actions.onServiceShip, actions.onSellShip, input.options) !== false;
 }
 
 export function getActiveModModalContext() {
-  if (_activeInlineModalId !== 'mod-modal' || !_activeModModalContext) return null;
+  if (!_activeModModalContext) return null;
   return Object.assign({}, _activeModModalContext);
 }
 
 export function getActiveDispatchModalContext() {
-  if (_activeInlineModalId !== 'dispatch-modal' || !_activeDispatchModalContext) return null;
+  if (!_activeDispatchModalContext) return null;
   return Object.assign({}, _activeDispatchModalContext);
 }
 
@@ -642,16 +734,10 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
   var body = document.getElementById('mod-modal-body');
   var title = document.getElementById('mod-modal-title');
   if (!body || !title) return false;
+  _closeActiveFleetSurface({ restoreFocus: false });
   var opts = options || {};
   var focusModId = opts.focusModId || '';
   var focusService = !!opts.focusService;
-  _activeModModalContext = {
-    shipIndex: shipIndex,
-    focusModId: focusModId,
-    focusService: focusService,
-    recommendedModId: '',
-  };
-
   var portalOpened = _openInlinePortal('mod-modal', function () {
     hideBlockingSurface('mod-modal');
   }, {
@@ -660,6 +746,12 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
     returnFocusSelector: '.fleet-open-mod-btn[data-ship-index="' + shipIndex + '"]',
   });
   if (!portalOpened) showBlockingSurface('mod-modal', { focusSelector: '#mod-modal-close' });
+  _activeModModalContext = {
+    shipIndex: shipIndex,
+    focusModId: focusModId,
+    focusService: focusService,
+    recommendedModId: '',
+  };
 
   function renderModModal() {
     var model = buildFleetModModel(state, shipIndex, {
@@ -668,7 +760,7 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
     });
     var view = renderFleetMod(model);
     if (!model || !view) {
-      if (_currentPortalCleanup) _currentPortalCleanup();
+      _closeFleetSurface('mod-modal');
       return false;
     }
     _activeModModalContext = {
@@ -704,7 +796,10 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
       }
       if (intent.type !== FLEET_MOD_INTENT.SELL) return;
       var currentShip = model.ship;
-      ActionConfirmUI.open({
+      _openFleetConfirmation({
+        type: 'ship-sell',
+        shipIndex: intent.shipIndex,
+      }, {
         kicker: '舰船处置',
         title: '卖出「' + currentShip.emoji + ' ' + currentShip.name + '」？',
         message: '舰船会从船队永久移除，货舱中的全部货物也会一并清空。',
@@ -717,7 +812,7 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
           onSellShip(intent.shipIndex);
           setTimeout(function () {
             if (state.fleet.length <= intent.shipIndex || state.fleet[intent.shipIndex] !== currentShip) {
-              if (_currentPortalCleanup) _currentPortalCleanup();
+              _closeFleetSurface('mod-modal');
               _renderHangarAfterInlineClose();
               return;
             }
@@ -731,8 +826,7 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
 
   renderModModal();
   document.getElementById('mod-modal-close').onclick = function () {
-    if (_currentPortalCleanup) _currentPortalCleanup();
-    else hideBlockingSurface('mod-modal');
+    _closeFleetSurface('mod-modal');
     _renderHangarAfterInlineClose();
   };
   return true;
@@ -745,7 +839,8 @@ function _openModModal(state, shipIndex, onInstallMod, onUninstallMod, onUpgrade
 function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, preset) {
   _inspectedHangarShipIndex = shipIndex;
   const modal = document.getElementById('dispatch-modal');
-  if (!modal) return;
+  if (!modal || !state.fleet || !state.fleet[shipIndex]) return false;
+  _closeActiveFleetSurface({ restoreFocus: false });
 
   var portalOpened = _openInlinePortal('dispatch-modal', function() {
     hideBlockingSurface('dispatch-modal');
@@ -808,6 +903,7 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
     _activeDispatchModalContext.sellSystemId = sellSelect.value || '';
     _activeDispatchModalContext.goodId = goodSelect.value || '';
     _activeDispatchModalContext.tradePolicy = _readTradePolicy();
+    _activeDispatchModalContext.advancedOpen = !!(advancedPanel && advancedPanel.open);
   }
 
   function _updateRouteSummary(estimate, warnings, readiness) {
@@ -834,6 +930,7 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
     confirmBtn.disabled = view.disabled;
     confirmBtn.setAttribute('aria-disabled', confirmBtn.disabled ? 'true' : 'false');
     modal.dataset.dispatchState = view.state;
+    if (_activeDispatchModalContext) _activeDispatchModalContext.status = view.state;
     primaryHintEl.className = view.className;
     primaryHintEl.textContent = view.text;
   }
@@ -976,6 +1073,7 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
     });
     var status = buildFleetDispatchPolicyStatus(validation);
     modal.dataset.dispatchPolicyState = status.state;
+    if (_activeDispatchModalContext) _activeDispatchModalContext.policyStatus = status.state;
     if (policyStatusEl) {
       policyStatusEl.className = status.className;
       policyStatusEl.textContent = status.text;
@@ -1126,14 +1224,13 @@ function _openDispatchModal(state, shipIndex, onAssignRoute, onCancelRoute, pres
       primaryHintEl.textContent = firstMessage;
       return;
     }
-    if (_currentPortalCleanup) _currentPortalCleanup();
-    else hideBlockingSurface('dispatch-modal');
+    _closeFleetSurface('dispatch-modal');
     _renderHangarAfterInlineClose();
   };
 
   cancelBtn.onclick = function () {
-    if (_currentPortalCleanup) _currentPortalCleanup();
-    else hideBlockingSurface('dispatch-modal');
+    _closeFleetSurface('dispatch-modal');
     _renderHangarAfterInlineClose();
   };
+  return true;
 }

@@ -1,4 +1,10 @@
 import { buildCommandFeedback } from '../ui/CommandAction.js';
+import {
+  ARCHIVE_EXPLORATION_FOCUS_PRESENTATION,
+  ARCHIVE_QUEST_FOCUS_PRESENTATION,
+  FLEET_HANGAR_FOCUS_PRESENTATION,
+  NAVIGATION_FOCUS_PRESENTATION,
+} from './ActionPresentation.js';
 import * as CommerceAction from './CommerceActionController.js';
 import { getNavigationFocusCompletion, showContextCompletion } from './ActionGuideCompletion.js';
 import * as ExplorationAction from './ExplorationActionController.js';
@@ -50,7 +56,7 @@ export function handleGuidanceAction(suggestion, context) {
         _call(ctx, 'selectAvailableQuest', payload.questId);
       }
       _call(ctx, 'activateTab', payload.tabId || 'tab-quest');
-      _call(ctx, 'updateUI');
+      _call(ctx, 'updateUI', ARCHIVE_QUEST_FOCUS_PRESENTATION);
       _call(ctx, 'emitLog', {
         text: buildCommandFeedback({
           actionId: 'quest',
@@ -79,7 +85,7 @@ export function handleGuidanceAction(suggestion, context) {
         _call(ctx, 'acknowledgeSurveyReport', payload.systemId || state.currentSystem, payload.reportId);
       }
       _call(ctx, 'activateTab', payload.tabId || 'tab-exploration');
-      _call(ctx, 'updateUI');
+      _call(ctx, 'updateUI', ARCHIVE_EXPLORATION_FOCUS_PRESENTATION);
       if (typeof ctx.revealArchiveReportFocus === 'function') {
         _call(ctx, 'revealArchiveReportFocus', payload.systemId || state.currentSystem, payload.chainId || '');
       }
@@ -137,7 +143,7 @@ export function handleGuidanceAction(suggestion, context) {
       if (typeof ctx.openRecommendedMod === 'function') {
         _call(ctx, 'openRecommendedMod', Object.assign({}, payload, { focusService: true }));
       } else {
-        _call(ctx, 'updateUI');
+        _call(ctx, 'updateUI', FLEET_HANGAR_FOCUS_PRESENTATION);
       }
       _call(ctx, 'emitLog', {
         text: buildCommandFeedback({
@@ -163,7 +169,7 @@ export function handleGuidanceAction(suggestion, context) {
       if (typeof ctx.openRecommendedMod === 'function') {
         _call(ctx, 'openRecommendedMod', payload);
       } else {
-        _call(ctx, 'updateUI');
+        _call(ctx, 'updateUI', FLEET_HANGAR_FOCUS_PRESENTATION);
       }
       _call(ctx, 'emitLog', {
         text: buildCommandFeedback({
@@ -191,7 +197,7 @@ export function handleGuidanceAction(suggestion, context) {
         _call(ctx, 'travel', directDestinationSystemId);
       } else if (typeof ctx.focusStarmap === 'function') {
         _call(ctx, 'focusStarmap');
-        _call(ctx, 'updateUI');
+        _call(ctx, 'updateUI', NAVIGATION_FOCUS_PRESENTATION);
       } else {
         _call(ctx, 'refreshActionGuide');
       }
@@ -225,7 +231,7 @@ export function handleGuidanceAction(suggestion, context) {
         }),
         type: 'tip',
       });
-      _call(ctx, 'updateUI');
+      _call(ctx, 'updateUI', NAVIGATION_FOCUS_PRESENTATION);
       showContextCompletion(ctx, getNavigationFocusCompletion(navigationFocused));
       return;
 

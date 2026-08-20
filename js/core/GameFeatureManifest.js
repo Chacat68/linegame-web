@@ -179,6 +179,9 @@ export function createGameFeatureManifest(options) {
           loadStylesheet('hangar-terminal', HANGAR_TERMINAL_STYLES_URL),
         ]).then(function (results) { return results[0]; });
       },
+      dispose: function (module) {
+        if (module && typeof module.resetRuntimeState === 'function') module.resetRuntimeState();
+      },
       onError: onError('fleet'),
     },
     archive: {

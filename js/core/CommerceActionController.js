@@ -1,5 +1,6 @@
 import { buildCommandFeedback } from '../ui/CommandAction.js';
 import { getMarketNavigationCompletion, showContextCompletion } from './ActionGuideCompletion.js';
+import { getMarketFocusPresentation } from './ActionPresentation.js';
 
 function _getState(context) {
   if (context && typeof context.getState === 'function') return context.getState();
@@ -68,7 +69,7 @@ export function handleCommerceAction(suggestion, context) {
     }),
     type: 'tip',
   });
-  _call(context, 'updateUI');
+  _call(context, 'updateUI', getMarketFocusPresentation(marketFocus.workspaceId));
   if (marketFocusGoodId) {
     _call(context, 'revealMarketGoodFocus', marketFocusGoodId, { tradeAction: marketFocusTradeAction });
   } else if (payload.chainId && typeof context.revealSurveyChainFocus === 'function') {

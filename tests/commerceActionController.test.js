@@ -4,6 +4,10 @@ import {
   handleCommerceAction,
   isCommerceAction,
 } from '../js/core/CommerceActionController.js';
+import {
+  MARKET_OPERATIONS_FOCUS_PRESENTATION,
+  MARKET_SPOT_FOCUS_PRESENTATION,
+} from '../js/core/ActionPresentation.js';
 
 function createContext(extra) {
   var calls = [];
@@ -14,7 +18,7 @@ function createContext(extra) {
       calls.push(['openMarketPanel', nextState, options]);
     },
     emitLog: function (message) { calls.push(['emitLog', message]); },
-    updateUI: function () { calls.push(['updateUI']); },
+    updateUI: function (presentation) { calls.push(['updateUI', presentation]); },
     revealMarketGoodFocus: function (goodId, options) {
       calls.push(['revealMarketGoodFocus', goodId, options]);
     },
@@ -61,7 +65,7 @@ describe('CommerceActionController', function () {
     ]);
     expect(context.calls[1][0]).toBe('emitLog');
     expect(context.calls[1][1].text).toContain('贸易站 · 总览');
-    expect(context.calls[2]).toEqual(['updateUI']);
+    expect(context.calls[2]).toEqual(['updateUI', MARKET_OPERATIONS_FOCUS_PRESENTATION]);
     expect(context.calls[3]).toEqual(['showCompletion', '已打开市场导航', '下一条行动建议已刷新']);
   });
 
@@ -77,6 +81,7 @@ describe('CommerceActionController', function () {
       },
     }, context);
 
+    expect(context.calls[2]).toEqual(['updateUI', MARKET_SPOT_FOCUS_PRESENTATION]);
     expect(context.calls[3]).toEqual([
       'revealMarketGoodFocus',
       'ore',
@@ -131,6 +136,7 @@ describe('CommerceActionController', function () {
     expect(context.calls[2][0]).toBe('emitLog');
     expect(context.calls[2][1].text).toContain('贸易站 · 总览');
     expect(context.calls[2][1].text).toContain('跟进「废弃补给站」');
+    expect(context.calls[3]).toEqual(['updateUI', MARKET_OPERATIONS_FOCUS_PRESENTATION]);
     expect(context.calls[4]).toEqual(['revealSurveyChainFocus', 'sol_prime_depot_chain']);
     expect(context.calls[5]).toEqual(['showCompletion', '已打开市场导航', '下一条行动建议已刷新']);
   });

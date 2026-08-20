@@ -408,6 +408,14 @@ describe('FleetUI.openModModal guidance focus', function () {
       focusModId: 'mod_service_bay',
       recommendedModId: 'mod_service_bay',
     });
+    expect(FleetUI.getDiagnostics()).toEqual(expect.objectContaining({
+      activeSurface: 'mod',
+      surfaceMode: 'inline',
+      inspectedShipIndex: 0,
+      mod: expect.objectContaining({ shipIndex: 0, focusModId: 'mod_service_bay' }),
+    }));
+    expect(Object.isFrozen(FleetUI.getDiagnostics())).toBe(true);
+    expect(Object.isFrozen(FleetUI.getDiagnostics().mod)).toBe(true);
     expect(focusTarget.classList.contains('mod-modal-guidance-focus')).toBe(true);
     expect(focusTarget.getAttribute('tabindex')).toBe('-1');
     expect(focusTarget.focused).toBe(true);
@@ -433,6 +441,7 @@ describe('FleetUI.openModModal guidance focus', function () {
 
     expect(prevented).toBe(true);
     expect(FleetUI.getActiveModModalContext()).toBe(null);
+    expect(FleetUI.getDiagnostics()).toEqual(expect.objectContaining({ activeSurface: null, surfaceMode: null, mod: null }));
     expect(elements['fleet-list'].getAttribute('aria-hidden')).toBe('false');
     expect(elements['fleet-list'].inert).toBe(false);
     expect(elements['fleet-inline-container'].getAttribute('aria-hidden')).toBe('true');
@@ -629,6 +638,16 @@ describe('FleetUI.openModModal guidance focus', function () {
     expect(elements['crew-reserve-list'].innerHTML).toContain('测试货运');
     expect(elements['crew-market-list'].innerHTML).toContain('测试市场');
     expect(typeof modalBox.onclick).toBe('function');
+    expect(FleetUI.getDiagnostics()).toEqual(expect.objectContaining({
+      activeSurface: 'crew',
+      surfaceMode: 'inline',
+      crew: {
+        shipIndex: 0,
+        seatState: 'ready',
+        reserveState: 'ready',
+        marketState: 'ready',
+      },
+    }));
 
     modalBox.onclick({
       target: dismissButton,
@@ -636,14 +655,21 @@ describe('FleetUI.openModModal guidance focus', function () {
     });
     expect(dismissCount).toBe(0);
     expect(confirmModal.classList.contains('hidden')).toBe(false);
+    expect(FleetUI.getDiagnostics().confirmation).toEqual({
+      type: 'crew-dismiss',
+      shipIndex: 0,
+      crewId: state.crewRoster[1].id,
+    });
     expect(elements['action-confirm-title'].textContent).toContain('测试货运');
     expect(elements['action-confirm-message'].textContent).toContain('等级和经验无法恢复');
     elements['action-confirm-accept'].dispatchEvent({ type: 'click' });
     expect(dismissCount).toBe(1);
     expect(confirmModal.classList.contains('hidden')).toBe(true);
+    expect(FleetUI.getDiagnostics().confirmation).toBe(null);
 
     elements['crew-modal-close'].onclick();
     await Promise.resolve();
+    expect(FleetUI.getDiagnostics()).toEqual(expect.objectContaining({ activeSurface: null, crew: null }));
   });
 
   it('售船 intent 会先打开危险确认，取消时不发布 typed command', function () {
@@ -716,12 +742,14 @@ describe('FleetUI.openModModal guidance focus', function () {
     body.onclick({ target: sellButton, preventDefault: function () {} });
     expect(commands).toEqual([]);
     expect(confirmModal.classList.contains('hidden')).toBe(false);
+    expect(FleetUI.getDiagnostics().confirmation).toEqual({ type: 'ship-sell', shipIndex: 1 });
     expect(elements['action-confirm-title'].textContent).toContain('待售货船');
     expect(elements['action-confirm-message'].textContent).toContain('永久移除');
 
     ActionConfirmUI.cancel();
     expect(commands).toEqual([]);
     expect(confirmModal.classList.contains('hidden')).toBe(true);
+    expect(FleetUI.getDiagnostics().confirmation).toBe(null);
   });
 
   it('派遣弹窗会暴露草案路线并在关闭后清理上下文', function () {
@@ -815,6 +843,16 @@ describe('FleetUI.openModModal guidance focus', function () {
       goodId: 'food',
       tradePolicy: { riskMode: 'balanced', marketMode: 'open' },
     });
+    expect(FleetUI.getDiagnostics()).toEqual(expect.objectContaining({
+      activeSurface: 'dispatch',
+      surfaceMode: 'inline',
+      dispatch: expect.objectContaining({
+        shipIndex: 0,
+        status: 'ready',
+        policyStatus: 'neutral',
+        advancedOpen: false,
+      }),
+    }));
     expect(elements['dispatch-buy-system'].value).toBe('sol_prime');
     expect(elements['dispatch-sell-system'].value).toBe('war_front');
     expect(elements['dispatch-good'].value).toBe('food');
@@ -837,6 +875,7 @@ describe('FleetUI.openModModal guidance focus', function () {
     expect(elements['dispatch-confirm'].disabled).toBe(true);
     expect(modal.dataset.dispatchState).toBe('invalid');
     expect(modal.dataset.dispatchPolicyState).toBe('invalid');
+    expect(FleetUI.getDiagnostics().dispatch).toEqual(expect.objectContaining({ status: 'invalid', policyStatus: 'invalid' }));
     elements['dispatch-confirm'].onclick();
     expect(assignCount).toBe(0);
 
@@ -886,5 +925,57 @@ describe('FleetUI.openModModal guidance focus', function () {
     elements['dispatch-confirm'].onclick();
     expect(assignCount).toBe(2);
     expect(FleetUI.getActiveDispatchModalContext()).toBe(null);
+    expect(FleetUI.getDiagnostics()).toEqual(expect.objectContaining({ activeSurface: null, dispatch: null }));
+  });
+
+  it('阻塞层回退和会话重置都会清理 Fleet 选择上下文', function () {
+    var modalBox = createFakeElement();
+    var modal = createFakeElement(['modal', 'hidden']);
+    modal.id = 'mod-modal';
+    modal.querySelector = function (selector) {
+      return selector === '.modal-box' ? modalBox : null;
+    };
+    var elements = {
+      'fleet-list': createFakeElement(),
+      'mod-modal': modal,
+      'mod-modal-title': createFakeElement(),
+      'mod-modal-body': createFakeElement(),
+      'mod-modal-close': createFakeElement(),
+    };
+    globalThis.document = {
+      getElementById: function (id) { return elements[id] || null; },
+      querySelectorAll: function (selector) { return selector === '.modal' ? [modal] : []; },
+      addEventListener: function () {},
+      removeEventListener: function () {},
+    };
+
+    var state = createTestState({ credits: 50000 });
+    Fleet.init(state);
+    expect(FleetUI.openModModal({ state: state, shipIndex: 0, onCommand: function () {} })).toBe(true);
+    expect(modal.classList.contains('hidden')).toBe(false);
+    expect(FleetUI.getDiagnostics()).toEqual(expect.objectContaining({
+      activeSurface: 'mod',
+      surfaceMode: 'blocking',
+      mod: expect.objectContaining({ shipIndex: 0 }),
+    }));
+
+    elements['mod-modal-close'].onclick();
+    expect(modal.classList.contains('hidden')).toBe(true);
+    expect(FleetUI.getDiagnostics()).toEqual(expect.objectContaining({ activeSurface: null, mod: null }));
+
+    FleetUI.openModModal({ state: state, shipIndex: 0, onCommand: function () {} });
+    var beforeResetCount = FleetUI.getDiagnostics().resetCount;
+    var resetDiagnostics = FleetUI.resetRuntimeState();
+    expect(resetDiagnostics).toEqual(expect.objectContaining({
+      activeSurface: null,
+      surfaceMode: null,
+      inspectedShipIndex: null,
+      mod: null,
+      crew: null,
+      dispatch: null,
+      confirmation: null,
+      resetCount: beforeResetCount + 1,
+    }));
+    expect(Object.isFrozen(resetDiagnostics)).toBe(true);
   });
 });

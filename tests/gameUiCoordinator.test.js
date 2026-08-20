@@ -315,9 +315,35 @@ describe('GameUiCoordinator', function () {
     expect(coordinator.getDiagnostics()).toEqual({
       featureStatus: null,
       marketUi: null,
+      fleetUi: null,
       renderAllCount: 0,
       invalidationCount: 1,
       lastInvalidationRegions: DEFAULT_ACTION_DIRTY_REGIONS,
+      workspaceSessions: {
+        map: null,
+        trade: null,
+        fleet: null,
+        archive: null,
+        logs: null,
+      },
+      workspaceRenders: {
+        activeWorkspace: 'fleet',
+        renderCounts: {
+          [UI_REGION.MARKET_CHROME]: 0,
+          [UI_REGION.MARKET_SPOT]: 0,
+          [UI_REGION.MARKET_CAPITAL]: 0,
+          [UI_REGION.MARKET_OPERATIONS]: 0,
+          [UI_REGION.FLEET_HANGAR]: 1,
+          [UI_REGION.FLEET_SHOP]: 0,
+          [UI_REGION.ARCHIVE_QUEST]: 0,
+          [UI_REGION.ARCHIVE_EXPLORATION]: 0,
+          [UI_REGION.ARCHIVE_RESEARCH]: 0,
+          [UI_REGION.ARCHIVE_FACTION]: 0,
+          [UI_REGION.ARCHIVE_ACHIEVEMENT]: 0,
+          [UI_REGION.SAVE]: 0,
+        },
+        lastRenderedRegions: [UI_REGION.FLEET_HANGAR],
+      },
     });
   });
 
@@ -358,16 +384,25 @@ describe('GameUiCoordinator', function () {
     }));
   });
 
-  it('公开已加载 Market 的选择诊断，并在会话重置时清理 UI 运行态', async function () {
+  it('公开已加载工作区的会话诊断，并在会话重置时清理 UI 运行态', async function () {
     var marketDiagnostics = { activeWorkspace: 'capital', focusedGoodId: 'water' };
-    var resetRuntimeState = vi.fn(function () {
+    var fleetDiagnostics = { activeSurface: 'dispatch', surfaceMode: 'inline' };
+    var resetMarketRuntimeState = vi.fn(function () {
       marketDiagnostics = { activeWorkspace: 'spot', focusedGoodId: null };
       return marketDiagnostics;
+    });
+    var resetFleetRuntimeState = vi.fn(function () {
+      fleetDiagnostics = { activeSurface: null, surfaceMode: null };
+      return fleetDiagnostics;
     });
     var features = createFeatureHarness({
       market: {
         getDiagnostics: function () { return marketDiagnostics; },
-        resetRuntimeState: resetRuntimeState,
+        resetRuntimeState: resetMarketRuntimeState,
+      },
+      fleet: {
+        getDiagnostics: function () { return fleetDiagnostics; },
+        resetRuntimeState: resetFleetRuntimeState,
       },
     });
     var coordinator = createGameUiCoordinator({
@@ -380,12 +415,27 @@ describe('GameUiCoordinator', function () {
       activeWorkspace: 'capital',
       focusedGoodId: 'water',
     });
+    expect(coordinator.getDiagnostics().fleetUi).toEqual({ activeSurface: 'dispatch', surfaceMode: 'inline' });
+    expect(coordinator.getDiagnostics().workspaceSessions).toEqual({
+      map: null,
+      trade: marketDiagnostics,
+      fleet: fleetDiagnostics,
+      archive: null,
+      logs: null,
+    });
 
     var diagnostics = coordinator.reset();
 
-    expect(resetRuntimeState).toHaveBeenCalledOnce();
+    expect(resetMarketRuntimeState).toHaveBeenCalledOnce();
+    expect(resetFleetRuntimeState).toHaveBeenCalledOnce();
     expect(diagnostics.marketUi).toEqual({ activeWorkspace: 'spot', focusedGoodId: null });
+    expect(diagnostics.fleetUi).toEqual({ activeSurface: null, surfaceMode: null });
+    expect(Object.isFrozen(diagnostics.workspaceSessions)).toBe(true);
     expect(diagnostics.lastInvalidationRegions).toEqual([]);
+    expect(diagnostics.workspaceRenders.lastRenderedRegions).toEqual([]);
+    expect(Object.values(diagnostics.workspaceRenders.renderCounts).every(function (count) {
+      return count === 0;
+    })).toBe(true);
   });
 
   it('连续失效会重新读取最新 session state 与 active workspace', async function () {
@@ -453,6 +503,19 @@ describe('GameUiCoordinator', function () {
       [UI_REGION.MARKET_OPERATIONS],
     ]);
     expect(connectMarket).toHaveBeenCalledTimes(2);
+    var workspaceRenders = coordinator.getDiagnostics().workspaceRenders;
+    expect(workspaceRenders).toEqual(expect.objectContaining({
+      activeWorkspace: 'trade',
+      lastRenderedRegions: [UI_REGION.MARKET_OPERATIONS],
+      renderCounts: expect.objectContaining({
+        [UI_REGION.MARKET_SPOT]: 1,
+        [UI_REGION.MARKET_OPERATIONS]: 1,
+        [UI_REGION.MARKET_CAPITAL]: 0,
+      }),
+    }));
+    expect(Object.isFrozen(workspaceRenders)).toBe(true);
+    expect(Object.isFrozen(workspaceRenders.renderCounts)).toBe(true);
+    expect(Object.isFrozen(workspaceRenders.lastRenderedRegions)).toBe(true);
   });
 
   it('Market 内部失效不后台重绘隐藏市场，但仍刷新实际活动工作区', async function () {
@@ -478,6 +541,15 @@ describe('GameUiCoordinator', function () {
 
     expect(marketRegions).not.toHaveBeenCalled();
     expect(calls).toEqual(['hangar', 'shop']);
+    expect(coordinator.getDiagnostics().workspaceRenders).toEqual(expect.objectContaining({
+      activeWorkspace: 'fleet',
+      lastRenderedRegions: [UI_REGION.FLEET_HANGAR, UI_REGION.FLEET_SHOP],
+      renderCounts: expect.objectContaining({
+        [UI_REGION.MARKET_SPOT]: 0,
+        [UI_REGION.FLEET_HANGAR]: 1,
+        [UI_REGION.FLEET_SHOP]: 1,
+      }),
+    }));
   });
 
   it('显式 Market 整体失效覆盖内部区域且不会重复渲染', async function () {
@@ -608,6 +680,15 @@ describe('GameUiCoordinator', function () {
     await coordinator.invalidate(ARCHIVE_QUEST_ACTION_PRESENTATION);
 
     expect(seen).toEqual(['research:A', 'quest:B']);
+    expect(coordinator.getDiagnostics().workspaceRenders).toEqual(expect.objectContaining({
+      activeWorkspace: 'archive',
+      lastRenderedRegions: [UI_REGION.ARCHIVE_QUEST],
+      renderCounts: expect.objectContaining({
+        [UI_REGION.ARCHIVE_RESEARCH]: 1,
+        [UI_REGION.ARCHIVE_QUEST]: 1,
+        [UI_REGION.ARCHIVE_EXPLORATION]: 0,
+      }),
+    }));
   });
 
   it('Archive 内部失效不后台重绘隐藏档案，但保留当前 Fleet 工作区刷新', async function () {

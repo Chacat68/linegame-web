@@ -23,6 +23,24 @@ const ARCHIVE_REGION_NAMES = Object.freeze([
   UI_REGION.ARCHIVE_FACTION,
   UI_REGION.ARCHIVE_ACHIEVEMENT,
 ]);
+const WORKSPACE_RENDER_REGION_NAMES = Object.freeze([].concat(
+  MARKET_REGION_NAMES,
+  FLEET_REGION_NAMES,
+  ARCHIVE_REGION_NAMES,
+  [UI_REGION.SAVE]
+));
+
+function _createWorkspaceRenderCounts() {
+  return WORKSPACE_RENDER_REGION_NAMES.reduce(function (counts, region) {
+    counts[region] = 0;
+    return counts;
+  }, {});
+}
+
+function _trackedWorkspaceRegions(regions) {
+  var requested = new Set(regions || []);
+  return WORKSPACE_RENDER_REGION_NAMES.filter(function (region) { return requested.has(region); });
+}
 
 function _dependency(container, primaryName, fallbackName) {
   if (!container || typeof container !== 'object') return null;
@@ -73,6 +91,9 @@ export function createGameUiCoordinator(options) {
   var renderAllCount = 0;
   var invalidationCount = 0;
   var lastInvalidationRegions = Object.freeze([]);
+  var workspaceRenderCounts = _createWorkspaceRenderCounts();
+  var lastRenderedWorkspaceRegions = Object.freeze([]);
+  var activeWorkspaceRenderTrace = null;
 
   var HUD = _dependency(ui, 'HUD', 'hud');
   var ShipUI = _dependency(ui, 'ShipUI', 'ship');
@@ -83,6 +104,33 @@ export function createGameUiCoordinator(options) {
   var FeatureStatus = _dependency(ui, 'DeferredFeatureStatusUI', 'featureStatus');
   var Trade = _dependency(systems, 'Trade', 'trade');
   var Dispatch = _dependency(systems, 'Dispatch', 'dispatch');
+
+  function _recordWorkspaceRender(regions) {
+    var tracked = _trackedWorkspaceRegions(regions);
+    if (tracked.length === 0) return;
+    tracked.forEach(function (region) {
+      workspaceRenderCounts[region] += 1;
+      if (activeWorkspaceRenderTrace && activeWorkspaceRenderTrace.indexOf(region) === -1) {
+        activeWorkspaceRenderTrace.push(region);
+      }
+    });
+    if (!activeWorkspaceRenderTrace) {
+      lastRenderedWorkspaceRegions = Object.freeze(tracked);
+    }
+  }
+
+  function _traceWorkspaceRenders(callback) {
+    if (activeWorkspaceRenderTrace) return callback();
+    activeWorkspaceRenderTrace = [];
+    try {
+      return callback();
+    } finally {
+      lastRenderedWorkspaceRegions = Object.freeze(
+        _trackedWorkspaceRegions(activeWorkspaceRenderTrace)
+      );
+      activeWorkspaceRenderTrace = null;
+    }
+  }
 
   // HUD is eager and owns the in-memory message history; register its read-only
   // logs adapter once while delayed domain presenters continue to connect on load.
@@ -150,6 +198,7 @@ export function createGameUiCoordinator(options) {
     var request = _createMarketRenderRequest(state);
     module.render(request);
     _afterMarketRender(module, state, request.marketMode);
+    _recordWorkspaceRender(MARKET_REGION_NAMES);
     return true;
   }
 
@@ -161,9 +210,11 @@ export function createGameUiCoordinator(options) {
     if (requested.length === 0) return false;
     var request = _createMarketRenderRequest(state);
     var rendered = false;
+    var completedRegions = [];
 
     if (typeof module.renderRegions === 'function') {
       rendered = module.renderRegions(request, requested) !== false;
+      if (rendered) completedRegions = requested.slice();
     } else {
       var methodByRegion = {};
       methodByRegion[UI_REGION.MARKET_CHROME] = 'renderChrome';
@@ -174,15 +225,20 @@ export function createGameUiCoordinator(options) {
         var methodName = methodByRegion[region];
         if (typeof module[methodName] !== 'function') return;
         module[methodName](request);
+        completedRegions.push(region);
         rendered = true;
       });
       if (!rendered && typeof module.render === 'function') {
         module.render(request);
+        completedRegions = MARKET_REGION_NAMES.slice();
         rendered = true;
       }
     }
 
-    if (rendered) _afterMarketRender(module, state, request.marketMode);
+    if (rendered) {
+      _afterMarketRender(module, state, request.marketMode);
+      _recordWorkspaceRender(completedRegions);
+    }
     return rendered;
   }
 
@@ -219,17 +275,21 @@ export function createGameUiCoordinator(options) {
     }
 
     var rendered = false;
+    var completedRegions = [];
     var onCommand = _action(actions, 'fleet', 'handleCommand');
     var requested = new Set(regions || []);
     if (requested.has(UI_REGION.FLEET_HANGAR) && typeof module.render === 'function') {
       module.render({ state: state, onCommand: onCommand });
+      completedRegions.push(UI_REGION.FLEET_HANGAR);
       rendered = true;
     }
     if (requested.has(UI_REGION.FLEET_SHOP) && typeof module.renderShop === 'function') {
       module.renderShop({ state: state, onCommand: onCommand });
+      completedRegions.push(UI_REGION.FLEET_SHOP);
       rendered = true;
     }
     _call(ContextAdapters, 'connectFleet', [module]);
+    _recordWorkspaceRender(completedRegions);
     return rendered;
   }
 
@@ -266,6 +326,7 @@ export function createGameUiCoordinator(options) {
       ? (_callAction(actions, 'archive', 'getDispatchContext', [state]) || null)
       : null;
     var rendered = false;
+    var completedRegions = [];
 
     if (requested.has(UI_REGION.ARCHIVE_RESEARCH) && ResearchUI && typeof ResearchUI.render === 'function') {
       ResearchUI.render(
@@ -279,10 +340,12 @@ export function createGameUiCoordinator(options) {
         _action(actions, 'archive', 'onApplyResearchDispatch'),
         _action(actions, 'archive', 'onResolveResearchBlocker')
       );
+      completedRegions.push(UI_REGION.ARCHIVE_RESEARCH);
       rendered = true;
     }
     if (requested.has(UI_REGION.ARCHIVE_FACTION) && FactionUI && typeof FactionUI.render === 'function') {
       FactionUI.render(state, _action(actions, 'archive', 'onOpenFactionMarket'));
+      completedRegions.push(UI_REGION.ARCHIVE_FACTION);
       rendered = true;
     }
     if (requested.has(UI_REGION.ARCHIVE_QUEST) && QuestUI && typeof QuestUI.render === 'function') {
@@ -294,17 +357,21 @@ export function createGameUiCoordinator(options) {
         _action(actions, 'archive', 'onApplyQuestDispatch'),
         _action(actions, 'archive', 'onResolveQuestBlocker')
       );
+      completedRegions.push(UI_REGION.ARCHIVE_QUEST);
       rendered = true;
     }
     if (requested.has(UI_REGION.ARCHIVE_EXPLORATION) && ExplorationUI && typeof ExplorationUI.render === 'function') {
       ExplorationUI.render(state);
+      completedRegions.push(UI_REGION.ARCHIVE_EXPLORATION);
       rendered = true;
     }
     if (requested.has(UI_REGION.ARCHIVE_ACHIEVEMENT) && AchievementUI && typeof AchievementUI.render === 'function') {
       AchievementUI.render(state);
+      completedRegions.push(UI_REGION.ARCHIVE_ACHIEVEMENT);
       rendered = true;
     }
     _call(ContextAdapters, 'connectArchive', [module]);
+    _recordWorkspaceRender(completedRegions);
     return rendered;
   }
 
@@ -352,6 +419,7 @@ export function createGameUiCoordinator(options) {
       _action(actions, 'save', 'onSaveGame'),
       _action(actions, 'save', 'onLoadGame')
     );
+    _recordWorkspaceRender([UI_REGION.SAVE]);
     return true;
   }
 
@@ -384,34 +452,36 @@ export function createGameUiCoordinator(options) {
   function renderAll() {
     var state = getState();
     if (!state) return Promise.resolve(null);
-    renderAllCount += 1;
+    return _traceWorkspaceRenders(function () {
+      renderAllCount += 1;
 
-    var netWorth = _call(Trade, 'getNetWorth', [state]);
-    if (!Number.isFinite(netWorth)) netWorth = 0;
-    _call(HUD, 'updateStats', [state, netWorth]);
-    _call(HUD, 'updateCompanyName', [state]);
-    _call(HUD, 'updateArchiveBadges', [state]);
+      var netWorth = _call(Trade, 'getNetWorth', [state]);
+      if (!Number.isFinite(netWorth)) netWorth = 0;
+      _call(HUD, 'updateStats', [state, netWorth]);
+      _call(HUD, 'updateCompanyName', [state]);
+      _call(HUD, 'updateArchiveBadges', [state]);
 
-    if (_call(MapUI, 'isMarketOpen', [])) {
-      var MarketUI = _getLoadedFeature('market');
-      if (MarketUI) renderMarket(MarketUI, state);
-    }
+      if (_call(MapUI, 'isMarketOpen', [])) {
+        var MarketUI = _getLoadedFeature('market');
+        if (MarketUI) renderMarket(MarketUI, state);
+      }
 
-    _call(ShipUI, 'renderShipStats', [state]);
+      _call(ShipUI, 'renderShipStats', [state]);
 
-    var ArchiveUI = _getLoadedFeature('archive');
-    var FleetUI = _getLoadedFeature('fleet');
-    var SaveUI = _getLoadedFeature('save');
-    if (ArchiveUI) renderArchive(ArchiveUI, state);
-    if (FleetUI) renderFleet(FleetUI, state);
-    if (SaveUI) renderSave(SaveUI, state);
+      var ArchiveUI = _getLoadedFeature('archive');
+      var FleetUI = _getLoadedFeature('fleet');
+      var SaveUI = _getLoadedFeature('save');
+      if (ArchiveUI) renderArchive(ArchiveUI, state);
+      if (FleetUI) renderFleet(FleetUI, state);
+      if (SaveUI) renderSave(SaveUI, state);
 
-    _call(Renderer, 'invalidateScene', []);
-    _call(MapUI, 'refreshPlanetDetail', [state]);
-    _call(Dispatch, 'updateActiveDispatchUI', []);
-    _callAction(actions, 'global', 'refreshActionGuide', [state]);
+      _call(Renderer, 'invalidateScene', []);
+      _call(MapUI, 'refreshPlanetDetail', [state]);
+      _call(Dispatch, 'updateActiveDispatchUI', []);
+      _callAction(actions, 'global', 'refreshActionGuide', [state]);
 
-    return Promise.resolve(state);
+      return Promise.resolve(state);
+    });
   }
 
   function _activeWorkspace() {
@@ -429,78 +499,80 @@ export function createGameUiCoordinator(options) {
     lastInvalidationRegions = dirtyRegions;
     if (dirtyRegions.indexOf(UI_REGION.ALL) !== -1) return renderAll();
 
-    var dirty = new Set(dirtyRegions);
-    var renderedFeatures = new Set();
-    var hasMarketRegions = MARKET_REGION_NAMES.some(function (region) { return dirty.has(region); });
-    var hasFleetRegions = FLEET_REGION_NAMES.some(function (region) { return dirty.has(region); });
-    var hasArchiveRegions = ARCHIVE_REGION_NAMES.some(function (region) { return dirty.has(region); });
-    var activeWorkspace = dirty.has(UI_REGION.ACTIVE_WORKSPACE) || hasMarketRegions || hasFleetRegions || hasArchiveRegions
-      ? _activeWorkspace()
-      : null;
+    return _traceWorkspaceRenders(function () {
+      var dirty = new Set(dirtyRegions);
+      var renderedFeatures = new Set();
+      var hasMarketRegions = MARKET_REGION_NAMES.some(function (region) { return dirty.has(region); });
+      var hasFleetRegions = FLEET_REGION_NAMES.some(function (region) { return dirty.has(region); });
+      var hasArchiveRegions = ARCHIVE_REGION_NAMES.some(function (region) { return dirty.has(region); });
+      var activeWorkspace = dirty.has(UI_REGION.ACTIVE_WORKSPACE) || hasMarketRegions || hasFleetRegions || hasArchiveRegions
+        ? _activeWorkspace()
+        : null;
 
-    function renderFeature(featureName) {
-      if (renderedFeatures.has(featureName)) return false;
-      renderedFeatures.add(featureName);
-      var module = _getLoadedFeature(featureName);
-      if (!module) return false;
-      if (featureName === 'market') return renderMarket(module, state);
-      if (featureName === 'fleet') return renderFleet(module, state);
-      if (featureName === 'archive') return renderArchive(module, state);
-      if (featureName === 'save') return renderSave(module, state);
-      return false;
-    }
-
-    if (dirty.has(UI_REGION.HUD)) {
-      var netWorth = _call(Trade, 'getNetWorth', [state]);
-      if (!Number.isFinite(netWorth)) netWorth = 0;
-      _call(HUD, 'updateStats', [state, netWorth]);
-      _call(HUD, 'updateCompanyName', [state]);
-      _call(HUD, 'updateArchiveBadges', [state]);
-    }
-    if (dirty.has(UI_REGION.SHIP)) _call(ShipUI, 'renderShipStats', [state]);
-
-    if (dirty.has(UI_REGION.ACTIVE_WORKSPACE)) {
-      if (activeWorkspace === 'trade' && !hasMarketRegions) renderFeature('market');
-      else if (activeWorkspace === 'fleet' && !hasFleetRegions) renderFeature('fleet');
-      else if (activeWorkspace === 'archive' && !hasArchiveRegions) renderFeature('archive');
-    }
-    if (dirty.has(UI_REGION.MARKET)) renderFeature('market');
-    if (dirty.has(UI_REGION.FLEET)) renderFeature('fleet');
-    if (dirty.has(UI_REGION.ARCHIVE)) renderFeature('archive');
-    if (dirty.has(UI_REGION.SAVE)) renderFeature('save');
-
-    if (hasMarketRegions && activeWorkspace === 'trade' && !renderedFeatures.has('market')) {
-      var MarketUI = _getLoadedFeature('market');
-      if (MarketUI) {
-        var marketRegions = MARKET_REGION_NAMES.filter(function (region) { return dirty.has(region); });
-        _renderMarketRegions(MarketUI, state, marketRegions);
+      function renderFeature(featureName) {
+        if (renderedFeatures.has(featureName)) return false;
+        renderedFeatures.add(featureName);
+        var module = _getLoadedFeature(featureName);
+        if (!module) return false;
+        if (featureName === 'market') return renderMarket(module, state);
+        if (featureName === 'fleet') return renderFleet(module, state);
+        if (featureName === 'archive') return renderArchive(module, state);
+        if (featureName === 'save') return renderSave(module, state);
+        return false;
       }
-    }
 
-    if (hasFleetRegions && activeWorkspace === 'fleet' && !renderedFeatures.has('fleet')) {
-      var FleetUI = _getLoadedFeature('fleet');
-      if (FleetUI) {
-        var fleetRegions = FLEET_REGION_NAMES.filter(function (region) { return dirty.has(region); });
-        _renderFleetRegions(FleetUI, state, fleetRegions);
+      if (dirty.has(UI_REGION.HUD)) {
+        var netWorth = _call(Trade, 'getNetWorth', [state]);
+        if (!Number.isFinite(netWorth)) netWorth = 0;
+        _call(HUD, 'updateStats', [state, netWorth]);
+        _call(HUD, 'updateCompanyName', [state]);
+        _call(HUD, 'updateArchiveBadges', [state]);
       }
-    }
+      if (dirty.has(UI_REGION.SHIP)) _call(ShipUI, 'renderShipStats', [state]);
 
-    if (hasArchiveRegions && activeWorkspace === 'archive' && !renderedFeatures.has('archive')) {
-      var ArchiveUI = _getLoadedFeature('archive');
-      if (ArchiveUI) {
-        var archiveRegions = ARCHIVE_REGION_NAMES.filter(function (region) { return dirty.has(region); });
-        _renderArchiveRegions(ArchiveUI, state, archiveRegions);
+      if (dirty.has(UI_REGION.ACTIVE_WORKSPACE)) {
+        if (activeWorkspace === 'trade' && !hasMarketRegions) renderFeature('market');
+        else if (activeWorkspace === 'fleet' && !hasFleetRegions) renderFeature('fleet');
+        else if (activeWorkspace === 'archive' && !hasArchiveRegions) renderFeature('archive');
       }
-    }
+      if (dirty.has(UI_REGION.MARKET)) renderFeature('market');
+      if (dirty.has(UI_REGION.FLEET)) renderFeature('fleet');
+      if (dirty.has(UI_REGION.ARCHIVE)) renderFeature('archive');
+      if (dirty.has(UI_REGION.SAVE)) renderFeature('save');
 
-    if (dirty.has(UI_REGION.SCENE)) _call(Renderer, 'invalidateScene', []);
-    if (dirty.has(UI_REGION.CONTEXT)) _call(MapUI, 'refreshPlanetDetail', [state]);
-    if (dirty.has(UI_REGION.DISPATCH)) _call(Dispatch, 'updateActiveDispatchUI', []);
-    if (dirty.has(UI_REGION.GUIDE)) {
-      _callAction(actions, 'global', 'refreshActionGuide', [state]);
-    }
+      if (hasMarketRegions && activeWorkspace === 'trade' && !renderedFeatures.has('market')) {
+        var MarketUI = _getLoadedFeature('market');
+        if (MarketUI) {
+          var marketRegions = MARKET_REGION_NAMES.filter(function (region) { return dirty.has(region); });
+          _renderMarketRegions(MarketUI, state, marketRegions);
+        }
+      }
 
-    return Promise.resolve(state);
+      if (hasFleetRegions && activeWorkspace === 'fleet' && !renderedFeatures.has('fleet')) {
+        var FleetUI = _getLoadedFeature('fleet');
+        if (FleetUI) {
+          var fleetRegions = FLEET_REGION_NAMES.filter(function (region) { return dirty.has(region); });
+          _renderFleetRegions(FleetUI, state, fleetRegions);
+        }
+      }
+
+      if (hasArchiveRegions && activeWorkspace === 'archive' && !renderedFeatures.has('archive')) {
+        var ArchiveUI = _getLoadedFeature('archive');
+        if (ArchiveUI) {
+          var archiveRegions = ARCHIVE_REGION_NAMES.filter(function (region) { return dirty.has(region); });
+          _renderArchiveRegions(ArchiveUI, state, archiveRegions);
+        }
+      }
+
+      if (dirty.has(UI_REGION.SCENE)) _call(Renderer, 'invalidateScene', []);
+      if (dirty.has(UI_REGION.CONTEXT)) _call(MapUI, 'refreshPlanetDetail', [state]);
+      if (dirty.has(UI_REGION.DISPATCH)) _call(Dispatch, 'updateActiveDispatchUI', []);
+      if (dirty.has(UI_REGION.GUIDE)) {
+        _callAction(actions, 'global', 'refreshActionGuide', [state]);
+      }
+
+      return Promise.resolve(state);
+    });
   }
 
   function dispose() {
@@ -509,19 +581,39 @@ export function createGameUiCoordinator(options) {
 
   function reset() {
     var MarketUI = _getLoadedFeature('market');
+    var FleetUI = _getLoadedFeature('fleet');
     _call(MarketUI, 'resetRuntimeState', []);
+    _call(FleetUI, 'resetRuntimeState', []);
     lastInvalidationRegions = Object.freeze([]);
+    workspaceRenderCounts = _createWorkspaceRenderCounts();
+    lastRenderedWorkspaceRegions = Object.freeze([]);
     return getDiagnostics();
   }
 
   function getDiagnostics() {
     var MarketUI = _getLoadedFeature('market');
+    var FleetUI = _getLoadedFeature('fleet');
+    var marketUiDiagnostics = _call(MarketUI, 'getDiagnostics', []) || null;
+    var fleetUiDiagnostics = _call(FleetUI, 'getDiagnostics', []) || null;
     return Object.freeze({
       featureStatus: _call(FeatureStatus, 'getDiagnostics', []) || null,
-      marketUi: _call(MarketUI, 'getDiagnostics', []) || null,
+      marketUi: marketUiDiagnostics,
+      fleetUi: fleetUiDiagnostics,
       renderAllCount: renderAllCount,
       invalidationCount: invalidationCount,
       lastInvalidationRegions: lastInvalidationRegions,
+      workspaceSessions: Object.freeze({
+        map: null,
+        trade: marketUiDiagnostics,
+        fleet: fleetUiDiagnostics,
+        archive: null,
+        logs: null,
+      }),
+      workspaceRenders: Object.freeze({
+        activeWorkspace: _activeWorkspace(),
+        renderCounts: Object.freeze(Object.assign({}, workspaceRenderCounts)),
+        lastRenderedRegions: lastRenderedWorkspaceRegions,
+      }),
     });
   }
 

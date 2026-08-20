@@ -103,6 +103,51 @@ export const ACHIEVEMENT_UNLOCK_PRESENTATION = createActionPresentation([
   UI_REGION.GUIDE,
 ]);
 
+// Command Slot 的工作区导航只改变被打开的局部 presenter、Context 与 Guide。
+// 它不修改飞船/经济状态，因此不能借用领域动作 presentation 触发 HUD、Ship、
+// Scene 或 Dispatch 的默认重绘。
+export const MARKET_SPOT_FOCUS_PRESENTATION = createActionPresentation([
+  UI_REGION.MARKET_SPOT,
+  UI_REGION.CONTEXT,
+  UI_REGION.GUIDE,
+]);
+
+export const MARKET_CAPITAL_FOCUS_PRESENTATION = createActionPresentation([
+  UI_REGION.MARKET_CAPITAL,
+  UI_REGION.CONTEXT,
+  UI_REGION.GUIDE,
+]);
+
+export const MARKET_OPERATIONS_FOCUS_PRESENTATION = createActionPresentation([
+  UI_REGION.MARKET_OPERATIONS,
+  UI_REGION.CONTEXT,
+  UI_REGION.GUIDE,
+]);
+
+export const FLEET_HANGAR_FOCUS_PRESENTATION = createActionPresentation([
+  UI_REGION.FLEET_HANGAR,
+  UI_REGION.CONTEXT,
+  UI_REGION.GUIDE,
+]);
+
+export const ARCHIVE_QUEST_FOCUS_PRESENTATION = createActionPresentation([
+  UI_REGION.ARCHIVE_QUEST,
+  UI_REGION.CONTEXT,
+  UI_REGION.GUIDE,
+]);
+
+export const ARCHIVE_EXPLORATION_FOCUS_PRESENTATION = createActionPresentation([
+  UI_REGION.ARCHIVE_EXPLORATION,
+  UI_REGION.CONTEXT,
+  UI_REGION.GUIDE,
+]);
+
+export function getMarketFocusPresentation(workspaceId) {
+  if (workspaceId === 'capital') return MARKET_CAPITAL_FOCUS_PRESENTATION;
+  if (workspaceId === 'operations') return MARKET_OPERATIONS_FOCUS_PRESENTATION;
+  return MARKET_SPOT_FOCUS_PRESENTATION;
+}
+
 function _withWorkspaceRegions(regions) {
   var dirtyRegions = DEFAULT_ACTION_DIRTY_REGIONS.slice();
   var insertAt = dirtyRegions.indexOf(UI_REGION.ACTIVE_WORKSPACE) + 1;

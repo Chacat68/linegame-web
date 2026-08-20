@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { UI_REGION } from '../js/core/ActionPresentation.js';
 import { createGameUiApplicationRuntime } from '../js/core/GameUiApplicationRuntime.js';
 
 function createHarness(overrides) {
@@ -116,6 +117,13 @@ describe('GameUiApplicationRuntime', function () {
     await harness.runtime.ensureFleet();
     expect(FleetUI.render).toHaveBeenCalledTimes(1);
     expect(FleetUI.renderShop).toHaveBeenCalledTimes(1);
+    expect(harness.runtime.getDiagnostics().workspaceRenders).toEqual(expect.objectContaining({
+      lastRenderedRegions: [UI_REGION.FLEET_HANGAR, UI_REGION.FLEET_SHOP],
+      renderCounts: expect.objectContaining({
+        [UI_REGION.FLEET_HANGAR]: 1,
+        [UI_REGION.FLEET_SHOP]: 1,
+      }),
+    }));
 
     await harness.runtime.invalidate(['hud']);
     expect(harness.ui.HUD.updateStats).toHaveBeenCalled();
@@ -153,10 +161,15 @@ describe('GameUiApplicationRuntime', function () {
   it('统一初始化、场景就绪、入口呈现、重置与释放 UI 生命周期', async function () {
     var harness = createHarness();
     var resetMarketRuntime = vi.fn();
+    var resetFleetRuntime = vi.fn();
     harness.loaded.market = {
       getDiagnostics: function () { return { activeWorkspace: 'spot' }; },
       render: vi.fn(),
       resetRuntimeState: resetMarketRuntime,
+    };
+    harness.loaded.fleet = {
+      getDiagnostics: function () { return { activeSurface: null, surfaceMode: null }; },
+      resetRuntimeState: resetFleetRuntime,
     };
     expect(harness.runtime.initialize()).toBe(true);
     expect(harness.ui.MapUI.init).toHaveBeenCalled();
@@ -174,7 +187,9 @@ describe('GameUiApplicationRuntime', function () {
 
     harness.runtime.reset();
     expect(resetMarketRuntime).toHaveBeenCalledOnce();
+    expect(resetFleetRuntime).toHaveBeenCalledOnce();
     expect(harness.runtime.getDiagnostics().marketUi).toEqual({ activeWorkspace: 'spot' });
+    expect(harness.runtime.getDiagnostics().fleetUi).toEqual({ activeSurface: null, surfaceMode: null });
     harness.runtime.dispose();
     expect(harness.ui.ContextInspector.dispose).toHaveBeenCalledOnce();
     expect(harness.ui.DeferredFeatureStatusUI.dispose).toHaveBeenCalledOnce();

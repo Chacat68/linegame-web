@@ -2,6 +2,8 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   ACHIEVEMENT_UNLOCK_PRESENTATION,
+  ARCHIVE_EXPLORATION_FOCUS_PRESENTATION,
+  ARCHIVE_QUEST_FOCUS_PRESENTATION,
   COMPANY_IDENTITY_PRESENTATION,
   DEFAULT_ACTION_DIRTY_REGIONS,
   DEFAULT_ACTION_PRESENTATION,
@@ -10,11 +12,16 @@ import {
   ARCHIVE_QUEST_ACTION_PRESENTATION,
   ARCHIVE_RESEARCH_ACTION_PRESENTATION,
   FLEET_HANGAR_ACTION_PRESENTATION,
+  FLEET_HANGAR_FOCUS_PRESENTATION,
   FLEET_HANGAR_SHOP_ACTION_PRESENTATION,
+  MARKET_CAPITAL_FOCUS_PRESENTATION,
   MARKET_ECONOMY_ACTION_PRESENTATION,
+  MARKET_OPERATIONS_FOCUS_PRESENTATION,
   MARKET_OPERATIONS_ACTION_PRESENTATION,
+  MARKET_SPOT_FOCUS_PRESENTATION,
   UI_REGION,
   createActionPresentation,
+  getMarketFocusPresentation,
   normalizeDirtyRegions,
   resolveDirtyRegions,
 } from '../js/core/ActionPresentation.js';
@@ -67,17 +74,59 @@ describe('ActionPresentation', function () {
       UI_REGION.CONTEXT,
       UI_REGION.GUIDE,
     ]);
+    expect(MARKET_SPOT_FOCUS_PRESENTATION.dirtyRegions).toEqual([
+      UI_REGION.MARKET_SPOT,
+      UI_REGION.CONTEXT,
+      UI_REGION.GUIDE,
+    ]);
+    expect(MARKET_CAPITAL_FOCUS_PRESENTATION.dirtyRegions).toEqual([
+      UI_REGION.MARKET_CAPITAL,
+      UI_REGION.CONTEXT,
+      UI_REGION.GUIDE,
+    ]);
+    expect(MARKET_OPERATIONS_FOCUS_PRESENTATION.dirtyRegions).toEqual([
+      UI_REGION.MARKET_OPERATIONS,
+      UI_REGION.CONTEXT,
+      UI_REGION.GUIDE,
+    ]);
+    expect(FLEET_HANGAR_FOCUS_PRESENTATION.dirtyRegions).toEqual([
+      UI_REGION.FLEET_HANGAR,
+      UI_REGION.CONTEXT,
+      UI_REGION.GUIDE,
+    ]);
+    expect(ARCHIVE_QUEST_FOCUS_PRESENTATION.dirtyRegions).toEqual([
+      UI_REGION.ARCHIVE_QUEST,
+      UI_REGION.CONTEXT,
+      UI_REGION.GUIDE,
+    ]);
+    expect(ARCHIVE_EXPLORATION_FOCUS_PRESENTATION.dirtyRegions).toEqual([
+      UI_REGION.ARCHIVE_EXPLORATION,
+      UI_REGION.CONTEXT,
+      UI_REGION.GUIDE,
+    ]);
+    expect(getMarketFocusPresentation('capital')).toBe(MARKET_CAPITAL_FOCUS_PRESENTATION);
+    expect(getMarketFocusPresentation('operations')).toBe(MARKET_OPERATIONS_FOCUS_PRESENTATION);
+    expect(getMarketFocusPresentation('unknown')).toBe(MARKET_SPOT_FOCUS_PRESENTATION);
   });
 
-  it('core controller 不得重新引入无参数 invalidate', function () {
+  it('core controller 不得重新引入无参数 invalidate 或 updateUI fallback', function () {
     var coreDirectory = new URL('../js/core/', import.meta.url);
-    var offenders = readdirSync(coreDirectory)
-      .filter(function (fileName) { return fileName.endsWith('.js'); })
+    var coreFiles = readdirSync(coreDirectory)
+      .filter(function (fileName) { return fileName.endsWith('.js'); });
+    var invalidateOffenders = coreFiles
       .filter(function (fileName) {
         return /\binvalidate\(\s*\)/.test(readFileSync(new URL(fileName, coreDirectory), 'utf8'));
       });
+    var updateUiOffenders = coreFiles
+      .filter(function (fileName) { return fileName.endsWith('.js'); })
+      .filter(function (fileName) {
+        var source = readFileSync(new URL(fileName, coreDirectory), 'utf8');
+        return /\bupdateUI\(\s*\)/.test(source)
+          || /_call\([^,\n]+,\s*['"]updateUI['"]\s*\)/.test(source);
+      });
 
-    expect(offenders).toEqual([]);
+    expect(invalidateOffenders).toEqual([]);
+    expect(updateUiOffenders).toEqual([]);
 
     var applicationSource = readFileSync('js/core/GameApplication.js', 'utf8');
     var sessionFactoriesSource = readFileSync('js/core/GameSessionRuntimeFactories.js', 'utf8');

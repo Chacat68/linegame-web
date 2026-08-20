@@ -4,6 +4,14 @@ import {
   getProcessingMessage,
   handleGuidanceAction,
 } from '../js/core/GuidanceActionController.js';
+import {
+  ARCHIVE_EXPLORATION_FOCUS_PRESENTATION,
+  ARCHIVE_QUEST_FOCUS_PRESENTATION,
+  FLEET_HANGAR_FOCUS_PRESENTATION,
+  MARKET_OPERATIONS_FOCUS_PRESENTATION,
+  MARKET_SPOT_FOCUS_PRESENTATION,
+  NAVIGATION_FOCUS_PRESENTATION,
+} from '../js/core/ActionPresentation.js';
 
 function createCallContext(extra) {
   var calls = [];
@@ -19,7 +27,7 @@ function createCallContext(extra) {
       calls.push(['openMarketPanel', nextState, options]);
     },
     emitLog: function (message) { calls.push(['emitLog', message]); },
-    updateUI: function () { calls.push(['updateUI']); },
+    updateUI: function (presentation) { calls.push(['updateUI', presentation]); },
     revealMarketGoodFocus: function (goodId, options) {
       calls.push(['revealMarketGoodFocus', goodId, options]);
     },
@@ -115,7 +123,7 @@ describe('GuidanceActionController', function () {
     ]);
     expect(context.calls[1][0]).toBe('emitLog');
     expect(context.calls[1][1].text).toContain('贸易站 · 总览');
-    expect(context.calls[2]).toEqual(['updateUI']);
+    expect(context.calls[2]).toEqual(['updateUI', MARKET_OPERATIONS_FOCUS_PRESENTATION]);
     expect(context.calls[3]).toEqual(['showCompletion', '已打开市场导航', '下一条行动建议已刷新']);
   });
 
@@ -133,7 +141,7 @@ describe('GuidanceActionController', function () {
     }, context);
 
     expect(context.calls[0]).toEqual(['activateTab', 'tab-quest']);
-    expect(context.calls[1]).toEqual(['updateUI']);
+    expect(context.calls[1]).toEqual(['updateUI', ARCHIVE_QUEST_FOCUS_PRESENTATION]);
     expect(context.calls[2][0]).toBe('emitLog');
     expect(context.calls[2][1].text).toContain('档案 · 任务');
     expect(context.calls[3]).toEqual(['showCompletion', '已打开任务档案', '选择可完成委托后继续']);
@@ -151,6 +159,7 @@ describe('GuidanceActionController', function () {
       },
     }, context);
 
+    expect(context.calls[2]).toEqual(['updateUI', MARKET_SPOT_FOCUS_PRESENTATION]);
     expect(context.calls[3]).toEqual([
       'revealMarketGoodFocus',
       'ore',
@@ -188,7 +197,7 @@ describe('GuidanceActionController', function () {
     expect(context.calls[0]).toEqual(['acknowledgeSurveyChainFollowup', 'sol_prime', 'sol_prime_depot_chain']);
     expect(context.calls[1]).toEqual(['acknowledgeSurveyReport', 'sol_prime', 'sol_prime_report_manifest']);
     expect(context.calls[2]).toEqual(['activateTab', 'tab-exploration']);
-    expect(context.calls[3]).toEqual(['updateUI']);
+    expect(context.calls[3]).toEqual(['updateUI', ARCHIVE_EXPLORATION_FOCUS_PRESENTATION]);
     expect(context.calls[4]).toEqual(['revealArchiveReportFocus', 'sol_prime', 'sol_prime_depot_chain']);
     expect(context.calls[5][0]).toBe('emitLog');
     expect(context.calls[5][1].text).toContain('档案 · 探索报告');
@@ -216,7 +225,7 @@ describe('GuidanceActionController', function () {
     }, context);
 
     expect(context.calls[0][0]).toBe('focusNavigationTarget');
-    expect(context.calls[2]).toEqual(['updateUI']);
+    expect(context.calls[2]).toEqual(['updateUI', NAVIGATION_FOCUS_PRESENTATION]);
     expect(context.calls[3]).toEqual(['showCompletion', '已找到航点', '检查目标详情后确认航行']);
   });
 
@@ -290,6 +299,34 @@ describe('GuidanceActionController', function () {
     }]);
     expect(context.calls[2][0]).toBe('emitLog');
     expect(context.calls[2][1].text).toContain('维修船坞');
+  });
+
+  it('机库延迟控制器不可用时只失效机库焦点区域', function () {
+    var context = createCallContext({
+      activateTab: function (tabId) { context.calls.push(['activateTab', tabId]); },
+    });
+
+    handleGuidanceAction({
+      actionType: 'fleet.mod.open',
+      actionLabel: '打开机库',
+      payload: { shipIndex: 0 },
+    }, context);
+
+    expect(context.calls[0]).toEqual(['activateTab', 'tab-fleet']);
+    expect(context.calls[1]).toEqual(['updateUI', FLEET_HANGAR_FOCUS_PRESENTATION]);
+  });
+
+  it('缺少直接航点时聚焦星图并声明导航区域', function () {
+    var context = createCallContext({
+      focusStarmap: function () { context.calls.push(['focusStarmap']); },
+    });
+
+    handleGuidanceAction({ actionType: 'travel.execute' }, context);
+
+    expect(context.calls).toEqual([
+      ['focusStarmap'],
+      ['updateUI', NAVIGATION_FOCUS_PRESENTATION],
+    ]);
   });
 
   it('可复用市场目的地文案映射', function () {
