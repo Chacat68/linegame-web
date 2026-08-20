@@ -19,7 +19,6 @@ export function createOnboardingPolicyController(dependencies) {
   var Quest = deps.Quest || {};
   var getState = _requiredFunction(deps.getState, 'getState');
   var emitLog = typeof deps.emitLog === 'function' ? deps.emitLog : _noop;
-  var invalidate = typeof deps.invalidate === 'function' ? deps.invalidate : _noop;
   var refreshActionGuide = typeof deps.refreshActionGuide === 'function' ? deps.refreshActionGuide : _noop;
   var recommendationCount = 0;
   var tutorialCompletionCount = 0;
@@ -54,8 +53,6 @@ export function createOnboardingPolicyController(dependencies) {
     var activeQuest = activeQuests.length > 0 ? activeQuests[0] : null;
 
     recommendationCount += 1;
-    invalidate();
-
     if (activeQuest) {
       emitLog({
         text: '📋 当前正在推进「' + activeQuest.name + '」，底部当前行动会继续给出可直接执行的下一步。',

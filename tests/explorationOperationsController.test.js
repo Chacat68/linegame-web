@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createActionExecutionPipeline } from '../js/core/ActionExecutionPipeline.js';
 import { createExplorationOperationsController } from '../js/core/ExplorationOperationsController.js';
+import { DEFAULT_ACTION_DIRTY_REGIONS } from '../js/core/ActionPresentation.js';
 
 function createHarness(options) {
   var config = options || {};
@@ -11,7 +12,9 @@ function createHarness(options) {
     emitMessage: function (message) { trace.push('message:' + message.text); },
     emitErrorCue: function () { trace.push('error-cue'); },
     queueAchievementCheck: function () { trace.push('achievement:' + Object.keys(state.galaxyStates).length); },
-    render: function () { trace.push('render:' + Object.keys(state.galaxyStates).length); },
+    render: function (pipelineResult, specification) {
+      trace.push(['render', Object.keys(state.galaxyStates).length, specification.dirtyRegions]);
+    },
     checkVictory: function () { trace.push('victory:' + Object.keys(state.galaxyStates).length); },
   });
   var controller = createExplorationOperationsController({
@@ -51,7 +54,8 @@ describe('ExplorationOperationsController', function () {
     expect(harness.trace).toEqual([
       'get-state', 'sync-ship', 'active-ship', 'ship-stats',
       'explore:sol_prime:poi_1:1.5', 'commit-ship', 'capture-galaxy',
-      'message:survey complete', 'achievement:1', 'render:1', 'victory:1',
+      'message:survey complete', 'achievement:1',
+      ['render', 1, DEFAULT_ACTION_DIRTY_REGIONS], 'victory:1',
     ]);
     expect(harness.state.galaxyStates.sol_prime.surveyed).toBe(true);
   });
@@ -64,7 +68,7 @@ describe('ExplorationOperationsController', function () {
     expect(harness.trace).toEqual([
       'get-state', 'sync-ship', 'active-ship', 'ship-stats',
       'explore:sol_prime:poi_1:1.5', 'message:blocked', 'error-cue',
-      'achievement:0', 'render:0',
+      'achievement:0', ['render', 0, DEFAULT_ACTION_DIRTY_REGIONS],
     ]);
   });
 

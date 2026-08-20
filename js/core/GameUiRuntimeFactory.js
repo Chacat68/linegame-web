@@ -14,7 +14,7 @@ import * as UIManager from '../ui/UIManager.js';
 import * as Dispatch from './DispatchController.js';
 import { DIFFICULTY_LEVELS } from '../data/constants.js';
 import { SYSTEMS } from '../data/systems.js';
-import { DEFAULT_ACTION_DIRTY_REGIONS } from './ActionPresentation.js';
+import { DEFAULT_ACTION_DIRTY_REGIONS, resolveDirtyRegions } from './ActionPresentation.js';
 import { createGameUiApplicationRuntime } from './GameUiApplicationRuntime.js';
 import { hideBlockingSurface } from '../ui/SurfaceManager.js';
 
@@ -89,7 +89,7 @@ export function createGameUiRuntimeFactory(context) {
           },
           onClearSaves: function () { return _getPersistenceController().clearAllSlots(); },
           emitLog: emitLog,
-          invalidate: function () { updateUI(DEFAULT_ACTION_DIRTY_REGIONS); },
+          invalidate: function (regions) { updateUI(resolveDirtyRegions(regions)); },
           setTelemetryState: _setDeferredUiState,
           refuel: function () { return _getActionRuntime().trade.refuel(); },
           travel: function (systemId) { return _getActionRuntime().travel.travel(systemId); },

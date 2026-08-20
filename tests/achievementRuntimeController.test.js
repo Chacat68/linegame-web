@@ -3,6 +3,7 @@ import {
   createAchievementRuntimeController,
   ensureAchievementState,
 } from '../js/core/AchievementRuntimeController.js';
+import { ACHIEVEMENT_UNLOCK_PRESENTATION } from '../js/core/ActionPresentation.js';
 
 function deferred() {
   var resolve;
@@ -38,7 +39,7 @@ function createHarness(overrides) {
     },
     loadRuntime: loadRuntime,
     emitMessage: function (message) { trace.push(['message', message]); },
-    invalidate: function () { trace.push('invalidate'); },
+    invalidate: function (regions) { trace.push(['invalidate', regions]); },
     checkVictory: function () { trace.push('victory'); },
     reportFailure: function (error) { trace.push(['failure', error]); },
   });
@@ -89,7 +90,7 @@ describe('AchievementRuntimeController', function () {
       'init',
       'check',
       ['message', { text: '解锁成就', type: 'success' }],
-      'invalidate',
+      ['invalidate', ACHIEVEMENT_UNLOCK_PRESENTATION.dirtyRegions],
       'victory',
     ]);
     expect(harness.controller.getDiagnostics()).toEqual(expect.objectContaining({

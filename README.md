@@ -49,7 +49,7 @@
 - ✅ 基础音效 MVP：UI 点击、交易成交、航行与事件提示音，含开关和音量设置
 - ✅ 延迟工作区失败恢复：市场、机库、档案与存档加载失败时保留当前工作区和上下文，显示局部错误面并可原位重试
 - ✅ 五个同级 L3 工作区：map / trade / fleet / archive / logs 共用 `workspace-surface + is-active + inert/ARIA` 契约；市场已脱离星图 DOM，终端不再依赖 drawer/overlay 可见状态
-- ✅ Vitest 测试基线：150 个测试文件、1264 项测试，覆盖经济、贸易、航行、探索、事件与随机事件运行时、统一动作控制器图、成就检查队列、持久化事务、Game Application shell/Runtime Graph/五个职责节点工厂簇/启动投影/兼容门面/Feature/UI/Guidance/Loop Runtime 组合边界、manifest/registry 生命周期与延迟工作区错误恢复、Map Galaxy Hub/View State/Survey Detail Presenter + Controller、Workspace Surface/Detail 生命周期与 L3 CSS 所有权、Renderer dispose/re-init/开发态 2D 强制降级、Market Chart/Spot/Goods/Capital/Operations/Commodity Detail、Fleet Hangar/Shop/Crew/Mod/Dispatch/Ship Detail 与 Workspace Object Detail Presenter、typed market/fleet command、资金与贸易站投影、Context 局部 intent、焦点同步、HUD/FleetUI 命令所有权、自动派遣与日结算提交顺序、经营金融、舰队、科研任务档案动作、剧情与胜利运行时、eager UI 壳/设置/首次进入/释放生命周期、教学引导与 onboarding policy、存档、会话生命周期、时钟、命令目的地、行动引导执行适配、市场工作区、Market/Fleet/Archive 内部增量失效、日志上下文与 UI 所有权等核心系统
+- ✅ Vitest 测试基线：150 个测试文件、1270 项测试，覆盖经济、贸易、航行、探索、事件与随机事件运行时、统一动作控制器图、成就检查队列、持久化事务、Game Application shell/Runtime Graph/五个职责节点工厂簇/启动投影/兼容门面/Feature/UI/Guidance/Loop Runtime 组合边界、manifest/registry 生命周期与延迟工作区错误恢复、Map Galaxy Hub/View State/Survey Detail Presenter + Controller、Workspace Surface/Detail 生命周期与 L3 CSS 所有权、Renderer dispose/re-init/开发态 2D 强制降级、Market Chart/Spot/Goods/Capital/Operations/Commodity Detail、Fleet Hangar/Shop/Crew/Mod/Dispatch/Ship Detail 与 Workspace Object Detail Presenter、typed market/fleet command、资金与贸易站投影、Context 局部 intent、焦点同步、HUD/FleetUI 命令所有权、自动派遣与日结算提交顺序、经营金融、舰队、科研任务档案动作、剧情与胜利运行时、eager UI 壳/设置/首次进入/释放生命周期、教学引导与 onboarding policy、存档、会话生命周期、时钟、命令目的地、行动引导执行适配、市场工作区、Market/Fleet/Archive 内部增量失效、日志上下文与 UI 所有权等核心系统
 
 ### 当前开发中的能力
 

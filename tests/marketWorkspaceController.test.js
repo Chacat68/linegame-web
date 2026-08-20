@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createMarketWorkspaceController } from '../js/core/MarketWorkspaceController.js';
+import { NAVIGATION_FOCUS_PRESENTATION } from '../js/core/ActionPresentation.js';
 import { MARKET_COMMAND, createMarketCommand } from '../js/core/MarketCommand.js';
 
 function createRoot() {
@@ -261,7 +262,7 @@ describe('MarketWorkspaceController', function () {
     );
     expect(harness.calls.emitLog.mock.calls[0][0]).toMatchObject({ type: 'tip' });
     expect(harness.calls.emitLog.mock.calls[0][0].text).toContain('星图 · 新星站');
-    expect(harness.calls.invalidate).toHaveBeenCalledOnce();
+    expect(harness.calls.invalidate).toHaveBeenCalledWith(NAVIGATION_FOCUS_PRESENTATION.dirtyRegions);
     expect(harness.calls.showCompletion).toHaveBeenCalledWith({
       message: '已找到市场航点',
       detail: '检查目标详情后确认航行',

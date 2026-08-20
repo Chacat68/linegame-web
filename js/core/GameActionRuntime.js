@@ -8,7 +8,7 @@ import { createFleetActionController } from './FleetActionController.js';
 import { createCommerceOperationsController } from './CommerceOperationsController.js';
 import { createArchiveActionController } from './ArchiveActionController.js';
 import { createActionExecutionPipeline } from './ActionExecutionPipeline.js';
-import { DEFAULT_ACTION_DIRTY_REGIONS, normalizeDirtyRegions } from './ActionPresentation.js';
+import { DEFAULT_ACTION_DIRTY_REGIONS, resolveDirtyRegions } from './ActionPresentation.js';
 import { createTradeActionController } from './TradeActionController.js';
 import { createTravelActionController } from './TravelActionController.js';
 import { createExplorationOperationsController } from './ExplorationOperationsController.js';
@@ -54,6 +54,10 @@ export function createGameActionRuntime(dependencies) {
   var emitAudio = _method(events, 'emitAudio');
   var invalidate = _method(ui, 'invalidate');
 
+  function _resolveDirtyRegions(presentation) {
+    return resolveDirtyRegions(presentation, DEFAULT_ACTION_DIRTY_REGIONS);
+  }
+
   function _showCompletion(completion) {
     if (completion) _method(ui, 'showCompletion')(completion);
   }
@@ -68,9 +72,7 @@ export function createGameActionRuntime(dependencies) {
     if (result && result.ok === false) emitAudio('error');
     _method(achievements, 'queueCheck')();
 
-    var dirtyRegions = normalizeDirtyRegions(presentation);
-    if (dirtyRegions.length > 0) invalidate(dirtyRegions);
-    else invalidate();
+    invalidate(_resolveDirtyRegions(presentation));
     if (result && result.ok) _method(victory, 'check')();
     return result;
   }
@@ -94,9 +96,7 @@ export function createGameActionRuntime(dependencies) {
     finalizeState: _method(teaching, 'checkCompletion'),
     queueAchievementCheck: _method(achievements, 'queueCheck'),
     render: function (result, specification) {
-      var dirtyRegions = specification && specification.dirtyRegions;
-      if (dirtyRegions) invalidate(dirtyRegions);
-      else invalidate();
+      invalidate(_resolveDirtyRegions(specification));
     },
     checkVictory: _method(victory, 'check'),
   });
@@ -139,8 +139,7 @@ export function createGameActionRuntime(dependencies) {
     },
     dispatch: presentResult,
     updateUI: function (presentation) {
-      var dirtyRegions = normalizeDirtyRegions(presentation, DEFAULT_ACTION_DIRTY_REGIONS);
-      invalidate(dirtyRegions.length > 0 ? dirtyRegions : DEFAULT_ACTION_DIRTY_REGIONS);
+      invalidate(_resolveDirtyRegions(presentation));
     },
     emitLog: emitMessage,
     activateArchiveTab: _method(navigation, 'activateArchiveTab'),
@@ -230,7 +229,7 @@ export function createGameActionRuntime(dependencies) {
     hasBlockingSurfaceOpen: _method(surfaces, 'hasBlockingSurfaceOpen', function () { return false; }),
     emitMessage: emitMessage,
     stopClock: _method(clock, 'stopDispatch'),
-    render: invalidate,
+    render: function (presentation) { invalidate(_resolveDirtyRegions(presentation)); },
   });
 
   var day = createGameDayController({

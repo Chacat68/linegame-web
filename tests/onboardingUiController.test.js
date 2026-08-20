@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createOnboardingUiController } from '../js/core/OnboardingUiController.js';
+import {
+  COMPANY_IDENTITY_PRESENTATION,
+  GUIDANCE_ONLY_PRESENTATION,
+} from '../js/core/ActionPresentation.js';
 
 function createButton() {
   var listeners = new Map();
@@ -93,6 +97,8 @@ describe('OnboardingUiController', function () {
     expect(harness.Tutorial.advance).toHaveBeenCalledOnce();
     expect(harness.Tutorial.skip).toHaveBeenCalledOnce();
     expect(harness.callbacks.invalidate).toHaveBeenCalledTimes(2);
+    expect(harness.callbacks.invalidate).toHaveBeenNthCalledWith(1, GUIDANCE_ONLY_PRESENTATION.dirtyRegions);
+    expect(harness.callbacks.invalidate).toHaveBeenNthCalledWith(2, GUIDANCE_ONLY_PRESENTATION.dirtyRegions);
     expect(harness.callbacks.onHelperAction).toHaveBeenCalledWith('recommend_first_trade');
   });
 
@@ -118,7 +124,7 @@ describe('OnboardingUiController', function () {
     expect(harness.getOnboardingCallbacks().onSkip()).toBe(true);
     expect(harness.Tutorial.skip).toHaveBeenCalledOnce();
     expect(harness.callbacks.showWelcomeMessages).toHaveBeenCalledOnce();
-    expect(harness.callbacks.invalidate).toHaveBeenCalledOnce();
+    expect(harness.callbacks.invalidate).toHaveBeenCalledWith(GUIDANCE_ONLY_PRESENTATION.dirtyRegions);
   });
 
   it('延迟 OnboardingUI 在 session 替换后不得呈现或写回旧状态', async function () {
@@ -149,7 +155,7 @@ describe('OnboardingUiController', function () {
     expect(harness.onboardingView.showCompanyRename).toHaveBeenCalledOnce();
     expect(harness.getRenameCallbacks().onConfirm('新公司')).toBe(true);
     expect(harness.callbacks.renameCompany).toHaveBeenCalledWith(expect.any(Object), '新公司');
-    expect(harness.callbacks.invalidate).toHaveBeenCalledOnce();
+    expect(harness.callbacks.invalidate).toHaveBeenCalledWith(COMPANY_IDENTITY_PRESENTATION.dirtyRegions);
     expect(harness.callbacks.emitMessage).toHaveBeenCalledWith({
       text: '🏢 公司已正式更名为「新公司」！愿财富与你同行！',
       type: 'upgrade',

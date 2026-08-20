@@ -82,7 +82,6 @@ export function createGameGuidanceRuntime(dependencies) {
     Quest: systems.Quest,
     getState: getState,
     emitLog: emitLog,
-    invalidate: invalidate,
     refreshActionGuide: refresh,
   });
 
@@ -118,7 +117,6 @@ export function createGameGuidanceRuntime(dependencies) {
     ui: { MapUI: ui.MapUI, Modal: ui.Modal },
     data: { goods: GOODS },
     emitLog: emitLog,
-    invalidate: invalidate,
     refreshActionGuide: refresh,
     showCompletion: showCompletion,
   });

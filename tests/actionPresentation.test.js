@@ -1,8 +1,12 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
+  ACHIEVEMENT_UNLOCK_PRESENTATION,
+  COMPANY_IDENTITY_PRESENTATION,
   DEFAULT_ACTION_DIRTY_REGIONS,
   DEFAULT_ACTION_PRESENTATION,
+  GUIDANCE_ONLY_PRESENTATION,
+  NAVIGATION_FOCUS_PRESENTATION,
   ARCHIVE_QUEST_ACTION_PRESENTATION,
   ARCHIVE_RESEARCH_ACTION_PRESENTATION,
   FLEET_HANGAR_ACTION_PRESENTATION,
@@ -12,6 +16,7 @@ import {
   UI_REGION,
   createActionPresentation,
   normalizeDirtyRegions,
+  resolveDirtyRegions,
 } from '../js/core/ActionPresentation.js';
 import { readApplicationComposition } from './runtimeCompositionSource.js';
 
@@ -19,7 +24,6 @@ describe('ActionPresentation', function () {
   it('默认动作只失效可见投影，不要求重绘隐藏终端或存档面板', function () {
     var gameManager = readApplicationComposition();
     var actionRuntime = readFileSync('js/core/GameActionRuntime.js', 'utf8');
-    var fullRefreshFallbacks = actionRuntime.match(/invalidate\(\);/g) || [];
 
     expect(DEFAULT_ACTION_DIRTY_REGIONS).toEqual([
       UI_REGION.HUD,
@@ -34,15 +38,59 @@ describe('ActionPresentation', function () {
     expect(DEFAULT_ACTION_PRESENTATION.dirtyRegions).not.toContain(UI_REGION.SAVE);
     expect(gameManager).toContain("from './GameActionRuntime.js'");
     expect(gameManager).not.toContain("from './ActionExecutionPipeline.js'");
-    expect(actionRuntime).toContain('normalizeDirtyRegions(presentation)');
-    expect(actionRuntime).toContain('normalizeDirtyRegions(presentation, DEFAULT_ACTION_DIRTY_REGIONS)');
-    expect(fullRefreshFallbacks.length).toBeLessThanOrEqual(3);
+    expect(actionRuntime).toContain('resolveDirtyRegions(presentation, DEFAULT_ACTION_DIRTY_REGIONS)');
+    expect(actionRuntime).not.toContain('invalidate();');
+    expect(actionRuntime).not.toMatch(/invalidate\([^)]*dirtyRegions[^)]*\)\s*;\s*else\s+invalidate/);
   });
 
   it('规范化会去重、过滤未知区域，并让 all 覆盖局部声明', function () {
     expect(normalizeDirtyRegions(['hud', 'unknown', 'hud', 'guide'])).toEqual(['hud', 'guide']);
     expect(normalizeDirtyRegions({ dirtyRegions: ['fleet', 'all', 'guide'] })).toEqual(['all']);
     expect(normalizeDirtyRegions(null, 'archive')).toEqual(['archive']);
+    expect(resolveDirtyRegions()).toEqual(DEFAULT_ACTION_DIRTY_REGIONS);
+    expect(resolveDirtyRegions([])).toEqual(DEFAULT_ACTION_DIRTY_REGIONS);
+    expect(resolveDirtyRegions(['unknown'])).toEqual(DEFAULT_ACTION_DIRTY_REGIONS);
+    expect(resolveDirtyRegions(UI_REGION.ALL)).toEqual([UI_REGION.ALL]);
+  });
+
+  it('非领域动作按导航、引导、身份与成就建立最小影响矩阵', function () {
+    expect(GUIDANCE_ONLY_PRESENTATION.dirtyRegions).toEqual([UI_REGION.GUIDE]);
+    expect(NAVIGATION_FOCUS_PRESENTATION.dirtyRegions).toEqual([
+      UI_REGION.SCENE,
+      UI_REGION.CONTEXT,
+      UI_REGION.GUIDE,
+    ]);
+    expect(COMPANY_IDENTITY_PRESENTATION.dirtyRegions).toEqual([UI_REGION.HUD]);
+    expect(ACHIEVEMENT_UNLOCK_PRESENTATION.dirtyRegions).toEqual([
+      UI_REGION.HUD,
+      UI_REGION.ARCHIVE_ACHIEVEMENT,
+      UI_REGION.CONTEXT,
+      UI_REGION.GUIDE,
+    ]);
+  });
+
+  it('core controller 不得重新引入无参数 invalidate', function () {
+    var coreDirectory = new URL('../js/core/', import.meta.url);
+    var offenders = readdirSync(coreDirectory)
+      .filter(function (fileName) { return fileName.endsWith('.js'); })
+      .filter(function (fileName) {
+        return /\binvalidate\(\s*\)/.test(readFileSync(new URL(fileName, coreDirectory), 'utf8'));
+      });
+
+    expect(offenders).toEqual([]);
+
+    var applicationSource = readFileSync('js/core/GameApplication.js', 'utf8');
+    var sessionFactoriesSource = readFileSync('js/core/GameSessionRuntimeFactories.js', 'utf8');
+    expect(applicationSource).toContain('invalidate(resolveDirtyRegions(regions))');
+    expect(applicationSource).not.toContain('typeof regions === \'undefined\'');
+    expect(sessionFactoriesSource).toContain('render: function () { updateUI(UI_REGION.ALL); }');
+    [
+      'js/core/GameGuidanceRuntimeFactory.js',
+      'js/core/GameFeatureRuntimeFactories.js',
+      'js/core/GameUiRuntimeFactory.js',
+    ].forEach(function (fileName) {
+      expect(readFileSync(fileName, 'utf8')).toContain('updateUI(resolveDirtyRegions(regions))');
+    });
   });
 
   it('创建的 presentation 与 dirtyRegions 均不可变', function () {

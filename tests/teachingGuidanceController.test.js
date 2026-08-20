@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createTeachingGuidanceController } from '../js/core/TeachingGuidanceController.js';
+import {
+  GUIDANCE_ONLY_PRESENTATION,
+  NAVIGATION_FOCUS_PRESENTATION,
+} from '../js/core/ActionPresentation.js';
 
 function createHarness(options) {
   var config = options || {};
@@ -115,7 +119,7 @@ describe('TeachingGuidanceController', function () {
       'alpha-centauri',
       { goodId: 'food', title: '教程推荐卖货路线' }
     );
-    expect(harness.callbacks.invalidate).toHaveBeenCalledOnce();
+    expect(harness.callbacks.invalidate).toHaveBeenCalledWith(NAVIGATION_FOCUS_PRESENTATION.dirtyRegions);
     expect(harness.logs[0]).toEqual({
       text: '🧭 已标出 半人马港：请核对卖价、燃料与预计净利，再确认出航。',
       type: 'tip',
@@ -157,7 +161,7 @@ describe('TeachingGuidanceController', function () {
     var harness = createHarness();
 
     expect(harness.controller.startChain('research-supply')).toBe(true);
-    expect(harness.callbacks.invalidate).toHaveBeenCalledOnce();
+    expect(harness.callbacks.invalidate).toHaveBeenCalledWith(GUIDANCE_ONLY_PRESENTATION.dirtyRegions);
     expect(harness.controller.completeStep('research-supply', 'prefill-research-supply-dispatch')).toEqual({
       completed: true,
       message: '步骤已完成',

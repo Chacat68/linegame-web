@@ -12,7 +12,7 @@ import { createStateSession } from './StateSession.js';
 import { createGameApplicationLifecycle } from './GameApplicationLifecycle.js';
 import { createGameRuntimeGraph } from './GameRuntimeGraph.js';
 import { createGameStartupProjection } from './GameStartupProjection.js';
-import { DEFAULT_ACTION_DIRTY_REGIONS } from './ActionPresentation.js';
+import { resolveDirtyRegions } from './ActionPresentation.js';
 import {
   GAME_RUNTIME_NODE_IDS,
   createGameRuntimeNodeFactories,
@@ -198,9 +198,8 @@ export function _getUiDiagnosticsForTest() {
   return _getUiRuntime().getDiagnostics();
 }
 
-// UI 刷新兼容入口；新动作必须传 dirty regions，省略时才全量兜底。
+// UI 失效唯一入口；全量会话同步必须显式传 UI_REGION.ALL。
 function _updateUI(regions) {
   if (MapUI.isMarketOpen() && !_getFeatureRuntime().get('market')) _getUiRuntime().ensureMarket();
-  if (typeof regions === 'undefined') return _getUiRuntime().renderAll();
-  return _getUiRuntime().invalidate(regions);
+  return _getUiRuntime().invalidate(resolveDirtyRegions(regions));
 }

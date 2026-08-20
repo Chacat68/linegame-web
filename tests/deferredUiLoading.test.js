@@ -29,7 +29,7 @@ describe('deferred terminal UI loading', function () {
     expect(featureRegistry).toContain("_notify(feature, 'loading')");
   });
 
-  it('首次打开终端会触发加载，后续全量刷新只更新已加载模块', function () {
+  it('首次打开终端会触发加载，会话全量同步显式声明 all 区域', function () {
     var gameManager = readApplicationComposition();
     var guidanceRuntime = readFileSync('js/core/GameGuidanceRuntime.js', 'utf8');
     var commandDestinations = readFileSync('js/core/CommandDestinationController.js', 'utf8');
@@ -48,7 +48,9 @@ describe('deferred terminal UI loading', function () {
     expect(commandDestinations).toContain('Promise.resolve().then(loadArchive)');
     expect(gameManager).toContain("if (MapUI.isMarketOpen() && !_getFeatureRuntime().get('market'))");
     expect(gameManager).toContain('_getUiRuntime().ensureMarket()');
-    expect(gameManager).toContain('_getUiRuntime().renderAll()');
+    expect(gameManager).toContain('render: function () { updateUI(UI_REGION.ALL); }');
+    expect(gameManager).toContain('_getUiRuntime().invalidate(resolveDirtyRegions(regions))');
+    expect(gameManager).not.toContain("typeof regions === 'undefined'");
     expect(gameManager).toContain("from './GameUiApplicationRuntime.js'");
     expect(uiApplication).toContain("from './MarketWorkspaceController.js'");
     expect(gameManager).not.toContain('_blackMarketMode');

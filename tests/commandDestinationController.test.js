@@ -238,7 +238,7 @@ describe('CommandDestinationController', function () {
     await expect(harness.controller.openRecommendedMod({ shipIndex: 0, modId: 'cargo-pod', focusService: true }))
       .resolves.toBe(true);
 
-    expect(harness.calls.invalidate).toHaveBeenCalledOnce();
+    expect(harness.calls.invalidate).not.toHaveBeenCalled();
     expect(harness.calls.renderFleet).toHaveBeenCalledWith(harness.fleetUi);
     expect(harness.fleetUi.openModModal).toHaveBeenCalledWith({
       state: expect.any(Object),

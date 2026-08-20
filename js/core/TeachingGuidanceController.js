@@ -3,6 +3,11 @@
 // 教程视图只发布意图；本 controller 读取 latest session，延迟加载路线
 // 算法并提交专题教学进度。GameManager 仅负责注入领域与 UI 端口。
 
+import {
+  GUIDANCE_ONLY_PRESENTATION,
+  NAVIGATION_FOCUS_PRESENTATION,
+} from './ActionPresentation.js';
+
 const TUTORIAL_HELPER_ACTIONS = Object.freeze([
   'recommend_first_trade',
   'recommend_sell_route',
@@ -104,7 +109,7 @@ export function createTeachingGuidanceController(dependencies) {
         : '⚠️ 暂时找不到可达的盈利卖货点，请检查燃料与已开放星球。',
       type: focused ? 'tip' : 'error',
     });
-    invalidate();
+    invalidate(NAVIGATION_FOCUS_PRESENTATION.dirtyRegions);
     if (focused) helperPresentationCount += 1;
     return !!focused;
   }
@@ -168,7 +173,7 @@ export function createTeachingGuidanceController(dependencies) {
       type: 'tip',
     });
     startedChainCount += 1;
-    invalidate();
+    invalidate(GUIDANCE_ONLY_PRESENTATION.dirtyRegions);
     return true;
   }
 

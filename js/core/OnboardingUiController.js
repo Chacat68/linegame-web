@@ -3,6 +3,11 @@
 // FeatureRegistry 负责延迟模块；controller 负责 latest-session 校验、教程
 // 回调、首次进入决策和公司身份入口。GameManager 只注入系统与动作端口。
 
+import {
+  COMPANY_IDENTITY_PRESENTATION,
+  GUIDANCE_ONLY_PRESENTATION,
+} from './ActionPresentation.js';
+
 function _noop() {}
 
 function _requiredFunction(value, label) {
@@ -43,8 +48,8 @@ export function createOnboardingUiController(dependencies) {
     return state === getState() && isSessionTokenCurrent(token);
   }
 
-  function _invalidate() {
-    if (typeof callbacks.invalidate === 'function') callbacks.invalidate();
+  function _invalidate(presentation) {
+    if (typeof callbacks.invalidate === 'function') callbacks.invalidate(presentation.dirtyRegions);
   }
 
   function _refreshActionGuide() {
@@ -57,11 +62,11 @@ export function createOnboardingUiController(dependencies) {
     TutorialUI.init(
       function () {
         if (typeof Tutorial.advance === 'function') Tutorial.advance();
-        _invalidate();
+        _invalidate(GUIDANCE_ONLY_PRESENTATION);
       },
       function () {
         if (typeof Tutorial.skip === 'function') Tutorial.skip();
-        _invalidate();
+        _invalidate(GUIDANCE_ONLY_PRESENTATION);
       },
       callbacks.onHelperAction
     );
@@ -96,7 +101,7 @@ export function createOnboardingUiController(dependencies) {
           if (!_isCurrent(state, token)) return false;
           if (typeof Tutorial.skip === 'function') Tutorial.skip();
           if (typeof callbacks.showWelcomeMessages === 'function') callbacks.showWelcomeMessages();
-          _invalidate();
+          _invalidate(GUIDANCE_ONLY_PRESENTATION);
           return true;
         },
       });
@@ -121,7 +126,7 @@ export function createOnboardingUiController(dependencies) {
           if (!_isCurrent(state, token)) return false;
           if (typeof callbacks.renameCompany === 'function') callbacks.renameCompany(state, name);
           renameCount += 1;
-          _invalidate();
+          _invalidate(COMPANY_IDENTITY_PRESENTATION);
           if (typeof callbacks.emitMessage === 'function') {
             callbacks.emitMessage({
               text: '🏢 公司已正式更名为「' + name + '」！愿财富与你同行！',

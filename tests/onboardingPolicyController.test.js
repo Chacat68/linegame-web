@@ -10,14 +10,12 @@ function createHarness(options) {
     getActiveQuests: vi.fn(function () { return config.activeQuests || []; }),
   };
   var callbacks = {
-    invalidate: vi.fn(),
     refreshActionGuide: vi.fn(),
   };
   var controller = createOnboardingPolicyController({
     Quest: Quest,
     getState: function () { return state; },
     emitLog: function (message) { logs.push(message); },
-    invalidate: callbacks.invalidate,
     refreshActionGuide: callbacks.refreshActionGuide,
   });
   return {
@@ -44,7 +42,6 @@ describe('OnboardingPolicyController', function () {
       text: '📋 新功能：【档案】入口可接取任务、查看探索报告、研究科技、查看派系与成就，右上角【设置】可管理存档！',
       type: 'tip',
     });
-    expect(harness.callbacks.invalidate).not.toHaveBeenCalled();
     expect(harness.controller.getDiagnostics().welcomeCount).toBe(1);
   });
 
@@ -57,7 +54,6 @@ describe('OnboardingPolicyController', function () {
     expect(harness.controller.recommendStarterQuests()).toEqual([{ id: 'next', name: '第二航线' }]);
 
     expect(harness.Quest.getStarterRecommendations).toHaveBeenCalledWith({ id: 'current-state' }, 3);
-    expect(harness.callbacks.invalidate).toHaveBeenCalledOnce();
     expect(harness.logs).toEqual([
       { text: '📋 当前正在推进「首轮交易」，底部当前行动会继续给出可直接执行的下一步。', type: 'info' },
       { text: '🧭 跑完手头这单后，还可以继续接 「第二航线」。', type: 'tip' },
@@ -91,7 +87,6 @@ describe('OnboardingPolicyController', function () {
       text: '🧭 操作教程完成。底部当前行动会继续引导你登记首轮交易并进入正式委托。',
       type: 'tip',
     });
-    expect(harness.callbacks.invalidate).toHaveBeenCalledOnce();
     expect(harness.callbacks.refreshActionGuide).toHaveBeenCalledOnce();
     expect(harness.controller.getDiagnostics()).toEqual({
       recommendationCount: 1,

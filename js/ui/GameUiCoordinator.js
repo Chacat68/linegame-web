@@ -3,7 +3,7 @@
 // 该模块不持有游戏状态快照，也不直接 import 任何延迟功能。
 // GameManager 通过命名依赖注入状态 provider、feature loader、UI 模块和动作回调。
 
-import { UI_REGION, normalizeDirtyRegions } from '../core/ActionPresentation.js';
+import { UI_REGION, resolveDirtyRegions } from '../core/ActionPresentation.js';
 
 const FEATURE_NAMES = ['market', 'fleet', 'archive', 'save'];
 const MARKET_REGION_NAMES = Object.freeze([
@@ -424,7 +424,7 @@ export function createGameUiCoordinator(options) {
   function invalidate(regions) {
     var state = getState();
     if (!state) return Promise.resolve(null);
-    var dirtyRegions = normalizeDirtyRegions(regions, UI_REGION.ALL);
+    var dirtyRegions = resolveDirtyRegions(regions);
     invalidationCount += 1;
     lastInvalidationRegions = dirtyRegions;
     if (dirtyRegions.indexOf(UI_REGION.ALL) !== -1) return renderAll();

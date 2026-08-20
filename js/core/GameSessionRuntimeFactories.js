@@ -126,7 +126,7 @@ export function createGameSessionRuntimeFactories(context) {
           resetTransients: resetSessionTransients,
           prepareState: _prepareSessionState,
           syncProjections: _syncSessionProjections,
-          render: function () { updateUI(); },
+          render: function () { updateUI(UI_REGION.ALL); },
           resumeRecurring: function (state) { return _getGameLoopRuntime().resumeRecurring(state); },
           restorePendingEvent: function (state) { return _getRandomEventController().restorePending(state); },
         },

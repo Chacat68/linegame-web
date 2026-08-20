@@ -3,6 +3,7 @@ import {
   buildVictoryStats,
   createVictoryRuntimeController,
 } from '../js/core/VictoryRuntimeController.js';
+import { ARCHIVE_QUEST_ACTION_PRESENTATION } from '../js/core/ActionPresentation.js';
 
 function createHarness(options) {
   var config = options || {};
@@ -117,7 +118,7 @@ describe('VictoryRuntimeController', function () {
         trace.push('message:' + message.text);
         emitted.push(message);
       },
-      invalidate: vi.fn(function () { trace.push('invalidate'); }),
+      invalidate: vi.fn(function (regions) { trace.push(['invalidate', regions]); }),
       refreshActionGuide: vi.fn(function () { trace.push('refresh-guide'); }),
     });
 
@@ -144,10 +145,11 @@ describe('VictoryRuntimeController', function () {
       'sync-fleet',
       'quest-progress',
       'message:quest progressed',
-      'invalidate',
+      ['invalidate', ARCHIVE_QUEST_ACTION_PRESENTATION.dirtyRegions],
       'refresh-guide',
     ]);
     expect(harness.invalidate).toHaveBeenCalledOnce();
+    expect(harness.invalidate).toHaveBeenCalledWith(ARCHIVE_QUEST_ACTION_PRESENTATION.dirtyRegions);
     expect(harness.refreshActionGuide).toHaveBeenCalledOnce();
   });
 

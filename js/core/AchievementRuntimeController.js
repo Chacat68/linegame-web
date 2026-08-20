@@ -4,6 +4,8 @@
 // 合并、会话校验、结果发布与失败恢复。任何延迟结果在提交前都必须同时
 // 通过 generation 与 StateSession token 校验，不能污染已经替换的存档。
 
+import { ACHIEVEMENT_UNLOCK_PRESENTATION } from './ActionPresentation.js';
+
 function _noop() {}
 
 function _requiredFunction(value, label) {
@@ -59,7 +61,7 @@ export function createAchievementRuntimeController(dependencies) {
       emitMessage({ text: message.text, type: message.type });
     });
     if (newlyUnlocked.length > 0) {
-      invalidate();
+      invalidate(ACHIEVEMENT_UNLOCK_PRESENTATION.dirtyRegions);
       checkVictory();
     }
     return normalized;

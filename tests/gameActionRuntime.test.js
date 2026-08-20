@@ -3,12 +3,14 @@ import { describe, expect, it, vi } from 'vitest';
 import { createGameActionRuntime } from '../js/core/GameActionRuntime.js';
 import {
   ARCHIVE_RESEARCH_ACTION_PRESENTATION,
+  DEFAULT_ACTION_DIRTY_REGIONS,
   FLEET_HANGAR_SHOP_ACTION_PRESENTATION,
   MARKET_OPERATIONS_ACTION_PRESENTATION,
 } from '../js/core/ActionPresentation.js';
 import { readApplicationComposition } from './runtimeCompositionSource.js';
 
-function createHarness() {
+function createHarness(options) {
+  var config = options || {};
   var state = { id: 'A' };
   var trace = [];
   var questResult = {
@@ -34,7 +36,9 @@ function createHarness() {
         startResearch: function () { return { ok: true, msgs: [] }; },
       },
       Dispatch: {
-        runActiveDispatchTick: function () { return { action: 'noop', msgs: [] }; },
+        runActiveDispatchTick: function () {
+          return config.dispatchTickResult || { action: 'noop', msgs: [] };
+        },
       },
     },
     ports: {
@@ -130,6 +134,41 @@ describe('GameActionRuntime', function () {
       'achievement',
       ['invalidate', ['guide']],
     ]);
+  });
+
+  it('缺失或空 presentation 统一退回默认区域，不再触发无参数全量刷新', function () {
+    var harness = createHarness();
+
+    harness.runtime.presentResult({ ok: false, msgs: [] });
+    harness.runtime.presentResult({ ok: false, msgs: [] }, []);
+
+    expect(harness.trace.filter(function (entry) {
+      return Array.isArray(entry) && entry[0] === 'invalidate';
+    })).toEqual([
+      ['invalidate', DEFAULT_ACTION_DIRTY_REGIONS],
+      ['invalidate', DEFAULT_ACTION_DIRTY_REGIONS],
+    ]);
+  });
+
+  it('pipeline specification 未声明区域时也只失效默认可见投影', function () {
+    var harness = createHarness();
+
+    harness.runtime.pipeline.execute({
+      label: 'compatibility-action',
+      mutate: function () { return { ok: true, msgs: [] }; },
+    });
+
+    expect(harness.trace).toContainEqual(['invalidate', DEFAULT_ACTION_DIRTY_REGIONS]);
+    expect(harness.trace).not.toContainEqual(['invalidate', undefined]);
+  });
+
+  it('自动派遣停止时通过动作运行时失效默认区域，不会绕回全量刷新', function () {
+    var harness = createHarness({ dispatchTickResult: { action: 'stopped', msgs: [] } });
+
+    harness.runtime.dispatch.tick();
+
+    expect(harness.trace).toContainEqual(['invalidate', DEFAULT_ACTION_DIRTY_REGIONS]);
+    expect(harness.trace).not.toContainEqual(['invalidate', undefined]);
   });
 
   it('任务进度每次读取最新 state，并在剧情队列前发布领域消息', function () {

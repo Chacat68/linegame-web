@@ -3,6 +3,8 @@
 // Controller 持有“本会话已确认路线”和待呈现报告，GameManager 只注入
 // 系统与会话端口。延迟 UI 到达时必须再次校验 session token/state。
 
+import { ARCHIVE_QUEST_ACTION_PRESENTATION } from './ActionPresentation.js';
+
 function _noop() {}
 
 function _requiredFunction(value, label) {
@@ -156,7 +158,7 @@ export function createVictoryRuntimeController(dependencies) {
         questResult = Quest.checkProgress(state, { action: 'victory_policy', pathId: pathId });
         ((questResult && questResult.msgs) || []).forEach(emitMessage);
       }
-      invalidate();
+      invalidate(ARCHIVE_QUEST_ACTION_PRESENTATION.dirtyRegions);
       refreshActionGuide();
     }
 

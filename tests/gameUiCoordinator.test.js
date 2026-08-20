@@ -321,6 +321,43 @@ describe('GameUiCoordinator', function () {
     });
   });
 
+  it('缺失或空区域只使用默认可见投影，不再隐式 renderAll', async function () {
+    var calls = [];
+    var coordinator = createGameUiCoordinator({
+      getState: function () { return { currentSystem: 'sol_prime' }; },
+      features: createFeatureHarness(),
+      ui: {
+        UIManager: { getNavigationSnapshot: function () { return { activeWorkspace: 'map' }; } },
+        HUD: {
+          updateStats: function () { calls.push('hud.stats'); },
+          updateCompanyName: function () { calls.push('hud.company'); },
+          updateArchiveBadges: function () { calls.push('hud.badges'); },
+        },
+        ShipUI: { renderShipStats: function () { calls.push('ship'); } },
+        MapUI: { refreshPlanetDetail: function () { calls.push('context'); } },
+        Renderer3D: { invalidateScene: function () { calls.push('scene'); } },
+      },
+      systems: {
+        Trade: { getNetWorth: function () { return 0; } },
+        Dispatch: { updateActiveDispatchUI: function () { calls.push('dispatch'); } },
+      },
+      actions: { global: { refreshActionGuide: function () { calls.push('guide'); } } },
+    });
+
+    await coordinator.invalidate();
+    await coordinator.invalidate([]);
+
+    expect(calls).toEqual([
+      'hud.stats', 'hud.company', 'hud.badges', 'ship', 'scene', 'context', 'dispatch', 'guide',
+      'hud.stats', 'hud.company', 'hud.badges', 'ship', 'scene', 'context', 'dispatch', 'guide',
+    ]);
+    expect(coordinator.getDiagnostics()).toEqual(expect.objectContaining({
+      renderAllCount: 0,
+      invalidationCount: 2,
+      lastInvalidationRegions: DEFAULT_ACTION_DIRTY_REGIONS,
+    }));
+  });
+
   it('公开已加载 Market 的选择诊断，并在会话重置时清理 UI 运行态', async function () {
     var marketDiagnostics = { activeWorkspace: 'capital', focusedGoodId: 'water' };
     var resetRuntimeState = vi.fn(function () {

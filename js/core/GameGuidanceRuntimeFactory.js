@@ -15,7 +15,7 @@ import * as MapUI from '../ui/MapUI.js';
 import * as Modal from '../ui/Modal.js';
 import * as UIManager from '../ui/UIManager.js';
 import { hasBlockingSurfaceOpen } from '../ui/SurfaceManager.js';
-import { DEFAULT_ACTION_DIRTY_REGIONS } from './ActionPresentation.js';
+import { resolveDirtyRegions } from './ActionPresentation.js';
 import { createGameGuidanceRuntime } from './GameGuidanceRuntime.js';
 
 export function createGameGuidanceRuntimeFactory(context) {
@@ -66,7 +66,7 @@ export function createGameGuidanceRuntimeFactory(context) {
         selectors: { hasBlockingSurfaceOpen: hasBlockingSurfaceOpen },
         callbacks: {
           emitLog: emitLog,
-          invalidate: function () { updateUI(DEFAULT_ACTION_DIRTY_REGIONS); },
+          invalidate: function (regions) { updateUI(resolveDirtyRegions(regions)); },
           renderFleet: function (FleetUI) { return _getUiRuntime().renderFleet(FleetUI); },
           reportError: function (scope, error) {
             console.error('[GameGuidanceRuntime] Failed in ' + scope + '.', error);

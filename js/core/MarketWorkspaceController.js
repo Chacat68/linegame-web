@@ -5,6 +5,7 @@
 
 import { buildCommandFeedback } from '../ui/CommandAction.js';
 import { getRemoteMarketFocusCompletion } from './ActionGuideCompletion.js';
+import { NAVIGATION_FOCUS_PRESENTATION } from './ActionPresentation.js';
 import { MARKET_COMMAND, normalizeMarketCommand } from './MarketCommand.js';
 
 function _requiredFunction(value, label) {
@@ -189,7 +190,7 @@ export function createMarketWorkspaceController(dependencies) {
       }),
       type: focused ? 'tip' : 'error',
     });
-    invalidate();
+    invalidate(NAVIGATION_FOCUS_PRESENTATION.dirtyRegions);
     if (focused) showCompletion(getRemoteMarketFocusCompletion());
     return focused;
   }

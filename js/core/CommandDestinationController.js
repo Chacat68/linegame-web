@@ -42,7 +42,6 @@ export function createCommandDestinationController(dependencies) {
     ? deps.isSessionTokenCurrent
     : function () { return true; };
   var emitLog = typeof deps.emitLog === 'function' ? deps.emitLog : function () {};
-  var invalidate = typeof deps.invalidate === 'function' ? deps.invalidate : function () {};
   var refreshActionGuide = typeof deps.refreshActionGuide === 'function'
     ? deps.refreshActionGuide
     : function () {};
@@ -260,7 +259,6 @@ export function createCommandDestinationController(dependencies) {
     if (!state.fleet || !state.fleet[shipIndex]) shipIndex = state.activeShipIndex || 0;
     if (!state.fleet || !state.fleet[shipIndex]) return Promise.resolve(false);
 
-    invalidate();
     return Promise.resolve().then(loadFleet).then(function (FleetUI) {
       if (!_isCurrent(snapshot) || !FleetUI) return false;
       var fleetActions = getFleetActions();

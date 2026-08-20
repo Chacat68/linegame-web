@@ -70,6 +70,14 @@ export function normalizeDirtyRegions(value, fallback) {
     : Object.freeze(normalized);
 }
 
+export function resolveDirtyRegions(value, fallback) {
+  var fallbackValue = typeof fallback === 'undefined' ? DEFAULT_ACTION_DIRTY_REGIONS : fallback;
+  var normalized = normalizeDirtyRegions(value, fallbackValue);
+  if (normalized.length > 0) return normalized;
+  var normalizedFallback = normalizeDirtyRegions(fallbackValue, DEFAULT_ACTION_DIRTY_REGIONS);
+  return normalizedFallback.length > 0 ? normalizedFallback : DEFAULT_ACTION_DIRTY_REGIONS;
+}
+
 export function createActionPresentation(dirtyRegions) {
   return Object.freeze({
     dirtyRegions: normalizeDirtyRegions(dirtyRegions, DEFAULT_ACTION_DIRTY_REGIONS),
@@ -77,6 +85,23 @@ export function createActionPresentation(dirtyRegions) {
 }
 
 export const DEFAULT_ACTION_PRESENTATION = createActionPresentation(DEFAULT_ACTION_DIRTY_REGIONS);
+
+export const GUIDANCE_ONLY_PRESENTATION = createActionPresentation([UI_REGION.GUIDE]);
+
+export const NAVIGATION_FOCUS_PRESENTATION = createActionPresentation([
+  UI_REGION.SCENE,
+  UI_REGION.CONTEXT,
+  UI_REGION.GUIDE,
+]);
+
+export const COMPANY_IDENTITY_PRESENTATION = createActionPresentation([UI_REGION.HUD]);
+
+export const ACHIEVEMENT_UNLOCK_PRESENTATION = createActionPresentation([
+  UI_REGION.HUD,
+  UI_REGION.ARCHIVE_ACHIEVEMENT,
+  UI_REGION.CONTEXT,
+  UI_REGION.GUIDE,
+]);
 
 function _withWorkspaceRegions(regions) {
   var dirtyRegions = DEFAULT_ACTION_DIRTY_REGIONS.slice();

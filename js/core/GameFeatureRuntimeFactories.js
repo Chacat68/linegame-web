@@ -11,7 +11,7 @@ import * as Guidance from '../systems/guidance/GuidanceSystem.js';
 import * as EventUI from '../ui/EventUI.js';
 import * as Dispatch from './DispatchController.js';
 import { getLevel } from '../data/playerLevels.js';
-import { DEFAULT_ACTION_DIRTY_REGIONS } from './ActionPresentation.js';
+import { DEFAULT_ACTION_DIRTY_REGIONS, resolveDirtyRegions } from './ActionPresentation.js';
 import { createGameFeatureRuntime } from './GameFeatureRuntime.js';
 import { createDialogueRuntimeController } from './DialogueRuntimeController.js';
 import { createRandomEventRuntimeController } from './RandomEventRuntimeController.js';
@@ -130,7 +130,7 @@ export function createGameFeatureRuntimeFactories(context) {
         getLevelTitle: function (experience) { return getLevel(experience).title; },
         loadView: function () { return _getFeatureRuntime().load('victory'); },
         emitMessage: emitLog,
-        invalidate: function () { updateUI(DEFAULT_ACTION_DIRTY_REGIONS); },
+        invalidate: function (regions) { updateUI(resolveDirtyRegions(regions)); },
         refreshActionGuide: function () { return _getGuidanceRuntime().refresh(); },
         restartSession: function () { return _getPersistenceController().restart.apply(null, arguments); },
       });
@@ -143,7 +143,7 @@ export function createGameFeatureRuntimeFactories(context) {
         isSessionTokenCurrent: isSessionTokenCurrent,
         loadRuntime: function () { return _getFeatureRuntime().load('achievement'); },
         emitMessage: emitLog,
-        invalidate: function () { updateUI(DEFAULT_ACTION_DIRTY_REGIONS); },
+        invalidate: function (regions) { updateUI(resolveDirtyRegions(regions)); },
         checkVictory: function () { _getVictoryController().check(); },
         reportFailure: function (error) { reportDeferredUiFailure('achievement', error); },
       });
