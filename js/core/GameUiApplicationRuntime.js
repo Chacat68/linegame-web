@@ -258,6 +258,33 @@ export function createGameUiApplicationRuntime(options) {
   function syncSettings(module) { return getSettingsController().sync(module); }
   function hideSettings() { return getSettingsController().hide(); }
 
+  // 正式工作区导航端口。领域/引导运行时只依赖此对象，不再借用 MapUI
+  // 访问商业入口或通用 Tab 状态。
+  var navigation = Object.freeze({
+    activateWorkspaceTab: function (tabId, options) {
+      return getWorkspaceTabs().activate(tabId, options);
+    },
+    closeMarket: function () { return getMarketWorkspaceEntry().close(); },
+    getActiveArchiveTab: function () { return getWorkspaceTabs().getActive('info'); },
+    getMarketViewSystem: function (state) { return getMarketWorkspaceEntry().getViewSystem(state); },
+    isMarketOpen: function () { return getMarketWorkspaceEntry().isOpen(); },
+    openMarketPanel: function (state, focus) {
+      return getMarketWorkspaceEntry().openPanel(state, focus);
+    },
+    openMarketSystemPanel: function (state, systemId, focus) {
+      return getMarketWorkspaceEntry().openSystemPanel(state, systemId, focus);
+    },
+    refreshMarketLocation: function (state) {
+      return getMarketWorkspaceEntry().refreshLocation(state);
+    },
+    returnToMap: function () {
+      getMarketWorkspaceEntry().close();
+      return ui.UIManager && typeof ui.UIManager.switchView === 'function'
+        ? ui.UIManager.switchView('map')
+        : false;
+    },
+  });
+
   function reset() {
     if (marketWorkspace) marketWorkspace.reset();
     if (coordinator) coordinator.reset();
@@ -334,6 +361,7 @@ export function createGameUiApplicationRuntime(options) {
     hideSettings: hideSettings,
     initialize: initialize,
     invalidate: invalidate,
+    navigation: navigation,
     presentEntry: presentEntry,
     refreshMarket: refreshMarket,
     renderAll: renderAll,

@@ -61,7 +61,7 @@ export function createActionGuideCoordinator(options) {
   var hooks = config.hooks || {};
 
   var ActionGuideUI = ui.ActionGuideUI || {};
-  var MapUI = ui.MapUI || {};
+  var Navigation = ui.Navigation || {};
   var UIManager = ui.UIManager || {};
   var EventUI = ui.EventUI || {};
   var Guidance = systems.Guidance || {};
@@ -177,7 +177,7 @@ export function createActionGuideCoordinator(options) {
     var MarketUI = _getFeature('market');
     var focus = _call(MarketUI, 'getActiveMarketWorkspaceFocus', [], {}) || {};
     return Object.assign({}, focus, {
-      systemId: _call(MapUI, 'getMarketViewSystem', [state], null) || state.currentSystem || '',
+      systemId: _call(Navigation, 'getMarketViewSystem', [state], null) || state.currentSystem || '',
     });
   }
 
@@ -230,13 +230,13 @@ export function createActionGuideCoordinator(options) {
       modRecommendation = _call(Fleet, 'getShipModRecommendation', [state, state.activeShipIndex || 0], null);
     }
 
-    var marketOpen = !!_call(MapUI, 'isMarketOpen', [], false);
+    var marketOpen = !!_call(Navigation, 'isMarketOpen', [], false);
     var FleetUI = _getFeature('fleet');
     return {
       marketOpen: marketOpen,
       marketFocus: _getMarketFocus(state, marketOpen),
       archiveOpen: _isArchiveOpen(),
-      archiveTab: _call(MapUI, 'getActiveArchiveTab', [], null),
+      archiveTab: _call(Navigation, 'getActiveArchiveTab', [], null),
       nextPoi: nextPoi,
       nextPoiStatus: nextPoiStatus,
       researchSupplyRoute: researchSupplyRoute,

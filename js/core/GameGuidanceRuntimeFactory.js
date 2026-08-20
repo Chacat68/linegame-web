@@ -55,6 +55,29 @@ export function createGameGuidanceRuntimeFactory(context) {
           Modal: Modal,
           UIManager: UIManager,
         },
+        navigation: {
+          activateWorkspaceTab: function (tabId, options) {
+            return _getUiRuntime().navigation.activateWorkspaceTab(tabId, options);
+          },
+          getActiveArchiveTab: function () {
+            return _getUiRuntime().navigation.getActiveArchiveTab();
+          },
+          getMarketViewSystem: function (state) {
+            return _getUiRuntime().navigation.getMarketViewSystem(state);
+          },
+          isMarketOpen: function () {
+            return _getUiRuntime().navigation.isMarketOpen();
+          },
+          openMarketPanel: function (state, focus) {
+            return _getUiRuntime().navigation.openMarketPanel(state, focus);
+          },
+          openMarketSystemPanel: function (state, systemId, focus) {
+            return _getUiRuntime().navigation.openMarketSystemPanel(state, systemId, focus);
+          },
+          returnToMap: function () {
+            return _getUiRuntime().navigation.returnToMap();
+          },
+        },
         actions: {
           acceptQuest: function () { return _getActionRuntime().archive.onAcceptQuest.apply(null, arguments); },
           explorePoi: function () { return _getActionRuntime().exploration.explorePoi.apply(null, arguments); },

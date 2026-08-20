@@ -33,14 +33,14 @@ function createHarness(options) {
     init: vi.fn(),
     init3DCallbacks: vi.fn(),
     setExplorationActions: vi.fn(),
-    setMarketWorkspaceActions: vi.fn(),
+    setNavigationActions: vi.fn(),
     setNavigationChangeCallback: vi.fn(),
-    setWorkspaceNavigationActions: vi.fn(),
-    setWorkspaceTabActions: vi.fn(),
   };
   var MarketWorkspaceEntry = {
+    close: vi.fn(),
     dispose: vi.fn(),
     init: vi.fn(),
+    openSystemPanel: vi.fn(),
   };
   var WorkspaceTabs = {
     dispose: vi.fn(),
@@ -168,8 +168,10 @@ describe('GameUiLifecycleController', function () {
     expect(harness.UIManager.init.mock.invocationCallOrder[0]).toBeLessThan(
       harness.WorkspaceDetailSurface.init.mock.invocationCallOrder[0]
     );
-    expect(harness.MapUI.setWorkspaceNavigationActions).toHaveBeenCalledWith({
+    expect(harness.MapUI.setNavigationActions).toHaveBeenCalledWith({
       navigate: harness.UIManager.switchView,
+      closeMarket: harness.MarketWorkspaceEntry.close,
+      openMarketSystemPanel: harness.MarketWorkspaceEntry.openSystemPanel,
     });
     expect(harness.WorkspaceDetailSurface.init.mock.invocationCallOrder[0]).toBeLessThan(
       harness.MapUI.init.mock.invocationCallOrder[0]
@@ -248,12 +250,10 @@ describe('GameUiLifecycleController', function () {
     harness.events.emit('tutorial:complete');
     expect(harness.controllers.onboardingPolicy.handleTutorialComplete).toHaveBeenCalledOnce();
     expect(harness.controllers.onboardingUi.dispose).toHaveBeenCalledOnce();
-    expect(harness.MapUI.setWorkspaceNavigationActions).toHaveBeenLastCalledWith(null);
+    expect(harness.MapUI.setNavigationActions).toHaveBeenLastCalledWith(null);
     expect(harness.controllers.settingsUi.dispose).toHaveBeenCalledOnce();
     expect(harness.controllers.actionGuide.dispose).toHaveBeenCalledOnce();
     expect(harness.MapUI.setNavigationChangeCallback).toHaveBeenLastCalledWith(null);
-    expect(harness.MapUI.setMarketWorkspaceActions).toHaveBeenLastCalledWith(null);
-    expect(harness.MapUI.setWorkspaceTabActions).toHaveBeenLastCalledWith(null);
     expect(harness.MapUI.setExplorationActions).toHaveBeenLastCalledWith(null);
     expect(harness.MapUI.dispose).toHaveBeenCalledOnce();
     expect(harness.WorkspaceDetailSurface.dispose).toHaveBeenCalledOnce();

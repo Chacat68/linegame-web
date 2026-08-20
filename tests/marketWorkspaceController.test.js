@@ -91,10 +91,10 @@ function createHarness(options) {
     showCompletion: calls.showCompletion,
     getCommerceActions: function () { return commerceActions; },
     refuel: calls.refuel,
-    MapUI: {
-      focusNavigationTarget: calls.focusNavigationTarget,
-      getMarketViewSystem: function () { return 'nova_station'; },
-      consumePendingMarketPanelFocus: function () {
+    MapUI: { focusNavigationTarget: calls.focusNavigationTarget },
+    MarketWorkspaceEntry: {
+      getViewSystem: function () { return 'nova_station'; },
+      consumePendingFocus: function () {
         var result = pendingFocus;
         pendingFocus = null;
         return result;

@@ -20,10 +20,10 @@ export function createCommandDestinationController(dependencies) {
   var deps = dependencies || {};
   var systems = deps.systems || {};
   var ui = deps.ui || {};
+  var navigation = deps.navigation || {};
   var data = deps.data || {};
   var Economy = systems.Economy || {};
   var Fleet = systems.Fleet || {};
-  var MapUI = ui.MapUI || {};
   var Modal = ui.Modal || {};
   var goods = Array.isArray(data.goods) ? data.goods : [];
   var getState = _requiredFunction(deps.getState, 'getState');
@@ -201,7 +201,7 @@ export function createCommandDestinationController(dependencies) {
     var activeShipIndex = snapshot.state && snapshot.state.activeShipIndex || 0;
     if (!activeShip || !recommendation) return Promise.resolve(false);
 
-    _call(MapUI, 'activateTab', ['tab-fleet']);
+    _call(navigation, 'activateWorkspaceTab', ['tab-fleet']);
     return Promise.resolve().then(loadFleet).then(function (FleetUI) {
       if (!_isCurrent(snapshot) || !FleetUI) return false;
       var fleetActions = getFleetActions();

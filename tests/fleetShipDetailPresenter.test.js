@@ -41,6 +41,9 @@ describe('FleetShipDetailPresenter', function () {
     expect(view.html).toContain('先锋号');
     expect(view.html).toContain('<small>货舱</small><strong>8/24</strong>');
     expect(view.html).toContain('data-context-action="open-detail" data-ship-index="1"');
+    expect(view.html).toContain('data-workspace-action-slot');
+    expect(view.html).toContain('data-action-scope="local"');
+    expect(view.html).toContain('data-workspace-id="fleet"');
     expect(view.html).toContain('查看完整舰船详情');
   });
 

@@ -70,9 +70,9 @@ function createHarness(options) {
       },
     },
     ui: {
-      MapUI: { activateTab: calls.activateTab },
       Modal: { openTradeModal: calls.openTradeModal },
     },
+    navigation: { activateWorkspaceTab: calls.activateTab },
     data: {
       goods: [
         { id: 'food', name: '食品' },

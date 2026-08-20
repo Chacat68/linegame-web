@@ -376,6 +376,9 @@ describe('Archive terminal UI', function () {
     [questHost, researchHost, factionHost, achievementHost, reportHost].forEach(function (host) {
       expect(host.innerHTML).toContain('data-context-action="open-detail"');
       expect(host.innerHTML).toContain('data-context-id=');
+      expect(host.innerHTML).toContain('data-workspace-action-slot');
+      expect(host.innerHTML).toContain('data-action-scope="local"');
+      expect(host.innerHTML).toContain('data-workspace-id="archive"');
     });
 
     var questDetailHost = createHtmlContainer();

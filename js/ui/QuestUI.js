@@ -12,6 +12,7 @@ import * as Quest      from '../systems/quest/QuestSystem.js';
 import * as ActionConfirmUI from './ActionConfirmUI.js';
 import * as ContextInspector from './ContextInspector.js';
 import { buildWorkspaceObjectDetailView } from './WorkspaceObjectDetailPresenter.js';
+import { buildWorkspaceOpenDetailSlot } from './WorkspaceActionSlot.js';
 
 const _goodNameById = GOODS.reduce(function (acc, good) {
   acc[good.id] = good.name;
@@ -93,8 +94,13 @@ export function renderContextInspector(request) {
         '<span role="listitem"><small>经验</small><strong>' + Number(reward.exp || 0).toLocaleString() + '</strong></span>' +
       '</div>' +
       '<div class="workspace-context-tags"><span>声望 +' + Number(reward.reputation || 0).toLocaleString() + '</span><span>' + (quest.timeLimit > 0 ? ('限时 ' + quest.timeLimit + ' 天') : '不限时') + '</span></div>' +
-      '<button class="workspace-context-action" type="button" data-context-action="open-detail" data-context-id="' +
-        _escapeHtmlAttr(quest.id) + '">查看完整任务详情</button>' +
+      buildWorkspaceOpenDetailSlot({
+        workspaceId: 'archive',
+        contextType: 'quest',
+        contextId: quest.id,
+        label: '查看完整任务详情',
+        attributes: { 'data-context-id': quest.id },
+      }) +
     '</article>';
   return { title: '任务检查' };
 }

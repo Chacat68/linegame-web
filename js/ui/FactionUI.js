@@ -13,6 +13,7 @@ import {
 import { getCommandActionAttributes, renderCommandActionContent } from './CommandAction.js';
 import * as ContextInspector from './ContextInspector.js';
 import { buildWorkspaceObjectDetailView } from './WorkspaceObjectDetailPresenter.js';
+import { buildWorkspaceOpenDetailSlot } from './WorkspaceActionSlot.js';
 
 function _escapeHtml(value) {
   return String(value == null ? '' : value)
@@ -49,8 +50,13 @@ export function renderContextInspector(request) {
         '<span role="listitem"><small>控制</small><strong>' + (faction.controlledSystems || []).length + ' 地点</strong></span>' +
       '</div>' +
       '<div class="workspace-context-callout">' + _escapeHtml(faction.bonuses[level.id] || '提升关系以解锁派系奖励。') + '</div>' +
-      '<button class="workspace-context-action" type="button" data-context-action="open-detail" data-context-id="' +
-        _escapeHtmlAttr(faction.id) + '">查看完整派系详情</button>' +
+      buildWorkspaceOpenDetailSlot({
+        workspaceId: 'archive',
+        contextType: 'faction',
+        contextId: faction.id,
+        label: '查看完整派系详情',
+        attributes: { 'data-context-id': faction.id },
+      }) +
     '</article>';
   return { title: '派系检查' };
 }

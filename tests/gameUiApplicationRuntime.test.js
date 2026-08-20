@@ -43,10 +43,8 @@ function createHarness(overrides) {
       init: vi.fn(),
       init3DCallbacks: vi.fn(),
       setExplorationActions: vi.fn(),
-      setMarketWorkspaceActions: vi.fn(),
+      setNavigationActions: vi.fn(),
       setNavigationChangeCallback: vi.fn(),
-      setWorkspaceNavigationActions: vi.fn(),
-      setWorkspaceTabActions: vi.fn(),
       refreshPlanetDetail: vi.fn(),
       getDiagnostics: vi.fn(function () { return { selectedSystemId: null }; }),
       resetRuntimeState: vi.fn(),
@@ -61,10 +59,14 @@ function createHarness(overrides) {
       init: vi.fn(),
       isOpen: vi.fn(function () { return false; }),
       open: vi.fn(),
+      openPanel: vi.fn(function () { return true; }),
+      openSystemPanel: vi.fn(function () { return true; }),
+      refreshLocation: vi.fn(function () { return true; }),
       reset: vi.fn(),
     },
     WorkspaceTabs: {
       dispose: vi.fn(),
+      activate: vi.fn(function () { return true; }),
       getActive: vi.fn(function (group) { return group === 'info' ? 'tab-quest' : 'tab-fleet'; }),
       getDiagnostics: vi.fn(function () { return { activeArchiveTab: 'tab-quest' }; }),
       init: vi.fn(),
@@ -207,6 +209,29 @@ describe('GameUiApplicationRuntime', function () {
     expect(harness.ui.DeferredFeatureStatusUI.clear).toHaveBeenCalledWith('market');
     expect(MarketUI.showDetail).toHaveBeenCalled();
     expect(MarketUI.render).toHaveBeenCalled();
+  });
+
+  it('以正式 runtime 导航端口发布市场、Tab 与返回地图能力', function () {
+    var harness = createHarness();
+    var focus = { panel: 'spot', goodId: 'ore' };
+
+    expect(harness.runtime.navigation.activateWorkspaceTab('tab-research')).toBe(true);
+    expect(harness.ui.WorkspaceTabs.activate).toHaveBeenCalledWith('tab-research', undefined);
+    expect(harness.runtime.navigation.getActiveArchiveTab()).toBe('tab-quest');
+    expect(harness.runtime.navigation.getMarketViewSystem(harness.state)).toBe('sol_prime');
+    expect(harness.runtime.navigation.isMarketOpen()).toBe(false);
+    expect(harness.runtime.navigation.openMarketPanel(harness.state, focus)).toBe(true);
+    expect(harness.ui.MarketWorkspaceEntry.openPanel).toHaveBeenCalledWith(harness.state, focus);
+    expect(harness.runtime.navigation.openMarketSystemPanel(harness.state, 'nova_station', focus)).toBe(true);
+    expect(harness.ui.MarketWorkspaceEntry.openSystemPanel).toHaveBeenCalledWith(
+      harness.state,
+      'nova_station',
+      focus,
+    );
+    expect(harness.runtime.navigation.refreshMarketLocation(harness.state)).toBe(true);
+    expect(harness.runtime.navigation.returnToMap()).toBeUndefined();
+    expect(harness.ui.MarketWorkspaceEntry.close).toHaveBeenCalledOnce();
+    expect(harness.ui.UIManager.switchView).toHaveBeenCalledWith('map');
   });
 
   it('协调器尚未创建时也会重置所有已加载工作区会话', function () {

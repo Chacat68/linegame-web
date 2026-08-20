@@ -117,8 +117,10 @@ export function createGameUiLifecycleController(dependencies) {
         return _call(ports, 'ensureArchive', []);
       },
     }]);
-    _call(MapUI, 'setWorkspaceNavigationActions', [{
+    _call(MapUI, 'setNavigationActions', [{
       navigate: UIManager.switchView,
+      closeMarket: MarketWorkspaceEntry.close,
+      openMarketSystemPanel: MarketWorkspaceEntry.openSystemPanel,
     }]);
   }
 
@@ -136,10 +138,8 @@ export function createGameUiLifecycleController(dependencies) {
     // Surface，避免 renderer 注册发生在一个尚未接线（或刚被重置）的容器上。
     _bindWorkspaceNavigation();
     _call(MarketWorkspaceEntry, 'init', []);
-    _call(MapUI, 'setMarketWorkspaceActions', [MarketWorkspaceEntry]);
     _call(WorkspaceTabs, 'setOnChange', [_handleTabClick]);
     _call(WorkspaceTabs, 'init', []);
-    _call(MapUI, 'setWorkspaceTabActions', [WorkspaceTabs]);
     _call(WorkspaceDetailSurface, 'init', [{
       navigation: UIManager,
       stateSource: getState,
@@ -200,9 +200,7 @@ export function createGameUiLifecycleController(dependencies) {
     _releaseLogsHistoryChangedListener();
     if (initialized) {
       _call(MapUI, 'setNavigationChangeCallback', [null]);
-      _call(MapUI, 'setWorkspaceNavigationActions', [null]);
-      _call(MapUI, 'setMarketWorkspaceActions', [null]);
-      _call(MapUI, 'setWorkspaceTabActions', [null]);
+      _call(MapUI, 'setNavigationActions', [null]);
       _call(MapUI, 'setExplorationActions', [null]);
       _call(Modal, 'init', [null]);
     }

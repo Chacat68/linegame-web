@@ -1,8 +1,6 @@
 // js/ui/MapUI.js — 星系地图交互事件绑定（支持星系/星球双层视图）
-// 导出：init, initTabs, init3DCallbacks, refreshGalaxyBtn, openMarket, closeMarket, isMarketOpen,
-//        setMarketWorkspaceActions, setExplorationActions, getMarketViewSystem, refreshMarketLocation,
-//        showMarketOverview, showMarketDetail, refreshPlanetDetail, getMapView, getCurrentGalaxyId,
-//        getActiveArchiveTab
+// 导出：init, init3DCallbacks, refreshGalaxyBtn, refreshPlanetDetail,
+//        setNavigationActions, setExplorationActions, getMapView, getCurrentGalaxyId
 import * as Renderer3D from './StarmapRenderer.js';
 import * as Exploration from '../systems/galaxy/ExplorationSystem.js';
 import * as EventBus from '../core/EventBus.js';
@@ -31,14 +29,12 @@ import {
 }  from '../data/systems.js';
 
 let _navigationChangeCallback = null;
-let _workspaceNavigationActions = null;
-let _workspaceTabActions = null;
+let _navigationActions = null;
 let _smallScreenMql = null;
 const STARMAP_GALAXY_VIEW_TOGGLE_EVENT = 'starmap:galaxy-view-toggle';
 
 let _stateRef = null;               // 用于内部事件引用
 let _getState = function () { return _stateRef; };
-let _marketWorkspaceActions = null;
 let _explorationActions = null;
 let _travelActionHandler = null;
 let _galaxyJumpActionHandler = null;
@@ -69,7 +65,7 @@ const _mapSurveyDetails = createMapSurveyDetailController({
   getSurveySummary: Exploration.getSurveySummary,
   getMarketAction: _buildSurveyMarketAction,
   openMarket: function (state, systemId, options) {
-    return openMarketSystemPanel(state, systemId, options);
+    return _callNavigation('openMarketSystemPanel', [state, systemId, options], false);
   },
 });
 
@@ -91,7 +87,7 @@ const _mapPanelController = createMapPanelController({
   },
   openGalaxy: _switchToGalaxy,
   openMarket: function (systemId, focus) {
-    return openMarketSystemPanel(_currentState(), systemId, focus);
+    return _callNavigation('openMarketSystemPanel', [_currentState(), systemId, focus], false);
   },
   openSurvey: function (systemId, origin) {
     return _mapSurveyDetails.open(systemId, origin);
@@ -130,9 +126,9 @@ export function syncState(stateSource) {
   return _stateRef;
 }
 
-function _marketAction(methodName, args, fallback) {
-  if (_marketWorkspaceActions && typeof _marketWorkspaceActions[methodName] === 'function') {
-    return _marketWorkspaceActions[methodName].apply(_marketWorkspaceActions, args || []);
+function _callNavigation(methodName, args, fallback) {
+  if (_navigationActions && typeof _navigationActions[methodName] === 'function') {
+    return _navigationActions[methodName].apply(_navigationActions, args || []);
   }
   return fallback;
 }
@@ -295,46 +291,9 @@ function _isPlanetDetailSectionOpen(sectionId, defaultOpen) {
   return typeof stored === 'boolean' ? stored : !!defaultOpen;
 }
 
-/**
- * 注入市场刷新回调（在 GameManager.init 中调用）
- * @param {Function} fn  (mode:'detail') => void  — 刷新市场
- */
-export function setMarketWorkspaceActions(actions) {
-  _marketWorkspaceActions = actions && typeof actions === 'object' ? actions : null;
-  return !!_marketWorkspaceActions;
-}
-
-/** @deprecated 市场刷新由 MarketWorkspaceEntryController 持有。 */
-export function setRefreshMarket(fn) {
-  return !!_marketAction('setRefresh', [fn], false);
-}
-
 export function setExplorationActions(actions) {
   _explorationActions = actions || null;
   _bindMapPanelEvents();
-}
-
-/**
- * 获取市场当前查看的星球 ID（供 GameManager 传给 MarketUI.render）
- * @param {object} state
- * @returns {string}
- */
-export function getMarketViewSystem(state) {
-  return _marketAction('getViewSystem', [state], state && state.currentSystem);
-}
-
-/** 获取市场当前查看的星系 ID */
-export function getMarketViewGalaxy(state) {
-  return _marketAction('getViewGalaxy', [state], state && state.currentGalaxy);
-}
-
-/** 获取当前市场模式 */
-export function getMarketMode() {
-  return _marketAction('getMode', [], 'detail');
-}
-
-export function consumePendingMarketPanelFocus() {
-  return _marketAction('consumePendingFocus', [], null);
 }
 
 /** 获取当前地图视图模式 */
@@ -347,21 +306,11 @@ export function getCurrentGalaxyId() {
   return _mapViewState.getCurrentGalaxyId();
 }
 
-/** 切换到总览模式 */
-export function showMarketOverview() {
-  return _marketAction('showOverview', [], false);
-}
-
-/** 切换到详情模式 */
-export function showMarketDetail(systemId) {
-  return _marketAction('showDetail', [systemId], false);
-}
-
 export function toggleGalaxyView() {
   var currentState = _currentState();
   if (!currentState) return false;
 
-  closeMarket();
+  _callNavigation('closeMarket', [], false);
   _clearSelectedPlanetDetail(false);
   if (currentState.mapView === 'galaxies') {
     return _returnToPlanetView();
@@ -580,61 +529,13 @@ export function refreshPlanetDetail(stateRef) {
   }));
 }
 
-/** 打开市场面板（默认当前节点功能页） */
-export function openMarket(stateRef, marketFocus) {
-  return _marketAction('open', [stateRef, marketFocus], false);
-}
-
-/** 以正式导航状态打开市场面板 */
-export function openMarketPanel(stateRef, marketFocus) {
-  return _marketAction('openPanel', [stateRef, marketFocus], false);
-}
-
-export function openMarketSystemPanel(stateRef, systemId, marketFocus) {
-  return _marketAction('openSystemPanel', [stateRef, systemId, marketFocus], false);
-}
-
-/** 关闭市场面板 */
-export function closeMarket() {
-  return _marketAction('close', [], false);
-}
-
-/** 市场是否打开 */
-export function isMarketOpen() {
-  return !!_marketAction('isOpen', [], false);
-}
-
-/** 旅行后刷新市场（保持当前节点功能页） */
-export function refreshMarketLocation(stateRef) {
-  return _marketAction('refreshLocation', [stateRef], false);
-}
-
-function _workspaceTabAction(methodName, args, fallback) {
-  if (_workspaceTabActions && typeof _workspaceTabActions[methodName] === 'function') {
-    return _workspaceTabActions[methodName].apply(_workspaceTabActions, args || []);
-  }
-  return fallback;
-}
-
-export function setWorkspaceTabActions(actions) {
-  _workspaceTabActions = actions && typeof actions === 'object' ? actions : null;
-  return !!_workspaceTabActions;
-}
-
-/** @deprecated Tab DOM 由 WorkspaceTabController 初始化。 */
-export function initTabs(onTabClick) {
-  _workspaceTabAction('setOnChange', [onTabClick], false);
-  return _workspaceTabAction('init', [], false);
-}
-
 export function setNavigationChangeCallback(callback) {
   _navigationChangeCallback = typeof callback === 'function' ? callback : null;
 }
 
-export function setWorkspaceNavigationActions(actions) {
-  _workspaceNavigationActions = actions && typeof actions.navigate === 'function'
-    ? { navigate: actions.navigate }
-    : null;
+export function setNavigationActions(actions) {
+  _navigationActions = actions && typeof actions === 'object' ? actions : null;
+  return !!_navigationActions;
 }
 
 export function focusNavigationTarget(stateRef, systemId, options) {
@@ -669,30 +570,14 @@ export function focusNavigationTarget(stateRef, systemId, options) {
   return true;
 }
 
-export function openQuestsPanel(stateRef) {
-  return _workspaceTabAction('openArchive', [stateRef || _stateRef], false);
-}
-
 function _requestWorkspace(workspace) {
-  var changed = !!(
-    _workspaceNavigationActions
-    && typeof _workspaceNavigationActions.navigate === 'function'
-    && _workspaceNavigationActions.navigate(workspace)
-  );
+  var changed = !!_callNavigation('navigate', [workspace], false);
   if (_navigationChangeCallback) _navigationChangeCallback(workspace);
   return changed;
 }
 
 export function focusStarmap() {
   return _requestWorkspace('map');
-}
-
-export function activateTab(tabId) {
-  return _workspaceTabAction('activate', [tabId], false);
-}
-
-export function getActiveArchiveTab() {
-  return _workspaceTabAction('getActive', ['info'], '');
 }
 
 function _clearBindingDataset(id, key) {
@@ -772,9 +657,7 @@ export function dispose() {
 
   _clearBindingDataset('planet-detail-panel', 'mapPanelControllerBound');
   _navigationChangeCallback = null;
-  _workspaceNavigationActions = null;
-  _marketWorkspaceActions = null;
-  _workspaceTabActions = null;
+  _navigationActions = null;
   _explorationActions = null;
   _travelActionHandler = null;
   _galaxyJumpActionHandler = null;

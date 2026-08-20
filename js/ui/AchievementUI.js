@@ -5,6 +5,7 @@
 import * as Achievement from '../systems/achievement/AchievementSystem.js';
 import * as ContextInspector from './ContextInspector.js';
 import { buildWorkspaceObjectDetailView } from './WorkspaceObjectDetailPresenter.js';
+import { buildWorkspaceOpenDetailSlot } from './WorkspaceActionSlot.js';
 
 function _escapeHtml(value) {
   return String(value == null ? '' : value)
@@ -50,8 +51,13 @@ export function renderContextInspector(request) {
         '<span role="listitem"><small>状态</small><strong>' + (achievement.unlocked ? '已解锁' : '待完成') + '</strong></span>' +
         '<span role="listitem"><small>奖励</small><strong>' + _escapeHtml(_formatReward(achievement.reward)) + '</strong></span>' +
       '</div>' +
-      '<button class="workspace-context-action" type="button" data-context-action="open-detail" data-context-id="' +
-        _escapeHtmlAttr(achievement.id) + '">查看完整成就详情</button>' +
+      buildWorkspaceOpenDetailSlot({
+        workspaceId: 'archive',
+        contextType: 'achievement',
+        contextId: achievement.id,
+        label: '查看完整成就详情',
+        attributes: { 'data-context-id': achievement.id },
+      }) +
     '</article>';
   return { title: '成就检查' };
 }

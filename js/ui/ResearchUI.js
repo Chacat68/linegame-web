@@ -13,6 +13,7 @@ import * as ActionConfirmUI from './ActionConfirmUI.js';
 import { getResearchDispatchBlockerState } from './ResearchGuidance.js';
 import * as ContextInspector from './ContextInspector.js';
 import { buildWorkspaceObjectDetailView } from './WorkspaceObjectDetailPresenter.js';
+import { buildWorkspaceOpenDetailSlot } from './WorkspaceActionSlot.js';
 
 export { getResearchDispatchBlockerState } from './ResearchGuidance.js';
 
@@ -82,8 +83,13 @@ export function renderContextInspector(request) {
         '<span role="listitem"><small>前置</small><strong>' + (tech.requires || []).length + ' 项</strong></span>' +
       '</div>' +
       '<div class="workspace-context-callout">' + _escapeHtml(tech.effectText || '无额外效果说明') + '</div>' +
-      '<button class="workspace-context-action" type="button" data-context-action="open-detail" data-context-id="' +
-        _escapeHtmlAttr(tech.id) + '">查看完整科技详情</button>' +
+      buildWorkspaceOpenDetailSlot({
+        workspaceId: 'archive',
+        contextType: 'technology',
+        contextId: tech.id,
+        label: '查看完整科技详情',
+        attributes: { 'data-context-id': tech.id },
+      }) +
     '</article>';
   return { title: '科技检查' };
 }

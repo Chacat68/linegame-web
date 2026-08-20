@@ -389,7 +389,7 @@ describe('UI lifecycle idempotency', function () {
     };
 
     return import('../js/ui/MapUI.js').then(function (MapUI) {
-      MapUI.initTabs(function () {});
+      expect(MapUI.initTabs).toBeUndefined();
       expect(bottomNav.listenerCount('click')).toBe(0);
 
       clickBottomButton(hangarBtn);
@@ -478,7 +478,6 @@ describe('UI lifecycle idempotency', function () {
     };
 
     return import('../js/ui/MapUI.js').then(function (MapUI) {
-      MapUI.initTabs(function () {});
       expect(bottomNav.listenerCount('click')).toBe(0);
 
       clickBottomButton(logsBtn);
@@ -541,7 +540,6 @@ describe('UI lifecycle idempotency', function () {
     };
 
     return import('../js/ui/MapUI.js').then(function (MapUI) {
-      MapUI.initTabs(function () {});
 
       bottomNav.dispatchEvent('click', {
         target: {
@@ -609,7 +607,6 @@ describe('UI lifecycle idempotency', function () {
     };
 
     return import('../js/ui/MapUI.js').then(function (MapUI) {
-      MapUI.initTabs(function () {});
       expect(bottomNav.listenerCount('click')).toBe(0);
 
       bottomNav.dispatchEvent('click', {
@@ -693,7 +690,6 @@ describe('UI lifecycle idempotency', function () {
     };
 
     return import('../js/ui/MapUI.js').then(function (MapUI) {
-      MapUI.initTabs(function () {});
 
       bottomNav.dispatchEvent('click', {
         target: {

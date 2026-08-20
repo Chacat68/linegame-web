@@ -4,7 +4,6 @@
 // 具体节点装配由 GameRuntimeNodeFactories 持有。
 
 import * as EventBus from './EventBus.js';
-import * as MapUI from '../ui/MapUI.js';
 import * as EventUI from '../ui/EventUI.js';
 import * as ContextInspector from '../ui/ContextInspector.js';
 import { createGameFeatureFailureReporter } from './GameFeatureManifest.js';
@@ -200,6 +199,7 @@ export function _getUiDiagnosticsForTest() {
 
 // UI 失效唯一入口；全量会话同步必须显式传 UI_REGION.ALL。
 function _updateUI(regions) {
-  if (MapUI.isMarketOpen() && !_getFeatureRuntime().get('market')) _getUiRuntime().ensureMarket();
-  return _getUiRuntime().invalidate(resolveDirtyRegions(regions));
+  var uiRuntime = _getUiRuntime();
+  if (uiRuntime.navigation.isMarketOpen() && !_getFeatureRuntime().get('market')) uiRuntime.ensureMarket();
+  return uiRuntime.invalidate(resolveDirtyRegions(regions));
 }

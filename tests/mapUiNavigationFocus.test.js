@@ -137,7 +137,7 @@ describe('MapUI navigation target focus', function () {
     var GalaxyData = await import('../js/systems/galaxy/GalaxyDataLayer.js');
     GalaxyData.init(state);
     var MapUI = await import('../js/ui/MapUI.js');
-    MapUI.setWorkspaceNavigationActions(navigationActions);
+    MapUI.setNavigationActions(navigationActions);
 
     expect(MapUI.focusNavigationTarget(state, 'nova_station', {
       goodId: 'food',

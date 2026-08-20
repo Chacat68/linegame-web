@@ -1,5 +1,7 @@
 // js/ui/MarketCommodityDetailPresenter.js — 市场商品 Context / L4 纯视图投影
 
+import { buildWorkspaceOpenDetailSlot } from './WorkspaceActionSlot.js';
+
 function _escapeHtml(value) {
   return String(value == null ? '' : value)
     .replace(/&/g, '&amp;')
@@ -71,8 +73,13 @@ export function buildMarketCommodityContextView(input) {
       _metrics(model) +
       '<div class="workspace-context-tags"><span>' + _legalityLabel(model.good.legality) +
         '</span><span>即时价差 ' + _formatNumber(Math.max(0, model.buyPrice - model.sellPrice)) + '</span></div>' +
-      '<button class="workspace-context-action" type="button" data-context-action="open-detail" data-good-id="' +
-        _escapeHtml(model.good.id) + '">查看完整商品详情</button>' +
+      buildWorkspaceOpenDetailSlot({
+        workspaceId: 'trade',
+        contextType: 'commodity',
+        contextId: model.good.id,
+        label: '查看完整商品详情',
+        attributes: { 'data-good-id': model.good.id },
+      }) +
     '</article>',
   };
 }

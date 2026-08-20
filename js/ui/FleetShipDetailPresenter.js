@@ -1,5 +1,7 @@
 // js/ui/FleetShipDetailPresenter.js — 舰船 Context / L4 纯视图投影
 
+import { buildWorkspaceOpenDetailSlot } from './WorkspaceActionSlot.js';
+
 function _escapeHtml(value) {
   return String(value == null ? '' : value)
     .replace(/&/g, '&amp;')
@@ -69,8 +71,13 @@ export function buildFleetShipContextView(input) {
       '<div class="workspace-context-tags"><span>' + (model.active ? '当前操控舰' : '舰队成员') +
         '</span><span>' + _escapeHtml(model.routeLabel) + '</span><span>累计净额 ' +
         _formatNumber(model.operating.net) + '</span></div>' +
-      '<button class="workspace-context-action" type="button" data-context-action="open-detail" data-ship-index="' +
-        model.shipIndex + '">查看完整舰船详情</button>' +
+      buildWorkspaceOpenDetailSlot({
+        workspaceId: 'fleet',
+        contextType: 'ship',
+        contextId: model.shipIndex,
+        label: '查看完整舰船详情',
+        attributes: { 'data-ship-index': model.shipIndex },
+      }) +
     '</article>',
   };
 }

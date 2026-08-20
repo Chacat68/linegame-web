@@ -18,8 +18,8 @@
 - 数值平衡：全量经济审计已完成，价格优惠共享递减上限，贸易站回本曲线合理，五条胜利路线量化为具体门槛
 - 本地验收指标：首单追踪、10 分钟继续经营率、商品利润占比、长期路线选择、30 天资产快照、完成用时
 - 中期专题教学：科研经济、自动跑商、贸易站经营、资金管理 4 条链可主动启动，由真实经营结果推进并持久化
-- 测试基线：161 个测试文件、1314 项测试，覆盖经济/贸易、航行、探索、事件与随机事件运行时、统一动作控制器图、成就检查队列、持久化事务、Game Application shell/Runtime Graph/五个职责节点工厂簇/启动投影/兼容门面/Feature/UI/Guidance/Loop Runtime 组合边界与 manifest/registry 生命周期、延迟工作区局部失败恢复、Map Galaxy Hub/View State/Survey Detail/Panel Layout + Controller、Workspace Surface/Detail 生命周期与 L3 CSS 所有权、Renderer dispose/re-init/开发态 2D 强制降级、Market Chart/Spot/Goods/Capital/Operations/Commodity Detail、Fleet Hangar/Shop/Crew/Mod/Dispatch/Ship Detail 与 Workspace Object Detail Presenter、typed market/fleet command、Context 局部 intent、档案分页 Context 生命周期、资金与贸易站投影、焦点同步、HUD/FleetUI 命令所有权、自动派遣与日结算提交顺序/经营金融/舰队/科研任务档案动作/剧情与胜利运行时/eager UI 壳/设置/首次进入与释放生命周期/教学引导与 onboarding policy/存档/命令目的地/行动引导执行适配/市场工作区入口/工作区 Tab/局部操作槽/会话生命周期/时钟/Market、Fleet 与 Archive 内部增量失效/日志 Context/筛选/聚合/UI 所有权等核心系统
-- UI 所有权收敛：商业入口/浏览位置、Archive/Fleet Tab 与地图锁定对象局部操作槽已有独立 owner；`MapUI` 仅保留星图 Context、Renderer 协调与迁移期兼容端口
+- 测试基线：161 个测试文件、1316 项测试，覆盖经济/贸易、航行、探索、事件与随机事件运行时、统一动作控制器图、成就检查队列、持久化事务、Game Application shell/Runtime Graph/五个职责节点工厂簇/启动投影/兼容门面/Feature/UI/Guidance/Loop Runtime 组合边界与 manifest/registry 生命周期、延迟工作区局部失败恢复、Map Galaxy Hub/View State/Survey Detail/Panel Layout + Controller、Workspace Surface/Detail 生命周期与 L3 CSS 所有权、Renderer dispose/re-init/开发态 2D 强制降级、Market Chart/Spot/Goods/Capital/Operations/Commodity Detail、Fleet Hangar/Shop/Crew/Mod/Dispatch/Ship Detail 与 Workspace Object Detail Presenter、typed market/fleet command、Context 局部 intent、档案分页 Context 生命周期、资金与贸易站投影、焦点同步、HUD/FleetUI 命令所有权、自动派遣与日结算提交顺序/经营金融/舰队/科研任务档案动作/剧情与胜利运行时/eager UI 壳/设置/首次进入与释放生命周期/教学引导与 onboarding policy/存档/命令目的地/行动引导执行适配/市场工作区入口/工作区 Tab/局部操作槽/会话生命周期/时钟/Market、Fleet 与 Archive 内部增量失效/日志 Context/筛选/聚合/UI 所有权等核心系统
+- UI 所有权收敛：商业入口/浏览位置、Archive/Fleet Tab 与 Map/Market/Fleet/Archive Context → L4 局部操作槽已有独立 owner；`MapUI` 仅保留星图 Context、Renderer 协调和注入式窄 navigation port
 
 ### 当前最主要的缺口
 
@@ -45,14 +45,14 @@
 
 - ✅ 统一文档口径：README、路线图、实现对照表已与 `js/` 结构对齐
 - ✅ 冻结 GameState / SaveEnvelope 契约：当前 `SAVE_SCHEMA_VERSION = 17`、`GAME_VERSION = 0.6.4`，已提交状态字段带默认值和逐版本迁移
-- ✅ 建立最小回归集：1314 项测试覆盖存档、经济、贸易、航行、探索、事件与随机事件运行时、统一动作控制器图、成就检查队列、持久化事务、Game Application shell/Runtime Graph/五个职责节点工厂簇/启动投影/兼容门面/Feature/UI/Guidance/Loop Runtime 组合边界与 manifest/registry 生命周期、延迟工作区局部失败恢复、Map Galaxy Hub/View State/Survey Detail/Panel Layout + Controller、Workspace Surface/Detail 生命周期与 L3 CSS 所有权、Renderer dispose/re-init/开发态 2D 强制降级、Market Chart/Spot/Goods/Capital/Operations/Commodity Detail、Fleet Hangar/Shop/Crew/Mod/Dispatch/Ship Detail 与 Workspace Object Detail Presenter、typed market/fleet command、Context 局部 intent、档案分页 Context 生命周期、资金与贸易站投影、焦点同步、HUD/FleetUI 命令所有权、自动派遣与日结算提交顺序、舰队动作、经营金融/商网联动、科研任务档案动作、剧情与胜利运行时、eager UI 壳/设置/首次进入与释放生命周期、教学引导与 onboarding policy、会话生命周期、命令目的地、行动引导执行适配、市场工作区入口、工作区 Tab、局部操作槽、Market/Fleet/Archive 内部增量失效、日志 Context/筛选/聚合与 UI 壳层契约
+- ✅ 建立最小回归集：1316 项测试覆盖存档、经济、贸易、航行、探索、事件与随机事件运行时、统一动作控制器图、成就检查队列、持久化事务、Game Application shell/Runtime Graph/五个职责节点工厂簇/启动投影/兼容门面/Feature/UI/Guidance/Loop Runtime 组合边界与 manifest/registry 生命周期、延迟工作区局部失败恢复、Map Galaxy Hub/View State/Survey Detail/Panel Layout + Controller、Workspace Surface/Detail 生命周期与 L3 CSS 所有权、Renderer dispose/re-init/开发态 2D 强制降级、Market Chart/Spot/Goods/Capital/Operations/Commodity Detail、Fleet Hangar/Shop/Crew/Mod/Dispatch/Ship Detail 与 Workspace Object Detail Presenter、typed market/fleet command、Context 局部 intent、档案分页 Context 生命周期、资金与贸易站投影、焦点同步、HUD/FleetUI 命令所有权、自动派遣与日结算提交顺序、舰队动作、经营金融/商网联动、科研任务档案动作、剧情与胜利运行时、eager UI 壳/设置/首次进入与释放生命周期、教学引导与 onboarding policy、会话生命周期、命令目的地、行动引导执行适配、市场工作区入口、工作区 Tab、局部操作槽、Market/Fleet/Archive 内部增量失效、日志 Context/筛选/聚合与 UI 壳层契约
 - ✅ 更新探索 / 行动引导口径：POI、隐藏航线、行动条已接入主流程
 - ✅ 参数化收束：经济、事件、任务节奏关键常量已收束到配置层
 - ✅ GameManager 约束：中期动作通过 CommerceActionController / GuidanceActionController 分发
 
 当前 P0 遗留项：
 
-- 迁移期兼容端口仍需清理：旧 `MapUI` 市场/Tab facade 的调用方应改接正式 runtime port，Fleet/Market/Archive 对象级 CTA 需继续迁入统一局部操作槽
+- 局部动作语义仍需继续细化：Context → L4 的查看详情入口已统一进入 `WorkspaceActionSlot`；买卖、改装、任务接取等领域提交仍由各工作区 typed command 端口持有，不得冒充全局 Action Guide
 
 ## P1：体验深挖 🔶 部分完成
 

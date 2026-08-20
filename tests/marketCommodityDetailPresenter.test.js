@@ -34,6 +34,9 @@ describe('MarketCommodityDetailPresenter', function () {
     expect(view.html).toContain('太阳主星 · 公开市场');
     expect(view.html).toContain('<small>货舱</small><strong>3</strong>');
     expect(view.html).toContain('data-context-action="open-detail" data-good-id="food"');
+    expect(view.html).toContain('data-workspace-action-slot');
+    expect(view.html).toContain('data-action-scope="local"');
+    expect(view.html).toContain('data-workspace-id="trade"');
     expect(view.html).toContain('查看完整商品详情');
   });
 

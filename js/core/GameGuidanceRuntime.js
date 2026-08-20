@@ -31,6 +31,7 @@ export function createGameGuidanceRuntime(dependencies) {
   var deps = dependencies || {};
   var systems = deps.systems || {};
   var ui = deps.ui || {};
+  var navigation = deps.navigation || {};
   var actions = deps.actions || {};
   var callbacks = deps.callbacks || {};
   var selectors = deps.selectors || {};
@@ -114,7 +115,8 @@ export function createGameGuidanceRuntime(dependencies) {
     getFleetActions: _requiredFunction(actions.getFleetActions, 'actions.getFleetActions'),
     renderFleet: _requiredFunction(callbacks.renderFleet, 'callbacks.renderFleet'),
     systems: { Economy: systems.Economy, Fleet: systems.Fleet },
-    ui: { MapUI: ui.MapUI, Modal: ui.Modal },
+    ui: { Modal: ui.Modal },
+    navigation: navigation,
     data: { goods: GOODS },
     emitLog: emitLog,
     refreshActionGuide: refresh,
@@ -145,13 +147,13 @@ export function createGameGuidanceRuntime(dependencies) {
       },
       navigation: {
         prepareDirectExecution: function () {
-          if (ui.MapUI && typeof ui.MapUI.focusStarmap === 'function') ui.MapUI.focusStarmap();
+          if (typeof navigation.returnToMap === 'function') navigation.returnToMap();
         },
-        activateTab: ui.MapUI && ui.MapUI.activateTab,
-        focusStarmap: ui.MapUI && ui.MapUI.focusStarmap,
+        activateTab: navigation.activateWorkspaceTab,
+        focusStarmap: navigation.returnToMap,
         focusNavigationTarget: ui.MapUI && ui.MapUI.focusNavigationTarget,
-        openMarketPanel: ui.MapUI && ui.MapUI.openMarketPanel,
-        openMarketSystemPanel: ui.MapUI && ui.MapUI.openMarketSystemPanel,
+        openMarketPanel: navigation.openMarketPanel,
+        openMarketSystemPanel: navigation.openMarketSystemPanel,
         revealMarketGoodFocus: commandDestinations.revealMarketGoodFocus,
       },
       trade: {
@@ -191,7 +193,7 @@ export function createGameGuidanceRuntime(dependencies) {
     features: features,
     ui: {
       ActionGuideUI: ui.ActionGuideUI,
-      MapUI: ui.MapUI,
+      Navigation: navigation,
       UIManager: ui.UIManager,
       EventUI: ui.EventUI,
     },

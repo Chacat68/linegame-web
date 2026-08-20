@@ -3,11 +3,15 @@ import { describe, expect, it, vi } from 'vitest';
 import { createMapWorkspaceSession } from '../js/ui/MapWorkspaceSession.js';
 
 describe('MapWorkspaceSession', function () {
-  it('MapUI 只通过地图会话端口读写星图选择，市场入口由独立 controller 委派', function () {
+  it('MapUI 只通过地图会话端口读写星图选择，并仅接收窄导航动作端口', function () {
     var source = readFileSync('js/ui/MapUI.js', 'utf8');
     var sessionSource = readFileSync('js/ui/MapWorkspaceSession.js', 'utf8');
     expect(source).toContain("from './MapWorkspaceSession.js'");
-    expect(source).toContain('setMarketWorkspaceActions');
+    expect(source).toContain('setNavigationActions');
+    expect(source).not.toContain('setMarketWorkspaceActions');
+    expect(source).not.toContain('setWorkspaceTabActions');
+    expect(source).not.toContain('export function openMarket');
+    expect(source).not.toContain('export function activateTab');
     [
       '_selectedPlanetDetailSystem',
       '_navigationGuideFocus',

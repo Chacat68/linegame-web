@@ -6,6 +6,7 @@ import { SYSTEMS, findGalaxy } from '../data/systems.js';
 import * as Exploration from '../systems/galaxy/ExplorationSystem.js';
 import * as ContextInspector from './ContextInspector.js';
 import { buildWorkspaceObjectDetailView } from './WorkspaceObjectDetailPresenter.js';
+import { buildWorkspaceOpenDetailSlot } from './WorkspaceActionSlot.js';
 
 let _pendingFocus = null;
 
@@ -146,8 +147,13 @@ export function renderContextInspector(request) {
       '<div class="workspace-context-hero"><span aria-hidden="true">' + _escapeHtml(report.icon || '📘') + '</span><div><small>' + _escapeHtml(match.system.name) + ' · 第 ' + Math.max(1, Number(report.day) || 1) + ' 天</small><h3>' + _escapeHtml(report.title || '探索报告') + '</h3></div></div>' +
       '<p>' + _escapeHtml(report.detail || '暂无报告详情。') + '</p>' +
       '<div class="workspace-context-tags">' + labels.map(function (label) { return '<span>' + _escapeHtml(label) + '</span>'; }).join('') + '</div>' +
-      '<button class="workspace-context-action" type="button" data-context-action="open-detail" data-context-id="' +
-        _escapeHtmlAttr(report.id) + '">查看完整报告详情</button>' +
+      buildWorkspaceOpenDetailSlot({
+        workspaceId: 'archive',
+        contextType: 'report',
+        contextId: report.id,
+        label: '查看完整报告详情',
+        attributes: { 'data-context-id': report.id },
+      }) +
     '</article>';
   return { title: '报告检查' };
 }

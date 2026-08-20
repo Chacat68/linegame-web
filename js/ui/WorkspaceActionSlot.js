@@ -75,3 +75,27 @@ export function buildWorkspaceActionSlot(options) {
       note +
     '</section>';
 }
+
+/**
+ * Context Inspector 对象进入 L4 详情的标准局部入口。
+ * 各领域只提供对象身份和返回焦点锚点，不再手写第二套裸按钮。
+ */
+export function buildWorkspaceOpenDetailSlot(options) {
+  var opts = options || {};
+  var attributes = Object.assign({
+    'data-context-action': 'open-detail',
+  }, opts.attributes || {});
+  return buildWorkspaceActionSlot({
+    workspaceId: opts.workspaceId,
+    contextType: opts.contextType,
+    contextId: opts.contextId,
+    label: opts.slotLabel || '对象局部操作',
+    className: opts.className,
+    actions: [{
+      id: 'open-detail',
+      label: opts.label || '查看完整详情',
+      className: opts.actionClassName || 'workspace-context-action',
+      attributes: attributes,
+    }],
+  });
+}

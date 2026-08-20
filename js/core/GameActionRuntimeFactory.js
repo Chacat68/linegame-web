@@ -42,9 +42,10 @@ export function createGameActionRuntimeFactory(context) {
   function _getPersistenceController() { return resolve('persistence'); }
 
   function _returnToStarmapAfterTrade() {
-    if (MapUI.focusStarmap) MapUI.focusStarmap();
-    if (MapUI.closeMarket) MapUI.closeMarket();
+    return _getUiRuntime().navigation.returnToMap();
   }
+
+  function _getUiRuntime() { return resolve('ui'); }
 
   return {
     actions: function () {
@@ -82,7 +83,9 @@ export function createGameActionRuntimeFactory(context) {
               });
             },
             refreshGalaxy: MapUI.refreshGalaxyBtn,
-            refreshMarketLocation: MapUI.refreshMarketLocation,
+            refreshMarketLocation: function (state) {
+              return _getUiRuntime().navigation.refreshMarketLocation(state);
+            },
           },
           clock: {
             startDispatch: function () { return _getGameLoopRuntime().startDispatch(); },
@@ -119,9 +122,15 @@ export function createGameActionRuntimeFactory(context) {
             openRecommendedDispatch: function () { return _getGuidanceRuntime().openRecommendedDispatch.apply(null, arguments); },
           },
           navigation: {
-            activateArchiveTab: MapUI.activateTab,
-            openMarketPanel: MapUI.openMarketPanel,
-            openMarketSystemPanel: MapUI.openMarketSystemPanel,
+            activateArchiveTab: function (tabId, options) {
+              return _getUiRuntime().navigation.activateWorkspaceTab(tabId, options);
+            },
+            openMarketPanel: function (state, focus) {
+              return _getUiRuntime().navigation.openMarketPanel(state, focus);
+            },
+            openMarketSystemPanel: function (state, systemId, focus) {
+              return _getUiRuntime().navigation.openMarketSystemPanel(state, systemId, focus);
+            },
             returnToStarmap: _returnToStarmapAfterTrade,
           },
           randomEvents: {

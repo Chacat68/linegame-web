@@ -27,6 +27,7 @@ describe('deferred terminal UI loading', function () {
 
   it('首次打开终端会触发加载，会话全量同步显式声明 all 区域', function () {
     var gameManager = readApplicationComposition();
+    var gameApplication = readFileSync('js/core/GameApplication.js', 'utf8');
     var guidanceRuntime = readFileSync('js/core/GameGuidanceRuntime.js', 'utf8');
     var commandDestinations = readFileSync('js/core/CommandDestinationController.js', 'utf8');
     var marketController = readFileSync('js/core/MarketWorkspaceController.js', 'utf8');
@@ -42,10 +43,11 @@ describe('deferred terminal UI loading', function () {
     expect(guidanceRuntime).toContain("getLoadedArchive: function () { return _featurePort(features, 'get', 'archive'); }");
     expect(commandDestinations).toContain('var loaded = getLoadedArchive()');
     expect(commandDestinations).toContain('Promise.resolve().then(loadArchive)');
-    expect(gameManager).toContain("if (MapUI.isMarketOpen() && !_getFeatureRuntime().get('market'))");
-    expect(gameManager).toContain('_getUiRuntime().ensureMarket()');
+    expect(gameManager).toContain("if (uiRuntime.navigation.isMarketOpen() && !_getFeatureRuntime().get('market'))");
+    expect(gameManager).toContain('uiRuntime.ensureMarket()');
+    expect(gameApplication).not.toContain("from '../ui/MapUI.js'");
     expect(gameManager).toContain('render: function () { updateUI(UI_REGION.ALL); }');
-    expect(gameManager).toContain('_getUiRuntime().invalidate(resolveDirtyRegions(regions))');
+    expect(gameApplication).toContain('uiRuntime.invalidate(resolveDirtyRegions(regions))');
     expect(gameManager).not.toContain("typeof regions === 'undefined'");
     expect(gameManager).toContain("from './GameUiApplicationRuntime.js'");
     expect(uiApplication).toContain("from './MarketWorkspaceController.js'");

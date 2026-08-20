@@ -48,7 +48,7 @@ function createHarness(options) {
     features: features,
     ui: {
       ActionGuideUI: ActionGuideUI,
-      MapUI: {
+      Navigation: {
         isMarketOpen: function () { return !!config.marketOpen; },
         getMarketViewSystem: function (state) { return state.currentSystem; },
         getActiveArchiveTab: function () { return 'tab-quest'; },

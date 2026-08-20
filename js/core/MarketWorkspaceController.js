@@ -21,7 +21,7 @@ function _normalizeMode(mode) {
 export function createMarketWorkspaceController(dependencies) {
   var deps = dependencies || {};
   var MapUI = deps.MapUI || {};
-  var MarketWorkspaceEntry = deps.MarketWorkspaceEntry || MapUI;
+  var MarketWorkspaceEntry = deps.MarketWorkspaceEntry || {};
   var Modal = deps.Modal || {};
   var Tutorial = deps.Tutorial || {};
   var systems = Array.isArray(deps.systems) ? deps.systems : [];
@@ -65,17 +65,13 @@ export function createMarketWorkspaceController(dependencies) {
   function _getViewSystem(state) {
     return typeof MarketWorkspaceEntry.getViewSystem === 'function'
       ? MarketWorkspaceEntry.getViewSystem(state)
-      : (typeof MarketWorkspaceEntry.getMarketViewSystem === 'function'
-        ? MarketWorkspaceEntry.getMarketViewSystem(state)
-        : state.currentSystem);
+      : state.currentSystem;
   }
 
   function _consumePendingFocus() {
     return typeof MarketWorkspaceEntry.consumePendingFocus === 'function'
       ? MarketWorkspaceEntry.consumePendingFocus()
-      : (typeof MarketWorkspaceEntry.consumePendingMarketPanelFocus === 'function'
-        ? MarketWorkspaceEntry.consumePendingMarketPanelFocus()
-        : null);
+      : null;
   }
 
   function refresh(options) {
