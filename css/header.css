@@ -293,16 +293,6 @@
   text-shadow: 0 0 8px rgba(118, 228, 255, 0.2);
   letter-spacing: 0.03em;
 }
-.rep-badge {
-  font-size: 10px;
-  background: linear-gradient(135deg, rgba(34, 211, 238, 0.12), rgba(118, 228, 255, 0.08));
-  padding: 2px 8px;
-  border-radius: 10px;
-  border: 1px solid rgba(34, 211, 238, 0.2);
-  color: var(--accent-cyan);
-  font-weight: 600;
-  text-shadow: 0 0 6px rgba(34, 211, 238, 0.2);
-}
 .level-bar-track {
   width: 80px;
   height: 4px;

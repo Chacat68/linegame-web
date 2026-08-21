@@ -58,38 +58,25 @@
   background: linear-gradient(90deg, transparent, rgba(118, 228, 255, 0.25), transparent);
 }
 
-/* Company name button — prominent badge */
-.company-dashboard .company-name-btn {
-  margin-top: 0;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  padding: 7px 12px;
-  border: 1px solid rgba(118, 228, 255, 0.22);
-  border-radius: 8px;
-  background:
-    linear-gradient(135deg, rgba(10, 38, 68, 0.85), rgba(6, 22, 44, 0.92));
-  color: var(--accent-gold);
-  font-family: 'Orbitron', 'Rajdhani', sans-serif;
+.company-dashboard-title {
+  display: grid;
+  gap: 3px;
+  padding: 3px 2px;
+}
+
+.company-dashboard-title span {
+  color: var(--text-dim);
+  font-family: 'Orbitron', monospace;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+
+.company-dashboard-title strong {
+  color: var(--text-primary);
   font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.06em;
-  text-shadow: 0 0 10px rgba(118, 228, 255, 0.3);
-  cursor: pointer;
-  transition: all 0.25s ease;
-  box-shadow:
-    inset 0 1px 0 rgba(125, 211, 252, 0.08),
-    0 0 12px rgba(34, 211, 238, 0.06);
-}
-.company-dashboard .company-name-btn:hover {
-  border-color: rgba(118, 228, 255, 0.5);
-  background:
-    linear-gradient(135deg, rgba(16, 52, 88, 0.9), rgba(10, 34, 60, 0.95));
-  box-shadow:
-    inset 0 1px 0 rgba(125, 211, 252, 0.12),
-    0 0 20px rgba(34, 211, 238, 0.15);
-  text-shadow: 0 0 14px rgba(118, 228, 255, 0.5);
+  letter-spacing: 0.04em;
 }
 
 /* Stat strip — 4 glass indicator cards */

@@ -20,6 +20,10 @@ function createElement(tagName) {
     classList: { toggle: function (name, active) { if (active) classes.add(name); else classes.delete(name); } },
     contains: function () { return true; },
     dispatch: function (name) { if (listeners[name]) listeners[name]({ target: this }); },
+    listenerCount: function () { return Object.keys(listeners).length; },
+    removeEventListener: function (name, listener) {
+      if (listeners[name] === listener) delete listeners[name];
+    },
     replaceChildren: function () { this.children = []; },
     setAttribute: function (name, value) { this[name] = String(value); },
   };
@@ -126,5 +130,17 @@ describe('Logs workspace filters', function () {
       filterType: 'all',
       visibleEntryCount: 3,
     });
+
+    expect(controller.getDiagnostics().listenerCount).toBe(4);
+    expect(controller.dispose()).toBe(true);
+    expect(controller.dispose()).toBe(false);
+    expect(controller.getDiagnostics()).toMatchObject({ disposed: true, listenerCount: 0 });
+    expect(typeFilter.dataset.logsFilterBound).toBeUndefined();
+    expect(log.dataset.logSelectionBound).toBeUndefined();
+    expect(typeFilter.listenerCount()).toBe(0);
+
+    controller.initialize();
+    expect(controller.getDiagnostics()).toMatchObject({ disposed: false, listenerCount: 4 });
+    expect(typeFilter.listenerCount()).toBe(1);
   });
 });

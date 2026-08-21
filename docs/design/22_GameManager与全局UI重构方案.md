@@ -71,11 +71,16 @@
 | `FleetCrewPresenter.js` | 217 行 | 独占船员详情只读模型、分区 HTML 与 roster intent，不持有弹层生命周期、不绑定 DOM、不提交领域动作 |
 | `FleetModPresenter.js` | 367 行 | 独占结构升级、组件、保养与资产处置只读模型、HTML 和 UI intent；不持有 portal、焦点或危险确认生命周期 |
 | `FleetDispatchPresenter.js` | 342 行 | 独占自动跑商策略验证、路线估算、风险/阻塞信号、推荐匹配与 CTA 投影；不持有 DOM、portal 或提交生命周期 |
-| `HUD.js` | 938 行 | 已移除固定 dashboard 与胜利/舰队/任务 mutation，通讯历史/未读/序号也已迁入独立会话；全局状态投影仍需继续收束 |
+| `HUD.js` | 154 行 | 固定 dashboard、Header/公司/Archive Badge HTML 与 selector、胜利/舰队/任务 mutation、任务动作死端口、长期路线 presenter 与 EventBus/DOM listener 已移出；当前只保留稳定兼容门面 |
+| `HeaderStatusPresenter.js` | 201 行 | 纯投影 Header 信用点、位置、日期、当前舰船、声望、资源 meter 与星图工具状态，不绑定 listener、不修改领域状态 |
+| `CompanyOverviewPresenter.js` | 141 行 | 纯投影 Header 公司身份和机库净资产、玩家/公司等级、容量与开放权限；不再把声望/日期/信用点镜像进工作区 |
+| `ArchiveBadgePresenter.js` | 65 行 | 从任务、探索、科研、派系与成就 selector 构造冻结角标快照，只投影五个 Archive Tab 与一个主导航 badge |
+| `HudInteractionController.js` | 221 行 | 独占日志事件、胜利弹层、星图工具、Context 初始化与完整 dispose/re-init；长期路线选择只调用注入 typed action |
+| `VictoryProgressPresenter.js` | 141 行 | 纯渲染长期路线摘要与详情，统一领域内容转义、缺口排序与进度可读语义 |
 | `SurfaceManager.js` | 336 行 | 只拥有 Blocking Surface、焦点陷阱、状态观察与唯一 Escape dispatcher；不再认识任何 L3 workspace DOM |
 | `WorkspaceSurfaceController.js` | 196 行 | 五个同级 canonical L3 共用 `is-active`、`data-workspace-active`、`inert`、ARIA、来源相关焦点与诊断协议；程序化进入使用 generation-safe 延迟焦点提交 |
-| 全部 CSS | 32,995 行 | 级联、重复响应式规则和所有权仍需继续收敛；已删除独立探索终端整条孤儿样式链 |
-| `interstellar-trader.css` | 12,204 行 | 仍是主要遗留级联源，但不再包含 exploration-terminal/current-system-card 无 DOM 命中规则 |
+| 全部 CSS | 33,166 行 | 级联、重复响应式规则和所有权仍需继续收敛；已删除独立探索终端及旧机库公司名按钮/经营弹窗孤儿样式链 |
+| `interstellar-trader.css` | 12,192 行 | 仍是主要遗留级联源，但不再包含 exploration-terminal/current-system-card/company-name-btn 无 DOM 命中规则 |
 
 行数不是单独的缺陷；真正问题是这些文件之间不存在稳定的所有权边界。当前一次“载入存档”同时涉及状态指针、系统重初始化、延迟模块同步、教程生命周期和全量 UI 刷新，测试只能通过大量集成桩或源码字符串断言保护行为。
 
@@ -739,7 +744,7 @@ Escape **不得切换 canonical workspace 或默认返回地图**，也不得关
 | `OnboardingUiController` + `OnboardingPolicyController` | **首次进入 UI 生命周期与内容策略已接入** | UI controller 持有教程视图同步、开始/跳过决策、公司身份入口 DOM listener 与 latest-session 校验；policy 持有欢迎消息、教程完成反馈和首批任务推荐；listener 已由 UI runtime shutdown 释放 | 把可配置文案迁入内容资源层 |
 | `GuidanceExecutionAdapter` | **行动引导执行端口已接入** | actionType 执行上下文由 `GameGuidanceRuntime` 以分组端口组装；异步 Feature 加载使用 latest-session 校验，迟到结果被丢弃；不可用与执行异常统一可见反馈 | 将剩余 direct-execution policy 收敛为 typed command |
 | `TeachingGuidanceController` | **教程路线辅助与专题教学策略已接入** | 首单/卖货路线使用 state + session token 丢弃迟到结果；专题启动、真实步骤提交和自然完成反馈由单一边界发布；舰队、经营、pipeline 与 Action Guide 均已改用该端口 | 将领域完成事件改为 typed teaching command，并让路线辅助返回统一语义结果 |
-| `GameUiLifecycleController` | **eager UI 壳 bind / present / dispose 已接入** | HUD、MapUI、UIManager、Modal、Action Guide、设置/公司 launcher、Feature telemetry、场景就绪和首次进入呈现统一接线；重复初始化只保留一个教程完成 listener；MapUI/UIManager dispose 会释放 DOM、EventBus、Context、Escape 和全局 facade/callback；统一 shutdown 已调用该边界 | 补浏览器级 listener 计数 |
+| `GameUiLifecycleController` | **eager UI 壳 bind / present / dispose 已接入** | HUD、MapUI、UIManager、Modal、Action Guide、设置/公司 launcher、Feature telemetry、场景就绪和首次进入呈现统一接线；重复初始化只保留一个教程完成 listener；HUD/MapUI/UIManager dispose 会释放 DOM、EventBus、Context、Escape 和全局 facade/callback；统一 shutdown 已调用该边界 | 补浏览器级 listener 计数 |
 | `GameUiApplicationRuntime` | **UI 应用组合边界已接入** | 独占 MarketWorkspace、Settings command/UI、GameUiCoordinator、GameUiLifecycle 与 Context adapters 的延迟组装；统一 latest-state/session providers、ensure/render/invalidate、入口呈现、复合 diagnostics、reset 与 dispose；顶层 `featureRecovery` 由纯构造器汇总 registry、错误呈现与 Settings 恢复状态，不再在 coordinator 重复持有；正式 `settingsCommands.execute` 端口与诊断已公开，协调器尚未构造时也保持稳定快照和降级 reset | 继续收窄剩余 UI typed ports，并把 feature fallback 统一到同一状态呈现 |
 | `CommandDestinationController` | **命令 UI 落点已接入** | 交易确认、任务选择、市场商品、探索报告、推荐派遣和推荐改装拥有单一 owner；Fleet/Archive/Market 延迟完成均校验 generation、state 与 session token | 把更多 workspace 内局部 CTA 接入统一 command destination，并为加载失败提供局部恢复呈现 |
 | `MarketCommand` + `MarketWorkspaceController` | **typed 市场命令与重入生命周期已接入** | `MarketUI` 只接收请求对象并发布单一 command；控制器统一解释公开/黑市买卖、补给、贷款、投资、建站、升级、批量策略与远程航点，非法 payload 会被拒绝；diagnostics 记录成功数、拒绝数与最后命令；UI runtime dispose 会释放工作区 listener | 把 presenter 选择状态汇入同一 diagnostics |
@@ -759,7 +764,8 @@ Escape **不得切换 canonical workspace 或默认返回地图**，也不得关
 | `MapWorkspaceSession` | **星图局部会话所有权已接入** | 仅持有选中星球、详情披露区与局部航线焦点；reset 会清理 hover/Context/活动 Map L4，但不改写存档中的 `mapView/viewingGalaxy`，不再认识商业入口 | 将更多面板定位偏好模型化 |
 | `WorkspaceTabController` | **Archive/Fleet Tab owner 已接入** | 独占 listener、roving tabindex、`aria-selected/aria-hidden`、方向键、移动端 scroll-into-view、程序化深链、关闭/背景 dismiss 与 dispose；GameUiLifecycle 直接初始化，command/guidance 经正式 UI runtime navigation port 调用；MapUI 不再导出 Tab facade | 将 tab snapshot 纳入顶层 UI diagnostics |
 | `MapExplorationPresenter` + `MapPlanetDetailPresenter` + `MapPanelLayout` + `MapPanelController` + `WorkspaceActionSlot` | **星球/POI 投影、布局、动作协议与四工作区局部入口已接入** | POI 阻塞/完成流程、秘密航线、勘探入口、星球摘要、航线焦点、路线估算、档案披露、travel intent、浮动面板几何和统一委派均已迁出 `MapUI`；Map 锁定目标及 Market/Fleet/Archive 的 Context → L4 入口声明 local scope 与对象 context；旧探索终端全链删除 | 继续让买卖、改装等领域提交使用各自 typed command，不向全局 Action Guide 泄漏局部语义 |
-| `LogsWorkspaceSession` + `LogsWorkspaceController` | **通讯会话、筛选和列表协调已接入** | 200 条原始内存历史、未读计数、稳定消息序号、类型/近五分钟筛选和 30 秒可逆重复聚合由 Session 持有；Controller 独占控件、列表 DOM、结果计数、Badge 与 Context，`HUD` 只保留兼容端口并从 938 行降至 787 行 | 在日志事件 envelope 提供 typed source 后扩展任务/科研分类，不允许正文猜测 |
+| `HeaderStatusPresenter` + `CompanyOverviewPresenter` + `ArchiveBadgePresenter` | **Shell 信息唯一归属已接入** | 公司身份入口迁入 Header；信用点、位置、日期、当前舰船与资源 meter 只在 Header 权威投影；机库只保留净资产、等级、容量与开放权限；Archive 六个角标使用冻结 selector 快照；旧公司名按钮/弹窗/声望镜像 CSS 已物理删除并有静态回流护栏 | 将角标刷新从 HUD 兼容方法迁入显式 shell port |
+| `LogsWorkspaceSession` + `LogsWorkspaceController` | **通讯会话、筛选和列表协调已接入** | 200 条原始内存历史、未读计数、稳定消息序号、类型/近五分钟筛选和 30 秒可逆重复聚合由 Session 持有；Controller 独占控件、列表 DOM、结果计数、Badge 与 Context，dispose 释放筛选/列表 listener 且可干净重建；`HUD` 经四轮拆分由 938 行降至 154 行 | 在日志事件 envelope 提供 typed source 后扩展任务/科研分类，不允许正文猜测 |
 | `GameUiCoordinator` + `ActionPresentation` | **dirty-region 增量刷新、五工作区会话与 Feature 恢复已接入真实动作** | provider、四项 Feature ensure/render、命名 action 分组；市场专用刷新与通用 ensure 共用 `loadFeature`，失败发布局部重试，成功清理状态并按 latest-state 渲染；Market 已区分 chrome / spot / capital / operations，Fleet 动作区分 `fleet-hangar` / `fleet-shop`，Archive 五页拥有独立区域；活动工作区只刷新声明 presenter，隐藏工作区不后台重绘；diagnostics 将 trade entry 与 Market content 分层公开，并从正式 Tab owner 读取档案分类；五组 reset 与 Navigation detail stack reset 都进入会话替换生命周期 | 继续收窄 typed ports，并扩展对象级局部失效 diagnostics |
 | `ActionGuideCoordinator` | **已接入唯一 Command Slot** | 使用 latest-state provider 汇总市场、档案、探索、维修、改装、路线、科研、事件、教程与阻塞上下文；延迟 Feature 去重、会话失效、一次性改装上下文和只读 refresh 均有测试；现由 `GameGuidanceRuntime` 持有并连接语义执行与命令落点 | 将更多 workspace 内局部 CTA 收敛到同一 command contract |
 | `NavigationController` | **已接入 `UIManager`** | 五个 workspace、旧别名、唯一 active、幂等切换、独立 detail stack；MapUI 通过显式 navigation port 请求切换，不再持有底栏 listener 或全局 manager facade；Escape 只关闭 L4 详情不改变 L3；会话 reset 一次清空当前与隐藏 workspace 的全部 detail stack，但保留 L3 目的地 | 将 navigation snapshot 纳入 UI application 顶层 diagnostics |

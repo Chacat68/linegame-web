@@ -131,7 +131,6 @@ export function createGameUiLifecycleController(dependencies) {
       stateSource: getState,
       revisionSource: getRevision,
     }]);
-    _call(HUD, 'setQuestActions', [{ onAcceptQuest: ports.acceptQuest }]);
     _call(HUD, 'setVictoryActions', [{ onChoosePolicy: ports.chooseVictoryPolicy }]);
 
     // L4 renderer 会在 MapUI.init 中注册；先建立唯一导航源并初始化详情
@@ -207,6 +206,7 @@ export function createGameUiLifecycleController(dependencies) {
     _call(onboardingUi, 'dispose', []);
     _call(settingsUi, 'dispose', []);
     _call(actionGuide, 'dispose', []);
+    _call(HUD, 'dispose', []);
     _call(MapUI, 'dispose', []);
     _call(MarketWorkspaceEntry, 'dispose', []);
     _call(WorkspaceTabs, 'dispose', []);

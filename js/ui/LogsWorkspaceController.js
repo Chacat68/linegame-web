@@ -18,6 +18,22 @@ export function createLogsWorkspaceController(options) {
   var contextInspector = opts.contextInspector || {};
   var session = opts.session || createLogsWorkspaceSession({ maxEntries: opts.maxEntries || 200 });
   var typeLabels = opts.typeLabels || {};
+  var listenerRecords = [];
+  var disposed = false;
+
+  function _bind(target, eventName, listener, marker) {
+    if (!target || typeof target.addEventListener !== 'function') return false;
+    if (marker && target.dataset && target.dataset[marker] === 'true') return false;
+    target.addEventListener(eventName, listener);
+    if (marker && target.dataset) target.dataset[marker] = 'true';
+    listenerRecords.push({
+      eventName: eventName,
+      listener: listener,
+      marker: marker || null,
+      target: target,
+    });
+    return true;
+  }
 
   function _document() {
     return typeof document !== 'undefined' ? document : null;
@@ -89,26 +105,23 @@ export function createLogsWorkspaceController(options) {
     var controls = [typeFilter, timeFilter, aggregationToggle].filter(Boolean);
     if (controls.length === 0) return false;
 
-    if (typeFilter && typeFilter.dataset && typeFilter.dataset.logsFilterBound !== 'true') {
-      typeFilter.addEventListener('change', function () {
+    if (typeFilter) {
+      _bind(typeFilter, 'change', function () {
         session.setFilterType(typeFilter.value);
         refresh();
-      });
-      typeFilter.dataset.logsFilterBound = 'true';
+      }, 'logsFilterBound');
     }
-    if (timeFilter && timeFilter.dataset && timeFilter.dataset.logsFilterBound !== 'true') {
-      timeFilter.addEventListener('change', function () {
+    if (timeFilter) {
+      _bind(timeFilter, 'change', function () {
         session.setTimeWindow(timeFilter.value);
         refresh();
-      });
-      timeFilter.dataset.logsFilterBound = 'true';
+      }, 'logsFilterBound');
     }
-    if (aggregationToggle && aggregationToggle.dataset && aggregationToggle.dataset.logsFilterBound !== 'true') {
-      aggregationToggle.addEventListener('change', function () {
+    if (aggregationToggle) {
+      _bind(aggregationToggle, 'change', function () {
         session.setAggregationEnabled(aggregationToggle.checked);
         refresh();
-      });
-      aggregationToggle.dataset.logsFilterBound = 'true';
+      }, 'logsFilterBound');
     }
     _syncFilterControls(session.getDiagnostics());
     return true;
@@ -187,17 +200,15 @@ export function createLogsWorkspaceController(options) {
   }
 
   function _bindSelection(log) {
-    if (!log || !log.dataset || log.dataset.logSelectionBound === 'true'
-        || typeof log.addEventListener !== 'function') return;
-    log.addEventListener('click', function (event) {
+    if (!log) return;
+    _bind(log, 'click', function (event) {
       var target = event && event.target;
       var entryButton = target && typeof target.closest === 'function'
         ? target.closest('[data-log-entry-id]')
         : null;
       if (!entryButton || (typeof log.contains === 'function' && !log.contains(entryButton))) return;
       _selectEntry(entryButton.dataset.logEntryId, entryButton);
-    });
-    log.dataset.logSelectionBound = 'true';
+    }, 'logSelectionBound');
   }
 
   function _reconcileContext() {
@@ -250,6 +261,7 @@ export function createLogsWorkspaceController(options) {
   }
 
   function initialize() {
+    disposed = false;
     _bindFilters();
     _updateNavBadge();
     return refresh();
@@ -258,8 +270,25 @@ export function createLogsWorkspaceController(options) {
   function getDiagnostics(extra) {
     var context = contextInspector.getContext('logs');
     return Object.freeze(Object.assign({}, session.getDiagnostics(), extra || {}, {
+      disposed: disposed,
+      listenerCount: listenerRecords.length,
       selectedMessageId: context && context.type === 'message' ? context.id : null,
     }));
+  }
+
+  function dispose() {
+    if (disposed && listenerRecords.length === 0) return false;
+    listenerRecords.forEach(function (record) {
+      if (record.target && typeof record.target.removeEventListener === 'function') {
+        record.target.removeEventListener(record.eventName, record.listener);
+      }
+      if (record.marker && record.target && record.target.dataset) {
+        delete record.target.dataset[record.marker];
+      }
+    });
+    listenerRecords = [];
+    disposed = true;
+    return true;
   }
 
   function reset() {
@@ -277,6 +306,7 @@ export function createLogsWorkspaceController(options) {
   return Object.freeze({
     addMessage: addMessage,
     clearUnreadCount: clearUnreadCount,
+    dispose: dispose,
     getDiagnostics: getDiagnostics,
     initialize: initialize,
     refresh: refresh,

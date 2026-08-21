@@ -1,6 +1,10 @@
 // js/ui/OnboardingUI.js — 首次进入与公司命名弹窗交互
 
-import { hideBlockingSurface, showBlockingSurface } from './SurfaceManager.js';
+import {
+  bindBlockingSurfaceDismiss,
+  hideBlockingSurface,
+  showBlockingSurface,
+} from './SurfaceManager.js';
 
 export function showTutorialStart(options) {
   var opts = options || {};
@@ -49,6 +53,8 @@ export function showCompanyRename(options) {
   var committed = false;
 
   if (!modal || !input || !confirmButton || !skipButton) return false;
+
+  bindBlockingSurfaceDismiss('company-rename-modal');
 
   input.value = opts.currentName || '';
   modal.dataset.companyNameState = 'editing';

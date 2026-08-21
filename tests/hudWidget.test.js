@@ -8,10 +8,13 @@ function read(relativePath) {
 describe('HUD context ownership', function () {
   it('delegates contextual navigation to the single Context Inspector', function () {
     var hud = read('js/ui/HUD.js');
+    var interactions = read('js/ui/HudInteractionController.js');
     var html = read('index.html');
 
     expect(hud).toContain("import * as ContextInspector from './ContextInspector.js'");
-    expect(hud).toContain("window.matchMedia('(max-width: 900px)').matches");
+    expect(hud).toContain("from './HudInteractionController.js'");
+    expect(interactions).toContain("win.matchMedia('(max-width: 900px)').matches");
+    expect(interactions).toContain("_call(contextInspector, 'init'");
     expect(hud).toContain("stateSource: typeof opts.stateSource === 'function'");
     expect(hud).toContain("revisionSource: typeof opts.revisionSource === 'function'");
     expect(hud).not.toContain('data-hud-widget');

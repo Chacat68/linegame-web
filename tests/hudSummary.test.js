@@ -126,10 +126,13 @@ describe('HUD summary cards', function () {
 
   it('HUD 只发布长期路线 command，不直接修改胜利、舰队或任务状态', function () {
     var hud = readFileSync('js/ui/HUD.js', 'utf8');
+    var interactions = readFileSync('js/ui/HudInteractionController.js', 'utf8');
 
     expect(hud).toContain('export function setVictoryActions(actions)');
-    expect(hud).toContain('_victoryActions.onChoosePolicy(pathId)');
+    expect(hud).toContain('_hudInteractions.setVictoryActions(actions)');
+    expect(interactions).toContain('victoryActions.onChoosePolicy(pathId)');
     expect(hud).not.toContain('Victory.choosePolicy(');
+    expect(interactions).not.toContain('Victory.choosePolicy(');
     expect(hud).not.toContain('Fleet.syncStateFromShip(');
     expect(hud).not.toContain('Quest.checkProgress(');
     expect(hud).not.toMatch(/import\s+\*\s+as\s+Fleet\s+from/);

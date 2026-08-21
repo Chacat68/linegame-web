@@ -476,6 +476,7 @@ describe('Onboarding and log surfaces', function () {
     var uiManager = readFileSync('js/ui/UIManager.js', 'utf8');
 
     expect(html).toContain('aria-describedby="company-rename-desc company-rename-decision company-name-error"');
+    expect(html).toContain('>\n            保留当前名称\n          </button>');
     expect(html).toContain('class="company-rename-signal" role="list"');
     expect(html).toContain('id="company-name-length"');
     expect(html).toContain('id="company-name-status"');
@@ -499,6 +500,7 @@ describe('Onboarding and log surfaces', function () {
     expect(css).toContain('Onboarding setup modals');
     expect(css).toContain('.company-rename-signal');
     expect(css).toContain('.company-rename-decision-card');
+    expect(onboardingUI).toContain("bindBlockingSurfaceDismiss('company-rename-modal')");
     expect(css).toContain('.company-name-hint');
     expect(css).toContain('[data-company-name-tone="error"]');
     expect(css).toContain('.tut-start-modules');

@@ -235,7 +235,6 @@ export function createGameUiApplicationRuntime(options) {
         settingsUi: getSettingsController(),
       },
       ports: {
-        acceptQuest: actions.archive && actions.archive.onAcceptQuest,
         chooseVictoryPolicy: function (pathId) {
           var victory = _victoryController();
           return typeof victory.choosePolicy === 'function' ? victory.choosePolicy(pathId) : false;

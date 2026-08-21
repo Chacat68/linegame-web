@@ -105,36 +105,6 @@
   min-height: 0;
   overflow: auto;
 }
-.company-dashboard-modal {
-  border: 1px solid rgba(79, 195, 247, 0.14);
-  border-radius: 12px;
-}
-.company-dashboard-modal .company-name-btn {
-  width: 100%;
-  justify-content: flex-start;
-}
-.company-panel-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-}
-.company-panel-card {
-  padding: 12px;
-  border-radius: 10px;
-  border: 1px solid rgba(79, 195, 247, 0.12);
-  background: linear-gradient(180deg, rgba(8, 20, 42, 0.82), rgba(5, 12, 26, 0.9));
-}
-.company-panel-card-label {
-  display: block;
-  font-size: 11px;
-  color: var(--text-dim);
-}
-.company-panel-card strong {
-  display: block;
-  margin-top: 6px;
-  font-size: 16px;
-  color: var(--text-primary);
-}
 .modal-box h3 { font-size: 15px; margin-bottom: 10px; color: var(--accent-gold); }
 .modal-box h2 { font-size: 18px; margin-bottom: 10px; color: var(--accent-gold); }
 .modal-box p  { font-size: 13px; color: var(--text-dim); margin-bottom: 10px; white-space: pre-line; }

@@ -27,7 +27,7 @@ function createHarness(options) {
   var telemetry = [];
   var logs = [];
   var events = createEventBus();
-  var HUD = { init: vi.fn(), setQuestActions: vi.fn(), setVictoryActions: vi.fn() };
+  var HUD = { dispose: vi.fn(), init: vi.fn(), setVictoryActions: vi.fn() };
   var MapUI = {
     dispose: vi.fn(),
     init: vi.fn(),
@@ -82,7 +82,6 @@ function createHarness(options) {
     sync: vi.fn(),
   };
   var ports = {
-    acceptQuest: vi.fn(),
     chooseVictoryPolicy: vi.fn(),
     closeMarket: vi.fn(),
     confirmTrade: vi.fn(),
@@ -179,7 +178,6 @@ describe('GameUiLifecycleController', function () {
     var detailOptions = harness.WorkspaceDetailSurface.init.mock.calls[0][0];
     expect(detailOptions.stateSource()).toEqual({ id: 'state-b' });
     expect(detailOptions.revisionSource()).toBe(5);
-    expect(harness.HUD.setQuestActions).toHaveBeenCalledWith({ onAcceptQuest: harness.ports.acceptQuest });
     expect(harness.HUD.setVictoryActions).toHaveBeenCalledWith({
       onChoosePolicy: harness.ports.chooseVictoryPolicy,
     });
@@ -253,6 +251,7 @@ describe('GameUiLifecycleController', function () {
     expect(harness.MapUI.setNavigationActions).toHaveBeenLastCalledWith(null);
     expect(harness.controllers.settingsUi.dispose).toHaveBeenCalledOnce();
     expect(harness.controllers.actionGuide.dispose).toHaveBeenCalledOnce();
+    expect(harness.HUD.dispose).toHaveBeenCalledOnce();
     expect(harness.MapUI.setNavigationChangeCallback).toHaveBeenLastCalledWith(null);
     expect(harness.MapUI.setExplorationActions).toHaveBeenLastCalledWith(null);
     expect(harness.MapUI.dispose).toHaveBeenCalledOnce();

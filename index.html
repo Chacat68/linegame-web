@@ -57,8 +57,21 @@
         <div class="hdr-brand">
           <span class="hdr-brand-mark" aria-hidden="true"></span>
           <span class="hdr-brand-copy">
-            <span class="hdr-logo">INTERSTELLAR</span>
-            <span class="hdr-version">TRADER</span>
+            <span class="hdr-product-name" aria-hidden="true">
+              <span class="hdr-logo">INTERSTELLAR</span>
+              <span class="hdr-version">TRADER</span>
+            </span>
+            <button
+              id="company-name-display"
+              class="hdr-company-name"
+              type="button"
+              title="管理公司名称"
+              aria-label="管理公司名称"
+            >
+              <span class="hdr-company-name-label">COMPANY</span>
+              <strong id="company-name-text">蓝脉信使物流体</strong>
+              <span class="hdr-company-name-edit" aria-hidden="true">✎</span>
+            </button>
           </span>
         </div>
 
@@ -155,7 +168,7 @@
 
         <div class="hdr-day-chip" aria-label="当前游戏天数">
           <span class="hdr-day-chip-label">天数</span>
-          <span id="galactic-day" class="hdr-day-chip-value hdr-day-mirror">第 1 天</span>
+          <span id="galactic-day" class="hdr-day-chip-value">第 1 天</span>
         </div>
 
         <!-- Icon buttons -->
@@ -179,10 +192,7 @@
           >
         </div>
 
-        <!-- Hidden elements used by HUD.js (kept for JS compatibility) -->
         <span id="victory-progress-summary" class="hdr-hidden">长期路线进度</span>
-        <div id="player-level" class="hdr-hidden"></div>
-        <span id="economy-cycle" class="hdr-hidden"></span>
       </header>
 
       <!-- ================================================================
@@ -536,14 +546,10 @@
                 <!-- Company Dashboard (紧凑仪表盘) -->
                 <div class="company-dashboard">
                   <div class="company-dashboard-primary">
-                    <button
-                      id="company-name-display"
-                      class="company-name-btn"
-                      title="点击重命名公司"
-                      aria-label="重命名公司"
-                    >
-                      ◉ <span id="company-name-text">蓝脉信使物流体</span> ✎
-                    </button>
+                    <div class="company-dashboard-title">
+                      <span>COMPANY OPERATIONS</span>
+                      <strong>公司经营概览</strong>
+                    </div>
 
                     <div class="stat-strip" role="list" aria-label="公司资产摘要">
                       <div class="stat-strip-item" role="listitem">
@@ -1277,7 +1283,7 @@
             ✅ 写入代号
           </button>
           <button id="company-rename-skip" class="tut-btn tut-btn-secondary" type="button" aria-describedby="company-rename-default-note">
-            沿用默认代号
+            保留当前名称
           </button>
         </div>
       </div>

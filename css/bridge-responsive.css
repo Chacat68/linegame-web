@@ -47,8 +47,12 @@
     min-width: 0;
   }
 
-  .hdr-brand-copy {
+  .hdr-product-name {
     display: none;
+  }
+
+  .hdr-company-name {
+    max-width: min(180px, 24vw);
   }
 
   .hdr-stats {
@@ -121,6 +125,20 @@
   .hdr-brand-mark {
     width: 28px;
     height: 28px;
+  }
+
+  .hdr-brand {
+    max-width: min(170px, 36vw);
+  }
+
+  .hdr-company-name {
+    width: min(140px, 28vw);
+    min-height: var(--ui-control-lg);
+    padding: 4px 6px;
+  }
+
+  .hdr-company-name-label {
+    display: none;
   }
 
   .hdr-stats {

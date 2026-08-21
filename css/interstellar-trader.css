@@ -3522,7 +3522,6 @@ label[role="tab"]:focus-visible {
 .market-spot-signal-panel,
 .market-capital-signal-panel,
 .company-dashboard,
-.company-panel-card,
 .settings-row,
 .settings-save-shell,
 .save-slot,
@@ -5340,7 +5339,6 @@ textarea:focus,
   }
 
   .save-slot-grid,
-  .company-panel-grid,
   .trade-station-summary-grid,
   .trade-station-list-brief-grid,
   .trade-station-card-list,
@@ -5769,7 +5767,6 @@ textarea:focus,
 .save-slot,
 .trade-station-card,
 .trade-station-build-card,
-.company-panel-card,
 .mod-modal-item,
 .crew-card {
   min-width: 0;
@@ -6985,18 +6982,9 @@ a[class*="btn"] svg,
   display: none;
 }
 
-#trade-panel .company-dashboard .company-name-btn {
-  min-height: 46px;
-  justify-content: flex-start;
-}
-
 #trade-panel .company-dashboard-primary,
 #trade-panel .company-level-stack {
   min-width: 0;
-}
-
-#trade-panel .company-dashboard-primary .company-name-btn {
-  width: 100%;
 }
 
 #trade-panel .company-level-stack {

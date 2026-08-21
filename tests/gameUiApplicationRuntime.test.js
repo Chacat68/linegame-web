@@ -32,7 +32,6 @@ function createHarness(overrides) {
   var ui = {
     HUD: {
       init: vi.fn(),
-      setQuestActions: vi.fn(),
       setVictoryActions: vi.fn(),
       updateStats: vi.fn(),
       updateCompanyName: vi.fn(),

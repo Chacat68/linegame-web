@@ -338,7 +338,7 @@ describe('Settlement surface UI', function () {
   it('胜利和结算弹层保留正文描述、空态和进度可读文本锚点', function () {
     var html = readFileSync('index.html', 'utf8');
     var css = readFileSync('css/interstellar-trader.css', 'utf8');
-    var hud = readFileSync('js/ui/HUD.js', 'utf8');
+    var victoryPresenter = readFileSync('js/ui/VictoryProgressPresenter.js', 'utf8');
     var gameManager = readApplicationComposition();
     var victoryController = readFileSync('js/core/VictoryRuntimeController.js', 'utf8');
 
@@ -356,9 +356,9 @@ describe('Settlement surface UI', function () {
     expect(css).toContain('.gameover-next-card--primary');
     expect(css).toContain('.gameover-next-card--danger');
     expect(css).toContain('.gameover-actions');
-    expect(hud).toContain("body.setAttribute('aria-label', '长期路线进度详情')");
-    expect(hud).toContain('function _getVictoryNextRequirement');
-    expect(hud).toContain('aria-valuetext="');
+    expect(victoryPresenter).toContain("body.setAttribute('aria-label', '长期路线进度详情')");
+    expect(victoryPresenter).toContain('export function getVictoryNextRequirement');
+    expect(victoryPresenter).toContain('aria-valuetext="');
     expect(gameManager).toContain("from './VictoryRuntimeController.js'");
     expect(victoryController).toContain('VictoryResultUI.showVictoryReport(payload)');
     expect(victoryController).toContain('acknowledgedPathIds = new Set()');
