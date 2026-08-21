@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { createTestState } from './helpers.js';
-import * as GameManager from '../js/core/GameManager.js';
+import * as GameApplication from '../js/core/GameApplication.js';
+import { createGameApplicationTestHarness } from '../js/testing/GameApplicationTestHarness.js';
 
 describe('GameManager application shutdown', function () {
   var originalDocument = globalThis.document;
@@ -13,9 +14,9 @@ describe('GameManager application shutdown', function () {
 
   it('释放已经创建的异步 controller、Renderer 和组合根，且重复调用幂等', async function () {
     globalThis.document = undefined;
-    GameManager._setStateForTest(createTestState());
+    createGameApplicationTestHarness().replaceState(createTestState());
 
-    var result = GameManager.shutdown('test-shutdown');
+    var result = GameApplication.shutdown('test-shutdown');
     expect(result.reason).toBe('test-shutdown');
     expect(result.completedStages).toContain('dialogue');
     expect(result.completedStages).toContain('randomEvent');
@@ -23,7 +24,7 @@ describe('GameManager application shutdown', function () {
     expect(result.completedStages).toContain('eventUi');
     expect(result.completedStages.at(-1)).toBe('release');
     expect(result.errors).toEqual([]);
-    expect(GameManager.shutdown('second-call')).toBe(result);
+    expect(GameApplication.shutdown('second-call')).toBe(result);
   });
 
   it('浏览器退出与 HMR 都调用同一 shutdown facade，bfcache 页面不提前释放', function () {

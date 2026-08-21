@@ -16,7 +16,11 @@ import { DIFFICULTY_LEVELS } from '../data/constants.js';
 import { SYSTEMS } from '../data/systems.js';
 import { DEFAULT_ACTION_DIRTY_REGIONS, resolveDirtyRegions } from './ActionPresentation.js';
 import { createGameUiApplicationRuntime } from './GameUiApplicationRuntime.js';
-import { hideBlockingSurface } from '../ui/SurfaceManager.js';
+import {
+  bindBlockingSurfaceDismiss,
+  hideBlockingSurface,
+  showBlockingSurface,
+} from '../ui/SurfaceManager.js';
 
 export function createGameUiRuntimeFactory(context) {
   var resolve = context.resolve;
@@ -74,7 +78,15 @@ export function createGameUiRuntimeFactory(context) {
         },
         callbacks: {
           getSettings: getSettings,
-          hideSettingsFallback: hideBlockingSurface,
+          bindSettingsStatusSurfaceDismiss: function (onDismiss) {
+            return bindBlockingSurfaceDismiss('settings-modal', { onDismiss: onDismiss });
+          },
+          showSettingsStatusSurface: function () {
+            return showBlockingSurface('settings-modal', {
+              focusSelector: '[data-deferred-feature-status="settings"]',
+            });
+          },
+          hideSettingsSurface: function () { return hideBlockingSurface('settings-modal'); },
           onDifficultyChanged: function (nextDifficulty) {
             if (!DIFFICULTY_LEVELS[nextDifficulty]) return;
             var state = getState();

@@ -2,6 +2,7 @@
 
 import { createMarketWorkspaceController } from './MarketWorkspaceController.js';
 import { createGameUiLifecycleController } from './GameUiLifecycleController.js';
+import { buildGameFeatureRecoveryDiagnostics } from './GameFeatureRecoveryDiagnostics.js';
 import { createSettingsCommandController } from './SettingsCommandController.js';
 import { createSettingsUiController } from './SettingsUiController.js';
 import { createGameUiCoordinator } from '../ui/GameUiCoordinator.js';
@@ -71,10 +72,13 @@ export function createGameUiApplicationRuntime(options) {
     if (settingsController) return settingsController;
     settingsController = createSettingsUiController({
       features: features,
+      featureStatus: ui.DeferredFeatureStatusUI,
       getSettings: callbacks.getSettings,
       getSessionToken: getSessionToken,
       isSessionTokenCurrent: isSessionTokenCurrent,
-      hideFallback: callbacks.hideSettingsFallback,
+      bindStatusSurfaceDismiss: callbacks.bindSettingsStatusSurfaceDismiss,
+      showStatusSurface: callbacks.showSettingsStatusSurface,
+      hideSurface: callbacks.hideSettingsSurface,
       callbacks: {
         onOpen: ensureSave,
         onCommand: getSettingsCommands().execute,
@@ -302,6 +306,7 @@ export function createGameUiApplicationRuntime(options) {
 
   function reset() {
     if (marketWorkspace) marketWorkspace.reset();
+    if (settingsController) settingsController.reset();
     if (coordinator) coordinator.reset();
     else {
       if (marketWorkspaceEntry) marketWorkspaceEntry.reset();
@@ -356,13 +361,25 @@ export function createGameUiApplicationRuntime(options) {
 
   function getDiagnostics() {
     var coordinatorDiagnostics = coordinator ? coordinator.getDiagnostics() : null;
+    var settingsDiagnostics = settingsController ? settingsController.getDiagnostics() : null;
+    var featureRecovery = buildGameFeatureRecoveryDiagnostics({
+      registryDiagnostics: typeof features.getDiagnostics === 'function'
+        ? features.getDiagnostics()
+        : null,
+      presentationDiagnostics: ui.DeferredFeatureStatusUI
+        && typeof ui.DeferredFeatureStatusUI.getDiagnostics === 'function'
+        ? ui.DeferredFeatureStatusUI.getDiagnostics()
+        : null,
+      settingsDiagnostics: settingsDiagnostics,
+    });
     return Object.freeze(Object.assign({}, coordinatorDiagnostics || {}, {
       coordinator: coordinatorDiagnostics,
+      featureRecovery: featureRecovery,
       lifecycle: lifecycle ? lifecycle.getDiagnostics() : null,
       market: marketWorkspace ? marketWorkspace.getDiagnostics() : null,
       marketEntry: marketWorkspaceEntry ? marketWorkspaceEntry.getDiagnostics() : null,
       workspaceTabs: workspaceTabs ? workspaceTabs.getDiagnostics() : null,
-      settings: settingsController ? settingsController.getDiagnostics() : null,
+      settings: settingsDiagnostics,
       settingsCommands: settingsCommands ? settingsCommands.getDiagnostics() : null,
     }));
   }

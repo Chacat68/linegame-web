@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import * as GameApplication from '../js/core/GameApplication.js';
 import * as GameManager from '../js/core/GameManager.js';
+import { createGameApplicationTestHarness } from '../js/testing/GameApplicationTestHarness.js';
 import {
   GAME_RUNTIME_NODE_IDS,
   createGameRuntimeNodeFactories,
@@ -49,20 +50,32 @@ describe('GameApplication shell', function () {
     expect(mainSource).toContain("from './core/GameApplication.js'");
   });
 
-  it('兼容门面与正式组合根暴露同一组函数', function () {
-    [
-      'init',
-      'shutdown',
-      '_setStateForTest',
-      '_handleActionGuideActionForTest',
-      '_handleTradeConfirmForTest',
-      '_handleAssignRouteForTest',
-      '_stopActiveDispatchForTest',
-      '_getGameClockSnapshotForTest',
-      '_getUiDiagnosticsForTest',
-    ].forEach(function (name) {
+  it('兼容门面与正式组合根只暴露应用生命周期', function () {
+    expect(Object.keys(GameApplication).sort()).toEqual(['init', 'shutdown']);
+    expect(Object.keys(GameManager).sort()).toEqual(['init', 'shutdown']);
+    ['init', 'shutdown'].forEach(function (name) {
       expect(GameManager[name]).toBe(GameApplication[name]);
     });
+  });
+
+  it('应用级集成命令只由测试模式的冻结 harness 暴露', function () {
+    var harness = createGameApplicationTestHarness();
+    var applicationSource = readFileSync('js/core/GameApplication.js', 'utf8');
+    var managerSource = readFileSync('js/core/GameManager.js', 'utf8');
+
+    expect(Object.isFrozen(harness)).toBe(true);
+    expect(Object.keys(harness).sort()).toEqual([
+      'assignRoute',
+      'confirmTrade',
+      'executeGuidanceCommand',
+      'getClockSnapshot',
+      'getUiDiagnostics',
+      'replaceState',
+      'stopActiveDispatch',
+    ]);
+    expect(applicationSource).toContain("import.meta.env.MODE === 'test'");
+    expect(applicationSource).not.toMatch(/export function _.*ForTest/);
+    expect(managerSource).not.toContain('ForTest');
   });
 
   it('组合根用单一受限 Runtime Graph 持有并统一释放运行时引用', function () {

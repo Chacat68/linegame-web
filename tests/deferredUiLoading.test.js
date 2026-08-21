@@ -283,7 +283,10 @@ describe('deferred terminal UI loading', function () {
     expect(settingsCore).not.toContain('ActionConfirmUI');
     expect(settingsCore).not.toContain('settings-modal');
     expect(settingsManager).toContain("from './SettingsCore.js'");
-    expect(main).toContain("settingsBtn.dataset.settingsLoaderBound === 'true'");
+    expect(main).not.toContain('bindSettingsModalFallback');
+    expect(main).not.toContain('settingsLoaderBound');
+    expect(settingsController).toContain("featureStatus.showLoading('settings')");
+    expect(settingsController).toContain("featureStatus.showError('settings', open, hide)");
   });
 
   it('高级经营、路线搜索和成就定义只在实际需要时加载', function () {

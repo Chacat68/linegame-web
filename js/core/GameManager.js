@@ -1,16 +1,9 @@
 // js/core/GameManager.js — 兼容门面
 //
-// 新代码应依赖 GameApplication；该文件仅保留历史公共入口，避免现有启动器、
-// 测试和外部集成在组合根迁移期间同时切换。
+// 新代码应依赖 GameApplication；该文件仅保留历史生命周期入口，避免外部集成
+// 在组合根迁移期间同时切换。测试控制面位于独立的 TestHarness。
 
 export {
   init,
   shutdown,
-  _setStateForTest,
-  _handleActionGuideActionForTest,
-  _handleTradeConfirmForTest,
-  _handleAssignRouteForTest,
-  _stopActiveDispatchForTest,
-  _getGameClockSnapshotForTest,
-  _getUiDiagnosticsForTest,
 } from './GameApplication.js';

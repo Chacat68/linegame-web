@@ -186,7 +186,7 @@ describe('GameUiCoordinator', function () {
     expect(featureStatus.showLoading).toHaveBeenCalledTimes(2);
     expect(featureStatus.clear).toHaveBeenCalledWith('fleet');
     expect(render.mock.calls[0][0].state).toBe(currentState);
-    expect(coordinator.getDiagnostics().featureStatus).toEqual({ activeFeatures: ['fleet'] });
+    expect(coordinator.getDiagnostics()).not.toHaveProperty('featureStatus');
   });
 
   it('向 FleetUI 注入 latest-state 重绘命令，不允许 UI 反向访问全局主控', function () {
@@ -313,7 +313,6 @@ describe('GameUiCoordinator', function () {
     expect(calls).not.toContain('save');
     expect(features.loadCalls).toEqual([]);
     expect(coordinator.getDiagnostics()).toEqual({
-      featureStatus: null,
       marketUi: null,
       marketEntry: null,
       fleetUi: null,

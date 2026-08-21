@@ -24,6 +24,12 @@ const FEATURE_SURFACES = Object.freeze({
     hostSelector: '.settings-save-shell',
     label: '存档管理',
   }),
+  settings: Object.freeze({
+    rootId: 'settings-modal',
+    hostSelector: '.settings-feature-status-host',
+    label: '设置中心',
+    dismissLabel: '关闭设置',
+  }),
 });
 
 function _resolveDocument(source) {
@@ -63,6 +69,7 @@ export function createDeferredFeatureStatusUI(options) {
 
     var panel = _createElement(doc, 'section', 'deferred-feature-status');
     panel.hidden = true;
+    panel.setAttribute('tabindex', '-1');
     panel.setAttribute('data-deferred-feature-status', feature);
     panel.setAttribute('aria-live', 'polite');
 
@@ -72,15 +79,22 @@ export function createDeferredFeatureStatusUI(options) {
     var copy = _createElement(doc, 'div', 'deferred-feature-status-copy');
     var title = _createElement(doc, 'strong', 'deferred-feature-status-title');
     var detail = _createElement(doc, 'p', 'deferred-feature-status-detail');
+    var actions = _createElement(doc, 'div', 'deferred-feature-status-actions');
+    actions.hidden = true;
     var retryButton = _createElement(doc, 'button', 'deferred-feature-retry');
     retryButton.type = 'button';
     retryButton.hidden = true;
+    var dismissButton = _createElement(doc, 'button', 'deferred-feature-dismiss');
+    dismissButton.type = 'button';
+    dismissButton.hidden = true;
 
     _append(copy, title);
     _append(copy, detail);
     _append(card, signal);
     _append(card, copy);
-    _append(card, retryButton);
+    _append(actions, retryButton);
+    _append(actions, dismissButton);
+    _append(card, actions);
     _append(panel, card);
     _append(host, panel);
 
@@ -93,9 +107,13 @@ export function createDeferredFeatureStatusUI(options) {
       signal: signal,
       title: title,
       detail: detail,
+      actions: actions,
       retryButton: retryButton,
+      dismissButton: dismissButton,
       retry: null,
+      dismiss: null,
       onRetry: null,
+      onDismiss: null,
     };
     record.onRetry = function (event) {
       if (event && typeof event.preventDefault === 'function') event.preventDefault();
@@ -112,7 +130,13 @@ export function createDeferredFeatureStatusUI(options) {
         showError(feature, retry);
       }
     };
+    record.onDismiss = function (event) {
+      if (event && typeof event.preventDefault === 'function') event.preventDefault();
+      if (typeof record.dismiss !== 'function' || record.dismissButton.disabled) return;
+      record.dismiss();
+    };
     retryButton.addEventListener('click', record.onRetry);
+    dismissButton.addEventListener('click', record.onDismiss);
     records.set(feature, record);
     return record;
   }
@@ -132,6 +156,7 @@ export function createDeferredFeatureStatusUI(options) {
     var record = _record(feature);
     if (!record) return false;
     record.retry = null;
+    record.dismiss = null;
     record.panel.hidden = false;
     record.panel.setAttribute('role', 'status');
     record.panel.setAttribute('aria-live', 'polite');
@@ -141,15 +166,19 @@ export function createDeferredFeatureStatusUI(options) {
     record.detail.textContent = '正在加载界面与数据，请稍候。';
     record.retryButton.hidden = true;
     record.retryButton.disabled = true;
+    record.dismissButton.hidden = true;
+    record.dismissButton.disabled = true;
+    record.actions.hidden = true;
     _setRootState(record, 'loading');
     loadingCount += 1;
     return true;
   }
 
-  function showError(feature, retry) {
+  function showError(feature, retry, dismiss) {
     var record = _record(feature);
     if (!record) return false;
     record.retry = typeof retry === 'function' ? retry : null;
+    record.dismiss = typeof dismiss === 'function' ? dismiss : null;
     record.panel.hidden = false;
     record.panel.setAttribute('role', 'alert');
     record.panel.setAttribute('aria-live', 'assertive');
@@ -160,6 +189,10 @@ export function createDeferredFeatureStatusUI(options) {
     record.retryButton.textContent = '重试' + record.surface.label;
     record.retryButton.hidden = !record.retry;
     record.retryButton.disabled = !record.retry;
+    record.dismissButton.textContent = record.surface.dismissLabel || '关闭';
+    record.dismissButton.hidden = !record.dismiss;
+    record.dismissButton.disabled = !record.dismiss;
+    record.actions.hidden = !record.retry && !record.dismiss;
     _setRootState(record, 'error');
     errorCount += 1;
     return true;
@@ -169,9 +202,13 @@ export function createDeferredFeatureStatusUI(options) {
     var record = records.get(feature);
     if (!record) return false;
     record.retry = null;
+    record.dismiss = null;
     record.panel.hidden = true;
     record.retryButton.hidden = true;
     record.retryButton.disabled = false;
+    record.dismissButton.hidden = true;
+    record.dismissButton.disabled = false;
+    record.actions.hidden = true;
     record.root.setAttribute('aria-busy', 'false');
     record.root.removeAttribute('data-deferred-feature-state');
     return true;
@@ -180,7 +217,9 @@ export function createDeferredFeatureStatusUI(options) {
   function dispose() {
     records.forEach(function (record) {
       record.retry = null;
+      record.dismiss = null;
       record.retryButton.removeEventListener('click', record.onRetry);
+      record.dismissButton.removeEventListener('click', record.onDismiss);
       record.root.setAttribute('aria-busy', 'false');
       record.root.removeAttribute('data-deferred-feature-state');
       if (record.panel.parentNode && typeof record.panel.parentNode.removeChild === 'function') {
@@ -188,6 +227,9 @@ export function createDeferredFeatureStatusUI(options) {
       }
     });
     records.clear();
+    loadingCount = 0;
+    errorCount = 0;
+    retryCount = 0;
   }
 
   function getDiagnostics() {
@@ -213,7 +255,7 @@ export function createDeferredFeatureStatusUI(options) {
 const _defaultUi = createDeferredFeatureStatusUI();
 
 export function showLoading(feature) { return _defaultUi.showLoading(feature); }
-export function showError(feature, retry) { return _defaultUi.showError(feature, retry); }
+export function showError(feature, retry, dismiss) { return _defaultUi.showError(feature, retry, dismiss); }
 export function clear(feature) { return _defaultUi.clear(feature); }
 export function dispose() { return _defaultUi.dispose(); }
 export function getDiagnostics() { return _defaultUi.getDiagnostics(); }

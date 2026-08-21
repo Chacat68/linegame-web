@@ -17,6 +17,7 @@ import {
   createGameRuntimeNodeFactories,
   releaseGameRuntimeStaticPorts,
 } from './GameRuntimeNodeFactories.js';
+import { registerGameApplicationTestHarness } from '../testing/GameApplicationTestHarnessRegistry.js';
 
 const _session = createStateSession();
 const _startupProjection = createGameStartupProjection();
@@ -162,39 +163,47 @@ export function shutdown(reason) {
   return _getApplicationLifecycle().shutdown({ reason: reason || 'application-shutdown' });
 }
 
-export function _setStateForTest(state) {
-  _replaceState(state || null, 'test');
-  var guidance = _runtimeGraph.peek('guidance');
-  if (guidance) guidance.reset();
-  if (_state) {
-    _getDialogueController().reset(_state);
-    _getRandomEventController().sync(_state);
-  }
+function _createTestHarness() {
+  return Object.freeze({
+    replaceState: function (state) {
+      _replaceState(state || null, 'test-harness');
+      var guidance = _runtimeGraph.peek('guidance');
+      if (guidance) guidance.reset();
+      if (_state) {
+        _getDialogueController().reset(_state);
+        _getRandomEventController().sync(_state);
+      }
+    },
+    executeGuidanceCommand: function (suggestion) {
+      return _getGuidanceRuntime().execute(suggestion);
+    },
+    confirmTrade: function (action, goodId, quantity, marketType) {
+      return _getActionRuntime().trade.confirm(action, goodId, quantity, marketType);
+    },
+    assignRoute: function (shipIndex, buySystemId, sellSystemId, goodId, tradePolicy) {
+      return _getActionRuntime().fleet.onAssignRoute(
+        shipIndex,
+        buySystemId,
+        sellSystemId,
+        goodId,
+        tradePolicy
+      );
+    },
+    stopActiveDispatch: function () {
+      return _getGameLoopRuntime().stopDispatch();
+    },
+    getClockSnapshot: function () {
+      var gameLoop = _runtimeGraph.peek('gameLoop');
+      return gameLoop ? gameLoop.getSnapshot() : null;
+    },
+    getUiDiagnostics: function () {
+      return _getUiRuntime().getDiagnostics();
+    },
+  });
 }
 
-export function _handleActionGuideActionForTest(suggestion) {
-  return _getGuidanceRuntime().execute(suggestion);
-}
-
-export function _handleTradeConfirmForTest(action, goodId, quantity, marketType) {
-  return _getActionRuntime().trade.confirm(action, goodId, quantity, marketType);
-}
-
-export function _handleAssignRouteForTest(shipIndex, buySystemId, sellSystemId, goodId, tradePolicy) {
-  return _getActionRuntime().fleet.onAssignRoute(shipIndex, buySystemId, sellSystemId, goodId, tradePolicy);
-}
-
-export function _stopActiveDispatchForTest() {
-  return _getGameLoopRuntime().stopDispatch();
-}
-
-export function _getGameClockSnapshotForTest() {
-  var gameLoop = _runtimeGraph.peek('gameLoop');
-  return gameLoop ? gameLoop.getSnapshot() : null;
-}
-
-export function _getUiDiagnosticsForTest() {
-  return _getUiRuntime().getDiagnostics();
+if (import.meta.env.MODE === 'test') {
+  registerGameApplicationTestHarness(_createTestHarness);
 }
 
 // UI 失效唯一入口；全量会话同步必须显式传 UI_REGION.ALL。

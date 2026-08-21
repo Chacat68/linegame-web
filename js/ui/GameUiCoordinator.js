@@ -620,7 +620,6 @@ export function createGameUiCoordinator(options) {
     var mapUiDiagnostics = _call(MapUI, 'getDiagnostics', []) || null;
     var logsUiDiagnostics = _call(HUD, 'getDiagnostics', []) || null;
     return Object.freeze({
-      featureStatus: _call(FeatureStatus, 'getDiagnostics', []) || null,
       marketUi: marketUiDiagnostics,
       marketEntry: marketEntryDiagnostics,
       fleetUi: fleetUiDiagnostics,

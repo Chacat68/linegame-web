@@ -63,6 +63,7 @@ function createHarness() {
     ['trade-panel', '.workspace-terminal-body'],
     ['info-panel', '.workspace-terminal-body'],
     ['settings-panel-data', '.settings-save-shell'],
+    ['settings-modal', '.settings-feature-status-host'],
   ].forEach(function (entry) {
     var root = createFakeElement('section');
     var host = createFakeElement('div');
@@ -93,6 +94,7 @@ describe('DeferredFeatureStatusUI', function () {
     expect(root.getAttribute('aria-busy')).toBe('true');
     expect(root.getAttribute('data-deferred-feature-state')).toBe('loading');
     expect(host.children).toHaveLength(1);
+    expect(findByClass(host.children[0], 'deferred-feature-status-actions').hidden).toBe(true);
 
     var panel = host.children[0];
     expect(panel.hidden).toBe(false);
@@ -130,6 +132,12 @@ describe('DeferredFeatureStatusUI', function () {
     harness.ui.dispose();
     expect(host.children).toHaveLength(0);
     expect(root.getAttribute('data-deferred-feature-state')).toBe(null);
+    expect(harness.ui.getDiagnostics()).toEqual({
+      activeFeatures: [],
+      errorCount: 0,
+      loadingCount: 0,
+      retryCount: 0,
+    });
   });
 
   it('缺少宿主或未知功能时安全降级', function () {
@@ -147,5 +155,31 @@ describe('DeferredFeatureStatusUI', function () {
     expect(css).toContain('.deferred-feature-status[hidden]');
     expect(css).toContain('.deferred-feature-retry:focus-visible');
     expect(css).toContain('body[data-motion="reduced"] .deferred-feature-status-signal');
+  });
+
+  it('设置延迟模块使用 blocking modal 内的统一状态宿主', function () {
+    var harness = createHarness();
+    var root = harness.roots['settings-modal'];
+    var host = harness.hosts['settings-modal'];
+    var dismiss = vi.fn();
+
+    expect(harness.ui.showLoading('settings')).toBe(true);
+    expect(root.getAttribute('data-deferred-feature-state')).toBe('loading');
+    expect(host.children).toHaveLength(1);
+    expect(findByClass(host.children[0], 'deferred-feature-status-title').textContent)
+      .toBe('正在连接设置中心');
+
+    expect(harness.ui.showError('settings', function () {}, dismiss)).toBe(true);
+    expect(findByClass(host.children[0], 'deferred-feature-retry').textContent)
+      .toBe('重试设置中心');
+    var dismissButton = findByClass(host.children[0], 'deferred-feature-dismiss');
+    expect(findByClass(host.children[0], 'deferred-feature-status-actions').hidden).toBe(false);
+    expect(dismissButton.hidden).toBe(false);
+    expect(dismissButton.textContent).toBe('关闭设置');
+    dismissButton.dispatch('click');
+    expect(dismiss).toHaveBeenCalledOnce();
+
+    var css = readFileSync('css/surfaces.css', 'utf8');
+    expect(css).toContain('.deferred-feature-dismiss:focus-visible');
   });
 });

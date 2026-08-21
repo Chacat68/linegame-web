@@ -24,6 +24,7 @@ function createHarness(overrides) {
   };
   var features = {
     get: function (name) { return loaded[name] || null; },
+    getDiagnostics: function () { return Object.freeze({}); },
     getState: function (name) { return featureStates[name] || 'idle'; },
     load: function (name) { return Promise.resolve(loaded[name] || null); },
     sync: vi.fn(),
@@ -95,7 +96,9 @@ function createHarness(overrides) {
   };
   var callbacks = {
     getSettings: function () { return {}; },
-    hideSettingsFallback: vi.fn(),
+    bindSettingsStatusSurfaceDismiss: vi.fn(),
+    showSettingsStatusSurface: vi.fn(),
+    hideSettingsSurface: vi.fn(),
     onResetTutorial: vi.fn(),
     emitLog: vi.fn(),
     invalidate: vi.fn(),
@@ -149,6 +152,17 @@ describe('GameUiApplicationRuntime', function () {
     var harness = createHarness();
     expect(harness.runtime.getDiagnostics()).toEqual({
       coordinator: null,
+      featureRecovery: {
+        presentation: { activeFeatures: [], errorCount: 0, loadingCount: 0, retryCount: 0 },
+        registry: {
+          counts: { error: 0, idle: 0, loading: 0, ready: 0 },
+          features: {},
+          registeredCount: 0,
+          totalLoadCount: 0,
+          totalSyncCount: 0,
+        },
+        settings: null,
+      },
       lifecycle: null,
       market: null,
       marketEntry: null,
@@ -163,6 +177,53 @@ describe('GameUiApplicationRuntime', function () {
     expect(diagnostics.coordinator.renderAllCount).toBe(1);
     expect(diagnostics.market).not.toBeNull();
     expect(harness.ui.HUD.updateStats).toHaveBeenCalledWith(harness.state, 0);
+  });
+
+  it('Coordinator 尚未构造时也提供稳定的顶层 Feature recovery 快照', function () {
+    var features = {
+      get: function () { return null; },
+      getDiagnostics: function () {
+        return {
+          settings: {
+            dependencies: [],
+            error: new Error('temporary settings failure'),
+            generation: 2,
+            loadCount: 1,
+            state: 'error',
+            syncCount: 0,
+          },
+        };
+      },
+      load: function () { return Promise.resolve(null); },
+      sync: vi.fn(),
+    };
+    var harness = createHarness({ features: features });
+    harness.ui.DeferredFeatureStatusUI.getDiagnostics.mockReturnValue({
+      activeFeatures: ['settings'],
+      errorCount: 1,
+      loadingCount: 1,
+      retryCount: 2,
+    });
+    harness.runtime.syncSettings({ initSettingsModal: vi.fn() });
+
+    var diagnostics = harness.runtime.getDiagnostics();
+    expect(diagnostics.coordinator).toBe(null);
+    expect(diagnostics.featureRecovery).toMatchObject({
+      presentation: {
+        activeFeatures: ['settings'],
+        errorCount: 1,
+        loadingCount: 1,
+        retryCount: 2,
+      },
+      registry: {
+        counts: { error: 1, idle: 0, loading: 0, ready: 0 },
+        registeredCount: 1,
+        totalLoadCount: 1,
+      },
+      settings: { bound: true, loadState: 'ready', syncCount: 1 },
+    });
+    expect(diagnostics.featureRecovery.registry.features.settings.errorMessage)
+      .toBe('temporary settings failure');
   });
 
   it('按需加载并渲染 Fleet，同时由组合边界统一转发 dirty region', async function () {
@@ -271,6 +332,17 @@ describe('GameUiApplicationRuntime', function () {
     expect(harness.ui.UIManager.resetRuntimeState).toHaveBeenCalledOnce();
     expect(harness.runtime.getDiagnostics()).toEqual({
       coordinator: null,
+      featureRecovery: {
+        presentation: { activeFeatures: [], errorCount: 0, loadingCount: 0, retryCount: 0 },
+        registry: {
+          counts: { error: 0, idle: 0, loading: 0, ready: 0 },
+          features: {},
+          registeredCount: 0,
+          totalLoadCount: 0,
+          totalSyncCount: 0,
+        },
+        settings: null,
+      },
       lifecycle: null,
       market: null,
       marketEntry: null,
@@ -315,6 +387,7 @@ describe('GameUiApplicationRuntime', function () {
     expect(harness.guidance.onboardingPolicy.showWelcomeMessages).toHaveBeenCalled();
 
     harness.runtime.reset();
+    expect(harness.ui.DeferredFeatureStatusUI.clear).toHaveBeenCalledWith('settings');
     expect(resetMarketRuntime).toHaveBeenCalledOnce();
     expect(resetFleetRuntime).toHaveBeenCalledOnce();
     expect(resetArchiveRuntime).toHaveBeenCalledOnce();
@@ -336,6 +409,22 @@ describe('GameUiApplicationRuntime', function () {
     expect(harness.ui.WorkspaceDetailSurface.dispose).toHaveBeenCalledOnce();
     expect(harness.runtime.getDiagnostics()).toEqual({
       coordinator: null,
+      featureRecovery: {
+        presentation: {
+          activeFeatures: [],
+          errorCount: 0,
+          loadingCount: 0,
+          retryCount: 0,
+        },
+        registry: {
+          counts: { error: 0, idle: 0, loading: 0, ready: 0 },
+          features: {},
+          registeredCount: 0,
+          totalLoadCount: 0,
+          totalSyncCount: 0,
+        },
+        settings: null,
+      },
       lifecycle: null,
       market: null,
       marketEntry: null,

@@ -87,18 +87,24 @@ describe('Settings.loadSettings', function () {
   });
 });
 
-describe('settings modal fallback contract', function () {
-  it('只在正式设置处理器缺失时绑定，并聚焦当前设置标签', function () {
-    const source = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+describe('settings launcher ownership contract', function () {
+  it('入口不再保留业务 fallback，加载失败由统一 Feature 状态呈现与重试', function () {
+    const mainSource = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+    const controllerSource = readFileSync(new URL('../js/core/SettingsUiController.js', import.meta.url), 'utf8');
+    const statusSource = readFileSync(new URL('../js/ui/DeferredFeatureStatusUI.js', import.meta.url), 'utf8');
+    const htmlSource = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 
-    expect(source).toContain("settingsBtn.dataset.settingsBound === 'true'");
-    expect(source).toContain("settingsBtn.dataset.settingsLoaderBound === 'true'");
-    expect(source).toContain("focusSelector: '[data-settings-panel-target][aria-selected=\"true\"]'");
-    expect(source).toContain('exportUsageDataFile(null)');
-    expect(source).not.toContain('usageDataConsent');
+    expect(mainSource).not.toContain('bindSettingsModalFallback');
+    expect(mainSource).not.toContain('_readSavedSettings');
+    expect(mainSource).not.toContain('_activateSettingsPanelFallback');
+    expect(mainSource).not.toContain('exportUsageDataFile');
+    expect(controllerSource).toContain("featureStatus.showLoading('settings')");
+    expect(controllerSource).toContain("featureStatus.showError('settings', open, hide)");
+    expect(statusSource).toContain("hostSelector: '.settings-feature-status-host'");
+    expect(htmlSource).toContain('class="settings-feature-status-host"');
   });
 
-  it('正式与降级入口共用导出契约，数据面板不再展示同意开关', function () {
+  it('正式设置命令独占导出契约，数据面板不再展示同意开关', function () {
     const settingsSource = readFileSync(new URL('../js/core/SettingsManager.js', import.meta.url), 'utf8');
     const mainSource = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
     const exportEffectSource = readFileSync(new URL('../js/core/UsageDataExportEffect.js', import.meta.url), 'utf8');
@@ -107,7 +113,7 @@ describe('settings modal fallback contract', function () {
     expect(settingsSource).toContain('SETTINGS_COMMAND.EXPORT_USAGE_DATA');
     expect(settingsSource).not.toContain('buildUsageDataExport');
     expect(settingsSource).not.toContain('new Blob');
-    expect(mainSource).toContain('exportUsageDataFile(null)');
+    expect(mainSource).not.toContain('exportUsageDataFile');
     expect(mainSource).not.toContain('new Blob');
     expect(exportEffectSource).toContain('buildUsageDataExport');
     expect(exportEffectSource).toContain("createElement('a')");

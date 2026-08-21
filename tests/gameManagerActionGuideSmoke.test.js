@@ -10,7 +10,7 @@ import * as Research from '../js/systems/research/ResearchSystem.js';
 import * as Tutorial from '../js/systems/tutorial/TutorialSystem.js';
 import * as FleetUI from '../js/ui/FleetUI.js';
 import { FLEET_HANGAR_ACTION_PRESENTATION } from '../js/core/ActionPresentation.js';
-import * as GameManager from '../js/core/GameManager.js';
+import { createGameApplicationTestHarness } from '../js/testing/GameApplicationTestHarness.js';
 import { createTestState } from './helpers.js';
 
 function createFakeClassList(initialValues) {
@@ -203,16 +203,16 @@ function createActionGuideSmokeDom() {
   };
 }
 
-describe('GameManager action guide smoke', function () {
+describe('GameApplication action guide smoke', function () {
   var originalDocument = globalThis.document;
   var originalBabylon = globalThis.BABYLON;
-  var gameManager = null;
+  var appHarness = null;
 
   afterEach(function () {
     globalThis.document = originalDocument;
     globalThis.BABYLON = originalBabylon;
-    if (gameManager) gameManager._setStateForTest(null);
-    gameManager = null;
+    if (appHarness) appHarness.replaceState(null);
+    appHarness = null;
     vi.useRealTimers();
   });
 
@@ -232,7 +232,7 @@ describe('GameManager action guide smoke', function () {
         this.a = a;
       },
     };
-    gameManager = GameManager;
+    appHarness = createGameApplicationTestHarness();
 
     var state = createTestState({
       credits: 10000,
@@ -251,9 +251,9 @@ describe('GameManager action guide smoke', function () {
     GalaxyData.init(state);
     Tutorial.init(state);
     Tutorial.skip();
-    gameManager._setStateForTest(state);
+    appHarness.replaceState(state);
 
-    await gameManager._handleActionGuideActionForTest({
+    await appHarness.executeGuidanceCommand({
       id: 'buy-low-price-good',
       actionType: 'trade.buy',
       actionLabel: '确认买入',
@@ -274,7 +274,7 @@ describe('GameManager action guide smoke', function () {
     expect(dom.elements['modal-title'].textContent).toContain('食物');
 
     dom.elements['modal-confirm'].onclick();
-    gameManager._handleTradeConfirmForTest('buy', 'food', 1, 'open');
+    appHarness.confirmTrade('buy', 'food', 1, 'open');
 
     expect(dom.elements['market-overlay'].classList.contains('is-active')).toBe(false);
     expect(dom.elements['trade-modal'].classList.contains('hidden')).toBe(true);
@@ -297,7 +297,7 @@ describe('GameManager action guide smoke', function () {
         this.a = a;
       },
     };
-    gameManager = GameManager;
+    appHarness = createGameApplicationTestHarness();
 
     var state = createTestState({
       credits: 0,
@@ -325,9 +325,9 @@ describe('GameManager action guide smoke', function () {
       objectives: [{ type: 'earn_profit', amount: 500, current: 0 }],
       rewards: { credits: 0, exp: 0, reputation: 0 },
     }];
-    gameManager._setStateForTest(state);
+    appHarness.replaceState(state);
 
-    gameManager._handleTradeConfirmForTest('sell', 'food', 1, 'open');
+    appHarness.confirmTrade('sell', 'food', 1, 'open');
 
     expect(state.quests[0].objectives[0].current).toBe(0);
     expect(state.totalProfit).toBeLessThan(0);
@@ -350,7 +350,7 @@ describe('GameManager action guide smoke', function () {
         this.a = a;
       },
     };
-    gameManager = GameManager;
+    appHarness = createGameApplicationTestHarness();
 
     var state = createTestState({
       quests: [],
@@ -370,7 +370,7 @@ describe('GameManager action guide smoke', function () {
     GalaxyData.init(state);
     Tutorial.init(state);
     Tutorial.skip();
-    gameManager._setStateForTest(state);
+    appHarness.replaceState(state);
 
     var recommendation = {
       buySystemId: 'sol_prime',
@@ -383,7 +383,7 @@ describe('GameManager action guide smoke', function () {
       recommendedTradePolicy: { riskMode: 'balanced', marketMode: 'open' },
     };
 
-    gameManager._handleActionGuideActionForTest({
+    appHarness.executeGuidanceCommand({
       id: 'prefill-profitable-dispatch',
       actionType: 'fleet.dispatch.prefill',
       actionLabel: '带入机库',
@@ -426,7 +426,7 @@ describe('GameManager action guide smoke', function () {
   it('点击专题步骤不会完成，只有真实派遣确认才推进教学链', async function () {
     var dom = createActionGuideSmokeDom();
     globalThis.document = dom.document;
-    gameManager = GameManager;
+    appHarness = createGameApplicationTestHarness();
 
     var state = createTestState({
       completedQuests: ['starter_first_trade', 'starter_visit_2'],
@@ -442,7 +442,7 @@ describe('GameManager action guide smoke', function () {
     Quest.init(state);
     MidgameTeachingChain.init(state);
     expect(MidgameTeachingChain.startChain(state, 'dispatch-ops')).toBe(true);
-    gameManager._setStateForTest(state);
+    appHarness.replaceState(state);
 
     var recommendation = {
       buySystemId: 'sol_prime',
@@ -453,7 +453,7 @@ describe('GameManager action guide smoke', function () {
       goodName: '食物',
       recommendedTradePolicy: { riskMode: 'balanced', marketMode: 'open' },
     };
-    await gameManager._handleActionGuideActionForTest({
+    await appHarness.executeGuidanceCommand({
       id: 'prefill-profitable-dispatch',
       actionType: 'fleet.dispatch.prefill',
       payload: { recommendation: recommendation },
@@ -461,7 +461,7 @@ describe('GameManager action guide smoke', function () {
 
     expect(state.midgameChains['dispatch-ops'].completedSteps).toEqual([]);
 
-    var result = gameManager._handleAssignRouteForTest(
+    var result = appHarness.assignRoute(
       0,
       recommendation.buySystemId,
       'nova_station',
@@ -470,17 +470,17 @@ describe('GameManager action guide smoke', function () {
     );
 
     expect(result.ok).toBe(true);
-    expect(gameManager._getUiDiagnosticsForTest().lastInvalidationRegions).toEqual(
+    expect(appHarness.getUiDiagnostics().lastInvalidationRegions).toEqual(
       FLEET_HANGAR_ACTION_PRESENTATION.dirtyRegions
     );
-    expect(gameManager._getUiDiagnosticsForTest().lastInvalidationRegions).not.toContain('all');
-    expect(gameManager._getUiDiagnosticsForTest().lastInvalidationRegions).not.toContain('save');
+    expect(appHarness.getUiDiagnostics().lastInvalidationRegions).not.toContain('all');
+    expect(appHarness.getUiDiagnostics().lastInvalidationRegions).not.toContain('save');
     expect(state.midgameChains['dispatch-ops'].completedSteps).toEqual(['prefill-profitable-dispatch']);
     expect(state.midgameChains['dispatch-ops'].completed).toBe(false);
-    expect(gameManager._getGameClockSnapshotForTest().recurringTasks).toEqual([
+    expect(appHarness.getClockSnapshot().recurringTasks).toEqual([
       expect.objectContaining({ id: 'active-dispatch' }),
     ]);
-    gameManager._stopActiveDispatchForTest();
-    expect(gameManager._getGameClockSnapshotForTest().recurringTasks).toEqual([]);
+    appHarness.stopActiveDispatch();
+    expect(appHarness.getClockSnapshot().recurringTasks).toEqual([]);
   }, 20000);
 });

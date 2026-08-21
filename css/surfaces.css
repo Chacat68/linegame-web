@@ -1040,7 +1040,9 @@ body[data-motion="reduced"] #market-overlay.workspace-surface--trade.is-active {
 
 .market-overlay-shell,
 .workspace-terminal-body,
-.settings-save-shell {
+.settings-save-shell,
+.settings-modal-box,
+.settings-feature-status-host {
   position: relative;
 }
 
@@ -1067,6 +1069,26 @@ body[data-motion="reduced"] #market-overlay.workspace-surface--trade.is-active {
 .settings-save-shell > .deferred-feature-status {
   position: relative;
   inset: auto;
+}
+
+.settings-feature-status-host {
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  display: none;
+}
+
+#settings-modal[data-deferred-feature-state] .settings-feature-status-host {
+  display: block;
+}
+
+#settings-modal[data-deferred-feature-state] .settings-layout {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.settings-feature-status-host > .deferred-feature-status {
+  min-height: 100%;
 }
 
 .deferred-feature-status-card {
@@ -1125,23 +1147,48 @@ body[data-motion="reduced"] #market-overlay.workspace-surface--trade.is-active {
   line-height: 1.55;
 }
 
-.deferred-feature-retry {
-  min-height: var(--ui-control-lg);
+.deferred-feature-status-actions {
+  display: flex;
   grid-column: 2;
+  flex-wrap: wrap;
   justify-self: start;
+  gap: var(--ui-space-2);
+}
+
+.deferred-feature-status-actions[hidden] {
+  display: none;
+}
+
+.deferred-feature-retry,
+.deferred-feature-dismiss {
+  min-height: var(--ui-control-lg);
   padding: 0 var(--ui-space-4);
   border: 1px solid var(--ui-line-strong);
   border-radius: var(--ui-radius-control);
+  font-weight: 720;
+}
+
+.deferred-feature-retry {
   color: var(--ui-text-inverse);
   background: var(--ui-accent);
-  font-weight: 720;
+}
+
+.deferred-feature-dismiss {
+  color: var(--ui-text-primary);
+  background: var(--ui-bg-card);
 }
 
 .deferred-feature-retry:hover:not(:disabled) {
   background: var(--ui-accent-strong);
 }
 
-.deferred-feature-retry:focus-visible {
+.deferred-feature-dismiss:hover:not(:disabled) {
+  border-color: var(--ui-line-strong);
+  background: var(--ui-bg-panel);
+}
+
+.deferred-feature-retry:focus-visible,
+.deferred-feature-dismiss:focus-visible {
   outline: none;
   box-shadow: var(--ui-focus-ring);
 }
