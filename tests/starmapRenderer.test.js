@@ -243,6 +243,7 @@ describe('Starmap canvas integration', function () {
   it('为 2D 与 Three 使用独立画布并共享视觉状态类', function () {
     const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
     const css = readFileSync(new URL('../css/interstellar-trader.css', import.meta.url), 'utf8');
+    const controls = readFileSync(new URL('../css/starmap-controls.css', import.meta.url), 'utf8');
     const facade = readFileSync(new URL('../js/ui/StarmapRenderer.js', import.meta.url), 'utf8');
     const fallbackRenderer = readFileSync(new URL('../js/ui/Renderer2DStarmap.js', import.meta.url), 'utf8');
     const renderer = readFileSync(new URL('../js/ui/RendererThreeStarmap.js', import.meta.url), 'utf8');
@@ -251,8 +252,9 @@ describe('Starmap canvas integration', function () {
     expect(html).toContain('id="starmap-three-canvas" class="starmap-canvas starmap-three-canvas"');
     expect(html).toContain('aria-label="Three.js 3D 星图"');
     expect(css).toContain('.starmap-canvas.starmap-blur-active');
-    expect(css).toContain('max-height: min(40dvh, 360px)');
-    expect(css).toMatch(/\.map-btn-group\s*\{[^}]*position:\s*absolute;/s);
+    expect(controls).toContain('.starmap-map-tools {');
+    expect(html).not.toContain('id="map-3d-toggle-btn"');
+    expect(css).not.toMatch(/\.map-btn-group\b|\.map-overlay-btn\b/);
     expect(facade).toContain('_loadThreeRenderer();');
     expect(facade).not.toContain("mapView === 'galaxies' && _rendererThree");
     expect(renderer).toContain('function _buildPlanetScene');

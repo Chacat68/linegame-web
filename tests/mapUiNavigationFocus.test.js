@@ -195,22 +195,17 @@ describe('MapUI navigation target focus', function () {
     expect(panel.getAttribute('tabindex')).toBe(null);
   });
 
-  it('窄屏详情会固定在控制轨与命令区之间', function () {
+  it('窄屏详情由 Context Inspector 统一定位并避让命令区', function () {
     var css = readFileSync(new URL('../css/interstellar-trader.css', import.meta.url), 'utf8');
     var responsive = readFileSync(new URL('../css/bridge-responsive.css', import.meta.url), 'utf8');
+    var inspector = readFileSync(new URL('../css/context-inspector.css', import.meta.url), 'utf8');
 
     expect(css).toContain('.planet-detail-panel--pinned {');
     expect(css).toContain('grid-template-rows: minmax(0, 1fr) auto');
-    expect(css).toContain('.planet-detail-panel.visible:not(.planet-detail-panel--galaxy-hub) {');
-    expect(css).toContain('max-height: min(560px, calc(100dvh - var(--starmap-rail-edge-y) - var(--starmap-command-clearance)));');
-    expect(css).toContain('.planet-detail-panel.visible:not(.planet-detail-panel--galaxy-hub)');
-    expect(css).toContain('bottom: var(--starmap-command-clearance)');
-    expect(css).not.toContain('body:has(#action-guide:not([hidden]))');
-    expect(responsive).toContain('body:has(#action-guide:not([hidden])) .planet-detail-panel.visible:not(.planet-detail-panel--galaxy-hub)');
-    expect(css).toContain('.planet-detail-panel--galaxy-hub.visible');
-    expect(responsive).toContain('body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) .map-btn-group');
-    expect(css).toContain('--starmap-rail-edge-x: max(8px, var(--safe-left));');
-    expect(css).toContain('--starmap-rail-safe-right: max(8px, var(--safe-right));');
+    expect(inspector).toContain('#context-inspector #planet-detail-panel');
+    expect(inspector).toMatch(/@media \(max-width: 700px\), \(max-height: 620px\)[\s\S]*?#context-inspector #planet-detail-panel\.visible/);
+    expect(inspector).toContain('bottom: auto !important');
+    expect(css + responsive).not.toMatch(/starmap-control-rail|starmap-rail-|map-btn-group|map-overlay-btn|starmap-command-clearance/);
 
     var mapUiSource = readFileSync(new URL('../js/ui/MapUI.js', import.meta.url), 'utf8');
     var layoutSource = readFileSync(new URL('../js/ui/MapPanelLayout.js', import.meta.url), 'utf8');
@@ -267,6 +262,7 @@ describe('MapUI navigation target focus', function () {
     var mapContainer = createFakeElement('map-container');
     mapContainer.clientWidth = 390;
     mapContainer.clientHeight = 720;
+    var bodyClasses = createFakeClassList(['starmap-galaxy-mode']);
     var elements = {
       'planet-detail-panel': panel,
       'map-canvas': createFakeElement('map-canvas'),
@@ -274,6 +270,7 @@ describe('MapUI navigation target focus', function () {
     };
 
     globalThis.document = {
+      body: { classList: bodyClasses },
       getElementById: function (id) {
         return elements[id] || null;
       },
@@ -315,12 +312,14 @@ describe('MapUI navigation target focus', function () {
     });
 
     expect(state.mapView).toBe('planets');
+    expect(bodyClasses.contains('starmap-galaxy-mode')).toBe(false);
     expect(panel.classList.contains('visible')).toBe(true);
     expect(panel.classList.contains('planet-detail-panel--galaxy-hub')).toBe(false);
 
     state.mapView = 'galaxies';
     panel.classList.add('planet-detail-panel--galaxy-hub');
     MapUI.refreshPlanetDetail(state);
+    expect(bodyClasses.contains('starmap-galaxy-mode')).toBe(true);
 
     var prevented = false;
     panel.dispatchEvent({
@@ -332,12 +331,15 @@ describe('MapUI navigation target focus', function () {
 
     expect(prevented).toBe(true);
     expect(state.mapView).toBe('planets');
+    expect(bodyClasses.contains('starmap-galaxy-mode')).toBe(false);
 
     var EventBus = await import('../js/core/EventBus.js');
     EventBus.emit('starmap:galaxy-view-toggle');
     expect(state.mapView).toBe('galaxies');
+    expect(bodyClasses.contains('starmap-galaxy-mode')).toBe(true);
 
     EventBus.emit('starmap:galaxy-view-toggle');
     expect(state.mapView).toBe('planets');
+    expect(bodyClasses.contains('starmap-galaxy-mode')).toBe(false);
   });
 });

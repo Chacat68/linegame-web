@@ -1,8 +1,16 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 function read(relativePath) {
   return readFileSync(new URL(`../${relativePath}`, import.meta.url), 'utf8');
+}
+
+function readAllCss(exclude) {
+  var excluded = new Set(exclude || []);
+  return readdirSync(new URL('../css/', import.meta.url))
+    .filter(function (name) { return name.endsWith('.css') && !excluded.has(name); })
+    .map(function (name) { return read('css/' + name); })
+    .join('\n');
 }
 
 describe('Bridge OS global UI contracts', function () {
@@ -14,6 +22,7 @@ describe('Bridge OS global UI contracts', function () {
     var responsive = entry.indexOf('@import url("bridge-responsive.css")');
     var contextInspector = entry.indexOf('@import url("context-inspector.css")');
     var workspaceDetail = entry.indexOf('@import url("workspace-detail.css")');
+    var starmapControls = entry.indexOf('@import url("starmap-controls.css")');
     var globalShell = entry.indexOf('@import url("global-shell-v2.css")');
 
     expect(tokens).toBeGreaterThan(-1);
@@ -22,7 +31,8 @@ describe('Bridge OS global UI contracts', function () {
     expect(responsive).toBeGreaterThan(surfaces);
     expect(contextInspector).toBeGreaterThan(responsive);
     expect(workspaceDetail).toBeGreaterThan(contextInspector);
-    expect(globalShell).toBeGreaterThan(workspaceDetail);
+    expect(starmapControls).toBeGreaterThan(workspaceDetail);
+    expect(globalShell).toBeGreaterThan(starmapControls);
     expect(entry.trim().endsWith('@import url("global-shell-v2.css");')).toBe(true);
   });
 
@@ -98,19 +108,43 @@ describe('Bridge OS global UI contracts', function () {
     var legacy = read('css/interstellar-trader.css');
     var surfaces = read('css/surfaces.css');
     var responsive = read('css/bridge-responsive.css');
+    var starmapControls = read('css/starmap-controls.css');
     var market = read('css/market-terminal.css');
     var fleet = read('css/fleet.css');
 
-    expect(legacy).toContain('--starmap-rail-size: var(--ui-control-lg, 44px)');
-    expect(legacy).not.toContain('--starmap-rail-size: 38px');
-    expect(legacy).not.toContain('--starmap-rail-size: 36px');
     expect(legacy).not.toMatch(/\.market-spot-intel-grid,[\s\S]{0,600}grid-template-columns:\s*1fr !important/);
-    expect(responsive).toContain('.starmap-control-rail .starmap-rail-btn');
+    expect(starmapControls).toMatch(/@media \(max-width: 620px\)[\s\S]*?\.starmap-map-tool\s*\{[^}]*min-height:\s*var\(--ui-control-lg\)/);
     expect(responsive).toMatch(/#action-guide \.action-guide-primary\.command-action-btn\s*\{[^}]*min-height:\s*var\(--ui-control-lg\)/);
     expect(market).toMatch(/\.market-workspace-v2 \.kline-range-btn,[\s\S]*?min-height:\s*var\(--ui-control-lg\)/);
     expect(surfaces).toContain('#trade-panel .trade-panel-toggle.workspace-terminal-close');
     expect(surfaces).toContain('background: rgba(2, 10, 18, 0.76) !important');
     expect(fleet).not.toContain('.market-close-btn {');
+  });
+
+  it('gives active starmap tools one owner and removes the retired rail path', function () {
+    var html = read('index.html');
+    var mapUi = read('js/ui/MapUI.js');
+    var owner = read('css/starmap-controls.css');
+    var otherCss = readAllCss(['starmap-controls.css']);
+    var allCss = owner + '\n' + otherCss;
+
+    expect(owner).toContain('.starmap-map-tools {');
+    expect(owner).toContain('.starmap-map-tool {');
+    expect(otherCss).not.toMatch(/\.starmap-map-tools?\b/);
+    expect(allCss).not.toMatch(/\.starmap-control-rail\b|\.starmap-rail-|\.map-btn-group\b|\.map-overlay-btn\b|\.map-(?:primary|secondary)-entry/);
+    expect(html).not.toMatch(/starmap-rail-symbols|starmap-control-rail|map-btn-group|map-3d-toggle-btn/);
+    expect(mapUi).not.toContain('map-3d-toggle-btn');
+  });
+
+  it('retires the company directives UI while preserving save compatibility', function () {
+    var html = read('index.html');
+    var allCss = readAllCss();
+    var constants = read('js/data/constants.js');
+    var saveSystem = read('js/systems/save/SaveSystem.js');
+
+    expect(html + '\n' + allCss).not.toMatch(/company-directives-|company-directive-|company-directives-btn|data-company-directive-badge/);
+    expect(constants).toContain('companyDirectiveClaims:');
+    expect(saveSystem).toContain('envelope.data.companyDirectiveClaims');
   });
 
   it('keeps the mobile Context Inspector above the command slot and resets legacy detail positioning', function () {

@@ -104,7 +104,6 @@
     --ui-header-height: 58px;
     --ui-nav-height: 62px;
     --ui-command-reserve: 132px;
-    --starmap-rail-size: var(--ui-control-lg);
   }
 
   #game-header {
@@ -191,43 +190,8 @@
     height: var(--ui-control-lg);
   }
 
-  #company-directives-btn,
   #victory-progress-btn {
     display: none;
-  }
-
-  .starmap-control-rail {
-    top: var(--ui-space-2);
-    left: max(var(--ui-space-2), var(--ui-safe-left));
-    flex-direction: row;
-    max-width: calc(100vw - var(--ui-space-4) - var(--ui-safe-left) - var(--ui-safe-right));
-    overflow-x: auto;
-    padding: 4px;
-  }
-
-  .starmap-control-rail .starmap-rail-btn {
-    min-width: var(--ui-control-lg);
-    min-height: var(--ui-control-lg);
-    flex: 0 0 var(--ui-control-lg);
-  }
-
-  .starmap-rail-label {
-    display: none;
-  }
-
-  :where(
-    .galactic-map-widget,
-    .market-overview-widget,
-    .target-intel-widget,
-    .network-status-widget,
-    .quest-tracker-widget
-  ) {
-    top: 64px;
-    right: var(--ui-space-2);
-    left: var(--ui-space-2);
-    width: auto;
-    max-width: none;
-    max-height: calc(100dvh - var(--ui-header-height) - var(--ui-nav-height) - 96px);
   }
 
   #action-guide .action-guide-shell {
@@ -688,26 +652,6 @@
 @media (max-width: 560px) {
   #action-guide.action-guide {
     max-width: calc(100vw - 16px);
-  }
-}
-
-/* Map detail avoids the Command Slot only on constrained viewports. */
-@supports selector(body:has(#action-guide:not([hidden]))) {
-  body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) .map-btn-group {
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-  }
-
-  @media (max-width: 700px), (max-height: 620px) {
-    body:has(#action-guide:not([hidden])) .planet-detail-panel.visible:not(.planet-detail-panel--galaxy-hub) {
-      bottom: calc(var(--starmap-command-clearance) + 68px);
-      max-height: min(48dvh, calc(100dvh - var(--starmap-rail-edge-y) - var(--starmap-command-clearance) - 68px));
-    }
-
-    body:has(#action-guide:not([hidden])) .planet-detail-panel--galaxy-hub.visible {
-      bottom: calc(var(--starmap-command-clearance) + 68px);
-    }
   }
 }
 

@@ -41,11 +41,13 @@ describe('Action guide responsive CSS', function () {
 
   it('Bridge 在窄屏把 Command Slot 改为正文加主操作两行，并负责阻塞态避让', function () {
     var responsive = readFileSync(new URL('../css/bridge-responsive.css', import.meta.url), 'utf8');
+    var inspector = readFileSync(new URL('../css/context-inspector.css', import.meta.url), 'utf8');
 
     expect(responsive).toMatch(/@media \(max-width: 900px\)[\s\S]*?#action-guide \.action-guide-outcome\s*\{[^}]*display:\s*none/);
     expect(responsive).toMatch(/@media \(max-width: 620px\)[\s\S]*?grid-template-areas:\s*"status main"\s*"status primary"/);
     expect(responsive).toMatch(/@media \(max-width: 620px\)[\s\S]*?#action-guide \.action-guide-copy\s*\{[^}]*grid-template-columns:\s*1fr/);
-    expect(responsive).toContain('body:has(#action-guide:not([hidden])) .planet-detail-panel.visible:not(.planet-detail-panel--galaxy-hub)');
+    expect(responsive).not.toContain('body:has(#action-guide:not([hidden])) .planet-detail-panel');
+    expect(inspector).toMatch(/#context-inspector\.context-inspector:not\(\[data-workspace-id="map"\]\)\s*\{[\s\S]*?var\(--ui-command-reserve\)/);
     expect(responsive).toContain('body:has(.modal:not(.hidden)) #action-guide');
   });
 

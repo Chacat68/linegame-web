@@ -307,7 +307,6 @@
 .fleet-switch-primary,
 .fleet-dispatch-btn,
 .btn-research,
-.map-overlay-btn.active,
 .tut-btn-primary {
   background: linear-gradient(90deg, #0284c7, #06b6d4);
   border: 1px solid rgba(125, 211, 252, 0.5);
@@ -320,8 +319,6 @@
 .fleet-switch-primary:hover,
 .fleet-dispatch-btn:hover,
 .btn-research:hover,
-.map-overlay-btn:hover,
-.map-overlay-btn.active:hover,
 .tut-btn-primary:hover {
   background: linear-gradient(90deg, #0ea5e9, #22d3ee);
 }
@@ -443,15 +440,6 @@
 .market-galaxy-nav,
 .market-detail-bar {
   border-bottom-color: rgba(56, 189, 248, 0.14);
-}
-
-.map-overlay-btn {
-  background: rgba(5, 18, 38, 0.6);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-color: rgba(56, 189, 248, 0.2);
-  color: #aeeeff;
-  box-shadow: 0 4px 16px rgba(2, 8, 20, 0.2);
 }
 
 .faction-pref-liked,

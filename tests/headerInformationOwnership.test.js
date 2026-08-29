@@ -87,8 +87,8 @@ describe('Header information ownership', function () {
     expect(surfaces).toContain('.hdr-company-name {');
     expect(surfaces).toContain('.hdr-meter-track[data-meter-state="warning"] .hdr-meter-fill');
     expect(surfaces).toContain('.hdr-meter-track[data-meter-state="critical"] .hdr-meter-fill');
-    expect(surfaces).toContain('.hdr-icon-btn.is-tracking {');
-    expect(surfaces).toContain('.hdr-icon-btn[data-company-directive-badge]::after');
+    expect(surfaces).not.toContain('.hdr-icon-btn.is-tracking {');
+    expect(surfaces).not.toContain('data-company-directive-badge');
     expect(responsive).toContain('@media (max-width: 680px)');
     expect(entry).not.toContain('@import url("animations.css")');
     expect(entry.indexOf('@import url("interstellar-trader.css")'))

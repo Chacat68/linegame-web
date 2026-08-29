@@ -324,40 +324,6 @@ body::before {
   box-shadow: 0 0 0 5px rgba(108, 231, 255, 0.11);
 }
 
-.hdr-icon-btn.has-claimable {
-  border-color: rgba(74, 222, 128, 0.42);
-  color: #dcfce7;
-  background: rgba(34, 197, 94, 0.1);
-  box-shadow: 0 0 14px rgba(34, 197, 94, 0.16);
-}
-
-.hdr-icon-btn.is-tracking {
-  border-color: color-mix(in srgb, var(--ui-warning) 42%, transparent);
-  color: #fef3c7;
-  background: color-mix(in srgb, var(--ui-warning) 10%, transparent);
-  box-shadow: 0 0 14px color-mix(in srgb, var(--ui-warning) 16%, transparent);
-}
-
-.hdr-icon-btn[data-company-directive-badge]::after {
-  content: attr(data-company-directive-badge);
-  position: absolute;
-  z-index: 2;
-  top: -4px;
-  right: -4px;
-  min-width: 15px;
-  height: 15px;
-  padding: 0 4px;
-  border: 1px solid rgba(187, 247, 208, 0.7);
-  border-radius: 999px;
-  color: #f0fdf4;
-  background: linear-gradient(180deg, #22c55e, #15803d);
-  box-shadow: 0 0 10px rgba(34, 197, 94, 0.34);
-  font-size: 9px;
-  font-weight: 800;
-  line-height: 15px;
-  text-align: center;
-}
-
 .hdr-hidden {
   display: none !important;
 }
@@ -410,54 +376,9 @@ body::before {
   display: none;
 }
 
-/* Context HUD -------------------------------------------------- */
-
-.starmap-control-rail {
-  z-index: var(--ui-z-hud);
-  top: max(var(--ui-space-4), var(--ui-safe-top));
-  left: max(var(--ui-space-4), var(--ui-safe-left));
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 6px;
-  border: 1px solid var(--ui-line-default);
-  border-radius: var(--ui-radius-card);
-  background: rgba(3, 13, 22, 0.82);
-  box-shadow: var(--ui-shadow-card);
-  backdrop-filter: blur(14px);
-}
-
-.starmap-rail-btn {
-  min-width: var(--ui-control-lg);
-  min-height: var(--ui-control-lg);
-  border: 1px solid transparent;
-  border-radius: var(--ui-radius-control);
-  color: var(--ui-text-muted);
-  background: transparent;
-  transition: color var(--ui-duration-fast), border-color var(--ui-duration-fast), background-color var(--ui-duration-fast);
-}
-
-.starmap-rail-btn:hover,
-.starmap-rail-btn.is-selected,
-.starmap-rail-btn[aria-pressed="true"] {
-  border-color: var(--ui-line-default);
-  color: var(--ui-accent-strong);
-  background: rgba(108, 231, 255, 0.10);
-}
-
-.starmap-rail-icon {
-  width: var(--ui-icon-md);
-  height: var(--ui-icon-md);
-}
-
-:where(
-  .galactic-map-widget,
-  .market-overview-widget,
-  .target-intel-widget,
-  .network-status-widget,
-  .quest-tracker-widget,
-  .planet-detail-panel
-) {
+/* Context Inspector delegates its embedded presenter visuals here while
+   context-inspector.css owns all outer panel geometry. */
+.planet-detail-panel {
   z-index: var(--ui-z-hud);
   overflow: hidden;
   border: 1px solid var(--ui-line-default);
@@ -466,50 +387,6 @@ body::before {
   background: linear-gradient(150deg, rgba(7, 24, 36, 0.94), rgba(3, 13, 22, 0.92));
   box-shadow: var(--ui-shadow-card);
   backdrop-filter: blur(16px) saturate(1.05);
-}
-
-.hud-widget-head {
-  min-height: 40px;
-  padding: 0 var(--ui-space-3);
-  border-bottom: 1px solid var(--ui-line-subtle);
-  color: var(--ui-text-primary);
-  background: rgba(108, 231, 255, 0.035);
-  font-size: 10px;
-  font-weight: 720;
-  letter-spacing: 0.13em;
-}
-
-.hud-widget-close {
-  display: grid;
-  width: 30px;
-  height: 30px;
-  place-items: center;
-  border: 1px solid transparent;
-  border-radius: var(--ui-radius-control);
-  color: var(--ui-text-muted);
-  background: transparent;
-}
-
-.hud-widget-close:hover {
-  border-color: var(--ui-line-default);
-  color: var(--ui-text-primary);
-  background: rgba(108, 231, 255, 0.08);
-}
-
-.hud-widget-foot {
-  border-top: 1px solid var(--ui-line-subtle);
-  color: var(--ui-text-muted);
-  background: rgba(2, 10, 18, 0.46);
-}
-
-.hud-widget-link-btn,
-.map-overlay-btn {
-  min-height: var(--ui-control-sm);
-  padding: 0 var(--ui-space-3);
-  border: 1px solid var(--ui-line-default);
-  border-radius: var(--ui-radius-control);
-  color: var(--ui-accent-strong);
-  background: rgba(108, 231, 255, 0.07);
 }
 
 /* Action Guide · Command Slot component -----------------------

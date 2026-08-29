@@ -176,277 +176,6 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #map-cont
   display: none;
 }
 
-.starmap-control-rail,
-.galactic-map-widget,
-.market-overview-widget,
-.target-intel-widget,
-.network-status-widget,
-.quest-tracker-widget {
-  position: absolute;
-  z-index: 12;
-  pointer-events: none;
-}
-
-.starmap-control-rail {
-  top: 22px;
-  left: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  pointer-events: auto;
-}
-
-.starmap-rail-symbols {
-  position: absolute;
-  width: 0;
-  height: 0;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.starmap-rail-btn {
-  width: 42px;
-  height: 42px;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--hud-border);
-  border-radius: 7px;
-  background: rgba(4, 18, 30, 0.62);
-  color: rgba(215, 242, 255, 0.76);
-  font-family: "Orbitron", monospace;
-  font-size: 16px;
-  padding: 0;
-  cursor: pointer;
-  pointer-events: auto;
-  transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 8px 24px rgba(0, 0, 0, 0.28);
-}
-
-.starmap-rail-icon {
-  position: relative;
-  display: block;
-  width: 24px;
-  height: 24px;
-  color: currentColor;
-  filter: drop-shadow(0 0 4px rgba(108, 231, 255, 0.12));
-  transition: transform 0.18s ease, filter 0.18s ease, opacity 0.18s ease;
-}
-
-.starmap-rail-icon svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.7;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.starmap-rail-icon .rail-icon-dot {
-  fill: currentColor;
-  stroke: none;
-}
-
-.starmap-rail-label {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  border: 0;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-}
-
-.starmap-rail-btn:hover {
-  color: rgba(235, 248, 255, 0.92);
-  border-color: rgba(108, 231, 255, 0.3);
-  background: rgba(12, 38, 56, 0.72);
-  transform: translateY(-1px);
-}
-
-.starmap-rail-btn:hover .starmap-rail-icon {
-  transform: scale(1.04);
-  filter: drop-shadow(0 0 7px rgba(108, 231, 255, 0.24));
-}
-
-.starmap-rail-btn.is-active {
-  color: var(--accent-cyan);
-  border-color: var(--hud-border-strong);
-  background: rgba(23, 75, 98, 0.62);
-  text-shadow: 0 0 12px rgba(108, 231, 255, 0.7);
-}
-
-.starmap-rail-btn.is-active .starmap-rail-icon,
-.starmap-rail-btn[aria-pressed="true"] .starmap-rail-icon {
-  filter: drop-shadow(0 0 9px rgba(108, 231, 255, 0.46));
-}
-
-.starmap-rail-btn.is-selected:not(.is-active) {
-  color: rgba(196, 240, 255, 0.92);
-  border-color: rgba(108, 231, 255, 0.22);
-  background: rgba(9, 28, 40, 0.72);
-}
-
-.starmap-rail-btn:focus-visible {
-  outline: 1px solid rgba(108, 231, 255, 0.48);
-  outline-offset: 2px;
-}
-
-.galactic-map-widget,
-.market-overview-widget,
-.target-intel-widget,
-.network-status-widget,
-.quest-tracker-widget {
-  border: 1px solid var(--hud-border);
-  border-radius: 10px;
-  background:
-    linear-gradient(180deg, rgba(8, 23, 34, 0.88), rgba(3, 13, 22, 0.78)),
-    radial-gradient(circle at top left, rgba(108, 231, 255, 0.12), transparent 44%);
-  box-shadow: var(--hud-shadow);
-  backdrop-filter: blur(18px) saturate(1.18);
-  -webkit-backdrop-filter: blur(18px) saturate(1.18);
-  overflow: hidden;
-}
-
-.galactic-map-widget::before,
-.market-overview-widget::before,
-.target-intel-widget::before,
-.network-status-widget::before,
-.quest-tracker-widget::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  border-radius: inherit;
-  background:
-    linear-gradient(90deg, rgba(108, 231, 255, 0.12), transparent 36%, rgba(255, 184, 107, 0.08)),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.045), transparent 28%);
-  opacity: 0.78;
-}
-
-.hud-widget-head {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  min-height: 34px;
-  padding: 8px 13px 6px;
-  color: rgba(238, 248, 255, 0.94);
-  font-family: "Orbitron", "Rajdhani", sans-serif;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  border-bottom: 1px solid rgba(108, 231, 255, 0.11);
-  pointer-events: auto;
-}
-
-.hud-widget-close {
-  display: inline-grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  border: 1px solid rgba(108, 231, 255, 0.14);
-  border-radius: 6px;
-  background: rgba(3, 12, 22, 0.7);
-  color: rgba(230, 244, 255, 0.82);
-  font: inherit;
-  line-height: 1;
-  cursor: pointer;
-  pointer-events: auto;
-  transition: border-color 0.18s ease, color 0.18s ease, background 0.18s ease, transform 0.18s ease;
-}
-
-.hud-widget-close:hover {
-  border-color: rgba(108, 231, 255, 0.32);
-  color: #f3fbff;
-  background: rgba(18, 58, 78, 0.72);
-  transform: translateY(-1px);
-}
-
-.hud-widget-close:focus-visible {
-  outline: 1px solid rgba(108, 231, 255, 0.48);
-  outline-offset: 2px;
-}
-
-.galactic-map-widget.hud-widget-collapsed,
-.market-overview-widget.hud-widget-collapsed,
-.target-intel-widget.hud-widget-collapsed,
-.network-status-widget.hud-widget-collapsed,
-.quest-tracker-widget.hud-widget-collapsed {
-  display: none;
-}
-
-.galactic-map-widget {
-  top: 20px;
-  left: 74px;
-  width: 224px;
-}
-
-.hud-galactic-summary {
-  display: grid;
-  gap: 10px;
-  margin: 16px 18px 0;
-  padding: 14px 15px;
-  border: 1px solid rgba(108, 231, 255, 0.16);
-}
-
-.hud-galactic-row {
-  display: grid;
-  grid-template-columns: 48px 1fr;
-  gap: 12px;
-  align-items: start;
-}
-
-.hud-galactic-label {
-  color: rgba(181, 207, 219, 0.66);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.hud-galactic-value {
-  color: rgba(238, 248, 255, 0.92);
-  font-size: 13px;
-  line-height: 1.45;
-}
-
-.market-overview-widget {
-  left: 18px;
-  bottom: 86px;
-  width: 438px;
-}
-
-.hud-market-table {
-  position: relative;
-  z-index: 1;
-  width: calc(100% - 26px);
-  margin: 12px 13px 0;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-
-.hud-market-table th {
-  padding: 5px 0 7px;
-  color: rgba(189, 213, 224, 0.62);
-  font-size: 11px;
-  font-weight: 600;
-  text-align: left;
-  border-bottom: 1px solid rgba(108, 231, 255, 0.13);
-}
-
-.hud-market-table td {
-  padding: 8px 0;
-  color: rgba(234, 245, 255, 0.85);
-  border-bottom: 1px solid rgba(108, 231, 255, 0.08);
-  font-variant-numeric: tabular-nums;
-}
-
 .hud-good-icon {
   display: inline-block;
   width: 20px;
@@ -454,11 +183,6 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #map-cont
 
 .hud-trend {
   font-weight: 700;
-}
-
-.hud-market-signal {
-  color: rgba(234, 245, 255, 0.78);
-  font-weight: 650;
 }
 
 .hud-trend.is-up {
@@ -473,73 +197,6 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #map-cont
   color: rgba(198, 218, 228, 0.7);
 }
 
-.hud-widget-foot {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 10px 13px 12px;
-  color: rgba(181, 207, 219, 0.62);
-  font-size: 11px;
-}
-
-.hud-widget-foot-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.hud-widget-link-btn {
-  border: 1px solid rgba(118, 228, 255, 0.24);
-  border-radius: 999px;
-  background: rgba(34, 211, 238, 0.08);
-  color: rgba(118, 228, 255, 0.94);
-  font: inherit;
-  font-size: 10px;
-  font-weight: 700;
-  padding: 3px 8px;
-  cursor: pointer;
-}
-
-.hud-widget-link-btn:hover {
-  border-color: rgba(118, 228, 255, 0.52);
-  background: rgba(34, 211, 238, 0.14);
-}
-
-.target-intel-widget {
-  top: 20px;
-  right: 18px;
-  width: 322px;
-}
-
-.target-intel-hero {
-  position: relative;
-  z-index: 1;
-  min-height: 130px;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 18px 20px 12px;
-  overflow: hidden;
-  border-bottom: 1px solid rgba(108, 231, 255, 0.12);
-}
-
-.target-intel-hero h2 {
-  margin: 0;
-  color: #fff;
-  font-size: 22px;
-  line-height: 1.1;
-  text-shadow: 0 0 20px rgba(108, 231, 255, 0.24);
-}
-
-.target-intel-hero p {
-  margin-top: 5px;
-  color: rgba(224, 239, 248, 0.78);
-  font-size: 13px;
-  font-weight: 700;
-}
-
 .target-planet-orb {
   width: 96px;
   height: 96px;
@@ -551,253 +208,6 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #map-cont
   box-shadow: -14px 12px 34px rgba(0, 0, 0, 0.62), 0 0 36px rgba(108, 231, 255, 0.28);
 }
 
-.target-intel-list {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
-  margin: 0;
-  padding: 12px 20px 14px;
-  border-bottom: 1px solid rgba(108, 231, 255, 0.1);
-}
-
-.target-intel-list div {
-  display: grid;
-  grid-template-columns: 92px 1fr;
-  gap: 10px;
-}
-
-.target-intel-list dt {
-  color: rgba(182, 207, 219, 0.72);
-}
-
-.target-intel-list dd {
-  color: rgba(238, 248, 255, 0.88);
-  margin: 0;
-  text-align: left;
-}
-
-.target-intel-actions {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  justify-content: flex-end;
-  padding: 12px 18px 14px;
-}
-
-.network-status-widget {
-  right: 18px;
-  bottom: 88px;
-  width: 390px;
-}
-
-[data-hud-widget] {
-  top: 20px;
-  left: 74px;
-  right: auto;
-  bottom: auto;
-  display: none;
-  pointer-events: auto;
-  max-height: calc(100% - 40px);
-  overflow: auto;
-}
-
-[data-hud-widget].hud-widget-active:not(.hud-widget-collapsed) {
-  display: block;
-}
-
-.galactic-map-widget {
-  width: 448px;
-}
-
-.market-overview-widget {
-  width: 448px;
-}
-
-.target-intel-widget {
-  width: 340px;
-}
-
-.network-status-widget {
-  width: 360px;
-}
-
-.quest-tracker-widget {
-  width: min(360px, calc(100vw - 96px));
-}
-
-.quest-tracker-widget-body {
-  position: relative;
-  z-index: 1;
-  padding: 12px;
-}
-
-.quest-tracker-widget .quest-tracker-card {
-  margin: 0;
-  padding: 0;
-  border: none;
-  background: transparent;
-  box-shadow: none;
-}
-
-.quest-tracker-widget .quest-tracker-item {
-  padding: 7px 8px;
-  background: rgba(7, 18, 38, 0.58);
-}
-
-.quest-tracker-widget .quest-tracker-objective {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.quest-tracker-widget .quest-tracker-summary-line {
-  margin-top: 6px;
-  color: rgba(189, 213, 224, 0.68);
-  font-size: 11px;
-  line-height: 1.35;
-}
-
-.quest-tracker-widget .quest-tracker-meta {
-  justify-content: flex-start;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.quest-tracker-widget .quest-tracker-more {
-  padding: 2px 6px;
-  border-radius: 999px;
-  background: rgba(118, 228, 255, 0.08);
-  color: rgba(118, 228, 255, 0.92);
-}
-
-.network-widget-body {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  grid-template-columns: 170px 1fr;
-  gap: 14px;
-  padding: 12px 14px 14px;
-}
-
-.network-spark {
-  position: relative;
-  height: 72px;
-  border: 1px solid rgba(108, 231, 255, 0.12);
-  border-radius: 6px;
-  background:
-    linear-gradient(180deg, rgba(108, 231, 255, 0.06), transparent),
-    repeating-linear-gradient(90deg, rgba(108, 231, 255, 0.08) 0 1px, transparent 1px 34px),
-    repeating-linear-gradient(180deg, rgba(108, 231, 255, 0.05) 0 1px, transparent 1px 24px);
-  overflow: hidden;
-}
-
-.network-spark::before {
-  content: "";
-  position: absolute;
-  inset: 13px 10px 16px;
-  background:
-    linear-gradient(150deg, transparent 0 8%, #16d9cf 8% 9%, transparent 9% 22%, #29d5ff 22% 23%, transparent 23% 36%, #6ce7ff 36% 37%, transparent 37% 48%, #2edcff 48% 49%, transparent 49% 64%, #f8a96d 64% 65%, transparent 65% 100%);
-  filter: drop-shadow(0 0 8px rgba(108, 231, 255, 0.38));
-}
-
-.network-spark span {
-  position: absolute;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--accent-cyan);
-  box-shadow: 0 0 10px rgba(108, 231, 255, 0.9);
-}
-
-.network-spark span:nth-child(1) { left: 12%; top: 62%; }
-.network-spark span:nth-child(2) { left: 24%; top: 32%; }
-.network-spark span:nth-child(3) { left: 42%; top: 50%; }
-.network-spark span:nth-child(4) { left: 58%; top: 24%; }
-.network-spark span:nth-child(5) { left: 76%; top: 42%; }
-.network-spark span:nth-child(6) { left: 88%; top: 18%; }
-
-.network-stats {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 8px;
-  color: rgba(203, 224, 235, 0.72);
-  font-size: 12px;
-}
-
-.network-stats span {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.network-stats strong {
-  color: rgba(245, 251, 255, 0.92);
-  font-weight: 600;
-}
-
-.hud-network-signal {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: minmax(70px, auto) minmax(124px, 0.42fr) minmax(0, 1fr);
-  align-items: center;
-  gap: 9px;
-  min-width: 0;
-  padding: 9px 10px;
-  border: 1px solid rgba(108, 231, 255, 0.12);
-  border-radius: 6px;
-  background: rgba(2, 10, 18, 0.5);
-}
-
-.hud-network-signal[data-tone="stable"] {
-  border-color: rgba(52, 211, 153, 0.24);
-  box-shadow: inset 3px 0 0 rgba(52, 211, 153, 0.48);
-}
-
-.hud-network-signal[data-tone="watch"] {
-  border-color: rgba(245, 158, 11, 0.24);
-  box-shadow: inset 3px 0 0 rgba(245, 158, 11, 0.46);
-}
-
-.hud-network-signal[data-tone="risk"] {
-  border-color: rgba(251, 113, 133, 0.26);
-  box-shadow: inset 3px 0 0 rgba(251, 113, 133, 0.5);
-}
-
-.hud-network-signal[data-tone="idle"] {
-  border-color: rgba(148, 163, 184, 0.16);
-}
-
-.hud-network-signal-kicker,
-.hud-network-signal-title,
-.hud-network-signal-note {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.hud-network-signal-kicker {
-  color: rgba(144, 190, 208, 0.72);
-  font-size: 9px;
-  font-weight: 800;
-  text-transform: uppercase;
-}
-
-.hud-network-signal-title {
-  color: rgba(238, 248, 255, 0.94);
-  font-size: 12px;
-  line-height: 1.25;
-}
-
-.hud-network-signal-note {
-  color: rgba(189, 213, 224, 0.72);
-  font-size: 10px;
-  line-height: 1.4;
-}
-
-.network-widget-foot > span,
 #hud-network-updated {
   color: rgba(177, 205, 222, 0.62);
   font-size: 10px;
@@ -813,31 +223,6 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #map-cont
   background: rgba(3, 14, 23, 0.5);
   color: rgba(226, 240, 248, 0.78);
   backdrop-filter: blur(14px);
-}
-
-.map-btn-group {
-  position: absolute;
-  top: 20px;
-  right: clamp(16px, 1.5vw, 24px);
-  left: auto;
-  z-index: 13;
-}
-
-.map-overlay-btn {
-  min-height: 34px;
-  padding: 6px 12px;
-  border-color: rgba(108, 231, 255, 0.22);
-  border-radius: 6px;
-  background: rgba(4, 18, 30, 0.66);
-  color: rgba(225, 243, 252, 0.82);
-  box-shadow: var(--glow-soft);
-}
-
-.map-overlay-btn:hover,
-.map-overlay-btn.active {
-  color: #fff;
-  border-color: rgba(108, 231, 255, 0.52);
-  background: rgba(22, 72, 98, 0.74);
 }
 
 .planet-detail-panel {
@@ -2662,10 +2047,6 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #map-cont
 
 @media (max-width: 1440px) {
 
-  .network-status-widget {
-    display: none;
-  }
-
   .map-hud-sensor-data {
     right: 24px;
   }
@@ -2674,15 +2055,6 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #map-cont
 @media (max-width: 1180px) {
   #game-main {
     inset: 64px 0 42px;
-  }
-
-  .market-overview-widget,
-  .target-intel-widget {
-    display: none;
-  }
-
-  .map-btn-group {
-    right: 18px;
   }
 }
 
@@ -2696,12 +2068,6 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #map-cont
     inset: 56px 0 42px;
   }
 
-  .starmap-control-rail,
-  .galactic-map-widget,
-  .market-overview-widget,
-  .target-intel-widget,
-  .network-status-widget,
-  .quest-tracker-widget,
   #map-legend,
   .map-hud-nav-data,
   .map-hud-sensor-data {
@@ -2881,7 +2247,6 @@ label[role="tab"]:focus-visible {
 .modal-box,
 .settings-modal-box,
 .secondary-panel-modal-box,
-[data-hud-widget],
 .planet-detail-panel,
 .tutorial-tooltip {
   border-color: var(--ui-line);
@@ -3073,7 +2438,6 @@ label[role="tab"]:focus-visible {
 .tut-btn,
 .settings-action-btn,
 .settings-sidebar-btn,
-.hud-widget-link-btn,
 .quest-tracker-open-btn,
 .quest-tracker-accept-btn,
 .quest-accept-btn,
@@ -3244,7 +2608,6 @@ label[role="tab"]:focus-visible {
 .tut-btn:hover,
 .settings-action-btn:hover,
 .settings-sidebar-btn:hover,
-.hud-widget-link-btn:hover,
 .quest-tracker-open-btn:hover,
 .quest-tracker-accept-btn:hover,
 .quest-accept-btn:hover,
@@ -5074,9 +4437,6 @@ textarea:focus,
 }
 
 .header-action-btn,
-.starmap-rail-btn,
-.map-overlay-btn,
-.hud-widget-close,
 .info-panel-toggle,
 .settings-close-btn,
 #modal-all,
@@ -5116,7 +4476,6 @@ textarea:focus,
   transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
 }
 
-.hud-widget-close,
 .info-panel-toggle,
 .settings-close-btn,
 .market-close-btn,
@@ -5128,9 +4487,6 @@ textarea:focus,
 }
 
 .header-action-btn:hover,
-.starmap-rail-btn:hover,
-.map-overlay-btn:hover,
-.hud-widget-close:hover,
 .info-panel-toggle:hover,
 .settings-close-btn:hover,
 #modal-all:hover,
@@ -5162,9 +4518,7 @@ textarea:focus,
 
 .kline-range-btn.active,
 .market-terminal-range-btn.active,
-.market-mode-btn.active,
-.starmap-rail-btn.is-selected,
-.starmap-rail-btn[aria-pressed="true"] {
+.market-mode-btn.active {
   border-color: var(--ui-line-strong);
   background:
     linear-gradient(180deg, rgba(21, 72, 96, 0.62), rgba(3, 14, 23, 0.76)),
@@ -5536,143 +4890,6 @@ textarea:focus,
   }
 }
 
-/* Narrow starmap toolbar: keep every HUD shortcut visible in the left rail. */
-@media (max-width: 900px) {
-  .starmap-control-rail {
-    top: 68px;
-    left: 12px;
-    right: auto;
-    display: flex !important;
-    flex-direction: column;
-    gap: 6px;
-    width: 42px;
-    max-height: calc(100dvh - 236px);
-    padding: 0;
-    overflow-x: hidden;
-    overflow-y: auto;
-    pointer-events: auto;
-    scrollbar-width: none;
-  }
-
-  .starmap-control-rail::-webkit-scrollbar {
-    display: none;
-  }
-
-  .starmap-control-rail .starmap-rail-btn {
-    flex: 0 0 42px;
-    width: 42px;
-    height: 42px;
-  }
-
-  [data-hud-widget] {
-    top: 68px;
-    left: 62px;
-    right: auto;
-    bottom: auto;
-    width: min(448px, calc(100vw - 74px));
-    max-height: min(320px, calc(100dvh - 220px));
-  }
-
-  [data-hud-widget].hud-widget-active:not(.hud-widget-collapsed) {
-    display: block !important;
-  }
-}
-
-@media (max-width: 560px) {
-  .starmap-control-rail {
-    top: 64px;
-    left: 8px;
-    gap: 5px;
-    width: 36px;
-    max-height: calc(100dvh - 210px);
-  }
-
-  .starmap-control-rail .starmap-rail-btn {
-    flex-basis: 36px;
-    width: 36px;
-    height: 36px;
-    font-size: 13px;
-  }
-
-  .starmap-rail-icon {
-    width: 21px;
-    height: 21px;
-  }
-
-  [data-hud-widget] {
-    top: 64px;
-    left: 52px;
-    width: calc(100vw - 60px);
-    max-height: min(300px, calc(100dvh - 190px));
-  }
-}
-
-/* Waypoint exploration terminal adopts the same HUD rail and widget interaction language. */
-
-/* Stable starmap rail metrics across nearby viewport widths. */
-:root {
-  --starmap-rail-edge-x: clamp(12px, 1.6vw, 18px);
-  --starmap-rail-edge-y: clamp(22px, 6.8dvh, 68px);
-  --starmap-rail-size: var(--ui-control-lg, 44px);
-  --starmap-rail-gap: 8px;
-  --starmap-rail-widget-gap: 14px;
-  --starmap-rail-exploration-offset: 300px;
-  --starmap-rail-widget-left: calc(var(--starmap-rail-edge-x) + var(--starmap-rail-size) + var(--starmap-rail-widget-gap));
-  --starmap-rail-panel-width: calc(100vw - var(--starmap-rail-widget-left) - var(--starmap-rail-edge-x));
-  --starmap-rail-map-bottom-clearance: 12px;
-  --starmap-rail-bottom-clearance: 18px;
-  --starmap-rail-exploration-top: calc(var(--starmap-rail-edge-y) + var(--starmap-rail-exploration-offset));
-}
-
-.starmap-control-rail {
-  top: var(--starmap-rail-edge-y);
-  left: var(--starmap-rail-edge-x);
-  gap: var(--starmap-rail-gap);
-  width: var(--starmap-rail-size);
-  max-height: max(0px, calc(100% - var(--starmap-rail-edge-y) - var(--starmap-rail-map-bottom-clearance)));
-}
-
-.starmap-control-rail .starmap-rail-btn {
-  flex: 0 0 var(--starmap-rail-size);
-  width: var(--starmap-rail-size);
-  min-width: var(--starmap-rail-size);
-  height: var(--starmap-rail-size);
-  min-height: var(--starmap-rail-size);
-  max-width: none;
-  padding: 0;
-  font-size: 16px;
-}
-
-[data-hud-widget] {
-  top: var(--starmap-rail-edge-y);
-  left: var(--starmap-rail-widget-left);
-  width: min(448px, var(--starmap-rail-panel-width));
-  max-width: var(--starmap-rail-panel-width);
-  max-height: min(320px, calc(100dvh - var(--starmap-rail-edge-y) - var(--starmap-rail-bottom-clearance)));
-}
-
-@media (max-width: 900px) {
-  :root {
-    --starmap-rail-edge-x: clamp(10px, 2vw, 12px);
-    --starmap-rail-edge-y: clamp(48px, 7.4dvh, 68px);
-    --starmap-rail-gap: 6px;
-    --starmap-rail-widget-gap: 8px;
-    --starmap-rail-exploration-offset: 288px;
-    --starmap-rail-bottom-clearance: calc(var(--bottom-nav-offset) + var(--bottom-nav-height) + 18px);
-  }
-}
-
-@media (max-width: 560px) {
-  :root {
-    --starmap-rail-edge-x: clamp(8px, 2vw, 12px);
-    --starmap-rail-edge-y: clamp(42px, 7.4dvh, 64px);
-    --starmap-rail-size: var(--ui-control-lg, 44px);
-    --starmap-rail-gap: 6px;
-    --starmap-rail-widget-gap: 8px;
-    --starmap-rail-exploration-offset: 288px;
-  }
-}
-
 /* Keep the bottom dock clear of the fixed ship-status frame. */
 :root {
   --status-bar-height: 42px;
@@ -5748,19 +4965,11 @@ a[class*="btn"] svg {
   overflow: visible;
 }
 
-.starmap-rail-btn {
-  aspect-ratio: 1 / 1;
-  line-height: 1;
-  font-family: "Rajdhani", "PingFang SC", sans-serif;
-  font-weight: 800;
-}
-
 .command-action-btn,
 .market-card-btn,
 .market-finance-btn,
 .market-mode-btn,
 .market-mode-toggle-btn,
-.hud-widget-link-btn,
 .quest-accept-btn,
 .quest-abandon-btn,
 .research-route-apply-btn,
@@ -6147,7 +5356,6 @@ body,
 .modal-box,
 .settings-modal-box,
 .secondary-panel-modal-box,
-.company-directives-modal-box,
 .stack-modal-box,
 .event-modal-box,
 .dialogue-modal-box,
@@ -6157,7 +5365,6 @@ body,
 .mod-modal-box,
 .crew-modal-box,
 .dispatch-panel,
-[data-hud-widget],
 .planet-detail-panel {
   max-width: calc(100vw - 16px);
 }
@@ -6169,19 +5376,16 @@ body,
 .settings-layout,
 .settings-main,
 .settings-main-content,
-.company-directives-body,
 .tab-content,
 .stack-modal-scroll,
 .modal-box,
-.settings-modal-box,
-.company-directives-modal-box {
+.settings-modal-box {
   min-width: 0;
   min-height: 0;
 }
 
 .market-overlay-body,
 .settings-main-content,
-.company-directives-body,
 .tab-content,
 .stack-modal-scroll,
 #mod-modal-body,
@@ -6194,7 +5398,6 @@ body,
 .market-trade-overview-scroll,
 .save-slot-grid,
 .settings-storage-card,
-.company-directives-loop,
 .modal-stepper,
 .dispatch-route-preview {
   max-width: 100%;
@@ -6203,7 +5406,6 @@ body,
 
 .market-overlay-header h3,
 .settings-main-title,
-.company-directives-head h3,
 .quest-card-title,
 .research-name,
 .faction-name,
@@ -6225,8 +5427,7 @@ body,
 
   .market-overlay-header,
   .market-detail-bar,
-  .settings-main-header,
-  .company-directives-head {
+  .settings-main-header {
     min-height: 48px;
     padding-left: 12px;
     padding-right: 12px;
@@ -6239,7 +5440,6 @@ body,
   .modal-box,
   .settings-modal-box,
   .secondary-panel-modal-box,
-  .company-directives-modal-box,
   .stack-modal-box,
   .event-modal-box,
   .dialogue-modal-box,
@@ -6253,25 +5453,14 @@ body,
     max-height: calc(100dvh - 16px) !important;
   }
 
-  .settings-layout,
-  .company-directives-modal-box {
+  .settings-layout {
     max-height: calc(100dvh - 16px) !important;
-  }
-}
-
-/* Protect the starmap command rail and its panels on landscape notched screens. */
-@media (max-width: 700px) {
-  :root {
-    --starmap-rail-edge-x: max(8px, var(--safe-left));
-    --starmap-rail-safe-right: max(8px, var(--safe-right));
-    --starmap-rail-panel-width: calc(100vw - var(--starmap-rail-widget-left) - var(--starmap-rail-safe-right));
   }
 }
 
 @media (max-width: 560px) {
   .market-overlay-header h3,
-  .settings-main-title,
-  .company-directives-head h3 {
+  .settings-main-title {
     font-size: 18px;
   }
 
@@ -6284,7 +5473,6 @@ body,
   .market-local-operations-grid,
   .market-local-operations-focus,
   .market-batch-plan-metrics,
-  .company-directives-brief-grid,
   .quest-command-metrics,
   .hangar-triage-grid,
   .hangar-shop-brief-grid,
@@ -6314,8 +5502,7 @@ body,
   .market-spot-signal-head,
   .market-capital-signal-head,
   .settings-row,
-  .modal-actions,
-  .company-directives-loop {
+  .modal-actions {
     flex-direction: column;
     align-items: stretch;
   }
@@ -6323,181 +5510,9 @@ body,
   .modal-actions > button,
   .settings-row-control,
   .settings-select,
-  .settings-action-btn,
-  .company-directives-claim-all-btn {
+  .settings-action-btn {
     width: 100%;
   }
-}
-
-/* ==========================================================================
-   Starmap command HUD refinement
-   Keeps the main star map readable while preserving one-handed HUD access.
-   ========================================================================== */
-:root {
-  --starmap-rail-frame-pad: 5px;
-  --starmap-rail-frame-width: calc(var(--starmap-rail-size) + (var(--starmap-rail-frame-pad) * 2));
-  --starmap-rail-widget-gap: 16px;
-  --starmap-rail-widget-left: calc(var(--starmap-rail-edge-x) + var(--starmap-rail-frame-width) + var(--starmap-rail-widget-gap));
-  --starmap-command-clearance: calc(var(--bottom-nav-offset) + var(--bottom-nav-height) + 18px);
-}
-
-.starmap-control-rail {
-  width: var(--starmap-rail-frame-width);
-  padding: var(--starmap-rail-frame-pad);
-  border: 1px solid rgba(108, 231, 255, 0.13);
-  border-radius: 14px;
-  background:
-    linear-gradient(180deg, rgba(5, 21, 34, 0.7), rgba(2, 10, 18, 0.52)),
-    radial-gradient(circle at 50% 0, rgba(108, 231, 255, 0.14), transparent 62%);
-  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  overflow: visible;
-  backdrop-filter: blur(18px) saturate(1.18);
-  -webkit-backdrop-filter: blur(18px) saturate(1.18);
-}
-
-.starmap-control-rail::before {
-  content: "";
-  position: absolute;
-  inset: 7px auto 7px -1px;
-  width: 2px;
-  border-radius: 0 999px 999px 0;
-  background: linear-gradient(180deg, transparent, rgba(108, 231, 255, 0.76), transparent);
-  opacity: 0.72;
-  pointer-events: none;
-}
-
-.starmap-rail-btn {
-  position: relative;
-  border-radius: 10px;
-}
-
-.starmap-rail-btn.is-selected::before,
-.starmap-rail-btn[aria-pressed="true"]::before {
-  content: "";
-  position: absolute;
-  inset: 8px auto 8px -5px;
-  width: 3px;
-  border-radius: 999px;
-  background: rgba(108, 231, 255, 0.82);
-  box-shadow: 0 0 14px rgba(108, 231, 255, 0.52);
-  pointer-events: none;
-}
-
-.starmap-rail-label {
-  position: absolute;
-  top: 50%;
-  left: calc(100% + 10px);
-  z-index: 24;
-  width: max-content;
-  max-width: min(220px, calc(100vw - 88px));
-  height: auto;
-  margin: 0;
-  padding: 6px 9px;
-  clip: auto;
-  border: 1px solid rgba(108, 231, 255, 0.2);
-  border-radius: 999px;
-  background: rgba(3, 14, 23, 0.92);
-  color: rgba(235, 248, 255, 0.94);
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.34), 0 0 18px rgba(108, 231, 255, 0.12);
-  font-family: "Rajdhani", "PingFang SC", sans-serif;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.03em;
-  line-height: 1;
-  opacity: 0;
-  overflow: visible;
-  pointer-events: none;
-  transform: translate(-4px, -50%);
-  transition: opacity 0.14s ease, transform 0.14s ease;
-  white-space: nowrap;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .starmap-rail-btn:hover .starmap-rail-label,
-  .starmap-rail-btn:focus-visible .starmap-rail-label {
-    opacity: 1;
-    transform: translate(0, -50%);
-  }
-}
-
-[data-hud-widget] {
-  width: min(420px, var(--starmap-rail-panel-width));
-  max-height: min(420px, calc(100dvh - var(--starmap-rail-edge-y) - var(--starmap-command-clearance)));
-  border-radius: 14px;
-  background:
-    linear-gradient(180deg, rgba(8, 27, 40, 0.88), rgba(3, 12, 21, 0.84)),
-    radial-gradient(circle at 0 0, rgba(108, 231, 255, 0.15), transparent 46%),
-    radial-gradient(circle at 100% 0, rgba(255, 184, 107, 0.08), transparent 42%);
-  box-shadow:
-    0 22px 68px rgba(0, 0, 0, 0.46),
-    0 0 0 1px rgba(108, 231, 255, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  scrollbar-color: rgba(108, 231, 255, 0.32) transparent;
-  overscroll-behavior: contain;
-}
-
-[data-hud-widget].hud-widget-active:not(.hud-widget-collapsed) {
-  animation: starmap-hud-panel-in 0.18s ease-out;
-}
-
-.hud-widget-head {
-  position: sticky;
-  top: 0;
-  min-height: 40px;
-  padding: 9px 12px 8px;
-  background:
-    linear-gradient(180deg, rgba(18, 57, 77, 0.78), rgba(4, 18, 30, 0.58)),
-    radial-gradient(circle at 12% 0, rgba(108, 231, 255, 0.14), transparent 58%);
-}
-
-.hud-widget-foot {
-  align-items: center;
-  min-height: 42px;
-  border-top: 1px solid rgba(108, 231, 255, 0.1);
-  background: rgba(2, 10, 18, 0.28);
-}
-
-.hud-market-table {
-  table-layout: fixed;
-}
-
-.hud-market-table th,
-.hud-market-table td {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.target-intel-list,
-.network-stats,
-.hud-galactic-summary {
-  min-width: 0;
-}
-
-.map-btn-group {
-  top: var(--starmap-rail-edge-y);
-  right: max(12px, var(--safe-right, 0px));
-  gap: 6px;
-  padding: 5px;
-  border-radius: 999px;
-  border-color: rgba(108, 231, 255, 0.14);
-  background:
-    linear-gradient(180deg, rgba(5, 21, 34, 0.7), rgba(2, 10, 18, 0.5)),
-    radial-gradient(circle at 50% 0, rgba(108, 231, 255, 0.12), transparent 64%);
-  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-}
-
-.map-primary-entry-group {
-  gap: 5px;
-}
-
-.map-overlay-btn {
-  min-height: 38px;
-  padding: 0 13px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 800;
-  white-space: nowrap;
 }
 
 .planet-detail-panel {
@@ -6512,10 +5527,6 @@ body,
 
 .planet-detail-panel {
   grid-template-columns: 1fr;
-}
-
-.planet-detail-panel.visible:not(.planet-detail-panel--galaxy-hub) {
-  max-height: min(560px, calc(100dvh - var(--starmap-rail-edge-y) - var(--starmap-command-clearance)));
 }
 
 .planet-detail-shell {
@@ -6763,50 +5774,6 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) .galaxy-s
 }
 
 @media (max-width: 900px) {
-  :root {
-    --starmap-rail-frame-pad: 4px;
-    --starmap-rail-widget-gap: 8px;
-    --starmap-command-clearance: calc(var(--bottom-nav-offset) + var(--bottom-nav-height) + 14px);
-  }
-
-  .starmap-control-rail {
-    max-height: calc(100dvh - var(--starmap-rail-edge-y) - var(--starmap-command-clearance));
-    overflow-x: hidden;
-    overflow-y: auto;
-  }
-
-  .starmap-rail-label {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    margin: -1px;
-    padding: 0;
-    clip: rect(0 0 0 0);
-    border: 0;
-    opacity: 0;
-    overflow: hidden;
-    white-space: nowrap;
-  }
-
-  [data-hud-widget] {
-    left: var(--starmap-rail-widget-left);
-    width: min(520px, calc(100vw - var(--starmap-rail-widget-left) - 10px));
-    max-width: calc(100vw - var(--starmap-rail-widget-left) - 10px);
-    max-height: min(520px, calc(100dvh - var(--starmap-rail-edge-y) - var(--starmap-command-clearance)));
-  }
-
-  .map-btn-group {
-    top: 8px;
-    right: 8px;
-    max-width: calc(100vw - var(--starmap-rail-widget-left) - 18px);
-  }
-
-  .map-overlay-btn {
-    min-height: 34px;
-    padding: 0 10px;
-    font-size: 11px;
-  }
-
   .planet-detail-title-row {
     grid-template-columns: 1fr;
     gap: 6px;
@@ -6820,99 +5787,6 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) .galaxy-s
 }
 
 @media (max-width: 560px) {
-  :root {
-    --starmap-rail-size: var(--ui-control-lg, 44px);
-    --starmap-rail-frame-pad: 3px;
-    --starmap-rail-widget-gap: 6px;
-    --starmap-rail-exploration-offset: 270px;
-  }
-
-  .starmap-control-rail .starmap-rail-btn {
-    font-size: 13px;
-  }
-
-  .starmap-rail-icon {
-    width: 20px;
-    height: 20px;
-  }
-
-  [data-hud-widget] {
-    width: calc(100vw - var(--starmap-rail-widget-left) - 8px);
-    max-width: calc(100vw - var(--starmap-rail-widget-left) - 8px);
-    max-height: min(440px, calc(100dvh - var(--starmap-rail-edge-y) - var(--starmap-command-clearance)));
-    border-radius: 12px;
-  }
-
-  .hud-widget-head {
-    min-height: 36px;
-    gap: 8px;
-    padding: 8px 9px 7px;
-    font-size: 10px;
-  }
-
-  .hud-widget-foot {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 7px;
-    padding: 8px 9px 9px;
-  }
-
-  .hud-widget-foot-actions,
-  .target-intel-actions {
-    justify-content: stretch;
-  }
-
-  .hud-widget-link-btn,
-  .target-intel-actions .hud-widget-link-btn {
-    width: 100%;
-    min-height: 32px;
-  }
-
-  .hud-market-table {
-    width: calc(100% - 18px);
-    margin: 9px 9px 0;
-    font-size: 11px;
-  }
-
-  .hud-market-table th,
-  .hud-market-table td {
-    padding-top: 6px;
-    padding-bottom: 6px;
-  }
-
-  .target-intel-hero {
-    padding: 12px 12px 9px;
-  }
-
-  .target-intel-list {
-    grid-template-columns: 1fr;
-    padding: 0 12px 8px;
-  }
-
-  .network-widget-body {
-    grid-template-columns: 1fr;
-    padding: 10px;
-  }
-
-  .hud-network-signal {
-    grid-template-columns: 1fr;
-    gap: 4px;
-  }
-
-  .network-spark {
-    height: 46px;
-  }
-
-  .map-btn-group {
-    max-width: 148px;
-    padding: 4px;
-  }
-
-  .map-overlay-btn {
-    min-height: 32px;
-    padding: 0 8px;
-    font-size: 10px;
-  }
 
   .planet-detail-panel--pinned .planet-detail-actions--panel {
     grid-template-columns: minmax(0, 1fr) minmax(96px, auto);
@@ -6930,47 +5804,6 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) .galaxy-s
   .galaxy-switcher-actions .planet-detail-action {
     width: 100%;
     min-height: 34px;
-  }
-}
-
-@media (max-width: 700px), (max-height: 620px) {
-  .planet-detail-panel.visible:not(.planet-detail-panel--galaxy-hub) {
-    left: var(--starmap-rail-widget-left) !important;
-    right: 8px;
-    top: auto !important;
-    bottom: var(--starmap-command-clearance);
-    width: auto !important;
-    max-width: none;
-    max-height: min(56dvh, calc(100dvh - var(--starmap-rail-edge-y) - var(--starmap-command-clearance)));
-  }
-
-  .planet-detail-panel--summary.visible:not(.planet-detail-panel--galaxy-hub) {
-    max-height: min(44dvh, calc(100dvh - var(--starmap-rail-edge-y) - var(--starmap-command-clearance)));
-  }
-
-  .planet-detail-panel--galaxy-hub.visible {
-    left: var(--starmap-rail-widget-left) !important;
-    right: 8px;
-    top: auto !important;
-    bottom: var(--starmap-command-clearance);
-    width: auto !important;
-    max-width: none;
-    max-height: min(40dvh, 360px);
-  }
-}
-
-@media (max-width: 360px) {
-  :root {
-    --starmap-rail-size: var(--ui-control-lg, 44px);
-    --starmap-rail-widget-gap: 5px;
-  }
-
-  .map-btn-group {
-    max-width: 132px;
-  }
-
-  .map-overlay-btn {
-    font-size: 9px;
   }
 }
 
@@ -7113,8 +5946,7 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #mini-con
   --modal-w: 720px;
 }
 
-.modal > .victory-modal-box,
-.modal > .company-directives-modal-box {
+.modal > .victory-modal-box {
   --modal-w: 920px;
 }
 
@@ -7397,8 +6229,7 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #mini-con
   .modal > .crew-modal-box,
   .modal > .company-rename-box,
   .modal > .tutorial-start-box,
-  .modal > .settings-modal-box,
-  .modal > .company-directives-modal-box {
+  .modal > .settings-modal-box {
     max-height: calc(100dvh - max(8px, var(--safe-top)) - max(8px, var(--safe-bottom)));
   }
 
@@ -7488,7 +6319,7 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #mini-con
   }
 }
 
-/* Detail command panels: settings + company directives */
+/* Settings detail command panel */
 .settings-modal-box {
   --settings-sidebar-w: clamp(156px, 18vw, 190px);
   width: min(960px, calc(100vw - 32px));
@@ -7641,8 +6472,7 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #mini-con
   color: #a7f3d0;
 }
 
-.settings-modal-desc,
-.company-directives-desc {
+.settings-modal-desc {
   margin: 0;
   color: rgba(197, 232, 255, 0.7);
   font-size: 12px;
@@ -7741,260 +6571,6 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #mini-con
   padding: 2px 16px 10px;
 }
 
-.company-directives-modal-box {
-  --directive-card-min: 240px;
-  width: min(1040px, calc(100vw - 32px));
-}
-
-.company-directives-head {
-  min-height: 58px;
-}
-
-.company-directives-title-copy {
-  min-width: 0;
-  display: grid;
-  gap: 4px;
-}
-
-.company-directives-title-copy h3 {
-  margin: 0;
-}
-
-.company-directives-body {
-  gap: 16px;
-  scrollbar-gutter: stable;
-}
-
-.company-directives-brief {
-  grid-template-columns: minmax(210px, 0.68fr) minmax(0, 1.32fr);
-  border-radius: 14px;
-  background:
-    linear-gradient(135deg, rgba(34, 211, 238, 0.1), rgba(14, 30, 60, 0.2)),
-    radial-gradient(circle at 12% 0, rgba(108, 231, 255, 0.12), transparent 48%),
-    rgba(4, 10, 24, 0.84);
-}
-
-.company-directives-brief-grid {
-  grid-template-columns: repeat(3, minmax(72px, 0.42fr)) minmax(150px, 1fr);
-}
-
-.company-directives-brief-grid > div,
-.company-directives-tracked,
-.company-directives-recent,
-.company-directives-next {
-  border-radius: 10px;
-}
-
-.company-directives-tracked {
-  position: relative;
-  padding-right: 12px;
-}
-
-.company-directives-tracked::before {
-  content: "";
-  width: 5px;
-  align-self: stretch;
-  border-radius: 999px;
-  background: linear-gradient(180deg, #67e8f9, rgba(103, 232, 249, 0.08));
-}
-
-.company-directives-toolbar {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  padding: 10px 12px;
-  border: 1px solid rgba(108, 231, 255, 0.12);
-  border-radius: 13px;
-  background:
-    linear-gradient(180deg, rgba(6, 24, 40, 0.5), rgba(2, 10, 18, 0.62)),
-    rgba(3, 13, 24, 0.42);
-}
-
-.company-directives-filter-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-  min-width: 0;
-}
-
-.company-directives-filter-chip {
-  display: inline-grid;
-  grid-template-columns: minmax(0, auto) auto;
-  align-items: center;
-  gap: 6px;
-  min-height: 32px;
-  padding: 6px 10px;
-  border: 1px solid rgba(108, 231, 255, 0.14);
-  border-radius: 999px;
-  background: rgba(2, 10, 18, 0.5);
-  color: rgba(177, 205, 222, 0.76);
-  cursor: pointer;
-}
-
-.company-directives-filter-chip strong {
-  min-width: 20px;
-  padding: 1px 6px;
-  border-radius: 999px;
-  background: rgba(108, 231, 255, 0.1);
-  color: rgba(242, 250, 255, 0.92);
-  font-size: 11px;
-  text-align: center;
-}
-
-.company-directives-filter-chip:hover,
-.company-directives-filter-chip:focus-visible {
-  border-color: rgba(108, 231, 255, 0.38);
-  color: rgba(242, 250, 255, 0.94);
-  outline: none;
-}
-
-.company-directives-filter-chip.is-active {
-  border-color: rgba(108, 231, 255, 0.42);
-  background: rgba(108, 231, 255, 0.12);
-  color: rgba(242, 250, 255, 0.96);
-}
-
-.company-directives-filter-status {
-  color: rgba(177, 205, 222, 0.62);
-  font-size: 11px;
-  line-height: 1.45;
-  white-space: nowrap;
-}
-
-.company-directives-empty {
-  grid-column: 1 / -1;
-  display: grid;
-  gap: 6px;
-  min-height: 150px;
-  place-content: center;
-  padding: 16px;
-  border: 1px dashed rgba(108, 231, 255, 0.22);
-  border-radius: 13px;
-  background: rgba(2, 10, 18, 0.44);
-  color: rgba(177, 205, 222, 0.68);
-  text-align: center;
-}
-
-.company-directives-empty strong {
-  color: rgba(242, 250, 255, 0.92);
-}
-
-.company-directive-grid {
-  grid-template-columns: repeat(auto-fit, minmax(var(--directive-card-min), 1fr));
-  align-items: stretch;
-}
-
-.company-directive-card {
-  position: relative;
-  border-radius: 12px;
-}
-
-.company-directive-card::before {
-  content: "";
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 3px;
-  border-radius: 12px 0 0 12px;
-  background: rgba(108, 231, 255, 0.28);
-  opacity: 0.7;
-}
-
-.company-directive-card.is-tracked::before {
-  background: #facc15;
-  box-shadow: 0 0 14px rgba(250, 204, 21, 0.28);
-}
-
-.company-directive-card.is-claimable::before {
-  background: #4ade80;
-  box-shadow: 0 0 14px rgba(74, 222, 128, 0.28);
-}
-
-.company-directive-card:focus-within {
-  border-color: rgba(108, 231, 255, 0.48);
-  box-shadow:
-    0 0 0 3px rgba(108, 231, 255, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
-}
-
-.company-directive-card-head {
-  min-width: 0;
-}
-
-.company-directive-card-head > div {
-  min-width: 0;
-}
-
-.company-directive-card h4,
-.company-directive-desc,
-.company-directive-reward {
-  overflow-wrap: anywhere;
-}
-
-.company-directive-status {
-  max-width: 96px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.company-directive-track[role="progressbar"],
-.company-directive-mini-track[role="progressbar"] {
-  outline: none;
-}
-
-.company-directive-actions {
-  margin-top: auto;
-}
-
-.company-directive-track-btn,
-.company-directive-action-btn,
-.company-directives-claim-all-btn {
-  min-height: 38px;
-  line-height: 1.15;
-}
-
-.company-directive-track-btn[aria-pressed="true"] {
-  border-color: rgba(250, 204, 21, 0.48);
-  background:
-    linear-gradient(180deg, rgba(120, 78, 12, 0.44), rgba(39, 24, 6, 0.58));
-  color: #fde68a;
-}
-
-.company-directive-track-btn:focus-visible,
-.company-directive-action-btn:focus-visible,
-.company-directives-claim-all-btn:focus-visible {
-  outline: 2px solid rgba(108, 231, 255, 0.72);
-  outline-offset: 3px;
-}
-
-@media (max-width: 900px) {
-  .company-directives-modal-box {
-    --directive-card-min: 220px;
-  }
-
-  .company-directives-brief {
-    grid-template-columns: 1fr;
-  }
-
-  .company-directives-brief-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .company-directives-brief-grid > div:last-child {
-    grid-column: 1 / -1;
-  }
-
-  .company-directives-toolbar {
-    grid-template-columns: 1fr;
-  }
-
-  .company-directives-filter-status {
-    white-space: normal;
-  }
-}
-
 @media (max-width: 760px) {
   .settings-layout {
     grid-template-columns: 1fr;
@@ -8052,8 +6628,7 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #mini-con
     padding: 10px 12px 0;
   }
 
-  .settings-modal-desc,
-  .company-directives-desc {
+  .settings-modal-desc {
     font-size: 11px;
   }
 }
@@ -8099,48 +6674,6 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #mini-con
 
   .settings-hint-row {
     padding-inline: 12px;
-  }
-
-  .company-directives-modal-box {
-    --directive-card-min: 100%;
-  }
-
-  .company-directives-head {
-    align-items: flex-start;
-    gap: 10px;
-  }
-
-  .company-directives-body {
-    gap: 12px;
-  }
-
-  .company-directives-brief {
-    padding: 12px;
-  }
-
-  .company-directives-brief h3 {
-    font-size: 18px;
-  }
-
-  .company-directives-tracked {
-    align-items: stretch;
-  }
-
-  .company-directives-filter-chip {
-    flex: 1 1 calc(50% - 7px);
-  }
-
-  .company-directive-card {
-    padding: 12px;
-  }
-
-  .company-directive-card-head {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-
-  .company-directive-actions {
-    grid-template-columns: 1fr;
   }
 }
 
@@ -10464,8 +8997,7 @@ body[data-motion="reduced"] .dialogue-modal-box {
 
 @media (max-width: 700px), (max-height: 620px) {
   .modal > .modal-box,
-  .modal > .settings-modal-box,
-  .modal > .company-directives-modal-box {
+  .modal > .settings-modal-box {
     max-height: calc(100dvh - max(8px, var(--safe-top)) - max(8px, var(--safe-bottom))) !important;
   }
 

@@ -265,6 +265,7 @@ function _switchToGalaxy(galaxyId) {
 
   _clearSelectedPlanetDetail(false);
   _mapViewState.showGalaxyPlanets(galaxyId);
+  _setGalaxyImmersionMode(false);
   ContextInspector.render();
   if (!ContextInspector.getSnapshot().initialized) refreshPlanetDetail(state);
   return true;
@@ -276,6 +277,7 @@ function _returnToPlanetView() {
 
   _clearSelectedPlanetDetail(false);
   _mapViewState.showCurrentGalaxyPlanets();
+  _setGalaxyImmersionMode(false);
   ContextInspector.render();
   if (!ContextInspector.getSnapshot().initialized) refreshPlanetDetail(state);
   return true;
@@ -317,6 +319,7 @@ export function toggleGalaxyView() {
   }
 
   _mapViewState.showGalaxies();
+  _setGalaxyImmersionMode(true);
   ContextInspector.replaceContext({
     type: 'galaxy',
     id: currentState.viewingGalaxy || currentState.currentGalaxy,
@@ -617,6 +620,7 @@ export function getDiagnostics() {
 export function resetRuntimeState() {
   _mapViewState.clearHover();
   _mapViewState.reset();
+  _setGalaxyImmersionMode(false);
   _mapSession.reset();
   ContextInspector.clearContext('map', { render: false });
   _closeActiveMapDetails();

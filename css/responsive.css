@@ -20,27 +20,6 @@
     max-height: calc(100vh - 24px);
     padding: 14px;
   }
-  .map-btn-group {
-    top: 48px;
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 2px;
-    padding: 3px;
-  }
-  .map-secondary-entry-group,
-  .map-primary-entry-group {
-    justify-content: flex-end;
-    gap: 2px;
-  }
-  .map-secondary-entry-group {
-    overflow-x: auto;
-    flex-wrap: nowrap;
-  }
-  .map-secondary-entry-btn {
-    min-width: 180px;
-    max-width: none;
-  }
   .victory-modal-box { min-width: 280px; max-width: 420px; }
   .event-modal-box { min-width: 280px; max-width: 360px; }
   .dialogue-modal-box { min-width: 280px; max-width: 420px; }
@@ -226,14 +205,6 @@
   .secondary-panel-close {
     align-self: flex-end;
   }
-  .map-secondary-entry-btn {
-    min-width: 148px;
-    padding: 10px 9px;
-  }
-  .map-overlay-btn {
-    min-height: 32px;
-    padding: 4px 9px;
-  }
   .market-cmd-bar,
   .market-command-bar {
     padding: 8px 8px 6px;
@@ -386,7 +357,6 @@
   #map-legend { font-size: 10px; gap: 4px; padding: 2px 6px; }
   #map-legend span:last-child { display: none; }
   #status-bar { height: 58px; }
-  .map-overlay-btn { padding: 4px 8px; font-size: 10px; }
 }
 
 /* ============================================================
@@ -422,14 +392,12 @@
   50% { opacity: 0.8; }
 }
 
-.map-overlay-btn,
 .victory-progress-btn,
 .settings-btn {
   position: relative;
   overflow: hidden;
 }
 
-.map-overlay-btn::before,
 .victory-progress-btn::before,
 .settings-btn::before {
   content: "";
@@ -441,14 +409,9 @@
   pointer-events: none;
 }
 
-.map-overlay-btn:hover::before,
 .victory-progress-btn:hover::before,
 .settings-btn:hover::before {
   animation: border-sweep 0.8s ease-out;
-}
-
-.map-overlay-btn.active {
-  animation: neon-breathe 2.6s ease-in-out infinite;
 }
 
 .market-overlay-header h3,
@@ -547,7 +510,6 @@
   text-shadow: 0 0 8px rgba(34, 211, 238, 0.18);
 }
 
-body[data-motion="reduced"] .map-overlay-btn.active,
 body[data-motion="reduced"] .mkt-ov-current::before,
 body[data-motion="reduced"] #message-log::after,
 body[data-motion="reduced"] .map-scanlines,
@@ -594,8 +556,7 @@ body[data-motion="off"] *::after {
 }
 
 .tab-btn,
-.market-galaxy-btn,
-.map-overlay-btn {
+.market-galaxy-btn {
   will-change: transform, opacity;
 }
 
@@ -603,7 +564,6 @@ body[data-motion="off"] *::after {
 .tab-btn:hover { transform: translateY(-1px); }
 
 .tab-btn:active,
-.map-overlay-btn:active,
 .market-galaxy-btn:active {
   transform: translateY(1px) scale(0.99);
 }
@@ -616,7 +576,6 @@ body[data-motion="off"] *::after {
   animation: slide-enter-right 0.22s ease-out;
 }
 
-.market-galaxy-btn:hover,
-.map-overlay-btn:hover {
+.market-galaxy-btn:hover {
   animation: button-press-glow 0.45s ease-out;
 }
