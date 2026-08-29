@@ -55,6 +55,11 @@ export function createGameUiRuntimeFactory(context) {
         events: context.events,
         ui: {
           HUD: HUD,
+          LogsUI: HUD,
+          ShellInteractions: Object.freeze({
+            ensureGalaxyToggle: HUD.ensureGalaxyToggle,
+            syncVictoryProgress: HUD.syncVictoryProgress,
+          }),
           ShipUI: ShipUI,
           MapUI: MapUI,
           UIManager: UIManager,

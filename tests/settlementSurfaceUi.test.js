@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestState } from './helpers.js';
 import { readApplicationComposition } from './runtimeCompositionSource.js';
+import { createGameShellProjection } from '../js/ui/GameShellProjection.js';
 
 function createClassList(initialValues) {
   var values = new Set(initialValues || []);
@@ -221,7 +222,7 @@ describe('Settlement surface UI', function () {
     };
 
     var HUD = await import('../js/ui/HUD.js?v=20260605-victorysummary1');
-    HUD.updateStats(createTestState({
+    var state = createTestState({
       credits: 12000,
       day: 42,
       questPhase: 5,
@@ -229,7 +230,13 @@ describe('Settlement surface UI', function () {
       completedQuests: ['starter_first_trade'],
       currentSystem: 'sol_prime',
       currentGalaxy: 'milky_way',
-    }), 12000);
+    });
+    createGameShellProjection({
+      interactions: {
+        ensureGalaxyToggle: HUD.ensureGalaxyToggle,
+        syncVictoryProgress: HUD.syncVictoryProgress,
+      },
+    }).render(state, 12000);
 
     expect(victoryBody.innerHTML).toContain('vp-overview');
     expect(victoryBody.innerHTML).toContain('vp-overview-next');

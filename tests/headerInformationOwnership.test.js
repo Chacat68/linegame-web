@@ -41,4 +41,45 @@ describe('Header information ownership', function () {
     expect(css).not.toContain('.company-panel-card');
     expect(css).not.toContain('.rep-badge');
   });
+
+  it('全局信息由 ShellProjection 单次投影，Coordinator 与 HUD 不再持有兼容刷新门面', function () {
+    var shell = readFileSync(new URL('../js/ui/GameShellProjection.js', import.meta.url), 'utf8');
+    var coordinator = readFileSync(new URL('../js/ui/GameUiCoordinator.js', import.meta.url), 'utf8');
+    var hud = readFileSync(new URL('../js/ui/HUD.js', import.meta.url), 'utf8');
+    var presentation = readFileSync(new URL('../js/core/ActionPresentation.js', import.meta.url), 'utf8');
+    var runtimeFactory = readFileSync(new URL('../js/core/GameUiRuntimeFactory.js', import.meta.url), 'utf8');
+
+    expect(shell).toContain("from './HeaderStatusPresenter.js'");
+    expect(shell).toContain("from './CompanyOverviewPresenter.js'");
+    expect(shell).toContain("from './ArchiveBadgePresenter.js'");
+    expect(coordinator).toContain("_call(ShellProjection, 'render', [state, netWorth])");
+    expect(coordinator).not.toContain("_dependency(ui, 'HUD'");
+    expect(coordinator).not.toContain("'updateStats'");
+    expect(coordinator).not.toContain("'updateCompanyName'");
+    expect(coordinator).not.toContain("'updateArchiveBadges'");
+    expect(runtimeFactory).toContain('ShellInteractions: Object.freeze({');
+    expect(runtimeFactory).toContain('LogsUI: HUD');
+    expect(hud).not.toContain('export function updateStats');
+    expect(hud).not.toContain('export function updateCompanyName');
+    expect(hud).not.toContain('export function updateArchiveBadges');
+    expect(presentation).toContain("SHELL: 'shell'");
+    expect(presentation).not.toContain("HUD: 'hud'");
+  });
+
+  it('Header 基础布局只由现行 Surface 层覆盖，旧专用样式表不再参与竞争', function () {
+    var legacyHeader = readFileSync(new URL('../css/header.css', import.meta.url), 'utf8');
+    var surfaces = readFileSync(new URL('../css/surfaces.css', import.meta.url), 'utf8');
+    var responsive = readFileSync(new URL('../css/bridge-responsive.css', import.meta.url), 'utf8');
+    var entry = readFileSync(new URL('../css/style.css', import.meta.url), 'utf8');
+
+    expect(legacyHeader).not.toMatch(/#game-header|\.hdr-/);
+    expect(surfaces).toContain('#game-header {');
+    expect(surfaces).toContain('.hdr-company-name {');
+    expect(surfaces).toContain('.hdr-icon-btn[data-company-directive-badge]::after');
+    expect(responsive).toContain('@media (max-width: 680px)');
+    expect(entry.indexOf('@import url("interstellar-trader.css")'))
+      .toBeLessThan(entry.indexOf('@import url("surfaces.css")'));
+    expect(entry.indexOf('@import url("surfaces.css")'))
+      .toBeLessThan(entry.indexOf('@import url("bridge-responsive.css")'));
+  });
 });

@@ -5,7 +5,7 @@
 
 export const UI_REGION = Object.freeze({
   ALL: 'all',
-  HUD: 'hud',
+  SHELL: 'shell',
   SHIP: 'ship',
   ACTIVE_WORKSPACE: 'active-workspace',
   MARKET: 'market',
@@ -32,7 +32,7 @@ export const UI_REGION = Object.freeze({
 const VALID_REGIONS = new Set(Object.values(UI_REGION));
 
 export const DEFAULT_ACTION_DIRTY_REGIONS = Object.freeze([
-  UI_REGION.HUD,
+  UI_REGION.SHELL,
   UI_REGION.SHIP,
   UI_REGION.ACTIVE_WORKSPACE,
   UI_REGION.SCENE,
@@ -94,17 +94,17 @@ export const NAVIGATION_FOCUS_PRESENTATION = createActionPresentation([
   UI_REGION.GUIDE,
 ]);
 
-export const COMPANY_IDENTITY_PRESENTATION = createActionPresentation([UI_REGION.HUD]);
+export const COMPANY_IDENTITY_PRESENTATION = createActionPresentation([UI_REGION.SHELL]);
 
 export const ACHIEVEMENT_UNLOCK_PRESENTATION = createActionPresentation([
-  UI_REGION.HUD,
+  UI_REGION.SHELL,
   UI_REGION.ARCHIVE_ACHIEVEMENT,
   UI_REGION.CONTEXT,
   UI_REGION.GUIDE,
 ]);
 
 // Command Slot 的工作区导航只改变被打开的局部 presenter、Context 与 Guide。
-// 它不修改飞船/经济状态，因此不能借用领域动作 presentation 触发 HUD、Ship、
+// 它不修改飞船/经济状态，因此不能借用领域动作 presentation 触发 Shell、Ship、
 // Scene 或 Dispatch 的默认重绘。
 export const MARKET_SPOT_FOCUS_PRESENTATION = createActionPresentation([
   UI_REGION.MARKET_SPOT,

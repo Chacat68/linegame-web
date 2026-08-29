@@ -95,7 +95,8 @@ export function createGameUiCoordinator(options) {
   var lastRenderedWorkspaceRegions = Object.freeze([]);
   var activeWorkspaceRenderTrace = null;
 
-  var HUD = _dependency(ui, 'HUD', 'hud');
+  var ShellProjection = _dependency(ui, 'ShellProjection', 'shellProjection');
+  var LogsUI = _dependency(ui, 'LogsUI', 'logs');
   var ShipUI = _dependency(ui, 'ShipUI', 'ship');
   var MapUI = _dependency(ui, 'MapUI', 'map');
   var MarketWorkspaceEntry = _dependency(ui, 'MarketWorkspaceEntry', 'marketEntry');
@@ -136,9 +137,9 @@ export function createGameUiCoordinator(options) {
     }
   }
 
-  // HUD is eager and owns the in-memory message history; register its read-only
+  // Logs UI is eager and owns the in-memory message history; register its read-only
   // logs adapter once while delayed domain presenters continue to connect on load.
-  _call(ContextAdapters, 'connectLogs', [HUD]);
+  _call(ContextAdapters, 'connectLogs', [LogsUI]);
 
   function _getLoadedFeature(featureName) {
     if (!featureName) return null;
@@ -463,9 +464,7 @@ export function createGameUiCoordinator(options) {
 
       var netWorth = _call(Trade, 'getNetWorth', [state]);
       if (!Number.isFinite(netWorth)) netWorth = 0;
-      _call(HUD, 'updateStats', [state, netWorth]);
-      _call(HUD, 'updateCompanyName', [state]);
-      _call(HUD, 'updateArchiveBadges', [state]);
+      _call(ShellProjection, 'render', [state, netWorth]);
 
       if (_call(MarketWorkspacePort, 'isOpen', []) || _call(MarketWorkspacePort, 'isMarketOpen', [])) {
         var MarketUI = _getLoadedFeature('market');
@@ -527,12 +526,10 @@ export function createGameUiCoordinator(options) {
         return false;
       }
 
-      if (dirty.has(UI_REGION.HUD)) {
+      if (dirty.has(UI_REGION.SHELL)) {
         var netWorth = _call(Trade, 'getNetWorth', [state]);
         if (!Number.isFinite(netWorth)) netWorth = 0;
-        _call(HUD, 'updateStats', [state, netWorth]);
-        _call(HUD, 'updateCompanyName', [state]);
-        _call(HUD, 'updateArchiveBadges', [state]);
+        _call(ShellProjection, 'render', [state, netWorth]);
       }
       if (dirty.has(UI_REGION.SHIP)) _call(ShipUI, 'renderShipStats', [state]);
 
@@ -592,7 +589,7 @@ export function createGameUiCoordinator(options) {
     _call(UIManager, 'resetRuntimeState', []);
     _call(MarketWorkspaceEntry, 'reset', []);
     _call(MapUI, 'resetRuntimeState', []);
-    _call(HUD, 'resetRuntimeState', []);
+    _call(LogsUI, 'resetRuntimeState', []);
     _call(MarketUI, 'resetRuntimeState', []);
     _call(FleetUI, 'resetRuntimeState', []);
     _call(ArchiveUI, 'resetRuntimeState', []);
@@ -618,7 +615,7 @@ export function createGameUiCoordinator(options) {
         }, archiveModuleDiagnostics))
       : null;
     var mapUiDiagnostics = _call(MapUI, 'getDiagnostics', []) || null;
-    var logsUiDiagnostics = _call(HUD, 'getDiagnostics', []) || null;
+    var logsUiDiagnostics = _call(LogsUI, 'getDiagnostics', []) || null;
     return Object.freeze({
       marketUi: marketUiDiagnostics,
       marketEntry: marketEntryDiagnostics,

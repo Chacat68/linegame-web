@@ -33,9 +33,16 @@ function createHarness(overrides) {
     HUD: {
       init: vi.fn(),
       setVictoryActions: vi.fn(),
-      updateStats: vi.fn(),
-      updateCompanyName: vi.fn(),
-      updateArchiveBadges: vi.fn(),
+      ensureGalaxyToggle: vi.fn(),
+      syncVictoryProgress: vi.fn(),
+      getDiagnostics: vi.fn(function () { return { entryCount: 0, selectedMessageId: null }; }),
+      resetRuntimeState: vi.fn(),
+    },
+    ShellProjection: {
+      render: vi.fn(),
+      getDiagnostics: vi.fn(function () { return { renderCount: 1 }; }),
+    },
+    LogsUI: {
       getDiagnostics: vi.fn(function () { return { entryCount: 0, selectedMessageId: null }; }),
       resetRuntimeState: vi.fn(),
     },
@@ -165,6 +172,7 @@ describe('GameUiApplicationRuntime', function () {
       lifecycle: null,
       market: null,
       marketEntry: null,
+      shellProjection: null,
       settings: null,
       settingsCommands: null,
       workspaceTabs: null,
@@ -175,7 +183,8 @@ describe('GameUiApplicationRuntime', function () {
     expect(diagnostics.renderAllCount).toBe(1);
     expect(diagnostics.coordinator.renderAllCount).toBe(1);
     expect(diagnostics.market).not.toBeNull();
-    expect(harness.ui.HUD.updateStats).toHaveBeenCalledWith(harness.state, 0);
+    expect(harness.ui.ShellProjection.render).toHaveBeenCalledWith(harness.state, 0);
+    expect(diagnostics.shellProjection).toEqual({ renderCount: 1 });
   });
 
   it('Coordinator 尚未构造时也提供稳定的顶层 Feature recovery 快照', function () {
@@ -241,9 +250,9 @@ describe('GameUiApplicationRuntime', function () {
       }),
     }));
 
-    await harness.runtime.invalidate(['hud']);
-    expect(harness.ui.HUD.updateStats).toHaveBeenCalled();
-    expect(harness.runtime.getDiagnostics().lastInvalidationRegions).toEqual(['hud']);
+    await harness.runtime.invalidate(['shell']);
+    expect(harness.ui.ShellProjection.render).toHaveBeenCalled();
+    expect(harness.runtime.getDiagnostics().lastInvalidationRegions).toEqual(['shell']);
   });
 
   it('市场专用刷新也走统一局部错误面，并可从同一工作区重试', async function () {
@@ -327,7 +336,7 @@ describe('GameUiApplicationRuntime', function () {
     expect(resetFleetRuntime).toHaveBeenCalledOnce();
     expect(resetArchiveRuntime).toHaveBeenCalledOnce();
     expect(harness.ui.MapUI.resetRuntimeState).toHaveBeenCalledOnce();
-    expect(harness.ui.HUD.resetRuntimeState).toHaveBeenCalledOnce();
+    expect(harness.ui.LogsUI.resetRuntimeState).toHaveBeenCalledOnce();
     expect(harness.ui.UIManager.resetRuntimeState).toHaveBeenCalledOnce();
     expect(harness.runtime.getDiagnostics()).toEqual({
       coordinator: null,
@@ -345,6 +354,7 @@ describe('GameUiApplicationRuntime', function () {
       lifecycle: null,
       market: null,
       marketEntry: null,
+      shellProjection: null,
       settings: null,
       settingsCommands: null,
       workspaceTabs: null,
@@ -391,7 +401,7 @@ describe('GameUiApplicationRuntime', function () {
     expect(resetFleetRuntime).toHaveBeenCalledOnce();
     expect(resetArchiveRuntime).toHaveBeenCalledOnce();
     expect(harness.ui.MapUI.resetRuntimeState).toHaveBeenCalledOnce();
-    expect(harness.ui.HUD.resetRuntimeState).toHaveBeenCalledOnce();
+    expect(harness.ui.LogsUI.resetRuntimeState).toHaveBeenCalledOnce();
     expect(harness.ui.UIManager.resetRuntimeState).toHaveBeenCalledOnce();
     expect(harness.runtime.getDiagnostics().mapUi).toEqual({ selectedSystemId: null });
     expect(harness.runtime.getDiagnostics().logsUi).toEqual({ entryCount: 0, selectedMessageId: null });
@@ -427,6 +437,7 @@ describe('GameUiApplicationRuntime', function () {
       lifecycle: null,
       market: null,
       marketEntry: null,
+      shellProjection: null,
       settings: null,
       settingsCommands: null,
       workspaceTabs: null,

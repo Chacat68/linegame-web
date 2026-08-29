@@ -4,6 +4,16 @@ import { createTestState } from './helpers.js';
 import * as Economy from '../js/systems/economy/Economy.js';
 import * as Faction from '../js/systems/faction/FactionSystem.js';
 import * as Quest from '../js/systems/quest/QuestSystem.js';
+import { createGameShellProjection } from '../js/ui/GameShellProjection.js';
+
+function createShellProjectionForHud(HUD) {
+  return createGameShellProjection({
+    interactions: {
+      ensureGalaxyToggle: HUD && HUD.ensureGalaxyToggle,
+      syncVictoryProgress: HUD && HUD.syncVictoryProgress,
+    },
+  });
+}
 
 function createFakeClassList(initialValues) {
   var values = new Set(initialValues || []);
@@ -177,8 +187,8 @@ describe('HUD summary cards', function () {
     Quest.init(state);
     var HUD = await import('../js/ui/HUD.js');
     HUD.setVictoryActions({ onChoosePolicy: command });
-    HUD.init();
-    HUD.updateStats(state, 1000);
+    HUD.init({ stateSource: function () { return state; } });
+    createShellProjectionForHud(HUD).render(state, 1000);
 
     var button = createFakeElement();
     button.dataset.victoryPolicyId = 'galactic_explorer';
@@ -217,7 +227,7 @@ describe('HUD summary cards', function () {
       },
     });
 
-    HUD.updateArchiveBadges(state);
+    createShellProjectionForHud(HUD).render(state, 0);
 
     expect(elements['archive-tab-quest-badge'].hidden).toBe(false);
     expect(Number(elements['archive-tab-quest-badge'].textContent)).toBeGreaterThan(0);
@@ -276,8 +286,10 @@ describe('HUD summary cards', function () {
       galaxyViewRequests += 1;
       state.mapView = state.mapView === 'galaxies' ? 'planets' : 'galaxies';
     });
-    HUD.updateStats(state, 1000);
-    HUD.updateStats(state, 1000);
+    HUD.init({ stateSource: function () { return state; } });
+    var shellProjection = createShellProjectionForHud(HUD);
+    shellProjection.render(state, 1000);
+    shellProjection.render(state, 1000);
 
     expect(galaxyViewEl.textContent).toBe('星球视图');
     expect(galaxyFocusEl.textContent).toBe('银河系 · 太阳主星');
@@ -348,7 +360,7 @@ describe('HUD summary cards', function () {
     };
 
     var HUD = await import('../js/ui/HUD.js');
-    HUD.updateStats(state, 1000);
+    createShellProjectionForHud(HUD).render(state, 1000);
 
     expect(locationEl.textContent).toContain('太阳主星');
     expect(locationEl.getAttribute('title')).toBe(locationEl.textContent);
@@ -408,7 +420,7 @@ describe('HUD summary cards', function () {
     };
 
     var HUD = await import('../js/ui/HUD.js');
-    HUD.updateStats(state, 1000);
+    createShellProjectionForHud(HUD).render(state, 1000);
 
     expect(elements['status-fuel-meter'].getAttribute('aria-valuenow')).toBe('22');
     expect(elements['status-fuel-meter'].getAttribute('aria-valuetext')).toBe('燃料 22/100（22%）');
@@ -459,7 +471,7 @@ describe('HUD summary cards', function () {
     };
 
     var HUD = await import('../js/ui/HUD.js');
-    HUD.updateCompanyName(state);
+    createShellProjectionForHud(HUD).render(state, 0);
 
     expect(elements['company-name-text'].textContent).toBe('远航联合体');
     expect(roadmapEl.innerHTML).toContain('等级开放功能');

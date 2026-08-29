@@ -110,12 +110,12 @@ describe('GameActionRuntime', function () {
       msgs: [{ text: '操作完成', type: 'success' }],
     };
 
-    expect(harness.runtime.presentResult(result, ['hud', 'guide'])).toBe(result);
+    expect(harness.runtime.presentResult(result, ['shell', 'guide'])).toBe(result);
     expect(harness.trace).toEqual([
       'teaching',
       ['message', { text: '操作完成', type: 'success' }],
       'achievement',
-      ['invalidate', ['hud', 'guide']],
+      ['invalidate', ['shell', 'guide']],
       'victory',
     ]);
   });

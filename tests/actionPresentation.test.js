@@ -33,7 +33,7 @@ describe('ActionPresentation', function () {
     var actionRuntime = readFileSync('js/core/GameActionRuntime.js', 'utf8');
 
     expect(DEFAULT_ACTION_DIRTY_REGIONS).toEqual([
-      UI_REGION.HUD,
+      UI_REGION.SHELL,
       UI_REGION.SHIP,
       UI_REGION.ACTIVE_WORKSPACE,
       UI_REGION.SCENE,
@@ -51,7 +51,7 @@ describe('ActionPresentation', function () {
   });
 
   it('规范化会去重、过滤未知区域，并让 all 覆盖局部声明', function () {
-    expect(normalizeDirtyRegions(['hud', 'unknown', 'hud', 'guide'])).toEqual(['hud', 'guide']);
+    expect(normalizeDirtyRegions(['shell', 'unknown', 'shell', 'guide'])).toEqual(['shell', 'guide']);
     expect(normalizeDirtyRegions({ dirtyRegions: ['fleet', 'all', 'guide'] })).toEqual(['all']);
     expect(normalizeDirtyRegions(null, 'archive')).toEqual(['archive']);
     expect(resolveDirtyRegions()).toEqual(DEFAULT_ACTION_DIRTY_REGIONS);
@@ -67,9 +67,9 @@ describe('ActionPresentation', function () {
       UI_REGION.CONTEXT,
       UI_REGION.GUIDE,
     ]);
-    expect(COMPANY_IDENTITY_PRESENTATION.dirtyRegions).toEqual([UI_REGION.HUD]);
+    expect(COMPANY_IDENTITY_PRESENTATION.dirtyRegions).toEqual([UI_REGION.SHELL]);
     expect(ACHIEVEMENT_UNLOCK_PRESENTATION.dirtyRegions).toEqual([
-      UI_REGION.HUD,
+      UI_REGION.SHELL,
       UI_REGION.ARCHIVE_ACHIEVEMENT,
       UI_REGION.CONTEXT,
       UI_REGION.GUIDE,
@@ -152,7 +152,7 @@ describe('ActionPresentation', function () {
 
   it('Fleet 动作在保留当前工作区刷新语义时声明真实内部区域', function () {
     expect(FLEET_HANGAR_ACTION_PRESENTATION.dirtyRegions).toEqual([
-      UI_REGION.HUD,
+      UI_REGION.SHELL,
       UI_REGION.SHIP,
       UI_REGION.ACTIVE_WORKSPACE,
       UI_REGION.FLEET_HANGAR,
@@ -162,7 +162,7 @@ describe('ActionPresentation', function () {
       UI_REGION.GUIDE,
     ]);
     expect(FLEET_HANGAR_SHOP_ACTION_PRESENTATION.dirtyRegions).toEqual([
-      UI_REGION.HUD,
+      UI_REGION.SHELL,
       UI_REGION.SHIP,
       UI_REGION.ACTIVE_WORKSPACE,
       UI_REGION.FLEET_HANGAR,
@@ -178,7 +178,7 @@ describe('ActionPresentation', function () {
 
   it('Market 动作按现金联动与纯经营策略声明影响矩阵', function () {
     expect(MARKET_ECONOMY_ACTION_PRESENTATION.dirtyRegions).toEqual([
-      UI_REGION.HUD,
+      UI_REGION.SHELL,
       UI_REGION.SHIP,
       UI_REGION.ACTIVE_WORKSPACE,
       UI_REGION.MARKET_CHROME,
@@ -191,7 +191,7 @@ describe('ActionPresentation', function () {
       UI_REGION.GUIDE,
     ]);
     expect(MARKET_OPERATIONS_ACTION_PRESENTATION.dirtyRegions).toEqual([
-      UI_REGION.HUD,
+      UI_REGION.SHELL,
       UI_REGION.SHIP,
       UI_REGION.ACTIVE_WORKSPACE,
       UI_REGION.MARKET_OPERATIONS,
@@ -204,7 +204,7 @@ describe('ActionPresentation', function () {
 
   it('Archive 任务与科研动作声明各自 presenter 区域', function () {
     expect(ARCHIVE_QUEST_ACTION_PRESENTATION.dirtyRegions).toEqual([
-      UI_REGION.HUD,
+      UI_REGION.SHELL,
       UI_REGION.SHIP,
       UI_REGION.ACTIVE_WORKSPACE,
       UI_REGION.ARCHIVE_QUEST,
@@ -214,7 +214,7 @@ describe('ActionPresentation', function () {
       UI_REGION.GUIDE,
     ]);
     expect(ARCHIVE_RESEARCH_ACTION_PRESENTATION.dirtyRegions).toEqual([
-      UI_REGION.HUD,
+      UI_REGION.SHELL,
       UI_REGION.SHIP,
       UI_REGION.ACTIVE_WORKSPACE,
       UI_REGION.ARCHIVE_RESEARCH,

@@ -6,6 +6,7 @@ import { buildGameFeatureRecoveryDiagnostics } from './GameFeatureRecoveryDiagno
 import { createSettingsCommandController } from './SettingsCommandController.js';
 import { createSettingsUiController } from './SettingsUiController.js';
 import { createGameUiCoordinator } from '../ui/GameUiCoordinator.js';
+import { createGameShellProjection } from '../ui/GameShellProjection.js';
 import { createWorkspaceContextAdapters } from '../ui/WorkspaceContextAdapters.js';
 import { createMarketWorkspaceEntryController } from '../ui/MarketWorkspaceEntryController.js';
 import { createWorkspaceTabController } from '../ui/WorkspaceTabController.js';
@@ -28,6 +29,7 @@ export function createGameUiApplicationRuntime(options) {
   var marketWorkspaceEntry = null;
   var workspaceTabs = null;
   var coordinator = null;
+  var shellProjection = null;
   var lifecycle = null;
   var contextAdapters = null;
 
@@ -151,6 +153,18 @@ export function createGameUiApplicationRuntime(options) {
     return workspaceTabs;
   }
 
+  function getShellProjection() {
+    if (shellProjection) return shellProjection;
+    if (ui.ShellProjection) {
+      shellProjection = ui.ShellProjection;
+      return shellProjection;
+    }
+    shellProjection = createGameShellProjection({
+      interactions: ui.ShellInteractions,
+    });
+    return shellProjection;
+  }
+
   function getCoordinator() {
     if (coordinator) return coordinator;
     var actions = _actionRuntime();
@@ -168,7 +182,8 @@ export function createGameUiApplicationRuntime(options) {
       getState: getState,
       features: features,
       ui: {
-        HUD: ui.HUD,
+        ShellProjection: getShellProjection(),
+        LogsUI: ui.LogsUI,
         ShipUI: ui.ShipUI,
         MapUI: ui.MapUI,
         MarketWorkspaceEntry: getMarketWorkspaceEntry(),
@@ -311,7 +326,7 @@ export function createGameUiApplicationRuntime(options) {
       if (marketWorkspaceEntry) marketWorkspaceEntry.reset();
       if (ui.UIManager && typeof ui.UIManager.resetRuntimeState === 'function') ui.UIManager.resetRuntimeState();
       if (ui.MapUI && typeof ui.MapUI.resetRuntimeState === 'function') ui.MapUI.resetRuntimeState();
-      if (ui.HUD && typeof ui.HUD.resetRuntimeState === 'function') ui.HUD.resetRuntimeState();
+      if (ui.LogsUI && typeof ui.LogsUI.resetRuntimeState === 'function') ui.LogsUI.resetRuntimeState();
       var MarketUI = typeof features.get === 'function' ? features.get('market') : null;
       var FleetUI = typeof features.get === 'function' ? features.get('fleet') : null;
       var ArchiveUI = typeof features.get === 'function' ? features.get('archive') : null;
@@ -356,6 +371,7 @@ export function createGameUiApplicationRuntime(options) {
     workspaceTabs = null;
     coordinator = null;
     contextAdapters = null;
+    shellProjection = null;
   }
 
   function getDiagnostics() {
@@ -377,6 +393,9 @@ export function createGameUiApplicationRuntime(options) {
       lifecycle: lifecycle ? lifecycle.getDiagnostics() : null,
       market: marketWorkspace ? marketWorkspace.getDiagnostics() : null,
       marketEntry: marketWorkspaceEntry ? marketWorkspaceEntry.getDiagnostics() : null,
+      shellProjection: shellProjection && typeof shellProjection.getDiagnostics === 'function'
+        ? shellProjection.getDiagnostics()
+        : null,
       workspaceTabs: workspaceTabs ? workspaceTabs.getDiagnostics() : null,
       settings: settingsDiagnostics,
       settingsCommands: settingsCommands ? settingsCommands.getDiagnostics() : null,

@@ -65,7 +65,7 @@ describe('ActionExecutionPipeline', function () {
     var trace = [];
     var rendered = [];
     var pipeline = createPipeline(trace, rendered);
-    var dirtyRegions = ['hud', 'active-workspace', 'guide'];
+    var dirtyRegions = ['shell', 'active-workspace', 'guide'];
 
     pipeline.execute({
       label: 'fleet.buy',

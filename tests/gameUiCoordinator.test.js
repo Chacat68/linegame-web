@@ -72,7 +72,7 @@ describe('GameUiCoordinator', function () {
       connectArchive: vi.fn(),
       connectLogs: vi.fn(),
     };
-    var hud = { renderContextInspector: vi.fn() };
+    var logsUi = { renderContextInspector: vi.fn() };
     var features = createFeatureHarness({
       market: { render: marketRender },
       fleet: { render: fleetRender, renderShop: vi.fn() },
@@ -88,7 +88,7 @@ describe('GameUiCoordinator', function () {
           getMarketViewGalaxy: function () { return 'milky_way'; },
         },
         ContextAdapters: contextAdapters,
-        HUD: hud,
+        LogsUI: logsUi,
       },
       actions: {
         market: { onCommand: callbacks.marketCommand, getMode: function () { return 'black'; } },
@@ -119,7 +119,7 @@ describe('GameUiCoordinator', function () {
     expect(contextAdapters.connectFleet).toHaveBeenCalledWith(features.modules.fleet);
     expect(contextAdapters.connectArchive).toHaveBeenCalledWith(features.modules.archive);
     expect(contextAdapters.connectLogs).toHaveBeenCalledOnce();
-    expect(contextAdapters.connectLogs).toHaveBeenCalledWith(hud);
+    expect(contextAdapters.connectLogs).toHaveBeenCalledWith(logsUi);
   });
 
   it('异步加载期间切换状态后渲染最新状态', async function () {
@@ -228,10 +228,8 @@ describe('GameUiCoordinator', function () {
       getState: function () { return state; },
       features: features,
       ui: {
-        HUD: {
-          updateStats: function () { calls.push('hud.stats'); },
-          updateCompanyName: function () { calls.push('hud.company'); },
-          updateArchiveBadges: function () { calls.push('hud.badges'); },
+        ShellProjection: {
+          render: function () { calls.push('shell'); },
         },
         ShipUI: { renderShipStats: function () { calls.push('ship'); } },
         MapUI: {
@@ -253,9 +251,7 @@ describe('GameUiCoordinator', function () {
 
     expect(calls).toEqual([
       'netWorth',
-      'hud.stats',
-      'hud.company',
-      'hud.badges',
+      'shell',
       'market.check',
       'ship',
       'archive',
@@ -284,10 +280,8 @@ describe('GameUiCoordinator', function () {
         UIManager: {
           getNavigationSnapshot: function () { return { activeWorkspace: 'fleet' }; },
         },
-        HUD: {
-          updateStats: function () { calls.push('hud.stats'); },
-          updateCompanyName: function () { calls.push('hud.company'); },
-          updateArchiveBadges: function () { calls.push('hud.badges'); },
+        ShellProjection: {
+          render: function () { calls.push('shell'); },
         },
         ShipUI: { renderShipStats: function () { calls.push('ship'); } },
         MapUI: { refreshPlanetDetail: function () { calls.push('context'); } },
@@ -305,7 +299,7 @@ describe('GameUiCoordinator', function () {
     await coordinator.invalidate(DEFAULT_ACTION_DIRTY_REGIONS);
 
     expect(calls).toEqual([
-      'hud.stats', 'hud.company', 'hud.badges', 'ship', 'fleet',
+      'shell', 'ship', 'fleet',
       'scene', 'context', 'dispatch', 'guide',
     ]);
     expect(calls).not.toContain('market');
@@ -357,10 +351,8 @@ describe('GameUiCoordinator', function () {
       features: createFeatureHarness(),
       ui: {
         UIManager: { getNavigationSnapshot: function () { return { activeWorkspace: 'map' }; } },
-        HUD: {
-          updateStats: function () { calls.push('hud.stats'); },
-          updateCompanyName: function () { calls.push('hud.company'); },
-          updateArchiveBadges: function () { calls.push('hud.badges'); },
+        ShellProjection: {
+          render: function () { calls.push('shell'); },
         },
         ShipUI: { renderShipStats: function () { calls.push('ship'); } },
         MapUI: { refreshPlanetDetail: function () { calls.push('context'); } },
@@ -377,8 +369,8 @@ describe('GameUiCoordinator', function () {
     await coordinator.invalidate([]);
 
     expect(calls).toEqual([
-      'hud.stats', 'hud.company', 'hud.badges', 'ship', 'scene', 'context', 'dispatch', 'guide',
-      'hud.stats', 'hud.company', 'hud.badges', 'ship', 'scene', 'context', 'dispatch', 'guide',
+      'shell', 'ship', 'scene', 'context', 'dispatch', 'guide',
+      'shell', 'ship', 'scene', 'context', 'dispatch', 'guide',
     ]);
     expect(coordinator.getDiagnostics()).toEqual(expect.objectContaining({
       renderAllCount: 0,
@@ -445,7 +437,7 @@ describe('GameUiCoordinator', function () {
           getDiagnostics: function () { return mapDiagnostics; },
           resetRuntimeState: resetMapRuntimeState,
         },
-        HUD: {
+        LogsUI: {
           getDiagnostics: function () { return logsDiagnostics; },
           resetRuntimeState: resetLogsRuntimeState,
         },
@@ -453,7 +445,7 @@ describe('GameUiCoordinator', function () {
       },
     });
 
-    await coordinator.invalidate(['hud']);
+    await coordinator.invalidate(['shell']);
     expect(coordinator.getDiagnostics().marketUi).toEqual({
       activeWorkspace: 'capital',
       focusedGoodId: 'water',

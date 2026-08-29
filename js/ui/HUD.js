@@ -1,6 +1,6 @@
-// js/ui/HUD.js — 顶部状态栏与消息日志
+// js/ui/HUD.js — Shell 交互生命周期与消息日志
 // 依赖：core/EventBus.js, data/constants.js
-// 导出：init, updateStats, addMessage
+// 导出：init, dispose, addMessage 及 Shell interaction port
 
 import * as EventBus            from '../core/EventBus.js';
 import * as Victory             from '../systems/victory/VictorySystem.js';
@@ -9,9 +9,7 @@ import * as ContextInspector from './ContextInspector.js';
 import { renderLogContext, renderLogDetail } from './LogsContextPresenter.js';
 import { createLogsWorkspaceController } from './LogsWorkspaceController.js';
 import { createHudInteractionController } from './HudInteractionController.js';
-import { renderHeaderStatus, renderGalaxyViewSummary } from './HeaderStatusPresenter.js';
-import { renderCompanyNetWorth, renderCompanyOverview } from './CompanyOverviewPresenter.js';
-import { renderArchiveBadges } from './ArchiveBadgePresenter.js';
+import { renderGalaxyViewSummary } from './HeaderStatusPresenter.js';
 const LOG_TYPE_LABELS = {
   info: '系统',
   tip: '提示',
@@ -34,7 +32,6 @@ const _logsController = createLogsWorkspaceController({
   renderDetail: renderLogDetail,
   typeLabels: LOG_TYPE_LABELS,
 });
-let _stateRef = null;
 const _hudInteractions = createHudInteractionController({
   events: EventBus,
   surfaces: {
@@ -45,7 +42,7 @@ const _hudInteractions = createHudInteractionController({
   contextInspector: ContextInspector,
   logsController: _logsController,
   victory: Victory,
-  getState: function () { return _stateRef; },
+  getState: function () { return null; },
   renderGalaxySummary: function (state) {
     renderGalaxyViewSummary(state, null, function () {
       _hudInteractions.ensureGalaxyToggle();
@@ -63,7 +60,7 @@ export function init(options) {
   _initialized = _hudInteractions.initialize({
     stateSource: typeof opts.stateSource === 'function'
       ? opts.stateSource
-      : function () { return _stateRef; },
+      : function () { return null; },
     revisionSource: typeof opts.revisionSource === 'function'
       ? opts.revisionSource
       : null,
@@ -75,38 +72,13 @@ export function setVictoryActions(actions) {
   _hudInteractions.setVictoryActions(actions);
 }
 
-// ---------------------------------------------------------------------------
-// 顶部状态栏
-// ---------------------------------------------------------------------------
-
-export function updateStats(state, netWorth) {
-  _stateRef = state;
-  renderHeaderStatus(state, null, function () {
-    _hudInteractions.ensureGalaxyToggle();
-  });
-  renderCompanyNetWorth(netWorth);
-
-  // 多路径胜利进度 — 更新按钮摘要 & 弹窗内容
-  const progressList = Victory.getProgress(state);
-  const totalPaths = (typeof Victory.getUnlockedPaths === 'function')
-    ? Victory.getUnlockedPaths(state).length
-    : progressList.length;
-  _hudInteractions.syncVictory(progressList, totalPaths);
-
+export function ensureGalaxyToggle() {
+  return _hudInteractions.ensureGalaxyToggle();
 }
 
-// ---------------------------------------------------------------------------
-// 公司名显示
-// ---------------------------------------------------------------------------
-
-export function updateCompanyName(state) {
-  return renderCompanyOverview(state);
+export function syncVictoryProgress(progressList, unlockedPathCount) {
+  return _hudInteractions.syncVictory(progressList, unlockedPathCount);
 }
-
-export function updateArchiveBadges(state) {
-  return renderArchiveBadges(state);
-}
-
 
 export function addMessage(text, type) {
   return _logsController.addMessage(text, type);
@@ -149,6 +121,5 @@ export function resetRuntimeState() {
 export function dispose() {
   var released = _hudInteractions.dispose();
   _initialized = false;
-  _stateRef = null;
   return released;
 }
