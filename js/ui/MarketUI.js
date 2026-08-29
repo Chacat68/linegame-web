@@ -11,21 +11,13 @@ import * as ContextInspector from './ContextInspector.js';
 import { MARKET_COMMAND, normalizeMarketCommand } from '../core/MarketCommand.js';
 import {
   buildMarketSnapshots as _buildMarketSnapshots,
-  renderMarketChartDashboard,
-  updateMainMarketKlineChart,
 } from './MarketChartPresenter.js';
 import {
   renderAnalysisPanel as _renderAnalysisPanel,
   renderBlackMarketSection as _renderBlackMarketSection,
-  renderQuickTradeDock as _renderQuickTradeDock,
-  renderSpotGoodsToolbar as _renderSpotGoodsToolbar,
   renderSpotIntelSection as _renderSpotIntelSection,
   renderSpotTradeSection as _renderSpotTradeSection,
 } from './MarketSpotPresenter.js';
-import {
-  renderMarketGoodsWorkspace as _renderMarketGoodsWorkspace,
-  resolveMarketGoodsCommand as _resolveMarketGoodsCommand,
-} from './MarketGoodsPresenter.js';
 import { renderMarketCapitalWorkspace as _renderMarketCapitalWorkspace } from './MarketCapitalPresenter.js';
 import {
   getTradeStationCandidateIntel,
@@ -48,6 +40,9 @@ import {
   createMarketWorkspaceNavigation,
 } from './MarketWorkspaceNavigation.js';
 import { createMarketOverviewController } from './MarketOverviewController.js';
+import { createMarketGoodsController } from './MarketGoodsController.js';
+import { createMarketSelectionController } from './MarketSelectionController.js';
+import { createMarketChartController } from './MarketChartController.js';
 
 export { getMarketExperienceRoute, getTradeStationCandidateIntel };
 
@@ -74,6 +69,20 @@ const _marketWorkspaceNavigation = createMarketWorkspaceNavigation({
 });
 const _marketOverviewController = createMarketOverviewController({
   session: _marketSession,
+});
+const _marketSelectionController = createMarketSelectionController({
+  session: _marketSession,
+  replaceContext: ContextInspector.replaceContext,
+  getContext: ContextInspector.getContext,
+  getCurrentContextRevision: ContextInspector.getCurrentRevision,
+});
+const _marketGoodsController = createMarketGoodsController({
+  selection: _marketSelectionController,
+  publishCommand: _publishMarketCommand,
+});
+const _marketChartController = createMarketChartController({
+  session: _marketSession,
+  selection: _marketSelectionController,
 });
 
 function _hasDocument() {
@@ -249,83 +258,6 @@ export function setMarketWorkspaceFocus(focus) {
 
 export function getActiveMarketWorkspaceFocus() {
   return _marketWorkspaceNavigation.getActiveFocus();
-}
-
-function _getMarketChartGoodsList(marketMode) {
-  return marketMode === 'black'
-    ? Economy.getBlackMarketGoods()
-    : GOODS.filter(function (good) {
-        return good.marketAccess && good.marketAccess.indexOf('open') !== -1;
-      });
-}
-
-function _updateMainKlineChart(state, sysId, snapshots, marketMode) {
-  var focusKey = sysId + ':' + (marketMode || 'open');
-  var range = _marketSession.getChartRange(focusKey);
-  return updateMainMarketKlineChart({
-    state: state,
-    systemId: sysId,
-    snapshots: snapshots,
-    marketMode: marketMode,
-    focusedGoodId: _marketSession.getFocusedGood(focusKey),
-    range: range,
-    onRangeChange: function (nextRange) {
-      _marketSession.setChartRange(focusKey, nextRange);
-      var updatedSnapshots = _buildMarketSnapshots(
-        state,
-        sysId,
-        _getMarketChartGoodsList(marketMode),
-        marketMode === 'black',
-        nextRange
-      );
-      _renderMarketDashboard(state, sysId, marketMode, updatedSnapshots);
-      _updateMainKlineChart(state, sysId, updatedSnapshots, marketMode);
-    },
-  });
-}
-
-function _renderMarketDashboard(state, sysId, marketMode, snapshots) {
-  var focusKey = sysId + ':' + (marketMode || 'open');
-  var focusedGoodId = _marketSession.getFocusedGood(focusKey);
-  var hasFocusedSnapshot = snapshots && snapshots.some(function (entry) {
-    return entry.good.id === focusedGoodId;
-  });
-  if (!hasFocusedSnapshot && snapshots && snapshots[0]) {
-    focusedGoodId = snapshots[0].good.id;
-    _marketSession.setFocusedGood(focusKey, focusedGoodId);
-  }
-  return renderMarketChartDashboard({
-    state: state,
-    systemId: sysId,
-    snapshots: snapshots,
-    marketMode: marketMode,
-    focusedGoodId: focusedGoodId,
-    range: _marketSession.getChartRange(focusKey),
-    onFocusChange: function (goodId) {
-      _marketSession.setFocusedGood(focusKey, goodId);
-      ContextInspector.replaceContext({
-        type: 'commodity',
-        id: goodId,
-        workspaceId: 'trade',
-        source: 'market-chart-rank',
-        revision: ContextInspector.getCurrentRevision(),
-      });
-      _renderMarketDashboard(state, sysId, marketMode, snapshots);
-      _updateMainKlineChart(state, sysId, snapshots, marketMode);
-    },
-    onRangeChange: function (nextRange) {
-      _marketSession.setChartRange(focusKey, nextRange);
-      var updatedSnapshots = _buildMarketSnapshots(
-        state,
-        sysId,
-        _getMarketChartGoodsList(marketMode),
-        marketMode === 'black',
-        nextRange
-      );
-      _renderMarketDashboard(state, sysId, marketMode, updatedSnapshots);
-      _updateMainKlineChart(state, sysId, updatedSnapshots, marketMode);
-    },
-  });
 }
 
 function _getCommerceSnapshot(context) {
@@ -572,125 +504,37 @@ function _renderMarketSpot(context) {
     },
   });
 
-  const goodsListEl = document.getElementById('market-goods-list');
-  const goodsToolbarEl = document.getElementById('market-goods-toolbar');
   const analysisPanelEl = document.getElementById('market-analysis-panel');
-  const quickTradeDockEl = document.getElementById('market-quick-trade-dock');
-  if (!goodsListEl) return !!spotContainer;
-  if (goodsToolbarEl) {
-    goodsToolbarEl.innerHTML = _renderSpotGoodsToolbar({
-      state: state,
-      systemId: sysId,
-      snapshots: snapshots,
-      marketMode: effectiveMarketMode,
-      focusedGoodId: focusedGoodId,
-    });
-  }
-  if (quickTradeDockEl) {
-    quickTradeDockEl.innerHTML = _renderQuickTradeDock({
-      state: state,
-      systemId: sysId,
-      snapshots: snapshots,
-      marketMode: effectiveMarketMode,
-      isCurrentSystem: isCurrentSys,
-      focusedGoodId: focusedGoodId,
-    });
-    quickTradeDockEl.onclick = function (event) {
-      var button = _resolveMarketDatasetNode(event && event.target, quickTradeDockEl, 'marketQuickAction');
-      if (!button || button.disabled) return;
-      if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
-      var quickGood = goodsList.find(function (good) {
-        return good.id === button.dataset.id;
-      });
-      if (!quickGood) return;
-      _publishMarketCommand(context.onCommand, MARKET_COMMAND.OPEN_TRADE, {
-        action: button.dataset.marketQuickAction === 'sell' ? 'sell' : 'buy',
-        marketMode: effectiveMarketMode,
-        good: quickGood,
-      });
-    };
-  }
-  _renderMarketDashboard(state, sysId, effectiveMarketMode, snapshots);
-  _updateMainKlineChart(state, sysId, snapshots, effectiveMarketMode);
-
-  var activeGoodId = focusedGoodId;
-  if (activeGoodId) {
-    _marketSession.setFocusedGood(focusKey, activeGoodId);
-    ContextInspector.replaceContext({
-      type: 'commodity',
-      id: activeGoodId,
-      workspaceId: 'trade',
-      source: 'market-workspace',
-      revision: ContextInspector.getCurrentRevision(),
-    });
-  }
-
-  var goodsWorkspace = _renderMarketGoodsWorkspace({
+  var goodsResult = _marketGoodsController.render({
     state: state,
     systemId: sysId,
     marketMode: effectiveMarketMode,
     isCurrentSystem: isCurrentSys,
+    goodsList: goodsList,
     snapshots: snapshots,
-    focusedGoodId: activeGoodId,
+    focusedGoodId: focusedGoodId,
+    focusKey: focusKey,
     systemFaction: context.systemFaction,
     blackMarketUnlocked: context.blackMarketUnlocked,
-    canFocusRemote: typeof context.onCommand === 'function',
+    onCommand: context.onCommand,
+    rerenderSpot: function () {
+      renderSpot(context.renderRequest);
+    },
   });
-  goodsListEl.innerHTML = goodsWorkspace.html;
-
-  function findRenderedGood(goodId) {
-    return goodsList.find(function (good) { return good.id === goodId; }) || null;
-  }
-
-  function focusRenderedGood(goodId) {
-    var good = findRenderedGood(goodId);
-    if (!good) return;
-    _marketSession.setFocusedGood(focusKey, good.id);
-    ContextInspector.replaceContext({
-      type: 'commodity',
-      id: good.id,
-      workspaceId: 'trade',
-      source: 'market-good-card',
-      revision: ContextInspector.getCurrentRevision(),
-    });
-    renderSpot(context.renderRequest);
-  }
-
-  goodsListEl.onclick = function (event) {
-    var command = _resolveMarketGoodsCommand(event && event.target, goodsListEl);
-    if (!command) return;
-    if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
-
-    if (command.type === 'focus-good') {
-      focusRenderedGood(command.goodId);
-      return;
-    }
-    if (command.type === 'focus-remote-system') {
-      _publishMarketCommand(context.onCommand, MARKET_COMMAND.FOCUS_REMOTE_SYSTEM, { systemId: command.systemId });
-      return;
-    }
-    if (command.type === 'refuel') {
-      _publishMarketCommand(context.onCommand, MARKET_COMMAND.REFUEL);
-      return;
-    }
-
-    var good = findRenderedGood(command.goodId);
-    if (!good) return;
-    if (command.type !== 'sell-good' && command.type !== 'buy-good') return;
-    _publishMarketCommand(context.onCommand, MARKET_COMMAND.OPEN_TRADE, {
-      action: command.type === 'sell-good' ? 'sell' : 'buy',
-      marketMode: effectiveMarketMode,
-      good: good,
-    });
-  };
-
-  goodsListEl.onkeydown = function (event) {
-    if (!event || (event.key !== 'Enter' && event.key !== ' ')) return;
-    var command = _resolveMarketGoodsCommand(event.target, goodsListEl);
-    if (!command || command.type !== 'focus-good') return;
-    if (typeof event.preventDefault === 'function') event.preventDefault();
-    focusRenderedGood(command.goodId);
-  };
+  if (!goodsResult) return !!spotContainer;
+  var activeGoodId = goodsResult.activeGoodId;
+  _marketChartController.render({
+    state: state,
+    systemId: sysId,
+    marketMode: effectiveMarketMode,
+    goodsList: goodsList,
+    snapshots: snapshots,
+    focusedGoodId: activeGoodId,
+    focusKey: focusKey,
+    rerenderSpot: function () {
+      renderSpot(context.renderRequest);
+    },
+  });
 
   // 右侧分析面板
   if (analysisPanelEl) {
@@ -784,12 +628,18 @@ export function getDiagnostics() {
     renderCounts: Object.freeze(Object.assign({}, _marketRenderCounts)),
     lastRenderedRegions: _lastRenderedRegions,
     overview: _marketOverviewController.getDiagnostics(),
+    selection: _marketSelectionController.getDiagnostics(),
+    chart: _marketChartController.getDiagnostics(),
+    goods: _marketGoodsController.getDiagnostics(),
   }));
 }
 
 export function resetRuntimeState() {
   _marketSession.reset();
   _marketOverviewController.reset();
+  _marketSelectionController.reset();
+  _marketChartController.reset();
+  _marketGoodsController.reset();
   _lastRenderedRegions = Object.freeze([]);
   return getDiagnostics();
 }

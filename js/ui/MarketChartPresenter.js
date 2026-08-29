@@ -1,7 +1,7 @@
 // js/ui/MarketChartPresenter.js — 市场价格图表与行情快照 presenter
 //
 // 该模块只负责价格序列归一化、K 线/SVG 生成、行情快照构造与主图 DOM 更新。
-// MarketUI 仍持有工作区选择、商品焦点和交易 command，presenter 不修改游戏状态。
+// MarketChartController 持有焦点/区间交互；presenter 不修改会话或游戏状态。
 
 import * as Economy from '../systems/economy/Economy.js';
 

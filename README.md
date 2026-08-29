@@ -38,7 +38,7 @@
 - ✅ 探索 MVP：POI 调查、秘密航线解锁
 - ✅ 动态经济：供需、价格历史、经济周期、市场深度、峰值事件
 - ✅ 黑市与走私：黑市定价、权限判定、走私检查、查获罚款统计
-- ✅ 统一商业终端：`MarketUI.js` 编排现货、资金与贸易站工作区；Chart / Spot / Goods / Capital / Operations Presenter 分别拥有各自投影，`MarketExperienceRoute` 独占解锁进度模型，`MarketWorkspaceNavigation` 独占一级/二级菜单、焦点与 ARIA，`MarketOverviewPresenter/Controller` 独占各地报价模型、表格 DOM 和买卖价键盘切换，外壳 / 交易 / 资金 / 贸易站具备独立 render port 与 dirty region，商品 Context 可进入共享 L4 详情，领域动作统一发布为 typed market command
+- ✅ 统一商业终端：`MarketUI.js` 编排现货、资金与贸易站工作区；Chart / Spot / Goods / Capital / Operations Presenter 分别拥有各自投影，`MarketExperienceRoute` 独占解锁进度模型，`MarketWorkspaceNavigation` 独占一级/二级菜单、焦点与 ARIA，`MarketOverviewPresenter/Controller` 独占各地报价模型、表格 DOM 和买卖价键盘切换，`MarketSelectionController` 统一商品卡/行情榜焦点与 Context，`MarketChartController` 独占仪表板/K 线/统计窗口生命周期，`MarketGoodsController` 独占商品列表、快速交易和 typed command 转换，外壳 / 交易 / 资金 / 贸易站具备独立 render port 与 dirty region，商品 Context 可进入共享 L4 详情
 - ✅ 金融基础：贷款、信用评级与贸易站投资；旧股票、期货和手动保险入口已退役，旧存档首次载入时自动清算或退保
 - ✅ 贸易站经营：建站、升级、经理、策略、被动收益
 - ✅ 舰队与船员：多船、改装、船员招募、派遣航线
@@ -58,7 +58,7 @@
 - ✅ Starmap Controls CSS 单一归属：两个活动星图工具只由 `starmap-controls.css` 声明，窄屏触摸高度统一为 44px；无消费者的旧控制轨、隐藏 3D 按钮、五个 HUD 小窗及舰队延迟样式污染已物理删除
 - ✅ 退役 Company Directives UI：运行时入口、Presenter 和 DOM 均已不存在，四个样式层中的 724 行孤儿规则同步删除；`companyDirectiveClaims` 仅作为旧存档兼容字段继续保留
 - ✅ Market CSS Feature 归属：商业终端基础规则已从按需加载的 `fleet.css`，以及全局加载的 `panels.css`、`systems.css`、`responsive.css`、`interstellar-trader.css` 迁入 `market-terminal.css`；市场不再依赖“先打开机库”，主包也不再预载 Feature 私有级联；旧 Capital Signal、股票持仓、期货风险和 Finance Contract/History 面板样式已物理删除
-- ✅ Vitest 测试基线：174 个测试文件、1366 项测试，覆盖经济、贸易、航行、探索、事件与随机事件运行时、统一动作控制器图、成就检查队列、持久化事务、Game Application shell/Runtime Graph/五个职责节点工厂簇/启动投影/Feature/UI/Guidance/Loop Runtime 组合边界、manifest/registry 生命周期与延迟工作区错误恢复、Game Shell Projection/Header/Company/Archive Badge Presenter 与信息所有权、Map Galaxy Hub/View State/Survey Detail/Panel Layout + Controller、Workspace Surface/Detail 生命周期与 L3/Market CSS 所有权、Renderer dispose/re-init/开发态 2D 强制降级、Market Chart/Spot/Goods/Capital/Operations/Commodity Detail/Experience Route/Overview/Workspace Navigation、Fleet Hangar/Shop/Crew/Mod/Dispatch/Ship Detail 与 Workspace Object Detail Presenter、typed market/fleet/settings command、资金与贸易站投影、Context 局部 intent、焦点同步、Shell/HUD/FleetUI 命令所有权、自动派遣与日结算提交顺序、经营金融、舰队、科研任务档案动作、剧情与胜利运行时、eager UI 壳/设置/首次进入/释放生命周期、教学引导与 onboarding policy、存档、会话生命周期、时钟、命令目的地、行动引导执行适配、市场工作区入口、工作区 Tab 与局部操作槽、Market/Fleet/Archive 内部增量失效、日志 Context/筛选/聚合与 UI 所有权等核心系统
+- ✅ Vitest 测试基线：177 个测试文件、1377 项测试，覆盖经济、贸易、航行、探索、事件与随机事件运行时、统一动作控制器图、成就检查队列、持久化事务、Game Application shell/Runtime Graph/五个职责节点工厂簇/启动投影/Feature/UI/Guidance/Loop Runtime 组合边界、manifest/registry 生命周期与延迟工作区错误恢复、Game Shell Projection/Header/Company/Archive Badge Presenter 与信息所有权、Map Galaxy Hub/View State/Survey Detail/Panel Layout + Controller、Workspace Surface/Detail 生命周期与 L3/Market CSS 所有权、Renderer dispose/re-init/开发态 2D 强制降级、Market Chart/Selection/Spot/Goods/Capital/Operations/Commodity Detail/Experience Route/Overview/Workspace Navigation Controller、Fleet Hangar/Shop/Crew/Mod/Dispatch/Ship Detail 与 Workspace Object Detail Presenter、typed market/fleet/settings command、资金与贸易站投影、Context 局部 intent、焦点同步、Shell/HUD/FleetUI 命令所有权、自动派遣与日结算提交顺序、经营金融、舰队、科研任务档案动作、剧情与胜利运行时、eager UI 壳/设置/首次进入/释放生命周期、教学引导与 onboarding policy、存档、会话生命周期、时钟、命令目的地、行动引导执行适配、市场工作区入口、工作区 Tab 与局部操作槽、Market/Fleet/Archive 内部增量失效、日志 Context/筛选/聚合与 UI 所有权等核心系统
 
 ### 当前开发中的能力
 
@@ -198,9 +198,12 @@ npm run build
 │       ├── HudInteractionController.js # HUD 事件、弹层、日志与星图工具生命周期
 │       ├── VictoryProgressPresenter.js # 长期路线摘要与详情纯 DOM 投影
 │       ├── MarketUI.js     # 商业终端（现货/资本/经营）
-│       ├── MarketChartPresenter.js # 行情快照、K 线与图表交互
+│       ├── MarketChartPresenter.js # 行情快照、K 线与图表投影
+│       ├── MarketChartController.js # 仪表板、主 K 线与统计窗口交互
+│       ├── MarketSelectionController.js # 商品卡/行情榜共享选择与 Context
 │       ├── MarketSpotPresenter.js # 现货、行情与黑市投影
 │       ├── MarketGoodsPresenter.js # 商品模型、卡片 HTML 与 command 协议
+│       ├── MarketGoodsController.js # 商品列表、快速交易、焦点与 diagnostics
 │       ├── MarketCapitalPresenter.js # 资金结构与经营贷款投影
 │       ├── MarketOperationsPresenter.js # 贸易站经营与批量计划投影
 │       ├── MarketCommodityDetailPresenter.js # 商品 Context 与 L4 详情纯投影

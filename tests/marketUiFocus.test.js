@@ -121,7 +121,10 @@ describe('MarketUI guided focus', function () {
     const navigationJs = readFileSync('js/ui/MarketWorkspaceNavigation.js', 'utf8');
     const overviewPresenterJs = readFileSync('js/ui/MarketOverviewPresenter.js', 'utf8');
     const overviewControllerJs = readFileSync('js/ui/MarketOverviewController.js', 'utf8');
-    const js = marketUiJs + '\n' + navigationJs + '\n' + overviewPresenterJs + '\n' + overviewControllerJs;
+    const goodsControllerJs = readFileSync('js/ui/MarketGoodsController.js', 'utf8');
+    const selectionControllerJs = readFileSync('js/ui/MarketSelectionController.js', 'utf8');
+    const chartControllerJs = readFileSync('js/ui/MarketChartController.js', 'utf8');
+    const js = marketUiJs + '\n' + navigationJs + '\n' + overviewPresenterJs + '\n' + overviewControllerJs + '\n' + goodsControllerJs + '\n' + selectionControllerJs + '\n' + chartControllerJs;
     const spotJs = readFileSync('js/ui/MarketSpotPresenter.js', 'utf8');
     const goodsJs = readFileSync('js/ui/MarketGoodsPresenter.js', 'utf8');
     const marketEntryJs = readFileSync('js/ui/MarketWorkspaceEntryController.js', 'utf8');
@@ -136,9 +139,17 @@ describe('MarketUI guided focus', function () {
     expect(js).not.toContain('_renderMarketExperienceRoute');
     expect(marketUiJs).toContain("from './MarketWorkspaceNavigation.js'");
     expect(marketUiJs).toContain("from './MarketOverviewController.js'");
+    expect(marketUiJs).toContain("from './MarketGoodsController.js'");
+    expect(marketUiJs).toContain("from './MarketSelectionController.js'");
+    expect(marketUiJs).toContain("from './MarketChartController.js'");
     expect(marketUiJs).not.toContain('function _renderMarketWorkspaceTabs');
     expect(marketUiJs).not.toContain('function _renderMarketSubworkspace');
     expect(marketUiJs).not.toContain('function _renderOverviewTable');
+    expect(marketUiJs).not.toContain('goodsListEl.onclick = function');
+    expect(marketUiJs).not.toContain('function _renderMarketDashboard');
+    expect(goodsControllerJs).toContain('goodsListEl.onclick = function');
+    expect(goodsControllerJs).toContain('selection.focus({');
+    expect(chartControllerJs).toContain('selection.focus({');
     expect(marketEntryJs).toContain("icon.className = 'market-galaxy-btn-icon'");
     expect(marketEntryJs).toContain("label.className = 'market-galaxy-btn-label'");
     expect(marketEntryJs).toContain("button.setAttribute('aria-pressed'");
@@ -936,6 +947,84 @@ describe('MarketUI guided focus', function () {
     expect(operationsPane.innerHTML).toBe('OPERATIONS_SENTINEL');
   });
 
+  it('行情榜焦点与商品卡、Context 共用同一个选择 owner', async function () {
+    vi.resetModules();
+    var helpers = await import('./helpers.js');
+    var Economy = await import('../js/systems/economy/Economy.js');
+    var Faction = await import('../js/systems/faction/FactionSystem.js');
+    var Finance = await import('../js/systems/finance/FinanceSystem.js');
+    var ContextInspector = await import('../js/ui/ContextInspector.js');
+    var replaceContext = vi.spyOn(ContextInspector, 'replaceContext');
+    var state = helpers.createTestState({
+      currentSystem: 'sol_prime',
+      currentGalaxy: 'milky_way',
+      viewingGalaxy: 'milky_way',
+      companyLevel: 6,
+      credits: 200000,
+    });
+    Economy.init();
+    Faction.init(state);
+    Finance.init(state);
+
+    var focusButton = createFakeElement();
+    focusButton.dataset.focusGood = 'water';
+    var dashboard = createFakeElement();
+    dashboard.querySelectorAll = function (selector) {
+      return selector === '[data-focus-good]' ? [focusButton] : [];
+    };
+    var goodsList = createFakeElement();
+    var capitalPane = createFakeElement();
+    var operationsPane = createFakeElement();
+    var elements = {
+      'market-workspace-tabs': createFakeElement(),
+      'market-spot-pane': createFakeElement(),
+      'market-capital-pane': capitalPane,
+      'market-operations-pane': operationsPane,
+      'market-goods-list': goodsList,
+      'market-goods-toolbar': createFakeElement(),
+      'market-quick-trade-dock': createFakeElement(),
+      'market-analysis-panel': createFakeElement(),
+      'market-terminal-dashboard': dashboard,
+      'market-kline-panel': createFakeElement(),
+      'market-kline-title': createFakeElement(),
+      'market-kline-range-bar': createFakeElement(),
+      'market-kline-ohlc': createFakeElement(),
+      'market-kline-body': createFakeElement(),
+      'market-kline-metrics': createFakeElement(),
+    };
+    globalThis.document = {
+      getElementById: function (id) { return elements[id] || null; },
+      querySelectorAll: function () { return []; },
+      querySelector: function () { return null; },
+      createElement: function () { return createFakeElement(); },
+    };
+
+    var MarketUI = await import('../js/ui/MarketUI.js');
+    MarketUI.render({ state: state, systemId: 'sol_prime', marketMode: 'open', galaxyId: 'milky_way' });
+    capitalPane.innerHTML = 'CAPITAL_SENTINEL';
+    operationsPane.innerHTML = 'OPERATIONS_SENTINEL';
+
+    focusButton.dispatchEvent('click');
+
+    expect(MarketUI.getFocusedMarketGood('sol_prime', 'open')).toBe('water');
+    expect(goodsList.innerHTML).toMatch(/class="market-good-card[^"]*is-active[^"]*" data-market-good="water"/);
+    expect(replaceContext).toHaveBeenLastCalledWith(expect.objectContaining({
+      id: 'water',
+      source: 'market-chart-rank',
+    }));
+    expect(MarketUI.getDiagnostics()).toEqual(expect.objectContaining({
+      selection: expect.objectContaining({
+        focusRequestCount: 1,
+        focusChangeCount: 1,
+        lastFocusedGoodId: 'water',
+        lastSource: 'market-chart-rank',
+      }),
+      chart: expect.objectContaining({ focusIntentCount: 1 }),
+    }));
+    expect(capitalPane.innerHTML).toBe('CAPITAL_SENTINEL');
+    expect(operationsPane.innerHTML).toBe('OPERATIONS_SENTINEL');
+  });
+
   it('切换查看地点时立即发布可重渲染的商品 Context', async function () {
     vi.resetModules();
     var helpers = await import('./helpers.js');
@@ -1573,6 +1662,40 @@ describe('MarketUI guided focus', function () {
       lastPriceMode: 'buy',
     }));
     expect(afterFullRender.overview.lastRowCount).toBeGreaterThan(0);
+    expect(afterFullRender.goods).toEqual(expect.objectContaining({
+      renderCount: 1,
+      listDelegationBindCount: 1,
+      quickTradeBindCount: 0,
+      commandPublishCount: 0,
+      lastFocusedGoodId: 'food',
+      lastCommandType: null,
+      lastSystemId: 'sol_prime',
+      lastMarketMode: 'open',
+    }));
+    expect(afterFullRender.goods.lastRenderedGoodCount).toBeGreaterThan(0);
+    expect(afterFullRender.selection).toEqual({
+      syncCount: 1,
+      focusRequestCount: 0,
+      focusChangeCount: 0,
+      contextPublishCount: 1,
+      fallbackCount: 0,
+      rerenderRequestCount: 0,
+      lastFocusedGoodId: 'food',
+      lastFocusKey: 'sol_prime:open',
+      lastSource: 'market-workspace',
+    });
+    expect(afterFullRender.chart).toEqual(expect.objectContaining({
+      renderCount: 1,
+      dashboardRenderCount: 0,
+      klineRenderCount: 0,
+      focusIntentCount: 0,
+      rangeChangeCount: 0,
+      lastFocusedGoodId: 'food',
+      lastRange: 14,
+      lastSystemId: 'sol_prime',
+      lastMarketMode: 'open',
+    }));
+    expect(afterFullRender.chart.lastSnapshotCount).toBeGreaterThan(0);
 
     MarketUI.renderOperations({
       state: state,
@@ -1586,6 +1709,9 @@ describe('MarketUI guided focus', function () {
     expect(afterOperations.renderCounts['market-spot']).toBe(afterFullRender.renderCounts['market-spot']);
     expect(afterOperations.lastRenderedRegions).toEqual(['market-operations']);
     expect(afterOperations.overview).toEqual(afterFullRender.overview);
+    expect(afterOperations.goods).toEqual(afterFullRender.goods);
+    expect(afterOperations.selection).toEqual(afterFullRender.selection);
+    expect(afterOperations.chart).toEqual(afterFullRender.chart);
 
     MarketUI.setFocusedMarketGood('sol_prime', 'open', 'water');
     MarketUI.setMarketWorkspaceFocus({ workspaceId: 'capital', subworkspaceId: 'local' });
@@ -1612,6 +1738,40 @@ describe('MarketUI guided focus', function () {
       lastGalaxyId: null,
       lastPriceMode: null,
       lastRowCount: 0,
+    });
+    expect(reset.goods).toEqual({
+      renderCount: 0,
+      listDelegationBindCount: 0,
+      quickTradeBindCount: 0,
+      commandPublishCount: 0,
+      lastFocusedGoodId: null,
+      lastCommandType: null,
+      lastSystemId: null,
+      lastMarketMode: null,
+      lastRenderedGoodCount: 0,
+    });
+    expect(reset.selection).toEqual({
+      syncCount: 0,
+      focusRequestCount: 0,
+      focusChangeCount: 0,
+      contextPublishCount: 0,
+      fallbackCount: 0,
+      rerenderRequestCount: 0,
+      lastFocusedGoodId: null,
+      lastFocusKey: null,
+      lastSource: null,
+    });
+    expect(reset.chart).toEqual({
+      renderCount: 0,
+      dashboardRenderCount: 0,
+      klineRenderCount: 0,
+      focusIntentCount: 0,
+      rangeChangeCount: 0,
+      lastFocusedGoodId: null,
+      lastRange: null,
+      lastSystemId: null,
+      lastMarketMode: null,
+      lastSnapshotCount: 0,
     });
     expect(reset.resetCount).toBe(before.resetCount + 1);
     expect(MarketUI.getFocusedMarketGood('sol_prime', 'open')).toBeNull();

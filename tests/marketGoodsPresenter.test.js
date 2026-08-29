@@ -193,16 +193,24 @@ describe('MarketGoodsPresenter', function () {
     expect(view.html).not.toContain('market-good-card');
   });
 
-  it('MarketUI 只组合商品 presenter，并用单一列表委托解释 command', function () {
+  it('MarketUI 只组合商品 Controller，由 Controller 消费 presenter 并解释 command', function () {
     var marketUi = readFileSync('js/ui/MarketUI.js', 'utf8');
     var presenter = readFileSync('js/ui/MarketGoodsPresenter.js', 'utf8');
+    var controller = readFileSync('js/ui/MarketGoodsController.js', 'utf8');
 
-    expect(marketUi).toContain("from './MarketGoodsPresenter.js'");
-    expect(marketUi).toContain('goodsListEl.onclick = function');
-    expect(marketUi).toContain('goodsListEl.onkeydown = function');
+    expect(marketUi).toContain("from './MarketGoodsController.js'");
+    expect(marketUi).not.toContain("from './MarketGoodsPresenter.js'");
+    expect(marketUi).not.toContain('goodsListEl.onclick = function');
+    expect(marketUi).not.toContain('goodsListEl.onkeydown = function');
     expect(marketUi).not.toContain("card.addEventListener('click'");
     expect(marketUi).not.toContain("card.addEventListener('keydown'");
     expect(marketUi).not.toContain("card.innerHTML =");
+    expect(controller).toContain("from './MarketGoodsPresenter.js'");
+    expect(controller).toContain('goodsListEl.onclick = function');
+    expect(controller).toContain('goodsListEl.onkeydown = function');
+    expect(controller).toContain('selection.sync({');
+    expect(controller).toContain('selection.focus({');
+    expect(controller).not.toContain('replaceContext({');
     expect(presenter).toContain('export function renderMarketGoodsWorkspace');
     expect(presenter).toContain('export function resolveMarketGoodsCommand');
   });

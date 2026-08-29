@@ -184,15 +184,20 @@ describe('MarketChartPresenter', function () {
     expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
   });
 
-  it('MarketUI 只消费 presenter，不再持有 K 线计算和 SVG 实现', function () {
+  it('MarketUI 只组合图表 Controller，由 Controller 消费 presenter', function () {
     var marketUi = readFileSync('js/ui/MarketUI.js', 'utf8');
     var presenter = readFileSync('js/ui/MarketChartPresenter.js', 'utf8');
+    var controller = readFileSync('js/ui/MarketChartController.js', 'utf8');
 
-    expect(marketUi).toContain("from './MarketChartPresenter.js'");
+    expect(marketUi).toContain("from './MarketChartController.js'");
+    expect(marketUi).not.toContain('function _renderMarketDashboard');
+    expect(marketUi).not.toContain('function _updateMainKlineChart');
     expect(marketUi).not.toContain('function _buildPseudoCandles');
     expect(marketUi).not.toContain('function _movingAverage');
     expect(marketUi).not.toContain('function _renderFullKlineChart');
     expect(marketUi).not.toContain('class="kline-current-tag-bg"');
+    expect(controller).toContain("from './MarketChartPresenter.js'");
+    expect(controller).toContain('selection.focus({');
     expect(presenter).toContain('export function renderFullMarketKlineChart');
     expect(presenter).toContain('export function updateMainMarketKlineChart');
   });
