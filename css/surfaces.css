@@ -54,6 +54,7 @@ body::before {
   background: linear-gradient(180deg, rgba(3, 14, 23, 0.98), rgba(3, 13, 22, 0.91));
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(18px) saturate(1.08);
+  animation: panel-rise 0.5s ease-out both;
 }
 
 #game-header::after {
@@ -225,6 +226,7 @@ body::before {
 }
 
 .hdr-meter-track {
+  position: relative;
   overflow: hidden;
   height: 4px;
   margin-top: 6px;
@@ -238,6 +240,7 @@ body::before {
   border-radius: inherit;
   background: var(--ui-accent);
   box-shadow: none;
+  transition: width var(--ui-duration-base) ease;
 }
 
 .hdr-meter-fill--rep {
@@ -250,6 +253,15 @@ body::before {
 
 .hdr-meter-fill--shield {
   background: var(--ui-info);
+}
+
+.hdr-meter-track[data-meter-state="warning"] .hdr-meter-fill {
+  background: var(--ui-warning);
+}
+
+.hdr-meter-track[data-meter-state="critical"] .hdr-meter-fill {
+  background: var(--ui-danger);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--ui-danger) 46%, transparent);
 }
 
 .hdr-day-chip {
@@ -287,8 +299,14 @@ body::before {
   color: var(--ui-text-secondary);
   background: rgba(8, 28, 42, 0.46);
   cursor: pointer;
+  touch-action: manipulation;
   text-decoration: none;
   transition: color var(--ui-duration-fast), border-color var(--ui-duration-fast), background-color var(--ui-duration-fast);
+}
+
+.hdr-icon-btn svg {
+  width: 18px;
+  height: 18px;
 }
 
 .hdr-icon-btn:hover {
@@ -311,6 +329,13 @@ body::before {
   color: #dcfce7;
   background: rgba(34, 197, 94, 0.1);
   box-shadow: 0 0 14px rgba(34, 197, 94, 0.16);
+}
+
+.hdr-icon-btn.is-tracking {
+  border-color: color-mix(in srgb, var(--ui-warning) 42%, transparent);
+  color: #fef3c7;
+  background: color-mix(in srgb, var(--ui-warning) 10%, transparent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--ui-warning) 16%, transparent);
 }
 
 .hdr-icon-btn[data-company-directive-badge]::after {
@@ -763,6 +788,26 @@ body::before {
   pointer-events: auto;
 }
 
+.bottom-nav::before,
+.bottom-nav::after {
+  content: "";
+  position: absolute;
+  right: 18px;
+  left: 18px;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(108, 231, 255, 0.58), transparent);
+}
+
+.bottom-nav::before {
+  top: -1px;
+}
+
+.bottom-nav::after {
+  bottom: -1px;
+  opacity: 0.72;
+}
+
 .bottom-nav-btn {
   position: relative;
   display: grid;
@@ -775,8 +820,10 @@ body::before {
   border-radius: 9px;
   color: var(--ui-text-muted);
   background: transparent;
+  cursor: pointer;
   font-size: 11px;
   font-weight: 640;
+  touch-action: manipulation;
   transition: color var(--ui-duration-fast), border-color var(--ui-duration-fast), background-color var(--ui-duration-fast);
 }
 
@@ -808,6 +855,17 @@ body::before {
 .bottom-nav-icon {
   width: var(--ui-icon-md);
   height: var(--ui-icon-md);
+  stroke: currentColor;
+}
+
+.bottom-nav-btn > span:not(.bottom-nav-badge) {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  line-height: 1.1;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .bottom-nav-badge {
@@ -821,6 +879,23 @@ body::before {
   color: var(--ui-text-inverse);
   background: var(--ui-warning);
   font-size: 9px;
+}
+
+.bottom-nav-badge[hidden] {
+  display: none !important;
+}
+
+body.starmap-galaxy-mode .bottom-nav,
+body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) .bottom-nav {
+  opacity: 0.34;
+  transition: opacity var(--ui-duration-base) var(--ui-ease-standard);
+}
+
+body.starmap-galaxy-mode .bottom-nav:hover,
+body.starmap-galaxy-mode .bottom-nav:focus-within,
+body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) .bottom-nav:hover,
+body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) .bottom-nav:focus-within {
+  opacity: 1;
 }
 
 /* Canonical L3 workspace surfaces ------------------------------ */

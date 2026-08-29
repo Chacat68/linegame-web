@@ -41,13 +41,25 @@ describe('Bridge OS global UI contracts', function () {
     var surfaces = read('css/surfaces.css');
     var responsive = read('css/bridge-responsive.css');
     var shell = read('css/global-shell-v2.css');
+    var legacyNavigation = [
+      'css/status.css',
+      'css/responsive.css',
+      'css/interstellar-trader.css',
+    ].map(read).join('\n');
 
+    expect(legacyNavigation).not.toMatch(/#bottom-nav|\.bottom-nav/);
+    expect(surfaces).toContain('.bottom-nav {');
+    expect(surfaces).toContain('.bottom-nav::before,');
+    expect(surfaces).toContain('.bottom-nav-btn[aria-current="page"]::after');
+    expect(surfaces).toContain('.bottom-nav-badge[hidden]');
+    expect(surfaces).toContain('body.starmap-galaxy-mode .bottom-nav');
     expect(surfaces).toContain('#market-overlay.workspace-surface--trade');
     expect(surfaces).toContain('top: calc(var(--ui-header-height) + var(--ui-space-4)) !important');
     expect(surfaces).toContain('max-width: none !important');
     expect(surfaces).toContain('max-height: none !important');
     expect(responsive).toContain('body:has(.workspace-surface:not(.workspace-surface--map).is-active) .bottom-nav');
     expect(responsive).toContain('visibility: visible !important');
+    expect(responsive).toContain('body:has(.modal:not(.hidden)) .bottom-nav');
     expect(responsive).toContain('max-height: 190px !important');
     expect(tokens).toContain('--ui-command-reserve: 76px');
     expect(responsive).toContain('--ui-command-reserve: 132px');

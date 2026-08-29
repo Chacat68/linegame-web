@@ -51,114 +51,10 @@
 }
 
 /* Bottom navigation dock — floating centered pill */
-.bottom-nav {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  margin: 0 auto;
-  padding: 5px 8px;
-  background: rgba(4, 8, 20, 0.55);
-  backdrop-filter: blur(24px) saturate(1.4);
-  -webkit-backdrop-filter: blur(24px) saturate(1.4);
-  border: 1px solid rgba(56, 189, 248, 0.12);
-  border-radius: 16px;
-  box-shadow:
-    0 1px 0 rgba(56, 189, 248, 0.05),
-    0 8px 32px rgba(0, 0, 0, 0.25);
-  pointer-events: auto;
-}
 
 /* Subtle top-edge glow on dock */
-.bottom-nav::before {
-  content: "";
-  position: absolute;
-  top: -1px;
-  left: 20%;
-  right: 20%;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.2), rgba(56, 189, 248, 0.25), rgba(34, 211, 238, 0.2), transparent);
-  pointer-events: none;
-}
-
-.bottom-nav-btn {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  padding: 6px 16px;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 12px;
-  color: var(--text-dim);
-  cursor: pointer;
-  transition: color 0.2s, background 0.2s, border-color 0.2s, box-shadow 0.2s;
-  min-width: 56px;
-}
-
-.bottom-nav-btn:hover {
-  color: var(--accent-cyan);
-  background: rgba(34, 211, 238, 0.06);
-  border-color: rgba(34, 211, 238, 0.1);
-}
-
-.bottom-nav-btn.active {
-  color: var(--accent-cyan);
-  background: rgba(34, 211, 238, 0.1);
-  border-color: rgba(34, 211, 238, 0.25);
-  box-shadow: 0 0 16px rgba(34, 211, 238, 0.1);
-}
 
 /* Active indicator dot */
-.bottom-nav-btn.active::after {
-  content: "";
-  position: absolute;
-  bottom: 2px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--accent-cyan);
-  box-shadow: 0 0 6px rgba(34, 211, 238, 0.5);
-}
-
-.bottom-nav-icon {
-  width: 18px;
-  height: 18px;
-  stroke: currentColor;
-}
-
-.bottom-nav-btn span {
-  font-family: "Orbitron", monospace;
-  font-size: 11px;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.bottom-nav-btn .bottom-nav-badge {
-  position: absolute;
-  top: 3px;
-  right: 8px;
-  min-width: 17px;
-  height: 17px;
-  padding: 0 5px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  background: rgba(248, 113, 113, 0.92);
-  color: #fff;
-  font-size: 10px;
-  font-weight: 900;
-  line-height: 16px;
-  text-align: center;
-  box-shadow: 0 0 10px rgba(248, 113, 113, 0.32);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
 
 /* Legacy message log (used in console panel) */
 .console-message-log .msg { font-size: 12px; padding: 3px 0; }
@@ -177,35 +73,5 @@
   /* 1. 底栏导航自适应，扁平紧凑，防止折行 */
   #status-bar {
     padding: 0 6px 8px !important;
-  }
-
-  .bottom-nav {
-    width: calc(100vw - 12px) !important;
-    border-radius: 12px !important;
-    gap: 1px !important;
-    padding: 3px 4px !important;
-  }
-
-  .bottom-nav-btn {
-    padding: 4px 4px !important;
-    min-width: unset !important;
-    flex: 1 !important;
-    border-radius: 8px !important;
-  }
-
-  .bottom-nav-btn span {
-    font-size: 9px !important;
-    letter-spacing: 0.01em !important;
-  }
-
-  .bottom-nav-btn.active::after {
-    bottom: 1px !important;
-    width: 3px !important;
-    height: 3px !important;
-  }
-
-  .bottom-nav-icon {
-    width: 15px !important;
-    height: 15px !important;
   }
 }

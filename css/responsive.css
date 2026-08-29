@@ -4,25 +4,6 @@
 
 /* --- Tablet / small screens (≤768px): Compact header & dock --- */
 @media (max-width: 768px) {
-  #game-header {
-    gap: 8px;
-    padding: 0 10px;
-    height: 40px;
-  }
-  .hdr-logo { font-size: 12px; }
-  .hdr-version { display: none; }
-  .hdr-stats { gap: 12px; }
-  .hdr-stat-value { font-size: 12px; }
-  .hdr-stat-label { font-size: 7px; }
-  .hdr-stat-block { gap: 4px; }
-  .hdr-day-chip {
-    gap: 6px;
-    margin-left: 4px;
-    padding: 3px 8px;
-  }
-  .hdr-day-chip-label { font-size: 7px; }
-  .hdr-day-chip-value { font-size: 11px; }
-  .hdr-icon-btn { width: 28px; height: 28px; }
 
   .status-ship-stats {
     position: fixed;
@@ -32,11 +13,6 @@
     gap: 6px;
   }
   .status-stat { min-width: 80px; }
-
-  .bottom-nav { padding: 4px 6px; border-radius: 14px; }
-  .bottom-nav-btn { padding: 5px 9px; min-width: 54px; }
-  .bottom-nav-btn span { font-size: 10px; letter-spacing: 0.02em; }
-  .bottom-nav-icon { width: 16px; height: 16px; }
 
   .modal-box { min-width: 240px; max-width: 320px; padding: 16px 18px; }
   .secondary-panel-modal-box {
@@ -230,19 +206,6 @@
 
 /* --- Mobile screens (≤480px): Full-width panels, stacked layout --- */
 @media (max-width: 480px) {
-  #game-header { padding: 0 8px; gap: 6px; height: 38px; }
-  .hdr-logo { font-size: 11px; }
-  .hdr-stat-value { font-size: 11px; }
-  .hdr-stats { gap: 8px; }
-  .hdr-location { display: none; }
-  .hdr-day-chip {
-    margin-left: 2px;
-    padding: 2px 7px;
-    gap: 5px;
-  }
-  .hdr-day-chip-label { font-size: 6px; }
-  .hdr-day-chip-value { font-size: 10px; }
-  .hdr-icon-btns { gap: 2px; padding-left: 4px; }
 
   .status-ship-stats {
     bottom: calc(var(--bottom-nav-offset, 52px) + 12px);
@@ -253,11 +216,6 @@
   .status-stat { min-width: 70px; }
   .status-stat-label { font-size: 7px; }
   .status-stat-pct { font-size: 9px; }
-
-  .bottom-nav { padding: 3px 5px; border-radius: 12px; }
-  .bottom-nav-btn { padding: 5px 7px; min-width: 50px; }
-  .bottom-nav-icon { width: 16px; height: 16px; }
-  .bottom-nav-btn span { font-size: 10px; letter-spacing: 0.01em; }
 
   .modal-box { min-width: 200px; max-width: 95vw; padding: 14px 12px; }
   .secondary-panel-toolbar,

@@ -79,8 +79,10 @@ describe('Workspace terminal UI structure', function () {
     expect(responsiveCss).toContain('top: max(var(--ui-space-2), var(--ui-safe-top)) !important');
     expect(responsiveCss).toContain('left: max(var(--ui-space-2), var(--ui-safe-left)) !important');
     expect(css).toContain('max(var(--modal-safe-gap), var(--safe-left))');
-    expect(css).toContain('height: calc(52px + var(--safe-top))');
-    expect(css).toContain('left: max(8px, var(--safe-left))');
+    expect(responsiveCss).toContain('--ui-header-height: 58px');
+    expect(responsiveCss).toContain('min-height: var(--ui-header-height)');
+    expect(responsiveCss).toContain('padding-top: max(7px, var(--ui-safe-top))');
+    expect(responsiveCss).toContain('padding-left: max(var(--ui-space-2), var(--ui-safe-left))');
     expect(sharedCss).not.toContain('Archive terminal: factions + achievements');
     expect(archiveCss).toContain('Archive terminal: factions + achievements');
     expect(hangarCss).toContain('Hangar detail modals: ship modules + crew roster');

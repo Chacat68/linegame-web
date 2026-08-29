@@ -685,6 +685,15 @@
 
 }
 
+@media (max-width: 700px), (max-height: 620px) {
+  body:has(.modal:not(.hidden)) .bottom-nav,
+  body:has(.modal:not(.hidden)) #action-guide {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+}
+
 @media (max-height: 660px) {
   :root {
     --ui-header-height: 56px;

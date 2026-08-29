@@ -549,13 +549,6 @@
   color: #dcfce7;
 }
 
-.hdr-icon-btn.is-tracking {
-  color: #fde68a;
-  border-color: rgba(250, 204, 21, 0.38);
-  background: rgba(250, 204, 21, 0.08);
-  box-shadow: 0 0 14px rgba(250, 204, 21, 0.12);
-}
-
 @media (max-width: 840px) {
   .company-directives-brief,
   .company-directive-grid {

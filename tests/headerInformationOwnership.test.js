@@ -68,15 +68,29 @@ describe('Header information ownership', function () {
 
   it('Header 基础布局只由现行 Surface 层覆盖，旧专用样式表不再参与竞争', function () {
     var legacyHeader = readFileSync(new URL('../css/header.css', import.meta.url), 'utf8');
+    var competingSources = [
+      'css/interstellar-trader.css',
+      'css/responsive.css',
+      'css/modals.css',
+      'css/layout.css',
+    ].map(function (file) {
+      return readFileSync(new URL('../' + file, import.meta.url), 'utf8');
+    }).join('\n');
     var surfaces = readFileSync(new URL('../css/surfaces.css', import.meta.url), 'utf8');
     var responsive = readFileSync(new URL('../css/bridge-responsive.css', import.meta.url), 'utf8');
     var entry = readFileSync(new URL('../css/style.css', import.meta.url), 'utf8');
 
     expect(legacyHeader).not.toMatch(/#game-header|\.hdr-/);
+    expect(competingSources).not.toMatch(/#game-header|\.hdr-/);
     expect(surfaces).toContain('#game-header {');
+    expect(surfaces).toContain('animation: panel-rise 0.5s ease-out both;');
     expect(surfaces).toContain('.hdr-company-name {');
+    expect(surfaces).toContain('.hdr-meter-track[data-meter-state="warning"] .hdr-meter-fill');
+    expect(surfaces).toContain('.hdr-meter-track[data-meter-state="critical"] .hdr-meter-fill');
+    expect(surfaces).toContain('.hdr-icon-btn.is-tracking {');
     expect(surfaces).toContain('.hdr-icon-btn[data-company-directive-badge]::after');
     expect(responsive).toContain('@media (max-width: 680px)');
+    expect(entry).not.toContain('@import url("animations.css")');
     expect(entry.indexOf('@import url("interstellar-trader.css")'))
       .toBeLessThan(entry.indexOf('@import url("surfaces.css")'));
     expect(entry.indexOf('@import url("surfaces.css")'))

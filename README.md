@@ -51,6 +51,8 @@
 - ✅ 五个同级 L3 工作区：map / trade / fleet / archive / logs 共用 `workspace-surface + is-active + inert/ARIA` 契约；市场已脱离星图 DOM，终端不再依赖 drawer/overlay 可见状态
 - ✅ 工作区内部交互 owner：商业入口/浏览位置由 `MarketWorkspaceEntryController + Session` 持有，Archive/Fleet Tab 由 `WorkspaceTabController` 统一键盘、ARIA、深链与释放；Map/Market/Fleet/Archive 的 Context → L4 入口统一使用显式 local-scope `WorkspaceActionSlot`，不会竞争全局 Action Guide
 - ✅ Header 信息唯一归属：公司身份、信用点、位置、日期和当前舰船资源由 Header 权威展示；机库只保留净资产、等级、容量与经营权限详情
+- ✅ Header CSS 单一归属：生产级联中的 `#game-header` / `.hdr-*` 只允许出现在 `surfaces.css` 与 `bridge-responsive.css`；旧主题、旧响应式、Modal 与 Layout 不再覆盖 Header
+- ✅ Bottom Nav CSS 单一归属：导航容器、五个目的地、当前项、角标、星系模式与窄屏/阻塞状态统一由 `surfaces.css` 与 `bridge-responsive.css` 管理
 - ✅ Vitest 测试基线：171 个测试文件、1352 项测试，覆盖经济、贸易、航行、探索、事件与随机事件运行时、统一动作控制器图、成就检查队列、持久化事务、Game Application shell/Runtime Graph/五个职责节点工厂簇/启动投影/Feature/UI/Guidance/Loop Runtime 组合边界、manifest/registry 生命周期与延迟工作区错误恢复、Game Shell Projection/Header/Company/Archive Badge Presenter 与信息所有权、Map Galaxy Hub/View State/Survey Detail/Panel Layout + Controller、Workspace Surface/Detail 生命周期与 L3 CSS 所有权、Renderer dispose/re-init/开发态 2D 强制降级、Market Chart/Spot/Goods/Capital/Operations/Commodity Detail、Fleet Hangar/Shop/Crew/Mod/Dispatch/Ship Detail 与 Workspace Object Detail Presenter、typed market/fleet/settings command、资金与贸易站投影、Context 局部 intent、焦点同步、Shell/HUD/FleetUI 命令所有权、自动派遣与日结算提交顺序、经营金融、舰队、科研任务档案动作、剧情与胜利运行时、eager UI 壳/设置/首次进入/释放生命周期、教学引导与 onboarding policy、存档、会话生命周期、时钟、命令目的地、行动引导执行适配、市场工作区入口、工作区 Tab 与局部操作槽、Market/Fleet/Archive 内部增量失效、日志 Context/筛选/聚合与 UI 所有权等核心系统
 
 ### 当前开发中的能力
