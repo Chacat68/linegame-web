@@ -424,27 +424,6 @@
 .tab-pane.active { display: block; }
 
 /* Market table */
-#market-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12px;
-}
-#market-table th {
-  text-align: left;
-  padding: 4px 4px;
-  color: var(--text-dim);
-  font-weight: 600;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: .4px;
-  border-bottom: 1px solid var(--border);
-}
-#market-table td {
-  padding: 5px 4px;
-  border-bottom: 1px solid #12122a;
-  vertical-align: middle;
-}
-#market-table tr:hover td { background: rgba(255,255,255,.03); }
 
 .good-icon { font-size: 14px; margin-right: 3px; }
 .sd-indicator { font-size: 10px; margin-left: 4px; opacity: 0.7; cursor: help; }

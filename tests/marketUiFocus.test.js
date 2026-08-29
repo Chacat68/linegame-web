@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 
 function createFakeClassList(initialValues) {
   var values = new Set(initialValues || []);
@@ -162,6 +162,38 @@ describe('MarketUI guided focus', function () {
     expect(fleetCss).not.toContain('.market-chart-frame');
     expect(fleetCss).not.toContain('.kline-border');
     expect(fleetCss).not.toContain('.kline-candle.up');
+  });
+
+  it('商业终端样式随 Market feature 加载且不会回流 Fleet', function () {
+    const marketCss = readFileSync('css/market-terminal.css', 'utf8');
+    const fleetCss = readFileSync('css/fleet.css', 'utf8');
+    const productionLegacyCss = [
+      'css/panels.css',
+      'css/systems.css',
+      'css/responsive.css',
+      'css/interstellar-trader.css',
+    ].map(function (path) { return readFileSync(path, 'utf8'); }).join('\n');
+    const allCss = readdirSync('css')
+      .filter(function (name) { return name.endsWith('.css'); })
+      .map(function (name) { return readFileSync('css/' + name, 'utf8'); })
+      .join('\n');
+    const capitalPresenter = readFileSync('js/ui/MarketCapitalPresenter.js', 'utf8');
+    const retiredPanels = /\.market-(?:capital-signal|capital-focus|stock-position|futures-risk|finance-contract|finance-history)/;
+
+    expect(marketCss).toContain('Market-owned base primitives migrated from fleet.css');
+    expect(marketCss).toContain('Market-owned legacy primitives migrated from panels.css');
+    expect(marketCss).toContain('Market-owned legacy primitives migrated from systems.css');
+    expect(marketCss).toContain('Market-owned legacy primitives migrated from responsive.css');
+    expect(marketCss).toContain('Market-owned legacy cascade migrated from interstellar-trader.css');
+    expect(marketCss).toContain('.market-terminal-dashboard');
+    expect(marketCss).toContain('.market-finance-action-row');
+    expect(marketCss).toContain('@keyframes market-guide-focus-pulse');
+    expect(fleetCss).not.toMatch(/\.(?:market|mkt|kline|bm|trade-station)-/);
+    expect(productionLegacyCss).not.toMatch(/#market(?:-|\b)|\.(?:market|mkt|kline|bm|trade-station)-/);
+    expect(allCss).not.toMatch(retiredPanels);
+    expect(capitalPresenter).toContain('market-capital-local-panel');
+    expect(capitalPresenter).toContain('market-finance-action-row');
+    expect(capitalPresenter).not.toMatch(retiredPanels);
   });
 
   it('市场一级和二级标签支持方向键切换并同步焦点', async function () {
@@ -343,7 +375,7 @@ describe('MarketUI guided focus', function () {
   });
 
   it('商网站点分区包含列表语义、选择态和移动端适配锚点', function () {
-    const css = readFileSync('css/interstellar-trader.css', 'utf8');
+    const css = readFileSync('css/market-terminal.css', 'utf8');
     const js = readFileSync('js/ui/MarketOperationsPresenter.js', 'utf8');
 
     expect(js).toContain('class="trade-station-card-list trade-station-card-list--candidates" role="list"');
@@ -370,7 +402,7 @@ describe('MarketUI guided focus', function () {
   });
 
   it('资本分区只保留贷款与站点投资语义和适配锚点', function () {
-    const css = readFileSync('css/interstellar-trader.css', 'utf8');
+    const css = readFileSync('css/market-terminal.css', 'utf8');
     const js = readFileSync('js/ui/MarketUI.js', 'utf8');
     const capitalJs = readFileSync('js/ui/MarketCapitalPresenter.js', 'utf8');
 

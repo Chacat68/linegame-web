@@ -241,7 +241,7 @@ function _buildMarketProgression(state, sysId, options) {
         id: 'capital',
         index: '03',
         label: '管理资金',
-        note: '贷款、本地投资和保险',
+        note: '现金、贷款和站点投资',
         workspaceId: 'capital',
         subworkspaceId: 'local',
         unlocked: capitalLocalUnlocked,

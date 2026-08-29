@@ -64,110 +64,6 @@
   .settings-storage-head {
     flex-direction: column;
   }
-  .market-finance-summary-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .market-spot-intel-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .market-heatmap-legend {
-    gap: 6px;
-  }
-  .market-heatmap-legend-item {
-    padding: 4px 8px;
-  }
-  .market-finance-layout {
-    grid-template-columns: 1fr;
-  }
-  .market-workspace-tabs {
-    grid-template-columns: 1fr;
-  }
-  .market-cmd-bar,
-  .market-command-bar {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .market-galaxy-nav {
-    width: 100%;
-  }
-  .market-subworkspace-tabs {
-    grid-template-columns: 1fr;
-  }
-  .market-spot-command-hero {
-    flex-direction: column;
-  }
-  .market-workspace-deck-hero {
-    flex-direction: column;
-  }
-  .market-spot-command-emphasis {
-    width: 100%;
-    text-align: left;
-  }
-  .market-workspace-deck-emphasis {
-    width: 100%;
-    text-align: left;
-  }
-  .market-spot-command-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .market-workspace-deck-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .market-batch-plan-grid,
-  .market-batch-plan-grid-major {
-    grid-template-columns: 1fr;
-  }
-  .market-batch-plan-sort-row,
-  .market-batch-plan-deferred-head {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .market-batch-plan-metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .market-batch-plan-card-footer {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .market-batch-plan-card-footer .trade-station-build-btn {
-    width: 100%;
-  }
-  .market-goods-toolbar {
-    flex-direction: column;
-  }
-  .market-goods-toolbar-pills {
-    justify-content: flex-start;
-  }
-  .market-spot-trade-layout {
-    grid-template-columns: 1fr;
-  }
-  .market-analysis-panel {
-    position: static;
-    max-height: none;
-  }
-  .market-good-card {
-    grid-template-columns: 44px minmax(0, 1fr);
-    gap: 10px;
-    padding: 12px;
-  }
-  .market-good-card-chart-col,
-  .market-good-card-price-block,
-  .market-good-card-actions {
-    grid-column: 1 / -1;
-    justify-content: flex-start;
-  }
-  .market-good-card-price-block {
-    align-items: flex-start;
-  }
-  .market-good-card-secondary,
-  .market-good-card-delta {
-    text-align: left;
-  }
-  .market-good-card-icon {
-    width: 36px;
-    height: 36px;
-    font-size: 22px;
-  }
 
   #map-legend {
     font-size: 10px;
@@ -204,86 +100,6 @@
   }
   .secondary-panel-close {
     align-self: flex-end;
-  }
-  .market-cmd-bar,
-  .market-command-bar {
-    padding: 8px 8px 6px;
-    gap: 6px;
-  }
-  .market-heatmap-legend {
-    gap: 5px;
-  }
-  .market-heatmap-legend-item {
-    font-size: 9px;
-    min-height: 22px;
-    padding: 3px 7px;
-  }
-  .mkt-ov-price-chip {
-    min-width: 34px;
-    padding: 7px 4px;
-    font-size: 10px;
-  }
-  .mkt-ov-price-delta {
-    font-size: 8px;
-  }
-  .market-subworkspace-tab,
-  .market-workspace-tab {
-    padding: 8px 10px;
-  }
-  .market-spot-command-deck {
-    margin: 0 4px 12px;
-    padding: 14px;
-  }
-  .market-workspace-deck {
-    margin: 0 4px 12px;
-    padding: 14px;
-  }
-  .market-spot-command-grid {
-    grid-template-columns: 1fr;
-  }
-  .market-workspace-deck-grid {
-    grid-template-columns: 1fr;
-  }
-  .market-batch-plan-metrics {
-    grid-template-columns: 1fr;
-  }
-  .market-batch-plan-summary-pill {
-    width: 100%;
-    justify-content: space-between;
-  }
-  .market-batch-plan-sort-options {
-    display: grid;
-    grid-template-columns: 1fr;
-  }
-  .market-batch-plan-sort-btn {
-    width: 100%;
-  }
-  .market-batch-plan-card {
-    padding: 12px;
-  }
-  .market-batch-plan-card-head {
-    flex-direction: column;
-  }
-  .market-spot-command-title {
-    font-size: 20px;
-  }
-  .market-workspace-deck-title {
-    font-size: 20px;
-  }
-  .market-goods-shell {
-    padding: 10px;
-  }
-  .market-goods-toolbar-pill,
-  .market-spot-command-pill,
-  .market-workspace-deck-pill {
-    min-height: 24px;
-    padding: 4px 8px;
-  }
-  .market-analysis-card {
-    padding: 14px;
-  }
-  .market-spot-intel-grid {
-    grid-template-columns: 1fr;
   }
   .victory-modal-box { min-width: 200px; max-width: 95vw; }
   .event-modal-box { min-width: 200px; max-width: 95vw; }
@@ -350,9 +166,6 @@
   .save-export-row .btn-action {
     width: 100%;
   }
-  .market-finance-summary-grid {
-    grid-template-columns: 1fr;
-  }
 
   #map-legend { font-size: 10px; gap: 4px; padding: 2px 6px; }
   #map-legend span:last-child { display: none; }
@@ -414,63 +227,8 @@
   animation: border-sweep 0.8s ease-out;
 }
 
-.market-overlay-header h3,
-.market-detail-location,
 .map-atlas-tag {
   text-shadow: 0 0 10px rgba(34, 211, 238, 0.28);
-}
-
-#market-trade-overview-table th,
-#market-table th {
-  position: sticky;
-  overflow: hidden;
-}
-
-#market-trade-overview-table th::after,
-#market-table th::after {
-  content: "";
-  position: absolute;
-  left: -120%; top: 0;
-  width: 40%; height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(186, 230, 253, 0.2), transparent);
-  animation: border-sweep 3.8s linear infinite;
-}
-
-.mkt-ov-row,
-#market-table tbody tr {
-  position: relative;
-  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
-}
-
-.mkt-ov-row::before,
-#market-table tbody tr::before {
-  content: "";
-  position: absolute;
-  left: 0; top: 6px; bottom: 6px;
-  width: 2px;
-  background: linear-gradient(180deg, transparent, rgba(34, 211, 238, 0.9), transparent);
-  opacity: 0;
-  transition: opacity 0.18s ease;
-}
-
-.mkt-ov-row:hover,
-#market-table tbody tr:hover {
-  transform: translateX(3px);
-}
-
-.mkt-ov-row:hover::before,
-#market-table tbody tr:hover::before,
-.mkt-ov-current::before {
-  opacity: 1;
-}
-
-.mkt-ov-current::before {
-  animation: row-signal 1.8s ease-in-out infinite;
-}
-
-.mkt-ov-price,
-#market-table td {
-  font-variant-numeric: tabular-nums;
 }
 
 #message-log {
@@ -510,15 +268,13 @@
   text-shadow: 0 0 8px rgba(34, 211, 238, 0.18);
 }
 
-body[data-motion="reduced"] .mkt-ov-current::before,
 body[data-motion="reduced"] #message-log::after,
 body[data-motion="reduced"] .map-scanlines,
 body[data-motion="reduced"] .tut-highlight {
   animation: none !important;
 }
 
-body[data-motion="reduced"] .tab-pane.active,
-body[data-motion="reduced"] .market-detail:not(.hidden) {
+body[data-motion="reduced"] .tab-pane.active {
   animation-duration: 0.12s !important;
 }
 
@@ -555,27 +311,17 @@ body[data-motion="off"] *::after {
   100% { box-shadow: 0 0 0 rgba(34, 211, 238, 0); }
 }
 
-.tab-btn,
-.market-galaxy-btn {
+.tab-btn {
   will-change: transform, opacity;
 }
 
 .tab-btn { transition: color 0.18s ease, background 0.18s ease, transform 0.18s ease; }
 .tab-btn:hover { transform: translateY(-1px); }
 
-.tab-btn:active,
-.market-galaxy-btn:active {
+.tab-btn:active {
   transform: translateY(1px) scale(0.99);
 }
 
 .tab-pane.active {
   animation: pane-enter 0.22s ease-out;
-}
-
-.market-detail:not(.hidden) {
-  animation: slide-enter-right 0.22s ease-out;
-}
-
-.market-galaxy-btn:hover {
-  animation: button-press-glow 0.45s ease-out;
 }
