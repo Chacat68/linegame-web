@@ -117,7 +117,11 @@ describe('MarketUI guided focus', function () {
     const sharedCss = readFileSync('css/interstellar-trader.css', 'utf8');
     const marketCss = readFileSync('css/market-terminal.css', 'utf8');
     const css = sharedCss + '\n' + marketCss;
-    const js = readFileSync('js/ui/MarketUI.js', 'utf8');
+    const marketUiJs = readFileSync('js/ui/MarketUI.js', 'utf8');
+    const navigationJs = readFileSync('js/ui/MarketWorkspaceNavigation.js', 'utf8');
+    const overviewPresenterJs = readFileSync('js/ui/MarketOverviewPresenter.js', 'utf8');
+    const overviewControllerJs = readFileSync('js/ui/MarketOverviewController.js', 'utf8');
+    const js = marketUiJs + '\n' + navigationJs + '\n' + overviewPresenterJs + '\n' + overviewControllerJs;
     const spotJs = readFileSync('js/ui/MarketSpotPresenter.js', 'utf8');
     const goodsJs = readFileSync('js/ui/MarketGoodsPresenter.js', 'utf8');
     const marketEntryJs = readFileSync('js/ui/MarketWorkspaceEntryController.js', 'utf8');
@@ -130,6 +134,11 @@ describe('MarketUI guided focus', function () {
     expect(html).not.toContain('market-progress-disclosure');
     expect(html).not.toContain('market-experience-route');
     expect(js).not.toContain('_renderMarketExperienceRoute');
+    expect(marketUiJs).toContain("from './MarketWorkspaceNavigation.js'");
+    expect(marketUiJs).toContain("from './MarketOverviewController.js'");
+    expect(marketUiJs).not.toContain('function _renderMarketWorkspaceTabs');
+    expect(marketUiJs).not.toContain('function _renderMarketSubworkspace');
+    expect(marketUiJs).not.toContain('function _renderOverviewTable');
     expect(marketEntryJs).toContain("icon.className = 'market-galaxy-btn-icon'");
     expect(marketEntryJs).toContain("label.className = 'market-galaxy-btn-label'");
     expect(marketEntryJs).toContain("button.setAttribute('aria-pressed'");
@@ -138,7 +147,7 @@ describe('MarketUI guided focus', function () {
     expect(spotJs).toContain('aria-label="买卖货物"');
     expect(spotJs).toContain('role="radiogroup" aria-labelledby="market-price-view-label"');
     expect(spotJs).toContain('data-market-overview-price-mode="sell"');
-    expect(js).toContain('class="mkt-ov-planet-action" type="button"');
+    expect(overviewPresenterJs).toContain('class="mkt-ov-planet-action" type="button"');
     expect(js).not.toContain('id="market-trade-show-sell"');
     expect(css).toContain('.market-cmd-bar');
     expect(css).toContain('.market-main-pane[aria-hidden="true"]');
@@ -253,6 +262,12 @@ describe('MarketUI guided focus', function () {
       'market-goods-toolbar': createFakeElement(),
       'market-spot-command-deck': createFakeElement(),
       'market-analysis-panel': createFakeElement(),
+      'market-trade-overview-table': createFakeElement(),
+      'market-trade-overview-thead': createFakeElement(),
+      'market-trade-overview-tbody': createFakeElement(),
+      'market-overview-price-status': createFakeElement(),
+      'market-overview-price-buy': createFakeElement(),
+      'market-overview-price-sell': createFakeElement(),
     };
     globalThis.document = {
       getElementById: function (id) { return elements[id] || null; },
@@ -403,7 +418,7 @@ describe('MarketUI guided focus', function () {
 
   it('资本分区只保留贷款与站点投资语义和适配锚点', function () {
     const css = readFileSync('css/market-terminal.css', 'utf8');
-    const js = readFileSync('js/ui/MarketUI.js', 'utf8');
+    const navigationJs = readFileSync('js/ui/MarketWorkspaceNavigation.js', 'utf8');
     const capitalJs = readFileSync('js/ui/MarketCapitalPresenter.js', 'utf8');
 
     expect(capitalJs).toContain('role="list" aria-label="未结清贷款列表"');
@@ -411,7 +426,7 @@ describe('MarketUI guided focus', function () {
     expect(capitalJs).toContain('资金页集中查看现金、贷款与站点投资总额');
     expect(capitalJs).toContain('具体建站和追加投资统一在贸易站页处理');
     expect(capitalJs).not.toContain('data-action="market-invest-trade-station"');
-    expect(js).toContain("capital: [\n    { id: 'local', label: '贷款与投资', hint: '管理本地资金' },\n  ]");
+    expect(navigationJs).toContain("capital: [\n    { id: 'local', label: '贷款与投资', hint: '管理本地资金' },\n  ]");
     expect(capitalJs).toContain('role="listitem" tabindex="0"');
     expect(capitalJs).toContain('aria-describedby="');
     expect(css).toContain('.market-capital-local-panel');
@@ -1518,6 +1533,12 @@ describe('MarketUI guided focus', function () {
       'market-goods-toolbar': createFakeElement(),
       'market-spot-command-deck': createFakeElement(),
       'market-analysis-panel': createFakeElement(),
+      'market-trade-overview-table': createFakeElement(),
+      'market-trade-overview-thead': createFakeElement(),
+      'market-trade-overview-tbody': createFakeElement(),
+      'market-overview-price-status': createFakeElement(),
+      'market-overview-price-buy': createFakeElement(),
+      'market-overview-price-sell': createFakeElement(),
     };
     globalThis.document = {
       getElementById: function (id) { return elements[id] || null; },
@@ -1544,6 +1565,14 @@ describe('MarketUI guided focus', function () {
       'market-capital',
       'market-operations',
     ]);
+    expect(afterFullRender.overview).toEqual(expect.objectContaining({
+      tableRenderCount: 1,
+      controlBindCount: 1,
+      modeChangeCount: 0,
+      lastGalaxyId: 'milky_way',
+      lastPriceMode: 'buy',
+    }));
+    expect(afterFullRender.overview.lastRowCount).toBeGreaterThan(0);
 
     MarketUI.renderOperations({
       state: state,
@@ -1556,6 +1585,7 @@ describe('MarketUI guided focus', function () {
     expect(afterOperations.renderCounts['market-operations']).toBe(afterFullRender.renderCounts['market-operations'] + 1);
     expect(afterOperations.renderCounts['market-spot']).toBe(afterFullRender.renderCounts['market-spot']);
     expect(afterOperations.lastRenderedRegions).toEqual(['market-operations']);
+    expect(afterOperations.overview).toEqual(afterFullRender.overview);
 
     MarketUI.setFocusedMarketGood('sol_prime', 'open', 'water');
     MarketUI.setMarketWorkspaceFocus({ workspaceId: 'capital', subworkspaceId: 'local' });
@@ -1575,6 +1605,14 @@ describe('MarketUI guided focus', function () {
     expect(reset.overviewPriceMode).toBe('buy');
     expect(reset.operationsSortModes).toEqual({ investment: 'yield', upgrade: 'income', strategy: 'income' });
     expect(reset.lastRenderedRegions).toEqual([]);
+    expect(reset.overview).toEqual({
+      tableRenderCount: 0,
+      controlBindCount: 0,
+      modeChangeCount: 0,
+      lastGalaxyId: null,
+      lastPriceMode: null,
+      lastRowCount: 0,
+    });
     expect(reset.resetCount).toBe(before.resetCount + 1);
     expect(MarketUI.getFocusedMarketGood('sol_prime', 'open')).toBeNull();
   });

@@ -61,7 +61,11 @@
 | `WorkspaceDetailSurface.js` | 380 行 | 已成为五工作区共享的 L4 非阻塞详情层，拥有不可变 detail key、renderer registry、逐层 Escape、焦点恢复和被覆盖 Context 的 inert 处理；地图探索档案是首个真实两层 adapter |
 | `MapGalaxyHubPresenter.js` | 211 行 | 独占星系总览解锁/访问/贸易线索模型、HTML 和跃迁 intent；不绑定 DOM、不修改 state |
 | `MapViewStateController.js` | 157 行 | 独占星系/星球视图、当前查看星系和悬停目标；所有写入经单一 controller，并始终读取最新 session state |
-| `MarketUI.js` | 重构前 3,606 行；当前 1,512 行 | 图表、现货、商品、商品详情、资金、贸易站投影边界和可丢弃工作区会话已迁出；现在主要持有四个具名 render port、价格总览 DOM 协调和 typed command 发布 |
+| `MarketUI.js` | 重构前 3,606 行；当前 839 行 | 图表、现货、商品、商品详情、资金、贸易站、解锁进度、价格总览、一级/二级菜单交互和可丢弃工作区会话已迁出；现在主要持有四个具名 render port、商品列表/资金/经营容器协调和 typed command 发布 |
+| `MarketExperienceRoute.js` | 205 行 | 无 DOM 地把公司等级、历史资产、贸易站和黑市权限投影为稳定的 workspace/subworkspace 解锁路线 |
+| `MarketOverviewPresenter.js` | 145 行 | 无 DOM 地生成地点访问/研究解锁、买卖价、热度、未知报价和安全转义后的表头/行投影 |
+| `MarketOverviewController.js` | 170 行 | 独占价格表 DOM、地点打开委托、买卖价按钮、键盘漫游与冻结 diagnostics；未知报价行不绑定动作 |
+| `MarketWorkspaceNavigation.js` | 368 行 | 独占一级/二级菜单 HTML、锁定回退、roving tabindex、ARIA、方向键和程序化焦点；只通过注入的 Session/商品聚焦端口工作 |
 | `MarketCommodityDetailPresenter.js` | 111 行 | 纯生成商品 Context 摘要与 L4 详情，统一转义领域字段；买卖确认仍只属于商业工作区 |
 | `FleetUI.js` | 1,236 行 | 已移除反向全局主控依赖；公开入口使用请求对象 + 单一 typed command，机库、采购、船员、改装/保养、派遣和舰船详情投影均已迁出；协调层保留工作区选择、弹层、焦点、确认与 command 发布 |
 | `FleetShipDetailPresenter.js` | 105 行 | 纯生成舰船 Context 摘要与 L4 运行详情，汇总船况、贸易循环、成本和配置；领域动作仍只属于舰队工作区 |
@@ -624,7 +628,7 @@ Escape **不得切换 canonical workspace 或默认返回地图**，也不得关
 | Context Inspector / Workspace Detail CSS module | 通过 | 2026-08-29 将 77 条 Context/Detail 组件规则从 `global-shell-v2.css` 拆入 `context-inspector.css` 与 `workspace-detail.css`；桌面地图 Inspector `348 × 248`、商业 Inspector `348 × 608`、L4 `720 × 460`，移动商业 Inspector `376 × 412.65`、L4 `376 × 572` 的改前/改后几何完全一致，0 横向溢出。Global Shell 降至 129 行，主 CSS 354.72 kB / gzip 61.81 kB |
 | Starmap Controls CSS owner | 通过 | 2026-08-29 将两个活动星图工具迁入 `starmap-controls.css`，Global Shell 降至 72 行；删除无 DOM/运行时消费者的 control rail、隐藏 3D 按钮、入口组、五个 HUD 小窗和跨工作区 Fleet 覆盖。桌面工具区 `174.09 × 44`，移动工具区 `374 × 44`、Inspector `376 × 254`；先加载 Fleet 再返回 Map 后几何完全一致，星系模式进入/退出同步恢复 Bottom Nav，0 横向溢出且 console 仅有 Vite debug。主 CSS 降至 329.25 kB / gzip 57.26 kB |
 | Retired Company Directives UI | 通过 | 2026-08-29 复核页面、192 个运行时源码文件和 GameManager/Feature manifest，确认旧公司指令无入口、DOM、Presenter 或 Controller；从 `modals.css`、`interstellar-trader.css`、`surfaces.css`、`bridge-responsive.css` 删除 724 行 modal/Header badge/响应式孤儿规则。静态契约遍历全部 CSS 与 DOM 拒绝类族回流，同时要求存档 schema/迁移层继续识别 `companyDirectiveClaims`；主 CSS 降至 316.98 kB / gzip 55.21 kB |
-| Market CSS Feature owner | 部分通过 | 2026-08-29 将 3,193 行 Market 基础规则从 `fleet.css` 迁入 `market-terminal.css`，并将 497 个有效 Market 选择器分支从全局 `panels/systems/responsive/interstellar-trader` 级联收口到同一延迟 owner；删除旧 Capital Signal、Stock Position、Futures Risk、Finance Contract/History 及无 DOM 通用残片。桌面 `1280 × 720` 下“市场先开”和“机库先开再回市场”均为 `868 × 468`、行情两栏 `320 / 520`、0 横向溢出且布局完全一致。移动自动验收因浏览器扩展中断待复核；全量 1,357 项测试与生产构建已通过，主 CSS 从 308.04 kB / gzip 54.19 kB 降至 277.63 kB / gzip 49.55 kB，Market/Fleet chunk 分别为 167.50/50.96 kB |
+| Market CSS Feature owner | 部分通过 | 2026-08-29 将 3,193 行 Market 基础规则从 `fleet.css` 迁入 `market-terminal.css`，并将 497 个有效 Market 选择器分支从全局 `panels/systems/responsive/interstellar-trader` 级联收口到同一延迟 owner；删除旧 Capital Signal、Stock Position、Futures Risk、Finance Contract/History 及无 DOM 通用残片。桌面 `1280 × 720` 下“市场先开”和“机库先开再回市场”均为 `868 × 468`、行情两栏 `320 / 520`、0 横向溢出且布局完全一致。移动自动验收因浏览器扩展中断待复核；全量 1,366 项测试与生产构建已通过，主 CSS 从 308.04 kB / gzip 54.19 kB 降至 277.63 kB / gzip 49.55 kB，Market/Fleet chunk 分别为 167.50/50.96 kB |
 | 浏览器错误 | 通过 | 常规交互 error console 为空；故障注入场景只出现一条预期的 market 开发态错误，重试恢复后没有新增错误 |
 
 本轮修复了两条由旧 CSS 留下的真实回归：窄屏 L3 工作区曾隐藏全局 Command Slot；恢复显示后，行动槽又会覆盖市场与终端底部内容。旧规则现在只对 Blocking Modal 生效，工作区改为通过 Shell Token 预留空间。
@@ -770,6 +774,8 @@ Escape **不得切换 canonical workspace 或默认返回地图**，也不得关
 | `MarketCapitalPresenter` | **资金结构与经营贷款投影边界已接入** | 可用现金、贷款余额、站点投资只读汇总、信用分、现金 runway、贷款报价和偿还 command 标记已迁出 `MarketUI`；资金容器委托发布 typed loan command，资金页不再冒充站点投资操作入口 | 将资金模型纳入 workspace diagnostics |
 | `MarketOperationsPresenter` | **贸易站经营与批量计划投影边界已接入** | 本地经营状态、商网总览、候选情报、已建站列表、投资/升级/策略批量排序和 command 标记已迁出 `MarketUI`；经营容器委托发布 typed operations command，排序状态仍由纯函数局部更新 | 将经营模型和排序状态纳入 workspace diagnostics |
 | `MarketWorkspaceSession` | **无 DOM 的市场会话所有权已接入** | 工作区/子页、当前市场上下文、按地点隔离的商品焦点与图表区间、价格模式、经营排序和解锁投影已从 `MarketUI` 迁出；独立实例、冻结 diagnostics 与 reset 边界均有单测 | 将纯会话端口进一步拆分为类型化的选择/排序操作 |
+| `MarketExperienceRoute` + `MarketWorkspaceNavigation` | **解锁模型与菜单交互 owner 已接入** | 公司等级/历史资产/贸易站/黑市权限只在纯 route 中形成进度投影；一级/二级菜单 HTML、锁定回退、键盘漫游、ARIA、HTML 转义和程序化焦点统一由 Navigation 通过 Session 端口协调。`MarketUI` 保留公开兼容导出 | 将菜单/选择 diagnostics 汇入顶层 UI runtime |
+| `MarketOverviewPresenter` + `MarketOverviewController` | **各地价格模型与表格交互 owner 已接入** | Presenter 纯生成访问权限、研究解锁、买卖价、热度、未知报价和安全 HTML；Controller 独占表格节点、地点打开、价格口径按钮与方向键，冻结 diagnostics 记录重绘/绑定/切换/最后行数并经 `MarketUI` 暴露。未知报价行使用默认光标且不绑定动作；`MarketUI` 由 1,001 行降至 839 行 | 把商品列表容器委托进一步拆成 controller，并将 Overview diagnostics 汇入顶层 UI runtime |
 | `MarketWorkspaceEntryController` + `MarketWorkspaceEntrySession` | **商业入口所有权已接入** | 是否打开、浏览星系/地点、detail/overview 暂态与一次性深链 focus 已从 `MapWorkspaceSession/MapUI` 迁出；Controller 独占入口/关闭/星系导航/刷新 listener，`GameUiApplicationRuntime.navigation` 作为正式读取/动作端口；MapUI 不再导出市场 facade | 继续将市场内部选择状态纳入 workspace diagnostics |
 | `MapWorkspaceSession` | **星图局部会话所有权已接入** | 仅持有选中星球、详情披露区与局部航线焦点；reset 会清理 hover/Context/活动 Map L4，但不改写存档中的 `mapView/viewingGalaxy`，不再认识商业入口 | 将更多面板定位偏好模型化 |
 | `WorkspaceTabController` | **Archive/Fleet Tab owner 已接入** | 独占 listener、roving tabindex、`aria-selected/aria-hidden`、方向键、移动端 scroll-into-view、程序化深链、关闭/背景 dismiss 与 dispose；GameUiLifecycle 直接初始化，command/guidance 经正式 UI runtime navigation port 调用；MapUI 不再导出 Tab facade | 将 tab snapshot 纳入顶层 UI diagnostics |

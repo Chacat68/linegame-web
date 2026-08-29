@@ -1,8 +1,21 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { getMarketExperienceRoute } from '../js/ui/MarketUI.js';
+import { getMarketExperienceRoute } from '../js/ui/MarketExperienceRoute.js';
 import { createTestState } from './helpers.js';
 
 describe('Market experience route', function () {
+  it('进度模型由纯 route 模块拥有，MarketUI 只保留兼容导出和编排调用', function () {
+    const marketUi = readFileSync('js/ui/MarketUI.js', 'utf8');
+    const route = readFileSync('js/ui/MarketExperienceRoute.js', 'utf8');
+
+    expect(marketUi).toContain("from './MarketExperienceRoute.js'");
+    expect(marketUi).toContain('export { getMarketExperienceRoute, getTradeStationCandidateIntel };');
+    expect(marketUi).not.toContain('function _getMarketExperienceStats');
+    expect(marketUi).not.toContain('function _buildCompanyUnlockPath');
+    expect(route).toContain('export function buildMarketProgression');
+    expect(route).not.toMatch(/\bdocument\b/);
+  });
+
   it('新玩家只开放现货和行情，复杂功能保持锁定', function () {
     const state = createTestState({
       currentSystem: 'sol_prime',
