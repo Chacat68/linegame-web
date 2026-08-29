@@ -1,6 +1,7 @@
 // js/core/TravelActionController.js — 航行、走私检查、任务与存档编排
 
 import { DEFAULT_ACTION_DIRTY_REGIONS } from './ActionPresentation.js';
+import { LOG_MESSAGE_SOURCE } from './LogMessage.js';
 
 function _noop() {}
 
@@ -9,9 +10,11 @@ function _requiredFunction(value, label) {
   return value;
 }
 
-function _emitMessages(result, emitMessage) {
+function _emitMessages(result, emitMessage, source) {
   var messages = Array.isArray(result) ? result : (result && Array.isArray(result.msgs) ? result.msgs : []);
-  messages.forEach(function (message) { emitMessage(message); });
+  messages.forEach(function (message) {
+    emitMessage(Object.assign({ source: source || LOG_MESSAGE_SOURCE.NAVIGATION }, message || {}));
+  });
 }
 
 export function createTravelActionController(dependencies) {
@@ -64,11 +67,16 @@ export function createTravelActionController(dependencies) {
     var previousSystem = state.currentSystem;
     return execute({
       label: 'travel',
+      logSource: LOG_MESSAGE_SOURCE.NAVIGATION,
       dirtyRegions: DEFAULT_ACTION_DIRTY_REGIONS,
       mutate: function () { return Trade.travelTo(state, systemId); },
       postEffects: function (result) {
         emitAudio('travel');
-        _emitMessages(Fleet.applyTravelWear(state, state.activeShipIndex, result.meta), emitMessage);
+        _emitMessages(
+          Fleet.applyTravelWear(state, state.activeShipIndex, result.meta),
+          emitMessage,
+          LOG_MESSAGE_SOURCE.FLEET
+        );
 
         var activeShipForFlight = Fleet.getActiveShip(state);
         flyShip(previousSystem, systemId, {
@@ -91,13 +99,17 @@ export function createTravelActionController(dependencies) {
           fineMultiplier: activeShipStats.smugglingFineMultiplier || 1,
           hullDamageMultiplier: activeShipStats.smugglingHullMultiplier || 1,
         });
-        _emitMessages(smuggleResult, emitMessage);
+        _emitMessages(smuggleResult, emitMessage, LOG_MESSAGE_SOURCE.COMMERCE);
         if (smuggleResult.caught) {
           var activeShipAfterCheck = Fleet.getActiveShip(state);
           if (activeShipAfterCheck && activeShipAfterCheck.route && activeShipAfterCheck.route.marketMode === 'black') {
             Fleet.cancelActiveDispatch(state);
             stopDispatchClock();
-            emitMessage({ text: '⏹️ 黑市自动跑商因走私被查获而中止。', type: 'error' });
+            emitMessage({
+              text: '⏹️ 黑市自动跑商因走私被查获而中止。',
+              type: 'error',
+              source: LOG_MESSAGE_SOURCE.COMMERCE,
+            });
           }
         }
         if (smuggleResult.evaded) Economy.recordSmugglingEvaded(state);
@@ -108,8 +120,12 @@ export function createTravelActionController(dependencies) {
         if (state.visitedGalaxies.indexOf(state.currentGalaxy) === -1) state.visitedGalaxies.push(state.currentGalaxy);
 
         Tutorial.checkTrigger('travel');
-        _emitMessages(Progression.gainExperience(state, 5), emitMessage);
-        _emitMessages(Progression.gainCompanyExperience(state, 2), emitMessage);
+        _emitMessages(Progression.gainExperience(state, 5), emitMessage, LOG_MESSAGE_SOURCE.PROGRESSION);
+        _emitMessages(
+          Progression.gainCompanyExperience(state, 2),
+          emitMessage,
+          LOG_MESSAGE_SOURCE.PROGRESSION
+        );
         state.reputation = (state.reputation || 0) + 1;
 
         var travelFaction = Faction.getFactionForSystem(state.currentSystem);
@@ -119,7 +135,7 @@ export function createTravelActionController(dependencies) {
           factionId: travelFaction ? travelFaction.id : null,
           crossGalaxy: !!(result.meta && result.meta.crossGalaxy),
         });
-        _emitMessages(questResult, emitMessage);
+        _emitMessages(questResult, emitMessage, LOG_MESSAGE_SOURCE.QUEST);
         queueQuestDialogueResult(questResult);
 
         var totalAutoRepair = (state.autoRepair || 0) + (activeShipStats.autoRepair || 0);

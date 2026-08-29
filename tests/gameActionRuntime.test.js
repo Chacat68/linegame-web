@@ -61,7 +61,7 @@ function createHarness(options) {
         saveAutosave: vi.fn(),
       },
       events: {
-        emitMessage: function (message) { trace.push(['message', message]); },
+        emitMessage: function (message, source) { trace.push(['message', message, source]); },
         emitAudio: function (cue) { trace.push(['audio', cue]); },
       },
       achievements: {
@@ -113,7 +113,7 @@ describe('GameActionRuntime', function () {
     expect(harness.runtime.presentResult(result, ['shell', 'guide'])).toBe(result);
     expect(harness.trace).toEqual([
       'teaching',
-      ['message', { text: '操作完成', type: 'success' }],
+      ['message', { text: '操作完成', type: 'success' }, 'system'],
       'achievement',
       ['invalidate', ['shell', 'guide']],
       'victory',
@@ -129,10 +129,25 @@ describe('GameActionRuntime', function () {
     }, ['guide']);
 
     expect(harness.trace).toEqual([
-      ['message', { text: '操作失败', type: 'error' }],
+      ['message', { text: '操作失败', type: 'error' }, 'system'],
       ['audio', 'error'],
       'achievement',
       ['invalidate', ['guide']],
+    ]);
+  });
+
+  it('兼容结果发布允许调用方声明领域日志来源', function () {
+    var harness = createHarness();
+
+    harness.runtime.presentResult({
+      ok: true,
+      msgs: [{ text: '科研完成', type: 'upgrade' }],
+    }, ['archive'], 'research');
+
+    expect(harness.trace).toContainEqual([
+      'message',
+      { text: '科研完成', type: 'upgrade' },
+      'research',
     ]);
   });
 
@@ -178,7 +193,7 @@ describe('GameActionRuntime', function () {
     expect(harness.runtime.recordQuestProgress({ action: 'buy_ship' })).toBe(harness.questResult);
     expect(harness.trace).toEqual([
       ['quest', 'B', { action: 'buy_ship' }],
-      ['message', { text: '任务推进', type: 'success' }],
+      ['message', { text: '任务推进', type: 'success' }, 'quest'],
       ['story', harness.questResult],
     ]);
   });

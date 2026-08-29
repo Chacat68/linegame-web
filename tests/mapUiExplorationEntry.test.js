@@ -14,11 +14,14 @@ describe('MapUI exploration entry', function () {
 
   it('星球详情仍保留直接调查 探索点 的入口', function () {
     const mapUiSource = readFileSync('js/ui/MapUI.js', 'utf8');
+    const panelViewSource = readFileSync('js/ui/MapPanelViewController.js', 'utf8');
     const planetPresenterSource = readFileSync('js/ui/MapPlanetDetailPresenter.js', 'utf8');
     const presenterSource = readFileSync('js/ui/MapExplorationPresenter.js', 'utf8');
 
     expect(mapUiSource).toContain("from './MapPlanetDetailPresenter.js'");
-    expect(mapUiSource).toContain('buildMapPlanetDetailView(stateRef, displayId');
+    expect(mapUiSource).toContain("from './MapPanelViewController.js'");
+    expect(mapUiSource).not.toContain('buildMapPlanetDetailView(stateRef, displayId');
+    expect(panelViewSource).toContain('buildMapPlanetDetailView(state, displayId');
     expect(planetPresenterSource).toContain("from './MapExplorationPresenter.js'");
     expect(planetPresenterSource).toContain('buildMapExplorationSection(state, sys, planetData');
     expect(mapUiSource).not.toContain('function _buildExplorationSection');

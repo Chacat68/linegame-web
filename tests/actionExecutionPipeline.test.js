@@ -78,6 +78,30 @@ describe('ActionExecutionPipeline', function () {
     expect(rendered[0].result).toEqual({ ok: true });
   });
 
+  it('把动作声明的 logSource 原样交给每条结果消息', function () {
+    var emitted = [];
+    var pipeline = createActionExecutionPipeline({
+      emitMessage: function (message, result, source) {
+        emitted.push({ message: message, result: result, source: source });
+      },
+    });
+    var result = {
+      ok: true,
+      msgs: [{ text: '科研完成' }, { text: '已解锁技术' }],
+    };
+
+    pipeline.execute({
+      label: 'research.complete',
+      logSource: 'research',
+      mutate: function () { return result; },
+    });
+
+    expect(emitted).toEqual([
+      { message: result.msgs[0], result: result, source: 'research' },
+      { message: result.msgs[1], result: result, source: 'research' },
+    ]);
+  });
+
   it('post-effects 抛错时不提交 UI、成就或胜利', function () {
     var trace = [];
     var pipeline = createPipeline(trace);

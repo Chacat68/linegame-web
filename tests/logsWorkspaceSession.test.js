@@ -41,11 +41,13 @@ describe('LogsWorkspaceSession', function () {
       nextEntryId: 'message-4',
       recentWindowMs: 300000,
       resetCount: 0,
+      sourceCounts: { commerce: 1, system: 1 },
       timeWindow: 'all',
       unreadCount: 3,
       visibleEntryCount: 2,
     });
     expect(Object.isFrozen(session.getDiagnostics())).toBe(true);
+    expect(Object.isFrozen(session.getDiagnostics().sourceCounts)).toBe(true);
     expect(Object.isFrozen(session.getEntries())).toBe(true);
     expect(Object.isFrozen(session.getEntries()[0])).toBe(true);
     expect(other.getDiagnostics().entryCount).toBe(0);
@@ -58,6 +60,7 @@ describe('LogsWorkspaceSession', function () {
     session.addEntry({ text: '重复成交', type: 'buy', time: now - 20 * 1000 });
     session.addEntry({ text: '重复成交', type: 'buy', time: now - 5 * 1000 });
     session.addEntry({ text: '航线风险', type: 'error', time: now - 1000 });
+    session.addEntry({ text: '科研完成', type: 'upgrade', source: 'research', time: now - 500 });
 
     session.setFilterType('trade');
     var aggregated = session.getVisibleEntries({ now: now });
@@ -82,6 +85,7 @@ describe('LogsWorkspaceSession', function () {
     session.setFilterType('not-a-filter');
     session.setTimeWindow('recent');
     expect(session.getVisibleEntries({ now: now }).map(function (entry) { return entry.id; })).toEqual([
+      'message-5',
       'message-4',
       'message-3',
       'message-2',
@@ -90,8 +94,13 @@ describe('LogsWorkspaceSession', function () {
       aggregationEnabled: false,
       filterType: 'all',
       timeWindow: 'recent',
-      visibleEntryCount: 3,
+      visibleEntryCount: 4,
     });
+
+    session.setFilterType('research');
+    expect(session.getVisibleEntries({ now: now })).toMatchObject([
+      { id: 'message-5', source: 'research', text: '科研完成' },
+    ]);
   });
 
   it('reset 清空旧存档通讯、未读状态和消息序号', function () {
@@ -110,6 +119,7 @@ describe('LogsWorkspaceSession', function () {
       nextEntryId: 'message-1',
       recentWindowMs: 300000,
       resetCount: 1,
+      sourceCounts: {},
       timeWindow: 'all',
       unreadCount: 0,
       visibleEntryCount: 0,

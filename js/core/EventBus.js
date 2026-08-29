@@ -3,7 +3,7 @@
 // 导出：on, off, emit
 //
 // 约定事件名格式：domain:action，例如：
-//   'log:message'          { text, type }
+//   'log:message'          { text, type, source }
 //   'trade:buy'            { systemId, goodId, quantity, totalCost }
 //   'trade:sell'           { systemId, goodId, quantity, totalEarned, profit }
 //   'travel:arrived'       { fromId, toId, fuelCost, day }

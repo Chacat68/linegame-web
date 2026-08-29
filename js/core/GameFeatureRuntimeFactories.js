@@ -17,6 +17,7 @@ import { createDialogueRuntimeController } from './DialogueRuntimeController.js'
 import { createRandomEventRuntimeController } from './RandomEventRuntimeController.js';
 import { createVictoryRuntimeController } from './VictoryRuntimeController.js';
 import { createAchievementRuntimeController } from './AchievementRuntimeController.js';
+import { LOG_MESSAGE_SOURCE, createScopedLogEmitter } from './LogMessage.js';
 
 export function createGameFeatureRuntimeFactories(context) {
   var resolve = context.resolve;
@@ -29,6 +30,9 @@ export function createGameFeatureRuntimeFactories(context) {
   var emitLog = context.emitLog;
   var emitAudio = context.emitAudio;
   var reportDeferredUiFailure = context.reportDeferredUiFailure;
+  var emitEventLog = createScopedLogEmitter(emitLog, LOG_MESSAGE_SOURCE.EVENT);
+  var emitVictoryLog = createScopedLogEmitter(emitLog, LOG_MESSAGE_SOURCE.VICTORY);
+  var emitAchievementLog = createScopedLogEmitter(emitLog, LOG_MESSAGE_SOURCE.ACHIEVEMENT);
 
   function _getFeatureRuntime() { return resolve('features'); }
   function _getUiRuntime() { return resolve('ui'); }
@@ -107,7 +111,7 @@ export function createGameFeatureRuntimeFactories(context) {
           presentEvent: function (event, onChoice) { EventUI.setPendingEvent(event, onChoice); },
           onChoice: function (choiceIndex) { return _getActionRuntime().event.resolveChoice(choiceIndex); },
           emitAudio: emitAudio,
-          emitMessage: emitLog,
+          emitMessage: emitEventLog,
           captureState: _getPersistenceController().captureState,
           saveAutosave: _getPersistenceController().saveAutosave,
           refreshActionGuide: function () { return _getGuidanceRuntime().refresh(); },
@@ -129,7 +133,7 @@ export function createGameFeatureRuntimeFactories(context) {
         },
         getLevelTitle: function (experience) { return getLevel(experience).title; },
         loadView: function () { return _getFeatureRuntime().load('victory'); },
-        emitMessage: emitLog,
+        emitMessage: emitVictoryLog,
         invalidate: function (regions) { updateUI(resolveDirtyRegions(regions)); },
         refreshActionGuide: function () { return _getGuidanceRuntime().refresh(); },
         restartSession: function () { return _getPersistenceController().restart.apply(null, arguments); },
@@ -142,7 +146,7 @@ export function createGameFeatureRuntimeFactories(context) {
         getSessionToken: getSessionToken,
         isSessionTokenCurrent: isSessionTokenCurrent,
         loadRuntime: function () { return _getFeatureRuntime().load('achievement'); },
-        emitMessage: emitLog,
+        emitMessage: emitAchievementLog,
         invalidate: function (regions) { updateUI(resolveDirtyRegions(regions)); },
         checkVictory: function () { _getVictoryController().check(); },
         reportFailure: function (error) { reportDeferredUiFailure('achievement', error); },

@@ -32,11 +32,12 @@ describe('UI information ownership', function () {
 
   it('局部面板使用明确的状态或信号术语', function () {
     const expectedTerms = {
-      'AchievementUI.js': '完成进度',
-      'FactionUI.js': '关系信号',
-      'QuestUI.js': '任务状态',
-      'ResearchUI.js': '研究状态',
-      'SaveUI.js': '存档状态',
+      'ArchiveExplorationPresenter.js': '探索报告',
+      'AchievementBoardPresenter.js': '完成进度',
+      'FactionBoardPresenter.js': '关系信号',
+      'QuestBoardPresenter.js': '任务状态',
+      'ResearchBoardPresenter.js': '研究状态',
+      'SaveWorkspacePresenter.js': '存档状态',
       'FleetModPresenter.js': '处理状态',
       'MarketSpotPresenter.js': '行情信号',
     };

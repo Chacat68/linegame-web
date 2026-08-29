@@ -124,7 +124,7 @@ describe('HudInteractionController', function () {
 
     harness.events.emit('log:message', { text: '跃迁完成', type: 'travel' });
     harness.events.emit('logs:badge:clear');
-    expect(harness.logs.addMessage).toHaveBeenCalledWith('跃迁完成', 'travel');
+    expect(harness.logs.addMessage).toHaveBeenCalledWith({ text: '跃迁完成', type: 'travel' });
     expect(harness.logs.clearUnreadCount).toHaveBeenCalledOnce();
     expect(harness.logs.refresh).toHaveBeenCalledOnce();
 

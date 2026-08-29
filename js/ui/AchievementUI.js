@@ -1,318 +1,63 @@
-// js/ui/AchievementUI.js — 成就界面
-// 依赖：systems/achievement/AchievementSystem.js
-// 导出：render
+// js/ui/AchievementUI.js — 成就 Feature 兼容组合门面
 
-import * as Achievement from '../systems/achievement/AchievementSystem.js';
 import * as ContextInspector from './ContextInspector.js';
-import { buildWorkspaceObjectDetailView } from './WorkspaceObjectDetailPresenter.js';
-import { buildWorkspaceOpenDetailSlot } from './WorkspaceActionSlot.js';
+import { createAchievementBoardController } from './AchievementBoardController.js';
+import { buildAchievementBoardView } from './AchievementBoardPresenter.js';
+import {
+  buildAchievementContextView,
+  buildAchievementWorkspaceDetailView,
+} from './AchievementDetailPresenter.js';
 
-function _escapeHtml(value) {
-  return String(value == null ? '' : value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+const _achievementBoardController = createAchievementBoardController({
+  inspectAchievement: _inspectAchievement,
+});
+
+function _inspectAchievement(achievementId, source) {
+  if (!achievementId) return;
+  ContextInspector.replaceContext({
+    type: 'achievement',
+    id: String(achievementId),
+    workspaceId: 'archive',
+    source: source || 'archive-achievement-card',
+    revision: ContextInspector.getCurrentRevision(),
+  });
 }
-
-function _escapeHtmlAttr(value) {
-  return String(value == null ? '' : value)
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;');
-}
-
-const CATEGORY_META = {
-  trade: { label: '贸易', code: 'TRD' },
-  wealth: { label: '财富', code: 'CRD' },
-  explore: { label: '探索', code: 'EXP' },
-  tech: { label: '科技', code: 'TEC' },
-  faction: { label: '外交', code: 'DIP' },
-  level: { label: '等级', code: 'LVL' },
-  quest: { label: '任务', code: 'QST' },
-  fleet: { label: '舰队', code: 'FLT' },
-  specialist: { label: '专精', code: 'SPC' },
-  special: { label: '特殊', code: 'SPL' },
-};
 
 export function renderContextInspector(request) {
-  var context = request && request.context;
-  var state = request && request.state;
   var container = request && request.container;
-  if (!context || context.type !== 'achievement' || !state || !container) return false;
-  var achievement = Achievement.getAll(state).find(function (entry) { return entry.id === context.id; });
-  if (!achievement) return false;
-  var category = _getCategoryMeta(achievement.category);
-  container.innerHTML =
-    '<article class="workspace-context-card workspace-context-card--achievement">' +
-      '<div class="workspace-context-hero"><span aria-hidden="true">' + _escapeHtml(achievement.icon) + '</span><div><small>' + _escapeHtml(category.label) + '</small><h3>' + _escapeHtml(achievement.name) + '</h3></div></div>' +
-      '<p>' + _escapeHtml(achievement.description) + '</p>' +
-      '<div class="workspace-context-metrics" role="list">' +
-        '<span role="listitem"><small>状态</small><strong>' + (achievement.unlocked ? '已解锁' : '待完成') + '</strong></span>' +
-        '<span role="listitem"><small>奖励</small><strong>' + _escapeHtml(_formatReward(achievement.reward)) + '</strong></span>' +
-      '</div>' +
-      buildWorkspaceOpenDetailSlot({
-        workspaceId: 'archive',
-        contextType: 'achievement',
-        contextId: achievement.id,
-        label: '查看完整成就详情',
-        attributes: { 'data-context-id': achievement.id },
-      }) +
-    '</article>';
-  return { title: '成就检查' };
-}
-
-export function renderWorkspaceDetail(request) {
-  var detail = request && request.detail;
-  var state = request && request.state;
-  var container = request && request.container;
-  if (!detail || detail.type !== 'archive-achievement' || !state || !container) return false;
-  var achievements = Achievement.getAll(state);
-  var achievement = achievements.find(function (entry) { return entry.id === detail.id; });
-  if (!achievement) return false;
-  var category = _getCategoryMeta(achievement.category);
-  var categoryAchievements = achievements.filter(function (entry) {
-    return entry.category === achievement.category;
-  });
-  var categoryUnlocked = categoryAchievements.filter(function (entry) { return entry.unlocked; }).length;
-  var totalUnlocked = achievements.filter(function (entry) { return entry.unlocked; }).length;
-  var reward = achievement.reward || {};
-  var view = buildWorkspaceObjectDetailView({
-    id: achievement.id,
-    kind: 'achievement',
-    kindLabel: '成就',
-    detailLabel: '成就详情',
-    icon: achievement.icon || '🏆',
-    eyebrow: category.label + ' · ' + category.code,
-    title: achievement.name,
-    description: achievement.description || '暂无成就说明。',
-    metrics: [
-      { label: '状态', value: achievement.unlocked ? '已解锁' : '待完成' },
-      { label: '分类', value: category.label },
-      { label: '分类进度', value: categoryUnlocked + '/' + categoryAchievements.length },
-      { label: '总进度', value: totalUnlocked + '/' + achievements.length },
-    ],
-    facts: [
-      { label: '解锁目标', value: achievement.description || '完成登记条件', detail: achievement.unlocked ? '当前存档已完成' : '尚未满足条件' },
-      { label: '奖励总览', value: _formatReward(reward), detail: achievement.unlocked ? '奖励已在解锁时结算' : '达成后自动结算' },
-      { label: '积分奖励', value: Number(reward.credits || 0).toLocaleString(), detail: '信用积分' },
-      { label: '成长奖励', value: Number(reward.exp || 0).toLocaleString() + ' 经验 · ' + Number(reward.reputation || 0).toLocaleString() + ' 声望', detail: '未登记的奖励项按 0 计' },
-    ],
-    tags: [achievement.unlocked ? '已解锁' : '待完成', category.label, category.code],
-    note: '该详情只陈述成就条件、分类与奖励；成就由真实游戏行为自动检查和结算。',
-  });
+  if (!container) return false;
+  var view = buildAchievementContextView(request);
   if (!view) return false;
   container.innerHTML = view.html;
   return { title: view.title };
 }
 
-const CATEGORY_ORDER = ['trade', 'wealth', 'explore', 'tech', 'faction', 'level', 'quest', 'fleet', 'specialist', 'special'];
-
-function _formatReward(reward) {
-  reward = reward || {};
-  const parts = [];
-  if (reward.credits) parts.push('信用积分 +' + Number(reward.credits).toLocaleString());
-  if (reward.exp) parts.push('经验 +' + Number(reward.exp).toLocaleString());
-  if (reward.reputation) parts.push('声望 +' + Number(reward.reputation).toLocaleString());
-  return parts.length ? parts.join(' / ') : '无即时奖励';
+export function renderWorkspaceDetail(request) {
+  var container = request && request.container;
+  if (!container) return false;
+  var view = buildAchievementWorkspaceDetailView(request);
+  if (!view) return false;
+  container.innerHTML = view.html;
+  return { title: view.title };
 }
 
-function _getCategoryMeta(category) {
-  return CATEGORY_META[category] || { label: category, code: String(category || 'ACH').slice(0, 3).toUpperCase() };
+export function getDiagnostics() {
+  return Object.freeze({ controller: _achievementBoardController.getDiagnostics() });
 }
 
-function _getRewardBacklog(achievements) {
-  return achievements.reduce(function (total, ach) {
-    const reward = ach.reward || {};
-    total.credits += reward.credits || 0;
-    total.exp += reward.exp || 0;
-    total.reputation += reward.reputation || 0;
-    return total;
-  }, { credits: 0, exp: 0, reputation: 0 });
+export function resetRuntimeState() {
+  _achievementBoardController.reset();
+  return getDiagnostics();
 }
 
-function _formatRewardBacklog(backlog) {
-  const parts = [];
-  if (backlog.credits) parts.push('信用积分 ' + Number(backlog.credits).toLocaleString());
-  if (backlog.exp) parts.push('经验 ' + Number(backlog.exp).toLocaleString());
-  if (backlog.reputation) parts.push('声望 ' + Number(backlog.reputation).toLocaleString());
-  return parts.length ? parts.join(' / ') : '奖励池已清空';
-}
-
-function _getAchievementCategoryStatus(category, achievements) {
-  const unlocked = achievements.filter(function (ach) { return ach.unlocked; }).length;
-  const total = achievements.length;
-  const pct = total ? Math.round(unlocked / total * 100) : 0;
-  const meta = _getCategoryMeta(category);
-  return {
-    category: category,
-    label: meta.label,
-    code: meta.code,
-    unlocked: unlocked,
-    total: total,
-    pending: Math.max(0, total - unlocked),
-    pct: pct,
-    achievements: achievements,
-  };
-}
-
-function _renderAchievementDistribution(statuses) {
-  if (!statuses.length) return '';
-
-  return '<div class="achievement-distribution-grid" role="list" aria-label="成就分类分布">' +
-    statuses.map(function (status) {
-      return '<div class="achievement-distribution-row" role="listitem">' +
-        '<span class="achievement-distribution-code">' + _escapeHtml(status.code) + '</span>' +
-        '<strong class="achievement-distribution-label">' + _escapeHtml(status.label) + '</strong>' +
-        '<em class="achievement-distribution-count">' + status.unlocked + '/' + status.total + '</em>' +
-        '<i class="achievement-distribution-meter" aria-hidden="true"><b style="width:' + status.pct + '%"></b></i>' +
-      '</div>';
-    }).join('') +
-  '</div>';
-}
-
-function _renderAchievementFocus(statuses, lockedAchievements) {
-  const incompleteStatuses = statuses.filter(function (status) { return status.pending > 0; });
-  const focusStatus = incompleteStatuses.slice().sort(function (a, b) {
-    if (b.pct !== a.pct) return b.pct - a.pct;
-    return a.pending - b.pending;
-  })[0] || null;
-  const focusAchievements = focusStatus
-    ? focusStatus.achievements.filter(function (ach) { return !ach.unlocked; }).slice(0, 3)
-    : lockedAchievements.slice(0, 3);
-  const backlog = _getRewardBacklog(lockedAchievements);
-  const focusTitle = focusStatus
-    ? (focusStatus.label + ' 档案还差 ' + focusStatus.pending + ' 项')
-    : '所有成就均已归档';
-  const focusNote = focusStatus
-    ? ('这是最接近完成的分类，优先完成这些项目能更快拿到分类进度。')
-    : '成就列表已全部点亮，奖励池没有剩余待领取项。';
-
-  return '<section class="archive-achievement-focus" aria-label="成就完成状态">' +
-    '<div class="achievement-focus-copy">' +
-      '<span class="achievement-focus-kicker">完成进度</span>' +
-      '<strong class="achievement-focus-title">' + _escapeHtml(focusTitle) + '</strong>' +
-      '<span class="achievement-focus-note">' + _escapeHtml(focusNote) + '</span>' +
-    '</div>' +
-    '<div class="achievement-focus-list" role="list" aria-label="待完成成就">' +
-      (focusAchievements.length > 0
-        ? focusAchievements.map(function (ach) {
-            return '<article class="achievement-focus-card" role="listitem">' +
-              '<span class="achievement-focus-icon" aria-hidden="true">' + _escapeHtml(ach.icon) + '</span>' +
-              '<span class="achievement-focus-main">' +
-                '<strong>' + _escapeHtml(ach.name) + '</strong>' +
-                '<em>' + _escapeHtml(_formatReward(ach.reward)) + '</em>' +
-              '</span>' +
-            '</article>';
-          }).join('')
-        : '<div class="achievement-focus-empty" role="listitem">暂无待完成成就。</div>') +
-    '</div>' +
-    '<div class="achievement-reward-backlog" aria-label="未解锁奖励池">' +
-      '<span>未解锁奖励池</span>' +
-      '<strong>' + _escapeHtml(_formatRewardBacklog(backlog)) + '</strong>' +
-      '<em>' + lockedAchievements.length + ' 项待完成</em>' +
-    '</div>' +
-  '</section>';
-}
-
-/**
- * 渲染成就面板
- * @param {object} state
- */
 export function render(state) {
-  const container = document.getElementById('achievement-list');
-  if (!container) return;
-
-  const all = Achievement.getAll(state);
-  const unlocked = all.filter(function (a) { return a.unlocked; }).length;
-  const pct = all.length ? Math.round(unlocked / all.length * 100) : 0;
-
-  const categories = {};
-  all.forEach(function (ach) {
-    if (!categories[ach.category]) categories[ach.category] = [];
-    categories[ach.category].push(ach);
-  });
-
-  const orderedCategories = CATEGORY_ORDER.filter(function (category) {
-    return categories[category];
-  }).concat(Object.keys(categories).filter(function (category) {
-    return CATEGORY_ORDER.indexOf(category) === -1;
-  }));
-  const categoryStatuses = orderedCategories.map(function (category) {
-    return _getAchievementCategoryStatus(category, categories[category]);
-  });
-  const lockedAchievements = all.filter(function (ach) { return !ach.unlocked; });
-
-  let html =
-    '<section class="archive-achievement-console" aria-label="成就总览">' +
-      '<div class="ach-header">' +
-        '<div>' +
-          '<span class="archive-panel-kicker">ACHIEVEMENT LEDGER</span>' +
-          '<h3 class="archive-panel-title">成就档案</h3>' +
-        '</div>' +
-        '<div class="ach-completion-orb" role="progressbar" aria-label="成就完成度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '">' +
-          '<strong>' + pct + '%</strong><span>' + unlocked + '/' + all.length + '</span>' +
-        '</div>' +
-      '</div>' +
-      '<div class="archive-stat-strip archive-stat-strip--achievement">' +
-        '<span><strong>' + unlocked + '</strong><em>已解锁</em></span>' +
-        '<span><strong>' + (all.length - unlocked) + '</strong><em>待完成</em></span>' +
-        '<span><strong>' + orderedCategories.length + '</strong><em>分类</em></span>' +
-      '</div>' +
-      _renderAchievementDistribution(categoryStatuses) +
-      _renderAchievementFocus(categoryStatuses, lockedAchievements) +
-    '</section>';
-
-  orderedCategories.forEach(function (cat) {
-    const achs = categories[cat];
-    const meta = _getCategoryMeta(cat);
-    const catUnlocked = achs.filter(function (ach) { return ach.unlocked; }).length;
-    const catPct = achs.length ? Math.round(catUnlocked / achs.length * 100) : 0;
-
-    html +=
-      '<section class="ach-category-section" aria-labelledby="ach-category-' + _escapeHtmlAttr(cat) + '">' +
-        '<div class="ach-category">' +
-          '<div>' +
-            '<span class="ach-category-code">' + _escapeHtml(meta.code) + '</span>' +
-            '<h4 id="ach-category-' + _escapeHtmlAttr(cat) + '">' + _escapeHtml(meta.label) + '</h4>' +
-          '</div>' +
-          '<div class="ach-category-progress" role="progressbar" aria-label="' + _escapeHtmlAttr(meta.label) + '分类完成度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + catPct + '">' +
-            '<span>' + catUnlocked + '/' + achs.length + '</span>' +
-            '<i style="width:' + catPct + '%"></i>' +
-          '</div>' +
-        '</div>' +
-        '<div class="ach-card-grid" role="list">';
-
-    achs.forEach(function (ach) {
-      const stateLabel = ach.unlocked ? '已解锁' : '待完成';
-      html += '<article class="ach-card ' + (ach.unlocked ? 'ach-unlocked' : 'ach-locked') + '" role="listitem" tabindex="0" data-achievement-id="' + _escapeHtmlAttr(ach.id) + '" data-achievement-state="' + (ach.unlocked ? 'unlocked' : 'locked') + '" aria-label="' + _escapeHtmlAttr(ach.name + '，' + stateLabel) + '">' +
-          '<span class="ach-icon" aria-hidden="true">' + _escapeHtml(ach.icon) + '</span>' +
-          '<div class="ach-info">' +
-            '<div class="ach-name">' + _escapeHtml(ach.name) + '</div>' +
-            '<div class="ach-desc">' + _escapeHtml(ach.description) + '</div>' +
-            '<div class="ach-reward">' + _escapeHtml(_formatReward(ach.reward)) + '</div>' +
-          '</div>' +
-          '<span class="ach-check">' + stateLabel + '</span>' +
-        '</article>';
-    });
-
-    html += '</div></section>';
-  });
-
-  container.innerHTML = html;
-  container.querySelectorAll('.ach-card[data-achievement-id]').forEach(function (card) {
-    function inspect(event) {
-      if (event && event.type === 'keydown' && event.key !== 'Enter' && event.key !== ' ') return;
-      if (event && event.type === 'keydown') event.preventDefault();
-      ContextInspector.replaceContext({
-        type: 'achievement',
-        id: card.dataset.achievementId,
-        workspaceId: 'archive',
-        source: 'archive-achievement-card',
-        revision: ContextInspector.getCurrentRevision(),
-      });
-    }
-    card.addEventListener('click', inspect);
-    card.addEventListener('keydown', inspect);
-  });
+  if (!state) return false;
+  var doc = globalThis.document || null;
+  var container = doc && typeof doc.getElementById === 'function' ? doc.getElementById('achievement-list') : null;
+  if (!container) return false;
+  var view = buildAchievementBoardView({ state: state });
+  if (!view) return false;
+  container.innerHTML = view.html;
+  _achievementBoardController.bind(container);
+  return true;
 }

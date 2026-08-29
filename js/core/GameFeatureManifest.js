@@ -154,6 +154,9 @@ export function createGameFeatureManifest(options) {
           return { Dialogue: modules[0], DialogueUI: modules[1] };
         });
       },
+      dispose: function (module) {
+        if (module && module.DialogueUI && typeof module.DialogueUI.destroy === 'function') module.DialogueUI.destroy();
+      },
     },
     randomEvent: {
       load: function () { return import('../systems/event/RandomEvent.js'); },
@@ -200,6 +203,9 @@ export function createGameFeatureManifest(options) {
     },
     save: {
       load: function () { return import('../ui/SaveUI.js'); },
+      dispose: function (module) {
+        if (module && typeof module.resetRuntimeState === 'function') module.resetRuntimeState();
+      },
       onError: onError('save'),
     },
     victory: {
@@ -220,6 +226,7 @@ export function createGameFeatureManifest(options) {
     settings: {
       load: function () { return import('./SettingsManager.js'); },
       sync: function (module) { _call(hooks, 'syncSettingsView', [module]); },
+      dispose: function (module) { if (module.dispose) module.dispose(); },
       onError: onError('settings'),
     },
     guidanceAction: {

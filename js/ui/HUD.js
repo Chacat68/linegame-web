@@ -10,6 +10,7 @@ import { renderLogContext, renderLogDetail } from './LogsContextPresenter.js';
 import { createLogsWorkspaceController } from './LogsWorkspaceController.js';
 import { createHudInteractionController } from './HudInteractionController.js';
 import { renderGalaxyViewSummary } from './HeaderStatusPresenter.js';
+import { LOG_MESSAGE_SOURCE_LABELS } from '../core/LogMessage.js';
 const LOG_TYPE_LABELS = {
   info: '系统',
   tip: '提示',
@@ -30,6 +31,7 @@ const _logsController = createLogsWorkspaceController({
   },
   renderContext: renderLogContext,
   renderDetail: renderLogDetail,
+  sourceLabels: LOG_MESSAGE_SOURCE_LABELS,
   typeLabels: LOG_TYPE_LABELS,
 });
 const _hudInteractions = createHudInteractionController({
@@ -80,8 +82,8 @@ export function syncVictoryProgress(progressList, unlockedPathCount) {
   return _hudInteractions.syncVictory(progressList, unlockedPathCount);
 }
 
-export function addMessage(text, type) {
-  return _logsController.addMessage(text, type);
+export function addMessage(message, type, source) {
+  return _logsController.addMessage(message, type, source);
 }
 
 /**

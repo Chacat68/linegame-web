@@ -1,6 +1,7 @@
 // js/core/EventActionController.js — 随机事件选择、舰船同步与存档编排
 
 import { DEFAULT_ACTION_DIRTY_REGIONS } from './ActionPresentation.js';
+import { LOG_MESSAGE_SOURCE } from './LogMessage.js';
 
 function _noop() {}
 
@@ -49,6 +50,7 @@ export function createEventActionController(dependencies) {
     var previousShipState = _derivedShipSnapshot(state);
     return execute({
       label: 'event.resolve',
+      logSource: LOG_MESSAGE_SOURCE.EVENT,
       dirtyRegions: DEFAULT_ACTION_DIRTY_REGIONS,
       mutate: function () {
         var result = runtime.resolveChoice(state, choiceIndex) || { msgs: [], resolved: false };

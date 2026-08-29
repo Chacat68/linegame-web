@@ -3,6 +3,7 @@
 // 导出：init, getStep, advance, skip, isActive, checkTrigger, STEPS
 
 import * as EventBus from '../../core/EventBus.js';
+import { LOG_MESSAGE_SOURCE } from '../../core/LogMessage.js';
 import { TUTORIAL_CONFIG } from '../../data/constants.js';
 
 // ---------------------------------------------------------------------------
@@ -321,7 +322,11 @@ function _finishCurrentStep() {
       _stateRef.credits += current.reward.credits;
     }
     if (current.reward.msg) {
-      EventBus.emit('log:message', { text: current.reward.msg, type: 'upgrade' });
+      EventBus.emit('log:message', {
+        text: current.reward.msg,
+        type: 'upgrade',
+        source: LOG_MESSAGE_SOURCE.TUTORIAL,
+      });
     }
   }
 
@@ -340,5 +345,9 @@ function _complete() {
   _completed = true;
   localStorage.setItem(TUTORIAL_CONFIG.completionStorageKey, '1');
   EventBus.emit('tutorial:complete', {});
-  EventBus.emit('log:message', { text: '📖 新手教程已完成！你可以在重新开始游戏时再次体验教程。', type: 'info' });
+  EventBus.emit('log:message', {
+    text: '📖 新手教程已完成！你可以在重新开始游戏时再次体验教程。',
+    type: 'info',
+    source: LOG_MESSAGE_SOURCE.TUTORIAL,
+  });
 }

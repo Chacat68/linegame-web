@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createArchiveActionController } from '../js/core/ArchiveActionController.js';
+import { ARCHIVE_COMMAND } from '../js/core/ArchiveCommand.js';
 import {
   ARCHIVE_QUEST_ACTION_PRESENTATION,
   ARCHIVE_RESEARCH_ACTION_PRESENTATION,
@@ -216,5 +217,34 @@ describe('ArchiveActionController', function () {
       ['dispatch', harness.questResult],
     ]);
     expect(harness.presentations).toEqual([ARCHIVE_QUEST_ACTION_PRESENTATION]);
+  });
+
+  it('typed command 统一路由科研、任务、派系与推荐动作', function () {
+    var harness = createHarness();
+    var recommendation = { goodId: 'technology' };
+
+    expect(harness.controller.handleCommand({
+      type: ARCHIVE_COMMAND.START_RESEARCH,
+      techId: 'warp-tech',
+    })).toBe(harness.researchResult);
+    harness.controller.handleCommand({
+      type: ARCHIVE_COMMAND.APPLY_QUEST_DISPATCH,
+      recommendation: recommendation,
+    });
+    expect(harness.controller.handleCommand({
+      type: ARCHIVE_COMMAND.OPEN_FACTION_MARKET,
+      action: { actionId: 'invalid' },
+    })).toBe(false);
+    expect(harness.controller.handleCommand({
+      type: ARCHIVE_COMMAND.ABANDON_QUEST,
+      questId: 'quest-a',
+    })).toBe(harness.questResult);
+    expect(harness.controller.handleCommand({ type: 'archive.unknown' })).toBe(false);
+
+    expect(harness.trace).toContainEqual(['startResearch', harness.state, 'warp-tech']);
+    expect(harness.trace).toContainEqual([
+      'recommendedDispatch', recommendation, '任务路线建议', '📋',
+    ]);
+    expect(harness.trace).toContainEqual(['abandonQuest', harness.state, 'quest-a']);
   });
 });

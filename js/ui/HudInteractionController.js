@@ -60,7 +60,7 @@ export function createHudInteractionController(options) {
 
   function _handleLogMessage(data) {
     var payload = data || {};
-    _call(logsController, 'addMessage', [payload.text, payload.type]);
+    _call(logsController, 'addMessage', [payload]);
   }
 
   function _handleLogBadgeClear() {

@@ -18,6 +18,7 @@ export function createLogsWorkspaceController(options) {
   var contextInspector = opts.contextInspector || {};
   var session = opts.session || createLogsWorkspaceSession({ maxEntries: opts.maxEntries || 200 });
   var typeLabels = opts.typeLabels || {};
+  var sourceLabels = opts.sourceLabels || {};
   var listenerRecords = [];
   var disposed = false;
 
@@ -135,12 +136,15 @@ export function createLogsWorkspaceController(options) {
       && String(selectedContext.id) === String(entry.id)
     );
     var category = typeLabels[entry.type] || typeLabels.info || '系统';
+    var sourceLabel = sourceLabels[entry.source] || sourceLabels.system || '系统';
     var repeatText = entry.repeatCount > 1 ? '，短时重复 ' + entry.repeatCount + ' 次' : '';
     button.type = 'button';
     button.className = 'msg msg-' + entry.type + (isSelected ? ' is-selected' : '');
     button.dataset.logEntryId = entry.id;
+    button.dataset.logSource = entry.source;
+    button.dataset.logType = entry.type;
     button.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
-    button.setAttribute('aria-label', '检查' + category + '记录：' + entry.text + repeatText);
+    button.setAttribute('aria-label', '检查' + sourceLabel + ' · ' + category + '记录：' + entry.text + repeatText);
 
     var meta = doc.createElement('span');
     meta.className = 'log-message-meta';
@@ -150,12 +154,16 @@ export function createLogsWorkspaceController(options) {
     time.textContent = _formatTime(entry.time);
     var kind = doc.createElement('span');
     kind.className = 'log-message-kind';
-    kind.textContent = category;
+    kind.textContent = sourceLabel;
+    var categoryTag = doc.createElement('span');
+    categoryTag.className = 'log-message-category';
+    categoryTag.textContent = category;
     var message = doc.createElement('span');
     message.className = 'log-message-text';
     message.textContent = entry.text;
     meta.appendChild(time);
     meta.appendChild(kind);
+    meta.appendChild(categoryTag);
     if (entry.repeatCount > 1) {
       var repeat = doc.createElement('span');
       repeat.className = 'log-message-repeat';
@@ -245,8 +253,12 @@ export function createLogsWorkspaceController(options) {
     return true;
   }
 
-  function addMessage(text, type) {
-    session.addEntry({ text: String(text == null ? '' : text), type: _normalizeType(type) });
+  function addMessage(message, type, source) {
+    var input = message && typeof message === 'object'
+      ? Object.assign({}, message)
+      : { text: String(message == null ? '' : message), type: type, source: source };
+    input.type = _normalizeType(input.type);
+    session.addEntry(input);
     _reconcileContext();
     _updateNavBadge();
     refresh();
@@ -312,12 +324,12 @@ export function createLogsWorkspaceController(options) {
     refresh: refresh,
     renderContextInspector: function (request) {
       return typeof opts.renderContext === 'function'
-        ? opts.renderContext(request, session.getEntries(), typeLabels)
+        ? opts.renderContext(request, session.getEntries(), typeLabels, sourceLabels)
         : false;
     },
     renderWorkspaceDetail: function (request) {
       return typeof opts.renderDetail === 'function'
-        ? opts.renderDetail(request, session.getEntries(), typeLabels)
+        ? opts.renderDetail(request, session.getEntries(), typeLabels, sourceLabels)
         : false;
     },
     reset: reset,

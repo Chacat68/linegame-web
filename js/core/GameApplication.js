@@ -13,6 +13,11 @@ import { createGameRuntimeGraph } from './GameRuntimeGraph.js';
 import { createGameStartupProjection } from './GameStartupProjection.js';
 import { resolveDirtyRegions } from './ActionPresentation.js';
 import {
+  LOG_MESSAGE_SOURCE,
+  createScopedLogEmitter,
+  normalizeLogMessage,
+} from './LogMessage.js';
+import {
   GAME_RUNTIME_NODE_IDS,
   createGameRuntimeNodeFactories,
   releaseGameRuntimeStaticPorts,
@@ -23,8 +28,11 @@ const _session = createStateSession();
 const _startupProjection = createGameStartupProjection();
 const _runtimeNodeSet = new Set(GAME_RUNTIME_NODE_IDS);
 const _runtimeGraph = createGameRuntimeGraph(GAME_RUNTIME_NODE_IDS);
+function _emitLog(message) {
+  EventBus.emit('log:message', normalizeLogMessage(message));
+}
 const _reportDeferredUiFailure = createGameFeatureFailureReporter({
-  emitLog: function (message) { EventBus.emit('log:message', message); },
+  emitLog: createScopedLogEmitter(_emitLog, LOG_MESSAGE_SOURCE.FEATURE),
   reportError: function (feature, error) {
     console.error('[GameApplication] Failed to load deferred ' + feature + ' feature.', error);
   },
@@ -64,7 +72,7 @@ function _getRuntimeFactories() {
     startFreshSession: function (reason) {
       return init(null, { restoreAutosave: false, reason: reason });
     },
-    emitLog: function (message) { EventBus.emit('log:message', message); },
+    emitLog: _emitLog,
     emitAudio: function (cue) { EventBus.emit('audio:cue', { cue: cue }); },
     reportDeferredUiFailure: _reportDeferredUiFailure,
     events: EventBus,

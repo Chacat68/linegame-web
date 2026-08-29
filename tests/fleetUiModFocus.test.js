@@ -458,6 +458,7 @@ describe('FleetUI.openModModal guidance focus', function () {
     var fleetCss = readFileSync('css/fleet.css', 'utf8');
     var surfacesCss = readFileSync('css/surfaces.css', 'utf8');
     var source = readFileSync('js/ui/FleetUI.js', 'utf8');
+    var crewControllerSource = readFileSync('js/ui/FleetCrewController.js', 'utf8');
     var crewPresenterSource = readFileSync('js/ui/FleetCrewPresenter.js', 'utf8');
 
     expect(html).toContain('id="fleet-inline-container" class="fleet-inline-container hidden" aria-hidden="true" inert');
@@ -492,10 +493,12 @@ describe('FleetUI.openModModal guidance focus', function () {
     expect(hangarCss).toContain('#trade-panel #fleet-list .hangar-focused-ship .hangar-vitals {');
     expect(fleetCss).toContain('.inline-portal-back-btn:focus-visible');
     expect(fleetCss).toContain('padding: 0 !important;');
-    expect(source).toContain('modalBox.onclick = function (event)');
-    expect(source).toContain('readFleetCrewIntent(event && event.target)');
-    expect(source).not.toContain("modalBox.querySelectorAll('.crew-dismiss-btn')");
-    expect(source).toContain("title: '解雇「' + (crewMember ? crewMember.name : '该船员') + '」？'");
+    expect(source).toContain('createFleetCrewController({');
+    expect(source).not.toContain('readFleetCrewIntent(');
+    expect(crewControllerSource).toContain("_bindProperty(modalBox, 'onclick'");
+    expect(crewControllerSource).toContain('readFleetCrewIntent(event && event.target)');
+    expect(crewControllerSource).not.toContain("modalBox.querySelectorAll('.crew-dismiss-btn')");
+    expect(crewControllerSource).toContain("title: '解雇「' + (crewMember ? crewMember.name : '该船员') + '」？'");
     expect(crewPresenterSource).toContain('<strong>船员建议</strong>');
     expect(source).toContain('export function setLifecycleActions(actions)');
     expect(source).not.toContain('__linegameGameManager');

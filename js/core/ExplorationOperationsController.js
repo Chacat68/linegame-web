@@ -1,6 +1,7 @@
 // js/core/ExplorationOperationsController.js — POI 探索状态变更与提交编排
 
 import { DEFAULT_ACTION_DIRTY_REGIONS } from './ActionPresentation.js';
+import { LOG_MESSAGE_SOURCE } from './LogMessage.js';
 
 function _requiredFunction(value, label) {
   if (typeof value !== 'function') {
@@ -46,6 +47,7 @@ export function createExplorationOperationsController(dependencies) {
 
     return execute({
       label: 'exploration.poi',
+      logSource: LOG_MESSAGE_SOURCE.EXPLORATION,
       dirtyRegions: DEFAULT_ACTION_DIRTY_REGIONS,
       mutate: function () {
         return Exploration.explorePoi(state, systemId, poiId, {

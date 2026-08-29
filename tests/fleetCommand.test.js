@@ -59,9 +59,10 @@ describe('FleetCommand', function () {
     }).toThrow(/Invalid fleet command/);
   });
 
-  it('舰队 UI 与协调器只保留请求对象和单一 command 端口', function () {
+  it('舰队 UI 与工作区渲染端口只保留请求对象和单一 command 端口', function () {
     var fleetUi = readFileSync('js/ui/FleetUI.js', 'utf8');
     var coordinator = readFileSync('js/ui/GameUiCoordinator.js', 'utf8');
+    var workspaceRenderer = readFileSync('js/ui/GameUiWorkspaceRenderer.js', 'utf8');
     var destination = readFileSync('js/core/CommandDestinationController.js', 'utf8');
 
     expect(fleetUi).toContain('export function render(request)');
@@ -69,8 +70,9 @@ describe('FleetCommand', function () {
     expect(fleetUi).toContain('export function openDispatchModal(request)');
     expect(fleetUi).toContain('export function openCrewModal(request)');
     expect(fleetUi).toContain('export function openModModal(request)');
-    expect(coordinator).toContain("var onCommand = _action(actions, 'fleet', 'handleCommand')");
-    expect(coordinator).not.toContain("_action(actions, 'fleet', 'onBuyShip')");
+    expect(coordinator).toContain("from './GameUiWorkspaceRenderer.js'");
+    expect(workspaceRenderer).toContain("var onCommand = _action(actions, 'fleet', 'handleCommand')");
+    expect(workspaceRenderer).not.toContain("_action(actions, 'fleet', 'onBuyShip')");
     expect(destination).toContain('onCommand: fleetActions.handleCommand');
   });
 });

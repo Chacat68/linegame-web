@@ -9,13 +9,14 @@ describe('LogsContextPresenter', function () {
       container: container,
     }, [
       { id: 'message-1', type: 'info', text: '旧消息', time: new Date('2026-08-13T02:03:04') },
-      { id: 'message-2', type: 'error', text: '<风险> & 检查', time: new Date('2026-08-13T05:06:07') },
-    ], { info: '系统', error: '警报' });
+      { id: 'message-2', type: 'error', source: 'research', text: '<风险> & 检查', time: new Date('2026-08-13T05:06:07') },
+    ], { info: '系统', error: '警报' }, { system: '系统', research: '科研' });
 
     expect(result).toEqual({ title: '消息检查' });
     expect(container.innerHTML).toContain('&lt;风险&gt; &amp; 检查');
     expect(container.innerHTML).toContain('警报');
     expect(container.innerHTML).toContain('风险警报');
+    expect(container.innerHTML).toContain('来源</small><strong>科研');
     expect(container.innerHTML).toContain('只读历史记录');
     expect(container.innerHTML).toContain('data-context-action="open-detail"');
     expect(container.innerHTML).toContain('data-context-id="message-2"');
@@ -26,13 +27,13 @@ describe('LogsContextPresenter', function () {
     var container = { innerHTML: '' };
     var entries = [
       { id: 'message-3', type: 'tip', text: '新消息', time: new Date('2026-08-13T08:09:10') },
-      { id: 'message-2', type: '<error>', text: '<script>风险</script>', time: 'invalid' },
+      { id: 'message-2', type: '<error>', source: 'quest', text: '<script>风险</script>', time: 'invalid' },
       { id: 'message-1', type: 'info', text: '旧消息', time: new Date('2026-08-13T02:03:04') },
     ];
     var result = renderLogDetail({
       detail: { type: 'logs-message', id: 'message-2' },
       container: container,
-    }, entries, { info: '系统' });
+    }, entries, { info: '系统' }, { system: '系统', quest: '任务' });
 
     expect(result).toEqual({ title: '通讯记录 · 消息详情' });
     expect(container.innerHTML).toContain('data-workspace-object-detail="message-2"');
@@ -42,6 +43,7 @@ describe('LogsContextPresenter', function () {
     expect(container.innerHTML).toContain('当前运行会话');
     expect(container.innerHTML).toContain('&lt;script&gt;风险&lt;/script&gt;');
     expect(container.innerHTML).toContain('内部类型：&lt;error&gt;');
+    expect(container.innerHTML).toContain('来源标识：quest');
     expect(container.innerHTML).not.toContain('<script>');
   });
 

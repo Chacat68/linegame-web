@@ -5,6 +5,8 @@ import {
   ARCHIVE_QUEST_ACTION_PRESENTATION,
   ARCHIVE_RESEARCH_ACTION_PRESENTATION,
 } from './ActionPresentation.js';
+import { ARCHIVE_COMMAND, normalizeArchiveCommand } from './ArchiveCommand.js';
+import { LOG_MESSAGE_SOURCE } from './LogMessage.js';
 
 function _noop() {}
 
@@ -44,7 +46,7 @@ export function createArchiveActionController(dependencies) {
 
   function _researchAction(methodName, techId) {
     var result = _call(Research, methodName, [_state()].concat(typeof techId === 'undefined' ? [] : [techId]));
-    dispatch(result, ARCHIVE_RESEARCH_ACTION_PRESENTATION);
+    dispatch(result, ARCHIVE_RESEARCH_ACTION_PRESENTATION, LOG_MESSAGE_SOURCE.RESEARCH);
     return result;
   }
 
@@ -98,7 +100,7 @@ export function createArchiveActionController(dependencies) {
         returnTo: '派系页继续调整关系方向',
       }),
       type: 'tip',
-    });
+    }, LOG_MESSAGE_SOURCE.FACTION);
     return true;
   }
 
@@ -116,7 +118,7 @@ export function createArchiveActionController(dependencies) {
           returnTo: '科研页继续规划补给',
         }),
         type: 'tip',
-      });
+      }, LOG_MESSAGE_SOURCE.RESEARCH);
       return true;
     }
     if (action.actionId !== 'market') return false;
@@ -139,7 +141,7 @@ export function createArchiveActionController(dependencies) {
         returnTo: '科研页继续规划补给',
       }),
       type: 'tip',
-    });
+    }, LOG_MESSAGE_SOURCE.RESEARCH);
     return true;
   }
 
@@ -154,7 +156,7 @@ export function createArchiveActionController(dependencies) {
           returnTo: '任务页继续处理「' + (action.questName || '当前任务') + '」',
         }),
         type: 'tip',
-      });
+      }, LOG_MESSAGE_SOURCE.QUEST);
       return true;
     }
     if (action.actionId === 'research') {
@@ -167,7 +169,7 @@ export function createArchiveActionController(dependencies) {
           returnTo: '任务页继续推进「' + (action.questName || '当前任务') + '」',
         }),
         type: 'tip',
-      });
+      }, LOG_MESSAGE_SOURCE.QUEST);
       return true;
     }
     if (action.actionId !== 'market') return false;
@@ -183,14 +185,14 @@ export function createArchiveActionController(dependencies) {
         returnTo: '任务页继续推进「' + (action.questName || '当前任务') + '」',
       }),
       type: 'tip',
-    });
+    }, LOG_MESSAGE_SOURCE.QUEST);
     return true;
   }
 
   function onAcceptQuest(questId) {
     var state = _state();
     var result = _call(Quest, 'acceptQuest', [state, questId]);
-    dispatch(result, ARCHIVE_QUEST_ACTION_PRESENTATION);
+    dispatch(result, ARCHIVE_QUEST_ACTION_PRESENTATION, LOG_MESSAGE_SOURCE.QUEST);
     if (!result || !result.ok) return result;
 
     var finish = function () {
@@ -213,11 +215,44 @@ export function createArchiveActionController(dependencies) {
 
   function onAbandonQuest(questId) {
     var result = _call(Quest, 'abandonQuest', [_state(), questId]);
-    dispatch(result, ARCHIVE_QUEST_ACTION_PRESENTATION);
+    dispatch(result, ARCHIVE_QUEST_ACTION_PRESENTATION, LOG_MESSAGE_SOURCE.QUEST);
     return result;
   }
 
+  function handleCommand(input) {
+    var command = normalizeArchiveCommand(input);
+    if (!command) return false;
+    if (command.type === ARCHIVE_COMMAND.START_RESEARCH) return onStartResearch(command.techId);
+    if (command.type === ARCHIVE_COMMAND.CANCEL_QUEUED_RESEARCH) {
+      return onCancelQueuedResearch(command.techId);
+    }
+    if (command.type === ARCHIVE_COMMAND.MOVE_QUEUED_RESEARCH_UP) {
+      return onMoveQueuedResearchUp(command.techId);
+    }
+    if (command.type === ARCHIVE_COMMAND.MOVE_QUEUED_RESEARCH_DOWN) {
+      return onMoveQueuedResearchDown(command.techId);
+    }
+    if (command.type === ARCHIVE_COMMAND.CLEAR_RESEARCH_QUEUE) return onClearResearchQueue();
+    if (command.type === ARCHIVE_COMMAND.APPLY_RESEARCH_DISPATCH) {
+      return onApplyResearchDispatch(command.recommendation);
+    }
+    if (command.type === ARCHIVE_COMMAND.RESOLVE_RESEARCH_BLOCKER) {
+      return onResolveResearchBlocker(command.action);
+    }
+    if (command.type === ARCHIVE_COMMAND.OPEN_FACTION_MARKET) return onOpenFactionMarket(command.action);
+    if (command.type === ARCHIVE_COMMAND.ACCEPT_QUEST) return onAcceptQuest(command.questId);
+    if (command.type === ARCHIVE_COMMAND.ABANDON_QUEST) return onAbandonQuest(command.questId);
+    if (command.type === ARCHIVE_COMMAND.APPLY_QUEST_DISPATCH) {
+      return onApplyQuestDispatch(command.recommendation);
+    }
+    if (command.type === ARCHIVE_COMMAND.RESOLVE_QUEST_BLOCKER) {
+      return onResolveQuestBlocker(command.action);
+    }
+    return false;
+  }
+
   return Object.freeze({
+    handleCommand: handleCommand,
     onStartResearch: onStartResearch,
     onCancelQueuedResearch: onCancelQueuedResearch,
     onMoveQueuedResearchUp: onMoveQueuedResearchUp,

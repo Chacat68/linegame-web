@@ -45,6 +45,8 @@ describe('Logs workspace filters', function () {
     expect(html).toContain('id="logs-aggregate-toggle"');
     expect(html).toContain('id="logs-feed-summary"');
     expect(html).toContain('<option value="risk">风险</option>');
+    expect(html).toContain('<option value="quest">任务</option>');
+    expect(html).toContain('<option value="research">科研</option>');
     expect(html).toContain('<option value="recent">近 5 分钟</option>');
     expect(css).toContain('.logs-filter-controls {');
     expect(css).toContain('.log-message-repeat {');
@@ -99,6 +101,7 @@ describe('Logs workspace filters', function () {
 
     var controller = createLogsWorkspaceController({
       contextInspector: contextInspector,
+      sourceLabels: { system: '系统', research: '科研' },
       typeLabels: { error: '警报', info: '系统' },
     });
     controller.initialize();
@@ -112,23 +115,32 @@ describe('Logs workspace filters', function () {
     })).toBe(true);
 
     controller.addMessage('船体受损', 'error');
+    controller.addMessage({ text: '研究完成', type: 'info', source: 'research' });
+    typeFilter.value = 'research';
+    typeFilter.dispatch('change');
+    expect(log.children).toHaveLength(1);
+    expect(log.children[0].dataset.logSource).toBe('research');
+    expect(log.children[0].children[0].children.some(function (child) {
+      return child.className === 'log-message-kind' && child.textContent === '科研';
+    })).toBe(true);
+
     typeFilter.value = 'risk';
     typeFilter.dispatch('change');
     expect(log.children).toHaveLength(1);
     expect(log.children[0].className).toContain('msg-error');
-    expect(summary.textContent).toBe('1 / 3 条记录');
+    expect(summary.textContent).toBe('1 / 4 条记录');
 
     typeFilter.value = 'all';
     typeFilter.dispatch('change');
     aggregateToggle.checked = false;
     aggregateToggle.dispatch('change');
-    expect(log.children).toHaveLength(3);
-    expect(summary.textContent).toBe('3 条记录');
+    expect(log.children).toHaveLength(4);
+    expect(summary.textContent).toBe('4 条记录');
     expect(controller.getDiagnostics()).toMatchObject({
       aggregationEnabled: false,
-      entryCount: 3,
+      entryCount: 4,
       filterType: 'all',
-      visibleEntryCount: 3,
+      visibleEntryCount: 4,
     });
 
     expect(controller.getDiagnostics().listenerCount).toBe(4);

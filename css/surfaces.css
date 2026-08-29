@@ -950,6 +950,12 @@ body[data-motion="reduced"] #market-overlay.workspace-surface--trade.is-active {
   box-shadow: none !important;
 }
 
+#trade-panel .trade-panel-toggle.workspace-terminal-close {
+  position: static;
+  inset: auto;
+  z-index: auto;
+}
+
 #info-panel .info-panel-toggle.workspace-terminal-close:hover,
 #trade-panel .trade-panel-toggle.workspace-terminal-close:hover,
 #console-panel .workspace-terminal-close:hover {
@@ -1666,7 +1672,7 @@ body[data-motion="off"] .deferred-feature-status-signal {
 
 #message-log .msg {
   display: grid;
-  grid-template-columns: 118px minmax(0, 1fr);
+  grid-template-columns: 156px minmax(0, 1fr);
   align-items: baseline;
   gap: var(--ui-space-3);
 }
@@ -1716,6 +1722,11 @@ body[data-motion="off"] .deferred-feature-status-signal {
   min-width: 32px;
   color: var(--ui-accent);
   letter-spacing: 0.08em;
+}
+
+.log-message-category {
+  color: var(--ui-text-secondary);
+  letter-spacing: 0.04em;
 }
 
 .log-message-text {

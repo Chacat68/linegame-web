@@ -143,14 +143,18 @@ describe('FleetCrewPresenter', function () {
     expect(readFleetCrewIntent(createIntentTarget(FLEET_CREW_INTENT.DISMISS, { crewId: 'x', disabled: true }))).toBeNull();
   });
 
-  it('由 FleetUI 的船员内容根节点统一委托，不在 Presenter 中绑定 DOM', function () {
+  it('由 FleetCrewController 的船员内容根节点统一委托，不在 Presenter 或 FleetUI 中绑定 DOM', function () {
     var uiSource = readFileSync('js/ui/FleetUI.js', 'utf8');
+    var controllerSource = readFileSync('js/ui/FleetCrewController.js', 'utf8');
     var presenterSource = readFileSync('js/ui/FleetCrewPresenter.js', 'utf8');
 
-    expect(uiSource).toContain('modalBox.onclick = function (event)');
-    expect(uiSource).toContain('readFleetCrewIntent(event && event.target)');
-    expect(uiSource).not.toContain("modalBox.querySelectorAll('.crew-unassign-btn')");
-    expect(uiSource).not.toContain("modalBox.querySelectorAll('.crew-dismiss-btn')");
+    expect(uiSource).toContain('createFleetCrewController({');
+    expect(uiSource).not.toContain('readFleetCrewIntent(');
+    expect(uiSource).not.toContain("getElementById('crew-");
+    expect(controllerSource).toContain("_bindProperty(modalBox, 'onclick'");
+    expect(controllerSource).toContain('readFleetCrewIntent(event && event.target)');
+    expect(controllerSource).not.toContain("modalBox.querySelectorAll('.crew-unassign-btn')");
+    expect(controllerSource).not.toContain("modalBox.querySelectorAll('.crew-dismiss-btn')");
     expect(presenterSource).not.toContain('document.');
     expect(presenterSource).not.toContain('.onclick');
   });

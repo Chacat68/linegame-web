@@ -16,6 +16,7 @@ import { DIFFICULTY_LEVELS } from '../data/constants.js';
 import { SYSTEMS } from '../data/systems.js';
 import { DEFAULT_ACTION_DIRTY_REGIONS, resolveDirtyRegions } from './ActionPresentation.js';
 import { createGameUiApplicationRuntime } from './GameUiApplicationRuntime.js';
+import { LOG_MESSAGE_SOURCE, createScopedLogEmitter } from './LogMessage.js';
 import {
   bindBlockingSurfaceDismiss,
   hideBlockingSurface,
@@ -31,6 +32,12 @@ export function createGameUiRuntimeFactory(context) {
   var isSessionTokenCurrent = context.isSessionTokenCurrent;
   var updateUI = context.updateUI;
   var emitLog = context.emitLog;
+  var loggers = Object.freeze({
+    commerce: createScopedLogEmitter(emitLog, LOG_MESSAGE_SOURCE.COMMERCE),
+    persistence: createScopedLogEmitter(emitLog, LOG_MESSAGE_SOURCE.PERSISTENCE),
+    settings: createScopedLogEmitter(emitLog, LOG_MESSAGE_SOURCE.SETTINGS),
+    system: createScopedLogEmitter(emitLog, LOG_MESSAGE_SOURCE.SYSTEM),
+  });
 
   function _getFeatureRuntime() { return resolve('features'); }
   function _getGameLoopRuntime() { return resolve('gameLoop'); }
@@ -105,7 +112,8 @@ export function createGameUiRuntimeFactory(context) {
             _getPersistenceController().restart('settings-tutorial-reset');
           },
           onClearSaves: function () { return _getPersistenceController().clearAllSlots(); },
-          emitLog: emitLog,
+          emitLog: loggers.system,
+          loggers: loggers,
           invalidate: function (regions) { updateUI(resolveDirtyRegions(regions)); },
           setTelemetryState: _setDeferredUiState,
           refuel: function () { return _getActionRuntime().trade.refuel(); },

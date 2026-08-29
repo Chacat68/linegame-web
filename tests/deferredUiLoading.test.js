@@ -121,6 +121,8 @@ describe('deferred terminal UI loading', function () {
     var settingsController = readFileSync('js/core/SettingsUiController.js', 'utf8');
     var victoryController = readFileSync('js/core/VictoryRuntimeController.js', 'utf8');
     var settingsManager = readFileSync('js/core/SettingsManager.js', 'utf8');
+    var saveUi = readFileSync('js/ui/SaveUI.js', 'utf8');
+    var saveController = readFileSync('js/ui/SaveWorkspaceController.js', 'utf8');
     var uiCoordinator = readFileSync('js/ui/GameUiCoordinator.js', 'utf8');
     var uiApplication = readFileSync('js/core/GameUiApplicationRuntime.js', 'utf8');
 
@@ -134,15 +136,22 @@ describe('deferred terminal UI loading', function () {
     expect(gameManager).toContain("from './VictoryRuntimeController.js'");
     expect(victoryController).toContain('Promise.resolve(loadView()).then(function (VictoryResultUI)');
     expect(victoryController).toContain('pendingReportPathId === reportPathId');
-    expect(settingsController).toContain('onOpen: callbacks.onOpen');
+    expect(settingsController).toContain("if (typeof callbacks.onOpen === 'function') callbacks.onOpen()");
     expect(settingsController).toContain("features.load('settings')");
-    expect(settingsManager).toContain('if (activeCallbacks.onOpen) activeCallbacks.onOpen()');
+    expect(settingsManager).not.toContain('onOpen');
+    expect(settingsManager).not.toContain("document.getElementById('settings-btn')");
+    expect(saveUi).not.toContain('document.');
+    expect(saveUi).not.toContain('SaveSystem');
+    expect(saveController).toContain("container.onclick = _handleClick");
   });
 
   it('剧情与随机事件数据只在首次触发时进入依赖图', function () {
     var gameManager = readApplicationComposition();
     var featureManifest = readFileSync('js/core/GameFeatureManifest.js', 'utf8');
     var dialogueRuntime = readFileSync('js/core/DialogueRuntimeController.js', 'utf8');
+    var dialogueUi = readFileSync('js/ui/DialogueUI.js', 'utf8');
+    var dialogueController = readFileSync('js/ui/DialogueModalController.js', 'utf8');
+    var dialoguePresenter = readFileSync('js/ui/DialoguePresenter.js', 'utf8');
     var randomEventRuntime = readFileSync('js/core/RandomEventRuntimeController.js', 'utf8');
     var achievementRuntime = readFileSync('js/core/AchievementRuntimeController.js', 'utf8');
     var persistenceRuntime = readFileSync('js/core/GamePersistenceController.js', 'utf8');
@@ -154,6 +163,10 @@ describe('deferred terminal UI loading', function () {
     expect(featureManifest).toContain("import('../ui/DialogueUI.js')");
     expect(dialogueRuntime).toContain("import('../systems/story/DialogueSystem.js')");
     expect(dialogueRuntime).toContain("import('../ui/DialogueUI.js')");
+    expect(dialogueUi).not.toContain('document.');
+    expect(dialogueUi).not.toContain('SurfaceManager');
+    expect(dialogueController).toContain("nodes.modal.addEventListener('keydown', keydownHandler)");
+    expect(dialoguePresenter).not.toContain('document.');
     expect(gameManager).toContain("from './RandomEventRuntimeController.js'");
     expect(featureManifest).toContain("import('../systems/event/RandomEvent.js')");
     expect(randomEventRuntime).toContain("import('../systems/event/RandomEvent.js')");
@@ -177,12 +190,20 @@ describe('deferred terminal UI loading', function () {
     var gameManager = readApplicationComposition();
     var guidanceRuntime = readFileSync('js/core/GameGuidanceRuntime.js', 'utf8');
     var featureManifest = readFileSync('js/core/GameFeatureManifest.js', 'utf8');
+    var tutorialUi = readFileSync('js/ui/TutorialUI.js', 'utf8');
+    var tutorialController = readFileSync('js/ui/TutorialOverlayController.js', 'utf8');
+    var tutorialPresenter = readFileSync('js/ui/TutorialStepPresenter.js', 'utf8');
     var featureRegistry = readFileSync('js/core/FeatureRegistry.js', 'utf8');
     var onboardingController = readFileSync('js/core/OnboardingUiController.js', 'utf8');
 
     expect(gameManager).not.toMatch(/import\s+\*\s+as\s+(OnboardingUI|TutorialUI)\s+from/);
     expect(featureManifest).toContain("import('../ui/OnboardingUI.js')");
     expect(featureManifest).toContain("import('../ui/TutorialUI.js')");
+    expect(tutorialUi).not.toContain('document.');
+    expect(tutorialUi).not.toContain('EventBus');
+    expect(tutorialUi).not.toContain('TutorialSystem');
+    expect(tutorialController).toContain("eventBus.on('tutorial:step', stepHandler)");
+    expect(tutorialPresenter).not.toContain('document.');
     expect(featureManifest).toMatch(/\bonboarding:\s*\{/);
     expect(featureManifest).toMatch(/\btutorial:\s*\{/);
     expect(featureRegistry).toContain("_notify(feature, 'loading')");

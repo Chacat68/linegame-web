@@ -47,9 +47,11 @@ describe('GameFeatureManifest', function () {
     var archiveUi = { id: 'archive-ui', resetRuntimeState: vi.fn() };
     var victoryUi = { id: 'victory-ui' };
     var tutorialUi = { destroy: vi.fn() };
+    var dialogueUi = { destroy: vi.fn() };
     var marketUi = { resetRuntimeState: vi.fn() };
     var fleetUi = { resetRuntimeState: vi.fn() };
-    var settingsUi = { id: 'settings-ui' };
+    var saveUi = { resetRuntimeState: vi.fn() };
+    var settingsUi = { id: 'settings-ui', dispose: vi.fn() };
     var achievement = { init: vi.fn() };
     var manifest = createGameFeatureManifest({
       hooks: {
@@ -76,7 +78,10 @@ describe('GameFeatureManifest', function () {
     manifest.market.dispose(marketUi);
     manifest.fleet.dispose(fleetUi);
     manifest.archive.dispose(archiveUi);
+    manifest.dialogue.dispose({ DialogueUI: dialogueUi });
+    manifest.save.dispose(saveUi);
     manifest.tutorial.dispose(tutorialUi);
+    manifest.settings.dispose(settingsUi);
 
     expect(trace).toEqual([
       ['commerce', 'commerce', 'current-state'],
@@ -91,7 +96,10 @@ describe('GameFeatureManifest', function () {
     expect(marketUi.resetRuntimeState).toHaveBeenCalledOnce();
     expect(fleetUi.resetRuntimeState).toHaveBeenCalledOnce();
     expect(archiveUi.resetRuntimeState).toHaveBeenCalledOnce();
+    expect(dialogueUi.destroy).toHaveBeenCalledOnce();
+    expect(saveUi.resetRuntimeState).toHaveBeenCalledOnce();
     expect(tutorialUi.destroy).toHaveBeenCalledOnce();
+    expect(settingsUi.dispose).toHaveBeenCalledOnce();
   });
 
   it('成就与胜利失败先恢复领域状态，再统一报告功能错误', function () {

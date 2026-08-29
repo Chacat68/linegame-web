@@ -3,23 +3,23 @@
 
 import {
   buildMarketSnapshots,
-  renderMarketChartDashboard,
-  updateMainMarketKlineChart,
 } from './MarketChartPresenter.js';
+import { createMarketChartViewAdapter } from './MarketChartViewAdapter.js';
 
 export function createMarketChartController(options) {
   var opts = options || {};
   var session = opts.session;
   var selection = opts.selection;
+  var viewAdapter = opts.viewAdapter || createMarketChartViewAdapter({ document: opts.document });
   var buildSnapshots = typeof opts.buildSnapshots === 'function'
     ? opts.buildSnapshots
     : buildMarketSnapshots;
   var renderDashboard = typeof opts.renderDashboard === 'function'
     ? opts.renderDashboard
-    : renderMarketChartDashboard;
+    : viewAdapter.renderDashboard;
   var updateKline = typeof opts.updateKline === 'function'
     ? opts.updateKline
-    : updateMainMarketKlineChart;
+    : viewAdapter.renderKline;
   var renderCount = 0;
   var dashboardRenderCount = 0;
   var klineRenderCount = 0;
@@ -129,6 +129,7 @@ export function createMarketChartController(options) {
   }
 
   function reset() {
+    if (viewAdapter && typeof viewAdapter.reset === 'function') viewAdapter.reset();
     renderCount = 0;
     dashboardRenderCount = 0;
     klineRenderCount = 0;

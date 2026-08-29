@@ -102,6 +102,8 @@ describe('MarketUI guided focus', function () {
     expect(marketCss).toMatch(/\.market-good-card-chart-col\s*\{\s*display:\s*none;/);
     expect(marketCss).toContain('grid-template-columns: minmax(260px, 0.9fr) minmax(400px, 1.35fr) minmax(250px, 0.78fr)');
     expect(marketCss).toMatch(/\.market-spot-trade-layout--simple\s*\{\s*grid-template-columns:\s*minmax\(0, 1fr\);/);
+    var mobileMarketCss = marketCss.slice(marketCss.indexOf('@media (max-width: 760px), (max-height: 620px)'));
+    expect(mobileMarketCss).toMatch(/\.market-workspace-v2 \.market-quick-trade-dock\s*\{[^}]*position:\s*static;[^}]*z-index:\s*auto;[^}]*top:\s*auto;/);
   });
 
   var originalDocument = globalThis.document;
@@ -419,20 +421,21 @@ describe('MarketUI guided focus', function () {
 
   it('商网站点分区包含列表语义、选择态和移动端适配锚点', function () {
     const css = readFileSync('css/market-terminal.css', 'utf8');
-    const js = readFileSync('js/ui/MarketOperationsPresenter.js', 'utf8');
+    const stationList = readFileSync('js/ui/MarketTradeStationListPresenter.js', 'utf8');
+    const localOperations = readFileSync('js/ui/MarketLocalOperationsPresenter.js', 'utf8');
 
-    expect(js).toContain('class="trade-station-card-list trade-station-card-list--candidates" role="list"');
-    expect(js).toContain('class="trade-station-card-list trade-station-card-list--owned" role="list"');
-    expect(js).toContain('class="trade-station-list-brief" role="group" aria-label="商网列表摘要"');
-    expect(js).toContain('class="trade-station-list-brief-grid" role="list"');
-    expect(js).toContain('class="trade-station-list-signal ');
-    expect(js).toContain('class="market-local-operations-panel" aria-label="本地经营局部状态"');
-    expect(js).toContain('class="market-local-operations-grid" role="list" aria-label="本地经营指标"');
-    expect(js).toContain('class="market-local-operations-focus" aria-label="本地经营状态"');
-    expect(js).toContain('class="trade-station-build-card" role="listitem" tabindex="0"');
-    expect(js).toContain('class="trade-station-card" role="listitem" tabindex="0"');
-    expect(js).toContain('aria-pressed="');
-    expect(js).toContain('aria-describedby="');
+    expect(stationList).toContain('class="trade-station-card-list trade-station-card-list--candidates" role="list"');
+    expect(stationList).toContain('class="trade-station-card-list trade-station-card-list--owned" role="list"');
+    expect(stationList).toContain('class="trade-station-list-brief" role="group" aria-label="商网列表摘要"');
+    expect(stationList).toContain('class="trade-station-list-brief-grid" role="list"');
+    expect(stationList).toContain('class="trade-station-list-signal ');
+    expect(localOperations).toContain('class="market-local-operations-panel" aria-label="本地经营局部状态"');
+    expect(localOperations).toContain('class="market-local-operations-grid" role="list" aria-label="本地经营指标"');
+    expect(localOperations).toContain('class="market-local-operations-focus" aria-label="本地经营状态"');
+    expect(stationList).toContain('class="trade-station-build-card" role="listitem" tabindex="0"');
+    expect(stationList).toContain('class="trade-station-card" role="listitem" tabindex="0"');
+    expect(stationList).toContain('aria-pressed="');
+    expect(stationList).toContain('aria-describedby="');
     expect(css).toContain('.trade-station-card-list');
     expect(css).toContain('.trade-station-list-brief-grid');
     expect(css).toContain('.trade-station-list-signal--ready');
@@ -1021,7 +1024,10 @@ describe('MarketUI guided focus', function () {
     capitalPane.innerHTML = 'CAPITAL_SENTINEL';
     operationsPane.innerHTML = 'OPERATIONS_SENTINEL';
 
-    focusButton.dispatchEvent('click');
+    focusButton.closest = function (selector) {
+      return selector === '[data-focus-good]' ? focusButton : null;
+    };
+    dashboard.onclick({ target: focusButton });
 
     expect(MarketUI.getFocusedMarketGood('sol_prime', 'open')).toBe('water');
     expect(goodsList.innerHTML).toMatch(/class="market-good-card[^"]*is-active[^"]*" data-market-good="water"/);

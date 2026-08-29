@@ -209,9 +209,12 @@ describe('MapUI navigation target focus', function () {
 
     var mapUiSource = readFileSync(new URL('../js/ui/MapUI.js', import.meta.url), 'utf8');
     var layoutSource = readFileSync(new URL('../js/ui/MapPanelLayout.js', import.meta.url), 'utf8');
-    expect(mapUiSource).toContain("from './MapPanelLayout.js'");
-    expect(mapUiSource).toContain("['bottom-nav', 'action-guide'].forEach");
-    expect(mapUiSource).not.toContain('commandSurfaceTop - panelH - 12');
+    var viewControllerSource = readFileSync(new URL('../js/ui/MapPanelViewController.js', import.meta.url), 'utf8');
+    expect(mapUiSource).toContain("from './MapPanelViewController.js'");
+    expect(mapUiSource).not.toContain("from './MapPanelLayout.js'");
+    expect(viewControllerSource).toContain("from './MapPanelLayout.js'");
+    expect(viewControllerSource).toContain("['bottom-nav', 'action-guide'].forEach");
+    expect(viewControllerSource).not.toContain('commandSurfaceTop - panelH - 12');
     expect(layoutSource).toContain('commandSurfaceTop - panelHeight - 12');
   });
 

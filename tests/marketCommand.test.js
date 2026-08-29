@@ -77,6 +77,7 @@ describe('MarketCommand', function () {
     var gameManager = readApplicationComposition();
     var uiApplication = readFileSync('js/core/GameUiApplicationRuntime.js', 'utf8');
     var coordinator = readFileSync('js/ui/GameUiCoordinator.js', 'utf8');
+    var workspaceRenderer = readFileSync('js/ui/GameUiWorkspaceRenderer.js', 'utf8');
     var marketUi = readFileSync('js/ui/MarketUI.js', 'utf8');
     var goodsController = readFileSync('js/ui/MarketGoodsController.js', 'utf8');
     var financeController = readFileSync('js/ui/MarketFinanceController.js', 'utf8');
@@ -84,8 +85,9 @@ describe('MarketCommand', function () {
     expect(gameManager).toContain("from './GameUiApplicationRuntime.js'");
     expect(uiApplication).toContain('onCommand: market.handleCommand');
     expect(gameManager).not.toContain('getFinanceActions:');
-    expect(coordinator).toContain("onCommand: _action(actions, 'market', 'onCommand')");
-    expect(coordinator).not.toContain("_action(actions, 'market', 'onOpenBuy')");
+    expect(coordinator).toContain("from './GameUiWorkspaceRenderer.js'");
+    expect(workspaceRenderer).toContain("onCommand: _action(actions, 'market', 'onCommand')");
+    expect(workspaceRenderer).not.toContain("_action(actions, 'market', 'onOpenBuy')");
     expect(marketUi).toContain('export function render(request)');
     expect(marketUi).toContain('export function renderRegions(request, regions)');
     expect(marketUi).toContain('export function renderSpot(request)');

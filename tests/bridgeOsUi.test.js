@@ -74,6 +74,7 @@ describe('Bridge OS global UI contracts', function () {
     expect(surfaces).toContain('max-height: none !important');
     expect(responsive).toContain('body:has(.workspace-surface:not(.workspace-surface--map).is-active) .bottom-nav');
     expect(responsive).toContain('visibility: visible !important');
+    expect(responsive.match(/top: calc\(var\(--ui-header-height\) \+ max\(var\(--ui-space-2\), var\(--ui-safe-top\)\)\) !important/g)).toHaveLength(2);
     expect(responsive).toContain('body:has(.modal:not(.hidden)) .bottom-nav');
     expect(responsive).toContain('max-height: 190px !important');
     expect(tokens).toContain('--ui-command-reserve: 76px');
@@ -115,8 +116,12 @@ describe('Bridge OS global UI contracts', function () {
     expect(legacy).not.toMatch(/\.market-spot-intel-grid,[\s\S]{0,600}grid-template-columns:\s*1fr !important/);
     expect(starmapControls).toMatch(/@media \(max-width: 620px\)[\s\S]*?\.starmap-map-tool\s*\{[^}]*min-height:\s*var\(--ui-control-lg\)/);
     expect(responsive).toMatch(/#action-guide \.action-guide-primary\.command-action-btn\s*\{[^}]*min-height:\s*var\(--ui-control-lg\)/);
+    expect(responsive).toMatch(/\.workspace-terminal-shell:not\(\.workspace-terminal-shell--logs\) \.workspace-terminal-chrome\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto auto/);
+    expect(responsive).toMatch(/\.workspace-terminal-shell:not\(\.workspace-terminal-shell--logs\) \.workspace-context-toggle\s*\{[^}]*grid-column:\s*2/);
+    expect(responsive).toMatch(/\.workspace-terminal-shell:not\(\.workspace-terminal-shell--logs\) \.workspace-terminal-close\s*\{[^}]*grid-column:\s*3/);
     expect(market).toMatch(/\.market-workspace-v2 \.kline-range-btn,[\s\S]*?min-height:\s*var\(--ui-control-lg\)/);
     expect(surfaces).toContain('#trade-panel .trade-panel-toggle.workspace-terminal-close');
+    expect(surfaces).toMatch(/#trade-panel \.trade-panel-toggle\.workspace-terminal-close\s*\{[^}]*position:\s*static;[^}]*inset:\s*auto/);
     expect(surfaces).toContain('background: rgba(2, 10, 18, 0.76) !important');
     expect(fleet).not.toContain('.market-close-btn {');
   });
@@ -152,6 +157,8 @@ describe('Bridge OS global UI contracts', function () {
 
     expect(inspector).toMatch(/@media \(max-width: 620px\)[\s\S]*?#context-inspector\.context-inspector\s*\{[^}]*top:\s*calc\(var\(--ui-control-lg\)[^}]*bottom:\s*auto/);
     expect(inspector).toMatch(/@media \(max-width: 620px\)[\s\S]*?#context-inspector\.context-inspector:not\(\[data-workspace-id="map"\]\)\s*\{[^}]*top:\s*calc\(var\(--ui-control-lg\)[^}]*bottom:\s*auto/);
+    expect(inspector).toMatch(/@media \(max-width: 620px\)[\s\S]*?#context-inspector\.context-inspector\[data-content-state="empty"\] \.context-inspector-empty\s*\{[^}]*min-height:\s*0/);
+    expect(inspector).toContain('#context-inspector.context-inspector[data-content-state="empty"] .context-inspector-empty-mark');
     expect(inspector).toMatch(/@media \(max-width: 700px\), \(max-height: 620px\)[\s\S]*?#context-inspector #planet-detail-panel\.visible,[\s\S]*?left:\s*auto !important;[\s\S]*?bottom:\s*auto !important;[\s\S]*?width:\s*100% !important;/);
   });
 

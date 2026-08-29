@@ -2,6 +2,7 @@
 
 import { getRefuelCompletion } from './ActionGuideCompletion.js';
 import { MARKET_ECONOMY_ACTION_PRESENTATION } from './ActionPresentation.js';
+import { LOG_MESSAGE_SOURCE } from './LogMessage.js';
 
 function _noop() {}
 
@@ -10,9 +11,11 @@ function _requiredFunction(value, label) {
   return value;
 }
 
-function _emitMessages(result, emitMessage) {
+function _emitMessages(result, emitMessage, source) {
   var messages = Array.isArray(result) ? result : (result && Array.isArray(result.msgs) ? result.msgs : []);
-  messages.forEach(function (message) { emitMessage(message); });
+  messages.forEach(function (message) {
+    emitMessage(Object.assign({ source: source || LOG_MESSAGE_SOURCE.COMMERCE }, message || {}));
+  });
 }
 
 function _ensureOperatingStats(ship) {
@@ -62,6 +65,7 @@ export function createTradeActionController(dependencies) {
 
     return execute({
       label: 'trade.' + action,
+      logSource: LOG_MESSAGE_SOURCE.COMMERCE,
       dirtyRegions: MARKET_ECONOMY_ACTION_PRESENTATION.dirtyRegions,
       mutate: function () {
         return action === 'buy'
@@ -98,19 +102,27 @@ export function createTradeActionController(dependencies) {
         }
 
         Tutorial.checkTrigger(action);
-        _emitMessages(Faction.onTrade(state, state.currentSystem, goodId, action, quantity, effectiveMarket), emitMessage);
+        _emitMessages(
+          Faction.onTrade(state, state.currentSystem, goodId, action, quantity, effectiveMarket),
+          emitMessage,
+          LOG_MESSAGE_SOURCE.FACTION
+        );
         state.tradeCount = (state.tradeCount || 0) + 1;
 
         var isBlack = effectiveMarket === 'black';
         var expGain = Math.max(1, Math.ceil(quantity * (isBlack ? 3 : 2)));
         var repGain = Math.max(1, Math.ceil(quantity * 0.5));
-        _emitMessages(Progression.gainExperience(state, expGain), emitMessage);
+        _emitMessages(Progression.gainExperience(state, expGain), emitMessage, LOG_MESSAGE_SOURCE.PROGRESSION);
         if (!isBlack) {
           var profit = result.meta && typeof result.meta.profit === 'number' ? result.meta.profit : 0;
           var companyExpGain = action === 'sell'
             ? Math.max(2, Math.ceil(quantity * 0.8) + Math.ceil(Math.max(0, profit) / 120))
             : Math.max(1, Math.ceil(quantity * 0.8));
-          _emitMessages(Progression.gainCompanyExperience(state, companyExpGain), emitMessage);
+          _emitMessages(
+            Progression.gainCompanyExperience(state, companyExpGain),
+            emitMessage,
+            LOG_MESSAGE_SOURCE.PROGRESSION
+          );
           var tradeFaction = Faction.getFactionForSystem(state.currentSystem);
           var questResult = Quest.checkProgress(state, {
             action: action,
@@ -120,7 +132,7 @@ export function createTradeActionController(dependencies) {
             factionId: tradeFaction ? tradeFaction.id : null,
             profit: action === 'sell' ? profit : 0,
           });
-          _emitMessages(questResult, emitMessage);
+          _emitMessages(questResult, emitMessage, LOG_MESSAGE_SOURCE.QUEST);
           queueQuestDialogueResult(questResult);
         }
         state.reputation = (state.reputation || 0) + repGain;
@@ -134,6 +146,7 @@ export function createTradeActionController(dependencies) {
     Fleet.syncStateFromShip(state);
     var result = execute({
       label: 'trade.refuel',
+      logSource: LOG_MESSAGE_SOURCE.COMMERCE,
       dirtyRegions: MARKET_ECONOMY_ACTION_PRESENTATION.dirtyRegions,
       mutate: function () { return Trade.refuel(state); },
       postEffects: function () { Fleet.commitActiveShipState(state); },

@@ -1,7 +1,7 @@
 // js/ui/MarketChartPresenter.js — 市场价格图表与行情快照 presenter
 //
-// 该模块只负责价格序列归一化、K 线/SVG 生成、行情快照构造与主图 DOM 更新。
-// MarketChartController 持有焦点/区间交互；presenter 不修改会话或游戏状态。
+// 该模块只负责价格序列归一化、K 线/SVG、行情快照与冻结 view model。
+// DOM 写入属于 MarketChartViewAdapter；焦点/区间意图属于 MarketChartController。
 
 import * as Economy from '../systems/economy/Economy.js';
 
@@ -16,9 +16,8 @@ function _escapeHtmlAttr(value) {
     .replace(/'/g, '&#39;');
 }
 
-function _resolveDocument(documentRef) {
-  if (documentRef) return documentRef;
-  return typeof document !== 'undefined' ? document : null;
+function _escapeHtml(value) {
+  return _escapeHtmlAttr(value);
 }
 
 export function normalizeMarketChartHistory(data, fallbackPrice, range) {
@@ -260,17 +259,10 @@ export function buildMarketSnapshots(state, systemId, goodsList, isBlack, range,
   });
 }
 
-export function renderMarketChartDashboard(request) {
+export function buildMarketChartDashboardView(request) {
   var options = request || {};
-  var documentRef = _resolveDocument(options.document);
-  if (!documentRef || typeof documentRef.getElementById !== 'function') return false;
-  var container = documentRef.getElementById('market-terminal-dashboard');
-  if (!container) return false;
   var snapshots = Array.isArray(options.snapshots) ? options.snapshots : [];
-  if (snapshots.length === 0) {
-    container.innerHTML = '';
-    return false;
-  }
+  if (snapshots.length === 0) return null;
 
   var selectedRange = MARKET_CHART_RANGE_OPTIONS.indexOf(options.range) !== -1 ? options.range : 14;
   var focused = snapshots.find(function (entry) {
@@ -291,31 +283,32 @@ export function renderMarketChartDashboard(request) {
 
   function renderList(title, items, className) {
     return '<div class="market-terminal-side-card">' +
-      '<div class="market-terminal-side-title">' + title + '</div>' +
+      '<div class="market-terminal-side-title">' + _escapeHtml(title) + '</div>' +
       items.map(function (entry) {
-        return '<button class="market-terminal-rank-row" data-focus-good="' + _escapeHtmlAttr(entry.good.id) + '">' +
-          '<span class="market-terminal-rank-name">' + entry.good.emoji + ' ' + entry.good.name + '</span>' +
-          '<span class="market-terminal-rank-value ' + className + '">' + entry.delta.text + '</span>' +
+        var goodLabel = String(entry.good.emoji || '') + ' ' + String(entry.good.name || '');
+        return '<button type="button" class="market-terminal-rank-row" data-focus-good="' + _escapeHtmlAttr(entry.good.id) + '" aria-label="查看 ' + _escapeHtmlAttr(goodLabel) + ' 行情">' +
+          '<span class="market-terminal-rank-name">' + _escapeHtml(goodLabel) + '</span>' +
+          '<span class="market-terminal-rank-value ' + _escapeHtmlAttr(className) + '">' + _escapeHtml(entry.delta.text) + '</span>' +
         '</button>';
       }).join('') +
     '</div>';
   }
 
-  container.innerHTML = '<section class="market-terminal-hero">' +
+  var html = '<section class="market-terminal-hero">' +
     '<div class="market-terminal-main">' +
       '<div class="market-terminal-head">' +
         '<div>' +
-          '<div class="market-terminal-title">' + focused.good.emoji + ' ' + focused.good.name + '</div>' +
+          '<div class="market-terminal-title">' + _escapeHtml(String(focused.good.emoji || '') + ' ' + String(focused.good.name || '')) + '</div>' +
           '<div class="market-terminal-subtitle">' + (options.marketMode === 'black' ? '黑市报价' : '公开市场报价') + ' · ' + pressureLabel + ' · 点选下方商品可切换图表</div>' +
         '</div>' +
         '<div class="market-terminal-price-wrap">' +
           '<div class="market-terminal-price">' + focused.sellPrice.toLocaleString() + '</div>' +
-          '<div class="market-terminal-price-delta ' + focused.delta.className + '">' + focused.delta.text + '</div>' +
+          '<div class="market-terminal-price-delta ' + _escapeHtmlAttr(focused.delta.className) + '">' + _escapeHtml(focused.delta.text) + '</div>' +
         '</div>' +
       '</div>' +
       '<div class="market-terminal-toolbar">' +
         '<div class="market-terminal-range-group">' + MARKET_CHART_RANGE_OPTIONS.map(function (days) {
-          return '<button class="market-terminal-range-btn' + (days === selectedRange ? ' active' : '') + '" data-range="' + days + '">' + days + '天</button>';
+          return '<button type="button" class="market-terminal-range-btn' + (days === selectedRange ? ' active' : '') + '" data-range="' + days + '" aria-pressed="' + (days === selectedRange ? 'true' : 'false') + '">' + days + '天</button>';
         }).join('') + '</div>' +
         '<div class="market-terminal-toolbar-note">统计窗口：近 ' + selectedRange + ' 天</div>' +
       '</div>' +
@@ -342,41 +335,20 @@ export function renderMarketChartDashboard(request) {
     '</div>' +
   '</section>';
 
-  if (typeof container.querySelectorAll === 'function') {
-    container.querySelectorAll('[data-focus-good]').forEach(function (button) {
-      button.addEventListener('click', function () {
-        if (typeof options.onFocusChange === 'function') options.onFocusChange(button.dataset.focusGood);
-        var activeRow = documentRef.querySelector
-          ? documentRef.querySelector('[data-market-good="' + button.dataset.focusGood + '"]')
-          : null;
-        if (activeRow && typeof activeRow.scrollIntoView === 'function') {
-          activeRow.scrollIntoView({ block: 'nearest' });
-        }
-      });
-    });
-    container.querySelectorAll('[data-range]').forEach(function (button) {
-      button.addEventListener('click', function () {
-        if (typeof options.onRangeChange === 'function') {
-          options.onRangeChange(Math.max(7, Math.min(30, Math.floor(Number(button.dataset.range) || 14))));
-        }
-      });
-    });
-  }
-
-  return true;
+  return Object.freeze({
+    focusedGoodId: focused.good.id,
+    html: html,
+    range: selectedRange,
+  });
 }
 
-export function updateMainMarketKlineChart(request) {
+export function buildMainMarketKlineView(request) {
   var options = request || {};
-  var documentRef = _resolveDocument(options.document);
-  if (!documentRef || typeof documentRef.getElementById !== 'function') return false;
-  var panel = documentRef.getElementById('market-kline-panel');
-  if (!panel) return false;
   var snapshots = Array.isArray(options.snapshots) ? options.snapshots : [];
   var focused = snapshots.find(function (snapshot) {
     return snapshot.good.id === options.focusedGoodId;
   }) || snapshots[0];
-  if (!focused) return false;
+  if (!focused) return null;
 
   var range = MARKET_CHART_RANGE_OPTIONS.indexOf(options.range) !== -1 ? options.range : 14;
   var economyPort = options.economy || Economy;
@@ -390,53 +362,37 @@ export function updateMainMarketKlineChart(request) {
   var delta = formatMarketChartDelta(history);
   var isBlack = options.marketMode === 'black';
 
-  var title = documentRef.getElementById('market-kline-title');
-  if (title) {
-    title.innerHTML = '<span class="kline-title-emoji">' + focused.good.emoji + '</span>' +
-      '<span class="kline-title-name">' + focused.good.name + '</span>' +
+  var titleHtml = '<span class="kline-title-emoji">' + _escapeHtml(focused.good.emoji) + '</span>' +
+      '<span class="kline-title-name">' + _escapeHtml(focused.good.name) + '</span>' +
       '<span class="kline-title-price">' + focused.sellPrice.toLocaleString() + ' CR</span>' +
-      '<span class="kline-title-delta ' + delta.className + '">' + delta.text + '</span>';
-  }
+      '<span class="kline-title-delta ' + _escapeHtmlAttr(delta.className) + '">' + _escapeHtml(delta.text) + '</span>';
 
-  var rangeBar = documentRef.getElementById('market-kline-range-bar');
-  if (rangeBar) {
-    rangeBar.innerHTML = MARKET_CHART_RANGE_OPTIONS.map(function (days) {
-      return '<button class="kline-range-btn' + (days === range ? ' active' : '') + '" data-kline-range="' + days + '">' + days + 'D</button>';
-    }).join('');
-    if (typeof rangeBar.querySelectorAll === 'function') {
-      rangeBar.querySelectorAll('[data-kline-range]').forEach(function (button) {
-        button.addEventListener('click', function () {
-          if (typeof options.onRangeChange === 'function') {
-            options.onRangeChange(Number(button.dataset.klineRange));
-          }
-        });
-      });
-    }
-  }
+  var rangeHtml = MARKET_CHART_RANGE_OPTIONS.map(function (days) {
+    return '<button type="button" class="kline-range-btn' + (days === range ? ' active' : '') + '" data-kline-range="' + days + '" aria-pressed="' + (days === range ? 'true' : 'false') + '">' + days + 'D</button>';
+  }).join('');
 
-  var ohlc = documentRef.getElementById('market-kline-ohlc');
-  if (ohlc) {
-    ohlc.innerHTML =
+  var ohlcHtml =
       '<span class="kline-ohlc-item">开 <em>' + latest.open + '</em></span>' +
       '<span class="kline-ohlc-item">高 <em>' + latest.high + '</em></span>' +
       '<span class="kline-ohlc-item">低 <em>' + latest.low + '</em></span>' +
       '<span class="kline-ohlc-item">收 <em>' + latest.close + '</em></span>' +
       '<span class="kline-ohlc-item">交易量 <em>' + latest.volume + '</em></span>' +
       '<span class="kline-ohlc-item">买卖差 <em>' + focused.spread + '</em></span>';
-  }
 
-  var body = documentRef.getElementById('market-kline-body');
-  if (body) body.innerHTML = renderFullMarketKlineChart(history, focused.sellPrice, focused.good.name, range);
-
-  var metrics = documentRef.getElementById('market-kline-metrics');
-  if (metrics) {
-    var supplyDemand = focused.supplyDemand;
-    var supplyLabel = supplyDemand.ratio > 1.3 ? '货少需求高' : (supplyDemand.ratio < 0.8 ? '货多需求低' : '供需平稳');
-    metrics.innerHTML =
+  var supplyDemand = focused.supplyDemand;
+  var supplyLabel = supplyDemand.ratio > 1.3 ? '货少需求高' : (supplyDemand.ratio < 0.8 ? '货多需求低' : '供需平稳');
+  var metricsHtml =
       '<span class="kline-metric">供需 <em>' + supplyLabel + '</em></span>' +
       '<span class="kline-metric">近期变化 <em>' + focused.swing + '</em></span>' +
       '<span class="kline-metric">' + (isBlack ? '黑市加价' : '交易渠道') + ' <em>' + (isBlack ? '约 35%' : '公开市场') + '</em></span>';
-  }
 
-  return true;
+  return Object.freeze({
+    bodyHtml: renderFullMarketKlineChart(history, focused.sellPrice, focused.good.name, range),
+    focusedGoodId: focused.good.id,
+    metricsHtml: metricsHtml,
+    ohlcHtml: ohlcHtml,
+    range: range,
+    rangeHtml: rangeHtml,
+    titleHtml: titleHtml,
+  });
 }

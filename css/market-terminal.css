@@ -6962,7 +6962,9 @@ body[data-motion="reduced"] .market-detail:not(.hidden) {
   }
 
   .market-workspace-v2 .market-quick-trade-dock {
-    top: calc(var(--ui-space-3) * -1);
+    position: static;
+    z-index: auto;
+    top: auto;
     margin-bottom: var(--ui-space-3);
   }
 

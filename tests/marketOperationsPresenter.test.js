@@ -228,12 +228,12 @@ describe('MarketOperationsPresenter', function () {
       sortModes: { investment: 'name', upgrade: 'cost', strategy: 'name' },
     });
     var html = view.overviewHtml + Object.values(view.sections).join('');
-    var source = readFileSync('js/ui/MarketOperationsPresenter.js', 'utf8');
+    var localPresenter = readFileSync('js/ui/MarketLocalOperationsPresenter.js', 'utf8');
 
     expect(view.sections.network).toContain('data-batch-sort-scope="investment" data-batch-sort-mode="name">地点名');
     expect(view.sections.network).toContain('market-batch-plan-sort-btn active" data-action="market-batch-set-sort" data-batch-sort-scope="investment" data-batch-sort-mode="name"');
     expect(html).toContain('匹配方式');
-    expect(source).toContain('参考投入');
+    expect(localPresenter).toContain('参考投入');
     expect(html).not.toMatch(/下一笔商网动作|建议方式|采用建议方式|建议投入/);
   });
 
@@ -253,5 +253,11 @@ describe('MarketOperationsPresenter', function () {
     expect(marketUi).not.toContain('class="trade-station-card-list trade-station-card-list--owned"');
     expect(presenter).toContain('export function renderMarketOperationsWorkspace');
     expect(presenter).toContain('export function updateMarketOperationsSortModes');
+    expect(presenter).toContain("from './MarketBatchPlanPresenter.js'");
+    expect(presenter).toContain("from './MarketLocalOperationsPresenter.js'");
+    expect(presenter).toContain("from './MarketOperationsOverviewPresenter.js'");
+    expect(presenter).toContain("from './MarketTradeStationListPresenter.js'");
+    expect(presenter).not.toContain('class="trade-station-card-list');
+    expect(presenter).not.toContain('class="market-batch-plan-card');
   });
 });

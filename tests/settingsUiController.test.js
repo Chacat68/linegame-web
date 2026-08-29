@@ -28,6 +28,7 @@ function createHarness(options) {
     initSettingsModal: vi.fn(),
     showSettingsModal: vi.fn(),
     hideSettingsModal: vi.fn(),
+    resetRuntimeState: vi.fn(),
   };
   var controller;
   var features = {
@@ -86,7 +87,7 @@ function createHarness(options) {
 }
 
 describe('SettingsUiController', function () {
-  it('首次点击加载设置模块、移除临时 listener 并打开弹层', async function () {
+  it('首次点击加载设置模块、保留唯一 launcher owner 并打开弹层', async function () {
     var harness = createHarness();
 
     expect(harness.controller.bindLauncher()).toBe(true);
@@ -101,8 +102,8 @@ describe('SettingsUiController', function () {
     expect(harness.module.initSettingsModal).toHaveBeenCalledOnce();
     expect(harness.callbacks.onOpen).toHaveBeenCalledOnce();
     expect(harness.module.showSettingsModal).toHaveBeenCalledOnce();
-    expect(harness.button.hasListener('click')).toBe(false);
-    expect(harness.button.dataset.settingsLoaderBound).toBeUndefined();
+    expect(harness.button.hasListener('click')).toBe(true);
+    expect(harness.button.dataset.settingsLoaderBound).toBe('true');
   });
 
   it('异步模块返回时 session 已变化则不得打开旧会话弹层', async function () {
@@ -217,20 +218,34 @@ describe('SettingsUiController', function () {
     var options = harness.module.initSettingsModal.mock.calls[0][0];
     expect(options.getSettings()).toBe(nextSettings);
     expect(options.onCommand).toBe(harness.callbacks.onCommand);
+    expect(options).not.toHaveProperty('onOpen');
     expect(options).not.toHaveProperty('getState');
     expect(options).not.toHaveProperty('Renderer');
     expect(options).not.toHaveProperty('onDifficultyChanged');
     expect(options).not.toHaveProperty('onClearSaves');
   });
 
-  it('模块已加载时只执行 registry sync，不再绑定临时 listener', function () {
+  it('模块已加载时同步 registry，并仍由外层 controller 独占 launcher', function () {
     var module = { initSettingsModal: vi.fn(), showSettingsModal: vi.fn() };
     var harness = createHarness({ loadedModule: module, module: module });
 
     expect(harness.controller.bindLauncher()).toBe(true);
     expect(harness.features.sync).toHaveBeenCalledWith('settings');
-    expect(harness.button.addEventListener).not.toHaveBeenCalled();
+    expect(harness.button.addEventListener).toHaveBeenCalledOnce();
+    expect(harness.button.hasListener('click')).toBe(true);
     expect(module.initSettingsModal).toHaveBeenCalledOnce();
+  });
+
+  it('session reset 会同步清理已加载设置模块的局部会话', function () {
+    var harness = createHarness();
+    harness.controller.sync(harness.module);
+    harness.controller.reset();
+    expect(harness.module.resetRuntimeState).toHaveBeenCalledOnce();
+    expect(harness.controller.getDiagnostics()).toMatchObject({
+      bound: true,
+      launcherBound: false,
+      loadState: 'ready',
+    });
   });
 
   it('hide 优先使用已加载模块，未加载时也走统一 Surface 端口', function () {

@@ -5,6 +5,7 @@
 // 携带原始 session token，旧会话不得写回当前槽位。
 
 import * as DefaultStore from '../systems/save/SaveSystem.js';
+import { SAVE_COMMAND, normalizeSaveCommand } from './SaveCommand.js';
 
 function _noop() {}
 
@@ -147,6 +148,14 @@ export function createGamePersistenceController(dependencies) {
     return result;
   }
 
+  function handleCommand(command) {
+    var normalized = normalizeSaveCommand(command);
+    if (!normalized) return false;
+    if (normalized.type === SAVE_COMMAND.SAVE_SLOT) return saveSlot(normalized.slotId);
+    if (normalized.type === SAVE_COMMAND.LOAD_SLOT) return loadSlot(normalized.slotId);
+    return false;
+  }
+
   function clearAllSlots() {
     slotIds.forEach(function (slotId) { store.deleteSlot(slotId); });
     clearCount += 1;
@@ -182,6 +191,7 @@ export function createGamePersistenceController(dependencies) {
     captureState: captureState,
     clearAllSlots: clearAllSlots,
     getDiagnostics: getDiagnostics,
+    handleCommand: handleCommand,
     loadSlot: loadSlot,
     restart: restart,
     saveAutosave: saveAutosave,

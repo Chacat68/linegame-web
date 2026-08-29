@@ -77,5 +77,12 @@ describe('GameTime.advanceDays', () => {
     expect(state.day).toBe(3);
     expect(state.researchedTechs).toContain(tech.id);
     expect(state.completedQuests).toContain('test_survive_days_runtime');
+    expect(result.msgs.some(function (message) {
+      return message.source === 'research';
+    })).toBe(true);
+    expect(result.msgs.some(function (message) {
+      return message.source === 'quest';
+    })).toBe(true);
+    expect(result.msgs[0]).toMatchObject({ source: 'system' });
   });
 });

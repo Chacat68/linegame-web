@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createGamePersistenceController } from '../js/core/GamePersistenceController.js';
+import { SAVE_COMMAND } from '../js/core/SaveCommand.js';
 
 function createHarness(options) {
   var config = options || {};
@@ -120,6 +121,23 @@ describe('GamePersistenceController', function () {
       ['message', { text: '空间不足', type: 'error' }],
       'invalidate-save',
     ]);
+  });
+
+  it('通过 typed command 统一路由手动保存与读取并拒绝非法输入', function () {
+    var harness = createHarness({ loadResult: { ok: false, msg: '槽位为空' } });
+
+    expect(harness.controller.handleCommand({
+      type: SAVE_COMMAND.SAVE_SLOT,
+      slotId: '2',
+    })).toEqual({ ok: true, msg: '保存完成' });
+    expect(harness.controller.handleCommand({
+      type: SAVE_COMMAND.LOAD_SLOT,
+      slotId: 3,
+    })).toEqual({ ok: false, msg: '槽位为空' });
+    expect(harness.controller.handleCommand({ type: SAVE_COMMAND.LOAD_SLOT, slotId: -1 })).toBe(false);
+    expect(harness.controller.handleCommand({ type: 'save.unknown', slotId: 1 })).toBe(false);
+    expect(harness.store.saveGame).toHaveBeenCalledWith(2, expect.any(Object));
+    expect(harness.store.loadGame).toHaveBeenCalledWith(3);
   });
 
   it('成功读档先关闭设置，再通过统一生命周期恢复并发布结果', function () {

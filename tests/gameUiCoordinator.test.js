@@ -59,8 +59,7 @@ describe('GameUiCoordinator', function () {
       marketCommand: function () {},
       buyShip: function () {},
       startResearch: function () {},
-      save: function () {},
-      load: function () {},
+      saveCommand: function () {},
     };
     var marketRender = vi.fn();
     var fleetRender = vi.fn();
@@ -93,8 +92,8 @@ describe('GameUiCoordinator', function () {
       actions: {
         market: { onCommand: callbacks.marketCommand, getMode: function () { return 'black'; } },
         fleet: { handleCommand: callbacks.buyShip },
-        archive: { onStartResearch: callbacks.startResearch },
-        save: { onSaveGame: callbacks.save, onLoadGame: callbacks.load },
+        archive: { handleCommand: callbacks.startResearch },
+        save: { handleCommand: callbacks.saveCommand },
       },
     });
 
@@ -112,9 +111,15 @@ describe('GameUiCoordinator', function () {
       onCommand: callbacks.marketCommand,
     });
     expect(fleetRender).toHaveBeenCalledWith({ state: state, onCommand: callbacks.buyShip });
-    expect(researchRender.mock.calls[0][0]).toBe(state);
-    expect(researchRender.mock.calls[0][1]).toBe(callbacks.startResearch);
-    expect(saveRender).toHaveBeenCalledWith(callbacks.save, callbacks.load);
+    expect(researchRender).toHaveBeenCalledWith({
+      state: state,
+      dispatchContext: null,
+      onCommand: callbacks.startResearch,
+    });
+    expect(saveRender).toHaveBeenCalledWith({
+      state: state,
+      onCommand: callbacks.saveCommand,
+    });
     expect(contextAdapters.connectMarket).toHaveBeenCalledWith(features.modules.market);
     expect(contextAdapters.connectFleet).toHaveBeenCalledWith(features.modules.fleet);
     expect(contextAdapters.connectArchive).toHaveBeenCalledWith(features.modules.archive);
@@ -311,6 +316,7 @@ describe('GameUiCoordinator', function () {
       marketEntry: null,
       fleetUi: null,
       archiveUi: null,
+      saveUi: null,
       mapUi: null,
       logsUi: null,
       renderAllCount: 0,
@@ -384,6 +390,7 @@ describe('GameUiCoordinator', function () {
     var logsDiagnostics = { entryCount: 2, selectedMessageId: 'message-2', resetCount: 0 };
     var marketDiagnostics = { activeWorkspace: 'capital', focusedGoodId: 'water' };
     var fleetDiagnostics = { activeSurface: 'dispatch', surfaceMode: 'inline' };
+    var saveDiagnostics = { controller: { active: true, renderCount: 1 } };
     var archiveDiagnostics = {
       quest: { selectedAvailableQuestId: 'starter_first_trade' },
       exploration: { focus: { systemId: 'sol_prime', chainId: '' } },
@@ -404,6 +411,10 @@ describe('GameUiCoordinator', function () {
         resetCount: 1,
       };
       return archiveDiagnostics;
+    });
+    var resetSaveRuntimeState = vi.fn(function () {
+      saveDiagnostics = { controller: { active: false, renderCount: 0, resetCount: 1 } };
+      return saveDiagnostics;
     });
     var resetMapRuntimeState = vi.fn(function () {
       mapDiagnostics = { selectedSystemId: null, resetCount: 1 };
@@ -426,6 +437,10 @@ describe('GameUiCoordinator', function () {
       archive: {
         getDiagnostics: function () { return archiveDiagnostics; },
         resetRuntimeState: resetArchiveRuntimeState,
+      },
+      save: {
+        getDiagnostics: function () { return saveDiagnostics; },
+        resetRuntimeState: resetSaveRuntimeState,
       },
     });
     var coordinator = createGameUiCoordinator({
@@ -454,6 +469,7 @@ describe('GameUiCoordinator', function () {
     expect(coordinator.getDiagnostics().archiveUi).toEqual(Object.assign({
       activeTab: 'tab-exploration',
     }, archiveDiagnostics));
+    expect(coordinator.getDiagnostics().saveUi).toEqual(saveDiagnostics);
     expect(coordinator.getDiagnostics().mapUi).toEqual(mapDiagnostics);
     expect(coordinator.getDiagnostics().logsUi).toEqual(logsDiagnostics);
     expect(coordinator.getDiagnostics().workspaceSessions).toEqual({
@@ -469,6 +485,7 @@ describe('GameUiCoordinator', function () {
     expect(resetMarketRuntimeState).toHaveBeenCalledOnce();
     expect(resetFleetRuntimeState).toHaveBeenCalledOnce();
     expect(resetArchiveRuntimeState).toHaveBeenCalledOnce();
+    expect(resetSaveRuntimeState).toHaveBeenCalledOnce();
     expect(resetMapRuntimeState).toHaveBeenCalledOnce();
     expect(resetLogsRuntimeState).toHaveBeenCalledOnce();
     expect(resetNavigationRuntimeState).toHaveBeenCalledOnce();
@@ -477,6 +494,7 @@ describe('GameUiCoordinator', function () {
     expect(diagnostics.marketUi).toEqual({ activeWorkspace: 'spot', focusedGoodId: null });
     expect(diagnostics.fleetUi).toEqual({ activeSurface: null, surfaceMode: null });
     expect(diagnostics.archiveUi).toEqual(Object.assign({ activeTab: 'tab-exploration' }, archiveDiagnostics));
+    expect(diagnostics.saveUi).toEqual(saveDiagnostics);
     expect(Object.isFrozen(diagnostics.workspaceSessions)).toBe(true);
     expect(diagnostics.lastInvalidationRegions).toEqual([]);
     expect(diagnostics.workspaceRenders.lastRenderedRegions).toEqual([]);
@@ -494,7 +512,7 @@ describe('GameUiCoordinator', function () {
       features: createFeatureHarness({
         fleet: { render: function (request) { seen.push('fleet:' + request.state.id); } },
         archive: {
-          ResearchUI: { render: function (currentState) { seen.push('archive:' + currentState.id); } },
+          ResearchUI: { render: function (request) { seen.push('archive:' + request.state.id); } },
         },
       }),
       ui: {
@@ -708,9 +726,9 @@ describe('GameUiCoordinator', function () {
       getState: function () { return state; },
       features: createFeatureHarness({
         archive: {
-          ResearchUI: { render: function (nextState) { seen.push('research:' + nextState.id); } },
-          FactionUI: { render: function (nextState) { seen.push('faction:' + nextState.id); } },
-          QuestUI: { render: function (nextState) { seen.push('quest:' + nextState.id); } },
+          ResearchUI: { render: function (request) { seen.push('research:' + request.state.id); } },
+          FactionUI: { render: function (request) { seen.push('faction:' + request.state.id); } },
+          QuestUI: { render: function (request) { seen.push('quest:' + request.state.id); } },
           ArchiveExplorationUI: { render: function (nextState) { seen.push('exploration:' + nextState.id); } },
           AchievementUI: { render: function (nextState) { seen.push('achievement:' + nextState.id); } },
         },

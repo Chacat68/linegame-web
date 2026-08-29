@@ -142,12 +142,27 @@ describe('FleetDispatchPresenter', function () {
     expect(optionHtml).toContain('&lt;Alpha&gt;');
   });
 
-  it('FleetUI 只协调 DOM，派遣计算与 HTML 由无 DOM Presenter 承担', function () {
+  it('FleetUI 只注入端口，派遣会话、DOM、用例与计算分别由单一 owner 承担', function () {
     var uiSource = readFileSync('js/ui/FleetUI.js', 'utf8');
+    var controllerSource = readFileSync('js/ui/FleetDispatchController.js', 'utf8');
     var presenterSource = readFileSync('js/ui/FleetDispatchPresenter.js', 'utf8');
-    expect(uiSource).toContain('buildFleetDispatchEstimate(dispatchContext, _readSelection())');
-    expect(uiSource).toContain('renderFleetDispatchEstimate(dispatchContext');
-    expect(uiSource).toContain('buildFleetDispatchPrimaryView({');
+    var sessionSource = readFileSync('js/ui/FleetDispatchSession.js', 'utf8');
+    var viewAdapterSource = readFileSync('js/ui/FleetDispatchViewAdapter.js', 'utf8');
+    expect(uiSource).toContain('createFleetDispatchController({');
+    expect(uiSource).not.toContain('buildFleetDispatchEstimate(');
+    expect(uiSource).not.toContain("getElementById('dispatch-");
+    expect(controllerSource).toContain("from './FleetDispatchSession.js'");
+    expect(controllerSource).toContain("from './FleetDispatchViewAdapter.js'");
+    expect(controllerSource).toContain('buildFleetDispatchEstimate(dispatchContext, _readSelection())');
+    expect(controllerSource).toContain('renderFleetDispatchEstimate(dispatchContext');
+    expect(controllerSource).toContain('buildFleetDispatchPrimaryView({');
+    expect(controllerSource).not.toContain('getElementById');
+    expect(controllerSource).not.toContain('.innerHTML');
+    expect(controllerSource).not.toContain('.textContent');
+    expect(viewAdapterSource).toContain('doc.getElementById(NODE_IDS[key])');
+    expect(viewAdapterSource).toContain('activeNodes.estimate.innerHTML');
+    expect(sessionSource).not.toContain('document.');
+    expect(sessionSource).not.toContain('getElementById');
     expect(uiSource).not.toContain('function _buildRiskSummary');
     expect(presenterSource).not.toContain('document.');
     expect(presenterSource).not.toContain('.onclick');

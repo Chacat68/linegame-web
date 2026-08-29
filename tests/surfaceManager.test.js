@@ -85,13 +85,16 @@ describe('SurfaceManager', function () {
     var mapSource = readFileSync(new URL('../js/ui/MapUI.js', import.meta.url), 'utf8');
     var fleetSource = readFileSync(new URL('../js/ui/FleetUI.js', import.meta.url), 'utf8');
     var dialogueSource = readFileSync(new URL('../js/ui/DialogueUI.js', import.meta.url), 'utf8');
+    var dialogueControllerSource = readFileSync(new URL('../js/ui/DialogueModalController.js', import.meta.url), 'utf8');
 
     expect(surfaceSource).toContain("document.addEventListener('keydown', _handleSurfaceDocumentKeydown)");
     expect(surfaceSource.match(/document\.addEventListener\('keydown'/g)).toHaveLength(1);
     expect(mapSource).not.toContain('_handleSecondaryPanelKeydown');
     expect(fleetSource).not.toContain("document.addEventListener('keydown', handlePortalKeydown)");
     expect(dialogueSource).not.toContain("document.addEventListener('keydown'");
-    expect(dialogueSource).toContain("modal.addEventListener('keydown'");
+    expect(dialogueSource).not.toContain('document.');
+    expect(dialogueControllerSource).not.toContain("document.addEventListener('keydown'");
+    expect(dialogueControllerSource).toContain("nodes.modal.addEventListener('keydown'");
   });
 
   it('showBlockingSurface 会关闭其他 modal 并只显示目标阻塞层', function () {

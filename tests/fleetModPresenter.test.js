@@ -99,15 +99,19 @@ describe('FleetModPresenter', function () {
     expect(readFleetModIntent(createIntentTarget(FLEET_MOD_INTENT.SERVICE, { shipIndex: 0, disabled: true }))).toBeNull();
   });
 
-  it('由 FleetUI 的改装内容根节点统一委托，Presenter 不绑定 DOM', function () {
+  it('由 FleetModController 的内容根节点统一委托，FleetUI 只注入端口', function () {
     var uiSource = readFileSync('js/ui/FleetUI.js', 'utf8');
+    var controllerSource = readFileSync('js/ui/FleetModController.js', 'utf8');
     var presenterSource = readFileSync('js/ui/FleetModPresenter.js', 'utf8');
 
-    expect(uiSource).toContain('body.onclick = function (event)');
-    expect(uiSource).toContain('readFleetModIntent(event && event.target)');
-    expect(uiSource).not.toContain("body.querySelectorAll('.upg-modal-buy-btn");
-    expect(uiSource).not.toContain("body.querySelectorAll('.mod-modal-buy-btn");
-    expect(uiSource).not.toContain("body.querySelectorAll('.ship-repair-start-btn");
+    expect(uiSource).toContain('createFleetModController({');
+    expect(uiSource).not.toContain('readFleetModIntent(');
+    expect(uiSource).not.toContain("getElementById('mod-modal");
+    expect(controllerSource).toContain("_bindProperty(body, 'onclick'");
+    expect(controllerSource).toContain('readFleetModIntent(event && event.target)');
+    expect(controllerSource).not.toContain("body.querySelectorAll('.upg-modal-buy-btn");
+    expect(controllerSource).not.toContain("body.querySelectorAll('.mod-modal-buy-btn");
+    expect(controllerSource).not.toContain("body.querySelectorAll('.ship-repair-start-btn");
     expect(presenterSource).not.toContain('document.');
     expect(presenterSource).not.toContain('.onclick');
   });

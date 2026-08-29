@@ -48,7 +48,7 @@ export function createActionExecutionPipeline(dependencies) {
 
       phase = 'messages';
       if (result && Array.isArray(result.msgs)) {
-        result.msgs.forEach(function (message) { emitMessage(message, result); });
+        result.msgs.forEach(function (message) { emitMessage(message, result, spec.logSource); });
       }
       if (result && result.ok === false) emitErrorCue(result);
 

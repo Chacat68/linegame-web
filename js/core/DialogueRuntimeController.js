@@ -231,8 +231,9 @@ export function createDialogueRuntimeController(dependencies) {
     playing = false;
     activePlaybackId = null;
     disposed = true;
-    if (runtime && runtime.DialogueUI && typeof runtime.DialogueUI.hideScene === 'function') {
-      runtime.DialogueUI.hideScene();
+    if (runtime && runtime.DialogueUI) {
+      if (typeof runtime.DialogueUI.destroy === 'function') runtime.DialogueUI.destroy();
+      else if (typeof runtime.DialogueUI.hideScene === 'function') runtime.DialogueUI.hideScene();
     }
     setTelemetryState('disposed');
     return getDiagnostics();

@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import {
+  buildMainMarketKlineView,
+  buildMarketChartDashboardView,
   buildMarketPseudoCandles,
   buildMarketSnapshots,
   calculateMarketMovingAverage,
@@ -8,27 +10,7 @@ import {
   normalizeMarketChartHistory,
   renderFullMarketKlineChart,
   renderMarketChart,
-  renderMarketChartDashboard,
-  updateMainMarketKlineChart,
 } from '../js/ui/MarketChartPresenter.js';
-
-function createButton(dataset) {
-  var listeners = {};
-  return {
-    dataset: dataset || {},
-    addEventListener: function (type, listener) { listeners[type] = listener; },
-    click: function () { if (listeners.click) listeners.click(); },
-  };
-}
-
-function createElement(queryMap) {
-  return {
-    innerHTML: '',
-    querySelectorAll: function (selector) {
-      return queryMap && queryMap[selector] ? queryMap[selector] : [];
-    },
-  };
-}
 
 function createSnapshot(id, price, delta, ratio, swing) {
   return {
@@ -108,86 +90,57 @@ describe('MarketChartPresenter', function () {
     expect(open.history).toHaveLength(7);
   });
 
-  it('更新主图全部区域并把档期切换作为 command 发布', function () {
-    var rangeButtons = [createButton({ klineRange: '7' }), createButton({ klineRange: '14' })];
-    var elements = {
-      'market-kline-panel': createElement(),
-      'market-kline-title': createElement(),
-      'market-kline-range-bar': createElement({ '[data-kline-range]': rangeButtons }),
-      'market-kline-ohlc': createElement(),
-      'market-kline-body': createElement(),
-      'market-kline-metrics': createElement(),
-    };
-    var documentRef = {
-      getElementById: function (id) { return elements[id] || null; },
-    };
-    var onRangeChange = vi.fn();
+  it('主 K 线 view model 纯生成全部区域并冻结结果', function () {
     var economy = { getPriceHistory: vi.fn(function () { return [8, 9, 10]; }) };
     var snapshots = [createSnapshot('food', 10, '+25%', 1.4, 4)];
 
-    expect(updateMainMarketKlineChart({
-      document: documentRef,
+    var view = buildMainMarketKlineView({
       economy: economy,
       systemId: 'sol',
       snapshots: snapshots,
       marketMode: 'open',
       focusedGoodId: 'food',
       range: 14,
-      onRangeChange: onRangeChange,
-    })).toBe(true);
+    });
 
-    expect(elements['market-kline-title'].innerHTML).toContain('食物');
-    expect(elements['market-kline-ohlc'].innerHTML).toContain('买卖差');
-    expect(elements['market-kline-body'].innerHTML).toContain('market-kline-svg');
-    expect(elements['market-kline-metrics'].innerHTML).toContain('货少需求高');
-    rangeButtons[0].click();
-    expect(onRangeChange).toHaveBeenCalledWith(7);
+    expect(view.titleHtml).toContain('食物');
+    expect(view.ohlcHtml).toContain('买卖差');
+    expect(view.bodyHtml).toContain('market-kline-svg');
+    expect(view.metricsHtml).toContain('货少需求高');
+    expect(view.rangeHtml).toContain('aria-pressed="true"');
+    expect(view).toMatchObject({ focusedGoodId: 'food', range: 14 });
+    expect(Object.isFrozen(view)).toBe(true);
+    expect(buildMainMarketKlineView({ snapshots: [] })).toBeNull();
   });
 
-  it('行情仪表板发布商品焦点与统计窗口 command', function () {
-    var focusButton = createButton({ focusGood: 'tools' });
-    var rangeButton = createButton({ range: '30' });
-    var container = createElement({
-      '[data-focus-good]': [focusButton],
-      '[data-range]': [rangeButton],
-    });
-    var scrollIntoView = vi.fn();
-    var documentRef = {
-      getElementById: function (id) { return id === 'market-terminal-dashboard' ? container : null; },
-      querySelector: function (selector) {
-        return selector === '[data-market-good="tools"]' ? { scrollIntoView: scrollIntoView } : null;
-      },
-    };
-    var onFocusChange = vi.fn();
-    var onRangeChange = vi.fn();
+  it('行情仪表板 view model 生成榜单、统计窗口与安全文本', function () {
     var snapshots = [
       createSnapshot('food', 10, '+20%', 1.4, 5),
       createSnapshot('tools', 20, '-10%', 0.7, 8),
     ];
+    snapshots[1].good.name = '工具<script>';
 
-    expect(renderMarketChartDashboard({
-      document: documentRef,
+    var view = buildMarketChartDashboardView({
       snapshots: snapshots,
       marketMode: 'open',
       focusedGoodId: 'food',
       range: 14,
-      onFocusChange: onFocusChange,
-      onRangeChange: onRangeChange,
-    })).toBe(true);
-    expect(container.innerHTML).toContain('涨幅榜');
-    expect(container.innerHTML).toContain('近 14 天');
+    });
 
-    focusButton.click();
-    rangeButton.click();
-    expect(onFocusChange).toHaveBeenCalledWith('tools');
-    expect(onRangeChange).toHaveBeenCalledWith(30);
-    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
+    expect(view.html).toContain('涨幅榜');
+    expect(view.html).toContain('近 14 天');
+    expect(view.html).toContain('工具&lt;script&gt;');
+    expect(view.html).not.toContain('工具<script>');
+    expect(view).toMatchObject({ focusedGoodId: 'food', range: 14 });
+    expect(Object.isFrozen(view)).toBe(true);
+    expect(buildMarketChartDashboardView({ snapshots: [] })).toBeNull();
   });
 
-  it('MarketUI 只组合图表 Controller，由 Controller 消费 presenter', function () {
+  it('MarketUI 只组合图表 Controller，Presenter 保持无 DOM', function () {
     var marketUi = readFileSync('js/ui/MarketUI.js', 'utf8');
     var presenter = readFileSync('js/ui/MarketChartPresenter.js', 'utf8');
     var controller = readFileSync('js/ui/MarketChartController.js', 'utf8');
+    var adapter = readFileSync('js/ui/MarketChartViewAdapter.js', 'utf8');
 
     expect(marketUi).toContain("from './MarketChartController.js'");
     expect(marketUi).not.toContain('function _renderMarketDashboard');
@@ -197,8 +150,15 @@ describe('MarketChartPresenter', function () {
     expect(marketUi).not.toContain('function _renderFullKlineChart');
     expect(marketUi).not.toContain('class="kline-current-tag-bg"');
     expect(controller).toContain("from './MarketChartPresenter.js'");
+    expect(controller).toContain("from './MarketChartViewAdapter.js'");
     expect(controller).toContain('selection.focus({');
     expect(presenter).toContain('export function renderFullMarketKlineChart');
-    expect(presenter).toContain('export function updateMainMarketKlineChart');
+    expect(presenter).toContain('export function buildMainMarketKlineView');
+    expect(presenter).not.toContain('getElementById');
+    expect(presenter).not.toContain('querySelector');
+    expect(presenter).not.toContain('.innerHTML');
+    expect(presenter).not.toContain('addEventListener');
+    expect(adapter).toContain('buildMarketChartDashboardView');
+    expect(adapter).toContain('container.onclick = _handleDashboardClick');
   });
 });

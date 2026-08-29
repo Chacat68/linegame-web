@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestState } from './helpers.js';
+import { SAVE_COMMAND } from '../js/core/SaveCommand.js';
 import * as Save from '../js/systems/save/SaveSystem.js';
 import * as SaveUI from '../js/ui/SaveUI.js';
 
@@ -8,9 +9,9 @@ function getAttr(attrs, name) {
   return match ? match[1] : '';
 }
 
-function createFakeButton(attrs) {
+function createFakeButton(attrs, dispatchClick) {
   var listeners = Object.create(null);
-  return {
+  var button = {
     className: getAttr(attrs, 'class'),
     dataset: {
       slot: getAttr(attrs, 'data-slot'),
@@ -20,8 +21,16 @@ function createFakeButton(attrs) {
     },
     click: function () {
       if (listeners.click) listeners.click();
+      if (typeof dispatchClick === 'function') dispatchClick({ target: button });
+    },
+    closest: function (selector) {
+      var classMatch = selector.match(/^\.([\w-]+)/);
+      if (!classMatch || !button.className.split(/\s+/).includes(classMatch[1])) return null;
+      if (selector.indexOf('[data-slot]') >= 0 && !button.dataset.slot) return null;
+      return button;
     },
   };
+  return button;
 }
 
 function createFakeClassList(initialValues) {
@@ -96,14 +105,17 @@ function createFakeContainer() {
     dataset: {},
   };
 
-  return {
+  var container = {
+    onclick: null,
     get innerHTML() {
       return html;
     },
     set innerHTML(value) {
       html = String(value);
       buttons = Array.from(html.matchAll(/<button([^>]*)>/g)).map(function (match) {
-        return createFakeButton(match[1]);
+        return createFakeButton(match[1], function (event) {
+          if (typeof container.onclick === 'function') container.onclick(event);
+        });
       });
       var exportBlock = html.match(/<select id="save-export-slot-select"[\s\S]*?<\/select>/);
       var selectedExport = exportBlock && exportBlock[0].match(/<option value="([^"]*)"[^>]* selected/);
@@ -131,6 +143,7 @@ function createFakeContainer() {
       return matches.length ? matches[0] : null;
     },
   };
+  return container;
 }
 
 function getSaveSlotListItemCount(html) {
@@ -153,6 +166,7 @@ describe('SaveUI.render', function () {
   });
 
   afterEach(function () {
+    SaveUI.resetRuntimeState();
     globalThis.document = originalDocument;
     globalThis.alert = originalAlert;
     globalThis.FileReader = originalFileReader;
@@ -167,7 +181,7 @@ describe('SaveUI.render', function () {
       },
     };
 
-    SaveUI.render(function () {}, function () {});
+    SaveUI.render({ onCommand: function () {} });
 
     expect(container.getAttribute('role')).toBe('region');
     expect(container.getAttribute('aria-label')).toBe('存档工作区');
@@ -214,7 +228,7 @@ describe('SaveUI.render', function () {
     };
     Save.saveGame(1, createTestState({ credits: 9000, day: 7 }), { timestampMs: 1717200000000 });
 
-    SaveUI.render(function () {}, function () {});
+    SaveUI.render({ onCommand: function () {} });
 
     expect(container.innerHTML).toContain('<option value="1" selected>槽位 1</option>');
     expect(container.innerHTML).toContain('自动槽位不可用，迁移区已改用最近的有效手动槽位。');
@@ -270,7 +284,7 @@ describe('SaveUI.render', function () {
       };
       Save.saveGame(1, createTestState({ credits: 7000, day: 5 }), { timestampMs: 1717200000000 });
 
-      SaveUI.render(function () {}, function () {});
+      SaveUI.render({ onCommand: function () {} });
       container.querySelector('.export-btn').click();
 
       expect(clicked).toBe(true);
@@ -296,11 +310,13 @@ describe('SaveUI.render', function () {
     Save.deleteSlot(3);
     var fileInput = {
       files: [{ name: 'import-backup.json' }],
+      onchange: null,
       addEventListener: function (type, handler) {
         if (type === 'change') fileChangeHandler = handler;
       },
       click: function () {
-        if (fileChangeHandler) fileChangeHandler();
+        if (typeof this.onchange === 'function') this.onchange();
+        else if (fileChangeHandler) fileChangeHandler();
       },
     };
     globalThis.FileReader = function () {
@@ -328,11 +344,11 @@ describe('SaveUI.render', function () {
     Save.saveGame(1, createTestState({ credits: 123456, day: 9 }), { timestampMs: 1717200000000 });
     globalThis.localStorage.setItem('startrader_save_2', '{bad json');
 
-    SaveUI.render(function (slotId) {
-      savedSlot = slotId;
-    }, function (slotId) {
-      loadedSlot = slotId;
-    });
+    SaveUI.render({ onCommand: function (command) {
+      if (command.type === SAVE_COMMAND.SAVE_SLOT) savedSlot = command.slotId;
+      if (command.type === SAVE_COMMAND.LOAD_SLOT) loadedSlot = command.slotId;
+      expect(Object.isFrozen(command)).toBe(true);
+    } });
 
     expect(container.innerHTML).toContain('data-save-state="ready"');
     expect(container.innerHTML).toContain('data-save-state="corrupted"');

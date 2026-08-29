@@ -11,6 +11,7 @@ function createHarness() {
   };
   var renderDashboard = vi.fn(function () { return true; });
   var updateKline = vi.fn(function () { return true; });
+  var viewAdapter = { reset: vi.fn() };
   var updatedSnapshots = [{ good: { id: 'food' }, history: [1, 2, 3] }];
   var buildSnapshots = vi.fn(function () { return updatedSnapshots; });
   var controller = createMarketChartController({
@@ -19,6 +20,7 @@ function createHarness() {
     buildSnapshots: buildSnapshots,
     renderDashboard: renderDashboard,
     updateKline: updateKline,
+    viewAdapter: viewAdapter,
   });
   var goods = [{ id: 'food' }, { id: 'water' }];
   var snapshots = [{ good: goods[0] }, { good: goods[1] }];
@@ -45,6 +47,7 @@ function createHarness() {
     snapshots: snapshots,
     updateKline: updateKline,
     updatedSnapshots: updatedSnapshots,
+    viewAdapter: viewAdapter,
   };
 }
 
@@ -137,5 +140,6 @@ describe('MarketChartController', function () {
       lastMarketMode: null,
       lastSnapshotCount: 0,
     });
+    expect(harness.viewAdapter.reset).toHaveBeenCalledOnce();
   });
 });

@@ -25,6 +25,9 @@ function _diagnostics(module) {
 export function getDiagnostics() {
   return Object.freeze({
     quest: _diagnostics(QuestUiModule),
+    research: _diagnostics(ResearchUiModule),
+    faction: _diagnostics(FactionUiModule),
+    achievement: _diagnostics(AchievementUiModule),
     exploration: _diagnostics(ArchiveExplorationUiModule),
     resetCount: _archiveRuntimeResetCount,
   });
@@ -32,6 +35,9 @@ export function getDiagnostics() {
 
 export function resetRuntimeState() {
   if (typeof QuestUiModule.resetRuntimeState === 'function') QuestUiModule.resetRuntimeState();
+  if (typeof ResearchUiModule.resetRuntimeState === 'function') ResearchUiModule.resetRuntimeState();
+  if (typeof FactionUiModule.resetRuntimeState === 'function') FactionUiModule.resetRuntimeState();
+  if (typeof AchievementUiModule.resetRuntimeState === 'function') AchievementUiModule.resetRuntimeState();
   if (typeof ArchiveExplorationUiModule.resetRuntimeState === 'function') {
     ArchiveExplorationUiModule.resetRuntimeState();
   }

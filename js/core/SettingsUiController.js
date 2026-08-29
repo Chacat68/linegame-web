@@ -88,11 +88,9 @@ export function createSettingsUiController(dependencies) {
   function sync(SettingsUI) {
     if (disposed) return false;
     if (!SettingsUI || typeof SettingsUI.initSettingsModal !== 'function') return false;
-    releaseLauncher();
     boundModule = SettingsUI;
     SettingsUI.initSettingsModal({
       getSettings: getSettings,
-      onOpen: callbacks.onOpen,
       onCommand: callbacks.onCommand,
     });
     loadState = 'ready';
@@ -166,33 +164,31 @@ export function createSettingsUiController(dependencies) {
     if (disposed) return false;
     bindStatusSurfaceDismiss(hide);
     var loaded = _getFeature();
-    if (loaded) {
-      try {
-        if (typeof features.sync === 'function') features.sync('settings');
-        else sync(loaded);
-        return true;
-      } catch (error) {
-        _showLoadError();
-        return false;
-      }
-    }
-
     var doc = getDocument();
     var button = doc && typeof doc.getElementById === 'function'
       ? doc.getElementById('settings-btn')
       : null;
-    if (!button || typeof button.addEventListener !== 'function') return false;
-    if (button.dataset && button.dataset.settingsLoaderBound === 'true') return true;
+    if (button && typeof button.addEventListener === 'function' &&
+        (!button.dataset || button.dataset.settingsLoaderBound !== 'true')) {
+      releaseLauncher();
+      launcherButton = button;
+      launcherHandler = function (event) {
+        if (event && typeof event.preventDefault === 'function') event.preventDefault();
+        return open();
+      };
+      if (button.dataset) button.dataset.settingsLoaderBound = 'true';
+      button.addEventListener('click', launcherHandler);
+    }
 
-    releaseLauncher();
-    launcherButton = button;
-    launcherHandler = function (event) {
-      if (event && typeof event.preventDefault === 'function') event.preventDefault();
-      return open();
-    };
-    if (button.dataset) button.dataset.settingsLoaderBound = 'true';
-    button.addEventListener('click', launcherHandler);
-    return true;
+    if (!loaded) return !!launcherButton;
+    try {
+      if (typeof features.sync === 'function') features.sync('settings');
+      else sync(loaded);
+      return true;
+    } catch (error) {
+      _showLoadError();
+      return false;
+    }
   }
 
   function hide() {
@@ -210,6 +206,9 @@ export function createSettingsUiController(dependencies) {
     generation += 1;
     openPromise = null;
     _clearStatus(true);
+    if (boundModule && typeof boundModule.resetRuntimeState === 'function') {
+      boundModule.resetRuntimeState();
+    }
     loadState = boundModule ? 'ready' : 'idle';
     return getDiagnostics();
   }

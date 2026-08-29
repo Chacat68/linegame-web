@@ -20,6 +20,7 @@ import { createGameSystemRuntime } from './GameSystemRuntime.js';
 import { createGameLoopRuntime } from './GameLoopRuntime.js';
 import { createGameSessionLifecycle } from './GameSessionLifecycle.js';
 import { createGamePersistenceController } from './GamePersistenceController.js';
+import { LOG_MESSAGE_SOURCE, createScopedLogEmitter } from './LogMessage.js';
 
 export function createGameSessionRuntimeFactories(context) {
   var resolve = context.resolve;
@@ -32,6 +33,8 @@ export function createGameSessionRuntimeFactories(context) {
   var updateUI = context.updateUI;
   var startFreshSession = context.startFreshSession;
   var emitLog = context.emitLog;
+  var emitSystemLog = createScopedLogEmitter(emitLog, LOG_MESSAGE_SOURCE.SYSTEM);
+  var emitPersistenceLog = createScopedLogEmitter(emitLog, LOG_MESSAGE_SOURCE.PERSISTENCE);
 
   function _getFeatureRuntime() { return resolve('features'); }
   function _getUiRuntime() { return resolve('ui'); }
@@ -104,7 +107,7 @@ export function createGameSessionRuntimeFactories(context) {
           setDayDuration: function (nextDurationMs) {
             getSettings().realtimeDayDurationMs = nextDurationMs;
           },
-          emitLog: emitLog,
+          emitLog: emitSystemLog,
         },
         config: { defaultDayDurationMs: TIME_CONFIG.realtimeDayDurationMs },
       });
@@ -143,7 +146,7 @@ export function createGameSessionRuntimeFactories(context) {
         startFreshSession: startFreshSession,
         resetTutorial: Tutorial.reset,
         hideSettings: function () { _getUiRuntime().hideSettings(); },
-        emitMessage: emitLog,
+        emitMessage: emitPersistenceLog,
         invalidateSaveUi: function () { updateUI([UI_REGION.SAVE, UI_REGION.GUIDE]); },
       });
     },

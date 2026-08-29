@@ -73,9 +73,10 @@ function createHarness() {
 describe('SettingsCommandController', function () {
   it('SettingsManager 只发布命令，不直接持久化或调用 Renderer/Audio', function () {
     var source = readFileSync('js/core/SettingsManager.js', 'utf8');
+    var modalController = readFileSync('js/ui/SettingsModalController.js', 'utf8');
 
-    expect(source).toContain('SETTINGS_COMMAND.SET_MOTION_LEVEL');
-    expect(source).toContain('SETTINGS_COMMAND.RESET_DEFAULTS');
+    expect(modalController).toContain('SETTINGS_COMMAND.SET_MOTION_LEVEL');
+    expect(modalController).toContain('SETTINGS_COMMAND.RESET_DEFAULTS');
     expect(source).not.toContain('activeCallbacks.settings');
     expect(source).not.toContain('saveSettings(');
     expect(source).not.toContain('applyCoreSettings');
@@ -84,6 +85,7 @@ describe('SettingsCommandController', function () {
     expect(source).not.toContain('EventBus');
     expect(source).not.toContain('buildUsageDataExport');
     expect(source).not.toContain('new Blob');
+    expect(source).not.toContain('document.');
   });
 
   it('统一提交显示设置并投影 Renderer、持久化与日志', function () {

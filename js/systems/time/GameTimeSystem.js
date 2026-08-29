@@ -8,6 +8,7 @@ import * as Research from '../research/ResearchSystem.js';
 import * as Quest from '../quest/QuestSystem.js';
 import * as Fleet from '../fleet/FleetSystem.js';
 import * as BalanceMetrics from '../metrics/BalanceMetricsSystem.js';
+import { LOG_MESSAGE_SOURCE } from '../../core/LogMessage.js';
 
 let _advancedDayProcessor = null;
 
@@ -74,23 +75,24 @@ export function advanceDays(state, days) {
       msgs.push({
         text: cycleResult.cycle.icon + ' 市场状态变为「' + cycleResult.cycle.name + '」，各地价格会随之变化。',
         type: 'info',
+        source: LOG_MESSAGE_SOURCE.COMMERCE,
       });
     }
 
-    if (_advancedDayProcessor) _appendMessages(msgs, _advancedDayProcessor(state));
-    _appendMessages(msgs, Crew.payDailyWages(state, 1));
-    _appendMessages(msgs, Fleet.advanceFleetDay(state));
-    _appendMessages(msgs, Research.advanceResearch(state));
+    if (_advancedDayProcessor) _appendMessages(msgs, _advancedDayProcessor(state), LOG_MESSAGE_SOURCE.COMMERCE);
+    _appendMessages(msgs, Crew.payDailyWages(state, 1), LOG_MESSAGE_SOURCE.FLEET);
+    _appendMessages(msgs, Fleet.advanceFleetDay(state), LOG_MESSAGE_SOURCE.FLEET);
+    _appendMessages(msgs, Research.advanceResearch(state), LOG_MESSAGE_SOURCE.RESEARCH);
     // 科研结构加成由舰船有效属性派生，完成研究的当天立即刷新根状态投影。
     Fleet.syncStateFromShip(state);
 
     var questResult = Quest.checkProgress(state, { action: 'advance_day', days: 1, day: state.day });
-    _appendMessages(msgs, questResult);
+    _appendMessages(msgs, questResult, LOG_MESSAGE_SOURCE.QUEST);
     if (questResult && (questResult.completedQuests.length > 0 || questResult.phaseAdvanced)) {
       questResults.push(questResult);
     }
 
-    _appendMessages(msgs, Fleet.tickFleetRoutes(state));
+    _appendMessages(msgs, Fleet.tickFleetRoutes(state), LOG_MESSAGE_SOURCE.FLEET);
     BalanceMetrics.advanceDay(state);
   }
 
@@ -99,6 +101,7 @@ export function advanceDays(state, days) {
       ? '🕒 银河历进入第 ' + state.day + ' 天。'
       : '🕒 真实时间流逝，已推进 ' + totalDays + ' 天，当前为第 ' + state.day + ' 天。',
     type: 'info',
+    source: LOG_MESSAGE_SOURCE.SYSTEM,
   });
 
   return {
@@ -109,9 +112,11 @@ export function advanceDays(state, days) {
   };
 }
 
-function _appendMessages(target, result) {
+function _appendMessages(target, result, source) {
   if (result && Array.isArray(result.msgs) && result.msgs.length > 0) {
-    target.push.apply(target, result.msgs);
+    target.push.apply(target, result.msgs.map(function (message) {
+      return Object.assign({ source: source || LOG_MESSAGE_SOURCE.SYSTEM }, message || {});
+    }));
   }
 }
 

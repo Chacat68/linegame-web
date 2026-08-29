@@ -1,18 +1,51 @@
 // js/ui/LogsWorkspaceSession.js — 通讯工作区的纯内存会话状态
 
+import { normalizeLogMessage } from '../core/LogMessage.js';
+
 const DEFAULT_MAX_ENTRIES = 200;
 const MAX_UNREAD_COUNT = 999;
 const DEFAULT_RECENT_WINDOW_MS = 5 * 60 * 1000;
 const DEFAULT_AGGREGATION_WINDOW_MS = 30 * 1000;
-const FILTER_TYPES = Object.freeze(['all', 'system', 'trade', 'travel', 'opportunity', 'risk']);
+const FILTER_TYPES = Object.freeze([
+  'all',
+  'system',
+  'trade',
+  'travel',
+  'fleet',
+  'quest',
+  'research',
+  'exploration',
+  'event',
+  'opportunity',
+  'risk',
+]);
 const TIME_WINDOWS = Object.freeze(['all', 'recent']);
 
-const TYPES_BY_FILTER = Object.freeze({
+const TYPES_BY_SIGNAL_FILTER = Object.freeze({
   opportunity: Object.freeze(['tip']),
   risk: Object.freeze(['danger', 'error']),
-  system: Object.freeze(['info', 'upgrade']),
-  trade: Object.freeze(['trade', 'buy', 'sell']),
-  travel: Object.freeze(['travel']),
+});
+
+const SOURCES_BY_FILTER = Object.freeze({
+  system: Object.freeze([
+    'system',
+    'guidance',
+    'progression',
+    'persistence',
+    'feature',
+    'settings',
+    'tutorial',
+    'achievement',
+    'victory',
+    'faction',
+  ]),
+  trade: Object.freeze(['commerce']),
+  travel: Object.freeze(['navigation']),
+  fleet: Object.freeze(['fleet']),
+  quest: Object.freeze(['quest']),
+  research: Object.freeze(['research']),
+  exploration: Object.freeze(['exploration']),
+  event: Object.freeze(['event']),
 });
 
 export const LOG_FILTER_TYPES = FILTER_TYPES;
@@ -29,6 +62,7 @@ function _copyEntry(entry) {
     id: entry.id,
     text: entry.text,
     type: entry.type,
+    source: entry.source,
     time: entry.time,
   });
 }
@@ -46,8 +80,10 @@ function _normalizeEnum(value, allowed, fallback) {
 
 function _matchesFilter(entry, filterType) {
   if (filterType === 'all') return true;
-  var allowedTypes = TYPES_BY_FILTER[filterType] || TYPES_BY_FILTER.system;
-  return allowedTypes.indexOf(entry.type) >= 0;
+  var allowedTypes = TYPES_BY_SIGNAL_FILTER[filterType];
+  if (allowedTypes) return allowedTypes.indexOf(entry.type) >= 0;
+  var allowedSources = SOURCES_BY_FILTER[filterType] || SOURCES_BY_FILTER.system;
+  return allowedSources.indexOf(entry.source) >= 0;
 }
 
 function _freezeViewEntry(group) {
@@ -58,7 +94,16 @@ function _freezeViewEntry(group) {
     text: group.text,
     time: group.time,
     type: group.type,
+    source: group.source,
   });
+}
+
+function _sourceCounts(entries) {
+  var counts = {};
+  entries.forEach(function (entry) {
+    counts[entry.source] = (counts[entry.source] || 0) + 1;
+  });
+  return Object.freeze(counts);
 }
 
 export function createLogsWorkspaceSession(options) {
@@ -111,6 +156,7 @@ export function createLogsWorkspaceSession(options) {
       var canAggregate = !!(
         previous
         && previous.type === entry.type
+        && previous.source === entry.source
         && previous.text === entry.text
         && timestamp !== null
         && previous.oldestTimestamp !== null
@@ -128,6 +174,7 @@ export function createLogsWorkspaceSession(options) {
         text: entry.text,
         time: entry.time,
         type: entry.type,
+        source: entry.source,
       });
     });
     return Object.freeze(groups.map(_freezeViewEntry));
@@ -135,10 +182,12 @@ export function createLogsWorkspaceSession(options) {
 
   function addEntry(value) {
     var input = value || {};
+    var message = normalizeLogMessage(input);
     var entry = _copyEntry({
       id: 'message-' + nextId++,
-      text: String(input.text == null ? '' : input.text),
-      type: typeof input.type === 'string' && input.type.trim() ? input.type.trim() : 'info',
+      text: message.text,
+      type: message.type,
+      source: message.source,
       time: Object.prototype.hasOwnProperty.call(input, 'time') ? input.time : createTime(),
     });
     entries.unshift(entry);
@@ -164,6 +213,7 @@ export function createLogsWorkspaceSession(options) {
       nextEntryId: 'message-' + nextId,
       recentWindowMs: recentWindowMs,
       resetCount: resetCount,
+      sourceCounts: _sourceCounts(entries),
       timeWindow: timeWindow,
       unreadCount: unreadCount,
       visibleEntryCount: getVisibleEntries(options).length,

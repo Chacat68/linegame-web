@@ -23,6 +23,7 @@ export function createGameUiApplicationRuntime(options) {
   var systems = opts.systems || {};
   var services = opts.services || {};
   var callbacks = opts.callbacks || {};
+  var loggers = callbacks.loggers || {};
   var settingsCommands = null;
   var settingsController = null;
   var marketWorkspace = null;
@@ -32,6 +33,10 @@ export function createGameUiApplicationRuntime(options) {
   var shellProjection = null;
   var lifecycle = null;
   var contextAdapters = null;
+
+  function _logger(name) {
+    return typeof loggers[name] === 'function' ? loggers[name] : callbacks.emitLog;
+  }
 
   function _actionRuntime() {
     return typeof services.getActionRuntime === 'function' ? services.getActionRuntime() : {};
@@ -56,7 +61,7 @@ export function createGameUiApplicationRuntime(options) {
       getState: getState,
       Renderer: ui.Renderer,
       events: events,
-      emitLog: callbacks.emitLog,
+      emitLog: _logger('settings'),
       callbacks: {
         onDifficultyChanged: callbacks.onDifficultyChanged,
         onRealtimeDayDurationChanged: callbacks.onRealtimeDayDurationChanged,
@@ -106,7 +111,7 @@ export function createGameUiApplicationRuntime(options) {
       Modal: ui.Modal,
       Tutorial: systems.Tutorial,
       systems: systems.systems,
-      emitLog: callbacks.emitLog,
+      emitLog: _logger('commerce'),
       invalidate: callbacks.invalidate,
       showCompletion: function (completion) {
         var guidance = _guidanceRuntime();
@@ -204,14 +209,14 @@ export function createGameUiApplicationRuntime(options) {
           onAfterRender: market.syncAfterRender,
         },
         fleet: actions.fleet,
-        archive: Object.assign({
+        archive: {
           getDispatchContext: function (state) {
             return typeof guidance.getDispatchContext === 'function' ? guidance.getDispatchContext(state) : null;
           },
-        }, actions.archive),
+          handleCommand: actions.archive && actions.archive.handleCommand,
+        },
         save: {
-          onSaveGame: persistence.saveSlot,
-          onLoadGame: persistence.loadSlot,
+          handleCommand: persistence.handleCommand,
         },
         global: {
           refreshActionGuide: function () {
@@ -275,7 +280,7 @@ export function createGameUiApplicationRuntime(options) {
         confirmTrade: callbacks.confirmTrade,
       },
       setTelemetryState: callbacks.setTelemetryState,
-      emitLog: callbacks.emitLog,
+      emitLog: _logger('persistence'),
     });
     return lifecycle;
   }

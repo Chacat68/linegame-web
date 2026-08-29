@@ -15,6 +15,7 @@ import { createExplorationOperationsController } from './ExplorationOperationsCo
 import { createEventActionController } from './EventActionController.js';
 import { createDispatchActionController } from './DispatchActionController.js';
 import { createGameDayController } from './GameDayController.js';
+import { LOG_MESSAGE_SOURCE } from './LogMessage.js';
 
 function _noop() {}
 
@@ -54,6 +55,14 @@ export function createGameActionRuntime(dependencies) {
   var emitAudio = _method(events, 'emitAudio');
   var invalidate = _method(ui, 'invalidate');
 
+  function _emitMessage(message, source) {
+    return emitMessage(message, source || LOG_MESSAGE_SOURCE.SYSTEM);
+  }
+
+  function _scopedMessage(source) {
+    return function (message) { return _emitMessage(message, source); };
+  }
+
   function _resolveDirtyRegions(presentation) {
     return resolveDirtyRegions(presentation, DEFAULT_ACTION_DIRTY_REGIONS);
   }
@@ -62,11 +71,11 @@ export function createGameActionRuntime(dependencies) {
     if (completion) _method(ui, 'showCompletion')(completion);
   }
 
-  function presentResult(result, presentation) {
+  function presentResult(result, presentation, logSource) {
     if (result && result.ok) _method(teaching, 'checkCompletion')();
     if (result && Array.isArray(result.msgs)) {
       result.msgs.forEach(function (message) {
-        emitMessage({ text: message.text, type: message.type });
+        _emitMessage(message, logSource);
       });
     }
     if (result && result.ok === false) emitAudio('error');
@@ -84,14 +93,14 @@ export function createGameActionRuntime(dependencies) {
     var questResult = Quest.checkProgress(state, context || { action: 'state_sync' });
     var messages = questResult && Array.isArray(questResult.msgs) ? questResult.msgs : [];
     messages.forEach(function (message) {
-      emitMessage({ text: message.text, type: message.type });
+      _emitMessage(message, LOG_MESSAGE_SOURCE.QUEST);
     });
     _method(story, 'queueQuestResult')(questResult);
     return questResult;
   }
 
   var pipeline = createActionExecutionPipeline({
-    emitMessage: emitMessage,
+    emitMessage: function (message, result, source) { return _emitMessage(message, source); },
     emitErrorCue: function () { emitAudio('error'); },
     finalizeState: _method(teaching, 'checkCompletion'),
     queueAchievementCheck: _method(achievements, 'queueCheck'),
@@ -108,7 +117,9 @@ export function createGameActionRuntime(dependencies) {
       Crew: systems.Crew,
       MidgameTeachingChain: systems.MidgameTeachingChain,
     },
-    dispatch: presentResult,
+    dispatch: function (result, presentation) {
+      return presentResult(result, presentation, LOG_MESSAGE_SOURCE.FLEET);
+    },
     recordQuestProgress: recordQuestProgress,
     completeTeachingStep: _method(teaching, 'completeStep'),
     startDispatchClock: _method(clock, 'startDispatch'),
@@ -125,7 +136,9 @@ export function createGameActionRuntime(dependencies) {
     getState: getState,
     getRuntime: function () { return _method(features, 'get')('commerceRuntime'); },
     requestRuntime: function () { return _method(features, 'load')('commerceRuntime'); },
-    dispatch: presentResult,
+    dispatch: function (result, presentation) {
+      return presentResult(result, presentation, LOG_MESSAGE_SOURCE.COMMERCE);
+    },
     recordQuestProgress: recordQuestProgress,
     completeTeachingStep: _method(teaching, 'completeStep'),
   });
@@ -141,7 +154,7 @@ export function createGameActionRuntime(dependencies) {
     updateUI: function (presentation) {
       invalidate(_resolveDirtyRegions(presentation));
     },
-    emitLog: emitMessage,
+    emitLog: _emitMessage,
     activateArchiveTab: _method(navigation, 'activateArchiveTab'),
     openMarketPanel: _method(navigation, 'openMarketPanel'),
     openMarketSystemPanel: _method(navigation, 'openMarketSystemPanel'),
@@ -165,7 +178,7 @@ export function createGameActionRuntime(dependencies) {
     pipeline: pipeline,
     returnToStarmap: _method(navigation, 'returnToStarmap'),
     emitAudio: emitAudio,
-    emitMessage: emitMessage,
+    emitMessage: _scopedMessage(LOG_MESSAGE_SOURCE.COMMERCE),
     queueQuestDialogueResult: _method(story, 'queueQuestResult'),
     showCompletion: _showCompletion,
   });
@@ -185,7 +198,7 @@ export function createGameActionRuntime(dependencies) {
     hasPendingEvent: _method(surfaces, 'hasPendingEvent', function () { return false; }),
     forcePendingEvent: _method(surfaces, 'forcePendingEvent'),
     isShipFlying: _method(surfaces, 'isShipFlying', function () { return false; }),
-    emitMessage: emitMessage,
+    emitMessage: _scopedMessage(LOG_MESSAGE_SOURCE.NAVIGATION),
     emitAudio: emitAudio,
     flyShip: _method(ui, 'flyShip'),
     refreshGalaxy: _method(ui, 'refreshGalaxy'),
@@ -213,7 +226,7 @@ export function createGameActionRuntime(dependencies) {
     systems: { Fleet: systems.Fleet },
     pipeline: pipeline,
     getRuntime: _method(randomEvents, 'getRuntime', function () { return null; }),
-    emitMessage: emitMessage,
+    emitMessage: _scopedMessage(LOG_MESSAGE_SOURCE.EVENT),
     refreshActionGuide: _method(guidance, 'refresh'),
     captureState: _method(persistence, 'captureState'),
     saveAutosave: _method(persistence, 'saveAutosave'),
@@ -227,7 +240,7 @@ export function createGameActionRuntime(dependencies) {
     confirmTrade: function () { return trade.confirm.apply(null, arguments); },
     isGameOver: _method(surfaces, 'isGameOver', function () { return false; }),
     hasBlockingSurfaceOpen: _method(surfaces, 'hasBlockingSurfaceOpen', function () { return false; }),
-    emitMessage: emitMessage,
+    emitMessage: _scopedMessage(LOG_MESSAGE_SOURCE.FLEET),
     stopClock: _method(clock, 'stopDispatch'),
     render: function (presentation) { invalidate(_resolveDirtyRegions(presentation)); },
   });

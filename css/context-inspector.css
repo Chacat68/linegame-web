@@ -354,6 +354,27 @@
     width: auto;
     max-height: min(54dvh, 460px);
   }
+
+  /* An open Inspector without an object is only a lightweight orientation cue.
+     Preserve the user's open preference without covering the mobile workspace. */
+  #context-inspector.context-inspector[data-content-state="empty"] .context-inspector-empty {
+    min-height: 0;
+    place-content: initial;
+    justify-items: start;
+    padding: 10px 14px 12px;
+    text-align: left;
+  }
+
+  #context-inspector.context-inspector[data-content-state="empty"] .context-inspector-empty-mark,
+  #context-inspector.context-inspector[data-content-state="empty"] .context-inspector-empty > span:last-child {
+    display: none;
+  }
+
+  #context-inspector.context-inspector[data-content-state="empty"] .context-inspector-empty strong {
+    color: var(--ui-text-secondary);
+    font-size: 11px;
+    font-weight: 620;
+  }
 }
 
 /* Legacy planet-detail mobile rules use !important positioning. Inside the

@@ -636,7 +636,7 @@
             <div class="logs-terminal-body">
               <aside class="logs-terminal-aside" aria-label="日志说明">
                 <h3>消息分类</h3>
-                <p>日志按接收时间倒序排列，可按类型和最近五分钟筛选；短时重复记录默认折叠。重要行动由行动引导统一承载。</p>
+                <p>日志按接收时间倒序排列，可按消息来源、信号和最近五分钟筛选；短时重复记录默认折叠。重要行动由行动引导统一承载。</p>
                 <div class="logs-signal-legend" role="list">
                   <span class="logs-signal-item" role="listitem"><span class="logs-signal-dot" aria-hidden="true"></span>常规记录</span>
                   <span class="logs-signal-item" role="listitem"><span class="logs-signal-dot" aria-hidden="true"></span>可选机会</span>
@@ -651,12 +651,17 @@
                   </div>
                   <div class="logs-filter-controls" role="group" aria-label="通讯日志筛选">
                     <label class="logs-filter-field" for="logs-type-filter">
-                      <span>类型</span>
+                      <span>来源 / 信号</span>
                       <select id="logs-type-filter">
                         <option value="all">全部</option>
                         <option value="system">系统</option>
                         <option value="trade">交易</option>
                         <option value="travel">航行</option>
+                        <option value="fleet">舰队</option>
+                        <option value="quest">任务</option>
+                        <option value="research">科研</option>
+                        <option value="exploration">探索</option>
+                        <option value="event">事件</option>
                         <option value="opportunity">机会</option>
                         <option value="risk">风险</option>
                       </select>

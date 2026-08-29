@@ -17,6 +17,7 @@ import * as UIManager from '../ui/UIManager.js';
 import { hasBlockingSurfaceOpen } from '../ui/SurfaceManager.js';
 import { resolveDirtyRegions } from './ActionPresentation.js';
 import { createGameGuidanceRuntime } from './GameGuidanceRuntime.js';
+import { LOG_MESSAGE_SOURCE, createScopedLogEmitter } from './LogMessage.js';
 
 export function createGameGuidanceRuntimeFactory(context) {
   var resolve = context.resolve;
@@ -25,6 +26,7 @@ export function createGameGuidanceRuntimeFactory(context) {
   var isSessionTokenCurrent = context.isSessionTokenCurrent;
   var updateUI = context.updateUI;
   var emitLog = context.emitLog;
+  var emitGuidanceLog = createScopedLogEmitter(emitLog, LOG_MESSAGE_SOURCE.GUIDANCE);
 
   function _getFeatureRuntime() { return resolve('features'); }
   function _getUiRuntime() { return resolve('ui'); }
@@ -88,7 +90,7 @@ export function createGameGuidanceRuntimeFactory(context) {
         },
         selectors: { hasBlockingSurfaceOpen: hasBlockingSurfaceOpen },
         callbacks: {
-          emitLog: emitLog,
+          emitLog: emitGuidanceLog,
           invalidate: function (regions) { updateUI(resolveDirtyRegions(regions)); },
           renderFleet: function (FleetUI) { return _getUiRuntime().renderFleet(FleetUI); },
           reportError: function (scope, error) {

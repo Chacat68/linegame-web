@@ -51,7 +51,7 @@ function _findEntry(entries, entryId) {
  * 日志不是领域 action 入口；presenter 只解释一条已经发生的记录。
  * entries 由 HUD 的内存历史提供，context 只携带稳定 message id。
  */
-export function renderLogContext(request, entries, typeLabels) {
+export function renderLogContext(request, entries, typeLabels, sourceLabels) {
   var context = request && request.context;
   var container = request && request.container;
   if (!context || context.type !== 'message' || !container) return false;
@@ -62,14 +62,17 @@ export function renderLogContext(request, entries, typeLabels) {
 
   var labels = typeLabels || {};
   var category = labels[entry.type] || labels.info || '系统';
+  var sources = sourceLabels || {};
+  var sourceLabel = sources[entry.source] || sources.system || '系统';
   var signal = SIGNAL_BY_TYPE[entry.type] || '常规记录';
   container.innerHTML =
     '<article class="workspace-context-card workspace-context-card--message">' +
       '<div class="workspace-context-hero"><span aria-hidden="true">◉</span><div><small>' +
-        _escapeHtml(category) + ' · ' + _escapeHtml(_formatDateTime(entry.time)) +
+        _escapeHtml(sourceLabel) + ' · ' + _escapeHtml(category) + ' · ' + _escapeHtml(_formatDateTime(entry.time)) +
         '</small><h3>通讯记录</h3></div></div>' +
       '<p>' + _escapeHtml(entry.text) + '</p>' +
       '<div class="workspace-context-metrics" role="list">' +
+        '<span role="listitem"><small>来源</small><strong>' + _escapeHtml(sourceLabel) + '</strong></span>' +
         '<span role="listitem"><small>分类</small><strong>' + _escapeHtml(category) + '</strong></span>' +
         '<span role="listitem"><small>信号</small><strong>' + _escapeHtml(signal) + '</strong></span>' +
       '</div>' +
@@ -80,7 +83,7 @@ export function renderLogContext(request, entries, typeLabels) {
   return { title: '消息检查' };
 }
 
-export function renderLogDetail(request, entries, typeLabels) {
+export function renderLogDetail(request, entries, typeLabels, sourceLabels) {
   var detail = request && request.detail;
   var container = request && request.container;
   if (!detail || detail.type !== 'logs-message' || !container) return false;
@@ -89,6 +92,8 @@ export function renderLogDetail(request, entries, typeLabels) {
   var entry = match.entry;
   var labels = typeLabels || {};
   var category = labels[entry.type] || labels.info || '系统';
+  var sources = sourceLabels || {};
+  var sourceLabel = sources[entry.source] || sources.system || '系统';
   var signal = SIGNAL_BY_TYPE[entry.type] || '常规记录';
   var receivedAt = _formatDateTime(entry.time);
   var view = buildWorkspaceObjectDetailView({
@@ -97,22 +102,24 @@ export function renderLogDetail(request, entries, typeLabels) {
     kindLabel: '通讯记录',
     detailLabel: '消息详情',
     icon: ICON_BY_TYPE[entry.type] || '◉',
-    eyebrow: category + ' · ' + receivedAt,
+    eyebrow: sourceLabel + ' · ' + category + ' · ' + receivedAt,
     title: '通讯记录',
     description: entry.text || '空消息记录。',
     metrics: [
+      { label: '来源', value: sourceLabel },
       { label: '分类', value: category },
       { label: '信号', value: signal },
       { label: '接收时间', value: receivedAt },
       { label: '位置', value: (match.index + 1) + '/' + match.total },
     ],
     facts: [
+      { label: '事件来源', value: sourceLabel, detail: '来源标识：' + String(entry.source || 'system') },
       { label: '记录类型', value: category, detail: '内部类型：' + String(entry.type || 'info') },
       { label: '信号解释', value: signal, detail: signal === '风险警报' ? '需结合当前状态自行判断' : '不直接发布全局行动' },
       { label: '历史位置', value: '倒序第 ' + (match.index + 1) + ' 条', detail: '当前共有 ' + match.total + ' 条会话记录' },
       { label: '保存范围', value: '当前运行会话', detail: '日志不是存档资产，不参与存档导入导出' },
     ],
-    tags: [category, signal, '只读记录'],
+    tags: [sourceLabel, category, signal, '只读记录'],
     note: '该详情只解释已经发生的记录；后续行动、风险处理和全局下一步仍由行动引导统一发布。',
   });
   if (!view) return false;

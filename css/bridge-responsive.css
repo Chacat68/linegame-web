@@ -86,7 +86,7 @@
   }
 
   #market-overlay.workspace-surface--trade {
-    top: max(var(--ui-space-2), var(--ui-safe-top)) !important;
+    top: calc(var(--ui-header-height) + max(var(--ui-space-2), var(--ui-safe-top))) !important;
     right: max(var(--ui-space-3), var(--ui-safe-right)) !important;
     bottom: calc(
       var(--ui-nav-height) + var(--ui-space-5) + var(--ui-command-reserve) + var(--ui-safe-bottom)
@@ -234,7 +234,7 @@
   }
 
   #market-overlay.workspace-surface--trade {
-    top: max(var(--ui-space-2), var(--ui-safe-top)) !important;
+    top: calc(var(--ui-header-height) + max(var(--ui-space-2), var(--ui-safe-top))) !important;
     right: max(var(--ui-space-2), var(--ui-safe-right)) !important;
     bottom: calc(
       var(--ui-nav-height) + var(--ui-space-4) + var(--ui-command-reserve) + var(--ui-safe-bottom)
@@ -418,6 +418,10 @@
     gap: var(--ui-space-2);
   }
 
+  .workspace-terminal-shell:not(.workspace-terminal-shell--logs) .workspace-terminal-chrome {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+
   .workspace-terminal-title {
     font-size: 17px;
   }
@@ -429,6 +433,16 @@
 
   .workspace-terminal-close {
     grid-column: 2;
+    grid-row: 1;
+  }
+
+  .workspace-terminal-shell:not(.workspace-terminal-shell--logs) .workspace-context-toggle {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .workspace-terminal-shell:not(.workspace-terminal-shell--logs) .workspace-terminal-close {
+    grid-column: 3;
     grid-row: 1;
   }
 

@@ -18,6 +18,7 @@ import * as EventUI from '../ui/EventUI.js';
 import * as Dispatch from './DispatchController.js';
 import { EVENT_CONFIG } from '../data/constants.js';
 import { createGameActionRuntime } from './GameActionRuntime.js';
+import { normalizeLogMessage } from './LogMessage.js';
 import {
   hasBlockingSurfaceOpen,
   isBlockingSurfaceVisible,
@@ -155,8 +156,8 @@ export function createGameActionRuntimeFactory(context) {
             },
           },
           events: {
-            emitMessage: function (message) {
-              emitLog({ text: message.text, type: message.type });
+            emitMessage: function (message, source) {
+              emitLog(normalizeLogMessage(message, { source: source }));
             },
             emitAudio: emitAudio,
           },

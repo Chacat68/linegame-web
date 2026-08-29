@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { ACHIEVEMENTS } from '../js/data/achievements.js';
+import { ARCHIVE_COMMAND } from '../js/core/ArchiveCommand.js';
 import {
   AchievementUI,
   ArchiveExplorationUI,
@@ -52,21 +53,120 @@ describe('Archive terminal UI', function () {
 
     var diagnostics = getArchiveDiagnostics();
     expect(diagnostics).toEqual({
-      quest: { selectedAvailableQuestId: 'starter_first_trade' },
+      quest: {
+        selectedAvailableQuestId: 'starter_first_trade',
+        session: {
+          selectedAvailableQuestId: 'starter_first_trade',
+          selectionCount: 1,
+          resetCount: 0,
+        },
+        controller: expect.objectContaining({
+          activeContext: null,
+          bindCount: 0,
+          resetCount: 0,
+        }),
+      },
+      research: {
+        controller: expect.objectContaining({
+          activeContext: null,
+          bindCount: 0,
+          resetCount: 0,
+        }),
+      },
+      faction: {
+        controller: expect.objectContaining({
+          activeContext: null,
+          bindCount: 0,
+          resetCount: 0,
+        }),
+      },
+      achievement: {
+        controller: expect.objectContaining({
+          active: false,
+          bindCount: 0,
+          resetCount: 0,
+        }),
+      },
       exploration: {
         focus: { systemId: 'sol_prime', chainId: 'sol_prime_chain_derelict_depot' },
+        session: {
+          focus: { systemId: 'sol_prime', chainId: 'sol_prime_chain_derelict_depot' },
+          setCount: 1,
+          resetCount: 0,
+        },
+        controller: expect.objectContaining({
+          active: false,
+          bindCount: 0,
+          resetCount: 0,
+        }),
       },
       resetCount: expect.any(Number),
     });
     expect(Object.isFrozen(diagnostics)).toBe(true);
     expect(Object.isFrozen(diagnostics.quest)).toBe(true);
+    expect(Object.isFrozen(diagnostics.quest.session)).toBe(true);
+    expect(Object.isFrozen(diagnostics.quest.controller)).toBe(true);
+    expect(Object.isFrozen(diagnostics.research)).toBe(true);
+    expect(Object.isFrozen(diagnostics.research.controller)).toBe(true);
+    expect(Object.isFrozen(diagnostics.faction)).toBe(true);
+    expect(Object.isFrozen(diagnostics.faction.controller)).toBe(true);
+    expect(Object.isFrozen(diagnostics.achievement)).toBe(true);
+    expect(Object.isFrozen(diagnostics.achievement.controller)).toBe(true);
     expect(Object.isFrozen(diagnostics.exploration.focus)).toBe(true);
+    expect(Object.isFrozen(diagnostics.exploration.session)).toBe(true);
+    expect(Object.isFrozen(diagnostics.exploration.session.focus)).toBe(true);
+    expect(Object.isFrozen(diagnostics.exploration.controller)).toBe(true);
 
     var beforeResetCount = diagnostics.resetCount;
     var reset = resetArchiveRuntimeState();
     expect(reset).toEqual({
-      quest: { selectedAvailableQuestId: null },
-      exploration: { focus: null },
+      quest: {
+        selectedAvailableQuestId: null,
+        session: {
+          selectedAvailableQuestId: null,
+          selectionCount: 0,
+          resetCount: 1,
+        },
+        controller: expect.objectContaining({
+          activeContext: null,
+          bindCount: 0,
+          resetCount: 1,
+        }),
+      },
+      research: {
+        controller: expect.objectContaining({
+          activeContext: null,
+          bindCount: 0,
+          resetCount: 1,
+        }),
+      },
+      faction: {
+        controller: expect.objectContaining({
+          activeContext: null,
+          bindCount: 0,
+          resetCount: 1,
+        }),
+      },
+      achievement: {
+        controller: expect.objectContaining({
+          active: false,
+          bindCount: 0,
+          resetCount: 1,
+        }),
+      },
+      exploration: {
+        focus: null,
+        session: {
+          focus: null,
+          setCount: 0,
+          resetCount: 1,
+        },
+        controller: expect.objectContaining({
+          active: false,
+          bindCount: 0,
+          resetCount: 1,
+        }),
+      },
       resetCount: beforeResetCount + 1,
     });
   });
@@ -167,7 +267,7 @@ describe('Archive terminal UI', function () {
       },
     };
 
-    FactionUI.render(state);
+    FactionUI.render({ state: state });
 
     expect(container.innerHTML).toContain('archive-faction-console');
     expect(container.innerHTML).toContain('class="faction-relation-distribution" role="list" aria-label="派系关系分布"');
@@ -209,7 +309,7 @@ describe('Archive terminal UI', function () {
     };
 
     expect(function () {
-      QuestUI.render(state, function () {}, function () {}, {}, function () {});
+      QuestUI.render({ state: state, dispatchContext: {}, onCommand: function () {} });
     }).not.toThrow();
     expect(dispatchListenerCount).toBe(0);
 
@@ -225,6 +325,36 @@ describe('Archive terminal UI', function () {
     expect(container.innerHTML).toContain('class="quest-pick-list" role="list" aria-label="可接任务列表"');
     expect(container.innerHTML).toContain('<details class="quest-module quest-module-locked quest-locked-details"><summary>查看后续任务（5）</summary>');
     expect(container.innerHTML).toContain('type="button" class="btn-action quest-accept-btn"');
+  });
+
+  it('任务页真实点击只向 Archive typed command 端口发布请求', function () {
+    var container = createHtmlContainer();
+    var commands = [];
+    var state = createTestState({ quests: [], completedQuests: [] });
+    Quest.init(state);
+    GalaxyData.init(state);
+    globalThis.document = {
+      getElementById: function (id) { return id === 'quest-list' ? container : null; },
+    };
+    QuestUI.render({
+      state: state,
+      onCommand: function (command) { commands.push(command); },
+    });
+    var acceptButton = { disabled: false, dataset: { id: 'starter_first_trade' } };
+
+    container.onclick({
+      target: {
+        closest: function (selector) {
+          return selector === '.quest-accept-btn' ? acceptButton : null;
+        },
+      },
+    });
+
+    expect(commands).toEqual([{
+      type: ARCHIVE_COMMAND.ACCEPT_QUEST,
+      questId: 'starter_first_trade',
+    }]);
+    expect(Object.isFrozen(commands[0])).toBe(true);
   });
 
   it('任务页只展开当前焦点任务，并折叠其余路线和奖励详情', function () {
@@ -248,7 +378,7 @@ describe('Archive terminal UI', function () {
       },
     };
 
-    QuestUI.render(state, function () {}, function () {}, {}, function () {});
+    QuestUI.render({ state: state, dispatchContext: {}, onCommand: function () {} });
 
     expect(container.innerHTML.match(/class="quest-active-focus-details"/g)).toHaveLength(1);
     expect(container.innerHTML.match(/<details class="quest-active-details">/g)).toHaveLength(1);
@@ -286,7 +416,7 @@ describe('Archive terminal UI', function () {
       },
     };
 
-    QuestUI.render(state, function () {}, function () {}, {}, function () {});
+    QuestUI.render({ state: state, dispatchContext: {}, onCommand: function () {} });
 
     expect(container.innerHTML).not.toContain('<img src=x');
     expect(container.innerHTML).not.toContain('<script>');
@@ -320,7 +450,7 @@ describe('Archive terminal UI', function () {
       },
     };
 
-    ResearchUI.render(state, function () {});
+    ResearchUI.render({ state: state, onCommand: function () {} });
 
     expect(status.innerHTML).toContain('archive-research-console');
     expect(status.innerHTML).toContain('role="progressbar" aria-label="科技完成度"');

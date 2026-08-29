@@ -136,7 +136,7 @@ function createHarness(overrides) {
     services: {
       getActionRuntime: function () { return actionRuntime; },
       getGuidanceRuntime: function () { return guidance; },
-      getPersistenceController: function () { return { saveSlot: vi.fn(), loadSlot: vi.fn() }; },
+      getPersistenceController: function () { return { handleCommand: vi.fn() }; },
       getVictoryController: function () { return { choosePolicy: vi.fn() }; },
     },
     callbacks: callbacks,

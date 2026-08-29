@@ -106,13 +106,15 @@ describe('settings launcher ownership contract', function () {
 
   it('正式设置命令独占导出契约，数据面板不再展示同意开关', function () {
     const settingsSource = readFileSync(new URL('../js/core/SettingsManager.js', import.meta.url), 'utf8');
+    const modalControllerSource = readFileSync(new URL('../js/ui/SettingsModalController.js', import.meta.url), 'utf8');
     const mainSource = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
     const exportEffectSource = readFileSync(new URL('../js/core/UsageDataExportEffect.js', import.meta.url), 'utf8');
     const htmlSource = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 
-    expect(settingsSource).toContain('SETTINGS_COMMAND.EXPORT_USAGE_DATA');
+    expect(modalControllerSource).toContain('SETTINGS_COMMAND.EXPORT_USAGE_DATA');
     expect(settingsSource).not.toContain('buildUsageDataExport');
     expect(settingsSource).not.toContain('new Blob');
+    expect(settingsSource).not.toContain('document.');
     expect(mainSource).not.toContain('exportUsageDataFile');
     expect(mainSource).not.toContain('new Blob');
     expect(exportEffectSource).toContain('buildUsageDataExport');
@@ -214,11 +216,12 @@ describe('Settings.initSettingsModal', function () {
   });
 
   afterEach(function () {
+    Settings.dispose();
     globalThis.document = originalDocument;
     globalThis.confirm = originalConfirm;
   });
 
-  it('重复初始化后，控件只向最新 settings command port 发布', function () {
+  it('重复初始化后，控件只向最新 command port 发布且不接管外部 launcher', function () {
     var elements = {
       'settings-btn': createFakeElement(),
       'settings-modal': createFakeElement(),
@@ -289,7 +292,8 @@ describe('Settings.initSettingsModal', function () {
 
     elements['settings-btn'].dispatchEvent('click', { preventDefault: function () {} });
     expect(firstOpenCount).toBe(0);
-    expect(secondOpenCount).toBe(1);
+    expect(secondOpenCount).toBe(0);
+    expect(elements['settings-btn'].listenerCount('click')).toBe(0);
   });
 
   it('音效控件会写入设置并更新音量标签', function () {
@@ -480,9 +484,10 @@ describe('Settings.initSettingsModal', function () {
     expect(displayTab.getAttribute('tabindex')).toBe('0');
     expect(gameTab.getAttribute('tabindex')).toBe('-1');
     expect(dataTab.getAttribute('tabindex')).toBe('-1');
-    expect(gameTab.listenerCount('keydown')).toBe(1);
+    expect(gameTab.listenerCount('keydown')).toBe(0);
+    expect(typeof gameTab.onkeydown).toBe('function');
 
-    gameTab.dispatchEvent('keydown', {
+    gameTab.onkeydown({
       key: 'Enter',
       preventDefault: function () {},
     });
@@ -495,7 +500,7 @@ describe('Settings.initSettingsModal', function () {
     expect(gamePanel.getAttribute('aria-hidden')).toBe('false');
     expect(displayPanel.getAttribute('aria-hidden')).toBe('true');
 
-    gameTab.dispatchEvent('keydown', {
+    gameTab.onkeydown({
       key: 'ArrowRight',
       preventDefault: function () {},
     });
@@ -507,7 +512,7 @@ describe('Settings.initSettingsModal', function () {
     expect(dataPanel.getAttribute('tabindex')).toBe('0');
     expect(gamePanel.getAttribute('tabindex')).toBe('-1');
 
-    displayTab.dispatchEvent('click');
+    displayTab.onclick();
     expect(elements['settings-tab-display'].checked).toBe(true);
     expect(displayTab.getAttribute('aria-selected')).toBe('true');
     expect(displayTab.getAttribute('tabindex')).toBe('0');
