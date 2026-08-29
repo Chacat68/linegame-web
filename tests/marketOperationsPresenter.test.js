@@ -239,12 +239,17 @@ describe('MarketOperationsPresenter', function () {
 
   it('MarketUI 只组合经营 presenter，不再持有贸易站 HTML 投影', function () {
     var marketUi = readFileSync('js/ui/MarketUI.js', 'utf8');
+    var controller = readFileSync('js/ui/MarketFinanceController.js', 'utf8');
     var presenter = readFileSync('js/ui/MarketOperationsPresenter.js', 'utf8');
 
+    expect(marketUi).toContain("from './MarketFinanceController.js'");
     expect(marketUi).toContain("from './MarketOperationsPresenter.js'");
-    expect(marketUi).toContain('_renderMarketOperationsWorkspace({');
+    expect(marketUi).not.toContain('_renderMarketOperationsWorkspace({');
+    expect(controller).toContain("from './MarketOperationsPresenter.js'");
+    expect(controller).toContain('renderOperationsWorkspace({');
     expect(marketUi).not.toContain('function _renderOperationsCommandDeck');
     expect(marketUi).not.toContain('function _renderLocalOperationsPanel');
+    expect(marketUi).not.toContain('function _bindMarketFinanceCommands');
     expect(marketUi).not.toContain('class="trade-station-card-list trade-station-card-list--owned"');
     expect(presenter).toContain('export function renderMarketOperationsWorkspace');
     expect(presenter).toContain('export function updateMarketOperationsSortModes');

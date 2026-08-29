@@ -124,7 +124,11 @@ describe('MarketUI guided focus', function () {
     const goodsControllerJs = readFileSync('js/ui/MarketGoodsController.js', 'utf8');
     const selectionControllerJs = readFileSync('js/ui/MarketSelectionController.js', 'utf8');
     const chartControllerJs = readFileSync('js/ui/MarketChartController.js', 'utf8');
-    const js = marketUiJs + '\n' + navigationJs + '\n' + overviewPresenterJs + '\n' + overviewControllerJs + '\n' + goodsControllerJs + '\n' + selectionControllerJs + '\n' + chartControllerJs;
+    const financeControllerJs = readFileSync('js/ui/MarketFinanceController.js', 'utf8');
+    const commodityControllerJs = readFileSync('js/ui/MarketCommodityController.js', 'utf8');
+    const spotControllerJs = readFileSync('js/ui/MarketSpotController.js', 'utf8');
+    const chromeControllerJs = readFileSync('js/ui/MarketChromeController.js', 'utf8');
+    const js = marketUiJs + '\n' + navigationJs + '\n' + overviewPresenterJs + '\n' + overviewControllerJs + '\n' + goodsControllerJs + '\n' + selectionControllerJs + '\n' + chartControllerJs + '\n' + financeControllerJs + '\n' + commodityControllerJs + '\n' + spotControllerJs + '\n' + chromeControllerJs;
     const spotJs = readFileSync('js/ui/MarketSpotPresenter.js', 'utf8');
     const goodsJs = readFileSync('js/ui/MarketGoodsPresenter.js', 'utf8');
     const marketEntryJs = readFileSync('js/ui/MarketWorkspaceEntryController.js', 'utf8');
@@ -142,14 +146,27 @@ describe('MarketUI guided focus', function () {
     expect(marketUiJs).toContain("from './MarketGoodsController.js'");
     expect(marketUiJs).toContain("from './MarketSelectionController.js'");
     expect(marketUiJs).toContain("from './MarketChartController.js'");
+    expect(marketUiJs).toContain("from './MarketFinanceController.js'");
+    expect(marketUiJs).toContain("from './MarketCommodityController.js'");
+    expect(marketUiJs).toContain("from './MarketSpotController.js'");
+    expect(marketUiJs).toContain("from './MarketChromeController.js'");
     expect(marketUiJs).not.toContain('function _renderMarketWorkspaceTabs');
     expect(marketUiJs).not.toContain('function _renderMarketSubworkspace');
     expect(marketUiJs).not.toContain('function _renderOverviewTable');
     expect(marketUiJs).not.toContain('goodsListEl.onclick = function');
     expect(marketUiJs).not.toContain('function _renderMarketDashboard');
+    expect(marketUiJs).not.toContain('container.onclick = function');
+    expect(marketUiJs).not.toContain('document.getElementById');
+    expect(marketUiJs).not.toContain('document.querySelector');
     expect(goodsControllerJs).toContain('goodsListEl.onclick = function');
     expect(goodsControllerJs).toContain('selection.focus({');
     expect(chartControllerJs).toContain('selection.focus({');
+    expect(financeControllerJs).toContain('container.onclick = function');
+    expect(commodityControllerJs).toContain('container.innerHTML = view.html');
+    expect(spotControllerJs).toContain('goods.render({');
+    expect(spotControllerJs).toContain('chart.render({');
+    expect(chromeControllerJs).toContain('navigation.renderWorkspaceTabs(input.progression)');
+    expect(chromeControllerJs).toContain('card.scrollIntoView({ block:');
     expect(marketEntryJs).toContain("icon.className = 'market-galaxy-btn-icon'");
     expect(marketEntryJs).toContain("label.className = 'market-galaxy-btn-label'");
     expect(marketEntryJs).toContain("button.setAttribute('aria-pressed'");
@@ -1123,7 +1140,7 @@ describe('MarketUI guided focus', function () {
       dataset: {
         action: 'market-batch-set-sort',
         batchSortScope: 'investment',
-        batchSortMode: 'system',
+        batchSortMode: 'name',
       },
       parentElement: operationsPane,
       disabled: false,
@@ -1654,6 +1671,20 @@ describe('MarketUI guided focus', function () {
       'market-capital',
       'market-operations',
     ]);
+    expect(afterFullRender.chrome).toEqual({
+      renderCount: 1,
+      showDetailCount: 0,
+      guideClearCount: 0,
+      guideRevealRequestCount: 0,
+      guideRevealSuccessCount: 0,
+      lastSystemId: 'sol_prime',
+      lastMarketMode: 'open',
+      lastIsCurrentSystem: true,
+      lastDetailSystemId: null,
+      lastDetailMarketMode: null,
+      lastGuideGoodId: null,
+      lastGuideTradeAction: null,
+    });
     expect(afterFullRender.overview).toEqual(expect.objectContaining({
       tableRenderCount: 1,
       controlBindCount: 1,
@@ -1696,6 +1727,43 @@ describe('MarketUI guided focus', function () {
       lastMarketMode: 'open',
     }));
     expect(afterFullRender.chart.lastSnapshotCount).toBeGreaterThan(0);
+    expect(afterFullRender.spot).toEqual(expect.objectContaining({
+      renderCount: 1,
+      shellRenderCount: 1,
+      subworkspaceBindCount: 1,
+      overviewRenderCount: 1,
+      goodsRenderCount: 1,
+      chartRenderCount: 1,
+      analysisRenderCount: 1,
+      lastFocusedGoodId: 'food',
+      lastSystemId: 'sol_prime',
+      lastMarketMode: 'open',
+    }));
+    expect(afterFullRender.spot.lastGoodsCount).toBeGreaterThan(0);
+    expect(afterFullRender.spot.lastSnapshotCount).toBeGreaterThan(0);
+    expect(afterFullRender.finance).toEqual({
+      capitalRenderCount: 1,
+      operationsRenderCount: 1,
+      capitalBindCount: 1,
+      operationsBindCount: 1,
+      sortChangeCount: 0,
+      commandPublishCount: 0,
+      commerceSnapshotResolveCount: 1,
+      lastCommandType: null,
+      lastSortScope: null,
+      lastSortMode: null,
+      lastSystemId: 'sol_prime',
+      lastRegion: 'operations',
+    });
+    expect(afterFullRender.commodity).toEqual({
+      contextRenderCount: 0,
+      detailRenderCount: 0,
+      rejectedRenderCount: 0,
+      lastGoodId: null,
+      lastSystemId: null,
+      lastMarketMode: null,
+      lastSurface: null,
+    });
 
     MarketUI.renderOperations({
       state: state,
@@ -1708,10 +1776,21 @@ describe('MarketUI guided focus', function () {
     expect(afterOperations.renderCounts['market-operations']).toBe(afterFullRender.renderCounts['market-operations'] + 1);
     expect(afterOperations.renderCounts['market-spot']).toBe(afterFullRender.renderCounts['market-spot']);
     expect(afterOperations.lastRenderedRegions).toEqual(['market-operations']);
+    expect(afterOperations.chrome).toEqual(afterFullRender.chrome);
     expect(afterOperations.overview).toEqual(afterFullRender.overview);
     expect(afterOperations.goods).toEqual(afterFullRender.goods);
     expect(afterOperations.selection).toEqual(afterFullRender.selection);
     expect(afterOperations.chart).toEqual(afterFullRender.chart);
+    expect(afterOperations.spot).toEqual(afterFullRender.spot);
+    expect(afterOperations.finance).toEqual(expect.objectContaining({
+      capitalRenderCount: 1,
+      operationsRenderCount: 2,
+      capitalBindCount: 1,
+      operationsBindCount: 2,
+      commerceSnapshotResolveCount: 2,
+      lastSystemId: 'sol_prime',
+      lastRegion: 'operations',
+    }));
 
     MarketUI.setFocusedMarketGood('sol_prime', 'open', 'water');
     MarketUI.setMarketWorkspaceFocus({ workspaceId: 'capital', subworkspaceId: 'local' });
@@ -1738,6 +1817,20 @@ describe('MarketUI guided focus', function () {
       lastGalaxyId: null,
       lastPriceMode: null,
       lastRowCount: 0,
+    });
+    expect(reset.chrome).toEqual({
+      renderCount: 0,
+      showDetailCount: 0,
+      guideClearCount: 0,
+      guideRevealRequestCount: 0,
+      guideRevealSuccessCount: 0,
+      lastSystemId: null,
+      lastMarketMode: null,
+      lastIsCurrentSystem: null,
+      lastDetailSystemId: null,
+      lastDetailMarketMode: null,
+      lastGuideGoodId: null,
+      lastGuideTradeAction: null,
     });
     expect(reset.goods).toEqual({
       renderCount: 0,
@@ -1772,6 +1865,43 @@ describe('MarketUI guided focus', function () {
       lastSystemId: null,
       lastMarketMode: null,
       lastSnapshotCount: 0,
+    });
+    expect(reset.spot).toEqual({
+      renderCount: 0,
+      shellRenderCount: 0,
+      subworkspaceBindCount: 0,
+      overviewRenderCount: 0,
+      goodsRenderCount: 0,
+      chartRenderCount: 0,
+      analysisRenderCount: 0,
+      lastFocusedGoodId: null,
+      lastSystemId: null,
+      lastMarketMode: null,
+      lastGoodsCount: 0,
+      lastSnapshotCount: 0,
+    });
+    expect(reset.finance).toEqual({
+      capitalRenderCount: 0,
+      operationsRenderCount: 0,
+      capitalBindCount: 0,
+      operationsBindCount: 0,
+      sortChangeCount: 0,
+      commandPublishCount: 0,
+      commerceSnapshotResolveCount: 0,
+      lastCommandType: null,
+      lastSortScope: null,
+      lastSortMode: null,
+      lastSystemId: null,
+      lastRegion: null,
+    });
+    expect(reset.commodity).toEqual({
+      contextRenderCount: 0,
+      detailRenderCount: 0,
+      rejectedRenderCount: 0,
+      lastGoodId: null,
+      lastSystemId: null,
+      lastMarketMode: null,
+      lastSurface: null,
     });
     expect(reset.resetCount).toBe(before.resetCount + 1);
     expect(MarketUI.getFocusedMarketGood('sol_prime', 'open')).toBeNull();

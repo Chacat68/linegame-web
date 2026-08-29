@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import {
   buildMarketCommodityContextView,
   buildMarketCommodityDetailView,
@@ -76,5 +77,18 @@ describe('MarketCommodityDetailPresenter', function () {
     expect(detail.html).toContain('公开市场 / 黑市');
     expect(buildMarketCommodityContextView({})).toBe(null);
     expect(buildMarketCommodityDetailView({ good: hostile.good })).toBe(null);
+  });
+
+  it('MarketUI 只转发商品 Context/L4 controller，不再重复解析价格与容器', function () {
+    var marketUi = readFileSync('js/ui/MarketUI.js', 'utf8');
+    var controller = readFileSync('js/ui/MarketCommodityController.js', 'utf8');
+
+    expect(marketUi).toContain("from './MarketCommodityController.js'");
+    expect(marketUi).not.toContain("from './MarketCommodityDetailPresenter.js'");
+    expect(marketUi).toContain('return _marketCommodityController.renderContextInspector(request)');
+    expect(marketUi).toContain('return _marketCommodityController.renderWorkspaceDetail(request)');
+    expect(marketUi).not.toContain('container.innerHTML = view.html');
+    expect(controller).toContain("from './MarketCommodityDetailPresenter.js'");
+    expect(controller).toContain('container.innerHTML = view.html');
   });
 });

@@ -79,6 +79,7 @@ describe('MarketCommand', function () {
     var coordinator = readFileSync('js/ui/GameUiCoordinator.js', 'utf8');
     var marketUi = readFileSync('js/ui/MarketUI.js', 'utf8');
     var goodsController = readFileSync('js/ui/MarketGoodsController.js', 'utf8');
+    var financeController = readFileSync('js/ui/MarketFinanceController.js', 'utf8');
 
     expect(gameManager).toContain("from './GameUiApplicationRuntime.js'");
     expect(uiApplication).toContain('onCommand: market.handleCommand');
@@ -92,11 +93,13 @@ describe('MarketCommand', function () {
     expect(marketUi).toContain('export function renderOperations(request)');
     expect(marketUi).not.toContain('financeActions');
     expect(marketUi).not.toContain('capitalContainer, operationsContainer');
-    expect(marketUi).toContain('function _bindMarketFinanceCommands(container, context, options)');
-    expect(marketUi).toContain('container.onclick = function');
+    expect(marketUi).not.toContain('function _bindMarketFinanceCommands');
+    expect(marketUi).not.toContain('container.onclick = function');
     expect(marketUi).toContain('publishCommand: _publishMarketCommand');
     expect(marketUi).not.toContain('quickTradeDockEl.onclick = function');
     expect(goodsController).toContain('quickTradeDockEl.onclick = function');
     expect(goodsController).toContain('opts.publishCommand(request.onCommand, type, payload)');
+    expect(financeController).toContain('container.onclick = function');
+    expect(financeController).toContain('opts.publishCommand(request.onCommand, type, payload)');
   });
 });

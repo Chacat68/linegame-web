@@ -1,5 +1,5 @@
 // js/ui/MarketOperationsPresenter.js — 贸易站本地经营、商网总览与批量管理投影
-// 只构造 view model / HTML；workspace 状态与 command 执行仍由上层拥有。
+// 只构造 view model / HTML；workspace 状态与 command 委托由 MarketFinanceController 拥有。
 
 import { TRADE_STATION_STRATEGIES } from '../data/tradeStations.js';
 import { findSystem } from '../data/systems.js';

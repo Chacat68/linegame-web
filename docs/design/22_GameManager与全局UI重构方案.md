@@ -61,15 +61,19 @@
 | `WorkspaceDetailSurface.js` | 380 行 | 已成为五工作区共享的 L4 非阻塞详情层，拥有不可变 detail key、renderer registry、逐层 Escape、焦点恢复和被覆盖 Context 的 inert 处理；地图探索档案是首个真实两层 adapter |
 | `MapGalaxyHubPresenter.js` | 211 行 | 独占星系总览解锁/访问/贸易线索模型、HTML 和跃迁 intent；不绑定 DOM、不修改 state |
 | `MapViewStateController.js` | 157 行 | 独占星系/星球视图、当前查看星系和悬停目标；所有写入经单一 controller，并始终读取最新 session state |
-| `MarketUI.js` | 重构前 3,606 行；当前 689 行 | 图表、现货、商品、商品详情、资金、贸易站、解锁进度、价格总览、商品选择、商品/图表交互、一级/二级菜单和可丢弃工作区会话已迁出；现在主要持有四个具名 render port、资金/经营协调和共享 typed command 端口 |
+| `MarketUI.js` | 重构前 3,606 行；当前 337 行 | 图表、现货组合、商品、商品详情、资金、贸易站、解锁进度、价格总览、商品/图表/资金/经营交互、商品 Context/L4 状态解析、顶部 Chrome/详情模式/引导焦点、一级/二级菜单和可丢弃工作区会话已迁出；现在主要持有四个具名 render port、规范化 render context 和共享 typed command 端口注入 |
 | `MarketExperienceRoute.js` | 205 行 | 无 DOM 地把公司等级、历史资产、贸易站和黑市权限投影为稳定的 workspace/subworkspace 解锁路线 |
 | `MarketOverviewPresenter.js` | 145 行 | 无 DOM 地生成地点访问/研究解锁、买卖价、热度、未知报价和安全转义后的表头/行投影 |
 | `MarketOverviewController.js` | 170 行 | 独占价格表 DOM、地点打开委托、买卖价按钮、键盘漫游与冻结 diagnostics；未知报价行不绑定动作 |
 | `MarketGoodsController.js` | 236 行 | 独占商品工具栏、列表、快速交易、Enter/Space intent 与 typed command 转换；焦点统一提交给 Selection 端口并公开冻结 diagnostics |
 | `MarketSelectionController.js` | 152 行 | 无 DOM 地统一商品焦点校验/回退、商品卡/行情榜来源、Context 去重和 `market-spot` 局部重绘请求；Session 仍是数据 owner |
 | `MarketChartController.js` | 150 行 | 独占行情仪表板、主 K 线、排行 intent、统计窗口局部重绘和冻结 diagnostics；不直接写商品 Context |
+| `MarketFinanceController.js` | 256 行 | 独占资金/贸易站稳定容器、二级菜单绑定、10 类 typed command、经营排序局部重绘、单周期 Commerce 快照和冻结 diagnostics |
+| `MarketSpotController.js` | 235 行 | 独占公开/黑市商品快照、现货外壳、Overview/Goods/Chart/Analysis 组合、远程地点与局部重绘端口 |
+| `MarketChromeController.js` | 197 行 | 独占顶部 Chrome、详情地点/市场模式、引导高亮/滚动/动作落点和安全动态 HTML；公开冻结 diagnostics |
 | `MarketWorkspaceNavigation.js` | 368 行 | 独占一级/二级菜单 HTML、锁定回退、roving tabindex、ARIA、方向键和程序化焦点；只通过注入的 Session/商品聚焦端口工作 |
 | `MarketCommodityDetailPresenter.js` | 111 行 | 纯生成商品 Context 摘要与 L4 详情，统一转义领域字段；买卖确认仍只属于商业工作区 |
+| `MarketCommodityController.js` | 141 行 | 独占商品 Context/L4 的地点、市场模式、价格、供需、库存、现金与容器解析，公开冻结 diagnostics |
 | `FleetUI.js` | 1,236 行 | 已移除反向全局主控依赖；公开入口使用请求对象 + 单一 typed command，机库、采购、船员、改装/保养、派遣和舰船详情投影均已迁出；协调层保留工作区选择、弹层、焦点、确认与 command 发布 |
 | `FleetShipDetailPresenter.js` | 105 行 | 纯生成舰船 Context 摘要与 L4 运行详情，汇总船况、贸易循环、成本和配置；领域动作仍只属于舰队工作区 |
 | `WorkspaceObjectDetailPresenter.js` | 100 行 | 纯生成任务、科技、派系、成就、探索报告与通讯日志的共享 L4 事实结构并统一转义；各领域 UI 保留 selector 和状态语义 |
@@ -772,10 +776,13 @@ Escape **不得切换 canonical workspace 或默认返回地图**，也不得关
 | `FleetModPresenter` | **改装/保养详情 presenter 已接入** | 结构模块、功能组件、维护信号、港口保养、推荐焦点与资产处置投影已从 `FleetUI` 迁出；升级/安装/拆卸/保养/售船使用单一内容根委托，改装焦点和危险售船确认已进入 Fleet diagnostics | 将具体组件列表选择进一步模型化 |
 | `FleetDispatchPresenter` | **自动跑商 presenter 已接入** | 策略解析/验证、市场与商品选项、路线估算、风险/阻塞、推荐匹配、摘要和主 CTA 状态已从 `FleetUI` 迁出；路线草案、策略、展开态、有效性和内联/阻塞 surface mode 已进入只读 Fleet diagnostics，关闭、reset 与 Feature dispose 统一清理 | 将表单草案抽为独立纯会话模型 |
 | `MarketChartPresenter` + `MarketChartController` | **行情投影与交互 owner 已接入** | Presenter 生成价格历史、蜡烛/均线、公开/黑市快照、迷你图与主 K 线；Controller 独占仪表板/K 线渲染、排行 intent 与统计窗口局部重绘，冻结 diagnostics 记录两个视图、焦点、区间和最后快照。排行焦点经共享 Selection 提交，不再由 `MarketUI` 写 Context | 将图表渲染结果进一步拆成纯 view model 与 DOM adapter |
-| `MarketSpotPresenter` | **现货、行情摘要与黑市投影边界已接入** | 价格热度与交易信号、快速交易摘要、商品工具栏、分析面板、行情地点事实、黑市风险和灰市目录已迁出 `MarketUI`；快速交易通过单一容器委托发布 typed command，presenter 不绑定事件、不持有 workspace 状态 | 将行情排行的局部选择状态纳入 workspace diagnostics |
+| `MarketSpotPresenter` + `MarketSpotController` | **现货投影与组合 owner 已接入** | Presenter 纯生成价格热度与交易信号、快速交易摘要、商品工具栏、分析面板、行情地点事实、黑市风险和灰市目录；Controller 统一构造公开/黑市商品快照并按外壳→Overview→Goods→Chart→Analysis 顺序组合，远程地点和 `market-spot` 重绘通过显式端口返回 `MarketUI`，冻结 diagnostics 记录各子区与最后快照 | 将 Spot 数据解析进一步抽成只读 view model selector |
+| `MarketChromeController` | **顶部 Chrome 与引导焦点 owner 已接入** | 独占工作区 Tab、详情地点/市场模式、引导高亮/滚动和买卖动作落点；动态地点字段统一转义，Navigation 通过延迟注入端口解除初始化环，冻结 diagnostics 经 `MarketUI` 暴露 | 仅在 Chrome 状态继续扩张时再拆纯 view model，避免过度碎片化 |
 | `MarketGoodsPresenter` + `MarketGoodsController` + `MarketSelectionController` | **商品投影、交互与共享选择 owner 已接入** | Presenter 纯生成价格/库存/供需/热度模型、公开/黑市卡片、远程只读、补给和安全 HTML；Goods Controller 独占工具栏、列表、快速交易、键盘 intent 与买卖/补给/航点 command；Selection Controller 统一商品卡/行情榜焦点、Context 来源去重和 `market-spot` 重绘。三类 diagnostics 均经 `MarketUI` 暴露 | 将程序化 `setFocusedMarketGood` 也改为带来源的正式 selection request |
-| `MarketCapitalPresenter` | **资金结构与经营贷款投影边界已接入** | 可用现金、贷款余额、站点投资只读汇总、信用分、现金 runway、贷款报价和偿还 command 标记已迁出 `MarketUI`；资金容器委托发布 typed loan command，资金页不再冒充站点投资操作入口 | 将资金模型纳入 workspace diagnostics |
-| `MarketOperationsPresenter` | **贸易站经营与批量计划投影边界已接入** | 本地经营状态、商网总览、候选情报、已建站列表、投资/升级/策略批量排序和 command 标记已迁出 `MarketUI`；经营容器委托发布 typed operations command，排序状态仍由纯函数局部更新 | 将经营模型和排序状态纳入 workspace diagnostics |
+| `MarketCapitalPresenter` | **资金结构与经营贷款投影边界已接入** | 可用现金、贷款余额、站点投资只读汇总、信用分、现金 runway、贷款报价和偿还 command 标记已迁出 `MarketUI`；资金页不再冒充站点投资操作入口 | 将资金投影进一步拆成纯 view model 与 HTML adapter |
+| `MarketOperationsPresenter` | **贸易站经营与批量计划投影边界已接入** | 本地经营状态、商网总览、候选情报、已建站列表、投资/升级/策略批量排序和 command 标记已迁出 `MarketUI`；排序规则由纯函数更新 | 将经营投影进一步拆成纯 view model 与 HTML adapter |
+| `MarketFinanceController` | **资金/经营交互 owner 已接入** | 独占两个稳定容器、二级菜单绑定、贷款/投资/建站/升级/策略等 10 类 typed command、经营排序局部重绘与按完整渲染周期共享的 Commerce 快照；重复/非法排序为 no-op，冻结 diagnostics 经 `MarketUI` 暴露 | 将资金与经营模型摘要纳入只读 diagnostics，不泄漏领域可变对象 |
+| `MarketCommodityDetailPresenter` + `MarketCommodityController` | **商品 Context/L4 投影与状态解析 owner 已接入** | Presenter 纯生成摘要/L4 安全 HTML；Controller 统一解析当前市场地点、公开/黑市价格、供需、库存与现金并写入传入容器，失败请求与最后 surface 进入冻结 diagnostics。`MarketUI` 只保留兼容导出转发 | 将商品详情价格模型抽成可复用只读 selector |
 | `MarketWorkspaceSession` | **无 DOM 的市场会话所有权已接入** | 工作区/子页、当前市场上下文、按地点隔离的商品焦点与图表区间、价格模式、经营排序和解锁投影已从 `MarketUI` 迁出；独立实例、冻结 diagnostics 与 reset 边界均有单测 | 将纯会话端口进一步拆分为类型化的选择/排序操作 |
 | `MarketExperienceRoute` + `MarketWorkspaceNavigation` | **解锁模型与菜单交互 owner 已接入** | 公司等级/历史资产/贸易站/黑市权限只在纯 route 中形成进度投影；一级/二级菜单 HTML、锁定回退、键盘漫游、ARIA、HTML 转义和程序化焦点统一由 Navigation 通过 Session 端口协调。`MarketUI` 保留公开兼容导出 | 将菜单/选择 diagnostics 汇入顶层 UI runtime |
 | `MarketOverviewPresenter` + `MarketOverviewController` | **各地价格模型与表格交互 owner 已接入** | Presenter 纯生成访问权限、研究解锁、买卖价、热度、未知报价和安全 HTML；Controller 独占表格节点、地点打开、价格口径按钮与方向键，冻结 diagnostics 记录重绘/绑定/切换/最后行数并经 `MarketUI` 暴露。未知报价行使用默认光标且不绑定动作；`MarketUI` 由 1,001 行降至 839 行 | 把 Overview 与 Goods diagnostics 汇入顶层 UI runtime 的统一对象视图 |

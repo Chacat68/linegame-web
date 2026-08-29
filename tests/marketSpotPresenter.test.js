@@ -241,12 +241,19 @@ describe('MarketSpotPresenter', function () {
   it('MarketUI 只消费现货 presenter，不再持有整块 HTML 投影实现', function () {
     var marketUi = readFileSync('js/ui/MarketUI.js', 'utf8');
     var presenter = readFileSync('js/ui/MarketSpotPresenter.js', 'utf8');
+    var controller = readFileSync('js/ui/MarketSpotController.js', 'utf8');
 
-    expect(marketUi).toContain("from './MarketSpotPresenter.js'");
+    expect(marketUi).toContain("from './MarketSpotController.js'");
+    expect(marketUi).not.toContain("from './MarketSpotPresenter.js'");
+    expect(marketUi).not.toContain('function _resolveMarketSpotData');
     expect(marketUi).not.toContain('function _renderSpotTradeSection');
     expect(marketUi).not.toContain('function _renderAnalysisPanel');
     expect(marketUi).not.toContain('function _renderBlackMarketRiskPanel');
     expect(marketUi).not.toContain('class="market-quick-trade-card"');
+    expect(controller).toContain("from './MarketSpotPresenter.js'");
+    expect(controller).toContain('overview.render({');
+    expect(controller).toContain('goods.render({');
+    expect(controller).toContain('chart.render({');
     expect(presenter).toContain('export function renderSpotTradeSection');
     expect(presenter).toContain('export function renderBlackMarketSection');
   });

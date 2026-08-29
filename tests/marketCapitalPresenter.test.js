@@ -186,11 +186,16 @@ describe('MarketCapitalPresenter', function () {
 
   it('MarketUI 只组合资金 presenter，不再持有贷款 HTML 投影', function () {
     var marketUi = readFileSync('js/ui/MarketUI.js', 'utf8');
+    var controller = readFileSync('js/ui/MarketFinanceController.js', 'utf8');
     var presenter = readFileSync('js/ui/MarketCapitalPresenter.js', 'utf8');
 
-    expect(marketUi).toContain("from './MarketCapitalPresenter.js'");
+    expect(marketUi).toContain("from './MarketFinanceController.js'");
+    expect(marketUi).not.toContain("from './MarketCapitalPresenter.js'");
+    expect(controller).toContain("from './MarketCapitalPresenter.js'");
+    expect(controller).toContain('renderCapitalWorkspace({');
     expect(marketUi).not.toContain('function _renderFocusedCapitalOverview');
     expect(marketUi).not.toContain('function _renderFocusedLoanGuard');
+    expect(marketUi).not.toContain('container.onclick = function');
     expect(marketUi).not.toContain('aria-label="未结清贷款列表"');
     expect(presenter).toContain('export function buildMarketCapitalModel');
     expect(presenter).toContain('export function renderMarketCapitalWorkspace');

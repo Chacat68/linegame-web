@@ -1,5 +1,5 @@
 // js/ui/MarketCapitalPresenter.js — 市场资金工作区的无状态视图投影
-// 资金页拥有现金结构与经营贷款；站点投资动作归贸易站工作区所有。
+// 资金页拥有现金结构与经营贷款；容器和命令委托由 MarketFinanceController 协调。
 
 import { findSystem as findSystemDefault } from '../data/systems.js';
 import * as Commerce from '../systems/commerce/CommerceFacade.js';
