@@ -1,0 +1,61 @@
+/* ============================================================
+   Bridge OS · Starmap Controls
+   Active map utilities only. Legacy rail and 3D toggle are removed.
+   ============================================================ */
+
+.starmap-map-tools {
+  position: absolute;
+  z-index: var(--ui-z-hud);
+  top: max(var(--ui-space-4), var(--ui-safe-top));
+  left: max(var(--ui-space-4), var(--ui-safe-left));
+  display: flex;
+  align-items: center;
+  gap: var(--ui-space-2);
+  pointer-events: auto;
+}
+
+.starmap-map-tool {
+  display: inline-flex;
+  min-height: var(--ui-control-lg);
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 var(--ui-space-4);
+  border: 1px solid var(--ui-line-default);
+  border-radius: 999px;
+  color: var(--ui-text-secondary);
+  background: rgba(3, 13, 22, 0.84);
+  box-shadow: var(--ui-shadow-card);
+  font-size: 11px;
+  font-weight: 720;
+  letter-spacing: 0.035em;
+  backdrop-filter: blur(16px);
+}
+
+.starmap-map-tool:hover,
+.starmap-map-tool[aria-expanded="true"] {
+  border-color: var(--ui-line-strong);
+  color: var(--ui-accent-strong);
+  background: rgba(10, 36, 52, 0.92);
+}
+
+@media (max-width: 620px) {
+  .starmap-map-tools {
+    top: max(var(--ui-space-2), var(--ui-safe-top));
+    right: max(var(--ui-space-2), var(--ui-safe-right));
+    left: max(var(--ui-space-2), var(--ui-safe-left));
+    justify-content: space-between;
+  }
+
+  .starmap-map-tool {
+    min-height: 38px;
+    padding: 0 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .starmap-map-tool {
+    transition: none !important;
+    animation: none !important;
+  }
+}

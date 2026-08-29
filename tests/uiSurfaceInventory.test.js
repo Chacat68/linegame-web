@@ -116,6 +116,7 @@ describe('UI surface inventory', function () {
   });
 
   it('keeps tutorial guidance and one authoritative Command Slot in the responsive layer', function () {
+    const shellCss = cssSources.get('global-shell-v2.css') || '';
     const tutorialTag = openingTag('tutorial-tooltip');
     expect(tutorialTag).toContain('role="dialog"');
     expect(tutorialTag).toContain('aria-hidden="true"');
@@ -124,9 +125,10 @@ describe('UI surface inventory', function () {
     expect(html).toMatch(/id="floating-command-stack"[\s\S]*?id="action-guide"/);
     expect((html.match(/data-command-slot="primary"/g) || []).length).toBe(1);
     expect(html).not.toContain('id="event-notification"');
-    expect(css).toContain('.floating-command-stack');
-    expect(css).toContain('left: max(12px, var(--safe-left));');
-    expect(css).toContain('right: max(12px, var(--safe-right));');
+    expect(css).not.toContain('.floating-command-stack');
+    expect(shellCss).toContain('.floating-command-stack');
+    expect(shellCss).toContain('left: 50%;');
+    expect(shellCss).toContain('right: auto;');
     expect(css).toContain('max-height: calc(100dvh - max(8px, var(--safe-top)) - max(8px, var(--safe-bottom))) !important;');
   });
 

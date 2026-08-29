@@ -1,0 +1,380 @@
+/* ============================================================
+   Bridge OS · Context Inspector
+   Global L2 context surface, workspace context cards and map presenter host.
+   ============================================================ */
+
+#context-inspector.context-inspector {
+  position: absolute;
+  z-index: var(--ui-z-hud);
+  top: max(var(--ui-space-4), var(--ui-safe-top));
+  right: max(var(--ui-space-4), var(--ui-safe-right));
+  display: grid;
+  width: min(var(--ui-context-width), calc(100vw - 32px));
+  max-height: calc(100dvh - var(--ui-header-height) - var(--ui-nav-height) - 124px);
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid var(--ui-line-default);
+  border-radius: 14px;
+  color: var(--ui-text-secondary);
+  background:
+    radial-gradient(circle at 100% 0, rgba(108, 231, 255, 0.1), transparent 38%),
+    linear-gradient(155deg, rgba(7, 24, 36, 0.96), rgba(3, 13, 22, 0.94));
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  pointer-events: auto;
+  backdrop-filter: blur(18px) saturate(1.08);
+}
+
+#context-inspector.context-inspector:not([data-workspace-id="map"]) {
+  position: fixed;
+  z-index: calc(var(--ui-z-terminal) + 2);
+  /* #map-container is a transformed scene and therefore the fixed containing
+     block already starts below Header. Do not add header height twice. */
+  top: var(--ui-space-5);
+  bottom: calc(var(--ui-nav-height) + var(--ui-space-5) + var(--ui-safe-bottom));
+  max-height: none;
+}
+
+.workspace-context-toggle {
+  min-height: var(--ui-control-md);
+  padding: 0 var(--ui-space-3);
+  border: 1px solid var(--ui-line-default);
+  border-radius: var(--ui-radius-control);
+  color: var(--ui-accent);
+  background: rgba(108, 231, 255, 0.06);
+  font: inherit;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.workspace-context-toggle:hover,
+.workspace-context-toggle[aria-expanded="true"] {
+  border-color: var(--ui-accent);
+  color: var(--ui-text-primary);
+  background: rgba(108, 231, 255, 0.12);
+}
+
+#context-inspector[hidden] {
+  display: none;
+}
+
+.context-inspector-head {
+  display: flex;
+  min-height: 56px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ui-space-3);
+  padding: 9px 10px 8px 14px;
+  border-bottom: 1px solid var(--ui-line-subtle);
+}
+
+.context-inspector-heading {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.context-inspector-kicker {
+  color: var(--ui-accent);
+  font-size: 8px;
+  font-weight: 760;
+  letter-spacing: 0.15em;
+}
+
+.context-inspector-heading strong {
+  overflow: hidden;
+  color: var(--ui-text-primary);
+  font-size: 14px;
+  font-weight: 720;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.context-inspector-close {
+  display: grid;
+  width: var(--ui-control-sm);
+  height: var(--ui-control-sm);
+  place-items: center;
+  border: 1px solid transparent;
+  color: var(--ui-text-muted);
+  background: transparent;
+}
+
+.context-inspector-close:hover {
+  border-color: var(--ui-line-default);
+  color: var(--ui-text-primary);
+  background: rgba(108, 231, 255, 0.08);
+}
+
+.context-inspector-content {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.context-inspector-empty {
+  display: grid;
+  min-height: 190px;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  padding: 28px 22px;
+  text-align: center;
+}
+
+.context-inspector-empty[hidden],
+.context-inspector-render-host[hidden] {
+  display: none;
+}
+
+.context-inspector-render-host > [hidden] {
+  display: none !important;
+}
+
+.context-inspector-render-host {
+  min-width: 0;
+  min-height: 0;
+}
+
+.context-workspace-view {
+  padding: var(--ui-space-4);
+}
+
+.workspace-context-card {
+  display: grid;
+  gap: var(--ui-space-4);
+}
+
+.workspace-context-hero {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--ui-space-3);
+}
+
+.workspace-context-hero > span {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border: 1px solid var(--ui-line-default);
+  border-radius: var(--ui-radius-card);
+  background: rgba(108, 231, 255, 0.07);
+  font-size: 24px;
+}
+
+.workspace-context-hero small,
+.workspace-context-metrics small {
+  display: block;
+  color: var(--ui-text-muted);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+}
+
+.workspace-context-hero h3 {
+  margin: 3px 0 0;
+  color: var(--ui-text-primary);
+  font-size: 17px;
+}
+
+.workspace-context-card > p {
+  margin: 0;
+  color: var(--ui-text-secondary);
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.workspace-context-action {
+  width: 100%;
+  min-height: 38px;
+  padding: 9px 12px;
+  border: 1px solid var(--ui-line-default);
+  border-radius: var(--ui-radius-control);
+  color: var(--ui-accent);
+  background: rgba(108, 231, 255, 0.055);
+  font: inherit;
+  font-size: 11px;
+  text-align: left;
+}
+
+.workspace-context-action:hover {
+  border-color: var(--ui-line-strong);
+  background: rgba(108, 231, 255, 0.1);
+}
+
+.workspace-context-action:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 2px;
+}
+
+.workspace-context-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--ui-space-2);
+}
+
+.workspace-context-metrics > span {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--ui-line-subtle);
+  border-radius: var(--ui-radius-control);
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.workspace-context-metrics strong {
+  display: block;
+  margin-top: 4px;
+  overflow: hidden;
+  color: var(--ui-text-primary);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-context-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.workspace-context-tags span,
+.workspace-context-callout {
+  padding: 6px 8px;
+  border: 1px solid var(--ui-line-subtle);
+  border-radius: 999px;
+  color: var(--ui-text-secondary);
+  background: rgba(108, 231, 255, 0.05);
+  font-size: 9px;
+}
+
+.workspace-context-callout {
+  border-radius: var(--ui-radius-control);
+  line-height: 1.55;
+}
+
+.context-inspector-empty-mark {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid var(--ui-line-default);
+  border-radius: 50%;
+  color: var(--ui-accent);
+  background: rgba(108, 231, 255, 0.06);
+  font-size: 20px;
+}
+
+.context-inspector-empty strong {
+  color: var(--ui-text-primary);
+  font-size: 13px;
+}
+
+.context-inspector-empty > span:last-child {
+  max-width: 250px;
+  color: var(--ui-text-muted);
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+/* The mature planet-detail presenter renders inside the single inspector. */
+
+#context-inspector #planet-detail-panel {
+  position: relative;
+  inset: auto;
+  display: none;
+  width: 100%;
+  max-width: none;
+  max-height: none;
+  padding: 12px 14px 14px;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  animation: none;
+}
+
+#context-inspector #planet-detail-panel.visible {
+  display: grid;
+}
+
+#context-inspector #planet-detail-panel.planet-detail-panel--pinned {
+  grid-template-rows: minmax(0, 1fr) auto;
+  overflow: hidden;
+}
+
+#context-inspector .planet-detail-scroll-body {
+  max-height: calc(100dvh - var(--ui-header-height) - var(--ui-nav-height) - 250px);
+}
+
+#context-inspector .planet-detail-panel--galaxy-hub {
+  max-height: none;
+  padding-top: 0;
+}
+
+@media (max-width: 900px) {
+  :root {
+    --ui-context-width: 320px;
+  }
+
+  #context-inspector.context-inspector {
+    max-height: calc(100dvh - var(--ui-header-height) - var(--ui-nav-height) - 108px);
+  }
+
+  #context-inspector.context-inspector:not([data-workspace-id="map"]) {
+    top: auto;
+    right: max(var(--ui-space-3), var(--ui-safe-right));
+    bottom: calc(
+      var(--ui-nav-height) + var(--ui-space-5) + var(--ui-command-reserve) + var(--ui-safe-bottom)
+    );
+    left: max(var(--ui-space-3), var(--ui-safe-left));
+    width: auto;
+    max-height: min(52dvh, 500px);
+  }
+}
+
+@media (max-width: 620px) {
+  #context-inspector.context-inspector {
+    /* Mobile keeps the inspector in the upper map stage; Command Slot owns the bottom. */
+    top: calc(var(--ui-control-lg) + var(--ui-space-4) + var(--ui-safe-top));
+    right: max(7px, var(--ui-safe-right));
+    bottom: auto;
+    left: max(7px, var(--ui-safe-left));
+    width: auto;
+    max-height: min(56dvh, calc(100dvh - var(--ui-header-height) - var(--ui-nav-height) - 190px));
+    border-radius: 14px;
+  }
+
+  #context-inspector.context-inspector:not([data-workspace-id="map"]) {
+    top: calc(var(--ui-control-lg) + var(--ui-space-4) + var(--ui-safe-top));
+    right: max(7px, var(--ui-safe-right));
+    bottom: auto;
+    left: max(7px, var(--ui-safe-left));
+    width: auto;
+    max-height: min(54dvh, 460px);
+  }
+}
+
+/* Legacy planet-detail mobile rules use !important positioning. Inside the
+   Inspector the presenter stays in normal flow at every narrow/short viewport. */
+@media (max-width: 700px), (max-height: 620px) {
+  #context-inspector #planet-detail-panel.visible,
+  #context-inspector #planet-detail-panel.planet-detail-panel--galaxy-hub.visible {
+    left: auto !important;
+    right: auto !important;
+    top: auto !important;
+    bottom: auto !important;
+    width: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #context-inspector,
+  #context-inspector * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

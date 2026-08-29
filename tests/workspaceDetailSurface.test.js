@@ -274,7 +274,7 @@ describe('WorkspaceDetailSurface', function () {
   it('静态壳层声明真实 L4 surface、层级 token 与窄屏安全区', function () {
     var html = readFileSync('index.html', 'utf8');
     var tokens = readFileSync('css/tokens.css', 'utf8');
-    var css = readFileSync('css/global-shell-v2.css', 'utf8');
+    var css = readFileSync('css/workspace-detail.css', 'utf8');
 
     expect(html).toContain('id="workspace-detail-surface"');
     expect(html).toContain('data-workspace-detail-back');

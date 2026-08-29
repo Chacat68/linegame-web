@@ -12,13 +12,17 @@ describe('Bridge OS global UI contracts', function () {
     var primitives = entry.indexOf('@import url("primitives.css")');
     var surfaces = entry.indexOf('@import url("surfaces.css")');
     var responsive = entry.indexOf('@import url("bridge-responsive.css")');
+    var contextInspector = entry.indexOf('@import url("context-inspector.css")');
+    var workspaceDetail = entry.indexOf('@import url("workspace-detail.css")');
     var globalShell = entry.indexOf('@import url("global-shell-v2.css")');
 
     expect(tokens).toBeGreaterThan(-1);
     expect(primitives).toBeGreaterThan(tokens);
     expect(surfaces).toBeGreaterThan(primitives);
     expect(responsive).toBeGreaterThan(surfaces);
-    expect(globalShell).toBeGreaterThan(responsive);
+    expect(contextInspector).toBeGreaterThan(responsive);
+    expect(workspaceDetail).toBeGreaterThan(contextInspector);
+    expect(globalShell).toBeGreaterThan(workspaceDetail);
     expect(entry.trim().endsWith('@import url("global-shell-v2.css");')).toBe(true);
   });
 
@@ -40,6 +44,7 @@ describe('Bridge OS global UI contracts', function () {
     var tokens = read('css/tokens.css');
     var surfaces = read('css/surfaces.css');
     var responsive = read('css/bridge-responsive.css');
+    var contextInspector = read('css/context-inspector.css');
     var shell = read('css/global-shell-v2.css');
     var legacyNavigation = [
       'css/status.css',
@@ -66,7 +71,8 @@ describe('Bridge OS global UI contracts', function () {
     expect(surfaces).toMatch(/#market-overlay\.workspace-surface--trade\s*\{[\s\S]*?bottom:\s*calc\([\s\S]*?var\(--ui-command-reserve\)/);
     expect(surfaces).toMatch(/\.workspace-surface\.workspace-surface--archive,[\s\S]*?padding:[\s\S]*?var\(--ui-command-reserve\)/);
     expect(responsive).toMatch(/#market-overlay\.workspace-surface--trade\s*\{[\s\S]*?bottom:\s*calc\([\s\S]*?var\(--ui-command-reserve\)/);
-    expect(shell).toMatch(/#context-inspector\.context-inspector:not\(\[data-workspace-id="map"\]\)\s*\{[\s\S]*?bottom:\s*calc\([\s\S]*?var\(--ui-command-reserve\)/);
+    expect(contextInspector).toMatch(/#context-inspector\.context-inspector:not\(\[data-workspace-id="map"\]\)\s*\{[\s\S]*?bottom:\s*calc\([\s\S]*?var\(--ui-command-reserve\)/);
+    expect(shell).toContain('body:has(#context-inspector:not([hidden])) .floating-command-stack');
   });
 
   it('ships communications as the same terminal surface as archive and hangar', function () {
@@ -108,10 +114,25 @@ describe('Bridge OS global UI contracts', function () {
   });
 
   it('keeps the mobile Context Inspector above the command slot and resets legacy detail positioning', function () {
+    var inspector = read('css/context-inspector.css');
+
+    expect(inspector).toMatch(/@media \(max-width: 620px\)[\s\S]*?#context-inspector\.context-inspector\s*\{[^}]*top:\s*calc\(var\(--ui-control-lg\)[^}]*bottom:\s*auto/);
+    expect(inspector).toMatch(/@media \(max-width: 620px\)[\s\S]*?#context-inspector\.context-inspector:not\(\[data-workspace-id="map"\]\)\s*\{[^}]*top:\s*calc\(var\(--ui-control-lg\)[^}]*bottom:\s*auto/);
+    expect(inspector).toMatch(/@media \(max-width: 700px\), \(max-height: 620px\)[\s\S]*?#context-inspector #planet-detail-panel\.visible,[\s\S]*?left:\s*auto !important;[\s\S]*?bottom:\s*auto !important;[\s\S]*?width:\s*100% !important;/);
+  });
+
+  it('keeps Context Inspector and Workspace Detail out of the Global Shell component layer', function () {
+    var inspector = read('css/context-inspector.css');
+    var detail = read('css/workspace-detail.css');
     var shell = read('css/global-shell-v2.css');
 
-    expect(shell).toMatch(/@media \(max-width: 620px\)[\s\S]*?#context-inspector\.context-inspector\s*\{[^}]*top:\s*calc\(var\(--ui-control-lg\)[^}]*bottom:\s*auto/);
-    expect(shell).toMatch(/@media \(max-width: 620px\)[\s\S]*?#context-inspector\.context-inspector:not\(\[data-workspace-id="map"\]\)\s*\{[^}]*top:\s*calc\(var\(--ui-control-lg\)[^}]*bottom:\s*auto/);
-    expect(shell).toMatch(/@media \(max-width: 700px\), \(max-height: 620px\)[\s\S]*?#context-inspector #planet-detail-panel\.visible,[\s\S]*?left:\s*auto !important;[\s\S]*?bottom:\s*auto !important;[\s\S]*?width:\s*100% !important;/);
+    expect(inspector).toContain('#context-inspector.context-inspector');
+    expect(inspector).toContain('.workspace-context-card');
+    expect(inspector).not.toContain('.workspace-detail-surface');
+    expect(detail).toContain('.workspace-detail-surface');
+    expect(detail).toContain('.workspace-detail-report-button');
+    expect(detail).not.toContain('.context-inspector-head');
+    expect(shell).not.toMatch(/\.context-inspector-|\.workspace-context-|\.workspace-detail-/);
+    expect(shell).toContain('body:has(#context-inspector:not([hidden])) .floating-command-stack');
   });
 });

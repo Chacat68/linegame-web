@@ -21,4 +21,7 @@
 @import url("primitives.css");
 @import url("surfaces.css");
 @import url("bridge-responsive.css");
+@import url("context-inspector.css");
+@import url("workspace-detail.css");
+@import url("starmap-controls.css");
 @import url("global-shell-v2.css");

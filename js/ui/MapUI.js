@@ -351,11 +351,6 @@ export function init(stateSource, onTravel, onGalaxyJump) {
   if (!_mainBindingsInitialized) {
     _mainBindingsInitialized = true;
 
-    // 3D视图默认启用，按钮隐藏
-    const toggle3DBtn = document.getElementById('map-3d-toggle-btn');
-    if (toggle3DBtn) {
-      toggle3DBtn.style.display = 'none';
-    }
   }
 
   var currentState = _currentState();

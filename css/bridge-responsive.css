@@ -93,6 +93,10 @@
     ) !important;
     left: max(var(--ui-space-3), var(--ui-safe-left)) !important;
   }
+
+  #action-guide .action-guide-outcome {
+    display: none;
+  }
 }
 
 @media (max-width: 680px) {
@@ -224,17 +228,6 @@
     width: auto;
     max-width: none;
     max-height: calc(100dvh - var(--ui-header-height) - var(--ui-nav-height) - 96px);
-  }
-
-  .floating-command-stack {
-    right: max(var(--ui-space-2), var(--ui-safe-right));
-    bottom: calc(var(--ui-nav-height) + var(--ui-space-4) + var(--ui-safe-bottom));
-    left: max(var(--ui-space-2), var(--ui-safe-left));
-    width: auto;
-  }
-
-  .action-guide {
-    min-height: 60px;
   }
 
   #action-guide .action-guide-shell {
@@ -657,37 +650,75 @@
   }
 }
 
-@media (max-width: 560px) {
+@media (max-width: 620px) {
   #action-guide .action-guide-shell {
     grid-template-columns: 4px minmax(0, 1fr);
-    grid-template-rows: auto auto auto;
+    grid-template-rows: auto auto;
     grid-template-areas:
-      "status kicker"
       "status main"
       "status primary";
     min-height: 0;
-    padding: 9px 9px 9px 0;
-    gap: 6px 9px;
+    gap: 7px 9px;
   }
 
-  #action-guide .action-guide-shell--processing,
-  #action-guide .action-guide-shell--complete {
-    grid-template-columns: 4px minmax(0, 1fr);
-    grid-template-areas:
-      "status kicker"
-      "status main";
+  #action-guide .action-guide-copy {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  #action-guide .action-guide-kicker,
+  #action-guide .action-guide-main {
+    grid-column: 1;
+  }
+
+  #action-guide .action-guide-kicker {
+    grid-row: 1;
+  }
+
+  #action-guide .action-guide-main {
+    grid-row: 2;
   }
 
   #action-guide .action-guide-primary.command-action-btn {
     width: 100%;
     min-height: var(--ui-control-lg);
   }
+}
 
+@media (max-width: 560px) {
+  #action-guide.action-guide {
+    max-width: calc(100vw - 16px);
+  }
+}
+
+/* Map detail avoids the Command Slot only on constrained viewports. */
+@supports selector(body:has(#action-guide:not([hidden]))) {
+  body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) .map-btn-group {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  @media (max-width: 700px), (max-height: 620px) {
+    body:has(#action-guide:not([hidden])) .planet-detail-panel.visible:not(.planet-detail-panel--galaxy-hub) {
+      bottom: calc(var(--starmap-command-clearance) + 68px);
+      max-height: min(48dvh, calc(100dvh - var(--starmap-rail-edge-y) - var(--starmap-command-clearance) - 68px));
+    }
+
+    body:has(#action-guide:not([hidden])) .planet-detail-panel--galaxy-hub.visible {
+      bottom: calc(var(--starmap-command-clearance) + 68px);
+    }
+  }
+}
+
+body:has(.modal:not(.hidden)) #action-guide {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
 
 @media (max-width: 700px), (max-height: 620px) {
-  body:has(.modal:not(.hidden)) .bottom-nav,
-  body:has(.modal:not(.hidden)) #action-guide {
+  body:has(.modal:not(.hidden)) .bottom-nav {
     opacity: 0 !important;
     visibility: hidden !important;
     pointer-events: none !important;

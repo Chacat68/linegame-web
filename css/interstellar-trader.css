@@ -5748,216 +5748,6 @@ a[class*="btn"] svg {
   overflow: visible;
 }
 
-.action-guide {
-  position: fixed;
-  left: 50%;
-  bottom: calc(var(--bottom-nav-offset) + var(--bottom-nav-height) + 10px);
-  z-index: 32;
-  width: min(560px, calc(100vw - 32px));
-  transform: translateX(-50%);
-  pointer-events: auto;
-}
-
-.action-guide[hidden] {
-  display: none;
-}
-
-.action-guide-shell {
-  position: relative;
-  width: 100%;
-  overflow: hidden;
-  border: 1px solid var(--ui-line);
-  border-radius: var(--ui-radius-panel);
-  background:
-    var(--ui-surface-raised),
-    radial-gradient(circle at 18% 0, rgba(108, 231, 255, 0.08), transparent 52%),
-    linear-gradient(90deg, rgba(108, 231, 255, 0.035) 1px, transparent 1px);
-  background-size: auto, auto, 28px 100%;
-  box-shadow:
-    0 18px 48px rgba(0, 0, 0, 0.48),
-    inset 0 1px 0 rgba(255, 255, 255, 0.045);
-  backdrop-filter: blur(14px) saturate(1.08);
-  -webkit-backdrop-filter: blur(14px) saturate(1.08);
-}
-
-.action-guide-shell {
-  display: grid;
-  grid-template-columns: 3px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px;
-  min-height: 48px;
-  padding: 6px 8px 6px 0;
-}
-
-.action-guide-shell::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    linear-gradient(90deg, rgba(108, 231, 255, 0.06), transparent 34%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.028), transparent 48%);
-}
-
-.action-guide-status {
-  position: relative;
-  z-index: 1;
-  align-self: stretch;
-  border-radius: 0 4px 4px 0;
-  background: linear-gradient(180deg, #8ef3ff, #32d4ff 48%, rgba(108, 231, 255, 0.2));
-  box-shadow: 0 0 10px rgba(108, 231, 255, 0.38);
-}
-
-.action-guide-shell[data-guide-surface="quest"] .action-guide-status {
-  background: linear-gradient(180deg, #ffd38a, #ffb86b 48%, rgba(255, 184, 107, 0.2));
-  box-shadow: 0 0 10px rgba(255, 184, 107, 0.34);
-}
-
-.action-guide-shell[data-guide-surface="market"] .action-guide-status {
-  background: linear-gradient(180deg, #8ef3ff, #32d4ff 48%, rgba(108, 231, 255, 0.2));
-}
-
-.action-guide-shell[data-guide-surface="exploration"] .action-guide-status {
-  background: linear-gradient(180deg, #a7f3c8, #57e39d 48%, rgba(87, 227, 157, 0.2));
-  box-shadow: 0 0 10px rgba(87, 227, 157, 0.3);
-}
-
-.action-guide-shell[data-guide-surface="navigation"] .action-guide-status {
-  background: linear-gradient(180deg, #9ee7ff, #3aa5ff 48%, rgba(58, 165, 255, 0.2));
-  box-shadow: 0 0 10px rgba(58, 165, 255, 0.32);
-}
-
-.action-guide-shell[data-guide-surface="company"] .action-guide-status {
-  background: linear-gradient(180deg, #bbf7d0, #22c55e 48%, rgba(34, 197, 94, 0.2));
-  box-shadow: 0 0 10px rgba(34, 197, 94, 0.32);
-}
-
-.action-guide-copy,
-.action-guide-actions {
-  position: relative;
-  z-index: 1;
-}
-
-.action-guide-copy {
-  min-width: 0;
-  display: grid;
-  gap: 2px;
-}
-
-.action-guide-kicker {
-  min-width: 0;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: rgba(168, 220, 235, 0.72);
-  font-family: "Orbitron", "Rajdhani", sans-serif;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  line-height: 1.1;
-}
-
-.action-guide-main {
-  min-width: 0;
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.action-guide-title {
-  min-width: 0;
-  color: #f1fbff;
-  font-family: "Rajdhani", "PingFang SC", sans-serif;
-  font-size: 15px;
-  font-weight: 800;
-  line-height: 1.2;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
-.action-guide-reason {
-  min-width: 0;
-  color: rgba(195, 220, 232, 0.72);
-  font-size: 12px;
-  line-height: 1.3;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
-.action-guide-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.action-guide-primary.command-action-btn {
-  appearance: none;
-  -webkit-appearance: none;
-  align-items: center;
-  min-width: 106px;
-  min-height: 36px;
-  padding: 5px 12px;
-  border: 1px solid var(--ui-line);
-  border-radius: var(--ui-radius-control);
-  background:
-    linear-gradient(180deg, rgba(17, 50, 70, 0.72), rgba(3, 14, 23, 0.9)),
-    radial-gradient(circle at 50% 0, rgba(108, 231, 255, 0.14), transparent 62%);
-  color: rgba(232, 248, 255, 0.92);
-  text-align: center;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
-}
-
-.action-guide-primary.command-action-btn:hover {
-  transform: none;
-  border-color: var(--ui-line-strong);
-  background:
-    linear-gradient(180deg, rgba(34, 94, 124, 0.78), rgba(5, 22, 34, 0.94)),
-    radial-gradient(circle at 50% 0, rgba(108, 231, 255, 0.22), transparent 62%);
-  color: #fff;
-  box-shadow: 0 0 18px rgba(108, 231, 255, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.07);
-}
-
-.action-guide-primary.command-action-btn .command-action-kicker {
-  font-size: 8px;
-  letter-spacing: 0.04em;
-}
-
-.action-guide-primary.command-action-btn .command-action-label {
-  font-size: 12px;
-  line-height: 1.15;
-}
-
-.action-guide.is-processing .action-guide-status {
-  animation: action-guide-pulse 0.7s ease-in-out infinite alternate;
-}
-
-.action-guide.is-complete .action-guide-status {
-  background: linear-gradient(180deg, #b7ffd5, #5eea9b 48%, rgba(94, 234, 155, 0.22));
-  box-shadow: 0 0 12px rgba(94, 234, 155, 0.36);
-}
-
-.action-guide-shell--complete {
-  border-color: rgba(94, 234, 155, 0.28);
-}
-
-.action-guide-shell--complete .action-guide-kicker {
-  color: rgba(183, 255, 213, 0.82);
-}
-
-@keyframes action-guide-pulse {
-  from { opacity: 0.42; }
-  to { opacity: 1; }
-}
-
 .starmap-rail-btn {
   aspect-ratio: 1 / 1;
   line-height: 1;
@@ -6042,79 +5832,6 @@ a[class*="btn"] svg {
   width: 1.25em;
   height: 1.25em;
   min-width: 1.25em;
-}
-
-@media (max-width: 900px) {
-
-  .action-guide {
-    bottom: calc(var(--bottom-nav-offset) + var(--bottom-nav-height) + 8px);
-    width: min(620px, calc(100vw - 24px));
-  }
-
-  .action-guide-shell {
-    min-height: 56px;
-    grid-template-columns: 4px minmax(0, 1fr) auto;
-    gap: 9px;
-  }
-
-  .action-guide-main {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 2px;
-  }
-
-  .action-guide-title {
-    font-size: 14px;
-  }
-
-  .action-guide-reason {
-    font-size: 11px;
-  }
-
-  .action-guide-primary.command-action-btn {
-    min-width: 92px;
-  }
-}
-
-@media (max-width: 560px) {
-  .action-guide {
-    bottom: calc(var(--bottom-nav-offset) + var(--bottom-nav-height) + 6px);
-    width: calc(100vw - 18px);
-  }
-
-  .action-guide-shell {
-    grid-template-columns: 4px minmax(0, 1fr);
-    grid-template-areas:
-      "status copy"
-      "status actions";
-    align-items: stretch;
-    gap: 7px 9px;
-    min-height: 0;
-    padding: 7px 8px 8px 0;
-  }
-
-  .action-guide-status {
-    grid-area: status;
-  }
-
-  .action-guide-copy {
-    grid-area: copy;
-  }
-
-  .action-guide-actions {
-    grid-area: actions;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    width: 100%;
-  }
-
-  .action-guide-primary.command-action-btn {
-    width: 100%;
-    min-width: 0;
-    min-height: 34px;
-    padding-inline: 10px;
-  }
-
 }
 
 /* ==========================================================================
@@ -6441,8 +6158,7 @@ body,
 .crew-modal-box,
 .dispatch-panel,
 [data-hud-widget],
-.planet-detail-panel,
-.action-guide {
+.planet-detail-panel {
   max-width: calc(100vw - 16px);
 }
 
@@ -6553,11 +6269,6 @@ body,
 }
 
 @media (max-width: 560px) {
-
-  .action-guide {
-    max-width: calc(100vw - 16px);
-  }
-
   .market-overlay-header h3,
   .settings-main-title,
   .company-directives-head h3 {
@@ -6615,18 +6326,6 @@ body,
   .settings-action-btn,
   .company-directives-claim-all-btn {
     width: 100%;
-  }
-}
-
-@media (max-width: 360px) {
-
-  .action-guide-shell {
-    grid-template-columns: 30px minmax(0, 1fr) 34px;
-    padding: 9px;
-  }
-
-  .action-guide-title {
-    font-size: 13px;
   }
 }
 
@@ -7260,25 +6959,6 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) .galaxy-s
   }
 }
 
-@supports selector(body:has(#action-guide:not([hidden]))) {
-  body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) .map-btn-group {
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-  }
-
-  @media (max-width: 700px), (max-height: 620px) {
-    body:has(#action-guide:not([hidden])) .planet-detail-panel.visible:not(.planet-detail-panel--galaxy-hub) {
-      bottom: calc(var(--starmap-command-clearance) + 68px);
-      max-height: min(48dvh, calc(100dvh - var(--starmap-rail-edge-y) - var(--starmap-command-clearance) - 68px));
-    }
-
-    body:has(#action-guide:not([hidden])) .planet-detail-panel--galaxy-hub.visible {
-      bottom: calc(var(--starmap-command-clearance) + 68px);
-    }
-  }
-}
-
 @media (max-width: 360px) {
   :root {
     --starmap-rail-size: var(--ui-control-lg, 44px);
@@ -7304,35 +6984,11 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) .galaxy-s
   --command-surface-gap: 10px;
 }
 
-.action-guide {
-  bottom: calc(var(--bottom-nav-offset) + var(--bottom-nav-height) + var(--command-surface-gap));
-  width: min(600px, calc(100vw - 24px));
-}
-
-body.starmap-galaxy-mode #action-guide,
 body.starmap-galaxy-mode #mini-console-broadcast,
-body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #action-guide,
 body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #mini-console-broadcast {
   opacity: 0 !important;
   visibility: hidden !important;
   pointer-events: none !important;
-}
-
-.action-guide-shell {
-  grid-template-columns: 4px minmax(0, 1fr) auto;
-  min-height: 54px;
-  padding: 8px 9px 8px 0;
-  border-radius: 16px;
-}
-
-.action-guide-main {
-  align-items: center;
-}
-
-.action-guide-primary.command-action-btn {
-  min-width: 112px;
-  min-height: 38px;
-  border-radius: 11px;
 }
 
 @media (max-width: 700px) {
@@ -7342,49 +6998,6 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #mini-con
     --command-surface-gap: 8px;
   }
 
-  .action-guide {
-    width: calc(100vw - 14px);
-  }
-
-  .action-guide-main {
-    align-items: flex-start;
-  }
-
-  .action-guide-shell {
-    border-radius: 14px;
-  }
-
-}
-
-@media (max-width: 560px) {
-  .action-guide-shell {
-    grid-template-columns: 4px minmax(0, 1fr);
-    padding: 7px 8px 8px 0;
-  }
-
-  .action-guide-main {
-    align-items: flex-start;
-  }
-
-  .action-guide-title {
-    font-size: 14px;
-  }
-
-  .action-guide-reason {
-    font-size: 11px;
-  }
-
-  .action-guide-primary.command-action-btn {
-    min-height: 36px;
-  }
-
-}
-
-@media (max-width: 380px) {
-
-  .action-guide-shell {
-    gap: 6px 7px;
-  }
 }
 
 /* ==========================================================================
@@ -9687,41 +9300,6 @@ body[data-motion="reduced"] .dispatch-advanced-panel > summary::after {
 
 .dialogue-actions > button {
   min-height: var(--modal-action-h);
-}
-
-/* Primary Command Slot */
-.floating-command-stack {
-  position: fixed;
-  left: max(12px, var(--safe-left));
-  right: max(12px, var(--safe-right));
-  bottom: calc(var(--bottom-nav-offset) + var(--bottom-nav-height) + var(--command-surface-gap));
-  z-index: 32;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--command-surface-gap);
-  pointer-events: none;
-}
-
-.floating-command-stack > .action-guide {
-  position: relative;
-  inset: auto;
-  left: auto;
-  right: auto;
-  bottom: auto;
-  transform: none;
-  pointer-events: auto;
-}
-
-.floating-command-stack > .action-guide {
-  width: min(600px, 100%);
-}
-
-@media (max-width: 620px) {
-  .floating-command-stack {
-    left: max(7px, var(--safe-left));
-    right: max(7px, var(--safe-right));
-  }
 }
 
 .tutorial-tooltip {

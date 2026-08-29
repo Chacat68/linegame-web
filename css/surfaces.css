@@ -512,30 +512,14 @@ body::before {
   background: rgba(108, 231, 255, 0.07);
 }
 
-.floating-command-stack {
-  z-index: var(--ui-z-hud);
-  right: max(var(--ui-space-5), var(--ui-safe-right));
-  bottom: calc(var(--ui-nav-height) + var(--ui-space-5) + var(--ui-safe-bottom));
-  width: min(520px, calc(100vw - 32px));
-  gap: var(--ui-space-3);
-}
-
-.action-guide {
-  overflow: hidden;
-  border: 1px solid var(--ui-line-default);
-  border-radius: var(--ui-radius-card);
-  background: rgba(3, 13, 22, 0.94);
-  box-shadow: var(--ui-shadow-card);
-  backdrop-filter: blur(16px);
-}
-
-.action-guide {
-  min-height: 68px;
-}
-
-/* Action guide · single-frame mission card ------------------- */
+/* Action Guide · Command Slot component -----------------------
+   Surface owns component geometry, visuals and semantic states.
+   Global Shell owns only .floating-command-stack placement. */
 
 #action-guide.action-guide {
+  position: relative;
+  inset: auto;
+  width: 100%;
   min-height: 0;
   overflow: visible;
   border: 0;
@@ -543,6 +527,12 @@ body::before {
   background: transparent;
   box-shadow: none;
   backdrop-filter: none;
+  pointer-events: auto;
+  transform: none;
+}
+
+#action-guide.action-guide[hidden] {
+  display: none;
 }
 
 #action-guide.action-guide::before {
@@ -550,7 +540,19 @@ body::before {
 }
 
 #action-guide .action-guide-shell {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 4px minmax(0, 1fr) 148px;
+  grid-template-rows: 1fr;
+  grid-template-areas: "status main primary";
+  min-height: 68px;
+  align-items: center;
+  padding: 8px 9px 8px 0;
+  gap: 8px 12px;
   border: 1px solid rgba(108, 231, 255, 0.24);
+  border-radius: 12px;
   background:
     radial-gradient(circle at 0% 50%, rgba(108, 231, 255, 0.13), transparent 34%),
     linear-gradient(112deg, rgba(8, 27, 40, 0.98), rgba(2, 10, 17, 0.985) 68%);
@@ -558,49 +560,70 @@ body::before {
     0 14px 38px rgba(0, 0, 0, 0.46),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(18px) saturate(1.08);
+  -webkit-backdrop-filter: blur(18px) saturate(1.08);
 }
 
 #action-guide .action-guide-shell::before {
   display: none;
 }
 
-#action-guide .action-guide-shell {
-  display: grid;
-  grid-template-columns: 4px minmax(0, 1fr) 136px;
-  grid-template-rows: auto auto;
-  grid-template-areas:
-    "status kicker primary"
-    "status main primary";
-  min-height: 92px;
-  align-items: center;
-  padding: 10px 12px 10px 0;
-  gap: 4px 12px;
-  border-radius: 12px;
-}
-
 #action-guide .action-guide-shell--processing,
 #action-guide .action-guide-shell--complete {
   grid-template-columns: 4px minmax(0, 1fr);
-  grid-template-areas:
-    "status kicker"
-    "status main";
-  min-height: 70px;
+  grid-template-areas: "status main";
+  min-height: 58px;
 }
 
 #action-guide .action-guide-status {
   grid-area: status;
+  position: relative;
+  z-index: 1;
   width: 4px;
   align-self: stretch;
   border-radius: 0 4px 4px 0;
+  background: linear-gradient(180deg, #8ef3ff, #32d4ff 48%, rgba(108, 231, 255, 0.2));
+  box-shadow: 0 0 10px rgba(108, 231, 255, 0.38);
 }
 
-#action-guide .action-guide-copy,
+#action-guide .action-guide-shell[data-guide-surface="quest"] .action-guide-status {
+  background: linear-gradient(180deg, #ffd38a, #ffb86b 48%, rgba(255, 184, 107, 0.2));
+  box-shadow: 0 0 10px rgba(255, 184, 107, 0.34);
+}
+
+#action-guide .action-guide-shell[data-guide-surface="exploration"] .action-guide-status {
+  background: linear-gradient(180deg, #a7f3c8, #57e39d 48%, rgba(87, 227, 157, 0.2));
+  box-shadow: 0 0 10px rgba(87, 227, 157, 0.3);
+}
+
+#action-guide .action-guide-shell[data-guide-surface="navigation"] .action-guide-status {
+  background: linear-gradient(180deg, #9ee7ff, #3aa5ff 48%, rgba(58, 165, 255, 0.2));
+  box-shadow: 0 0 10px rgba(58, 165, 255, 0.32);
+}
+
+#action-guide .action-guide-shell[data-guide-surface="company"] .action-guide-status {
+  background: linear-gradient(180deg, #bbf7d0, #22c55e 48%, rgba(34, 197, 94, 0.2));
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.32);
+}
+
+#action-guide .action-guide-copy {
+  grid-area: main;
+  position: relative;
+  z-index: 1;
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 4px 10px;
+}
+
 #action-guide .action-guide-actions {
   display: contents;
 }
 
 #action-guide .action-guide-kicker {
-  grid-area: kicker;
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
   display: inline-flex;
   width: fit-content;
   min-width: 0;
@@ -613,7 +636,9 @@ body::before {
   border-radius: 999px;
   color: var(--ui-accent-strong);
   background: rgba(108, 231, 255, 0.055);
+  font-family: "Orbitron", "Rajdhani", sans-serif;
   font-size: 8px;
+  font-weight: 800;
   line-height: 1.2;
   letter-spacing: 0.07em;
   text-overflow: ellipsis;
@@ -631,12 +656,14 @@ body::before {
 }
 
 #action-guide .action-guide-main {
-  grid-area: main;
+  grid-column: 2;
+  grid-row: 1;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   min-width: 0;
   align-items: start;
   justify-items: start;
-  gap: 3px;
+  gap: 2px;
   text-align: left;
 }
 
@@ -644,7 +671,7 @@ body::before {
   max-width: 100%;
   overflow: hidden;
   color: var(--ui-text-primary);
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 740;
   line-height: 1.22;
   letter-spacing: 0.01em;
@@ -660,7 +687,7 @@ body::before {
   max-width: 100%;
   overflow: hidden;
   color: var(--ui-text-muted);
-  font-size: 10.5px;
+  font-size: 9.5px;
   line-height: 1.35;
   text-align: left;
   text-overflow: ellipsis;
@@ -674,7 +701,7 @@ body::before {
   gap: 5px;
   overflow: hidden;
   color: rgba(167, 243, 208, 0.78);
-  font-size: 10.5px;
+  font-size: 9.5px;
   line-height: 1.35;
   text-align: left;
   text-overflow: ellipsis;
@@ -690,13 +717,16 @@ body::before {
 }
 
 #action-guide .action-guide-primary.command-action-btn {
+  appearance: none;
+  -webkit-appearance: none;
   grid-area: primary;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-rows: auto;
-  width: 136px;
+  width: 148px;
   min-width: 0;
-  min-height: 62px;
+  min-height: 48px;
+  align-items: center;
   align-content: center;
   justify-self: stretch;
   padding: 7px 10px 7px 12px;
@@ -741,14 +771,33 @@ body::before {
   text-align: left;
 }
 
-.action-guide::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 3px;
-  background: var(--ui-accent);
+#action-guide.action-guide.is-processing .action-guide-status {
+  animation: action-guide-pulse 0.7s ease-in-out infinite alternate;
+}
+
+#action-guide.action-guide.is-complete .action-guide-status {
+  background: linear-gradient(180deg, #b7ffd5, #5eea9b 48%, rgba(94, 234, 155, 0.22));
+  box-shadow: 0 0 12px rgba(94, 234, 155, 0.36);
+}
+
+#action-guide .action-guide-shell--complete {
+  border-color: rgba(94, 234, 155, 0.28);
+}
+
+#action-guide .action-guide-shell--complete .action-guide-kicker {
+  color: rgba(183, 255, 213, 0.82);
+}
+
+body.starmap-galaxy-mode #action-guide,
+body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #action-guide {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+@keyframes action-guide-pulse {
+  from { opacity: 0.42; }
+  to { opacity: 1; }
 }
 
 /* Global navigation ------------------------------------------- */

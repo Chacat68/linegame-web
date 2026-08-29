@@ -197,6 +197,7 @@ describe('MapUI navigation target focus', function () {
 
   it('窄屏详情会固定在控制轨与命令区之间', function () {
     var css = readFileSync(new URL('../css/interstellar-trader.css', import.meta.url), 'utf8');
+    var responsive = readFileSync(new URL('../css/bridge-responsive.css', import.meta.url), 'utf8');
 
     expect(css).toContain('.planet-detail-panel--pinned {');
     expect(css).toContain('grid-template-rows: minmax(0, 1fr) auto');
@@ -204,9 +205,10 @@ describe('MapUI navigation target focus', function () {
     expect(css).toContain('max-height: min(560px, calc(100dvh - var(--starmap-rail-edge-y) - var(--starmap-command-clearance)));');
     expect(css).toContain('.planet-detail-panel.visible:not(.planet-detail-panel--galaxy-hub)');
     expect(css).toContain('bottom: var(--starmap-command-clearance)');
-    expect(css).toContain('body:has(#action-guide:not([hidden])) .planet-detail-panel.visible:not(.planet-detail-panel--galaxy-hub)');
+    expect(css).not.toContain('body:has(#action-guide:not([hidden]))');
+    expect(responsive).toContain('body:has(#action-guide:not([hidden])) .planet-detail-panel.visible:not(.planet-detail-panel--galaxy-hub)');
     expect(css).toContain('.planet-detail-panel--galaxy-hub.visible');
-    expect(css).toContain('body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) .map-btn-group');
+    expect(responsive).toContain('body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) .map-btn-group');
     expect(css).toContain('--starmap-rail-edge-x: max(8px, var(--safe-left));');
     expect(css).toContain('--starmap-rail-safe-right: max(8px, var(--safe-right));');
 
