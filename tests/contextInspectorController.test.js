@@ -115,10 +115,26 @@ describe('ContextInspectorController', function () {
     expect(harness.controller.dispose()).toBe(false);
   });
 
+  it('视口模式切换使用独立开合偏好并恢复桌面状态', function () {
+    var harness = createHarness();
+    harness.controller.init({ document: harness.document, workspaceId: 'trade', open: true });
+    harness.controller.registerRenderer('trade', function () { return true; });
+
+    harness.controller.setCompactMode(true);
+    expect(harness.root.hidden).toBe(true);
+    expect(harness.toggle.getAttribute('aria-expanded')).toBe('false');
+
+    harness.controller.open({ focus: false });
+    expect(harness.root.hidden).toBe(false);
+    harness.controller.setCompactMode(false);
+    expect(harness.root.hidden).toBe(false);
+  });
+
   it('兼容门面不再持有 DOM、Escape 或会话状态', function () {
     var facade = readFileSync('js/ui/ContextInspector.js', 'utf8');
     expect(facade).toContain("from './ContextInspectorController.js'");
     expect(facade).toContain("from './ContextInspectorSession.js'");
+    expect(facade).toContain('export function setCompactMode');
     expect(facade).not.toMatch(/document\.|querySelector|registerEscapeLayer|new Map\(/);
   });
 });

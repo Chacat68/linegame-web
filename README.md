@@ -51,6 +51,7 @@
 - ✅ 五个同级 L3 工作区：map / trade / fleet / archive / logs 共用 `workspace-surface + is-active + inert/ARIA` 契约；市场已脱离星图 DOM，终端不再依赖 drawer/overlay 可见状态
 - ✅ 通讯来源契约：`LogMessage.js` 统一冻结 `text / type / source` envelope，动作、日结、引导、存档、设置、教程、成就与胜利运行时按领域发布来源；日志可按系统、交易、航行、舰队、任务、科研、探索、事件及机会/风险信号筛选，Context/L4 同步呈现来源与分类，不从正文猜测类别
 - ✅ UI 刷新所有权：`GameUiCoordinator` 由 680 行降至 377 行，只保留 dirty-region 路由、Feature ensure/reset 与 diagnostics 组合；`GameUiWorkspaceRenderer` 独占 Market/Fleet/Archive/Save 区域请求和 typed command 注入，`GameUiRenderSession` 独占成功渲染计数、刷新事务与失效诊断
+- ✅ UI 应用组合所有权：`GameUiApplicationRuntime` 由 433 行降至 410 行，只保留惰性 controller 图与顶层生命周期；`GameUiNavigationPort` 独占冻结导航协议，`GameUiApplicationDiagnostics` 纯组合 Coordinator 渲染/会话、Feature recovery 与子控制器 diagnostics
 - ✅ 工作区内部交互 owner：商业入口/浏览位置由 `MarketWorkspaceEntryController + Session` 持有，Archive/Fleet Tab 由 `WorkspaceTabController` 统一键盘、ARIA、深链与释放；Map/Market/Fleet/Archive 的 Context → L4 入口统一使用显式 local-scope `WorkspaceActionSlot`，不会竞争全局 Action Guide
 - ✅ 星图 UI 所有权：`MapPanelViewController` 独占星系/星球面板 DOM、ARIA、滚动和几何投影，`MapContextController` 独占 Context key、Renderer selection 与 Escape，`MapInteractionController` 独占 Renderer 全局回调、EventBus 和 DOM listener 生命周期；`MapUI` 由 674 行收束为 434 行组合协调门面
 - ✅ Archive 任务所有权：`QuestWorkspaceSession` 独占候选焦点，Available/Active/Locked Presenter 分别生成可接取、进行中和未解锁生命周期投影，208 行 `QuestBoardPresenter` 只组合章节指挥台与分诊；Route/Objective/Detail Presenter 独占路线、目标与 Context/L4，`QuestBoardController` 以单一容器委托接取/放弃/派遣/阻塞恢复并用 generation 丢弃旧确认；`QuestUI` 收束为 98 行兼容门面
@@ -63,7 +64,7 @@
 - ✅ 存档终端所有权：`SaveWorkspacePresenter` 纯生成安全状态、槽位和确认描述，`SaveWorkspaceController` 独占容器事件、确认、导入导出与异步失效保护；保存/读取只经 `SaveCommand + SaveCommandAdapter` 发布到 `GamePersistenceController.handleCommand`，`SaveUI` 由 447 行收束为 18 行请求对象组合门面，并随会话/Feature 释放
 - ✅ 教程覆盖层所有权：`TutorialStepPresenter` 纯生成步骤内容与可访问语义，`TutorialTooltipLayout` 独占视口/安全区定位和监听，`TutorialOverlayController` 独占 EventBus、高亮、焦点与按钮交互；`TutorialUI` 由 438 行收束为 25 行组合门面
 - ✅ 剧情弹层所有权：`DialogueSession` 独占播放/分支状态，`DialoguePresenter` 纯生成场景/进度/分支语义，`DialogueModalController` 独占 Surface、DOM、键盘和焦点；`DialogueUI` 由 384 行收束为 29 行组合门面
-- ✅ Context Inspector 所有权：`ContextInspectorSession` 独占五工作区不可变 context key、开合偏好与 revision，`ContextInspectorPresenter` 纯生成壳层/空态投影，`ContextInspectorController` 独占 DOM、renderer/action、Escape 与焦点恢复；`ContextInspector` 由 490 行收束为 32 行兼容门面；窄屏空态收束为紧凑提示条，选中对象后再恢复完整可滚动信息面
+- ✅ Context Inspector 所有权：`ContextInspectorSession` 独占五工作区不可变 context key、常规/紧凑视口独立开合偏好与 revision，`ContextInspectorPresenter` 纯生成壳层/空态投影，`ContextInspectorController` 独占 DOM、renderer/action、Escape、响应式开合协调与焦点恢复；`ContextInspector` 由 490 行收束为 35 行兼容门面；`HudInteractionController` 只监听 `900px` 断点并切换会话模式，运行中缩到窄屏不会继承桌面展开态；窄屏空态收束为紧凑提示条，选中对象后再恢复完整可滚动信息面
 - ✅ Header 信息唯一归属：公司身份、信用点、位置、日期和当前舰船资源由 Header 权威展示；机库只保留净资产、等级、容量与经营权限详情
 - ✅ Header CSS 单一归属：生产级联中的 `#game-header` / `.hdr-*` 只允许出现在 `surfaces.css` 与 `bridge-responsive.css`；旧主题、旧响应式、Modal 与 Layout 不再覆盖 Header
 - ✅ Bottom Nav CSS 单一归属：导航容器、五个目的地、当前项、角标、星系模式与窄屏/阻塞状态统一由 `surfaces.css` 与 `bridge-responsive.css` 管理
@@ -72,7 +73,7 @@
 - ✅ Starmap Controls CSS 单一归属：两个活动星图工具只由 `starmap-controls.css` 声明，窄屏触摸高度统一为 44px；无消费者的旧控制轨、隐藏 3D 按钮、五个 HUD 小窗及舰队延迟样式污染已物理删除
 - ✅ 退役 Company Directives UI：运行时入口、Presenter 和 DOM 均已不存在，四个样式层中的 724 行孤儿规则同步删除；`companyDirectiveClaims` 仅作为旧存档兼容字段继续保留
 - ✅ Market CSS Feature 归属：商业终端基础规则已从按需加载的 `fleet.css`，以及全局加载的 `panels.css`、`systems.css`、`responsive.css`、`interstellar-trader.css` 迁入 `market-terminal.css`；市场不再依赖“先打开机库”，主包也不再预载 Feature 私有级联；旧 Capital Signal、股票持仓、期货风险和 Finance Contract/History 面板样式已物理删除
-- ✅ Vitest 测试基线：224 个测试文件、1544 项测试，覆盖经济、贸易、航行、探索、事件与随机事件运行时、统一动作控制器图、成就检查队列、持久化事务、Game Application shell/Runtime Graph/五个职责节点工厂簇/启动投影/Feature/UI/Guidance/Loop Runtime 组合边界、manifest/registry 生命周期与延迟工作区错误恢复、Game Shell Projection/Header/Company/Archive Badge Presenter 与信息所有权、Map Galaxy Hub/View State/Survey Detail/Panel Layout/Panel View/Context/Interaction Controller、Workspace Surface/Detail 生命周期与 L3/Market CSS 所有权、Renderer dispose/re-init/开发态 2D 强制降级、Market Chrome/Chart Presenter/View Adapter/Controller/Selection/Spot/Goods/Finance/Commodity/Capital/Operations/Batch Plan/Local Operations/Operations Overview/Trade Station List/Commodity Detail/Experience Route/Overview/Workspace Navigation Controller、Fleet Hangar/Shop/Crew/Mod/Dispatch Presenter/Session/View Adapter/Controller/Inline Portal/Ship Detail/Command Adapter、Quest Available/Active/Locked/Board/Route/Objective/Detail Presenter/Controller/Session、Research Board/Dispatch/Detail Presenter/Controller、Faction Board/Detail Presenter/Controller、Achievement Board/Detail Presenter/Controller、Archive Exploration Session/Board/Report Detail/Controller、Settings View/Modal/Launcher Controller、Save Workspace Presenter/Controller/Command Adapter、Tutorial Step/Tooltip/Overlay、Dialogue Session/Presenter/Modal Controller 与 Workspace Object Detail Presenter、typed market/fleet/archive/save/settings command、资金与贸易站投影、Context 局部 intent、焦点同步、Shell/HUD/FleetUI 命令所有权、自动派遣与日结算提交顺序、经营金融、舰队、科研任务档案动作、剧情与胜利运行时、eager UI 壳/设置/首次进入/释放生命周期、教学引导与 onboarding policy、存档、会话生命周期、时钟、命令目的地、行动引导执行适配、市场工作区入口、工作区 Tab 与局部操作槽、Market/Fleet/Archive 内部增量失效、typed 日志来源契约、日志 Context/筛选/聚合与 UI 所有权等核心系统
+- ✅ Vitest 测试基线：226 个测试文件、1551 项测试，覆盖经济、贸易、航行、探索、事件与随机事件运行时、统一动作控制器图、成就检查队列、持久化事务、Game Application shell/Runtime Graph/五个职责节点工厂簇/启动投影/Feature/UI/Guidance/Loop Runtime 组合边界、UI Navigation port/Application diagnostics、manifest/registry 生命周期与延迟工作区错误恢复、Game Shell Projection/Header/Company/Archive Badge Presenter 与信息所有权、Map Galaxy Hub/View State/Survey Detail/Panel Layout/Panel View/Context/Interaction Controller、Workspace Surface/Detail 生命周期与 L3/Market CSS 所有权、Renderer dispose/re-init/开发态 2D 强制降级、Market Chrome/Chart Presenter/View Adapter/Controller/Selection/Spot/Goods/Finance/Commodity/Capital/Operations/Batch Plan/Local Operations/Operations Overview/Trade Station List/Commodity Detail/Experience Route/Overview/Workspace Navigation Controller、Fleet Hangar/Shop/Crew/Mod/Dispatch Presenter/Session/View Adapter/Controller/Inline Portal/Ship Detail/Command Adapter、Quest Available/Active/Locked/Board/Route/Objective/Detail Presenter/Controller/Session、Research Board/Dispatch/Detail Presenter/Controller、Faction Board/Detail Presenter/Controller、Achievement Board/Detail Presenter/Controller、Archive Exploration Session/Board/Report Detail/Controller、Settings View/Modal/Launcher Controller、Save Workspace Presenter/Controller/Command Adapter、Tutorial Step/Tooltip/Overlay、Dialogue Session/Presenter/Modal Controller 与 Workspace Object Detail Presenter、typed market/fleet/archive/save/settings command、资金与贸易站投影、Context 局部 intent、视口模式开合隔离、焦点同步、Shell/HUD/FleetUI 命令所有权、自动派遣与日结算提交顺序、经营金融、舰队、科研任务档案动作、剧情与胜利运行时、eager UI 壳/设置/首次进入/释放生命周期、教学引导与 onboarding policy、存档、会话生命周期、时钟、命令目的地、行动引导执行适配、市场工作区入口、工作区 Tab 与局部操作槽、Market/Fleet/Archive 内部增量失效、typed 日志来源契约、日志 Context/筛选/聚合与 UI 所有权等核心系统
 
 ### 当前开发中的能力
 
@@ -174,7 +175,9 @@ npm run build
 │   │   ├── UsageDataExportEffect.js # 脱敏平衡统计 JSON 下载副作用边界
 │   │   ├── MarketWorkspaceController.js # 市场命令与工作区生命周期
 │   │   ├── GameFeatureRecoveryDiagnostics.js # 延迟功能加载、恢复与设置状态快照
-│   │   ├── GameUiApplicationRuntime.js # UI controller 图、工作区与呈现生命周期组合边界
+│   │   ├── GameUiApplicationDiagnostics.js # UI 顶层复合 diagnostics 纯快照
+│   │   ├── GameUiNavigationPort.js # 领域/引导共享的冻结 UI 导航端口
+│   │   ├── GameUiApplicationRuntime.js # 惰性 UI controller 图与顶层生命周期组合边界
 │   │   ├── GameLoopRuntime.js # 实时日、场景帧与命名周期任务组合边界
 │   │   ├── GameApplication.js # 正式应用组合根、Runtime Graph 与启动/关闭入口
 │   │   ├── GameRuntimeNodeFactories.js # 12 个 runtime 节点的薄注册表与唯一归属校验
@@ -214,7 +217,7 @@ npm run build
 │       ├── HeaderStatusPresenter.js # Header 资源、位置、舰船与 meter 纯投影
 │       ├── CompanyOverviewPresenter.js # 公司身份与机库经营概览纯投影
 │       ├── ArchiveBadgePresenter.js # 档案分类与主导航待处理角标纯投影
-│       ├── HudInteractionController.js # HUD 事件、弹层、日志与星图工具生命周期
+│       ├── HudInteractionController.js # HUD 事件、弹层、日志、星图工具与 Context 断点生命周期
 │       ├── VictoryProgressPresenter.js # 长期路线摘要与详情纯 DOM 投影
 │       ├── MarketUI.js     # 商业终端（现货/资本/经营）
 │       ├── MarketChartPresenter.js # 行情快照、K 线与图表投影

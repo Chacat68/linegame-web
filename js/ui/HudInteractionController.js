@@ -36,6 +36,9 @@ export function createHudInteractionController(options) {
   var domListeners = [];
   var eventListenersBound = false;
   var galaxyToggleElement = null;
+  var compactViewportQuery = null;
+  var compactViewportListener = null;
+  var compactViewportListenerMode = '';
 
   function _state() {
     return typeof stateSource === 'function' ? stateSource() : null;
@@ -56,6 +59,50 @@ export function createHudInteractionController(options) {
     });
     domListeners = [];
     galaxyToggleElement = null;
+  }
+
+  function _releaseCompactViewport() {
+    if (!compactViewportQuery || !compactViewportListener) {
+      compactViewportQuery = null;
+      compactViewportListener = null;
+      compactViewportListenerMode = '';
+      return;
+    }
+    if (compactViewportListenerMode === 'event'
+        && typeof compactViewportQuery.removeEventListener === 'function') {
+      compactViewportQuery.removeEventListener('change', compactViewportListener);
+    } else if (compactViewportListenerMode === 'legacy'
+        && typeof compactViewportQuery.removeListener === 'function') {
+      compactViewportQuery.removeListener(compactViewportListener);
+    }
+    compactViewportQuery = null;
+    compactViewportListener = null;
+    compactViewportListenerMode = '';
+  }
+
+  function _bindCompactViewport(mediaQuery) {
+    _releaseCompactViewport();
+    if (!mediaQuery) return false;
+    compactViewportQuery = mediaQuery;
+    compactViewportListener = function (event) {
+      var compact = event && typeof event.matches === 'boolean'
+        ? event.matches
+        : !!compactViewportQuery.matches;
+      _call(contextInspector, 'setCompactMode', [compact]);
+    };
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', compactViewportListener);
+      compactViewportListenerMode = 'event';
+      return true;
+    }
+    if (typeof mediaQuery.addListener === 'function') {
+      mediaQuery.addListener(compactViewportListener);
+      compactViewportListenerMode = 'legacy';
+      return true;
+    }
+    compactViewportQuery = null;
+    compactViewportListener = null;
+    return false;
   }
 
   function _handleLogMessage(data) {
@@ -158,14 +205,17 @@ export function createHudInteractionController(options) {
     ensureGalaxyToggle();
 
     var win = getWindow();
-    var compact = !!(win && typeof win.matchMedia === 'function'
-      && win.matchMedia('(max-width: 900px)').matches);
+    var compactMediaQuery = win && typeof win.matchMedia === 'function'
+      ? win.matchMedia('(max-width: 900px)')
+      : null;
+    var compact = !!(compactMediaQuery && compactMediaQuery.matches);
     _call(contextInspector, 'init', [{
       open: !compact,
       compact: compact,
       stateSource: stateSource,
       revisionSource: revisionSource,
     }]);
+    _bindCompactViewport(compactMediaQuery);
     _call(logsController, 'initialize', []);
     initialized = true;
     return true;
@@ -191,6 +241,7 @@ export function createHudInteractionController(options) {
     if (disposed && !initialized) return false;
     _releaseEvents();
     _removeDomListeners();
+    _releaseCompactViewport();
     _call(logsController, 'dispose', []);
     victoryActions = null;
     progressList = [];
@@ -206,6 +257,7 @@ export function createHudInteractionController(options) {
       eventListenersBound: eventListenersBound,
       initialized: initialized,
       progressPathCount: progressList.length,
+      responsiveContextBound: !!compactViewportListener,
       victoryActionsBound: !!victoryActions,
     });
   }

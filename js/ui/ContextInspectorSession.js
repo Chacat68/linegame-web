@@ -11,6 +11,10 @@ function normalizeWorkspaceId(value) {
   return normalizeString(value) || DEFAULT_WORKSPACE_ID;
 }
 
+function getOpenPreferenceKey(workspaceId, compact) {
+  return (compact ? 'compact:' : 'regular:') + normalizeWorkspaceId(workspaceId);
+}
+
 function copyContext(context) {
   if (!context) return null;
   var copy = {};
@@ -61,23 +65,27 @@ export function createContextInspectorSession(options) {
     var nextWorkspaceId = normalizeWorkspaceId(workspaceId);
     var changed = nextWorkspaceId !== activeWorkspaceId;
     if (changed && typeof currentOpen === 'boolean') {
-      openByWorkspace.set(activeWorkspaceId, currentOpen);
+      openByWorkspace.set(getOpenPreferenceKey(activeWorkspaceId, compactMode), currentOpen);
     }
     activeWorkspaceId = nextWorkspaceId;
     return changed;
   }
 
   function rememberOpen(open, workspaceId) {
-    openByWorkspace.set(normalizeWorkspaceId(workspaceId || activeWorkspaceId), open === true);
+    openByWorkspace.set(
+      getOpenPreferenceKey(workspaceId || activeWorkspaceId, compactMode),
+      open === true
+    );
   }
 
   function getOpenProjection(hasRenderer, workspaceId) {
     var targetWorkspaceId = normalizeWorkspaceId(workspaceId || activeWorkspaceId);
-    var hasPreference = openByWorkspace.has(targetWorkspaceId);
+    var preferenceKey = getOpenPreferenceKey(targetWorkspaceId, compactMode);
+    var hasPreference = openByWorkspace.has(preferenceKey);
     var defaultOpen = !compactMode && !!hasRenderer && targetWorkspaceId !== 'logs';
     return Object.freeze({
       hasPreference: hasPreference,
-      open: hasPreference ? openByWorkspace.get(targetWorkspaceId) === true : defaultOpen,
+      open: hasPreference ? openByWorkspace.get(preferenceKey) === true : defaultOpen,
     });
   }
 

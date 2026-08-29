@@ -49,6 +49,22 @@ describe('ContextInspectorSession', function () {
     expect(session.getOpenProjection(true)).toEqual({ hasPreference: false, open: false });
   });
 
+  it('按桌面与紧凑视口分别保存每个 workspace 的开合偏好', function () {
+    var session = createContextInspectorSession();
+    session.activateWorkspace('trade');
+    session.rememberOpen(true);
+    expect(session.getOpenProjection(true)).toEqual({ hasPreference: true, open: true });
+
+    session.configure({ compact: true });
+    expect(session.getOpenProjection(true)).toEqual({ hasPreference: false, open: false });
+    session.rememberOpen(false);
+
+    session.configure({ compact: false });
+    expect(session.getOpenProjection(true)).toEqual({ hasPreference: true, open: true });
+    session.configure({ compact: true });
+    expect(session.getOpenProjection(true)).toEqual({ hasPreference: true, open: false });
+  });
+
   it('批量 reconcile 返回受影响工作区并可完整 reset', function () {
     var session = createContextInspectorSession();
     session.replaceContext({ type: 'planet', id: 'sol_prime', revision: 2 });

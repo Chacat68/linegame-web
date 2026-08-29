@@ -246,6 +246,19 @@ export function createContextInspectorController(options) {
     return getSnapshot();
   }
 
+  function setCompactMode(compact, config) {
+    session.configure({ compact: compact === true });
+    if (root && (!config || config.syncOpen !== false)) {
+      var activeWorkspaceId = getActiveWorkspaceId();
+      var openProjection = session.getOpenProjection(
+        renderersByWorkspace.has(activeWorkspaceId),
+        activeWorkspaceId
+      );
+      setPanelVisible(openProjection.open, { remember: false });
+    }
+    return getSnapshot();
+  }
+
   function activateWorkspace(workspaceId, config) {
     var opts = config || {};
     session.activateWorkspace(workspaceId, root ? isOpen : undefined);
@@ -408,5 +421,6 @@ export function createContextInspectorController(options) {
     registerRenderer: registerRenderer,
     render: render,
     replaceContext: replaceContext,
+    setCompactMode: setCompactMode,
   });
 }

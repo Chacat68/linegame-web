@@ -2,7 +2,8 @@
 
 import { createMarketWorkspaceController } from './MarketWorkspaceController.js';
 import { createGameUiLifecycleController } from './GameUiLifecycleController.js';
-import { buildGameFeatureRecoveryDiagnostics } from './GameFeatureRecoveryDiagnostics.js';
+import { buildGameUiApplicationDiagnostics } from './GameUiApplicationDiagnostics.js';
+import { createGameUiNavigationPort } from './GameUiNavigationPort.js';
 import { createSettingsCommandController } from './SettingsCommandController.js';
 import { createSettingsUiController } from './SettingsUiController.js';
 import { createGameUiCoordinator } from '../ui/GameUiCoordinator.js';
@@ -296,31 +297,11 @@ export function createGameUiApplicationRuntime(options) {
   function syncSettings(module) { return getSettingsController().sync(module); }
   function hideSettings() { return getSettingsController().hide(); }
 
-  // 正式工作区导航端口。领域/引导运行时只依赖此对象，不再借用 MapUI
-  // 访问商业入口或通用 Tab 状态。
-  var navigation = Object.freeze({
-    activateWorkspaceTab: function (tabId, options) {
-      return getWorkspaceTabs().activate(tabId, options);
-    },
-    closeMarket: function () { return getMarketWorkspaceEntry().close(); },
-    getActiveArchiveTab: function () { return getWorkspaceTabs().getActive('info'); },
-    getMarketViewSystem: function (state) { return getMarketWorkspaceEntry().getViewSystem(state); },
-    isMarketOpen: function () { return getMarketWorkspaceEntry().isOpen(); },
-    openMarketPanel: function (state, focus) {
-      return getMarketWorkspaceEntry().openPanel(state, focus);
-    },
-    openMarketSystemPanel: function (state, systemId, focus) {
-      return getMarketWorkspaceEntry().openSystemPanel(state, systemId, focus);
-    },
-    refreshMarketLocation: function (state) {
-      return getMarketWorkspaceEntry().refreshLocation(state);
-    },
-    returnToMap: function () {
-      getMarketWorkspaceEntry().close();
-      return ui.UIManager && typeof ui.UIManager.switchView === 'function'
-        ? ui.UIManager.switchView('map')
-        : false;
-    },
+  // 领域/引导运行时只依赖冻结导航端口；端口内部仍按需读取惰性 owner。
+  var navigation = createGameUiNavigationPort({
+    getMarketWorkspaceEntry: getMarketWorkspaceEntry,
+    getWorkspaceTabs: getWorkspaceTabs,
+    uiManager: ui.UIManager,
   });
 
   function reset() {
@@ -382,7 +363,8 @@ export function createGameUiApplicationRuntime(options) {
   function getDiagnostics() {
     var coordinatorDiagnostics = coordinator ? coordinator.getDiagnostics() : null;
     var settingsDiagnostics = settingsController ? settingsController.getDiagnostics() : null;
-    var featureRecovery = buildGameFeatureRecoveryDiagnostics({
+    return buildGameUiApplicationDiagnostics({
+      coordinatorDiagnostics: coordinatorDiagnostics,
       registryDiagnostics: typeof features.getDiagnostics === 'function'
         ? features.getDiagnostics()
         : null,
@@ -391,20 +373,15 @@ export function createGameUiApplicationRuntime(options) {
         ? ui.DeferredFeatureStatusUI.getDiagnostics()
         : null,
       settingsDiagnostics: settingsDiagnostics,
-    });
-    return Object.freeze(Object.assign({}, coordinatorDiagnostics || {}, {
-      coordinator: coordinatorDiagnostics,
-      featureRecovery: featureRecovery,
-      lifecycle: lifecycle ? lifecycle.getDiagnostics() : null,
-      market: marketWorkspace ? marketWorkspace.getDiagnostics() : null,
-      marketEntry: marketWorkspaceEntry ? marketWorkspaceEntry.getDiagnostics() : null,
-      shellProjection: shellProjection && typeof shellProjection.getDiagnostics === 'function'
+      lifecycleDiagnostics: lifecycle ? lifecycle.getDiagnostics() : null,
+      marketDiagnostics: marketWorkspace ? marketWorkspace.getDiagnostics() : null,
+      marketEntryDiagnostics: marketWorkspaceEntry ? marketWorkspaceEntry.getDiagnostics() : null,
+      shellProjectionDiagnostics: shellProjection && typeof shellProjection.getDiagnostics === 'function'
         ? shellProjection.getDiagnostics()
         : null,
-      workspaceTabs: workspaceTabs ? workspaceTabs.getDiagnostics() : null,
-      settings: settingsDiagnostics,
-      settingsCommands: settingsCommands ? settingsCommands.getDiagnostics() : null,
-    }));
+      workspaceTabDiagnostics: workspaceTabs ? workspaceTabs.getDiagnostics() : null,
+      settingsCommandDiagnostics: settingsCommands ? settingsCommands.getDiagnostics() : null,
+    });
   }
 
   return Object.freeze({

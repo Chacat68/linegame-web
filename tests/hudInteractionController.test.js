@@ -68,7 +68,23 @@ function createHarness() {
     hide: vi.fn(),
     show: vi.fn(),
   };
-  var contextInspector = { init: vi.fn() };
+  var compactListeners = new Set();
+  var compactMediaQuery = {
+    matches: false,
+    addEventListener: function (event, listener) {
+      if (event === 'change') compactListeners.add(listener);
+    },
+    removeEventListener: function (event, listener) {
+      if (event === 'change') compactListeners.delete(listener);
+    },
+    setMatches: function (matches) {
+      this.matches = matches === true;
+      Array.from(compactListeners).forEach(function (listener) {
+        listener({ matches: compactMediaQuery.matches });
+      });
+    },
+  };
+  var contextInspector = { init: vi.fn(), setCompactMode: vi.fn() };
   var renderGalaxySummary = vi.fn();
   var controller = createHudInteractionController({
     events: events,
@@ -83,13 +99,14 @@ function createHarness() {
     getWindow: function () {
       return {
         confirm: vi.fn(function () { return true; }),
-        matchMedia: function () { return { matches: false }; },
+        matchMedia: function () { return compactMediaQuery; },
       };
     },
     renderGalaxySummary: renderGalaxySummary,
   });
   return {
     contextInspector: contextInspector,
+    compactMediaQuery: compactMediaQuery,
     controller: controller,
     elements: elements,
     events: events,
@@ -121,6 +138,7 @@ describe('HudInteractionController', function () {
       stateSource: expect.any(Function),
     }));
     expect(harness.logs.initialize).toHaveBeenCalledOnce();
+    expect(harness.controller.getDiagnostics().responsiveContextBound).toBe(true);
 
     harness.events.emit('log:message', { text: '跃迁完成', type: 'travel' });
     harness.events.emit('logs:badge:clear');
@@ -139,6 +157,21 @@ describe('HudInteractionController', function () {
     harness.elements['hud-galactic-map-toggle'].dispatch('click');
     expect(harness.events.emit).toHaveBeenCalledWith('starmap:galaxy-view-toggle');
     expect(harness.renderGalaxySummary).toHaveBeenCalledWith(harness.state);
+  });
+
+  it('视口进入紧凑模式时同步 Context，并在 dispose 后释放监听', function () {
+    var harness = createHarness();
+    harness.controller.initialize();
+
+    harness.compactMediaQuery.setMatches(true);
+    expect(harness.contextInspector.setCompactMode).toHaveBeenLastCalledWith(true);
+    harness.compactMediaQuery.setMatches(false);
+    expect(harness.contextInspector.setCompactMode).toHaveBeenLastCalledWith(false);
+
+    expect(harness.controller.dispose()).toBe(true);
+    harness.compactMediaQuery.setMatches(true);
+    expect(harness.contextInspector.setCompactMode).toHaveBeenCalledTimes(2);
+    expect(harness.controller.getDiagnostics().responsiveContextBound).toBe(false);
   });
 
   it('将长期路线选择提交给 typed action，并用返回快照重绘详情', function () {

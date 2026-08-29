@@ -9,6 +9,9 @@ const _controller = createContextInspectorController({ session: _session });
 export function init(options) { return _controller.init(options); }
 export function open(options) { return _controller.open(options); }
 export function close(options) { return _controller.close(options); }
+export function setCompactMode(compact, options) {
+  return _controller.setCompactMode(compact, options);
+}
 export function activateWorkspace(workspaceId, options) {
   return _controller.activateWorkspace(workspaceId, options);
 }

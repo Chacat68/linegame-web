@@ -13,8 +13,10 @@ describe('HUD context ownership', function () {
 
     expect(hud).toContain("import * as ContextInspector from './ContextInspector.js'");
     expect(hud).toContain("from './HudInteractionController.js'");
-    expect(interactions).toContain("win.matchMedia('(max-width: 900px)').matches");
+    expect(interactions).toContain("win.matchMedia('(max-width: 900px)')");
     expect(interactions).toContain("_call(contextInspector, 'init'");
+    expect(interactions).toContain("mediaQuery.addEventListener('change', compactViewportListener)");
+    expect(interactions).toContain("_call(contextInspector, 'setCompactMode', [compact])");
     expect(hud).toContain("stateSource: typeof opts.stateSource === 'function'");
     expect(hud).toContain("revisionSource: typeof opts.revisionSource === 'function'");
     expect(hud).not.toContain('data-hud-widget');
