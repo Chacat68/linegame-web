@@ -3,8 +3,8 @@
 import { SETTINGS_COMMAND } from '../core/SettingsCommandController.js';
 import * as ActionConfirmUI from './ActionConfirmUI.js';
 import {
-  bindBlockingSurfaceDismiss,
   hideBlockingSurface,
+  registerBlockingSurfaceDismiss,
   showBlockingSurface,
 } from './SurfaceManager.js';
 import { buildSettingsViewModel, getSettingsPanelTitle } from './SettingsViewPresenter.js';
@@ -20,7 +20,7 @@ export function createSettingsModalController(options) {
   var getDocument = _optionalFunction(dependencies.getDocument, function () {
     return typeof globalThis !== 'undefined' ? globalThis.document : null;
   });
-  var bindDismiss = _optionalFunction(dependencies.bindDismiss, bindBlockingSurfaceDismiss);
+  var bindDismiss = _optionalFunction(dependencies.bindDismiss, registerBlockingSurfaceDismiss);
   var showSurface = _optionalFunction(dependencies.showSurface, showBlockingSurface);
   var hideSurface = _optionalFunction(dependencies.hideSurface, hideBlockingSurface);
   var openConfirm = _optionalFunction(dependencies.openConfirm, ActionConfirmUI.open);
@@ -31,6 +31,7 @@ export function createSettingsModalController(options) {
   var activeModal = null;
   var activePanel = 'display';
   var bindings = [];
+  var releaseDismiss = null;
   var bindCount = 0;
   var commandCount = 0;
   var confirmCount = 0;
@@ -61,6 +62,8 @@ export function createSettingsModalController(options) {
   }
 
   function _releaseBindings() {
+    if (releaseDismiss) releaseDismiss();
+    releaseDismiss = null;
     bindings.forEach(function (binding) {
       if (binding.element && binding.element[binding.property] === binding.handler) {
         binding.element[binding.property] = null;
@@ -250,7 +253,8 @@ export function createSettingsModalController(options) {
     _releaseBindings();
     activeModal = _element(SURFACE_ID);
     if (!activeModal) return false;
-    bindDismiss(SURFACE_ID);
+    var release = bindDismiss(SURFACE_ID);
+    releaseDismiss = typeof release === 'function' ? release : null;
     _bindTabs();
     _bindControls();
     bindCount += 1;
@@ -306,6 +310,7 @@ export function createSettingsModalController(options) {
       commandCount: commandCount,
       confirmCount: confirmCount,
       disposeCount: disposeCount,
+      dismissBound: !!releaseDismiss,
       hideCount: hideCount,
       lastCommandType: lastCommandType,
       resetCount: resetCount,

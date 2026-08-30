@@ -136,7 +136,7 @@
 | `ArchiveExplorationController.js` | 113 行 | 独占单一探索档案根、报告检查/键盘委托、航点/连续任务聚焦滚动、解绑和冻结 diagnostics |
 | `SettingsManager.js` | 重构前 416 行；当前 36 行 | 只保留 Modal Controller、Core 读写兼容导出与 diagnostics 组合，不再查询 DOM、发布设置命令细节或绑定 launcher |
 | `SettingsViewPresenter.js` | 55 行 | 纯生成规范化设置控件、可读摘要与分页标题冻结模型 |
-| `SettingsModalController.js` | 324 行 | 独占设置弹层内部控件、分页键盘、命令反馈、危险确认、Blocking Surface 与完整释放 |
+| `SettingsModalController.js` | 329 行 | 独占设置弹层内部控件、分页键盘、命令反馈、危险确认、Blocking Surface owner token 与完整释放 |
 | `SaveCommand.js` | 26 行 | 规范化并冻结保存/读取槽位 command，拒绝未知、非数字类型、空白、负数和非整数槽位 |
 | `SaveCommandAdapter.js` | 20 行 | 独占 Save UI 保存/读取 intent 到单一 typed command 的转换；删除和文件迁移仍留在工作区本地 effect |
 | `SaveUI.js` | 重构前 447 行；当前 18 行 | 只保留 Workspace Controller 请求对象 render、diagnostics 与 reset 组合，不再查询 DOM、访问 SaveSystem、实现文件迁移或接收位置参数回调 |
@@ -149,7 +149,7 @@
 | `DialogueUI.js` | 重构前 384 行；当前 29 行 | 只保留 Modal Controller 的 `init/showScene/hideScene/isOpen/destroy/getDiagnostics` 兼容组合，不再读取 DOM 或持有播放状态 |
 | `DialogueSession.js` | 109 行 | 独占主线/回应播放、分支选择、已选结果和 reset 诊断，不持有 DOM 或完成回调 |
 | `DialoguePresenter.js` | 81 行 | 纯生成场景、说话者、进度、摘要、分支卡、选项与按钮冻结模型 |
-| `DialogueModalController.js` | 340 行 | 独占剧情 Blocking Surface、稳定 DOM、键盘、选择防重、焦点、完成提交和完整释放 |
+| `DialogueModalController.js` | 345 行 | 独占剧情 Blocking Surface owner token、稳定 DOM、键盘、选择防重、焦点、完成提交和完整释放 |
 | `ContextInspector.js` | 重构前 490 行；当前 36 行 | 只保留 Session/Presenter/ViewAdapter/Controller 的兼容组合与原公开 API 委托，不再查询 DOM、持有 renderer 或维护工作区会话 |
 | `ContextInspectorSession.js` | 179 行 | 独占五工作区不可变 context key、常规/紧凑视口独立开合偏好、compact 策略与 revision 校验；不读取 DOM 或缓存领域对象 |
 | `ContextInspectorPresenter.js` | 26 行 | 纯生成 Inspector 壳层标题、context 标识、renderer 结果与统一空态冻结模型 |
@@ -158,7 +158,7 @@
 | `GameUiCoordinator.js` | 重构前 680 行；当前 377 行 | 只保留 dirty-region 路由、Feature load/ensure/reset、全局非工作区刷新与 diagnostics 组合；不再构造四个工作区区域请求或持有渲染计数状态 |
 | `GameUiWorkspaceRenderer.js` | 309 行 | 独占 Market/Fleet/Archive/Save 区域请求、局部 renderer 回退、Context adapter 连接与 typed command 注入；四个 Feature 均只向 UI 发布请求对象和单一 command 端口，始终经 provider 读取最新 state |
 | `GameUiRenderSession.js` | 87 行 | 无 DOM/state 地记录成功区域、嵌套刷新事务、全量/失效次数与 reset 后冻结 diagnostics |
-| `GameUiApplicationRuntime.js` | 重构前 433 行；当前 430 行 | 只保留 MarketWorkspace、Settings、Coordinator、Lifecycle 与 Context adapters 的惰性组装，以及 ensure/render/invalidate/reset/dispose 顶层生命周期；不再内联 navigation 与复合 diagnostics |
+| `GameUiApplicationRuntime.js` | 重构前 433 行；当前 431 行 | 只保留 MarketWorkspace、Settings、Coordinator、Lifecycle 与 Context adapters 的惰性组装，以及 ensure/render/invalidate/reset/dispose 顶层生命周期；不再内联 navigation 与复合 diagnostics |
 | `GameUiNavigationPort.js` | 49 行 | 独占领域、命令与引导共享的冻结惰性导航 API；每次调用读取最新 owner，缺失端口安全降级 |
 | `GameUiApplicationDiagnostics.js` | 35 行 | 纯组合 Coordinator renderer/session、Feature recovery、Context Inspector、Navigation、Workspace Surface、Workspace Detail、SurfaceManager 与子控制器 diagnostics；缺失惰性 controller 时返回稳定可序列化空快照 |
 | `GameShellProjection.js` | 70 行 | 全局 Shell 的单一刷新事务；组合 Header、公司经营、Archive 角标与长期路线摘要，公开冻结 diagnostics，不持有 state 快照 |
@@ -166,9 +166,12 @@
 | `HeaderStatusPresenter.js` | 201 行 | 纯投影 Header 信用点、位置、日期、当前舰船、声望、资源 meter 与星图工具状态，不绑定 listener、不修改领域状态 |
 | `CompanyOverviewPresenter.js` | 141 行 | 纯投影 Header 公司身份和机库净资产、玩家/公司等级、容量与开放权限；不再把声望/日期/信用点镜像进工作区 |
 | `ArchiveBadgePresenter.js` | 65 行 | 从任务、探索、科研、派系与成就 selector 构造冻结角标快照，只投影五个 Archive Tab 与一个主导航 badge |
-| `HudInteractionController.js` | 273 行 | 独占日志事件、胜利弹层、星图工具、Context 初始化、`900px` 断点 listener 与完整 dispose/re-init；长期路线选择只调用注入 typed action |
+| `HudInteractionController.js` | 281 行 | 独占日志事件、胜利弹层 dismiss token、星图工具、Context 初始化、`900px` 断点 listener 与完整 dispose/re-init；dispose 先隐藏胜利弹层再释放 owner，长期路线选择只调用注入 typed action |
 | `VictoryProgressPresenter.js` | 147 行 | 纯渲染长期路线摘要与详情，统一领域内容转义、缺口排序与进度可读语义 |
-| `SurfaceManager.js` | 374 行 | 只拥有 Blocking Surface、焦点陷阱、状态观察、唯一 Escape dispatcher 与冻结 diagnostics；只公开 Surface/layer ID、优先序和计数，不再认识或泄漏任何 L3 workspace DOM/回调 |
+| `Modal.js` / `ActionConfirmUI.js` | 256 / 165 行 | 分别独占交易确认与应用危险确认的稳定 DOM listener、dismiss token、关闭与重建；UI shutdown 显式 dispose，不再用空 callback 维持旧单例 |
+| `OnboardingUI.js` / `EventUI.js` | 207 / 343 行 | 公司命名在确认/跳过/Feature dispose 后释放；事件选择在提交、session clear 与 application shutdown 后释放；均不保留跨流程永久 owner |
+| `BlockingSurfaceDismissRegistry.js` | 114 行 | 独占每个 Blocking Surface 的单一 backdrop listener、多 owner 先到先用仲裁、幂等 release 与最后 owner 清理；不认识层级、焦点或工作区 |
+| `SurfaceManager.js` | 385 行 | 只编排 Blocking Surface、焦点陷阱、状态观察、dismiss registry、唯一 Escape dispatcher 与空闲释放；只公开可注销注册，diagnostics 不泄漏 L3 workspace DOM/回调 |
 | `WorkspaceSurfaceController.js` | 196 行 | 五个同级 canonical L3 共用 `is-active`、`data-workspace-active`、`inert`、ARIA、来源相关焦点与诊断协议；程序化进入使用 generation-safe 延迟焦点提交 |
 | 全部 CSS | 28,871 行 | 级联和其他功能的重复响应式规则仍需继续收敛；Header、Bottom Nav、Action Guide、Starmap Controls 与 Market 延迟基础样式均已形成明确 owner，legacy 中 162 个 Header、97 个 Bottom Nav 规则/混合选择器、423 行 Action Guide/Command Slot、1,425 行旧星图控制轨/HUD 小窗、724 行退役 Company Directives UI 及 566 行旧市场面板/重复规则已物理清除；Context Inspector 与 Workspace Detail 已拆成独立文件，`global-shell-v2.css` 从 789 行降至 72 行；窄屏 L3 Header 与空态 Inspector 几何已加入静态回归保护 |
 | `interstellar-trader.css` | 7,272 行 | 仍是主要遗留级联源，但已完全移除 Header、Bottom Nav、旧星图控制轨、隐藏 3D 按钮、五个并行 HUD 小窗、Company Directives UI 与全部 Market Feature 私有选择器；混合规则保留其他有效组件选择器，且不再包含 exploration-terminal/current-system-card/company-name-btn 无 DOM 命中规则 |
@@ -851,18 +854,18 @@ Escape **不得切换 canonical workspace 或默认返回地图**，也不得关
 | `RandomEventRuntimeController` | **随机事件运行时已接入** | RandomEvent 作为 FeatureRegistry entry 保持首次 roll / pending 恢复时动态加载；controller 只拥有 roll 队列、session token/generation、恢复/存档规则 | 为事件效果增加事务快照与补偿边界 |
 | `AchievementRuntimeController` | **成就检查运行时已接入** | FeatureRegistry 继续按需加载模块；controller 独占请求合并、generation/session-token 双重校验、结果发布、失败重试与 dispose；会话替换或 reset 后的迟到请求不能初始化旧 state，也不能清除新请求；dispose 已进入统一 shutdown | 将成就结果改为 typed post-effect |
 | `VictoryRuntimeController` | **胜利检测、路线选择与结算呈现已接入** | controller 持有不可逆路线选择的 mutation → 消息 → 舰队同步 → 任务进度 → UI/Guide 刷新顺序、本会话已确认路线、待呈现报告、统计构造与延迟 UI session-token 校验；HUD 只发布 command | 把路线完成后的继续经营策略迁入独立 post-victory command，并纳入统一 action pipeline |
-| `SettingsUiController` | **设置入口与失败恢复生命周期已接入** | controller 永久独占设置 launcher、首次点击 loader、并发打开去重、latest settings provider、session/generation 失效保护、模块同步和统一 loading/error/retry；模块加载后不再转移 click owner，reset 会清理模块局部会话，dispose 释放 launcher；加载/失败/打开计数已汇入顶层诊断 | 补真实 chunk 失败的浏览器注入用例 |
-| Settings View/Modal Presenter/Controller + `SettingsManager` | **设置弹层 UI 所有权已接入** | 控件值、摘要和分页标题由纯 Presenter 投影；Modal Controller 独占内部控件、分页键盘、反馈、危险确认、Blocking Surface、reset/dispose；Feature manifest 拥有 dispose hook；`SettingsManager` 由 416 行降至 36 行兼容门面且不再读取 DOM | 后续新增设置项只扩展模型、typed command 与单一 Controller 映射，不得恢复散落 listener 或 launcher 双 owner |
+| `SettingsUiController` | **设置入口与失败恢复生命周期已接入** | controller 永久独占设置 launcher、首次点击 loader、并发打开去重、latest settings provider、session/generation 失效保护、模块同步和统一 loading/error/retry；模块加载后不再转移 click owner，reset 会清理模块局部会话，dispose 同时释放 launcher 与外层 dismiss token；加载/失败/打开计数已汇入顶层诊断 | 补真实 chunk 失败的浏览器注入用例 |
+| Settings View/Modal Presenter/Controller + `SettingsManager` | **设置弹层 UI 所有权已接入** | 控件值、摘要和分页标题由纯 Presenter 投影；Modal Controller 独占内部控件、分页键盘、反馈、危险确认、Blocking Surface owner token、reset/dispose；外壳与 Feature 两个 settings owner 可独立释放且不互删；Feature manifest 拥有 dispose hook；`SettingsManager` 由 416 行降至 36 行兼容门面且不再读取 DOM | 后续新增设置项只扩展模型、typed command 与单一 Controller 映射，不得恢复散落 listener 或 launcher 双 owner |
 | Save Workspace Presenter/Controller + `SaveUI` | **存档工具 UI 所有权与单一命令端口已接入** | Presenter 纯投影安全/槽位/迁移/确认描述；Controller 独占单一根委托、确认、JSON 文件选择、Blob 下载、异步读取失效和释放，并通过 Adapter 发布保存/读取 typed command；Feature manifest、GameUiCoordinator reset 与顶层 diagnostics 已接线；`SaveUI` 由 447 行降至 18 行请求对象门面 | 补移动视口真实导入/导出与删除后焦点恢复验收；未来云同步必须作为独立 effect/port，不得回流门面 |
 | Tutorial Step/Tooltip/Overlay + `TutorialUI` | **L7 教程覆盖层所有权已接入** | Presenter 纯投影内容/进度/ARIA；Layout 独占 visual viewport、安全区、翻转和监听；Overlay Controller 独占 EventBus、按钮、高亮、焦点与完整 destroy；未使用的 TutorialSystem 依赖已移除，`TutorialUI` 由 438 行降至 25 行兼容门面 | 补真实移动端键盘/visual viewport 变化与多步骤按钮焦点顺序验收 |
-| Dialogue Session/Presenter/Modal + `DialogueUI` | **L6 剧情弹层所有权已接入** | Session 独占播放/分支状态，Presenter 纯投影进度/摘要/选项语义，Modal Controller 独占 Surface/DOM/方向键/防重/焦点/释放；Runtime 与 Feature dispose 都走幂等清理；`DialogueUI` 由 384 行降至 29 行兼容门面 | 补真实移动端长文本、四选项滚动与 Escape/完成回调顺序验收 |
+| Dialogue Session/Presenter/Modal + `DialogueUI` | **L6 剧情弹层所有权已接入** | Session 独占播放/分支状态，Presenter 纯投影进度/摘要/选项语义，Modal Controller 独占 Surface/DOM/方向键/防重/焦点和 dismiss token；Runtime 与 Feature dispose 都走幂等清理并释放物理 listener owner；`DialogueUI` 由 384 行降至 29 行兼容门面 | 补真实移动端长文本、四选项滚动与 Escape/完成回调顺序验收 |
 | `SettingsCommandController` | **设置 typed command 边界已接入** | 独占 settings mutation、持久化、Renderer/Audio 投影、难度/时钟通知、日志反馈、数据导出和恢复默认/重置教程/清空存档提交；非法命令和值不会污染当前设置；Modal Controller 只发布命令并呈现冻结结果 | 继续收窄危险操作的确认结果类型，并为未来系统级分享保留独立 effect |
 | `UsageDataExportEffect` | **本地统计导出副作用已接入** | 正式设置命令独占脱敏 payload → JSON → Blob → object URL → 临时 anchor → 必定释放的实现；下载失败也会清理 DOM 与 URL；应用入口与 SettingsManager 均无复制的下载副作用 | 后续若接入系统级分享，新增显式 share effect，不得把上传混入本地导出 |
 | `GameApplicationTestHarness` | **应用级测试控制面已隔离** | `GameApplication` 仅在 `MODE=test` 注册冻结工厂；trade / fleet / guidance / clock / UI diagnostics smoke 继续操作真实单例 Runtime Graph；`GameApplication` 与 `GameManager` 的生产导出均只剩 `init / shutdown` | harness 只服务跨 runtime 集成验证，不得成为生产模块的旁路命令总线 |
-| `OnboardingUiController` + `OnboardingPolicyController` | **首次进入 UI 生命周期与内容策略已接入** | UI controller 持有教程视图同步、开始/跳过决策、公司身份入口 DOM listener 与 latest-session 校验；policy 持有欢迎消息、教程完成反馈和首批任务推荐；listener 已由 UI runtime shutdown 释放 | 把可配置文案迁入内容资源层 |
+| `OnboardingUiController` + `OnboardingPolicyController` | **首次进入 UI 生命周期与内容策略已接入** | UI controller 持有教程视图同步、开始/跳过决策、公司身份入口 DOM listener 与 latest-session 校验；policy 持有欢迎消息、教程完成反馈和首批任务推荐；入口 listener 由 UI runtime shutdown 释放，Onboarding Feature dispose 同时关闭公司/教程弹层并释放 dismiss owner | 把可配置文案迁入内容资源层 |
 | `GuidanceExecutionAdapter` | **行动引导执行端口已接入** | actionType 执行上下文由 `GameGuidanceRuntime` 以分组端口组装；异步 Feature 加载使用 latest-session 校验，迟到结果被丢弃；不可用与执行异常统一可见反馈 | 将剩余 direct-execution policy 收敛为 typed command |
 | `TeachingGuidanceController` | **教程路线辅助与专题教学策略已接入** | 首单/卖货路线使用 state + session token 丢弃迟到结果；专题启动、真实步骤提交和自然完成反馈由单一边界发布；舰队、经营、pipeline 与 Action Guide 均已改用该端口 | 将领域完成事件改为 typed teaching command，并让路线辅助返回统一语义结果 |
-| `GameUiLifecycleController` | **eager UI 壳 bind / present / dispose 已接入** | HUD、MapUI、UIManager、Modal、Action Guide、设置/公司 launcher、Feature telemetry、场景就绪和首次进入呈现统一接线；重复初始化只保留一个教程完成 listener；HUD/MapUI/UIManager dispose 会释放 DOM、EventBus、Context、Escape 和全局 facade/callback；统一 shutdown 已调用该边界 | 补浏览器级 listener 计数 |
+| `GameUiLifecycleController` | **eager UI 壳 bind / present / dispose 已接入** | HUD、MapUI、UIManager、Modal、Action Guide、设置/公司 launcher、Feature telemetry、场景就绪和首次进入呈现统一接线；重复初始化只保留一个教程完成 listener；shutdown 显式 dispose 交易 Modal 与 ActionConfirmUI，并释放 HUD/MapUI/UIManager 的 DOM、EventBus、Context、Escape 和全局 facade/callback | 补浏览器级 listener 计数 |
 | `GameUiApplicationRuntime` + `GameUiNavigationPort` + `GameUiApplicationDiagnostics` | **UI 应用组合、导航与诊断 owner 已拆分接入** | 430 行 Runtime 只保留 MarketWorkspace、Settings command/UI、GameUiCoordinator、GameUiLifecycle 与 Context adapters 的惰性组装及 ensure/render/invalidate/reset/dispose；49 行 NavigationPort 独占正式冻结导航协议；35 行 ApplicationDiagnostics 纯组合 Coordinator 渲染/会话、Feature recovery、Context Inspector、Navigation、Workspace Surface、Workspace Detail、SurfaceManager 与子控制器快照，惰性 owner 缺失时保持稳定可序列化降级；`settingsCommands.execute` 继续作为正式端口公开 | 继续收窄剩余 UI typed ports，并把 feature fallback 统一到同一状态呈现 |
 | `CommandDestinationController` | **命令 UI 落点已接入** | 交易确认、任务选择、市场商品、探索报告、推荐派遣和推荐改装拥有单一 owner；Fleet/Archive/Market 延迟完成均校验 generation、state 与 session token | 把更多 workspace 内局部 CTA 接入统一 command destination，并为加载失败提供局部恢复呈现 |
 | `MarketCommand` + `MarketWorkspaceController` | **typed 市场命令与重入生命周期已接入** | `MarketUI` 只接收请求对象并发布单一 command；控制器统一解释公开/黑市买卖、补给、贷款、投资、建站、升级、批量策略与远程航点，非法 payload 会被拒绝；diagnostics 记录成功数、拒绝数与最后命令；UI runtime dispose 会释放工作区 listener | 把 presenter 选择状态汇入同一 diagnostics |

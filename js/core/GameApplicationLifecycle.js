@@ -15,7 +15,7 @@ export const APPLICATION_SHUTDOWN_STAGES = Object.freeze([
   Object.freeze({ id: 'ui', method: 'dispose' }),
   Object.freeze({ id: 'features', method: 'disposeAll' }),
   Object.freeze({ id: 'renderer', method: 'dispose' }),
-  Object.freeze({ id: 'eventUi', method: 'clearPendingEvent' }),
+  Object.freeze({ id: 'eventUi', method: 'dispose' }),
 ]);
 
 function _requiredFunction(value, label) {

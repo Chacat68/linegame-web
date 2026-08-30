@@ -47,6 +47,7 @@ describe('GameFeatureManifest', function () {
     var archiveUi = { id: 'archive-ui', resetRuntimeState: vi.fn() };
     var victoryUi = { id: 'victory-ui' };
     var tutorialUi = { destroy: vi.fn() };
+    var onboardingUi = { dispose: vi.fn() };
     var dialogueUi = { destroy: vi.fn() };
     var marketUi = { resetRuntimeState: vi.fn() };
     var fleetUi = { resetRuntimeState: vi.fn() };
@@ -79,6 +80,7 @@ describe('GameFeatureManifest', function () {
     manifest.fleet.dispose(fleetUi);
     manifest.archive.dispose(archiveUi);
     manifest.dialogue.dispose({ DialogueUI: dialogueUi });
+    manifest.onboarding.dispose(onboardingUi);
     manifest.save.dispose(saveUi);
     manifest.tutorial.dispose(tutorialUi);
     manifest.settings.dispose(settingsUi);
@@ -97,6 +99,7 @@ describe('GameFeatureManifest', function () {
     expect(fleetUi.resetRuntimeState).toHaveBeenCalledOnce();
     expect(archiveUi.resetRuntimeState).toHaveBeenCalledOnce();
     expect(dialogueUi.destroy).toHaveBeenCalledOnce();
+    expect(onboardingUi.dispose).toHaveBeenCalledOnce();
     expect(saveUi.resetRuntimeState).toHaveBeenCalledOnce();
     expect(tutorialUi.destroy).toHaveBeenCalledOnce();
     expect(settingsUi.dispose).toHaveBeenCalledOnce();

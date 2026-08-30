@@ -215,6 +215,7 @@ export function createGameFeatureManifest(options) {
     },
     onboarding: {
       load: function () { return import('../ui/OnboardingUI.js'); },
+      dispose: function (module) { if (module.dispose) module.dispose(); },
       onError: onError('onboarding'),
     },
     tutorial: {

@@ -55,7 +55,8 @@ function createHarness(options) {
     switchView: vi.fn(),
   };
   var WorkspaceDetailSurface = { init: vi.fn(), refresh: vi.fn(), dispose: vi.fn() };
-  var Modal = { init: vi.fn() };
+  var ActionConfirmUI = { dispose: vi.fn() };
+  var Modal = { dispose: vi.fn(), init: vi.fn() };
   var Renderer = config.Renderer || {
     whenSceneReady: vi.fn(function () { return Promise.resolve({ renderer: 'three' }); }),
     getActiveRendererName: vi.fn(function () { return 'fallback'; }),
@@ -104,6 +105,7 @@ function createHarness(options) {
     features: features,
     events: events,
     ui: {
+      ActionConfirmUI: ActionConfirmUI,
       HUD: HUD,
       MapUI: MapUI,
       UIManager: UIManager,
@@ -121,6 +123,7 @@ function createHarness(options) {
   });
 
   return {
+    ActionConfirmUI: ActionConfirmUI,
     controller: controller,
     controllers: controllers,
     events: events,
@@ -248,6 +251,8 @@ describe('GameUiLifecycleController', function () {
     harness.events.emit('tutorial:complete');
     expect(harness.controllers.onboardingPolicy.handleTutorialComplete).toHaveBeenCalledOnce();
     expect(harness.controllers.onboardingUi.dispose).toHaveBeenCalledOnce();
+    expect(harness.ActionConfirmUI.dispose).toHaveBeenCalledOnce();
+    expect(harness.Modal.dispose).toHaveBeenCalledOnce();
     expect(harness.MapUI.setNavigationActions).toHaveBeenLastCalledWith(null);
     expect(harness.controllers.settingsUi.dispose).toHaveBeenCalledOnce();
     expect(harness.controllers.actionGuide.dispose).toHaveBeenCalledOnce();
@@ -304,6 +309,8 @@ describe('GameUiLifecycleController', function () {
     expect(harness.WorkspaceTabs.init).not.toHaveBeenCalled();
     expect(harness.MapUI.setExplorationActions).not.toHaveBeenCalled();
     expect(harness.Modal.init).not.toHaveBeenCalled();
+    expect(harness.Modal.dispose).toHaveBeenCalledOnce();
+    expect(harness.ActionConfirmUI.dispose).toHaveBeenCalledOnce();
     expect(harness.events.listenerCount('tutorial:complete')).toBe(0);
     expect(harness.events.listenerCount('logs:history:changed')).toBe(0);
   });

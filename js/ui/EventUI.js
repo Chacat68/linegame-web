@@ -3,10 +3,16 @@
 // 导出：showEvent, hideEvent, setPendingEvent, getPendingEvent,
 //       hasPendingEvent, forcePendingEvent, clearPendingEvent
 
-import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from './SurfaceManager.js';
+import { hideBlockingSurface, registerBlockingSurfaceDismiss, showBlockingSurface } from './SurfaceManager.js';
 
 let _pendingEvent = null;
 let _pendingOnChoice = null;
+let _releaseEventDismiss = null;
+
+function _releaseEventSurface() {
+  if (_releaseEventDismiss) _releaseEventDismiss();
+  _releaseEventDismiss = null;
+}
 
 /**
  * 显示随机事件模态框
@@ -14,7 +20,8 @@ let _pendingOnChoice = null;
  * @param {Function} onChoice   (choiceIndex: number) => void
  */
 export function showEvent(event, onChoice) {
-  bindBlockingSurfaceDismiss('event-modal', {
+  _releaseEventSurface();
+  _releaseEventDismiss = registerBlockingSurfaceDismiss('event-modal', {
     closeOnBackdrop: false,
     closeOnEscape: false,
   });
@@ -94,6 +101,7 @@ export function showEvent(event, onChoice) {
         choiceButton.setAttribute('aria-disabled', 'true');
       });
       hideBlockingSurface('event-modal');
+      _releaseEventSurface();
       if (!choice._fallbackClose && typeof onChoice === 'function') onChoice(index);
     });
     choiceButtons.push(btn);
@@ -110,6 +118,7 @@ export function showEvent(event, onChoice) {
  */
 export function hideEvent() {
   hideBlockingSurface('event-modal');
+  _releaseEventSurface();
 }
 
 /**
@@ -154,8 +163,14 @@ export function forcePendingEvent() {
  * 清除待处理事件
  */
 export function clearPendingEvent() {
+  hideEvent();
   _pendingEvent = null;
   _pendingOnChoice = null;
+}
+
+export function dispose() {
+  clearPendingEvent();
+  return true;
 }
 
 function _renderEventSummary(event, choiceCount) {

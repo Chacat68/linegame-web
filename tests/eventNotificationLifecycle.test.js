@@ -103,6 +103,8 @@ describe('Event notification lifecycle', function () {
     expect(html).not.toContain('id="event-notif-');
     expect(eventUiSource).not.toContain('event-notification');
     expect(eventUiSource).not.toContain('showEventNotificationBar');
+    expect(eventUiSource).toContain('export function dispose()');
+    expect(eventUiSource).toContain('_releaseEventSurface()');
   });
 
   it('pending event 只投影为 Command Slot 的唯一可聚焦 CTA', async function () {

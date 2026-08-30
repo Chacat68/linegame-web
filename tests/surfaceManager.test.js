@@ -1,11 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
-  bindBlockingSurfaceDismiss,
   getDiagnostics,
   hasBlockingSurfaceOpen,
   hideBlockingSurface,
   isBlockingSurfaceVisible,
+  registerBlockingSurfaceDismiss,
   registerEscapeLayer,
   showBlockingSurface,
 } from '../js/ui/SurfaceManager.js';
@@ -52,6 +52,9 @@ function createFakeElement(initialClasses) {
     addEventListener: function (type, handler) {
       if (!listeners[type]) listeners[type] = [];
       listeners[type].push(handler);
+    },
+    removeEventListener: function (type, handler) {
+      listeners[type] = (listeners[type] || []).filter(function (entry) { return entry !== handler; });
     },
     dispatchEvent: function (type, event) {
       (listeners[type] || []).forEach(function (handler) {
@@ -320,7 +323,7 @@ describe('SurfaceManager', function () {
     expect(dialogueModal.inert).toBe(true);
   });
 
-  it('bindBlockingSurfaceDismiss 会支持统一 dismiss 与自定义 onDismiss', function () {
+  it('registerBlockingSurfaceDismiss 支持多 owner 仲裁、自定义 dismiss 与完整释放', function () {
     var tradeModal = createFakeElement(['modal']);
     tradeModal.id = 'trade-modal';
     var documentListeners = Object.create(null);
@@ -328,7 +331,8 @@ describe('SurfaceManager', function () {
 
     globalThis.document = {
       getElementById: function (id) {
-        return id === 'trade-modal' ? tradeModal : null;
+        if (id === 'trade-modal') return tradeModal;
+        return null;
       },
       querySelectorAll: function (selector) {
         if (selector === '.modal') return [tradeModal];
@@ -338,15 +342,21 @@ describe('SurfaceManager', function () {
         if (!documentListeners[type]) documentListeners[type] = [];
         documentListeners[type].push(handler);
       },
+      removeEventListener: function (type, handler) {
+        documentListeners[type] = (documentListeners[type] || []).filter(function (entry) {
+          return entry !== handler;
+        });
+      },
     };
 
-    bindBlockingSurfaceDismiss('trade-modal', {
+    var ownerCountBefore = getDiagnostics().blockingDismisserOwnerCount;
+    var releaseFirst = registerBlockingSurfaceDismiss('trade-modal', {
       onDismiss: function () {
         dismissCount += 1;
         tradeModal.classList.add('hidden');
       },
     });
-    bindBlockingSurfaceDismiss('trade-modal', {
+    var releaseSecond = registerBlockingSurfaceDismiss('trade-modal', {
       onDismiss: function () {
         dismissCount += 10;
       },
@@ -361,6 +371,7 @@ describe('SurfaceManager', function () {
       topBlockingSurfaceId: 'trade-modal',
     });
     expect(diagnostics.blockingDismisserIds).toContain('trade-modal');
+    expect(diagnostics.blockingDismisserOwnerCount).toBe(ownerCountBefore + 2);
     expect(diagnostics.visibleBlockingSurfaceIds).toEqual(['trade-modal']);
     expect(Object.isFrozen(diagnostics)).toBe(true);
     expect(Object.isFrozen(diagnostics.visibleBlockingSurfaceIds)).toBe(true);
@@ -382,6 +393,16 @@ describe('SurfaceManager', function () {
     expect(dismissCount).toBe(2);
     expect(prevented).toBe(true);
     expect(stopped).toBe(true);
+    expect(releaseFirst()).toBe(true);
+    expect(releaseFirst()).toBe(false);
+    tradeModal.dispatchEvent('click', { target: tradeModal });
+    expect(dismissCount).toBe(12);
+    expect(releaseSecond()).toBe(true);
+    expect(tradeModal.listenerCount('click')).toBe(0);
+    expect(tradeModal.dataset.surfaceDismissBound).toBeUndefined();
+    expect(getDiagnostics().blockingDismisserIds).not.toContain('trade-modal');
+    expect(getDiagnostics().blockingDismisserOwnerCount).toBe(ownerCountBefore);
+    expect(documentListeners.keydown).toHaveLength(0);
   });
 
   it('多个 modal 只注册一个命名 dispatcher，Escape 只关闭最顶层一个', function () {
@@ -408,13 +429,13 @@ describe('SurfaceManager', function () {
       },
     };
 
-    bindBlockingSurfaceDismiss('first-modal', {
+    var releaseFirst = registerBlockingSurfaceDismiss('first-modal', {
       onDismiss: function () {
         dismissed.push('first');
         firstModal.classList.add('hidden');
       },
     });
-    bindBlockingSurfaceDismiss('top-modal', {
+    var releaseTop = registerBlockingSurfaceDismiss('top-modal', {
       onDismiss: function () {
         dismissed.push('top');
         topModal.classList.add('hidden');
@@ -428,6 +449,9 @@ describe('SurfaceManager', function () {
     expect(dismissed).toEqual(['top']);
     expect(topModal.classList.contains('hidden')).toBe(true);
     expect(firstModal.classList.contains('hidden')).toBe(false);
+    hideBlockingSurface('first-modal');
+    releaseTop();
+    releaseFirst();
   });
 
   it('不可 dismiss 的 blocking modal 消费 Escape 且不下穿到详情层', function () {
@@ -448,7 +472,7 @@ describe('SurfaceManager', function () {
       removeEventListener: function () {},
     };
 
-    bindBlockingSurfaceDismiss('event-modal', {
+    var releaseEvent = registerBlockingSurfaceDismiss('event-modal', {
       closeOnEscape: false,
       closeOnBackdrop: false,
     });
@@ -469,6 +493,8 @@ describe('SurfaceManager', function () {
     expect(detailEscapeCount).toBe(0);
     expect(prevented).toBe(true);
     expect(stopped).toBe(true);
+    hideBlockingSurface('event-modal');
+    releaseEvent();
   });
 
   it('非阻塞 Escape layer 按优先级只执行一个并支持注销', function () {
@@ -511,10 +537,13 @@ describe('SurfaceManager', function () {
 
   it('不再持有 canonical workspace 的 primary/secondary 兼容协议', function () {
     var source = readFileSync(new URL('../js/ui/SurfaceManager.js', import.meta.url), 'utf8');
+    var registrySource = readFileSync(new URL('../js/ui/BlockingSurfaceDismissRegistry.js', import.meta.url), 'utf8');
     expect(source).not.toContain('PRIMARY_SURFACE_IDS');
     expect(source).not.toContain('SECONDARY_SURFACE_IDS');
     expect(source).not.toContain('openPrimarySurface');
     expect(source).not.toContain('openSecondarySurface');
     expect(source).not.toContain('market-overlay');
+    expect(source).not.toContain('bindBlockingSurfaceDismiss');
+    expect(registrySource).not.toContain('function bind(');
   });
 });

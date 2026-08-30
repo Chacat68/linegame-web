@@ -36,6 +36,9 @@ function createHarness(options) {
 describe('GameApplicationLifecycle', function () {
   it('按依赖反序释放应用 runtime，且重复 shutdown 幂等', function () {
     var harness = createHarness();
+    expect(APPLICATION_SHUTDOWN_STAGES.find(function (stage) { return stage.id === 'eventUi'; })).toEqual({
+      id: 'eventUi', method: 'dispose',
+    });
     var result = harness.lifecycle.shutdown({ reason: 'test-shutdown' });
 
     expect(harness.trace).toEqual(

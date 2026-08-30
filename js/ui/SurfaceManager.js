@@ -2,6 +2,8 @@
 // Canonical L3 workspace 由 NavigationController + WorkspaceSurfaceController 持有；
 // 本模块只管理 blocking modal、焦点陷阱和非阻塞 Escape layer 仲裁。
 
+import { createBlockingSurfaceDismissRegistry } from './BlockingSurfaceDismissRegistry.js';
+
 const _surfaceState = globalThis.__linegameSurfaceManagerState || (globalThis.__linegameSurfaceManagerState = {
   observers: new Set(),
 });
@@ -9,6 +11,15 @@ const _surfaceObservers = _surfaceState.observers;
 const _returnFocusTargets = _surfaceState.returnFocusTargets || (_surfaceState.returnFocusTargets = new Map());
 const _blockingDismissers = _surfaceState.blockingDismissers || (_surfaceState.blockingDismissers = new Map());
 const _escapeLayers = _surfaceState.escapeLayers || (_surfaceState.escapeLayers = new Map());
+const _blockingDismissRegistry = createBlockingSurfaceDismissRegistry({
+  entries: _blockingDismissers,
+  defaultDismiss: function (surfaceId) { hideBlockingSurface(surfaceId); },
+  ensureDispatcher: function () { _ensureSurfaceDocumentDispatcher(); },
+  onEntryReleased: function (surfaceId) {
+    _returnFocusTargets.delete(surfaceId);
+    _releaseSurfaceDocumentDispatcherIfIdle();
+  },
+});
 const BLOCKING_FOCUSABLE_SELECTOR = [
   'a[href]',
   'button:not([disabled])',
@@ -146,9 +157,10 @@ function _dispatchEscape(event) {
   var blockingSurface = _getVisibleBlockingSurface();
   if (blockingSurface) {
     _consumeEscape(event);
-    var dismissEntry = blockingSurface.id ? _blockingDismissers.get(blockingSurface.id) : null;
-    if (dismissEntry && dismissEntry.target === blockingSurface && dismissEntry.closeOnEscape) {
-      dismissEntry.onDismiss();
+    var dismissEntry = blockingSurface.id ? _blockingDismissRegistry.get(blockingSurface.id) : null;
+    var dismissOwner = _blockingDismissRegistry.getOwner(dismissEntry);
+    if (dismissEntry && dismissEntry.target === blockingSurface && dismissOwner && dismissOwner.closeOnEscape) {
+      dismissOwner.onDismiss();
     }
     return true;
   }
@@ -189,6 +201,19 @@ function _ensureSurfaceDocumentDispatcher() {
   document.addEventListener('keydown', _handleSurfaceDocumentKeydown);
   _surfaceState.dispatcherDocument = document;
   _surfaceState.dispatcherHandler = _handleSurfaceDocumentKeydown;
+}
+
+function _releaseSurfaceDocumentDispatcherIfIdle() {
+  if (_blockingDismissRegistry.size() > 0 || _escapeLayers.size > 0 || _getVisibleBlockingSurface()) return false;
+  var boundDocument = _surfaceState.dispatcherDocument;
+  var boundHandler = _surfaceState.dispatcherHandler;
+  if (!boundDocument || !boundHandler) return false;
+  if (typeof boundDocument.removeEventListener === 'function') {
+    boundDocument.removeEventListener('keydown', boundHandler);
+  }
+  _surfaceState.dispatcherDocument = null;
+  _surfaceState.dispatcherHandler = null;
+  return true;
 }
 
 function _rememberBlockingSurfaceTrigger(surfaceId, surface) {
@@ -256,6 +281,7 @@ export function hideBlockingSurface(surfaceId) {
   _setSurfaceVisible(target, false);
   _notifySurfaceObservers();
   if (wasVisible) _restoreBlockingSurfaceTrigger(surfaceId);
+  _releaseSurfaceDocumentDispatcherIfIdle();
   return target;
 }
 
@@ -280,11 +306,12 @@ export function getDiagnostics() {
   var activeEscapeLayerIds = Object.freeze(escapeLayers.filter(_isEscapeLayerActive).map(function (layer) {
     return layer.id;
   }));
-  var blockingDismisserIds = Object.freeze(Array.from(_blockingDismissers.keys()).sort());
+  var blockingDismisserIds = Object.freeze(_blockingDismissRegistry.getIds());
   return Object.freeze({
     activeEscapeLayerIds: activeEscapeLayerIds,
     blockingDismisserCount: blockingDismisserIds.length,
     blockingDismisserIds: blockingDismisserIds,
+    blockingDismisserOwnerCount: _blockingDismissRegistry.getOwnerCount(),
     dispatcherBound: !!(
       globalThis.document && _surfaceState.dispatcherDocument === document && _surfaceState.dispatcherHandler
     ),
@@ -337,38 +364,22 @@ export function registerEscapeLayer(layerId, options) {
 
   return function unregisterEscapeLayer() {
     if (_escapeLayers.get(layerId) === entry) _escapeLayers.delete(layerId);
+    _releaseSurfaceDocumentDispatcherIfIdle();
   };
 }
 
-export function bindBlockingSurfaceDismiss(surfaceId, options) {
-  if (!globalThis.document || typeof document.getElementById !== 'function') return null;
-
+/**
+ * 为有明确 dispose/destroy 生命周期的 owner 注册阻塞层 dismiss。
+ * 每个调用方得到独立、幂等的 release；同一 surface 的首个存活 owner
+ * 决定当前策略，释放后自动切换到下一个 owner。
+ *
+ * @param {string} surfaceId
+ * @param {{closeOnBackdrop?: boolean, closeOnEscape?: boolean, onDismiss?: Function}} options
+ * @returns {Function} release
+ */
+export function registerBlockingSurfaceDismiss(surfaceId, options) {
+  if (!globalThis.document || typeof document.getElementById !== 'function') return function () {};
   var target = document.getElementById(surfaceId);
-  if (!target || !target.dataset) return target;
-  var existingEntry = _blockingDismissers.get(surfaceId);
-  if (target.dataset.surfaceDismissBound === '1' && existingEntry && existingEntry.target === target) return target;
-
-  var closeOnBackdrop = !options || options.closeOnBackdrop !== false;
-  var closeOnEscape = !options || options.closeOnEscape !== false;
-  var onDismiss = options && typeof options.onDismiss === 'function'
-    ? options.onDismiss
-    : function () {
-      hideBlockingSurface(surfaceId);
-    };
-
-  _blockingDismissers.set(surfaceId, {
-    target: target,
-    closeOnEscape: closeOnEscape,
-    onDismiss: onDismiss,
-  });
-  _ensureSurfaceDocumentDispatcher();
-
-  if (closeOnBackdrop && typeof target.addEventListener === 'function') {
-    target.addEventListener('click', function (event) {
-      if (event.target === target) onDismiss();
-    });
-  }
-
-  target.dataset.surfaceDismissBound = '1';
-  return target;
+  if (!target || !target.dataset) return function () {};
+  return _blockingDismissRegistry.register(surfaceId, target, options);
 }

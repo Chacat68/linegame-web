@@ -8,6 +8,7 @@ import * as ShipUI from '../ui/ShipUI.js';
 import * as MapUI from '../ui/MapUI.js';
 import * as Modal from '../ui/Modal.js';
 import * as ContextInspector from '../ui/ContextInspector.js';
+import * as ActionConfirmUI from '../ui/ActionConfirmUI.js';
 import * as DeferredFeatureStatusUI from '../ui/DeferredFeatureStatusUI.js';
 import * as WorkspaceDetailSurface from '../ui/WorkspaceDetailSurface.js';
 import * as UIManager from '../ui/UIManager.js';
@@ -18,9 +19,9 @@ import { DEFAULT_ACTION_DIRTY_REGIONS, resolveDirtyRegions } from './ActionPrese
 import { createGameUiApplicationRuntime } from './GameUiApplicationRuntime.js';
 import { LOG_MESSAGE_SOURCE, createScopedLogEmitter } from './LogMessage.js';
 import {
-  bindBlockingSurfaceDismiss,
   getDiagnostics as getSurfaceManagerDiagnostics,
   hideBlockingSurface,
+  registerBlockingSurfaceDismiss,
   showBlockingSurface,
 } from '../ui/SurfaceManager.js';
 
@@ -74,6 +75,7 @@ export function createGameUiRuntimeFactory(context) {
           Modal: Modal,
           Renderer: Renderer3D,
           ContextInspector: ContextInspector,
+          ActionConfirmUI: ActionConfirmUI,
           DeferredFeatureStatusUI: DeferredFeatureStatusUI,
           SurfaceManager: Object.freeze({ getDiagnostics: getSurfaceManagerDiagnostics }),
           WorkspaceDetailSurface: WorkspaceDetailSurface,
@@ -93,7 +95,7 @@ export function createGameUiRuntimeFactory(context) {
         callbacks: {
           getSettings: getSettings,
           bindSettingsStatusSurfaceDismiss: function (onDismiss) {
-            return bindBlockingSurfaceDismiss('settings-modal', { onDismiss: onDismiss });
+            return registerBlockingSurfaceDismiss('settings-modal', { onDismiss: onDismiss });
           },
           showSettingsStatusSurface: function () {
             return showBlockingSurface('settings-modal', {

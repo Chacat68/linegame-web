@@ -1,8 +1,8 @@
 // js/ui/ActionConfirmUI.js - 应用内危险操作确认弹窗
 
 import {
-  bindBlockingSurfaceDismiss,
   hideBlockingSurface,
+  registerBlockingSurfaceDismiss,
   showBlockingSurface,
 } from './SurfaceManager.js';
 
@@ -11,6 +11,17 @@ let _initialized = false;
 let _activeRequest = null;
 let _parentSurfaceId = null;
 let _triggerElement = null;
+let _cancelButton = null;
+let _acceptButton = null;
+let _releaseDismiss = null;
+
+function _handleCancel() {
+  _close(false);
+}
+
+function _handleAccept() {
+  _close(true);
+}
 
 export function init() {
   if (_initialized) return;
@@ -19,18 +30,17 @@ export function init() {
   var modal = document.getElementById(SURFACE_ID);
   if (!modal || !cancelBtn || !acceptBtn) return;
 
-  cancelBtn.addEventListener('click', function () {
-    _close(false);
-  });
-  acceptBtn.addEventListener('click', function () {
-    _close(true);
-  });
-  bindBlockingSurfaceDismiss(SURFACE_ID, {
+  _cancelButton = cancelBtn;
+  _acceptButton = acceptBtn;
+  cancelBtn.addEventListener('click', _handleCancel);
+  acceptBtn.addEventListener('click', _handleAccept);
+  _releaseDismiss = registerBlockingSurfaceDismiss(SURFACE_ID, {
     onDismiss: function () {
       _close(false);
     },
   });
   _initialized = true;
+  return true;
 }
 
 export function open(options) {
@@ -65,6 +75,26 @@ export function open(options) {
 
 export function cancel() {
   _close(false);
+}
+
+export function dispose() {
+  if (!_initialized && !_releaseDismiss) return false;
+  hideBlockingSurface(SURFACE_ID);
+  if (_releaseDismiss) _releaseDismiss();
+  _releaseDismiss = null;
+  if (_cancelButton && typeof _cancelButton.removeEventListener === 'function') {
+    _cancelButton.removeEventListener('click', _handleCancel);
+  }
+  if (_acceptButton && typeof _acceptButton.removeEventListener === 'function') {
+    _acceptButton.removeEventListener('click', _handleAccept);
+  }
+  _cancelButton = null;
+  _acceptButton = null;
+  _activeRequest = null;
+  _parentSurfaceId = null;
+  _triggerElement = null;
+  _initialized = false;
+  return true;
 }
 
 function _close(confirmed) {

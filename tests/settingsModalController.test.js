@@ -74,7 +74,8 @@ function createHarness() {
     'settings-tab-data': createElement(),
     'settings-page-title': createElement(),
   };
-  var bindDismiss = vi.fn();
+  var releaseDismiss = vi.fn();
+  var bindDismiss = vi.fn(function () { return releaseDismiss; });
   var showSurface = vi.fn();
   var hideSurface = vi.fn();
   var openConfirm = vi.fn();
@@ -101,6 +102,7 @@ function createHarness() {
     displayPanel: displayPanel, displayTab: displayTab, elements: elements,
     gamePanel: gamePanel, gameTab: gameTab, hideSurface: hideSurface,
     modal: modal, onCommand: onCommand, openConfirm: openConfirm,
+    releaseDismiss: releaseDismiss,
     settings: settings, showSurface: showSurface,
   };
 }
@@ -116,6 +118,7 @@ describe('SettingsModalController', function () {
     expect(harness.elements['settings-summary-audio'].textContent).toBe('关闭 · 20%');
     expect(harness.elements['settings-change-status'].textContent).toBe('更改会自动保存在当前设备。');
     expect(harness.bindDismiss).toHaveBeenCalledWith('settings-modal');
+    expect(harness.controller.getDiagnostics().dismissBound).toBe(true);
     expect(harness.showSurface).toHaveBeenCalledWith('settings-modal', {
       focusSelector: '[data-settings-panel-target][aria-selected="true"]',
     });
@@ -164,10 +167,14 @@ describe('SettingsModalController', function () {
       activePanel: 'display', bound: true, commandCount: 0, resetCount: 1,
     }));
     expect(harness.elements['settings-motion-level'].onchange).toBe(oldHandler);
+    expect(harness.controller.getDiagnostics().dismissBound).toBe(true);
     var diagnostics = harness.controller.dispose();
     expect(harness.elements['settings-motion-level'].onchange).toBeNull();
     expect(harness.gameTab.onkeydown).toBeNull();
-    expect(diagnostics).toEqual(expect.objectContaining({ bound: false, disposeCount: 1 }));
+    expect(harness.releaseDismiss).toHaveBeenCalledOnce();
+    expect(diagnostics).toEqual(expect.objectContaining({
+      bound: false, dismissBound: false, disposeCount: 1,
+    }));
     expect(Object.isFrozen(diagnostics)).toBe(true);
   });
 });

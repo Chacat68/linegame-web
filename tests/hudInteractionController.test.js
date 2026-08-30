@@ -63,8 +63,9 @@ function createHarness() {
     initialize: vi.fn(),
     refresh: vi.fn(),
   };
+  var releaseVictoryDismiss = vi.fn();
   var surfaces = {
-    bindDismiss: vi.fn(),
+    bindDismiss: vi.fn(function () { return releaseVictoryDismiss; }),
     hide: vi.fn(),
     show: vi.fn(),
   };
@@ -111,6 +112,7 @@ function createHarness() {
     elements: elements,
     events: events,
     logs: logs,
+    releaseVictoryDismiss: releaseVictoryDismiss,
     renderGalaxySummary: renderGalaxySummary,
     state: state,
     surfaces: surfaces,
@@ -131,6 +133,7 @@ describe('HudInteractionController', function () {
     expect(harness.elements['victory-progress-btn'].listenerCount('click')).toBe(1);
     expect(harness.elements['hud-galactic-map-toggle'].listenerCount('click')).toBe(1);
     expect(harness.surfaces.bindDismiss).toHaveBeenCalledWith('victory-modal');
+    expect(harness.controller.getDiagnostics().victoryDismissBound).toBe(true);
     expect(harness.contextInspector.init).toHaveBeenCalledWith(expect.objectContaining({
       compact: false,
       open: true,
@@ -217,12 +220,15 @@ describe('HudInteractionController', function () {
     expect(harness.events.listenerCount('logs:badge:clear')).toBe(0);
     expect(harness.elements['victory-progress-btn'].listenerCount('click')).toBe(0);
     expect(harness.elements['hud-galactic-map-toggle'].listenerCount('click')).toBe(0);
+    expect(harness.surfaces.hide).toHaveBeenCalledWith('victory-modal');
     expect(harness.logs.dispose).toHaveBeenCalledOnce();
+    expect(harness.releaseVictoryDismiss).toHaveBeenCalledOnce();
     expect(harness.controller.getDiagnostics()).toMatchObject({
       disposed: true,
       domListenerCount: 0,
       eventListenersBound: false,
       initialized: false,
+      victoryDismissBound: false,
     });
 
     expect(harness.controller.initialize()).toBe(true);

@@ -1,10 +1,17 @@
 // js/ui/OnboardingUI.js — 首次进入与公司命名弹窗交互
 
 import {
-  bindBlockingSurfaceDismiss,
   hideBlockingSurface,
+  registerBlockingSurfaceDismiss,
   showBlockingSurface,
 } from './SurfaceManager.js';
+
+var _releaseCompanyRenameDismiss = null;
+
+function _releaseCompanyRenameSurface() {
+  if (_releaseCompanyRenameDismiss) _releaseCompanyRenameDismiss();
+  _releaseCompanyRenameDismiss = null;
+}
 
 export function showTutorialStart(options) {
   var opts = options || {};
@@ -54,7 +61,7 @@ export function showCompanyRename(options) {
 
   if (!modal || !input || !confirmButton || !skipButton) return false;
 
-  bindBlockingSurfaceDismiss('company-rename-modal');
+  _releaseCompanyRenameSurface();
 
   input.value = opts.currentName || '';
   modal.dataset.companyNameState = 'editing';
@@ -83,7 +90,19 @@ export function showCompanyRename(options) {
     modal.setAttribute('aria-busy', 'true');
     _setButtonsDisabled([confirmButton, skipButton], true);
     hideBlockingSurface('company-rename-modal');
+    _releaseCompanyRenameSurface();
     if (typeof opts.onConfirm === 'function') opts.onConfirm(name);
+  }
+
+  function skip() {
+    if (committed) return;
+    committed = true;
+    modal.dataset.companyNameState = 'skipping';
+    modal.setAttribute('aria-busy', 'true');
+    _setButtonsDisabled([confirmButton, skipButton], true);
+    hideBlockingSurface('company-rename-modal');
+    _releaseCompanyRenameSurface();
+    if (typeof opts.onSkip === 'function') opts.onSkip();
   }
 
   input.oninput = function () {
@@ -98,19 +117,36 @@ export function showCompanyRename(options) {
     commit();
   };
   confirmButton.onclick = commit;
-  skipButton.onclick = function () {
-    if (committed) return;
-    committed = true;
-    modal.dataset.companyNameState = 'skipping';
-    modal.setAttribute('aria-busy', 'true');
-    _setButtonsDisabled([confirmButton, skipButton], true);
-    hideBlockingSurface('company-rename-modal');
-    if (typeof opts.onSkip === 'function') opts.onSkip();
-  };
+  skipButton.onclick = skip;
+
+  _releaseCompanyRenameDismiss = registerBlockingSurfaceDismiss('company-rename-modal', {
+    onDismiss: skip,
+  });
 
   showBlockingSurface('company-rename-modal');
   _focusElement(input);
   if (typeof input.select === 'function') input.select();
+  return true;
+}
+
+export function dispose() {
+  hideBlockingSurface('tutorial-start-modal');
+  hideBlockingSurface('company-rename-modal');
+  _releaseCompanyRenameSurface();
+  var doc = globalThis.document && typeof document.getElementById === 'function' ? document : null;
+  var startButton = doc && doc.getElementById('tut-start-yes');
+  var skipTutorialButton = doc && doc.getElementById('tut-start-no');
+  var input = doc && doc.getElementById('company-name-input');
+  var confirmButton = doc && doc.getElementById('company-rename-confirm');
+  var skipRenameButton = doc && doc.getElementById('company-rename-skip');
+  if (startButton) startButton.onclick = null;
+  if (skipTutorialButton) skipTutorialButton.onclick = null;
+  if (input) {
+    input.oninput = null;
+    input.onkeydown = null;
+  }
+  if (confirmButton) confirmButton.onclick = null;
+  if (skipRenameButton) skipRenameButton.onclick = null;
   return true;
 }
 

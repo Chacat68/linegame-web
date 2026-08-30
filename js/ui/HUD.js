@@ -4,7 +4,7 @@
 
 import * as EventBus            from '../core/EventBus.js';
 import * as Victory             from '../systems/victory/VictorySystem.js';
-import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from './SurfaceManager.js';
+import { hideBlockingSurface, registerBlockingSurfaceDismiss, showBlockingSurface } from './SurfaceManager.js';
 import * as ContextInspector from './ContextInspector.js';
 import { renderLogContext, renderLogDetail } from './LogsContextPresenter.js';
 import { createLogsWorkspaceController } from './LogsWorkspaceController.js';
@@ -37,7 +37,7 @@ const _logsController = createLogsWorkspaceController({
 const _hudInteractions = createHudInteractionController({
   events: EventBus,
   surfaces: {
-    bindDismiss: bindBlockingSurfaceDismiss,
+    bindDismiss: registerBlockingSurfaceDismiss,
     hide: hideBlockingSurface,
     show: showBlockingSurface,
   },

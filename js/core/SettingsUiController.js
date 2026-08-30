@@ -41,6 +41,7 @@ export function createSettingsUiController(dependencies) {
   var openCount = 0;
   var generation = 0;
   var disposed = false;
+  var releaseStatusSurfaceDismiss = null;
 
   function _getFeature() {
     return typeof features.get === 'function' ? features.get('settings') : null;
@@ -83,6 +84,11 @@ export function createSettingsUiController(dependencies) {
     }
     launcherButton = null;
     launcherHandler = null;
+  }
+
+  function _releaseStatusSurfaceDismiss() {
+    if (releaseStatusSurfaceDismiss) releaseStatusSurfaceDismiss();
+    releaseStatusSurfaceDismiss = null;
   }
 
   function sync(SettingsUI) {
@@ -162,7 +168,10 @@ export function createSettingsUiController(dependencies) {
 
   function bindLauncher() {
     if (disposed) return false;
-    bindStatusSurfaceDismiss(hide);
+    if (!releaseStatusSurfaceDismiss) {
+      var releaseDismiss = bindStatusSurfaceDismiss(hide);
+      releaseStatusSurfaceDismiss = typeof releaseDismiss === 'function' ? releaseDismiss : null;
+    }
     var loaded = _getFeature();
     var doc = getDocument();
     var button = doc && typeof doc.getElementById === 'function'
@@ -216,6 +225,7 @@ export function createSettingsUiController(dependencies) {
   function dispose() {
     reset();
     releaseLauncher();
+    _releaseStatusSurfaceDismiss();
     boundModule = null;
     loadState = 'idle';
     disposed = true;
@@ -231,6 +241,7 @@ export function createSettingsUiController(dependencies) {
       loadState: loadState,
       openCount: openCount,
       pending: !!openPromise,
+      statusSurfaceDismissBound: !!releaseStatusSurfaceDismiss,
       syncCount: syncCount,
     });
   }

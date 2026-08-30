@@ -112,9 +112,10 @@ describe('DialogueModalController', function () {
 
   it('重复 init 不叠加监听，destroy 释放稳定节点处理器', function () {
     var harness = createHarness();
+    var releaseDismiss = vi.fn();
     var controller = createDialogueModalController({
       document: harness.document,
-      bindDismiss: vi.fn(),
+      bindDismiss: vi.fn(function () { return releaseDismiss; }),
       showSurface: vi.fn(),
       hideSurface: vi.fn(),
     });
@@ -122,9 +123,13 @@ describe('DialogueModalController', function () {
     controller.init();
     expect(harness.elements['dialogue-next-btn'].listenerCount('click')).toBe(1);
     expect(harness.modal.listenerCount('keydown')).toBe(1);
+    expect(controller.getDiagnostics().dismissBound).toBe(true);
     controller.destroy();
     expect(harness.elements['dialogue-next-btn'].listenerCount('click')).toBe(0);
     expect(harness.modal.listenerCount('keydown')).toBe(0);
-    expect(controller.getDiagnostics()).toMatchObject({ bound: false, destroyCount: 1 });
+    expect(releaseDismiss).toHaveBeenCalledOnce();
+    expect(controller.getDiagnostics()).toMatchObject({
+      bound: false, destroyCount: 1, dismissBound: false,
+    });
   });
 });

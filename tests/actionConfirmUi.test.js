@@ -29,11 +29,15 @@ function createElement(id, initialClasses) {
       if (!listeners[type]) listeners[type] = [];
       listeners[type].push(handler);
     },
+    removeEventListener: function (type, handler) {
+      listeners[type] = (listeners[type] || []).filter(function (entry) { return entry !== handler; });
+    },
     dispatch: function (type, event) {
       (listeners[type] || []).forEach(function (handler) {
         handler(event || { target: this, preventDefault: function () {} });
       }, this);
     },
+    listenerCount: function (type) { return (listeners[type] || []).length; },
     setAttribute: function (name, value) { attributes[name] = String(value); },
     getAttribute: function (name) {
       return Object.prototype.hasOwnProperty.call(attributes, name) ? attributes[name] : null;
@@ -131,6 +135,9 @@ describe('ActionConfirmUI', function () {
     expect(modal.classList.contains('hidden')).toBe(true);
     expect(parent.classList.contains('hidden')).toBe(false);
     expect(trigger.focusCount).toBe(1);
+    expect(ConfirmUI.dispose()).toBe(true);
+    expect(elements['action-confirm-cancel'].listenerCount('click')).toBe(0);
+    expect(elements['action-confirm-accept'].listenerCount('click')).toBe(0);
   });
 
   it('只有确认按钮会执行危险操作', async function () {
@@ -159,5 +166,11 @@ describe('ActionConfirmUI', function () {
 
     expect(confirmed).toBe(1);
     expect(modal.classList.contains('hidden')).toBe(true);
+    expect(ConfirmUI.dispose()).toBe(true);
+    expect(ConfirmUI.dispose()).toBe(false);
+    expect(elements['action-confirm-accept'].listenerCount('click')).toBe(0);
+    expect(ConfirmUI.open({ onConfirm: function () { confirmed += 1; } })).toBe(true);
+    expect(elements['action-confirm-accept'].listenerCount('click')).toBe(1);
+    ConfirmUI.dispose();
   });
 });

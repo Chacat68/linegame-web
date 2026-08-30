@@ -1,8 +1,8 @@
 // js/ui/DialogueModalController.js — 剧情 Modal DOM、Surface、键盘与焦点生命周期
 
 import {
-  bindBlockingSurfaceDismiss,
   hideBlockingSurface,
+  registerBlockingSurfaceDismiss,
   showBlockingSurface,
 } from './SurfaceManager.js';
 import { createDialogueSession } from './DialogueSession.js';
@@ -23,7 +23,7 @@ export function createDialogueModalController(options) {
   var config = options || {};
   var session = config.session || createDialogueSession();
   var buildView = config.buildView || buildDialogueView;
-  var bindDismiss = config.bindDismiss || bindBlockingSurfaceDismiss;
+  var bindDismiss = config.bindDismiss || registerBlockingSurfaceDismiss;
   var showSurface = config.showSurface || showBlockingSurface;
   var hideSurface = config.hideSurface || hideBlockingSurface;
   var nodes = null;
@@ -31,6 +31,7 @@ export function createDialogueModalController(options) {
   var nextHandler = null;
   var skipHandler = null;
   var keydownHandler = null;
+  var releaseDismiss = null;
   var initCount = 0;
   var renderCount = 0;
   var finishCount = 0;
@@ -68,6 +69,8 @@ export function createDialogueModalController(options) {
   }
 
   function _releaseBindings() {
+    if (releaseDismiss) releaseDismiss();
+    releaseDismiss = null;
     if (!nodes) return;
     if (nodes.nextButton && nextHandler && typeof nodes.nextButton.removeEventListener === 'function') {
       nodes.nextButton.removeEventListener('click', nextHandler);
@@ -277,7 +280,8 @@ export function createDialogueModalController(options) {
     if (nodes.nextButton && typeof nodes.nextButton.addEventListener === 'function') nodes.nextButton.addEventListener('click', nextHandler);
     if (nodes.skipButton && typeof nodes.skipButton.addEventListener === 'function') nodes.skipButton.addEventListener('click', skipHandler);
     if (typeof nodes.modal.addEventListener === 'function') nodes.modal.addEventListener('keydown', keydownHandler);
-    bindDismiss(SURFACE_ID, { onDismiss: function () { _finish(true); } });
+    var release = bindDismiss(SURFACE_ID, { onDismiss: function () { _finish(true); } });
+    releaseDismiss = typeof release === 'function' ? release : null;
     initCount += 1;
     return true;
   }
@@ -321,6 +325,7 @@ export function createDialogueModalController(options) {
     return Object.freeze({
       bound: !!nodes,
       choiceRenderCount: choiceRenderCount,
+      dismissBound: !!releaseDismiss,
       destroyCount: destroyCount,
       finishCount: finishCount,
       initCount: initCount,

@@ -246,16 +246,8 @@ describe('ContextInspector protocol', function () {
     expect(fixture.toggle.listenerCount('click')).toBe(0);
     expect(fixture.close.listenerCount('click')).toBe(0);
     expect(fixture.host.listenerCount('click')).toBe(0);
-    // SurfaceManager 的 document dispatcher 属于应用壳；dispose 只注销本层。
-    expect(fixture.documentListeners.keydown).toHaveLength(1);
-    var preventedAfterDispose = vi.fn();
-    fixture.documentListeners.keydown[0]({
-      key: 'Escape',
-      preventDefault: preventedAfterDispose,
-      stopPropagation: vi.fn(),
-      stopImmediatePropagation: vi.fn(),
-    });
-    expect(preventedAfterDispose).not.toHaveBeenCalled();
+    // 最后一个 Escape layer 注销且无 Blocking Surface 时释放全局 dispatcher。
+    expect(fixture.documentListeners.keydown).toHaveLength(0);
     expect(Inspector.getSnapshot()).toEqual({
       initialized: false,
       open: false,

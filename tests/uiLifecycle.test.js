@@ -126,6 +126,14 @@ describe('UI lifecycle idempotency', function () {
     expect(elements['modal-increase'].listenerCount('click')).toBe(1);
     elements['modal-increase'].dispatchEvent('click');
     expect(elements['modal-amount'].value).toBe(2);
+    expect(Modal.dispose()).toBe(true);
+    expect(Modal.dispose()).toBe(false);
+    expect(elements['modal-increase'].listenerCount('click')).toBe(0);
+    expect(elements['trade-modal'].listenerCount('click')).toBe(0);
+
+    expect(Modal.init(function () {})).toBe(true);
+    expect(elements['modal-increase'].listenerCount('click')).toBe(1);
+    Modal.dispose();
   });
 
   it('WorkspaceTabController 重复初始化只绑定工作区内部 tab，不接管底部导航', function () {
@@ -1030,5 +1038,6 @@ describe('UI lifecycle idempotency', function () {
     elements['modal-confirm'].onclick();
 
     expect(observedHiddenDuringConfirm).toBe(true);
+    Modal.dispose();
   });
 });

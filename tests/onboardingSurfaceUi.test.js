@@ -382,6 +382,7 @@ describe('Onboarding and log surfaces', function () {
     expect(confirmedNames).toEqual(['北冕物流']);
     expect(modal.dataset.companyNameState).toBe('submitting');
     expect(modal.classList.contains('hidden')).toBe(true);
+    expect(modal.dataset.surfaceDismissBound).toBeUndefined();
     expect(skip.disabled).toBe(true);
   });
 
@@ -500,7 +501,9 @@ describe('Onboarding and log surfaces', function () {
     expect(css).toContain('Onboarding setup modals');
     expect(css).toContain('.company-rename-signal');
     expect(css).toContain('.company-rename-decision-card');
-    expect(onboardingUI).toContain("bindBlockingSurfaceDismiss('company-rename-modal')");
+    expect(onboardingUI).toContain("registerBlockingSurfaceDismiss('company-rename-modal'");
+    expect(onboardingUI).toContain('_releaseCompanyRenameSurface()');
+    expect(onboardingUI).toContain('export function dispose()');
     expect(css).toContain('.company-name-hint');
     expect(css).toContain('[data-company-name-tone="error"]');
     expect(css).toContain('.tut-start-modules');

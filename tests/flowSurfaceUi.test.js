@@ -175,6 +175,7 @@ describe('Flow surface UI', function () {
     expect(choices.children[1].children[0].disabled).toBe(true);
     expect(modal.dataset.eventState).toBe('resolving');
     expect(modal.classList.contains('hidden')).toBe(true);
+    expect(modal.dataset.surfaceDismissBound).toBeUndefined();
   });
 
   it('剧情弹窗会同步进度语义并进入分支选择状态', async function () {

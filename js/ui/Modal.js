@@ -1,14 +1,24 @@
 // js/ui/Modal.js — 交易确认模态框
 // 依赖：systems/economy/Economy.js, systems/trade/TradeSystem.js
-// 导出：init, openTradeModal
+// 导出：init, dispose, openTradeModal
 
 import * as Economy     from '../systems/economy/Economy.js';
 import { getTotalCargo } from '../systems/trade/TradeSystem.js';
-import { bindBlockingSurfaceDismiss, hideBlockingSurface, showBlockingSurface } from './SurfaceManager.js';
+import { hideBlockingSurface, registerBlockingSurfaceDismiss, showBlockingSurface } from './SurfaceManager.js';
 
 let _onConfirm = null; // 注入的确认回调，由 GameManager 提供
 let _initialized = false;
 let _activeTradePreview = null;
+let _releaseDismiss = null;
+let _domBindings = [];
+
+function _bindDom(elementId, eventName, listener) {
+  const target = document.getElementById(elementId);
+  if (!target || typeof target.addEventListener !== 'function') return false;
+  target.addEventListener(eventName, listener);
+  _domBindings.push({ target: target, eventName: eventName, listener: listener });
+  return true;
+}
 
 /**
  * 初始化模态框按钮事件（只需调用一次）
@@ -16,27 +26,27 @@ let _activeTradePreview = null;
  */
 export function init(onConfirmCb) {
   _onConfirm = onConfirmCb;
-  if (_initialized) return;
-  _initialized = true;
+  if (_initialized) return false;
 
-  bindBlockingSurfaceDismiss('trade-modal');
+  const releaseDismiss = registerBlockingSurfaceDismiss('trade-modal');
+  _releaseDismiss = typeof releaseDismiss === 'function' ? releaseDismiss : null;
 
-  document.getElementById('modal-decrease').addEventListener('click', function () {
+  _bindDom('modal-decrease', 'click', function () {
     _stepTradeAmount(-1);
   });
 
-  document.getElementById('modal-increase').addEventListener('click', function () {
+  _bindDom('modal-increase', 'click', function () {
     _stepTradeAmount(1);
   });
 
-  document.getElementById('modal-all').addEventListener('click', function () {
+  _bindDom('modal-all', 'click', function () {
     const inp = document.getElementById('modal-amount');
     inp.value = parseInt(inp.max) || 0;
     _refreshTotal();
   });
 
-  document.getElementById('modal-amount').addEventListener('input', _refreshTotal);
-  document.getElementById('modal-amount').addEventListener('keydown', function (event) {
+  _bindDom('modal-amount', 'input', _refreshTotal);
+  _bindDom('modal-amount', 'keydown', function (event) {
     if (!event || event.key !== 'Enter') return;
     const confirmBtn = document.getElementById('modal-confirm');
     if (!confirmBtn || confirmBtn.disabled || typeof confirmBtn.onclick !== 'function') return;
@@ -44,9 +54,35 @@ export function init(onConfirmCb) {
     confirmBtn.onclick();
   });
 
-  document.getElementById('modal-cancel').addEventListener('click', function () {
+  _bindDom('modal-cancel', 'click', function () {
     hideBlockingSurface('trade-modal');
   });
+  _initialized = true;
+  return true;
+}
+
+export function dispose() {
+  if (!_initialized && !_releaseDismiss && _domBindings.length === 0) {
+    _onConfirm = null;
+    return false;
+  }
+  hideBlockingSurface('trade-modal');
+  if (_releaseDismiss) _releaseDismiss();
+  _releaseDismiss = null;
+  _domBindings.forEach(function (binding) {
+    if (binding.target && typeof binding.target.removeEventListener === 'function') {
+      binding.target.removeEventListener(binding.eventName, binding.listener);
+    }
+  });
+  _domBindings = [];
+  const confirmButton = globalThis.document && typeof document.getElementById === 'function'
+    ? document.getElementById('modal-confirm')
+    : null;
+  if (confirmButton) confirmButton.onclick = null;
+  _onConfirm = null;
+  _activeTradePreview = null;
+  _initialized = false;
+  return true;
 }
 
 /**

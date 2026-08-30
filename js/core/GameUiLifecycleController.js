@@ -46,6 +46,7 @@ export function createGameUiLifecycleController(dependencies) {
   var WorkspaceTabs = ui.WorkspaceTabs || {};
   var UIManager = ui.UIManager || {};
   var WorkspaceDetailSurface = ui.WorkspaceDetailSurface || {};
+  var ActionConfirmUI = ui.ActionConfirmUI || {};
   var Modal = ui.Modal || {};
   var Renderer = ui.Renderer || {};
   var Tutorial = systems.Tutorial || {};
@@ -201,8 +202,9 @@ export function createGameUiLifecycleController(dependencies) {
       _call(MapUI, 'setNavigationChangeCallback', [null]);
       _call(MapUI, 'setNavigationActions', [null]);
       _call(MapUI, 'setExplorationActions', [null]);
-      _call(Modal, 'init', [null]);
     }
+    _call(ActionConfirmUI, 'dispose', []);
+    _call(Modal, 'dispose', []);
     _call(onboardingUi, 'dispose', []);
     _call(settingsUi, 'dispose', []);
     _call(actionGuide, 'dispose', []);

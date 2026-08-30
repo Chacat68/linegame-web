@@ -39,6 +39,7 @@ export function createHudInteractionController(options) {
   var compactViewportQuery = null;
   var compactViewportListener = null;
   var compactViewportListenerMode = '';
+  var releaseVictoryDismiss = null;
 
   function _state() {
     return typeof stateSource === 'function' ? stateSource() : null;
@@ -201,7 +202,10 @@ export function createHudInteractionController(options) {
     _bindDom(openButton, 'click', _handleVictoryOpen);
     _bindDom(closeButton, 'click', _handleVictoryClose);
     _bindDom(body, 'click', _handleVictoryPolicy);
-    if (modal) _call(surfaces, 'bindDismiss', ['victory-modal']);
+    if (modal) {
+      var releaseDismiss = _call(surfaces, 'bindDismiss', ['victory-modal']);
+      releaseVictoryDismiss = typeof releaseDismiss === 'function' ? releaseDismiss : null;
+    }
     ensureGalaxyToggle();
 
     var win = getWindow();
@@ -242,6 +246,9 @@ export function createHudInteractionController(options) {
     _releaseEvents();
     _removeDomListeners();
     _releaseCompactViewport();
+    _call(surfaces, 'hide', ['victory-modal']);
+    if (releaseVictoryDismiss) releaseVictoryDismiss();
+    releaseVictoryDismiss = null;
     _call(logsController, 'dispose', []);
     victoryActions = null;
     progressList = [];
@@ -259,6 +266,7 @@ export function createHudInteractionController(options) {
       progressPathCount: progressList.length,
       responsiveContextBound: !!compactViewportListener,
       victoryActionsBound: !!victoryActions,
+      victoryDismissBound: !!releaseVictoryDismiss,
     });
   }
 

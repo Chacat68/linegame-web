@@ -55,7 +55,8 @@ function createHarness(options) {
   };
   var showStatusSurface = vi.fn();
   var hideSurface = vi.fn();
-  var bindStatusSurfaceDismiss = vi.fn();
+  var releaseStatusSurfaceDismiss = vi.fn();
+  var bindStatusSurfaceDismiss = vi.fn(function () { return releaseStatusSurfaceDismiss; });
   controller = createSettingsUiController({
     features: features,
     featureStatus: featureStatus,
@@ -79,6 +80,7 @@ function createHarness(options) {
     features: features,
     hideSurface: hideSurface,
     module: module,
+    releaseStatusSurfaceDismiss: releaseStatusSurfaceDismiss,
     showStatusSurface: showStatusSurface,
     invalidateToken: function () { activeToken = { id: 'session-b' }; },
     replaceSettings: function (next) { settings = next; },
@@ -92,6 +94,7 @@ describe('SettingsUiController', function () {
 
     expect(harness.controller.bindLauncher()).toBe(true);
     expect(harness.bindStatusSurfaceDismiss).toHaveBeenCalledWith(harness.controller.hide);
+    expect(harness.controller.getDiagnostics().statusSurfaceDismissBound).toBe(true);
     expect(harness.button.dataset.settingsLoaderBound).toBe('true');
     await harness.button.click();
 
@@ -261,6 +264,7 @@ describe('SettingsUiController', function () {
 
   it('dispose 后拒绝迟到 registry sync 与新的打开事务', async function () {
     var harness = createHarness();
+    harness.controller.bindLauncher();
     harness.controller.dispose();
 
     expect(harness.controller.getDiagnostics()).toMatchObject({
@@ -268,7 +272,9 @@ describe('SettingsUiController', function () {
       disposed: true,
       loadState: 'idle',
       pending: false,
+      statusSurfaceDismissBound: false,
     });
+    expect(harness.releaseStatusSurfaceDismiss).toHaveBeenCalledOnce();
     expect(harness.controller.sync(harness.module)).toBe(false);
     expect(harness.controller.bindLauncher()).toBe(false);
     await expect(harness.controller.open()).resolves.toBe(false);

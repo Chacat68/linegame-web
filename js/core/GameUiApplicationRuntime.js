@@ -239,6 +239,7 @@ export function createGameUiApplicationRuntime(options) {
       features: features,
       events: events,
       ui: {
+        ActionConfirmUI: ui.ActionConfirmUI,
         HUD: ui.HUD,
         MapUI: ui.MapUI,
         UIManager: ui.UIManager,
