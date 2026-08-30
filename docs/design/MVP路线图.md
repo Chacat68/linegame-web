@@ -23,8 +23,9 @@
 
 - Context Inspector 所有权已拆为 `ContextInspectorSession`（不可变 key/工作区开合/revision，并隔离常规/紧凑视口偏好）、`ContextInspectorPresenter`（壳层/空态）、`ContextInspectorViewAdapter`（DOM/ARIA/工作区宿主/事件/焦点）与 `ContextInspectorController`（latest-state renderer/action/Session/Escape/响应式开合/冻结 diagnostics），Controller 从 426 行降至 307 行，原模块保持 36 行兼容门面；Context/renderer workspace、计数、开合与 ViewAdapter 生命周期已进入 UI application 顶层快照
 - UI 刷新所有权已拆为 `GameUiCoordinator`（dirty-region/Feature/diagnostics 组合）、`GameUiWorkspaceRenderer`（四 Feature 区域请求/typed command）与 `GameUiRenderSession`（成功计数/刷新事务），协调器由 680 行降至 377 行
-- UI 应用组合边界已拆为 431 行 `GameUiApplicationRuntime`、49 行 `GameUiNavigationPort` 与 35 行 `GameUiApplicationDiagnostics`，惰性 controller 图/生命周期、正式导航协议和含 Context Inspector、Navigation、Workspace Surface、共享 L4、Blocking/Escape 状态的顶层只读快照分别只有一个 owner
+- UI 应用组合边界已拆为 434 行 `GameUiApplicationRuntime`、49 行 `GameUiNavigationPort` 与 36 行 `GameUiApplicationDiagnostics`，惰性 controller 图/生命周期、正式导航协议和含 Context Inspector、Event UI、Navigation、Workspace Surface、共享 L4、Blocking/Escape 状态的顶层只读快照分别只有一个 owner
 - Blocking dismiss 所有权已拆为 114 行 `BlockingSurfaceDismissRegistry` 与 385 行 `SurfaceManager`：同一弹层只持有一个物理 backdrop listener，多个 controller 通过独立 token 先到先用并可安全释放；Settings 外壳/Feature、HUD 胜利、Dialogue、交易确认、危险确认、公司命名与随机事件全部接入完成/取消/session/Feature/application release，生产代码已删除永久绑定 API，最后 owner 离开后清理注册项与空闲 dispatcher
+- 随机事件 UI 已拆为 108 行 `EventPresenter`、312 行 `EventSurfaceController` 与 66 行 `EventUI`：纯视图投影、Blocking DOM/交互/释放和 pending 会话分别只有一个 owner；DOM 未就绪时不会丢事件，旧弹层迟到提交不会误清后来 pending；1440×900、390×844 与 360×640 真实浏览器验收确认短屏使用单一内部滚动且方向键聚焦项保持可见
 
 ### 当前最主要的缺口
 

@@ -12,6 +12,11 @@ describe('GameUiApplicationDiagnostics', function () {
       contextInspectorDiagnostics: {
         activeWorkspaceId: 'fleet', contextCount: 1, rendererCount: 5,
       },
+      eventUiDiagnostics: {
+        hasPendingEvent: true,
+        pendingEventId: 'signal_lost',
+        surface: { active: false, bindingCount: 0 },
+      },
       registryDiagnostics: {
         fleet: { dependencies: [], generation: 1, loadCount: 1, state: 'ready', syncCount: 2 },
       },
@@ -39,6 +44,11 @@ describe('GameUiApplicationDiagnostics', function () {
       workspaceSessions: { fleet: { activeSurface: null } },
       coordinator: { renderAllCount: 2 },
       contextInspector: { activeWorkspaceId: 'fleet', contextCount: 1, rendererCount: 5 },
+      eventUi: {
+        hasPendingEvent: true,
+        pendingEventId: 'signal_lost',
+        surface: { active: false, bindingCount: 0 },
+      },
       lifecycle: { initialized: true },
       market: { refreshCount: 3 },
       marketEntry: { open: false },
@@ -69,6 +79,7 @@ describe('GameUiApplicationDiagnostics', function () {
     expect(diagnostics).toEqual({
       coordinator: null,
       contextInspector: null,
+      eventUi: null,
       featureRecovery: {
         presentation: { activeFeatures: [], errorCount: 0, loadingCount: 0, retryCount: 0 },
         registry: {

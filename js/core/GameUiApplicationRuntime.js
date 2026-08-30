@@ -370,6 +370,9 @@ export function createGameUiApplicationRuntime(options) {
         && typeof ui.ContextInspector.getDiagnostics === 'function'
         ? ui.ContextInspector.getDiagnostics()
         : null,
+      eventUiDiagnostics: ui.EventUI && typeof ui.EventUI.getDiagnostics === 'function'
+        ? ui.EventUI.getDiagnostics()
+        : null,
       registryDiagnostics: typeof features.getDiagnostics === 'function'
         ? features.getDiagnostics()
         : null,

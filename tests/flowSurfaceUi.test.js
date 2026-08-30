@@ -29,6 +29,8 @@ function createFakeElement(id, initialClasses) {
     style: {},
     children: [],
     focused: false,
+    scrollIntoViewCalls: 0,
+    scrollContainer: null,
     classList: createClassList(initialClasses),
     appendChild: function (child) {
       child.parentNode = element;
@@ -38,6 +40,12 @@ function createFakeElement(id, initialClasses) {
     addEventListener: function (type, handler) {
       if (!listeners[type]) listeners[type] = [];
       listeners[type].push(handler);
+    },
+    removeEventListener: function (type, handler) {
+      listeners[type] = (listeners[type] || []).filter(function (entry) { return entry !== handler; });
+    },
+    listenerCount: function (type) {
+      return (listeners[type] || []).length;
     },
     dispatch: function (type, event) {
       (listeners[type] || []).forEach(function (handler) {
@@ -60,6 +68,12 @@ function createFakeElement(id, initialClasses) {
     },
     focus: function () {
       element.focused = true;
+    },
+    closest: function (selector) {
+      return selector === '.stack-modal-scroll' ? element.scrollContainer : null;
+    },
+    scrollIntoView: function () {
+      element.scrollIntoViewCalls += 1;
     },
     getBoundingClientRect: function () {
       return element.rect || { top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 };
@@ -117,9 +131,10 @@ describe('Flow surface UI', function () {
 
     var selected = null;
     var selectionCount = 0;
-    var EventUI = await import('../js/ui/EventUI.js?v=20260619-flowchoice1');
-
-    EventUI.showEvent({
+    var EventUI = await import('../js/ui/EventUI.js?v=20260830-event-surface');
+    var EventPresenter = await import('../js/ui/EventPresenter.js?v=20260830-event-surface');
+    var eventDefinition = {
+      id: 'cargo-seal-anomaly',
       icon: '⚠️',
       title: '异常货柜',
       description: '货柜封签异常。',
@@ -129,10 +144,21 @@ describe('Flow surface UI', function () {
         { text: '<检查封签>', tooltip: '可能触发后续调查' },
         { text: '直接上报' },
       ],
-    }, function (index) {
+    };
+    var eventView = EventPresenter.buildEventView(eventDefinition);
+    var fallbackView = EventPresenter.buildEventView({ risk: 'unknown', stage: 'unknown', choices: [] });
+
+    expect(Object.isFrozen(eventView)).toBe(true);
+    expect(Object.isFrozen(eventView.choices)).toBe(true);
+    expect(Object.isFrozen(eventView.impactItems[0])).toBe(true);
+    expect(eventView).toMatchObject({ id: 'cargo-seal-anomaly', risk: 'dangerous', stage: 'chain' });
+    expect(fallbackView).toMatchObject({ risk: 'risky', stage: 'mid' });
+    expect(fallbackView.choices[0]).toMatchObject({ fallbackClose: true, text: '确认' });
+
+    expect(EventUI.showEvent(eventDefinition, function (index) {
       selected = index;
       selectionCount += 1;
-    });
+    })).toBe(true);
 
     expect(modal.dataset.eventRisk).toBe('dangerous');
     expect(modal.dataset.eventStage).toBe('chain');
@@ -161,9 +187,26 @@ describe('Flow surface UI', function () {
     expect(meta.getAttribute('role')).toBe('list');
     expect(meta.children[0].getAttribute('role')).toBe('listitem');
     expect(choices.children[0].children[0].focused).toBe(true);
+    expect(modal.listenerCount('click')).toBe(1);
+    expect(EventUI.getDiagnostics()).toMatchObject({
+      hasPendingEvent: true,
+      pendingEventId: 'cargo-seal-anomaly',
+      surface: {
+        active: true,
+        bindingCount: 4,
+        dismissBound: true,
+        lastEventId: 'cargo-seal-anomaly',
+        renderCount: 1,
+        showCount: 1,
+      },
+    });
 
+    choices.rect = { top: 100, left: 0, right: 340, bottom: 500, width: 340, height: 400 };
+    choices.children[1].children[0].rect = { top: 520, left: 0, right: 340, bottom: 590, width: 340, height: 70 };
+    choices.children[1].children[0].scrollContainer = choices;
     choices.children[0].children[0].dispatch('keydown', { key: 'End', preventDefault: function () {} });
     expect(choices.children[1].children[0].focused).toBe(true);
+    expect(choices.children[1].children[0].scrollIntoViewCalls).toBe(1);
 
     choices.children[0].children[0].dispatch('click');
     choices.children[0].children[0].dispatch('click');
@@ -176,6 +219,56 @@ describe('Flow surface UI', function () {
     expect(modal.dataset.eventState).toBe('resolving');
     expect(modal.classList.contains('hidden')).toBe(true);
     expect(modal.dataset.surfaceDismissBound).toBeUndefined();
+    expect(modal.listenerCount('click')).toBe(0);
+    expect(choices.children[0].children[0].listenerCount('click')).toBe(0);
+    expect(choices.children[0].children[0].listenerCount('keydown')).toBe(0);
+    expect(EventUI.getDiagnostics()).toMatchObject({
+      hasPendingEvent: false,
+      pendingEventId: null,
+      surface: {
+        active: false,
+        bindingCount: 0,
+        choiceCommitCount: 1,
+        dismissBound: false,
+        lastChoiceIndex: 0,
+      },
+    });
+
+    var staleSelectionCount = 0;
+    var nextSelection = null;
+    EventUI.showEvent({
+      id: 'stale-event',
+      title: '旧事件',
+      choices: [{ text: '处理旧事件' }],
+    }, function () {
+      staleSelectionCount += 1;
+    });
+    var staleChoiceButton = choices.children[0].children[0];
+    var nextEvent = {
+      id: 'next-event',
+      title: '后续事件',
+      choices: [{ text: '处理后续事件' }],
+    };
+    EventUI.setPendingEvent(nextEvent, function (index) { nextSelection = index; });
+    staleChoiceButton.dispatch('click');
+
+    expect(staleSelectionCount).toBe(1);
+    expect(EventUI.getPendingEvent()).toBe(nextEvent);
+    expect(EventUI.getDiagnostics()).toMatchObject({
+      hasPendingEvent: true,
+      pendingEventId: 'next-event',
+      surface: { active: false, bindingCount: 0, dismissBound: false },
+    });
+    expect(EventUI.forcePendingEvent()).toBe(true);
+    expect(choices.children).toHaveLength(1);
+    expect(modal.listenerCount('click')).toBe(1);
+    choices.children[0].children[0].dispatch('click');
+    expect(nextSelection).toBe(0);
+    expect(EventUI.hasPendingEvent()).toBe(false);
+    expect(modal.listenerCount('click')).toBe(0);
+
+    EventUI.dispose();
+    expect(EventUI.getDiagnostics().surface).toMatchObject({ disposeCount: 1, domResolved: false });
   });
 
   it('剧情弹窗会同步进度语义并进入分支选择状态', async function () {
@@ -414,6 +507,9 @@ describe('Flow surface UI', function () {
     expect(css).toContain('.event-impact-item');
     expect(css).toContain('.dialogue-branch-item');
     expect(css).toContain('.dialogue-modal-box .dialogue-choices');
+    expect(css).toContain('grid-auto-rows: max-content;');
+    expect(css).toContain('scroll-padding-block: 12px;');
     expect(css).toContain('grid-template-columns: repeat(2, minmax(0, 1fr));');
+    expect(css).not.toMatch(/@media \(max-width: 360px\)[\s\S]{0,240}\.event-summary/);
   });
 });

@@ -101,6 +101,11 @@ function createHarness(overrides) {
         return { activeWorkspaceId: 'map', contextCount: 0, rendererCount: 0 };
       }),
     },
+    EventUI: {
+      getDiagnostics: vi.fn(function () {
+        return { hasPendingEvent: false, pendingEventId: null, surface: { active: false } };
+      }),
+    },
     SurfaceManager: {
       getDiagnostics: vi.fn(function () {
         return { escapeLayerCount: 0, hasBlockingSurfaceOpen: false };
@@ -182,6 +187,7 @@ describe('GameUiApplicationRuntime', function () {
     expect(harness.runtime.getDiagnostics()).toEqual({
       coordinator: null,
       contextInspector: { activeWorkspaceId: 'map', contextCount: 0, rendererCount: 0 },
+      eventUi: { hasPendingEvent: false, pendingEventId: null, surface: { active: false } },
       featureRecovery: {
         presentation: { activeFeatures: [], errorCount: 0, loadingCount: 0, retryCount: 0 },
         registry: {
@@ -371,6 +377,7 @@ describe('GameUiApplicationRuntime', function () {
     expect(harness.runtime.getDiagnostics()).toEqual({
       coordinator: null,
       contextInspector: { activeWorkspaceId: 'map', contextCount: 0, rendererCount: 0 },
+      eventUi: { hasPendingEvent: false, pendingEventId: null, surface: { active: false } },
       featureRecovery: {
         presentation: { activeFeatures: [], errorCount: 0, loadingCount: 0, retryCount: 0 },
         registry: {
@@ -456,6 +463,7 @@ describe('GameUiApplicationRuntime', function () {
     expect(harness.runtime.getDiagnostics()).toEqual({
       coordinator: null,
       contextInspector: { activeWorkspaceId: 'map', contextCount: 0, rendererCount: 0 },
+      eventUi: { hasPendingEvent: false, pendingEventId: null, surface: { active: false } },
       featureRecovery: {
         presentation: {
           activeFeatures: [],

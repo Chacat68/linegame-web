@@ -51,7 +51,7 @@
 - ✅ 五个同级 L3 工作区：map / trade / fleet / archive / logs 共用 `workspace-surface + is-active + inert/ARIA` 契约；市场已脱离星图 DOM，终端不再依赖 drawer/overlay 可见状态
 - ✅ 通讯来源契约：`LogMessage.js` 统一冻结 `text / type / source` envelope，动作、日结、引导、存档、设置、教程、成就与胜利运行时按领域发布来源；日志可按系统、交易、航行、舰队、任务、科研、探索、事件及机会/风险信号筛选，Context/L4 同步呈现来源与分类，不从正文猜测类别
 - ✅ UI 刷新所有权：`GameUiCoordinator` 由 680 行降至 377 行，只保留 dirty-region 路由、Feature ensure/reset 与 diagnostics 组合；`GameUiWorkspaceRenderer` 独占 Market/Fleet/Archive/Save 区域请求和 typed command 注入，`GameUiRenderSession` 独占成功渲染计数、刷新事务与失效诊断
-- ✅ UI 应用组合所有权：`GameUiApplicationRuntime` 由 433 行降至 431 行，只保留惰性 controller 图与顶层生命周期；`GameUiNavigationPort` 独占冻结导航协议，`GameUiApplicationDiagnostics` 纯组合 Coordinator 渲染/会话、Feature recovery、Context Inspector、Navigation、Workspace Surface、共享 L4、Blocking/Escape 与子控制器 diagnostics
+- ✅ UI 应用组合所有权：434 行 `GameUiApplicationRuntime` 只保留惰性 controller 图与顶层生命周期；`GameUiNavigationPort` 独占冻结导航协议，36 行 `GameUiApplicationDiagnostics` 纯组合 Coordinator 渲染/会话、Feature recovery、Context Inspector、Event UI、Navigation、Workspace Surface、共享 L4、Blocking/Escape 与子控制器 diagnostics
 - ✅ 工作区内部交互 owner：商业入口/浏览位置由 `MarketWorkspaceEntryController + Session` 持有，Archive/Fleet Tab 由 `WorkspaceTabController` 统一键盘、ARIA、深链与释放；Map/Market/Fleet/Archive 的 Context → L4 入口统一使用显式 local-scope `WorkspaceActionSlot`，不会竞争全局 Action Guide
 - ✅ 星图 UI 所有权：`MapPanelViewController` 独占星系/星球面板 DOM、ARIA、滚动和几何投影，`MapPanelController` 独占详情根节点解析与委派动作协议，`MapContextController` 独占 Context key、Renderer selection 与 Escape，`MapInteractionController` 独占 Renderer 全局回调、EventBus 和 DOM listener 生命周期，`MapNavigationController` 独占工作区请求、星系/星球切换、旅行分发、引导聚焦与 Renderer 对焦；`MapUI` 由 674 行收束为 331 行无 DOM 组合协调门面
 - ✅ Archive 任务所有权：`QuestWorkspaceSession` 独占候选焦点，Available/Active/Locked Presenter 分别生成可接取、进行中和未解锁生命周期投影，208 行 `QuestBoardPresenter` 只组合章节指挥台与分诊；Route/Objective/Detail Presenter 独占路线、目标与 Context/L4，`QuestBoardController` 以单一容器委托接取/放弃/派遣/阻塞恢复并用 generation 丢弃旧确认；`QuestUI` 收束为 98 行兼容门面
@@ -221,6 +221,9 @@ npm run build
 │       ├── VictoryProgressPresenter.js # 长期路线摘要与详情纯 DOM 投影
 │       ├── BlockingSurfaceDismissRegistry.js # Blocking dismiss 多 owner 注册与释放
 │       ├── SurfaceManager.js # Blocking Surface、焦点陷阱与唯一 Escape dispatcher
+│       ├── EventPresenter.js # 随机事件摘要、影响与选择项纯投影
+│       ├── EventSurfaceController.js # 事件弹层 DOM、键盘、焦点与释放 owner
+│       ├── EventUI.js      # 待处理事件会话兼容门面
 │       ├── MarketUI.js     # 商业终端（现货/资本/经营）
 │       ├── MarketChartPresenter.js # 行情快照、K 线与图表投影
 │       ├── MarketChartViewAdapter.js # 行情 view model、DOM 与单根 intent 委托
@@ -334,7 +337,9 @@ npm run build
 │       ├── Modal.js        # 交易确认弹层与完整 listener/dismiss 生命周期
 │       ├── ActionConfirmUI.js # 应用级危险确认与 shutdown 释放
 │       ├── OnboardingUI.js # 首次进入/公司命名 Feature 弹层
-│       ├── EventUI.js      # 随机事件选择流程与 session 释放
+│       ├── EventPresenter.js # 随机事件摘要、影响与选择项纯投影
+│       ├── EventSurfaceController.js # 事件弹层 DOM、键盘、焦点与释放 owner
+│       ├── EventUI.js      # 待处理事件 session 兼容门面
 │       └── ...             # 其他 UI 模块
 └── docs/
     └── design/             # 游戏设计文档

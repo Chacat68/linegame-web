@@ -95,6 +95,8 @@ describe('Event notification lifecycle', function () {
   it('页面只保留一个 Command Slot，不再渲染独立事件通知 CTA', function () {
     var html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
     var eventUiSource = readFileSync(new URL('../js/ui/EventUI.js', import.meta.url), 'utf8');
+    var eventPresenterSource = readFileSync(new URL('../js/ui/EventPresenter.js', import.meta.url), 'utf8');
+    var eventSurfaceSource = readFileSync(new URL('../js/ui/EventSurfaceController.js', import.meta.url), 'utf8');
 
     expect(html).toContain('id="floating-command-stack"');
     expect(html).toContain('data-command-slot="primary"');
@@ -103,8 +105,15 @@ describe('Event notification lifecycle', function () {
     expect(html).not.toContain('id="event-notif-');
     expect(eventUiSource).not.toContain('event-notification');
     expect(eventUiSource).not.toContain('showEventNotificationBar');
+    expect(eventUiSource).not.toContain('document.');
+    expect(eventUiSource).not.toContain('addEventListener');
+    expect(eventUiSource).toContain('createEventSurfaceController');
     expect(eventUiSource).toContain('export function dispose()');
-    expect(eventUiSource).toContain('_releaseEventSurface()');
+    expect(eventPresenterSource).not.toContain('document.');
+    expect(eventPresenterSource).toContain('Object.freeze');
+    expect(eventSurfaceSource).toContain('registerBlockingSurfaceDismiss');
+    expect(eventSurfaceSource).toContain('removeEventListener');
+    expect(eventSurfaceSource).toContain('getDiagnostics');
   });
 
   it('pending event 只投影为 Command Slot 的唯一可聚焦 CTA', async function () {
@@ -157,6 +166,10 @@ describe('Event notification lifecycle', function () {
 
     expect(EventUI.hasPendingEvent()).toBe(true);
     expect(EventUI.getPendingEvent()).toBe(pendingEvent);
+    expect(EventUI.getDiagnostics()).toMatchObject({
+      hasPendingEvent: true,
+      pendingEventId: 'signal_lost',
+    });
     expect(suggestion).toMatchObject({
       id: 'handle-pending-event',
       actionType: 'event.open',
@@ -174,6 +187,10 @@ describe('Event notification lifecycle', function () {
     ActionGuideUI.showProcessing(suggestion, '正在打开事件');
     expect(commandSlot.dataset.commandSlotState).toBe('processing');
     expect((commandSlot.innerHTML.match(/<button/g) || [])).toHaveLength(0);
+
+    expect(EventUI.forcePendingEvent()).toBe(false);
+    expect(EventUI.hasPendingEvent()).toBe(true);
+    expect(EventUI.getPendingEvent()).toBe(pendingEvent);
 
     EventUI.clearPendingEvent();
     ActionGuideUI.render(null);

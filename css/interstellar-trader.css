@@ -5866,7 +5866,10 @@ body[data-motion="reduced"] .dispatch-advanced-panel > summary::after {
 .event-modal-box .stack-modal-scroll,
 .dialogue-modal-box .stack-modal-scroll {
   display: grid;
+  grid-auto-rows: max-content;
+  align-content: start;
   gap: 14px;
+  scroll-padding-block: 12px;
 }
 
 .event-modal-box .event-header,
@@ -6258,15 +6261,6 @@ body[data-motion="reduced"] .dialogue-modal-box {
 
   .tutorial-tooltip .tut-actions {
     display: grid;
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 360px) {
-  .event-summary,
-  .dialogue-summary,
-  .event-impact-panel,
-  .dialogue-branch-panel {
     grid-template-columns: 1fr;
   }
 }

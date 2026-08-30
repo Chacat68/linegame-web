@@ -19,6 +19,7 @@ export function buildGameUiApplicationDiagnostics(input) {
   return Object.freeze(Object.assign({}, coordinator || {}, {
     coordinator: coordinator,
     contextInspector: _snapshot(source.contextInspectorDiagnostics),
+    eventUi: _snapshot(source.eventUiDiagnostics),
     featureRecovery: featureRecovery,
     lifecycle: _snapshot(source.lifecycleDiagnostics),
     market: _snapshot(source.marketDiagnostics),

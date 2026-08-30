@@ -153,6 +153,10 @@ describe('deferred terminal UI loading', function () {
     var dialogueController = readFileSync('js/ui/DialogueModalController.js', 'utf8');
     var dialoguePresenter = readFileSync('js/ui/DialoguePresenter.js', 'utf8');
     var randomEventRuntime = readFileSync('js/core/RandomEventRuntimeController.js', 'utf8');
+    var eventUi = readFileSync('js/ui/EventUI.js', 'utf8');
+    var eventController = readFileSync('js/ui/EventSurfaceController.js', 'utf8');
+    var eventPresenter = readFileSync('js/ui/EventPresenter.js', 'utf8');
+    var uiRuntimeFactory = readFileSync('js/core/GameUiRuntimeFactory.js', 'utf8');
     var achievementRuntime = readFileSync('js/core/AchievementRuntimeController.js', 'utf8');
     var persistenceRuntime = readFileSync('js/core/GamePersistenceController.js', 'utf8');
 
@@ -170,6 +174,12 @@ describe('deferred terminal UI loading', function () {
     expect(gameManager).toContain("from './RandomEventRuntimeController.js'");
     expect(featureManifest).toContain("import('../systems/event/RandomEvent.js')");
     expect(randomEventRuntime).toContain("import('../systems/event/RandomEvent.js')");
+    expect(eventUi).not.toContain('document.');
+    expect(eventUi).not.toContain('SurfaceManager');
+    expect(eventUi).toContain('createEventSurfaceController');
+    expect(eventPresenter).not.toContain('document.');
+    expect(eventController).toContain('registerBlockingSurfaceDismiss');
+    expect(uiRuntimeFactory).toContain('EventUI: EventUI');
     expect(gameManager).toContain("loadRuntime: function () { return _getFeatureRuntime().loadOrReject('dialogue'); }");
     expect(gameManager).toContain("loadRuntime: function () { return _getFeatureRuntime().loadOrReject('randomEvent'); }");
     expect(gameManager).toContain("_setDeferredUiState('dialogue', state)");

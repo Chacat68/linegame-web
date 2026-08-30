@@ -9,6 +9,7 @@ import * as MapUI from '../ui/MapUI.js';
 import * as Modal from '../ui/Modal.js';
 import * as ContextInspector from '../ui/ContextInspector.js';
 import * as ActionConfirmUI from '../ui/ActionConfirmUI.js';
+import * as EventUI from '../ui/EventUI.js';
 import * as DeferredFeatureStatusUI from '../ui/DeferredFeatureStatusUI.js';
 import * as WorkspaceDetailSurface from '../ui/WorkspaceDetailSurface.js';
 import * as UIManager from '../ui/UIManager.js';
@@ -76,6 +77,7 @@ export function createGameUiRuntimeFactory(context) {
           Renderer: Renderer3D,
           ContextInspector: ContextInspector,
           ActionConfirmUI: ActionConfirmUI,
+          EventUI: EventUI,
           DeferredFeatureStatusUI: DeferredFeatureStatusUI,
           SurfaceManager: Object.freeze({ getDiagnostics: getSurfaceManagerDiagnostics }),
           WorkspaceDetailSurface: WorkspaceDetailSurface,
