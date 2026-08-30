@@ -387,14 +387,6 @@
   box-shadow: 0 0 12px rgba(251, 113, 133, 0.12);
 }
 
-/* === 存档管理区 === */
-.settings-save-shell {
-  padding: 14px;
-  border-radius: 6px;
-  border: 1px solid rgba(56, 189, 248, 0.1);
-  background: rgba(3, 13, 28, 0.5);
-}
-
 .company-rename-desc {
   margin-bottom: 16px;
   color: var(--text-secondary);
@@ -438,75 +430,4 @@
   flex-direction: column;
   align-items: center;
   gap: 8px;
-}
-
-.save-header-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-
-.save-header-subtitle {
-  margin-top: 4px;
-  color: var(--text-dim);
-  font-size: 12px;
-  line-height: 1.6;
-}
-
-.save-slot-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.save-slot-header-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.save-slot-badge,
-.save-meta-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  max-width: 100%;
-  border: 1px solid rgba(108, 231, 255, 0.18);
-  border-radius: 999px;
-  background: rgba(108, 231, 255, 0.08);
-  color: #9cecff;
-  font-size: 10px;
-  letter-spacing: 0.04em;
-  line-height: 1.2;
-}
-
-.save-slot-badge {
-  padding: 2px 8px;
-  letter-spacing: 0.08em;
-}
-
-.save-meta-pill {
-  padding: 3px 8px;
-  color: var(--text-secondary);
-}
-
-.save-transfer-bar {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 14px;
-  padding: 12px;
-  border: 1px solid rgba(108, 231, 255, 0.12);
-  border-radius: 10px;
-  background: rgba(2, 10, 18, 0.5);
-}
-
-.save-transfer-copy {
-  color: var(--text-dim);
-  font-size: 11px;
-  line-height: 1.5;
 }

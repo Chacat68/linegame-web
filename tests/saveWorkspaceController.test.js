@@ -21,18 +21,31 @@ function createContainer() {
   var status = { textContent: '', dataset: {} };
   var exportSelect = { value: '1' };
   var importSelect = { value: '1' };
+  var focusTargets = Object.create(null);
   return {
     innerHTML: '',
     onclick: null,
     status: status,
+    exportSelect: exportSelect,
+    importSelect: importSelect,
+    focusTargets: focusTargets,
     setAttribute: function (name, value) { attrs[name] = String(value); },
     getAttribute: function (name) { return attrs[name] || null; },
     querySelector: function (selector) {
       if (selector === '.save-transfer-status') return status;
       if (selector === '.save-export-slot-select') return exportSelect;
       if (selector === '.save-import-slot-select') return importSelect;
+      if (Object.prototype.hasOwnProperty.call(focusTargets, selector)) return focusTargets[selector];
       return null;
     },
+  };
+}
+
+function createFocusable() {
+  return {
+    disabled: false,
+    isConnected: true,
+    focus: vi.fn(),
   };
 }
 
@@ -67,6 +80,12 @@ describe('SaveWorkspaceController', function () {
 
   it('集中处理确认、删除重绘，并在重置时释放自有确认和绑定', function () {
     var container = createContainer();
+    var emptySlotSaveButton = createFocusable();
+    var scrollOwner = { getBoundingClientRect: function () { return { top: 80, right: 360, bottom: 520, left: 20 }; } };
+    emptySlotSaveButton.closest = function (selector) { return selector === '.settings-main-content' ? scrollOwner : null; };
+    emptySlotSaveButton.getBoundingClientRect = function () { return { top: 530, right: 340, bottom: 564, left: 40 }; };
+    emptySlotSaveButton.scrollIntoView = vi.fn();
+    container.focusTargets['.save-btn[data-slot="1"]'] = emptySlotSaveButton;
     var slots = [createReadySlot(1)];
     var requests = [];
     var cancel = vi.fn();
@@ -86,6 +105,13 @@ describe('SaveWorkspaceController', function () {
     requests[0].onConfirm();
     expect(savePort.deleteSlot).toHaveBeenCalledWith(1);
     expect(controller.getDiagnostics().renderCount).toBe(2);
+    expect(emptySlotSaveButton.focus).toHaveBeenCalledWith({ preventScroll: true });
+    expect(emptySlotSaveButton.scrollIntoView).toHaveBeenCalledWith({ block: 'nearest', inline: 'nearest' });
+    expect(controller.getDiagnostics()).toMatchObject({
+      focusRestoreCount: 1,
+      lastFocusedSlotId: 1,
+      lastFocusReason: 'delete',
+    });
 
     slots = [createReadySlot(1)];
     controller.render({});
@@ -152,5 +178,44 @@ describe('SaveWorkspaceController', function () {
 
     expect(importSave).not.toHaveBeenCalled();
     expect(controller.getDiagnostics()).toMatchObject({ active: false, importCount: 0, pendingFile: false });
+  });
+
+  it('成功导入重绘后将焦点移到目标槽位的读取动作', function () {
+    var container = createContainer();
+    container.importSelect.value = '2';
+    var importedSlotLoadButton = createFocusable();
+    container.focusTargets['.load-btn[data-slot="2"]'] = importedSlotLoadButton;
+    var slots = [{ slotId: 2, isEmpty: true, isCorrupted: false }];
+    var input = { files: [{ name: 'backup.json' }], onchange: null, click: vi.fn() };
+    var reader = { result: '{"save":true}', readyState: 0, onload: null, onerror: null, readAsText: vi.fn() };
+    var controller = createSaveWorkspaceController({
+      save: {
+        listSlots: function () { return slots; },
+        importSave: vi.fn(function () {
+          slots = [createReadySlot(2)];
+          return { ok: true, msg: '导入成功' };
+        }),
+      },
+      document: {
+        getElementById: function () { return container; },
+        createElement: function () { return input; },
+      },
+      createFileReader: function () { return reader; },
+    });
+
+    controller.render({});
+    container.onclick({ target: createTarget('import-btn') });
+    input.onchange();
+    reader.onload();
+
+    expect(container.status.textContent).toBe('导入成功');
+    expect(importedSlotLoadButton.focus).toHaveBeenCalledWith({ preventScroll: true });
+    expect(controller.getDiagnostics()).toMatchObject({
+      importCount: 1,
+      renderCount: 2,
+      focusRestoreCount: 1,
+      lastFocusedSlotId: 2,
+      lastFocusReason: 'import',
+    });
   });
 });

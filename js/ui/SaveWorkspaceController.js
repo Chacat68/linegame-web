@@ -36,8 +36,11 @@ export function createSaveWorkspaceController(options) {
   var confirmCount = 0;
   var exportCount = 0;
   var importCount = 0;
+  var focusRestoreCount = 0;
   var resetCount = 0;
   var lastAction = null;
+  var lastFocusedSlotId = null;
+  var lastFocusReason = null;
 
   function _getDocument() {
     return config.document || globalThis.document || null;
@@ -75,6 +78,46 @@ export function createSaveWorkspaceController(options) {
 
   function _findSlot(slotId) {
     return activeSlots.find(function (slot) { return slot && slot.slotId === slotId; }) || null;
+  }
+
+  function _focusElement(element, slotId, reason) {
+    if (!element || typeof element.focus !== 'function' || element.disabled || element.isConnected === false) return false;
+    try {
+      element.focus({ preventScroll: true });
+    } catch (err) {
+      element.focus();
+    }
+
+    var scrollOwner = typeof element.closest === 'function' ? element.closest('.settings-main-content') : null;
+    if (scrollOwner && typeof element.getBoundingClientRect === 'function' &&
+        typeof scrollOwner.getBoundingClientRect === 'function' && typeof element.scrollIntoView === 'function') {
+      var targetRect = element.getBoundingClientRect();
+      var ownerRect = scrollOwner.getBoundingClientRect();
+      var outsideViewport = targetRect.top < ownerRect.top || targetRect.bottom > ownerRect.bottom ||
+        targetRect.left < ownerRect.left || targetRect.right > ownerRect.right;
+      if (outsideViewport) element.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+
+    focusRestoreCount += 1;
+    lastFocusedSlotId = slotId;
+    lastFocusReason = reason || null;
+    return true;
+  }
+
+  function _restoreSlotFocus(slotId, reason) {
+    if (!activeContainer || typeof activeContainer.querySelector !== 'function') return false;
+    var normalizedSlotId = Number(slotId);
+    if (!Number.isInteger(normalizedSlotId) || normalizedSlotId < 0) return false;
+    var slotSelector = '[data-slot="' + normalizedSlotId + '"]';
+    var preferredSelectors = reason === 'import'
+      ? ['.load-btn' + slotSelector, '.save-btn' + slotSelector]
+      : ['.save-btn' + slotSelector, '.load-btn' + slotSelector];
+    preferredSelectors.push('.save-slot' + slotSelector);
+    for (var index = 0; index < preferredSelectors.length; index += 1) {
+      var target = activeContainer.querySelector(preferredSelectors[index]);
+      if (_focusElement(target, normalizedSlotId, reason)) return true;
+    }
+    return false;
   }
 
   function _recordAction(action) {
@@ -127,7 +170,7 @@ export function createSaveWorkspaceController(options) {
     _openConfirmation('delete', slot, function () {
       _recordAction('delete');
       if (savePort && typeof savePort.deleteSlot === 'function') savePort.deleteSlot(slotId);
-      render({ onCommand: onCommand });
+      if (render({ onCommand: onCommand })) _restoreSlotFocus(slotId, 'delete');
     });
   }
 
@@ -189,8 +232,9 @@ export function createSaveWorkspaceController(options) {
         ? savePort.importSave(targetSlot, contents)
         : { ok: false, msg: '当前环境无法导入存档。' };
       importCount += result && result.ok ? 1 : 0;
-      if (result && result.ok) render({ onCommand: onCommand });
+      var rendered = result && result.ok ? render({ onCommand: onCommand }) : false;
       _setTransferStatus(result && result.msg ? result.msg : '存档导入失败。', result && result.ok ? 'success' : 'error');
+      if (rendered) _restoreSlotFocus(targetSlot, 'import');
     };
     var targetState = _findSlot(targetSlot);
     _finishFileRequest(input, reader);
@@ -277,8 +321,11 @@ export function createSaveWorkspaceController(options) {
       commandCount: commandCount,
       confirmCount: confirmCount,
       exportCount: exportCount,
+      focusRestoreCount: focusRestoreCount,
       importCount: importCount,
       lastAction: lastAction,
+      lastFocusedSlotId: lastFocusedSlotId,
+      lastFocusReason: lastFocusReason,
       pendingFile: !!pendingFileInput || !!pendingReader,
       renderCount: renderCount,
       resetCount: resetCount,
@@ -296,8 +343,11 @@ export function createSaveWorkspaceController(options) {
     commandCount = 0;
     confirmCount = 0;
     exportCount = 0;
+    focusRestoreCount = 0;
     importCount = 0;
     lastAction = null;
+    lastFocusedSlotId = null;
+    lastFocusReason = null;
     renderCount = 0;
     resetCount += 1;
     return getDiagnostics();

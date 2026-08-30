@@ -1149,7 +1149,6 @@ body[data-motion="reduced"] #market-overlay.workspace-surface--trade.is-active {
 
 .market-overlay-shell,
 .workspace-terminal-body,
-.settings-save-shell,
 .settings-modal-box,
 .settings-feature-status-host {
   position: relative;
@@ -1173,11 +1172,6 @@ body[data-motion="reduced"] #market-overlay.workspace-surface--trade.is-active {
 
 .deferred-feature-status[hidden] {
   display: none !important;
-}
-
-.settings-save-shell > .deferred-feature-status {
-  position: relative;
-  inset: auto;
 }
 
 .settings-feature-status-host {

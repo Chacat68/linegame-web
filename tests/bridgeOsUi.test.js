@@ -24,6 +24,7 @@ describe('Bridge OS global UI contracts', function () {
     var workspaceDetail = entry.indexOf('@import url("workspace-detail.css")');
     var starmapControls = entry.indexOf('@import url("starmap-controls.css")');
     var globalShell = entry.indexOf('@import url("global-shell-v2.css")');
+    var saveWorkspace = entry.indexOf('@import url("save-workspace.css")');
 
     expect(tokens).toBeGreaterThan(-1);
     expect(primitives).toBeGreaterThan(tokens);
@@ -33,7 +34,8 @@ describe('Bridge OS global UI contracts', function () {
     expect(workspaceDetail).toBeGreaterThan(contextInspector);
     expect(starmapControls).toBeGreaterThan(workspaceDetail);
     expect(globalShell).toBeGreaterThan(starmapControls);
-    expect(entry.trim().endsWith('@import url("global-shell-v2.css");')).toBe(true);
+    expect(saveWorkspace).toBeGreaterThan(globalShell);
+    expect(entry.trim().endsWith('@import url("save-workspace.css");')).toBe(true);
   });
 
   it('defines one semantic token source and accessibility primitives', function () {

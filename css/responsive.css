@@ -55,9 +55,6 @@
     padding: 5px 8px;
     font-size: 10px;
   }
-  .save-slot-grid {
-    grid-template-columns: 1fr;
-  }
   .settings-main-content {
     padding: 14px;
   }
@@ -145,26 +142,8 @@
   .settings-action-btn {
     width: 100%;
   }
-  .settings-save-shell {
-    padding: 10px;
-  }
   .settings-sidebar-footer {
     display: none;
-  }
-  .save-slot-actions,
-  .save-export-row {
-    flex-direction: column;
-  }
-  .save-import-target {
-    width: 100%;
-    justify-content: space-between;
-  }
-  .save-import-slot-select {
-    width: 100%;
-  }
-  .save-slot-actions .btn-action,
-  .save-export-row .btn-action {
-    width: 100%;
   }
 
   #map-legend { font-size: 10px; gap: 4px; padding: 2px 6px; }

@@ -522,6 +522,7 @@ describe('Settings.initSettingsModal', function () {
   it('系统管理弹窗静态结构包含描述与移动端样式锚点', function () {
     const html = readFileSync('index.html', 'utf8');
     const css = readFileSync('css/interstellar-trader.css', 'utf8');
+    const saveCss = readFileSync('css/save-workspace.css', 'utf8');
 
     expect(html).toContain('aria-describedby="settings-modal-desc settings-overview-strip settings-change-status"');
     expect(html).toContain('id="settings-modal-desc" class="settings-modal-desc"');
@@ -540,12 +541,18 @@ describe('Settings.initSettingsModal', function () {
     expect(css).toContain('.modal > .settings-modal-box {\n    height: min(680px, calc(100dvh - 32px));');
     expect(css).toContain('height: calc(100dvh - max(8px, var(--safe-top)) - max(8px, var(--safe-bottom)));');
     expect(css).toContain('max-height: calc(100dvh - max(8px, var(--safe-top)) - max(8px, var(--safe-bottom))) !important;');
-    expect(css).toContain('.settings-panel-page--data .save-slot:focus-visible');
-    expect(css).not.toMatch(/\.settings-panel-page--data\s*\{[^}]*display:\s*flex/);
-    expect(css).toContain('.save-safety-panel');
-    expect(css).toContain('.save-safety-grid');
-    expect(css).toContain('.save-safety-focus');
-    expect(css).toContain('.save-transfer-status[data-status-tone="success"]');
+    expect(saveCss).toContain('.settings-panel-page--data .save-slot:focus-visible');
+    expect(saveCss).not.toMatch(/\.settings-panel-page--data\s*\{[^}]*display:\s*flex/);
+    expect(saveCss).toContain('.save-safety-panel');
+    expect(saveCss).toContain('.save-safety-grid');
+    expect(saveCss).toContain('.save-safety-focus');
+    expect(saveCss).toContain('.save-transfer-status[data-status-tone="success"]');
+    expect(saveCss).toContain('.settings-panel-page--data .save-slot-actions .btn-action,\n' +
+      '  .settings-panel-page--data .save-export-row .btn-action,\n' +
+      '  .settings-panel-page--data .save-import-slot-select,\n' +
+      '  .settings-panel-page--data .save-export-slot-select {\n' +
+      '    min-height: var(--ui-control-lg, 44px);');
+    expect(saveCss).toContain('.settings-panel-page--data .save-transfer-status {\n    font-size: 13px;');
     expect(css).toContain('.action-confirm-impact');
     expect(css).toContain('.action-confirm-actions');
     expect(readFileSync('js/core/SettingsManager.js', 'utf8')).not.toContain('confirm(');
