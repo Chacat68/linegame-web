@@ -144,12 +144,12 @@
 | `SaveWorkspaceController.js` | 307 行 | 独占单一存档根事件委托、保存/读取/删除确认、typed command 发布、导入导出、FileReader 失效保护、临时资源释放与 diagnostics |
 | `TutorialUI.js` | 重构前 438 行；当前 25 行 | 只保留 Overlay Controller 的 `init/show/hide/destroy/getDiagnostics` 兼容组合，不再读取 DOM、订阅 EventBus 或依赖 TutorialSystem |
 | `TutorialStepPresenter.js` | 65 行 | 纯生成教程步骤内容、进度、辅助动作与可访问语义，统一安全转义 |
-| `TutorialTooltipLayout.js` | 229 行 | 独占 visual viewport、安全区、四向翻转、逐帧重排与 resize/scroll listener 生命周期 |
-| `TutorialOverlayController.js` | 234 行 | 独占 EventBus 重入订阅、步骤交互、高亮、焦点恢复、show/hide/destroy 与 diagnostics |
+| `TutorialTooltipLayout.js` | 229 行 | 独占 visual viewport、安全区、四向翻转、不受 transform 影响的布局尺寸测量、逐帧重排与 resize/scroll listener 生命周期 |
+| `TutorialOverlayController.js` | 307 行 | 独占 EventBus 重入订阅、步骤交互、定位安全的高亮、L7 焦点循环/恢复、show/hide/destroy 与 diagnostics |
 | `DialogueUI.js` | 重构前 384 行；当前 29 行 | 只保留 Modal Controller 的 `init/showScene/hideScene/isOpen/destroy/getDiagnostics` 兼容组合，不再读取 DOM 或持有播放状态 |
 | `DialogueSession.js` | 109 行 | 独占主线/回应播放、分支选择、已选结果和 reset 诊断，不持有 DOM 或完成回调 |
 | `DialoguePresenter.js` | 81 行 | 纯生成场景、说话者、进度、摘要、分支卡、选项与按钮冻结模型 |
-| `DialogueModalController.js` | 345 行 | 独占剧情 Blocking Surface owner token、稳定 DOM、键盘、选择防重、焦点、完成提交和完整释放 |
+| `DialogueModalController.js` | 356 行 | 独占剧情 Blocking Surface owner token、稳定 DOM、键盘、选择防重、离屏选项焦点回显、幂等完成提交和完整释放 |
 | `ContextInspector.js` | 重构前 490 行；当前 36 行 | 只保留 Session/Presenter/ViewAdapter/Controller 的兼容组合与原公开 API 委托，不再查询 DOM、持有 renderer 或维护工作区会话 |
 | `ContextInspectorSession.js` | 179 行 | 独占五工作区不可变 context key、常规/紧凑视口独立开合偏好、compact 策略与 revision 校验；不读取 DOM 或缓存领域对象 |
 | `ContextInspectorPresenter.js` | 26 行 | 纯生成 Inspector 壳层标题、context 标识、renderer 结果与统一空态冻结模型 |
@@ -860,8 +860,8 @@ Escape **不得切换 canonical workspace 或默认返回地图**，也不得关
 | `SettingsUiController` | **设置入口与失败恢复生命周期已接入** | controller 永久独占设置 launcher、首次点击 loader、并发打开去重、latest settings provider、session/generation 失效保护、模块同步和统一 loading/error/retry；模块加载后不再转移 click owner，reset 会清理模块局部会话，dispose 同时释放 launcher 与外层 dismiss token；加载/失败/打开计数已汇入顶层诊断 | 补真实 chunk 失败的浏览器注入用例 |
 | Settings View/Modal Presenter/Controller + `SettingsManager` | **设置弹层 UI 所有权已接入** | 控件值、摘要和分页标题由纯 Presenter 投影；Modal Controller 独占内部控件、分页键盘、反馈、危险确认、Blocking Surface owner token、reset/dispose；外壳与 Feature 两个 settings owner 可独立释放且不互删；Feature manifest 拥有 dispose hook；`SettingsManager` 由 416 行降至 36 行兼容门面且不再读取 DOM | 后续新增设置项只扩展模型、typed command 与单一 Controller 映射，不得恢复散落 listener 或 launcher 双 owner |
 | Save Workspace Presenter/Controller + `SaveUI` | **存档工具 UI 所有权与单一命令端口已接入** | Presenter 纯投影安全/槽位/迁移/确认描述；Controller 独占单一根委托、确认、JSON 文件选择、Blob 下载、异步读取失效和释放，并通过 Adapter 发布保存/读取 typed command；Feature manifest、GameUiCoordinator reset 与顶层 diagnostics 已接线；`SaveUI` 由 447 行降至 18 行请求对象门面 | 补移动视口真实导入/导出与删除后焦点恢复验收；未来云同步必须作为独立 effect/port，不得回流门面 |
-| Tutorial Step/Tooltip/Overlay + `TutorialUI` | **L7 教程覆盖层所有权已接入** | Presenter 纯投影内容/进度/ARIA；Layout 独占 visual viewport、安全区、翻转和监听；Overlay Controller 独占 EventBus、按钮、高亮、焦点与完整 destroy；未使用的 TutorialSystem 依赖已移除，`TutorialUI` 由 438 行降至 25 行兼容门面 | 补真实移动端键盘/visual viewport 变化与多步骤按钮焦点顺序验收 |
-| Dialogue Session/Presenter/Modal + `DialogueUI` | **L6 剧情弹层所有权已接入** | Session 独占播放/分支状态，Presenter 纯投影进度/摘要/选项语义，Modal Controller 独占 Surface/DOM/方向键/防重/焦点和 dismiss token；Runtime 与 Feature dispose 都走幂等清理并释放物理 listener owner；`DialogueUI` 由 384 行降至 29 行兼容门面 | 补真实移动端长文本、四选项滚动与 Escape/完成回调顺序验收 |
+| Tutorial Step/Tooltip/Overlay + `TutorialUI` | **L7 教程覆盖层所有权与移动验收已接入** | Presenter 纯投影内容/进度/ARIA；Layout 独占 visual viewport、安全区、翻转、真实布局尺寸测量和监听；Overlay Controller 独占 EventBus、按钮、定位安全高亮、首尾焦点循环与完整 destroy；未使用的 TutorialSystem 依赖已移除，`TutorialUI` 由 438 行降至 25 行兼容门面；390×420/390×844 真实浏览器确认 fixed 目标不位移、长 Tooltip 不重叠、键盘高度变化自动重排、步骤切换重置容器焦点且 Tab 不离开 L7 | 后续教学交互必须复用同一高亮/焦点协议；不得恢复全局 position 覆盖或第二套键盘 owner |
+| Dialogue Session/Presenter/Modal + `DialogueUI` | **L6 剧情弹层所有权与移动验收已接入** | Session 独占播放/分支状态，Presenter 纯投影进度/摘要/选项语义，Modal Controller 独占 Surface/DOM/方向键/防重/焦点和 dismiss token；Runtime 与 Feature dispose 都走幂等清理并释放物理 listener owner；`DialogueUI` 由 384 行降至 29 行兼容门面；360×640 与 390×844 真实浏览器确认长文本/四选项保持单一内容滚动，End 聚焦最后选项时完整回显，Escape 先隐藏再回调 | 后续新增剧情选项必须保持单一滚动、离屏焦点回显与完成提交幂等，不得引入第二滚动 owner |
 | `SettingsCommandController` | **设置 typed command 边界已接入** | 独占 settings mutation、持久化、Renderer/Audio 投影、难度/时钟通知、日志反馈、数据导出和恢复默认/重置教程/清空存档提交；非法命令和值不会污染当前设置；Modal Controller 只发布命令并呈现冻结结果 | 继续收窄危险操作的确认结果类型，并为未来系统级分享保留独立 effect |
 | `UsageDataExportEffect` | **本地统计导出副作用已接入** | 正式设置命令独占脱敏 payload → JSON → Blob → object URL → 临时 anchor → 必定释放的实现；下载失败也会清理 DOM 与 URL；应用入口与 SettingsManager 均无复制的下载副作用 | 后续若接入系统级分享，新增显式 share effect，不得把上传混入本地导出 |
 | `GameApplicationTestHarness` | **应用级测试控制面已隔离** | `GameApplication` 仅在 `MODE=test` 注册冻结工厂；trade / fleet / guidance / clock / UI diagnostics smoke 继续操作真实单例 Runtime Graph；`GameApplication` 与 `GameManager` 的生产导出均只剩 `init / shutdown` | harness 只服务跨 runtime 集成验证，不得成为生产模块的旁路命令总线 |

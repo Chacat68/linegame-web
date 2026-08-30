@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { createTutorialTooltipLayout } from '../js/ui/TutorialTooltipLayout.js';
 
 function createClassList(initialValues) {
   var values = new Set(initialValues || []);
@@ -264,11 +265,41 @@ describe('TutorialUI viewport positioning', function () {
     expect(visualViewport.listenerCount('scroll')).toBe(0);
   });
 
+  it('定位测量优先使用不受入场 transform 影响的布局尺寸', function () {
+    var tooltip = createElement();
+    var target = createElement();
+    tooltip.offsetWidth = 300;
+    tooltip.offsetHeight = 280;
+    tooltip.getBoundingClientRect = function () { return { width: 288, height: 269 }; };
+    target.getBoundingClientRect = function () {
+      return { left: 175, right: 215, top: 450, bottom: 490, width: 40, height: 40 };
+    };
+    var doc = { documentElement: { clientWidth: 390, clientHeight: 500 } };
+    var layout = createTutorialTooltipLayout({
+      document: doc,
+      window: createEventTarget({ innerWidth: 390, innerHeight: 500 }),
+      getComputedStyle: function () {
+        return { getPropertyValue: function () { return '0px'; } };
+      },
+    });
+
+    layout.bind(tooltip);
+    layout.position('top', target);
+
+    expect(tooltip.dataset.position).toBe('top');
+    expect(tooltip.style.top).toBe('162px');
+    expect(tooltip.style.left).toBe('45px');
+    layout.dispose();
+  });
+
   it('紧凑视口样式会压缩内容并保留底部安全区', function () {
     var css = readFileSync('css/interstellar-trader.css', 'utf8');
+    var systemsCss = readFileSync('css/systems.css', 'utf8');
 
     expect(css).toContain('.tutorial-tooltip[data-viewport="compact"]');
     expect(css).toContain('max-block-size: calc(100svh - 20px)');
     expect(css).toContain('env(safe-area-inset-bottom)');
+    expect(systemsCss).toContain('.tut-highlight.tut-highlight-static');
+    expect(systemsCss).not.toMatch(/\.tut-highlight\s*\{[^}]*position\s*:/s);
   });
 });

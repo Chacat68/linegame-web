@@ -59,8 +59,8 @@ export function createTutorialTooltipLayout(options) {
 
   function _getTooltipSize(availableWidth, availableHeight) {
     var rect = tooltip && typeof tooltip.getBoundingClientRect === 'function' ? tooltip.getBoundingClientRect() : null;
-    var measuredWidth = rect && rect.width ? rect.width : ((tooltip && tooltip.offsetWidth) || 380);
-    var measuredHeight = rect && rect.height ? rect.height : ((tooltip && tooltip.offsetHeight) || 260);
+    var measuredWidth = (tooltip && tooltip.offsetWidth) || (rect && rect.width) || 380;
+    var measuredHeight = (tooltip && tooltip.offsetHeight) || (rect && rect.height) || 260;
     return {
       width: Math.min(measuredWidth, availableWidth),
       height: Math.min(measuredHeight, availableHeight),

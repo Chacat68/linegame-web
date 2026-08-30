@@ -23,6 +23,8 @@ function createElement(initialClasses) {
     classList: createClassList(initialClasses),
     dataset: {},
     innerHTML: '',
+    rect: { top: 0, bottom: 0 },
+    scrollContainer: null,
     textContent: '',
     addEventListener: function (type, handler) {
       if (!listeners[type]) listeners[type] = [];
@@ -38,7 +40,12 @@ function createElement(initialClasses) {
     listenerCount: function (type) { return (listeners[type] || []).length; },
     setAttribute: function (name, value) { attrs[name] = String(value); },
     getAttribute: function (name) { return attrs[name] || null; },
+    closest: function (selector) {
+      return selector === '.stack-modal-scroll' ? element.scrollContainer : null;
+    },
+    getBoundingClientRect: function () { return element.rect; },
     focus: vi.fn(),
+    scrollIntoView: vi.fn(),
   };
   return element;
 }
@@ -131,5 +138,69 @@ describe('DialogueModalController', function () {
     expect(controller.getDiagnostics()).toMatchObject({
       bound: false, destroyCount: 1, dismissBound: false,
     });
+  });
+
+  it('方向键聚焦离屏分支时会把目标滚回单一内容滚动区', function () {
+    var harness = createHarness();
+    var controller = createDialogueModalController({
+      document: harness.document,
+      bindDismiss: vi.fn(),
+      showSurface: vi.fn(function () { harness.modal.classList.remove('hidden'); }),
+      hideSurface: vi.fn(function () { harness.modal.classList.add('hidden'); }),
+    });
+    controller.init();
+    controller.showScene({
+      lines: [{ text: '请选择回应' }],
+      choices: [
+        { text: '选项一' },
+        { text: '选项二' },
+        { text: '选项三' },
+        { text: '选项四' },
+      ],
+    });
+    harness.elements['dialogue-next-btn'].dispatch('click');
+
+    var buttons = harness.elements['dialogue-choices'].children.map(function (item) { return item.children[0]; });
+    var scrollContainer = createElement();
+    scrollContainer.rect = { top: 100, bottom: 500 };
+    buttons.forEach(function (button, index) {
+      button.scrollContainer = scrollContainer;
+      button.rect = { top: 120 + (index * 160), bottom: 180 + (index * 160) };
+    });
+    buttons[0].dispatch('keydown', { key: 'End', preventDefault: vi.fn() });
+
+    expect(buttons[3].focus).toHaveBeenCalledWith({ preventScroll: true });
+    expect(buttons[3].scrollIntoView).toHaveBeenCalledWith({ block: 'nearest', inline: 'nearest' });
+  });
+
+  it('Escape 完成会先隐藏再回调，重复 dismiss 不会重复提交', function () {
+    var harness = createHarness();
+    var trace = [];
+    var dismiss = null;
+    var complete = vi.fn(function () {
+      trace.push('complete');
+      expect(controller.isOpen()).toBe(false);
+    });
+    var controller = createDialogueModalController({
+      document: harness.document,
+      bindDismiss: vi.fn(function (_surfaceId, options) {
+        dismiss = options.onDismiss;
+        return vi.fn();
+      }),
+      showSurface: vi.fn(function () { harness.modal.classList.remove('hidden'); }),
+      hideSurface: vi.fn(function () {
+        trace.push('hide');
+        harness.modal.classList.add('hidden');
+      }),
+    });
+    controller.init();
+    controller.showScene({ lines: [{ text: '等待 Escape' }] }, complete);
+
+    expect(dismiss()).toBe(true);
+    expect(dismiss()).toBe(false);
+    expect(trace).toEqual(['hide', 'complete']);
+    expect(complete).toHaveBeenCalledOnce();
+    expect(complete).toHaveBeenCalledWith({ skipped: true, choiceId: null });
+    expect(controller.getDiagnostics().finishCount).toBe(1);
   });
 });

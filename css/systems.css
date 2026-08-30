@@ -1456,13 +1456,16 @@ body[data-motion="off"] .save-slot:hover {
 
 /* 高亮目标元素 */
 .tut-highlight {
-  position: relative !important;
   z-index: 9100 !important;
   box-shadow: 0 0 0 4px var(--accent-cyan),
               0 0 24px 4px rgba(38, 198, 218, 0.35) !important;
   border-radius: var(--radius);
   animation: tut-pulse 1.8s ease-in-out infinite;
   pointer-events: auto !important;
+}
+
+.tut-highlight.tut-highlight-static {
+  position: relative !important;
 }
 
 @keyframes tut-pulse {

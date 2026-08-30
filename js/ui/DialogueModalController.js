@@ -17,6 +17,15 @@ function _focusElement(element) {
   } catch (err) {
     element.focus();
   }
+  if (typeof element.closest !== 'function' || typeof element.getBoundingClientRect !== 'function') return;
+  var scrollContainer = element.closest('.stack-modal-scroll');
+  if (!scrollContainer || typeof scrollContainer.getBoundingClientRect !== 'function') return;
+  var elementRect = element.getBoundingClientRect();
+  var containerRect = scrollContainer.getBoundingClientRect();
+  if (elementRect.top >= containerRect.top && elementRect.bottom <= containerRect.bottom) return;
+  if (typeof element.scrollIntoView === 'function') {
+    element.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }
 }
 
 export function createDialogueModalController(options) {
@@ -252,12 +261,14 @@ export function createDialogueModalController(options) {
   }
 
   function _finish(skipped) {
-    var callback = onComplete;
     var snapshot = session.getSnapshot();
+    if (!snapshot.active) return false;
+    var callback = onComplete;
     var choiceId = snapshot.selectedChoice ? snapshot.selectedChoice.id : null;
     hideScene();
     finishCount += 1;
     if (typeof callback === 'function') callback({ skipped: !!skipped, choiceId: choiceId });
+    return true;
   }
 
   function init() {
@@ -280,7 +291,7 @@ export function createDialogueModalController(options) {
     if (nodes.nextButton && typeof nodes.nextButton.addEventListener === 'function') nodes.nextButton.addEventListener('click', nextHandler);
     if (nodes.skipButton && typeof nodes.skipButton.addEventListener === 'function') nodes.skipButton.addEventListener('click', skipHandler);
     if (typeof nodes.modal.addEventListener === 'function') nodes.modal.addEventListener('keydown', keydownHandler);
-    var release = bindDismiss(SURFACE_ID, { onDismiss: function () { _finish(true); } });
+    var release = bindDismiss(SURFACE_ID, { onDismiss: function () { return _finish(true); } });
     releaseDismiss = typeof release === 'function' ? release : null;
     initCount += 1;
     return true;

@@ -20,12 +20,14 @@ export function createTutorialOverlayController(options) {
   var onHelperAction = null;
   var stepHandler = null;
   var completeHandler = null;
+  var tooltipKeydownHandler = null;
   var initialized = false;
   var initCount = 0;
   var renderCount = 0;
   var showCount = 0;
   var hideCount = 0;
   var destroyCount = 0;
+  var focusWrapCount = 0;
   var lastStepNumber = null;
 
   function _getDocument() {
@@ -35,13 +37,86 @@ export function createTutorialOverlayController(options) {
   function _clearHighlight() {
     if (highlightedElement && highlightedElement.classList) {
       highlightedElement.classList.remove('tut-highlight');
+      highlightedElement.classList.remove('tut-highlight-static');
       highlightedElement = null;
     }
     var doc = _getDocument();
     if (!doc || typeof doc.querySelectorAll !== 'function') return;
-    Array.from(doc.querySelectorAll('.tut-highlight')).forEach(function (element) {
-      if (element && element.classList) element.classList.remove('tut-highlight');
+    Array.from(doc.querySelectorAll('.tut-highlight, .tut-highlight-static')).forEach(function (element) {
+      if (!element || !element.classList) return;
+      element.classList.remove('tut-highlight');
+      element.classList.remove('tut-highlight-static');
     });
+  }
+
+  function _applyHighlight(element) {
+    if (!element || !element.classList) return;
+    var getStyle = config.getComputedStyle || globalThis.getComputedStyle;
+    var computedPosition = '';
+    if (typeof getStyle === 'function') {
+      try {
+        var style = getStyle(element);
+        computedPosition = style && style.position ? String(style.position) : '';
+      } catch (err) {
+        computedPosition = '';
+      }
+    }
+    if (computedPosition === 'static') element.classList.add('tut-highlight-static');
+    element.classList.add('tut-highlight');
+    highlightedElement = element;
+  }
+
+  function _focusElement(element) {
+    if (!element || typeof element.focus !== 'function') return;
+    try {
+      element.focus({ preventScroll: true });
+    } catch (err) {
+      element.focus();
+    }
+  }
+
+  function _focusableActions() {
+    if (!tooltip || typeof tooltip.querySelectorAll !== 'function') return [];
+    return Array.from(tooltip.querySelectorAll('button:not([disabled]):not([aria-hidden="true"])')).filter(function (element) {
+      return !!element && !element.hidden && !element.disabled;
+    });
+  }
+
+  function _handleTooltipKeydown(event) {
+    if (!event || event.key !== 'Tab' || !tooltip || tooltip.classList.contains('hidden')) return;
+    var actions = _focusableActions();
+    var doc = _getDocument();
+    var activeElement = doc ? doc.activeElement : null;
+    if (actions.length === 0) {
+      if (typeof event.preventDefault === 'function') event.preventDefault();
+      _focusElement(tooltip);
+      focusWrapCount += 1;
+      return;
+    }
+    var first = actions[0];
+    var last = actions[actions.length - 1];
+    if (event.shiftKey && (activeElement === tooltip || activeElement === first)) {
+      if (typeof event.preventDefault === 'function') event.preventDefault();
+      _focusElement(last);
+      focusWrapCount += 1;
+    } else if (!event.shiftKey && activeElement === last) {
+      if (typeof event.preventDefault === 'function') event.preventDefault();
+      _focusElement(first);
+      focusWrapCount += 1;
+    }
+  }
+
+  function _releaseTooltipBinding() {
+    if (tooltip && tooltipKeydownHandler && typeof tooltip.removeEventListener === 'function') {
+      tooltip.removeEventListener('keydown', tooltipKeydownHandler);
+    }
+    tooltipKeydownHandler = null;
+  }
+
+  function _bindTooltip() {
+    if (!tooltip || typeof tooltip.addEventListener !== 'function') return;
+    tooltipKeydownHandler = _handleTooltipKeydown;
+    tooltip.addEventListener('keydown', tooltipKeydownHandler);
   }
 
   function _rememberTrigger() {
@@ -104,13 +179,12 @@ export function createTutorialOverlayController(options) {
     _clearHighlight();
     var doc = _getDocument();
     if (view.highlight && doc && typeof doc.querySelector === 'function') {
-      highlightedElement = doc.querySelector(view.highlight);
-      if (highlightedElement && highlightedElement.classList) highlightedElement.classList.add('tut-highlight');
+      _applyHighlight(doc.querySelector(view.highlight));
     }
+    show();
     layout.position(view.position, highlightedElement);
     renderCount += 1;
     lastStepNumber = view.stepNumber;
-    show();
     return true;
   }
 
@@ -125,6 +199,7 @@ export function createTutorialOverlayController(options) {
     onAdvance = typeof onAdvanceCallback === 'function' ? onAdvanceCallback : null;
     onSkip = typeof onSkipCallback === 'function' ? onSkipCallback : null;
     onHelperAction = typeof onHelperActionCallback === 'function' ? onHelperActionCallback : null;
+    _releaseTooltipBinding();
     var doc = _getDocument();
     overlay = doc && typeof doc.getElementById === 'function' ? doc.getElementById('tutorial-overlay') : null;
     tooltip = doc && typeof doc.getElementById === 'function' ? doc.getElementById('tutorial-tooltip') : null;
@@ -135,6 +210,7 @@ export function createTutorialOverlayController(options) {
       return false;
     }
     layout.bind(tooltip);
+    _bindTooltip();
     _releaseEventHandlers();
     stepHandler = function (data) {
       var request = data || {};
@@ -159,13 +235,7 @@ export function createTutorialOverlayController(options) {
       tooltip.classList.remove('hidden');
       tooltip.setAttribute('aria-hidden', 'false');
       tooltip.setAttribute('tabindex', '-1');
-      if (typeof tooltip.focus === 'function') {
-        try {
-          tooltip.focus({ preventScroll: true });
-        } catch (err) {
-          tooltip.focus();
-        }
-      }
+      _focusElement(tooltip);
     }
     showCount += 1;
     return !!overlay && !!tooltip;
@@ -197,6 +267,7 @@ export function createTutorialOverlayController(options) {
 
   function destroy() {
     hide();
+    _releaseTooltipBinding();
     layout.dispose();
     _releaseEventHandlers();
     overlay = null;
@@ -214,6 +285,8 @@ export function createTutorialOverlayController(options) {
   function getDiagnostics() {
     return Object.freeze({
       destroyCount: destroyCount,
+      focusTrapBound: !!tooltipKeydownHandler,
+      focusWrapCount: focusWrapCount,
       hideCount: hideCount,
       initCount: initCount,
       initialized: initialized,
