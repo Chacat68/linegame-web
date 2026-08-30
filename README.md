@@ -41,7 +41,7 @@
 - ✅ 统一商业终端：`MarketUI.js` 编排现货、资金与贸易站工作区；Chart / Spot / Goods / Capital / Operations / Commodity Detail Presenter 分别拥有各自投影，`MarketExperienceRoute` 独占解锁进度模型，`MarketWorkspaceNavigation` 独占一级/二级菜单、焦点与 ARIA，`MarketChromeController` 独占顶部 Chrome、详情地点/模式与引导焦点，`MarketOverviewPresenter/Controller` 独占各地报价模型、表格 DOM 和买卖价键盘切换，`MarketSelectionController` 统一商品卡/行情榜焦点与 Context；行情链由 `MarketChartPresenter` 纯生成冻结仪表板/K 线 view model，`MarketChartViewAdapter` 独占 DOM 与单根 intent 委托，`MarketChartController` 只解释焦点/统计窗口和局部重绘；`MarketGoodsController` 独占商品列表、快速交易和 typed command 转换，`MarketSpotController` 组合现货外壳、总览、商品、图表、分析和局部重绘，`MarketFinanceController` 独占资金/贸易站容器、typed command、经营排序与 Commerce 快照，`MarketCommodityController` 统一商品 Context/L4 的地点、市场模式、价格和库存解析，外壳 / 交易 / 资金 / 贸易站具备独立 render port 与 dirty region
 - ✅ 金融基础：贷款、信用评级与贸易站投资；旧股票、期货和手动保险入口已退役，旧存档首次载入时自动清算或退保
 - ✅ 贸易站经营：建站、升级、经理、策略、被动收益
-- ✅ 舰队与船员：多船、改装、船员招募、派遣航线；Crew/Mod 的 Presenter/Controller 分别独占纯投影与交互生命周期，Dispatch 由 Presenter / Session / ViewAdapter / Controller 分别独占纯投影、草案诊断、表单 DOM 与领域用例，`FleetInlinePortalController` 独占内联二级界面的 ARIA/inert/滚动/焦点，`FleetShipDetailController` 独占舰船 Context/L4 宿主，`FleetCommandAdapter` 独占 UI action → typed command；`FleetUI` 由 656 行收束为 386 行组合门面
+- ✅ 舰队与船员：多船、改装、船员招募、派遣航线；Hangar/Shop 的 Presenter/Controller 分别独占只读投影与选择/DOM/Context/采购 intent，Crew/Mod 的 Presenter/Controller 分别独占纯投影与交互生命周期，Dispatch 由 Presenter / Session / ViewAdapter / Controller 分别独占纯投影、草案诊断、表单 DOM 与领域用例，`FleetSurfaceCoordinator` 独占 inline/blocking Surface、Portal 构造、危险确认与 reset，`FleetInlinePortalController` 独占内联二级界面的 ARIA/inert/滚动/焦点，`FleetShipDetailController` 独占舰船 Context/L4 宿主，`FleetCommandAdapter` 独占 UI action → typed command；`FleetUI` 由 656 行收束为 237 行组合门面
 - ✅ 派系、科技、任务、成就、胜利条件、教程；档案五类对象共用 Context → L4 详情、分页清理与焦点返回协议
 - ✅ 本地存档：4 槽位、导入导出、版本迁移、自动存档
 - ✅ 中期专题教学：科研经济、自动跑商、贸易站经营、资金管理 4 条可主动启动的专题链，由真实经营结果推进并随存档保存
@@ -73,7 +73,7 @@
 - ✅ Starmap Controls CSS 单一归属：两个活动星图工具只由 `starmap-controls.css` 声明，窄屏触摸高度统一为 44px；无消费者的旧控制轨、隐藏 3D 按钮、五个 HUD 小窗及舰队延迟样式污染已物理删除
 - ✅ 退役 Company Directives UI：运行时入口、Presenter 和 DOM 均已不存在，四个样式层中的 724 行孤儿规则同步删除；`companyDirectiveClaims` 仅作为旧存档兼容字段继续保留
 - ✅ Market CSS Feature 归属：商业终端基础规则已从按需加载的 `fleet.css`，以及全局加载的 `panels.css`、`systems.css`、`responsive.css`、`interstellar-trader.css` 迁入 `market-terminal.css`；市场不再依赖“先打开机库”，主包也不再预载 Feature 私有级联；旧 Capital Signal、股票持仓、期货风险和 Finance Contract/History 面板样式已物理删除
-- ✅ Vitest 测试基线：226 个测试文件、1551 项测试，覆盖经济、贸易、航行、探索、事件与随机事件运行时、统一动作控制器图、成就检查队列、持久化事务、Game Application shell/Runtime Graph/五个职责节点工厂簇/启动投影/Feature/UI/Guidance/Loop Runtime 组合边界、UI Navigation port/Application diagnostics、manifest/registry 生命周期与延迟工作区错误恢复、Game Shell Projection/Header/Company/Archive Badge Presenter 与信息所有权、Map Galaxy Hub/View State/Survey Detail/Panel Layout/Panel View/Context/Interaction Controller、Workspace Surface/Detail 生命周期与 L3/Market CSS 所有权、Renderer dispose/re-init/开发态 2D 强制降级、Market Chrome/Chart Presenter/View Adapter/Controller/Selection/Spot/Goods/Finance/Commodity/Capital/Operations/Batch Plan/Local Operations/Operations Overview/Trade Station List/Commodity Detail/Experience Route/Overview/Workspace Navigation Controller、Fleet Hangar/Shop/Crew/Mod/Dispatch Presenter/Session/View Adapter/Controller/Inline Portal/Ship Detail/Command Adapter、Quest Available/Active/Locked/Board/Route/Objective/Detail Presenter/Controller/Session、Research Board/Dispatch/Detail Presenter/Controller、Faction Board/Detail Presenter/Controller、Achievement Board/Detail Presenter/Controller、Archive Exploration Session/Board/Report Detail/Controller、Settings View/Modal/Launcher Controller、Save Workspace Presenter/Controller/Command Adapter、Tutorial Step/Tooltip/Overlay、Dialogue Session/Presenter/Modal Controller 与 Workspace Object Detail Presenter、typed market/fleet/archive/save/settings command、资金与贸易站投影、Context 局部 intent、视口模式开合隔离、焦点同步、Shell/HUD/FleetUI 命令所有权、自动派遣与日结算提交顺序、经营金融、舰队、科研任务档案动作、剧情与胜利运行时、eager UI 壳/设置/首次进入/释放生命周期、教学引导与 onboarding policy、存档、会话生命周期、时钟、命令目的地、行动引导执行适配、市场工作区入口、工作区 Tab 与局部操作槽、Market/Fleet/Archive 内部增量失效、typed 日志来源契约、日志 Context/筛选/聚合与 UI 所有权等核心系统
+- ✅ Vitest 测试基线：229 个测试文件、1561 项测试，覆盖经济、贸易、航行、探索、事件与随机事件运行时、统一动作控制器图、成就检查队列、持久化事务、Game Application shell/Runtime Graph/五个职责节点工厂簇/启动投影/Feature/UI/Guidance/Loop Runtime 组合边界、UI Navigation port/Application diagnostics、manifest/registry 生命周期与延迟工作区错误恢复、Game Shell Projection/Header/Company/Archive Badge Presenter 与信息所有权、Map Galaxy Hub/View State/Survey Detail/Panel Layout/Panel View/Context/Interaction Controller、Workspace Surface/Detail 生命周期与 L3/Market CSS 所有权、Renderer dispose/re-init/开发态 2D 强制降级、Market Chrome/Chart Presenter/View Adapter/Controller/Selection/Spot/Goods/Finance/Commodity/Capital/Operations/Batch Plan/Local Operations/Operations Overview/Trade Station List/Commodity Detail/Experience Route/Overview/Workspace Navigation Controller、Fleet Hangar/Shop/Crew/Mod/Dispatch Presenter/Session/View Adapter/Controller/Surface Coordinator/Inline Portal/Ship Detail/Command Adapter、Quest Available/Active/Locked/Board/Route/Objective/Detail Presenter/Controller/Session、Research Board/Dispatch/Detail Presenter/Controller、Faction Board/Detail Presenter/Controller、Achievement Board/Detail Presenter/Controller、Archive Exploration Session/Board/Report Detail/Controller、Settings View/Modal/Launcher Controller、Save Workspace Presenter/Controller/Command Adapter、Tutorial Step/Tooltip/Overlay、Dialogue Session/Presenter/Modal Controller 与 Workspace Object Detail Presenter、typed market/fleet/archive/save/settings command、资金与贸易站投影、Context 局部 intent、视口模式开合隔离、焦点同步、Shell/HUD/FleetUI 命令所有权、自动派遣与日结算提交顺序、经营金融、舰队、科研任务档案动作、剧情与胜利运行时、eager UI 壳/设置/首次进入/释放生命周期、教学引导与 onboarding policy、存档、会话生命周期、时钟、命令目的地、行动引导执行适配、市场工作区入口、工作区 Tab 与局部操作槽、Market/Fleet/Archive 内部增量失效、typed 日志来源契约、日志 Context/筛选/聚合与 UI 所有权等核心系统
 
 ### 当前开发中的能力
 
@@ -247,7 +247,9 @@ npm run build
 │       ├── MarketWorkspaceEntrySession.js # 商业入口、浏览地点与待聚焦请求会话
 │       ├── MarketWorkspaceEntryController.js # 商业入口按钮、星系导航与刷新协调
 │       ├── FleetHangarPresenter.js # 机库主视图模型、HTML 与 UI intent
+│       ├── FleetHangarController.js # 查看舰会话、DOM、Context、焦点与二级入口
 │       ├── FleetShopPresenter.js # 船坞采购模型、HTML 与 UI intent
+│       ├── FleetShopController.js # 采购 DOM、购买 intent 与焦点 diagnostics
 │       ├── FleetCrewPresenter.js # 船员详情模型、HTML 与 roster intent
 │       ├── FleetCrewController.js # 船员 DOM、名单委托、危险确认与安全刷新
 │       ├── FleetModPresenter.js # 改装/保养详情模型、HTML 与 UI intent
@@ -258,6 +260,7 @@ npm run build
 │       ├── FleetDispatchController.js # 自动跑商推荐、估算、Surface 与命令用例
 │       ├── FleetShipDetailPresenter.js # 舰船 Context 与 L4 详情纯投影
 │       ├── FleetShipDetailController.js # 舰船 Context/L4 模型与宿主投影
+│       ├── FleetSurfaceCoordinator.js # Fleet Surface、Portal、危险确认与 reset owner
 │       ├── FleetInlinePortalController.js # 机库内联二级界面、滚动与焦点
 │       ├── FleetCommandAdapter.js # Fleet UI action → typed command
 │       ├── ArchiveCommandAdapter.js # Archive UI action → typed command

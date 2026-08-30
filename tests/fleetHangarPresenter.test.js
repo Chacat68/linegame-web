@@ -81,14 +81,18 @@ describe('FleetHangarPresenter', function () {
     expect(readFleetHangarIntent(createIntentTarget(FLEET_HANGAR_INTENT.OPEN_DISPATCH, 0, { disabled: true }))).toBeNull();
   });
 
-  it('货舱汇总容忍空值，并由 FleetUI 使用单一容器委托', function () {
+  it('货舱汇总容忍空值，并由 FleetHangarController 使用单一容器委托', function () {
     expect(getFleetCargoUsed(null)).toBe(0);
     expect(getFleetCargoUsed({ food: 2, ore: 5 })).toBe(7);
 
-    var source = readFileSync('js/ui/FleetUI.js', 'utf8');
-    expect(source).toContain('container.onclick = function (event)');
-    expect(source).toContain('readFleetHangarIntent(event && event.target)');
-    expect(source).not.toContain("container.querySelectorAll('[data-inspect-ship-index]')");
-    expect(source).not.toContain("container.querySelectorAll('.fleet-open-mod-btn')");
+    var uiSource = readFileSync('js/ui/FleetUI.js', 'utf8');
+    var controllerSource = readFileSync('js/ui/FleetHangarController.js', 'utf8');
+    expect(uiSource).toContain("from './FleetHangarController.js'");
+    expect(uiSource).not.toContain('readFleetHangarIntent(');
+    expect(uiSource).not.toContain("getElementById('fleet-list')");
+    expect(controllerSource).toContain('container.onclick = handler');
+    expect(controllerSource).toContain('readFleetHangarIntent(event && event.target)');
+    expect(controllerSource).not.toContain("container.querySelectorAll('[data-inspect-ship-index]')");
+    expect(controllerSource).not.toContain("container.querySelectorAll('.fleet-open-mod-btn')");
   });
 });

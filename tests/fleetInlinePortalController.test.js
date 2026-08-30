@@ -142,7 +142,7 @@ describe('FleetInlinePortalController', function () {
     expect(harness.requestRender).toHaveBeenCalledOnce();
   });
 
-  it('程序化关闭幂等且可跳过焦点恢复，FleetUI 只保留组合调用', async function () {
+  it('程序化关闭幂等且可跳过焦点恢复，FleetUI 只通过 Surface Coordinator 组合', async function () {
     var harness = createHarness();
     harness.controller.open('mod-modal');
     await Promise.resolve();
@@ -155,9 +155,12 @@ describe('FleetInlinePortalController', function () {
     expect(Object.isFrozen(harness.controller.getDiagnostics())).toBe(true);
 
     var fleetUi = readFileSync('js/ui/FleetUI.js', 'utf8');
-    expect(fleetUi).toContain("from './FleetInlinePortalController.js'");
+    var surfaceCoordinator = readFileSync('js/ui/FleetSurfaceCoordinator.js', 'utf8');
+    expect(fleetUi).toContain("from './FleetSurfaceCoordinator.js'");
+    expect(fleetUi).not.toContain("from './FleetInlinePortalController.js'");
+    expect(surfaceCoordinator).toContain("from './FleetInlinePortalController.js'");
     expect(fleetUi).not.toContain("inlineContainer.addEventListener('keydown'");
     expect(fleetUi).not.toContain("document.createElement('button')");
-    expect(fleetUi.split('\n').length).toBeLessThan(510);
+    expect(fleetUi.split('\n').length).toBeLessThan(260);
   });
 });

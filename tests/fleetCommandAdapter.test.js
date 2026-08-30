@@ -50,10 +50,16 @@ describe('FleetCommandAdapter', function () {
 
   it('FleetUI 只消费 action ports，不再内联 typed command 映射', function () {
     var fleetUi = readFileSync('js/ui/FleetUI.js', 'utf8');
+    var hangarController = readFileSync('js/ui/FleetHangarController.js', 'utf8');
+    var shopController = readFileSync('js/ui/FleetShopController.js', 'utf8');
     expect(fleetUi).toContain("from './FleetCommandAdapter.js'");
+    expect(hangarController).toContain("from './FleetCommandAdapter.js'");
+    expect(shopController).toContain("from './FleetCommandAdapter.js'");
     expect(fleetUi).not.toContain("from '../core/FleetCommand.js'");
+    expect(hangarController).not.toContain("from '../core/FleetCommand.js'");
+    expect(shopController).not.toContain("from '../core/FleetCommand.js'");
     expect(fleetUi).not.toContain('normalizeFleetCommand(');
     expect(fleetUi).not.toContain('FLEET_COMMAND.');
-    expect(fleetUi.split('\n').length).toBeLessThan(390);
+    expect(fleetUi.split('\n').length).toBeLessThan(260);
   });
 });

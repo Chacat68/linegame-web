@@ -85,14 +85,17 @@
 | `MarketWorkspaceNavigation.js` | 368 行 | 独占一级/二级菜单 HTML、锁定回退、roving tabindex、ARIA、方向键和程序化焦点；只通过注入的 Session/商品聚焦端口工作 |
 | `MarketCommodityDetailPresenter.js` | 111 行 | 纯生成商品 Context 摘要与 L4 详情，统一转义领域字段；买卖确认仍只属于商业工作区 |
 | `MarketCommodityController.js` | 141 行 | 独占商品 Context/L4 的地点、市场模式、价格、供需、库存、现金与容器解析，公开冻结 diagnostics |
-| `FleetUI.js` | 本批次前 656 行；当前 386 行 | 已移除反向全局主控依赖；公开入口使用请求对象 + 单一 typed command，机库、采购、船员、改装/保养、派遣投影与局部交互、舰船详情宿主、内联 Portal 和命令规范化均已迁出；现只组合工作区选择、Surface/确认和窄 controller 端口 |
+| `FleetUI.js` | 本批次前 656 行；当前 237 行 | 已移除反向全局主控依赖；公开入口使用请求对象 + 单一 typed command，机库/采购选择与 DOM、船员/改装/派遣交互、舰船详情、Surface/确认/Portal 和命令规范化均已迁出；现只组合 controller 图、生命周期重绘端口与兼容公开 API |
 | `FleetShipDetailPresenter.js` | 105 行 | 纯生成舰船 Context 摘要与 L4 运行详情，汇总船况、贸易循环、成本和配置；领域动作仍只属于舰队工作区 |
 | `FleetShipDetailController.js` | 87 行 | 组合 Fleet/Crew selector 与纯 Presenter，独占舰船 Context/L4 宿主投影和渲染诊断；门面不再直接读取领域系统 |
+| `FleetSurfaceCoordinator.js` | 128 行 | 独占 inline/blocking 活动面判定、Portal 构造、危险确认上下文、统一关闭/reset 与冻结 diagnostics；Crew/Mod/Dispatch 只消费窄 Surface 端口 |
 | `FleetInlinePortalController.js` | 187 行 | 独占 modal box 进入/归还机库的 ARIA/inert、滚动、Escape、返回栏和焦点恢复；支持幂等程序化关闭与旧 Portal 静默归还 |
 | `FleetCommandAdapter.js` | 62 行 | 独占 14 个 Fleet UI action 到规范 typed command 的转换；冻结端口并拒绝无效 payload 或缺失消费者 |
 | `WorkspaceObjectDetailPresenter.js` | 100 行 | 纯生成任务、科技、派系、成就、探索报告与通讯日志的共享 L4 事实结构并统一转义；各领域 UI 保留 selector 和状态语义 |
 | `FleetHangarPresenter.js` | 411 行 | 独占机库主视图只读模型、HTML 与 UI intent，不持有工作区选择状态、不绑定 DOM、不提交领域动作 |
+| `FleetHangarController.js` | 174 行 | 独占查看舰选择、机库根 DOM、Context 同步、重绘后焦点、Crew/Mod/Dispatch 窄入口、reset 解绑与冻结 diagnostics |
 | `FleetShopPresenter.js` | 180 行 | 独占采购评分、预算/席位信号、船卡 HTML 与购买 intent；不持有 DOM、监听器或 command 生命周期 |
+| `FleetShopController.js` | 81 行 | 独占采购根 DOM、购买 intent、采购焦点 diagnostics 与 reset 解绑；命令只经 FleetCommandAdapter 发布 |
 | `FleetCrewPresenter.js` | 217 行 | 独占船员详情只读模型、分区 HTML 与 roster intent，不持有弹层生命周期、不绑定 DOM、不提交领域动作 |
 | `FleetCrewController.js` | 293 行 | 独占船员 DOM、单一名单委托、招募/分配/撤下/切船命令、危险解雇确认、generation-safe 延迟刷新、处理器释放与冻结 diagnostics |
 | `FleetModPresenter.js` | 367 行 | 独占结构升级、组件、保养与资产处置只读模型、HTML 和 UI intent；不持有 portal、焦点或危险确认生命周期 |
@@ -861,9 +864,9 @@ Escape **不得切换 canonical workspace 或默认返回地图**，也不得关
 | `CommandDestinationController` | **命令 UI 落点已接入** | 交易确认、任务选择、市场商品、探索报告、推荐派遣和推荐改装拥有单一 owner；Fleet/Archive/Market 延迟完成均校验 generation、state 与 session token | 把更多 workspace 内局部 CTA 接入统一 command destination，并为加载失败提供局部恢复呈现 |
 | `MarketCommand` + `MarketWorkspaceController` | **typed 市场命令与重入生命周期已接入** | `MarketUI` 只接收请求对象并发布单一 command；控制器统一解释公开/黑市买卖、补给、贷款、投资、建站、升级、批量策略与远程航点，非法 payload 会被拒绝；diagnostics 记录成功数、拒绝数与最后命令；UI runtime dispose 会释放工作区 listener | 把 presenter 选择状态汇入同一 diagnostics |
 | `FleetCommand` + `FleetActionController` | **typed 舰队命令已接入 UI 边界** | `FleetUI` 主机库、商店、改装、船员与派遣入口统一接收请求对象并发布单一 command；控制器复用既有领域时序解释买船、切船、席位、升级、改装、保养、船员和路线动作，非法 payload 会被拒绝；Fleet 会话 diagnostics 已透传到 UI 组合边界 | 删除控制器面向兼容调用者保留的直接动作门面 |
-| `FleetInlinePortalController` + `FleetShipDetailController` + `FleetCommandAdapter` | **内联 Surface、舰船详情宿主与 typed command 适配 owner 已接入** | modal box 搬移/ARIA/inert/滚动/Escape/焦点、Fleet/Crew selector 与 Context/L4 宿主、14 个 UI action 规范化分别只有一个 owner；直接测试覆盖打开/归还/幂等关闭、详情类型/越界保护及非法命令，`FleetUI` 从 656 行降至 386 行 | 下一步若拆主机库交互，应只消费这三组窄端口，不得复制 Portal 或 command 逻辑 |
-| `FleetHangarPresenter` | **机库主视图 presenter 已接入** | 舰队概览、查看舰选择、核心状态、路线、配置详情、编队与席位投影已从 `FleetUI` 迁出；输出稳定 intent 标记，由 `FleetUI` 单一容器委托协调 Context、弹层与 typed command；玩家可编辑舰名统一转义；当前查看舰索引进入 Fleet diagnostics | 将采购焦点也纳入同一会话快照 |
-| `FleetShopPresenter` | **船坞采购 presenter 已接入** | 采购评分、预算/席位/航线等级摘要、采购焦点、船卡与购买 intent 已从 `FleetUI` 迁出；购买改为单一容器委托，局部标签不再冒充全局行动建议 | 将采购焦点纳入 workspace diagnostics |
+| `FleetSurfaceCoordinator` + `FleetInlinePortalController` + `FleetShipDetailController` + `FleetCommandAdapter` | **Surface、内联 Portal、舰船详情宿主与 typed command owner 已接入** | 128 行 Surface Coordinator 独占 inline/blocking 判定、Portal 构造、危险确认与统一 reset；187 行 Portal 独占 modal box 搬移/ARIA/inert/滚动/Escape/焦点；Fleet/Crew selector 与 Context/L4 宿主、14 个 UI action 规范化也分别只有一个 owner。直接测试覆盖确认/取消、活动面优先级、关闭/reset、打开/归还、详情越界及非法命令；Hangar/Shop/Crew/Mod/Dispatch 只消费窄端口，`FleetUI` 从 656 行降至 237 行 | 继续保持门面无工作区 DOM、无 Surface 状态、无领域 command shape |
+| `FleetHangarPresenter` + `FleetHangarController` | **机库主视图投影与交互 owner 已拆分接入** | 411 行 Presenter 独占舰队概览、查看舰选择、核心状态、路线、配置详情、编队与席位投影及安全 HTML；174 行 Controller 独占查看舰会话、单根委托、Context、重绘后焦点与二级界面窄端口。查看舰不改变操控舰，reset 解绑处理器；索引、最后 intent、渲染/选择/reset 计数进入冻结 diagnostics | 若选择状态需要跨会话持久化，再抽无 DOM Session；不得回流门面或领域 state |
+| `FleetShopPresenter` + `FleetShopController` | **船坞采购投影与交互 owner 已拆分接入** | 180 行 Presenter 独占采购评分、预算/席位/航线等级摘要、采购焦点、船卡与购买 intent；81 行 Controller 独占采购根 DOM、单一购买委托、焦点/最后 intent/渲染/reset diagnostics。采购焦点已进入 Fleet 顶层快照，局部标签不冒充全局行动建议 | 若出现用户可切换的采购草案，再引入无 DOM Session；当前不得缓存领域对象 |
 | `FleetCrewPresenter` + `FleetCrewController` | **船员详情投影与交互 owner 已接入** | Presenter 独占舰桥状态、席位/预备队/市场信号、船员卡片和 roster intent 纯投影；Controller 独占弹层 DOM、单一名单委托、招募/分配/撤下/切船命令与危险解雇确认。关闭/reset 会解绑处理器，并以 generation 丢弃旧 state 迟到重绘和旧确认；冻结 diagnostics 记录名单信号、命令、确认与丢弃计数 | 仅在候选选择形成持久焦点时纳入会话快照 |
 | `FleetModPresenter` + `FleetModController` | **改装/保养投影与交互 owner 已接入** | Presenter 独占结构模块、功能组件、维护信号、港口保养、推荐焦点与资产处置纯投影；Controller 独占单一内容根委托、引导焦点、升级/安装/拆卸/保养 intent、危险售船确认和延迟刷新。关闭/reset 会解绑处理器并以 generation 丢弃旧 state 迟到任务，冻结 diagnostics 记录焦点、命令、确认和刷新状态 | 仅在组件选择形成持久草案时再抽无 DOM Session |
 | `FleetDispatchPresenter` + `FleetDispatchSession` + `FleetDispatchViewAdapter` + `FleetDispatchController` | **自动跑商投影、会话、DOM 与用例 owner 已拆分接入** | Presenter 独占策略解析/验证、市场与商品选项、路线估算、风险/阻塞、推荐匹配、摘要和主 CTA 纯投影；Session 独占草案、打开/关闭原因及估算/提交计数；ViewAdapter 独占 21 个表单节点、选项保留、状态投影和 11 类处理器；Controller 只编排可访问地点、推荐/估算、确认/取消、Surface 和 command。关闭/reset 会同时清理 Adapter 与 Session，冻结 diagnostics 组合公开两者状态 | 若推荐地点与路线求解继续增长，将纯候选收集/推荐输入抽成 selector；DOM 或草案不得回流 Controller |

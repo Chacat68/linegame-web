@@ -412,6 +412,8 @@ describe('FleetUI.openModModal guidance focus', function () {
       activeSurface: 'mod',
       surfaceMode: 'inline',
       inspectedShipIndex: 0,
+      hangar: expect.objectContaining({ inspectedShipIndex: 0, renderCount: expect.any(Number) }),
+      shop: expect.objectContaining({ focusShipTypeId: null }),
       mod: expect.objectContaining({ shipIndex: 0, focusModId: 'mod_service_bay' }),
     }));
     expect(Object.isFrozen(FleetUI.getDiagnostics())).toBe(true);

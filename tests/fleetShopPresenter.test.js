@@ -82,10 +82,14 @@ describe('FleetShopPresenter', function () {
     expect(readFleetShopIntent(createIntentTarget(FLEET_SHOP_INTENT.BUY_SHIP, 'freighter', true))).toBeNull();
 
     var uiSource = readFileSync('js/ui/FleetUI.js', 'utf8');
+    var controllerSource = readFileSync('js/ui/FleetShopController.js', 'utf8');
     var presenterSource = readFileSync('js/ui/FleetShopPresenter.js', 'utf8');
-    expect(uiSource).toContain('container.onclick = function (event)');
-    expect(uiSource).toContain('readFleetShopIntent(event && event.target)');
-    expect(uiSource).not.toContain("querySelectorAll('.fleet-can-buy')");
+    expect(uiSource).toContain("from './FleetShopController.js'");
+    expect(uiSource).not.toContain('readFleetShopIntent(');
+    expect(uiSource).not.toContain("getElementById('shop-list')");
+    expect(controllerSource).toContain('container.onclick = handler');
+    expect(controllerSource).toContain('readFleetShopIntent(event && event.target)');
+    expect(controllerSource).not.toContain("querySelectorAll('.fleet-can-buy')");
     expect(presenterSource).not.toContain('document.');
     expect(presenterSource).not.toContain('.onclick');
   });
