@@ -21,8 +21,6 @@
     padding: 14px;
   }
   .victory-modal-box { min-width: 280px; max-width: 420px; }
-  .event-modal-box { min-width: 280px; max-width: 360px; }
-  .dialogue-modal-box { min-width: 280px; max-width: 420px; }
 
   #map-legend {
     font-size: 10px;
@@ -61,8 +59,6 @@
     align-self: flex-end;
   }
   .victory-modal-box { min-width: 200px; max-width: 95vw; }
-  .event-modal-box { min-width: 200px; max-width: 95vw; }
-  .dialogue-modal-box { min-width: 200px; max-width: 95vw; }
   .gameover-box { max-width: 95vw; }
   .company-rename-box { max-width: 95vw; }
 

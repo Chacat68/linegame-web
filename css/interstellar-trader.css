@@ -2396,8 +2396,6 @@ label[role="tab"]:focus-visible {
 .research-route-apply-btn,
 .research-route-blocker-btn,
 .planet-detail-action,
-.event-choice-btn,
-.dialogue-choice-btn,
 .tut-btn,
 .quest-tracker-open-btn,
 .quest-tracker-accept-btn,
@@ -2541,8 +2539,6 @@ label[role="tab"]:focus-visible {
 .research-route-apply-btn:hover,
 .research-route-blocker-btn:hover,
 .planet-detail-action:hover,
-.event-choice-btn:hover,
-.dialogue-choice-btn:hover,
 .tut-btn:hover,
 .quest-tracker-open-btn:hover,
 .quest-tracker-accept-btn:hover,
@@ -2647,8 +2643,6 @@ textarea:focus,
 .stack-modal-box,
 .secondary-panel-modal-box,
 .victory-modal-box,
-.event-modal-box,
-.dialogue-modal-box,
 .crew-modal-box,
 .mod-modal-box,
 .company-rename-box {
@@ -2658,8 +2652,6 @@ textarea:focus,
   overflow: hidden;
 }
 
-.event-choice-btn,
-.dialogue-choice-btn,
 .fleet-manage-btn {
   align-items: flex-start;
   text-align: left;
@@ -2725,8 +2717,6 @@ textarea:focus,
   .stack-modal-box,
   .secondary-panel-modal-box,
   .victory-modal-box,
-  .event-modal-box,
-  .dialogue-modal-box,
   .crew-modal-box,
   .mod-modal-box,
   .company-rename-box {
@@ -2839,8 +2829,6 @@ textarea:focus,
 
 .modal-box,
 .secondary-panel-modal-box,
-.event-modal-box,
-.dialogue-modal-box,
 .victory-modal-box,
 .gameover-box,
 .company-rename-box,
@@ -3044,8 +3032,6 @@ textarea:focus,
 
   .modal-box,
   .secondary-panel-modal-box,
-  .event-modal-box,
-  .dialogue-modal-box,
   .victory-modal-box,
   .gameover-box,
   .company-rename-box,
@@ -3174,8 +3160,6 @@ a[class*="btn"] svg {
 #tab-quest .phase-icon,
 .faction-icon,
 .ach-icon,
-.event-icon-large,
-.dialogue-speaker-icon,
 .hud-good-icon,
 .vp-card-icon,
 .level-icon,
@@ -3522,8 +3506,6 @@ body,
 .modal-box,
 .secondary-panel-modal-box,
 .stack-modal-box,
-.event-modal-box,
-.dialogue-modal-box,
 .victory-modal-box,
 .gameover-box,
 .company-rename-box,
@@ -3574,8 +3556,6 @@ body,
   .modal-box,
   .secondary-panel-modal-box,
   .stack-modal-box,
-  .event-modal-box,
-  .dialogue-modal-box,
   .victory-modal-box,
   .gameover-box,
   .company-rename-box,
@@ -4022,8 +4002,6 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #mini-con
 
 .modal > .stack-modal-box,
 .modal > .trade-confirm-modal-box,
-.modal > .event-modal-box,
-.modal > .dialogue-modal-box,
 .modal > .victory-modal-box,
 .modal > .gameover-box,
 .modal > .dispatch-modal-box,
@@ -4041,11 +4019,6 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #mini-con
 
 .modal > .trade-confirm-modal-box {
   --modal-w: 430px;
-}
-
-.modal > .event-modal-box,
-.modal > .dialogue-modal-box {
-  --modal-w: 540px;
 }
 
 .modal > .dispatch-modal-box {
@@ -4125,8 +4098,7 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #mini-con
 
 .modal-actions,
 .company-rename-actions,
-.tut-start-actions,
-.dialogue-actions {
+.tut-start-actions {
   position: sticky;
   right: 0;
   bottom: 0;
@@ -4153,9 +4125,7 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #mini-con
   border-radius: 11px;
 }
 
-.logs-header,
-.event-header,
-.dialogue-header {
+.logs-header {
   min-width: 0;
   margin: 0 0 14px;
 }
@@ -4167,17 +4137,13 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #mini-con
   gap: 12px;
 }
 
-.logs-header h3,
-.event-header h3,
-.dialogue-scene-title {
+.logs-header h3 {
   min-width: 0;
   margin: 0;
   overflow-wrap: anywhere;
 }
 
-.logs-icon-large,
-.event-icon-large,
-.dialogue-speaker-icon {
+.logs-icon-large {
   width: 42px;
   height: 42px;
   display: inline-grid;
@@ -4238,23 +4204,9 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #mini-con
   color: rgba(255, 224, 180, 0.96);
 }
 
-.event-description,
-.dialogue-text,
 .gameover-message {
   max-width: 100%;
   overflow-wrap: anywhere;
-}
-
-.event-choices,
-.dialogue-choices {
-  gap: 10px;
-}
-
-.event-choice-btn,
-.dialogue-choice-btn {
-  border-radius: 12px;
-  min-height: 48px;
-  padding: 12px 13px;
 }
 
 .dispatch-modal-box {
@@ -4319,8 +4271,6 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #mini-con
 
   .modal > .stack-modal-box,
   .modal > .trade-confirm-modal-box,
-  .modal > .event-modal-box,
-  .modal > .dialogue-modal-box,
   .modal > .victory-modal-box,
   .modal > .gameover-box,
   .modal > .dispatch-modal-box,
@@ -4354,8 +4304,7 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #mini-con
 
   .modal-actions,
   .company-rename-actions,
-  .tut-start-actions,
-  .dialogue-actions {
+  .tut-start-actions {
     padding: 10px 15px 12px;
   }
 
@@ -4372,26 +4321,17 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #mini-con
 @media (max-width: 520px) {
   .modal-actions,
   .company-rename-actions,
-  .tut-start-actions,
-  .dialogue-actions {
+  .tut-start-actions {
     display: grid;
     grid-template-columns: 1fr;
   }
 
-  .dialogue-actions {
-    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
-  }
-
-  .logs-header,
-  .event-header,
-  .dialogue-header {
+  .logs-header {
     grid-template-columns: 36px minmax(0, 1fr);
     gap: 10px;
   }
 
-  .logs-icon-large,
-  .event-icon-large,
-  .dialogue-speaker-icon {
+  .logs-icon-large {
     width: 36px;
     height: 36px;
     border-radius: 10px;
@@ -4728,253 +4668,6 @@ body[data-motion="reduced"] .dispatch-advanced-panel > summary::after {
 /* ==========================================================
    Event, dialogue, and tutorial flow surfaces
    ========================================================== */
-.modal > .event-modal-box {
-  --modal-w: 620px;
-}
-
-.modal > .dialogue-modal-box {
-  --modal-w: 640px;
-}
-
-.event-modal-box .stack-modal-scroll,
-.dialogue-modal-box .stack-modal-scroll {
-  display: grid;
-  grid-auto-rows: max-content;
-  align-content: start;
-  gap: 14px;
-  scroll-padding-block: 12px;
-}
-
-.event-modal-box .event-header,
-.dialogue-modal-box .dialogue-header {
-  display: grid;
-  grid-template-columns: 48px minmax(0, 1fr);
-  align-items: center;
-  gap: 13px;
-  margin: 0;
-}
-
-.event-header-copy,
-.dialogue-header-copy {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-
-.event-kicker,
-.dialogue-scene-label {
-  width: fit-content;
-  margin: 0;
-  padding: 3px 8px;
-  border: 1px solid rgba(108, 231, 255, 0.18);
-  border-radius: 999px;
-  background: rgba(2, 10, 18, 0.46);
-  color: rgba(177, 205, 222, 0.72);
-  font-family: "Rajdhani", sans-serif;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.event-modal-box .event-icon-large,
-.dialogue-modal-box .dialogue-speaker-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
-  background:
-    radial-gradient(circle at 34% 22%, rgba(108, 231, 255, 0.26), transparent 40%),
-    linear-gradient(180deg, rgba(8, 30, 48, 0.92), rgba(2, 10, 18, 0.95));
-}
-
-.event-modal-box .event-meta {
-  margin: -2px 0 0;
-}
-
-.event-summary,
-.dialogue-summary {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.event-impact-panel,
-.dialogue-branch-panel {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  margin: 0;
-}
-
-.event-summary-item,
-.dialogue-summary-item,
-.event-impact-item,
-.dialogue-branch-item {
-  min-width: 0;
-  display: grid;
-  gap: 3px;
-  padding: 9px 10px;
-  border: 1px solid rgba(108, 231, 255, 0.11);
-  border-radius: 11px;
-  background:
-    linear-gradient(180deg, rgba(8, 30, 48, 0.58), rgba(2, 10, 18, 0.66)),
-    rgba(3, 13, 24, 0.5);
-}
-
-.event-summary-item span,
-.dialogue-summary-item span,
-.event-impact-item span,
-.dialogue-branch-item span {
-  color: rgba(177, 205, 222, 0.64);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-}
-
-.event-summary-item strong,
-.dialogue-summary-item strong,
-.event-impact-item strong,
-.dialogue-branch-item strong {
-  min-width: 0;
-  color: rgba(242, 250, 255, 0.94);
-  font-size: 13px;
-  line-height: 1.25;
-  overflow-wrap: anywhere;
-}
-
-.event-impact-item,
-.dialogue-branch-item {
-  border-color: rgba(255, 184, 107, 0.12);
-  background:
-    linear-gradient(180deg, rgba(29, 23, 12, 0.52), rgba(2, 10, 18, 0.68)),
-    radial-gradient(circle at 0 0, rgba(255, 184, 107, 0.06), transparent 42%);
-}
-
-.event-impact-item small,
-.dialogue-branch-item small {
-  color: rgba(177, 205, 222, 0.66);
-  font-size: 11px;
-  line-height: 1.35;
-  overflow-wrap: anywhere;
-}
-
-.event-modal-box .event-description,
-.dialogue-modal-box .dialogue-text {
-  margin: 0;
-  border: 1px solid rgba(108, 231, 255, 0.12);
-  border-left: 3px solid rgba(255, 184, 107, 0.44);
-  border-radius: 12px;
-  background:
-    linear-gradient(180deg, rgba(6, 24, 40, 0.62), rgba(2, 10, 18, 0.72)),
-    repeating-linear-gradient(180deg, rgba(108, 231, 255, 0.026) 0 1px, transparent 1px 26px);
-  color: rgba(231, 243, 250, 0.92);
-}
-
-.event-modal-box .event-description {
-  min-height: 104px;
-  padding: 13px 14px 13px 16px;
-}
-
-.event-modal-box .event-choices {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-  gap: 10px;
-  margin: 0;
-}
-
-.event-modal-box .event-choice-item,
-.dialogue-modal-box .dialogue-choice-item {
-  min-width: 0;
-  display: grid;
-}
-
-.event-modal-box .event-choice-btn,
-.dialogue-modal-box .dialogue-choice-btn {
-  position: relative;
-  min-width: 0;
-  width: 100%;
-  height: 100%;
-  min-height: 64px;
-  display: grid;
-  align-content: center;
-  justify-items: start;
-  gap: 5px;
-  border-color: rgba(108, 231, 255, 0.15);
-  background:
-    linear-gradient(180deg, rgba(8, 30, 48, 0.8), rgba(2, 10, 18, 0.9)),
-    radial-gradient(circle at 0 0, rgba(255, 184, 107, 0.09), transparent 44%);
-  overflow: hidden;
-  text-align: left;
-}
-
-.event-modal-box .event-choice-btn::before,
-.dialogue-modal-box .dialogue-choice-btn::before {
-  content: "";
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 3px;
-  background: rgba(108, 231, 255, 0.34);
-}
-
-.event-modal-box .event-choice-btn:hover,
-.event-modal-box .event-choice-btn:focus-visible,
-.dialogue-modal-box .dialogue-choice-btn:hover,
-.dialogue-modal-box .dialogue-choice-btn:focus-visible {
-  border-color: rgba(255, 184, 107, 0.42);
-  box-shadow: 0 0 0 1px rgba(255, 184, 107, 0.08), 0 12px 28px rgba(0, 0, 0, 0.26);
-  transform: translateY(-1px);
-}
-
-.event-modal-box .choice-text,
-.dialogue-modal-box .dialogue-choice-text {
-  color: rgba(242, 250, 255, 0.94);
-  line-height: 1.35;
-}
-
-.event-modal-box .choice-tooltip,
-.dialogue-modal-box .dialogue-choice-hint {
-  color: rgba(177, 205, 222, 0.68);
-  font-style: normal;
-  line-height: 1.5;
-}
-
-.dialogue-modal-box[data-dialogue-mode="choice"] .dialogue-text {
-  border-left-color: rgba(108, 231, 255, 0.5);
-}
-
-.dialogue-modal-box .dialogue-progress {
-  margin: 0;
-  gap: 5px;
-}
-
-.dialogue-modal-box .dialogue-progress-dot {
-  min-width: 18px;
-}
-
-.dialogue-modal-box .dialogue-text {
-  min-height: 128px;
-  padding: 15px 16px;
-}
-
-.dialogue-modal-box .dialogue-footer {
-  margin: 0;
-  padding: 10px 12px;
-  border: 1px solid rgba(255, 184, 107, 0.14);
-  border-left: 3px solid rgba(255, 184, 107, 0.42);
-  border-radius: 10px;
-  background: rgba(79, 45, 13, 0.1);
-}
-
-.dialogue-modal-box .dialogue-choices {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 10px;
-  margin: 0;
-}
-
-.dialogue-actions > button {
-  min-height: var(--modal-action-h);
-}
 
 .tutorial-tooltip {
   width: min(390px, calc(100vw - 20px));
@@ -5062,71 +4755,11 @@ body[data-motion="reduced"] .dispatch-advanced-panel > summary::after {
 }
 
 body[data-motion="off"] .tutorial-tooltip,
-body[data-motion="off"] .event-modal-box,
-body[data-motion="off"] .dialogue-modal-box,
-body[data-motion="reduced"] .tutorial-tooltip,
-body[data-motion="reduced"] .event-modal-box,
-body[data-motion="reduced"] .dialogue-modal-box {
+body[data-motion="reduced"] .tutorial-tooltip {
   animation: none;
 }
 
-@media (max-width: 620px) {
-  .event-summary,
-  .dialogue-summary,
-  .event-impact-panel,
-  .dialogue-branch-panel {
-    grid-template-columns: repeat(3, minmax(72px, 1fr));
-    overflow-x: auto;
-    padding-bottom: 2px;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .event-modal-box .event-choices,
-  .dialogue-modal-box .dialogue-choices {
-    grid-template-columns: 1fr;
-  }
-
-}
-
 @media (max-width: 520px) {
-  .event-modal-box .event-header,
-  .dialogue-modal-box .dialogue-header {
-    grid-template-columns: 40px minmax(0, 1fr);
-    gap: 10px;
-  }
-
-  .event-modal-box .event-icon-large,
-  .dialogue-modal-box .dialogue-speaker-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 12px;
-  }
-
-  .event-modal-box .event-description,
-  .dialogue-modal-box .dialogue-text {
-    min-height: 0;
-    padding: 12px 13px;
-  }
-
-  .event-summary,
-  .dialogue-summary {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .event-impact-panel,
-  .dialogue-branch-panel {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    overflow-x: hidden;
-  }
-
-  .event-modal-box .event-choice-btn,
-  .dialogue-modal-box .dialogue-choice-btn {
-    min-height: 58px;
-  }
-
-  .dialogue-actions {
-    grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
-  }
 
   .tutorial-tooltip {
     width: calc(100vw - 20px);

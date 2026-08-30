@@ -496,7 +496,7 @@ describe('Flow surface UI', function () {
 
   it('事件和剧情弹窗包含影响预览、分支状态与响应式样式锚点', function () {
     var html = readFileSync('index.html', 'utf8');
-    var css = readFileSync('css/interstellar-trader.css', 'utf8');
+    var css = readFileSync('css/flow-surfaces.css', 'utf8');
 
     expect(html).toContain('aria-describedby="event-summary event-desc event-impact"');
     expect(html).toContain('id="event-impact" class="event-impact-panel" role="list" aria-label="事件影响预览"');
