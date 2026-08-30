@@ -9,6 +9,7 @@ describe('Workspace terminal UI structure', function () {
     var hangarCss = readFileSync(new URL('../css/hangar-terminal.css', import.meta.url), 'utf8');
     var surfacesCss = readFileSync(new URL('../css/surfaces.css', import.meta.url), 'utf8');
     var responsiveCss = readFileSync(new URL('../css/bridge-responsive.css', import.meta.url), 'utf8');
+    var settingsCss = readFileSync(new URL('../css/settings-workspace.css', import.meta.url), 'utf8');
     var css = sharedCss + '\n' + surfacesCss + '\n' + archiveCss + '\n' + hangarCss;
     var js = readFileSync(new URL('../js/ui/WorkspaceTabController.js', import.meta.url), 'utf8');
 
@@ -89,6 +90,6 @@ describe('Workspace terminal UI structure', function () {
     expect(responsiveCss).toContain('@media (max-width: 1360px)');
     expect(responsiveCss).toMatch(/@media \(max-width: 680px\)[\s\S]*?\.hdr-day-chip\s*\{\s*display:\s*none/);
     expect(responsiveCss).toMatch(/\.workspace-terminal-nav \.tab-btn\s*\{[^}]*flex:\s*1 1 0/);
-    expect(responsiveCss).toMatch(/\.settings-select\s*\{[^}]*height:\s*var\(--ui-control-lg\)/);
+    expect(settingsCss).toMatch(/\.settings-select\s*\{[^}]*height:\s*var\(--ui-control-lg\)/);
   });
 });

@@ -259,8 +259,7 @@
   }
 
   .market-close-btn,
-  .workspace-terminal-close,
-  .settings-close-btn {
+  .workspace-terminal-close {
     width: var(--ui-control-lg);
     min-width: var(--ui-control-lg);
     height: var(--ui-control-lg);
@@ -532,23 +531,6 @@
     min-height: var(--ui-control-lg);
   }
 
-  .settings-nav-item,
-  .settings-action-btn,
-  .settings-sidebar-btn,
-  .settings-select {
-    min-height: var(--ui-control-lg);
-  }
-
-  .settings-select {
-    height: var(--ui-control-lg);
-  }
-
-  .settings-row-desc,
-  .settings-hint-row,
-  .settings-modal-desc {
-    font-size: 12px;
-  }
-
   .logs-terminal-body {
     display: flex;
     flex-direction: column;
@@ -616,11 +598,6 @@
     max-width: none !important;
     max-height: calc(100dvh - var(--ui-space-4)) !important;
     border-radius: var(--ui-radius-panel) var(--ui-radius-panel) var(--ui-radius-card) var(--ui-radius-card);
-  }
-
-  #settings-modal .settings-modal-box {
-    width: 100%;
-    max-height: calc(100dvh - var(--ui-space-4));
   }
 
   :where(button, input, select, textarea, [role="button"], [role="tab"]) {

@@ -23,44 +23,6 @@
   .victory-modal-box { min-width: 280px; max-width: 420px; }
   .event-modal-box { min-width: 280px; max-width: 360px; }
   .dialogue-modal-box { min-width: 280px; max-width: 420px; }
-  .settings-modal-box {
-    width: min(100vw - 24px, 720px);
-    max-width: none;
-    padding: 0;
-  }
-  .settings-layout { flex-direction: column; }
-  .settings-sidebar {
-    width: 100%;
-    min-width: 0;
-    flex-direction: row;
-    border-right: none;
-    border-bottom: 1px solid rgba(56, 189, 248, 0.18);
-    align-items: center;
-  }
-  .settings-sidebar-title { padding: 10px 14px; border-bottom: none; font-size: 12px; }
-  .settings-nav-list { flex-direction: row; padding: 0; gap: 0; flex: 1; }
-  .settings-nav-item { padding: 10px 12px; border-left: none; border-bottom: 2px solid transparent; font-size: 12px; }
-  #settings-tab-display:checked ~ .settings-sidebar .settings-nav-list label[for="settings-tab-display"],
-  #settings-tab-game:checked ~ .settings-sidebar .settings-nav-list label[for="settings-tab-game"],
-  #settings-tab-data:checked ~ .settings-sidebar .settings-nav-list label[for="settings-tab-data"] {
-    border-left-color: transparent;
-    border-bottom-color: #67e8f9;
-  }
-  .settings-sidebar-footer {
-    padding: 6px 10px;
-    border-top: none;
-    margin-top: 0;
-  }
-  .settings-sidebar-btn {
-    padding: 5px 8px;
-    font-size: 10px;
-  }
-  .settings-main-content {
-    padding: 14px;
-  }
-  .settings-storage-head {
-    flex-direction: column;
-  }
 
   #map-legend {
     font-size: 10px;
@@ -103,48 +65,6 @@
   .dialogue-modal-box { min-width: 200px; max-width: 95vw; }
   .gameover-box { max-width: 95vw; }
   .company-rename-box { max-width: 95vw; }
-  .settings-modal-box {
-    width: calc(100vw - 12px);
-    max-height: 90vh;
-  }
-  .settings-sidebar {
-    flex-wrap: wrap;
-  }
-  .settings-sidebar-title {
-    padding: 8px 10px;
-    font-size: 11px;
-  }
-  .settings-nav-item {
-    padding: 8px 10px;
-    font-size: 11px;
-  }
-  .settings-nav-icon {
-    display: none;
-  }
-  .settings-main-header {
-    padding: 10px 14px;
-  }
-  .settings-main-content {
-    padding: 12px;
-  }
-  .settings-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 12px;
-  }
-  .settings-row-control {
-    width: 100%;
-  }
-  .settings-select {
-    width: 100%;
-  }
-  .settings-action-btn {
-    width: 100%;
-  }
-  .settings-sidebar-footer {
-    display: none;
-  }
 
   #map-legend { font-size: 10px; gap: 4px; padding: 2px 6px; }
   #map-legend span:last-child { display: none; }
@@ -184,14 +104,12 @@
   50% { opacity: 0.8; }
 }
 
-.victory-progress-btn,
-.settings-btn {
+.victory-progress-btn {
   position: relative;
   overflow: hidden;
 }
 
-.victory-progress-btn::before,
-.settings-btn::before {
+.victory-progress-btn::before {
   content: "";
   position: absolute;
   top: 0; bottom: 0; left: 0;
@@ -201,8 +119,7 @@
   pointer-events: none;
 }
 
-.victory-progress-btn:hover::before,
-.settings-btn:hover::before {
+.victory-progress-btn:hover::before {
   animation: border-sweep 0.8s ease-out;
 }
 

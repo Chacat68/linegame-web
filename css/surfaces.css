@@ -920,7 +920,6 @@ body[data-motion="reduced"] #market-overlay.workspace-surface--trade.is-active {
 
 .market-close-btn,
 .workspace-terminal-close,
-.settings-close-btn,
 .modal-close {
   display: grid;
   width: var(--ui-control-md);
@@ -934,7 +933,6 @@ body[data-motion="reduced"] #market-overlay.workspace-surface--trade.is-active {
 
 .market-close-btn:hover,
 .workspace-terminal-close:hover,
-.settings-close-btn:hover,
 .modal-close:hover {
   border-color: var(--ui-line-strong);
   color: var(--ui-text-primary);
@@ -1148,9 +1146,7 @@ body[data-motion="reduced"] #market-overlay.workspace-surface--trade.is-active {
 /* Deferred workspace recovery ---------------------------------- */
 
 .market-overlay-shell,
-.workspace-terminal-body,
-.settings-modal-box,
-.settings-feature-status-host {
+.workspace-terminal-body {
   position: relative;
 }
 
@@ -1172,26 +1168,6 @@ body[data-motion="reduced"] #market-overlay.workspace-surface--trade.is-active {
 
 .deferred-feature-status[hidden] {
   display: none !important;
-}
-
-.settings-feature-status-host {
-  position: absolute;
-  z-index: 4;
-  inset: 0;
-  display: none;
-}
-
-#settings-modal[data-deferred-feature-state] .settings-feature-status-host {
-  display: block;
-}
-
-#settings-modal[data-deferred-feature-state] .settings-layout {
-  visibility: hidden;
-  pointer-events: none;
-}
-
-.settings-feature-status-host > .deferred-feature-status {
-  min-height: 100%;
 }
 
 .deferred-feature-status-card {
@@ -1764,9 +1740,7 @@ body[data-motion="off"] .deferred-feature-status-signal {
   box-shadow: var(--ui-shadow-panel);
 }
 
-.modal-header,
-.settings-header,
-.settings-modal-header {
+.modal-header {
   padding: var(--ui-space-4) var(--ui-space-5);
   border-bottom: 1px solid var(--ui-line-default);
   background: linear-gradient(180deg, rgba(12, 37, 52, 0.88), rgba(5, 20, 31, 0.82));
@@ -1774,45 +1748,20 @@ body[data-motion="off"] .deferred-feature-status-signal {
 
 .modal-title,
 .modal-header h2,
-.modal-header h3,
-.settings-header h2,
-.settings-modal-header h2 {
+.modal-header h3 {
   color: var(--ui-text-primary);
   font-weight: 720;
 }
 
-.modal-body,
-.settings-body,
-.settings-modal-body {
+.modal-body {
   color: var(--ui-text-secondary);
 }
 
-.modal-actions,
-.settings-actions,
-.settings-modal-actions {
+.modal-actions {
   padding: var(--ui-space-4) var(--ui-space-5);
   gap: var(--ui-space-3);
   border-top: 1px solid var(--ui-line-subtle);
   background: rgba(2, 10, 18, 0.5);
-}
-
-#settings-modal .settings-modal-box {
-  width: min(1040px, calc(100vw - 32px));
-  max-height: min(760px, calc(100dvh - 32px));
-}
-
-.settings-nav,
-.settings-sidebar {
-  border-color: var(--ui-line-subtle);
-  background: rgba(2, 10, 18, 0.48);
-}
-
-.settings-section,
-.settings-card,
-.setting-row {
-  border-color: var(--ui-line-subtle);
-  border-radius: var(--ui-radius-card);
-  background: var(--ui-bg-card);
 }
 
 :where(.toast, .toast-notification, #toast-container, .notification-toast) {

@@ -522,6 +522,7 @@ describe('Settings.initSettingsModal', function () {
   it('系统管理弹窗静态结构包含描述与移动端样式锚点', function () {
     const html = readFileSync('index.html', 'utf8');
     const css = readFileSync('css/interstellar-trader.css', 'utf8');
+    const settingsCss = readFileSync('css/settings-workspace.css', 'utf8');
     const saveCss = readFileSync('css/save-workspace.css', 'utf8');
 
     expect(html).toContain('aria-describedby="settings-modal-desc settings-overview-strip settings-change-status"');
@@ -534,13 +535,13 @@ describe('Settings.initSettingsModal', function () {
     expect(html).toContain('aria-label="音效音量"');
     expect(html).toContain('id="action-confirm-modal"');
     expect(html).toContain('role="alertdialog"');
-    expect(css).toContain('.settings-main-header-copy');
-    expect(css).toContain('.settings-overview-strip');
-    expect(css).toContain('.settings-change-status[data-status-tone="success"]');
-    expect(css).toContain('.settings-nav-subtitle');
-    expect(css).toContain('.modal > .settings-modal-box {\n    height: min(680px, calc(100dvh - 32px));');
-    expect(css).toContain('height: calc(100dvh - max(8px, var(--safe-top)) - max(8px, var(--safe-bottom)));');
-    expect(css).toContain('max-height: calc(100dvh - max(8px, var(--safe-top)) - max(8px, var(--safe-bottom))) !important;');
+    expect(settingsCss).toContain('.settings-main-header-copy');
+    expect(settingsCss).toContain('.settings-overview-strip');
+    expect(settingsCss).toContain('.settings-change-status[data-status-tone="success"]');
+    expect(settingsCss).toContain('.settings-nav-subtitle');
+    expect(settingsCss).toContain('.modal > .settings-modal-box {\n    height: min(680px, calc(100dvh - 32px));');
+    expect(settingsCss).toContain('height: calc(100dvh - max(8px, var(--safe-top)) - max(8px, var(--safe-bottom)));');
+    expect(settingsCss).toContain('max-height: calc(100dvh - max(8px, var(--safe-top)) - max(8px, var(--safe-bottom))) !important;');
     expect(saveCss).toContain('.settings-panel-page--data .save-slot:focus-visible');
     expect(saveCss).not.toMatch(/\.settings-panel-page--data\s*\{[^}]*display:\s*flex/);
     expect(saveCss).toContain('.save-safety-panel');
