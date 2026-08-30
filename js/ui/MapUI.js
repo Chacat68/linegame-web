@@ -12,9 +12,7 @@ import { createMapPanelController } from './MapPanelController.js';
 import { createMapPanelViewController } from './MapPanelViewController.js';
 import { createMapContextController } from './MapContextController.js';
 import { createMapInteractionController } from './MapInteractionController.js';
-import {
-  buildMapPlanetTravelAction,
-} from './MapPlanetDetailPresenter.js';
+import { createMapNavigationController } from './MapNavigationController.js';
 import {
   buildContextualMarketAction,
 } from './MarketFocus.js';
@@ -24,17 +22,11 @@ import {
 import {
   findSystem,
   getGalaxyAccessState,
-  getSystemAccessState,
 }  from '../data/systems.js';
-
-let _navigationChangeCallback = null;
-let _navigationActions = null;
 
 let _stateRef = null;               // 用于内部事件引用
 let _getState = function () { return _stateRef; };
 let _explorationActions = null;
-let _travelActionHandler = null;
-let _galaxyJumpActionHandler = null;
 let _mainBindingsInitialized = false;
 let _disposed = true;
 const _mapSession = createMapWorkspaceSession();
@@ -50,11 +42,11 @@ const _mapViewState = createMapViewStateController({
 });
 
 let _mapContext = null;
+let _mapNavigation = null;
 const _mapPanelView = createMapPanelViewController({
   clearSelectedSystem: function (shouldRefresh) {
     return _mapContext ? _mapContext.clearSelected(shouldRefresh) : false;
   },
-  getDocument: function () { return typeof document !== 'undefined' ? document : null; },
   getPoiStatus: _getPoiStatus,
   isDisclosureOpen: _isPlanetDetailSectionOpen,
   renderer: Renderer3D,
@@ -69,7 +61,26 @@ _mapContext = createMapContextController({
   registerEscapeLayer: registerEscapeLayer,
   renderPanel: refreshPlanetDetail,
   renderer: Renderer3D,
-  returnToPlanets: _returnToPlanetView,
+  returnToPlanets: function () {
+    return _mapNavigation ? _mapNavigation.returnToPlanetView() : false;
+  },
+  session: _mapSession,
+  viewState: _mapViewState,
+});
+
+_mapNavigation = createMapNavigationController({
+  contextInspector: ContextInspector,
+  ensurePanelBindings: _bindMapPanelEvents,
+  findSystem: findSystem,
+  getState: _currentState,
+  mapContext: _mapContext,
+  panelView: _mapPanelView,
+  rememberState: function (state) {
+    _stateRef = state || _stateRef;
+    return _stateRef;
+  },
+  renderPanel: refreshPlanetDetail,
+  renderer: Renderer3D,
   session: _mapSession,
   viewState: _mapViewState,
 });
@@ -83,9 +94,9 @@ const _mapInteractions = createMapInteractionController({
   renderContext: function () { ContextInspector.render(); },
   renderer: Renderer3D,
   session: _mapSession,
-  switchToGalaxy: _switchToGalaxy,
-  toggleGalaxyView: toggleGalaxyView,
-  travelToPlanet: _travelToPlanet,
+  switchToGalaxy: function (galaxyId) { return _mapNavigation.switchToGalaxy(galaxyId); },
+  toggleGalaxyView: function () { return _mapNavigation.toggleGalaxyView(); },
+  travelToPlanet: function (systemId) { return _mapNavigation.travelToPlanet(systemId); },
   viewState: _mapViewState,
 });
 
@@ -97,7 +108,7 @@ const _mapSurveyDetails = createMapSurveyDetailController({
   getSurveySummary: Exploration.getSurveySummary,
   getMarketAction: _buildSurveyMarketAction,
   openMarket: function (state, systemId, options) {
-    return _callNavigation('openMarketSystemPanel', [state, systemId, options], false);
+    return _mapNavigation.openMarket(state, systemId, options);
   },
 });
 
@@ -117,18 +128,18 @@ const _mapPanelController = createMapPanelController({
     var state = _currentState();
     return !!(state && state.mapView === 'galaxies');
   },
-  openGalaxy: _switchToGalaxy,
+  openGalaxy: function (galaxyId) { return _mapNavigation.switchToGalaxy(galaxyId); },
   openMarket: function (systemId, focus) {
-    return _callNavigation('openMarketSystemPanel', [_currentState(), systemId, focus], false);
+    return _mapNavigation.openMarket(_currentState(), systemId, focus);
   },
   openSurvey: function (systemId, origin) {
     return _mapSurveyDetails.open(systemId, origin);
   },
-  returnToPlanets: _returnToPlanetView,
+  returnToPlanets: function () { return _mapNavigation.returnToPlanetView(); },
   setDisclosure: function (sectionId, open) {
     return _mapSession.setDisclosure(sectionId, open);
   },
-  travel: _travelToPlanet,
+  travel: function (systemId) { return _mapNavigation.travelToPlanet(systemId); },
 });
 
 /**
@@ -141,13 +152,6 @@ export function syncState(stateSource) {
   _stateRef = _currentState(null);
   _mapViewState.reset();
   return _stateRef;
-}
-
-function _callNavigation(methodName, args, fallback) {
-  if (_navigationActions && typeof _navigationActions[methodName] === 'function') {
-    return _navigationActions[methodName].apply(_navigationActions, args || []);
-  }
-  return fallback;
 }
 
 function _getPoiStatus(stateRef, systemId, poiId) {
@@ -168,61 +172,8 @@ function _buildSurveyMarketAction(state, systemId) {
   });
 }
 
-function _travelToPlanet(systemId) {
-  var state = _currentState();
-  if (!state || !systemId) return false;
-
-  var sys = findSystem(systemId);
-  var travelAction = buildMapPlanetTravelAction(state, sys);
-  if (!sys || !travelAction || travelAction.disabled) return false;
-
-  _mapContext.clearSelected(false);
-  _mapViewState.clearHover();
-
-  if (sys.galaxyId !== state.currentGalaxy) {
-    if (_galaxyJumpActionHandler) {
-      _galaxyJumpActionHandler(sys.id);
-      return true;
-    }
-    return false;
-  }
-
-  if (_travelActionHandler) {
-    _travelActionHandler(sys.id);
-    return true;
-  }
-  return false;
-}
-
-function _switchToGalaxy(galaxyId) {
-  var state = _currentState();
-  if (!state || !galaxyId) return false;
-
-  if (!_mapViewState.canViewGalaxy(galaxyId)) return false;
-
-  _mapContext.clearSelected(false);
-  _mapViewState.showGalaxyPlanets(galaxyId);
-  _mapPanelView.setGalaxyImmersionMode(false);
-  ContextInspector.render();
-  if (!ContextInspector.getSnapshot().initialized) refreshPlanetDetail(state);
-  return true;
-}
-
-function _returnToPlanetView() {
-  var state = _currentState();
-  if (!state) return false;
-
-  _mapContext.clearSelected(false);
-  _mapViewState.showCurrentGalaxyPlanets();
-  _mapPanelView.setGalaxyImmersionMode(false);
-  ContextInspector.render();
-  if (!ContextInspector.getSnapshot().initialized) refreshPlanetDetail(state);
-  return true;
-}
-
 function _bindMapPanelEvents() {
-  var panel = document.getElementById('planet-detail-panel');
-  return _mapPanelController.bind(panel, _mapInteractions.bindDomListener);
+  return _mapPanelController.bindRoot(_mapInteractions.bindDomListener);
 }
 
 function _isPlanetDetailSectionOpen(sectionId, defaultOpen) {
@@ -246,25 +197,7 @@ export function getCurrentGalaxyId() {
 }
 
 export function toggleGalaxyView() {
-  var currentState = _currentState();
-  if (!currentState) return false;
-
-  _callNavigation('closeMarket', [], false);
-  _mapContext.clearSelected(false);
-  if (currentState.mapView === 'galaxies') {
-    return _returnToPlanetView();
-  }
-
-  _mapViewState.showGalaxies();
-  _mapPanelView.setGalaxyImmersionMode(true);
-  ContextInspector.replaceContext({
-    type: 'galaxy',
-    id: currentState.viewingGalaxy || currentState.currentGalaxy,
-    workspaceId: 'map',
-    source: 'map-view',
-    revision: ContextInspector.getCurrentRevision(),
-  });
-  return true;
+  return _mapNavigation.toggleGalaxyView();
 }
 
 /**
@@ -282,6 +215,7 @@ export function init(stateSource, onTravel, onGalaxyJump) {
   _mapSurveyDetails.register();
   _bindMapPanelEvents();
   _mapInteractions.bind();
+  _mapNavigation.setTravelHandlers(onTravel, onGalaxyJump);
 
   _mainBindingsInitialized = true;
 
@@ -296,8 +230,7 @@ export function init(stateSource, onTravel, onGalaxyJump) {
 export function init3DCallbacks(stateSource, onTravel, onGalaxyJump) {
   _disposed = false;
   if (stateSource) syncState(stateSource);
-  _travelActionHandler = onTravel || null;
-  _galaxyJumpActionHandler = onGalaxyJump || null;
+  _mapNavigation.setTravelHandlers(onTravel, onGalaxyJump);
   _mapInteractions.initRendererCallbacks();
 }
 
@@ -311,54 +244,19 @@ export function refreshPlanetDetail(stateRef) {
 }
 
 export function setNavigationChangeCallback(callback) {
-  _navigationChangeCallback = typeof callback === 'function' ? callback : null;
+  return _mapNavigation.setNavigationChangeCallback(callback);
 }
 
 export function setNavigationActions(actions) {
-  _navigationActions = actions && typeof actions === 'object' ? actions : null;
-  return !!_navigationActions;
+  return _mapNavigation.setNavigationActions(actions);
 }
 
 export function focusNavigationTarget(stateRef, systemId, options) {
-  var resolvedState = stateRef || _stateRef;
-  var sys = findSystem(systemId);
-  if (!resolvedState || !sys) return false;
-
-  var accessState = getSystemAccessState(sys.id, resolvedState.playerLevel || 1, resolvedState.researchedTechs || []);
-  if (!accessState.unlocked) return false;
-
-  _stateRef = resolvedState;
-  _requestWorkspace('map');
-  _mapViewState.focusSystem(sys.id, sys.galaxyId);
-  _mapContext.select(sys.id);
-  _mapSession.setNavigationGuideFocus({
-    systemId: sys.id,
-    goodId: options && options.goodId ? options.goodId : '',
-    title: options && options.title ? options.title : '',
-  });
-  _bindMapPanelEvents();
-  ContextInspector.activateWorkspace('map');
-  ContextInspector.render();
-  // Compatibility for isolated presenter usage before the inspector shell is initialized.
-  if (!ContextInspector.getSnapshot().initialized) refreshPlanetDetail(resolvedState);
-
-  if (Renderer3D.selectPlanet) {
-    Renderer3D.selectPlanet(sys.id, { focus: true, smooth: true });
-  } else if (Renderer3D.focusPlanet) {
-    Renderer3D.focusPlanet(sys.id, true);
-  }
-
-  return true;
-}
-
-function _requestWorkspace(workspace) {
-  var changed = !!_callNavigation('navigate', [workspace], false);
-  if (_navigationChangeCallback) _navigationChangeCallback(workspace);
-  return changed;
+  return _mapNavigation.focusNavigationTarget(stateRef, systemId, options);
 }
 
 export function focusStarmap() {
-  return _requestWorkspace('map');
+  return _mapNavigation.focusStarmap();
 }
 
 function _closeActiveMapDetails() {
@@ -390,6 +288,7 @@ export function getDiagnostics() {
     initialized: _mainBindingsInitialized,
     interactions: _mapInteractions.getDiagnostics(),
     mapContext: _mapContext.getDiagnostics(),
+    navigation: _mapNavigation.getDiagnostics(),
     surveyDetails: _mapSurveyDetails.getDiagnostics(),
     panelView: _mapPanelView.getDiagnostics(),
     viewState: _mapViewState.getDiagnostics(),
@@ -403,6 +302,7 @@ export function resetRuntimeState() {
   _mapPanelView.setGalaxyImmersionMode(false);
   _mapSession.reset();
   _mapContext.reset();
+  _mapNavigation.reset();
   _closeActiveMapDetails();
   return getDiagnostics();
 }
@@ -418,12 +318,9 @@ export function dispose() {
   _mapInteractions.dispose();
   _mapContext.dispose();
   _mapSurveyDetails.dispose();
+  _mapNavigation.dispose();
 
-  _navigationChangeCallback = null;
-  _navigationActions = null;
   _explorationActions = null;
-  _travelActionHandler = null;
-  _galaxyJumpActionHandler = null;
   _stateRef = null;
   _getState = function () { return null; };
   _mapSession.reset();

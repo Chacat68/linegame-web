@@ -13,8 +13,14 @@ function _consume(event) {
   if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
 }
 
+function _resolveDocument(getDocument) {
+  if (typeof getDocument === 'function') return getDocument() || null;
+  return typeof document !== 'undefined' ? document : null;
+}
+
 export function createMapPanelController(options) {
   var opts = options || {};
+  var getDocument = opts.getDocument;
 
   function _handleClick(event, panel) {
     var target = event && event.target;
@@ -106,8 +112,17 @@ export function createMapPanelController(options) {
     return true;
   }
 
+  function bindRoot(listen) {
+    var documentRef = _resolveDocument(getDocument);
+    var panel = documentRef && typeof documentRef.getElementById === 'function'
+      ? documentRef.getElementById('planet-detail-panel')
+      : null;
+    return bind(panel, listen);
+  }
+
   return Object.freeze({
     bind: bind,
+    bindRoot: bindRoot,
     handleClick: _handleClick,
     handleDisclosureClick: _handleDisclosureClick,
     handleKeydown: _handleKeydown,

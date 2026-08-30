@@ -18,9 +18,10 @@ describe('MapUI exploration entry', function () {
     const planetPresenterSource = readFileSync('js/ui/MapPlanetDetailPresenter.js', 'utf8');
     const presenterSource = readFileSync('js/ui/MapExplorationPresenter.js', 'utf8');
 
-    expect(mapUiSource).toContain("from './MapPlanetDetailPresenter.js'");
+    expect(mapUiSource).not.toContain("from './MapPlanetDetailPresenter.js'");
     expect(mapUiSource).toContain("from './MapPanelViewController.js'");
     expect(mapUiSource).not.toContain('buildMapPlanetDetailView(stateRef, displayId');
+    expect(panelViewSource).toContain("from './MapPlanetDetailPresenter.js'");
     expect(panelViewSource).toContain('buildMapPlanetDetailView(state, displayId');
     expect(planetPresenterSource).toContain("from './MapExplorationPresenter.js'");
     expect(planetPresenterSource).toContain('buildMapExplorationSection(state, sys, planetData');

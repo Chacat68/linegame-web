@@ -12,10 +12,14 @@ describe('MapPlanetDetailPresenter', function () {
   it('保持无 DOM 的 presenter 边界，MapUI 不再拥有星球 HTML 与领域 selector', function () {
     var source = readFileSync('js/ui/MapPlanetDetailPresenter.js', 'utf8');
     var mapSource = readFileSync('js/ui/MapUI.js', 'utf8');
+    var navigationSource = readFileSync('js/ui/MapNavigationController.js', 'utf8');
+    var panelViewSource = readFileSync('js/ui/MapPanelViewController.js', 'utf8');
 
     expect(source).not.toMatch(/\bdocument\b|\bwindow\b|addEventListener|innerHTML/);
     expect(source).not.toContain('GameManager');
-    expect(mapSource).toContain("from './MapPlanetDetailPresenter.js'");
+    expect(mapSource).not.toContain("from './MapPlanetDetailPresenter.js'");
+    expect(navigationSource).toContain("from './MapPlanetDetailPresenter.js'");
+    expect(panelViewSource).toContain("from './MapPlanetDetailPresenter.js'");
     expect(mapSource).not.toContain('Faction.getFactionForSystem');
     expect(mapSource).not.toContain('Economy.getFuelCost');
     expect(mapSource).not.toContain('function _buildPlanetDetailSummaryShell');

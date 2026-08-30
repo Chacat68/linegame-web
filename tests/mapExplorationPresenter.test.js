@@ -36,12 +36,14 @@ describe('MapExplorationPresenter', function () {
   it('保持无 DOM 的纯 presenter 边界，并由 MapUI 单向依赖', function () {
     var source = readFileSync('js/ui/MapExplorationPresenter.js', 'utf8');
     var mapSource = readFileSync('js/ui/MapUI.js', 'utf8');
+    var panelViewSource = readFileSync('js/ui/MapPanelViewController.js', 'utf8');
     var planetSource = readFileSync('js/ui/MapPlanetDetailPresenter.js', 'utf8');
 
     expect(source).not.toMatch(/\bdocument\b|\bwindow\b|addEventListener|innerHTML/);
     expect(source).not.toContain('GameManager');
     expect(planetSource).toContain("from './MapExplorationPresenter.js'");
-    expect(mapSource).toContain("from './MapPlanetDetailPresenter.js'");
+    expect(panelViewSource).toContain("from './MapPlanetDetailPresenter.js'");
+    expect(mapSource).not.toContain("from './MapPlanetDetailPresenter.js'");
     expect(mapSource).not.toContain("from './MapExplorationPresenter.js'");
     expect(mapSource).not.toContain('function _getExplorationFlow');
     expect(mapSource).not.toContain('function _buildExplorationActionButton');

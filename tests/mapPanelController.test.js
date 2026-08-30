@@ -26,8 +26,10 @@ describe('MapPanelController', function () {
     var controllerSource = readFileSync('js/ui/MapPanelController.js', 'utf8');
     var mapSource = readFileSync('js/ui/MapUI.js', 'utf8');
 
-    expect(controllerSource).not.toMatch(/\bdocument\b|GameManager|ExplorationSystem/);
+    expect(controllerSource).not.toMatch(/GameManager|ExplorationSystem/);
+    expect(controllerSource).toContain("getElementById('planet-detail-panel')");
     expect(mapSource).toContain("from './MapPanelController.js'");
+    expect(mapSource).not.toMatch(/\bdocument\b|getElementById\('planet-detail-panel'\)/);
     expect(mapSource).not.toContain("closest('[data-exploration-action]')");
     expect(mapSource).not.toContain("closest('[data-planet-detail-action]')");
     expect(mapSource).not.toContain("closest('[data-galaxy-action]')");
@@ -113,20 +115,25 @@ describe('MapPanelController', function () {
   it('同步 disclosure、统一 Escape，并只绑定一次生命周期 listener', function () {
     var changes = [];
     var closeDetail = vi.fn(function () { return true; });
-    var controller = createMapPanelController({
-      closeDetail: closeDetail,
-      hasSelectedSystem: function () { return true; },
-      setDisclosure: function (id, open) { changes.push([id, open]); },
-    });
     var listeners = [];
     var panel = {
       dataset: {},
       contains: function () { return true; },
     };
+    var getElementById = vi.fn(function (id) {
+      return id === 'planet-detail-panel' ? panel : null;
+    });
+    var controller = createMapPanelController({
+      closeDetail: closeDetail,
+      getDocument: function () { return { getElementById: getElementById }; },
+      hasSelectedSystem: function () { return true; },
+      setDisclosure: function (id, open) { changes.push([id, open]); },
+    });
     var listen = function () { listeners.push(Array.from(arguments)); };
 
-    expect(controller.bind(panel, listen)).toBe(true);
-    expect(controller.bind(panel, listen)).toBe(false);
+    expect(controller.bindRoot(listen)).toBe(true);
+    expect(controller.bindRoot(listen)).toBe(false);
+    expect(getElementById).toHaveBeenCalledWith('planet-detail-panel');
     expect(listeners).toHaveLength(4);
 
     var details = { tagName: 'DETAILS', dataset: { detailSection: 'archive' }, open: false };
