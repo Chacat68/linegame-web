@@ -114,11 +114,15 @@ describe('WorkspaceSurfaceController', function () {
     expect(harness.fleet.getAttribute('aria-hidden')).toBe('false');
     expect(harness.main.dataset.activeWorkspace).toBe('fleet');
     expect(harness.fleet.focusCount).toBe(1);
-    expect(harness.controller.getSnapshot()).toMatchObject({
+    var snapshot = harness.controller.getSnapshot();
+    expect(snapshot).toMatchObject({
       activeWorkspace: 'fleet',
       consistent: true,
       visibleSurfaceIds: ['trade-panel'],
     });
+    expect(Object.isFrozen(snapshot)).toBe(true);
+    expect(Object.isFrozen(snapshot.visibleSurfaceIds)).toBe(true);
+    expect(function () { JSON.stringify(snapshot); }).not.toThrow();
   });
 
   it('trade 与 map 作为同级 surface 互斥激活，返回 map 后完整恢复', function () {

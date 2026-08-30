@@ -90,7 +90,7 @@ export function createNavigationController(options) {
     var workspaces = {};
 
     WORKSPACES.forEach(function (workspace) {
-      stacks[workspace] = detailStacks[workspace].slice();
+      stacks[workspace] = Object.freeze(detailStacks[workspace].slice());
       workspaces[workspace] = Object.freeze({
         active: workspace === activeWorkspace,
         detailDepth: stacks[workspace].length,

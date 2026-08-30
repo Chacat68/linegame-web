@@ -79,6 +79,28 @@ function _getVisibleBlockingSurface() {
   return visibleSurfaces.length > 0 ? visibleSurfaces[visibleSurfaces.length - 1] : null;
 }
 
+function _getVisibleBlockingSurfaceIds() {
+  return _getBlockingSurfaces().filter(function (surface) {
+    return !!(surface && surface.id && surface.classList && !surface.classList.contains('hidden'));
+  }).map(function (surface) {
+    return surface.id;
+  });
+}
+
+function _getEscapeLayersByPriority() {
+  return Array.from(_escapeLayers.values()).sort(function (left, right) {
+    return right.priority - left.priority || right.sequence - left.sequence;
+  });
+}
+
+function _isEscapeLayerActive(layer) {
+  try {
+    return !!layer.isActive();
+  } catch (err) {
+    return false;
+  }
+}
+
 function _handleBlockingFocusTrap(event) {
   if (!event || event.key !== 'Tab' || !globalThis.document) return;
   var surface = _getVisibleBlockingSurface();
@@ -131,18 +153,10 @@ function _dispatchEscape(event) {
     return true;
   }
 
-  var layers = Array.from(_escapeLayers.values()).sort(function (left, right) {
-    return right.priority - left.priority || right.sequence - left.sequence;
-  });
+  var layers = _getEscapeLayersByPriority();
   for (var i = 0; i < layers.length; i += 1) {
     var layer = layers[i];
-    var isActive = false;
-    try {
-      isActive = !!layer.isActive();
-    } catch (err) {
-      isActive = false;
-    }
-    if (!isActive) continue;
+    if (!_isEscapeLayerActive(layer)) continue;
 
     _consumeEscape(event);
     if (layer.dismissible && layer.onEscape) layer.onEscape(event);
@@ -203,14 +217,11 @@ function _restoreBlockingSurfaceTrigger(surfaceId) {
 }
 
 function _notifySurfaceObservers() {
-  var snapshot = {
-    hasBlockingSurfaceOpen: hasBlockingSurfaceOpen(),
-    visibleSurfaceIds: _getBlockingSurfaces().filter(function (surface) {
-      return !!(surface && surface.id && surface.classList && !surface.classList.contains('hidden'));
-    }).map(function (surface) {
-      return surface.id;
-    }),
-  };
+  var visibleSurfaceIds = Object.freeze(_getVisibleBlockingSurfaceIds());
+  var snapshot = Object.freeze({
+    hasBlockingSurfaceOpen: visibleSurfaceIds.length > 0,
+    visibleSurfaceIds: visibleSurfaceIds,
+  });
 
   _surfaceObservers.forEach(function (observer) {
     observer(snapshot);
@@ -259,6 +270,33 @@ export function hasBlockingSurfaceOpen(exceptId) {
     if (!surface || !surface.id || !surface.classList) return false;
     if (exceptId && surface.id === exceptId) return false;
     return !surface.classList.contains('hidden');
+  });
+}
+
+export function getDiagnostics() {
+  var visibleBlockingSurfaceIds = Object.freeze(_getVisibleBlockingSurfaceIds());
+  var escapeLayers = _getEscapeLayersByPriority();
+  var escapeLayerIds = Object.freeze(escapeLayers.map(function (layer) { return layer.id; }));
+  var activeEscapeLayerIds = Object.freeze(escapeLayers.filter(_isEscapeLayerActive).map(function (layer) {
+    return layer.id;
+  }));
+  var blockingDismisserIds = Object.freeze(Array.from(_blockingDismissers.keys()).sort());
+  return Object.freeze({
+    activeEscapeLayerIds: activeEscapeLayerIds,
+    blockingDismisserCount: blockingDismisserIds.length,
+    blockingDismisserIds: blockingDismisserIds,
+    dispatcherBound: !!(
+      globalThis.document && _surfaceState.dispatcherDocument === document && _surfaceState.dispatcherHandler
+    ),
+    escapeLayerCount: escapeLayerIds.length,
+    escapeLayerIds: escapeLayerIds,
+    hasBlockingSurfaceOpen: visibleBlockingSurfaceIds.length > 0,
+    observerCount: _surfaceObservers.size,
+    returnFocusTargetCount: _returnFocusTargets.size,
+    topBlockingSurfaceId: visibleBlockingSurfaceIds.length > 0
+      ? visibleBlockingSurfaceIds[visibleBlockingSurfaceIds.length - 1]
+      : null,
+    visibleBlockingSurfaceIds: visibleBlockingSurfaceIds,
   });
 }
 

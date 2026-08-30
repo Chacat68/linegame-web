@@ -248,6 +248,29 @@ export function createContextInspectorController(options) {
     };
   }
 
+  function getDiagnostics() {
+    var sessionSnapshot = session.getSnapshot();
+    var viewSnapshot = _viewSnapshot();
+    var contextWorkspaceIds = Object.freeze(Object.keys(sessionSnapshot.contexts).sort());
+    var rendererWorkspaceIds = Object.freeze(Array.from(renderersByWorkspace.keys()).sort());
+    var viewDiagnostics = view && typeof view.getDiagnostics === 'function'
+      ? view.getDiagnostics()
+      : null;
+    return Object.freeze({
+      activeWorkspaceId: sessionSnapshot.activeWorkspaceId,
+      compact: sessionSnapshot.compact === true,
+      contextCount: contextWorkspaceIds.length,
+      contextWorkspaceIds: contextWorkspaceIds,
+      hasActionHandler: typeof currentActionHandler === 'function',
+      initialized: !!viewSnapshot.initialized,
+      open: !!viewSnapshot.open,
+      rendererCount: rendererWorkspaceIds.length,
+      rendererRegistered: renderersByWorkspace.has(sessionSnapshot.activeWorkspaceId),
+      rendererWorkspaceIds: rendererWorkspaceIds,
+      view: viewDiagnostics && typeof viewDiagnostics === 'object' ? viewDiagnostics : null,
+    });
+  }
+
   function dispose() {
     var viewSnapshot = _viewSnapshot();
     var hadRuntime = !!(
@@ -271,6 +294,7 @@ export function createContextInspectorController(options) {
     dispose: dispose,
     getContext: session.getContext,
     getCurrentRevision: session.getCurrentRevision,
+    getDiagnostics: getDiagnostics,
     getSnapshot: getSnapshot,
     init: init,
     open: open,

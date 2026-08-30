@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   bindBlockingSurfaceDismiss,
+  getDiagnostics,
   hasBlockingSurfaceOpen,
   hideBlockingSurface,
   isBlockingSurfaceVisible,
@@ -353,6 +354,17 @@ describe('SurfaceManager', function () {
 
     expect(tradeModal.listenerCount('click')).toBe(1);
     expect((documentListeners.keydown || []).length).toBe(1);
+    var diagnostics = getDiagnostics();
+    expect(diagnostics).toMatchObject({
+      dispatcherBound: true,
+      hasBlockingSurfaceOpen: true,
+      topBlockingSurfaceId: 'trade-modal',
+    });
+    expect(diagnostics.blockingDismisserIds).toContain('trade-modal');
+    expect(diagnostics.visibleBlockingSurfaceIds).toEqual(['trade-modal']);
+    expect(Object.isFrozen(diagnostics)).toBe(true);
+    expect(Object.isFrozen(diagnostics.visibleBlockingSurfaceIds)).toBe(true);
+    expect(function () { JSON.stringify(diagnostics); }).not.toThrow();
 
     tradeModal.dispatchEvent('click', { target: tradeModal });
     expect(tradeModal.classList.contains('hidden')).toBe(true);
@@ -484,6 +496,9 @@ describe('SurfaceManager', function () {
     });
 
     expect(documentListeners.keydown).toHaveLength(1);
+    var diagnostics = getDiagnostics();
+    expect(diagnostics.escapeLayerIds).toEqual(expect.arrayContaining(['top-detail', 'low-detail']));
+    expect(diagnostics.activeEscapeLayerIds).toEqual(expect.arrayContaining(['top-detail', 'low-detail']));
     documentListeners.keydown[0]({ key: 'Escape', preventDefault: function () {}, stopPropagation: function () {} });
     expect(actions).toEqual(['top']);
 
@@ -491,6 +506,7 @@ describe('SurfaceManager', function () {
     documentListeners.keydown[0]({ key: 'Escape', preventDefault: function () {}, stopPropagation: function () {} });
     unregisterLow();
     expect(actions).toEqual(['top', 'low']);
+    expect(getDiagnostics().escapeLayerIds).not.toEqual(expect.arrayContaining(['top-detail', 'low-detail']));
   });
 
   it('不再持有 canonical workspace 的 primary/secondary 兼容协议', function () {

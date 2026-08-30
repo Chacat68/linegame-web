@@ -173,6 +173,17 @@ describe('WorkspaceDetailSurface', function () {
     expect(dom.root.dataset.detailDepth).toBe('1');
     expect(dom.title.textContent).toBe('地球 · 探索档案');
     expect(Object.isFrozen(navigation.getSnapshot().activeDetail)).toBe(true);
+    var surfaceDiagnostics = surface.getSnapshot();
+    expect(surfaceDiagnostics).toMatchObject({
+      depth: 1,
+      initialized: true,
+      open: true,
+      registeredTypes: ['map-survey', 'map-report'],
+      workspaceId: 'map',
+    });
+    expect(Object.isFrozen(surfaceDiagnostics)).toBe(true);
+    expect(Object.isFrozen(surfaceDiagnostics.registeredTypes)).toBe(true);
+    expect(function () { JSON.stringify(surfaceDiagnostics); }).not.toThrow();
 
     dom.content.dispatchEvent({
       type: 'click',

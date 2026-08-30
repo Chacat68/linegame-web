@@ -40,7 +40,10 @@ describe('workspace navigation controller', function () {
     var controller = createNavigationController();
     expect(controller.openDetail(source)).toBe(true);
     expect(controller.openDetail(source)).toBe(false);
-    expect(controller.getSnapshot().detailStacks.map).toEqual([normalized]);
+    var snapshot = controller.getSnapshot();
+    expect(snapshot.detailStacks.map).toEqual([normalized]);
+    expect(Object.isFrozen(snapshot.detailStacks.map)).toBe(true);
+    expect(function () { JSON.stringify(snapshot); }).not.toThrow();
     source.id = 'mutated';
     expect(controller.getSnapshot().activeDetail.id).toBe('report-7');
   });

@@ -85,12 +85,27 @@ function createHarness(overrides) {
       dispose: vi.fn(),
       init: vi.fn(),
       getNavigationSnapshot: vi.fn(function () { return { activeWorkspace: 'map' }; }),
+      getWorkspaceSurfaceSnapshot: vi.fn(function () {
+        return { activeWorkspace: 'map', consistent: true, visibleSurfaceIds: ['map-section'] };
+      }),
       resetRuntimeState: vi.fn(),
       switchView: vi.fn(),
     },
     Modal: { init: vi.fn() },
     Renderer: { initMapControls: vi.fn(), invalidateScene: vi.fn(), whenSceneReady: vi.fn(function () { return Promise.resolve({ renderer: 'test' }); }) },
-    ContextInspector: { registerRenderer: vi.fn(), clearContext: vi.fn(), dispose: vi.fn() },
+    ContextInspector: {
+      registerRenderer: vi.fn(),
+      clearContext: vi.fn(),
+      dispose: vi.fn(),
+      getDiagnostics: vi.fn(function () {
+        return { activeWorkspaceId: 'map', contextCount: 0, rendererCount: 0 };
+      }),
+    },
+    SurfaceManager: {
+      getDiagnostics: vi.fn(function () {
+        return { escapeLayerCount: 0, hasBlockingSurfaceOpen: false };
+      }),
+    },
     DeferredFeatureStatusUI: {
       showLoading: vi.fn(),
       showError: vi.fn(),
@@ -98,7 +113,15 @@ function createHarness(overrides) {
       dispose: vi.fn(),
       getDiagnostics: vi.fn(function () { return { activeFeatures: [] }; }),
     },
-    WorkspaceDetailSurface: { init: vi.fn(), close: vi.fn(), refresh: vi.fn(), dispose: vi.fn() },
+    WorkspaceDetailSurface: {
+      init: vi.fn(),
+      close: vi.fn(),
+      refresh: vi.fn(),
+      dispose: vi.fn(),
+      getSnapshot: vi.fn(function () {
+        return { depth: 0, initialized: false, open: false };
+      }),
+    },
   };
   var callbacks = {
     getSettings: function () { return {}; },
@@ -158,6 +181,7 @@ describe('GameUiApplicationRuntime', function () {
     var harness = createHarness();
     expect(harness.runtime.getDiagnostics()).toEqual({
       coordinator: null,
+      contextInspector: { activeWorkspaceId: 'map', contextCount: 0, rendererCount: 0 },
       featureRecovery: {
         presentation: { activeFeatures: [], errorCount: 0, loadingCount: 0, retryCount: 0 },
         registry: {
@@ -172,9 +196,15 @@ describe('GameUiApplicationRuntime', function () {
       lifecycle: null,
       market: null,
       marketEntry: null,
+      navigation: { activeWorkspace: 'map' },
       shellProjection: null,
+      surfaceManager: { escapeLayerCount: 0, hasBlockingSurfaceOpen: false },
       settings: null,
       settingsCommands: null,
+      workspaceDetail: { depth: 0, initialized: false, open: false },
+      workspaceSurfaces: {
+        activeWorkspace: 'map', consistent: true, visibleSurfaceIds: ['map-section'],
+      },
       workspaceTabs: null,
     });
 
@@ -340,6 +370,7 @@ describe('GameUiApplicationRuntime', function () {
     expect(harness.ui.UIManager.resetRuntimeState).toHaveBeenCalledOnce();
     expect(harness.runtime.getDiagnostics()).toEqual({
       coordinator: null,
+      contextInspector: { activeWorkspaceId: 'map', contextCount: 0, rendererCount: 0 },
       featureRecovery: {
         presentation: { activeFeatures: [], errorCount: 0, loadingCount: 0, retryCount: 0 },
         registry: {
@@ -354,9 +385,15 @@ describe('GameUiApplicationRuntime', function () {
       lifecycle: null,
       market: null,
       marketEntry: null,
+      navigation: { activeWorkspace: 'map' },
       shellProjection: null,
+      surfaceManager: { escapeLayerCount: 0, hasBlockingSurfaceOpen: false },
       settings: null,
       settingsCommands: null,
+      workspaceDetail: { depth: 0, initialized: false, open: false },
+      workspaceSurfaces: {
+        activeWorkspace: 'map', consistent: true, visibleSurfaceIds: ['map-section'],
+      },
       workspaceTabs: null,
     });
   });
@@ -418,6 +455,7 @@ describe('GameUiApplicationRuntime', function () {
     expect(harness.ui.WorkspaceDetailSurface.dispose).toHaveBeenCalledOnce();
     expect(harness.runtime.getDiagnostics()).toEqual({
       coordinator: null,
+      contextInspector: { activeWorkspaceId: 'map', contextCount: 0, rendererCount: 0 },
       featureRecovery: {
         presentation: {
           activeFeatures: [],
@@ -437,9 +475,15 @@ describe('GameUiApplicationRuntime', function () {
       lifecycle: null,
       market: null,
       marketEntry: null,
+      navigation: { activeWorkspace: 'map' },
       shellProjection: null,
+      surfaceManager: { escapeLayerCount: 0, hasBlockingSurfaceOpen: false },
       settings: null,
       settingsCommands: null,
+      workspaceDetail: { depth: 0, initialized: false, open: false },
+      workspaceSurfaces: {
+        activeWorkspace: 'map', consistent: true, visibleSurfaceIds: ['map-section'],
+      },
       workspaceTabs: null,
     });
   });

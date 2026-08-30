@@ -19,6 +19,7 @@ import { createGameUiApplicationRuntime } from './GameUiApplicationRuntime.js';
 import { LOG_MESSAGE_SOURCE, createScopedLogEmitter } from './LogMessage.js';
 import {
   bindBlockingSurfaceDismiss,
+  getDiagnostics as getSurfaceManagerDiagnostics,
   hideBlockingSurface,
   showBlockingSurface,
 } from '../ui/SurfaceManager.js';
@@ -74,6 +75,7 @@ export function createGameUiRuntimeFactory(context) {
           Renderer: Renderer3D,
           ContextInspector: ContextInspector,
           DeferredFeatureStatusUI: DeferredFeatureStatusUI,
+          SurfaceManager: Object.freeze({ getDiagnostics: getSurfaceManagerDiagnostics }),
           WorkspaceDetailSurface: WorkspaceDetailSurface,
         },
         systems: {

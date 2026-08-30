@@ -31,5 +31,6 @@ export function registerRenderer(workspaceId, renderer) {
 }
 export const registerAdapter = registerRenderer;
 export function render() { return _controller.render(); }
+export function getDiagnostics() { return _controller.getDiagnostics(); }
 export function getSnapshot() { return _controller.getSnapshot(); }
 export function dispose() { return _controller.dispose(); }

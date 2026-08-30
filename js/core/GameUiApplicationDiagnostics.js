@@ -18,13 +18,18 @@ export function buildGameUiApplicationDiagnostics(input) {
 
   return Object.freeze(Object.assign({}, coordinator || {}, {
     coordinator: coordinator,
+    contextInspector: _snapshot(source.contextInspectorDiagnostics),
     featureRecovery: featureRecovery,
     lifecycle: _snapshot(source.lifecycleDiagnostics),
     market: _snapshot(source.marketDiagnostics),
     marketEntry: _snapshot(source.marketEntryDiagnostics),
+    navigation: _snapshot(source.navigationDiagnostics),
     shellProjection: _snapshot(source.shellProjectionDiagnostics),
+    surfaceManager: _snapshot(source.surfaceManagerDiagnostics),
     settings: settings,
     settingsCommands: _snapshot(source.settingsCommandDiagnostics),
+    workspaceDetail: _snapshot(source.workspaceDetailDiagnostics),
+    workspaceSurfaces: _snapshot(source.workspaceSurfaceDiagnostics),
     workspaceTabs: _snapshot(source.workspaceTabDiagnostics),
   }));
 }

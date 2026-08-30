@@ -365,6 +365,10 @@ export function createGameUiApplicationRuntime(options) {
     var settingsDiagnostics = settingsController ? settingsController.getDiagnostics() : null;
     return buildGameUiApplicationDiagnostics({
       coordinatorDiagnostics: coordinatorDiagnostics,
+      contextInspectorDiagnostics: ui.ContextInspector
+        && typeof ui.ContextInspector.getDiagnostics === 'function'
+        ? ui.ContextInspector.getDiagnostics()
+        : null,
       registryDiagnostics: typeof features.getDiagnostics === 'function'
         ? features.getDiagnostics()
         : null,
@@ -376,8 +380,24 @@ export function createGameUiApplicationRuntime(options) {
       lifecycleDiagnostics: lifecycle ? lifecycle.getDiagnostics() : null,
       marketDiagnostics: marketWorkspace ? marketWorkspace.getDiagnostics() : null,
       marketEntryDiagnostics: marketWorkspaceEntry ? marketWorkspaceEntry.getDiagnostics() : null,
+      navigationDiagnostics: ui.UIManager
+        && typeof ui.UIManager.getNavigationSnapshot === 'function'
+        ? ui.UIManager.getNavigationSnapshot()
+        : null,
       shellProjectionDiagnostics: shellProjection && typeof shellProjection.getDiagnostics === 'function'
         ? shellProjection.getDiagnostics()
+        : null,
+      surfaceManagerDiagnostics: ui.SurfaceManager
+        && typeof ui.SurfaceManager.getDiagnostics === 'function'
+        ? ui.SurfaceManager.getDiagnostics()
+        : null,
+      workspaceDetailDiagnostics: ui.WorkspaceDetailSurface
+        && typeof ui.WorkspaceDetailSurface.getSnapshot === 'function'
+        ? ui.WorkspaceDetailSurface.getSnapshot()
+        : null,
+      workspaceSurfaceDiagnostics: ui.UIManager
+        && typeof ui.UIManager.getWorkspaceSurfaceSnapshot === 'function'
+        ? ui.UIManager.getWorkspaceSurfaceSnapshot()
         : null,
       workspaceTabDiagnostics: workspaceTabs ? workspaceTabs.getDiagnostics() : null,
       settingsCommandDiagnostics: settingsCommands ? settingsCommands.getDiagnostics() : null,

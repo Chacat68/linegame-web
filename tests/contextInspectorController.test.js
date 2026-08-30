@@ -96,6 +96,24 @@ describe('ContextInspectorController', function () {
     expect(onAction).toHaveBeenCalledWith(expect.objectContaining({
       action: 'open-detail', state: state, target: target, workspaceId: 'trade',
     }));
+    var diagnostics = harness.controller.getDiagnostics();
+    expect(diagnostics).toMatchObject({
+      activeWorkspaceId: 'trade',
+      compact: false,
+      contextCount: 1,
+      contextWorkspaceIds: ['trade'],
+      hasActionHandler: true,
+      initialized: true,
+      open: true,
+      rendererCount: 1,
+      rendererRegistered: true,
+      rendererWorkspaceIds: ['trade'],
+      view: { actionDispatchCount: 1, initialized: true, open: true },
+    });
+    expect(Object.isFrozen(diagnostics)).toBe(true);
+    expect(Object.isFrozen(diagnostics.contextWorkspaceIds)).toBe(true);
+    expect(Object.isFrozen(diagnostics.rendererWorkspaceIds)).toBe(true);
+    expect(function () { JSON.stringify(diagnostics); }).not.toThrow();
     harness.getEscapeLayer().onEscape();
     expect(restoreTarget.focus).toHaveBeenCalledOnce();
     expect(harness.controller.getSnapshot().open).toBe(false);
@@ -112,6 +130,13 @@ describe('ContextInspectorController', function () {
     expect(harness.root.dataset.contentState).toBe('empty');
     expect(harness.controller.dispose()).toBe(true);
     expect(harness.release).toHaveBeenCalledOnce();
+    expect(harness.controller.getDiagnostics()).toMatchObject({
+      activeWorkspaceId: 'map',
+      contextCount: 0,
+      initialized: false,
+      rendererCount: 0,
+      view: { disposeCount: 1, initialized: false },
+    });
     expect(harness.controller.dispose()).toBe(false);
   });
 
@@ -134,6 +159,7 @@ describe('ContextInspectorController', function () {
     var facade = readFileSync('js/ui/ContextInspector.js', 'utf8');
     expect(facade).toContain("from './ContextInspectorController.js'");
     expect(facade).toContain("from './ContextInspectorSession.js'");
+    expect(facade).toContain('export function getDiagnostics');
     expect(facade).toContain('export function setCompactMode');
     expect(facade).not.toMatch(/document\.|querySelector|registerEscapeLayer|new Map\(/);
   });

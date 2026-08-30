@@ -9,6 +9,9 @@ describe('GameUiApplicationDiagnostics', function () {
         workspaceRenders: { activeWorkspace: 'fleet', lastRenderedRegions: ['fleet.hangar'] },
         workspaceSessions: { fleet: { activeSurface: null } },
       },
+      contextInspectorDiagnostics: {
+        activeWorkspaceId: 'fleet', contextCount: 1, rendererCount: 5,
+      },
       registryDiagnostics: {
         fleet: { dependencies: [], generation: 1, loadCount: 1, state: 'ready', syncCount: 2 },
       },
@@ -17,8 +20,16 @@ describe('GameUiApplicationDiagnostics', function () {
       lifecycleDiagnostics: { initialized: true },
       marketDiagnostics: { refreshCount: 3 },
       marketEntryDiagnostics: { open: false },
+      navigationDiagnostics: { activeWorkspace: 'fleet', activeDetail: null },
       shellProjectionDiagnostics: { renderCount: 4 },
+      surfaceManagerDiagnostics: {
+        escapeLayerCount: 3, hasBlockingSurfaceOpen: false, visibleBlockingSurfaceIds: [],
+      },
       settingsCommandDiagnostics: { commandCount: 2 },
+      workspaceDetailDiagnostics: { depth: 0, initialized: true, open: false },
+      workspaceSurfaceDiagnostics: {
+        activeWorkspace: 'fleet', consistent: true, visibleSurfaceIds: ['trade-panel'],
+      },
       workspaceTabDiagnostics: { activeArchiveTab: 'tab-quest' },
     });
 
@@ -27,11 +38,20 @@ describe('GameUiApplicationDiagnostics', function () {
       workspaceRenders: { activeWorkspace: 'fleet' },
       workspaceSessions: { fleet: { activeSurface: null } },
       coordinator: { renderAllCount: 2 },
+      contextInspector: { activeWorkspaceId: 'fleet', contextCount: 1, rendererCount: 5 },
       lifecycle: { initialized: true },
       market: { refreshCount: 3 },
       marketEntry: { open: false },
+      navigation: { activeWorkspace: 'fleet', activeDetail: null },
       shellProjection: { renderCount: 4 },
+      surfaceManager: {
+        escapeLayerCount: 3, hasBlockingSurfaceOpen: false, visibleBlockingSurfaceIds: [],
+      },
       settingsCommands: { commandCount: 2 },
+      workspaceDetail: { depth: 0, initialized: true, open: false },
+      workspaceSurfaces: {
+        activeWorkspace: 'fleet', consistent: true, visibleSurfaceIds: ['trade-panel'],
+      },
       workspaceTabs: { activeArchiveTab: 'tab-quest' },
       featureRecovery: {
         registry: { registeredCount: 1, totalLoadCount: 1, totalSyncCount: 2 },
@@ -48,6 +68,7 @@ describe('GameUiApplicationDiagnostics', function () {
 
     expect(diagnostics).toEqual({
       coordinator: null,
+      contextInspector: null,
       featureRecovery: {
         presentation: { activeFeatures: [], errorCount: 0, loadingCount: 0, retryCount: 0 },
         registry: {
@@ -62,9 +83,13 @@ describe('GameUiApplicationDiagnostics', function () {
       lifecycle: null,
       market: null,
       marketEntry: null,
+      navigation: null,
       shellProjection: null,
+      surfaceManager: null,
       settings: null,
       settingsCommands: null,
+      workspaceDetail: null,
+      workspaceSurfaces: null,
       workspaceTabs: null,
     });
     expect(function () { JSON.stringify(diagnostics); }).not.toThrow();
