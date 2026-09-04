@@ -408,7 +408,7 @@
 
   .modal > .event-modal-box,
   .modal > .dialogue-modal-box {
-    max-height: calc(100dvh - max(8px, var(--safe-top)) - max(8px, var(--safe-bottom)));
+    max-height: calc(100dvh - max(8px, var(--ui-safe-top)) - max(8px, var(--ui-safe-bottom)));
   }
 
   .dialogue-actions {

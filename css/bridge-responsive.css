@@ -588,18 +588,6 @@
     gap: 3px;
   }
 
-  .modal {
-    align-items: flex-end;
-    padding: var(--ui-space-2) max(var(--ui-space-2), var(--ui-safe-right)) max(var(--ui-space-2), var(--ui-safe-bottom)) max(var(--ui-space-2), var(--ui-safe-left));
-  }
-
-  .modal-box {
-    width: 100% !important;
-    max-width: none !important;
-    max-height: calc(100dvh - var(--ui-space-4)) !important;
-    border-radius: var(--ui-radius-panel) var(--ui-radius-panel) var(--ui-radius-card) var(--ui-radius-card);
-  }
-
   :where(button, input, select, textarea, [role="button"], [role="tab"]) {
     min-height: var(--ui-control-lg);
   }

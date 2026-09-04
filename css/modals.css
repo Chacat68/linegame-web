@@ -1,45 +1,4 @@
 /* ---- Modals ------------------------------------------------------------ */
-.modal {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,.75);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  box-sizing: border-box;
-  z-index: 9500;
-}
-.modal:not(.hidden) { display: flex; }
-.modal:target { display: flex !important; }
-.modal.hidden { display: none; }
-
-.modal-box {
-  background: linear-gradient(180deg, rgba(10, 22, 46, 0.95), rgba(6, 14, 30, 0.98));
-  border: 1px solid rgba(79, 195, 247, 0.2);
-  border-radius: 12px;
-  padding: 20px 24px;
-  min-width: 280px;
-  max-width: 360px;
-  backdrop-filter: blur(8px);
-}
-.stack-modal-box {
-  width: min(460px, calc(100vw - 32px));
-  max-width: none;
-  max-height: calc(100dvh - 32px);
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-.stack-modal-scroll {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  padding-right: 2px;
-}
-.stack-modal-box .modal-actions {
-  flex: 0 0 auto;
-}
 .secondary-panel-modal-box {
   width: min(1100px, calc(100vw - 48px));
   max-width: none;
@@ -105,9 +64,6 @@
   min-height: 0;
   overflow: auto;
 }
-.modal-box h3 { font-size: 15px; margin-bottom: 10px; color: var(--accent-gold); }
-.modal-box h2 { font-size: 18px; margin-bottom: 10px; color: var(--accent-gold); }
-.modal-box p  { font-size: 13px; color: var(--text-dim); margin-bottom: 10px; white-space: pre-line; }
 
 .modal-stepper {
   display: flex;
@@ -163,12 +119,6 @@
   background: linear-gradient(180deg, rgba(20, 40, 75, 0.9), rgba(14, 30, 60, 0.95));
   border-color: rgba(79, 195, 247, 0.4);
 }
-
-.modal-actions {
-  display: flex;
-  gap: 10px;
-  margin-top: 14px;
-}
 .btn-primary, .btn-secondary {
   flex: 1;
   padding: 9px 0;
@@ -208,7 +158,3 @@
 
 /* ---- Hull bar ---------------------------------------------------------- */
 .hull-fill { background: linear-gradient(90deg, #66bb6a, #2e7d32); }
-
-/* ---- Event modal (群星风格) -------------------------------------------- */
-
-/* ---- Dialogue modal --------------------------------------------------- */

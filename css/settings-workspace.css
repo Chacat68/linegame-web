@@ -848,7 +848,7 @@
   }
 
   .modal > .settings-modal-box {
-    max-height: calc(100dvh - max(8px, var(--safe-top)) - max(8px, var(--safe-bottom)));
+    max-height: calc(100dvh - max(8px, var(--ui-safe-top)) - max(8px, var(--ui-safe-bottom)));
   }
 }
 .settings-modal-box {
@@ -1248,11 +1248,11 @@
 
 @media (max-width: 700px), (max-height: 620px) {
   .modal > .settings-modal-box {
-    max-height: calc(100dvh - max(8px, var(--safe-top)) - max(8px, var(--safe-bottom))) !important;
+    max-height: calc(100dvh - max(8px, var(--ui-safe-top)) - max(8px, var(--ui-safe-bottom))) !important;
   }
 
   .modal > .settings-modal-box {
-    height: calc(100dvh - max(8px, var(--safe-top)) - max(8px, var(--safe-bottom)));
+    height: calc(100dvh - max(8px, var(--ui-safe-top)) - max(8px, var(--ui-safe-bottom)));
   }
 }
 

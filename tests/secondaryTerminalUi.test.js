@@ -9,8 +9,9 @@ describe('Workspace terminal UI structure', function () {
     var hangarCss = readFileSync(new URL('../css/hangar-terminal.css', import.meta.url), 'utf8');
     var surfacesCss = readFileSync(new URL('../css/surfaces.css', import.meta.url), 'utf8');
     var responsiveCss = readFileSync(new URL('../css/bridge-responsive.css', import.meta.url), 'utf8');
+    var blockingSurfaceCss = readFileSync(new URL('../css/blocking-surfaces.css', import.meta.url), 'utf8');
     var settingsCss = readFileSync(new URL('../css/settings-workspace.css', import.meta.url), 'utf8');
-    var css = sharedCss + '\n' + surfacesCss + '\n' + archiveCss + '\n' + hangarCss;
+    var css = sharedCss + '\n' + surfacesCss + '\n' + blockingSurfaceCss + '\n' + archiveCss + '\n' + hangarCss;
     var js = readFileSync(new URL('../js/ui/WorkspaceTabController.js', import.meta.url), 'utf8');
 
     expect(html).toContain('aria-labelledby="archive-terminal-title"');
@@ -79,7 +80,7 @@ describe('Workspace terminal UI structure', function () {
     expect(css).toContain('--safe-left: env(safe-area-inset-left, 0px)');
     expect(responsiveCss).toContain('top: calc(var(--ui-header-height) + max(var(--ui-space-2), var(--ui-safe-top))) !important');
     expect(responsiveCss).toContain('left: max(var(--ui-space-2), var(--ui-safe-left)) !important');
-    expect(css).toContain('max(var(--modal-safe-gap), var(--safe-left))');
+    expect(css).toContain('max(var(--modal-safe-gap), var(--ui-safe-left))');
     expect(responsiveCss).toContain('--ui-header-height: 58px');
     expect(responsiveCss).toContain('min-height: var(--ui-header-height)');
     expect(responsiveCss).toContain('padding-top: max(7px, var(--ui-safe-top))');

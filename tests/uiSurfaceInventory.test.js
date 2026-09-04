@@ -4,6 +4,7 @@ import postcss from 'postcss';
 
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const css = readFileSync(new URL('../css/interstellar-trader.css', import.meta.url), 'utf8');
+const blockingSurfaceCss = readFileSync(new URL('../css/blocking-surfaces.css', import.meta.url), 'utf8');
 const cssDirectory = new URL('../css/', import.meta.url);
 const cssFileNames = readdirSync(cssDirectory)
   .filter(function (fileName) { return fileName.endsWith('.css'); });
@@ -129,7 +130,7 @@ describe('UI surface inventory', function () {
     expect(shellCss).toContain('.floating-command-stack');
     expect(shellCss).toContain('left: 50%;');
     expect(shellCss).toContain('right: auto;');
-    expect(css).toContain('max-height: calc(100dvh - max(8px, var(--safe-top)) - max(8px, var(--safe-bottom))) !important;');
+    expect(blockingSurfaceCss).toContain('max-height: calc(100dvh - max(8px, var(--ui-safe-top)) - max(8px, var(--ui-safe-bottom)));');
   });
 
   it('mounts the global Context Inspector and Command Slot outside the map workspace stacking context', function () {

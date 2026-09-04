@@ -919,8 +919,7 @@ body[data-motion="reduced"] #market-overlay.workspace-surface--trade.is-active {
 }
 
 .market-close-btn,
-.workspace-terminal-close,
-.modal-close {
+.workspace-terminal-close {
   display: grid;
   width: var(--ui-control-md);
   height: var(--ui-control-md);
@@ -932,8 +931,7 @@ body[data-motion="reduced"] #market-overlay.workspace-surface--trade.is-active {
 }
 
 .market-close-btn:hover,
-.workspace-terminal-close:hover,
-.modal-close:hover {
+.workspace-terminal-close:hover {
   border-color: var(--ui-line-strong);
   color: var(--ui-text-primary);
   background: rgba(108, 231, 255, 0.08);
@@ -1720,49 +1718,7 @@ body[data-motion="off"] .deferred-feature-status-signal {
   border-left-style: dashed;
 }
 
-/* Blocking modal and feedback --------------------------------- */
-
-.modal {
-  position: fixed;
-  z-index: var(--ui-z-modal);
-  inset: 0;
-  padding: max(var(--ui-space-4), var(--ui-safe-top)) max(var(--ui-space-4), var(--ui-safe-right)) max(var(--ui-space-4), var(--ui-safe-bottom)) max(var(--ui-space-4), var(--ui-safe-left));
-  background: var(--ui-bg-backdrop);
-  backdrop-filter: blur(12px);
-}
-
-.modal-box {
-  overflow: hidden;
-  border: 1px solid var(--ui-line-default);
-  border-radius: var(--ui-radius-panel);
-  color: var(--ui-text-primary);
-  background: var(--ui-bg-shell);
-  box-shadow: var(--ui-shadow-panel);
-}
-
-.modal-header {
-  padding: var(--ui-space-4) var(--ui-space-5);
-  border-bottom: 1px solid var(--ui-line-default);
-  background: linear-gradient(180deg, rgba(12, 37, 52, 0.88), rgba(5, 20, 31, 0.82));
-}
-
-.modal-title,
-.modal-header h2,
-.modal-header h3 {
-  color: var(--ui-text-primary);
-  font-weight: 720;
-}
-
-.modal-body {
-  color: var(--ui-text-secondary);
-}
-
-.modal-actions {
-  padding: var(--ui-space-4) var(--ui-space-5);
-  gap: var(--ui-space-3);
-  border-top: 1px solid var(--ui-line-subtle);
-  background: rgba(2, 10, 18, 0.5);
-}
+/* Feedback ----------------------------------------------------- */
 
 :where(.toast, .toast-notification, #toast-container, .notification-toast) {
   z-index: var(--ui-z-feedback);

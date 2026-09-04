@@ -540,8 +540,8 @@ describe('Settings.initSettingsModal', function () {
     expect(settingsCss).toContain('.settings-change-status[data-status-tone="success"]');
     expect(settingsCss).toContain('.settings-nav-subtitle');
     expect(settingsCss).toContain('.modal > .settings-modal-box {\n    height: min(680px, calc(100dvh - 32px));');
-    expect(settingsCss).toContain('height: calc(100dvh - max(8px, var(--safe-top)) - max(8px, var(--safe-bottom)));');
-    expect(settingsCss).toContain('max-height: calc(100dvh - max(8px, var(--safe-top)) - max(8px, var(--safe-bottom))) !important;');
+    expect(settingsCss).toContain('height: calc(100dvh - max(8px, var(--ui-safe-top)) - max(8px, var(--ui-safe-bottom)));');
+    expect(settingsCss).toContain('max-height: calc(100dvh - max(8px, var(--ui-safe-top)) - max(8px, var(--ui-safe-bottom))) !important;');
     expect(saveCss).toContain('.settings-panel-page--data .save-slot:focus-visible');
     expect(saveCss).not.toMatch(/\.settings-panel-page--data\s*\{[^}]*display:\s*flex/);
     expect(saveCss).toContain('.save-safety-panel');

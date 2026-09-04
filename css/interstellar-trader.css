@@ -2225,7 +2225,6 @@ label[role="tab"]:focus-visible {
   box-shadow: var(--ui-focus-ring);
 }
 
-.modal-box,
 .secondary-panel-modal-box,
 .planet-detail-panel,
 .tutorial-tooltip {
@@ -2630,17 +2629,10 @@ textarea:focus,
 
 .tab-content,
 .secondary-panel-scroll,
-.console-message-log,
-.stack-modal-scroll {
+.console-message-log {
   scrollbar-color: rgba(108, 231, 255, 0.32) transparent;
 }
 
-.modal {
-  padding: clamp(10px, 2vw, 24px);
-}
-
-.modal-box,
-.stack-modal-box,
 .secondary-panel-modal-box,
 .victory-modal-box,
 .crew-modal-box,
@@ -2694,13 +2686,8 @@ textarea:focus,
   min-width: 0;
 }
 
-.modal-actions,
 .faction-pref {
   flex-wrap: wrap;
-}
-
-.modal-actions button {
-  flex: 1 1 120px;
 }
 
 @media (max-width: 760px) {
@@ -2708,13 +2695,6 @@ textarea:focus,
     --ui-control-h: 36px;
   }
 
-  .modal {
-    align-items: center;
-    padding: 10px;
-  }
-
-  .modal-box,
-  .stack-modal-box,
   .secondary-panel-modal-box,
   .victory-modal-box,
   .crew-modal-box,
@@ -2750,7 +2730,6 @@ textarea:focus,
 
 @media (max-width: 560px) {
 
-  .modal-actions,
   .company-rename-actions,
   #tutorial-start-modal .tut-start-actions {
     display: flex;
@@ -2810,7 +2789,6 @@ textarea:focus,
 .tab-content,
 .secondary-panel-scroll,
 .console-message-log,
-.stack-modal-scroll,
 #mod-modal-body {
   overflow-y: auto;
   overflow-x: hidden;
@@ -2827,7 +2805,6 @@ textarea:focus,
   overflow-x: hidden;
 }
 
-.modal-box,
 .secondary-panel-modal-box,
 .victory-modal-box,
 .gameover-box,
@@ -3026,11 +3003,6 @@ textarea:focus,
     inset: 52px 0 var(--game-main-bottom);
   }
 
-  .modal {
-    padding: 8px;
-  }
-
-  .modal-box,
   .secondary-panel-modal-box,
   .victory-modal-box,
   .gameover-box,
@@ -3499,13 +3471,7 @@ body,
   max-width: 100vw;
 }
 
-.modal {
-  z-index: 120;
-}
-
-.modal-box,
 .secondary-panel-modal-box,
-.stack-modal-box,
 .victory-modal-box,
 .gameover-box,
 .company-rename-box,
@@ -3516,15 +3482,12 @@ body,
   max-width: calc(100vw - 16px);
 }
 
-.tab-content,
-.stack-modal-scroll,
-.modal-box {
+.tab-content {
   min-width: 0;
   min-height: 0;
 }
 
 .tab-content,
-.stack-modal-scroll,
 #mod-modal-body,
 #crew-modal-summary {
   overflow-x: hidden;
@@ -3549,13 +3512,7 @@ body,
 
 @media (max-width: 700px), (max-height: 620px) {
 
-  .modal {
-    padding: 8px !important;
-  }
-
-  .modal-box,
   .secondary-panel-modal-box,
-  .stack-modal-box,
   .victory-modal-box,
   .gameover-box,
   .company-rename-box,
@@ -3589,15 +3546,6 @@ body,
   .hangar-route-signal {
     justify-content: center;
     text-align: center;
-  }
-
-  .modal-actions {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .modal-actions > button {
-    width: 100%;
   }
 }
 
@@ -3921,102 +3869,9 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #mini-con
 
 /* ==========================================================================
    Blocking terminal modal refinement
-   Makes every modal feel like the same compact command surface on all screens.
+   Feature-specific widths and content remain here; the shared shell lives in
+   blocking-surfaces.css.
    ========================================================================== */
-:root {
-  --modal-safe-gap: clamp(10px, 2.5vw, 24px);
-  --modal-action-h: 42px;
-}
-
-.modal:not(.hidden) {
-  align-items: center;
-  justify-content: center;
-  padding:
-    max(var(--modal-safe-gap), var(--safe-top))
-    max(var(--modal-safe-gap), var(--safe-right))
-    max(var(--modal-safe-gap), var(--safe-bottom))
-    max(var(--modal-safe-gap), var(--safe-left));
-  background:
-    radial-gradient(circle at 50% 12%, rgba(108, 231, 255, 0.11), transparent 34%),
-    radial-gradient(circle at 14% 85%, rgba(255, 184, 107, 0.08), transparent 28%),
-    rgba(0, 4, 9, 0.78);
-  backdrop-filter: blur(7px) saturate(1.12);
-  -webkit-backdrop-filter: blur(7px) saturate(1.12);
-}
-
-.modal:not(.hidden)::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background:
-    linear-gradient(rgba(108, 231, 255, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(108, 231, 255, 0.025) 1px, transparent 1px);
-  background-size: 54px 54px;
-  mask-image: radial-gradient(circle at 50% 50%, black 0 48%, transparent 82%);
-  opacity: 0.5;
-}
-
-.modal > .modal-box {
-  position: relative;
-  min-width: 0;
-  overflow: hidden;
-  border: 1px solid rgba(108, 231, 255, 0.2);
-  border-radius: 18px;
-  background:
-    linear-gradient(180deg, rgba(8, 28, 42, 0.94), rgba(2, 10, 18, 0.98)),
-    radial-gradient(circle at 0 0, rgba(108, 231, 255, 0.14), transparent 46%),
-    radial-gradient(circle at 100% 0, rgba(255, 184, 107, 0.07), transparent 40%);
-  box-shadow:
-    0 30px 90px rgba(0, 0, 0, 0.66),
-    0 0 0 1px rgba(108, 231, 255, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.055);
-  outline: none;
-}
-
-.modal > .modal-box::before {
-  content: "";
-  position: absolute;
-  inset: 12px auto 12px 0;
-  z-index: 0;
-  width: 3px;
-  border-radius: 0 999px 999px 0;
-  background: linear-gradient(180deg, transparent, rgba(108, 231, 255, 0.82), transparent);
-  box-shadow: 0 0 18px rgba(108, 231, 255, 0.38);
-  pointer-events: none;
-}
-
-.modal > .modal-box:focus-visible {
-  box-shadow:
-    var(--ui-focus-ring),
-    0 30px 90px rgba(0, 0, 0, 0.66),
-    inset 0 1px 0 rgba(255, 255, 255, 0.055);
-}
-
-.modal > .modal-box > *,
-.modal > .modal-box .stack-modal-scroll,
-.modal > .modal-box .modal-actions {
-  position: relative;
-  z-index: 1;
-}
-
-.modal > .stack-modal-box,
-.modal > .trade-confirm-modal-box,
-.modal > .victory-modal-box,
-.modal > .gameover-box,
-.modal > .dispatch-modal-box,
-.modal > .mod-modal-box,
-.modal > .crew-modal-box,
-.modal > .company-rename-box,
-.modal > .tutorial-start-box {
-  display: flex;
-  flex-direction: column;
-  width: min(var(--modal-w, 520px), calc(100vw - (var(--modal-safe-gap) * 2)));
-  max-width: calc(100vw - (var(--modal-safe-gap) * 2));
-  max-height: calc(100dvh - (var(--modal-safe-gap) * 2));
-  padding: 0;
-}
-
 .modal > .trade-confirm-modal-box {
   --modal-w: 430px;
 }
@@ -4034,11 +3889,6 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #mini-con
   --modal-w: 860px;
 }
 
-.modal > .stack-modal-box > h2,
-.modal > .stack-modal-box > h3,
-.modal > .dispatch-modal-box > h3,
-.modal > .mod-modal-box > h3,
-.modal > .crew-modal-box > h3,
 .company-rename-title,
 .tut-start-title {
   flex: 0 0 auto;
@@ -4054,36 +3904,12 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #mini-con
   letter-spacing: 0.04em;
 }
 
-.modal > .stack-modal-box .stack-modal-scroll,
-.modal > .dispatch-modal-box,
-.modal > .mod-modal-box,
-.modal > .crew-modal-box,
-.modal > .company-rename-box,
-.modal > .tutorial-start-box {
-  min-height: 0;
-  scrollbar-color: rgba(108, 231, 255, 0.32) transparent;
-  overscroll-behavior: contain;
-}
-
-.modal > .stack-modal-box .stack-modal-scroll,
 #mod-modal-body,
 #crew-modal-summary,
 .crew-modal-section,
 .company-rename-form,
 .tut-start-desc {
   overflow-x: hidden;
-}
-
-.modal > .stack-modal-box .stack-modal-scroll {
-  padding: 18px 20px;
-}
-
-.modal > .dispatch-modal-box,
-.modal > .mod-modal-box,
-.modal > .crew-modal-box,
-.modal > .company-rename-box,
-.modal > .tutorial-start-box {
-  overflow-y: auto;
 }
 
 #mod-modal-body,
@@ -4096,7 +3922,6 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #mini-con
   margin: 0 20px 14px;
 }
 
-.modal-actions,
 .company-rename-actions,
 .tut-start-actions {
   position: sticky;
@@ -4118,7 +3943,6 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #mini-con
   -webkit-backdrop-filter: blur(14px) saturate(1.15);
 }
 
-.modal-actions > button,
 .company-rename-actions > button,
 .tut-start-actions > button {
   min-height: var(--modal-action-h);
@@ -4248,51 +4072,12 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #mini-con
 }
 
 @media (max-width: 700px), (max-height: 620px) {
-  :root {
-    --modal-safe-gap: 8px;
-    --modal-action-h: 40px;
-  }
-
-  .modal:not(.hidden) {
-    align-items: stretch;
-    padding:
-      max(8px, var(--safe-top))
-      max(8px, var(--safe-right))
-      max(8px, var(--safe-bottom))
-      max(8px, var(--safe-left));
-  }
-
-  .modal > .modal-box {
-    width: 100%;
-    max-width: none;
-    max-height: none;
-    border-radius: 14px;
-  }
-
-  .modal > .stack-modal-box,
-  .modal > .trade-confirm-modal-box,
-  .modal > .victory-modal-box,
-  .modal > .gameover-box,
-  .modal > .dispatch-modal-box,
-  .modal > .mod-modal-box,
-  .modal > .crew-modal-box,
-  .modal > .company-rename-box,
-  .modal > .tutorial-start-box {
-    max-height: calc(100dvh - max(8px, var(--safe-top)) - max(8px, var(--safe-bottom)));
-  }
-
-  .modal > .stack-modal-box > h2,
-  .modal > .stack-modal-box > h3,
-  .modal > .dispatch-modal-box > h3,
-  .modal > .mod-modal-box > h3,
-  .modal > .crew-modal-box > h3,
   .company-rename-title,
   .tut-start-title {
     padding: 14px 15px 11px 17px;
     font-size: 15px;
   }
 
-  .modal > .stack-modal-box .stack-modal-scroll,
   #mod-modal-body,
   #crew-modal-summary {
     padding: 14px 15px;
@@ -4302,7 +4087,6 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #mini-con
     margin-inline: 15px;
   }
 
-  .modal-actions,
   .company-rename-actions,
   .tut-start-actions {
     padding: 10px 15px 12px;
@@ -4319,7 +4103,6 @@ body:has(#planet-detail-panel.planet-detail-panel--galaxy-hub.visible) #mini-con
 }
 
 @media (max-width: 520px) {
-  .modal-actions,
   .company-rename-actions,
   .tut-start-actions {
     display: grid;
@@ -5749,9 +5532,3 @@ body[data-motion="reduced"] .tutorial-tooltip {
 }
 
 /* Keep the settings grid inside the modal's actual mobile viewport. */
-
-@media (max-width: 700px), (max-height: 620px) {
-  .modal > .modal-box {
-    max-height: calc(100dvh - max(8px, var(--safe-top)) - max(8px, var(--safe-bottom))) !important;
-  }
-}

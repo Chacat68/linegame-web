@@ -13,8 +13,6 @@
     gap: 6px;
   }
   .status-stat { min-width: 80px; }
-
-  .modal-box { min-width: 240px; max-width: 320px; padding: 16px 18px; }
   .secondary-panel-modal-box {
     width: calc(100vw - 24px);
     max-height: calc(100vh - 24px);
@@ -48,8 +46,6 @@
   .status-stat { min-width: 70px; }
   .status-stat-label { font-size: 7px; }
   .status-stat-pct { font-size: 9px; }
-
-  .modal-box { min-width: 200px; max-width: 95vw; padding: 14px 12px; }
   .secondary-panel-toolbar,
   .secondary-panel-head {
     flex-direction: column;
