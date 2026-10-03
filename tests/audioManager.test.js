@@ -71,7 +71,7 @@ describe('AudioManager', function () {
       soundEffectsVolume: 0.35,
     });
 
-    expect(Audio.playCue('trade.buy')).toBe(false);
+    expect(Audio.playCue('ui.click')).toBe(false);
     expect(created).toBe(false);
   });
 
@@ -96,7 +96,7 @@ describe('AudioManager', function () {
       soundEffectsVolume: 0.4,
     });
 
-    expect(Audio.playCue('trade.sell')).toBe(true);
+    expect(Audio.playCue('success')).toBe(true);
     expect(log).toEqual([
       'osc.connect',
       'gain.connect',

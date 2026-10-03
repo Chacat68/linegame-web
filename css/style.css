@@ -1,31 +1,4 @@
-/* ============================================================
-   Star-Trade: Galactic Year 3045 — Dark Space Theme
-   主样式入口 — 通过 @import 加载各模块
-   ============================================================ */
-
-@import url("base.css");            /* 变量、重置、字体、body 背景 */
-@import url("layout.css");          /* 全局布局、game-shell */
-@import url("header.css");          /* 长期路线、公司/玩家等级进度 */
-@import url("map.css");             /* 星系地图、HUD 角标、扫描线 */
-@import url("panels.css");          /* 左/右面板、标签、市场、货物 */
-@import url("status.css");          /* 底部消息日志 */
-@import url("modals.css");          /* 通用弹窗、船体值、事件弹窗 */
-@import url("systems.css");         /* 科技、派系、存档、任务、成就、教程 */
-/* fleet.css 由 GameManager 在首次打开机库时按需加载 */
-@import url("settings.css");        /* 公司重命名弹窗 */
-@import url("responsive.css");      /* 响应式 media queries */
-@import url("interstellar-trader.css"); /* 参考图风格覆盖层 */
-
-/* Bridge OS 现行设计体系：按 Token → Primitive → Surface → Responsive 收口 */
-@import url("tokens.css");
-@import url("primitives.css");
-@import url("surfaces.css");
-@import url("bridge-responsive.css");
-@import url("context-inspector.css");
-@import url("workspace-detail.css");
-@import url("starmap-controls.css");
-@import url("global-shell-v2.css");
-@import url("blocking-surfaces.css");
-@import url("flow-surfaces.css");
-@import url("settings-workspace.css");
-@import url("save-workspace.css");
+@import url("merchant-shell.css");
+@import url("merchant-workspace.css");
+@import url("merchant-material.css");
+@import url("merchant-onboarding.css");

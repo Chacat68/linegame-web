@@ -1,0 +1,282 @@
+/* 2.0 共用材质：深色陶土底板、浮起卡片、下凹控件；星系只改变环境光和强调色。 */
+body[data-merchant="true"] {
+  --ui-bg-canvas: #181c32;
+  --ui-bg-shell: #252229;
+  --ui-bg-panel: #211f26;
+  --ui-bg-card: #302b33;
+  --ui-bg-control: #18181f;
+  --ui-bg-backdrop: #131018b8;
+  --ui-text-primary: #f4e8d8;
+  --ui-text-secondary: #d9c8bb;
+  --ui-text-muted: #b5a69f;
+  --ui-text-inverse: #27232a;
+  --ui-accent: #e99b78;
+  --ui-accent-strong: #ffd1ac;
+  --ui-commerce: #ecd090;
+  --ui-success: #b1ce9b;
+  --ui-warning: #edc583;
+  --ui-danger: #eda292;
+  --ui-line-subtle: #e8d5c218;
+  --ui-line-default: #e8d5c23b;
+  --ui-line-strong: color-mix(in srgb, var(--ui-accent) 70%, transparent);
+  --ui-focus-ring: 0 0 0 3px color-mix(in srgb, var(--ui-accent) 40%, transparent);
+  --ui-radius-card: 16px;
+  --ui-radius-panel: 24px;
+  --ui-scene-space: #181c32;
+  --ui-scene-nebula: #65517b;
+  --ui-scene-dust: #bd7959;
+  --text-main: var(--ui-text-primary);
+  --text-primary: var(--ui-text-primary);
+  --text-secondary: var(--ui-text-secondary);
+  --text-dim: var(--ui-text-muted);
+  --merchant-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.72' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='.055'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E");
+  --merchant-panel: var(--merchant-grain), radial-gradient(ellipse at 0 0, #f9d6b00c, transparent 55%), linear-gradient(150deg, #26232a, #1b1b21);
+  --merchant-card: var(--merchant-grain), linear-gradient(145deg, #353038, #242229);
+  --merchant-inset: var(--merchant-grain), linear-gradient(150deg, #121319, #1b1a21);
+  --merchant-raised-shadow: inset 0 1px 1px #ffecce2c, inset 0 -2px 2px #0c0b1380, 0 6px 14px #08061170;
+  --merchant-panel-shadow: inset 0 1px 2px #ffecce2a, inset 0 -3px 5px #0d0b1680, 0 18px 40px #0806118c;
+  color: var(--ui-text-primary);
+}
+body#merchant-game.ui-redesign[data-merchant="true"] #game-main { background: var(--ui-scene-space); }
+body#merchant-game.ui-redesign[data-merchant="true"] #game-header,
+body#merchant-game.ui-redesign[data-merchant="true"] #merchant-resource-bar,
+body#merchant-game.ui-redesign[data-merchant="true"] .bottom-nav {
+  color: var(--ui-text-primary); background: var(--merchant-panel);
+  border: 1px solid var(--ui-line-default); box-shadow: var(--merchant-panel-shadow);
+}
+body#merchant-game.ui-redesign[data-merchant="true"] #game-header { inset: calc(var(--ui-resource-height) + 10px) 18px auto; border-radius: 22px; }
+body#merchant-game.ui-redesign[data-merchant="true"]:has(#map-section.is-active) #game-header { display: none !important; }
+body[data-merchant="true"] .merchant-map-overview { position: absolute; z-index: 15; top: calc(var(--ui-resource-height) + 18px); right: 18px; display: grid; place-items: center; width: 44px; height: 44px; padding: 10px; color: var(--ui-text-secondary); background: var(--merchant-panel); border: 1px solid var(--ui-line-default); border-radius: 14px; box-shadow: var(--merchant-raised-shadow); cursor: pointer; }
+body[data-merchant="true"] .merchant-map-overview svg { width: 24px; height: 24px; }
+body[data-merchant="true"] #map-section:not(.is-active) :is(.merchant-map-overview,.merchant-map-error) { display: none; }
+body[data-merchant="true"] .merchant-map-overview:focus-visible { outline: 2px solid var(--ui-accent-strong); outline-offset: 3px; }
+body[data-merchant="true"] .merchant-exploration-signal {
+  position: absolute; z-index: 16; top: calc(var(--ui-resource-height) + 18px); left: 18px;
+  display: flex; align-items: center; gap: 10px; min-height: 54px; padding: 9px 15px;
+  color: var(--ui-text-primary); background: var(--merchant-panel); border: 1px solid var(--ui-commerce);
+  border-radius: 14px; box-shadow: var(--merchant-raised-shadow); cursor: pointer;
+}
+body[data-merchant="true"] .merchant-exploration-signal.is-on-signal { transform: translate(-50%, calc(-100% - 16px)); }
+body[data-merchant="true"] .merchant-exploration-signal span:not(.merchant-exploration-symbol) { display: grid; gap: 3px; text-align: left; }
+body[data-merchant="true"] .merchant-exploration-signal strong { font-size: 13px; font-weight: 600; }
+body[data-merchant="true"] .merchant-exploration-signal small { color: var(--ui-commerce); font-size: 10px; }
+body[data-merchant="true"] .merchant-exploration-symbol { color: var(--ui-commerce); font-size: 26px; }
+body[data-merchant="true"] .merchant-exploration-panel { z-index: 24; bottom: auto; max-height: calc(100dvh - var(--ui-resource-height) - var(--ui-nav-height) - 42px); width: min(360px,calc(100vw - 24px)); }
+body[data-merchant="true"] .merchant-exploration-panel :is(h2,h3) { color: var(--ui-text-primary); }
+body[data-merchant="true"] .merchant-exploration-field { display: grid; align-content: center; gap: 8px; margin: 18px 0; color: var(--ui-text-secondary); font-size: 12px; }
+body[data-merchant="true"] .merchant-exploration-field select { width: 100%; min-height: 44px; padding: 0 12px; }
+body[data-merchant="true"] .merchant-exploration-ledger { margin: 22px 0; padding: 14px; background: var(--merchant-inset); border: 1px solid var(--ui-line-subtle); border-radius: 14px; }
+body[data-merchant="true"] .merchant-exploration-ledger p { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 32px; margin: 0; font-size: 12px; }
+body[data-merchant="true"] .merchant-exploration-ledger span { color: var(--ui-text-secondary); }
+body[data-merchant="true"] .merchant-exploration-ledger strong { text-align: right; font-weight: 550; }
+body[data-merchant="true"] .merchant-exploration-feedback { min-height: 20px; margin: 12px 0; color: var(--ui-warning); font-size: 12px; line-height: 1.5; }
+body[data-merchant="true"] [data-exploration-dispatch] { width: 100%; }
+body[data-merchant="true"] .merchant-exploration-progress { height: 5px; overflow: hidden; border-radius: 4px; background: var(--ui-bg-control); }
+body[data-merchant="true"] .merchant-exploration-progress i { display: block; height: 100%; background: var(--ui-commerce); }
+body[data-merchant="true"] .merchant-exploration-result { display: grid; align-content: center; justify-items: center; gap: 14px; padding: 32px 0; }
+body[data-merchant="true"] .merchant-exploration-result > span { color: var(--ui-commerce); font-size: 42px; }
+body[data-merchant="true"] .merchant-exploration-result p { color: var(--ui-text-secondary); font-size: 12px; }
+body[data-merchant="true"] :is(.merchant-exploration-signal,.merchant-exploration-panel)[hidden] { display: none !important; }
+@media (max-width: 520px) {
+  body[data-merchant="true"] .merchant-exploration-panel { right: 8px; width: calc(100vw - 16px); }
+}
+body[data-merchant="true"] .merchant-map-error:not([hidden]) { position: absolute; z-index: 15; top: 72px; left: 18px; color: var(--ui-text-primary); background: var(--merchant-panel); padding: 12px; border-radius: 14px; }
+body#merchant-game.ui-redesign[data-merchant="true"] .hdr-credits { color: var(--ui-commerce); }
+body[data-merchant="true"] #merchant-budget { color: #edb494; }
+body[data-merchant="true"] #merchant-profit { color: var(--ui-success); }
+body[data-merchant="true"] .merchant-header-status { color: var(--ui-text-muted); }
+body[data-merchant="true"] .merchant-header-status #merchant-task-total { color: var(--ui-text-secondary); }
+body#merchant-game.ui-redesign[data-merchant="true"] :is(.bottom-nav-btn, .hdr-icon-btn, .company-menu > summary, .company-tool-link) {
+  color: var(--ui-text-secondary); border: 1px solid var(--ui-line-subtle);
+  background: var(--merchant-card); box-shadow: var(--merchant-raised-shadow); border-radius: 12px;
+}
+body#merchant-game.ui-redesign[data-merchant="true"] .bottom-nav { border-radius: 20px; padding: 6px; gap: 5px; }
+body#merchant-game.ui-redesign[data-merchant="true"] .bottom-nav-btn:is(.active,[aria-current="page"]) {
+  color: var(--ui-text-inverse); border-color: var(--ui-accent-strong);
+  background: linear-gradient(150deg, var(--ui-accent-strong), var(--ui-accent));
+}
+body#merchant-game.ui-redesign[data-merchant="true"] .bottom-nav-btn:hover { color: var(--ui-text-primary); border-color: var(--ui-accent); }
+body#merchant-game.ui-redesign[data-merchant="true"] .bottom-nav-btn:is(.active,[aria-current="page"]):hover {
+  color: var(--ui-text-inverse); border-color: var(--ui-accent-strong); filter: brightness(1.08);
+}
+body#merchant-game.ui-redesign[data-merchant="true"] #game-shell #game-main > :is(#merchant-task-workspace,#merchant-market-workspace,#merchant-ship-workspace,#merchant-report-workspace).merchant-workspace {
+  padding-top: 28px !important;
+  background: radial-gradient(ellipse at 80% 5%, color-mix(in srgb,var(--ui-scene-dust) 40%,transparent),transparent 40%),
+    radial-gradient(ellipse at 20% 70%,color-mix(in srgb,var(--ui-scene-nebula) 65%,transparent),transparent 60%),
+    radial-gradient(#eeddc544 .8px,transparent 1.2px) 10px 20px / 97px 73px,
+    radial-gradient(#c7b9de44 1px,transparent 1.4px) 40px 50px / 157px 127px,
+    var(--ui-scene-space) !important;
+  color: var(--ui-text-primary);
+}
+/* 这些容器和按钮属于当前经营版，清理历史页面时仍须保留材质覆盖。 */
+body[data-merchant="true"] :is(.merchant-operations,.merchant-detail-bay,.merchant-form-panel,.merchant-station-heading) {
+  color: var(--ui-text-primary); border: 1px solid var(--ui-line-default); border-radius: 22px;
+  background: var(--merchant-panel); box-shadow: var(--merchant-panel-shadow);
+}
+body[data-merchant="true"] :is(.merchant-task-card,.merchant-port-card,.merchant-route-card,.merchant-ship-card,.merchant-tech-card,.merchant-report-card) {
+  color: var(--ui-text-primary); border-color: var(--ui-line-default); border-radius: 16px;
+  background: var(--merchant-card); box-shadow: var(--merchant-raised-shadow);
+}
+body[data-merchant="true"] :is(.merchant-operations-head,.merchant-form-head,.merchant-detail-section,.merchant-detail-last,.merchant-owned-ship,.merchant-report-details) { border-color: var(--ui-line-default); }
+body[data-merchant="true"] :is(.merchant-page,.merchant-form-panel) button {
+  color: var(--ui-text-primary); border-color: var(--ui-line-default); border-radius: 12px;
+  background: var(--merchant-card); box-shadow: var(--merchant-raised-shadow);
+}
+body[data-merchant="true"] :is(.merchant-page,.merchant-form-panel) button:hover:not(:disabled) { color: var(--ui-text-primary); border-color: var(--ui-accent); background: var(--merchant-card); }
+body[data-merchant="true"] :is(.merchant-page,.merchant-form-panel) :is(button,input,select):focus-visible { outline-color: var(--ui-accent-strong); }
+body[data-merchant="true"] .merchant-page button.merchant-primary,
+body[data-merchant="true"] .merchant-report-toggle[aria-expanded="true"] {
+  color: var(--ui-text-inverse); border-color: var(--ui-accent-strong);
+  background: linear-gradient(150deg,var(--ui-accent-strong),var(--ui-accent));
+  box-shadow: inset 0 1px #fff5, inset 0 -3px #4d242345, 0 4px 10px #150b1c55;
+}
+body[data-merchant="true"] .merchant-page button.merchant-primary:hover:not(:disabled) { color: var(--ui-text-inverse); background: linear-gradient(150deg,var(--ui-accent-strong),var(--ui-accent)); filter: brightness(1.08); }
+body[data-merchant="true"] .merchant-report-toggle[aria-expanded="true"]:hover:not(:disabled) {
+  color: var(--ui-text-inverse); border-color: var(--ui-accent-strong);
+  background: linear-gradient(150deg,var(--ui-accent-strong),var(--ui-accent)); filter: brightness(1.08);
+}
+body[data-merchant="true"] :is(.merchant-positive,.merchant-task-profit strong,.merchant-report-profit b,.merchant-report-row b,.merchant-detail-last strong) { color: var(--ui-success) !important; }
+body[data-merchant="true"] :is(.merchant-task-main strong,.merchant-detail-head h2,.merchant-empty--command strong,.merchant-owned-group strong,.merchant-report-route > strong,.merchant-report-row strong,.merchant-detail-shortcuts strong) { color: var(--ui-text-primary); }
+body[data-merchant="true"] :is(.merchant-task-main small,.merchant-task-main em,.merchant-task-profit small,.merchant-operations-head h2 span,.merchant-detail-ledger small,.merchant-detail-ledger em,.merchant-detail-head p,.merchant-detail-last small,.merchant-detail-last span,.merchant-detail-hint,.merchant-ship-picks label small,.merchant-report-profit small,.merchant-report-row small,.merchant-form-grid label,.merchant-budget-field,.merchant-procurement label,.merchant-owned-group em,.merchant-section-head > span) { color: var(--ui-text-muted); }
+body[data-merchant="true"] :is(.merchant-port-card p,.merchant-route-card p,.merchant-ship-card p,.merchant-detail-section p,.merchant-detail-head small,.merchant-form-step > small,.merchant-tech-card small,.merchant-tech-card p,.merchant-ship-spec,.merchant-inline-ship-row > span,.merchant-map-ship small,.merchant-map-ship em,.merchant-owned-ship,.merchant-report-details .merchant-section-head h3,.merchant-report-row) { color: var(--ui-text-secondary); }
+/* 任务卡统一承载选中/悬停效果，内层点击区域不再浮起或覆盖卡片边线。 */
+body[data-merchant="true"] .merchant-task-card .merchant-task-select,
+body[data-merchant="true"] .merchant-task-card .merchant-task-select:hover:not(:disabled) {
+  background: none; box-shadow: none; transform: none; border-radius: inherit;
+}
+body[data-merchant="true"] .merchant-task-card:hover { border-color: var(--ui-accent); }
+body[data-merchant="true"] .merchant-task-card .merchant-task-select:focus-visible {
+  outline: 2px solid var(--ui-accent-strong); outline-offset: -4px;
+}
+body[data-merchant="true"] :is(.merchant-task-card.is-selected,.merchant-map-ship[aria-pressed="true"],.merchant-route-picks button[aria-pressed="true"]) {
+  border-color: var(--ui-accent); background: var(--merchant-card);
+  box-shadow: inset 3px 0 var(--ui-accent),var(--merchant-raised-shadow);
+}
+body[data-merchant="true"] :is(.merchant-task-symbol,.merchant-ship-spec span,.merchant-ship-picks label,.merchant-inline-shipyard,.merchant-inline-ship-row) { border-color: var(--ui-line-default); color: var(--ui-text-secondary); }
+body[data-merchant="true"] :is(.merchant-form-grid select,.merchant-budget-field input,.merchant-procurement input,.merchant-inline-ship-row,.merchant-detail-ledger > div,.merchant-report-row,.merchant-report-details,.merchant-form-actions) {
+  color: var(--ui-text-primary); border-color: var(--ui-line-default); border-radius: 12px;
+  background: var(--merchant-inset); box-shadow: inset 0 3px 6px #120d1c55,inset 0 -1px #f9e4ce18;
+}
+body#merchant-game.ui-redesign[data-merchant="true"] :is(.merchant-page,.merchant-form-panel) :is(input:not([type="checkbox"]),select) { color: var(--ui-text-primary); background: var(--merchant-inset); border-color: var(--ui-line-default); border-radius: 12px; }
+body[data-merchant="true"] :is(.merchant-page,.merchant-form-panel) button { min-height: 44px; }
+body[data-merchant="true"] .merchant-ship-picks label {
+  border-radius: 12px; background: var(--merchant-inset);
+}
+body[data-merchant="true"] .merchant-ship-picks label:has(input:checked) {
+  border-color: var(--ui-accent);
+  background: var(--merchant-grain), linear-gradient(145deg,color-mix(in srgb,var(--ui-accent) 14%,#242229),#242229);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb,var(--ui-accent) 25%,transparent);
+}
+body[data-merchant="true"] .merchant-ship-picks label:has(input:focus-visible) {
+  outline: 2px solid var(--ui-accent-strong); outline-offset: 2px;
+}
+body[data-merchant="true"] .merchant-ship-picks input {
+  width: 18px; height: 18px; margin: 0; grid-row: span 2; align-self: center;
+  accent-color: var(--ui-accent); color-scheme: dark;
+}
+body[data-merchant="true"] .merchant-ship-picks input:focus-visible { outline: none; }
+body[data-merchant="true"] .merchant-plan-preview { border-color: var(--ui-success); border-radius: 12px; background: var(--merchant-inset); }
+body[data-merchant="true"] .merchant-plan-preview :is(small,strong,p) { color: var(--ui-text-primary); }
+body[data-merchant="true"] :is(.merchant-catchup,.merchant-feedback:not(:empty)) { background: var(--merchant-inset); color: var(--ui-text-secondary); }
+body[data-merchant="true"] .merchant-catchup { border-left-color: var(--ui-warning); }
+body[data-merchant="true"] .merchant-feedback:not(:empty) { border-left-color: var(--ui-success); }
+body[data-merchant="true"] .merchant-command-stage {
+  border-color: var(--ui-line-default); border-radius: 24px 24px 0 0;
+  background: radial-gradient(ellipse at 88% 15%,color-mix(in srgb,var(--ui-scene-dust) 18%,transparent),transparent 50%),
+    radial-gradient(ellipse at 65% 60%,color-mix(in srgb,var(--ui-scene-nebula) 18%,transparent),transparent 70%),var(--merchant-inset);
+}
+body[data-merchant="true"] .merchant-command-stage::after { background: linear-gradient(90deg,#171521bb,transparent 32%,transparent 85%),linear-gradient(0deg,#17152188,transparent 35%); }
+body[data-merchant="true"] .merchant-stage-telemetry strong { color: var(--ui-text-primary); }
+body[data-merchant="true"] .merchant-stage-telemetry :is(small,span) { color: var(--ui-text-secondary); }
+body[data-merchant="true"] .merchant-stage-progress { border-radius: 5px; height: 5px; background: #17152177; }
+body[data-merchant="true"] .merchant-stage-progress i { border-radius: 5px; background: var(--ui-accent); box-shadow: 0 0 10px color-mix(in srgb,var(--ui-accent) 40%,transparent); }
+body[data-merchant="true"] .merchant-stage-ship { filter: drop-shadow(0 13px 12px #08061199) drop-shadow(0 0 12px color-mix(in srgb,var(--ui-accent) 10%,transparent)); }
+body[data-merchant="true"] .merchant-route-status { border-color: var(--ui-line-default); border-radius: 0 0 20px 20px; background: var(--merchant-inset); }
+body[data-merchant="true"] .merchant-route-status span { border-color: var(--ui-line-default); }
+body[data-merchant="true"] .merchant-route-status small { color: var(--ui-text-muted); }
+body[data-merchant="true"] .merchant-route-status strong { color: var(--ui-text-primary); }
+body[data-merchant="true"] .merchant-shop-card { gap: 10px; padding: 20px; }
+body[data-merchant="true"] .merchant-shop-card > small { order: 0; color: var(--ui-text-muted); }
+body[data-merchant="true"] .merchant-shop-card > h3 { order: 1; padding-right: 0; font-size: 21px; }
+body[data-merchant="true"] .merchant-shop-card .merchant-ship-art { order: 2; position: relative; inset: auto; z-index: 0; width: 100%; height: 140px; opacity: 1; filter: drop-shadow(0 15px 10px #160b2355); }
+body[data-merchant="true"] .merchant-shop-card .merchant-ship-spec { order: 3; }
+body[data-merchant="true"] .merchant-shop-card .merchant-procurement { order: 4; }
+body[data-merchant="true"] :is(.merchant-port-card,.merchant-route-card) small { color: var(--ui-text-secondary); }
+body[data-merchant="true"] .company-menu-panel { color: var(--ui-text-primary); background: var(--merchant-panel); border-color: var(--ui-line-default); box-shadow: var(--merchant-panel-shadow); border-radius: 16px; }
+body[data-merchant="true"] .merchant-route-card.is-unavailable { background: var(--merchant-inset); }
+body[data-merchant="true"] .merchant-live-tag { color: var(--ui-success); }
+body[data-merchant="true"] .merchant-empty:not(.merchant-empty--command) { color: var(--ui-text-muted); border-color: var(--ui-line-default); }
+/* 辅助工具沿用原交互和安全提示，材质与主经营界面一致。 */
+body#merchant-game.ui-redesign[data-merchant="true"] :is(.modal-box,#merchant-log-workspace) { color: var(--ui-text-primary); background: var(--merchant-panel); border-color: var(--ui-line-default); border-radius: 22px; box-shadow: var(--merchant-panel-shadow); }
+body#merchant-game.ui-redesign[data-merchant="true"] #merchant-log-workspace :is(.workspace-terminal-chrome,.console-controls,.console-filter-bar) { color: var(--ui-text-primary); background: var(--merchant-inset); border-color: var(--ui-line-default); }
+body#merchant-game.ui-redesign[data-merchant="true"] #merchant-log-workspace :is(button,select,input) { color: var(--ui-text-primary); background: var(--merchant-card); border-color: var(--ui-line-default); border-radius: 10px; }
+/* 加载阶段早于 merchant 状态初始化，使用同一暖色基线。 */
+body#merchant-game.ui-redesign .startup-loader { color: #f4e8d8; background: radial-gradient(ellipse at 70% 20%,#bd795944,transparent 45%),radial-gradient(ellipse at 20% 70%,#65517b88,transparent 55%),#181c32; }
+body#merchant-game.ui-redesign .startup-loader::before { border-color: #e8d5c218; box-shadow: none; }
+body#merchant-game.ui-redesign .startup-loader .startup-loader__panel { color: #f4e8d8; background: var(--merchant-panel,linear-gradient(150deg,#26232a,#1b1b21)); border-color: #e8d5c23b; border-radius: 24px; box-shadow: inset 0 1px #ffecce2a,0 18px 40px #0806118c; }
+body#merchant-game.ui-redesign .startup-loader .startup-loader__panel::before,
+body#merchant-game.ui-redesign .startup-loader .startup-loader__panel::after { border-color: #e8d5c23b; }
+body#merchant-game.ui-redesign .startup-loader .startup-loader__stars { background-image: radial-gradient(circle,#ffe6bdba 0 1px,transparent 1.5px),radial-gradient(circle,#baa7c875 0 1px,transparent 1.5px); }
+body#merchant-game.ui-redesign .startup-loader :is(.startup-loader__title,.startup-loader__subtitle) { color: #f4e8d8; text-shadow: none; }
+body#merchant-game.ui-redesign .startup-loader :is(.startup-loader__status,.startup-loader__meta,.startup-loader__eyebrow) { color: #d9c8bb; }
+body#merchant-game.ui-redesign .startup-loader .startup-loader__progress { background: #18181f; border-color: #e8d5c23b; border-radius: 8px; }
+body#merchant-game.ui-redesign .startup-loader .startup-loader__progress-fill { background: linear-gradient(90deg,#e99b78,#ffd1ac); box-shadow: 0 0 12px #e99b7844; }
+body#merchant-game.ui-redesign .startup-loader .startup-loader__retry { color: #f4e8d8; background: #302b33; border-color: #e8d5c23b; border-radius: 12px; }
+body#merchant-game.ui-redesign .startup-loader .startup-loader__retry:focus-visible { outline: 2px solid var(--merchant-button-line,var(--ui-accent-strong,#ffd1ac)); outline-offset: 3px; box-shadow: var(--ui-focus-ring,0 0 0 3px #e99b7844); }
+body#merchant-game.ui-redesign .startup-loader .startup-loader__scanline { background: linear-gradient(to bottom,transparent,#ffd1ac0d,transparent); }
+body#merchant-game.ui-redesign .startup-loader .startup-loader__brand-orbit { border-color: #e99b7866; border-right-color: #ffd1ac; }
+body#merchant-game.ui-redesign .startup-loader .startup-loader__brand-orbit::after { background: #ffd1ac; box-shadow: 0 0 12px #e99b7866; }
+body#merchant-game.ui-redesign .startup-loader .startup-loader__brand-core { background: #ffd1ac; box-shadow: 0 0 18px #e99b7880; }
+body#merchant-game.ui-redesign .startup-loader.has-error .startup-loader__progress-fill { background: linear-gradient(90deg,#943c4d,#eda292); }
+body#merchant-game.ui-redesign .startup-loader.has-error .startup-loader__status { color: #eda292; }
+@media (max-width: 900px) {
+  body#merchant-game.ui-redesign[data-merchant="true"] #game-header { inset: calc(var(--ui-resource-height) + 5px) 8px auto; padding-inline: 14px; border-radius: 17px; }
+  body#merchant-game.ui-redesign[data-merchant="true"] #status-bar { background: none; border: 0; backdrop-filter: none; }
+  body#merchant-game.ui-redesign[data-merchant="true"] .bottom-nav { background: var(--merchant-panel); border: 1px solid var(--ui-line-default); box-shadow: var(--merchant-panel-shadow); border-radius: 18px; }
+  body#merchant-game.ui-redesign[data-merchant="true"] #game-shell #game-main > :is(#merchant-task-workspace,#merchant-market-workspace,#merchant-ship-workspace,#merchant-report-workspace).merchant-workspace { padding-top: 17px !important; }
+  body[data-merchant="true"] .merchant-shop-card .merchant-ship-art { height: 120px; }
+}
+@media (prefers-reduced-motion: reduce) { body[data-merchant="true"] .merchant-page button { transition: none; } }
+/* 星图颜色由渲染器管理，避免旧滤镜再次放大低分辨率边缘。 */
+body#merchant-game.ui-redesign[data-merchant=true] #starmap-three-canvas { filter: none; }
+/* 状态色固定表达操作含义，优先于星系强调色和通用禁用外观。 */
+body[data-merchant="true"] button[data-button-state="ready"] {
+  --merchant-button-top: #e0c78e; --merchant-button-bottom: #c4a16c;
+  --merchant-button-text: #29232a; --merchant-button-line: #f4dca3;
+}
+body[data-merchant="true"] button[data-button-state="blocked"] {
+  --merchant-button-top: #4a4751; --merchant-button-bottom: #36343e;
+  --merchant-button-text: #c9bdba; --merchant-button-line: #827a854d;
+}
+body[data-merchant="true"] button[data-button-state="complete"] {
+  --merchant-button-top: #455d46; --merchant-button-bottom: #324737;
+  --merchant-button-text: #c9e2b8; --merchant-button-line: #9ebf89;
+}
+body[data-merchant="true"] button[data-button-state="pending"] {
+  --merchant-button-top: #6a523a; --merchant-button-bottom: #4c3d32;
+  --merchant-button-text: #f4d19b; --merchant-button-line: #d8ad6c;
+}
+body[data-merchant="true"] button[data-button-state="danger"] {
+  --merchant-button-top: #814c46; --merchant-button-bottom: #603834;
+  --merchant-button-text: #ffe0d3; --merchant-button-line: #d18d7e;
+}
+body[data-merchant="true"] :is(.merchant-page,.merchant-form-panel,.modal-box,.startup-loader) button[data-button-state] {
+  color: var(--merchant-button-text); border-color: var(--merchant-button-line);
+  background: var(--merchant-grain), linear-gradient(150deg,var(--merchant-button-top),var(--merchant-button-bottom));
+  box-shadow: var(--merchant-raised-shadow); opacity: 1; filter: none;
+  transition: filter .15s ease, box-shadow .15s ease;
+}
+body[data-merchant="true"] :is(.merchant-page,.merchant-form-panel,.modal-box,.startup-loader) button[data-button-state]:hover:not(:disabled) {
+  color: var(--merchant-button-text); border-color: var(--merchant-button-line);
+  background: var(--merchant-grain), linear-gradient(150deg,var(--merchant-button-top),var(--merchant-button-bottom));
+  filter: brightness(1.08);
+}
+body[data-merchant="true"] :is(.merchant-page,.merchant-form-panel,.modal-box,.startup-loader) button[data-button-state]:focus-visible {
+  outline: 2px solid var(--merchant-button-line); outline-offset: 3px;
+}
+body[data-merchant="true"] :is(.merchant-page,.merchant-form-panel,.modal-box,.startup-loader) button[data-button-state]:active:not(:disabled) {
+  filter: brightness(.96); box-shadow: inset 0 2px 5px #120d1c66;
+}
+body[data-merchant="true"] :is(.merchant-page,.merchant-form-panel,.modal-box,.startup-loader) button[data-button-state]:disabled {
+  cursor: not-allowed;
+}

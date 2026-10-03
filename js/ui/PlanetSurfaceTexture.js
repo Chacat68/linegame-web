@@ -32,8 +32,8 @@ const SURFACE_PROFILES = {
     seaLevel: 0.5, bands: 0.1, clouds: 0.7, cities: 0.28, craters: 0,
   },
   industrial: {
-    dark: '#24141a', mid: '#914a39', light: '#d98961', polar: '#c4b6aa', accent: '#ff9b68',
-    seaLevel: 0.4, bands: 0.16, clouds: 0.25, cities: 0.64, craters: 4,
+    dark: '#523035', mid: '#be6543', light: '#e1a470', polar: '#dbc5ad', accent: '#ffbf85',
+    seaLevel: 0.4, bands: 0.1, clouds: 0.25, cities: 0.24, craters: 0,
   },
   energy: {
     dark: '#34210a', mid: '#bd7420', light: '#ffe084', polar: '#fff3c8', accent: '#fff08a',
@@ -61,12 +61,14 @@ export function createPlanetSurfaceData(system, colorHex, unlocked, qualityLevel
   const width = dimensions.width;
   const height = dimensions.height;
   const profile = SURFACE_PROFILES[system && system.type] || DEFAULT_PROFILE;
+  const inhabitedWorld = !!system && system.id === 'sol_prime';
   const seed = hashString(system && system.id ? system.id : 'unknown-planet');
   const baseColor = parseHexColor(colorHex);
   const palette = buildPalette(profile, baseColor, unlocked !== false);
-  const terrainWaves = buildWaves(seed ^ 0x9e3779b9, 6, false);
-  const detailWaves = buildWaves(seed ^ 0x85ebca6b, 5, true);
-  const cloudWaves = buildWaves(seed ^ 0xc2b2ae35, 5, false);
+  // 主星的地貌和云层使用球面噪声，不创建随后会被覆盖的通用波浪。
+  const terrainWaves = inhabitedWorld ? null : buildWaves(seed ^ 0x9e3779b9, 6, false);
+  const detailWaves = inhabitedWorld ? null : buildWaves(seed ^ 0x85ebca6b, 5, true);
+  const cloudWaves = inhabitedWorld ? null : buildWaves(seed ^ 0xc2b2ae35, 5, false);
   const lightWaves = buildWaves(seed ^ 0x27d4eb2f, 4, true);
   const craters = buildCraters(seed ^ 0x165667b1, profile.craters || 0);
   const albedo = new Uint8ClampedArray(width * height * 4);
@@ -83,6 +85,7 @@ export function createPlanetSurfaceData(system, colorHex, unlocked, qualityLevel
       const theta = x / sampleWidth * Math.PI * 2;
       const index = (y * width + x) * 4;
       writeSurfacePixel({
+        inhabitedWorld,
         albedo,
         bump,
         clouds,
@@ -120,25 +123,48 @@ export function createPlanetSurfaceData(system, colorHex, unlocked, qualityLevel
 }
 
 function writeSurfacePixel(options) {
-  const terrain = sampleWaves(options.theta, options.latitude, options.terrainWaves);
-  const detail = sampleWaves(options.theta, options.latitude, options.detailWaves);
-  const cloudNoise = sampleWaves(options.theta + 0.24, options.latitude * 0.92, options.cloudWaves);
-  const band = 0.5 + Math.sin(
-    options.latitude * (9 + options.profile.bands * 12)
-    + (terrain - 0.5) * 4.2
-  ) * 0.5;
-  const crater = sampleCraters(options.theta, options.latitude, options.craters);
-  const elevation = clamp01(
-    terrain * 0.68
-    + detail * 0.24
-    + (band - 0.5) * options.profile.bands * 0.36
-    + crater * 0.46
-  );
+  const sphere = options.inhabitedWorld ? [
+    Math.cos(options.latitude) * Math.cos(options.theta),
+    Math.sin(options.latitude),
+    Math.cos(options.latitude) * Math.sin(options.theta),
+  ] : null;
+  const crater = sphere && !options.craters.length ? 0 : sampleCraters(options.theta, options.latitude, options.craters);
+  let terrain, detail, cloudNoise, band, elevation;
+  if (sphere) {
+    elevation = 0.5 + (worldNoise(sphere, 2.6, 19) - 0.5) * 1.8;
+  } else {
+    terrain = sampleWaves(options.theta, options.latitude, options.terrainWaves);
+    detail = sampleWaves(options.theta, options.latitude, options.detailWaves);
+    cloudNoise = sampleWaves(options.theta + 0.24, options.latitude * 0.92, options.cloudWaves);
+    band = 0.5 + Math.sin(
+      options.latitude * (9 + options.profile.bands * 12)
+      + (terrain - 0.5) * 4.2
+    ) * 0.5;
+    elevation = clamp01(
+      terrain * 0.68
+      + detail * 0.24
+      + (band - 0.5) * options.profile.bands * 0.36
+      + crater * 0.46
+    );
+  }
   const polar = smoothstep(0.72, 0.98, Math.abs(options.normalizedLatitude));
   let surfaceColor;
   let surfaceHeight;
 
-  if (options.profile.gaseous) {
+  if (sphere) {
+    const landMask = smoothstep(0.49, 0.51, elevation);
+    const coast = smoothstep(0.44, 0.50, elevation);
+    const ocean = mixRgb([38, 88, 133], [65, 132, 159], coast * 0.7);
+    const terrainDetail = worldNoise(sphere, 24, 71);
+    let land = mixRgb([124, 146, 82], [176, 187, 109], smoothstep(0.5, 0.78, elevation));
+    land = multiplyRgb(land, 0.95 + terrainDetail * 0.08);
+    surfaceColor = mixRgb(ocean, land, landMask);
+    surfaceHeight = landMask * (elevation * 0.7 + terrainDetail * 0.06);
+  } else if (options.profile === SURFACE_PROFILES.industrial) {
+    // 工业世界用低对比铜色地表，避免低频起伏形成鼓包、凹眼般的高光。
+    surfaceColor = mixRgb(options.palette.mid, options.palette.light, .28 + terrain * .22 + detail * .04);
+    surfaceHeight = .5 + detail * .01;
+  } else if (options.profile.gaseous) {
     const gasBand = clamp01(band * 0.68 + terrain * 0.2 + detail * 0.12);
     surfaceColor = mixRgb(options.palette.dark, options.palette.light, gasBand);
     const storm = smoothstep(0.78, 0.94, detail) * (1 - Math.abs(options.normalizedLatitude));
@@ -159,11 +185,18 @@ function writeSurfacePixel(options) {
   const bumpValue = clampByte(52 + surfaceHeight * 190 + crater * 38);
   writeRgba(options.bump, options.index, bumpValue, bumpValue, bumpValue, 255);
 
-  const cloudBand = 0.5 + Math.sin(options.latitude * 13 + cloudNoise * 4.5) * 0.5;
-  const cloudField = clamp01(cloudNoise * 0.74 + cloudBand * options.profile.bands * 0.2 + detail * 0.12);
-  const cloudThreshold = 0.79 - options.profile.clouds * 0.28;
-  const cloudAlpha = smoothstep(cloudThreshold, Math.min(0.97, cloudThreshold + 0.2), cloudField)
-    * options.profile.clouds;
+  let cloudAlpha;
+  if (sphere) {
+    const wind = options.theta + Math.sin(options.latitude * 6) * 0.22;
+    const cloudPoint = [Math.cos(options.latitude) * Math.cos(wind), sphere[1], Math.cos(options.latitude) * Math.sin(wind)];
+    cloudAlpha = smoothstep(0.49, 0.66, worldNoise(cloudPoint, 4.8, 137)) * 0.88;
+  } else {
+    const cloudBand = 0.5 + Math.sin(options.latitude * 13 + cloudNoise * 4.5) * 0.5;
+    const cloudField = clamp01(cloudNoise * 0.74 + cloudBand * options.profile.bands * 0.2 + detail * 0.12);
+    const cloudThreshold = 0.79 - options.profile.clouds * 0.28;
+    cloudAlpha = smoothstep(cloudThreshold, Math.min(0.97, cloudThreshold + 0.2), cloudField)
+      * options.profile.clouds;
+  }
   const cloudWarmth = options.profile.gaseous ? 0.72 : 0.94;
   writeRgba(
     options.clouds,
@@ -339,4 +372,31 @@ function createRng(seed) {
     result ^= result + Math.imul(result ^ (result >>> 7), result | 61);
     return ((result ^ (result >>> 14)) >>> 0) / 4294967296;
   };
+}
+
+// 在球面坐标上采样分形噪声，让海岸、云带跨经度接缝连续。
+function worldNoise(point, frequency, seed) {
+  let sum = 0;
+  let weight = 0.55;
+  let total = 0;
+  for (let octave = 0; octave < 5; octave++) {
+    sum += valueNoise(point[0] * frequency, point[1] * frequency, point[2] * frequency, seed) * weight;
+    total += weight;
+    weight *= 0.48;
+    frequency *= 2.03;
+  }
+  return sum / total;
+}
+
+function valueNoise(x, y, z, seed) {
+  const ix = Math.floor(x), iy = Math.floor(y), iz = Math.floor(z);
+  const fx = smoothstep(0, 1, x - ix), fy = smoothstep(0, 1, y - iy), fz = smoothstep(0, 1, z - iz);
+  let value = 0;
+  for (let dx = 0; dx <= 1; dx++) for (let dy = 0; dy <= 1; dy++) for (let dz = 0; dz <= 1; dz++) {
+    let hash = Math.imul(ix + dx, 374761393) ^ Math.imul(iy + dy, 668265263) ^ Math.imul(iz + dz, 1274126177) ^ seed;
+    hash = Math.imul(hash ^ (hash >>> 13), 1274126177);
+    const noise = ((hash ^ (hash >>> 16)) >>> 0) / 4294967295;
+    value += noise * (dx ? fx : 1 - fx) * (dy ? fy : 1 - fy) * (dz ? fz : 1 - fz);
+  }
+  return value;
 }

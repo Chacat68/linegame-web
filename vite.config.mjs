@@ -34,9 +34,6 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           const normalizedId = id.replace(/\\/g, '/');
-          if (normalizedId.endsWith('/js/ui/Renderer2DStarmap.js')) {
-            return 'starmap-fallback-2d';
-          }
           if (normalizedId.includes('/node_modules/three/examples/jsm/controls/')) {
             return 'three-controls';
           }

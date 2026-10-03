@@ -28,8 +28,30 @@ jobs:
       - name: Run tests
         run: npm test
 
-      - name: Build production assets
-        run: npm run build
+      - name: Check code and contracts
+        run: npm run check
+
+      - name: Check scene assets
+        run: npm run check:scene-assets
+
+      - name: Install test browsers
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: Run browser regression
+        run: npm run test:e2e
+
+      - name: Build and test production assets in Chromium and WebKit
+        run: npm run test:production
+
+      - name: Upload browser diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-test-results
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
 
       - name: Set deploy branch
         id: branch

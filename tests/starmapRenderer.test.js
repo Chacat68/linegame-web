@@ -1,314 +1,212 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { createTestState } from './helpers.js';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
-function createGradient() {
-  return { addColorStop: function () {} };
+let renderer, canvas, imported, three, availability, moduleRequests;
+const snapshot = { viewingGalaxy: 'milky_way' };
+
+function deferred() {
+  let resolve, reject;
+  const promise = new Promise((yes, no) => { resolve = yes; reject = no; });
+  return { promise, resolve, reject };
 }
 
-function create2DContext() {
-  return {
-    arc: function () {},
-    beginPath: function () {},
-    clearRect: function () {},
-    closePath: function () {},
-    createLinearGradient: createGradient,
-    createRadialGradient: createGradient,
-    ellipse: function () {},
-    fill: function () {},
-    fillRect: function () {},
-    fillText: function () {},
-    lineTo: function () {},
-    measureText: function () { return { width: 40 }; },
-    moveTo: function () {},
-    quadraticCurveTo: function () {},
-    restore: function () {},
-    rotate: function () {},
-    save: function () {},
-    scale: function () {},
-    setLineDash: function () {},
-    setTransform: function () {},
-    stroke: function () {},
-    strokeRect: function () {},
-    translate: function () {},
+beforeEach(() => {
+  vi.resetModules();
+  renderer = null;
+  moduleRequests = 0;
+  imported = deferred();
+  canvas = { style: { display: 'none', visibility: 'hidden' }, dataset: {}, getContext: vi.fn() };
+  vi.stubGlobal('document', { getElementById: id => id === 'starmap-three-canvas' ? canvas : null });
+  let available = true, notifyAvailability = null;
+  three = {
+    init: vi.fn(() => { available = true; return true; }),
+    isAvailable: vi.fn(() => available),
+    setVisible: vi.fn(value => { canvas.style.display = value && available ? 'block' : 'none'; }),
+    setQuality: vi.fn(), setMotionLevel: vi.fn(), render: vi.fn(), resetCamera: vi.fn(), focusRoute: vi.fn(),
+    setAvailabilityHandler: vi.fn(handler => { notifyAvailability = handler; }),
+    getRendererInfo: vi.fn(() => ({ renderer: 'three', panOnly: true, pixelRatio: 2, cameraHeight: 105, cameraOffset: [0, 105, 130] })),
+    dispose: vi.fn(() => { available = false; canvas.style.display = 'none'; }),
   };
-}
-
-function createCanvas(contextFactory) {
-  const listeners = {};
-  return {
-    width: 0,
-    height: 0,
-    clientWidth: 960,
-    clientHeight: 620,
-    dataset: {},
-    style: {},
-    classList: { add: function () {}, remove: function () {} },
-    addEventListener: function (event, handler) { listeners[event] = handler; },
-    removeEventListener: function (event, handler) {
-      if (listeners[event] === handler) delete listeners[event];
-    },
-    listenerCount: function (event) { return listeners[event] ? 1 : 0; },
-    getBoundingClientRect: function () { return { left: 0, top: 0, width: 960, height: 620 }; },
-    getContext: contextFactory,
-    setAttribute: function () {},
-  };
-}
-
-describe('StarmapRenderer facade', function () {
-  const originalDocument = globalThis.document;
-  const originalWindow = globalThis.window;
-  const originalLocation = globalThis.location;
-
-  afterEach(function () {
-    globalThis.document = originalDocument;
-    globalThis.window = originalWindow;
-    globalThis.location = originalLocation;
-    delete globalThis.__linegameStarmapRenderer;
-    vi.resetModules();
-  });
-
-  it('WebGL2 不可用时星系总览安全降级到 2D', async function () {
-    const context2d = create2DContext();
-    const canvas2d = createCanvas(function (type) { return type === '2d' ? context2d : null; });
-    const canvasThree = createCanvas(function () { return null; });
-    const container = { dataset: {} };
-    globalThis.window = { devicePixelRatio: 1, addEventListener: function () {} };
-    globalThis.document = {
-      getElementById: function (id) {
-        if (id === 'map-3d-canvas') return canvas2d;
-        if (id === 'starmap-three-canvas') return canvasThree;
-        if (id === 'map-container') return container;
-        return null;
-      },
-    };
-
-    const Renderer = await import('../js/ui/StarmapRenderer.js?fallback=' + Date.now());
-    const state = createTestState({ mapView: 'galaxies', currentGalaxy: 'milky_way', viewingGalaxy: 'milky_way' });
-
-    expect(Renderer.init()).toBe(true);
-    Renderer.render(state, 'galaxies', 'milky_way');
-
-    expect(await Renderer.whenThreeReady()).toBe(false);
-    expect(Renderer.getActiveRendererName()).toBe('2d');
-    expect(container.dataset.starmapRenderer).toBe('2d');
-    expect(canvas2d.style.display).toBe('block');
-    expect(canvasThree.style.display).toBe('none');
-  });
-
-  it('默认行星视图会尝试启用 Three，WebGL2 不可用时仍安全降级', async function () {
-    const context2d = create2DContext();
-    const canvas2d = createCanvas(function (type) { return type === '2d' ? context2d : null; });
-    let webglProbeCount = 0;
-    const canvasThree = createCanvas(function (type) {
-      if (type === 'webgl2') webglProbeCount += 1;
-      return null;
-    });
-    const container = { dataset: {} };
-    globalThis.window = { devicePixelRatio: 1, addEventListener: function () {} };
-    globalThis.document = {
-      getElementById: function (id) {
-        if (id === 'map-3d-canvas') return canvas2d;
-        if (id === 'starmap-three-canvas') return canvasThree;
-        if (id === 'map-container') return container;
-        return null;
-      },
-    };
-
-    const Renderer = await import('../js/ui/StarmapRenderer.js?deferred-three=' + Date.now());
-    const state = createTestState({ mapView: 'planets', currentGalaxy: 'milky_way', viewingGalaxy: 'milky_way' });
-
-    expect(Renderer.init()).toBe(true);
-    Renderer.render(state, 'planets', 'milky_way');
-
-    expect(await Renderer.whenThreeReady()).toBe(false);
-    expect(Renderer.getActiveRendererName()).toBe('2d');
-    expect(webglProbeCount).toBe(1);
-    expect(globalThis.__linegameStarmapRenderer.threeLoading).toBe(false);
-  });
-
-  it('开发查询参数可以稳定验收 2D 降级且不探测 WebGL2', async function () {
-    const context2d = create2DContext();
-    const canvas2d = createCanvas(function (type) { return type === '2d' ? context2d : null; });
-    let webglProbeCount = 0;
-    const canvasThree = createCanvas(function (type) {
-      if (type === 'webgl2') webglProbeCount += 1;
-      return {};
-    });
-    const container = { dataset: {} };
-    globalThis.location = { search: '?starmap=2d' };
-    globalThis.window = { devicePixelRatio: 1, addEventListener: function () {} };
-    globalThis.document = {
-      getElementById: function (id) {
-        if (id === 'map-3d-canvas') return canvas2d;
-        if (id === 'starmap-three-canvas') return canvasThree;
-        if (id === 'map-container') return container;
-        return null;
-      },
-    };
-
-    const Renderer = await import('../js/ui/StarmapRenderer.js?forced-2d=' + Date.now());
-    const state = createTestState({ mapView: 'planets', currentGalaxy: 'milky_way' });
-    expect(Renderer.init()).toBe(true);
-    Renderer.render(state, 'planets', 'milky_way');
-
-    expect(await Renderer.whenThreeReady()).toBe(false);
-    expect(Renderer.getActiveRendererName()).toBe('2d');
-    expect(webglProbeCount).toBe(0);
-    expect(container.dataset.starmapRenderer).toBe('2d');
-  });
-
-  it('对外保留现有星图渲染器契约', async function () {
-    const Renderer = await import('../js/ui/StarmapRenderer.js?contract=' + Date.now());
-    [
-      'init', 'render', 'focusPlanet', 'selectPlanet', 'setQuality', 'setMotionLevel',
-      'isActive', 'toggleView', 'getSystemAtPoint', 'getPlanetScreenPosition',
-      'invalidateScene', 'resetRuntimeState', 'setSecretRoutesVisible',
-      'isSecretRoutesVisible', 'resetCamera', 'flyShipTo', 'isShipFlying',
-      'cancelShipFlight', 'clearSelection', 'dispose',
-    ].forEach(function (method) {
-      expect(typeof Renderer[method]).toBe('function');
-    });
-  });
-
-  it('dispose 结束当前 ready 周期并可在同一 facade 上重建场景', async function () {
-    const context2d = create2DContext();
-    const canvas2d = createCanvas(function (type) { return type === '2d' ? context2d : null; });
-    const canvasThree = createCanvas(function () { return null; });
-    const container = { dataset: {} };
-    const windowListeners = {};
-    globalThis.window = {
-      devicePixelRatio: 1,
-      addEventListener: function (event, handler) { windowListeners[event] = handler; },
-      removeEventListener: function (event, handler) {
-        if (windowListeners[event] === handler) delete windowListeners[event];
-      },
-    };
-    globalThis.document = {
-      getElementById: function (id) {
-        if (id === 'map-3d-canvas') return canvas2d;
-        if (id === 'starmap-three-canvas') return canvasThree;
-        if (id === 'map-container') return container;
-        return null;
-      },
-    };
-
-    const Renderer = await import('../js/ui/StarmapRenderer.js?dispose=' + Date.now());
-    const state = createTestState({ mapView: 'planets', currentGalaxy: 'milky_way' });
-    expect(Renderer.init()).toBe(true);
-    Renderer.render(state, 'planets', 'milky_way');
-    await expect(Renderer.whenSceneReady()).resolves.toEqual({ renderer: '2d' });
-    expect(canvas2d.listenerCount('pointermove')).toBe(1);
-
-    expect(Renderer.dispose()).toBe(true);
-    expect(Renderer.dispose()).toBe(false);
-    expect(canvas2d.listenerCount('pointermove')).toBe(0);
-    expect(globalThis.__linegameStarmapRenderer).toBeUndefined();
-    expect(container.dataset.starmapSceneReady).toBeUndefined();
-
-    expect(Renderer.init()).toBe(true);
-    Renderer.render(state, 'planets', 'milky_way');
-    await expect(Renderer.whenSceneReady()).resolves.toEqual({ renderer: '2d' });
-    expect(canvas2d.listenerCount('pointermove')).toBe(1);
-    Renderer.dispose();
-  });
+  availability = value => { available = value; notifyAvailability?.(value); };
+  vi.doMock('../js/ui/RendererThreeStarmap.js', async () => { moduleRequests += 1; await imported.promise; return three; });
 });
 
-describe('RendererThreeStarmap dependency handling', function () {
-  const originalDocument = globalThis.document;
-
-  afterEach(function () {
-    globalThis.document = originalDocument;
-    vi.resetModules();
-  });
-
-  it('无法取得 WebGL2 context 时保持可导入且不抢占 canvas', async function () {
-    const canvas = createCanvas(function () { return null; });
-    globalThis.document = {
-      getElementById: function (id) { return id === 'starmap-three-canvas' ? canvas : null; },
-    };
-    const Renderer = await import('../js/ui/RendererThreeStarmap.js?no-webgl2=' + Date.now());
-
-    expect(Renderer.init()).toBe(false);
-    expect(Renderer.isAvailable()).toBe(false);
-    expect(Renderer.setVisible(true)).toBe(false);
-    expect(function () { Renderer.resetCamera(); }).not.toThrow();
-    expect(canvas.style.display).toBe('none');
-    expect(Renderer.dispose()).toBe(true);
-    expect(Renderer.dispose()).toBe(false);
-  });
+afterEach(() => {
+  renderer?.dispose();
+  vi.useRealTimers();
+  vi.doUnmock('../js/ui/RendererThreeStarmap.js');
+  vi.unstubAllGlobals();
 });
 
-describe('Starmap canvas integration', function () {
-  it('为 2D 与 Three 使用独立画布并共享视觉状态类', function () {
-    const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-    const css = readFileSync(new URL('../css/interstellar-trader.css', import.meta.url), 'utf8');
-    const controls = readFileSync(new URL('../css/starmap-controls.css', import.meta.url), 'utf8');
-    const facade = readFileSync(new URL('../js/ui/StarmapRenderer.js', import.meta.url), 'utf8');
-    const fallbackRenderer = readFileSync(new URL('../js/ui/Renderer2DStarmap.js', import.meta.url), 'utf8');
-    const renderer = readFileSync(new URL('../js/ui/RendererThreeStarmap.js', import.meta.url), 'utf8');
+async function start() {
+  renderer = await import('../js/ui/StarmapRenderer.js');
+  expect(renderer.init()).toBe(true);
+}
 
-    expect(html).toContain('id="map-3d-canvas" class="starmap-canvas"');
-    expect(html).toContain('id="starmap-three-canvas" class="starmap-canvas starmap-three-canvas"');
-    expect(html).toContain('aria-label="Three.js 3D 星图"');
-    expect(css).toContain('.starmap-canvas.starmap-blur-active');
-    expect(controls).toContain('.starmap-map-tools {');
-    expect(html).not.toContain('id="map-3d-toggle-btn"');
-    expect(css).not.toMatch(/\.map-btn-group\b|\.map-overlay-btn\b/);
-    expect(facade).toContain('_loadThreeRenderer();');
-    expect(facade).not.toContain("mapView === 'galaxies' && _rendererThree");
-    expect(renderer).toContain('function _buildPlanetScene');
-    expect(renderer).toContain('PLANET_MIN_SEPARATION');
-    expect(renderer).toContain('const PLANET_SPAN_X = 420;');
-    expect(renderer).toContain('const PLANET_SPAN_Z = 294;');
-    expect(renderer).toContain('const PLANET_MIN_SEPARATION = 29;');
-    expect(renderer).toContain('const PLANET_CONNECTION_DISTANCE = 66;');
-    expect(renderer).toContain('_controls.maxDistance = 640;');
-    expect(renderer).toContain('new FogExp2(0x071624, 0.00105)');
-    expect(renderer).toContain('function _buildPlanetEnvironment');
-    expect(renderer).toContain('function _createPlanetSurfaceMaps');
-    expect(renderer).toContain('createPlanetSurfaceData');
-    expect(renderer).toContain('texture.wrapS = RepeatWrapping');
-    expect(renderer).toContain('cloudShell');
-    expect(renderer).toContain('bumpMap');
-    expect(renderer).toContain('emissiveMap');
-    expect(renderer).not.toContain('function _createVolumetricBeacon');
-    expect(renderer).not.toContain('PlanetBeacon3d');
-    expect(renderer).toContain('selected || focused ? 1.03');
-    expect(renderer).not.toContain('function _createBeaconTexture');
-    expect(renderer).not.toContain('function _buildPlanetAmbientHalos');
-    expect(renderer).not.toContain("halos.name = 'planetAmbientHalos'");
-    expect(renderer).toContain('const PLANET_VISUAL_PROFILES');
-    expect(renderer).toContain('physicalRing: true');
-    expect(renderer).toContain('function _createPlanetDebrisBelt');
-    expect(renderer).toContain('function _createPlanetOrbitAccents');
-    expect(renderer).not.toContain('blending: additive ? AdditiveBlending : undefined');
-    expect(renderer).toContain('if (additive) material.blending = AdditiveBlending;');
-    expect(renderer).toContain('function _buildGalaxyAmbientHalos');
-    expect(renderer).toContain("halos.name = 'galaxyAmbientHalos'");
-    expect(renderer).toContain('function _createGalaxyLabelSprite');
-    expect(renderer).toContain('const lines = new LineSegments(geometry, material)');
-    expect(renderer).toContain('function _getSharedPlanetSphereGeometry');
-    expect(renderer).toContain('function _getSharedHaloTexture');
-    expect(renderer).toContain('const PLANET_VISUAL_SCALE = 0.68');
-    expect(renderer).toContain("1.12) * PLANET_VISUAL_SCALE");
-    expect(renderer).toContain("detailed ? 'detail' : 'base'");
-    expect(renderer).toContain("if (_mapView === 'planets') _planetEntries.forEach");
-    expect(renderer).toContain('visual.positionScratch');
-    expect(facade).toContain('now - _lastInfoWriteAt < 500');
-    expect(facade).toContain('container.dataset.starmapFps');
-    expect(renderer).toContain('getSystemsByGalaxy(galaxyId)');
-    expect(renderer).toContain('new MeshStandardMaterial');
-    expect(renderer).toContain('function _buildOperationalRoutes');
-    expect(renderer).toContain('function _getRouteWorldPoints');
-    expect(renderer).toContain('function _applyShipTravelVisual');
-    expect(renderer).toContain('new BoxGeometry');
-    expect(renderer).toContain('getShipTravelVisualState');
-    expect(fallbackRenderer).toContain('function _getRouteSceneGeometry');
-    expect(fallbackRenderer).toContain('function _drawShipGlyph');
-    expect(fallbackRenderer).toContain('getShipTravelVisualState');
-    expect(renderer).toContain('if (_pendingCameraFocusPlanetId)');
-    expect(renderer).toContain('&& _framedPlanetGalaxyId !== galaxyId');
-    expect(renderer).not.toContain('_framedPlanetSystemId !== state.currentSystem');
-  });
+async function finishImport() {
+  imported.resolve();
+  await vi.dynamicImportSettled();
+}
+
+function expectHiddenWithoutFallback() {
+  expect(canvas.style.display).toBe('none');
+  expect(canvas.getContext).not.toHaveBeenCalledWith('2d');
+  expect(document.getElementById('map-3d-canvas')).toBeNull();
+}
+
+it('导入与初始化期间不显示画布，首帧真正绘制成功后才就绪', async () => {
+  await start();
+  expect(renderer.getLoadState()).toBe('idle');
+  expect(renderer.getLoadError()).toBe('');
+  expect(three.init).not.toHaveBeenCalled();
+  renderer.render(snapshot, 'planets', 'milky_way');
+  expect(renderer.getLoadState()).toBe('loading');
+  expectHiddenWithoutFallback();
+  await finishImport();
+  expect(three.init).toHaveBeenCalledOnce();
+  expect(three.render).not.toHaveBeenCalled();
+  expect(renderer.getLoadState()).toBe('loading');
+  expectHiddenWithoutFallback();
+  three.render.mockImplementation(() => expect(canvas.style.visibility).toBe('hidden'));
+  renderer.render(snapshot, 'planets', 'milky_way');
+  expect(three.render).toHaveBeenCalledExactlyOnceWith(snapshot, 'planets', 'milky_way');
+  expect(renderer.getLoadState()).toBe('ready');
+  expect(renderer.getLoadError()).toBe('');
+  expect(canvas.style.display).toBe('block');
+  expect(canvas.style.visibility).not.toBe('hidden');
+  expect(renderer.getRendererInfo()).toMatchObject({ renderer: 'three', panOnly: true });
+});
+
+it.each(['import', 'init', 'render'])('%s 失败时隐藏场景并报告中文原因，重试后可完成首帧', async failure => {
+  if (failure === 'init') three.init.mockReturnValueOnce(false);
+  if (failure === 'render') three.render.mockImplementationOnce(() => { throw new Error('draw failed'); });
+  await start();
+  renderer.render(snapshot, 'planets', 'milky_way');
+  if (failure === 'import') {
+    imported.reject(new Error('chunk failed'));
+    await vi.dynamicImportSettled();
+  } else {
+    await finishImport();
+    if (failure === 'render') renderer.render(snapshot, 'planets', 'milky_way');
+  }
+  expect(renderer.getLoadState()).toBe('error');
+  expect(renderer.getLoadError()).toMatch(/[\u4e00-\u9fff]/);
+  expectHiddenWithoutFallback();
+  const previousInitCount = three.init.mock.calls.length;
+  vi.doMock('../js/ui/RendererThreeStarmap.js', () => three);
+  renderer.retry();
+  expect(renderer.getLoadState()).toBe('idle');
+  expect(renderer.getLoadError()).toBe('');
+  renderer.render(snapshot, 'planets', 'milky_way');
+  expect(renderer.getLoadState()).toBe('loading');
+  await vi.dynamicImportSettled();
+  expect(three.init.mock.calls.length).toBe(previousInitCount + 1);
+  renderer.render(snapshot, 'planets', 'milky_way');
+  expect(renderer.getLoadState()).toBe('ready');
+  expect(canvas.style.display).toBe('block');
+});
+
+it('加载时离开页面不会显示场景，重新进入后才绘制首帧', async () => {
+  await start();
+  renderer.render(snapshot, 'planets', 'milky_way');
+  renderer.toggleView();
+  expect(renderer.isActive()).toBe(false);
+  await finishImport();
+  expect(three.render).not.toHaveBeenCalled();
+  expectHiddenWithoutFallback();
+  renderer.render(snapshot, 'planets', 'milky_way');
+  expect(three.render).not.toHaveBeenCalled();
+  renderer.toggleView();
+  renderer.render(snapshot, 'planets', 'milky_way');
+  expect(renderer.getLoadState()).toBe('ready');
+  expect(three.render).toHaveBeenCalledOnce();
+});
+
+it('销毁后的旧导入不能点亮新会话，新会话需重新请求并绘制', async () => {
+  await start();
+  renderer.render(snapshot, 'planets', 'milky_way');
+  renderer.dispose();
+  expect(renderer.isActive()).toBe(false);
+  expect(renderer.init()).toBe(true);
+  await finishImport();
+  expect(three.init).not.toHaveBeenCalled();
+  expect(three.render).not.toHaveBeenCalled();
+  expect(renderer.getLoadState()).toBe('idle');
+  expectHiddenWithoutFallback();
+  renderer.render(snapshot, 'planets', 'milky_way');
+  await vi.dynamicImportSettled();
+  renderer.render(snapshot, 'planets', 'milky_way');
+  expect(renderer.getLoadState()).toBe('ready');
+  expect(three.init).toHaveBeenCalledOnce();
+});
+
+it('上下文丢失后隐藏并报错，恢复通知只进入加载态，下一帧成功才重现', async () => {
+  await start();
+  renderer.render(snapshot, 'planets', 'milky_way');
+  await finishImport();
+  renderer.render(snapshot, 'planets', 'milky_way');
+  availability(false);
+  expect(renderer.getLoadState()).toBe('error');
+  expect(renderer.getLoadError()).toMatch(/[\u4e00-\u9fff]/);
+  expectHiddenWithoutFallback();
+  const renderedFrames = three.render.mock.calls.length;
+  availability(true);
+  expect(renderer.getLoadState()).toBe('loading');
+  expect(three.render.mock.calls.length).toBe(renderedFrames);
+  expectHiddenWithoutFallback();
+  renderer.render(snapshot, 'planets', 'milky_way');
+  expect(renderer.getLoadState()).toBe('ready');
+  expect(renderer.getLoadError()).toBe('');
+  expect(three.render.mock.calls.length).toBe(renderedFrames + 1);
+});
+
+it('预加载与进入星图共用请求，预加载本身不创建场景或改变加载状态', async () => {
+  renderer = await import('../js/ui/StarmapRenderer.js');
+  const prepared = renderer.preload();
+  const sameRequest = renderer.preload();
+  expect(renderer.getLoadState()).toBe('idle');
+  expect(renderer.isActive()).toBe(false);
+  expect(three.init).not.toHaveBeenCalled();
+  renderer.init();
+  renderer.render(snapshot, 'planets', 'milky_way');
+  await finishImport();
+  expect(await prepared).toBe(true);
+  expect(await sameRequest).toBe(true);
+  expect(moduleRequests).toBe(1);
+  expect(three.init).toHaveBeenCalledOnce();
+  expect(renderer.getLoadState()).toBe('loading');
+  renderer.render(snapshot, 'planets', 'milky_way');
+  expect(renderer.getLoadState()).toBe('ready');
+});
+
+it('未进入星图的会话销毁后会取消空闲准备，迟到的预加载也不会创建场景', async () => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+  renderer = await import('../js/ui/StarmapRenderer.js');
+  renderer.schedulePreload();
+  renderer.dispose();
+  await vi.advanceTimersByTimeAsync(200);
+  expect(moduleRequests).toBe(0);
+  const prepared = renderer.preload();
+  renderer.dispose();
+  await finishImport();
+  expect(await prepared).toBe(true);
+  expect(renderer.getLoadState()).toBe('idle');
+  expect(renderer.isActive()).toBe(false);
+  expect(three.init).not.toHaveBeenCalled();
+  expect(three.render).not.toHaveBeenCalled();
+});
+
+it('背景预加载失败不影响经营，真正进入时可以重新请求资源', async () => {
+  renderer = await import('../js/ui/StarmapRenderer.js');
+  const prepared = renderer.preload();
+  imported.reject(new Error('prefetch failed'));
+  await vi.dynamicImportSettled();
+  expect(await prepared).toBe(false);
+  expect(renderer.getLoadState()).toBe('idle');
+  expect(renderer.getLoadError()).toBe('');
+  vi.doMock('../js/ui/RendererThreeStarmap.js', () => three);
+  renderer.init();
+  renderer.render(snapshot, 'planets', 'milky_way');
+  await vi.dynamicImportSettled();
+  renderer.render(snapshot, 'planets', 'milky_way');
+  expect(renderer.getLoadState()).toBe('ready');
 });

@@ -1,18 +1,12 @@
 // js/core/AudioManager.js — 轻量音效管理
 // 职责：提供设置驱动的短反馈音，不引入外部音频资源。
 
-import * as EventBus from './EventBus.js';
 
 const DEFAULT_VOLUME = 0.35;
 const MIN_CUE_INTERVAL_MS = 45;
 
 const CUE_DEFINITIONS = {
   'ui.click': { type: 'sine', start: 620, end: 760, duration: 0.045, gain: 0.28 },
-  'settings.change': { type: 'triangle', start: 480, end: 640, duration: 0.08, gain: 0.24 },
-  'trade.buy': { type: 'triangle', start: 520, end: 700, duration: 0.1, gain: 0.3 },
-  'trade.sell': { type: 'triangle', start: 680, end: 920, duration: 0.11, gain: 0.32 },
-  travel: { type: 'sawtooth', start: 220, end: 340, duration: 0.14, gain: 0.2 },
-  'event.alert': { type: 'square', start: 220, end: 160, duration: 0.16, gain: 0.18 },
   success: { type: 'sine', start: 740, end: 980, duration: 0.12, gain: 0.3 },
   error: { type: 'sawtooth', start: 180, end: 120, duration: 0.12, gain: 0.22 },
 };
@@ -49,23 +43,20 @@ export function init(settings) {
   if (_bound) return;
   _bound = true;
 
-  EventBus.on('audio:cue', function (data) {
-    if (typeof data === 'string') {
-      playCue(data);
-      return;
-    }
-    playCue(data && data.cue ? data.cue : '');
-  });
+  globalThis.document?.addEventListener('click', _click, true);
 
-  if (globalThis.document && typeof document.addEventListener === 'function') {
-    document.addEventListener('click', function (event) {
-      var target = event && event.target && typeof event.target.closest === 'function'
-        ? event.target.closest('button, a, [role="button"]')
-        : null;
-      if (!target || target.disabled) return;
-      playCue('ui.click');
-    }, true);
-  }
+}
+
+function _click(event) {
+  const target = event.target?.closest?.('button, a, [role="button"]');
+  if (target && !target.disabled) playCue('ui.click');
+}
+export function dispose() {
+  globalThis.document?.removeEventListener('click', _click, true);
+  _bound = false;
+  if (_audioContext?.close) _audioContext.close().catch(() => {});
+  _audioContext = null;
+  _lastCueAt = 0;
 }
 
 export function applySettings(settings) {

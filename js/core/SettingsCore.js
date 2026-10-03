@@ -1,79 +1,17 @@
-// js/core/SettingsCore.js — 首屏所需的轻量设置状态与应用逻辑
-
 import * as Audio from './AudioManager.js';
-import { TIME_CONFIG } from '../data/constants.js';
-
-const SETTINGS_KEY = 'linegame_settings';
-const VALID_MOTION_LEVELS = ['full', 'reduced', 'off'];
-const VALID_DIFFICULTIES = ['easy', 'normal', 'hard'];
-const VALID_REALTIME_DAY_DURATIONS_MS = TIME_CONFIG.availableRealtimeDayDurationsMs || [TIME_CONFIG.realtimeDayDurationMs];
-
-export const DEFAULT_SOUND_EFFECTS_VOLUME = 0.35;
-
-export function createDefaultSettings() {
-  return {
-    motionLevel: 'full',
-    difficulty: 'normal',
-    secretRoutesVisible: true,
-    realtimeDayDurationMs: TIME_CONFIG.realtimeDayDurationMs,
-    terminalBlur: true,
-    soundEffectsEnabled: true,
-    soundEffectsVolume: DEFAULT_SOUND_EFFECTS_VOLUME,
-  };
+const KEY = 'linegame_settings';
+export const DEFAULT_SOUND_EFFECTS_VOLUME = .35;
+export function createDefaultSettings() { return { motionLevel: 'full', terminalBlur: true, soundEffectsEnabled: true, soundEffectsVolume: .35 }; }
+export function normalizeSoundEffectsVolume(value) { const n = Number(value); return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : .35; }
+function normalize(source = {}) {
+  return { motionLevel: ['full','reduced','off'].includes(source.motionLevel) ? source.motionLevel : 'full', terminalBlur: source.terminalBlur !== false,
+    soundEffectsEnabled: source.soundEffectsEnabled !== false, soundEffectsVolume: normalizeSoundEffectsVolume(source.soundEffectsVolume) };
 }
-
-export function normalizeSecretRoutesVisible(value) {
-  return value !== false;
-}
-
-export function normalizeRealtimeDayDurationMs(value) {
-  var numericValue = Number(value);
-  return VALID_REALTIME_DAY_DURATIONS_MS.indexOf(numericValue) >= 0
-    ? numericValue
-    : TIME_CONFIG.realtimeDayDurationMs;
-}
-
-export function normalizeSoundEffectsVolume(value) {
-  var numericValue = Number(value);
-  if (!Number.isFinite(numericValue)) return DEFAULT_SOUND_EFFECTS_VOLUME;
-  return Math.max(0, Math.min(1, numericValue));
-}
-
-export function loadSettings() {
-  try {
-    var raw = localStorage.getItem(SETTINGS_KEY);
-    if (!raw) return createDefaultSettings();
-    var parsed = JSON.parse(raw);
-    return {
-      motionLevel: VALID_MOTION_LEVELS.indexOf(parsed.motionLevel) >= 0
-        ? parsed.motionLevel
-        : 'full',
-      difficulty: VALID_DIFFICULTIES.indexOf(parsed.difficulty) >= 0
-        ? parsed.difficulty
-        : 'normal',
-      secretRoutesVisible: normalizeSecretRoutesVisible(parsed.secretRoutesVisible),
-      realtimeDayDurationMs: normalizeRealtimeDayDurationMs(parsed.realtimeDayDurationMs),
-      terminalBlur: parsed.terminalBlur !== false,
-      soundEffectsEnabled: parsed.soundEffectsEnabled !== false,
-      soundEffectsVolume: normalizeSoundEffectsVolume(parsed.soundEffectsVolume),
-    };
-  } catch (_) {
-    return createDefaultSettings();
-  }
-}
-
-export function saveSettings(settings) {
-  var normalizedSettings = Object.assign({}, settings || {});
-  // 旧版曾写入一个不控制本地统计的同意开关；保存时移除该遗留字段。
-  delete normalizedSettings.usageDataConsent;
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(normalizedSettings));
-}
-
-export function applySettings(settings, Renderer) {
-  document.body.dataset.motion = settings.motionLevel || 'full';
-  Renderer.setMotionLevel(settings.motionLevel || 'full');
-  if (Renderer.setSecretRoutesVisible) {
-    Renderer.setSecretRoutesVisible(normalizeSecretRoutesVisible(settings.secretRoutesVisible));
-  }
+export function loadSettings() { try { return normalize(JSON.parse(localStorage.getItem(KEY) || '{}')); } catch { return createDefaultSettings(); } }
+export function saveSettings(settings) { localStorage.setItem(KEY, JSON.stringify(normalize(settings))); }
+export function applySettings(settings, renderer) {
+  document.body.dataset.motion = settings.motionLevel;
+  document.body.dataset.terminalBlur = String(settings.terminalBlur);
+  renderer.setMotionLevel(settings.motionLevel);
   Audio.applySettings(settings);
 }

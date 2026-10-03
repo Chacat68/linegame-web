@@ -1,394 +1,261 @@
-// js/ui/StarmapRenderer.js — 星图渲染器门面
-// 行星局部图与星系总览统一优先使用 Three.js；Canvas 2D 仅负责 WebGL2 降级。
+// 星图只使用 Three；加载与失败由通用加载层呈现，不再绘制兼容场景。
+let initialized = false;
+let active = false;
+let three = null;
+let loading = null;
+let generation = 0;
+let quality = 'auto';
+let motion = 'full';
+let loadState = 'idle';
+let loadError = '';
+let pendingFocus = null;
+let loadTiming = null;
+let rendererModulePromise = null;
+let rendererModuleReady = false;
+let scheduledPreload = null;
 
-import * as Renderer2D from './Renderer2DStarmap.js';
+function getRendererModule() {
+  if (!rendererModulePromise) {
+    const request = import('./RendererThreeStarmap.js');
+    rendererModulePromise = request;
+    request.then(() => { rendererModuleReady = true; }, () => {
+      if (rendererModulePromise === request) rendererModulePromise = null;
+    });
+  }
+  return rendererModulePromise;
+}
 
-let _initialized = false;
-let _isActive = true;
-let _rendererThree = null;
-let _threeLoadPromise = null;
-let _threeLoading = false;
-let _threeAvailable = false;
-let _activeRenderer = '2d';
-let _lastState = null;
-let _lastMapView = 'planets';
-let _lastGalaxyId = 'milky_way';
-let _qualityLevel = 'auto';
-let _motionLevel = 'full';
-let _secretRoutesVisible = true;
-let _lastInfoWriteAt = 0;
-let _lastInfoSignature = '';
-let _fallbackFrameDrawn = false;
-let _sceneReady = false;
-let _sceneReadyWatcherAttached = false;
-let _resolveSceneReady = null;
-let _sceneReadyPromise = null;
-let _lifecycleGeneration = 0;
+// 只提前下载与解析模块；不创建 GPU 场景，也不触碰星图状态或经营存档。
+export function preload() {
+  return getRendererModule().then(() => true, () => false);
+}
 
-function _resetSceneReadyPromise() {
-  _sceneReady = false;
-  _sceneReadyWatcherAttached = false;
-  _fallbackFrameDrawn = false;
-  _sceneReadyPromise = new Promise(function (resolve) {
-    _resolveSceneReady = resolve;
+export function schedulePreload() {
+  if (scheduledPreload || rendererModuleReady || globalThis.navigator?.connection?.saveData) return;
+  const prepare = () => { scheduledPreload = null; void preload(); };
+  if (typeof globalThis.requestIdleCallback === 'function') {
+    const id = globalThis.requestIdleCallback(prepare, { timeout: 1500 });
+    scheduledPreload = () => globalThis.cancelIdleCallback(id);
+  } else {
+    const id = setTimeout(prepare, 200);
+    scheduledPreload = () => clearTimeout(id);
+  }
+}
+
+function cancelScheduledPreload() {
+  scheduledPreload?.();
+  scheduledPreload = null;
+}
+
+function getCanvas() {
+  return globalThis.document?.getElementById('starmap-three-canvas');
+}
+
+function hideCanvas() {
+  three?.setVisible(false);
+  const canvas = getCanvas();
+  if (canvas) {
+    canvas.style.display = 'none';
+    canvas.style.visibility = 'hidden';
+  }
+}
+
+function fail(message) {
+  loadState = 'error';
+  loadError = message;
+  hideCanvas();
+}
+
+function releaseThree() {
+  const renderer = three;
+  three = null;
+  if (!renderer) return;
+  renderer.setAvailabilityHandler(null);
+  try { renderer.dispose(); }
+  catch { /* 初始化中断后仍须解除引用，避免失败实例阻止重试。 */ }
+}
+
+function loadThree() {
+  const current = generation;
+  cancelScheduledPreload();
+  loadTiming = { startedAt: performance.now(), modulePrepared: rendererModuleReady };
+  loadState = 'loading';
+  loadError = '';
+  hideCanvas();
+  loading = getRendererModule().then(module => {
+    if (current !== generation || !initialized) return;
+    three = module;
+    loadTiming.moduleMs = performance.now() - loadTiming.startedAt;
+    try {
+      const initStartedAt = performance.now();
+      three.setQuality(quality);
+      three.setMotionLevel(motion);
+      three.setAvailabilityHandler(available => {
+        if (current !== generation || module !== three || !initialized) return;
+        if (!available) {
+          fail('星图图形连接已中断，请重试。');
+          return;
+        }
+        // 恢复连接后仍需绘制新首帧，不由迟到回调重新显示已经切走的页面。
+        loadState = 'loading';
+        loadError = '';
+        hideCanvas();
+      });
+      if (!three.init()) {
+        fail('当前设备无法初始化 3D 星图，请重试或检查硬件加速。');
+        releaseThree();
+        return;
+      }
+      loadTiming.initMs = performance.now() - initStartedAt;
+      if (getCanvas()?.getContext?.('webgl2')?.isContextLost?.()) {
+        fail('星图图形连接尚未恢复，请重试。');
+        return;
+      }
+      hideCanvas();
+    } catch {
+      fail('3D 星图初始化失败，请重试。');
+      releaseThree();
+    }
+  }).catch(() => {
+    if (current === generation && initialized) fail('星图资源加载失败，请重试。');
+  }).finally(() => {
+    if (current === generation) loading = null;
   });
 }
 
-_resetSceneReadyPromise();
-
 export function init() {
-  const twoDimensionalReady = Renderer2D.init();
-  _initialized = !!twoDimensionalReady;
-  _isActive = _initialized;
-  _activateRenderer('2d');
-  _exposeDebugState();
-  return _initialized;
-}
-
-export function setQuality(level) {
-  _qualityLevel = level;
-  Renderer2D.setQuality(level);
-  if (_rendererThree) _rendererThree.setQuality(level);
-}
-
-export function setMotionLevel(level) {
-  _motionLevel = level;
-  Renderer2D.setMotionLevel(level);
-  if (_rendererThree) _rendererThree.setMotionLevel(level);
-}
-
-export function isActive() {
-  return _initialized && _isActive;
-}
-
-export function toggleView() {
-  _isActive = !_isActive;
-  if (!_isActive) {
-    Renderer2D.setVisible(false);
-    if (_rendererThree) _rendererThree.setVisible(false);
-    return;
+  if (initialized) return true;
+  if (!getCanvas()) {
+    fail('星图画布暂时不可用，请刷新重试。');
+    return false;
   }
-  _activateRenderer(_selectRenderer(_lastMapView));
-}
-
-export function render(state, mapView, galaxyId) {
-  if (!isActive()) return;
-  _lastState = state || _lastState || {};
-  _lastMapView = mapView || (_lastState && _lastState.mapView) || 'planets';
-  _lastGalaxyId = galaxyId || (_lastState && (_lastState.viewingGalaxy || _lastState.currentGalaxy)) || 'milky_way';
-
-  const threeReadyPromise = _loadThreeRenderer();
-
-  const rendererName = _selectRenderer(_lastMapView);
-  _activateRenderer(rendererName);
-  if (rendererName === 'three') {
-    _rendererThree.render(_lastState, _lastMapView, _lastGalaxyId);
-    _writeRendererInfo(_rendererThree.getRendererInfo());
-    _markSceneReady('three');
-  } else {
-    Renderer2D.render(_lastState, _lastMapView, _lastGalaxyId);
-    _fallbackFrameDrawn = true;
-    _watchPreferredRenderer(threeReadyPromise);
-  }
-}
-
-export function whenSceneReady() {
-  return _sceneReadyPromise;
-}
-
-export function focusPlanet(planetId, smooth) {
-  Renderer2D.focusPlanet(planetId, smooth);
-  if (_rendererThree) return _rendererThree.focusPlanet(planetId, smooth);
+  initialized = true;
+  active = true;
+  loadState = 'idle';
+  loadError = '';
+  hideCanvas();
   return true;
 }
 
-export function selectPlanet(planetId, options) {
-  const fallbackResult = Renderer2D.selectPlanet(planetId, options);
-  return _rendererThree ? _rendererThree.selectPlanet(planetId, options) : fallbackResult;
+export function isActive() {
+  return initialized && active;
 }
 
-export function clearSelection() {
-  Renderer2D.clearSelection();
-  if (_rendererThree) _rendererThree.clearSelection();
+export function toggleView() {
+  active = !active;
+  hideCanvas();
+}
+
+export function setQuality(value) {
+  quality = value;
+  three?.setQuality(value);
+}
+
+export function setMotionLevel(value) {
+  motion = value;
+  three?.setMotionLevel(value);
+}
+
+export function render(state, view, galaxyId) {
+  if (!isActive()) return;
+  if (loadState === 'idle' && !loading) loadThree();
+  if (!three || loadState === 'error') return;
+  if (!three.isAvailable()) {
+    fail('星图图形连接已中断，请重试。');
+    return;
+  }
+  const current = generation;
+  const canvas = getCanvas();
+  // 保留布局尺寸供渲染器测量；真实首帧完成前由加载层覆盖并保持不可见。
+  if (canvas) canvas.style.visibility = loadState === 'ready' ? 'visible' : 'hidden';
+  try {
+    const firstFrameStartedAt = loadState !== 'ready' && loadTiming?.totalMs === undefined ? performance.now() : null;
+    three.setVisible(true);
+    three.render(state, view, galaxyId);
+    if (pendingFocus) {
+      three.focusRoute(pendingFocus);
+      pendingFocus = null;
+      three.render(state, view, galaxyId);
+    }
+    if (current !== generation || !isActive()) return;
+    if (!three?.isAvailable()) {
+      fail('星图图形连接已中断，请重试。');
+      return;
+    }
+    loadState = 'ready';
+    loadError = '';
+    if (firstFrameStartedAt !== null && loadTiming) {
+      loadTiming.firstFrameMs = performance.now() - firstFrameStartedAt;
+      loadTiming.totalMs = performance.now() - loadTiming.startedAt;
+    }
+    if (canvas) {
+      canvas.style.visibility = 'visible';
+      const info = three.getRendererInfo();
+      if (info) {
+        canvas.dataset.renderer = info.renderer;
+        canvas.dataset.panOnly = String(info.panOnly);
+        canvas.dataset.pixelRatio = String(info.pixelRatio);
+        if (firstFrameStartedAt !== null && loadTiming) canvas.dataset.loadTiming = JSON.stringify({ ...loadTiming, scene: info.loadTiming });
+        if (info.cameraHeight) {
+          canvas.dataset.cameraHeight = String(info.cameraHeight);
+          canvas.dataset.cameraOffset = JSON.stringify(info.cameraOffset);
+        }
+      }
+    }
+  } catch {
+    if (current === generation && initialized) fail('星图场景绘制失败，请重试。');
+  }
 }
 
 export function resetCamera() {
-  if (_activeRenderer === 'three' && _rendererThree) _rendererThree.resetCamera();
-  else Renderer2D.resetCamera();
+  pendingFocus = null;
+  if (loadState === 'ready' && three?.isAvailable()) three.resetCamera();
 }
 
-export function flyShipTo(fromId, toId, onComplete, shipTypeId, flightMeta) {
-  if (_activeRenderer === 'three' && _rendererThree) {
-    Renderer2D.flyShipTo(fromId, toId, null, shipTypeId, flightMeta);
-    return _rendererThree.flyShipTo(fromId, toId, onComplete, shipTypeId, flightMeta);
+export function focusRoute(route) {
+  pendingFocus = route;
+  if (loadState === 'ready' && three?.isAvailable()) {
+    three.focusRoute(route);
+    pendingFocus = null;
   }
-  if (_rendererThree) _rendererThree.flyShipTo(fromId, toId, null, shipTypeId, flightMeta);
-  return Renderer2D.flyShipTo(fromId, toId, onComplete, shipTypeId, flightMeta);
-}
-
-export function isShipFlying() {
-  return _activeRenderer === 'three' && _rendererThree
-    ? _rendererThree.isShipFlying()
-    : Renderer2D.isShipFlying();
-}
-
-export function cancelShipFlight() {
-  Renderer2D.cancelShipFlight();
-  if (_rendererThree) _rendererThree.cancelShipFlight();
-}
-
-export function getSystemAtPoint(x, y) {
-  return _activeRenderer === 'three' && _rendererThree
-    ? _rendererThree.getSystemAtPoint(x, y)
-    : Renderer2D.getSystemAtPoint(x, y);
-}
-
-export function invalidateScene() {
-  Renderer2D.invalidateScene();
-  if (_rendererThree) _rendererThree.invalidateScene();
-}
-
-export function setSecretRoutesVisible(visible) {
-  _secretRoutesVisible = !!visible;
-  Renderer2D.setSecretRoutesVisible(visible);
-  if (_rendererThree) _rendererThree.setSecretRoutesVisible(visible);
-}
-
-export function isSecretRoutesVisible() {
-  return Renderer2D.isSecretRoutesVisible();
-}
-
-export function getPlanetScreenPosition(planetId) {
-  return _activeRenderer === 'three' && _rendererThree
-    ? _rendererThree.getPlanetScreenPosition(planetId)
-    : Renderer2D.getPlanetScreenPosition(planetId);
-}
-
-export function resetRuntimeState(currentSystemId) {
-  Renderer2D.resetRuntimeState(currentSystemId);
-  if (_rendererThree) _rendererThree.resetRuntimeState(currentSystemId);
-}
-
-/** 释放渲染器资源，并为下一次 init 建立新的场景就绪周期。 */
-export function dispose() {
-  const hadRuntime = !!(
-    _initialized || _rendererThree || _threeLoadPromise || _lastState ||
-    Renderer2D.isActive()
-  );
-  _lifecycleGeneration += 1;
-
-  if (_resolveSceneReady) {
-    _resolveSceneReady({ renderer: 'disposed', disposed: true });
-    _resolveSceneReady = null;
-  }
-  Renderer2D.dispose();
-  if (_rendererThree) {
-    if (typeof _rendererThree.setAvailabilityHandler === 'function') {
-      _rendererThree.setAvailabilityHandler(null);
-    }
-    if (typeof _rendererThree.dispose === 'function') _rendererThree.dispose();
-  }
-
-  if (typeof document !== 'undefined' && document.getElementById) {
-    const container = document.getElementById('map-container');
-    if (container && container.dataset) {
-      [
-        'starmapRenderer', 'starmapThreeAvailable', 'starmapSceneReady',
-        'starmapReadyRenderer', 'starmapCalls', 'starmapTriangles',
-        'starmapPoints', 'starmapGeometries', 'starmapTextures',
-        'starmapQuality', 'starmapFps', 'starmapFrameMs',
-        'starmapCpuMs', 'starmapMaxCpuMs',
-      ].forEach(function (key) { delete container.dataset[key]; });
-    }
-  }
-
-  _initialized = false;
-  _isActive = false;
-  _rendererThree = null;
-  _threeLoadPromise = null;
-  _threeLoading = false;
-  _threeAvailable = false;
-  _activeRenderer = '2d';
-  _lastState = null;
-  _lastMapView = 'planets';
-  _lastGalaxyId = 'milky_way';
-  _lastInfoWriteAt = 0;
-  _lastInfoSignature = '';
-  if (typeof globalThis !== 'undefined' && globalThis.__linegameStarmapRenderer) {
-    delete globalThis.__linegameStarmapRenderer;
-  }
-  _resetSceneReadyPromise();
-  return hadRuntime;
-}
-
-export function getActiveRendererName() {
-  return _activeRenderer;
 }
 
 export function getRendererInfo() {
-  if (_activeRenderer === 'three' && _rendererThree) return _rendererThree.getRendererInfo();
-  return { renderer: '2d', quality: null };
+  return loadState === 'ready' && three?.isAvailable() ? three.getRendererInfo() : null;
 }
 
-export function whenThreeReady() {
-  return _threeLoadPromise || Promise.resolve(false);
+export function getExplorationScreenPosition(portId) {
+  return loadState === 'ready' && three?.isAvailable() ? three.getExplorationScreenPosition(portId) : null;
 }
 
-function _selectRenderer(mapView) {
-  return _rendererThree && _threeAvailable && _rendererThree.isAvailable()
-    ? 'three'
-    : '2d';
+export function getLoadState() {
+  return loadState;
 }
 
-function _activateRenderer(rendererName) {
-  const nextRenderer = rendererName === 'three' ? 'three' : '2d';
-  _activeRenderer = nextRenderer;
-  if (_rendererThree) {
-    _rendererThree.setVisible(_isActive && nextRenderer === 'three');
-  } else if (typeof document !== 'undefined' && document.getElementById) {
-    const threeCanvas = document.getElementById('starmap-three-canvas');
-    if (threeCanvas) threeCanvas.style.display = 'none';
-  }
-  Renderer2D.setVisible(_isActive && nextRenderer === '2d');
-
-  if (typeof document !== 'undefined' && document.getElementById) {
-    const container = document.getElementById('map-container');
-    if (container && container.dataset) {
-      container.dataset.starmapRenderer = nextRenderer;
-      container.dataset.starmapThreeAvailable = _threeAvailable ? 'true' : 'false';
-    }
-  }
-  _exposeDebugState();
+export function getLoadError() {
+  return loadError;
 }
 
-function _writeRendererInfo(info) {
-  if (!info || typeof document === 'undefined' || !document.getElementById) return;
-  const container = document.getElementById('map-container');
-  if (!container || !container.dataset) return;
-  const now = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
-  const signature = [info.renderer, info.quality].join(':');
-  if (signature === _lastInfoSignature && now - _lastInfoWriteAt < 500) return;
-  _lastInfoSignature = signature;
-  _lastInfoWriteAt = now;
-  container.dataset.starmapCalls = String(info.calls || 0);
-  container.dataset.starmapTriangles = String(info.triangles || 0);
-  container.dataset.starmapPoints = String(info.points || 0);
-  container.dataset.starmapGeometries = String(info.geometries || 0);
-  container.dataset.starmapTextures = String(info.textures || 0);
-  container.dataset.starmapQuality = info.quality || 'unknown';
-  container.dataset.starmapFps = Number(info.fps || 0).toFixed(1);
-  container.dataset.starmapFrameMs = Number(info.frameMs || 0).toFixed(2);
-  container.dataset.starmapCpuMs = Number(info.cpuMs || 0).toFixed(2);
-  container.dataset.starmapMaxCpuMs = Number(info.maxCpuMs || 0).toFixed(2);
+export function retry() {
+  generation += 1;
+  hideCanvas();
+  releaseThree();
+  loading = null;
+  loadState = 'idle';
+  loadError = '';
+  return initialized;
 }
 
-function _loadThreeRenderer() {
-  if (_threeLoadPromise) return _threeLoadPromise;
-  if (!_canAttemptWebGL2()) {
-    _threeLoading = false;
-    _threeLoadPromise = Promise.resolve(false);
-    _exposeDebugState();
-    return _threeLoadPromise;
-  }
-
-  _threeLoading = true;
-  _exposeDebugState();
-  const loadGeneration = _lifecycleGeneration;
-  _threeLoadPromise = import('./RendererThreeStarmap.js')
-    .then(function (module) {
-      if (loadGeneration !== _lifecycleGeneration || !_initialized) return false;
-      _rendererThree = module;
-      _rendererThree.setAvailabilityHandler(_handleThreeAvailability);
-      _rendererThree.setQuality(_qualityLevel);
-      _rendererThree.setMotionLevel(_motionLevel);
-      _rendererThree.setSecretRoutesVisible(_secretRoutesVisible);
-      _threeAvailable = _rendererThree.init();
-      _threeLoading = false;
-      if (_threeAvailable && _isActive) {
-        _activateRenderer('three');
-        _rendererThree.render(_lastState || {}, _lastMapView, _lastGalaxyId);
-        _writeRendererInfo(_rendererThree.getRendererInfo());
-        _markSceneReady('three');
-      }
-      _exposeDebugState();
-      return _threeAvailable;
-    })
-    .catch(function (error) {
-      if (loadGeneration !== _lifecycleGeneration) return false;
-      _rendererThree = null;
-      _threeAvailable = false;
-      _threeLoading = false;
-      console.warn('[StarmapRenderer] Three.js renderer failed to load; using 2D fallback.', error);
-      _exposeDebugState();
-      return false;
-    });
-  return _threeLoadPromise;
-}
-
-function _watchPreferredRenderer(threeReadyPromise) {
-  if (_sceneReady || _sceneReadyWatcherAttached || !threeReadyPromise) return;
-  _sceneReadyWatcherAttached = true;
-  threeReadyPromise.then(function (threeAvailable) {
-    if (!threeAvailable && _fallbackFrameDrawn) {
-      _markSceneReady('2d');
-    }
-  });
-}
-
-function _markSceneReady(rendererName) {
-  if (_sceneReady) return;
-  _sceneReady = true;
-
-  if (typeof document !== 'undefined' && document.getElementById) {
-    const container = document.getElementById('map-container');
-    if (container && container.dataset) {
-      container.dataset.starmapSceneReady = 'true';
-      container.dataset.starmapReadyRenderer = rendererName;
-    }
-  }
-  if (_resolveSceneReady) {
-    _resolveSceneReady({ renderer: rendererName });
-    _resolveSceneReady = null;
-  }
-}
-
-function _canAttemptWebGL2() {
-  // 仅供本地开发/浏览器 QA 验证完整 2D 降级路径；生产构建中 DEV 为 false。
-  if (_hasDevelopment2DOverride()) return false;
-  if (typeof document === 'undefined' || !document.getElementById) return false;
-  const canvas = document.getElementById('starmap-three-canvas');
-  if (!canvas || typeof canvas.getContext !== 'function') return false;
-  try {
-    return !!canvas.getContext('webgl2');
-  } catch (error) {
-    return false;
-  }
-}
-
-function _hasDevelopment2DOverride() {
-  if (!import.meta.env.DEV || typeof globalThis === 'undefined' || !globalThis.location) return false;
-  try {
-    return new URLSearchParams(globalThis.location.search || '').get('starmap') === '2d';
-  } catch (_) {
-    return false;
-  }
-}
-
-function _handleThreeAvailability(available) {
-  _threeAvailable = !!available;
-  if (!_threeAvailable && _activeRenderer === 'three') {
-    _activateRenderer('2d');
-    if (_lastState) Renderer2D.render(_lastState, _lastMapView, _lastGalaxyId);
-  }
-}
-
-function _exposeDebugState() {
-  if (typeof globalThis === 'undefined') return;
-  globalThis.__linegameStarmapRenderer = {
-    active: _activeRenderer,
-    threeAvailable: _threeAvailable,
-    threeLoading: _threeLoading,
-    mapView: _lastMapView,
-    getInfo: getRendererInfo,
-  };
+export function dispose() {
+  cancelScheduledPreload();
+  generation += 1;
+  active = false;
+  initialized = false;
+  hideCanvas();
+  releaseThree();
+  loading = null;
+  pendingFocus = null;
+  loadState = 'idle';
+  loadError = '';
+  loadTiming = null;
 }

@@ -1,0 +1,227 @@
+{
+  "version": 3,
+  "provenance": "项目内原创程序化建模，未使用外部模型或付费生成服务",
+  "license": "ISC",
+  "generatedBy": "npm run assets:scene",
+  "threeVersion": "0.185.1",
+  "browserVersion": "154.0.8037.98",
+  "sourceHashes": [
+    {
+      "path": "js/ui/ShipModelFactory.js",
+      "sha256": "22601428706596cd0f2f1b4ccc5e900859b8434d67fc03b3286169eacd2a2889"
+    },
+    {
+      "path": "scripts/art/ShipAssetFactory.mjs",
+      "sha256": "11f702df6198721f2b99d3b970eec875e942d2b316f7420501e91c9fcaebca7a"
+    },
+    {
+      "path": "scripts/art/RenderSceneAssets.mjs",
+      "sha256": "788cb58610c5f94c314654045b09e353b3327a7276528f5aa450a5f15e97b638"
+    },
+    {
+      "path": "js/data/sceneVisuals.js",
+      "sha256": "6a923cd73085aa0551a1628a2d06a0b9c83bc04816712f7e3829bd46e7aefcdf"
+    },
+    {
+      "path": "js/ui/SceneLighting.js",
+      "sha256": "0c92f79441aa667324e76d472362dd2504a55a8ce199f2df33d73774c3512fe8"
+    },
+    {
+      "path": "js/ui/SceneMaterials.js",
+      "sha256": "3330f84a2d6969aa5d849bfadbcc7da846bf1b2101725cbce6dae6215933318c"
+    },
+    {
+      "path": "js/ui/StarmapLandmarks.js",
+      "sha256": "615a0c0e90f6fd8b91fddc840bb943f2deae1176376ecdc8fa22d7740d630c54"
+    },
+    {
+      "path": "js/ui/PlanetSurfaceTexture.js",
+      "sha256": "4db182eff955a90bf630ca6cfef40e2af0072bebe711efa20f357726199b25c2"
+    }
+  ],
+  "assets": [
+    {
+      "id": "shuttle",
+      "kind": "ship",
+      "triangles": 1208,
+      "meshes": 7,
+      "width": 1120,
+      "height": 640,
+      "occupiedPixels": 140387,
+      "borderPixels": 0,
+      "shadow": {
+        "width": 1120,
+        "height": 640,
+        "occupiedPixels": 110446,
+        "borderPixels": 0
+      },
+      "files": [
+        {
+          "path": "ships/shuttle.webp",
+          "bytes": 21680,
+          "sha256": "7caf8e46e581fbccad6b68dbb1d374fd5e3b609c288f68f4173df141dd78d09a"
+        },
+        {
+          "path": "ships/shuttle.glb",
+          "bytes": 123756,
+          "sha256": "7b87f0627d47c913cec97637820cc364f7ba1635a4a0ecc6ae95c1d40be71ef2"
+        },
+        {
+          "path": "ships/shuttle.shadow.webp",
+          "bytes": 12200,
+          "sha256": "f1275455acb1677b0b18a7fbf59462c582f38b512921a218177b12ce145b326d"
+        }
+      ]
+    },
+    {
+      "id": "freighter",
+      "kind": "ship",
+      "triangles": 2568,
+      "meshes": 8,
+      "width": 1120,
+      "height": 640,
+      "occupiedPixels": 171300,
+      "borderPixels": 0,
+      "shadow": {
+        "width": 1120,
+        "height": 640,
+        "occupiedPixels": 122827,
+        "borderPixels": 0
+      },
+      "files": [
+        {
+          "path": "ships/freighter.webp",
+          "bytes": 36854,
+          "sha256": "521146d030706347650b62cee9ba61befb2935891340eb89df8cc95ea395f13f"
+        },
+        {
+          "path": "ships/freighter.glb",
+          "bytes": 255260,
+          "sha256": "0be1a95b81ebb1f15577c4e100a802fa631659b9fc862b1a9287c2ac7f977956"
+        },
+        {
+          "path": "ships/freighter.shadow.webp",
+          "bytes": 10696,
+          "sha256": "05ecf2a5f89b8cebf94d8350e9b05908d2c2ffdeae10ae09864ce0b153403118"
+        }
+      ]
+    },
+    {
+      "id": "clipper",
+      "kind": "ship",
+      "triangles": 1300,
+      "meshes": 7,
+      "width": 1120,
+      "height": 640,
+      "occupiedPixels": 115533,
+      "borderPixels": 0,
+      "shadow": {
+        "width": 1120,
+        "height": 640,
+        "occupiedPixels": 87665,
+        "borderPixels": 0
+      },
+      "files": [
+        {
+          "path": "ships/clipper.webp",
+          "bytes": 24000,
+          "sha256": "fc49be02675e71d1c93e2d8b14bdb55aa1c7c72c371aa516bab071a1c2a5c148"
+        },
+        {
+          "path": "ships/clipper.glb",
+          "bytes": 132608,
+          "sha256": "9c2917d0ba12240c035bf1c6dd49ab8a0afd30e80fba77c975b58ebef1dbdfc3"
+        },
+        {
+          "path": "ships/clipper.shadow.webp",
+          "bytes": 12886,
+          "sha256": "a2a0ae21ef7702bd9aabcf1b089d2617fc86b518c5f9e23c22f7a957f4d45a17"
+        }
+      ]
+    },
+    {
+      "id": "galleon",
+      "kind": "ship",
+      "triangles": 4604,
+      "meshes": 8,
+      "width": 1120,
+      "height": 640,
+      "occupiedPixels": 143690,
+      "borderPixels": 0,
+      "shadow": {
+        "width": 1120,
+        "height": 640,
+        "occupiedPixels": 93401,
+        "borderPixels": 0
+      },
+      "files": [
+        {
+          "path": "ships/galleon.webp",
+          "bytes": 28428,
+          "sha256": "3379e8831de3864a4f32ddda24b08e1feffec2d788b86258412f18c05dab5820"
+        },
+        {
+          "path": "ships/galleon.glb",
+          "bytes": 450956,
+          "sha256": "6b06c2c3b35d899462b7f5c07548c3a58da9d7d9cbe5dda232227bdd62baef24"
+        },
+        {
+          "path": "ships/galleon.shadow.webp",
+          "bytes": 8778,
+          "sha256": "4eb765073094e7885d21a1ffe8eb385c0e3ab420c0ff16fc322008e998a0f039"
+        }
+      ]
+    },
+    {
+      "id": "sol",
+      "kind": "port",
+      "triangles": 28464,
+      "meshes": 18,
+      "width": 640,
+      "height": 640,
+      "occupiedPixels": 66755,
+      "borderPixels": 0,
+      "files": [
+        {
+          "path": "ports/sol.webp",
+          "bytes": 18710,
+          "sha256": "29024697a9a62ad42712e4a52aab5d9318b8f83fcdf59f48c912e412e87ec3de"
+        }
+      ]
+    },
+    {
+      "id": "mining",
+      "kind": "port",
+      "triangles": 24192,
+      "meshes": 2,
+      "width": 640,
+      "height": 640,
+      "occupiedPixels": 65384,
+      "borderPixels": 0,
+      "files": [
+        {
+          "path": "ports/mining.webp",
+          "bytes": 7196,
+          "sha256": "fb41c8f34b3ca3b03db2059c8b271965792d9102daa431efa2ba89886e5a88b3"
+        }
+      ]
+    },
+    {
+      "id": "industrial",
+      "kind": "port",
+      "triangles": 24240,
+      "meshes": 6,
+      "width": 640,
+      "height": 640,
+      "occupiedPixels": 65452,
+      "borderPixels": 0,
+      "files": [
+        {
+          "path": "ports/industrial.webp",
+          "bytes": 5858,
+          "sha256": "3f287a797ca88e5e35ff275f9baccff2118f5807a313238fc5176f97cddcc2bc"
+        }
+      ]
+    }
+  ]
+}

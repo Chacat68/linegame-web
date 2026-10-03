@@ -1,0 +1,830 @@
+{
+  "version": "2.0.0",
+  "saveSchemaVersion": 26,
+  "status": "sealed",
+  "sealedAt": "2026-10-03T23:04:53.951Z",
+  "source": [
+    {
+      "path": ".github/workflows/deploy-cloudflare.yml",
+      "bytes": 2361,
+      "sha256": "4df232c7e1327e938bfca3ff38947b37d89860d51b8657f911743adb3ebf4cf1"
+    },
+    {
+      "path": "README.md",
+      "bytes": 2673,
+      "sha256": "1d769071b32b68a30086517f0a4416785892143a8f3c3830139ce0ca6a54f99d"
+    },
+    {
+      "path": "assets/scene/README.md",
+      "bytes": 3586,
+      "sha256": "94ca37c76f9baa3a427cb79acfc1e12d5026590651197e7210e991225a00a69e"
+    },
+    {
+      "path": "assets/scene/manifest.json",
+      "bytes": 6149,
+      "sha256": "7f38c66c8debd6a29e3748258b395b1bdec1091346f283f70e77a6be33c9077c"
+    },
+    {
+      "path": "assets/scene/ports/industrial.webp",
+      "bytes": 5858,
+      "sha256": "3f287a797ca88e5e35ff275f9baccff2118f5807a313238fc5176f97cddcc2bc"
+    },
+    {
+      "path": "assets/scene/ports/mining.webp",
+      "bytes": 7196,
+      "sha256": "fb41c8f34b3ca3b03db2059c8b271965792d9102daa431efa2ba89886e5a88b3"
+    },
+    {
+      "path": "assets/scene/ports/sol.webp",
+      "bytes": 18710,
+      "sha256": "29024697a9a62ad42712e4a52aab5d9318b8f83fcdf59f48c912e412e87ec3de"
+    },
+    {
+      "path": "assets/scene/ships/clipper.glb",
+      "bytes": 132608,
+      "sha256": "9c2917d0ba12240c035bf1c6dd49ab8a0afd30e80fba77c975b58ebef1dbdfc3"
+    },
+    {
+      "path": "assets/scene/ships/clipper.shadow.webp",
+      "bytes": 12886,
+      "sha256": "a2a0ae21ef7702bd9aabcf1b089d2617fc86b518c5f9e23c22f7a957f4d45a17"
+    },
+    {
+      "path": "assets/scene/ships/clipper.webp",
+      "bytes": 24000,
+      "sha256": "fc49be02675e71d1c93e2d8b14bdb55aa1c7c72c371aa516bab071a1c2a5c148"
+    },
+    {
+      "path": "assets/scene/ships/freighter.glb",
+      "bytes": 255260,
+      "sha256": "0be1a95b81ebb1f15577c4e100a802fa631659b9fc862b1a9287c2ac7f977956"
+    },
+    {
+      "path": "assets/scene/ships/freighter.shadow.webp",
+      "bytes": 10696,
+      "sha256": "05ecf2a5f89b8cebf94d8350e9b05908d2c2ffdeae10ae09864ce0b153403118"
+    },
+    {
+      "path": "assets/scene/ships/freighter.webp",
+      "bytes": 36854,
+      "sha256": "521146d030706347650b62cee9ba61befb2935891340eb89df8cc95ea395f13f"
+    },
+    {
+      "path": "assets/scene/ships/galleon.glb",
+      "bytes": 450956,
+      "sha256": "6b06c2c3b35d899462b7f5c07548c3a58da9d7d9cbe5dda232227bdd62baef24"
+    },
+    {
+      "path": "assets/scene/ships/galleon.shadow.webp",
+      "bytes": 8778,
+      "sha256": "4eb765073094e7885d21a1ffe8eb385c0e3ab420c0ff16fc322008e998a0f039"
+    },
+    {
+      "path": "assets/scene/ships/galleon.webp",
+      "bytes": 28428,
+      "sha256": "3379e8831de3864a4f32ddda24b08e1feffec2d788b86258412f18c05dab5820"
+    },
+    {
+      "path": "assets/scene/ships/shuttle.glb",
+      "bytes": 123756,
+      "sha256": "7b87f0627d47c913cec97637820cc364f7ba1635a4a0ecc6ae95c1d40be71ef2"
+    },
+    {
+      "path": "assets/scene/ships/shuttle.shadow.webp",
+      "bytes": 12200,
+      "sha256": "f1275455acb1677b0b18a7fbf59462c582f38b512921a218177b12ce145b326d"
+    },
+    {
+      "path": "assets/scene/ships/shuttle.webp",
+      "bytes": 21680,
+      "sha256": "7caf8e46e581fbccad6b68dbb1d374fd5e3b609c288f68f4173df141dd78d09a"
+    },
+    {
+      "path": "assets/ui/README.md",
+      "bytes": 152,
+      "sha256": "609e71e20b08b5ad3f456761d39e40287434f0d8107152125bc0271ee11b8b88"
+    },
+    {
+      "path": "assets/ui/meridian-mark.svg",
+      "bytes": 422,
+      "sha256": "d09eaa99307be890a99538a9f4992d75bbea7001aeb17f4acb1dfddb0a8f0708"
+    },
+    {
+      "path": "css/merchant-material.css",
+      "bytes": 26950,
+      "sha256": "4fcc365e770affe88a63ea5252c360b9d31c1ffee85fa81dbfcc16bb1a86517a"
+    },
+    {
+      "path": "css/merchant-onboarding.css",
+      "bytes": 2891,
+      "sha256": "67ad5cffcb9247574f8b1fcd1cd86177f63141f0740ece9460a75b519f54efe2"
+    },
+    {
+      "path": "css/merchant-shell.css",
+      "bytes": 11722,
+      "sha256": "9f1de3cf3c11d9ce8cb5ba376f9f0b9a9e8a3e3ad8b2a4a428f3a7cecb2d8417"
+    },
+    {
+      "path": "css/merchant-workspace.css",
+      "bytes": 35101,
+      "sha256": "520e06a9342fe952ed201ddb58c8bcf433edff40e2ca4cc064060282955daeb0"
+    },
+    {
+      "path": "css/startup-loader.css",
+      "bytes": 9369,
+      "sha256": "180c03ca020a36a229c25742b3d2470be44c78bce7c5df89cf7a2ccdc35d89f0"
+    },
+    {
+      "path": "css/style.css",
+      "bytes": 152,
+      "sha256": "e0f3c167bb202579bb338b00797abedd7e2fba23bdc6c62a061c37ef42f9811a"
+    },
+    {
+      "path": "docs/2.0/01_核心玩法与内容.md",
+      "bytes": 10826,
+      "sha256": "d062caef903b824a5f94e52ee4892ab4a1927bfbd1c938415bf92fcccc1b9890"
+    },
+    {
+      "path": "docs/2.0/02_界面与星图.md",
+      "bytes": 16775,
+      "sha256": "3a5c25a8f493286a3b401579d4101988f4af080a25f22798af102fcfce9f9209"
+    },
+    {
+      "path": "docs/2.0/03_运行与存档.md",
+      "bytes": 6490,
+      "sha256": "67d01c855532cb1b2dfa69c2dbd754a13a7cfdd8e6bae003f76b4a848a289149"
+    },
+    {
+      "path": "docs/2.0/04_技术架构.md",
+      "bytes": 8385,
+      "sha256": "0cf2be1c9f4463079483216dd3119285af4ac763eaa603562b249249f122e5a6"
+    },
+    {
+      "path": "docs/2.0/05_2.0封版验收.md",
+      "bytes": 30251,
+      "sha256": "bb61edab41c1b1c3c34475d99670e73e4e5e79f2320536ab74f92d71c36c9606"
+    },
+    {
+      "path": "docs/2.0/06_公司成长与解锁节奏.md",
+      "bytes": 9735,
+      "sha256": "42052cc68533e0f090e92d49f20c4a949b04b1b6d45a2ad012e0adab18c54241"
+    },
+    {
+      "path": "docs/2.0/README.md",
+      "bytes": 1555,
+      "sha256": "2d2d58be09d6199632494b5a4b8debf3e1dbd7c2b4451197ab4c3f62b64efa87"
+    },
+    {
+      "path": "docs/art/company-final-narrow.png",
+      "bytes": 47311,
+      "sha256": "bebe45fd77f0144bac597ac902e48ee4a2f0a05df066c7774ba8167758a56540"
+    },
+    {
+      "path": "docs/art/company-final-wide.png",
+      "bytes": 50772,
+      "sha256": "1912ea0e1661d603f06983d0e5fd819aab3a1fe096a1ac982f2eff8873edb23f"
+    },
+    {
+      "path": "docs/art/merchant-2.0/auto-return-completed.png",
+      "bytes": 54541,
+      "sha256": "a14e9ff706f2127248f7e4bb39a016505018497f0fc608d9063119c18276b5a0"
+    },
+    {
+      "path": "docs/art/merchant-2.0/auto-return-in-flight.png",
+      "bytes": 62057,
+      "sha256": "e1f2309281afeb21866c7528186ed7057ff2ccdf3a1e1e069b52042c12d58511"
+    },
+    {
+      "path": "docs/art/merchant-2.0/command-final-narrow.png",
+      "bytes": 47865,
+      "sha256": "b351a4b58b318c35da4bc33505784e4369f8e0a0cd34a140a009b6eb890b4095"
+    },
+    {
+      "path": "docs/art/merchant-2.0/command-final-wide.png",
+      "bytes": 50772,
+      "sha256": "1912ea0e1661d603f06983d0e5fd819aab3a1fe096a1ac982f2eff8873edb23f"
+    },
+    {
+      "path": "docs/art/merchant-2.0/dispatch-route-order.png",
+      "bytes": 71397,
+      "sha256": "ae1f158f7e2f5cf1f12380218992cf3998be5f5a7c42c40864a50602cdcf4df3"
+    },
+    {
+      "path": "docs/art/merchant-2.0/exploration-completed.png",
+      "bytes": 55739,
+      "sha256": "a55a7cd3884e80f11679dd416a836e71f5bedd07236a934c60f6830e02238a28"
+    },
+    {
+      "path": "docs/art/merchant-2.0/exploration-dispatch.png",
+      "bytes": 62340,
+      "sha256": "e53de064940d4a2e9eb071d3ab23775f5761e29ec7d2cc22f5834f42fa4e08f0"
+    },
+    {
+      "path": "docs/art/merchant-2.0/exploration-narrow.png",
+      "bytes": 28448,
+      "sha256": "0e6602781a01bc6769e458305e47bd4200362dc127b98245ca17e5d312acf763"
+    },
+    {
+      "path": "docs/art/merchant-2.0/onboarding-narrow.png",
+      "bytes": 32044,
+      "sha256": "58ccb81025e3e1f2f8220c480242532a8f97e703ee5d3fb373c8b836c07c7f4b"
+    },
+    {
+      "path": "docs/art/merchant-2.0/onboarding-opening.png",
+      "bytes": 36625,
+      "sha256": "efa9aa965618fe82af5df4db4d62c2421f3be25a5c74b975f70324d22ec5295a"
+    },
+    {
+      "path": "docs/art/merchant-2.0/onboarding-profit.png",
+      "bytes": 49719,
+      "sha256": "fd125700338f1945ba2d484e65844df0488dc920ff247ced16ee3ed8151bf0ba"
+    },
+    {
+      "path": "docs/art/merchant-2.0/ship-final-narrow.png",
+      "bytes": 39700,
+      "sha256": "caa5e46ac61f7579a730ca0e24a7ed00540ca8e44646cd7896b8bdc1138b3033"
+    },
+    {
+      "path": "docs/art/merchant-2.0/ship-selection-narrow.png",
+      "bytes": 45230,
+      "sha256": "89c7857748c0ba3c57070dba102495599810d6899a9f7afb4fc8461f49278742"
+    },
+    {
+      "path": "docs/art/merchant-2.0/starmap-final-narrow.png",
+      "bytes": 30514,
+      "sha256": "54c014572abccfa42391802a446f004137146451bd7ea85cfd552d98d6089879"
+    },
+    {
+      "path": "docs/art/merchant-2.0/starmap-final-wide.png",
+      "bytes": 50149,
+      "sha256": "3bade8b155029b0d8f967359f1b391e178ee7ad8af1eca9fc7bed9fca5476d5f"
+    },
+    {
+      "path": "docs/art/merchant-2.0/starmap-load-metrics.json",
+      "bytes": 4307,
+      "sha256": "28a82512030722090ab58c05fc711498003496c2d4cd0dc6ef31487630a0d365"
+    },
+    {
+      "path": "docs/art/merchant-2.0/starmap-loading.png",
+      "bytes": 37066,
+      "sha256": "7c1089eb467c59555b7887fbf09bb1117b468555cea6110828ba2d23e32adc0f"
+    },
+    {
+      "path": "docs/art/merchant-2.0/task-selection-narrow.png",
+      "bytes": 49130,
+      "sha256": "bde62aaaf62f9766ad0391c0b8fbebe38a895e9817d922b5e1608ebe920e43f2"
+    },
+    {
+      "path": "docs/art/merchant-2.0/tech-final-narrow.png",
+      "bytes": 34550,
+      "sha256": "b30a257900fb60fdc0567e98c31ff1d8ff9e1e5585a4dffe747b55f28c6c50f2"
+    },
+    {
+      "path": "eslint.config.mjs",
+      "bytes": 396,
+      "sha256": "46c26af9cd1fa3cf7c7b42356bf2a9f43c6995e39348794c2d136c57ffff84cf"
+    },
+    {
+      "path": "index.html",
+      "bytes": 8737,
+      "sha256": "841b7ad6a56c62d377896343ec6073ebba658770b2e03c00d90dcb7a04e980e2"
+    },
+    {
+      "path": "js/core/AudioManager.js",
+      "bytes": 4501,
+      "sha256": "83b96bf47a7c80468db4648d07a99ad84e6ef8688fb0f330a75fe3dd11744a80"
+    },
+    {
+      "path": "js/core/GameApplication.js",
+      "bytes": 4715,
+      "sha256": "3f9dc5f997e39f0837b89f96dafaf6e4c8bfa8ad0de04bd7892f9fb5689bd601"
+    },
+    {
+      "path": "js/core/MerchantGameRuntime.js",
+      "bytes": 2351,
+      "sha256": "76137ab740e85fc9e5e11da53e8db8b9c04b68c61cba92e1dc151c9bd4cc68aa"
+    },
+    {
+      "path": "js/core/SettingsCore.js",
+      "bytes": 1266,
+      "sha256": "15ab07ba1000949e74321a822574ace51eac81ae8bac5cd85ddba9547d94c3dc"
+    },
+    {
+      "path": "js/core/StartupState.js",
+      "bytes": 652,
+      "sha256": "56f0203f455c55e7f3b82ed86f047634fa69c6580afac7804b4d2b11ea6b7b05"
+    },
+    {
+      "path": "js/data/constants.js",
+      "bytes": 1099,
+      "sha256": "d0f5fbf1dcbd2b04d605efb2dffe3a6aff6f095af3b875bbda771f7eb2613b67"
+    },
+    {
+      "path": "js/data/merchant.js",
+      "bytes": 5253,
+      "sha256": "3a11d35f1c0fb95f1bba1095587e062c8d4ab8357567819b476f26a58e92fd67"
+    },
+    {
+      "path": "js/data/sceneVisuals.js",
+      "bytes": 3101,
+      "sha256": "6a923cd73085aa0551a1628a2d06a0b9c83bc04816712f7e3829bd46e7aefcdf"
+    },
+    {
+      "path": "js/data/systems.js",
+      "bytes": 1446,
+      "sha256": "9ed0e880ec77893cf392220d3f8eca25a279dd6c9dd2a4166481e8ad1bed8ea9"
+    },
+    {
+      "path": "js/main.js",
+      "bytes": 2704,
+      "sha256": "9db4bb355d24e9a52c8a45a984bcc5ea1def4275c450020c685702d8792ab85c"
+    },
+    {
+      "path": "js/systems/merchant/MerchantExploration.js",
+      "bytes": 9146,
+      "sha256": "9abae251715386f056b4e45cc2037416a7838c245c5530566c588109c0de73af"
+    },
+    {
+      "path": "js/systems/merchant/MerchantOnboarding.js",
+      "bytes": 2661,
+      "sha256": "8045fdf2da2ae3b62410ea609c59ed34d50c347ac2fcab71b14a3ea39ec1b392"
+    },
+    {
+      "path": "js/systems/merchant/MerchantSystem.js",
+      "bytes": 33362,
+      "sha256": "bf948fa9edf75732dcff7a54454fd23886e49ed74daa5c57dc209b80beac7f8f"
+    },
+    {
+      "path": "js/systems/save/SaveSystem.js",
+      "bytes": 7081,
+      "sha256": "53a4ff5240515ddd0bb7ae48790006279fdaf50d32bf42b28ae92c63ba502724"
+    },
+    {
+      "path": "js/ui/BlockingSurfaceDismissRegistry.js",
+      "bytes": 4277,
+      "sha256": "c66cb65b8b53e624df960f3565611c615696f33259c4574ecad9fdecb390c3bd"
+    },
+    {
+      "path": "js/ui/GalaxyBackdrop.js",
+      "bytes": 3736,
+      "sha256": "b74a406dd21725289e445d755fceed1c5fb0805553276a23813344be59ba4b2a"
+    },
+    {
+      "path": "js/ui/MerchantExplorationPanel.js",
+      "bytes": 10525,
+      "sha256": "8dfba79662cf1d5106156e3833fe29c9c4dbc3e7f0a07160fea72be0adc857bf"
+    },
+    {
+      "path": "js/ui/MerchantHeaderPresenter.js",
+      "bytes": 541,
+      "sha256": "e304e6bdf101bea87a4d3d7a895219d5470d89bd3a10ef0744417588450c3e29"
+    },
+    {
+      "path": "js/ui/MerchantOnboardingPresenter.js",
+      "bytes": 8813,
+      "sha256": "b2fd727502df28628b0d58c3a1ebf546fda8b9e6d1d3482e1ee3b38aa20ad2af"
+    },
+    {
+      "path": "js/ui/MerchantReportProjection.js",
+      "bytes": 1060,
+      "sha256": "bf0e4af2c4e2247f8049062fd045b32969a5088df86d6bf47b9e6fd815b0e097"
+    },
+    {
+      "path": "js/ui/MerchantScenePresentation.js",
+      "bytes": 1457,
+      "sha256": "743326e340573054f352b6f191e8d645717f43adf51ae67fafa1f57feb961a44"
+    },
+    {
+      "path": "js/ui/MerchantStarmapController.js",
+      "bytes": 5855,
+      "sha256": "5639875170c452793f435b78087d231fbe148e2945a91d433ce9c4053ed6ef27"
+    },
+    {
+      "path": "js/ui/MerchantStarmapProjection.js",
+      "bytes": 2892,
+      "sha256": "85e6822146b52b81949062b631fe965bf6a423cf72b52faa3bcf0be561962ff6"
+    },
+    {
+      "path": "js/ui/MerchantTheme.js",
+      "bytes": 1042,
+      "sha256": "21402203a061e0d0aea3bed413ab967e4f3085392c10fd9691009dd404a02c40"
+    },
+    {
+      "path": "js/ui/MerchantToolsUI.js",
+      "bytes": 9284,
+      "sha256": "d8f266ffad770e5b1cbb8c8242a127ee459f23a7e55cb1df7d15f22291ac4f99"
+    },
+    {
+      "path": "js/ui/MerchantUI.js",
+      "bytes": 48880,
+      "sha256": "b64af4a7f0cf80218c5fdf18d21cf1f6ce2c813a38d36d7ab0a018c8db162a3e"
+    },
+    {
+      "path": "js/ui/PlanetAtmosphere.js",
+      "bytes": 1118,
+      "sha256": "da5214847904ccdbb07baad3a308ab25bbb24a18104772bfc67f98e84e2bcbfa"
+    },
+    {
+      "path": "js/ui/PlanetSurfaceTexture.js",
+      "bytes": 15509,
+      "sha256": "4db182eff955a90bf630ca6cfef40e2af0072bebe711efa20f357726199b25c2"
+    },
+    {
+      "path": "js/ui/RendererThreeStarmap.js",
+      "bytes": 53625,
+      "sha256": "978ebb06b0ec8f2169a96c9eeae79b924c124c12807eb0163904e308d845efff"
+    },
+    {
+      "path": "js/ui/SaveExportEffect.js",
+      "bytes": 702,
+      "sha256": "cbe22316f0ebf5a75bdb84dda101a022c650716846b051a86f8ba3361c331501"
+    },
+    {
+      "path": "js/ui/SceneLighting.js",
+      "bytes": 3465,
+      "sha256": "0c92f79441aa667324e76d472362dd2504a55a8ce199f2df33d73774c3512fe8"
+    },
+    {
+      "path": "js/ui/SceneMaterials.js",
+      "bytes": 554,
+      "sha256": "3330f84a2d6969aa5d849bfadbcc7da846bf1b2101725cbce6dae6215933318c"
+    },
+    {
+      "path": "js/ui/SceneMotionClock.js",
+      "bytes": 505,
+      "sha256": "4311b1e90fc998754d93b5e4a2dcb40db86eb4916e1adeedb6d8d77794c986ac"
+    },
+    {
+      "path": "js/ui/ShipFlightVisual.js",
+      "bytes": 2626,
+      "sha256": "a97e6c6a580367edb00b061a8949f0cbb4c99015b91f6d0ed3a80a76ac81293c"
+    },
+    {
+      "path": "js/ui/ShipModelFactory.js",
+      "bytes": 8983,
+      "sha256": "22601428706596cd0f2f1b4ccc5e900859b8434d67fc03b3286169eacd2a2889"
+    },
+    {
+      "path": "js/ui/StarmapLandmarks.js",
+      "bytes": 5809,
+      "sha256": "615a0c0e90f6fd8b91fddc840bb943f2deae1176376ecdc8fa22d7740d630c54"
+    },
+    {
+      "path": "js/ui/StarmapRenderer.js",
+      "bytes": 7610,
+      "sha256": "ed5744bd37e1c374d0c23b527950a8a6145e394ec7e36ebfe2df6c3a63c0f6ae"
+    },
+    {
+      "path": "js/ui/StarmapViewPolicy.js",
+      "bytes": 1422,
+      "sha256": "32aa73d2f347de9c590e1f5434fda2043e4f4b88266e16eec8444fd2e5d4a74a"
+    },
+    {
+      "path": "js/ui/StartupLoader.js",
+      "bytes": 8248,
+      "sha256": "b45f94255d6e990d3d76d17c8812f7b76606d077152ea92b06139a1546a5758e"
+    },
+    {
+      "path": "js/ui/SurfaceManager.js",
+      "bytes": 14920,
+      "sha256": "eead7525636e1ae4abd9bd873d345635b0a2ec55f19c1d88c9206fee269221d3"
+    },
+    {
+      "path": "package-lock.json",
+      "bytes": 99704,
+      "sha256": "7981c518d5770535e942a2a289284f465559541c61e0db025affe55ca062afde"
+    },
+    {
+      "path": "package.json",
+      "bytes": 1852,
+      "sha256": "52ecf8bd67bbf8dd3951cfd0fd5ba79782a25609df4c193937360f2658cea841"
+    },
+    {
+      "path": "playwright.config.mjs",
+      "bytes": 1363,
+      "sha256": "42d3b62b209eb7643caf54112052fb652a3e223298a9437d1dae7e876a64f0ff"
+    },
+    {
+      "path": "playwright.production.config.mjs",
+      "bytes": 1066,
+      "sha256": "9cfcdeba6c5b313d0f34e6fe037f4eb27248979f5dda0e84173d74ec02f6d407"
+    },
+    {
+      "path": "releases/README.md",
+      "bytes": 1761,
+      "sha256": "e5a4323338c2f39686a092ea6aa5092063a13d8b4e58a84305f6df19d1f2741c"
+    },
+    {
+      "path": "scripts/art/RenderSceneAssets.mjs",
+      "bytes": 9392,
+      "sha256": "788cb58610c5f94c314654045b09e353b3327a7276528f5aa450a5f15e97b638"
+    },
+    {
+      "path": "scripts/art/ShipAssetFactory.mjs",
+      "bytes": 125,
+      "sha256": "11f702df6198721f2b99d3b970eec875e942d2b316f7420501e91c9fcaebca7a"
+    },
+    {
+      "path": "scripts/build-scene-assets.mjs",
+      "bytes": 2933,
+      "sha256": "321c746f1d4c0a7457467fee7ce926454b4de114100dd5bd1d75898440d5a661"
+    },
+    {
+      "path": "scripts/check-imports.mjs",
+      "bytes": 2453,
+      "sha256": "ee6c1a3312c48ae2cacaf9a4b32d0f595e9b1d2be8e927ad239e5dbcc3cc7cb1"
+    },
+    {
+      "path": "scripts/check-release.mjs",
+      "bytes": 1859,
+      "sha256": "718e631eda21d61d7b237d011f6c80b3a321c9831de0b8be0113c9ead2c76dbd"
+    },
+    {
+      "path": "scripts/check-scene-assets.mjs",
+      "bytes": 2876,
+      "sha256": "46ed1af5ca4328f923336541728b217c3c3ffaf43578a318287195d9c89f05c1"
+    },
+    {
+      "path": "scripts/release-files.mjs",
+      "bytes": 978,
+      "sha256": "1fb083f78ac19c41ad0067afb03e0dcf3c14bedc2e5ed0cfe7d9ef75b20e27e3"
+    },
+    {
+      "path": "scripts/seal-release.mjs",
+      "bytes": 2043,
+      "sha256": "26b6544b00b3b09f5e7b776febd7f5797eb435e4e1c7a33a1b86ae8cd780f0bc"
+    },
+    {
+      "path": "scripts/simulate-company-growth.mjs",
+      "bytes": 9277,
+      "sha256": "228e5129deda4e8bead5ca380c7949e7c7112a6e0c9bf8ed6f5f819453833424"
+    },
+    {
+      "path": "tests/audioManager.test.js",
+      "bytes": 2805,
+      "sha256": "cb1fd6971c4c802c0344e76737973cbe209e59008925057ad642e427dc8cc687"
+    },
+    {
+      "path": "tests/browser/merchant-release.spec.mjs",
+      "bytes": 23164,
+      "sha256": "77253d2237448408f125598c6d2c633bc3420389fee3d82f6dac67e7601335fe"
+    },
+    {
+      "path": "tests/deploymentConfig.test.js",
+      "bytes": 1736,
+      "sha256": "084f2b0994e4dc3b288cd4922577bf2b3df4c90b5eb3782d9b2ab29ba03c437c"
+    },
+    {
+      "path": "tests/helpers/merchantDom.js",
+      "bytes": 5583,
+      "sha256": "d7da0799261e05b4098cc8e2f451053e85becee83b8cc87309c870da60e9d948"
+    },
+    {
+      "path": "tests/mainStartup.test.js",
+      "bytes": 4892,
+      "sha256": "ab47639d54e369ab189edd232512c115f43be9eb32f32273213428c09d6e52a5"
+    },
+    {
+      "path": "tests/merchantApplication.test.js",
+      "bytes": 4848,
+      "sha256": "b95a16701cf935b33d3cda7c6462bdaec46672a1580c1fca7e2889b95806cd35"
+    },
+    {
+      "path": "tests/merchantExploration.test.js",
+      "bytes": 10783,
+      "sha256": "82b19114f41380f63f496ac347ca937f613d3c385cec1154dc2999f3f1f00ba8"
+    },
+    {
+      "path": "tests/merchantExplorationPanel.test.js",
+      "bytes": 5831,
+      "sha256": "76d3f429304a2df47ae117ca06d1fe4ab8f1b44d492000fb3ad32d71becd4162"
+    },
+    {
+      "path": "tests/merchantOnboarding.test.js",
+      "bytes": 6404,
+      "sha256": "62d1ad90e837541d575217beca371eb164522c84c10bd778bf83d53fa04e9397"
+    },
+    {
+      "path": "tests/merchantOnboardingPresenter.test.js",
+      "bytes": 8376,
+      "sha256": "0cc03e860126418c86c798e3674c22016b9938de33018945e5d48df53c3c5aff"
+    },
+    {
+      "path": "tests/merchantRuntime.test.js",
+      "bytes": 3884,
+      "sha256": "404bdb8a6722b3e481a6a10a84e490ff75c36fe3e6ad84dc39d1f1fd60dc120e"
+    },
+    {
+      "path": "tests/merchantSave.test.js",
+      "bytes": 28091,
+      "sha256": "94b2c9ba697da8d4eed15ccd6568149f99e808319ea706fc60d7b89deea2e09c"
+    },
+    {
+      "path": "tests/merchantStarmapController.test.js",
+      "bytes": 5765,
+      "sha256": "5c8182e718a161c07e548e3cc3741c9fd414bb170ac71ada53726f58e94a7268"
+    },
+    {
+      "path": "tests/merchantSystem.test.js",
+      "bytes": 40059,
+      "sha256": "8afb57ad223b013d67e93108fc72d1375c5fc45fed236ae9ca0c99d7736abb7f"
+    },
+    {
+      "path": "tests/merchantTheme.test.js",
+      "bytes": 7438,
+      "sha256": "7d33fe638891edc252b33ec4d3bd141617ad0f5df00da589ce8a67a872b713c7"
+    },
+    {
+      "path": "tests/merchantTools.test.js",
+      "bytes": 4328,
+      "sha256": "a1bdf5376e69bfc1a3a243aec0cd0d47f5294994827e7e09d6544aaefab1781b"
+    },
+    {
+      "path": "tests/planetSurfaceTexture.test.js",
+      "bytes": 5047,
+      "sha256": "3f0b9ee045993b9d402ff9fcc528738fe0283c0cab702f4507c49bb5620f6314"
+    },
+    {
+      "path": "tests/sceneLighting.test.js",
+      "bytes": 1960,
+      "sha256": "c2c813d68c970c6c97951037481f261ba0306af176b68b98ce95d039bea3650e"
+    },
+    {
+      "path": "tests/sceneMotionClock.test.js",
+      "bytes": 1221,
+      "sha256": "6212b8b4c481a3970756bc6eeb3c75b0d300ab60306570925ce6c8ac1df10e8f"
+    },
+    {
+      "path": "tests/setupLocalStorage.js",
+      "bytes": 671,
+      "sha256": "b4b21d8a27fa24188a326bfc3fcf3599f7aad9111907f434856155e453897708"
+    },
+    {
+      "path": "tests/shipFlightVisual.test.js",
+      "bytes": 2186,
+      "sha256": "019d29b3053f45f7eacb77084caaa6932c8f6973a4988d91117cb63266189567"
+    },
+    {
+      "path": "tests/starmapLandmarks.test.js",
+      "bytes": 3235,
+      "sha256": "edf033e0385ce40a33e43acf612fb818039f7c7adc2c1fb9877bdaac085341be"
+    },
+    {
+      "path": "tests/starmapRenderer.test.js",
+      "bytes": 8924,
+      "sha256": "fbdbe06ead4ae692cf1774799540e306d7b28c56ecb0e2df3032bbed5efba0b2"
+    },
+    {
+      "path": "tests/starmapThreeLifecycle.test.js",
+      "bytes": 3317,
+      "sha256": "af5ef42016e75b4cb009e9c8a889b46e348c9cd6e5055c63953d32218476b7e0"
+    },
+    {
+      "path": "tests/starmapViewPolicy.test.js",
+      "bytes": 8493,
+      "sha256": "a0f1be0faed2c8dff01b95ec84b58568fb5f51246ec08b3fc861d490de551e1c"
+    },
+    {
+      "path": "tests/surfaceManager.test.js",
+      "bytes": 19838,
+      "sha256": "4647308431ed00f65680964d0f07716b8d1d83cd2b5eb6f42763806b0e5dbc1a"
+    },
+    {
+      "path": "tsconfig.json",
+      "bytes": 464,
+      "sha256": "ff998dd84ae547f5dff9af5ba5c2f909b19552322756bfde0e4f689bd0310aae"
+    },
+    {
+      "path": "types/merchant-contracts.ts",
+      "bytes": 1489,
+      "sha256": "dc1a7e9e993f682333799ed4dbd27bcdac9721851d2f8a5d4a670ce91f3b2557"
+    },
+    {
+      "path": "vite.config.mjs",
+      "bytes": 1804,
+      "sha256": "68cbbb37ab055a9f7ece73d02611234dc20af4cfaa8d2517b537821064ca550e"
+    },
+    {
+      "path": "vitest.config.mjs",
+      "bytes": 305,
+      "sha256": "d9f64de2397819435fa45017b71973ffc39d40a9adfb199f9fa35ec2058a77c7"
+    },
+    {
+      "path": "wrangler.jsonc",
+      "bytes": 316,
+      "sha256": "84dc510071882744c6204609c4d2afd565ae13f674d65703e9d6e203dfa3f5bf"
+    },
+    {
+      "path": "wrangler.toml",
+      "bytes": 123,
+      "sha256": "c2dc809abb8d5207cd9356615c648eb15cd5a0d7d30b574e216fbdc28d5d0760"
+    }
+  ],
+  "build": [
+    {
+      "path": "dist/assets/RendererThreeStarmap-Co1SuVEl.js",
+      "bytes": 54087,
+      "sha256": "a33fc9ed91266a3ab970608615be85e1b1d1276820b05f98fa9d685b8a7c5319"
+    },
+    {
+      "path": "dist/assets/RendererThreeStarmap-Co1SuVEl.js.map",
+      "bytes": 226374,
+      "sha256": "2b4453050b43010b2c1165528a3f05962af9c8e91e1a03b76d776c21d07623bb"
+    },
+    {
+      "path": "dist/assets/clipper-Bre4LYRe.webp",
+      "bytes": 24000,
+      "sha256": "fc49be02675e71d1c93e2d8b14bdb55aa1c7c72c371aa516bab071a1c2a5c148"
+    },
+    {
+      "path": "dist/assets/freighter-sfjh4saY.webp",
+      "bytes": 36854,
+      "sha256": "521146d030706347650b62cee9ba61befb2935891340eb89df8cc95ea395f13f"
+    },
+    {
+      "path": "dist/assets/galleon-agDgM-a-.webp",
+      "bytes": 28428,
+      "sha256": "3379e8831de3864a4f32ddda24b08e1feffec2d788b86258412f18c05dab5820"
+    },
+    {
+      "path": "dist/assets/index-BfbWhqGK.css",
+      "bytes": 76385,
+      "sha256": "ff1239da6d8c7ac66bf5a4eb65e33800e247e74da1fb8891ace5136efbc40578"
+    },
+    {
+      "path": "dist/assets/index-vACdXhgL.js",
+      "bytes": 120988,
+      "sha256": "7967d219cdfe5c64b26ae197f00573b105e5d6013eac2c09a1b8773c499e3f24"
+    },
+    {
+      "path": "dist/assets/index-vACdXhgL.js.map",
+      "bytes": 338737,
+      "sha256": "7821123f44ba7d5923f98188ec2d1e256643004b4ad5b11c22fcc5421ba4fca6"
+    },
+    {
+      "path": "dist/assets/industrial-BVnFifrM.webp",
+      "bytes": 5858,
+      "sha256": "3f287a797ca88e5e35ff275f9baccff2118f5807a313238fc5176f97cddcc2bc"
+    },
+    {
+      "path": "dist/assets/meridian-mark-CG8UHVl8.svg",
+      "bytes": 422,
+      "sha256": "d09eaa99307be890a99538a9f4992d75bbea7001aeb17f4acb1dfddb0a8f0708"
+    },
+    {
+      "path": "dist/assets/mining-CLCEKQIP.webp",
+      "bytes": 7196,
+      "sha256": "fb41c8f34b3ca3b03db2059c8b271965792d9102daa431efa2ba89886e5a88b3"
+    },
+    {
+      "path": "dist/assets/shuttle-CXFJxZiH.webp",
+      "bytes": 21680,
+      "sha256": "7caf8e46e581fbccad6b68dbb1d374fd5e3b609c288f68f4173df141dd78d09a"
+    },
+    {
+      "path": "dist/assets/sol-DP4bD4bh.webp",
+      "bytes": 18710,
+      "sha256": "29024697a9a62ad42712e4a52aab5d9318b8f83fcdf59f48c912e412e87ec3de"
+    },
+    {
+      "path": "dist/assets/three-controls-Ch2qI_98.js",
+      "bytes": 19785,
+      "sha256": "c418953ba8fbcc24b6a9fca9d0e286afc2d461e977906229f7153db2c35ef569"
+    },
+    {
+      "path": "dist/assets/three-controls-Ch2qI_98.js.map",
+      "bytes": 64449,
+      "sha256": "d7b3394a61e87b2a8a381aea07518b8c925236bfdcc9eff16d201269df867976"
+    },
+    {
+      "path": "dist/assets/three-core-DgPk7s-8.js",
+      "bytes": 234837,
+      "sha256": "6c68bceaf6b59ea4f94b1aa15ba88d3ab195273b307814a88da83623efb1e111"
+    },
+    {
+      "path": "dist/assets/three-core-DgPk7s-8.js.map",
+      "bytes": 1363467,
+      "sha256": "98c98e85a37cd0458274ebd2669bf826a3457ae2f2d51af962bfae24b6d027c0"
+    },
+    {
+      "path": "dist/assets/three-webgl-CAyPJlAQ.js",
+      "bytes": 356800,
+      "sha256": "e9872c3749d9889ff0887a7e74fa6e02ee33016423a50ba2eae145a95d82fb01"
+    },
+    {
+      "path": "dist/assets/three-webgl-CAyPJlAQ.js.map",
+      "bytes": 1019220,
+      "sha256": "7bb0ce3f0edf0b1434d6e8952a85440c5d585960e96f8f354b6afac4f6007e38"
+    },
+    {
+      "path": "dist/index.html",
+      "bytes": 8709,
+      "sha256": "142e2c700afac400e65f53f6c68047ec5711115bfef30e4c810e7eeff15bf281"
+    }
+  ],
+  "package": {
+    "path": "releases/blue-meridian-2.0.0.zip",
+    "bytes": 1925541,
+    "sha256": "b4a1b128cc8b994b9a12d009f6a08a445aaedb51d5c9346b4665e9cd7c456275"
+  }
+}

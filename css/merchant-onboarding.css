@@ -1,0 +1,25 @@
+/* 开局来信与五步软引导使用现有经营版材质；不遮住或锁住实际操作。 */
+body[data-merchant="true"] .merchant-onboarding-letter { width: min(510px,100%); padding: 32px; background: var(--merchant-panel); }
+.merchant-onboarding-seal { display: grid; place-items: center; width: 54px; height: 54px; margin-bottom: 22px; color: var(--ui-commerce); border: 1px solid var(--ui-line-default); border-radius: 18px; background: var(--merchant-inset); font-size: 30px; }
+.merchant-onboarding-letter > small, .merchant-onboarding-copy > small { color: var(--ui-commerce); letter-spacing: .08em; font-size: 10px; }
+.merchant-onboarding-letter h2 { margin: 14px 0; color: var(--ui-text-primary); font-size: clamp(23px,4vw,30px); font-weight: 600; }
+.merchant-onboarding-letter > p { margin: 18px 0 26px; color: var(--ui-text-secondary); font-size: 14px; line-height: 1.95; overflow-wrap: anywhere; }
+.merchant-onboarding-letter-actions { display: flex; align-items: center; gap: 12px; }
+.merchant-onboarding-letter-actions button { min-height: 44px; flex: 1; }
+body[data-merchant="true"] .merchant-onboarding-hint { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin: 0 0 22px; padding: 16px 18px; border: 1px solid color-mix(in srgb,var(--ui-commerce) 55%,transparent); border-radius: 16px; color: var(--ui-text-primary); background: var(--merchant-panel); box-shadow: var(--merchant-raised-shadow); }
+.merchant-onboarding-copy { min-width: 0; }
+.merchant-onboarding-copy h2 { margin: 7px 0; font-size: 17px; font-weight: 600; line-height: 1.4; }
+.merchant-onboarding-copy p { margin: 0; color: var(--ui-text-secondary); font-size: 12px; line-height: 1.75; overflow-wrap: anywhere; }
+.merchant-onboarding-actions { display: grid; align-content: center; gap: 6px; min-width: 125px; flex-shrink: 0; }
+.merchant-onboarding-actions button { min-height: 40px; }
+.merchant-onboarding-actions .merchant-onboarding-skip { min-height: 28px; padding: 3px 8px; border: 0; color: var(--ui-text-muted); background: transparent; box-shadow: none; font-size: 11px; }
+body[data-merchant="true"] .merchant-onboarding-target { outline: 2px solid var(--ui-commerce); outline-offset: 4px; }
+#merchant-form .merchant-onboarding-hint { display: grid; margin-top: 18px; padding: 12px; }
+#merchant-form .merchant-onboarding-actions { display: flex; align-items: center; justify-content: space-between; }
+body[data-merchant="true"] .merchant-onboarding-hint[hidden] { display: none !important; }
+@media (max-width: 650px) {
+  body[data-merchant="true"] .merchant-onboarding-letter { padding: 24px; }
+  body[data-merchant="true"] .merchant-onboarding-hint { display: grid; gap: 12px; padding: 14px; }
+  .merchant-onboarding-actions { display: flex; align-items: center; justify-content: space-between; }
+  .merchant-onboarding-actions button { min-height: 44px; }
+}

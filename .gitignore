@@ -3,6 +3,8 @@
 .wrangler/
 node_modules/
 dist/
+playwright-report/
+test-results/
 # wrangler files
 .wrangler
 .dev.vars*

@@ -1,4 +1,4 @@
-/* 游戏首屏加载层：覆盖到星图完成首帧绘制后再退出。 */
+/* 通用加载视觉：启动与星图场景分别管理自己的加载生命周期。 */
 
 body.startup-loading {
   overflow: hidden;
@@ -10,6 +10,7 @@ body.startup-loading {
   z-index: 100000;
   display: grid;
   place-items: center;
+  align-items: safe center;
   overflow: hidden;
   padding: max(24px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right))
     max(24px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
@@ -26,6 +27,23 @@ body.startup-loading {
 
 .startup-loader[hidden] {
   display: none;
+}
+
+.merchant-scene-loader {
+  position: absolute;
+  z-index: 14;
+  transition: none;
+}
+
+.merchant-scene-loader .startup-loader__actions { margin-top: 24px; }
+.merchant-scene-loader .startup-loader__progress-fill {
+  width: 38%;
+  animation: scene-loading-progress 1.6s ease-in-out infinite;
+}
+
+@keyframes scene-loading-progress {
+  0% { transform: translateX(-110%); }
+  100% { transform: translateX(280%); }
 }
 
 .startup-loader::before,
@@ -87,6 +105,8 @@ body.startup-loading {
   position: relative;
   z-index: 1;
   width: min(520px, 100%);
+  max-height: 100%;
+  overflow: auto;
   padding: 46px 48px 38px;
   text-align: center;
   background: linear-gradient(160deg, rgba(7, 22, 37, 0.82), rgba(3, 10, 18, 0.68));
@@ -161,6 +181,10 @@ body.startup-loading {
 }
 
 .startup-loader__eyebrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 16px;
   margin: 0 0 10px;
   color: rgba(126, 221, 248, 0.7);
   font: 600 11px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -168,6 +192,10 @@ body.startup-loading {
 }
 
 .startup-loader__title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.12em;
   margin: 0;
   color: #f0fcff;
   font: 600 clamp(30px, 6vw, 42px)/1.12 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -177,6 +205,9 @@ body.startup-loading {
 }
 
 .startup-loader__status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   min-height: 22px;
   margin: 24px 0 15px;
   color: rgba(213, 244, 252, 0.76);
@@ -213,14 +244,29 @@ body.startup-loading {
 
 .startup-loader__meta {
   display: flex;
+  align-items: center;
   justify-content: space-between;
+  gap: 12px;
   margin-top: 10px;
   color: rgba(115, 207, 232, 0.56);
   font: 600 10px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   letter-spacing: 0.16em;
 }
 
+.startup-loader__meta > span {
+  display: flex;
+  align-items: center;
+  min-height: 14px;
+  overflow-wrap: anywhere;
+}
+
 .startup-loader__retry {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  height: auto;
+  max-width: 100%;
   margin-top: 22px;
   padding: 9px 18px;
   color: #dffaff;
@@ -228,7 +274,44 @@ body.startup-loading {
   border: 1px solid rgba(79, 213, 249, 0.48);
   font: 600 12px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   letter-spacing: 0.12em;
+  white-space: normal;
+  overflow-wrap: anywhere;
   cursor: pointer;
+}
+
+.startup-loader__recovery {
+  margin-top: 18px;
+  font: 400 13px/1.7 system-ui, sans-serif;
+  overflow-wrap: anywhere;
+}
+
+.startup-loader__recovery p {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 22px;
+}
+
+.startup-loader__recovery[hidden],
+.startup-loader__recovery [hidden] {
+  display: none;
+}
+
+.startup-loader__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.startup-loader__actions .startup-loader__retry {
+  margin-top: 0;
+  max-width: 100%;
+}
+
+.startup-loader__retry[hidden] {
+  display: none;
 }
 
 .startup-loader__retry:hover,
@@ -298,6 +381,7 @@ body.startup-loading {
   .startup-loader__scanline,
   .startup-loader__brand-orbit,
   .startup-loader__brand-core,
+  .merchant-scene-loader .startup-loader__progress-fill,
   .startup-loader__progress-fill::after {
     animation: none;
   }

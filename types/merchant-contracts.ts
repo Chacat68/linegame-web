@@ -1,0 +1,18 @@
+import { createInitialState, createSaveMeta } from '../js/data/constants.js';
+import { getShipType, getShipPurchaseQuote, getPort, getMerchantSummary } from '../js/systems/merchant/MerchantSystem.js';
+import { loadGame, saveGame } from '../js/systems/save/SaveSystem.js';
+const state = createInitialState();
+const cash: number = state.credits;
+const company: string = state.companyName;
+const ports: string[] = state.merchant.unlockedPorts;
+const companyLevel: number = state.merchant.companyLevel;
+const onboarding: {step: number; skipped: boolean} = state.merchant.onboarding;
+const ships: { id: string; typeId: string; taskId: string | null; phase: string }[] = state.merchant.ships;
+const meta: {schemaVersion: number; gameVersion: string; timestampMs: number; credits: number} = createSaveMeta(0,state);
+const shipType: {capacity: number; speed: number; price: number} | undefined = getShipType('courier');
+const purchase: {quantity: number; owned: number; nextPrice: number; lastPrice: number; total: number} | null = getShipPurchaseQuote(state.merchant,'courier',2);
+const port: {id: string; name: string} | undefined = getPort('sol_prime');
+const summary: {cash: number; budget: number; totalProfit: number; activeShips: number} = getMerchantSummary(state);
+const saved: {ok: boolean; msg: string} = saveGame(0,state);
+const loaded: {ok: boolean; msg: string} = loadGame(0);
+void [cash,company,companyLevel,onboarding,ports,ships,meta,shipType,purchase,port,summary,saved,loaded];

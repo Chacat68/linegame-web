@@ -1,6 +1,5 @@
 // js/ui/SurfaceManager.js — blocking surface 与全局 Escape 生命周期
-// Canonical L3 workspace 由 NavigationController + WorkspaceSurfaceController 持有；
-// 本模块只管理 blocking modal、焦点陷阱和非阻塞 Escape layer 仲裁。
+// 经营工作区由 GameApplication 持有；本模块管理阻塞弹窗、焦点陷阱和 Escape。
 
 import { createBlockingSurfaceDismissRegistry } from './BlockingSurfaceDismissRegistry.js';
 

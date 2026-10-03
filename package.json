@@ -1,8 +1,7 @@
 {
   "name": "linegame-web",
-  "version": "0.6.4",
+  "version": "2.0.0",
   "description": "一款运行在浏览器中的单机星际贸易经营游戏",
-  "main": "index.js",
   "directories": {
     "doc": "docs"
   },
@@ -12,9 +11,21 @@
     "dev:static": "python3 -m http.server 4173 --directory .",
     "start": "npm run dev",
     "build": "vite build",
+    "assets:scene": "node scripts/build-scene-assets.mjs",
+    "check:scene-assets": "node scripts/check-scene-assets.mjs",
     "preview": "vite preview --host 0.0.0.0 --port 4173 --strictPort",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:production": "npm run build && playwright test --config=playwright.production.config.mjs",
+    "test:e2e:ui": "playwright test --ui",
+    "lint": "eslint js",
+    "typecheck": "tsc --noEmit",
+    "check:imports": "node scripts/check-imports.mjs",
+    "check": "npm run lint && npm run typecheck && npm run check:imports",
+    "check:release": "node scripts/check-release.mjs",
+    "release:seal": "node scripts/seal-release.mjs",
+    "simulate:growth": "node scripts/simulate-company-growth.mjs"
   },
   "repository": {
     "type": "git",
@@ -28,10 +39,18 @@
   },
   "homepage": "https://github.com/Chacat68/linegame-web#readme",
   "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "es-module-lexer": "1.7.0",
+    "eslint": "10.10.0",
+    "globals": "17.12.0",
+    "postcss": "8.5.28",
+    "typescript": "7.0.2",
     "vite": "7.3.6",
     "vitest": "3.2.6"
   },
   "dependencies": {
     "three": "0.185.1"
-  }
+  },
+  "type": "module",
+  "private": true
 }
