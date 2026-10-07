@@ -93,6 +93,20 @@ it('配船提示继续配置只聚焦现有货本，不重开抽屉或清空草�
   expect(h.state.credits).toBe(1000); expect(h.execute).not.toHaveBeenCalled(); h.presenter.dispose();
 });
 
+it('首航倒计时读取真实返港时间，到账提示读取真实净利，等待不误报收益', () => {
+  const h = harness(), returnAt = h.dispatch();
+  expect(h.hint.querySelector('[data-onboarding-return]').textContent).toBe('约 18 秒后返港结算');
+  h.advance(returnAt - 1);
+  expect(h.hint.querySelector('[data-onboarding-return]').textContent).toBe('约 1 秒后返港结算');
+  expect(h.hint.innerHTML).not.toContain('已计入可用资金');
+  h.advance(returnAt);
+  expect(h.hint.querySelector('[data-onboarding-return]')).toBeNull();
+  expect(h.hint.innerHTML).toContain('最近一趟净赚 42 CR，已计入可用资金');
+  expect(h.state.credits).toBe(1042);
+  expect(h.state.merchant.onboarding.step).toBe(3);
+  h.presenter.dispose();
+});
+
 it('切到星图隐藏提示并取消待推进，销毁后清理节点、高亮、监听和排队回调', async () => {
   const h = harness();
   expect(h.hint.hidden).toBe(false); expect(h.newButton.classList.contains('merchant-onboarding-target')).toBe(true);

@@ -42,7 +42,7 @@ it('读取进度先呈现游戏内确认，返回不执行替换', async () => {
   expect(panel.innerHTML).toContain('confirm-no'); expect(loadGame).not.toHaveBeenCalled();
   await click('confirm-no'); await pending;
   expect(loadGame).not.toHaveBeenCalled(); expect(replace).not.toHaveBeenCalled();
-  expect(panel.innerHTML).toContain('设置与存档');
+  expect(panel.innerHTML).toContain('<h2 id="merchant-tools-title">设置</h2>');
 });
 it('确认后只读取一次，异步操作确实结束', async () => {
   const pending = click('load'); await click('confirm-yes'); await pending;

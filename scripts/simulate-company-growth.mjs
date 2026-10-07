@@ -1,6 +1,7 @@
 import { createInitialState } from '../js/data/constants.js';
-import { MERCHANT_EXPLORATION_RULES, MERCHANT_TECHS } from '../js/data/merchant.js';
+import { MERCHANT_COMPANY_LEVELS, MERCHANT_EXPLORATION_RULES, MERCHANT_TECHS } from '../js/data/merchant.js';
 import * as Merchant from '../js/systems/merchant/MerchantSystem.js';
+import { getPendingTechChain } from '../js/systems/merchant/MerchantTechnology.js';
 
 // 只推进经营规则的虚拟时间；不启动浏览器、不读取或改写玩家存档。
 const start = 1_800_000_000_000;
@@ -24,10 +25,10 @@ function command(action, input, now = start) {
   return result;
 }
 const plan = (shipId, from, to, goodId, budget) => ({shipIds:[shipId],from,to,goodId,budget});
-const bought = command('buyShip', {typeId:'clipper'});
+// 起步先用原轻舟赚取升级费用，再研发并采购均衡船；不预支初始资金。
+const research = [];
 const routes = [
   {shipId:'ship-1',from:'mineral_belt',to:'sol_prime',goodId:'minerals',budget:162,taskId:null,dispatches:0},
-  {shipId:bought.shipIds[0],from:'sol_prime',to:'mineral_belt',goodId:'food',budget:178,taskId:null,dispatches:0},
 ];
 let preparingExploration = false;
 let expanded = false;
@@ -62,8 +63,8 @@ function spendingReserve() {
 }
 dispatchAvailableRoutes(start);
 const stages = [{level:1,minutes:0,cash:state.credits}];
-const research = [];
-const horizonSeconds = 12 * 60 * 60;
+// 此脚本保留三船低投入对照；当前费用按满编校准，对照需要更长积累窗口。
+const horizonSeconds = 30 * 24 * 60 * 60;
 let elapsedSeconds = 0;
 let lastUpgradeAt = 0;
 const expansion = { newTaskBudget:238, updatedTaskBudget:260, cashBuffer:100 };
@@ -71,8 +72,52 @@ for (let second = 1; second <= horizonSeconds; second++) {
   elapsedSeconds = second;
   const now = start + second * 1000;
   Merchant.advance(state, now);
-  // 二级后先等待真实信号，停止原贸易并等返港，再派该船探索新港。
-  if (state.merchant.companyLevel >= 2 && !expanded) {
+  if (state.merchant.companyLevel === 1) {
+    dispatchAvailableRoutes(now);
+    const company = Merchant.getCompanyProgress(state.merchant);
+    if (state.credits >= company.upgradeCost + spendingReserve()) {
+      command(company.action, {}, now);
+      stages.push({level:2,upgradeCost:company.upgradeCost,minutes:Number((second/60).toFixed(2)),
+        stageMinutes:Number((second/60).toFixed(2)),cash:state.credits});
+      lastUpgradeAt = second;
+    }
+    continue;
+  }
+  if (routes.length < 2) {
+    dispatchAvailableRoutes(now);
+    const berth = Merchant.getTech('berth_planning'), blueprint = Merchant.getTech('clipper_design');
+    for (const tech of getPendingTechChain(state.merchant, berth.id)) {
+      if (state.merchant.companyLevel < tech.companyLevel || state.credits < tech.cost + spendingReserve()) break;
+      command('researchTech', {techId:tech.id}, now);
+      research.push({techId:tech.id,cost:tech.cost,companyLevel:state.merchant.companyLevel,minutes:Number((second/60).toFixed(2)),cash:state.credits});
+    }
+    const company = Merchant.getCompanyProgress(state.merchant);
+    if (company.level < berth.companyLevel && state.credits >= company.upgradeCost + spendingReserve()) {
+      command(company.action, {}, now);
+      stages.push({ level:state.merchant.companyLevel, upgradeCost:company.upgradeCost,
+        isBreakthrough:company.isBreakthrough, minutes:Number((second/60).toFixed(2)),
+        stageMinutes:Number(((second-lastUpgradeAt)/60).toFixed(2)), cash:state.credits });
+      lastUpgradeAt = second;
+    }
+    const purchase = Merchant.getShipPurchaseQuote(state.merchant, 'clipper');
+    if (state.merchant.researchedTechIds.includes(blueprint.id) && Merchant.getCompanyProgress(state.merchant).remaining
+      && state.credits >= purchase.total + 178 + spendingReserve()) {
+      const bought = command('buyShip', {typeId:'clipper'}, now);
+      routes.push({shipId:bought.shipIds[0],from:'sol_prime',to:'mineral_belt',goodId:'food',budget:178,taskId:null,dispatches:0});
+      dispatchAvailableRoutes(now);
+    }
+    continue;
+  }
+  const survey = MERCHANT_TECHS.find(tech => tech.id === MERCHANT_EXPLORATION_RULES.techId);
+  if (state.merchant.companyLevel >= survey.companyLevel) {
+    for (const tech of getPendingTechChain(state.merchant, survey.id)) {
+      if (state.credits < tech.cost + spendingReserve()) break;
+      command('researchTech', {techId:tech.id}, now);
+      research.push({techId:tech.id,cost:tech.cost,companyLevel:state.merchant.companyLevel,minutes:Number((second/60).toFixed(2)),cash:state.credits});
+    }
+  }
+  // 达到首次探索等级并完成研发后等待真实信号，停止原贸易并等返港，再派该船探索新港。
+  if (state.merchant.companyLevel >= MERCHANT_EXPLORATION_RULES.companyLevel && !expanded) {
     const mineral = routes[0];
     const task = currentTask(mineral);
     const ship = state.merchant.ships.find(item => item.id === mineral.shipId);
@@ -119,7 +164,7 @@ for (let second = 1; second <= horizonSeconds; second++) {
   dispatchAvailableRoutes(now);
   // 对照路线先支付当级研发费用；维持同样的三船经营，单独比较现金取舍。
   const pendingTech = withResearch && MERCHANT_TECHS.find(tech =>
-    tech.companyLevel <= state.merchant.companyLevel && !state.merchant.researchedTechIds.includes(tech.id));
+    tech.companyLevel <= state.merchant.companyLevel && !state.merchant.researchedTechIds.includes(tech.id) && tech.requires.every(id => state.merchant.researchedTechIds.includes(id)));
   if (pendingTech && state.credits >= pendingTech.cost + spendingReserve()) {
     command('researchTech', {techId:pendingTech.id}, now);
     research.push({
@@ -130,9 +175,9 @@ for (let second = 1; second <= horizonSeconds; second++) {
   const awaitingResearch = withResearch && MERCHANT_TECHS.some(tech =>
     tech.companyLevel <= state.merchant.companyLevel && !state.merchant.researchedTechIds.includes(tech.id));
   const company = Merchant.getCompanyProgress(state.merchant);
-  if (!awaitingResearch && company.upgradeCost !== null && (company.level === 1 || expanded)
+  if (!awaitingResearch && company.upgradeCost !== null && (company.level < MERCHANT_EXPLORATION_RULES.companyLevel || expanded)
     && state.credits >= company.upgradeCost + spendingReserve()) {
-    command('upgradeCompany', {}, now);
+    command(company.action, {}, now);
     stages.push({
       level:state.merchant.companyLevel,
       upgradeCost:company.upgradeCost,
@@ -142,13 +187,14 @@ for (let second = 1; second <= horizonSeconds; second++) {
     });
     lastUpgradeAt = second;
   }
-  if (state.merchant.companyLevel === 6) break;
+  if (state.merchant.companyLevel === MERCHANT_COMPANY_LEVELS.at(-1).level && (!withResearch || state.merchant.researchedTechIds.length === MERCHANT_TECHS.length)) break;
 }
 if (!Merchant.isValidMerchantState(state.merchant)) throw new Error('模拟结束时经营账本或船只占用状态无效。');
-const completed = state.merchant.companyLevel === 6;
+const completed = state.merchant.companyLevel === MERCHANT_COMPANY_LEVELS.at(-1).level
+  && (!withResearch || state.merchant.researchedTechIds.length === MERCHANT_TECHS.length);
 console.log(JSON.stringify({
-  strategy:withResearch ? '主动补派策略：双港双船起步，二级等待信号、停用原船贸易并返港探索，完成后投资三港三船；每秒检查供需，盈利时用空闲原船补派并保留货本；每级先研发当级科技，不采购进阶船、不计额外奖励'
-    : '主动补派策略：双港双船起步，二级等待信号、停用原船贸易并返港探索，完成后投资三港三船；每秒检查供需，盈利时用空闲原船补派并保留货本；不研发或采购进阶船、不计额外奖励',
+  strategy:withResearch ? '主动补派策略：单船起步积累首次升级费用，Lv.9依次研发云帆船体与船位规划后投资双港双船，Lv.24完成勘察完整前置与新港勘察研发并等待信号、停用原船贸易并返港探索，完成后投资三港三船；每秒检查供需，盈利时用空闲原船补派并保留货本；双船后先研发具备资格的科技并每五级突破，不采购进阶船、无赠送资源'
+    : '主动补派策略：单船起步积累首次升级费用，Lv.9依次研发云帆船体与船位规划后投资双港双船，Lv.24完成勘察完整前置与新港勘察研发并等待信号、停用原船贸易并返港探索，完成后投资三港三船；每秒检查供需，盈利时用空闲原船补派并保留货本；只研发船位规划、云帆船体与新港勘察，不研发或采购进阶船、无赠送资源',
   completed,
   horizonMinutes:horizonSeconds/60,
   simulatedMinutes:Number((elapsedSeconds/60).toFixed(2)),

@@ -1,0 +1,167 @@
+{
+  "scope": "各级基础船位统一减少 3 艘；扩容研发仍为 11 项、合计 +15 艘；当前升级费用不下降，价格按新上限复测；旧档现有船与任务保留，超额时拒绝添购。",
+  "shipLimitChanges": [
+    {
+      "level": 1,
+      "previousBaseShipLimit": 4,
+      "baseShipLimit": 1,
+      "researchShipSlots": 0,
+      "previousFullShipLimit": 4,
+      "fullShipLimit": 1,
+      "upgradeCost": 2100
+    },
+    {
+      "level": 2,
+      "previousBaseShipLimit": 4,
+      "baseShipLimit": 1,
+      "researchShipSlots": 1,
+      "previousFullShipLimit": 5,
+      "fullShipLimit": 2,
+      "upgradeCost": 3300
+    },
+    {
+      "level": 3,
+      "previousBaseShipLimit": 5,
+      "baseShipLimit": 2,
+      "researchShipSlots": 1,
+      "previousFullShipLimit": 6,
+      "fullShipLimit": 3,
+      "upgradeCost": 4900
+    },
+    {
+      "level": 4,
+      "previousBaseShipLimit": 5,
+      "baseShipLimit": 2,
+      "researchShipSlots": 1,
+      "previousFullShipLimit": 6,
+      "fullShipLimit": 3,
+      "upgradeCost": 6100
+    },
+    {
+      "level": 5,
+      "previousBaseShipLimit": 5,
+      "baseShipLimit": 2,
+      "researchShipSlots": 1,
+      "previousFullShipLimit": 6,
+      "fullShipLimit": 3,
+      "upgradeCost": 7400
+    },
+    {
+      "level": 6,
+      "previousBaseShipLimit": 6,
+      "baseShipLimit": 3,
+      "researchShipSlots": 2,
+      "previousFullShipLimit": 8,
+      "fullShipLimit": 5,
+      "upgradeCost": 22000
+    },
+    {
+      "level": 7,
+      "previousBaseShipLimit": 7,
+      "baseShipLimit": 4,
+      "researchShipSlots": 3,
+      "previousFullShipLimit": 10,
+      "fullShipLimit": 7,
+      "upgradeCost": 27500
+    },
+    {
+      "level": 8,
+      "previousBaseShipLimit": 7,
+      "baseShipLimit": 4,
+      "researchShipSlots": 3,
+      "previousFullShipLimit": 10,
+      "fullShipLimit": 7,
+      "upgradeCost": 33500
+    },
+    {
+      "level": 9,
+      "previousBaseShipLimit": 10,
+      "baseShipLimit": 7,
+      "researchShipSlots": 4,
+      "previousFullShipLimit": 14,
+      "fullShipLimit": 11,
+      "upgradeCost": 38500
+    },
+    {
+      "level": 10,
+      "previousBaseShipLimit": 12,
+      "baseShipLimit": 9,
+      "researchShipSlots": 6,
+      "previousFullShipLimit": 18,
+      "fullShipLimit": 15,
+      "upgradeCost": 45500
+    },
+    {
+      "level": 11,
+      "previousBaseShipLimit": 12,
+      "baseShipLimit": 9,
+      "researchShipSlots": 6,
+      "previousFullShipLimit": 18,
+      "fullShipLimit": 15,
+      "upgradeCost": 55500
+    },
+    {
+      "level": 12,
+      "previousBaseShipLimit": 15,
+      "baseShipLimit": 12,
+      "researchShipSlots": 7,
+      "previousFullShipLimit": 22,
+      "fullShipLimit": 19,
+      "upgradeCost": 94000
+    },
+    {
+      "level": 13,
+      "previousBaseShipLimit": 18,
+      "baseShipLimit": 15,
+      "researchShipSlots": 8,
+      "previousFullShipLimit": 26,
+      "fullShipLimit": 23,
+      "upgradeCost": 112000
+    },
+    {
+      "level": 14,
+      "previousBaseShipLimit": 18,
+      "baseShipLimit": 15,
+      "researchShipSlots": 8,
+      "previousFullShipLimit": 26,
+      "fullShipLimit": 23,
+      "upgradeCost": 124000
+    },
+    {
+      "level": 15,
+      "previousBaseShipLimit": 22,
+      "baseShipLimit": 19,
+      "researchShipSlots": 10,
+      "previousFullShipLimit": 32,
+      "fullShipLimit": 29,
+      "upgradeCost": 140000
+    },
+    {
+      "level": 16,
+      "previousBaseShipLimit": 25,
+      "baseShipLimit": 22,
+      "researchShipSlots": 11,
+      "previousFullShipLimit": 36,
+      "fullShipLimit": 33,
+      "upgradeCost": 159000
+    },
+    {
+      "level": 17,
+      "previousBaseShipLimit": 29,
+      "baseShipLimit": 26,
+      "researchShipSlots": 13,
+      "previousFullShipLimit": 42,
+      "fullShipLimit": 39,
+      "upgradeCost": 181000
+    },
+    {
+      "level": 18,
+      "previousBaseShipLimit": 33,
+      "baseShipLimit": 30,
+      "researchShipSlots": 15,
+      "previousFullShipLimit": 48,
+      "fullShipLimit": 45,
+      "upgradeCost": null
+    }
+  ]
+}

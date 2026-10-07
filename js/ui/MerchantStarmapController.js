@@ -2,8 +2,9 @@ import * as Renderer from './StarmapRenderer.js';
 import { buildMerchantStarmapProjection } from './MerchantStarmapProjection.js';
 import { hasBlockingSurfaceOpen } from './SurfaceManager.js';
 import { createMerchantExplorationPanel } from './MerchantExplorationPanel.js';
+import { GAME_VERSION } from '../data/constants.js';
 
-export function createMerchantStarmapController({ renderer = Renderer, doc = document, onReturn = () => {}, getState, execute } = {}) {
+export function createMerchantStarmapController({ renderer = Renderer, doc = document, onReturn = () => {}, getState, execute, onPort, onFleet } = {}) {
   const map = doc.getElementById('map-section');
   const overview = doc.createElement('button');
   overview.type = 'button';
@@ -20,7 +21,7 @@ export function createMerchantStarmapController({ renderer = Renderer, doc = doc
   loader.hidden = true;
   loader.innerHTML = `<div class="startup-loader__stars" aria-hidden="true"></div><div class="startup-loader__scanline" aria-hidden="true"></div>
     <div class="startup-loader__panel"><div class="startup-loader__brand" aria-hidden="true"><span class="startup-loader__brand-orbit"></span><span class="startup-loader__brand-core"></span></div>
-    <p class="startup-loader__eyebrow">BLUE MERIDIAN / VERSION 2.0</p><h2 class="startup-loader__title">星图</h2>
+    <p class="startup-loader__eyebrow">BLUE MERIDIAN / VERSION ${GAME_VERSION}</p><h2 class="startup-loader__title">星图</h2>
     <p class="startup-loader__status" data-scene-loading-status>正在加载星系场景</p>
     <div class="startup-loader__progress" data-scene-loading-progress aria-hidden="true"><span class="startup-loader__progress-fill"></span></div>
     <div class="startup-loader__actions"><button type="button" class="startup-loader__retry" data-scene-retry data-button-state="ready" hidden>重试</button><button type="button" class="startup-loader__retry" data-scene-return>返回经营</button></div></div>`;
@@ -31,7 +32,8 @@ export function createMerchantStarmapController({ renderer = Renderer, doc = doc
   let sceneState = '';
   map.appendChild(overview);
   map.appendChild(loader);
-  const exploration = createMerchantExplorationPanel({ doc, map, renderer, getState, execute });
+  const exploration = createMerchantExplorationPanel({ doc, map, renderer, getState, execute, onPort, onFleet });
+  let requestedSurface = null;
   let initialized = false;
   let lastPaintAt = -Infinity;
   let requestedTaskId = '';
@@ -78,20 +80,28 @@ export function createMerchantStarmapController({ renderer = Renderer, doc = doc
       return;
     }
     const frameTime = doc.defaultView?.performance?.now() ?? performance.now();
-    if (initialized && renderer.isActive() && frameTime >= lastPaintAt && frameTime - lastPaintAt < 1000 / 30) return;
+    const frameInterval = 1000 / 30;
+    if (initialized && renderer.isActive() && frameTime >= lastPaintAt && frameTime - lastPaintAt < frameInterval - 1) return;
     if (!initialized) {
       present('loading');
       initialized = renderer.init();
       if (!initialized) { present('error'); return; }
     }
     if (!renderer.isActive()) renderer.toggleView();
-    lastPaintAt = frameTime;
+    // 按固定时间轴推进，吸收 RAF 的微小抖动，避免每次提交都把下一帧向后推迟。
+    lastPaintAt = Number.isFinite(lastPaintAt) && frameTime >= lastPaintAt
+      ? lastPaintAt + Math.max(1, Math.floor((frameTime - lastPaintAt + 1) / frameInterval)) * frameInterval
+      : frameTime;
     const snapshot = buildMerchantStarmapProjection(state);
     if (!snapshot) return;
     renderer.render(snapshot, 'planets', snapshot.viewingGalaxy);
     const loadState = renderer.getLoadState();
     present(loadState);
     exploration.refresh(state, loadState === 'ready');
+    if (requestedSurface && loadState === 'ready') {
+      exploration.show();
+      requestedSurface = null;
+    }
     if (requestedTaskId && loadState === 'ready') {
       const ship = state.merchant.ships.find(item => item.taskId === requestedTaskId);
       const route = ship && snapshot.merchantStarmapRoutes.find(item => item.id === `merchant-${ship.id}`);
@@ -112,5 +122,5 @@ export function createMerchantStarmapController({ renderer = Renderer, doc = doc
     renderer.dispose();
     initialized = false;
   }
-  return { renderFrame, focusTask, dispose };
+  return { renderFrame, focusTask, dispose, showExploration: () => { requestedSurface = { type: 'exploration' }; } };
 }

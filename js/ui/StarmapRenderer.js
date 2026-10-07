@@ -13,6 +13,7 @@ let loadTiming = null;
 let rendererModulePromise = null;
 let rendererModuleReady = false;
 let scheduledPreload = null;
+let lastMetricsAt = -Infinity;
 
 function getRendererModule() {
   if (!rendererModulePromise) {
@@ -190,9 +191,12 @@ export function render(state, view, galaxyId) {
     }
     if (canvas) {
       canvas.style.visibility = 'visible';
-      const info = three.getRendererInfo();
+      const now = performance.now();
+      const info = firstFrameStartedAt !== null || now - lastMetricsAt >= 500 ? three.getRendererInfo() : null;
       if (info) {
+        lastMetricsAt = now;
         canvas.dataset.renderer = info.renderer;
+        canvas.dataset.metrics = JSON.stringify(info);
         canvas.dataset.panOnly = String(info.panOnly);
         canvas.dataset.pixelRatio = String(info.pixelRatio);
         if (firstFrameStartedAt !== null && loadTiming) canvas.dataset.loadTiming = JSON.stringify({ ...loadTiming, scene: info.loadTiming });
@@ -258,4 +262,5 @@ export function dispose() {
   loadState = 'idle';
   loadError = '';
   loadTiming = null;
+  lastMetricsAt = -Infinity;
 }

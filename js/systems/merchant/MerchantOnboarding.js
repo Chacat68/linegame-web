@@ -13,8 +13,14 @@ export function isValidOnboardingState(value) {
 // 只读取实际经营记录，不因打开页面、探索或提交无效派遣而完成首航。
 export function getOnboardingProgress(merchant) {
   const onboarding = merchant.onboarding;
-  const settledTrips = [...merchant.tasks, ...merchant.history]
-    .reduce((total, task) => total + task.rounds, 0);
+  const records = [...merchant.tasks, ...merchant.history];
+  const settledTrips = Math.max(records.reduce((total, task) => total + task.rounds, 0),
+    (merchant.analytics?.routes || []).reduce((total, route) => total + route.trips, 0));
+  const latestSettlement = records.flatMap(task => task.recent)
+    .reduce((latest, record) => !latest || record.completedAt > latest.completedAt ? record : latest, null);
+  const returnTimes = merchant.ships.filter(ship => ship.trip &&
+    ['outbound', 'return'].includes(ship.phase) && merchant.tasks.some(task => task.id === ship.taskId))
+    .map(ship => ship.arriveAt + (ship.phase === 'outbound' ? ship.trip.legMs : 0));
   const hasRealTrade = merchant.ships.some(ship =>
     (ship.phase === 'outbound' || ship.phase === 'return') && ship.trip &&
     ship.trip.quantity > 0 && ship.trip.revenue > ship.trip.cost + ship.trip.fee &&
@@ -23,6 +29,8 @@ export function getOnboardingProgress(merchant) {
     step: onboarding.step,
     skipped: onboarding.skipped,
     settledTrips,
+    latestSettlement,
+    nextReturnAt: returnTimes.length ? Math.min(...returnTimes) : null,
     hasRealTrade,
     canViewReport: settledTrips > 0,
     complete: onboarding.step === 5,

@@ -1,0 +1,51 @@
+{
+  "assumptions": "固定阶段与实验现金，实际研发当级及以前科技、购船、完整探索开港；三至四条商路均分运力，持续任务不重派，每分钟检查供需并补派空闲船。60 分钟净利均值用于费用校准，不代表新局到级时间。",
+  "horizonMinutes": 60,
+  "stages": [
+    {
+      "level": 2,
+      "ships": 2,
+      "typeId": "courier",
+      "ports": 2,
+      "profitPerMinute": 396,
+      "nextUpgradeCost": 600,
+      "upgradeIncomeMinutes": 1.52
+    },
+    {
+      "level": 6,
+      "ships": 3,
+      "typeId": "clipper",
+      "ports": 3,
+      "profitPerMinute": 833.42,
+      "nextUpgradeCost": 3200,
+      "upgradeIncomeMinutes": 3.84
+    },
+    {
+      "level": 9,
+      "ships": 6,
+      "typeId": "clipper",
+      "ports": 3,
+      "profitPerMinute": 1370.92,
+      "nextUpgradeCost": 8500,
+      "upgradeIncomeMinutes": 6.2
+    },
+    {
+      "level": 12,
+      "ships": 9,
+      "typeId": "swift",
+      "ports": 4,
+      "profitPerMinute": 1587.95,
+      "nextUpgradeCost": 19500,
+      "upgradeIncomeMinutes": 12.28
+    },
+    {
+      "level": 17,
+      "ships": 12,
+      "typeId": "swift",
+      "ports": 4,
+      "profitPerMinute": 2088.4,
+      "nextUpgradeCost": 58000,
+      "upgradeIncomeMinutes": 27.77
+    }
+  ]
+}

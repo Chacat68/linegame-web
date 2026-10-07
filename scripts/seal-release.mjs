@@ -27,6 +27,6 @@ const packageRecord = await record(archive);
 const manifest = {version: GAME_VERSION, saveSchemaVersion: SAVE_SCHEMA_VERSION, status: 'sealed', sealedAt: new Date().toISOString(),
   source: await Promise.all((await currentFiles()).map(record)),
   build: await Promise.all((await walk('dist')).sort().map(record)), package: packageRecord};
-await writeFile('releases/2.0.0-manifest.json', JSON.stringify(manifest, null, 2) + '\n');
+await writeFile(`releases/${GAME_VERSION}-manifest.json`, JSON.stringify(manifest, null, 2) + '\n');
 await writeFile(archive + '.sha256', packageRecord.sha256 + '  ' + archive.split('/').at(-1) + '\n');
 execFileSync('npm', ['run', 'check:release'], { stdio: 'inherit' });

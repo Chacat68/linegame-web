@@ -1,16 +1,50 @@
+import { restoreLegacyMerchantAccess } from '../js/systems/merchant/MerchantTechnology.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { historicalResearch } from './helpers/merchantResearch.js';
 import { createInitialState, GAME_VERSION, SAVE_SCHEMA_VERSION } from '../js/data/constants.js';
-import { MERCHANT_TECHS } from '../js/data/merchant.js';
+import { MERCHANT_COMPANY_LEVELS, MERCHANT_LEGACY_LEVEL_MAP, MERCHANT_TECHS } from '../js/data/merchant.js';
 import { prepareStartupState } from '../js/core/StartupState.js';
 import * as Merchant from '../js/systems/merchant/MerchantSystem.js';
 import * as Save from '../js/systems/save/SaveSystem.js';
 const start=1_800_000_000_000;
+const dockSchedulingCost=MERCHANT_TECHS.find(tech=>tech.id==='dock_scheduling').cost;
 const fastNavigationCost=MERCHANT_TECHS.find(tech=>tech.id==='fast_navigation').cost;
 const plan={from:'sol_prime',to:'mineral_belt',goodId:'food',shipIds:['ship-1'],budget:220};
 const fresh=()=>{const state=createInitialState();Merchant.init(state,start);return state;};
+const withPriorShipSlots = value => {
+  const copy = structuredClone(value), merchant = copy.merchant ?? copy;
+  merchant.researchedTechIds.push(...MERCHANT_TECHS.filter(tech => tech.shipSlotBonus && tech.companyLevel <= merchant.companyLevel && !merchant.researchedTechIds.includes(tech.id)).map(tech => tech.id));
+  return copy;
+};
 const raw=(state,version=SAVE_SCHEMA_VERSION)=>JSON.stringify({meta:{schemaVersion:version,gameVersion:'0.6.4',timestampMs:start,saveName:'现有经营进度'},data:state});
 beforeEach(()=>{vi.restoreAllMocks();for(let slot=0;slot<4;slot++)Save.deleteSlot(slot);localStorage.clear();});
 describe('2.0 存档与恢复',()=>{
+  it.each(Object.entries(MERCHANT_LEGACY_LEVEL_MAP).map(([old, current]) => [Number(old), current]))('v27 等级 %i 转为 %i，备份原文且重复读取不再次转换', (oldLevel, newLevel) => {
+    const state=fresh(); state.merchant.companyLevel=newLevel; state.credits=100000+MERCHANT_TECHS.filter(tech=>['fast_navigation','bulk_logistics','integrated_freight'].includes(tech.id) && tech.companyLevel<=newLevel).reduce((sum,tech)=>sum+tech.cost,0); restoreLegacyMerchantAccess(state.merchant);
+    // 历史三级阶段可持有三艘；恢复已获得的扩容资格后准备这组旧船。
+    if (newLevel === 13) expect(Merchant.command(state,'researchTech',{techId:'berth_planning'},start).ok).toBe(true);
+    expect(Merchant.command(state,'buyShip',{typeId:'clipper'},start).ok).toBe(true);
+    expect(Merchant.command(state,'buyShip',{typeId:'hauler'},start).ok).toBe(true);
+    expect(Merchant.command(state,'create',{...plan,shipIds:['ship-1','ship-2'],budget:304},start).ok).toBe(true);
+    Merchant.advance(state,start+18000);
+    for(const tech of MERCHANT_TECHS.filter(item=>['fast_navigation','bulk_logistics','integrated_freight'].includes(item.id) && item.companyLevel<=newLevel)) {
+      historicalResearch(state, tech.id);
+    }
+    const legacy=structuredClone(state); legacy.merchant.companyLevel=oldLevel;
+    const original=raw(legacy,27); localStorage.setItem('startrader_save_0',original);
+    const loaded=Save.loadGame(0);
+    expect(loaded.ok).toBe(true); expect(loaded.state).toEqual(withPriorShipSlots(state));
+    expect(localStorage.getItem('startrader_save_before_v28_0')).toBe(original);
+    expect(JSON.parse(Save.exportSave(0)).meta.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(Save.loadGame(0).state).toEqual(withPriorShipSlots(state));
+    expect(localStorage.getItem('startrader_save_before_v28_0')).toBe(original);
+  });
+  it.each([0,7,1.5,'2'])('拒绝 v27 损坏的等级 %s，保留原存档内容', oldLevel => {
+    const state=fresh(); state.merchant.companyLevel=oldLevel;
+    const original=raw(state,27); localStorage.setItem('startrader_save_0',original);
+    expect(Save.loadGame(0)).toMatchObject({ok:false,errorCode:'SAVE_DATA_INVALID'});
+    expect(localStorage.getItem('startrader_save_0')).toBe(original);
+  });
   it('新存档只含经营资料，未知的旧字段不再写入',()=>{
     const state=fresh();state.idle={alloy:999};state.fleet=[{level:10}];state.quests=['old'];
     expect(Save.saveGame(0,state).ok).toBe(true);
@@ -21,9 +55,9 @@ describe('2.0 存档与恢复',()=>{
   });
   it('v22 转换完整保留多船、在途货物、任务货本、科技和结算记录，并备份原文件',()=>{
     const state=fresh();state.credits=fastNavigationCost+3350;
-    state.merchant.companyLevel=3;
+    state.merchant.companyLevel=44; restoreLegacyMerchantAccess(state.merchant);
     expect(Merchant.command(state,'buyShip',{typeId:'clipper'},start).ok).toBe(true);
-    expect(Merchant.command(state,'researchTech',{techId:'fast_navigation'},start).ok).toBe(true);
+    historicalResearch(state, 'fast_navigation');
     expect(Merchant.command(state,'create',{...plan,shipIds:['ship-1','ship-2'],budget:440},start).ok).toBe(true);
     expect(state.credits).toBe(2570);
     Merchant.advance(state,start+21000);
@@ -32,20 +66,43 @@ describe('2.0 存档与恢复',()=>{
     expect(state.merchant.tasks[0]).toMatchObject({budget:440,pending:{budget:350},rounds:1,profit:42});
     state.idle={pending:{credits:888}};state.fleet=[{route:'old'}];
     delete state.merchant.onboarding;
-    const original=raw(state,22);localStorage.setItem('startrader_save_0',original);
+    const original=raw({...state,merchant:{...state.merchant,companyLevel:3}},22);localStorage.setItem('startrader_save_0',original);
     const result=Save.loadGame(0);
-    expect(result.ok).toBe(true);expect(result.state.merchant).toEqual({...state.merchant,onboarding:{step:5,skipped:false}});expect(result.state.credits).toBe(state.credits);
+    expect(result.ok).toBe(true);expect(result.state.merchant).toEqual(withPriorShipSlots({...state.merchant,onboarding:{step:5,skipped:false}}));expect(result.state.credits).toBe(state.credits);
     expect(localStorage.getItem('startrader_save_before_2_0_0')).toBe(original);
     expect(JSON.parse(Save.exportSave(0)).data).not.toHaveProperty('idle');
     const next=structuredClone(result.state);Merchant.advance(next,start+100000);Merchant.advance(result.state,start+100000);
     expect(result.state).toEqual(next);const cash=result.state.credits;Merchant.advance(result.state,start+100000);expect(result.state.credits).toBe(cash);
   });
-  it('v21 仅补上航运科技字段，保留已在途航次',()=>{
+  it('v21 补旧档基础船研发资格，保留已在途航次',()=>{
     const state=fresh();Merchant.command(state,'create',plan,start);delete state.merchant.researchedTechIds;
     localStorage.setItem('startrader_save_1',raw(state,21));
-    const loaded=Save.loadGame(1);expect(loaded.ok).toBe(true);expect(loaded.state.merchant.researchedTechIds).toEqual([]);expect(loaded.state.merchant.ships[0].trip).toEqual(state.merchant.ships[0].trip);
+    const loaded=Save.loadGame(1);expect(loaded.ok).toBe(true);expect(loaded.state.merchant.researchedTechIds).toEqual(['clipper_design','hauler_design','berth_planning']);expect(loaded.state.merchant.ships[0].trip).toEqual(state.merchant.ships[0].trip);
   });
-  it('历史 waiting 任务缺少结束原因仍可恢复，下一 tick 解除占用且不再自动重启',()=>{
+  it('供需扩容保留旧档库存与锁定航次，下次刷新按新额度恢复并继续原任务',()=>{
+    const state=fresh();
+    state.merchant.markets={
+      sol_prime:{supply:{food:36},demand:{technology:30,minerals:12}},
+      mineral_belt:{supply:{minerals:32},demand:{food:40,technology:18}},
+      nebula_forge:{supply:{technology:26},demand:{minerals:36,food:16,alloys:180}},
+      aurora_depot:{supply:{alloys:180},demand:{}},
+    };
+    const {taskId}=Merchant.command(state,'create',{...plan,from:'mineral_belt',to:'sol_prime',goodId:'minerals'},start);
+    expect(Save.saveGame(1,state).ok).toBe(true);
+    const loaded=Save.loadGame(1);expect(loaded.ok).toBe(true);expect(loaded.state).toEqual(state);
+    Merchant.advance(loaded.state,start+59999);
+    expect(loaded.state.credits).toBe(846);
+    expect(loaded.state.merchant.ships[0]).toMatchObject({phase:'waiting',taskId});
+    Merchant.advance(loaded.state,start+60000);
+    expect(loaded.state.merchant.tasks[0]).toMatchObject({id:taskId,rounds:1,profit:66,budget:220,stopping:false});
+    expect(loaded.state.merchant.ships[0]).toMatchObject({phase:'outbound',taskId,trip:{quantity:12}});
+    expect(loaded.state.merchant.markets.sol_prime.demand.minerals).toBe(36);
+    expect(loaded.state.merchant.markets.mineral_belt.supply.minerals).toBe(72);
+    expect(loaded.state.credits).toBe(846);
+    expect(Save.saveGame(1,loaded.state).ok).toBe(true);
+    expect(Save.loadGame(1).state).toEqual(loaded.state);
+  });
+  it('历史 waiting 任务缺少结束原因仍可恢复，保持原任务并在补货后续跑',()=>{
     for(const version of [23,SAVE_SCHEMA_VERSION]) {
       // 历史存档保留未曾出航的等待任务；新规则由运行 tick 接管，不在解码时篡改。
       const state=fresh();state.credits=780;
@@ -61,27 +118,31 @@ describe('2.0 存档与恢复',()=>{
       expect(loaded.state.merchant.tasks).toHaveLength(1);
       expect(loaded.state.merchant.tasks[0]).not.toHaveProperty('stopReason');
       Merchant.advance(loaded.state,start+1);
-      expect(loaded.state.credits).toBe(1000);
-      expect(loaded.state.merchant.tasks).toHaveLength(0);
-      expect(loaded.state.merchant.ships[0]).toMatchObject({phase:'idle',taskId:null,trip:null});
-      expect(loaded.state.merchant.history[0]).toMatchObject({id:'task-2',rounds:0,profit:0,available:220});
-      expect(loaded.state.merchant.history[0].stopReason).toContain('无货');
+      expect(loaded.state.credits).toBe(780);
+      expect(loaded.state.merchant.tasks[0]).toMatchObject({id:'task-2',rounds:0,profit:0,available:220,stopping:false});
+      expect(loaded.state.merchant.ships[0]).toMatchObject({phase:'waiting',taskId:'task-2',trip:null});
+      expect(loaded.state.merchant.history).toHaveLength(0);
       expect(Save.saveGame(0,loaded.state).ok).toBe(true);
       const restored=Save.loadGame(0);expect(restored.ok).toBe(true);
       expect(restored.state).toEqual(loaded.state);
       Merchant.advance(restored.state,start+125000);
-      expect(restored.state.credits).toBe(1000);
-      expect(restored.state.merchant.tasks).toHaveLength(0);
+      expect(restored.state.credits).toBe(906);
+      expect(restored.state.merchant.tasks[0]).toMatchObject({id:'task-2',rounds:3,profit:126,stopping:false});
+      expect(restored.state.merchant.ships[0]).toMatchObject({phase:'return',taskId:'task-2'});
       expect(restored.state.merchant.history).toEqual(loaded.state.merchant.history);
     }
   });
-  it('自动结束的在途原因与返港账目可保存恢复，损坏原因不能覆盖进度',()=>{
+  it('旧规则已自动结束的在途原因与返港账目可保存恢复，既定结束不再续跑',()=>{
     const state=fresh();state.credits=2000;
+    state.merchant.companyLevel=13; restoreLegacyMerchantAccess(state.merchant);
+    state.merchant.markets.sol_prime.supply.food=36;
     expect(Merchant.command(state,'buyShip',{typeId:'hauler'},start).ok).toBe(true);
     const created=Merchant.command(state,'create',{...plan,shipIds:['ship-1','ship-2'],budget:600},start);
     expect(created.ok).toBe(true);
     const [courier,hauler]=state.merchant.ships.map(ship=>structuredClone(ship.trip));
     Merchant.advance(state,start+2*courier.legMs);
+    // 还原旧规则已经作出解除决定、但尚有船在途的存档，不能把它重新开启。
+    Object.assign(state.merchant.tasks[0],{stopping:true,stopReason:'出发港暂时无货。'});
     expect(state.merchant.tasks[0].stopping).toBe(true);
     expect(state.credits).toBe(882);
     const reason=state.merchant.tasks[0].stopReason;
@@ -121,16 +182,17 @@ describe('2.0 存档与恢复',()=>{
     expect(prepareStartupState({restoreAutosave:false}).restoredAutosave).toBe(false);expect(Save.exportSave(0)).toBe(original);
   });
   it('v23 增加公司等级时保留超过初始上限的商队、在途任务与原始备份',()=>{
-    // 明确覆盖公司扩容、逐艘采购、研发和两次补船费用，最后只余 38 CR。
-    const state=fresh();state.credits=1800+4000+fastNavigationCost+360+2502+660+1800+340+850+38;
-    expect(Merchant.command(state,'upgradeCompany',{},start).ok).toBe(true);
-    expect(Merchant.command(state,'upgradeCompany',{},start).ok).toBe(true);
-    expect(Merchant.command(state,'researchTech',{techId:'fast_navigation'},start).ok).toBe(true);
+    // 测试资金覆盖资格准备、迁移后逐级升级、研发和两次补船；迁移本身不改余额。
+    const postMigrationUpgradeCost=MERCHANT_COMPANY_LEVELS.slice(12,43).reduce((sum,stage)=>sum+stage.upgradeCost,0);
+    const state=fresh();state.credits=MERCHANT_COMPANY_LEVELS.slice(0,43).reduce((sum,stage)=>sum+stage.upgradeCost,0)+fastNavigationCost+360+2502+660+postMigrationUpgradeCost+400+340+850+38+dockSchedulingCost;
+    while(state.merchant.companyLevel<44)expect(Merchant.command(state,Merchant.getCompanyProgress(state.merchant).action,{},start).ok).toBe(true);
+    historicalResearch(state, 'fast_navigation');
     // 该历史商队在 v23 已支付开港费用；恢复时保留港口与真实余额。
     state.credits-=360;state.merchant.unlockedPorts.push('nebula_forge');
+    state.merchant.markets.sol_prime.supply.food=36;
     expect(Merchant.command(state,'buyShip',{typeId:'courier',quantity:5},start).ok).toBe(true);
     expect(Merchant.command(state,'create',{...plan,shipIds:state.merchant.ships.map(ship=>ship.id),budget:660},start).ok).toBe(true);
-    expect(state.credits).toBe(3028);
+    expect(state.credits).toBe(postMigrationUpgradeCost+1628+dockSchedulingCost);
     expect(state.merchant.ships).toHaveLength(6);
     expect(state.merchant.ships.filter(ship=>ship.phase==='outbound')).toHaveLength(3);
     expect(state.merchant.tasks[0]).toMatchObject({budget:660,available:282});
@@ -143,7 +205,8 @@ describe('2.0 存档与恢复',()=>{
     const original=raw(state,23);localStorage.setItem('startrader_save_0',original);
     const loaded=Save.loadGame(0);expect(loaded.ok).toBe(true);
     const {exploration,onboarding,...operating}=loaded.state.merchant;
-    expect(operating).toEqual({...state.merchant,companyLevel:1});
+    const expected={...state.merchant,companyLevel:13}; restoreLegacyMerchantAccess(expected);
+    expect(operating).toEqual(withPriorShipSlots(expected));
     expect(onboarding).toEqual({step:5,skipped:false});
     expect(exploration).toMatchObject({nextEventAt:0,event:null});
     expect(exploration.rngState).toBeGreaterThan(0);
@@ -163,12 +226,14 @@ describe('2.0 存档与恢复',()=>{
     expect(loaded.state).toEqual(before);
     expect(Merchant.command(loaded.state,'buyShip',{typeId:'clipper'},start).ok).toBe(false);
     expect(loaded.state).toEqual(before);
-    expect(Merchant.command(loaded.state,'upgradeCompany',{},start).ok).toBe(true);
-    expect(loaded.state.credits).toBe(1228);
-    expect(loaded.state.merchant).toEqual({...before.merchant,companyLevel:2});
+    while(loaded.state.merchant.companyLevel<44)expect(Merchant.command(loaded.state,Merchant.getCompanyProgress(loaded.state.merchant).action,{},start).ok).toBe(true);
+    expect(loaded.state.credits).toBe(1628+dockSchedulingCost);
+    expect(loaded.state.merchant).toEqual({...before.merchant,companyLevel:44});
+    expect(Merchant.command(loaded.state,'researchTech',{techId:'dock_scheduling'},start).ok).toBe(true);
+    expect(loaded.state.credits).toBe(1628);
     expect(Merchant.command(loaded.state,'buyShip',{typeId:'clipper'},start).ok).toBe(true);
     expect(Merchant.command(loaded.state,'buyShip',{typeId:'swift'},start).ok).toBe(true);
-    expect(loaded.state.credits).toBe(38);
+    expect(loaded.state.credits).toBe(438);
     expect(loaded.state.merchant.ships).toHaveLength(8);
     expect(loaded.state.merchant.tasks).toEqual(before.merchant.tasks);
     expect(Merchant.getShipPurchaseQuote(loaded.state.merchant,'courier')).toEqual(quote);
@@ -180,7 +245,7 @@ describe('2.0 存档与恢复',()=>{
   });
   it('当前格式拒绝缺失、非整数或超范围公司等级，导入不覆盖已有进度',()=>{
     const state=fresh();Save.saveGame(1,state);const before=Save.exportSave(1);
-    for(const companyLevel of [undefined,0,1.5,7,'2']) {
+    for(const companyLevel of [undefined,0,1.5,101,'2']) {
       const damaged=structuredClone(state);damaged.merchant.companyLevel=companyLevel;
       expect(Save.importSave(1,raw(damaged,SAVE_SCHEMA_VERSION)).ok).toBe(false);
       expect(Save.exportSave(1)).toBe(before);
@@ -198,7 +263,8 @@ describe('2.0 存档与恢复',()=>{
       localStorage.setItem(`startrader_save_before_2_0_${slot}`,'更早的经营备份');
       const loaded=Save.loadGame(slot);expect(loaded.ok).toBe(true);
       const {exploration,onboarding,...operating}=loaded.state.merchant;
-      expect(operating).toEqual(state.merchant);
+      const expected={...state.merchant,companyLevel:29}; restoreLegacyMerchantAccess(expected);
+      expect(operating).toEqual(withPriorShipSlots(expected));
       expect(onboarding).toEqual({step:5,skipped:false});
       expect(loaded.state.credits).toBe(780);
       expect(exploration).toMatchObject({event:null,nextEventAt:0});
@@ -210,15 +276,15 @@ describe('2.0 存档与恢复',()=>{
       Merchant.init(loaded.state,start);Merchant.advance(loaded.state,start);
       if(opened)expect(loaded.state.merchant.exploration).toEqual(exploration);
       else {
-        expect(loaded.state.merchant.exploration.nextEventAt-start).toBeGreaterThanOrEqual(30000);
-        expect(loaded.state.merchant.exploration.nextEventAt-start).toBeLessThanOrEqual(90000);
+        expect(loaded.state.merchant.exploration.nextEventAt).toBe(0);
+        expect(loaded.state.merchant.exploration.event).toMatchObject({ status:'available', portId:'nebula_forge', appearedAt:start });
       }
       expect(loaded.state.merchant.tasks).toEqual(state.merchant.tasks);
       expect(loaded.state.merchant.ships).toEqual(state.merchant.ships);
     }
   });
   it('信号期限、探索去程与返程恢复不重抽随机数，完成只开一次港口',()=>{
-    const state=fresh();state.merchant.companyLevel=2;state.merchant.exploration.rngState=42;
+    const state=fresh();state.merchant.companyLevel=29;state.merchant.exploration.rngState=42; restoreLegacyMerchantAccess(state.merchant);
     Merchant.advance(state,start);
     expect(Save.saveGame(2,state).ok).toBe(true);
     const scheduled=Save.exportSave(2),loaded=Save.loadGame(2);
@@ -254,7 +320,7 @@ describe('2.0 存档与恢复',()=>{
     expect(completed.state.merchant.unlockedPorts.filter(id=>id==='nebula_forge')).toHaveLength(1);
   });
   it('探索计时、船只归属或事件数据损坏时拒绝覆盖已有存档',()=>{
-    const state=fresh();state.merchant.companyLevel=2;state.merchant.exploration.rngState=42;
+    const state=fresh();state.merchant.companyLevel=29;state.merchant.exploration.rngState=42; restoreLegacyMerchantAccess(state.merchant);
     Merchant.advance(state,start);Merchant.advance(state,state.merchant.exploration.nextEventAt);
     const now=state.merchant.lastTickAt,eventId=state.merchant.exploration.event.id;
     const bought=Merchant.command(state,'buyShip',{typeId:'courier'},now);expect(bought.ok).toBe(true);
@@ -294,7 +360,8 @@ describe('2.0 存档与恢复',()=>{
       localStorage.setItem(`startrader_save_${slot}`,original);
       localStorage.setItem(`startrader_save_before_v25_${slot}`,'原有探索版本备份');
       const loaded=Save.loadGame(slot);expect(loaded.ok).toBe(true);
-      expect(loaded.state).toEqual({...state,merchant:{...state.merchant,onboarding:{step:5,skipped:false}}});
+      const expected={...state,merchant:{...state.merchant,companyLevel:13,onboarding:{step:5,skipped:false}}}; restoreLegacyMerchantAccess(expected.merchant);
+      expect(loaded.state).toEqual(withPriorShipSlots(expected));
       expect(loaded.state.credits).toBe(822);
       expect(localStorage.getItem(`startrader_save_before_v26_${slot}`)).toBe(original);
       expect(localStorage.getItem(`startrader_save_before_v25_${slot}`)).toBe('原有探索版本备份');
@@ -315,7 +382,7 @@ describe('2.0 存档与恢复',()=>{
       expect(Save.saveGame(slot,state).ok).toBe(true);
       const loaded=Save.loadGame(slot);expect(loaded.ok).toBe(true);expect(loaded.state).toEqual(state);
       Merchant.init(loaded.state,start+125000);Merchant.advance(loaded.state,start+125000);
-      expect(loaded.state.credits).toBe(1126);
+      expect(loaded.state.credits).toBe(1074);
       expect(loaded.state.merchant.onboarding).toEqual({step:3,skipped:false});
       const before=structuredClone(loaded.state);delete before.merchant.onboarding;
       const now=loaded.state.merchant.lastTickAt;
@@ -331,7 +398,7 @@ describe('2.0 存档与恢复',()=>{
       const done=Save.loadGame(slot);expect(done.ok).toBe(true);expect(done.state).toEqual(loaded.state);
       Merchant.init(done.state,start+180000);Merchant.advance(done.state,start+180000);
       expect(done.state.merchant.onboarding).toEqual({step:5,skipped:skip});
-      expect(done.state.credits).toBe(1126);
+      expect(done.state.credits).toBe(1200);
     }
   });
   it('当前格式拒绝缺失或矛盾的引导状态，损坏导入不覆盖已有进度',()=>{

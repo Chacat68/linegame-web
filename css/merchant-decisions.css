@@ -1,0 +1,123 @@
+/* 2.1：沿用共用材质，科技研发、情报、投资和统计保持局部对齐。 */
+body[data-merchant="true"] .merchant-intelligence { margin: 18px 0 28px; min-width: 0; }
+body[data-merchant="true"] .merchant-intelligence-note { color: var(--ui-text-secondary); font-size: 12px; line-height: 1.7; }
+body[data-merchant="true"] .merchant-intelligence-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; }
+body[data-merchant="true"] .merchant-intel-card { display: flex; flex-direction: column; min-width: 0; padding: 20px; border: 1px solid var(--ui-line-default); border-radius: 18px; color: var(--ui-text-primary); background: var(--merchant-card); box-shadow: var(--merchant-raised-shadow); }
+body[data-merchant="true"] .merchant-intel-card[data-intel-known="true"] { border-color: var(--ui-commerce); }
+body[data-merchant="true"] .merchant-intel-heading { display: flex; align-items: center; gap: 12px; }
+body[data-merchant="true"] .merchant-intel-heading > div { min-width: 0; }
+body[data-merchant="true"] .merchant-intel-heading h3 { margin: 6px 0 0; font-size: 19px; line-height: 1.4; overflow-wrap: anywhere; }
+body[data-merchant="true"] .merchant-intel-heading small { color: var(--ui-text-muted); }
+body[data-merchant="true"] .merchant-intel-symbol { display: grid; place-items: center; flex: none; width: 42px; height: 42px; color: var(--ui-commerce); border: 1px solid var(--ui-line-default); border-radius: 50%; font-size: 26px; }
+body[data-merchant="true"] :is(.merchant-intel-description,.merchant-intel-hint) { color: var(--ui-text-secondary); font-size: 12px; line-height: 1.7; }
+body[data-merchant="true"] .merchant-intel-ledger { display: grid; gap: 10px; margin: 4px 0; padding: 14px 0; border-top: 1px solid var(--ui-line-default); border-bottom: 1px solid var(--ui-line-default); font-size: 12px; }
+body[data-merchant="true"] .merchant-intel-ledger > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; }
+body[data-merchant="true"] .merchant-intel-ledger dt { color: var(--ui-text-muted); }
+body[data-merchant="true"] .merchant-intel-ledger dd { margin: 0; color: var(--ui-commerce); overflow-wrap: anywhere; }
+body[data-merchant="true"] .merchant-intel-card > button { margin-top: auto; min-height: 44px; }
+body[data-merchant="true"] #merchant-intelligence-status { color: var(--ui-commerce); font-size: 12px; line-height: 1.6; }
+body[data-merchant="true"] #merchant-intelligence-status:empty { display: none; }
+@media (max-width: 620px) {
+  body[data-merchant="true"] .merchant-intelligence-grid { grid-template-columns: minmax(0,1fr); }
+  body[data-merchant="true"] .merchant-intel-card { padding: 16px; }
+}
+body[data-merchant="true"] .merchant-research-bonuses { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0; }
+body[data-merchant="true"] .merchant-research-bonuses span { padding: 8px 12px; border: 1px solid var(--ui-line-default); border-radius: 10px; color: var(--ui-commerce); }
+body[data-merchant="true"] .merchant-research-note { color: var(--ui-text-secondary); font-size: 12px; line-height: 1.7; }
+body[data-merchant="true"] .merchant-research-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 10px; }
+body[data-merchant="true"] .merchant-research-filters button { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 8px 12px; font-size: 12px; }
+body[data-merchant="true"] .merchant-research-filters button[aria-pressed="true"],
+body[data-merchant="true"] .merchant-research-filters button[aria-pressed="true"]:is(:hover,:focus-visible) { border-color: var(--ui-accent-strong); color: var(--ui-text-inverse); background: linear-gradient(150deg,var(--ui-accent-strong),var(--ui-accent)); }
+body[data-merchant="true"] .merchant-research-filters button span { color: var(--ui-text-secondary); font-size: 11px; }
+body[data-merchant="true"] .merchant-research-filters button[aria-pressed="true"] span { color: inherit; }
+body[data-merchant="true"] .merchant-research-filter-status { color: var(--ui-text-secondary); font-size: 12px; line-height: 1.6; }
+body[data-merchant="true"] .merchant-tech-empty { grid-column: 1 / -1; margin: 0; border-color: var(--ui-line-default); color: var(--ui-text-secondary); }
+body[data-merchant="true"] .merchant-tech-card.is-locked { opacity: .6; }
+body[data-merchant="true"] .merchant-tech-status { color: var(--ui-text-secondary); font-size: 11px; }
+body[data-merchant="true"] :is(.merchant-discovery-notice,.merchant-research-panel,.merchant-investment-panel) {
+  min-width: 0; margin: 16px 0; padding: 18px; border: 1px solid var(--ui-line-default); border-radius: 18px;
+  color: var(--ui-text-primary); background: var(--merchant-panel); box-shadow: var(--merchant-raised-shadow);
+}
+body[data-merchant="true"] .merchant-discovery-notice { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+body[data-merchant="true"] .merchant-discovery-notice > p { flex: 1; min-width: 0; }
+body[data-merchant="true"] .merchant-discovery-actions { display: flex; flex: 0 0 auto; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; max-width: 100%; margin-left: auto; }
+body[data-merchant="true"] :is(.merchant-discovery-notice,.merchant-investment-panel) p { margin: 8px 0; color: var(--ui-text-secondary); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+body[data-merchant="true"] .merchant-dispatch { min-width: 0; margin: 20px 0; }
+body[data-merchant="true"] .merchant-dispatch > .merchant-operations-head { padding: 12px 16px; border: 1px solid var(--ui-line-default); border-radius: 16px; background: var(--merchant-panel); box-shadow: var(--merchant-panel-shadow); }
+body[data-merchant="true"] .merchant-dispatch-tabs { display: flex; gap: 8px; padding: 10px 0; }
+body[data-merchant="true"] .merchant-dispatch-tabs button { display: flex; flex: 1 1 0; flex-wrap: wrap; align-content: center; align-items: center; justify-content: center; gap: 4px 8px; min-width: 0; min-height: 52px; padding: 8px 10px; }
+body[data-merchant="true"] .merchant-dispatch-tabs button[aria-selected="true"] { border-color: var(--ui-accent); color: var(--ui-text-primary); box-shadow: inset 0 -3px var(--ui-accent),var(--merchant-raised-shadow); }
+body[data-merchant="true"] .merchant-dispatch-tabs span { color: var(--ui-text-secondary); font-size: 11px; }
+body[data-merchant="true"] #merchant-research { margin: 0; }
+body[data-merchant="true"] #merchant-dispatch [hidden] { display: none !important; }
+body[data-merchant="true"] #merchant-dispatch[data-tab="research"] #merchant-form-panel { display: none; }
+/* 派遣后的线路、船只进度和账目由同一任务卡承载。 */
+body[data-merchant="true"] .merchant-command-stage { margin-bottom: 12px; border-radius: 20px; }
+body[data-merchant="true"] .merchant-task-card .merchant-task-select { grid-template-columns: 34px minmax(0,1fr) auto 18px; gap: 14px; padding: 16px; }
+body[data-merchant="true"] .merchant-task-main { gap: 6px; }
+body[data-merchant="true"] .merchant-task-main strong { font-size: 17px; line-height: 1.4; white-space: normal; overflow-wrap: anywhere; }
+body[data-merchant="true"] .merchant-task-main :is(small,em) { white-space: normal; overflow-wrap: anywhere; font-size: 11px; }
+body[data-merchant="true"] .merchant-task-chevron { color: var(--ui-text-secondary); font-size: 20px; text-align: center; }
+body[data-merchant="true"] .merchant-task-select[aria-expanded="true"] .merchant-task-chevron { transform: rotate(180deg); }
+body[data-merchant="true"] .merchant-task-body { padding: 16px; border-top: 1px solid var(--ui-line-default); }
+body[data-merchant="true"] .merchant-task-body-grid { display: grid; grid-template-columns: minmax(0,1.4fr) minmax(250px,1fr); gap: 24px; }
+body[data-merchant="true"] .merchant-task-ships h3 { margin: 0 0 8px; color: var(--ui-text-muted); font-size: 11px; font-weight: 500; }
+body[data-merchant="true"] .merchant-task-ship { display: grid; grid-template-columns: 64px minmax(0,1fr); align-items: center; gap: 12px; padding: 12px 0; }
+body[data-merchant="true"] .merchant-task-ship + .merchant-task-ship { border-top: 1px solid var(--ui-line-default); }
+body[data-merchant="true"] .merchant-task-ship img { width: 64px; height: 58px; object-fit: contain; filter: drop-shadow(0 5px 5px #100d1d88); }
+body[data-merchant="true"] .merchant-task-ship-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px 12px; line-height: 1.5; }
+body[data-merchant="true"] .merchant-task-ship-heading strong { color: var(--ui-text-primary); font-size: 12px; font-weight: 550; }
+body[data-merchant="true"] .merchant-task-ship-heading span { color: var(--ui-commerce); font-size: 11px; }
+body[data-merchant="true"] .merchant-task-progress { height: 4px; margin: 10px 0 6px; overflow: hidden; border-radius: 4px; background: var(--ui-line-default); }
+body[data-merchant="true"] .merchant-task-progress i { display: block; height: 100%; background: var(--ui-accent-strong); }
+body[data-merchant="true"] .merchant-task-flight small { color: var(--ui-text-secondary); font-size: 11px; }
+body[data-merchant="true"] :is(.merchant-task-notice,.merchant-task-ship-info > p) { margin: 8px 0; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+body[data-merchant="true"] [data-market-retry] { color: var(--ui-text-muted); font-size: 11px; line-height: 1.6; }
+body[data-merchant="true"] .merchant-task-notice { margin: 0 0 14px; }
+body[data-merchant="true"] .merchant-task-finance { min-width: 0; }
+body[data-merchant="true"] .merchant-task-capital { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; margin: 0 0 14px; }
+body[data-merchant="true"] .merchant-task-capital > div { min-width: 0; padding: 10px 12px; border: 1px solid var(--ui-line-default); border-radius: 10px; background: var(--merchant-inset); }
+body[data-merchant="true"] .merchant-task-capital dt { color: var(--ui-text-muted); font-size: 11px; }
+body[data-merchant="true"] .merchant-task-capital dd { margin: 6px 0 0; color: var(--ui-text-primary); font-size: 17px; font-weight: 600; overflow-wrap: anywhere; }
+body[data-merchant="true"] .merchant-task-capital small { color: var(--ui-text-muted); font-size: 10px; font-weight: 400; }
+body[data-merchant="true"] .merchant-task-finance .merchant-detail-last span { flex-basis: 100%; }
+body[data-merchant="true"] .merchant-investment-card { min-width: 0; padding: 16px; border: 1px solid var(--ui-line-default); border-radius: 14px; background: var(--merchant-card); }
+body[data-merchant="true"] :is(.merchant-report-window,.merchant-investment-panel > label) { display: grid; gap: 8px; margin: 12px 0; font-size: 12px; color: var(--ui-text-secondary); }
+body[data-merchant="true"] :is([data-investment-route],[data-report-window]) { width: 100%; max-width: 580px; min-height: 44px; padding: 8px 12px; }
+body[data-merchant="true"] .merchant-investment-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; }
+body[data-merchant="true"] .merchant-investment-card h3 { margin: 8px 0; font-size: 15px; }
+body[data-merchant="true"] .merchant-investment-card dl { display: grid; gap: 8px; margin: 12px 0 0; font-size: 12px; }
+body[data-merchant="true"] .merchant-investment-card dl > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+body[data-merchant="true"] .merchant-investment-card dt { color: var(--ui-text-muted); }
+body[data-merchant="true"] .merchant-investment-card dd { margin: 0; color: var(--ui-commerce); }
+body[data-merchant="true"] :is(#merchant-report-summary-note,.merchant-report-period-note) { color: var(--ui-text-muted); font-size: 12px; line-height: 1.7; }
+body[data-merchant="true"] .merchant-report-metrics { display: flex; flex-wrap: wrap; gap: 10px 20px; padding: 0 15px 15px; color: var(--ui-text-secondary); font-size: 12px; line-height: 1.6; }
+body[data-merchant="true"] .merchant-report-period-label { flex-basis: 100%; color: var(--ui-text-muted); }
+body[data-merchant="true"] .merchant-report-detail-metrics { padding-inline: 0; }
+body[data-merchant="true"] .merchant-port-panel { z-index: 24; bottom: auto; max-height: calc(100dvh - var(--ui-resource-height) - var(--ui-nav-height) - 100px); width: min(420px,calc(100vw - 24px)); color: var(--ui-text-primary); }
+body[data-merchant="true"] .merchant-port-route { padding: 12px 0; border-top: 1px solid var(--ui-line-default); font-size: 12px; line-height: 1.6; }
+body[data-merchant="true"] :is(.merchant-new-port-routes,.merchant-port-route) button { min-height: 44px; padding: 10px; color: var(--ui-text-primary); border: 1px solid var(--ui-line-default); border-radius: 10px; background: var(--merchant-card); cursor: pointer; }
+body[data-merchant="true"] .merchant-new-port-routes { display: grid; gap: 8px; }
+body[data-merchant="true"] :is(.merchant-port-panel,.merchant-discovery-notice,.merchant-research-panel)[hidden] { display: none !important; }
+@media (max-width: 900px) {
+  body[data-merchant="true"] .merchant-investment-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media (max-width: 760px) {
+  body[data-merchant="true"] .merchant-task-body-grid { grid-template-columns: minmax(0,1fr); gap: 16px; }
+}
+@media (max-width: 600px) {
+  body[data-merchant="true"] .merchant-task-card .merchant-task-select { grid-template-columns: 32px minmax(0,1fr) 18px; gap: 10px; padding: 13px 12px; }
+  body[data-merchant="true"] .merchant-task-symbol { align-self: start; margin-top: 4px; grid-row: 1 / 3; }
+  body[data-merchant="true"] .merchant-task-main strong { font-size: 14px; }
+  body[data-merchant="true"] .merchant-task-profit { grid-column: 2; grid-row: 2; display: flex; align-items: center; gap: 8px; text-align: left; }
+  body[data-merchant="true"] .merchant-task-chevron { grid-column: 3; grid-row: 1; }
+  body[data-merchant="true"] .merchant-task-body { padding: 12px; }
+  body[data-merchant="true"] .merchant-task-ship { grid-template-columns: 48px minmax(0,1fr); gap: 10px; padding: 10px 0; }
+  body[data-merchant="true"] .merchant-task-ship img { width: 48px; height: 50px; }
+  body[data-merchant="true"] .merchant-task-capital { gap: 8px; }
+  body[data-merchant="true"] .merchant-task-capital > div { padding: 10px; }
+  body[data-merchant="true"] .merchant-discovery-notice { flex-direction: column; align-items: stretch; gap: 8px; }
+  body[data-merchant="true"] .merchant-investment-grid { grid-template-columns: minmax(0,1fr); }
+  body[data-merchant="true"] :is(.merchant-discovery-notice,.merchant-research-panel,.merchant-investment-panel) { padding: 14px; }
+  body[data-merchant="true"] .merchant-port-panel { right: 8px; width: calc(100vw - 16px); }
+}

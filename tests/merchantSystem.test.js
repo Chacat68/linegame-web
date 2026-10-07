@@ -1,18 +1,24 @@
+import { restoreLegacyMerchantAccess, getPendingTechChain } from '../js/systems/merchant/MerchantTechnology.js';
 import { describe, expect, it } from 'vitest';
+import { researchChain } from './helpers/merchantResearch.js';
 import { createInitialState } from '../js/data/constants.js';
-import { MERCHANT_SHIPS, MERCHANT_TECHS } from '../js/data/merchant.js';
+import { MERCHANT_COMPANY_LEVELS, MERCHANT_SHIPS, MERCHANT_TECHS } from '../js/data/merchant.js';
 import * as Merchant from '../js/systems/merchant/MerchantSystem.js';
 import { buildMerchantRouteReports } from '../js/ui/MerchantReportProjection.js';
 
 const start = 1_800_000_000_000;
-const companyUpgradeCosts = [1800, 4000, 9000, 18000, 36000];
-const techTotalCost = MERCHANT_TECHS.reduce((total, tech) => total + tech.cost, 0);
+const companyUpgradeCosts = MERCHANT_COMPANY_LEVELS.slice(0, -1).map(stage => stage.upgradeCost);
+const hullTechs = MERCHANT_TECHS.filter(tech => ['fast_navigation', 'bulk_logistics', 'integrated_freight'].includes(tech.id));
+const techTotalCost = getPendingTechChain({ researchedTechIds: [] }, 'integrated_freight').reduce((total, tech) => total + tech.cost, 0);
+const fastChainCost = getPendingTechChain({ researchedTechIds: [] }, 'fast_navigation').reduce((total, tech) => total + tech.cost, 0);
 const fastNavigation = MERCHANT_TECHS.find(tech => tech.id === 'fast_navigation');
 const plan = (shipIds = ['ship-1'], budget = 220) => ({
   from: 'sol_prime', to: 'mineral_belt', goodId: 'food', shipIds, budget,
 });
-function fresh() {
+function fresh(level = 33) {
   const state = createInitialState();
+  state.merchant.companyLevel = level;
+  restoreLegacyMerchantAccess(state.merchant);
   Merchant.init(state, start);
   return state;
 }
@@ -22,7 +28,7 @@ describe('自动跑商经营闭环', () => {
   it('市场按真实供需、运力和盈利货本识别可完成商路，并把其他商路排到末尾', () => {
     const state = fresh();
     expect(Merchant.findRouteOpportunity(state, 'sol_prime', 'mineral_belt', 'food'))
-      .toMatchObject({ shipId: 'ship-1', purchaseCost: 0, budget: 220, profit: 42 });
+      .toMatchObject({ shipId: 'ship-1', purchaseCost: 0, budget: 126, profit: 42 });
     state.merchant.markets.sol_prime.supply.food = 0;
     expect(Merchant.findRouteOpportunity(state, 'sol_prime', 'mineral_belt', 'food')).toBeNull();
     expect(Merchant.listRouteOpportunities(state).map(route => [route.goodId, Boolean(route.opportunity)]))
@@ -41,12 +47,12 @@ describe('自动跑商经营闭环', () => {
     const state = fresh();
     expect(Merchant.command(state, 'create', plan(), start).ok).toBe(true);
     expect(Merchant.findRouteOpportunity(state, 'mineral_belt', 'sol_prime', 'minerals'))
-      .toMatchObject({ shipId: null, typeId: 'courier', purchaseCost: 336, budget: 220, profit: 66 });
+      .toMatchObject({ shipId: null, typeId: 'courier', purchaseCost: 336, budget: 162, profit: 66 });
     state.credits = 300;
     expect(Merchant.findRouteOpportunity(state, 'mineral_belt', 'sol_prime', 'minerals')).toBeNull();
   });
 
-  it('开局可批量购买不同基础船，逐艘生成独立 ID 并一次扣清总价', () => {
+  it('基础船资格开放后可批量购买，逐艘生成独立 ID 并一次扣清总价', () => {
     const state = fresh();
     const first = Merchant.command(state, 'buyShip', { typeId: 'courier' }, start);
     const second = Merchant.command(state, 'buyShip', { typeId: 'clipper' }, start);
@@ -126,12 +132,17 @@ describe('自动跑商经营闭环', () => {
   });
 
   it('公司船位按全部持有船只计数，越过上限的批量采购完整拒绝', () => {
-    const state = fresh(); state.credits = 10000;
-    expect(Merchant.getCompanyProgress(state.merchant)).toMatchObject({level:1,shipLimit:4,remaining:3});
+    const state = fresh(1); state.credits = 100000;
+    expect(Merchant.getCompanyProgress(state.merchant)).toMatchObject({level:1,shipLimit:1,remaining:0});
     const before = structuredClone(state);
     expect(Merchant.command(state,'buyShip',{typeId:'courier',quantity:4},start).ok).toBe(false);
     expect(state).toEqual(before);
-    expect(Merchant.command(state,'buyShip',{typeId:'courier',quantity:3},start).ok).toBe(true);
+    expect(Merchant.command(state,'buyShip',{typeId:'courier'},start).ok).toBe(false);
+    expect(Merchant.command(state,Merchant.getCompanyProgress(state.merchant).action,{},start).ok).toBe(true);
+    expect(Merchant.getCompanyProgress(state.merchant)).toMatchObject({level:2,shipLimit:1,remaining:0});
+    while (state.merchant.companyLevel < 9) expect(Merchant.command(state,Merchant.getCompanyProgress(state.merchant).action,{},start).ok).toBe(true);
+    researchChain(state, 'berth_planning');
+    expect(Merchant.command(state,'buyShip',{typeId:'courier'},start).ok).toBe(true);
     expect(Merchant.command(state,'create',plan(state.merchant.ships.map(ship=>ship.id),600),start).ok).toBe(true);
     const full = structuredClone(state);
     expect(Merchant.command(state,'buyShip',{typeId:'clipper'},start).ok).toBe(false);
@@ -139,21 +150,23 @@ describe('自动跑商经营闭环', () => {
     expect(Merchant.findRouteOpportunity(state,'mineral_belt','sol_prime','minerals')).toBeNull();
   });
 
-  it('公司升级只扣自由现金并提升总上限，不赠船、解锁科技或挪用任务预算', () => {
-    const state = fresh(); state.credits = 1224 + 220 + 1800 + 4000 + fastNavigation.cost + 850;
-    expect(Merchant.command(state,'buyShip',{typeId:'courier',quantity:3},start).ok).toBe(true);
+  it('公司升级只扣自由现金并提升基础船位，不赠船、解锁科技或挪用任务预算', () => {
+    const state = fresh(1); state.credits = 220 + companyUpgradeCosts.slice(0, 35).reduce((sum, cost) => sum + cost, 0) + fastChainCost + 850;
     expect(Merchant.command(state,'create',plan(['ship-1'],220),start).ok).toBe(true);
     const merchant = structuredClone(state.merchant), cash = state.credits;
-    expect(Merchant.command(state,'upgradeCompany',{},start).ok).toBe(true);
-    expect(state.credits).toBe(cash-1800);
+    expect(Merchant.command(state,Merchant.getCompanyProgress(state.merchant).action,{},start).ok).toBe(true);
+    expect(state.credits).toBe(cash-companyUpgradeCosts[0]);
     expect(operatingAssets(state.merchant)).toEqual({...operatingAssets(merchant),companyLevel:2});
-    expect(Merchant.getCompanyProgress(state.merchant)).toMatchObject({shipLimit:8,remaining:4});
+    expect(state.merchant.exploration.event).toBeNull();
+    expect(Merchant.getCompanyProgress(state.merchant)).toMatchObject({shipLimit:1,remaining:0});
     expect(Merchant.command(state,'buyShip',{typeId:'swift'},start).ok).toBe(false);
     expect(Merchant.command(state,'researchTech',{techId:'fast_navigation'},start).ok).toBe(false);
-    expect(Merchant.command(state,'upgradeCompany',{},start).ok).toBe(true);
-    expect(Merchant.command(state,'researchTech',{techId:'fast_navigation'},start).ok).toBe(true);
+    while (state.merchant.companyLevel < 35) expect(Merchant.command(state,Merchant.getCompanyProgress(state.merchant).action,{},start).ok).toBe(true);
+    expect(state.merchant.exploration.event).toBeNull();
+    researchChain(state, 'fast_navigation');
+    expect(Merchant.command(state,Merchant.getCompanyProgress(state.merchant).action,{},start).ok).toBe(true);
     expect(Merchant.command(state,'buyShip',{typeId:'swift'},start).ok).toBe(true);
-    expect(state.merchant.ships).toHaveLength(5);
+    expect(state.merchant.ships).toHaveLength(2);
     expect(state.credits).toBe(0);
     expect(state.merchant.tasks).toEqual(merchant.tasks);
   });
@@ -165,7 +178,7 @@ describe('自动跑商经营闭环', () => {
         state.merchant.companyLevel = index + 1;
         expect(Merchant.getCompanyProgress(state.merchant).upgradeCost).toBe(cost);
         const before = structuredClone(state);
-        const result = Merchant.command(state,'upgradeCompany',{},start);
+        const result = Merchant.command(state,Merchant.getCompanyProgress(state.merchant).action,{},start);
         expect(result.ok).toBe(false);
         expect(result.msg).toContain(credits < cost ? '可用 CR 不足' : '74 CR 首航货本');
         expect(state).toEqual(before);
@@ -173,9 +186,9 @@ describe('自动跑商经营闭环', () => {
       const idle = createInitialState({credits: cost + 74}); Merchant.init(idle,start);
       idle.merchant.companyLevel = index + 1;
       const idleMerchant = structuredClone(idle.merchant);
-      expect(Merchant.command(idle,'upgradeCompany',{},start).ok).toBe(true);
+      expect(Merchant.command(idle,Merchant.getCompanyProgress(idle.merchant).action,{},start).ok).toBe(true);
       expect(idle.credits).toBe(74);
-      expect(operatingAssets(idle.merchant)).toEqual({...operatingAssets(idleMerchant),companyLevel:index+2});
+      expect(operatingAssets(idle.merchant)).toEqual({...operatingAssets(idleMerchant),companyLevel:index+2,nextId:idleMerchant.nextId});
 
       const operating = createInitialState({credits: cost + 219}); Merchant.init(operating,start);
       operating.merchant.companyLevel = index + 1;
@@ -183,43 +196,44 @@ describe('自动跑商经营闭环', () => {
       expect(operating.credits).toBe(cost - 1);
       expect(Merchant.getOperatingReserve(operating)).toBe(0);
       const underfunded = structuredClone(operating);
-      expect(Merchant.command(operating,'upgradeCompany',{},start).ok).toBe(false);
+      expect(Merchant.command(operating,Merchant.getCompanyProgress(operating.merchant).action,{},start).ok).toBe(false);
       expect(operating).toEqual(underfunded);
       operating.credits += 1;
       const activeMerchant = structuredClone(operating.merchant);
-      expect(Merchant.command(operating,'upgradeCompany',{},start).ok).toBe(true);
+      expect(Merchant.command(operating,Merchant.getCompanyProgress(operating.merchant).action,{},start).ok).toBe(true);
       expect(operating.credits).toBe(0);
-      expect(operatingAssets(operating.merchant)).toEqual({...operatingAssets(activeMerchant),companyLevel:index+2});
+      expect(operatingAssets(operating.merchant)).toEqual({...operatingAssets(activeMerchant),companyLevel:index+2,
+        nextId:activeMerchant.nextId});
     }
-    const state = fresh(); state.credits = 100000;
-    for (let level=2;level<=6;level++) expect(Merchant.command(state,'upgradeCompany',{},start).ok).toBe(true);
+    const state = fresh(1); state.credits = companyUpgradeCosts.reduce((sum, cost) => sum + cost, 31200);
+    for (let level=2;level<=100;level++) expect(Merchant.command(state,Merchant.getCompanyProgress(state.merchant).action,{},start).ok).toBe(true);
     expect(state.credits).toBe(31200);
-    expect(Merchant.getCompanyProgress(state.merchant)).toMatchObject({level:6,shipLimit:48,upgradeCost:null});
+    expect(Merchant.getCompanyProgress(state.merchant)).toMatchObject({level:100,shipLimit:30,upgradeCost:null});
     const before = structuredClone(state);
-    expect(Merchant.command(state,'upgradeCompany',{},start).ok).toBe(false);
+    expect(Merchant.command(state,Merchant.getCompanyProgress(state.merchant).action,{},start).ok).toBe(false);
     expect(state).toEqual(before);
   });
 
   it('公司等级开放探索和科技资格，不能绕过探索直接付费开港', () => {
-    const state = fresh(); state.credits = companyUpgradeCosts.slice(0,4).reduce((total,cost)=>total+cost,0) + techTotalCost + 2190;
+    const state = fresh(1); state.credits = companyUpgradeCosts.slice(0,70).reduce((total,cost)=>total+cost,0) + techTotalCost + 2190;
     const before = structuredClone(state);
     expect(Merchant.command(state,'unlockPort',{},start).ok).toBe(false);
     expect(Merchant.command(state,'researchTech',{techId:'fast_navigation'},start).ok).toBe(false);
     expect(state).toEqual(before);
-    expect(Merchant.command(state,'upgradeCompany',{},start).ok).toBe(true);
+    while (state.merchant.companyLevel < 24) expect(Merchant.command(state,Merchant.getCompanyProgress(state.merchant).action,{},start).ok).toBe(true);
     expect(state.merchant.unlockedPorts).not.toContain('nebula_forge');
     const upgraded = structuredClone(state);
     expect(Merchant.command(state,'unlockPort',{},start).ok).toBe(false);
     expect(state).toEqual(upgraded);
     expect(Merchant.command(state,'researchTech',{techId:'fast_navigation'},start).ok).toBe(false);
-    expect(Merchant.command(state,'upgradeCompany',{},start).ok).toBe(true);
-    expect(Merchant.command(state,'researchTech',{techId:'fast_navigation'},start).ok).toBe(true);
+    while (state.merchant.companyLevel < 35) expect(Merchant.command(state,Merchant.getCompanyProgress(state.merchant).action,{},start).ok).toBe(true);
+    researchChain(state, 'fast_navigation');
     expect(Merchant.command(state,'researchTech',{techId:'bulk_logistics'},start).ok).toBe(false);
-    expect(Merchant.command(state,'upgradeCompany',{},start).ok).toBe(true);
-    expect(Merchant.command(state,'researchTech',{techId:'bulk_logistics'},start).ok).toBe(true);
+    while (state.merchant.companyLevel < 52) expect(Merchant.command(state,Merchant.getCompanyProgress(state.merchant).action,{},start).ok).toBe(true);
+    researchChain(state, 'bulk_logistics');
     expect(Merchant.command(state,'researchTech',{techId:'integrated_freight'},start).ok).toBe(false);
-    expect(Merchant.command(state,'upgradeCompany',{},start).ok).toBe(true);
-    expect(Merchant.command(state,'researchTech',{techId:'integrated_freight'},start).ok).toBe(true);
+    while (state.merchant.companyLevel < 71) expect(Merchant.command(state,Merchant.getCompanyProgress(state.merchant).action,{},start).ok).toBe(true);
+    researchChain(state, 'integrated_freight');
     expect(state.credits).toBe(2190);
   });
 
@@ -236,6 +250,7 @@ describe('自动跑商经营闭环', () => {
     }
     for (const credits of [739, 740, 813]) {
       const boundary = createInitialState({ credits }); Merchant.init(boundary, start);
+      boundary.merchant.companyLevel = 33;
       const untouched = structuredClone(boundary);
       const result = Merchant.command(boundary, 'buyShip', { typeId: 'courier', quantity: 2 }, start);
       expect(result.ok).toBe(false);
@@ -243,6 +258,7 @@ describe('自动跑商经营闭环', () => {
       expect(boundary).toEqual(untouched);
     }
     const funded = createInitialState({ credits: 814 }); Merchant.init(funded, start);
+    funded.merchant.companyLevel = 33;
     expect(Merchant.command(funded, 'buyShip', { typeId: 'courier', quantity: 2 }, start).ok).toBe(true);
     expect(funded.credits).toBe(74);
     expect(funded.merchant.ships).toHaveLength(3);
@@ -250,18 +266,23 @@ describe('自动跑商经营闭环', () => {
 
   it('无运行中货本时保留最低盈利首航资金，已有任务或在途回款时不重复冻结', () => {
     const state = createInitialState({ credits: 950 });
+    state.merchant.companyLevel = 33;
+    restoreLegacyMerchantAccess(state.merchant);
     Merchant.init(state, start);
     expect(Merchant.getOperatingReserve(state)).toBe(74);
     expect(Merchant.command(state, 'buyShip', { typeId: 'hauler' }, start).ok).toBe(true);
     const before = structuredClone(state);
     expect(Merchant.command(state, 'buyShip', { typeId: 'clipper' }, start)).toMatchObject({ ok: false, msg: '需保留至少 74 CR 首航货本。' });
     expect(state).toEqual(before);
-    const research = createInitialState({ credits: fastNavigation.cost + 50 });
-    research.merchant.companyLevel = 3;
+    const research = createInitialState({ credits: fastChainCost + 50 });
+    research.merchant.companyLevel = 40;
     Merchant.init(research, start);
+    researchChain(research, 'fast_navigation', { includeTarget: false });
     expect(Merchant.command(research, 'researchTech', { techId: 'fast_navigation' }, start).msg).toContain('74 CR 首航货本');
     expect(research.credits).toBe(fastNavigation.cost + 50);
     const operating = createInitialState({ credits: 1380 });
+    operating.merchant.companyLevel = 33;
+    restoreLegacyMerchantAccess(operating.merchant);
     Merchant.init(operating, start);
     expect(Merchant.command(operating, 'create', plan(), start).ok).toBe(true);
     expect(Merchant.getOperatingReserve(operating)).toBe(0);
@@ -277,7 +298,7 @@ describe('自动跑商经营闭环', () => {
 
   it('航速与货运研发有明确前置、成本和完成态，只解锁购买资格', () => {
     const state = createInitialState({ credits: techTotalCost + 850 + 980 + 1250 + 74 });
-    state.merchant.companyLevel = 5;
+    state.merchant.companyLevel = 75;
     Merchant.init(state, start);
     const before = structuredClone(state);
     for (const typeId of ['swift', 'bulk', 'relay']) {
@@ -286,10 +307,11 @@ describe('自动跑商经营闭环', () => {
     }
     expect(Merchant.command(state, 'researchTech', { techId: 'integrated_freight' }, start).ok).toBe(false);
     expect(state).toEqual(before);
-    expect(new Set(MERCHANT_TECHS.map(tech => tech.unlockShipId)).size).toBe(MERCHANT_TECHS.length);
-    expect(MERCHANT_SHIPS.filter(ship => ship.techId).map(ship => [ship.techId, ship.id]).sort())
-      .toEqual(MERCHANT_TECHS.map(tech => [tech.id, tech.unlockShipId]).sort());
-    for (const tech of MERCHANT_TECHS) {
+    expect(new Set(hullTechs.map(tech => tech.unlockShipId)).size).toBe(hullTechs.length);
+    expect(MERCHANT_SHIPS.filter(ship => hullTechs.some(tech => tech.id === ship.techId)).map(ship => [ship.techId, ship.id]).sort())
+      .toEqual(hullTechs.map(tech => [tech.id, tech.unlockShipId]).sort());
+    for (const tech of hullTechs) {
+      researchChain(state, tech.id, { includeTarget: false });
       const merchant = structuredClone(state.merchant), cash = state.credits;
       const availableBefore = MERCHANT_SHIPS.filter(ship => Merchant.isShipTypeUnlocked(merchant, ship.id)).map(ship => ship.id);
       expect(Merchant.command(state, 'researchTech', { techId: tech.id }, start).ok).toBe(true);
@@ -306,19 +328,19 @@ describe('自动跑商经营闭环', () => {
       }
       expect(Merchant.command(state, 'buyShip', { typeId: tech.unlockShipId }, start).ok).toBe(true);
     }
-    expect(state.merchant.researchedTechIds).toEqual(['fast_navigation', 'bulk_logistics', 'integrated_freight']);
+    expect(state.merchant.researchedTechIds).toEqual(getPendingTechChain({ researchedTechIds: [] }, 'integrated_freight').map(tech => tech.id));
     expect(state.merchant.ships.map(ship => ship.typeId)).toEqual(['courier', 'swift', 'bulk', 'relay']);
     expect(state.credits).toBe(74);
   });
 
   it('各阶研发都保护不足现金与首航储备，足额时不挪用在途经营货本', () => {
-    for (const tech of MERCHANT_TECHS) {
-      const prerequisiteCost = tech.requires.reduce((total, id) => total + Merchant.getTech(id).cost, 0);
+    for (const tech of hullTechs) {
+      const prerequisiteCost = getPendingTechChain({ researchedTechIds: [] }, tech.id).filter(item => item.id !== tech.id).reduce((total, item) => total + item.cost, 0);
       const setup = credits => {
         const state = createInitialState({ credits: credits + prerequisiteCost });
         state.merchant.companyLevel = tech.companyLevel;
         Merchant.init(state, start);
-        for (const id of tech.requires) expect(Merchant.command(state, 'researchTech', { techId: id }, start).ok).toBe(true);
+        researchChain(state, tech.id, { includeTarget: false });
         return state;
       };
       for (const credits of [tech.cost - 1, tech.cost + 73]) {
@@ -350,6 +372,8 @@ describe('自动跑商经营闭环', () => {
 
   it('不同船型同任务独立按载量、航速、费用发车并分别返港结算', () => {
     const state = createInitialState({ credits: 3000 });
+    state.merchant.companyLevel = 13;
+    restoreLegacyMerchantAccess(state.merchant);
     Merchant.init(state, start);
     const bought = Merchant.command(state, 'buyShip', { typeId: 'clipper' }, start);
     expect(Merchant.command(state, 'create', plan(['ship-1', ...bought.shipIds], 800), start).ok).toBe(true);
@@ -383,12 +407,10 @@ describe('自动跑商经营闭环', () => {
     expect(state.credits).toBe(1042);
   });
 
-  it('无货、无需求、货本不足或无法盈利时立即解除派遣，只退一次原货本', () => {
+  it('完整货本无法支持盈利航次时解除派遣，只退一次原货本', () => {
     for (const [reason, change, budget] of [
-      ['无货', state => { state.merchant.markets.sol_prime.supply.food = 0; }, 220],
-      ['需求', state => { state.merchant.markets.mineral_belt.demand.food = 0; }, 220],
       ['货本不足', () => {}, 1],
-      ['完整往返费用', state => { state.merchant.markets.mineral_belt.demand.food = 3; }, 220],
+      ['完整往返费用', () => {}, 70],
     ]) {
       const state = fresh(); change(state);
       const markets = structuredClone(state.merchant.markets);
@@ -414,6 +436,49 @@ describe('自动跑商经营闭环', () => {
     }
   });
 
+  it('临时无货、需求暂满或货量不足时保留商路，补货后原任务自动续跑且不重新划拨货本', () => {
+    for (const change of [
+      state => { state.merchant.markets.sol_prime.supply.food = 0; },
+      state => { state.merchant.markets.mineral_belt.demand.food = 0; },
+      state => { state.merchant.markets.mineral_belt.demand.food = 3; },
+    ]) {
+      const state = fresh();change(state);
+      const markets = structuredClone(state.merchant.markets);
+      const { taskId } = Merchant.command(state, 'create', plan(), start), sequence = state.merchant.nextId;
+      expect(state.credits).toBe(780);
+      expect(state.merchant.tasks[0]).toMatchObject({ id: taskId, stopping: false, available: 220, rounds: 0 });
+      expect(state.merchant.ships[0]).toMatchObject({ phase: 'waiting', taskId, trip: null });
+      expect(state.merchant.ships[0].waitReason).toContain('自动续跑');
+      expect(Merchant.getTaskStatus(state.merchant, state.merchant.tasks[0])).toContain('自动续跑');
+      expect(state.merchant.markets).toEqual(markets);
+      Merchant.advance(state, start + 59999);
+      expect(state.credits).toBe(780);
+      Merchant.advance(state, start + 60000);
+      expect(state.merchant.ships[0]).toMatchObject({ taskId, phase: 'outbound' });
+      expect(state.merchant.ships[0].trip.quantity).toBe(12);
+      expect(state.credits).toBe(780);
+      Merchant.advance(state, start + 60000 + 2 * Merchant.legDuration('courier', 'sol_prime', 'mineral_belt'));
+      expect(state.credits).toBe(822);
+      expect(state.merchant.tasks[0]).toMatchObject({ id: taskId, rounds: 1, profit: 42, stopping: false });
+      expect(state.merchant.nextId).toBe(sequence);
+      expect(state.merchant.history).toHaveLength(0);
+      expect(Merchant.isValidMerchantState(state.merchant)).toBe(true);
+    }
+  });
+
+  it('等待补货时可立即结束并退回货本，后续刷新和离线补算不会重启已结束商路', () => {
+    const state = fresh();state.merchant.markets.sol_prime.supply.food = 0;
+    const { taskId } = Merchant.command(state, 'create', plan(), start);
+    expect(Merchant.command(state, 'stop', { taskId }, start + 1000).ok).toBe(true);
+    expect(state.credits).toBe(1000);
+    expect(state.merchant.tasks).toHaveLength(0);
+    expect(state.merchant.ships[0]).toMatchObject({ phase: 'idle', taskId: null });
+    Merchant.advance(state, start + 5 * 60000);
+    expect(state.credits).toBe(1000);
+    expect(state.merchant.tasks).toHaveLength(0);
+    expect(state.merchant.history).toHaveLength(1);
+  });
+
   it('共享市场部分装载按完整费用重算，仍盈利的航次照常执行', () => {
     const partial = fresh();
     partial.merchant.markets.mineral_belt.demand.food = 6;
@@ -423,8 +488,9 @@ describe('自动跑商经营闭环', () => {
     expect(partial.merchant.ships[0].trip.revenue - partial.merchant.ships[0].trip.cost - partial.merchant.ships[0].trip.fee).toBe(6);
   });
 
-  it('耗尽供给后停止新航次，多船按原进度返港并归还一次完整货本', () => {
+  it('耗尽供给后保留商路等待，多船各自结算，玩家结束才释放完整货本', () => {
     const state = fresh(); state.credits = 2000;
+    state.merchant.markets.sol_prime.supply.food = 36;
     expect(Merchant.command(state, 'buyShip', { typeId: 'hauler' }, start).ok).toBe(true);
     const result = Merchant.command(state, 'create', plan(['ship-1', 'ship-2'], 600), start);
     expect(result.ok).toBe(true);
@@ -434,13 +500,13 @@ describe('自动跑商经营闭环', () => {
     expect(haulerTrip.quantity).toBe(24);
     Merchant.advance(state, start + 2 * courierTrip.legMs);
     expect(state.credits).toBe(882);
-    expect(state.merchant.tasks[0]).toMatchObject({ id: result.taskId, stopping: true, rounds: 1, profit: 42, available: 364 });
-    expect(state.merchant.tasks[0].stopReason).toContain('无货');
-    expect(state.merchant.ships[0]).toMatchObject({ taskId: result.taskId, trip: null });
-    expect(['idle', 'waiting']).toContain(state.merchant.ships[0].phase);
+    expect(state.merchant.tasks[0]).toMatchObject({ id: result.taskId, stopping: false, rounds: 1, profit: 42, available: 364 });
+    expect(state.merchant.ships[0]).toMatchObject({ taskId: result.taskId, trip: null, phase: 'waiting' });
+    expect(state.merchant.ships[0].waitReason).toContain('补货后自动续跑');
     expect(state.merchant.ships[1]).toMatchObject({ phase: 'return', trip: haulerTrip, arriveAt: start + 2 * haulerTrip.legMs });
     expect(Merchant.isValidMerchantState(state.merchant)).toBe(true);
-    expect(buildMerchantRouteReports(state.merchant)[0]).toMatchObject({ profit: 42, stoppedTasks: [{ id: result.taskId, closedAt: null }] });
+    expect(buildMerchantRouteReports(state.merchant)[0]).toMatchObject({ profit: 42, stoppedTasks: [] });
+    expect(Merchant.command(state, 'stop', { taskId: result.taskId }, state.merchant.lastTickAt).ok).toBe(true);
     Merchant.advance(state, start + 2 * haulerTrip.legMs);
     expect(state.credits).toBe(1582);
     expect(state.merchant.tasks).toHaveLength(0);
@@ -448,7 +514,7 @@ describe('自动跑商经营闭环', () => {
     expect(state.merchant.history[0]).toMatchObject({ id: result.taskId, rounds: 2, profit: 142, available: 600 });
     expect(state.merchant.history[0].recent).toHaveLength(2);
     const report = buildMerchantRouteReports(state.merchant)[0];
-    expect(report).toMatchObject({ profit: 142, stoppedTasks: [{ id: result.taskId, closedAt: start + 2 * haulerTrip.legMs }] });
+    expect(report).toMatchObject({ profit: 142, stoppedTasks: [] });
     expect(report.records).toHaveLength(2);
     expect(state.merchant.ships.every(ship => ship.phase === 'idle' && ship.taskId === null && ship.trip === null)).toBe(true);
     const closed = structuredClone(state);
@@ -542,6 +608,8 @@ describe('自动跑商经营闭环', () => {
 
   it('多船独立使用运力与速度，争用同一港口容量', () => {
     const state = fresh();
+    state.merchant.markets.sol_prime.supply.food = 36;
+    state.merchant.markets.mineral_belt.demand.food = 40;
     Merchant.command(state, 'buyShip', { typeId: 'hauler' }, start);
     Merchant.command(state, 'create', plan(['ship-1', 'ship-2'], 430), start);
     const ships = state.merchant.ships;
@@ -577,10 +645,11 @@ describe('自动跑商经营闭环', () => {
     for (let second = 1; second <= 125; second++) Merchant.advance(online, start + second * 1000);
     Merchant.advance(offline, start + 125000);
     expect(offline.credits).toBe(online.credits);
-    expect(offline.merchant.tasks).toHaveLength(0);
-    expect(online.merchant.tasks).toHaveLength(0);
+    expect(offline.merchant.tasks).toHaveLength(1);
+    expect(offline.merchant.tasks).toEqual(online.merchant.tasks);
     expect(offline.merchant.history).toEqual(online.merchant.history);
-    expect(offline.merchant.history[0]).toMatchObject({ rounds: 3, profit: 126, available: 220 });
+    expect(offline.merchant.history).toHaveLength(0);
+    expect(offline.merchant.tasks[0]).toMatchObject({ rounds: 7, profit: 294, budget: 220, stopping: false });
     expect(offline.merchant.ships).toEqual(online.merchant.ships);
     expect(offline.merchant.markets).toEqual(online.merchant.markets);
     const cash = offline.credits;
@@ -664,10 +733,11 @@ describe('自动跑商经营闭环', () => {
     expect(state.merchant.tasks[0].pending).not.toBeNull();
     expect(state.merchant.tasks[0].budget).toBe(300);
     expect(Merchant.isValidMerchantState(state.merchant)).toBe(true);
+    state.merchant.markets.sol_prime.supply.food = 0;
     Merchant.advance(state, start + 36000);
-    expect(state.merchant.tasks).toHaveLength(0);
-    expect(state.merchant.history[0]).toMatchObject({ pending: null, budget: 160 });
-    expect(state.merchant.history[0].stopReason).toContain('无货');
+    expect(state.merchant.tasks).toHaveLength(1);
+    expect(state.merchant.tasks[0]).toMatchObject({ pending: null, budget: 160, stopping: false });
+    expect(state.merchant.ships[0].waitReason).toContain('自动续跑');
     expect(Merchant.isValidMerchantState(state.merchant)).toBe(true);
   });
 });

@@ -1,3 +1,4 @@
+import { restoreLegacyMerchantAccess } from '../js/systems/merchant/MerchantTechnology.js';
 import { it, expect, vi } from 'vitest';
 import { createMerchantGameRuntime } from '../js/core/MerchantGameRuntime.js';
 import { createInitialState } from '../js/data/constants.js';
@@ -10,11 +11,11 @@ it('隐藏页面按真实轮次结算，停机不会写回旧会话，恢复不�
   const runtime=createMerchantGameRuntime({getState:()=>state,save,render,now:()=>now,documentSource:doc,windowSource:win});
   runtime.start();expect(runtime.execute('create',plan).ok).toBe(true);
   render.mockClear();doc.hidden=true;now+=60000;doc.dispatchEvent(new Event('visibilitychange'));
-  expect(state.merchant.tasks).toHaveLength(0);
-  expect(state.merchant.history[0]).toMatchObject({rounds:3,profit:126,available:220,stopping:true});
-  expect(state.merchant.history[0].stopReason).toContain('无货');
-  expect(state.credits).toBe(1126);
-  expect(state.merchant.ships[0]).toMatchObject({phase:'idle',taskId:null});
+  expect(state.merchant.tasks).toHaveLength(1);
+  expect(state.merchant.tasks[0]).toMatchObject({rounds:3,profit:126,budget:220,stopping:false});
+  expect(state.merchant.history).toHaveLength(0);
+  expect(state.credits).toBe(906);
+  expect(state.merchant.ships[0]).toMatchObject({phase:'outbound',taskId:state.merchant.tasks[0].id});
   expect(render).not.toHaveBeenCalled();
   const cash=state.credits;doc.hidden=false;doc.dispatchEvent(new Event('visibilitychange'));expect(state.credits).toBe(cash);
   runtime.stop();save.mockClear();win.dispatchEvent(new Event('pagehide'));runtime.tick(true);expect(save).not.toHaveBeenCalled();
@@ -28,10 +29,10 @@ it('操作保存失败提示导出，资源不会重复分配',()=>{
 });
 it('探索在后台按真实时间返港开港，重复恢复和已停止会话不重复发放',()=>{
   let now=1_800_000_000_000;
-  const state=createInitialState();state.merchant.companyLevel=2;state.merchant.exploration.rngState=42;Merchant.init(state,now);
+  const state=createInitialState();state.merchant.companyLevel=24;restoreLegacyMerchantAccess(state.merchant);state.merchant.exploration.rngState=42;Merchant.init(state,now);
   const doc=new EventTarget(),win=new EventTarget(),save=vi.fn(()=>({ok:true})),render=vi.fn();
   const runtime=createMerchantGameRuntime({getState:()=>state,save,render,now:()=>now,documentSource:doc,windowSource:win});
-  runtime.start();now=state.merchant.exploration.nextEventAt;runtime.tick(true);
+  runtime.start();now=state.merchant.exploration.event.appearedAt;runtime.tick(true);
   expect(runtime.execute('explore',{eventId:state.merchant.exploration.event.id,shipId:'ship-1'}).ok).toBe(true);
   const finalAt=state.merchant.exploration.event.arriveAt+state.merchant.exploration.event.legMs;
   render.mockClear();doc.hidden=true;now=finalAt-1;doc.dispatchEvent(new Event('visibilitychange'));

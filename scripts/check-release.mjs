@@ -5,7 +5,7 @@ import { currentFiles, walk } from './release-files.mjs';
 import { GAME_VERSION, SAVE_SCHEMA_VERSION } from '../js/data/constants.js';
 
 const sha = data => createHash('sha256').update(data).digest('hex');
-const manifest = JSON.parse(await readFile('releases/2.0.0-manifest.json', 'utf8'));
+const manifest = JSON.parse(await readFile(`releases/${GAME_VERSION}-manifest.json`, 'utf8'));
 const pkg = JSON.parse(await readFile('package.json', 'utf8'));
 const lock = JSON.parse(await readFile('package-lock.json', 'utf8'));
 assert.equal(manifest.version, GAME_VERSION);
@@ -28,4 +28,4 @@ assert.equal(packageBytes.length, manifest.package.bytes);
 assert.equal(sha(packageBytes), manifest.package.sha256);
 const checksum = (await readFile(manifest.package.path + '.sha256', 'utf8')).trim();
 assert.equal(checksum, manifest.package.sha256 + '  ' + manifest.package.path.split('/').at(-1));
-console.log(`2.0.0 封版校验通过：${manifest.source.length} 项源文件、${manifest.build.length} 项构建文件与发布包 SHA-256 一致。`);
+console.log(`${GAME_VERSION} 封版校验通过：${manifest.source.length} 项源文件、${manifest.build.length} 项构建文件与发布包 SHA-256 一致。`);

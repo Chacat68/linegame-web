@@ -30,7 +30,7 @@ function navigate(view) {
     const selected = button.dataset.view === view; button.classList.toggle('active', selected); button.setAttribute('aria-pressed', String(selected));
     if (selected) button.setAttribute('aria-current','page'); else button.removeAttribute('aria-current');
   });
-  document.getElementById('company-tools').open = false;
+  MerchantUI.enterView(view);
   if (!hasBlockingSurfaceOpen()) document.getElementById(surfaces[view]).querySelector('[data-workspace-initial-focus]')?.focus({preventScroll:true});
   MerchantUI.renderScene(state);
 }
@@ -45,8 +45,13 @@ function begin(nextState) {
 function click(event) {
   const button = event.target.closest?.('[data-view]');
   if (button) { navigate(button.dataset.view); return; }
-  if (event.target.closest?.('#settings-btn,[data-company-action="settings"]')) { event.preventDefault(); tools.open(); document.getElementById('company-tools').open = false; }
-  if (event.target.closest?.('[data-company-action="saves"]')) { tools.open('saves'); document.getElementById('company-tools').open = false; }
+  const settingsButton = event.target.closest?.('#settings-btn');
+  if (settingsButton) {
+    event.preventDefault();
+    settingsButton.focus?.({ preventScroll: true });
+    tools.open();
+    return;
+  }
   if (event.target.closest?.('#company-name-display')) tools.open('company');
 }
 function paint() { if (!active) return; MerchantUI.renderScene(state); frame = requestAnimationFrame(paint); }

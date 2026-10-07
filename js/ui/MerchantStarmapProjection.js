@@ -54,6 +54,7 @@ export function buildMerchantStarmapProjection(state, now = Date.now()) {
   const home = findSystem(routes[0]?.startSystemId || 'sol_prime');
   return {
     ...state,
+    merchantStarmapNow: now,
     merchantStarmapRoutes: routes,
     currentSystem: home?.id || 'sol_prime',
     currentGalaxy: home?.galaxyId || 'milky_way',

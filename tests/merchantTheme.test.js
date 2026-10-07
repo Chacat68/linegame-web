@@ -1,3 +1,4 @@
+import { restoreLegacyMerchantAccess } from '../js/systems/merchant/MerchantTechnology.js';
 import { describe, expect, it } from 'vitest';
 import { Vector3 } from 'three';
 import { applyMerchantTheme, getMerchantDisplayGalaxy } from '../js/ui/MerchantTheme.js';
@@ -78,7 +79,7 @@ describe('商队星系主题与显示构图', () => {
   it('探索只显示未知信号与真实去返程，勘察停船，完整返港后才出现新港模型', () => {
     const start = 1_800_000_000_000;
     const state = createInitialState({ viewingGalaxy: 'jade_expanse' });
-    state.merchant.companyLevel = 2; state.merchant.exploration.rngState = 42;
+    state.merchant.companyLevel = 24; restoreLegacyMerchantAccess(state.merchant); state.merchant.exploration.rngState = 42;
     Merchant.init(state, start); Merchant.advance(state, start);
     const systems = [{ id: 'sol_prime' }, { id: 'mineral_belt' }, { id: 'nebula_forge' }];
     const presented = () => getPresentedSceneSystems(systems, state).map(system => system.id);
@@ -88,10 +89,9 @@ describe('商队星系主题与显示构图', () => {
       expect(result.viewingGalaxy).toBe('jade_expanse');
       return result.merchantStarmapRoutes;
     };
-    expect(getMerchantExplorationSignal(state)).toBeNull();
-    Merchant.advance(state, state.merchant.exploration.nextEventAt);
+    expect(getMerchantExplorationSignal(state)).toMatchObject({status:'available',stage:'available'});
     const event = state.merchant.exploration.event, beganAt = state.merchant.lastTickAt;
-    expect(getMerchantExplorationSignal(state)).toBe(event);
+    expect(getMerchantExplorationSignal(state)).toMatchObject({...event,stage:'available'});
     expect(presented()).toEqual(['sol_prime', 'mineral_belt']);
     expect(project(beganAt)).toEqual([]);
     expect(Merchant.command(state, 'explore', { eventId: event.id, shipId: 'ship-1' }, beganAt).ok).toBe(true);
@@ -103,7 +103,7 @@ describe('商队星系主题与显示构图', () => {
     [route] = project(state.merchant.lastTickAt);
     expect(route).toMatchObject({ progress: 1, isMoving: false, statusLabel: '勘察中' });
     expect(presented()).toEqual(['sol_prime', 'mineral_belt']);
-    expect(getMerchantExplorationSignal(state)).toBe(event);
+    expect(getMerchantExplorationSignal(buildMerchantStarmapProjection(state,state.merchant.lastTickAt))).toMatchObject({...event,stage:'surveying'});
     const returningAt = event.arriveAt;
     Merchant.advance(state, returningAt);
     [route] = project(returningAt + halfLeg);

@@ -32,11 +32,21 @@ function harness() {
   const controller = createMerchantStarmapController({ renderer, doc, onReturn });
   const [overview, loader] = map.children;
   const state = { merchant: { ships: [{ id: 'ship-1', taskId: 'task-1' }] } };
-  const paint = () => { now += 40; controller.renderFrame(state); };
+  const paint = (delta = 40) => { now += delta; controller.renderFrame(state); };
   return { map, doc, renderer, controller, loader, overview, onReturn, paint, setState: value => { loadState = value; } };
 }
 
 beforeEach(() => { surface.blocked = false; });
+
+it('60 Hz 回调有微小抖动时维持 30 帧节奏，切出后回来重新建立时间轴', () => {
+  const h = harness(); h.map.classList.toggle('is-active', true); h.setState('ready'); h.paint(0);
+  const jitter = [-.6, .4, .2, 0];
+  for (let i = 0; i < 60; i += 1) h.paint(1000 / 60 + jitter[i % jitter.length]);
+  expect(h.renderer.render).toHaveBeenCalledTimes(31);
+  h.map.classList.toggle('is-active', false); h.paint();
+  h.map.classList.toggle('is-active', true); h.paint(1);
+  expect(h.renderer.render).toHaveBeenCalledTimes(32); h.controller.dispose();
+});
 
 it('进入星图时显示加载层，只有实际渲染就绪后才退出', () => {
   const h = harness(); h.paint();

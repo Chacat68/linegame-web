@@ -23,7 +23,8 @@ export const SYSTEMS = Object.freeze([
     "typeLabel": "工业",
     "color": "#FF7043",
     "galaxyId": "milky_way"
-  }
+  },
+  { "id": "aurora_depot", "name": "极光原料港", "type": "mining", "typeLabel": "原料", "color": "#80CBC4", "galaxyId": "milky_way" }
 ]);
 export const GALAXIES = Object.freeze([
   {

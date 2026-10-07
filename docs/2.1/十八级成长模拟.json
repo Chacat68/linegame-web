@@ -1,0 +1,375 @@
+{
+  "gameVersion": "2.1.0",
+  "saveSchemaVersion": 28,
+  "baseline": {
+    "strategy": "主动补派策略：双港双船起步，六级等待信号、停用原船贸易并返港探索，完成后投资三港三船；每秒检查供需，盈利时用空闲原船补派并保留货本；不研发或采购进阶船、不计额外奖励",
+    "completed": true,
+    "horizonMinutes": 720,
+    "simulatedMinutes": 105.97,
+    "stages": [
+      {
+        "level": 1,
+        "minutes": 0,
+        "cash": 1000
+      },
+      {
+        "level": 2,
+        "upgradeCost": 150,
+        "minutes": 0,
+        "cash": 850
+      },
+      {
+        "level": 3,
+        "upgradeCost": 250,
+        "minutes": 0.37,
+        "stageMinutes": 0.37,
+        "cash": 60
+      },
+      {
+        "level": 4,
+        "upgradeCost": 350,
+        "minutes": 1.15,
+        "stageMinutes": 0.78,
+        "cash": 56
+      },
+      {
+        "level": 5,
+        "upgradeCost": 450,
+        "minutes": 2.15,
+        "stageMinutes": 1,
+        "cash": 26
+      },
+      {
+        "level": 6,
+        "upgradeCost": 600,
+        "minutes": 3.58,
+        "stageMinutes": 1.43,
+        "cash": 52
+      },
+      {
+        "level": 7,
+        "upgradeCost": 900,
+        "minutes": 8.57,
+        "stageMinutes": 4.98,
+        "cash": 92
+      },
+      {
+        "level": 8,
+        "upgradeCost": 1300,
+        "minutes": 10.37,
+        "stageMinutes": 1.8,
+        "cash": 50
+      },
+      {
+        "level": 9,
+        "upgradeCost": 1800,
+        "minutes": 12.92,
+        "stageMinutes": 2.55,
+        "cash": 60
+      },
+      {
+        "level": 10,
+        "upgradeCost": 2100,
+        "minutes": 16.08,
+        "stageMinutes": 3.17,
+        "cash": 30
+      },
+      {
+        "level": 11,
+        "upgradeCost": 3000,
+        "minutes": 20.47,
+        "stageMinutes": 4.38,
+        "cash": 24
+      },
+      {
+        "level": 12,
+        "upgradeCost": 3900,
+        "minutes": 26.12,
+        "stageMinutes": 5.65,
+        "cash": 4
+      },
+      {
+        "level": 13,
+        "upgradeCost": 4500,
+        "minutes": 32.82,
+        "stageMinutes": 6.7,
+        "cash": 0
+      },
+      {
+        "level": 14,
+        "upgradeCost": 6000,
+        "minutes": 41.8,
+        "stageMinutes": 8.98,
+        "cash": 24
+      },
+      {
+        "level": 15,
+        "upgradeCost": 7500,
+        "minutes": 52.87,
+        "stageMinutes": 11.07,
+        "cash": 88
+      },
+      {
+        "level": 16,
+        "upgradeCost": 9000,
+        "minutes": 66.08,
+        "stageMinutes": 13.22,
+        "cash": 42
+      },
+      {
+        "level": 17,
+        "upgradeCost": 12000,
+        "minutes": 83.78,
+        "stageMinutes": 17.7,
+        "cash": 102
+      },
+      {
+        "level": 18,
+        "upgradeCost": 15000,
+        "minutes": 105.97,
+        "stageMinutes": 22.18,
+        "cash": 118
+      }
+    ],
+    "exploration": {
+      "seed": 42,
+      "shipId": "ship-1",
+      "from": "sol_prime",
+      "cost": 360,
+      "eventId": "event-5",
+      "appearedMinutes": 3.58,
+      "stoppedTaskMinutes": 6.3,
+      "stoppedTaskId": "task-3",
+      "startedMinutes": 6.58,
+      "returnWaitSeconds": 17,
+      "durationSeconds": 60.858,
+      "completedMinutes": 7.6,
+      "expandedMinutes": 7.6
+    },
+    "research": [],
+    "routes": [
+      {
+        "shipId": "ship-1",
+        "from": "nebula_forge",
+        "to": "sol_prime",
+        "goodId": "technology",
+        "budget": 260,
+        "dispatches": 2
+      },
+      {
+        "shipId": "ship-2",
+        "from": "sol_prime",
+        "to": "mineral_belt",
+        "goodId": "food",
+        "budget": 178,
+        "dispatches": 1
+      },
+      {
+        "shipId": "ship-6",
+        "from": "mineral_belt",
+        "to": "nebula_forge",
+        "goodId": "minerals",
+        "budget": 238,
+        "dispatches": 1
+      }
+    ]
+  },
+  "withResearch": {
+    "strategy": "主动补派策略：双港双船起步，六级等待信号、停用原船贸易并返港探索，完成后投资三港三船；每秒检查供需，盈利时用空闲原船补派并保留货本；每级先研发当级科技，不采购进阶船、不计额外奖励",
+    "completed": true,
+    "horizonMinutes": 720,
+    "simulatedMinutes": 163.43,
+    "stages": [
+      {
+        "level": 1,
+        "minutes": 0,
+        "cash": 1000
+      },
+      {
+        "level": 2,
+        "upgradeCost": 150,
+        "minutes": 0,
+        "cash": 850
+      },
+      {
+        "level": 3,
+        "upgradeCost": 250,
+        "minutes": 0.37,
+        "stageMinutes": 0.37,
+        "cash": 60
+      },
+      {
+        "level": 4,
+        "upgradeCost": 350,
+        "minutes": 1.15,
+        "stageMinutes": 0.78,
+        "cash": 56
+      },
+      {
+        "level": 5,
+        "upgradeCost": 450,
+        "minutes": 2.15,
+        "stageMinutes": 1,
+        "cash": 26
+      },
+      {
+        "level": 6,
+        "upgradeCost": 600,
+        "minutes": 3.58,
+        "stageMinutes": 1.43,
+        "cash": 52
+      },
+      {
+        "level": 7,
+        "upgradeCost": 900,
+        "minutes": 8.57,
+        "stageMinutes": 4.98,
+        "cash": 92
+      },
+      {
+        "level": 8,
+        "upgradeCost": 1300,
+        "minutes": 10.37,
+        "stageMinutes": 1.8,
+        "cash": 50
+      },
+      {
+        "level": 9,
+        "upgradeCost": 1800,
+        "minutes": 17.38,
+        "stageMinutes": 7.02,
+        "cash": 54
+      },
+      {
+        "level": 10,
+        "upgradeCost": 2100,
+        "minutes": 20.47,
+        "stageMinutes": 3.08,
+        "cash": 24
+      },
+      {
+        "level": 11,
+        "upgradeCost": 3000,
+        "minutes": 24.97,
+        "stageMinutes": 4.5,
+        "cash": 28
+      },
+      {
+        "level": 12,
+        "upgradeCost": 3900,
+        "minutes": 43.93,
+        "stageMinutes": 18.97,
+        "cash": 26
+      },
+      {
+        "level": 13,
+        "upgradeCost": 4500,
+        "minutes": 50.52,
+        "stageMinutes": 6.58,
+        "cash": 22
+      },
+      {
+        "level": 14,
+        "upgradeCost": 6000,
+        "minutes": 59.55,
+        "stageMinutes": 9.03,
+        "cash": 84
+      },
+      {
+        "level": 15,
+        "upgradeCost": 7500,
+        "minutes": 110.32,
+        "stageMinutes": 50.77,
+        "cash": 0
+      },
+      {
+        "level": 16,
+        "upgradeCost": 9000,
+        "minutes": 123.58,
+        "stageMinutes": 13.27,
+        "cash": 18
+      },
+      {
+        "level": 17,
+        "upgradeCost": 12000,
+        "minutes": 141.33,
+        "stageMinutes": 17.75,
+        "cash": 78
+      },
+      {
+        "level": 18,
+        "upgradeCost": 15000,
+        "minutes": 163.43,
+        "stageMinutes": 22.1,
+        "cash": 94
+      }
+    ],
+    "exploration": {
+      "seed": 42,
+      "shipId": "ship-1",
+      "from": "sol_prime",
+      "cost": 360,
+      "eventId": "event-5",
+      "appearedMinutes": 3.58,
+      "stoppedTaskMinutes": 6.3,
+      "stoppedTaskId": "task-3",
+      "startedMinutes": 6.58,
+      "returnWaitSeconds": 17,
+      "durationSeconds": 60.858,
+      "completedMinutes": 7.6,
+      "expandedMinutes": 7.6
+    },
+    "research": [
+      {
+        "techId": "fast_navigation",
+        "cost": 3000,
+        "unlockShipId": "swift",
+        "companyLevel": 8,
+        "minutes": 14.82,
+        "cash": 44
+      },
+      {
+        "techId": "bulk_logistics",
+        "cost": 9000,
+        "unlockShipId": "bulk",
+        "companyLevel": 11,
+        "minutes": 38.23,
+        "cash": 46
+      },
+      {
+        "techId": "integrated_freight",
+        "cost": 27000,
+        "unlockShipId": "relay",
+        "companyLevel": 14,
+        "minutes": 99.22,
+        "cash": 48
+      }
+    ],
+    "routes": [
+      {
+        "shipId": "ship-1",
+        "from": "nebula_forge",
+        "to": "sol_prime",
+        "goodId": "technology",
+        "budget": 260,
+        "dispatches": 2
+      },
+      {
+        "shipId": "ship-2",
+        "from": "sol_prime",
+        "to": "mineral_belt",
+        "goodId": "food",
+        "budget": 178,
+        "dispatches": 1
+      },
+      {
+        "shipId": "ship-6",
+        "from": "mineral_belt",
+        "to": "nebula_forge",
+        "goodId": "minerals",
+        "budget": 238,
+        "dispatches": 1
+      }
+    ]
+  }
+}

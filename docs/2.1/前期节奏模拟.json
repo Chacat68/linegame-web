@@ -1,0 +1,101 @@
+{
+  "strategy": "新局单船首航回款后，按当前建议购买轻舟开通反向商路；按级积累与升级至 Lv.6，备齐探索费用，再停止原贸易、完整返港并付费探索。每秒查看，不赠资源、不改航速。",
+  "completed": true,
+  "timeline": [
+    {
+      "milestone": "首航出发",
+      "seconds": 0,
+      "cash": 874,
+      "level": 1,
+      "ships": 1,
+      "tasks": 1
+    },
+    {
+      "milestone": "首笔净利到账",
+      "seconds": 18,
+      "cash": 916,
+      "level": 1,
+      "ships": 1,
+      "tasks": 1
+    },
+    {
+      "milestone": "第二条商路出发",
+      "seconds": 18,
+      "cash": 418,
+      "level": 1,
+      "ships": 2,
+      "tasks": 2
+    },
+    {
+      "milestone": "升级至 Lv.2",
+      "seconds": 18,
+      "cash": 268,
+      "level": 2,
+      "ships": 2,
+      "tasks": 2
+    },
+    {
+      "milestone": "升级至 Lv.3",
+      "seconds": 19,
+      "cash": 18,
+      "level": 3,
+      "ships": 2,
+      "tasks": 2
+    },
+    {
+      "milestone": "升级至 Lv.4",
+      "seconds": 86,
+      "cash": 34,
+      "level": 4,
+      "ships": 2,
+      "tasks": 2
+    },
+    {
+      "milestone": "升级至 Lv.5",
+      "seconds": 155,
+      "cash": 16,
+      "level": 5,
+      "ships": 2,
+      "tasks": 2
+    },
+    {
+      "milestone": "升级至 Lv.6",
+      "seconds": 309,
+      "cash": 388,
+      "level": 6,
+      "ships": 2,
+      "tasks": 2
+    },
+    {
+      "milestone": "首次探索解锁，等待探索船返港",
+      "seconds": 309,
+      "cash": 388,
+      "level": 6,
+      "ships": 2,
+      "tasks": 2
+    },
+    {
+      "milestone": "首次探索出发",
+      "seconds": 326,
+      "cash": 262,
+      "level": 6,
+      "ships": 2,
+      "tasks": 1
+    },
+    {
+      "milestone": "探索返港，新港开放",
+      "seconds": 387,
+      "cash": 526,
+      "level": 6,
+      "ships": 2,
+      "tasks": 1
+    }
+  ],
+  "netProfit": 2184,
+  "spent": {
+    "ship": 336,
+    "company": 1800,
+    "exploration": 360
+  },
+  "operatingCapital": 162
+}

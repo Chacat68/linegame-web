@@ -1,0 +1,4419 @@
+{
+  "assumptions": "覆盖全部 18 级。基础船位和全部当级扩容后的满编船队分别实测；实际支付当级及以前的科技、逐艘递增采购报价、探索和全船队货本。一艘初始轻舟保留；用投资效率、吞吐两种混编策略的较高实测净利校准。60 分钟共享真实港口供需，任务持续经营，每分钟仅补派已解除的空闲船；不是单船收入乘船数，也不是最优策略证明。实验资格与一千万现金只用于隔离阶段收入，不读取或改写玩家存档。",
+  "horizonMinutes": 60,
+  "formula": "参考费用 = 满编船队较高实测每分钟净利 × 前次参考积累分钟，向上取整；建议费用取当前已接受梯度与参考费用中的较高值，船位收紧不自动降价。购船、科技、探索和周转货本分别列出，不重复加入升级扣款，实际等待时间另按当前费用 / 新净利计算。",
+  "stages": [
+    {
+      "level": 1,
+      "targetIncomeMinutes": 4,
+      "roundingStep": 100,
+      "referenceCost": 1000,
+      "suggestedCost": 2100,
+      "companyInvestment": 0,
+      "totalStageInvestment": 242,
+      "baseFleet": {
+        "level": 1,
+        "policy": "investment",
+        "expansion": false,
+        "baseShipLimit": 1,
+        "researchShipSlots": 0,
+        "ships": 1,
+        "ports": 2,
+        "fleet": {
+          "courier": 1
+        },
+        "researchCost": 80,
+        "purchaseCost": 0,
+        "explorationCost": 0,
+        "workingCapital": 162,
+        "fleetExpansionCost": 0,
+        "initialInvestment": 242,
+        "profitPerMinute": 242,
+        "netProfit": 14520,
+        "trips": 220,
+        "loadPercent": 100,
+        "idlePercent": 0,
+        "allocatedShips": 1,
+        "participatingShips": 1,
+        "peakObservedActiveShips": 1,
+        "dispatches": 1,
+        "nextUpgradeCost": 2100,
+        "upgradeIncomeMinutes": 8.68,
+        "routes": [
+          {
+            "from": "mineral_belt",
+            "to": "sol_prime",
+            "goodId": "minerals",
+            "profitPerMinute": 242,
+            "quantity": 2640,
+            "trips": 220
+          }
+        ]
+      },
+      "fullFleet": {
+        "level": 1,
+        "policy": "investment",
+        "expansion": true,
+        "baseShipLimit": 1,
+        "researchShipSlots": 0,
+        "ships": 1,
+        "ports": 2,
+        "fleet": {
+          "courier": 1
+        },
+        "researchCost": 80,
+        "purchaseCost": 0,
+        "explorationCost": 0,
+        "workingCapital": 162,
+        "fleetExpansionCost": 0,
+        "initialInvestment": 242,
+        "profitPerMinute": 242,
+        "netProfit": 14520,
+        "trips": 220,
+        "loadPercent": 100,
+        "idlePercent": 0,
+        "allocatedShips": 1,
+        "participatingShips": 1,
+        "peakObservedActiveShips": 1,
+        "dispatches": 1,
+        "nextUpgradeCost": 2100,
+        "upgradeIncomeMinutes": 8.68,
+        "routes": [
+          {
+            "from": "mineral_belt",
+            "to": "sol_prime",
+            "goodId": "minerals",
+            "profitPerMinute": 242,
+            "quantity": 2640,
+            "trips": 220
+          }
+        ]
+      },
+      "candidates": [
+        {
+          "level": 1,
+          "policy": "investment",
+          "expansion": true,
+          "baseShipLimit": 1,
+          "researchShipSlots": 0,
+          "ships": 1,
+          "ports": 2,
+          "fleet": {
+            "courier": 1
+          },
+          "researchCost": 80,
+          "purchaseCost": 0,
+          "explorationCost": 0,
+          "workingCapital": 162,
+          "fleetExpansionCost": 0,
+          "initialInvestment": 242,
+          "profitPerMinute": 242,
+          "netProfit": 14520,
+          "trips": 220,
+          "loadPercent": 100,
+          "idlePercent": 0,
+          "allocatedShips": 1,
+          "participatingShips": 1,
+          "peakObservedActiveShips": 1,
+          "dispatches": 1,
+          "nextUpgradeCost": 2100,
+          "upgradeIncomeMinutes": 8.68,
+          "routes": [
+            {
+              "from": "mineral_belt",
+              "to": "sol_prime",
+              "goodId": "minerals",
+              "profitPerMinute": 242,
+              "quantity": 2640,
+              "trips": 220
+            }
+          ]
+        },
+        {
+          "level": 1,
+          "policy": "throughput",
+          "expansion": true,
+          "baseShipLimit": 1,
+          "researchShipSlots": 0,
+          "ships": 1,
+          "ports": 2,
+          "fleet": {
+            "courier": 1
+          },
+          "researchCost": 80,
+          "purchaseCost": 0,
+          "explorationCost": 0,
+          "workingCapital": 162,
+          "fleetExpansionCost": 0,
+          "initialInvestment": 242,
+          "profitPerMinute": 242,
+          "netProfit": 14520,
+          "trips": 220,
+          "loadPercent": 100,
+          "idlePercent": 0,
+          "allocatedShips": 1,
+          "participatingShips": 1,
+          "peakObservedActiveShips": 1,
+          "dispatches": 1,
+          "nextUpgradeCost": 2100,
+          "upgradeIncomeMinutes": 8.68,
+          "routes": [
+            {
+              "from": "mineral_belt",
+              "to": "sol_prime",
+              "goodId": "minerals",
+              "profitPerMinute": 242,
+              "quantity": 2640,
+              "trips": 220
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "level": 2,
+      "targetIncomeMinutes": 6,
+      "roundingStep": 100,
+      "referenceCost": 2800,
+      "suggestedCost": 3300,
+      "companyInvestment": 2100,
+      "totalStageInvestment": 3160,
+      "baseFleet": {
+        "level": 2,
+        "policy": "investment",
+        "expansion": false,
+        "baseShipLimit": 1,
+        "researchShipSlots": 0,
+        "ships": 1,
+        "ports": 2,
+        "fleet": {
+          "courier": 1
+        },
+        "researchCost": 280,
+        "purchaseCost": 0,
+        "explorationCost": 0,
+        "workingCapital": 162,
+        "fleetExpansionCost": 0,
+        "initialInvestment": 442,
+        "profitPerMinute": 242,
+        "netProfit": 14520,
+        "trips": 220,
+        "loadPercent": 100,
+        "idlePercent": 0,
+        "allocatedShips": 1,
+        "participatingShips": 1,
+        "peakObservedActiveShips": 1,
+        "dispatches": 1,
+        "nextUpgradeCost": 3300,
+        "upgradeIncomeMinutes": 13.64,
+        "routes": [
+          {
+            "from": "mineral_belt",
+            "to": "sol_prime",
+            "goodId": "minerals",
+            "profitPerMinute": 242,
+            "quantity": 2640,
+            "trips": 220
+          }
+        ]
+      },
+      "fullFleet": {
+        "level": 2,
+        "policy": "investment",
+        "expansion": true,
+        "baseShipLimit": 1,
+        "researchShipSlots": 1,
+        "ships": 2,
+        "ports": 2,
+        "fleet": {
+          "courier": 1,
+          "clipper": 1
+        },
+        "researchCost": 380,
+        "purchaseCost": 340,
+        "explorationCost": 0,
+        "workingCapital": 340,
+        "fleetExpansionCost": 100,
+        "initialInvestment": 1060,
+        "profitPerMinute": 459.07,
+        "netProfit": 27544,
+        "trips": 396,
+        "loadPercent": 100,
+        "idlePercent": 0,
+        "allocatedShips": 2,
+        "participatingShips": 2,
+        "peakObservedActiveShips": 2,
+        "dispatches": 2,
+        "nextUpgradeCost": 3300,
+        "upgradeIncomeMinutes": 7.19,
+        "routes": [
+          {
+            "from": "mineral_belt",
+            "to": "sol_prime",
+            "goodId": "minerals",
+            "profitPerMinute": 242,
+            "quantity": 2640,
+            "trips": 220
+          },
+          {
+            "from": "sol_prime",
+            "to": "mineral_belt",
+            "goodId": "food",
+            "profitPerMinute": 217.07,
+            "quantity": 3168,
+            "trips": 176
+          }
+        ]
+      },
+      "candidates": [
+        {
+          "level": 2,
+          "policy": "investment",
+          "expansion": true,
+          "baseShipLimit": 1,
+          "researchShipSlots": 1,
+          "ships": 2,
+          "ports": 2,
+          "fleet": {
+            "courier": 1,
+            "clipper": 1
+          },
+          "researchCost": 380,
+          "purchaseCost": 340,
+          "explorationCost": 0,
+          "workingCapital": 340,
+          "fleetExpansionCost": 100,
+          "initialInvestment": 1060,
+          "profitPerMinute": 459.07,
+          "netProfit": 27544,
+          "trips": 396,
+          "loadPercent": 100,
+          "idlePercent": 0,
+          "allocatedShips": 2,
+          "participatingShips": 2,
+          "peakObservedActiveShips": 2,
+          "dispatches": 2,
+          "nextUpgradeCost": 3300,
+          "upgradeIncomeMinutes": 7.19,
+          "routes": [
+            {
+              "from": "mineral_belt",
+              "to": "sol_prime",
+              "goodId": "minerals",
+              "profitPerMinute": 242,
+              "quantity": 2640,
+              "trips": 220
+            },
+            {
+              "from": "sol_prime",
+              "to": "mineral_belt",
+              "goodId": "food",
+              "profitPerMinute": 217.07,
+              "quantity": 3168,
+              "trips": 176
+            }
+          ]
+        },
+        {
+          "level": 2,
+          "policy": "throughput",
+          "expansion": true,
+          "baseShipLimit": 1,
+          "researchShipSlots": 1,
+          "ships": 2,
+          "ports": 2,
+          "fleet": {
+            "courier": 1,
+            "clipper": 1
+          },
+          "researchCost": 380,
+          "purchaseCost": 340,
+          "explorationCost": 0,
+          "workingCapital": 340,
+          "fleetExpansionCost": 100,
+          "initialInvestment": 1060,
+          "profitPerMinute": 459.07,
+          "netProfit": 27544,
+          "trips": 396,
+          "loadPercent": 100,
+          "idlePercent": 0,
+          "allocatedShips": 2,
+          "participatingShips": 2,
+          "peakObservedActiveShips": 2,
+          "dispatches": 2,
+          "nextUpgradeCost": 3300,
+          "upgradeIncomeMinutes": 7.19,
+          "routes": [
+            {
+              "from": "mineral_belt",
+              "to": "sol_prime",
+              "goodId": "minerals",
+              "profitPerMinute": 242,
+              "quantity": 2640,
+              "trips": 220
+            },
+            {
+              "from": "sol_prime",
+              "to": "mineral_belt",
+              "goodId": "food",
+              "profitPerMinute": 217.07,
+              "quantity": 3168,
+              "trips": 176
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "level": 3,
+      "targetIncomeMinutes": 8,
+      "roundingStep": 100,
+      "referenceCost": 4500,
+      "suggestedCost": 4900,
+      "companyInvestment": 5400,
+      "totalStageInvestment": 8326,
+      "baseFleet": {
+        "level": 3,
+        "policy": "investment",
+        "expansion": false,
+        "baseShipLimit": 2,
+        "researchShipSlots": 0,
+        "ships": 2,
+        "ports": 2,
+        "fleet": {
+          "courier": 1,
+          "clipper": 1
+        },
+        "researchCost": 880,
+        "purchaseCost": 340,
+        "explorationCost": 0,
+        "workingCapital": 340,
+        "fleetExpansionCost": 0,
+        "initialInvestment": 1560,
+        "profitPerMinute": 465.67,
+        "netProfit": 27940,
+        "trips": 396,
+        "loadPercent": 100,
+        "idlePercent": 0,
+        "allocatedShips": 2,
+        "participatingShips": 2,
+        "peakObservedActiveShips": 2,
+        "dispatches": 2,
+        "nextUpgradeCost": 4900,
+        "upgradeIncomeMinutes": 10.52,
+        "routes": [
+          {
+            "from": "mineral_belt",
+            "to": "sol_prime",
+            "goodId": "minerals",
+            "profitPerMinute": 245.67,
+            "quantity": 2640,
+            "trips": 220
+          },
+          {
+            "from": "sol_prime",
+            "to": "mineral_belt",
+            "goodId": "food",
+            "profitPerMinute": 220,
+            "quantity": 3168,
+            "trips": 176
+          }
+        ]
+      },
+      "fullFleet": {
+        "level": 3,
+        "policy": "throughput",
+        "expansion": true,
+        "baseShipLimit": 2,
+        "researchShipSlots": 1,
+        "ships": 3,
+        "ports": 2,
+        "fleet": {
+          "courier": 1,
+          "hauler": 2
+        },
+        "researchCost": 980,
+        "purchaseCost": 1232,
+        "explorationCost": 0,
+        "workingCapital": 714,
+        "fleetExpansionCost": 100,
+        "initialInvestment": 2926,
+        "profitPerMinute": 555.5,
+        "netProfit": 33330,
+        "trips": 402,
+        "loadPercent": 88.81,
+        "idlePercent": 19.69,
+        "allocatedShips": 3,
+        "participatingShips": 3,
+        "peakObservedActiveShips": 3,
+        "dispatches": 3,
+        "nextUpgradeCost": 4900,
+        "upgradeIncomeMinutes": 8.82,
+        "routes": [
+          {
+            "from": "mineral_belt",
+            "to": "sol_prime",
+            "goodId": "minerals",
+            "profitPerMinute": 245.67,
+            "quantity": 2640,
+            "trips": 220
+          },
+          {
+            "from": "sol_prime",
+            "to": "mineral_belt",
+            "goodId": "food",
+            "profitPerMinute": 309.83,
+            "quantity": 4392,
+            "trips": 182
+          }
+        ]
+      },
+      "candidates": [
+        {
+          "level": 3,
+          "policy": "investment",
+          "expansion": true,
+          "baseShipLimit": 2,
+          "researchShipSlots": 1,
+          "ships": 3,
+          "ports": 2,
+          "fleet": {
+            "courier": 2,
+            "clipper": 1
+          },
+          "researchCost": 980,
+          "purchaseCost": 676,
+          "explorationCost": 0,
+          "workingCapital": 466,
+          "fleetExpansionCost": 100,
+          "initialInvestment": 2122,
+          "profitPerMinute": 526.22,
+          "netProfit": 31573,
+          "trips": 525,
+          "loadPercent": 99.91,
+          "idlePercent": 15.91,
+          "allocatedShips": 3,
+          "participatingShips": 3,
+          "peakObservedActiveShips": 3,
+          "dispatches": 3,
+          "nextUpgradeCost": 4900,
+          "upgradeIncomeMinutes": 9.31,
+          "routes": [
+            {
+              "from": "mineral_belt",
+              "to": "sol_prime",
+              "goodId": "minerals",
+              "profitPerMinute": 245.67,
+              "quantity": 2640,
+              "trips": 220
+            },
+            {
+              "from": "sol_prime",
+              "to": "mineral_belt",
+              "goodId": "food",
+              "profitPerMinute": 280.55,
+              "quantity": 4392,
+              "trips": 305
+            }
+          ]
+        },
+        {
+          "level": 3,
+          "policy": "throughput",
+          "expansion": true,
+          "baseShipLimit": 2,
+          "researchShipSlots": 1,
+          "ships": 3,
+          "ports": 2,
+          "fleet": {
+            "courier": 1,
+            "hauler": 2
+          },
+          "researchCost": 980,
+          "purchaseCost": 1232,
+          "explorationCost": 0,
+          "workingCapital": 714,
+          "fleetExpansionCost": 100,
+          "initialInvestment": 2926,
+          "profitPerMinute": 555.5,
+          "netProfit": 33330,
+          "trips": 402,
+          "loadPercent": 88.81,
+          "idlePercent": 19.69,
+          "allocatedShips": 3,
+          "participatingShips": 3,
+          "peakObservedActiveShips": 3,
+          "dispatches": 3,
+          "nextUpgradeCost": 4900,
+          "upgradeIncomeMinutes": 8.82,
+          "routes": [
+            {
+              "from": "mineral_belt",
+              "to": "sol_prime",
+              "goodId": "minerals",
+              "profitPerMinute": 245.67,
+              "quantity": 2640,
+              "trips": 220
+            },
+            {
+              "from": "sol_prime",
+              "to": "mineral_belt",
+              "goodId": "food",
+              "profitPerMinute": 309.83,
+              "quantity": 4392,
+              "trips": 182
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "level": 4,
+      "targetIncomeMinutes": 10,
+      "roundingStep": 100,
+      "referenceCost": 5600,
+      "suggestedCost": 6100,
+      "companyInvestment": 10300,
+      "totalStageInvestment": 13766,
+      "baseFleet": {
+        "level": 4,
+        "policy": "investment",
+        "expansion": false,
+        "baseShipLimit": 2,
+        "researchShipSlots": 0,
+        "ships": 2,
+        "ports": 2,
+        "fleet": {
+          "courier": 1,
+          "clipper": 1
+        },
+        "researchCost": 1420,
+        "purchaseCost": 340,
+        "explorationCost": 0,
+        "workingCapital": 348,
+        "fleetExpansionCost": 0,
+        "initialInvestment": 2108,
+        "profitPerMinute": 491.78,
+        "netProfit": 29507,
+        "trips": 403,
+        "loadPercent": 100,
+        "idlePercent": 0,
+        "allocatedShips": 2,
+        "participatingShips": 2,
+        "peakObservedActiveShips": 2,
+        "dispatches": 2,
+        "nextUpgradeCost": 6100,
+        "upgradeIncomeMinutes": 12.4,
+        "routes": [
+          {
+            "from": "mineral_belt",
+            "to": "sol_prime",
+            "goodId": "minerals",
+            "profitPerMinute": 250.13,
+            "quantity": 2688,
+            "trips": 224
+          },
+          {
+            "from": "sol_prime",
+            "to": "mineral_belt",
+            "goodId": "food",
+            "profitPerMinute": 241.65,
+            "quantity": 3401,
+            "trips": 179
+          }
+        ]
+      },
+      "fullFleet": {
+        "level": 4,
+        "policy": "throughput",
+        "expansion": true,
+        "baseShipLimit": 2,
+        "researchShipSlots": 1,
+        "ships": 3,
+        "ports": 2,
+        "fleet": {
+          "courier": 1,
+          "hauler": 2
+        },
+        "researchCost": 1520,
+        "purchaseCost": 1232,
+        "explorationCost": 0,
+        "workingCapital": 714,
+        "fleetExpansionCost": 100,
+        "initialInvestment": 3466,
+        "profitPerMinute": 559.97,
+        "netProfit": 33598,
+        "trips": 406,
+        "loadPercent": 88.88,
+        "idlePercent": 20.57,
+        "allocatedShips": 3,
+        "participatingShips": 3,
+        "peakObservedActiveShips": 3,
+        "dispatches": 3,
+        "nextUpgradeCost": 6100,
+        "upgradeIncomeMinutes": 10.89,
+        "routes": [
+          {
+            "from": "mineral_belt",
+            "to": "sol_prime",
+            "goodId": "minerals",
+            "profitPerMinute": 250.13,
+            "quantity": 2688,
+            "trips": 224
+          },
+          {
+            "from": "sol_prime",
+            "to": "mineral_belt",
+            "goodId": "food",
+            "profitPerMinute": 309.83,
+            "quantity": 4392,
+            "trips": 182
+          }
+        ]
+      },
+      "candidates": [
+        {
+          "level": 4,
+          "policy": "investment",
+          "expansion": true,
+          "baseShipLimit": 2,
+          "researchShipSlots": 1,
+          "ships": 3,
+          "ports": 2,
+          "fleet": {
+            "courier": 2,
+            "clipper": 1
+          },
+          "researchCost": 1520,
+          "purchaseCost": 676,
+          "explorationCost": 0,
+          "workingCapital": 474,
+          "fleetExpansionCost": 100,
+          "initialInvestment": 2670,
+          "profitPerMinute": 531.23,
+          "netProfit": 31874,
+          "trips": 528,
+          "loadPercent": 98.47,
+          "idlePercent": 17.04,
+          "allocatedShips": 3,
+          "participatingShips": 3,
+          "peakObservedActiveShips": 3,
+          "dispatches": 3,
+          "nextUpgradeCost": 6100,
+          "upgradeIncomeMinutes": 11.48,
+          "routes": [
+            {
+              "from": "mineral_belt",
+              "to": "sol_prime",
+              "goodId": "minerals",
+              "profitPerMinute": 250.13,
+              "quantity": 2688,
+              "trips": 224
+            },
+            {
+              "from": "sol_prime",
+              "to": "mineral_belt",
+              "goodId": "food",
+              "profitPerMinute": 281.1,
+              "quantity": 4392,
+              "trips": 304
+            }
+          ]
+        },
+        {
+          "level": 4,
+          "policy": "throughput",
+          "expansion": true,
+          "baseShipLimit": 2,
+          "researchShipSlots": 1,
+          "ships": 3,
+          "ports": 2,
+          "fleet": {
+            "courier": 1,
+            "hauler": 2
+          },
+          "researchCost": 1520,
+          "purchaseCost": 1232,
+          "explorationCost": 0,
+          "workingCapital": 714,
+          "fleetExpansionCost": 100,
+          "initialInvestment": 3466,
+          "profitPerMinute": 559.97,
+          "netProfit": 33598,
+          "trips": 406,
+          "loadPercent": 88.88,
+          "idlePercent": 20.57,
+          "allocatedShips": 3,
+          "participatingShips": 3,
+          "peakObservedActiveShips": 3,
+          "dispatches": 3,
+          "nextUpgradeCost": 6100,
+          "upgradeIncomeMinutes": 10.89,
+          "routes": [
+            {
+              "from": "mineral_belt",
+              "to": "sol_prime",
+              "goodId": "minerals",
+              "profitPerMinute": 250.13,
+              "quantity": 2688,
+              "trips": 224
+            },
+            {
+              "from": "sol_prime",
+              "to": "mineral_belt",
+              "goodId": "food",
+              "profitPerMinute": 309.83,
+              "quantity": 4392,
+              "trips": 182
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "level": 5,
+      "targetIncomeMinutes": 12,
+      "roundingStep": 100,
+      "referenceCost": 6800,
+      "suggestedCost": 7400,
+      "companyInvestment": 16400,
+      "totalStageInvestment": 20652,
+      "baseFleet": {
+        "level": 5,
+        "policy": "investment",
+        "expansion": false,
+        "baseShipLimit": 2,
+        "researchShipSlots": 0,
+        "ships": 2,
+        "ports": 2,
+        "fleet": {
+          "courier": 1,
+          "clipper": 1
+        },
+        "researchCost": 2190,
+        "purchaseCost": 340,
+        "explorationCost": 0,
+        "workingCapital": 348,
+        "fleetExpansionCost": 0,
+        "initialInvestment": 2878,
+        "profitPerMinute": 501.65,
+        "netProfit": 30099,
+        "trips": 411,
+        "loadPercent": 100,
+        "idlePercent": 0,
+        "allocatedShips": 2,
+        "participatingShips": 2,
+        "peakObservedActiveShips": 2,
+        "dispatches": 2,
+        "nextUpgradeCost": 7400,
+        "upgradeIncomeMinutes": 14.75,
+        "routes": [
+          {
+            "from": "mineral_belt",
+            "to": "sol_prime",
+            "goodId": "minerals",
+            "profitPerMinute": 254.6,
+            "quantity": 2736,
+            "trips": 228
+          },
+          {
+            "from": "sol_prime",
+            "to": "mineral_belt",
+            "goodId": "food",
+            "profitPerMinute": 247.05,
+            "quantity": 3477,
+            "trips": 183
+          }
+        ]
+      },
+      "fullFleet": {
+        "level": 5,
+        "policy": "throughput",
+        "expansion": true,
+        "baseShipLimit": 2,
+        "researchShipSlots": 1,
+        "ships": 3,
+        "ports": 2,
+        "fleet": {
+          "courier": 1,
+          "hauler": 2
+        },
+        "researchCost": 2290,
+        "purchaseCost": 1232,
+        "explorationCost": 0,
+        "workingCapital": 730,
+        "fleetExpansionCost": 100,
+        "initialInvestment": 4252,
+        "profitPerMinute": 564.43,
+        "netProfit": 33866,
+        "trips": 410,
+        "loadPercent": 86.97,
+        "idlePercent": 21.42,
+        "allocatedShips": 3,
+        "participatingShips": 3,
+        "peakObservedActiveShips": 3,
+        "dispatches": 3,
+        "nextUpgradeCost": 7400,
+        "upgradeIncomeMinutes": 13.11,
+        "routes": [
+          {
+            "from": "mineral_belt",
+            "to": "sol_prime",
+            "goodId": "minerals",
+            "profitPerMinute": 254.6,
+            "quantity": 2736,
+            "trips": 228
+          },
+          {
+            "from": "sol_prime",
+            "to": "mineral_belt",
+            "goodId": "food",
+            "profitPerMinute": 309.83,
+            "quantity": 4392,
+            "trips": 182
+          }
+        ]
+      },
+      "candidates": [
+        {
+          "level": 5,
+          "policy": "investment",
+          "expansion": true,
+          "baseShipLimit": 2,
+          "researchShipSlots": 1,
+          "ships": 3,
+          "ports": 2,
+          "fleet": {
+            "courier": 2,
+            "clipper": 1
+          },
+          "researchCost": 2290,
+          "purchaseCost": 676,
+          "explorationCost": 0,
+          "workingCapital": 474,
+          "fleetExpansionCost": 100,
+          "initialInvestment": 3440,
+          "profitPerMinute": 535.13,
+          "netProfit": 32108,
+          "trips": 533,
+          "loadPercent": 98.22,
+          "idlePercent": 17.77,
+          "allocatedShips": 3,
+          "participatingShips": 3,
+          "peakObservedActiveShips": 3,
+          "dispatches": 3,
+          "nextUpgradeCost": 7400,
+          "upgradeIncomeMinutes": 13.83,
+          "routes": [
+            {
+              "from": "mineral_belt",
+              "to": "sol_prime",
+              "goodId": "minerals",
+              "profitPerMinute": 254.6,
+              "quantity": 2736,
+              "trips": 228
+            },
+            {
+              "from": "sol_prime",
+              "to": "mineral_belt",
+              "goodId": "food",
+              "profitPerMinute": 280.53,
+              "quantity": 4392,
+              "trips": 305
+            }
+          ]
+        },
+        {
+          "level": 5,
+          "policy": "throughput",
+          "expansion": true,
+          "baseShipLimit": 2,
+          "researchShipSlots": 1,
+          "ships": 3,
+          "ports": 2,
+          "fleet": {
+            "courier": 1,
+            "hauler": 2
+          },
+          "researchCost": 2290,
+          "purchaseCost": 1232,
+          "explorationCost": 0,
+          "workingCapital": 730,
+          "fleetExpansionCost": 100,
+          "initialInvestment": 4252,
+          "profitPerMinute": 564.43,
+          "netProfit": 33866,
+          "trips": 410,
+          "loadPercent": 86.97,
+          "idlePercent": 21.42,
+          "allocatedShips": 3,
+          "participatingShips": 3,
+          "peakObservedActiveShips": 3,
+          "dispatches": 3,
+          "nextUpgradeCost": 7400,
+          "upgradeIncomeMinutes": 13.11,
+          "routes": [
+            {
+              "from": "mineral_belt",
+              "to": "sol_prime",
+              "goodId": "minerals",
+              "profitPerMinute": 254.6,
+              "quantity": 2736,
+              "trips": 228
+            },
+            {
+              "from": "sol_prime",
+              "to": "mineral_belt",
+              "goodId": "food",
+              "profitPerMinute": 309.83,
+              "quantity": 4392,
+              "trips": 182
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "level": 6,
+      "targetIncomeMinutes": 16,
+      "roundingStep": 500,
+      "referenceCost": 21500,
+      "suggestedCost": 22000,
+      "companyInvestment": 23800,
+      "totalStageInvestment": 33249,
+      "baseFleet": {
+        "level": 6,
+        "policy": "investment",
+        "expansion": false,
+        "baseShipLimit": 3,
+        "researchShipSlots": 0,
+        "ships": 3,
+        "ports": 3,
+        "fleet": {
+          "courier": 1,
+          "clipper": 2
+        },
+        "researchCost": 3510,
+        "purchaseCost": 748,
+        "explorationCost": 360,
+        "workingCapital": 738,
+        "fleetExpansionCost": 0,
+        "initialInvestment": 5356,
+        "profitPerMinute": 875,
+        "netProfit": 52500,
+        "trips": 522,
+        "loadPercent": 100,
+        "idlePercent": 0,
+        "allocatedShips": 3,
+        "participatingShips": 3,
+        "peakObservedActiveShips": 3,
+        "dispatches": 3,
+        "nextUpgradeCost": 22000,
+        "upgradeIncomeMinutes": 25.14,
+        "routes": [
+          {
+            "from": "mineral_belt",
+            "to": "sol_prime",
+            "goodId": "minerals",
+            "profitPerMinute": 264.07,
+            "quantity": 2796,
+            "trips": 233
+          },
+          {
+            "from": "sol_prime",
+            "to": "mineral_belt",
+            "goodId": "food",
+            "profitPerMinute": 257.3,
+            "quantity": 3534,
+            "trips": 186
+          },
+          {
+            "from": "nebula_forge",
+            "to": "sol_prime",
+            "goodId": "technology",
+            "profitPerMinute": 353.63,
+            "quantity": 1957,
+            "trips": 103
+          }
+        ]
+      },
+      "fullFleet": {
+        "level": 6,
+        "policy": "throughput",
+        "expansion": true,
+        "baseShipLimit": 3,
+        "researchShipSlots": 2,
+        "ships": 5,
+        "ports": 3,
+        "fleet": {
+          "courier": 1,
+          "hauler": 4
+        },
+        "researchCost": 4060,
+        "purchaseCost": 3007,
+        "explorationCost": 360,
+        "workingCapital": 2022,
+        "fleetExpansionCost": 550,
+        "initialInvestment": 9449,
+        "profitPerMinute": 1334.68,
+        "netProfit": 80081,
+        "trips": 501,
+        "loadPercent": 94.77,
+        "idlePercent": 20.04,
+        "allocatedShips": 5,
+        "participatingShips": 5,
+        "peakObservedActiveShips": 5,
+        "dispatches": 5,
+        "nextUpgradeCost": 22000,
+        "upgradeIncomeMinutes": 16.48,
+        "routes": [
+          {
+            "from": "mineral_belt",
+            "to": "sol_prime",
+            "goodId": "minerals",
+            "profitPerMinute": 189.67,
+            "quantity": 2056,
+            "trips": 181
+          },
+          {
+            "from": "nebula_forge",
+            "to": "sol_prime",
+            "goodId": "technology",
+            "profitPerMinute": 591.68,
+            "quantity": 3172,
+            "trips": 122
+          },
+          {
+            "from": "sol_prime",
+            "to": "mineral_belt",
+            "goodId": "food",
+            "profitPerMinute": 319.6,
+            "quantity": 4080,
+            "trips": 136
+          },
+          {
+            "from": "mineral_belt",
+            "to": "nebula_forge",
+            "goodId": "minerals",
+            "profitPerMinute": 233.73,
+            "quantity": 1848,
+            "trips": 62
+          }
+        ]
+      },
+      "candidates": [
+        {
+          "level": 6,
+          "policy": "investment",
+          "expansion": true,
+          "baseShipLimit": 3,
+          "researchShipSlots": 2,
+          "ships": 5,
+          "ports": 3,
+          "fleet": {
+            "courier": 3,
+            "clipper": 2
+          },
+          "researchCost": 4060,
+          "purchaseCost": 1488,
+          "explorationCost": 360,
+          "workingCapital": 1166,
+          "fleetExpansionCost": 550,
+          "initialInvestment": 7074,
+          "profitPerMinute": 1150.45,
+          "netProfit": 69027,
+          "trips": 772,
+          "loadPercent": 93.82,
+          "idlePercent": 6.33,
+          "allocatedShips": 5,
+          "participatingShips": 5,
+          "peakObservedActiveShips": 5,
+          "dispatches": 5,
+          "nextUpgradeCost": 22000,
+          "upgradeIncomeMinutes": 19.12,
+          "routes": [
+            {
+              "from": "mineral_belt",
+              "to": "sol_prime",
+              "goodId": "minerals",
+              "profitPerMinute": 201.33,
+              "quantity": 2336,
+              "trips": 232
+            },
+            {
+              "from": "sol_prime",
+              "to": "mineral_belt",
+              "goodId": "food",
+              "profitPerMinute": 257.3,
+              "quantity": 3534,
+              "trips": 186
+            },
+            {
+              "from": "nebula_forge",
+              "to": "sol_prime",
+              "goodId": "technology",
+              "profitPerMinute": 532.1,
+              "quantity": 3163,
+              "trips": 224
+            },
+            {
+              "from": "mineral_belt",
+              "to": "nebula_forge",
+              "goodId": "minerals",
+              "profitPerMinute": 159.72,
+              "quantity": 1556,
+              "trips": 130
+            }
+          ]
+        },
+        {
+          "level": 6,
+          "policy": "throughput",
+          "expansion": true,
+          "baseShipLimit": 3,
+          "researchShipSlots": 2,
+          "ships": 5,
+          "ports": 3,
+          "fleet": {
+            "courier": 1,
+            "hauler": 4
+          },
+          "researchCost": 4060,
+          "purchaseCost": 3007,
+          "explorationCost": 360,
+          "workingCapital": 2022,
+          "fleetExpansionCost": 550,
+          "initialInvestment": 9449,
+          "profitPerMinute": 1334.68,
+          "netProfit": 80081,
+          "trips": 501,
+          "loadPercent": 94.77,
+          "idlePercent": 20.04,
+          "allocatedShips": 5,
+          "participatingShips": 5,
+          "peakObservedActiveShips": 5,
+          "dispatches": 5,
+          "nextUpgradeCost": 22000,
+          "upgradeIncomeMinutes": 16.48,
+          "routes": [
+            {
+              "from": "mineral_belt",
+              "to": "sol_prime",
+              "goodId": "minerals",
+              "profitPerMinute": 189.67,
+              "quantity": 2056,
+              "trips": 181
+            },
+            {
+              "from": "nebula_forge",
+              "to": "sol_prime",
+              "goodId": "technology",
+              "profitPerMinute": 591.68,
+              "quantity": 3172,
+              "trips": 122
+            },
+            {
+              "from": "sol_prime",
+              "to": "mineral_belt",
+              "goodId": "food",
+              "profitPerMinute": 319.6,
+              "quantity": 4080,
+              "trips": 136
+            },
+            {
+              "from": "mineral_belt",
+              "to": "nebula_forge",
+              "goodId": "minerals",
+              "profitPerMinute": 233.73,
+              "quantity": 1848,
+              "trips": 62
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "level": 7,
+      "targetIncomeMinutes": 20,
+      "roundingStep": 500,
+      "referenceCost": 27500,
+      "suggestedCost": 27500,
+      "companyInvestment": 45800,
+      "totalStageInvestment": 58806,
+      "baseFleet": {
+        "level": 7,
+        "policy": "investment",
+        "expansion": false,
+        "baseShipLimit": 4,
+        "researchShipSlots": 0,
+        "ships": 4,
+        "ports": 3,
+        "fleet": {
+          "courier": 2,
+          "clipper": 2
+        },
+        "researchCost": 4490,
+        "purchaseCost": 1084,
+        "explorationCost": 360,
+        "workingCapital": 1027,
+        "fleetExpansionCost": 0,
+        "initialInvestment": 6961,
+        "profitPerMinute": 1090.75,
+        "netProfit": 65445,
+        "trips": 643,
+        "loadPercent": 95.29,
+        "idlePercent": 1.75,
+        "allocatedShips": 4,
+        "participatingShips": 4,
+        "peakObservedActiveShips": 4,
+        "dispatches": 4,
+        "nextUpgradeCost": 27500,
+        "upgradeIncomeMinutes": 25.21,
+        "routes": [
+          {
+            "from": "mineral_belt",
+            "to": "sol_prime",
+            "goodId": "minerals",
+            "profitPerMinute": 287.37,
+            "quantity": 2919,
+            "trips": 233
+          },
+          {
+            "from": "nebula_forge",
+            "to": "sol_prime",
+            "goodId": "technology",
+            "profitPerMinute": 542.98,
+            "quantity": 3165,
+            "trips": 224
+          },
+          {
+            "from": "sol_prime",
+            "to": "mineral_belt",
+            "goodId": "food",
+            "profitPerMinute": 260.4,
+            "quantity": 3534,
+            "trips": 186
+          }
+        ]
+      },
+      "fullFleet": {
+        "level": 7,
+        "policy": "throughput",
+        "expansion": true,
+        "baseShipLimit": 4,
+        "researchShipSlots": 3,
+        "ships": 7,
+        "ports": 3,
+        "fleet": {
+          "courier": 2,
+          "hauler": 5
+        },
+        "researchCost": 5690,
+        "purchaseCost": 4505,
+        "explorationCost": 360,
+        "workingCapital": 2451,
+        "fleetExpansionCost": 1200,
+        "initialInvestment": 13006,
+        "profitPerMinute": 1371.82,
+        "netProfit": 82309,
+        "trips": 548,
+        "loadPercent": 93.04,
+        "idlePercent": 40.66,
+        "allocatedShips": 7,
+        "participatingShips": 7,
+        "peakObservedActiveShips": 7,
+        "dispatches": 7,
+        "nextUpgradeCost": 27500,
+        "upgradeIncomeMinutes": 20.05,
+        "routes": [
+          {
+            "from": "mineral_belt",
+            "to": "sol_prime",
+            "goodId": "minerals",
+            "profitPerMinute": 194.7,
+            "quantity": 2063,
+            "trips": 181
+          },
+          {
+            "from": "nebula_forge",
+            "to": "sol_prime",
+            "goodId": "technology",
+            "profitPerMinute": 601.87,
+            "quantity": 3172,
+            "trips": 122
+          },
+          {
+            "from": "sol_prime",
+            "to": "mineral_belt",
+            "goodId": "food",
+            "profitPerMinute": 337.52,
+            "quantity": 4392,
+            "trips": 183
+          },
+          {
+            "from": "mineral_belt",
+            "to": "nebula_forge",
+            "goodId": "minerals",
+            "profitPerMinute": 237.73,
+            "quantity": 1841,
+            "trips": 62
+          }
+        ]
+      },
+      "candidates": [
+        {
+          "level": 7,
+          "policy": "investment",
+          "expansion": true,
+          "baseShipLimit": 4,
+          "researchShipSlots": 3,
+          "ships": 7,
+          "ports": 3,
+          "fleet": {
+            "courier": 4,
+            "clipper": 3
+          },
+          "researchCost": 5690,
+          "purchaseCost": 2462,
+          "explorationCost": 360,
+          "workingCapital": 1526,
+          "fleetExpansionCost": 1200,
+          "initialInvestment": 10038,
+          "profitPerMinute": 1231.9,
+          "netProfit": 73914,
+          "trips": 833,
+          "loadPercent": 91.36,
+          "idlePercent": 29.66,
+          "allocatedShips": 7,
+          "participatingShips": 7,
+          "peakObservedActiveShips": 7,
+          "dispatches": 7,
+          "nextUpgradeCost": 27500,
+          "upgradeIncomeMinutes": 22.32,
+          "routes": [
+            {
+              "from": "mineral_belt",
+              "to": "sol_prime",
+              "goodId": "minerals",
+              "profitPerMinute": 228.05,
+              "quantity": 2309,
+              "trips": 182
+            },
+            {
+              "from": "nebula_forge",
+              "to": "sol_prime",
+              "goodId": "technology",
+              "profitPerMinute": 542.98,
+              "quantity": 3165,
+              "trips": 224
+            },
+            {
+              "from": "sol_prime",
+              "to": "mineral_belt",
+              "goodId": "food",
+              "profitPerMinute": 287.25,
+              "quantity": 4392,
+              "trips": 304
+            },
+            {
+              "from": "mineral_belt",
+              "to": "nebula_forge",
+              "goodId": "minerals",
+              "profitPerMinute": 173.62,
+              "quantity": 1595,
+              "trips": 123
+            }
+          ]
+        },
+        {
+          "level": 7,
+          "policy": "throughput",
+          "expansion": true,
+          "baseShipLimit": 4,
+          "researchShipSlots": 3,
+          "ships": 7,
+          "ports": 3,
+          "fleet": {
+            "courier": 2,
+            "hauler": 5
+          },
+          "researchCost": 5690,
+          "purchaseCost": 4505,
+          "explorationCost": 360,
+          "workingCapital": 2451,
+          "fleetExpansionCost": 1200,
+          "initialInvestment": 13006,
+          "profitPerMinute": 1371.82,
+          "netProfit": 82309,
+          "trips": 548,
+          "loadPercent": 93.04,
+          "idlePercent": 40.66,
+          "allocatedShips": 7,
+          "participatingShips": 7,
+          "peakObservedActiveShips": 7,
+          "dispatches": 7,
+          "nextUpgradeCost": 27500,
+          "upgradeIncomeMinutes": 20.05,
+          "routes": [
+            {
+              "from": "mineral_belt",
+              "to": "sol_prime",
+              "goodId": "minerals",
+              "profitPerMinute": 194.7,
+              "quantity": 2063,
+              "trips": 181
+            },
+            {
+              "from": "nebula_forge",
+              "to": "sol_prime",
+              "goodId": "technology",
+              "profitPerMinute": 601.87,
+              "quantity": 3172,
+              "trips": 122
+            },
+            {
+              "from": "sol_prime",
+              "to": "mineral_belt",
+              "goodId": "food",
+              "profitPerMinute": 337.52,
+              "quantity": 4392,
+              "trips": 183
+            },
+            {
+              "from": "mineral_belt",
+              "to": "nebula_forge",
+              "goodId": "minerals",
+              "profitPerMinute": 237.73,
+              "quantity": 1841,
+              "trips": 62
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "level": 8,
+      "targetIncomeMinutes": 24,
+      "roundingStep": 500,
+      "referenceCost": 33500,
+      "suggestedCost": 33500,
+      "companyInvestment": 73300,
+      "totalStageInvestment": 90161,
+      "baseFleet": {
+        "level": 8,
+        "policy": "investment",
+        "expansion": false,
+        "baseShipLimit": 4,
+        "researchShipSlots": 0,
+        "ships": 4,
+        "ports": 3,
+        "fleet": {
+          "courier": 2,
+          "clipper": 2
+        },
+        "researchCost": 9690,
+        "purchaseCost": 1084,
+        "explorationCost": 360,
+        "workingCapital": 1010,
+        "fleetExpansionCost": 0,
+        "initialInvestment": 12144,
+        "profitPerMinute": 1191.13,
+        "netProfit": 71468,
+        "trips": 573,
+        "loadPercent": 100,
+        "idlePercent": 3.73,
+        "allocatedShips": 4,
+        "participatingShips": 4,
+        "peakObservedActiveShips": 4,
+        "dispatches": 4,
+        "nextUpgradeCost": 33500,
+        "upgradeIncomeMinutes": 28.12,
+        "routes": [
+          {
+            "from": "nebula_forge",
+            "to": "sol_prime",
+            "goodId": "technology",
+            "profitPerMinute": 549,
+            "quantity": 3172,
+            "trips": 244
+          },
+          {
+            "from": "mineral_belt",
+            "to": "nebula_forge",
+            "goodId": "minerals",
+            "profitPerMinute": 352.33,
+            "quantity": 2800,
+            "trips": 140
+          },
+          {
+            "from": "sol_prime",
+            "to": "mineral_belt",
+            "goodId": "food",
+            "profitPerMinute": 289.8,
+            "quantity": 3780,
+            "trips": 189
+          }
+        ]
+      },
+      "fullFleet": {
+        "level": 8,
+        "policy": "throughput",
+        "expansion": true,
+        "baseShipLimit": 4,
+        "researchShipSlots": 3,
+        "ships": 7,
+        "ports": 3,
+        "fleet": {
+          "courier": 2,
+          "swift": 1,
+          "hauler": 3,
+          "clipper": 1
+        },
+        "researchCost": 10890,
+        "purchaseCost": 3565,
+        "explorationCost": 360,
+        "workingCapital": 2046,
+        "fleetExpansionCost": 1200,
+        "initialInvestment": 16861,
+        "profitPerMinute": 1377.53,
+        "netProfit": 82652,
+        "trips": 598,
+        "loadPercent": 93.73,
+        "idlePercent": 45.06,
+        "allocatedShips": 7,
+        "participatingShips": 7,
+        "peakObservedActiveShips": 7,
+        "dispatches": 7,
+        "nextUpgradeCost": 33500,
+        "upgradeIncomeMinutes": 24.32,
+        "routes": [
+          {
+            "from": "nebula_forge",
+            "to": "sol_prime",
+            "goodId": "technology",
+            "profitPerMinute": 581.33,
+            "quantity": 3172,
+            "trips": 182
+          },
+          {
+            "from": "mineral_belt",
+            "to": "nebula_forge",
+            "goodId": "minerals",
+            "profitPerMinute": 453.03,
+            "quantity": 3894,
+            "trips": 232
+          },
+          {
+            "from": "sol_prime",
+            "to": "mineral_belt",
+            "goodId": "food",
+            "profitPerMinute": 343.17,
+            "quantity": 4392,
+            "trips": 184
+          }
+        ]
+      },
+      "candidates": [
+        {
+          "level": 8,
+          "policy": "investment",
+          "expansion": true,
+          "baseShipLimit": 4,
+          "researchShipSlots": 3,
+          "ships": 7,
+          "ports": 3,
+          "fleet": {
+            "courier": 4,
+            "clipper": 3
+          },
+          "researchCost": 10890,
+          "purchaseCost": 2462,
+          "explorationCost": 360,
+          "workingCapital": 1517,
+          "fleetExpansionCost": 1200,
+          "initialInvestment": 15229,
+          "profitPerMinute": 1306.65,
+          "netProfit": 78399,
+          "trips": 791,
+          "loadPercent": 92.45,
+          "idlePercent": 30.29,
+          "allocatedShips": 7,
+          "participatingShips": 7,
+          "peakObservedActiveShips": 7,
+          "dispatches": 7,
+          "nextUpgradeCost": 33500,
+          "upgradeIncomeMinutes": 25.64,
+          "routes": [
+            {
+              "from": "nebula_forge",
+              "to": "sol_prime",
+              "goodId": "technology",
+              "profitPerMinute": 549,
+              "quantity": 3172,
+              "trips": 244
+            },
+            {
+              "from": "mineral_belt",
+              "to": "nebula_forge",
+              "goodId": "minerals",
+              "profitPerMinute": 463.7,
+              "quantity": 3904,
+              "trips": 244
+            },
+            {
+              "from": "sol_prime",
+              "to": "mineral_belt",
+              "goodId": "food",
+              "profitPerMinute": 293.95,
+              "quantity": 4392,
+              "trips": 303
+            }
+          ]
+        },
+        {
+          "level": 8,
+          "policy": "throughput",
+          "expansion": true,
+          "baseShipLimit": 4,
+          "researchShipSlots": 3,
+          "ships": 7,
+          "ports": 3,
+          "fleet": {
+            "courier": 2,
+            "swift": 1,
+            "hauler": 3,
+            "clipper": 1
+          },
+          "researchCost": 10890,
+          "purchaseCost": 3565,
+          "explorationCost": 360,
+          "workingCapital": 2046,
+          "fleetExpansionCost": 1200,
+          "initialInvestment": 16861,
+          "profitPerMinute": 1377.53,
+          "netProfit": 82652,
+          "trips": 598,
+          "loadPercent": 93.73,
+          "idlePercent": 45.06,
+          "allocatedShips": 7,
+          "participatingShips": 7,
+          "peakObservedActiveShips": 7,
+          "dispatches": 7,
+          "nextUpgradeCost": 33500,
+          "upgradeIncomeMinutes": 24.32,
+          "routes": [
+            {
+              "from": "nebula_forge",
+              "to": "sol_prime",
+              "goodId": "technology",
+              "profitPerMinute": 581.33,
+              "quantity": 3172,
+              "trips": 182
+            },
+            {
+              "from": "mineral_belt",
+              "to": "nebula_forge",
+              "goodId": "minerals",
+              "profitPerMinute": 453.03,
+              "quantity": 3894,
+              "trips": 232
+            },
+            {
+              "from": "sol_prime",
+              "to": "mineral_belt",
+              "goodId": "food",
+              "profitPerMinute": 343.17,
+              "quantity": 4392,
+              "trips": 184
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "level": 9,
+      "targetIncomeMinutes": 28,
+      "roundingStep": 500,
+      "referenceCost": 38500,
+      "suggestedCost": 38500,
+      "companyInvestment": 106800,
+      "totalStageInvestment": 128245,
+      "baseFleet": {
+        "level": 9,
+        "policy": "investment",
+        "expansion": false,
+        "baseShipLimit": 7,
+        "researchShipSlots": 0,
+        "ships": 7,
+        "ports": 3,
+        "fleet": {
+          "courier": 4,
+          "clipper": 3
+        },
+        "researchCost": 10990,
+        "purchaseCost": 2462,
+        "explorationCost": 360,
+        "workingCapital": 1517,
+        "fleetExpansionCost": 0,
+        "initialInvestment": 15329,
+        "profitPerMinute": 1318.85,
+        "netProfit": 79131,
+        "trips": 791,
+        "loadPercent": 92.45,
+        "idlePercent": 30.29,
+        "allocatedShips": 7,
+        "participatingShips": 7,
+        "peakObservedActiveShips": 7,
+        "dispatches": 7,
+        "nextUpgradeCost": 38500,
+        "upgradeIncomeMinutes": 29.19,
+        "routes": [
+          {
+            "from": "nebula_forge",
+            "to": "sol_prime",
+            "goodId": "technology",
+            "profitPerMinute": 553.07,
+            "quantity": 3172,
+            "trips": 244
+          },
+          {
+            "from": "mineral_belt",
+            "to": "nebula_forge",
+            "goodId": "minerals",
+            "profitPerMinute": 467.77,
+            "quantity": 3904,
+            "trips": 244
+          },
+          {
+            "from": "sol_prime",
+            "to": "mineral_belt",
+            "goodId": "food",
+            "profitPerMinute": 298.02,
+            "quantity": 4392,
+            "trips": 303
+          }
+        ]
+      },
+      "fullFleet": {
+        "level": 9,
+        "policy": "throughput",
+        "expansion": true,
+        "baseShipLimit": 7,
+        "researchShipSlots": 4,
+        "ships": 11,
+        "ports": 3,
+        "fleet": {
+          "courier": 5,
+          "swift": 1,
+          "hauler": 2,
+          "clipper": 3
+        },
+        "researchCost": 13390,
+        "purchaseCost": 5125,
+        "explorationCost": 360,
+        "workingCapital": 2570,
+        "fleetExpansionCost": 2400,
+        "initialInvestment": 21445,
+        "profitPerMinute": 1368.68,
+        "netProfit": 82121,
+        "trips": 658,
+        "loadPercent": 92.05,
+        "idlePercent": 63.82,
+        "allocatedShips": 11,
+        "participatingShips": 11,
+        "peakObservedActiveShips": 11,
+        "dispatches": 11,
+        "nextUpgradeCost": 38500,
+        "upgradeIncomeMinutes": 28.13,
+        "routes": [
+          {
+            "from": "nebula_forge",
+            "to": "sol_prime",
+            "goodId": "technology",
+            "profitPerMinute": 587.42,
+            "quantity": 3172,
+            "trips": 182
+          },
+          {
+            "from": "mineral_belt",
+            "to": "nebula_forge",
+            "goodId": "minerals",
+            "profitPerMinute": 456.78,
+            "quantity": 3894,
+            "trips": 232
+          },
+          {
+            "from": "sol_prime",
+            "to": "mineral_belt",
+            "goodId": "food",
+            "profitPerMinute": 324.48,
+            "quantity": 4392,
+            "trips": 244
+          }
+        ]
+      },
+      "candidates": [
+        {
+          "level": 9,
+          "policy": "investment",
+          "expansion": true,
+          "baseShipLimit": 7,
+          "researchShipSlots": 4,
+          "ships": 11,
+          "ports": 3,
+          "fleet": {
+            "courier": 6,
+            "clipper": 4,
+            "hauler": 1
+          },
+          "researchCost": 13390,
+          "purchaseCost": 4888,
+          "explorationCost": 360,
+          "workingCapital": 2279,
+          "fleetExpansionCost": 2400,
+          "initialInvestment": 20917,
+          "profitPerMinute": 1318.77,
+          "netProfit": 79126,
+          "trips": 791,
+          "loadPercent": 92.42,
+          "idlePercent": 55.63,
+          "allocatedShips": 11,
+          "participatingShips": 11,
+          "peakObservedActiveShips": 11,
+          "dispatches": 11,
+          "nextUpgradeCost": 38500,
+          "upgradeIncomeMinutes": 29.19,
+          "routes": [
+            {
+              "from": "nebula_forge",
+              "to": "sol_prime",
+              "goodId": "technology",
+              "profitPerMinute": 553.07,
+              "quantity": 3172,
+              "trips": 244
+            },
+            {
+              "from": "mineral_belt",
+              "to": "nebula_forge",
+              "goodId": "minerals",
+              "profitPerMinute": 467.77,
+              "quantity": 3904,
+              "trips": 244
+            },
+            {
+              "from": "sol_prime",
+              "to": "mineral_belt",
+              "goodId": "food",
+              "profitPerMinute": 297.93,
+              "quantity": 4392,
+              "trips": 303
+            }
+          ]
+        },
+        {
+          "level": 9,
+          "policy": "throughput",
+          "expansion": true,
+          "baseShipLimit": 7,
+          "researchShipSlots": 4,
+          "ships": 11,
+          "ports": 3,
+          "fleet": {
+            "courier": 5,
+            "swift": 1,
+            "hauler": 2,
+            "clipper": 3
+          },
+          "researchCost": 13390,
+          "purchaseCost": 5125,
+          "explorationCost": 360,
+          "workingCapital": 2570,
+          "fleetExpansionCost": 2400,
+          "initialInvestment": 21445,
+          "profitPerMinute": 1368.68,
+          "netProfit": 82121,
+          "trips": 658,
+          "loadPercent": 92.05,
+          "idlePercent": 63.82,
+          "allocatedShips": 11,
+          "participatingShips": 11,
+          "peakObservedActiveShips": 11,
+          "dispatches": 11,
+          "nextUpgradeCost": 38500,
+          "upgradeIncomeMinutes": 28.13,
+          "routes": [
+            {
+              "from": "nebula_forge",
+              "to": "sol_prime",
+              "goodId": "technology",
+              "profitPerMinute": 587.42,
+              "quantity": 3172,
+              "trips": 182
+            },
+            {
+              "from": "mineral_belt",
+              "to": "nebula_forge",
+              "goodId": "minerals",
+              "profitPerMinute": 456.78,
+              "quantity": 3894,
+              "trips": 232
+            },
+            {
+              "from": "sol_prime",
+              "to": "mineral_belt",
+              "goodId": "food",
+              "profitPerMinute": 324.48,
+              "quantity": 4392,
+              "trips": 244
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "level": 10,
+      "targetIncomeMinutes": 32,
+      "roundingStep": 500,
+      "referenceCost": 45500,
+      "suggestedCost": 45500,
+      "companyInvestment": 145300,
+      "totalStageInvestment": 176322,
+      "baseFleet": {
+        "level": 10,
+        "policy": "investment",
+        "expansion": false,
+        "baseShipLimit": 9,
+        "researchShipSlots": 0,
+        "ships": 9,
+        "ports": 3,
+        "fleet": {
+          "courier": 5,
+          "clipper": 4
+        },
+        "researchCost": 14540,
+        "purchaseCost": 3631,
+        "explorationCost": 360,
+        "workingCapital": 1943,
+        "fleetExpansionCost": 0,
+        "initialInvestment": 20474,
+        "profitPerMinute": 1368.65,
+        "netProfit": 82119,
+        "trips": 750,
+        "loadPercent": 92.91,
+        "idlePercent": 49.12,
+        "allocatedShips": 9,
+        "participatingShips": 9,
+        "peakObservedActiveShips": 9,
+        "dispatches": 9,
+        "nextUpgradeCost": 45500,
+        "upgradeIncomeMinutes": 33.24,
+        "routes": [
+          {
+            "from": "nebula_forge",
+            "to": "sol_prime",
+            "goodId": "technology",
+            "profitPerMinute": 564.07,
+            "quantity": 3172,
+            "trips": 243
+          },
+          {
+            "from": "mineral_belt",
+            "to": "nebula_forge",
+            "goodId": "minerals",
+            "profitPerMinute": 476.55,
+            "quantity": 3904,
+            "trips": 243
+          },
+          {
+            "from": "sol_prime",
+            "to": "mineral_belt",
+            "goodId": "food",
+            "profitPerMinute": 328.03,
+            "quantity": 4390,
+            "trips": 264
+          }
+        ]
+      },
+      "fullFleet": {
+        "level": 10,
+        "policy": "throughput",
+        "expansion": true,
+        "baseShipLimit": 9,
+        "researchShipSlots": 6,
+        "ships": 15,
+        "ports": 3,
+        "fleet": {
+          "courier": 7,
+          "swift": 1,
+          "hauler": 2,
+          "clipper": 5
+        },
+        "researchCost": 19340,
+        "purchaseCost": 7953,
+        "explorationCost": 360,
+        "workingCapital": 3369,
+        "fleetExpansionCost": 4800,
+        "initialInvestment": 31022,
+        "profitPerMinute": 1407.88,
+        "netProfit": 84473,
+        "trips": 632,
+        "loadPercent": 89.78,
+        "idlePercent": 74.64,
+        "allocatedShips": 15,
+        "participatingShips": 11,
+        "peakObservedActiveShips": 11,
+        "dispatches": 15,
+        "nextUpgradeCost": 45500,
+        "upgradeIncomeMinutes": 32.32,
+        "routes": [
+          {
+            "from": "nebula_forge",
+            "to": "sol_prime",
+            "goodId": "technology",
+            "profitPerMinute": 597.6,
+            "quantity": 3172,
+            "trips": 182
+          },
+          {
+            "from": "mineral_belt",
+            "to": "nebula_forge",
+            "goodId": "minerals",
+            "profitPerMinute": 464.63,
+            "quantity": 3897,
+            "trips": 236
+          },
+          {
+            "from": "sol_prime",
+            "to": "mineral_belt",
+            "goodId": "food",
+            "profitPerMinute": 345.65,
+            "quantity": 4388,
+            "trips": 214
+          }
+        ]
+      },
+      "candidates": [
+        {
+          "level": 10,
+          "policy": "investment",
+          "expansion": true,
+          "baseShipLimit": 9,
+          "researchShipSlots": 6,
+          "ships": 15,
+          "ports": 3,
+          "fleet": {
+            "courier": 7,
+            "clipper": 5,
+            "hauler": 2,
+            "swift": 1
+          },
+          "researchCost": 19340,
+          "purchaseCost": 7953,
+          "explorationCost": 360,
+          "workingCapital": 3233,
+          "fleetExpansionCost": 4800,
+          "initialInvestment": 30886,
+          "profitPerMinute": 1368.8,
+          "netProfit": 82128,
+          "trips": 749,
+          "loadPercent": 92.91,
+          "idlePercent": 69.49,
+          "allocatedShips": 15,
+          "participatingShips": 12,
+          "peakObservedActiveShips": 12,
+          "dispatches": 15,
+          "nextUpgradeCost": 45500,
+          "upgradeIncomeMinutes": 33.24,
+          "routes": [
+            {
+              "from": "nebula_forge",
+              "to": "sol_prime",
+              "goodId": "technology",
+              "profitPerMinute": 564.07,
+              "quantity": 3172,
+              "trips": 243
+            },
+            {
+              "from": "mineral_belt",
+              "to": "nebula_forge",
+              "goodId": "minerals",
+              "profitPerMinute": 476.55,
+              "quantity": 3904,
+              "trips": 243
+            },
+            {
+              "from": "sol_prime",
+              "to": "mineral_belt",
+              "goodId": "food",
+              "profitPerMinute": 328.18,
+              "quantity": 4388,
+              "trips": 263
+            }
+          ]
+        },
+        {
+          "level": 10,
+          "policy": "throughput",
+          "expansion": true,
+          "baseShipLimit": 9,
+          "researchShipSlots": 6,
+          "ships": 15,
+          "ports": 3,
+          "fleet": {
+            "courier": 7,
+            "swift": 1,
+            "hauler": 2,
+            "clipper": 5
+          },
+          "researchCost": 19340,
+          "purchaseCost": 7953,
+          "explorationCost": 360,
+          "workingCapital": 3369,
+          "fleetExpansionCost": 4800,
+          "initialInvestment": 31022,
+          "profitPerMinute": 1407.88,
+          "netProfit": 84473,
+          "trips": 632,
+          "loadPercent": 89.78,
+          "idlePercent": 74.64,
+          "allocatedShips": 15,
+          "participatingShips": 11,
+          "peakObservedActiveShips": 11,
+          "dispatches": 15,
+          "nextUpgradeCost": 45500,
+          "upgradeIncomeMinutes": 32.32,
+          "routes": [
+            {
+              "from": "nebula_forge",
+              "to": "sol_prime",
+              "goodId": "technology",
+              "profitPerMinute": 597.6,
+              "quantity": 3172,
+              "trips": 182
+            },
+            {
+              "from": "mineral_belt",
+              "to": "nebula_forge",
+              "goodId": "minerals",
+              "profitPerMinute": 464.63,
+              "quantity": 3897,
+              "trips": 236
+            },
+            {
+              "from": "sol_prime",
+              "to": "mineral_belt",
+              "goodId": "food",
+              "profitPerMinute": 345.65,
+              "quantity": 4388,
+              "trips": 214
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "level": 11,
+      "targetIncomeMinutes": 36,
+      "roundingStep": 500,
+      "referenceCost": 55500,
+      "suggestedCost": 55500,
+      "companyInvestment": 190800,
+      "totalStageInvestment": 237018,
+      "baseFleet": {
+        "level": 11,
+        "policy": "investment",
+        "expansion": false,
+        "baseShipLimit": 9,
+        "researchShipSlots": 0,
+        "ships": 9,
+        "ports": 3,
+        "fleet": {
+          "courier": 5,
+          "clipper": 4
+        },
+        "researchCost": 26540,
+        "purchaseCost": 3631,
+        "explorationCost": 360,
+        "workingCapital": 1943,
+        "fleetExpansionCost": 0,
+        "initialInvestment": 32474,
+        "profitPerMinute": 1391.98,
+        "netProfit": 83519,
+        "trips": 750,
+        "loadPercent": 92.91,
+        "idlePercent": 49.99,
+        "allocatedShips": 9,
+        "participatingShips": 9,
+        "peakObservedActiveShips": 9,
+        "dispatches": 9,
+        "nextUpgradeCost": 55500,
+        "upgradeIncomeMinutes": 39.87,
+        "routes": [
+          {
+            "from": "nebula_forge",
+            "to": "sol_prime",
+            "goodId": "technology",
+            "profitPerMinute": 572.15,
+            "quantity": 3172,
+            "trips": 243
+          },
+          {
+            "from": "mineral_belt",
+            "to": "nebula_forge",
+            "goodId": "minerals",
+            "profitPerMinute": 485.7,
+            "quantity": 3904,
+            "trips": 243
+          },
+          {
+            "from": "sol_prime",
+            "to": "mineral_belt",
+            "goodId": "food",
+            "profitPerMinute": 334.13,
+            "quantity": 4390,
+            "trips": 264
+          }
+        ]
+      },
+      "fullFleet": {
+        "level": 11,
+        "policy": "throughput",
+        "expansion": true,
+        "baseShipLimit": 9,
+        "researchShipSlots": 6,
+        "ships": 15,
+        "ports": 3,
+        "fleet": {
+          "courier": 6,
+          "bulk": 4,
+          "clipper": 4,
+          "hauler": 1
+        },
+        "researchCost": 31340,
+        "purchaseCost": 10150,
+        "explorationCost": 360,
+        "workingCapital": 4368,
+        "fleetExpansionCost": 4800,
+        "initialInvestment": 46218,
+        "profitPerMinute": 1539.92,
+        "netProfit": 92395,
+        "trips": 432,
+        "loadPercent": 86.5,
+        "idlePercent": 74.38,
+        "allocatedShips": 15,
+        "participatingShips": 11,
+        "peakObservedActiveShips": 11,
+        "dispatches": 15,
+        "nextUpgradeCost": 55500,
+        "upgradeIncomeMinutes": 36.04,
+        "routes": [
+          {
+            "from": "nebula_forge",
+            "to": "sol_prime",
+            "goodId": "technology",
+            "profitPerMinute": 645.48,
+            "quantity": 3172,
+            "trips": 127
+          },
+          {
+            "from": "mineral_belt",
+            "to": "nebula_forge",
+            "goodId": "minerals",
+            "profitPerMinute": 530.75,
+            "quantity": 3904,
+            "trips": 121
+          },
+          {
+            "from": "sol_prime",
+            "to": "mineral_belt",
+            "goodId": "food",
+            "profitPerMinute": 363.68,
+            "quantity": 4392,
+            "trips": 184
+          }
+        ]
+      },
+      "candidates": [
+        {
+          "level": 11,
+          "policy": "investment",
+          "expansion": true,
+          "baseShipLimit": 9,
+          "researchShipSlots": 6,
+          "ships": 15,
+          "ports": 3,
+          "fleet": {
+            "courier": 7,
+            "clipper": 5,
+            "hauler": 2,
+            "swift": 1
+          },
+          "researchCost": 31340,
+          "purchaseCost": 7953,
+          "explorationCost": 360,
+          "workingCapital": 3233,
+          "fleetExpansionCost": 4800,
+          "initialInvestment": 42886,
+          "profitPerMinute": 1392.15,
+          "netProfit": 83529,
+          "trips": 749,
+          "loadPercent": 92.91,
+          "idlePercent": 70.01,
+          "allocatedShips": 15,
+          "participatingShips": 12,
+          "peakObservedActiveShips": 12,
+          "dispatches": 15,
+          "nextUpgradeCost": 55500,
+          "upgradeIncomeMinutes": 39.87,
+          "routes": [
+            {
+              "from": "nebula_forge",
+              "to": "sol_prime",
+              "goodId": "technology",
+              "profitPerMinute": 572.15,
+              "quantity": 3172,
+              "trips": 243
+            },
+            {
+              "from": "mineral_belt",
+              "to": "nebula_forge",
+              "goodId": "minerals",
+              "profitPerMinute": 485.7,
+              "quantity": 3904,
+              "trips": 243
+            },
+            {
+              "from": "sol_prime",
+              "to": "mineral_belt",
+              "goodId": "food",
+              "profitPerMinute": 334.3,
+              "quantity": 4388,
+              "trips": 263
+            }
+          ]
+        },
+        {
+          "level": 11,
+          "policy": "throughput",
+          "expansion": true,
+          "baseShipLimit": 9,
+          "researchShipSlots": 6,
+          "ships": 15,
+          "ports": 3,
+          "fleet": {
+            "courier": 6,
+            "bulk": 4,
+            "clipper": 4,
+            "hauler": 1
+          },
+          "researchCost": 31340,
+          "purchaseCost": 10150,
+          "explorationCost": 360,
+          "workingCapital": 4368,
+          "fleetExpansionCost": 4800,
+          "initialInvestment": 46218,
+          "profitPerMinute": 1539.92,
+          "netProfit": 92395,
+          "trips": 432,
+          "loadPercent": 86.5,
+          "idlePercent": 74.38,
+          "allocatedShips": 15,
+          "participatingShips": 11,
+          "peakObservedActiveShips": 11,
+          "dispatches": 15,
+          "nextUpgradeCost": 55500,
+          "upgradeIncomeMinutes": 36.04,
+          "routes": [
+            {
+              "from": "nebula_forge",
+              "to": "sol_prime",
+              "goodId": "technology",
+              "profitPerMinute": 645.48,
+              "quantity": 3172,
+              "trips": 127
+            },
+            {
+              "from": "mineral_belt",
+              "to": "nebula_forge",
+              "goodId": "minerals",
+              "profitPerMinute": 530.75,
+              "quantity": 3904,
+              "trips": 121
+            },
+            {
+              "from": "sol_prime",
+              "to": "mineral_belt",
+              "goodId": "food",
+              "profitPerMinute": 363.68,
+              "quantity": 4392,
+              "trips": 184
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "level": 12,
+      "targetIncomeMinutes": 42,
+      "roundingStep": 1000,
+      "referenceCost": 94000,
+      "suggestedCost": 94000,
+      "companyInvestment": 246300,
+      "totalStageInvestment": 319851,
+      "baseFleet": {
+        "level": 12,
+        "policy": "investment",
+        "expansion": false,
+        "baseShipLimit": 12,
+        "researchShipSlots": 0,
+        "ships": 12,
+        "ports": 4,
+        "fleet": {
+          "courier": 4,
+          "clipper": 4,
+          "hauler": 3,
+          "bulk": 1
+        },
+        "researchCost": 32540,
+        "purchaseCost": 6069,
+        "explorationCost": 2160,
+        "workingCapital": 4048,
+        "fleetExpansionCost": 0,
+        "initialInvestment": 44817,
+        "profitPerMinute": 1978.53,
+        "netProfit": 118712,
+        "trips": 1122,
+        "loadPercent": 95.62,
+        "idlePercent": 14.39,
+        "allocatedShips": 12,
+        "participatingShips": 12,
+        "peakObservedActiveShips": 12,
+        "dispatches": 12,
+        "nextUpgradeCost": 94000,
+        "upgradeIncomeMinutes": 47.51,
+        "routes": [
+          {
+            "from": "nebula_forge",
+            "to": "sol_prime",
+            "goodId": "technology",
+            "profitPerMinute": 582.42,
+            "quantity": 3172,
+            "trips": 243
+          },
+          {
+            "from": "mineral_belt",
+            "to": "nebula_forge",
+            "goodId": "minerals",
+            "profitPerMinute": 494.87,
+            "quantity": 3904,
+            "trips": 243
+          },
+          {
+            "from": "sol_prime",
+            "to": "mineral_belt",
+            "goodId": "food",
+            "profitPerMinute": 341.58,
+            "quantity": 4390,
+            "trips": 264
+          },
+          {
+            "from": "aurora_depot",
+            "to": "nebula_forge",
+            "goodId": "alloys",
+            "profitPerMinute": 559.67,
+            "quantity": 10842,
+            "trips": 372
+          }
+        ]
+      },
+      "fullFleet": {
+        "level": 12,
+        "policy": "throughput",
+        "expansion": true,
+        "baseShipLimit": 12,
+        "researchShipSlots": 7,
+        "ships": 19,
+        "ports": 4,
+        "fleet": {
+          "courier": 6,
+          "bulk": 9,
+          "clipper": 4
+        },
+        "researchCost": 39540,
+        "purchaseCost": 24715,
+        "explorationCost": 2160,
+        "workingCapital": 7136,
+        "fleetExpansionCost": 7000,
+        "initialInvestment": 73551,
+        "profitPerMinute": 2224.57,
+        "netProfit": 133474,
+        "trips": 669,
+        "loadPercent": 93.67,
+        "idlePercent": 52.5,
+        "allocatedShips": 19,
+        "participatingShips": 16,
+        "peakObservedActiveShips": 16,
+        "dispatches": 19,
+        "nextUpgradeCost": 94000,
+        "upgradeIncomeMinutes": 42.26,
+        "routes": [
+          {
+            "from": "nebula_forge",
+            "to": "sol_prime",
+            "goodId": "technology",
+            "profitPerMinute": 657.6,
+            "quantity": 3172,
+            "trips": 127
+          },
+          {
+            "from": "mineral_belt",
+            "to": "nebula_forge",
+            "goodId": "minerals",
+            "profitPerMinute": 562.18,
+            "quantity": 3827,
+            "trips": 89
+          },
+          {
+            "from": "sol_prime",
+            "to": "mineral_belt",
+            "goodId": "food",
+            "profitPerMinute": 369.8,
+            "quantity": 4392,
+            "trips": 184
+          },
+          {
+            "from": "aurora_depot",
+            "to": "nebula_forge",
+            "goodId": "alloys",
+            "profitPerMinute": 634.98,
+            "quantity": 10800,
+            "trips": 269
+          }
+        ]
+      },
+      "candidates": [
+        {
+          "level": 12,
+          "policy": "investment",
+          "expansion": true,
+          "baseShipLimit": 12,
+          "researchShipSlots": 7,
+          "ships": 19,
+          "ports": 4,
+          "fleet": {
+            "courier": 8,
+            "clipper": 6,
+            "hauler": 3,
+            "bulk": 1,
+            "swift": 1
+          },
+          "researchCost": 39540,
+          "purchaseCost": 11591,
+          "explorationCost": 2160,
+          "workingCapital": 5208,
+          "fleetExpansionCost": 7000,
+          "initialInvestment": 58499,
+          "profitPerMinute": 1956.68,
+          "netProfit": 117401,
+          "trips": 1162,
+          "loadPercent": 93.39,
+          "idlePercent": 45.1,
+          "allocatedShips": 19,
+          "participatingShips": 19,
+          "peakObservedActiveShips": 19,
+          "dispatches": 19,
+          "nextUpgradeCost": 94000,
+          "upgradeIncomeMinutes": 48.04,
+          "routes": [
+            {
+              "from": "nebula_forge",
+              "to": "sol_prime",
+              "goodId": "technology",
+              "profitPerMinute": 582.42,
+              "quantity": 3172,
+              "trips": 243
+            },
+            {
+              "from": "mineral_belt",
+              "to": "nebula_forge",
+              "goodId": "minerals",
+              "profitPerMinute": 494.87,
+              "quantity": 3904,
+              "trips": 243
+            },
+            {
+              "from": "sol_prime",
+              "to": "mineral_belt",
+              "goodId": "food",
+              "profitPerMinute": 319.73,
+              "quantity": 4392,
+              "trips": 304
+            },
+            {
+              "from": "aurora_depot",
+              "to": "nebula_forge",
+              "goodId": "alloys",
+              "profitPerMinute": 559.67,
+              "quantity": 10842,
+              "trips": 372
+            }
+          ]
+        },
+        {
+          "level": 12,
+          "policy": "throughput",
+          "expansion": true,
+          "baseShipLimit": 12,
+          "researchShipSlots": 7,
+          "ships": 19,
+          "ports": 4,
+          "fleet": {
+            "courier": 6,
+            "bulk": 9,
+            "clipper": 4
+          },
+          "researchCost": 39540,
+          "purchaseCost": 24715,
+          "explorationCost": 2160,
+          "workingCapital": 7136,
+          "fleetExpansionCost": 7000,
+          "initialInvestment": 73551,
+          "profitPerMinute": 2224.57,
+          "netProfit": 133474,
+          "trips": 669,
+          "loadPercent": 93.67,
+          "idlePercent": 52.5,
+          "allocatedShips": 19,
+          "participatingShips": 16,
+          "peakObservedActiveShips": 16,
+          "dispatches": 19,
+          "nextUpgradeCost": 94000,
+          "upgradeIncomeMinutes": 42.26,
+          "routes": [
+            {
+              "from": "nebula_forge",
+              "to": "sol_prime",
+              "goodId": "technology",
+              "profitPerMinute": 657.6,
+              "quantity": 3172,
+              "trips": 127
+            },
+            {
+              "from": "mineral_belt",
+              "to": "nebula_forge",
+              "goodId": "minerals",
+              "profitPerMinute": 562.18,
+              "quantity": 3827,
+              "trips": 89
+            },
+            {
+              "from": "sol_prime",
+              "to": "mineral_belt",
+              "goodId": "food",
+              "profitPerMinute": 369.8,
+              "quantity": 4392,
+              "trips": 184
+            },
+            {
+              "from": "aurora_depot",
+              "to": "nebula_forge",
+              "goodId": "alloys",
+              "profitPerMinute": 634.98,
+              "quantity": 10800,
+              "trips": 269
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "level": 13,
+      "targetIncomeMinutes": 48,
+      "roundingStep": 1000,
+      "referenceCost": 112000,
+      "suggestedCost": 112000,
+      "companyInvestment": 340300,
+      "totalStageInvestment": 421457,
+      "baseFleet": {
+        "level": 13,
+        "policy": "investment",
+        "expansion": false,
+        "baseShipLimit": 15,
+        "researchShipSlots": 0,
+        "ships": 15,
+        "ports": 4,
+        "fleet": {
+          "courier": 7,
+          "clipper": 5,
+          "hauler": 3
+        },
+        "researchCost": 36840,
+        "purchaseCost": 7910,
+        "explorationCost": 2160,
+        "workingCapital": 4363,
+        "fleetExpansionCost": 0,
+        "initialInvestment": 51273,
+        "profitPerMinute": 2001.25,
+        "netProfit": 120075,
+        "trips": 1153,
+        "loadPercent": 94.49,
+        "idlePercent": 33.52,
+        "allocatedShips": 15,
+        "participatingShips": 15,
+        "peakObservedActiveShips": 15,
+        "dispatches": 15,
+        "nextUpgradeCost": 112000,
+        "upgradeIncomeMinutes": 55.97,
+        "routes": [
+          {
+            "from": "nebula_forge",
+            "to": "sol_prime",
+            "goodId": "technology",
+            "profitPerMinute": 593.47,
+            "quantity": 3172,
+            "trips": 242
+          },
+          {
+            "from": "mineral_belt",
+            "to": "nebula_forge",
+            "goodId": "minerals",
+            "profitPerMinute": 502,
+            "quantity": 3904,
+            "trips": 243
+          },
+          {
+            "from": "sol_prime",
+            "to": "mineral_belt",
+            "goodId": "food",
+            "profitPerMinute": 346.98,
+            "quantity": 4392,
+            "trips": 275
+          },
+          {
+            "from": "aurora_depot",
+            "to": "nebula_forge",
+            "goodId": "alloys",
+            "profitPerMinute": 558.8,
+            "quantity": 10844,
+            "trips": 393
+          }
+        ]
+      },
+      "fullFleet": {
+        "level": 13,
+        "policy": "throughput",
+        "expansion": true,
+        "baseShipLimit": 15,
+        "researchShipSlots": 8,
+        "ships": 23,
+        "ports": 4,
+        "fleet": {
+          "courier": 7,
+          "bulk": 8,
+          "clipper": 5,
+          "hauler": 2,
+          "swift": 1
+        },
+        "researchCost": 46840,
+        "purchaseCost": 24126,
+        "explorationCost": 2160,
+        "workingCapital": 8031,
+        "fleetExpansionCost": 10000,
+        "initialInvestment": 81157,
+        "profitPerMinute": 2314.43,
+        "netProfit": 138866,
+        "trips": 641,
+        "loadPercent": 94.16,
+        "idlePercent": 63.95,
+        "allocatedShips": 23,
+        "participatingShips": 15,
+        "peakObservedActiveShips": 15,
+        "dispatches": 23,
+        "nextUpgradeCost": 112000,
+        "upgradeIncomeMinutes": 48.39,
+        "routes": [
+          {
+            "from": "nebula_forge",
+            "to": "sol_prime",
+            "goodId": "technology",
+            "profitPerMinute": 669.57,
+            "quantity": 3172,
+            "trips": 126
+          },
+          {
+            "from": "mineral_belt",
+            "to": "nebula_forge",
+            "goodId": "minerals",
+            "profitPerMinute": 576.97,
+            "quantity": 3866,
+            "trips": 91
+          },
+          {
+            "from": "sol_prime",
+            "to": "mineral_belt",
+            "goodId": "food",
+            "profitPerMinute": 375.9,
+            "quantity": 4392,
+            "trips": 184
+          },
+          {
+            "from": "aurora_depot",
+            "to": "nebula_forge",
+            "goodId": "alloys",
+            "profitPerMinute": 692,
+            "quantity": 10800,
+            "trips": 240
+          }
+        ]
+      },
+      "candidates": [
+        {
+          "level": 13,
+          "policy": "investment",
+          "expansion": true,
+          "baseShipLimit": 15,
+          "researchShipSlots": 8,
+          "ships": 23,
+          "ports": 4,
+          "fleet": {
+            "courier": 9,
+            "clipper": 7,
+            "hauler": 4,
+            "swift": 2,
+            "bulk": 1
+          },
+          "researchCost": 46840,
+          "purchaseCost": 15799,
+          "explorationCost": 2160,
+          "workingCapital": 6210,
+          "fleetExpansionCost": 10000,
+          "initialInvestment": 71009,
+          "profitPerMinute": 2001.63,
+          "netProfit": 120098,
+          "trips": 1152,
+          "loadPercent": 94.5,
+          "idlePercent": 56.66,
+          "allocatedShips": 23,
+          "participatingShips": 18,
+          "peakObservedActiveShips": 18,
+          "dispatches": 23,
+          "nextUpgradeCost": 112000,
+          "upgradeIncomeMinutes": 55.95,
+          "routes": [
+            {
+              "from": "nebula_forge",
+              "to": "sol_prime",
+              "goodId": "technology",
+              "profitPerMinute": 593.47,
+              "quantity": 3172,
+              "trips": 242
+            },
+            {
+              "from": "mineral_belt",
+              "to": "nebula_forge",
+              "goodId": "minerals",
+              "profitPerMinute": 502,
+              "quantity": 3904,
+              "trips": 243
+            },
+            {
+              "from": "sol_prime",
+              "to": "mineral_belt",
+              "goodId": "food",
+              "profitPerMinute": 347.37,
+              "quantity": 4392,
+              "trips": 274
+            },
+            {
+              "from": "aurora_depot",
+              "to": "nebula_forge",
+              "goodId": "alloys",
+              "profitPerMinute": 558.8,
+              "quantity": 10844,
+              "trips": 393
+            }
+          ]
+        },
+        {
+          "level": 13,
+          "policy": "throughput",
+          "expansion": true,
+          "baseShipLimit": 15,
+          "researchShipSlots": 8,
+          "ships": 23,
+          "ports": 4,
+          "fleet": {
+            "courier": 7,
+            "bulk": 8,
+            "clipper": 5,
+            "hauler": 2,
+            "swift": 1
+          },
+          "researchCost": 46840,
+          "purchaseCost": 24126,
+          "explorationCost": 2160,
+          "workingCapital": 8031,
+          "fleetExpansionCost": 10000,
+          "initialInvestment": 81157,
+          "profitPerMinute": 2314.43,
+          "netProfit": 138866,
+          "trips": 641,
+          "loadPercent": 94.16,
+          "idlePercent": 63.95,
+          "allocatedShips": 23,
+          "participatingShips": 15,
+          "peakObservedActiveShips": 15,
+          "dispatches": 23,
+          "nextUpgradeCost": 112000,
+          "upgradeIncomeMinutes": 48.39,
+          "routes": [
+            {
+              "from": "nebula_forge",
+              "to": "sol_prime",
+              "goodId": "technology",
+              "profitPerMinute": 669.57,
+              "quantity": 3172,
+              "trips": 126
+            },
+            {
+              "from": "mineral_belt",
+              "to": "nebula_forge",
+              "goodId": "minerals",
+              "profitPerMinute": 576.97,
+              "quantity": 3866,
+              "trips": 91
+            },
+            {
+              "from": "sol_prime",
+              "to": "mineral_belt",
+              "goodId": "food",
+              "profitPerMinute": 375.9,
+              "quantity": 4392,
+              "trips": 184
+            },
+            {
+              "from": "aurora_depot",
+              "to": "nebula_forge",
+              "goodId": "alloys",
+              "profitPerMinute": 692,
+              "quantity": 10800,
+              "trips": 240
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "level": 14,
+      "targetIncomeMinutes": 54,
+      "roundingStep": 1000,
+      "referenceCost": 124000,
+      "suggestedCost": 124000,
+      "companyInvestment": 452300,
+      "totalStageInvestment": 559838,
+      "baseFleet": {
+        "level": 14,
+        "policy": "investment",
+        "expansion": false,
+        "baseShipLimit": 15,
+        "researchShipSlots": 0,
+        "ships": 15,
+        "ports": 4,
+        "fleet": {
+          "courier": 7,
+          "clipper": 5,
+          "hauler": 2,
+          "relay": 1
+        },
+        "researchCost": 69290,
+        "purchaseCost": 8353,
+        "explorationCost": 2160,
+        "workingCapital": 4364,
+        "fleetExpansionCost": 0,
+        "initialInvestment": 84167,
+        "profitPerMinute": 2066.63,
+        "netProfit": 123998,
+        "trips": 1121,
+        "loadPercent": 92.38,
+        "idlePercent": 39.16,
+        "allocatedShips": 15,
+        "participatingShips": 15,
+        "peakObservedActiveShips": 15,
+        "dispatches": 15,
+        "nextUpgradeCost": 124000,
+        "upgradeIncomeMinutes": 60,
+        "routes": [
+          {
+            "from": "nebula_forge",
+            "to": "sol_prime",
+            "goodId": "technology",
+            "profitPerMinute": 603.65,
+            "quantity": 3172,
+            "trips": 242
+          },
+          {
+            "from": "mineral_belt",
+            "to": "nebula_forge",
+            "goodId": "minerals",
+            "profitPerMinute": 511.88,
+            "quantity": 3904,
+            "trips": 242
+          },
+          {
+            "from": "sol_prime",
+            "to": "mineral_belt",
+            "goodId": "food",
+            "profitPerMinute": 349.68,
+            "quantity": 4388,
+            "trips": 274
+          },
+          {
+            "from": "aurora_depot",
+            "to": "nebula_forge",
+            "goodId": "alloys",
+            "profitPerMinute": 601.42,
+            "quantity": 10931,
+            "trips": 363
+          }
+        ]
+      },
+      "fullFleet": {
+        "level": 14,
+        "policy": "throughput",
+        "expansion": true,
+        "baseShipLimit": 15,
+        "researchShipSlots": 8,
+        "ships": 23,
+        "ports": 4,
+        "fleet": {
+          "courier": 7,
+          "bulk": 4,
+          "relay": 3,
+          "clipper": 6,
+          "hauler": 2,
+          "swift": 1
+        },
+        "researchCost": 79290,
+        "purchaseCost": 18612,
+        "explorationCost": 2160,
+        "workingCapital": 7476,
+        "fleetExpansionCost": 10000,
+        "initialInvestment": 107538,
+        "profitPerMinute": 2283.65,
+        "netProfit": 137019,
+        "trips": 701,
+        "loadPercent": 91.3,
+        "idlePercent": 69.13,
+        "allocatedShips": 23,
+        "participatingShips": 14,
+        "peakObservedActiveShips": 14,
+        "dispatches": 23,
+        "nextUpgradeCost": 124000,
+        "upgradeIncomeMinutes": 54.3,
+        "routes": [
+          {
+            "from": "nebula_forge",
+            "to": "sol_prime",
+            "goodId": "technology",
+            "profitPerMinute": 681.63,
+            "quantity": 3172,
+            "trips": 126
+          },
+          {
+            "from": "mineral_belt",
+            "to": "nebula_forge",
+            "goodId": "minerals",
+            "profitPerMinute": 580.2,
+            "quantity": 3840,
+            "trips": 92
+          },
+          {
+            "from": "sol_prime",
+            "to": "mineral_belt",
+            "goodId": "food",
+            "profitPerMinute": 385.92,
+            "quantity": 4392,
+            "trips": 184
+          },
+          {
+            "from": "aurora_depot",
+            "to": "nebula_forge",
+            "goodId": "alloys",
+            "profitPerMinute": 635.9,
+            "quantity": 10876,
+            "trips": 299
+          }
+        ]
+      },
+      "candidates": [
+        {
+          "level": 14,
+          "policy": "investment",
+          "expansion": true,
+          "baseShipLimit": 15,
+          "researchShipSlots": 8,
+          "ships": 23,
+          "ports": 4,
+          "fleet": {
+            "courier": 9,
+            "clipper": 7,
+            "hauler": 4,
+            "relay": 1,
+            "swift": 2
+          },
+          "researchCost": 79290,
+          "purchaseCost": 16069,
+          "explorationCost": 2160,
+          "workingCapital": 6156,
+          "fleetExpansionCost": 10000,
+          "initialInvestment": 103675,
+          "profitPerMinute": 2067.03,
+          "netProfit": 124022,
+          "trips": 1120,
+          "loadPercent": 92.39,
+          "idlePercent": 60.34,
+          "allocatedShips": 23,
+          "participatingShips": 17,
+          "peakObservedActiveShips": 17,
+          "dispatches": 23,
+          "nextUpgradeCost": 124000,
+          "upgradeIncomeMinutes": 59.99,
+          "routes": [
+            {
+              "from": "nebula_forge",
+              "to": "sol_prime",
+              "goodId": "technology",
+              "profitPerMinute": 603.65,
+              "quantity": 3172,
+              "trips": 242
+            },
+            {
+              "from": "mineral_belt",
+              "to": "nebula_forge",
+              "goodId": "minerals",
+              "profitPerMinute": 511.88,
+              "quantity": 3904,
+              "trips": 242
+            },
+            {
+              "from": "sol_prime",
+              "to": "mineral_belt",
+              "goodId": "food",
+              "profitPerMinute": 350.08,
+              "quantity": 4388,
+              "trips": 273
+            },
+            {
+              "from": "aurora_depot",
+              "to": "nebula_forge",
+              "goodId": "alloys",
+              "profitPerMinute": 601.42,
+              "quantity": 10931,
+              "trips": 363
+            }
+          ]
+        },
+        {
+          "level": 14,
+          "policy": "throughput",
+          "expansion": true,
+          "baseShipLimit": 15,
+          "researchShipSlots": 8,
+          "ships": 23,
+          "ports": 4,
+          "fleet": {
+            "courier": 7,
+            "bulk": 4,
+            "relay": 3,
+            "clipper": 6,
+            "hauler": 2,
+            "swift": 1
+          },
+          "researchCost": 79290,
+          "purchaseCost": 18612,
+          "explorationCost": 2160,
+          "workingCapital": 7476,
+          "fleetExpansionCost": 10000,
+          "initialInvestment": 107538,
+          "profitPerMinute": 2283.65,
+          "netProfit": 137019,
+          "trips": 701,
+          "loadPercent": 91.3,
+          "idlePercent": 69.13,
+          "allocatedShips": 23,
+          "participatingShips": 14,
+          "peakObservedActiveShips": 14,
+          "dispatches": 23,
+          "nextUpgradeCost": 124000,
+          "upgradeIncomeMinutes": 54.3,
+          "routes": [
+            {
+              "from": "nebula_forge",
+              "to": "sol_prime",
+              "goodId": "technology",
+              "profitPerMinute": 681.63,
+              "quantity": 3172,
+              "trips": 126
+            },
+            {
+              "from": "mineral_belt",
+              "to": "nebula_forge",
+              "goodId": "minerals",
+              "profitPerMinute": 580.2,
+              "quantity": 3840,
+              "trips": 92
+            },
+            {
+              "from": "sol_prime",
+              "to": "mineral_belt",
+              "goodId": "food",
+              "profitPerMinute": 385.92,
+              "quantity": 4392,
+              "trips": 184
+            },
+            {
+              "from": "aurora_depot",
+              "to": "nebula_forge",
+              "goodId": "alloys",
+              "profitPerMinute": 635.9,
+              "quantity": 10876,
+              "trips": 299
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "level": 15,
+      "targetIncomeMinutes": 60,
+      "roundingStep": 1000,
+      "referenceCost": 140000,
+      "suggestedCost": 140000,
+      "companyInvestment": 576300,
+      "totalStageInvestment": 704268,
+      "baseFleet": {
+        "level": 15,
+        "policy": "investment",
+        "expansion": false,
+        "baseShipLimit": 19,
+        "researchShipSlots": 0,
+        "ships": 19,
+        "ports": 4,
+        "fleet": {
+          "courier": 8,
+          "clipper": 6,
+          "hauler": 3,
+          "relay": 1,
+          "swift": 1
+        },
+        "researchCost": 76790,
+        "purchaseCost": 11861,
+        "explorationCost": 2160,
+        "workingCapital": 5312,
+        "fleetExpansionCost": 0,
+        "initialInvestment": 96123,
+        "profitPerMinute": 2102.55,
+        "netProfit": 126153,
+        "trips": 1121,
+        "loadPercent": 91.29,
+        "idlePercent": 52.74,
+        "allocatedShips": 19,
+        "participatingShips": 17,
+        "peakObservedActiveShips": 17,
+        "dispatches": 19,
+        "nextUpgradeCost": 140000,
+        "upgradeIncomeMinutes": 66.59,
+        "routes": [
+          {
+            "from": "nebula_forge",
+            "to": "sol_prime",
+            "goodId": "technology",
+            "profitPerMinute": 613.85,
+            "quantity": 3172,
+            "trips": 242
+          },
+          {
+            "from": "mineral_belt",
+            "to": "nebula_forge",
+            "goodId": "minerals",
+            "profitPerMinute": 521.08,
+            "quantity": 3904,
+            "trips": 242
+          },
+          {
+            "from": "sol_prime",
+            "to": "mineral_belt",
+            "goodId": "food",
+            "profitPerMinute": 355.18,
+            "quantity": 4388,
+            "trips": 273
+          },
+          {
+            "from": "aurora_depot",
+            "to": "nebula_forge",
+            "goodId": "alloys",
+            "profitPerMinute": 612.43,
+            "quantity": 10959,
+            "trips": 364
+          }
+        ]
+      },
+      "fullFleet": {
+        "level": 15,
+        "policy": "throughput",
+        "expansion": true,
+        "baseShipLimit": 19,
+        "researchShipSlots": 10,
+        "ships": 29,
+        "ports": 4,
+        "fleet": {
+          "courier": 9,
+          "bulk": 4,
+          "relay": 3,
+          "clipper": 7,
+          "hauler": 4,
+          "swift": 2
+        },
+        "researchCost": 92190,
+        "purchaseCost": 24631,
+        "explorationCost": 2160,
+        "workingCapital": 8987,
+        "fleetExpansionCost": 15400,
+        "initialInvestment": 127968,
+        "profitPerMinute": 2328.43,
+        "netProfit": 139706,
+        "trips": 703,
+        "loadPercent": 89.29,
+        "idlePercent": 75.87,
+        "allocatedShips": 29,
+        "participatingShips": 14,
+        "peakObservedActiveShips": 14,
+        "dispatches": 29,
+        "nextUpgradeCost": 140000,
+        "upgradeIncomeMinutes": 60.13,
+        "routes": [
+          {
+            "from": "nebula_forge",
+            "to": "sol_prime",
+            "goodId": "technology",
+            "profitPerMinute": 693.72,
+            "quantity": 3172,
+            "trips": 125
+          },
+          {
+            "from": "mineral_belt",
+            "to": "nebula_forge",
+            "goodId": "minerals",
+            "profitPerMinute": 593.32,
+            "quantity": 3870,
+            "trips": 94
+          },
+          {
+            "from": "sol_prime",
+            "to": "mineral_belt",
+            "goodId": "food",
+            "profitPerMinute": 393,
+            "quantity": 4392,
+            "trips": 184
+          },
+          {
+            "from": "aurora_depot",
+            "to": "nebula_forge",
+            "goodId": "alloys",
+            "profitPerMinute": 648.4,
+            "quantity": 10917,
+            "trips": 300
+          }
+        ]
+      },
+      "candidates": [
+        {
+          "level": 15,
+          "policy": "investment",
+          "expansion": true,
+          "baseShipLimit": 19,
+          "researchShipSlots": 10,
+          "ships": 29,
+          "ports": 4,
+          "fleet": {
+            "courier": 10,
+            "clipper": 8,
+            "hauler": 5,
+            "relay": 1,
+            "swift": 3,
+            "bulk": 2
+          },
+          "researchCost": 92190,
+          "purchaseCost": 23275,
+          "explorationCost": 2160,
+          "workingCapital": 7990,
+          "fleetExpansionCost": 15400,
+          "initialInvestment": 125615,
+          "profitPerMinute": 2102.55,
+          "netProfit": 126153,
+          "trips": 1121,
+          "loadPercent": 91.29,
+          "idlePercent": 69.04,
+          "allocatedShips": 29,
+          "participatingShips": 17,
+          "peakObservedActiveShips": 17,
+          "dispatches": 29,
+          "nextUpgradeCost": 140000,
+          "upgradeIncomeMinutes": 66.59,
+          "routes": [
+            {
+              "from": "nebula_forge",
+              "to": "sol_prime",
+              "goodId": "technology",
+              "profitPerMinute": 613.85,
+              "quantity": 3172,
+              "trips": 242
+            },
+            {
+              "from": "mineral_belt",
+              "to": "nebula_forge",
+              "goodId": "minerals",
+              "profitPerMinute": 521.08,
+              "quantity": 3904,
+              "trips": 242
+            },
+            {
+              "from": "sol_prime",
+              "to": "mineral_belt",
+              "goodId": "food",
+              "profitPerMinute": 355.18,
+              "quantity": 4388,
+              "trips": 273
+            },
+            {
+              "from": "aurora_depot",
+              "to": "nebula_forge",
+              "goodId": "alloys",
+              "profitPerMinute": 612.43,
+              "quantity": 10959,
+              "trips": 364
+            }
+          ]
+        },
+        {
+          "level": 15,
+          "policy": "throughput",
+          "expansion": true,
+          "baseShipLimit": 19,
+          "researchShipSlots": 10,
+          "ships": 29,
+          "ports": 4,
+          "fleet": {
+            "courier": 9,
+            "bulk": 4,
+            "relay": 3,
+            "clipper": 7,
+            "hauler": 4,
+            "swift": 2
+          },
+          "researchCost": 92190,
+          "purchaseCost": 24631,
+          "explorationCost": 2160,
+          "workingCapital": 8987,
+          "fleetExpansionCost": 15400,
+          "initialInvestment": 127968,
+          "profitPerMinute": 2328.43,
+          "netProfit": 139706,
+          "trips": 703,
+          "loadPercent": 89.29,
+          "idlePercent": 75.87,
+          "allocatedShips": 29,
+          "participatingShips": 14,
+          "peakObservedActiveShips": 14,
+          "dispatches": 29,
+          "nextUpgradeCost": 140000,
+          "upgradeIncomeMinutes": 60.13,
+          "routes": [
+            {
+              "from": "nebula_forge",
+              "to": "sol_prime",
+              "goodId": "technology",
+              "profitPerMinute": 693.72,
+              "quantity": 3172,
+              "trips": 125
+            },
+            {
+              "from": "mineral_belt",
+              "to": "nebula_forge",
+              "goodId": "minerals",
+              "profitPerMinute": 593.32,
+              "quantity": 3870,
+              "trips": 94
+            },
+            {
+              "from": "sol_prime",
+              "to": "mineral_belt",
+              "goodId": "food",
+              "profitPerMinute": 393,
+              "quantity": 4392,
+              "trips": 184
+            },
+            {
+              "from": "aurora_depot",
+              "to": "nebula_forge",
+              "goodId": "alloys",
+              "profitPerMinute": 648.4,
+              "quantity": 10917,
+              "trips": 300
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "level": 16,
+      "targetIncomeMinutes": 66,
+      "roundingStep": 1000,
+      "referenceCost": 159000,
+      "suggestedCost": 159000,
+      "companyInvestment": 716300,
+      "totalStageInvestment": 865208,
+      "baseFleet": {
+        "level": 16,
+        "policy": "investment",
+        "expansion": false,
+        "baseShipLimit": 22,
+        "researchShipSlots": 0,
+        "ships": 22,
+        "ports": 4,
+        "fleet": {
+          "courier": 8,
+          "clipper": 7,
+          "hauler": 4,
+          "relay": 1,
+          "swift": 2
+        },
+        "researchCost": 88290,
+        "purchaseCost": 14865,
+        "explorationCost": 2160,
+        "workingCapital": 6238,
+        "fleetExpansionCost": 0,
+        "initialInvestment": 111553,
+        "profitPerMinute": 2211.27,
+        "netProfit": 132676,
+        "trips": 1010,
+        "loadPercent": 93.04,
+        "idlePercent": 62.99,
+        "allocatedShips": 22,
+        "participatingShips": 15,
+        "peakObservedActiveShips": 15,
+        "dispatches": 22,
+        "nextUpgradeCost": 159000,
+        "upgradeIncomeMinutes": 71.9,
+        "routes": [
+          {
+            "from": "nebula_forge",
+            "to": "sol_prime",
+            "goodId": "technology",
+            "profitPerMinute": 624.03,
+            "quantity": 3172,
+            "trips": 242
+          },
+          {
+            "from": "mineral_belt",
+            "to": "nebula_forge",
+            "goodId": "minerals",
+            "profitPerMinute": 579.6,
+            "quantity": 3864,
+            "trips": 161
+          },
+          {
+            "from": "sol_prime",
+            "to": "mineral_belt",
+            "goodId": "food",
+            "profitPerMinute": 384.17,
+            "quantity": 4392,
+            "trips": 244
+          },
+          {
+            "from": "aurora_depot",
+            "to": "nebula_forge",
+            "goodId": "alloys",
+            "profitPerMinute": 623.47,
+            "quantity": 10965,
+            "trips": 363
+          }
+        ]
+      },
+      "fullFleet": {
+        "level": 16,
+        "policy": "throughput",
+        "expansion": true,
+        "baseShipLimit": 22,
+        "researchShipSlots": 11,
+        "ships": 33,
+        "ports": 4,
+        "fleet": {
+          "courier": 10,
+          "bulk": 3,
+          "relay": 3,
+          "clipper": 8,
+          "hauler": 5,
+          "swift": 4
+        },
+        "researchCost": 107490,
+        "purchaseCost": 29456,
+        "explorationCost": 2160,
+        "workingCapital": 9802,
+        "fleetExpansionCost": 19200,
+        "initialInvestment": 148908,
+        "profitPerMinute": 2398.08,
+        "netProfit": 143885,
+        "trips": 685,
+        "loadPercent": 88.71,
+        "idlePercent": 81.37,
+        "allocatedShips": 33,
+        "participatingShips": 12,
+        "peakObservedActiveShips": 12,
+        "dispatches": 33,
+        "nextUpgradeCost": 159000,
+        "upgradeIncomeMinutes": 66.3,
+        "routes": [
+          {
+            "from": "nebula_forge",
+            "to": "sol_prime",
+            "goodId": "technology",
+            "profitPerMinute": 704.85,
+            "quantity": 3172,
+            "trips": 125
+          },
+          {
+            "from": "mineral_belt",
+            "to": "nebula_forge",
+            "goodId": "minerals",
+            "profitPerMinute": 602.1,
+            "quantity": 3889,
+            "trips": 98
+          },
+          {
+            "from": "sol_prime",
+            "to": "mineral_belt",
+            "goodId": "food",
+            "profitPerMinute": 399.83,
+            "quantity": 4392,
+            "trips": 183
+          },
+          {
+            "from": "aurora_depot",
+            "to": "nebula_forge",
+            "goodId": "alloys",
+            "profitPerMinute": 691.3,
+            "quantity": 10882,
+            "trips": 279
+          }
+        ]
+      },
+      "candidates": [
+        {
+          "level": 16,
+          "policy": "investment",
+          "expansion": true,
+          "baseShipLimit": 22,
+          "researchShipSlots": 11,
+          "ships": 33,
+          "ports": 4,
+          "fleet": {
+            "courier": 10,
+            "clipper": 9,
+            "hauler": 6,
+            "relay": 1,
+            "swift": 4,
+            "bulk": 3
+          },
+          "researchCost": 107490,
+          "purchaseCost": 29012,
+          "explorationCost": 2160,
+          "workingCapital": 9439,
+          "fleetExpansionCost": 19200,
+          "initialInvestment": 148101,
+          "profitPerMinute": 2211.27,
+          "netProfit": 132676,
+          "trips": 1010,
+          "loadPercent": 93.04,
+          "idlePercent": 75.32,
+          "allocatedShips": 33,
+          "participatingShips": 15,
+          "peakObservedActiveShips": 15,
+          "dispatches": 33,
+          "nextUpgradeCost": 159000,
+          "upgradeIncomeMinutes": 71.9,
+          "routes": [
+            {
+              "from": "nebula_forge",
+              "to": "sol_prime",
+              "goodId": "technology",
+              "profitPerMinute": 624.03,
+              "quantity": 3172,
+              "trips": 242
+            },
+            {
+              "from": "mineral_belt",
+              "to": "nebula_forge",
+              "goodId": "minerals",
+              "profitPerMinute": 579.6,
+              "quantity": 3864,
+              "trips": 161
+            },
+            {
+              "from": "sol_prime",
+              "to": "mineral_belt",
+              "goodId": "food",
+              "profitPerMinute": 384.17,
+              "quantity": 4392,
+              "trips": 244
+            },
+            {
+              "from": "aurora_depot",
+              "to": "nebula_forge",
+              "goodId": "alloys",
+              "profitPerMinute": 623.47,
+              "quantity": 10965,
+              "trips": 363
+            }
+          ]
+        },
+        {
+          "level": 16,
+          "policy": "throughput",
+          "expansion": true,
+          "baseShipLimit": 22,
+          "researchShipSlots": 11,
+          "ships": 33,
+          "ports": 4,
+          "fleet": {
+            "courier": 10,
+            "bulk": 3,
+            "relay": 3,
+            "clipper": 8,
+            "hauler": 5,
+            "swift": 4
+          },
+          "researchCost": 107490,
+          "purchaseCost": 29456,
+          "explorationCost": 2160,
+          "workingCapital": 9802,
+          "fleetExpansionCost": 19200,
+          "initialInvestment": 148908,
+          "profitPerMinute": 2398.08,
+          "netProfit": 143885,
+          "trips": 685,
+          "loadPercent": 88.71,
+          "idlePercent": 81.37,
+          "allocatedShips": 33,
+          "participatingShips": 12,
+          "peakObservedActiveShips": 12,
+          "dispatches": 33,
+          "nextUpgradeCost": 159000,
+          "upgradeIncomeMinutes": 66.3,
+          "routes": [
+            {
+              "from": "nebula_forge",
+              "to": "sol_prime",
+              "goodId": "technology",
+              "profitPerMinute": 704.85,
+              "quantity": 3172,
+              "trips": 125
+            },
+            {
+              "from": "mineral_belt",
+              "to": "nebula_forge",
+              "goodId": "minerals",
+              "profitPerMinute": 602.1,
+              "quantity": 3889,
+              "trips": 98
+            },
+            {
+              "from": "sol_prime",
+              "to": "mineral_belt",
+              "goodId": "food",
+              "profitPerMinute": 399.83,
+              "quantity": 4392,
+              "trips": 183
+            },
+            {
+              "from": "aurora_depot",
+              "to": "nebula_forge",
+              "goodId": "alloys",
+              "profitPerMinute": 691.3,
+              "quantity": 10882,
+              "trips": 279
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "level": 17,
+      "targetIncomeMinutes": 72,
+      "roundingStep": 1000,
+      "referenceCost": 181000,
+      "suggestedCost": 181000,
+      "companyInvestment": 875300,
+      "totalStageInvestment": 1057537,
+      "baseFleet": {
+        "level": 17,
+        "policy": "investment",
+        "expansion": false,
+        "baseShipLimit": 26,
+        "researchShipSlots": 0,
+        "ships": 26,
+        "ports": 4,
+        "fleet": {
+          "courier": 9,
+          "clipper": 8,
+          "hauler": 4,
+          "relay": 1,
+          "swift": 3,
+          "bulk": 1
+        },
+        "researchCost": 101290,
+        "purchaseCost": 19492,
+        "explorationCost": 2160,
+        "workingCapital": 7501,
+        "fleetExpansionCost": 0,
+        "initialInvestment": 130443,
+        "profitPerMinute": 2340.03,
+        "netProfit": 140402,
+        "trips": 930,
+        "loadPercent": 96.15,
+        "idlePercent": 72.27,
+        "allocatedShips": 26,
+        "participatingShips": 14,
+        "peakObservedActiveShips": 14,
+        "dispatches": 26,
+        "nextUpgradeCost": 181000,
+        "upgradeIncomeMinutes": 77.35,
+        "routes": [
+          {
+            "from": "nebula_forge",
+            "to": "sol_prime",
+            "goodId": "technology",
+            "profitPerMinute": 676.55,
+            "quantity": 3171,
+            "trips": 198
+          },
+          {
+            "from": "mineral_belt",
+            "to": "nebula_forge",
+            "goodId": "minerals",
+            "profitPerMinute": 589.67,
+            "quantity": 3866,
+            "trips": 161
+          },
+          {
+            "from": "sol_prime",
+            "to": "mineral_belt",
+            "goodId": "food",
+            "profitPerMinute": 391.27,
+            "quantity": 4392,
+            "trips": 244
+          },
+          {
+            "from": "aurora_depot",
+            "to": "nebula_forge",
+            "goodId": "alloys",
+            "profitPerMinute": 682.55,
+            "quantity": 10883,
+            "trips": 327
+          }
+        ]
+      },
+      "fullFleet": {
+        "level": 17,
+        "policy": "throughput",
+        "expansion": true,
+        "baseShipLimit": 26,
+        "researchShipSlots": 13,
+        "ships": 39,
+        "ports": 4,
+        "fleet": {
+          "courier": 11,
+          "bulk": 4,
+          "relay": 2,
+          "clipper": 10,
+          "hauler": 7,
+          "swift": 5
+        },
+        "researchCost": 128890,
+        "purchaseCost": 39131,
+        "explorationCost": 2160,
+        "workingCapital": 12056,
+        "fleetExpansionCost": 27600,
+        "initialInvestment": 182237,
+        "profitPerMinute": 2506.38,
+        "netProfit": 150383,
+        "trips": 611,
+        "loadPercent": 89.81,
+        "idlePercent": 84.59,
+        "allocatedShips": 39,
+        "participatingShips": 12,
+        "peakObservedActiveShips": 12,
+        "dispatches": 39,
+        "nextUpgradeCost": 181000,
+        "upgradeIncomeMinutes": 72.22,
+        "routes": [
+          {
+            "from": "nebula_forge",
+            "to": "sol_prime",
+            "goodId": "technology",
+            "profitPerMinute": 721.15,
+            "quantity": 3172,
+            "trips": 121
+          },
+          {
+            "from": "mineral_belt",
+            "to": "nebula_forge",
+            "goodId": "minerals",
+            "profitPerMinute": 612.15,
+            "quantity": 3892,
+            "trips": 98
+          },
+          {
+            "from": "sol_prime",
+            "to": "mineral_belt",
+            "goodId": "food",
+            "profitPerMinute": 426.08,
+            "quantity": 4389,
+            "trips": 153
+          },
+          {
+            "from": "aurora_depot",
+            "to": "nebula_forge",
+            "goodId": "alloys",
+            "profitPerMinute": 747,
+            "quantity": 10754,
+            "trips": 239
+          }
+        ]
+      },
+      "candidates": [
+        {
+          "level": 17,
+          "policy": "investment",
+          "expansion": true,
+          "baseShipLimit": 26,
+          "researchShipSlots": 13,
+          "ships": 39,
+          "ports": 4,
+          "fleet": {
+            "courier": 11,
+            "clipper": 10,
+            "hauler": 7,
+            "relay": 2,
+            "swift": 5,
+            "bulk": 4
+          },
+          "researchCost": 128890,
+          "purchaseCost": 39131,
+          "explorationCost": 2160,
+          "workingCapital": 11642,
+          "fleetExpansionCost": 27600,
+          "initialInvestment": 181823,
+          "profitPerMinute": 2340.03,
+          "netProfit": 140402,
+          "trips": 930,
+          "loadPercent": 96.15,
+          "idlePercent": 81.51,
+          "allocatedShips": 39,
+          "participatingShips": 14,
+          "peakObservedActiveShips": 14,
+          "dispatches": 39,
+          "nextUpgradeCost": 181000,
+          "upgradeIncomeMinutes": 77.35,
+          "routes": [
+            {
+              "from": "nebula_forge",
+              "to": "sol_prime",
+              "goodId": "technology",
+              "profitPerMinute": 676.55,
+              "quantity": 3171,
+              "trips": 198
+            },
+            {
+              "from": "mineral_belt",
+              "to": "nebula_forge",
+              "goodId": "minerals",
+              "profitPerMinute": 589.67,
+              "quantity": 3866,
+              "trips": 161
+            },
+            {
+              "from": "sol_prime",
+              "to": "mineral_belt",
+              "goodId": "food",
+              "profitPerMinute": 391.27,
+              "quantity": 4392,
+              "trips": 244
+            },
+            {
+              "from": "aurora_depot",
+              "to": "nebula_forge",
+              "goodId": "alloys",
+              "profitPerMinute": 682.55,
+              "quantity": 10883,
+              "trips": 327
+            }
+          ]
+        },
+        {
+          "level": 17,
+          "policy": "throughput",
+          "expansion": true,
+          "baseShipLimit": 26,
+          "researchShipSlots": 13,
+          "ships": 39,
+          "ports": 4,
+          "fleet": {
+            "courier": 11,
+            "bulk": 4,
+            "relay": 2,
+            "clipper": 10,
+            "hauler": 7,
+            "swift": 5
+          },
+          "researchCost": 128890,
+          "purchaseCost": 39131,
+          "explorationCost": 2160,
+          "workingCapital": 12056,
+          "fleetExpansionCost": 27600,
+          "initialInvestment": 182237,
+          "profitPerMinute": 2506.38,
+          "netProfit": 150383,
+          "trips": 611,
+          "loadPercent": 89.81,
+          "idlePercent": 84.59,
+          "allocatedShips": 39,
+          "participatingShips": 12,
+          "peakObservedActiveShips": 12,
+          "dispatches": 39,
+          "nextUpgradeCost": 181000,
+          "upgradeIncomeMinutes": 72.22,
+          "routes": [
+            {
+              "from": "nebula_forge",
+              "to": "sol_prime",
+              "goodId": "technology",
+              "profitPerMinute": 721.15,
+              "quantity": 3172,
+              "trips": 121
+            },
+            {
+              "from": "mineral_belt",
+              "to": "nebula_forge",
+              "goodId": "minerals",
+              "profitPerMinute": 612.15,
+              "quantity": 3892,
+              "trips": 98
+            },
+            {
+              "from": "sol_prime",
+              "to": "mineral_belt",
+              "goodId": "food",
+              "profitPerMinute": 426.08,
+              "quantity": 4389,
+              "trips": 153
+            },
+            {
+              "from": "aurora_depot",
+              "to": "nebula_forge",
+              "goodId": "alloys",
+              "profitPerMinute": 747,
+              "quantity": 10754,
+              "trips": 239
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "level": 18,
+      "targetIncomeMinutes": null,
+      "roundingStep": 1000,
+      "referenceCost": null,
+      "suggestedCost": null,
+      "companyInvestment": 1056300,
+      "totalStageInvestment": 1272531,
+      "baseFleet": {
+        "level": 18,
+        "policy": "investment",
+        "expansion": false,
+        "baseShipLimit": 30,
+        "researchShipSlots": 0,
+        "ships": 30,
+        "ports": 4,
+        "fleet": {
+          "courier": 10,
+          "clipper": 8,
+          "hauler": 5,
+          "relay": 1,
+          "swift": 4,
+          "bulk": 2
+        },
+        "researchCost": 111490,
+        "purchaseCost": 24744,
+        "explorationCost": 2160,
+        "workingCapital": 8718,
+        "fleetExpansionCost": 0,
+        "initialInvestment": 147112,
+        "profitPerMinute": 2433.73,
+        "netProfit": 146024,
+        "trips": 930,
+        "loadPercent": 96.15,
+        "idlePercent": 75.97,
+        "allocatedShips": 30,
+        "participatingShips": 14,
+        "peakObservedActiveShips": 14,
+        "dispatches": 30,
+        "nextUpgradeCost": null,
+        "upgradeIncomeMinutes": null,
+        "routes": [
+          {
+            "from": "nebula_forge",
+            "to": "sol_prime",
+            "goodId": "technology",
+            "profitPerMinute": 704,
+            "quantity": 3171,
+            "trips": 198
+          },
+          {
+            "from": "mineral_belt",
+            "to": "nebula_forge",
+            "goodId": "minerals",
+            "profitPerMinute": 613.58,
+            "quantity": 3866,
+            "trips": 161
+          },
+          {
+            "from": "sol_prime",
+            "to": "mineral_belt",
+            "goodId": "food",
+            "profitPerMinute": 404.5,
+            "quantity": 4392,
+            "trips": 244
+          },
+          {
+            "from": "aurora_depot",
+            "to": "nebula_forge",
+            "goodId": "alloys",
+            "profitPerMinute": 711.65,
+            "quantity": 10883,
+            "trips": 327
+          }
+        ]
+      },
+      "fullFleet": {
+        "level": 18,
+        "policy": "throughput",
+        "expansion": true,
+        "baseShipLimit": 30,
+        "researchShipSlots": 15,
+        "ships": 45,
+        "ports": 4,
+        "fleet": {
+          "courier": 12,
+          "bulk": 5,
+          "relay": 3,
+          "clipper": 11,
+          "hauler": 8,
+          "swift": 6
+        },
+        "researchCost": 148890,
+        "purchaseCost": 51274,
+        "explorationCost": 2160,
+        "workingCapital": 13907,
+        "fleetExpansionCost": 37400,
+        "initialInvestment": 216231,
+        "profitPerMinute": 2606.92,
+        "netProfit": 156415,
+        "trips": 611,
+        "loadPercent": 89.81,
+        "idlePercent": 86.64,
+        "allocatedShips": 45,
+        "participatingShips": 12,
+        "peakObservedActiveShips": 12,
+        "dispatches": 45,
+        "nextUpgradeCost": null,
+        "upgradeIncomeMinutes": null,
+        "routes": [
+          {
+            "from": "nebula_forge",
+            "to": "sol_prime",
+            "goodId": "technology",
+            "profitPerMinute": 750.67,
+            "quantity": 3172,
+            "trips": 121
+          },
+          {
+            "from": "mineral_belt",
+            "to": "nebula_forge",
+            "goodId": "minerals",
+            "profitPerMinute": 637.28,
+            "quantity": 3892,
+            "trips": 98
+          },
+          {
+            "from": "sol_prime",
+            "to": "mineral_belt",
+            "goodId": "food",
+            "profitPerMinute": 442.32,
+            "quantity": 4389,
+            "trips": 153
+          },
+          {
+            "from": "aurora_depot",
+            "to": "nebula_forge",
+            "goodId": "alloys",
+            "profitPerMinute": 776.65,
+            "quantity": 10754,
+            "trips": 239
+          }
+        ]
+      },
+      "candidates": [
+        {
+          "level": 18,
+          "policy": "investment",
+          "expansion": true,
+          "baseShipLimit": 30,
+          "researchShipSlots": 15,
+          "ships": 45,
+          "ports": 4,
+          "fleet": {
+            "courier": 12,
+            "clipper": 11,
+            "hauler": 8,
+            "relay": 3,
+            "swift": 6,
+            "bulk": 5
+          },
+          "researchCost": 148890,
+          "purchaseCost": 51274,
+          "explorationCost": 2160,
+          "workingCapital": 13493,
+          "fleetExpansionCost": 37400,
+          "initialInvestment": 215817,
+          "profitPerMinute": 2433.73,
+          "netProfit": 146024,
+          "trips": 930,
+          "loadPercent": 96.15,
+          "idlePercent": 83.98,
+          "allocatedShips": 45,
+          "participatingShips": 14,
+          "peakObservedActiveShips": 14,
+          "dispatches": 45,
+          "nextUpgradeCost": null,
+          "upgradeIncomeMinutes": null,
+          "routes": [
+            {
+              "from": "nebula_forge",
+              "to": "sol_prime",
+              "goodId": "technology",
+              "profitPerMinute": 704,
+              "quantity": 3171,
+              "trips": 198
+            },
+            {
+              "from": "mineral_belt",
+              "to": "nebula_forge",
+              "goodId": "minerals",
+              "profitPerMinute": 613.58,
+              "quantity": 3866,
+              "trips": 161
+            },
+            {
+              "from": "sol_prime",
+              "to": "mineral_belt",
+              "goodId": "food",
+              "profitPerMinute": 404.5,
+              "quantity": 4392,
+              "trips": 244
+            },
+            {
+              "from": "aurora_depot",
+              "to": "nebula_forge",
+              "goodId": "alloys",
+              "profitPerMinute": 711.65,
+              "quantity": 10883,
+              "trips": 327
+            }
+          ]
+        },
+        {
+          "level": 18,
+          "policy": "throughput",
+          "expansion": true,
+          "baseShipLimit": 30,
+          "researchShipSlots": 15,
+          "ships": 45,
+          "ports": 4,
+          "fleet": {
+            "courier": 12,
+            "bulk": 5,
+            "relay": 3,
+            "clipper": 11,
+            "hauler": 8,
+            "swift": 6
+          },
+          "researchCost": 148890,
+          "purchaseCost": 51274,
+          "explorationCost": 2160,
+          "workingCapital": 13907,
+          "fleetExpansionCost": 37400,
+          "initialInvestment": 216231,
+          "profitPerMinute": 2606.92,
+          "netProfit": 156415,
+          "trips": 611,
+          "loadPercent": 89.81,
+          "idlePercent": 86.64,
+          "allocatedShips": 45,
+          "participatingShips": 12,
+          "peakObservedActiveShips": 12,
+          "dispatches": 45,
+          "nextUpgradeCost": null,
+          "upgradeIncomeMinutes": null,
+          "routes": [
+            {
+              "from": "nebula_forge",
+              "to": "sol_prime",
+              "goodId": "technology",
+              "profitPerMinute": 750.67,
+              "quantity": 3172,
+              "trips": 121
+            },
+            {
+              "from": "mineral_belt",
+              "to": "nebula_forge",
+              "goodId": "minerals",
+              "profitPerMinute": 637.28,
+              "quantity": 3892,
+              "trips": 98
+            },
+            {
+              "from": "sol_prime",
+              "to": "mineral_belt",
+              "goodId": "food",
+              "profitPerMinute": 442.32,
+              "quantity": 4389,
+              "trips": 153
+            },
+            {
+              "from": "aurora_depot",
+              "to": "nebula_forge",
+              "goodId": "alloys",
+              "profitPerMinute": 776.65,
+              "quantity": 10754,
+              "trips": 239
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "totalUpgradeCost": 1056300,
+  "suggestedTotalUpgradeCost": 1056300
+}

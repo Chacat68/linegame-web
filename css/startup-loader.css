@@ -5,15 +5,19 @@ body.startup-loading {
 }
 
 .startup-loader {
+  --loader-edge: clamp(12px, 4vmin, 24px);
+  box-sizing: border-box;
   position: fixed;
   inset: 0;
   z-index: 100000;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   place-items: center;
   align-items: safe center;
-  overflow: hidden;
-  padding: max(24px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right))
-    max(24px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
+  overflow: clip;
+  padding: max(var(--loader-edge), env(safe-area-inset-top)) max(var(--loader-edge), env(safe-area-inset-right))
+    max(var(--loader-edge), env(safe-area-inset-bottom)) max(var(--loader-edge), env(safe-area-inset-left));
   color: #e8fbff;
   background:
     radial-gradient(circle at 50% 42%, rgba(19, 91, 132, 0.22), transparent 32%),
@@ -35,6 +39,11 @@ body.startup-loading {
   transition: none;
 }
 
+/* 星图加载覆盖资源栏与导航，防止短屏操作被底部导航挡住。 */
+#game-main:has(.merchant-scene-loader:not([hidden])) {
+  z-index: 40;
+}
+
 .merchant-scene-loader .startup-loader__actions { margin-top: 24px; }
 .merchant-scene-loader .startup-loader__progress-fill {
   width: 38%;
@@ -46,18 +55,10 @@ body.startup-loading {
   100% { transform: translateX(280%); }
 }
 
-.startup-loader::before,
 .startup-loader::after {
   content: "";
   position: absolute;
   pointer-events: none;
-}
-
-.startup-loader::before {
-  inset: 22px;
-  border: 1px solid rgba(101, 220, 255, 0.13);
-  box-shadow: inset 0 0 48px rgba(34, 211, 238, 0.025);
-  clip-path: polygon(0 0, 18% 0, 18% 1px, 82% 1px, 82% 0, 100% 0, 100% 100%, 82% 100%, 82% calc(100% - 1px), 18% calc(100% - 1px), 18% 100%, 0 100%);
 }
 
 .startup-loader::after {
@@ -80,8 +81,9 @@ body.startup-loading {
 }
 
 .startup-loader__stars {
-  position: absolute;
+  position: fixed;
   inset: -40%;
+  pointer-events: none;
   background-image:
     radial-gradient(circle, rgba(178, 235, 255, 0.78) 0 1px, transparent 1.5px),
     radial-gradient(circle, rgba(84, 185, 226, 0.46) 0 1px, transparent 1.5px);
@@ -92,7 +94,8 @@ body.startup-loading {
 }
 
 .startup-loader__scanline {
-  position: absolute;
+  position: fixed;
+  pointer-events: none;
   left: 0;
   right: 0;
   top: -18%;
@@ -102,43 +105,15 @@ body.startup-loading {
 }
 
 .startup-loader__panel {
+  box-sizing: border-box;
   position: relative;
   z-index: 1;
   width: min(520px, 100%);
-  max-height: 100%;
-  overflow: auto;
-  padding: 46px 48px 38px;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
   text-align: center;
-  background: linear-gradient(160deg, rgba(7, 22, 37, 0.82), rgba(3, 10, 18, 0.68));
-  border: 1px solid rgba(104, 222, 255, 0.18);
-  box-shadow:
-    0 28px 90px rgba(0, 0, 0, 0.48),
-    inset 0 1px 0 rgba(220, 248, 255, 0.06);
-  backdrop-filter: blur(16px);
-}
-
-.startup-loader__panel::before,
-.startup-loader__panel::after {
-  content: "";
-  position: absolute;
-  width: 44px;
-  height: 44px;
-  border-color: rgba(72, 211, 249, 0.64);
-  pointer-events: none;
-}
-
-.startup-loader__panel::before {
-  top: -1px;
-  left: -1px;
-  border-top: 2px solid;
-  border-left: 2px solid;
-}
-
-.startup-loader__panel::after {
-  right: -1px;
-  bottom: -1px;
-  border-right: 2px solid;
-  border-bottom: 2px solid;
+  background: transparent;
 }
 
 .startup-loader__brand {
@@ -213,6 +188,7 @@ body.startup-loading {
   color: rgba(213, 244, 252, 0.76);
   font: 500 13px/1.6 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   letter-spacing: 0.08em;
+  overflow-wrap: anywhere;
 }
 
 .startup-loader__progress {
@@ -361,14 +337,34 @@ body.startup-loading {
   70%, 100% { transform: translateX(100%); }
 }
 
-@media (max-width: 620px) {
-  .startup-loader::before {
-    inset: 12px;
-  }
+.startup-loader.has-error {
+  /* 恢复内容过长时由整个屏幕承接，避免嵌套卡片滚动与操作被裁切。 */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
 
-  .startup-loader__panel {
-    padding: 38px 26px 30px;
-  }
+.startup-loader.has-error .startup-loader__panel {
+  padding-block: 8px;
+}
+
+@media (max-height: 640px) {
+  .startup-loader__brand { margin-bottom: 16px; }
+  .startup-loader__status { margin-top: 16px; }
+  .startup-loader.has-error .startup-loader__brand,
+  .startup-loader.has-error .startup-loader__eyebrow { display: none; }
+  .startup-loader__recovery { margin-top: 12px; line-height: 1.5; }
+  .startup-loader__recovery p { margin: 10px 0; }
+  .startup-loader__retry { margin-top: 12px; letter-spacing: 0.04em; }
+}
+
+@media (max-height: 420px) {
+  .startup-loader__brand { width: 50px; height: 50px; margin-bottom: 10px; }
+  .startup-loader__brand-core { inset: 17px; }
+  .startup-loader__eyebrow { margin-bottom: 6px; letter-spacing: 0.12em; }
+  .startup-loader__title { font-size: 30px; }
+  .startup-loader__status { margin: 12px 0 10px; }
+  .startup-loader__meta { margin-top: 6px; }
+  .merchant-scene-loader .startup-loader__actions { margin-top: 12px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

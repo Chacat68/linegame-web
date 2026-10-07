@@ -3,7 +3,7 @@ import config from './playwright.config.mjs';
 // 正式包只执行通过玩家界面操作的用例，不依赖开发服务器的 /js 源码导入。
 export default {
   ...config,
-  testMatch: ['**/merchant-release.spec.mjs'],
+  testMatch: ['**/merchant-release.spec.mjs', '**/merchant-decisions.spec.mjs', '**/merchant-loading.spec.mjs'],
   testIgnore: [],
   outputDir: './test-results/production',
   reporter: [['list'], ['html', { open: 'never', outputFolder: 'playwright-report/production' }]],

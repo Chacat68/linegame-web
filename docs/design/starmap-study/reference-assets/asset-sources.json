@@ -1,0 +1,19 @@
+{
+  "reference": "用户提供的星际航路参考图，2026-10-05",
+  "background": {
+    "file": "nebula-reference-v1.jpg",
+    "method": "内置 image_gen，参考图仅作风格引导；背景不含天体、飞船、空间站或航线；JPEG 为运行时压缩副本",
+    "prompt": "Use case: stylized-concept\nAsset type: a background-only diffuse texture for a real-time Three.js space trading scene, wide landscape about 2:1.\nInput image 1 is ONLY a style, color and cloud-shape reference, not an edit target. Create a new empty deep-space background using the realistic wispy orange-copper and violet interstellar dust from the reference. It must contain NO PLANETS, NO SUN, NO SPACE STATIONS, NO SHIPS, NO ROUTE LINES, NO UI and NO TEXT.\nComposition: almost black navy open space through the center-left for separately rendered 3D worlds; layered orange dust near the far upper-left edge; a rich diagonal ribbon of violet, magenta and copper nebula on the right half, tapering into dark space at the lower center. Many fine tiny distant stars with varied blue-white luminosity, occasional restrained diffraction spikes. Do not leave circular dark cutout holes where planets used to be.\nStyle: photorealistic cinematic astronomical matte, fine turbulent dust filaments, believable luminous scattering within nebula, high dynamic range but controlled contrast so foreground worlds remain legible. Detailed, natural and non-repeating; no flat blurred blobs, no cartoon painting, no gradients that resemble vertical stripes.\nNo labels, watermark, borders, captions or foreground objects. This is only the backdrop, all foreground geometry will be rendered by Three.js."
+  },
+  "textures": {
+    "source": "https://github.com/mrdoob/three.js/tree/r185/examples/textures/planets",
+    "files": [
+      "earth_day_4096.jpg",
+      "earth_clouds_1024.png",
+      "earth_specular_2048.jpg",
+      "moon_1024.jpg"
+    ],
+    "license": "随附 THREE-LICENSE.txt，固定 r185 官方示例资源"
+  },
+  "scope": "独立场景演示，运行时只加载本地文件，不发送玩家存档"
+}

@@ -1,0 +1,398 @@
+{
+  "experiment": "持续经营规则不变，仅扩大港口供需量",
+  "seed": 42,
+  "horizonMinutes": 60,
+  "assumptions": [
+    "共同起点固定公司 Lv.6 和高额实验现金，隔离公司升级与缺钱因素；不代表新局通关时间。",
+    "两个港口均执行真实付费探索、完整返港；共同探索支出 2160 CR，未重复计入策略比较。",
+    "保留共同赠送的一艘轻舟，其余船只用真实递增报价采购；进阶船实际研发、购买并投入贸易。",
+    "固定三港三线路或工业原料单线路，按方案顺序共享供需；不是搜索最优线路或轮换策略。",
+    "60/300 秒检查时只提交至少一航次盈利的批次；不会自动复投利润或增加实验配置以外的船只。",
+    "同预算基础船按研发、购船与满载货本总现金上限扩购，最多 48 船；超过 24 船时同路船合并方案。",
+    "净利仅计完整返港已结算航次，闲置率按全部船只真实时间积分；期末在途航次不提前计利。",
+    "回本比较相同船数策略的增量已结算净利与增量研发/购船费；货本单列，未视作永久支出。"
+  ],
+  "unchanged": "每60秒恢复上限的50%，船型、买卖价格、航速、运费、升级和探索费用保持原值；共用市场，完整返港才计收入。",
+  "currentPorts": [
+    {
+      "id": "sol_prime",
+      "name": "太阳主星",
+      "supply": {
+        "food": 144
+      },
+      "demand": {
+        "technology": 120,
+        "minerals": 96
+      }
+    },
+    {
+      "id": "mineral_belt",
+      "name": "矿石带",
+      "supply": {
+        "minerals": 128
+      },
+      "demand": {
+        "food": 160,
+        "technology": 72
+      }
+    },
+    {
+      "id": "nebula_forge",
+      "name": "星云工厂",
+      "supply": {
+        "technology": 104
+      },
+      "demand": {
+        "minerals": 144,
+        "food": 64,
+        "alloys": 360
+      }
+    },
+    {
+      "id": "aurora_depot",
+      "name": "极光原料港",
+      "supply": {
+        "alloys": 360
+      },
+      "demand": {}
+    }
+  ],
+  "baseline": [
+    {
+      "typeId": "clipper",
+      "ships": 3,
+      "inspectSeconds": 60,
+      "market": "三港三线路",
+      "researchCost": 0,
+      "purchaseCost": 748,
+      "workingCapital": 736,
+      "fixedCost": 748,
+      "initialInvestment": 1484,
+      "netProfit": 16683,
+      "profitPerMinute": 278.05,
+      "trips": 243,
+      "loadPercent": 78.59,
+      "idlePercent": 42.67,
+      "averageCapital": 736,
+      "batchCommands": 1,
+      "createdTasks": 3,
+      "blockedPlanChecks": 0
+    },
+    {
+      "typeId": "clipper",
+      "ships": 3,
+      "inspectSeconds": 300,
+      "market": "三港三线路",
+      "researchCost": 0,
+      "purchaseCost": 748,
+      "workingCapital": 736,
+      "fixedCost": 748,
+      "initialInvestment": 1484,
+      "netProfit": 16683,
+      "profitPerMinute": 278.05,
+      "trips": 243,
+      "loadPercent": 78.59,
+      "idlePercent": 42.67,
+      "averageCapital": 736,
+      "batchCommands": 1,
+      "createdTasks": 3,
+      "blockedPlanChecks": 0
+    },
+    {
+      "typeId": "clipper",
+      "ships": 6,
+      "inspectSeconds": 60,
+      "market": "三港三线路",
+      "researchCost": 0,
+      "purchaseCost": 2532,
+      "workingCapital": 1524,
+      "fixedCost": 2532,
+      "initialInvestment": 4056,
+      "netProfit": 16443,
+      "profitPerMinute": 274.05,
+      "trips": 243,
+      "loadPercent": 71.53,
+      "idlePercent": 70.14,
+      "averageCapital": 1524,
+      "batchCommands": 1,
+      "createdTasks": 6,
+      "blockedPlanChecks": 0
+    },
+    {
+      "typeId": "clipper",
+      "ships": 6,
+      "inspectSeconds": 300,
+      "market": "三港三线路",
+      "researchCost": 0,
+      "purchaseCost": 2532,
+      "workingCapital": 1524,
+      "fixedCost": 2532,
+      "initialInvestment": 4056,
+      "netProfit": 16443,
+      "profitPerMinute": 274.05,
+      "trips": 243,
+      "loadPercent": 71.53,
+      "idlePercent": 70.14,
+      "averageCapital": 1524,
+      "batchCommands": 1,
+      "createdTasks": 6,
+      "blockedPlanChecks": 0
+    },
+    {
+      "typeId": "clipper",
+      "ships": 12,
+      "inspectSeconds": 60,
+      "market": "三港三线路",
+      "researchCost": 0,
+      "purchaseCost": 10937,
+      "workingCapital": 3100,
+      "fixedCost": 10937,
+      "initialInvestment": 14037,
+      "netProfit": 16439,
+      "profitPerMinute": 273.98,
+      "trips": 243,
+      "loadPercent": 71.43,
+      "idlePercent": 85.06,
+      "averageCapital": 1702,
+      "batchCommands": 1,
+      "createdTasks": 7,
+      "blockedPlanChecks": 300
+    },
+    {
+      "typeId": "clipper",
+      "ships": 12,
+      "inspectSeconds": 300,
+      "market": "三港三线路",
+      "researchCost": 0,
+      "purchaseCost": 10937,
+      "workingCapital": 3100,
+      "fixedCost": 10937,
+      "initialInvestment": 14037,
+      "netProfit": 16439,
+      "profitPerMinute": 273.98,
+      "trips": 243,
+      "loadPercent": 71.43,
+      "idlePercent": 85.06,
+      "averageCapital": 1702,
+      "batchCommands": 1,
+      "createdTasks": 7,
+      "blockedPlanChecks": 60
+    }
+  ],
+  "candidate": [
+    {
+      "typeId": "clipper",
+      "ships": 3,
+      "inspectSeconds": 60,
+      "market": "三港三线路",
+      "researchCost": 0,
+      "purchaseCost": 748,
+      "workingCapital": 736,
+      "fixedCost": 748,
+      "initialInvestment": 1484,
+      "netProfit": 41204,
+      "profitPerMinute": 686.73,
+      "trips": 426,
+      "loadPercent": 100,
+      "idlePercent": 0,
+      "averageCapital": 736,
+      "batchCommands": 1,
+      "createdTasks": 3,
+      "blockedPlanChecks": 0
+    },
+    {
+      "typeId": "clipper",
+      "ships": 3,
+      "inspectSeconds": 300,
+      "market": "三港三线路",
+      "researchCost": 0,
+      "purchaseCost": 748,
+      "workingCapital": 736,
+      "fixedCost": 748,
+      "initialInvestment": 1484,
+      "netProfit": 41204,
+      "profitPerMinute": 686.73,
+      "trips": 426,
+      "loadPercent": 100,
+      "idlePercent": 0,
+      "averageCapital": 736,
+      "batchCommands": 1,
+      "createdTasks": 3,
+      "blockedPlanChecks": 0
+    },
+    {
+      "typeId": "clipper",
+      "ships": 6,
+      "inspectSeconds": 60,
+      "market": "三港三线路",
+      "researchCost": 0,
+      "purchaseCost": 2532,
+      "workingCapital": 1524,
+      "fixedCost": 2532,
+      "initialInvestment": 4056,
+      "netProfit": 74506,
+      "profitPerMinute": 1241.77,
+      "trips": 728,
+      "loadPercent": 95.34,
+      "idlePercent": 8.52,
+      "averageCapital": 1524,
+      "batchCommands": 1,
+      "createdTasks": 6,
+      "blockedPlanChecks": 0
+    },
+    {
+      "typeId": "clipper",
+      "ships": 6,
+      "inspectSeconds": 300,
+      "market": "三港三线路",
+      "researchCost": 0,
+      "purchaseCost": 2532,
+      "workingCapital": 1524,
+      "fixedCost": 2532,
+      "initialInvestment": 4056,
+      "netProfit": 74506,
+      "profitPerMinute": 1241.77,
+      "trips": 728,
+      "loadPercent": 95.34,
+      "idlePercent": 8.52,
+      "averageCapital": 1524,
+      "batchCommands": 1,
+      "createdTasks": 6,
+      "blockedPlanChecks": 0
+    },
+    {
+      "typeId": "clipper",
+      "ships": 12,
+      "inspectSeconds": 60,
+      "market": "三港三线路",
+      "researchCost": 0,
+      "purchaseCost": 10937,
+      "workingCapital": 3100,
+      "fixedCost": 10937,
+      "initialInvestment": 14037,
+      "netProfit": 74368,
+      "profitPerMinute": 1239.47,
+      "trips": 730,
+      "loadPercent": 92.38,
+      "idlePercent": 53.51,
+      "averageCapital": 3100,
+      "batchCommands": 1,
+      "createdTasks": 12,
+      "blockedPlanChecks": 0
+    },
+    {
+      "typeId": "clipper",
+      "ships": 12,
+      "inspectSeconds": 300,
+      "market": "三港三线路",
+      "researchCost": 0,
+      "purchaseCost": 10937,
+      "workingCapital": 3100,
+      "fixedCost": 10937,
+      "initialInvestment": 14037,
+      "netProfit": 74368,
+      "profitPerMinute": 1239.47,
+      "trips": 730,
+      "loadPercent": 92.38,
+      "idlePercent": 53.51,
+      "averageCapital": 3100,
+      "batchCommands": 1,
+      "createdTasks": 12,
+      "blockedPlanChecks": 0
+    }
+  ],
+  "growth": {
+    "strategy": "主动补派策略：双港双船起步，二级等待信号、停用原船贸易并返港探索，完成后投资三港三船；每秒检查供需，盈利时用空闲原船补派并保留货本；不研发或采购进阶船、不计额外奖励",
+    "note": "固定双港双船起步、探索后三港三船的主动玩家策略，没有研发进阶船；供需扩容提升成交量，也加快积累。",
+    "baseline": {
+      "stages": [
+        {
+          "level": 1,
+          "minutes": 0,
+          "cash": 320
+        },
+        {
+          "level": 2,
+          "upgradeCost": 1800,
+          "minutes": 14.37,
+          "stageMinutes": 14.37,
+          "cash": 22
+        },
+        {
+          "level": 3,
+          "upgradeCost": 4000,
+          "minutes": 41.37,
+          "stageMinutes": 27,
+          "cash": 0
+        },
+        {
+          "level": 4,
+          "upgradeCost": 9000,
+          "minutes": 72.37,
+          "stageMinutes": 31,
+          "cash": 54
+        },
+        {
+          "level": 5,
+          "upgradeCost": 18000,
+          "minutes": 133.52,
+          "stageMinutes": 61.15,
+          "cash": 80
+        },
+        {
+          "level": 6,
+          "upgradeCost": 36000,
+          "minutes": 257.37,
+          "stageMinutes": 123.85,
+          "cash": 72
+        }
+      ],
+      "simulatedMinutes": 257.37
+    },
+    "candidate": {
+      "stages": [
+        {
+          "level": 1,
+          "minutes": 0,
+          "cash": 320
+        },
+        {
+          "level": 2,
+          "upgradeCost": 1800,
+          "minutes": 3.58,
+          "stageMinutes": 3.58,
+          "cash": 52
+        },
+        {
+          "level": 3,
+          "upgradeCost": 4000,
+          "minutes": 12.92,
+          "stageMinutes": 9.33,
+          "cash": 60
+        },
+        {
+          "level": 4,
+          "upgradeCost": 9000,
+          "minutes": 26.12,
+          "stageMinutes": 13.2,
+          "cash": 4
+        },
+        {
+          "level": 5,
+          "upgradeCost": 18000,
+          "minutes": 52.87,
+          "stageMinutes": 26.75,
+          "cash": 88
+        },
+        {
+          "level": 6,
+          "upgradeCost": 36000,
+          "minutes": 105.97,
+          "stageMinutes": 53.1,
+          "cash": 118
+        }
+      ],
+      "simulatedMinutes": 105.97
+    }
+  }
+}

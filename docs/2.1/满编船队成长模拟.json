@@ -1,0 +1,752 @@
+{
+  "strategy": "从真实初始 1,000 CR 和一艘轻舟起步，每 10 秒主动查看；当级科技全部付费研发，按共享供需与购船投入效率混编，先补满当级基础及研发船位、划拨全船队货本再升级；探索使用原船停派并完整返港，开放新港后才安排新商路。保留已购船与在途快照，不赠送或外加资金。",
+  "completed": true,
+  "horizonMinutes": 1440,
+  "simulatedMinutes": 744.33,
+  "stages": [
+    {
+      "level": 1,
+      "ships": 4,
+      "baseShipLimit": 4,
+      "researchShipSlots": 0,
+      "fleetReadyMinutes": 2,
+      "minutes": 5.33,
+      "stageMinutes": 5.33,
+      "upgradeCost": 2100,
+      "workingCapital": 576,
+      "cumulativeSpending": {
+        "upgrades": 0,
+        "research": 80,
+        "ships": 1224,
+        "exploration": 0
+      },
+      "cash": 2264
+    },
+    {
+      "level": 2,
+      "ships": 5,
+      "baseShipLimit": 4,
+      "researchShipSlots": 1,
+      "fleetReadyMinutes": 6.67,
+      "minutes": 12.67,
+      "stageMinutes": 7.33,
+      "upgradeCost": 3300,
+      "workingCapital": 754,
+      "cumulativeSpending": {
+        "upgrades": 2100,
+        "research": 380,
+        "ships": 1564,
+        "exploration": 0
+      },
+      "cash": 3330
+    },
+    {
+      "level": 3,
+      "ships": 6,
+      "baseShipLimit": 5,
+      "researchShipSlots": 1,
+      "fleetReadyMinutes": 15.33,
+      "minutes": 24.33,
+      "stageMinutes": 11.67,
+      "upgradeCost": 4900,
+      "workingCapital": 932,
+      "cumulativeSpending": {
+        "upgrades": 5400,
+        "research": 980,
+        "ships": 1972,
+        "exploration": 0
+      },
+      "cash": 4945
+    },
+    {
+      "level": 4,
+      "ships": 6,
+      "baseShipLimit": 5,
+      "researchShipSlots": 1,
+      "fleetReadyMinutes": 25.33,
+      "minutes": 36.5,
+      "stageMinutes": 12.17,
+      "upgradeCost": 6100,
+      "workingCapital": 948,
+      "cumulativeSpending": {
+        "upgrades": 10300,
+        "research": 1520,
+        "ships": 1972,
+        "exploration": 0
+      },
+      "cash": 6179
+    },
+    {
+      "level": 5,
+      "ships": 6,
+      "baseShipLimit": 5,
+      "researchShipSlots": 1,
+      "fleetReadyMinutes": 37.67,
+      "minutes": 51.33,
+      "stageMinutes": 14.83,
+      "upgradeCost": 7400,
+      "workingCapital": 948,
+      "cumulativeSpending": {
+        "upgrades": 16400,
+        "research": 2290,
+        "ships": 1972,
+        "exploration": 0
+      },
+      "cash": 7469
+    },
+    {
+      "level": 6,
+      "ships": 8,
+      "baseShipLimit": 6,
+      "researchShipSlots": 2,
+      "fleetReadyMinutes": 57.33,
+      "minutes": 77.33,
+      "stageMinutes": 26,
+      "upgradeCost": 22000,
+      "workingCapital": 1598,
+      "cumulativeSpending": {
+        "upgrades": 23800,
+        "research": 4060,
+        "ships": 3043,
+        "exploration": 360
+      },
+      "cash": 22297
+    },
+    {
+      "level": 7,
+      "ships": 10,
+      "baseShipLimit": 7,
+      "researchShipSlots": 3,
+      "fleetReadyMinutes": 80.33,
+      "minutes": 105.33,
+      "stageMinutes": 28,
+      "upgradeCost": 27500,
+      "workingCapital": 1974,
+      "cumulativeSpending": {
+        "upgrades": 45800,
+        "research": 5690,
+        "ships": 4328,
+        "exploration": 360
+      },
+      "cash": 27683
+    },
+    {
+      "level": 8,
+      "ships": 10,
+      "baseShipLimit": 7,
+      "researchShipSlots": 3,
+      "fleetReadyMinutes": 110.33,
+      "minutes": 140.33,
+      "stageMinutes": 35,
+      "upgradeCost": 33500,
+      "workingCapital": 2016,
+      "cumulativeSpending": {
+        "upgrades": 73300,
+        "research": 10890,
+        "ships": 4328,
+        "exploration": 360
+      },
+      "cash": 33801
+    },
+    {
+      "level": 9,
+      "ships": 14,
+      "baseShipLimit": 10,
+      "researchShipSlots": 4,
+      "fleetReadyMinutes": 145.67,
+      "minutes": 180,
+      "stageMinutes": 39.67,
+      "upgradeCost": 38500,
+      "workingCapital": 2944,
+      "cumulativeSpending": {
+        "upgrades": 106800,
+        "research": 13390,
+        "ships": 7103,
+        "exploration": 360
+      },
+      "cash": 38640
+    },
+    {
+      "level": 10,
+      "ships": 18,
+      "baseShipLimit": 12,
+      "researchShipSlots": 6,
+      "fleetReadyMinutes": 188.83,
+      "minutes": 227.33,
+      "stageMinutes": 47.33,
+      "upgradeCost": 45500,
+      "workingCapital": 3922,
+      "cumulativeSpending": {
+        "upgrades": 145300,
+        "research": 19340,
+        "ships": 10611,
+        "exploration": 360
+      },
+      "cash": 45837
+    },
+    {
+      "level": 11,
+      "ships": 18,
+      "baseShipLimit": 12,
+      "researchShipSlots": 6,
+      "fleetReadyMinutes": 237.33,
+      "minutes": 283.33,
+      "stageMinutes": 56,
+      "upgradeCost": 55500,
+      "workingCapital": 3922,
+      "cumulativeSpending": {
+        "upgrades": 190800,
+        "research": 31340,
+        "ships": 10611,
+        "exploration": 360
+      },
+      "cash": 55628
+    },
+    {
+      "level": 12,
+      "ships": 22,
+      "baseShipLimit": 15,
+      "researchShipSlots": 7,
+      "fleetReadyMinutes": 295.67,
+      "minutes": 346.67,
+      "stageMinutes": 63.33,
+      "upgradeCost": 94000,
+      "workingCapital": 6094,
+      "cumulativeSpending": {
+        "upgrades": 246300,
+        "research": 39540,
+        "ships": 14897,
+        "exploration": 2160
+      },
+      "cash": 94096
+    },
+    {
+      "level": 13,
+      "ships": 26,
+      "baseShipLimit": 18,
+      "researchShipSlots": 8,
+      "fleetReadyMinutes": 353.67,
+      "minutes": 407.33,
+      "stageMinutes": 60.67,
+      "upgradeCost": 112000,
+      "workingCapital": 7509,
+      "cumulativeSpending": {
+        "upgrades": 340300,
+        "research": 46840,
+        "ships": 19549,
+        "exploration": 2160
+      },
+      "cash": 112560
+    },
+    {
+      "level": 14,
+      "ships": 26,
+      "baseShipLimit": 18,
+      "researchShipSlots": 8,
+      "fleetReadyMinutes": 422.5,
+      "minutes": 480.83,
+      "stageMinutes": 73.5,
+      "upgradeCost": 124000,
+      "workingCapital": 7659,
+      "cumulativeSpending": {
+        "upgrades": 452300,
+        "research": 79290,
+        "ships": 19549,
+        "exploration": 2160
+      },
+      "cash": 124166
+    },
+    {
+      "level": 15,
+      "ships": 32,
+      "baseShipLimit": 22,
+      "researchShipSlots": 10,
+      "fleetReadyMinutes": 491.33,
+      "minutes": 556,
+      "stageMinutes": 75.17,
+      "upgradeCost": 140000,
+      "workingCapital": 9113,
+      "cumulativeSpending": {
+        "upgrades": 576300,
+        "research": 92190,
+        "ships": 27618,
+        "exploration": 2160
+      },
+      "cash": 140150
+    },
+    {
+      "level": 16,
+      "ships": 36,
+      "baseShipLimit": 25,
+      "researchShipSlots": 11,
+      "fleetReadyMinutes": 566.33,
+      "minutes": 637.17,
+      "stageMinutes": 81.17,
+      "upgradeCost": 159000,
+      "workingCapital": 10513,
+      "cumulativeSpending": {
+        "upgrades": 716300,
+        "research": 107490,
+        "ships": 34009,
+        "exploration": 2160
+      },
+      "cash": 159067
+    },
+    {
+      "level": 17,
+      "ships": 42,
+      "baseShipLimit": 29,
+      "researchShipSlots": 13,
+      "fleetReadyMinutes": 652.33,
+      "minutes": 729.5,
+      "stageMinutes": 92.33,
+      "upgradeCost": 181000,
+      "workingCapital": 12964,
+      "cumulativeSpending": {
+        "upgrades": 875300,
+        "research": 128890,
+        "ships": 45128,
+        "exploration": 2160
+      },
+      "cash": 181291
+    },
+    {
+      "level": 18,
+      "ships": 48,
+      "baseShipLimit": 33,
+      "researchShipSlots": 15,
+      "fleetReadyMinutes": 744.33,
+      "minutes": 744.33,
+      "stageMinutes": 14.83,
+      "upgradeCost": null,
+      "workingCapital": 14815,
+      "cumulativeSpending": {
+        "upgrades": 1056300,
+        "research": 148890,
+        "ships": 58470,
+        "exploration": 2160
+      },
+      "cash": 425
+    }
+  ],
+  "exploration": [
+    {
+      "portId": "nebula_forge",
+      "startedMinutes": 54.33,
+      "durationSeconds": 57.8,
+      "cost": 360,
+      "completedMinutes": 55.33
+    },
+    {
+      "portId": "aurora_depot",
+      "startedMinutes": 289.67,
+      "durationSeconds": 96.016,
+      "cost": 1800,
+      "completedMinutes": 291.33
+    }
+  ],
+  "researchedTechs": 65,
+  "ships": 48,
+  "spending": {
+    "upgrades": 1056300,
+    "research": 148890,
+    "ships": 58470,
+    "exploration": 2160
+  },
+  "netProfit": 1280060,
+  "finalCash": 425,
+  "committedCapital": 14815,
+  "dispatches": 50,
+  "research": [
+    {
+      "techId": "efficient_engines",
+      "cost": 25,
+      "level": 1,
+      "minutes": 0.17
+    },
+    {
+      "techId": "thruster_calibration",
+      "cost": 25,
+      "level": 1,
+      "minutes": 0.17
+    },
+    {
+      "techId": "fuel_injection",
+      "cost": 30,
+      "level": 1,
+      "minutes": 0.17
+    },
+    {
+      "techId": "clipper_design",
+      "cost": 120,
+      "level": 2,
+      "minutes": 5.5
+    },
+    {
+      "techId": "cargo_partitions",
+      "cost": 80,
+      "level": 2,
+      "minutes": 5.5
+    },
+    {
+      "techId": "berth_planning",
+      "cost": 100,
+      "level": 2,
+      "minutes": 5.67
+    },
+    {
+      "techId": "hauler_design",
+      "cost": 200,
+      "level": 3,
+      "minutes": 13.33
+    },
+    {
+      "techId": "loading_frames",
+      "cost": 100,
+      "level": 3,
+      "minutes": 13.5
+    },
+    {
+      "techId": "trade_quotes",
+      "cost": 300,
+      "level": 3,
+      "minutes": 14.33
+    },
+    {
+      "techId": "fleet_command",
+      "cost": 250,
+      "level": 4,
+      "minutes": 24.67
+    },
+    {
+      "techId": "engine_cooling",
+      "cost": 150,
+      "level": 4,
+      "minutes": 25.33
+    },
+    {
+      "techId": "storage_layout",
+      "cost": 140,
+      "level": 4,
+      "minutes": 25.33
+    },
+    {
+      "techId": "market_network",
+      "cost": 320,
+      "level": 5,
+      "minutes": 37.33
+    },
+    {
+      "techId": "vector_nozzles",
+      "cost": 250,
+      "level": 5,
+      "minutes": 37.5
+    },
+    {
+      "techId": "pallet_system",
+      "cost": 200,
+      "level": 5,
+      "minutes": 37.67
+    },
+    {
+      "techId": "planet_survey",
+      "cost": 420,
+      "level": 6,
+      "minutes": 52.33
+    },
+    {
+      "techId": "cruise_tuning",
+      "cost": 400,
+      "level": 6,
+      "minutes": 53.33
+    },
+    {
+      "techId": "local_contracts",
+      "cost": 500,
+      "level": 6,
+      "minutes": 53.67
+    },
+    {
+      "techId": "dock_scheduling",
+      "cost": 450,
+      "level": 6,
+      "minutes": 55.67
+    },
+    {
+      "techId": "cargo_racks",
+      "cost": 280,
+      "level": 7,
+      "minutes": 77.5
+    },
+    {
+      "techId": "payment_terms",
+      "cost": 700,
+      "level": 7,
+      "minutes": 78.17
+    },
+    {
+      "techId": "berth_rotation",
+      "cost": 650,
+      "level": 7,
+      "minutes": 78.67
+    },
+    {
+      "techId": "fast_navigation",
+      "cost": 3000,
+      "level": 8,
+      "minutes": 108
+    },
+    {
+      "techId": "autopilot_trim",
+      "cost": 700,
+      "level": 8,
+      "minutes": 108.67
+    },
+    {
+      "techId": "rack_reinforcement",
+      "cost": 400,
+      "level": 8,
+      "minutes": 109.17
+    },
+    {
+      "techId": "fulfillment_protocol",
+      "cost": 1100,
+      "level": 8,
+      "minutes": 110.33
+    },
+    {
+      "techId": "trade_contracts",
+      "cost": 700,
+      "level": 9,
+      "minutes": 141
+    },
+    {
+      "techId": "container_stacking",
+      "cost": 600,
+      "level": 9,
+      "minutes": 141.33
+    },
+    {
+      "techId": "regional_berths",
+      "cost": 1200,
+      "level": 9,
+      "minutes": 142.33
+    },
+    {
+      "techId": "engine_tuning",
+      "cost": 1000,
+      "level": 10,
+      "minutes": 181
+    },
+    {
+      "techId": "hold_balancing",
+      "cost": 850,
+      "level": 10,
+      "minutes": 181.67
+    },
+    {
+      "techId": "margin_audits",
+      "cost": 1700,
+      "level": 10,
+      "minutes": 183.33
+    },
+    {
+      "techId": "parallel_docks",
+      "cost": 2400,
+      "level": 10,
+      "minutes": 185.33
+    },
+    {
+      "techId": "bulk_logistics",
+      "cost": 9000,
+      "level": 11,
+      "minutes": 234.83
+    },
+    {
+      "techId": "ion_channels",
+      "cost": 600,
+      "level": 11,
+      "minutes": 235.33
+    },
+    {
+      "techId": "partner_rebates",
+      "cost": 2400,
+      "level": 11,
+      "minutes": 237.33
+    },
+    {
+      "techId": "deep_survey",
+      "cost": 2800,
+      "level": 12,
+      "minutes": 285.5
+    },
+    {
+      "techId": "plasma_flow",
+      "cost": 850,
+      "level": 12,
+      "minutes": 286.33
+    },
+    {
+      "techId": "cargo_connectors",
+      "cost": 1150,
+      "level": 12,
+      "minutes": 287.33
+    },
+    {
+      "techId": "freight_pricing",
+      "cost": 1200,
+      "level": 12,
+      "minutes": 288.33
+    },
+    {
+      "techId": "dock_network",
+      "cost": 2200,
+      "level": 12,
+      "minutes": 291.67
+    },
+    {
+      "techId": "cargo_expansion",
+      "cost": 1500,
+      "level": 13,
+      "minutes": 347.67
+    },
+    {
+      "techId": "warp_alignment",
+      "cost": 1200,
+      "level": 13,
+      "minutes": 348.33
+    },
+    {
+      "techId": "distribution_terms",
+      "cost": 1600,
+      "level": 13,
+      "minutes": 349.33
+    },
+    {
+      "techId": "remote_berths",
+      "cost": 3000,
+      "level": 13,
+      "minutes": 350.67
+    },
+    {
+      "techId": "integrated_freight",
+      "cost": 27000,
+      "level": 14,
+      "minutes": 420
+    },
+    {
+      "techId": "field_stabilization",
+      "cost": 1650,
+      "level": 14,
+      "minutes": 420.67
+    },
+    {
+      "techId": "lightweight_containers",
+      "cost": 1600,
+      "level": 14,
+      "minutes": 421.5
+    },
+    {
+      "techId": "volume_contracts",
+      "cost": 2200,
+      "level": 14,
+      "minutes": 422.5
+    },
+    {
+      "techId": "trade_negotiation",
+      "cost": 3100,
+      "level": 15,
+      "minutes": 482.33
+    },
+    {
+      "techId": "navigation_precision",
+      "cost": 2200,
+      "level": 15,
+      "minutes": 483.33
+    },
+    {
+      "techId": "compression_cradles",
+      "cost": 2200,
+      "level": 15,
+      "minutes": 484.33
+    },
+    {
+      "techId": "fleet_hubs",
+      "cost": 5400,
+      "level": 15,
+      "minutes": 486.67
+    },
+    {
+      "techId": "advanced_engines",
+      "cost": 2500,
+      "level": 16,
+      "minutes": 557.33
+    },
+    {
+      "techId": "jump_efficiency",
+      "cost": 3000,
+      "level": 16,
+      "minutes": 558.5
+    },
+    {
+      "techId": "distributed_storage",
+      "cost": 3000,
+      "level": 16,
+      "minutes": 559.83
+    },
+    {
+      "techId": "settlement_network",
+      "cost": 3000,
+      "level": 16,
+      "minutes": 561.5
+    },
+    {
+      "techId": "hub_coordination",
+      "cost": 3800,
+      "level": 16,
+      "minutes": 563.17
+    },
+    {
+      "techId": "modular_cargo",
+      "cost": 4000,
+      "level": 17,
+      "minutes": 638.83
+    },
+    {
+      "techId": "adaptive_bulkheads",
+      "cost": 5200,
+      "level": 17,
+      "minutes": 641.33
+    },
+    {
+      "techId": "regional_arbitrage",
+      "cost": 3800,
+      "level": 17,
+      "minutes": 643.33
+    },
+    {
+      "techId": "interstellar_docks",
+      "cost": 8400,
+      "level": 17,
+      "minutes": 646.5
+    },
+    {
+      "techId": "trade_network",
+      "cost": 4600,
+      "level": 18,
+      "minutes": 731.5
+    },
+    {
+      "techId": "alliance_dividends",
+      "cost": 5600,
+      "level": 18,
+      "minutes": 734
+    },
+    {
+      "techId": "alliance_berths",
+      "cost": 9800,
+      "level": 18,
+      "minutes": 738.17
+    }
+  ]
+}

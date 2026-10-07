@@ -1,0 +1,2240 @@
+{
+  "version": "2.2.0",
+  "saveSchemaVersion": 33,
+  "status": "sealed",
+  "sealedAt": "2026-10-07T12:59:44.596Z",
+  "source": [
+    {
+      "path": ".github/workflows/deploy-cloudflare.yml",
+      "bytes": 2361,
+      "sha256": "4df232c7e1327e938bfca3ff38947b37d89860d51b8657f911743adb3ebf4cf1"
+    },
+    {
+      "path": "README.md",
+      "bytes": 9013,
+      "sha256": "b615f12a1c299b96600fda27f2394fb4a8122b65316adf4f1efac14dbe2875f4"
+    },
+    {
+      "path": "assets/scene/README.md",
+      "bytes": 3586,
+      "sha256": "94ca37c76f9baa3a427cb79acfc1e12d5026590651197e7210e991225a00a69e"
+    },
+    {
+      "path": "assets/scene/manifest.json",
+      "bytes": 6149,
+      "sha256": "b52c9179cdd22e4991c4f0f9ebfd675bc1392103f832eaeb91403c086b321375"
+    },
+    {
+      "path": "assets/scene/ports/industrial.webp",
+      "bytes": 5858,
+      "sha256": "3f287a797ca88e5e35ff275f9baccff2118f5807a313238fc5176f97cddcc2bc"
+    },
+    {
+      "path": "assets/scene/ports/mining.webp",
+      "bytes": 7196,
+      "sha256": "fb41c8f34b3ca3b03db2059c8b271965792d9102daa431efa2ba89886e5a88b3"
+    },
+    {
+      "path": "assets/scene/ports/sol.webp",
+      "bytes": 18710,
+      "sha256": "29024697a9a62ad42712e4a52aab5d9318b8f83fcdf59f48c912e412e87ec3de"
+    },
+    {
+      "path": "assets/scene/ships/clipper.glb",
+      "bytes": 132608,
+      "sha256": "9c2917d0ba12240c035bf1c6dd49ab8a0afd30e80fba77c975b58ebef1dbdfc3"
+    },
+    {
+      "path": "assets/scene/ships/clipper.shadow.webp",
+      "bytes": 12886,
+      "sha256": "a2a0ae21ef7702bd9aabcf1b089d2617fc86b518c5f9e23c22f7a957f4d45a17"
+    },
+    {
+      "path": "assets/scene/ships/clipper.webp",
+      "bytes": 24000,
+      "sha256": "fc49be02675e71d1c93e2d8b14bdb55aa1c7c72c371aa516bab071a1c2a5c148"
+    },
+    {
+      "path": "assets/scene/ships/freighter.glb",
+      "bytes": 255260,
+      "sha256": "0be1a95b81ebb1f15577c4e100a802fa631659b9fc862b1a9287c2ac7f977956"
+    },
+    {
+      "path": "assets/scene/ships/freighter.shadow.webp",
+      "bytes": 10696,
+      "sha256": "05ecf2a5f89b8cebf94d8350e9b05908d2c2ffdeae10ae09864ce0b153403118"
+    },
+    {
+      "path": "assets/scene/ships/freighter.webp",
+      "bytes": 36854,
+      "sha256": "521146d030706347650b62cee9ba61befb2935891340eb89df8cc95ea395f13f"
+    },
+    {
+      "path": "assets/scene/ships/galleon.glb",
+      "bytes": 450956,
+      "sha256": "6b06c2c3b35d899462b7f5c07548c3a58da9d7d9cbe5dda232227bdd62baef24"
+    },
+    {
+      "path": "assets/scene/ships/galleon.shadow.webp",
+      "bytes": 8778,
+      "sha256": "4eb765073094e7885d21a1ffe8eb385c0e3ab420c0ff16fc322008e998a0f039"
+    },
+    {
+      "path": "assets/scene/ships/galleon.webp",
+      "bytes": 28428,
+      "sha256": "3379e8831de3864a4f32ddda24b08e1feffec2d788b86258412f18c05dab5820"
+    },
+    {
+      "path": "assets/scene/ships/shuttle.glb",
+      "bytes": 123756,
+      "sha256": "7b87f0627d47c913cec97637820cc364f7ba1635a4a0ecc6ae95c1d40be71ef2"
+    },
+    {
+      "path": "assets/scene/ships/shuttle.shadow.webp",
+      "bytes": 12200,
+      "sha256": "f1275455acb1677b0b18a7fbf59462c582f38b512921a218177b12ce145b326d"
+    },
+    {
+      "path": "assets/scene/ships/shuttle.webp",
+      "bytes": 21680,
+      "sha256": "7caf8e46e581fbccad6b68dbb1d374fd5e3b609c288f68f4173df141dd78d09a"
+    },
+    {
+      "path": "assets/ui/README.md",
+      "bytes": 152,
+      "sha256": "609e71e20b08b5ad3f456761d39e40287434f0d8107152125bc0271ee11b8b88"
+    },
+    {
+      "path": "assets/ui/meridian-mark.svg",
+      "bytes": 422,
+      "sha256": "d09eaa99307be890a99538a9f4992d75bbea7001aeb17f4acb1dfddb0a8f0708"
+    },
+    {
+      "path": "css/merchant-decisions.css",
+      "bytes": 14750,
+      "sha256": "8a670042dbfb81def1cd4961883538a71c8c17c425f14bfd7a3a84459d600e5d"
+    },
+    {
+      "path": "css/merchant-material.css",
+      "bytes": 29223,
+      "sha256": "b857d86c34f177dd5d96ab22866855dea6065959d5dad463c24eff9a62f32fbd"
+    },
+    {
+      "path": "css/merchant-onboarding.css",
+      "bytes": 6032,
+      "sha256": "8bad453d1084cdc567c2eba7d7074f3f3b06c02374ce45a87232119769415de4"
+    },
+    {
+      "path": "css/merchant-shell.css",
+      "bytes": 11160,
+      "sha256": "de4aa57f3292d68ff90a3919950e0485a5b22b9f7862d6c88eac40b25569e271"
+    },
+    {
+      "path": "css/merchant-tech-tree.css",
+      "bytes": 10608,
+      "sha256": "24dcdb587d872fc2538613926da5b3feb3f6d4d30c14bf59f8ff9e79b94bd92c"
+    },
+    {
+      "path": "css/merchant-workspace.css",
+      "bytes": 34042,
+      "sha256": "0a6f9df165cdcd0ecc44dbb0bd327ea52c1960d63a8538ea9c7e84d1cb0ff4d4"
+    },
+    {
+      "path": "css/startup-loader.css",
+      "bytes": 9824,
+      "sha256": "ad47227e422f5febadc640ba887ef54de6f0f104f4830589299e8d06912a38b7"
+    },
+    {
+      "path": "css/style.css",
+      "bytes": 230,
+      "sha256": "f29eef2a9c29fe553cf883a261e366a14591e9c1e702a7b359bba51fc064fab3"
+    },
+    {
+      "path": "docs/2.0/01_核心玩法与内容.md",
+      "bytes": 10826,
+      "sha256": "d062caef903b824a5f94e52ee4892ab4a1927bfbd1c938415bf92fcccc1b9890"
+    },
+    {
+      "path": "docs/2.0/02_界面与星图.md",
+      "bytes": 16775,
+      "sha256": "3a5c25a8f493286a3b401579d4101988f4af080a25f22798af102fcfce9f9209"
+    },
+    {
+      "path": "docs/2.0/03_运行与存档.md",
+      "bytes": 6490,
+      "sha256": "67d01c855532cb1b2dfa69c2dbd754a13a7cfdd8e6bae003f76b4a848a289149"
+    },
+    {
+      "path": "docs/2.0/04_技术架构.md",
+      "bytes": 8385,
+      "sha256": "0cf2be1c9f4463079483216dd3119285af4ac763eaa603562b249249f122e5a6"
+    },
+    {
+      "path": "docs/2.0/05_2.0封版验收.md",
+      "bytes": 30251,
+      "sha256": "bb61edab41c1b1c3c34475d99670e73e4e5e79f2320536ab74f92d71c36c9606"
+    },
+    {
+      "path": "docs/2.0/06_公司成长与解锁节奏.md",
+      "bytes": 9735,
+      "sha256": "42052cc68533e0f090e92d49f20c4a949b04b1b6d45a2ad012e0adab18c54241"
+    },
+    {
+      "path": "docs/2.0/README.md",
+      "bytes": 1553,
+      "sha256": "cb0c467026a8bf060c63ec01d3b0dbf7c6b46f0f069068531eff9526f35615ae"
+    },
+    {
+      "path": "docs/2.1/01_规则与实现验收.md",
+      "bytes": 8092,
+      "sha256": "196e90b5be14b10fe88ba23e67a1fb48d28841f4703fdd7d282558d67059b009"
+    },
+    {
+      "path": "docs/2.1/02_验证与后续设计.md",
+      "bytes": 20692,
+      "sha256": "60b692bbb6ed1b3fd442f7a66e3f3d8115d13ef6d121f063438688593f180e18"
+    },
+    {
+      "path": "docs/2.1/03_18级公司成长.md",
+      "bytes": 16170,
+      "sha256": "6d237616cb671bc6b97c5189046618fea8d130e261a022b81efdcbb3ca709591"
+    },
+    {
+      "path": "docs/2.1/04_科技研发.md",
+      "bytes": 19333,
+      "sha256": "db872ee88a7a1bbb90f22cf9045c3421efea89aa39a5e96b83693568747827d7"
+    },
+    {
+      "path": "docs/2.1/05_市场情报.md",
+      "bytes": 3124,
+      "sha256": "f215f6245642556a9cb88dcea7bc713ca91e131be9e9230881999b0a16fd5ad6"
+    },
+    {
+      "path": "docs/2.1/06_百级公司突破.md",
+      "bytes": 9499,
+      "sha256": "482d3ba741fa30e17c38682b8f6baba34bf275fcde2484266396fd064669b9cc"
+    },
+    {
+      "path": "docs/2.1/07_科技研发梯度定价.md",
+      "bytes": 6736,
+      "sha256": "ca3343648de0c4dd2ecbbe33b4863dea91c89020ef83982f502dea9a3d97280e"
+    },
+    {
+      "path": "docs/2.1/08_科技树与核心研发.md",
+      "bytes": 11305,
+      "sha256": "a388ceac82322f4099b8e48f041609f82e45c77d384778af42a47863fe1d0a6b"
+    },
+    {
+      "path": "docs/2.1/README.md",
+      "bytes": 8832,
+      "sha256": "e183c2f0f2db52c9ea2e4531d753208463d7550bcc2d80f1eb742bf176d6b6ef"
+    },
+    {
+      "path": "docs/2.1/供需扩容对照.json",
+      "bytes": 10586,
+      "sha256": "afa9e0ed78bcfc19ae10898fb16c051a944ac19c3cdf9a9db49ef9b366e03b18"
+    },
+    {
+      "path": "docs/2.1/公司升级价格校准.json",
+      "bytes": 24833,
+      "sha256": "3d6b7258dce0bedcc68795f2ba05f49ae6f6743119f68a1ffcd9e5e4206eaad3"
+    },
+    {
+      "path": "docs/2.1/公司升级费用再校准.json",
+      "bytes": 29981,
+      "sha256": "80a5ebaefeb0e3e6ac590752d8618b214747eb6f2e6491d35e3538d9e8263ed7"
+    },
+    {
+      "path": "docs/2.1/前期节奏模拟.json",
+      "bytes": 2044,
+      "sha256": "a6eba7ed088ba7b52019721dbcc7ba2cbde5de4041d7bd25116cc7a890a1fcd4"
+    },
+    {
+      "path": "docs/2.1/十八级成长模拟.json",
+      "bytes": 8266,
+      "sha256": "248f67512ac58a25c73fd82f70a50bbaf40ec3b1367e849bcedbcc291b694c3c"
+    },
+    {
+      "path": "docs/2.1/单船开局三船对照.json",
+      "bytes": 18561,
+      "sha256": "c36919f0a69fb3ce646a5c6251ae7ae25604aba5a77f41e69cdd9b592e44d113"
+    },
+    {
+      "path": "docs/2.1/单船开局前期节奏.json",
+      "bytes": 2323,
+      "sha256": "cf182f03bb8e270a0935a81676dc54213bdce9f5886dc71a4c9c6852b605a8c4"
+    },
+    {
+      "path": "docs/2.1/单船开局投资对照.json",
+      "bytes": 102391,
+      "sha256": "b7d5e0a9477d0548c7e193958a75a92f445651cd7cacb4dafc37391a8fdeaae8"
+    },
+    {
+      "path": "docs/2.1/单船开局满编成长.json",
+      "bytes": 15623,
+      "sha256": "e20bd5ebf5b225f044b70390dc46aaaaba587e17f31f3b1a9987dfac0a5ba16f"
+    },
+    {
+      "path": "docs/2.1/单船开局满编测算.json",
+      "bytes": 122816,
+      "sha256": "0b6ad72fa244d1968020952f673f6afda1da82e935b859f503021818c122b526"
+    },
+    {
+      "path": "docs/2.1/单船开局船位调整对照.json",
+      "bytes": 4039,
+      "sha256": "81a869fe895bcfb66d6cf7936cc352fd15619626aa7a78772480e3b692907bbc"
+    },
+    {
+      "path": "docs/2.1/商路稳定性对照.json",
+      "bytes": 3968,
+      "sha256": "2de0e85813a0242a4bb4ddc32321e304188d30e57012f4160dbe98b1949f4951"
+    },
+    {
+      "path": "docs/2.1/投资与查看频率模拟.json",
+      "bytes": 100257,
+      "sha256": "f8050f78e2ba318cba3ff9f97aeee613eb9fb610a29ad85831e78ae88f1d122f"
+    },
+    {
+      "path": "docs/2.1/满编校准后三船对照.json",
+      "bytes": 18285,
+      "sha256": "a18723f69fd6b6428f07ad6fac3310f254ac6187666ef91e0956d953b52cac67"
+    },
+    {
+      "path": "docs/2.1/满编校准后前期节奏.json",
+      "bytes": 2116,
+      "sha256": "12f0b7d21359f75a73ad821c61788ead244058ea1c1637420a57be1abbe671d6"
+    },
+    {
+      "path": "docs/2.1/满编船队升级校准.json",
+      "bytes": 124315,
+      "sha256": "2645ab77ff6d73dc5752783cb7fbef921b90ffee24ac9c3ae72fd2340f309638"
+    },
+    {
+      "path": "docs/2.1/满编船队成长模拟.json",
+      "bytes": 15656,
+      "sha256": "40a6b59ebcfb091bb1f373472a59073d3777a112e41dc28339a903c5620500e7"
+    },
+    {
+      "path": "docs/2.1/满编船队费用调整对照.json",
+      "bytes": 5582,
+      "sha256": "93bdc16faa6ce1b3e8f73a2498864a92bbfa0fd4eb2d24498a4884d0fdc7166f"
+    },
+    {
+      "path": "docs/2.1/百级公司前期节奏.json",
+      "bytes": 4996,
+      "sha256": "74ba7c7f684887ec9834a6591fee8c09de9d24c42f040f9f3ebd8b92550f1ead"
+    },
+    {
+      "path": "docs/2.1/百级公司满编成长.json",
+      "bytes": 56433,
+      "sha256": "df68ace10db0110266f142deb08e38c2d9b2aa93257af4a3662e5b2ecf66753f"
+    },
+    {
+      "path": "docs/2.1/百级公司满编测算.json",
+      "bytes": 682474,
+      "sha256": "1c88f61a8529db0e75d4f2d39f065e4e33ca5afe5c53dc313649835a1dd5c5df"
+    },
+    {
+      "path": "docs/2.1/科技树前期节奏.json",
+      "bytes": 5917,
+      "sha256": "aca82f0375580a307ed868a3549ca4dac6914dc7a0e2dad553376ddad40dd44a"
+    },
+    {
+      "path": "docs/2.1/科技树投资对照.json",
+      "bytes": 102549,
+      "sha256": "41256a60fe58ccd69cfa714dd2256f655ec38e6c0d2650e79a4008322061da10"
+    },
+    {
+      "path": "docs/2.1/科技树核心门槛.json",
+      "bytes": 15884,
+      "sha256": "e19801e5748b3ec2836148105694a72ddabf5f06d35a635199fa2fe4f55b6e2d"
+    },
+    {
+      "path": "docs/2.1/科技树满编成长.json",
+      "bytes": 56714,
+      "sha256": "3bb491161fe136288dcc84c165bde99b8138e21289cfaae245504d3983524da1"
+    },
+    {
+      "path": "docs/2.1/科技树满编测算.json",
+      "bytes": 716807,
+      "sha256": "19ee52c58910b224341177d45a97e1514c8c18971587d21c326cea9bb3b339ed"
+    },
+    {
+      "path": "docs/2.1/科技梯度定价前期节奏.json",
+      "bytes": 4998,
+      "sha256": "f0ab6234e4915f18e60a63e3e55f83eaeb4fadec316beea8f3ca01afab03e909"
+    },
+    {
+      "path": "docs/2.1/科技梯度定价投资对照.json",
+      "bytes": 102556,
+      "sha256": "10d864e36c9681deebc149cb2e8ccca395fdf6e5bc4e737dc23283f8a75b551a"
+    },
+    {
+      "path": "docs/2.1/科技梯度定价满编成长.json",
+      "bytes": 56749,
+      "sha256": "0d5e4227ffea7e75d7b48eac05fc6b757091d3542f05e58cc0d56b41e4650cdb"
+    },
+    {
+      "path": "docs/2.1/科技梯度定价满编测算.json",
+      "bytes": 701575,
+      "sha256": "2724eac1a16494777c922e28a2d3d86b67e624c5304ed7ee57111d0d20ae4c7e"
+    },
+    {
+      "path": "docs/2.1/科技研发成长模拟.json",
+      "bytes": 14421,
+      "sha256": "529c8ecfe9aa657447079d4aedf61523282c4554fa8220ab03bb978e9ed6fafb"
+    },
+    {
+      "path": "docs/2.1/科技细分成长模拟.json",
+      "bytes": 10916,
+      "sha256": "6655f910adf5410645fb726b976cc788ae7e04333d04228fa9e095ef2c5f8fb8"
+    },
+    {
+      "path": "docs/2.1/科技细分阶段收入.json",
+      "bytes": 1298,
+      "sha256": "078a3e928ff6ebfe675cccf5384c18408114cc89fe2e51a2e30828fb5469d2a3"
+    },
+    {
+      "path": "docs/2.1/船位研发成长模拟.json",
+      "bytes": 12389,
+      "sha256": "26c0a968e1587dc4cb40f5e2f38f15dbcd748d8ef6a2d683cac888e5159352bd"
+    },
+    {
+      "path": "docs/2.1/船位研发阶段收入.json",
+      "bytes": 1298,
+      "sha256": "078a3e928ff6ebfe675cccf5384c18408114cc89fe2e51a2e30828fb5469d2a3"
+    },
+    {
+      "path": "docs/2.1/验收截图/54项科技完成手机.png",
+      "bytes": 468557,
+      "sha256": "e4b9f3c092f4ab088859401632b6856090cf24c0d88bce0356ba068b4c9ef905"
+    },
+    {
+      "path": "docs/2.1/验收截图/54项科技完成桌面.png",
+      "bytes": 1244987,
+      "sha256": "aec6529937f6ca3068142ebcc9d9bcbbdae98c83b7e1500677d8aa65d7e0dba0"
+    },
+    {
+      "path": "docs/2.1/验收截图/65项科技完成手机.png",
+      "bytes": 470415,
+      "sha256": "7872c034826a81d3aa230f55dec38a2fb54b0e71bd10c2108f5c0d94c590f3e0"
+    },
+    {
+      "path": "docs/2.1/验收截图/65项科技完成桌面.png",
+      "bytes": 1247215,
+      "sha256": "2e6575cf8d94451bcec48c7dac6f5139bdc7a34741cdd4766991ef7f0f0c1014"
+    },
+    {
+      "path": "docs/2.1/验收截图/Loading全屏手机.png",
+      "bytes": 319001,
+      "sha256": "139dcbb1fd71e679c271cb0d0ed8d7950823a53eaf30e4c4982936fb6d0d133a"
+    },
+    {
+      "path": "docs/2.1/验收截图/Loading全屏桌面.png",
+      "bytes": 764872,
+      "sha256": "62198e4483787a725ae0a3b81fbc1b57646be3b43b32f80574c4cabf6ad2b06d"
+    },
+    {
+      "path": "docs/2.1/验收截图/Loading恢复手机.png",
+      "bytes": 329708,
+      "sha256": "6f09c993435bce76f4bde1ef1a1253eb4771f485efcaaefe3b68cc0fc5afe4f2"
+    },
+    {
+      "path": "docs/2.1/验收截图/Loading恢复短屏.png",
+      "bytes": 211978,
+      "sha256": "8f9919fc6fb3acb1c6258cfd7ab94cda401d2d1c4bba86cdfeb296ef368050dd"
+    },
+    {
+      "path": "docs/2.1/验收截图/Loading短屏.png",
+      "bytes": 203524,
+      "sha256": "5c6d61e034da48f57c98b81ab0d7a3d302441ac0ce2d19b1a68b81c643a97fd8"
+    },
+    {
+      "path": "docs/2.1/验收截图/公司升级新费用手机.png",
+      "bytes": 249770,
+      "sha256": "08703fb9fba68ea5637ae50c117487f0ca3d9298d1f64f32c30f9ac4593cb343"
+    },
+    {
+      "path": "docs/2.1/验收截图/公司升级新费用桌面.png",
+      "bytes": 876643,
+      "sha256": "947f35ca94a465632d5397ec56afa68d84a2419b101ce685cf270a3cece42d64"
+    },
+    {
+      "path": "docs/2.1/验收截图/公司升级梯度手机.png",
+      "bytes": 248346,
+      "sha256": "4ab0928af2edae2cd2d37538149ae907776fbc56d3240441e8c815bcdc286cc4"
+    },
+    {
+      "path": "docs/2.1/验收截图/公司升级梯度桌面.png",
+      "bytes": 875053,
+      "sha256": "d063a1fa51f18f87b3c936ee3b5f2fe8ad08f2315783a2154328b902e8c25e25"
+    },
+    {
+      "path": "docs/2.1/验收截图/公司船位拆分手机.png",
+      "bytes": 468404,
+      "sha256": "3c3739d86acf3266d06aab07d4ecd96ad7edaa3f48c1a413265c3bc0782795f8"
+    },
+    {
+      "path": "docs/2.1/验收截图/公司船位拆分桌面.png",
+      "bytes": 1225167,
+      "sha256": "217a69fc7aec7235529635472bc21987d7aadd2c5ba49db39397bade921e0a49"
+    },
+    {
+      "path": "docs/2.1/验收截图/公司路线标签/公司发展Lv1WebKit手机.png",
+      "bytes": 446928,
+      "sha256": "1a770be807b253d196c1ce8aeb9d07e267f751f11bb2fced2e650f8ed58b9e48"
+    },
+    {
+      "path": "docs/2.1/验收截图/公司路线标签/公司发展Lv1WebKit桌面.png",
+      "bytes": 1200462,
+      "sha256": "0b85c3973390a6338a600e911ba6ccdcf6758b05bbf52771d90c2d66066571ba"
+    },
+    {
+      "path": "docs/2.1/验收截图/公司路线标签/公司发展Lv1手机.png",
+      "bytes": 228250,
+      "sha256": "5232ce64e3a77e619e38b41326beca5cf68aef5ce0be161f22e5189ee6e54242"
+    },
+    {
+      "path": "docs/2.1/验收截图/公司路线标签/公司发展Lv1桌面.png",
+      "bytes": 828651,
+      "sha256": "9f236e3b56e1bf8de7db573d3eb176de5e07e720efb0286fbd3db270987f236a"
+    },
+    {
+      "path": "docs/2.1/验收截图/公司路线标签/公司满级100WebKit手机.png",
+      "bytes": 434112,
+      "sha256": "5460344ac1bb2e10b9cea6070ae2c48e12a792eb2ddaabac9c59b0e7315d76f9"
+    },
+    {
+      "path": "docs/2.1/验收截图/公司路线标签/公司满级100WebKit桌面.png",
+      "bytes": 1257355,
+      "sha256": "44d01a7a372ec1919ecdd60e9a5ff081063eef46b71c5295631989fd40d60f46"
+    },
+    {
+      "path": "docs/2.1/验收截图/公司路线标签/公司满级100手机.png",
+      "bytes": 231440,
+      "sha256": "5a0c311c093707f13283f371bde27f9b425d1fd13917364a900b4ddeab0d6487"
+    },
+    {
+      "path": "docs/2.1/验收截图/公司路线标签/公司满级100桌面.png",
+      "bytes": 872380,
+      "sha256": "7df95bf80c7826205c72dd55141fe7fe9d2163a9a7ef134e8f9a924d458e9175"
+    },
+    {
+      "path": "docs/2.1/验收截图/公司路线标签/公司突破Lv5WebKit手机.png",
+      "bytes": 429191,
+      "sha256": "87f09b70225e32aa022039bdd2781ed007e3b3adbf19a503a81ff60e072e0968"
+    },
+    {
+      "path": "docs/2.1/验收截图/公司路线标签/公司突破Lv5WebKit桌面.png",
+      "bytes": 1241675,
+      "sha256": "3bc3edece483b363b834f6309f236049d7cb75bbc7371957cce2ee5da69f2634"
+    },
+    {
+      "path": "docs/2.1/验收截图/公司路线标签/公司突破Lv5手机.png",
+      "bytes": 214439,
+      "sha256": "3718fb49d778c7dc0c61be5da528479c974773685b033e2beb8cf778536a2378"
+    },
+    {
+      "path": "docs/2.1/验收截图/公司路线标签/公司突破Lv5桌面.png",
+      "bytes": 852571,
+      "sha256": "1605c80fc510fba109ee8e3f26a0923e9b324f69f5a1adbe49b805b359d58db2"
+    },
+    {
+      "path": "docs/2.1/验收截图/前期节奏手机.png",
+      "bytes": 231907,
+      "sha256": "1268b17ee1cc6f6e14ec808acb5c92c6758c49eed70f74ed637b5eb4133ddf10"
+    },
+    {
+      "path": "docs/2.1/验收截图/前期节奏桌面.png",
+      "bytes": 764596,
+      "sha256": "53ae01a5a8763ec516a479c584bb6bb287538e9e3a516b5a5a2ec0f07aa64d67"
+    },
+    {
+      "path": "docs/2.1/验收截图/十八级公司成长手机.png",
+      "bytes": 493208,
+      "sha256": "4d853694b5041b3e30113c2ef07de6d6da36f8d7d2f94143299f24ebf6e5449d"
+    },
+    {
+      "path": "docs/2.1/验收截图/十八级公司成长桌面.png",
+      "bytes": 858902,
+      "sha256": "9b26dbb7982c4fb9c6bffb6157a943f134ac66befc12701e0f9acb3cf9a73390"
+    },
+    {
+      "path": "docs/2.1/验收截图/单船开局扩容手机.png",
+      "bytes": 243991,
+      "sha256": "b0ca4074de9065222470c180af7c9d0279569477b754de999421ff0aca401411"
+    },
+    {
+      "path": "docs/2.1/验收截图/单船开局扩容桌面.png",
+      "bytes": 826774,
+      "sha256": "01447cb3181f0c0e6324791d6701aa505a4f88001a7b3d940d6ff060a6cac97e"
+    },
+    {
+      "path": "docs/2.1/验收截图/单船开局旧档手机.png",
+      "bytes": 253388,
+      "sha256": "628294d3f19c5554911f75ae43a95eca35a9dccd3921fcabf543f5c7055f4329"
+    },
+    {
+      "path": "docs/2.1/验收截图/单船开局旧档桌面.png",
+      "bytes": 856607,
+      "sha256": "baf8028857cfe4ec5aebdd1b59add4744c6042bd3eb3cffb8f8da5cf0daa62b7"
+    },
+    {
+      "path": "docs/2.1/验收截图/单船开局积累手机.png",
+      "bytes": 239089,
+      "sha256": "0d0ad9695f10b478abe6d4b84621fe83df86847e4441889a65615ac99e241e1e"
+    },
+    {
+      "path": "docs/2.1/验收截图/单船开局积累桌面.png",
+      "bytes": 872616,
+      "sha256": "9db8f569c0aeb7f8fbabe92e6351e105aac40128979ddd1f9542069693f1d4f3"
+    },
+    {
+      "path": "docs/2.1/验收截图/单船开局船位研发手机.png",
+      "bytes": 253729,
+      "sha256": "0173e3ea71e16335faee59f5389b948601c704d38c8c40219b60c0ae96f93418"
+    },
+    {
+      "path": "docs/2.1/验收截图/单船开局船位研发桌面.png",
+      "bytes": 978959,
+      "sha256": "d04ec6fb153a25161595b784b3a12acf383fdc8243ec0092a367a12cf3508732"
+    },
+    {
+      "path": "docs/2.1/验收截图/商路持续经营手机.png",
+      "bytes": 41409,
+      "sha256": "e74867ead1a026c728ddae00eda5e94cf199c5d0cb7ea981d55f3694279d1179"
+    },
+    {
+      "path": "docs/2.1/验收截图/商路持续经营桌面.png",
+      "bytes": 64713,
+      "sha256": "a2e7111eedce9b33097205b80762796aa3d10cb79cb0f2533281ca38c50ca99b"
+    },
+    {
+      "path": "docs/2.1/验收截图/市场情报交易手机.png",
+      "bytes": 242189,
+      "sha256": "01dce0b7b378430bf5b5232e5f62aacf5c9f2eeae926abd1b645a03a0d39ea34"
+    },
+    {
+      "path": "docs/2.1/验收截图/市场情报交易桌面.png",
+      "bytes": 708163,
+      "sha256": "451fd98ad9f0f1ebdcc6117d9b7e9e4ccb5951f18d971f64ecd9c55de8aaa781"
+    },
+    {
+      "path": "docs/2.1/验收截图/市场情报收藏手机.png",
+      "bytes": 242678,
+      "sha256": "d22188af29e0aa93f53601706156d8ff45dd335fca9c7422595e8cebbe2c541f"
+    },
+    {
+      "path": "docs/2.1/验收截图/市场情报收藏桌面.png",
+      "bytes": 820376,
+      "sha256": "e8eab2c0500276b70299cefb847bfcbb25f24b8d85acf819c94a8e7fd94dc75b"
+    },
+    {
+      "path": "docs/2.1/验收截图/待研发科技手机.png",
+      "bytes": 494272,
+      "sha256": "8e4f762503dcd8b83582660eb12441360b451e167a2308965c44e83eae42fbbc"
+    },
+    {
+      "path": "docs/2.1/验收截图/待研发科技桌面.png",
+      "bytes": 1144543,
+      "sha256": "2c2d11609e9d722a82a61ba9843d06596f40ffdb4b4062d7cc5981f82e765693"
+    },
+    {
+      "path": "docs/2.1/验收截图/手机新港商路.png",
+      "bytes": 227633,
+      "sha256": "b58f7cae09af92836fefe9e3bf1fcf911e4418bdd35fc74247d3678dd1de4f60"
+    },
+    {
+      "path": "docs/2.1/验收截图/手机经营方案.png",
+      "bytes": 232946,
+      "sha256": "8a316cb63fbce5c5d1ef751eb488892ef98dd13d821eb3ea8391acc3a166328a"
+    },
+    {
+      "path": "docs/2.1/验收截图/手机航运任务.png",
+      "bytes": 425039,
+      "sha256": "d4cb20f1b5395524b09b5a315d3b7db12889ed5cd0d9ca6b57a7b62f1cc2b53e"
+    },
+    {
+      "path": "docs/2.1/验收截图/星图Loading手机.png",
+      "bytes": 313644,
+      "sha256": "cc02a3aab24663c4157dd88747e5b09a234f134c2647e94533b5908f444d34e4"
+    },
+    {
+      "path": "docs/2.1/验收截图/星图Loading短屏.png",
+      "bytes": 199929,
+      "sha256": "fab80678689554eb568af6ba56d9f19398e8cf9ba9313a5fdc3b2e5c39186c33"
+    },
+    {
+      "path": "docs/2.1/验收截图/桌面投资比较.png",
+      "bytes": 684432,
+      "sha256": "46313c6a845820e48133751e275168b9f04b04b7724db987d13aa4c00a37ce1c"
+    },
+    {
+      "path": "docs/2.1/验收截图/桌面经营报告.png",
+      "bytes": 814459,
+      "sha256": "3df4fd5a76e100606c5dc1ee2910205b5cbb023e23003b9d2af7c1c30df2f2f0"
+    },
+    {
+      "path": "docs/2.1/验收截图/桌面经营调度.png",
+      "bytes": 739693,
+      "sha256": "d37f9b478d5f64f6dd59d47a50da3636c4696a2a18b91d999b62b1eb0cd9d9c4"
+    },
+    {
+      "path": "docs/2.1/验收截图/桌面航运任务.png",
+      "bytes": 735474,
+      "sha256": "bad79e0b913eceb2d442d4e5a64c794dcc4015ce4b3ed1e290a08a87a19082de"
+    },
+    {
+      "path": "docs/2.1/验收截图/满编公司升级费用手机.png",
+      "bytes": 249419,
+      "sha256": "08c37312f83dc911d0638af0d26d9fc36a291e0094b92213bca54d5c73df1709"
+    },
+    {
+      "path": "docs/2.1/验收截图/满编公司升级费用桌面.png",
+      "bytes": 876599,
+      "sha256": "88b72c52ac407f2db8c359672e2ea00346f7fb0b9185c329789cdf52a6197a6c"
+    },
+    {
+      "path": "docs/2.1/验收截图/满编费用首次积累手机.png",
+      "bytes": 255206,
+      "sha256": "6f63b7b7b745c58482185780dd501804d711b38090b2d36b8fa314c44608b8f4"
+    },
+    {
+      "path": "docs/2.1/验收截图/满编费用首次积累桌面.png",
+      "bytes": 867281,
+      "sha256": "0d53390822e9ac084566c20349a942333237e376fbd0776955d7cceeda73f815"
+    },
+    {
+      "path": "docs/2.1/验收截图/百级公司/公司满级100WebKit手机.png",
+      "bytes": 477518,
+      "sha256": "e25d96cdd1049615f1bb723a6118fbfdd95e387c3ec97a100ac69f7d5c0d744b"
+    },
+    {
+      "path": "docs/2.1/验收截图/百级公司/公司满级100WebKit桌面.png",
+      "bytes": 1284633,
+      "sha256": "a85b275492c7ca1e7768465b4d977d0454601eb9c3b54ff1b9046231e4d442af"
+    },
+    {
+      "path": "docs/2.1/验收截图/百级公司/公司满级100手机.png",
+      "bytes": 241047,
+      "sha256": "8af7b355f4a4579253cd6d9794169de3684e2095625273ce4b89d66541d06952"
+    },
+    {
+      "path": "docs/2.1/验收截图/百级公司/公司满级100桌面.png",
+      "bytes": 894510,
+      "sha256": "aa417b4d4537608136e03c9404f44e9cb634ccc326b949dd619f835830b5ecf2"
+    },
+    {
+      "path": "docs/2.1/验收截图/百级公司/公司突破Lv50WebKit手机.png",
+      "bytes": 481821,
+      "sha256": "e9bf69b14ad254b6b62290b367f2889602c23145762a73fde643666e2b799734"
+    },
+    {
+      "path": "docs/2.1/验收截图/百级公司/公司突破Lv50WebKit桌面.png",
+      "bytes": 1290778,
+      "sha256": "dccd383e6b99efbbbd4e25f99dca4a41d44c48f0f5bc54b21286b725fff52f28"
+    },
+    {
+      "path": "docs/2.1/验收截图/百级公司/公司突破Lv50手机.png",
+      "bytes": 248788,
+      "sha256": "c285fd0850e6300f15ec0497f45817101b6b3feb80d32368c179b103e2e10bce"
+    },
+    {
+      "path": "docs/2.1/验收截图/百级公司/公司突破Lv50桌面.png",
+      "bytes": 901705,
+      "sha256": "8ec2f4537b60ecbb75aaaf7f5fa13ce276ad6c9f213b73adde73b89cd5286023"
+    },
+    {
+      "path": "docs/2.1/验收截图/百级公司/公司突破Lv5WebKit手机.png",
+      "bytes": 483309,
+      "sha256": "80335d7c6939ac8d3b9ba1bf253f40cd4819c1e6a6a45420c1778457bbbb14d7"
+    },
+    {
+      "path": "docs/2.1/验收截图/百级公司/公司突破Lv5WebKit桌面.png",
+      "bytes": 1260086,
+      "sha256": "b95bea5125f3c03c96545d656d81f70266e919bf4e78e8765d1d943550895916"
+    },
+    {
+      "path": "docs/2.1/验收截图/百级公司/公司突破Lv5手机.png",
+      "bytes": 247388,
+      "sha256": "bd7045b0f59f6a5d4697c46458d751451ab0d38813941bed59a6ef080ea7b2d5"
+    },
+    {
+      "path": "docs/2.1/验收截图/百级公司/公司突破Lv5桌面.png",
+      "bytes": 877786,
+      "sha256": "6e6a0423fd2564134f737136cb0133fd5d6d2f4e351b4f5296efd380805f1418"
+    },
+    {
+      "path": "docs/2.1/验收截图/百级公司/公司突破Lv95WebKit手机.png",
+      "bytes": 480865,
+      "sha256": "88eefa6ed92f9450f5351e24720ec16e68e76af5db70a7394b8a642096ba767f"
+    },
+    {
+      "path": "docs/2.1/验收截图/百级公司/公司突破Lv95WebKit桌面.png",
+      "bytes": 1291308,
+      "sha256": "b217eb396f88d0783d66ebd70499f26c4f5ad80e34a0c4b5bd3abb0099c5deb6"
+    },
+    {
+      "path": "docs/2.1/验收截图/百级公司/公司突破Lv95手机.png",
+      "bytes": 252711,
+      "sha256": "3dbd8016d88ce397f34b10ff079c7d929dc58afa16aa762a9f821f27b63b0e61"
+    },
+    {
+      "path": "docs/2.1/验收截图/百级公司/公司突破Lv95桌面.png",
+      "bytes": 903240,
+      "sha256": "398e3358ae0e9aed72b3da56479108f3e08e7bacced006d1c9d7da5c7ecd5c34"
+    },
+    {
+      "path": "docs/2.1/验收截图/科技定价/航运科技报价WebKit手机.png",
+      "bytes": 498274,
+      "sha256": "c59d6d696b4db53f6fa6c4ae96b8507448063a96206591ad65a91ebc7b96987d"
+    },
+    {
+      "path": "docs/2.1/验收截图/科技定价/航运科技报价WebKit桌面.png",
+      "bytes": 1155276,
+      "sha256": "87113c8140f86b5cdaf7912043c4af7c6f75cb30fecf6cf8bfe0a1dc9d0546fb"
+    },
+    {
+      "path": "docs/2.1/验收截图/科技定价/航运科技报价手机.png",
+      "bytes": 257326,
+      "sha256": "98e622f83244e9f19a0f6596c8238ab3eb99ce224f9e50db63d6f89d77ba9b5f"
+    },
+    {
+      "path": "docs/2.1/验收截图/科技定价/航运科技报价桌面.png",
+      "bytes": 774595,
+      "sha256": "d33d15f221326f50a075f905391371132237419339cb30bb87cfa3ec68e8086f"
+    },
+    {
+      "path": "docs/2.1/验收截图/科技已研发卡片/全部研发完成WebKit手机.png",
+      "bytes": 471816,
+      "sha256": "77ae078825fdfd0d94693abf47b5cc0ebbd33bbee687d7c2817c93a268be314d"
+    },
+    {
+      "path": "docs/2.1/验收截图/科技已研发卡片/全部研发完成WebKit桌面.png",
+      "bytes": 1376522,
+      "sha256": "af9a9dcbd463bed39fcbf53fde855c0604501b1acb66c37aa83188da7b782d50"
+    },
+    {
+      "path": "docs/2.1/验收截图/科技已研发卡片/全部研发完成手机.png",
+      "bytes": 245641,
+      "sha256": "81e3718c170cf50c9edecd61628a56b45dd74c0358a3bc9f1b9989f859d6ee2e"
+    },
+    {
+      "path": "docs/2.1/验收截图/科技已研发卡片/全部研发完成桌面.png",
+      "bytes": 945728,
+      "sha256": "cdab8bc3a6b00b57f6f1d7b76b87a0443f3a9e255e6c36b99d49613e873936e0"
+    },
+    {
+      "path": "docs/2.1/验收截图/科技已研发卡片/核心已研发WebKit手机.png",
+      "bytes": 454981,
+      "sha256": "cb786da3ca2b06a74fa64161535e575c897b04a959a4b620e620277565c2f52d"
+    },
+    {
+      "path": "docs/2.1/验收截图/科技已研发卡片/核心已研发WebKit桌面.png",
+      "bytes": 1240906,
+      "sha256": "a55a409e578398622869f4058c1127f810339a5f1867e3d2ccb7e2ad5558efce"
+    },
+    {
+      "path": "docs/2.1/验收截图/科技已研发卡片/核心已研发手机.png",
+      "bytes": 205285,
+      "sha256": "14f952c936e53ebfc4e96a7dffe4f2d79e4560df9c6f876e5a30a93bcac9076b"
+    },
+    {
+      "path": "docs/2.1/验收截图/科技已研发卡片/核心已研发桌面.png",
+      "bytes": 821008,
+      "sha256": "a4b78ef0a7406757c0ca353e85f13cf0557bcdc8285ef69a9f0d76d94e0af7ac"
+    },
+    {
+      "path": "docs/2.1/验收截图/科技树/科技树新港核心WebKit手机.png",
+      "bytes": 445100,
+      "sha256": "8232f7d1803b8102895f23e4cdd222966f531a213feef1afd1166546788fe5d9"
+    },
+    {
+      "path": "docs/2.1/验收截图/科技树/科技树新港核心WebKit桌面.png",
+      "bytes": 1265931,
+      "sha256": "4d66a260653ca37372f69f0fa4a3cbd576ff954e56ae289e6636aca04038795e"
+    },
+    {
+      "path": "docs/2.1/验收截图/科技树/科技树新港核心手机.png",
+      "bytes": 209172,
+      "sha256": "3242b31df1d28be7d1d3e699130e70bb15b223a50a5c5886d1ec3d256ad3a804"
+    },
+    {
+      "path": "docs/2.1/验收截图/科技树/科技树新港核心桌面.png",
+      "bytes": 867187,
+      "sha256": "76f45d2cbef8d8bdca5a10ff3f1aa0432b6438bb7a51458eb60625f66902e138"
+    },
+    {
+      "path": "docs/2.1/验收截图/科技树/科技树核心前置WebKit手机.png",
+      "bytes": 456696,
+      "sha256": "f9c7963574a106ebac0ba443a53bd747c212aafaba5c2168a6ea4c2dcbb0e665"
+    },
+    {
+      "path": "docs/2.1/验收截图/科技树/科技树核心前置WebKit桌面.png",
+      "bytes": 1254252,
+      "sha256": "c014a0a27b2350210a8788c40ffc9d3b054287df0198c8997fc6c00a7af991ce"
+    },
+    {
+      "path": "docs/2.1/验收截图/科技树/科技树核心前置手机.png",
+      "bytes": 217405,
+      "sha256": "f8ed5b644eeb44e38573896379ebc26db02454cafde5c715118f035cfa483f81"
+    },
+    {
+      "path": "docs/2.1/验收截图/科技树/科技树核心前置桌面.png",
+      "bytes": 853104,
+      "sha256": "6c2c1369a68b825e99701aad38c0b1e44c499674ad090667f58ffa077dd425fa"
+    },
+    {
+      "path": "docs/2.1/验收截图/科技研发全部完成手机.png",
+      "bytes": 467955,
+      "sha256": "be57b4b98f96ad784576487d8d024b5b1bd97fecdd7a9ecc5524593d6b6c18e1"
+    },
+    {
+      "path": "docs/2.1/验收截图/科技研发全部完成桌面.png",
+      "bytes": 1245489,
+      "sha256": "a69a6e0220cf3f66c1e25b6eaee344691cd4a71a2b46df47025ad66191212aa1"
+    },
+    {
+      "path": "docs/2.1/验收截图/科技线路整理/科技树新港核心WebKit手机.png",
+      "bytes": 440772,
+      "sha256": "f15f3e35ef8a65cbe71584b17c2c515928360f14424345be67082a9e12066b11"
+    },
+    {
+      "path": "docs/2.1/验收截图/科技线路整理/科技树新港核心WebKit桌面.png",
+      "bytes": 1248006,
+      "sha256": "78e9ede239b568227c814cbb4ab31907e70457ea06e89104b0e41bb0888c2728"
+    },
+    {
+      "path": "docs/2.1/验收截图/科技线路整理/科技树新港核心手机.png",
+      "bytes": 204544,
+      "sha256": "11bdde2bd12b947415d315034e7e9ecd771493108fb8afa5c3a5a9b63d80e27e"
+    },
+    {
+      "path": "docs/2.1/验收截图/科技线路整理/科技树新港核心桌面.png",
+      "bytes": 841555,
+      "sha256": "f1779c0ee371f6cbf61173bfb39a063a874d403579ec33ea37097761993622a0"
+    },
+    {
+      "path": "docs/2.1/验收截图/科技线路整理/科技树核心前置WebKit手机.png",
+      "bytes": 456266,
+      "sha256": "37a0627eb554fc36013b05d8a47d4e4e9c6d72549b229d664c00679e22d57505"
+    },
+    {
+      "path": "docs/2.1/验收截图/科技线路整理/科技树核心前置WebKit桌面.png",
+      "bytes": 1240450,
+      "sha256": "c94b898272984228de78b36e078813f644c723cafe0ef9c788920633eda4f71b"
+    },
+    {
+      "path": "docs/2.1/验收截图/科技线路整理/科技树核心前置手机.png",
+      "bytes": 216893,
+      "sha256": "3dda08a4bd7b50903490cc012d0543cdb501c8e929b217f3315add05dc495f45"
+    },
+    {
+      "path": "docs/2.1/验收截图/科技线路整理/科技树核心前置桌面.png",
+      "bytes": 833835,
+      "sha256": "ef60a7fe9438b5311f0125a88f83006ead67e4fb96b4893a7f1d4632ad3ff8b0"
+    },
+    {
+      "path": "docs/2.1/验收截图/科技线路整理/科技树远端前置入口WebKit手机.png",
+      "bytes": 461213,
+      "sha256": "7a8302d67dc3e3712fc433e831edda5d09967e9507c1a22f4d16cb9b95f56032"
+    },
+    {
+      "path": "docs/2.1/验收截图/科技线路整理/科技树远端前置入口WebKit桌面.png",
+      "bytes": 1301462,
+      "sha256": "556145067e2bf226cfbaf2125bfd47c02f0c53cc8c0c3e4a92739f003ead1b63"
+    },
+    {
+      "path": "docs/2.1/验收截图/科技线路整理/科技树远端前置入口手机.png",
+      "bytes": 219254,
+      "sha256": "0336494a19aa4b400714f91372cb2d539bb9d019080e0eeac5d8ccf457fce473"
+    },
+    {
+      "path": "docs/2.1/验收截图/科技线路整理/科技树远端前置入口桌面.png",
+      "bytes": 886841,
+      "sha256": "91f3fb3adc758053b1f92562a0e87da11e3e57fb871e7818a74ebeba732c3135"
+    },
+    {
+      "path": "docs/2.1/验收截图/科技细分手机.png",
+      "bytes": 490956,
+      "sha256": "57a0a137c3f750b0cb34d503f843f4f99437f205002dddaafd414ba40acdfe1a"
+    },
+    {
+      "path": "docs/2.1/验收截图/科技细分旧档恢复手机.png",
+      "bytes": 491700,
+      "sha256": "5b582a95111d1891efc09ab0fb52d9a0687ec0f1213b3c4e97f8573ff43e4878"
+    },
+    {
+      "path": "docs/2.1/验收截图/科技细分旧档恢复桌面.png",
+      "bytes": 1367848,
+      "sha256": "c27fcfccf251d0c3e6b5666a889306e0496b61c09a3fe72be84dbe308daf8c5d"
+    },
+    {
+      "path": "docs/2.1/验收截图/科技细分桌面.png",
+      "bytes": 1270352,
+      "sha256": "2c24d9036a09d16d699a75591be8e816d81d4e908270730671af7048f6c02a5b"
+    },
+    {
+      "path": "docs/2.1/验收截图/航运科技手机.png",
+      "bytes": 492880,
+      "sha256": "4afb0a79430fcc740a4c713d1b31649c9630d62c5d6827374d5ff088123e891a"
+    },
+    {
+      "path": "docs/2.1/验收截图/航运科技桌面.png",
+      "bytes": 1146965,
+      "sha256": "d6ead0a2c970c9b8ef941ae72ca01e1a401c2832a0c2e5e8732ed01120bb02e0"
+    },
+    {
+      "path": "docs/2.1/验收截图/船位旧档恢复手机.png",
+      "bytes": 492119,
+      "sha256": "3f9220242d91bbae381be42caee8bde0a79641d449f13f0c57f7650e0384314c"
+    },
+    {
+      "path": "docs/2.1/验收截图/船位旧档恢复桌面.png",
+      "bytes": 1366433,
+      "sha256": "5f74c191436b4af75ccd1af8cc918cafdc605feda58b81f0b2d6d94342b743be"
+    },
+    {
+      "path": "docs/2.1/验收截图/船只页移除研发手机.png",
+      "bytes": 464605,
+      "sha256": "3229779c907447451214088fd9dacb946924ec49653a965a565ace8710f68654"
+    },
+    {
+      "path": "docs/2.1/验收截图/船只页移除研发桌面.png",
+      "bytes": 1111837,
+      "sha256": "95bd57bb758f76ab97c7f2af31e6a95c4afa47d8b9776c37689b001019194c39"
+    },
+    {
+      "path": "docs/2.1/验收截图/船队扩容研发手机.png",
+      "bytes": 493626,
+      "sha256": "01fc2569b91bd636e783455da4ff7547282bcc2adb6da8196dd89a6c7ba545da"
+    },
+    {
+      "path": "docs/2.1/验收截图/船队扩容研发桌面.png",
+      "bytes": 1446068,
+      "sha256": "065576e8fc4df4215215c6bf589508691e9f6df9fdf8af35efd92cdc58d859bd"
+    },
+    {
+      "path": "docs/2.1/验收截图/资源栏设置手机.png",
+      "bytes": 467625,
+      "sha256": "f5c0e82899815730c0a83ecb5d58631975317969877e0434fd88c81fa3a53717"
+    },
+    {
+      "path": "docs/2.1/验收截图/资源栏设置桌面.png",
+      "bytes": 1223734,
+      "sha256": "fb1f4b5433700ebcaf8a14551b96d6223c23e28d090289856ea488a77824b360"
+    },
+    {
+      "path": "docs/2.1/验收截图/资源栏设置键盘焦点.png",
+      "bytes": 22382,
+      "sha256": "11da092ad9dbb4f9f5adf0a3b227fa945e4ae19b20cd02c8ebb9ae559168545f"
+    },
+    {
+      "path": "docs/2.1/验收截图/首次升级需积累手机.png",
+      "bytes": 255038,
+      "sha256": "b6a91c80fc5bb2554174494e39d70ccaf78b4432d3fb0185daf42b58326e841a"
+    },
+    {
+      "path": "docs/2.1/验收截图/首次升级需积累桌面.png",
+      "bytes": 867457,
+      "sha256": "406b216e0eab7131c974d2ca611379de7f44204fdbe556300416b98b9d0b23a7"
+    },
+    {
+      "path": "docs/2.2/README.md",
+      "bytes": 4340,
+      "sha256": "6e43b04a3db45456dd407a21576943741073371f6b038a8868d35c0686502370"
+    },
+    {
+      "path": "docs/art/company-final-narrow.png",
+      "bytes": 47311,
+      "sha256": "bebe45fd77f0144bac597ac902e48ee4a2f0a05df066c7774ba8167758a56540"
+    },
+    {
+      "path": "docs/art/company-final-wide.png",
+      "bytes": 50772,
+      "sha256": "1912ea0e1661d603f06983d0e5fd819aab3a1fe096a1ac982f2eff8873edb23f"
+    },
+    {
+      "path": "docs/art/merchant-2.0/auto-return-completed.png",
+      "bytes": 54541,
+      "sha256": "a14e9ff706f2127248f7e4bb39a016505018497f0fc608d9063119c18276b5a0"
+    },
+    {
+      "path": "docs/art/merchant-2.0/auto-return-in-flight.png",
+      "bytes": 62057,
+      "sha256": "e1f2309281afeb21866c7528186ed7057ff2ccdf3a1e1e069b52042c12d58511"
+    },
+    {
+      "path": "docs/art/merchant-2.0/command-final-narrow.png",
+      "bytes": 47865,
+      "sha256": "b351a4b58b318c35da4bc33505784e4369f8e0a0cd34a140a009b6eb890b4095"
+    },
+    {
+      "path": "docs/art/merchant-2.0/command-final-wide.png",
+      "bytes": 50772,
+      "sha256": "1912ea0e1661d603f06983d0e5fd819aab3a1fe096a1ac982f2eff8873edb23f"
+    },
+    {
+      "path": "docs/art/merchant-2.0/dispatch-route-order.png",
+      "bytes": 71397,
+      "sha256": "ae1f158f7e2f5cf1f12380218992cf3998be5f5a7c42c40864a50602cdcf4df3"
+    },
+    {
+      "path": "docs/art/merchant-2.0/exploration-completed.png",
+      "bytes": 55739,
+      "sha256": "a55a7cd3884e80f11679dd416a836e71f5bedd07236a934c60f6830e02238a28"
+    },
+    {
+      "path": "docs/art/merchant-2.0/exploration-dispatch.png",
+      "bytes": 62340,
+      "sha256": "e53de064940d4a2e9eb071d3ab23775f5761e29ec7d2cc22f5834f42fa4e08f0"
+    },
+    {
+      "path": "docs/art/merchant-2.0/exploration-narrow.png",
+      "bytes": 28448,
+      "sha256": "0e6602781a01bc6769e458305e47bd4200362dc127b98245ca17e5d312acf763"
+    },
+    {
+      "path": "docs/art/merchant-2.0/onboarding-narrow.png",
+      "bytes": 32044,
+      "sha256": "58ccb81025e3e1f2f8220c480242532a8f97e703ee5d3fb373c8b836c07c7f4b"
+    },
+    {
+      "path": "docs/art/merchant-2.0/onboarding-opening.png",
+      "bytes": 36625,
+      "sha256": "efa9aa965618fe82af5df4db4d62c2421f3be25a5c74b975f70324d22ec5295a"
+    },
+    {
+      "path": "docs/art/merchant-2.0/onboarding-profit.png",
+      "bytes": 49719,
+      "sha256": "fd125700338f1945ba2d484e65844df0488dc920ff247ced16ee3ed8151bf0ba"
+    },
+    {
+      "path": "docs/art/merchant-2.0/ship-final-narrow.png",
+      "bytes": 39700,
+      "sha256": "caa5e46ac61f7579a730ca0e24a7ed00540ca8e44646cd7896b8bdc1138b3033"
+    },
+    {
+      "path": "docs/art/merchant-2.0/ship-selection-narrow.png",
+      "bytes": 45230,
+      "sha256": "89c7857748c0ba3c57070dba102495599810d6899a9f7afb4fc8461f49278742"
+    },
+    {
+      "path": "docs/art/merchant-2.0/starmap-final-narrow.png",
+      "bytes": 30514,
+      "sha256": "54c014572abccfa42391802a446f004137146451bd7ea85cfd552d98d6089879"
+    },
+    {
+      "path": "docs/art/merchant-2.0/starmap-final-wide.png",
+      "bytes": 50149,
+      "sha256": "3bade8b155029b0d8f967359f1b391e178ee7ad8af1eca9fc7bed9fca5476d5f"
+    },
+    {
+      "path": "docs/art/merchant-2.0/starmap-load-metrics.json",
+      "bytes": 4307,
+      "sha256": "28a82512030722090ab58c05fc711498003496c2d4cd0dc6ef31487630a0d365"
+    },
+    {
+      "path": "docs/art/merchant-2.0/starmap-loading.png",
+      "bytes": 37066,
+      "sha256": "7c1089eb467c59555b7887fbf09bb1117b468555cea6110828ba2d23e32adc0f"
+    },
+    {
+      "path": "docs/art/merchant-2.0/task-selection-narrow.png",
+      "bytes": 49130,
+      "sha256": "bde62aaaf62f9766ad0391c0b8fbebe38a895e9817d922b5e1608ebe920e43f2"
+    },
+    {
+      "path": "docs/art/merchant-2.0/tech-final-narrow.png",
+      "bytes": 34550,
+      "sha256": "b30a257900fb60fdc0567e98c31ff1d8ff9e1e5585a4dffe747b55f28c6c50f2"
+    },
+    {
+      "path": "docs/design/UI规范.md",
+      "bytes": 13347,
+      "sha256": "2988d2296da348481a5f99700d9c620d53fe0d7558bfc9fb4b600156be65aa20"
+    },
+    {
+      "path": "docs/design/starmap-study/alternatives.html",
+      "bytes": 7944,
+      "sha256": "310485c6970ad6c8bc9af1c9477496f3e06f59b5fe6e2361d7eafa935f04cea3"
+    },
+    {
+      "path": "docs/design/starmap-study/alternatives.mjs",
+      "bytes": 3942,
+      "sha256": "8cb6d4aeebf1d1926c0ce7647e32b7fae789cf5fd6bd5992a2d18f81193ebab5"
+    },
+    {
+      "path": "docs/design/starmap-study/alternatives/art-direction-prompts.json",
+      "bytes": 9854,
+      "sha256": "d5f553ad5d7dd8687ee859ae505a8276aca698821b09cb106fa491017b1ba7bb"
+    },
+    {
+      "path": "docs/design/starmap-study/alternatives/cinematic-ui.jpg",
+      "bytes": 135520,
+      "sha256": "3433d6468ee80cae12625da4549db13485bc367afa397b202c0753741410bd26"
+    },
+    {
+      "path": "docs/design/starmap-study/alternatives/cinematic.jpg",
+      "bytes": 399535,
+      "sha256": "6bfbc801ee5bd602ecee875d9bd945469e8cca156e0b145dfa4c7f279b0b9605"
+    },
+    {
+      "path": "docs/design/starmap-study/alternatives/cinematic.png",
+      "bytes": 2348125,
+      "sha256": "44bc052cefa0ab5b1962a02ae959c17df7812bd9e90d8a3f173977d9d985d82d"
+    },
+    {
+      "path": "docs/design/starmap-study/alternatives/illustrated-ui.jpg",
+      "bytes": 147951,
+      "sha256": "89160024f65c488726c65dfe020de6f04e80f63138711dcbcf06806b60bdc143"
+    },
+    {
+      "path": "docs/design/starmap-study/alternatives/illustrated.jpg",
+      "bytes": 438899,
+      "sha256": "35798f8a4625b069cdf87dc588df96105b1c986918e153fc1792de5f812596a8"
+    },
+    {
+      "path": "docs/design/starmap-study/alternatives/illustrated.png",
+      "bytes": 2520499,
+      "sha256": "64fe9d0479f50b22f454cf55be08f90686403760c4325df1dc32cb2bee39ec4c"
+    },
+    {
+      "path": "docs/design/starmap-study/alternatives/miniature-ui.jpg",
+      "bytes": 116272,
+      "sha256": "8d68065b1a0df74596dfef929a13943413b8a62b8ff9e25f2cff9f6c6877b7a9"
+    },
+    {
+      "path": "docs/design/starmap-study/alternatives/miniature.jpg",
+      "bytes": 289587,
+      "sha256": "0ede7a127d005121253338ba0230b8d2df9f2844655e43852b88e1799c680908"
+    },
+    {
+      "path": "docs/design/starmap-study/alternatives/miniature.png",
+      "bytes": 1872979,
+      "sha256": "0e1029b3b703a3e28ac14309c231681c7fdbcb0f5d8382305a68324069fdc6b5"
+    },
+    {
+      "path": "docs/design/starmap-study/buildings-top-desktop.jpg",
+      "bytes": 63415,
+      "sha256": "5b29d996c282d52518e33899d9be49bd68a276ff052d69f06998ddd199417104"
+    },
+    {
+      "path": "docs/design/starmap-study/buildings-top-mobile.jpg",
+      "bytes": 32325,
+      "sha256": "f9dd9a00c1a907cdda18ce3de154ed9abc763fc67724775c3adcefa5373f4986"
+    },
+    {
+      "path": "docs/design/starmap-study/current-desktop.jpg",
+      "bytes": 57370,
+      "sha256": "63430442b875254410773bac1443e7dbfbae44c99176b7bec1efe7ae4225587f"
+    },
+    {
+      "path": "docs/design/starmap-study/current-desktop.png",
+      "bytes": 531217,
+      "sha256": "6415e2af8d3f9060a799aef789b1c0cca0dde9cc10676aafe11c74775edf968e"
+    },
+    {
+      "path": "docs/design/starmap-study/current-mobile.jpg",
+      "bytes": 28226,
+      "sha256": "7e4f6ac04bb4008ee1f8bd413688777d305add93b811c7e9f7d3c7e960d35ffe"
+    },
+    {
+      "path": "docs/design/starmap-study/current-mobile.png",
+      "bytes": 1033133,
+      "sha256": "8e64a8f365b7120e3dd5033440aafe5c561a53b4e718990e38ec5657f7efa1d0"
+    },
+    {
+      "path": "docs/design/starmap-study/demo-metrics.json",
+      "bytes": 4255,
+      "sha256": "7cf7ddf9147106dfa5adb298e2bc2c22eda031054ed0abfc36ad60fc43a8d2be"
+    },
+    {
+      "path": "docs/design/starmap-study/demo.html",
+      "bytes": 7817,
+      "sha256": "a6f6813a422fd4aa17356ce1fb6a0da4d5f46f0495aa2eadb3b16e0e823e9cf8"
+    },
+    {
+      "path": "docs/design/starmap-study/demo.mjs",
+      "bytes": 21543,
+      "sha256": "b15bf804196a05f3ee26d6060474e5bd67d6204abe44eb658fe17ce0386578ca"
+    },
+    {
+      "path": "docs/design/starmap-study/exploration-completed.jpg",
+      "bytes": 54752,
+      "sha256": "a8f6ef901ba6014e5e9258aefeed9a6a4d8c2b85470cb3c22b23516efc6f05f9"
+    },
+    {
+      "path": "docs/design/starmap-study/exploration-new-port-operations.jpg",
+      "bytes": 70554,
+      "sha256": "aa61b2b125889410ce71be0bcfa1e0d3cc5a9c7fa2bfa91963ff53a0e12d842c"
+    },
+    {
+      "path": "docs/design/starmap-study/exploration-no-list-desktop.jpg",
+      "bytes": 46251,
+      "sha256": "a02c65a6f28844742a00778dca220051494c446144d49927e1668f42a0ebf6d4"
+    },
+    {
+      "path": "docs/design/starmap-study/exploration-no-list-mobile.jpg",
+      "bytes": 24110,
+      "sha256": "7252e4859afd9976c7485f38b8c92b7e256cc3ecc11afe0be99fe5680f3f5650"
+    },
+    {
+      "path": "docs/design/starmap-study/exploration-returning.jpg",
+      "bytes": 49716,
+      "sha256": "674fa638b3565417f864d3187dfefd7e1cfaf21a0a379bbd0f754c9cf04300bc"
+    },
+    {
+      "path": "docs/design/starmap-study/exploration-single-panel.jpg",
+      "bytes": 59026,
+      "sha256": "2238b2160a987b73f929f0881b67a5edada7b24994c78f4415e48a248d9e1609"
+    },
+    {
+      "path": "docs/design/starmap-study/formal-lowpoly-desktop.jpg",
+      "bytes": 65305,
+      "sha256": "bcbbe3b6ae7ddf1bf9ac93e9487314a6f5578356346db9138454264b3a98e9c6"
+    },
+    {
+      "path": "docs/design/starmap-study/formal-lowpoly-mobile.jpg",
+      "bytes": 32474,
+      "sha256": "0d777e23c9011c3fb057be246c1dd9e36a992179474e1734311a9ba09d42ce6e"
+    },
+    {
+      "path": "docs/design/starmap-study/formal-lowpoly-verification.json",
+      "bytes": 7471,
+      "sha256": "ba1f715db7655695d53f735f7c17bb7fd313a2c34e46bce232c27d687e844d7b"
+    },
+    {
+      "path": "docs/design/starmap-study/lowpoly-reference-desktop.jpg",
+      "bytes": 61626,
+      "sha256": "d767c0e8166e339f34c05f772efe668de1059607e2f6762f8193a21548be361a"
+    },
+    {
+      "path": "docs/design/starmap-study/lowpoly-reference-mobile.jpg",
+      "bytes": 33802,
+      "sha256": "bffa77536775d9618859402623ae6a23c42c126a6c5b50ad3fd3e6e491295aa5"
+    },
+    {
+      "path": "docs/design/starmap-study/lowpoly-verification.json",
+      "bytes": 30936,
+      "sha256": "ef003c415436ff0e279c1091816b2bee66117945ee0a5f76930ea6a007b649d0"
+    },
+    {
+      "path": "docs/design/starmap-study/measure-baseline.mjs",
+      "bytes": 8756,
+      "sha256": "d6b880b0d40627cdd4a9aba783957bc5fdbf6361c009eb903bf035bbc9407eb1"
+    },
+    {
+      "path": "docs/design/starmap-study/performance-baseline.json",
+      "bytes": 19770,
+      "sha256": "c33217662a1ef97b305289830918bad92b9aa4cf7b2d67a5d1994adbad9daa57"
+    },
+    {
+      "path": "docs/design/starmap-study/proposed-desktop-light.jpg",
+      "bytes": 35503,
+      "sha256": "ae82b8d7994af9c82102caebebdb8730105b6b190618026a170fada5a18ca822"
+    },
+    {
+      "path": "docs/design/starmap-study/proposed-desktop-light.png",
+      "bytes": 204307,
+      "sha256": "1752dcbe5f683114c9f4db69733cc95ba8e4c7a56ad579db86d2f0e7b93004a6"
+    },
+    {
+      "path": "docs/design/starmap-study/proposed-desktop.jpg",
+      "bytes": 37431,
+      "sha256": "a4ebe21caaa69d0b1a0684f396bb75f43b7e68ff24ab09878d6061edbc759ce3"
+    },
+    {
+      "path": "docs/design/starmap-study/proposed-desktop.png",
+      "bytes": 220358,
+      "sha256": "22e229d267d5999fa186a2e305320cab13747acd9b85b4344a8aee6ff9ad532d"
+    },
+    {
+      "path": "docs/design/starmap-study/proposed-mobile-light.jpg",
+      "bytes": 25870,
+      "sha256": "1633fd5084f737d04d79386926136c8dfad42f85c88a5c50392ee97f42ecd38a"
+    },
+    {
+      "path": "docs/design/starmap-study/proposed-mobile-light.png",
+      "bytes": 159457,
+      "sha256": "d625f5061bcdf882e9ed967e313b45129747bc2b18422192e1621d23e36d19a5"
+    },
+    {
+      "path": "docs/design/starmap-study/proposed-mobile.jpg",
+      "bytes": 27104,
+      "sha256": "c09f25eec6051ef89eb1a9db11391f180488f374094eead81af9d22b584fa4e3"
+    },
+    {
+      "path": "docs/design/starmap-study/proposed-mobile.png",
+      "bytes": 169008,
+      "sha256": "279c38e31597883fec628e830f5bb4e7a3e17cc849223ca78b2cd386b6b4d3b3"
+    },
+    {
+      "path": "docs/design/starmap-study/realtime-cinematic-desktop.jpg",
+      "bytes": 64415,
+      "sha256": "6554c612df26660d20c28b94a93bff2a759c08cba90b3059d3feb7f62629870a"
+    },
+    {
+      "path": "docs/design/starmap-study/realtime-cinematic-mobile.jpg",
+      "bytes": 34136,
+      "sha256": "81631845f563406153a7a299df8992639d88e4bf044924843ea0be6c650b1bd0"
+    },
+    {
+      "path": "docs/design/starmap-study/realtime-illustrated-desktop.jpg",
+      "bytes": 74471,
+      "sha256": "3e9f9989d5fe4f65bcb2ce9444b65a0c237317fe86708d8940b8b387a9853c58"
+    },
+    {
+      "path": "docs/design/starmap-study/realtime-illustrated-mobile.jpg",
+      "bytes": 35539,
+      "sha256": "33d8b83f66a313261539dcd0124d5e31afcd5007f8683ebb33ff4f72420bbb51"
+    },
+    {
+      "path": "docs/design/starmap-study/realtime-miniature-desktop.jpg",
+      "bytes": 63979,
+      "sha256": "7dec0a39043b26049ddc6fd923b601cc49c62ba9ab52ad782fecdeea81620a39"
+    },
+    {
+      "path": "docs/design/starmap-study/realtime-miniature-mobile.jpg",
+      "bytes": 33996,
+      "sha256": "815e3eb8f0d620657a57daaae9f0b0a12a042bcb6382cacf26a5c1e34e87e1c1"
+    },
+    {
+      "path": "docs/design/starmap-study/realtime-open-preview.jpg",
+      "bytes": 30867,
+      "sha256": "e8d178149d80d217d93ae1289749473ab3a1e8a6cd1b26a9f5aafba2c4ac8d86"
+    },
+    {
+      "path": "docs/design/starmap-study/realtime-textures.mjs",
+      "bytes": 49,
+      "sha256": "5136374c5ee136e767fd27674d73dc775ea779d7e8640ac6720f1aef6f093db3"
+    },
+    {
+      "path": "docs/design/starmap-study/realtime-verification.json",
+      "bytes": 37908,
+      "sha256": "b3f0fefe174eb3b94edc02306fd995e7230091b14f827f63fbba10db96ec63e9"
+    },
+    {
+      "path": "docs/design/starmap-study/realtime-world.mjs",
+      "bytes": 60,
+      "sha256": "badf5f8b9b0b2b37413b07150503de00ae38d4d1b3053111da249fb0b847ce2f"
+    },
+    {
+      "path": "docs/design/starmap-study/realtime.html",
+      "bytes": 8714,
+      "sha256": "7bce902de4e9d1868f02cbb12e567fb8548b0aa5f168fd134a3e916f12ff0bb9"
+    },
+    {
+      "path": "docs/design/starmap-study/realtime.mjs",
+      "bytes": 23721,
+      "sha256": "4d3b069e8d7620ca2b539ac931b3619ebf6d7f0525c747145ad5e8f431d88f07"
+    },
+    {
+      "path": "docs/design/starmap-study/reference-assets.mjs",
+      "bytes": 974,
+      "sha256": "83bdc183c33018f5f01ed87ed36468484d8a3d5e6510eceea67847ec80a79f70"
+    },
+    {
+      "path": "docs/design/starmap-study/reference-assets/THREE-LICENSE.txt",
+      "bytes": 1081,
+      "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
+    },
+    {
+      "path": "docs/design/starmap-study/reference-assets/asset-sources.json",
+      "bytes": 2097,
+      "sha256": "b7298d5cc79a2cf7ec1562684bfd5a338e9a0f19c14a514443e25e57ec24a927"
+    },
+    {
+      "path": "docs/design/starmap-study/reference-assets/earth_clouds_1024.png",
+      "bytes": 260222,
+      "sha256": "7d3b82ef6b3feb506fc06f02a744aed3d864e23e7417075005f4082a7ff935a4"
+    },
+    {
+      "path": "docs/design/starmap-study/reference-assets/earth_day_4096.jpg",
+      "bytes": 473093,
+      "sha256": "cd7712d3e891425d9948ea5ac18d3bb1e7e834ea038188587897e689a7b35d0f"
+    },
+    {
+      "path": "docs/design/starmap-study/reference-assets/earth_specular_2048.jpg",
+      "bytes": 223421,
+      "sha256": "2df48906732d7a458b2d0a7cdec51a829262307c6bdee4cfdf079a4dd7c71c69"
+    },
+    {
+      "path": "docs/design/starmap-study/reference-assets/moon_1024.jpg",
+      "bytes": 238093,
+      "sha256": "fcb0f1f5548e6e18d40063dd55c6aacd3daedf2407b181dab85b61e22bf9fe57"
+    },
+    {
+      "path": "docs/design/starmap-study/reference-assets/nebula-reference-v1.jpg",
+      "bytes": 525517,
+      "sha256": "5767abb4215ca65289fc9e01b69a58b8f7559443ae0eb5ef35d6a56431f6676d"
+    },
+    {
+      "path": "docs/design/starmap-study/reference-cinematic-desktop.jpg",
+      "bytes": 132271,
+      "sha256": "9c20f867e5479c69ffa65e23be671c19eedb0f7948b8ab019e033bca9611e8ec"
+    },
+    {
+      "path": "docs/design/starmap-study/reference-cinematic-mobile.jpg",
+      "bytes": 55785,
+      "sha256": "4006b6ac4df7e622eededec4526c746a2025aa620b4bdd3aeac272fba1ea668f"
+    },
+    {
+      "path": "docs/design/starmap-study/reference-cinematic-rotated.jpg",
+      "bytes": 132943,
+      "sha256": "a00352f91d008423d9aacab3434f895cd71e180c60a637255ca725cab70d7632"
+    },
+    {
+      "path": "docs/design/starmap-study/reference-verification.json",
+      "bytes": 31899,
+      "sha256": "26b32e6547e9ce92433b3e32aa4367a5bbcd49e7c1349f867deefb8276c9857e"
+    },
+    {
+      "path": "docs/design/starmap-study/reference-world.mjs",
+      "bytes": 12340,
+      "sha256": "67d5f14e0c5b2364f4eab007b45336a0802261babdef590749c77ccb4d834642"
+    },
+    {
+      "path": "docs/design/starmap-study/sun-scale-verification.json",
+      "bytes": 702,
+      "sha256": "642a02ad503121b1e2fa0f3d68d2a73f86052eda2700fa7c5fc81a0fb91ccea3"
+    },
+    {
+      "path": "docs/design/starmap-study/星图效果与性能方案.md",
+      "bytes": 32399,
+      "sha256": "6b91ec91fd079ca46d04ffc85094e1cf614da96341c49faf592b5ace703bc066"
+    },
+    {
+      "path": "eslint.config.mjs",
+      "bytes": 396,
+      "sha256": "46c26af9cd1fa3cf7c7b42356bf2a9f43c6995e39348794c2d136c57ffff84cf"
+    },
+    {
+      "path": "index.html",
+      "bytes": 7915,
+      "sha256": "5dd87d5e8a68365bf0281af5e995417966698bbb4311341ea4d3aeb2c61b0c04"
+    },
+    {
+      "path": "js/core/AudioManager.js",
+      "bytes": 4501,
+      "sha256": "83b96bf47a7c80468db4648d07a99ad84e6ef8688fb0f330a75fe3dd11744a80"
+    },
+    {
+      "path": "js/core/GameApplication.js",
+      "bytes": 4573,
+      "sha256": "8cf82daa83e9cf034ac6c4bb5420f6dfc9d6f6bedb281bbed7a266d19de99b61"
+    },
+    {
+      "path": "js/core/MerchantGameRuntime.js",
+      "bytes": 2351,
+      "sha256": "76137ab740e85fc9e5e11da53e8db8b9c04b68c61cba92e1dc151c9bd4cc68aa"
+    },
+    {
+      "path": "js/core/SettingsCore.js",
+      "bytes": 1266,
+      "sha256": "15ab07ba1000949e74321a822574ace51eac81ae8bac5cd85ddba9547d94c3dc"
+    },
+    {
+      "path": "js/core/StartupState.js",
+      "bytes": 652,
+      "sha256": "56f0203f455c55e7f3b82ed86f047634fa69c6580afac7804b4d2b11ea6b7b05"
+    },
+    {
+      "path": "js/data/constants.js",
+      "bytes": 1099,
+      "sha256": "2134ec65a25a0e2c803ff4cf3728eebd6e76de4b27691bc1a75ffa77e3afacdf"
+    },
+    {
+      "path": "js/data/merchant.js",
+      "bytes": 27360,
+      "sha256": "d6eff741a6de7a86b18b23c2016dd49a54e616abebfc919fd5fc92eb0e32b5a2"
+    },
+    {
+      "path": "js/data/sceneVisuals.js",
+      "bytes": 3186,
+      "sha256": "efec0504f6fcfeffdaab8ddef1ac66e23ee2fc3e0dcd0d98c2b762daa71c69f6"
+    },
+    {
+      "path": "js/data/systems.js",
+      "bytes": 1587,
+      "sha256": "bf67743da156b9e4f5b2ca744bd62439953d0a7790450de5150e91fb7b6dbf24"
+    },
+    {
+      "path": "js/main.js",
+      "bytes": 2704,
+      "sha256": "9db4bb355d24e9a52c8a45a984bcc5ea1def4275c450020c685702d8792ab85c"
+    },
+    {
+      "path": "js/systems/merchant/MerchantAccess.js",
+      "bytes": 452,
+      "sha256": "1eacee74d1d60187ca9c6a91cf6dd07c17332aca55f13499eeb3d5f1b65bd01b"
+    },
+    {
+      "path": "js/systems/merchant/MerchantAnalytics.js",
+      "bytes": 6845,
+      "sha256": "7074bbcfbdb730bf34227a3cc7eaf4e8cf806c2921b4ae55a9728260ddb88217"
+    },
+    {
+      "path": "js/systems/merchant/MerchantExploration.js",
+      "bytes": 11283,
+      "sha256": "34c9a05c968d37a3119ea2b6470a868f690a6ea9f37ead1a93cd7f77f898d2be"
+    },
+    {
+      "path": "js/systems/merchant/MerchantIntelligence.js",
+      "bytes": 2444,
+      "sha256": "3c0b174aafa8191c16f7c4d50b31db80c01a042d9ecf71d591bfa750dc5786dc"
+    },
+    {
+      "path": "js/systems/merchant/MerchantOnboarding.js",
+      "bytes": 3304,
+      "sha256": "28b7ee3c47d34fa06e7b6bf6517bf8a3536e3dd98245aa7070eb282eb8df9a4b"
+    },
+    {
+      "path": "js/systems/merchant/MerchantSystem.js",
+      "bytes": 41853,
+      "sha256": "7724be6562c30d4963d5d196df12fa97060ecd6bcc68182ad16427ccbcc3f669"
+    },
+    {
+      "path": "js/systems/merchant/MerchantTechnology.js",
+      "bytes": 4239,
+      "sha256": "2f79545119cb9f120fb5c99239267f0e3b0fdfaf37c3f89e83791c3f7f5ee7d8"
+    },
+    {
+      "path": "js/systems/save/SaveSystem.js",
+      "bytes": 10291,
+      "sha256": "5b82a0a93c4241272af0e6e453b8d75d9e21eb4ade2a8d7efd11e993b591034f"
+    },
+    {
+      "path": "js/ui/BlockingSurfaceDismissRegistry.js",
+      "bytes": 4277,
+      "sha256": "c66cb65b8b53e624df960f3565611c615696f33259c4574ecad9fdecb390c3bd"
+    },
+    {
+      "path": "js/ui/GalaxyBackdrop.js",
+      "bytes": 3736,
+      "sha256": "b74a406dd21725289e445d755fceed1c5fb0805553276a23813344be59ba4b2a"
+    },
+    {
+      "path": "js/ui/MerchantEarlyProgress.js",
+      "bytes": 8724,
+      "sha256": "8b58be07f35b6356f6a45c5c11e4e36f2346bd230fb1058adcfb08a0aa734b82"
+    },
+    {
+      "path": "js/ui/MerchantExplorationPanel.js",
+      "bytes": 12853,
+      "sha256": "06b8d6851f664ecc9fe9c8eff00b00e7a07467ec1dc0d921f2a551a21c18fe15"
+    },
+    {
+      "path": "js/ui/MerchantHeaderPresenter.js",
+      "bytes": 541,
+      "sha256": "e304e6bdf101bea87a4d3d7a895219d5470d89bd3a10ef0744417588450c3e29"
+    },
+    {
+      "path": "js/ui/MerchantIntelligencePresenter.js",
+      "bytes": 5711,
+      "sha256": "0ab209830a3ee800455e45a11a4a0f2f225f06eb6cbf689ebcf9d3fab92b57ef"
+    },
+    {
+      "path": "js/ui/MerchantOnboardingPresenter.js",
+      "bytes": 9543,
+      "sha256": "ab92f468d51cdabfa7cc832cacfc83a1313ed4b2e740ab556983a2b0f8160284"
+    },
+    {
+      "path": "js/ui/MerchantOperationsPresenter.js",
+      "bytes": 4364,
+      "sha256": "8fd3981b91848cd18b038b0c3417f7c40a8426df362792b93c9510b1a6a975ae"
+    },
+    {
+      "path": "js/ui/MerchantPortPanel.js",
+      "bytes": 3547,
+      "sha256": "53a3b1a714563b5078c160a05e47b4ec2a42373e32674fc358717a51e7f9ad5a"
+    },
+    {
+      "path": "js/ui/MerchantReportProjection.js",
+      "bytes": 1309,
+      "sha256": "f06111fd42f6e6f120f6c78467a1480b2b646320ad7e3730086fe592e5f36b0b"
+    },
+    {
+      "path": "js/ui/MerchantScenePresentation.js",
+      "bytes": 1744,
+      "sha256": "8cca916e081e1070f71bef79e89ef673a256f870d2dc54c0cd74538ba2ae37de"
+    },
+    {
+      "path": "js/ui/MerchantStarmapController.js",
+      "bytes": 6504,
+      "sha256": "7464093264be500a5b243440adf8a7824c00fce71aa530b6e65830b52ac871f2"
+    },
+    {
+      "path": "js/ui/MerchantStarmapProjection.js",
+      "bytes": 2921,
+      "sha256": "8fea2e3902e29686eac0992ae668c3ea642214defa9fa5b79eb0cbcf571be328"
+    },
+    {
+      "path": "js/ui/MerchantTechTreePresenter.js",
+      "bytes": 14784,
+      "sha256": "14a6100a66e676eac00a2e479333ece176e1626e8d8ed0fd81c6b405e1095ec9"
+    },
+    {
+      "path": "js/ui/MerchantTechTreeProjection.js",
+      "bytes": 4600,
+      "sha256": "c20540e584b3cede4d9b2fe0abe005839f7a93d6c1a1f565bb00bd2aa8b03891"
+    },
+    {
+      "path": "js/ui/MerchantTheme.js",
+      "bytes": 1042,
+      "sha256": "21402203a061e0d0aea3bed413ab967e4f3085392c10fd9691009dd404a02c40"
+    },
+    {
+      "path": "js/ui/MerchantToolsUI.js",
+      "bytes": 9299,
+      "sha256": "624a3686a42f6a90d4a4494fbf5237e66847e9a07c2af5645c8aa3b352a9be38"
+    },
+    {
+      "path": "js/ui/MerchantUI.js",
+      "bytes": 74873,
+      "sha256": "20a023a792e3277e685e0410ab1cb429235e7fd3b8737e705159a47c7ec05d71"
+    },
+    {
+      "path": "js/ui/PlanetAtmosphere.js",
+      "bytes": 1118,
+      "sha256": "da5214847904ccdbb07baad3a308ab25bbb24a18104772bfc67f98e84e2bcbfa"
+    },
+    {
+      "path": "js/ui/PlanetSurfaceTexture.js",
+      "bytes": 15509,
+      "sha256": "4db182eff955a90bf630ca6cfef40e2af0072bebe711efa20f357726199b25c2"
+    },
+    {
+      "path": "js/ui/RendererThreeStarmap.js",
+      "bytes": 27110,
+      "sha256": "f9923fcf1e7bbb6a3c43ebdae294320233732cc038a83803b1212e567f9fc24d"
+    },
+    {
+      "path": "js/ui/SaveExportEffect.js",
+      "bytes": 702,
+      "sha256": "cbe22316f0ebf5a75bdb84dda101a022c650716846b051a86f8ba3361c331501"
+    },
+    {
+      "path": "js/ui/SceneLighting.js",
+      "bytes": 3465,
+      "sha256": "0c92f79441aa667324e76d472362dd2504a55a8ce199f2df33d73774c3512fe8"
+    },
+    {
+      "path": "js/ui/SceneMaterials.js",
+      "bytes": 554,
+      "sha256": "3330f84a2d6969aa5d849bfadbcc7da846bf1b2101725cbce6dae6215933318c"
+    },
+    {
+      "path": "js/ui/SceneMotionClock.js",
+      "bytes": 505,
+      "sha256": "4311b1e90fc998754d93b5e4a2dcb40db86eb4916e1adeedb6d8d77794c986ac"
+    },
+    {
+      "path": "js/ui/ShipFlightVisual.js",
+      "bytes": 2626,
+      "sha256": "a97e6c6a580367edb00b061a8949f0cbb4c99015b91f6d0ed3a80a76ac81293c"
+    },
+    {
+      "path": "js/ui/ShipModelFactory.js",
+      "bytes": 8983,
+      "sha256": "22601428706596cd0f2f1b4ccc5e900859b8434d67fc03b3286169eacd2a2889"
+    },
+    {
+      "path": "js/ui/StarmapFleet.js",
+      "bytes": 3145,
+      "sha256": "3b2e53523445aac0eab6abb27f33b47d5abff7b9fce0ed875e3a26d262f2a44b"
+    },
+    {
+      "path": "js/ui/StarmapLandmarks.js",
+      "bytes": 5809,
+      "sha256": "615a0c0e90f6fd8b91fddc840bb943f2deae1176376ecdc8fa22d7740d630c54"
+    },
+    {
+      "path": "js/ui/StarmapLayout.js",
+      "bytes": 652,
+      "sha256": "88831797eea40b6a4dec60c00bc4d100c92b07b903ec32d476304246e44d55bf"
+    },
+    {
+      "path": "js/ui/StarmapRenderer.js",
+      "bytes": 7859,
+      "sha256": "e962d3f8e9f64a7968f0d30632b8a8fbaa28250142d56392b99b7043a721de76"
+    },
+    {
+      "path": "js/ui/StarmapRouteLayout.js",
+      "bytes": 1928,
+      "sha256": "c33a25e79e842bc00379dd786870513093217b9c82e8f54e911efe8e99dcf7f9"
+    },
+    {
+      "path": "js/ui/StarmapViewPolicy.js",
+      "bytes": 1422,
+      "sha256": "32aa73d2f347de9c590e1f5434fda2043e4f4b88266e16eec8444fd2e5d4a74a"
+    },
+    {
+      "path": "js/ui/StarmapVisualTextures.js",
+      "bytes": 9810,
+      "sha256": "870b0a02290804cc44234fa8fa6a8820eb2e88fb74acc0d4e878f14d26758526"
+    },
+    {
+      "path": "js/ui/StarmapVisualWorld.js",
+      "bytes": 25087,
+      "sha256": "7baf5edfe50bde5f81c8b5abe565841aec630871660eeb841ce1484e6dbd4a66"
+    },
+    {
+      "path": "js/ui/StartupLoader.js",
+      "bytes": 8248,
+      "sha256": "b45f94255d6e990d3d76d17c8812f7b76606d077152ea92b06139a1546a5758e"
+    },
+    {
+      "path": "js/ui/SurfaceManager.js",
+      "bytes": 14920,
+      "sha256": "eead7525636e1ae4abd9bd873d345635b0a2ec55f19c1d88c9206fee269221d3"
+    },
+    {
+      "path": "package-lock.json",
+      "bytes": 99704,
+      "sha256": "72e816b9b8557ad232da53437cb5d8149c67e64dbf834cea3ffaacc8d415fe1c"
+    },
+    {
+      "path": "package.json",
+      "bytes": 2193,
+      "sha256": "44d1d9beb4e1de70e664d7dc26404975172c4635593187dfc37f097b582cf23f"
+    },
+    {
+      "path": "playwright.config.mjs",
+      "bytes": 1363,
+      "sha256": "42d3b62b209eb7643caf54112052fb652a3e223298a9437d1dae7e876a64f0ff"
+    },
+    {
+      "path": "playwright.production.config.mjs",
+      "bytes": 1132,
+      "sha256": "82043cf0330a5911463ef30251e46cd0b70ec2777b110e6a01036b35c9e826fa"
+    },
+    {
+      "path": "releases/README.md",
+      "bytes": 1952,
+      "sha256": "9a575c60add28701b7f50e2606308f55d07864015b2c14bf9352589de1d95522"
+    },
+    {
+      "path": "scripts/art/RenderSceneAssets.mjs",
+      "bytes": 9392,
+      "sha256": "788cb58610c5f94c314654045b09e353b3327a7276528f5aa450a5f15e97b638"
+    },
+    {
+      "path": "scripts/art/ShipAssetFactory.mjs",
+      "bytes": 125,
+      "sha256": "11f702df6198721f2b99d3b970eec875e942d2b316f7420501e91c9fcaebca7a"
+    },
+    {
+      "path": "scripts/build-scene-assets.mjs",
+      "bytes": 2933,
+      "sha256": "321c746f1d4c0a7457467fee7ce926454b4de114100dd5bd1d75898440d5a661"
+    },
+    {
+      "path": "scripts/check-imports.mjs",
+      "bytes": 2453,
+      "sha256": "ee6c1a3312c48ae2cacaf9a4b32d0f595e9b1d2be8e927ad239e5dbcc3cc7cb1"
+    },
+    {
+      "path": "scripts/check-release.mjs",
+      "bytes": 1879,
+      "sha256": "255ad8f0c2401a2a20ac2704f95f2c93b3aa323a3e29db6b9916d49cfb9f05a7"
+    },
+    {
+      "path": "scripts/check-scene-assets.mjs",
+      "bytes": 2876,
+      "sha256": "46ed1af5ca4328f923336541728b217c3c3ffaf43578a318287195d9c89f05c1"
+    },
+    {
+      "path": "scripts/merchant-fleet-model.mjs",
+      "bytes": 4561,
+      "sha256": "6ec5d5709286e7f28393c634b1c538b7a1c86d8ad772bedc889ccc0ec2e7a70b"
+    },
+    {
+      "path": "scripts/release-files.mjs",
+      "bytes": 978,
+      "sha256": "1fb083f78ac19c41ad0067afb03e0dcf3c14bedc2e5ed0cfe7d9ef75b20e27e3"
+    },
+    {
+      "path": "scripts/seal-release.mjs",
+      "bytes": 2053,
+      "sha256": "6562bed108f251a792b94c6cc9400662d05ffdc31a4886eb7495b5a4343cdfa8"
+    },
+    {
+      "path": "scripts/simulate-company-growth.mjs",
+      "bytes": 12784,
+      "sha256": "119a80abb7e8f42d17bbeea4b2ede1f5aa2196b8fbeba2c790ad38a4d45f4a17"
+    },
+    {
+      "path": "scripts/simulate-company-pricing.mjs",
+      "bytes": 9549,
+      "sha256": "6993ae48332ee55e223ae1c82ea5f51d01d6cbc55089051cc008f8cdd0a95728"
+    },
+    {
+      "path": "scripts/simulate-early-pacing.mjs",
+      "bytes": 4924,
+      "sha256": "d25aebebc668e159c7e058524e93fd4636ac3c3deb14b2d7961ee64fba620a2c"
+    },
+    {
+      "path": "scripts/simulate-full-fleet-growth.mjs",
+      "bytes": 9234,
+      "sha256": "c214faae5e53129b08aa191ef731dc33f19140e24feb69dd79950038f2c39e50"
+    },
+    {
+      "path": "scripts/simulate-investment.mjs",
+      "bytes": 11649,
+      "sha256": "6dc250ee2c8d5bebf513c743f85a10add66cab117ac9676837a98e76f89b420b"
+    },
+    {
+      "path": "scripts/simulate-tech-milestones.mjs",
+      "bytes": 1796,
+      "sha256": "b16e82e9951d240496d24a293530ef2621af9c0d8ef96e5371e3f1bf8e631ff3"
+    },
+    {
+      "path": "tests/audioManager.test.js",
+      "bytes": 2805,
+      "sha256": "cb1fd6971c4c802c0344e76737973cbe209e59008925057ad642e427dc8cc687"
+    },
+    {
+      "path": "tests/browser/helpers/merchantFixtures.mjs",
+      "bytes": 3310,
+      "sha256": "8c281d64b3ee49deb60a71d67c470f39fa7368d2ddedf27ddb0d95b369694f07"
+    },
+    {
+      "path": "tests/browser/merchant-decisions.spec.mjs",
+      "bytes": 78281,
+      "sha256": "66e28bd309c90bf809519a2dc702f5e7a91015a86f4d6378a8429cd8e2ec8b08"
+    },
+    {
+      "path": "tests/browser/merchant-loading.spec.mjs",
+      "bytes": 7136,
+      "sha256": "8dbcfc0f3f7c6d1dd777020d6279698e8e3ca840ad9b47535daac62f0061ff7b"
+    },
+    {
+      "path": "tests/browser/merchant-release.spec.mjs",
+      "bytes": 25499,
+      "sha256": "25f8f632a34ac58d4518e1214fcdf07d9e4f4e845b4994ebd56eb18cbb6b7aea"
+    },
+    {
+      "path": "tests/deploymentConfig.test.js",
+      "bytes": 1736,
+      "sha256": "084f2b0994e4dc3b288cd4922577bf2b3df4c90b5eb3782d9b2ab29ba03c437c"
+    },
+    {
+      "path": "tests/helpers/merchantDom.js",
+      "bytes": 5583,
+      "sha256": "d7da0799261e05b4098cc8e2f451053e85becee83b8cc87309c870da60e9d948"
+    },
+    {
+      "path": "tests/helpers/merchantResearch.js",
+      "bytes": 907,
+      "sha256": "7ffb0d732df7cccb17cdc59c513c8c3efff9a4075cce773c56d9cd75a855e443"
+    },
+    {
+      "path": "tests/mainStartup.test.js",
+      "bytes": 4892,
+      "sha256": "ab47639d54e369ab189edd232512c115f43be9eb32f32273213428c09d6e52a5"
+    },
+    {
+      "path": "tests/merchantApplication.test.js",
+      "bytes": 5548,
+      "sha256": "8c98ae0dd2f618de7f701773800a2d42930bc53536385bba6c287f476f4c2262"
+    },
+    {
+      "path": "tests/merchantCompanyGrowth.test.js",
+      "bytes": 11509,
+      "sha256": "46d144087c7fcb796dc7f43b49b0eebafabacf73066d195a208bfd740cdc2f8a"
+    },
+    {
+      "path": "tests/merchantEarlyProgress.test.js",
+      "bytes": 9921,
+      "sha256": "705439332800b680b14a472edf24f5663cccbd0e03777a749b9eb61438bcb1e6"
+    },
+    {
+      "path": "tests/merchantExploration.test.js",
+      "bytes": 11987,
+      "sha256": "07c9b4cfd11396759cbb0068368edc91da89924488616bd6a0bfe5dbf8ce6971"
+    },
+    {
+      "path": "tests/merchantExplorationPanel.test.js",
+      "bytes": 6992,
+      "sha256": "0155b2ae35cfe9eb62a297e1bbf6b29a171a0517c012ec68f0fa17cfb755017f"
+    },
+    {
+      "path": "tests/merchantFleetCapacity.test.js",
+      "bytes": 12249,
+      "sha256": "68c3585993f1a24e6b82290d9a56b02086cf2cd6bce97086dd00da3b844f78c2"
+    },
+    {
+      "path": "tests/merchantFleetPricing.test.js",
+      "bytes": 4400,
+      "sha256": "f01a0f86a98e5a089b3231414fe6901aedb74fab7cf31bc6d7f5de119ab34401"
+    },
+    {
+      "path": "tests/merchantIntelligence.test.js",
+      "bytes": 9673,
+      "sha256": "a9bf8875c91ff9bf5e8727534998e6f3cc7531564c9cddc45e50665b1e45ea5e"
+    },
+    {
+      "path": "tests/merchantMidgame.test.js",
+      "bytes": 5919,
+      "sha256": "196cec8bcb1b8e8fcd4df8271a7a9ef6d9eb8779471f6aa05705bdfd71cbc252"
+    },
+    {
+      "path": "tests/merchantOnboarding.test.js",
+      "bytes": 6367,
+      "sha256": "75cfed103057094838b393cc43e2caca7ea269bff8beb286182db3523dce7e07"
+    },
+    {
+      "path": "tests/merchantOnboardingPresenter.test.js",
+      "bytes": 9144,
+      "sha256": "1eb6033ebbde19684938517c4e942f156067578a039987f922964c3ab5e6197c"
+    },
+    {
+      "path": "tests/merchantOperations.test.js",
+      "bytes": 9695,
+      "sha256": "4bb64066bf079b70195e2683e1f1e7335ab0e24fa10069c08b3450333d6d938e"
+    },
+    {
+      "path": "tests/merchantPortAccess.test.js",
+      "bytes": 6023,
+      "sha256": "f98c3c413e206ddd6a8d12fd561641eaa93f236742c9dc4dd1e8ec310471ad30"
+    },
+    {
+      "path": "tests/merchantRuntime.test.js",
+      "bytes": 4029,
+      "sha256": "f072e9fc8c08a19213059f3fe782b358348e06eae17e00ac7d836dd470dbce49"
+    },
+    {
+      "path": "tests/merchantSave.test.js",
+      "bytes": 34007,
+      "sha256": "153049cc37a9dad86deb20c77a5fc0047b750fdfc86a06950edc366100eee118"
+    },
+    {
+      "path": "tests/merchantStarmapController.test.js",
+      "bytes": 6350,
+      "sha256": "f3aa3c2cc7d9698c0aa2929e21e8b6aa9937c6c7b4daeaf40f1e3cf2a1b26794"
+    },
+    {
+      "path": "tests/merchantSystem.test.js",
+      "bytes": 45075,
+      "sha256": "976eee06b78ee12f0d74615a626430d9db55a67505c48cb05fe042e3e66c5ef5"
+    },
+    {
+      "path": "tests/merchantTechPricing.test.js",
+      "bytes": 3479,
+      "sha256": "1778d51dd5eabd3313240647ef2b7aaa603d2c6d3e9e813a4fe1226cd8ddee60"
+    },
+    {
+      "path": "tests/merchantTechTree.test.js",
+      "bytes": 8781,
+      "sha256": "09fd0cb815957fa95867c77cc9e451c9fb36fb3dac0c2a52d611b8083c415240"
+    },
+    {
+      "path": "tests/merchantTechnology.test.js",
+      "bytes": 19259,
+      "sha256": "68b13487df011605686e961ecdacb6227e804d27206695a53947267639dec15a"
+    },
+    {
+      "path": "tests/merchantTheme.test.js",
+      "bytes": 7672,
+      "sha256": "b7ce2e5485576c08dfdde37f46760faa0bd2166649ff9d8caa4a11074b9e1484"
+    },
+    {
+      "path": "tests/merchantTools.test.js",
+      "bytes": 4354,
+      "sha256": "2f8b892caddeea2242160af0a67d979f2edd6f1537dc15c171d0474869c19322"
+    },
+    {
+      "path": "tests/planetSurfaceTexture.test.js",
+      "bytes": 5047,
+      "sha256": "3f0b9ee045993b9d402ff9fcc528738fe0283c0cab702f4507c49bb5620f6314"
+    },
+    {
+      "path": "tests/sceneLighting.test.js",
+      "bytes": 1960,
+      "sha256": "c2c813d68c970c6c97951037481f261ba0306af176b68b98ce95d039bea3650e"
+    },
+    {
+      "path": "tests/sceneMotionClock.test.js",
+      "bytes": 1221,
+      "sha256": "6212b8b4c481a3970756bc6eeb3c75b0d300ab60306570925ce6c8ac1df10e8f"
+    },
+    {
+      "path": "tests/setupLocalStorage.js",
+      "bytes": 671,
+      "sha256": "b4b21d8a27fa24188a326bfc3fcf3599f7aad9111907f434856155e453897708"
+    },
+    {
+      "path": "tests/shipFlightVisual.test.js",
+      "bytes": 2186,
+      "sha256": "019d29b3053f45f7eacb77084caaa6932c8f6973a4988d91117cb63266189567"
+    },
+    {
+      "path": "tests/starmapLandmarks.test.js",
+      "bytes": 3235,
+      "sha256": "edf033e0385ce40a33e43acf612fb818039f7c7adc2c1fb9877bdaac085341be"
+    },
+    {
+      "path": "tests/starmapRenderer.test.js",
+      "bytes": 8924,
+      "sha256": "fbdbe06ead4ae692cf1774799540e306d7b28c56ecb0e2df3032bbed5efba0b2"
+    },
+    {
+      "path": "tests/starmapThreeLifecycle.test.js",
+      "bytes": 3317,
+      "sha256": "af5ef42016e75b4cb009e9c8a889b46e348c9cd6e5055c63953d32218476b7e0"
+    },
+    {
+      "path": "tests/starmapViewPolicy.test.js",
+      "bytes": 8493,
+      "sha256": "a0f1be0faed2c8dff01b95ec84b58568fb5f51246ec08b3fc861d490de551e1c"
+    },
+    {
+      "path": "tests/starmapVisualIntegration.test.js",
+      "bytes": 12006,
+      "sha256": "5f7cf430a9b96ae3f595605439ce8c419ef455076a5786006127cf17c4016ce2"
+    },
+    {
+      "path": "tests/surfaceManager.test.js",
+      "bytes": 19838,
+      "sha256": "4647308431ed00f65680964d0f07716b8d1d83cd2b5eb6f42763806b0e5dbc1a"
+    },
+    {
+      "path": "tsconfig.json",
+      "bytes": 464,
+      "sha256": "ff998dd84ae547f5dff9af5ba5c2f909b19552322756bfde0e4f689bd0310aae"
+    },
+    {
+      "path": "types/merchant-contracts.ts",
+      "bytes": 2226,
+      "sha256": "5b8a93c8c02d56c01bba36cb8c218416f75a0fe32de3434a08d36efec2fa9c47"
+    },
+    {
+      "path": "vite.config.mjs",
+      "bytes": 1804,
+      "sha256": "68cbbb37ab055a9f7ece73d02611234dc20af4cfaa8d2517b537821064ca550e"
+    },
+    {
+      "path": "vitest.config.mjs",
+      "bytes": 305,
+      "sha256": "d9f64de2397819435fa45017b71973ffc39d40a9adfb199f9fa35ec2058a77c7"
+    },
+    {
+      "path": "wrangler.jsonc",
+      "bytes": 316,
+      "sha256": "84dc510071882744c6204609c4d2afd565ae13f674d65703e9d6e203dfa3f5bf"
+    },
+    {
+      "path": "wrangler.toml",
+      "bytes": 123,
+      "sha256": "c2dc809abb8d5207cd9356615c648eb15cd5a0d7d30b574e216fbdc28d5d0760"
+    }
+  ],
+  "build": [
+    {
+      "path": "dist/assets/RendererThreeStarmap-BgrQzlqL.js",
+      "bytes": 52288,
+      "sha256": "d819ba21106ac4b18e5897661fccb50d81ccc20236f888f5cd88a30e4756227f"
+    },
+    {
+      "path": "dist/assets/RendererThreeStarmap-BgrQzlqL.js.map",
+      "bytes": 206210,
+      "sha256": "e9d177b16cea35315c754dece43b884f6fbd1b7cd09c85a0f1eac03b4aa1aa0f"
+    },
+    {
+      "path": "dist/assets/clipper-Bre4LYRe.webp",
+      "bytes": 24000,
+      "sha256": "fc49be02675e71d1c93e2d8b14bdb55aa1c7c72c371aa516bab071a1c2a5c148"
+    },
+    {
+      "path": "dist/assets/freighter-sfjh4saY.webp",
+      "bytes": 36854,
+      "sha256": "521146d030706347650b62cee9ba61befb2935891340eb89df8cc95ea395f13f"
+    },
+    {
+      "path": "dist/assets/galleon-agDgM-a-.webp",
+      "bytes": 28428,
+      "sha256": "3379e8831de3864a4f32ddda24b08e1feffec2d788b86258412f18c05dab5820"
+    },
+    {
+      "path": "dist/assets/index-C3MtPNnU.js",
+      "bytes": 197808,
+      "sha256": "a4405b4273c92ba94e4b3d77bc50053c183c45c16163be223be0e9f6a9fa2e91"
+    },
+    {
+      "path": "dist/assets/index-C3MtPNnU.js.map",
+      "bytes": 540975,
+      "sha256": "fa38c7a1dce53b1a0d3f42c7a4b7659405d6c585dcb73a02ea910e1b8ded2c86"
+    },
+    {
+      "path": "dist/assets/index-Dqh0249r.css",
+      "bytes": 102824,
+      "sha256": "3238fef985976f27fa680fc6fb3f3fdedbc3dbdb3af0f6812916689521d1ae45"
+    },
+    {
+      "path": "dist/assets/industrial-BVnFifrM.webp",
+      "bytes": 5858,
+      "sha256": "3f287a797ca88e5e35ff275f9baccff2118f5807a313238fc5176f97cddcc2bc"
+    },
+    {
+      "path": "dist/assets/meridian-mark-CG8UHVl8.svg",
+      "bytes": 422,
+      "sha256": "d09eaa99307be890a99538a9f4992d75bbea7001aeb17f4acb1dfddb0a8f0708"
+    },
+    {
+      "path": "dist/assets/mining-CLCEKQIP.webp",
+      "bytes": 7196,
+      "sha256": "fb41c8f34b3ca3b03db2059c8b271965792d9102daa431efa2ba89886e5a88b3"
+    },
+    {
+      "path": "dist/assets/shuttle-CXFJxZiH.webp",
+      "bytes": 21680,
+      "sha256": "7caf8e46e581fbccad6b68dbb1d374fd5e3b609c288f68f4173df141dd78d09a"
+    },
+    {
+      "path": "dist/assets/sol-DP4bD4bh.webp",
+      "bytes": 18710,
+      "sha256": "29024697a9a62ad42712e4a52aab5d9318b8f83fcdf59f48c912e412e87ec3de"
+    },
+    {
+      "path": "dist/assets/three-controls-DEHTE0k0.js",
+      "bytes": 19785,
+      "sha256": "f4121a56e6e7a057ca2175675ad089947daae5ae1ab34caf577d48eb324ea258"
+    },
+    {
+      "path": "dist/assets/three-controls-DEHTE0k0.js.map",
+      "bytes": 64449,
+      "sha256": "c39cde13a62a8e9a5dcb617a384f087d5213eb2221f9bb019c4745769404e6df"
+    },
+    {
+      "path": "dist/assets/three-core-DuS1GYKg.js",
+      "bytes": 238128,
+      "sha256": "d4a9fc6ecc33167ac8b5179e88918a402687f60410ff0fe8eb8d127f460cc12b"
+    },
+    {
+      "path": "dist/assets/three-core-DuS1GYKg.js.map",
+      "bytes": 1357895,
+      "sha256": "583955281470d2e73a72d07863114377ca469e87551ba73fb23826772e659f1c"
+    },
+    {
+      "path": "dist/assets/three-webgl-94YjgWvZ.js",
+      "bytes": 356800,
+      "sha256": "20d155d02d9675c355a2a684155a65867b515f3c4806eb5773629026ac107008"
+    },
+    {
+      "path": "dist/assets/three-webgl-94YjgWvZ.js.map",
+      "bytes": 1019220,
+      "sha256": "0b700c4f02458f969e137f17042d0754a1f5a5ac81cb03cce8f1de20c81ee330"
+    },
+    {
+      "path": "dist/index.html",
+      "bytes": 7887,
+      "sha256": "71c9156ed24ec58dc1ebff2d042c5564edf1fcb89204e159101f0251481c4bf2"
+    }
+  ],
+  "package": {
+    "path": "releases/blue-meridian-2.2.0.zip",
+    "bytes": 99746217,
+    "sha256": "ef808a613ddf157d182c0109fd0fb0455a0609126772e420997b279a927040cf"
+  }
+}

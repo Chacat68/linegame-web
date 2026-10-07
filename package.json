@@ -1,6 +1,6 @@
 {
   "name": "linegame-web",
-  "version": "2.0.0",
+  "version": "2.2.0",
   "description": "一款运行在浏览器中的单机星际贸易经营游戏",
   "directories": {
     "doc": "docs"
@@ -25,7 +25,12 @@
     "check": "npm run lint && npm run typecheck && npm run check:imports",
     "check:release": "node scripts/check-release.mjs",
     "release:seal": "node scripts/seal-release.mjs",
-    "simulate:growth": "node scripts/simulate-company-growth.mjs"
+    "simulate:growth": "node scripts/simulate-company-growth.mjs",
+    "simulate:growth:full": "node scripts/simulate-full-fleet-growth.mjs",
+    "simulate:pricing": "node scripts/simulate-company-pricing.mjs",
+    "simulate:early": "node scripts/simulate-early-pacing.mjs",
+    "simulate:investment": "node scripts/simulate-investment.mjs",
+    "simulate:tech": "node scripts/simulate-tech-milestones.mjs"
   },
   "repository": {
     "type": "git",

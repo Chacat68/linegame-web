@@ -1,0 +1,156 @@
+{
+  "measuredAt": "2026-10-06",
+  "scenario": "固定三港三线路，3/6/12艘船，60分钟，种子42",
+  "procedure": "同一 simulate-investment.mjs 实验在本轮规则修改前后各执行一次；派遣只确认原船队，不自动购船、扩船或复投利润。",
+  "beforePolicy": "临时缺货、需求暂满或短期货量不足时解除任务，需要手动补派。",
+  "afterPolicy": "保留原任务、船与货本，停靠等待，盈利条件恢复后自动续跑。",
+  "unchanged": "港口容量、补货60秒/50%、船型、价格、航速、运费、探索费用和市场共享规则。",
+  "baseline": [
+    {
+      "ships": 3,
+      "inspectSeconds": 60,
+      "netProfit": 16683,
+      "profitPerMinute": 278.05,
+      "trips": 243,
+      "loadPercent": 78.59,
+      "idlePercent": 42.67,
+      "batchCommands": 60,
+      "createdTasks": 179,
+      "averageCapital": 432.41
+    },
+    {
+      "ships": 3,
+      "inspectSeconds": 300,
+      "netProfit": 8364,
+      "profitPerMinute": 139.4,
+      "trips": 96,
+      "loadPercent": 84.92,
+      "idlePercent": 75,
+      "batchCommands": 12,
+      "createdTasks": 36,
+      "averageCapital": 210.99
+    },
+    {
+      "ships": 6,
+      "inspectSeconds": 60,
+      "netProfit": 16443,
+      "profitPerMinute": 274.05,
+      "trips": 243,
+      "loadPercent": 71.53,
+      "idlePercent": 70.14,
+      "batchCommands": 60,
+      "createdTasks": 242,
+      "averageCapital": 459.98
+    },
+    {
+      "ships": 6,
+      "inspectSeconds": 300,
+      "netProfit": 6864,
+      "profitPerMinute": 114.4,
+      "trips": 84,
+      "loadPercent": 82.46,
+      "idlePercent": 89.4,
+      "batchCommands": 12,
+      "createdTasks": 72,
+      "averageCapital": 168.68
+    },
+    {
+      "ships": 12,
+      "inspectSeconds": 60,
+      "netProfit": 16439,
+      "profitPerMinute": 273.98,
+      "trips": 243,
+      "loadPercent": 71.43,
+      "idlePercent": 85.06,
+      "batchCommands": 60,
+      "createdTasks": 243,
+      "averageCapital": 460.44
+    },
+    {
+      "ships": 12,
+      "inspectSeconds": 300,
+      "netProfit": 6816,
+      "profitPerMinute": 113.6,
+      "trips": 84,
+      "loadPercent": 78.33,
+      "idlePercent": 94.58,
+      "batchCommands": 12,
+      "createdTasks": 84,
+      "averageCapital": 174.19
+    }
+  ],
+  "candidate": [
+    {
+      "ships": 3,
+      "inspectSeconds": 60,
+      "netProfit": 16683,
+      "profitPerMinute": 278.05,
+      "trips": 243,
+      "loadPercent": 78.59,
+      "idlePercent": 42.67,
+      "batchCommands": 1,
+      "createdTasks": 3,
+      "averageCapital": 736
+    },
+    {
+      "ships": 3,
+      "inspectSeconds": 300,
+      "netProfit": 16683,
+      "profitPerMinute": 278.05,
+      "trips": 243,
+      "loadPercent": 78.59,
+      "idlePercent": 42.67,
+      "batchCommands": 1,
+      "createdTasks": 3,
+      "averageCapital": 736
+    },
+    {
+      "ships": 6,
+      "inspectSeconds": 60,
+      "netProfit": 16443,
+      "profitPerMinute": 274.05,
+      "trips": 243,
+      "loadPercent": 71.53,
+      "idlePercent": 70.14,
+      "batchCommands": 1,
+      "createdTasks": 6,
+      "averageCapital": 1524
+    },
+    {
+      "ships": 6,
+      "inspectSeconds": 300,
+      "netProfit": 16443,
+      "profitPerMinute": 274.05,
+      "trips": 243,
+      "loadPercent": 71.53,
+      "idlePercent": 70.14,
+      "batchCommands": 1,
+      "createdTasks": 6,
+      "averageCapital": 1524
+    },
+    {
+      "ships": 12,
+      "inspectSeconds": 60,
+      "netProfit": 16439,
+      "profitPerMinute": 273.98,
+      "trips": 243,
+      "loadPercent": 71.43,
+      "idlePercent": 85.06,
+      "batchCommands": 1,
+      "createdTasks": 7,
+      "averageCapital": 1702
+    },
+    {
+      "ships": 12,
+      "inspectSeconds": 300,
+      "netProfit": 16439,
+      "profitPerMinute": 273.98,
+      "trips": 243,
+      "loadPercent": 71.43,
+      "idlePercent": 85.06,
+      "batchCommands": 1,
+      "createdTasks": 7,
+      "averageCapital": 1702
+    }
+  ]
+}

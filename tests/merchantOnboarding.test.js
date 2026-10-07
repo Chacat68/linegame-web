@@ -53,7 +53,7 @@ describe('短剧情与非强制经营引导', () => {
     }
   });
 
-  it('失败或零利润派遣不误完成配船步骤，玩家直接有效出航也能继续', () => {
+  it('失败或等待补货不误完成配船步骤，原商路真正出航后推进引导', () => {
     for (const opened of [false, true]) {
       const state = fresh(); changeGuide(state, 'start', 1);
       if (opened) changeGuide(state, 'opened-dispatch', 2);
@@ -62,14 +62,14 @@ describe('短剧情与非强制经营引导', () => {
       expect(state).toEqual(before);
       state.merchant.markets.sol_prime.supply.food = 0;
       expect(Merchant.command(state, 'create', plan, start).ok).toBe(true);
-      expect(state.merchant.tasks).toHaveLength(0);
-      expect(state.merchant.history[0]).toMatchObject({ rounds: 0, profit: 0 });
-      expect(state.merchant.ships[0]).toMatchObject({ phase: 'idle', trip: null });
-      expect(state.credits).toBe(1000);
+      expect(state.merchant.tasks).toHaveLength(1);
+      expect(state.merchant.tasks[0]).toMatchObject({ rounds: 0, profit: 0, stopping: false });
+      expect(state.merchant.ships[0]).toMatchObject({ phase: 'waiting', trip: null });
+      expect(state.credits).toBe(780);
       expect(state.merchant.onboarding.step).toBe(opened ? 2 : 1);
-      Merchant.advance(state, start + 120000);
+      Merchant.advance(state, start + 59999);
       expect(state.merchant.onboarding.step).toBe(opened ? 2 : 1);
-      expect(Merchant.command(state, 'create', plan, state.merchant.lastTickAt).ok).toBe(true);
+      Merchant.advance(state, start + 60000);
       expect(state.merchant.ships[0].phase).toBe('outbound');
       expect(state.merchant.onboarding.step).toBe(3);
     }
@@ -101,7 +101,7 @@ describe('短剧情与非强制经营引导', () => {
     const offline = structuredClone(online);
     for (let second = 1; second <= 125; second++) Merchant.advance(online, start + second * 1000);
     Merchant.init(offline, start + 125000); Merchant.advance(offline, start + 125000);
-    expect(online.credits).toBe(1126); expect(offline.credits).toBe(1126);
+    expect(online.credits).toBe(1074); expect(offline.credits).toBe(1074);
     expect(offline.merchant.history).toEqual(online.merchant.history);
     expect(offline.merchant.ships).toEqual(online.merchant.ships);
     expect(offline.merchant.onboarding).toEqual({ step: 3, skipped: false });
@@ -109,6 +109,6 @@ describe('短剧情与非强制经营引导', () => {
     changeGuide(offline, 'viewed-report', 4); changeGuide(offline, 'finish', 5);
     Merchant.init(offline, start + 180000); Merchant.advance(offline, start + 180000);
     expect(offline.merchant.onboarding).toEqual({ step: 5, skipped: false });
-    expect(offline.credits).toBe(1126);
+    expect(offline.credits).toBe(1200);
   });
 });

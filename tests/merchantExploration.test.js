@@ -1,5 +1,7 @@
+import { restoreLegacyMerchantAccess } from '../js/systems/merchant/MerchantTechnology.js';
 import { describe, expect, it } from 'vitest';
 import { createInitialState } from '../js/data/constants.js';
+import { MERCHANT_COMPANY_LEVELS } from '../js/data/merchant.js';
 import * as Merchant from '../js/systems/merchant/MerchantSystem.js';
 
 const start = 1_800_000_000_000;
@@ -7,10 +9,11 @@ const trade = (shipIds = ['ship-1']) => ({
   from: 'sol_prime', to: 'mineral_belt', goodId: 'food', shipIds, budget: 220,
 });
 
-function fresh({ level = 2, credits = 1000 } = {}) {
+function fresh({ level = 24, credits = 1000 } = {}) {
   const state = createInitialState({ credits });
   state.merchant.companyLevel = level;
   state.merchant.exploration.rngState = 0x12345678;
+  restoreLegacyMerchantAccess(state.merchant);
   Merchant.init(state, start);
   Merchant.advance(state, start);
   return state;
@@ -28,30 +31,44 @@ function dispatch(state, shipId = 'ship-1', from = 'sol_prime') {
 }
 
 describe('真实时间新港探索', () => {
-  it('二级后延迟出现唯一信号，既有随机期限不因重复推进而重抽', () => {
-    const state = fresh({ level: 1, credits: 3000 });
+  it('升到24级完成研发后出现唯一信号，重复推进不重抽或提前开港', () => {
+    const state = fresh({ level: 23, credits: MERCHANT_COMPANY_LEVELS[22].upgradeCost + Merchant.getTech('planet_survey').cost + 800 });
     Merchant.advance(state, start + 120000);
     expect(state.merchant.exploration).toMatchObject({ nextEventAt: 0, event: null });
     const now = state.merchant.lastTickAt;
     expect(Merchant.command(state, 'upgradeCompany', {}, now).ok).toBe(true);
-    Merchant.advance(state, now);
-    const { nextEventAt, rngState } = state.merchant.exploration;
-    expect(nextEventAt - now).toBeGreaterThanOrEqual(30000);
-    expect(nextEventAt - now).toBeLessThanOrEqual(90000);
-    const sequence = state.merchant.nextId;
-    Merchant.advance(state, nextEventAt - 1);
-    expect(state.merchant.exploration).toEqual({ rngState, nextEventAt, event: null });
-    Merchant.advance(state, nextEventAt);
+    expect(state.merchant.exploration.event).toBeNull();
+    expect(Merchant.command(state, 'researchTech', { techId: 'planet_survey' }, now).ok).toBe(true);
+    const { rngState } = state.merchant.exploration;
     const event = structuredClone(state.merchant.exploration.event);
-    expect(event).toMatchObject({ status: 'available', portId: 'nebula_forge', appearedAt: nextEventAt, shipId: null });
-    expect(state.merchant.nextId).toBe(sequence + 1);
+    expect(event).toMatchObject({ status: 'available', portId: 'nebula_forge', appearedAt: now, shipId: null });
+    expect(state.merchant.exploration).toMatchObject({ nextEventAt: 0, nextPortId: null });
+    expect(Merchant.isValidMerchantState(state.merchant)).toBe(true);
+    const sequence = state.merchant.nextId;
+    Merchant.advance(state, now);
+    expect(state.merchant.nextId).toBe(sequence);
     expect(state.merchant.unlockedPorts).not.toContain('nebula_forge');
-    Merchant.advance(state, nextEventAt + 180000);
-    expect(state.merchant.exploration).toEqual({ rngState, nextEventAt: 0, event });
-    expect(state.merchant.nextId).toBe(sequence + 1);
+    Merchant.advance(state, now + 180000);
+    expect(state.merchant.exploration).toEqual({ rngState, nextEventAt: 0, nextPortId: null, event, completed: [] });
+    expect(state.merchant.nextId).toBe(sequence);
     const before = structuredClone(state);
     expect(Merchant.command(state, 'unlockPort', {}, state.merchant.lastTickAt).ok).toBe(false);
     expect(state).toEqual(before);
+  });
+
+  it('旧档待出现的首次信号恢复后立即可探索，保留随机状态且只生成一次', () => {
+    const state = fresh();
+    Object.assign(state.merchant.exploration, { event: null, nextPortId: 'nebula_forge', nextEventAt: start + 90000 });
+    expect(Merchant.isValidMerchantState(state.merchant)).toBe(true);
+    const seed = state.merchant.exploration.rngState;
+    Merchant.advance(state, start);
+    const event = structuredClone(state.merchant.exploration.event), nextId = state.merchant.nextId;
+    expect(event).toMatchObject({ status: 'available', appearedAt: start });
+    expect(state.merchant.exploration.rngState).toBe(seed);
+    Merchant.advance(state, start + 90000);
+    expect(state.merchant.exploration.event).toEqual(event);
+    expect(state.merchant.nextId).toBe(nextId);
+    expect(Merchant.isValidMerchantState(state.merchant)).toBe(true);
   });
 
   it('探索只扣自由现金，费用与首航储备边界、错误信号和出发港均原子拒绝', () => {
@@ -64,13 +81,13 @@ describe('真实时间新港探索', () => {
       () => { state.credits = 359; },
       () => { state.credits = 433; },
     ]) {
-      state.merchant.companyLevel = 2; state.credits = 1000; change();
+      state.merchant.companyLevel = 24; state.credits = 1000; change();
       const before = structuredClone(state);
       expect(Merchant.getExplorationPreview(state, input).ok).toBe(false);
       expect(Merchant.command(state, 'explore', input, now).ok).toBe(false);
       expect(state).toEqual(before);
     }
-    state.merchant.companyLevel = 2; state.credits = 434;
+    state.merchant.companyLevel = 24; state.credits = 434;
     for (const invalid of [{ ...input, eventId: 'event-999' }, { ...input, shipId: 'missing' }, { ...input, from: 'nebula_forge' }]) {
       const before = structuredClone(state);
       expect(Merchant.command(state, 'explore', invalid, now).ok).toBe(false);
@@ -171,7 +188,7 @@ describe('真实时间新港探索', () => {
 
   it('逐秒在线与一次离线出现和完成同一事件，重复补算不重复开港', () => {
     const online = fresh(), offline = structuredClone(online);
-    const signalAt = online.merchant.exploration.nextEventAt;
+    const signalAt = online.merchant.exploration.event.appearedAt;
     for (let at = start + 1000; at < signalAt; at += 1000) Merchant.advance(online, at);
     Merchant.advance(online, signalAt);
     Merchant.advance(offline, signalAt);

@@ -1,0 +1,2428 @@
+{
+  "strategy": "从真实初始 1,000 CR 和一艘轻舟起步，每 10 秒主动查看；当级科技全部付费研发，按共享供需与购船投入效率混编，先补满当级基础及研发船位、划拨全船队货本再升级；探索使用原船停派并完整返港，开放新港后才安排新商路。保留已购船与在途快照，不赠送或外加资金。",
+  "completed": true,
+  "horizonMinutes": 20160,
+  "simulatedMinutes": 13710,
+  "stages": [
+    {
+      "level": 1,
+      "ships": 1,
+      "baseShipLimit": 1,
+      "researchShipSlots": 0,
+      "fleetReadyMinutes": 0.17,
+      "minutes": 7.67,
+      "stageMinutes": 7.67,
+      "upgradeCost": 2100,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 162,
+      "cumulativeSpending": {
+        "upgrades": 0,
+        "research": 500,
+        "ships": 0,
+        "exploration": 0
+      },
+      "cash": 2120
+    },
+    {
+      "level": 2,
+      "ships": 1,
+      "baseShipLimit": 1,
+      "researchShipSlots": 0,
+      "fleetReadyMinutes": 7.83,
+      "minutes": 16.67,
+      "stageMinutes": 9,
+      "upgradeCost": 2100,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 162,
+      "cumulativeSpending": {
+        "upgrades": 2100,
+        "research": 500,
+        "ships": 0,
+        "exploration": 0
+      },
+      "cash": 2132
+    },
+    {
+      "level": 3,
+      "ships": 1,
+      "baseShipLimit": 1,
+      "researchShipSlots": 0,
+      "fleetReadyMinutes": 18.83,
+      "minutes": 27.33,
+      "stageMinutes": 10.67,
+      "upgradeCost": 2100,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 162,
+      "cumulativeSpending": {
+        "upgrades": 4200,
+        "research": 1000,
+        "ships": 0,
+        "exploration": 0
+      },
+      "cash": 2106
+    },
+    {
+      "level": 4,
+      "ships": 1,
+      "baseShipLimit": 1,
+      "researchShipSlots": 0,
+      "fleetReadyMinutes": 28.83,
+      "minutes": 37.5,
+      "stageMinutes": 10.17,
+      "upgradeCost": 2100,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 162,
+      "cumulativeSpending": {
+        "upgrades": 6300,
+        "research": 1300,
+        "ships": 0,
+        "exploration": 0
+      },
+      "cash": 2148
+    },
+    {
+      "level": 5,
+      "ships": 1,
+      "baseShipLimit": 1,
+      "researchShipSlots": 0,
+      "fleetReadyMinutes": 37.67,
+      "minutes": 54.67,
+      "stageMinutes": 17.17,
+      "upgradeCost": 4200,
+      "isBreakthrough": true,
+      "breakthroughFactor": 2,
+      "workingCapital": 162,
+      "cumulativeSpending": {
+        "upgrades": 8400,
+        "research": 1300,
+        "ships": 0,
+        "exploration": 0
+      },
+      "cash": 4206
+    },
+    {
+      "level": 6,
+      "ships": 1,
+      "baseShipLimit": 1,
+      "researchShipSlots": 0,
+      "fleetReadyMinutes": 68.17,
+      "minutes": 79.17,
+      "stageMinutes": 24.5,
+      "upgradeCost": 2600,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 162,
+      "cumulativeSpending": {
+        "upgrades": 12600,
+        "research": 4600,
+        "ships": 0,
+        "exploration": 0
+      },
+      "cash": 2646
+    },
+    {
+      "level": 7,
+      "ships": 1,
+      "baseShipLimit": 1,
+      "researchShipSlots": 0,
+      "fleetReadyMinutes": 82.33,
+      "minutes": 94.33,
+      "stageMinutes": 15.17,
+      "upgradeCost": 2900,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 162,
+      "cumulativeSpending": {
+        "upgrades": 15200,
+        "research": 5400,
+        "ships": 0,
+        "exploration": 0
+      },
+      "cash": 2942
+    },
+    {
+      "level": 8,
+      "ships": 1,
+      "baseShipLimit": 1,
+      "researchShipSlots": 0,
+      "fleetReadyMinutes": 94.5,
+      "minutes": 107.17,
+      "stageMinutes": 12.83,
+      "upgradeCost": 3100,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 162,
+      "cumulativeSpending": {
+        "upgrades": 18100,
+        "research": 5400,
+        "ships": 0,
+        "exploration": 0
+      },
+      "cash": 3144
+    },
+    {
+      "level": 9,
+      "ships": 2,
+      "baseShipLimit": 1,
+      "researchShipSlots": 1,
+      "fleetReadyMinutes": 119.67,
+      "minutes": 126.83,
+      "stageMinutes": 19.67,
+      "upgradeCost": 3300,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 340,
+      "cumulativeSpending": {
+        "upgrades": 21200,
+        "research": 7900,
+        "ships": 340,
+        "exploration": 0
+      },
+      "cash": 3332
+    },
+    {
+      "level": 10,
+      "ships": 2,
+      "baseShipLimit": 1,
+      "researchShipSlots": 1,
+      "fleetReadyMinutes": 137.17,
+      "minutes": 155,
+      "stageMinutes": 28.17,
+      "upgradeCost": 8250,
+      "isBreakthrough": true,
+      "breakthroughFactor": 2.5,
+      "workingCapital": 340,
+      "cumulativeSpending": {
+        "upgrades": 24500,
+        "research": 12600,
+        "ships": 340,
+        "exploration": 0
+      },
+      "cash": 8264
+    },
+    {
+      "level": 11,
+      "ships": 2,
+      "baseShipLimit": 1,
+      "researchShipSlots": 1,
+      "fleetReadyMinutes": 155.17,
+      "minutes": 164,
+      "stageMinutes": 9,
+      "upgradeCost": 4100,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 340,
+      "cumulativeSpending": {
+        "upgrades": 32750,
+        "research": 12600,
+        "ships": 340,
+        "exploration": 0
+      },
+      "cash": 4190
+    },
+    {
+      "level": 12,
+      "ships": 2,
+      "baseShipLimit": 1,
+      "researchShipSlots": 1,
+      "fleetReadyMinutes": 167,
+      "minutes": 176.83,
+      "stageMinutes": 12.83,
+      "upgradeCost": 4500,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 340,
+      "cumulativeSpending": {
+        "upgrades": 36850,
+        "research": 14000,
+        "ships": 340,
+        "exploration": 0
+      },
+      "cash": 4604
+    },
+    {
+      "level": 13,
+      "ships": 3,
+      "baseShipLimit": 2,
+      "researchShipSlots": 1,
+      "fleetReadyMinutes": 181,
+      "minutes": 189.83,
+      "stageMinutes": 13,
+      "upgradeCost": 4900,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 466,
+      "cumulativeSpending": {
+        "upgrades": 41350,
+        "research": 15500,
+        "ships": 676,
+        "exploration": 0
+      },
+      "cash": 5066
+    },
+    {
+      "level": 14,
+      "ships": 3,
+      "baseShipLimit": 2,
+      "researchShipSlots": 1,
+      "fleetReadyMinutes": 190,
+      "minutes": 199.67,
+      "stageMinutes": 9.83,
+      "upgradeCost": 5200,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 466,
+      "cumulativeSpending": {
+        "upgrades": 46250,
+        "research": 15500,
+        "ships": 676,
+        "exploration": 0
+      },
+      "cash": 5221
+    },
+    {
+      "level": 15,
+      "ships": 3,
+      "baseShipLimit": 2,
+      "researchShipSlots": 1,
+      "fleetReadyMinutes": 213.33,
+      "minutes": 243.17,
+      "stageMinutes": 43.5,
+      "upgradeCost": 15600,
+      "isBreakthrough": true,
+      "breakthroughFactor": 3,
+      "workingCapital": 466,
+      "cumulativeSpending": {
+        "upgrades": 51450,
+        "research": 22600,
+        "ships": 676,
+        "exploration": 0
+      },
+      "cash": 15626
+    },
+    {
+      "level": 16,
+      "ships": 3,
+      "baseShipLimit": 2,
+      "researchShipSlots": 1,
+      "fleetReadyMinutes": 246.83,
+      "minutes": 257.83,
+      "stageMinutes": 14.67,
+      "upgradeCost": 5700,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 466,
+      "cumulativeSpending": {
+        "upgrades": 67050,
+        "research": 24600,
+        "ships": 676,
+        "exploration": 0
+      },
+      "cash": 5784
+    },
+    {
+      "level": 17,
+      "ships": 3,
+      "baseShipLimit": 2,
+      "researchShipSlots": 1,
+      "fleetReadyMinutes": 258,
+      "minutes": 268.83,
+      "stageMinutes": 11,
+      "upgradeCost": 5900,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 466,
+      "cumulativeSpending": {
+        "upgrades": 72750,
+        "research": 24600,
+        "ships": 676,
+        "exploration": 0
+      },
+      "cash": 5934
+    },
+    {
+      "level": 18,
+      "ships": 3,
+      "baseShipLimit": 2,
+      "researchShipSlots": 1,
+      "fleetReadyMinutes": 273.17,
+      "minutes": 284.83,
+      "stageMinutes": 16,
+      "upgradeCost": 6100,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 474,
+      "cumulativeSpending": {
+        "upgrades": 78650,
+        "research": 26800,
+        "ships": 676,
+        "exploration": 0
+      },
+      "cash": 6195
+    },
+    {
+      "level": 19,
+      "ships": 3,
+      "baseShipLimit": 2,
+      "researchShipSlots": 1,
+      "fleetReadyMinutes": 285,
+      "minutes": 296.83,
+      "stageMinutes": 12,
+      "upgradeCost": 6400,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 474,
+      "cumulativeSpending": {
+        "upgrades": 84750,
+        "research": 26800,
+        "ships": 676,
+        "exploration": 0
+      },
+      "cash": 6422
+    },
+    {
+      "level": 20,
+      "ships": 3,
+      "baseShipLimit": 2,
+      "researchShipSlots": 1,
+      "fleetReadyMinutes": 308.17,
+      "minutes": 350.67,
+      "stageMinutes": 53.83,
+      "upgradeCost": 22400,
+      "isBreakthrough": true,
+      "breakthroughFactor": 3.5,
+      "workingCapital": 474,
+      "cumulativeSpending": {
+        "upgrades": 91150,
+        "research": 32700,
+        "ships": 676,
+        "exploration": 0
+      },
+      "cash": 22449
+    },
+    {
+      "level": 21,
+      "ships": 3,
+      "baseShipLimit": 2,
+      "researchShipSlots": 1,
+      "fleetReadyMinutes": 355.83,
+      "minutes": 368.83,
+      "stageMinutes": 18.17,
+      "upgradeCost": 6900,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 474,
+      "cumulativeSpending": {
+        "upgrades": 113550,
+        "research": 35500,
+        "ships": 676,
+        "exploration": 0
+      },
+      "cash": 6951
+    },
+    {
+      "level": 22,
+      "ships": 3,
+      "baseShipLimit": 2,
+      "researchShipSlots": 1,
+      "fleetReadyMinutes": 369,
+      "minutes": 382.5,
+      "stageMinutes": 13.67,
+      "upgradeCost": 7200,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 474,
+      "cumulativeSpending": {
+        "upgrades": 120450,
+        "research": 35500,
+        "ships": 676,
+        "exploration": 0
+      },
+      "cash": 7246
+    },
+    {
+      "level": 23,
+      "ships": 3,
+      "baseShipLimit": 2,
+      "researchShipSlots": 1,
+      "fleetReadyMinutes": 388.17,
+      "minutes": 401.83,
+      "stageMinutes": 19.33,
+      "upgradeCost": 7400,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 474,
+      "cumulativeSpending": {
+        "upgrades": 127650,
+        "research": 38500,
+        "ships": 676,
+        "exploration": 0
+      },
+      "cash": 7401
+    },
+    {
+      "level": 24,
+      "ships": 3,
+      "baseShipLimit": 2,
+      "researchShipSlots": 1,
+      "fleetReadyMinutes": 441,
+      "minutes": 454,
+      "stageMinutes": 52.17,
+      "upgradeCost": 9900,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 678,
+      "cumulativeSpending": {
+        "upgrades": 135050,
+        "research": 58300,
+        "ships": 676,
+        "exploration": 360
+      },
+      "cash": 10128
+    },
+    {
+      "level": 25,
+      "ships": 3,
+      "baseShipLimit": 2,
+      "researchShipSlots": 1,
+      "fleetReadyMinutes": 454.17,
+      "minutes": 506.17,
+      "stageMinutes": 52.17,
+      "upgradeCost": 39600,
+      "isBreakthrough": true,
+      "breakthroughFactor": 4,
+      "workingCapital": 678,
+      "cumulativeSpending": {
+        "upgrades": 144950,
+        "research": 58300,
+        "ships": 676,
+        "exploration": 360
+      },
+      "cash": 39695
+    },
+    {
+      "level": 26,
+      "ships": 3,
+      "baseShipLimit": 2,
+      "researchShipSlots": 1,
+      "fleetReadyMinutes": 514.83,
+      "minutes": 534,
+      "stageMinutes": 27.83,
+      "upgradeCost": 14700,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 678,
+      "cumulativeSpending": {
+        "upgrades": 184550,
+        "research": 65000,
+        "ships": 676,
+        "exploration": 360
+      },
+      "cash": 14754
+    },
+    {
+      "level": 27,
+      "ships": 3,
+      "baseShipLimit": 2,
+      "researchShipSlots": 1,
+      "fleetReadyMinutes": 544.17,
+      "minutes": 566,
+      "stageMinutes": 32,
+      "upgradeCost": 17200,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 678,
+      "cumulativeSpending": {
+        "upgrades": 199250,
+        "research": 72800,
+        "ships": 676,
+        "exploration": 360
+      },
+      "cash": 17305
+    },
+    {
+      "level": 28,
+      "ships": 3,
+      "baseShipLimit": 2,
+      "researchShipSlots": 1,
+      "fleetReadyMinutes": 566.17,
+      "minutes": 590.83,
+      "stageMinutes": 24.83,
+      "upgradeCost": 19600,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 678,
+      "cumulativeSpending": {
+        "upgrades": 216450,
+        "research": 72800,
+        "ships": 676,
+        "exploration": 360
+      },
+      "cash": 19619
+    },
+    {
+      "level": 29,
+      "ships": 5,
+      "baseShipLimit": 3,
+      "researchShipSlots": 2,
+      "fleetReadyMinutes": 611.33,
+      "minutes": 630.33,
+      "stageMinutes": 39.5,
+      "upgradeCost": 22000,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 1187,
+      "cumulativeSpending": {
+        "upgrades": 236050,
+        "research": 87700,
+        "ships": 1488,
+        "exploration": 360
+      },
+      "cash": 22042
+    },
+    {
+      "level": 30,
+      "ships": 5,
+      "baseShipLimit": 3,
+      "researchShipSlots": 2,
+      "fleetReadyMinutes": 640,
+      "minutes": 727,
+      "stageMinutes": 96.67,
+      "upgradeCost": 99000,
+      "isBreakthrough": true,
+      "breakthroughFactor": 4.5,
+      "workingCapital": 1224,
+      "cumulativeSpending": {
+        "upgrades": 258050,
+        "research": 98300,
+        "ships": 1488,
+        "exploration": 360
+      },
+      "cash": 99341
+    },
+    {
+      "level": 31,
+      "ships": 5,
+      "baseShipLimit": 3,
+      "researchShipSlots": 2,
+      "fleetReadyMinutes": 727.17,
+      "minutes": 748.67,
+      "stageMinutes": 21.67,
+      "upgradeCost": 24800,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 1224,
+      "cumulativeSpending": {
+        "upgrades": 357050,
+        "research": 98300,
+        "ships": 1488,
+        "exploration": 360
+      },
+      "cash": 24833
+    },
+    {
+      "level": 32,
+      "ships": 5,
+      "baseShipLimit": 3,
+      "researchShipSlots": 2,
+      "fleetReadyMinutes": 760.17,
+      "minutes": 783,
+      "stageMinutes": 34.33,
+      "upgradeCost": 26200,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 1224,
+      "cumulativeSpending": {
+        "upgrades": 381850,
+        "research": 111400,
+        "ships": 1488,
+        "exploration": 360
+      },
+      "cash": 26701
+    },
+    {
+      "level": 33,
+      "ships": 7,
+      "baseShipLimit": 4,
+      "researchShipSlots": 3,
+      "fleetReadyMinutes": 801.67,
+      "minutes": 823.33,
+      "stageMinutes": 40.33,
+      "upgradeCost": 27500,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 1544,
+      "cumulativeSpending": {
+        "upgrades": 408050,
+        "research": 132100,
+        "ships": 2462,
+        "exploration": 360
+      },
+      "cash": 27551
+    },
+    {
+      "level": 34,
+      "ships": 7,
+      "baseShipLimit": 4,
+      "researchShipSlots": 3,
+      "fleetReadyMinutes": 823.5,
+      "minutes": 846,
+      "stageMinutes": 22.67,
+      "upgradeCost": 28400,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 1544,
+      "cumulativeSpending": {
+        "upgrades": 435550,
+        "research": 132100,
+        "ships": 2462,
+        "exploration": 360
+      },
+      "cash": 28477
+    },
+    {
+      "level": 35,
+      "ships": 7,
+      "baseShipLimit": 4,
+      "researchShipSlots": 3,
+      "fleetReadyMinutes": 948.67,
+      "minutes": 1062.33,
+      "stageMinutes": 216.33,
+      "upgradeCost": 142000,
+      "isBreakthrough": true,
+      "breakthroughFactor": 5,
+      "workingCapital": 1544,
+      "cumulativeSpending": {
+        "upgrades": 463950,
+        "research": 260300,
+        "ships": 2462,
+        "exploration": 360
+      },
+      "cash": 142178
+    },
+    {
+      "level": 36,
+      "ships": 7,
+      "baseShipLimit": 4,
+      "researchShipSlots": 3,
+      "fleetReadyMinutes": 1062.5,
+      "minutes": 1086.33,
+      "stageMinutes": 24,
+      "upgradeCost": 30100,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 1544,
+      "cumulativeSpending": {
+        "upgrades": 605950,
+        "research": 260300,
+        "ships": 2462,
+        "exploration": 360
+      },
+      "cash": 30169
+    },
+    {
+      "level": 37,
+      "ships": 7,
+      "baseShipLimit": 4,
+      "researchShipSlots": 3,
+      "fleetReadyMinutes": 1100.33,
+      "minutes": 1125,
+      "stageMinutes": 38.67,
+      "upgradeCost": 31000,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 1544,
+      "cumulativeSpending": {
+        "upgrades": 636050,
+        "research": 277400,
+        "ships": 2462,
+        "exploration": 360
+      },
+      "cash": 31363
+    },
+    {
+      "level": 38,
+      "ships": 7,
+      "baseShipLimit": 4,
+      "researchShipSlots": 3,
+      "fleetReadyMinutes": 1146,
+      "minutes": 1171.33,
+      "stageMinutes": 46.33,
+      "upgradeCost": 31800,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 1581,
+      "cumulativeSpending": {
+        "upgrades": 667050,
+        "research": 303700,
+        "ships": 2462,
+        "exploration": 360
+      },
+      "cash": 31978
+    },
+    {
+      "level": 39,
+      "ships": 7,
+      "baseShipLimit": 4,
+      "researchShipSlots": 3,
+      "fleetReadyMinutes": 1171.5,
+      "minutes": 1197.33,
+      "stageMinutes": 26,
+      "upgradeCost": 32700,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 1581,
+      "cumulativeSpending": {
+        "upgrades": 698850,
+        "research": 303700,
+        "ships": 2462,
+        "exploration": 360
+      },
+      "cash": 32777
+    },
+    {
+      "level": 40,
+      "ships": 7,
+      "baseShipLimit": 4,
+      "researchShipSlots": 3,
+      "fleetReadyMinutes": 1212,
+      "minutes": 1352.67,
+      "stageMinutes": 155.33,
+      "upgradeCost": 179850,
+      "isBreakthrough": true,
+      "breakthroughFactor": 5.5,
+      "workingCapital": 1581,
+      "cumulativeSpending": {
+        "upgrades": 731550,
+        "research": 322200,
+        "ships": 2462,
+        "exploration": 360
+      },
+      "cash": 179947
+    },
+    {
+      "level": 41,
+      "ships": 7,
+      "baseShipLimit": 4,
+      "researchShipSlots": 3,
+      "fleetReadyMinutes": 1361,
+      "minutes": 1387.83,
+      "stageMinutes": 35.17,
+      "upgradeCost": 34800,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 1581,
+      "cumulativeSpending": {
+        "upgrades": 911400,
+        "research": 332700,
+        "ships": 2462,
+        "exploration": 360
+      },
+      "cash": 34978
+    },
+    {
+      "level": 42,
+      "ships": 8,
+      "baseShipLimit": 5,
+      "researchShipSlots": 3,
+      "fleetReadyMinutes": 1388.33,
+      "minutes": 1416.33,
+      "stageMinutes": 28.5,
+      "upgradeCost": 36000,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 1715,
+      "cumulativeSpending": {
+        "upgrades": 946200,
+        "research": 332700,
+        "ships": 3043,
+        "exploration": 360
+      },
+      "cash": 36303
+    },
+    {
+      "level": 43,
+      "ships": 9,
+      "baseShipLimit": 6,
+      "researchShipSlots": 3,
+      "fleetReadyMinutes": 1442.67,
+      "minutes": 1471.67,
+      "stageMinutes": 55.33,
+      "upgradeCost": 37300,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 1909,
+      "cumulativeSpending": {
+        "upgrades": 982200,
+        "research": 366300,
+        "ships": 3631,
+        "exploration": 360
+      },
+      "cash": 37352
+    },
+    {
+      "level": 44,
+      "ships": 11,
+      "baseShipLimit": 7,
+      "researchShipSlots": 4,
+      "fleetReadyMinutes": 1500,
+      "minutes": 1530,
+      "stageMinutes": 58.33,
+      "upgradeCost": 38500,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 2343,
+      "cumulativeSpending": {
+        "upgrades": 1019500,
+        "research": 401000,
+        "ships": 4888,
+        "exploration": 360
+      },
+      "cash": 38852
+    },
+    {
+      "level": 45,
+      "ships": 11,
+      "baseShipLimit": 7,
+      "researchShipSlots": 4,
+      "fleetReadyMinutes": 1530.17,
+      "minutes": 1709.33,
+      "stageMinutes": 179.33,
+      "upgradeCost": 231000,
+      "isBreakthrough": true,
+      "breakthroughFactor": 6,
+      "workingCapital": 2343,
+      "cumulativeSpending": {
+        "upgrades": 1058000,
+        "research": 401000,
+        "ships": 4888,
+        "exploration": 360
+      },
+      "cash": 231338
+    },
+    {
+      "level": 46,
+      "ships": 11,
+      "baseShipLimit": 7,
+      "researchShipSlots": 4,
+      "fleetReadyMinutes": 1729.5,
+      "minutes": 1761,
+      "stageMinutes": 51.67,
+      "upgradeCost": 40500,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 2343,
+      "cumulativeSpending": {
+        "upgrades": 1289000,
+        "research": 427400,
+        "ships": 4888,
+        "exploration": 360
+      },
+      "cash": 40551
+    },
+    {
+      "level": 47,
+      "ships": 11,
+      "baseShipLimit": 7,
+      "researchShipSlots": 4,
+      "fleetReadyMinutes": 1792.5,
+      "minutes": 1824.5,
+      "stageMinutes": 63.5,
+      "upgradeCost": 41500,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 2457,
+      "cumulativeSpending": {
+        "upgrades": 1329500,
+        "research": 467900,
+        "ships": 4888,
+        "exploration": 360
+      },
+      "cash": 41731
+    },
+    {
+      "level": 48,
+      "ships": 12,
+      "baseShipLimit": 8,
+      "researchShipSlots": 4,
+      "fleetReadyMinutes": 1825.33,
+      "minutes": 1858,
+      "stageMinutes": 33.5,
+      "upgradeCost": 42500,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 2659,
+      "cumulativeSpending": {
+        "upgrades": 1371000,
+        "research": 467900,
+        "ships": 5594,
+        "exploration": 360
+      },
+      "cash": 42704
+    },
+    {
+      "level": 49,
+      "ships": 12,
+      "baseShipLimit": 8,
+      "researchShipSlots": 4,
+      "fleetReadyMinutes": 1879.83,
+      "minutes": 1912.5,
+      "stageMinutes": 54.5,
+      "upgradeCost": 43500,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 2659,
+      "cumulativeSpending": {
+        "upgrades": 1413500,
+        "research": 496200,
+        "ships": 5594,
+        "exploration": 360
+      },
+      "cash": 43667
+    },
+    {
+      "level": 50,
+      "ships": 12,
+      "baseShipLimit": 8,
+      "researchShipSlots": 4,
+      "fleetReadyMinutes": 1912.67,
+      "minutes": 2126,
+      "stageMinutes": 213.5,
+      "upgradeCost": 282750,
+      "isBreakthrough": true,
+      "breakthroughFactor": 6.5,
+      "workingCapital": 2659,
+      "cumulativeSpending": {
+        "upgrades": 1457000,
+        "research": 496200,
+        "ships": 5594,
+        "exploration": 360
+      },
+      "cash": 282809
+    },
+    {
+      "level": 51,
+      "ships": 15,
+      "baseShipLimit": 9,
+      "researchShipSlots": 6,
+      "fleetReadyMinutes": 2200.5,
+      "minutes": 2234.67,
+      "stageMinutes": 108.67,
+      "upgradeCost": 45500,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 3297,
+      "cumulativeSpending": {
+        "upgrades": 1739750,
+        "research": 591800,
+        "ships": 7953,
+        "exploration": 360
+      },
+      "cash": 45558
+    },
+    {
+      "level": 52,
+      "ships": 15,
+      "baseShipLimit": 9,
+      "researchShipSlots": 6,
+      "fleetReadyMinutes": 2488.5,
+      "minutes": 2524.67,
+      "stageMinutes": 290,
+      "upgradeCost": 48000,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 3297,
+      "cumulativeSpending": {
+        "upgrades": 1785250,
+        "research": 927800,
+        "ships": 7953,
+        "exploration": 360
+      },
+      "cash": 48163
+    },
+    {
+      "level": 53,
+      "ships": 15,
+      "baseShipLimit": 9,
+      "researchShipSlots": 6,
+      "fleetReadyMinutes": 2524.83,
+      "minutes": 2563,
+      "stageMinutes": 38.33,
+      "upgradeCost": 50500,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 3297,
+      "cumulativeSpending": {
+        "upgrades": 1833250,
+        "research": 927800,
+        "ships": 7953,
+        "exploration": 360
+      },
+      "cash": 50752
+    },
+    {
+      "level": 54,
+      "ships": 15,
+      "baseShipLimit": 9,
+      "researchShipSlots": 6,
+      "fleetReadyMinutes": 2591,
+      "minutes": 2630.83,
+      "stageMinutes": 67.83,
+      "upgradeCost": 53000,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 3297,
+      "cumulativeSpending": {
+        "upgrades": 1883750,
+        "research": 964900,
+        "ships": 7953,
+        "exploration": 360
+      },
+      "cash": 53065
+    },
+    {
+      "level": 55,
+      "ships": 15,
+      "baseShipLimit": 9,
+      "researchShipSlots": 6,
+      "fleetReadyMinutes": 2660.33,
+      "minutes": 2935.5,
+      "stageMinutes": 304.67,
+      "upgradeCost": 371000,
+      "isBreakthrough": true,
+      "breakthroughFactor": 7,
+      "workingCapital": 3297,
+      "cumulativeSpending": {
+        "upgrades": 1936750,
+        "research": 1003800,
+        "ships": 7953,
+        "exploration": 360
+      },
+      "cash": 371120
+    },
+    {
+      "level": 56,
+      "ships": 15,
+      "baseShipLimit": 9,
+      "researchShipSlots": 6,
+      "fleetReadyMinutes": 2935.67,
+      "minutes": 2980.5,
+      "stageMinutes": 45,
+      "upgradeCost": 60400,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 3297,
+      "cumulativeSpending": {
+        "upgrades": 2307750,
+        "research": 1003800,
+        "ships": 7953,
+        "exploration": 360
+      },
+      "cash": 60741
+    },
+    {
+      "level": 57,
+      "ships": 15,
+      "baseShipLimit": 9,
+      "researchShipSlots": 6,
+      "fleetReadyMinutes": 3187.5,
+      "minutes": 3233.67,
+      "stageMinutes": 253.17,
+      "upgradeCost": 65200,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 3303,
+      "cumulativeSpending": {
+        "upgrades": 2368150,
+        "research": 1278900,
+        "ships": 7953,
+        "exploration": 2160
+      },
+      "cash": 65524
+    },
+    {
+      "level": 58,
+      "ships": 16,
+      "baseShipLimit": 10,
+      "researchShipSlots": 6,
+      "fleetReadyMinutes": 3273,
+      "minutes": 3320.67,
+      "stageMinutes": 87,
+      "upgradeCost": 70000,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 3769,
+      "cumulativeSpending": {
+        "upgrades": 2433350,
+        "research": 1331400,
+        "ships": 8760,
+        "exploration": 2160
+      },
+      "cash": 70255
+    },
+    {
+      "level": 59,
+      "ships": 16,
+      "baseShipLimit": 10,
+      "researchShipSlots": 6,
+      "fleetReadyMinutes": 3320.83,
+      "minutes": 3371.5,
+      "stageMinutes": 50.83,
+      "upgradeCost": 74800,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 3769,
+      "cumulativeSpending": {
+        "upgrades": 2503350,
+        "research": 1331400,
+        "ships": 8760,
+        "exploration": 2160
+      },
+      "cash": 74907
+    },
+    {
+      "level": 60,
+      "ships": 16,
+      "baseShipLimit": 10,
+      "researchShipSlots": 6,
+      "fleetReadyMinutes": 3432.5,
+      "minutes": 3812.67,
+      "stageMinutes": 441.17,
+      "upgradeCost": 561000,
+      "isBreakthrough": true,
+      "breakthroughFactor": 7.5,
+      "workingCapital": 3797,
+      "cumulativeSpending": {
+        "upgrades": 2578150,
+        "research": 1421000,
+        "ships": 8760,
+        "exploration": 2160
+      },
+      "cash": 561233
+    },
+    {
+      "level": 61,
+      "ships": 17,
+      "baseShipLimit": 11,
+      "researchShipSlots": 6,
+      "fleetReadyMinutes": 3859.5,
+      "minutes": 3911.5,
+      "stageMinutes": 98.83,
+      "upgradeCost": 84400,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 4390,
+      "cumulativeSpending": {
+        "upgrades": 3139150,
+        "research": 1488600,
+        "ships": 9740,
+        "exploration": 2160
+      },
+      "cash": 84946
+    },
+    {
+      "level": 62,
+      "ships": 17,
+      "baseShipLimit": 11,
+      "researchShipSlots": 6,
+      "fleetReadyMinutes": 3911.67,
+      "minutes": 3966,
+      "stageMinutes": 54.5,
+      "upgradeCost": 89200,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 4390,
+      "cumulativeSpending": {
+        "upgrades": 3223550,
+        "research": 1488600,
+        "ships": 9740,
+        "exploration": 2160
+      },
+      "cash": 89335
+    },
+    {
+      "level": 63,
+      "ships": 19,
+      "baseShipLimit": 12,
+      "researchShipSlots": 7,
+      "fleetReadyMinutes": 4037.33,
+      "minutes": 4087.5,
+      "stageMinutes": 121.5,
+      "upgradeCost": 94000,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 5461,
+      "cumulativeSpending": {
+        "upgrades": 3312750,
+        "research": 1601400,
+        "ships": 11884,
+        "exploration": 2160
+      },
+      "cash": 94203
+    },
+    {
+      "level": 64,
+      "ships": 19,
+      "baseShipLimit": 12,
+      "researchShipSlots": 7,
+      "fleetReadyMinutes": 4149.67,
+      "minutes": 4199.5,
+      "stageMinutes": 112,
+      "upgradeCost": 97000,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 5679,
+      "cumulativeSpending": {
+        "upgrades": 3406750,
+        "research": 1717800,
+        "ships": 11884,
+        "exploration": 2160
+      },
+      "cash": 97189
+    },
+    {
+      "level": 65,
+      "ships": 20,
+      "baseShipLimit": 13,
+      "researchShipSlots": 7,
+      "fleetReadyMinutes": 4200.5,
+      "minutes": 4576.5,
+      "stageMinutes": 377,
+      "upgradeCost": 776000,
+      "isBreakthrough": true,
+      "breakthroughFactor": 8,
+      "workingCapital": 6169,
+      "cumulativeSpending": {
+        "upgrades": 3503750,
+        "research": 1717800,
+        "ships": 13046,
+        "exploration": 2160
+      },
+      "cash": 776280
+    },
+    {
+      "level": 66,
+      "ships": 20,
+      "baseShipLimit": 13,
+      "researchShipSlots": 7,
+      "fleetReadyMinutes": 4618.67,
+      "minutes": 4668.5,
+      "stageMinutes": 92,
+      "upgradeCost": 103000,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 6169,
+      "cumulativeSpending": {
+        "upgrades": 4279750,
+        "research": 1805400,
+        "ships": 13046,
+        "exploration": 2160
+      },
+      "cash": 103070
+    },
+    {
+      "level": 67,
+      "ships": 21,
+      "baseShipLimit": 14,
+      "researchShipSlots": 7,
+      "fleetReadyMinutes": 4669.33,
+      "minutes": 4721.17,
+      "stageMinutes": 52.67,
+      "upgradeCost": 106000,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 6493,
+      "cumulativeSpending": {
+        "upgrades": 4382750,
+        "research": 1805400,
+        "ships": 13893,
+        "exploration": 2160
+      },
+      "cash": 106102
+    },
+    {
+      "level": 68,
+      "ships": 21,
+      "baseShipLimit": 14,
+      "researchShipSlots": 7,
+      "fleetReadyMinutes": 4766.67,
+      "minutes": 4819.5,
+      "stageMinutes": 98.33,
+      "upgradeCost": 109000,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 6493,
+      "cumulativeSpending": {
+        "upgrades": 4488750,
+        "research": 1898100,
+        "ships": 13893,
+        "exploration": 2160
+      },
+      "cash": 109428
+    },
+    {
+      "level": 69,
+      "ships": 23,
+      "baseShipLimit": 15,
+      "researchShipSlots": 8,
+      "fleetReadyMinutes": 4889.67,
+      "minutes": 4944.33,
+      "stageMinutes": 124.83,
+      "upgradeCost": 112000,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 6839,
+      "cumulativeSpending": {
+        "upgrades": 4597750,
+        "research": 2040900,
+        "ships": 15917,
+        "exploration": 2160
+      },
+      "cash": 112576
+    },
+    {
+      "level": 70,
+      "ships": 23,
+      "baseShipLimit": 15,
+      "researchShipSlots": 8,
+      "fleetReadyMinutes": 4944.5,
+      "minutes": 5405,
+      "stageMinutes": 460.67,
+      "upgradeCost": 952000,
+      "isBreakthrough": true,
+      "breakthroughFactor": 8.5,
+      "workingCapital": 6839,
+      "cumulativeSpending": {
+        "upgrades": 4709750,
+        "research": 2040900,
+        "ships": 15917,
+        "exploration": 2160
+      },
+      "cash": 952047
+    },
+    {
+      "level": 71,
+      "ships": 23,
+      "baseShipLimit": 15,
+      "researchShipSlots": 8,
+      "fleetReadyMinutes": 6037,
+      "minutes": 6093.33,
+      "stageMinutes": 688.33,
+      "upgradeCost": 116000,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 6839,
+      "cumulativeSpending": {
+        "upgrades": 5661750,
+        "research": 3345900,
+        "ships": 15917,
+        "exploration": 2160
+      },
+      "cash": 116529
+    },
+    {
+      "level": 72,
+      "ships": 23,
+      "baseShipLimit": 15,
+      "researchShipSlots": 8,
+      "fleetReadyMinutes": 6144.5,
+      "minutes": 6201.67,
+      "stageMinutes": 108.33,
+      "upgradeCost": 118000,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 6839,
+      "cumulativeSpending": {
+        "upgrades": 5777750,
+        "research": 3452100,
+        "ships": 15917,
+        "exploration": 2160
+      },
+      "cash": 118038
+    },
+    {
+      "level": 73,
+      "ships": 23,
+      "baseShipLimit": 15,
+      "researchShipSlots": 8,
+      "fleetReadyMinutes": 6201.83,
+      "minutes": 6260,
+      "stageMinutes": 58.33,
+      "upgradeCost": 120000,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 6839,
+      "cumulativeSpending": {
+        "upgrades": 5895750,
+        "research": 3452100,
+        "ships": 15917,
+        "exploration": 2160
+      },
+      "cash": 120226
+    },
+    {
+      "level": 74,
+      "ships": 23,
+      "baseShipLimit": 15,
+      "researchShipSlots": 8,
+      "fleetReadyMinutes": 6366.67,
+      "minutes": 6425,
+      "stageMinutes": 165,
+      "upgradeCost": 122000,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 6980,
+      "cumulativeSpending": {
+        "upgrades": 6015750,
+        "research": 3671700,
+        "ships": 15917,
+        "exploration": 2160
+      },
+      "cash": 122355
+    },
+    {
+      "level": 75,
+      "ships": 23,
+      "baseShipLimit": 15,
+      "researchShipSlots": 8,
+      "fleetReadyMinutes": 6478.33,
+      "minutes": 6994.67,
+      "stageMinutes": 569.67,
+      "upgradeCost": 1098000,
+      "isBreakthrough": true,
+      "breakthroughFactor": 9,
+      "workingCapital": 6980,
+      "cumulativeSpending": {
+        "upgrades": 6137750,
+        "research": 3783300,
+        "ships": 15917,
+        "exploration": 2160
+      },
+      "cash": 1098336
+    },
+    {
+      "level": 76,
+      "ships": 23,
+      "baseShipLimit": 15,
+      "researchShipSlots": 8,
+      "fleetReadyMinutes": 6994.83,
+      "minutes": 7054.33,
+      "stageMinutes": 59.67,
+      "upgradeCost": 126700,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 6980,
+      "cumulativeSpending": {
+        "upgrades": 7235750,
+        "research": 3783300,
+        "ships": 15917,
+        "exploration": 2160
+      },
+      "cash": 127071
+    },
+    {
+      "level": 77,
+      "ships": 24,
+      "baseShipLimit": 16,
+      "researchShipSlots": 8,
+      "fleetReadyMinutes": 7112.67,
+      "minutes": 7172.5,
+      "stageMinutes": 118.17,
+      "upgradeCost": 129400,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 7198,
+      "cumulativeSpending": {
+        "upgrades": 7362450,
+        "research": 3906300,
+        "ships": 16933,
+        "exploration": 2160
+      },
+      "cash": 129706
+    },
+    {
+      "level": 78,
+      "ships": 25,
+      "baseShipLimit": 17,
+      "researchShipSlots": 8,
+      "fleetReadyMinutes": 7231,
+      "minutes": 7292,
+      "stageMinutes": 119.5,
+      "upgradeCost": 132000,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 7348,
+      "cumulativeSpending": {
+        "upgrades": 7491850,
+        "research": 4031700,
+        "ships": 18137,
+        "exploration": 2160
+      },
+      "cash": 132163
+    },
+    {
+      "level": 79,
+      "ships": 25,
+      "baseShipLimit": 17,
+      "researchShipSlots": 8,
+      "fleetReadyMinutes": 7292.17,
+      "minutes": 7354.33,
+      "stageMinutes": 62.33,
+      "upgradeCost": 134700,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 7348,
+      "cumulativeSpending": {
+        "upgrades": 7623850,
+        "research": 4031700,
+        "ships": 18137,
+        "exploration": 2160
+      },
+      "cash": 134902
+    },
+    {
+      "level": 80,
+      "ships": 26,
+      "baseShipLimit": 18,
+      "researchShipSlots": 8,
+      "fleetReadyMinutes": 7475.67,
+      "minutes": 8063,
+      "stageMinutes": 708.67,
+      "upgradeCost": 1279650,
+      "isBreakthrough": true,
+      "breakthroughFactor": 9.5,
+      "workingCapital": 7644,
+      "cumulativeSpending": {
+        "upgrades": 7758550,
+        "research": 4292800,
+        "ships": 19361,
+        "exploration": 2160
+      },
+      "cash": 1280058
+    },
+    {
+      "level": 81,
+      "ships": 29,
+      "baseShipLimit": 19,
+      "researchShipSlots": 10,
+      "fleetReadyMinutes": 8257.83,
+      "minutes": 8322,
+      "stageMinutes": 259,
+      "upgradeCost": 140000,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 8372,
+      "cumulativeSpending": {
+        "upgrades": 9038200,
+        "research": 4712800,
+        "ships": 23275,
+        "exploration": 2160
+      },
+      "cash": 140135
+    },
+    {
+      "level": 82,
+      "ships": 29,
+      "baseShipLimit": 19,
+      "researchShipSlots": 10,
+      "fleetReadyMinutes": 8322.17,
+      "minutes": 8387.33,
+      "stageMinutes": 65.33,
+      "upgradeCost": 142400,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 8372,
+      "cumulativeSpending": {
+        "upgrades": 9178200,
+        "research": 4712800,
+        "ships": 23275,
+        "exploration": 2160
+      },
+      "cash": 142429
+    },
+    {
+      "level": 83,
+      "ships": 29,
+      "baseShipLimit": 19,
+      "researchShipSlots": 10,
+      "fleetReadyMinutes": 8453.83,
+      "minutes": 8520.33,
+      "stageMinutes": 133,
+      "upgradeCost": 144800,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 8372,
+      "cumulativeSpending": {
+        "upgrades": 9320600,
+        "research": 4857600,
+        "ships": 23275,
+        "exploration": 2160
+      },
+      "cash": 145028
+    },
+    {
+      "level": 84,
+      "ships": 30,
+      "baseShipLimit": 20,
+      "researchShipSlots": 10,
+      "fleetReadyMinutes": 8521,
+      "minutes": 8588.67,
+      "stageMinutes": 68.33,
+      "upgradeCost": 147200,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 8576,
+      "cumulativeSpending": {
+        "upgrades": 9465400,
+        "research": 4857600,
+        "ships": 24744,
+        "exploration": 2160
+      },
+      "cash": 147533
+    },
+    {
+      "level": 85,
+      "ships": 30,
+      "baseShipLimit": 20,
+      "researchShipSlots": 10,
+      "fleetReadyMinutes": 8691.5,
+      "minutes": 9367,
+      "stageMinutes": 778.33,
+      "upgradeCost": 1472000,
+      "isBreakthrough": true,
+      "breakthroughFactor": 10,
+      "workingCapital": 8576,
+      "cumulativeSpending": {
+        "upgrades": 9612600,
+        "research": 5081900,
+        "ships": 24744,
+        "exploration": 2160
+      },
+      "cash": 1472009
+    },
+    {
+      "level": 86,
+      "ships": 30,
+      "baseShipLimit": 20,
+      "researchShipSlots": 10,
+      "fleetReadyMinutes": 9513.5,
+      "minutes": 9582.5,
+      "stageMinutes": 215.5,
+      "upgradeCost": 151900,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 8866,
+      "cumulativeSpending": {
+        "upgrades": 11084600,
+        "research": 5400900,
+        "ships": 24744,
+        "exploration": 2160
+      },
+      "cash": 152060
+    },
+    {
+      "level": 87,
+      "ships": 31,
+      "baseShipLimit": 21,
+      "researchShipSlots": 10,
+      "fleetReadyMinutes": 9583.5,
+      "minutes": 9653.5,
+      "stageMinutes": 71,
+      "upgradeCost": 154300,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 9092,
+      "cumulativeSpending": {
+        "upgrades": 11236500,
+        "research": 5400900,
+        "ships": 26206,
+        "exploration": 2160
+      },
+      "cash": 154672
+    },
+    {
+      "level": 88,
+      "ships": 31,
+      "baseShipLimit": 21,
+      "researchShipSlots": 10,
+      "fleetReadyMinutes": 9728.33,
+      "minutes": 9798.5,
+      "stageMinutes": 145,
+      "upgradeCost": 156700,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 9092,
+      "cumulativeSpending": {
+        "upgrades": 11390800,
+        "research": 5565500,
+        "ships": 26206,
+        "exploration": 2160
+      },
+      "cash": 157281
+    },
+    {
+      "level": 89,
+      "ships": 33,
+      "baseShipLimit": 22,
+      "researchShipSlots": 11,
+      "fleetReadyMinutes": 9912.17,
+      "minutes": 9983.33,
+      "stageMinutes": 184.83,
+      "upgradeCost": 159000,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 9883,
+      "cumulativeSpending": {
+        "upgrades": 11547500,
+        "research": 5816000,
+        "ships": 29012,
+        "exploration": 2160
+      },
+      "cash": 159403
+    },
+    {
+      "level": 90,
+      "ships": 33,
+      "baseShipLimit": 22,
+      "researchShipSlots": 11,
+      "fleetReadyMinutes": 9983.5,
+      "minutes": 10729.83,
+      "stageMinutes": 746.5,
+      "upgradeCost": 1669500,
+      "isBreakthrough": true,
+      "breakthroughFactor": 10.5,
+      "workingCapital": 9883,
+      "cumulativeSpending": {
+        "upgrades": 11706500,
+        "research": 5816000,
+        "ships": 29012,
+        "exploration": 2160
+      },
+      "cash": 1669538
+    },
+    {
+      "level": 91,
+      "ships": 34,
+      "baseShipLimit": 23,
+      "researchShipSlots": 11,
+      "fleetReadyMinutes": 10894.5,
+      "minutes": 10969,
+      "stageMinutes": 239.17,
+      "upgradeCost": 166400,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 10488,
+      "cumulativeSpending": {
+        "upgrades": 13376000,
+        "research": 6182100,
+        "ships": 30512,
+        "exploration": 2160
+      },
+      "cash": 166597
+    },
+    {
+      "level": 92,
+      "ships": 35,
+      "baseShipLimit": 24,
+      "researchShipSlots": 11,
+      "fleetReadyMinutes": 11137.33,
+      "minutes": 11211.33,
+      "stageMinutes": 242.33,
+      "upgradeCost": 170000,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 11008,
+      "cumulativeSpending": {
+        "upgrades": 13542400,
+        "research": 6556100,
+        "ships": 32246,
+        "exploration": 2160
+      },
+      "cash": 170096
+    },
+    {
+      "level": 93,
+      "ships": 35,
+      "baseShipLimit": 24,
+      "researchShipSlots": 11,
+      "fleetReadyMinutes": 11211.5,
+      "minutes": 11287,
+      "stageMinutes": 75.67,
+      "upgradeCost": 173700,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 11008,
+      "cumulativeSpending": {
+        "upgrades": 13712400,
+        "research": 6556100,
+        "ships": 32246,
+        "exploration": 2160
+      },
+      "cash": 173885
+    },
+    {
+      "level": 94,
+      "ships": 36,
+      "baseShipLimit": 25,
+      "researchShipSlots": 11,
+      "fleetReadyMinutes": 11372.83,
+      "minutes": 11448.5,
+      "stageMinutes": 161.5,
+      "upgradeCost": 177400,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 11228,
+      "cumulativeSpending": {
+        "upgrades": 13886100,
+        "research": 6751300,
+        "ships": 34009,
+        "exploration": 2160
+      },
+      "cash": 177442
+    },
+    {
+      "level": 95,
+      "ships": 39,
+      "baseShipLimit": 26,
+      "researchShipSlots": 13,
+      "fleetReadyMinutes": 12090,
+      "minutes": 12924.5,
+      "stageMinutes": 1476,
+      "upgradeCost": 1951400,
+      "isBreakthrough": true,
+      "breakthroughFactor": 11,
+      "workingCapital": 12301,
+      "cumulativeSpending": {
+        "upgrades": 14063500,
+        "research": 8244600,
+        "ships": 39131,
+        "exploration": 2160
+      },
+      "cash": 1952173
+    },
+    {
+      "level": 96,
+      "ships": 39,
+      "baseShipLimit": 26,
+      "researchShipSlots": 13,
+      "fleetReadyMinutes": 12924.67,
+      "minutes": 13001.67,
+      "stageMinutes": 77.17,
+      "upgradeCost": 181000,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 12301,
+      "cumulativeSpending": {
+        "upgrades": 16014900,
+        "research": 8244600,
+        "ships": 39131,
+        "exploration": 2160
+      },
+      "cash": 181016
+    },
+    {
+      "level": 97,
+      "ships": 40,
+      "baseShipLimit": 27,
+      "researchShipSlots": 13,
+      "fleetReadyMinutes": 13091.67,
+      "minutes": 13168,
+      "stageMinutes": 166.33,
+      "upgradeCost": 181000,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 12693,
+      "cumulativeSpending": {
+        "upgrades": 16195900,
+        "research": 8452800,
+        "ships": 40931,
+        "exploration": 2160
+      },
+      "cash": 181160
+    },
+    {
+      "level": 98,
+      "ships": 41,
+      "baseShipLimit": 28,
+      "researchShipSlots": 13,
+      "fleetReadyMinutes": 13300.5,
+      "minutes": 13374.83,
+      "stageMinutes": 206.83,
+      "upgradeCost": 181000,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 12859,
+      "cumulativeSpending": {
+        "upgrades": 16376900,
+        "research": 8765100,
+        "ships": 43012,
+        "exploration": 2160
+      },
+      "cash": 181006
+    },
+    {
+      "level": 99,
+      "ships": 42,
+      "baseShipLimit": 29,
+      "researchShipSlots": 13,
+      "fleetReadyMinutes": 13375.83,
+      "minutes": 13450.33,
+      "stageMinutes": 75.5,
+      "upgradeCost": 181000,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 13079,
+      "cumulativeSpending": {
+        "upgrades": 16557900,
+        "research": 8765100,
+        "ships": 45128,
+        "exploration": 2160
+      },
+      "cash": 181368
+    },
+    {
+      "level": 100,
+      "ships": 45,
+      "baseShipLimit": 30,
+      "researchShipSlots": 15,
+      "fleetReadyMinutes": 13710,
+      "minutes": 13710,
+      "stageMinutes": 259.67,
+      "upgradeCost": null,
+      "isBreakthrough": false,
+      "breakthroughFactor": null,
+      "workingCapital": 14152,
+      "cumulativeSpending": {
+        "upgrades": 16738900,
+        "research": 9389600,
+        "ships": 51274,
+        "exploration": 2160
+      },
+      "cash": 312
+    }
+  ],
+  "exploration": [
+    {
+      "portId": "nebula_forge",
+      "startedMinutes": 439.83,
+      "durationSeconds": 65.388,
+      "cost": 360,
+      "completedMinutes": 441
+    },
+    {
+      "portId": "aurora_depot",
+      "startedMinutes": 3185.83,
+      "durationSeconds": 96.632,
+      "cost": 1800,
+      "completedMinutes": 3187.5
+    }
+  ],
+  "researchedTechs": 65,
+  "ships": 45,
+  "spending": {
+    "upgrades": 16738900,
+    "research": 9389600,
+    "ships": 51274,
+    "exploration": 2160
+  },
+  "netProfit": 26195398,
+  "finalCash": 312,
+  "committedCapital": 14152,
+  "dispatches": 47,
+  "research": [
+    {
+      "techId": "efficient_engines",
+      "cost": 500,
+      "level": 1,
+      "minutes": 0.17
+    },
+    {
+      "techId": "thruster_calibration",
+      "cost": 500,
+      "level": 3,
+      "minutes": 18.83
+    },
+    {
+      "techId": "fuel_injection",
+      "cost": 300,
+      "level": 4,
+      "minutes": 28.83
+    },
+    {
+      "techId": "clipper_design",
+      "cost": 3300,
+      "level": 6,
+      "minutes": 68.17
+    },
+    {
+      "techId": "cargo_partitions",
+      "cost": 800,
+      "level": 7,
+      "minutes": 82.33
+    },
+    {
+      "techId": "berth_planning",
+      "cost": 2500,
+      "level": 9,
+      "minutes": 117.5
+    },
+    {
+      "techId": "hauler_design",
+      "cost": 4700,
+      "level": 10,
+      "minutes": 137.17
+    },
+    {
+      "techId": "loading_frames",
+      "cost": 1400,
+      "level": 12,
+      "minutes": 167
+    },
+    {
+      "techId": "trade_quotes",
+      "cost": 1500,
+      "level": 13,
+      "minutes": 180
+    },
+    {
+      "techId": "fleet_command",
+      "cost": 7100,
+      "level": 15,
+      "minutes": 213.33
+    },
+    {
+      "techId": "engine_cooling",
+      "cost": 2000,
+      "level": 16,
+      "minutes": 246.83
+    },
+    {
+      "techId": "storage_layout",
+      "cost": 2200,
+      "level": 18,
+      "minutes": 273.17
+    },
+    {
+      "techId": "market_network",
+      "cost": 5900,
+      "level": 20,
+      "minutes": 308.17
+    },
+    {
+      "techId": "vector_nozzles",
+      "cost": 2800,
+      "level": 21,
+      "minutes": 355.83
+    },
+    {
+      "techId": "pallet_system",
+      "cost": 3000,
+      "level": 23,
+      "minutes": 388.17
+    },
+    {
+      "techId": "planet_survey",
+      "cost": 19800,
+      "level": 24,
+      "minutes": 439.33
+    },
+    {
+      "techId": "cruise_tuning",
+      "cost": 6700,
+      "level": 26,
+      "minutes": 514.83
+    },
+    {
+      "techId": "local_contracts",
+      "cost": 7800,
+      "level": 27,
+      "minutes": 544.17
+    },
+    {
+      "techId": "dock_scheduling",
+      "cost": 14900,
+      "level": 29,
+      "minutes": 609.83
+    },
+    {
+      "techId": "cargo_racks",
+      "cost": 10600,
+      "level": 30,
+      "minutes": 640
+    },
+    {
+      "techId": "payment_terms",
+      "cost": 13100,
+      "level": 32,
+      "minutes": 760.17
+    },
+    {
+      "techId": "berth_rotation",
+      "cost": 20700,
+      "level": 33,
+      "minutes": 800.5
+    },
+    {
+      "techId": "fast_navigation",
+      "cost": 128200,
+      "level": 35,
+      "minutes": 948.67
+    },
+    {
+      "techId": "autopilot_trim",
+      "cost": 17100,
+      "level": 37,
+      "minutes": 1100.33
+    },
+    {
+      "techId": "rack_reinforcement",
+      "cost": 26300,
+      "level": 38,
+      "minutes": 1146
+    },
+    {
+      "techId": "fulfillment_protocol",
+      "cost": 18500,
+      "level": 40,
+      "minutes": 1212
+    },
+    {
+      "techId": "trade_contracts",
+      "cost": 10500,
+      "level": 41,
+      "minutes": 1361
+    },
+    {
+      "techId": "container_stacking",
+      "cost": 33600,
+      "level": 43,
+      "minutes": 1442.33
+    },
+    {
+      "techId": "regional_berths",
+      "cost": 34700,
+      "level": 44,
+      "minutes": 1498.67
+    },
+    {
+      "techId": "engine_tuning",
+      "cost": 26400,
+      "level": 46,
+      "minutes": 1729.5
+    },
+    {
+      "techId": "hold_balancing",
+      "cost": 40500,
+      "level": 47,
+      "minutes": 1792.5
+    },
+    {
+      "techId": "margin_audits",
+      "cost": 28300,
+      "level": 49,
+      "minutes": 1879.83
+    },
+    {
+      "techId": "parallel_docks",
+      "cost": 95600,
+      "level": 51,
+      "minutes": 2198.33
+    },
+    {
+      "techId": "bulk_logistics",
+      "cost": 336000,
+      "level": 52,
+      "minutes": 2488.5
+    },
+    {
+      "techId": "ion_channels",
+      "cost": 37100,
+      "level": 54,
+      "minutes": 2591
+    },
+    {
+      "techId": "partner_rebates",
+      "cost": 38900,
+      "level": 55,
+      "minutes": 2660.33
+    },
+    {
+      "techId": "deep_survey",
+      "cost": 275100,
+      "level": 57,
+      "minutes": 3184.5
+    },
+    {
+      "techId": "plasma_flow",
+      "cost": 52500,
+      "level": 58,
+      "minutes": 3272.33
+    },
+    {
+      "techId": "cargo_connectors",
+      "cost": 89600,
+      "level": 60,
+      "minutes": 3432.5
+    },
+    {
+      "techId": "freight_pricing",
+      "cost": 67600,
+      "level": 61,
+      "minutes": 3858.5
+    },
+    {
+      "techId": "dock_network",
+      "cost": 112800,
+      "level": 63,
+      "minutes": 4035.33
+    },
+    {
+      "techId": "cargo_expansion",
+      "cost": 116400,
+      "level": 64,
+      "minutes": 4149.67
+    },
+    {
+      "techId": "warp_alignment",
+      "cost": 87600,
+      "level": 66,
+      "minutes": 4618.67
+    },
+    {
+      "techId": "distribution_terms",
+      "cost": 92700,
+      "level": 68,
+      "minutes": 4766.67
+    },
+    {
+      "techId": "remote_berths",
+      "cost": 142800,
+      "level": 69,
+      "minutes": 4888.67
+    },
+    {
+      "techId": "integrated_freight",
+      "cost": 1305000,
+      "level": 71,
+      "minutes": 6037
+    },
+    {
+      "techId": "field_stabilization",
+      "cost": 106200,
+      "level": 72,
+      "minutes": 6144.5
+    },
+    {
+      "techId": "lightweight_containers",
+      "cost": 219600,
+      "level": 74,
+      "minutes": 6366.5
+    },
+    {
+      "techId": "volume_contracts",
+      "cost": 111600,
+      "level": 75,
+      "minutes": 6478.33
+    },
+    {
+      "techId": "trade_negotiation",
+      "cost": 123000,
+      "level": 77,
+      "minutes": 7112
+    },
+    {
+      "techId": "navigation_precision",
+      "cost": 125400,
+      "level": 78,
+      "minutes": 7230.33
+    },
+    {
+      "techId": "compression_cradles",
+      "cost": 261100,
+      "level": 80,
+      "minutes": 7475
+    },
+    {
+      "techId": "fleet_hubs",
+      "cost": 420000,
+      "level": 81,
+      "minutes": 8255.67
+    },
+    {
+      "techId": "advanced_engines",
+      "cost": 144800,
+      "level": 83,
+      "minutes": 8453.83
+    },
+    {
+      "techId": "jump_efficiency",
+      "cost": 224300,
+      "level": 85,
+      "minutes": 8691.5
+    },
+    {
+      "techId": "distributed_storage",
+      "cost": 319000,
+      "level": 86,
+      "minutes": 9513.5
+    },
+    {
+      "techId": "settlement_network",
+      "cost": 164600,
+      "level": 88,
+      "minutes": 9728.33
+    },
+    {
+      "techId": "hub_coordination",
+      "cost": 250500,
+      "level": 89,
+      "minutes": 9910.5
+    },
+    {
+      "techId": "modular_cargo",
+      "cost": 366100,
+      "level": 91,
+      "minutes": 10893.5
+    },
+    {
+      "techId": "adaptive_bulkheads",
+      "cost": 374000,
+      "level": 92,
+      "minutes": 11136.33
+    },
+    {
+      "techId": "regional_arbitrage",
+      "cost": 195200,
+      "level": 94,
+      "minutes": 11372
+    },
+    {
+      "techId": "interstellar_docks",
+      "cost": 1493300,
+      "level": 95,
+      "minutes": 12087.33
+    },
+    {
+      "techId": "trade_network",
+      "cost": 208200,
+      "level": 97,
+      "minutes": 13090.83
+    },
+    {
+      "techId": "alliance_dividends",
+      "cost": 312300,
+      "level": 98,
+      "minutes": 13299.5
+    },
+    {
+      "techId": "alliance_berths",
+      "cost": 624500,
+      "level": 100,
+      "minutes": 13707
+    }
+  ]
+}

@@ -1,0 +1,110 @@
+{
+  "strategy": "新局仅一个船位，先经营原轻舟积累升级至 Lv.2，研发船位规划后购买第二艘轻舟并开通反向商路；按级积累与升级至 Lv.6，备齐研发与探索费用，完成新港勘察研发，再停止原贸易、完整返港并付费探索。每秒查看，不赠资源、不改航速。",
+  "completed": true,
+  "timeline": [
+    {
+      "milestone": "首航出发",
+      "seconds": 0,
+      "cash": 874,
+      "level": 1,
+      "ships": 1,
+      "tasks": 1
+    },
+    {
+      "milestone": "首笔净利到账",
+      "seconds": 18,
+      "cash": 916,
+      "level": 1,
+      "ships": 1,
+      "tasks": 1
+    },
+    {
+      "milestone": "升级至 Lv.2",
+      "seconds": 515,
+      "cash": 34,
+      "level": 2,
+      "ships": 1,
+      "tasks": 1
+    },
+    {
+      "milestone": "船位规划研发完成",
+      "seconds": 549,
+      "cash": 18,
+      "level": 2,
+      "ships": 1,
+      "tasks": 1
+    },
+    {
+      "milestone": "第二条商路出发",
+      "seconds": 755,
+      "cash": 24,
+      "level": 2,
+      "ships": 2,
+      "tasks": 2
+    },
+    {
+      "milestone": "升级至 Lv.3",
+      "seconds": 1286,
+      "cash": 6,
+      "level": 3,
+      "ships": 2,
+      "tasks": 2
+    },
+    {
+      "milestone": "升级至 Lv.4",
+      "seconds": 2058,
+      "cash": 32,
+      "level": 4,
+      "ships": 2,
+      "tasks": 2
+    },
+    {
+      "milestone": "升级至 Lv.5",
+      "seconds": 3035,
+      "cash": 22,
+      "level": 5,
+      "ships": 2,
+      "tasks": 2
+    },
+    {
+      "milestone": "升级至 Lv.6",
+      "seconds": 4321,
+      "cash": 788,
+      "level": 6,
+      "ships": 2,
+      "tasks": 2
+    },
+    {
+      "milestone": "新港勘察研发完成，等待探索船返港",
+      "seconds": 4321,
+      "cash": 368,
+      "level": 6,
+      "ships": 2,
+      "tasks": 2
+    },
+    {
+      "milestone": "首次探索出发",
+      "seconds": 4338,
+      "cash": 176,
+      "level": 6,
+      "ships": 2,
+      "tasks": 1
+    },
+    {
+      "milestone": "探索返港，新港开放",
+      "seconds": 4399,
+      "cash": 440,
+      "level": 6,
+      "ships": 2,
+      "tasks": 1
+    }
+  ],
+  "netProfit": 24618,
+  "spent": {
+    "ship": 336,
+    "company": 23800,
+    "research": 520,
+    "exploration": 360
+  },
+  "operatingCapital": 162
+}

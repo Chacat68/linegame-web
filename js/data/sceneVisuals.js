@@ -29,6 +29,7 @@ const LOCATION_VISUALS = Object.freeze({
   sol_prime: Object.freeze({ bodyKind: 'planet', radius: 11, landmark: 'agri-port' }),
   mineral_belt: Object.freeze({ bodyKind: 'asteroids', radius: 10, landmark: null }),
   nebula_forge: Object.freeze({ bodyKind: 'planet', radius: 9, landmark: 'industrial-port' }),
+  aurora_depot: Object.freeze({ bodyKind: 'asteroids', radius: 9, landmark: null }),
 });
 
 const ENVIRONMENTS = Object.freeze(Object.fromEntries([

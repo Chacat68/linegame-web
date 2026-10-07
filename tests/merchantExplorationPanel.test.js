@@ -1,3 +1,4 @@
+import { restoreLegacyMerchantAccess } from '../js/systems/merchant/MerchantTechnology.js';
 import { expect, it, vi } from 'vitest';
 import { createInitialState } from '../js/data/constants.js';
 import * as Merchant from '../js/systems/merchant/MerchantSystem.js';
@@ -8,19 +9,21 @@ import { documentFixture } from './helpers/merchantDom.js';
 function harness() {
   let now = 1_800_000_000_000;
   const state = createInitialState({ credits: 5000 });
-  state.merchant.companyLevel = 2; state.merchant.exploration.rngState = 42;
+  state.merchant.companyLevel = 29; state.merchant.exploration.rngState = 42;
+  restoreLegacyMerchantAccess(state.merchant);
   Merchant.init(state, now); Merchant.advance(state, now);
-  now = state.merchant.exploration.nextEventAt; Merchant.advance(state, now);
+  now = state.merchant.exploration.event.appearedAt; Merchant.advance(state, now);
   const purchased = Merchant.command(state, 'buyShip', { typeId: 'clipper' }, now);
   expect(purchased.ok).toBe(true);
   const doc = documentFixture(), map = doc.createElement('div'); doc.body.appendChild(map);
   const renderer = { getExplorationScreenPosition: vi.fn() };
   const execute = vi.fn((action, input) => Merchant.command(state, action, input, now));
-  const api = createMerchantExplorationPanel({ doc, map, renderer, getState: () => state, execute });
+  const onPort = vi.fn(), onFleet = vi.fn();
+  const api = createMerchantExplorationPanel({ doc, map, renderer, getState: () => state, execute, onPort, onFleet });
   const [signal, panel] = map.children;
   const refresh = () => api.refresh(state, true, now);
   refresh(); signal.fire('click');
-  return { state, doc, map, signal, panel, api, renderer, execute, shipId: purchased.shipIds[0], refresh,
+  return { state, doc, map, signal, panel, api, renderer, execute, onPort, onFleet, shipId: purchased.shipIds[0], refresh,
     buy: typeId => Merchant.command(state, 'buyShip', { typeId }, now),
     advance: at => { now = at; Merchant.advance(state, now); refresh(); },
   };
@@ -94,5 +97,21 @@ it('信号贴近资源栏或底部导航时保留固定入口，空间足够才�
   h.renderer.getExplorationScreenPosition.mockReturnValue({ x: 300, y: 160, onScreen: true }); h.refresh();
   expect(h.signal.classList.contains('is-on-signal')).toBe(true);
   expect(h.signal.style.left).toBe('300px'); expect(h.signal.style.top).toBe('160px');
+  h.api.dispose();
+});
+
+it('探索展示扣费后余额，完整返港只提供经营入口，不在星图铺开商路列表', () => {
+  const h = harness();
+  expect(h.panel.querySelector('[data-exploration-balance]').textContent).toBe(`${(h.state.credits - 360).toLocaleString('zh-CN')} CR`);
+  const ship = h.panel.querySelector('[data-exploration-field="ship"]');
+  ship.value = h.shipId; ship.fire('change');
+  h.panel.querySelector('[data-exploration-form]').fire('submit', { preventDefault: vi.fn() });
+  const event = h.state.merchant.exploration.event;
+  h.advance(event.arriveAt + event.legMs);
+  expect(h.panel.querySelectorAll('[data-exploration-route]')).toHaveLength(0);
+  expect(h.panel.querySelectorAll('.merchant-new-port-routes')).toHaveLength(0);
+  h.panel.querySelector('[data-exploration-port]').fire('click');
+  expect(h.onPort).toHaveBeenCalledExactlyOnceWith('nebula_forge');
+  expect(h.panel.hidden).toBe(true);
   h.api.dispose();
 });

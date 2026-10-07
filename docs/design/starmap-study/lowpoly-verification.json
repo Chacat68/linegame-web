@@ -1,0 +1,1278 @@
+{
+  "version": "lowpoly-reference-v1",
+  "checkedAt": "2026-10-05T15:42:28.883Z",
+  "environment": "Codex 内置浏览器；手机尺寸为视口模拟",
+  "build": "独立 realtime.html Vite 生产构建通过，生产预览已验证",
+  "scope": "只调整独立演示场景，继续引用原 UI；摄影贴图与复杂星云不再加载",
+  "measurement": "FPS 取最近两秒的实际动画绘制；CPU P95 为最近 60 个动画帧；不包含 GPU 完成时间",
+  "checks": [
+    {
+      "name": "desktop_scale_and_view",
+      "pass": true,
+      "metrics": {
+        "style": "cinematic",
+        "quality": "balanced",
+        "ships": 6,
+        "ready": true,
+        "calls": 65,
+        "triangles": 30704,
+        "geometries": 63,
+        "textures": 6,
+        "fps": 0,
+        "frameCPUms": 0.9,
+        "frameSamples": 0,
+        "drawIntervalP95ms": 0,
+        "frameCPUP95ms": 0,
+        "buildCPUms": 72.3,
+        "dpr": 1,
+        "width": 1280,
+        "height": 820,
+        "zoom": 1,
+        "pan": [
+          0,
+          0
+        ],
+        "selected": 0,
+        "paused": false,
+        "overlayOpen": false,
+        "draws": 2,
+        "builds": 1,
+        "elapsed": 0,
+        "engine": "Three.js 185",
+        "source": "实时低多边形模型、程序化色场与简洁背景",
+        "bodyGeometry": [
+          "IcosahedronGeometry",
+          "组合矿体",
+          "IcosahedronGeometry",
+          "组合矿体"
+        ],
+        "modelAngle": -0.4,
+        "viewTilt": [
+          0.58,
+          -0.4,
+          0
+        ],
+        "portScalePx": [
+          88,
+          77.4,
+          82.7,
+          73
+        ],
+        "sunRadiusPx": 40,
+        "starCount": 120,
+        "scope": "独立四港演示航次，不连接玩家存档；CPU 时间不等于 GPU 完成时间"
+      }
+    },
+    {
+      "name": "rotation",
+      "pass": true,
+      "metrics": {
+        "style": "cinematic",
+        "quality": "balanced",
+        "ships": 6,
+        "ready": true,
+        "calls": 65,
+        "triangles": 30704,
+        "geometries": 63,
+        "textures": 6,
+        "fps": 30.1,
+        "frameCPUms": 0.7,
+        "frameSamples": 3,
+        "drawIntervalP95ms": 33.3,
+        "frameCPUP95ms": 0.7,
+        "buildCPUms": 72.3,
+        "dpr": 1,
+        "width": 1280,
+        "height": 820,
+        "zoom": 1,
+        "pan": [
+          0,
+          0
+        ],
+        "selected": 0,
+        "paused": false,
+        "overlayOpen": false,
+        "draws": 6,
+        "builds": 1,
+        "elapsed": 0.1,
+        "engine": "Three.js 185",
+        "source": "实时低多边形模型、程序化色场与简洁背景",
+        "bodyGeometry": [
+          "IcosahedronGeometry",
+          "组合矿体",
+          "IcosahedronGeometry",
+          "组合矿体"
+        ],
+        "modelAngle": -0.086,
+        "viewTilt": [
+          0.58,
+          -0.086,
+          0
+        ],
+        "portScalePx": [
+          88,
+          77.4,
+          82.7,
+          73
+        ],
+        "sunRadiusPx": 40,
+        "starCount": 120,
+        "scope": "独立四港演示航次，不连接玩家存档；CPU 时间不等于 GPU 完成时间"
+      }
+    },
+    {
+      "name": "restore_oblique_view",
+      "pass": true,
+      "metrics": {
+        "style": "cinematic",
+        "quality": "balanced",
+        "ships": 6,
+        "ready": true,
+        "calls": 65,
+        "triangles": 30704,
+        "geometries": 63,
+        "textures": 6,
+        "fps": 30,
+        "frameCPUms": 0.6,
+        "frameSamples": 10,
+        "drawIntervalP95ms": 33.6,
+        "frameCPUP95ms": 0.8,
+        "buildCPUms": 72.3,
+        "dpr": 1,
+        "width": 1280,
+        "height": 820,
+        "zoom": 1,
+        "pan": [
+          0,
+          0
+        ],
+        "selected": 0,
+        "paused": false,
+        "overlayOpen": false,
+        "draws": 14,
+        "builds": 1,
+        "elapsed": 0.333,
+        "engine": "Three.js 185",
+        "source": "实时低多边形模型、程序化色场与简洁背景",
+        "bodyGeometry": [
+          "IcosahedronGeometry",
+          "组合矿体",
+          "IcosahedronGeometry",
+          "组合矿体"
+        ],
+        "modelAngle": -0.4,
+        "viewTilt": [
+          0.58,
+          -0.4,
+          0
+        ],
+        "portScalePx": [
+          88,
+          77.4,
+          82.7,
+          73
+        ],
+        "sunRadiusPx": 40,
+        "starCount": 120,
+        "scope": "独立四港演示航次，不连接玩家存档；CPU 时间不等于 GPU 完成时间"
+      }
+    },
+    {
+      "name": "instanced_fleet",
+      "pass": true,
+      "from": {
+        "style": "cinematic",
+        "quality": "balanced",
+        "ships": 2,
+        "ready": true,
+        "calls": 65,
+        "triangles": 23144,
+        "geometries": 63,
+        "textures": 6,
+        "fps": 30,
+        "frameCPUms": 0.6,
+        "frameSamples": 30,
+        "drawIntervalP95ms": 34.3,
+        "frameCPUP95ms": 1.4,
+        "buildCPUms": 72.3,
+        "dpr": 1,
+        "width": 1280,
+        "height": 820,
+        "zoom": 1,
+        "pan": [
+          0,
+          0
+        ],
+        "selected": 0,
+        "paused": false,
+        "overlayOpen": true,
+        "draws": 35,
+        "builds": 1,
+        "elapsed": 1,
+        "engine": "Three.js 185",
+        "source": "实时低多边形模型、程序化色场与简洁背景",
+        "bodyGeometry": [
+          "IcosahedronGeometry",
+          "组合矿体",
+          "IcosahedronGeometry",
+          "组合矿体"
+        ],
+        "modelAngle": -0.4,
+        "viewTilt": [
+          0.58,
+          -0.4,
+          0
+        ],
+        "portScalePx": [
+          88,
+          77.4,
+          82.7,
+          73
+        ],
+        "sunRadiusPx": 40,
+        "starCount": 120,
+        "scope": "独立四港演示航次，不连接玩家存档；CPU 时间不等于 GPU 完成时间"
+      },
+      "to": {
+        "style": "cinematic",
+        "quality": "balanced",
+        "ships": 12,
+        "ready": true,
+        "calls": 65,
+        "triangles": 42044,
+        "geometries": 63,
+        "textures": 6,
+        "fps": 30,
+        "frameCPUms": 0.5,
+        "frameSamples": 30,
+        "drawIntervalP95ms": 34.3,
+        "frameCPUP95ms": 1.4,
+        "buildCPUms": 72.3,
+        "dpr": 1,
+        "width": 1280,
+        "height": 820,
+        "zoom": 1,
+        "pan": [
+          0,
+          0
+        ],
+        "selected": 0,
+        "paused": false,
+        "overlayOpen": true,
+        "draws": 36,
+        "builds": 1,
+        "elapsed": 1,
+        "engine": "Three.js 185",
+        "source": "实时低多边形模型、程序化色场与简洁背景",
+        "bodyGeometry": [
+          "IcosahedronGeometry",
+          "组合矿体",
+          "IcosahedronGeometry",
+          "组合矿体"
+        ],
+        "modelAngle": -0.4,
+        "viewTilt": [
+          0.58,
+          -0.4,
+          0
+        ],
+        "portScalePx": [
+          88,
+          77.4,
+          82.7,
+          73
+        ],
+        "sunRadiusPx": 40,
+        "starCount": 120,
+        "scope": "独立四港演示航次，不连接玩家存档；CPU 时间不等于 GPU 完成时间"
+      }
+    },
+    {
+      "name": "settings_stop_rendering",
+      "pass": true,
+      "metrics": {
+        "style": "cinematic",
+        "quality": "balanced",
+        "ships": 12,
+        "ready": true,
+        "calls": 65,
+        "triangles": 42044,
+        "geometries": 63,
+        "textures": 6,
+        "fps": 30,
+        "frameCPUms": 0.5,
+        "frameSamples": 30,
+        "drawIntervalP95ms": 34.3,
+        "frameCPUP95ms": 1.4,
+        "buildCPUms": 72.3,
+        "dpr": 1,
+        "width": 1280,
+        "height": 820,
+        "zoom": 1,
+        "pan": [
+          0,
+          0
+        ],
+        "selected": 0,
+        "paused": false,
+        "overlayOpen": true,
+        "draws": 36,
+        "builds": 1,
+        "elapsed": 1,
+        "engine": "Three.js 185",
+        "source": "实时低多边形模型、程序化色场与简洁背景",
+        "bodyGeometry": [
+          "IcosahedronGeometry",
+          "组合矿体",
+          "IcosahedronGeometry",
+          "组合矿体"
+        ],
+        "modelAngle": -0.4,
+        "viewTilt": [
+          0.58,
+          -0.4,
+          0
+        ],
+        "portScalePx": [
+          88,
+          77.4,
+          82.7,
+          73
+        ],
+        "sunRadiusPx": 40,
+        "starCount": 120,
+        "scope": "独立四港演示航次，不连接玩家存档；CPU 时间不等于 GPU 完成时间"
+      }
+    },
+    {
+      "name": "quality_light",
+      "pass": true,
+      "metrics": {
+        "style": "cinematic",
+        "quality": "light",
+        "ships": 12,
+        "ready": true,
+        "calls": 65,
+        "triangles": 35692,
+        "geometries": 63,
+        "textures": 6,
+        "fps": 0,
+        "frameCPUms": 57.5,
+        "frameSamples": 0,
+        "drawIntervalP95ms": 0,
+        "frameCPUP95ms": 0,
+        "buildCPUms": 61.6,
+        "dpr": 1,
+        "width": 1280,
+        "height": 820,
+        "zoom": 1,
+        "pan": [
+          0,
+          0
+        ],
+        "selected": 0,
+        "paused": false,
+        "overlayOpen": true,
+        "draws": 37,
+        "builds": 2,
+        "elapsed": 1,
+        "engine": "Three.js 185",
+        "source": "实时低多边形模型、程序化色场与简洁背景",
+        "bodyGeometry": [
+          "IcosahedronGeometry",
+          "组合矿体",
+          "IcosahedronGeometry",
+          "组合矿体"
+        ],
+        "modelAngle": -0.4,
+        "viewTilt": [
+          0.58,
+          -0.4,
+          0
+        ],
+        "portScalePx": [
+          88,
+          77.4,
+          82.7,
+          73
+        ],
+        "sunRadiusPx": 40,
+        "starCount": 80,
+        "scope": "独立四港演示航次，不连接玩家存档；CPU 时间不等于 GPU 完成时间"
+      }
+    },
+    {
+      "name": "quality_detail",
+      "pass": true,
+      "metrics": {
+        "style": "cinematic",
+        "quality": "detail",
+        "ships": 12,
+        "ready": true,
+        "calls": 65,
+        "triangles": 44284,
+        "geometries": 63,
+        "textures": 6,
+        "fps": 0,
+        "frameCPUms": 49.4,
+        "frameSamples": 0,
+        "drawIntervalP95ms": 0,
+        "frameCPUP95ms": 0,
+        "buildCPUms": 120.4,
+        "dpr": 1,
+        "width": 1280,
+        "height": 820,
+        "zoom": 1,
+        "pan": [
+          0,
+          0
+        ],
+        "selected": 0,
+        "paused": false,
+        "overlayOpen": true,
+        "draws": 38,
+        "builds": 3,
+        "elapsed": 1,
+        "engine": "Three.js 185",
+        "source": "实时低多边形模型、程序化色场与简洁背景",
+        "bodyGeometry": [
+          "IcosahedronGeometry",
+          "组合矿体",
+          "IcosahedronGeometry",
+          "组合矿体"
+        ],
+        "modelAngle": -0.4,
+        "viewTilt": [
+          0.58,
+          -0.4,
+          0
+        ],
+        "portScalePx": [
+          88,
+          77.4,
+          82.7,
+          73
+        ],
+        "sunRadiusPx": 40,
+        "starCount": 180,
+        "scope": "独立四港演示航次，不连接玩家存档；CPU 时间不等于 GPU 完成时间"
+      }
+    },
+    {
+      "name": "quality_balanced",
+      "pass": true,
+      "metrics": {
+        "style": "cinematic",
+        "quality": "balanced",
+        "ships": 12,
+        "ready": true,
+        "calls": 65,
+        "triangles": 42044,
+        "geometries": 63,
+        "textures": 6,
+        "fps": 0,
+        "frameCPUms": 49.6,
+        "frameSamples": 0,
+        "drawIntervalP95ms": 0,
+        "frameCPUP95ms": 0,
+        "buildCPUms": 50.8,
+        "dpr": 1,
+        "width": 1280,
+        "height": 820,
+        "zoom": 1,
+        "pan": [
+          0,
+          0
+        ],
+        "selected": 0,
+        "paused": false,
+        "overlayOpen": true,
+        "draws": 39,
+        "builds": 4,
+        "elapsed": 1,
+        "engine": "Three.js 185",
+        "source": "实时低多边形模型、程序化色场与简洁背景",
+        "bodyGeometry": [
+          "IcosahedronGeometry",
+          "组合矿体",
+          "IcosahedronGeometry",
+          "组合矿体"
+        ],
+        "modelAngle": -0.4,
+        "viewTilt": [
+          0.58,
+          -0.4,
+          0
+        ],
+        "portScalePx": [
+          88,
+          77.4,
+          82.7,
+          73
+        ],
+        "sunRadiusPx": 40,
+        "starCount": 120,
+        "scope": "独立四港演示航次，不连接玩家存档；CPU 时间不等于 GPU 完成时间"
+      }
+    },
+    {
+      "name": "style_miniature_build_5",
+      "pass": true,
+      "metrics": {
+        "style": "miniature",
+        "quality": "balanced",
+        "ships": 12,
+        "ready": true,
+        "calls": 62,
+        "triangles": 70642,
+        "geometries": 58,
+        "textures": 6,
+        "fps": 0,
+        "frameCPUms": 47.2,
+        "frameSamples": 0,
+        "drawIntervalP95ms": 0,
+        "frameCPUP95ms": 0,
+        "buildCPUms": 168.2,
+        "dpr": 1,
+        "width": 1280,
+        "height": 820,
+        "zoom": 1,
+        "pan": [
+          0,
+          0
+        ],
+        "selected": 0,
+        "paused": false,
+        "overlayOpen": true,
+        "draws": 40,
+        "builds": 5,
+        "elapsed": 1,
+        "engine": "Three.js 185",
+        "source": "实时几何体与程序化材质",
+        "bodyGeometry": [
+          "SphereGeometry",
+          "组合矿体",
+          "SphereGeometry",
+          "组合矿体"
+        ],
+        "modelAngle": 0,
+        "viewTilt": [
+          0.06,
+          0,
+          -0.07
+        ],
+        "portScalePx": [
+          112.6,
+          104.8,
+          105.9,
+          93.5
+        ],
+        "sunRadiusPx": 37,
+        "starCount": 600,
+        "scope": "独立四港演示航次，不连接玩家存档；CPU 时间不等于 GPU 完成时间"
+      }
+    },
+    {
+      "name": "style_illustrated_build_6",
+      "pass": true,
+      "metrics": {
+        "style": "illustrated",
+        "quality": "balanced",
+        "ships": 12,
+        "ready": true,
+        "calls": 74,
+        "triangles": 80306,
+        "geometries": 57,
+        "textures": 7,
+        "fps": 0,
+        "frameCPUms": 32.1,
+        "frameSamples": 0,
+        "drawIntervalP95ms": 0,
+        "frameCPUP95ms": 0,
+        "buildCPUms": 154.8,
+        "dpr": 1,
+        "width": 1280,
+        "height": 820,
+        "zoom": 1,
+        "pan": [
+          0,
+          0
+        ],
+        "selected": 0,
+        "paused": false,
+        "overlayOpen": true,
+        "draws": 41,
+        "builds": 6,
+        "elapsed": 1,
+        "engine": "Three.js 185",
+        "source": "实时几何体与程序化材质",
+        "bodyGeometry": [
+          "SphereGeometry",
+          "组合矿体",
+          "SphereGeometry",
+          "组合矿体"
+        ],
+        "modelAngle": 0,
+        "viewTilt": [
+          0.06,
+          0,
+          -0.07
+        ],
+        "portScalePx": [
+          112.6,
+          104.8,
+          105.9,
+          93.5
+        ],
+        "sunRadiusPx": 37,
+        "starCount": 600,
+        "scope": "独立四港演示航次，不连接玩家存档；CPU 时间不等于 GPU 完成时间"
+      }
+    },
+    {
+      "name": "style_cinematic_build_7",
+      "pass": true,
+      "metrics": {
+        "style": "cinematic",
+        "quality": "balanced",
+        "ships": 12,
+        "ready": true,
+        "calls": 65,
+        "triangles": 42044,
+        "geometries": 63,
+        "textures": 6,
+        "fps": 0,
+        "frameCPUms": 49.6,
+        "frameSamples": 0,
+        "drawIntervalP95ms": 0,
+        "frameCPUP95ms": 0,
+        "buildCPUms": 49.2,
+        "dpr": 1,
+        "width": 1280,
+        "height": 820,
+        "zoom": 1,
+        "pan": [
+          0,
+          0
+        ],
+        "selected": 0,
+        "paused": false,
+        "overlayOpen": true,
+        "draws": 42,
+        "builds": 7,
+        "elapsed": 1,
+        "engine": "Three.js 185",
+        "source": "实时低多边形模型、程序化色场与简洁背景",
+        "bodyGeometry": [
+          "IcosahedronGeometry",
+          "组合矿体",
+          "IcosahedronGeometry",
+          "组合矿体"
+        ],
+        "modelAngle": -0.4,
+        "viewTilt": [
+          0.58,
+          -0.4,
+          0
+        ],
+        "portScalePx": [
+          88,
+          77.4,
+          82.7,
+          73
+        ],
+        "sunRadiusPx": 40,
+        "starCount": 120,
+        "scope": "独立四港演示航次，不连接玩家存档；CPU 时间不等于 GPU 完成时间"
+      }
+    },
+    {
+      "name": "style_miniature_build_8",
+      "pass": true,
+      "metrics": {
+        "style": "miniature",
+        "quality": "balanced",
+        "ships": 12,
+        "ready": true,
+        "calls": 62,
+        "triangles": 70642,
+        "geometries": 58,
+        "textures": 6,
+        "fps": 0,
+        "frameCPUms": 46.2,
+        "frameSamples": 0,
+        "drawIntervalP95ms": 0,
+        "frameCPUP95ms": 0,
+        "buildCPUms": 145.6,
+        "dpr": 1,
+        "width": 1280,
+        "height": 820,
+        "zoom": 1,
+        "pan": [
+          0,
+          0
+        ],
+        "selected": 0,
+        "paused": false,
+        "overlayOpen": true,
+        "draws": 43,
+        "builds": 8,
+        "elapsed": 1,
+        "engine": "Three.js 185",
+        "source": "实时几何体与程序化材质",
+        "bodyGeometry": [
+          "SphereGeometry",
+          "组合矿体",
+          "SphereGeometry",
+          "组合矿体"
+        ],
+        "modelAngle": 0,
+        "viewTilt": [
+          0.06,
+          0,
+          -0.07
+        ],
+        "portScalePx": [
+          112.6,
+          104.8,
+          105.9,
+          93.5
+        ],
+        "sunRadiusPx": 37,
+        "starCount": 600,
+        "scope": "独立四港演示航次，不连接玩家存档；CPU 时间不等于 GPU 完成时间"
+      }
+    },
+    {
+      "name": "style_cinematic_build_9",
+      "pass": true,
+      "metrics": {
+        "style": "cinematic",
+        "quality": "balanced",
+        "ships": 12,
+        "ready": true,
+        "calls": 65,
+        "triangles": 42044,
+        "geometries": 63,
+        "textures": 6,
+        "fps": 0,
+        "frameCPUms": 54.8,
+        "frameSamples": 0,
+        "drawIntervalP95ms": 0,
+        "frameCPUP95ms": 0,
+        "buildCPUms": 46,
+        "dpr": 1,
+        "width": 1280,
+        "height": 820,
+        "zoom": 1,
+        "pan": [
+          0,
+          0
+        ],
+        "selected": 0,
+        "paused": false,
+        "overlayOpen": true,
+        "draws": 44,
+        "builds": 9,
+        "elapsed": 1,
+        "engine": "Three.js 185",
+        "source": "实时低多边形模型、程序化色场与简洁背景",
+        "bodyGeometry": [
+          "IcosahedronGeometry",
+          "组合矿体",
+          "IcosahedronGeometry",
+          "组合矿体"
+        ],
+        "modelAngle": -0.4,
+        "viewTilt": [
+          0.58,
+          -0.4,
+          0
+        ],
+        "portScalePx": [
+          88,
+          77.4,
+          82.7,
+          73
+        ],
+        "sunRadiusPx": 40,
+        "starCount": 120,
+        "scope": "独立四港演示航次，不连接玩家存档；CPU 时间不等于 GPU 完成时间"
+      }
+    },
+    {
+      "name": "resource_release",
+      "pass": true,
+      "metrics": {
+        "style": "cinematic",
+        "quality": "balanced",
+        "ships": 12,
+        "ready": true,
+        "calls": 65,
+        "triangles": 42044,
+        "geometries": 63,
+        "textures": 6,
+        "fps": 0,
+        "frameCPUms": 54.8,
+        "frameSamples": 0,
+        "drawIntervalP95ms": 0,
+        "frameCPUP95ms": 0,
+        "buildCPUms": 46,
+        "dpr": 1,
+        "width": 1280,
+        "height": 820,
+        "zoom": 1,
+        "pan": [
+          0,
+          0
+        ],
+        "selected": 0,
+        "paused": false,
+        "overlayOpen": true,
+        "draws": 44,
+        "builds": 9,
+        "elapsed": 1,
+        "engine": "Three.js 185",
+        "source": "实时低多边形模型、程序化色场与简洁背景",
+        "bodyGeometry": [
+          "IcosahedronGeometry",
+          "组合矿体",
+          "IcosahedronGeometry",
+          "组合矿体"
+        ],
+        "modelAngle": -0.4,
+        "viewTilt": [
+          0.58,
+          -0.4,
+          0
+        ],
+        "portScalePx": [
+          88,
+          77.4,
+          82.7,
+          73
+        ],
+        "sunRadiusPx": 40,
+        "starCount": 120,
+        "scope": "独立四港演示航次，不连接玩家存档；CPU 时间不等于 GPU 完成时间"
+      }
+    },
+    {
+      "name": "desktop_12_ships_live",
+      "pass": true,
+      "metrics": {
+        "style": "cinematic",
+        "quality": "balanced",
+        "ships": 12,
+        "ready": true,
+        "calls": 65,
+        "triangles": 42044,
+        "geometries": 63,
+        "textures": 6,
+        "fps": 30,
+        "frameCPUms": 1.7,
+        "frameSamples": 60,
+        "drawIntervalP95ms": 35.2,
+        "frameCPUP95ms": 2.5,
+        "buildCPUms": 46,
+        "dpr": 1,
+        "width": 1280,
+        "height": 820,
+        "zoom": 1,
+        "pan": [
+          0,
+          0
+        ],
+        "selected": 0,
+        "paused": false,
+        "overlayOpen": false,
+        "draws": 2272,
+        "builds": 9,
+        "elapsed": 75.267,
+        "engine": "Three.js 185",
+        "source": "实时低多边形模型、程序化色场与简洁背景",
+        "bodyGeometry": [
+          "IcosahedronGeometry",
+          "组合矿体",
+          "IcosahedronGeometry",
+          "组合矿体"
+        ],
+        "modelAngle": -0.4,
+        "viewTilt": [
+          0.58,
+          -0.4,
+          0
+        ],
+        "portScalePx": [
+          88,
+          77.4,
+          82.7,
+          73
+        ],
+        "sunRadiusPx": 40,
+        "starCount": 120,
+        "scope": "独立四港演示航次，不连接玩家存档；CPU 时间不等于 GPU 完成时间"
+      }
+    },
+    {
+      "name": "mobile_393x900",
+      "pass": true,
+      "labels": [
+        {
+          "bottom": 152.5234375,
+          "hidden": false,
+          "left": 56.96875,
+          "right": 170.96875,
+          "text": "太阳主星农业",
+          "top": 120.5234375
+        },
+        {
+          "bottom": 339.03125,
+          "hidden": false,
+          "left": 241.3125,
+          "right": 340.3125,
+          "text": "矿石带矿业",
+          "top": 307.03125
+        },
+        {
+          "bottom": 503.890625,
+          "hidden": false,
+          "left": 64.828125,
+          "right": 178.828125,
+          "text": "星云工厂工业",
+          "top": 471.890625
+        },
+        {
+          "bottom": 659.3671875,
+          "hidden": false,
+          "left": 222.3828125,
+          "right": 351.3828125,
+          "text": "极光原料港原料",
+          "top": 627.3671875
+        }
+      ],
+      "metrics": {
+        "style": "cinematic",
+        "quality": "balanced",
+        "ships": 6,
+        "ready": true,
+        "calls": 65,
+        "triangles": 30704,
+        "geometries": 63,
+        "textures": 6,
+        "fps": 22.1,
+        "frameCPUms": 0.5,
+        "frameSamples": 44,
+        "drawIntervalP95ms": 34.3,
+        "frameCPUP95ms": 2.4,
+        "buildCPUms": 46,
+        "dpr": 1,
+        "width": 393,
+        "height": 900,
+        "zoom": 1,
+        "pan": [
+          0,
+          0
+        ],
+        "selected": 0,
+        "paused": false,
+        "overlayOpen": false,
+        "draws": 2312,
+        "builds": 9,
+        "elapsed": 76.5,
+        "engine": "Three.js 185",
+        "source": "实时低多边形模型、程序化色场与简洁背景",
+        "bodyGeometry": [
+          "IcosahedronGeometry",
+          "组合矿体",
+          "IcosahedronGeometry",
+          "组合矿体"
+        ],
+        "modelAngle": -0.4,
+        "viewTilt": [
+          0.58,
+          -0.4,
+          0
+        ],
+        "portScalePx": [
+          44,
+          38.7,
+          41.4,
+          36.5
+        ],
+        "sunRadiusPx": 26,
+        "starCount": 120,
+        "scope": "独立四港演示航次，不连接玩家存档；CPU 时间不等于 GPU 完成时间"
+      }
+    },
+    {
+      "name": "narrow_320x740",
+      "pass": true,
+      "labels": [
+        {
+          "bottom": 112.5234375,
+          "hidden": false,
+          "left": 35.796875,
+          "right": 149.796875,
+          "text": "太阳主星农业",
+          "top": 80.5234375
+        },
+        {
+          "bottom": 268.6328125,
+          "hidden": false,
+          "left": 187.296875,
+          "right": 286.296875,
+          "text": "矿石带矿业",
+          "top": 236.6328125
+        },
+        {
+          "bottom": 401.4921875,
+          "hidden": false,
+          "left": 42.1953125,
+          "right": 156.1953125,
+          "text": "星云工厂工业",
+          "top": 369.4921875
+        },
+        {
+          "bottom": 532.96875,
+          "hidden": false,
+          "left": 169.09375,
+          "right": 298.09375,
+          "text": "极光原料港原料",
+          "top": 500.96875
+        }
+      ],
+      "metrics": {
+        "style": "cinematic",
+        "quality": "balanced",
+        "ships": 6,
+        "ready": true,
+        "calls": 65,
+        "triangles": 30704,
+        "geometries": 63,
+        "textures": 6,
+        "fps": 30,
+        "frameCPUms": 0.5,
+        "frameSamples": 60,
+        "drawIntervalP95ms": 36.3,
+        "frameCPUP95ms": 2.9,
+        "buildCPUms": 46,
+        "dpr": 1,
+        "width": 320,
+        "height": 740,
+        "zoom": 1,
+        "pan": [
+          0,
+          0
+        ],
+        "selected": 0,
+        "paused": false,
+        "overlayOpen": false,
+        "draws": 3867,
+        "builds": 9,
+        "elapsed": 128.3,
+        "engine": "Three.js 185",
+        "source": "实时低多边形模型、程序化色场与简洁背景",
+        "bodyGeometry": [
+          "IcosahedronGeometry",
+          "组合矿体",
+          "IcosahedronGeometry",
+          "组合矿体"
+        ],
+        "modelAngle": -0.4,
+        "viewTilt": [
+          0.58,
+          -0.4,
+          0
+        ],
+        "portScalePx": [
+          44,
+          38.7,
+          41.4,
+          36.5
+        ],
+        "sunRadiusPx": 26,
+        "starCount": 120,
+        "scope": "独立四港演示航次，不连接玩家存档；CPU 时间不等于 GPU 完成时间"
+      }
+    },
+    {
+      "name": "pause_stops_rendering",
+      "pass": true,
+      "metrics": {
+        "style": "cinematic",
+        "quality": "balanced",
+        "ships": 6,
+        "ready": true,
+        "calls": 65,
+        "triangles": 30704,
+        "geometries": 63,
+        "textures": 6,
+        "fps": 30.1,
+        "frameCPUms": 0.4,
+        "frameSamples": 40,
+        "drawIntervalP95ms": 35.8,
+        "frameCPUP95ms": 2.6,
+        "buildCPUms": 46,
+        "dpr": 1,
+        "width": 320,
+        "height": 740,
+        "zoom": 1,
+        "pan": [
+          0,
+          0
+        ],
+        "selected": 0,
+        "paused": true,
+        "overlayOpen": false,
+        "draws": 3880,
+        "builds": 9,
+        "elapsed": 128.733,
+        "engine": "Three.js 185",
+        "source": "实时低多边形模型、程序化色场与简洁背景",
+        "bodyGeometry": [
+          "IcosahedronGeometry",
+          "组合矿体",
+          "IcosahedronGeometry",
+          "组合矿体"
+        ],
+        "modelAngle": -0.4,
+        "viewTilt": [
+          0.58,
+          -0.4,
+          0
+        ],
+        "portScalePx": [
+          44,
+          38.7,
+          41.4,
+          36.5
+        ],
+        "sunRadiusPx": 26,
+        "starCount": 120,
+        "scope": "独立四港演示航次，不连接玩家存档；CPU 时间不等于 GPU 完成时间"
+      }
+    },
+    {
+      "name": "production_starts",
+      "pass": true,
+      "metrics": {
+        "style": "cinematic",
+        "quality": "balanced",
+        "ships": 6,
+        "ready": true,
+        "calls": 65,
+        "triangles": 30704,
+        "geometries": 63,
+        "textures": 6,
+        "fps": 0,
+        "frameCPUms": 0.9,
+        "frameSamples": 0,
+        "drawIntervalP95ms": 0,
+        "frameCPUP95ms": 0,
+        "buildCPUms": 71.2,
+        "dpr": 1.5,
+        "width": 1280,
+        "height": 720,
+        "zoom": 1,
+        "pan": [
+          0,
+          0
+        ],
+        "selected": 0,
+        "paused": false,
+        "overlayOpen": false,
+        "draws": 2,
+        "builds": 1,
+        "elapsed": 0,
+        "engine": "Three.js 185",
+        "source": "实时低多边形模型、程序化色场与简洁背景",
+        "bodyGeometry": [
+          "IcosahedronGeometry",
+          "组合矿体",
+          "IcosahedronGeometry",
+          "组合矿体"
+        ],
+        "modelAngle": -0.4,
+        "viewTilt": [
+          0.58,
+          -0.4,
+          0
+        ],
+        "portScalePx": [
+          88,
+          77.4,
+          82.7,
+          73
+        ],
+        "sunRadiusPx": 40,
+        "starCount": 120,
+        "scope": "独立四港演示航次，不连接玩家存档；CPU 时间不等于 GPU 完成时间"
+      },
+      "logs": []
+    },
+    {
+      "name": "production_live",
+      "pass": true,
+      "metrics": {
+        "style": "cinematic",
+        "quality": "balanced",
+        "ships": 6,
+        "ready": true,
+        "calls": 65,
+        "triangles": 30704,
+        "geometries": 63,
+        "textures": 6,
+        "fps": 30,
+        "frameCPUms": 0.9,
+        "frameSamples": 61,
+        "drawIntervalP95ms": 34.8,
+        "frameCPUP95ms": 2,
+        "buildCPUms": 71.1,
+        "dpr": 1,
+        "width": 393,
+        "height": 900,
+        "zoom": 1,
+        "pan": [
+          0,
+          0
+        ],
+        "selected": 0,
+        "paused": false,
+        "overlayOpen": false,
+        "draws": 3119,
+        "builds": 1,
+        "elapsed": 103.867,
+        "engine": "Three.js 185",
+        "source": "实时低多边形模型、程序化色场与简洁背景",
+        "bodyGeometry": [
+          "IcosahedronGeometry",
+          "组合矿体",
+          "IcosahedronGeometry",
+          "组合矿体"
+        ],
+        "modelAngle": -0.4,
+        "viewTilt": [
+          0.58,
+          -0.4,
+          0
+        ],
+        "portScalePx": [
+          44,
+          38.7,
+          41.4,
+          36.5
+        ],
+        "sunRadiusPx": 26,
+        "starCount": 120,
+        "scope": "独立四港演示航次，不连接玩家存档；CPU 时间不等于 GPU 完成时间"
+      },
+      "logs": []
+    },
+    {
+      "name": "style_switch_without_new_material_warnings",
+      "pass": true,
+      "logs": []
+    }
+  ]
+}

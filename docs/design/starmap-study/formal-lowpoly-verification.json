@@ -1,0 +1,308 @@
+{
+  "scope": "正式生产包，通过独立测试档验收；性能为浏览器样本，窄屏为视口模拟",
+  "unit": {
+    "files": 26,
+    "tests": 178,
+    "passed": true
+  },
+  "checks": [
+    {
+      "check": "pan_keeps_camera_height_and_orientation",
+      "passed": true
+    },
+    {
+      "check": "production_desktop_four_ports",
+      "passed": true,
+      "metrics": {
+        "renderer": "three",
+        "sceneStyle": "low-poly",
+        "quality": "high",
+        "pixelRatio": 1,
+        "width": 1280,
+        "height": 820,
+        "cameraHeight": 105,
+        "cameraTarget": [
+          0,
+          0,
+          0
+        ],
+        "cameraOffset": [
+          0,
+          105,
+          130
+        ],
+        "panOnly": true,
+        "calls": 62,
+        "triangles": 26474,
+        "geometries": 79,
+        "textures": 10,
+        "sceneUpdates": {
+          "planetEntryBuilds": 4,
+          "planetSceneBuilds": 1,
+          "routeBuilds": 2,
+          "fleetBuilds": 1
+        },
+        "loadTiming": {
+          "lightingMs": 28,
+          "resizeMs": 3.699999999254942,
+          "portsMs": 149.60000000149012,
+          "drawMs": 69.39999999850988
+        },
+        "draws": 1244,
+        "fps": 29.9,
+        "frameCPUms": 1.2,
+        "frameCPUP95ms": 2.3,
+        "sunRadiusPx": 60,
+        "starCount": 180,
+        "visiblePortIds": [
+          "sol_prime",
+          "mineral_belt",
+          "nebula_forge",
+          "aurora_depot"
+        ],
+        "routes": 6,
+        "travelingShips": 1,
+        "labels": [
+          {
+            "id": "sol_prime",
+            "visible": true,
+            "left": 379.19999999999993,
+            "right": 491.19999999999993,
+            "top": 105.85354764925066,
+            "bottom": 137.85354764925066
+          },
+          {
+            "id": "mineral_belt",
+            "visible": true,
+            "left": 937.1,
+            "right": 1034.1,
+            "top": 136.8759019971506,
+            "bottom": 168.8759019971506
+          },
+          {
+            "id": "nebula_forge",
+            "visible": true,
+            "left": 814.4000000000001,
+            "right": 926.4000000000001,
+            "top": 426.3949716030312,
+            "bottom": 458.3949716030312
+          },
+          {
+            "id": "aurora_depot",
+            "visible": true,
+            "left": 215.59999999999997,
+            "right": 347.59999999999997,
+            "top": 475.5414457376482,
+            "bottom": 507.5414457376482
+          }
+        ]
+      }
+    },
+    {
+      "check": "production_mobile_393",
+      "passed": true,
+      "metrics": {
+        "renderer": "three",
+        "sceneStyle": "low-poly",
+        "quality": "medium",
+        "pixelRatio": 1,
+        "width": 393,
+        "height": 900,
+        "cameraHeight": 105,
+        "cameraTarget": [
+          0,
+          0,
+          0
+        ],
+        "cameraOffset": [
+          0,
+          105,
+          130
+        ],
+        "panOnly": true,
+        "calls": 62,
+        "triangles": 24234,
+        "geometries": 79,
+        "textures": 10,
+        "sceneUpdates": {
+          "planetEntryBuilds": 8,
+          "planetSceneBuilds": 2,
+          "routeBuilds": 6,
+          "fleetBuilds": 1
+        },
+        "loadTiming": {
+          "lightingMs": 28,
+          "resizeMs": 3.300000000745058,
+          "portsMs": 57.19999999925494,
+          "drawMs": 69.39999999850988
+        },
+        "draws": 4786,
+        "fps": 30,
+        "frameCPUms": 0.5,
+        "frameCPUP95ms": 0.6,
+        "sunRadiusPx": 38,
+        "starCount": 120,
+        "visiblePortIds": [
+          "sol_prime",
+          "mineral_belt",
+          "nebula_forge",
+          "aurora_depot"
+        ],
+        "routes": 6,
+        "travelingShips": 1,
+        "labels": [
+          {
+            "id": "sol_prime",
+            "visible": true,
+            "left": 57.97,
+            "right": 169.97,
+            "top": 122.52677382462392,
+            "bottom": 154.52677382462392
+          },
+          {
+            "id": "mineral_belt",
+            "visible": true,
+            "left": 242.32,
+            "right": 339.32,
+            "top": 309.0379509985739,
+            "bottom": 341.0379509985739
+          },
+          {
+            "id": "nebula_forge",
+            "visible": true,
+            "left": 63.83,
+            "right": 179.82999999999998,
+            "top": 473.8974858015142,
+            "bottom": 505.8974858015142
+          },
+          {
+            "id": "aurora_depot",
+            "visible": true,
+            "left": 223.39,
+            "right": 350.39,
+            "top": 629.3707228688228,
+            "bottom": 661.3707228688228
+          }
+        ]
+      }
+    },
+    {
+      "check": "settings_stop_scene_draws",
+      "passed": true
+    },
+    {
+      "check": "production_mobile_320",
+      "passed": true,
+      "metrics": {
+        "renderer": "three",
+        "sceneStyle": "low-poly",
+        "quality": "medium",
+        "pixelRatio": 1,
+        "width": 320,
+        "height": 740,
+        "cameraHeight": 105,
+        "cameraTarget": [
+          0,
+          0,
+          0
+        ],
+        "cameraOffset": [
+          0,
+          105,
+          130
+        ],
+        "panOnly": true,
+        "calls": 62,
+        "triangles": 24234,
+        "geometries": 79,
+        "textures": 10,
+        "sceneUpdates": {
+          "planetEntryBuilds": 8,
+          "planetSceneBuilds": 2,
+          "routeBuilds": 11,
+          "fleetBuilds": 1
+        },
+        "loadTiming": {
+          "lightingMs": 28,
+          "resizeMs": 3.300000000745058,
+          "portsMs": 57.19999999925494,
+          "drawMs": 69.39999999850988
+        },
+        "draws": 8618,
+        "fps": 30,
+        "frameCPUms": 0.5,
+        "frameCPUP95ms": 0.6,
+        "sunRadiusPx": 38,
+        "starCount": 120,
+        "visiblePortIds": [
+          "sol_prime",
+          "mineral_belt",
+          "nebula_forge",
+          "aurora_depot"
+        ],
+        "routes": 6,
+        "travelingShips": 1,
+        "labels": [
+          {
+            "id": "sol_prime",
+            "visible": true,
+            "left": 36.8,
+            "right": 148.8,
+            "top": 82.52677382462441,
+            "bottom": 114.52677382462441
+          },
+          {
+            "id": "mineral_belt",
+            "visible": true,
+            "left": 188.3,
+            "right": 285.3,
+            "top": 238.6379509985744,
+            "bottom": 270.6379509985744
+          },
+          {
+            "id": "nebula_forge",
+            "visible": true,
+            "left": 41.2,
+            "right": 157.2,
+            "top": 371.4974858015147,
+            "bottom": 403.4974858015147
+          },
+          {
+            "id": "aurora_depot",
+            "visible": true,
+            "left": 170.1,
+            "right": 297.1,
+            "top": 502.97072286882326,
+            "bottom": 534.9707228688233
+          }
+        ]
+      }
+    },
+    {
+      "check": "overview_resets_after_drag",
+      "passed": true,
+      "metrics": {
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "offset": [
+          0,
+          105,
+          130
+        ]
+      }
+    },
+    {
+      "check": "production_no_console_errors_or_warnings",
+      "passed": true
+    }
+  ],
+  "build": {
+    "outDir": "/private/tmp/linegame-lowpoly-production",
+    "passed": true
+  },
+  "checksCommand": "npm run check",
+  "checksPassed": true
+}

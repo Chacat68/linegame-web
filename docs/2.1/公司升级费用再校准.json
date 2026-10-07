@@ -1,0 +1,1245 @@
+{
+  "date": "2026-10-07",
+  "purpose": "提高公司升级的积累门槛，防止初始资金直接购买第一等级，费用随经营规模递增。研发、购船和探索费用独立，已获得等级不追扣。",
+  "costs": [
+    {
+      "fromLevel": 1,
+      "toLevel": 2,
+      "previous": 300,
+      "current": 1500
+    },
+    {
+      "fromLevel": 2,
+      "toLevel": 3,
+      "previous": 600,
+      "current": 2400
+    },
+    {
+      "fromLevel": 3,
+      "toLevel": 4,
+      "previous": 1000,
+      "current": 3600
+    },
+    {
+      "fromLevel": 4,
+      "toLevel": 5,
+      "previous": 1500,
+      "current": 5200
+    },
+    {
+      "fromLevel": 5,
+      "toLevel": 6,
+      "previous": 2200,
+      "current": 7200
+    },
+    {
+      "fromLevel": 6,
+      "toLevel": 7,
+      "previous": 3200,
+      "current": 9800
+    },
+    {
+      "fromLevel": 7,
+      "toLevel": 8,
+      "previous": 4500,
+      "current": 13000
+    },
+    {
+      "fromLevel": 8,
+      "toLevel": 9,
+      "previous": 6200,
+      "current": 17000
+    },
+    {
+      "fromLevel": 9,
+      "toLevel": 10,
+      "previous": 8500,
+      "current": 22000
+    },
+    {
+      "fromLevel": 10,
+      "toLevel": 11,
+      "previous": 11500,
+      "current": 28000
+    },
+    {
+      "fromLevel": 11,
+      "toLevel": 12,
+      "previous": 15000,
+      "current": 36000
+    },
+    {
+      "fromLevel": 12,
+      "toLevel": 13,
+      "previous": 19500,
+      "current": 46000
+    },
+    {
+      "fromLevel": 13,
+      "toLevel": 14,
+      "previous": 25000,
+      "current": 58000
+    },
+    {
+      "fromLevel": 14,
+      "toLevel": 15,
+      "previous": 31500,
+      "current": 72000
+    },
+    {
+      "fromLevel": 15,
+      "toLevel": 16,
+      "previous": 39000,
+      "current": 88000
+    },
+    {
+      "fromLevel": 16,
+      "toLevel": 17,
+      "previous": 48000,
+      "current": 106000
+    },
+    {
+      "fromLevel": 17,
+      "toLevel": 18,
+      "previous": 58000,
+      "current": 128000
+    }
+  ],
+  "previousTotal": 275500,
+  "currentTotal": 643700,
+  "phaseIncome": {
+    "before": {
+      "assumptions": "固定阶段与实验现金，实际研发当级及以前科技、购船、完整探索开港；三至四条商路均分运力，持续任务不重派，每分钟检查供需并补派空闲船。60 分钟净利均值用于费用校准，不代表新局到级时间。",
+      "horizonMinutes": 60,
+      "stages": [
+        {
+          "level": 2,
+          "ships": 2,
+          "typeId": "courier",
+          "ports": 2,
+          "profitPerMinute": 396,
+          "nextUpgradeCost": 600,
+          "upgradeIncomeMinutes": 1.52
+        },
+        {
+          "level": 6,
+          "ships": 3,
+          "typeId": "clipper",
+          "ports": 3,
+          "profitPerMinute": 833.42,
+          "nextUpgradeCost": 3200,
+          "upgradeIncomeMinutes": 3.84
+        },
+        {
+          "level": 9,
+          "ships": 6,
+          "typeId": "clipper",
+          "ports": 3,
+          "profitPerMinute": 1370.92,
+          "nextUpgradeCost": 8500,
+          "upgradeIncomeMinutes": 6.2
+        },
+        {
+          "level": 12,
+          "ships": 9,
+          "typeId": "swift",
+          "ports": 4,
+          "profitPerMinute": 1587.95,
+          "nextUpgradeCost": 19500,
+          "upgradeIncomeMinutes": 12.28
+        },
+        {
+          "level": 17,
+          "ships": 12,
+          "typeId": "swift",
+          "ports": 4,
+          "profitPerMinute": 2088.4,
+          "nextUpgradeCost": 58000,
+          "upgradeIncomeMinutes": 27.77
+        }
+      ]
+    },
+    "after": {
+      "assumptions": "固定阶段与实验现金，实际研发当级及以前科技、购船、完整探索开港；三至四条商路均分运力，持续任务不重派，每分钟检查供需并补派空闲船。60 分钟净利均值用于费用校准，不代表新局到级时间。",
+      "horizonMinutes": 60,
+      "stages": [
+        {
+          "level": 2,
+          "ships": 2,
+          "typeId": "courier",
+          "ports": 2,
+          "profitPerMinute": 396,
+          "nextUpgradeCost": 2400,
+          "upgradeIncomeMinutes": 6.06
+        },
+        {
+          "level": 6,
+          "ships": 3,
+          "typeId": "clipper",
+          "ports": 3,
+          "profitPerMinute": 833.42,
+          "nextUpgradeCost": 9800,
+          "upgradeIncomeMinutes": 11.76
+        },
+        {
+          "level": 9,
+          "ships": 6,
+          "typeId": "clipper",
+          "ports": 3,
+          "profitPerMinute": 1370.92,
+          "nextUpgradeCost": 22000,
+          "upgradeIncomeMinutes": 16.05
+        },
+        {
+          "level": 12,
+          "ships": 9,
+          "typeId": "swift",
+          "ports": 4,
+          "profitPerMinute": 1587.95,
+          "nextUpgradeCost": 46000,
+          "upgradeIncomeMinutes": 28.97
+        },
+        {
+          "level": 17,
+          "ships": 12,
+          "typeId": "swift",
+          "ports": 4,
+          "profitPerMinute": 2088.4,
+          "nextUpgradeCost": 128000,
+          "upgradeIncomeMinutes": 61.29
+        }
+      ]
+    }
+  },
+  "earlyGame": {
+    "before": {
+      "strategy": "新局单船首航回款后，按当前建议购买轻舟开通反向商路；按级积累与升级至 Lv.6，备齐研发与探索费用，完成新港勘察研发，再停止原贸易、完整返港并付费探索。每秒查看，不赠资源、不改航速。",
+      "completed": true,
+      "timeline": [
+        {
+          "milestone": "首航出发",
+          "seconds": 0,
+          "cash": 874,
+          "level": 1,
+          "ships": 1,
+          "tasks": 1
+        },
+        {
+          "milestone": "首笔净利到账",
+          "seconds": 18,
+          "cash": 916,
+          "level": 1,
+          "ships": 1,
+          "tasks": 1
+        },
+        {
+          "milestone": "第二条商路出发",
+          "seconds": 18,
+          "cash": 418,
+          "level": 1,
+          "ships": 2,
+          "tasks": 2
+        },
+        {
+          "milestone": "升级至 Lv.2",
+          "seconds": 18,
+          "cash": 118,
+          "level": 2,
+          "ships": 2,
+          "tasks": 2
+        },
+        {
+          "milestone": "升级至 Lv.3",
+          "seconds": 104,
+          "cash": 58,
+          "level": 3,
+          "ships": 2,
+          "tasks": 2
+        },
+        {
+          "milestone": "升级至 Lv.4",
+          "seconds": 259,
+          "cash": 30,
+          "level": 4,
+          "ships": 2,
+          "tasks": 2
+        },
+        {
+          "milestone": "升级至 Lv.5",
+          "seconds": 499,
+          "cash": 42,
+          "level": 5,
+          "ships": 2,
+          "tasks": 2
+        },
+        {
+          "milestone": "升级至 Lv.6",
+          "seconds": 978,
+          "cash": 800,
+          "level": 6,
+          "ships": 2,
+          "tasks": 2
+        },
+        {
+          "milestone": "新港勘察研发完成，等待探索船返港",
+          "seconds": 978,
+          "cash": 380,
+          "level": 6,
+          "ships": 2,
+          "tasks": 2
+        },
+        {
+          "milestone": "首次探索出发",
+          "seconds": 995,
+          "cash": 254,
+          "level": 6,
+          "ships": 2,
+          "tasks": 1
+        },
+        {
+          "milestone": "探索返港，新港开放",
+          "seconds": 1056,
+          "cash": 518,
+          "level": 6,
+          "ships": 2,
+          "tasks": 1
+        }
+      ],
+      "netProfit": 6396,
+      "spent": {
+        "ship": 336,
+        "company": 5600,
+        "research": 420,
+        "exploration": 360
+      },
+      "operatingCapital": 162
+    },
+    "after": {
+      "strategy": "新局单船首航回款后，按当前建议购买轻舟开通反向商路；按级积累与升级至 Lv.6，备齐研发与探索费用，完成新港勘察研发，再停止原贸易、完整返港并付费探索。每秒查看，不赠资源、不改航速。",
+      "completed": true,
+      "timeline": [
+        {
+          "milestone": "首航出发",
+          "seconds": 0,
+          "cash": 874,
+          "level": 1,
+          "ships": 1,
+          "tasks": 1
+        },
+        {
+          "milestone": "首笔净利到账",
+          "seconds": 18,
+          "cash": 916,
+          "level": 1,
+          "ships": 1,
+          "tasks": 1
+        },
+        {
+          "milestone": "第二条商路出发",
+          "seconds": 18,
+          "cash": 418,
+          "level": 1,
+          "ships": 2,
+          "tasks": 2
+        },
+        {
+          "milestone": "升级至 Lv.2",
+          "seconds": 206,
+          "cash": 40,
+          "level": 2,
+          "ships": 2,
+          "tasks": 2
+        },
+        {
+          "milestone": "升级至 Lv.3",
+          "seconds": 583,
+          "cash": 16,
+          "level": 3,
+          "ships": 2,
+          "tasks": 2
+        },
+        {
+          "milestone": "升级至 Lv.4",
+          "seconds": 1150,
+          "cash": 46,
+          "level": 4,
+          "ships": 2,
+          "tasks": 2
+        },
+        {
+          "milestone": "升级至 Lv.5",
+          "seconds": 1973,
+          "cash": 30,
+          "level": 5,
+          "ships": 2,
+          "tasks": 2
+        },
+        {
+          "milestone": "升级至 Lv.6",
+          "seconds": 3242,
+          "cash": 822,
+          "level": 6,
+          "ships": 2,
+          "tasks": 2
+        },
+        {
+          "milestone": "新港勘察研发完成，等待探索船返港",
+          "seconds": 3242,
+          "cash": 402,
+          "level": 6,
+          "ships": 2,
+          "tasks": 2
+        },
+        {
+          "milestone": "首次探索出发",
+          "seconds": 3258,
+          "cash": 210,
+          "level": 6,
+          "ships": 2,
+          "tasks": 1
+        },
+        {
+          "milestone": "探索返港，新港开放",
+          "seconds": 3319,
+          "cash": 474,
+          "level": 6,
+          "ships": 2,
+          "tasks": 1
+        }
+      ],
+      "netProfit": 20652,
+      "spent": {
+        "ship": 336,
+        "company": 19900,
+        "research": 420,
+        "exploration": 360
+      },
+      "operatingCapital": 162
+    }
+  },
+  "growth": {
+    "minimalResearch": {
+      "strategy": "主动补派策略：单船起步积累首次升级费用，二级研发云帆船体后投资双港双船，六级完成新港勘察研发并等待信号、停用原船贸易并返港探索，完成后投资三港三船；每秒检查供需，盈利时用空闲原船补派并保留货本；只研发云帆船体与新港勘察，不研发或采购进阶船、无赠送资源",
+      "completed": true,
+      "horizonMinutes": 1440,
+      "simulatedMinutes": 972.33,
+      "stages": [
+        {
+          "level": 1,
+          "minutes": 0,
+          "cash": 838
+        },
+        {
+          "level": 2,
+          "upgradeCost": 1500,
+          "minutes": 3.15,
+          "stageMinutes": 3.15,
+          "cash": 64
+        },
+        {
+          "level": 3,
+          "upgradeCost": 2400,
+          "minutes": 11.43,
+          "stageMinutes": 8.28,
+          "cash": 124
+        },
+        {
+          "level": 4,
+          "upgradeCost": 3600,
+          "minutes": 19.43,
+          "stageMinutes": 8,
+          "cash": 0
+        },
+        {
+          "level": 5,
+          "upgradeCost": 5200,
+          "minutes": 31.43,
+          "stageMinutes": 12,
+          "cash": 88
+        },
+        {
+          "level": 6,
+          "upgradeCost": 7200,
+          "minutes": 47.87,
+          "stageMinutes": 16.43,
+          "cash": 54
+        },
+        {
+          "level": 7,
+          "upgradeCost": 9800,
+          "minutes": 66.73,
+          "stageMinutes": 18.87,
+          "cash": 64
+        },
+        {
+          "level": 8,
+          "upgradeCost": 13000,
+          "minutes": 86.03,
+          "stageMinutes": 19.3,
+          "cash": 84
+        },
+        {
+          "level": 9,
+          "upgradeCost": 17000,
+          "minutes": 111.08,
+          "stageMinutes": 25.05,
+          "cash": 48
+        },
+        {
+          "level": 10,
+          "upgradeCost": 22000,
+          "minutes": 143.4,
+          "stageMinutes": 32.32,
+          "cash": 60
+        },
+        {
+          "level": 11,
+          "upgradeCost": 28000,
+          "minutes": 184.87,
+          "stageMinutes": 41.47,
+          "cash": 96
+        },
+        {
+          "level": 12,
+          "upgradeCost": 36000,
+          "minutes": 237.9,
+          "stageMinutes": 53.03,
+          "cash": 68
+        },
+        {
+          "level": 13,
+          "upgradeCost": 46000,
+          "minutes": 305.75,
+          "stageMinutes": 67.85,
+          "cash": 2
+        },
+        {
+          "level": 14,
+          "upgradeCost": 58000,
+          "minutes": 391.23,
+          "stageMinutes": 85.48,
+          "cash": 108
+        },
+        {
+          "level": 15,
+          "upgradeCost": 72000,
+          "minutes": 497.55,
+          "stageMinutes": 106.32,
+          "cash": 72
+        },
+        {
+          "level": 16,
+          "upgradeCost": 88000,
+          "minutes": 627.23,
+          "stageMinutes": 129.68,
+          "cash": 88
+        },
+        {
+          "level": 17,
+          "upgradeCost": 106000,
+          "minutes": 783.58,
+          "stageMinutes": 156.35,
+          "cash": 2
+        },
+        {
+          "level": 18,
+          "upgradeCost": 128000,
+          "minutes": 972.33,
+          "stageMinutes": 188.75,
+          "cash": 76
+        }
+      ],
+      "exploration": {
+        "seed": 42,
+        "shipId": "ship-1",
+        "from": "sol_prime",
+        "cost": 360,
+        "eventId": "event-5",
+        "appearedMinutes": 48.87,
+        "stoppedTaskMinutes": 51.45,
+        "stoppedTaskId": "task-2",
+        "startedMinutes": 51.73,
+        "returnWaitSeconds": 17,
+        "durationSeconds": 60.858,
+        "completedMinutes": 52.75,
+        "expandedMinutes": 52.75
+      },
+      "research": [
+        {
+          "techId": "clipper_design",
+          "cost": 120,
+          "companyLevel": 2,
+          "minutes": 3.43,
+          "cash": 10
+        },
+        {
+          "techId": "planet_survey",
+          "cost": 420,
+          "companyLevel": 6,
+          "minutes": 48.87,
+          "cash": 46
+        }
+      ],
+      "routes": [
+        {
+          "shipId": "ship-1",
+          "from": "nebula_forge",
+          "to": "sol_prime",
+          "goodId": "technology",
+          "budget": 260,
+          "dispatches": 2
+        },
+        {
+          "shipId": "ship-3",
+          "from": "sol_prime",
+          "to": "mineral_belt",
+          "goodId": "food",
+          "budget": 178,
+          "dispatches": 1
+        },
+        {
+          "shipId": "ship-6",
+          "from": "mineral_belt",
+          "to": "nebula_forge",
+          "goodId": "minerals",
+          "budget": 238,
+          "dispatches": 1
+        }
+      ]
+    },
+    "allResearch": {
+      "strategy": "主动补派策略：单船起步积累首次升级费用，二级研发云帆船体后投资双港双船，六级完成新港勘察研发并等待信号、停用原船贸易并返港探索，完成后投资三港三船；每秒检查供需，盈利时用空闲原船补派并保留货本；每级先研发当级科技，不采购进阶船、无赠送资源",
+      "completed": true,
+      "horizonMinutes": 1440,
+      "simulatedMinutes": 836.82,
+      "stages": [
+        {
+          "level": 1,
+          "minutes": 0,
+          "cash": 838
+        },
+        {
+          "level": 2,
+          "upgradeCost": 1500,
+          "minutes": 3.15,
+          "stageMinutes": 3.15,
+          "cash": 64
+        },
+        {
+          "level": 3,
+          "upgradeCost": 2400,
+          "minutes": 11.52,
+          "stageMinutes": 8.37,
+          "cash": 4
+        },
+        {
+          "level": 4,
+          "upgradeCost": 3600,
+          "minutes": 20.72,
+          "stageMinutes": 9.2,
+          "cash": 96
+        },
+        {
+          "level": 5,
+          "upgradeCost": 5200,
+          "minutes": 32.75,
+          "stageMinutes": 12.03,
+          "cash": 71
+        },
+        {
+          "level": 6,
+          "upgradeCost": 7200,
+          "minutes": 49.17,
+          "stageMinutes": 16.42,
+          "cash": 5
+        },
+        {
+          "level": 7,
+          "upgradeCost": 9800,
+          "minutes": 68.65,
+          "stageMinutes": 19.48,
+          "cash": 114
+        },
+        {
+          "level": 8,
+          "upgradeCost": 13000,
+          "minutes": 87.07,
+          "stageMinutes": 18.42,
+          "cash": 41
+        },
+        {
+          "level": 9,
+          "upgradeCost": 17000,
+          "minutes": 114.3,
+          "stageMinutes": 27.23,
+          "cash": 15
+        },
+        {
+          "level": 10,
+          "upgradeCost": 22000,
+          "minutes": 143.82,
+          "stageMinutes": 29.52,
+          "cash": 60
+        },
+        {
+          "level": 11,
+          "upgradeCost": 28000,
+          "minutes": 183.28,
+          "stageMinutes": 39.47,
+          "cash": 43
+        },
+        {
+          "level": 12,
+          "upgradeCost": 36000,
+          "minutes": 237.52,
+          "stageMinutes": 54.23,
+          "cash": 1
+        },
+        {
+          "level": 13,
+          "upgradeCost": 46000,
+          "minutes": 296.42,
+          "stageMinutes": 58.9,
+          "cash": 38
+        },
+        {
+          "level": 14,
+          "upgradeCost": 58000,
+          "minutes": 364.78,
+          "stageMinutes": 68.37,
+          "cash": 41
+        },
+        {
+          "level": 15,
+          "upgradeCost": 72000,
+          "minutes": 471.42,
+          "stageMinutes": 106.63,
+          "cash": 79
+        },
+        {
+          "level": 16,
+          "upgradeCost": 88000,
+          "minutes": 570.33,
+          "stageMinutes": 98.92,
+          "cash": 17
+        },
+        {
+          "level": 17,
+          "upgradeCost": 106000,
+          "minutes": 682.88,
+          "stageMinutes": 112.55,
+          "cash": 64
+        },
+        {
+          "level": 18,
+          "upgradeCost": 128000,
+          "minutes": 819.02,
+          "stageMinutes": 136.13,
+          "cash": 33
+        }
+      ],
+      "exploration": {
+        "seed": 42,
+        "shipId": "ship-1",
+        "from": "sol_prime",
+        "cost": 360,
+        "eventId": "event-5",
+        "appearedMinutes": 50.08,
+        "stoppedTaskMinutes": 55.25,
+        "stoppedTaskId": "task-2",
+        "startedMinutes": 55.52,
+        "returnWaitSeconds": 16,
+        "durationSeconds": 57.8,
+        "completedMinutes": 56.48,
+        "expandedMinutes": 56.48
+      },
+      "research": [
+        {
+          "techId": "clipper_design",
+          "cost": 120,
+          "companyLevel": 2,
+          "minutes": 3.43,
+          "cash": 10
+        },
+        {
+          "techId": "efficient_engines",
+          "cost": 25,
+          "companyLevel": 2,
+          "minutes": 6.02,
+          "cash": 61
+        },
+        {
+          "techId": "thruster_calibration",
+          "cost": 25,
+          "companyLevel": 2,
+          "minutes": 6.03,
+          "cash": 36
+        },
+        {
+          "techId": "fuel_injection",
+          "cost": 30,
+          "companyLevel": 2,
+          "minutes": 6.05,
+          "cash": 6
+        },
+        {
+          "techId": "cargo_partitions",
+          "cost": 80,
+          "companyLevel": 2,
+          "minutes": 6.08,
+          "cash": 0
+        },
+        {
+          "techId": "berth_planning",
+          "cost": 100,
+          "companyLevel": 2,
+          "minutes": 6.42,
+          "cash": 40
+        },
+        {
+          "techId": "hauler_design",
+          "cost": 200,
+          "unlockShipId": "hauler",
+          "companyLevel": 3,
+          "minutes": 12.02,
+          "cash": 10
+        },
+        {
+          "techId": "loading_frames",
+          "cost": 100,
+          "companyLevel": 3,
+          "minutes": 12.28,
+          "cash": 50
+        },
+        {
+          "techId": "trade_quotes",
+          "cost": 300,
+          "companyLevel": 3,
+          "minutes": 12.88,
+          "cash": 30
+        },
+        {
+          "techId": "fleet_command",
+          "cost": 250,
+          "companyLevel": 4,
+          "minutes": 21.27,
+          "cash": 55
+        },
+        {
+          "techId": "engine_cooling",
+          "cost": 150,
+          "companyLevel": 4,
+          "minutes": 21.53,
+          "cash": 47
+        },
+        {
+          "techId": "storage_layout",
+          "cost": 140,
+          "companyLevel": 4,
+          "minutes": 21.8,
+          "cash": 49
+        },
+        {
+          "techId": "market_network",
+          "cost": 320,
+          "companyLevel": 5,
+          "minutes": 33.42,
+          "cash": 35
+        },
+        {
+          "techId": "vector_nozzles",
+          "cost": 250,
+          "companyLevel": 5,
+          "minutes": 34.08,
+          "cash": 136
+        },
+        {
+          "techId": "pallet_system",
+          "cost": 200,
+          "companyLevel": 5,
+          "minutes": 34.35,
+          "cash": 3
+        },
+        {
+          "techId": "planet_survey",
+          "cost": 420,
+          "companyLevel": 6,
+          "minutes": 50.08,
+          "cash": 3
+        },
+        {
+          "techId": "cruise_tuning",
+          "cost": 400,
+          "companyLevel": 6,
+          "minutes": 50.87,
+          "cash": 29
+        },
+        {
+          "techId": "local_contracts",
+          "cost": 500,
+          "companyLevel": 6,
+          "minutes": 51.9,
+          "cash": 22
+        },
+        {
+          "techId": "dock_scheduling",
+          "cost": 450,
+          "companyLevel": 6,
+          "minutes": 52.73,
+          "cash": 2
+        },
+        {
+          "techId": "cargo_racks",
+          "cost": 280,
+          "companyLevel": 7,
+          "minutes": 69,
+          "cash": 26
+        },
+        {
+          "techId": "payment_terms",
+          "cost": 700,
+          "companyLevel": 7,
+          "minutes": 69.93,
+          "cash": 38
+        },
+        {
+          "techId": "berth_rotation",
+          "cost": 650,
+          "companyLevel": 7,
+          "minutes": 70.83,
+          "cash": 120
+        },
+        {
+          "techId": "fast_navigation",
+          "cost": 3000,
+          "unlockShipId": "swift",
+          "companyLevel": 8,
+          "minutes": 90.8,
+          "cash": 82
+        },
+        {
+          "techId": "autopilot_trim",
+          "cost": 700,
+          "companyLevel": 8,
+          "minutes": 91.7,
+          "cash": 110
+        },
+        {
+          "techId": "rack_reinforcement",
+          "cost": 400,
+          "companyLevel": 8,
+          "minutes": 92.17,
+          "cash": 35
+        },
+        {
+          "techId": "fulfillment_protocol",
+          "cost": 1100,
+          "companyLevel": 8,
+          "minutes": 93.57,
+          "cash": 66
+        },
+        {
+          "techId": "trade_contracts",
+          "cost": 700,
+          "companyLevel": 9,
+          "minutes": 115.15,
+          "cash": 54
+        },
+        {
+          "techId": "container_stacking",
+          "cost": 600,
+          "companyLevel": 9,
+          "minutes": 116,
+          "cash": 118
+        },
+        {
+          "techId": "regional_berths",
+          "cost": 1200,
+          "companyLevel": 9,
+          "minutes": 117.28,
+          "cash": 80
+        },
+        {
+          "techId": "engine_tuning",
+          "cost": 1000,
+          "companyLevel": 10,
+          "minutes": 145.02,
+          "cash": 62
+        },
+        {
+          "techId": "hold_balancing",
+          "cost": 850,
+          "companyLevel": 10,
+          "minutes": 146.02,
+          "cash": 40
+        },
+        {
+          "techId": "margin_audits",
+          "cost": 1700,
+          "companyLevel": 10,
+          "minutes": 148.1,
+          "cash": 90
+        },
+        {
+          "techId": "parallel_docks",
+          "cost": 2400,
+          "companyLevel": 10,
+          "minutes": 150.9,
+          "cash": 110
+        },
+        {
+          "techId": "bulk_logistics",
+          "cost": 9000,
+          "unlockShipId": "bulk",
+          "companyLevel": 11,
+          "minutes": 193.72,
+          "cash": 100
+        },
+        {
+          "techId": "ion_channels",
+          "cost": 600,
+          "companyLevel": 11,
+          "minutes": 194.47,
+          "cash": 5
+        },
+        {
+          "techId": "partner_rebates",
+          "cost": 2400,
+          "companyLevel": 11,
+          "minutes": 197.22,
+          "cash": 32
+        },
+        {
+          "techId": "deep_survey",
+          "cost": 2800,
+          "companyLevel": 12,
+          "minutes": 240.65,
+          "cash": 9
+        },
+        {
+          "techId": "plasma_flow",
+          "cost": 850,
+          "companyLevel": 12,
+          "minutes": 241.65,
+          "cash": 60
+        },
+        {
+          "techId": "cargo_connectors",
+          "cost": 1150,
+          "companyLevel": 12,
+          "minutes": 242.95,
+          "cash": 31
+        },
+        {
+          "techId": "freight_pricing",
+          "cost": 1200,
+          "companyLevel": 12,
+          "minutes": 244.25,
+          "cash": 35
+        },
+        {
+          "techId": "dock_network",
+          "cost": 2200,
+          "companyLevel": 12,
+          "minutes": 246.75,
+          "cash": 128
+        },
+        {
+          "techId": "cargo_expansion",
+          "cost": 1500,
+          "companyLevel": 13,
+          "minutes": 297.92,
+          "cash": 35
+        },
+        {
+          "techId": "warp_alignment",
+          "cost": 1200,
+          "companyLevel": 13,
+          "minutes": 299.42,
+          "cash": 64
+        },
+        {
+          "techId": "distribution_terms",
+          "cost": 1600,
+          "companyLevel": 13,
+          "minutes": 301.02,
+          "cash": 101
+        },
+        {
+          "techId": "remote_berths",
+          "cost": 3000,
+          "companyLevel": 13,
+          "minutes": 304.2,
+          "cash": 94
+        },
+        {
+          "techId": "integrated_freight",
+          "cost": 27000,
+          "unlockShipId": "relay",
+          "companyLevel": 14,
+          "minutes": 393.07,
+          "cash": 25
+        },
+        {
+          "techId": "field_stabilization",
+          "cost": 1650,
+          "companyLevel": 14,
+          "minutes": 394.78,
+          "cash": 114
+        },
+        {
+          "techId": "lightweight_containers",
+          "cost": 1600,
+          "companyLevel": 14,
+          "minutes": 396.45,
+          "cash": 36
+        },
+        {
+          "techId": "volume_contracts",
+          "cost": 2200,
+          "companyLevel": 14,
+          "minutes": 398.58,
+          "cash": 31
+        },
+        {
+          "techId": "trade_negotiation",
+          "cost": 3100,
+          "companyLevel": 15,
+          "minutes": 474.62,
+          "cash": 38
+        },
+        {
+          "techId": "navigation_precision",
+          "cost": 2200,
+          "companyLevel": 15,
+          "minutes": 476.65,
+          "cash": 13
+        },
+        {
+          "techId": "compression_cradles",
+          "cost": 2200,
+          "companyLevel": 15,
+          "minutes": 478.92,
+          "cash": 128
+        },
+        {
+          "techId": "fleet_hubs",
+          "cost": 5400,
+          "companyLevel": 15,
+          "minutes": 484.15,
+          "cash": 85
+        },
+        {
+          "techId": "advanced_engines",
+          "cost": 2500,
+          "companyLevel": 16,
+          "minutes": 572.67,
+          "cash": 10
+        },
+        {
+          "techId": "jump_efficiency",
+          "cost": 3000,
+          "companyLevel": 16,
+          "minutes": 575.7,
+          "cash": 21
+        },
+        {
+          "techId": "distributed_storage",
+          "cost": 3000,
+          "companyLevel": 16,
+          "minutes": 578.62,
+          "cash": 109
+        },
+        {
+          "techId": "settlement_network",
+          "cost": 3000,
+          "companyLevel": 16,
+          "minutes": 581.38,
+          "cash": 120
+        },
+        {
+          "techId": "hub_coordination",
+          "cost": 3800,
+          "companyLevel": 16,
+          "minutes": 584.95,
+          "cash": 79
+        },
+        {
+          "techId": "modular_cargo",
+          "cost": 4000,
+          "companyLevel": 17,
+          "minutes": 686.6,
+          "cash": 71
+        },
+        {
+          "techId": "adaptive_bulkheads",
+          "cost": 5200,
+          "companyLevel": 17,
+          "minutes": 691.42,
+          "cash": 240
+        },
+        {
+          "techId": "regional_arbitrage",
+          "cost": 3800,
+          "companyLevel": 17,
+          "minutes": 694.93,
+          "cash": 115
+        },
+        {
+          "techId": "interstellar_docks",
+          "cost": 8400,
+          "companyLevel": 17,
+          "minutes": 702.55,
+          "cash": 137
+        },
+        {
+          "techId": "trade_network",
+          "cost": 4600,
+          "companyLevel": 18,
+          "minutes": 823.12,
+          "cash": 25
+        },
+        {
+          "techId": "alliance_dividends",
+          "cost": 5600,
+          "companyLevel": 18,
+          "minutes": 828.27,
+          "cash": 35
+        },
+        {
+          "techId": "alliance_berths",
+          "cost": 9800,
+          "companyLevel": 18,
+          "minutes": 836.82,
+          "cash": 38
+        }
+      ],
+      "routes": [
+        {
+          "shipId": "ship-1",
+          "from": "nebula_forge",
+          "to": "sol_prime",
+          "goodId": "technology",
+          "budget": 260,
+          "dispatches": 2
+        },
+        {
+          "shipId": "ship-3",
+          "from": "sol_prime",
+          "to": "mineral_belt",
+          "goodId": "food",
+          "budget": 178,
+          "dispatches": 1
+        },
+        {
+          "shipId": "ship-6",
+          "from": "mineral_belt",
+          "to": "nebula_forge",
+          "goodId": "minerals",
+          "budget": 238,
+          "dispatches": 1
+        }
+      ]
+    }
+  }
+}

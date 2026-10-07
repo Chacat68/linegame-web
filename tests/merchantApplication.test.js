@@ -1,3 +1,4 @@
+import { restoreLegacyMerchantAccess } from '../js/systems/merchant/MerchantTechnology.js';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 const harness = vi.hoisted(() => ({ runtimes:[], toolsConfig:null, open:vi.fn(), dispose:vi.fn() }));
 vi.mock('../js/core/StartupState.js', () => ({prepareStartupState:()=>({state:{companyName:'测试',credits:1000,merchant:{tasks:[]}}})}));
@@ -8,7 +9,7 @@ vi.mock('../js/core/MerchantGameRuntime.js', () => ({
     harness.runtimes.push(instance); return instance;
   },
 }));
-vi.mock('../js/ui/MerchantUI.js', () => ({init:vi.fn(),dispose:vi.fn(),render:vi.fn(),renderScene:vi.fn(),notify:vi.fn()}));
+vi.mock('../js/ui/MerchantUI.js', () => ({init:vi.fn(),dispose:vi.fn(),render:vi.fn(),renderScene:vi.fn(),enterView:vi.fn(),notify:vi.fn()}));
 vi.mock('../js/ui/StarmapRenderer.js', () => ({}));
 vi.mock('../js/ui/MerchantToolsUI.js', () => ({createMerchantTools:config=>{harness.toolsConfig=config;return{open:harness.open,dispose:harness.dispose};}}));
 vi.mock('../js/core/SettingsCore.js', () => ({loadSettings:()=>({}),applySettings:vi.fn()}));
@@ -52,13 +53,19 @@ it('读档换会话先停旧运行时，新操作和时钟只访问新资料', a
   expect(harness.toolsConfig.getState()).toBe(restored);
 });
 
-it('未开放页面不能通过导航绕过等级，升级后立即可进入', async () => {
+it('未研发页面不能通过导航绕过资格，研发后可进入', async () => {
   await init();
   const go = view => click({target:{closest:selector=>selector==='[data-view]' ? {dataset:{view}} : null}});
   go('ships'); expect(document.body.dataset.activeView).toBe('tasks');
   go('market'); expect(document.body.dataset.activeView).toBe('tasks');
-  harness.runtimes[0].options.getState().merchant.companyLevel=2;
+  harness.runtimes[0].options.getState().merchant.companyLevel=4;
+  go('ships'); expect(document.body.dataset.activeView).toBe('tasks');
+  harness.runtimes[0].options.getState().merchant.researchedTechIds=['fleet_command'];
   go('ships'); expect(document.body.dataset.activeView).toBe('ships');
+  go('market'); expect(document.body.dataset.activeView).toBe('tasks');
+  harness.runtimes[0].options.getState().merchant.companyLevel=5;
+  go('market'); expect(document.body.dataset.activeView).toBe('tasks');
+  harness.runtimes[0].options.getState().merchant.researchedTechIds.push('market_network');
   go('market'); expect(document.body.dataset.activeView).toBe('market');
   harness.toolsConfig.replaceState({companyName:'新局',credits:1000,merchant:{companyLevel:1}});
   expect(document.body.dataset.activeView).toBe('tasks');
@@ -68,7 +75,9 @@ it('读取旧已开港或已研发科技时继续保留采购和市场入口', a
   await init();
   const go = view => click({target:{closest:selector=>selector==='[data-view]' ? {dataset:{view}} : null}});
   for (const legacy of [{unlockedPorts:['sol_prime','mineral_belt','nebula_forge']},{researchedTechIds:['fast_navigation']}]) {
-    harness.toolsConfig.replaceState({companyName:'旧商队',credits:1000,merchant:{companyLevel:1,...legacy}});
+    const merchant={companyLevel:1,ships:[],unlockedPorts:['sol_prime','mineral_belt'],researchedTechIds:[],...legacy};
+    restoreLegacyMerchantAccess(merchant);
+    harness.toolsConfig.replaceState({companyName:'旧商队',credits:1000,merchant});
     go('ships'); expect(document.body.dataset.activeView).toBe('ships');
     go('market'); expect(document.body.dataset.activeView).toBe('market');
   }

@@ -1,6 +1,6 @@
 import {
   MERCHANT_DEFAULTS, MERCHANT_RULES, MERCHANT_DISTANCES, MERCHANT_GOODS,
-  MERCHANT_PORTS, MERCHANT_SHIPS, MERCHANT_TECHS, MERCHANT_COMPANY_LEVELS, merchantDistance,
+  MERCHANT_PORTS, MERCHANT_SHIPS, MERCHANT_TECHS, MERCHANT_COMPANY_LEVELS, MERCHANT_EXPLORATION_RULES, merchantDistance,
 } from '../../data/merchant.js';
 import {
   initExploration, isValidExplorationState, scheduleExploration, processExploration,
@@ -9,6 +9,13 @@ import {
 import {
   createOnboardingState, isValidOnboardingState, syncOnboarding, commandOnboarding,
 } from './MerchantOnboarding.js';
+import { createAnalyticsState, isValidAnalyticsState, observeMerchantActivity, recordMerchantSettlement, pruneAnalytics } from './MerchantAnalytics.js';
+import { getShipStats, getTechBonuses, getFleetSlotBonus, isValidTechSnapshot } from './MerchantTechnology.js';
+export { getShipStats, getTechBonuses } from './MerchantTechnology.js';
+import { isPortOpen, getOpenPortIds } from './MerchantAccess.js';
+import { isValidIntelligenceState, previewIntelligence, buyIntelligence } from './MerchantIntelligence.js';
+
+export { isPortOpen, getOpenPortIds } from './MerchantAccess.js';
 
 const clone = value => JSON.parse(JSON.stringify(value));
 const integer = value => Number.isSafeInteger(value) && value >= 0;
@@ -22,16 +29,26 @@ export const getShipType = id => MERCHANT_SHIPS.find(type => type.id === id);
 export const getTech = id => MERCHANT_TECHS.find(tech => tech.id === id);
 export const isShipTypeUnlocked = (merchant, typeId) => {
   const type = getShipType(typeId);
-  return Boolean(type && (!type.techId || merchant.researchedTechIds?.includes(type.techId)));
+  // 已完成的船体研发也保留旧档采购资格，资格等级只在实际研发时检查。
+  return Boolean(type && (type.techId ? merchant.researchedTechIds?.includes(type.techId)
+    : !type.companyLevel || merchant.companyLevel >= type.companyLevel));
 };
 
 export function getCompanyProgress(merchant) {
   const current = MERCHANT_COMPANY_LEVELS.find(item => item.level === merchant.companyLevel);
   const next = MERCHANT_COMPANY_LEVELS.find(item => item.level === merchant.companyLevel + 1);
+  const researchShipSlots = getFleetSlotBonus(merchant);
+  const shipLimit = current.shipLimit + researchShipSlots;
   return {
-    level: current.level, shipLimit: current.shipLimit, ownedShips: merchant.ships.length,
-    remaining: Math.max(0, current.shipLimit - merchant.ships.length),
-    upgradeCost: current.upgradeCost, nextShipLimit: next?.shipLimit ?? null,
+    level: current.level, shipLimit, baseShipLimit: current.shipLimit, researchShipSlots, ownedShips: merchant.ships.length,
+    remaining: Math.max(0, shipLimit - merchant.ships.length),
+    upgradeCost: current.upgradeCost, nextShipLimit: next ? next.shipLimit + researchShipSlots : null,
+    nextLevel: next?.level ?? null, nextUnlock: next?.unlock ?? null, nextDescription: next?.description ?? null,
+    totalLevels: MERCHANT_COMPANY_LEVELS.length,
+    tier: current.tier, tierStartLevel: current.tierStartLevel, tierEndLevel: current.tierEndLevel,
+    isBreakthrough: current.isBreakthrough, breakthroughFactor: current.breakthroughFactor,
+    breakthroughBaseCost: current.breakthroughBaseCost,
+    action: current.isBreakthrough ? 'breakthroughCompany' : 'upgradeCompany',
   };
 }
 
@@ -71,6 +88,9 @@ export function init(state, now = Date.now()) {
     merchant.nextRestockAt = merchant.lastTickAt + MERCHANT_RULES.restockMs;
   }
   initExploration(merchant);
+  if (merchant.purchasedIntelIds === undefined) merchant.purchasedIntelIds = [];
+  if (merchant.analytics === undefined) merchant.analytics = createAnalyticsState(merchant.lastTickAt);
+  if (merchant.analytics.since === 0) merchant.analytics.since = merchant.lastTickAt;
   if (merchant.onboarding === undefined) merchant.onboarding = createOnboardingState();
   syncOnboarding(merchant);
   return merchant;
@@ -94,16 +114,20 @@ function validTaskReport(task) {
 export function isValidMerchantState(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   if (!isValidOnboardingState(value.onboarding)) return false;
+  if (!isValidIntelligenceState(value)) return false;
   if (!MERCHANT_COMPANY_LEVELS.some(item => item.level === value.companyLevel)) return false;
   if (!integer(value.lastTickAt) || !integer(value.nextRestockAt) || !integer(value.nextId) || value.nextId === 0) return false;
   if (value.lastTickAt && value.nextRestockAt <= value.lastTickAt) return false;
   if (!Array.isArray(value.ships) || !Array.isArray(value.tasks) || !Array.isArray(value.history) || !Array.isArray(value.unlockedPorts)) return false;
+  if (value.plans !== undefined || !isValidAnalyticsState(value)) return false;
   if (!Array.isArray(value.researchedTechIds) || new Set(value.researchedTechIds).size !== value.researchedTechIds.length) return false;
-  if (value.researchedTechIds.some(id => !getTech(id) || getTech(id).requires.some(required => !value.researchedTechIds.includes(required)))) return false;
+  // 既有成果仍按获得时的基础依赖校验，不因新增成长前置而丢失旧存档。
+  if (value.researchedTechIds.some(id => !getTech(id) || getTech(id).snapshotRequires.some(required => !value.researchedTechIds.includes(required)))) return false;
   if (!value.markets || typeof value.markets !== 'object' || Array.isArray(value.markets)) return false;
   if (value.history.some(task => !validTaskReport(task) || !integer(task.closedAt))) return false;
   const reportIds = [...value.tasks, ...value.history].map(task => task?.id);
   if (value.exploration?.event) reportIds.push(value.exploration.event.id);
+  reportIds.push(...(value.exploration?.completed || []).map(event => event.id));
   if (new Set(reportIds).size !== reportIds.length) return false;
   // 已结束任务和历史船号也占用过序号，不能在后续采购或派遣时重新生成。
   const usedIds = [...reportIds, ...value.ships.map(ship => ship?.id), ...value.history.flatMap(task => [
@@ -136,9 +160,16 @@ export function isValidMerchantState(value) {
       || ship.arriveAt <= ship.departAt)) return false;
     if (active(ship)) {
       const trip = ship.trip;
-      if (trip.from === trip.to || trip.quantity > getShipType(ship.typeId).capacity ||
+      if (!isValidTechSnapshot(value, trip.techIds)) return false;
+      const snapshot = { researchedTechIds: trip.techIds };
+      const stats = getShipStats(snapshot, ship.typeId);
+      const baseRevenue = trip.quantity * getPort(trip.to).sell[trip.goodId];
+      const net = baseRevenue - trip.cost - trip.fee;
+      const bonus = Math.floor(Math.max(0, net) * getTechBonuses(snapshot).profit);
+      if (trip.from === trip.to || trip.capacity !== stats.capacity || trip.quantity > stats.capacity ||
+          trip.legMs !== legDuration(ship.typeId, trip.from, trip.to, snapshot) ||
           trip.cost !== trip.quantity * getPort(trip.from).buy[trip.goodId] ||
-          trip.revenue !== trip.quantity * getPort(trip.to).sell[trip.goodId] ||
+          trip.revenue !== baseRevenue + bonus ||
           trip.fee !== roundTripFee(ship.typeId, trip.from, trip.to) ||
           trip.revenue <= trip.cost + trip.fee) return false;
       committedByTask.set(ship.taskId, (committedByTask.get(ship.taskId) || 0) + trip.cost + trip.fee);
@@ -178,8 +209,8 @@ export function isValidMerchantState(value) {
   });
 }
 
-export function legDuration(shipTypeId, from, to) {
-  const type = getShipType(shipTypeId);
+export function legDuration(shipTypeId, from, to, merchant = null) {
+  const type = getShipStats(merchant, shipTypeId);
   return Math.ceil(MERCHANT_RULES.legMsPerDistance * merchantDistance(from, to) / type.speed);
 }
 
@@ -188,8 +219,17 @@ export function roundTripFee(shipTypeId, from, to) {
   return Math.ceil(type.fee + MERCHANT_RULES.feePerDistance * merchantDistance(from, to));
 }
 
-export function minimumProfitableBudget(shipTypeId, from, to, goodId) {
-  const type = getShipType(shipTypeId);
+// 满载采购和往返费用只需划拨一次，返港后原货本继续周转。
+export function fullLoadBudget(shipTypeId, from, to, goodId, merchant = null) {
+  const type = getShipStats(merchant, shipTypeId);
+  const buy = getPort(from)?.buy?.[goodId];
+  const sell = getPort(to)?.sell?.[goodId];
+  if (!type || from === to || !buy || !sell) return 0;
+  return type.capacity * buy + roundTripFee(shipTypeId, from, to);
+}
+
+export function minimumProfitableBudget(shipTypeId, from, to, goodId, merchant = null) {
+  const type = getShipStats(merchant, shipTypeId);
   const origin = getPort(from);
   const destination = getPort(to);
   const buy = origin?.buy?.[goodId];
@@ -206,12 +246,13 @@ export function getOperatingReserve(state, extraTypeId) {
   // 已出发航次返港会归还货本；可持续任务已独立占用货本，无需重复冻结自由资金。
   if (merchant.ships.some(ship => active(ship) && ship.trip && taskById(merchant, ship.taskId))) return 0;
   if (merchant.tasks.some(task => !task.stopping && merchant.ships.some(ship =>
-    ship.taskId === task.id && task.available >= minimumProfitableBudget(ship.typeId, task.from, task.to, task.goodId)))) return 0;
+    ship.taskId === task.id && task.available >= minimumProfitableBudget(ship.typeId, task.from, task.to, task.goodId, merchant)))) return 0;
   const typeIds = [...merchant.ships.map(ship => ship.typeId), ...(extraTypeId ? [extraTypeId] : [])];
   let minimum = Infinity;
-  for (const typeId of typeIds) for (const from of merchant.unlockedPorts) for (const to of merchant.unlockedPorts) {
+  const opened = getOpenPortIds(merchant);
+  for (const typeId of typeIds) for (const from of opened) for (const to of opened) {
     for (const good of MERCHANT_GOODS) {
-      minimum = Math.min(minimum, minimumProfitableBudget(typeId, from, to, good.id));
+      minimum = Math.min(minimum, minimumProfitableBudget(typeId, from, to, good.id, merchant));
     }
   }
   return Number.isFinite(minimum) ? minimum : 0;
@@ -222,11 +263,16 @@ export function getExplorationPreview(state, input = {}) {
   return previewExploration(state, input, { legDuration, operatingReserve: getOperatingReserve(state) });
 }
 
+export function getIntelligenceOffer(state, intelId) {
+  return previewIntelligence(state, intelId, getOperatingReserve(state));
+}
+
 function quote(merchant, from, to, goodId, ship, budget, market) {
   const origin = getPort(from);
   const destination = getPort(to);
-  const type = getShipType(ship.typeId);
+  const type = getShipStats(merchant, ship.typeId);
   if (!origin || !destination || from === to || !type || !getGood(goodId)) return { quantity: 0, reason: '请选择不同港口、货物和船只。' };
+  if (!isPortOpen(merchant, from) || !isPortOpen(merchant, to)) return { quantity: 0, reason: '这条商路尚未开放，请等待探索船完整返港。' };
   const buy = origin.buy[goodId];
   const sell = destination.sell[goodId];
   if (!buy || !sell) return { quantity: 0, reason: '该商路没有可成交的供需组合。' };
@@ -236,7 +282,9 @@ function quote(merchant, from, to, goodId, ship, budget, market) {
   const affordable = Math.floor((budget - fee) / buy);
   const quantity = Math.max(0, Math.min(type.capacity, supply, demand, affordable));
   const cost = quantity * buy;
-  const revenue = quantity * sell;
+  const baseRevenue = quantity * sell;
+  const net = baseRevenue - cost - fee;
+  const revenue = baseRevenue + Math.floor(Math.max(0, net) * getTechBonuses(merchant).profit);
   const profit = revenue - cost - fee;
   const reason = quantity === 0
     ? budget < fee + buy ? '货本不足，无法同时支付采购与完整往返费用。'
@@ -245,7 +293,7 @@ function quote(merchant, from, to, goodId, ship, budget, market) {
     : profit <= 0 ? '实际可成交量不足以覆盖完整往返费用。' : '';
   return {
     quantity, cost, revenue, fee, profit, reason,
-    legMs: legDuration(ship.typeId, from, to),
+    legMs: legDuration(ship.typeId, from, to, merchant), capacity: type.capacity,
     fullLoad: quantity === type.capacity,
     supply, demand,
   };
@@ -254,12 +302,12 @@ function quote(merchant, from, to, goodId, ship, budget, market) {
 // 市场机会与派遣发车共用同一报价规则；仅推荐此刻有船和货本可完成的盈利航次。
 export function findRouteOpportunity(state, from, to, goodId) {
   const merchant = init(state);
-  if (!merchant.unlockedPorts.includes(from) || !merchant.unlockedPorts.includes(to) || from === to) return null;
+  if (!isPortOpen(merchant, from) || !isPortOpen(merchant, to) || from === to) return null;
   const cash = Math.max(0, Math.floor(state.credits));
   const opportunityFor = (ship, available, purchaseCost = 0) => {
-    const minimum = minimumProfitableBudget(ship.typeId, from, to, goodId);
+    const minimum = minimumProfitableBudget(ship.typeId, from, to, goodId, merchant);
     if (!Number.isFinite(minimum) || available < minimum) return null;
-    const budget = Math.min(available, Math.max(220, minimum));
+    const budget = Math.min(available, fullLoadBudget(ship.typeId, from, to, goodId, merchant));
     const offer = quote(merchant, from, to, goodId, ship, budget, merchant.markets);
     if (!offer.quantity || offer.profit <= 0) return null;
     return {
@@ -294,7 +342,7 @@ export function listRouteOpportunities(state) {
   const merchant = init(state);
   const routes = [];
   for (const from of MERCHANT_PORTS) for (const to of MERCHANT_PORTS) {
-    if (from.id === to.id || !merchant.unlockedPorts.includes(from.id) || !merchant.unlockedPorts.includes(to.id)) continue;
+    if (from.id === to.id || !isPortOpen(merchant, from.id) || !isPortOpen(merchant, to.id)) continue;
     for (const good of MERCHANT_GOODS) {
       if (!from.buy[good.id] || !to.sell[good.id]) continue;
       routes.push({
@@ -331,6 +379,31 @@ export function preview(state, plan) {
     fee: rows.reduce((sum, row) => sum + (row.profit > 0 ? row.fee : 0), 0),
     reason: rows.length ? [...new Set(rows.map(row => row.reason).filter(Boolean))].join('；') : '请至少分配一艘可用飞船。',
   };
+}
+
+export function getShipRouteComparison(state, route) {
+  const merchant = state.merchant;
+  if (!isPortOpen(merchant, route?.from) || !isPortOpen(merchant, route?.to) ||
+      route.from === route.to || !getPort(route.from)?.buy?.[route.goodId] || !getPort(route.to)?.sell?.[route.goodId]) return [];
+  return MERCHANT_SHIPS.map(type => {
+    const capital = fullLoadBudget(type.id, route.from, route.to, route.goodId, merchant);
+    const offer = quote(merchant, route.from, route.to, route.goodId, { typeId: type.id }, capital, merchant.markets);
+    const needed = new Set();
+    const requireTech = id => {
+      if (!id || merchant.researchedTechIds.includes(id) || needed.has(id)) return;
+      needed.add(id); getTech(id).requires.forEach(requireTech);
+    };
+    requireTech(type.techId);
+    const researchCost = [...needed].reduce((sum, id) => sum + getTech(id).cost, 0);
+    const purchaseCost = getShipPurchaseQuote(merchant, type.id)?.total ?? null;
+    return { typeId: type.id, ...getShipStats(merchant, type.id), ...offer, durationMs: 2 * offer.legMs, capital, purchaseCost, researchCost,
+      totalInvestment: purchaseCost === null ? null : researchCost + purchaseCost + capital,
+      unlocked: isShipTypeUnlocked(merchant, type.id) };
+  });
+}
+
+export function isMerchantGoodKnown(merchant, goodId) {
+  return MERCHANT_PORTS.some(port => isPortOpen(merchant, port.id) && port.buy[goodId]);
 }
 
 function restock(merchant) {
@@ -407,7 +480,7 @@ function depart(state, task, ship, at) {
   ship.trip = {
     from: task.from, to: task.to, goodId: task.goodId, quantity: result.quantity,
     cost: result.cost, fee: result.fee, revenue: result.revenue,
-    departedAt: at, legMs: result.legMs,
+    departedAt: at, legMs: result.legMs, capacity: result.capacity, techIds: [...merchant.researchedTechIds],
   };
   return true;
 }
@@ -429,6 +502,7 @@ function processAt(state, at) {
       state.credits += profit;
       task.rounds += 1; task.profit += profit;
       task.recent.unshift({ shipId: ship.id, ...trip, profit, completedAt: at });
+      recordMerchantSettlement(merchant, ship, trip, profit, at);
       task.recent.length = Math.min(task.recent.length, MERCHANT_RULES.recentTrips);
       ship.phase = 'idle'; ship.arriveAt = 0; ship.trip = null;
     }
@@ -443,12 +517,25 @@ function processAt(state, at) {
       if (!active(ship) && !depart(state, task, ship, at)) blocked = true;
     }
     if (blocked) {
-      // 完整货本仍能支持任一船盈利时，只是周转款暂被在途船占用，等待返港回款。
-      const viable = ships.map(ship => quote(merchant, task.from, task.to, task.goodId, ship, task.budget, merchant.markets));
-      if (!ships.some(active) || !viable.some(offer => offer.quantity > 0 && offer.profit > 0)) {
-        stopTask(state, task, viable.find(offer => offer.reason)?.reason || '当前条件无法完成派遣。');
-      } else {
-        for (const ship of ships) if (!active(ship)) ship.waitReason = '等待同任务在途货本返港回款。';
+      // 暂时缺货或需求不足只停靠等待；按恢复后的供需判断货本是否支持持续经营。
+      const sustainable = ship => task.budget >= minimumProfitableBudget(ship.typeId, task.from, task.to, task.goodId, merchant);
+      if (!ships.some(sustainable)) {
+        const restored = newMarkets();
+        const offer = quote(merchant, task.from, task.to, task.goodId, ships[0], task.budget, restored);
+        stopTask(state, task, offer.reason || '当前货本无法支持盈利航次。');
+        continue;
+      }
+      for (const ship of ships) {
+        if (active(ship)) continue;
+        if (!sustainable(ship)) {
+          ship.waitReason = '此船货本不足以覆盖盈利航次，可增加货本或调整船只。';
+          continue;
+        }
+        const offer = quote(merchant, task.from, task.to, task.goodId, ship, task.budget, merchant.markets);
+        ship.waitReason = offer.quantity > 0 && offer.profit > 0 ? '等待同任务在途货本返港回款。'
+          : offer.supply === 0 ? '出发港暂时无货，补货后自动续跑。'
+            : offer.demand === 0 ? '目的港需求暂满，恢复后自动续跑。'
+              : '当前货量不足以覆盖往返费用，攒足后自动续跑。';
       }
     }
   }
@@ -467,11 +554,18 @@ export function advance(state, now = Date.now()) {
     processAt(state, cursor);
     const nextArrival = Math.min(...merchant.ships.filter(active).map(ship => ship.arriveAt), Infinity);
     const next = Math.min(nextArrival, merchant.nextRestockAt, nextExplorationAt(merchant));
-    if (next > target || !Number.isFinite(next)) { merchant.lastTickAt = target; break; }
+    if (next > target || !Number.isFinite(next)) {
+      observeMerchantActivity(merchant, cursor, target);
+      merchant.lastTickAt = target; break;
+    }
+    // 达到预算时停在已经处理过的事件点，下一次补算不会重复积分。
+    if (events + 1 >= MERCHANT_RULES.maxEventsPerAdvance) break;
+    observeMerchantActivity(merchant, cursor, next);
     cursor = next;
     events += 1;
   }
   syncOnboarding(merchant);
+  pruneAnalytics(merchant, merchant.lastTickAt);
   return { caughtUp: merchant.lastTickAt >= target, processedEvents: events, pendingMs: target - merchant.lastTickAt };
 }
 
@@ -480,9 +574,9 @@ function normalizePlan(state, input, existing) {
   const from = String(input?.from || '');
   const to = String(input?.to || '');
   const goodId = String(input?.goodId || '');
-  const budget = Math.floor(Number(input?.budget));
+  const budget = Number(input?.budget);
   const shipIds = [...new Set(Array.isArray(input?.shipIds) ? input.shipIds.map(String) : [])];
-  if (!merchant.unlockedPorts.includes(from) || !merchant.unlockedPorts.includes(to) || from === to) return { error: '请选择两个已开放且不同的港口。' };
+  if (!isPortOpen(merchant, from) || !isPortOpen(merchant, to) || from === to) return { error: '请选择两个已开放且不同的港口。' };
   if (!getPort(from)?.buy?.[goodId] || !getPort(to)?.sell?.[goodId]) return { error: '这条商路没有对应的供货与需求。' };
   if (!integer(budget) || budget === 0) return { error: '请输入大于零的周转货本。' };
   if (!shipIds.length) return { error: '请至少分配一艘飞船。' };
@@ -499,14 +593,24 @@ export function command(state, action, input, now = Date.now()) {
   const merchant = init(state, now);
   // 引导操作只更新自己的进度；失败或重复操作不触发经营补算、扣款或奖励。
   if (action === 'onboarding') return commandOnboarding(state, input);
+  if (!['buyShip', 'buyIntel', 'upgradeCompany', 'breakthroughCompany', 'researchTech', 'explore', 'create', 'update', 'stop', 'unlockPort'].includes(action)) return { ok: false, msg: '未知经营操作。' };
+  if (['buyShip', 'buyIntel', 'upgradeCompany', 'breakthroughCompany', 'researchTech'].includes(action) && now > merchant.lastTickAt && !advance(state, now).caughtUp) {
+    return { ok: false, msg: '经营记录仍在补算，请稍后再投入资金。' };
+  }
+  if (action === 'buyIntel') {
+    const result = buyIntelligence(state, input, getOperatingReserve(state));
+    if (result.ok) scheduleExploration(merchant, merchant.lastTickAt);
+    return result;
+  }
   if (action === 'buyShip') {
     const type = getShipType(input?.typeId);
     const quantity = input?.quantity === undefined ? 1 : input.quantity;
     if (!type) return { ok: false, msg: '未知船型。' };
     if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > 20) return { ok: false, msg: '购船数量应为 1 至 20 艘。' };
-    if (!isShipTypeUnlocked(merchant, type.id)) return { ok: false, msg: `请先完成${getTech(type.techId).name}研发。` };
+    if (!isShipTypeUnlocked(merchant, type.id)) return { ok: false, msg: type.techId
+      ? `请先完成${getTech(type.techId).name}研发。` : `公司达到 Lv.${type.companyLevel} 后开放${type.name}采购。` };
     const company = getCompanyProgress(merchant);
-    if (quantity > company.remaining) return { ok: false, msg: `公司 Lv.${company.level} 最多持有 ${company.shipLimit} 艘飞船，请先升级公司。` };
+    if (quantity > company.remaining) return { ok: false, msg: `公司 Lv.${company.level} 最多持有 ${company.shipLimit} 艘飞船，请先升级公司或研发船队扩容。` };
     const purchase = getShipPurchaseQuote(merchant, type.id, quantity);
     if (!purchase) return { ok: false, msg: '船价超出可购买范围。' };
     const total = purchase.total;
@@ -522,16 +626,31 @@ export function command(state, action, input, now = Date.now()) {
     state.credits -= total;
     return { ok: true, msg: `已购入 ${quantity} 艘${type.name}，共 ${total.toLocaleString('zh-CN')} CR。`, shipIds };
   }
-  if (action === 'upgradeCompany') {
+  if (action === 'upgradeCompany' || action === 'breakthroughCompany') {
     const company = getCompanyProgress(merchant);
     if (company.upgradeCost === null) return { ok: false, msg: '公司已达到最高等级。' };
+    // 界面提交当时展示的等级，防止旧按钮的重复事件继续购买后续等级。
+    if (input?.fromLevel !== undefined && input.fromLevel !== company.level) {
+      return { ok: false, msg: '公司等级已变化，请按当前等级逐级升级。' };
+    }
+    if ((input?.targetLevel !== undefined && input.targetLevel !== company.nextLevel)
+      || (input?.quantity !== undefined && input.quantity !== 1)) {
+      return { ok: false, msg: `公司每次只能提升 1 级，当前可升级至 Lv.${company.nextLevel}。` };
+    }
+    if (action !== company.action) return { ok: false, msg: company.isBreakthrough
+      ? `本阶段已达到 Lv.${company.level}，请先突破进入下一阶段。` : '当前尚未达到本阶段的突破等级。' };
     if (state.credits < company.upgradeCost) return { ok: false, msg: `可用 CR 不足，需要 ${company.upgradeCost.toLocaleString('zh-CN')} CR。` };
     const reserve = getOperatingReserve(state);
     if (state.credits - company.upgradeCost < reserve) return { ok: false, msg: `需保留至少 ${reserve.toLocaleString('zh-CN')} CR 首航货本。` };
     state.credits -= company.upgradeCost;
-    merchant.companyLevel += 1;
+    merchant.companyLevel = company.nextLevel;
     scheduleExploration(merchant, Math.max(merchant.lastTickAt, Math.floor(now)));
-    return { ok: true, msg: `公司已升级至 Lv.${merchant.companyLevel}，船只总上限提升至 ${company.nextShipLimit} 艘。` };
+    const discovery = merchant.companyLevel === MERCHANT_EXPLORATION_RULES.companyLevel && merchant.exploration.event?.status === 'available'
+      ? '探索已解锁，发现未知星球信号。' : '';
+    const benefits = company.nextDescription ? `，${company.nextDescription}` : '';
+    return { ok: true, msg: company.isBreakthrough
+      ? `公司已突破至第 ${company.tier + 1} 阶 · Lv.${merchant.companyLevel}${benefits}。${discovery}`
+      : `公司已升级至 Lv.${merchant.companyLevel}${benefits}。${discovery}` };
   }
   if (action === 'researchTech') {
     const tech = getTech(input?.techId);
@@ -545,9 +664,13 @@ export function command(state, action, input, now = Date.now()) {
     if (state.credits - tech.cost < reserve) return { ok: false, msg: `需保留至少 ${reserve.toLocaleString('zh-CN')} CR 首航货本。` };
     state.credits -= tech.cost;
     merchant.researchedTechIds.push(tech.id);
-    return { ok: true, msg: `${tech.name}研发完成；${getShipType(tech.unlockShipId).name}已可购买。` };
+    scheduleExploration(merchant, merchant.lastTickAt);
+    return { ok: true, msg: `${tech.name}研发完成：${tech.description}。` };
   }
   const settlement = advance(state, now);
+  if (['create', 'update', 'stop'].includes(action) && !settlement.caughtUp) {
+    return { ok: false, msg: '经营记录仍在补算，请稍后再调整派遣。' };
+  }
   if (action === 'explore') {
     if (!settlement.caughtUp) return { ok: false, msg: '经营记录仍在补算，请稍后再派出探索。' };
     return startExploration(state, input, merchant.lastTickAt, { legDuration, operatingReserve: getOperatingReserve(state) });
@@ -558,13 +681,14 @@ export function command(state, action, input, now = Date.now()) {
     const task = {
       id: `task-${merchant.nextId++}`, ...plan,
       available: plan.budget, rounds: 0, profit: 0, recent: [], pending: null,
-      stopping: false, createdAt: now,
+      stopping: false, createdAt: merchant.lastTickAt,
     };
     state.credits -= plan.budget;
     merchant.tasks.push(task);
     for (const ship of merchant.ships) if (plan.shipIds.includes(ship.id)) ship.taskId = task.id;
     advance(state, now);
-    return { ok: true, msg: task.stopReason ? autoStopMessage(state, task) : '经营安排已提交，商队开始自动跑商。', taskId: task.id };
+    const underway = merchant.ships.some(ship => ship.taskId === task.id && active(ship));
+    return { ok: true, msg: task.stopReason ? autoStopMessage(state, task) : underway ? '经营安排已提交，商队开始自动跑商。' : '商路已保留，等待供需恢复后自动续跑。', taskId: task.id };
   }
   if (action === 'update') {
     const task = taskById(merchant, input?.taskId);
@@ -599,6 +723,7 @@ export function getTaskStatus(merchant, task) {
   const outbound = ships.filter(ship => ship.phase === 'outbound').length;
   const returning = ships.filter(ship => ship.phase === 'return').length;
   if (outbound || returning) return `运行中 · 去程 ${outbound} / 返程 ${returning}`;
+  if (ships.some(ship => ship.phase === 'waiting')) return '等待供需 · 自动续跑';
   return ships.find(ship => ship.waitReason)?.waitReason || '准备下一轮';
 }
 

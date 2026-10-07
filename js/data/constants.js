@@ -1,6 +1,6 @@
 import { MERCHANT_DEFAULTS } from './merchant.js';
-export const GAME_VERSION = '2.0.0';
-export const SAVE_SCHEMA_VERSION = 26;
+export const GAME_VERSION = '2.2.0';
+export const SAVE_SCHEMA_VERSION = 33;
 export const PERSISTED_STATE_DEFAULTS = Object.freeze({
   companyName: '蓝脉信使物流体', credits: 1000,
   currentGalaxy: 'milky_way', viewingGalaxy: 'milky_way', merchant: MERCHANT_DEFAULTS,

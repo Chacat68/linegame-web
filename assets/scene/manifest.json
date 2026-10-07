@@ -20,7 +20,7 @@
     },
     {
       "path": "js/data/sceneVisuals.js",
-      "sha256": "6a923cd73085aa0551a1628a2d06a0b9c83bc04816712f7e3829bd46e7aefcdf"
+      "sha256": "efec0504f6fcfeffdaab8ddef1ac66e23ee2fc3e0dcd0d98c2b762daa71c69f6"
     },
     {
       "path": "js/ui/SceneLighting.js",

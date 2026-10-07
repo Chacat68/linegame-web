@@ -1,0 +1,36 @@
+{
+  "change": "低多边形太阳球体：桌面半径 40→60 px，窄屏 26→38 px",
+  "checks": [
+    {
+      "viewport": [
+        1280,
+        820
+      ],
+      "sunRadiusPx": 60,
+      "calls": 65,
+      "triangles": 30704,
+      "passed": true
+    },
+    {
+      "viewport": [
+        393,
+        900
+      ],
+      "sunRadiusPx": 38,
+      "calls": 65,
+      "triangles": 30704,
+      "passed": true
+    },
+    {
+      "viewport": [
+        320,
+        740
+      ],
+      "sunRadiusPx": 38,
+      "calls": 65,
+      "triangles": 30704,
+      "passed": true
+    }
+  ],
+  "visualCheck": "三个视口下球体完整可见，没有遮挡按钮或标签；绘制次数与模型面数不变"
+}

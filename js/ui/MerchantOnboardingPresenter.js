@@ -1,4 +1,5 @@
 import { getOnboardingProgress } from '../systems/merchant/MerchantOnboarding.js';
+import { buildMerchantEarlyProgress } from './MerchantEarlyProgress.js';
 import { hasBlockingSurfaceOpen, hideBlockingSurface, isBlockingSurfaceVisible, registerBlockingSurfaceDismiss, showBlockingSurface } from './SurfaceManager.js';
 
 export const MERCHANT_OPENING_STORY = '旧航路重新开放，太阳主星需要矿石，矿石带等待粮食。你接手了一家小运输公司，只有一艘轻舟和一笔启动资金。让第一条生意跑起来，用利润壮大商队，探索更多星球。蓝脉航路，等你重新连接。';
@@ -6,9 +7,9 @@ export const MERCHANT_OPENING_STORY = '旧航路重新开放，太阳主星需�
 const steps = Object.freeze([
   null,
   { title: '安排第一条商路', text: '从「新派遣」开始，选择一条已开放的商路。粮食和矿石，都有需要它们的港口。', action: 'dispatch', label: '新派遣' },
-  { title: '配船，留出周转货本', text: '选一艘空闲船，填入货本，确认预计净利。货本用于采购和往返费用，初始轻舟就能接下第一笔生意。', action: 'dispatch', label: '继续配置' },
-  { title: '让商队完成第一趟', text: '往返自动执行，返港后才结算净利润。你可以切到后台；无货或无法盈利时，任务会自动结束。', action: 'tasks', label: '查看航运任务' },
-  { title: '用利润壮大公司', text: '积累 CR 升级公司，再决定购船扩张、研发新船或探索新港。更多功能会随公司等级开放，接下来由你安排。', action: 'finish', label: '开始自主经营' },
+  { title: '配船，留出周转货本', text: '已为初始轻舟准备满载货本。查看预计净利后即可派遣，也可以改选商路、船只和金额。货本只需划拨一次。', action: 'dispatch', label: '继续配置' },
+  { title: '让商队完成第一趟', text: '往返自动执行，返港后才结算净利润。货本继续周转；缺货或需求暂满时会停靠等待，市场恢复后自动续跑。', action: 'tasks', label: '查看航运任务' },
+  { title: '用利润壮大公司', text: '初始公司还有船位，可以先添船、开通另一条商路。准备好升级和探索费用后，再向新港出发。', action: 'finish', label: '开始自主经营' },
 ]);
 
 export function createMerchantOnboardingPresenter({ doc = document, getState, execute, navigate, openDispatch }) {
@@ -71,13 +72,18 @@ export function createMerchantOnboardingPresenter({ doc = document, getState, ex
     const settled = progress.settledTrips > 0;
     const action = progress.step === 3 && settled ? 'report' : definition.action;
     const label = progress.step === 3 && settled ? options.view === 'reports' ? '继续经营' : '查看首笔收入' : definition.label;
-    const nextMarkup = `<div class="merchant-onboarding-copy"><small>经营入门 · ${progress.step + 1} / 5</small><h2 tabindex="-1">${progress.step === 3 && settled ? '第一笔收益已结算' : definition.title}</h2><p>${progress.step === 3 && settled ? '在报告中查看线路净利；收入、收回的本金和净利润会分别记账。' : definition.text}</p></div><div class="merchant-onboarding-actions"><button type="button" data-onboarding-action="${action}" data-button-state="ready">${label}</button><button type="button" class="merchant-onboarding-skip" data-onboarding-action="skip">跳过引导</button></div>`;
+    const early = progress.step === 4 ? buildMerchantEarlyProgress(state) : null;
+    const profit = progress.latestSettlement?.profit;
+    const copy = progress.step === 3 && settled ? `${Number.isFinite(profit) ? `最近一趟净赚 ${Math.floor(profit).toLocaleString('zh-CN')} CR，已计入可用资金。` : '首趟净利润已计入可用资金。'}原货本继续经营，在报告中可以查看每趟结算。` : early?.text || definition.text;
+    const nextMarkup = `<div class="merchant-onboarding-copy"><small>经营入门 · ${progress.step + 1} / 5</small><h2 tabindex="-1">${progress.step === 3 && settled ? '第一笔收益已结算' : definition.title}</h2><p>${copy}</p>${progress.step === 3 && !settled && progress.nextReturnAt ? '<p data-onboarding-return></p>' : ''}</div><div class="merchant-onboarding-actions"><button type="button" data-onboarding-action="${action}" data-button-state="ready">${label}</button><button type="button" class="merchant-onboarding-skip" data-onboarding-action="skip">跳过引导</button></div>`;
     if (markup !== nextMarkup) {
       const hadFocus = hint.contains(doc.activeElement);
       hint.innerHTML = nextMarkup;
       markup = nextMarkup;
       if (hadFocus) hint.querySelector('h2')?.focus({ preventScroll: true });
     }
+    const returnNode = hint.querySelector('[data-onboarding-return]');
+    if (returnNode) returnNode.textContent = `约 ${Math.max(0, Math.ceil((progress.nextReturnAt - state.merchant.lastTickAt) / 1000))} 秒后返港结算`;
     const selector = progress.step === 1 ? '#merchant-task-workspace .merchant-operations-head [data-merchant-action="new"]'
       : progress.step === 2 && options.formOpen ? '#merchant-ship-picks, #merchant-plan-preview'
         : progress.step === 3 && settled ? '#bottom-nav [data-view="reports"]'
