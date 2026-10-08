@@ -18,7 +18,7 @@ const research = (state, id, now = state.merchant.lastTickAt) => {
   const result = Merchant.command(state, 'researchTech', { techId: id }, now);
   expect(result.ok, `${id}: ${result.msg}`).toBe(true);
 };
-const fleetIds = level => MERCHANT_TECHS.filter(tech => tech.shipSlotBonus && tech.companyLevel <= level).map(tech => tech.id);
+const fleetIds = level => MERCHANT_TECHS.filter(tech => tech.shipSlotBonus && tech.previousCompanyLevel <= level).map(tech => tech.id);
 const allResearch = state => MERCHANT_TECHS.forEach(tech => research(state, tech.id));
 beforeEach(() => { localStorage.clear(); });
 
@@ -96,7 +96,7 @@ describe('科技加成与航次锁定', () => {
     const next = Merchant.getExplorationPreview(loaded, { from: 'nebula_forge', shipId: 'ship-1' });
     expect(next.legMs).toBe(Merchant.legDuration('courier', 'nebula_forge', 'aurora_depot', loaded.merchant));
     expect(next.legMs).toBeLessThan(Merchant.legDuration('courier', 'nebula_forge', 'aurora_depot'));
-    expect(next.durationMs).toBe(2 * next.legMs + 60000);
+    expect(next.durationMs).toBe(2 * next.legMs + 8 * 60_000);
   });
 
   it('净利科技只奖励可盈利成交，不让不足以覆盖费用的航次变为盈利', () => {

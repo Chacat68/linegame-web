@@ -31,7 +31,7 @@ const routeMaterial=new THREE.ShaderMaterial({vertexColors:true,transparent:true
   fragmentShader:`varying vec3 tint;varying float opacity;varying float edge;void main(){gl_FragColor=vec4(tint,opacity*(1.-smoothstep(.72,1.,abs(edge))));
   #include <colorspace_fragment>
   }`});
-const portNames=[['太阳主星','agricultural','农业'],['矿石带','mining','矿业'],['星云工厂','industrial','工业'],['极光原料港','mining','原料']];
+const portNames=[['金穗农业星','agricultural','农业'],['黑金矿星','mining','矿业'],['百炼工业星','industrial','工业'],['聚宝原料星','mining','原料']];
 const labels=portNames.map(([name,type,badge],index)=>{
   const button=document.createElement('button');button.className='port-label';button.type='button';button.dataset.type=type;
   button.innerHTML=`<strong>${name}</strong><span class="port-type">${badge}</span>`;

@@ -83,15 +83,19 @@ body[data-merchant="true"] .merchant-exploration-signal span:not(.merchant-explo
 body[data-merchant="true"] .merchant-exploration-signal strong { font-size: 13px; font-weight: 600; }
 body[data-merchant="true"] .merchant-exploration-signal small { color: var(--ui-commerce); font-size: 10px; }
 body[data-merchant="true"] .merchant-exploration-symbol { color: var(--ui-commerce); font-size: 26px; }
-body[data-merchant="true"] .merchant-exploration-panel { z-index: 24; bottom: auto; max-height: calc(100dvh - var(--ui-resource-height) - var(--ui-nav-height) - 42px); width: min(360px,calc(100vw - 24px)); }
+body[data-merchant="true"] .merchant-exploration-panel { --exploration-panel-padding: 20px; z-index: 24; bottom: auto; max-height: calc(100dvh - var(--ui-resource-height) - var(--ui-nav-height) - 42px); width: min(360px,calc(100vw - 24px)); padding: var(--exploration-panel-padding); }
+body[data-merchant="true"] .merchant-exploration-panel .merchant-form-head { position: sticky; top: calc(-1 * var(--exploration-panel-padding)); z-index: 2; margin-top: calc(-1 * var(--exploration-panel-padding)); padding-top: var(--exploration-panel-padding); background: var(--merchant-panel); }
+body[data-merchant="true"] .merchant-exploration-panel .merchant-form-head h2 { margin: 4px 0; line-height: 1.25; }
 body[data-merchant="true"] .merchant-exploration-panel :is(h2,h3) { color: var(--ui-text-primary); }
-body[data-merchant="true"] .merchant-exploration-field { display: grid; align-content: center; gap: 8px; margin: 18px 0; color: var(--ui-text-secondary); font-size: 12px; }
+body[data-merchant="true"] .merchant-exploration-field { display: grid; align-content: center; gap: 8px; margin: 12px 0; color: var(--ui-text-secondary); font-size: 12px; }
 body[data-merchant="true"] .merchant-exploration-field select { width: 100%; min-height: 44px; padding: 0 12px; }
-body[data-merchant="true"] .merchant-exploration-ledger { margin: 22px 0; padding: 14px; background: var(--merchant-inset); border: 1px solid var(--ui-line-subtle); border-radius: 14px; }
+body[data-merchant="true"] .merchant-exploration-ledger { margin: 16px 0; padding: 12px; background: var(--merchant-inset); border: 1px solid var(--ui-line-subtle); border-radius: 14px; }
 body[data-merchant="true"] .merchant-exploration-ledger p { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 32px; margin: 0; font-size: 12px; }
 body[data-merchant="true"] .merchant-exploration-ledger span { color: var(--ui-text-secondary); }
 body[data-merchant="true"] .merchant-exploration-ledger strong { text-align: right; font-weight: 550; }
 body[data-merchant="true"] .merchant-exploration-feedback { min-height: 20px; margin: 12px 0; color: var(--ui-warning); font-size: 12px; line-height: 1.5; }
+body[data-merchant="true"] .merchant-exploration-feedback:empty { display: none; }
+body[data-merchant="true"] .merchant-exploration-actions { position: sticky; bottom: 0; z-index: 1; padding: 12px 0; background: var(--merchant-panel); border-top: 1px solid var(--ui-line-subtle); }
 body[data-merchant="true"] .merchant-exploration-note { margin: 12px 0; color: var(--ui-text-secondary); font-size: 12px; line-height: 1.6; }
 body[data-merchant="true"] [data-exploration-port] { width: 100%; }
 body[data-merchant="true"] [data-exploration-fleet] { width: 100%; margin-top: 8px; }
@@ -102,6 +106,13 @@ body[data-merchant="true"] .merchant-exploration-result { display: grid; align-c
 body[data-merchant="true"] .merchant-exploration-result > span { color: var(--ui-commerce); font-size: 42px; }
 body[data-merchant="true"] .merchant-exploration-result p { color: var(--ui-text-secondary); font-size: 12px; }
 body[data-merchant="true"] :is(.merchant-exploration-signal,.merchant-exploration-panel)[hidden] { display: none !important; }
+@media (max-width: 560px) {
+  body[data-merchant="true"] .merchant-exploration-panel { --exploration-panel-padding: 14px; }
+}
+@media (max-height: 480px) {
+  body[data-merchant="true"] .merchant-exploration-panel { --exploration-panel-padding: 12px; }
+  body[data-merchant="true"] .merchant-exploration-actions { position: static; padding: 8px 0; }
+}
 @media (max-width: 520px) {
   body[data-merchant="true"] .merchant-exploration-panel { right: 8px; width: calc(100vw - 16px); }
 }
@@ -207,9 +218,9 @@ body[data-merchant="true"] .merchant-ship-picks input {
 body[data-merchant="true"] .merchant-ship-picks input:focus-visible { outline: none; }
 body[data-merchant="true"] .merchant-plan-preview { border-color: var(--ui-success); border-radius: 12px; background: var(--merchant-inset); }
 body[data-merchant="true"] .merchant-plan-preview :is(small,strong,p) { color: var(--ui-text-primary); }
-body[data-merchant="true"] :is(.merchant-catchup,.merchant-feedback:not(:empty)) { background: var(--merchant-inset); color: var(--ui-text-secondary); }
+body[data-merchant="true"] .merchant-catchup { background: var(--merchant-inset); color: var(--ui-text-secondary); }
 body[data-merchant="true"] .merchant-catchup { border-left-color: var(--ui-warning); }
-body[data-merchant="true"] .merchant-feedback:not(:empty) { border-left-color: var(--ui-success); }
+body[data-merchant="true"] .merchant-feedback:not(:empty) { background: var(--merchant-panel); color: var(--ui-text-primary); border-left-color: var(--ui-success); }
 body[data-merchant="true"] .merchant-command-stage {
   border-color: var(--ui-line-default); border-radius: 24px 24px 0 0;
   background: radial-gradient(ellipse at 88% 15%,color-mix(in srgb,var(--ui-scene-dust) 18%,transparent),transparent 50%),

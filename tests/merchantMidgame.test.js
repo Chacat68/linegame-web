@@ -63,7 +63,8 @@ describe('中期原料港与探索记录', () => {
     const input = { eventId: event.id, shipId: 'ship-1', from: 'nebula_forge' };
     const offer = Merchant.getExplorationPreview(online, input);
     expect(offer).toMatchObject({ ok: true, cost: 1800 });
-    expect(offer.durationMs).toBe(2 * offer.legMs + 60000);
+    expect(offer).toMatchObject({ surveyMs: 8 * 60_000 });
+    expect(offer.durationMs).toBe(2 * offer.legMs + 8 * 60_000);
     const before = online.credits;
     expect(Merchant.command(online, 'explore', input, at).ok).toBe(true);
     expect(online.credits).toBe(before - 1800);

@@ -38,11 +38,15 @@ export function createMerchantExplorationPanel({ doc, map, renderer, getState, e
     const preview = getExplorationPreview(state, { shipId: selectedShip, from: selectedFrom });
     const fee = panel.querySelector('[data-exploration-cost]');
     const eta = panel.querySelector('[data-exploration-eta]');
+    const flight = panel.querySelector('[data-exploration-flight]');
+    const survey = panel.querySelector('[data-exploration-survey]');
     const balance = panel.querySelector('[data-exploration-balance]');
     const hint = panel.querySelector('[data-exploration-feedback]');
     const submit = panel.querySelector('[data-exploration-dispatch]');
     fee.textContent = `${preview.cost.toLocaleString('zh-CN')} CR`;
     eta.textContent = preview.durationMs ? duration(preview.durationMs) : '—';
+    flight.textContent = preview.legMs ? `${duration(preview.legMs)} × 2（去程 / 返程）` : '—';
+    survey.textContent = duration(preview.surveyMs);
     balance.textContent = state.credits >= preview.cost ? `${(state.credits - preview.cost).toLocaleString('zh-CN')} CR` : '—';
     hint.textContent = feedback || (preview.ok ? '' : preview.reason);
     submit.disabled = !preview.ok;
@@ -70,14 +74,14 @@ export function createMerchantExplorationPanel({ doc, map, renderer, getState, e
         panel.innerHTML = `${head}<form data-exploration-form>
           <label class="merchant-exploration-field">出发港口<select name="from" data-exploration-field="from" aria-label="探索出发港口">${opened.map(id => `<option value="${escape(id)}" ${id === selectedFrom ? 'selected' : ''}>${escape(getPort(id)?.name || id)}</option>`).join('')}</select></label>
           <label class="merchant-exploration-field">探索船只<select name="shipId" data-exploration-field="ship" aria-label="探索船只" ${free.length ? '' : 'disabled'}>${free.length ? free.map(ship => `<option value="${escape(ship.id)}" ${ship.id === selectedShip ? 'selected' : ''}>${escape(getShipType(ship.typeId)?.name || ship.typeId)} · ${escape(ship.id.replace('ship-', '#'))}</option>`).join('') : '<option value="">暂无空闲船只</option>'}</select></label>
-          <div class="merchant-exploration-ledger"><p><span>探索费用</span><strong data-exploration-cost></strong></p><p><span>预计往返</span><strong data-exploration-eta></strong></p><p><span>扣费后可用 CR</span><strong data-exploration-balance></strong></p><p><span>返港后开放</span><strong>新港与商路</strong></p></div>
-          <p class="merchant-exploration-note">探索期间占用所选船只，完成后自动返港待命。</p>
-          <p class="merchant-exploration-feedback" data-exploration-feedback role="status"></p><button type="submit" data-exploration-dispatch>派船探索</button>${free.length ? '' : '<button type="button" data-exploration-fleet>查看船队</button>'}</form>`;
+          <div class="merchant-exploration-ledger"><p><span>探索费用</span><strong data-exploration-cost></strong></p><p><span>往返飞行</span><strong data-exploration-flight></strong></p><p><span>现场勘察</span><strong data-exploration-survey></strong></p><p><span>预计总耗时</span><strong data-exploration-eta></strong></p><p><span>扣费后可用 CR</span><strong data-exploration-balance></strong></p><p><span>返港后开放</span><strong>新港与商路</strong></p></div>
+          <p class="merchant-exploration-note">去程 → 现场勘察 → 返程。全程占用所选船只，完整返港后开放商路并恢复空闲。</p>
+          <div class="merchant-exploration-actions"><p class="merchant-exploration-feedback" data-exploration-feedback role="status"></p><button type="submit" data-exploration-dispatch>派船探索</button>${free.length ? '' : '<button type="button" data-exploration-fleet>准备空闲船</button>'}</div></form>`;
       } else if (event.status === 'completed') {
         panel.innerHTML = `${head}<div class="merchant-exploration-result"><span aria-hidden="true">✦</span><p>新港与商路已开放</p><p>探索船已返港待命</p></div><button type="button" data-exploration-port>查看新港商路 ↗</button>`;
       } else {
         const ship = state.merchant.ships.find(item => item.id === event.shipId);
-        panel.innerHTML = `${head}<div class="merchant-exploration-ledger"><p><span>探索船只</span><strong>${escape(getShipType(ship?.typeId)?.name || event.shipId)}</strong></p><p><span>出发港口</span><strong>${escape(getPort(event.from)?.name || event.from)}</strong></p><p><span>当前状态</span><strong data-exploration-stage></strong></p><p><span>预计返港</span><strong data-exploration-remaining></strong></p></div><div class="merchant-exploration-progress" role="progressbar" aria-label="探索往返进度" aria-valuemin="0" aria-valuemax="100"><i></i></div>`;
+        panel.innerHTML = `${head}<div class="merchant-exploration-ledger"><p><span>探索船只</span><strong>${escape(getShipType(ship?.typeId)?.name || event.shipId)}</strong></p><p><span>出发港口</span><strong>${escape(getPort(event.from)?.name || event.from)}</strong></p><p><span>当前状态</span><strong data-exploration-stage></strong></p><p><span>本阶段剩余</span><strong data-exploration-phase-remaining></strong></p><p><span>预计返港</span><strong data-exploration-remaining></strong></p></div><div class="merchant-exploration-progress" role="progressbar" aria-label="探索全程进度" aria-valuemin="0" aria-valuemax="100"><i></i></div>`;
       }
       const restoreField = focused && panel.querySelector(`[data-exploration-field="${focused}"]`);
       if (hadFocus) (restoreField || panel.querySelector('[data-exploration-close]'))?.focus();
@@ -86,9 +90,11 @@ export function createMerchantExplorationPanel({ doc, map, renderer, getState, e
     if (event.status === 'exploring' || event.status === 'returning') {
       const returning = event.status === 'returning';
       const endsAt = returning ? event.arriveAt : event.arriveAt + event.legMs;
-      const stage = { returning: '探索返港', outbound: '探索去程', surveying: '勘察中' }[getExplorationStage(event, now)];
+      const phase = getExplorationStage(event, now);
+      const stage = { returning: '探索返港', outbound: '探索去程', surveying: '勘察中' }[phase];
       const progress = Math.round(Math.max(0, Math.min(1, (now - event.startedAt) / (endsAt - event.startedAt))) * 100);
       panel.querySelector('[data-exploration-stage]').textContent = stage;
+      panel.querySelector('[data-exploration-phase-remaining]').textContent = duration((phase === 'outbound' ? event.startedAt + event.legMs : event.arriveAt) - now);
       panel.querySelector('[data-exploration-remaining]').textContent = duration(endsAt - now);
       const bar = panel.querySelector('[role="progressbar"]');
       bar.setAttribute('aria-valuenow', String(progress));

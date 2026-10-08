@@ -367,6 +367,10 @@ body.startup-loading {
   .merchant-scene-loader .startup-loader__actions { margin-top: 12px; }
 }
 
+@media (max-height: 420px) and (min-width: 600px) {
+  .startup-loader.has-error .startup-loader__title br { display: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .startup-loader,
   .startup-loader__progress-fill {

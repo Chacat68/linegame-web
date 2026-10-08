@@ -74,4 +74,12 @@ body #game-main>#map-section { top:0; }
   display: flex; align-items: center; min-height: 48px; overflow-wrap: anywhere;
 }
 .merchant-confirm-actions { align-items: center; flex-wrap: wrap; }
+.merchant-company-name-modal { width: min(480px,100%); }
+.merchant-company-name-hint { margin: 20px 0; color: var(--ui-text-secondary); line-height: 1.6; }
+.merchant-company-name-field { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 10px; }
+.merchant-company-name-field input { width: 100%; min-width: 0; min-height: 44px; padding: 10px 12px; color: var(--ui-text-primary); border: 1px solid var(--ui-line-default); border-radius: 10px; background: var(--merchant-inset); font: inherit; }
+.merchant-company-name-field input:focus-visible { outline: 2px solid var(--ui-accent-strong); outline-offset: 3px; }
+.merchant-company-name-field button { min-width: 64px; }
+.merchant-company-name-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+#merchant-company-name-status { min-height: 24px; margin: 0; color: var(--ui-accent-strong); line-height: 1.5; overflow-wrap: anywhere; }
 @media(max-width:900px) { .bottom-nav-btn { min-height: 54px; } }

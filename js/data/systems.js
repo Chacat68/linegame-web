@@ -2,7 +2,7 @@
 export const SYSTEMS = Object.freeze([
   {
     "id": "sol_prime",
-    "name": "太阳主星",
+    "name": "金穗农业星",
     "type": "agricultural",
     "typeLabel": "农业",
     "color": "#4CAF50",
@@ -10,7 +10,7 @@ export const SYSTEMS = Object.freeze([
   },
   {
     "id": "mineral_belt",
-    "name": "矿石带",
+    "name": "黑金矿星",
     "type": "mining",
     "typeLabel": "矿业",
     "color": "#FF9800",
@@ -18,13 +18,13 @@ export const SYSTEMS = Object.freeze([
   },
   {
     "id": "nebula_forge",
-    "name": "星云工厂",
+    "name": "百炼工业星",
     "type": "industrial",
     "typeLabel": "工业",
     "color": "#FF7043",
     "galaxyId": "milky_way"
   },
-  { "id": "aurora_depot", "name": "极光原料港", "type": "mining", "typeLabel": "原料", "color": "#80CBC4", "galaxyId": "milky_way" }
+  { "id": "aurora_depot", "name": "聚宝原料星", "type": "mining", "typeLabel": "原料", "color": "#80CBC4", "galaxyId": "milky_way" }
 ]);
 export const GALAXIES = Object.freeze([
   {

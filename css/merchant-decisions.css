@@ -39,7 +39,7 @@ body[data-merchant="true"] :is(.merchant-discovery-notice,.merchant-research-pan
   color: var(--ui-text-primary); background: var(--merchant-panel); box-shadow: var(--merchant-raised-shadow);
 }
 body[data-merchant="true"] .merchant-discovery-notice { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-body[data-merchant="true"] .merchant-discovery-notice > p { flex: 1; min-width: 0; }
+body[data-merchant="true"] .merchant-discovery-copy { flex: 1; min-width: 0; }
 body[data-merchant="true"] .merchant-discovery-actions { display: flex; flex: 0 0 auto; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; max-width: 100%; margin-left: auto; }
 body[data-merchant="true"] :is(.merchant-discovery-notice,.merchant-investment-panel) p { margin: 8px 0; color: var(--ui-text-secondary); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
 body[data-merchant="true"] .merchant-dispatch { min-width: 0; margin: 20px 0; }

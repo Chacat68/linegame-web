@@ -46,15 +46,16 @@ describe('百级公司成长与五级突破', () => {
     expect(state.merchant.ships[0].trip).toEqual(trip);
   });
 
-  it('每个五级阶段开放3–4项小幅科技，六种类型贯穿100级且总效果不膨胀', () => {
+  it('二级先开放船位与探索，六种小幅科技贯穿100级且总效果不膨胀', () => {
     const state = fresh(); state.credits = MERCHANT_COMPANY_LEVELS.reduce((sum, stage) => sum + (stage.upgradeCost ?? 0), 0)
       + MERCHANT_TECHS.reduce((sum, tech) => sum + tech.cost, 0) + 1000;
     expect(MERCHANT_TECHS).toHaveLength(65);
-    expect(MERCHANT_TECHS.reduce((sum, tech) => sum + tech.cost, 0)).toBe(9_389_600);
+    expect(MERCHANT_TECHS.reduce((sum, tech) => sum + tech.cost, 0)).toBe(9_370_700);
+    expect(MERCHANT_TECHS.filter(tech => tech.companyLevel === 2).map(tech => tech.id)).toEqual(['berth_planning', 'planet_survey']);
     for (let tier = 1; tier <= 20; tier++) {
       const options = MERCHANT_TECHS.filter(tech => tech.companyLevel > (tier - 1) * 5 && tech.companyLevel <= tier * 5);
-      expect(options.length).toBeGreaterThanOrEqual(3);
-      expect(options.length).toBeLessThanOrEqual(4);
+      expect(options.length).toBeGreaterThanOrEqual(2);
+      expect(options.length).toBeLessThanOrEqual(5);
       for (const tech of options) for (const field of ['speedBonus', 'capacityBonus', 'profitBonus']) {
         if (tech[field]) expect(tech[field]).toBeLessThanOrEqual(0.04);
       }

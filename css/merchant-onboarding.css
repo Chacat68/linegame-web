@@ -1,21 +1,67 @@
-/* 开局来信与五步软引导使用现有经营版材质；不遮住或锁住实际操作。 */
-body[data-merchant="true"] .merchant-onboarding-letter { width: min(510px,100%); padding: 32px; background: var(--merchant-panel); }
-.merchant-onboarding-seal { display: grid; place-items: center; width: 54px; height: 54px; margin-bottom: 22px; color: var(--ui-commerce); border: 1px solid var(--ui-line-default); border-radius: 18px; background: var(--merchant-inset); font-size: 30px; }
-.merchant-onboarding-letter > small, .merchant-onboarding-copy > small { color: var(--ui-commerce); letter-spacing: .08em; font-size: 10px; }
-.merchant-onboarding-letter h2 { margin: 14px 0; color: var(--ui-text-primary); font-size: clamp(23px,4vw,30px); font-weight: 600; }
-.merchant-onboarding-letter > p { margin: 18px 0 26px; color: var(--ui-text-secondary); font-size: 14px; line-height: 1.95; overflow-wrap: anywhere; }
+/* 人物视频通讯承载开场、五步软引导和已有下一步卡。 */
+body[data-merchant="true"] .merchant-onboarding-letter { width: min(820px,100%); padding: 26px; background: var(--merchant-panel); }
+.merchant-onboarding-clue small, .merchant-story-meta small { color: var(--ui-commerce); letter-spacing: .06em; font-size: 10px; }
+.merchant-onboarding-letter h2 { margin: 16px 0 12px; color: var(--ui-text-primary); font-size: clamp(23px,4vw,28px); font-weight: 600; line-height: 1.3; }
+.merchant-onboarding-handover { display: grid; gap: 5px; padding: 11px 13px; border: 1px solid var(--ui-line-default); border-radius: 10px; background: var(--merchant-inset); overflow-wrap: anywhere; }
+.merchant-onboarding-handover strong { color: var(--ui-text-primary); font-size: 14px; }
+.merchant-onboarding-handover span { color: var(--ui-commerce); font-size: 12px; font-variant-numeric: tabular-nums; }
+.merchant-onboarding-clue { margin-top: 15px; padding-left: 12px; border-left: 2px solid var(--ui-commerce); }
+.merchant-onboarding-clue p { margin: 6px 0 0; color: var(--ui-text-secondary); font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
 .merchant-onboarding-letter-actions { display: flex; align-items: center; gap: 12px; }
 .merchant-onboarding-letter-actions button { min-height: 44px; flex: 1; }
+.merchant-onboarding-reply { display: grid; gap: 8px; margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--ui-line-default); }
+.merchant-onboarding-reply > small, .merchant-onboarding-response-label { color: var(--ui-text-muted); font-size: 10px; letter-spacing: .06em; }
 body[data-merchant="true"] .merchant-onboarding-hint { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin: 0 0 22px; padding: 16px 18px; border: 1px solid color-mix(in srgb,var(--ui-commerce) 55%,transparent); border-radius: 16px; color: var(--ui-text-primary); background: var(--merchant-panel); box-shadow: var(--merchant-raised-shadow); }
-.merchant-onboarding-copy { min-width: 0; }
+.merchant-onboarding-copy { flex: 1; min-width: 0; }
+.merchant-story-communication { min-width: 0; }
+.merchant-video-call-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--ui-line-default); }
+.merchant-story-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 5px 16px; }
+.merchant-story-meta > span { color: var(--ui-text-muted); font-size: 10px; }
+.merchant-video-link { display: inline-flex; align-items: center; flex: none; gap: 6px; color: var(--ui-success); font-size: 10px; white-space: nowrap; }
+.merchant-video-link > i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px color-mix(in srgb,currentColor 40%,transparent); }
+.merchant-video-call-body { display: grid; grid-template-columns: 124px minmax(0,1fr); align-items: start; gap: 16px; }
+.merchant-video-screen { position: relative; isolation: isolate; min-width: 0; height: 166px; overflow: hidden; border: 1px solid color-mix(in srgb,var(--ui-commerce) 40%,var(--ui-line-default)); border-radius: 12px; background: var(--merchant-inset); box-shadow: inset 0 0 0 3px #15152366; }
+.merchant-video-portrait { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center; }
+.merchant-video-screen::before { content: ''; position: absolute; z-index: 1; inset: 0; pointer-events: none; background: repeating-linear-gradient(transparent 0 3px,#17172712 3px 4px); }
+.merchant-video-screen::after { content: ''; position: absolute; z-index: 1; top: -25%; left: 0; width: 100%; height: 20%; pointer-events: none; background: linear-gradient(transparent,color-mix(in srgb,var(--ui-commerce) 12%,transparent),transparent); animation: merchant-video-scan 7s linear infinite; }
+@keyframes merchant-video-scan { to { transform: translateY(625%); } }
+.merchant-video-channel { position: absolute; z-index: 2; top: 8px; left: 8px; right: 8px; display: flex; align-items: center; justify-content: space-between; color: #f2eadb; font-size: 8px; letter-spacing: .08em; text-shadow: 0 1px 4px #101020; }
+.merchant-video-signal { display: flex; align-items: end; gap: 2px; height: 10px; }
+.merchant-video-signal i { width: 3px; height: 4px; border-radius: 1px; background: var(--ui-success); }
+.merchant-video-signal i:nth-child(2) { height: 7px; }
+.merchant-video-signal i:nth-child(3) { height: 10px; }
+.merchant-video-identity { position: absolute; z-index: 2; left: 0; right: 0; bottom: 0; display: grid; gap: 4px; padding: 24px 10px 10px; color: #f4ebda; background: linear-gradient(transparent,#10111bea 42%); }
+.merchant-video-identity strong { font-size: 14px; font-weight: 600; }
+.merchant-video-identity span { color: #cfc5b9; font-size: 9px; line-height: 1.5; overflow-wrap: anywhere; text-wrap: balance; }
+.merchant-video-dialogue { min-width: 0; }
+.merchant-video-caption { position: relative; padding: 9px 12px 10px; border: 1px solid var(--ui-line-default); border-radius: 2px 12px 12px; background: var(--merchant-inset); }
+.merchant-video-caption-label { display: block; margin-bottom: 5px; color: var(--ui-commerce); font-size: 10px; }
+body[data-merchant="true"] .merchant-video-call .merchant-story-quote { margin: 0; color: var(--ui-text-secondary); font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
+.merchant-video-context { min-width: 0; margin-top: 10px; }
+.merchant-video-call.is-opening .merchant-video-call-body { grid-template-columns: 210px minmax(0,1fr); gap: 22px; }
+.merchant-video-call.is-opening .merchant-video-screen { height: 304px; border-radius: 14px; }
+.merchant-video-call.is-opening .merchant-video-identity { padding: 40px 16px 15px; }
+.merchant-video-call.is-opening .merchant-video-identity strong { font-size: 19px; }
+.merchant-video-call.is-opening .merchant-video-identity span { font-size: 11px; }
+body[data-merchant="true"] .merchant-video-call.is-opening .merchant-story-quote { font-size: 13px; line-height: 1.8; }
 .merchant-onboarding-copy h2 { margin: 7px 0; font-size: 17px; font-weight: 600; line-height: 1.4; }
 .merchant-onboarding-copy p { margin: 0; color: var(--ui-text-secondary); font-size: 12px; line-height: 1.75; overflow-wrap: anywhere; }
 .merchant-onboarding-actions { display: grid; align-content: center; gap: 6px; min-width: 125px; flex-shrink: 0; }
 .merchant-onboarding-actions button { min-height: 40px; }
 .merchant-onboarding-actions .merchant-onboarding-skip { min-height: 28px; padding: 3px 8px; border: 0; color: var(--ui-text-muted); background: transparent; box-shadow: none; font-size: 11px; }
-body[data-merchant="true"] .merchant-onboarding-target { outline: 2px solid var(--ui-commerce); outline-offset: 4px; }
+body[data-merchant="true"] .merchant-onboarding-target { outline: 2px solid var(--ui-commerce); outline-offset: 4px; animation: merchant-onboarding-target-flash 1.4s ease-in-out infinite; }
+@keyframes merchant-onboarding-target-flash {
+  0%, 100% { outline-color: color-mix(in srgb,var(--ui-commerce) 25%,transparent); }
+  50% { outline-color: var(--ui-commerce); }
+}
+body[data-merchant="true"] .merchant-onboarding-target:focus-within { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  body[data-merchant="true"] .merchant-onboarding-target { animation: none; }
+}
 #merchant-form .merchant-onboarding-hint { display: grid; margin-top: 18px; padding: 12px; }
-#merchant-form .merchant-onboarding-actions { display: flex; align-items: center; justify-content: space-between; }
+#merchant-form .merchant-onboarding-actions { grid-template-columns: minmax(0,1fr) auto; align-items: center; }
+.merchant-onboarding-actions .merchant-onboarding-response-label { grid-column: 1/-1; }
+body[data-merchant="true"] .merchant-discovery-actions .merchant-onboarding-response-label { flex-basis: 100%; text-align: right; }
 body[data-merchant="true"] .merchant-onboarding-hint[hidden] { display: none !important; }
 .merchant-onboarding-copy :is([data-onboarding-return],[data-early-return]) { margin-top: 7px; color: var(--ui-commerce); font-variant-numeric: tabular-nums; }
 .merchant-early-capital { display: grid; gap: 6px; max-width: 360px; margin-top: 10px; color: var(--ui-text-secondary); font-size: 11px; font-variant-numeric: tabular-nums; }
@@ -29,7 +75,7 @@ body[data-merchant="true"] .merchant-onboarding-hint[hidden] { display: none !im
 body[data-merchant="true"] .merchant-company-growth.is-early { grid-template-columns: minmax(0,1fr) minmax(130px,.6fr) minmax(220px,.9fr); gap: 10px 18px; padding: 14px 18px; }
 body[data-merchant="true"] .is-early .merchant-company-identity { grid-column: auto; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 6px; }
 body[data-merchant="true"] .is-early :is(.merchant-company-identity > small,.merchant-company-goal) { display: none; }
-body[data-merchant="true"] .is-early .merchant-company-identity #company-name-display { font-size: 16px; }
+body[data-merchant="true"] .is-early .merchant-company-identity #company-name-display { font-size: 20px; }
 body[data-merchant="true"] .is-early .merchant-company-level { padding: 3px 7px; font-size: 11px; }
 body[data-merchant="true"] .is-early .merchant-company-capacity { gap: 0; }
 body[data-merchant="true"] .is-early .merchant-company-capacity strong { font-size: 20px; }
@@ -40,11 +86,35 @@ body[data-merchant="true"] .is-early .merchant-company-upgrade > small { grid-co
 body[data-merchant="true"] .is-early .merchant-company-upgrade button { font-size: 11px; }
 body[data-merchant="true"] .is-early .merchant-company-roadmap { padding-top: 8px; }
 @media (max-width: 650px) {
-  body[data-merchant="true"] .merchant-onboarding-letter { padding: 24px; }
+  body[data-merchant="true"] .merchant-onboarding-letter { padding: 20px; }
   body[data-merchant="true"] .merchant-onboarding-hint { display: grid; gap: 12px; padding: 14px; }
-  .merchant-onboarding-actions { display: flex; align-items: center; justify-content: space-between; }
+  .merchant-video-call-head { gap: 8px; }
+  .merchant-story-meta { gap: 4px; }
+  .merchant-video-call-body, .merchant-video-call.is-opening .merchant-video-call-body { grid-template-columns: 94px minmax(0,1fr); gap: 12px; }
+  .merchant-video-screen, .merchant-video-call.is-opening .merchant-video-screen { height: 132px; border-radius: 10px; }
+  .merchant-video-dialogue { display: contents; }
+  .merchant-video-context { grid-column: 1/-1; margin-top: 0; }
+  .merchant-video-call.is-opening .merchant-video-identity { padding: 24px 8px 8px; }
+  .merchant-video-call.is-opening .merchant-video-identity strong { font-size: 14px; }
+  .merchant-video-call.is-opening .merchant-video-identity span { font-size: 9px; }
+  .merchant-video-caption { padding: 8px 10px; }
+  .merchant-onboarding-actions { grid-template-columns: minmax(0,1fr) auto; align-items: center; }
   .merchant-onboarding-actions button { min-height: 44px; }
+  .merchant-onboarding-letter h2 { margin: 0 0 12px; }
+  .merchant-onboarding-reply { margin-top: 16px; }
 }
+@media (max-height: 600px) {
+  body[data-merchant="true"] .merchant-onboarding-letter { padding: 18px 20px; }
+  .merchant-onboarding-letter h2 { margin: 10px 0; font-size: 23px; }
+  .merchant-onboarding-reply { margin-top: 14px; }
+}
+@media (min-width: 651px) and (max-height: 600px) {
+  .merchant-video-call.is-opening .merchant-video-screen { height: 254px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .merchant-video-screen::after { animation: none; opacity: 0; }
+}
+body:is([data-motion="off"],[data-motion="reduced"]) .merchant-video-screen::after { animation: none; opacity: 0; }
 @media (max-width: 900px) {
   body[data-merchant="true"] .merchant-company-growth.is-early { grid-template-columns: minmax(0,1fr) minmax(0,.8fr); gap: 10px 14px; padding: 14px; }
   body[data-merchant="true"] .is-early .merchant-company-upgrade { grid-column: 1/-1; padding-top: 8px; border-top: 1px solid var(--ui-line-default); }

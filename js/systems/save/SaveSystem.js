@@ -1,6 +1,6 @@
 import { GAME_VERSION, SAVE_SCHEMA_VERSION, createInitialState, createSaveMeta } from '../../data/constants.js';
 import { init as initMerchant, isValidMerchantState } from '../merchant/MerchantSystem.js';
-import { createExplorationState, initExploration } from '../merchant/MerchantExploration.js';
+import { createExplorationState, initExploration, restoreLegacyExplorationTiming } from '../merchant/MerchantExploration.js';
 import { createOnboardingState, isValidOnboardingState } from '../merchant/MerchantOnboarding.js';
 import { findGalaxy } from '../../data/systems.js';
 import { MERCHANT_PORTS, MERCHANT_LEGACY_LEVEL_MAP, MERCHANT_18_LEVEL_MAP } from '../../data/merchant.js';
@@ -90,6 +90,7 @@ function decode(raw, id) {
       if (version < 30 && data.merchant.purchasedIntelIds === undefined) data.merchant.purchasedIntelIds = [];
       if (version < 31) restoreGranularMerchantTechs(data.merchant);
       if (version < 32) restoreLegacyFleetCapacity(data.merchant);
+      if (version < 34) restoreLegacyExplorationTiming(data.merchant);
       state = project({ ...data, currentGalaxy: findGalaxy(data.currentGalaxy)?.id || 'milky_way', viewingGalaxy: findGalaxy(data.viewingGalaxy)?.id || 'milky_way' });
     } else {
       state = createInitialState({ companyName: source.companyName, credits: source.credits });
@@ -105,7 +106,7 @@ function backup(id, raw) {
   // 公司、探索与引导迁移各留原始备份，不占用之前版本的备份。
   let version;
   try { version = JSON.parse(raw)?.meta?.schemaVersion; } catch { /* 损坏文件仍可原样保留。 */ }
-  const key = PREFIX + (version === 32 ? 'before_v33_' : version === 31 ? 'before_v32_' : version === 30 ? 'before_v31_' : version === 29 ? 'before_v30_' : version === 28 ? 'before_v29_' : version === 27 ? 'before_v28_' : version === 26 ? 'before_v27_' : version === 25 ? 'before_v26_' : version === 24 ? 'before_v25_' : version === 23 ? 'before_v24_' : 'before_2_0_') + id;
+  const key = PREFIX + (version === 33 ? 'before_v34_' : version === 32 ? 'before_v33_' : version === 31 ? 'before_v32_' : version === 30 ? 'before_v31_' : version === 29 ? 'before_v30_' : version === 28 ? 'before_v29_' : version === 27 ? 'before_v28_' : version === 26 ? 'before_v27_' : version === 25 ? 'before_v26_' : version === 24 ? 'before_v25_' : version === 23 ? 'before_v24_' : 'before_2_0_') + id;
   if (raw && localStorage.getItem(key) === null) localStorage.setItem(key, raw);
 }
 export function saveGame(slotId, state, options = {}) {

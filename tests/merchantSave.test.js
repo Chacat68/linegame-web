@@ -13,7 +13,7 @@ const plan={from:'sol_prime',to:'mineral_belt',goodId:'food',shipIds:['ship-1'],
 const fresh=()=>{const state=createInitialState();Merchant.init(state,start);return state;};
 const withPriorShipSlots = value => {
   const copy = structuredClone(value), merchant = copy.merchant ?? copy;
-  merchant.researchedTechIds.push(...MERCHANT_TECHS.filter(tech => tech.shipSlotBonus && tech.companyLevel <= merchant.companyLevel && !merchant.researchedTechIds.includes(tech.id)).map(tech => tech.id));
+  merchant.researchedTechIds.push(...MERCHANT_TECHS.filter(tech => tech.shipSlotBonus && tech.previousCompanyLevel <= merchant.companyLevel && !merchant.researchedTechIds.includes(tech.id)).map(tech => tech.id));
   return copy;
 };
 const raw=(state,version=SAVE_SCHEMA_VERSION)=>JSON.stringify({meta:{schemaVersion:version,gameVersion:'0.6.4',timestampMs:start,saveName:'现有经营进度'},data:state});

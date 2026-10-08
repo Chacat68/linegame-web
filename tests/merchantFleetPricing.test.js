@@ -4,7 +4,7 @@ import { MERCHANT_COMPANY_LEVELS, MERCHANT_TECHS } from '../js/data/merchant.js'
 import { measureFleet } from '../scripts/simulate-company-pricing.mjs';
 
 describe('公司升级按阶段满编船队校准', () => {
-  it.each([1, 24, 57, 100])('Lv.%i 的基础与全部扩容船位均真实采购并划拨货本，供需只共享一份', level => {
+  it.each([1, 2, 24, 57, 100])('Lv.%i 的基础与全部扩容船位均真实采购并划拨货本，供需只共享一份', level => {
     const stage = MERCHANT_COMPANY_LEVELS.find(item => item.level === level);
     const base = measureFleet({ level, expansion: false, horizonMinutes: 2 });
     const full = measureFleet({ level, horizonMinutes: 2 });
@@ -19,7 +19,7 @@ describe('公司升级按阶段满编船队校准', () => {
     if (level === 1) expect(full.purchaseCost).toBe(0);
     expect(full.researchCost - base.researchCost).toBe(full.fleetExpansionCost - base.fleetExpansionCost);
     expect(full.initialInvestment).toBe(full.researchCost + full.purchaseCost + full.explorationCost + full.workingCapital);
-    expect(full.ports).toBe(level >= 57 ? 4 : level >= 24 ? 3 : 2);
+    expect(full.ports).toBe(level >= 57 ? 4 : level >= 2 ? 3 : 2);
     expect(full.peakObservedActiveShips).toBeGreaterThanOrEqual(Math.min(2, full.ships));
     expect(full.peakObservedActiveShips).toBeLessThanOrEqual(full.ships);
     if (level === 100) expect(full.participatingShips).toBeLessThan(full.ships);

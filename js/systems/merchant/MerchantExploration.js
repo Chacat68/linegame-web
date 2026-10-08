@@ -6,6 +6,16 @@ const integer = value => Number.isSafeInteger(value) && value >= 0;
 const exploring = ship => ship.phase === 'exploring' || ship.phase === 'explore_return';
 const underway = event => event?.status === 'exploring' || event?.status === 'returning';
 export const getExplorationRules = portId => MERCHANT_EXPLORATION_TARGETS.find(rule => rule.targetPortId === portId);
+const legacySurveyMs = Object.freeze({ nebula_forge: 30_000, aurora_depot: 60_000 });
+
+// v33 及更早的探索时间来自当时的规则；保留已支付任务与历史记录的原定时间。
+export function restoreLegacyExplorationTiming(merchant) {
+  const exploration = merchant.exploration;
+  if (!exploration) return;
+  for (const event of [...(exploration.completed || []), ...(exploration.event ? [exploration.event] : [])]) {
+    if (event.surveyMs === undefined) event.surveyMs = event.status === 'available' ? 0 : legacySurveyMs[event.portId];
+  }
+}
 // 去程与勘察共用持久化的 exploring 状态，展示阶段由真实时间推导。
 export const getExplorationStage = (event, at = Date.now()) => event?.status === 'exploring'
   ? at < event.startedAt + event.legMs ? 'outbound' : 'surveying'
@@ -30,7 +40,7 @@ function publishSignal(merchant, portId, at) {
   exploration.event = {
     id: `event-${merchant.nextId++}`, portId, status: 'available',
     shipId: null, from: null, appearedAt: at,
-    startedAt: 0, legMs: 0, arriveAt: 0, completedAt: 0,
+    startedAt: 0, legMs: 0, surveyMs: 0, arriveAt: 0, completedAt: 0,
     techIds: [],
   };
   exploration.nextEventAt = 0;
@@ -96,7 +106,7 @@ export function previewExploration(state, input, { legDuration, operatingReserve
   const merchant = state.merchant;
   const event = merchant.exploration.event;
   const rule = getExplorationRules(event?.portId) || MERCHANT_EXPLORATION_TARGETS[0];
-  const result = { ok: false, reason: '', cost: rule.cost, legMs: 0, durationMs: 0 };
+  const result = { ok: false, reason: '', cost: rule.cost, legMs: 0, surveyMs: rule.surveyMs, durationMs: 0 };
   const reject = reason => ({ ...result, reason });
   if (merchant.companyLevel < rule.companyLevel) return reject(`公司达到 Lv.${rule.companyLevel} 后开放探索。`);
   if (!merchant.researchedTechIds.includes(rule.techId)) return reject(rule.techId === 'planet_survey' ? '请先研发新港勘察。' : '请先研发远域勘察。');
@@ -125,8 +135,8 @@ export function startExploration(state, input, at, helpers) {
   state.credits -= offer.cost;
   Object.assign(event, {
     status: 'exploring', shipId: ship.id, from: input.from || 'sol_prime',
-    startedAt: at, legMs: offer.legMs,
-    arriveAt: at + offer.legMs + getExplorationRules(event.portId).surveyMs, completedAt: 0,
+    startedAt: at, legMs: offer.legMs, surveyMs: offer.surveyMs,
+    arriveAt: at + offer.legMs + offer.surveyMs, completedAt: 0,
     techIds: [...state.merchant.researchedTechIds],
   });
   Object.assign(ship, { taskId: event.id, phase: 'exploring', departAt: at, arriveAt: event.arriveAt, trip: null, waitReason: '' });
@@ -155,17 +165,18 @@ export function isValidExplorationState(merchant, legDuration) {
     if (!rule || !isValidTechSnapshot(merchant, item.techIds) || typeof item.id !== 'string' || !/^event-[1-9]\d*$/.test(item.id) ||
         !['available', 'exploring', 'returning', 'completed'].includes(item.status) ||
         !integer(item.appearedAt) || !item.appearedAt || item.appearedAt > merchant.lastTickAt ||
-        !integer(item.startedAt) || !integer(item.legMs) || !integer(item.arriveAt) || !integer(item.completedAt)) return false;
+        !integer(item.startedAt) || !integer(item.legMs) || !integer(item.surveyMs) || !integer(item.arriveAt) || !integer(item.completedAt)) return false;
     const opened = merchant.unlockedPorts.includes(item.portId);
     if (item.status === 'available') {
-      if (!eligible(merchant, rule) || item.shipId !== null || item.from !== null || item.startedAt || item.legMs || item.arriveAt || item.completedAt) return false;
+      if (!eligible(merchant, rule) || item.shipId !== null || item.from !== null || item.startedAt || item.legMs || item.surveyMs || item.arriveAt || item.completedAt) return false;
       continue;
     }
     const ship = merchant.ships.find(candidate => candidate.id === item.shipId);
     if (!ship || !merchant.unlockedPorts.includes(item.from) || item.from === item.portId ||
         item.startedAt < item.appearedAt || item.startedAt > merchant.lastTickAt || !item.legMs ||
         item.legMs !== legDuration(ship.typeId, item.from, item.portId, { researchedTechIds: item.techIds })) return false;
-    const returningAt = item.startedAt + item.legMs + rule.surveyMs;
+    if (![rule.surveyMs, legacySurveyMs[item.portId]].includes(item.surveyMs)) return false;
+    const returningAt = item.startedAt + item.legMs + item.surveyMs;
     const completedAt = returningAt + item.legMs;
     if (!integer(completedAt)) return false;
     if (item.status === 'completed') {

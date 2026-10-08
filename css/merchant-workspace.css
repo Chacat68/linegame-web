@@ -50,10 +50,9 @@ body[data-merchant="true"] #game-main > .merchant-workspace { color: #e3f1eb; }
 .merchant-stage-progress { width: 172px; max-width: 100%; height: 3px; margin-top: 5px; background: #38606a; }
 .merchant-stage-progress i { display: block; height: 100%; width: 0; background: #b3edc4; box-shadow: 0 0 12px #a5f3c6; transition: width .5s linear; }
 .merchant-catchup { align-content: center; margin: 0 0 9px; padding: 8px 12px; color: #eed7a8; background: #403828; border-left: 3px solid #bd9b62; font-size: 11px; line-height: 1.5; }
-.merchant-feedback { min-height: 0; color: #a7e9c9; font-size: 11px; }
-.merchant-feedback:empty { display: none; }
-.merchant-feedback:not(:empty) { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 8px; padding: 5px 11px; background: #15352f; border-left: 3px solid #78bd9d; }
-.merchant-feedback button { min-height: 28px; padding: 3px 9px; border-color: #78bd9d; color: #cbf5d5; background: #215348; font-size: 10px; white-space: nowrap; }
+.merchant-feedback { position: fixed; top: calc(var(--ui-resource-height) + 12px); right: max(24px,env(safe-area-inset-right)); z-index: 30; max-width: min(420px,calc(100vw - 48px)); min-height: 0; color: var(--ui-text-primary); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; pointer-events: none; }
+.merchant-feedback:empty, body:not([data-active-view="tasks"]) .merchant-feedback { display: none; }
+.merchant-feedback:not(:empty) { display: flex; align-items: center; gap: 10px; margin: 0; padding: 10px 14px; border: 1px solid var(--ui-line-default); border-left: 3px solid var(--ui-success); border-radius: 12px; background: var(--merchant-panel); box-shadow: var(--merchant-panel-shadow); }
 .merchant-operations { min-width: 0; min-height: 120px; border: 1px solid #2e5361; border-radius: 10px; background: linear-gradient(145deg,#0b2530,#091b26); box-shadow: inset 0 1px #c5ffff0c; }
 .merchant-operations { padding: 18px; }
 .merchant-operations-head { display: flex; justify-content: space-between; align-items: center; gap: 15px; padding-bottom: 11px; border-bottom: 1px solid #31515c; }
@@ -158,7 +157,7 @@ body[data-merchant="true"] #game-main > .merchant-workspace { color: #e3f1eb; }
 .merchant-company-growth strong { display:block; margin:6px 0; color:var(--ui-text-primary); font-size:24px; line-height:1.25; font-variant-numeric:tabular-nums; }
 .merchant-company-growth span { color:var(--ui-text-secondary); font-size:12px; }
 .merchant-company-identity { display:grid; justify-items:start; gap:7px; }
-.merchant-company-identity #company-name-display { display:block; padding:0; max-width:100%; min-height:26px; border:0 !important; background:none !important; box-shadow:none !important; text-align:left; color:var(--ui-text-primary); font-size:20px; font-weight:700; line-height:1.4; overflow-wrap:anywhere; }
+.merchant-company-identity #company-name-display { display:block; padding:0; max-width:100%; min-height:26px; border:0 !important; background:none !important; box-shadow:none !important; text-align:left; color:var(--ui-text-primary); font-size:24px; font-weight:700; line-height:1.4; overflow-wrap:anywhere; }
 .merchant-company-identity .merchant-company-level { padding:4px 10px; border:1px solid var(--ui-line-default); border-radius:7px; color:var(--ui-accent-strong); background:var(--merchant-inset); font-size:14px; font-weight:700; }
 .merchant-company-capacity strong { color:var(--ui-accent-strong); font-size:28px; }
 .merchant-company-capacity,.merchant-company-goal { display:grid; align-content:center; align-self:stretch; gap:6px; }
@@ -201,7 +200,7 @@ body[data-merchant="true"] #game-main > .merchant-workspace { color: #e3f1eb; }
 @media (max-width:600px) {
   .merchant-company-growth { grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px 12px; padding:16px; }
   .merchant-company-growth + .merchant-command-stage { margin-top:20px; }
-  .merchant-company-identity #company-name-display { font-size:20px; }
+  .merchant-company-identity #company-name-display { font-size:22px; }
   .merchant-company-capacity strong { font-size:26px; }
   .merchant-company-goal strong { font-size:19px; }
   .merchant-company-upgrade { grid-column:1/-1; grid-template-columns:minmax(0,1fr) auto; align-items:center; text-align:left; padding-top:12px; border-top:1px solid var(--ui-line-default); }
@@ -287,6 +286,7 @@ body[data-merchant="true"] #game-main > .merchant-workspace { color: #e3f1eb; }
   .merchant-form-panel { bottom: calc(var(--ui-nav-height) + env(safe-area-inset-bottom) + 8px); }
 }
 @media (max-width: 600px) {
+  .merchant-feedback { right: max(12px,env(safe-area-inset-right)); max-width: calc(100vw - 24px); }
   body#merchant-game.ui-redesign #game-shell #game-main > .merchant-workspace.merchant-workspace-base { padding: 10px 12px calc(88px + env(safe-area-inset-bottom)) !important; }
   .merchant-command-heading { min-height: 51px; padding-bottom: 7px; }
   .merchant-command-heading h1 { font-size: 24px; }

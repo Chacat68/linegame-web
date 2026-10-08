@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { researchChain } from './helpers/merchantResearch.js';
-import { createInitialState, createSaveMeta } from '../js/data/constants.js';
+import { createInitialState, createSaveMeta, SAVE_SCHEMA_VERSION } from '../js/data/constants.js';
 import { MERCHANT_COMPANY_LEVELS, MERCHANT_18_LEVEL_MAP, MERCHANT_TECHS } from '../js/data/merchant.js';
 import * as Merchant from '../js/systems/merchant/MerchantSystem.js';
 import * as Save from '../js/systems/save/SaveSystem.js';
@@ -116,7 +116,7 @@ describe('旧档船位迁移', () => {
     const loaded = Save.loadGame(0); expect(loaded.ok, loaded.msg).toBe(true);
     expect(loaded.state).toEqual(state);
     expect(localStorage.getItem('startrader_save_before_v33_0')).toBe(raw);
-    expect(JSON.parse(Save.exportSave(0)).meta.schemaVersion).toBe(33);
+    expect(JSON.parse(Save.exportSave(0)).meta.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
     expect(Save.loadGame(0).state).toEqual(state);
   });
 
@@ -154,7 +154,7 @@ describe('旧档船位迁移', () => {
     expect(loaded.state.merchant.researchedTechIds).toEqual(expansions.filter(tech => tech.legacyCompanyLevel <= level).map(tech => tech.id));
     expect(Merchant.getCompanyProgress(loaded.state.merchant)).toMatchObject({ shipLimit: limit, baseShipLimit: baseLimits[level - 1], researchShipSlots: limit - baseLimits[level - 1] });
     expect(localStorage.getItem('startrader_save_before_v32_0')).toBe(raw);
-    expect(JSON.parse(Save.exportSave(0)).meta.schemaVersion).toBe(33);
+    expect(JSON.parse(Save.exportSave(0)).meta.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
     expect(Save.loadGame(0).state).toEqual(loaded.state);
     expect(localStorage.getItem('startrader_save_before_v32_0')).toBe(raw);
   });

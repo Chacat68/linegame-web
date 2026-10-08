@@ -1,7 +1,10 @@
 import { getPendingTechChain } from '../../js/systems/merchant/MerchantTechnology.js';
 import { test, expect } from '@playwright/test';
 import { MERCHANT_TECHS, MERCHANT_COMPANY_LEVELS } from '../../js/data/merchant.js';
+import { COMPANY_NAMES } from '../../js/data/companyNames.js';
+import * as Merchant from '../../js/systems/merchant/MerchantSystem.js';
 import { openTools, importFixture } from './helpers/merchantFixtures.mjs';
+import { expectStoryPortrait } from './helpers/merchantStory.mjs';
 const runtimeErrors = new WeakMap();
 
 async function expectNavigation(page, expanded) {
@@ -64,11 +67,17 @@ test('新局软引导、初始商圈、派遣、独立航次与返港停用', as
   const intro = page.locator('#merchant-onboarding-intro');
   const hint = page.locator('#merchant-onboarding-hint');
   await expect(intro).toBeVisible();
+  await expectStoryPortrait(intro, '梁简');
+  await expect(intro).toContainText('老航运调度员');
+  await expect(intro).toContainText('视频通讯');
+  await expect(intro).toContainText('一张未签收的货单');
+  await expect(intro.locator('[data-onboarding-assets]')).toHaveText('1 艘飞船 · 1,000 CR 启动资金');
   await expect(page.locator('#credits')).toHaveText('1,000');
   await intro.locator('[data-onboarding-action="start"]').click();
   await expect(intro).toBeHidden();
   await expect(hint).toBeVisible();
   await expect(hint.locator('h2')).toHaveText('安排第一条商路');
+  await expect(hint.locator('[data-story-phase="first-contract"]')).toContainText('梁简');
   await expectPanelMaterial(page, '.merchant-operations');
   await expect(page.locator('[data-merchant-action="map"]')).toHaveCount(0);
   await expectPanelMaterial(page, '#merchant-company-growth');
@@ -77,6 +86,7 @@ test('新局软引导、初始商圈、派遣、独立航次与返港停用', as
   await expectButtonState(page.locator('[data-merchant-action="upgrade-company"]'), 'blocked');
   await page.locator('[data-merchant-action="new"]').first().click();
   await expect(hint.locator('h2')).toHaveText('配船，留出周转货本');
+  await expect(hint.locator('[data-story-phase="loading"]')).toBeVisible();
   await expectPanelMaterial(page, '#merchant-form-panel');
   await expectButtonMaterial(page, '.merchant-form-head button');
   const form = page.locator('#merchant-form');
@@ -89,6 +99,8 @@ test('新局软引导、初始商圈、派遣、独立航次与返港停用', as
   await submit.click();
   await expect(page.locator('#merchant-task-list [data-merchant-action="select-task"]')).toHaveCount(1);
   await expect(hint.locator('h2')).toHaveText('让商队完成第一趟');
+  await expect(hint.locator('[data-story-phase="first-voyage"]')).toBeVisible();
+  await expect(hint.locator('[data-story-phase="first-receipt"]')).toHaveCount(0);
   await page.locator('#bottom-nav [data-view="reports"]').click();
   const toggle = page.locator('.merchant-report-toggle');
   await expect(toggle).toHaveCount(1);
@@ -98,6 +110,7 @@ test('新局软引导、初始商圈、派遣、独立航次与返港停用', as
   await page.clock.fastForward(18_000);
   await expect(page.locator('.merchant-report-row').first()).toBeVisible({ timeout: 40000 });
   await expect(hint.locator('h2')).toHaveText('用利润壮大公司');
+  await expect(hint.locator('[data-story-phase="handover"]')).toContainText('新回执已经入档');
   await page.locator('#bottom-nav [data-view="tasks"]').click();
   await expectButtonState(page.locator('[data-merchant-action="upgrade-company"]'), 'blocked');
   const stop = page.locator('[data-merchant-action="stop"]');
@@ -124,6 +137,76 @@ test('新局软引导、初始商圈、派遣、独立航次与返港停用', as
   await page.locator('[data-merchant-action="new"]').first().click();
   await expect(page.locator('#merchant-ship-picks [name="shipIds"]')).toHaveCount(1);
   await expect(page.locator('#merchant-ship-picks [name="shipIds"]')).toBeEnabled();
+});
+
+test('新局软引导剧情随实际首航回执推进，跳过与刷新不重播', async ({ page }) => {
+  const intro = page.locator('#merchant-onboarding-intro');
+  const hint = page.locator('#merchant-onboarding-hint');
+  const companyName = await page.locator('#company-name-display').innerText();
+  await expectStoryPortrait(intro, '梁简');
+  await expect(intro).toContainText('你的回应');
+  await expect(intro.locator('[data-onboarding-company]')).toHaveText(companyName.replace(/\s*✎\s*$/, ''));
+  expect(await intro.evaluate(node => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+  await page.screenshot({ path: test.info().outputPath('序章交接.png') });
+  await intro.locator('[data-onboarding-action="start"]').click();
+  await hint.locator('[data-onboarding-action="dispatch"]').click();
+  const form = page.locator('#merchant-form');
+  const budget = form.locator('[name="budget"]');
+  await expect(budget).toHaveValue('126');
+  await expect(form.locator('[name="shipIds"]:checked')).toHaveCount(1);
+  await expect(page.locator('#credits')).toHaveText('1,000');
+  await budget.fill('137');
+  await hint.locator('[data-onboarding-action="dispatch"]').click();
+  await expect(budget).toBeFocused();
+  await page.clock.runFor(2_000);
+  await expect(budget).toHaveValue('137');
+  await expect(budget).toBeFocused();
+  await budget.fill('126');
+  await form.getByRole('button', { name: '确认派遣' }).click();
+  await expect(hint.locator('[data-story-phase="first-voyage"]')).toBeVisible();
+  await expect(hint).not.toContainText('第一笔收益已结算');
+  await page.clock.fastForward(18_000);
+  await expect(hint.locator('[data-story-phase="first-receipt"]')).toContainText('唐禾');
+  await expectStoryPortrait(hint, '唐禾');
+  await expect(hint).toContainText('净赚 42 CR，已计入可用资金');
+  await expect(page.locator('#credits')).toHaveText('916');
+  await page.screenshot({ path: test.info().outputPath('首张回执.png') });
+  await hint.locator('[data-onboarding-action="report"]').click();
+  await expect(hint.locator('[data-story-phase="handover"]')).toContainText('旧货单');
+  await expectStoryPortrait(hint, '梁简');
+  await hint.locator('[data-onboarding-action="skip"]').click();
+  await expect(hint).toBeHidden();
+  await page.locator('#bottom-nav [data-view="tasks"]').click();
+  await expect(page.locator('#merchant-early-progress [data-story-phase="first-profit"]')).toBeVisible();
+  await page.reload();
+  await expect(page.locator('#startup-loader')).toBeHidden();
+  await expect(intro).toBeHidden();
+  await expect(hint).toBeHidden();
+  await expect(page.locator('#merchant-early-progress')).toContainText('准备公司升级');
+});
+
+test('首单补货等待与跳过后的剧情提示保持一致，不要求重复派遣', async ({ page }) => {
+  await importFixture(page, { credits: 1000, legacyAccess: false, configure: state => {
+    state.merchant.onboarding = { step: 2, skipped: false };
+    state.merchant.markets.sol_prime.supply.food = 0;
+    expect(Merchant.command(state, 'create', { from: 'sol_prime', to: 'mineral_belt', goodId: 'food', shipIds: ['ship-1'], budget: 126 }, state.merchant.lastTickAt).ok).toBe(true);
+  } });
+  const hint = page.locator('#merchant-onboarding-hint');
+  const next = page.locator('#merchant-early-progress');
+  await expect(hint.locator('h2')).toHaveText('等待首航出发');
+  await expect(hint.locator('[data-onboarding-action="dispatch"]')).toHaveCount(0);
+  await expect(hint.locator('[data-onboarding-return]')).toHaveCount(0);
+  await hint.locator('[data-onboarding-action="skip"]').click();
+  await expect(hint).toBeHidden();
+  await expect(next).toHaveAttribute('data-stage', 'first-wait');
+  await expect(next.locator('[data-story-phase="first-wait"]')).toBeVisible();
+  await expect(next.locator('[data-early-return]')).toHaveCount(0);
+  await page.clock.fastForward(65_000);
+  await expect(next.locator('[data-story-phase="first-voyage"]')).toBeVisible();
+  await page.clock.fastForward(18_000);
+  await expect(next.locator('[data-story-phase="first-profit"]')).toBeVisible();
+  await expect(page.locator('#credits')).toHaveText('916');
+  await expect(page.locator('#merchant-task-list [data-merchant-action="select-task"]')).toHaveCount(1);
 });
 
 test('批量购船、科技门槛、游戏内存档确认与刷新恢复', async ({ page }) => {
@@ -195,6 +278,98 @@ test('批量购船、科技门槛、游戏内存档确认与刷新恢复', async
   await expectButtonState(page.locator('[data-merchant-action="buy-in-form"][data-type="courier"]'), 'blocked');
 });
 
+test('公司名称独立弹窗、随机草稿、取消与存档恢复', async ({ page }, testInfo) => {
+  const company = page.locator('#company-name-display');
+  const initialName = (await company.textContent()).replace(/\s*✎\s*$/, '').trim();
+  expect(COMPANY_NAMES).toContain(initialName);
+  await importFixture(page, { level: 29 });
+  await company.focus();
+  await company.press('Enter');
+  const modal = page.locator('#company-name-modal');
+  const input = modal.getByRole('textbox', { name: '公司名称', exact: true });
+  const random = modal.getByRole('button', { name: '随机公司名称' });
+  const close = modal.getByRole('button', { name: '关闭公司改名' });
+  const save = modal.getByRole('button', { name: '保存名称' });
+  await expect(modal).toBeVisible();
+  await expect(modal).toHaveAttribute('aria-hidden', 'false');
+  await expect(page.locator('#settings-modal')).toBeHidden();
+  await expect(input).toHaveValue('浏览器验收商队');
+  await expect(input).toBeFocused();
+  await expectPanelMaterial(page, '#company-name-modal .modal-box');
+  await expectButtonMaterial(page, '[data-company-action="randomize"]');
+  await expectButtonState(save, 'ready');
+  await expect(close).toHaveCSS('width', '44px');
+  await expect(close).toHaveCSS('height', '44px');
+  await expect(close).toHaveCSS('border-radius', '50%');
+
+  await random.click();
+  const first = await input.inputValue();
+  expect(COMPANY_NAMES).toContain(first);
+  await random.click();
+  const second = await input.inputValue();
+  expect(COMPANY_NAMES).toContain(second);
+  expect(second).not.toBe(first);
+  await expect(company).toContainText('浏览器验收商队');
+  await random.focus();
+  await page.clock.runFor(2000);
+  await expect(input).toHaveValue(second);
+  await expect(random).toBeFocused();
+  expect(await modal.evaluate(node => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('company-name-random.png') });
+  await modal.getByRole('button', { name: '取消', exact: true }).click();
+  await expect(modal).toBeHidden();
+  await expect(company).toBeFocused();
+
+  await company.click();
+  await expect(input).toHaveValue('浏览器验收商队');
+  await input.fill('   ');
+  await save.click();
+  await expect(modal.locator('[role="status"]')).toHaveText('请输入公司名称。');
+  await expect(company).toContainText('浏览器验收商队');
+  await input.fill('  银河金帆贸易  ');
+  await input.press('Enter');
+  await expect(modal).toBeHidden();
+  await expect(company).toContainText('银河金帆贸易');
+  await expect(company).toBeFocused();
+  await page.reload();
+  await expect(page.locator('#startup-loader')).toBeHidden();
+  await expect(company).toContainText('银河金帆贸易');
+  await company.click();
+  await expect(input).toHaveValue('银河金帆贸易');
+  await save.focus();
+  await save.press('Tab');
+  await expect(close).toBeFocused();
+  await close.press('Shift+Tab');
+  await expect(save).toBeFocused();
+  await random.click();
+  await page.keyboard.press('Escape');
+  await expect(modal).toBeHidden();
+  await expect(modal).toHaveAttribute('aria-hidden', 'true');
+  await expect(company).toBeFocused();
+  await expect(company).toContainText('银河金帆贸易');
+  await company.click();
+  await expect(input).toHaveValue('银河金帆贸易');
+  await random.click();
+  await modal.click({ position: { x: 2, y: 2 } });
+  await expect(modal).toBeHidden();
+  await expect(company).toBeFocused();
+  await expect(company).toContainText('银河金帆贸易');
+  await company.click();
+  await random.click();
+  const savedRandomName = await input.inputValue();
+  await save.click();
+  await expect(company).toContainText(savedRandomName);
+  await expect(modal).toBeHidden();
+  await page.reload();
+  await expect(page.locator('#startup-loader')).toBeHidden();
+  await expect(company).toContainText(savedRandomName);
+  await company.click();
+  await expect(input).toHaveValue(savedRandomName);
+  await close.click();
+  await expect(modal).toBeHidden();
+  await expect(company).toBeFocused();
+});
+
 test('五页导航、星图无经营遮挡、镜头仅平移与资产完整', async ({ page, isMobile }, testInfo) => {
   await importFixture(page, { level: 29 });
   await expectNavigation(page, true);
@@ -208,8 +383,8 @@ test('五页导航、星图无经营遮挡、镜头仅平移与资产完整', as
   await settings.press('Enter');
   await expect(page.locator('#merchant-tools-title')).toHaveText('设置');
   await expect(page.locator('[data-tool="tab"][data-tab="display"]')).toHaveAttribute('aria-pressed', 'true');
-  await page.locator('[data-tool="tab"][data-tab="company"]').click();
-  await expect(page.locator('#merchant-company-form [name="companyName"]')).toHaveValue('浏览器验收商队');
+  await expect(page.locator('.merchant-tools-tabs button')).toHaveCount(2);
+  await expect(page.locator('#settings-modal #merchant-company-form')).toHaveCount(0);
   await page.locator('[data-tool="tab"][data-tab="saves"]').click();
   await expect(page.locator('.merchant-save-slot')).toHaveCount(4);
   await page.screenshot({ path: testInfo.outputPath('settings-saves.png') });
@@ -280,7 +455,7 @@ test('公司升级开放研发资格，完成研发后采购与探索生效，�
   const cashText = amount => amount.toLocaleString('zh-CN');
   await importFixture(page, { credits: startingCredits, legacyAccess: false });
   await expectNavigation(page, false);
-  await expect(page.locator('.merchant-company-next-unlock')).toHaveCount(0);
+  await expect(page.locator('.merchant-company-next-unlock')).toContainText('新港勘察');
   const upgrade = page.locator('.merchant-company-upgrade button');
   await upgrade.focus(); await page.clock.runFor(1000); await expect(upgrade).toBeFocused();
   let spent = 0, level = 1;
@@ -314,11 +489,11 @@ test('公司升级开放研发资格，完成研发后采购与探索生效，�
   const roadmap = page.locator('.merchant-company-roadmap');
   await roadmap.locator('summary').click();
   await expect(roadmap.locator('li')).toHaveCount(5);
-  await expect(roadmap.locator('[aria-current="step"]')).toContainText('Lv.24');
-  await expect(roadmap.locator('li').last().locator('.merchant-company-roadmap-level')).toHaveText('Lv.25');
+  await expect(roadmap.locator('[aria-current="step"]')).toContainText('Lv.20');
+  await expect(roadmap.locator('li').last().locator('.merchant-company-roadmap-level')).toHaveText('Lv.20');
   await expect(roadmap.locator('li').last().locator('.merchant-company-roadmap-effects')).toContainText('突破关卡');
   await roadmap.locator('summary').click();
-  for (const level of Array.from({ length: 11 }, (_, index) => 25 + index)) {
+  for (const level of Array.from({ length: 15 }, (_, index) => 21 + index)) {
     await upgrade.click();
     await expect(page.locator('.merchant-company-level')).toHaveText(`Lv.${level}`);
   }
@@ -354,7 +529,7 @@ test('公司升级开放研发资格，完成研发后采购与探索生效，�
   await expect(exploration.locator('[data-exploration-cost]')).toHaveText('360 CR');
   await exploration.getByRole('button', { name: '派船探索' }).click();
   await expect(page.locator('#credits')).toHaveText('2,840');
-  await page.clock.fastForward(120000);
+  await page.clock.fastForward(5 * 60_000);
   await expect(exploration).toContainText('探索船已返港待命');
   await exploration.getByRole('button', { name: '关闭探索详情' }).click();
   await page.locator('#bottom-nav [data-view="market"]').click();

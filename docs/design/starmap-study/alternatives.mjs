@@ -17,10 +17,10 @@ const directions = {
   },
 };
 const ports=[
-  {name:'太阳主星',type:'agricultural',badge:'农业'},
-  {name:'矿石带',type:'mining',badge:'矿业'},
-  {name:'星云工厂',type:'industrial',badge:'工业'},
-  {name:'极光原料港',type:'mining',badge:'原料'},
+  {name:'金穗农业星',type:'agricultural',badge:'农业'},
+  {name:'黑金矿星',type:'mining',badge:'矿业'},
+  {name:'百炼工业星',type:'industrial',badge:'工业'},
+  {name:'聚宝原料星',type:'mining',badge:'原料'},
 ];
 const image=document.querySelector('#scene-art');
 const map=document.querySelector('#map-container');

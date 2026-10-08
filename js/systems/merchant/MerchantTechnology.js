@@ -17,7 +17,7 @@ export function getFleetSlotBonus(merchant) {
 export function restoreLegacyFleetCapacity(merchant) {
   if (!Array.isArray(merchant.researchedTechIds)) return;
   for (const tech of MERCHANT_TECHS) {
-    if (tech.shipSlotBonus && tech.companyLevel <= merchant.companyLevel && !merchant.researchedTechIds.includes(tech.id)) {
+    if (tech.shipSlotBonus && tech.previousCompanyLevel <= merchant.companyLevel && !merchant.researchedTechIds.includes(tech.id)) {
       merchant.researchedTechIds.push(tech.id);
     }
   }
@@ -67,7 +67,7 @@ export function restoreLegacyMerchantAccess(merchant) {
   ];
   const oldAdvanced = ['fast_navigation', 'bulk_logistics', 'integrated_freight'].some(id => merchant.researchedTechIds.includes(id));
   for (const id of grants) {
-    const level = MERCHANT_TECHS.find(tech => tech.id === id).companyLevel;
+    const level = MERCHANT_TECHS.find(tech => tech.id === id).previousCompanyLevel;
     const priorView = ['fleet_command', 'market_network'].includes(id) && (oldAdvanced || merchant.unlockedPorts.includes('nebula_forge'));
     const priorExploration = id === 'planet_survey' && merchant.unlockedPorts.includes('nebula_forge');
     const owned = id === 'clipper_design' && merchant.ships.some(ship => ['clipper', 'hauler'].includes(ship.typeId)) || id === 'hauler_design' && merchant.ships.some(ship => ship.typeId === 'hauler');

@@ -11,6 +11,7 @@ import { createMerchantIntelligencePresenter } from './MerchantIntelligencePrese
 import { getPlanetIntelligence } from '../systems/merchant/MerchantIntelligence.js';
 import { getMerchantAnalytics } from '../systems/merchant/MerchantAnalytics.js';
 import { buildMerchantEarlyProgress, getMerchantBudgetRecommendation } from './MerchantEarlyProgress.js';
+import { buildMerchantEarlyStory, renderMerchantStory } from './MerchantStory.js';
 import { createMerchantTechTreePresenter, merchantTechTreeShell } from './MerchantTechTreePresenter.js';
 import shuttleArt from '../../assets/scene/ships/shuttle.webp';
 import clipperArt from '../../assets/scene/ships/clipper.webp';
@@ -85,7 +86,7 @@ export function init(options) {
       <section id="merchant-early-progress" class="merchant-onboarding-hint" aria-label="下一步经营" hidden></section>
       <section id="merchant-discovery-notice" class="merchant-discovery-notice" aria-label="探索与新港动态" hidden></section>
       <section id="merchant-company-growth" class="merchant-company-growth" aria-label="公司等级与船位"></section>
-      <p id="merchant-catchup" class="merchant-catchup" role="status" hidden></p><div id="merchant-feedback" class="merchant-feedback" aria-live="polite"></div>
+      <p id="merchant-catchup" class="merchant-catchup" role="status" hidden></p>
       <section id="merchant-dispatch" class="merchant-dispatch" aria-label="经营调度">
       <div class="merchant-operations-head"><h2>经营调度</h2><button type="button" class="merchant-primary" data-merchant-action="new">＋ 新派遣</button></div>
       <div class="merchant-dispatch-tabs" role="tablist" aria-label="调度内容">
@@ -134,14 +135,20 @@ export function init(options) {
   root.addEventListener('change', changeListener);
   ports = createMerchantPortPanel({ doc: document, map: document.getElementById('merchant-task-workspace'), getState, onRoute: openRoute, onOpen: () => closeForm() });
   starmap = createMerchantStarmapController({ onReturn: () => navigate?.('tasks'), getState, execute,
-    onPort: openPort, onFleet: () => navigate?.('ships') });
+    onPort: openPort, onFleet: () => {
+      if (isMerchantViewUnlocked(getState().merchant, 'ships')) navigate?.('ships');
+      else { navigate?.('tasks'); operations.showExplorerPreparation(); }
+    } });
   techTree = createMerchantTechTreePresenter({ getState, showAll: () => { researchCategory = 'all'; render(getState()); } });
   operations = createMerchantOperationsPresenter({ getState, execute: act, onResearchShown: () => techTree.enter(),
+    onResearchRequested: techId => techTree.locate(techId),
     openExploration: () => { navigate?.('starmap'); starmap.showExploration(); },
     openPort });
   intelligence = createMerchantIntelligencePresenter({ getState, buy: input => act('buyIntel', input),
     openExploration: () => { navigate?.('starmap'); starmap.showExploration(); }, openPort });
-  onboarding = createMerchantOnboardingPresenter({ getState, execute, navigate, openDispatch: () => { navigate?.('tasks'); openForm(); } });
+  onboarding = createMerchantOnboardingPresenter({ getState, execute, navigate,
+    openDispatch: route => { if (route) openRoute(route); else { navigate?.('tasks'); openForm(); } },
+    openTask: id => { if (id) { selectTask(id); document.getElementById('merchant-task-list')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } } });
   render(getState());
 }
 
@@ -295,7 +302,7 @@ function companyGrowth(state) {
   const companyAction = company.isBreakthrough ? 'breakthrough-company' : 'upgrade-company';
   const buttonLabel = company.upgradeCost === null ? '最高等级' : `${company.isBreakthrough ? '突破' : '升级'}公司至 Lv.${company.nextLevel}`;
   const breakthroughCost = company.isBreakthrough ? `<small class="merchant-company-breakthrough-cost">升至 Lv.${company.level} 的费用 ${money(company.breakthroughBaseCost)} CR × ${company.breakthroughFactor}</small>` : '';
-  return `<div class="merchant-company-identity"><small>公司 · 第 ${company.tier} / 20 阶</small><button type="button" id="company-name-display" aria-label="修改公司名称" title="修改公司名称">${escape(state.companyName)} <span aria-hidden="true">✎</span></button><span class="merchant-company-level" tabindex="-1">Lv.${company.level}</span></div>
+  return `<div class="merchant-company-identity"><small>公司 · 第 ${company.tier} / 20 阶</small><button type="button" id="company-name-display" aria-label="修改公司名称" title="修改公司名称" aria-haspopup="dialog" aria-controls="company-name-modal">${escape(state.companyName)} <span aria-hidden="true">✎</span></button><span class="merchant-company-level" tabindex="-1">Lv.${company.level}</span></div>
     <div class="merchant-company-capacity"><small>持有船只 / 总上限</small><strong>${company.ownedShips} <span>/ ${company.shipLimit} 艘</span></strong><small>基础 ${company.baseShipLimit} · 研发 +${company.researchShipSlots}</small><small>${company.ownedShips > company.shipLimit ? `超出上限 ${company.ownedShips - company.shipLimit} 艘 · 现有船只保留` : company.remaining ? `空余 ${company.remaining} 个船位` : '船位已满'}</small></div>
     ${goal}
     <div class="merchant-company-upgrade">${company.upgradeCost === null ? '' : `<small>Lv.${company.level} → Lv.${company.nextLevel} · ${company.isBreakthrough ? `第 ${company.tier} 阶突破` : '每次提升 1 级'}</small><strong class="merchant-company-cost">${money(company.upgradeCost)} <span>CR</span></strong>`}<button type="button" data-merchant-action="${companyAction}" data-from-level="${company.level}" data-target-level="${company.nextLevel ?? ''}" data-button-state="${company.upgradeCost === null ? 'complete' : hint ? 'blocked' : 'ready'}" ${company.upgradeCost === null || hint ? 'disabled' : ''}>${buttonLabel}</button>${breakthroughCost}${company.level < MERCHANT_EXPLORATION_RULES.companyLevel && nextDetails ? `<small class="merchant-company-next-unlock">${escape(nextDetails)}</small>` : ''}${hint ? `<small role="status">${hint}</small>` : ''}</div>
@@ -316,7 +323,8 @@ function renderEarlyProgress(state) {
   const action = progress.research ? 'early-research' : progress.route ? 'route' : progress.taskId ? 'early-task' : progress.readyToUpgrade ? Merchant.getCompanyProgress(state.merchant).isBreakthrough ? 'breakthrough-company' : 'upgrade-company' : 'early-reports';
   const upgrade = ['upgrade-company', 'breakthrough-company'].includes(action) ? `data-from-level="${state.merchant.companyLevel}" data-target-level="${state.merchant.companyLevel + 1}"` : '';
   const route = progress.route;
-  updateProgressFragment(node.id, `<div class="merchant-onboarding-copy"><small>下一步经营</small><h2 tabindex="-1">${escape(progress.title)}</h2><p>${escape(progress.text)}</p>${progress.target ? `<div class="merchant-early-capital"><span>可用 ${money(progress.cash)} / ${money(progress.target)} CR</span><progress aria-label="下一次成长资金" max="${progress.target}" value="${Math.min(progress.cash, progress.target)}"></progress></div>` : ''}${progress.returnAt ? '<p data-early-return></p>' : ''}</div>${progress.label ? `<div class="merchant-onboarding-actions"><button type="button" data-merchant-action="${action}" ${upgrade} ${route ? `data-from="${route.from}" data-to="${route.to}" data-good="${route.goodId}"` : ''} ${progress.taskId ? `data-id="${escape(progress.taskId)}"` : ''} data-button-state="ready">${escape(progress.label)}</button></div>` : ''}`);
+  const objective = `<h2 tabindex="-1">${escape(progress.title)}</h2><p>${escape(progress.text)}</p>${progress.target ? `<div class="merchant-early-capital"><span>可用 ${money(progress.cash)} / ${money(progress.target)} CR</span><progress aria-label="下一次成长资金" max="${progress.target}" value="${Math.min(progress.cash, progress.target)}"></progress></div>` : ''}${progress.returnAt ? '<p data-early-return></p>' : ''}`;
+  updateProgressFragment(node.id, `<div class="merchant-onboarding-copy">${renderMerchantStory(buildMerchantEarlyStory(state, progress), '下一步经营', objective)}</div>${progress.label ? `<div class="merchant-onboarding-actions"><small class="merchant-onboarding-response-label">你的回应</small><button type="button" data-merchant-action="${action}" ${upgrade} ${route ? `data-from="${route.from}" data-to="${route.to}" data-good="${route.goodId}"` : ''} ${progress.taskId ? `data-id="${escape(progress.taskId)}"` : ''} data-button-state="ready">${escape(progress.label)}</button></div>` : ''}`);
   const eta = node.querySelector('[data-early-return]');
   if (eta) eta.textContent = `约 ${formatDuration(progress.returnAt - state.merchant.lastTickAt)} 后返港结算`;
   if (focused && !node.contains(document.activeElement)) (Array.from(node.querySelectorAll('button')).find(button => button.dataset.merchantAction === focusedAction) || node.querySelector('h2'))?.focus({ preventScroll: true });
@@ -922,6 +930,7 @@ export function dispose() {
   if (root && changeListener) { root.removeEventListener('input', changeListener); root.removeEventListener('change', changeListener); }
   root = getState = execute = navigate = clickListener = submitListener = changeListener = null;
   formTaskId = null; selectedTaskId = null; feedback = ''; feedbackUntil = 0;
+  setHtml('merchant-feedback', '');
   taskDetailsOpen = true; taskMarkup = null;
   reportWindow = 15; investmentRouteKey = ''; researchCategory = 'all';
   reportMarkup = null;

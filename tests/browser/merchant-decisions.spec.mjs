@@ -3,55 +3,56 @@ import { MERCHANT_COMPANY_LEVELS, MERCHANT_TECHS, MERCHANT_TECH_CATEGORIES } fro
 import * as Merchant from '../../js/systems/merchant/MerchantSystem.js';
 import { getPendingTechChain } from '../../js/systems/merchant/MerchantTechnology.js';
 import { openTools, importFixture } from './helpers/merchantFixtures.mjs';
+import { expectStoryPortrait } from './helpers/merchantStory.mjs';
 const techCost = id => MERCHANT_TECHS.find(tech => tech.id === id).cost;
 const runtimeErrors = new WeakMap();
 
-test('科技树按等级向下延伸，核心支付后保留完整卡片、连线与成果并可跨浏览器恢复', async ({ page }, testInfo) => {
+test('科技树展示二级独立核心，支付后保留卡片、连线与成果并可跨浏览器恢复', async ({ page }, testInfo) => {
   test.setTimeout(90000);
-  await importFixture(page, { level: 9, credits: 20000, legacyAccess: false });
+  await importFixture(page, { level: 2, credits: 20000, legacyAccess: false });
   await page.locator('#merchant-dispatch-tab-research').click();
   const research = page.locator('#merchant-research');
   const viewport = page.locator('#merchant-tech-tree-viewport');
   const detail = page.locator('#merchant-tech-detail');
   const core = page.locator('[data-research-tech="berth_planning"]');
+  const survey = page.locator('[data-research-tech="planet_survey"]');
   await expect(research.locator('[data-research-tech]')).toHaveCount(65);
   await expect(research.locator('.merchant-tech-era-column')).toHaveCount(20);
-  await expect(core).toHaveAttribute('data-tree-level', '9');
-  await expect(core.locator('[data-tech="berth_planning"]')).toBeDisabled();
+  for (const node of [core, survey]) {
+    await expect(node).toHaveAttribute('data-tree-level', '2');
+    await expect(node.locator('[data-tech]')).toBeEnabled();
+  }
+  await expect(research.locator('[data-tech="clipper_design"]')).toHaveText('Lv.6 解锁');
   await research.locator('[data-tree-action="core"]').click();
   await expect(core).toHaveClass(/is-core.*is-selected/);
-  await expect(detail).toContainText('前置尚需 3,300 CR');
-  await expect(research.locator('path[data-tech-from="clipper_design"][data-tech-to="berth_planning"]')).toHaveClass(/is-path/);
+  await expect(detail.locator('h3')).toHaveText('船位规划');
+  await expect(detail).not.toContainText('前置尚需');
+  await expect(detail).toContainText('1,300');
   await showTreeInViewport(page);
-  await page.screenshot({ path: testInfo.outputPath('科技树核心前置.png'), animations: 'disabled' });
-  await detail.locator('[data-tree-id="clipper_design"]').click();
-  const hull = page.locator('[data-research-tech="clipper_design"]');
-  await expect(hull.locator('[data-tree-action="inspect"]')).toBeFocused();
-  const pan = await viewport.evaluate(node => [node.scrollLeft, node.scrollTop]);
-  await page.clock.runFor(1500);
-  expect(await viewport.evaluate(node => [node.scrollLeft, node.scrollTop])).toEqual(pan);
-  await expect(hull.locator('[data-tree-action="inspect"]')).toBeFocused();
+  await page.screenshot({ path: testInfo.outputPath('科技树二级船位.png'), animations: 'disabled' });
   const geometry = await techGeometry(research);
-  await hull.locator('[data-tech="clipper_design"]').press('Enter');
-  await expect(hull).toHaveClass(/is-complete/);
-  await expect(hull.locator('[data-tech="clipper_design"]')).toHaveText('已研发');
-  await expect(hull.locator('[data-tech="clipper_design"]')).toBeDisabled();
-  expect(await techGeometry(research)).toEqual(geometry);
-  expect(await viewport.evaluate(node => [node.scrollLeft, node.scrollTop])).toEqual(pan);
-  await expect(page.locator('#credits')).toHaveText('16,700');
-  await research.locator('[data-tree-action="core"]').click();
-  await expect(detail.locator('[data-tree-id="clipper_design"]')).toContainText('✓ 云帆船体');
-  await expect(detail.locator('[data-tree-id="clipper_design"]')).toContainText('已研发');
-  await expect(core.locator('[data-tech="berth_planning"]')).toBeEnabled();
-  await core.locator('[data-tech="berth_planning"]').click();
+  const pan = await viewport.evaluate(node => [node.scrollLeft, node.scrollTop]);
+  await core.locator('[data-tech="berth_planning"]').press('Enter');
   await expect(core).toHaveClass(/is-complete/);
   await expect(core.locator('[data-tech="berth_planning"]')).toHaveText('已研发');
+  await expect(core.locator('[data-tech="berth_planning"]')).toBeDisabled();
   expect(await techGeometry(research)).toEqual(geometry);
+  expect(await viewport.evaluate(node => [node.scrollLeft, node.scrollTop])).toEqual(pan);
+  await expect(page.locator('#credits')).toHaveText('18,700');
+  await expect(page.locator('.merchant-company-capacity')).toContainText('基础 1 · 研发 +1');
+  await research.locator('[data-tree-action="core"]').click();
+  await expect(detail.locator('h3')).toHaveText('新港勘察');
+  await expect(detail).toContainText('2,100');
+  await expect(detail).toContainText('4分钟');
+  await survey.locator('[data-tech="planet_survey"]').press('Enter');
+  await expect(survey).toHaveClass(/is-complete/);
+  await expect(survey.locator('[data-tree-action="inspect"]')).toBeFocused();
+  await page.clock.runFor(1500);
+  await expect(survey.locator('[data-tree-action="inspect"]')).toBeFocused();
+  expect(await techGeometry(research)).toEqual(geometry);
+  await expect(page.locator('#credits')).toHaveText('16,600');
   await showTreeInViewport(page);
   await page.screenshot({ path: testInfo.outputPath('科技树已研发卡片.png'), animations: 'disabled' });
-  await expect(page.locator('#credits')).toHaveText('14,200');
-  await expect(page.locator('.merchant-company-capacity')).toContainText('基础 1 · 研发 +1');
-  await expect(research.locator('path[data-tech-from="berth_planning"][data-tech-to="fleet_command"]')).toHaveClass(/is-complete/);
   await research.locator('#merchant-tech-categories [data-category="航速"]').click();
   await expect(research.locator('[data-research-tech]')).toHaveCount(15);
   await research.locator('[data-tree-action="core"]').click();
@@ -71,13 +72,12 @@ test('科技树按等级向下延伸，核心支付后保留完整卡片、连�
   await research.locator('[data-tree-action="current"]').click();
   await research.locator('#merchant-tech-era').selectOption('5');
   expect(await viewport.evaluate(node => node.scrollTop)).toBe(await research.locator('.merchant-tech-era-column').nth(4).evaluate(node => Number.parseFloat(node.style.top)));
-  await research.locator('[data-research-tech="planet_survey"] [data-tree-action="inspect"]').click();
-  await detail.locator('[data-tree-id="planet_survey"]').click();
-  await expect(detail.locator('h3')).toHaveText('新港勘察');
-  await expect(detail).toContainText('19,800');
-  await expect(research.locator('[data-tech="planet_survey"]')).toHaveText('Lv.24 解锁');
+  await research.locator('[data-research-tech="deep_survey"] [data-tree-action="inspect"]').click();
+  await detail.locator('[data-tree-id="deep_survey"]').click();
+  await expect(detail.locator('h3')).toHaveText('远域勘察');
+  await expect(research.locator('[data-tech="deep_survey"]')).toHaveText('Lv.57 解锁');
   await showTreeInViewport(page);
-  await page.screenshot({ path: testInfo.outputPath('科技树新港核心.png'), animations: 'disabled' });
+  await page.screenshot({ path: testInfo.outputPath('科技树远域核心.png'), animations: 'disabled' });
   await research.locator('#merchant-tech-era').selectOption('15');
   await research.locator('[data-research-tech="integrated_freight"] [data-tree-action="inspect"]').click();
   await detail.locator('[data-tree-id="integrated_freight"]').click();
@@ -98,9 +98,9 @@ test('科技树按等级向下延伸，核心支付后保留完整卡片、连�
   await page.reload(); await expect(page.locator('#startup-loader')).toBeHidden();
   await page.locator('#merchant-dispatch-tab-research').click();
   await expect(research.locator('[data-research-tech]')).toHaveCount(65);
-  await expect(core).toHaveClass(/is-complete/); await expect(hull).toHaveClass(/is-complete/);
+  await expect(core).toHaveClass(/is-complete/); await expect(survey).toHaveClass(/is-complete/);
   expect(await techGeometry(research)).toEqual(geometry);
-  await expect(page.locator('#credits')).toHaveText('14,200');
+  await expect(page.locator('#credits')).toHaveText('16,600');
 });
 
 async function closeForm(page) { await page.getByRole('button', { name: '关闭派遣配置' }).click(); }
@@ -180,7 +180,7 @@ test('市场情报购买、刷新恢复与新星球探索返港后开港', async
   await page.screenshot({ path: testInfo.outputPath('market-intelligence.png') });
   await buy.focus(); await buy.press('Enter');
   await expect(page.locator('#credits')).toHaveText((startingCredits - 180).toLocaleString('zh-CN'));
-  await expect(first.locator('h3')).toHaveText('星云工厂');
+  await expect(first.locator('h3')).toHaveText('百炼工业星');
   await expect(first.locator('[data-intel-action="buy"]')).toHaveAttribute('data-button-state', 'complete');
   await expect(first.locator('[data-intel-action="buy"]')).toBeDisabled();
   await expect(first).toContainText('360 CR');
@@ -192,7 +192,7 @@ test('市场情报购买、刷新恢复与新星球探索返港后开港', async
   await expect(unopenedRoutes).toHaveCount(0);
   await page.reload(); await expect(page.locator('#startup-loader')).toBeHidden();
   await page.locator('#bottom-nav [data-view="market"]').click();
-  await expect(first.locator('h3')).toHaveText('星云工厂');
+  await expect(first.locator('h3')).toHaveText('百炼工业星');
   await expect(first.locator('[data-intel-action="buy"]')).toBeDisabled();
   await expect(page.locator('#credits')).toHaveText((startingCredits - 180).toLocaleString('zh-CN'));
   await page.screenshot({ path: testInfo.outputPath('market-intelligence-owned.png') });
@@ -206,20 +206,20 @@ test('市场情报购买、刷新恢复与新星球探索返港后开港', async
   await first.locator('[data-intel-action="explore"]').click();
   const exploration = page.locator('#merchant-exploration-panel');
   await expect(exploration).toBeVisible({ timeout: 30000 });
-  await expect(exploration.locator('h2')).toHaveText('星云工厂');
+  await expect(exploration.locator('h2')).toHaveText('百炼工业星');
   await exploration.getByRole('button', { name: '派船探索', exact: true }).click();
   await expect(page.locator('#credits')).toHaveText('440');
   await exploration.getByRole('button', { name: '关闭探索详情' }).click();
   await page.locator('#bottom-nav [data-view="market"]').click();
   await expect(unopenedRoutes).toHaveCount(0);
   await expect(first.locator('[data-intel-action="explore"]')).toHaveText('查看探索');
-  await page.clock.fastForward(90000);
+  await page.clock.fastForward(5 * 60_000);
   await expect(first.locator('[data-intel-action="port"]')).toBeEnabled();
   await expect(unopenedRoutes).not.toHaveCount(0);
   await expect(page.locator('#credits')).toHaveText('440');
   await first.locator('[data-intel-action="port"]').click();
   await expect(page.locator('.merchant-port-panel')).toBeVisible();
-  await expect(page.locator('.merchant-port-panel h2')).toHaveText('星云工厂');
+  await expect(page.locator('.merchant-port-panel h2')).toHaveText('百炼工业星');
 });
 
 test('情报保护首航货本，远域情报购买立即标记信号且不直接开放商路', async ({ page }) => {
@@ -248,21 +248,21 @@ test('情报保护首航货本，远域情报购买立即标记信号且不直�
   await expect(second.locator('[data-intel-action="buy"]')).toHaveText('购买情报 · 600 CR');
   await second.locator('[data-intel-action="buy"]').click();
   await expect(page.locator('#credits')).toHaveText('11,400');
-  await expect(second.locator('h3')).toHaveText('极光原料港');
+  await expect(second.locator('h3')).toHaveText('聚宝原料星');
   await expect(second.locator('[data-intel-action="explore"]')).toBeEnabled();
-  await expect(page.locator('#merchant-route-list')).not.toContainText('极光原料港');
+  await expect(page.locator('#merchant-route-list')).not.toContainText('聚宝原料星');
   await second.locator('[data-intel-action="explore"]').click();
   const exploration = page.locator('#merchant-exploration-panel');
   await expect(exploration).toBeVisible({ timeout: 30000 });
-  await expect(exploration.locator('h2')).toHaveText('极光原料港');
+  await expect(exploration.locator('h2')).toHaveText('聚宝原料星');
   await expect(exploration.locator('[data-exploration-cost]')).toHaveText('1,800 CR');
   await exploration.getByRole('button', { name: '派船探索', exact: true }).click();
   await expect(page.locator('#credits')).toHaveText('9,600');
 });
 
 for (const target of [
-  { portId: 'nebula_forge', name: '星云工厂', to: 'sol_prime', goodId: 'technology', level: 29 },
-  { portId: 'aurora_depot', name: '极光原料港', to: 'nebula_forge', goodId: 'alloys', level: 63 },
+  { portId: 'nebula_forge', name: '百炼工业星', to: 'sol_prime', goodId: 'technology', level: 29 },
+  { portId: 'aurora_depot', name: '聚宝原料星', to: 'nebula_forge', goodId: 'alloys', level: 63 },
 ]) test(`探索期间各界面不提前显示${target.name}商路，完整返港后同步开放`, async ({ page }) => {
   test.setTimeout(90000);
   const at = Date.now() + 1000;
@@ -346,13 +346,15 @@ for (const target of [
   await expect(page.locator('#merchant-report-list')).toContainText(target.name);
 });
 
-test('前期节奏：首航回款、五级突破、第二商路与完整返港开港', async ({ page }) => {
+test('前期节奏：首航回款、二级探索教学、第二商路与五级突破', async ({ page }) => {
   test.setTimeout(180000);
   const next = page.locator('#merchant-early-progress');
   const form = page.locator('#merchant-form');
   const budget = form.locator('[name="budget"]');
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
   const costs = MERCHANT_COMPANY_LEVELS.slice(0, 5).map(stage => stage.upgradeCost);
   await expect(next).toHaveAttribute('data-stage', 'first-route');
+  await expect(next.locator('[data-story-phase="first-contract"]')).toBeVisible();
   await expect(next).toContainText('货本 126 CR');
   await expect(page.locator('.merchant-company-capacity')).toContainText('1 / 1 艘');
   expect(await page.locator('#merchant-company-growth').evaluate(node => node.getBoundingClientRect().height)).toBeLessThanOrEqual(220);
@@ -381,6 +383,7 @@ test('前期节奏：首航回款、五级突破、第二商路与完整返港�
   await expect(next.locator('[data-early-return]')).toContainText('返港结算');
   await page.clock.fastForward(18_000);
   await expect(next).toHaveAttribute('data-stage', 'growth');
+  await expect(next.locator('[data-story-phase="first-profit"]')).toContainText('第一张回执收好了');
   await expect(next).toContainText('准备公司升级');
   await expect(next).not.toContainText(/公司成长|积累公司等级|推进当前阶段|，。/);
   await expect(page.locator('#credits')).toHaveText('916');
@@ -390,77 +393,124 @@ test('前期节奏：首航回款、五级突破、第二商路与完整返港�
   await page.screenshot({ path: test.info().outputPath('首次升级积累.png'), fullPage: true });
   await accumulateCredits(page, costs[0]);
   await next.getByRole('button', { name: '升级至 Lv.2' }).click();
-  for (let level = 2; level < 9; level++) {
+  await expect(page.locator('.merchant-company-level')).toHaveText('Lv.2');
+  await expect(next).toHaveAttribute('data-stage', 'fleet-research');
+  await expect(next.locator('[data-story-phase="fleet-planning"]')).toBeVisible();
+  await expect(next).toContainText('原船继续经营');
+  await accumulateCredits(page, techCost('berth_planning') + 40);
+  await next.getByRole('button', { name: '研发船队扩容' }).click();
+  const cash = async () => Number((await page.locator('#credits').textContent()).replaceAll(',', ''));
+  let before = await cash();
+  await page.locator('[data-tech="berth_planning"]').click();
+  expect(await cash()).toBe(before - techCost('berth_planning'));
+  await expect(page.locator('.merchant-company-capacity')).toContainText('1 / 2 艘');
+  await page.locator('#merchant-dispatch-tab-tasks').click();
+  await expect(next).toHaveAttribute('data-stage', 'research');
+  await expect(next.locator('[data-story-phase="old-callsign"]')).toBeVisible();
+  await expect(next).toContainText('现场勘察4分钟');
+  await accumulateCredits(page, techCost('planet_survey') + 40);
+  await next.getByRole('button', { name: '前往科技研发' }).click();
+  before = await cash();
+  await page.locator('[data-tech="planet_survey"]').click();
+  expect(await cash()).toBe(before - techCost('planet_survey'));
+  await page.locator('#merchant-dispatch-tab-tasks').click();
+  const discovery = page.locator('#merchant-discovery-notice');
+  await expect(next).toBeHidden();
+  await expect(discovery).toContainText('探索已解锁');
+  await expect(discovery).toContainText('原商路继续经营');
+  await expect(discovery.locator('[data-operation="buy-explorer"]')).toBeDisabled();
+  await expect(page.locator('[data-merchant-task]')).toHaveCount(1);
+  await page.clock.resume();
+  await discovery.getByRole('button', { name: '前往探索' }).click();
+  await expect(page.locator('#merchant-exploration-panel')).toBeVisible({ timeout: 30000 });
+  await expect(page.locator('#merchant-exploration-panel [data-exploration-dispatch]')).toBeDisabled();
+  await page.locator('#merchant-exploration-panel').getByRole('button', { name: '准备空闲船' }).click();
+  await expect(page.locator('#merchant-task-workspace')).toHaveClass(/is-active/);
+  await expect(discovery).toBeFocused();
+  await expect(page.locator('#bottom-nav [data-view="ships"]')).toBeHidden();
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
+  await accumulateCredits(page, 336 + 360 + 40);
+  before = await cash();
+  const buy = discovery.locator('[data-operation="buy-explorer"]');
+  await expect(buy).toHaveText('添购探索轻舟 · 336 CR');
+  await buy.focus(); await buy.press('Enter');
+  expect(await cash()).toBe(before - 336);
+  await expect(discovery.locator('[data-operation="explore"]')).toBeFocused();
+  await expect(discovery.locator('[data-operation="buy-explorer"]')).toHaveCount(0);
+  await expect(page.locator('.merchant-company-capacity')).toContainText('2 / 2 艘');
+  await expect(page.locator('[data-merchant-task]')).toHaveCount(1);
+  await page.clock.resume();
+  await discovery.getByRole('button', { name: '前往探索' }).click();
+  const exploration = page.locator('#merchant-exploration-panel');
+  await expect(exploration).toBeVisible({ timeout: 30000 });
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
+  const legMs = Merchant.legDuration('courier', 'sol_prime', 'nebula_forge', { researchedTechIds: ['berth_planning', 'planet_survey'] });
+  await expect(exploration.locator('[data-exploration-survey]')).toHaveText('4 分 0 秒');
+  await expect(exploration.locator('[data-exploration-flight]')).toContainText('× 2（去程 / 返程）');
+  await expect(exploration.locator('[data-exploration-eta]')).toContainText('4 分');
+  await page.screenshot({ path: test.info().outputPath('二级探索分项耗时.png') });
+  before = await cash();
+  const dispatchedAt = await page.evaluate(() => Date.now());
+  await exploration.getByRole('button', { name: '派船探索', exact: true }).click();
+  expect(await cash()).toBe(before - 360);
+  await expect(exploration.locator('[data-exploration-stage]')).toHaveText('探索去程');
+  await exploration.getByRole('button', { name: '关闭探索详情' }).click();
+  await page.locator('#bottom-nav [data-view="tasks"]').click();
+  await expect(page.locator('[data-merchant-task]')).toHaveCount(1);
+  await page.clock.setSystemTime(new Date(dispatchedAt + legMs + 1000)); await page.clock.runFor(600);
+  await expect(discovery).toContainText('现场勘察剩余');
+  await expect(discovery).not.toContainText('已开放');
+  await page.clock.setSystemTime(new Date(dispatchedAt + legMs + 150_000)); await page.clock.runFor(600);
+  await expect(discovery).not.toContainText('第二章');
+  await page.clock.resume();
+  await page.reload(); await expect(page.locator('#startup-loader')).toBeHidden();
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
+  await expect(page.locator('.merchant-company-level')).toHaveText('Lv.2');
+  await expect(page.locator('[data-merchant-task]')).toHaveCount(1);
+  await expect(discovery).toContainText('现场勘察剩余');
+  await page.clock.resume();
+  await discovery.getByRole('button', { name: '查看探索' }).click();
+  await expect(exploration).toBeVisible({ timeout: 30000 });
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
+  await expect(exploration.locator('[data-exploration-stage]')).toHaveText('勘察中');
+  await expect(exploration.locator('[data-exploration-phase-remaining]')).toContainText('1 分');
+  const close = exploration.getByRole('button', { name: '关闭探索详情' });
+  await close.focus(); await page.clock.runFor(1000); await expect(close).toBeFocused();
+  await page.screenshot({ path: test.info().outputPath('现场勘察倒计时.png') });
+  await page.clock.setSystemTime(new Date(dispatchedAt + legMs + 240_000 + 500)); await page.clock.runFor(600);
+  await expect(exploration.locator('[data-exploration-stage]')).toHaveText('探索返港');
+  await close.click(); await page.locator('#bottom-nav [data-view="tasks"]').click();
+  await expect(discovery).not.toContainText('第二章');
+  await page.clock.setSystemTime(new Date(dispatchedAt + 2 * legMs + 240_000 + 1000)); await page.clock.runFor(600);
+  await expect(discovery.locator('[data-story-phase="factory-reconnected"]')).toContainText('岑遥');
+  await expectStoryPortrait(discovery, '岑遥');
+  await expect(discovery).toContainText('第二章 · 工厂仍在运转');
+  await expect(next).toHaveAttribute('data-stage', 'second-route');
+  await expect(next).toContainText('使用空闲');
+  await discovery.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: test.info().outputPath('二级开港通讯.png') });
+  await next.getByRole('button', { name: '安排这条商路' }).click();
+  await expect(form.locator('[name="shipIds"]:checked')).toHaveCount(1);
+  expect(await form.locator('[name="shipIds"]:checked').inputValue()).not.toBe('ship-1');
+  await form.getByRole('button', { name: '确认派遣' }).click();
+  await expect(page.locator('[data-merchant-task]')).toHaveCount(2);
+  await expect(next.locator('[data-story-phase="regular-service"]')).toBeVisible();
+  for (let level = 2; level <= 5; level++) {
     const stage = MERCHANT_COMPANY_LEVELS[level - 1];
     await expect(next).toHaveAttribute('data-stage', stage.isBreakthrough ? 'breakthrough' : 'growth');
-    await accumulateCredits(page, stage.upgradeCost);
+    if (stage.isBreakthrough) {
+      await expectStoryPortrait(next, '闻衡');
+      await page.screenshot({ path: test.info().outputPath(`突破评估-Lv${level}.png`) });
+    }
+    await accumulateCredits(page, stage.upgradeCost + 40);
     await next.getByRole('button', { name: `${stage.isBreakthrough ? '突破' : '升级'}至 Lv.${level + 1}` }).click();
     await expect(page.locator('.merchant-company-level')).toHaveText(`Lv.${level + 1}`);
   }
-  await expect(next).toHaveAttribute('data-stage', 'fleet-research');
-  await expect(page.locator('.merchant-company-capacity')).toContainText('1 / 1 艘');
-  await accumulateCredits(page, techCost('clipper_design') + techCost('berth_planning') + 498);
-  await next.getByRole('button', { name: '研发船队扩容' }).click();
-  await page.locator('[data-tech="clipper_design"]').click();
-  await page.locator('[data-tech="berth_planning"]').click();
-  await page.locator('#merchant-dispatch-tab-tasks').click();
-  await expect(page.locator('.merchant-company-capacity')).toContainText('1 / 2 艘');
-  await expect(next).toHaveAttribute('data-stage', 'second-route');
-  await expect(next).toContainText('添购迅鸥轻舟 336 CR');
-  await next.getByRole('button', { name: '添船并安排商路' }).click();
-  await expect(budget).toHaveValue('162');
-  await expect(form.locator('[name="goodId"]')).toHaveValue('minerals');
-  await expect(form.locator('.merchant-inline-shipyard')).toHaveAttribute('open', '');
-  await form.locator('[data-merchant-action="buy-in-form"][data-type="courier"]').click();
-  await expect(form.locator('[name="shipIds"]:checked')).toHaveCount(1);
-  await form.getByRole('button', { name: '确认派遣' }).click();
-  await expect(next).toHaveAttribute('data-stage', 'growth');
-  await expect(page.locator('.merchant-company-capacity')).toContainText('2 / 2 艘');
-  await expect(next.locator('progress')).toHaveAttribute('max', String(MERCHANT_COMPANY_LEVELS[8].upgradeCost));
-  await page.screenshot({ path: test.info().outputPath('百级前期双商路.png') });
+  await page.clock.resume();
   await page.reload(); await expect(page.locator('#startup-loader')).toBeHidden();
-  await expect(page.locator('.merchant-company-level')).toHaveText('Lv.9');
+  await expect(page.locator('.merchant-company-level')).toHaveText('Lv.6');
   await expect(page.locator('[data-merchant-task]')).toHaveCount(2);
-  const paidTechIds = ['clipper_design', 'berth_planning'];
-  for (let level = 9; level < 24; level++) {
-    const stage = MERCHANT_COMPANY_LEVELS[level - 1];
-    const feature = level === 14 ? 'fleet_command' : level === 19 ? 'market_network' : null;
-    const extra = level === 23 ? techCost('planet_survey') + 360 : feature ? getPendingTechChain({ researchedTechIds: paidTechIds }, feature).reduce((sum, tech) => sum + tech.cost, 0) : 0;
-    await accumulateCredits(page, stage.upgradeCost + extra);
-    await next.getByRole('button', { name: `${stage.isBreakthrough ? '突破' : '升级'}至 Lv.${level + 1}` }).click();
-    if (feature) {
-      const view = feature === 'fleet_command' ? 'ships' : 'market';
-      await expect(page.locator(`#bottom-nav [data-view="${view}"]`)).toBeHidden();
-      await page.locator('#merchant-dispatch-tab-research').click();
-      for (const tech of getPendingTechChain({ researchedTechIds: paidTechIds }, feature)) {
-        await page.locator(`[data-tech="${tech.id}"]`).click(); paidTechIds.push(tech.id);
-      }
-      await expect(page.locator(`#bottom-nav [data-view="${view}"]`)).toBeVisible();
-      await page.locator('#merchant-dispatch-tab-tasks').click();
-    }
-  }
-  await expect(next).toHaveAttribute('data-stage', 'research');
-  await next.getByRole('button', { name: '前往科技研发' }).click();
-  await page.locator('[data-tech="planet_survey"]').click();
-  await page.locator('#merchant-dispatch-tab-tasks').click();
-  await expect(next).toBeHidden();
-  await expect(page.locator('.merchant-company-level')).toHaveText('Lv.24');
-  await expect(page.locator('#merchant-discovery-notice')).toContainText('探索已解锁');
-  const firstTask = page.locator('[data-merchant-task]').first();
-  const summary = firstTask.locator('[data-merchant-action="select-task"]');
-  if (await summary.getAttribute('aria-expanded') !== 'true') await summary.click();
-  await firstTask.locator('[data-merchant-action="stop"]').click();
-  await page.clock.fastForward(20_000);
-  await expect(page.locator('[data-merchant-task]')).toHaveCount(1);
-  await page.locator('#merchant-discovery-notice').getByRole('button', { name: '前往探索' }).click();
-  const exploration = page.locator('#merchant-exploration-panel');
-  await expect(exploration).toBeVisible();
-  await expect(exploration.getByRole('button', { name: '派船探索' })).toBeEnabled();
-  await exploration.getByRole('button', { name: '派船探索' }).click();
-  await page.clock.fastForward(70_000);
-  await expect(exploration).toContainText('探索船已返港待命');
-  await exploration.getByRole('button', { name: '查看新港商路' }).click();
-  await expect(page.locator('.merchant-port-panel')).toContainText('星云工厂');
+  await expect(page.locator('.merchant-company-capacity')).toContainText('2 / 2 艘');
 });
 
 test('航运任务卡整合多船进度与账目，切换收起保留焦点，调整和结束对应任务', async ({ page }) => {
@@ -606,9 +656,9 @@ test('原料港探索途中刷新、完整返港与经营页新港商路派遣�
   await page.clock.fastForward(50_000);
   await page.reload();
   await expect(page.locator('#startup-loader')).toBeHidden();
-  await expect(page.locator('#merchant-discovery-notice')).toContainText('探索正在进行');
-  await page.clock.fastForward(140_000);
-  await expect(page.locator('#merchant-discovery-notice')).toContainText('极光原料港已开放');
+  await expect(page.locator('#merchant-discovery-notice')).toContainText(/去程飞行|现场勘察/);
+  await page.clock.fastForward(8 * 60_000 + 2 * Merchant.legDuration('courier', 'nebula_forge', 'aurora_depot', {}) + 90_000);
+  await expect(page.locator('#merchant-discovery-notice')).toContainText('聚宝原料星已开放');
   await expect(page.locator('#credits')).toHaveText('10,200');
   await page.locator('[data-operation="port"]').click();
   await expect(page.locator('#merchant-task-workspace .merchant-port-panel')).toBeVisible({ timeout: 30000 });
@@ -622,7 +672,7 @@ test('原料港探索途中刷新、完整返港与经营页新港商路派遣�
   await expect(form.locator('[name="from"]')).toHaveValue('aurora_depot');
   await expect(form.locator('[name="goodId"]')).toHaveValue('alloys');
   await form.getByRole('button', { name: '确认派遣' }).click();
-  await expect(page.locator('#merchant-task-list')).toContainText('极光原料港');
+  await expect(page.locator('#merchant-task-list')).toContainText('聚宝原料星');
   await noOverflow(page);
   expect(errors).toEqual([]);
 });
@@ -868,9 +918,10 @@ test('百级公司逐级升级，五级突破只显示当前阶路线，费用�
   const upgrade = company.locator('.merchant-company-upgrade button');
   const roadmap = company.locator('.merchant-company-roadmap');
   await roadmap.locator('summary').click();
-  await expect(company.locator('.merchant-company-goal')).toHaveCount(0);
-  await expect(company.locator('.merchant-company-next-unlock')).toHaveCount(0);
-  await expect(roadmap.locator('[data-company-level="2"] .merchant-company-roadmap-effects > span')).toHaveCount(1);
+  await expect(company.locator('.merchant-company-goal')).toContainText('船位规划');
+  await expect(company.locator('.merchant-company-goal')).toContainText('新港勘察');
+  await expect(company.locator('.merchant-company-next-unlock')).toContainText('船位规划');
+  await expect(roadmap.locator('[data-company-level="2"] .merchant-company-roadmap-effects > span')).toHaveCount(2);
   let paid = 0;
   for (const stage of MERCHANT_COMPANY_LEVELS.slice(0, -1)) {
     await expect(page.locator('.merchant-company-level')).toHaveText(`Lv.${stage.level}`);
@@ -880,7 +931,7 @@ test('百级公司逐级升级，五级突破只显示当前阶路线，费用�
       .toEqual(Array.from({ length: 5 }, (_, index) => stage.tierStartLevel + index));
     await expect(roadmap.locator('[aria-current="step"]')).toContainText(`Lv.${stage.level}`);
     await expect(company).not.toContainText(/公司成长|积累公司等级|推进当前阶段|基础船位不变|公司发展已完成/);
-    if (stage.level === 4) await expect(company.locator('.merchant-company-next-unlock')).toHaveText('达到 Lv.5 后可突破至 Lv.6');
+    if (stage.level === 4) await expect(company.locator('.merchant-company-goal')).toContainText('达到 Lv.5 后可突破至 Lv.6');
     if (stage.level === 41) await expect(company.locator('.merchant-company-goal')).toContainText('基础船位 +1');
     if (stage.level === 61) await expect(company.locator('.merchant-company-goal')).toHaveCount(0);
     await expect(upgrade).toHaveAttribute('data-from-level', String(stage.level));
@@ -903,7 +954,11 @@ test('百级公司逐级升级，五级突破只显示当前阶路线，费用�
     await upgrade.focus(); await upgrade.press('Enter'); paid += stage.upgradeCost;
     await expect(page.locator('.merchant-company-level')).toHaveText(`Lv.${stage.level + 1}`);
     await expect(page.locator('#merchant-feedback')).not.toContainText(/公司成长|积累公司等级|推进当前阶段|，。|undefined|null/);
-    if (stage.level === 1) await expect(page.locator('#merchant-feedback')).toHaveText('公司已升级至 Lv.2。');
+    if (stage.level === 1) {
+      await expect(page.locator('#merchant-feedback')).toContainText('公司已升级至 Lv.2');
+      await expect(page.locator('#merchant-feedback')).toContainText('船位规划');
+      await expect(page.locator('#merchant-feedback')).toContainText('新港勘察');
+    }
     await expect(page.locator('#credits')).toHaveText((total + 74 - paid).toLocaleString('zh-CN'));
     await expect(page.locator('[data-merchant-task]')).toHaveCount(1);
     await expect(page.locator('[data-merchant-task]')).toContainText('126 CR');
@@ -948,7 +1003,7 @@ test('科技资格沿百级分布，前置、扣费和焦点稳定，研发后�
     await expect(page.locator(`[data-research-tech="${id}"] [data-tree-action="inspect"]`)).toBeFocused();
   }
   while (level < 10) { await advance.click(); level++; }
-  await expect(page.locator('[data-research-tech="hauler_design"]')).toContainText('前置：云帆船体');
+  await expect(page.locator('[data-research-tech="hauler_design"]')).toContainText('前置：翻身船体');
   await expect(page.locator('[data-tech="hauler_design"]')).toBeDisabled();
   const button = page.locator('[data-tech="clipper_design"]');
   await button.focus(); const node = await button.elementHandle(); await page.clock.runFor(2000);
@@ -961,7 +1016,7 @@ test('科技资格沿百级分布，前置、扣费和焦点稳定，研发后�
   await expect(tasks).toBeFocused(); await expect(tasks).toHaveAttribute('aria-selected', 'true');
   await page.locator('[data-merchant-action="new"]').first().click();
   await expect(page.locator('.merchant-inline-ship-row')).toHaveCount(2);
-  await expect(page.locator('#merchant-form')).toContainText('云帆快船'); await closeForm(page); await techs.click();
+  await expect(page.locator('#merchant-form')).toContainText('翻身快船'); await closeForm(page); await techs.click();
   while (level < 15) { await advance.click(); level++; }
   await expect(page.locator('#bottom-nav [data-view="ships"]')).toBeHidden();
   await expect(page.locator('[data-tech="fleet_command"]')).toBeDisabled();
@@ -998,7 +1053,7 @@ test('公司基础船位与扩容研发分开，满船位研发后可采购并�
   await expect(filter.locator('span')).toHaveText('11');
   await expect(capacity).toContainText('1 / 2 艘');
   await expect(capacity).toContainText('基础 1 · 研发 +1');
-  await expect(page.locator('.merchant-company-goal')).toContainText('长鲸船体');
+  await expect(page.locator('.merchant-company-goal')).toContainText('聚财船体');
   await expect(page.locator('#merchant-research-bonuses')).toContainText('船位 +1');
   await expect(page.locator('#credits')).toHaveText((10000 - techCost('clipper_design') - techCost('berth_planning')).toLocaleString('zh-CN'));
   await showResearchInViewport(page);

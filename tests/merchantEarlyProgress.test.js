@@ -1,18 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import { researchChain } from './helpers/merchantResearch.js';
 import { createInitialState } from '../js/data/constants.js';
-import { MERCHANT_COMPANY_LEVELS, MERCHANT_TECHS, MERCHANT_EXPLORATION_RULES } from '../js/data/merchant.js';
+import { MERCHANT_COMPANY_LEVELS, MERCHANT_TECHS } from '../js/data/merchant.js';
 import * as Merchant from '../js/systems/merchant/MerchantSystem.js';
 import { buildMerchantEarlyProgress, getMerchantBudgetRecommendation } from '../js/ui/MerchantEarlyProgress.js';
 
 const techCost = id => MERCHANT_TECHS.find(tech => tech.id === id).cost;
-const firstExplorationInvestment = ['hauler_design', 'fleet_command', 'trade_quotes', 'market_network', 'planet_survey'].reduce((sum, id) => sum + techCost(id), MERCHANT_EXPLORATION_RULES.cost);
 const start = 1_800_000_000_000;
 const food = { from: 'sol_prime', to: 'mineral_belt', goodId: 'food', shipIds: ['ship-1'], budget: 126 };
 const fresh = () => { const state = createInitialState(); Merchant.init(state, start); return state; };
 const firstTrip = state => {
   expect(Merchant.command(state, 'create', food, start).ok).toBe(true);
   Merchant.advance(state, start + 2 * Merchant.legDuration('courier', food.from, food.to));
+};
+const openQuietPort = state => {
+  state.merchant.unlockedPorts.push('nebula_forge');
+  for (const side of ['supply', 'demand']) for (const good of Object.keys(state.merchant.markets.nebula_forge[side])) state.merchant.markets.nebula_forge[side][good] = 0;
 };
 
 describe('前期经营节奏', () => {
@@ -45,38 +48,48 @@ describe('前期经营节奏', () => {
     expect(state.merchant.onboarding).toEqual({ step: 5, skipped: true });
   });
 
-  it('两条真实商路后逐级积累，每级保护投入，最后同时备齐升级与探索费用', () => {
+  it('跳过后首单仍在港口等待时展示真实原因入口，出发前不显示返港倒计时', () => {
+    const state = fresh(); Merchant.command(state, 'onboarding', { action: 'skip' }, start);
+    state.merchant.markets.sol_prime.supply.food = 0;
+    const created = Merchant.command(state, 'create', food, start);
+    expect(created.ok).toBe(true);
+    const before = structuredClone(state);
+    expect(buildMerchantEarlyProgress(state)).toMatchObject({ stage: 'first-wait', taskId: created.taskId, route: null, label: '查看等待原因' });
+    expect(buildMerchantEarlyProgress(state).returnAt).toBeUndefined();
+    expect(state).toEqual(before);
+    Merchant.advance(state, start + 60_000);
+    expect(buildMerchantEarlyProgress(state)).toMatchObject({ stage: 'first-return', returnAt: start + 60_000 + 2 * Merchant.legDuration('courier', food.from, food.to, state.merchant) });
+    expect(state.merchant.onboarding).toEqual({ step: 5, skipped: true });
+  });
+
+  it('二级先学船位与探索研发，另购空闲船勘察4分钟，原商路持续经营', () => {
     const state = fresh(); firstTrip(state);
-    state.credits = MERCHANT_COMPANY_LEVELS.slice(0, 8).reduce((sum, stage) => sum + stage.upgradeCost, techCost('berth_planning') + techCost('clipper_design') + 500);
-    while (state.merchant.companyLevel < 9) expect(Merchant.command(state, Merchant.getCompanyProgress(state.merchant).action, {}, state.merchant.lastTickAt).ok).toBe(true);
-    expect(buildMerchantEarlyProgress(state)).toMatchObject({ stage: 'fleet-research', techId: 'clipper_design', research: true });
+    state.credits = 10_000;
+    expect(Merchant.command(state, 'upgradeCompany', {}, state.merchant.lastTickAt).ok).toBe(true);
+    expect(state.merchant.companyLevel).toBe(2);
+    expect(buildMerchantEarlyProgress(state)).toMatchObject({ stage: 'fleet-research', techId: 'berth_planning', target: 1300, research: true });
+    const before = structuredClone(state); buildMerchantEarlyProgress(state); expect(state).toEqual(before);
     researchChain(state, 'berth_planning');
-    const next = buildMerchantEarlyProgress(state);
-    const bought = Merchant.command(state, 'buyShip', { typeId: next.route.opportunity.typeId }, state.merchant.lastTickAt);
-    Merchant.command(state, 'create', { ...next.route, shipIds: bought.shipIds, budget: next.route.opportunity.budget }, state.merchant.lastTickAt);
-    const costs = MERCHANT_COMPANY_LEVELS.slice(8, 23).map(stage => stage.upgradeCost);
-    expect(buildMerchantEarlyProgress(state)).toMatchObject({ stage: 'growth', target: costs[0], explorationTarget: costs.slice(0).reduce((sum, cost) => sum + cost, firstExplorationInvestment), readyToUpgrade: false });
-    for (const cost of costs.slice(0, -1)) {
-      state.credits = cost - 1;
-      expect(buildMerchantEarlyProgress(state)).toMatchObject({ target: cost, readyToUpgrade: false });
-      state.credits = cost;
-      expect(buildMerchantEarlyProgress(state).readyToUpgrade).toBe(true);
-      expect(Merchant.command(state, Merchant.getCompanyProgress(state.merchant).action, {}, state.merchant.lastTickAt).ok).toBe(true);
-      expect(state.credits).toBe(0);
-      expect(state.merchant.exploration.event).toBeNull();
-    }
-    const target = costs.at(-1) + firstExplorationInvestment;
-    state.credits = target - 1;
-    expect(buildMerchantEarlyProgress(state)).toMatchObject({ stage: 'exploration', target, readyToUpgrade: false });
-    state.credits = target;
-    expect(buildMerchantEarlyProgress(state)).toMatchObject({ readyToUpgrade: true, cash: target });
-    expect(buildMerchantEarlyProgress(state).text).toContain('结束一项任务');
-    Merchant.command(state, Merchant.getCompanyProgress(state.merchant).action, {}, state.merchant.lastTickAt);
-    expect(state.credits).toBe(firstExplorationInvestment);
-    expect(buildMerchantEarlyProgress(state).stage).toBe('research');
+    expect(Merchant.getCompanyProgress(state.merchant).shipLimit).toBe(2);
+    expect(state.merchant.ships).toHaveLength(1);
+    expect(buildMerchantEarlyProgress(state)).toMatchObject({ stage: 'research', techId: 'planet_survey', target: 2100 });
     researchChain(state, 'planet_survey');
     expect(state.merchant.exploration.event.status).toBe('available');
     expect(buildMerchantEarlyProgress(state)).toBeNull();
+    const at = state.merchant.lastTickAt;
+    const bought = Merchant.command(state, 'buyShip', { typeId: 'courier' }, at);
+    const input = { eventId: state.merchant.exploration.event.id, shipId: bought.shipIds[0], from: 'sol_prime' };
+    const offer = Merchant.getExplorationPreview(state, input);
+    expect(offer).toMatchObject({ ok: true, surveyMs: 240_000 });
+    expect(Merchant.command(state, 'explore', input, at).ok).toBe(true);
+    expect(state.merchant.tasks[0].stopping).toBe(false);
+    const profit = state.merchant.tasks[0].profit;
+    Merchant.advance(state, at + offer.durationMs - 1);
+    expect(state.merchant.unlockedPorts).not.toContain('nebula_forge');
+    expect(state.merchant.tasks[0].profit).toBeGreaterThan(profit);
+    Merchant.advance(state, at + offer.durationMs);
+    expect(state.merchant.ships[1]).toMatchObject({ phase: 'idle', taskId: null });
+    expect(buildMerchantEarlyProgress(state)).toMatchObject({ stage: 'second-route', route: { opportunity: { shipId: input.shipId, purchaseCost: 0 } } });
   });
 
   it('读档与离线结算推导相同阶段，主动结束时提示返港，完成后可重新经营', () => {
@@ -92,9 +105,9 @@ describe('前期经营节奏', () => {
     expect(buildMerchantEarlyProgress(online)).toMatchObject({ stage: 'first-route', title: '让商路重新跑起来' });
     for (let level = 2; level <= 5; level++) {
       const state = fresh(); state.merchant.companyLevel = level;
-      expect(buildMerchantEarlyProgress(state).stage).toBe('first-route');
+      expect(buildMerchantEarlyProgress(state).stage).toBe('research');
     }
-    for (const progressed of [state => { state.merchant.researchedTechIds.push('planet_survey'); }, state => { state.merchant.unlockedPorts.push('nebula_forge'); }, state => { state.merchant.researchedTechIds.push('planet_survey'); }]) {
+    for (const progressed of [state => { state.merchant.researchedTechIds.push('planet_survey'); }, state => { state.merchant.companyLevel = 20; state.merchant.unlockedPorts.push('nebula_forge'); }]) {
       const state = fresh(); progressed(state); expect(buildMerchantEarlyProgress(state)).toBeNull();
     }
   });
@@ -105,6 +118,7 @@ describe('前期经营节奏', () => {
     expect(buildMerchantEarlyProgress(state).stage).toBe('first-route');
     firstTrip(state);
     state.merchant.companyLevel = 9;
+    openQuietPort(state);
     state.credits = techCost('berth_planning') + techCost('clipper_design') + 1000;
     researchChain(state, 'berth_planning');
     state.credits = 300;
@@ -117,6 +131,7 @@ describe('前期经营节奏', () => {
   it('第二条商路先备齐添船和满载货本，部分装载资金不会提前触发扩张建议', () => {
     const state = fresh(); firstTrip(state);
     state.merchant.companyLevel = 9;
+    openQuietPort(state);
     state.credits = techCost('berth_planning') + techCost('clipper_design') + 1000;
     researchChain(state, 'berth_planning');
     state.credits = 450;
@@ -134,6 +149,7 @@ describe('满载货本建议', () => {
     state.merchant.companyLevel = 9;
     state.credits = techCost('berth_planning') + techCost('clipper_design') + 1000;
     researchChain(state, 'berth_planning');
+    researchChain(state, 'clipper_design');
     const bought = Merchant.command(state, 'buyShip', { typeId: 'clipper' }, start);
     const plan = { ...food, shipIds: ['ship-1', ...bought.shipIds], budget: 42 };
     const before = structuredClone(state);

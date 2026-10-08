@@ -1,61 +1,120 @@
 {
   "assumptions": "核心研发前的当级最大船队：除该核心外所有已开放科技及完整前置实际付费研发，采购基础与已研发扩容的全部船位，划拨全船队货本。只有已完成勘察返港的港口经营；60分钟共享真实供需，比较两种混编策略。不读取玩家存档，也不把实验现金计作经营收入。积累分钟是研发费用/这支完整船队实测净利，仅作资金门槛参考，不代表从新局到达节点的时间。",
-  "totalResearchCost": 9389600,
+  "totalResearchCost": 9370700,
   "milestones": [
     {
       "id": "berth_planning",
       "name": "船位规划",
-      "level": 9,
+      "level": 2,
       "milestone": "船队扩张",
-      "baseCost": 3300,
-      "factor": 2.5,
+      "baseCost": 2100,
+      "factor": 2,
       "weightPercent": 15,
       "coreFactor": 2,
-      "cost": 2500,
-      "requires": [
-        "clipper_design"
-      ],
+      "cost": 1300,
+      "requires": [],
       "fleet": {
-        "level": 9,
+        "level": 2,
         "policy": "investment",
         "expansion": true,
         "deferredTechId": "berth_planning",
         "baseShipLimit": 1,
         "researchShipSlots": 0,
         "ships": 1,
-        "ports": 2,
+        "ports": 3,
         "fleet": {
           "courier": 1
         },
-        "researchCost": 5400,
+        "researchCost": 2600,
         "purchaseCost": 0,
-        "explorationCost": 0,
+        "explorationCost": 360,
         "workingCapital": 162,
         "fleetExpansionCost": 0,
-        "initialInvestment": 5562,
-        "profitPerMinute": 242,
-        "netProfit": 14520,
-        "trips": 220,
+        "initialInvestment": 3122,
+        "profitPerMinute": 235.4,
+        "netProfit": 14124,
+        "trips": 214,
         "loadPercent": 100,
         "idlePercent": 0,
         "allocatedShips": 1,
         "participatingShips": 1,
         "peakObservedActiveShips": 1,
         "dispatches": 1,
-        "nextUpgradeCost": 3300,
-        "upgradeIncomeMinutes": 13.64,
+        "nextUpgradeCost": 2100,
+        "upgradeIncomeMinutes": 8.92,
         "routes": [
           {
             "from": "mineral_belt",
             "to": "sol_prime",
             "goodId": "minerals",
-            "profitPerMinute": 242,
-            "quantity": 2640,
-            "trips": 220
+            "profitPerMinute": 235.4,
+            "quantity": 2568,
+            "trips": 214
           }
         ]
       },
-      "accumulationMinutes": 10.33
+      "accumulationMinutes": 5.52
+    },
+    {
+      "id": "planet_survey",
+      "name": "新港勘察",
+      "level": 2,
+      "milestone": "首次开港",
+      "baseCost": 2100,
+      "factor": 2,
+      "weightPercent": 25,
+      "coreFactor": 2,
+      "cost": 2100,
+      "requires": [],
+      "fleet": {
+        "level": 2,
+        "policy": "investment",
+        "expansion": true,
+        "deferredTechId": "planet_survey",
+        "baseShipLimit": 1,
+        "researchShipSlots": 1,
+        "ships": 2,
+        "ports": 2,
+        "fleet": {
+          "courier": 2
+        },
+        "researchCost": 1800,
+        "purchaseCost": 336,
+        "explorationCost": 0,
+        "workingCapital": 288,
+        "fleetExpansionCost": 1300,
+        "initialInvestment": 2424,
+        "profitPerMinute": 385.2,
+        "netProfit": 23112,
+        "trips": 428,
+        "loadPercent": 100,
+        "idlePercent": 0,
+        "allocatedShips": 2,
+        "participatingShips": 2,
+        "peakObservedActiveShips": 2,
+        "dispatches": 2,
+        "nextUpgradeCost": 2100,
+        "upgradeIncomeMinutes": 5.45,
+        "routes": [
+          {
+            "from": "mineral_belt",
+            "to": "sol_prime",
+            "goodId": "minerals",
+            "profitPerMinute": 235.4,
+            "quantity": 2568,
+            "trips": 214
+          },
+          {
+            "from": "sol_prime",
+            "to": "mineral_belt",
+            "goodId": "food",
+            "profitPerMinute": 149.8,
+            "quantity": 2568,
+            "trips": 214
+          }
+        ]
+      },
+      "accumulationMinutes": 5.45
     },
     {
       "id": "fleet_command",
@@ -79,28 +138,28 @@
         "baseShipLimit": 2,
         "researchShipSlots": 1,
         "ships": 3,
-        "ports": 2,
+        "ports": 3,
         "fleet": {
           "courier": 1,
           "hauler": 2
         },
-        "researchCost": 15500,
+        "researchCost": 16400,
         "purchaseCost": 1232,
-        "explorationCost": 0,
-        "workingCapital": 714,
-        "fleetExpansionCost": 2500,
-        "initialInvestment": 17446,
-        "profitPerMinute": 555.5,
-        "netProfit": 33330,
-        "trips": 402,
-        "loadPercent": 88.81,
-        "idlePercent": 19.69,
+        "explorationCost": 360,
+        "workingCapital": 1018,
+        "fleetExpansionCost": 1300,
+        "initialInvestment": 19010,
+        "profitPerMinute": 914.05,
+        "netProfit": 54843,
+        "trips": 420,
+        "loadPercent": 100,
+        "idlePercent": 0,
         "allocatedShips": 3,
         "participatingShips": 3,
         "peakObservedActiveShips": 3,
         "dispatches": 3,
         "nextUpgradeCost": 15600,
-        "upgradeIncomeMinutes": 28.08,
+        "upgradeIncomeMinutes": 17.07,
         "routes": [
           {
             "from": "mineral_belt",
@@ -111,80 +170,24 @@
             "trips": 220
           },
           {
-            "from": "sol_prime",
-            "to": "mineral_belt",
-            "goodId": "food",
-            "profitPerMinute": 309.83,
-            "quantity": 4392,
-            "trips": 182
-          }
-        ]
-      },
-      "accumulationMinutes": 12.78
-    },
-    {
-      "id": "planet_survey",
-      "name": "新港勘察",
-      "level": 24,
-      "milestone": "首次开港",
-      "baseCost": 9900,
-      "factor": 4,
-      "weightPercent": 25,
-      "coreFactor": 2,
-      "cost": 19800,
-      "requires": [
-        "market_network"
-      ],
-      "fleet": {
-        "level": 24,
-        "policy": "throughput",
-        "expansion": true,
-        "deferredTechId": "planet_survey",
-        "baseShipLimit": 2,
-        "researchShipSlots": 1,
-        "ships": 3,
-        "ports": 2,
-        "fleet": {
-          "courier": 1,
-          "hauler": 2
-        },
-        "researchCost": 38500,
-        "purchaseCost": 1232,
-        "explorationCost": 0,
-        "workingCapital": 730,
-        "fleetExpansionCost": 2500,
-        "initialInvestment": 40462,
-        "profitPerMinute": 564.43,
-        "netProfit": 33866,
-        "trips": 410,
-        "loadPercent": 86.97,
-        "idlePercent": 21.42,
-        "allocatedShips": 3,
-        "participatingShips": 3,
-        "peakObservedActiveShips": 3,
-        "dispatches": 3,
-        "nextUpgradeCost": 9900,
-        "upgradeIncomeMinutes": 17.54,
-        "routes": [
-          {
-            "from": "mineral_belt",
+            "from": "nebula_forge",
             "to": "sol_prime",
-            "goodId": "minerals",
-            "profitPerMinute": 254.6,
-            "quantity": 2736,
-            "trips": 228
+            "goodId": "technology",
+            "profitPerMinute": 384.58,
+            "quantity": 2059,
+            "trips": 71
           },
           {
             "from": "sol_prime",
             "to": "mineral_belt",
             "goodId": "food",
-            "profitPerMinute": 309.83,
-            "quantity": 4392,
-            "trips": 182
+            "profitPerMinute": 283.8,
+            "quantity": 3741,
+            "trips": 129
           }
         ]
       },
-      "accumulationMinutes": 35.08
+      "accumulationMinutes": 7.77
     },
     {
       "id": "fast_navigation",
@@ -213,12 +216,12 @@
           "courier": 2,
           "hauler": 5
         },
-        "researchCost": 132100,
+        "researchCost": 113200,
         "purchaseCost": 4505,
         "explorationCost": 360,
         "workingCapital": 2451,
-        "fleetExpansionCost": 38100,
-        "initialInvestment": 139416,
+        "fleetExpansionCost": 36900,
+        "initialInvestment": 120516,
         "profitPerMinute": 1371.82,
         "netProfit": 82309,
         "trips": 548,
@@ -296,12 +299,12 @@
           "hauler": 2,
           "clipper": 5
         },
-        "researchCost": 591800,
+        "researchCost": 572900,
         "purchaseCost": 7953,
         "explorationCost": 360,
         "workingCapital": 3369,
-        "fleetExpansionCost": 168400,
-        "initialInvestment": 603482,
+        "fleetExpansionCost": 167200,
+        "initialInvestment": 584582,
         "profitPerMinute": 1407.88,
         "netProfit": 84473,
         "trips": 632,
@@ -371,12 +374,12 @@
           "clipper": 4,
           "hauler": 1
         },
-        "researchCost": 1003800,
+        "researchCost": 984900,
         "purchaseCost": 10150,
         "explorationCost": 360,
         "workingCapital": 4368,
-        "fleetExpansionCost": 168400,
-        "initialInvestment": 1018678,
+        "fleetExpansionCost": 167200,
+        "initialInvestment": 999778,
         "profitPerMinute": 1539.92,
         "netProfit": 92395,
         "trips": 432,
@@ -448,12 +451,12 @@
           "hauler": 2,
           "swift": 1
         },
-        "researchCost": 2040900,
+        "researchCost": 2022000,
         "purchaseCost": 24126,
         "explorationCost": 2160,
         "workingCapital": 8031,
-        "fleetExpansionCost": 424000,
-        "initialInvestment": 2075217,
+        "fleetExpansionCost": 422800,
+        "initialInvestment": 2056317,
         "profitPerMinute": 2314.43,
         "netProfit": 138866,
         "trips": 641,
@@ -533,12 +536,12 @@
           "hauler": 6,
           "swift": 5
         },
-        "researchCost": 6751300,
+        "researchCost": 6732400,
         "purchaseCost": 35703,
         "explorationCost": 2160,
         "workingCapital": 11450,
-        "fleetExpansionCost": 1094500,
-        "initialInvestment": 6800613,
+        "fleetExpansionCost": 1093300,
+        "initialInvestment": 6781713,
         "profitPerMinute": 2506.38,
         "netProfit": 150383,
         "trips": 611,

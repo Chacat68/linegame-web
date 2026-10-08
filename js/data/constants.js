@@ -1,13 +1,16 @@
 import { MERCHANT_DEFAULTS } from './merchant.js';
+import { COMPANY_NAMES, getRandomCompanyName } from './companyNames.js';
+export const GAME_NAME = '开局一艘船，我成了星际首富';
 export const GAME_VERSION = '2.2.0';
-export const SAVE_SCHEMA_VERSION = 33;
+export const SAVE_SCHEMA_VERSION = 34;
 export const PERSISTED_STATE_DEFAULTS = Object.freeze({
-  companyName: '蓝脉信使物流体', credits: 1000,
+  companyName: COMPANY_NAMES[0], credits: 1000,
   currentGalaxy: 'milky_way', viewingGalaxy: 'milky_way', merchant: MERCHANT_DEFAULTS,
 });
 export const SAVE_STATE_SCHEMA = Object.freeze(Object.fromEntries(Object.entries(PERSISTED_STATE_DEFAULTS).map(([key, value]) => [key, { type: typeof value, default: value }])));
 export function createInitialState(overrides = {}) {
-  return structuredClone({ ...PERSISTED_STATE_DEFAULTS, ...overrides });
+  const companyName = overrides.companyName === undefined ? getRandomCompanyName() : overrides.companyName;
+  return structuredClone({ ...PERSISTED_STATE_DEFAULTS, ...overrides, companyName });
 }
 export function createSaveMeta(slotId, state, options = {}) {
   return {

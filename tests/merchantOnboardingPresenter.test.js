@@ -93,6 +93,31 @@ it('配船提示继续配置只聚焦现有货本，不重开抽屉或清空草�
   expect(h.state.credits).toBe(1000); expect(h.execute).not.toHaveBeenCalled(); h.presenter.dispose();
 });
 
+it('首单入口传递当前真实报价和空闲轻舟，只打开配置而不花费资金', () => {
+  const h = harness(), before = structuredClone(h.state);
+  h.hint.querySelector('[data-onboarding-action="dispatch"]').fire('click');
+  expect(h.openDispatch).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+    from: 'sol_prime', to: 'mineral_belt', goodId: 'food', opportunity: expect.objectContaining({ shipId: 'ship-1', budget: 126, purchaseCost: 0 }),
+  }));
+  expect(h.state).toEqual(before); h.presenter.dispose();
+});
+
+it('已登记但等待补货的首单不要求重复派遣，实际出发后切换在途通讯', () => {
+  const h = harness(); h.guide('opened-dispatch');
+  h.state.merchant.markets.sol_prime.supply.food = 0;
+  Merchant.command(h.state, 'create', plan, start); h.refresh();
+  expect(h.hint.innerHTML).toContain('等待首航出发');
+  expect(h.hint.querySelector('[data-story-phase="first-wait"]')).not.toBeNull();
+  expect(h.hint.querySelector('[data-onboarding-action="dispatch"]')).toBeNull();
+  expect(h.hint.querySelector('[data-onboarding-return]')).toBeNull();
+  expect(h.state.merchant.onboarding.step).toBe(2);
+  h.advance(start + 60000);
+  expect(h.state.merchant.onboarding.step).toBe(3);
+  expect(h.hint.querySelector('[data-story-phase="first-voyage"]')).not.toBeNull();
+  expect(h.hint.querySelector('[data-onboarding-return]').textContent).toBe('约 18 秒后返港结算');
+  h.presenter.dispose();
+});
+
 it('首航倒计时读取真实返港时间，到账提示读取真实净利，等待不误报收益', () => {
   const h = harness(), returnAt = h.dispatch();
   expect(h.hint.querySelector('[data-onboarding-return]').textContent).toBe('约 18 秒后返港结算');

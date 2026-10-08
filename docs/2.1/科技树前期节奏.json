@@ -1,5 +1,5 @@
 {
-  "strategy": "新局仅一个船位，跟随实际界面建议逐级积累；Lv.9 支付云帆船体与核心船位规划后增加第二条商路。每五级付费突破，至 Lv.24 支付完整勘察前置链与核心新港勘察，再停止原贸易、完整返港并付费探索。每秒查看，不赠资源、不改航速。",
+  "strategy": "新局单船首航并积累升级费用；Lv.2 依次付费研发船位规划与新港勘察，备齐购船款和探索费用后添购空闲轻舟，原贸易持续经营。新船完成去程、4分钟现场勘察及返程后开放工业星，并以返港船开启第二条商路。每秒查看，不赠资源、不改航速。",
   "completed": true,
   "timeline": [
     {
@@ -27,276 +27,60 @@
       "tasks": 1
     },
     {
-      "milestone": "升级至 Lv.3",
-      "seconds": 1372,
-      "cash": 34,
-      "level": 3,
-      "ships": 1,
-      "tasks": 1
-    },
-    {
-      "milestone": "升级至 Lv.4",
-      "seconds": 2229,
-      "cash": 34,
-      "level": 4,
-      "ships": 1,
-      "tasks": 1
-    },
-    {
-      "milestone": "升级至 Lv.5",
-      "seconds": 3086,
-      "cash": 34,
-      "level": 5,
-      "ships": 1,
-      "tasks": 1
-    },
-    {
-      "milestone": "突破至 Lv.6",
-      "seconds": 4801,
-      "cash": 34,
-      "level": 6,
-      "ships": 1,
-      "tasks": 1
-    },
-    {
-      "milestone": "升级至 Lv.7",
-      "seconds": 5864,
-      "cash": 38,
-      "level": 7,
-      "ships": 1,
-      "tasks": 1
-    },
-    {
-      "milestone": "升级至 Lv.8",
-      "seconds": 7047,
-      "cash": 36,
-      "level": 8,
-      "ships": 1,
-      "tasks": 1
-    },
-    {
-      "milestone": "升级至 Lv.9",
-      "seconds": 8298,
-      "cash": 2,
-      "level": 9,
-      "ships": 1,
-      "tasks": 1
-    },
-    {
-      "milestone": "云帆船体研发完成",
-      "seconds": 10681,
-      "cash": 2540,
-      "level": 9,
-      "ships": 1,
-      "tasks": 1
-    },
-    {
       "milestone": "船位规划研发完成",
-      "seconds": 10682,
-      "cash": 40,
-      "level": 9,
+      "seconds": 1046,
+      "cash": 36,
+      "level": 2,
       "ships": 1,
       "tasks": 1
-    },
-    {
-      "milestone": "第二条商路出发",
-      "seconds": 10870,
-      "cash": 4,
-      "level": 9,
-      "ships": 2,
-      "tasks": 2
-    },
-    {
-      "milestone": "升级至 Lv.10",
-      "seconds": 11402,
-      "cash": 52,
-      "level": 10,
-      "ships": 2,
-      "tasks": 2
-    },
-    {
-      "milestone": "突破至 Lv.11",
-      "seconds": 12705,
-      "cash": 10,
-      "level": 11,
-      "ships": 2,
-      "tasks": 2
-    },
-    {
-      "milestone": "升级至 Lv.12",
-      "seconds": 13356,
-      "cash": 14,
-      "level": 12,
-      "ships": 2,
-      "tasks": 2
-    },
-    {
-      "milestone": "升级至 Lv.13",
-      "seconds": 14076,
-      "cash": 50,
-      "level": 13,
-      "ships": 2,
-      "tasks": 2
-    },
-    {
-      "milestone": "升级至 Lv.14",
-      "seconds": 14848,
-      "cash": 10,
-      "level": 14,
-      "ships": 2,
-      "tasks": 2
-    },
-    {
-      "milestone": "升级至 Lv.15",
-      "seconds": 15687,
-      "cash": 36,
-      "level": 15,
-      "ships": 2,
-      "tasks": 2
-    },
-    {
-      "milestone": "突破至 Lv.16",
-      "seconds": 18157,
-      "cash": 54,
-      "level": 16,
-      "ships": 2,
-      "tasks": 2
-    },
-    {
-      "milestone": "升级至 Lv.17",
-      "seconds": 19065,
-      "cash": 78,
-      "level": 17,
-      "ships": 2,
-      "tasks": 2
-    },
-    {
-      "milestone": "升级至 Lv.18",
-      "seconds": 19991,
-      "cash": 10,
-      "level": 18,
-      "ships": 2,
-      "tasks": 2
-    },
-    {
-      "milestone": "升级至 Lv.19",
-      "seconds": 20968,
-      "cash": 66,
-      "level": 19,
-      "ships": 2,
-      "tasks": 2
-    },
-    {
-      "milestone": "升级至 Lv.20",
-      "seconds": 21980,
-      "cash": 38,
-      "level": 20,
-      "ships": 2,
-      "tasks": 2
-    },
-    {
-      "milestone": "突破至 Lv.21",
-      "seconds": 25545,
-      "cash": 36,
-      "level": 21,
-      "ships": 2,
-      "tasks": 2
-    },
-    {
-      "milestone": "升级至 Lv.22",
-      "seconds": 26626,
-      "cash": 6,
-      "level": 22,
-      "ships": 2,
-      "tasks": 2
-    },
-    {
-      "milestone": "升级至 Lv.23",
-      "seconds": 27774,
-      "cash": 42,
-      "level": 23,
-      "ships": 2,
-      "tasks": 2
-    },
-    {
-      "milestone": "升级至 Lv.24",
-      "seconds": 35198,
-      "cash": 39406,
-      "level": 24,
-      "ships": 2,
-      "tasks": 2
-    },
-    {
-      "milestone": "长鲸船体研发完成",
-      "seconds": 35198,
-      "cash": 34706,
-      "level": 24,
-      "ships": 2,
-      "tasks": 2
-    },
-    {
-      "milestone": "船队管理研发完成",
-      "seconds": 35199,
-      "cash": 27606,
-      "level": 24,
-      "ships": 2,
-      "tasks": 2
-    },
-    {
-      "milestone": "报价校核研发完成",
-      "seconds": 35200,
-      "cash": 26106,
-      "level": 24,
-      "ships": 2,
-      "tasks": 2
-    },
-    {
-      "milestone": "市场通讯研发完成",
-      "seconds": 35201,
-      "cash": 20206,
-      "level": 24,
-      "ships": 2,
-      "tasks": 2
     },
     {
       "milestone": "新港勘察研发完成",
-      "seconds": 35202,
-      "cash": 406,
-      "level": 24,
-      "ships": 2,
-      "tasks": 2
+      "seconds": 1903,
+      "cash": 36,
+      "level": 2,
+      "ships": 1,
+      "tasks": 1
     },
     {
-      "milestone": "勘察准备完成，等待探索船返港",
-      "seconds": 35202,
-      "cash": 406,
-      "level": 24,
+      "milestone": "添购空闲探索船，原商路继续经营",
+      "seconds": 2178,
+      "cash": 372,
+      "level": 2,
       "ships": 2,
-      "tasks": 2
+      "tasks": 1
     },
     {
       "milestone": "首次探索出发",
-      "seconds": 35214,
-      "cash": 214,
-      "level": 24,
+      "seconds": 2178,
+      "cash": 12,
+      "level": 2,
       "ships": 2,
       "tasks": 1
     },
     {
       "milestone": "探索返港，新港开放",
-      "seconds": 35275,
-      "cash": 481,
-      "level": 24,
+      "seconds": 2449,
+      "cash": 642,
+      "level": 2,
       "ships": 2,
       "tasks": 1
+    },
+    {
+      "milestone": "第二条商路出发",
+      "seconds": 2449,
+      "cash": 502,
+      "level": 2,
+      "ships": 2,
+      "tasks": 2
     }
   ],
-  "netProfit": 180189,
+  "netProfit": 5964,
   "spent": {
     "ship": 336,
-    "company": 135050,
-    "research": 44800,
+    "company": 2100,
+    "research": 3400,
     "exploration": 360
   },
-  "operatingCapital": 162
+  "operatingCapital": 266
 }

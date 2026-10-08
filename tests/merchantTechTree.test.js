@@ -55,7 +55,7 @@ describe('按公司等级推进的科技树', () => {
     const state = fresh(24);
     const full = buildMerchantTechTree(state.merchant, { selectedId: 'planet_survey' });
     expect(full.stages).toHaveLength(20); expect(full.columns).toBe(3); expect(full.nodes).toHaveLength(65);
-    expect(full.nodes.find(node => node.tech.id === 'planet_survey').tier).toBe(5);
+    expect(full.nodes.find(node => node.tech.id === 'planet_survey').tier).toBe(1);
     expect(new Set(full.nodes.map(node => `${node.x},${node.y}`)).size).toBe(65);
     for (const edge of full.edges) {
       expect(Merchant.getTech(edge.to).requires).toContain(edge.from);
@@ -69,13 +69,13 @@ describe('按公司等级推进的科技树', () => {
     }
     researchChain(state, 'planet_survey', { includeTarget: false });
     const filtered = buildMerchantTechTree(state.merchant, { category: '功能', selectedId: 'planet_survey' });
-    expect(filtered.nodes.find(node => node.tech.id === 'market_network').completed).toBe(true);
+    expect(filtered.nodes.find(node => node.tech.id === 'market_network').completed).toBe(false);
     expect(filtered.nodes.find(node => node.tech.id === 'planet_survey')).toMatchObject({
       x: full.nodes.find(node => node.tech.id === 'planet_survey').x,
       y: full.nodes.find(node => node.tech.id === 'planet_survey').y,
       missing: [], related: true,
     });
-    expect(filtered.edges.find(edge => edge.to === 'planet_survey')).toMatchObject({ from: 'market_network', completed: true, sourceHidden: false });
+    expect(filtered.edges.filter(edge => edge.to === 'planet_survey')).toHaveLength(0);
     expect(getTechTreeRelations('deep_survey').parents.map(tech => tech.id)).toEqual(['planet_survey', 'bulk_logistics']);
     expect(getTechTreeRelations('deep_survey').children.map(tech => tech.id)).toContain('integrated_freight');
     researchChain(state, 'planet_survey');
@@ -125,14 +125,14 @@ describe('按公司等级推进的科技树', () => {
       }
       const reference = tree.references.find(ref => ref.to === 'integrated_freight');
       expect(reference.parents.map(parent => parent.tech.id)).toEqual(Merchant.getTech('integrated_freight').requires);
-      expect(tree.edges.find(edge => edge.from === 'efficient_engines' && edge.to === 'thruster_calibration').kind).toBe('direct');
+      expect(tree.edges.find(edge => edge.from === 'efficient_engines' && edge.to === 'thruster_calibration')).toBeDefined();
     }
-    researchChain(state, 'berth_planning', { includeTarget: false });
-    const completed = buildMerchantTechTree(state.merchant, { selectedId: 'berth_planning' });
-    expect(completed.nodes.find(node => node.tech.id === 'clipper_design').completed).toBe(true);
-    expect(completed.edges.find(edge => edge.to === 'berth_planning')).toMatchObject({ kind: 'direct', completed: true, sourceHidden: false });
-    const filtered = buildMerchantTechTree(fresh().merchant, { category: '船队扩容' });
-    expect(filtered.references.find(ref => ref.to === 'berth_planning').parents[0].tech.id).toBe('clipper_design');
-    expect(filtered.edges.find(edge => edge.to === 'berth_planning')).toMatchObject({ kind: 'reference', sourceHidden: true, completed: false });
+    researchChain(state, 'fleet_command', { includeTarget: false });
+    const completed = buildMerchantTechTree(state.merchant, { selectedId: 'fleet_command' });
+    expect(completed.nodes.find(node => node.tech.id === 'berth_planning').completed).toBe(true);
+    expect(completed.edges.find(edge => edge.from === 'berth_planning' && edge.to === 'fleet_command')).toMatchObject({ kind: 'reference', completed: true, sourceHidden: false });
+    const filtered = buildMerchantTechTree(fresh().merchant, { category: '功能' });
+    expect(filtered.references.find(ref => ref.to === 'fleet_command').parents.map(parent => parent.tech.id)).toContain('berth_planning');
+    expect(filtered.edges.find(edge => edge.from === 'berth_planning' && edge.to === 'fleet_command')).toMatchObject({ kind: 'reference', sourceHidden: true, completed: false });
   });
 });

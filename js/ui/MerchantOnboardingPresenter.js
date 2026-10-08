@@ -1,18 +1,20 @@
 import { getOnboardingProgress } from '../systems/merchant/MerchantOnboarding.js';
 import { buildMerchantEarlyProgress } from './MerchantEarlyProgress.js';
+import { buildMerchantOpeningStory, buildMerchantOnboardingStory, renderMerchantStory } from './MerchantStory.js';
 import { hasBlockingSurfaceOpen, hideBlockingSurface, isBlockingSurfaceVisible, registerBlockingSurfaceDismiss, showBlockingSurface } from './SurfaceManager.js';
 
-export const MERCHANT_OPENING_STORY = '旧航路重新开放，太阳主星需要矿石，矿石带等待粮食。你接手了一家小运输公司，只有一艘轻舟和一笔启动资金。让第一条生意跑起来，用利润壮大商队，探索更多星球。蓝脉航路，等你重新连接。';
+export { MERCHANT_OPENING_STORY } from './MerchantStory.js';
+const escape = value => String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 const steps = Object.freeze([
   null,
-  { title: '安排第一条商路', text: '从「新派遣」开始，选择一条已开放的商路。粮食和矿石，都有需要它们的港口。', action: 'dispatch', label: '新派遣' },
-  { title: '配船，留出周转货本', text: '已为初始轻舟准备满载货本。查看预计净利后即可派遣，也可以改选商路、船只和金额。货本只需划拨一次。', action: 'dispatch', label: '继续配置' },
+  { title: '安排第一条商路', text: '从「新派遣」开始，选择一条已开放且有净利的商路。首航先用已有轻舟，保留剩余资金。', action: 'dispatch', label: '安排首航' },
+  { title: '配船，留出周转货本', text: '货本用于采购和往返费用，只划拨一次。检查飞船、货本和预计净利，点击底部「确认派遣」；剩余资金留给公司成长。', action: 'dispatch', label: '检查周转货本' },
   { title: '让商队完成第一趟', text: '往返自动执行，返港后才结算净利润。货本继续周转；缺货或需求暂满时会停靠等待，市场恢复后自动续跑。', action: 'tasks', label: '查看航运任务' },
-  { title: '用利润壮大公司', text: '初始公司还有船位，可以先添船、开通另一条商路。准备好升级和探索费用后，再向新港出发。', action: 'finish', label: '开始自主经营' },
+  { title: '用利润壮大公司', text: '用已到账利润准备下一次升级。公司等级开放研发资格，船位扩容、购船和货本仍要分别投入。', action: 'finish', label: '继续发展公司' },
 ]);
 
-export function createMerchantOnboardingPresenter({ doc = document, getState, execute, navigate, openDispatch }) {
+export function createMerchantOnboardingPresenter({ doc = document, getState, execute, navigate, openDispatch, openTask = () => {} }) {
   const intro = doc.createElement('div');
   intro.id = 'merchant-onboarding-intro';
   intro.className = 'modal hidden merchant-onboarding-intro';
@@ -21,7 +23,8 @@ export function createMerchantOnboardingPresenter({ doc = document, getState, ex
   intro.setAttribute('aria-modal', 'true');
   intro.setAttribute('aria-labelledby', 'merchant-onboarding-title');
   intro.setAttribute('aria-hidden', 'true');
-  intro.innerHTML = `<div class="modal-box merchant-onboarding-letter" tabindex="-1"><div class="merchant-onboarding-seal" aria-hidden="true">✦</div><small>港务局来信 · 1 / 5</small><h2 id="merchant-onboarding-title">从一艘轻舟开始</h2><p>${MERCHANT_OPENING_STORY}</p><div class="merchant-onboarding-letter-actions"><button type="button" data-onboarding-action="start" data-button-state="ready">开始经营</button><button type="button" data-onboarding-action="skip">跳过引导</button></div></div>`;
+  const handover = '<h2 id="merchant-onboarding-title">从一艘轻舟开始</h2><div class="merchant-onboarding-handover"><strong data-onboarding-company></strong><span data-onboarding-assets></span></div><div class="merchant-onboarding-clue"><small>交接档案 · 一张未签收的货单</small><p>远方的货单上，只写着“航运服务终止”。先让公司活下来，再去找那座失联的港口。</p></div>';
+  intro.innerHTML = `<div class="modal-box merchant-onboarding-letter" tabindex="-1">${renderMerchantStory(buildMerchantOpeningStory(), '', handover, 'opening')}<div class="merchant-onboarding-reply"><small>你的回应</small><div class="merchant-onboarding-letter-actions"><button type="button" data-onboarding-action="start" data-button-state="ready">接手公司</button><button type="button" data-onboarding-action="skip">跳过引导</button></div></div></div>`;
   const hint = doc.createElement('section');
   hint.id = 'merchant-onboarding-hint';
   hint.className = 'merchant-onboarding-hint';
@@ -37,6 +40,12 @@ export function createMerchantOnboardingPresenter({ doc = document, getState, ex
   function clearHighlights() {
     highlighted.forEach(node => node.classList.remove('merchant-onboarding-target'));
     highlighted = [];
+  }
+  function updateHighlights(selector) {
+    const next = selector ? Array.from(doc.querySelectorAll(selector)) : [];
+    highlighted.filter(node => !next.includes(node)).forEach(node => node.classList.remove('merchant-onboarding-target'));
+    next.filter(node => !highlighted.includes(node)).forEach(node => node.classList.add('merchant-onboarding-target'));
+    highlighted = next;
   }
   function context() {
     return { view: doc.body.dataset.activeView || 'tasks', formOpen: Boolean(doc.getElementById('merchant-form') && !doc.getElementById('merchant-form-panel')?.hidden) };
@@ -58,24 +67,31 @@ export function createMerchantOnboardingPresenter({ doc = document, getState, ex
       });
     }
     const isIntro = progress.step === 0;
+    if (isIntro) {
+      intro.querySelector('[data-onboarding-company]').textContent = state.companyName;
+      intro.querySelector('[data-onboarding-assets]').textContent = `${state.merchant.ships.length} 艘飞船 · ${Math.floor(state.credits).toLocaleString('zh-CN')} CR 启动资金`;
+    }
     if (isIntro && !doc.hidden && !hasBlockingSurfaceOpen(intro.id) && !isBlockingSurfaceVisible(intro.id)) {
       showBlockingSurface(intro.id, { focusSelector: '[data-onboarding-action="start"]' });
     } else if (!isIntro && isBlockingSurfaceVisible(intro.id)) hideBlockingSurface(intro.id);
-    clearHighlights();
     const visible = progress.step > 0 && progress.step < 5 && ['tasks', 'reports'].includes(options.view);
     const host = progress.step === 2 && options.formOpen && options.view === 'tasks' ? doc.getElementById('merchant-form')
       : doc.getElementById(options.view === 'reports' ? 'merchant-report-onboarding-host' : 'merchant-onboarding-host');
     hint.hidden = !visible || !host;
-    if (!visible || !host) return;
+    if (!visible || !host) { clearHighlights(); return; }
     if (hint.parentElement !== host) host.insertBefore(hint, host.firstChild);
     const definition = steps[progress.step];
     const settled = progress.settledTrips > 0;
-    const action = progress.step === 3 && settled ? 'report' : definition.action;
-    const label = progress.step === 3 && settled ? options.view === 'reports' ? '继续经营' : '查看首笔收入' : definition.label;
-    const early = progress.step === 4 ? buildMerchantEarlyProgress(state) : null;
+    const communication = buildMerchantOnboardingStory(state, progress);
+    const waiting = communication?.phase === 'first-wait';
+    const action = waiting ? 'tasks' : progress.step === 3 && settled ? 'report' : definition.action;
+    const label = waiting ? '查看等待原因' : progress.step === 3 && settled ? options.view === 'reports' ? '继续经营' : '查看首笔收入' : definition.label;
+    const early = [1, 4].includes(progress.step) ? buildMerchantEarlyProgress(state) : null;
     const profit = progress.latestSettlement?.profit;
-    const copy = progress.step === 3 && settled ? `${Number.isFinite(profit) ? `最近一趟净赚 ${Math.floor(profit).toLocaleString('zh-CN')} CR，已计入可用资金。` : '首趟净利润已计入可用资金。'}原货本继续经营，在报告中可以查看每趟结算。` : early?.text || definition.text;
-    const nextMarkup = `<div class="merchant-onboarding-copy"><small>经营入门 · ${progress.step + 1} / 5</small><h2 tabindex="-1">${progress.step === 3 && settled ? '第一笔收益已结算' : definition.title}</h2><p>${copy}</p>${progress.step === 3 && !settled && progress.nextReturnAt ? '<p data-onboarding-return></p>' : ''}</div><div class="merchant-onboarding-actions"><button type="button" data-onboarding-action="${action}" data-button-state="ready">${label}</button><button type="button" class="merchant-onboarding-skip" data-onboarding-action="skip">跳过引导</button></div>`;
+    const copy = waiting ? '首航任务已登记，暂在港口等待。查看任务中的原因；供需恢复后会自动出发，货本不足时可调整派遣，无需重复建立任务。'
+      : progress.step === 3 && settled ? `${Number.isFinite(profit) ? `最近一趟净赚 ${Math.floor(profit).toLocaleString('zh-CN')} CR，已计入可用资金。` : '首趟净利润已计入可用资金。'}原货本继续经营，在报告中可以查看每趟结算。` : early?.text || definition.text;
+    const objective = `<h2 tabindex="-1">${waiting ? '等待首航出发' : progress.step === 3 && settled ? '第一笔收益已结算' : definition.title}</h2><p>${escape(copy)}</p>${progress.step === 3 && !settled && progress.nextReturnAt ? '<p data-onboarding-return></p>' : ''}`;
+    const nextMarkup = `<div class="merchant-onboarding-copy">${renderMerchantStory(communication, `经营入门 · ${progress.step + 1} / 5`, objective)}</div><div class="merchant-onboarding-actions"><small class="merchant-onboarding-response-label">你的回应</small><button type="button" data-onboarding-action="${action}" data-button-state="ready">${label}</button><button type="button" class="merchant-onboarding-skip" data-onboarding-action="skip">跳过引导</button></div>`;
     if (markup !== nextMarkup) {
       const hadFocus = hint.contains(doc.activeElement);
       hint.innerHTML = nextMarkup;
@@ -84,14 +100,11 @@ export function createMerchantOnboardingPresenter({ doc = document, getState, ex
     }
     const returnNode = hint.querySelector('[data-onboarding-return]');
     if (returnNode) returnNode.textContent = `约 ${Math.max(0, Math.ceil((progress.nextReturnAt - state.merchant.lastTickAt) / 1000))} 秒后返港结算`;
-    const selector = progress.step === 1 ? '#merchant-task-workspace .merchant-operations-head [data-merchant-action="new"]'
+    const selector = waiting ? '' : progress.step === 1 ? '#merchant-task-workspace .merchant-operations-head [data-merchant-action="new"]'
       : progress.step === 2 && options.formOpen ? '#merchant-ship-picks, #merchant-plan-preview'
         : progress.step === 3 && settled ? '#bottom-nav [data-view="reports"]'
           : progress.step === 4 ? options.view === 'tasks' ? '#merchant-company-growth' : '#bottom-nav [data-view="tasks"]' : '';
-    if (selector) {
-      highlighted = Array.from(doc.querySelectorAll(selector));
-      highlighted.forEach(node => node.classList.add('merchant-onboarding-target'));
-    }
+    updateHighlights(selector);
   }
 
   function perform(action) {
@@ -102,11 +115,11 @@ export function createMerchantOnboardingPresenter({ doc = document, getState, ex
         const budget = doc.querySelector('#merchant-form [name="budget"]');
         budget?.focus();
         budget?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-      } else openDispatch();
+      } else openDispatch(buildMerchantEarlyProgress(getState())?.route || null);
       refresh();
       return;
     }
-    if (action === 'tasks') { navigate('tasks'); refresh(); return; }
+    if (action === 'tasks') { navigate('tasks'); openTask(getState().merchant.tasks[0]?.id); refresh(); return; }
     if (action === 'report') {
       navigate('reports');
       const progress = getOnboardingProgress(getState().merchant);

@@ -1,7 +1,8 @@
 import { restoreLegacyMerchantAccess } from '../js/systems/merchant/MerchantTechnology.js';
 import { describe, expect, it } from 'vitest';
 import { createInitialState } from '../js/data/constants.js';
-import { MERCHANT_COMPANY_LEVELS } from '../js/data/merchant.js';
+import { MERCHANT_COMPANY_LEVELS, MERCHANT_EXPLORATION_RULES } from '../js/data/merchant.js';
+import { getExplorationStage } from '../js/systems/merchant/MerchantExploration.js';
 import * as Merchant from '../js/systems/merchant/MerchantSystem.js';
 
 const start = 1_800_000_000_000;
@@ -31,8 +32,8 @@ function dispatch(state, shipId = 'ship-1', from = 'sol_prime') {
 }
 
 describe('真实时间新港探索', () => {
-  it('升到24级完成研发后出现唯一信号，重复推进不重抽或提前开港', () => {
-    const state = fresh({ level: 23, credits: MERCHANT_COMPANY_LEVELS[22].upgradeCost + Merchant.getTech('planet_survey').cost + 800 });
+  it('升到2级完成研发后出现唯一信号，重复推进不重抽或提前开港', () => {
+    const state = fresh({ level: 1, credits: MERCHANT_COMPANY_LEVELS[0].upgradeCost + Merchant.getTech('planet_survey').cost + 800 });
     Merchant.advance(state, start + 120000);
     expect(state.merchant.exploration).toMatchObject({ nextEventAt: 0, event: null });
     const now = state.merchant.lastTickAt;
@@ -95,7 +96,8 @@ describe('真实时间新港探索', () => {
     }
     const offer = Merchant.getExplorationPreview(state, input);
     expect(offer).toMatchObject({ ok: true, cost: 360 });
-    expect(offer.durationMs).toBe(2 * offer.legMs + 30000);
+    expect(offer).toMatchObject({ surveyMs: 4 * 60_000 });
+    expect(offer.durationMs).toBe(2 * offer.legMs + MERCHANT_EXPLORATION_RULES.surveyMs);
     const ships = state.merchant.ships.length;
     expect(Merchant.command(state, 'explore', input, now).ok).toBe(true);
     expect(state.credits).toBe(74);
@@ -115,11 +117,16 @@ describe('真实时间新港探索', () => {
       expect(offer.legMs).toBe(Merchant.legDuration('courier', from, 'nebula_forge'));
       expect(dispatch(state, 'ship-1', from).ok).toBe(true);
       const event = state.merchant.exploration.event;
-      const returningAt = beganAt + offer.legMs + 30000;
+      const returningAt = beganAt + offer.legMs + 4 * 60_000;
       const completedAt = beganAt + offer.durationMs;
       expect(state.credits).toBe(640);
       expect(state.merchant.ships[0]).toMatchObject({ taskId: event.id, phase: 'exploring', trip: null, arriveAt: returningAt });
       expect(state.merchant.markets).toEqual(markets);
+      Merchant.advance(state, beganAt + offer.legMs);
+      expect(getExplorationStage(event, state.merchant.lastTickAt)).toBe('surveying');
+      expect(event).toMatchObject({ surveyMs: 4 * 60_000, status: 'exploring' });
+      Merchant.advance(state, returningAt - 60_000);
+      expect(getExplorationStage(event, state.merchant.lastTickAt)).toBe('surveying');
       Merchant.advance(state, returningAt - 1);
       expect(event.status).toBe('exploring');
       expect(state.merchant.unlockedPorts).not.toContain('nebula_forge');

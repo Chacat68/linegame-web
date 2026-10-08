@@ -21,7 +21,7 @@ export function createMerchantStarmapController({ renderer = Renderer, doc = doc
   loader.hidden = true;
   loader.innerHTML = `<div class="startup-loader__stars" aria-hidden="true"></div><div class="startup-loader__scanline" aria-hidden="true"></div>
     <div class="startup-loader__panel"><div class="startup-loader__brand" aria-hidden="true"><span class="startup-loader__brand-orbit"></span><span class="startup-loader__brand-core"></span></div>
-    <p class="startup-loader__eyebrow">BLUE MERIDIAN / VERSION ${GAME_VERSION}</p><h2 class="startup-loader__title">星图</h2>
+    <p class="startup-loader__eyebrow">INTERSTELLAR TRADE / VERSION ${GAME_VERSION}</p><h2 class="startup-loader__title">星图</h2>
     <p class="startup-loader__status" data-scene-loading-status>正在加载星系场景</p>
     <div class="startup-loader__progress" data-scene-loading-progress aria-hidden="true"><span class="startup-loader__progress-fill"></span></div>
     <div class="startup-loader__actions"><button type="button" class="startup-loader__retry" data-scene-retry data-button-state="ready" hidden>重试</button><button type="button" class="startup-loader__retry" data-scene-return>返回经营</button></div></div>`;

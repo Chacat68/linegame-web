@@ -2,9 +2,9 @@ import * as Save from '../systems/save/SaveSystem.js';
 import { downloadRawSave } from './SaveExportEffect.js';
 import { loadSettings, saveSettings, applySettings } from '../core/SettingsCore.js';
 import { showBlockingSurface, hideBlockingSurface, registerBlockingSurfaceDismiss } from './SurfaceManager.js';
-import { GAME_VERSION } from '../data/constants.js';
+import { GAME_NAME, GAME_VERSION } from '../data/constants.js';
 const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
-export function createMerchantTools({ getState, replaceState, renderer, persist, onMessage }) {
+export function createMerchantTools({ getState, replaceState, renderer, onMessage }) {
   const modal = document.getElementById('settings-modal');
   const panel = modal.querySelector('.modal-box');
   let settings = loadSettings();
@@ -16,8 +16,8 @@ export function createMerchantTools({ getState, replaceState, renderer, persist,
   function status(message) { const element = document.getElementById('merchant-tools-status'); if (element) element.textContent = message; onMessage?.(message); }
   function draw() {
     panel.innerHTML = `<header class="merchant-tools-heading"><h2 id="merchant-tools-title">设置</h2><button type="button" class="ui-close-button" data-tool="close" aria-label="关闭设置">×</button></header>
-      <nav class="merchant-tools-tabs" aria-label="设置分类">${[['display','画面与声音'],['saves','存档'],['company','公司']].map(([id,name]) => `<button type="button" data-tool="tab" data-tab="${id}" aria-pressed="${id===tab}">${name}</button>`).join('')}</nav>
-      <div class="merchant-tools-body">${tab === 'display' ? `<label>场景动效<select id="setting-motion"><option value="full">完整</option><option value="reduced">减少</option><option value="off">关闭</option></select></label><label><span>面板毛玻璃</span><input type="checkbox" id="setting-blur" ${settings.terminalBlur ? 'checked' : ''}></label><label><span>操作音效</span><input type="checkbox" id="setting-sound" ${settings.soundEffectsEnabled ? 'checked' : ''}></label><label>音效音量<input type="range" id="setting-volume" min="0" max="1" step="0.05" value="${settings.soundEffectsVolume}"></label>` : tab === 'company' ? `<form id="merchant-company-form"><label>公司名称<input name="companyName" maxlength="80" value="${escape(getState().companyName)}" required></label><button type="submit" data-button-state="ready">保存名称</button></form><p class="merchant-version">蓝脉航路 ${GAME_VERSION}</p>` : `${Save.listSlots().map(item => `<article class="merchant-save-slot"><div><strong>${item.slotId===0 ? '自动存档' : '手动存档 '+item.slotId}</strong><p>${item.isEmpty ? '空槽位' : item.isCorrupted ? escape(item.errorMessage) : `${escape(item.meta.companyName)} · ${Math.floor(item.meta.credits).toLocaleString('zh-CN')} CR`}</p>${item.meta ? `<small>${new Date(item.meta.timestampMs).toLocaleString('zh-CN')}</small>` : ''}</div><div class="merchant-save-actions">${item.slotId ? `<button type="button" data-tool="save" data-button-state="ready" data-slot="${item.slotId}">保存</button>` : ''}<button type="button" data-tool="load" data-button-state="${item.isEmpty || item.isCorrupted ? 'blocked' : 'ready'}" data-slot="${item.slotId}" ${item.isEmpty || item.isCorrupted ? 'disabled' : ''}>读取</button><button type="button" data-tool="export" ${item.isEmpty ? 'data-button-state="blocked"' : ''} data-slot="${item.slotId}" ${item.isEmpty ? 'disabled' : ''}>导出</button><button type="button" data-tool="import" data-slot="${item.slotId}">导入</button>${item.slotId ? `<button type="button" data-tool="delete" data-button-state="${item.isEmpty ? 'blocked' : 'danger'}" data-slot="${item.slotId}" ${item.isEmpty ? 'disabled' : ''}>删除</button>` : ''}</div></article>`).join('')}<button type="button" data-tool="restart" data-button-state="danger">重新开始</button>`}</div><p id="merchant-tools-status" role="status" aria-live="polite"></p>`;
+      <nav class="merchant-tools-tabs" aria-label="设置分类">${[['display','画面与声音'],['saves','存档']].map(([id,name]) => `<button type="button" data-tool="tab" data-tab="${id}" aria-pressed="${id===tab}">${name}</button>`).join('')}</nav>
+      <div class="merchant-tools-body">${tab === 'display' ? `<label>场景动效<select id="setting-motion"><option value="full">完整</option><option value="reduced">减少</option><option value="off">关闭</option></select></label><label><span>面板毛玻璃</span><input type="checkbox" id="setting-blur" ${settings.terminalBlur ? 'checked' : ''}></label><label><span>操作音效</span><input type="checkbox" id="setting-sound" ${settings.soundEffectsEnabled ? 'checked' : ''}></label><label>音效音量<input type="range" id="setting-volume" min="0" max="1" step="0.05" value="${settings.soundEffectsVolume}"></label>` : `${Save.listSlots().map(item => `<article class="merchant-save-slot"><div><strong>${item.slotId===0 ? '自动存档' : '手动存档 '+item.slotId}</strong><p>${item.isEmpty ? '空槽位' : item.isCorrupted ? escape(item.errorMessage) : `${escape(item.meta.companyName)} · ${Math.floor(item.meta.credits).toLocaleString('zh-CN')} CR`}</p>${item.meta ? `<small>${new Date(item.meta.timestampMs).toLocaleString('zh-CN')}</small>` : ''}</div><div class="merchant-save-actions">${item.slotId ? `<button type="button" data-tool="save" data-button-state="ready" data-slot="${item.slotId}">保存</button>` : ''}<button type="button" data-tool="load" data-button-state="${item.isEmpty || item.isCorrupted ? 'blocked' : 'ready'}" data-slot="${item.slotId}" ${item.isEmpty || item.isCorrupted ? 'disabled' : ''}>读取</button><button type="button" data-tool="export" ${item.isEmpty ? 'data-button-state="blocked"' : ''} data-slot="${item.slotId}" ${item.isEmpty ? 'disabled' : ''}>导出</button><button type="button" data-tool="import" data-slot="${item.slotId}">导入</button>${item.slotId ? `<button type="button" data-tool="delete" data-button-state="${item.isEmpty ? 'blocked' : 'danger'}" data-slot="${item.slotId}" ${item.isEmpty ? 'disabled' : ''}>删除</button>` : ''}</div></article>`).join('')}<button type="button" data-tool="restart" data-button-state="danger">重新开始</button>`}</div><p class="merchant-version">${escape(GAME_NAME)} ${GAME_VERSION}</p><p id="merchant-tools-status" role="status" aria-live="polite"></p>`;
     if (tab === 'display') document.getElementById('setting-motion').value = settings.motionLevel;
   }
   function answerConfirmation(accepted) {
@@ -39,7 +39,7 @@ export function createMerchantTools({ getState, replaceState, renderer, persist,
   }
   function open(nextTab = 'display') {
     if (confirmResolve) answerConfirmation(false);
-    tab = nextTab; draw(); showBlockingSurface('settings-modal', { focusSelector: '[data-tool="close"]' });
+    tab = nextTab === 'saves' ? 'saves' : 'display'; draw(); showBlockingSurface('settings-modal', { focusSelector: '[data-tool="close"]' });
   }
   async function click(event) {
     const button = event.target.closest?.('[data-tool]');
@@ -90,12 +90,6 @@ export function createMerchantTools({ getState, replaceState, renderer, persist,
     applySettings(settings, renderer);
     try { saveSettings(settings); status('设置已保存。'); } catch { status('设置已应用，本地保存失败。'); }
   }
-  function submit(event) {
-    if (event.target.id !== 'merchant-company-form') return;
-    event.preventDefault(); const name = event.target.elements.companyName.value.trim();
-    if (!name) { status('请输入公司名称。'); return; }
-    getState().companyName = name; const result = persist(); status(result.ok ? '公司名称已保存。' : result.msg);
-  }
-  modal.addEventListener('click', click); modal.addEventListener('change', change); modal.addEventListener('input', change); modal.addEventListener('submit', submit);
-  return { open, dispose() { disposed = true; for (const input of importInputs) input.remove(); importInputs.clear(); if (confirmResolve) answerConfirmation(false); hideBlockingSurface('settings-modal'); release(); modal.removeEventListener('click',click); modal.removeEventListener('change',change); modal.removeEventListener('input',change); modal.removeEventListener('submit',submit); } };
+  modal.addEventListener('click', click); modal.addEventListener('change', change); modal.addEventListener('input', change);
+  return { open, dispose() { disposed = true; for (const input of importInputs) input.remove(); importInputs.clear(); if (confirmResolve) answerConfirmation(false); hideBlockingSurface('settings-modal'); release(); modal.removeEventListener('click',click); modal.removeEventListener('change',change); modal.removeEventListener('input',change); } };
 }

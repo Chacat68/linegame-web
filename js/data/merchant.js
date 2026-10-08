@@ -1,9 +1,9 @@
 // 扩大港口缓冲与每分钟恢复量，让基础商路能持续运行，扩充船队后再出现供需取舍。
 export const MERCHANT_PORTS = Object.freeze([
-  { id: 'sol_prime', name: '太阳主星', role: '农业港', supply: { food: 144 }, demand: { technology: 120, minerals: 96 }, buy: { food: 8 }, sell: { technology: 31, minerals: 19 } },
-  { id: 'mineral_belt', name: '矿石带', role: '矿业港', supply: { minerals: 128 }, demand: { food: 160, technology: 72 }, buy: { minerals: 11 }, sell: { food: 14, technology: 27 } },
-  { id: 'nebula_forge', name: '星云工厂', role: '工业港', supply: { technology: 104 }, demand: { minerals: 144, food: 64, alloys: 360 }, buy: { technology: 18 }, sell: { minerals: 20, food: 13, alloys: 17 } },
-  { id: 'aurora_depot', name: '极光原料港', role: '原料港', supply: { alloys: 360 }, demand: {}, buy: { alloys: 12 }, sell: {} },
+  { id: 'sol_prime', name: '金穗农业星', role: '农业港', supply: { food: 144 }, demand: { technology: 120, minerals: 96 }, buy: { food: 8 }, sell: { technology: 31, minerals: 19 } },
+  { id: 'mineral_belt', name: '黑金矿星', role: '矿业港', supply: { minerals: 128 }, demand: { food: 160, technology: 72 }, buy: { minerals: 11 }, sell: { food: 14, technology: 27 } },
+  { id: 'nebula_forge', name: '百炼工业星', role: '工业港', supply: { technology: 104 }, demand: { minerals: 144, food: 64, alloys: 360 }, buy: { technology: 18 }, sell: { minerals: 20, food: 13, alloys: 17 } },
+  { id: 'aurora_depot', name: '聚宝原料星', role: '原料港', supply: { alloys: 360 }, demand: {}, buy: { alloys: 12 }, sell: {} },
 ]);
 
 export const MERCHANT_GOODS = Object.freeze([
@@ -14,12 +14,12 @@ export const MERCHANT_GOODS = Object.freeze([
 ]);
 
 export const MERCHANT_SHIPS = Object.freeze([
-  { id: 'courier', name: '迅鸥轻舟', companyLevel: 1, capacity: 12, speed: 1.4, price: 280, fee: 13, sceneType: 'shuttle', description: '小货量、高周转；需求有限时更容易满载。' },
-  { id: 'clipper', name: '云帆快船', companyLevel: 6, techId: 'clipper_design', capacity: 18, speed: 1.12, price: 340, fee: 17, sceneType: 'clipper', description: '航速与载量均衡，适合稳定的常规商路。' },
-  { id: 'hauler', name: '长鲸货船', companyLevel: 10, techId: 'hauler_design', capacity: 28, speed: 0.82, price: 560, fee: 27, sceneType: 'freighter', description: '大货量、较慢周转；需要更多货本与港口需求。' },
-  { id: 'swift', name: '流星快递舰', capacity: 16, speed: 1.85, price: 850, fee: 19, sceneType: 'clipper', techId: 'fast_navigation', description: '高频往返，适合分散的短商路。' },
-  { id: 'bulk', name: '巨帆散货舰', capacity: 36, speed: 0.68, price: 980, fee: 34, sceneType: 'galleon', techId: 'bulk_logistics', description: '一次利用大港供需，周转较慢。' },
-  { id: 'relay', name: '远航联运舰', capacity: 30, speed: 1.2, price: 1250, fee: 31, sceneType: 'freighter', techId: 'integrated_freight', description: '兼顾大货量和跨港周转，购置成本较高。' },
+  { id: 'courier', name: '起家轻舟', companyLevel: 1, capacity: 12, speed: 1.4, price: 280, fee: 13, sceneType: 'shuttle', description: '小货量、高周转；需求有限时更容易满载。' },
+  { id: 'clipper', name: '翻身快船', companyLevel: 6, techId: 'clipper_design', capacity: 18, speed: 1.12, price: 340, fee: 17, sceneType: 'clipper', description: '航速与载量均衡，适合稳定的常规商路。' },
+  { id: 'hauler', name: '聚财货船', companyLevel: 10, techId: 'hauler_design', capacity: 28, speed: 0.82, price: 560, fee: 27, sceneType: 'freighter', description: '大货量、较慢周转；需要更多货本与港口需求。' },
+  { id: 'swift', name: '暴富快递舰', capacity: 16, speed: 1.85, price: 850, fee: 19, sceneType: 'clipper', techId: 'fast_navigation', description: '高频往返，适合分散的短商路。' },
+  { id: 'bulk', name: '金山散货舰', capacity: 36, speed: 0.68, price: 980, fee: 34, sceneType: 'galleon', techId: 'bulk_logistics', description: '一次利用大港供需，周转较慢。' },
+  { id: 'relay', name: '首富联运舰', capacity: 30, speed: 1.2, price: 1250, fee: 31, sceneType: 'freighter', techId: 'integrated_freight', description: '兼顾大货量和跨港周转，购置成本较高。' },
 ]);
 
 export const MERCHANT_TECH_CATEGORIES = Object.freeze(['航运科技', '航速', '载量', '收益', '船队扩容', '功能']);
@@ -75,10 +75,8 @@ export const MERCHANT_TECH_MILESTONES = Object.freeze({
 
 // 分支在核心节点汇合；仅约束尚未研发的项目，已付费成果和历史航次保持原样。
 const techBranchRequirements = {
-  berth_planning: ['clipper_design'],
   fleet_command: ['hauler_design', 'berth_planning'],
   market_network: ['fleet_command', 'trade_quotes'],
-  planet_survey: ['market_network'],
   dock_scheduling: ['fleet_command'],
   fast_navigation: ['clipper_design', 'cruise_tuning'],
   regional_berths: ['planet_survey'],
@@ -112,10 +110,10 @@ export const MERCHANT_TECHS = Object.freeze([
   { id: 'efficient_engines', name: '高效推进', category: '航速', companyLevel: 1, requires: [], speedBonus: 0.02, description: '全船队航速 +2%，贸易与探索都适用' },
   { id: 'thruster_calibration', name: '推进校准', category: '航速', companyLevel: 1, requires: ['efficient_engines'], speedBonus: 0.02, description: '全船队航速 +2%' },
   { id: 'fuel_injection', name: '燃料微调', category: '航速', companyLevel: 1, requires: ['thruster_calibration'], speedBonus: 0.01, description: '全船队航速 +1%' },
-  { id: 'clipper_design', name: '云帆船体', category: '航运科技', companyLevel: 2, requires: [], unlockShipId: 'clipper', description: '解锁云帆快船采购' },
+  { id: 'clipper_design', name: '翻身船体', category: '航运科技', companyLevel: 2, requires: [], unlockShipId: 'clipper', description: '解锁翻身快船采购' },
   { id: 'cargo_partitions', name: '货舱分区', category: '载量', companyLevel: 2, requires: [], capacityBonus: 0.02, description: '全船队载货量 +2%，按整舱位取整' },
   { id: 'berth_planning', name: '船位规划', category: '船队扩容', companyLevel: 2, requires: [], shipSlotBonus: 1, description: '公司船只上限 +1 艘，飞船需另行采购' },
-  { id: 'hauler_design', name: '长鲸船体', category: '航运科技', companyLevel: 3, requires: ['clipper_design'], unlockShipId: 'hauler', description: '解锁长鲸货船采购' },
+  { id: 'hauler_design', name: '聚财船体', category: '航运科技', companyLevel: 3, requires: ['clipper_design'], unlockShipId: 'hauler', description: '解锁聚财货船采购' },
   { id: 'loading_frames', name: '装载支架', category: '载量', companyLevel: 3, requires: ['cargo_partitions'], capacityBonus: 0.02, description: '全船队载货量 +2%，按整舱位取整' },
   { id: 'trade_quotes', name: '报价校核', category: '收益', companyLevel: 3, requires: [], profitBonus: 0.02, description: '可盈利商路的单趟净利 +2%' },
   { id: 'fleet_command', name: '船队管理', category: '功能', companyLevel: 4, requires: [], unlockFeature: 'ships', description: '解锁船坞、完整船队与船型投资比较' },
@@ -124,14 +122,14 @@ export const MERCHANT_TECHS = Object.freeze([
   { id: 'market_network', name: '市场通讯', category: '功能', companyLevel: 5, requires: [], unlockFeature: 'market', description: '解锁市场页、港口供需与星球情报交易' },
   { id: 'vector_nozzles', name: '矢量喷口', category: '航速', companyLevel: 5, requires: ['engine_cooling'], speedBonus: 0.02, description: '全船队航速 +2%' },
   { id: 'pallet_system', name: '托盘标准', category: '载量', companyLevel: 5, requires: ['storage_layout'], capacityBonus: 0.02, description: '全船队载货量 +2%，按整舱位取整' },
-  { id: 'planet_survey', name: '新港勘察', category: '功能', companyLevel: 6, requires: [], unlockFeature: 'exploration', description: '解锁首次新港探索，返港后开放商路' },
+  { id: 'planet_survey', name: '新港勘察', category: '功能', companyLevel: 6, requires: [], unlockFeature: 'exploration', description: '解锁首次新星球探索，现场勘察需4分钟，完整返港后开放商路' },
   { id: 'cruise_tuning', name: '巡航调校', category: '航速', companyLevel: 6, requires: ['vector_nozzles'], speedBonus: 0.02, description: '全船队航速 +2%' },
   { id: 'local_contracts', name: '地方合约', category: '收益', companyLevel: 6, requires: ['trade_quotes'], profitBonus: 0.02, description: '可盈利商路的单趟净利 +2%' },
   { id: 'dock_scheduling', name: '船坞排程', category: '船队扩容', companyLevel: 6, requires: ['berth_planning'], shipSlotBonus: 1, description: '公司船只上限 +1 艘，飞船需另行采购' },
   { id: 'cargo_racks', name: '货舱整理', category: '载量', companyLevel: 7, requires: ['pallet_system'], capacityBonus: 0.02, description: '全船队载货量 +2%，按整舱位取整' },
   { id: 'payment_terms', name: '账期协商', category: '收益', companyLevel: 7, requires: ['local_contracts'], profitBonus: 0.02, description: '可盈利商路的单趟净利 +2%' },
   { id: 'berth_rotation', name: '泊位轮转', category: '船队扩容', companyLevel: 7, requires: ['dock_scheduling'], shipSlotBonus: 1, description: '公司船只上限 +1 艘，飞船需另行采购' },
-  { id: 'fast_navigation', name: '快速航路', category: '航运科技', companyLevel: 8, requires: [], unlockShipId: 'swift', description: '解锁流星快递舰采购' },
+  { id: 'fast_navigation', name: '快速航路', category: '航运科技', companyLevel: 8, requires: [], unlockShipId: 'swift', description: '解锁暴富快递舰采购' },
   { id: 'autopilot_trim', name: '航向微调', category: '航速', companyLevel: 8, requires: ['cruise_tuning'], speedBonus: 0.02, description: '全船队航速 +2%' },
   { id: 'rack_reinforcement', name: '货架加固', category: '载量', companyLevel: 8, requires: ['cargo_racks'], capacityBonus: 0.03, description: '全船队载货量 +3%，按整舱位取整' },
   { id: 'fulfillment_protocol', name: '履约流程', category: '收益', companyLevel: 8, requires: ['payment_terms'], profitBonus: 0.02, description: '可盈利商路的单趟净利 +2%' },
@@ -142,10 +140,10 @@ export const MERCHANT_TECHS = Object.freeze([
   { id: 'hold_balancing', name: '舱内配重', category: '载量', companyLevel: 10, requires: ['container_stacking'], capacityBonus: 0.03, description: '全船队载货量 +3%，按整舱位取整' },
   { id: 'margin_audits', name: '成本核算', category: '收益', companyLevel: 10, requires: ['fulfillment_protocol'], profitBonus: 0.02, description: '可盈利商路的单趟净利 +2%' },
   { id: 'parallel_docks', name: '并行船坞', category: '船队扩容', companyLevel: 10, requires: ['regional_berths'], shipSlotBonus: 2, description: '公司船只上限 +2 艘，飞船需另行采购' },
-  { id: 'bulk_logistics', name: '重载物流', category: '航运科技', companyLevel: 11, requires: [], unlockShipId: 'bulk', description: '解锁巨帆散货舰采购' },
+  { id: 'bulk_logistics', name: '重载物流', category: '航运科技', companyLevel: 11, requires: [], unlockShipId: 'bulk', description: '解锁金山散货舰采购' },
   { id: 'ion_channels', name: '离子通道', category: '航速', companyLevel: 11, requires: ['engine_tuning'], speedBonus: 0.02, description: '全船队航速 +2%' },
   { id: 'partner_rebates', name: '伙伴返利', category: '收益', companyLevel: 11, requires: ['margin_audits'], profitBonus: 0.02, description: '可盈利商路的单趟净利 +2%' },
-  { id: 'deep_survey', name: '远域勘察', category: '功能', companyLevel: 12, requires: ['planet_survey'], unlockFeature: 'deepExploration', description: '解锁远域探索，发现极光原料港信号' },
+  { id: 'deep_survey', name: '远域勘察', category: '功能', companyLevel: 12, requires: ['planet_survey'], unlockFeature: 'deepExploration', description: '解锁远域探索，发现聚宝原料星信号' },
   { id: 'plasma_flow', name: '等离子导流', category: '航速', companyLevel: 12, requires: ['ion_channels'], speedBonus: 0.02, description: '全船队航速 +2%' },
   { id: 'cargo_connectors', name: '货舱连接', category: '载量', companyLevel: 12, requires: ['hold_balancing'], capacityBonus: 0.03, description: '全船队载货量 +3%，按整舱位取整' },
   { id: 'freight_pricing', name: '运价细分', category: '收益', companyLevel: 12, requires: ['partner_rebates'], profitBonus: 0.02, description: '可盈利商路的单趟净利 +2%' },
@@ -154,7 +152,7 @@ export const MERCHANT_TECHS = Object.freeze([
   { id: 'warp_alignment', name: '跃迁对准', category: '航速', companyLevel: 13, requires: ['plasma_flow'], speedBonus: 0.02, description: '全船队航速 +2%' },
   { id: 'distribution_terms', name: '分销协商', category: '收益', companyLevel: 13, requires: ['freight_pricing'], profitBonus: 0.02, description: '可盈利商路的单趟净利 +2%' },
   { id: 'remote_berths', name: '远域泊位', category: '船队扩容', companyLevel: 13, requires: ['dock_network'], shipSlotBonus: 1, description: '公司船只上限 +1 艘，飞船需另行采购' },
-  { id: 'integrated_freight', name: '联运调度', category: '航运科技', companyLevel: 14, requires: ['fast_navigation', 'bulk_logistics'], unlockShipId: 'relay', description: '解锁远航联运舰采购' },
+  { id: 'integrated_freight', name: '联运调度', category: '航运科技', companyLevel: 14, requires: ['fast_navigation', 'bulk_logistics'], unlockShipId: 'relay', description: '解锁首富联运舰采购' },
   { id: 'field_stabilization', name: '场域稳定', category: '航速', companyLevel: 14, requires: ['warp_alignment'], speedBonus: 0.02, description: '全船队航速 +2%' },
   { id: 'lightweight_containers', name: '轻质集装', category: '载量', companyLevel: 14, requires: ['cargo_expansion'], capacityBonus: 0.04, description: '全船队载货量 +4%，按整舱位取整' },
   { id: 'volume_contracts', name: '运量合约', category: '收益', companyLevel: 14, requires: ['distribution_terms'], profitBonus: 0.02, description: '可盈利商路的单趟净利 +2%' },
@@ -175,13 +173,14 @@ export const MERCHANT_TECHS = Object.freeze([
   { id: 'alliance_dividends', name: '商盟分红', category: '收益', companyLevel: 18, requires: ['trade_network'], profitBonus: 0.03, description: '可盈利商路的单趟净利 +3%' },
   { id: 'alliance_berths', name: '商盟泊位', category: '船队扩容', companyLevel: 18, requires: ['interstellar_docks'], shipSlotBonus: 2, description: '公司船只上限 +2 艘，飞船需另行采购' },
 ].map((tech, index, techs) => {
-  const companyLevel = 1 + Math.round(index * (MERCHANT_COMPANY_RULES.maxLevel - 1) / (techs.length - 1));
-  return Object.freeze({ ...tech, legacyCompanyLevel: tech.companyLevel, companyLevel,
+  const previousCompanyLevel = 1 + Math.round(index * (MERCHANT_COMPANY_RULES.maxLevel - 1) / (techs.length - 1));
+  const companyLevel = ['berth_planning', 'planet_survey'].includes(tech.id) ? 2 : previousCompanyLevel;
+  return Object.freeze({ ...tech, legacyCompanyLevel: tech.companyLevel, previousCompanyLevel, companyLevel,
     snapshotRequires: Object.freeze([...tech.requires]),
     requires: Object.freeze([...new Set([...tech.requires, ...(techBranchRequirements[tech.id] || [])])]),
     milestone: MERCHANT_TECH_MILESTONES[tech.id] ? Object.freeze({ ...MERCHANT_TECH_MILESTONES[tech.id] }) : null,
     cost: getMerchantTechPricing(tech, companyLevel).cost });
-}));
+}).sort((a, b) => a.companyLevel - b.companyLevel));
 
 // v30 及更早的属性研发对应拆分后的整组；保留旧档已购买的效果与航次快照。
 export const MERCHANT_LEGACY_TECH_GROUPS = Object.freeze({
@@ -235,27 +234,27 @@ export function isMerchantViewUnlocked(merchant, view) {
 }
 
 export const MERCHANT_EXPLORATION_RULES = Object.freeze({
-  companyLevel: 24,
+  companyLevel: 2,
   targetPortId: 'nebula_forge',
   techId: 'planet_survey',
   minDelayMs: 0,
   maxDelayMs: 0,
-  surveyMs: 30_000,
+  surveyMs: 4 * 60_000,
   cost: 360,
 });
 
 export const MERCHANT_EXPLORATION_TARGETS = Object.freeze([
   Object.freeze({ ...MERCHANT_EXPLORATION_RULES, requiresPorts: [] }),
-  Object.freeze({ companyLevel: 57, techId: 'deep_survey', targetPortId: 'aurora_depot', requiresPorts: ['nebula_forge'], minDelayMs: 45_000, maxDelayMs: 90_000, surveyMs: 60_000, cost: 1800 }),
+  Object.freeze({ companyLevel: 57, techId: 'deep_survey', targetPortId: 'aurora_depot', requiresPorts: ['nebula_forge'], minDelayMs: 45_000, maxDelayMs: 90_000, surveyMs: 8 * 60_000, cost: 1800 }),
 ]);
 
 export const MERCHANT_INTELLIGENCE = Object.freeze([
   Object.freeze({ id: 'forge_coordinates', type: 'planet', companyLevel: 20, targetPortId: 'nebula_forge', cost: 180,
     title: '外围工业星球情报', summary: '获取一颗未知工业星球的身份、产业线索与勘察坐标。',
-    detail: '星云工厂拥有工具生产设施，对矿石与粮食存在需求，可扩展现有商圈。' }),
+    detail: '百炼工业星拥有工具生产设施，对矿石与粮食存在需求，可扩展现有商圈。' }),
   Object.freeze({ id: 'aurora_coordinates', type: 'planet', companyLevel: 50, targetPortId: 'aurora_depot', cost: 600,
     title: '远域原料星球情报', summary: '获取远域资源星球的身份与勘察坐标，寻找新的大宗货源。',
-    detail: '极光原料港储有大宗工业原料，适合向工业星域供货；航程较长，需要兼顾运力和周转。' }),
+    detail: '聚宝原料星储有大宗工业原料，适合向工业星域供货；航程较长，需要兼顾运力和周转。' }),
 ]);
 
 export const MERCHANT_EXPLORATION_DEFAULTS = Object.freeze({ rngState: 0, nextEventAt: 0, nextPortId: null, event: null, completed: [] });

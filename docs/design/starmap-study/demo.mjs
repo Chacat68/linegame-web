@@ -40,10 +40,10 @@ let routes, ports, ships, stars, activeCurve;
 let width = 0, height = 0, mobile = false;
 
 const portDefinitions = [
-  { id:'sol_prime', name:'太阳主星', subtitle:'农业', type:'agricultural', color:'#77bda5', radius:1.05 },
-  { id:'mineral_belt', name:'矿石带', subtitle:'矿业', type:'mining', color:'#b9a185', radius:.86 },
-  { id:'nebula_forge', name:'星云工厂', subtitle:'工业', type:'industrial', color:'#bc927a', radius:.94 },
-  { id:'aurora_depot', name:'极光原料港', subtitle:'原料', type:'mining', color:'#83bbb1', radius:.8 },
+  { id:'sol_prime', name:'金穗农业星', subtitle:'农业', type:'agricultural', color:'#77bda5', radius:1.05 },
+  { id:'mineral_belt', name:'黑金矿星', subtitle:'矿业', type:'mining', color:'#b9a185', radius:.86 },
+  { id:'nebula_forge', name:'百炼工业星', subtitle:'工业', type:'industrial', color:'#bc927a', radius:.94 },
+  { id:'aurora_depot', name:'聚宝原料星', subtitle:'原料', type:'mining', color:'#83bbb1', radius:.8 },
 ];
 const labels = portDefinitions.map((definition,index) => {
   const button = document.createElement('button'); button.type='button';button.className='port-label';button.dataset.type=definition.type;

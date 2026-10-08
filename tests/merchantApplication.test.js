@@ -1,6 +1,6 @@
 import { restoreLegacyMerchantAccess } from '../js/systems/merchant/MerchantTechnology.js';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-const harness = vi.hoisted(() => ({ runtimes:[], toolsConfig:null, open:vi.fn(), dispose:vi.fn() }));
+const harness = vi.hoisted(() => ({ runtimes:[], toolsConfig:null, companyConfig:null, open:vi.fn(), dispose:vi.fn(), companyOpen:vi.fn(), companyDispose:vi.fn() }));
 vi.mock('../js/core/StartupState.js', () => ({prepareStartupState:()=>({state:{companyName:'测试',credits:1000,merchant:{tasks:[]}}})}));
 vi.mock('../js/core/MerchantGameRuntime.js', () => ({
   prepareMerchantSessionState:vi.fn(),
@@ -12,6 +12,7 @@ vi.mock('../js/core/MerchantGameRuntime.js', () => ({
 vi.mock('../js/ui/MerchantUI.js', () => ({init:vi.fn(),dispose:vi.fn(),render:vi.fn(),renderScene:vi.fn(),enterView:vi.fn(),notify:vi.fn()}));
 vi.mock('../js/ui/StarmapRenderer.js', () => ({}));
 vi.mock('../js/ui/MerchantToolsUI.js', () => ({createMerchantTools:config=>{harness.toolsConfig=config;return{open:harness.open,dispose:harness.dispose};}}));
+vi.mock('../js/ui/MerchantCompanyNameUI.js', () => ({createMerchantCompanyNameUI:config=>{harness.companyConfig=config;return{open:harness.companyOpen,dispose:harness.companyDispose};}}));
 vi.mock('../js/core/SettingsCore.js', () => ({loadSettings:()=>({}),applySettings:vi.fn()}));
 vi.mock('../js/core/AudioManager.js', () => ({init:vi.fn(),dispose:vi.fn(),playCue:vi.fn()}));
 import {init,shutdown} from '../js/core/GameApplication.js';
@@ -29,19 +30,23 @@ beforeEach(() => {
 });
 afterEach(() => {shutdown(); vi.useRealTimers(); vi.unstubAllGlobals();});
 
-it('经营组合根接通导航与设置，退出前补算且释放监听器和计时', async () => {
+it('经营组合根接通导航、设置与独立改名，退出前补算且释放监听器和计时', async () => {
   await init();
   click({target:{closest:selector=>selector==='[data-view]' ? {dataset:{view:'starmap'}} : null}});
   expect(document.body.dataset.activeView).toBe('starmap');
   const preventDefault=vi.fn();
   click({preventDefault,target:{closest:selector=>selector.includes('#settings-btn') ? {} : null}});
   expect(harness.open).toHaveBeenCalledOnce(); expect(preventDefault).toHaveBeenCalledOnce();
+  click({preventDefault:vi.fn(),target:{closest:selector=>selector==='#company-name-display' ? {} : null}});
+  expect(harness.companyOpen).toHaveBeenCalledOnce();
+  expect(harness.open).toHaveBeenCalledOnce();
   const runtime=harness.runtimes[0];runtime.order.length=0;
   shutdown('pagehide');
   expect(runtime.order).toEqual(['tick','stop']);expect(runtime.tick).toHaveBeenCalledWith(true);
   expect(cancelAnimationFrame).toHaveBeenCalledWith(42);
   expect(nodes.get('game-shell').removeEventListener).toHaveBeenCalledWith('click',expect.any(Function));
   expect(vi.getTimerCount()).toBe(0);
+  expect(harness.companyDispose).toHaveBeenCalledOnce();
 });
 it('读档换会话先停旧运行时，新操作和时钟只访问新资料', async () => {
   await init(); const previous=harness.runtimes[0];
@@ -51,6 +56,7 @@ it('读档换会话先停旧运行时，新操作和时钟只访问新资料', a
   expect(harness.runtimes[1].options.getState()).toBe(restored);
   expect(harness.runtimes[1].start).toHaveBeenCalledOnce();
   expect(harness.toolsConfig.getState()).toBe(restored);
+  expect(harness.companyConfig.getState()).toBe(restored);
 });
 
 it('未研发页面不能通过导航绕过资格，研发后可进入', async () => {

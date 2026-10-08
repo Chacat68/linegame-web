@@ -9,7 +9,7 @@ beforeEach(() => localStorage.clear());
 
 describe('科研按满编公司成长价格与阶段系数定价', () => {
   it.each([
-    ['efficient_engines', 500], ['berth_planning', 2500], ['planet_survey', 19800],
+    ['efficient_engines', 500], ['berth_planning', 1300], ['planet_survey', 2100],
     ['fast_navigation', 128200], ['bulk_logistics', 336000], ['integrated_freight', 1305000],
     ['alliance_berths', 624500],
   ])('%s 的所属阶段报价为 %i CR', (id, cost) => {
